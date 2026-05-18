@@ -50,6 +50,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [activeProposalIndex, setActiveProposalIndex] = useState(0);
+  const [isProposalFlipping, setIsProposalFlipping] = useState(false);
   const [proposals, setProposals] = useState<ResearchHubProposal[]>([]);
   const [proposalStatus, setProposalStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
   const daysUntilAllocation = useMemo(getDaysUntilAllocation, []);
@@ -84,11 +85,19 @@ const StartScreen: React.FC<StartScreenProps> = ({
   useEffect(() => {
     if (proposals.length < 2) return undefined;
 
+    let flipTimeout: number | undefined;
     const timer = window.setInterval(() => {
-      setActiveProposalIndex((index) => (index + 1) % proposals.length);
-    }, 3600);
+      setIsProposalFlipping(true);
+      flipTimeout = window.setTimeout(() => {
+        setActiveProposalIndex((index) => (index + 1) % proposals.length);
+        setIsProposalFlipping(false);
+      }, 640);
+    }, 5600);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      if (flipTimeout) window.clearTimeout(flipTimeout);
+    };
   }, [proposals.length]);
 
   const handleSendFeedback = async () => {
@@ -139,7 +148,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(37,99,235,0.28),transparent_34%),radial-gradient(circle_at_90%_12%,rgba(34,197,94,0.12),transparent_30%),linear-gradient(180deg,rgba(5,8,22,0.42),rgba(5,8,22,0.98))]"></div>
       <div className="absolute inset-0 bg-[linear-gradient(rgba(226,232,240,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(226,232,240,0.035)_1px,transparent_1px)] bg-[size:36px_36px]"></div>
 
-      <div className="relative z-10 mx-auto flex h-full w-full max-w-6xl touch-pan-y flex-col gap-2 overflow-y-auto px-3 pb-3 pt-14 custom-scrollbar sm:px-4 md:pt-4">
+      <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl touch-pan-y flex-col gap-2 overflow-y-auto px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-14 custom-scrollbar sm:px-4 sm:pb-4 md:pt-4">
         <div className="flex min-h-[260px] flex-col gap-3 overflow-hidden rounded-[26px] border border-white/10 bg-slate-950/72 p-3 shadow-[0_24px_90px_rgba(0,0,0,0.42)] backdrop-blur-xl sm:min-h-[250px] sm:p-4 lg:min-h-[180px]">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -264,10 +273,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 {proposalStatus === 'ready' ? stackedProposals.map(({ proposal, offset }) => (
                   <article
                     key={proposal.id}
-                    className={`absolute inset-x-0 top-0 rounded-[22px] border border-slate-200 bg-white p-3 text-slate-950 shadow-[0_22px_55px_rgba(0,0,0,0.42)] transition-all duration-700 ${offset > 0 ? 'pointer-events-none' : ''}`}
+                    className={`absolute inset-x-0 top-0 will-change-transform rounded-[22px] border border-slate-200 bg-white p-3 text-slate-950 shadow-[0_22px_55px_rgba(0,0,0,0.42)] transition-[transform,opacity,filter] duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${offset > 0 ? 'pointer-events-none' : ''}`}
                     style={{
-                      opacity: offset === 0 ? 1 : offset === 1 ? 0.78 : 0.46,
-                      transform: `translateY(${offset * 18}px) scale(${1 - offset * 0.045})`,
+                      opacity: offset === 0 ? (isProposalFlipping ? 0.92 : 1) : offset === 1 ? 0.74 : 0.42,
+                      filter: offset === 0 ? 'none' : `saturate(${1 - offset * 0.12}) blur(${offset * 0.15}px)`,
+                      backfaceVisibility: 'hidden',
+                      transformOrigin: 'center bottom',
+                      transform: offset === 0
+                        ? `perspective(1000px) translateY(${isProposalFlipping ? -12 : 0}px) rotateX(${isProposalFlipping ? -7 : 0}deg) scale(${isProposalFlipping ? 0.985 : 1})`
+                        : `perspective(1000px) translateY(${offset * 20}px) rotateX(${offset * 1.5}deg) scale(${1 - offset * 0.05})`,
                       zIndex: 3 - offset
                     }}
                   >

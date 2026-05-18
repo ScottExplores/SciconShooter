@@ -83,7 +83,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, setGameState, showLabGlow,
   };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-10 flex flex-col justify-between p-3 sm:p-4">
+    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-3 sm:p-4">
       <div className="flex w-full items-start justify-between gap-3">
         <div className="pointer-events-auto space-y-2">
           <div className="min-w-[156px] rounded-[20px] border border-white/10 bg-slate-950/74 px-4 py-3 shadow-[0_14px_36px_rgba(0,0,0,0.34)] backdrop-blur-md">
@@ -130,7 +130,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, setGameState, showLabGlow,
       </div>
 
       {!stats.isBossActive && (
-        <div className="pointer-events-auto fixed right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center sm:right-4">
+        <div className="pointer-events-auto absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center sm:right-4">
           <div className="flex h-[240px] w-4 items-end overflow-hidden rounded-full border border-white/10 bg-slate-950/68 p-1 shadow-[0_12px_34px_rgba(0,0,0,0.32)] backdrop-blur-md">
             <div className="relative h-full w-full overflow-hidden rounded-full bg-black/45">
               <div
@@ -144,7 +144,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, setGameState, showLabGlow,
         </div>
       )}
 
-      <div className="pointer-events-auto fixed bottom-5 right-5 z-20 sm:bottom-7 sm:right-7">
+      <div className="pointer-events-auto absolute bottom-5 right-5 z-20 sm:bottom-7 sm:right-7">
         <button
           onClick={handleOpenLab}
           className={`group relative flex h-16 w-16 items-center justify-center rounded-[22px] border bg-white text-slate-950 shadow-[0_18px_50px_rgba(0,0,0,0.36)] outline-none transition hover:-translate-y-0.5 hover:bg-blue-100 active:translate-y-0 ${isUpgradeReady ? 'border-yellow-300' : 'border-white/20'}`}

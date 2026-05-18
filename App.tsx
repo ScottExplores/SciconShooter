@@ -21,7 +21,7 @@ import SupportPanel from './components/SupportPanel';
 import WalletButton from './components/WalletButton';
 import StoryTransmission from './components/StoryTransmission';
 import UpgradeCoach from './components/UpgradeCoach';
-import { DonationStatus, GameState, LeaderboardEntry, MiniAppState, Stats, Upgrades, WalletSession } from './types';
+import { DonationStatus, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
 import { ASSETS, DONATION_CONFIG, STORAGE_KEYS, UPGRADE_BASE_COSTS } from './constants';
 import { getScores, saveScore } from './services/leaderboardService';
@@ -42,6 +42,14 @@ const defaultMissionUpgrades: Upgrades = {
   missile: 0
 };
 
+const defaultPowerupUses: Record<PowerupType, number> = {
+  [PowerupType.DOUBLE_SHOT]: 0,
+  [PowerupType.TRIPLE_SHOT]: 0,
+  [PowerupType.MAGNET]: 0,
+  [PowerupType.SHIELD]: 0,
+  [PowerupType.EXTRA_LIFE]: 0
+};
+
 const getUpgradeCost = (type: keyof Upgrades, upgrades: Upgrades) => (
   UPGRADE_BASE_COSTS[type] + (5 * (Math.pow(2, upgrades[type]) - 1))
 );
@@ -50,9 +58,14 @@ const getRepairCost = (stats: Stats) => (
   UPGRADE_BASE_COSTS.repair + ((stats.repairsCount || 0) * 5)
 );
 
+const getPowerupCost = (stats: Stats, type: PowerupType) => (
+  UPGRADE_BASE_COSTS.powerup + ((stats.powerupUses?.[type] || 0) * 10)
+);
+
 const canAffordUpgrade = (stats: Stats) => (
   (Object.keys(stats.upgrades) as Array<keyof Upgrades>).some((type) => stats.upgrades[type] < 5 && stats.coins >= getUpgradeCost(type, stats.upgrades))
   || stats.coins >= getRepairCost(stats)
+  || (Object.values(PowerupType) as PowerupType[]).some((type) => stats.coins >= getPowerupCost(stats, type))
 );
 
 const readCreditedFundingTxs = (): Record<string, boolean> => {
@@ -103,6 +116,7 @@ const App: React.FC = () => {
   const [activeStoryBeat, setActiveStoryBeat] = useState<StoryBeat | null>(null);
   const [showUpgradeCoach, setShowUpgradeCoach] = useState(false);
   const [upgradeCoachSeenGameId, setUpgradeCoachSeenGameId] = useState(0);
+  const [purchasedPowerup, setPurchasedPowerup] = useState<{ type: PowerupType; nonce: number } | null>(null);
   const [donatedWallets, setDonatedWallets] = useState<Record<string, boolean>>(() => {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEYS.DONATED_WALLETS) || '{}');
@@ -193,6 +207,7 @@ const App: React.FC = () => {
       lives: 3,
       repairsCount: 0,
       upgrades: { ...defaultMissionUpgrades },
+      powerupUses: { ...defaultPowerupUses },
       bossProgress: 0,
       isBossActive: false,
       bossHp: 0,
@@ -281,6 +296,7 @@ const App: React.FC = () => {
       lives: 3,
       repairsCount: 0,
       upgrades: { ...defaultMissionUpgrades },
+      powerupUses: { ...defaultPowerupUses },
       bossProgress: 0,
       isBossActive: false,
       bossHp: 0,
@@ -290,6 +306,7 @@ const App: React.FC = () => {
     setLabFundingHash('');
     setLabFundingError('');
     setShowUpgradeCoach(false);
+    setPurchasedPowerup(null);
     setShowNameInput(false);
     setPlayerNameInput('');
     setIsSubmittingScore(false);
@@ -347,6 +364,21 @@ const App: React.FC = () => {
       coins: prev.coins + amount
     }));
     audioService.playSound('coin');
+  };
+
+  const handleBuyPowerup = (type: PowerupType) => {
+    const cost = getPowerupCost(stats, type);
+    if (stats.coins < cost) return;
+
+    setStats(prev => ({
+      ...prev,
+      coins: prev.coins - cost,
+      powerupUses: {
+        ...prev.powerupUses,
+        [type]: (prev.powerupUses?.[type] || 0) + 1
+      }
+    }));
+    setPurchasedPowerup({ type, nonce: Date.now() });
   };
 
   const connectWallet = async (connectorId?: string) => {
@@ -519,6 +551,44 @@ const App: React.FC = () => {
     }
   };
 
+  const fundCurrentMissionWithUsdc = async (usdcAmount: number) => {
+    setLabFundingError('');
+    setLabFundingHash('');
+
+    try {
+      setLabFundingStatus('processing');
+      const { pay } = await import('@base-org/account/payment');
+      const payment = await pay({
+        amount: usdcAmount.toFixed(2),
+        to: DONATION_CONFIG.RECIPIENT_ADDRESS,
+        testnet: false,
+        telemetry: false
+      });
+
+      const paymentKey = `basepay:${payment.id}`.toLowerCase();
+      const alreadyCredited = Boolean(readCreditedFundingTxs()[paymentKey]);
+
+      if (!alreadyCredited) {
+        const credits = usdcAmount * DONATION_CONFIG.MISSION_CREDITS_PER_USDC;
+        setStats(prev => ({
+          ...prev,
+          coins: prev.coins + credits
+        }));
+        markFundingTxCredited(paymentKey);
+        audioService.playSound('coin');
+      }
+
+      setLabFundingStatus('success');
+      setTimeout(() => {
+        setLabFundingStatus('idle');
+      }, 5000);
+    } catch (error: any) {
+      console.error("Base Pay funding error", error);
+      setLabFundingStatus('error');
+      setLabFundingError(getUserFacingMessage(error, 'Base Pay cancelled.'));
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'v' || e.key === 'V') {
@@ -642,6 +712,10 @@ const App: React.FC = () => {
     await miniAppService.openUrl(url);
   };
 
+  const openRscSwap = async () => {
+    await miniAppService.openUrl(DONATION_CONFIG.RSC_SWAP_URL);
+  };
+
   const pubStatus = getPubStatus(stats.score);
 
   return (
@@ -653,6 +727,7 @@ const App: React.FC = () => {
           onConnect={connectWallet}
           onDisconnect={disconnectWallet}
           onDonate={donateRsc}
+          onOpenSwap={openRscSwap}
         />
       ) : null}
 
@@ -664,6 +739,7 @@ const App: React.FC = () => {
           setGameState={setGameState}
           gameState={gameState}
           isTransmissionOpen={Boolean(activeStoryBeat || showUpgradeCoach)}
+          purchasedPowerup={purchasedPowerup}
         />
       )}
 
@@ -729,11 +805,15 @@ const App: React.FC = () => {
         <UpgradeShop
           stats={stats}
           wallet={wallet}
+          connectors={connectors}
           onUpgrade={handleUpgrade}
           onDeposit={handleDeposit}
+          onBuyPowerup={handleBuyPowerup}
           onClose={() => setGameState(GameState.PLAYING)}
           onConnectWallet={connectWallet}
           onBuyMissionCredits={fundCurrentMission}
+          onBuyMissionCreditsUsdc={fundCurrentMissionWithUsdc}
+          onOpenRscSwap={openRscSwap}
           labFundingStatus={labFundingStatus}
           labFundingHash={labFundingHash}
           labFundingError={labFundingError}

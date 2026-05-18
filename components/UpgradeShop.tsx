@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { DonationStatus, Stats, Upgrades, WalletSession } from '../types';
+import type { Connector } from 'wagmi';
+import { DonationStatus, PowerupType, Stats, Upgrades, WalletSession } from '../types';
 import { ASSETS, DONATION_CONFIG, UPGRADE_BASE_COSTS } from '../constants';
 
 interface UpgradeShopProps {
   stats: Stats;
   wallet: WalletSession;
+  connectors: readonly Connector[];
   onUpgrade: (type: keyof Upgrades | 'repair') => void;
   onDeposit: (coins: number) => void;
+  onBuyPowerup: (type: PowerupType) => void;
   onClose: () => void;
-  onConnectWallet: () => void;
+  onConnectWallet: (connectorId?: string) => void;
   onBuyMissionCredits: (rscAmount: number) => void;
+  onBuyMissionCreditsUsdc: (usdcAmount: number) => void;
+  onOpenRscSwap: () => void;
   labFundingStatus: DonationStatus;
   labFundingHash: string;
   labFundingError: string;
@@ -21,24 +26,79 @@ const fundingPackages = DONATION_CONFIG.PRESET_RSC_AMOUNTS.map((amount) => ({
   credits: amount * DONATION_CONFIG.MISSION_CREDITS_PER_RSC
 }));
 
-const upgradeCopy: Record<keyof Upgrades, { title: string; tag: string; description: string; color: string }> = {
+const usdcFundingPackages = DONATION_CONFIG.PRESET_USDC_AMOUNTS.map((amount) => ({
+  usdc: amount,
+  credits: amount * DONATION_CONFIG.MISSION_CREDITS_PER_USDC
+}));
+
+const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
+
+const getConnectorLabel = (connector: Connector) => {
+  if (connector.id === 'baseAccount') return 'Base Account';
+  if (connector.id === 'coinbaseWalletSDK') return 'Coinbase';
+  if (connector.id === 'walletConnect') return 'WalletConnect';
+  if (connector.id === 'injected') return 'Browser';
+  if (connector.id === 'farcaster') return 'Farcaster';
+  return connector.name;
+};
+
+const getVisibleConnectors = (connectors: readonly Connector[]) => {
+  const priority = ['baseAccount', 'coinbaseWalletSDK', 'walletConnect', 'injected'];
+  return [...connectors]
+    .filter((connector) => connector.id !== 'farcaster')
+    .sort((a, b) => {
+      const aIndex = priority.indexOf(a.id);
+      const bIndex = priority.indexOf(b.id);
+      return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+    });
+};
+
+const upgradeCopy: Record<keyof Upgrades, { title: string; tag: string; icon: string; description: string }> = {
   fireRate: {
     title: 'Rapid Review',
-    tag: 'Fire rate',
-    description: 'More shots. More pressure.',
-    color: 'indigo'
+    tag: 'Fire',
+    icon: '⚡',
+    description: 'Faster shots'
   },
   speed: {
     title: 'Velocity Grant',
-    tag: 'Handling',
-    description: 'Sharper movement for tight dodges.',
-    color: 'cyan'
+    tag: 'Speed',
+    icon: '🚀',
+    description: 'Sharper moves'
   },
   missile: {
     title: 'Proton Missiles',
-    tag: 'Auto lock',
-    description: 'Adds homing support fire.',
-    color: 'blue'
+    tag: 'Lock',
+    icon: '🎯',
+    description: 'Auto support'
+  }
+};
+
+const powerupCopy: Record<PowerupType, { title: string; tag: string; image: string }> = {
+  [PowerupType.DOUBLE_SHOT]: {
+    title: 'Double Shot',
+    tag: 'Parallel fire',
+    image: ASSETS.FOUNDER_4
+  },
+  [PowerupType.TRIPLE_SHOT]: {
+    title: 'Triple Shot',
+    tag: 'Spread fire',
+    image: ASSETS.FOUNDER_BRIAN
+  },
+  [PowerupType.MAGNET]: {
+    title: 'Credit Magnet',
+    tag: 'Pull coins',
+    image: ASSETS.FOUNDER_PATRICK
+  },
+  [PowerupType.SHIELD]: {
+    title: 'Shield',
+    tag: 'Block hits',
+    image: ASSETS.FOUNDER_JEFFREY
+  },
+  [PowerupType.EXTRA_LIFE]: {
+    title: 'Life Flask',
+    tag: '+1 life',
+    image: ASSETS.FOUNDER_ARSHIA
   }
 };
 
@@ -54,11 +114,15 @@ const statusText: Record<DonationStatus, string> = {
 const UpgradeShop: React.FC<UpgradeShopProps> = ({
   stats,
   wallet,
+  connectors,
   onUpgrade,
   onDeposit,
+  onBuyPowerup,
   onClose,
   onConnectWallet,
   onBuyMissionCredits,
+  onBuyMissionCreditsUsdc,
+  onOpenRscSwap,
   labFundingStatus,
   labFundingHash,
   labFundingError,
@@ -76,6 +140,10 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
     const repairs = stats.repairsCount || 0;
     return UPGRADE_BASE_COSTS.repair + (repairs * 5);
   };
+
+  const getPowerupCost = (type: PowerupType) => (
+    UPGRADE_BASE_COSTS.powerup + ((stats.powerupUses?.[type] || 0) * 10)
+  );
 
   const handlePromoCode = (event: React.FormEvent) => {
     event.preventDefault();
@@ -111,80 +179,207 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
   };
 
   const isFundingBusy = labFundingStatus === 'switching_network' || labFundingStatus === 'processing' || labFundingStatus === 'confirming';
-  const canBuyAnyUpgrade = (Object.keys(upgradeCopy) as Array<keyof Upgrades>).some((type) => stats.coins >= getCost(type) && stats.upgrades[type] < 5) || stats.coins >= getRepairCost();
+  const visibleConnectors = getVisibleConnectors(connectors);
+  const canBuyAnyUpgrade = (Object.keys(upgradeCopy) as Array<keyof Upgrades>).some((type) => stats.coins >= getCost(type) && stats.upgrades[type] < 5)
+    || stats.coins >= getRepairCost()
+    || (Object.values(PowerupType) as PowerupType[]).some((type) => stats.coins >= getPowerupCost(type));
 
   return (
     <div className="absolute inset-0 z-30 bg-black/82 backdrop-blur-md">
-      <div className="mx-auto flex h-full w-full max-w-5xl items-start justify-center overflow-y-auto p-2 sm:p-4">
-        <div className="relative my-2 flex w-full max-w-4xl flex-col overflow-hidden border border-cyan-300/20 bg-slate-950/92 shadow-[0_26px_90px_rgba(0,0,0,0.6)] [clip-path:polygon(18px_0,100%_0,100%_92%,96%_100%,0_100%,0_18px)]">
+      <div className="mx-auto flex h-[100dvh] w-full max-w-5xl items-start justify-center overflow-y-auto px-2 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-2 sm:p-4">
+        <div className="relative my-2 flex w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-cyan-300/20 bg-slate-950/94 shadow-[0_26px_90px_rgba(0,0,0,0.6)]">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/70 to-transparent"></div>
 
-          <div className="relative z-10 flex flex-col gap-4 overflow-y-auto p-4 sm:p-5 md:p-6 custom-scrollbar">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="grid h-14 w-14 place-items-center border border-cyan-300/25 bg-cyan-300/10 shadow-[0_0_24px_rgba(34,211,238,0.12)] [clip-path:polygon(20%_0,80%_0,100%_20%,100%_80%,80%_100%,20%_100%,0_80%,0_20%)] sm:h-16 sm:w-16">
-                  <svg viewBox="0 0 64 64" className="h-10 w-10 text-cyan-100" aria-hidden="true">
-                    <path d="M25 7h14v7l-4 5v9l16 19c3 4 0 10-5 10H18c-5 0-8-6-5-10l16-19v-9l-4-5V7Z" fill="none" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
-                    <path d="M22 43h20M27 28h10M25 49h14" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-                  </svg>
-                </div>
+          <div className="relative z-10 flex max-h-[calc(100dvh-1rem)] flex-col">
+            <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-3 pb-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="arcade-font text-2xl font-black leading-none tracking-widest text-white sm:text-3xl md:text-4xl">LAB BAY</h2>
-                  <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.22em] text-cyan-200/75">
-                    Fund. Upgrade. Return.
-                  </p>
+                  <h2 className="arcade-font text-2xl font-black leading-none tracking-widest text-white sm:text-3xl">LAB BAY</h2>
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-200/75">Fund. Upgrade. Return.</p>
+                </div>
+
+                <div className={`rounded-2xl border px-3 py-2 ${canBuyAnyUpgrade ? 'border-yellow-300/40 bg-yellow-300/10' : 'border-cyan-300/20 bg-cyan-950/25'}`}>
+                  <span className="block text-[9px] font-bold uppercase tracking-[0.2em] text-cyan-200/70">Credits</span>
+                  <div className="mt-1 flex items-center gap-2">
+                    <img src={ASSETS.RSC_TOKEN} className="h-5 w-5" alt="RSC" />
+                    <span className="font-mono text-2xl font-bold text-white">{stats.coins}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className={`border px-4 py-3 ${canBuyAnyUpgrade ? 'border-yellow-300/40 bg-yellow-300/10' : 'border-cyan-300/20 bg-cyan-950/25'}`}>
-                <span className="block text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-200/70">Mission Credits</span>
-                <div className="mt-1 flex items-center gap-2">
-                  <img src={ASSETS.RSC_TOKEN} className="h-5 w-5" alt="RSC" />
-                  <span className="font-mono text-2xl font-bold text-white">{stats.coins}</span>
+              <section className="mt-3 rounded-[22px] border border-cyan-300/15 bg-white/[0.04] p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-200">Ship Modules</div>
+                    <p className="mt-1 text-xs text-slate-400">Mission-only upgrades, condensed for mobile.</p>
+                  </div>
+                  {canBuyAnyUpgrade ? (
+                    <div className="rounded-full border border-yellow-300/30 bg-yellow-300/10 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-yellow-100">
+                      Ready
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            </div>
 
-            <div className="grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
-              <section className="border border-emerald-300/20 bg-emerald-300/8 p-4 [clip-path:polygon(12px_0,100%_0,100%_90%,96%_100%,0_100%,0_12px)]">
+                <div className="grid grid-cols-4 gap-2">
+                  {(Object.keys(upgradeCopy) as Array<keyof Upgrades>).map((type) => {
+                    const cost = getCost(type);
+                    const level = stats.upgrades[type];
+                    const isReady = stats.coins >= cost && level < 5;
+                    const copy = upgradeCopy[type];
+
+                    return (
+                      <button
+                        key={type}
+                        disabled={!isReady}
+                        onClick={() => onUpgrade(type)}
+                        className={`min-h-[116px] rounded-2xl border p-2 text-left transition active:scale-95 ${isReady ? 'border-cyan-300/55 bg-cyan-300/12 text-white hover:bg-cyan-300/20' : 'border-white/8 bg-black/25 text-slate-500'}`}
+                      >
+                        <div className="text-2xl">{copy.icon}</div>
+                        <div className="mt-2 text-[10px] font-black uppercase leading-tight tracking-wide">{copy.tag}</div>
+                        <div className="mt-1 text-[9px] leading-tight text-slate-400">{copy.description}</div>
+                        <div className="mt-2 flex h-1 gap-0.5">
+                          {[...Array(5)].map((_, index) => (
+                            <span key={index} className={`flex-1 rounded-full ${index < level ? 'bg-cyan-300' : 'bg-slate-800'}`}></span>
+                          ))}
+                        </div>
+                        <div className="mt-2 font-mono text-[10px] font-black text-white">{level >= 5 ? 'MAX' : `${cost}`}</div>
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    disabled={stats.coins < getRepairCost()}
+                    onClick={() => onUpgrade('repair')}
+                    className={`min-h-[116px] rounded-2xl border p-2 text-left transition active:scale-95 ${stats.coins >= getRepairCost() ? 'border-red-300/55 bg-red-300/12 text-white hover:bg-red-300/20' : 'border-white/8 bg-black/25 text-slate-500'}`}
+                  >
+                    <div className="text-2xl">🧪</div>
+                    <div className="mt-2 text-[10px] font-black uppercase leading-tight tracking-wide">Repair</div>
+                    <div className="mt-1 text-[9px] leading-tight text-slate-400">Recover one life</div>
+                    <div className="mt-2 flex gap-0.5">
+                      {[...Array(Math.max(1, stats.lives))].slice(0, 5).map((_, index) => (
+                        <span key={index} className="h-1 flex-1 rounded-full bg-red-300"></span>
+                      ))}
+                    </div>
+                    <div className="mt-2 font-mono text-[10px] font-black text-white">{getRepairCost()}</div>
+                  </button>
+                </div>
+              </section>
+
+              <section className="mt-3 rounded-[22px] border border-indigo-300/15 bg-indigo-300/[0.06] p-3">
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div>
+                    <div className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-indigo-200">Founder Powerups</div>
+                    <p className="mt-1 text-xs text-slate-400">Starts at 10 credits. Swipe for the fifth drop.</p>
+                  </div>
+                  <div className="shrink-0 rounded-full border border-indigo-200/20 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-indigo-100">
+                    5 total
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-10 w-8 bg-gradient-to-l from-[#111933] to-transparent"></div>
+                  <div className="no-scrollbar -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
+                  {(Object.values(PowerupType) as PowerupType[]).map((type) => {
+                    const copy = powerupCopy[type];
+                    const cost = getPowerupCost(type);
+                    const canBuy = stats.coins >= cost;
+
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => onBuyPowerup(type)}
+                        disabled={!canBuy}
+                        className={`w-[112px] shrink-0 snap-start rounded-2xl border p-2 text-left transition active:scale-95 ${canBuy ? 'border-indigo-200/45 bg-white/[0.08] text-white hover:bg-white/[0.12]' : 'border-white/8 bg-black/25 text-slate-500'}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/20 bg-slate-900">
+                            <img src={copy.image} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          </span>
+                          <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wide ${canBuy ? 'bg-white text-slate-950' : 'bg-slate-800 text-slate-500'}`}>
+                            {cost}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-[11px] font-black uppercase leading-tight tracking-wide">{copy.title}</div>
+                        <div className="mt-1 text-[9px] uppercase tracking-wide text-slate-400">{copy.tag}</div>
+                      </button>
+                    );
+                  })}
+                  </div>
+                </div>
+              </section>
+
+              <section className="mt-3 rounded-[22px] border border-emerald-300/20 bg-emerald-300/8 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-emerald-200">RSC Funding</div>
-                    <h3 className="mt-2 text-base font-bold uppercase tracking-wide text-white">Mission credits</h3>
+                    <div className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-200">RSC Funding</div>
+                    <h3 className="mt-1 text-sm font-bold uppercase tracking-wide text-white">Mission credits</h3>
                   </div>
 
-                  {!wallet.address ? (
-                    <button
-                      onClick={onConnectWallet}
-                      className="border border-cyan-300/30 bg-black/40 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-100 transition hover:border-cyan-100"
-                    >
-                      {wallet.status === 'connecting' ? 'Connecting' : 'Connect'}
-                    </button>
-                  ) : (
-                    <span className="border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-emerald-100">
-                      Base ready
-                    </span>
-                  )}
+                  {wallet.address ? (
+                    <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-right">
+                      <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-emerald-100">Base ready</div>
+                      <div className="mt-1 text-[10px] font-bold text-white">{shortenAddress(wallet.address)}</div>
+                    </div>
+                  ) : null}
                 </div>
 
-                <div className="mt-4 grid grid-cols-3 gap-2">
+                {!wallet.address ? (
+                  <div className="mt-3 rounded-2xl border border-cyan-300/15 bg-black/30 p-2">
+                    <div className="mb-2 px-1 font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-100/80">Connect to spend RSC</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {visibleConnectors.map((connector) => (
+                        <button
+                          key={connector.uid}
+                          onClick={() => onConnectWallet(connector.id)}
+                          className="rounded-xl border border-white/10 bg-white/[0.06] px-2 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
+                        >
+                          {getConnectorLabel(connector)}
+                        </button>
+                      ))}
+                    </div>
+                    {wallet.error ? <div className="mt-2 px-1 text-[10px] leading-relaxed text-red-300">{wallet.error}</div> : null}
+                  </div>
+                ) : null}
+
+                <div className="mt-3 grid grid-cols-3 gap-2">
                   {fundingPackages.map((fundingPackage) => (
                     <button
                       key={fundingPackage.rsc}
                       onClick={() => (wallet.address ? onBuyMissionCredits(fundingPackage.rsc) : onConnectWallet())}
                       disabled={isFundingBusy}
-                      className="border border-emerald-300/20 bg-black/38 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-300/10 disabled:cursor-wait disabled:opacity-60"
+                      className="rounded-2xl border border-emerald-300/20 bg-black/38 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-300/10 disabled:cursor-wait disabled:opacity-60"
                     >
-                      <div className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200">
-                        {fundingPackage.rsc} RSC
-                      </div>
-                      <div className="mt-1 text-xl font-black text-white">{fundingPackage.credits}</div>
-                      <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-400">credits</div>
+                      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-emerald-200">{fundingPackage.rsc} RSC</div>
+                      <div className="mt-1 text-lg font-black text-white">{fundingPackage.credits}</div>
+                      <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-slate-400">credits</div>
                     </button>
                   ))}
                 </div>
 
-                <div className="mt-4 min-h-5 font-mono text-[10px] uppercase tracking-[0.16em]">
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {usdcFundingPackages.map((fundingPackage) => (
+                    <button
+                      key={fundingPackage.usdc}
+                      onClick={() => onBuyMissionCreditsUsdc(fundingPackage.usdc)}
+                      disabled={isFundingBusy}
+                      className="rounded-2xl border border-blue-300/20 bg-blue-400/10 p-3 text-left transition hover:border-blue-200 hover:bg-blue-300/15 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-blue-100">${fundingPackage.usdc} USDC</div>
+                      <div className="mt-1 text-lg font-black text-white">{fundingPackage.credits}</div>
+                      <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-slate-400">Base Pay</div>
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onOpenRscSwap}
+                  className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
+                >
+                  Need RSC? Swap USDC to RSC on Aerodrome
+                </button>
+
+                <div className="mt-3 min-h-5 font-mono text-[10px] uppercase tracking-[0.14em]">
                   {labFundingStatus === 'error' ? (
                     <span className="text-red-300">{labFundingError}</span>
                   ) : (
@@ -199,13 +394,13 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
                     href={`${DONATION_CONFIG.EXPLORER_BASE_URL}/tx/${labFundingHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 inline-block font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-300 underline underline-offset-2 hover:text-white"
+                    className="mt-2 inline-block font-mono text-[10px] uppercase tracking-[0.16em] text-cyan-300 underline underline-offset-2 hover:text-white"
                   >
                     View tx on BaseScan
                   </a>
                 ) : null}
 
-                <form onSubmit={handlePromoCode} className="mt-4 flex items-center gap-2 border border-white/10 bg-black/30 p-2">
+                <form onSubmit={handlePromoCode} className="mt-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 p-2">
                   <input
                     type="text"
                     value={promoCode}
@@ -218,99 +413,25 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
                   />
                   <button
                     type="submit"
-                    className="border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-cyan-100 transition hover:border-cyan-100"
+                    className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-cyan-100 transition hover:border-cyan-100"
                   >
                     Redeem
                   </button>
                 </form>
 
                 {promoMessage ? (
-                  <div className={`mt-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] ${promoMessage.type === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
+                  <div className={`mt-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] ${promoMessage.type === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
                     {promoMessage.text}
                   </div>
                 ) : null}
               </section>
-
-              <section className="border border-cyan-300/15 bg-white/[0.04] p-4 [clip-path:polygon(12px_0,100%_0,100%_90%,96%_100%,0_100%,0_12px)]">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-200">Ship Upgrades</div>
-                    <p className="mt-1 text-xs text-slate-400">Current mission only</p>
-                  </div>
-                  {canBuyAnyUpgrade ? (
-                    <div className="border border-yellow-300/30 bg-yellow-300/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-yellow-100">
-                      Upgrade ready
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(Object.keys(upgradeCopy) as Array<keyof Upgrades>).map((type) => {
-                    const cost = getCost(type);
-                    const level = stats.upgrades[type];
-                    const isReady = stats.coins >= cost && level < 5;
-                    const copy = upgradeCopy[type];
-
-                    return (
-                      <div key={type} className={`flex min-h-[168px] flex-col justify-between border p-3 transition ${isReady ? 'border-yellow-300/35 bg-yellow-300/8' : 'border-white/8 bg-black/25'}`}>
-                        <div>
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <h3 className="text-sm font-bold uppercase tracking-wide text-white">{copy.title}</h3>
-                              <p className="mt-1 text-xs text-slate-500">{copy.description}</p>
-                            </div>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-200/70">{copy.tag}</span>
-                          </div>
-                          <div className="mt-4 flex h-1.5 gap-1">
-                            {[...Array(5)].map((_, index) => (
-                              <div key={index} className={`flex-1 ${index < level ? 'bg-cyan-300' : 'bg-slate-800'}`}></div>
-                            ))}
-                          </div>
-                        </div>
-                        <button
-                          disabled={!isReady}
-                          onClick={() => onUpgrade(type)}
-                          className={`mt-4 w-full border py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] transition active:scale-95 ${isReady ? 'border-cyan-300 bg-cyan-300/15 text-cyan-50 hover:bg-cyan-300/25' : 'cursor-not-allowed border-slate-700 bg-transparent text-slate-600'}`}
-                        >
-                          {level >= 5 ? 'Max level' : `${cost} credits`}
-                        </button>
-                      </div>
-                    );
-                  })}
-
-                  <div className={`flex min-h-[168px] flex-col justify-between border p-3 transition ${stats.coins >= getRepairCost() ? 'border-red-300/35 bg-red-300/8' : 'border-white/8 bg-black/25'}`}>
-                    <div>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <h3 className="text-sm font-bold uppercase tracking-wide text-white">Emergency Aid</h3>
-                          <p className="mt-1 text-xs text-slate-500">Recover one life unit.</p>
-                        </div>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-red-200/70">Repair</span>
-                      </div>
-                      <div className="mt-4 flex gap-1">
-                        {[...Array(Math.max(1, stats.lives))].slice(0, 5).map((_, index) => (
-                          <div key={index} className="h-1.5 flex-1 bg-red-300"></div>
-                        ))}
-                      </div>
-                    </div>
-                    <button
-                      disabled={stats.coins < getRepairCost()}
-                      onClick={() => onUpgrade('repair')}
-                      className={`mt-4 w-full border py-3 font-mono text-xs font-bold uppercase tracking-[0.12em] transition active:scale-95 ${stats.coins >= getRepairCost() ? 'border-red-300 bg-red-300/15 text-red-50 hover:bg-red-300/25' : 'cursor-not-allowed border-slate-700 bg-transparent text-slate-600'}`}
-                    >
-                      {getRepairCost()} credits
-                    </button>
-                  </div>
-                </div>
-              </section>
             </div>
 
-            <button
-              onClick={onClose}
-              className="scicon-btn mt-1 w-full py-4 text-base font-bold tracking-widest md:text-lg"
-            >
-              Return to mission
-            </button>
+            <div className="border-t border-white/10 bg-slate-950/96 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+              <button onClick={onClose} className="scicon-btn w-full py-4 text-base font-bold tracking-widest">
+                Return to mission
+              </button>
+            </div>
           </div>
         </div>
       </div>

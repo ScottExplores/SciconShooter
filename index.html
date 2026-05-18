@@ -36,14 +36,30 @@
         background-color: #0b1020;
         font-family: 'Inter', sans-serif;
         touch-action: none; /* Prevent pull-to-refresh on mobile */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        min-height: 100dvh;
       }
       
       /* --- LAYOUT FIXES FOR VERCEL --- */
       #root {
         position: relative;
-        width: 100vw;
+        width: min(100vw, 430px);
         height: 100vh;
+        height: 100dvh;
+        max-height: 932px;
         overflow: hidden;
+        background: #0b1020;
+        box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.16), 0 24px 90px rgba(0, 0, 0, 0.58);
+      }
+
+      @media (max-width: 430px) {
+        #root {
+          max-height: none;
+          box-shadow: none;
+        }
       }
 
       /* Ensures the game background sits behind everything */
@@ -80,6 +96,15 @@
       ::-webkit-scrollbar-thumb {
         background: #6c63ff; 
         border-radius: 4px;
+      }
+
+      .no-scrollbar {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
       }
 
       /* --- SCICON CARD SYSTEM --- */

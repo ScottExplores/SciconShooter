@@ -8,7 +8,7 @@ interface UpgradeCoachProps {
 }
 
 const UpgradeCoach: React.FC<UpgradeCoachProps> = ({ credits, onOpenLab, onContinue }) => (
-  <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/35 p-4 backdrop-blur-[2px]">
+  <div className="absolute inset-0 z-40 flex items-end justify-center bg-black/35 p-4 backdrop-blur-[2px]">
     <div className="relative mb-24 w-full max-w-sm border border-yellow-200/30 bg-slate-950/94 p-4 shadow-[0_20px_70px_rgba(0,0,0,0.55)] [clip-path:polygon(14px_0,100%_0,100%_90%,96%_100%,0_100%,0_14px)]">
       <div className="absolute -bottom-10 right-8 h-10 w-px bg-yellow-200/45"></div>
       <div className="flex items-center gap-3">

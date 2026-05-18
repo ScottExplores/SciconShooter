@@ -65,6 +65,7 @@ export interface Stats {
   lives: number;
   repairsCount: number; // Track number of repairs for cost scaling
   upgrades: Upgrades;
+  powerupUses: Record<PowerupType, number>;
   bossProgress: number; // 0.0 to 1.0
   isBossActive: boolean;
   bossHp: number;

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameLogic';
-import { Stats, GameState } from '../types';
+import { Stats, GameState, PowerupType } from '../types';
 
 interface GameCanvasProps {
   setStats: (stats: Stats) => void;
@@ -8,13 +8,15 @@ interface GameCanvasProps {
   stats: Stats;
   gameState: GameState;
   isTransmissionOpen?: boolean;
+  purchasedPowerup?: { type: PowerupType; nonce: number } | null;
 }
 
-const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, gameState, isTransmissionOpen = false }) => {
+const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, gameState, isTransmissionOpen = false, purchasedPowerup = null }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const requestRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
+  const handledPowerupNonceRef = useRef<number | null>(null);
   
   // Use a ref to track gameState inside the animation loop closure
   const gameStateRef = useRef(gameState);
@@ -28,6 +30,23 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
   useEffect(() => {
     isTransmissionOpenRef.current = isTransmissionOpen;
   }, [isTransmissionOpen]);
+
+  useEffect(() => {
+    if (!purchasedPowerup || !engineRef.current) return;
+    if (handledPowerupNonceRef.current === purchasedPowerup.nonce) return;
+    handledPowerupNonceRef.current = purchasedPowerup.nonce;
+
+    engineRef.current.stats = {
+      ...engineRef.current.stats,
+      ...stats
+    };
+    if (stats.lives > engineRef.current.lives) {
+      engineRef.current.lives = stats.lives;
+    }
+
+    engineRef.current.activatePowerup(purchasedPowerup.type, false);
+    setStats({ ...engineRef.current.stats });
+  }, [purchasedPowerup, setStats, stats]);
 
   // Sync Stats (specifically upgrades/coins modified by React UI) to Engine
   useEffect(() => {
@@ -59,8 +78,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     
     // Resize Handler
     const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
       engine.resize(canvas.width, canvas.height);
     };
     
@@ -83,7 +103,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     const handleTouchMove = (e: TouchEvent) => {
        e.preventDefault(); 
        const touch = e.touches[0];
-       engine.handleInput(keys, { x: touch.clientX, y: touch.clientY });
+       const rect = canvas.getBoundingClientRect();
+       engine.handleInput(keys, { x: touch.clientX - rect.left, y: touch.clientY - rect.top });
     };
     
     const handleTouchEnd = () => {
@@ -154,7 +175,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
   return (
     <canvas 
       ref={canvasRef} 
-      className="block fixed top-0 left-0 w-full h-full z-0"
+      className="absolute left-0 top-0 z-0 block h-full w-full"
     />
   );
 };

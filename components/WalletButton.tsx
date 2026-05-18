@@ -9,6 +9,7 @@ interface WalletButtonProps {
   onConnect: (connectorId?: string) => void;
   onDisconnect: () => void;
   onDonate: (amount: number) => void;
+  onOpenSwap: () => void;
 }
 
 const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -22,19 +23,31 @@ const getConnectorLabel = (connector: Connector) => {
   return connector.name;
 };
 
+const sortConnectors = (connectors: readonly Connector[]) => {
+  const priority = ['baseAccount', 'coinbaseWalletSDK', 'walletConnect', 'injected'];
+  return [...connectors]
+    .filter((connector) => connector.id !== 'farcaster')
+    .sort((a, b) => {
+      const aIndex = priority.indexOf(a.id);
+      const bIndex = priority.indexOf(b.id);
+      return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+    });
+};
+
 const WalletButton: React.FC<WalletButtonProps> = ({
   wallet,
   connectors,
   onConnect,
   onDisconnect,
-  onDonate
+  onDonate,
+  onOpenSwap
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const isConnected = wallet.status === 'connected' && !!wallet.address;
-  const visibleConnectors = connectors.filter((connector) => connector.id !== 'farcaster');
+  const visibleConnectors = sortConnectors(connectors);
 
   return (
-    <div className="fixed right-3 top-3 z-50 font-mono text-white">
+    <div className="absolute right-3 top-3 z-50 font-mono text-white">
       <button
         onClick={() => setIsOpen((value) => !value)}
         className={`rounded-full border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] shadow-[0_0_24px_rgba(34,211,238,0.18)] backdrop-blur-md transition ${
@@ -82,6 +95,13 @@ const WalletButton: React.FC<WalletButtonProps> = ({
                   </button>
                 ))}
               </div>
+
+              <button
+                onClick={onOpenSwap}
+                className="w-full rounded-xl border border-cyan-300/20 bg-cyan-400/10 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-400/15"
+              >
+                Swap USDC to RSC
+              </button>
 
               {wallet.hasDonated ? (
                 <div className="rounded-xl border border-yellow-300/20 bg-yellow-500/10 px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-yellow-200">

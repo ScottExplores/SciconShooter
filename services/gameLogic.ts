@@ -216,6 +216,8 @@ const getReadyImage = (url: string) => {
   return img;
 };
 
+type BossWarningType = 'mini1' | 'wall' | 'asteroid' | 'gatekeeper';
+
 export class GameEngine {
   width: number = 0;
   height: number = 0;
@@ -237,12 +239,14 @@ export class GameEngine {
   miniBossRef: Entity | null = null;
   spawnedMiniBoss1: boolean = false;
   spawnedWallBoss: boolean = false;
+  asteroidBeltMaxCount: number = 0;
   invaderDirection: number = 1;
   invaderMoveTimer: number = 0;
   waveProgressFrames: number = 0;
   inBossWarningSequence: boolean = false;
   bossWarningFrame: number = 0;
-  pendingBossType: 'mini1' | 'wall' | 'gatekeeper' | null = null;
+  bossWarningDuration: number = 0;
+  pendingBossType: BossWarningType | null = null;
   missileTimer: number = 0;
   
   constructor(stats: Stats) {
@@ -413,8 +417,19 @@ export class GameEngine {
     this.miniBossRef = null;
     this.spawnedMiniBoss1 = false;
     this.spawnedWallBoss = false;
+    this.asteroidBeltMaxCount = 0;
     this.inBossWarningSequence = false;
+    this.bossWarningDuration = 0;
     this.pendingBossType = null;
+  }
+
+  getPlayerMovementBounds() {
+    return {
+      minX: -this.player.width / 2,
+      maxX: this.width - (this.player.width / 2),
+      minY: -this.player.height / 2,
+      maxY: this.height - (this.player.height / 2)
+    };
   }
 
   startNextWave() {
@@ -431,8 +446,9 @@ export class GameEngine {
     this.height = height;
     this.entities.forEach(e => {
         if (e.type === EntityType.PLAYER) {
-            e.x = Math.min(e.x, width - e.width);
-            e.y = Math.min(e.y, height - e.height);
+            const bounds = this.getPlayerMovementBounds();
+            e.x = Math.max(bounds.minX, Math.min(bounds.maxX, e.x));
+            e.y = Math.max(bounds.minY, Math.min(bounds.maxY, e.y));
         }
     });
   }
@@ -444,11 +460,34 @@ export class GameEngine {
     }
   }
 
-  startBossWarning(type: 'mini1' | 'wall' | 'gatekeeper') {
+  startBossWarning(type: BossWarningType) {
     this.inBossWarningSequence = true;
-    this.bossWarningFrame = 90; // 1.5 Seconds Warning
+    this.bossWarningDuration = type === 'gatekeeper' ? 300 : 40;
+    this.bossWarningFrame = this.bossWarningDuration;
     this.pendingBossType = type;
+    if (type === 'gatekeeper') {
+      this.clearThreatsForMainBoss();
+    }
     audioService.playSound('boss_roar');
+  }
+
+  clearThreatsForMainBoss() {
+    this.entities = this.entities.filter((entity) => (
+      entity.type === EntityType.COIN
+      || entity.type === EntityType.POWERUP
+      || entity.type === EntityType.PARTICLE
+      || entity.type === EntityType.EFFECT
+    ));
+  }
+
+  getSecondSubBossType(): BossWarningType {
+    return this.wave % 2 === 0 ? 'asteroid' : 'wall';
+  }
+
+  getAsteroidBeltCount() {
+    return this.entities.filter((entity) => (
+      entity.type === EntityType.ENEMY_BRICK && entity.variant >= 900
+    )).length;
   }
 
   update() {
@@ -457,7 +496,8 @@ export class GameEngine {
     this.stats.lives = this.lives;
     
     const invaderCount = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER).length;
-    const isBossAlive = !!this.bossRef || !!this.miniBossRef || invaderCount > 0;
+    const asteroidBeltCount = this.getAsteroidBeltCount();
+    const isBossAlive = !!this.bossRef || !!this.miniBossRef || invaderCount > 0 || asteroidBeltCount > 0;
     
     if (isBossAlive) {
         this.stats.isBossActive = true;
@@ -473,6 +513,9 @@ export class GameEngine {
         } else if (invaderCount > 0) {
             hp = invaderCount; 
             maxHp = 12; // 2 rows * 6 cols = 12
+        } else if (asteroidBeltCount > 0) {
+            hp = asteroidBeltCount;
+            maxHp = this.asteroidBeltMaxCount || asteroidBeltCount;
         }
         
         this.stats.bossHp = hp;
@@ -498,7 +541,7 @@ export class GameEngine {
         // CHECKPOINT 2: 66% (Mini Boss 2 - The Wall)
         else if (this.stats.bossProgress >= 0.66 && !this.spawnedWallBoss) {
              if (!this.inBossWarningSequence) {
-                 this.startBossWarning('wall');
+                 this.startBossWarning(this.getSecondSubBossType());
              }
         }
         // CHECKPOINT 3: 100% (Final Boss)
@@ -519,6 +562,9 @@ export class GameEngine {
                 this.spawnedMiniBoss1 = true;
             } else if (this.pendingBossType === 'wall') {
                 this.spawnWallBoss();
+                this.spawnedWallBoss = true;
+            } else if (this.pendingBossType === 'asteroid') {
+                this.spawnAsteroidBelt();
                 this.spawnedWallBoss = true;
             } else if (this.pendingBossType === 'gatekeeper') {
                 this.spawnBoss();
@@ -550,8 +596,9 @@ export class GameEngine {
       if (this.keys['ArrowDown'] || this.keys['s'] || this.keys['S']) this.player.y += speed;
     }
 
-    this.player.x = Math.max(0, Math.min(this.width - this.player.width, this.player.x));
-    this.player.y = Math.max(0, Math.min(this.height - this.player.height, this.player.y));
+    const bounds = this.getPlayerMovementBounds();
+    this.player.x = Math.max(bounds.minX, Math.min(bounds.maxX, this.player.x));
+    this.player.y = Math.max(bounds.minY, Math.min(bounds.maxY, this.player.y));
 
     // FIRE RATE PROGRESSION: Spaced out for distinct feeling
     // Level 0: 15 (4 shots/sec)
@@ -657,6 +704,9 @@ export class GameEngine {
           e.vx += dx * 0.002;
           e.vx *= 0.95; 
         }
+        if (e.type === EntityType.ENEMY_BRICK && e.variant >= 900) {
+          e.x += Math.sin((this.frameCount + e.variant) * 0.025) * (0.55 + (this.wave * 0.12));
+        }
         if (e.y > this.height) e.markedForDeletion = true;
       }
       
@@ -760,7 +810,8 @@ export class GameEngine {
 
   spawnEnemies() {
     const invaderCount = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER).length;
-    if (this.bossRef || this.miniBossRef || invaderCount > 0 || this.inBossWarningSequence) return; 
+    const asteroidBeltCount = this.getAsteroidBeltCount();
+    if (this.bossRef || this.miniBossRef || invaderCount > 0 || asteroidBeltCount > 0 || this.inBossWarningSequence) return;
 
     // Make rarer: 1800 -> 2400
     if (this.frameCount % 2400 === 0) {
@@ -834,7 +885,7 @@ export class GameEngine {
     const mb = new Entity(EntityType.MINI_BOSS, this.width/2 - 50, -100);
     mb.width = 140;
     mb.height = 160;
-    mb.hp = 50 + (this.wave * 30);
+    mb.hp = 45 + (this.wave * 25);
     mb.maxHp = mb.hp;
     mb.vy = 2;
     mb.color = '#fb7185';
@@ -856,7 +907,7 @@ export class GameEngine {
             const e = new Entity(EntityType.ENEMY_INVADER, startX + c*(blockW+gap), -200 + r*(blockH+gap));
             e.width = blockW;
             e.height = blockH;
-            e.hp = 5 + (this.wave * 4);
+            e.hp = Math.round(5 + (this.wave * 3.25));
             e.maxHp = e.hp;
             e.color = '#fb7185'; 
             e.text = "🧱"; // UPDATED to Brick Emoji
@@ -866,6 +917,36 @@ export class GameEngine {
         }
     }
     this.invaderDirection = 1; 
+  }
+
+  spawnAsteroidBelt() {
+    const count = Math.min(18, 10 + (this.wave * 2));
+    const lanes = Math.max(4, Math.min(7, Math.floor(this.width / 88)));
+    const laneWidth = this.width / lanes;
+    this.asteroidBeltMaxCount = count;
+
+    for (let i = 0; i < count; i++) {
+      const lane = i % lanes;
+      const jitter = (Math.random() - 0.5) * laneWidth * 0.5;
+      const size = 42 + Math.random() * 28 + (this.wave * 2);
+      const asteroid = new Entity(
+        EntityType.ENEMY_BRICK,
+        Math.max(8, Math.min(this.width - size - 8, (lane * laneWidth) + (laneWidth / 2) - (size / 2) + jitter)),
+        -140 - (Math.floor(i / lanes) * 72) - (Math.random() * 45)
+      );
+
+      asteroid.width = size;
+      asteroid.height = size;
+      asteroid.vy = 1.8 + (this.wave * 0.32) + (Math.random() * 0.45);
+      asteroid.vx = (Math.random() - 0.5) * (0.45 + (this.wave * 0.08));
+      asteroid.hp = Math.round(4 + (this.wave * 1.9));
+      asteroid.maxHp = asteroid.hp;
+      asteroid.variant = 900 + i;
+      asteroid.color = '#f59e0b';
+      this.entities.push(asteroid);
+    }
+
+    this.spawnFloatingText(this.width / 2, this.height * 0.24, 'ASTEROID BELT', '#fbbf24');
   }
   
   updateWallBoss() {
@@ -943,8 +1024,9 @@ export class GameEngine {
     const boss = new Entity(EntityType.BOSS, this.width / 2 - 100, -200);
     boss.width = 220;
     boss.height = 200;
-    boss.hp = 200 + (this.stats.wave * 150); 
+    boss.hp = 220 + (this.stats.wave * 100);
     boss.maxHp = boss.hp;
+    boss.variant = (this.stats.wave - 1) % 3;
     boss.color = '#990000';
     boss.text = "GATEKEEPER";
     boss.vy = 2;
@@ -1059,6 +1141,44 @@ export class GameEngine {
     this.entities.push(new VisualEffect(x, y, 'ring', '', color));
   }
 
+  activatePowerup(type: PowerupType, countUse: boolean = true) {
+    if (countUse) {
+      this.stats.powerupUses = {
+        ...this.stats.powerupUses,
+        [type]: (this.stats.powerupUses?.[type] || 0) + 1
+      };
+    }
+
+    if (type !== PowerupType.EXTRA_LIFE) {
+      const currentDuration = this.activePowerups.get(type) || 0;
+      this.activePowerups.set(type, currentDuration + GAME_CONFIG.POWERUP_DURATION);
+    }
+
+    audioService.playSound('powerup');
+    const cx = this.player.x + this.player.width / 2;
+    const cy = this.player.y + this.player.height / 2;
+
+    if (type === PowerupType.SHIELD) {
+      this.invincibleTimer += GAME_CONFIG.SHIELD_DURATION;
+      this.spawnFloatingText(cx, cy - 20, "SHIELD!", "#00C851");
+      this.spawnRingEffect(cx, cy, "#00C851");
+    } else if (type === PowerupType.MAGNET) {
+      this.spawnFloatingText(cx, cy - 20, "MAGNET!", "#FFD700");
+      this.spawnRingEffect(cx, cy, "#FFD700");
+    } else if (type === PowerupType.TRIPLE_SHOT) {
+      this.spawnFloatingText(cx, cy - 20, "TRIPLE SHOT!", "#6c63ff");
+      this.spawnRingEffect(cx, cy, "#6c63ff");
+    } else if (type === PowerupType.DOUBLE_SHOT) {
+      this.spawnFloatingText(cx, cy - 20, "DOUBLE SHOT!", "#ffbb33");
+      this.spawnRingEffect(cx, cy, "#ffbb33");
+    } else if (type === PowerupType.EXTRA_LIFE) {
+      this.lives = Math.min(this.lives + 1, GAME_CONFIG.MAX_LIVES);
+      this.stats.lives = this.lives;
+      this.spawnFloatingText(cx, cy - 20, "+1 LIFE!", "#ff4444");
+      this.spawnRingEffect(cx, cy, "#ff4444");
+    }
+  }
+
   getCollisionBox(entity: Entity) {
     let insetX = 0;
     let insetY = 0;
@@ -1118,35 +1238,7 @@ export class GameEngine {
       if (e.type === EntityType.POWERUP && intersect(this.player, e)) {
         e.markedForDeletion = true;
         const type = e.text as PowerupType;
-        
-        // Handling Durations for Active Powerups
-        if (type !== PowerupType.EXTRA_LIFE) {
-            this.activePowerups.set(type, GAME_CONFIG.POWERUP_DURATION);
-        }
-        
-        audioService.playSound('powerup');
-        const cx = this.player.x + this.player.width/2;
-        const cy = this.player.y + this.player.height/2;
-
-        if (type === PowerupType.SHIELD) {
-          this.invincibleTimer = GAME_CONFIG.SHIELD_DURATION;
-          this.spawnFloatingText(cx, cy - 20, "SHIELD!", "#00C851");
-          this.spawnRingEffect(cx, cy, "#00C851");
-        } else if (type === PowerupType.MAGNET) {
-          this.spawnFloatingText(cx, cy - 20, "MAGNET!", "#FFD700");
-          this.spawnRingEffect(cx, cy, "#FFD700");
-        } else if (type === PowerupType.TRIPLE_SHOT) {
-          this.spawnFloatingText(cx, cy - 20, "TRIPLE SHOT!", "#6c63ff");
-          this.spawnRingEffect(cx, cy, "#6c63ff");
-        } else if (type === PowerupType.DOUBLE_SHOT) {
-          this.spawnFloatingText(cx, cy - 20, "DOUBLE SHOT!", "#ffbb33");
-          this.spawnRingEffect(cx, cy, "#ffbb33");
-        } else if (type === PowerupType.EXTRA_LIFE) {
-             // NEW: Grant +1 Life
-             this.lives = Math.min(this.lives + 1, GAME_CONFIG.MAX_LIVES);
-             this.spawnFloatingText(cx, cy - 20, "+1 LIFE!", "#ff4444");
-             this.spawnRingEffect(cx, cy, "#ff4444");
-        }
+        this.activatePowerup(type);
       }
 
       if (e.type === EntityType.COIN && intersect(this.player, e)) {
@@ -1282,6 +1374,176 @@ export class GameEngine {
     });
   }
 
+  getBossWarningComms(type: BossWarningType) {
+    const phase = this.stats.wave;
+    const phaseComms = [
+      {
+        speaker: 'Brian Armstrong',
+        role: 'Clarity Relay',
+        image: ASSETS.FOUNDER_BRIAN,
+        color: '#67e8f9',
+        text: 'Instability ahead. The main bottleneck is forming. Clear runway, charge the lab, and get ready.'
+      },
+      {
+        speaker: 'Jeffrey',
+        role: 'Peer Review Scout',
+        image: ASSETS.FOUNDER_JEFFREY,
+        color: '#a7f3d0',
+        text: 'Heavy signal ahead. This core moves differently. Watch the lanes before you commit.'
+      },
+      {
+        speaker: 'Patrick',
+        role: 'Funding Signal',
+        image: ASSETS.FOUNDER_PATRICK,
+        color: '#fde68a',
+        text: 'Main boss incoming. If you have credits, stack a founder powerup before the gate closes.'
+      },
+      {
+        speaker: 'Arshia',
+        role: 'Life Support',
+        image: ASSETS.FOUNDER_ARSHIA,
+        color: '#fda4af',
+        text: 'Unstable field ahead. Save your shield, keep your last life clean, and fly through the opening.'
+      },
+      {
+        speaker: 'ResearchHub',
+        role: 'Open Science Relay',
+        image: ASSETS.FOUNDER_4,
+        color: '#c4b5fd',
+        text: 'Final bottleneck ahead. No noise in the lane now. Break the core and open the Galaxy.'
+      }
+    ];
+
+    return phaseComms[Math.min(phaseComms.length - 1, Math.max(0, phase - 1))];
+  }
+
+  getBossSkin(e: Entity) {
+    const skins = [
+      {
+        sprite: ASSETS.FINAL_BOSS,
+        label: 'GATEKEEPER PRIME',
+        accent: '#fb7185',
+        shadow: '#ef4444'
+      },
+      {
+        sprite: ASSETS.MINI_BOSS,
+        label: 'REVIEW SENTINEL',
+        accent: '#67e8f9',
+        shadow: '#38bdf8'
+      },
+      {
+        sprite: ASSETS.WALL_BOSS_SEGMENT,
+        label: 'PAYWALL CORE',
+        accent: '#fde047',
+        shadow: '#facc15'
+      }
+    ];
+
+    return skins[Math.abs(e.variant || 0) % skins.length];
+  }
+
+  wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number = 2) {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    words.forEach((word) => {
+      const nextLine = currentLine ? `${currentLine} ${word}` : word;
+      if (ctx.measureText(nextLine).width <= maxWidth) {
+        currentLine = nextLine;
+        return;
+      }
+
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    });
+
+    if (currentLine) lines.push(currentLine);
+
+    if (lines.length > maxLines) {
+      const clipped = lines.slice(0, maxLines);
+      clipped[maxLines - 1] = `${clipped[maxLines - 1].replace(/\.+$/, '')}...`;
+      return clipped;
+    }
+
+    return lines;
+  }
+
+  drawBossWarningComms(ctx: CanvasRenderingContext2D) {
+    if (!this.pendingBossType) return;
+
+    const comms = this.getBossWarningComms(this.pendingBossType);
+    const duration = this.bossWarningDuration || 150;
+    const age = duration - this.bossWarningFrame;
+    const alpha = Math.max(0, Math.min(1, age / 18, this.bossWarningFrame / 24));
+    const panelWidth = Math.min(this.width - 24, 520);
+    const panelHeight = this.width < 520 ? 104 : 92;
+    const x = Math.max(12, (this.width - panelWidth) / 2);
+    const y = Math.max(118, Math.min(this.height - panelHeight - 150, this.height * 0.18));
+    const portraitSize = this.width < 520 ? 48 : 56;
+    const portraitX = x + 14;
+    const portraitY = y + (panelHeight - portraitSize) / 2;
+    const textX = portraitX + portraitSize + 14;
+    const textWidth = panelWidth - (textX - x) - 16;
+    const pulse = 0.75 + Math.sin(this.frameCount * 0.22) * 0.25;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(3, 7, 18, 0.86)';
+    ctx.strokeStyle = comms.color;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = comms.color;
+    ctx.shadowBlur = 16 * pulse;
+    ctx.beginPath();
+    ctx.roundRect(x, y, panelWidth, panelHeight, 22);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = comms.color;
+    ctx.globalAlpha = alpha * 0.16;
+    ctx.fillRect(x + 1, y + 1, 5, panelHeight - 2);
+    ctx.globalAlpha = alpha;
+
+    const portrait = getReadyImage(comms.image);
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(portraitX, portraitY, portraitSize, portraitSize, 14);
+    ctx.clip();
+    if (portrait) {
+      ctx.drawImage(portrait, portraitX, portraitY, portraitSize, portraitSize);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(portraitX, portraitY, portraitSize, portraitSize);
+    }
+    ctx.restore();
+
+    ctx.strokeStyle = comms.color;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(portraitX + 0.5, portraitY + 0.5, portraitSize - 1, portraitSize - 1);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 13px Orbitron';
+    ctx.fillText(comms.speaker.toUpperCase(), textX, y + 24);
+
+    ctx.fillStyle = comms.color;
+    ctx.font = 'bold 9px Orbitron';
+    ctx.fillText(comms.role.toUpperCase(), textX, y + 39);
+
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.96)';
+    ctx.font = `${this.width < 520 ? 11 : 12}px monospace`;
+    this.wrapCanvasText(ctx, comms.text, textWidth, this.width < 520 ? 3 : 2).forEach((line, index) => {
+      ctx.fillText(line, textX, y + 59 + (index * 15));
+    });
+
+    ctx.fillStyle = comms.color;
+    ctx.font = 'bold 9px Orbitron';
+    ctx.textAlign = 'right';
+    ctx.fillText('BOSS SIGNAL', x + panelWidth - 14, y + panelHeight - 14);
+    ctx.restore();
+  }
+
   // ... draw methods remain the same ...
   // (Included to prevent file truncation issues, though only collision logic changed significantly)
   draw(ctx: CanvasRenderingContext2D) {
@@ -1291,20 +1553,8 @@ export class GameEngine {
     this.stars.forEach(star => star.draw(ctx));
     this.bgEntities.forEach(bg => bg.draw(ctx));
     
-    if (this.inBossWarningSequence && this.frameCount % 20 < 10) {
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
-        ctx.fillRect(0, 0, this.width, this.height);
-        ctx.save();
-        ctx.fillStyle = '#FFF'; 
-        const fontSize = Math.min(36, this.width / 15);
-        ctx.font = `bold ${fontSize}px Orbitron`;
-        ctx.textAlign = 'center';
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = '#FF0000';
-        
-        ctx.fillText("WARNING", this.width/2, this.height/2 - 25);
-        ctx.fillText("INTRUDER INCOMING", this.width/2, this.height/2 + 25);
-        ctx.restore();
+    if (this.inBossWarningSequence && this.pendingBossType === 'gatekeeper') {
+        this.drawBossWarningComms(ctx);
     }
     
     ctx.save();
@@ -1384,10 +1634,11 @@ export class GameEngine {
   drawBoss(ctx: CanvasRenderingContext2D, e: Entity) {
       this.drawHealthBar(ctx, e, 12);
       ctx.globalAlpha = 1.0;
+      const skin = this.getBossSkin(e);
       const pulse = e.isCharging ? 42 : 24;
       const bob = Math.sin(this.frameCount * 0.04) * 5;
-      const drewSprite = this.drawSprite(ctx, ASSETS.FINAL_BOSS, e.width, e.height, {
-        shadowColor: e.isCharging ? '#ffffff' : '#ef4444',
+      const drewSprite = this.drawSprite(ctx, skin.sprite, e.width, e.height, {
+        shadowColor: e.isCharging ? '#ffffff' : skin.shadow,
         shadowBlur: pulse,
         yOffset: bob
       });
@@ -1400,7 +1651,7 @@ export class GameEngine {
       }
 
       ctx.save();
-      ctx.strokeStyle = e.isCharging ? '#f8fafc' : '#fb7185';
+      ctx.strokeStyle = e.isCharging ? '#f8fafc' : skin.accent;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.ellipse(0, 20, e.width * 0.34, 16, this.frameCount * 0.04, 0, Math.PI * 2);
@@ -1412,9 +1663,9 @@ export class GameEngine {
 
       ctx.save();
       ctx.font = 'bold 16px Orbitron';
-      ctx.fillStyle = '#fb7185';
+      ctx.fillStyle = skin.accent;
       ctx.textAlign = 'center';
-      ctx.fillText("GATEKEEPER PRIME", 0, -e.height/2 - 35);
+      ctx.fillText(skin.label, 0, -e.height/2 - 35);
       ctx.restore();
   }
 
