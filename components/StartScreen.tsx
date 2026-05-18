@@ -150,8 +150,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(37,99,235,0.28),transparent_34%),radial-gradient(circle_at_90%_12%,rgba(34,197,94,0.12),transparent_30%),linear-gradient(180deg,rgba(5,8,22,0.42),rgba(5,8,22,0.98))]"></div>
       <div className="absolute inset-0 bg-[linear-gradient(rgba(226,232,240,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(226,232,240,0.035)_1px,transparent_1px)] bg-[size:36px_36px]"></div>
 
-      <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl touch-pan-y flex-col gap-2 overflow-y-auto px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-14 custom-scrollbar sm:px-4 sm:pb-4 md:pt-4">
-        <div className="flex min-h-[260px] flex-col gap-3 overflow-hidden rounded-[26px] border border-white/10 bg-slate-950/72 p-3 shadow-[0_24px_90px_rgba(0,0,0,0.42)] backdrop-blur-xl sm:min-h-[250px] sm:p-4 lg:min-h-[180px]">
+      <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl touch-pan-y flex-col gap-3 overflow-y-auto px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-14 custom-scrollbar sm:px-4 sm:pb-4 md:pt-4">
+        <div className="flex min-h-[260px] shrink-0 flex-col gap-3 overflow-visible rounded-[26px] border border-white/10 bg-slate-950/72 p-3 shadow-[0_24px_90px_rgba(0,0,0,0.42)] backdrop-blur-xl sm:min-h-[250px] sm:p-4 lg:min-h-[180px]">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="arcade-font text-3xl font-black italic leading-none tracking-tight text-white sm:text-4xl">SCICON SHOOTER</div>
@@ -196,7 +196,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </div>
         </div>
 
-        <main className="grid flex-1 gap-2 lg:min-h-0 lg:grid-cols-[0.92fr_1.08fr]">
+        <main className="grid shrink-0 gap-3 lg:grid-cols-[0.92fr_1.08fr]">
           <section className="self-start rounded-[26px] border border-white/10 bg-slate-950/70 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur-xl">
             <div className="mb-3 flex items-center justify-between gap-3 px-1">
               <div>
