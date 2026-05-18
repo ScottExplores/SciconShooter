@@ -15,7 +15,7 @@ interface WalletButtonProps {
 const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
 
 const getConnectorLabel = (connector: Connector) => {
-  if (connector.id === 'injected') return 'Browser Wallet';
+  if (connector.id === 'injected') return 'Browser / Rabby';
   if (connector.id === 'coinbaseWalletSDK') return 'Coinbase Wallet';
   if (connector.id === 'baseAccount') return 'Base Account';
   if (connector.id === 'walletConnect') return 'WalletConnect';
@@ -100,7 +100,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
                 onClick={onOpenSwap}
                 className="w-full rounded-xl border border-cyan-300/20 bg-cyan-400/10 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-400/15"
               >
-                Swap USDC to RSC
+                Get RSC on Aerodrome
               </button>
 
               {wallet.hasDonated ? (

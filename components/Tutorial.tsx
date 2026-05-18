@@ -39,7 +39,7 @@ const Tutorial: React.FC<TutorialProps> = ({ onReady }) => {
             </div>
             <div>
               <h3 className="font-bold text-lg text-blue-400">CRYPTO FUNDING</h3>
-              <p className="text-gray-400 text-sm">Connect wallet to purchase coins in the lab.</p>
+              <p className="text-gray-400 text-sm">Connect wallet to fund mission credits with RSC.</p>
               <p className="text-red-400 text-[10px] font-bold italic mt-1 leading-tight">
                 Your In-game balance will not roll over to your next match if you die.
               </p>

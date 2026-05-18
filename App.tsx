@@ -50,6 +50,13 @@ const defaultPowerupUses: Record<PowerupType, number> = {
   [PowerupType.EXTRA_LIFE]: 0
 };
 
+const purchasablePowerups = [
+  PowerupType.DOUBLE_SHOT,
+  PowerupType.TRIPLE_SHOT,
+  PowerupType.MAGNET,
+  PowerupType.SHIELD
+];
+
 const getUpgradeCost = (type: keyof Upgrades, upgrades: Upgrades) => (
   UPGRADE_BASE_COSTS[type] + (5 * (Math.pow(2, upgrades[type]) - 1))
 );
@@ -65,7 +72,7 @@ const getPowerupCost = (stats: Stats, type: PowerupType) => (
 const canAffordUpgrade = (stats: Stats) => (
   (Object.keys(stats.upgrades) as Array<keyof Upgrades>).some((type) => stats.upgrades[type] < 5 && stats.coins >= getUpgradeCost(type, stats.upgrades))
   || stats.coins >= getRepairCost(stats)
-  || (Object.values(PowerupType) as PowerupType[]).some((type) => stats.coins >= getPowerupCost(stats, type))
+  || purchasablePowerups.some((type) => stats.coins >= getPowerupCost(stats, type))
 );
 
 const readCreditedFundingTxs = (): Record<string, boolean> => {
@@ -551,44 +558,6 @@ const App: React.FC = () => {
     }
   };
 
-  const fundCurrentMissionWithUsdc = async (usdcAmount: number) => {
-    setLabFundingError('');
-    setLabFundingHash('');
-
-    try {
-      setLabFundingStatus('processing');
-      const { pay } = await import('@base-org/account/payment');
-      const payment = await pay({
-        amount: usdcAmount.toFixed(2),
-        to: DONATION_CONFIG.RECIPIENT_ADDRESS,
-        testnet: false,
-        telemetry: false
-      });
-
-      const paymentKey = `basepay:${payment.id}`.toLowerCase();
-      const alreadyCredited = Boolean(readCreditedFundingTxs()[paymentKey]);
-
-      if (!alreadyCredited) {
-        const credits = usdcAmount * DONATION_CONFIG.MISSION_CREDITS_PER_USDC;
-        setStats(prev => ({
-          ...prev,
-          coins: prev.coins + credits
-        }));
-        markFundingTxCredited(paymentKey);
-        audioService.playSound('coin');
-      }
-
-      setLabFundingStatus('success');
-      setTimeout(() => {
-        setLabFundingStatus('idle');
-      }, 5000);
-    } catch (error: any) {
-      console.error("Base Pay funding error", error);
-      setLabFundingStatus('error');
-      setLabFundingError(getUserFacingMessage(error, 'Base Pay cancelled.'));
-    }
-  };
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'v' || e.key === 'V') {
@@ -812,7 +781,6 @@ const App: React.FC = () => {
           onClose={() => setGameState(GameState.PLAYING)}
           onConnectWallet={connectWallet}
           onBuyMissionCredits={fundCurrentMission}
-          onBuyMissionCreditsUsdc={fundCurrentMissionWithUsdc}
           onOpenRscSwap={openRscSwap}
           labFundingStatus={labFundingStatus}
           labFundingHash={labFundingHash}

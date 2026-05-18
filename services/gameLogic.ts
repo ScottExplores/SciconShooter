@@ -1095,20 +1095,12 @@ export class GameEngine {
   }
 
   spawnPowerup(x: number, y: number) {
-    // UPDATED PROBABILITY:
-    // 0.00 - 0.22: DOUBLE
-    // 0.22 - 0.44: TRIPLE
-    // 0.44 - 0.66: MAGNET
-    // 0.66 - 0.88: SHIELD
-    // 0.88 - 1.00: EXTRA_LIFE (Arshia) - ~12% chance
-    
     const r = Math.random();
-    let type = PowerupType.DOUBLE_SHOT;
-    if (r < 0.22) type = PowerupType.DOUBLE_SHOT;
-    else if (r < 0.44) type = PowerupType.TRIPLE_SHOT;
-    else if (r < 0.66) type = PowerupType.MAGNET;
-    else if (r < 0.88) type = PowerupType.SHIELD;
-    else type = PowerupType.EXTRA_LIFE;
+    let type: PowerupType = PowerupType.DOUBLE_SHOT;
+    if (r < 0.25) type = PowerupType.DOUBLE_SHOT;
+    else if (r < 0.5) type = PowerupType.TRIPLE_SHOT;
+    else if (r < 0.75) type = PowerupType.MAGNET;
+    else type = PowerupType.SHIELD;
 
     const p = new Entity(EntityType.POWERUP, x, y);
     p.text = type; 

@@ -13,7 +13,6 @@ interface UpgradeShopProps {
   onClose: () => void;
   onConnectWallet: (connectorId?: string) => void;
   onBuyMissionCredits: (rscAmount: number) => void;
-  onBuyMissionCreditsUsdc: (usdcAmount: number) => void;
   onOpenRscSwap: () => void;
   labFundingStatus: DonationStatus;
   labFundingHash: string;
@@ -26,18 +25,13 @@ const fundingPackages = DONATION_CONFIG.PRESET_RSC_AMOUNTS.map((amount) => ({
   credits: amount * DONATION_CONFIG.MISSION_CREDITS_PER_RSC
 }));
 
-const usdcFundingPackages = DONATION_CONFIG.PRESET_USDC_AMOUNTS.map((amount) => ({
-  usdc: amount,
-  credits: amount * DONATION_CONFIG.MISSION_CREDITS_PER_USDC
-}));
-
 const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
 
 const getConnectorLabel = (connector: Connector) => {
   if (connector.id === 'baseAccount') return 'Base Account';
   if (connector.id === 'coinbaseWalletSDK') return 'Coinbase';
   if (connector.id === 'walletConnect') return 'WalletConnect';
-  if (connector.id === 'injected') return 'Browser';
+  if (connector.id === 'injected') return 'Browser / Rabby';
   if (connector.id === 'farcaster') return 'Farcaster';
   return connector.name;
 };
@@ -50,8 +44,10 @@ const getVisibleConnectors = (connectors: readonly Connector[]) => {
       const aIndex = priority.indexOf(a.id);
       const bIndex = priority.indexOf(b.id);
       return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
-    });
+  });
 };
+
+type FounderPowerupType = Exclude<PowerupType, PowerupType.EXTRA_LIFE>;
 
 const upgradeCopy: Record<keyof Upgrades, { title: string; tag: string; icon: string; description: string }> = {
   fireRate: {
@@ -74,7 +70,7 @@ const upgradeCopy: Record<keyof Upgrades, { title: string; tag: string; icon: st
   }
 };
 
-const powerupCopy: Record<PowerupType, { title: string; tag: string; image: string }> = {
+const powerupCopy: Record<FounderPowerupType, { title: string; tag: string; image: string }> = {
   [PowerupType.DOUBLE_SHOT]: {
     title: 'Double Shot',
     tag: 'Parallel fire',
@@ -94,13 +90,15 @@ const powerupCopy: Record<PowerupType, { title: string; tag: string; image: stri
     title: 'Shield',
     tag: 'Block hits',
     image: ASSETS.FOUNDER_JEFFREY
-  },
-  [PowerupType.EXTRA_LIFE]: {
-    title: 'Life Flask',
-    tag: '+1 life',
-    image: ASSETS.FOUNDER_ARSHIA
   }
 };
+
+const purchasablePowerups: FounderPowerupType[] = [
+  PowerupType.DOUBLE_SHOT,
+  PowerupType.TRIPLE_SHOT,
+  PowerupType.MAGNET,
+  PowerupType.SHIELD
+];
 
 const statusText: Record<DonationStatus, string> = {
   idle: 'Confirmed transfers add credits to this mission.',
@@ -121,7 +119,6 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
   onClose,
   onConnectWallet,
   onBuyMissionCredits,
-  onBuyMissionCreditsUsdc,
   onOpenRscSwap,
   labFundingStatus,
   labFundingHash,
@@ -130,6 +127,7 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
 }) => {
   const [promoCode, setPromoCode] = useState('');
   const [promoMessage, setPromoMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [showWalletChoices, setShowWalletChoices] = useState(false);
 
   const getCost = (type: keyof Upgrades) => {
     const level = stats.upgrades[type];
@@ -182,7 +180,7 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
   const visibleConnectors = getVisibleConnectors(connectors);
   const canBuyAnyUpgrade = (Object.keys(upgradeCopy) as Array<keyof Upgrades>).some((type) => stats.coins >= getCost(type) && stats.upgrades[type] < 5)
     || stats.coins >= getRepairCost()
-    || (Object.values(PowerupType) as PowerupType[]).some((type) => stats.coins >= getPowerupCost(type));
+    || purchasablePowerups.some((type) => stats.coins >= getPowerupCost(type));
 
   return (
     <div className="absolute inset-0 z-30 bg-black/82 backdrop-blur-md">
@@ -269,17 +267,13 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
                 <div className="mb-3 flex items-end justify-between gap-3">
                   <div>
                     <div className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-indigo-200">Founder Powerups</div>
-                    <p className="mt-1 text-xs text-slate-400">Starts at 10 credits. Swipe for the fifth drop.</p>
-                  </div>
-                  <div className="shrink-0 rounded-full border border-indigo-200/20 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-indigo-100">
-                    5 total
+                    <p className="mt-1 text-xs text-slate-400">Four field drops. Starts at 10 credits and scales each use.</p>
                   </div>
                 </div>
 
                 <div className="relative">
-                  <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-10 w-8 bg-gradient-to-l from-[#111933] to-transparent"></div>
-                  <div className="no-scrollbar -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
-                  {(Object.values(PowerupType) as PowerupType[]).map((type) => {
+                  <div className="grid grid-cols-4 gap-2">
+                  {purchasablePowerups.map((type) => {
                     const copy = powerupCopy[type];
                     const cost = getPowerupCost(type);
                     const canBuy = stats.coins >= cost;
@@ -289,17 +283,17 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
                         key={type}
                         onClick={() => onBuyPowerup(type)}
                         disabled={!canBuy}
-                        className={`w-[112px] shrink-0 snap-start rounded-2xl border p-2 text-left transition active:scale-95 ${canBuy ? 'border-indigo-200/45 bg-white/[0.08] text-white hover:bg-white/[0.12]' : 'border-white/8 bg-black/25 text-slate-500'}`}
+                        className={`min-h-[104px] rounded-2xl border p-2 text-left transition active:scale-95 ${canBuy ? 'border-indigo-200/45 bg-white/[0.08] text-white hover:bg-white/[0.12]' : 'border-white/8 bg-black/25 text-slate-500'}`}
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/20 bg-slate-900">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-white/20 bg-slate-900">
                             <img src={copy.image} alt="" className="h-full w-full object-cover" loading="lazy" />
                           </span>
-                          <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wide ${canBuy ? 'bg-white text-slate-950' : 'bg-slate-800 text-slate-500'}`}>
+                          <span className={`rounded-full px-1.5 py-1 text-[8px] font-black uppercase tracking-wide ${canBuy ? 'bg-white text-slate-950' : 'bg-slate-800 text-slate-500'}`}>
                             {cost}
                           </span>
                         </div>
-                        <div className="mt-2 text-[11px] font-black uppercase leading-tight tracking-wide">{copy.title}</div>
+                        <div className="mt-2 text-[9px] font-black uppercase leading-tight tracking-wide">{copy.title}</div>
                         <div className="mt-1 text-[9px] uppercase tracking-wide text-slate-400">{copy.tag}</div>
                       </button>
                     );
@@ -325,18 +319,29 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
 
                 {!wallet.address ? (
                   <div className="mt-3 rounded-2xl border border-cyan-300/15 bg-black/30 p-2">
-                    <div className="mb-2 px-1 font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-100/80">Connect to spend RSC</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {visibleConnectors.map((connector) => (
-                        <button
-                          key={connector.uid}
-                          onClick={() => onConnectWallet(connector.id)}
-                          className="rounded-xl border border-white/10 bg-white/[0.06] px-2 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
-                        >
-                          {getConnectorLabel(connector)}
-                        </button>
-                      ))}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowWalletChoices((value) => !value)}
+                      className="w-full rounded-xl border border-cyan-300/30 bg-cyan-400/10 px-3 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100 transition hover:border-cyan-100"
+                    >
+                      {wallet.status === 'connecting' ? 'Connecting...' : 'Connect Wallet'}
+                    </button>
+                    {showWalletChoices ? (
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        {visibleConnectors.map((connector) => (
+                          <button
+                            key={connector.uid}
+                            onClick={() => {
+                              setShowWalletChoices(false);
+                              onConnectWallet(connector.id);
+                            }}
+                            className="rounded-xl border border-white/10 bg-white/[0.06] px-2 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
+                          >
+                            {getConnectorLabel(connector)}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                     {wallet.error ? <div className="mt-2 px-1 text-[10px] leading-relaxed text-red-300">{wallet.error}</div> : null}
                   </div>
                 ) : null}
@@ -345,8 +350,12 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
                   {fundingPackages.map((fundingPackage) => (
                     <button
                       key={fundingPackage.rsc}
-                      onClick={() => (wallet.address ? onBuyMissionCredits(fundingPackage.rsc) : onConnectWallet())}
-                      disabled={isFundingBusy}
+                      onClick={() => {
+                        if (wallet.address) {
+                          onBuyMissionCredits(fundingPackage.rsc);
+                        }
+                      }}
+                      disabled={!wallet.address || isFundingBusy}
                       className="rounded-2xl border border-emerald-300/20 bg-black/38 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-300/10 disabled:cursor-wait disabled:opacity-60"
                     >
                       <div className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-emerald-200">{fundingPackage.rsc} RSC</div>
@@ -356,27 +365,12 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
                   ))}
                 </div>
 
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {usdcFundingPackages.map((fundingPackage) => (
-                    <button
-                      key={fundingPackage.usdc}
-                      onClick={() => onBuyMissionCreditsUsdc(fundingPackage.usdc)}
-                      disabled={isFundingBusy}
-                      className="rounded-2xl border border-blue-300/20 bg-blue-400/10 p-3 text-left transition hover:border-blue-200 hover:bg-blue-300/15 disabled:cursor-wait disabled:opacity-60"
-                    >
-                      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-blue-100">${fundingPackage.usdc} USDC</div>
-                      <div className="mt-1 text-lg font-black text-white">{fundingPackage.credits}</div>
-                      <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-slate-400">Base Pay</div>
-                    </button>
-                  ))}
-                </div>
-
                 <button
                   type="button"
                   onClick={onOpenRscSwap}
                   className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
                 >
-                  Need RSC? Swap USDC to RSC on Aerodrome
+                  Need RSC? Open Aerodrome swap
                 </button>
 
                 <div className="mt-3 min-h-5 font-mono text-[10px] uppercase tracking-[0.14em]">
