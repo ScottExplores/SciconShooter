@@ -32,6 +32,7 @@ export class Entity {
   attackTimer: number = 0;
   isCharging: boolean = false;
   isBeam: boolean = false; 
+  beamAnchorOffsetX: number | null = null;
 
   // Missile Props
   isMissile: boolean = false;
@@ -641,7 +642,8 @@ export class GameEngine {
           e.life--;
           if (e.life <= 0) e.markedForDeletion = true;
           if (this.bossRef) {
-              e.x = this.bossRef.x + this.bossRef.width/2 - e.width/2;
+              const anchorX = e.beamAnchorOffsetX ?? (this.bossRef.width / 2 - e.width / 2);
+              e.x = Math.max(0, Math.min(this.width - e.width, this.bossRef.x + anchorX));
               e.y = this.bossRef.y + this.bossRef.height - 20;
           } else {
               e.markedForDeletion = true;
@@ -1036,63 +1038,120 @@ export class GameEngine {
     this.entities.push(boss);
   }
 
+  getBossPulseCount(phase: number) {
+    if (phase <= 1) return 1;
+    if (phase === 2) return 2;
+    if (phase === 3) return 3;
+    return 4;
+  }
+
+  spawnBossBurst(boss: Entity, phase: number) {
+    const cx = boss.x + boss.width / 2;
+    const cy = boss.y + boss.height - 20;
+    const px = this.player.x + this.player.width / 2;
+    const py = this.player.y + this.player.height / 2;
+    const angle = Math.atan2(py - cy, px - cx);
+    const shotCount = phase <= 1 ? 3 : phase === 2 ? 5 : 7;
+    const spread = phase <= 1 ? 0.2 : phase === 2 ? 0.18 : 0.16;
+    const speed = Math.min(10.5, 6 + phase * 0.55);
+
+    for (let i = 0; i < shotCount; i++) {
+      const offset = i - ((shotCount - 1) / 2);
+      const b = new Entity(EntityType.PROJECTILE, cx, cy);
+      b.vx = Math.cos(angle + (offset * spread)) * speed;
+      b.vy = Math.sin(angle + (offset * spread)) * speed;
+      b.width = 15;
+      b.height = 15;
+      b.color = phase >= 3 ? '#ff7a18' : '#ff0000';
+      b.text = "";
+      this.entities.push(b);
+    }
+
+    if (phase >= 4) {
+      [-0.32, 0.32].forEach(offset => {
+        const b = new Entity(EntityType.PROJECTILE, cx + boss.width * offset, cy - 8);
+        b.vx = offset * 2.2;
+        b.vy = speed * 0.95;
+        b.width = 13;
+        b.height = 18;
+        b.color = '#f97316';
+        this.entities.push(b);
+      });
+    }
+  }
+
+  spawnBossBeam(boss: Entity, phase: number, pulseIndex: number) {
+    const beamWidth = Math.min(118, 76 + (phase * 8));
+    const bossCenterX = boss.x + boss.width / 2;
+    const playerCenterX = this.player.x + this.player.width / 2;
+    const playerNearEdge = playerCenterX < this.width * 0.18 || playerCenterX > this.width * 0.82;
+    const aimStrength = Math.min(0.98, (phase <= 1 ? 0.5 : 0.66 + phase * 0.08) + (playerNearEdge ? 0.2 : 0));
+    const baseAimX = bossCenterX + ((playerCenterX - bossCenterX) * aimStrength);
+    const sweep = phase >= 3 && pulseIndex > 0
+      ? (pulseIndex % 2 === 0 ? -1 : 1) * Math.min(56, phase * 16)
+      : 0;
+    const beamCenterX = Math.max(beamWidth / 2, Math.min(this.width - beamWidth / 2, baseAimX + sweep));
+    const beam = new Entity(EntityType.PROJECTILE, beamCenterX - beamWidth / 2, boss.y + boss.height - 20);
+    beam.isBeam = true;
+    beam.width = beamWidth;
+    beam.height = this.height;
+    beam.life = phase <= 1 ? 68 : Math.max(18, 32 - phase * 3);
+    beam.maxLife = beam.life;
+    beam.color = phase >= 3 ? '#ff7a18' : '#ff0000';
+    beam.beamAnchorOffsetX = beam.x - boss.x;
+    this.entities.push(beam);
+
+    audioService.playSound(pulseIndex === 0 ? 'boss_roar' : 'electricity');
+  }
+
   updateBoss(boss: Entity) {
     boss.attackTimer++;
-    const speedMult = 1 + (this.stats.wave * 0.1);
+    const phase = Math.max(1, this.stats.wave);
+    const speedMult = 1 + (phase * 0.1);
+    const playerCenterX = this.player.x + this.player.width / 2;
+    const playerNearEdge = playerCenterX < this.width * 0.18 || playerCenterX > this.width * 0.82;
     if (boss.y < 80) boss.vy = 2;
     else {
       boss.vy = 0;
       if (!boss.isCharging) {
-          const hoverOffset = Math.sin(boss.attackTimer * 0.03) * 3;
-          const targetX = this.player.x + this.player.width/2 - boss.width/2;
+          const hoverOffset = Math.sin(boss.attackTimer * 0.03) * (playerNearEdge ? 1.4 : 3);
+          const edgeLead = playerNearEdge
+            ? (playerCenterX < this.width / 2 ? -boss.width * 0.24 : boss.width * 0.24)
+            : 0;
+          const targetX = playerCenterX - boss.width / 2 + edgeLead;
           const dx = targetX - boss.x;
-          if (Math.abs(dx) > 10) boss.x += (dx * 0.015) * speedMult;
+          const followRate = (playerNearEdge ? 0.026 : 0.015) + Math.min(0.014, (phase - 1) * 0.003);
+          if (Math.abs(dx) > 6) boss.x += (dx * followRate) * speedMult;
           boss.x += hoverOffset;
       }
     }
     
     boss.x = Math.max(0, Math.min(this.width - boss.width, boss.x));
-    const attackCycle = boss.attackTimer % 400;
+    const cycleLength = Math.max(320, 410 - Math.min(4, phase - 1) * 18);
+    const burstEnd = Math.max(210, 250 - Math.min(4, phase - 1) * 8);
+    const chargeEnd = burstEnd + 70;
+    const attackCycle = boss.attackTimer % cycleLength;
     
-    if (attackCycle < 250) {
+    if (attackCycle < burstEnd) {
         boss.isCharging = false;
-        const fireRate = Math.max(25, 60 - (this.stats.wave * 8));
+        const fireRate = Math.max(20, 60 - (phase * 7));
         if (boss.attackTimer % fireRate === 0) { 
-          const cx = boss.x + boss.width/2;
-          const cy = boss.y + boss.height - 20;
-          const px = this.player.x + this.player.width/2;
-          const py = this.player.y + this.player.height/2;
-          const angle = Math.atan2(py - cy, px - cx);
-          const angles = [angle, angle - 0.2, angle + 0.2];
-          angles.forEach(a => {
-            const b = new Entity(EntityType.PROJECTILE, cx, cy);
-            b.vx = Math.cos(a) * (6 + this.wave*0.5);
-            b.vy = Math.sin(a) * (6 + this.wave*0.5);
-            b.width = 15;
-            b.height = 15;
-            b.color = '#ff0000'; 
-            b.text = ""; 
-            this.entities.push(b);
-          });
+          this.spawnBossBurst(boss, phase);
         }
-    } else if (attackCycle >= 250 && attackCycle < 320) {
+    } else if (attackCycle >= burstEnd && attackCycle < chargeEnd) {
         boss.isCharging = true;
         boss.x += (Math.random() - 0.5) * 5; 
         if (boss.attackTimer % 15 === 0) {
-             this.spawnFloatingText(boss.x + boss.width/2, boss.y, "CHARGING BEAM!", "#ff0000");
+             this.spawnFloatingText(boss.x + boss.width/2, boss.y, phase >= 2 ? "LOCKING PULSE!" : "CHARGING BEAM!", "#ff0000");
         }
-    } else if (attackCycle === 320) {
-        audioService.playSound('boss_roar');
-        const beam = new Entity(EntityType.PROJECTILE, boss.x + boss.width/2 - 40, boss.y + boss.height - 20);
-        beam.isBeam = true; 
-        beam.width = 80;
-        beam.height = this.height;
-        beam.life = 70;
-        beam.maxLife = 70;
-        beam.color = '#ff0000';
-        this.entities.push(beam);
     } else {
-        boss.isCharging = false;
+        const pulseIndex = Math.floor((attackCycle - chargeEnd) / Math.max(18, 26 - phase * 2));
+        const pulseFrame = (attackCycle - chargeEnd) % Math.max(18, 26 - phase * 2);
+        const pulseCount = this.getBossPulseCount(phase);
+        if (pulseIndex >= 0 && pulseIndex < pulseCount && pulseFrame === 0) {
+          this.spawnBossBeam(boss, phase, pulseIndex);
+        }
+        boss.isCharging = pulseIndex >= 0 && pulseIndex < pulseCount;
     }
   }
 
@@ -1683,11 +1742,14 @@ export class GameEngine {
   
   drawLaser(ctx: CanvasRenderingContext2D, e: Entity) {
       const flicker = Math.random() * 10;
+      const glowColor = e.color || '#ff0000';
       ctx.save();
       ctx.fillStyle = '#FFF';
       ctx.fillRect(e.x + 10, e.y, e.width - 20, e.height);
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = glowColor;
       ctx.fillRect(e.x - flicker, e.y, e.width + flicker*2, e.height);
+      ctx.globalAlpha = 1;
       for(let i=0; i<5; i++) {
          ctx.fillStyle = '#FFDD00';
          const px = e.x + Math.random() * e.width;
