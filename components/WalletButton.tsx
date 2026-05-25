@@ -92,9 +92,9 @@ const WalletButton: React.FC<WalletButtonProps> = ({
                     prefillBuy: {
                       chain: thirdwebBaseChain,
                       token: {
-                        address: DONATION_CONFIG.USDC_CONTRACT_ADDRESS,
-                        name: 'USD Coin',
-                        symbol: 'USDC'
+                        address: DONATION_CONFIG.RSC_CONTRACT_ADDRESS,
+                        name: 'ResearchCoin',
+                        symbol: 'RSC'
                       },
                       amount: '5',
                       allowEdits: { amount: true, token: false, chain: false },
@@ -113,11 +113,11 @@ const WalletButton: React.FC<WalletButtonProps> = ({
                     },
                     buyWithFiat: {
                       onrampChainId: DONATION_CONFIG.BASE_CHAIN_ID,
-                      onrampTokenAddress: DONATION_CONFIG.USDC_CONTRACT_ADDRESS
+                      onrampTokenAddress: DONATION_CONFIG.RSC_CONTRACT_ADDRESS
                     },
                     metadata: {
                       name: 'Fund SciCon Shooter',
-                      description: 'Buy Base USDC, then swap to RSC for mission credits.'
+                      description: 'Buy ResearchCoin on Base, then spend it on mission credits.'
                     },
                     showThirdwebBranding: false
                   }
@@ -139,7 +139,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
                 <span className={actionIconClass}>
                   <img src={ASSETS.RSC_TOKEN} alt="" className="h-4 w-4" />
                 </span>
-                <span>Buy credits</span>
+                <span>Buy Credits</span>
               </button>
 
               <button
@@ -158,7 +158,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
                     <path d="M6 17l3-3" />
                   </svg>
                 </span>
-                <span>Swap to RSC</span>
+                <span>Swap for RSC</span>
               </button>
 
               <button
@@ -230,9 +230,9 @@ const WalletButton: React.FC<WalletButtonProps> = ({
             prefillBuy: {
               chain: thirdwebBaseChain,
               token: {
-                address: DONATION_CONFIG.USDC_CONTRACT_ADDRESS,
-                name: 'USD Coin',
-                symbol: 'USDC'
+                address: DONATION_CONFIG.RSC_CONTRACT_ADDRESS,
+                name: 'ResearchCoin',
+                symbol: 'RSC'
               },
               amount: '5',
               allowEdits: { amount: true, token: false, chain: false },
@@ -240,7 +240,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
             },
             buyWithFiat: {
               onrampChainId: DONATION_CONFIG.BASE_CHAIN_ID,
-              onrampTokenAddress: DONATION_CONFIG.USDC_CONTRACT_ADDRESS
+              onrampTokenAddress: DONATION_CONFIG.RSC_CONTRACT_ADDRESS
             },
             showThirdwebBranding: false
           }

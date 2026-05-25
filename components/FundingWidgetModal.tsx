@@ -6,8 +6,7 @@ import {
   thirdwebBaseChain,
   thirdwebClient,
   thirdwebPaymentConnectOptions,
-  thirdwebTheme,
-  usdcTokenInfo
+  thirdwebTheme
 } from '../services/thirdwebWallet';
 
 export type FundingWidgetMode = 'checkout' | 'swap' | 'buy';
@@ -26,9 +25,9 @@ const usdcAddress = DONATION_CONFIG.USDC_CONTRACT_ADDRESS as `0x${string}`;
 const rscAddress = DONATION_CONFIG.RSC_CONTRACT_ADDRESS as `0x${string}`;
 
 const fundingTabs: Array<{ mode: FundingWidgetMode; label: string; copy: string }> = [
-  { mode: 'checkout', label: 'Credits', copy: 'Send RSC on Base to the treasury and receive mission credits.' },
-  { mode: 'swap', label: 'Get RSC', copy: 'Swap Base USDC into ResearchCoin, or open Aerodrome if routing is unavailable.' },
-  { mode: 'buy', label: 'Buy USDC', copy: 'Use thirdweb to add Base USDC, then swap that USDC into RSC.' }
+  { mode: 'checkout', label: 'Buy Credits', copy: 'Spend RSC on Base to add mission credits.' },
+  { mode: 'swap', label: 'Swap for RSC', copy: 'Swap Base USDC into ResearchCoin, or open Aerodrome if routing is unavailable.' },
+  { mode: 'buy', label: 'Buy RSC', copy: 'Buy ResearchCoin on Base, then use Buy Credits to fund the mission.' }
 ];
 
 const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
@@ -112,13 +111,15 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
                 key={tab.mode}
                 type="button"
                 onClick={() => updateMode(tab.mode)}
-                className={`rounded-2xl border px-3 py-2 text-left transition ${
+                className={`min-h-[48px] rounded-2xl border px-2 py-3 text-center shadow-[inset_0_0_18px_rgba(255,255,255,0.02)] transition ${
                   mode === tab.mode
-                    ? 'border-emerald-200/55 bg-emerald-300/15 text-white'
-                    : 'border-white/10 bg-white/[0.04] text-slate-400 hover:border-cyan-200/35'
+                    ? 'border-cyan-100/70 bg-gradient-to-br from-emerald-300/26 to-cyan-300/12 text-white shadow-[0_0_24px_rgba(34,211,238,0.18)]'
+                    : 'border-white/12 bg-white/[0.06] text-slate-300 hover:border-cyan-200/45 hover:bg-cyan-300/10'
                 }`}
               >
-                <div className="font-mono text-[10px] font-black uppercase tracking-[0.14em]">{tab.label}</div>
+                <div className="font-mono text-[9px] font-black uppercase leading-tight tracking-[0.12em] min-[390px]:text-[10px]">
+                  {tab.label}
+                </div>
               </button>
             ))}
           </div>
@@ -228,16 +229,16 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
                   client={thirdwebClient}
                   chain={thirdwebBaseChain}
                   amount={Math.max(5, selectedRscAmount).toString()}
-                  tokenAddress={usdcAddress}
-                  title="Buy Base USDC"
-                  description="Buy USDC on Base, then swap USDC into RSC before funding mission credits."
+                  tokenAddress={rscAddress}
+                  title="Buy ResearchCoin"
+                  description="Buy RSC on Base, then use Buy Credits to fund mission credits."
                   currency="USD"
                   paymentMethods={['crypto', 'card']}
                   showThirdwebBranding={false}
                   theme={thirdwebTheme}
                   connectOptions={thirdwebPaymentConnectOptions}
                   presetOptions={[5, 10, 20]}
-                  onSuccess={() => setWidgetMessage('USDC purchase complete. Use Get RSC to swap it into ResearchCoin.')}
+                  onSuccess={() => setWidgetMessage('RSC purchase complete. Use Buy Credits to fund mission credits.')}
                   onError={(error) => handleWidgetError(error)}
                   onCancel={() => setWidgetMessage('Buy flow cancelled.')}
                 />
@@ -251,8 +252,8 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
               <div className="mt-1">{rscTokenInfo.symbol} on Base</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
-              <div className="font-mono font-black uppercase tracking-[0.14em] text-cyan-200">Starter swap</div>
-              <div className="mt-1">{usdcTokenInfo.symbol} to {rscTokenInfo.symbol}</div>
+              <div className="font-mono font-black uppercase tracking-[0.14em] text-cyan-200">Credit rate</div>
+              <div className="mt-1">1 {rscTokenInfo.symbol} = {DONATION_CONFIG.MISSION_CREDITS_PER_RSC} credits</div>
             </div>
           </div>
 

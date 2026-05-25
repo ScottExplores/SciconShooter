@@ -835,7 +835,7 @@ const App: React.FC = () => {
   };
 
   const openRscSwap = () => {
-    openFundingWidget('swap');
+    openFundingWidget('buy');
   };
 
   const openTreasurySend = async () => {

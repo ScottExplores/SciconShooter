@@ -351,7 +351,7 @@ const UpgradeShop: React.FC<UpgradeShopProps> = ({
                   onClick={onOpenRscSwap}
                   className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
                 >
-                  Need RSC? Get ResearchCoin
+                  Need RSC? Buy ResearchCoin
                 </button>
 
                 <div className="mt-3 min-h-5 font-mono text-[10px] uppercase tracking-[0.14em]">

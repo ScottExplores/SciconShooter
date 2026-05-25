@@ -49,7 +49,7 @@ Social login uses thirdweb in-app wallets with redirect auth so mobile and embed
 RSC funding uses thirdweb widgets on Base:
 
 - Mission credits use a direct Base ERC-20 RSC transfer to the treasury wallet, then add credits after the transaction confirms.
-- The Get RSC tab opens the Aerodrome USDC-to-RSC route because thirdweb Bridge may not support RSC routing until it is requested/enabled in the Bridge dashboard.
+- The Swap for RSC tab opens the thirdweb USDC-to-RSC widget with Aerodrome as a fallback route because Bridge routing can vary by token support.
 - `BuyWidget` is limited to Base USDC funding, which players can swap into RSC before buying credits.
 
 Credits bought from the home/profile menu are stored as wallet-linked profile credits. Credits bought from the lab are added to the active mission immediately. If a player has profile credits, the lab shows a Deploy button to move them into the current mission.
