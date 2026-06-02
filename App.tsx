@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getContract, sendAndConfirmTransaction } from 'thirdweb';
-import { transfer } from 'thirdweb/extensions/erc20';
+import { getBalance, transfer } from 'thirdweb/extensions/erc20';
 import {
   useActiveAccount,
   useActiveWallet,
@@ -87,7 +87,7 @@ const canAffordUpgrade = (stats: Stats) => (
   || purchasablePowerups.some((type) => stats.coins >= getPowerupCost(stats, type))
 );
 
-const getUserFacingMessage = (error: any, fallback: string) => {
+const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') => {
   const message = error?.shortMessage || error?.message || fallback;
 
   if (/rejected|denied|cancelled|canceled|closed modal|request rejected/i.test(message)) {
@@ -95,10 +95,22 @@ const getUserFacingMessage = (error: any, fallback: string) => {
   }
 
   if (/insufficient/i.test(message)) {
-    return 'Not enough RSC or gas for that action.';
+    return `Not enough ${tokenLabel} or gas for that action.`;
   }
 
   return message;
+};
+
+const getInsufficientCreditTokenMessage = (
+  token: FundingCreditToken,
+  requiredAmount: number,
+  availableDisplayValue = '0'
+) => {
+  if (token === 'KRMA') {
+    return `You need ${requiredAmount} KRMA on BNB Smart Chain to buy this credit pack. Your wallet shows ${availableDisplayValue} KRMA. Get KARMA first, then return to Buy Credits.`;
+  }
+
+  return `You need ${requiredAmount} RSC on Base to buy this credit pack. Your wallet shows ${availableDisplayValue} RSC. Swap or buy RSC first, then return to Buy Credits.`;
 };
 
 const getProjectedScoreQualification = (
@@ -359,9 +371,6 @@ const App: React.FC = () => {
       totalCoins: Math.max(prev.totalCoins, savedStats.totalCoins || 0)
     }));
 
-    if (savedStats.playerName && !playerNameInput) {
-      setPlayerNameInput(savedStats.playerName);
-    }
   }, [activeWalletAddress]);
 
   useEffect(() => {
@@ -635,6 +644,30 @@ const App: React.FC = () => {
       address: tokenAddress as `0x${string}`
     });
 
+    let balanceDisplayValue = '0';
+    try {
+      const balance = await getBalance({
+        contract: creditTokenContract,
+        address: account.address
+      });
+      balanceDisplayValue = balance.displayValue;
+      const availableBalance = Number(balance.displayValue);
+
+      if (Number.isFinite(availableBalance) && availableBalance + 0.000000001 < rscAmount) {
+        const message = getInsufficientCreditTokenMessage(token, rscAmount, balanceDisplayValue);
+        setLabFundingStatus('error');
+        setLabFundingError(message);
+        throw new Error(message);
+      }
+    } catch (error: any) {
+      const message = error?.message || '';
+      if (message.includes('Swap or buy RSC') || message.includes('Get KARMA')) {
+        throw error;
+      }
+
+      console.warn(`${tokenLabel} balance preflight failed; continuing to wallet confirmation.`, error);
+    }
+
     const transaction = transfer({
       contract: creditTokenContract,
       to: DONATION_CONFIG.RECIPIENT_ADDRESS,
@@ -648,7 +681,7 @@ const App: React.FC = () => {
       handleFundingWidgetSuccess(rscAmount, txHash, token);
       return txHash;
     } catch (error: any) {
-      const message = getUserFacingMessage(error, `${tokenLabel} payment was cancelled before credits were added.`);
+      const message = getUserFacingMessage(error, `${tokenLabel} payment was cancelled before credits were added.`, tokenLabel);
       setLabFundingStatus('error');
       setLabFundingError(message);
       throw new Error(message);
@@ -737,9 +770,6 @@ const App: React.FC = () => {
       const scoreQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, stats.score);
 
       if (scoreQualification.qualifiesMonthlyTop5 || scoreQualification.qualifiesAllTimeTop25) {
-        if (!playerNameInput && activeWalletAddress) {
-          setPlayerNameInput(`0X${activeWalletAddress.slice(2, 6)}`.toUpperCase());
-        }
         if (scoreQualification.isMonthlyChampion && !selectedProposalId && fundingProposals.length > 0) {
           setSelectedProposalId(fundingProposals[0].id);
         }
@@ -747,7 +777,7 @@ const App: React.FC = () => {
         setShowNameInput(true);
       }
     }
-  }, [activeWalletAddress, fundingProposals, gameId, gameState, monthlyLeaderboard, playerNameInput, selectedProposalId, stats.score, stats.wave, stats.highScore, leaderboard]);
+  }, [fundingProposals, gameId, gameState, monthlyLeaderboard, selectedProposalId, stats.score, stats.wave, stats.highScore, leaderboard]);
 
   const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
@@ -835,6 +865,16 @@ const App: React.FC = () => {
     }
 
     await persistHighScore();
+  };
+
+  const skipScoreSubmission = () => {
+    submittingScoreRef.current = false;
+    setIsSubmittingScore(false);
+    setShowNameInput(false);
+    setPlayerNameInput('');
+    setSelectedProposalId('');
+    setScoreSubmitError('');
+    setGameState(GameState.MENU);
   };
 
   const getPubStatus = (score: number) => {
@@ -1024,12 +1064,12 @@ const App: React.FC = () => {
       ) : null}
 
       {gameState === GameState.GAMEOVER && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+        <div className="absolute inset-0 z-20 flex touch-pan-y items-center justify-center bg-black/80 p-4 backdrop-blur-md">
           <div className="relative flex max-h-[95vh] w-full max-w-md flex-col overflow-hidden border border-red-300/20 bg-slate-950/88 shadow-[0_24px_90px_rgba(0,0,0,0.58)] backdrop-blur-xl animate-bounce-in [clip-path:polygon(18px_0,100%_0,100%_92%,96%_100%,0_100%,0_18px)]">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-300/70 to-transparent"></div>
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-300/45 to-transparent"></div>
 
-            <div className="relative z-10 space-y-4 overflow-y-auto p-6 text-center custom-scrollbar">
+            <div className="relative z-10 min-h-0 flex-1 touch-pan-y space-y-4 overflow-y-auto overscroll-contain p-6 text-center custom-scrollbar">
               {showNameInput ? (
                 <div className="space-y-4">
                   <h2 className="arcade-font animate-pulse text-2xl font-black tracking-widest text-yellow-400">NEW HIGH SCORE!</h2>
@@ -1097,7 +1137,7 @@ const App: React.FC = () => {
                             <span>{fundingProposals.length} live proposals</span>
                             <span className="text-emerald-200">Scroll to choose</span>
                           </div>
-                          <div className="custom-scrollbar max-h-[46vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
+                          <div className="custom-scrollbar max-h-[46vh] touch-pan-y space-y-3 overflow-y-auto overscroll-contain pr-1">
                             {fundingProposals.map((proposal) => {
                               const isSelected = selectedProposalId === proposal.id;
 
@@ -1167,6 +1207,14 @@ const App: React.FC = () => {
                       className={`scicon-btn w-full py-3 text-lg font-bold ${isSubmittingScore ? 'cursor-wait opacity-70' : ''}`}
                     >
                       {isSubmittingScore ? 'TRANSMITTING...' : 'SUBMIT RECORD'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={skipScoreSubmission}
+                      disabled={isSubmittingScore}
+                      className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-slate-400 transition hover:border-red-200/45 hover:bg-red-300/10 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Do Not Submit Score
                     </button>
                   </form>
                 </div>

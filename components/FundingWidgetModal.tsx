@@ -84,6 +84,7 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
   const [confirmedTxHash, setConfirmedTxHash] = useState('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [selectedCreditToken, setSelectedCreditToken] = useState<FundingCreditToken>(initialCreditToken);
+  const [paymentHelpToken, setPaymentHelpToken] = useState<FundingCreditToken | null>(null);
   const creditToken = creditTokenMeta[selectedCreditToken];
   const missionCredits = selectedRscAmount * DONATION_CONFIG.MISSION_CREDITS_PER_RSC;
 
@@ -93,6 +94,7 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
 
   const updateMode = (nextMode: FundingWidgetMode) => {
     setWidgetMessage('');
+    setPaymentHelpToken(null);
     onModeChange(nextMode, selectedRscAmount);
   };
 
@@ -102,11 +104,13 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
   };
 
   const handleCreditSuccess = () => {
+    setPaymentHelpToken(null);
     setWidgetMessage(`Confirmed. ${missionCredits} wallet-linked credits saved to your profile.`);
   };
 
   const handleWidgetError = (error: Error) => {
     const message = error.message || 'Payment flow could not complete.';
+    setPaymentHelpToken(selectedCreditToken);
     setWidgetMessage(message);
     onWidgetError(message);
   };
@@ -114,6 +118,7 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
   const handleDirectCreditPayment = async () => {
     setIsSubmittingPayment(true);
     setConfirmedTxHash('');
+    setPaymentHelpToken(null);
     setWidgetMessage(`Confirm the ${creditToken.symbol} transfer in your wallet. Credits are only added after the ${creditToken.chainLabel} transaction confirms.`);
 
     try {
@@ -128,7 +133,7 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/78 p-3 backdrop-blur-md">
+    <div className="absolute inset-0 z-[80] flex touch-pan-y items-center justify-center bg-black/78 p-3 backdrop-blur-md">
       <div className="relative flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-[28px] border border-cyan-300/20 bg-slate-950 shadow-[0_28px_100px_rgba(0,0,0,0.68)]">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/80 to-transparent" />
 
@@ -150,7 +155,7 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
           </button>
         </div>
 
-        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="custom-scrollbar min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4">
           <div className="grid grid-cols-3 gap-2">
             {fundingTabs.map((tab) => (
               <button
@@ -184,6 +189,7 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
                     onClick={() => {
                       setSelectedCreditToken(token);
                       setWidgetMessage('');
+                      setPaymentHelpToken(null);
                     }}
                     className={`rounded-2xl border px-3 py-2.5 text-left transition ${
                       selectedCreditToken === token
@@ -368,6 +374,42 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
                   className="mt-2 block font-mono text-[10px] uppercase tracking-[0.14em] text-cyan-200 underline underline-offset-2"
                 >
                   View transfer
+                </a>
+              ) : null}
+              {paymentHelpToken === 'RSC' && !confirmedTxHash ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateMode('swap')}
+                    className="rounded-xl border border-cyan-200/45 bg-cyan-300 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-950 transition hover:bg-white"
+                  >
+                    Swap for RSC
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateMode('buy')}
+                    className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white transition hover:border-cyan-200/60 hover:bg-cyan-300/15"
+                  >
+                    Buy RSC
+                  </button>
+                  <a
+                    href={DONATION_CONFIG.RSC_SWAP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="col-span-2 rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100 transition hover:border-cyan-200/60"
+                  >
+                    Open Aerodrome route
+                  </a>
+                </div>
+              ) : null}
+              {paymentHelpToken === 'KRMA' && !confirmedTxHash ? (
+                <a
+                  href={DONATION_CONFIG.KARMA_SWAP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 block rounded-xl border border-purple-200/45 bg-purple-300 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-slate-950 transition hover:bg-white"
+                >
+                  Get KARMA on PancakeSwap
                 </a>
               ) : null}
             </div>

@@ -18,6 +18,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
   const lastTimeRef = useRef<number>(0);
   const handledPowerupNonceRef = useRef<number | null>(null);
   const activeTouchIdRef = useRef<number | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
   
   // Use a ref to track gameState inside the animation loop closure
   const gameStateRef = useRef(gameState);
@@ -26,6 +27,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
   // Sync the ref whenever the prop changes
   useEffect(() => {
     gameStateRef.current = gameState;
+    if (gameState !== GameState.PLAYING) {
+      activeTouchIdRef.current = null;
+      activePointerIdRef.current = null;
+      engineRef.current?.handleInput({}, null);
+    }
   }, [gameState]);
 
   useEffect(() => {
@@ -101,15 +107,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       keys[e.key] = false; 
     };
     
-    const updateTouchTarget = (touch: Touch) => {
+    const updateClientTarget = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
-      const x = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
-      const y = Math.max(0, Math.min(rect.height, touch.clientY - rect.top));
+      const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+      const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
       engine.handleInput(keys, { x, y });
     };
 
+    const updateTouchTarget = (touch: Touch) => {
+      updateClientTarget(touch.clientX, touch.clientY);
+    };
+
     const findTrackedTouch = (touches: TouchList) => {
-      if (activeTouchIdRef.current === null) return touches[0] || null;
+      if (activeTouchIdRef.current === null) return null;
 
       for (let index = 0; index < touches.length; index += 1) {
         if (touches[index].identifier === activeTouchIdRef.current) {
@@ -117,7 +127,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
         }
       }
 
-      return null;
+      const fallbackTouch = touches[0] || null;
+      if (fallbackTouch) {
+        activeTouchIdRef.current = fallbackTouch.identifier;
+      }
+
+      return fallbackTouch;
     };
 
     const handleTouchStart = (e: TouchEvent) => {
@@ -136,6 +151,40 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       if (e.cancelable) e.preventDefault();
       updateTouchTarget(touch);
     };
+
+    const handlePointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+      if (e.cancelable) e.preventDefault();
+
+      activePointerIdRef.current = e.pointerId;
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        // Some embedded browsers reject capture while transitioning surfaces.
+      }
+      updateClientTarget(e.clientX, e.clientY);
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      if (activePointerIdRef.current === null || e.pointerId !== activePointerIdRef.current) return;
+      if (e.cancelable) e.preventDefault();
+
+      updateClientTarget(e.clientX, e.clientY);
+    };
+
+    const handlePointerEnd = (e: PointerEvent) => {
+      if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
+
+      activePointerIdRef.current = null;
+      try {
+        if (canvas.hasPointerCapture(e.pointerId)) {
+          canvas.releasePointerCapture(e.pointerId);
+        }
+      } catch {
+        // Capture may already be released by the browser.
+      }
+      engine.handleInput(keys, null);
+    };
     
     const handleTouchEnd = () => {
       activeTouchIdRef.current = null;
@@ -149,11 +198,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
 
     const handleWindowBlur = () => {
       activeTouchIdRef.current = null;
+      activePointerIdRef.current = null;
       engine.handleInput(keys, null);
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
+    canvas.addEventListener('lostpointercapture', handlePointerEnd);
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('touchend', handleTouchEnd);
@@ -208,6 +263,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      canvas.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('pointercancel', handlePointerEnd);
+      canvas.removeEventListener('lostpointercapture', handlePointerEnd);
       canvas.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
