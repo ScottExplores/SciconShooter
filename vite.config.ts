@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const leaderboardHandler = require('./api/leaderboard.js');
+const monthlyWinnersHandler = require('./api/monthly-winners.js');
 
 const readBody = (req: any) => new Promise((resolve) => {
   if (req.method === 'GET' || req.method === 'OPTIONS') {
@@ -35,6 +36,11 @@ const localApiRoutes = () => ({
     server.middlewares.use('/api/leaderboard', async (req: any, res: any) => {
       req.body = await readBody(req);
       await leaderboardHandler(req, res);
+    });
+
+    server.middlewares.use('/api/monthly-winners', async (req: any, res: any) => {
+      req.body = await readBody(req);
+      await monthlyWinnersHandler(req, res);
     });
   }
 });

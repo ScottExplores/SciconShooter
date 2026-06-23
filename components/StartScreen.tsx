@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { LeaderboardEntry } from '../types';
+import { ArchivedWinner, LeaderboardEntry } from '../types';
 import {
   formatUsd,
   ResearchHubProposal
@@ -18,6 +18,7 @@ interface StartScreenProps {
   onStart: () => void;
   allTimeLeaderboard: LeaderboardEntry[];
   monthlyLeaderboard: LeaderboardEntry[];
+  archivedWinners: ArchivedWinner[];
   isLoading: boolean;
   proposals: ResearchHubProposal[];
   proposalStatus: ProposalFeedStatus;
@@ -28,7 +29,7 @@ interface StartScreenProps {
   onOpenTreasurySend: () => void;
 }
 
-type LeaderboardView = 'weekly' | 'allTime';
+type LeaderboardView = 'weekly' | 'allTime' | 'pastPicks';
 
 const getWeeklyAllocationMeta = () => {
   const now = new Date();
@@ -57,6 +58,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onStart,
   allTimeLeaderboard,
   monthlyLeaderboard,
+  archivedWinners,
   isLoading,
   proposals,
   proposalStatus,
@@ -112,6 +114,55 @@ const StartScreen: React.FC<StartScreenProps> = ({
     imageUrl: weeklyChampionLiveProposal?.imageUrl,
     status: weeklyChampionLiveProposal?.status
   } : null;
+  const pastPicks = useMemo(() => {
+    const fallbackPicks = allTimeLeaderboard
+      .filter((entry) => Boolean(entry.proposalTitle))
+      .filter((entry) => !(weeklyChampion
+        && entry.name === weeklyChampion.name
+        && entry.score === weeklyChampion.score
+        && entry.date === weeklyChampion.date))
+      .map((entry): ArchivedWinner => {
+        const scoreDate = entry.date ? new Date(entry.date) : null;
+        const periodLabel = scoreDate && Number.isFinite(scoreDate.getTime())
+          ? scoreDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+          : 'Past run';
+
+        return {
+          periodKey: `${entry.name}-${entry.score}-${entry.date || entry.proposalTitle}`,
+          periodLabel,
+          winnerName: entry.name,
+          score: entry.score,
+          wave: entry.wave || 1,
+          scoreDate: entry.date,
+          proposalId: entry.proposalId,
+          proposalTitle: entry.proposalTitle,
+          proposalUrl: entry.proposalUrl,
+          proposalAuthor: entry.proposalAuthor,
+          allocationRsc: 100
+        };
+      });
+    const seen = new Set<string>();
+
+    return [...archivedWinners, ...fallbackPicks]
+      .filter((pick) => Boolean(pick.proposalTitle))
+      .filter((pick) => {
+        const key = `${pick.periodKey}-${pick.winnerName}-${pick.proposalTitle}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 12);
+  }, [allTimeLeaderboard, archivedWinners, weeklyChampion]);
+  const leaderboardTitle = leaderboardView === 'weekly'
+    ? 'Weekly Leaderboard'
+    : leaderboardView === 'allTime'
+      ? 'All-Time Leaderboard'
+      : 'Past Picks';
+  const leaderboardCopy = leaderboardView === 'weekly'
+    ? 'Top 5 resets each week.'
+    : leaderboardView === 'allTime'
+      ? 'Top 25 archive across every mission.'
+      : 'Previous winning pilots and their proposal choices.';
   const isChampionProposal = (proposal: ResearchHubProposal) => Boolean(weeklyChampionProposal)
     && (proposal.id === weeklyChampionProposal?.id || proposal.title === weeklyChampionProposal?.title);
   const stackedProposals = useMemo(() => (
@@ -456,35 +507,87 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <div className="mb-3 flex items-center justify-between gap-3 px-1">
               <div>
                 <h3 className="text-sm font-black uppercase tracking-[0.16em] text-white">
-                  {leaderboardView === 'weekly' ? 'Weekly Leaderboard' : 'All-Time Leaderboard'}
+                  {leaderboardTitle}
                 </h3>
                 <p className="text-[11px] font-semibold text-slate-400">
-                  {leaderboardView === 'weekly' ? 'Top 5 resets each week.' : 'Top 25 archive across every mission.'}
+                  {leaderboardCopy}
                 </p>
               </div>
-              <div className="flex shrink-0 rounded-full border border-white/10 bg-black/25 p-1">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
-                  aria-label="Weekly Top 5"
-                  onClick={() => setLeaderboardView('weekly')}
-                  className={`flex min-w-[64px] flex-col items-center rounded-full px-3 py-1 text-center font-black uppercase transition ${leaderboardView === 'weekly' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  aria-label="Past proposal picks"
+                  onClick={() => setLeaderboardView('pastPicks')}
+                  className={`rounded-full border px-3 py-2 text-center text-[9px] font-black uppercase tracking-[0.13em] transition ${leaderboardView === 'pastPicks' ? 'border-yellow-100 bg-yellow-200 text-slate-950' : 'border-white/10 bg-black/25 text-slate-400 hover:text-white'}`}
                 >
-                  <span className="text-[7px] tracking-[0.16em] opacity-80">Weekly</span>
-                  <span className="text-[9px] tracking-[0.12em]">Top 5</span>
+                  Past<br />Picks
                 </button>
-                <button
-                  type="button"
-                  aria-label="All Time Top 25"
-                  onClick={() => setLeaderboardView('allTime')}
-                  className={`flex min-w-[64px] flex-col items-center rounded-full px-3 py-1 text-center font-black uppercase transition ${leaderboardView === 'allTime' ? 'bg-white text-slate-950' : 'text-slate-400 hover:text-white'}`}
-                >
-                  <span className="text-[7px] tracking-[0.16em] opacity-80">All Time</span>
-                  <span className="text-[9px] tracking-[0.12em]">Top 25</span>
-                </button>
+                <div className="flex rounded-full border border-white/10 bg-black/25 p-1">
+                  <button
+                    type="button"
+                    aria-label="Weekly Top 5"
+                    onClick={() => setLeaderboardView('weekly')}
+                    className={`flex min-w-[64px] flex-col items-center rounded-full px-3 py-1 text-center font-black uppercase transition ${leaderboardView === 'weekly' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    <span className="text-[7px] tracking-[0.16em] opacity-80">Weekly</span>
+                    <span className="text-[9px] tracking-[0.12em]">Top 5</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="All Time Top 25"
+                    onClick={() => setLeaderboardView('allTime')}
+                    className={`flex min-w-[64px] flex-col items-center rounded-full px-3 py-1 text-center font-black uppercase transition ${leaderboardView === 'allTime' ? 'bg-white text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    <span className="text-[7px] tracking-[0.16em] opacity-80">All Time</span>
+                    <span className="text-[9px] tracking-[0.12em]">Top 25</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             <div className="overflow-hidden rounded-[20px] border border-white/10 bg-black/35">
+              {leaderboardView === 'pastPicks' ? (
+                <div className="custom-scrollbar max-h-[250px] space-y-2 overflow-y-auto p-2 sm:max-h-[270px]">
+                  {pastPicks.length === 0 ? (
+                    <div className="py-8 text-center text-xs font-semibold text-slate-500">
+                      No archived proposal picks yet. The first weekly champion pick will appear here after it is saved.
+                    </div>
+                  ) : (
+                    pastPicks.map((pick) => (
+                      <article
+                        key={`${pick.periodKey}-${pick.winnerName}-${pick.proposalTitle}`}
+                        className="rounded-2xl border border-yellow-100/15 bg-white/[0.055] p-3 text-left shadow-[0_14px_34px_rgba(0,0,0,0.18)]"
+                      >
+                        <div className="mb-2 flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-[9px] font-black uppercase tracking-[0.16em] text-yellow-100">{pick.periodLabel}</div>
+                            <div className="mt-1 truncate font-mono text-xs font-black uppercase text-white">{pick.winnerName}</div>
+                          </div>
+                          <div className="shrink-0 rounded-full border border-emerald-200/25 bg-emerald-300/12 px-2.5 py-1 text-center">
+                            <div className="font-mono text-[10px] font-black text-emerald-100">{pick.allocationRsc || 100} RSC</div>
+                            <div className="text-[7px] font-black uppercase tracking-[0.14em] text-emerald-100/70">signal</div>
+                          </div>
+                        </div>
+                        <h4 className="line-clamp-2 text-sm font-black leading-snug text-slate-100">{pick.proposalTitle}</h4>
+                        <div className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-2 font-mono text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                          <span>Impact <strong className="block text-[11px] text-white">{pick.score.toLocaleString()}</strong></span>
+                          <span>Wave <strong className="block text-[11px] text-blue-200">{pick.wave}</strong></span>
+                          <span>Lead <strong className="block truncate text-[11px] text-yellow-100">{pick.proposalAuthor || 'ResearchHub'}</strong></span>
+                        </div>
+                        {pick.proposalUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenProposal(pick.proposalUrl!)}
+                            className="mt-2 w-full rounded-xl bg-yellow-200 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 transition hover:bg-white"
+                          >
+                            View Pick
+                          </button>
+                        ) : null}
+                      </article>
+                    ))
+                  )}
+                </div>
+              ) : (
               <div className="custom-scrollbar max-h-[250px] overflow-y-auto p-2 sm:max-h-[270px]">
                 <div className="sticky top-0 z-10 mb-1 grid grid-cols-[34px_minmax(0,1fr)_36px_64px] gap-1.5 rounded-xl bg-slate-950/92 px-2 py-2 font-mono text-[8px] uppercase tracking-[0.12em] text-slate-500 backdrop-blur sm:grid-cols-[42px_minmax(0,1fr)_44px_72px] sm:gap-2 sm:px-3 sm:text-[9px]">
                   <span>Rank</span>
@@ -583,6 +686,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   )}
                 </div>
               </div>
+              )}
             </div>
 
           </section>

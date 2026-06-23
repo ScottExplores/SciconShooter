@@ -29,6 +29,10 @@ module.exports = async (req, res) => {
 
     return sendJson(res, 405, { error: 'Method not allowed' });
   } catch (error) {
+    if (/Missing Supabase config/i.test(error.message || '')) {
+      return sendJson(res, 200, { winners: [] });
+    }
+
     console.error('Monthly winners API error:', error);
     return sendJson(res, 500, {
       error: 'Monthly winners request failed',

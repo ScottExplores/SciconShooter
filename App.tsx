@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getContract, sendAndConfirmTransaction } from 'thirdweb';
 import { getBalance, transfer } from 'thirdweb/extensions/erc20';
 import {
@@ -19,10 +19,11 @@ import WalletButton from './components/WalletButton';
 import FundingWidgetModal, { FundingCreditToken, FundingWidgetMode } from './components/FundingWidgetModal';
 import StoryTransmission from './components/StoryTransmission';
 import UpgradeCoach from './components/UpgradeCoach';
-import { DonationStatus, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
+import { ArchivedWinner, DonationStatus, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
 import { ASSETS, DONATION_CONFIG, STORAGE_KEYS, UPGRADE_BASE_COSTS } from './constants';
 import { getLeaderboardData, saveScore } from './services/leaderboardService';
+import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
 import { miniAppService } from './services/miniAppService';
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
@@ -181,9 +182,11 @@ const App: React.FC = () => {
   const [gameId, setGameId] = useState<number>(0);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [archivedWinners, setArchivedWinners] = useState<ArchivedWinner[]>([]);
   const [fundingProposals, setFundingProposals] = useState<ResearchHubProposal[]>([]);
   const [proposalStatus, setProposalStatus] = useState<ProposalFeedStatus>('loading');
   const [selectedProposalId, setSelectedProposalId] = useState<string>('');
+  const [proposalSearchQuery, setProposalSearchQuery] = useState<string>('');
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
   const [showNameInput, setShowNameInput] = useState<boolean>(false);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(false);
@@ -244,6 +247,27 @@ const App: React.FC = () => {
     hasDonated: activeWalletAddress ? Boolean(donatedWallets[activeWalletAddress.toLowerCase()]) : false
   };
 
+  const sortedFundingProposals = useMemo(() => (
+    [...fundingProposals].sort((a, b) => {
+      if (b.votes !== a.votes) return b.votes - a.votes;
+      if (b.backers !== a.backers) return b.backers - a.backers;
+      if ((b.raisedUsd || 0) !== (a.raisedUsd || 0)) return (b.raisedUsd || 0) - (a.raisedUsd || 0);
+      return a.title.localeCompare(b.title);
+    })
+  ), [fundingProposals]);
+  const topVotedFundingProposals = sortedFundingProposals.slice(0, 3);
+  const visibleFundingProposals = useMemo(() => {
+    const query = proposalSearchQuery.trim().toLowerCase();
+    if (!query) return sortedFundingProposals;
+
+    return sortedFundingProposals.filter((proposal) => [
+      proposal.title,
+      proposal.author,
+      proposal.organization,
+      proposal.status
+    ].some((value) => value?.toLowerCase().includes(query)));
+  }, [proposalSearchQuery, sortedFundingProposals]);
+
   const getWalletProfileKey = (walletAddress?: string | null) => (
     walletAddress ? `${STORAGE_KEYS.PLAYER_STATS}:${walletAddress.toLowerCase()}` : STORAGE_KEYS.PLAYER_STATS
   );
@@ -290,8 +314,14 @@ const App: React.FC = () => {
       }
     };
 
+    const fetchArchivedWinners = async () => {
+      const winners = await getArchivedWeeklyWinners();
+      setArchivedWinners(winners);
+    };
+
     if (gameState === GameState.MENU || gameState === GameState.GAMEOVER) {
       fetchScores();
+      fetchArchivedWinners();
     }
   }, [gameState, leaderboard.length]);
 
@@ -317,12 +347,12 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!showNameInput || selectedProposalId || fundingProposals.length === 0) {
+    if (!showNameInput || selectedProposalId || sortedFundingProposals.length === 0) {
       return;
     }
 
-    setSelectedProposalId(fundingProposals[0].id);
-  }, [fundingProposals, selectedProposalId, showNameInput]);
+    setSelectedProposalId(sortedFundingProposals[0].id);
+  }, [selectedProposalId, showNameInput, sortedFundingProposals]);
 
   const getInitialStats = (): Stats => {
     const parsed = readSavedStats(activeWalletAddress);
@@ -770,14 +800,14 @@ const App: React.FC = () => {
       const scoreQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, stats.score);
 
       if (scoreQualification.qualifiesMonthlyTop5 || scoreQualification.qualifiesAllTimeTop25) {
-        if (scoreQualification.isMonthlyChampion && !selectedProposalId && fundingProposals.length > 0) {
-          setSelectedProposalId(fundingProposals[0].id);
+        if (scoreQualification.isMonthlyChampion && !selectedProposalId && sortedFundingProposals.length > 0) {
+          setSelectedProposalId(sortedFundingProposals[0].id);
         }
         setScoreSubmitError('');
         setShowNameInput(true);
       }
     }
-  }, [fundingProposals, gameId, gameState, monthlyLeaderboard, selectedProposalId, stats.score, stats.wave, stats.highScore, leaderboard]);
+  }, [gameId, gameState, monthlyLeaderboard, selectedProposalId, sortedFundingProposals, stats.score, stats.wave, stats.highScore, leaderboard]);
 
   const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
@@ -794,7 +824,7 @@ const App: React.FC = () => {
     const submitQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, score);
     const isMonthlyChampionSubmission = submitQualification.isMonthlyChampion;
     const selectedProposal = isMonthlyChampionSubmission
-      ? fundingProposals.find((proposal) => proposal.id === selectedProposalId) || fundingProposals[0]
+      ? sortedFundingProposals.find((proposal) => proposal.id === selectedProposalId) || sortedFundingProposals[0]
       : undefined;
     const proposalPickData = selectedProposal ? {
       proposalId: selectedProposal.id,
@@ -1031,6 +1061,7 @@ const App: React.FC = () => {
           onStart={startGame}
           allTimeLeaderboard={leaderboard}
           monthlyLeaderboard={monthlyLeaderboard}
+          archivedWinners={archivedWinners}
           isLoading={loadingLeaderboard}
           proposals={fundingProposals}
           proposalStatus={proposalStatus}
@@ -1179,12 +1210,55 @@ const App: React.FC = () => {
 
                         {fundingProposals.length > 0 ? (
                           <>
-                          <div className="mb-2 flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-300">
-                            <span>{fundingProposals.length} live proposals</span>
-                            <span className="text-emerald-200">Scroll to choose</span>
+                          <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-2">
+                            <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-300">
+                              <span>{visibleFundingProposals.length} of {fundingProposals.length} proposals</span>
+                              <span className="text-emerald-200">Top votes first</span>
+                            </div>
+                            <input
+                              type="search"
+                              value={proposalSearchQuery}
+                              onChange={(event) => setProposalSearchQuery(event.target.value)}
+                              placeholder="Search title, author, or topic"
+                              className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-200/60"
+                              disabled={isSubmittingScore}
+                            />
                           </div>
-                          <div className="custom-scrollbar max-h-[46vh] touch-pan-y space-y-3 overflow-y-auto overscroll-contain pr-1">
-                            {fundingProposals.map((proposal) => {
+
+                          {topVotedFundingProposals.length > 0 ? (
+                            <div className="mb-3 rounded-2xl border border-yellow-200/20 bg-yellow-200/10 p-2">
+                              <div className="mb-2 text-[9px] font-black uppercase tracking-[0.18em] text-yellow-100">Most voted right now</div>
+                              <div className="grid gap-2">
+                                {topVotedFundingProposals.map((proposal) => {
+                                  const isSelected = selectedProposalId === proposal.id;
+
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={`top-${proposal.id}`}
+                                      onClick={() => setSelectedProposalId(proposal.id)}
+                                      disabled={isSubmittingScore}
+                                      className={`rounded-xl border px-3 py-2 text-left transition ${isSelected ? 'border-yellow-100 bg-yellow-100 text-slate-950' : 'border-yellow-100/20 bg-black/25 text-yellow-50 hover:border-yellow-100/50'}`}
+                                    >
+                                      <span className="line-clamp-1 text-xs font-black">{proposal.title}</span>
+                                      <span className={`mt-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.12em] ${isSelected ? 'text-slate-700' : 'text-yellow-100/80'}`}>
+                                        <span>{proposal.votes} votes</span>
+                                        <span>{proposal.backers} backers</span>
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div className="custom-scrollbar max-h-[42vh] touch-pan-y space-y-3 overflow-y-auto overscroll-contain pr-1">
+                            {visibleFundingProposals.length === 0 ? (
+                              <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-6 text-center text-[11px] font-semibold text-slate-400">
+                                No proposals match that search yet.
+                              </div>
+                            ) : null}
+                            {visibleFundingProposals.map((proposal) => {
                               const isSelected = selectedProposalId === proposal.id;
 
                               return (

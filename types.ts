@@ -66,6 +66,20 @@ export interface LeaderboardData {
   remoteSaved?: boolean;
 }
 
+export interface ArchivedWinner {
+  periodKey: string;
+  periodLabel: string;
+  winnerName: string;
+  score: number;
+  wave: number;
+  scoreDate?: string;
+  proposalId?: string;
+  proposalTitle?: string;
+  proposalUrl?: string;
+  proposalAuthor?: string;
+  allocationRsc?: number;
+}
+
 export interface Stats {
   score: number;
   highScore: number;
