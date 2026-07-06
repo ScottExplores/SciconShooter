@@ -65,8 +65,10 @@
 
       @media (min-width: 900px) {
         #root {
-          width: min(100vw, 1024px);
+          width: 100vw;
+          max-width: none;
           max-height: none;
+          box-shadow: none;
         }
       }
 
@@ -173,6 +175,28 @@
         margin-top: 0.06em;
         font-size: clamp(2.1rem, 11vw, 4.25rem);
         letter-spacing: 0.045em;
+      }
+
+      .scicon-logo-lockup--dashboard {
+        max-width: 100%;
+      }
+
+      .scicon-logo-lockup--dashboard .scicon-logo-word {
+        font-size: clamp(2.15rem, 10vw, 3.85rem);
+      }
+
+      .scicon-logo-lockup--dashboard .scicon-logo-word--sub {
+        font-size: clamp(1.95rem, 9.2vw, 3.45rem);
+      }
+
+      @media (min-width: 900px) {
+        .scicon-logo-lockup--dashboard .scicon-logo-word {
+          font-size: clamp(2.05rem, 3.8vw, 3.2rem);
+        }
+
+        .scicon-logo-lockup--dashboard .scicon-logo-word--sub {
+          font-size: clamp(1.85rem, 3.4vw, 2.9rem);
+        }
       }
 
       @keyframes scicon-logo-shine {
@@ -351,17 +375,300 @@
         border-color: rgba(96, 165, 250, 0.55);
       }
 
-      .scicon-promo-ticker-track {
-        animation: scicon-promo-ticker 24s linear infinite;
+      .scicon-hero-title {
+        display: grid;
+        justify-items: center;
+        gap: 0.02em;
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 900;
+        line-height: 0.9;
+        text-transform: uppercase;
+        color: #f8fbff;
+        text-shadow:
+          0 0 2px rgba(255, 255, 255, 0.95),
+          0 0 18px rgba(34, 211, 238, 0.82),
+          0 7px 0 rgba(15, 23, 42, 0.94),
+          0 14px 28px rgba(8, 145, 178, 0.5);
       }
 
-      @keyframes scicon-promo-ticker {
-        from {
-          transform: translateX(0);
+      .scicon-hero-title span {
+        position: relative;
+        display: block;
+        background:
+          linear-gradient(180deg, #ffffff 0%, #dbeafe 18%, #67e8f9 42%, #0ea5e9 64%, #e0f2fe 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-stroke: 1px rgba(226, 232, 240, 0.75);
+      }
+
+      .scicon-hero-title span::before,
+      .scicon-hero-title span::after {
+        content: "";
+        position: absolute;
+        top: 45%;
+        height: 8px;
+        width: min(13vw, 74px);
+        transform: translateY(-50%) skewX(-28deg);
+        background: linear-gradient(90deg, rgba(250, 204, 21, 0), rgba(250, 204, 21, 0.95), rgba(250, 204, 21, 0));
+        filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.55));
+      }
+
+      .scicon-hero-title span::before {
+        right: calc(100% + 0.18em);
+      }
+
+      .scicon-hero-title span::after {
+        left: calc(100% + 0.18em);
+      }
+
+      .sci-icon-button {
+        display: inline-flex;
+        height: 42px;
+        width: 42px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(103, 232, 249, 0.24);
+        border-radius: 8px;
+        background: rgba(2, 6, 23, 0.66);
+        color: rgba(207, 250, 254, 0.92);
+        box-shadow: inset 0 0 14px rgba(34, 211, 238, 0.08);
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+      }
+
+      .sci-icon-button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(110, 231, 183, 0.68);
+        background: rgba(16, 185, 129, 0.14);
+        color: #ffffff;
+      }
+
+      .sci-start-button {
+        position: relative;
+        border: 1px solid rgba(110, 231, 183, 0.72);
+        border-radius: 8px;
+        background:
+          linear-gradient(180deg, rgba(52, 211, 153, 0.9), rgba(5, 150, 105, 0.9)),
+          linear-gradient(90deg, rgba(6, 78, 59, 0.96), rgba(21, 128, 61, 0.96));
+        clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+        box-shadow:
+          inset 0 0 18px rgba(255, 255, 255, 0.18),
+          0 0 24px rgba(52, 211, 153, 0.45);
+        transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
+      }
+
+      .sci-start-button:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.1);
+        box-shadow:
+          inset 0 0 22px rgba(255, 255, 255, 0.22),
+          0 0 34px rgba(52, 211, 153, 0.68);
+      }
+
+      .sci-ship-orbit {
+        position: absolute;
+        bottom: 18px;
+        width: min(84%, 360px);
+        height: 110px;
+        border: 1px solid rgba(103, 232, 249, 0.24);
+        border-radius: 50%;
+        background:
+          radial-gradient(ellipse at center, rgba(34, 211, 238, 0.22), rgba(15, 23, 42, 0.06) 52%, transparent 70%);
+        transform: perspective(430px) rotateX(64deg);
+        box-shadow:
+          0 0 30px rgba(34, 211, 238, 0.25),
+          inset 0 0 22px rgba(16, 185, 129, 0.18);
+      }
+
+      .sci-ship-orbit::before,
+      .sci-ship-orbit::after {
+        content: "";
+        position: absolute;
+        inset: 18px 36px;
+        border: 1px solid rgba(110, 231, 183, 0.22);
+        border-radius: 50%;
+      }
+
+      .sci-ship-orbit::after {
+        inset: 34px 78px;
+        border-color: rgba(250, 204, 21, 0.2);
+      }
+
+      .sci-rh-ship {
+        position: relative;
+        z-index: 2;
+        width: min(72vw, 330px);
+        height: 178px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        filter: drop-shadow(0 0 30px rgba(34, 211, 238, 0.72));
+      }
+
+      .sci-rh-ship--compact {
+        width: min(72vw, 245px);
+        height: 138px;
+      }
+
+      .sci-rh-ship::before,
+      .sci-rh-ship::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        border-radius: 50%;
+        transform: translateX(-50%) perspective(420px) rotateX(64deg);
+      }
+
+      .sci-rh-ship::before {
+        bottom: 14px;
+        width: 88%;
+        height: 58px;
+        border: 1px solid rgba(103, 232, 249, 0.42);
+        background:
+          radial-gradient(ellipse at center, rgba(34, 211, 238, 0.24), rgba(15, 23, 42, 0.04) 52%, transparent 70%);
+        box-shadow:
+          0 0 22px rgba(34, 211, 238, 0.25),
+          inset 0 0 20px rgba(16, 185, 129, 0.2);
+        animation: sci-rh-ring-pulse 2.8s ease-in-out infinite;
+      }
+
+      .sci-rh-ship::after {
+        bottom: 20px;
+        width: 52%;
+        height: 42px;
+        background:
+          radial-gradient(ellipse at center, rgba(34, 211, 238, 0.7), rgba(16, 185, 129, 0.2) 42%, transparent 72%);
+        filter: blur(10px);
+        animation: sci-rh-glow-pulse 2.15s ease-in-out infinite;
+      }
+
+      .sci-rh-ship-core {
+        position: relative;
+        z-index: 3;
+        display: flex;
+        width: 64%;
+        aspect-ratio: 1;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: radial-gradient(circle at 50% 48%, rgba(34, 211, 238, 0.18), transparent 68%);
+        animation: sci-rh-logo-float 3.2s ease-in-out infinite;
+      }
+
+      .sci-rh-ship-core::before {
+        content: "";
+        position: absolute;
+        inset: 6%;
+        z-index: -1;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(110, 231, 183, 0.24), rgba(34, 211, 238, 0.08) 58%, transparent 72%);
+        filter: blur(10px);
+      }
+
+      .sci-rh-ship-core img {
+        width: 118%;
+        height: 118%;
+        object-fit: contain;
+        transform: scale(1.08);
+        filter:
+          drop-shadow(0 0 10px rgba(34, 211, 238, 0.82))
+          drop-shadow(0 0 22px rgba(52, 211, 153, 0.45));
+      }
+
+      @keyframes sci-rh-ring-pulse {
+        0%, 100% {
+          opacity: 0.65;
+          transform: translateX(-50%) perspective(420px) rotateX(64deg) scale(0.96);
         }
-        to {
-          transform: translateX(-50%);
+        50% {
+          opacity: 1;
+          transform: translateX(-50%) perspective(420px) rotateX(64deg) scale(1.04);
         }
+      }
+
+      @keyframes sci-rh-glow-pulse {
+        0%, 100% {
+          opacity: 0.42;
+          transform: translateX(-50%) perspective(420px) rotateX(64deg) scale(0.86);
+        }
+        50% {
+          opacity: 0.95;
+          transform: translateX(-50%) perspective(420px) rotateX(64deg) scale(1.08);
+        }
+      }
+
+      @keyframes sci-rh-logo-float {
+        0%, 100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-5px);
+        }
+      }
+
+      .sci-dashboard-nav {
+        background:
+          linear-gradient(90deg, rgba(6, 78, 59, 0.25), transparent 24%, rgba(14, 165, 233, 0.12) 64%, rgba(2, 6, 23, 0.9)),
+          rgba(2, 6, 23, 0.88);
+      }
+
+      .sci-mini-cta {
+        display: inline-flex;
+        min-height: 40px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid rgba(103, 232, 249, 0.24);
+        border-radius: 8px;
+        background: rgba(34, 211, 238, 0.08);
+        color: #cffafe;
+        padding: 9px 14px;
+        font-size: 13px;
+        font-weight: 800;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+      }
+
+      .sci-mini-cta:hover {
+        transform: translateY(-1px);
+        border-color: rgba(110, 231, 183, 0.55);
+        background: rgba(16, 185, 129, 0.14);
+      }
+
+      .sci-market-card {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 14px;
+        min-height: 112px;
+        border: 1px solid rgba(103, 232, 249, 0.18);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.035);
+        padding: 18px;
+        text-align: left;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+      }
+
+      .sci-market-card:hover {
+        transform: translateY(-1px);
+        border-color: rgba(110, 231, 183, 0.52);
+        background: rgba(20, 184, 166, 0.1);
+      }
+
+      .sci-market-card strong,
+      .sci-market-card small {
+        display: block;
+      }
+
+      .sci-market-card strong {
+        color: #ffffff;
+        font-size: 16px;
+      }
+
+      .sci-market-card small {
+        margin-top: 4px;
+        color: #cbd5e1;
+        font-size: 13px;
+        line-height: 1.35;
       }
 
       @media (max-width: 640px) {

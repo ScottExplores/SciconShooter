@@ -1,15 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArchivedWinner, LeaderboardEntry } from '../types';
-import {
-  formatUsd,
-  ResearchHubProposal
-} from '../services/researchHubProposals';
-import {
-  formatRscPrice,
-  getKarmaMarketPrice,
-  getRscMarketPrice,
-  RscMarketPrice
-} from '../services/rscMarket';
+import { formatUsd, ResearchHubProposal } from '../services/researchHubProposals';
 import { ASSETS, DONATION_CONFIG } from '../constants';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
@@ -27,9 +18,55 @@ interface StartScreenProps {
   onOpenProposal: (url: string) => void;
   onOpenXProfile: () => void;
   onOpenTreasurySend: () => void;
+  onOpenCredits: () => void;
+  onOpenSwap: () => void;
+  onOpenBuy: () => void;
 }
 
 type LeaderboardView = 'weekly' | 'allTime' | 'pastPicks';
+type DashboardTab = 'home' | 'proposals' | 'market' | 'trophies' | 'more';
+type IconName =
+  | 'home'
+  | 'list'
+  | 'market'
+  | 'trophy'
+  | 'more'
+  | 'play'
+  | 'shield'
+  | 'overdrive'
+  | 'focus'
+  | 'beam'
+  | 'gift'
+  | 'chart'
+  | 'settings'
+  | 'pilot'
+  | 'wallet'
+  | 'coin'
+  | 'external'
+  | 'copy'
+  | 'x'
+  | 'search'
+  | 'mint'
+  | 'base'
+  | 'rocket'
+  | 'flask'
+  | 'chevron';
+
+const dashboardTabs: Array<{ id: DashboardTab; label: string; icon: IconName; hint: string }> = [
+  { id: 'home', label: 'Home', icon: 'home', hint: 'Mission' },
+  { id: 'proposals', label: 'Proposals', icon: 'list', hint: 'Live' },
+  { id: 'market', label: 'Market', icon: 'market', hint: 'RSC' },
+  { id: 'trophies', label: 'Trophies', icon: 'trophy', hint: 'Rank' },
+  { id: 'more', label: 'More', icon: 'more', hint: 'About' }
+];
+
+const clampPercent = (value: number) => Math.max(8, Math.min(100, Math.round(value)));
+
+const formatNumber = (value?: number) => (
+  typeof value === 'number' && Number.isFinite(value)
+    ? value.toLocaleString()
+    : '0'
+);
 
 const getWeeklyAllocationMeta = () => {
   const now = new Date();
@@ -69,6 +106,286 @@ const getPastPickTime = (pick: ArchivedWinner) => {
   return 0;
 };
 
+const getProposalProgress = (proposal: ResearchHubProposal) => {
+  if (proposal.requestedUsd && proposal.raisedUsd) {
+    return clampPercent((proposal.raisedUsd / proposal.requestedUsd) * 100);
+  }
+
+  const signal = proposal.votes + proposal.backers + proposal.comments;
+  return clampPercent(18 + signal * 4);
+};
+
+const getProposalSignalRsc = (proposal: ResearchHubProposal) => {
+  const signal = proposal.votes * 20 + proposal.backers * 35 + proposal.comments * 5;
+  return Math.max(100, Math.min(999, signal || 100));
+};
+
+const getProposalTag = (proposal: ResearchHubProposal, index: number) => {
+  const text = `${proposal.title} ${proposal.organization ?? ''}`.toLowerCase();
+  if (text.includes('climate') || text.includes('ocean') || text.includes('plastic')) return 'Environment';
+  if (text.includes('protein') || text.includes('health') || text.includes('clinical')) return 'Health';
+  if (text.includes('battery') || text.includes('fusion') || text.includes('energy')) return 'Energy';
+  if (text.includes('open') || text.includes('software') || text.includes('ai')) return 'Open Science';
+  return ['Research', 'Biotech', 'Materials', 'Base Native'][index % 4];
+};
+
+const leaderboardName = (entry?: LeaderboardEntry) => entry?.name || 'Open pilot slot';
+const leaderboardScore = (entry?: LeaderboardEntry) => entry?.score ?? 0;
+
+const Icon: React.FC<{ name: IconName; className?: string; strokeWidth?: number }> = ({
+  name,
+  className = 'h-5 w-5',
+  strokeWidth = 1.8
+}) => {
+  const common = {
+    className,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true
+  };
+
+  switch (name) {
+    case 'home':
+      return (
+        <svg {...common}>
+          <path d="M3.5 11.2 12 4l8.5 7.2" />
+          <path d="M6 10.8V20h12v-9.2" />
+          <path d="M10 20v-5h4v5" />
+        </svg>
+      );
+    case 'list':
+      return (
+        <svg {...common}>
+          <path d="M8 6h12" />
+          <path d="M8 12h12" />
+          <path d="M8 18h12" />
+          <path d="M4 6h.01" />
+          <path d="M4 12h.01" />
+          <path d="M4 18h.01" />
+        </svg>
+      );
+    case 'market':
+      return (
+        <svg {...common}>
+          <path d="M6 6h15l-2 8H8L6 3H3" />
+          <circle cx="9" cy="20" r="1.4" />
+          <circle cx="18" cy="20" r="1.4" />
+        </svg>
+      );
+    case 'trophy':
+      return (
+        <svg {...common}>
+          <path d="M8 4h8v4a4 4 0 0 1-8 0V4Z" />
+          <path d="M8 6H5.5a2.5 2.5 0 0 0 2.8 4.2" />
+          <path d="M16 6h2.5a2.5 2.5 0 0 1-2.8 4.2" />
+          <path d="M12 12v5" />
+          <path d="M8 20h8" />
+          <path d="M10 17h4" />
+        </svg>
+      );
+    case 'more':
+      return (
+        <svg {...common}>
+          <circle cx="5" cy="12" r="1.2" />
+          <circle cx="12" cy="12" r="1.2" />
+          <circle cx="19" cy="12" r="1.2" />
+        </svg>
+      );
+    case 'play':
+      return (
+        <svg {...common} fill="currentColor" stroke="none">
+          <path d="M8 5.5v13l10.2-6.5L8 5.5Z" />
+        </svg>
+      );
+    case 'shield':
+      return (
+        <svg {...common}>
+          <path d="M12 3 19 6v5.4c0 4.4-3 7.4-7 9.1-4-1.7-7-4.7-7-9.1V6l7-3Z" />
+          <path d="m9 12 2 2 4-5" />
+        </svg>
+      );
+    case 'overdrive':
+      return (
+        <svg {...common}>
+          <path d="m13 2-8 12h6l-1 8 8-12h-6l1-8Z" />
+        </svg>
+      );
+    case 'focus':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v3" />
+          <path d="M12 19v3" />
+          <path d="M2 12h3" />
+          <path d="M19 12h3" />
+          <path d="m5 5 2.2 2.2" />
+          <path d="m16.8 16.8 2.2 2.2" />
+          <path d="m19 5-2.2 2.2" />
+          <path d="m7.2 16.8-2.2 2.2" />
+        </svg>
+      );
+    case 'beam':
+      return (
+        <svg {...common}>
+          <path d="M12 3 4 8l8 13 8-13-8-5Z" />
+          <path d="M12 3v18" />
+          <path d="M4 8h16" />
+          <path d="m8 14 4-6 4 6" />
+        </svg>
+      );
+    case 'gift':
+      return (
+        <svg {...common}>
+          <path d="M20 12v8H4v-8" />
+          <path d="M2.5 7h19v5h-19z" />
+          <path d="M12 7v13" />
+          <path d="M12 7H8.5a2 2 0 1 1 2-2c0 1.2 1.5 2 1.5 2Z" />
+          <path d="M12 7h3.5a2 2 0 1 0-2-2c0 1.2-1.5 2-1.5 2Z" />
+        </svg>
+      );
+    case 'chart':
+      return (
+        <svg {...common}>
+          <path d="M5 19V9" />
+          <path d="M12 19V5" />
+          <path d="M19 19v-7" />
+          <path d="M3 19h18" />
+        </svg>
+      );
+    case 'settings':
+      return (
+        <svg {...common}>
+          <path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Z" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.4 2.4-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4.8v-.4a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H2.5V10H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.4-2.4.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3h4.8v.4a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.5v4H21a1.7 1.7 0 0 0-1.6 1Z" />
+        </svg>
+      );
+    case 'pilot':
+      return (
+        <svg {...common}>
+          <path d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+          <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+          <path d="M8 11h8" />
+        </svg>
+      );
+    case 'wallet':
+      return (
+        <svg {...common}>
+          <path d="M4 7.5h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-12a2 2 0 0 1 2-2h13" />
+          <path d="M16 13.5h5" />
+          <circle cx="17.2" cy="13.5" r=".7" />
+        </svg>
+      );
+    case 'coin':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 7v10" />
+          <path d="M8.5 9.5c1-1.3 5.8-1.5 6.3.5.7 2.6-5.7 1.3-5.3 4 .3 2 4.5 2.1 5.8.4" />
+        </svg>
+      );
+    case 'external':
+      return (
+        <svg {...common}>
+          <path d="M14 4h6v6" />
+          <path d="m10 14 10-10" />
+          <path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5" />
+        </svg>
+      );
+    case 'copy':
+      return (
+        <svg {...common}>
+          <rect x="8" y="8" width="11" height="11" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
+        </svg>
+      );
+    case 'x':
+      return (
+        <svg {...common}>
+          <path d="m6 6 12 12" />
+          <path d="m18 6-12 12" />
+        </svg>
+      );
+    case 'search':
+      return (
+        <svg {...common}>
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+      );
+    case 'mint':
+      return (
+        <svg {...common}>
+          <path d="M12 3 5 7v10l7 4 7-4V7l-7-4Z" />
+          <path d="M12 8v8" />
+          <path d="M8.5 10.5h7" />
+          <path d="M8.5 13.5h7" />
+        </svg>
+      );
+    case 'base':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M8 12h8" />
+        </svg>
+      );
+    case 'rocket':
+      return (
+        <svg {...common}>
+          <path d="M12 3c3.5 1.5 6 4.9 6.2 9.2l-4.4 4.4-6.4-6.4L12 3Z" />
+          <path d="M7.4 10.2 4 11l2.5 2.5" />
+          <path d="M13.8 16.6 13 20l-2.5-2.5" />
+          <path d="M8 18c-1.8.9-3 .8-4 .6.2-1.1.4-2.3 1.6-3.6" />
+        </svg>
+      );
+    case 'flask':
+      return (
+        <svg {...common}>
+          <path d="M9 3h6" />
+          <path d="M10 3v5l-5.2 8.6A2.2 2.2 0 0 0 6.7 20h10.6a2.2 2.2 0 0 0 1.9-3.4L14 8V3" />
+          <path d="M8 14h8" />
+        </svg>
+      );
+    case 'chevron':
+      return (
+        <svg {...common}>
+          <path d="m8 10 4 4 4-4" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
+
+const StatusPill: React.FC<{ children: React.ReactNode; tone?: 'cyan' | 'green' | 'gold' | 'violet' }> = ({
+  children,
+  tone = 'cyan'
+}) => {
+  const tones = {
+    cyan: 'border-cyan-300/25 bg-cyan-300/10 text-cyan-100',
+    green: 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100',
+    gold: 'border-yellow-300/25 bg-yellow-300/10 text-yellow-100',
+    violet: 'border-violet-300/25 bg-violet-300/10 text-violet-100'
+  };
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[0.62rem] font-bold uppercase ${tones[tone]}`}>
+      {children}
+    </span>
+  );
+};
+
+const HudPanel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
+  <section className={`relative overflow-hidden rounded-[8px] border border-cyan-300/20 bg-slate-950/72 shadow-[0_0_30px_rgba(8,145,178,0.16)] backdrop-blur-xl ${className}`}>
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.12),transparent_36%),linear-gradient(135deg,rgba(34,211,238,0.08),transparent_42%,rgba(16,185,129,0.08))]" />
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/80 to-transparent" />
+    <div className="relative z-10">{children}</div>
+  </section>
+);
+
 const StartScreen: React.FC<StartScreenProps> = ({
   onStart,
   allTimeLeaderboard,
@@ -81,931 +398,878 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onOpenFund,
   onOpenProposal,
   onOpenXProfile,
-  onOpenTreasurySend
+  onOpenTreasurySend,
+  onOpenCredits,
+  onOpenSwap,
+  onOpenBuy
 }) => {
+  const [leaderboardView, setLeaderboardView] = useState<LeaderboardView>('weekly');
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>('home');
+  const [proposalSearch, setProposalSearch] = useState('');
+  const [activeProposalIndex, setActiveProposalIndex] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showTreasury, setShowTreasury] = useState(false);
-  const [treasuryCopyStatus, setTreasuryCopyStatus] = useState<'idle' | 'copied' | 'selected' | 'error'>('idle');
-  const [feedback, setFeedback] = useState({
-    liked: '',
-    change: '',
-    disliked: ''
-  });
-  const [isSending, setIsSending] = useState(false);
+  const [feedback, setFeedback] = useState('');
   const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [activeProposalIndex, setActiveProposalIndex] = useState(0);
-  const [isProposalFlipping, setIsProposalFlipping] = useState(false);
-  const [expandedFundingKey, setExpandedFundingKey] = useState<string | null>(null);
-  const [leaderboardView, setLeaderboardView] = useState<LeaderboardView>('weekly');
-  const [showAllocationAmount, setShowAllocationAmount] = useState(false);
-  const [rscMarketPrice, setRscMarketPrice] = useState<RscMarketPrice | null>(null);
-  const [karmaMarketPrice, setKarmaMarketPrice] = useState<RscMarketPrice | null>(null);
-  const [rscPriceStatus, setRscPriceStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [karmaPriceStatus, setKarmaPriceStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [showAllocationInfo, setShowAllocationInfo] = useState(false);
-  const treasuryAddressRef = useRef<HTMLInputElement | null>(null);
-  const proposalFlipTimeoutRef = useRef<number | undefined>(undefined);
-  const proposalSwipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [treasuryCopyStatus, setTreasuryCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const proposalFlipTimeout = useRef<number | null>(null);
+  const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
+
   const weeklyAllocation = useMemo(getWeeklyAllocationMeta, []);
+  const sortedProposals = useMemo(() => (
+    [...proposals].sort((a, b) => (
+      (b.votes + b.backers + b.comments) - (a.votes + a.backers + a.comments)
+    ))
+  ), [proposals]);
+
+  const filteredProposals = useMemo(() => {
+    const query = proposalSearch.trim().toLowerCase();
+    if (!query) return sortedProposals;
+    return sortedProposals.filter((proposal) => (
+      `${proposal.title} ${proposal.author} ${proposal.organization ?? ''}`.toLowerCase().includes(query)
+    ));
+  }, [proposalSearch, sortedProposals]);
+
+  const featuredProposal = sortedProposals[activeProposalIndex % Math.max(1, sortedProposals.length)];
+  const weeklyLeader = monthlyLeaderboard[0];
+  const allTimeLeader = allTimeLeaderboard[0];
+
+  const sortedPastPicks = useMemo(() => (
+    [...archivedWinners].sort((a, b) => getPastPickTime(b) - getPastPickTime(a))
+  ), [archivedWinners]);
+
   const visibleLeaderboard = leaderboardView === 'weekly'
-    ? monthlyLeaderboard.slice(0, 5)
-    : allTimeLeaderboard.slice(0, 25);
-  const weeklyChampion = monthlyLeaderboard[0];
-  const weeklyChampionProposal = weeklyChampion?.proposalTitle ? {
-    id: weeklyChampion.proposalId,
-    title: weeklyChampion.proposalTitle,
-    url: weeklyChampion.proposalUrl,
-    author: weeklyChampion.proposalAuthor,
-    pilot: weeklyChampion.name
-  } : null;
-  const weeklyChampionLiveProposal = weeklyChampionProposal
-    ? proposals.find((proposal) => proposal.id === weeklyChampionProposal.id || proposal.title === weeklyChampionProposal.title)
-    : undefined;
-  const championCard = weeklyChampionProposal ? {
-    title: weeklyChampionLiveProposal?.title || weeklyChampionProposal.title,
-    url: weeklyChampionLiveProposal?.url || weeklyChampionProposal.url,
-    author: weeklyChampionLiveProposal?.author || weeklyChampionProposal.author || 'ResearchHub proposal',
-    organization: weeklyChampionLiveProposal?.organization,
-    imageUrl: weeklyChampionLiveProposal?.imageUrl,
-    status: weeklyChampionLiveProposal?.status
-  } : null;
-  const pastPicks = useMemo(() => {
-    const fallbackPicks = allTimeLeaderboard
-      .filter((entry) => Boolean(entry.proposalTitle))
-      .filter((entry) => !(weeklyChampion
-        && entry.name === weeklyChampion.name
-        && entry.score === weeklyChampion.score
-        && entry.date === weeklyChampion.date))
-      .map((entry): ArchivedWinner => {
-        const scoreDate = entry.date ? new Date(entry.date) : null;
-        const periodLabel = scoreDate && Number.isFinite(scoreDate.getTime())
-          ? scoreDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-          : 'Past run';
-
-        return {
-          periodKey: `${entry.name}-${entry.score}-${entry.date || entry.proposalTitle}`,
-          periodLabel,
-          winnerName: entry.name,
-          score: entry.score,
-          wave: entry.wave || 1,
-          scoreDate: entry.date,
-          proposalId: entry.proposalId,
-          proposalTitle: entry.proposalTitle,
-          proposalUrl: entry.proposalUrl,
-          proposalAuthor: entry.proposalAuthor,
-          allocationRsc: 100
-        };
-      });
-    const seen = new Set<string>();
-
-    return [...archivedWinners, ...fallbackPicks]
-      .filter((pick) => Boolean(pick.proposalTitle))
-      .filter((pick) => {
-        const key = `${pick.periodKey}-${pick.winnerName}-${pick.proposalTitle}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => {
-        const dateDiff = getPastPickTime(b) - getPastPickTime(a);
-        return dateDiff || b.score - a.score;
-      })
-      .slice(0, 12);
-  }, [allTimeLeaderboard, archivedWinners, weeklyChampion]);
-  const leaderboardTitle = leaderboardView === 'weekly'
-    ? 'Weekly Leaderboard'
+    ? monthlyLeaderboard
     : leaderboardView === 'allTime'
-      ? 'All-Time Leaderboard'
-      : 'Past Picks';
-  const leaderboardCopy = leaderboardView === 'weekly'
-    ? 'Top 5 resets each week.'
-    : leaderboardView === 'allTime'
-      ? 'Top 25 archive across every mission.'
-      : 'Previous winning pilots and their proposal choices.';
-  const isChampionProposal = (proposal: ResearchHubProposal) => Boolean(weeklyChampionProposal)
-    && (proposal.id === weeklyChampionProposal?.id || proposal.title === weeklyChampionProposal?.title);
-  const stackedProposals = useMemo(() => (
-    proposals.length > 0 ? [0, 1, 2].slice(0, proposals.length).map((offset) => ({
-      offset,
-      proposal: proposals[(activeProposalIndex + offset) % proposals.length]
-    })) : []
-  ), [activeProposalIndex, proposals]);
-  const moveProposalDeck = (direction: 1 | -1) => {
-    if (proposals.length < 2) return;
+      ? allTimeLeaderboard
+      : [];
 
-    if (proposalFlipTimeoutRef.current) {
-      window.clearTimeout(proposalFlipTimeoutRef.current);
-    }
+  const trophyStats = useMemo(() => {
+    const currentTopScore = weeklyLeader?.score ?? 0;
+    const allTimeTopScore = allTimeLeader?.score ?? 0;
+    const fundedMissions = archivedWinners.length;
+    const uniqueProposalCount = new Set(
+      archivedWinners
+        .map((winner) => winner.proposalId || winner.proposalTitle)
+        .filter(Boolean)
+    ).size;
 
-    setIsProposalFlipping(true);
-    proposalFlipTimeoutRef.current = window.setTimeout(() => {
-      setActiveProposalIndex((index) => (index + direction + proposals.length) % proposals.length);
-      setIsProposalFlipping(false);
-      proposalFlipTimeoutRef.current = undefined;
-    }, 260);
-  };
+    return {
+      currentTopScore,
+      allTimeTopScore,
+      fundedMissions,
+      uniqueProposalCount,
+      trophiesUnlocked: Math.max(archivedWinners.length, uniqueProposalCount)
+    };
+  }, [allTimeLeader, archivedWinners, weeklyLeader]);
 
-  const handleProposalTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    const touch = event.touches[0];
-    proposalSwipeStartRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
-  };
+  const pilotLevel = Math.max(1, Math.min(12, Math.floor((trophyStats.allTimeTopScore || trophyStats.currentTopScore) / 1000) + 1));
+  const weeklyRank = weeklyLeader ? '#1' : '#--';
+  const nextTierProgress = Math.max(12, Math.min(92, Math.round((monthlyLeaderboard.length / 10) * 100) || 62));
 
-  const handleProposalTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    const start = proposalSwipeStartRef.current;
-    const touch = event.changedTouches[0];
-    proposalSwipeStartRef.current = null;
-
-    if (!start || !touch) return;
-
-    const deltaX = touch.clientX - start.x;
-    const deltaY = touch.clientY - start.y;
-    const isHorizontalSwipe = Math.abs(deltaX) > 44 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25;
-
-    if (!isHorizontalSwipe) return;
-
-    moveProposalDeck(deltaX < 0 ? 1 : -1);
-  };
+  const powerups = [
+    { name: 'Shield', count: 3, icon: 'shield' as IconName, tone: 'emerald', helper: 'Hold RSC for armor perks' },
+    { name: 'Overdrive', count: 2, icon: 'overdrive' as IconName, tone: 'sky', helper: 'Spend RSC for speed' },
+    { name: 'Focus', count: 2, icon: 'focus' as IconName, tone: 'yellow', helper: 'Proposal targeting bonus' },
+    { name: 'Research Beam', count: 1, icon: 'beam' as IconName, tone: 'violet', helper: 'ResearchHub beam strike' }
+  ];
 
   useEffect(() => {
-    if (proposals.length < 2) return undefined;
+    if (proposalFlipTimeout.current) window.clearTimeout(proposalFlipTimeout.current);
+    if (sortedProposals.length < 2) return undefined;
 
-    const timer = window.setInterval(() => {
-      if (proposalFlipTimeoutRef.current) {
-        window.clearTimeout(proposalFlipTimeoutRef.current);
-      }
-
-      setIsProposalFlipping(true);
-      proposalFlipTimeoutRef.current = window.setTimeout(() => {
-        setActiveProposalIndex((index) => (index + 1) % proposals.length);
-        setIsProposalFlipping(false);
-        proposalFlipTimeoutRef.current = undefined;
-      }, 640);
-    }, 6800);
+    proposalFlipTimeout.current = window.setTimeout(() => {
+      setActiveProposalIndex((current) => (current + 1) % sortedProposals.length);
+    }, 6500);
 
     return () => {
-      window.clearInterval(timer);
-      if (proposalFlipTimeoutRef.current) {
-        window.clearTimeout(proposalFlipTimeoutRef.current);
-        proposalFlipTimeoutRef.current = undefined;
-      }
+      if (proposalFlipTimeout.current) window.clearTimeout(proposalFlipTimeout.current);
     };
-  }, [proposals.length]);
+  }, [activeProposalIndex, sortedProposals.length]);
 
-  useEffect(() => () => {
-    if (proposalFlipTimeoutRef.current) {
-      window.clearTimeout(proposalFlipTimeoutRef.current);
-    }
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadMarketPrices = async () => {
-      try {
-        const [rscPrice, karmaPrice] = await Promise.allSettled([
-          getRscMarketPrice(),
-          getKarmaMarketPrice()
-        ]);
-
-        if (!isMounted) return;
-
-        if (rscPrice.status === 'fulfilled') {
-          setRscMarketPrice(rscPrice.value);
-          setRscPriceStatus('ready');
-        } else {
-          console.error('RSC price error:', rscPrice.reason);
-          setRscPriceStatus('error');
-        }
-
-        if (karmaPrice.status === 'fulfilled') {
-          setKarmaMarketPrice(karmaPrice.value);
-          setKarmaPriceStatus('ready');
-        } else {
-          console.error('KRMA price error:', karmaPrice.reason);
-          setKarmaPriceStatus('error');
-        }
-      } catch (error) {
-        console.error('Market price error:', error);
-        if (!isMounted) return;
-        setRscPriceStatus('error');
-        setKarmaPriceStatus('error');
-      }
-    };
-
-    loadMarketPrices();
-    const timer = window.setInterval(loadMarketPrices, 120000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setShowAllocationAmount((value) => !value);
-    }, 4200);
-
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const handleSendFeedback = async () => {
-    if (!feedback.liked && !feedback.change && !feedback.disliked) return;
-
-    setIsSending(true);
-    setSendStatus('idle');
-
-    try {
-      const response = await fetch('https://formsubmit.co/ajax/scottexplores29@gmail.com', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          _subject: 'SciCon Shooter Feedback',
-          _template: 'table',
-          'What they liked': feedback.liked || 'N/A',
-          'Suggested Changes': feedback.change || 'N/A',
-          'What they disliked': feedback.disliked || 'N/A'
-        })
-      });
-
-      if (response.ok) {
-        setSendStatus('success');
-        setTimeout(() => {
-          setShowFeedback(false);
-          setFeedback({ liked: '', change: '', disliked: '' });
-          setSendStatus('idle');
-          setIsSending(false);
-        }, 2000);
-        return;
-      }
-
-      setSendStatus('error');
-      setIsSending(false);
-    } catch (error) {
-      console.error('Feedback error:', error);
-      setSendStatus('error');
-      setIsSending(false);
-    }
-  };
-
-  const selectTreasuryAddress = () => {
-    const input = treasuryAddressRef.current;
-    if (!input) return false;
-
-    input.focus();
-    input.select();
-    input.setSelectionRange(0, input.value.length);
-    return true;
-  };
-
-  const copyTextWithFallback = async (text: string): Promise<'copied' | 'selected' | 'error'> => {
-    if (navigator.clipboard?.writeText && window.isSecureContext) {
-      try {
-        await navigator.clipboard.writeText(text);
-        return 'copied';
-      } catch {
-        // Some mobile/in-app browsers block this API even on secure origins.
-      }
-    }
-
-    const selectedVisibleAddress = selectTreasuryAddress();
-    if (selectedVisibleAddress) {
-      try {
-        if (document.execCommand('copy')) {
-          return 'copied';
-        }
-      } catch {
-        // Keep the selected address as a manual fallback.
-      }
-
-      return 'selected';
+  const copyTextWithFallback = async (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
     }
 
     const textarea = document.createElement('textarea');
     textarea.value = text;
-    textarea.setAttribute('readonly', '');
+    textarea.setAttribute('readonly', 'true');
     textarea.style.position = 'fixed';
-    textarea.style.left = '-9999px';
-    textarea.style.top = '0';
     textarea.style.opacity = '0';
-    textarea.style.pointerEvents = 'none';
     document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  };
 
+  const handleCopyTreasury = async () => {
     try {
-      textarea.focus();
-      textarea.select();
-      textarea.setSelectionRange(0, text.length);
-      return document.execCommand('copy') ? 'copied' : 'error';
+      await copyTextWithFallback(treasuryAddress);
+      setTreasuryCopyStatus('copied');
+      window.setTimeout(() => setTreasuryCopyStatus('idle'), 1800);
     } catch {
-      return 'error';
-    } finally {
-      document.body.removeChild(textarea);
-      window.getSelection()?.removeAllRanges();
+      setTreasuryCopyStatus('error');
     }
   };
 
-  const handleCopyTreasuryAddress = async () => {
-    const copyResult = await copyTextWithFallback(DONATION_CONFIG.RECIPIENT_ADDRESS);
+  const handleSendFeedback = async () => {
+    const trimmedFeedback = feedback.trim();
+    if (!trimmedFeedback || isSending) return;
 
-    if (copyResult !== 'error') {
-      setTreasuryCopyStatus(copyResult);
-      window.setTimeout(() => setTreasuryCopyStatus('idle'), copyResult === 'copied' ? 1800 : 2600);
-      return;
+    setIsSending(true);
+    setSendStatus('idle');
+
+    const subject = encodeURIComponent('Scicon Shooter feedback');
+    const body = encodeURIComponent(trimmedFeedback);
+    const mailtoUrl = `mailto:scottexplores29@gmail.com?subject=${subject}&body=${body}`;
+
+    try {
+      window.location.href = mailtoUrl;
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+      setFeedback('');
+      setSendStatus('success');
+    } catch {
+      setSendStatus('error');
+    } finally {
+      setIsSending(false);
     }
+  };
 
-    setTreasuryCopyStatus('error');
-    window.setTimeout(() => setTreasuryCopyStatus('idle'), 2400);
+  const renderProposalRow = (proposal: ResearchHubProposal, index: number, compact = false) => {
+    const progress = getProposalProgress(proposal);
+    const tag = getProposalTag(proposal, index);
+    const signalRsc = getProposalSignalRsc(proposal);
+
+    return (
+      <button
+        key={proposal.id}
+        type="button"
+        onClick={() => onOpenProposal(proposal.url)}
+        className="group w-full rounded-[6px] border border-white/5 bg-white/[0.025] p-3 text-left transition hover:border-cyan-300/35 hover:bg-cyan-300/10"
+      >
+        <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[6px] border border-cyan-300/30 bg-cyan-300/10 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.14)]">
+            {proposal.imageUrl ? (
+              <img src={proposal.imageUrl} alt="" className="h-full w-full rounded-[6px] object-cover" />
+            ) : (
+              <Icon name="flask" className="h-5 w-5" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              <p className="truncate text-sm font-semibold text-white">{proposal.title}</p>
+              {!compact && (
+                <span className="hidden shrink-0 rounded bg-emerald-400/12 px-1.5 py-0.5 text-[0.58rem] font-bold uppercase text-emerald-200 sm:inline">
+                  {tag}
+                </span>
+              )}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-300 to-blue-400"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <span className="w-9 text-right text-[0.68rem] font-semibold text-cyan-100">{progress}%</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-black text-white">{signalRsc}</p>
+            <p className="text-[0.58rem] font-bold uppercase text-cyan-200/70">RSC</p>
+          </div>
+        </div>
+      </button>
+    );
+  };
+
+  const Header = () => (
+    <header className="grid gap-3 rounded-[8px] border border-cyan-300/18 bg-slate-950/62 p-3 shadow-[0_0_35px_rgba(8,145,178,0.14)] backdrop-blur-xl md:grid-cols-[auto_1fr_auto] md:items-center">
+      <div className="flex items-center gap-3">
+        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[6px] border border-cyan-300/45 bg-cyan-300/10 shadow-[0_0_22px_rgba(34,211,238,0.28)]">
+          <img src={ASSETS.PLAYER_SHIP} alt="" className="h-8 w-8 object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
+        </div>
+        <div className="leading-none">
+          <p className="text-[1.35rem] font-black uppercase text-white md:text-2xl">Scicon</p>
+          <p className="text-[1.05rem] font-black uppercase text-cyan-300 md:text-xl">Shooter</p>
+        </div>
+      </div>
+
+      <div className="flex min-w-0 items-center justify-between gap-3 md:justify-start">
+        <button
+          type="button"
+          onClick={onOpenCredits}
+          className="flex min-w-0 items-center gap-3 rounded-[6px] border border-cyan-300/25 bg-slate-950/70 px-3 py-2 text-left transition hover:border-emerald-300/45 hover:bg-emerald-300/10"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-300/35 bg-emerald-400/18 text-emerald-100">
+            <img src={ASSETS.REAL_RSC_ICON} alt="" className="h-7 w-7 rounded-full object-contain" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-black text-white">{weeklyAllocation.allocationRsc} RSC</span>
+            <span className="block text-xs text-slate-300">Weekly funding</span>
+          </span>
+          <Icon name="chevron" className="h-4 w-4 text-cyan-200/75" />
+        </button>
+
+        <div className="hidden items-center gap-2 lg:flex">
+          <StatusPill tone="green">Base native</StatusPill>
+          <StatusPill tone="cyan">ResearchHub powered</StatusPill>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 md:justify-end">
+        <button type="button" onClick={() => setDashboardTab('trophies')} className="sci-icon-button" aria-label="Open leaderboard">
+          <Icon name="chart" />
+        </button>
+        <button type="button" onClick={onOpenReferral} className="sci-icon-button" aria-label="Open ResearchHub referral">
+          <Icon name="gift" />
+        </button>
+        <button type="button" onClick={() => setShowFeedback(true)} className="sci-icon-button" aria-label="Open settings and feedback">
+          <Icon name="settings" />
+        </button>
+        <div className="hidden items-center gap-3 rounded-[6px] border border-cyan-300/25 bg-cyan-300/8 px-3 py-2 sm:flex">
+          <div className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-cyan-300/35 bg-slate-950 text-cyan-100">
+            <Icon name="pilot" className="h-5 w-5" />
+          </div>
+          <div className="leading-tight">
+            <p className="text-sm font-bold text-white">Pilot</p>
+            <p className="text-xs text-slate-300">Level {pilotLevel}</p>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+
+  const HeroPanel = ({ compact = false }: { compact?: boolean }) => (
+    <HudPanel className={compact ? 'min-h-[27rem]' : 'min-h-[34rem] xl:min-h-[40rem]'}>
+      <div className="absolute inset-0">
+        <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-68" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(34,211,238,0.2),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.18),rgba(2,6,23,0.88)_76%,rgba(2,6,23,0.96))]" />
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,rgba(4,120,87,0.09))]" />
+      </div>
+
+      <div className={`relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 py-7 text-center ${compact ? 'gap-4' : 'gap-6 md:px-8 md:py-10'}`}>
+        <div className="space-y-3">
+          <div className="mx-auto flex w-fit items-center gap-3 text-yellow-200/90">
+            <span className="h-px w-14 bg-gradient-to-r from-transparent to-yellow-200/80" />
+            <span className="h-2 w-16 skew-x-[-28deg] bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.45)]" />
+            <span className="h-px w-14 bg-gradient-to-l from-transparent to-yellow-200/80" />
+          </div>
+          <div className={`scicon-hero-title ${compact ? 'text-[2.55rem]' : 'text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]'}`}>
+            <span>Scicon</span>
+            <span>Shooter</span>
+          </div>
+          <p className="mx-auto max-w-xl text-xs font-bold uppercase text-cyan-50/85 md:text-sm">
+            Fund research. Upgrade science. Win together.
+          </p>
+        </div>
+
+        <div className="relative flex min-h-[11rem] w-full items-center justify-center">
+          <div className="sci-ship-orbit" />
+          <div className="absolute bottom-2 h-12 w-64 rounded-[50%] border border-cyan-300/24 bg-cyan-300/7 blur-sm" />
+          <div className="absolute bottom-7 h-7 w-56 rounded-[50%] border border-emerald-300/28 bg-emerald-300/8" />
+          <div className={`sci-rh-ship ${compact ? 'sci-rh-ship--compact' : ''}`} role="img" aria-label="ResearchHub logo">
+            <span className="sci-rh-ship-core">
+              <img src={ASSETS.PLAYER_SHIP} alt="" />
+            </span>
+          </div>
+        </div>
+
+        <div className="w-full max-w-xl space-y-2">
+          <button
+            type="button"
+            onClick={onStart}
+            className="sci-start-button group mx-auto flex w-full max-w-[25rem] items-center justify-center gap-3 px-7 py-4 text-xl font-black uppercase text-white md:text-2xl"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-emerald-700 shadow-[0_0_16px_rgba(255,255,255,0.45)] transition group-hover:scale-105">
+              <Icon name="play" className="h-5 w-5 translate-x-0.5" />
+            </span>
+            Start Mission
+          </button>
+          <p className="text-sm font-bold text-emerald-200">Complete. Earn. Fund.</p>
+        </div>
+      </div>
+    </HudPanel>
+  );
+
+  const PowerupDock = () => (
+    <HudPanel>
+      <div className="grid gap-3 p-4 sm:grid-cols-[auto_1fr] sm:items-center">
+        <div>
+          <p className="text-xs font-black uppercase text-cyan-300">Active</p>
+          <p className="text-xs font-black uppercase text-cyan-300">Power Ups</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {powerups.map((powerup) => (
+            <div
+              key={powerup.name}
+              className={`group rounded-[8px] border bg-slate-950/55 p-3 text-center transition hover:-translate-y-0.5 ${
+                powerup.tone === 'emerald'
+                  ? 'border-emerald-300/25 hover:border-emerald-300/60'
+                  : powerup.tone === 'sky'
+                    ? 'border-sky-300/25 hover:border-sky-300/60'
+                    : powerup.tone === 'yellow'
+                      ? 'border-yellow-300/25 hover:border-yellow-300/60'
+                      : 'border-violet-300/25 hover:border-violet-300/60'
+              }`}
+            >
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-[8px] border border-current/35 bg-current/10 text-cyan-100">
+                <Icon name={powerup.icon} className="h-7 w-7" />
+              </div>
+              <p className="text-sm font-bold text-white">{powerup.name}</p>
+              <p className="mt-1 text-xs text-slate-300">{powerup.helper}</p>
+              <p className="mt-2 text-lg font-black text-white">{powerup.count}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </HudPanel>
+  );
+
+  const WeeklyFundingCard = () => (
+    <HudPanel>
+      <div className="p-4 md:p-5">
+        <div className="mb-4 flex items-start justify-between gap-4 border-b border-cyan-200/14 pb-3">
+          <div>
+            <h2 className="text-lg font-black text-emerald-200">Weekly Funding</h2>
+            <p className="text-xs text-slate-300">Season 7 - Week {weeklyAllocation.endLabel}</p>
+          </div>
+          <StatusPill tone="green">Live</StatusPill>
+        </div>
+
+        <div className="grid items-center gap-4 sm:grid-cols-[1fr_auto]">
+          <div>
+            <p className="text-xs uppercase text-slate-400">Prize Pool</p>
+            <p className="mt-1 text-4xl font-black text-emerald-300">{weeklyAllocation.allocationRsc.toLocaleString()} <span className="text-lg">RSC</span></p>
+            <p className="mt-1 text-sm text-slate-300">
+              Ends {weeklyAllocation.daysLeft === 0 ? 'today' : `in ${weeklyAllocation.daysLeft} day${weeklyAllocation.daysLeft === 1 ? '' : 's'}`}
+            </p>
+          </div>
+          <div className="relative mx-auto flex h-28 w-32 items-center justify-center">
+            <div className="absolute inset-0 rounded-[18px] border border-emerald-300/25 bg-emerald-300/10 blur-[1px]" />
+            <Icon name="trophy" className="relative h-20 w-20 text-emerald-200 drop-shadow-[0_0_18px_rgba(52,211,153,0.65)]" />
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 border-y border-cyan-200/12 py-3">
+          <div>
+            <p className="text-xs uppercase text-slate-400">Your Rank</p>
+            <p className="text-xl font-black text-white">{weeklyRank}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase text-slate-400">Top Score</p>
+            <p className="text-xl font-black text-white">{formatNumber(trophyStats.currentTopScore)}</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-300">
+            <span>Next Tier: Top 10</span>
+            <span>{nextTierProgress}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+            <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" style={{ width: `${nextTierProgress}%` }} />
+          </div>
+        </div>
+      </div>
+    </HudPanel>
+  );
+
+  const LiveProposalsPanel = ({ limit = 5 }: { limit?: number }) => (
+    <HudPanel>
+      <div className="p-4 md:p-5">
+        <div className="mb-4 flex items-center justify-between gap-4 border-b border-cyan-200/14 pb-3">
+          <div>
+            <h2 className="text-lg font-black text-cyan-200">Live Proposals</h2>
+            <p className="text-xs text-slate-300">Most picked funding targets</p>
+          </div>
+          <button type="button" onClick={() => setDashboardTab('proposals')} className="text-xs font-bold uppercase text-cyan-200 hover:text-white">
+            View all
+          </button>
+        </div>
+
+        {proposalStatus === 'loading' && (
+          <div className="space-y-3">
+            {[0, 1, 2].map((index) => (
+              <div key={index} className="h-16 animate-pulse rounded-[6px] bg-white/[0.04]" />
+            ))}
+          </div>
+        )}
+
+        {proposalStatus === 'error' && (
+          <div className="rounded-[6px] border border-red-300/20 bg-red-500/10 p-4 text-sm text-red-100">
+            Proposal feed is temporarily unavailable. You can still launch missions and fund from the market.
+          </div>
+        )}
+
+        {proposalStatus !== 'loading' && proposalStatus !== 'error' && sortedProposals.length === 0 && (
+          <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
+            Live proposals will appear here once ResearchHub returns active funding targets.
+          </div>
+        )}
+
+        {sortedProposals.length > 0 && (
+          <div className="space-y-2">
+            {sortedProposals.slice(0, limit).map((proposal, index) => renderProposalRow(proposal, index, limit < 5))}
+          </div>
+        )}
+      </div>
+    </HudPanel>
+  );
+
+  const DashboardNav = ({ fixed = false }: { fixed?: boolean }) => (
+    <nav className={`${fixed ? 'fixed inset-x-3 bottom-3 z-40' : ''}`}>
+      <div className="sci-dashboard-nav grid grid-cols-5 overflow-hidden rounded-[8px] border border-cyan-300/24 bg-slate-950/86 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
+        {dashboardTabs.map((tab) => {
+          const active = dashboardTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setDashboardTab(tab.id)}
+              className={`relative flex min-h-[4.8rem] flex-col items-center justify-center gap-1 border-r border-cyan-200/12 px-1 text-center text-xs font-semibold transition last:border-r-0 ${
+                active
+                  ? 'bg-gradient-to-br from-emerald-400/28 to-cyan-400/12 text-white shadow-[inset_0_0_26px_rgba(52,211,153,0.24)]'
+                  : 'text-slate-300 hover:bg-cyan-300/8 hover:text-white'
+              }`}
+            >
+              <Icon name={tab.icon} className={`h-6 w-6 ${active ? 'text-emerald-200' : 'text-cyan-200/85'}`} />
+              <span>{tab.label}</span>
+              <span className={`h-1 w-1 rounded-full ${active ? 'bg-yellow-300' : 'bg-transparent'}`} />
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+
+  const MintLegacyPanel = () => (
+    <HudPanel>
+      <div className="grid gap-5 p-5 md:grid-cols-[1.15fr_repeat(3,1fr)] md:items-center">
+        <div className="border-l-2 border-yellow-300/70 pl-4">
+          <div className="mb-2 flex items-center gap-2 text-yellow-200">
+            <Icon name="mint" className="h-5 w-5" />
+            <h2 className="text-xl font-black">Mint Your Legacy</h2>
+          </div>
+          <p className="text-sm leading-relaxed text-slate-300">
+            Mint your high score trophy and the proposal you funded as a Base-native game record.
+          </p>
+          <button
+            type="button"
+            onClick={onOpenTreasurySend}
+            className="mt-4 rounded-[6px] border border-yellow-300/55 bg-yellow-300/10 px-5 py-2 text-sm font-black uppercase text-yellow-100 transition hover:bg-yellow-300/20"
+          >
+            Mint Score
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 border-cyan-200/12 md:border-l md:pl-5">
+          <div className="flex h-16 w-16 items-center justify-center rounded-[8px] border border-violet-300/35 bg-violet-400/10 text-violet-100">
+            <Icon name="beam" className="h-9 w-9" />
+          </div>
+          <div>
+            <p className="text-xs uppercase text-slate-400">Best Score</p>
+            <p className="text-2xl font-black text-white">{formatNumber(trophyStats.allTimeTopScore)}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 border-cyan-200/12 md:border-l md:pl-5">
+          <div className="flex h-16 w-16 items-center justify-center rounded-[8px] border border-cyan-300/35 bg-cyan-400/10 text-cyan-100">
+            <Icon name="rocket" className="h-9 w-9" />
+          </div>
+          <div>
+            <p className="text-xs uppercase text-slate-400">Missions Completed</p>
+            <p className="text-2xl font-black text-white">{trophyStats.fundedMissions}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 border-cyan-200/12 md:border-l md:pl-5">
+          <div className="flex h-16 w-16 items-center justify-center rounded-[8px] border border-yellow-300/35 bg-yellow-400/10 text-yellow-100">
+            <Icon name="trophy" className="h-9 w-9" />
+          </div>
+          <div>
+            <p className="text-xs uppercase text-slate-400">Trophies Unlocked</p>
+            <p className="text-2xl font-black text-white">{trophyStats.trophiesUnlocked}</p>
+          </div>
+        </div>
+      </div>
+    </HudPanel>
+  );
+
+  const MissionControlPanel = () => (
+    <HudPanel>
+      <div className="p-4 md:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black text-white">Mission Control</h2>
+            <p className="text-sm text-slate-300">Launch missions, climb the board, and direct weekly RSC funding.</p>
+          </div>
+          <button type="button" onClick={onStart} className="sci-mini-cta">
+            <Icon name="play" className="h-4 w-4" />
+            Start
+          </button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-[8px] border border-cyan-300/16 bg-white/[0.035] p-4">
+            <p className="text-xs uppercase text-slate-400">Weekly Leader</p>
+            <p className="mt-2 truncate text-lg font-black text-white">{leaderboardName(weeklyLeader)}</p>
+            <p className="text-sm text-cyan-200">{formatNumber(leaderboardScore(weeklyLeader))} pts</p>
+          </div>
+          <div className="rounded-[8px] border border-cyan-300/16 bg-white/[0.035] p-4">
+            <p className="text-xs uppercase text-slate-400">All-Time Ace</p>
+            <p className="mt-2 truncate text-lg font-black text-white">{leaderboardName(allTimeLeader)}</p>
+            <p className="text-sm text-cyan-200">{formatNumber(leaderboardScore(allTimeLeader))} pts</p>
+          </div>
+          <div className="rounded-[8px] border border-cyan-300/16 bg-white/[0.035] p-4">
+            <p className="text-xs uppercase text-slate-400">This Week</p>
+            <p className="mt-2 text-lg font-black text-white">{weeklyAllocation.allocationRsc} RSC</p>
+            <p className="text-sm text-cyan-200">Awarded to the winning pick</p>
+          </div>
+        </div>
+      </div>
+    </HudPanel>
+  );
+
+  const ProposalsDashboard = () => (
+    <HudPanel>
+      <div className="p-4 md:p-5">
+        <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+          <div>
+            <h2 className="text-2xl font-black text-white">Proposal Hangar</h2>
+            <p className="text-sm text-slate-300">Search live ResearchHub funding targets and pick where your winning credits should go.</p>
+          </div>
+          <label className="relative block min-w-[15rem]">
+            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70" />
+            <input
+              value={proposalSearch}
+              onChange={(event) => setProposalSearch(event.target.value)}
+              placeholder="Search proposals"
+              className="w-full rounded-[6px] border border-cyan-300/20 bg-slate-950/75 py-2 pl-9 pr-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60"
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[1fr_18rem]">
+          <div className="space-y-2">
+            {filteredProposals.length > 0 ? (
+              filteredProposals.slice(0, 8).map((proposal, index) => renderProposalRow(proposal, index))
+            ) : (
+              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
+                No proposal matches that search yet.
+              </div>
+            )}
+          </div>
+          <div className="rounded-[8px] border border-emerald-300/18 bg-emerald-300/8 p-4">
+            <p className="text-xs font-bold uppercase text-emerald-200">Featured pick</p>
+            <h3 className="mt-3 text-lg font-black text-white">{featuredProposal?.title ?? 'Weekly proposal loading'}</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              {featuredProposal
+                ? `${formatUsd(featuredProposal.raisedUsd)} raised toward ${formatUsd(featuredProposal.requestedUsd)}.`
+                : 'The ResearchHub feed will populate this cockpit slot when proposals are available.'}
+            </p>
+            {featuredProposal && (
+              <button
+                type="button"
+                onClick={() => onOpenProposal(featuredProposal.url)}
+                className="mt-4 inline-flex items-center gap-2 rounded-[6px] border border-emerald-300/35 bg-emerald-400/12 px-4 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-400/20"
+              >
+                View proposal
+                <Icon name="external" className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </HudPanel>
+  );
+
+  const MarketDashboard = () => (
+    <HudPanel>
+      <div className="p-4 md:p-5">
+        <div className="mb-4">
+          <h2 className="text-2xl font-black text-white">RSC Market</h2>
+          <p className="text-sm text-slate-300">Swap, buy, or load mission credits from one Base-native command post.</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <button type="button" onClick={onOpenBuy} className="sci-market-card">
+            <Icon name="wallet" className="h-8 w-8 text-emerald-200" />
+            <span>
+              <strong>Buy RSC</strong>
+              <small>Use Base to stock your research wallet.</small>
+            </span>
+          </button>
+          <button type="button" onClick={onOpenSwap} className="sci-market-card">
+            <Icon name="coin" className="h-8 w-8 text-cyan-200" />
+            <span>
+              <strong>Swap</strong>
+              <small>Open the RSC swap route.</small>
+            </span>
+          </button>
+          <button type="button" onClick={onOpenCredits} className="sci-market-card">
+            <Icon name="base" className="h-8 w-8 text-blue-200" />
+            <span>
+              <strong>Credits</strong>
+              <small>Convert RSC into mission power.</small>
+            </span>
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenFund}
+          className="mt-4 w-full rounded-[8px] border border-cyan-300/24 bg-cyan-300/8 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-cyan-300/14"
+        >
+          Open ResearchHub Fund
+        </button>
+      </div>
+    </HudPanel>
+  );
+
+  const TrophiesDashboard = () => (
+    <HudPanel>
+      <div className="p-4 md:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-black text-white">Trophy Deck</h2>
+            <p className="text-sm text-slate-300">High scores, funded proposals, and weekly winners.</p>
+          </div>
+          <div className="flex rounded-[6px] border border-cyan-300/18 bg-slate-950/70 p-1">
+            {[
+              ['weekly', 'Weekly'],
+              ['allTime', 'All-time'],
+              ['pastPicks', 'Past picks']
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setLeaderboardView(id as LeaderboardView)}
+                className={`rounded-[5px] px-3 py-2 text-xs font-bold uppercase transition ${
+                  leaderboardView === id ? 'bg-cyan-300/18 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {isLoading && (
+          <div className="space-y-2">
+            {[0, 1, 2].map((index) => <div key={index} className="h-12 animate-pulse rounded-[6px] bg-white/[0.04]" />)}
+          </div>
+        )}
+
+        {!isLoading && leaderboardView !== 'pastPicks' && (
+          <div className="space-y-2">
+            {visibleLeaderboard.slice(0, 8).map((entry, index) => (
+              <div key={`${entry.name}-${entry.score}-${index}`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[6px] border border-cyan-300/12 bg-white/[0.035] p-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-cyan-300/25 bg-cyan-300/10 text-sm font-black text-cyan-100">
+                  {index + 1}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-white">{entry.name}</p>
+                  <p className="truncate text-xs text-slate-400">{entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`}</p>
+                </div>
+                <p className="font-black text-white">{formatNumber(entry.score)}</p>
+              </div>
+            ))}
+            {visibleLeaderboard.length === 0 && (
+              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
+                No scores yet. Start a mission and claim the board.
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isLoading && leaderboardView === 'pastPicks' && (
+          <div className="space-y-2">
+            {sortedPastPicks.slice(0, 8).map((winner) => (
+              <button
+                key={`${winner.periodKey}-${winner.winnerName}`}
+                type="button"
+                onClick={() => winner.proposalUrl && onOpenProposal(winner.proposalUrl)}
+                className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[6px] border border-cyan-300/12 bg-white/[0.035] p-3 text-left transition hover:border-cyan-300/35 hover:bg-cyan-300/8"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-[6px] border border-yellow-300/28 bg-yellow-300/10 text-yellow-100">
+                  <Icon name="trophy" className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-white">{winner.proposalTitle ?? 'Funding pick pending'}</p>
+                  <p className="truncate text-xs text-slate-400">{winner.periodLabel} by {winner.winnerName}</p>
+                </div>
+                <p className="text-right text-sm font-black text-white">{winner.allocationRsc ?? weeklyAllocation.allocationRsc} RSC</p>
+              </button>
+            ))}
+            {sortedPastPicks.length === 0 && (
+              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
+                Past weekly picks will appear here after winners are archived.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </HudPanel>
+  );
+
+  const AboutDashboard = () => (
+    <HudPanel>
+      <div className="grid gap-5 p-4 md:grid-cols-[1fr_auto] md:p-5">
+        <div>
+          <h2 className="text-2xl font-black text-white">About Scicon Shooter</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300">
+            Scicon Shooter is a Base-native arcade game where high scores help direct weekly RSC funding credits toward ResearchHub proposals. The loop is simple: play the mission, climb the leaderboard, pick research you believe in, and make the win visible through trophies and future score mints.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <StatusPill tone="cyan">Arcade funding</StatusPill>
+            <StatusPill tone="green">ResearchHub proposals</StatusPill>
+            <StatusPill tone="gold">Base trophies</StatusPill>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 md:flex-col">
+          <button type="button" onClick={onOpenXProfile} className="sci-mini-cta justify-center">
+            <Icon name="external" className="h-4 w-4" />
+            Follow updates
+          </button>
+          <button type="button" onClick={() => setShowFeedback(true)} className="sci-mini-cta justify-center">
+            <Icon name="settings" className="h-4 w-4" />
+            Send feedback
+          </button>
+          <button type="button" onClick={() => setShowTreasury(true)} className="sci-mini-cta justify-center">
+            <Icon name="wallet" className="h-4 w-4" />
+            Treasury
+          </button>
+        </div>
+      </div>
+    </HudPanel>
+  );
+
+  const MobileDashboardContent = () => {
+    if (dashboardTab === 'proposals') return <ProposalsDashboard />;
+    if (dashboardTab === 'market') return <MarketDashboard />;
+    if (dashboardTab === 'trophies') return <><TrophiesDashboard /><MintLegacyPanel /></>;
+    if (dashboardTab === 'more') return <AboutDashboard />;
+
+    return (
+      <>
+        <HeroPanel compact />
+        <WeeklyFundingCard />
+        <LiveProposalsPanel limit={3} />
+        <PowerupDock />
+        <MintLegacyPanel />
+      </>
+    );
   };
 
   return (
-    <div className="absolute inset-0 z-10 overflow-hidden bg-[#050816] text-white">
-      <div className="absolute inset-0 opacity-75" style={{ backgroundImage: 'url(/game-art/backgrounds/menu-hero.png)', backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(37,99,235,0.28),transparent_34%),radial-gradient(circle_at_90%_12%,rgba(34,197,94,0.12),transparent_30%),linear-gradient(180deg,rgba(5,8,22,0.42),rgba(5,8,22,0.98))]"></div>
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(226,232,240,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(226,232,240,0.035)_1px,transparent_1px)] bg-[size:36px_36px]"></div>
-
-      <div className="absolute left-[calc(0.75rem+env(safe-area-inset-left))] top-[calc(0.75rem+env(safe-area-inset-top))] z-40 flex max-w-[calc(100%-8rem)] items-center gap-1.5 overflow-x-auto pr-1">
-        <a
-          href={rscMarketPrice?.sourceUrl || DONATION_CONFIG.RSC_SWAP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-2 rounded-full border border-cyan-200/25 bg-black/72 px-2.5 py-1.5 font-mono text-white shadow-[0_0_28px_rgba(34,211,238,0.16)] backdrop-blur-md transition hover:border-cyan-100"
-          aria-label="ResearchCoin market price"
-        >
-          <img src={ASSETS.REAL_RSC_ICON} alt="" className="h-6 w-6 rounded-full border border-white/15 bg-white" />
-          <span className="text-[9px] font-black uppercase tracking-[0.16em] text-cyan-100">RSC</span>
-          <span className="text-xs font-black text-white">
-            {rscPriceStatus === 'loading' ? '...' : rscPriceStatus === 'error' ? '--' : formatRscPrice(rscMarketPrice?.priceUsd)}
-          </span>
-        </a>
-
-        <a
-          href={DONATION_CONFIG.KARMA_SWAP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-2 rounded-full border border-purple-200/28 bg-black/72 px-2.5 py-1.5 font-mono text-white shadow-[0_0_28px_rgba(168,85,247,0.18)] backdrop-blur-md transition hover:border-purple-100"
-          aria-label="KARMA market price"
-        >
-          <img src={ASSETS.KARMA_TOKEN} alt="" className="h-6 w-6 rounded-full border border-purple-100/40 bg-slate-950 object-cover" />
-          <span className="text-[9px] font-black uppercase tracking-[0.16em] text-purple-100">KRMA</span>
-          <span className="text-xs font-black text-white">
-            {karmaPriceStatus === 'loading' ? '...' : karmaPriceStatus === 'error' ? '--' : formatRscPrice(karmaMarketPrice?.priceUsd)}
-          </span>
-        </a>
+    <div className="relative min-h-screen overflow-y-auto bg-slate-950 text-white">
+      <div className="fixed inset-0 -z-10">
+        <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-55" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_86%_22%,rgba(16,185,129,0.16),transparent_26%),linear-gradient(180deg,rgba(2,6,23,0.58),rgba(2,6,23,0.96)_74%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
       </div>
 
-      <div className="relative z-10 mx-auto flex h-[100dvh] w-full max-w-6xl touch-pan-y flex-col gap-3 overflow-y-auto px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-14 custom-scrollbar sm:px-4 sm:pb-4 md:pt-4">
-        <div className="relative z-30 flex min-h-[260px] shrink-0 flex-col gap-3 overflow-visible rounded-[26px] border border-white/10 bg-slate-950/72 p-3 shadow-[0_24px_90px_rgba(0,0,0,0.42)] backdrop-blur-xl sm:min-h-[250px] sm:p-4 lg:min-h-[180px]">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="scicon-logo-lockup" aria-label="SCICON SHOOTER">
-                <span className="scicon-logo-word" data-text="SCICON">SCICON</span>
-                <span className="scicon-logo-word scicon-logo-word--sub" data-text="SHOOTER">SHOOTER</span>
-              </div>
-              <p className="mt-1 text-xs font-semibold text-slate-300 sm:text-sm">Upgrade with RSC. Fight bottlenecks. Steer funding credits.</p>
-            </div>
+      <div className="mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-4 px-3 pb-28 pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
+        <Header />
+
+        <main className="hidden gap-5 lg:grid lg:grid-cols-[minmax(0,1.14fr)_minmax(25rem,0.86fr)]">
+          <div className="space-y-5">
+            <HeroPanel />
+            <PowerupDock />
+            <DashboardNav />
           </div>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_148px] gap-2 min-[420px]:grid-cols-[minmax(0,1fr)_160px] sm:grid-cols-[minmax(0,1fr)_190px] sm:gap-3 lg:grid-cols-[1fr_260px]">
-            <button
-              onClick={onStart}
-              className="group flex min-h-[74px] items-center justify-between rounded-[22px] border border-blue-300/25 bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-left shadow-[0_20px_46px_rgba(37,99,235,0.32)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_56px_rgba(37,99,235,0.44)]"
-            >
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-100/80">Ready room</div>
-                <div className="arcade-font mt-1 text-lg font-black uppercase tracking-wide text-white sm:text-2xl">Start Mission</div>
-              </div>
-              <div className="font-mono text-2xl font-black text-blue-100 transition group-hover:translate-x-1">
-                GO
-              </div>
-            </button>
-
-            <div className="relative z-40 overflow-visible rounded-[22px] border border-yellow-200/20 bg-white/[0.07] p-2.5 sm:p-4">
-              <div className="flex items-start justify-between gap-1.5">
-                <div className="max-w-[86px] text-[8px] font-black uppercase leading-tight tracking-[0.16em] text-yellow-100/80 min-[420px]:max-w-none min-[420px]:text-[9px] sm:text-[10px] sm:tracking-[0.22em]">Weekly Allocation</div>
-                <button
-                  type="button"
-                  onClick={() => setShowAllocationInfo((value) => !value)}
-                  className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-yellow-100/35 bg-yellow-200/15 text-[10px] font-black text-yellow-100 transition hover:border-yellow-100/60 hover:bg-yellow-200/20 sm:h-7 sm:w-7 sm:text-[11px]"
-                  aria-expanded={showAllocationInfo}
-                  aria-label="Weekly allocation information"
-                >
-                  i
-                </button>
-              </div>
-              <div className="relative mt-2 min-h-[76px] overflow-hidden">
-                <div className={`absolute inset-0 flex items-end justify-between gap-3 transition-all duration-500 ${showAllocationAmount ? '-translate-y-4 opacity-0' : 'translate-y-0 opacity-100'}`}>
-                  <div className="arcade-font text-3xl font-black text-white sm:text-4xl">{weeklyAllocation.daysLeft}</div>
-                  <div className="pb-1 text-right text-[9px] font-semibold uppercase leading-tight tracking-wide text-slate-300 sm:text-xs">
-                    days to<br />{weeklyAllocation.endLabel}
-                  </div>
-                </div>
-                <div className={`absolute inset-0 flex items-center justify-center text-center transition-all duration-500 ${showAllocationAmount ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
-                  <div>
-                    <div className="arcade-font text-2xl font-black leading-none text-white min-[420px]:text-3xl sm:text-4xl">{weeklyAllocation.allocationRsc}</div>
-                    <div className="mt-1 text-[11px] font-black uppercase leading-none tracking-[0.18em] text-emerald-100 drop-shadow-[0_0_10px_rgba(16,185,129,0.45)] sm:text-[13px] sm:tracking-[0.24em]">RSC</div>
-                    <div className="mt-1 text-[8px] font-black uppercase leading-[0.95] tracking-[0.13em] text-emerald-50 sm:text-[9px] sm:tracking-[0.16em]">
-                      Funding<br />Credits
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {showAllocationInfo ? (
-                <div className="absolute right-0 top-11 z-[200] w-[min(246px,calc(100vw-1.5rem))] rounded-2xl border border-yellow-100/35 bg-[#020617] p-3 text-xs font-semibold leading-relaxed text-slate-100 shadow-[0_18px_55px_rgba(0,0,0,0.8)] ring-1 ring-black/80">
-                  The weekly No. 1 pilot chooses the ResearchHub proposal pick for the 100 RSC funding-credit signal.
-                </div>
-              ) : null}
-            </div>
+          <div className="space-y-5">
+            <WeeklyFundingCard />
+            <LiveProposalsPanel />
+            <MissionControlPanel />
           </div>
-        </div>
 
-        <main className="relative z-0 grid shrink-0 gap-3 lg:grid-cols-[0.92fr_1.08fr]">
-          <section className="self-start rounded-[26px] border border-white/10 bg-slate-950/70 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-            <div className="mb-3 flex items-center justify-between gap-3 px-1">
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-[0.16em] text-white">
-                  {leaderboardTitle}
-                </h3>
-                <p className="text-[11px] font-semibold text-slate-400">
-                  {leaderboardCopy}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <button
-                  type="button"
-                  aria-label="Past proposal picks"
-                  onClick={() => setLeaderboardView('pastPicks')}
-                  className={`rounded-full border px-3 py-2 text-center text-[9px] font-black uppercase tracking-[0.13em] transition ${leaderboardView === 'pastPicks' ? 'border-yellow-100 bg-yellow-200 text-slate-950' : 'border-white/10 bg-black/25 text-slate-400 hover:text-white'}`}
-                >
-                  Past<br />Picks
-                </button>
-                <div className="flex rounded-full border border-white/10 bg-black/25 p-1">
-                  <button
-                    type="button"
-                    aria-label="Weekly Top 5"
-                    onClick={() => setLeaderboardView('weekly')}
-                    className={`flex min-w-[64px] flex-col items-center rounded-full px-3 py-1 text-center font-black uppercase transition ${leaderboardView === 'weekly' ? 'bg-emerald-300 text-slate-950' : 'text-slate-400 hover:text-white'}`}
-                  >
-                    <span className="text-[7px] tracking-[0.16em] opacity-80">Weekly</span>
-                    <span className="text-[9px] tracking-[0.12em]">Top 5</span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="All Time Top 25"
-                    onClick={() => setLeaderboardView('allTime')}
-                    className={`flex min-w-[64px] flex-col items-center rounded-full px-3 py-1 text-center font-black uppercase transition ${leaderboardView === 'allTime' ? 'bg-white text-slate-950' : 'text-slate-400 hover:text-white'}`}
-                  >
-                    <span className="text-[7px] tracking-[0.16em] opacity-80">All Time</span>
-                    <span className="text-[9px] tracking-[0.12em]">Top 25</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+          <div className="lg:col-span-2">
+            <MintLegacyPanel />
+          </div>
 
-            <div className="overflow-hidden rounded-[20px] border border-white/10 bg-black/35">
-              {leaderboardView === 'pastPicks' ? (
-                <div className="custom-scrollbar max-h-[250px] space-y-2 overflow-y-auto p-2 sm:max-h-[270px]">
-                  {pastPicks.length === 0 ? (
-                    <div className="py-8 text-center text-xs font-semibold text-slate-500">
-                      No archived proposal picks yet. The first weekly champion pick will appear here after it is saved.
-                    </div>
-                  ) : (
-                    pastPicks.map((pick) => (
-                      <article
-                        key={`${pick.periodKey}-${pick.winnerName}-${pick.proposalTitle}`}
-                        className="rounded-2xl border border-yellow-100/15 bg-white/[0.055] p-3 text-left shadow-[0_14px_34px_rgba(0,0,0,0.18)]"
-                      >
-                        <div className="mb-2 flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-[9px] font-black uppercase tracking-[0.16em] text-yellow-100">{pick.periodLabel}</div>
-                            <div className="mt-1 truncate font-mono text-xs font-black uppercase text-white">{pick.winnerName}</div>
-                          </div>
-                          <div className="shrink-0 rounded-full border border-emerald-200/25 bg-emerald-300/12 px-2.5 py-1 text-center">
-                            <div className="font-mono text-[10px] font-black text-emerald-100">{pick.allocationRsc || 100} RSC</div>
-                            <div className="text-[7px] font-black uppercase tracking-[0.14em] text-emerald-100/70">signal</div>
-                          </div>
-                        </div>
-                        <h4 className="line-clamp-2 text-sm font-black leading-snug text-slate-100">{pick.proposalTitle}</h4>
-                        <div className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-2 font-mono text-[9px] font-bold uppercase tracking-wide text-slate-400">
-                          <span>Impact <strong className="block text-[11px] text-white">{pick.score.toLocaleString()}</strong></span>
-                          <span>Wave <strong className="block text-[11px] text-blue-200">{pick.wave}</strong></span>
-                          <span>Lead <strong className="block truncate text-[11px] text-yellow-100">{pick.proposalAuthor || 'ResearchHub'}</strong></span>
-                        </div>
-                        {pick.proposalUrl ? (
-                          <button
-                            type="button"
-                            onClick={() => onOpenProposal(pick.proposalUrl!)}
-                            className="mt-2 w-full rounded-xl bg-yellow-200 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950 transition hover:bg-white"
-                          >
-                            View Pick
-                          </button>
-                        ) : null}
-                      </article>
-                    ))
-                  )}
-                </div>
-              ) : (
-              <div className="custom-scrollbar max-h-[250px] overflow-y-auto p-2 sm:max-h-[270px]">
-                <div className="sticky top-0 z-10 mb-1 grid grid-cols-[34px_minmax(0,1fr)_36px_64px] gap-1.5 rounded-xl bg-slate-950/92 px-2 py-2 font-mono text-[8px] uppercase tracking-[0.12em] text-slate-500 backdrop-blur sm:grid-cols-[42px_minmax(0,1fr)_44px_72px] sm:gap-2 sm:px-3 sm:text-[9px]">
-                  <span>Rank</span>
-                  <span>Pilot</span>
-                  <span className="text-center">Wave</span>
-                  <span className="text-right">Impact</span>
-                </div>
+          <div className="lg:col-span-2 grid gap-5 xl:grid-cols-[1fr_1fr]">
+            <MarketDashboard />
+            <TrophiesDashboard />
+          </div>
+        </main>
 
-                <div className="space-y-1">
-                  {isLoading ? (
-                    <div className="py-8 text-center text-xs font-semibold text-slate-500 animate-pulse">Scanning leaderboard archive...</div>
-                  ) : visibleLeaderboard.length === 0 ? (
-                    <div className="py-8 text-center text-xs font-semibold text-red-300">
-                      {leaderboardView === 'weekly' ? 'No weekly scores yet. First pilot claims the pick.' : 'No global scores yet. First pilot gets the clean lane.'}
-                    </div>
-                  ) : (
-                    visibleLeaderboard.map((entry, idx) => {
-                      const entryKey = `${entry.name}-${entry.score}-${entry.wave}-${entry.date || idx}`;
-                      const isCurrentWeeklyChampion = leaderboardView === 'weekly' && idx === 0;
-                      const hasRscPick = isCurrentWeeklyChampion && Boolean(championCard);
-                      const isExpanded = expandedFundingKey === entryKey;
-                      const fundingTitle = championCard?.title || entry.proposalTitle || 'No proposal selected';
-                      const title = hasRscPick ? `${entry.name} picked: ${fundingTitle}` : undefined;
-
-                      return (
-                        <div
-                          key={entryKey}
-                          title={title}
-                          onClick={() => hasRscPick && setExpandedFundingKey(isExpanded ? null : entryKey)}
-                          className={`grid grid-cols-[34px_minmax(0,1fr)_36px_64px] items-center gap-1.5 rounded-xl px-2 py-2 font-mono text-[10px] font-bold transition sm:grid-cols-[42px_minmax(0,1fr)_44px_72px] sm:gap-2 sm:px-3 sm:text-[11px] ${hasRscPick ? 'cursor-pointer' : ''} ${idx === 0 ? 'bg-yellow-200 text-slate-950 shadow-[0_0_0_1px_rgba(250,204,21,.45)]' : 'bg-white/[0.045] text-slate-200 hover:bg-white/[0.075]'}`}
-                        >
-                          <span className={idx === 0 ? 'text-slate-950' : 'text-slate-500'}>#{idx + 1}</span>
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="truncate">{entry.name}</span>
-                            {entry.donated ? <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[8px] uppercase tracking-wide text-white">RSC</span> : null}
-                            {hasRscPick ? (
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setExpandedFundingKey(isExpanded ? null : entryKey);
-                                }}
-                                className="shrink-0 rounded-full bg-slate-950/10 px-1.5 py-0.5 text-[8px] uppercase tracking-wide text-slate-900 transition hover:bg-slate-950/20"
-                              >
-                                RSC Pick
-                              </button>
-                            ) : null}
-                          </span>
-                          <span className="text-center text-blue-200">{entry.wave || 1}</span>
-                          <span className="text-right">{entry.score.toLocaleString()}</span>
-
-                          {hasRscPick && isExpanded && championCard ? (
-                            <article className="col-span-4 mt-1 rounded-2xl border border-slate-950/15 bg-white p-2 text-left tracking-normal text-slate-950 shadow-[0_14px_30px_rgba(0,0,0,0.16)]">
-                              <div className="mb-2 flex items-center justify-between gap-2">
-                                <span className="rounded-full bg-yellow-200 px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em]">No. 1 RSC Pick</span>
-                                <span className="truncate text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">100 RSC allocation</span>
-                              </div>
-                              <div className="flex gap-2">
-                                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                                  {championCard.imageUrl ? (
-                                    <img src={championCard.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                                  ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-slate-950 text-sm font-black text-white">
-                                      {getInitials(championCard.author)}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <h5 className="line-clamp-2 font-sans text-xs font-black leading-snug">{fundingTitle}</h5>
-                                  <div className="mt-1 truncate font-sans text-[10px] font-semibold text-slate-500">{championCard.author}</div>
-                                  {weeklyChampionLiveProposal ? (
-                                    <div className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-slate-50 p-2 font-sans text-[8px] font-bold uppercase tracking-wide text-slate-500">
-                                      <span>Ask <strong className="block font-mono text-[10px] text-blue-600">{formatUsd(weeklyChampionLiveProposal.requestedUsd)}</strong></span>
-                                      <span>Raised <strong className="block font-mono text-[10px] text-slate-950">{formatUsd(weeklyChampionLiveProposal.raisedUsd)}</strong></span>
-                                      <span>Review <strong className="block font-mono text-[10px] text-slate-950">{weeklyChampionLiveProposal.peerReview?.toFixed(1) ?? 'N/A'}</strong></span>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                disabled={!championCard.url}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  if (championCard.url) onOpenProposal(championCard.url);
-                                }}
-                                className="mt-2 w-full rounded-xl bg-slate-950 px-3 py-2 text-[10px] font-black text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-45"
-                              >
-                                View Proposal
-                              </button>
-                            </article>
-                          ) : null}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-              )}
-            </div>
-
-          </section>
-
-          <section className="grid gap-2 lg:min-h-0 lg:grid-rows-[1fr_auto]">
-            <div className="overflow-hidden rounded-[26px] border border-white/10 bg-slate-950/70 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur-xl">
-              <div className="flex items-center justify-between gap-3 px-1">
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-[0.16em] text-white">Live Proposal Deck</h3>
-                  <p className="text-[11px] font-semibold text-slate-400">Swipe through real ResearchHub funding proposals.</p>
-                </div>
-                {proposalStatus === 'ready' && proposals.length > 1 ? (
-                  <div className="flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-black/25 p-1">
-                    <button
-                      type="button"
-                      onClick={() => moveProposalDeck(-1)}
-                      className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-sm font-black text-white transition hover:border-cyan-200/40 hover:bg-cyan-300/15"
-                      aria-label="Previous proposal"
-                    >
-                      &lt;
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveProposalDeck(1)}
-                      className="grid h-8 w-8 place-items-center rounded-full border border-cyan-200/30 bg-cyan-300/14 text-sm font-black text-cyan-50 transition hover:border-cyan-100 hover:bg-cyan-300/24"
-                      aria-label="Next proposal"
-                    >
-                      &gt;
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-
-              <div
-                className="relative mt-3 min-h-[286px] touch-pan-y sm:min-h-[300px]"
-                onTouchStart={handleProposalTouchStart}
-                onTouchEnd={handleProposalTouchEnd}
-                aria-label="Swipe left or right to browse live proposals"
-              >
-                {proposalStatus === 'loading' ? (
-                  <div className="absolute inset-x-0 top-0 rounded-[22px] border border-white/10 bg-white/[0.06] p-5 text-center text-sm font-bold text-slate-300">
-                    Checking ResearchHub's live funding feed...
-                  </div>
-                ) : null}
-
-                {proposalStatus === 'empty' || proposalStatus === 'error' ? (
-                  <div className="absolute inset-x-0 top-0 rounded-[22px] border border-white/10 bg-white/[0.06] p-5 text-center">
-                    <h4 className="text-sm font-black uppercase tracking-[0.14em] text-white">Live proposals unavailable</h4>
-                    <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-400">
-                      No sample proposal data is shown here. Open ResearchHub Fund to view the current proposals directly.
-                    </p>
-                    <button onClick={onOpenFund} className="mt-4 rounded-full bg-white px-5 py-2 text-xs font-black text-slate-950 transition hover:bg-blue-100">
-                      Open ResearchHub Fund
-                    </button>
-                  </div>
-                ) : null}
-
-                {proposalStatus === 'ready' ? stackedProposals.map(({ proposal, offset }) => {
-                  const isWeeklyPick = isChampionProposal(proposal);
-
-                  return (
-                  <article
-                    key={proposal.id}
-                    className={`absolute inset-x-0 top-0 will-change-transform rounded-[22px] border bg-white p-3 text-slate-950 shadow-[0_22px_55px_rgba(0,0,0,0.42)] transition-[transform,opacity,filter] duration-[900ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${isWeeklyPick ? 'border-yellow-300 ring-2 ring-yellow-200/60' : 'border-slate-200'} ${offset > 0 ? 'pointer-events-none' : ''}`}
-                    style={{
-                      opacity: offset === 0 ? (isProposalFlipping ? 0.92 : 1) : offset === 1 ? 0.74 : 0.42,
-                      filter: offset === 0 ? 'none' : `saturate(${1 - offset * 0.12}) blur(${offset * 0.15}px)`,
-                      backfaceVisibility: 'hidden',
-                      transformOrigin: 'center bottom',
-                      transform: offset === 0
-                        ? `perspective(1000px) translateY(${isProposalFlipping ? -12 : 0}px) rotateX(${isProposalFlipping ? -7 : 0}deg) scale(${isProposalFlipping ? 0.985 : 1})`
-                        : `perspective(1000px) translateY(${offset * 20}px) rotateX(${offset * 1.5}deg) scale(${1 - offset * 0.05})`,
-                      zIndex: 3 - offset
-                    }}
-                  >
-                    {isWeeklyPick ? (
-                      <div className="absolute right-3 top-3 z-10 rounded-full border border-yellow-300 bg-yellow-200 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-slate-950 shadow-[0_10px_22px_rgba(250,204,21,0.3)]">
-                        No. 1 Pick
-                      </div>
-                    ) : null}
-                    <div className="flex gap-3">
-                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 sm:h-28 sm:w-28">
-                        {proposal.imageUrl ? (
-                          <img src={proposal.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-slate-950 text-xl font-black text-white">
-                            {getInitials(proposal.author)}
-                          </div>
-                        )}
-                        {proposal.status ? (
-                          <div className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-slate-900">
-                            {proposal.status}
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="line-clamp-2 text-sm font-black leading-snug text-slate-950 sm:text-base">{proposal.title}</h4>
-                        <div className="mt-3 min-w-0">
-                          <div className="truncate text-xs font-black text-slate-950">{proposal.author}</div>
-                          <div className="truncate text-[11px] font-semibold text-slate-500">{proposal.organization || 'ResearchHub proposal'}</div>
-                        </div>
-                        <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-2">
-                          <div>
-                            <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Requested</div>
-                            <div className="font-mono text-sm font-black text-blue-600">{formatUsd(proposal.requestedUsd)}</div>
-                          </div>
-                          <div>
-                            <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Raised</div>
-                            <div className="font-mono text-sm font-black text-slate-950">{formatUsd(proposal.raisedUsd)}</div>
-                          </div>
-                          <div>
-                            <div className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Review</div>
-                            <div className="font-mono text-sm font-black text-slate-950">{proposal.peerReview?.toFixed(1) ?? 'N/A'}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-slate-600">
-                      <div className="flex items-center gap-3 text-xs font-bold">
-                        <span>Backers {proposal.backers}</span>
-                        <span>Votes {proposal.votes}</span>
-                        <span>Comments {proposal.comments}</span>
-                      </div>
-                      <button onClick={() => onOpenProposal(proposal.url)} className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-black text-white transition hover:bg-blue-600">
-                        View
-                      </button>
-                    </div>
-                  </article>
-                  );
-                }) : null}
-              </div>
-
-              {proposalStatus === 'ready' && proposals.length > 1 ? (
-                <div className="mt-2 flex items-center justify-between gap-3 px-1">
-                  <div className="text-[9px] font-black uppercase tracking-[0.16em] text-cyan-100/70">Swipe deck</div>
-                  <div className="flex max-w-[70%] items-center justify-end gap-1 overflow-hidden">
-                    {proposals.slice(0, 8).map((proposal, index) => (
-                      <button
-                        key={proposal.id}
-                        type="button"
-                        onClick={() => {
-                          if (index === activeProposalIndex) return;
-                          setActiveProposalIndex(index);
-                        }}
-                        className={`h-2 rounded-full transition-all ${index === activeProposalIndex ? 'w-6 bg-cyan-200 shadow-[0_0_12px_rgba(103,232,249,0.45)]' : 'w-2 bg-white/20 hover:bg-white/45'}`}
-                        aria-label={`Go to proposal ${index + 1}`}
-                      />
-                    ))}
-                    {proposals.length > 8 ? (
-                      <span className="ml-1 text-[9px] font-black text-slate-500">+{proposals.length - 8}</span>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 rounded-[22px] border border-white/10 bg-slate-950/68 p-3 backdrop-blur-xl">
-              <button onClick={onOpenReferral} className="rh-nav-button">
-                <span>Join Research Hub</span>
-              </button>
-              <button onClick={onOpenFund} className="rh-nav-button">
-                <span>Fund Proposals</span>
-              </button>
-            </div>
-
-            <footer className="rounded-[22px] border border-white/10 bg-slate-950/68 p-3 text-xs leading-relaxed text-slate-300 backdrop-blur-xl">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p>
-                  <span className="font-black text-white">About ResearchHub:</span> an open science platform for funding, publishing, peer review, and RSC-powered community rewards.
-                </p>
-                <div className="flex flex-nowrap items-center gap-1.5 overflow-hidden">
-                  <button onClick={onOpenXProfile} className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/[0.08] px-2.5 py-2 text-[10px] font-black text-white transition hover:border-blue-300/50 hover:bg-blue-500/15 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs">
-                    <span className="font-mono">X</span>
-                    <span className="truncate">@ScottExplores29</span>
-                  </button>
-                  <button onClick={() => setShowTreasury(true)} className="inline-flex min-w-0 flex-1 items-center justify-center rounded-full border border-emerald-200/20 bg-emerald-300/15 px-2.5 py-2 text-[10px] font-black text-emerald-100 transition hover:border-emerald-200/45 hover:bg-emerald-300/25 sm:flex-none sm:px-4 sm:text-xs">
-                    Treasury
-                  </button>
-                  <button onClick={() => setShowFeedback(true)} className="inline-flex min-w-0 flex-1 items-center justify-center rounded-full border border-white/10 bg-white px-2.5 py-2 text-[10px] font-black text-slate-950 transition hover:bg-blue-100 sm:flex-none sm:px-4 sm:text-xs">
-                    Feedback
-                  </button>
-                </div>
-              </div>
-            </footer>
-
-            <a
-              href={DONATION_CONFIG.KARMA_SITE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 rounded-[22px] border border-purple-200/20 bg-purple-300/10 p-3 text-xs font-semibold leading-relaxed text-purple-100 shadow-[0_14px_40px_rgba(88,28,135,0.18)] backdrop-blur-xl transition hover:border-purple-100/45 hover:bg-purple-300/15"
-            >
-              <img src={ASSETS.KARMA_TOKEN} alt="" className="h-10 w-10 shrink-0 rounded-full border border-purple-200/35 bg-slate-950 object-cover" />
-              <span>
-                <span className="font-black text-white">KARMA promo:</span> SciCon Shooter has partnered with KARMA for a limited promotional period, so charity-focused KRMA credits and the KARMA beam power-up are live.
-              </span>
-            </a>
-
-            <a
-              href={DONATION_CONFIG.KARMA_SITE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="overflow-hidden rounded-[18px] border border-purple-200/18 bg-purple-300/10 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-purple-100 shadow-[0_14px_40px_rgba(88,28,135,0.22)] backdrop-blur-xl"
-            >
-              <div className="scicon-promo-ticker-track flex w-max items-center gap-10 whitespace-nowrap px-4">
-                <span className="inline-flex items-center gap-2"><img src={ASSETS.KARMA_TOKEN} alt="" className="h-5 w-5 rounded-full border border-purple-200/35 object-cover" /> KARMA x SciCon Shooter promo power-up is live</span>
-                <span>Promotion: SciCon Shooter has partnered with KARMA for a limited KRMA credit period</span>
-                <span>KRMA is on BNB Smart Chain</span>
-                <span>KARMA frames its mission around charity, reflections, and community rewards</span>
-                <span>1 KRMA = 100 wallet-linked mission credits during the promo</span>
-                <span className="inline-flex items-center gap-2"><img src={ASSETS.KARMA_TOKEN} alt="" className="h-5 w-5 rounded-full border border-purple-200/35 object-cover" /> Collect the KARMA token drop in-game to fire the beam</span>
-                <span>Promotion: SciCon Shooter has partnered with KARMA for a limited KRMA credit period</span>
-                <span>KRMA is on BNB Smart Chain</span>
-                <span>KARMA frames its mission around charity, reflections, and community rewards</span>
-                <span>1 KRMA = 100 wallet-linked mission credits during the promo</span>
-              </div>
-            </a>
-          </section>
+        <main className="space-y-4 lg:hidden">
+          <MobileDashboardContent />
         </main>
       </div>
 
-      {showFeedback ? (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md rounded-[28px] border border-white/10 bg-slate-950 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.52)]">
-            <div className="space-y-4 text-center">
-              <h2 className="arcade-font text-xl font-bold tracking-widest text-white">WE WANT YOUR FEEDBACK</h2>
+      <div className="lg:hidden">
+        <DashboardNav fixed />
+      </div>
 
-              <div className="space-y-3 text-left">
-                <div>
-                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-blue-300">What did you like?</label>
-                  <textarea value={feedback.liked} onChange={(e) => setFeedback({ ...feedback, liked: e.target.value })} className="w-full resize-none rounded-xl border border-white/10 bg-black/50 p-2 font-mono text-xs text-white outline-none focus:border-blue-400 disabled:opacity-50" rows={2} disabled={isSending} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-yellow-300">What would you change?</label>
-                  <textarea value={feedback.change} onChange={(e) => setFeedback({ ...feedback, change: e.target.value })} className="w-full resize-none rounded-xl border border-white/10 bg-black/50 p-2 font-mono text-xs text-white outline-none focus:border-yellow-400 disabled:opacity-50" rows={2} disabled={isSending} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-red-300">What did you dislike?</label>
-                  <textarea value={feedback.disliked} onChange={(e) => setFeedback({ ...feedback, disliked: e.target.value })} className="w-full resize-none rounded-xl border border-white/10 bg-black/50 p-2 font-mono text-xs text-white outline-none focus:border-red-400 disabled:opacity-50" rows={2} disabled={isSending} />
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-3">
-                <button onClick={handleSendFeedback} disabled={isSending || (!feedback.liked && !feedback.change && !feedback.disliked)} className={`scicon-btn flex w-full items-center justify-center gap-2 py-3 text-sm font-bold ${sendStatus === 'success' ? '!border-green-500 !bg-green-600' : ''}`}>
-                  {sendStatus === 'idle' && !isSending ? <span>SEND FEEDBACK</span> : null}
-                  {sendStatus === 'idle' && isSending ? <span className="animate-pulse">TRANSMITTING...</span> : null}
-                  {sendStatus === 'success' ? <span className="animate-pulse">RECEIVED. THANK YOU.</span> : null}
-                  {sendStatus === 'error' ? <span>ERROR. TRY AGAIN.</span> : null}
-                </button>
-
-                {!isSending ? (
-                  <button onClick={() => setShowFeedback(false)} className="text-xs font-bold tracking-widest text-gray-500 underline hover:text-white">
-                    CLOSE
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {showTreasury ? (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md rounded-[28px] border border-emerald-200/20 bg-slate-950 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.52)]">
-            <div className="space-y-5 text-center">
+      {showFeedback && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]">
+            <div className="mb-4 flex items-center justify-between">
               <div>
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-200/25 bg-emerald-300/15 text-xl font-black text-emerald-100">$</div>
-                <h2 className="arcade-font text-xl font-bold tracking-widest text-white">FUND THE TREASURY</h2>
-                <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-300">
-                  The treasury supports SciCon Shooter prizes and ResearchHub funding-credit events. RSC sent here can be used to acquire ResearchHub funding credits, while USDC or other Base tokens can help refill future reward pools.
-                </p>
+                <h2 className="text-xl font-black text-white">Send Feedback</h2>
+                <p className="text-sm text-slate-300">Help tune the mission deck.</p>
               </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/35 p-4 text-left">
-                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Treasury wallet</div>
-                <input
-                  ref={treasuryAddressRef}
-                  readOnly
-                  value={DONATION_CONFIG.RECIPIENT_ADDRESS}
-                  onFocus={(event) => event.currentTarget.select()}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.05] p-3 font-mono text-xs font-bold text-white outline-none selection:bg-emerald-300 selection:text-slate-950"
-                  aria-label="Treasury wallet address"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={handleCopyTreasuryAddress} className="rh-nav-button">
-                  <span>{treasuryCopyStatus === 'copied' ? 'Copied' : treasuryCopyStatus === 'selected' ? 'Address Selected' : treasuryCopyStatus === 'error' ? 'Copy Failed' : 'Copy Address'}</span>
-                </button>
-                <button onClick={onOpenTreasurySend} className="rh-nav-button">
-                  <span>Open Wallet Send</span>
-                </button>
-              </div>
-
-              <button onClick={() => setShowTreasury(false)} className="text-xs font-bold tracking-widest text-gray-500 underline hover:text-white">
-                CLOSE
+              <button type="button" onClick={() => setShowFeedback(false)} className="sci-icon-button" aria-label="Close feedback">
+                <Icon name="x" />
+              </button>
+            </div>
+            <textarea
+              value={feedback}
+              onChange={(event) => setFeedback(event.target.value)}
+              placeholder="What should Scicon Shooter improve next?"
+              className="min-h-[9rem] w-full resize-none rounded-[6px] border border-cyan-300/20 bg-slate-900 p-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60"
+            />
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <p className="text-xs text-slate-400">
+                {sendStatus === 'success' && 'Your mail app should be ready with the message.'}
+                {sendStatus === 'error' && 'Could not open mail automatically. Try again in a moment.'}
+              </p>
+              <button
+                type="button"
+                onClick={handleSendFeedback}
+                disabled={!feedback.trim() || isSending}
+                className="rounded-[6px] border border-emerald-300/35 bg-emerald-400/14 px-4 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-400/24 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {isSending ? 'Opening...' : 'Send'}
               </button>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
+
+      {showTreasury && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black text-white">Research Treasury</h2>
+                <p className="text-sm text-slate-300">Base address for funding flow tests.</p>
+              </div>
+              <button type="button" onClick={() => setShowTreasury(false)} className="sci-icon-button" aria-label="Close treasury">
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="rounded-[6px] border border-cyan-300/18 bg-slate-900 p-3">
+              <p className="break-all text-sm text-slate-200">{treasuryAddress}</p>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button type="button" onClick={handleCopyTreasury} className="sci-mini-cta">
+                <Icon name="copy" className="h-4 w-4" />
+                {treasuryCopyStatus === 'copied' ? 'Copied' : treasuryCopyStatus === 'error' ? 'Copy failed' : 'Copy address'}
+              </button>
+              <button type="button" onClick={onOpenTreasurySend} className="sci-mini-cta">
+                <Icon name="wallet" className="h-4 w-4" />
+                Open wallet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

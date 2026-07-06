@@ -33,7 +33,7 @@ export enum PowerupType {
   MAGNET = 'MAGNET', // Coin Magnet (Patrick)
   SHIELD = 'SHIELD', // Invincibility (Jeffrey)
   EXTRA_LIFE = 'EXTRA_LIFE', // Extra Life (Arshia)
-  KARMA_LASER = 'KARMA_LASER' // Promotional KRMA beam
+  RESEARCH_BEAM = 'RESEARCH_BEAM' // RSC-powered research beam
 }
 
 export interface Position {

@@ -24,9 +24,6 @@ export const ASSETS = {
 
   // Real RSC Token (Clean Bottle)
   REAL_RSC_ICON: "https://assets.coingecko.com/coins/images/28146/standard/RH_BOTTLE_CLEAN_Aug_2024_1.png?1732742001",
-
-  // KARMA promotional token
-  KARMA_TOKEN: "/tokens/karma-logo.png",
   
   // Mini Boss 1
   BOTTLENECK_ICON: "https://lh3.googleusercontent.com/rd-gg-dl/ABS2GSntvTHHYjyV3FOfg6o4_8pKVhDZNAwdk6bl3HrwWFcHIEfjB9JWqYrNDIgaUl2Ofc2rsSPdEzL9HsEj9H0N02KKNUQ5hrOh83pdq4HrUqKn4w2pEot8Xl-BkWdETc688975BXGTkuNCuR6HggINOb7sM1HFkEUZ23UJ0Dtmn123nxFet5ZgPe95aVrMKJ1xumGym4C9GJOpVKtjkNfcKryBo0XvZ3TjhvehSv7EbhDtfhuAfQuhq641DFuW_BTQyI1WU-PFcGZc--WwBvFiQkioMpk5X-ELDw2dNfMCLTdm_9DdLmrvIIqjPIs-IMm4qVzPkw9W080EHirrGktlPki-IpLBQrh19mJzkkDrT73VJnWgcwyL48De1d1KuAwRjNo6ifNGV-MtNdzkalgHBFdbZY4pe2rwe2BziYGV-umL44FX4skfmcQuvZ_MuQS8L5C-1fPFHu3v_wcJQaIerY7coLs6OlS97x694zYRmwWc554NODQnFl-tZ8gGH7gYC83WWdoQgrA67yNIZH65urxleeGbmemMAxbE7dol5H9hdWas1GWz6CJHSII7VsaUL7WGy_TfaLZ-KcwXENEme1V2L5KUASqZQtkS5aH1mScHkzYDtEALyBisotpCinj-o6-Ly-uOeju-RDVnNEQk7vHMhpKoPgXU0aH979ER1hIJOYnDOtkwwi9Bm38BE0ghKz3KnA6JTHhYUweAn2q42GkUv3OF1VimkOSsubwR40TSTwhZahKQzEBNewT9dqTF1VbcZNRxCYd7HY4zQqMfWpKzQcbCQe2smIwzXJUBSvxFijktkwnmkKswd-L7XNMdLwq4NUO30qQoqmztQZGKS5wDDAAbQCS7yjH6k0t12HsyN_4O_in6vEyCW63pglgjpRtKQ7uwrgKcn9ijhsyePw2Pp67XjY5080KkEhe87kl6kyum6DXgb-xi34p3bb8TC9hiuXtnkKaxEv6iEPuG7urDOEo7crKMXdA06VYj4GX42pjaXITUve6UrzPY4lqlwZ9jZPbLryV0yLzdVHiQgIOtfBHiu1DnJ5HEVjSjo3PGtrHJztssVvN61YUkDmzjpGXFqojXjVqKlb8CjwKjq0WHHNOu23P6gDg7YuxEVm_-CUPAoKzZxSOiAPWs10VRC_RGBdnV67g4fvJPpYBtpyQGzR4WG-grfJatwMutdjXdPq8xHShewioCG903JoVnLZU2p01PMBgnPBYn5p9clqobUWw2=s1024-rj",
@@ -73,19 +70,12 @@ export const DONATION_CONFIG = {
   BUILDER_CODE: "bc_ww78gi4f",
   RECIPIENT_ADDRESS: "0x3A8D692Aabdd4981080a8F6af8375a21359464Bf",
   RSC_CONTRACT_ADDRESS: "0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1",
-  KARMA_CONTRACT_ADDRESS: "0x4Ee251C23F81744865FB24082503977a1843F237",
   USDC_CONTRACT_ADDRESS: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
   BASE_CHAIN_ID: 8453,
   BASE_CHAIN_ID_HEX: "0x2105",
   BASE_RPC_URL: "https://mainnet.base.org",
   EXPLORER_BASE_URL: "https://basescan.org",
-  BSC_CHAIN_ID: 56,
-  BSC_CHAIN_ID_HEX: "0x38",
-  BSC_RPC_URL: "https://bsc-dataseed.binance.org",
-  EXPLORER_BSC_BASE_URL: "https://bscscan.com",
   RSC_SWAP_URL: "https://aerodrome.finance/swap?from=0x833589fcd6edb6e08f4c7c32d4f71b54bda02913&to=0xfbb75a59193a3525a8825bebe7d4b56899e2f7e1&chain0=8453&chain1=8453",
-  KARMA_SWAP_URL: "https://pancakeswap.finance/swap?outputCurrency=0x4Ee251C23F81744865FB24082503977a1843F237&chainId=56",
-  KARMA_SITE_URL: "https://www.karmatoken.org/",
   X_PROFILE_URL: "https://x.com/ScottExplores29",
   GAME_URL: "https://sciconshooter.xyz",
   PRESET_RSC_AMOUNTS: [1, 5, 10],
@@ -120,7 +110,7 @@ export const GAME_CONFIG = {
   // We now use milestones, but this controls the fill speed of the bar between bosses
   WAVE_DURATION_FRAMES: 3600, 
   POWERUP_DURATION: 720, // 12 seconds @ 60fps
-  KARMA_LASER_DURATION: 600, // 10 seconds @ 60fps
+  RESEARCH_BEAM_DURATION: 600, // 10 seconds @ 60fps
   SHIELD_DURATION: 240, // Reduced from 300 (4 seconds)
   BOSS_SPAWN_FRAMES: 3000,
 };

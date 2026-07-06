@@ -267,7 +267,7 @@ export class GameEngine {
       ASSETS.FOUNDER_4,
       ASSETS.FOUNDER_ARSHIA,
       ASSETS.RSC_TOKEN,
-      ASSETS.KARMA_TOKEN,
+      ASSETS.REAL_RSC_ICON,
       ASSETS.GAME_BG_BACK,
       ASSETS.GAME_BG_STARS,
       ASSETS.GAME_BG_PLANET,
@@ -773,7 +773,7 @@ export class GameEngine {
     });
 
     this.checkCollisions();
-    this.applyKarmaLaserDamage();
+    this.applyResearchBeamDamage();
     this.entities = this.entities.filter(e => !e.markedForDeletion);
     this.bgY = (this.bgY + 1) % this.height;
   }
@@ -918,8 +918,8 @@ export class GameEngine {
     }
   }
 
-  applyKarmaLaserDamage() {
-    if (!this.activePowerups.has(PowerupType.KARMA_LASER) || this.frameCount % 2 !== 0) return;
+  applyResearchBeamDamage() {
+    if (!this.activePowerups.has(PowerupType.RESEARCH_BEAM) || this.frameCount % 2 !== 0) return;
 
     const beamWidth = this.width < 520 ? 46 : 56;
     const beamBox = {
@@ -1316,7 +1316,7 @@ export class GameEngine {
   spawnPowerup(x: number, y: number) {
     const r = Math.random();
     let type: PowerupType = PowerupType.DOUBLE_SHOT;
-    if (r < 0.14) type = PowerupType.KARMA_LASER;
+    if (r < 0.14) type = PowerupType.RESEARCH_BEAM;
     else if (r < 0.36) type = PowerupType.DOUBLE_SHOT;
     else if (r < 0.58) type = PowerupType.TRIPLE_SHOT;
     else if (r < 0.79) type = PowerupType.MAGNET;
@@ -1363,7 +1363,7 @@ export class GameEngine {
 
     if (type !== PowerupType.EXTRA_LIFE) {
       const currentDuration = this.activePowerups.get(type) || 0;
-      const duration = type === PowerupType.KARMA_LASER ? GAME_CONFIG.KARMA_LASER_DURATION : GAME_CONFIG.POWERUP_DURATION;
+      const duration = type === PowerupType.RESEARCH_BEAM ? GAME_CONFIG.RESEARCH_BEAM_DURATION : GAME_CONFIG.POWERUP_DURATION;
       this.activePowerups.set(type, currentDuration + duration);
     }
 
@@ -1384,8 +1384,8 @@ export class GameEngine {
     } else if (type === PowerupType.DOUBLE_SHOT) {
       this.spawnFloatingText(cx, cy - 20, "DOUBLE SHOT!", "#ffbb33");
       this.spawnRingEffect(cx, cy, "#ffbb33");
-    } else if (type === PowerupType.KARMA_LASER) {
-      this.spawnFloatingText(cx, cy - 20, "KARMA BEAM!", "#a855f7");
+    } else if (type === PowerupType.RESEARCH_BEAM) {
+      this.spawnFloatingText(cx, cy - 20, "RESEARCH BEAM!", "#a855f7");
       this.spawnRingEffect(cx, cy, "#a855f7");
     } else if (type === PowerupType.EXTRA_LIFE) {
       this.lives = Math.min(this.lives + 1, GAME_CONFIG.MAX_LIVES);
@@ -1785,7 +1785,7 @@ export class GameEngine {
     ctx.filter = "none";
     ctx.shadowBlur = 0;
     this.entities.forEach(e => this.drawEntity(ctx, e));
-    this.drawKarmaLaser(ctx);
+    this.drawResearchBeam(ctx);
     if (this.lives > 0) this.drawEntity(ctx, this.player);
     
     const invaders = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER);
@@ -1928,8 +1928,8 @@ export class GameEngine {
       ctx.restore();
   }
 
-  drawKarmaLaser(ctx: CanvasRenderingContext2D) {
-      const remaining = this.activePowerups.get(PowerupType.KARMA_LASER) || 0;
+  drawResearchBeam(ctx: CanvasRenderingContext2D) {
+      const remaining = this.activePowerups.get(PowerupType.RESEARCH_BEAM) || 0;
       if (remaining <= 0) return;
 
       const centerX = this.player.x + this.player.width / 2;
@@ -2030,7 +2030,7 @@ export class GameEngine {
          ctx.stroke();
          ctx.restore();
        }
-       if (this.activePowerups.has(PowerupType.KARMA_LASER)) {
+       if (this.activePowerups.has(PowerupType.RESEARCH_BEAM)) {
          const pulse = Math.sin(this.frameCount * 0.24) * 4;
          ctx.save();
          ctx.strokeStyle = 'rgba(168, 85, 247, 0.75)';
@@ -2116,7 +2116,7 @@ export class GameEngine {
         if (type === PowerupType.SHIELD) imgUrl = ASSETS.FOUNDER_JEFFREY;
         if (type === PowerupType.DOUBLE_SHOT) imgUrl = ASSETS.FOUNDER_4;
         if (type === PowerupType.EXTRA_LIFE) imgUrl = ASSETS.FOUNDER_ARSHIA; // Arshia
-        if (type === PowerupType.KARMA_LASER) imgUrl = ASSETS.KARMA_TOKEN;
+        if (type === PowerupType.RESEARCH_BEAM) imgUrl = ASSETS.REAL_RSC_ICON;
         
         const img = imageCache[imgUrl];
         if (img && img.complete && img.naturalWidth > 0) {

@@ -1,5 +1,5 @@
 import { createThirdwebClient } from 'thirdweb';
-import { base, bsc } from 'thirdweb/chains';
+import { base } from 'thirdweb/chains';
 import { darkTheme } from 'thirdweb/react';
 import { createWallet, inAppWallet } from 'thirdweb/wallets';
 import { ASSETS, DONATION_CONFIG } from '../constants';
@@ -18,7 +18,6 @@ export const thirdwebClient = thirdwebClientId
   : null;
 
 export const thirdwebBaseChain = base;
-export const thirdwebBscChain = bsc;
 
 const baseAccountWallet = createWallet('org.base.account');
 const thirdwebAuthRedirectUrl =
@@ -76,13 +75,6 @@ export const rscTokenInfo = {
   icon: ASSETS.REAL_RSC_ICON
 };
 
-export const karmaTokenInfo = {
-  address: DONATION_CONFIG.KARMA_CONTRACT_ADDRESS,
-  name: 'KARMA',
-  symbol: 'KRMA',
-  icon: ASSETS.KARMA_TOKEN
-};
-
 export const usdcTokenInfo = {
   address: DONATION_CONFIG.USDC_CONTRACT_ADDRESS,
   name: 'USD Coin',
@@ -94,9 +86,6 @@ export const thirdwebSupportedTokens = {
   [thirdwebBaseChain.id]: [
     rscTokenInfo,
     usdcTokenInfo
-  ],
-  [thirdwebBscChain.id]: [
-    karmaTokenInfo
   ]
 };
 

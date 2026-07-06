@@ -16,7 +16,7 @@ import UpgradeShop from './components/UpgradeShop';
 import Tutorial from './components/Tutorial';
 import SupportPanel from './components/SupportPanel';
 import WalletButton from './components/WalletButton';
-import FundingWidgetModal, { FundingCreditToken, FundingWidgetMode } from './components/FundingWidgetModal';
+import FundingWidgetModal, { FundingWidgetMode } from './components/FundingWidgetModal';
 import StoryTransmission from './components/StoryTransmission';
 import UpgradeCoach from './components/UpgradeCoach';
 import { ArchivedWinner, DonationStatus, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
@@ -30,7 +30,6 @@ import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
 import {
   thirdwebAppMetadata,
   thirdwebBaseChain,
-  thirdwebBscChain,
   thirdwebClient,
   thirdwebConnectModal,
   thirdwebRecommendedWallets,
@@ -60,7 +59,7 @@ const defaultPowerupUses: Record<PowerupType, number> = {
   [PowerupType.MAGNET]: 0,
   [PowerupType.SHIELD]: 0,
   [PowerupType.EXTRA_LIFE]: 0,
-  [PowerupType.KARMA_LASER]: 0
+  [PowerupType.RESEARCH_BEAM]: 0
 };
 
 const purchasablePowerups = [
@@ -103,14 +102,9 @@ const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') 
 };
 
 const getInsufficientCreditTokenMessage = (
-  token: FundingCreditToken,
   requiredAmount: number,
   availableDisplayValue = '0'
 ) => {
-  if (token === 'KRMA') {
-    return `You need ${requiredAmount} KRMA on BNB Smart Chain to buy this credit pack. Your wallet shows ${availableDisplayValue} KRMA. Get KARMA first, then return to Buy Credits.`;
-  }
-
   return `You need ${requiredAmount} RSC on Base to buy this credit pack. Your wallet shows ${availableDisplayValue} RSC. Swap or buy RSC first, then return to Buy Credits.`;
 };
 
@@ -199,7 +193,7 @@ const App: React.FC = () => {
   const [labFundingHash, setLabFundingHash] = useState<string>('');
   const [labFundingExplorerBaseUrl, setLabFundingExplorerBaseUrl] = useState<string>(DONATION_CONFIG.EXPLORER_BASE_URL);
   const [labFundingError, setLabFundingError] = useState<string>('');
-  const [fundingWidget, setFundingWidget] = useState<{ mode: FundingWidgetMode; rscAmount?: number; source: 'lab' | 'profile'; creditToken?: FundingCreditToken } | null>(null);
+  const [fundingWidget, setFundingWidget] = useState<{ mode: FundingWidgetMode; rscAmount?: number; source: 'lab' | 'profile' } | null>(null);
   const [activeStoryBeat, setActiveStoryBeat] = useState<StoryBeat | null>(null);
   const [showUpgradeCoach, setShowUpgradeCoach] = useState(false);
   const [upgradeCoachSeenGameId, setUpgradeCoachSeenGameId] = useState(0);
@@ -592,25 +586,21 @@ const App: React.FC = () => {
   const openFundingWidget = (
     mode: FundingWidgetMode,
     rscAmount = DONATION_CONFIG.PRESET_RSC_AMOUNTS[0],
-    source: 'lab' | 'profile' = 'profile',
-    creditToken: FundingCreditToken = 'RSC'
+    source: 'lab' | 'profile' = 'profile'
   ) => {
     setLabFundingError('');
     setLabFundingHash('');
     setLabFundingExplorerBaseUrl(DONATION_CONFIG.EXPLORER_BASE_URL);
-    setFundingWidget({ mode, rscAmount, source, creditToken });
+    setFundingWidget({ mode, rscAmount, source });
   };
 
-  const fundCurrentMission = (rscAmount: number, token: FundingCreditToken = 'RSC') => {
+  const fundCurrentMission = (rscAmount: number) => {
     setLabFundingStatus('processing');
-    openFundingWidget('checkout', rscAmount, 'lab', token);
+    openFundingWidget('checkout', rscAmount, 'lab');
   };
 
-  const handleFundingWidgetSuccess = (rscAmount: number, txHash = '', token: FundingCreditToken = 'RSC') => {
+  const handleFundingWidgetSuccess = (rscAmount: number, txHash = '') => {
     const credits = rscAmount * DONATION_CONFIG.MISSION_CREDITS_PER_RSC;
-    const explorerBaseUrl = token === 'KRMA'
-      ? DONATION_CONFIG.EXPLORER_BSC_BASE_URL
-      : DONATION_CONFIG.EXPLORER_BASE_URL;
     setStats(prev => ({
       ...prev,
       coins: prev.coins,
@@ -621,7 +611,7 @@ const App: React.FC = () => {
 
     setLabFundingStatus('success');
     setLabFundingHash(txHash);
-    setLabFundingExplorerBaseUrl(explorerBaseUrl);
+    setLabFundingExplorerBaseUrl(DONATION_CONFIG.EXPLORER_BASE_URL);
     setLabFundingError('');
 
     if (activeWalletAddress) {
@@ -638,7 +628,7 @@ const App: React.FC = () => {
     }, 5000);
   };
 
-  const handleDirectRscCreditPayment = async (rscAmount: number, token: FundingCreditToken = 'RSC') => {
+  const handleDirectRscCreditPayment = async (rscAmount: number) => {
     if (!thirdwebClient) {
       throw new Error('Add VITE_THIRDWEB_CLIENT_ID to enable token payments.');
     }
@@ -652,11 +642,9 @@ const App: React.FC = () => {
       throw new Error('Connect a wallet before funding mission credits.');
     }
 
-    const tokenChain = token === 'KRMA' ? thirdwebBscChain : thirdwebBaseChain;
-    const tokenAddress = token === 'KRMA'
-      ? DONATION_CONFIG.KARMA_CONTRACT_ADDRESS
-      : DONATION_CONFIG.RSC_CONTRACT_ADDRESS;
-    const tokenLabel = token === 'KRMA' ? 'KRMA' : 'RSC';
+    const tokenChain = thirdwebBaseChain;
+    const tokenAddress = DONATION_CONFIG.RSC_CONTRACT_ADDRESS;
+    const tokenLabel = 'RSC';
 
     if (thirdwebWallet && thirdwebWallet.getChain()?.id !== tokenChain.id) {
       setLabFundingStatus('switching_network');
@@ -666,7 +654,7 @@ const App: React.FC = () => {
     setLabFundingStatus('processing');
     setLabFundingError('');
     setLabFundingHash('');
-    setLabFundingExplorerBaseUrl(token === 'KRMA' ? DONATION_CONFIG.EXPLORER_BSC_BASE_URL : DONATION_CONFIG.EXPLORER_BASE_URL);
+    setLabFundingExplorerBaseUrl(DONATION_CONFIG.EXPLORER_BASE_URL);
 
     const creditTokenContract = getContract({
       client: thirdwebClient,
@@ -684,14 +672,14 @@ const App: React.FC = () => {
       const availableBalance = Number(balance.displayValue);
 
       if (Number.isFinite(availableBalance) && availableBalance + 0.000000001 < rscAmount) {
-        const message = getInsufficientCreditTokenMessage(token, rscAmount, balanceDisplayValue);
+        const message = getInsufficientCreditTokenMessage(rscAmount, balanceDisplayValue);
         setLabFundingStatus('error');
         setLabFundingError(message);
         throw new Error(message);
       }
     } catch (error: any) {
       const message = error?.message || '';
-      if (message.includes('Swap or buy RSC') || message.includes('Get KARMA')) {
+      if (message.includes('Swap or buy RSC')) {
         throw error;
       }
 
@@ -708,7 +696,7 @@ const App: React.FC = () => {
       setLabFundingStatus('confirming');
       const receipt = await sendAndConfirmTransaction({ account, transaction });
       const txHash = receipt.transactionHash || '';
-      handleFundingWidgetSuccess(rscAmount, txHash, token);
+      handleFundingWidgetSuccess(rscAmount, txHash);
       return txHash;
     } catch (error: any) {
       const message = getUserFacingMessage(error, `${tokenLabel} payment was cancelled before credits were added.`, tokenLabel);
@@ -930,10 +918,6 @@ const App: React.FC = () => {
     openFundingWidget('buy');
   };
 
-  const openKarmaSwap = async () => {
-    await miniAppService.openUrl(DONATION_CONFIG.KARMA_SWAP_URL);
-  };
-
   const openTreasurySend = async () => {
     await miniAppService.openUrl(`ethereum:${DONATION_CONFIG.RECIPIENT_ADDRESS}@${DONATION_CONFIG.BASE_CHAIN_ID}`);
   };
@@ -1070,6 +1054,9 @@ const App: React.FC = () => {
           onOpenProposal={openResearchHubProposal}
           onOpenXProfile={() => miniAppService.openUrl(DONATION_CONFIG.X_PROFILE_URL)}
           onOpenTreasurySend={openTreasurySend}
+          onOpenCredits={() => openFundingWidget('checkout')}
+          onOpenSwap={() => openFundingWidget('swap')}
+          onOpenBuy={() => openFundingWidget('buy')}
         />
       )}
 
@@ -1115,7 +1102,6 @@ const App: React.FC = () => {
           onConnectWallet={connectWallet}
           onBuyMissionCredits={fundCurrentMission}
           onOpenRscSwap={openRscSwap}
-          onOpenKarmaSwap={openKarmaSwap}
           onClaimProfileCredits={handleClaimProfileCredits}
           labFundingStatus={labFundingStatus}
           labFundingHash={labFundingHash}
@@ -1129,7 +1115,6 @@ const App: React.FC = () => {
         <FundingWidgetModal
           mode={fundingWidget.mode}
           rscAmount={fundingWidget.rscAmount}
-          initialCreditToken={fundingWidget.creditToken}
           walletAddress={activeWalletAddress}
           onClose={() => setFundingWidget(null)}
           onModeChange={(mode, rscAmount) => setFundingWidget({ ...fundingWidget, mode, rscAmount })}
