@@ -1,27 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { BuyWidget, SwapWidget } from 'thirdweb/react';
 import { ASSETS, DONATION_CONFIG } from '../constants';
 import {
-  karmaTokenInfo,
   rscTokenInfo,
   thirdwebBaseChain,
-  thirdwebBscChain,
   thirdwebClient,
   thirdwebPaymentConnectOptions,
   thirdwebTheme
 } from '../services/thirdwebWallet';
 
 export type FundingWidgetMode = 'checkout' | 'swap' | 'buy';
-export type FundingCreditToken = 'RSC' | 'KRMA';
 
 interface FundingWidgetModalProps {
   mode: FundingWidgetMode;
   rscAmount?: number;
-  initialCreditToken?: FundingCreditToken;
   walletAddress?: string | null;
   onClose: () => void;
   onModeChange: (mode: FundingWidgetMode, rscAmount?: number) => void;
-  onCreditPayment: (rscAmount: number, token: FundingCreditToken) => Promise<string>;
+  onCreditPayment: (rscAmount: number) => Promise<string>;
   onWidgetError: (message: string) => void;
 }
 
@@ -29,50 +25,26 @@ const usdcAddress = DONATION_CONFIG.USDC_CONTRACT_ADDRESS as `0x${string}`;
 const rscAddress = DONATION_CONFIG.RSC_CONTRACT_ADDRESS as `0x${string}`;
 
 const fundingTabs: Array<{ mode: FundingWidgetMode; label: string; copy: string }> = [
-  { mode: 'checkout', label: 'Buy Credits', copy: 'Spend RSC on Base or promotional KRMA on BSC to add mission credits.' },
+  { mode: 'checkout', label: 'Buy Credits', copy: 'Spend RSC on Base to add wallet-linked mission credits.' },
   { mode: 'swap', label: 'Swap for RSC', copy: 'Swap Base USDC into ResearchCoin, or open Aerodrome if routing is unavailable.' },
   { mode: 'buy', label: 'Buy RSC', copy: 'Buy ResearchCoin on Base, then use Buy Credits to fund the mission.' }
 ];
 
-const creditTokenMeta: Record<FundingCreditToken, {
-  label: string;
-  symbol: string;
-  name: string;
-  chainLabel: string;
-  chain: typeof thirdwebBaseChain;
-  tokenAddress: `0x${string}`;
-  explorerBaseUrl: string;
-  icon: string;
-  confirmationCopy: string;
-}> = {
-  RSC: {
-    label: 'Use RSC',
-    symbol: rscTokenInfo.symbol,
-    name: rscTokenInfo.name,
-    chainLabel: 'Base',
-    chain: thirdwebBaseChain,
-    tokenAddress: rscAddress,
-    explorerBaseUrl: DONATION_CONFIG.EXPLORER_BASE_URL,
-    icon: ASSETS.REAL_RSC_ICON,
-    confirmationCopy: 'This sends ResearchCoin from your connected wallet to the SciCon treasury on Base. No Bridge catalog needed, so RSC works as a normal ERC-20 token.'
-  },
-  KRMA: {
-    label: 'Use KARMA',
-    symbol: karmaTokenInfo.symbol,
-    name: karmaTokenInfo.name,
-    chainLabel: 'BNB Smart Chain',
-    chain: thirdwebBscChain,
-    tokenAddress: DONATION_CONFIG.KARMA_CONTRACT_ADDRESS as `0x${string}`,
-    explorerBaseUrl: DONATION_CONFIG.EXPLORER_BSC_BASE_URL,
-    icon: ASSETS.KARMA_TOKEN,
-    confirmationCopy: 'Promotional credits use KARMA on BNB Smart Chain. Confirm the KRMA transfer to the same SciCon treasury wallet, then credits are saved to your connected profile.'
-  }
+const creditToken = {
+  label: 'Use RSC',
+  symbol: rscTokenInfo.symbol,
+  name: rscTokenInfo.name,
+  chainLabel: 'Base',
+  chain: thirdwebBaseChain,
+  tokenAddress: rscAddress,
+  explorerBaseUrl: DONATION_CONFIG.EXPLORER_BASE_URL,
+  icon: ASSETS.REAL_RSC_ICON,
+  confirmationCopy: 'This sends ResearchCoin from your connected wallet to the SciCon treasury on Base. No bridge catalog needed, so RSC works as a normal ERC-20 token.'
 };
 
 const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
   mode,
   rscAmount = DONATION_CONFIG.PRESET_RSC_AMOUNTS[0],
-  initialCreditToken = 'RSC',
   walletAddress,
   onClose,
   onModeChange,
@@ -83,18 +55,12 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
   const [widgetMessage, setWidgetMessage] = useState('');
   const [confirmedTxHash, setConfirmedTxHash] = useState('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
-  const [selectedCreditToken, setSelectedCreditToken] = useState<FundingCreditToken>(initialCreditToken);
-  const [paymentHelpToken, setPaymentHelpToken] = useState<FundingCreditToken | null>(null);
-  const creditToken = creditTokenMeta[selectedCreditToken];
+  const [showPaymentHelp, setShowPaymentHelp] = useState(false);
   const missionCredits = selectedRscAmount * DONATION_CONFIG.MISSION_CREDITS_PER_RSC;
-
-  useEffect(() => {
-    setSelectedCreditToken(initialCreditToken);
-  }, [initialCreditToken]);
 
   const updateMode = (nextMode: FundingWidgetMode) => {
     setWidgetMessage('');
-    setPaymentHelpToken(null);
+    setShowPaymentHelp(false);
     onModeChange(nextMode, selectedRscAmount);
   };
 
@@ -104,13 +70,13 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
   };
 
   const handleCreditSuccess = () => {
-    setPaymentHelpToken(null);
+    setShowPaymentHelp(false);
     setWidgetMessage(`Confirmed. ${missionCredits} wallet-linked credits saved to your profile.`);
   };
 
   const handleWidgetError = (error: Error) => {
     const message = error.message || 'Payment flow could not complete.';
-    setPaymentHelpToken(selectedCreditToken);
+    setShowPaymentHelp(true);
     setWidgetMessage(message);
     onWidgetError(message);
   };
@@ -118,11 +84,11 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
   const handleDirectCreditPayment = async () => {
     setIsSubmittingPayment(true);
     setConfirmedTxHash('');
-    setPaymentHelpToken(null);
+    setShowPaymentHelp(false);
     setWidgetMessage(`Confirm the ${creditToken.symbol} transfer in your wallet. Credits are only added after the ${creditToken.chainLabel} transaction confirms.`);
 
     try {
-      const txHash = await onCreditPayment(selectedRscAmount, selectedCreditToken);
+      const txHash = await onCreditPayment(selectedRscAmount);
       setConfirmedTxHash(txHash);
       handleCreditSuccess();
     } catch (error: any) {
@@ -142,7 +108,7 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
             <div className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">RSC Funding</div>
             <h2 className="arcade-font mt-1 text-xl font-black tracking-widest text-white">Mission Wallet</h2>
             <p className="mt-1 text-xs leading-relaxed text-slate-400">
-              Pay with RSC, or use promotional KARMA on BSC.
+              Pay with ResearchCoin on Base to add wallet-linked mission credits.
             </p>
           </div>
           <button
@@ -180,74 +146,24 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
           </p>
 
           {mode === 'checkout' ? (
-            <>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {(['RSC', 'KRMA'] as FundingCreditToken[]).map((token) => (
-                  <button
-                    key={token}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCreditToken(token);
-                      setWidgetMessage('');
-                      setPaymentHelpToken(null);
-                    }}
-                    className={`rounded-2xl border px-3 py-2.5 text-left transition ${
-                      selectedCreditToken === token
-                        ? 'border-yellow-200 bg-yellow-200 text-slate-950'
-                        : 'border-white/10 bg-black/30 text-white hover:border-yellow-200/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {token === 'KRMA' ? (
-                        <img src={ASSETS.KARMA_TOKEN} alt="" className="h-7 w-7 rounded-full border border-purple-200/35 bg-slate-950 object-cover" />
-                      ) : (
-                        <img src={ASSETS.REAL_RSC_ICON} alt="" className="h-7 w-7 rounded-full border border-white/10 bg-white" />
-                      )}
-                      <div>
-                        <div className="font-mono text-[9px] font-black uppercase tracking-[0.14em]">{creditTokenMeta[token].label}</div>
-                        <div className="text-[9px] font-semibold opacity-70">{creditTokenMeta[token].chainLabel}</div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              {selectedCreditToken === 'KRMA' ? (
-                <div className="mt-2 rounded-2xl border border-purple-200/20 bg-purple-400/10 p-3 text-[11px] font-semibold leading-relaxed text-purple-100">
-                  Promotional period: KARMA is on BNB Smart Chain. 1 KRMA gets the same 100 mission credits as 1 RSC.
-                </div>
-              ) : null}
-
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {DONATION_CONFIG.PRESET_RSC_AMOUNTS.map((amount) => (
-                  <button
-                    key={amount}
-                    type="button"
-                    onClick={() => handlePackageChange(amount)}
-                    className={`rounded-2xl border p-3 text-left transition ${
-                      selectedRscAmount === amount
-                        ? 'border-yellow-200 bg-yellow-200 text-slate-950'
-                        : 'border-white/10 bg-black/30 text-white hover:border-yellow-200/50'
-                    }`}
-                  >
-                    <div className="font-mono text-[9px] font-black uppercase tracking-[0.14em]">{amount} {creditToken.symbol}</div>
-                    <div className="mt-1 text-lg font-black">{amount * DONATION_CONFIG.MISSION_CREDITS_PER_RSC}</div>
-                    <div className="text-[9px] uppercase tracking-[0.12em] opacity-70">credits</div>
-                  </button>
-                ))}
-              </div>
-
-              {selectedCreditToken === 'KRMA' ? (
-                <a
-                  href={DONATION_CONFIG.KARMA_SWAP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 block rounded-2xl border border-purple-200/35 bg-purple-300/15 px-4 py-3 text-center text-[10px] font-black uppercase tracking-[0.14em] text-purple-100 transition hover:border-purple-100 hover:bg-purple-300/25"
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {DONATION_CONFIG.PRESET_RSC_AMOUNTS.map((amount) => (
+                <button
+                  key={amount}
+                  type="button"
+                  onClick={() => handlePackageChange(amount)}
+                  className={`rounded-2xl border p-3 text-left transition ${
+                    selectedRscAmount === amount
+                      ? 'border-yellow-200 bg-yellow-200 text-slate-950'
+                      : 'border-white/10 bg-black/30 text-white hover:border-yellow-200/50'
+                  }`}
                 >
-                  Get KARMA on PancakeSwap
-                </a>
-              ) : null}
-            </>
+                  <div className="font-mono text-[9px] font-black uppercase tracking-[0.14em]">{amount} {creditToken.symbol}</div>
+                  <div className="mt-1 text-lg font-black">{amount * DONATION_CONFIG.MISSION_CREDITS_PER_RSC}</div>
+                  <div className="text-[9px] uppercase tracking-[0.12em] opacity-70">credits</div>
+                </button>
+              ))}
+            </div>
           ) : null}
 
           {!thirdwebClient ? (
@@ -259,14 +175,10 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
               {mode === 'checkout' ? (
                 <div className="rounded-[22px] border border-emerald-300/20 bg-black/32 p-4">
                   <div className="flex items-center gap-3">
-                    {selectedCreditToken === 'KRMA' ? (
-                      <img src={ASSETS.KARMA_TOKEN} alt="" className="h-11 w-11 shrink-0 rounded-full border border-purple-200/35 bg-slate-950 object-cover" />
-                    ) : (
-                      <img src={creditToken.icon} alt="" className="h-11 w-11 rounded-full border border-white/10 bg-white" />
-                    )}
+                    <img src={creditToken.icon} alt="" className="h-11 w-11 rounded-full border border-white/10 bg-white" />
                     <div>
                       <div className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">Direct {creditToken.chainLabel} transfer</div>
-                      <div className="mt-1 text-sm font-black text-white">{selectedRscAmount} {creditToken.symbol} &rarr; {missionCredits} credits</div>
+                      <div className="mt-1 text-sm font-black text-white">{selectedRscAmount} {creditToken.symbol} -&gt; {missionCredits} credits</div>
                     </div>
                   </div>
 
@@ -313,7 +225,7 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
 
                   <div className="rounded-[22px] border border-cyan-300/20 bg-black/32 p-4">
                     <div className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200">Fallback route</div>
-                    <h3 className="mt-1 text-base font-black text-white">Aerodrome USDC &rarr; RSC</h3>
+                    <h3 className="mt-1 text-base font-black text-white">Aerodrome USDC -&gt; RSC</h3>
                     <p className="mt-2 text-xs leading-relaxed text-slate-300">
                       If thirdweb cannot route ResearchCoin yet, use Aerodrome on Base. Swap USDC to RSC there, return here, then use the Credits tab.
                     </p>
@@ -355,7 +267,7 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
           <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-slate-400">
             <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
               <div className="font-mono font-black uppercase tracking-[0.14em] text-cyan-200">Receives</div>
-              <div className="mt-1">{selectedCreditToken === 'KRMA' ? `${karmaTokenInfo.symbol} on BSC` : `${rscTokenInfo.symbol} on Base`}</div>
+              <div className="mt-1">{rscTokenInfo.symbol} on Base</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
               <div className="font-mono font-black uppercase tracking-[0.14em] text-cyan-200">Credit rate</div>
@@ -376,7 +288,7 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
                   View transfer
                 </a>
               ) : null}
-              {paymentHelpToken === 'RSC' && !confirmedTxHash ? (
+              {showPaymentHelp && !confirmedTxHash ? (
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -401,16 +313,6 @@ const FundingWidgetModal: React.FC<FundingWidgetModalProps> = ({
                     Open Aerodrome route
                   </a>
                 </div>
-              ) : null}
-              {paymentHelpToken === 'KRMA' && !confirmedTxHash ? (
-                <a
-                  href={DONATION_CONFIG.KARMA_SWAP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 block rounded-xl border border-purple-200/45 bg-purple-300 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-slate-950 transition hover:bg-white"
-                >
-                  Get KARMA on PancakeSwap
-                </a>
               ) : null}
             </div>
           ) : null}

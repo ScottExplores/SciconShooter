@@ -19,7 +19,6 @@ The app is not meant to hide the funding story behind a donation button. It make
 - Wallet connection through thirdweb, with Base Account recommended.
 - Mission credits that can be earned in-game or funded with tokens.
 - RSC payments on Base for mission credits.
-- Promotional KRMA payments on BNB Smart Chain for the same credit rate during the promo period.
 - Live ResearchHub proposal discovery and selection.
 - Weekly champion proposal pick stored with the winning score.
 - Vercel-hosted API routes for leaderboard, proposal, and archive flows.
@@ -29,11 +28,10 @@ The app is not meant to hide the funding story behind a donation button. It make
 Mission credits are the in-game upgrade currency used during a run.
 
 - 1 RSC = 100 mission credits.
-- 1 KRMA = 100 mission credits during the promotional KARMA period.
 - Confirmed token transfers save credits to the connected wallet profile.
 - Wallet-linked credits can be deployed into a mission and spent on upgrades during that run.
 
-RSC runs on Base. Promotional KRMA runs on BNB Smart Chain. The app uses thirdweb for wallet connection, token transfer confirmation, swap/buy helpers, and wallet profile flow.
+RSC runs on Base. The app uses thirdweb for wallet connection, token transfer confirmation, swap/buy helpers, and wallet profile flow.
 
 ## Weekly leaderboard and funding allocation
 
