@@ -96,10 +96,6 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
             {!isComplete ? <span className="animate-pulse text-cyan-200">_</span> : null}
           </p>
 
-          <div className="mt-3 border-l-2 border-emerald-300/60 bg-emerald-300/10 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-emerald-100">
-            {beat.objective}
-          </div>
-
           <div className="mt-3 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-200/60">
             {isComplete ? 'Tap to deploy' : 'Receiving transmission'}
           </div>

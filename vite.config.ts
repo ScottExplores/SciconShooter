@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const leaderboardHandler = require('./api/leaderboard.js');
 const monthlyWinnersHandler = require('./api/monthly-winners.js');
+const researchHubProposalsHandler = require('./api/researchhub-proposals.js');
 
 const readBody = (req: any) => new Promise((resolve) => {
   if (req.method === 'GET' || req.method === 'OPTIONS') {
@@ -42,6 +43,11 @@ const localApiRoutes = () => ({
       req.body = await readBody(req);
       await monthlyWinnersHandler(req, res);
     });
+
+    server.middlewares.use('/api/researchhub-proposals', async (req: any, res: any) => {
+      req.body = await readBody(req);
+      await researchHubProposalsHandler(req, res);
+    });
   }
 });
 
@@ -53,14 +59,6 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
-    proxy: {
-      '/api/researchhub-proposals': {
-        target: 'https://backend.prod.researchhub.com',
-        changeOrigin: true,
-        secure: false,
-        rewrite: () => '/api/funding_feed/?fundraise_status=OPEN&ordering=best&page_size=5&content_type=PREREGISTRATION'
-      }
-    }
+    port: 5173
   }
 });

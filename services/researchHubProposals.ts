@@ -16,6 +16,7 @@ export interface ResearchHubProposal {
   peerReview?: number;
   imageUrl?: string;
   status?: string;
+  endDate?: string;
   url: string;
 }
 
@@ -40,6 +41,41 @@ const asNumber = (value: unknown): number | undefined => {
 const getMoneyUsd = (value: unknown): number | undefined => {
   if (!isRecord(value)) return asNumber(value);
   return asNumber(value.usd) ?? asNumber(value.amount);
+};
+
+const isPastDate = (value?: string) => {
+  if (!value) return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && timestamp <= Date.now();
+};
+
+const isOpenUnfundedProposal = (proposal: ResearchHubProposal) => {
+  const status = proposal.status?.trim().toLowerCase();
+  const closedStatuses = new Set([
+    'closed',
+    'complete',
+    'completed',
+    'funded',
+    'fulfilled',
+    'ended',
+    'expired',
+    'cancelled',
+    'canceled',
+    'inactive'
+  ]);
+
+  if (status && closedStatuses.has(status)) return false;
+  if (isPastDate(proposal.endDate)) return false;
+  if (
+    typeof proposal.requestedUsd === 'number'
+    && proposal.requestedUsd > 0
+    && typeof proposal.raisedUsd === 'number'
+    && proposal.raisedUsd >= proposal.requestedUsd
+  ) {
+    return false;
+  }
+
+  return true;
 };
 
 const fullName = (source: unknown): string | undefined => {
@@ -92,6 +128,7 @@ const normalizeProposal = (entry: RawRecord): ResearchHubProposal | null => {
   const contributors = isRecord(fundraise?.contributors) ? fundraise?.contributors : undefined;
   const requestedUsd = getMoneyUsd(fundraise?.goal_amount);
   const raisedUsd = getMoneyUsd(fundraise?.amount_raised);
+  const endDate = asString(fundraise?.end_date);
 
   return {
     id: String(id),
@@ -108,6 +145,7 @@ const normalizeProposal = (entry: RawRecord): ResearchHubProposal | null => {
     peerReview: asNumber(reviewMetrics?.avg) ?? firstAssessedReviewScore(content.reviews),
     imageUrl: validImageUrl(content.image_url) ?? validImageUrl(firstGrant?.image) ?? validImageUrl(authorProfile?.profile_image),
     status: asString(fundraise?.status),
+    endDate,
     url: slug ? `https://www.researchhub.com/post/${id}/${slug}` : RESEARCHHUB_FUND_URL
   };
 };
@@ -138,5 +176,6 @@ export const getResearchHubFundingProposals = async (): Promise<ResearchHubPropo
   return results
     .filter(isRecord)
     .map(normalizeProposal)
-    .filter((proposal): proposal is ResearchHubProposal => Boolean(proposal));
+    .filter((proposal): proposal is ResearchHubProposal => Boolean(proposal))
+    .filter(isOpenUnfundedProposal);
 };

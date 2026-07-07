@@ -39,6 +39,18 @@ import {
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
+interface ScoreMintPreviewRecord {
+  pilotName: string;
+  score: number;
+  wave: number;
+  monthlyRank?: number;
+  allTimeRank?: number;
+  proposalTitle?: string;
+  proposalUrl?: string;
+}
+
+const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
+
 const defaultMiniAppState: MiniAppState = {
   isMiniApp: false,
   clientFid: null,
@@ -186,6 +198,7 @@ const App: React.FC = () => {
   const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(false);
   const [isSubmittingScore, setIsSubmittingScore] = useState<boolean>(false);
   const [scoreSubmitError, setScoreSubmitError] = useState<string>('');
+  const [scoreMintPreview, setScoreMintPreview] = useState<ScoreMintPreviewRecord | null>(null);
   const [showLabGlow, setShowLabGlow] = useState<boolean>(true);
   const [miniApp, setMiniApp] = useState<MiniAppState>(defaultMiniAppState);
   const [walletError, setWalletError] = useState<string>('');
@@ -797,8 +810,10 @@ const App: React.FC = () => {
     }
   }, [gameId, gameState, monthlyLeaderboard, selectedProposalId, sortedFundingProposals, stats.score, stats.wave, stats.highScore, leaderboard]);
 
-  const persistHighScore = async () => {
+  const persistHighScore = async (options: { returnToMenuOnSuccess?: boolean } = {}) => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
+
+    const returnToMenuOnSuccess = options.returnToMenuOnSuccess ?? true;
 
     submittingScoreRef.current = true;
     setIsSubmittingScore(true);
@@ -871,7 +886,9 @@ const App: React.FC = () => {
       setIsSubmittingScore(false);
       if (confirmedSave) {
         setShowNameInput(false);
-        setGameState(GameState.MENU);
+        if (returnToMenuOnSuccess) {
+          setGameState(GameState.MENU);
+        }
       }
     }
   };
@@ -942,6 +959,32 @@ const App: React.FC = () => {
       await miniAppService.openUrl(shareUrl);
     }
   };
+  const shareRunResult = async () => {
+    await miniAppService.openUrl(highScoreShareUrl);
+  };
+  const buildScoreMintPreviewRecord = (): ScoreMintPreviewRecord => ({
+    pilotName: playerNameInput.trim() || (activeWalletAddress ? shortenAddress(activeWalletAddress) : 'Pilot'),
+    score: stats.score,
+    wave: stats.wave,
+    monthlyRank: scoreQualification.qualifiesMonthlyTop5 ? scoreQualification.monthlyRank : undefined,
+    allTimeRank: scoreQualification.qualifiesAllTimeTop25 ? scoreQualification.allTimeRank : undefined,
+    proposalTitle: scoreQualification.isMonthlyChampion ? selectedShareProposal?.title : undefined,
+    proposalUrl: scoreQualification.isMonthlyChampion ? selectedShareProposal?.url : undefined
+  });
+  const openScoreMintPreview = async () => {
+    const needsProposalPick = scoreQualification.isMonthlyChampion && fundingProposals.length > 0 && !selectedShareProposal;
+    if (needsProposalPick || submittingScoreRef.current) return;
+
+    const nextPreview = buildScoreMintPreviewRecord();
+
+    if (showNameInput) {
+      if (!playerNameInput.trim()) return;
+      const saved = await persistHighScore({ returnToMenuOnSuccess: false });
+      if (!saved) return;
+    }
+
+    setScoreMintPreview(nextPreview);
+  };
   const canSelectFundingProposal = showNameInput
     && scoreQualification.isMonthlyChampion;
   const scoreQualificationMessage = scoreQualification.isMonthlyChampion
@@ -956,6 +999,12 @@ const App: React.FC = () => {
   const sharePrompt = scoreQualification.isMonthlyChampion && selectedShareProposal
     ? 'Share your No. 1 run and proposal pick.'
     : 'Share your score and invite pilots to chase the funding-credit board.';
+  const scoreMintDisabled = !playerNameInput
+    || isSubmittingScore
+    || (scoreQualification.isMonthlyChampion && fundingProposals.length > 0 && !selectedShareProposal);
+  const scoreMintLabel = scoreQualification.isMonthlyChampion && selectedShareProposal
+    ? 'Save & Mint Pick NFT'
+    : 'Save & Mint Score NFT';
   const highScoreActionControls = (
     <div className="sticky top-0 z-20 rounded-2xl border border-white/10 bg-slate-950/92 p-3 shadow-[0_16px_46px_rgba(0,0,0,0.35)] backdrop-blur-xl">
       {scoreSubmitError ? (
@@ -972,6 +1021,14 @@ const App: React.FC = () => {
           className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-slate-100 transition hover:border-sky-300/50 hover:bg-sky-300/10 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Save & Share on X
+        </button>
+        <button
+          type="button"
+          onClick={openScoreMintPreview}
+          disabled={scoreMintDisabled}
+          className="w-full rounded-2xl border border-emerald-200/25 bg-emerald-300/12 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200/60 hover:bg-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {scoreMintLabel}
         </button>
         <button
           type="submit"
@@ -1003,16 +1060,6 @@ const App: React.FC = () => {
 
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
-      {gameState === GameState.MENU && !activeStoryBeat ? (
-        <WalletButton
-          wallet={wallet}
-          onConnect={connectWallet}
-          onDisconnect={disconnectWallet}
-          onOpenFunding={openFundingWidget}
-          credits={stats.profileCredits || 0}
-        />
-      ) : null}
-
       {(gameState === GameState.PLAYING || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER || gameState === GameState.SHOP || gameState === GameState.TUTORIAL) && (
         <GameCanvas
           key={gameId}
@@ -1057,6 +1104,16 @@ const App: React.FC = () => {
           onOpenCredits={() => openFundingWidget('checkout')}
           onOpenSwap={() => openFundingWidget('swap')}
           onOpenBuy={() => openFundingWidget('buy')}
+          walletControl={!activeStoryBeat ? (
+            <WalletButton
+              wallet={wallet}
+              onConnect={connectWallet}
+              onDisconnect={disconnectWallet}
+              onOpenFunding={openFundingWidget}
+              credits={stats.profileCredits || 0}
+              placement="mission"
+            />
+          ) : null}
         />
       )}
 
@@ -1312,6 +1369,23 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={shareRunResult}
+                      className="rounded-2xl border border-sky-200/25 bg-sky-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-sky-100 transition hover:border-sky-200/60 hover:bg-sky-300/18"
+                    >
+                      Share on X
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openScoreMintPreview}
+                      className="rounded-2xl border border-emerald-200/25 bg-emerald-300/12 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200/60 hover:bg-emerald-300/20"
+                    >
+                      Mint Score NFT
+                    </button>
+                  </div>
+
                   <SupportPanel
                     wallet={wallet}
                     isMiniApp={miniApp.isMiniApp}
@@ -1340,6 +1414,98 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {scoreMintPreview && gameState === GameState.GAMEOVER ? (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/82 p-4 backdrop-blur-md">
+          <div className="relative w-full max-w-md overflow-hidden rounded-[8px] border border-emerald-200/25 bg-slate-950 p-5 shadow-[0_0_50px_rgba(16,185,129,0.24)]">
+            <button
+              type="button"
+              onClick={() => setScoreMintPreview(null)}
+              className="absolute right-3 top-3 rounded-[6px] border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black uppercase text-slate-300 transition hover:border-white/30 hover:text-white"
+            >
+              Close
+            </button>
+
+            <div className="mb-4 pr-16">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Base score mint</p>
+              <h2 className="mt-1 text-2xl font-black text-white">Score NFT Preview</h2>
+            </div>
+
+            <div className="relative overflow-hidden rounded-[8px] border border-cyan-200/20 bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.24),transparent_42%),linear-gradient(145deg,rgba(15,23,42,0.98),rgba(6,78,59,0.64))] p-4">
+              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(103,232,249,0.05)_1px,transparent_1px)] bg-[size:100%_9px]" />
+              <div className="relative">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-100/80">Scicon Shooter</p>
+                    <p className="mt-1 text-sm font-bold text-white">{scoreMintPreview.pilotName}</p>
+                  </div>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-[8px] border border-emerald-200/30 bg-emerald-300/12 text-emerald-100">
+                    <span className="text-2xl">◆</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-[6px] border border-white/10 bg-black/25 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Score</p>
+                    <p className="mt-1 text-3xl font-black text-white">{scoreMintPreview.score.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-[6px] border border-white/10 bg-black/25 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Wave</p>
+                    <p className="mt-1 text-3xl font-black text-cyan-100">{scoreMintPreview.wave}</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {scoreMintPreview.monthlyRank ? (
+                    <span className="rounded-full border border-emerald-200/30 bg-emerald-300/14 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
+                      Weekly #{scoreMintPreview.monthlyRank}
+                    </span>
+                  ) : null}
+                  {scoreMintPreview.allTimeRank ? (
+                    <span className="rounded-full border border-cyan-200/30 bg-cyan-300/14 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100">
+                      All-Time #{scoreMintPreview.allTimeRank}
+                    </span>
+                  ) : null}
+                </div>
+
+                {scoreMintPreview.proposalTitle ? (
+                  <div className="mt-4 rounded-[6px] border border-yellow-200/20 bg-yellow-200/10 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-yellow-100">Funding pick</p>
+                    <p className="mt-1 line-clamp-3 text-sm font-bold leading-snug text-white">{scoreMintPreview.proposalTitle}</p>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-[6px] border border-white/10 bg-black/25 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Record type</p>
+                    <p className="mt-1 text-sm font-bold text-white">High score trophy</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => { if (!activeWalletAddress) void connectWallet(); }}
+                disabled={Boolean(activeWalletAddress)}
+                className="rounded-[6px] border border-cyan-200/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/18 disabled:cursor-default disabled:opacity-80"
+              >
+                {activeWalletAddress ? `Wallet ${shortenAddress(activeWalletAddress)}` : 'Connect Wallet'}
+              </button>
+              <button
+                type="button"
+                disabled
+                className="rounded-[6px] border border-emerald-200/20 bg-emerald-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-emerald-100 opacity-70"
+              >
+                Mint Contract Pending
+              </button>
+            </div>
+
+            <p className="mt-3 text-center text-[11px] font-semibold leading-relaxed text-slate-400">
+              This is the score artwork and metadata screen for the Base NFT. The mint button will become live when the NFT contract is connected.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {gameState === GameState.ABOUT && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md">

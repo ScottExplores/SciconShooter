@@ -8,7 +8,6 @@ export interface StoryBeat {
   accent: string;
   title: string;
   text: string;
-  objective: string;
 }
 
 export const STORY_BEATS: StoryBeat[] = [
@@ -19,8 +18,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_BRIAN,
     accent: 'from-blue-400 via-cyan-300 to-emerald-300',
     title: 'Operation Open Galaxy',
-    text: '.... Pilot, Brian on the Clarity relay. RSC can power the lab mid-flight: fund mission credits, upgrade the ship, and punch through the bottlenecks slowing open science.',
-    objective: 'Collect credits, try the lab, and break through the paywall drones.'
+    text: '.... Pilot, Brian on the Clarity relay. RSC can power the lab mid-flight: fund mission credits, upgrade the ship, and punch through the bottlenecks slowing open science.'
   },
   {
     phase: 2,
@@ -29,8 +27,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_JEFFREY,
     accent: 'from-emerald-300 via-cyan-300 to-sky-400',
     title: 'Predatory Drift',
-    text: '.... Nice flying. Wave two is crawling with predatory journals and review traps. If you want a leaderboard run, upgrade early. Top pilots can help point funding credits toward ResearchHub proposals.',
-    objective: 'Survive the faster journals and prepare for the first bottleneck boss.'
+    text: '.... Nice flying. Wave two is crawling with predatory journals and review traps. If you want a leaderboard run, upgrade early. Top pilots can help point funding credits toward ResearchHub proposals.'
   },
   {
     phase: 3,
@@ -39,8 +36,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_PATRICK,
     accent: 'from-yellow-300 via-emerald-300 to-cyan-300',
     title: 'Liquidity For Research',
-    text: '.... The Galaxy is responding. RSC streams are coming online, but bureaucracy bricks are blocking the funding rails. Every funded upgrade is a vote for speed, clarity, and better scientific incentives.',
-    objective: 'Use upgrades aggressively. The wall boss will punish slow movement.'
+    text: '.... The Galaxy is responding. RSC streams are coming online, but bureaucracy bricks are blocking the funding rails. Every funded upgrade is a vote for speed, clarity, and better scientific incentives.'
   },
   {
     phase: 4,
@@ -49,8 +45,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_BRIAN,
     accent: 'from-blue-400 via-indigo-300 to-cyan-300',
     title: 'Truth Optimization',
-    text: '.... We are past the noise layer. The next sector is where incentives decide everything. If truth gets paid faster than friction, the whole scientific system can accelerate.',
-    objective: 'Prioritize elite threats and keep pressure on the Gatekeeper.'
+    text: '.... We are past the noise layer. The next sector is where incentives decide everything. If truth gets paid faster than friction, the whole scientific system can accelerate.'
   },
   {
     phase: 5,
@@ -59,8 +54,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_JEFFREY,
     accent: 'from-red-300 via-yellow-200 to-cyan-300',
     title: 'The Gatekeeper Core',
-    text: '.... Final wave. The bottleneck core is adapting to your signal. Expect swarms, bricks, and beam attacks together. Free the Galaxy from slow science. Fight for clarity.',
-    objective: 'Stay mobile, preserve lives, and collapse the final review wall.'
+    text: '.... Final wave. The bottleneck core is adapting to your signal. Expect swarms, bricks, and beam attacks together. Free the Galaxy from slow science. Fight for clarity.'
   }
 ];
 

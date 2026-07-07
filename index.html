@@ -506,8 +506,8 @@
       }
 
       .sci-rh-ship--compact {
-        width: min(72vw, 245px);
-        height: 138px;
+        width: min(58vw, 190px);
+        height: 104px;
       }
 
       .sci-rh-ship::before,
@@ -603,6 +603,91 @@
         }
         50% {
           transform: translateY(-5px);
+        }
+      }
+
+      .sci-weekly-winner-card {
+        box-shadow:
+          inset 0 0 22px rgba(20, 184, 166, 0.1),
+          0 0 24px rgba(16, 185, 129, 0.12);
+      }
+
+      .sci-weekly-winner-card::before {
+        content: "";
+        position: absolute;
+        inset: -45%;
+        background: conic-gradient(from 90deg, transparent, rgba(34, 211, 238, 0.22), transparent 28%, rgba(110, 231, 183, 0.2), transparent 58%);
+        opacity: 0.42;
+        animation: sci-weekly-orbit 7.5s linear infinite;
+      }
+
+      .sci-weekly-scan {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(105deg, transparent 0%, transparent 38%, rgba(125, 249, 255, 0.18) 48%, transparent 58%, transparent 100%);
+        transform: translateX(-125%);
+        animation: sci-weekly-scan 3.8s ease-in-out infinite;
+      }
+
+      .sci-weekly-project-image {
+        box-shadow:
+          inset 0 0 18px rgba(34, 211, 238, 0.14),
+          0 0 20px rgba(34, 211, 238, 0.16);
+      }
+
+      .sci-weekly-project-image::before {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        z-index: 1;
+        border: 1px solid rgba(110, 231, 183, 0.34);
+        border-radius: 8px;
+        opacity: 0.68;
+        animation: sci-weekly-frame-pulse 2.6s ease-in-out infinite;
+      }
+
+      .sci-weekly-live-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #6ee7b7;
+        box-shadow: 0 0 0 0 rgba(110, 231, 183, 0.65);
+        animation: sci-weekly-live-pulse 1.7s ease-in-out infinite;
+      }
+
+      @keyframes sci-weekly-orbit {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes sci-weekly-scan {
+        0%, 45% {
+          transform: translateX(-125%);
+        }
+        78%, 100% {
+          transform: translateX(125%);
+        }
+      }
+
+      @keyframes sci-weekly-frame-pulse {
+        0%, 100% {
+          opacity: 0.42;
+          transform: scale(0.96);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.02);
+        }
+      }
+
+      @keyframes sci-weekly-live-pulse {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(110, 231, 183, 0.65);
+        }
+        50% {
+          box-shadow: 0 0 0 7px rgba(110, 231, 183, 0);
         }
       }
 

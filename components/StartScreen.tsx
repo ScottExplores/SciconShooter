@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ArchivedWinner, LeaderboardEntry } from '../types';
-import { formatUsd, ResearchHubProposal } from '../services/researchHubProposals';
+import { ResearchHubProposal } from '../services/researchHubProposals';
 import { ASSETS, DONATION_CONFIG } from '../constants';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
@@ -21,6 +21,7 @@ interface StartScreenProps {
   onOpenCredits: () => void;
   onOpenSwap: () => void;
   onOpenBuy: () => void;
+  walletControl?: React.ReactNode;
 }
 
 type LeaderboardView = 'weekly' | 'allTime' | 'pastPicks';
@@ -401,19 +402,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onOpenTreasurySend,
   onOpenCredits,
   onOpenSwap,
-  onOpenBuy
+  onOpenBuy,
+  walletControl
 }) => {
   const [leaderboardView, setLeaderboardView] = useState<LeaderboardView>('weekly');
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>('home');
   const [proposalSearch, setProposalSearch] = useState('');
-  const [activeProposalIndex, setActiveProposalIndex] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showTreasury, setShowTreasury] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isSending, setIsSending] = useState(false);
   const [treasuryCopyStatus, setTreasuryCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
-  const proposalFlipTimeout = useRef<number | null>(null);
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
 
   const weeklyAllocation = useMemo(getWeeklyAllocationMeta, []);
@@ -431,7 +431,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
     ));
   }, [proposalSearch, sortedProposals]);
 
-  const featuredProposal = sortedProposals[activeProposalIndex % Math.max(1, sortedProposals.length)];
   const weeklyLeader = monthlyLeaderboard[0];
   const allTimeLeader = allTimeLeaderboard[0];
 
@@ -445,49 +444,32 @@ const StartScreen: React.FC<StartScreenProps> = ({
       ? allTimeLeaderboard
       : [];
 
-  const trophyStats = useMemo(() => {
-    const currentTopScore = weeklyLeader?.score ?? 0;
-    const allTimeTopScore = allTimeLeader?.score ?? 0;
-    const fundedMissions = archivedWinners.length;
-    const uniqueProposalCount = new Set(
-      archivedWinners
-        .map((winner) => winner.proposalId || winner.proposalTitle)
-        .filter(Boolean)
-    ).size;
+  const topPilotScore = Math.max(weeklyLeader?.score ?? 0, allTimeLeader?.score ?? 0);
+  const pilotLevel = Math.max(1, Math.min(12, Math.floor(topPilotScore / 1000) + 1));
+  const weeklyLeaderProposal = useMemo(() => {
+    if (weeklyLeader?.proposalId) {
+      const proposalById = sortedProposals.find((proposal) => proposal.id === weeklyLeader.proposalId);
+      if (proposalById) return proposalById;
+    }
 
-    return {
-      currentTopScore,
-      allTimeTopScore,
-      fundedMissions,
-      uniqueProposalCount,
-      trophiesUnlocked: Math.max(archivedWinners.length, uniqueProposalCount)
-    };
-  }, [allTimeLeader, archivedWinners, weeklyLeader]);
+    if (weeklyLeader?.proposalUrl) {
+      const proposalByUrl = sortedProposals.find((proposal) => proposal.url === weeklyLeader.proposalUrl);
+      if (proposalByUrl) return proposalByUrl;
+    }
 
-  const pilotLevel = Math.max(1, Math.min(12, Math.floor((trophyStats.allTimeTopScore || trophyStats.currentTopScore) / 1000) + 1));
-  const weeklyRank = weeklyLeader ? '#1' : '#--';
-  const nextTierProgress = Math.max(12, Math.min(92, Math.round((monthlyLeaderboard.length / 10) * 100) || 62));
-
-  const powerups = [
-    { name: 'Shield', count: 3, icon: 'shield' as IconName, tone: 'emerald', helper: 'Hold RSC for armor perks' },
-    { name: 'Overdrive', count: 2, icon: 'overdrive' as IconName, tone: 'sky', helper: 'Spend RSC for speed' },
-    { name: 'Focus', count: 2, icon: 'focus' as IconName, tone: 'yellow', helper: 'Proposal targeting bonus' },
-    { name: 'Research Beam', count: 1, icon: 'beam' as IconName, tone: 'violet', helper: 'ResearchHub beam strike' }
-  ];
-
-  useEffect(() => {
-    if (proposalFlipTimeout.current) window.clearTimeout(proposalFlipTimeout.current);
-    if (sortedProposals.length < 2) return undefined;
-
-    proposalFlipTimeout.current = window.setTimeout(() => {
-      setActiveProposalIndex((current) => (current + 1) % sortedProposals.length);
-    }, 6500);
-
-    return () => {
-      if (proposalFlipTimeout.current) window.clearTimeout(proposalFlipTimeout.current);
-    };
-  }, [activeProposalIndex, sortedProposals.length]);
-
+    return sortedProposals[0];
+  }, [weeklyLeader, sortedProposals]);
+  const weeklyLeaderName = leaderboardName(weeklyLeader);
+  const weeklyLeaderScore = leaderboardScore(weeklyLeader);
+  const weeklyFundingTitle = weeklyLeader?.proposalTitle
+    || weeklyLeaderProposal?.title
+    || 'Proposal pick pending';
+  const weeklyFundingAuthor = weeklyLeader?.proposalAuthor
+    || weeklyLeaderProposal?.organization
+    || weeklyLeaderProposal?.author
+    || 'ResearchHub';
+  const weeklyFundingImageUrl = weeklyLeaderProposal?.imageUrl;
+  const weeklyFundingProgress = weeklyLeaderProposal ? getProposalProgress(weeklyLeaderProposal) : 12;
   const copyTextWithFallback = async (text: string) => {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
@@ -644,30 +626,30 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 
   const HeroPanel = ({ compact = false }: { compact?: boolean }) => (
-    <HudPanel className={compact ? 'min-h-[27rem]' : 'min-h-[34rem] xl:min-h-[40rem]'}>
+    <HudPanel className={compact ? 'min-h-[22rem]' : 'min-h-[34rem] xl:min-h-[40rem]'}>
       <div className="absolute inset-0">
         <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-68" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(34,211,238,0.2),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.18),rgba(2,6,23,0.88)_76%,rgba(2,6,23,0.96))]" />
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,rgba(4,120,87,0.09))]" />
       </div>
 
-      <div className={`relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 py-7 text-center ${compact ? 'gap-4' : 'gap-6 md:px-8 md:py-10'}`}>
-        <div className="space-y-3">
+      <div className={`relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'gap-2 py-4' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
+        <div className={compact ? 'space-y-1.5' : 'space-y-3'}>
           <div className="mx-auto flex w-fit items-center gap-3 text-yellow-200/90">
             <span className="h-px w-14 bg-gradient-to-r from-transparent to-yellow-200/80" />
             <span className="h-2 w-16 skew-x-[-28deg] bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.45)]" />
             <span className="h-px w-14 bg-gradient-to-l from-transparent to-yellow-200/80" />
           </div>
-          <div className={`scicon-hero-title ${compact ? 'text-[2.55rem]' : 'text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]'}`}>
+          <div className={`scicon-hero-title ${compact ? 'text-[2.15rem]' : 'text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]'}`}>
             <span>Scicon</span>
             <span>Shooter</span>
           </div>
-          <p className="mx-auto max-w-xl text-xs font-bold uppercase text-cyan-50/85 md:text-sm">
+          <p className={`mx-auto max-w-xl font-bold uppercase text-cyan-50/85 ${compact ? 'text-[0.64rem]' : 'text-xs md:text-sm'}`}>
             Fund research. Upgrade science. Win together.
           </p>
         </div>
 
-        <div className="relative flex min-h-[11rem] w-full items-center justify-center">
+        <div className={`relative flex w-full items-center justify-center ${compact ? 'min-h-[6.6rem]' : 'min-h-[11rem]'}`}>
           <div className="sci-ship-orbit" />
           <div className="absolute bottom-2 h-12 w-64 rounded-[50%] border border-cyan-300/24 bg-cyan-300/7 blur-sm" />
           <div className="absolute bottom-7 h-7 w-56 rounded-[50%] border border-emerald-300/28 bg-emerald-300/8" />
@@ -678,52 +660,23 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </div>
         </div>
 
-        <div className="w-full max-w-xl space-y-2">
+        <div className={`w-full max-w-xl ${compact ? 'space-y-2' : 'space-y-3'}`}>
+          {walletControl ? (
+            <div className="flex justify-center">
+              {walletControl}
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={onStart}
-            className="sci-start-button group mx-auto flex w-full max-w-[25rem] items-center justify-center gap-3 px-7 py-4 text-xl font-black uppercase text-white md:text-2xl"
+            className={`sci-start-button group mx-auto flex w-full max-w-[25rem] items-center justify-center gap-3 font-black uppercase text-white ${compact ? 'px-5 py-3 text-lg' : 'px-7 py-4 text-xl md:text-2xl'}`}
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-emerald-700 shadow-[0_0_16px_rgba(255,255,255,0.45)] transition group-hover:scale-105">
+            <span className={`flex items-center justify-center rounded-full bg-white/95 text-emerald-700 shadow-[0_0_16px_rgba(255,255,255,0.45)] transition group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-9 w-9'}`}>
               <Icon name="play" className="h-5 w-5 translate-x-0.5" />
             </span>
             Start Mission
           </button>
-          <p className="text-sm font-bold text-emerald-200">Complete. Earn. Fund.</p>
-        </div>
-      </div>
-    </HudPanel>
-  );
-
-  const PowerupDock = () => (
-    <HudPanel>
-      <div className="grid gap-3 p-4 sm:grid-cols-[auto_1fr] sm:items-center">
-        <div>
-          <p className="text-xs font-black uppercase text-cyan-300">Active</p>
-          <p className="text-xs font-black uppercase text-cyan-300">Power Ups</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {powerups.map((powerup) => (
-            <div
-              key={powerup.name}
-              className={`group rounded-[8px] border bg-slate-950/55 p-3 text-center transition hover:-translate-y-0.5 ${
-                powerup.tone === 'emerald'
-                  ? 'border-emerald-300/25 hover:border-emerald-300/60'
-                  : powerup.tone === 'sky'
-                    ? 'border-sky-300/25 hover:border-sky-300/60'
-                    : powerup.tone === 'yellow'
-                      ? 'border-yellow-300/25 hover:border-yellow-300/60'
-                      : 'border-violet-300/25 hover:border-violet-300/60'
-              }`}
-            >
-              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-[8px] border border-current/35 bg-current/10 text-cyan-100">
-                <Icon name={powerup.icon} className="h-7 w-7" />
-              </div>
-              <p className="text-sm font-bold text-white">{powerup.name}</p>
-              <p className="mt-1 text-xs text-slate-300">{powerup.helper}</p>
-              <p className="mt-2 text-lg font-black text-white">{powerup.count}</p>
-            </div>
-          ))}
+          <p className={`${compact ? 'text-xs' : 'text-sm'} font-bold text-emerald-200`}>Complete. Earn. Fund.</p>
         </div>
       </div>
     </HudPanel>
@@ -732,48 +685,78 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const WeeklyFundingCard = () => (
     <HudPanel>
       <div className="p-4 md:p-5">
-        <div className="mb-4 flex items-start justify-between gap-4 border-b border-cyan-200/14 pb-3">
+        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14 pb-3">
           <div>
-            <h2 className="text-lg font-black text-emerald-200">Weekly Funding</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-black text-emerald-200">Weekly Funding</h2>
+              <StatusPill tone="green">Live</StatusPill>
+            </div>
             <p className="text-xs text-slate-300">Season 7 - Week {weeklyAllocation.endLabel}</p>
           </div>
-          <StatusPill tone="green">Live</StatusPill>
-        </div>
-
-        <div className="grid items-center gap-4 sm:grid-cols-[1fr_auto]">
-          <div>
-            <p className="text-xs uppercase text-slate-400">Prize Pool</p>
-            <p className="mt-1 text-4xl font-black text-emerald-300">{weeklyAllocation.allocationRsc.toLocaleString()} <span className="text-lg">RSC</span></p>
-            <p className="mt-1 text-sm text-slate-300">
+          <div className="text-right">
+            <p className="text-[0.62rem] font-bold uppercase text-slate-400">Prize Pool</p>
+            <p className="mt-0.5 text-2xl font-black leading-none text-emerald-300">
+              {weeklyAllocation.allocationRsc.toLocaleString()} <span className="text-sm">RSC</span>
+            </p>
+            <p className="mt-1 text-[0.68rem] font-semibold text-slate-300">
               Ends {weeklyAllocation.daysLeft === 0 ? 'today' : `in ${weeklyAllocation.daysLeft} day${weeklyAllocation.daysLeft === 1 ? '' : 's'}`}
             </p>
           </div>
-          <div className="relative mx-auto flex h-28 w-32 items-center justify-center">
-            <div className="absolute inset-0 rounded-[18px] border border-emerald-300/25 bg-emerald-300/10 blur-[1px]" />
-            <Icon name="trophy" className="relative h-20 w-20 text-emerald-200 drop-shadow-[0_0_18px_rgba(52,211,153,0.65)]" />
-          </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 border-y border-cyan-200/12 py-3">
-          <div>
-            <p className="text-xs uppercase text-slate-400">Your Rank</p>
-            <p className="text-xl font-black text-white">{weeklyRank}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-slate-400">Top Score</p>
-            <p className="text-xl font-black text-white">{formatNumber(trophyStats.currentTopScore)}</p>
-          </div>
+        <div>
+          <button
+            type="button"
+            onClick={() => weeklyLeaderProposal ? onOpenProposal(weeklyLeaderProposal.url) : setDashboardTab('proposals')}
+            className="sci-weekly-winner-card group relative w-full overflow-hidden rounded-[8px] border border-emerald-300/24 bg-slate-950/50 p-3 text-left transition hover:border-emerald-200/65 hover:bg-emerald-300/10"
+          >
+            <div className="sci-weekly-scan" />
+            <div className="relative z-10 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-3">
+              <div className="sci-weekly-project-image relative flex aspect-square items-center justify-center overflow-hidden rounded-[8px] border border-cyan-200/25 bg-cyan-300/10">
+                {weeklyFundingImageUrl ? (
+                  <img src={weeklyFundingImageUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                ) : (
+                  <img src={ASSETS.PLAYER_SHIP} alt="" className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.7)]" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-cyan-200/10" />
+                <div className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-[6px] border border-emerald-200/45 bg-slate-950/85 text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,0.38)]">
+                  <Icon name="trophy" className="h-4 w-4" />
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="sci-weekly-live-dot" />
+                  <p className="text-[0.62rem] font-black uppercase text-emerald-200">Weekly high score</p>
+                </div>
+                <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-black text-white">{weeklyLeaderName}</p>
+                    <p className="text-[0.66rem] font-bold uppercase text-slate-400">Current #1 pilot</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-black text-cyan-100">{formatNumber(weeklyLeaderScore)}</p>
+                    <p className="text-[0.58rem] font-bold uppercase text-cyan-200/70">Score</p>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-[6px] border border-cyan-200/10 bg-cyan-300/[0.06] px-2.5 py-2">
+                  <p className="truncate text-sm font-bold text-white">{weeklyFundingTitle}</p>
+                  <div className="mt-1 flex items-center justify-between gap-2 text-[0.62rem] font-bold uppercase text-slate-400">
+                    <span className="truncate">{weeklyFundingAuthor}</span>
+                    <span className="shrink-0 text-emerald-200">{weeklyFundingProgress}% signal</span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-blue-400 shadow-[0_0_12px_rgba(45,212,191,0.55)]"
+                      style={{ width: `${weeklyFundingProgress}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </button>
         </div>
 
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-300">
-            <span>Next Tier: Top 10</span>
-            <span>{nextTierProgress}%</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-            <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300" style={{ width: `${nextTierProgress}%` }} />
-          </div>
-        </div>
       </div>
     </HudPanel>
   );
@@ -846,59 +829,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
     </nav>
   );
 
-  const MintLegacyPanel = () => (
-    <HudPanel>
-      <div className="grid gap-5 p-5 md:grid-cols-[1.15fr_repeat(3,1fr)] md:items-center">
-        <div className="border-l-2 border-yellow-300/70 pl-4">
-          <div className="mb-2 flex items-center gap-2 text-yellow-200">
-            <Icon name="mint" className="h-5 w-5" />
-            <h2 className="text-xl font-black">Mint Your Legacy</h2>
-          </div>
-          <p className="text-sm leading-relaxed text-slate-300">
-            Mint your high score trophy and the proposal you funded as a Base-native game record.
-          </p>
-          <button
-            type="button"
-            onClick={onOpenTreasurySend}
-            className="mt-4 rounded-[6px] border border-yellow-300/55 bg-yellow-300/10 px-5 py-2 text-sm font-black uppercase text-yellow-100 transition hover:bg-yellow-300/20"
-          >
-            Mint Score
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3 border-cyan-200/12 md:border-l md:pl-5">
-          <div className="flex h-16 w-16 items-center justify-center rounded-[8px] border border-violet-300/35 bg-violet-400/10 text-violet-100">
-            <Icon name="beam" className="h-9 w-9" />
-          </div>
-          <div>
-            <p className="text-xs uppercase text-slate-400">Best Score</p>
-            <p className="text-2xl font-black text-white">{formatNumber(trophyStats.allTimeTopScore)}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 border-cyan-200/12 md:border-l md:pl-5">
-          <div className="flex h-16 w-16 items-center justify-center rounded-[8px] border border-cyan-300/35 bg-cyan-400/10 text-cyan-100">
-            <Icon name="rocket" className="h-9 w-9" />
-          </div>
-          <div>
-            <p className="text-xs uppercase text-slate-400">Missions Completed</p>
-            <p className="text-2xl font-black text-white">{trophyStats.fundedMissions}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 border-cyan-200/12 md:border-l md:pl-5">
-          <div className="flex h-16 w-16 items-center justify-center rounded-[8px] border border-yellow-300/35 bg-yellow-400/10 text-yellow-100">
-            <Icon name="trophy" className="h-9 w-9" />
-          </div>
-          <div>
-            <p className="text-xs uppercase text-slate-400">Trophies Unlocked</p>
-            <p className="text-2xl font-black text-white">{trophyStats.trophiesUnlocked}</p>
-          </div>
-        </div>
-      </div>
-    </HudPanel>
-  );
-
   const MissionControlPanel = () => (
     <HudPanel>
       <div className="p-4 md:p-5">
@@ -940,7 +870,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
           <div>
             <h2 className="text-2xl font-black text-white">Proposal Hangar</h2>
-            <p className="text-sm text-slate-300">Search live ResearchHub funding targets and pick where your winning credits should go.</p>
+            <p className="text-sm text-slate-300">Search active, unfunded ResearchHub targets and pick where your winning credits should go.</p>
           </div>
           <label className="relative block min-w-[15rem]">
             <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70" />
@@ -953,36 +883,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </label>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[1fr_18rem]">
-          <div className="space-y-2">
-            {filteredProposals.length > 0 ? (
-              filteredProposals.slice(0, 8).map((proposal, index) => renderProposalRow(proposal, index))
-            ) : (
-              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
-                No proposal matches that search yet.
-              </div>
-            )}
-          </div>
-          <div className="rounded-[8px] border border-emerald-300/18 bg-emerald-300/8 p-4">
-            <p className="text-xs font-bold uppercase text-emerald-200">Featured pick</p>
-            <h3 className="mt-3 text-lg font-black text-white">{featuredProposal?.title ?? 'Weekly proposal loading'}</h3>
-            <p className="mt-2 text-sm text-slate-300">
-              {featuredProposal
-                ? `${formatUsd(featuredProposal.raisedUsd)} raised toward ${formatUsd(featuredProposal.requestedUsd)}.`
-                : 'The ResearchHub feed will populate this cockpit slot when proposals are available.'}
-            </p>
-            {featuredProposal && (
-              <button
-                type="button"
-                onClick={() => onOpenProposal(featuredProposal.url)}
-                className="mt-4 inline-flex items-center gap-2 rounded-[6px] border border-emerald-300/35 bg-emerald-400/12 px-4 py-2 text-sm font-bold text-emerald-100 transition hover:bg-emerald-400/20"
-              >
-                View proposal
-                <Icon name="external" className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+        <div className="mb-3 flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-400">
+          <span>{filteredProposals.length} active proposal{filteredProposals.length === 1 ? '' : 's'}</span>
+          {proposalSearch.trim() && <span>Search filtered</span>}
         </div>
+
+        <div className="max-h-[min(62vh,48rem)] space-y-2 overflow-y-auto pr-1">
+          {filteredProposals.length > 0 ? (
+            filteredProposals.map((proposal, index) => renderProposalRow(proposal, index))
+          ) : (
+            <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
+              No active proposal matches that search yet.
+            </div>
+          )}
+          </div>
       </div>
     </HudPanel>
   );
@@ -1116,30 +1030,61 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   const AboutDashboard = () => (
     <HudPanel>
-      <div className="grid gap-5 p-4 md:grid-cols-[1fr_auto] md:p-5">
-        <div>
-          <h2 className="text-2xl font-black text-white">About Scicon Shooter</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300">
-            Scicon Shooter is a Base-native arcade game where high scores help direct weekly RSC funding credits toward ResearchHub proposals. The loop is simple: play the mission, climb the leaderboard, pick research you believe in, and make the win visible through trophies and future score mints.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <StatusPill tone="cyan">Arcade funding</StatusPill>
-            <StatusPill tone="green">ResearchHub proposals</StatusPill>
-            <StatusPill tone="gold">Base trophies</StatusPill>
+      <div className="grid gap-5 p-4 md:p-5">
+        <div className="grid gap-5 md:grid-cols-[1fr_auto] md:items-start">
+          <div>
+            <h2 className="text-2xl font-black text-white">More</h2>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300">
+              Scicon Shooter is a Base-native arcade game where high scores help direct weekly RSC funding credits toward ResearchHub proposals. The loop is simple: play the mission, climb the leaderboard, pick research you believe in, and make the win visible through trophies and post-game score mints.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <StatusPill tone="cyan">Arcade funding</StatusPill>
+              <StatusPill tone="green">ResearchHub proposals</StatusPill>
+              <StatusPill tone="gold">Base trophies</StatusPill>
+            </div>
+          </div>
+          <div className="rounded-[8px] border border-cyan-300/18 bg-cyan-300/8 p-4">
+            <p className="text-xs font-bold uppercase text-cyan-200">Pilot status</p>
+            <p className="mt-2 text-2xl font-black text-white">Level {pilotLevel}</p>
+            <p className="text-sm text-slate-300">{weeklyAllocation.allocationRsc} RSC weekly funding pool</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 md:flex-col">
-          <button type="button" onClick={onOpenXProfile} className="sci-mini-cta justify-center">
-            <Icon name="external" className="h-4 w-4" />
-            Follow updates
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <button type="button" onClick={() => setDashboardTab('trophies')} className="sci-market-card">
+            <Icon name="chart" className="h-8 w-8 text-cyan-200" />
+            <span>
+              <strong>Leaderboard</strong>
+              <small>View ranks, trophies, and past funding picks.</small>
+            </span>
           </button>
-          <button type="button" onClick={() => setShowFeedback(true)} className="sci-mini-cta justify-center">
-            <Icon name="settings" className="h-4 w-4" />
-            Send feedback
+          <button type="button" onClick={onOpenReferral} className="sci-market-card">
+            <Icon name="gift" className="h-8 w-8 text-yellow-200" />
+            <span>
+              <strong>Referral</strong>
+              <small>Open the ResearchHub referral reward.</small>
+            </span>
           </button>
-          <button type="button" onClick={() => setShowTreasury(true)} className="sci-mini-cta justify-center">
-            <Icon name="wallet" className="h-4 w-4" />
-            Treasury
+          <button type="button" onClick={() => setShowFeedback(true)} className="sci-market-card">
+            <Icon name="settings" className="h-8 w-8 text-violet-200" />
+            <span>
+              <strong>Settings</strong>
+              <small>Send feedback and tune the mission deck.</small>
+            </span>
+          </button>
+          <button type="button" onClick={() => setShowTreasury(true)} className="sci-market-card">
+            <Icon name="wallet" className="h-8 w-8 text-emerald-200" />
+            <span>
+              <strong>Treasury</strong>
+              <small>View the research funding destination.</small>
+            </span>
+          </button>
+          <button type="button" onClick={onOpenXProfile} className="sci-market-card">
+            <Icon name="external" className="h-8 w-8 text-blue-200" />
+            <span>
+              <strong>Updates</strong>
+              <small>Follow Scicon Shooter development.</small>
+            </span>
           </button>
         </div>
       </div>
@@ -1147,20 +1092,26 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 
   const MobileDashboardContent = () => {
-    if (dashboardTab === 'proposals') return <ProposalsDashboard />;
-    if (dashboardTab === 'market') return <MarketDashboard />;
-    if (dashboardTab === 'trophies') return <><TrophiesDashboard /><MintLegacyPanel /></>;
-    if (dashboardTab === 'more') return <AboutDashboard />;
+    if (dashboardTab === 'proposals') return <><DashboardNav /><ProposalsDashboard /></>;
+    if (dashboardTab === 'market') return <><DashboardNav /><MarketDashboard /></>;
+    if (dashboardTab === 'trophies') return <><DashboardNav /><TrophiesDashboard /></>;
+    if (dashboardTab === 'more') return <><DashboardNav /><AboutDashboard /></>;
 
     return (
       <>
-        <HeroPanel compact />
         <WeeklyFundingCard />
-        <LiveProposalsPanel limit={3} />
-        <PowerupDock />
-        <MintLegacyPanel />
+        <HeroPanel compact />
+        <DashboardNav />
       </>
     );
+  };
+
+  const SelectedDashboard = () => {
+    if (dashboardTab === 'proposals') return <ProposalsDashboard />;
+    if (dashboardTab === 'market') return <MarketDashboard />;
+    if (dashboardTab === 'trophies') return <TrophiesDashboard />;
+    if (dashboardTab === 'more') return <AboutDashboard />;
+    return null;
   };
 
   return (
@@ -1171,41 +1122,31 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
       </div>
 
-      <div className="mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-4 px-3 pb-28 pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
-        <Header />
+      <div className="mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-4 px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
+        <main className="hidden lg:block">
+          {dashboardTab === 'home' ? (
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.14fr)_minmax(25rem,0.86fr)]">
+              <div className="space-y-5">
+                <HeroPanel />
+                <DashboardNav />
+              </div>
 
-        <main className="hidden gap-5 lg:grid lg:grid-cols-[minmax(0,1.14fr)_minmax(25rem,0.86fr)]">
-          <div className="space-y-5">
-            <HeroPanel />
-            <PowerupDock />
-            <DashboardNav />
-          </div>
-
-          <div className="space-y-5">
-            <WeeklyFundingCard />
-            <LiveProposalsPanel />
-            <MissionControlPanel />
-          </div>
-
-          <div className="lg:col-span-2">
-            <MintLegacyPanel />
-          </div>
-
-          <div className="lg:col-span-2 grid gap-5 xl:grid-cols-[1fr_1fr]">
-            <MarketDashboard />
-            <TrophiesDashboard />
-          </div>
+              <div className="space-y-5">
+                <WeeklyFundingCard />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <DashboardNav />
+              <SelectedDashboard />
+            </div>
+          )}
         </main>
 
         <main className="space-y-4 lg:hidden">
           <MobileDashboardContent />
         </main>
       </div>
-
-      <div className="lg:hidden">
-        <DashboardNav fixed />
-      </div>
-
       {showFeedback && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]">

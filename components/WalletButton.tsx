@@ -21,6 +21,7 @@ interface WalletButtonProps {
   onDisconnect: () => void;
   onOpenFunding: (mode: FundingWidgetMode, rscAmount?: number) => void;
   credits: number;
+  placement?: 'floating' | 'mission';
 }
 
 const WalletButton: React.FC<WalletButtonProps> = ({
@@ -28,16 +29,23 @@ const WalletButton: React.FC<WalletButtonProps> = ({
   onConnect,
   onDisconnect,
   onOpenFunding,
-  credits
+  credits,
+  placement = 'floating'
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const shortAddress = wallet.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : '';
   const tinyAddress = wallet.address ? wallet.address.slice(-4) : '';
   const actionIconClass = 'grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-cyan-200/18 bg-cyan-300/10 text-cyan-100 shadow-[inset_0_0_18px_rgba(34,211,238,0.08)]';
+  const wrapperClassName = placement === 'mission'
+    ? 'relative z-30 inline-flex justify-center font-mono text-white'
+    : 'absolute right-3 top-3 z-50 font-mono text-white';
+  const walletMenuClassName = placement === 'mission'
+    ? 'absolute left-1/2 top-full mt-2 w-[244px] -translate-x-1/2 overflow-hidden rounded-[24px] border border-cyan-200/22 bg-[#06111f]/96 text-cyan-50 shadow-[0_22px_70px_rgba(0,0,0,0.55),0_0_36px_rgba(34,211,238,0.14)] backdrop-blur-xl'
+    : 'absolute right-0 mt-2 w-[244px] overflow-hidden rounded-[24px] border border-cyan-200/22 bg-[#06111f]/96 text-cyan-50 shadow-[0_22px_70px_rgba(0,0,0,0.55),0_0_36px_rgba(34,211,238,0.14)] backdrop-blur-xl';
 
   if (thirdwebClient && wallet.address) {
     return (
-      <div className="absolute right-3 top-3 z-50 font-mono text-white">
+      <div className={wrapperClassName}>
         <button
           type="button"
           onClick={() => setIsMenuOpen((current) => !current)}
@@ -53,7 +61,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
         </button>
 
         {isMenuOpen ? (
-          <div className="absolute right-0 mt-2 w-[244px] overflow-hidden rounded-[24px] border border-cyan-200/22 bg-[#06111f]/96 text-cyan-50 shadow-[0_22px_70px_rgba(0,0,0,0.55),0_0_36px_rgba(34,211,238,0.14)] backdrop-blur-xl">
+          <div className={walletMenuClassName}>
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(103,232,249,0.16),transparent_42%),linear-gradient(135deg,rgba(37,99,235,0.1),transparent_46%)]" />
 
             <div className="relative flex items-center gap-3 border-b border-cyan-200/14 p-3">
@@ -197,7 +205,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
   }
 
   return thirdwebClient ? (
-    <div className="absolute right-3 top-3 z-50 font-mono">
+    <div className={placement === 'mission' ? 'relative z-30 inline-flex justify-center font-mono' : 'absolute right-3 top-3 z-50 font-mono'}>
       <ConnectButton
         client={thirdwebClient}
         chain={thirdwebBaseChain}
@@ -217,7 +225,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
             textTransform: 'uppercase',
             minWidth: 'auto',
             height: '40px',
-            padding: '0 14px',
+            padding: placement === 'mission' ? '0 22px' : '0 14px',
             boxShadow: '0 0 24px rgba(34, 211, 238, 0.18)'
           }
         }}
@@ -253,7 +261,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
       />
     </div>
   ) : (
-    <div className="absolute right-3 top-3 z-50 font-mono text-white">
+    <div className={wrapperClassName}>
       <button
         onClick={() => onConnect()}
         className="rounded-full border border-cyan-300/40 bg-black/75 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.18)] backdrop-blur-md transition hover:border-cyan-100"
