@@ -2259,25 +2259,9 @@ export class GameEngine {
     
     if (e.type === EntityType.PLAYER) {
        const img = imageCache[ASSETS.PLAYER_SHIP];
-       const moveSpeed = Math.hypot(this.playerVel.x, this.playerVel.y);
        const squash = clamp(this.playerSquash, -0.24, 0.24);
-       const thrust = clamp(moveSpeed / 8, 0, 1);
        ctx.rotate(this.playerTilt);
        ctx.scale(1 + squash * 0.78, 1 - squash * 0.58);
-
-       ctx.save();
-       ctx.globalCompositeOperation = 'lighter';
-       ctx.shadowBlur = 18 + thrust * 24;
-       ctx.shadowColor = '#22d3ee';
-       const glow = ctx.createRadialGradient(0, e.height * 0.32, 4, 0, e.height * 0.38, 48 + thrust * 26);
-       glow.addColorStop(0, `rgba(103, 232, 249, ${0.5 + thrust * 0.28})`);
-       glow.addColorStop(0.45, `rgba(34, 211, 238, ${0.2 + thrust * 0.18})`);
-       glow.addColorStop(1, 'rgba(34, 211, 238, 0)');
-       ctx.fillStyle = glow;
-       ctx.beginPath();
-       ctx.ellipse(0, e.height * 0.38, 28 + thrust * 16, 18 + thrust * 22, 0, 0, Math.PI * 2);
-       ctx.fill();
-       ctx.restore();
 
        if (this.activePowerups.has(PowerupType.MAGNET)) {
            const pulse = Math.sin(this.frameCount * 0.1) * 5;
@@ -2339,7 +2323,14 @@ export class GameEngine {
          ctx.restore();
        }
        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.save();
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = '#67e8f9';
           ctx.drawImage(img, -e.width / 2, -e.height / 2, e.width, e.height);
+          ctx.shadowBlur = 0;
+          ctx.drawImage(img, -e.width / 2, -e.height / 2, e.width, e.height);
+          ctx.drawImage(img, -e.width / 2, -e.height / 2, e.width, e.height);
+          ctx.restore();
        } else {
          ctx.fillStyle = '#6c63ff';
          ctx.fillRect(-20, -20, 40, 40);
