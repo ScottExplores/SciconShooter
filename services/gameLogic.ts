@@ -56,26 +56,28 @@ export class Entity {
 }
 
 export class Particle extends Entity {
-  constructor(x: number, y: number, color: string, speed: number) {
+  constructor(x: number, y: number, color: string, speed: number, size: number = 4, life: number = 40 + Math.random() * 20) {
     super(EntityType.PARTICLE, x, y);
-    this.width = 4;
-    this.height = 4;
+    this.width = size;
+    this.height = size;
     this.color = color;
     const angle = Math.random() * Math.PI * 2;
     this.vx = Math.cos(angle) * speed;
     this.vy = Math.sin(angle) * speed;
-    this.life = 40 + Math.random() * 20;
+    this.life = life;
     this.maxLife = this.life;
   }
 }
 
 export class VisualEffect extends Entity {
   effectType: 'text' | 'ring';
-  constructor(x: number, y: number, type: 'text' | 'ring', content: string = '', color: string = '#FFF') {
+  fontSize: number = 32;
+  constructor(x: number, y: number, type: 'text' | 'ring', content: string = '', color: string = '#FFF', fontSize: number = 32) {
     super(EntityType.EFFECT, x, y);
     this.effectType = type;
     this.text = content;
     this.color = color;
+    this.fontSize = fontSize;
     this.life = 60;
     this.maxLife = 60;
     
@@ -218,6 +220,43 @@ const getReadyImage = (url: string) => {
   return img;
 };
 
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const moveToward = (current: number, target: number, maxDelta: number) => {
+  if (Math.abs(target - current) <= maxDelta) return target;
+  return current + Math.sign(target - current) * maxDelta;
+};
+
+const lerp = (current: number, target: number, amount: number) => current + ((target - current) * amount);
+
+const randomRange = (min: number, max: number) => min + Math.random() * (max - min);
+
+const GAME_FEEL = {
+  acceleration: 0.38,
+  friction: 0.3,
+  touchAcceleration: 0.46,
+  touchResponse: 0.12,
+  tiltEase: 0.18,
+  tiltPerSpeed: 0.045,
+  maxTilt: 0.36,
+  afterimageSpeed: 2.8,
+  comboWindowFrames: 90,
+  shakeDecay: 0.34,
+  flashDecay: 0.045,
+  squashSpring: 0.2,
+  squashDamping: 0.72
+};
+
+type PlayerAfterimage = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  alpha: number;
+  rotation: number;
+  squash: number;
+};
+
 type BossWarningType = 'mini1' | 'wall' | 'asteroid' | 'gatekeeper';
 
 export class GameEngine {
@@ -252,6 +291,19 @@ export class GameEngine {
   pendingBossType: BossWarningType | null = null;
   waveTransitionPending: boolean = false;
   missileTimer: number = 0;
+  playerVel = { x: 0, y: 0 };
+  playerTilt: number = 0;
+  playerSquash: number = 0;
+  playerSquashVelocity: number = 0;
+  playerAfterimages: PlayerAfterimage[] = [];
+  shakeStrength: number = 0;
+  shakeX: number = 0;
+  shakeY: number = 0;
+  flashAlpha: number = 0;
+  hitStopFrames: number = 0;
+  coinCombo: number = 0;
+  coinComboTimer: number = 0;
+  lastShotFrame: number = -999;
   
   constructor(stats: Stats) {
     this.stats = stats;
@@ -407,6 +459,19 @@ export class GameEngine {
     this.activePowerups.clear();
     this.frameCount = 0;
     this.missileTimer = 0;
+    this.playerVel = { x: 0, y: 0 };
+    this.playerTilt = 0;
+    this.playerSquash = -0.18;
+    this.playerSquashVelocity = 0;
+    this.playerAfterimages = [];
+    this.shakeStrength = 0;
+    this.shakeX = 0;
+    this.shakeY = 0;
+    this.flashAlpha = 0;
+    this.hitStopFrames = 0;
+    this.coinCombo = 0;
+    this.coinComboTimer = 0;
+    this.lastShotFrame = -999;
     
     // START MUSIC
     audioService.startMusic();
@@ -471,6 +536,146 @@ export class GameEngine {
     }
   }
 
+  updateJuiceSystems() {
+    this.shakeStrength = moveToward(this.shakeStrength, 0, GAME_FEEL.shakeDecay);
+    if (this.shakeStrength > 0.01) {
+      this.shakeX = randomRange(-1, 1) * this.shakeStrength;
+      this.shakeY = randomRange(-1, 1) * this.shakeStrength;
+    } else {
+      this.shakeX = 0;
+      this.shakeY = 0;
+    }
+
+    this.flashAlpha = moveToward(this.flashAlpha, 0, GAME_FEEL.flashDecay);
+
+    if (this.coinComboTimer > 0) {
+      this.coinComboTimer--;
+    } else {
+      this.coinCombo = 0;
+    }
+
+    this.playerSquashVelocity += -this.playerSquash * GAME_FEEL.squashSpring;
+    this.playerSquashVelocity *= GAME_FEEL.squashDamping;
+    this.playerSquash += this.playerSquashVelocity;
+    if (Math.abs(this.playerSquash) < 0.001 && Math.abs(this.playerSquashVelocity) < 0.001) {
+      this.playerSquash = 0;
+      this.playerSquashVelocity = 0;
+    }
+
+    this.playerAfterimages = this.playerAfterimages
+      .map((image) => ({ ...image, alpha: image.alpha - 0.045 }))
+      .filter((image) => image.alpha > 0);
+  }
+
+  addShake(amount: number) {
+    this.shakeStrength = Math.max(this.shakeStrength, amount);
+  }
+
+  addHitStop(frames: number) {
+    this.hitStopFrames = Math.max(this.hitStopFrames, frames);
+  }
+
+  kickPlayerSquash(amount: number) {
+    this.playerSquash = clamp(this.playerSquash + amount, -0.28, 0.28);
+    this.playerSquashVelocity = 0;
+  }
+
+  spawnBurst(x: number, y: number, color: string, amount: number = 10, speed: number = 4, size: number = 4) {
+    for (let i = 0; i < amount; i++) {
+      this.entities.push(new Particle(
+        x,
+        y,
+        color,
+        randomRange(speed * 0.45, speed),
+        randomRange(size * 0.65, size * 1.35),
+        randomRange(22, 48)
+      ));
+    }
+  }
+
+  addPlayerAfterimage() {
+    this.playerAfterimages.push({
+      x: this.player.x,
+      y: this.player.y,
+      width: this.player.width,
+      height: this.player.height,
+      alpha: 0.24,
+      rotation: this.playerTilt,
+      squash: this.playerSquash
+    });
+
+    if (this.playerAfterimages.length > 8) {
+      this.playerAfterimages.shift();
+    }
+  }
+
+  updatePlayerMovement(maxSpeed: number) {
+    const centerX = this.player.x + this.player.width / 2;
+    const centerY = this.player.y + this.player.height / 2;
+    let targetVx = 0;
+    let targetVy = 0;
+    let acceleration = GAME_FEEL.acceleration + (this.stats.upgrades.speed * 0.045);
+
+    if (this.touchPos) {
+      const touchLeadY = this.width < 520 ? 82 : 64;
+      targetVx = clamp((this.touchPos.x - centerX) * GAME_FEEL.touchResponse, -maxSpeed * 1.34, maxSpeed * 1.34);
+      targetVy = clamp((this.touchPos.y - touchLeadY - centerY) * GAME_FEEL.touchResponse, -maxSpeed * 1.34, maxSpeed * 1.34);
+      acceleration = GAME_FEEL.touchAcceleration + (this.stats.upgrades.speed * 0.055);
+    } else {
+      const horizontal = (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D'] ? 1 : 0)
+        - (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A'] ? 1 : 0);
+      const vertical = (this.keys['ArrowDown'] || this.keys['s'] || this.keys['S'] ? 1 : 0)
+        - (this.keys['ArrowUp'] || this.keys['w'] || this.keys['W'] ? 1 : 0);
+      const length = Math.hypot(horizontal, vertical) || 1;
+
+      targetVx = (horizontal / length) * maxSpeed;
+      targetVy = (vertical / length) * maxSpeed;
+      if (horizontal === 0 && vertical === 0) {
+        acceleration = GAME_FEEL.friction + (this.stats.upgrades.speed * 0.025);
+      }
+    }
+
+    this.playerVel.x = moveToward(this.playerVel.x, targetVx, acceleration);
+    this.playerVel.y = moveToward(this.playerVel.y, targetVy, acceleration);
+
+    this.player.x += this.playerVel.x;
+    this.player.y += this.playerVel.y;
+
+    const bounds = this.getPlayerMovementBounds();
+    const clampedX = clamp(this.player.x, bounds.minX, bounds.maxX);
+    const clampedY = clamp(this.player.y, bounds.minY, bounds.maxY);
+
+    if (clampedX !== this.player.x) {
+      this.playerVel.x *= -0.18;
+      this.kickPlayerSquash(0.035);
+    }
+    if (clampedY !== this.player.y) {
+      this.playerVel.y *= -0.18;
+      this.kickPlayerSquash(0.035);
+    }
+
+    this.player.x = clampedX;
+    this.player.y = clampedY;
+
+    const moveSpeed = Math.hypot(this.playerVel.x, this.playerVel.y);
+    this.playerTilt = lerp(this.playerTilt, clamp(this.playerVel.x * GAME_FEEL.tiltPerSpeed, -GAME_FEEL.maxTilt, GAME_FEEL.maxTilt), GAME_FEEL.tiltEase);
+
+    if (moveSpeed > GAME_FEEL.afterimageSpeed && this.frameCount % 5 === 0) {
+      this.addPlayerAfterimage();
+    }
+
+    if (moveSpeed > 1.3 && this.frameCount % 6 === 0) {
+      this.entities.push(new Particle(
+        this.player.x + this.player.width / 2 - this.playerVel.x * 3,
+        this.player.y + this.player.height * 0.78,
+        moveSpeed > maxSpeed ? '#67e8f9' : '#22d3ee',
+        randomRange(0.7, 1.8),
+        randomRange(3, 7),
+        randomRange(18, 34)
+      ));
+    }
+  }
+
   startBossWarning(type: BossWarningType) {
     this.inBossWarningSequence = true;
     this.bossWarningDuration = type === 'gatekeeper' ? 300 : 90;
@@ -509,6 +714,11 @@ export class GameEngine {
     if (!this.gameActive) return;
     this.frameCount++;
     this.stats.lives = this.lives;
+    this.updateJuiceSystems();
+    if (this.hitStopFrames > 0) {
+      this.hitStopFrames--;
+      return;
+    }
     
     const invaderCount = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER).length;
     const asteroidBeltCount = this.getAsteroidBeltCount();
@@ -595,28 +805,7 @@ export class GameEngine {
     this.bgEntities.forEach(bg => bg.update(this.height));
 
     const speed = GAME_CONFIG.BASE_PLAYER_SPEED + (this.stats.upgrades.speed * 1.5);
-    
-    if (this.touchPos) {
-      // SMOOTHING FOR MOBILE: 
-      // Base: 0.04 (Heavy/Slow)
-      // Per Level: +0.025
-      // Level 5: 0.165 (Snappy but controlled)
-      const smoothing = 0.04 + (this.stats.upgrades.speed * 0.025);
-      
-      const dx = this.touchPos.x - (this.player.x + this.player.width/2);
-      const dy = this.touchPos.y - 80 - (this.player.y + this.player.height/2);
-      this.player.x += dx * smoothing;
-      this.player.y += dy * smoothing;
-    } else {
-      if (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A']) this.player.x -= speed;
-      if (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D']) this.player.x += speed;
-      if (this.keys['ArrowUp'] || this.keys['w'] || this.keys['W']) this.player.y -= speed;
-      if (this.keys['ArrowDown'] || this.keys['s'] || this.keys['S']) this.player.y += speed;
-    }
-
-    const bounds = this.getPlayerMovementBounds();
-    this.player.x = Math.max(bounds.minX, Math.min(bounds.maxX, this.player.x));
-    this.player.y = Math.max(bounds.minY, Math.min(bounds.maxY, this.player.y));
+    this.updatePlayerMovement(speed);
 
     // FIRE RATE PROGRESSION: Spaced out for distinct feeling
     // Level 0: 15 (4 shots/sec)
@@ -780,6 +969,12 @@ export class GameEngine {
 
   fireBullet() {
     audioService.playSound('shoot');
+    if (this.frameCount - this.lastShotFrame > 3) {
+      this.kickPlayerSquash(-0.035);
+      this.spawnBurst(this.player.x + this.player.width / 2, this.player.y + this.player.height * 0.18, '#67e8f9', 2, 1.3, 3);
+      this.addShake(0.08);
+    }
+    this.lastShotFrame = this.frameCount;
     const isMaxFire = this.stats.upgrades.fireRate >= 5;
     const bulletColor = isMaxFire ? '#00FFFF' : '#6c63ff'; // Cyan glow for max
 
@@ -816,6 +1011,8 @@ export class GameEngine {
   fireMissile() {
       // Check if max level (5)
       const isMaxLevel = this.stats.upgrades.missile >= 5;
+      this.kickPlayerSquash(-0.075);
+      this.addShake(isMaxLevel ? 0.7 : 0.38);
       
       const m = new Entity(EntityType.MISSILE, this.player.x + this.player.width/2 - 5, this.player.y);
       m.width = 10;
@@ -854,16 +1051,26 @@ export class GameEngine {
     if (target.type === EntityType.ENEMY_BRICK || target.type === EntityType.ENEMY_INVADER) basePoints = 20;
     if (target.type === EntityType.ENEMY_JOURNAL) basePoints = 30;
 
-    this.stats.score += basePoints * waveMult;
+    const points = basePoints * waveMult;
+    this.stats.score += points;
+    const centerX = target.x + target.width / 2;
+    const centerY = target.y + target.height / 2;
+    this.spawnFloatingText(centerX, centerY - 10, `+${points}`, '#67e8f9', 16);
     this.spawnCoin(target.x + target.width / 2, target.y + target.height / 2);
     const isElite = target.type === EntityType.ENEMY_JOURNAL
       || target.type === EntityType.ENEMY_BRICK
       || target.type === EntityType.MINI_BOSS
       || target.type === EntityType.ENEMY_INVADER;
+    this.addHitStop(isElite ? 4 : 2);
+    this.addShake(isElite ? 1.8 : 0.7);
+    this.spawnBurst(centerX, centerY, isElite ? '#facc15' : target.color, isElite ? 12 : 6, isElite ? 5.2 : 3.2, isElite ? 5 : 3);
     if (isElite && Math.random() > 0.92) this.spawnPowerup(target.x, target.y);
 
     if (target.type === EntityType.MINI_BOSS) {
       this.stats.score += 500 * waveMult;
+      this.spawnFloatingText(centerX, centerY - 42, `+${500 * waveMult}`, '#fef08a', 22);
+      this.addHitStop(8);
+      this.addShake(4.2);
       const miniBossCoinDrops = 4 + Math.min(8, this.stats.wave * 2);
       for (let i = 0; i < miniBossCoinDrops; i++) {
         this.spawnCoin(target.x + Math.random() * target.width, target.y + Math.random() * target.height);
@@ -883,6 +1090,10 @@ export class GameEngine {
       if (this.waveTransitionPending) return;
 
       this.stats.score += 1000 * waveMult;
+      this.spawnFloatingText(centerX, centerY - 52, `+${1000 * waveMult}`, '#fef08a', 24);
+      this.flashAlpha = Math.max(this.flashAlpha, 0.26);
+      this.addHitStop(12);
+      this.addShake(6.5);
       const completedWave = this.wave;
       this.bossRef = null;
       this.mainBossDefeated = true;
@@ -1340,17 +1551,27 @@ export class GameEngine {
 
   spawnExplosion(x: number, y: number, color: string) {
     audioService.playSound('explode');
-    for (let i = 0; i < 8; i++) {
-      this.entities.push(new Particle(x, y, color, 4));
-    }
+    this.spawnBurst(x, y, color, 12, 5, 5);
+    this.addShake(0.9);
   }
 
-  spawnFloatingText(x: number, y: number, text: string, color: string) {
-    this.entities.push(new VisualEffect(x, y, 'text', text, color));
+  spawnFloatingText(x: number, y: number, text: string, color: string, fontSize: number = 32) {
+    this.entities.push(new VisualEffect(x, y, 'text', text, color, fontSize));
   }
 
   spawnRingEffect(x: number, y: number, color: string) {
     this.entities.push(new VisualEffect(x, y, 'ring', '', color));
+  }
+
+  registerCoinPickup(x: number, y: number) {
+    this.coinCombo = this.coinComboTimer > 0 ? this.coinCombo + 1 : 1;
+    this.coinComboTimer = GAME_FEEL.comboWindowFrames;
+    const label = this.coinCombo > 1 ? `+1 x${Math.min(this.coinCombo, 99)}` : '+1';
+    audioService.playSound('coin', Math.min(this.coinCombo, 10));
+    this.spawnFloatingText(x, y - 12, label, this.coinCombo > 1 ? '#facc15' : '#67e8f9', this.coinCombo > 1 ? 18 : 16);
+    this.spawnBurst(x, y, '#facc15', this.coinCombo > 1 ? 8 : 5, 2.4, 3.5);
+    this.kickPlayerSquash(0.026);
+    this.addShake(this.coinCombo > 4 ? 0.48 : 0.22);
   }
 
   activatePowerup(type: PowerupType, countUse: boolean = true) {
@@ -1454,15 +1675,18 @@ export class GameEngine {
       if (e.type === EntityType.POWERUP && intersect(this.player, e)) {
         e.markedForDeletion = true;
         const type = e.text as PowerupType;
+        this.spawnBurst(e.x + e.width / 2, e.y + e.height / 2, '#ffffff', 9, 3.2, 4);
+        this.kickPlayerSquash(0.06);
+        this.addShake(0.65);
         this.activatePowerup(type);
       }
 
       if (e.type === EntityType.COIN && intersect(this.player, e)) {
         e.markedForDeletion = true;
-        audioService.playSound('coin');
         this.stats.coins++;
         this.stats.totalCoins++; 
         this.stats.score += (this.activePowerups.has(PowerupType.MAGNET) ? 2 : 1);
+        this.registerCoinPickup(e.x + e.width / 2, e.y + e.height / 2);
         
         // REMOVED AUTOMATIC LIFE GAIN
       }
@@ -1497,6 +1721,9 @@ export class GameEngine {
       if (hurtsPlayer && intersect(this.player, e)) {
         if (isInvincible) {
            e.hp -= 5; 
+           this.spawnBurst(e.x + e.width / 2, e.y + e.height / 2, '#00C851', 7, 4, 4);
+           this.addShake(1.1);
+           this.kickPlayerSquash(0.055);
            
            // SHIELD DEGRADATION LOGIC
            // Hitting enemies reduces shield duration to prevent boss cheese
@@ -1521,6 +1748,14 @@ export class GameEngine {
           this.invincibleTimer = 60; 
           audioService.playSound('hit');
           this.spawnExplosion(this.player.x, this.player.y, '#ffffff');
+          this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y + 8, 'HIT!', '#fb7185', 22);
+          this.flashAlpha = Math.max(this.flashAlpha, 0.48);
+          this.addShake(7);
+          this.addHitStop(10);
+          this.kickPlayerSquash(0.22);
+          const shove = this.player.x + this.player.width / 2 < e.x + e.width / 2 ? -4.5 : 4.5;
+          this.playerVel.x += shove;
+          this.playerVel.y += 2.4;
           // Only delete bullet if it isn't a beam
           if (e.type === EntityType.PROJECTILE && !e.isBeam) e.markedForDeletion = true;
           if (this.lives <= 0) this.gameActive = false;
@@ -1540,6 +1775,11 @@ export class GameEngine {
                  : (isBossTarget ? 1.45 : 1);
                if (!e.isBeam) e.markedForDeletion = true;
                target.hp -= dmg;
+               this.spawnBurst(e.x + e.width / 2, e.y + e.height / 2, e.color || '#67e8f9', e.type === EntityType.MISSILE ? 8 : 3, e.type === EntityType.MISSILE ? 3.8 : 1.6, e.type === EntityType.MISSILE ? 4 : 2.5);
+               if (e.type === EntityType.MISSILE) {
+                 this.addHitStop(3);
+                 this.addShake(isBossTarget ? 1.2 : 0.7);
+               }
                
                if (target.hp <= 0) {
                  this.handleEnemyDestroyed(target);
@@ -1770,6 +2010,8 @@ export class GameEngine {
   draw(ctx: CanvasRenderingContext2D) {
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, this.width, this.height);
+    ctx.save();
+    ctx.translate(this.shakeX, this.shakeY);
     this.drawBackgroundLayers(ctx);
     this.stars.forEach(star => star.draw(ctx));
     this.bgEntities.forEach(bg => bg.draw(ctx));
@@ -1785,6 +2027,7 @@ export class GameEngine {
     ctx.filter = "none";
     ctx.shadowBlur = 0;
     this.entities.forEach(e => this.drawEntity(ctx, e));
+    this.drawPlayerAfterimages(ctx);
     this.drawResearchBeam(ctx);
     if (this.lives > 0) this.drawEntity(ctx, this.player);
     
@@ -1826,6 +2069,35 @@ export class GameEngine {
     }
     
     ctx.restore();
+    ctx.restore();
+
+    if (this.flashAlpha > 0) {
+      ctx.save();
+      ctx.fillStyle = `rgba(248, 113, 113, ${this.flashAlpha})`;
+      ctx.fillRect(0, 0, this.width, this.height);
+      ctx.restore();
+    }
+  }
+
+  drawPlayerAfterimages(ctx: CanvasRenderingContext2D) {
+    const img = getReadyImage(ASSETS.PLAYER_SHIP);
+    this.playerAfterimages.forEach((image) => {
+      ctx.save();
+      ctx.globalAlpha = image.alpha;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.translate(image.x + image.width / 2, image.y + image.height / 2);
+      ctx.rotate(image.rotation * 0.8);
+      ctx.scale(1 + image.squash * 0.65, 1 - image.squash * 0.5);
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = '#67e8f9';
+      if (img) {
+        ctx.drawImage(img, -image.width / 2, -image.height / 2, image.width, image.height);
+      } else {
+        ctx.fillStyle = '#67e8f9';
+        ctx.fillRect(-image.width / 2, -image.height / 2, image.width, image.height);
+      }
+      ctx.restore();
+    });
   }
   
   drawMiniBoss(ctx: CanvasRenderingContext2D, e: Entity) {
@@ -1987,6 +2259,26 @@ export class GameEngine {
     
     if (e.type === EntityType.PLAYER) {
        const img = imageCache[ASSETS.PLAYER_SHIP];
+       const moveSpeed = Math.hypot(this.playerVel.x, this.playerVel.y);
+       const squash = clamp(this.playerSquash, -0.24, 0.24);
+       const thrust = clamp(moveSpeed / 8, 0, 1);
+       ctx.rotate(this.playerTilt);
+       ctx.scale(1 + squash * 0.78, 1 - squash * 0.58);
+
+       ctx.save();
+       ctx.globalCompositeOperation = 'lighter';
+       ctx.shadowBlur = 18 + thrust * 24;
+       ctx.shadowColor = '#22d3ee';
+       const glow = ctx.createRadialGradient(0, e.height * 0.32, 4, 0, e.height * 0.38, 48 + thrust * 26);
+       glow.addColorStop(0, `rgba(103, 232, 249, ${0.5 + thrust * 0.28})`);
+       glow.addColorStop(0.45, `rgba(34, 211, 238, ${0.2 + thrust * 0.18})`);
+       glow.addColorStop(1, 'rgba(34, 211, 238, 0)');
+       ctx.fillStyle = glow;
+       ctx.beginPath();
+       ctx.ellipse(0, e.height * 0.38, 28 + thrust * 16, 18 + thrust * 22, 0, 0, Math.PI * 2);
+       ctx.fill();
+       ctx.restore();
+
        if (this.activePowerups.has(PowerupType.MAGNET)) {
            const pulse = Math.sin(this.frameCount * 0.1) * 5;
            ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'; 
@@ -2182,12 +2474,15 @@ export class GameEngine {
         }
 
     } else if (e.type === EntityType.PARTICLE) {
+        ctx.globalAlpha = Math.max(0, Math.min(1, e.life / Math.max(1, e.maxLife)));
+        ctx.shadowBlur = Math.max(0, e.width * 1.6);
+        ctx.shadowColor = e.color;
         ctx.fillStyle = e.color;
-        ctx.fillRect(-2, -2, 4, 4);
+        ctx.fillRect(-e.width / 2, -e.height / 2, e.width, e.height);
     } else if (e.type === EntityType.EFFECT) {
         const eff = e as VisualEffect;
         if (eff.effectType === 'text') {
-            ctx.font = 'bold 32px Orbitron';
+            ctx.font = `bold ${eff.fontSize}px Orbitron`;
             ctx.textAlign = 'center';
             ctx.globalAlpha = eff.life / eff.maxLife;
 

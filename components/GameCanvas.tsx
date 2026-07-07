@@ -153,7 +153,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     };
 
     const handlePointerDown = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+      if (e.pointerType !== 'touch' && e.pointerType !== 'pen' && e.pointerType !== 'mouse') return;
       if (e.cancelable) e.preventDefault();
 
       activePointerIdRef.current = e.pointerId;

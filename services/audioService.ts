@@ -57,10 +57,12 @@ class AudioService {
   }
 
   // Procedural Sound Generation
-  public playSound(type: 'shoot' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren') {
+  public playSound(type: 'shoot' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren', intensity: number = 1) {
     if (!this.ctx || this.muted) return;
 
     const t = this.ctx.currentTime;
+    const pitch = 0.94 + Math.random() * 0.12;
+    const comboLift = Math.min(Math.max(intensity - 1, 0), 8) * 0.07;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
@@ -96,8 +98,8 @@ class AudioService {
 
       case 'shoot':
         osc.type = 'square';
-        osc.frequency.setValueAtTime(880, t);
-        osc.frequency.exponentialRampToValueAtTime(110, t + 0.1);
+        osc.frequency.setValueAtTime(880 * pitch, t);
+        osc.frequency.exponentialRampToValueAtTime(110 * pitch, t + 0.1);
         gain.gain.setValueAtTime(0.1, t);
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
         osc.start(t);
@@ -106,7 +108,7 @@ class AudioService {
 
       case 'explode':
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(100, t);
+        osc.frequency.setValueAtTime(100 * pitch, t);
         osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.3);
         gain.gain.setValueAtTime(0.3, t);
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
@@ -116,9 +118,9 @@ class AudioService {
 
       case 'coin':
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(1200, t);
-        osc.frequency.setValueAtTime(1600, t + 0.05);
-        gain.gain.setValueAtTime(0.1, t);
+        osc.frequency.setValueAtTime(1200 * (1 + comboLift) * pitch, t);
+        osc.frequency.setValueAtTime(1600 * (1 + comboLift) * pitch, t + 0.05);
+        gain.gain.setValueAtTime(0.1 + Math.min(comboLift, 0.22), t);
         gain.gain.linearRampToValueAtTime(0, t + 0.1);
         osc.start(t);
         osc.stop(t + 0.1);
@@ -126,9 +128,9 @@ class AudioService {
       
       case 'powerup':
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(300, t);
-        osc.frequency.linearRampToValueAtTime(600, t + 0.2);
-        osc.frequency.linearRampToValueAtTime(1200, t + 0.4);
+        osc.frequency.setValueAtTime(300 * pitch, t);
+        osc.frequency.linearRampToValueAtTime(600 * pitch, t + 0.2);
+        osc.frequency.linearRampToValueAtTime(1200 * pitch, t + 0.4);
         gain.gain.setValueAtTime(0.2, t);
         gain.gain.linearRampToValueAtTime(0, t + 0.4);
         osc.start(t);
@@ -147,7 +149,7 @@ class AudioService {
         
        case 'hit':
         osc.type = 'square';
-        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.setValueAtTime(150 * pitch, t);
         osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.1);
         gain.gain.setValueAtTime(0.2, t);
         gain.gain.linearRampToValueAtTime(0, t + 0.1);
