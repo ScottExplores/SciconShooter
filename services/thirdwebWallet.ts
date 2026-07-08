@@ -57,7 +57,7 @@ export const thirdwebTheme = darkTheme({
 export const thirdwebAppMetadata = {
   name: 'SciCon Shooter',
   url: DONATION_CONFIG.GAME_URL,
-  description: 'Upgrade with RSC. Fight bottlenecks. Steer funding credits.',
+  description: 'Continue with RSC. Fight bottlenecks. Steer weekly allocations.',
   logoUrl: `${DONATION_CONFIG.GAME_URL}/icon.png`
 };
 
@@ -87,14 +87,4 @@ export const thirdwebSupportedTokens = {
     rscTokenInfo,
     usdcTokenInfo
   ]
-};
-
-export const thirdwebPaymentConnectOptions = {
-  wallets: thirdwebWallets,
-  recommendedWallets: thirdwebRecommendedWallets,
-  chain: thirdwebBaseChain,
-  appMetadata: thirdwebAppMetadata,
-  connectModal: thirdwebConnectModal,
-  autoConnect: { timeout: 10000 },
-  showAllWallets: true
 };

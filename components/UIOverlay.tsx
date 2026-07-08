@@ -9,15 +9,25 @@ interface UIOverlayProps {
   showLabGlow: boolean;
   onDisableLabGlow: () => void;
   isUpgradeReady?: boolean;
+  onUseBomb: () => void;
+  bombLocked?: boolean;
 }
 
-type HudIconName = 'sound' | 'muted' | 'pause' | 'lab' | 'ship';
+type HudIconName = 'sound' | 'muted' | 'pause' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask';
 
-const HudIcon = ({ name, className = 'h-5 w-5' }: { name: HudIconName; className?: string }) => {
+const HudIcon = ({
+  name,
+  className = 'h-5 w-5',
+  strokeWidth = 1.9
+}: {
+  name: HudIconName;
+  className?: string;
+  strokeWidth?: number;
+}) => {
   const common = {
     fill: 'none',
     stroke: 'currentColor',
-    strokeWidth: 1.9,
+    strokeWidth,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const
   };
@@ -38,11 +48,9 @@ const HudIcon = ({ name, className = 'h-5 w-5' }: { name: HudIconName; className
         </>
       ) : null}
       {name === 'pause' ? (
-        <>
-          <path {...common} d="M8 5.5v13M16 5.5v13" />
-        </>
+        <path {...common} d="M8 5.5v13M16 5.5v13" />
       ) : null}
-      {name === 'lab' ? (
+      {name === 'lab' || name === 'flask' ? (
         <>
           <path {...common} d="M9 4.5h6" />
           <path {...common} d="M10 4.5v4.2l-4.6 7.6c-1 1.7.2 3.8 2.2 3.8h8.8c2 0 3.2-2.1 2.2-3.8L14 8.7V4.5" />
@@ -55,11 +63,67 @@ const HudIcon = ({ name, className = 'h-5 w-5' }: { name: HudIconName; className
           <path {...common} d="M9.2 14.2h5.6" />
         </>
       ) : null}
+      {name === 'heart' ? (
+        <path
+          {...common}
+          fill="currentColor"
+          stroke="currentColor"
+          d="M12 20.4S4.8 16.2 3.3 10.4C2.4 6.9 4.4 4.2 7.4 4.2c1.8 0 3.1 1 4 2.2.9-1.2 2.2-2.2 4-2.2 3 0 5 2.7 4.1 6.2C18 16.2 12 20.4 12 20.4Z"
+        />
+      ) : null}
+      {name === 'bomb' ? (
+        <>
+          <circle {...common} cx="12" cy="13" r="6" />
+          <path {...common} d="M15.8 8.2 18 6" />
+          <path {...common} d="M17.2 5.2c1.5.2 2.7 1.1 3.3 2.5" />
+          <path {...common} d="M9.3 13h5.4" />
+          <path {...common} d="M12 10.3v5.4" />
+        </>
+      ) : null}
     </svg>
   );
 };
 
-const UIOverlay: React.FC<UIOverlayProps> = ({ stats, setGameState, showLabGlow, onDisableLabGlow, isUpgradeReady = false }) => {
+const BombSprite = ({ active }: { active: boolean }) => (
+  <svg
+    viewBox="0 0 64 64"
+    className="relative h-12 w-12 drop-shadow-[0_0_18px_rgba(251,191,36,0.45)]"
+    aria-hidden="true"
+    style={{ imageRendering: 'pixelated' }}
+  >
+    <defs>
+      <radialGradient id="scicon-bomb-core" cx="34%" cy="28%" r="70%">
+        <stop offset="0%" stopColor="#fff7ad" />
+        <stop offset="28%" stopColor="#facc15" />
+        <stop offset="62%" stopColor="#f97316" />
+        <stop offset="100%" stopColor="#7c2d12" />
+      </radialGradient>
+      <linearGradient id="scicon-bomb-fuse" x1="31" y1="10" x2="52" y2="4" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#f8fafc" />
+        <stop offset="1" stopColor="#67e8f9" />
+      </linearGradient>
+    </defs>
+    <rect x="21" y="8" width="18" height="9" rx="2" fill="#f59e0b" />
+    <rect x="29" y="4" width="9" height="8" rx="2" fill="#fde68a" />
+    <path d="M36 8 C44 3 50 5 55 10" fill="none" stroke="url(#scicon-bomb-fuse)" strokeWidth="4" strokeLinecap="round" />
+    <path d="M54 5h4v4h-4zM57 11h3v3h-3zM48 1h3v3h-3z" fill={active ? '#fef08a' : '#64748b'} />
+    <circle cx="31" cy="35" r="22" fill="url(#scicon-bomb-core)" />
+    <circle cx="24" cy="26" r="6" fill="#fff7ad" opacity="0.82" />
+    <path d="M15 45h6v5h-6zM40 17h6v5h-6zM45 40h5v5h-5z" fill="#fef3c7" opacity="0.72" />
+    <path d="M16 54h30" stroke="#451a03" strokeWidth="4" strokeLinecap="round" opacity="0.45" />
+    <path d="M31 15c10 0 20 8 22 19" fill="none" stroke="#fff7ed" strokeWidth="2" opacity="0.34" />
+  </svg>
+);
+
+const UIOverlay: React.FC<UIOverlayProps> = ({
+  stats,
+  setGameState,
+  showLabGlow,
+  onDisableLabGlow,
+  isUpgradeReady = false,
+  onUseBomb,
+  bombLocked = false
+}) => {
   const [muted, setMuted] = useState(false);
 
   useEffect(() => {
@@ -82,38 +146,50 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, setGameState, showLabGlow,
     setGameState(GameState.SHOP);
   };
 
+  const bombChargeMax = stats.bombChargeMax || 58;
+  const bombChargePct = Math.max(0, Math.min(100, ((stats.bombCharge || 0) / bombChargeMax) * 100));
+  const bombs = stats.bombs || 0;
+  const canUseBomb = bombs > 0 && !bombLocked;
+
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-3 sm:p-4">
-      <div className="flex w-full items-start justify-between gap-3">
-        <div className="pointer-events-auto space-y-2">
-          <div className="min-w-[156px] rounded-[20px] border border-white/10 bg-slate-950/74 px-4 py-3 shadow-[0_14px_36px_rgba(0,0,0,0.34)] backdrop-blur-md">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200/80">Impact Factor</span>
-            <div className="arcade-font text-2xl font-black tracking-wider text-white">
-              {stats.score.toString().padStart(6, '0')}
-            </div>
-            <div className="mt-1 text-[10px] font-black uppercase tracking-wider text-emerald-300">
-              Wave {stats.wave}
-            </div>
+    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-2 sm:p-4">
+      <div className="flex w-full items-start justify-between gap-1.5">
+        <div className="pointer-events-auto flex max-w-[calc(100vw-10.75rem)] flex-1 min-w-0 items-center gap-1.5 rounded-[8px] border border-cyan-200/18 bg-slate-950/70 px-1.5 py-1.5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:max-w-none sm:gap-2 sm:px-2.5 sm:py-2">
+          <div className="flex h-8 shrink-0 items-center gap-1 rounded-[6px] border border-red-300/24 bg-red-500/12 px-2 text-red-100 sm:h-9">
+            <HudIcon name="heart" className="h-4 w-4 text-red-400 sm:h-5 sm:w-5" />
+            <span className="arcade-font min-w-4 text-lg font-black leading-none text-white">{stats.lives}</span>
           </div>
 
-          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/64 px-2 py-1 backdrop-blur-md">
-            {[...Array(Math.max(0, stats.lives))].map((_, i) => (
-              <span key={i} className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base shadow-[0_0_16px_rgba(96,165,250,0.18)]" aria-label="Life">
-                🧪
-              </span>
-            ))}
+          <div className="hidden h-8 shrink-0 items-center rounded-[6px] border border-cyan-300/18 bg-cyan-300/8 px-2 text-[9px] font-black uppercase tracking-[0.08em] text-cyan-100 min-[560px]:flex sm:h-9 sm:text-[10px] sm:tracking-[0.12em]">
+            Wave {stats.wave}
+          </div>
+
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:w-32 sm:flex-none">
+            <HudIcon name="flask" className="h-5 w-5 shrink-0 text-cyan-200 sm:h-6 sm:w-6" />
+            <div className="min-w-0 flex-1">
+              <div className="h-3 overflow-hidden rounded-full border border-cyan-100/10 bg-slate-700/70">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-emerald-300 to-yellow-300 transition-all duration-300"
+                  style={{ width: `${bombChargePct}%` }}
+                />
+              </div>
+              <div className="mt-0.5 truncate text-[8px] font-black uppercase tracking-[0.08em] text-cyan-100/75 sm:text-[9px] sm:tracking-[0.12em]">
+                Flask
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="pointer-events-auto flex items-start gap-2">
-          <div className="flex h-11 items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/74 px-3 shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-md">
-            <img src="https://www.researchhub.com/icons/gold2.svg" className="h-5 w-5" alt="RSC" />
-            <span className="font-mono text-base font-black text-white">{stats.coins}</span>
+        <div className="pointer-events-auto flex shrink-0 items-start gap-1">
+          <div className="flex h-9 min-w-[70px] items-center justify-center rounded-[6px] border border-cyan-200/18 bg-slate-950/72 px-2 shadow-[0_10px_28px_rgba(0,0,0,0.24)] backdrop-blur-md sm:h-10 sm:min-w-[96px] sm:px-2.5">
+            <div className="arcade-font text-base font-black tracking-wider text-white sm:text-2xl">
+              {stats.score.toString().padStart(6, '0')}
+            </div>
           </div>
 
           <button
             onClick={toggleMute}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white text-slate-950 shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition hover:bg-blue-100"
+            className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-cyan-200/18 bg-white text-slate-950 shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition hover:bg-blue-100 sm:h-10 sm:w-10"
             aria-label={muted ? 'Unmute sound' : 'Mute sound'}
           >
             <HudIcon name={muted ? 'muted' : 'sound'} className="h-5 w-5" />
@@ -121,7 +197,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, setGameState, showLabGlow,
 
           <button
             onClick={() => setGameState(GameState.PAUSED)}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white text-slate-950 shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition hover:bg-blue-100"
+            className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-cyan-200/18 bg-white text-slate-950 shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition hover:bg-blue-100 sm:h-10 sm:w-10"
             aria-label="Pause mission"
           >
             <HudIcon name="pause" className="h-5 w-5" />
@@ -129,16 +205,39 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, setGameState, showLabGlow,
         </div>
       </div>
 
+      <div className="pointer-events-auto absolute left-3 top-[57%] z-20 -translate-y-1/2 sm:left-5">
+        <button
+          type="button"
+          onClick={onUseBomb}
+          disabled={!canUseBomb}
+          className={`relative flex h-[4.6rem] w-[4.6rem] items-center justify-center rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
+            canUseBomb
+              ? 'border-yellow-200/70 bg-slate-950/70 text-white shadow-[0_0_34px_rgba(251,191,36,0.2)] hover:border-yellow-100 hover:brightness-110'
+              : 'border-slate-400/20 bg-slate-900/54 text-slate-400 opacity-75'
+          }`}
+          aria-label="Use RSC bomb"
+        >
+          {bombChargePct > 84 && bombs < 3 ? (
+            <span className="pointer-events-none absolute -inset-2 rounded-[28px] border border-yellow-200/35 bg-yellow-300/12 animate-ping" />
+          ) : null}
+          <span className="absolute -left-1.5 -top-1.5 z-10 flex h-6 min-w-6 items-center justify-center rounded-full border border-cyan-100/60 bg-slate-950 px-1 text-xs font-black text-cyan-100">
+            {bombs}
+          </span>
+          <div className="absolute inset-1 rounded-[18px] bg-[radial-gradient(circle_at_50%_20%,rgba(250,204,21,0.2),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.1),rgba(0,0,0,0.42))]" />
+          <BombSprite active={canUseBomb} />
+        </button>
+      </div>
+
       {!stats.isBossActive && (
-        <div className="pointer-events-auto absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center sm:right-4">
+        <div className="pointer-events-auto absolute right-3 top-1/2 z-20 hidden -translate-y-1/2 flex-col items-center min-[520px]:flex sm:right-4">
           <div className="flex h-[240px] w-4 items-end overflow-hidden rounded-full border border-white/10 bg-slate-950/68 p-1 shadow-[0_12px_34px_rgba(0,0,0,0.32)] backdrop-blur-md">
             <div className="relative h-full w-full overflow-hidden rounded-full bg-black/45">
               <div
                 className="absolute bottom-0 left-0 w-full rounded-full bg-gradient-to-t from-emerald-400 via-cyan-300 to-yellow-300 transition-all duration-300 ease-linear"
                 style={{ height: `${stats.bossProgress * 100}%` }}
-              ></div>
-              <div className="absolute bottom-[33%] left-0 h-px w-full bg-white/18"></div>
-              <div className="absolute bottom-[66%] left-0 h-px w-full bg-white/18"></div>
+              />
+              <div className="absolute bottom-[33%] left-0 h-px w-full bg-white/18" />
+              <div className="absolute bottom-[66%] left-0 h-px w-full bg-white/18" />
             </div>
           </div>
         </div>
@@ -150,10 +249,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, setGameState, showLabGlow,
           className={`group relative flex h-16 w-16 items-center justify-center rounded-[22px] border bg-white text-slate-950 shadow-[0_18px_50px_rgba(0,0,0,0.36)] outline-none transition hover:-translate-y-0.5 hover:bg-blue-100 active:translate-y-0 ${isUpgradeReady ? 'border-yellow-300' : 'border-white/20'}`}
           aria-label="Open upgrade lab"
         >
-          {(showLabGlow || isUpgradeReady) ? (
+          {showLabGlow || isUpgradeReady ? (
             <>
-              <div className={`absolute -inset-3 rounded-[28px] ${isUpgradeReady ? 'bg-yellow-300/24' : 'bg-blue-300/18'} animate-ping`}></div>
-              <div className={`absolute -inset-1 rounded-[24px] ${isUpgradeReady ? 'bg-yellow-300/24' : 'bg-blue-400/16'} blur-md`}></div>
+              <div className={`absolute -inset-3 rounded-[28px] ${isUpgradeReady ? 'bg-yellow-300/24' : 'bg-blue-300/18'} animate-ping`} />
+              <div className={`absolute -inset-1 rounded-[24px] ${isUpgradeReady ? 'bg-yellow-300/24' : 'bg-blue-400/16'} blur-md`} />
             </>
           ) : null}
 

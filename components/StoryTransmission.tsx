@@ -59,7 +59,7 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
   };
 
   return (
-    <div className="absolute inset-0 z-40 flex items-end justify-center bg-black/35 px-3 pb-5 pt-24 backdrop-blur-[2px] sm:items-center sm:p-6">
+    <div className="absolute inset-0 z-40 flex items-start justify-center bg-black/35 px-3 pb-5 pt-[18vh] backdrop-blur-[2px] sm:p-6 sm:pt-[16vh]">
       <button
         type="button"
         onClick={handleAdvance}

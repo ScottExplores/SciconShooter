@@ -18,7 +18,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_BRIAN,
     accent: 'from-blue-400 via-cyan-300 to-emerald-300',
     title: 'Operation Open Galaxy',
-    text: '.... Pilot, Brian on the Clarity relay. RSC can power the lab mid-flight: fund mission credits, upgrade the ship, and punch through the bottlenecks slowing open science.'
+    text: '.... Pilot, Brian on the Clarity relay. Keep the lab charged, tune the ship mid-flight, and punch through the bottlenecks slowing open science.'
   },
   {
     phase: 2,
@@ -27,7 +27,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_JEFFREY,
     accent: 'from-emerald-300 via-cyan-300 to-sky-400',
     title: 'Predatory Drift',
-    text: '.... Nice flying. Wave two is crawling with predatory journals and review traps. If you want a leaderboard run, upgrade early. Top pilots can help point funding credits toward ResearchHub proposals.'
+    text: '.... Nice flying. Wave two is crawling with predatory journals and review traps. If you want a leaderboard run, upgrade early. Top pilots can help point the weekly RSC allocation toward ResearchHub proposals.'
   },
   {
     phase: 3,
@@ -36,7 +36,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_PATRICK,
     accent: 'from-yellow-300 via-emerald-300 to-cyan-300',
     title: 'Liquidity For Research',
-    text: '.... The Galaxy is responding. RSC streams are coming online, but bureaucracy bricks are blocking the funding rails. Every funded upgrade is a vote for speed, clarity, and better scientific incentives.'
+    text: '.... The Galaxy is responding. RSC streams are coming online, but bureaucracy bricks are blocking the funding rails. Every clean lab tune-up is a vote for speed, clarity, and better scientific incentives.'
   },
   {
     phase: 4,

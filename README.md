@@ -1,6 +1,6 @@
 # SciconShooter
 
-SciconShooter is a web arcade game about turning attention, skill, and ResearchCoin energy toward open science. Players pilot the Research Flask through waves of scientific bottlenecks, upgrade their run with mission credits, and compete for a weekly leaderboard position that can help direct funding credits toward a ResearchHub proposal.
+SciconShooter is a web arcade game about turning attention, skill, and ResearchCoin energy toward open science. Players pilot the Research Flask through waves of scientific bottlenecks, tune their ship in the lab, and compete for a weekly leaderboard position that can help direct RSC toward a ResearchHub proposal.
 
 Live app: https://sciconshooter.xyz
 
@@ -8,30 +8,28 @@ Live app: https://sciconshooter.xyz
 
 SciconShooter is built around a simple idea: make open science funding feel visible, playful, and participatory.
 
-The game loop turns common research obstacles into arcade enemies. Players score points, survive waves, fund upgrades, and compete for leaderboard placement. The weekly No. 1 pilot gets to choose a live ResearchHub proposal, and that choice guides the 100 RSC funding-credit allocation for the week.
+The game loop turns common research obstacles into arcade enemies. Players score points, survive waves, upgrade during the run, and compete for leaderboard placement. The weekly No. 1 pilot gets to choose a live ResearchHub proposal, and that choice guides the 100 RSC allocation for the week.
 
-The app is not meant to hide the funding story behind a donation button. It makes the funding target part of the game: the best run earns the right to point attention and credits toward a proposal that deserves support.
+The app is not meant to hide the funding story behind a donation button. It makes the funding target part of the game: the best run earns the right to point attention and RSC toward a proposal that deserves support.
 
 ## Core features
 
 - Space shooter gameplay with waves, bosses, upgrades, and score chasing.
 - Weekly and all-time leaderboards backed by Supabase.
 - Wallet connection through thirdweb, with Base Account recommended.
-- Mission credits that can be earned in-game or funded with tokens.
-- RSC payments on Base for mission credits.
+- Mission-only lab upgrades for fire rate, handling, targeting, and repair.
+- RSC continues on Base after a crash, with each continue returning the player to the run with three hearts.
 - Live ResearchHub proposal discovery and selection.
 - Weekly champion proposal pick stored with the winning score.
 - Vercel-hosted API routes for leaderboard, proposal, and archive flows.
 
-## Mission credits
+## RSC Continues And Lab Upgrades
 
-Mission credits are the in-game upgrade currency used during a run.
+The lab is now focused on mission-only ship modules. Players can tune fire rate, handling, targeting, and repair during a run without managing a separate mission-credit bank.
 
-- 1 RSC = 100 mission credits.
-- Confirmed token transfers save credits to the connected wallet profile.
-- Wallet-linked credits can be deployed into a mission and spent on upgrades during that run.
+After a crash, a connected wallet can pay RSC on Base to continue the same run with three hearts. Each continue costs more than the last, so the player chooses whether the run is worth saving.
 
-RSC runs on Base. The app uses thirdweb for wallet connection, token transfer confirmation, swap/buy helpers, and wallet profile flow.
+RSC runs on Base. The app uses thirdweb for wallet connection, token transfer confirmation, swap helpers, and wallet profile flow.
 
 ## Weekly leaderboard and funding allocation
 
@@ -42,7 +40,7 @@ SciconShooter keeps two leaderboard views:
 
 Weekly leaderboard rows are filtered by the current Monday-through-Sunday week. Historical scores stay in Supabase; the weekly board is a view of the current week rather than a destructive reset.
 
-When a player takes the weekly No. 1 spot, proposal selection unlocks. The champion can search the live ResearchHub proposal feed and choose one proposal. That proposal pick is stored with the score and guides the weekly 100 RSC funding-credit allocation.
+When a player takes the weekly No. 1 spot, their score is submitted first. After the record saves, proposal selection unlocks in a separate step. The champion can search the live ResearchHub proposal feed and choose one proposal. That proposal pick is stored with the score and guides the weekly 100 RSC allocation.
 
 ## Local development
 
@@ -94,7 +92,7 @@ Supabase is the source of truth for:
 
 - Global scores
 - Weekly score views
-- Wallet-linked token credit status
+- Wallet-linked continue status
 - Selected ResearchHub proposal metadata
 - Archived winner records
 

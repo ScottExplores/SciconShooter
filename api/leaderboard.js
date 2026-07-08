@@ -206,7 +206,7 @@ const insertSupabaseRows = async (rows) => {
   const response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=name,score,wave,date`), {
     method: 'POST',
     headers: supabaseHeaders({
-      Prefer: 'resolution=ignore-duplicates,return=minimal'
+      Prefer: 'resolution=merge-duplicates,return=minimal'
     }),
     body: JSON.stringify(rows)
   });

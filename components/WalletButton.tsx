@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import { ConnectButton } from 'thirdweb/react';
 import { ASSETS, DONATION_CONFIG } from '../constants';
 import { WalletSession } from '../types';
-import type { FundingWidgetMode } from './FundingWidgetModal';
 import {
   thirdwebAppMetadata,
   thirdwebBaseChain,
   thirdwebClient,
   thirdwebConnectModal,
-  thirdwebPaymentConnectOptions,
   thirdwebRecommendedWallets,
   thirdwebSupportedTokens,
   thirdwebTheme,
@@ -19,8 +17,7 @@ interface WalletButtonProps {
   wallet: WalletSession;
   onConnect: (connectorId?: string) => void;
   onDisconnect: () => void;
-  onOpenFunding: (mode: FundingWidgetMode, rscAmount?: number) => void;
-  credits: number;
+  onOpenSwap: () => void;
   placement?: 'floating' | 'mission';
 }
 
@@ -28,8 +25,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
   wallet,
   onConnect,
   onDisconnect,
-  onOpenFunding,
-  credits,
+  onOpenSwap,
   placement = 'floating'
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -126,7 +122,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
                     },
                     metadata: {
                       name: 'Fund SciCon Shooter',
-                      description: 'Buy ResearchCoin on Base, then spend it on mission credits.'
+                      description: 'Buy ResearchCoin on Base for continues, swaps, and funding routes.'
                     },
                     showThirdwebBranding: false
                   }
@@ -141,21 +137,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
                 type="button"
                 onClick={() => {
                   setIsMenuOpen(false);
-                  onOpenFunding('checkout', DONATION_CONFIG.PRESET_RSC_AMOUNTS[0]);
-                }}
-                className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-cyan-50 transition hover:bg-cyan-300/10"
-              >
-                <span className={actionIconClass}>
-                  <img src={ASSETS.RSC_TOKEN} alt="" className="h-4 w-4" />
-                </span>
-                <span>Buy Credits</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  onOpenFunding('swap');
+                  onOpenSwap();
                 }}
                 className="flex w-full items-center gap-3 px-3.5 py-3 text-left text-cyan-50 transition hover:bg-cyan-300/10"
               >
@@ -191,7 +173,7 @@ const WalletButton: React.FC<WalletButtonProps> = ({
             <div className="relative flex items-center justify-between border-t border-cyan-200/14 bg-cyan-300/[0.04] px-3 py-2.5">
               <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100/80">
                 <img src={ASSETS.RSC_TOKEN} alt="" className="h-4 w-4" />
-                <span>{credits} credits</span>
+                <span>Base RSC</span>
               </div>
               <div className="flex gap-2">
                 <a href={DONATION_CONFIG.X_PROFILE_URL} target="_blank" rel="noopener noreferrer" className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/[0.08] text-xs font-black text-cyan-50 transition hover:bg-white/[0.14]">X</a>

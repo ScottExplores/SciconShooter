@@ -3,6 +3,8 @@ class AudioService {
   private ctx: AudioContext | null = null;
   private muted: boolean = false;
   private masterGain: GainNode | null = null;
+  private musicTimer: number | null = null;
+  private musicStep: number = 0;
 
   constructor() {
     try {
@@ -35,7 +37,45 @@ class AudioService {
   }
 
   public startMusic() {
-      // Music functionality removed
+    if (!this.ctx || this.musicTimer !== null) return;
+
+    const pulse = () => {
+      if (!this.ctx || this.muted || !this.masterGain) return;
+
+      const t = this.ctx.currentTime;
+      const bassNotes = [55, 55, 82.41, 73.42, 55, 98, 82.41, 73.42];
+      const leadNotes = [220, 246.94, 293.66, 329.63, 293.66, 246.94, 220, 196];
+      const bass = this.ctx.createOscillator();
+      const bassGain = this.ctx.createGain();
+      const lead = this.ctx.createOscillator();
+      const leadGain = this.ctx.createGain();
+      const beat = this.musicStep % bassNotes.length;
+
+      bass.type = 'sawtooth';
+      bass.frequency.setValueAtTime(bassNotes[beat], t);
+      bassGain.gain.setValueAtTime(beat % 2 === 0 ? 0.045 : 0.026, t);
+      bassGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      bass.connect(bassGain);
+      bassGain.connect(this.masterGain);
+      bass.start(t);
+      bass.stop(t + 0.24);
+
+      if (this.musicStep % 2 === 0) {
+        lead.type = 'triangle';
+        lead.frequency.setValueAtTime(leadNotes[beat], t);
+        leadGain.gain.setValueAtTime(0.018, t);
+        leadGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        lead.connect(leadGain);
+        leadGain.connect(this.masterGain);
+        lead.start(t);
+        lead.stop(t + 0.2);
+      }
+
+      this.musicStep++;
+    };
+
+    pulse();
+    this.musicTimer = window.setInterval(pulse, 260);
   }
 
   public playDialogBlip() {
@@ -57,7 +97,7 @@ class AudioService {
   }
 
   // Procedural Sound Generation
-  public playSound(type: 'shoot' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren', intensity: number = 1) {
+  public playSound(type: 'shoot' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb', intensity: number = 1) {
     if (!this.ctx || this.muted) return;
 
     const t = this.ctx.currentTime;
@@ -104,6 +144,58 @@ class AudioService {
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
         osc.start(t);
         osc.stop(t + 0.1);
+        break;
+
+      case 'missile':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(190 * pitch, t);
+        osc.frequency.linearRampToValueAtTime(760 * pitch, t + 0.12);
+        gain.gain.setValueAtTime(0.16, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+        osc.start(t);
+        osc.stop(t + 0.22);
+        break;
+
+      case 'launch':
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(88 * pitch, t);
+        osc.frequency.linearRampToValueAtTime(420 * pitch, t + 0.5);
+        gain.gain.setValueAtTime(0.22, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.75);
+        osc.start(t);
+        osc.stop(t + 0.78);
+        break;
+
+      case 'wave':
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(240 * pitch, t);
+        osc.frequency.linearRampToValueAtTime(720 * pitch, t + 0.18);
+        osc.frequency.linearRampToValueAtTime(960 * pitch, t + 0.34);
+        gain.gain.setValueAtTime(0.18, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.52);
+        osc.start(t);
+        osc.stop(t + 0.55);
+        break;
+
+      case 'gameover':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180 * pitch, t);
+        osc.frequency.exponentialRampToValueAtTime(36 * pitch, t + 0.72);
+        gain.gain.setValueAtTime(0.28, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.82);
+        osc.start(t);
+        osc.stop(t + 0.85);
+        break;
+
+      case 'bomb':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(90 * pitch, t);
+        osc.frequency.linearRampToValueAtTime(46 * pitch, t + 0.16);
+        osc.frequency.linearRampToValueAtTime(220 * pitch, t + 0.44);
+        gain.gain.setValueAtTime(0.42, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.72);
+        osc.start(t);
+        osc.stop(t + 0.75);
         break;
 
       case 'explode':

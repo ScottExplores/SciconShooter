@@ -13,15 +13,11 @@ import GameCanvas from './components/GameCanvas';
 import StartScreen from './components/StartScreen';
 import UIOverlay from './components/UIOverlay';
 import UpgradeShop from './components/UpgradeShop';
-import Tutorial from './components/Tutorial';
-import SupportPanel from './components/SupportPanel';
 import WalletButton from './components/WalletButton';
-import FundingWidgetModal, { FundingWidgetMode } from './components/FundingWidgetModal';
 import StoryTransmission from './components/StoryTransmission';
-import UpgradeCoach from './components/UpgradeCoach';
 import { ArchivedWinner, DonationStatus, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
-import { ASSETS, DONATION_CONFIG, STORAGE_KEYS, UPGRADE_BASE_COSTS } from './constants';
+import { ASSETS, DONATION_CONFIG, STORAGE_KEYS } from './constants';
 import { getLeaderboardData, saveScore } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
@@ -39,17 +35,16 @@ import {
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
-interface ScoreMintPreviewRecord {
+interface PendingFundingPickRecord {
   pilotName: string;
   score: number;
   wave: number;
+  date: string;
+  walletAddress?: string | null;
+  donated?: boolean;
   monthlyRank?: number;
   allTimeRank?: number;
-  proposalTitle?: string;
-  proposalUrl?: string;
 }
-
-const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
 
 const defaultMiniAppState: MiniAppState = {
   isMiniApp: false,
@@ -74,31 +69,6 @@ const defaultPowerupUses: Record<PowerupType, number> = {
   [PowerupType.RESEARCH_BEAM]: 0
 };
 
-const purchasablePowerups = [
-  PowerupType.DOUBLE_SHOT,
-  PowerupType.TRIPLE_SHOT,
-  PowerupType.MAGNET,
-  PowerupType.SHIELD
-];
-
-const getUpgradeCost = (type: keyof Upgrades, upgrades: Upgrades) => (
-  UPGRADE_BASE_COSTS[type] + (5 * (Math.pow(2, upgrades[type]) - 1))
-);
-
-const getRepairCost = (stats: Stats) => (
-  UPGRADE_BASE_COSTS.repair + ((stats.repairsCount || 0) * 5)
-);
-
-const getPowerupCost = (stats: Stats, type: PowerupType) => (
-  UPGRADE_BASE_COSTS.powerup + ((stats.powerupUses?.[type] || 0) * 10)
-);
-
-const canAffordUpgrade = (stats: Stats) => (
-  (Object.keys(stats.upgrades) as Array<keyof Upgrades>).some((type) => stats.upgrades[type] < 5 && stats.coins >= getUpgradeCost(type, stats.upgrades))
-  || stats.coins >= getRepairCost(stats)
-  || purchasablePowerups.some((type) => stats.coins >= getPowerupCost(stats, type))
-);
-
 const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') => {
   const message = error?.shortMessage || error?.message || fallback;
 
@@ -113,11 +83,11 @@ const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') 
   return message;
 };
 
-const getInsufficientCreditTokenMessage = (
+const getInsufficientContinueTokenMessage = (
   requiredAmount: number,
   availableDisplayValue = '0'
 ) => {
-  return `You need ${requiredAmount} RSC on Base to buy this credit pack. Your wallet shows ${availableDisplayValue} RSC. Swap or buy RSC first, then return to Buy Credits.`;
+  return `You need ${requiredAmount} RSC on Base to continue this run. Your wallet shows ${availableDisplayValue} RSC.`;
 };
 
 const getProjectedScoreQualification = (
@@ -144,45 +114,6 @@ const getProjectedScoreQualification = (
   };
 };
 
-const buildHighScoreShareUrl = ({
-  score,
-  wave,
-  monthlyRank,
-  allTimeRank,
-  isMonthlyChampion,
-  selectedProposal
-}: {
-  score: number;
-  wave: number;
-  monthlyRank?: number;
-  allTimeRank?: number;
-  isMonthlyChampion: boolean;
-  selectedProposal?: ResearchHubProposal;
-}) => {
-  const compactProposalTitle = selectedProposal?.title && selectedProposal.title.length > 86
-    ? `${selectedProposal.title.slice(0, 83)}...`
-    : selectedProposal?.title;
-  const rankParts = [
-    monthlyRank ? `Weekly #${monthlyRank}` : '',
-    allTimeRank ? `All-Time #${allTimeRank}` : ''
-  ].filter(Boolean);
-  const scoreLine = `I scored ${score.toLocaleString()} in SciCon Shooter${rankParts.length ? ` (${rankParts.join(' / ')})` : ''}.`;
-  const missionLine = isMonthlyChampion && compactProposalTitle
-    ? `I picked "${compactProposalTitle}" for the 100 RSC weekly funding-credit allocation.`
-    : 'Trying to climb the leaderboard and win weekly RSC funding credits for science.';
-  const playLine = `Play here: ${DONATION_CONFIG.GAME_URL}`;
-  const shareUrl = isMonthlyChampion && selectedProposal?.url
-    ? selectedProposal.url
-    : '';
-  const params = new URLSearchParams({ text: `${scoreLine}\n${missionLine}\nWave ${wave}. ${playLine}` });
-
-  if (shareUrl) {
-    params.set('url', shareUrl);
-  }
-
-  return `https://x.com/intent/tweet?${params.toString()}`;
-};
-
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [gameId, setGameId] = useState<number>(0);
@@ -198,20 +129,21 @@ const App: React.FC = () => {
   const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(false);
   const [isSubmittingScore, setIsSubmittingScore] = useState<boolean>(false);
   const [scoreSubmitError, setScoreSubmitError] = useState<string>('');
-  const [scoreMintPreview, setScoreMintPreview] = useState<ScoreMintPreviewRecord | null>(null);
+  const [pendingFundingPick, setPendingFundingPick] = useState<PendingFundingPickRecord | null>(null);
+  const [fundingPickSubmitError, setFundingPickSubmitError] = useState<string>('');
+  const [isSubmittingFundingPick, setIsSubmittingFundingPick] = useState(false);
   const [showLabGlow, setShowLabGlow] = useState<boolean>(true);
   const [miniApp, setMiniApp] = useState<MiniAppState>(defaultMiniAppState);
   const [walletError, setWalletError] = useState<string>('');
-  const [labFundingStatus, setLabFundingStatus] = useState<DonationStatus>('idle');
-  const [labFundingHash, setLabFundingHash] = useState<string>('');
-  const [labFundingExplorerBaseUrl, setLabFundingExplorerBaseUrl] = useState<string>(DONATION_CONFIG.EXPLORER_BASE_URL);
-  const [labFundingError, setLabFundingError] = useState<string>('');
-  const [fundingWidget, setFundingWidget] = useState<{ mode: FundingWidgetMode; rscAmount?: number; source: 'lab' | 'profile' } | null>(null);
+  const [continuePaymentStatus, setContinuePaymentStatus] = useState<DonationStatus>('idle');
+  const [continuePaymentHash, setContinuePaymentHash] = useState<string>('');
+  const [continuePaymentError, setContinuePaymentError] = useState<string>('');
+  const [continuesUsed, setContinuesUsed] = useState(0);
   const [activeStoryBeat, setActiveStoryBeat] = useState<StoryBeat | null>(null);
-  const [showUpgradeCoach, setShowUpgradeCoach] = useState(false);
-  const [upgradeCoachSeenGameId, setUpgradeCoachSeenGameId] = useState(0);
-  const [purchasedPowerup, setPurchasedPowerup] = useState<{ type: PowerupType; nonce: number } | null>(null);
-  const [donatedWallets, setDonatedWallets] = useState<Record<string, boolean>>(() => {
+  const [bombCommand, setBombCommand] = useState<{ nonce: number } | null>(null);
+  const [continueCommand, setContinueCommand] = useState<{ nonce: number; lives: number } | null>(null);
+  const [introMissionLocked, setIntroMissionLocked] = useState(false);
+  const [donatedWallets] = useState<Record<string, boolean>>(() => {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEYS.DONATED_WALLETS) || '{}');
     } catch {
@@ -253,6 +185,10 @@ const App: React.FC = () => {
     connectorName: thirdwebWallet?.id,
     hasDonated: activeWalletAddress ? Boolean(donatedWallets[activeWalletAddress.toLowerCase()]) : false
   };
+  const continueRscCost = (continuesUsed + 1) * 5;
+  const isContinuePaymentBusy = continuePaymentStatus === 'switching_network'
+    || continuePaymentStatus === 'processing'
+    || continuePaymentStatus === 'confirming';
 
   const sortedFundingProposals = useMemo(() => (
     [...fundingProposals].sort((a, b) => {
@@ -293,7 +229,6 @@ const App: React.FC = () => {
 
     return {
       highScore: parseInt(localStorage.getItem(STORAGE_KEYS.HIGH_SCORE) || '0'),
-      profileCredits: 0,
       totalCoins: 0,
       playerName: ''
     };
@@ -353,14 +288,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!showNameInput || selectedProposalId || sortedFundingProposals.length === 0) {
-      return;
-    }
-
-    setSelectedProposalId(sortedFundingProposals[0].id);
-  }, [selectedProposalId, showNameInput, sortedFundingProposals]);
-
   const getInitialStats = (): Stats => {
     const parsed = readSavedStats(activeWalletAddress);
 
@@ -369,9 +296,11 @@ const App: React.FC = () => {
       highScore: parsed.highScore || 0,
       wave: 1,
       coins: 0,
-      profileCredits: parsed.profileCredits || 0,
       totalCoins: parsed.totalCoins || 0,
       enemiesDefeated: 0,
+      bombs: 2,
+      bombCharge: 0,
+      bombChargeMax: 58,
       lives: 3,
       repairsCount: 0,
       upgrades: { ...defaultMissionUpgrades },
@@ -388,13 +317,12 @@ const App: React.FC = () => {
   useEffect(() => {
     const statsToSave = {
       highScore: stats.highScore,
-      profileCredits: stats.profileCredits || 0,
       totalCoins: stats.totalCoins,
       playerName: playerNameInput
     };
     localStorage.setItem(getWalletProfileKey(activeWalletAddress), JSON.stringify(statsToSave));
     localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.highScore.toString());
-  }, [activeWalletAddress, playerNameInput, stats.highScore, stats.profileCredits, stats.totalCoins]);
+  }, [activeWalletAddress, playerNameInput, stats.highScore, stats.totalCoins]);
 
   useEffect(() => {
     if (!activeWalletAddress) return;
@@ -404,7 +332,6 @@ const App: React.FC = () => {
     setStats(prev => ({
       ...prev,
       highScore: Math.max(prev.highScore, savedStats.highScore || 0),
-      profileCredits: Math.max(prev.profileCredits || 0, savedStats.profileCredits || 0),
       totalCoins: Math.max(prev.totalCoins, savedStats.totalCoins || 0)
     }));
 
@@ -441,6 +368,9 @@ const App: React.FC = () => {
       wave: 1,
       coins: 0,
       enemiesDefeated: 0,
+      bombs: 2,
+      bombCharge: 0,
+      bombChargeMax: 58,
       lives: 3,
       repairsCount: 0,
       upgrades: { ...defaultMissionUpgrades },
@@ -450,49 +380,50 @@ const App: React.FC = () => {
       bossHp: 0,
       bossMaxHp: 100
     }));
-    setLabFundingStatus('idle');
-    setLabFundingHash('');
-    setLabFundingError('');
-    setShowUpgradeCoach(false);
-    setPurchasedPowerup(null);
+    setContinuePaymentStatus('idle');
+    setContinuePaymentHash('');
+    setContinuePaymentError('');
+    setContinuesUsed(0);
+    setPendingFundingPick(null);
+    setFundingPickSubmitError('');
+    setIsSubmittingFundingPick(false);
+    setBombCommand(null);
+    setContinueCommand(null);
+    setIntroMissionLocked(true);
     setShowNameInput(false);
     setPlayerNameInput('');
     setSelectedProposalId('');
     setIsSubmittingScore(false);
     submittingScoreRef.current = false;
     setGameId(prev => prev + 1);
-    setGameState(GameState.TUTORIAL);
-  };
-
-  const handleTutorialComplete = () => {
-    clearIntroStoryTimeout();
     lastStoryWaveRef.current = 1;
     setGameState(GameState.PLAYING);
     introStoryTimeoutRef.current = window.setTimeout(() => {
       introStoryTimeoutRef.current = null;
+      setIntroMissionLocked(false);
       if (gameStateRef.current === GameState.PLAYING) {
         setActiveStoryBeat(getStoryBeatForPhase(1));
       }
-    }, 900);
+    }, 3600);
   };
 
   const resetGame = () => {
     clearIntroStoryTimeout();
     setActiveStoryBeat(null);
+    setIntroMissionLocked(false);
+    setPendingFundingPick(null);
+    setFundingPickSubmitError('');
+    setIsSubmittingFundingPick(false);
     setGameState(GameState.MENU);
   };
 
   const handleUpgrade = (type: keyof Upgrades | 'repair') => {
     if (type === 'repair') {
-      const currentRepairs = stats.repairsCount || 0;
-      const cost = UPGRADE_BASE_COSTS.repair + (currentRepairs * 5);
-
-      if (stats.coins >= cost) {
+      if (stats.lives < 3) {
         audioService.playSound('powerup');
         setStats(prev => ({
           ...prev,
-          coins: prev.coins - cost,
-          lives: prev.lives + 1,
+          lives: Math.min(3, prev.lives + 1),
           repairsCount: (prev.repairsCount || 0) + 1
         }));
       }
@@ -500,13 +431,11 @@ const App: React.FC = () => {
     }
 
     const currentLevel = stats.upgrades[type];
-    const cost = getUpgradeCost(type, stats.upgrades);
 
-    if (stats.coins >= cost && currentLevel < 5) {
+    if (currentLevel < 5) {
       audioService.playSound('coin');
       setStats(prev => ({
         ...prev,
-        coins: prev.coins - cost,
         upgrades: {
           ...prev.upgrades,
           [type]: prev.upgrades[type] + 1
@@ -523,26 +452,10 @@ const App: React.FC = () => {
     audioService.playSound('coin');
   };
 
-  const handleBuyPowerup = (type: PowerupType) => {
-    const cost = getPowerupCost(stats, type);
-    if (stats.coins < cost) return;
-
-    setStats(prev => ({
-      ...prev,
-      coins: prev.coins - cost,
-      powerupUses: {
-        ...prev.powerupUses,
-        [type]: (prev.powerupUses?.[type] || 0) + 1
-      }
-    }));
-    setPurchasedPowerup({ type, nonce: Date.now() });
-  };
-
   const openThirdwebWallet = async (): Promise<Account | null> => {
     if (!thirdwebClient) {
       const message = 'Add VITE_THIRDWEB_CLIENT_ID to enable the thirdweb wallet connection.';
       setWalletError(message);
-      setLabFundingError(message);
       return null;
     }
 
@@ -590,156 +503,102 @@ const App: React.FC = () => {
       disconnectThirdweb(thirdwebWallet);
     }
     setWalletError('');
-    setLabFundingStatus('idle');
-    setLabFundingHash('');
-    setLabFundingExplorerBaseUrl(DONATION_CONFIG.EXPLORER_BASE_URL);
-    setLabFundingError('');
   };
 
-  const openFundingWidget = (
-    mode: FundingWidgetMode,
-    rscAmount = DONATION_CONFIG.PRESET_RSC_AMOUNTS[0],
-    source: 'lab' | 'profile' = 'profile'
-  ) => {
-    setLabFundingError('');
-    setLabFundingHash('');
-    setLabFundingExplorerBaseUrl(DONATION_CONFIG.EXPLORER_BASE_URL);
-    setFundingWidget({ mode, rscAmount, source });
-  };
+  const handleContinueWithRsc = async () => {
+    if (isContinuePaymentBusy) return;
 
-  const fundCurrentMission = (rscAmount: number) => {
-    setLabFundingStatus('processing');
-    openFundingWidget('checkout', rscAmount, 'lab');
-  };
-
-  const handleFundingWidgetSuccess = (rscAmount: number, txHash = '') => {
-    const credits = rscAmount * DONATION_CONFIG.MISSION_CREDITS_PER_RSC;
-    setStats(prev => ({
-      ...prev,
-      coins: prev.coins,
-      profileCredits: (prev.profileCredits || 0) + credits,
-      totalCoins: prev.totalCoins + credits
-    }));
-    audioService.playSound('coin');
-
-    setLabFundingStatus('success');
-    setLabFundingHash(txHash);
-    setLabFundingExplorerBaseUrl(DONATION_CONFIG.EXPLORER_BASE_URL);
-    setLabFundingError('');
-
-    if (activeWalletAddress) {
-      const walletKey = activeWalletAddress.toLowerCase();
-      setDonatedWallets(prev => {
-        const next = { ...prev, [walletKey]: true };
-        localStorage.setItem(STORAGE_KEYS.DONATED_WALLETS, JSON.stringify(next));
-        return next;
-      });
-    }
-
-    setTimeout(() => {
-      setLabFundingStatus('idle');
-    }, 5000);
-  };
-
-  const handleDirectRscCreditPayment = async (rscAmount: number) => {
     if (!thirdwebClient) {
-      throw new Error('Add VITE_THIRDWEB_CLIENT_ID to enable token payments.');
+      const message = 'Add VITE_THIRDWEB_CLIENT_ID to enable RSC continues.';
+      setContinuePaymentStatus('error');
+      setContinuePaymentError(message);
+      return;
     }
 
     let account = thirdwebAccount;
     if (!account) {
+      setContinuePaymentStatus('processing');
       account = await openThirdwebWallet();
     }
 
     if (!account) {
-      throw new Error('Connect a wallet before funding mission credits.');
+      setContinuePaymentStatus('error');
+      setContinuePaymentError('Connect a wallet before continuing this run.');
+      return;
     }
 
     const tokenChain = thirdwebBaseChain;
-    const tokenAddress = DONATION_CONFIG.RSC_CONTRACT_ADDRESS;
     const tokenLabel = 'RSC';
+    const continueCost = continueRscCost;
 
-    if (thirdwebWallet && thirdwebWallet.getChain()?.id !== tokenChain.id) {
-      setLabFundingStatus('switching_network');
-      await thirdwebWallet.switchChain(tokenChain);
-    }
-
-    setLabFundingStatus('processing');
-    setLabFundingError('');
-    setLabFundingHash('');
-    setLabFundingExplorerBaseUrl(DONATION_CONFIG.EXPLORER_BASE_URL);
-
-    const creditTokenContract = getContract({
-      client: thirdwebClient,
-      chain: tokenChain,
-      address: tokenAddress as `0x${string}`
-    });
-
-    let balanceDisplayValue = '0';
     try {
-      const balance = await getBalance({
-        contract: creditTokenContract,
-        address: account.address
+      if (thirdwebWallet && thirdwebWallet.getChain()?.id !== tokenChain.id) {
+        setContinuePaymentStatus('switching_network');
+        await thirdwebWallet.switchChain(tokenChain);
+      }
+
+      setContinuePaymentStatus('processing');
+      setContinuePaymentError('');
+      setContinuePaymentHash('');
+
+      const rscTokenContract = getContract({
+        client: thirdwebClient,
+        chain: tokenChain,
+        address: DONATION_CONFIG.RSC_CONTRACT_ADDRESS as `0x${string}`
       });
-      balanceDisplayValue = balance.displayValue;
-      const availableBalance = Number(balance.displayValue);
 
-      if (Number.isFinite(availableBalance) && availableBalance + 0.000000001 < rscAmount) {
-        const message = getInsufficientCreditTokenMessage(rscAmount, balanceDisplayValue);
-        setLabFundingStatus('error');
-        setLabFundingError(message);
-        throw new Error(message);
+      let balanceDisplayValue = '0';
+      try {
+        const balance = await getBalance({
+          contract: rscTokenContract,
+          address: account.address
+        });
+        balanceDisplayValue = balance.displayValue;
+        const availableBalance = Number(balance.displayValue);
+
+        if (Number.isFinite(availableBalance) && availableBalance + 0.000000001 < continueCost) {
+          throw new Error(getInsufficientContinueTokenMessage(continueCost, balanceDisplayValue));
+        }
+      } catch (error: any) {
+        const message = error?.message || '';
+        if (message.includes('continue this run')) {
+          throw error;
+        }
+
+        console.warn(`${tokenLabel} balance preflight failed; continuing to wallet confirmation.`, error);
       }
-    } catch (error: any) {
-      const message = error?.message || '';
-      if (message.includes('Swap or buy RSC')) {
-        throw error;
-      }
 
-      console.warn(`${tokenLabel} balance preflight failed; continuing to wallet confirmation.`, error);
-    }
+      const transaction = transfer({
+        contract: rscTokenContract,
+        to: DONATION_CONFIG.RECIPIENT_ADDRESS,
+        amount: continueCost.toString()
+      });
 
-    const transaction = transfer({
-      contract: creditTokenContract,
-      to: DONATION_CONFIG.RECIPIENT_ADDRESS,
-      amount: rscAmount.toString()
-    });
-
-    try {
-      setLabFundingStatus('confirming');
+      setContinuePaymentStatus('confirming');
       const receipt = await sendAndConfirmTransaction({ account, transaction });
       const txHash = receipt.transactionHash || '';
-      handleFundingWidgetSuccess(rscAmount, txHash);
-      return txHash;
-    } catch (error: any) {
-      const message = getUserFacingMessage(error, `${tokenLabel} payment was cancelled before credits were added.`, tokenLabel);
-      setLabFundingStatus('error');
-      setLabFundingError(message);
-      throw new Error(message);
-    }
-  };
-
-  const handleFundingWidgetError = (message: string) => {
-    setLabFundingStatus('error');
-    setLabFundingError(message || 'Payment flow could not complete.');
-  };
-
-  const handleClaimProfileCredits = (amount: number) => {
-    setStats(prev => {
-      const profileCredits = prev.profileCredits || 0;
-      const creditsToDeploy = Math.max(0, Math.min(profileCredits, Math.floor(amount || 0)));
-
-      if (creditsToDeploy <= 0) {
-        return prev;
-      }
-
-      audioService.playSound('coin');
-      return {
+      setContinuePaymentHash(txHash);
+      setContinuePaymentStatus('success');
+      setContinuePaymentError('');
+      setContinuesUsed(prev => prev + 1);
+      setShowNameInput(false);
+      setActiveStoryBeat(null);
+      setStats(prev => ({
         ...prev,
-        coins: prev.coins + creditsToDeploy,
-        profileCredits: profileCredits - creditsToDeploy
-      };
-    });
+        lives: 3
+      }));
+      setContinueCommand({ nonce: Date.now(), lives: 3 });
+      setGameState(GameState.PLAYING);
+      audioService.playSound('powerup');
+
+      setTimeout(() => {
+        setContinuePaymentStatus('idle');
+      }, 4000);
+    } catch (error: any) {
+      const message = getUserFacingMessage(error, `${tokenLabel} continue payment was cancelled.`, tokenLabel);
+      setContinuePaymentStatus('error');
+      setContinuePaymentError(message);
+    }
   };
 
   useEffect(() => {
@@ -774,19 +633,6 @@ const App: React.FC = () => {
   }, [activeStoryBeat, gameState, stats.wave]);
 
   useEffect(() => {
-    if (gameState !== GameState.PLAYING || activeStoryBeat || showUpgradeCoach) {
-      return;
-    }
-
-    if (upgradeCoachSeenGameId === gameId || !canAffordUpgrade(stats)) {
-      return;
-    }
-
-    setUpgradeCoachSeenGameId(gameId);
-    setShowUpgradeCoach(true);
-  }, [activeStoryBeat, gameId, gameState, showUpgradeCoach, stats, upgradeCoachSeenGameId]);
-
-  useEffect(() => {
     if (gameState === GameState.GAMEOVER) {
       const scoreKey = `${gameId}:${stats.score}:${stats.wave}`;
       if (submittedScoreKeysRef.current.has(scoreKey)) {
@@ -801,14 +647,11 @@ const App: React.FC = () => {
       const scoreQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, stats.score);
 
       if (scoreQualification.qualifiesMonthlyTop5 || scoreQualification.qualifiesAllTimeTop25) {
-        if (scoreQualification.isMonthlyChampion && !selectedProposalId && sortedFundingProposals.length > 0) {
-          setSelectedProposalId(sortedFundingProposals[0].id);
-        }
         setScoreSubmitError('');
         setShowNameInput(true);
       }
     }
-  }, [gameId, gameState, monthlyLeaderboard, selectedProposalId, sortedFundingProposals, stats.score, stats.wave, stats.highScore, leaderboard]);
+  }, [gameId, gameState, monthlyLeaderboard, stats.score, stats.wave, stats.highScore, leaderboard]);
 
   const persistHighScore = async (options: { returnToMenuOnSuccess?: boolean } = {}) => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
@@ -825,16 +668,7 @@ const App: React.FC = () => {
     const scoreKey = `${gameId}:${score}:${wave}`;
     const submittedAt = new Date().toISOString();
     const submitQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, score);
-    const isMonthlyChampionSubmission = submitQualification.isMonthlyChampion;
-    const selectedProposal = isMonthlyChampionSubmission
-      ? sortedFundingProposals.find((proposal) => proposal.id === selectedProposalId) || sortedFundingProposals[0]
-      : undefined;
-    const proposalPickData = selectedProposal ? {
-      proposalId: selectedProposal.id,
-      proposalTitle: selectedProposal.title,
-      proposalUrl: selectedProposal.url,
-      proposalAuthor: selectedProposal.author
-    } : {};
+    const shouldPromptFundingPick = submitQualification.isMonthlyChampion && sortedFundingProposals.length > 0;
 
     const newEntry: LeaderboardEntry = {
       name,
@@ -842,8 +676,7 @@ const App: React.FC = () => {
       wave,
       date: submittedAt,
       walletAddress: activeWalletAddress || undefined,
-      donated: wallet.hasDonated,
-      ...proposalPickData
+      donated: wallet.hasDonated
     };
     const scoreSorter = (a: LeaderboardEntry, b: LeaderboardEntry) => (
       b.score !== a.score
@@ -860,9 +693,9 @@ const App: React.FC = () => {
     let confirmedSave = false;
     try {
       const updatedData = await saveScore(name, score, wave, {
+        date: submittedAt,
         walletAddress: activeWalletAddress,
-        donated: wallet.hasDonated,
-        ...proposalPickData
+        donated: wallet.hasDonated
       });
       if (updatedData.remoteSaved === false) {
         throw new Error('Global leaderboard save did not confirm');
@@ -886,7 +719,21 @@ const App: React.FC = () => {
       setIsSubmittingScore(false);
       if (confirmedSave) {
         setShowNameInput(false);
-        if (returnToMenuOnSuccess) {
+        if (shouldPromptFundingPick) {
+          setSelectedProposalId('');
+          setProposalSearchQuery('');
+          setFundingPickSubmitError('');
+          setPendingFundingPick({
+            pilotName: name,
+            score,
+            wave,
+            date: submittedAt,
+            walletAddress: activeWalletAddress,
+            donated: wallet.hasDonated,
+            monthlyRank: submitQualification.monthlyRank,
+            allTimeRank: submitQualification.qualifiesAllTimeTop25 ? submitQualification.allTimeRank : undefined
+          });
+        } else if (returnToMenuOnSuccess) {
           setGameState(GameState.MENU);
         }
       }
@@ -902,6 +749,43 @@ const App: React.FC = () => {
     await persistHighScore();
   };
 
+  const submitFundingPick = async () => {
+    if (!pendingFundingPick || !selectedShareProposal || isSubmittingFundingPick) return;
+
+    setIsSubmittingFundingPick(true);
+    setFundingPickSubmitError('');
+
+    try {
+      const updatedData = await saveScore(pendingFundingPick.pilotName, pendingFundingPick.score, pendingFundingPick.wave, {
+        date: pendingFundingPick.date,
+        walletAddress: pendingFundingPick.walletAddress,
+        donated: pendingFundingPick.donated,
+        proposalId: selectedShareProposal.id,
+        proposalTitle: selectedShareProposal.title,
+        proposalUrl: selectedShareProposal.url,
+        proposalAuthor: selectedShareProposal.author
+      });
+
+      if (updatedData.remoteSaved === false) {
+        throw new Error('Global leaderboard save did not confirm');
+      }
+
+      if (updatedData.scores.length > 0) {
+        setLeaderboard(updatedData.scores);
+      }
+      setMonthlyLeaderboard(updatedData.monthlyScores);
+      setPendingFundingPick(null);
+      setSelectedProposalId('');
+      setProposalSearchQuery('');
+      setGameState(GameState.MENU);
+    } catch (error) {
+      console.error("Funding pick submission error", error);
+      setFundingPickSubmitError('Funding pick did not confirm. Please try again.');
+    } finally {
+      setIsSubmittingFundingPick(false);
+    }
+  };
+
   const skipScoreSubmission = () => {
     submittingScoreRef.current = false;
     setIsSubmittingScore(false);
@@ -909,6 +793,8 @@ const App: React.FC = () => {
     setPlayerNameInput('');
     setSelectedProposalId('');
     setScoreSubmitError('');
+    setPendingFundingPick(null);
+    setFundingPickSubmitError('');
     setGameState(GameState.MENU);
   };
 
@@ -931,80 +817,83 @@ const App: React.FC = () => {
     await miniAppService.openUrl(url);
   };
 
-  const openRscSwap = () => {
-    openFundingWidget('buy');
-  };
-
   const openTreasurySend = async () => {
     await miniAppService.openUrl(`ethereum:${DONATION_CONFIG.RECIPIENT_ADDRESS}@${DONATION_CONFIG.BASE_CHAIN_ID}`);
+  };
+
+  const openRscSwap = async () => {
+    await miniAppService.openUrl(DONATION_CONFIG.RSC_SWAP_URL);
   };
 
   const pubStatus = getPubStatus(stats.score);
   const scoreQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, stats.score);
   const selectedShareProposal = fundingProposals.find((proposal) => proposal.id === selectedProposalId);
-  const highScoreShareUrl = buildHighScoreShareUrl({
-    score: stats.score,
-    wave: stats.wave,
-    monthlyRank: scoreQualification.qualifiesMonthlyTop5 ? scoreQualification.monthlyRank : undefined,
-    allTimeRank: scoreQualification.qualifiesAllTimeTop25 ? scoreQualification.allTimeRank : undefined,
-    isMonthlyChampion: scoreQualification.isMonthlyChampion,
-    selectedProposal: selectedShareProposal
-  });
-  const shareHighScore = async () => {
-    if (!playerNameInput.trim() || submittingScoreRef.current) return;
-
-    const shareUrl = highScoreShareUrl;
-    const saved = await persistHighScore();
-    if (saved) {
-      await miniAppService.openUrl(shareUrl);
-    }
-  };
-  const shareRunResult = async () => {
-    await miniAppService.openUrl(highScoreShareUrl);
-  };
-  const buildScoreMintPreviewRecord = (): ScoreMintPreviewRecord => ({
-    pilotName: playerNameInput.trim() || (activeWalletAddress ? shortenAddress(activeWalletAddress) : 'Pilot'),
-    score: stats.score,
-    wave: stats.wave,
-    monthlyRank: scoreQualification.qualifiesMonthlyTop5 ? scoreQualification.monthlyRank : undefined,
-    allTimeRank: scoreQualification.qualifiesAllTimeTop25 ? scoreQualification.allTimeRank : undefined,
-    proposalTitle: scoreQualification.isMonthlyChampion ? selectedShareProposal?.title : undefined,
-    proposalUrl: scoreQualification.isMonthlyChampion ? selectedShareProposal?.url : undefined
-  });
-  const openScoreMintPreview = async () => {
-    const needsProposalPick = scoreQualification.isMonthlyChampion && fundingProposals.length > 0 && !selectedShareProposal;
-    if (needsProposalPick || submittingScoreRef.current) return;
-
-    const nextPreview = buildScoreMintPreviewRecord();
-
-    if (showNameInput) {
-      if (!playerNameInput.trim()) return;
-      const saved = await persistHighScore({ returnToMenuOnSuccess: false });
-      if (!saved) return;
-    }
-
-    setScoreMintPreview(nextPreview);
-  };
-  const canSelectFundingProposal = showNameInput
-    && scoreQualification.isMonthlyChampion;
   const scoreQualificationMessage = scoreQualification.isMonthlyChampion
-    ? 'Weekly champion run. Pick the proposal that should receive the 100 RSC funding-credit allocation.'
+    ? 'Weekly #1 run. Submit your pilot name first, then choose the ResearchHub proposal for the 100 RSC allocation.'
     : scoreQualification.qualifiesMonthlyTop5 && scoreQualification.qualifiesAllTimeTop25
       ? 'This score qualifies for weekly Top 5 and all-time Top 25. It is saved once and appears on both boards while it ranks on both.'
       : scoreQualification.qualifiesMonthlyTop5
         ? `Weekly Top 5 run at projected rank #${scoreQualification.monthlyRank}. Push for #1 to unlock the champion proposal pick.`
         : scoreQualification.qualifiesAllTimeTop25
-          ? `All-time Top 25 run at projected rank #${scoreQualification.allTimeRank}. Try again this week for #1 so you can steer funding credits.`
+          ? `All-time Top 25 run at projected rank #${scoreQualification.allTimeRank}. Try again this week for #1 so you can steer the RSC allocation.`
           : '';
-  const sharePrompt = scoreQualification.isMonthlyChampion && selectedShareProposal
-    ? 'Share your No. 1 run and proposal pick.'
-    : 'Share your score and invite pilots to chase the funding-credit board.';
-  const scoreMintDisabled = !playerNameInput
-    || isSubmittingScore
-    || (scoreQualification.isMonthlyChampion && fundingProposals.length > 0 && !selectedShareProposal);
-  const scoreMintLabel = scoreQualification.isMonthlyChampion && selectedShareProposal
-    ? 'Save & Mint Pick NFT'
-    : 'Save & Mint Score NFT';
+  const scoreSubmitHint = scoreQualification.isMonthlyChampion
+    ? 'After the record saves, the weekly funding pick opens next.'
+    : 'Scores save to every leaderboard they qualify for.';
+  const continueStatusText = continuePaymentStatus === 'switching_network'
+    ? 'Switching wallet to Base...'
+    : continuePaymentStatus === 'processing'
+      ? 'Preparing RSC continue...'
+      : continuePaymentStatus === 'confirming'
+        ? 'Confirming RSC payment...'
+        : continuePaymentStatus === 'success'
+          ? 'Continue confirmed.'
+          : continuePaymentStatus === 'error'
+            ? continuePaymentError
+            : `Next continue costs ${continueRscCost} RSC.`;
+  const continueRunControls = (
+    <div className="rounded-[8px] border border-emerald-200/25 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.22),transparent_44%),rgba(6,78,59,0.18)] p-4 text-left">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Continue run</p>
+          <h3 className="mt-1 text-xl font-black uppercase tracking-wide text-white">{continueRscCost} RSC</h3>
+        </div>
+        <div className="rounded-[6px] border border-emerald-100/25 bg-emerald-300/12 px-3 py-2 text-right">
+          <div className="font-mono text-[9px] font-black uppercase tracking-[0.16em] text-emerald-100/70">Lives</div>
+          <div className="text-2xl font-black text-white">3</div>
+        </div>
+      </div>
+
+      <p className="mt-3 text-xs font-semibold leading-relaxed text-slate-300">
+        Pay {continueRscCost} RSC to continue this run with three hearts.
+        {continuesUsed === 0 ? ' The next continue costs 10 RSC.' : ` The next continue costs ${continueRscCost + 5} RSC.`}
+      </p>
+
+      <button
+        type="button"
+        onClick={() => void handleContinueWithRsc()}
+        disabled={isContinuePaymentBusy}
+        className="mt-3 w-full rounded-[8px] border border-emerald-100/40 bg-emerald-300 px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-slate-950 transition hover:bg-white disabled:cursor-wait disabled:border-white/10 disabled:bg-white/10 disabled:text-slate-400"
+      >
+        {isContinuePaymentBusy ? 'Confirm in wallet' : activeWalletAddress ? `Continue for ${continueRscCost} RSC` : `Connect + Continue for ${continueRscCost} RSC`}
+      </button>
+
+      <div className={`mt-2 min-h-4 text-center text-[10px] font-black uppercase tracking-[0.12em] ${continuePaymentStatus === 'error' ? 'text-red-200' : continuePaymentStatus === 'success' ? 'text-emerald-100' : 'text-slate-400'}`}>
+        {continueStatusText}
+      </div>
+
+      {continuePaymentHash ? (
+        <a
+          href={`${DONATION_CONFIG.EXPLORER_BASE_URL}/tx/${continuePaymentHash}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 block text-center font-mono text-[10px] uppercase tracking-[0.16em] text-cyan-300 underline underline-offset-2 hover:text-white"
+        >
+          View continue payment
+        </a>
+      ) : null}
+    </div>
+  );
   const highScoreActionControls = (
     <div className="sticky top-0 z-20 rounded-2xl border border-white/10 bg-slate-950/92 p-3 shadow-[0_16px_46px_rgba(0,0,0,0.35)] backdrop-blur-xl">
       {scoreSubmitError ? (
@@ -1014,22 +903,6 @@ const App: React.FC = () => {
       ) : null}
 
       <div className="grid gap-2">
-        <button
-          type="button"
-          onClick={shareHighScore}
-          disabled={!playerNameInput || isSubmittingScore || (scoreQualification.isMonthlyChampion && fundingProposals.length > 0 && !selectedShareProposal)}
-          className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-slate-100 transition hover:border-sky-300/50 hover:bg-sky-300/10 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Save & Share on X
-        </button>
-        <button
-          type="button"
-          onClick={openScoreMintPreview}
-          disabled={scoreMintDisabled}
-          className="w-full rounded-2xl border border-emerald-200/25 bg-emerald-300/12 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200/60 hover:bg-emerald-300/20 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {scoreMintLabel}
-        </button>
         <button
           type="submit"
           disabled={!playerNameInput || isSubmittingScore}
@@ -1048,32 +921,24 @@ const App: React.FC = () => {
       </div>
 
       <p className="mt-2 text-center text-[10px] font-semibold leading-relaxed text-slate-500">
-        {sharePrompt} Your score saves before X opens.
+        {scoreSubmitHint}
       </p>
-      {canSelectFundingProposal ? (
-        <p className="mt-1 text-center text-[10px] font-black uppercase tracking-[0.12em] text-emerald-200">
-          Champion funding pick is below.
-        </p>
-      ) : null}
     </div>
   );
 
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
-      {(gameState === GameState.PLAYING || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER || gameState === GameState.SHOP || gameState === GameState.TUTORIAL) && (
+      {(gameState === GameState.PLAYING || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER || gameState === GameState.SHOP) && (
         <GameCanvas
           key={gameId}
           stats={stats}
           setStats={setStats}
           setGameState={setGameState}
           gameState={gameState}
-          isTransmissionOpen={Boolean(activeStoryBeat || showUpgradeCoach)}
-          purchasedPowerup={purchasedPowerup}
+          isTransmissionOpen={Boolean(activeStoryBeat)}
+          bombCommand={bombCommand}
+          continueCommand={continueCommand}
         />
-      )}
-
-      {gameState === GameState.TUTORIAL && (
-        <Tutorial onReady={handleTutorialComplete} />
       )}
 
       {gameState === GameState.PLAYING && (
@@ -1083,7 +948,12 @@ const App: React.FC = () => {
           lives={stats.lives}
           showLabGlow={showLabGlow}
           onDisableLabGlow={() => setShowLabGlow(false)}
-          isUpgradeReady={canAffordUpgrade(stats)}
+          isUpgradeReady={false}
+          bombLocked={introMissionLocked || Boolean(activeStoryBeat)}
+          onUseBomb={() => {
+            if (introMissionLocked || activeStoryBeat) return;
+            setBombCommand({ nonce: Date.now() });
+          }}
         />
       )}
 
@@ -1101,16 +971,13 @@ const App: React.FC = () => {
           onOpenProposal={openResearchHubProposal}
           onOpenXProfile={() => miniAppService.openUrl(DONATION_CONFIG.X_PROFILE_URL)}
           onOpenTreasurySend={openTreasurySend}
-          onOpenCredits={() => openFundingWidget('checkout')}
-          onOpenSwap={() => openFundingWidget('swap')}
-          onOpenBuy={() => openFundingWidget('buy')}
+          onOpenSwap={openRscSwap}
           walletControl={!activeStoryBeat ? (
             <WalletButton
               wallet={wallet}
               onConnect={connectWallet}
               onDisconnect={disconnectWallet}
-              onOpenFunding={openFundingWidget}
-              credits={stats.profileCredits || 0}
+              onOpenSwap={openRscSwap}
               placement="mission"
             />
           ) : null}
@@ -1151,34 +1018,10 @@ const App: React.FC = () => {
       {gameState === GameState.SHOP && (
         <UpgradeShop
           stats={stats}
-          wallet={wallet}
           onUpgrade={handleUpgrade}
-          onDeposit={handleDeposit}
-          onBuyPowerup={handleBuyPowerup}
           onClose={() => setGameState(GameState.PLAYING)}
-          onConnectWallet={connectWallet}
-          onBuyMissionCredits={fundCurrentMission}
-          onOpenRscSwap={openRscSwap}
-          onClaimProfileCredits={handleClaimProfileCredits}
-          labFundingStatus={labFundingStatus}
-          labFundingHash={labFundingHash}
-          labFundingExplorerBaseUrl={labFundingExplorerBaseUrl}
-          labFundingError={labFundingError}
-          gameId={gameId}
         />
       )}
-
-      {fundingWidget ? (
-        <FundingWidgetModal
-          mode={fundingWidget.mode}
-          rscAmount={fundingWidget.rscAmount}
-          walletAddress={activeWalletAddress}
-          onClose={() => setFundingWidget(null)}
-          onModeChange={(mode, rscAmount) => setFundingWidget({ ...fundingWidget, mode, rscAmount })}
-          onCreditPayment={handleDirectRscCreditPayment}
-          onWidgetError={handleFundingWidgetError}
-        />
-      ) : null}
 
       {gameState === GameState.GAMEOVER && (
         <div className="absolute inset-0 z-20 flex touch-pan-y items-center justify-center bg-black/80 p-4 backdrop-blur-md">
@@ -1189,8 +1032,16 @@ const App: React.FC = () => {
             <div className="relative z-10 min-h-0 flex-1 touch-pan-y space-y-4 overflow-y-auto overscroll-contain p-6 text-center custom-scrollbar">
               {showNameInput ? (
                 <div className="space-y-4">
-                  <h2 className="arcade-font animate-pulse text-2xl font-black tracking-widest text-yellow-400">NEW HIGH SCORE!</h2>
-                  <div className="text-4xl font-bold text-white">{stats.score}</div>
+                  <div className="relative overflow-hidden rounded-[8px] border border-cyan-200/25 bg-[radial-gradient(circle_at_50%_0%,rgba(59,130,246,0.22),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.95),rgba(2,6,23,0.96))] px-4 py-5 shadow-[0_0_36px_rgba(34,211,238,0.12)]">
+                    <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-yellow-200/80 to-transparent" />
+                    <div className="pointer-events-none absolute left-3 top-1/2 h-12 w-16 -translate-y-1/2 skew-x-[-18deg] border-y border-l border-cyan-200/30 bg-cyan-300/8" />
+                    <div className="pointer-events-none absolute right-3 top-1/2 h-12 w-16 -translate-y-1/2 skew-x-[18deg] border-y border-r border-cyan-200/30 bg-cyan-300/8" />
+                    <p className="relative text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200">Stage {stats.wave} - Mission Result</p>
+                    <h2 className="arcade-font relative mt-2 text-2xl font-black tracking-widest text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.45)]">
+                      {scoreQualification.isMonthlyChampion ? 'WEEKLY #1 PILOT' : 'NEW HIGH SCORE'}
+                    </h2>
+                    <p className="relative mt-2 text-4xl font-black text-white">{stats.score.toLocaleString()}</p>
+                  </div>
                   <div className="flex flex-wrap justify-center gap-2">
                     {scoreQualification.qualifiesMonthlyTop5 ? (
                       <span className="rounded-full border border-emerald-200/25 bg-emerald-300/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100">
@@ -1202,17 +1053,13 @@ const App: React.FC = () => {
                         All-Time #{scoreQualification.allTimeRank}
                       </span>
                     ) : null}
-                    {scoreQualification.isMonthlyChampion ? (
-                      <span className="rounded-full border border-yellow-200/30 bg-yellow-200/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-yellow-100">
-                        RSC Pick
-                      </span>
-                    ) : null}
                   </div>
                   {scoreQualificationMessage ? (
-                    <p className="rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] font-semibold leading-relaxed text-slate-300">
+                    <p className="rounded-[8px] border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] font-semibold leading-relaxed text-slate-300">
                       {scoreQualificationMessage}
                     </p>
                   ) : null}
+                  {continueRunControls}
                   <p className="font-mono text-sm text-gray-300">ENTER YOUR NAME:</p>
 
                   <form onSubmit={submitScore} className="space-y-4">
@@ -1228,123 +1075,6 @@ const App: React.FC = () => {
                     />
 
                     {highScoreActionControls}
-
-                    {canSelectFundingProposal ? (
-                      <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-left">
-                        <div className="mb-2">
-                          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Weekly No. 1 Funding Pick</div>
-                          <p className="mt-1 text-[11px] font-semibold leading-relaxed text-slate-300">
-                            You are taking the weekly lead. Scroll the live ResearchHub proposal list and choose one for the 100 RSC funding-credit allocation.
-                          </p>
-                        </div>
-
-                        {proposalStatus === 'loading' ? (
-                          <div className="rounded-xl bg-black/25 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 animate-pulse">
-                            Loading live proposals...
-                          </div>
-                        ) : null}
-
-                        {(proposalStatus === 'empty' || proposalStatus === 'error') ? (
-                          <div className="rounded-xl bg-black/25 px-3 py-3 text-center text-[11px] font-semibold text-slate-400">
-                            Live proposal choices are unavailable. Your score can still be submitted.
-                          </div>
-                        ) : null}
-
-                        {fundingProposals.length > 0 ? (
-                          <>
-                          <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-2">
-                            <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-300">
-                              <span>{visibleFundingProposals.length} of {fundingProposals.length} proposals</span>
-                              <span className="text-emerald-200">Top votes first</span>
-                            </div>
-                            <input
-                              type="search"
-                              value={proposalSearchQuery}
-                              onChange={(event) => setProposalSearchQuery(event.target.value)}
-                              placeholder="Search title, author, or topic"
-                              className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-200/60"
-                              disabled={isSubmittingScore}
-                            />
-                          </div>
-
-                          {topVotedFundingProposals.length > 0 ? (
-                            <div className="mb-3 rounded-2xl border border-yellow-200/20 bg-yellow-200/10 p-2">
-                              <div className="mb-2 text-[9px] font-black uppercase tracking-[0.18em] text-yellow-100">Most voted right now</div>
-                              <div className="grid gap-2">
-                                {topVotedFundingProposals.map((proposal) => {
-                                  const isSelected = selectedProposalId === proposal.id;
-
-                                  return (
-                                    <button
-                                      type="button"
-                                      key={`top-${proposal.id}`}
-                                      onClick={() => setSelectedProposalId(proposal.id)}
-                                      disabled={isSubmittingScore}
-                                      className={`rounded-xl border px-3 py-2 text-left transition ${isSelected ? 'border-yellow-100 bg-yellow-100 text-slate-950' : 'border-yellow-100/20 bg-black/25 text-yellow-50 hover:border-yellow-100/50'}`}
-                                    >
-                                      <span className="line-clamp-1 text-xs font-black">{proposal.title}</span>
-                                      <span className={`mt-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.12em] ${isSelected ? 'text-slate-700' : 'text-yellow-100/80'}`}>
-                                        <span>{proposal.votes} votes</span>
-                                        <span>{proposal.backers} backers</span>
-                                      </span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ) : null}
-
-                          <div className="custom-scrollbar max-h-[42vh] touch-pan-y space-y-3 overflow-y-auto overscroll-contain pr-1">
-                            {visibleFundingProposals.length === 0 ? (
-                              <div className="rounded-2xl border border-white/10 bg-black/25 px-3 py-6 text-center text-[11px] font-semibold text-slate-400">
-                                No proposals match that search yet.
-                              </div>
-                            ) : null}
-                            {visibleFundingProposals.map((proposal) => {
-                              const isSelected = selectedProposalId === proposal.id;
-
-                              return (
-                                <button
-                                  type="button"
-                                  key={proposal.id}
-                                  onClick={() => setSelectedProposalId(proposal.id)}
-                                  disabled={isSubmittingScore}
-                                  className={`w-full rounded-2xl border bg-white p-2 text-left text-slate-950 shadow-[0_14px_34px_rgba(0,0,0,0.22)] transition ${isSelected ? 'border-emerald-300 ring-2 ring-emerald-300/60' : 'border-slate-200 hover:border-emerald-300/70'}`}
-                                >
-                                  <span className="flex gap-3">
-                                    <span className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                                      {proposal.imageUrl ? (
-                                        <img src={proposal.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                                      ) : (
-                                        <span className="flex h-full w-full items-center justify-center bg-slate-950 text-lg font-black text-white">
-                                          {(proposal.author || 'RH').split(' ').slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'RH'}
-                                        </span>
-                                      )}
-                                    </span>
-                                    <span className="min-w-0 flex-1">
-                                      <span className="line-clamp-2 text-sm font-black leading-snug">{proposal.title}</span>
-                                      <span className="mt-1 block truncate text-[11px] font-semibold text-slate-500">{proposal.author}</span>
-                                      <span className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-slate-50 p-2 text-[9px] font-bold uppercase tracking-wide text-slate-500">
-                                        <span>Ask <strong className="block text-xs text-blue-600">{proposal.requestedUsd ? `$${Math.round(proposal.requestedUsd / 1000)}K` : 'N/A'}</strong></span>
-                                        <span>Raised <strong className="block text-xs text-slate-950">{proposal.raisedUsd ? `$${Math.round(proposal.raisedUsd / 1000)}K` : 'N/A'}</strong></span>
-                                        <span>Review <strong className="block text-xs text-slate-950">{proposal.peerReview?.toFixed(1) ?? 'N/A'}</strong></span>
-                                      </span>
-                                    </span>
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                          </>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center text-[11px] font-semibold leading-relaxed text-slate-400">
-                        {scoreQualification.qualifiesAllTimeTop25 && !scoreQualification.qualifiesMonthlyTop5
-                          ? 'This score lands on the all-time board. Try again before week-end for weekly No. 1 and the champion proposal pick.'
-                        : 'Proposal selection unlocks only for the weekly No. 1 pilot. This score still submits to each leaderboard it qualifies for.'}
-                      </div>
-                    )}
                   </form>
                 </div>
               ) : (
@@ -1369,30 +1099,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={shareRunResult}
-                      className="rounded-2xl border border-sky-200/25 bg-sky-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-sky-100 transition hover:border-sky-200/60 hover:bg-sky-300/18"
-                    >
-                      Share on X
-                    </button>
-                    <button
-                      type="button"
-                      onClick={openScoreMintPreview}
-                      className="rounded-2xl border border-emerald-200/25 bg-emerald-300/12 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-emerald-100 transition hover:border-emerald-200/60 hover:bg-emerald-300/20"
-                    >
-                      Mint Score NFT
-                    </button>
-                  </div>
-
-                  <SupportPanel
-                    wallet={wallet}
-                    isMiniApp={miniApp.isMiniApp}
-                    onConnect={connectWallet}
-                    onDisconnect={disconnectWallet}
-                    compact
-                  />
+                  {continueRunControls}
 
                   <div className="space-y-3 pt-2">
                     <button
@@ -1415,97 +1122,138 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {scoreMintPreview && gameState === GameState.GAMEOVER ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/82 p-4 backdrop-blur-md">
-          <div className="relative w-full max-w-md overflow-hidden rounded-[8px] border border-emerald-200/25 bg-slate-950 p-5 shadow-[0_0_50px_rgba(16,185,129,0.24)]">
-            <button
-              type="button"
-              onClick={() => setScoreMintPreview(null)}
-              className="absolute right-3 top-3 rounded-[6px] border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black uppercase text-slate-300 transition hover:border-white/30 hover:text-white"
-            >
-              Close
-            </button>
+      {pendingFundingPick && gameState === GameState.GAMEOVER ? (
+        <div className="absolute inset-0 z-40 flex touch-pan-y items-center justify-center bg-black/86 p-4 backdrop-blur-md">
+          <div className="relative flex max-h-[94vh] w-full max-w-md flex-col overflow-hidden rounded-[8px] border border-emerald-200/30 bg-slate-950/96 shadow-[0_0_60px_rgba(16,185,129,0.18)]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.2),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.98))]" />
+            <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/80 to-transparent" />
 
-            <div className="mb-4 pr-16">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Base score mint</p>
-              <h2 className="mt-1 text-2xl font-black text-white">Score NFT Preview</h2>
+            <div className="relative z-10 border-b border-white/10 p-4 text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">Weekly No. 1 Confirmed</p>
+              <h2 className="arcade-font mt-2 text-2xl font-black uppercase tracking-widest text-white">Choose Funding Pick</h2>
+              <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-300">
+                {pendingFundingPick.pilotName} saved {pendingFundingPick.score.toLocaleString()} points. Select the ResearchHub proposal for the 100 RSC allocation.
+              </p>
             </div>
 
-            <div className="relative overflow-hidden rounded-[8px] border border-cyan-200/20 bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.24),transparent_42%),linear-gradient(145deg,rgba(15,23,42,0.98),rgba(6,78,59,0.64))] p-4">
-              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(103,232,249,0.05)_1px,transparent_1px)] bg-[size:100%_9px]" />
-              <div className="relative">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-100/80">Scicon Shooter</p>
-                    <p className="mt-1 text-sm font-bold text-white">{scoreMintPreview.pilotName}</p>
-                  </div>
-                  <div className="flex h-14 w-14 items-center justify-center rounded-[8px] border border-emerald-200/30 bg-emerald-300/12 text-emerald-100">
-                    <span className="text-2xl">◆</span>
+            <div className="relative z-10 min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 custom-scrollbar">
+              {fundingPickSubmitError ? (
+                <div className="mb-3 rounded-[8px] border border-red-300/25 bg-red-500/10 px-3 py-2 text-center text-[11px] font-semibold text-red-100">
+                  {fundingPickSubmitError}
+                </div>
+              ) : null}
+
+              <div className="mb-3 rounded-[8px] border border-white/10 bg-black/24 p-2">
+                <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-300">
+                  <span>{visibleFundingProposals.length} of {fundingProposals.length} proposals</span>
+                  <span className="text-emerald-200">Top votes first</span>
+                </div>
+                <input
+                  type="search"
+                  value={proposalSearchQuery}
+                  onChange={(event) => setProposalSearchQuery(event.target.value)}
+                  placeholder="Search title, author, or topic"
+                  className="w-full rounded-[8px] border border-white/10 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-200/60"
+                  disabled={isSubmittingFundingPick}
+                />
+              </div>
+
+              {proposalStatus === 'loading' ? (
+                <div className="rounded-[8px] bg-black/25 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 animate-pulse">
+                  Loading live proposals...
+                </div>
+              ) : null}
+
+              {(proposalStatus === 'empty' || proposalStatus === 'error') ? (
+                <div className="rounded-[8px] bg-black/25 px-3 py-3 text-center text-[11px] font-semibold text-slate-400">
+                  Live proposal choices are unavailable. Your score is already saved.
+                </div>
+              ) : null}
+
+              {topVotedFundingProposals.length > 0 ? (
+                <div className="mb-3 rounded-[8px] border border-yellow-200/20 bg-yellow-200/10 p-2">
+                  <div className="mb-2 text-[9px] font-black uppercase tracking-[0.18em] text-yellow-100">Most voted right now</div>
+                  <div className="grid gap-2">
+                    {topVotedFundingProposals.map((proposal) => {
+                      const isSelected = selectedProposalId === proposal.id;
+
+                      return (
+                        <button
+                          type="button"
+                          key={`funding-top-${proposal.id}`}
+                          onClick={() => setSelectedProposalId(proposal.id)}
+                          disabled={isSubmittingFundingPick}
+                          className={`rounded-[8px] border px-3 py-2 text-left transition ${isSelected ? 'border-yellow-100 bg-yellow-100 text-slate-950' : 'border-yellow-100/20 bg-black/25 text-yellow-50 hover:border-yellow-100/50'}`}
+                        >
+                          <span className="line-clamp-1 text-xs font-black">{proposal.title}</span>
+                          <span className={`mt-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.12em] ${isSelected ? 'text-slate-700' : 'text-yellow-100/80'}`}>
+                            <span>{proposal.votes} votes</span>
+                            <span>{proposal.backers} backers</span>
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
+              ) : null}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-[6px] border border-white/10 bg-black/25 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Score</p>
-                    <p className="mt-1 text-3xl font-black text-white">{scoreMintPreview.score.toLocaleString()}</p>
+              <div className="space-y-3">
+                {visibleFundingProposals.length === 0 ? (
+                  <div className="rounded-[8px] border border-white/10 bg-black/25 px-3 py-6 text-center text-[11px] font-semibold text-slate-400">
+                    No proposals match that search yet.
                   </div>
-                  <div className="rounded-[6px] border border-white/10 bg-black/25 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Wave</p>
-                    <p className="mt-1 text-3xl font-black text-cyan-100">{scoreMintPreview.wave}</p>
-                  </div>
-                </div>
+                ) : null}
+                {visibleFundingProposals.map((proposal) => {
+                  const isSelected = selectedProposalId === proposal.id;
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {scoreMintPreview.monthlyRank ? (
-                    <span className="rounded-full border border-emerald-200/30 bg-emerald-300/14 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
-                      Weekly #{scoreMintPreview.monthlyRank}
-                    </span>
-                  ) : null}
-                  {scoreMintPreview.allTimeRank ? (
-                    <span className="rounded-full border border-cyan-200/30 bg-cyan-300/14 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100">
-                      All-Time #{scoreMintPreview.allTimeRank}
-                    </span>
-                  ) : null}
-                </div>
-
-                {scoreMintPreview.proposalTitle ? (
-                  <div className="mt-4 rounded-[6px] border border-yellow-200/20 bg-yellow-200/10 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-yellow-100">Funding pick</p>
-                    <p className="mt-1 line-clamp-3 text-sm font-bold leading-snug text-white">{scoreMintPreview.proposalTitle}</p>
-                  </div>
-                ) : (
-                  <div className="mt-4 rounded-[6px] border border-white/10 bg-black/25 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Record type</p>
-                    <p className="mt-1 text-sm font-bold text-white">High score trophy</p>
-                  </div>
-                )}
+                  return (
+                    <button
+                      type="button"
+                      key={`funding-${proposal.id}`}
+                      onClick={() => setSelectedProposalId(proposal.id)}
+                      disabled={isSubmittingFundingPick}
+                      className={`w-full rounded-[8px] border bg-white p-2 text-left text-slate-950 shadow-[0_14px_34px_rgba(0,0,0,0.22)] transition ${isSelected ? 'border-emerald-300 ring-2 ring-emerald-300/70' : 'border-slate-200 hover:border-emerald-300/70'}`}
+                    >
+                      <span className="flex gap-3">
+                        <span className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[8px] border border-slate-200 bg-slate-100">
+                          {proposal.imageUrl ? (
+                            <img src={proposal.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center bg-slate-950 text-lg font-black text-white">
+                              {(proposal.author || 'RH').split(' ').slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'RH'}
+                            </span>
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="line-clamp-2 text-sm font-black leading-snug">{proposal.title}</span>
+                          <span className="mt-1 block truncate text-[11px] font-semibold text-slate-500">{proposal.author}</span>
+                          <span className="mt-2 grid grid-cols-3 gap-1 rounded-[8px] bg-slate-50 p-2 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                            <span>Ask <strong className="block text-xs text-blue-600">{proposal.requestedUsd ? `$${Math.round(proposal.requestedUsd / 1000)}K` : 'N/A'}</strong></span>
+                            <span>Raised <strong className="block text-xs text-slate-950">{proposal.raisedUsd ? `$${Math.round(proposal.raisedUsd / 1000)}K` : 'N/A'}</strong></span>
+                            <span>Review <strong className="block text-xs text-slate-950">{proposal.peerReview?.toFixed(1) ?? 'N/A'}</strong></span>
+                          </span>
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="relative z-10 border-t border-white/10 bg-slate-950/96 p-3">
               <button
                 type="button"
-                onClick={() => { if (!activeWalletAddress) void connectWallet(); }}
-                disabled={Boolean(activeWalletAddress)}
-                className="rounded-[6px] border border-cyan-200/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/18 disabled:cursor-default disabled:opacity-80"
+                onClick={() => void submitFundingPick()}
+                disabled={!selectedShareProposal || isSubmittingFundingPick}
+                className="scicon-btn w-full py-3 text-base font-bold disabled:cursor-not-allowed disabled:opacity-45"
               >
-                {activeWalletAddress ? `Wallet ${shortenAddress(activeWalletAddress)}` : 'Connect Wallet'}
-              </button>
-              <button
-                type="button"
-                disabled
-                className="rounded-[6px] border border-emerald-200/20 bg-emerald-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-emerald-100 opacity-70"
-              >
-                Mint Contract Pending
+                {isSubmittingFundingPick ? 'SAVING PICK...' : 'SAVE FUNDING PICK'}
               </button>
             </div>
-
-            <p className="mt-3 text-center text-[11px] font-semibold leading-relaxed text-slate-400">
-              This is the score artwork and metadata screen for the Base NFT. The mint button will become live when the NFT contract is connected.
-            </p>
           </div>
         </div>
       ) : null}
+
 
       {gameState === GameState.ABOUT && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md">
@@ -1522,7 +1270,7 @@ const App: React.FC = () => {
 
               <div className="space-y-4 text-left font-mono text-sm leading-relaxed text-gray-300">
                 <p>
-                  <strong className="text-indigo-400">OBJECTIVE:</strong> Pilot the <span className="text-white">Research Flask</span> through the bottlenecks slowing open science. Score high, upgrade with RSC-powered mission credits, and fight for proposals that deserve funding.
+                  <strong className="text-indigo-400">OBJECTIVE:</strong> Pilot the <span className="text-white">Research Flask</span> through the bottlenecks slowing open science. Score high, tune the ship in the lab, and fight for proposals that deserve funding.
                 </p>
                 <div>
                   <strong className="text-indigo-400">ENEMIES:</strong>
@@ -1536,15 +1284,15 @@ const App: React.FC = () => {
                 <div>
                   <strong className="text-indigo-400">RSC LAB:</strong>
                   <ul className="mt-1 list-inside list-disc space-y-1 pl-2">
-                    <li><span className="text-yellow-300">Mission Credits:</span> Collect them in-run or fund more at 100 credits per 1 RSC.</li>
-                    <li><span className="text-cyan-300">Upgrades:</span> Spend credits on fire rate, handling, missiles, and emergency repairs.</li>
-                    <li><span className="text-purple-400">Current Run:</span> Lab upgrades reset each mission, so the best pilots decide when to invest.</li>
+                    <li><span className="text-yellow-300">Continues:</span> After a crash, pay RSC to revive this run with three hearts.</li>
+                    <li><span className="text-cyan-300">Upgrades:</span> Dock at the lab for fire rate, handling, missiles, and emergency repairs.</li>
+                    <li><span className="text-purple-400">Current Run:</span> Lab upgrades reset each mission, so the best pilots decide when to tune up.</li>
                   </ul>
                 </div>
                 <div>
                   <strong className="text-indigo-400">FUNDING EVENT:</strong>
                   <p className="mt-1">
-                    The weekly leaderboard now drives the funding allocation: the No. 1 pilot chooses a ResearchHub proposal, and Scott can direct funding credits toward that winner's pick.
+                    The weekly leaderboard now drives the funding allocation: the No. 1 pilot chooses a ResearchHub proposal, and Scott can direct the RSC award toward that winner's pick.
                   </p>
                 </div>
                 <p className="mt-4 border-t border-gray-700 pt-2 text-xs italic text-gray-500">
@@ -1570,17 +1318,6 @@ const App: React.FC = () => {
         />
       ) : null}
 
-      {showUpgradeCoach ? (
-        <UpgradeCoach
-          credits={stats.coins}
-          onOpenLab={() => {
-            setShowUpgradeCoach(false);
-            setShowLabGlow(false);
-            setGameState(GameState.SHOP);
-          }}
-          onContinue={() => setShowUpgradeCoach(false)}
-        />
-      ) : null}
     </div>
   );
 };

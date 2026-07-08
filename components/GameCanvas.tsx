@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameLogic';
-import { Stats, GameState, PowerupType } from '../types';
+import { Stats, GameState } from '../types';
 
 interface GameCanvasProps {
   setStats: (stats: Stats) => void;
@@ -8,15 +8,17 @@ interface GameCanvasProps {
   stats: Stats;
   gameState: GameState;
   isTransmissionOpen?: boolean;
-  purchasedPowerup?: { type: PowerupType; nonce: number } | null;
+  bombCommand?: { nonce: number } | null;
+  continueCommand?: { nonce: number; lives: number } | null;
 }
 
-const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, gameState, isTransmissionOpen = false, purchasedPowerup = null }) => {
+const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, gameState, isTransmissionOpen = false, bombCommand = null, continueCommand = null }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const requestRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
-  const handledPowerupNonceRef = useRef<number | null>(null);
+  const handledBombNonceRef = useRef<number | null>(null);
+  const handledContinueNonceRef = useRef<number | null>(null);
   const activeTouchIdRef = useRef<number | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   
@@ -39,21 +41,33 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
   }, [isTransmissionOpen]);
 
   useEffect(() => {
-    if (!purchasedPowerup || !engineRef.current) return;
-    if (handledPowerupNonceRef.current === purchasedPowerup.nonce) return;
-    handledPowerupNonceRef.current = purchasedPowerup.nonce;
+    if (!bombCommand || !engineRef.current) return;
+    if (handledBombNonceRef.current === bombCommand.nonce) return;
+    handledBombNonceRef.current = bombCommand.nonce;
 
     engineRef.current.stats = {
       ...engineRef.current.stats,
       ...stats
     };
-    if (stats.lives > engineRef.current.lives) {
-      engineRef.current.lives = stats.lives;
-    }
 
-    engineRef.current.activatePowerup(purchasedPowerup.type, false);
+    if (engineRef.current.triggerBomb()) {
+      setStats({ ...engineRef.current.stats });
+    }
+  }, [bombCommand, setStats, stats]);
+
+  useEffect(() => {
+    if (!continueCommand || !engineRef.current) return;
+    if (handledContinueNonceRef.current === continueCommand.nonce) return;
+    handledContinueNonceRef.current = continueCommand.nonce;
+
+    engineRef.current.stats = {
+      ...engineRef.current.stats,
+      ...stats
+    };
+    engineRef.current.continueRun(continueCommand.lives);
     setStats({ ...engineRef.current.stats });
-  }, [purchasedPowerup, setStats, stats]);
+    setGameState(GameState.PLAYING);
+  }, [continueCommand, setGameState, setStats, stats]);
 
   // Sync Stats (specifically upgrades/coins modified by React UI) to Engine
   useEffect(() => {
@@ -101,6 +115,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
 
     const handleKeyDown = (e: KeyboardEvent) => { 
       keys[e.key] = true; 
+      if (!e.repeat && (e.key === 'b' || e.key === 'B') && engine.triggerBomb()) {
+        setStats({ ...engine.stats });
+      }
     };
     
     const handleKeyUp = (e: KeyboardEvent) => { 
@@ -230,8 +247,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
           lastTimeRef.current = timestamp - (deltaTime % frameInterval);
 
           // Use the REF current value to check state, avoiding stale closure issues
-          if (gameStateRef.current === GameState.PLAYING && !isTransmissionOpenRef.current) {
-            engine.update();
+          if (gameStateRef.current === GameState.PLAYING) {
+            engine.update(isTransmissionOpenRef.current);
           }
 
           // Sync Stats to React for HUD every 30 logical frames (0.5s)

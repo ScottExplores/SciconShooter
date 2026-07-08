@@ -85,9 +85,11 @@ export interface Stats {
   highScore: number;
   wave: number;
   coins: number;
-  profileCredits: number; // Wallet-linked credits purchased outside an active mission
-  totalCoins: number; // New: Track total lifetime coins for "Funded" score
+  totalCoins: number; // Track lifetime arcade pickups for score feedback
   enemiesDefeated: number;
+  bombs: number;
+  bombCharge: number;
+  bombChargeMax: number;
   lives: number;
   repairsCount: number; // Track number of repairs for cost scaling
   upgrades: Upgrades;

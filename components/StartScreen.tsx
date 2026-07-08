@@ -18,9 +18,7 @@ interface StartScreenProps {
   onOpenProposal: (url: string) => void;
   onOpenXProfile: () => void;
   onOpenTreasurySend: () => void;
-  onOpenCredits: () => void;
   onOpenSwap: () => void;
-  onOpenBuy: () => void;
   walletControl?: React.ReactNode;
 }
 
@@ -400,9 +398,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onOpenProposal,
   onOpenXProfile,
   onOpenTreasurySend,
-  onOpenCredits,
   onOpenSwap,
-  onOpenBuy,
   walletControl
 }) => {
   const [leaderboardView, setLeaderboardView] = useState<LeaderboardView>('weekly');
@@ -583,7 +579,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       <div className="flex min-w-0 items-center justify-between gap-3 md:justify-start">
         <button
           type="button"
-          onClick={onOpenCredits}
+          onClick={() => setDashboardTab('market')}
           className="flex min-w-0 items-center gap-3 rounded-[6px] border border-cyan-300/25 bg-slate-950/70 px-3 py-2 text-left transition hover:border-emerald-300/45 hover:bg-emerald-300/10"
         >
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-300/35 bg-emerald-400/18 text-emerald-100">
@@ -649,7 +645,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </p>
         </div>
 
-        <div className={`relative flex w-full items-center justify-center ${compact ? 'min-h-[6.6rem]' : 'min-h-[11rem]'}`}>
+        <div className={`relative flex w-full items-center justify-center ${compact ? 'min-h-[8.5rem]' : 'min-h-[14rem]'}`}>
           <div className="sci-ship-orbit" />
           <div className="absolute bottom-2 h-12 w-64 rounded-[50%] border border-cyan-300/24 bg-cyan-300/7 blur-sm" />
           <div className="absolute bottom-7 h-7 w-56 rounded-[50%] border border-emerald-300/28 bg-emerald-300/8" />
@@ -803,8 +799,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
     </HudPanel>
   );
 
-  const DashboardNav = ({ fixed = false }: { fixed?: boolean }) => (
-    <nav className={`${fixed ? 'fixed inset-x-3 bottom-3 z-40' : ''}`}>
+  const DashboardNav = ({ fixed = false, docked = false }: { fixed?: boolean; docked?: boolean }) => (
+    <nav className={`${fixed ? 'fixed inset-x-3 bottom-3 z-40 mx-auto max-w-[40rem] pb-[env(safe-area-inset-bottom)] lg:hidden' : ''} ${docked ? 'mt-auto pt-2' : ''}`}>
       <div className="sci-dashboard-nav grid grid-cols-5 overflow-hidden rounded-[8px] border border-cyan-300/24 bg-slate-950/86 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
         {dashboardTabs.map((tab) => {
           const active = dashboardTab === tab.id;
@@ -812,6 +808,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <button
               key={tab.id}
               type="button"
+              aria-label={tab.label}
+              data-dashboard-tab={tab.id}
               onClick={() => setDashboardTab(tab.id)}
               className={`relative flex min-h-[4.8rem] flex-col items-center justify-center gap-1 border-r border-cyan-200/12 px-1 text-center text-xs font-semibold transition last:border-r-0 ${
                 active
@@ -870,7 +868,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
           <div>
             <h2 className="text-2xl font-black text-white">Proposal Hangar</h2>
-            <p className="text-sm text-slate-300">Search active, unfunded ResearchHub targets and pick where your winning credits should go.</p>
+            <p className="text-sm text-slate-300">Search active, unfunded ResearchHub targets and pick where your winning RSC allocation should go.</p>
           </div>
           <label className="relative block min-w-[15rem]">
             <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70" />
@@ -905,17 +903,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
     <HudPanel>
       <div className="p-4 md:p-5">
         <div className="mb-4">
-          <h2 className="text-2xl font-black text-white">RSC Market</h2>
-          <p className="text-sm text-slate-300">Swap, buy, or load mission credits from one Base-native command post.</p>
+          <h2 className="text-2xl font-black text-white">Mission Market</h2>
+          <p className="text-sm text-slate-300">Swap for RSC, visit ResearchHub funding, or open the treasury route.</p>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          <button type="button" onClick={onOpenBuy} className="sci-market-card">
-            <Icon name="wallet" className="h-8 w-8 text-emerald-200" />
-            <span>
-              <strong>Buy RSC</strong>
-              <small>Use Base to stock your research wallet.</small>
-            </span>
-          </button>
+        <div className="grid gap-3 md:grid-cols-2">
           <button type="button" onClick={onOpenSwap} className="sci-market-card">
             <Icon name="coin" className="h-8 w-8 text-cyan-200" />
             <span>
@@ -923,20 +914,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <small>Open the RSC swap route.</small>
             </span>
           </button>
-          <button type="button" onClick={onOpenCredits} className="sci-market-card">
+          <button type="button" onClick={onOpenFund} className="sci-market-card">
             <Icon name="base" className="h-8 w-8 text-blue-200" />
             <span>
-              <strong>Credits</strong>
-              <small>Convert RSC into mission power.</small>
+              <strong>ResearchHub</strong>
+              <small>Open the research funding hub.</small>
             </span>
           </button>
         </div>
         <button
           type="button"
-          onClick={onOpenFund}
+          onClick={onOpenTreasurySend}
           className="mt-4 w-full rounded-[8px] border border-cyan-300/24 bg-cyan-300/8 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-cyan-300/14"
         >
-          Open ResearchHub Fund
+          Open Treasury Wallet Route
         </button>
       </div>
     </HudPanel>
@@ -999,27 +990,46 @@ const StartScreen: React.FC<StartScreenProps> = ({
         )}
 
         {!isLoading && leaderboardView === 'pastPicks' && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {sortedPastPicks.slice(0, 8).map((winner) => (
               <button
                 key={`${winner.periodKey}-${winner.winnerName}`}
                 type="button"
                 onClick={() => winner.proposalUrl && onOpenProposal(winner.proposalUrl)}
-                className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[6px] border border-cyan-300/12 bg-white/[0.035] p-3 text-left transition hover:border-cyan-300/35 hover:bg-cyan-300/8"
+                className="grid w-full gap-3 rounded-[8px] border border-cyan-300/12 bg-white/[0.035] p-3 text-left transition hover:border-cyan-300/35 hover:bg-cyan-300/8 sm:grid-cols-[auto_1fr_auto] sm:items-center"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-[6px] border border-yellow-300/28 bg-yellow-300/10 text-yellow-100">
+                <div className="flex h-12 w-12 items-center justify-center rounded-[8px] border border-yellow-300/28 bg-yellow-300/10 text-yellow-100">
                   <Icon name="trophy" className="h-5 w-5" />
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-white">{winner.proposalTitle ?? 'Funding pick pending'}</p>
-                  <p className="truncate text-xs text-slate-400">{winner.periodLabel} by {winner.winnerName}</p>
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <p className="text-xs font-black uppercase tracking-wide text-yellow-200">{winner.periodLabel}</p>
+                    <span className="rounded-full border border-emerald-300/24 bg-emerald-300/10 px-2 py-0.5 text-[0.65rem] font-black uppercase text-emerald-100">
+                      Weekly high score
+                    </span>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:items-start">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase text-slate-400">Winner</p>
+                      <p className="truncate text-base font-black text-white">{winner.winnerName}</p>
+                      <p className="text-xs text-cyan-200">{formatNumber(winner.score)} pts{winner.wave ? ` - Wave ${winner.wave}` : ''}</p>
+                    </div>
+                    <div className="min-w-0 rounded-[6px] border border-cyan-300/12 bg-slate-950/38 p-3">
+                      <p className="text-xs font-bold uppercase text-slate-400">Allocated funding to</p>
+                      <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white">{winner.proposalTitle ?? 'Funding pick pending'}</p>
+                      {winner.proposalAuthor && <p className="mt-1 truncate text-xs uppercase text-cyan-200">{winner.proposalAuthor}</p>}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-right text-sm font-black text-white">{winner.allocationRsc ?? weeklyAllocation.allocationRsc} RSC</p>
+                <div className="justify-self-start rounded-[8px] border border-cyan-300/16 bg-cyan-300/8 px-3 py-2 text-left sm:justify-self-end sm:text-right">
+                  <p className="text-base font-black text-white">{winner.allocationRsc ?? weeklyAllocation.allocationRsc} RSC</p>
+                  <p className="text-[0.65rem] font-bold uppercase text-cyan-200">Funds directed</p>
+                </div>
               </button>
             ))}
             {sortedPastPicks.length === 0 && (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
-                Past weekly picks will appear here after winners are archived.
+                Past weekly picks will appear here after winners are archived, showing the weekly high-score pilot, their score, and the proposal they chose for the funding allocation.
               </div>
             )}
           </div>
@@ -1035,7 +1045,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div>
             <h2 className="text-2xl font-black text-white">More</h2>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300">
-              Scicon Shooter is a Base-native arcade game where high scores help direct weekly RSC funding credits toward ResearchHub proposals. The loop is simple: play the mission, climb the leaderboard, pick research you believe in, and make the win visible through trophies and post-game score mints.
+              Scicon Shooter is a Base-native arcade game where high scores help direct a weekly RSC allocation toward ResearchHub proposals. The loop is simple: play the mission, climb the leaderboard, pick research you believe in, and make the win visible through trophies and post-game score mints.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <StatusPill tone="cyan">Arcade funding</StatusPill>
@@ -1092,16 +1102,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 
   const MobileDashboardContent = () => {
-    if (dashboardTab === 'proposals') return <><DashboardNav /><ProposalsDashboard /></>;
-    if (dashboardTab === 'market') return <><DashboardNav /><MarketDashboard /></>;
-    if (dashboardTab === 'trophies') return <><DashboardNav /><TrophiesDashboard /></>;
-    if (dashboardTab === 'more') return <><DashboardNav /><AboutDashboard /></>;
+    if (dashboardTab === 'proposals') return <ProposalsDashboard />;
+    if (dashboardTab === 'market') return <MarketDashboard />;
+    if (dashboardTab === 'trophies') return <TrophiesDashboard />;
+    if (dashboardTab === 'more') return <AboutDashboard />;
 
     return (
       <>
         <WeeklyFundingCard />
         <HeroPanel compact />
-        <DashboardNav />
       </>
     );
   };
@@ -1136,16 +1145,17 @@ const StartScreen: React.FC<StartScreenProps> = ({
               </div>
             </div>
           ) : (
-            <div className="space-y-5">
-              <DashboardNav />
+            <div className="flex min-h-[calc(100svh-3rem)] flex-col gap-5">
               <SelectedDashboard />
+              <DashboardNav docked />
             </div>
           )}
         </main>
 
-        <main className="space-y-4 lg:hidden">
+        <main className="space-y-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:hidden">
           <MobileDashboardContent />
         </main>
+        <DashboardNav fixed />
       </div>
       {showFeedback && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">

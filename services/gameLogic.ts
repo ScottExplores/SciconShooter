@@ -6,6 +6,8 @@ import { audioService } from './audioService';
 
 // --- Helper Classes ---
 
+type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer';
+
 export class Entity {
   id: string;
   type: EntityType;
@@ -41,6 +43,9 @@ export class Entity {
   // Projectile Ownership
   isPlayerShot: boolean = false;
   variant: number = 0;
+  formation?: EnemyFormationMode;
+  formationIndex: number = 0;
+  formationSeed: number = 0;
   
   constructor(type: EntityType, x: number, y: number) {
     this.id = Math.random().toString(36).substr(2, 9);
@@ -231,6 +236,15 @@ const lerp = (current: number, target: number, amount: number) => current + ((ta
 
 const randomRange = (min: number, max: number) => min + Math.random() * (max - min);
 
+const easeOutCubic = (value: number) => 1 - Math.pow(1 - clamp(value, 0, 1), 3);
+
+const easeInOutCubic = (value: number) => {
+  const t = clamp(value, 0, 1);
+  return t < 0.5
+    ? 4 * t * t * t
+    : 1 - Math.pow(-2 * t + 2, 3) / 2;
+};
+
 const GAME_FEEL = {
   acceleration: 0.38,
   friction: 0.3,
@@ -246,6 +260,9 @@ const GAME_FEEL = {
   squashSpring: 0.2,
   squashDamping: 0.72
 };
+
+const BOMB_CHARGE_MAX = 58;
+const MAX_BOMBS = 3;
 
 type PlayerAfterimage = {
   x: number;
@@ -304,12 +321,23 @@ export class GameEngine {
   coinCombo: number = 0;
   coinComboTimer: number = 0;
   lastShotFrame: number = -999;
+  lastBombFrame: number = -999;
+  introFlightFrames: number = 0;
+  introFlightDuration: number = 150;
+  waveDepartureFrames: number = 0;
+  waveDepartureDuration: number = 168;
+  deathSequenceFrames: number = 0;
+  deathSequenceDuration: number = 88;
+  playerDrawScale: number = 1;
+  playerDrawAlpha: number = 1;
+  sectorTint: number = 0;
+  isBombResolving: boolean = false;
   
   constructor(stats: Stats) {
     this.stats = stats;
     this.player = new Entity(EntityType.PLAYER, 0, 0);
-    this.player.width = 100;
-    this.player.height = 100; 
+    this.player.width = 128;
+    this.player.height = 128;
     
     [
       ASSETS.PLAYER_SHIP,
@@ -412,7 +440,8 @@ export class GameEngine {
     const horizon = getReadyImage(ASSETS.GAME_BG_PLANET);
     if (horizon) {
       const planetHeight = Math.max(220, this.height * 0.3);
-      ctx.drawImage(horizon, 0, this.height - planetHeight, this.width, planetHeight);
+      const planetYOffset = Math.max(180, this.height * 0.2);
+      ctx.drawImage(horizon, 0, this.height - planetHeight + planetYOffset, this.width, planetHeight);
     }
     ctx.restore();
 
@@ -426,13 +455,210 @@ export class GameEngine {
     ctx.translate((this.width + 100) - planetDrift, 180 + Math.sin(this.frameCount * 0.015) * 12);
     this.drawSprite(ctx, ASSETS.GAME_PARALLAX_RING_PLANET, 90, 180, { alpha: 0.75 });
     ctx.restore();
+
+    const tintIndex = (this.wave - 1 + this.sectorTint) % 3;
+    if (tintIndex > 0) {
+      const colors = [
+        'rgba(34, 211, 238, 0)',
+        'rgba(79, 70, 229, 0.12)',
+        'rgba(16, 185, 129, 0.11)'
+      ];
+      ctx.save();
+      ctx.fillStyle = colors[tintIndex];
+      ctx.fillRect(0, 0, this.width, this.height);
+      ctx.restore();
+    }
+  }
+
+  getPlayerHomePosition() {
+    return {
+      x: this.width / 2 - this.player.width / 2,
+      y: this.height - this.player.height - (this.width < 520 ? 20 : 32)
+    };
+  }
+
+  setPlayerHomePosition() {
+    const home = this.getPlayerHomePosition();
+    this.player.x = home.x;
+    this.player.y = home.y;
+  }
+
+  spawnThrusterParticles(strength: number = 1) {
+    const baseX = this.player.x + this.player.width / 2;
+    const baseY = this.player.y + this.player.height * 0.82;
+    const spread = this.player.width * 0.14;
+    const count = Math.max(1, Math.round(2 * strength));
+
+    for (let i = 0; i < count; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const particle = new Particle(
+        baseX + (side * spread) + randomRange(-4, 4),
+        baseY + randomRange(4, 14),
+        i % 3 === 0 ? '#ffffff' : '#22d3ee',
+        randomRange(0.7, 2.4) * strength,
+        randomRange(2.5, 5.8),
+        randomRange(16, 32)
+      );
+      particle.vx *= 0.22;
+      particle.vy = Math.abs(particle.vy) + randomRange(2.4, 5.8) * strength;
+      this.entities.push(particle);
+    }
+  }
+
+  updatePassiveEntities() {
+    this.entities.forEach((entity) => {
+      if (entity.type === EntityType.PARTICLE) {
+        entity.x += entity.vx;
+        entity.y += entity.vy;
+        (entity as Particle).life--;
+        if ((entity as Particle).life <= 0) entity.markedForDeletion = true;
+      }
+
+      if (entity.type === EntityType.EFFECT) {
+        entity.x += entity.vx;
+        entity.y += entity.vy;
+        (entity as VisualEffect).life--;
+        if ((entity as VisualEffect).life <= 0) entity.markedForDeletion = true;
+      }
+    });
+
+    this.entities = this.entities.filter((entity) => !entity.markedForDeletion);
+  }
+
+  updateIntroFlight() {
+    if (this.introFlightFrames <= 0) return;
+
+    const age = this.introFlightDuration - this.introFlightFrames;
+    const progress = clamp(age / this.introFlightDuration, 0, 1);
+    const home = this.getPlayerHomePosition();
+    const centerX = this.width / 2;
+    const launchY = this.height + this.player.height * 0.75;
+    const hoverY = Math.max(this.height * 0.45, home.y - this.player.height * 1.15);
+    const stageOne = progress < 0.56;
+
+    if (stageOne) {
+      const t = easeOutCubic(progress / 0.56);
+      this.player.x = centerX - this.player.width / 2;
+      this.player.y = launchY + ((hoverY - launchY) * t);
+      this.playerDrawScale = 1.62 - (0.18 * t);
+      this.playerTilt = Math.sin(this.frameCount * 0.08) * 0.06;
+      this.spawnThrusterParticles(1.9);
+    } else {
+      const t = easeInOutCubic((progress - 0.56) / 0.44);
+      this.player.x = centerX - this.player.width / 2;
+      this.player.y = hoverY + ((home.y - hoverY) * t);
+      this.playerDrawScale = 1.44 + ((1 - 1.44) * t);
+      this.playerTilt = lerp(this.playerTilt, 0, 0.08);
+      this.spawnThrusterParticles(1.25);
+    }
+
+    this.playerDrawAlpha = clamp(progress / 0.08, 0, 1);
+    this.introFlightFrames--;
+
+    if (this.introFlightFrames <= 0) {
+      this.setPlayerHomePosition();
+      this.playerDrawScale = 1;
+      this.playerDrawAlpha = 1;
+      this.playerTilt = 0;
+      this.playerVel = { x: 0, y: 0 };
+    }
+  }
+
+  updateWaveDeparture() {
+    if (this.waveDepartureFrames <= 0) return;
+
+    const age = this.waveDepartureDuration - this.waveDepartureFrames;
+    const progress = clamp(age / this.waveDepartureDuration, 0, 1);
+    const hold = progress < 0.32;
+
+    if (hold) {
+      this.addShake(0.2);
+      this.spawnThrusterParticles(0.85);
+    } else {
+      const t = easeInOutCubic((progress - 0.32) / 0.68);
+      const centerX = this.width / 2 + Math.sin(t * Math.PI) * this.width * 0.08;
+      const startY = this.getPlayerHomePosition().y;
+      const endY = -this.player.height * 1.6;
+      this.player.x = centerX - this.player.width / 2;
+      this.player.y = startY + ((endY - startY) * t);
+      this.playerDrawScale = 1 + (0.48 * t);
+      this.playerTilt = Math.sin(t * Math.PI) * 0.18;
+      this.spawnThrusterParticles(2.15);
+    }
+
+    this.waveDepartureFrames--;
+
+    if (this.waveDepartureFrames <= 0) {
+      this.startNextWave();
+    }
+  }
+
+  startDeathSequence() {
+    if (this.deathSequenceFrames > 0 || !this.gameActive) return;
+
+    this.deathSequenceFrames = this.deathSequenceDuration;
+    this.invincibleTimer = 999;
+    this.flashAlpha = Math.max(this.flashAlpha, 0.72);
+    this.addShake(14);
+    this.addHitStop(14);
+    audioService.playSound('gameover');
+    this.spawnFloatingText(this.width / 2, this.height * 0.42, 'MISSION LOST', '#fb7185', 24);
+  }
+
+  updateDeathSequence() {
+    if (this.deathSequenceFrames <= 0) return;
+
+    const progress = 1 - (this.deathSequenceFrames / this.deathSequenceDuration);
+    this.playerDrawAlpha = Math.max(0, 1 - progress * 1.4);
+    this.playerDrawScale = 1 + (progress * 0.42);
+    this.addShake(0.55 + progress * 0.85);
+    if (this.frameCount % 5 === 0) {
+      this.spawnBurst(
+        this.player.x + this.player.width / 2 + randomRange(-18, 18),
+        this.player.y + this.player.height / 2 + randomRange(-18, 18),
+        progress < 0.5 ? '#67e8f9' : '#fb7185',
+        4,
+        3.4,
+        4
+      );
+    }
+
+    this.deathSequenceFrames--;
+
+    if (this.deathSequenceFrames <= 0) {
+      this.gameActive = false;
+    }
+  }
+
+  continueRun(lives: number = GAME_CONFIG.PLAYER_LIVES) {
+    this.gameActive = true;
+    this.deathSequenceFrames = 0;
+    this.waveDepartureFrames = 0;
+    this.introFlightFrames = 0;
+    this.lives = lives;
+    this.stats.lives = lives;
+    this.invincibleTimer = 180;
+    this.setPlayerHomePosition();
+    this.playerVel = { x: 0, y: 0 };
+    this.playerTilt = 0;
+    this.playerSquash = -0.12;
+    this.playerSquashVelocity = 0;
+    this.playerDrawAlpha = 1;
+    this.playerDrawScale = 1;
+    this.entities = this.entities.filter((entity) => (
+      entity.type === EntityType.PARTICLE || entity.type === EntityType.EFFECT
+    ));
+    this.flashAlpha = Math.max(this.flashAlpha, 0.35);
+    this.addShake(2.6);
+    this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#67e8f9');
+    this.spawnFloatingText(this.width / 2, this.height * 0.42, 'CONTINUE', '#67e8f9', 24);
+    audioService.playSound('launch');
   }
 
   init(width: number, height: number) {
     this.width = width;
     this.height = height;
-    this.player.x = width / 2 - 50;
-    this.player.y = height - 150;
+    this.setPlayerHomePosition();
     this.entities = [];
     this.bgEntities = [];
     this.stars = [];
@@ -451,6 +677,9 @@ export class GameEngine {
     this.stats.score = 0;
     this.stats.coins = 0;
     this.stats.totalCoins = 0;
+    this.stats.bombs = 2;
+    this.stats.bombCharge = 0;
+    this.stats.bombChargeMax = BOMB_CHARGE_MAX;
     this.stats.wave = 1;
     this.resetWaveProgress();
     this.spawnFloatingText(this.width/2, this.height/2, "WAVE 1", "#FFF");
@@ -472,9 +701,18 @@ export class GameEngine {
     this.coinCombo = 0;
     this.coinComboTimer = 0;
     this.lastShotFrame = -999;
+    this.lastBombFrame = -999;
+    this.introFlightDuration = 150;
+    this.introFlightFrames = this.introFlightDuration;
+    this.waveDepartureFrames = 0;
+    this.deathSequenceFrames = 0;
+    this.playerDrawScale = 1.55;
+    this.playerDrawAlpha = 0;
+    this.sectorTint = 0;
     
     // START MUSIC
     audioService.startMusic();
+    audioService.playSound('launch');
   }
   
   resetWaveProgress() {
@@ -514,7 +752,12 @@ export class GameEngine {
     this.resetWaveProgress();
     this.entities = this.entities.filter(e => e.type === EntityType.PLAYER || e.type === EntityType.PARTICLE || e.type === EntityType.POWERUP || e.type === EntityType.COIN);
     this.spawnFloatingText(this.width/2, this.height/2, `WAVE ${this.wave}`, "#FFF");
-    audioService.playSound('powerup');
+    this.introFlightDuration = 118;
+    this.introFlightFrames = this.introFlightDuration;
+    this.playerDrawScale = 1.46;
+    this.playerDrawAlpha = 0;
+    this.sectorTint = (this.sectorTint + 1) % 3;
+    audioService.playSound('wave');
   }
 
   resize(width: number, height: number) {
@@ -710,13 +953,44 @@ export class GameEngine {
     )).length;
   }
 
-  update() {
+  update(cinematicPause: boolean = false) {
     if (!this.gameActive) return;
     this.frameCount++;
     this.stats.lives = this.lives;
     this.updateJuiceSystems();
+    this.stars.forEach(star => star.update(this.width, this.height));
+    this.bgEntities.forEach(bg => bg.update(this.height));
+
     if (this.hitStopFrames > 0) {
       this.hitStopFrames--;
+      this.updatePassiveEntities();
+      return;
+    }
+
+    if (this.deathSequenceFrames > 0) {
+      this.updateDeathSequence();
+      this.updatePassiveEntities();
+      this.bgY = (this.bgY + 1) % this.height;
+      return;
+    }
+
+    if (this.waveDepartureFrames > 0) {
+      this.updateWaveDeparture();
+      this.updatePassiveEntities();
+      this.bgY = (this.bgY + 1) % this.height;
+      return;
+    }
+
+    if (this.introFlightFrames > 0) {
+      this.updateIntroFlight();
+      this.updatePassiveEntities();
+      this.bgY = (this.bgY + 1) % this.height;
+      return;
+    }
+
+    if (cinematicPause) {
+      this.updatePassiveEntities();
+      this.bgY = (this.bgY + 1) % this.height;
       return;
     }
     
@@ -801,9 +1075,6 @@ export class GameEngine {
         }
     }
 
-    this.stars.forEach(star => star.update(this.width, this.height));
-    this.bgEntities.forEach(bg => bg.update(this.height));
-
     const speed = GAME_CONFIG.BASE_PLAYER_SPEED + (this.stats.upgrades.speed * 1.5);
     this.updatePlayerMovement(speed);
 
@@ -821,7 +1092,7 @@ export class GameEngine {
     if ((this.keys[' '] || this.touchPos || this.keys['Enter']) && this.frameCount % fireInterval === 0) {
       this.fireBullet();
     }
-    
+
     // Missile Logic
     if (this.stats.upgrades.missile > 0) {
         this.missileTimer--;
@@ -911,9 +1182,25 @@ export class GameEngine {
 
       if (e.type === EntityType.ENEMY_DRONE || e.type === EntityType.ENEMY_JOURNAL || e.type === EntityType.ENEMY_SWARM || e.type === EntityType.ENEMY_BRICK) {
         if (e.type === EntityType.ENEMY_SWARM) {
-          const dx = this.player.x - e.x;
-          e.vx += dx * 0.002;
-          e.vx *= 0.95; 
+          const playerCenterX = this.player.x + this.player.width / 2;
+          const enemyCenterX = e.x + e.width / 2;
+          const dx = playerCenterX - enemyCenterX;
+          const waveMotion = Math.sin((this.frameCount * 0.055) + e.formationSeed) * (e.formation === 'sine' ? 2.4 : 1.1);
+
+          if (e.formation === 'pincer') {
+            e.vx += dx * 0.0009;
+            e.x += waveMotion * 0.55;
+          } else if (e.formation === 'v') {
+            e.vx += dx * 0.0012;
+            e.x += Math.sin((this.frameCount * 0.045) + e.formationIndex) * 0.8;
+          } else if (e.formation === 'row') {
+            e.x += Math.sin((this.frameCount * 0.05) + e.formationSeed) * 1.1;
+          } else {
+            e.vx += dx * 0.0015;
+            e.x += waveMotion;
+          }
+
+          e.vx *= 0.94;
         }
         if (e.type === EntityType.ENEMY_BRICK && e.variant >= 900) {
           e.x += Math.sin((this.frameCount + e.variant) * 0.025) * (0.55 + (this.wave * 0.12));
@@ -979,9 +1266,9 @@ export class GameEngine {
     const bulletColor = isMaxFire ? '#00FFFF' : '#6c63ff'; // Cyan glow for max
 
     const spawnBullet = (vx: number, vy: number, offsetX: number = 0) => {
-      const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - 5 + offsetX, this.player.y);
-      b.width = 12;
-      b.height = 12;
+      const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - 5 + offsetX, this.player.y + this.player.height * 0.12);
+      b.width = 10;
+      b.height = 28;
       b.vx = vx;
       b.vy = vy;
       b.color = bulletColor;
@@ -1025,7 +1312,72 @@ export class GameEngine {
       
       m.isPlayerShot = true; // Mark as player shot
       this.entities.push(m);
-      audioService.playSound('shoot'); // Ideally a missile sound
+      audioService.playSound('missile');
+  }
+
+  getBombChargeGain(target: Entity) {
+    if (target.type === EntityType.BOSS) return 15;
+    if (target.type === EntityType.MINI_BOSS) return 8;
+    if (target.type === EntityType.ENEMY_BRICK || target.type === EntityType.ENEMY_INVADER || target.type === EntityType.ENEMY_JOURNAL) return 2;
+    return 1;
+  }
+
+  addBombCharge(amount: number) {
+    if (amount <= 0) return;
+
+    const currentMax = this.stats.bombChargeMax || BOMB_CHARGE_MAX;
+    let nextCharge = (this.stats.bombCharge || 0) + amount;
+
+    while (nextCharge >= currentMax && (this.stats.bombs || 0) < MAX_BOMBS) {
+      nextCharge -= currentMax;
+      this.stats.bombs = Math.min(MAX_BOMBS, (this.stats.bombs || 0) + 1);
+      this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 10, 'BOMB READY', '#facc15', 18);
+      this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#facc15');
+      audioService.playSound('powerup');
+    }
+
+    this.stats.bombCharge = (this.stats.bombs || 0) >= MAX_BOMBS
+      ? Math.min(currentMax, nextCharge)
+      : Math.max(0, Math.min(currentMax - 1, nextCharge));
+  }
+
+  triggerBomb() {
+    if ((this.stats.bombs || 0) <= 0 || !this.gameActive || this.introFlightFrames > 0 || this.deathSequenceFrames > 0 || this.waveDepartureFrames > 0) {
+      return false;
+    }
+
+    this.lastBombFrame = this.frameCount;
+    this.stats.bombs = Math.max(0, (this.stats.bombs || 0) - 1);
+    const cx = this.player.x + this.player.width / 2;
+    const cy = this.player.y + this.player.height / 2;
+    this.flashAlpha = Math.max(this.flashAlpha, 0.36);
+    this.addShake(11);
+    this.addHitStop(8);
+    this.spawnRingEffect(cx, cy, '#facc15');
+    this.spawnFloatingText(cx, cy - 48, 'RSC BLAST', '#facc15', 22);
+    this.spawnBurst(cx, cy, '#facc15', 30, 8, 6);
+    audioService.playSound('bomb');
+
+    const targets = this.entities.filter((entity) => !entity.markedForDeletion && this.isEnemyTarget(entity));
+    this.isBombResolving = true;
+    targets.forEach((target) => {
+      const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS || target.type === EntityType.ENEMY_INVADER;
+      target.hp -= isBossTarget ? 38 : 999;
+      this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#fef08a', isBossTarget ? 8 : 5, 4.5, 4);
+
+      if (target.hp <= 0) {
+        this.handleEnemyDestroyed(target);
+      }
+    });
+    this.isBombResolving = false;
+
+    this.entities
+      .filter((entity) => entity.type === EntityType.PROJECTILE && !entity.isPlayerShot)
+      .forEach((entity) => {
+        entity.markedForDeletion = true;
+      });
+
+    return true;
   }
 
   isEnemyTarget(entity: Entity) {
@@ -1044,6 +1396,9 @@ export class GameEngine {
     target.markedForDeletion = true;
     this.spawnExplosion(target.x, target.y, target.color);
     this.stats.enemiesDefeated++;
+    if (!this.isBombResolving) {
+      this.addBombCharge(this.getBombChargeGain(target));
+    }
     const waveMult = Math.pow(2, this.stats.wave - 1);
     let basePoints = 10;
     if (target.type === EntityType.ENEMY_DRONE) basePoints = 10;
@@ -1094,7 +1449,6 @@ export class GameEngine {
       this.flashAlpha = Math.max(this.flashAlpha, 0.26);
       this.addHitStop(12);
       this.addShake(6.5);
-      const completedWave = this.wave;
       this.bossRef = null;
       this.mainBossDefeated = true;
       this.waveTransitionPending = true;
@@ -1116,16 +1470,7 @@ export class GameEngine {
       audioService.playSound('electricity');
 
       this.spawnFloatingText(this.width / 2, this.height / 2, "WAVE COMPLETE!", "#00FF00");
-      setTimeout(() => {
-        if (
-          this.gameActive
-          && this.waveTransitionPending
-          && this.mainBossDefeated
-          && this.wave === completedWave
-        ) {
-          this.startNextWave();
-        }
-      }, 2000);
+      this.waveDepartureFrames = this.waveDepartureDuration;
     }
   }
 
@@ -1174,6 +1519,11 @@ export class GameEngine {
         this.spawnPowerup(Math.random() * (this.width - 40), -40);
     }
 
+    const formationRate = this.wave === 1 ? 420 : Math.max(240, 360 - this.wave * 24);
+    if (this.waveProgressFrames > 180 && this.frameCount % formationRate === 0) {
+      this.spawnSwarmFormation();
+    }
+
     const currentRate = this.wave === 1
       ? GAME_CONFIG.BASE_SPAWN_RATE + 10
       : Math.max(22, GAME_CONFIG.BASE_SPAWN_RATE - ((this.wave - 1) * 12));
@@ -1207,6 +1557,35 @@ export class GameEngine {
 
       this.createEnemy(enemyType, x, -50);
     }
+  }
+
+  spawnSwarmFormation() {
+    const modes: EnemyFormationMode[] = ['row', 'v', 'sine', 'pincer'];
+    const mode = modes[(this.wave + Math.floor(this.frameCount / 120)) % modes.length];
+    const isMobile = this.width < 520;
+    const count = Math.min(isMobile ? 7 : 11, 5 + this.wave + Math.floor(this.stats.bossProgress * 4));
+    const gap = isMobile ? 44 : 56;
+    const centerX = this.width / 2;
+    const startX = centerX - ((count - 1) * gap) / 2;
+    const seed = Math.random() * 1000;
+
+    for (let i = 0; i < count; i++) {
+      const offset = i - ((count - 1) / 2);
+      const x = mode === 'pincer'
+        ? (i % 2 === 0 ? -40 : this.width + 40)
+        : clamp(startX + i * gap, 12, this.width - 46);
+      const y = -70 - Math.abs(offset) * (mode === 'v' ? 24 : 7) - (i % 2) * 10;
+      const enemy = this.createEnemy(EntityType.ENEMY_SWARM, x, y);
+      enemy.formation = mode;
+      enemy.formationIndex = i;
+      enemy.formationSeed = seed + i * 19;
+      enemy.vy = mode === 'row' ? 2.7 + this.wave * 0.18 : 3.0 + this.wave * 0.2;
+      enemy.vx = mode === 'pincer'
+        ? (i % 2 === 0 ? 1.9 : -1.9)
+        : Math.sin(i * 0.9) * 0.55;
+    }
+
+    this.spawnFloatingText(centerX, Math.max(90, this.height * 0.18), 'SWARM!', '#34d399', this.width < 520 ? 18 : 22);
   }
 
   createEnemy(type: EntityType, x: number, y: number) {
@@ -1248,6 +1627,7 @@ export class GameEngine {
 
     e.maxHp = e.hp;
     this.entities.push(e);
+    return e;
   }
 
   spawnMiniBoss(num: number) {
@@ -1758,7 +2138,7 @@ export class GameEngine {
           this.playerVel.y += 2.4;
           // Only delete bullet if it isn't a beam
           if (e.type === EntityType.PROJECTILE && !e.isBeam) e.markedForDeletion = true;
-          if (this.lives <= 0) this.gameActive = false;
+          if (this.lives <= 0) this.startDeathSequence();
         }
       }
 
@@ -1812,7 +2192,7 @@ export class GameEngine {
         role: 'Funding Signal',
         image: ASSETS.FOUNDER_PATRICK,
         color: '#fde68a',
-        text: 'Main boss incoming. If you have credits, stack a founder powerup before the gate closes.'
+        text: 'Main boss incoming. Dock at the lab now if you want one more ship tune-up before the gate closes.'
       },
       {
         speaker: 'Arshia',
@@ -2029,7 +2409,7 @@ export class GameEngine {
     this.entities.forEach(e => this.drawEntity(ctx, e));
     this.drawPlayerAfterimages(ctx);
     this.drawResearchBeam(ctx);
-    if (this.lives > 0) this.drawEntity(ctx, this.player);
+    if (this.lives > 0 || this.deathSequenceFrames > 0) this.drawEntity(ctx, this.player);
     
     const invaders = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER);
     if (invaders.length > 0) {
@@ -2248,6 +2628,58 @@ export class GameEngine {
       ctx.restore();
   }
 
+  drawPlayerThrusters(ctx: CanvasRenderingContext2D, e: Entity) {
+      const speed = Math.hypot(this.playerVel.x, this.playerVel.y);
+      const cinematicBoost = this.introFlightFrames > 0 || this.waveDepartureFrames > 0 ? 1.8 : 1;
+      const deathFade = this.deathSequenceFrames > 0 ? 1 - (this.deathSequenceFrames / this.deathSequenceDuration) : 0;
+      const boost = Math.max(cinematicBoost, 0.72 + Math.min(0.9, speed / 6)) * (1 - deathFade * 0.7);
+      const flameLength = e.height * (0.24 + boost * 0.16) * (0.78 + Math.sin(this.frameCount * 0.55) * 0.18);
+      const flameWidth = e.width * 0.075;
+      const nozzleY = e.height * 0.28;
+      const nozzleSpread = e.width * 0.16;
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      [-1, 1].forEach((side) => {
+        const x = side * nozzleSpread;
+        const gradient = ctx.createLinearGradient(x, nozzleY, x, nozzleY + flameLength);
+        gradient.addColorStop(0, 'rgba(255,255,255,0.95)');
+        gradient.addColorStop(0.24, 'rgba(103,232,249,0.9)');
+        gradient.addColorStop(0.62, 'rgba(37,99,235,0.62)');
+        gradient.addColorStop(1, 'rgba(34,211,238,0)');
+
+        ctx.shadowBlur = 24 * boost;
+        ctx.shadowColor = '#22d3ee';
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(x - flameWidth, nozzleY);
+        ctx.lineTo(x + flameWidth, nozzleY);
+        ctx.lineTo(x + flameWidth * 0.35, nozzleY + flameLength);
+        ctx.lineTo(x - flameWidth * 0.35, nozzleY + flameLength);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.86)';
+        ctx.beginPath();
+        ctx.arc(x, nozzleY + flameLength * 0.72, Math.max(2, flameWidth * 0.33), 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      if (cinematicBoost > 1.1) {
+        ctx.strokeStyle = 'rgba(103,232,249,0.34)';
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 4; i++) {
+          const x = (i - 1.5) * e.width * 0.12;
+          ctx.beginPath();
+          ctx.moveTo(x, nozzleY + 4);
+          ctx.lineTo(x * 0.36, nozzleY + flameLength + 44 + (i % 2) * 22);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+  }
+
   drawEntity(ctx: CanvasRenderingContext2D, e: Entity) {
     if (e.isBeam) {
         this.drawLaser(ctx, e);
@@ -2260,8 +2692,11 @@ export class GameEngine {
     if (e.type === EntityType.PLAYER) {
        const img = imageCache[ASSETS.PLAYER_SHIP];
        const squash = clamp(this.playerSquash, -0.24, 0.24);
+       ctx.globalAlpha = this.playerDrawAlpha;
+       ctx.scale(this.playerDrawScale, this.playerDrawScale);
        ctx.rotate(this.playerTilt);
        ctx.scale(1 + squash * 0.78, 1 - squash * 0.58);
+       this.drawPlayerThrusters(ctx, e);
 
        if (this.activePowerups.has(PowerupType.MAGNET)) {
            const pulse = Math.sin(this.frameCount * 0.1) * 5;
@@ -2324,11 +2759,6 @@ export class GameEngine {
        }
        if (img && img.complete && img.naturalWidth > 0) {
           ctx.save();
-          ctx.shadowBlur = 12;
-          ctx.shadowColor = '#67e8f9';
-          ctx.drawImage(img, -e.width / 2, -e.height / 2, e.width, e.height);
-          ctx.shadowBlur = 0;
-          ctx.drawImage(img, -e.width / 2, -e.height / 2, e.width, e.height);
           ctx.drawImage(img, -e.width / 2, -e.height / 2, e.width, e.height);
           ctx.restore();
        } else {
@@ -2555,28 +2985,48 @@ export class GameEngine {
         ctx.restore();
 
     } else if (e.type === EntityType.PROJECTILE) {
-        // FORCE OPAQUE FOR PROJECTILES
         ctx.save();
         ctx.globalAlpha = 1.0; 
         ctx.filter = "none";
-        
-        // Add glow if cyan (max level)
-        if (e.color === '#00FFFF') {
-             ctx.shadowBlur = 10;
-             ctx.shadowColor = '#00FFFF';
-        } else {
-             ctx.shadowBlur = 0;
-        }
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.shadowBlur = e.isPlayerShot ? 18 : 12;
+        ctx.shadowColor = e.color || (e.isPlayerShot ? '#67e8f9' : '#fb7185');
 
         if (e.text) { 
            ctx.font = '24px serif';
            ctx.textAlign = 'center';
            ctx.textBaseline = 'middle';
            ctx.fillText(e.text, 0, 0);
+        } else if (e.isPlayerShot) {
+            const bolt = ctx.createLinearGradient(0, -e.height / 2, 0, e.height / 2);
+            bolt.addColorStop(0, 'rgba(255,255,255,0)');
+            bolt.addColorStop(0.18, '#ffffff');
+            bolt.addColorStop(0.45, e.color);
+            bolt.addColorStop(1, 'rgba(34,211,238,0)');
+            ctx.fillStyle = bolt;
+            ctx.beginPath();
+            ctx.moveTo(0, -e.height * 0.62);
+            ctx.lineTo(e.width * 0.54, -e.height * 0.06);
+            ctx.lineTo(e.width * 0.2, e.height * 0.58);
+            ctx.lineTo(-e.width * 0.2, e.height * 0.58);
+            ctx.lineTo(-e.width * 0.54, -e.height * 0.06);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.72)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, -e.height * 0.58);
+            ctx.lineTo(0, e.height * 0.42);
+            ctx.stroke();
         } else {
             ctx.fillStyle = e.color;
             ctx.beginPath();
-            ctx.arc(0, 0, e.width/2, 0, Math.PI * 2);
+            ctx.arc(0, 0, e.width / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.72)';
+            ctx.beginPath();
+            ctx.arc(-e.width * 0.12, -e.height * 0.12, Math.max(1.5, e.width * 0.16), 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.restore();

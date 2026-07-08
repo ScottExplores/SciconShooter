@@ -152,6 +152,7 @@ export const saveScore = async (
   score: number,
   wave: number,
   options: {
+    date?: string;
     walletAddress?: string | null;
     donated?: boolean;
     proposalId?: string;
@@ -164,7 +165,7 @@ export const saveScore = async (
     name: name.trim().substring(0, 15).toUpperCase(),
     score: Math.max(0, Math.floor(score)),
     wave: Math.max(1, Math.floor(wave)),
-    date: new Date().toISOString(),
+    date: options.date || new Date().toISOString(),
     walletAddress: options.walletAddress ? options.walletAddress.toLowerCase() : undefined,
     donated: Boolean(options.donated),
     proposalId: sanitizeText(options.proposalId, 80),
