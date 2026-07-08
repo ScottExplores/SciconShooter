@@ -16,7 +16,7 @@ import WalletButton from './components/WalletButton';
 import StoryTransmission from './components/StoryTransmission';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
-import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeCost, getFieldUpgradeLevel } from './constants';
+import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeLevel } from './constants';
 import { getLeaderboardData, saveScore } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
@@ -421,11 +421,10 @@ const App: React.FC = () => {
     const flaskReady = (stats.bombCharge || 0) >= bombChargeMax;
     const config = FIELD_UPGRADE_CONFIG[type];
     const level = getFieldUpgradeLevel(stats, type);
-    const cost = getFieldUpgradeCost(stats, type);
     const isLifeUpgrade = type === 'extraLife';
     const isAtCap = isLifeUpgrade ? stats.lives >= GAME_CONFIG.MAX_LIVES : level >= config.maxLevel;
 
-    if (!flaskReady || isAtCap || stats.coins < cost) {
+    if (!flaskReady || isAtCap) {
       return;
     }
 
@@ -435,7 +434,6 @@ const App: React.FC = () => {
       if (type === 'extraLife') {
         return {
           ...prev,
-          coins: Math.max(0, prev.coins - cost),
           bombCharge: 0,
           lives: Math.min(GAME_CONFIG.MAX_LIVES, prev.lives + 1),
           repairsCount: (prev.repairsCount || 0) + 1
@@ -444,7 +442,6 @@ const App: React.FC = () => {
 
       return {
         ...prev,
-        coins: Math.max(0, prev.coins - cost),
         bombCharge: 0,
         upgrades: {
           ...prev.upgrades,

@@ -263,7 +263,7 @@ const GAME_FEEL = {
 
 const BOMB_CHARGE_MAX = 58;
 const MAX_BOMBS = 5;
-const FLASK_CHARGE_PER_COIN = 1;
+const FLASK_CHARGE_PER_COIN = 1.25;
 const BASE_COIN_MAGNET_RADIUS = 150;
 const POWERUP_COIN_MAGNET_RADIUS = 420;
 const BOMB_DROP_CHANCE = 0.045;
@@ -1543,8 +1543,8 @@ export class GameEngine {
         this.spawnPowerup(Math.random() * (this.width - 40), -40);
     }
 
-    const formationRate = this.wave === 1 ? 420 : Math.max(240, 360 - this.wave * 24);
-    if (this.waveProgressFrames > 180 && this.frameCount % formationRate === 0) {
+    const formationRate = this.wave === 1 ? 300 : Math.max(150, 300 - this.wave * 28);
+    if (this.waveProgressFrames > 120 && this.frameCount % formationRate === 0) {
       this.spawnSwarmFormation();
     }
 
@@ -1587,11 +1587,13 @@ export class GameEngine {
     const modes: EnemyFormationMode[] = ['row', 'v', 'sine', 'pincer'];
     const mode = modes[(this.wave + Math.floor(this.frameCount / 120)) % modes.length];
     const isMobile = this.width < 520;
-    const count = Math.min(isMobile ? 7 : 11, 5 + this.wave + Math.floor(this.stats.bossProgress * 4));
-    const gap = isMobile ? 44 : 56;
+    const count = Math.min(isMobile ? 9 : 14, 6 + this.wave + Math.floor(this.stats.bossProgress * 6));
+    const gap = isMobile ? 42 : 54;
     const centerX = this.width / 2;
     const startX = centerX - ((count - 1) * gap) / 2;
     const seed = Math.random() * 1000;
+    const eliteAllowed = this.wave > 1 || this.stats.bossProgress > 0.42;
+    const centerIndex = Math.floor(count / 2);
 
     for (let i = 0; i < count; i++) {
       const offset = i - ((count - 1) / 2);
@@ -1599,17 +1601,40 @@ export class GameEngine {
         ? (i % 2 === 0 ? -40 : this.width + 40)
         : clamp(startX + i * gap, 12, this.width - 46);
       const y = -70 - Math.abs(offset) * (mode === 'v' ? 24 : 7) - (i % 2) * 10;
-      const enemy = this.createEnemy(EntityType.ENEMY_SWARM, x, y);
+      let enemyType = EntityType.ENEMY_SWARM;
+
+      if (mode === 'row') {
+        enemyType = i % 3 === 1 ? EntityType.ENEMY_DRONE : EntityType.ENEMY_SWARM;
+      } else if (mode === 'v') {
+        enemyType = eliteAllowed && i === centerIndex
+          ? EntityType.ENEMY_BRICK
+          : (i % 2 === 0 ? EntityType.ENEMY_SWARM : EntityType.ENEMY_DRONE);
+      } else if (mode === 'sine') {
+        enemyType = eliteAllowed && i % 4 === 0 ? EntityType.ENEMY_JOURNAL : EntityType.ENEMY_SWARM;
+      } else if (mode === 'pincer') {
+        enemyType = eliteAllowed && i % 5 === 0
+          ? EntityType.ENEMY_BRICK
+          : (i % 3 === 0 ? EntityType.ENEMY_DRONE : EntityType.ENEMY_SWARM);
+      }
+
+      const enemy = this.createEnemy(enemyType, x, y);
       enemy.formation = mode;
       enemy.formationIndex = i;
       enemy.formationSeed = seed + i * 19;
-      enemy.vy = mode === 'row' ? 2.7 + this.wave * 0.18 : 3.0 + this.wave * 0.2;
+      const isHeavy = enemy.type === EntityType.ENEMY_BRICK || enemy.type === EntityType.ENEMY_JOURNAL;
+      enemy.vy = (mode === 'row' ? 2.8 + this.wave * 0.18 : 3.1 + this.wave * 0.2) * (isHeavy ? 0.76 : 1);
       enemy.vx = mode === 'pincer'
-        ? (i % 2 === 0 ? 1.9 : -1.9)
+        ? (i % 2 === 0 ? 2.1 : -2.1)
         : Math.sin(i * 0.9) * 0.55;
     }
 
-    this.spawnFloatingText(centerX, Math.max(90, this.height * 0.18), 'SWARM!', '#34d399', this.width < 520 ? 18 : 22);
+    const labels: Record<EnemyFormationMode, string> = {
+      row: 'LINE SWARM!',
+      v: 'V-SWARM!',
+      sine: 'WAVE SWARM!',
+      pincer: 'PINCER!'
+    };
+    this.spawnFloatingText(centerX, Math.max(90, this.height * 0.18), labels[mode], '#34d399', this.width < 520 ? 18 : 22);
   }
 
   createEnemy(type: EntityType, x: number, y: number) {

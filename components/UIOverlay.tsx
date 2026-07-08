@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FieldUpgradeType, Stats, GameState } from '../types';
 import { audioService } from '../services/audioService';
-import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeCost, getFieldUpgradeLevel } from '../constants';
+import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeLevel } from '../constants';
 
 interface UIOverlayProps {
   stats: Stats;
@@ -139,6 +139,40 @@ const fieldUpgradeIcons: Record<FieldUpgradeType, HudIconName> = {
   extraLife: 'plus'
 };
 
+const fieldUpgradeColors: Record<FieldUpgradeType, {
+  active: string;
+  idle: string;
+  iconActive: string;
+  iconIdle: string;
+  meter: string;
+  glow: string;
+}> = {
+  fireRate: {
+    active: 'border-yellow-200/80 bg-yellow-300/18 text-yellow-50 shadow-[0_0_30px_rgba(250,204,21,0.18)]',
+    idle: 'border-yellow-100/14 bg-slate-950/42 text-yellow-100/55',
+    iconActive: 'border-yellow-100/60 bg-yellow-300/24 text-yellow-100',
+    iconIdle: 'border-white/10 bg-white/[0.04] text-yellow-100/55',
+    meter: 'bg-yellow-300',
+    glow: 'bg-[radial-gradient(circle_at_50%_0%,rgba(250,204,21,0.26),transparent_60%)]'
+  },
+  speed: {
+    active: 'border-cyan-200/80 bg-cyan-300/18 text-cyan-50 shadow-[0_0_30px_rgba(34,211,238,0.18)]',
+    idle: 'border-cyan-100/14 bg-slate-950/42 text-cyan-100/55',
+    iconActive: 'border-cyan-100/60 bg-cyan-300/24 text-cyan-100',
+    iconIdle: 'border-white/10 bg-white/[0.04] text-cyan-100/55',
+    meter: 'bg-cyan-300',
+    glow: 'bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.26),transparent_60%)]'
+  },
+  extraLife: {
+    active: 'border-rose-200/80 bg-rose-300/18 text-rose-50 shadow-[0_0_30px_rgba(251,113,133,0.18)]',
+    idle: 'border-rose-100/14 bg-slate-950/42 text-rose-100/55',
+    iconActive: 'border-rose-100/60 bg-rose-300/24 text-rose-100',
+    iconIdle: 'border-white/10 bg-white/[0.04] text-rose-100/55',
+    meter: 'bg-rose-300',
+    glow: 'bg-[radial-gradient(circle_at_50%_0%,rgba(251,113,133,0.26),transparent_60%)]'
+  }
+};
+
 const UIOverlay: React.FC<UIOverlayProps> = ({
   stats,
   setGameState,
@@ -264,7 +298,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         </div>
       )}
 
-      <div className="pointer-events-auto absolute right-2 top-[30%] z-20 flex w-[4.85rem] -translate-y-1/2 flex-col gap-2 sm:right-4 sm:top-1/2 sm:w-24">
+      <div className="pointer-events-auto absolute bottom-4 right-2 z-20 flex w-[4.85rem] flex-col gap-2 sm:bottom-6 sm:right-4 sm:w-24">
         <div className={`relative rounded-[10px] border px-2 py-1.5 text-center shadow-[0_12px_32px_rgba(0,0,0,0.3)] backdrop-blur-md ${
           flaskReady || isUpgradeReady
             ? 'border-emerald-200/55 bg-emerald-300/16 text-emerald-100'
@@ -281,46 +315,46 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
 
         {fieldUpgradeOrder.map((type) => {
           const config = FIELD_UPGRADE_CONFIG[type];
+          const colors = fieldUpgradeColors[type];
           const level = getFieldUpgradeLevel(stats, type);
-          const cost = getFieldUpgradeCost(stats, type);
           const isLifeUpgrade = type === 'extraLife';
           const isAtCap = isLifeUpgrade ? stats.lives >= GAME_CONFIG.MAX_LIVES : level >= config.maxLevel;
-          const canBuy = flaskReady && !isAtCap && stats.coins >= cost;
+          const canPick = flaskReady && !isAtCap;
 
           return (
             <button
               key={type}
               type="button"
               onClick={() => {
-                if (!canBuy) return;
+                if (!canPick) return;
                 onDisableLabGlow();
                 onUpgrade(type);
               }}
-              disabled={!canBuy}
+              disabled={!canPick}
               className={`group relative overflow-hidden rounded-[12px] border p-1.5 text-left shadow-[0_14px_38px_rgba(0,0,0,0.3)] backdrop-blur-md transition active:scale-95 sm:p-2 ${
-                canBuy
-                  ? 'border-emerald-200/75 bg-emerald-300/18 text-white hover:border-white hover:bg-emerald-300/28'
-                  : 'border-cyan-100/16 bg-slate-950/42 text-slate-300/55'
+                canPick
+                  ? `${colors.active} hover:border-white hover:brightness-125`
+                  : colors.idle
               }`}
               aria-label={`Upgrade ${config.title}`}
             >
-              {canBuy ? (
-                <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(110,231,183,0.24),transparent_58%)]" />
+              {canPick ? (
+                <span className={`pointer-events-none absolute inset-0 ${colors.glow}`} />
               ) : null}
               <div className="relative flex items-center justify-between gap-1">
                 <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border ${
-                  canBuy ? 'border-emerald-100/55 bg-emerald-300/22 text-emerald-100' : 'border-white/10 bg-white/[0.04] text-cyan-100/55'
+                  canPick ? colors.iconActive : colors.iconIdle
                 }`}>
                   <HudIcon name={fieldUpgradeIcons[type]} className="h-5 w-5" />
                 </span>
-                <span className="font-mono text-[10px] font-black text-yellow-100">{isAtCap ? 'MAX' : cost}</span>
+                <span className="font-mono text-[9px] font-black text-white/85">{isAtCap ? 'MAX' : flaskReady ? 'PICK' : `L${level + 1}`}</span>
               </div>
               <div className="relative mt-1 text-[9px] font-black uppercase leading-tight tracking-[0.08em] text-white sm:text-[10px]">
                 {config.shortTitle}
               </div>
               <div className="relative mt-1 h-1 overflow-hidden rounded-full bg-white/10">
                 <div
-                  className={`h-full rounded-full ${canBuy ? 'bg-emerald-300' : 'bg-cyan-300/35'}`}
+                  className={`h-full rounded-full ${canPick ? colors.meter : 'bg-white/25'}`}
                   style={{ width: `${Math.min(100, (level / config.maxLevel) * 100)}%` }}
                 />
               </div>
