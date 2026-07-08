@@ -12,12 +12,11 @@ import type { Account } from 'thirdweb/wallets';
 import GameCanvas from './components/GameCanvas';
 import StartScreen from './components/StartScreen';
 import UIOverlay from './components/UIOverlay';
-import UpgradeShop from './components/UpgradeShop';
 import WalletButton from './components/WalletButton';
 import StoryTransmission from './components/StoryTransmission';
-import { ArchivedWinner, DonationStatus, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
+import { ArchivedWinner, DonationStatus, FieldUpgradeType, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
-import { ASSETS, DONATION_CONFIG, STORAGE_KEYS } from './constants';
+import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeCost, getFieldUpgradeLevel } from './constants';
 import { getLeaderboardData, saveScore } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
@@ -417,31 +416,42 @@ const App: React.FC = () => {
     setGameState(GameState.MENU);
   };
 
-  const handleUpgrade = (type: keyof Upgrades | 'repair') => {
-    if (type === 'repair') {
-      if (stats.lives < 3) {
-        audioService.playSound('powerup');
-        setStats(prev => ({
-          ...prev,
-          lives: Math.min(3, prev.lives + 1),
-          repairsCount: (prev.repairsCount || 0) + 1
-        }));
-      }
+  const handleFieldUpgrade = (type: FieldUpgradeType) => {
+    const bombChargeMax = stats.bombChargeMax || 58;
+    const flaskReady = (stats.bombCharge || 0) >= bombChargeMax;
+    const config = FIELD_UPGRADE_CONFIG[type];
+    const level = getFieldUpgradeLevel(stats, type);
+    const cost = getFieldUpgradeCost(stats, type);
+    const isLifeUpgrade = type === 'extraLife';
+    const isAtCap = isLifeUpgrade ? stats.lives >= GAME_CONFIG.MAX_LIVES : level >= config.maxLevel;
+
+    if (!flaskReady || isAtCap || stats.coins < cost) {
       return;
     }
 
-    const currentLevel = stats.upgrades[type];
+    audioService.playSound(isLifeUpgrade ? 'powerup' : 'coin');
 
-    if (currentLevel < 5) {
-      audioService.playSound('coin');
-      setStats(prev => ({
+    setStats(prev => {
+      if (type === 'extraLife') {
+        return {
+          ...prev,
+          coins: Math.max(0, prev.coins - cost),
+          bombCharge: 0,
+          lives: Math.min(GAME_CONFIG.MAX_LIVES, prev.lives + 1),
+          repairsCount: (prev.repairsCount || 0) + 1
+        };
+      }
+
+      return {
         ...prev,
+        coins: Math.max(0, prev.coins - cost),
+        bombCharge: 0,
         upgrades: {
           ...prev.upgrades,
           [type]: prev.upgrades[type] + 1
         }
-      }));
-    }
+      };
+    });
   };
 
   const handleDeposit = (amount: number) => {
@@ -600,20 +610,6 @@ const App: React.FC = () => {
       setContinuePaymentError(message);
     }
   };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'v' || e.key === 'V') {
-        if (gameState === GameState.PLAYING) {
-          setGameState(GameState.SHOP);
-        } else if (gameState === GameState.SHOP) {
-          setGameState(GameState.PLAYING);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState]);
 
   useEffect(() => {
     if (gameState !== GameState.PLAYING || activeStoryBeat) {
@@ -928,7 +924,7 @@ const App: React.FC = () => {
 
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
-      {(gameState === GameState.PLAYING || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER || gameState === GameState.SHOP) && (
+      {(gameState === GameState.PLAYING || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
         <GameCanvas
           key={gameId}
           stats={stats}
@@ -954,6 +950,7 @@ const App: React.FC = () => {
             if (introMissionLocked || activeStoryBeat) return;
             setBombCommand({ nonce: Date.now() });
           }}
+          onUpgrade={handleFieldUpgrade}
         />
       )}
 
@@ -1013,14 +1010,6 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {gameState === GameState.SHOP && (
-        <UpgradeShop
-          stats={stats}
-          onUpgrade={handleUpgrade}
-          onClose={() => setGameState(GameState.PLAYING)}
-        />
       )}
 
       {gameState === GameState.GAMEOVER && (

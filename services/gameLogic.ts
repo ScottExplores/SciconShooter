@@ -262,7 +262,12 @@ const GAME_FEEL = {
 };
 
 const BOMB_CHARGE_MAX = 58;
-const MAX_BOMBS = 3;
+const MAX_BOMBS = 5;
+const FLASK_CHARGE_PER_COIN = 1;
+const BASE_COIN_MAGNET_RADIUS = 150;
+const POWERUP_COIN_MAGNET_RADIUS = 420;
+const BOMB_DROP_CHANCE = 0.045;
+const ELITE_BOMB_DROP_CHANCE = 0.16;
 
 type PlayerAfterimage = {
   x: number;
@@ -750,7 +755,7 @@ export class GameEngine {
     this.wave++;
     this.stats.wave++;
     this.resetWaveProgress();
-    this.entities = this.entities.filter(e => e.type === EntityType.PLAYER || e.type === EntityType.PARTICLE || e.type === EntityType.POWERUP || e.type === EntityType.COIN);
+    this.entities = this.entities.filter(e => e.type === EntityType.PLAYER || e.type === EntityType.PARTICLE || e.type === EntityType.POWERUP || e.type === EntityType.COIN || e.type === EntityType.BOMB);
     this.spawnFloatingText(this.width/2, this.height/2, `WAVE ${this.wave}`, "#FFF");
     this.introFlightDuration = 118;
     this.introFlightFrames = this.introFlightDuration;
@@ -1223,20 +1228,33 @@ export class GameEngine {
       }
       
       if (e.type === EntityType.COIN) {
-        if (this.activePowerups.has(PowerupType.MAGNET)) {
-           const dx = this.player.x - e.x;
-           const dy = this.player.y - e.y;
-           const dist = Math.sqrt(dx*dx + dy*dy);
-           if (dist < 400) {
-             e.x += dx * 0.08;
-             e.y += dy * 0.08;
-           }
+        const playerCenterX = this.player.x + this.player.width / 2;
+        const playerCenterY = this.player.y + this.player.height / 2;
+        const coinCenterX = e.x + e.width / 2;
+        const coinCenterY = e.y + e.height / 2;
+        const dx = playerCenterX - coinCenterX;
+        const dy = playerCenterY - coinCenterY;
+        const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+        const hasMagnet = this.activePowerups.has(PowerupType.MAGNET);
+        const radius = hasMagnet ? POWERUP_COIN_MAGNET_RADIUS : BASE_COIN_MAGNET_RADIUS;
+
+        if (dist < radius) {
+          const closeness = 1 - (dist / radius);
+          const pull = hasMagnet ? 0.14 + closeness * 0.11 : 0.035 + closeness * 0.05;
+          e.x += dx * pull;
+          e.y += dy * pull;
         }
         if (e.y > this.height) e.markedForDeletion = true;
       }
       
       if (e.type === EntityType.POWERUP) {
           e.y += Math.sin(this.frameCount * 0.05) * 0.5;
+          if (e.y > this.height) e.markedForDeletion = true;
+      }
+
+      if (e.type === EntityType.BOMB) {
+          e.x += Math.sin((this.frameCount + e.variant) * 0.06) * 0.35;
+          e.y += Math.sin(this.frameCount * 0.05) * 0.25;
           if (e.y > this.height) e.markedForDeletion = true;
       }
 
@@ -1254,6 +1272,18 @@ export class GameEngine {
     this.bgY = (this.bgY + 1) % this.height;
   }
 
+  getWingmanOffsets() {
+    if (this.activePowerups.has(PowerupType.TRIPLE_SHOT)) {
+      return [-42, 42];
+    }
+
+    if (this.activePowerups.has(PowerupType.DOUBLE_SHOT)) {
+      return [42];
+    }
+
+    return [];
+  }
+
   fireBullet() {
     audioService.playSound('shoot');
     if (this.frameCount - this.lastShotFrame > 3) {
@@ -1265,8 +1295,8 @@ export class GameEngine {
     const isMaxFire = this.stats.upgrades.fireRate >= 5;
     const bulletColor = isMaxFire ? '#00FFFF' : '#6c63ff'; // Cyan glow for max
 
-    const spawnBullet = (vx: number, vy: number, offsetX: number = 0) => {
-      const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - 5 + offsetX, this.player.y + this.player.height * 0.12);
+    const spawnBullet = (vx: number, vy: number, offsetX: number = 0, yOffset: number = 0) => {
+      const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - 5 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
       b.width = 10;
       b.height = 28;
       b.vx = vx;
@@ -1276,23 +1306,10 @@ export class GameEngine {
       this.entities.push(b);
     };
 
-    let shotFired = false;
-    if (this.activePowerups.has(PowerupType.TRIPLE_SHOT)) {
-      spawnBullet(0, -10);      
-      spawnBullet(-4, -9, -15);      
-      spawnBullet(4, -9, 15);       
-      shotFired = true;
-    } 
-    
-    if (this.activePowerups.has(PowerupType.DOUBLE_SHOT)) {
-      spawnBullet(0, -10, -20); 
-      spawnBullet(0, -10, 20);  
-      shotFired = true;
-    }
-    
-    if (!shotFired) {
-      spawnBullet(0, -10);
-    }
+    spawnBullet(0, -10);
+    this.getWingmanOffsets().forEach((offsetX) => {
+      spawnBullet(0, -10.4, offsetX, 8);
+    });
   }
   
   fireMissile() {
@@ -1326,19 +1343,16 @@ export class GameEngine {
     if (amount <= 0) return;
 
     const currentMax = this.stats.bombChargeMax || BOMB_CHARGE_MAX;
-    let nextCharge = (this.stats.bombCharge || 0) + amount;
+    const previousCharge = this.stats.bombCharge || 0;
+    const nextCharge = Math.min(currentMax, previousCharge + amount);
 
-    while (nextCharge >= currentMax && (this.stats.bombs || 0) < MAX_BOMBS) {
-      nextCharge -= currentMax;
-      this.stats.bombs = Math.min(MAX_BOMBS, (this.stats.bombs || 0) + 1);
-      this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 10, 'BOMB READY', '#facc15', 18);
+    if (previousCharge < currentMax && nextCharge >= currentMax) {
+      this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 10, 'FLASK READY', '#34d399', 18);
       this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#facc15');
       audioService.playSound('powerup');
     }
 
-    this.stats.bombCharge = (this.stats.bombs || 0) >= MAX_BOMBS
-      ? Math.min(currentMax, nextCharge)
-      : Math.max(0, Math.min(currentMax - 1, nextCharge));
+    this.stats.bombCharge = nextCharge;
   }
 
   triggerBomb() {
@@ -1396,9 +1410,6 @@ export class GameEngine {
     target.markedForDeletion = true;
     this.spawnExplosion(target.x, target.y, target.color);
     this.stats.enemiesDefeated++;
-    if (!this.isBombResolving) {
-      this.addBombCharge(this.getBombChargeGain(target));
-    }
     const waveMult = Math.pow(2, this.stats.wave - 1);
     let basePoints = 10;
     if (target.type === EntityType.ENEMY_DRONE) basePoints = 10;
@@ -1420,6 +1431,12 @@ export class GameEngine {
     this.addShake(isElite ? 1.8 : 0.7);
     this.spawnBurst(centerX, centerY, isElite ? '#facc15' : target.color, isElite ? 12 : 6, isElite ? 5.2 : 3.2, isElite ? 5 : 3);
     if (isElite && Math.random() > 0.92) this.spawnPowerup(target.x, target.y);
+    if (!this.isBombResolving && (this.stats.bombs || 0) < MAX_BOMBS) {
+      const dropChance = isElite ? ELITE_BOMB_DROP_CHANCE : BOMB_DROP_CHANCE;
+      if (Math.random() < dropChance) {
+        this.spawnBombDrop(centerX - 19, centerY - 19);
+      }
+    }
 
     if (target.type === EntityType.MINI_BOSS) {
       this.stats.score += 500 * waveMult;
@@ -1437,6 +1454,7 @@ export class GameEngine {
           target.y + Math.random() * target.height
         );
       }
+      this.spawnBombDrop(centerX - 19, centerY - 19);
       this.miniBossRef = null;
       this.waveProgressFrames += 120;
     }
@@ -1463,6 +1481,12 @@ export class GameEngine {
       for (let i = 0; i < bossPowerupDrops; i++) {
         this.spawnPowerup(
           target.x + (target.width * ((i + 1) / (bossPowerupDrops + 1))),
+          target.y + 50 + Math.random() * Math.max(30, target.height - 70)
+        );
+      }
+      for (let i = 0; i < 2; i++) {
+        this.spawnBombDrop(
+          target.x + (target.width * ((i + 1) / 3)) - 19,
           target.y + 50 + Math.random() * Math.max(30, target.height - 70)
         );
       }
@@ -1907,10 +1931,10 @@ export class GameEngine {
   spawnPowerup(x: number, y: number) {
     const r = Math.random();
     let type: PowerupType = PowerupType.DOUBLE_SHOT;
-    if (r < 0.14) type = PowerupType.RESEARCH_BEAM;
-    else if (r < 0.36) type = PowerupType.DOUBLE_SHOT;
-    else if (r < 0.58) type = PowerupType.TRIPLE_SHOT;
-    else if (r < 0.79) type = PowerupType.MAGNET;
+    if (r < 0.08) type = PowerupType.RESEARCH_BEAM;
+    else if (r < 0.44) type = PowerupType.DOUBLE_SHOT;
+    else if (r < 0.78) type = PowerupType.TRIPLE_SHOT;
+    else if (r < 0.9) type = PowerupType.MAGNET;
     else type = PowerupType.SHIELD;
 
     const p = new Entity(EntityType.POWERUP, x, y);
@@ -1921,11 +1945,23 @@ export class GameEngine {
     this.entities.push(p);
   }
 
+  spawnBombDrop(x: number, y: number) {
+    const b = new Entity(EntityType.BOMB, x, y);
+    b.width = 38;
+    b.height = 38;
+    b.vy = 1.7;
+    b.vx = randomRange(-0.35, 0.35);
+    b.variant = Math.floor(Math.random() * 1000);
+    this.entities.push(b);
+  }
+
   spawnCoin(x: number, y: number) {
     const c = new Entity(EntityType.COIN, x, y);
     c.width = 24; 
     c.height = 24;
     c.vy = 2.0;
+    c.vx = randomRange(-0.25, 0.25);
+    c.variant = Math.floor(Math.random() * 1000);
     this.entities.push(c);
   }
 
@@ -2066,9 +2102,21 @@ export class GameEngine {
         this.stats.coins++;
         this.stats.totalCoins++; 
         this.stats.score += (this.activePowerups.has(PowerupType.MAGNET) ? 2 : 1);
+        this.addBombCharge(FLASK_CHARGE_PER_COIN);
         this.registerCoinPickup(e.x + e.width / 2, e.y + e.height / 2);
         
         // REMOVED AUTOMATIC LIFE GAIN
+      }
+
+      if (e.type === EntityType.BOMB && intersect(this.player, e)) {
+        e.markedForDeletion = true;
+        this.stats.bombs = Math.min(MAX_BOMBS, (this.stats.bombs || 0) + 1);
+        this.spawnFloatingText(e.x + e.width / 2, e.y - 10, 'BOMB +1', '#facc15', 18);
+        this.spawnRingEffect(e.x + e.width / 2, e.y + e.height / 2, '#facc15');
+        this.spawnBurst(e.x + e.width / 2, e.y + e.height / 2, '#facc15', 9, 3.2, 4);
+        this.kickPlayerSquash(0.045);
+        this.addShake(0.5);
+        audioService.playSound('powerup');
       }
 
       const isEnemy = e.type === EntityType.ENEMY_DRONE || e.type === EntityType.ENEMY_BRICK || e.type === EntityType.ENEMY_JOURNAL || e.type === EntityType.ENEMY_SWARM || e.type === EntityType.BOSS || e.type === EntityType.MINI_BOSS || e.type === EntityType.ENEMY_INVADER;
@@ -2409,6 +2457,7 @@ export class GameEngine {
     this.entities.forEach(e => this.drawEntity(ctx, e));
     this.drawPlayerAfterimages(ctx);
     this.drawResearchBeam(ctx);
+    this.drawWingmen(ctx);
     if (this.lives > 0 || this.deathSequenceFrames > 0) this.drawEntity(ctx, this.player);
     
     const invaders = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER);
@@ -2628,6 +2677,68 @@ export class GameEngine {
       ctx.restore();
   }
 
+  drawWingmanThruster(ctx: CanvasRenderingContext2D, size: number) {
+      const flameLength = size * (0.34 + Math.sin(this.frameCount * 0.5) * 0.06);
+      const nozzleY = size * 0.3;
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const gradient = ctx.createLinearGradient(0, nozzleY, 0, nozzleY + flameLength);
+      gradient.addColorStop(0, 'rgba(255,255,255,0.95)');
+      gradient.addColorStop(0.32, 'rgba(103,232,249,0.92)');
+      gradient.addColorStop(1, 'rgba(37,99,235,0)');
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = '#22d3ee';
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.moveTo(-size * 0.07, nozzleY);
+      ctx.lineTo(size * 0.07, nozzleY);
+      ctx.lineTo(size * 0.03, nozzleY + flameLength);
+      ctx.lineTo(-size * 0.03, nozzleY + flameLength);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+  }
+
+  drawWingmen(ctx: CanvasRenderingContext2D) {
+      const offsets = this.getWingmanOffsets();
+      if (offsets.length === 0 || this.lives <= 0) return;
+
+      const isTriple = this.activePowerups.has(PowerupType.TRIPLE_SHOT);
+      const remaining = isTriple
+        ? this.activePowerups.get(PowerupType.TRIPLE_SHOT) || 0
+        : this.activePowerups.get(PowerupType.DOUBLE_SHOT) || 0;
+      const entryAge = GAME_CONFIG.POWERUP_DURATION - Math.min(GAME_CONFIG.POWERUP_DURATION, remaining);
+      const entry = easeOutCubic(clamp(entryAge / 42, 0, 1));
+      const fade = Math.min(1, remaining / 36);
+      const centerX = this.player.x + this.player.width / 2;
+      const centerY = this.player.y + this.player.height / 2;
+      const size = this.width < 520 ? 46 : 54;
+
+      offsets.forEach((offset, index) => {
+        const side = offset < 0 ? -1 : 1;
+        const targetY = centerY + (this.width < 520 ? 20 : 14) + Math.sin((this.frameCount * 0.08) + index) * 4;
+        const flyInY = targetY + (1 - entry) * 96;
+        const flyInX = centerX + (offset * entry) + side * Math.sin(entry * Math.PI) * 14;
+
+        ctx.save();
+        ctx.globalAlpha = this.playerDrawAlpha * fade;
+        ctx.translate(flyInX, flyInY);
+        ctx.rotate(this.playerTilt * 0.55 + side * 0.08);
+        ctx.scale(0.9, 0.9);
+        this.drawWingmanThruster(ctx, size);
+        const drew = this.drawSprite(ctx, ASSETS.PLAYER_SHIP, size, size, {
+          shadowColor: isTriple ? '#8b5cf6' : '#facc15',
+          shadowBlur: 14
+        });
+        if (!drew) {
+          ctx.fillStyle = isTriple ? '#8b5cf6' : '#facc15';
+          ctx.fillRect(-size / 2, -size / 2, size, size);
+        }
+        ctx.restore();
+      });
+  }
+
   drawPlayerThrusters(ctx: CanvasRenderingContext2D, e: Entity) {
       const speed = Math.hypot(this.playerVel.x, this.playerVel.y);
       const cinematicBoost = this.introFlightFrames > 0 || this.waveDepartureFrames > 0 ? 1.8 : 1;
@@ -2709,26 +2820,6 @@ export class GameEngine {
            ctx.strokeStyle = 'rgba(255, 215, 0, 0.2)';
            ctx.arc(0, 0, e.width/2 + pulse, 0, Math.PI * 2);
            ctx.stroke();
-       }
-       if (this.activePowerups.has(PowerupType.TRIPLE_SHOT)) {
-           const offset = 55;
-           ctx.fillStyle = '#6c63ff';
-           ctx.fillRect(-offset, 0, 10, 20);
-           ctx.fillRect(offset - 10, 0, 10, 20);
-           ctx.strokeStyle = '#6c63ff';
-           ctx.lineWidth = 1;
-           ctx.beginPath();
-           ctx.moveTo(-offset + 5, 10);
-           ctx.lineTo(0, 0);
-           ctx.moveTo(offset - 5, 10);
-           ctx.lineTo(0, 0);
-           ctx.stroke();
-       }
-       if (this.activePowerups.has(PowerupType.DOUBLE_SHOT)) {
-           const offset = 40;
-           ctx.fillStyle = '#ffbb33';
-           ctx.fillRect(-offset, 0, 5, 15);
-           ctx.fillRect(offset - 5, 0, 5, 15);
        }
        if (this.activePowerups.has(PowerupType.SHIELD) || this.invincibleTimer > 60) {
          ctx.save();
@@ -2870,9 +2961,13 @@ export class GameEngine {
 
     } else if (e.type === EntityType.COIN) {
         const img = imageCache[ASSETS.RSC_TOKEN];
+        const spin = Math.sin((this.frameCount + e.variant) * 0.16);
+        const spinWidth = Math.max(0.18, Math.abs(spin));
         if (img && img.complete && img.naturalWidth > 0) {
             ctx.save();
-            ctx.shadowBlur = 10;
+            ctx.scale(spinWidth, 1);
+            ctx.rotate((this.frameCount + e.variant) * 0.025);
+            ctx.shadowBlur = 10 + (1 - spinWidth) * 8;
             ctx.shadowColor = '#FFD700'; 
             ctx.beginPath();
             ctx.arc(0, 0, e.width/2, 0, Math.PI*2);
@@ -2883,6 +2978,8 @@ export class GameEngine {
             ctx.stroke();
             ctx.restore();
         } else {
+            ctx.save();
+            ctx.scale(spinWidth, 1);
             ctx.fillStyle = '#FFD700';
             ctx.beginPath();
             ctx.arc(0, 0, 8, 0, Math.PI * 2);
@@ -2892,7 +2989,50 @@ export class GameEngine {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText("RSC", 0, 0);
+            ctx.restore();
         }
+
+    } else if (e.type === EntityType.BOMB) {
+        const pulse = 0.75 + Math.sin((this.frameCount + e.variant) * 0.18) * 0.25;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.shadowBlur = 18 + pulse * 10;
+        ctx.shadowColor = '#facc15';
+
+        const body = ctx.createRadialGradient(-5, -8, 3, 0, 0, 22);
+        body.addColorStop(0, '#fff7ad');
+        body.addColorStop(0.26, '#facc15');
+        body.addColorStop(0.64, '#f97316');
+        body.addColorStop(1, '#7c2d12');
+
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.arc(0, 4, 17, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fde68a';
+        ctx.fillRect(-8, -18, 16, 7);
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(-2, -24, 8, 8);
+        ctx.strokeStyle = '#67e8f9';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(4, -21);
+        ctx.quadraticCurveTo(20, -28, 25, -12);
+        ctx.stroke();
+
+        if (this.frameCount % 12 < 6) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(24, -15, 5, 5);
+          ctx.fillRect(29, -9, 3, 3);
+        }
+
+        ctx.strokeStyle = '#fef3c7';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 4, 18, 0.18, Math.PI * 1.28);
+        ctx.stroke();
+        ctx.restore();
 
     } else if (e.type === EntityType.PARTICLE) {
         ctx.globalAlpha = Math.max(0, Math.min(1, e.life / Math.max(1, e.maxLife)));

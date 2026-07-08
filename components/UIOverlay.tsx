@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Stats, GameState } from '../types';
+import { FieldUpgradeType, Stats, GameState } from '../types';
 import { audioService } from '../services/audioService';
+import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeCost, getFieldUpgradeLevel } from '../constants';
 
 interface UIOverlayProps {
   stats: Stats;
@@ -10,10 +11,11 @@ interface UIOverlayProps {
   onDisableLabGlow: () => void;
   isUpgradeReady?: boolean;
   onUseBomb: () => void;
+  onUpgrade: (type: FieldUpgradeType) => void;
   bombLocked?: boolean;
 }
 
-type HudIconName = 'sound' | 'muted' | 'pause' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask';
+type HudIconName = 'sound' | 'muted' | 'pause' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
 
 const HudIcon = ({
   name,
@@ -71,6 +73,20 @@ const HudIcon = ({
           d="M12 20.4S4.8 16.2 3.3 10.4C2.4 6.9 4.4 4.2 7.4 4.2c1.8 0 3.1 1 4 2.2.9-1.2 2.2-2.2 4-2.2 3 0 5 2.7 4.1 6.2C18 16.2 12 20.4 12 20.4Z"
         />
       ) : null}
+      {name === 'bolt' ? (
+        <path {...common} fill="currentColor" stroke="currentColor" d="M13 2.8 5.5 13h5.3L10 21.2 18.5 10h-5.7z" />
+      ) : null}
+      {name === 'plus' ? (
+        <>
+          <path
+            {...common}
+            fill="currentColor"
+            stroke="currentColor"
+            d="M12 20.4S4.8 16.2 3.3 10.4C2.4 6.9 4.4 4.2 7.4 4.2c1.8 0 3.1 1 4 2.2.9-1.2 2.2-2.2 4-2.2 3 0 5 2.7 4.1 6.2C18 16.2 12 20.4 12 20.4Z"
+          />
+          <path {...common} stroke="#07111f" strokeWidth="2.4" d="M12 8.5v6.2M8.9 11.6h6.2" />
+        </>
+      ) : null}
       {name === 'bomb' ? (
         <>
           <circle {...common} cx="12" cy="13" r="6" />
@@ -115,6 +131,14 @@ const BombSprite = ({ active }: { active: boolean }) => (
   </svg>
 );
 
+const fieldUpgradeOrder: FieldUpgradeType[] = ['fireRate', 'speed', 'extraLife'];
+
+const fieldUpgradeIcons: Record<FieldUpgradeType, HudIconName> = {
+  fireRate: 'bolt',
+  speed: 'ship',
+  extraLife: 'plus'
+};
+
 const UIOverlay: React.FC<UIOverlayProps> = ({
   stats,
   setGameState,
@@ -122,6 +146,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   onDisableLabGlow,
   isUpgradeReady = false,
   onUseBomb,
+  onUpgrade,
   bombLocked = false
 }) => {
   const [muted, setMuted] = useState(false);
@@ -141,13 +166,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     setMuted(isMuted);
   };
 
-  const handleOpenLab = () => {
-    onDisableLabGlow();
-    setGameState(GameState.SHOP);
-  };
-
   const bombChargeMax = stats.bombChargeMax || 58;
   const bombChargePct = Math.max(0, Math.min(100, ((stats.bombCharge || 0) / bombChargeMax) * 100));
+  const flaskReady = bombChargePct >= 100;
   const bombs = stats.bombs || 0;
   const canUseBomb = bombs > 0 && !bombLocked;
 
@@ -243,28 +264,69 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         </div>
       )}
 
-      <div className="pointer-events-auto absolute bottom-5 right-5 z-20 sm:bottom-7 sm:right-7">
-        <button
-          onClick={handleOpenLab}
-          className={`group relative flex h-16 w-16 items-center justify-center rounded-[22px] border bg-white text-slate-950 shadow-[0_18px_50px_rgba(0,0,0,0.36)] outline-none transition hover:-translate-y-0.5 hover:bg-blue-100 active:translate-y-0 ${isUpgradeReady ? 'border-yellow-300' : 'border-white/20'}`}
-          aria-label="Open upgrade lab"
-        >
-          {showLabGlow || isUpgradeReady ? (
-            <>
-              <div className={`absolute -inset-3 rounded-[28px] ${isUpgradeReady ? 'bg-yellow-300/24' : 'bg-blue-300/18'} animate-ping`} />
-              <div className={`absolute -inset-1 rounded-[24px] ${isUpgradeReady ? 'bg-yellow-300/24' : 'bg-blue-400/16'} blur-md`} />
-            </>
+      <div className="pointer-events-auto absolute right-2 top-[30%] z-20 flex w-[4.85rem] -translate-y-1/2 flex-col gap-2 sm:right-4 sm:top-1/2 sm:w-24">
+        <div className={`relative rounded-[10px] border px-2 py-1.5 text-center shadow-[0_12px_32px_rgba(0,0,0,0.3)] backdrop-blur-md ${
+          flaskReady || isUpgradeReady
+            ? 'border-emerald-200/55 bg-emerald-300/16 text-emerald-100'
+            : 'border-cyan-200/18 bg-slate-950/52 text-cyan-100/70'
+        }`}>
+          {showLabGlow && !flaskReady ? (
+            <span className="pointer-events-none absolute -inset-1 rounded-[12px] bg-cyan-300/8 blur-md" />
           ) : null}
+          <div className="relative flex items-center justify-center gap-1">
+            <HudIcon name="flask" className="h-3.5 w-3.5" />
+            <span className="font-mono text-[8px] font-black uppercase tracking-[0.12em]">{flaskReady ? 'Ready' : `${Math.round(bombChargePct)}%`}</span>
+          </div>
+        </div>
 
-          <span className="relative flex flex-col items-center justify-center">
-            <HudIcon name="lab" className="h-7 w-7" />
-            <span className="mt-0.5 text-[9px] font-black uppercase tracking-[0.16em]">Lab</span>
-          </span>
+        {fieldUpgradeOrder.map((type) => {
+          const config = FIELD_UPGRADE_CONFIG[type];
+          const level = getFieldUpgradeLevel(stats, type);
+          const cost = getFieldUpgradeCost(stats, type);
+          const isLifeUpgrade = type === 'extraLife';
+          const isAtCap = isLifeUpgrade ? stats.lives >= GAME_CONFIG.MAX_LIVES : level >= config.maxLevel;
+          const canBuy = flaskReady && !isAtCap && stats.coins >= cost;
 
-          {isUpgradeReady ? (
-            <span className="absolute -right-1 -top-1 flex h-6 w-6 animate-pulse items-center justify-center rounded-full border-2 border-slate-950 bg-yellow-300 text-xs font-black text-slate-950">!</span>
-          ) : null}
-        </button>
+          return (
+            <button
+              key={type}
+              type="button"
+              onClick={() => {
+                if (!canBuy) return;
+                onDisableLabGlow();
+                onUpgrade(type);
+              }}
+              disabled={!canBuy}
+              className={`group relative overflow-hidden rounded-[12px] border p-1.5 text-left shadow-[0_14px_38px_rgba(0,0,0,0.3)] backdrop-blur-md transition active:scale-95 sm:p-2 ${
+                canBuy
+                  ? 'border-emerald-200/75 bg-emerald-300/18 text-white hover:border-white hover:bg-emerald-300/28'
+                  : 'border-cyan-100/16 bg-slate-950/42 text-slate-300/55'
+              }`}
+              aria-label={`Upgrade ${config.title}`}
+            >
+              {canBuy ? (
+                <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(110,231,183,0.24),transparent_58%)]" />
+              ) : null}
+              <div className="relative flex items-center justify-between gap-1">
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border ${
+                  canBuy ? 'border-emerald-100/55 bg-emerald-300/22 text-emerald-100' : 'border-white/10 bg-white/[0.04] text-cyan-100/55'
+                }`}>
+                  <HudIcon name={fieldUpgradeIcons[type]} className="h-5 w-5" />
+                </span>
+                <span className="font-mono text-[10px] font-black text-yellow-100">{isAtCap ? 'MAX' : cost}</span>
+              </div>
+              <div className="relative mt-1 text-[9px] font-black uppercase leading-tight tracking-[0.08em] text-white sm:text-[10px]">
+                {config.shortTitle}
+              </div>
+              <div className="relative mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={`h-full rounded-full ${canBuy ? 'bg-emerald-300' : 'bg-cyan-300/35'}`}
+                  style={{ width: `${Math.min(100, (level / config.maxLevel) * 100)}%` }}
+                />
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -799,8 +799,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
     </HudPanel>
   );
 
-  const DashboardNav = ({ fixed = false, docked = false }: { fixed?: boolean; docked?: boolean }) => (
-    <nav className={`${fixed ? 'fixed inset-x-3 bottom-3 z-40 mx-auto max-w-[40rem] pb-[env(safe-area-inset-bottom)] lg:hidden' : ''} ${docked ? 'mt-auto pt-2' : ''}`}>
+  const DashboardNav = ({ docked = false }: { docked?: boolean }) => (
+    <nav className={`${docked ? 'mt-auto pt-2' : ''}`}>
       <div className="sci-dashboard-nav grid grid-cols-5 overflow-hidden rounded-[8px] border border-cyan-300/24 bg-slate-950/86 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
         {dashboardTabs.map((tab) => {
           const active = dashboardTab === tab.id;
@@ -1152,10 +1152,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
           )}
         </main>
 
-        <main className="space-y-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:hidden">
+        <main className="flex min-h-[calc(100svh-1rem-env(safe-area-inset-bottom))] flex-col gap-4 pb-[env(safe-area-inset-bottom)] lg:hidden">
           <MobileDashboardContent />
+          <DashboardNav docked />
         </main>
-        <DashboardNav fixed />
       </div>
       {showFeedback && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">

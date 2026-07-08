@@ -1,3 +1,4 @@
+import type { FieldUpgradeType, Stats } from './types';
 
 // --- ASSET CONFIGURATION ---
 export const ASSETS = {
@@ -120,6 +121,50 @@ export const UPGRADE_BASE_COSTS = {
   missile: 20, // Cost to buy missiles
   repair: 10,
   powerup: 10
+};
+
+export const FIELD_UPGRADE_CONFIG: Record<FieldUpgradeType, {
+  title: string;
+  shortTitle: string;
+  description: string;
+  baseCost: number;
+  costStep: number;
+  maxLevel: number;
+}> = {
+  fireRate: {
+    title: 'Rapid Fire',
+    shortTitle: 'Rapid',
+    description: 'Faster lab shots',
+    baseCost: 8,
+    costStep: 6,
+    maxLevel: 5
+  },
+  speed: {
+    title: 'Speed',
+    shortTitle: 'Speed',
+    description: 'Sharper movement',
+    baseCost: 7,
+    costStep: 5,
+    maxLevel: 5
+  },
+  extraLife: {
+    title: 'Extra Life',
+    shortTitle: 'Life',
+    description: 'Recover one heart',
+    baseCost: 12,
+    costStep: 8,
+    maxLevel: GAME_CONFIG.MAX_LIVES
+  }
+};
+
+export const getFieldUpgradeLevel = (stats: Stats, type: FieldUpgradeType) => (
+  type === 'extraLife' ? stats.repairsCount || 0 : stats.upgrades[type]
+);
+
+export const getFieldUpgradeCost = (stats: Stats, type: FieldUpgradeType) => {
+  const config = FIELD_UPGRADE_CONFIG[type];
+  const level = getFieldUpgradeLevel(stats, type);
+  return config.baseCost + (level * config.costStep);
 };
 
 export const TEXT_STRINGS = {

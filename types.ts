@@ -24,7 +24,8 @@ export enum EntityType {
   PARTICLE = 'PARTICLE',
   EFFECT = 'EFFECT', // Visual effects like rings or text
   POWERUP = 'POWERUP',
-  COIN = 'COIN'
+  COIN = 'COIN',
+  BOMB = 'BOMB'
 }
 
 export enum PowerupType {
@@ -46,6 +47,8 @@ export interface Upgrades {
   speed: number;
   missile: number; // Replaced maxHp
 }
+
+export type FieldUpgradeType = 'fireRate' | 'speed' | 'extraLife';
 
 export interface LeaderboardEntry {
   name: string;
