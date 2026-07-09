@@ -338,21 +338,45 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let active = true;
+    let idleHandle: number | null = null;
+    let timeoutHandle: number | null = null;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
 
     const setupMiniApp = async () => {
-      const state = await miniAppService.getState();
-      if (!active) return;
+      try {
+        const state = await miniAppService.getState();
+        if (!active) return;
 
-      setMiniApp(state);
-      if (state.isMiniApp) {
-        await miniAppService.ready();
+        setMiniApp(state);
+        if (state.isMiniApp) {
+          await miniAppService.ready();
+        }
+      } catch (error) {
+        console.warn('Mini app setup skipped', error);
       }
     };
 
-    setupMiniApp();
+    const runSetup = () => {
+      void setupMiniApp();
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(runSetup, { timeout: 1800 });
+    } else {
+      timeoutHandle = window.setTimeout(runSetup, 900);
+    }
 
     return () => {
       active = false;
+      if (idleHandle !== null && idleWindow.cancelIdleCallback) {
+        idleWindow.cancelIdleCallback(idleHandle);
+      }
+      if (timeoutHandle !== null) {
+        window.clearTimeout(timeoutHandle);
+      }
     };
   }, []);
 
