@@ -16,6 +16,10 @@ import type { WalletRuntimeAction } from './components/WalletRuntime';
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
+type IdleWindow = Window & {
+  requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
 
 interface PendingFundingPickRecord {
   pilotName: string;
@@ -34,6 +38,47 @@ const defaultMiniAppState: MiniAppState = {
   added: false,
   userFid: null,
   platformType: null
+};
+
+const runAfterFirstPaint = (
+  callback: () => void,
+  options: { delayMs?: number; timeoutMs?: number } = {}
+) => {
+  const { delayMs = 650, timeoutMs = 2400 } = options;
+  const idleWindow = window as IdleWindow;
+  let cancelled = false;
+  let frameHandle: number | null = null;
+  let delayHandle: ReturnType<typeof window.setTimeout> | null = null;
+  let idleHandle: number | null = null;
+
+  const run = () => {
+    if (!cancelled) {
+      callback();
+    }
+  };
+
+  frameHandle = window.requestAnimationFrame(() => {
+    delayHandle = window.setTimeout(() => {
+      if (idleWindow.requestIdleCallback) {
+        idleHandle = idleWindow.requestIdleCallback(run, { timeout: timeoutMs });
+      } else {
+        run();
+      }
+    }, delayMs);
+  });
+
+  return () => {
+    cancelled = true;
+    if (frameHandle !== null) {
+      window.cancelAnimationFrame(frameHandle);
+    }
+    if (delayHandle !== null) {
+      window.clearTimeout(delayHandle);
+    }
+    if (idleHandle !== null && idleWindow.cancelIdleCallback) {
+      idleWindow.cancelIdleCallback(idleHandle);
+    }
+  };
 };
 
 const defaultMissionUpgrades: Upgrades = {
@@ -288,6 +333,9 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    let active = true;
+    let cancelDeferredFetch: (() => void) | null = null;
+
     const fetchScores = async () => {
       const alreadyHasData = leaderboard.length > 0;
       if (!alreadyHasData) {
@@ -296,6 +344,7 @@ const App: React.FC = () => {
 
       try {
         const data = await getLeaderboardData();
+        if (!active) return;
         if (data.scores.length > 0) {
           setLeaderboard(data.scores);
         }
@@ -303,7 +352,7 @@ const App: React.FC = () => {
       } catch (error) {
         console.error("Failed to fetch leaderboard", error);
       } finally {
-        if (!alreadyHasData) {
+        if (active && !alreadyHasData) {
           setLoadingLeaderboard(false);
         }
       }
@@ -311,19 +360,34 @@ const App: React.FC = () => {
 
     const fetchArchivedWinners = async () => {
       const winners = await getArchivedWeeklyWinners();
+      if (!active) return;
       setArchivedWinners(winners);
     };
 
-    if (gameState === GameState.MENU || gameState === GameState.GAMEOVER) {
-      fetchScores();
-      fetchArchivedWinners();
+    const fetchDashboardData = () => {
+      void Promise.all([fetchScores(), fetchArchivedWinners()]);
+    };
+
+    if (gameState === GameState.GAMEOVER) {
+      fetchDashboardData();
+    } else if (gameState === GameState.MENU) {
+      cancelDeferredFetch = runAfterFirstPaint(fetchDashboardData, {
+        delayMs: leaderboard.length > 0 ? 900 : 450,
+        timeoutMs: 2200
+      });
     }
+
+    return () => {
+      active = false;
+      cancelDeferredFetch?.();
+    };
   }, [gameState, leaderboard.length]);
 
   useEffect(() => {
     let active = true;
+    let cancelDeferredFetch: (() => void) | null = null;
 
-    getResearchHubFundingProposals()
+    const fetchProposals = () => getResearchHubFundingProposals()
       .then((nextProposals) => {
         if (!active) return;
         setFundingProposals(nextProposals);
@@ -336,8 +400,16 @@ const App: React.FC = () => {
         setProposalStatus('error');
       });
 
+    cancelDeferredFetch = runAfterFirstPaint(() => {
+      void fetchProposals();
+    }, {
+      delayMs: 950,
+      timeoutMs: 3200
+    });
+
     return () => {
       active = false;
+      cancelDeferredFetch?.();
     };
   }, []);
 
@@ -394,10 +466,7 @@ const App: React.FC = () => {
     let active = true;
     let idleHandle: number | null = null;
     let timeoutHandle: number | null = null;
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
+    const idleWindow = window as IdleWindow;
 
     const setupMiniApp = async () => {
       try {
