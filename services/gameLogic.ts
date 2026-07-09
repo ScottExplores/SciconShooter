@@ -366,6 +366,7 @@ export class GameEngine {
   invaderDrawBuffer: Entity[] = [];
   mobileProfile: boolean = false;
   polishSettings: GamePolishSettings = { ...DEFAULT_POLISH_SETTINGS };
+  performanceMode: boolean = false;
   
   constructor(stats: Stats) {
     this.stats = stats;
@@ -459,35 +460,42 @@ export class GameEngine {
 
   drawBackgroundLayers(ctx: CanvasRenderingContext2D) {
     const lowDetail = this.isMobileProfile();
+    const adaptiveLow = lowDetail && this.performanceMode;
 
-    this.drawTiledLayer(ctx, ASSETS.GAME_PARALLAX_BACK, 5, 0.06, 0.015, 0.6);
-    this.drawTiledLayer(ctx, ASSETS.GAME_PARALLAX_STARS, 5, 0.1, 0.02, 0.45);
-    this.drawTiledLayer(ctx, ASSETS.GAME_BG_BACK, 5, 0.16, 0.03, lowDetail ? 0.24 : 0.35);
-    this.drawTiledLayer(ctx, ASSETS.GAME_BG_STARS, 5, 0.22, 0.035, 0.5);
+    this.drawTiledLayer(ctx, ASSETS.GAME_PARALLAX_BACK, 5, 0.06, 0.015, adaptiveLow ? 0.48 : 0.6);
+    if (!adaptiveLow) {
+      this.drawTiledLayer(ctx, ASSETS.GAME_PARALLAX_STARS, 5, 0.1, 0.02, 0.45);
+    }
+    this.drawTiledLayer(ctx, ASSETS.GAME_BG_BACK, 5, 0.16, 0.03, adaptiveLow ? 0.18 : lowDetail ? 0.24 : 0.35);
+    this.drawTiledLayer(ctx, ASSETS.GAME_BG_STARS, 5, 0.22, 0.035, adaptiveLow ? 0.34 : 0.5);
     if (!lowDetail) {
       this.drawTiledLayer(ctx, ASSETS.GAME_PARALLAX_FAR_PLANETS, 5, 0.12, 0.02, 0.35);
     }
 
-    ctx.save();
-    ctx.globalAlpha = 0.9;
-    const horizon = getReadyImage(ASSETS.GAME_BG_PLANET);
-    if (horizon) {
-      const planetHeight = Math.max(220, this.height * 0.3);
-      const planetYOffset = Math.max(180, this.height * 0.2);
-      ctx.drawImage(horizon, 0, this.height - planetHeight + planetYOffset, this.width, planetHeight);
+    if (!adaptiveLow || this.frameCount % 2 === 0) {
+      ctx.save();
+      ctx.globalAlpha = adaptiveLow ? 0.58 : 0.9;
+      const horizon = getReadyImage(ASSETS.GAME_BG_PLANET);
+      if (horizon) {
+        const planetHeight = Math.max(220, this.height * 0.3);
+        const planetYOffset = Math.max(180, this.height * 0.2);
+        ctx.drawImage(horizon, 0, this.height - planetHeight + planetYOffset, this.width, planetHeight);
+      }
+      ctx.restore();
     }
-    ctx.restore();
 
     const planetDrift = (this.frameCount * 0.2) % (this.width + 200);
-    ctx.save();
-    ctx.translate(this.width - 130, 110 + Math.sin(this.frameCount * 0.01) * 10);
-    this.drawSprite(ctx, ASSETS.GAME_PARALLAX_BIG_PLANET, lowDetail ? 135 : 170, lowDetail ? 135 : 170, { alpha: lowDetail ? 0.38 : 0.55 });
-    ctx.restore();
+    if (!adaptiveLow) {
+      ctx.save();
+      ctx.translate(this.width - 130, 110 + Math.sin(this.frameCount * 0.01) * 10);
+      this.drawSprite(ctx, ASSETS.GAME_PARALLAX_BIG_PLANET, lowDetail ? 135 : 170, lowDetail ? 135 : 170, { alpha: lowDetail ? 0.38 : 0.55 });
+      ctx.restore();
 
-    ctx.save();
-    ctx.translate((this.width + 100) - planetDrift, 180 + Math.sin(this.frameCount * 0.015) * 12);
-    this.drawSprite(ctx, ASSETS.GAME_PARALLAX_RING_PLANET, lowDetail ? 70 : 90, lowDetail ? 140 : 180, { alpha: lowDetail ? 0.52 : 0.75 });
-    ctx.restore();
+      ctx.save();
+      ctx.translate((this.width + 100) - planetDrift, 180 + Math.sin(this.frameCount * 0.015) * 12);
+      this.drawSprite(ctx, ASSETS.GAME_PARALLAX_RING_PLANET, lowDetail ? 70 : 90, lowDetail ? 140 : 180, { alpha: lowDetail ? 0.52 : 0.75 });
+      ctx.restore();
+    }
 
     const tintIndex = (this.wave - 1 + this.sectorTint) % 3;
     if (tintIndex > 0) {
@@ -507,11 +515,17 @@ export class GameEngine {
     this.mobileProfile = this.width < MOBILE_DETAIL_BREAKPOINT || (this.height > this.width * 1.35 && this.width < 760);
   }
 
+  setPerformanceMode(enabled: boolean) {
+    this.performanceMode = enabled;
+  }
+
   getGlowBlur(blur: number) {
+    if (this.performanceMode && this.mobileProfile) return Math.min(blur * 0.22, 5);
     return this.mobileProfile ? Math.min(blur * 0.38, 8) : blur;
   }
 
   getParticleDensity() {
+    if (this.performanceMode && this.mobileProfile) return this.polishSettings.highDensityParticles ? 0.34 : 0.22;
     if (!this.polishSettings.highDensityParticles) return 0.42;
     return this.mobileProfile ? 0.62 : 1;
   }
@@ -584,7 +598,7 @@ export class GameEngine {
     const baseX = this.player.x + this.player.width / 2;
     const baseY = this.player.y + this.player.height * 0.82;
     const spread = this.player.width * 0.14;
-    const count = Math.max(1, Math.round(2 * strength));
+    const count = Math.max(1, Math.round(2 * strength * this.getParticleDensity()));
 
     for (let i = 0; i < count; i++) {
       const side = i % 2 === 0 ? -1 : 1;
@@ -882,14 +896,17 @@ export class GameEngine {
   }
 
   getParticleCap() {
+    if (this.performanceMode && this.mobileProfile) return Math.floor(MOBILE_PARTICLE_CAP * 0.58);
     return this.isMobileProfile() ? MOBILE_PARTICLE_CAP : DESKTOP_PARTICLE_CAP;
   }
 
   getEffectCap() {
+    if (this.performanceMode && this.mobileProfile) return Math.floor(MOBILE_EFFECT_CAP * 0.62);
     return this.isMobileProfile() ? MOBILE_EFFECT_CAP : DESKTOP_EFFECT_CAP;
   }
 
   getThreatCap() {
+    if (this.performanceMode && this.mobileProfile) return Math.floor(MOBILE_THREAT_CAP * 0.86);
     return this.isMobileProfile() ? MOBILE_THREAT_CAP : DESKTOP_THREAT_CAP;
   }
 
@@ -2790,8 +2807,14 @@ export class GameEngine {
     ctx.save();
     ctx.translate(this.shakeX, this.shakeY);
     this.drawBackgroundLayers(ctx);
-    this.stars.forEach(star => star.draw(ctx));
-    this.bgEntities.forEach(bg => bg.draw(ctx));
+    const starStride = this.performanceMode && this.mobileProfile ? 2 : 1;
+    for (let index = 0; index < this.stars.length; index += starStride) {
+      this.stars[index].draw(ctx);
+    }
+    const backgroundSpriteLimit = this.performanceMode && this.mobileProfile ? 1 : this.bgEntities.length;
+    for (let index = 0; index < backgroundSpriteLimit; index++) {
+      this.bgEntities[index].draw(ctx);
+    }
     
     if (this.inBossWarningSequence && this.pendingBossType === 'gatekeeper') {
         this.drawBossWarningComms(ctx);

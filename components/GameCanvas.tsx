@@ -164,13 +164,50 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     engineRef.current = engine;
     let targetFPS = 60;
     let frameInterval = 1000 / targetFPS;
+    let mobileFrameBudget = false;
+    let slowFrameScore = 0;
+    let recoveryFrameScore = 0;
 
     const refreshFrameBudget = () => {
       const rect = canvas.getBoundingClientRect();
       const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
       const mobileViewport = rect.width < 560 || (coarsePointer && rect.height > rect.width);
+      mobileFrameBudget = mobileViewport;
       targetFPS = mobileViewport ? 50 : 60;
       frameInterval = 1000 / targetFPS;
+    };
+
+    const updateAdaptivePerformanceMode = (deltaTime: number) => {
+      if (!mobileFrameBudget) {
+        if (engine.performanceMode) engine.setPerformanceMode(false);
+        slowFrameScore = 0;
+        recoveryFrameScore = 0;
+        return;
+      }
+
+      const slowThreshold = frameInterval * 1.55;
+      const recoveryThreshold = frameInterval * 1.18;
+
+      if (deltaTime > slowThreshold) {
+        slowFrameScore = Math.min(40, slowFrameScore + 2);
+        recoveryFrameScore = 0;
+      } else if (deltaTime < recoveryThreshold) {
+        recoveryFrameScore++;
+        slowFrameScore = Math.max(0, slowFrameScore - 1);
+      } else {
+        slowFrameScore = Math.max(0, slowFrameScore - 0.5);
+        recoveryFrameScore = 0;
+      }
+
+      if (!engine.performanceMode && slowFrameScore >= 18) {
+        engine.setPerformanceMode(true);
+        slowFrameScore = 0;
+        recoveryFrameScore = 0;
+      } else if (engine.performanceMode && recoveryFrameScore >= 150) {
+        engine.setPerformanceMode(false);
+        slowFrameScore = 0;
+        recoveryFrameScore = 0;
+      }
     };
     
     // Resize Handler
@@ -351,6 +388,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       // mobile browsers from redrawing the full canvas more often than gameplay advances.
       if (deltaTime >= frameInterval) {
           lastTimeRef.current = timestamp - (deltaTime % frameInterval);
+          updateAdaptivePerformanceMode(deltaTime);
 
           // Use the REF current value to check state, avoiding stale closure issues
           if (gameStateRef.current === GameState.PLAYING) {
