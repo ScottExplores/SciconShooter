@@ -96,12 +96,24 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     // Initialize Engine
     const engine = new GameEngine(stats);
     engineRef.current = engine;
+    let targetFPS = 60;
+    let frameInterval = 1000 / targetFPS;
+
+    const refreshFrameBudget = () => {
+      const rect = canvas.getBoundingClientRect();
+      const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+      const mobileViewport = rect.width < 560 || (coarsePointer && rect.height > rect.width);
+      targetFPS = mobileViewport ? 50 : 60;
+      frameInterval = 1000 / targetFPS;
+    };
     
     // Resize Handler
     const handleResize = () => {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
+      ctx.imageSmoothingEnabled = false;
+      refreshFrameBudget();
       engine.resize(canvas.width, canvas.height);
     };
     
@@ -219,6 +231,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       engine.handleInput(keys, null);
     };
 
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        lastTimeRef.current = performance.now();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     canvas.addEventListener('pointerdown', handlePointerDown);
@@ -231,13 +249,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     window.addEventListener('touchend', handleTouchEnd);
     window.addEventListener('touchcancel', handleTouchCancel);
     window.addEventListener('blur', handleWindowBlur);
-
-    // FPS Control
-    const targetFPS = 60;
-    const frameInterval = 1000 / targetFPS;
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Loop
     const animate = (timestamp: number) => {
+      if (document.hidden) {
+        lastTimeRef.current = timestamp;
+        requestRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
       if (!lastTimeRef.current) lastTimeRef.current = timestamp;
       
       const deltaTime = timestamp - lastTimeRef.current;
@@ -290,6 +311,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('touchcancel', handleTouchCancel);
       window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
