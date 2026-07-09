@@ -1,5 +1,5 @@
 {
-  "name": "SciCon Shooter",
-  "description": "An arcade space-shooter celebrating ResearchHub and SciCon 2025. Pilot the flask, battle predatory journals, and collect RSC.",
+  "name": "Scicon Shooter",
+  "description": "A Base-native arcade game where high-score missions help direct weekly RSC funding to active ResearchHub proposals.",
   "requestFramePermissions": []
 }

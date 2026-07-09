@@ -166,7 +166,7 @@ export const getFieldUpgradeCost = (stats: Stats, type: FieldUpgradeType) => {
 };
 
 export const TEXT_STRINGS = {
-  TITLE: "SciCon Shooter",
+  TITLE: "Scicon Shooter",
   SUBTITLE: "Space Peer-Reviewer",
   GAME_OVER: "SUBMISSION REJECTED",
   VICTORY: "PUBLISHED!",
