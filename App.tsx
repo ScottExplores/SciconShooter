@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import StartScreen from './components/StartScreen';
-import { ArchivedWinner, DonationStatus, FieldUpgradeType, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
+import { ArchivedWinner, DonationStatus, FieldUpgradeType, GameState, LeaderboardEntry, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeLevel } from './constants';
 import { getLeaderboardData, saveScore } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
-import { miniAppService } from './services/miniAppService';
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
 import type { WalletRuntimeAction } from './components/WalletRuntime';
 
@@ -40,14 +39,6 @@ interface PendingFundingPickRecord {
   monthlyRank?: number;
   allTimeRank?: number;
 }
-
-const defaultMiniAppState: MiniAppState = {
-  isMiniApp: false,
-  clientFid: null,
-  added: false,
-  userFid: null,
-  platformType: null
-};
 
 const runAfterFirstPaint = (
   callback: () => void,
@@ -88,6 +79,10 @@ const runAfterFirstPaint = (
       idleWindow.cancelIdleCallback(idleHandle);
     }
   };
+};
+
+const openExternalUrl = async (url: string) => {
+  window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 const defaultMissionUpgrades: Upgrades = {
@@ -233,7 +228,6 @@ const App: React.FC = () => {
   const [fundingPickSubmitError, setFundingPickSubmitError] = useState<string>('');
   const [isSubmittingFundingPick, setIsSubmittingFundingPick] = useState(false);
   const [showLabGlow, setShowLabGlow] = useState<boolean>(true);
-  const [miniApp, setMiniApp] = useState<MiniAppState>(defaultMiniAppState);
   const [walletError, setWalletError] = useState<string>('');
   const [walletRuntimeEnabled, setWalletRuntimeEnabled] = useState(false);
   const [walletRuntimeAction, setWalletRuntimeAction] = useState<WalletRuntimeAction | null>(null);
@@ -479,47 +473,6 @@ const App: React.FC = () => {
     }));
 
   }, [activeWalletAddress]);
-
-  useEffect(() => {
-    let active = true;
-    let idleHandle: number | null = null;
-    let timeoutHandle: number | null = null;
-    const idleWindow = window as IdleWindow;
-
-    const setupMiniApp = async () => {
-      try {
-        const state = await miniAppService.getState();
-        if (!active) return;
-
-        setMiniApp(state);
-        if (state.isMiniApp) {
-          await miniAppService.ready();
-        }
-      } catch (error) {
-        console.warn('Mini app setup skipped', error);
-      }
-    };
-
-    const runSetup = () => {
-      void setupMiniApp();
-    };
-
-    if (idleWindow.requestIdleCallback) {
-      idleHandle = idleWindow.requestIdleCallback(runSetup, { timeout: 1800 });
-    } else {
-      timeoutHandle = window.setTimeout(runSetup, 900);
-    }
-
-    return () => {
-      active = false;
-      if (idleHandle !== null && idleWindow.cancelIdleCallback) {
-        idleWindow.cancelIdleCallback(idleHandle);
-      }
-      if (timeoutHandle !== null) {
-        window.clearTimeout(timeoutHandle);
-      }
-    };
-  }, []);
 
   const startGame = () => {
     preloadGameplayComponents();
@@ -880,23 +833,23 @@ const App: React.FC = () => {
   };
 
   const openReferral = async () => {
-    await miniAppService.openUrl(ASSETS.REFERRAL_LINK);
+    await openExternalUrl(ASSETS.REFERRAL_LINK);
   };
 
   const openResearchHubFund = async () => {
-    await miniAppService.openUrl('https://www.researchhub.com/fund');
+    await openExternalUrl('https://www.researchhub.com/fund');
   };
 
   const openResearchHubProposal = async (url: string) => {
-    await miniAppService.openUrl(url);
+    await openExternalUrl(url);
   };
 
   const openTreasurySend = async () => {
-    await miniAppService.openUrl(`ethereum:${DONATION_CONFIG.RECIPIENT_ADDRESS}@${DONATION_CONFIG.BASE_CHAIN_ID}`);
+    await openExternalUrl(`ethereum:${DONATION_CONFIG.RECIPIENT_ADDRESS}@${DONATION_CONFIG.BASE_CHAIN_ID}`);
   };
 
   const openRscSwap = async () => {
-    await miniAppService.openUrl(DONATION_CONFIG.RSC_SWAP_URL);
+    await openExternalUrl(DONATION_CONFIG.RSC_SWAP_URL);
   };
 
   const pubStatus = getPubStatus(stats.score);
@@ -1065,7 +1018,7 @@ const App: React.FC = () => {
           onOpenReferral={openReferral}
           onOpenFund={openResearchHubFund}
           onOpenProposal={openResearchHubProposal}
-          onOpenXProfile={() => miniAppService.openUrl(DONATION_CONFIG.X_PROFILE_URL)}
+          onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
           onOpenTreasurySend={openTreasurySend}
           onOpenSwap={openRscSwap}
           walletControl={!activeStoryBeat ? (

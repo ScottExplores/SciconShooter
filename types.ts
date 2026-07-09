@@ -114,11 +114,3 @@ export interface WalletSession {
   connectorName?: string;
   hasDonated?: boolean;
 }
-
-export interface MiniAppState {
-  isMiniApp: boolean;
-  clientFid: number | null;
-  added: boolean;
-  userFid: number | null;
-  platformType: 'web' | 'mobile' | null;
-}
