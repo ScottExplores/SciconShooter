@@ -412,6 +412,8 @@ export class GameEngine {
       rotation?: number;
       alpha?: number;
       yOffset?: number;
+      filter?: string;
+      compositeOperation?: GlobalCompositeOperation;
     } = {}
   ) {
     const img = getReadyImage(url);
@@ -423,6 +425,8 @@ export class GameEngine {
     ctx.globalAlpha = options.alpha ?? 1;
     if (options.shadowColor) ctx.shadowColor = options.shadowColor;
     if (options.shadowBlur) ctx.shadowBlur = this.getGlowBlur(options.shadowBlur);
+    if (options.compositeOperation) ctx.globalCompositeOperation = options.compositeOperation;
+    if (options.filter) ctx.filter = options.filter;
     if (options.rotation) ctx.rotate(options.rotation);
     const yOffset = options.yOffset ?? 0;
     ctx.drawImage(img, -width / 2, -height / 2 + yOffset, width, height);
@@ -1550,7 +1554,8 @@ export class GameEngine {
 
     const currentMax = this.stats.bombChargeMax || BOMB_CHARGE_MAX;
     const previousCharge = this.stats.bombCharge || 0;
-    const nextCharge = Math.min(currentMax, previousCharge + amount);
+    const scaledAmount = amount * 1.25;
+    const nextCharge = Math.min(currentMax, previousCharge + scaledAmount);
 
     if (previousCharge < currentMax && nextCharge >= currentMax) {
       this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 10, 'FLASK READY', '#34d399', 18);
@@ -2915,19 +2920,57 @@ export class GameEngine {
       if (e.flashFrames <= 0) return;
 
       const alpha = Math.min(0.52, e.flashFrames / 12);
+      const flashSprite = this.getHitFlashSprite(e);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = e.formation === 'orbit' ? '#a7f3d0' : '#f8fafc';
-      ctx.lineWidth = 2;
-      ctx.shadowBlur = this.getGlowBlur(18);
+      ctx.shadowBlur = this.getGlowBlur(16);
       ctx.shadowColor = e.formation === 'orbit' ? '#a7f3d0' : '#ffffff';
+
+      if (flashSprite) {
+        const drewSprite = this.drawSprite(ctx, flashSprite, e.width, e.height, {
+          alpha: 0.92,
+          filter: 'brightness(0) saturate(0) invert(1)',
+          compositeOperation: 'lighter'
+        });
+
+        if (drewSprite) {
+          ctx.restore();
+          return;
+        }
+      }
+
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.roundRect(-e.width / 2, -e.height / 2, e.width, e.height, Math.min(16, e.width * 0.28));
+      ctx.ellipse(0, 0, e.width * 0.42, e.height * 0.38, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.stroke();
       ctx.restore();
+  }
+
+  getHitFlashSprite(e: Entity) {
+    if (e.type === EntityType.ENEMY_DRONE) {
+      return this.getAnimatedFrame(ASSETS.ENEMY_DRONE_FRAMES, e, 6);
+    }
+    if (e.type === EntityType.ENEMY_SWARM) {
+      return this.getAnimatedFrame(ASSETS.ENEMY_SWARM_FRAMES, e, 5);
+    }
+    if (e.type === EntityType.ENEMY_BRICK) {
+      return ASSETS.ENEMY_BRICK_FRAMES[e.variant % ASSETS.ENEMY_BRICK_FRAMES.length];
+    }
+    if (e.type === EntityType.ENEMY_JOURNAL) {
+      return ASSETS.ENEMY_JOURNAL;
+    }
+    if (e.type === EntityType.ENEMY_INVADER) {
+      return ASSETS.WALL_BOSS_SEGMENT;
+    }
+    if (e.type === EntityType.MINI_BOSS) {
+      return ASSETS.MINI_BOSS;
+    }
+    if (e.type === EntityType.BOSS) {
+      return ASSETS.FINAL_BOSS;
+    }
+
+    return null;
   }
   
   drawMiniBoss(ctx: CanvasRenderingContext2D, e: Entity) {
