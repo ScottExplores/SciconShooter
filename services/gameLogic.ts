@@ -351,6 +351,10 @@ export class GameEngine {
   playerDrawAlpha: number = 1;
   sectorTint: number = 0;
   isBombResolving: boolean = false;
+  collisionBoxes: Map<Entity, CollisionBox> = new Map();
+  enemyTargetsBuffer: Entity[] = [];
+  playerShotsBuffer: Entity[] = [];
+  invaderDrawBuffer: Entity[] = [];
   
   constructor(stats: Stats) {
     this.stats = stats;
@@ -858,9 +862,13 @@ export class GameEngine {
       this.playerSquashVelocity = 0;
     }
 
-    this.playerAfterimages = this.playerAfterimages
-      .map((image) => ({ ...image, alpha: image.alpha - 0.045 }))
-      .filter((image) => image.alpha > 0);
+    for (let index = this.playerAfterimages.length - 1; index >= 0; index--) {
+      const image = this.playerAfterimages[index];
+      image.alpha -= 0.045;
+      if (image.alpha <= 0) {
+        this.playerAfterimages.splice(index, 1);
+      }
+    }
   }
 
   addShake(amount: number) {
@@ -1006,9 +1014,13 @@ export class GameEngine {
   }
 
   getAsteroidBeltCount() {
-    return this.entities.filter((entity) => (
-      entity.type === EntityType.ENEMY_BRICK && entity.variant >= 900
-    )).length;
+    let count = 0;
+    for (const entity of this.entities) {
+      if (!entity.markedForDeletion && entity.type === EntityType.ENEMY_BRICK && entity.variant >= 900) {
+        count++;
+      }
+    }
+    return count;
   }
 
   update(cinematicPause: boolean = false) {
@@ -1052,8 +1064,16 @@ export class GameEngine {
       return;
     }
     
-    const invaderCount = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER).length;
-    const asteroidBeltCount = this.getAsteroidBeltCount();
+    let invaderCount = 0;
+    let asteroidBeltCount = 0;
+    for (const entity of this.entities) {
+      if (entity.markedForDeletion) continue;
+      if (entity.type === EntityType.ENEMY_INVADER) {
+        invaderCount++;
+      } else if (entity.type === EntityType.ENEMY_BRICK && entity.variant >= 900) {
+        asteroidBeltCount++;
+      }
+    }
     const isBossAlive = !!this.bossRef || !!this.miniBossRef || invaderCount > 0 || asteroidBeltCount > 0;
     
     if (isBossAlive) {
@@ -2168,7 +2188,8 @@ export class GameEngine {
   }
 
   checkCollisions() {
-    const collisionBoxes = new Map<Entity, CollisionBox>();
+    const collisionBoxes = this.collisionBoxes;
+    collisionBoxes.clear();
     const getBox = (entity: Entity) => {
       let box = collisionBoxes.get(entity);
       if (!box) {
@@ -2178,11 +2199,13 @@ export class GameEngine {
       return box;
     };
     const intersectsPlayer = (entity: Entity) => this.boxesIntersect(getBox(this.player), getBox(entity));
-    const enemyTargets: Entity[] = [];
-    const playerShots: Entity[] = [];
+    const enemyTargets = this.enemyTargetsBuffer;
+    const playerShots = this.playerShotsBuffer;
+    enemyTargets.length = 0;
+    playerShots.length = 0;
 
-    this.entities.forEach(e => {
-      if (e.markedForDeletion) return;
+    for (const e of this.entities) {
+      if (e.markedForDeletion) continue;
       const isEnemy = this.isEnemyTarget(e);
 
       if (isEnemy) {
@@ -2293,10 +2316,10 @@ export class GameEngine {
         }
       }
 
-    });
+    }
 
-    playerShots.forEach((shot) => {
-      if (shot.markedForDeletion) return;
+    for (const shot of playerShots) {
+      if (shot.markedForDeletion) continue;
 
       for (let index = 0; index < enemyTargets.length; index++) {
         const target = enemyTargets[index];
@@ -2322,7 +2345,7 @@ export class GameEngine {
 
         if (!shot.isBeam) break;
       }
-    });
+    }
   }
 
   getBossWarningComms(type: BossWarningType) {
@@ -2568,14 +2591,20 @@ export class GameEngine {
     this.drawWingmen(ctx);
     if (this.lives > 0 || this.deathSequenceFrames > 0) this.drawEntity(ctx, this.player);
     
-    const invaders = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER);
+    const invaders = this.invaderDrawBuffer;
+    invaders.length = 0;
+    for (const entity of this.entities) {
+      if (!entity.markedForDeletion && entity.type === EntityType.ENEMY_INVADER) {
+        invaders.push(entity);
+      }
+    }
     if (invaders.length > 0) {
         let minX = Infinity, maxX = -Infinity, minY = Infinity;
-        invaders.forEach(inv => {
+        for (const inv of invaders) {
             if (inv.x < minX) minX = inv.x;
             if (inv.x + inv.width > maxX) maxX = inv.x + inv.width;
             if (inv.y < minY) minY = inv.y;
-        });
+        }
         
         if (minY < Infinity) {
             const centerX = (minX + maxX) / 2;
