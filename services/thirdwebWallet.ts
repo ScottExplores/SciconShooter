@@ -30,7 +30,7 @@ export const thirdwebWallets = [
     auth: {
       mode: 'redirect',
       redirectUrl: thirdwebAuthRedirectUrl,
-      options: ['google', 'discord', 'telegram', 'farcaster', 'email', 'x']
+      options: ['google', 'discord', 'telegram', 'email', 'x']
     }
   }),
   baseAccountWallet,
