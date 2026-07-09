@@ -1,8 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import GameCanvas from './components/GameCanvas';
 import StartScreen from './components/StartScreen';
-import UIOverlay from './components/UIOverlay';
-import StoryTransmission from './components/StoryTransmission';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeLevel } from './constants';
@@ -14,6 +11,18 @@ import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
 import type { WalletRuntimeAction } from './components/WalletRuntime';
 
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
+const loadGameCanvas = () => import('./components/GameCanvas');
+const loadUIOverlay = () => import('./components/UIOverlay');
+const loadStoryTransmission = () => import('./components/StoryTransmission');
+const GameCanvas = React.lazy(loadGameCanvas);
+const UIOverlay = React.lazy(loadUIOverlay);
+const StoryTransmission = React.lazy(loadStoryTransmission);
+
+const preloadGameplayComponents = () => {
+  void loadGameCanvas();
+  void loadUIOverlay();
+  void loadStoryTransmission();
+};
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type IdleWindow = Window & {
@@ -270,6 +279,15 @@ const App: React.FC = () => {
 
   useEffect(() => () => clearIntroStoryTimeout(), []);
 
+  useEffect(() => {
+    if (gameState !== GameState.MENU) return undefined;
+
+    return runAfterFirstPaint(preloadGameplayComponents, {
+      delayMs: 1200,
+      timeoutMs: 4200
+    });
+  }, [gameState]);
+
   const wallet = useMemo<WalletSession>(() => {
     const address = walletSession.address ?? null;
     const isWalletBusy = walletRuntimeAction?.type === 'connect' || walletRuntimeAction?.type === 'continue';
@@ -504,6 +522,7 @@ const App: React.FC = () => {
   }, []);
 
   const startGame = () => {
+    preloadGameplayComponents();
     audioService.init();
     clearIntroStoryTimeout();
     lastStoryWaveRef.current = 0;
@@ -1001,33 +1020,37 @@ const App: React.FC = () => {
       ) : null}
 
       {(gameState === GameState.PLAYING || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
-        <GameCanvas
-          key={gameId}
-          stats={stats}
-          setStats={setStats}
-          setGameState={setGameState}
-          gameState={gameState}
-          isTransmissionOpen={Boolean(activeStoryBeat)}
-          bombCommand={bombCommand}
-          continueCommand={continueCommand}
-        />
+        <React.Suspense fallback={null}>
+          <GameCanvas
+            key={gameId}
+            stats={stats}
+            setStats={setStats}
+            setGameState={setGameState}
+            gameState={gameState}
+            isTransmissionOpen={Boolean(activeStoryBeat)}
+            bombCommand={bombCommand}
+            continueCommand={continueCommand}
+          />
+        </React.Suspense>
       )}
 
       {gameState === GameState.PLAYING && (
-        <UIOverlay
-          stats={stats}
-          setGameState={setGameState}
-          lives={stats.lives}
-          showLabGlow={showLabGlow}
-          onDisableLabGlow={() => setShowLabGlow(false)}
-          isUpgradeReady={false}
-          bombLocked={introMissionLocked || Boolean(activeStoryBeat)}
-          onUseBomb={() => {
-            if (introMissionLocked || activeStoryBeat) return;
-            setBombCommand({ nonce: Date.now() });
-          }}
-          onUpgrade={handleFieldUpgrade}
-        />
+        <React.Suspense fallback={null}>
+          <UIOverlay
+            stats={stats}
+            setGameState={setGameState}
+            lives={stats.lives}
+            showLabGlow={showLabGlow}
+            onDisableLabGlow={() => setShowLabGlow(false)}
+            isUpgradeReady={false}
+            bombLocked={introMissionLocked || Boolean(activeStoryBeat)}
+            onUseBomb={() => {
+              if (introMissionLocked || activeStoryBeat) return;
+              setBombCommand({ nonce: Date.now() });
+            }}
+            onUpgrade={handleFieldUpgrade}
+          />
+        </React.Suspense>
       )}
 
       {gameState === GameState.MENU && (
@@ -1377,10 +1400,12 @@ const App: React.FC = () => {
       )}
 
       {activeStoryBeat ? (
-        <StoryTransmission
-          beat={activeStoryBeat}
-          onComplete={() => setActiveStoryBeat(null)}
-        />
+        <React.Suspense fallback={null}>
+          <StoryTransmission
+            beat={activeStoryBeat}
+            onComplete={() => setActiveStoryBeat(null)}
+          />
+        </React.Suspense>
       ) : null}
 
     </div>
