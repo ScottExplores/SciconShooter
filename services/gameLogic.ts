@@ -273,7 +273,7 @@ const GAME_FEEL = {
 
 const BOMB_CHARGE_MAX = 58;
 const MAX_BOMBS = 5;
-const FLASK_CHARGE_PER_COIN = 1.25;
+const FLASK_CHARGE_PER_COIN = 2.5;
 const BASE_COIN_MAGNET_RADIUS = 150;
 const POWERUP_COIN_MAGNET_RADIUS = 420;
 const BOMB_DROP_CHANCE = 0.045;
@@ -1586,20 +1586,12 @@ export class GameEngine {
       audioService.playSound('missile');
   }
 
-  getBombChargeGain(target: Entity) {
-    if (target.type === EntityType.BOSS) return 15;
-    if (target.type === EntityType.MINI_BOSS) return 8;
-    if (target.type === EntityType.ENEMY_BRICK || target.type === EntityType.ENEMY_INVADER || target.type === EntityType.ENEMY_JOURNAL) return 2;
-    return 1;
-  }
-
-  addBombCharge(amount: number) {
-    if (amount <= 0) return;
+  addFlaskChargeFromCoin() {
+    if (FLASK_CHARGE_PER_COIN <= 0) return;
 
     const currentMax = this.stats.bombChargeMax || BOMB_CHARGE_MAX;
     const previousCharge = this.stats.bombCharge || 0;
-    const scaledAmount = amount * 1.25;
-    const nextCharge = Math.min(currentMax, previousCharge + scaledAmount);
+    const nextCharge = Math.min(currentMax, previousCharge + FLASK_CHARGE_PER_COIN);
 
     if (previousCharge < currentMax && nextCharge >= currentMax) {
       this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 10, 'FLASK READY', '#34d399', 18);
@@ -2497,7 +2489,7 @@ export class GameEngine {
         this.stats.coins++;
         this.stats.totalCoins++; 
         this.stats.score += (this.activePowerups.has(PowerupType.MAGNET) ? 2 : 1);
-        this.addBombCharge(FLASK_CHARGE_PER_COIN);
+        this.addFlaskChargeFromCoin();
         this.registerCoinPickup(e.x + e.width / 2, e.y + e.height / 2);
         
         // REMOVED AUTOMATIC LIFE GAIN
