@@ -3,6 +3,7 @@
   "version": "2.1.0",
   "scripts": {
     "dev": "vite",
+    "generate:tailwind": "powershell -ExecutionPolicy Bypass -File tools/generate-tailwind.ps1",
     "build": "vite build",
     "preview": "vite preview"
   },
