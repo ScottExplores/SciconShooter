@@ -2,32 +2,30 @@ import type { FieldUpgradeType, Stats } from './types';
 
 // --- ASSET CONFIGURATION ---
 export const ASSETS = {
-  PLAYER_SHIP: "https://www.researchhub.com/favicons/mstile-150x150.png", 
+  PLAYER_SHIP: "/game-art/branding/researchhub-ship.png",
   
   // Founder Icons - Mapped to Powerups
   // Triple Shot (Brian)
-  FOUNDER_BRIAN: "https://lh3.googleusercontent.com/a-/AAuE7mA5TckEtf6gNvFbi_sBOzDVMZEhGda7cWZqLRR4LFA",
+  FOUNDER_BRIAN: "/game-art/founders/brian.jpg",
   
   // Magnet (Patrick)
-  FOUNDER_PATRICK: "https://storage.prod.researchhub.com/uploads/author_profile_images/2022/08/09/blob_im4Dh4d",
+  FOUNDER_PATRICK: "/game-art/founders/patrick.jpg",
   
   // Shield (Jeffrey)
-  FOUNDER_JEFFREY: "https://storage.prod.researchhub.com/uploads/author_profile_images/2024/04/01/blob_Ut50nMY",
+  FOUNDER_JEFFREY: "/game-art/founders/jeffrey.jpg",
   
   // Double Shot (Founder 4)
-  FOUNDER_4: "https://storage.prod.researchhub.com/uploads/author_profile_images/2019/11/19/blob",
+  FOUNDER_4: "/game-art/founders/founder-4.jpg",
   
   // Extra Life (Arshia)
-  FOUNDER_ARSHIA: "https://i.postimg.cc/HsKrBhnq/6PY6dpvk-400x400.jpg",
+  FOUNDER_ARSHIA: "/game-art/founders/arshia.jpg",
 
   // Coin Asset - Updated to Gold2 SVG
-  RSC_TOKEN: "https://www.researchhub.com/icons/gold2.svg",
+  RSC_TOKEN: "/game-art/tokens/rsc-coin.svg",
 
   // Real RSC Token (Clean Bottle)
-  REAL_RSC_ICON: "https://assets.coingecko.com/coins/images/28146/standard/RH_BOTTLE_CLEAN_Aug_2024_1.png?1732742001",
+  REAL_RSC_ICON: "/game-art/tokens/rsc-bottle.png",
   
-  // Mini Boss 1
-  BOTTLENECK_ICON: "https://lh3.googleusercontent.com/rd-gg-dl/ABS2GSntvTHHYjyV3FOfg6o4_8pKVhDZNAwdk6bl3HrwWFcHIEfjB9JWqYrNDIgaUl2Ofc2rsSPdEzL9HsEj9H0N02KKNUQ5hrOh83pdq4HrUqKn4w2pEot8Xl-BkWdETc688975BXGTkuNCuR6HggINOb7sM1HFkEUZ23UJ0Dtmn123nxFet5ZgPe95aVrMKJ1xumGym4C9GJOpVKtjkNfcKryBo0XvZ3TjhvehSv7EbhDtfhuAfQuhq641DFuW_BTQyI1WU-PFcGZc--WwBvFiQkioMpk5X-ELDw2dNfMCLTdm_9DdLmrvIIqjPIs-IMm4qVzPkw9W080EHirrGktlPki-IpLBQrh19mJzkkDrT73VJnWgcwyL48De1d1KuAwRjNo6ifNGV-MtNdzkalgHBFdbZY4pe2rwe2BziYGV-umL44FX4skfmcQuvZ_MuQS8L5C-1fPFHu3v_wcJQaIerY7coLs6OlS97x694zYRmwWc554NODQnFl-tZ8gGH7gYC83WWdoQgrA67yNIZH65urxleeGbmemMAxbE7dol5H9hdWas1GWz6CJHSII7VsaUL7WGy_TfaLZ-KcwXENEme1V2L5KUASqZQtkS5aH1mScHkzYDtEALyBisotpCinj-o6-Ly-uOeju-RDVnNEQk7vHMhpKoPgXU0aH979ER1hIJOYnDOtkwwi9Bm38BE0ghKz3KnA6JTHhYUweAn2q42GkUv3OF1VimkOSsubwR40TSTwhZahKQzEBNewT9dqTF1VbcZNRxCYd7HY4zQqMfWpKzQcbCQe2smIwzXJUBSvxFijktkwnmkKswd-L7XNMdLwq4NUO30qQoqmztQZGKS5wDDAAbQCS7yjH6k0t12HsyN_4O_in6vEyCW63pglgjpRtKQ7uwrgKcn9ijhsyePw2Pp67XjY5080KkEhe87kl6kyum6DXgb-xi34p3bb8TC9hiuXtnkKaxEv6iEPuG7urDOEo7crKMXdA06VYj4GX42pjaXITUve6UrzPY4lqlwZ9jZPbLryV0yLzdVHiQgIOtfBHiu1DnJ5HEVjSjo3PGtrHJztssVvN61YUkDmzjpGXFqojXjVqKlb8CjwKjq0WHHNOu23P6gDg7YuxEVm_-CUPAoKzZxSOiAPWs10VRC_RGBdnV67g4fvJPpYBtpyQGzR4WG-grfJatwMutdjXdPq8xHShewioCG903JoVnLZU2p01PMBgnPBYn5p9clqobUWw2=s1024-rj",
   MENU_HERO: "/game-art/backgrounds/menu-hero.png",
   GAME_BG_BACK: "/game-art/backgrounds/bg-back.png",
   GAME_BG_STARS: "/game-art/backgrounds/bg-stars.png",
@@ -63,7 +61,6 @@ export const ASSETS = {
   FINAL_BOSS: "/game-art/bosses/final-boss-sentinel.png",
   
   // Referral Assets
-  REFERRAL_IMG: "https://lh3.googleusercontent.com/rd-gg-dl/ABS2GSntvTHHYjyV3FOfg6o4_8pKVhDZNAwdk6bl3HrwWFcHIEfjB9JWqYrNDIgaUl2Ofc2rsSPdEzL9HsEj9H0N02KKNUQ5hrOh83pdq4HrUqKn4w2pEot8Xl-BkWdETc688975BXGTkuNCuR6HggINOb7sM1HFkEUZ23UJ0Dtmn123nxFet5ZgPe95aVrMKJ1xumGym4C9GJOpVKtjkNfcKryBo0XvZ3TjhvehSv7EbhDtfhuAfQuhq641DFuW_BTQyI1WU-PFcGZc--WwBvFiQkioMpk5X-ELDw2dNfMCLTdm_9DdLmrvIIqjPIs-IMm4qVzPkw9W080EHirrGktlPki-IpLBQrh19mJzkkDrT73VJnWgcwyL48De1d1KuAwRjNo6ifNGV-MtNdzkalgHBFdbZY4pe2rwe2BziYGV-umL44FX4skfmcQuvZ_MuQS8L5C-1fPFHu3v_wcJQaIerY7coLs6OlS97x694zYRmwWc554NODQnFl-tZ8gGH7gYC83WWdoQgrA67yNIZH65urxleeGbmemMAxbE7dol5H9hdWas1GWz6CJHSII7VsaUL7WGy_TfaLZ-KcwXENEme1V2L5KUASqZQtkS5aH1mScHkzYDtEALyBisotpCinj-o6-Ly-uOeju-RDVnNEQk7vHMhpKoPgXU0aH979ER1hIJOYnDOtkwwi9Bm38BE0ghKz3KnA6JTHhYUweAn2q42GkUv3OF1VimkOSsubwR40TSTwhZahKQzEBNewT9dqTF1VbcZNRxCYd7HY4zQqMfWpKzQcbCQe2smIwzXJUBSvxFijktkwnmkKswd-L7XNMdLwq4NUO30qQoqmztQZGKS5wDDAAbQCS7yjH6k0t12HsyN_4O_in6vEyCW63pglgjpRtKQ7uwrgKcn9ijhsyePw2Pp67XjY5080KkEhe87kl6kyum6DXgb-xi34p3bb8TC9hiuXtnkKaxEv6iEPuG7urDOEo7crKMXdA06VYj4GX42pjaXITUve6UrzPY4lqlwZ9jZPbLryV0yLzdVHiQgIOtfBHiu1DnJ5HEVjSjo3PGtrHJztssVvN61YUkDmzjpGXFqojXjVqKlb8CjwKjq0WHHNOu23P6gDg7YuxEVm_-CUPAoKzZxSOiAPWs10VRC_RGBdnV67g4fvJPpYBtpyQGzR4WG-grfJatwMutdjXdPq8xHShewioCG903JoVnLZU2p01PMBgnPBYn5p9clqobUWw2=s1024-rj",
   REFERRAL_LINK: "https://researchhub.com/referral/join?refr=db8c0146-a571-4a57-b576-78f75066298c"
 };
 
@@ -87,7 +84,8 @@ export const STORAGE_KEYS = {
   WALLET_ADDRESS: "scicon_wallet_address",
   WALLET_PROFILES: "scicon_wallet_profiles",
   DONATED_WALLETS: "scicon_donated_wallets",
-  CREDITED_FUNDING_TXS: "scicon_credited_funding_txs"
+  CREDITED_FUNDING_TXS: "scicon_credited_funding_txs",
+  POLISH_SETTINGS: "scicon_polish_settings"
 };
 
 export const COLORS = {
@@ -168,7 +166,7 @@ export const getFieldUpgradeCost = (stats: Stats, type: FieldUpgradeType) => {
 };
 
 export const TEXT_STRINGS = {
-  TITLE: "SciCon Shooter",
+  TITLE: "Scicon Shooter",
   SUBTITLE: "Space Peer-Reviewer",
   GAME_OVER: "SUBMISSION REJECTED",
   VICTORY: "PUBLISHED!",

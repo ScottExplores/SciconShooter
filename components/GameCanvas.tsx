@@ -1,6 +1,59 @@
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameLogic';
-import { Stats, GameState } from '../types';
+import { Stats, GameState, GamePolishSettings } from '../types';
+
+const HUD_STATS_SYNC_INTERVAL_MS = 650;
+
+const cloneStatsForReact = (stats: Stats): Stats => ({
+  ...stats,
+  upgrades: { ...stats.upgrades },
+  powerupUses: { ...stats.powerupUses }
+});
+
+const getFlaskBucket = (stats: Stats) => {
+  const max = stats.bombChargeMax || 1;
+  return Math.floor((Math.max(0, stats.bombCharge || 0) / max) * 12);
+};
+
+const getProgressBucket = (progress: number) => Math.floor(Math.max(0, Math.min(1, progress)) * 16);
+
+const shouldPublishHudStats = (previous: Stats | null, next: Stats, elapsedMs: number) => {
+  if (!previous) return true;
+
+  if (
+    previous.lives !== next.lives
+    || previous.wave !== next.wave
+    || previous.bombs !== next.bombs
+    || previous.isBossActive !== next.isBossActive
+    || previous.bossMaxHp !== next.bossMaxHp
+    || previous.highScore !== next.highScore
+  ) {
+    return true;
+  }
+
+  if (getFlaskBucket(previous) !== getFlaskBucket(next)) {
+    return elapsedMs >= 220 || next.bombCharge >= next.bombChargeMax;
+  }
+
+  if (previous.isBossActive && previous.bossHp !== next.bossHp) {
+    return elapsedMs >= 180;
+  }
+
+  if (!next.isBossActive && getProgressBucket(previous.bossProgress) !== getProgressBucket(next.bossProgress)) {
+    return elapsedMs >= 360;
+  }
+
+  if (
+    previous.score !== next.score
+    || previous.coins !== next.coins
+    || previous.totalCoins !== next.totalCoins
+    || previous.enemiesDefeated !== next.enemiesDefeated
+  ) {
+    return elapsedMs >= HUD_STATS_SYNC_INTERVAL_MS;
+  }
+
+  return false;
+};
 
 interface GameCanvasProps {
   setStats: (stats: Stats) => void;
@@ -10,9 +63,10 @@ interface GameCanvasProps {
   isTransmissionOpen?: boolean;
   bombCommand?: { nonce: number } | null;
   continueCommand?: { nonce: number; lives: number } | null;
+  polishSettings: GamePolishSettings;
 }
 
-const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, gameState, isTransmissionOpen = false, bombCommand = null, continueCommand = null }) => {
+const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, gameState, isTransmissionOpen = false, bombCommand = null, continueCommand = null, polishSettings }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const requestRef = useRef<number | null>(null);
@@ -21,6 +75,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
   const handledContinueNonceRef = useRef<number | null>(null);
   const activeTouchIdRef = useRef<number | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
+  const lastPublishedStatsRef = useRef<Stats | null>(null);
+  const lastStatsPublishTimeRef = useRef<number>(0);
+  const gameOverSentRef = useRef(false);
   
   // Use a ref to track gameState inside the animation loop closure
   const gameStateRef = useRef(gameState);
@@ -33,12 +90,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       activeTouchIdRef.current = null;
       activePointerIdRef.current = null;
       engineRef.current?.handleInput({}, null);
+    } else {
+      gameOverSentRef.current = false;
     }
   }, [gameState]);
 
   useEffect(() => {
     isTransmissionOpenRef.current = isTransmissionOpen;
   }, [isTransmissionOpen]);
+
+  useEffect(() => {
+    if (engineRef.current) {
+      engineRef.current.polishSettings = polishSettings;
+    }
+  }, [polishSettings]);
 
   useEffect(() => {
     if (!bombCommand || !engineRef.current) return;
@@ -95,19 +160,85 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
 
     // Initialize Engine
     const engine = new GameEngine(stats);
+    engine.polishSettings = polishSettings;
     engineRef.current = engine;
+    let targetFPS = 60;
+    let frameInterval = 1000 / targetFPS;
+    let mobileFrameBudget = false;
+    let slowFrameScore = 0;
+    let recoveryFrameScore = 0;
+
+    const refreshFrameBudget = () => {
+      const rect = canvas.getBoundingClientRect();
+      const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+      const mobileViewport = rect.width < 560 || (coarsePointer && rect.height > rect.width);
+      mobileFrameBudget = mobileViewport;
+      targetFPS = mobileViewport ? 50 : 60;
+      frameInterval = 1000 / targetFPS;
+    };
+
+    const updateAdaptivePerformanceMode = (deltaTime: number) => {
+      if (!mobileFrameBudget) {
+        if (engine.performanceMode) engine.setPerformanceMode(false);
+        slowFrameScore = 0;
+        recoveryFrameScore = 0;
+        return;
+      }
+
+      const slowThreshold = frameInterval * 1.55;
+      const recoveryThreshold = frameInterval * 1.18;
+
+      if (deltaTime > slowThreshold) {
+        slowFrameScore = Math.min(40, slowFrameScore + 2);
+        recoveryFrameScore = 0;
+      } else if (deltaTime < recoveryThreshold) {
+        recoveryFrameScore++;
+        slowFrameScore = Math.max(0, slowFrameScore - 1);
+      } else {
+        slowFrameScore = Math.max(0, slowFrameScore - 0.5);
+        recoveryFrameScore = 0;
+      }
+
+      if (!engine.performanceMode && slowFrameScore >= 18) {
+        engine.setPerformanceMode(true);
+        slowFrameScore = 0;
+        recoveryFrameScore = 0;
+      } else if (engine.performanceMode && recoveryFrameScore >= 150) {
+        engine.setPerformanceMode(false);
+        slowFrameScore = 0;
+        recoveryFrameScore = 0;
+      }
+    };
     
     // Resize Handler
     const handleResize = () => {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
+      ctx.imageSmoothingEnabled = false;
+      refreshFrameBudget();
       engine.resize(canvas.width, canvas.height);
     };
     
     handleResize();
     window.addEventListener('resize', handleResize);
     engine.init(canvas.width, canvas.height);
+    lastPublishedStatsRef.current = null;
+    lastStatsPublishTimeRef.current = 0;
+
+    const publishHudStats = (force = false, timestamp = performance.now()) => {
+      const elapsedMs = timestamp - lastStatsPublishTimeRef.current;
+      const nextStats = engine.stats;
+
+      if (!force && !shouldPublishHudStats(lastPublishedStatsRef.current, nextStats, elapsedMs)) {
+        return;
+      }
+
+      const statsSnapshot = cloneStatsForReact(nextStats);
+      lastPublishedStatsRef.current = statsSnapshot;
+      lastStatsPublishTimeRef.current = timestamp;
+      setStats(statsSnapshot);
+    };
 
     // Input Handlers
     const keys: Record<string, boolean> = {};
@@ -116,7 +247,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     const handleKeyDown = (e: KeyboardEvent) => { 
       keys[e.key] = true; 
       if (!e.repeat && (e.key === 'b' || e.key === 'B') && engine.triggerBomb()) {
-        setStats({ ...engine.stats });
+        publishHudStats(true);
       }
     };
     
@@ -219,6 +350,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       engine.handleInput(keys, null);
     };
 
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        lastTimeRef.current = performance.now();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     canvas.addEventListener('pointerdown', handlePointerDown);
@@ -231,41 +368,46 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     window.addEventListener('touchend', handleTouchEnd);
     window.addEventListener('touchcancel', handleTouchCancel);
     window.addEventListener('blur', handleWindowBlur);
-
-    // FPS Control
-    const targetFPS = 60;
-    const frameInterval = 1000 / targetFPS;
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Loop
     const animate = (timestamp: number) => {
-      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+      if (document.hidden) {
+        lastTimeRef.current = timestamp;
+        requestRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      if (!lastTimeRef.current) {
+        lastTimeRef.current = timestamp - frameInterval;
+      }
       
       const deltaTime = timestamp - lastTimeRef.current;
 
-      // Only update if enough time has passed (cap at 60 FPS)
+      // Only update and draw if enough time has passed. This keeps high-refresh
+      // mobile browsers from redrawing the full canvas more often than gameplay advances.
       if (deltaTime >= frameInterval) {
           lastTimeRef.current = timestamp - (deltaTime % frameInterval);
+          updateAdaptivePerformanceMode(deltaTime);
 
           // Use the REF current value to check state, avoiding stale closure issues
           if (gameStateRef.current === GameState.PLAYING) {
             engine.update(isTransmissionOpenRef.current);
+
+            // Keep the React HUD in sync at a mobile-friendly cadence while
+            // allowing canvas gameplay to continue at the frame budget.
+            publishHudStats(false, timestamp);
+
+            if (!engine.gameActive && engine.lives <= 0 && !gameOverSentRef.current) {
+              gameOverSentRef.current = true;
+              gameStateRef.current = GameState.GAMEOVER;
+              publishHudStats(true, timestamp);
+              setGameState(GameState.GAMEOVER);
+            }
           }
 
-          // Sync Stats to React for HUD every 30 logical frames (0.5s)
-          if (engine.frameCount % 30 === 0) {
-            setStats({ 
-                ...engine.stats,
-            });
-          }
-
-          // Check Game Over
-          if (!engine.gameActive && engine.lives <= 0) {
-            setGameState(GameState.GAMEOVER);
-          }
+          engine.draw(ctx);
       }
-
-      // ALWAYS draw the game so it appears in the background (interpolate if needed, but simple draw is fine here)
-      engine.draw(ctx);
       
       requestRef.current = requestAnimationFrame(animate);
     };
@@ -290,6 +432,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('touchcancel', handleTouchCancel);
       window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount

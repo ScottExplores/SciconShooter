@@ -3,11 +3,11 @@
   "version": "2.1.0",
   "scripts": {
     "dev": "vite",
+    "generate:tailwind": "powershell -ExecutionPolicy Bypass -File tools/generate-tailwind.ps1",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@farcaster/miniapp-sdk": "^0.2.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "thirdweb": "^5.120.0"

@@ -3,33 +3,74 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="Scicon Shooter is a Base-native arcade game where leaderboard runs help direct weekly RSC funding to active ResearchHub proposals." />
+    <meta name="theme-color" content="#0b1020" />
+    <meta name="application-name" content="Scicon Shooter" />
+    <meta name="apple-mobile-web-app-title" content="Scicon Shooter" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="base:app_id" content="6935187482a86756bfd57b90" />
-    
-    <meta name="fc:miniapp" content='{
-      "version": "next",
-      "imageUrl": "https://sciconshooter.xyz/preview.png",
-      "button": {
-        "title": "Play Scicon Shooter",
-        "action": {
-          "type": "launch_frame",
-          "name": "Scicon Shooter",
-          "url": "https://sciconshooter.xyz",
-          "splashImageUrl": "https://sciconshooter.xyz/icon.png",
-          "splashBackgroundColor": "#0b1020"
-        }
-      }
-    }' />
+    <link rel="canonical" href="https://sciconshooter.xyz" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/orbitron-latin.woff2" as="font" type="font/woff2" crossorigin />
 
     <meta property="og:title" content="Scicon Shooter" />
-    <meta property="og:description" content="A sci-fi shooter game on Base. Blast enemies and earn rewards!" />
+    <meta property="og:description" content="Play a Base-native arcade mission, climb the weekly board, and steer RSC funding toward ResearchHub proposals." />
     <meta property="og:image" content="https://sciconshooter.xyz/preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="805" />
     <meta property="og:url" content="https://sciconshooter.xyz" />
+    <meta property="og:site_name" content="Scicon Shooter" />
     <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Scicon Shooter" />
+    <meta name="twitter:description" content="A Base-native arcade game where weekly high scores help direct RSC funding to ResearchHub proposals." />
+    <meta name="twitter:image" content="https://sciconshooter.xyz/preview.png" />
 
-    <title>SciCon Shooter</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Scicon Shooter</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600&display=swap');
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/inter-latin.woff2') format('woff2');
+      }
+
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url('/fonts/inter-latin.woff2') format('woff2');
+      }
+
+      @font-face {
+        font-family: 'Orbitron';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/orbitron-latin.woff2') format('woff2');
+      }
+
+      @font-face {
+        font-family: 'Orbitron';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url('/fonts/orbitron-latin.woff2') format('woff2');
+      }
+
+      @font-face {
+        font-family: 'Orbitron';
+        font-style: normal;
+        font-weight: 900;
+        font-display: swap;
+        src: url('/fonts/orbitron-latin.woff2') format('woff2');
+      }
       
       body {
         margin: 0;

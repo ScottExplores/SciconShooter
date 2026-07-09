@@ -1,0 +1,39 @@
+{
+  "name": "Scicon Shooter",
+  "short_name": "Scicon",
+  "description": "A Base-native arcade game where leaderboard runs help direct weekly RSC funding to active ResearchHub proposals.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "categories": [
+    "games",
+    "finance",
+    "education"
+  ],
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/preview.png",
+      "sizes": "1200x805",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Scicon Shooter mission dashboard"
+    },
+    {
+      "src": "/app-thumbnail.png",
+      "sizes": "1200x628",
+      "type": "image/png",
+      "label": "Scicon Shooter Base app preview"
+    }
+  ]
+}

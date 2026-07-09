@@ -31,14 +31,9 @@ type IconName =
   | 'trophy'
   | 'more'
   | 'play'
-  | 'shield'
-  | 'overdrive'
-  | 'focus'
-  | 'beam'
   | 'gift'
   | 'chart'
   | 'settings'
-  | 'pilot'
   | 'wallet'
   | 'coin'
   | 'external'
@@ -48,8 +43,7 @@ type IconName =
   | 'mint'
   | 'base'
   | 'rocket'
-  | 'flask'
-  | 'chevron';
+  | 'flask';
 
 const dashboardTabs: Array<{ id: DashboardTab; label: string; icon: IconName; hint: string }> = [
   { id: 'home', label: 'Home', icon: 'home', hint: 'Mission' },
@@ -200,42 +194,6 @@ const Icon: React.FC<{ name: IconName; className?: string; strokeWidth?: number 
           <path d="M8 5.5v13l10.2-6.5L8 5.5Z" />
         </svg>
       );
-    case 'shield':
-      return (
-        <svg {...common}>
-          <path d="M12 3 19 6v5.4c0 4.4-3 7.4-7 9.1-4-1.7-7-4.7-7-9.1V6l7-3Z" />
-          <path d="m9 12 2 2 4-5" />
-        </svg>
-      );
-    case 'overdrive':
-      return (
-        <svg {...common}>
-          <path d="m13 2-8 12h6l-1 8 8-12h-6l1-8Z" />
-        </svg>
-      );
-    case 'focus':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 2v3" />
-          <path d="M12 19v3" />
-          <path d="M2 12h3" />
-          <path d="M19 12h3" />
-          <path d="m5 5 2.2 2.2" />
-          <path d="m16.8 16.8 2.2 2.2" />
-          <path d="m19 5-2.2 2.2" />
-          <path d="m7.2 16.8-2.2 2.2" />
-        </svg>
-      );
-    case 'beam':
-      return (
-        <svg {...common}>
-          <path d="M12 3 4 8l8 13 8-13-8-5Z" />
-          <path d="M12 3v18" />
-          <path d="M4 8h16" />
-          <path d="m8 14 4-6 4 6" />
-        </svg>
-      );
     case 'gift':
       return (
         <svg {...common}>
@@ -260,14 +218,6 @@ const Icon: React.FC<{ name: IconName; className?: string; strokeWidth?: number 
         <svg {...common}>
           <path d="M12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Z" />
           <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.4 2.4-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4.8v-.4a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H2.5V10H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.4-2.4.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3h4.8v.4a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.5v4H21a1.7 1.7 0 0 0-1.6 1Z" />
-        </svg>
-      );
-    case 'pilot':
-      return (
-        <svg {...common}>
-          <path d="M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
-          <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
-          <path d="M8 11h8" />
         </svg>
       );
     case 'wallet':
@@ -346,12 +296,6 @@ const Icon: React.FC<{ name: IconName; className?: string; strokeWidth?: number 
           <path d="M9 3h6" />
           <path d="M10 3v5l-5.2 8.6A2.2 2.2 0 0 0 6.7 20h10.6a2.2 2.2 0 0 0 1.9-3.4L14 8V3" />
           <path d="M8 14h8" />
-        </svg>
-      );
-    case 'chevron':
-      return (
-        <svg {...common}>
-          <path d="m8 10 4 4 4-4" />
         </svg>
       );
     default:
@@ -564,63 +508,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
     );
   };
 
-  const Header = () => (
-    <header className="grid gap-3 rounded-[8px] border border-cyan-300/18 bg-slate-950/62 p-3 shadow-[0_0_35px_rgba(8,145,178,0.14)] backdrop-blur-xl md:grid-cols-[auto_1fr_auto] md:items-center">
-      <div className="flex items-center gap-3">
-        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[6px] border border-cyan-300/45 bg-cyan-300/10 shadow-[0_0_22px_rgba(34,211,238,0.28)]">
-          <img src={ASSETS.PLAYER_SHIP} alt="" className="h-8 w-8 object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
-        </div>
-        <div className="leading-none">
-          <p className="text-[1.35rem] font-black uppercase text-white md:text-2xl">Scicon</p>
-          <p className="text-[1.05rem] font-black uppercase text-cyan-300 md:text-xl">Shooter</p>
-        </div>
-      </div>
-
-      <div className="flex min-w-0 items-center justify-between gap-3 md:justify-start">
-        <button
-          type="button"
-          onClick={() => setDashboardTab('market')}
-          className="flex min-w-0 items-center gap-3 rounded-[6px] border border-cyan-300/25 bg-slate-950/70 px-3 py-2 text-left transition hover:border-emerald-300/45 hover:bg-emerald-300/10"
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-300/35 bg-emerald-400/18 text-emerald-100">
-            <img src={ASSETS.REAL_RSC_ICON} alt="" className="h-7 w-7 rounded-full object-contain" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-black text-white">{weeklyAllocation.allocationRsc} RSC</span>
-            <span className="block text-xs text-slate-300">Weekly funding</span>
-          </span>
-          <Icon name="chevron" className="h-4 w-4 text-cyan-200/75" />
-        </button>
-
-        <div className="hidden items-center gap-2 lg:flex">
-          <StatusPill tone="green">Base native</StatusPill>
-          <StatusPill tone="cyan">ResearchHub powered</StatusPill>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-2 md:justify-end">
-        <button type="button" onClick={() => setDashboardTab('trophies')} className="sci-icon-button" aria-label="Open leaderboard">
-          <Icon name="chart" />
-        </button>
-        <button type="button" onClick={onOpenReferral} className="sci-icon-button" aria-label="Open ResearchHub referral">
-          <Icon name="gift" />
-        </button>
-        <button type="button" onClick={() => setShowFeedback(true)} className="sci-icon-button" aria-label="Open settings and feedback">
-          <Icon name="settings" />
-        </button>
-        <div className="hidden items-center gap-3 rounded-[6px] border border-cyan-300/25 bg-cyan-300/8 px-3 py-2 sm:flex">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-cyan-300/35 bg-slate-950 text-cyan-100">
-            <Icon name="pilot" className="h-5 w-5" />
-          </div>
-          <div className="leading-tight">
-            <p className="text-sm font-bold text-white">Pilot</p>
-            <p className="text-xs text-slate-300">Level {pilotLevel}</p>
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-
   const HeroPanel = ({ compact = false }: { compact?: boolean }) => (
     <HudPanel className={compact ? 'min-h-[22rem]' : 'min-h-[34rem] xl:min-h-[40rem]'}>
       <div className="absolute inset-0">
@@ -757,48 +644,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
     </HudPanel>
   );
 
-  const LiveProposalsPanel = ({ limit = 5 }: { limit?: number }) => (
-    <HudPanel>
-      <div className="p-4 md:p-5">
-        <div className="mb-4 flex items-center justify-between gap-4 border-b border-cyan-200/14 pb-3">
-          <div>
-            <h2 className="text-lg font-black text-cyan-200">Live Proposals</h2>
-            <p className="text-xs text-slate-300">Most picked funding targets</p>
-          </div>
-          <button type="button" onClick={() => setDashboardTab('proposals')} className="text-xs font-bold uppercase text-cyan-200 hover:text-white">
-            View all
-          </button>
-        </div>
-
-        {proposalStatus === 'loading' && (
-          <div className="space-y-3">
-            {[0, 1, 2].map((index) => (
-              <div key={index} className="h-16 animate-pulse rounded-[6px] bg-white/[0.04]" />
-            ))}
-          </div>
-        )}
-
-        {proposalStatus === 'error' && (
-          <div className="rounded-[6px] border border-red-300/20 bg-red-500/10 p-4 text-sm text-red-100">
-            Proposal feed is temporarily unavailable. You can still launch missions and fund from the market.
-          </div>
-        )}
-
-        {proposalStatus !== 'loading' && proposalStatus !== 'error' && sortedProposals.length === 0 && (
-          <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
-            Live proposals will appear here once ResearchHub returns active funding targets.
-          </div>
-        )}
-
-        {sortedProposals.length > 0 && (
-          <div className="space-y-2">
-            {sortedProposals.slice(0, limit).map((proposal, index) => renderProposalRow(proposal, index, limit < 5))}
-          </div>
-        )}
-      </div>
-    </HudPanel>
-  );
-
   const DashboardNav = ({ docked = false }: { docked?: boolean }) => (
     <nav className={`${docked ? 'mt-auto pt-2' : ''}`}>
       <div className="sci-dashboard-nav grid grid-cols-5 overflow-hidden rounded-[8px] border border-cyan-300/24 bg-slate-950/86 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
@@ -825,41 +670,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
         })}
       </div>
     </nav>
-  );
-
-  const MissionControlPanel = () => (
-    <HudPanel>
-      <div className="p-4 md:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-black text-white">Mission Control</h2>
-            <p className="text-sm text-slate-300">Launch missions, climb the board, and direct weekly RSC funding.</p>
-          </div>
-          <button type="button" onClick={onStart} className="sci-mini-cta">
-            <Icon name="play" className="h-4 w-4" />
-            Start
-          </button>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-[8px] border border-cyan-300/16 bg-white/[0.035] p-4">
-            <p className="text-xs uppercase text-slate-400">Weekly Leader</p>
-            <p className="mt-2 truncate text-lg font-black text-white">{leaderboardName(weeklyLeader)}</p>
-            <p className="text-sm text-cyan-200">{formatNumber(leaderboardScore(weeklyLeader))} pts</p>
-          </div>
-          <div className="rounded-[8px] border border-cyan-300/16 bg-white/[0.035] p-4">
-            <p className="text-xs uppercase text-slate-400">All-Time Ace</p>
-            <p className="mt-2 truncate text-lg font-black text-white">{leaderboardName(allTimeLeader)}</p>
-            <p className="text-sm text-cyan-200">{formatNumber(leaderboardScore(allTimeLeader))} pts</p>
-          </div>
-          <div className="rounded-[8px] border border-cyan-300/16 bg-white/[0.035] p-4">
-            <p className="text-xs uppercase text-slate-400">This Week</p>
-            <p className="mt-2 text-lg font-black text-white">{weeklyAllocation.allocationRsc} RSC</p>
-            <p className="text-sm text-cyan-200">Awarded to the winning pick</p>
-          </div>
-        </div>
-      </div>
-    </HudPanel>
   );
 
   const ProposalsDashboard = () => (

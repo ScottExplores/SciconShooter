@@ -103,6 +103,11 @@ export interface Stats {
   bossMaxHp: number;
 }
 
+export interface GamePolishSettings {
+  screenShake: boolean;
+  highDensityParticles: boolean;
+}
+
 export type WalletConnectionStatus = 'idle' | 'connecting' | 'connected' | 'error';
 export type DonationStatus = 'idle' | 'switching_network' | 'processing' | 'confirming' | 'success' | 'error';
 
@@ -113,12 +118,4 @@ export interface WalletSession {
   error: string;
   connectorName?: string;
   hasDonated?: boolean;
-}
-
-export interface MiniAppState {
-  isMiniApp: boolean;
-  clientFid: number | null;
-  added: boolean;
-  userFid: number | null;
-  platformType: 'web' | 'mobile' | null;
 }

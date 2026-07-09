@@ -30,7 +30,7 @@ export const thirdwebWallets = [
     auth: {
       mode: 'redirect',
       redirectUrl: thirdwebAuthRedirectUrl,
-      options: ['google', 'discord', 'telegram', 'farcaster', 'email', 'x']
+      options: ['google', 'discord', 'telegram', 'email', 'x']
     }
   }),
   baseAccountWallet,
@@ -55,7 +55,7 @@ export const thirdwebTheme = darkTheme({
 });
 
 export const thirdwebAppMetadata = {
-  name: 'SciCon Shooter',
+  name: 'Scicon Shooter',
   url: DONATION_CONFIG.GAME_URL,
   description: 'Continue with RSC. Fight bottlenecks. Steer weekly allocations.',
   logoUrl: `${DONATION_CONFIG.GAME_URL}/icon.png`

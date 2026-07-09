@@ -1,38 +1,33 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { getContract, sendAndConfirmTransaction } from 'thirdweb';
-import { getBalance, transfer } from 'thirdweb/extensions/erc20';
-import {
-  useActiveAccount,
-  useActiveWallet,
-  useActiveWalletChain,
-  useConnectModal,
-  useDisconnect as useThirdwebDisconnect
-} from 'thirdweb/react';
-import type { Account } from 'thirdweb/wallets';
-import GameCanvas from './components/GameCanvas';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import StartScreen from './components/StartScreen';
-import UIOverlay from './components/UIOverlay';
-import WalletButton from './components/WalletButton';
-import StoryTransmission from './components/StoryTransmission';
-import { ArchivedWinner, DonationStatus, FieldUpgradeType, GameState, LeaderboardEntry, MiniAppState, PowerupType, Stats, Upgrades, WalletSession } from './types';
+import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeLevel } from './constants';
 import { getLeaderboardData, saveScore } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
-import { miniAppService } from './services/miniAppService';
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
-import {
-  thirdwebAppMetadata,
-  thirdwebBaseChain,
-  thirdwebClient,
-  thirdwebConnectModal,
-  thirdwebRecommendedWallets,
-  thirdwebTheme,
-  thirdwebWallets
-} from './services/thirdwebWallet';
+import type { WalletRuntimeAction } from './components/WalletRuntime';
+
+const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
+const loadGameCanvas = () => import('./components/GameCanvas');
+const loadUIOverlay = () => import('./components/UIOverlay');
+const loadStoryTransmission = () => import('./components/StoryTransmission');
+const GameCanvas = React.lazy(loadGameCanvas);
+const UIOverlay = React.lazy(loadUIOverlay);
+const StoryTransmission = React.lazy(loadStoryTransmission);
+
+const preloadGameplayComponents = () => {
+  void loadGameCanvas();
+  void loadUIOverlay();
+  void loadStoryTransmission();
+};
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
+type IdleWindow = Window & {
+  requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
 
 interface PendingFundingPickRecord {
   pilotName: string;
@@ -45,18 +40,72 @@ interface PendingFundingPickRecord {
   allTimeRank?: number;
 }
 
-const defaultMiniAppState: MiniAppState = {
-  isMiniApp: false,
-  clientFid: null,
-  added: false,
-  userFid: null,
-  platformType: null
+const runAfterFirstPaint = (
+  callback: () => void,
+  options: { delayMs?: number; timeoutMs?: number } = {}
+) => {
+  const { delayMs = 650, timeoutMs = 2400 } = options;
+  const idleWindow = window as IdleWindow;
+  let cancelled = false;
+  let frameHandle: number | null = null;
+  let delayHandle: ReturnType<typeof window.setTimeout> | null = null;
+  let idleHandle: number | null = null;
+
+  const run = () => {
+    if (!cancelled) {
+      callback();
+    }
+  };
+
+  frameHandle = window.requestAnimationFrame(() => {
+    delayHandle = window.setTimeout(() => {
+      if (idleWindow.requestIdleCallback) {
+        idleHandle = idleWindow.requestIdleCallback(run, { timeout: timeoutMs });
+      } else {
+        run();
+      }
+    }, delayMs);
+  });
+
+  return () => {
+    cancelled = true;
+    if (frameHandle !== null) {
+      window.cancelAnimationFrame(frameHandle);
+    }
+    if (delayHandle !== null) {
+      window.clearTimeout(delayHandle);
+    }
+    if (idleHandle !== null && idleWindow.cancelIdleCallback) {
+      idleWindow.cancelIdleCallback(idleHandle);
+    }
+  };
+};
+
+const openExternalUrl = async (url: string) => {
+  window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 const defaultMissionUpgrades: Upgrades = {
   fireRate: 0,
   speed: 0,
   missile: 0
+};
+
+const defaultPolishSettings: GamePolishSettings = {
+  screenShake: true,
+  highDensityParticles: true
+};
+
+const getInitialPolishSettings = (): GamePolishSettings => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEYS.POLISH_SETTINGS) || '{}') as Partial<GamePolishSettings>;
+    return {
+      screenShake: typeof parsed.screenShake === 'boolean' ? parsed.screenShake : defaultPolishSettings.screenShake,
+      highDensityParticles: typeof parsed.highDensityParticles === 'boolean' ? parsed.highDensityParticles : defaultPolishSettings.highDensityParticles
+    };
+  } catch {
+    return defaultPolishSettings;
+  }
 };
 
 const defaultPowerupUses: Record<PowerupType, number> = {
@@ -66,27 +115,6 @@ const defaultPowerupUses: Record<PowerupType, number> = {
   [PowerupType.SHIELD]: 0,
   [PowerupType.EXTRA_LIFE]: 0,
   [PowerupType.RESEARCH_BEAM]: 0
-};
-
-const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') => {
-  const message = error?.shortMessage || error?.message || fallback;
-
-  if (/rejected|denied|cancelled|canceled|closed modal|request rejected/i.test(message)) {
-    return fallback;
-  }
-
-  if (/insufficient/i.test(message)) {
-    return `Not enough ${tokenLabel} or gas for that action.`;
-  }
-
-  return message;
-};
-
-const getInsufficientContinueTokenMessage = (
-  requiredAmount: number,
-  availableDisplayValue = '0'
-) => {
-  return `You need ${requiredAmount} RSC on Base to continue this run. Your wallet shows ${availableDisplayValue} RSC.`;
 };
 
 const getProjectedScoreQualification = (
@@ -113,6 +141,91 @@ const getProjectedScoreQualification = (
   };
 };
 
+interface WalletControlProps {
+  wallet: WalletSession;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  onOpenSwap: () => void;
+  placement?: 'floating' | 'mission';
+}
+
+const WalletControl: React.FC<WalletControlProps> = ({
+  wallet,
+  onConnect,
+  onDisconnect,
+  onOpenSwap,
+  placement = 'mission'
+}) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const wrapperClassName = placement === 'mission'
+    ? 'relative z-30 inline-flex justify-center font-mono text-white'
+    : 'absolute right-3 top-3 z-50 font-mono text-white';
+  const walletMenuClassName = placement === 'mission'
+    ? 'absolute left-1/2 top-full mt-2 w-[224px] -translate-x-1/2 overflow-hidden rounded-[20px] border border-cyan-200/22 bg-[#06111f]/96 text-cyan-50 shadow-[0_22px_70px_rgba(0,0,0,0.55),0_0_36px_rgba(34,211,238,0.14)] backdrop-blur-xl'
+    : 'absolute right-0 mt-2 w-[224px] overflow-hidden rounded-[20px] border border-cyan-200/22 bg-[#06111f]/96 text-cyan-50 shadow-[0_22px_70px_rgba(0,0,0,0.55),0_0_36px_rgba(34,211,238,0.14)] backdrop-blur-xl';
+  const isConnected = Boolean(wallet.address);
+  const label = isConnected
+    ? `${wallet.address!.slice(0, 6)}...${wallet.address!.slice(-4)}`
+    : wallet.status === 'connecting'
+      ? 'Loading'
+      : 'Connect';
+
+  return (
+    <div className={wrapperClassName}>
+      <button
+        type="button"
+        onClick={() => {
+          if (!isConnected) {
+            onConnect();
+            return;
+          }
+          setIsMenuOpen((current) => !current);
+        }}
+        className="rounded-full border border-cyan-300/40 bg-black/75 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.18)] backdrop-blur-md transition hover:border-cyan-100 disabled:cursor-wait disabled:opacity-70"
+        disabled={wallet.status === 'connecting'}
+        aria-expanded={isConnected ? isMenuOpen : undefined}
+      >
+        {label}
+      </button>
+
+      {isMenuOpen && isConnected ? (
+        <div className={walletMenuClassName}>
+          <div className="border-b border-cyan-200/14 p-3">
+            <div className="truncate text-sm font-black text-white">{label}</div>
+            <div className="mt-0.5 truncate text-[10px] uppercase tracking-[0.14em] text-cyan-200/70">{wallet.connectorName || 'Base wallet'}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setIsMenuOpen(false);
+              onOpenSwap();
+            }}
+            className="block w-full px-3.5 py-3 text-left text-sm font-bold text-cyan-50 transition hover:bg-cyan-300/10"
+          >
+            Swap for RSC
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsMenuOpen(false);
+              onDisconnect();
+            }}
+            className="block w-full border-t border-cyan-200/12 px-3.5 py-3 text-left text-sm font-black text-red-200 transition hover:bg-red-500/10"
+          >
+            Sign out
+          </button>
+        </div>
+      ) : null}
+
+      {wallet.error ? (
+        <div className="absolute left-1/2 top-full mt-2 w-56 -translate-x-1/2 rounded-2xl border border-red-300/25 bg-black/90 p-3 text-[10px] leading-relaxed text-red-100 shadow-xl">
+          {wallet.error}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [gameId, setGameId] = useState<number>(0);
@@ -132,8 +245,17 @@ const App: React.FC = () => {
   const [fundingPickSubmitError, setFundingPickSubmitError] = useState<string>('');
   const [isSubmittingFundingPick, setIsSubmittingFundingPick] = useState(false);
   const [showLabGlow, setShowLabGlow] = useState<boolean>(true);
-  const [miniApp, setMiniApp] = useState<MiniAppState>(defaultMiniAppState);
   const [walletError, setWalletError] = useState<string>('');
+  const [walletRuntimeEnabled, setWalletRuntimeEnabled] = useState(false);
+  const [walletRuntimeAction, setWalletRuntimeAction] = useState<WalletRuntimeAction | null>(null);
+  const [walletSession, setWalletSession] = useState<WalletSession>({
+    address: null,
+    chainId: null,
+    status: 'idle',
+    error: '',
+    connectorName: undefined,
+    hasDonated: false
+  });
   const [continuePaymentStatus, setContinuePaymentStatus] = useState<DonationStatus>('idle');
   const [continuePaymentHash, setContinuePaymentHash] = useState<string>('');
   const [continuePaymentError, setContinuePaymentError] = useState<string>('');
@@ -155,14 +277,6 @@ const App: React.FC = () => {
   const submittingScoreRef = useRef(false);
   const submittedScoreKeysRef = useRef<Set<string>>(new Set());
 
-  const thirdwebAccount = useActiveAccount();
-  const thirdwebWallet = useActiveWallet();
-  const thirdwebChain = useActiveWalletChain();
-  const { connect: openThirdwebConnectModal, isConnecting: isThirdwebConnecting } = useConnectModal();
-  const { disconnect: disconnectThirdweb } = useThirdwebDisconnect();
-  const activeWalletAddress = thirdwebAccount?.address ?? null;
-  const activeWalletChainId = thirdwebChain?.id ?? null;
-
   const clearIntroStoryTimeout = () => {
     if (introStoryTimeoutRef.current) {
       window.clearTimeout(introStoryTimeoutRef.current);
@@ -176,14 +290,28 @@ const App: React.FC = () => {
 
   useEffect(() => () => clearIntroStoryTimeout(), []);
 
-  const wallet: WalletSession = {
-    address: activeWalletAddress,
-    chainId: activeWalletChainId,
-    status: activeWalletAddress ? 'connected' : isThirdwebConnecting ? 'connecting' : walletError ? 'error' : 'idle',
-    error: walletError,
-    connectorName: thirdwebWallet?.id,
-    hasDonated: activeWalletAddress ? Boolean(donatedWallets[activeWalletAddress.toLowerCase()]) : false
-  };
+  useEffect(() => {
+    if (gameState !== GameState.MENU) return undefined;
+
+    return runAfterFirstPaint(preloadGameplayComponents, {
+      delayMs: 1200,
+      timeoutMs: 4200
+    });
+  }, [gameState]);
+
+  const wallet = useMemo<WalletSession>(() => {
+    const address = walletSession.address ?? null;
+    const isWalletBusy = walletRuntimeAction?.type === 'connect' || walletRuntimeAction?.type === 'continue';
+
+    return {
+      ...walletSession,
+      address,
+      status: address ? 'connected' : isWalletBusy ? 'connecting' : walletError ? 'error' : walletSession.status,
+      error: walletError,
+      hasDonated: address ? Boolean(donatedWallets[address.toLowerCase()]) : false
+    };
+  }, [donatedWallets, walletError, walletRuntimeAction?.type, walletSession]);
+  const activeWalletAddress = wallet.address ?? null;
   const continueRscCost = (continuesUsed + 1) * 5;
   const isContinuePaymentBusy = continuePaymentStatus === 'switching_network'
     || continuePaymentStatus === 'processing'
@@ -234,6 +362,9 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    let active = true;
+    let cancelDeferredFetch: (() => void) | null = null;
+
     const fetchScores = async () => {
       const alreadyHasData = leaderboard.length > 0;
       if (!alreadyHasData) {
@@ -242,6 +373,7 @@ const App: React.FC = () => {
 
       try {
         const data = await getLeaderboardData();
+        if (!active) return;
         if (data.scores.length > 0) {
           setLeaderboard(data.scores);
         }
@@ -249,7 +381,7 @@ const App: React.FC = () => {
       } catch (error) {
         console.error("Failed to fetch leaderboard", error);
       } finally {
-        if (!alreadyHasData) {
+        if (active && !alreadyHasData) {
           setLoadingLeaderboard(false);
         }
       }
@@ -257,19 +389,34 @@ const App: React.FC = () => {
 
     const fetchArchivedWinners = async () => {
       const winners = await getArchivedWeeklyWinners();
+      if (!active) return;
       setArchivedWinners(winners);
     };
 
-    if (gameState === GameState.MENU || gameState === GameState.GAMEOVER) {
-      fetchScores();
-      fetchArchivedWinners();
+    const fetchDashboardData = () => {
+      void Promise.all([fetchScores(), fetchArchivedWinners()]);
+    };
+
+    if (gameState === GameState.GAMEOVER) {
+      fetchDashboardData();
+    } else if (gameState === GameState.MENU) {
+      cancelDeferredFetch = runAfterFirstPaint(fetchDashboardData, {
+        delayMs: leaderboard.length > 0 ? 900 : 450,
+        timeoutMs: 2200
+      });
     }
+
+    return () => {
+      active = false;
+      cancelDeferredFetch?.();
+    };
   }, [gameState, leaderboard.length]);
 
   useEffect(() => {
     let active = true;
+    let cancelDeferredFetch: (() => void) | null = null;
 
-    getResearchHubFundingProposals()
+    const fetchProposals = () => getResearchHubFundingProposals()
       .then((nextProposals) => {
         if (!active) return;
         setFundingProposals(nextProposals);
@@ -282,8 +429,16 @@ const App: React.FC = () => {
         setProposalStatus('error');
       });
 
+    cancelDeferredFetch = runAfterFirstPaint(() => {
+      void fetchProposals();
+    }, {
+      delayMs: 950,
+      timeoutMs: 3200
+    });
+
     return () => {
       active = false;
+      cancelDeferredFetch?.();
     };
   }, []);
 
@@ -312,6 +467,7 @@ const App: React.FC = () => {
   };
 
   const [stats, setStats] = useState<Stats>(getInitialStats);
+  const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
 
   useEffect(() => {
     const statsToSave = {
@@ -322,6 +478,17 @@ const App: React.FC = () => {
     localStorage.setItem(getWalletProfileKey(activeWalletAddress), JSON.stringify(statsToSave));
     localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.highScore.toString());
   }, [activeWalletAddress, playerNameInput, stats.highScore, stats.totalCoins]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.POLISH_SETTINGS, JSON.stringify(polishSettings));
+  }, [polishSettings]);
+
+  const togglePolishSetting = (key: keyof GamePolishSettings) => {
+    setPolishSettings(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   useEffect(() => {
     if (!activeWalletAddress) return;
@@ -336,27 +503,8 @@ const App: React.FC = () => {
 
   }, [activeWalletAddress]);
 
-  useEffect(() => {
-    let active = true;
-
-    const setupMiniApp = async () => {
-      const state = await miniAppService.getState();
-      if (!active) return;
-
-      setMiniApp(state);
-      if (state.isMiniApp) {
-        await miniAppService.ready();
-      }
-    };
-
-    setupMiniApp();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const startGame = () => {
+    preloadGameplayComponents();
     audioService.init();
     clearIntroStoryTimeout();
     lastStoryWaveRef.current = 0;
@@ -459,154 +607,69 @@ const App: React.FC = () => {
     audioService.playSound('coin');
   };
 
-  const openThirdwebWallet = async (): Promise<Account | null> => {
-    if (!thirdwebClient) {
-      const message = 'Add VITE_THIRDWEB_CLIENT_ID to enable the thirdweb wallet connection.';
-      setWalletError(message);
-      return null;
-    }
+  const requestWalletRuntimeAction = useCallback((type: WalletRuntimeAction['type']) => {
+    setWalletRuntimeEnabled(true);
+    setWalletRuntimeAction({ type, nonce: Date.now() });
+  }, []);
 
-    try {
-      setWalletError('');
-      const connectedWallet = await openThirdwebConnectModal({
-        client: thirdwebClient,
-        wallets: thirdwebWallets,
-        recommendedWallets: thirdwebRecommendedWallets,
-        chain: thirdwebBaseChain,
-        appMetadata: thirdwebAppMetadata,
-        theme: thirdwebTheme,
-        ...thirdwebConnectModal
-      });
-
-      if (connectedWallet.getChain()?.id !== DONATION_CONFIG.BASE_CHAIN_ID) {
-        await connectedWallet.switchChain(thirdwebBaseChain);
-      }
-
-      const account = connectedWallet.getAccount();
-      if (!account) {
-        throw new Error('Wallet connected without an active account.');
-      }
-
-      return account;
-    } catch (error: any) {
-      console.error("Wallet connection failed", error);
-      setWalletError(getUserFacingMessage(error, 'Wallet connection was cancelled.'));
-      return null;
-    }
-  };
-
-  const connectWallet = async (_connectorId?: string) => {
+  const connectWallet = useCallback(() => {
     if (activeWalletAddress) {
       setWalletError('');
       return;
     }
 
-    await openThirdwebWallet();
-  };
+    requestWalletRuntimeAction('connect');
+  }, [activeWalletAddress, requestWalletRuntimeAction]);
 
-  const disconnectWallet = () => {
-    localStorage.removeItem(STORAGE_KEYS.WALLET_ADDRESS);
-    if (thirdwebWallet) {
-      disconnectThirdweb(thirdwebWallet);
-    }
-    setWalletError('');
-  };
+  const disconnectWallet = useCallback(() => {
+    requestWalletRuntimeAction('disconnect');
+  }, [requestWalletRuntimeAction]);
 
-  const handleContinueWithRsc = async () => {
+  const handleContinueWithRsc = useCallback(() => {
     if (isContinuePaymentBusy) return;
+    requestWalletRuntimeAction('continue');
+  }, [isContinuePaymentBusy, requestWalletRuntimeAction]);
 
-    if (!thirdwebClient) {
-      const message = 'Add VITE_THIRDWEB_CLIENT_ID to enable RSC continues.';
-      setContinuePaymentStatus('error');
-      setContinuePaymentError(message);
-      return;
+  const handleWalletRuntimeActionHandled = useCallback((nonce: number) => {
+    setWalletRuntimeAction((current) => current?.nonce === nonce ? null : current);
+  }, []);
+
+  const handleWalletRuntimeChange = useCallback((nextWallet: WalletSession) => {
+    setWalletSession(nextWallet);
+    if (nextWallet.address) {
+      setWalletError('');
     }
+  }, []);
 
-    let account = thirdwebAccount;
-    if (!account) {
-      setContinuePaymentStatus('processing');
-      account = await openThirdwebWallet();
+  const handleContinueStatusChange = useCallback((update: { status: DonationStatus; error?: string; hash?: string }) => {
+    setContinuePaymentStatus(update.status);
+    if (update.error !== undefined) {
+      setContinuePaymentError(update.error);
     }
-
-    if (!account) {
-      setContinuePaymentStatus('error');
-      setContinuePaymentError('Connect a wallet before continuing this run.');
-      return;
+    if (update.hash !== undefined) {
+      setContinuePaymentHash(update.hash);
     }
+  }, []);
 
-    const tokenChain = thirdwebBaseChain;
-    const tokenLabel = 'RSC';
-    const continueCost = continueRscCost;
+  const handleContinueSuccess = useCallback((transactionHash: string) => {
+    setContinuePaymentHash(transactionHash);
+    setContinuePaymentStatus('success');
+    setContinuePaymentError('');
+    setContinuesUsed(prev => prev + 1);
+    setShowNameInput(false);
+    setActiveStoryBeat(null);
+    setStats(prev => ({
+      ...prev,
+      lives: 3
+    }));
+    setContinueCommand({ nonce: Date.now(), lives: 3 });
+    setGameState(GameState.PLAYING);
+    audioService.playSound('powerup');
 
-    try {
-      if (thirdwebWallet && thirdwebWallet.getChain()?.id !== tokenChain.id) {
-        setContinuePaymentStatus('switching_network');
-        await thirdwebWallet.switchChain(tokenChain);
-      }
-
-      setContinuePaymentStatus('processing');
-      setContinuePaymentError('');
-      setContinuePaymentHash('');
-
-      const rscTokenContract = getContract({
-        client: thirdwebClient,
-        chain: tokenChain,
-        address: DONATION_CONFIG.RSC_CONTRACT_ADDRESS as `0x${string}`
-      });
-
-      let balanceDisplayValue = '0';
-      try {
-        const balance = await getBalance({
-          contract: rscTokenContract,
-          address: account.address
-        });
-        balanceDisplayValue = balance.displayValue;
-        const availableBalance = Number(balance.displayValue);
-
-        if (Number.isFinite(availableBalance) && availableBalance + 0.000000001 < continueCost) {
-          throw new Error(getInsufficientContinueTokenMessage(continueCost, balanceDisplayValue));
-        }
-      } catch (error: any) {
-        const message = error?.message || '';
-        if (message.includes('continue this run')) {
-          throw error;
-        }
-
-        console.warn(`${tokenLabel} balance preflight failed; continuing to wallet confirmation.`, error);
-      }
-
-      const transaction = transfer({
-        contract: rscTokenContract,
-        to: DONATION_CONFIG.RECIPIENT_ADDRESS,
-        amount: continueCost.toString()
-      });
-
-      setContinuePaymentStatus('confirming');
-      const receipt = await sendAndConfirmTransaction({ account, transaction });
-      const txHash = receipt.transactionHash || '';
-      setContinuePaymentHash(txHash);
-      setContinuePaymentStatus('success');
-      setContinuePaymentError('');
-      setContinuesUsed(prev => prev + 1);
-      setShowNameInput(false);
-      setActiveStoryBeat(null);
-      setStats(prev => ({
-        ...prev,
-        lives: 3
-      }));
-      setContinueCommand({ nonce: Date.now(), lives: 3 });
-      setGameState(GameState.PLAYING);
-      audioService.playSound('powerup');
-
-      setTimeout(() => {
-        setContinuePaymentStatus('idle');
-      }, 4000);
-    } catch (error: any) {
-      const message = getUserFacingMessage(error, `${tokenLabel} continue payment was cancelled.`, tokenLabel);
-      setContinuePaymentStatus('error');
-      setContinuePaymentError(message);
-    }
-  };
+    window.setTimeout(() => {
+      setContinuePaymentStatus('idle');
+    }, 4000);
+  }, []);
 
   useEffect(() => {
     if (gameState !== GameState.PLAYING || activeStoryBeat) {
@@ -799,23 +862,23 @@ const App: React.FC = () => {
   };
 
   const openReferral = async () => {
-    await miniAppService.openUrl(ASSETS.REFERRAL_LINK);
+    await openExternalUrl(ASSETS.REFERRAL_LINK);
   };
 
   const openResearchHubFund = async () => {
-    await miniAppService.openUrl('https://www.researchhub.com/fund');
+    await openExternalUrl('https://www.researchhub.com/fund');
   };
 
   const openResearchHubProposal = async (url: string) => {
-    await miniAppService.openUrl(url);
+    await openExternalUrl(url);
   };
 
   const openTreasurySend = async () => {
-    await miniAppService.openUrl(`ethereum:${DONATION_CONFIG.RECIPIENT_ADDRESS}@${DONATION_CONFIG.BASE_CHAIN_ID}`);
+    await openExternalUrl(`ethereum:${DONATION_CONFIG.RECIPIENT_ADDRESS}@${DONATION_CONFIG.BASE_CHAIN_ID}`);
   };
 
   const openRscSwap = async () => {
-    await miniAppService.openUrl(DONATION_CONFIG.RSC_SWAP_URL);
+    await openExternalUrl(DONATION_CONFIG.RSC_SWAP_URL);
   };
 
   const pubStatus = getPubStatus(stats.score);
@@ -921,34 +984,56 @@ const App: React.FC = () => {
 
   return (
     <div className="relative h-full w-full select-none bg-[#0b1020]">
+      {walletRuntimeEnabled ? (
+        <React.Suspense fallback={null}>
+          <WalletRuntime
+            action={walletRuntimeAction}
+            continueCost={continueRscCost}
+            donatedWallets={donatedWallets}
+            isContinuePaymentBusy={isContinuePaymentBusy}
+            walletError={walletError}
+            onActionHandled={handleWalletRuntimeActionHandled}
+            onContinueStatusChange={handleContinueStatusChange}
+            onContinueSuccess={handleContinueSuccess}
+            onWalletChange={handleWalletRuntimeChange}
+            onWalletError={setWalletError}
+          />
+        </React.Suspense>
+      ) : null}
+
       {(gameState === GameState.PLAYING || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
-        <GameCanvas
-          key={gameId}
-          stats={stats}
-          setStats={setStats}
-          setGameState={setGameState}
-          gameState={gameState}
-          isTransmissionOpen={Boolean(activeStoryBeat)}
-          bombCommand={bombCommand}
-          continueCommand={continueCommand}
-        />
+        <React.Suspense fallback={null}>
+          <GameCanvas
+            key={gameId}
+            stats={stats}
+            setStats={setStats}
+            setGameState={setGameState}
+            gameState={gameState}
+            isTransmissionOpen={Boolean(activeStoryBeat)}
+            bombCommand={bombCommand}
+            continueCommand={continueCommand}
+            polishSettings={polishSettings}
+          />
+        </React.Suspense>
       )}
 
       {gameState === GameState.PLAYING && (
-        <UIOverlay
-          stats={stats}
-          setGameState={setGameState}
-          lives={stats.lives}
-          showLabGlow={showLabGlow}
-          onDisableLabGlow={() => setShowLabGlow(false)}
-          isUpgradeReady={false}
-          bombLocked={introMissionLocked || Boolean(activeStoryBeat)}
-          onUseBomb={() => {
-            if (introMissionLocked || activeStoryBeat) return;
-            setBombCommand({ nonce: Date.now() });
-          }}
-          onUpgrade={handleFieldUpgrade}
-        />
+        <React.Suspense fallback={null}>
+          <UIOverlay
+            stats={stats}
+            setGameState={setGameState}
+            lives={stats.lives}
+            showLabGlow={showLabGlow}
+            onDisableLabGlow={() => setShowLabGlow(false)}
+            isUpgradeReady={false}
+            bombLocked={introMissionLocked || Boolean(activeStoryBeat)}
+            onUseBomb={() => {
+              if (introMissionLocked || activeStoryBeat) return;
+              setBombCommand({ nonce: Date.now() });
+            }}
+            onUpgrade={handleFieldUpgrade}
+          />
+        </React.Suspense>
       )}
 
       {gameState === GameState.MENU && (
@@ -963,11 +1048,11 @@ const App: React.FC = () => {
           onOpenReferral={openReferral}
           onOpenFund={openResearchHubFund}
           onOpenProposal={openResearchHubProposal}
-          onOpenXProfile={() => miniAppService.openUrl(DONATION_CONFIG.X_PROFILE_URL)}
+          onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
           onOpenTreasurySend={openTreasurySend}
           onOpenSwap={openRscSwap}
           walletControl={!activeStoryBeat ? (
-            <WalletButton
+            <WalletControl
               wallet={wallet}
               onConnect={connectWallet}
               onDisconnect={disconnectWallet}
@@ -1003,6 +1088,30 @@ const App: React.FC = () => {
                 >
                   QUIT
                 </button>
+              </div>
+              <div className="rounded-[8px] border border-cyan-300/18 bg-cyan-300/8 p-3 text-left">
+                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100">Performance FX</p>
+                <div className="space-y-2">
+                  {([
+                    ['screenShake', 'Screen Shake'],
+                    ['highDensityParticles', 'High-Density Particles']
+                  ] as Array<[keyof GamePolishSettings, string]>).map(([key, label]) => {
+                    const enabled = polishSettings[key];
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => togglePolishSetting(key)}
+                        className="flex w-full items-center justify-between rounded-[6px] border border-white/10 bg-slate-950/55 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-200 transition hover:border-cyan-200/40 hover:bg-cyan-300/10"
+                      >
+                        <span>{label}</span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${enabled ? 'border-emerald-200/35 bg-emerald-300/15 text-emerald-100' : 'border-slate-300/20 bg-slate-700/30 text-slate-400'}`}>
+                          {enabled ? 'On' : 'Off'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -1298,10 +1407,12 @@ const App: React.FC = () => {
       )}
 
       {activeStoryBeat ? (
-        <StoryTransmission
-          beat={activeStoryBeat}
-          onComplete={() => setActiveStoryBeat(null)}
-        />
+        <React.Suspense fallback={null}>
+          <StoryTransmission
+            beat={activeStoryBeat}
+            onComplete={() => setActiveStoryBeat(null)}
+          />
+        </React.Suspense>
       ) : null}
 
     </div>
