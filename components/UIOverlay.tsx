@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FieldUpgradeType, Stats, GameState } from '../types';
 import { audioService } from '../services/audioService';
 import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeLevel } from '../constants';
+import { BASE_FLASK_CHARGE_MAX, getFlaskProgress } from '../services/flaskProgress';
 
 interface UIOverlayProps {
   stats: Stats;
@@ -200,11 +201,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     setMuted(isMuted);
   };
 
-  const bombChargeMax = stats.bombChargeMax || 58;
+  const bombChargeMax = stats.bombChargeMax || BASE_FLASK_CHARGE_MAX;
   const flaskCharge = Math.max(0, stats.bombCharge || 0);
-  const flaskCount = Math.floor(flaskCharge / bombChargeMax);
-  const nextFlaskCharge = flaskCharge % bombChargeMax;
-  const nextFlaskPct = Math.max(0, Math.min(100, (nextFlaskCharge / bombChargeMax) * 100));
+  const flaskProgress = getFlaskProgress(flaskCharge, bombChargeMax);
+  const flaskCount = flaskProgress.storedFlasks;
+  const nextFlaskPct = flaskProgress.nextFlaskPct;
   const flaskReady = flaskCount > 0;
   const bombs = stats.bombs || 0;
   const canUseBomb = bombs > 0 && !bombLocked;

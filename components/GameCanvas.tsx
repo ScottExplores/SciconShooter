@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameLogic';
 import { Stats, GameState, GamePolishSettings } from '../types';
+import { getFlaskProgress } from '../services/flaskProgress';
 
 const HUD_STATS_SYNC_INTERVAL_MS = 650;
 
@@ -13,9 +14,8 @@ const cloneStatsForReact = (stats: Stats): Stats => ({
 const getFlaskBucket = (stats: Stats) => {
   const max = stats.bombChargeMax || 1;
   const charge = Math.max(0, stats.bombCharge || 0);
-  const storedFlasks = Math.floor(charge / max);
-  const nextFlaskCharge = charge % max;
-  return (storedFlasks * 12) + Math.floor((nextFlaskCharge / max) * 12);
+  const progress = getFlaskProgress(charge, max);
+  return (progress.storedFlasks * 12) + Math.floor((progress.nextFlaskPct / 100) * 12);
 };
 
 const getProgressBucket = (progress: number) => Math.floor(Math.max(0, Math.min(1, progress)) * 16);
@@ -40,8 +40,8 @@ const shouldPublishHudStats = (previous: Stats | null, next: Stats, elapsedMs: n
   }
 
   if (getFlaskBucket(previous) !== getFlaskBucket(next)) {
-    const previousFlasks = Math.floor(Math.max(0, previous.bombCharge || 0) / (previous.bombChargeMax || 1));
-    const nextFlasks = Math.floor(Math.max(0, next.bombCharge || 0) / (next.bombChargeMax || 1));
+    const previousFlasks = getFlaskProgress(previous.bombCharge || 0, previous.bombChargeMax || 1).storedFlasks;
+    const nextFlasks = getFlaskProgress(next.bombCharge || 0, next.bombChargeMax || 1).storedFlasks;
     return elapsedMs >= 220 || previousFlasks !== nextFlasks;
   }
 

@@ -3,6 +3,7 @@
 import { EntityType, GamePolishSettings, PowerupType, Stats } from '../types';
 import { ASSETS, GAME_CONFIG, COLORS } from '../constants';
 import { audioService } from './audioService';
+import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getFlaskProgress } from './flaskProgress';
 
 // --- Helper Classes ---
 
@@ -272,13 +273,16 @@ const GAME_FEEL = {
   squashDamping: 0.72
 };
 
-const BOMB_CHARGE_MAX = 58;
 const MAX_BOMBS = 5;
-const FLASK_CHARGE_PER_COIN = 5;
 const BASE_COIN_MAGNET_RADIUS = 150;
 const POWERUP_COIN_MAGNET_RADIUS = 420;
-const BOMB_DROP_CHANCE = 0.045;
-const ELITE_BOMB_DROP_CHANCE = 0.16;
+const BOMB_DROP_CHANCE = 0.018;
+const ELITE_BOMB_DROP_CHANCE = 0.065;
+const MINI_BOSS_BOMB_REWARD_CHANCE = 0.35;
+const BOSS_BOMB_REWARD_CHANCE = 0.5;
+const BOMB_DAMAGE_BOSS = 14;
+const BOMB_DAMAGE_MINI_BOSS = 18;
+const BOMB_DAMAGE_INVADER = 3;
 const MOBILE_DETAIL_BREAKPOINT = 560;
 const MOBILE_PARTICLE_CAP = 120;
 const DESKTOP_PARTICLE_CAP = 240;
@@ -810,7 +814,7 @@ export class GameEngine {
     this.stats.totalCoins = 0;
     this.stats.bombs = 2;
     this.stats.bombCharge = 0;
-    this.stats.bombChargeMax = BOMB_CHARGE_MAX;
+    this.stats.bombChargeMax = BASE_FLASK_CHARGE_MAX;
     this.stats.wave = 1;
     this.resetWaveProgress();
     this.spawnFloatingText(this.width/2, this.height/2, "WAVE 1", "#FFF");
@@ -1668,11 +1672,11 @@ export class GameEngine {
   addFlaskChargeFromCoin() {
     if (FLASK_CHARGE_PER_COIN <= 0) return;
 
-    const currentMax = this.stats.bombChargeMax || BOMB_CHARGE_MAX;
+    const currentMax = this.stats.bombChargeMax || BASE_FLASK_CHARGE_MAX;
     const previousCharge = this.stats.bombCharge || 0;
-    const previousFlasks = Math.floor(previousCharge / currentMax);
+    const previousFlasks = getFlaskProgress(previousCharge, currentMax).storedFlasks;
     const nextCharge = previousCharge + FLASK_CHARGE_PER_COIN;
-    const nextFlasks = Math.floor(nextCharge / currentMax);
+    const nextFlasks = getFlaskProgress(nextCharge, currentMax).storedFlasks;
 
     if (nextFlasks > previousFlasks) {
       this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 10, `FLASK +${nextFlasks}`, '#34d399', 18);
@@ -1719,7 +1723,14 @@ export class GameEngine {
         this.spawnFloatingText(target.x + target.width / 2, target.y + target.height * 0.22, 'SHIELDS UP', '#a7f3d0', 16);
         continue;
       }
-      target.hp -= isBossTarget ? 38 : 999;
+      const bombDamage = target.type === EntityType.BOSS
+        ? BOMB_DAMAGE_BOSS
+        : target.type === EntityType.MINI_BOSS
+          ? BOMB_DAMAGE_MINI_BOSS
+          : target.type === EntityType.ENEMY_INVADER
+            ? BOMB_DAMAGE_INVADER
+            : 999;
+      target.hp -= bombDamage;
       this.flashEntity(target, isBossTarget ? 10 : 6);
       this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#fef08a', isBossTarget ? 8 : 5, 4.5, 4);
 
@@ -1854,7 +1865,9 @@ export class GameEngine {
           target.y + Math.random() * target.height
         );
       }
-      this.spawnBombDrop(centerX - 19, centerY - 19);
+      if ((this.stats.bombs || 0) < MAX_BOMBS && Math.random() < MINI_BOSS_BOMB_REWARD_CHANCE) {
+        this.spawnBombDrop(centerX - 19, centerY - 19);
+      }
       this.miniBossRef = null;
       this.waveProgressFrames += 120;
     }
@@ -1885,9 +1898,10 @@ export class GameEngine {
           target.y + 50 + Math.random() * Math.max(30, target.height - 70)
         );
       }
-      for (let i = 0; i < 2; i++) {
+      const bossBombDrops = (this.stats.bombs || 0) < MAX_BOMBS && Math.random() < BOSS_BOMB_REWARD_CHANCE ? 1 : 0;
+      for (let i = 0; i < bossBombDrops; i++) {
         this.spawnBombDrop(
-          target.x + (target.width * ((i + 1) / 3)) - 19,
+          target.x + (target.width * 0.5) - 19,
           target.y + 50 + Math.random() * Math.max(30, target.height - 70)
         );
       }

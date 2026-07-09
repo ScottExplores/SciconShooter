@@ -7,6 +7,7 @@ import { getLeaderboardData, saveScore } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
+import { BASE_FLASK_CHARGE_MAX, getFlaskProgress, spendStoredFlask } from './services/flaskProgress';
 import type { WalletRuntimeAction } from './components/WalletRuntime';
 
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
@@ -454,7 +455,7 @@ const App: React.FC = () => {
       enemiesDefeated: 0,
       bombs: 2,
       bombCharge: 0,
-      bombChargeMax: 58,
+      bombChargeMax: BASE_FLASK_CHARGE_MAX,
       lives: 3,
       repairsCount: 0,
       upgrades: { ...defaultMissionUpgrades },
@@ -517,7 +518,7 @@ const App: React.FC = () => {
       enemiesDefeated: 0,
       bombs: 2,
       bombCharge: 0,
-      bombChargeMax: 58,
+      bombChargeMax: BASE_FLASK_CHARGE_MAX,
       lives: 3,
       repairsCount: 0,
       upgrades: { ...defaultMissionUpgrades },
@@ -565,8 +566,8 @@ const App: React.FC = () => {
   };
 
   const handleFieldUpgrade = (type: FieldUpgradeType) => {
-    const bombChargeMax = stats.bombChargeMax || 58;
-    const flaskCount = Math.floor(Math.max(0, stats.bombCharge || 0) / bombChargeMax);
+    const bombChargeMax = stats.bombChargeMax || BASE_FLASK_CHARGE_MAX;
+    const flaskCount = getFlaskProgress(stats.bombCharge || 0, bombChargeMax).storedFlasks;
     const flaskReady = flaskCount > 0;
     const config = FIELD_UPGRADE_CONFIG[type];
     const level = getFieldUpgradeLevel(stats, type);
@@ -581,14 +582,14 @@ const App: React.FC = () => {
 
     setStats(prev => {
       const prevChargeMax = prev.bombChargeMax || bombChargeMax;
-      const prevFlaskCount = Math.floor(Math.max(0, prev.bombCharge || 0) / prevChargeMax);
+      const prevFlaskCount = getFlaskProgress(prev.bombCharge || 0, prevChargeMax).storedFlasks;
       const prevLevel = getFieldUpgradeLevel(prev, type);
       const prevIsAtCap = isLifeUpgrade ? prev.lives >= GAME_CONFIG.MAX_LIVES : prevLevel >= config.maxLevel;
       if (prevFlaskCount <= 0 || prevIsAtCap) {
         return prev;
       }
 
-      const nextCharge = Math.max(0, (prev.bombCharge || 0) - prevChargeMax);
+      const nextCharge = spendStoredFlask(prev.bombCharge || 0, prevChargeMax);
 
       if (type === 'extraLife') {
         return {
