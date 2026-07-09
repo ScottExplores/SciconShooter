@@ -1591,10 +1591,12 @@ export class GameEngine {
 
     const currentMax = this.stats.bombChargeMax || BOMB_CHARGE_MAX;
     const previousCharge = this.stats.bombCharge || 0;
-    const nextCharge = Math.min(currentMax, previousCharge + FLASK_CHARGE_PER_COIN);
+    const previousFlasks = Math.floor(previousCharge / currentMax);
+    const nextCharge = previousCharge + FLASK_CHARGE_PER_COIN;
+    const nextFlasks = Math.floor(nextCharge / currentMax);
 
-    if (previousCharge < currentMax && nextCharge >= currentMax) {
-      this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 10, 'FLASK READY', '#34d399', 18);
+    if (nextFlasks > previousFlasks) {
+      this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 10, `FLASK +${nextFlasks}`, '#34d399', 18);
       this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#facc15');
       audioService.playSound('powerup');
     }

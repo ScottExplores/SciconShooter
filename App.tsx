@@ -566,7 +566,8 @@ const App: React.FC = () => {
 
   const handleFieldUpgrade = (type: FieldUpgradeType) => {
     const bombChargeMax = stats.bombChargeMax || 58;
-    const flaskReady = (stats.bombCharge || 0) >= bombChargeMax;
+    const flaskCount = Math.floor(Math.max(0, stats.bombCharge || 0) / bombChargeMax);
+    const flaskReady = flaskCount > 0;
     const config = FIELD_UPGRADE_CONFIG[type];
     const level = getFieldUpgradeLevel(stats, type);
     const isLifeUpgrade = type === 'extraLife';
@@ -579,10 +580,20 @@ const App: React.FC = () => {
     audioService.playSound(isLifeUpgrade ? 'powerup' : 'coin');
 
     setStats(prev => {
+      const prevChargeMax = prev.bombChargeMax || bombChargeMax;
+      const prevFlaskCount = Math.floor(Math.max(0, prev.bombCharge || 0) / prevChargeMax);
+      const prevLevel = getFieldUpgradeLevel(prev, type);
+      const prevIsAtCap = isLifeUpgrade ? prev.lives >= GAME_CONFIG.MAX_LIVES : prevLevel >= config.maxLevel;
+      if (prevFlaskCount <= 0 || prevIsAtCap) {
+        return prev;
+      }
+
+      const nextCharge = Math.max(0, (prev.bombCharge || 0) - prevChargeMax);
+
       if (type === 'extraLife') {
         return {
           ...prev,
-          bombCharge: 0,
+          bombCharge: nextCharge,
           lives: Math.min(GAME_CONFIG.MAX_LIVES, prev.lives + 1),
           repairsCount: (prev.repairsCount || 0) + 1
         };
@@ -590,7 +601,7 @@ const App: React.FC = () => {
 
       return {
         ...prev,
-        bombCharge: 0,
+        bombCharge: nextCharge,
         upgrades: {
           ...prev.upgrades,
           [type]: prev.upgrades[type] + 1

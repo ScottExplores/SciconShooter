@@ -12,7 +12,10 @@ const cloneStatsForReact = (stats: Stats): Stats => ({
 
 const getFlaskBucket = (stats: Stats) => {
   const max = stats.bombChargeMax || 1;
-  return Math.floor((Math.max(0, stats.bombCharge || 0) / max) * 12);
+  const charge = Math.max(0, stats.bombCharge || 0);
+  const storedFlasks = Math.floor(charge / max);
+  const nextFlaskCharge = charge % max;
+  return (storedFlasks * 12) + Math.floor((nextFlaskCharge / max) * 12);
 };
 
 const getProgressBucket = (progress: number) => Math.floor(Math.max(0, Math.min(1, progress)) * 16);
@@ -32,7 +35,9 @@ const shouldPublishHudStats = (previous: Stats | null, next: Stats, elapsedMs: n
   }
 
   if (getFlaskBucket(previous) !== getFlaskBucket(next)) {
-    return elapsedMs >= 220 || next.bombCharge >= next.bombChargeMax;
+    const previousFlasks = Math.floor(Math.max(0, previous.bombCharge || 0) / (previous.bombChargeMax || 1));
+    const nextFlasks = Math.floor(Math.max(0, next.bombCharge || 0) / (next.bombChargeMax || 1));
+    return elapsedMs >= 220 || previousFlasks !== nextFlasks;
   }
 
   if (previous.isBossActive && previous.bossHp !== next.bossHp) {

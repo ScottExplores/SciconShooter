@@ -201,8 +201,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   };
 
   const bombChargeMax = stats.bombChargeMax || 58;
-  const bombChargePct = Math.max(0, Math.min(100, ((stats.bombCharge || 0) / bombChargeMax) * 100));
-  const flaskReady = bombChargePct >= 100;
+  const flaskCharge = Math.max(0, stats.bombCharge || 0);
+  const flaskCount = Math.floor(flaskCharge / bombChargeMax);
+  const nextFlaskCharge = flaskCharge % bombChargeMax;
+  const nextFlaskPct = Math.max(0, Math.min(100, (nextFlaskCharge / bombChargeMax) * 100));
+  const flaskReady = flaskCount > 0;
   const bombs = stats.bombs || 0;
   const canUseBomb = bombs > 0 && !bombLocked;
 
@@ -225,11 +228,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
               <div className="h-3 overflow-hidden rounded-full border border-cyan-100/10 bg-slate-700/70">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-emerald-300 to-yellow-300 transition-all duration-300"
-                  style={{ width: `${bombChargePct}%` }}
+                  style={{ width: `${nextFlaskPct}%` }}
                 />
               </div>
               <div className="mt-0.5 truncate text-[8px] font-black uppercase tracking-[0.08em] text-cyan-100/75 sm:text-[9px] sm:tracking-[0.12em]">
-                Flask
+                Flasks {flaskCount}
               </div>
             </div>
           </div>
@@ -272,7 +275,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           }`}
           aria-label="Use RSC bomb"
         >
-          {bombChargePct > 84 && bombs < 3 ? (
+          {nextFlaskPct > 84 && bombs < 3 ? (
             <span className="pointer-events-none absolute -inset-2 rounded-[28px] border border-yellow-200/35 bg-yellow-300/12 animate-ping" />
           ) : null}
           <span className="absolute -left-1.5 -top-1.5 z-10 flex h-6 min-w-6 items-center justify-center rounded-full border border-cyan-100/60 bg-slate-950 px-1 text-xs font-black text-cyan-100">
@@ -309,7 +312,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           ) : null}
           <div className="relative flex items-center justify-center gap-1">
             <HudIcon name="flask" className="h-3.5 w-3.5" />
-            <span className="font-mono text-[8px] font-black uppercase tracking-[0.12em]">{flaskReady ? 'Ready' : `${Math.round(bombChargePct)}%`}</span>
+            <span className="font-mono text-[8px] font-black uppercase tracking-[0.12em]">x{flaskCount}</span>
           </div>
         </div>
 
