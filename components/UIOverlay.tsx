@@ -314,6 +314,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             <HudIcon name="flask" className="h-3.5 w-3.5" />
             <span className="font-mono text-[8px] font-black uppercase tracking-[0.12em]">x{flaskCount}</span>
           </div>
+          <div className="relative mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-emerald-300 to-yellow-300 transition-all duration-300"
+              style={{ width: `${nextFlaskPct}%` }}
+            />
+          </div>
         </div>
 
         {fieldUpgradeOrder.map((type) => {

@@ -20,6 +20,11 @@ const getFlaskBucket = (stats: Stats) => {
 
 const getProgressBucket = (progress: number) => Math.floor(Math.max(0, Math.min(1, progress)) * 16);
 
+const upgradesEqual = (previous: Stats['upgrades'], next: Stats['upgrades']) => {
+  const keys = Object.keys(next) as Array<keyof Stats['upgrades']>;
+  return keys.every((key) => previous[key] === next[key]);
+};
+
 const shouldPublishHudStats = (previous: Stats | null, next: Stats, elapsedMs: number) => {
   if (!previous) return true;
 
@@ -141,20 +146,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
 
   // Sync Stats (specifically upgrades/coins modified by React UI) to Engine
   useEffect(() => {
-    if (engineRef.current) {
-        engineRef.current.stats = stats;
-        
-        // Fix: Explicitly sync lives if the UI has a higher value (e.g., bought Repair)
-        if (stats.lives > engineRef.current.lives) {
-            engineRef.current.lives = stats.lives;
-        }
-        
-        // Also sync upgrades immediately
-        if (engineRef.current.stats.upgrades !== stats.upgrades) {
-            engineRef.current.stats.upgrades = stats.upgrades;
-        }
+    const engine = engineRef.current;
+    if (!engine) return;
+
+    const engineStats = engine.stats;
+    const uiChangedUpgrades = !upgradesEqual(engineStats.upgrades, stats.upgrades);
+    const uiUsedRepair = stats.repairsCount > (engineStats.repairsCount || 0);
+
+    if (uiChangedUpgrades) {
+      engineStats.upgrades = { ...stats.upgrades };
     }
-  }, [stats]);
+
+    if (uiChangedUpgrades || uiUsedRepair) {
+      engineStats.bombCharge = Math.min(engineStats.bombCharge || 0, stats.bombCharge || 0);
+      engineStats.repairsCount = stats.repairsCount;
+    }
+
+    // Sync lives only when the UI intentionally raises them, such as a Repair upgrade.
+    if (stats.lives > engine.lives) {
+      engine.lives = stats.lives;
+      engineStats.lives = stats.lives;
+    }
+  }, [stats.bombCharge, stats.lives, stats.repairsCount, stats.upgrades]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
