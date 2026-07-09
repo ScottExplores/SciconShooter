@@ -7,6 +7,14 @@ import { audioService } from './audioService';
 // --- Helper Classes ---
 
 type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'orbit';
+type PendingPlayerShot = {
+  fireFrame: number;
+  speed: number;
+  offsetX: number;
+  yOffset: number;
+  angleBias: number;
+  pitchOffset: number;
+};
 
 export class Entity {
   id: string;
@@ -364,6 +372,7 @@ export class GameEngine {
   enemyTargetsBuffer: Entity[] = [];
   playerShotsBuffer: Entity[] = [];
   invaderDrawBuffer: Entity[] = [];
+  pendingPlayerShots: PendingPlayerShot[] = [];
   mobileProfile: boolean = false;
   polishSettings: GamePolishSettings = { ...DEFAULT_POLISH_SETTINGS };
   performanceMode: boolean = false;
@@ -1140,6 +1149,7 @@ export class GameEngine {
   update(cinematicPause: boolean = false) {
     if (!this.gameActive) return;
     this.frameCount++;
+    this.flushPendingPlayerShots();
     this.stats.lives = this.lives;
     this.updateJuiceSystems();
     this.stars.forEach(star => star.update(this.width, this.height));
@@ -1491,34 +1501,68 @@ export class GameEngine {
     return EMPTY_WINGMAN_OFFSETS;
   }
 
+  spawnPlayerBullet(
+    speed: number,
+    offsetX: number = 0,
+    yOffset: number = 0,
+    angleBias: number = 0,
+    pitchOffset: number = 0
+  ) {
+    const isMaxFire = this.stats.upgrades.fireRate >= 5;
+    const bulletColor = isMaxFire ? '#00FFFF' : '#6c63ff';
+    const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - 5 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
+    const angle = randomRange(-0.035, 0.035) + angleBias;
+    b.width = 10;
+    b.height = 28;
+    b.vx = Math.sin(angle) * speed;
+    b.vy = -Math.cos(angle) * speed;
+    b.color = bulletColor;
+    b.isPlayerShot = true;
+    this.entities.push(b);
+    audioService.playSound('shoot', 1, {
+      pitchJitter: 0.22,
+      pitchOffset
+    });
+  }
+
+  queuePlayerBullet(shot: PendingPlayerShot) {
+    this.pendingPlayerShots.push(shot);
+  }
+
+  flushPendingPlayerShots() {
+    if (this.pendingPlayerShots.length === 0) return;
+
+    for (let index = 0; index < this.pendingPlayerShots.length; index++) {
+      const shot = this.pendingPlayerShots[index];
+      if (shot.fireFrame > this.frameCount) continue;
+
+      this.spawnPlayerBullet(shot.speed, shot.offsetX, shot.yOffset, shot.angleBias, shot.pitchOffset);
+      this.pendingPlayerShots.splice(index, 1);
+      index--;
+    }
+  }
+
   fireBullet() {
-    audioService.playSound('shoot');
     if (this.frameCount - this.lastShotFrame > 3) {
       this.kickPlayerSquash(-0.035);
       this.spawnBurst(this.player.x + this.player.width / 2, this.player.y + this.player.height * 0.18, '#67e8f9', 2, 1.3, 3);
       this.addShake(0.08);
     }
     this.lastShotFrame = this.frameCount;
-    const isMaxFire = this.stats.upgrades.fireRate >= 5;
-    const bulletColor = isMaxFire ? '#00FFFF' : '#6c63ff'; // Cyan glow for max
-
-    const spawnBullet = (speed: number, offsetX: number = 0, yOffset: number = 0, angleBias: number = 0) => {
-      const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - 5 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
-      const angle = randomRange(-0.035, 0.035) + angleBias;
-      b.width = 10;
-      b.height = 28;
-      b.vx = Math.sin(angle) * speed;
-      b.vy = -Math.cos(angle) * speed;
-      b.color = bulletColor;
-      b.isPlayerShot = true; // Mark as player shot so it doesn't hurt self
-      this.entities.push(b);
-    };
 
     this.playerVel.y += 0.2;
     this.playerVel.x += randomRange(-0.05, 0.05);
-    spawnBullet(10);
-    this.getWingmanOffsets().forEach((offsetX) => {
-      spawnBullet(10.4, offsetX, 8, offsetX < 0 ? -0.042 : 0.042);
+    this.spawnPlayerBullet(10, 0, 0, 0, -0.04);
+
+    this.getWingmanOffsets().forEach((offsetX, index) => {
+      this.queuePlayerBullet({
+        fireFrame: this.frameCount + index + 1,
+        speed: 10.4,
+        offsetX,
+        yOffset: 8,
+        angleBias: offsetX < 0 ? -0.042 : 0.042,
+        pitchOffset: offsetX < 0 ? -0.01 : 0.03
+      });
     });
   }
   

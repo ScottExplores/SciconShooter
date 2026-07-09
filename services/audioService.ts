@@ -97,11 +97,17 @@ class AudioService {
   }
 
   // Procedural Sound Generation
-  public playSound(type: 'shoot' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb', intensity: number = 1) {
+  public playSound(
+    type: 'shoot' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb',
+    intensity: number = 1,
+    options: { pitchJitter?: number; pitchOffset?: number } = {}
+  ) {
     if (!this.ctx || this.muted) return;
 
     const t = this.ctx.currentTime;
-    const pitch = 0.94 + Math.random() * 0.12;
+    const pitchJitter = options.pitchJitter ?? 0.12;
+    const pitchOffset = options.pitchOffset ?? 0;
+    const pitch = (1 - (pitchJitter / 2)) + (Math.random() * pitchJitter) + pitchOffset;
     const comboLift = Math.min(Math.max(intensity - 1, 0), 8) * 0.07;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
