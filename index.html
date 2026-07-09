@@ -14,6 +14,8 @@
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/icon.png" />
+    <link rel="preload" href="/fonts/inter-400.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="/fonts/orbitron-900.ttf" as="font" type="font/ttf" crossorigin />
 
     <meta property="og:title" content="Scicon Shooter" />
     <meta property="og:description" content="Play a Base-native arcade mission, climb the weekly board, and steer RSC funding toward ResearchHub proposals." />
@@ -29,9 +31,47 @@
     <meta name="twitter:image" content="https://sciconshooter.xyz/preview.png" />
 
     <title>SciCon Shooter</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.tailwindcss.com"></script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600&display=swap');
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/inter-400.ttf') format('truetype');
+      }
+
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url('/fonts/inter-600.ttf') format('truetype');
+      }
+
+      @font-face {
+        font-family: 'Orbitron';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/orbitron-400.ttf') format('truetype');
+      }
+
+      @font-face {
+        font-family: 'Orbitron';
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url('/fonts/orbitron-700.ttf') format('truetype');
+      }
+
+      @font-face {
+        font-family: 'Orbitron';
+        font-style: normal;
+        font-weight: 900;
+        font-display: swap;
+        src: url('/fonts/orbitron-900.ttf') format('truetype');
+      }
       
       body {
         margin: 0;
