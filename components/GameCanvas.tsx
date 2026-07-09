@@ -2,6 +2,59 @@ import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameLogic';
 import { Stats, GameState } from '../types';
 
+const HUD_STATS_SYNC_INTERVAL_MS = 650;
+
+const cloneStatsForReact = (stats: Stats): Stats => ({
+  ...stats,
+  upgrades: { ...stats.upgrades },
+  powerupUses: { ...stats.powerupUses }
+});
+
+const getFlaskBucket = (stats: Stats) => {
+  const max = stats.bombChargeMax || 1;
+  return Math.floor((Math.max(0, stats.bombCharge || 0) / max) * 12);
+};
+
+const getProgressBucket = (progress: number) => Math.floor(Math.max(0, Math.min(1, progress)) * 16);
+
+const shouldPublishHudStats = (previous: Stats | null, next: Stats, elapsedMs: number) => {
+  if (!previous) return true;
+
+  if (
+    previous.lives !== next.lives
+    || previous.wave !== next.wave
+    || previous.bombs !== next.bombs
+    || previous.isBossActive !== next.isBossActive
+    || previous.bossMaxHp !== next.bossMaxHp
+    || previous.highScore !== next.highScore
+  ) {
+    return true;
+  }
+
+  if (getFlaskBucket(previous) !== getFlaskBucket(next)) {
+    return elapsedMs >= 220 || next.bombCharge >= next.bombChargeMax;
+  }
+
+  if (previous.isBossActive && previous.bossHp !== next.bossHp) {
+    return elapsedMs >= 180;
+  }
+
+  if (!next.isBossActive && getProgressBucket(previous.bossProgress) !== getProgressBucket(next.bossProgress)) {
+    return elapsedMs >= 360;
+  }
+
+  if (
+    previous.score !== next.score
+    || previous.coins !== next.coins
+    || previous.totalCoins !== next.totalCoins
+    || previous.enemiesDefeated !== next.enemiesDefeated
+  ) {
+    return elapsedMs >= HUD_STATS_SYNC_INTERVAL_MS;
+  }
+
+  return false;
+};
+
 interface GameCanvasProps {
   setStats: (stats: Stats) => void;
   setGameState: (state: GameState) => void;
@@ -21,6 +74,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
   const handledContinueNonceRef = useRef<number | null>(null);
   const activeTouchIdRef = useRef<number | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
+  const lastPublishedStatsRef = useRef<Stats | null>(null);
+  const lastStatsPublishTimeRef = useRef<number>(0);
+  const gameOverSentRef = useRef(false);
   
   // Use a ref to track gameState inside the animation loop closure
   const gameStateRef = useRef(gameState);
@@ -33,6 +89,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       activeTouchIdRef.current = null;
       activePointerIdRef.current = null;
       engineRef.current?.handleInput({}, null);
+    } else {
+      gameOverSentRef.current = false;
     }
   }, [gameState]);
 
@@ -120,6 +178,22 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     handleResize();
     window.addEventListener('resize', handleResize);
     engine.init(canvas.width, canvas.height);
+    lastPublishedStatsRef.current = null;
+    lastStatsPublishTimeRef.current = 0;
+
+    const publishHudStats = (force = false, timestamp = performance.now()) => {
+      const elapsedMs = timestamp - lastStatsPublishTimeRef.current;
+      const nextStats = engine.stats;
+
+      if (!force && !shouldPublishHudStats(lastPublishedStatsRef.current, nextStats, elapsedMs)) {
+        return;
+      }
+
+      const statsSnapshot = cloneStatsForReact(nextStats);
+      lastPublishedStatsRef.current = statsSnapshot;
+      lastStatsPublishTimeRef.current = timestamp;
+      setStats(statsSnapshot);
+    };
 
     // Input Handlers
     const keys: Record<string, boolean> = {};
@@ -128,7 +202,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     const handleKeyDown = (e: KeyboardEvent) => { 
       keys[e.key] = true; 
       if (!e.repeat && (e.key === 'b' || e.key === 'B') && engine.triggerBomb()) {
-        setStats({ ...engine.stats });
+        publishHudStats(true);
       }
     };
     
@@ -273,18 +347,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
           // Use the REF current value to check state, avoiding stale closure issues
           if (gameStateRef.current === GameState.PLAYING) {
             engine.update(isTransmissionOpenRef.current);
-          }
 
-          // Sync Stats to React for HUD every 30 logical frames (0.5s)
-          if (engine.frameCount % 30 === 0) {
-            setStats({ 
-                ...engine.stats,
-            });
-          }
+            // Keep the React HUD in sync at a mobile-friendly cadence while
+            // allowing canvas gameplay to continue at the frame budget.
+            publishHudStats(false, timestamp);
 
-          // Check Game Over
-          if (!engine.gameActive && engine.lives <= 0) {
-            setGameState(GameState.GAMEOVER);
+            if (!engine.gameActive && engine.lives <= 0 && !gameOverSentRef.current) {
+              gameOverSentRef.current = true;
+              gameStateRef.current = GameState.GAMEOVER;
+              publishHudStats(true, timestamp);
+              setGameState(GameState.GAMEOVER);
+            }
           }
 
           engine.draw(ctx);
