@@ -259,11 +259,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
         return;
       }
 
-      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+      if (!lastTimeRef.current) {
+        lastTimeRef.current = timestamp - frameInterval;
+      }
       
       const deltaTime = timestamp - lastTimeRef.current;
 
-      // Only update if enough time has passed (cap at 60 FPS)
+      // Only update and draw if enough time has passed. This keeps high-refresh
+      // mobile browsers from redrawing the full canvas more often than gameplay advances.
       if (deltaTime >= frameInterval) {
           lastTimeRef.current = timestamp - (deltaTime % frameInterval);
 
@@ -283,10 +286,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
           if (!engine.gameActive && engine.lives <= 0) {
             setGameState(GameState.GAMEOVER);
           }
-      }
 
-      // ALWAYS draw the game so it appears in the background (interpolate if needed, but simple draw is fine here)
-      engine.draw(ctx);
+          engine.draw(ctx);
+      }
       
       requestRef.current = requestAnimationFrame(animate);
     };
