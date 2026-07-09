@@ -360,11 +360,6 @@ export class GameEngine {
     
     [
       ASSETS.PLAYER_SHIP,
-      ASSETS.FOUNDER_BRIAN,
-      ASSETS.FOUNDER_PATRICK,
-      ASSETS.FOUNDER_JEFFREY,
-      ASSETS.FOUNDER_4,
-      ASSETS.FOUNDER_ARSHIA,
       ASSETS.RSC_TOKEN,
       ASSETS.REAL_RSC_ICON,
       ASSETS.GAME_BG_BACK,
@@ -2461,6 +2456,7 @@ export class GameEngine {
     ctx.fillRect(x + 1, y + 1, 5, panelHeight - 2);
     ctx.globalAlpha = alpha;
 
+    loadImage(comms.image);
     const portrait = getReadyImage(comms.image);
     ctx.save();
     ctx.beginPath();
@@ -3034,7 +3030,7 @@ export class GameEngine {
         if (type === PowerupType.EXTRA_LIFE) imgUrl = ASSETS.FOUNDER_ARSHIA; // Arshia
         if (type === PowerupType.RESEARCH_BEAM) imgUrl = ASSETS.REAL_RSC_ICON;
         
-        const img = imageCache[imgUrl];
+        const img = loadImage(imgUrl);
         if (img && img.complete && img.naturalWidth > 0) {
             ctx.drawImage(img, -18, -18, 36, 36);
         } else {
