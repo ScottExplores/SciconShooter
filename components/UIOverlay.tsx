@@ -301,7 +301,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         </div>
       )}
 
-      <div className="pointer-events-auto absolute bottom-4 right-2 z-20 flex w-[4.85rem] flex-col gap-2 sm:bottom-6 sm:right-4 sm:w-24">
+      <div
+        className="pointer-events-auto absolute right-2 z-20 flex w-[4.85rem] flex-col gap-2 sm:right-4 sm:w-24"
+        style={{ bottom: 'max(2.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))' }}
+      >
         <div className={`relative rounded-[10px] border px-2 py-1.5 text-center shadow-[0_12px_32px_rgba(0,0,0,0.3)] backdrop-blur-md ${
           flaskReady || isUpgradeReady
             ? 'border-emerald-200/55 bg-emerald-300/16 text-emerald-100'
