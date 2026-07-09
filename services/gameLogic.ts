@@ -1,12 +1,12 @@
 
 
-import { EntityType, PowerupType, Stats } from '../types';
+import { EntityType, GamePolishSettings, PowerupType, Stats } from '../types';
 import { ASSETS, GAME_CONFIG, COLORS } from '../constants';
 import { audioService } from './audioService';
 
 // --- Helper Classes ---
 
-type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer';
+type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'orbit';
 
 export class Entity {
   id: string;
@@ -46,6 +46,8 @@ export class Entity {
   formation?: EnemyFormationMode;
   formationIndex: number = 0;
   formationSeed: number = 0;
+  flashFrames: number = 0;
+  shieldHostId?: string;
   
   constructor(type: EntityType, x: number, y: number) {
     this.id = Math.random().toString(36).substr(2, 9);
@@ -278,6 +280,10 @@ const DESKTOP_THREAT_CAP = 60;
 const EMPTY_WINGMAN_OFFSETS: number[] = [];
 const DOUBLE_WINGMAN_OFFSETS = [42];
 const TRIPLE_WINGMAN_OFFSETS = [-42, 42];
+const DEFAULT_POLISH_SETTINGS: GamePolishSettings = {
+  screenShake: true,
+  highDensityParticles: true
+};
 
 type CollisionBox = {
   x: number;
@@ -359,6 +365,7 @@ export class GameEngine {
   playerShotsBuffer: Entity[] = [];
   invaderDrawBuffer: Entity[] = [];
   mobileProfile: boolean = false;
+  polishSettings: GamePolishSettings = { ...DEFAULT_POLISH_SETTINGS };
   
   constructor(stats: Stats) {
     this.stats = stats;
@@ -502,6 +509,11 @@ export class GameEngine {
 
   getGlowBlur(blur: number) {
     return this.mobileProfile ? Math.min(blur * 0.38, 8) : blur;
+  }
+
+  getParticleDensity() {
+    if (!this.polishSettings.highDensityParticles) return 0.42;
+    return this.mobileProfile ? 0.62 : 1;
   }
 
   compactEntities() {
@@ -900,13 +912,19 @@ export class GameEngine {
   }
 
   updateJuiceSystems() {
-    this.shakeStrength = moveToward(this.shakeStrength, 0, GAME_FEEL.shakeDecay);
-    if (this.shakeStrength > 0.01) {
-      this.shakeX = randomRange(-1, 1) * this.shakeStrength;
-      this.shakeY = randomRange(-1, 1) * this.shakeStrength;
-    } else {
+    if (!this.polishSettings.screenShake) {
+      this.shakeStrength = 0;
       this.shakeX = 0;
       this.shakeY = 0;
+    } else {
+      this.shakeStrength = moveToward(this.shakeStrength, 0, GAME_FEEL.shakeDecay);
+      if (this.shakeStrength > 0.01) {
+        this.shakeX = randomRange(-1, 1) * this.shakeStrength;
+        this.shakeY = randomRange(-1, 1) * this.shakeStrength;
+      } else {
+        this.shakeX = 0;
+        this.shakeY = 0;
+      }
     }
 
     this.flashAlpha = moveToward(this.flashAlpha, 0, GAME_FEEL.flashDecay);
@@ -935,6 +953,7 @@ export class GameEngine {
   }
 
   addShake(amount: number) {
+    if (!this.polishSettings.screenShake) return;
     this.shakeStrength = Math.max(this.shakeStrength, amount);
   }
 
@@ -950,7 +969,7 @@ export class GameEngine {
   spawnBurst(x: number, y: number, color: string, amount: number = 10, speed: number = 4, size: number = 4) {
     const cap = this.getParticleCap();
     const available = Math.max(0, cap - this.countEntities(EntityType.PARTICLE));
-    const scaledAmount = this.isMobileProfile() ? Math.max(1, Math.ceil(amount * 0.62)) : amount;
+    const scaledAmount = Math.max(1, Math.ceil(amount * this.getParticleDensity()));
     const particleAmount = Math.min(scaledAmount, available);
 
     for (let i = 0; i < particleAmount; i++) {
@@ -1281,6 +1300,7 @@ export class GameEngine {
           return;
       }
 
+      if (e.flashFrames > 0) e.flashFrames--;
       e.x += e.vx;
       e.y += e.vy;
       
@@ -1334,6 +1354,25 @@ export class GameEngine {
 
       if (e.type === EntityType.ENEMY_DRONE || e.type === EntityType.ENEMY_JOURNAL || e.type === EntityType.ENEMY_SWARM || e.type === EntityType.ENEMY_BRICK) {
         if (e.type === EntityType.ENEMY_SWARM) {
+          if (e.formation === 'orbit') {
+            const boss = this.bossRef;
+            if (!boss || boss.markedForDeletion) {
+              e.markedForDeletion = true;
+              return;
+            }
+
+            const orbitSpeed = 0.026 + Math.min(0.018, this.wave * 0.0025);
+            const orbitRadius = Math.min(this.width * 0.34, boss.width * 0.62 + (this.mobileProfile ? 34 : 48));
+            const angle = e.formationSeed + (this.frameCount * orbitSpeed);
+            const bossCenterX = boss.x + boss.width / 2;
+            const bossCenterY = boss.y + boss.height / 2;
+            e.x = bossCenterX + Math.cos(angle) * orbitRadius - e.width / 2;
+            e.y = bossCenterY + Math.sin(angle) * orbitRadius - e.height / 2;
+            e.vx = 0;
+            e.vy = 0;
+            return;
+          }
+
           const playerCenterX = this.player.x + this.player.width / 2;
           const enemyCenterX = e.x + e.width / 2;
           const dx = playerCenterX - enemyCenterX;
@@ -1442,20 +1481,23 @@ export class GameEngine {
     const isMaxFire = this.stats.upgrades.fireRate >= 5;
     const bulletColor = isMaxFire ? '#00FFFF' : '#6c63ff'; // Cyan glow for max
 
-    const spawnBullet = (vx: number, vy: number, offsetX: number = 0, yOffset: number = 0) => {
+    const spawnBullet = (speed: number, offsetX: number = 0, yOffset: number = 0, angleBias: number = 0) => {
       const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - 5 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
+      const angle = randomRange(-0.035, 0.035) + angleBias;
       b.width = 10;
       b.height = 28;
-      b.vx = vx;
-      b.vy = vy;
+      b.vx = Math.sin(angle) * speed;
+      b.vy = -Math.cos(angle) * speed;
       b.color = bulletColor;
       b.isPlayerShot = true; // Mark as player shot so it doesn't hurt self
       this.entities.push(b);
     };
 
-    spawnBullet(0, -10);
+    this.playerVel.y += 0.2;
+    this.playerVel.x += randomRange(-0.05, 0.05);
+    spawnBullet(10);
     this.getWingmanOffsets().forEach((offsetX) => {
-      spawnBullet(0, -10.4, offsetX, 8);
+      spawnBullet(10.4, offsetX, 8, offsetX < 0 ? -0.042 : 0.042);
     });
   }
   
@@ -1532,7 +1574,14 @@ export class GameEngine {
     for (let index = 0; index < targets.length; index++) {
       const target = targets[index];
       const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS || target.type === EntityType.ENEMY_INVADER;
+      if (target.type === EntityType.BOSS && this.isBossShielded()) {
+        this.flashEntity(target, 8);
+        this.spawnRingEffect(target.x + target.width / 2, target.y + target.height / 2, '#a7f3d0');
+        this.spawnFloatingText(target.x + target.width / 2, target.y + target.height * 0.22, 'SHIELDS UP', '#a7f3d0', 16);
+        continue;
+      }
       target.hp -= isBossTarget ? 38 : 999;
+      this.flashEntity(target, isBossTarget ? 10 : 6);
       this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#fef08a', isBossTarget ? 8 : 5, 4.5, 4);
 
       if (target.hp <= 0) {
@@ -1561,6 +1610,57 @@ export class GameEngine {
       || entity.type === EntityType.ENEMY_INVADER;
   }
 
+  flashEntity(entity: Entity, frames: number = 8) {
+    entity.flashFrames = Math.max(entity.flashFrames, frames);
+  }
+
+  getBossShieldCount() {
+    let count = 0;
+    for (let index = 0; index < this.entities.length; index++) {
+      const entity = this.entities[index];
+      if (!entity.markedForDeletion && entity.type === EntityType.ENEMY_SWARM && entity.formation === 'orbit') {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  isBossShielded() {
+    return this.getBossShieldCount() > 0;
+  }
+
+  clearBossShieldRing() {
+    for (let index = 0; index < this.entities.length; index++) {
+      const entity = this.entities[index];
+      if (entity.type === EntityType.ENEMY_SWARM && entity.formation === 'orbit') {
+        entity.markedForDeletion = true;
+      }
+    }
+  }
+
+  spawnBossShieldRing(boss: Entity, phase: number) {
+    const count = Math.min(this.mobileProfile ? 5 : 8, 3 + phase);
+    const radius = Math.min(this.width * 0.34, boss.width * 0.62 + (this.mobileProfile ? 34 : 48));
+    const hp = Math.max(3, Math.round(2.5 + phase * 1.2));
+
+    for (let i = 0; i < count; i++) {
+      const shield = new Entity(EntityType.ENEMY_SWARM, boss.x + boss.width / 2, boss.y + boss.height / 2);
+      shield.width = this.mobileProfile ? 30 : 34;
+      shield.height = this.mobileProfile ? 26 : 30;
+      shield.hp = hp;
+      shield.maxHp = hp;
+      shield.color = '#a7f3d0';
+      shield.formation = 'orbit';
+      shield.formationIndex = i;
+      shield.formationSeed = (Math.PI * 2 * i) / count;
+      shield.shieldHostId = boss.id;
+      shield.variant = 300 + i;
+      this.entities.push(shield);
+    }
+
+    this.spawnFloatingText(this.width / 2, Math.max(92, this.height * 0.16), 'SHIELD RING!', '#a7f3d0', this.mobileProfile ? 17 : 22);
+  }
+
   handleEnemyDestroyed(target: Entity) {
     if (target.markedForDeletion) return;
 
@@ -1580,6 +1680,10 @@ export class GameEngine {
     const centerY = target.y + target.height / 2;
     this.spawnFloatingText(centerX, centerY - 10, `+${points}`, '#67e8f9', 16);
     this.spawnCoin(target.x + target.width / 2, target.y + target.height / 2);
+    if (target.type === EntityType.ENEMY_SWARM && target.formation === 'orbit') {
+      this.spawnFloatingText(centerX, centerY - 26, 'SHIELD -1', '#a7f3d0', 14);
+      this.spawnRingEffect(centerX, centerY, '#a7f3d0');
+    }
     const isElite = target.type === EntityType.ENEMY_JOURNAL
       || target.type === EntityType.ENEMY_BRICK
       || target.type === EntityType.MINI_BOSS
@@ -1624,6 +1728,7 @@ export class GameEngine {
       this.flashAlpha = Math.max(this.flashAlpha, 0.26);
       this.addHitStop(12);
       this.addShake(6.5);
+      this.clearBossShieldRing();
       this.bossRef = null;
       this.mainBossDefeated = true;
       this.waveTransitionPending = true;
@@ -1678,7 +1783,16 @@ export class GameEngine {
       if (target.markedForDeletion || !this.isEnemyTarget(target) || !intersectsBeam(target)) return;
 
       const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS || target.type === EntityType.ENEMY_INVADER;
+      if (target.type === EntityType.BOSS && this.isBossShielded()) {
+        this.flashEntity(target, 4);
+        if (this.frameCount % 10 === 0) {
+          this.spawnRingEffect(target.x + target.width / 2, target.y + target.height / 2, '#a7f3d0');
+        }
+        return;
+      }
+
       target.hp -= isBossTarget ? 0.9 : 1.45;
+      this.flashEntity(target, isBossTarget ? 5 : 4);
 
       if (this.frameCount % 8 === 0) {
         this.entities.push(new Particle(target.x + target.width / 2, target.y + target.height / 2, '#a855f7', 1.8));
@@ -1790,7 +1904,7 @@ export class GameEngine {
         : Math.sin(i * 0.9) * 0.55;
     }
 
-    const labels: Record<EnemyFormationMode, string> = {
+    const labels: Record<Exclude<EnemyFormationMode, 'orbit'>, string> = {
       row: 'LINE SWARM!',
       v: 'V-SWARM!',
       sine: 'WAVE SWARM!',
@@ -1992,6 +2106,9 @@ export class GameEngine {
     boss.vy = 2;
     this.bossRef = boss;
     this.entities.push(boss);
+    if (phase >= 2) {
+      this.spawnBossShieldRing(boss, phase);
+    }
   }
 
   getBossPulseCount(phase: number) {
@@ -2412,11 +2529,28 @@ export class GameEngine {
 
         // Boss-type enemies get shaved down a bit faster so fights don't drag.
         const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS;
+        const bossShielded = target.type === EntityType.BOSS && this.isBossShielded();
+        if (bossShielded) {
+          if (!shot.isBeam) shot.markedForDeletion = true;
+          this.flashEntity(target, 5);
+          if (this.frameCount % 5 === 0) {
+            this.spawnRingEffect(shot.x + shot.width / 2, shot.y + shot.height / 2, '#a7f3d0');
+            this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, '#a7f3d0', shot.type === EntityType.MISSILE ? 6 : 3, 2.2, 3);
+          }
+          if (shot.type === EntityType.MISSILE) {
+            this.addHitStop(3);
+            this.addShake(0.9);
+          }
+          if (!shot.isBeam) break;
+          continue;
+        }
+
         const dmg = shot.type === EntityType.MISSILE
           ? (isBossTarget ? 8 : 5)
           : (isBossTarget ? 1.45 : 1);
         if (!shot.isBeam) shot.markedForDeletion = true;
         target.hp -= dmg;
+        this.flashEntity(target, isBossTarget ? 7 : 5);
         this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, shot.color || '#67e8f9', shot.type === EntityType.MISSILE ? 8 : 3, shot.type === EntityType.MISSILE ? 3.8 : 1.6, shot.type === EntityType.MISSILE ? 4 : 2.5);
         if (shot.type === EntityType.MISSILE) {
           this.addHitStop(3);
@@ -2753,6 +2887,25 @@ export class GameEngine {
       ctx.restore();
     });
   }
+
+  drawHitFlash(ctx: CanvasRenderingContext2D, e: Entity) {
+      if (e.flashFrames <= 0) return;
+
+      const alpha = Math.min(0.52, e.flashFrames / 12);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = e.formation === 'orbit' ? '#a7f3d0' : '#f8fafc';
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = this.getGlowBlur(18);
+      ctx.shadowColor = e.formation === 'orbit' ? '#a7f3d0' : '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(-e.width / 2, -e.height / 2, e.width, e.height, Math.min(16, e.width * 0.28));
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+  }
   
   drawMiniBoss(ctx: CanvasRenderingContext2D, e: Entity) {
       this.drawHealthBar(ctx, e, 12);
@@ -2797,6 +2950,31 @@ export class GameEngine {
         ctx.save();
         ctx.fillStyle = '#7f1d1d';
         ctx.fillRect(-e.width / 2, -e.height / 2, e.width, e.height);
+        ctx.restore();
+      }
+
+      const shieldCount = this.getBossShieldCount();
+      if (shieldCount > 0) {
+        const shieldPulse = 0.72 + Math.sin(this.frameCount * 0.11) * 0.18;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = `rgba(167, 243, 208, ${shieldPulse})`;
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = this.getGlowBlur(22);
+        ctx.shadowColor = '#a7f3d0';
+        ctx.beginPath();
+        ctx.ellipse(0, 18, e.width * 0.62, e.height * 0.34, this.frameCount * 0.014, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([10, 8]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(0, 18, e.width * 0.74, e.height * 0.42, -this.frameCount * 0.01, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = 'bold 11px Orbitron';
+        ctx.fillStyle = '#a7f3d0';
+        ctx.textAlign = 'center';
+        ctx.fillText(`SHIELD x${shieldCount}`, 0, e.height / 2 + 18);
         ctx.restore();
       }
 
@@ -3098,8 +3276,8 @@ export class GameEngine {
         const rotation = Math.sin((this.frameCount + e.variant) * 0.08) * 0.12;
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             rotation,
-            shadowColor: '#34d399',
-            shadowBlur: 8
+            shadowColor: e.formation === 'orbit' ? '#a7f3d0' : '#34d399',
+            shadowBlur: e.formation === 'orbit' ? 14 : 8
         });
         if (!drewSprite) {
             ctx.fillStyle = e.color;
@@ -3173,6 +3351,7 @@ export class GameEngine {
             shadowBlur: 8
         });
         if (drewSprite) {
+            this.drawHitFlash(ctx, e);
             ctx.restore();
             return;
         }
@@ -3405,6 +3584,10 @@ export class GameEngine {
         } else {
           ctx.fillRect(-e.width/2, -e.height/2, e.width, e.height);
         }
+    }
+
+    if (this.isEnemyTarget(e)) {
+      this.drawHitFlash(ctx, e);
     }
     
     ctx.restore();

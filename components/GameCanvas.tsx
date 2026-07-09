@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameLogic';
-import { Stats, GameState } from '../types';
+import { Stats, GameState, GamePolishSettings } from '../types';
 
 const HUD_STATS_SYNC_INTERVAL_MS = 650;
 
@@ -63,9 +63,10 @@ interface GameCanvasProps {
   isTransmissionOpen?: boolean;
   bombCommand?: { nonce: number } | null;
   continueCommand?: { nonce: number; lives: number } | null;
+  polishSettings: GamePolishSettings;
 }
 
-const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, gameState, isTransmissionOpen = false, bombCommand = null, continueCommand = null }) => {
+const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, gameState, isTransmissionOpen = false, bombCommand = null, continueCommand = null, polishSettings }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const requestRef = useRef<number | null>(null);
@@ -97,6 +98,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
   useEffect(() => {
     isTransmissionOpenRef.current = isTransmissionOpen;
   }, [isTransmissionOpen]);
+
+  useEffect(() => {
+    if (engineRef.current) {
+      engineRef.current.polishSettings = polishSettings;
+    }
+  }, [polishSettings]);
 
   useEffect(() => {
     if (!bombCommand || !engineRef.current) return;
@@ -153,6 +160,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
 
     // Initialize Engine
     const engine = new GameEngine(stats);
+    engine.polishSettings = polishSettings;
     engineRef.current = engine;
     let targetFPS = 60;
     let frameInterval = 1000 / targetFPS;

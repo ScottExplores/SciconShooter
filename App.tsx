@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import StartScreen from './components/StartScreen';
-import { ArchivedWinner, DonationStatus, FieldUpgradeType, GameState, LeaderboardEntry, PowerupType, Stats, Upgrades, WalletSession } from './types';
+import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeLevel } from './constants';
 import { getLeaderboardData, saveScore } from './services/leaderboardService';
@@ -89,6 +89,23 @@ const defaultMissionUpgrades: Upgrades = {
   fireRate: 0,
   speed: 0,
   missile: 0
+};
+
+const defaultPolishSettings: GamePolishSettings = {
+  screenShake: true,
+  highDensityParticles: true
+};
+
+const getInitialPolishSettings = (): GamePolishSettings => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEYS.POLISH_SETTINGS) || '{}') as Partial<GamePolishSettings>;
+    return {
+      screenShake: typeof parsed.screenShake === 'boolean' ? parsed.screenShake : defaultPolishSettings.screenShake,
+      highDensityParticles: typeof parsed.highDensityParticles === 'boolean' ? parsed.highDensityParticles : defaultPolishSettings.highDensityParticles
+    };
+  } catch {
+    return defaultPolishSettings;
+  }
 };
 
 const defaultPowerupUses: Record<PowerupType, number> = {
@@ -450,6 +467,7 @@ const App: React.FC = () => {
   };
 
   const [stats, setStats] = useState<Stats>(getInitialStats);
+  const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
 
   useEffect(() => {
     const statsToSave = {
@@ -460,6 +478,17 @@ const App: React.FC = () => {
     localStorage.setItem(getWalletProfileKey(activeWalletAddress), JSON.stringify(statsToSave));
     localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.highScore.toString());
   }, [activeWalletAddress, playerNameInput, stats.highScore, stats.totalCoins]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.POLISH_SETTINGS, JSON.stringify(polishSettings));
+  }, [polishSettings]);
+
+  const togglePolishSetting = (key: keyof GamePolishSettings) => {
+    setPolishSettings(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   useEffect(() => {
     if (!activeWalletAddress) return;
@@ -983,6 +1012,7 @@ const App: React.FC = () => {
             isTransmissionOpen={Boolean(activeStoryBeat)}
             bombCommand={bombCommand}
             continueCommand={continueCommand}
+            polishSettings={polishSettings}
           />
         </React.Suspense>
       )}
@@ -1058,6 +1088,30 @@ const App: React.FC = () => {
                 >
                   QUIT
                 </button>
+              </div>
+              <div className="rounded-[8px] border border-cyan-300/18 bg-cyan-300/8 p-3 text-left">
+                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100">Performance FX</p>
+                <div className="space-y-2">
+                  {([
+                    ['screenShake', 'Screen Shake'],
+                    ['highDensityParticles', 'High-Density Particles']
+                  ] as Array<[keyof GamePolishSettings, string]>).map(([key, label]) => {
+                    const enabled = polishSettings[key];
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => togglePolishSetting(key)}
+                        className="flex w-full items-center justify-between rounded-[6px] border border-white/10 bg-slate-950/55 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-200 transition hover:border-cyan-200/40 hover:bg-cyan-300/10"
+                      >
+                        <span>{label}</span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${enabled ? 'border-emerald-200/35 bg-emerald-300/15 text-emerald-100' : 'border-slate-300/20 bg-slate-700/30 text-slate-400'}`}>
+                          {enabled ? 'On' : 'Off'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
