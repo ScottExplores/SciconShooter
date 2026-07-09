@@ -1,10 +1,13 @@
 
+type GameSoundType = 'shoot' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb';
+
 class AudioService {
   private ctx: AudioContext | null = null;
   private muted: boolean = false;
   private masterGain: GainNode | null = null;
   private musicTimer: number | null = null;
   private musicStep: number = 0;
+  private lastSoundTime: Partial<Record<GameSoundType, number>> = {};
 
   constructor() {
     try {
@@ -98,11 +101,29 @@ class AudioService {
 
   // Procedural Sound Generation
   public playSound(
-    type: 'shoot' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb',
+    type: GameSoundType,
     intensity: number = 1,
     options: { pitchJitter?: number; pitchOffset?: number } = {}
   ) {
     if (!this.ctx || this.muted) return;
+
+    const minSpacingMs: Partial<Record<GameSoundType, number>> = {
+      shoot: 28,
+      coin: 24,
+      explode: 42,
+      hit: 80,
+      powerup: 80,
+      missile: 70,
+      electricity: 40,
+      siren: 120,
+      boss_roar: 180,
+      bomb: 140
+    };
+    const nowMs = performance.now();
+    const spacing = minSpacingMs[type] || 0;
+    const lastTime = this.lastSoundTime[type] || 0;
+    if (spacing > 0 && nowMs - lastTime < spacing) return;
+    this.lastSoundTime[type] = nowMs;
 
     const t = this.ctx.currentTime;
     const pitchJitter = options.pitchJitter ?? 0.12;

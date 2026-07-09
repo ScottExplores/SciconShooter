@@ -14,6 +14,7 @@ type PendingPlayerShot = {
   yOffset: number;
   angleBias: number;
   pitchOffset: number;
+  playSound?: boolean;
 };
 
 export class Entity {
@@ -285,6 +286,10 @@ const MOBILE_EFFECT_CAP = 24;
 const DESKTOP_EFFECT_CAP = 44;
 const MOBILE_THREAT_CAP = 34;
 const DESKTOP_THREAT_CAP = 60;
+const MOBILE_PLAYER_SHOT_CAP = 24;
+const MOBILE_LEAN_PLAYER_SHOT_CAP = 18;
+const DESKTOP_PLAYER_SHOT_CAP = 46;
+const PENDING_PLAYER_SHOT_CAP = 8;
 const EMPTY_WINGMAN_OFFSETS: number[] = [];
 const DOUBLE_WINGMAN_OFFSETS = [42];
 const TRIPLE_WINGMAN_OFFSETS = [-42, 42];
@@ -376,6 +381,7 @@ export class GameEngine {
   mobileProfile: boolean = false;
   polishSettings: GamePolishSettings = { ...DEFAULT_POLISH_SETTINGS };
   performanceMode: boolean = false;
+  heavySceneLoad: boolean = false;
   
   constructor(stats: Stats) {
     this.stats = stats;
@@ -538,6 +544,7 @@ export class GameEngine {
   }
 
   getParticleDensity() {
+    if (this.heavySceneLoad && this.mobileProfile) return this.polishSettings.highDensityParticles ? 0.28 : 0.18;
     if (this.performanceMode && this.mobileProfile) return this.polishSettings.highDensityParticles ? 0.34 : 0.22;
     if (!this.polishSettings.highDensityParticles) return 0.42;
     return this.mobileProfile ? 0.62 : 1;
@@ -909,11 +916,13 @@ export class GameEngine {
   }
 
   getParticleCap() {
+    if (this.heavySceneLoad && this.mobileProfile) return Math.floor(MOBILE_PARTICLE_CAP * 0.46);
     if (this.performanceMode && this.mobileProfile) return Math.floor(MOBILE_PARTICLE_CAP * 0.58);
     return this.isMobileProfile() ? MOBILE_PARTICLE_CAP : DESKTOP_PARTICLE_CAP;
   }
 
   getEffectCap() {
+    if (this.heavySceneLoad && this.mobileProfile) return Math.floor(MOBILE_EFFECT_CAP * 0.5);
     if (this.performanceMode && this.mobileProfile) return Math.floor(MOBILE_EFFECT_CAP * 0.62);
     return this.isMobileProfile() ? MOBILE_EFFECT_CAP : DESKTOP_EFFECT_CAP;
   }
@@ -999,7 +1008,8 @@ export class GameEngine {
   spawnBurst(x: number, y: number, color: string, amount: number = 10, speed: number = 4, size: number = 4) {
     const cap = this.getParticleCap();
     const available = Math.max(0, cap - this.countEntities(EntityType.PARTICLE));
-    const scaledAmount = Math.max(1, Math.ceil(amount * this.getParticleDensity()));
+    const leanAmount = this.shouldUseLeanEffects() && speed <= 2 ? Math.min(amount, 2) : amount;
+    const scaledAmount = Math.max(1, Math.ceil(leanAmount * this.getParticleDensity()));
     const particleAmount = Math.min(scaledAmount, available);
 
     for (let i = 0; i < particleAmount; i++) {
@@ -1081,11 +1091,15 @@ export class GameEngine {
     const moveSpeed = Math.hypot(this.playerVel.x, this.playerVel.y);
     this.playerTilt = lerp(this.playerTilt, clamp(this.playerVel.x * GAME_FEEL.tiltPerSpeed, -GAME_FEEL.maxTilt, GAME_FEEL.maxTilt), GAME_FEEL.tiltEase);
 
-    if (moveSpeed > GAME_FEEL.afterimageSpeed && this.frameCount % 5 === 0) {
+    if (moveSpeed > GAME_FEEL.afterimageSpeed && this.frameCount % (this.shouldUseLeanEffects() ? 8 : 5) === 0) {
       this.addPlayerAfterimage();
     }
 
-    if (moveSpeed > 1.3 && this.frameCount % 6 === 0) {
+    if (
+      moveSpeed > 1.3
+      && this.frameCount % (this.shouldUseLeanEffects() ? 12 : 6) === 0
+      && this.countEntities(EntityType.PARTICLE) < this.getParticleCap()
+    ) {
       this.entities.push(new Particle(
         this.player.x + this.player.width / 2 - this.playerVel.x * 3,
         this.player.y + this.player.height * 0.78,
@@ -1150,6 +1164,7 @@ export class GameEngine {
     if (!this.gameActive) return;
     this.frameCount++;
     this.flushPendingPlayerShots();
+    this.refreshLoadState();
     this.stats.lives = this.lives;
     this.updateJuiceSystems();
     this.stars.forEach(star => star.update(this.width, this.height));
@@ -1339,19 +1354,20 @@ export class GameEngine {
           // Homing Logic
           // Find nearest enemy
           let nearest: Entity | null = null;
-          let minDist = 1000;
+          let minDistSq = 1000 * 1000;
           
-          this.entities.forEach(target => {
-              if (target.type === EntityType.ENEMY_DRONE || target.type === EntityType.ENEMY_BRICK || target.type === EntityType.ENEMY_JOURNAL || target.type === EntityType.ENEMY_SWARM || target.type === EntityType.MINI_BOSS || target.type === EntityType.BOSS || target.type === EntityType.ENEMY_INVADER) {
+          for (let targetIndex = 0; targetIndex < this.entities.length; targetIndex++) {
+              const target = this.entities[targetIndex];
+              if (!target.markedForDeletion && this.isEnemyTarget(target)) {
                   const dx = target.x - e.x;
                   const dy = target.y - e.y;
-                  const dist = Math.sqrt(dx*dx + dy*dy);
-                  if (dist < minDist && target.y > 0) {
-                      minDist = dist;
+                  const distSq = dx * dx + dy * dy;
+                  if (distSq < minDistSq && target.y > 0) {
+                      minDistSq = distSq;
                       nearest = target;
                   }
               }
-          });
+          }
           
           if (nearest) {
               const target = nearest as Entity;
@@ -1376,7 +1392,7 @@ export class GameEngine {
           }
           
           // Spawn trail - Use missile color
-          if (this.frameCount % 4 === 0) {
+          if (this.frameCount % (this.shouldUseLeanEffects() ? 8 : 4) === 0 && this.countEntities(EntityType.PARTICLE) < this.getParticleCap()) {
               this.entities.push(new Particle(e.x + e.width/2, e.y + e.height, e.color, 1));
           }
           
@@ -1486,6 +1502,7 @@ export class GameEngine {
     this.checkCollisions();
     this.applyResearchBeamDamage();
     this.compactEntities();
+    this.refreshLoadState();
     this.bgY = (this.bgY + 1) % this.height;
   }
 
@@ -1501,13 +1518,68 @@ export class GameEngine {
     return EMPTY_WINGMAN_OFFSETS;
   }
 
+  countPlayerShots(includeQueued: boolean = false) {
+    let count = includeQueued ? this.pendingPlayerShots.length : 0;
+    for (let i = 0; i < this.entities.length; i++) {
+      const entity = this.entities[i];
+      if (
+        !entity.markedForDeletion
+        && ((entity.type === EntityType.PROJECTILE && entity.isPlayerShot) || entity.type === EntityType.MISSILE)
+      ) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  getPlayerShotCap() {
+    if (!this.mobileProfile) return DESKTOP_PLAYER_SHOT_CAP;
+    return (this.performanceMode || this.heavySceneLoad) ? MOBILE_LEAN_PLAYER_SHOT_CAP : MOBILE_PLAYER_SHOT_CAP;
+  }
+
+  refreshLoadState() {
+    let playerShots = this.pendingPlayerShots.length;
+    let particles = 0;
+    let effects = 0;
+    let threats = 0;
+
+    for (let i = 0; i < this.entities.length; i++) {
+      const entity = this.entities[i];
+      if (entity.markedForDeletion) continue;
+
+      if ((entity.type === EntityType.PROJECTILE && entity.isPlayerShot) || entity.type === EntityType.MISSILE) playerShots++;
+      else if (entity.type === EntityType.PARTICLE) particles++;
+      else if (entity.type === EntityType.EFFECT) effects++;
+
+      if (this.isEnemyTarget(entity)) threats++;
+    }
+
+    this.heavySceneLoad = this.mobileProfile && (
+      this.performanceMode
+      || playerShots >= MOBILE_LEAN_PLAYER_SHOT_CAP
+      || particles >= MOBILE_PARTICLE_CAP * 0.7
+      || effects >= MOBILE_EFFECT_CAP * 0.75
+      || threats >= MOBILE_THREAT_CAP * 0.82
+      || this.entities.length >= 132
+    );
+  }
+
+  shouldUseLeanEffects() {
+    return this.mobileProfile && (this.performanceMode || this.heavySceneLoad);
+  }
+
   spawnPlayerBullet(
     speed: number,
     offsetX: number = 0,
     yOffset: number = 0,
     angleBias: number = 0,
-    pitchOffset: number = 0
+    pitchOffset: number = 0,
+    playSound: boolean = true
   ) {
+    if (this.countPlayerShots(true) >= this.getPlayerShotCap()) {
+      return false;
+    }
+
     const isMaxFire = this.stats.upgrades.fireRate >= 5;
     const bulletColor = isMaxFire ? '#00FFFF' : '#6c63ff';
     const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - 5 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
@@ -1519,13 +1591,18 @@ export class GameEngine {
     b.color = bulletColor;
     b.isPlayerShot = true;
     this.entities.push(b);
-    audioService.playSound('shoot', 1, {
-      pitchJitter: 0.22,
-      pitchOffset
-    });
+    if (playSound) {
+      audioService.playSound('shoot', 1, {
+        pitchJitter: 0.22,
+        pitchOffset
+      });
+    }
+    return true;
   }
 
   queuePlayerBullet(shot: PendingPlayerShot) {
+    if (this.pendingPlayerShots.length >= PENDING_PLAYER_SHOT_CAP) return;
+    if (this.countPlayerShots(true) >= this.getPlayerShotCap()) return;
     this.pendingPlayerShots.push(shot);
   }
 
@@ -1536,7 +1613,7 @@ export class GameEngine {
       const shot = this.pendingPlayerShots[index];
       if (shot.fireFrame > this.frameCount) continue;
 
-      this.spawnPlayerBullet(shot.speed, shot.offsetX, shot.yOffset, shot.angleBias, shot.pitchOffset);
+      this.spawnPlayerBullet(shot.speed, shot.offsetX, shot.yOffset, shot.angleBias, shot.pitchOffset, shot.playSound ?? true);
       this.pendingPlayerShots.splice(index, 1);
       index--;
     }
@@ -1552,8 +1629,9 @@ export class GameEngine {
 
     this.playerVel.y += 0.2;
     this.playerVel.x += randomRange(-0.05, 0.05);
-    this.spawnPlayerBullet(10, 0, 0, 0, -0.04);
+    this.spawnPlayerBullet(10, 0, 0, 0, -0.04, true);
 
+    const lean = this.shouldUseLeanEffects();
     this.getWingmanOffsets().forEach((offsetX, index) => {
       this.queuePlayerBullet({
         fireFrame: this.frameCount + index + 1,
@@ -1561,7 +1639,8 @@ export class GameEngine {
         offsetX,
         yOffset: 8,
         angleBias: offsetX < 0 ? -0.042 : 0.042,
-        pitchOffset: offsetX < 0 ? -0.01 : 0.03
+        pitchOffset: offsetX < 0 ? -0.01 : 0.03,
+        playSound: !lean
       });
     });
   }
@@ -2331,8 +2410,8 @@ export class GameEngine {
 
   spawnExplosion(x: number, y: number, color: string) {
     audioService.playSound('explode');
-    this.spawnBurst(x, y, color, 12, 5, 5);
-    this.addShake(0.9);
+    this.spawnBurst(x, y, color, this.shouldUseLeanEffects() ? 7 : 12, 5, 5);
+    this.addShake(this.shouldUseLeanEffects() ? 0.55 : 0.9);
   }
 
   spawnFloatingText(x: number, y: number, text: string, color: string, fontSize: number = 32) {
@@ -2349,11 +2428,14 @@ export class GameEngine {
     this.coinCombo = this.coinComboTimer > 0 ? this.coinCombo + 1 : 1;
     this.coinComboTimer = GAME_FEEL.comboWindowFrames;
     const label = this.coinCombo > 1 ? `+1 x${Math.min(this.coinCombo, 99)}` : '+1';
+    const lean = this.shouldUseLeanEffects();
     audioService.playSound('coin', Math.min(this.coinCombo, 10));
-    this.spawnFloatingText(x, y - 12, label, this.coinCombo > 1 ? '#facc15' : '#67e8f9', this.coinCombo > 1 ? 18 : 16);
-    this.spawnBurst(x, y, '#facc15', this.coinCombo > 1 ? 8 : 5, 2.4, 3.5);
+    if (!lean || this.coinCombo % 3 === 0) {
+      this.spawnFloatingText(x, y - 12, label, this.coinCombo > 1 ? '#facc15' : '#67e8f9', this.coinCombo > 1 ? 18 : 16);
+    }
+    this.spawnBurst(x, y, '#facc15', lean ? 2 : this.coinCombo > 1 ? 8 : 5, 2.4, 3.5);
     this.kickPlayerSquash(0.026);
-    this.addShake(this.coinCombo > 4 ? 0.48 : 0.22);
+    this.addShake(lean ? 0.12 : this.coinCombo > 4 ? 0.48 : 0.22);
   }
 
   activatePowerup(type: PowerupType, countUse: boolean = true) {
@@ -2579,17 +2661,29 @@ export class GameEngine {
 
     }
 
+    const bossShieldedNow = this.isBossShielded();
+
     for (const shot of playerShots) {
       if (shot.markedForDeletion) continue;
+      const shotBox = getBox(shot);
 
       for (let index = 0; index < enemyTargets.length; index++) {
         const target = enemyTargets[index];
         if (target.markedForDeletion) continue;
-        if (!this.boxesIntersect(getBox(shot), getBox(target))) continue;
+        const padding = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS ? 42 : 18;
+        if (
+          shotBox.x > target.x + target.width + padding
+          || shotBox.x + shotBox.width < target.x - padding
+          || shotBox.y > target.y + target.height + padding
+          || shotBox.y + shotBox.height < target.y - padding
+        ) {
+          continue;
+        }
+        if (!this.boxesIntersect(shotBox, getBox(target))) continue;
 
         // Boss-type enemies get shaved down a bit faster so fights don't drag.
         const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS;
-        const bossShielded = target.type === EntityType.BOSS && this.isBossShielded();
+        const bossShielded = target.type === EntityType.BOSS && bossShieldedNow;
         if (bossShielded) {
           if (!shot.isBeam) shot.markedForDeletion = true;
           this.flashEntity(target, 5);
@@ -2959,13 +3053,14 @@ export class GameEngine {
 
       const alpha = Math.min(0.52, e.flashFrames / 12);
       const flashSprite = this.getHitFlashSprite(e);
+      const lean = this.shouldUseLeanEffects();
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = alpha;
-      ctx.shadowBlur = this.getGlowBlur(16);
+      ctx.globalAlpha = lean ? Math.min(0.36, alpha) : alpha;
+      ctx.shadowBlur = lean ? 0 : this.getGlowBlur(16);
       ctx.shadowColor = e.formation === 'orbit' ? '#a7f3d0' : '#ffffff';
 
-      if (flashSprite) {
+      if (flashSprite && !lean) {
         const drewSprite = this.drawSprite(ctx, flashSprite, e.width, e.height, {
           alpha: 0.92,
           filter: 'brightness(0) saturate(0) invert(1)',
@@ -2980,7 +3075,13 @@ export class GameEngine {
 
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.ellipse(0, 0, e.width * 0.42, e.height * 0.38, 0, 0, Math.PI * 2);
+      if (e.type === EntityType.ENEMY_SWARM) {
+        ctx.ellipse(0, 0, e.width * 0.48, e.height * 0.42, 0, 0, Math.PI * 2);
+      } else if (e.type === EntityType.ENEMY_BRICK) {
+        ctx.roundRect(-e.width * 0.34, -e.height * 0.34, e.width * 0.68, e.height * 0.68, 8);
+      } else {
+        ctx.ellipse(0, 0, e.width * 0.42, e.height * 0.38, 0, 0, Math.PI * 2);
+      }
       ctx.fill();
       ctx.restore();
   }
@@ -3637,7 +3738,8 @@ export class GameEngine {
         ctx.globalAlpha = 1.0; 
         ctx.filter = "none";
         ctx.globalCompositeOperation = 'lighter';
-        ctx.shadowBlur = this.getGlowBlur(e.isPlayerShot ? 18 : 12);
+        const leanShot = e.isPlayerShot && this.shouldUseLeanEffects();
+        ctx.shadowBlur = this.getGlowBlur(leanShot ? 5 : e.isPlayerShot ? 18 : 12);
         ctx.shadowColor = e.color || (e.isPlayerShot ? '#67e8f9' : '#fb7185');
 
         if (e.text) { 
@@ -3646,6 +3748,14 @@ export class GameEngine {
            ctx.textBaseline = 'middle';
            ctx.fillText(e.text, 0, 0);
         } else if (e.isPlayerShot) {
+          if (leanShot) {
+            ctx.fillStyle = e.color || '#67e8f9';
+            ctx.beginPath();
+            ctx.roundRect(-e.width * 0.32, -e.height * 0.58, e.width * 0.64, e.height * 1.08, 4);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.82)';
+            ctx.fillRect(-1, -e.height * 0.48, 2, e.height * 0.72);
+          } else {
             const bolt = ctx.createLinearGradient(0, -e.height / 2, 0, e.height / 2);
             bolt.addColorStop(0, 'rgba(255,255,255,0)');
             bolt.addColorStop(0.18, '#ffffff');
@@ -3667,6 +3777,7 @@ export class GameEngine {
             ctx.moveTo(0, -e.height * 0.58);
             ctx.lineTo(0, e.height * 0.42);
             ctx.stroke();
+          }
         } else {
             ctx.fillStyle = e.color;
             ctx.beginPath();

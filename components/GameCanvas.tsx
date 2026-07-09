@@ -205,10 +205,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
 
       const slowThreshold = frameInterval * 1.55;
       const recoveryThreshold = frameInterval * 1.18;
+      const heavyScene = engine.heavySceneLoad;
 
-      if (deltaTime > slowThreshold) {
+      if (deltaTime > slowThreshold || heavyScene) {
         slowFrameScore = Math.min(40, slowFrameScore + 2);
-        recoveryFrameScore = 0;
+        recoveryFrameScore = heavyScene ? Math.max(0, recoveryFrameScore - 2) : 0;
       } else if (deltaTime < recoveryThreshold) {
         recoveryFrameScore++;
         slowFrameScore = Math.max(0, slowFrameScore - 1);
