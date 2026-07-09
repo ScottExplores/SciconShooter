@@ -934,14 +934,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   return (
-    <div className="relative min-h-screen overflow-y-auto bg-slate-950 text-white">
+    <div className="scicon-start-screen relative min-h-screen overflow-y-auto bg-slate-950 text-white">
       <div className="fixed inset-0 -z-10">
         <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-55" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_86%_22%,rgba(16,185,129,0.16),transparent_26%),linear-gradient(180deg,rgba(2,6,23,0.58),rgba(2,6,23,0.96)_74%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
       </div>
 
-      <div className="mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-4 px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
+      <div className="scicon-start-shell mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-4 px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
         <main className="hidden lg:block">
           {dashboardTab === 'home' ? (
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.14fr)_minmax(25rem,0.86fr)]">
@@ -962,7 +962,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           )}
         </main>
 
-        <main className="flex min-h-[calc(100svh-1rem-env(safe-area-inset-bottom))] flex-col gap-4 pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <main className="scicon-mobile-main flex min-h-[calc(100svh-1rem-env(safe-area-inset-bottom))] flex-col gap-4 pb-[env(safe-area-inset-bottom)] lg:hidden">
           <MobileDashboardContent />
           <DashboardNav docked />
         </main>

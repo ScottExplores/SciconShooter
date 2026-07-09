@@ -72,6 +72,17 @@
         src: url('/fonts/orbitron-latin.woff2') format('woff2');
       }
       
+      :root {
+        --app-visual-height: 100dvh;
+        --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+        --app-bottom-buffer: max(1rem, calc(var(--app-safe-bottom) + 1rem));
+      }
+
+      html {
+        height: 100%;
+        background: #0b1020;
+      }
+
       body {
         margin: 0;
         overflow: hidden;
@@ -81,8 +92,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        height: 100%;
         min-height: 100vh;
         min-height: 100dvh;
+        min-height: var(--app-visual-height);
       }
       
       /* --- LAYOUT FIXES FOR VERCEL --- */
@@ -91,6 +104,7 @@
         width: min(100vw, 430px);
         height: 100vh;
         height: 100dvh;
+        height: var(--app-visual-height);
         max-height: 932px;
         overflow: hidden;
         background: #0b1020;
@@ -110,6 +124,31 @@
           max-width: none;
           max-height: none;
           box-shadow: none;
+        }
+      }
+
+      @media (display-mode: standalone), (display-mode: fullscreen) {
+        :root {
+          --app-bottom-buffer: max(2.25rem, calc(var(--app-safe-bottom) + 1.5rem));
+        }
+      }
+
+      @media (display-mode: standalone) and (max-width: 640px), (display-mode: fullscreen) and (max-width: 640px) {
+        #root .scicon-start-screen {
+          min-height: var(--app-visual-height);
+          height: 100%;
+          overscroll-behavior: contain;
+        }
+
+        #root .scicon-start-shell {
+          min-height: var(--app-visual-height);
+          padding-bottom: var(--app-bottom-buffer);
+        }
+
+        #root .scicon-mobile-main {
+          min-height: calc(var(--app-visual-height) - var(--app-bottom-buffer) - 1rem);
+          padding-bottom: var(--app-bottom-buffer);
+          scroll-padding-bottom: var(--app-bottom-buffer);
         }
       }
 
@@ -818,6 +857,20 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (() => {
+        const setVisualViewportHeight = () => {
+          const viewport = window.visualViewport;
+          const height = viewport?.height || window.innerHeight || document.documentElement.clientHeight;
+          document.documentElement.style.setProperty('--app-visual-height', `${Math.max(1, Math.round(height))}px`);
+        };
+
+        setVisualViewportHeight();
+        window.addEventListener('resize', setVisualViewportHeight, { passive: true });
+        window.visualViewport?.addEventListener('resize', setVisualViewportHeight, { passive: true });
+        window.visualViewport?.addEventListener('scroll', setVisualViewportHeight, { passive: true });
+      })();
+    </script>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
