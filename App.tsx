@@ -1213,7 +1213,7 @@ const App: React.FC = () => {
                   ) : null}
                   <div className={`rounded-[8px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] ${runReceiptStatus === 'ready' ? 'border-emerald-200/25 bg-emerald-300/10 text-emerald-100' : runReceiptStatus === 'local' || runReceiptStatus === 'error' ? 'border-amber-200/25 bg-amber-300/10 text-amber-100' : 'border-cyan-200/20 bg-cyan-300/8 text-cyan-100'}`}>
                     {runReceiptStatus === 'ready'
-                      ? 'Guest global score verification ready'
+                      ? 'Guest global score submission ready'
                       : runReceiptStatus === 'local' || runReceiptStatus === 'error'
                         ? 'Network verification unavailable - this run is saved on this device only'
                         : 'Verifying run receipt...'}
