@@ -1,0 +1,119 @@
+const crypto = require('crypto');
+const { verifyRunReceipt } = require('./_lib/runReceipts');
+const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
+
+const NONCES_TABLE = process.env.SUPABASE_WALLET_NONCES_TABLE || 'scicon_wallet_nonces';
+const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
+const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
+const CHALLENGE_LIFETIME_MS = 10 * 60 * 1000;
+
+const sendJson = (res, status, payload) => {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(JSON.stringify(payload));
+};
+
+const parseBody = (body) => {
+  if (!body) return {};
+  if (typeof body === 'string') {
+    try { return JSON.parse(body); } catch { return {}; }
+  }
+  return body;
+};
+
+const normalizeAddress = (value) => {
+  const address = String(value || '').trim().toLowerCase();
+  return /^0x[a-f0-9]{40}$/.test(address) ? address : null;
+};
+
+const makeMessage = ({ address, runId, challengeId, expiresAt }) => [
+  'Scicon Shooter run association',
+  '',
+  `Wallet: ${address}`,
+  `Run: ${runId}`,
+  `Challenge: ${challengeId}`,
+  `Expires: ${expiresAt}`,
+  '',
+  'Signing does not spend funds or mint anything.'
+].join('\n');
+
+const createChallenge = async ({ address, receiptToken }) => {
+  const normalizedAddress = normalizeAddress(address);
+  if (!normalizedAddress) throw Object.assign(new Error('A valid Base wallet address is required.'), { statusCode: 400 });
+  const receipt = verifyRunReceipt(receiptToken);
+  const challengeId = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + CHALLENGE_LIFETIME_MS).toISOString();
+  const message = makeMessage({ address: normalizedAddress, runId: receipt.runId, challengeId, expiresAt });
+  await fetchSupabaseJson(NONCES_TABLE, {
+    method: 'POST',
+    headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+    body: JSON.stringify({
+      challenge_id: challengeId,
+      run_id: receipt.runId,
+      wallet_address: normalizedAddress,
+      message,
+      expires_at: expiresAt
+    })
+  });
+  return { challengeId, message, expiresAt, runId: receipt.runId };
+};
+
+const claimRun = async ({ address, receiptToken, challengeId, signature }) => {
+  const normalizedAddress = normalizeAddress(address);
+  if (!normalizedAddress || !challengeId || !signature) {
+    throw Object.assign(new Error('Wallet, challenge, and signature are required.'), { statusCode: 400 });
+  }
+  const receipt = verifyRunReceipt(receiptToken);
+  const rows = await fetchSupabaseJson(`${NONCES_TABLE}?select=*&challenge_id=eq.${encodeURIComponent(challengeId)}&limit=1`, {
+    headers: supabaseHeaders()
+  });
+  const challenge = Array.isArray(rows) ? rows[0] : null;
+  if (!challenge || challenge.used_at || new Date(challenge.expires_at).getTime() <= Date.now()) {
+    throw Object.assign(new Error('This wallet challenge is missing, used, or expired.'), { statusCode: 410 });
+  }
+  if (challenge.run_id !== receipt.runId || challenge.wallet_address !== normalizedAddress) {
+    throw Object.assign(new Error('The wallet challenge does not match this run.'), { statusCode: 403 });
+  }
+
+  const { verifyMessage } = await import('viem');
+  const valid = await verifyMessage({
+    address: normalizedAddress,
+    message: challenge.message,
+    signature
+  });
+  if (!valid) throw Object.assign(new Error('Wallet signature could not be verified.'), { statusCode: 401 });
+
+  const now = new Date().toISOString();
+  await Promise.all([
+    fetchSupabaseJson(`${NONCES_TABLE}?challenge_id=eq.${encodeURIComponent(challengeId)}&used_at=is.null`, {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+      body: JSON.stringify({ used_at: now })
+    }),
+    fetchSupabaseJson(`${RECEIPTS_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}`, {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+      body: JSON.stringify({ wallet_address: normalizedAddress, wallet_claimed_at: now })
+    }),
+    fetchSupabaseJson(`${LEADERBOARD_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}`, {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+      body: JSON.stringify({ wallet_address: normalizedAddress })
+    })
+  ]);
+  return { runId: receipt.runId, walletAddress: normalizedAddress, claimedAt: now };
+};
+
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+  try {
+    const body = parseBody(req.body);
+    if (body.action === 'challenge') return sendJson(res, 200, await createChallenge(body));
+    if (body.action === 'claim') return sendJson(res, 200, { claim: await claimRun(body) });
+    return sendJson(res, 400, { error: 'Unknown run claim action' });
+  } catch (error) {
+    console.error('Run claim API error:', error);
+    return sendJson(res, error.statusCode || 500, { error: error.message || 'Run claim failed' });
+  }
+};

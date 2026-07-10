@@ -2,9 +2,12 @@ const MAX_SCORES = 25;
 const MAX_MONTHLY_SCORES = 5;
 const SYNC_SCORE_LIMIT = 100;
 const SUPABASE_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
+const { verifyRunReceipt } = require('./_lib/runReceipts');
+const crypto = require('crypto');
+const { checkRateLimit } = require('./_lib/rateLimit');
 
 const LEGACY_SUPABASE_SELECT = 'name,score,wave,date,wallet_address,donated';
-const SUPABASE_SELECT = `${LEGACY_SUPABASE_SELECT},proposal_id,proposal_title,proposal_url,proposal_author`;
+const SUPABASE_SELECT = `${LEGACY_SUPABASE_SELECT},proposal_id,proposal_title,proposal_url,proposal_author,run_id,verified,receipt_hash`;
 
 const getSupabaseConfig = () => ({
   url: process.env.SUPABASE_URL,
@@ -79,7 +82,10 @@ const sanitizeEntry = (entry) => {
     proposalId: sanitizeText(entry.proposalId, 80),
     proposalTitle: sanitizeText(entry.proposalTitle, 180),
     proposalUrl: sanitizeUrl(entry.proposalUrl),
-    proposalAuthor: sanitizeText(entry.proposalAuthor, 100)
+    proposalAuthor: sanitizeText(entry.proposalAuthor, 100),
+    runId: sanitizeText(entry.runId, 80),
+    verified: Boolean(entry.verified),
+    receiptHash: sanitizeText(entry.receiptHash, 80)
   };
 };
 
@@ -136,16 +142,10 @@ const toSupabaseRow = (entry) => ({
   proposal_id: entry.proposalId || null,
   proposal_title: entry.proposalTitle || null,
   proposal_url: entry.proposalUrl || null,
-  proposal_author: entry.proposalAuthor || null
-});
-
-const withoutProposalColumns = (row) => ({
-  name: row.name,
-  score: row.score,
-  wave: row.wave,
-  date: row.date,
-  wallet_address: row.wallet_address || null,
-  donated: Boolean(row.donated)
+  proposal_author: entry.proposalAuthor || null,
+  run_id: entry.runId || null,
+  verified: Boolean(entry.verified),
+  receipt_hash: entry.receiptHash || null
 });
 
 const fromSupabaseRow = (row) => sanitizeEntry({
@@ -158,7 +158,10 @@ const fromSupabaseRow = (row) => sanitizeEntry({
   proposalId: row.proposal_id,
   proposalTitle: row.proposal_title,
   proposalUrl: row.proposal_url,
-  proposalAuthor: row.proposal_author
+  proposalAuthor: row.proposal_author,
+  runId: row.run_id,
+  verified: row.verified,
+  receiptHash: row.receipt_hash
 });
 
 const requestSupabaseScores = async (selectColumns, query = '') => {
@@ -203,7 +206,7 @@ const readSupabaseScores = async () => {
 };
 
 const insertSupabaseRows = async (rows) => {
-  const response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=name,score,wave,date`), {
+  const response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=run_id`), {
     method: 'POST',
     headers: supabaseHeaders({
       Prefer: 'resolution=merge-duplicates,return=minimal'
@@ -222,19 +225,22 @@ const writeSupabaseScores = async (scores) => {
     .map(toSupabaseRow);
 
   if (rows.length > 0) {
-    try {
-      await insertSupabaseRows(rows);
-    } catch (error) {
-      if (!isMissingProposalColumnError(error)) {
-        throw error;
-      }
-
-      // Keeps legacy deployments alive until the Supabase migration below is applied.
-      await insertSupabaseRows(rows.map(withoutProposalColumns));
-    }
+    await insertSupabaseRows(rows);
   }
 
   return readSupabaseScores();
+};
+
+const hasSubmittedRun = async (runId) => {
+  const response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?select=run_id&run_id=eq.${encodeURIComponent(runId)}&limit=1`), {
+    headers: supabaseHeaders()
+  });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Run replay check failed with ${response.status}: ${details}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) && rows.length > 0;
 };
 
 const readScores = async () => {
@@ -278,11 +284,38 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
+      const rate = checkRateLimit(req, { scope: 'leaderboard-submit', limit: 20, windowMs: 10 * 60 * 1000 });
+      if (!rate.allowed) return sendJson(res, 429, { error: 'Too many score submissions. Please wait before trying again.' });
       const body = parseBody(req.body);
-      const entry = sanitizeEntry(body.entry);
+      let receipt;
+      try {
+        receipt = verifyRunReceipt(body.receiptToken);
+      } catch (error) {
+        return sendJson(res, 401, { error: 'A valid run receipt is required', details: error.message });
+      }
+
+      const name = sanitizeText(body.name, 15)?.toUpperCase();
+      if (!name) {
+        return sendJson(res, 400, { error: 'Pilot name is required' });
+      }
+
+      const entry = sanitizeEntry({
+        name,
+        score: receipt.metrics.score,
+        wave: receipt.metrics.wave,
+        date: new Date(receipt.finishedAt).toISOString(),
+        walletAddress: sanitizeText(body.walletAddress, 80)?.toLowerCase(),
+        runId: receipt.runId,
+        verified: receipt.integrity === 'server-verified',
+        receiptHash: crypto.createHash('sha256').update(body.receiptToken).digest('hex')
+      });
 
       if (!entry) {
         return sendJson(res, 400, { error: 'Missing leaderboard entry' });
+      }
+
+      if (await hasSubmittedRun(entry.runId)) {
+        return sendJson(res, 409, { error: 'This run has already been submitted' });
       }
 
       const scores = await writeScores([entry]);

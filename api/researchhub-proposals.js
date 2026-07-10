@@ -1,9 +1,10 @@
-const https = require('https');
-
 const RESEARCHHUB_FUNDING_FEED =
   'https://backend.prod.researchhub.com/api/funding_feed/?fundraise_status=OPEN&ordering=best&page_size=20&content_type=PREREGISTRATION';
 const MAX_PROPOSAL_PAGES = 5;
 const MAX_PROPOSALS = 100;
+const { fetchSupabaseJson, hasSupabaseConfig, supabaseHeaders } = require('./_lib/supabase');
+const PROPOSAL_CACHE_TABLE = process.env.SUPABASE_PROPOSAL_CACHE_TABLE || 'scicon_proposal_cache';
+const PROPOSAL_CACHE_KEY = 'researchhub-open-preregistrations';
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
@@ -14,67 +15,19 @@ const sendJson = (res, status, payload) => {
   res.end(JSON.stringify(payload));
 };
 
-const requestJsonWithRelaxedCert = (url) => new Promise((resolve, reject) => {
-  const request = https.request(
-    new URL(url),
-    {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'SciconShooter/1.0 (+https://sciconshooter.xyz)'
-      },
-      // ResearchHub's public backend can present an incomplete chain to Node.
-      // This is a read-only proxy for public proposal data, so we only relax it here.
-      rejectUnauthorized: false
-    },
-    (response) => {
-      let body = '';
-
-      response.setEncoding('utf8');
-      response.on('data', (chunk) => {
-        body += chunk;
-      });
-      response.on('end', () => {
-        if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
-          reject(new Error(`ResearchHub funding feed returned ${response.statusCode}`));
-          return;
-        }
-
-        try {
-          resolve(JSON.parse(body));
-        } catch (error) {
-          reject(error);
-        }
-      });
-    }
-  );
-
-  request.on('error', reject);
-  request.end();
-});
-
 const fetchResearchHubFeedPage = async (url) => {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'SciconShooter/1.0 (+https://sciconshooter.xyz)'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`ResearchHub funding feed returned ${response.status}`);
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': 'SciconShooter/2.2 (+https://sciconshooter.xyz)'
     }
+  });
 
-    return response.json();
-  } catch (error) {
-    const message = error?.cause?.code || error?.message || '';
-    if (!/CERT|certificate|UNABLE_TO_VERIFY/i.test(message)) {
-      throw error;
-    }
-
-    return requestJsonWithRelaxedCert(url);
+  if (!response.ok) {
+    throw new Error(`ResearchHub funding feed returned ${response.status}`);
   }
+
+  return response.json();
 };
 
 const fetchResearchHubFeed = async () => {
@@ -102,6 +55,24 @@ const fetchResearchHubFeed = async () => {
   };
 };
 
+const writeProposalCache = async (payload) => {
+  if (!hasSupabaseConfig()) return;
+  await fetchSupabaseJson(`${PROPOSAL_CACHE_TABLE}?on_conflict=cache_key`, {
+    method: 'POST',
+    headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify({ cache_key: PROPOSAL_CACHE_KEY, payload, fetched_at: new Date().toISOString() })
+  });
+};
+
+const readProposalCache = async () => {
+  if (!hasSupabaseConfig()) return null;
+  const rows = await fetchSupabaseJson(`${PROPOSAL_CACHE_TABLE}?select=payload,fetched_at&cache_key=eq.${PROPOSAL_CACHE_KEY}&limit=1`, {
+    headers: supabaseHeaders()
+  });
+  const row = Array.isArray(rows) ? rows[0] : null;
+  return row?.payload ? { ...row.payload, cached: true, fetchedAt: row.fetched_at } : null;
+};
+
 module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') {
     return sendJson(res, 204, {});
@@ -113,10 +84,16 @@ module.exports = async (req, res) => {
 
   try {
     const payload = await fetchResearchHubFeed();
+    await writeProposalCache(payload).catch((error) => console.error('Proposal cache write failed:', error));
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=1800');
     return sendJson(res, 200, payload);
   } catch (error) {
     console.error('ResearchHub proposals API error:', error);
+    const cachedPayload = await readProposalCache().catch(() => null);
+    if (cachedPayload) {
+      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=900');
+      return sendJson(res, 200, cachedPayload);
+    }
     return sendJson(res, 502, {
       error: 'ResearchHub proposal feed is unavailable',
       details: error.message

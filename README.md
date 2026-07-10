@@ -1,123 +1,118 @@
-# SciconShooter
+# Scicon Shooter
 
-SciconShooter is a web arcade game about turning attention, skill, and ResearchCoin energy toward open science. Players pilot the Research Flask through waves of scientific bottlenecks, tune their ship in the lab, and compete for a weekly leaderboard position that can help direct RSC toward a ResearchHub proposal.
+**Play. Win the week. Choose what research gets funded.**
+
+Scicon Shooter is a community-built Base-native arcade game powered by active ResearchHub proposal data. Anyone can play immediately as a guest. Players compete for a verified weekly high score, and the finalized weekly champion gets a claim window to choose an eligible ResearchHub proposal for the community funding allocation.
 
 Live app: https://sciconshooter.xyz
 
-## What the app stands for
+Scicon Shooter is not presented as an official ResearchHub product.
 
-SciconShooter is built around a simple idea: make open science funding feel visible, playful, and participatory.
+## Product loop
 
-The game loop turns common research obstacles into arcade enemies. Players score points, survive waves, upgrade during the run, and compete for leaderboard placement. The weekly No. 1 pilot gets to choose a live ResearchHub proposal, and that choice guides the 100 RSC allocation for the week.
-
-The app is not meant to hide the funding story behind a donation button. It makes the funding target part of the game: the best run earns the right to point attention and RSC toward a proposal that deserves support.
+1. Play a mission without connecting a wallet.
+2. Save a completed run with a signed server receipt.
+3. Climb the Monday-to-Sunday UTC leaderboard.
+4. Finalize and lock the weekly champion after the cutoff.
+5. Let the champion connect the Base Account associated with the winning run.
+6. Select an active, unfunded ResearchHub proposal during the claim window.
+7. Mark funding as directed only after its transaction confirms.
 
 ## Core features
 
-- Space shooter gameplay with waves, bosses, upgrades, and score chasing.
-- Weekly and all-time leaderboards backed by Supabase.
-- Wallet connection through thirdweb, with Base Account recommended.
-- Mission-only lab upgrades for fire rate, handling, targeting, and repair.
-- RSC continues on Base after a crash, with each continue returning the player to the run with three hearts.
-- Live ResearchHub proposal discovery and selection.
-- Weekly champion proposal pick stored with the winning score.
-- Vercel-hosted API routes for leaderboard, proposal, and archive flows.
+- Arcade shooter gameplay with waves, bosses, formations, upgrades, coins, bombs, and mobile controls.
+- Guest-first weekly and all-time leaderboards.
+- Signed run receipts, replay protection, anomaly checks, and practical API rate limits.
+- Direct Base Account connection and attributed Base transactions.
+- Optional RSC continues on Base.
+- Active ResearchHub proposal discovery, search, and community-signal sorting.
+- Four-tab dashboard: Home, Proposals, Trophies, and More.
+- Weekly competition finalization with a 72-hour champion claim window.
+- Optional Mission Record and Weekly Champion Record architecture.
+- Privacy-light product funnel analytics.
 
-## RSC Continues And Lab Upgrades
+## Truthful onchain records
 
-The lab is now focused on mission-only ship modules. Players can tune fire rate, handling, targeting, and repair during a run without managing a separate mission-credit bank.
+The two record types have different meanings:
 
-After a crash, a connected wallet can pay RSC on Base to continue the same run with three hearts. Each continue costs more than the last, so the player chooses whether the run is worth saving.
+- **Mission Record:** an optional NFT for one verified run. It can include score, wave, player name, wallet, game version, date, visual seed, and achievements. It never claims that the player won the week or funded a proposal.
+- **Weekly Champion Record:** a distinct NFT for a locked weekly champion. It is only authorized after finalization and only says funding was directed after the allocation transaction is confirmed.
 
-RSC runs on Base. The app uses thirdweb for wallet connection, token transfer confirmation, swap helpers, and wallet profile flow.
-
-## Weekly leaderboard and funding allocation
-
-SciconShooter keeps two leaderboard views:
-
-- Weekly Top 5
-- All-time Top 25
-
-Weekly leaderboard rows are filtered by the current Monday-through-Sunday week. Historical scores stay in Supabase; the weekly board is a view of the current week rather than a destructive reset.
-
-When a player takes the weekly No. 1 spot, their score is submitted first. After the record saves, proposal selection unlocks in a separate step. The champion can search the live ResearchHub proposal feed and choose one proposal. That proposal pick is stored with the score and guides the weekly 100 RSC allocation.
+`contracts/SciconRecords.sol` compiles locally and is prepared for Base Sepolia. It has not been deployed. Contract deployment, paymaster funding, production environment changes, and mainnet transactions require explicit approval.
 
 ## Local development
 
-Prerequisite: Node.js
-
-Install dependencies:
+Prerequisite: Node.js.
 
 ```powershell
 npm install
-```
-
-Run locally:
-
-```powershell
 npm run dev
 ```
 
-The local app usually runs at:
+The default local URL is `http://127.0.0.1:5173/`. The Vite server mounts the serverless API routes needed for local receipt and UI testing. Without production Supabase variables, leaderboard writes remain unavailable rather than pretending to be global.
 
-```text
-http://127.0.0.1:5173/
+Useful checks:
+
+```powershell
+npm run typecheck
+npm run lint
+npm test
+npm run contract:compile
+npm run build
 ```
 
-After switching branches, run `npm install` again if the branch has different packages.
+The local ResearchHub fixture is generated for visual testing only and is gitignored:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/update-proposal-fixture.ps1
+```
 
 ## Environment variables
 
-The app can run locally without every production service configured, but these variables power the production leaderboard, wallet, and archive flows.
-
-Vercel/server-side variables:
+Server-only variables:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_LEADERBOARD_TABLE` (optional, defaults to `scicon_leaderboard`)
-- `SUPABASE_MONTHLY_WINNERS_TABLE` (optional, defaults to `scicon_monthly_winners`)
+- `RUN_RECEIPT_SECRET`
 - `CRON_SECRET`
-- `MONTHLY_WINNER_WEBHOOK_URL` (optional legacy notification hook)
+- `ADMIN_SECRET` (optional manual competition finalization)
+- `WEEKLY_CHAMPION_WEBHOOK_URL` (optional)
+- `MISSION_RECORD_CONTRACT_ADDRESS` (after approved Sepolia deployment)
+- `MISSION_RECORD_CHAIN_ID` (defaults to Base Sepolia `84532`)
+- `MINT_AUTHORIZER_PRIVATE_KEY` (server only)
+- `BASE_SEPOLIA_RPC_URL` (optional)
 
 Browser-safe variables:
 
-- `VITE_THIRDWEB_CLIENT_ID`
-- `VITE_LEADERBOARD_API_URL` (optional, useful when testing against a deployed leaderboard)
+- `VITE_LEADERBOARD_API_URL` (optional)
+- `VITE_WEEKLY_COMPETITIONS_API_URL` (optional)
+- `VITE_MISSION_RECORD_CONTRACT_ADDRESS` (after deployment)
+- `VITE_PAYMASTER_PROXY_URL` (optional proxy URL only; never put provider credentials in frontend variables)
 
-Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only. Never expose it with a `VITE_` prefix.
+Never expose Supabase service keys, authorizer keys, paymaster credentials, or cron/admin secrets with a `VITE_` prefix.
 
-## Data storage
+## Database
 
-Supabase is the source of truth for:
+Run `supabase/leaderboard.sql` for the legacy leaderboard base, then apply `supabase/base-native-readiness.sql` before deploying this experiment. The readiness migration adds:
 
-- Global scores
-- Weekly score views
-- Wallet-linked continue status
-- Selected ResearchHub proposal metadata
-- Archived winner records
+- Verified run receipts
+- Replay-resistant leaderboard fields
+- Weekly competitions
+- Wallet signature challenges
+- Mission and champion mint records
+- Anonymous product events
+- Resilient proposal caching
 
-Run `supabase/leaderboard.sql` in the Supabase SQL editor to create or update the required tables.
+The old monthly archive endpoints remain only for migration compatibility. The active product flow uses `/api/weekly-competitions` and Monday's `/api/finalize-weekly-competition` cron.
 
-If you intentionally need to clear all leaderboard data, run `supabase/reset-leaderboard.sql` manually in Supabase. Do not include that reset script in normal migrations because it deletes leaderboard rows.
+## Deployment and workflow
 
-## Deployment
+Production is hosted on Vercel at `sciconshooter.xyz`. `main` remains the production branch. This readiness work belongs on `codex/gameplay-progression-experiment` until it is reviewed.
 
-The app is deployed on Vercel under the `sciconshooter` project.
+1. Work and test on an experiment branch.
+2. Apply infrastructure changes only after approval.
+3. Test the contract on Base Sepolia before considering mainnet.
+4. Review listing assets and copy before uploading them to Base.
+5. Merge to `main` only after the experiment is accepted.
 
-Production domains:
-
-- https://sciconshooter.xyz
-- https://www.sciconshooter.xyz
-- https://sciconshooter.vercel.app
-
-Vercel Cron archives monthly winner records through the API routes. GitHub `main` is the clean source branch for production work.
-
-## Project workflow
-
-The normal workflow is intentionally simple:
-
-1. Keep `main` clean.
-2. Create a branch only when experimenting.
-3. Test the branch locally.
-4. Merge useful work back into `main`.
-5. Delete branches that are no longer needed.
+See `docs/` for the product audit, onchain architecture, Base listing copy, growth plan, analytics and security notes, and approval gates.

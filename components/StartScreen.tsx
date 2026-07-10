@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { ArchivedWinner, LeaderboardEntry } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
 import { ASSETS, DONATION_CONFIG } from '../constants';
 
@@ -10,6 +10,7 @@ interface StartScreenProps {
   allTimeLeaderboard: LeaderboardEntry[];
   monthlyLeaderboard: LeaderboardEntry[];
   archivedWinners: ArchivedWinner[];
+  walletRecords: MintRecord[];
   isLoading: boolean;
   proposals: ResearchHubProposal[];
   proposalStatus: ProposalFeedStatus;
@@ -20,10 +21,13 @@ interface StartScreenProps {
   onOpenTreasurySend: () => void;
   onOpenSwap: () => void;
   walletControl?: React.ReactNode;
+  championClaimStatus: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error';
+  championClaimMessage?: string;
+  onClaimWeeklyChampion: (winner: ArchivedWinner, proposal: ResearchHubProposal) => void;
 }
 
-type LeaderboardView = 'weekly' | 'allTime' | 'pastPicks';
-type DashboardTab = 'home' | 'proposals' | 'market' | 'trophies' | 'more';
+type LeaderboardView = 'weekly' | 'allTime' | 'pastPicks' | 'records';
+type DashboardTab = 'home' | 'proposals' | 'trophies' | 'more';
 type IconName =
   | 'home'
   | 'list'
@@ -48,7 +52,6 @@ type IconName =
 const dashboardTabs: Array<{ id: DashboardTab; label: string; icon: IconName; hint: string }> = [
   { id: 'home', label: 'Home', icon: 'home', hint: 'Mission' },
   { id: 'proposals', label: 'Proposals', icon: 'list', hint: 'Live' },
-  { id: 'market', label: 'Market', icon: 'market', hint: 'RSC' },
   { id: 'trophies', label: 'Trophies', icon: 'trophy', hint: 'Rank' },
   { id: 'more', label: 'More', icon: 'more', hint: 'About' }
 ];
@@ -73,16 +76,6 @@ const getWeeklyAllocationMeta = () => {
     allocationRsc: 100
   };
 };
-
-const getInitials = (name: string) => (
-  name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase() || 'RH'
-);
 
 const getPastPickTime = (pick: ArchivedWinner) => {
   const dateCandidates = [
@@ -334,6 +327,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   allTimeLeaderboard,
   monthlyLeaderboard,
   archivedWinners,
+  walletRecords,
   isLoading,
   proposals,
   proposalStatus,
@@ -343,10 +337,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onOpenXProfile,
   onOpenTreasurySend,
   onOpenSwap,
-  walletControl
+  walletControl,
+  championClaimStatus,
+  championClaimMessage,
+  onClaimWeeklyChampion
 }) => {
   const [leaderboardView, setLeaderboardView] = useState<LeaderboardView>('weekly');
-  const [dashboardTab, setDashboardTab] = useState<DashboardTab>('home');
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>(() => {
+    const requested = new URLSearchParams(window.location.search).get('view');
+    return requested === 'proposals' || requested === 'trophies' || requested === 'more' ? requested : 'home';
+  });
   const [proposalSearch, setProposalSearch] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
   const [showTreasury, setShowTreasury] = useState(false);
@@ -354,7 +354,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isSending, setIsSending] = useState(false);
   const [treasuryCopyStatus, setTreasuryCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [championClaimWinner, setChampionClaimWinner] = useState<ArchivedWinner | null>(null);
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (dashboardTab === 'home') url.searchParams.delete('view');
+    else url.searchParams.set('view', dashboardTab);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [dashboardTab]);
 
   const weeklyAllocation = useMemo(getWeeklyAllocationMeta, []);
   const sortedProposals = useMemo(() => (
@@ -386,30 +394,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   const topPilotScore = Math.max(weeklyLeader?.score ?? 0, allTimeLeader?.score ?? 0);
   const pilotLevel = Math.max(1, Math.min(12, Math.floor(topPilotScore / 1000) + 1));
-  const weeklyLeaderProposal = useMemo(() => {
-    if (weeklyLeader?.proposalId) {
-      const proposalById = sortedProposals.find((proposal) => proposal.id === weeklyLeader.proposalId);
-      if (proposalById) return proposalById;
-    }
-
-    if (weeklyLeader?.proposalUrl) {
-      const proposalByUrl = sortedProposals.find((proposal) => proposal.url === weeklyLeader.proposalUrl);
-      if (proposalByUrl) return proposalByUrl;
-    }
-
-    return sortedProposals[0];
-  }, [weeklyLeader, sortedProposals]);
   const weeklyLeaderName = leaderboardName(weeklyLeader);
   const weeklyLeaderScore = leaderboardScore(weeklyLeader);
-  const weeklyFundingTitle = weeklyLeader?.proposalTitle
-    || weeklyLeaderProposal?.title
-    || 'Proposal pick pending';
-  const weeklyFundingAuthor = weeklyLeader?.proposalAuthor
-    || weeklyLeaderProposal?.organization
-    || weeklyLeaderProposal?.author
-    || 'ResearchHub';
-  const weeklyFundingImageUrl = weeklyLeaderProposal?.imageUrl;
-  const weeklyFundingProgress = weeklyLeaderProposal ? getProposalProgress(weeklyLeaderProposal) : 12;
+  const weeklyFundingTitle = 'Champion choice opens after cutoff';
+  const weeklyFundingAuthor = `${sortedProposals.length} eligible proposal${sortedProposals.length === 1 ? '' : 's'}`;
+  const weeklyFundingProgress = clampPercent(((7 - weeklyAllocation.daysLeft) / 7) * 100);
   const copyTextWithFallback = async (text: string) => {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
@@ -469,7 +458,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
       <button
         key={proposal.id}
         type="button"
-        onClick={() => onOpenProposal(proposal.url)}
+        onClick={() => championClaimWinner
+          ? onClaimWeeklyChampion(championClaimWinner, proposal)
+          : onOpenProposal(proposal.url)}
         className="group w-full rounded-[6px] border border-white/5 bg-white/[0.025] p-3 text-left transition hover:border-cyan-300/35 hover:bg-cyan-300/10"
       >
         <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
@@ -590,17 +581,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div>
           <button
             type="button"
-            onClick={() => weeklyLeaderProposal ? onOpenProposal(weeklyLeaderProposal.url) : setDashboardTab('proposals')}
+            onClick={() => setDashboardTab('proposals')}
             className="sci-weekly-winner-card group relative w-full overflow-hidden rounded-[8px] border border-emerald-300/24 bg-slate-950/50 p-3 text-left transition hover:border-emerald-200/65 hover:bg-emerald-300/10"
           >
             <div className="sci-weekly-scan" />
             <div className="relative z-10 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-3">
               <div className="sci-weekly-project-image relative flex aspect-square items-center justify-center overflow-hidden rounded-[8px] border border-cyan-200/25 bg-cyan-300/10">
-                {weeklyFundingImageUrl ? (
-                  <img src={weeklyFundingImageUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-                ) : (
-                  <img src={ASSETS.PLAYER_SHIP} alt="" className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.7)]" />
-                )}
+                <img src={ASSETS.PLAYER_SHIP} alt="" className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.7)]" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-cyan-200/10" />
                 <div className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-[6px] border border-emerald-200/45 bg-slate-950/85 text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,0.38)]">
                   <Icon name="trophy" className="h-4 w-4" />
@@ -626,7 +613,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   <p className="truncate text-sm font-bold text-white">{weeklyFundingTitle}</p>
                   <div className="mt-1 flex items-center justify-between gap-2 text-[0.62rem] font-bold uppercase text-slate-400">
                     <span className="truncate">{weeklyFundingAuthor}</span>
-                    <span className="shrink-0 text-emerald-200">{weeklyFundingProgress}% signal</span>
+                    <span className="shrink-0 text-emerald-200">{weeklyFundingProgress}% week</span>
                   </div>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
                     <div
@@ -645,8 +632,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 
   const DashboardNav = ({ docked = false }: { docked?: boolean }) => (
-    <nav className={`${docked ? 'mt-auto pt-2' : ''}`}>
-      <div className="sci-dashboard-nav grid grid-cols-5 overflow-hidden rounded-[8px] border border-cyan-300/24 bg-slate-950/86 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
+    <nav className={`${docked ? 'mt-auto shrink-0 pt-2' : ''}`}>
+      <div className="sci-dashboard-nav grid grid-cols-4 overflow-hidden rounded-[8px] border border-cyan-300/24 bg-slate-950/86 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
         {dashboardTabs.map((tab) => {
           const active = dashboardTab === tab.id;
           return (
@@ -678,7 +665,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
           <div>
             <h2 className="text-2xl font-black text-white">Proposal Hangar</h2>
-            <p className="text-sm text-slate-300">Search active, unfunded ResearchHub targets and pick where your winning RSC allocation should go.</p>
+            <p className="text-sm text-slate-300">Search active, unfunded ResearchHub proposals eligible for the finalized weekly champion's allocation.</p>
           </div>
           <label className="relative block min-w-[15rem]">
             <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70" />
@@ -691,54 +678,44 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </label>
         </div>
 
+        {championClaimWinner ? (
+          <div className="mb-4 rounded-[8px] border border-yellow-200/30 bg-yellow-300/10 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-yellow-100">Champion proposal selection</p>
+                <p className="mt-1 text-sm font-semibold text-white">{championClaimWinner.winnerName}, choose one eligible proposal for week {championClaimWinner.periodKey}.</p>
+                <p className="mt-1 text-xs text-slate-300">A Base Account signature locks the selection. It does not transfer funds or mint yet.</p>
+              </div>
+              <button type="button" aria-label="Cancel champion selection" onClick={() => setChampionClaimWinner(null)} className="sci-icon-button shrink-0"><Icon name="x" /></button>
+            </div>
+            {championClaimStatus !== 'idle' ? (
+              <p className={`mt-2 text-xs font-bold ${championClaimStatus === 'error' ? 'text-red-200' : championClaimStatus === 'confirmed' ? 'text-emerald-200' : 'text-cyan-200'}`}>
+                {championClaimMessage || (championClaimStatus === 'signing' ? 'Sign the proposal selection in Base Account.' : championClaimStatus === 'connecting' ? 'Connecting Base Account...' : 'Proposal selection confirmed.')}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mb-3 flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-400">
           <span>{filteredProposals.length} active proposal{filteredProposals.length === 1 ? '' : 's'}</span>
           {proposalSearch.trim() && <span>Search filtered</span>}
         </div>
 
         <div className="max-h-[min(62vh,48rem)] space-y-2 overflow-y-auto pr-1">
-          {filteredProposals.length > 0 ? (
+          {proposalStatus === 'loading' ? (
+            <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200 animate-pulse">
+              Loading active ResearchHub proposals...
+            </div>
+          ) : filteredProposals.length > 0 ? (
             filteredProposals.map((proposal, index) => renderProposalRow(proposal, index))
           ) : (
             <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
-              No active proposal matches that search yet.
+              {proposalStatus === 'error'
+                ? 'The live proposal feed is temporarily unavailable. No ineligible fallback choices are shown.'
+                : 'No active proposal matches that search yet.'}
             </div>
           )}
           </div>
-      </div>
-    </HudPanel>
-  );
-
-  const MarketDashboard = () => (
-    <HudPanel>
-      <div className="p-4 md:p-5">
-        <div className="mb-4">
-          <h2 className="text-2xl font-black text-white">Mission Market</h2>
-          <p className="text-sm text-slate-300">Swap for RSC, visit ResearchHub funding, or open the treasury route.</p>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <button type="button" onClick={onOpenSwap} className="sci-market-card">
-            <Icon name="coin" className="h-8 w-8 text-cyan-200" />
-            <span>
-              <strong>Swap</strong>
-              <small>Open the RSC swap route.</small>
-            </span>
-          </button>
-          <button type="button" onClick={onOpenFund} className="sci-market-card">
-            <Icon name="base" className="h-8 w-8 text-blue-200" />
-            <span>
-              <strong>ResearchHub</strong>
-              <small>Open the research funding hub.</small>
-            </span>
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={onOpenTreasurySend}
-          className="mt-4 w-full rounded-[8px] border border-cyan-300/24 bg-cyan-300/8 px-4 py-3 text-left text-sm text-slate-200 transition hover:bg-cyan-300/14"
-        >
-          Open Treasury Wallet Route
-        </button>
       </div>
     </HudPanel>
   );
@@ -749,13 +726,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-black text-white">Trophy Deck</h2>
-            <p className="text-sm text-slate-300">High scores, funded proposals, and weekly winners.</p>
+            <p className="text-sm text-slate-300">High scores, champion picks, confirmed funding, and onchain records.</p>
           </div>
           <div className="flex rounded-[6px] border border-cyan-300/18 bg-slate-950/70 p-1">
             {[
               ['weekly', 'Weekly'],
               ['allTime', 'All-time'],
-              ['pastPicks', 'Past picks']
+              ['pastPicks', 'Past picks'],
+              ['records', 'My records']
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -777,7 +755,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </div>
         )}
 
-        {!isLoading && leaderboardView !== 'pastPicks' && (
+        {!isLoading && leaderboardView !== 'pastPicks' && leaderboardView !== 'records' && (
           <div className="space-y-2">
             {visibleLeaderboard.slice(0, 8).map((entry, index) => (
               <div key={`${entry.name}-${entry.score}-${index}`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[6px] border border-cyan-300/12 bg-white/[0.035] p-3">
@@ -805,7 +783,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <button
                 key={`${winner.periodKey}-${winner.winnerName}`}
                 type="button"
-                onClick={() => winner.proposalUrl && onOpenProposal(winner.proposalUrl)}
+                onClick={() => {
+                  if (winner.status === 'finalized') {
+                    setChampionClaimWinner(winner);
+                    setDashboardTab('proposals');
+                  } else if (winner.proposalUrl) {
+                    onOpenProposal(winner.proposalUrl);
+                  }
+                }}
                 className="grid w-full gap-3 rounded-[8px] border border-cyan-300/12 bg-white/[0.035] p-3 text-left transition hover:border-cyan-300/35 hover:bg-cyan-300/8 sm:grid-cols-[auto_1fr_auto] sm:items-center"
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-[8px] border border-yellow-300/28 bg-yellow-300/10 text-yellow-100">
@@ -833,7 +818,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 </div>
                 <div className="justify-self-start rounded-[8px] border border-cyan-300/16 bg-cyan-300/8 px-3 py-2 text-left sm:justify-self-end sm:text-right">
                   <p className="text-base font-black text-white">{winner.allocationRsc ?? weeklyAllocation.allocationRsc} RSC</p>
-                  <p className="text-[0.65rem] font-bold uppercase text-cyan-200">Funds directed</p>
+                  <p className="text-[0.65rem] font-bold uppercase text-cyan-200">
+                    {winner.status === 'funded' && winner.allocationTxHash
+                      ? 'Funding confirmed'
+                      : winner.status === 'claimed'
+                        ? 'Proposal selected'
+                        : winner.status === 'expired'
+                          ? 'Claim window closed'
+                          : 'Champion finalized'}
+                  </p>
                 </div>
               </button>
             ))}
@@ -842,6 +835,34 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 Past weekly picks will appear here after winners are archived, showing the weekly high-score pilot, their score, and the proposal they chose for the funding allocation.
               </div>
             )}
+          </div>
+        )}
+
+        {!isLoading && leaderboardView === 'records' && (
+          <div className="space-y-3">
+            {walletRecords.map((record) => (
+              <a
+                key={`${record.recordType}-${record.runId}`}
+                href={record.transactionHash ? `${record.chainId === 8453 ? 'https://basescan.org' : 'https://sepolia.basescan.org'}/tx/${record.transactionHash}` : undefined}
+                target={record.transactionHash ? '_blank' : undefined}
+                rel={record.transactionHash ? 'noopener noreferrer' : undefined}
+                className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[8px] border border-cyan-300/15 bg-white/[0.035] p-3"
+              >
+                <div className={`flex h-11 w-11 items-center justify-center rounded-[8px] border ${record.recordType === 'champion' ? 'border-yellow-200/30 bg-yellow-300/10 text-yellow-100' : 'border-cyan-200/25 bg-cyan-300/10 text-cyan-100'}`}>
+                  <Icon name={record.recordType === 'champion' ? 'trophy' : 'mint'} className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-white">{record.recordType === 'champion' ? 'Weekly Champion Record' : 'Mission Record'}</p>
+                  <p className="truncate font-mono text-[10px] uppercase text-slate-400">Run {record.runId.slice(0, 8)}{record.weekKey ? ` - ${record.weekKey}` : ''}</p>
+                </div>
+                <span className={`text-[10px] font-black uppercase ${record.status === 'confirmed' ? 'text-emerald-200' : record.status === 'failed' ? 'text-red-200' : 'text-yellow-200'}`}>{record.status}</span>
+              </a>
+            ))}
+            {walletRecords.length === 0 ? (
+              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
+                Connect a Base Account to view its Mission Records and Weekly Champion Records. Minting remains optional.
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -855,7 +876,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div>
             <h2 className="text-2xl font-black text-white">More</h2>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300">
-              Scicon Shooter is a Base-native arcade game where high scores help direct a weekly RSC allocation toward ResearchHub proposals. The loop is simple: play the mission, climb the leaderboard, pick research you believe in, and make the win visible through trophies and post-game score mints.
+              Scicon Shooter is a community-built Base-native arcade game. Play instantly, climb the weekly board, and if your verified score is still No. 1 when the week closes, choose an eligible ResearchHub proposal for the community funding allocation.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <StatusPill tone="cyan">Arcade funding</StatusPill>
@@ -899,6 +920,27 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <small>View the research funding destination.</small>
             </span>
           </button>
+          <button type="button" onClick={onOpenSwap} className="sci-market-card">
+            <Icon name="coin" className="h-8 w-8 text-cyan-200" />
+            <span>
+              <strong>RSC on Base</strong>
+              <small>Open the external swap route when an action requires RSC.</small>
+            </span>
+          </button>
+          <button type="button" onClick={onOpenFund} className="sci-market-card">
+            <Icon name="flask" className="h-8 w-8 text-emerald-200" />
+            <span>
+              <strong>ResearchHub</strong>
+              <small>Browse the source funding ecosystem.</small>
+            </span>
+          </button>
+          <a href="https://github.com/ScottExplores/SciconShooter" target="_blank" rel="noopener noreferrer" className="sci-market-card">
+            <Icon name="external" className="h-8 w-8 text-slate-200" />
+            <span>
+              <strong>Open source</strong>
+              <small>Review the game code and technical notes on GitHub.</small>
+            </span>
+          </a>
           <button type="button" onClick={onOpenXProfile} className="sci-market-card">
             <Icon name="external" className="h-8 w-8 text-blue-200" />
             <span>
@@ -907,13 +949,26 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </span>
           </button>
         </div>
+        <div className="grid gap-3 border-t border-cyan-200/12 pt-4 md:grid-cols-2">
+          <div className="rounded-[8px] border border-cyan-200/15 bg-cyan-300/6 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-200">Funding transparency</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-300">
+              A weekly leader is temporary until Monday's cutoff. A proposal is only marked selected after the finalized champion signs, and funding is only marked confirmed with a Base transaction reference.
+            </p>
+          </div>
+          <div className="rounded-[8px] border border-cyan-200/15 bg-cyan-300/6 p-4">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-200">Privacy and disclosure</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-300">
+              Guest play does not require a wallet. Anonymous product events avoid wallet addresses and names. Scicon Shooter is community-built, open source, and is not represented as an official ResearchHub product. Builder code: bc_ww78gi4f.
+            </p>
+          </div>
+        </div>
       </div>
     </HudPanel>
   );
 
   const MobileDashboardContent = () => {
     if (dashboardTab === 'proposals') return <ProposalsDashboard />;
-    if (dashboardTab === 'market') return <MarketDashboard />;
     if (dashboardTab === 'trophies') return <TrophiesDashboard />;
     if (dashboardTab === 'more') return <AboutDashboard />;
 
@@ -927,7 +982,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   const SelectedDashboard = () => {
     if (dashboardTab === 'proposals') return <ProposalsDashboard />;
-    if (dashboardTab === 'market') return <MarketDashboard />;
     if (dashboardTab === 'trophies') return <TrophiesDashboard />;
     if (dashboardTab === 'more') return <AboutDashboard />;
     return null;
@@ -962,8 +1016,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
           )}
         </main>
 
-        <main className="scicon-mobile-main flex min-h-[calc(100svh-1rem-env(safe-area-inset-bottom))] flex-col gap-4 pb-[env(safe-area-inset-bottom)] lg:hidden">
-          <MobileDashboardContent />
+        <main
+          className="scicon-mobile-main flex min-h-0 flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] lg:hidden"
+          style={{ height: 'calc(var(--app-visual-height) - 1.5rem - var(--app-safe-bottom))' }}
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-px custom-scrollbar">
+            <MobileDashboardContent />
+          </div>
           <DashboardNav docked />
         </main>
       </div>

@@ -158,9 +158,15 @@ export const formatUsd = (value?: number) => {
 };
 
 export const getResearchHubFundingProposals = async (): Promise<ResearchHubProposal[]> => {
-  const response = await fetch(PROPOSAL_FEED_PATH, {
+  let response = await fetch(PROPOSAL_FEED_PATH, {
     headers: { Accept: 'application/json' }
   });
+
+  if (!response.ok && import.meta.env.DEV) {
+    response = await fetch('/dev-researchhub-proposals.json', {
+      headers: { Accept: 'application/json' }
+    });
+  }
 
   if (!response.ok) {
     throw new Error(`Proposal feed returned ${response.status}`);

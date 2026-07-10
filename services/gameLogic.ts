@@ -1912,7 +1912,6 @@ export class GameEngine {
 
   spawnBossShieldRing(boss: Entity, phase: number) {
     const count = Math.min(this.mobileProfile ? 5 : 8, 3 + phase);
-    const radius = Math.min(this.width * 0.34, boss.width * 0.62 + (this.mobileProfile ? 34 : 48));
     const hp = Math.max(3, Math.round(2.5 + phase * 1.2));
 
     for (let i = 0; i < count; i++) {
@@ -2282,7 +2281,7 @@ export class GameEngine {
     return e;
   }
 
-  spawnMiniBoss(num: number) {
+  spawnMiniBoss(_num: number) {
     const mb = new Entity(EntityType.MINI_BOSS, this.width/2 - 50, -100);
     mb.width = 140;
     mb.height = 160;
@@ -2935,7 +2934,7 @@ export class GameEngine {
     }
   }
 
-  getBossWarningComms(type: BossWarningType) {
+  getBossWarningComms(_type: BossWarningType) {
     const phase = this.stats.wave;
     const phaseComms = [
       {

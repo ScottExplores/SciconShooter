@@ -61,6 +61,9 @@ export interface LeaderboardEntry {
   proposalTitle?: string;
   proposalUrl?: string;
   proposalAuthor?: string;
+  runId?: string;
+  verified?: boolean;
+  receiptHash?: string;
 }
 
 export interface LeaderboardData {
@@ -81,6 +84,26 @@ export interface ArchivedWinner {
   proposalUrl?: string;
   proposalAuthor?: string;
   allocationRsc?: number;
+  status?: 'finalized' | 'claimed' | 'funded' | 'expired';
+  claimDeadline?: string;
+  allocationTxHash?: string;
+  championTokenId?: string;
+  winnerWallet?: string;
+  winnerRunId?: string;
+}
+
+export interface MintRecord {
+  recordType: 'mission' | 'champion';
+  runId: string;
+  weekKey?: string;
+  walletAddress: string;
+  chainId: number;
+  tokenId?: string;
+  transactionHash?: string;
+  status: 'pending' | 'confirmed' | 'failed';
+  sponsored: boolean;
+  createdAt: string;
+  confirmedAt?: string;
 }
 
 export interface Stats {

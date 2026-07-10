@@ -1,4 +1,5 @@
 import { LeaderboardData, LeaderboardEntry } from '../types';
+import type { RunReceipt } from './runReceiptService';
 
 const API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL as string | undefined)?.trim() || '/api/leaderboard';
 const MAX_SCORES = 25;
@@ -51,7 +52,9 @@ const sanitizeEntry = (entry: Partial<LeaderboardEntry> | null | undefined): Lea
     proposalId: sanitizeText(entry.proposalId, 80),
     proposalTitle: sanitizeText(entry.proposalTitle, 180),
     proposalUrl: sanitizeUrl(entry.proposalUrl),
-    proposalAuthor: sanitizeText(entry.proposalAuthor, 100)
+    proposalAuthor: sanitizeText(entry.proposalAuthor, 100),
+    runId: sanitizeText(entry.runId, 80),
+    verified: Boolean(entry.verified)
   };
 };
 
@@ -110,14 +113,21 @@ const readRemoteLeaderboardData = async (): Promise<LeaderboardData> => {
   return { scores, monthlyScores };
 };
 
-const writeRemoteLeaderboardData = async (entry: LeaderboardEntry): Promise<LeaderboardData> => {
+const writeRemoteLeaderboardData = async (
+  entry: LeaderboardEntry,
+  receipt: RunReceipt
+): Promise<LeaderboardData> => {
   const response = await fetch(API_URL, {
     method: 'POST',
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ entry })
+    body: JSON.stringify({
+      name: entry.name,
+      walletAddress: entry.walletAddress,
+      receiptToken: receipt.receiptToken
+    })
   });
 
   if (!response.ok) {
@@ -159,6 +169,7 @@ export const saveScore = async (
     proposalTitle?: string;
     proposalUrl?: string;
     proposalAuthor?: string;
+    receipt?: RunReceipt;
   } = {}
 ): Promise<LeaderboardData> => {
   const newEntry: LeaderboardEntry = {
@@ -175,7 +186,10 @@ export const saveScore = async (
   };
 
   try {
-    return await writeRemoteLeaderboardData(newEntry);
+    if (!options.receipt || options.receipt.integrity === 'local-unverified' || !options.receipt.receiptToken) {
+      throw new Error('This run is local-only and cannot be submitted to the global leaderboard.');
+    }
+    return await writeRemoteLeaderboardData(newEntry, options.receipt);
   } catch (error) {
     console.error("Save error:", error);
     return toLeaderboardData([newEntry], false);
