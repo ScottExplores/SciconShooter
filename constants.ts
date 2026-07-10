@@ -132,7 +132,7 @@ export const FIELD_UPGRADE_CONFIG: Record<FieldUpgradeType, {
   fireRate: {
     title: 'Rapid Fire',
     shortTitle: 'Rapid',
-    description: 'Faster lab shots',
+    description: 'Faster shots that evolve into plasma and ion fire',
     baseCost: 8,
     costStep: 6,
     maxLevel: 5

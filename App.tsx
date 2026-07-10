@@ -19,9 +19,16 @@ const UIOverlay = React.lazy(loadUIOverlay);
 const StoryTransmission = React.lazy(loadStoryTransmission);
 
 const preloadGameplayComponents = () => {
-  void loadGameCanvas();
-  void loadUIOverlay();
-  void loadStoryTransmission();
+  const gameCanvasModule = loadGameCanvas();
+  void Promise.all([
+    gameCanvasModule,
+    loadUIOverlay(),
+    loadStoryTransmission()
+  ]).then(async ([gameplay]) => {
+    await gameplay.preloadGameplayAssets();
+  }).catch(() => {
+    // Gameplay still loads on demand if a background preload is interrupted.
+  });
 };
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
@@ -49,7 +56,7 @@ const runAfterFirstPaint = (
   const idleWindow = window as IdleWindow;
   let cancelled = false;
   let frameHandle: number | null = null;
-  let delayHandle: ReturnType<typeof window.setTimeout> | null = null;
+  let delayHandle: number | null = null;
   let idleHandle: number | null = null;
 
   const run = () => {
@@ -273,7 +280,7 @@ const App: React.FC = () => {
     }
   });
   const lastStoryWaveRef = useRef(0);
-  const introStoryTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const introStoryTimeoutRef = useRef<number | null>(null);
   const gameStateRef = useRef<GameState>(GameState.MENU);
   const submittingScoreRef = useRef(false);
   const submittedScoreKeysRef = useRef<Set<string>>(new Set());
@@ -295,8 +302,8 @@ const App: React.FC = () => {
     if (gameState !== GameState.MENU) return undefined;
 
     return runAfterFirstPaint(preloadGameplayComponents, {
-      delayMs: 1200,
-      timeoutMs: 4200
+      delayMs: 280,
+      timeoutMs: 1200
     });
   }, [gameState]);
 
