@@ -19,8 +19,8 @@ module.exports = async (req, res) => {
     }
     return sendJson(res, 405, { error: 'Method not allowed' });
   } catch (error) {
-    if (/Missing Supabase|not configured/i.test(error.message || '')) {
-      return sendJson(res, 200, { competitions: [] });
+    if (req.method === 'GET' && /Missing Supabase|not configured|PGRST205|schema cache|Could not find the table/i.test(error.message || '')) {
+      return sendJson(res, 200, { competitions: [], migrationPending: true });
     }
     console.error('Weekly competition API error:', error);
     return sendJson(res, error.statusCode || 500, { error: error.message || 'Weekly competition request failed' });
