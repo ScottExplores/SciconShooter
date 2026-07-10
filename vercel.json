@@ -12,8 +12,8 @@
   ],
   "crons": [
     {
-      "path": "/api/archive-monthly-winner",
-      "schedule": "10 0 1 * *"
+      "path": "/api/finalize-weekly-competition",
+      "schedule": "10 0 * * 1"
     }
   ],
   "rewrites": [

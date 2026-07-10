@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import StartScreen from './components/StartScreen';
-import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, PowerupType, Stats, Upgrades, WalletSession } from './types';
+import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, MintRecord, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeLevel } from './constants';
 import { getLeaderboardData, saveScore } from './services/leaderboardService';
@@ -9,19 +9,35 @@ import { getResearchHubFundingProposals, ResearchHubProposal } from './services/
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress, spendStoredFlask } from './services/flaskProgress';
 import type { WalletRuntimeAction } from './components/WalletRuntime';
+import {
+  finishRunSession,
+  startRunSession,
+  type RunReceipt,
+  type RunSession
+} from './services/runReceiptService';
+import { trackEvent, trackInitialVisit } from './services/analyticsService';
+import { getWalletRecords } from './services/recordService';
 
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
 const loadGameCanvas = () => import('./components/GameCanvas');
 const loadUIOverlay = () => import('./components/UIOverlay');
 const loadStoryTransmission = () => import('./components/StoryTransmission');
+const MissionRecordPreview = React.lazy(() => import('./components/MissionRecordPreview'));
 const GameCanvas = React.lazy(loadGameCanvas);
 const UIOverlay = React.lazy(loadUIOverlay);
 const StoryTransmission = React.lazy(loadStoryTransmission);
 
 const preloadGameplayComponents = () => {
-  void loadGameCanvas();
-  void loadUIOverlay();
-  void loadStoryTransmission();
+  const gameCanvasModule = loadGameCanvas();
+  void Promise.all([
+    gameCanvasModule,
+    loadUIOverlay(),
+    loadStoryTransmission()
+  ]).then(async ([gameplay]) => {
+    await gameplay.preloadGameplayAssets();
+  }).catch(() => {
+    // Gameplay still loads on demand if a background preload is interrupted.
+  });
 };
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
@@ -29,17 +45,6 @@ type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
   cancelIdleCallback?: (handle: number) => void;
 };
-
-interface PendingFundingPickRecord {
-  pilotName: string;
-  score: number;
-  wave: number;
-  date: string;
-  walletAddress?: string | null;
-  donated?: boolean;
-  monthlyRank?: number;
-  allTimeRank?: number;
-}
 
 const runAfterFirstPaint = (
   callback: () => void,
@@ -49,7 +54,7 @@ const runAfterFirstPaint = (
   const idleWindow = window as IdleWindow;
   let cancelled = false;
   let frameHandle: number | null = null;
-  let delayHandle: ReturnType<typeof window.setTimeout> | null = null;
+  let delayHandle: number | null = null;
   let idleHandle: number | null = null;
 
   const run = () => {
@@ -233,18 +238,15 @@ const App: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [archivedWinners, setArchivedWinners] = useState<ArchivedWinner[]>([]);
+  const [walletRecords, setWalletRecords] = useState<MintRecord[]>([]);
   const [fundingProposals, setFundingProposals] = useState<ResearchHubProposal[]>([]);
   const [proposalStatus, setProposalStatus] = useState<ProposalFeedStatus>('loading');
-  const [selectedProposalId, setSelectedProposalId] = useState<string>('');
-  const [proposalSearchQuery, setProposalSearchQuery] = useState<string>('');
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
   const [showNameInput, setShowNameInput] = useState<boolean>(false);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(false);
   const [isSubmittingScore, setIsSubmittingScore] = useState<boolean>(false);
+  const [scoreSaved, setScoreSaved] = useState<boolean>(false);
   const [scoreSubmitError, setScoreSubmitError] = useState<string>('');
-  const [pendingFundingPick, setPendingFundingPick] = useState<PendingFundingPickRecord | null>(null);
-  const [fundingPickSubmitError, setFundingPickSubmitError] = useState<string>('');
-  const [isSubmittingFundingPick, setIsSubmittingFundingPick] = useState(false);
   const [showLabGlow, setShowLabGlow] = useState<boolean>(true);
   const [walletError, setWalletError] = useState<string>('');
   const [walletRuntimeEnabled, setWalletRuntimeEnabled] = useState(false);
@@ -273,10 +275,23 @@ const App: React.FC = () => {
     }
   });
   const lastStoryWaveRef = useRef(0);
-  const introStoryTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const introStoryTimeoutRef = useRef<number | null>(null);
   const gameStateRef = useRef<GameState>(GameState.MENU);
   const submittingScoreRef = useRef(false);
   const submittedScoreKeysRef = useRef<Set<string>>(new Set());
+  const runSessionPromiseRef = useRef<Promise<RunSession> | null>(null);
+  const runReceiptPromiseRef = useRef<Promise<RunReceipt> | null>(null);
+  const finalizedRunGameIdRef = useRef<number | null>(null);
+  const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
+  const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
+  const [runClaimStatus, setRunClaimStatus] = useState<'idle' | 'connecting' | 'signing' | 'confirmed' | 'error'>('idle');
+  const [runClaimMessage, setRunClaimMessage] = useState('');
+  const [showMissionRecordPreview, setShowMissionRecordPreview] = useState(false);
+  const [championClaimStatus, setChampionClaimStatus] = useState<'idle' | 'connecting' | 'signing' | 'confirmed' | 'error'>('idle');
+  const [championClaimMessage, setChampionClaimMessage] = useState('');
+  const [missionMintStatus, setMissionMintStatus] = useState<'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error'>('idle');
+  const [missionMintMessage, setMissionMintMessage] = useState('');
+  const [missionMintHash, setMissionMintHash] = useState('');
 
   const clearIntroStoryTimeout = () => {
     if (introStoryTimeoutRef.current) {
@@ -292,11 +307,15 @@ const App: React.FC = () => {
   useEffect(() => () => clearIntroStoryTimeout(), []);
 
   useEffect(() => {
+    trackInitialVisit();
+  }, []);
+
+  useEffect(() => {
     if (gameState !== GameState.MENU) return undefined;
 
     return runAfterFirstPaint(preloadGameplayComponents, {
-      delayMs: 1200,
-      timeoutMs: 4200
+      delayMs: 280,
+      timeoutMs: 1200
     });
   }, [gameState]);
 
@@ -317,27 +336,6 @@ const App: React.FC = () => {
   const isContinuePaymentBusy = continuePaymentStatus === 'switching_network'
     || continuePaymentStatus === 'processing'
     || continuePaymentStatus === 'confirming';
-
-  const sortedFundingProposals = useMemo(() => (
-    [...fundingProposals].sort((a, b) => {
-      if (b.votes !== a.votes) return b.votes - a.votes;
-      if (b.backers !== a.backers) return b.backers - a.backers;
-      if ((b.raisedUsd || 0) !== (a.raisedUsd || 0)) return (b.raisedUsd || 0) - (a.raisedUsd || 0);
-      return a.title.localeCompare(b.title);
-    })
-  ), [fundingProposals]);
-  const topVotedFundingProposals = sortedFundingProposals.slice(0, 3);
-  const visibleFundingProposals = useMemo(() => {
-    const query = proposalSearchQuery.trim().toLowerCase();
-    if (!query) return sortedFundingProposals;
-
-    return sortedFundingProposals.filter((proposal) => [
-      proposal.title,
-      proposal.author,
-      proposal.organization,
-      proposal.status
-    ].some((value) => value?.toLowerCase().includes(query)));
-  }, [proposalSearchQuery, sortedFundingProposals]);
 
   const getWalletProfileKey = (walletAddress?: string | null) => (
     walletAddress ? `${STORAGE_KEYS.PLAYER_STATS}:${walletAddress.toLowerCase()}` : STORAGE_KEYS.PLAYER_STATS
@@ -494,6 +492,8 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!activeWalletAddress) return;
 
+    trackEvent('wallet_connected');
+
     localStorage.setItem(STORAGE_KEYS.WALLET_ADDRESS, activeWalletAddress);
     const savedStats = readSavedStats(activeWalletAddress);
     setStats(prev => ({
@@ -501,6 +501,8 @@ const App: React.FC = () => {
       highScore: Math.max(prev.highScore, savedStats.highScore || 0),
       totalCoins: Math.max(prev.totalCoins, savedStats.totalCoins || 0)
     }));
+
+    void getWalletRecords(activeWalletAddress).then(setWalletRecords);
 
   }, [activeWalletAddress]);
 
@@ -532,20 +534,32 @@ const App: React.FC = () => {
     setContinuePaymentHash('');
     setContinuePaymentError('');
     setContinuesUsed(0);
-    setPendingFundingPick(null);
-    setFundingPickSubmitError('');
-    setIsSubmittingFundingPick(false);
     setBombCommand(null);
     setContinueCommand(null);
     setIntroMissionLocked(true);
     setShowNameInput(false);
     setPlayerNameInput('');
-    setSelectedProposalId('');
     setIsSubmittingScore(false);
+    setScoreSaved(false);
+    setRunReceipt(null);
+    setRunReceiptStatus('starting');
+    setRunClaimStatus('idle');
+    setRunClaimMessage('');
+    setShowMissionRecordPreview(false);
+    setMissionMintStatus('idle');
+    setMissionMintMessage('');
+    setMissionMintHash('');
+    finalizedRunGameIdRef.current = null;
+    runReceiptPromiseRef.current = null;
+    runSessionPromiseRef.current = startRunSession().then((session) => {
+      setRunReceiptStatus(session.localOnly ? 'local' : 'idle');
+      return session;
+    });
     submittingScoreRef.current = false;
     setGameId(prev => prev + 1);
     lastStoryWaveRef.current = 1;
     setGameState(GameState.PLAYING);
+    trackEvent('mission_started');
     introStoryTimeoutRef.current = window.setTimeout(() => {
       introStoryTimeoutRef.current = null;
       setIntroMissionLocked(false);
@@ -559,9 +573,6 @@ const App: React.FC = () => {
     clearIntroStoryTimeout();
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
-    setPendingFundingPick(null);
-    setFundingPickSubmitError('');
-    setIsSubmittingFundingPick(false);
     setGameState(GameState.MENU);
   };
 
@@ -611,15 +622,7 @@ const App: React.FC = () => {
     });
   };
 
-  const handleDeposit = (amount: number) => {
-    setStats(prev => ({
-      ...prev,
-      coins: prev.coins + amount
-    }));
-    audioService.playSound('coin');
-  };
-
-  const requestWalletRuntimeAction = useCallback((type: WalletRuntimeAction['type']) => {
+  const requestWalletRuntimeAction = useCallback((type: 'connect' | 'disconnect' | 'continue') => {
     setWalletRuntimeEnabled(true);
     setWalletRuntimeAction({ type, nonce: Date.now() });
   }, []);
@@ -702,6 +705,31 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (gameState === GameState.GAMEOVER) {
+      if (finalizedRunGameIdRef.current !== gameId && !runReceiptPromiseRef.current) {
+        trackEvent('mission_completed', { score: stats.score, wave: stats.wave });
+        finalizedRunGameIdRef.current = gameId;
+        setRunReceiptStatus('finalizing');
+        const sessionPromise = runSessionPromiseRef.current ?? startRunSession();
+        runReceiptPromiseRef.current = sessionPromise
+          .then((session) => finishRunSession(session, {
+            score: stats.score,
+            wave: stats.wave,
+            durationMs: Math.max(0, Date.now() - new Date(session.issuedAt).getTime()),
+            enemiesDefeated: stats.enemiesDefeated,
+            coinsCollected: stats.coins
+          }))
+          .then((receipt) => {
+            setRunReceipt(receipt);
+            setRunReceiptStatus(receipt.integrity === 'local-unverified' ? 'local' : 'ready');
+            return receipt;
+          })
+          .catch((error) => {
+            console.error('Run receipt finalization failed:', error);
+            setRunReceiptStatus('error');
+            throw error;
+          });
+      }
+
       const scoreKey = `${gameId}:${stats.score}:${stats.wave}`;
       if (submittedScoreKeysRef.current.has(scoreKey)) {
         return;
@@ -721,10 +749,8 @@ const App: React.FC = () => {
     }
   }, [gameId, gameState, monthlyLeaderboard, stats.score, stats.wave, stats.highScore, leaderboard]);
 
-  const persistHighScore = async (options: { returnToMenuOnSuccess?: boolean } = {}) => {
+  const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
-
-    const returnToMenuOnSuccess = options.returnToMenuOnSuccess ?? true;
 
     submittingScoreRef.current = true;
     setIsSubmittingScore(true);
@@ -735,8 +761,6 @@ const App: React.FC = () => {
     const wave = stats.wave;
     const scoreKey = `${gameId}:${score}:${wave}`;
     const submittedAt = new Date().toISOString();
-    const submitQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, score);
-    const shouldPromptFundingPick = submitQualification.isMonthlyChampion && sortedFundingProposals.length > 0;
 
     const newEntry: LeaderboardEntry = {
       name,
@@ -760,10 +784,15 @@ const App: React.FC = () => {
 
     let confirmedSave = false;
     try {
+      const verifiedReceipt = runReceipt ?? await runReceiptPromiseRef.current;
+      if (!verifiedReceipt) {
+        throw new Error('Run verification is still preparing. Please try again.');
+      }
       const updatedData = await saveScore(name, score, wave, {
         date: submittedAt,
         walletAddress: activeWalletAddress,
-        donated: wallet.hasDonated
+        donated: wallet.hasDonated,
+        receipt: verifiedReceipt
       });
       if (updatedData.remoteSaved === false) {
         throw new Error('Global leaderboard save did not confirm');
@@ -773,6 +802,8 @@ const App: React.FC = () => {
       }
       setMonthlyLeaderboard(updatedData.monthlyScores);
       submittedScoreKeysRef.current.add(scoreKey);
+      setScoreSaved(true);
+      trackEvent('score_submitted', { score, wave, integrity: verifiedReceipt.integrity });
       confirmedSave = true;
       return true;
     } catch (error) {
@@ -787,23 +818,6 @@ const App: React.FC = () => {
       setIsSubmittingScore(false);
       if (confirmedSave) {
         setShowNameInput(false);
-        if (shouldPromptFundingPick) {
-          setSelectedProposalId('');
-          setProposalSearchQuery('');
-          setFundingPickSubmitError('');
-          setPendingFundingPick({
-            pilotName: name,
-            score,
-            wave,
-            date: submittedAt,
-            walletAddress: activeWalletAddress,
-            donated: wallet.hasDonated,
-            monthlyRank: submitQualification.monthlyRank,
-            allTimeRank: submitQualification.qualifiesAllTimeTop25 ? submitQualification.allTimeRank : undefined
-          });
-        } else if (returnToMenuOnSuccess) {
-          setGameState(GameState.MENU);
-        }
       }
     }
   };
@@ -817,41 +831,66 @@ const App: React.FC = () => {
     await persistHighScore();
   };
 
-  const submitFundingPick = async () => {
-    if (!pendingFundingPick || !selectedShareProposal || isSubmittingFundingPick) return;
+  const claimCurrentRun = () => {
+    if (!runReceipt || runReceipt.integrity === 'local-unverified') return;
+    setWalletRuntimeEnabled(true);
+    setWalletRuntimeAction({
+      nonce: Date.now(),
+      type: 'claim-run',
+      receipt: runReceipt
+    });
+  };
 
-    setIsSubmittingFundingPick(true);
-    setFundingPickSubmitError('');
+  const handleRunClaimStatus = (
+    status: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error',
+    message = ''
+  ) => {
+    setRunClaimStatus(status);
+    setRunClaimMessage(message);
+  };
 
-    try {
-      const updatedData = await saveScore(pendingFundingPick.pilotName, pendingFundingPick.score, pendingFundingPick.wave, {
-        date: pendingFundingPick.date,
-        walletAddress: pendingFundingPick.walletAddress,
-        donated: pendingFundingPick.donated,
-        proposalId: selectedShareProposal.id,
-        proposalTitle: selectedShareProposal.title,
-        proposalUrl: selectedShareProposal.url,
-        proposalAuthor: selectedShareProposal.author
-      });
-
-      if (updatedData.remoteSaved === false) {
-        throw new Error('Global leaderboard save did not confirm');
-      }
-
-      if (updatedData.scores.length > 0) {
-        setLeaderboard(updatedData.scores);
-      }
-      setMonthlyLeaderboard(updatedData.monthlyScores);
-      setPendingFundingPick(null);
-      setSelectedProposalId('');
-      setProposalSearchQuery('');
-      setGameState(GameState.MENU);
-    } catch (error) {
-      console.error("Funding pick submission error", error);
-      setFundingPickSubmitError('Funding pick did not confirm. Please try again.');
-    } finally {
-      setIsSubmittingFundingPick(false);
+  const handleChampionClaimStatus = (
+    status: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error',
+    message = ''
+  ) => {
+    setChampionClaimStatus(status);
+    setChampionClaimMessage(message);
+    if (status === 'confirmed') {
+      trackEvent('weekly_champion_claimed');
+      trackEvent('proposal_selected');
+      void getArchivedWeeklyWinners().then(setArchivedWinners);
     }
+  };
+
+  const claimWeeklyChampion = (winner: ArchivedWinner, proposal: ResearchHubProposal) => {
+    setWalletRuntimeEnabled(true);
+    setChampionClaimStatus('connecting');
+    setChampionClaimMessage('');
+    setWalletRuntimeAction({
+      nonce: Date.now(),
+      type: 'claim-champion',
+      weekKey: winner.periodKey,
+      proposal
+    });
+  };
+
+  const mintConfigured = Boolean((import.meta.env.VITE_MISSION_RECORD_CONTRACT_ADDRESS as string | undefined)?.trim());
+
+  const mintCurrentMissionRecord = () => {
+    if (!runReceipt || runClaimStatus !== 'confirmed') return;
+    setWalletRuntimeEnabled(true);
+    setWalletRuntimeAction({ nonce: Date.now(), type: 'mint-mission', receipt: runReceipt });
+  };
+
+  const handleMissionMintStatus = (
+    status: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error',
+    message = '',
+    hash = ''
+  ) => {
+    setMissionMintStatus(status);
+    setMissionMintMessage(message);
+    if (hash) setMissionMintHash(hash);
+    if (status === 'confirmed') trackEvent('mission_record_minted', { chain: 'base_sepolia' });
   };
 
   const skipScoreSubmission = () => {
@@ -859,10 +898,7 @@ const App: React.FC = () => {
     setIsSubmittingScore(false);
     setShowNameInput(false);
     setPlayerNameInput('');
-    setSelectedProposalId('');
     setScoreSubmitError('');
-    setPendingFundingPick(null);
-    setFundingPickSubmitError('');
     setGameState(GameState.MENU);
   };
 
@@ -895,9 +931,8 @@ const App: React.FC = () => {
 
   const pubStatus = getPubStatus(stats.score);
   const scoreQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, stats.score);
-  const selectedShareProposal = fundingProposals.find((proposal) => proposal.id === selectedProposalId);
   const scoreQualificationMessage = scoreQualification.isMonthlyChampion
-    ? 'Weekly #1 run. Submit your pilot name first, then choose the ResearchHub proposal for the 100 RSC allocation.'
+    ? 'Current weekly lead. The result stays changeable until the weekly competition closes and is finalized.'
     : scoreQualification.qualifiesMonthlyTop5 && scoreQualification.qualifiesAllTimeTop25
       ? 'This score qualifies for weekly Top 5 and all-time Top 25. It is saved once and appears on both boards while it ranks on both.'
       : scoreQualification.qualifiesMonthlyTop5
@@ -906,8 +941,8 @@ const App: React.FC = () => {
           ? `All-time Top 25 run at projected rank #${scoreQualification.allTimeRank}. Try again this week for #1 so you can steer the RSC allocation.`
           : '';
   const scoreSubmitHint = scoreQualification.isMonthlyChampion
-    ? 'After the record saves, the weekly funding pick opens next.'
-    : 'Scores save to every leaderboard they qualify for.';
+    ? 'This can become the champion run only if it is still #1 when the week closes.'
+    : 'Verified scores save to every leaderboard they qualify for.';
   const continueStatusText = continuePaymentStatus === 'switching_network'
     ? 'Switching wallet to Base...'
     : continuePaymentStatus === 'processing'
@@ -1009,6 +1044,9 @@ const App: React.FC = () => {
             onContinueSuccess={handleContinueSuccess}
             onWalletChange={handleWalletRuntimeChange}
             onWalletError={setWalletError}
+            onRunClaimStatus={handleRunClaimStatus}
+            onChampionClaimStatus={handleChampionClaimStatus}
+            onMissionMintStatus={handleMissionMintStatus}
           />
         </React.Suspense>
       ) : null}
@@ -1054,6 +1092,7 @@ const App: React.FC = () => {
           allTimeLeaderboard={leaderboard}
           monthlyLeaderboard={monthlyLeaderboard}
           archivedWinners={archivedWinners}
+          walletRecords={walletRecords}
           isLoading={loadingLeaderboard}
           proposals={fundingProposals}
           proposalStatus={proposalStatus}
@@ -1063,6 +1102,9 @@ const App: React.FC = () => {
           onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
           onOpenTreasurySend={openTreasurySend}
           onOpenSwap={openRscSwap}
+          championClaimStatus={championClaimStatus}
+          championClaimMessage={championClaimMessage}
+          onClaimWeeklyChampion={claimWeeklyChampion}
           walletControl={!activeStoryBeat ? (
             <WalletControl
               wallet={wallet}
@@ -1145,7 +1187,7 @@ const App: React.FC = () => {
                     <div className="pointer-events-none absolute right-3 top-1/2 h-12 w-16 -translate-y-1/2 skew-x-[18deg] border-y border-r border-cyan-200/30 bg-cyan-300/8" />
                     <p className="relative text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200">Stage {stats.wave} - Mission Result</p>
                     <h2 className="arcade-font relative mt-2 text-2xl font-black tracking-widest text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.45)]">
-                      {scoreQualification.isMonthlyChampion ? 'WEEKLY #1 PILOT' : 'NEW HIGH SCORE'}
+                      {scoreQualification.isMonthlyChampion ? 'CURRENT WEEKLY LEAD' : 'NEW HIGH SCORE'}
                     </h2>
                     <p className="relative mt-2 text-4xl font-black text-white">{stats.score.toLocaleString()}</p>
                   </div>
@@ -1166,6 +1208,13 @@ const App: React.FC = () => {
                       {scoreQualificationMessage}
                     </p>
                   ) : null}
+                  <div className={`rounded-[8px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] ${runReceiptStatus === 'ready' ? 'border-emerald-200/25 bg-emerald-300/10 text-emerald-100' : runReceiptStatus === 'local' || runReceiptStatus === 'error' ? 'border-amber-200/25 bg-amber-300/10 text-amber-100' : 'border-cyan-200/20 bg-cyan-300/8 text-cyan-100'}`}>
+                    {runReceiptStatus === 'ready'
+                      ? 'Run receipt verified'
+                      : runReceiptStatus === 'local' || runReceiptStatus === 'error'
+                        ? 'Local record only - global submission unavailable'
+                        : 'Verifying run receipt...'}
+                  </div>
                   {continueRunControls}
                   <p className="font-mono text-sm text-gray-300">ENTER YOUR NAME:</p>
 
@@ -1209,6 +1258,30 @@ const App: React.FC = () => {
                   {continueRunControls}
 
                   <div className="space-y-3 pt-2">
+                    {runReceipt && runReceipt.integrity !== 'local-unverified' ? (
+                      <div className="rounded-[8px] border border-cyan-200/20 bg-cyan-300/8 p-3 text-left">
+                        <p className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200">Mission Record</p>
+                        <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-300">
+                          This verified run can be attached to a Base Account for optional score minting. It does not claim weekly-winner status.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowMissionRecordPreview(true);
+                            trackEvent('mint_preview_opened', { record_type: 'mission' });
+                          }}
+                          className="mt-3 w-full rounded-[8px] border border-cyan-100/35 bg-cyan-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/25 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Preview Mission Record
+                        </button>
+                        {runClaimMessage ? <p className="mt-2 text-center text-[10px] font-semibold text-red-200">{runClaimMessage}</p> : null}
+                      </div>
+                    ) : null}
+                    {scoreSaved ? (
+                      <p className="rounded-[8px] border border-emerald-200/20 bg-emerald-300/10 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
+                        Verified score saved
+                      </p>
+                    ) : null}
                     <button
                       onClick={startGame}
                       className="scicon-btn w-full py-4 text-xl font-bold animate-pulse"
@@ -1229,137 +1302,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {pendingFundingPick && gameState === GameState.GAMEOVER ? (
-        <div className="absolute inset-0 z-40 flex touch-pan-y items-center justify-center bg-black/86 p-4 backdrop-blur-md">
-          <div className="relative flex max-h-[94vh] w-full max-w-md flex-col overflow-hidden rounded-[8px] border border-emerald-200/30 bg-slate-950/96 shadow-[0_0_60px_rgba(16,185,129,0.18)]">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.2),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.98))]" />
-            <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-emerald-200/80 to-transparent" />
-
-            <div className="relative z-10 border-b border-white/10 p-4 text-center">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-200">Weekly No. 1 Confirmed</p>
-              <h2 className="arcade-font mt-2 text-2xl font-black uppercase tracking-widest text-white">Choose Funding Pick</h2>
-              <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-300">
-                {pendingFundingPick.pilotName} saved {pendingFundingPick.score.toLocaleString()} points. Select the ResearchHub proposal for the 100 RSC allocation.
-              </p>
-            </div>
-
-            <div className="relative z-10 min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 custom-scrollbar">
-              {fundingPickSubmitError ? (
-                <div className="mb-3 rounded-[8px] border border-red-300/25 bg-red-500/10 px-3 py-2 text-center text-[11px] font-semibold text-red-100">
-                  {fundingPickSubmitError}
-                </div>
-              ) : null}
-
-              <div className="mb-3 rounded-[8px] border border-white/10 bg-black/24 p-2">
-                <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-300">
-                  <span>{visibleFundingProposals.length} of {fundingProposals.length} proposals</span>
-                  <span className="text-emerald-200">Top votes first</span>
-                </div>
-                <input
-                  type="search"
-                  value={proposalSearchQuery}
-                  onChange={(event) => setProposalSearchQuery(event.target.value)}
-                  placeholder="Search title, author, or topic"
-                  className="w-full rounded-[8px] border border-white/10 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-200/60"
-                  disabled={isSubmittingFundingPick}
-                />
-              </div>
-
-              {proposalStatus === 'loading' ? (
-                <div className="rounded-[8px] bg-black/25 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 animate-pulse">
-                  Loading live proposals...
-                </div>
-              ) : null}
-
-              {(proposalStatus === 'empty' || proposalStatus === 'error') ? (
-                <div className="rounded-[8px] bg-black/25 px-3 py-3 text-center text-[11px] font-semibold text-slate-400">
-                  Live proposal choices are unavailable. Your score is already saved.
-                </div>
-              ) : null}
-
-              {topVotedFundingProposals.length > 0 ? (
-                <div className="mb-3 rounded-[8px] border border-yellow-200/20 bg-yellow-200/10 p-2">
-                  <div className="mb-2 text-[9px] font-black uppercase tracking-[0.18em] text-yellow-100">Most voted right now</div>
-                  <div className="grid gap-2">
-                    {topVotedFundingProposals.map((proposal) => {
-                      const isSelected = selectedProposalId === proposal.id;
-
-                      return (
-                        <button
-                          type="button"
-                          key={`funding-top-${proposal.id}`}
-                          onClick={() => setSelectedProposalId(proposal.id)}
-                          disabled={isSubmittingFundingPick}
-                          className={`rounded-[8px] border px-3 py-2 text-left transition ${isSelected ? 'border-yellow-100 bg-yellow-100 text-slate-950' : 'border-yellow-100/20 bg-black/25 text-yellow-50 hover:border-yellow-100/50'}`}
-                        >
-                          <span className="line-clamp-1 text-xs font-black">{proposal.title}</span>
-                          <span className={`mt-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.12em] ${isSelected ? 'text-slate-700' : 'text-yellow-100/80'}`}>
-                            <span>{proposal.votes} votes</span>
-                            <span>{proposal.backers} backers</span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="space-y-3">
-                {visibleFundingProposals.length === 0 ? (
-                  <div className="rounded-[8px] border border-white/10 bg-black/25 px-3 py-6 text-center text-[11px] font-semibold text-slate-400">
-                    No proposals match that search yet.
-                  </div>
-                ) : null}
-                {visibleFundingProposals.map((proposal) => {
-                  const isSelected = selectedProposalId === proposal.id;
-
-                  return (
-                    <button
-                      type="button"
-                      key={`funding-${proposal.id}`}
-                      onClick={() => setSelectedProposalId(proposal.id)}
-                      disabled={isSubmittingFundingPick}
-                      className={`w-full rounded-[8px] border bg-white p-2 text-left text-slate-950 shadow-[0_14px_34px_rgba(0,0,0,0.22)] transition ${isSelected ? 'border-emerald-300 ring-2 ring-emerald-300/70' : 'border-slate-200 hover:border-emerald-300/70'}`}
-                    >
-                      <span className="flex gap-3">
-                        <span className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[8px] border border-slate-200 bg-slate-100">
-                          {proposal.imageUrl ? (
-                            <img src={proposal.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center bg-slate-950 text-lg font-black text-white">
-                              {(proposal.author || 'RH').split(' ').slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'RH'}
-                            </span>
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="line-clamp-2 text-sm font-black leading-snug">{proposal.title}</span>
-                          <span className="mt-1 block truncate text-[11px] font-semibold text-slate-500">{proposal.author}</span>
-                          <span className="mt-2 grid grid-cols-3 gap-1 rounded-[8px] bg-slate-50 p-2 text-[9px] font-bold uppercase tracking-wide text-slate-500">
-                            <span>Ask <strong className="block text-xs text-blue-600">{proposal.requestedUsd ? `$${Math.round(proposal.requestedUsd / 1000)}K` : 'N/A'}</strong></span>
-                            <span>Raised <strong className="block text-xs text-slate-950">{proposal.raisedUsd ? `$${Math.round(proposal.raisedUsd / 1000)}K` : 'N/A'}</strong></span>
-                            <span>Review <strong className="block text-xs text-slate-950">{proposal.peerReview?.toFixed(1) ?? 'N/A'}</strong></span>
-                          </span>
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="relative z-10 border-t border-white/10 bg-slate-950/96 p-3">
-              <button
-                type="button"
-                onClick={() => void submitFundingPick()}
-                disabled={!selectedShareProposal || isSubmittingFundingPick}
-                className="scicon-btn w-full py-3 text-base font-bold disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {isSubmittingFundingPick ? 'SAVING PICK...' : 'SAVE FUNDING PICK'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
 
       {gameState === GameState.ABOUT && (
@@ -1399,7 +1341,7 @@ const App: React.FC = () => {
                 <div>
                   <strong className="text-indigo-400">FUNDING EVENT:</strong>
                   <p className="mt-1">
-                    The weekly leaderboard now drives the funding allocation: the No. 1 pilot chooses a ResearchHub proposal, and Scott can direct the RSC award toward that winner's pick.
+                    The weekly leaderboard drives the funding allocation. After the week closes, the verified No. 1 pilot gets a claim window to connect a Base Account and choose an eligible ResearchHub proposal. Funding is only marked directed after its transaction confirms.
                   </p>
                 </div>
                 <p className="mt-4 border-t border-gray-700 pt-2 text-xs italic text-gray-500">
@@ -1423,6 +1365,25 @@ const App: React.FC = () => {
           <StoryTransmission
             beat={activeStoryBeat}
             onComplete={() => setActiveStoryBeat(null)}
+          />
+        </React.Suspense>
+      ) : null}
+
+      {showMissionRecordPreview && runReceipt ? (
+        <React.Suspense fallback={null}>
+          <MissionRecordPreview
+            pilotName={playerNameInput || 'PILOT'}
+            receipt={runReceipt}
+            walletAddress={activeWalletAddress}
+            runClaimStatus={runClaimStatus}
+            runClaimMessage={runClaimMessage}
+            mintConfigured={mintConfigured}
+            mintStatus={missionMintStatus}
+            mintMessage={missionMintMessage}
+            mintHash={missionMintHash}
+            onAttachWallet={claimCurrentRun}
+            onMint={mintCurrentMissionRecord}
+            onClose={() => setShowMissionRecordPreview(false)}
           />
         </React.Suspense>
       ) : null}

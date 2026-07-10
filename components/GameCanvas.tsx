@@ -3,7 +3,11 @@ import { GameEngine } from '../services/gameLogic';
 import { Stats, GameState, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
 
+export { preloadGameplayAssets } from '../services/gameLogic';
+
 const HUD_STATS_SYNC_INTERVAL_MS = 650;
+const SIMULATION_STEP_MS = 1000 / 60;
+const MAX_SIMULATION_STEPS_PER_FRAME = 4;
 
 const cloneStatsForReact = (stats: Stats): Stats => ({
   ...stats,
@@ -185,6 +189,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     let mobileFrameBudget = false;
     let slowFrameScore = 0;
     let recoveryFrameScore = 0;
+    let simulationAccumulator = 0;
+    let lastRenderTime = 0;
 
     const refreshFrameBudget = () => {
       const rect = canvas.getBoundingClientRect();
@@ -196,15 +202,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     };
 
     const updateAdaptivePerformanceMode = (deltaTime: number) => {
-      if (!mobileFrameBudget) {
-        if (engine.performanceMode) engine.setPerformanceMode(false);
-        slowFrameScore = 0;
-        recoveryFrameScore = 0;
-        return;
-      }
-
-      const slowThreshold = frameInterval * 1.55;
-      const recoveryThreshold = frameInterval * 1.18;
+      const slowThreshold = frameInterval * (mobileFrameBudget ? 1.55 : 1.42);
+      const recoveryThreshold = frameInterval * (mobileFrameBudget ? 1.18 : 1.12);
       const heavyScene = engine.heavySceneLoad;
 
       if (deltaTime > slowThreshold || heavyScene) {
@@ -372,6 +371,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         lastTimeRef.current = performance.now();
+        simulationAccumulator = 0;
       }
     };
 
@@ -393,39 +393,50 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     const animate = (timestamp: number) => {
       if (document.hidden) {
         lastTimeRef.current = timestamp;
+        simulationAccumulator = 0;
         requestRef.current = requestAnimationFrame(animate);
         return;
       }
 
       if (!lastTimeRef.current) {
-        lastTimeRef.current = timestamp - frameInterval;
+        lastTimeRef.current = timestamp;
+        lastRenderTime = timestamp - frameInterval;
       }
-      
-      const deltaTime = timestamp - lastTimeRef.current;
 
-      // Only update and draw if enough time has passed. This keeps high-refresh
-      // mobile browsers from redrawing the full canvas more often than gameplay advances.
-      if (deltaTime >= frameInterval) {
-          lastTimeRef.current = timestamp - (deltaTime % frameInterval);
-          updateAdaptivePerformanceMode(deltaTime);
+      const elapsed = Math.min(100, Math.max(0, timestamp - lastTimeRef.current));
+      lastTimeRef.current = timestamp;
 
-          // Use the REF current value to check state, avoiding stale closure issues
-          if (gameStateRef.current === GameState.PLAYING) {
-            engine.update(isTransmissionOpenRef.current);
+      if (gameStateRef.current === GameState.PLAYING) {
+        simulationAccumulator += elapsed;
+        let simulationSteps = 0;
 
-            // Keep the React HUD in sync at a mobile-friendly cadence while
-            // allowing canvas gameplay to continue at the frame budget.
-            publishHudStats(false, timestamp);
+        while (simulationAccumulator >= SIMULATION_STEP_MS && simulationSteps < MAX_SIMULATION_STEPS_PER_FRAME) {
+          engine.update(isTransmissionOpenRef.current);
+          simulationAccumulator -= SIMULATION_STEP_MS;
+          simulationSteps++;
+        }
 
-            if (!engine.gameActive && engine.lives <= 0 && !gameOverSentRef.current) {
-              gameOverSentRef.current = true;
-              gameStateRef.current = GameState.GAMEOVER;
-              publishHudStats(true, timestamp);
-              setGameState(GameState.GAMEOVER);
-            }
-          }
+        if (simulationSteps >= MAX_SIMULATION_STEPS_PER_FRAME && simulationAccumulator >= SIMULATION_STEP_MS) {
+          simulationAccumulator = 0;
+          engine.setPerformanceMode(true);
+        }
 
-          engine.draw(ctx);
+        if (!engine.gameActive && engine.lives <= 0 && !gameOverSentRef.current) {
+          gameOverSentRef.current = true;
+          gameStateRef.current = GameState.GAMEOVER;
+          publishHudStats(true, timestamp);
+          setGameState(GameState.GAMEOVER);
+        }
+      } else {
+        simulationAccumulator = 0;
+      }
+
+      const renderElapsed = timestamp - lastRenderTime;
+      if (renderElapsed >= frameInterval) {
+        lastRenderTime = timestamp - (renderElapsed % frameInterval);
+        updateAdaptivePerformanceMode(renderElapsed);
+        publishHudStats(false, timestamp);
+        engine.draw(ctx);
       }
       
       requestRef.current = requestAnimationFrame(animate);
@@ -453,7 +464,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
 
   return (

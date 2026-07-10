@@ -1,10 +1,11 @@
 {
   "name": "Scicon Shooter",
   "short_name": "Scicon",
-  "description": "A Base-native arcade game where leaderboard runs help direct weekly RSC funding to active ResearchHub proposals.",
+  "description": "Play. Win the week. Choose what research gets funded. A community-built Base-native arcade game powered by active ResearchHub proposal data.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "portrait-primary",
   "background_color": "#0b1020",
   "theme_color": "#0b1020",
@@ -24,7 +25,7 @@
   "screenshots": [
     {
       "src": "/preview.png",
-      "sizes": "1200x805",
+      "sizes": "1200x628",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Scicon Shooter mission dashboard"

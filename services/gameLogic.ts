@@ -8,6 +8,7 @@ import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getFlaskProgress } from '
 // --- Helper Classes ---
 
 type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'orbit';
+type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion';
 type PendingPlayerShot = {
   fireFrame: number;
   speed: number;
@@ -15,6 +16,7 @@ type PendingPlayerShot = {
   yOffset: number;
   angleBias: number;
   pitchOffset: number;
+  weaponKind: PlayerWeaponKind;
   playSound?: boolean;
 };
 
@@ -58,6 +60,10 @@ export class Entity {
   formationSeed: number = 0;
   flashFrames: number = 0;
   shieldHostId?: string;
+  damage: number = 1;
+  pierceRemaining: number = 0;
+  weaponKind: PlayerWeaponKind = 'pulse';
+  hitTargetIds?: Set<string>;
   
   constructor(type: EntityType, x: number, y: number) {
     this.id = Math.random().toString(36).substr(2, 9);
@@ -237,6 +243,51 @@ const getReadyImage = (url: string) => {
   return img;
 };
 
+const GAMEPLAY_ASSET_URLS = [
+  ASSETS.PLAYER_SHIP,
+  ASSETS.RSC_TOKEN,
+  ASSETS.REAL_RSC_ICON,
+  ASSETS.GAME_BG_BACK,
+  ASSETS.GAME_BG_STARS,
+  ASSETS.GAME_BG_PLANET,
+  ASSETS.GAME_PARALLAX_BACK,
+  ASSETS.GAME_PARALLAX_STARS,
+  ASSETS.GAME_PARALLAX_FAR_PLANETS,
+  ASSETS.GAME_PARALLAX_BIG_PLANET,
+  ASSETS.GAME_PARALLAX_RING_PLANET,
+  ASSETS.ENEMY_JOURNAL,
+  ASSETS.MINI_BOSS,
+  ASSETS.WALL_BOSS_SEGMENT,
+  ASSETS.FINAL_BOSS,
+  ...ASSETS.ENEMY_DRONE_FRAMES,
+  ...ASSETS.ENEMY_SWARM_FRAMES,
+  ...ASSETS.ENEMY_BRICK_FRAMES
+];
+
+export const preloadGameplayAssets = async () => {
+  await Promise.all(GAMEPLAY_ASSET_URLS.map(async (url) => {
+    const image = loadImage(url);
+    if (image.complete && image.naturalWidth > 0) return;
+
+    if (typeof image.decode === 'function') {
+      try {
+        await image.decode();
+        return;
+      } catch {
+        // Fall through to the load event for browsers with partial decode support.
+      }
+    }
+
+    if (image.complete) return;
+
+    await new Promise<void>((resolve) => {
+      const finish = () => resolve();
+      image.addEventListener('load', finish, { once: true });
+      image.addEventListener('error', finish, { once: true });
+    });
+  }));
+};
+
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 const moveToward = (current: number, target: number, maxDelta: number) => {
@@ -289,11 +340,12 @@ const DESKTOP_PARTICLE_CAP = 240;
 const MOBILE_EFFECT_CAP = 24;
 const DESKTOP_EFFECT_CAP = 44;
 const MOBILE_THREAT_CAP = 34;
-const DESKTOP_THREAT_CAP = 60;
-const MOBILE_PLAYER_SHOT_CAP = 24;
-const MOBILE_LEAN_PLAYER_SHOT_CAP = 18;
-const DESKTOP_PLAYER_SHOT_CAP = 46;
+const DESKTOP_THREAT_CAP = 46;
+const MOBILE_PLAYER_SHOT_CAP = 28;
+const MOBILE_LEAN_PLAYER_SHOT_CAP = 20;
+const DESKTOP_PLAYER_SHOT_CAP = 28;
 const PENDING_PLAYER_SHOT_CAP = 8;
+const COLLISION_COLUMN_WIDTH = 96;
 const EMPTY_WINGMAN_OFFSETS: number[] = [];
 const DOUBLE_WINGMAN_OFFSETS = [42];
 const TRIPLE_WINGMAN_OFFSETS = [-42, 42];
@@ -320,6 +372,13 @@ type PlayerAfterimage = {
 };
 
 type BossWarningType = 'mini1' | 'wall' | 'asteroid' | 'gatekeeper';
+
+const WAVE_SECTORS = [
+  { name: 'OPEN ORBIT', accent: '#67e8f9' },
+  { name: 'CITATION STORM', accent: '#c4b5fd' },
+  { name: 'PAYWALL SIEGE', accent: '#fde68a' },
+  { name: 'OPEN GALAXY', accent: '#6ee7b7' }
+];
 
 export class GameEngine {
   width: number = 0;
@@ -380,8 +439,17 @@ export class GameEngine {
   collisionBoxes: Map<Entity, CollisionBox> = new Map();
   enemyTargetsBuffer: Entity[] = [];
   playerShotsBuffer: Entity[] = [];
+  homingTargetsBuffer: Entity[] = [];
+  enemyCollisionColumns: Entity[][] = [];
   invaderDrawBuffer: Entity[] = [];
   pendingPlayerShots: PendingPlayerShot[] = [];
+  livePlayerShotCount: number = 0;
+  liveParticleCount: number = 0;
+  liveEffectCount: number = 0;
+  liveThreatCount: number = 0;
+  weaponVolley: number = 0;
+  announcedFireRateLevel: number = 0;
+  phaseAnnouncementMask: number = 0;
   mobileProfile: boolean = false;
   polishSettings: GamePolishSettings = { ...DEFAULT_POLISH_SETTINGS };
   performanceMode: boolean = false;
@@ -393,26 +461,7 @@ export class GameEngine {
     this.player.width = 128;
     this.player.height = 128;
     
-    [
-      ASSETS.PLAYER_SHIP,
-      ASSETS.RSC_TOKEN,
-      ASSETS.REAL_RSC_ICON,
-      ASSETS.GAME_BG_BACK,
-      ASSETS.GAME_BG_STARS,
-      ASSETS.GAME_BG_PLANET,
-      ASSETS.GAME_PARALLAX_BACK,
-      ASSETS.GAME_PARALLAX_STARS,
-      ASSETS.GAME_PARALLAX_FAR_PLANETS,
-      ASSETS.GAME_PARALLAX_BIG_PLANET,
-      ASSETS.GAME_PARALLAX_RING_PLANET,
-      ASSETS.ENEMY_JOURNAL,
-      ASSETS.MINI_BOSS,
-      ASSETS.WALL_BOSS_SEGMENT,
-      ASSETS.FINAL_BOSS,
-      ...ASSETS.ENEMY_DRONE_FRAMES,
-      ...ASSETS.ENEMY_SWARM_FRAMES,
-      ...ASSETS.ENEMY_BRICK_FRAMES
-    ].forEach(loadImage);
+    GAMEPLAY_ASSET_URLS.forEach(loadImage);
   }
 
   getAnimatedFrame(frames: string[], entity: Entity, speed: number) {
@@ -483,7 +532,7 @@ export class GameEngine {
 
   drawBackgroundLayers(ctx: CanvasRenderingContext2D) {
     const lowDetail = this.isMobileProfile();
-    const adaptiveLow = lowDetail && this.performanceMode;
+    const adaptiveLow = this.performanceMode;
 
     this.drawTiledLayer(ctx, ASSETS.GAME_PARALLAX_BACK, 5, 0.06, 0.015, adaptiveLow ? 0.48 : 0.6);
     if (!adaptiveLow) {
@@ -543,13 +592,15 @@ export class GameEngine {
   }
 
   getGlowBlur(blur: number) {
-    if (this.performanceMode && this.mobileProfile) return Math.min(blur * 0.22, 5);
+    if (this.performanceMode) return this.mobileProfile ? Math.min(blur * 0.22, 5) : Math.min(blur * 0.55, 10);
     return this.mobileProfile ? Math.min(blur * 0.38, 8) : blur;
   }
 
   getParticleDensity() {
     if (this.heavySceneLoad && this.mobileProfile) return this.polishSettings.highDensityParticles ? 0.28 : 0.18;
-    if (this.performanceMode && this.mobileProfile) return this.polishSettings.highDensityParticles ? 0.34 : 0.22;
+    if (this.performanceMode) return this.mobileProfile
+      ? (this.polishSettings.highDensityParticles ? 0.34 : 0.22)
+      : (this.polishSettings.highDensityParticles ? 0.6 : 0.34);
     if (!this.polishSettings.highDensityParticles) return 0.42;
     return this.mobileProfile ? 0.62 : 1;
   }
@@ -817,7 +868,8 @@ export class GameEngine {
     this.stats.bombChargeMax = BASE_FLASK_CHARGE_MAX;
     this.stats.wave = 1;
     this.resetWaveProgress();
-    this.spawnFloatingText(this.width/2, this.height/2, "WAVE 1", "#FFF");
+    const openingSector = this.getWaveSector();
+    this.spawnFloatingText(this.width/2, this.height/2, `WAVE 1 - ${openingSector.name}`, openingSector.accent, this.mobileProfile ? 20 : 26);
     this.bossRef = null;
     this.miniBossRef = null;
     this.activePowerups.clear();
@@ -837,6 +889,8 @@ export class GameEngine {
     this.coinComboTimer = 0;
     this.lastShotFrame = -999;
     this.lastBombFrame = -999;
+    this.weaponVolley = 0;
+    this.announcedFireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 5);
     this.introFlightDuration = 150;
     this.introFlightFrames = this.introFlightDuration;
     this.waveDepartureFrames = 0;
@@ -866,6 +920,7 @@ export class GameEngine {
     this.bossWarningDuration = 0;
     this.pendingBossType = null;
     this.waveTransitionPending = false;
+    this.phaseAnnouncementMask = 0;
   }
 
   getPlayerMovementBounds() {
@@ -886,7 +941,8 @@ export class GameEngine {
     this.stats.wave++;
     this.resetWaveProgress();
     this.keepEntitiesForNextWave();
-    this.spawnFloatingText(this.width/2, this.height/2, `WAVE ${this.wave}`, "#FFF");
+    const sector = this.getWaveSector();
+    this.spawnFloatingText(this.width/2, this.height/2, `WAVE ${this.wave} - ${sector.name}`, sector.accent, this.mobileProfile ? 20 : 26);
     this.introFlightDuration = 118;
     this.introFlightFrames = this.introFlightDuration;
     this.playerDrawScale = 1.46;
@@ -919,21 +975,26 @@ export class GameEngine {
     return this.mobileProfile;
   }
 
+  getWaveSector() {
+    return WAVE_SECTORS[(Math.max(1, this.wave) - 1) % WAVE_SECTORS.length];
+  }
+
   getParticleCap() {
     if (this.heavySceneLoad && this.mobileProfile) return Math.floor(MOBILE_PARTICLE_CAP * 0.46);
-    if (this.performanceMode && this.mobileProfile) return Math.floor(MOBILE_PARTICLE_CAP * 0.58);
+    if (this.performanceMode) return this.mobileProfile ? Math.floor(MOBILE_PARTICLE_CAP * 0.58) : Math.floor(DESKTOP_PARTICLE_CAP * 0.68);
     return this.isMobileProfile() ? MOBILE_PARTICLE_CAP : DESKTOP_PARTICLE_CAP;
   }
 
   getEffectCap() {
     if (this.heavySceneLoad && this.mobileProfile) return Math.floor(MOBILE_EFFECT_CAP * 0.5);
-    if (this.performanceMode && this.mobileProfile) return Math.floor(MOBILE_EFFECT_CAP * 0.62);
+    if (this.performanceMode) return this.mobileProfile ? Math.floor(MOBILE_EFFECT_CAP * 0.62) : Math.floor(DESKTOP_EFFECT_CAP * 0.72);
     return this.isMobileProfile() ? MOBILE_EFFECT_CAP : DESKTOP_EFFECT_CAP;
   }
 
   getThreatCap() {
-    if (this.performanceMode && this.mobileProfile) return Math.floor(MOBILE_THREAT_CAP * 0.86);
-    return this.isMobileProfile() ? MOBILE_THREAT_CAP : DESKTOP_THREAT_CAP;
+    const progressionCap = Math.min(DESKTOP_THREAT_CAP, MOBILE_THREAT_CAP + ((Math.max(1, this.wave) - 1) * 3));
+    if (this.performanceMode && this.mobileProfile) return Math.max(MOBILE_THREAT_CAP - 4, Math.floor(progressionCap * 0.9));
+    return progressionCap;
   }
 
   countEntities(type: EntityType) {
@@ -1011,7 +1072,7 @@ export class GameEngine {
 
   spawnBurst(x: number, y: number, color: string, amount: number = 10, speed: number = 4, size: number = 4) {
     const cap = this.getParticleCap();
-    const available = Math.max(0, cap - this.countEntities(EntityType.PARTICLE));
+    const available = Math.max(0, cap - this.liveParticleCount);
     const leanAmount = this.shouldUseLeanEffects() && speed <= 2 ? Math.min(amount, 2) : amount;
     const scaledAmount = Math.max(1, Math.ceil(leanAmount * this.getParticleDensity()));
     const particleAmount = Math.min(scaledAmount, available);
@@ -1026,6 +1087,7 @@ export class GameEngine {
         randomRange(22, 48)
       ));
     }
+    this.liveParticleCount += particleAmount;
   }
 
   addPlayerAfterimage() {
@@ -1102,7 +1164,7 @@ export class GameEngine {
     if (
       moveSpeed > 1.3
       && this.frameCount % (this.shouldUseLeanEffects() ? 12 : 6) === 0
-      && this.countEntities(EntityType.PARTICLE) < this.getParticleCap()
+      && this.liveParticleCount < this.getParticleCap()
     ) {
       this.entities.push(new Particle(
         this.player.x + this.player.width / 2 - this.playerVel.x * 3,
@@ -1112,6 +1174,7 @@ export class GameEngine {
         randomRange(3, 7),
         randomRange(18, 34)
       ));
+      this.liveParticleCount++;
     }
   }
 
@@ -1309,6 +1372,15 @@ export class GameEngine {
     const fireRates = [15, 12, 10, 8, 6, 5];
     const level = Math.min(this.stats.upgrades.fireRate, 5);
     const fireInterval = fireRates[level] || 5;
+
+    if (level > this.announcedFireRateLevel) {
+      const weaponLabel = level >= 5 ? 'ION LANCE ONLINE' : level >= 3 ? 'PLASMA CANNON ONLINE' : `RAPID FIRE L${level + 1}`;
+      const weaponColor = level >= 5 ? '#f0abfc' : level >= 3 ? '#67e8f9' : '#fde68a';
+      this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 18, weaponLabel, weaponColor, this.mobileProfile ? 16 : 19);
+      this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, weaponColor);
+      audioService.playSound('powerup', 1, { pitchOffset: level * 0.04 });
+      this.announcedFireRateLevel = level;
+    }
     
     if ((this.keys[' '] || this.touchPos || this.keys['Enter']) && this.frameCount % fireInterval === 0) {
       this.fireBullet();
@@ -1332,6 +1404,8 @@ export class GameEngine {
     if (this.invincibleTimer > 0) this.invincibleTimer--;
 
     this.spawnEnemies();
+    this.updateEnemyFire();
+    this.announceWaveProgress();
 
     this.entities.forEach(e => {
       if (e.isBeam) {
@@ -1360,8 +1434,8 @@ export class GameEngine {
           let nearest: Entity | null = null;
           let minDistSq = 1000 * 1000;
           
-          for (let targetIndex = 0; targetIndex < this.entities.length; targetIndex++) {
-              const target = this.entities[targetIndex];
+          for (let targetIndex = 0; targetIndex < this.homingTargetsBuffer.length; targetIndex++) {
+              const target = this.homingTargetsBuffer[targetIndex];
               if (!target.markedForDeletion && this.isEnemyTarget(target)) {
                   const dx = target.x - e.x;
                   const dy = target.y - e.y;
@@ -1396,8 +1470,9 @@ export class GameEngine {
           }
           
           // Spawn trail - Use missile color
-          if (this.frameCount % (this.shouldUseLeanEffects() ? 8 : 4) === 0 && this.countEntities(EntityType.PARTICLE) < this.getParticleCap()) {
+          if (this.frameCount % (this.shouldUseLeanEffects() ? 8 : 4) === 0 && this.liveParticleCount < this.getParticleCap()) {
               this.entities.push(new Particle(e.x + e.width/2, e.y + e.height, e.color, 1));
+              this.liveParticleCount++;
           }
           
           if (e.y < -50 || e.y > this.height + 50 || e.x < -50 || e.x > this.width + 50) e.markedForDeletion = true;
@@ -1510,6 +1585,24 @@ export class GameEngine {
     this.bgY = (this.bgY + 1) % this.height;
   }
 
+  announceWaveProgress() {
+    if (this.stats.isBossActive || this.inBossWarningSequence) return;
+
+    const milestones = [
+      { bit: 1, threshold: 0.18, label: 'FORMATION SIGNAL' },
+      { bit: 2, threshold: 0.48, label: 'ELITE PRESSURE' },
+      { bit: 4, threshold: 0.82, label: 'FINAL APPROACH' }
+    ];
+
+    for (const milestone of milestones) {
+      if (this.stats.bossProgress < milestone.threshold || (this.phaseAnnouncementMask & milestone.bit) !== 0) continue;
+      this.phaseAnnouncementMask |= milestone.bit;
+      const sector = this.getWaveSector();
+      this.spawnFloatingText(this.width / 2, Math.max(96, this.height * 0.2), milestone.label, sector.accent, this.mobileProfile ? 17 : 21);
+      audioService.playSound('wave', 0.72, { pitchOffset: milestone.threshold * 0.08 });
+    }
+  }
+
   getWingmanOffsets() {
     if (this.activePowerups.has(PowerupType.TRIPLE_SHOT)) {
       return TRIPLE_WINGMAN_OFFSETS;
@@ -1537,26 +1630,37 @@ export class GameEngine {
   }
 
   getPlayerShotCap() {
-    if (!this.mobileProfile) return DESKTOP_PLAYER_SHOT_CAP;
-    return (this.performanceMode || this.heavySceneLoad) ? MOBILE_LEAN_PLAYER_SHOT_CAP : MOBILE_PLAYER_SHOT_CAP;
+    if (this.performanceMode || (this.mobileProfile && this.heavySceneLoad)) return MOBILE_LEAN_PLAYER_SHOT_CAP;
+    return this.mobileProfile ? MOBILE_PLAYER_SHOT_CAP : DESKTOP_PLAYER_SHOT_CAP;
   }
 
   refreshLoadState() {
-    let playerShots = this.pendingPlayerShots.length;
+    let activePlayerShots = 0;
     let particles = 0;
     let effects = 0;
     let threats = 0;
+    const homingTargets = this.homingTargetsBuffer;
+    homingTargets.length = 0;
 
     for (let i = 0; i < this.entities.length; i++) {
       const entity = this.entities[i];
       if (entity.markedForDeletion) continue;
 
-      if ((entity.type === EntityType.PROJECTILE && entity.isPlayerShot) || entity.type === EntityType.MISSILE) playerShots++;
+      if ((entity.type === EntityType.PROJECTILE && entity.isPlayerShot) || entity.type === EntityType.MISSILE) activePlayerShots++;
       else if (entity.type === EntityType.PARTICLE) particles++;
       else if (entity.type === EntityType.EFFECT) effects++;
 
-      if (this.isEnemyTarget(entity)) threats++;
+      if (this.isEnemyTarget(entity)) {
+        threats++;
+        homingTargets.push(entity);
+      }
     }
+
+    const playerShots = activePlayerShots + this.pendingPlayerShots.length;
+    this.livePlayerShotCount = activePlayerShots;
+    this.liveParticleCount = particles;
+    this.liveEffectCount = effects;
+    this.liveThreatCount = threats;
 
     this.heavySceneLoad = this.mobileProfile && (
       this.performanceMode
@@ -1569,7 +1673,7 @@ export class GameEngine {
   }
 
   shouldUseLeanEffects() {
-    return this.mobileProfile && (this.performanceMode || this.heavySceneLoad);
+    return this.performanceMode || (this.mobileProfile && this.heavySceneLoad);
   }
 
   spawnPlayerBullet(
@@ -1578,27 +1682,35 @@ export class GameEngine {
     yOffset: number = 0,
     angleBias: number = 0,
     pitchOffset: number = 0,
-    playSound: boolean = true
+    playSound: boolean = true,
+    weaponKind: PlayerWeaponKind = 'pulse'
   ) {
-    if (this.countPlayerShots(true) >= this.getPlayerShotCap()) {
+    if (this.livePlayerShotCount + this.pendingPlayerShots.length >= this.getPlayerShotCap()) {
       return false;
     }
 
-    const isMaxFire = this.stats.upgrades.fireRate >= 5;
-    const bulletColor = isMaxFire ? '#00FFFF' : '#6c63ff';
-    const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - 5 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
+    const bulletColor = weaponKind === 'ion' ? '#f0abfc' : weaponKind === 'plasma' ? '#22d3ee' : '#6c63ff';
+    const bulletWidth = weaponKind === 'ion' ? 24 : weaponKind === 'plasma' ? 14 : 10;
+    const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - bulletWidth / 2 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
     const angle = randomRange(-0.035, 0.035) + angleBias;
-    b.width = 10;
-    b.height = 28;
+    b.width = bulletWidth;
+    b.height = weaponKind === 'ion' ? 54 : weaponKind === 'plasma' ? 34 : 28;
     b.vx = Math.sin(angle) * speed;
     b.vy = -Math.cos(angle) * speed;
     b.color = bulletColor;
     b.isPlayerShot = true;
+    b.weaponKind = weaponKind;
+    b.damage = weaponKind === 'ion' ? 2.4 : weaponKind === 'plasma' ? 1.3 : 1;
+    if (weaponKind === 'ion') {
+      b.pierceRemaining = 3;
+      b.hitTargetIds = new Set<string>();
+    }
     this.entities.push(b);
+    this.livePlayerShotCount++;
     if (playSound) {
       audioService.playSound('shoot', 1, {
-        pitchJitter: 0.22,
-        pitchOffset
+        pitchJitter: weaponKind === 'ion' ? 0.08 : 0.22,
+        pitchOffset: pitchOffset + (weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? 0.08 : 0)
       });
     }
     return true;
@@ -1606,7 +1718,7 @@ export class GameEngine {
 
   queuePlayerBullet(shot: PendingPlayerShot) {
     if (this.pendingPlayerShots.length >= PENDING_PLAYER_SHOT_CAP) return;
-    if (this.countPlayerShots(true) >= this.getPlayerShotCap()) return;
+    if (this.livePlayerShotCount + this.pendingPlayerShots.length >= this.getPlayerShotCap()) return;
     this.pendingPlayerShots.push(shot);
   }
 
@@ -1617,8 +1729,8 @@ export class GameEngine {
       const shot = this.pendingPlayerShots[index];
       if (shot.fireFrame > this.frameCount) continue;
 
-      this.spawnPlayerBullet(shot.speed, shot.offsetX, shot.yOffset, shot.angleBias, shot.pitchOffset, shot.playSound ?? true);
       this.pendingPlayerShots.splice(index, 1);
+      this.spawnPlayerBullet(shot.speed, shot.offsetX, shot.yOffset, shot.angleBias, shot.pitchOffset, shot.playSound ?? true, shot.weaponKind);
       index--;
     }
   }
@@ -1630,10 +1742,18 @@ export class GameEngine {
       this.addShake(0.08);
     }
     this.lastShotFrame = this.frameCount;
+    this.weaponVolley++;
 
     this.playerVel.y += 0.2;
     this.playerVel.x += randomRange(-0.05, 0.05);
-    this.spawnPlayerBullet(10, 0, 0, 0, -0.04, true);
+    const fireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 5);
+    const weaponKind: PlayerWeaponKind = fireRateLevel >= 5 && this.weaponVolley % 4 === 0
+      ? 'ion'
+      : fireRateLevel >= 3
+        ? 'plasma'
+        : 'pulse';
+    const weaponSpeed = weaponKind === 'ion' ? 12.8 : weaponKind === 'plasma' ? 11.2 : 10;
+    this.spawnPlayerBullet(weaponSpeed, 0, 0, 0, -0.04, true, weaponKind);
 
     const lean = this.shouldUseLeanEffects();
     this.getWingmanOffsets().forEach((offsetX, index) => {
@@ -1644,6 +1764,7 @@ export class GameEngine {
         yOffset: 8,
         angleBias: offsetX < 0 ? -0.042 : 0.042,
         pitchOffset: offsetX < 0 ? -0.01 : 0.03,
+        weaponKind: fireRateLevel >= 3 ? 'plasma' : 'pulse',
         playSound: !lean
       });
     });
@@ -1666,6 +1787,7 @@ export class GameEngine {
       
       m.isPlayerShot = true; // Mark as player shot
       this.entities.push(m);
+      this.livePlayerShotCount++;
       audioService.playSound('missile');
   }
 
@@ -1790,7 +1912,6 @@ export class GameEngine {
 
   spawnBossShieldRing(boss: Entity, phase: number) {
     const count = Math.min(this.mobileProfile ? 5 : 8, 3 + phase);
-    const radius = Math.min(this.width * 0.34, boss.width * 0.62 + (this.mobileProfile ? 34 : 48));
     const hp = Math.max(3, Math.round(2.5 + phase * 1.2));
 
     for (let i = 0; i < count; i++) {
@@ -1957,6 +2078,56 @@ export class GameEngine {
     });
   }
 
+  updateEnemyFire() {
+    if (this.wave < 2 || this.stats.isBossActive || this.inBossWarningSequence || this.deathSequenceFrames > 0) return;
+
+    const fireInterval = Math.max(42, 118 - ((this.wave - 2) * 18));
+    if (this.frameCount % fireInterval !== 0) return;
+
+    let activeEnemyShots = 0;
+    for (let index = 0; index < this.entities.length; index++) {
+      const entity = this.entities[index];
+      if (!entity.markedForDeletion && entity.type === EntityType.PROJECTILE && !entity.isPlayerShot) activeEnemyShots++;
+    }
+    if (activeEnemyShots >= Math.min(12, 4 + this.wave * 2)) return;
+
+    const candidates = this.homingTargetsBuffer;
+    if (candidates.length === 0) return;
+
+    const startIndex = Math.floor(this.frameCount / fireInterval) % candidates.length;
+    let source: Entity | null = null;
+    for (let offset = 0; offset < candidates.length; offset++) {
+      const candidate = candidates[(startIndex + offset) % candidates.length];
+      if (
+        candidate.markedForDeletion
+        || candidate.formation === 'orbit'
+        || candidate.y < 38
+        || candidate.y > this.height * 0.58
+        || (candidate.type !== EntityType.ENEMY_DRONE && candidate.type !== EntityType.ENEMY_JOURNAL && candidate.type !== EntityType.ENEMY_SWARM)
+      ) continue;
+      source = candidate;
+      break;
+    }
+    if (!source) return;
+
+    const sourceX = source.x + source.width / 2;
+    const sourceY = source.y + source.height * 0.72;
+    const targetX = this.player.x + this.player.width / 2 + this.playerVel.x * 7;
+    const targetY = this.player.y + this.player.height / 2;
+    const dx = targetX - sourceX;
+    const dy = targetY - sourceY;
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const speed = Math.min(7.2, 4.5 + this.wave * 0.42);
+    const shot = new Entity(EntityType.PROJECTILE, sourceX - 5, sourceY);
+    shot.width = this.wave >= 4 ? 12 : 10;
+    shot.height = this.wave >= 4 ? 12 : 10;
+    shot.vx = (dx / length) * speed;
+    shot.vy = (dy / length) * speed;
+    shot.color = source.type === EntityType.ENEMY_JOURNAL ? '#f472b6' : this.wave >= 4 ? '#fbbf24' : '#fb7185';
+    shot.isPlayerShot = false;
+    this.entities.push(shot);
+  }
+
   spawnEnemies() {
     const invaderCount = this.countEntities(EntityType.ENEMY_INVADER);
     const asteroidBeltCount = this.getAsteroidBeltCount();
@@ -1970,14 +2141,12 @@ export class GameEngine {
         this.spawnPowerup(Math.random() * (this.width - 40), -40);
     }
 
-    const formationRate = this.wave === 1 ? 300 : Math.max(150, 300 - this.wave * 28);
+    const formationRate = Math.max(132, 330 - this.wave * 34);
     if (this.waveProgressFrames > 120 && this.frameCount % formationRate === 0 && activeThreatCount < threatCap - 3) {
       this.spawnSwarmFormation();
     }
 
-    const currentRate = this.wave === 1
-      ? GAME_CONFIG.BASE_SPAWN_RATE + 10
-      : Math.max(22, GAME_CONFIG.BASE_SPAWN_RATE - ((this.wave - 1) * 12));
+    const currentRate = Math.max(30, GAME_CONFIG.BASE_SPAWN_RATE + 12 - ((this.wave - 1) * 10));
 
     if (this.frameCount % currentRate === 0) {
       const typeRoll = Math.random();
@@ -2011,11 +2180,15 @@ export class GameEngine {
   }
 
   spawnSwarmFormation() {
-    const modes: EnemyFormationMode[] = ['row', 'v', 'sine', 'pincer'];
+    const modes: EnemyFormationMode[] = this.wave <= 1
+      ? ['row', 'v']
+      : this.wave === 2
+        ? ['row', 'v', 'sine']
+        : ['row', 'v', 'sine', 'pincer'];
     const mode = modes[(this.wave + Math.floor(this.frameCount / 120)) % modes.length];
     const isMobile = this.width < 520;
     const threatBudget = Math.max(0, this.getThreatCap() - this.getActiveThreatCount());
-    const count = Math.min(isMobile ? 9 : 14, 6 + this.wave + Math.floor(this.stats.bossProgress * 6), threatBudget);
+    const count = Math.min(11, 6 + this.wave + Math.floor(this.stats.bossProgress * 4), threatBudget);
     if (count < 3) return;
     const gap = isMobile ? 42 : 54;
     const centerX = this.width / 2;
@@ -2108,7 +2281,7 @@ export class GameEngine {
     return e;
   }
 
-  spawnMiniBoss(num: number) {
+  spawnMiniBoss(_num: number) {
     const mb = new Entity(EntityType.MINI_BOSS, this.width/2 - 50, -100);
     mb.width = 140;
     mb.height = 160;
@@ -2429,13 +2602,15 @@ export class GameEngine {
   }
 
   spawnFloatingText(x: number, y: number, text: string, color: string, fontSize: number = 32) {
-    if (this.countEntities(EntityType.EFFECT) >= this.getEffectCap()) return;
+    if (this.liveEffectCount >= this.getEffectCap()) return;
     this.entities.push(new VisualEffect(x, y, 'text', text, color, fontSize));
+    this.liveEffectCount++;
   }
 
   spawnRingEffect(x: number, y: number, color: string) {
-    if (this.countEntities(EntityType.EFFECT) >= this.getEffectCap()) return;
+    if (this.liveEffectCount >= this.getEffectCap()) return;
     this.entities.push(new VisualEffect(x, y, 'ring', '', color));
+    this.liveEffectCount++;
   }
 
   registerCoinPickup(x: number, y: number) {
@@ -2675,15 +2850,33 @@ export class GameEngine {
 
     }
 
+    const collisionColumns = this.enemyCollisionColumns;
+    const collisionColumnCount = Math.max(1, Math.ceil(this.width / COLLISION_COLUMN_WIDTH));
+    while (collisionColumns.length < collisionColumnCount) collisionColumns.push([]);
+    collisionColumns.length = collisionColumnCount;
+    for (let index = 0; index < collisionColumns.length; index++) collisionColumns[index].length = 0;
+
+    for (let index = 0; index < enemyTargets.length; index++) {
+      const target = enemyTargets[index];
+      const targetBox = getBox(target);
+      const projectilePadding = 28;
+      const startColumn = clamp(Math.floor((targetBox.x - projectilePadding) / COLLISION_COLUMN_WIDTH), 0, collisionColumnCount - 1);
+      const endColumn = clamp(Math.floor((targetBox.x + targetBox.width + projectilePadding) / COLLISION_COLUMN_WIDTH), 0, collisionColumnCount - 1);
+      for (let column = startColumn; column <= endColumn; column++) collisionColumns[column].push(target);
+    }
+
     const bossShieldedNow = this.isBossShielded();
 
     for (const shot of playerShots) {
       if (shot.markedForDeletion) continue;
       const shotBox = getBox(shot);
+      const shotColumn = clamp(Math.floor((shotBox.x + shotBox.width / 2) / COLLISION_COLUMN_WIDTH), 0, collisionColumnCount - 1);
+      const nearbyTargets = collisionColumns[shotColumn];
 
-      for (let index = 0; index < enemyTargets.length; index++) {
-        const target = enemyTargets[index];
+      for (let index = 0; index < nearbyTargets.length; index++) {
+        const target = nearbyTargets[index];
         if (target.markedForDeletion) continue;
+        if (shot.hitTargetIds?.has(target.id)) continue;
         const padding = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS ? 42 : 18;
         if (
           shotBox.x > target.x + target.width + padding
@@ -2715,8 +2908,15 @@ export class GameEngine {
 
         const dmg = shot.type === EntityType.MISSILE
           ? (isBossTarget ? 8 : 5)
-          : (isBossTarget ? 1.45 : 1);
-        if (!shot.isBeam) shot.markedForDeletion = true;
+          : shot.damage * (isBossTarget ? 1.35 : 1);
+        if (!shot.isBeam) {
+          if (shot.weaponKind === 'ion' && shot.pierceRemaining > 0) {
+            shot.hitTargetIds?.add(target.id);
+            shot.pierceRemaining--;
+          } else {
+            shot.markedForDeletion = true;
+          }
+        }
         target.hp -= dmg;
         this.flashEntity(target, isBossTarget ? 7 : 5);
         this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, shot.color || '#67e8f9', shot.type === EntityType.MISSILE ? 8 : 3, shot.type === EntityType.MISSILE ? 3.8 : 1.6, shot.type === EntityType.MISSILE ? 4 : 2.5);
@@ -2729,12 +2929,12 @@ export class GameEngine {
           this.handleEnemyDestroyed(target);
         }
 
-        if (!shot.isBeam) break;
+        if (!shot.isBeam && shot.markedForDeletion) break;
       }
     }
   }
 
-  getBossWarningComms(type: BossWarningType) {
+  getBossWarningComms(_type: BossWarningType) {
     const phase = this.stats.wave;
     const phaseComms = [
       {
@@ -2958,11 +3158,11 @@ export class GameEngine {
     ctx.save();
     ctx.translate(this.shakeX, this.shakeY);
     this.drawBackgroundLayers(ctx);
-    const starStride = this.performanceMode && this.mobileProfile ? 2 : 1;
+    const starStride = this.performanceMode ? 2 : 1;
     for (let index = 0; index < this.stars.length; index += starStride) {
       this.stars[index].draw(ctx);
     }
-    const backgroundSpriteLimit = this.performanceMode && this.mobileProfile ? 1 : this.bgEntities.length;
+    const backgroundSpriteLimit = this.performanceMode ? 1 : this.bgEntities.length;
     for (let index = 0; index < backgroundSpriteLimit; index++) {
       this.bgEntities[index].draw(ctx);
     }
@@ -3039,7 +3239,7 @@ export class GameEngine {
 
   drawPlayerAfterimages(ctx: CanvasRenderingContext2D) {
     const img = getReadyImage(ASSETS.PLAYER_SHIP);
-    if (this.mobileProfile && this.playerAfterimages.length > 3) {
+    if ((this.mobileProfile || this.performanceMode) && this.playerAfterimages.length > 3) {
       this.playerAfterimages.length = 3;
     }
 
@@ -3753,7 +3953,8 @@ export class GameEngine {
         ctx.filter = "none";
         ctx.globalCompositeOperation = 'lighter';
         const leanShot = e.isPlayerShot && this.shouldUseLeanEffects();
-        ctx.shadowBlur = this.getGlowBlur(leanShot ? 5 : e.isPlayerShot ? 18 : 12);
+        const isIonShot = e.isPlayerShot && e.weaponKind === 'ion';
+        ctx.shadowBlur = this.getGlowBlur(leanShot ? (isIonShot ? 8 : 5) : isIonShot ? 26 : e.isPlayerShot ? 18 : 12);
         ctx.shadowColor = e.color || (e.isPlayerShot ? '#67e8f9' : '#fb7185');
 
         if (e.text) { 
@@ -3762,7 +3963,24 @@ export class GameEngine {
            ctx.textBaseline = 'middle';
            ctx.fillText(e.text, 0, 0);
         } else if (e.isPlayerShot) {
-          if (leanShot) {
+          if (isIonShot) {
+            const pulse = 0.82 + Math.sin((this.frameCount + e.variant) * 0.38) * 0.18;
+            ctx.fillStyle = `rgba(240,171,252,${0.32 * pulse})`;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, e.width * 0.7, e.height * 0.52, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.roundRect(-e.width * 0.15, -e.height * 0.58, e.width * 0.3, e.height * 1.08, 5);
+            ctx.fill();
+            ctx.strokeStyle = '#67e8f9';
+            ctx.lineWidth = leanShot ? 1.5 : 2;
+            ctx.beginPath();
+            ctx.moveTo(-e.width * 0.45, e.height * 0.38);
+            ctx.lineTo(0, -e.height * 0.62);
+            ctx.lineTo(e.width * 0.45, e.height * 0.38);
+            ctx.stroke();
+          } else if (leanShot) {
             ctx.fillStyle = e.color || '#67e8f9';
             ctx.beginPath();
             ctx.roundRect(-e.width * 0.32, -e.height * 0.58, e.width * 0.64, e.height * 1.08, 4);

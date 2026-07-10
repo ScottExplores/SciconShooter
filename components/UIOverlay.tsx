@@ -333,6 +333,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           const isLifeUpgrade = type === 'extraLife';
           const isAtCap = isLifeUpgrade ? stats.lives >= GAME_CONFIG.MAX_LIVES : level >= config.maxLevel;
           const canPick = flaskReady && !isAtCap;
+          const shortTitle = type === 'fireRate'
+            ? level >= 5
+              ? 'Ion'
+              : level >= 3
+                ? 'Plasma'
+                : config.shortTitle
+            : config.shortTitle;
 
           return (
             <button
@@ -363,7 +370,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 <span className="font-mono text-[9px] font-black text-white/85">{isAtCap ? 'MAX' : flaskReady ? 'PICK' : `L${level + 1}`}</span>
               </div>
               <div className="relative mt-1 text-[9px] font-black uppercase leading-tight tracking-[0.08em] text-white sm:text-[10px]">
-                {config.shortTitle}
+                {shortTitle}
               </div>
               <div className="relative mt-1 h-1 overflow-hidden rounded-full bg-white/10">
                 <div

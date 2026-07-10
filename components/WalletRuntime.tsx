@@ -1,31 +1,28 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { getContract, sendAndConfirmTransaction } from 'thirdweb';
-import { getBalance, transfer } from 'thirdweb/extensions/erc20';
-import {
-  ThirdwebProvider,
-  useActiveAccount,
-  useActiveWallet,
-  useActiveWalletChain,
-  useConnectModal,
-  useDisconnect as useThirdwebDisconnect
-} from 'thirdweb/react';
-import type { Account } from 'thirdweb/wallets';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Address } from 'viem';
 import { DONATION_CONFIG, STORAGE_KEYS } from '../constants';
 import { DonationStatus, WalletSession } from '../types';
 import {
-  thirdwebAppMetadata,
-  thirdwebBaseChain,
-  thirdwebClient,
-  thirdwebConnectModal,
-  thirdwebRecommendedWallets,
-  thirdwebTheme,
-  thirdwebWallets
-} from '../services/thirdwebWallet';
+  baseAccountProvider,
+  connectBaseAccount,
+  disconnectBaseAccount,
+  getConnectedBaseAccount,
+  sendRscContinuePayment,
+  signBaseAccountMessage
+} from '../services/baseAccountWallet';
+import { associateRunWithWallet } from '../services/runClaimService';
+import type { RunReceipt } from '../services/runReceiptService';
+import { claimWeeklyChampionProposal } from '../services/weeklyClaimService';
+import type { ResearchHubProposal } from '../services/researchHubProposals';
+import { mintMissionRecord } from '../services/recordMintService';
 
-export type WalletRuntimeAction = {
-  nonce: number;
-  type: 'connect' | 'disconnect' | 'continue';
-};
+export type WalletRuntimeAction =
+  | { nonce: number; type: 'connect' }
+  | { nonce: number; type: 'disconnect' }
+  | { nonce: number; type: 'continue' }
+  | { nonce: number; type: 'claim-run'; receipt: RunReceipt }
+  | { nonce: number; type: 'claim-champion'; weekKey: string; proposal: ResearchHubProposal }
+  | { nonce: number; type: 'mint-mission'; receipt: RunReceipt };
 
 interface ContinueStatusUpdate {
   status: DonationStatus;
@@ -44,6 +41,9 @@ interface WalletRuntimeProps {
   onContinueSuccess: (transactionHash: string) => void;
   onWalletChange: (wallet: WalletSession) => void;
   onWalletError: (message: string) => void;
+  onRunClaimStatus: (status: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error', message?: string) => void;
+  onChampionClaimStatus: (status: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error', message?: string) => void;
+  onMissionMintStatus: (status: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error', message?: string, hash?: string) => void;
 }
 
 const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') => {
@@ -53,21 +53,14 @@ const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') 
     return fallback;
   }
 
-  if (/insufficient/i.test(message)) {
+  if (/insufficient|not enough/i.test(message)) {
     return `Not enough ${tokenLabel} or gas for that action.`;
   }
 
   return message;
 };
 
-const getInsufficientContinueTokenMessage = (
-  requiredAmount: number,
-  availableDisplayValue = '0'
-) => {
-  return `You need ${requiredAmount} RSC on Base to continue this run. Your wallet shows ${availableDisplayValue} RSC.`;
-};
-
-const WalletRuntimeController: React.FC<WalletRuntimeProps> = ({
+const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   action,
   continueCost,
   donatedWallets,
@@ -77,201 +70,180 @@ const WalletRuntimeController: React.FC<WalletRuntimeProps> = ({
   onContinueStatusChange,
   onContinueSuccess,
   onWalletChange,
-  onWalletError
+  onWalletError,
+  onRunClaimStatus,
+  onChampionClaimStatus,
+  onMissionMintStatus
 }) => {
-  const thirdwebAccount = useActiveAccount();
-  const thirdwebWallet = useActiveWallet();
-  const thirdwebChain = useActiveWalletChain();
-  const { connect: openThirdwebConnectModal, isConnecting: isThirdwebConnecting } = useConnectModal();
-  const { disconnect: disconnectThirdweb } = useThirdwebDisconnect();
-  const activeWalletAddress = thirdwebAccount?.address ?? null;
-  const activeWalletChainId = thirdwebChain?.id ?? null;
+  const [activeWalletAddress, setActiveWalletAddress] = useState<Address | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const wallet = useMemo<WalletSession>(() => ({
     address: activeWalletAddress,
-    chainId: activeWalletChainId,
-    status: activeWalletAddress ? 'connected' : isThirdwebConnecting ? 'connecting' : walletError ? 'error' : 'idle',
+    chainId: activeWalletAddress ? DONATION_CONFIG.BASE_CHAIN_ID : null,
+    status: activeWalletAddress ? 'connected' : isConnecting ? 'connecting' : walletError ? 'error' : 'idle',
     error: walletError,
-    connectorName: thirdwebWallet?.id,
+    connectorName: activeWalletAddress ? 'Base Account' : undefined,
     hasDonated: activeWalletAddress ? Boolean(donatedWallets[activeWalletAddress.toLowerCase()]) : false
-  }), [activeWalletAddress, activeWalletChainId, donatedWallets, isThirdwebConnecting, thirdwebWallet?.id, walletError]);
+  }), [activeWalletAddress, donatedWallets, isConnecting, walletError]);
 
   useEffect(() => {
     onWalletChange(wallet);
   }, [onWalletChange, wallet]);
 
-  const openThirdwebWallet = useCallback(async (): Promise<Account | null> => {
-    if (!thirdwebClient) {
-      const message = 'Add VITE_THIRDWEB_CLIENT_ID to enable the wallet connection.';
-      onWalletError(message);
-      return null;
-    }
-
-    try {
-      onWalletError('');
-      const connectedWallet = await openThirdwebConnectModal({
-        client: thirdwebClient,
-        wallets: thirdwebWallets,
-        recommendedWallets: thirdwebRecommendedWallets,
-        chain: thirdwebBaseChain,
-        appMetadata: thirdwebAppMetadata,
-        theme: thirdwebTheme,
-        ...thirdwebConnectModal
-      });
-
-      if (connectedWallet.getChain()?.id !== DONATION_CONFIG.BASE_CHAIN_ID) {
-        await connectedWallet.switchChain(thirdwebBaseChain);
+  useEffect(() => {
+    let active = true;
+    const handleAccountsChanged = (accounts: string[]) => {
+      if (active) {
+        setActiveWalletAddress((accounts[0] as Address | undefined) || null);
       }
+    };
 
-      const account = connectedWallet.getAccount();
-      if (!account) {
-        throw new Error('Wallet connected without an active account.');
-      }
+    void getConnectedBaseAccount()
+      .then((address) => {
+        if (active) setActiveWalletAddress(address);
+      })
+      .catch(() => undefined);
 
-      return account;
-    } catch (error: any) {
-      console.error('Wallet connection failed', error);
-      onWalletError(getUserFacingMessage(error, 'Wallet connection was cancelled.'));
-      return null;
-    }
-  }, [onWalletError, openThirdwebConnectModal]);
+    baseAccountProvider.on('accountsChanged', handleAccountsChanged);
+    return () => {
+      active = false;
+      baseAccountProvider.removeListener('accountsChanged', handleAccountsChanged);
+    };
+  }, []);
 
   const connectWallet = useCallback(async () => {
     if (activeWalletAddress) {
       onWalletError('');
-      return;
+      return activeWalletAddress;
     }
 
-    await openThirdwebWallet();
-  }, [activeWalletAddress, onWalletError, openThirdwebWallet]);
+    setIsConnecting(true);
+    try {
+      onWalletError('');
+      const address = await connectBaseAccount();
+      setActiveWalletAddress(address);
+      return address;
+    } catch (error: any) {
+      console.error('Base Account connection failed', error);
+      onWalletError(getUserFacingMessage(error, 'Base Account connection was cancelled.'));
+      return null;
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [activeWalletAddress, onWalletError]);
 
-  const disconnectWallet = useCallback(() => {
+  const disconnectWallet = useCallback(async () => {
     localStorage.removeItem(STORAGE_KEYS.WALLET_ADDRESS);
-    if (thirdwebWallet) {
-      disconnectThirdweb(thirdwebWallet);
-    }
+    await disconnectBaseAccount();
+    setActiveWalletAddress(null);
     onWalletError('');
-  }, [disconnectThirdweb, onWalletError, thirdwebWallet]);
+  }, [onWalletError]);
 
   const continueWithRsc = useCallback(async () => {
     if (isContinuePaymentBusy) return;
 
-    if (!thirdwebClient) {
+    const address = activeWalletAddress || await connectWallet();
+    if (!address) {
       onContinueStatusChange({
         status: 'error',
-        error: 'Add VITE_THIRDWEB_CLIENT_ID to enable RSC continues.'
+        error: 'Connect a Base Account before continuing this run.'
       });
       return;
     }
-
-    let account = thirdwebAccount;
-    if (!account) {
-      onContinueStatusChange({ status: 'processing', error: '', hash: '' });
-      account = await openThirdwebWallet();
-    }
-
-    if (!account) {
-      onContinueStatusChange({
-        status: 'error',
-        error: 'Connect a wallet before continuing this run.'
-      });
-      return;
-    }
-
-    const tokenChain = thirdwebBaseChain;
-    const tokenLabel = 'RSC';
 
     try {
-      if (thirdwebWallet && thirdwebWallet.getChain()?.id !== tokenChain.id) {
-        onContinueStatusChange({ status: 'switching_network' });
-        await thirdwebWallet.switchChain(tokenChain);
-      }
-
-      onContinueStatusChange({ status: 'processing', error: '', hash: '' });
-
-      const rscTokenContract = getContract({
-        client: thirdwebClient,
-        chain: tokenChain,
-        address: DONATION_CONFIG.RSC_CONTRACT_ADDRESS as `0x${string}`
+      onContinueStatusChange({ status: 'confirming', error: '', hash: '' });
+      const transactionHash = await sendRscContinuePayment({
+        from: address,
+        amount: continueCost
       });
-
-      let balanceDisplayValue = '0';
-      try {
-        const balance = await getBalance({
-          contract: rscTokenContract,
-          address: account.address
-        });
-        balanceDisplayValue = balance.displayValue;
-        const availableBalance = Number(balance.displayValue);
-
-        if (Number.isFinite(availableBalance) && availableBalance + 0.000000001 < continueCost) {
-          throw new Error(getInsufficientContinueTokenMessage(continueCost, balanceDisplayValue));
-        }
-      } catch (error: any) {
-        const message = error?.message || '';
-        if (message.includes('continue this run')) {
-          throw error;
-        }
-
-        console.warn(`${tokenLabel} balance preflight failed; continuing to wallet confirmation.`, error);
-      }
-
-      const transaction = transfer({
-        contract: rscTokenContract,
-        to: DONATION_CONFIG.RECIPIENT_ADDRESS,
-        amount: continueCost.toString()
-      });
-
-      onContinueStatusChange({ status: 'confirming' });
-      const receipt = await sendAndConfirmTransaction({ account, transaction });
-      onContinueSuccess(receipt.transactionHash || '');
+      onContinueSuccess(transactionHash);
     } catch (error: any) {
-      const message = getUserFacingMessage(error, `${tokenLabel} continue payment was cancelled.`, tokenLabel);
-      onContinueStatusChange({ status: 'error', error: message });
+      onContinueStatusChange({
+        status: 'error',
+        error: getUserFacingMessage(error, 'RSC continue payment was cancelled.')
+      });
     }
-  }, [
-    continueCost,
-    isContinuePaymentBusy,
-    onContinueStatusChange,
-    onContinueSuccess,
-    openThirdwebWallet,
-    thirdwebAccount,
-    thirdwebWallet
-  ]);
+  }, [activeWalletAddress, connectWallet, continueCost, isContinuePaymentBusy, onContinueStatusChange, onContinueSuccess]);
+
+  const claimRun = useCallback(async (receipt: RunReceipt) => {
+    onRunClaimStatus('connecting');
+    const address = activeWalletAddress || await connectWallet();
+    if (!address) {
+      onRunClaimStatus('error', 'Connect a Base Account to attach this run.');
+      return;
+    }
+
+    try {
+      onRunClaimStatus('signing');
+      await associateRunWithWallet({ address, receipt, signMessage: signBaseAccountMessage });
+      onRunClaimStatus('confirmed');
+    } catch (error: any) {
+      onRunClaimStatus('error', getUserFacingMessage(error, 'Run association was cancelled.'));
+    }
+  }, [activeWalletAddress, connectWallet, onRunClaimStatus]);
+
+  const claimChampion = useCallback(async (weekKey: string, proposal: ResearchHubProposal) => {
+    onChampionClaimStatus('connecting');
+    const address = activeWalletAddress || await connectWallet();
+    if (!address) {
+      onChampionClaimStatus('error', 'Connect the Base Account associated with the winning run.');
+      return;
+    }
+    try {
+      onChampionClaimStatus('signing');
+      await claimWeeklyChampionProposal({ weekKey, proposal, address, signMessage: signBaseAccountMessage });
+      onChampionClaimStatus('confirmed');
+    } catch (error: any) {
+      onChampionClaimStatus('error', getUserFacingMessage(error, 'Champion claim was cancelled.'));
+    }
+  }, [activeWalletAddress, connectWallet, onChampionClaimStatus]);
+
+  const mintMission = useCallback(async (receipt: RunReceipt) => {
+    const address = activeWalletAddress || await connectWallet();
+    if (!address) {
+      onMissionMintStatus('error', 'Connect the Base Account attached to this run.');
+      return;
+    }
+    try {
+      onMissionMintStatus('authorizing');
+      const result = await mintMissionRecord({ address, receipt });
+      onMissionMintStatus('confirmed', '', result.transactionHash);
+    } catch (error: any) {
+      onMissionMintStatus('error', getUserFacingMessage(error, 'Mission Record mint was cancelled.'));
+    }
+  }, [activeWalletAddress, connectWallet, onMissionMintStatus]);
 
   useEffect(() => {
     if (!action) return;
 
     let cancelled = false;
-
     const runAction = async () => {
       if (action.type === 'connect') {
         await connectWallet();
       } else if (action.type === 'disconnect') {
-        disconnectWallet();
-      } else {
+        await disconnectWallet();
+      } else if (action.type === 'continue') {
         await continueWithRsc();
+      } else if (action.type === 'claim-run') {
+        await claimRun(action.receipt);
+      } else if (action.type === 'claim-champion') {
+        await claimChampion(action.weekKey, action.proposal);
+      } else {
+        await mintMission(action.receipt);
       }
 
-      if (!cancelled) {
-        onActionHandled(action.nonce);
-      }
+      if (!cancelled) onActionHandled(action.nonce);
     };
 
     void runAction();
-
     return () => {
       cancelled = true;
     };
-  }, [action, connectWallet, continueWithRsc, disconnectWallet, onActionHandled]);
+  }, [action, claimChampion, claimRun, connectWallet, continueWithRsc, disconnectWallet, mintMission, onActionHandled]);
 
   return null;
 };
-
-const WalletRuntime: React.FC<WalletRuntimeProps> = (props) => (
-  <ThirdwebProvider>
-    <WalletRuntimeController {...props} />
-  </ThirdwebProvider>
-);
 
 export default WalletRuntime;

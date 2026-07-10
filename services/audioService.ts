@@ -18,7 +18,7 @@ class AudioService {
         this.masterGain = this.ctx.createGain();
         this.masterGain.connect(this.ctx.destination);
       }
-    } catch (e) {
+    } catch {
       console.error("WebAudio not supported");
     }
   }

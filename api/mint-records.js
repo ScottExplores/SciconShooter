@@ -1,0 +1,52 @@
+const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
+
+const MINTS_TABLE = process.env.SUPABASE_MINT_RECORDS_TABLE || 'scicon_mint_records';
+const sendJson = (res, status, payload) => {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(payload));
+};
+const addressPattern = /^0x[a-f0-9]{40}$/i;
+const hashPattern = /^0x[a-f0-9]{64}$/i;
+
+module.exports = async (req, res) => {
+  try {
+    if (req.method === 'GET') {
+      const wallet = String(req.query?.wallet || '').toLowerCase();
+      if (!addressPattern.test(wallet)) return sendJson(res, 400, { error: 'Valid wallet is required' });
+      const rows = await fetchSupabaseJson(`${MINTS_TABLE}?select=record_type,run_id,week_key,wallet_address,chain_id,token_id,transaction_hash,status,sponsored,created_at,confirmed_at&wallet_address=eq.${wallet}&order=created_at.desc&limit=50`, {
+        headers: supabaseHeaders()
+      });
+      return sendJson(res, 200, { records: Array.isArray(rows) ? rows : [] });
+    }
+    if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    if (body.action !== 'confirm' || body.recordType !== 'mission' || !body.runId || !addressPattern.test(body.address || '') || !hashPattern.test(body.transactionHash || '')) {
+      return sendJson(res, 400, { error: 'Mint confirmation details are invalid' });
+    }
+    const contractAddress = process.env.MISSION_RECORD_CONTRACT_ADDRESS?.toLowerCase();
+    if (!addressPattern.test(contractAddress || '')) return sendJson(res, 503, { error: 'Mission Record contract is not configured' });
+    const { createPublicClient, http } = await import('viem');
+    const { baseSepolia } = await import('viem/chains');
+    const client = createPublicClient({
+      chain: baseSepolia,
+      transport: http(process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org')
+    });
+    const [transaction, receipt] = await Promise.all([
+      client.getTransaction({ hash: body.transactionHash }),
+      client.getTransactionReceipt({ hash: body.transactionHash })
+    ]);
+    if (transaction.to?.toLowerCase() !== contractAddress || receipt.status !== 'success') {
+      return sendJson(res, 409, { error: 'The Mission Record transaction is not confirmed on the configured contract' });
+    }
+    await fetchSupabaseJson(`${MINTS_TABLE}?record_type=eq.mission&run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=eq.${body.address.toLowerCase()}`, {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+      body: JSON.stringify({ status: 'confirmed', transaction_hash: body.transactionHash, confirmed_at: new Date().toISOString(), sponsored: Boolean(body.sponsored) })
+    });
+    return sendJson(res, 200, { confirmed: true, transactionHash: body.transactionHash });
+  } catch (error) {
+    console.error('Mint confirmation failed:', error);
+    return sendJson(res, 500, { error: error.message || 'Mint confirmation failed' });
+  }
+};

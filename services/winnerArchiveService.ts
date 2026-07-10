@@ -1,6 +1,6 @@
 import { ArchivedWinner } from '../types';
 
-const WINNERS_API_URL = (import.meta.env.VITE_MONTHLY_WINNERS_API_URL as string | undefined)?.trim() || '/api/monthly-winners';
+const WINNERS_API_URL = (import.meta.env.VITE_WEEKLY_COMPETITIONS_API_URL as string | undefined)?.trim() || '/api/weekly-competitions';
 
 type RawWinner = Record<string, any>;
 
@@ -23,9 +23,9 @@ const safeUrl = (value: unknown) => {
 };
 
 const formatPeriodLabel = (winner: RawWinner) => {
-  const periodStart = asString(winner.month_start);
-  const periodEnd = asString(winner.month_end);
-  const periodKey = asString(winner.month_key, 20);
+  const periodStart = asString(winner.starts_at);
+  const periodEnd = asString(winner.ends_at);
+  const periodKey = asString(winner.week_key, 20);
 
   if (!periodStart) return periodKey || 'Past pick';
 
@@ -42,21 +42,27 @@ const formatPeriodLabel = (winner: RawWinner) => {
 
 const normalizeWinner = (winner: RawWinner): ArchivedWinner | null => {
   const winnerName = asString(winner.winner_name, 15);
-  const score = asNumber(winner.score);
+  const score = asNumber(winner.winning_score);
   if (!winnerName || typeof score !== 'number') return null;
 
   return {
-    periodKey: asString(winner.month_key, 20) || asString(winner.id, 20) || `${winnerName}-${score}`,
+    periodKey: asString(winner.week_key, 20) || asString(winner.id, 20) || `${winnerName}-${score}`,
     periodLabel: formatPeriodLabel(winner),
     winnerName: winnerName.toUpperCase(),
     score: Math.max(0, Math.floor(score)),
-    wave: Math.max(1, Math.floor(asNumber(winner.wave) || 1)),
-    scoreDate: asString(winner.score_date),
+    wave: Math.max(1, Math.floor(asNumber(winner.winning_wave) || 1)),
+    scoreDate: asString(winner.finalized_at),
     proposalId: asString(winner.proposal_id, 80),
     proposalTitle: asString(winner.proposal_title, 180),
     proposalUrl: safeUrl(winner.proposal_url),
     proposalAuthor: asString(winner.proposal_author, 100),
-    allocationRsc: Math.max(0, Math.floor(asNumber(winner.allocation_rsc) || 100))
+    allocationRsc: Math.max(0, Math.floor(asNumber(winner.allocation_rsc) || 100)),
+    status: asString(winner.status, 20) as ArchivedWinner['status'],
+    claimDeadline: asString(winner.claim_deadline),
+    allocationTxHash: asString(winner.allocation_tx_hash, 100),
+    championTokenId: asString(winner.champion_token_id, 100),
+    winnerWallet: asString(winner.winner_wallet, 80),
+    winnerRunId: asString(winner.winner_run_id, 80)
   };
 };
 
@@ -69,7 +75,7 @@ export const getArchivedWeeklyWinners = async (): Promise<ArchivedWinner[]> => {
     if (!response.ok) return [];
 
     const payload = await response.json();
-    const winners = Array.isArray(payload?.winners) ? payload.winners : [];
+    const winners = Array.isArray(payload?.competitions) ? payload.competitions : [];
 
     return winners
       .filter((winner): winner is RawWinner => Boolean(winner) && typeof winner === 'object' && !Array.isArray(winner))
