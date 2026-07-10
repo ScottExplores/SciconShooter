@@ -1,7 +1,7 @@
 const {
   fetchSupabaseJson,
   supabaseHeaders
-} = require('./_lib/supabase');
+} = require('./supabase');
 
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';

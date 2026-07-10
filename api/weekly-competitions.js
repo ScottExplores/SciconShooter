@@ -4,7 +4,7 @@ const {
   parseBody,
   readWeeklyCompetitions,
   sendJson
-} = require('./weeklyCompetitionService');
+} = require('./_lib/weeklyCompetitionService');
 
 module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});

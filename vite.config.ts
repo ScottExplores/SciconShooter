@@ -4,7 +4,6 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const leaderboardHandler = require('./api/leaderboard.js');
-const monthlyWinnersHandler = require('./api/monthly-winners.js');
 const researchHubProposalsHandler = require('./api/researchhub-proposals.js');
 const runReceiptsHandler = require('./api/run-receipts.js');
 const weeklyCompetitionsHandler = require('./api/weekly-competitions.js');
@@ -55,7 +54,6 @@ const localApiRoutes = () => ({
     };
 
     mount('/api/leaderboard', leaderboardHandler);
-    mount('/api/monthly-winners', monthlyWinnersHandler);
     mount('/api/researchhub-proposals', researchHubProposalsHandler);
     mount('/api/run-receipts', runReceiptsHandler);
     mount('/api/weekly-competitions', weeklyCompetitionsHandler);

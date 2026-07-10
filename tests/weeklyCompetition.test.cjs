@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { finalizeWeeklyCompetition, getPreviousWeekKey } = require('../api/weeklyCompetitionService');
+const { finalizeWeeklyCompetition, getPreviousWeekKey } = require('../api/_lib/weeklyCompetitionService');
 
 test('weekly competition keys use Monday UTC boundaries', () => {
   assert.equal(getPreviousWeekKey(new Date('2026-07-09T18:00:00.000Z')), '2026-06-29');

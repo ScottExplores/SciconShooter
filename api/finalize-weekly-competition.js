@@ -3,7 +3,7 @@ const {
   getPreviousWeekKey,
   isAuthorized,
   sendJson
-} = require('./weeklyCompetitionService');
+} = require('./_lib/weeklyCompetitionService');
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET' && req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
