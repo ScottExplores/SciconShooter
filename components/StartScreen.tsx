@@ -396,8 +396,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const pilotLevel = Math.max(1, Math.min(12, Math.floor(topPilotScore / 1000) + 1));
   const weeklyLeaderName = leaderboardName(weeklyLeader);
   const weeklyLeaderScore = leaderboardScore(weeklyLeader);
-  const weeklyFundingTitle = 'Champion choice opens after cutoff';
-  const weeklyFundingAuthor = `${sortedProposals.length} eligible proposal${sortedProposals.length === 1 ? '' : 's'}`;
+  const weeklyProposalPreview = sortedProposals[0];
+  const weeklyFundingTitle = weeklyProposalPreview?.title ?? 'Champion choice opens after cutoff';
+  const weeklyFundingAuthor = weeklyProposalPreview
+    ? `${sortedProposals.length} eligible - champion picks after cutoff`
+    : `${sortedProposals.length} eligible proposal${sortedProposals.length === 1 ? '' : 's'}`;
   const weeklyFundingProgress = clampPercent(((7 - weeklyAllocation.daysLeft) / 7) * 100);
   const copyTextWithFallback = async (text: string) => {
     if (navigator.clipboard?.writeText) {
@@ -588,6 +591,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <div className="relative z-10 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-3">
               <div className="sci-weekly-project-image relative flex aspect-square items-center justify-center overflow-hidden rounded-[8px] border border-cyan-200/25 bg-cyan-300/10">
                 <img src={ASSETS.PLAYER_SHIP} alt="" className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.7)]" />
+                {weeklyProposalPreview?.imageUrl ? (
+                  <img
+                    src={weeklyProposalPreview.imageUrl}
+                    alt={`${weeklyProposalPreview.title} proposal preview`}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                  />
+                ) : null}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-cyan-200/10" />
                 <div className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-[6px] border border-emerald-200/45 bg-slate-950/85 text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,0.38)]">
                   <Icon name="trophy" className="h-4 w-4" />
