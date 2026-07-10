@@ -10,6 +10,7 @@ interface MissionRecordPreviewProps {
   runClaimStatus: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error';
   runClaimMessage?: string;
   mintConfigured: boolean;
+  mintChainId: number;
   mintStatus: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error';
   mintMessage?: string;
   mintHash?: string;
@@ -29,6 +30,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   runClaimStatus,
   runClaimMessage,
   mintConfigured,
+  mintChainId,
   mintStatus,
   mintMessage,
   mintHash,
@@ -46,6 +48,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
     : 'Verified run';
   const recordUrl = `${window.location.origin}/?record=${encodeURIComponent(receipt.runId)}`;
   const cardUrl = `${window.location.origin}/api/record-card?runId=${encodeURIComponent(receipt.runId)}`;
+  const explorerUrl = mintChainId === 8453 ? 'https://basescan.org' : 'https://sepolia.basescan.org';
 
   const shareRecord = async () => {
     const text = `${pilotName} scored ${receipt.metrics.score.toLocaleString()} in Scicon Shooter and reached wave ${receipt.metrics.wave}. Play. Win the week. Choose what research gets funded.`;
@@ -77,7 +80,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
         <div className="relative border-b border-cyan-200/15 px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-cyan-300">Mission Record Preview</p>
+              <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-cyan-300">Score Record Preview</p>
               <h2 className="arcade-font mt-1 text-xl font-black uppercase tracking-widest text-white">Run #{receipt.runId.slice(0, 8)}</h2>
             </div>
             <button type="button" onClick={onClose} aria-label="Close mission record" className="h-9 w-9 rounded-[6px] border border-white/12 bg-white/5 text-lg text-slate-300 transition hover:border-cyan-200/40 hover:text-white">x</button>
@@ -111,7 +114,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
           </div>
 
           <div className="mt-4 rounded-[8px] border border-emerald-200/15 bg-emerald-300/8 px-3 py-2 text-[10px] font-semibold leading-relaxed text-emerald-50/80">
-            This collectible records one run. It does not claim weekly-champion status or say that research funding was directed.
+            Global score submission stays free and wallet-optional. This collectible records one run; only a finalized Champion Record can include a selected research proposal.
           </div>
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -122,12 +125,12 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
               </button>
             ) : (
               <button type="button" onClick={onMint} disabled={!mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
-                {mintStatus === 'confirmed' ? 'Mission Record minted' : mintStatus === 'authorizing' || mintStatus === 'confirming' ? 'Confirm in Base Account' : mintConfigured ? 'Mint score' : 'Mint setup awaiting approval'}
+                {mintStatus === 'confirmed' ? 'Score Record minted' : mintStatus === 'authorizing' || mintStatus === 'confirming' ? 'Confirm in Base Account' : mintConfigured ? 'Mint score' : 'Mint setup awaiting approval'}
               </button>
             )}
           </div>
           {shareStatus || runClaimMessage || mintMessage ? <p className="mt-3 text-center text-[10px] font-semibold text-slate-400">{mintMessage || runClaimMessage || shareStatus}</p> : null}
-          {mintHash ? <a href={`https://sepolia.basescan.org/tx/${mintHash}`} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200 underline underline-offset-2">View Mission Record transaction</a> : null}
+          {mintHash ? <a href={`${explorerUrl}/tx/${mintHash}`} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200 underline underline-offset-2">View Score Record transaction</a> : null}
         </div>
       </div>
     </div>

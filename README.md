@@ -79,16 +79,17 @@ Server-only variables:
 - `WEEKLY_CHAMPION_WEBHOOK_URL` (optional)
 - `BASE_DASHBOARD_API_KEY` (Base app notification API key, server only)
 - `BASE_APP_URL` (defaults to `https://www.sciconshooter.xyz`)
-- `MISSION_RECORD_CONTRACT_ADDRESS` (after approved Sepolia deployment)
-- `MISSION_RECORD_CHAIN_ID` (defaults to Base Sepolia `84532`)
+- `MISSION_RECORD_CONTRACT_ADDRESS` (after an approved Base deployment)
+- `MISSION_RECORD_CHAIN_ID` (defaults to Base mainnet `8453`; use `84532` for Base Sepolia)
 - `MINT_AUTHORIZER_PRIVATE_KEY` (server only)
-- `BASE_SEPOLIA_RPC_URL` (optional)
+- `BASE_RPC_URL` or `BASE_SEPOLIA_RPC_URL` for the configured chain (optional)
 
 Browser-safe variables:
 
 - `VITE_LEADERBOARD_API_URL` (optional)
 - `VITE_WEEKLY_COMPETITIONS_API_URL` (optional)
 - `VITE_MISSION_RECORD_CONTRACT_ADDRESS` (after deployment)
+- `VITE_MISSION_RECORD_CHAIN_ID` (must match the deployed contract chain)
 - `VITE_PAYMASTER_PROXY_URL` (optional proxy URL only; never put provider credentials in frontend variables)
 
 Never expose Supabase service keys, authorizer keys, paymaster credentials, or cron/admin secrets with a `VITE_` prefix.

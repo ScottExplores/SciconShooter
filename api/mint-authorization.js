@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
     const receipt = verifyRunReceipt(body.receiptToken);
     const contractAddress = normalizeAddress(process.env.MISSION_RECORD_CONTRACT_ADDRESS);
     const privateKey = process.env.MINT_AUTHORIZER_PRIVATE_KEY;
-    const chainId = Number(process.env.MISSION_RECORD_CHAIN_ID || 84532);
+    const chainId = Number(process.env.MISSION_RECORD_CHAIN_ID || 8453);
     if (!contractAddress || !/^0x[a-fA-F0-9]{64}$/.test(privateKey || '')) {
       return sendJson(res, 503, { error: 'Base minting is prepared but the record contract is not configured.' });
     }

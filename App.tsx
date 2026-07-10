@@ -874,6 +874,7 @@ const App: React.FC = () => {
     });
   };
 
+  const missionRecordChainId = Number(import.meta.env.VITE_MISSION_RECORD_CHAIN_ID || 8453);
   const mintConfigured = Boolean((import.meta.env.VITE_MISSION_RECORD_CONTRACT_ADDRESS as string | undefined)?.trim());
 
   const mintCurrentMissionRecord = () => {
@@ -890,7 +891,9 @@ const App: React.FC = () => {
     setMissionMintStatus(status);
     setMissionMintMessage(message);
     if (hash) setMissionMintHash(hash);
-    if (status === 'confirmed') trackEvent('mission_record_minted', { chain: 'base_sepolia' });
+    if (status === 'confirmed') trackEvent('mission_record_minted', {
+      chain: missionRecordChainId === 8453 ? 'base' : 'base_sepolia'
+    });
   };
 
   const skipScoreSubmission = () => {
@@ -1210,9 +1213,9 @@ const App: React.FC = () => {
                   ) : null}
                   <div className={`rounded-[8px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] ${runReceiptStatus === 'ready' ? 'border-emerald-200/25 bg-emerald-300/10 text-emerald-100' : runReceiptStatus === 'local' || runReceiptStatus === 'error' ? 'border-amber-200/25 bg-amber-300/10 text-amber-100' : 'border-cyan-200/20 bg-cyan-300/8 text-cyan-100'}`}>
                     {runReceiptStatus === 'ready'
-                      ? 'Run receipt verified'
+                      ? 'Guest global score verification ready'
                       : runReceiptStatus === 'local' || runReceiptStatus === 'error'
-                        ? 'Local record only - global submission unavailable'
+                        ? 'Network verification unavailable - this run is saved on this device only'
                         : 'Verifying run receipt...'}
                   </div>
                   {continueRunControls}
@@ -1260,9 +1263,9 @@ const App: React.FC = () => {
                   <div className="space-y-3 pt-2">
                     {runReceipt && runReceipt.integrity !== 'local-unverified' ? (
                       <div className="rounded-[8px] border border-cyan-200/20 bg-cyan-300/8 p-3 text-left">
-                        <p className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200">Mission Record</p>
+                        <p className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200">Optional Score Record</p>
                         <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-300">
-                          This verified run can be attached to a Base Account for optional score minting. It does not claim weekly-winner status.
+                          Your leaderboard score is already global without a wallet. Connect a Base Account only if you want to mint this verified run.
                         </p>
                         <button
                           type="button"
@@ -1272,7 +1275,7 @@ const App: React.FC = () => {
                           }}
                           className="mt-3 w-full rounded-[8px] border border-cyan-100/35 bg-cyan-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/25 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          Preview Mission Record
+                          Preview Score Record
                         </button>
                         {runClaimMessage ? <p className="mt-2 text-center text-[10px] font-semibold text-red-200">{runClaimMessage}</p> : null}
                       </div>
@@ -1378,6 +1381,7 @@ const App: React.FC = () => {
             runClaimStatus={runClaimStatus}
             runClaimMessage={runClaimMessage}
             mintConfigured={mintConfigured}
+            mintChainId={missionRecordChainId}
             mintStatus={missionMintStatus}
             mintMessage={missionMintMessage}
             mintHash={missionMintHash}

@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
     if (!addressPattern.test(contractAddress || '')) return sendJson(res, 503, { error: 'Mission Record contract is not configured' });
     const { createPublicClient, http } = await import('viem');
     const { base, baseSepolia } = await import('viem/chains');
-    const chainId = Number(process.env.MISSION_RECORD_CHAIN_ID || 84532);
+    const chainId = Number(process.env.MISSION_RECORD_CHAIN_ID || 8453);
     const chain = chainId === 8453 ? base : baseSepolia;
     const client = createPublicClient({
       chain,
