@@ -27,3 +27,4 @@ tmp/
 *.sln
 *.sw?
 Legacy Collection/
+.vercel

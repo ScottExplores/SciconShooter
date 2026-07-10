@@ -206,7 +206,7 @@ const readSupabaseScores = async () => {
 };
 
 const insertSupabaseRows = async (rows) => {
-  const response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=run_id`), {
+  let response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=run_id`), {
     method: 'POST',
     headers: supabaseHeaders({
       Prefer: 'resolution=merge-duplicates,return=minimal'
@@ -216,7 +216,30 @@ const insertSupabaseRows = async (rows) => {
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(`Supabase leaderboard save failed with ${response.status}: ${details}`);
+    if (!isMissingProposalColumnError(new Error(details))) {
+      throw new Error(`Supabase leaderboard save failed with ${response.status}: ${details}`);
+    }
+    const legacyRows = rows.map((row) => ({
+      name: row.name,
+      score: row.score,
+      wave: row.wave,
+      date: row.date,
+      wallet_address: row.wallet_address,
+      donated: row.donated,
+      proposal_id: row.proposal_id,
+      proposal_title: row.proposal_title,
+      proposal_url: row.proposal_url,
+      proposal_author: row.proposal_author
+    }));
+    response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=name,score,wave,date`), {
+      method: 'POST',
+      headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+      body: JSON.stringify(legacyRows)
+    });
+    if (!response.ok) {
+      const legacyDetails = await response.text();
+      throw new Error(`Legacy leaderboard save failed with ${response.status}: ${legacyDetails}`);
+    }
   }
 };
 
@@ -237,6 +260,7 @@ const hasSubmittedRun = async (runId) => {
   });
   if (!response.ok) {
     const details = await response.text();
+    if (isMissingProposalColumnError(new Error(details))) return false;
     throw new Error(`Run replay check failed with ${response.status}: ${details}`);
   }
   const rows = await response.json();

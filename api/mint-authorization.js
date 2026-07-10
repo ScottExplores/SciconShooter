@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
     const privateKey = process.env.MINT_AUTHORIZER_PRIVATE_KEY;
     const chainId = Number(process.env.MISSION_RECORD_CHAIN_ID || 84532);
     if (!contractAddress || !/^0x[a-fA-F0-9]{64}$/.test(privateKey || '')) {
-      return sendJson(res, 503, { error: 'Base Sepolia minting is prepared but not deployed.' });
+      return sendJson(res, 503, { error: 'Base minting is prepared but the record contract is not configured.' });
     }
 
     const receiptRows = await fetchSupabaseJson(`${RECEIPTS_TABLE}?select=*&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {

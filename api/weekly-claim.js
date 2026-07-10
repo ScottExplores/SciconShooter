@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
+const { sendBaseNotificationBroadcast } = require('./_lib/baseNotifications');
 
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
@@ -101,6 +102,11 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
       })
     })
   ]);
+  await sendBaseNotificationBroadcast({
+    title: 'Research pick selected',
+    message: `${competition.winner_name || 'The weekly champion'} selected ${proposal.title} for the ${competition.allocation_rsc || 100} RSC allocation.`,
+    targetPath: '/?view=trophies'
+  }).catch((error) => console.error('Base proposal notification failed:', error));
   return { weekKey, walletAddress: wallet, proposal, status: 'claimed', claimedAt: now };
 };
 

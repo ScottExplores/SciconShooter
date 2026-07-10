@@ -79,3 +79,38 @@ test('leaderboard rejects a replayed run ID', async () => {
     global.fetch = originalFetch;
   }
 });
+
+test('leaderboard saves a verified receipt through the legacy schema fallback', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  let legacyWrite;
+  const legacyRow = {
+    name: 'GUEST', score: 4321, wave: 4, date: new Date().toISOString(),
+    wallet_address: null, donated: false
+  };
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (value.includes('select=run_id&run_id=eq.')) return jsonResponse({ message: 'column run_id does not exist' }, 400);
+    if (options.method === 'POST') {
+      const rows = JSON.parse(options.body);
+      if (Object.hasOwn(rows[0], 'run_id')) return jsonResponse({ message: 'column run_id does not exist' }, 400);
+      legacyWrite = rows[0];
+      return jsonResponse(null, 204);
+    }
+    if (value.includes('run_id,verified,receipt_hash')) return jsonResponse({ message: 'column run_id does not exist' }, 400);
+    return jsonResponse([legacyRow]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST', body: { name: 'guest', receiptToken: makeReceipt(runId) }, headers: {}, socket: { remoteAddress: '127.0.0.1' }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.scores[0].score, 4321);
+    assert.equal(legacyWrite.name, 'GUEST');
+    assert.equal(Object.hasOwn(legacyWrite, 'run_id'), false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

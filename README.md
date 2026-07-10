@@ -77,6 +77,8 @@ Server-only variables:
 - `CRON_SECRET`
 - `ADMIN_SECRET` (optional manual competition finalization)
 - `WEEKLY_CHAMPION_WEBHOOK_URL` (optional)
+- `BASE_DASHBOARD_API_KEY` (Base app notification API key, server only)
+- `BASE_APP_URL` (defaults to `https://www.sciconshooter.xyz`)
 - `MISSION_RECORD_CONTRACT_ADDRESS` (after approved Sepolia deployment)
 - `MISSION_RECORD_CHAIN_ID` (defaults to Base Sepolia `84532`)
 - `MINT_AUTHORIZER_PRIVATE_KEY` (server only)
@@ -103,7 +105,7 @@ Run `supabase/leaderboard.sql` for the legacy leaderboard base, then apply `supa
 - Anonymous product events
 - Resilient proposal caching
 
-The old monthly archive endpoints remain only for migration compatibility. The active product flow uses `/api/weekly-competitions` and Monday's `/api/finalize-weekly-competition` cron.
+The active product flow uses `/api/weekly-competitions` and Monday's `/api/finalize-weekly-competition` cron. When `BASE_DASHBOARD_API_KEY` is configured, finalized-champion and proposal-selection events notify users who pinned the app and opted in through Base.
 
 ## Deployment and workflow
 

@@ -44,18 +44,27 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   const dateLabel = Number.isFinite(finished.getTime())
     ? finished.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
     : 'Verified run';
+  const recordUrl = `${window.location.origin}/?record=${encodeURIComponent(receipt.runId)}`;
+  const cardUrl = `${window.location.origin}/api/record-card?runId=${encodeURIComponent(receipt.runId)}`;
 
   const shareRecord = async () => {
     const text = `${pilotName} scored ${receipt.metrics.score.toLocaleString()} in Scicon Shooter and reached wave ${receipt.metrics.wave}. Play. Win the week. Choose what research gets funded.`;
-    const url = window.location.origin;
     try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Scicon Shooter Mission Record', text, url });
+      const cardResponse = await fetch(cardUrl, { headers: { Accept: 'image/svg+xml' } });
+      const cardBlob = cardResponse.ok ? await cardResponse.blob() : null;
+      const cardFile = cardBlob
+        ? new File([cardBlob], `scicon-score-${receipt.metrics.score}.svg`, { type: 'image/svg+xml' })
+        : null;
+      const files = cardFile ? [cardFile] : [];
+      if (navigator.share && cardFile && navigator.canShare?.({ files })) {
+        await navigator.share({ title: 'Scicon Shooter Mission Record', text, url: recordUrl, files });
+      } else if (navigator.share) {
+        await navigator.share({ title: 'Scicon Shooter Mission Record', text, url: recordUrl });
       } else {
-        await navigator.clipboard.writeText(`${text} ${url}`);
-        setShareStatus('Share text copied');
+        await navigator.clipboard.writeText(`${text} ${recordUrl} Score card: ${cardUrl}`);
+        setShareStatus('Score card link copied');
       }
-      trackEvent('share_action_used', { record_type: 'mission', method: navigator.share ? 'native' : 'clipboard' });
+      trackEvent('share_action_used', { record_type: 'mission', method: navigator.share ? (cardFile ? 'native_file' : 'native') : 'clipboard' });
     } catch (error: any) {
       if (!/abort|cancel/i.test(error?.message || '')) setShareStatus('Share is unavailable');
     }
@@ -106,14 +115,14 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
           </div>
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <button type="button" onClick={() => void shareRecord()} className="rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share record</button>
+            <button type="button" onClick={() => void shareRecord()} className="rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share score card</button>
             {runClaimStatus !== 'confirmed' ? (
               <button type="button" onClick={onAttachWallet} disabled={runClaimStatus === 'connecting' || runClaimStatus === 'signing'} className="rounded-[8px] border border-emerald-100/30 bg-emerald-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-emerald-50 transition hover:bg-emerald-300/25 disabled:opacity-60">
                 {runClaimStatus === 'signing' ? 'Sign message' : runClaimStatus === 'connecting' ? 'Connecting...' : 'Attach Base Account'}
               </button>
             ) : (
               <button type="button" onClick={onMint} disabled={!mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
-                {mintStatus === 'confirmed' ? 'Mission Record minted' : mintStatus === 'authorizing' || mintStatus === 'confirming' ? 'Confirm in Base Account' : mintConfigured ? 'Mint score' : 'Sepolia mint awaiting approval'}
+                {mintStatus === 'confirmed' ? 'Mission Record minted' : mintStatus === 'authorizing' || mintStatus === 'confirming' ? 'Confirm in Base Account' : mintConfigured ? 'Mint score' : 'Mint setup awaiting approval'}
               </button>
             )}
           </div>

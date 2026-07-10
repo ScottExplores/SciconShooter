@@ -125,12 +125,17 @@ const saveReceipt = async (receipt, req) => {
     receipt_hash: receiptHash
   };
 
-  await fetchSupabaseJson(`${RUN_RECEIPTS_TABLE}?on_conflict=run_id`, {
-    method: 'POST',
-    headers: supabaseHeaders({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
-    body: JSON.stringify(row)
-  });
-  return true;
+  try {
+    await fetchSupabaseJson(`${RUN_RECEIPTS_TABLE}?on_conflict=run_id`, {
+      method: 'POST',
+      headers: supabaseHeaders({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+      body: JSON.stringify(row)
+    });
+    return true;
+  } catch (error) {
+    if (/PGRST205|schema cache|Could not find the table/i.test(error.message || '')) return false;
+    throw error;
+  }
 };
 
 const finishRun = async (startToken, rawMetrics, req) => {

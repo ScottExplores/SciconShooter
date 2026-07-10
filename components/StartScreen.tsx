@@ -903,6 +903,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="sci-market-card">
+            <Icon name="base" className="h-8 w-8 text-blue-200" />
+            <span>
+              <strong>Base app alerts</strong>
+              <small>Pin Scicon Shooter in the Base app and enable notifications for weekly champion and research-pick updates.</small>
+            </span>
+          </div>
           <button type="button" onClick={() => setDashboardTab('trophies')} className="sci-market-card">
             <Icon name="chart" className="h-8 w-8 text-cyan-200" />
             <span>

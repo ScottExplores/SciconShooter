@@ -2,6 +2,7 @@ const {
   fetchSupabaseJson,
   supabaseHeaders
 } = require('./supabase');
+const { sendBaseNotificationBroadcast } = require('./baseNotifications');
 
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
@@ -138,7 +139,16 @@ const finalizeWeeklyCompetition = async (weekKey = getPreviousWeekKey()) => {
     }).catch((error) => console.error('Weekly champion webhook failed:', error));
   }
 
-  return { finalized: true, weekKey, competition };
+  const notification = await sendBaseNotificationBroadcast({
+    title: 'Weekly champion locked',
+    message: `${winner.name} won the week with ${Number(winner.score).toLocaleString('en-US')} points. The champion claim window is now open.`,
+    targetPath: '/?view=trophies'
+  }).catch((error) => {
+    console.error('Base champion notification failed:', error);
+    return { configured: true, sentCount: 0, failedCount: 0, error: true };
+  });
+
+  return { finalized: true, weekKey, competition, notification };
 };
 
 module.exports = {

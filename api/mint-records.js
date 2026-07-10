@@ -27,17 +27,21 @@ module.exports = async (req, res) => {
     const contractAddress = process.env.MISSION_RECORD_CONTRACT_ADDRESS?.toLowerCase();
     if (!addressPattern.test(contractAddress || '')) return sendJson(res, 503, { error: 'Mission Record contract is not configured' });
     const { createPublicClient, http } = await import('viem');
-    const { baseSepolia } = await import('viem/chains');
+    const { base, baseSepolia } = await import('viem/chains');
+    const chainId = Number(process.env.MISSION_RECORD_CHAIN_ID || 84532);
+    const chain = chainId === 8453 ? base : baseSepolia;
     const client = createPublicClient({
-      chain: baseSepolia,
-      transport: http(process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org')
+      chain,
+      transport: http(chainId === 8453
+        ? (process.env.BASE_RPC_URL || 'https://mainnet.base.org')
+        : (process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'))
     });
     const [transaction, receipt] = await Promise.all([
       client.getTransaction({ hash: body.transactionHash }),
       client.getTransactionReceipt({ hash: body.transactionHash })
     ]);
     if (transaction.to?.toLowerCase() !== contractAddress || receipt.status !== 'success') {
-      return sendJson(res, 409, { error: 'The Mission Record transaction is not confirmed on the configured contract' });
+      return sendJson(res, 409, { error: 'The Mission Record transaction is not confirmed on the configured Base contract' });
     }
     await fetchSupabaseJson(`${MINTS_TABLE}?record_type=eq.mission&run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=eq.${body.address.toLowerCase()}`, {
       method: 'PATCH',

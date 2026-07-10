@@ -29,6 +29,7 @@ Events use an anonymous per-tab session UUID. Wallet addresses, names, IP addres
 - Mint authorization uses short-lived EIP-712 signatures and contract-level duplicate guards.
 - Paymaster URL is only accepted through a frontend-safe proxy URL; provider credentials must remain server-side.
 - Weekly winner status is mutable offchain until finalization and cannot be minted early.
+- Base app notifications are sent only to wallet addresses returned by Base as pinned and opted in. The Base Dashboard API key remains server-only.
 
 ## Remaining risk
 
