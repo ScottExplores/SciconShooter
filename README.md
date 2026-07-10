@@ -38,7 +38,7 @@ The two record types have different meanings:
 - **Mission Record:** an optional NFT for one verified run. It can include score, wave, player name, wallet, game version, date, visual seed, and achievements. It never claims that the player won the week or funded a proposal.
 - **Weekly Champion Record:** a distinct NFT for a locked weekly champion. It is only authorized after finalization and only says funding was directed after the allocation transaction is confirmed.
 
-`contracts/SciconRecords.sol` compiles locally and is prepared for Base Sepolia. It has not been deployed. Contract deployment, paymaster funding, production environment changes, and mainnet transactions require explicit approval.
+`contracts/SciconRecords.sol` is deployed on Base mainnet at [`0x487a4353A2F83d10d2267DB34CFD9452Eea098AA`](https://basescan.org/address/0x487a4353A2F83d10d2267DB34CFD9452Eea098AA). The contract owner is the project wallet and mint authorizations are signed by a separate server-held key. Paymaster funding and future mainnet transactions still require explicit approval.
 
 ## Local development
 
@@ -79,7 +79,7 @@ Server-only variables:
 - `WEEKLY_CHAMPION_WEBHOOK_URL` (optional)
 - `BASE_DASHBOARD_API_KEY` (Base app notification API key, server only)
 - `BASE_APP_URL` (defaults to `https://www.sciconshooter.xyz`)
-- `MISSION_RECORD_CONTRACT_ADDRESS` (after an approved Base deployment)
+- `MISSION_RECORD_CONTRACT_ADDRESS` (Base mainnet: `0x487a4353A2F83d10d2267DB34CFD9452Eea098AA`)
 - `MISSION_RECORD_CHAIN_ID` (defaults to Base mainnet `8453`; use `84532` for Base Sepolia)
 - `MINT_AUTHORIZER_PRIVATE_KEY` (server only)
 - `BASE_RPC_URL` or `BASE_SEPOLIA_RPC_URL` for the configured chain (optional)
@@ -88,7 +88,7 @@ Browser-safe variables:
 
 - `VITE_LEADERBOARD_API_URL` (optional)
 - `VITE_WEEKLY_COMPETITIONS_API_URL` (optional)
-- `VITE_MISSION_RECORD_CONTRACT_ADDRESS` (after deployment)
+- `VITE_MISSION_RECORD_CONTRACT_ADDRESS` (same public address as the server setting)
 - `VITE_MISSION_RECORD_CHAIN_ID` (must match the deployed contract chain)
 - `VITE_PAYMASTER_PROXY_URL` (optional proxy URL only; never put provider credentials in frontend variables)
 
@@ -110,11 +110,11 @@ The active product flow uses `/api/weekly-competitions` and Monday's `/api/final
 
 ## Deployment and workflow
 
-Production is hosted on Vercel at `sciconshooter.xyz`. `main` remains the production branch. This readiness work belongs on `codex/gameplay-progression-experiment` until it is reviewed.
+Production is hosted on Vercel at `sciconshooter.xyz`. `main` remains the production branch.
 
 1. Work and test on an experiment branch.
 2. Apply infrastructure changes only after approval.
-3. Test the contract on Base Sepolia before considering mainnet.
+3. Test future contract changes on Base Sepolia before considering another mainnet deployment.
 4. Review listing assets and copy before uploading them to Base.
 5. Merge to `main` only after the experiment is accepted.
 

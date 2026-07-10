@@ -35,4 +35,4 @@ This is server-verifiable, not server-authoritative gameplay. The client can sti
 
 ## Contract status
 
-`contracts/SciconRecords.sol` compiles locally and uses EIP-712 authorizations plus independent duplicate guards. It is prepared for Base Sepolia. No deployment, paymaster configuration, or mainnet transaction has occurred; those require explicit approval.
+`contracts/SciconRecords.sol` uses EIP-712 authorizations plus independent duplicate guards. It is deployed on Base mainnet at [`0x487a4353A2F83d10d2267DB34CFD9452Eea098AA`](https://basescan.org/address/0x487a4353A2F83d10d2267DB34CFD9452Eea098AA). The verified owner is `0x3A8D692Aabdd4981080a8F6af8375a21359464Bf`, and the verified public authorizer is `0x3BD8E2cD8f5c7F654D3FE9A30fA50b79bb4A9431`. No production paymaster is configured.
