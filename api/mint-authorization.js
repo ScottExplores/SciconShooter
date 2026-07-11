@@ -39,11 +39,14 @@ module.exports = async (req, res) => {
       headers: supabaseHeaders()
     });
     const stored = Array.isArray(receiptRows) ? receiptRows[0] : null;
-    if (!stored || stored.wallet_address?.toLowerCase() !== address) {
-      return sendJson(res, 403, { error: 'Attach this verified run to the connected Base Account first.' });
+    if (!stored) {
+      return sendJson(res, 404, { error: 'This verified run is not available for minting.' });
+    }
+    if (stored.wallet_address && stored.wallet_address.toLowerCase() !== address) {
+      return sendJson(res, 403, { error: 'This run is already attached to another Base Account.' });
     }
 
-    const existingRows = await fetchSupabaseJson(`${MINTS_TABLE}?select=status,transaction_hash,token_id,sponsored&record_type=eq.mission&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
+    const existingRows = await fetchSupabaseJson(`${MINTS_TABLE}?select=status,transaction_hash,token_id,sponsored,wallet_address&record_type=eq.mission&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
       headers: supabaseHeaders()
     });
     const confirmedMint = Array.isArray(existingRows) ? existingRows.find((row) => row.status === 'confirmed') : null;
@@ -54,6 +57,10 @@ module.exports = async (req, res) => {
         tokenId: confirmedMint.token_id,
         sponsored: Boolean(confirmedMint.sponsored)
       });
+    }
+    const pendingMint = Array.isArray(existingRows) ? existingRows.find((row) => row.status === 'pending') : null;
+    if (pendingMint && pendingMint.wallet_address?.toLowerCase() !== address) {
+      return sendJson(res, 409, { error: 'A mint is already pending for this run.' });
     }
 
     const now = new Date();

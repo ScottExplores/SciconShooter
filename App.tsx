@@ -303,8 +303,6 @@ const App: React.FC = () => {
   const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
   const [latestVerifiedRun, setLatestVerifiedRun] = useState<RunReceipt | null>(readLatestVerifiedRun);
   const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
-  const [runClaimStatus, setRunClaimStatus] = useState<'idle' | 'connecting' | 'signing' | 'confirmed' | 'error'>('idle');
-  const [runClaimMessage, setRunClaimMessage] = useState('');
   const [showMissionRecordPreview, setShowMissionRecordPreview] = useState(false);
   const [championClaimStatus, setChampionClaimStatus] = useState<'idle' | 'connecting' | 'signing' | 'confirmed' | 'error'>('idle');
   const [championClaimMessage, setChampionClaimMessage] = useState('');
@@ -562,8 +560,6 @@ const App: React.FC = () => {
     setScoreSaved(false);
     setRunReceipt(null);
     setRunReceiptStatus('starting');
-    setRunClaimStatus('idle');
-    setRunClaimMessage('');
     setShowMissionRecordPreview(false);
     setMissionMintStatus('idle');
     setMissionMintMessage('');
@@ -863,25 +859,6 @@ const App: React.FC = () => {
     await persistHighScore();
   };
 
-  const claimCurrentRun = () => {
-    if (!runReceipt || runReceipt.integrity === 'local-unverified') return;
-    setWalletRuntimeEnabled(true);
-    walletActionNonceRef.current += 1;
-    setWalletRuntimeAction({
-      nonce: walletActionNonceRef.current,
-      type: 'claim-run',
-      receipt: runReceipt
-    });
-  };
-
-  const handleRunClaimStatus = (
-    status: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error',
-    message = ''
-  ) => {
-    setRunClaimStatus(status);
-    setRunClaimMessage(message);
-  };
-
   const handleChampionClaimStatus = (
     status: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error',
     message = ''
@@ -912,7 +889,7 @@ const App: React.FC = () => {
   const mintConfigured = Boolean((import.meta.env.VITE_MISSION_RECORD_CONTRACT_ADDRESS as string | undefined)?.trim());
 
   const mintCurrentMissionRecord = () => {
-    if (!runReceipt || runClaimStatus !== 'confirmed') return;
+    if (!runReceipt || runReceipt.integrity === 'local-unverified') return;
     setWalletRuntimeEnabled(true);
     walletActionNonceRef.current += 1;
     setWalletRuntimeAction({ nonce: walletActionNonceRef.current, type: 'mint-mission', receipt: runReceipt });
@@ -939,8 +916,6 @@ const App: React.FC = () => {
   const openLatestMissionRecord = () => {
     if (!latestVerifiedRun) return;
     setRunReceipt(latestVerifiedRun);
-    setRunClaimStatus('idle');
-    setRunClaimMessage('');
     setMissionMintStatus('idle');
     setMissionMintMessage('');
     setMissionMintHash('');
@@ -1080,7 +1055,6 @@ const App: React.FC = () => {
             onContinueSuccess={handleContinueSuccess}
             onWalletChange={handleWalletRuntimeChange}
             onWalletError={setWalletError}
-            onRunClaimStatus={handleRunClaimStatus}
             onChampionClaimStatus={handleChampionClaimStatus}
             onMissionMintStatus={handleMissionMintStatus}
           />
@@ -1379,14 +1353,11 @@ const App: React.FC = () => {
             pilotName={playerNameInput || 'PILOT'}
             receipt={runReceipt}
             walletAddress={activeWalletAddress}
-            runClaimStatus={runClaimStatus}
-            runClaimMessage={runClaimMessage}
             mintConfigured={mintConfigured}
             mintChainId={missionRecordChainId}
             mintStatus={missionMintStatus}
             mintMessage={missionMintMessage}
             mintHash={missionMintHash}
-            onAttachWallet={claimCurrentRun}
             onMint={mintCurrentMissionRecord}
             onClose={() => setShowMissionRecordPreview(false)}
           />

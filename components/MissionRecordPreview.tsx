@@ -2,19 +2,17 @@ import React, { useState } from 'react';
 import { ASSETS } from '../constants';
 import type { RunReceipt } from '../services/runReceiptService';
 import { trackEvent } from '../services/analyticsService';
+import { shareScoreCardImage } from '../services/scoreCardShareService';
 
 interface MissionRecordPreviewProps {
   pilotName: string;
   receipt: RunReceipt;
   walletAddress?: string | null;
-  runClaimStatus: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error';
-  runClaimMessage?: string;
   mintConfigured: boolean;
   mintChainId: number;
   mintStatus: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error';
   mintMessage?: string;
   mintHash?: string;
-  onAttachWallet: () => void;
   onMint: () => void;
   onClose: () => void;
 }
@@ -37,14 +35,11 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   pilotName,
   receipt,
   walletAddress,
-  runClaimStatus,
-  runClaimMessage,
   mintConfigured,
   mintChainId,
   mintStatus,
   mintMessage,
   mintHash,
-  onAttachWallet,
   onMint,
   onClose
 }) => {
@@ -53,34 +48,31 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   const dateLabel = Number.isFinite(finished.getTime())
     ? finished.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
     : 'Verified run';
-  const recordUrl = `${window.location.origin}/api/record-card?runId=${encodeURIComponent(receipt.runId)}`;
   const cardUrl = `${window.location.origin}/api/record-card?runId=${encodeURIComponent(receipt.runId)}`;
   const explorerUrl = mintChainId === 8453 ? 'https://basescan.org' : 'https://sepolia.basescan.org';
   const needsBaseAccount = !walletAddress;
-  const isClaimBusy = runClaimStatus === 'connecting' || runClaimStatus === 'signing';
   const encounter = getEncounter(receipt.metrics.wave);
   const encounterArt = receipt.metrics.wave === 2 ? ASSETS.MINI_BOSS : ASSETS.FINAL_BOSS;
 
   const shareRecord = async () => {
     const text = `${pilotName} scored ${receipt.metrics.score.toLocaleString()} in Scicon Shooter and reached wave ${receipt.metrics.wave}. Play. Win the week. Choose what research gets funded.`;
+    setShareStatus('Preparing score card image...');
     try {
-      const cardResponse = await fetch(cardUrl, { headers: { Accept: 'image/svg+xml' } });
-      const cardBlob = cardResponse.ok ? await cardResponse.blob() : null;
-      const cardFile = cardBlob
-        ? new File([cardBlob], `scicon-score-${receipt.metrics.score}.svg`, { type: 'image/svg+xml' })
-        : null;
-      const files = cardFile ? [cardFile] : [];
-      if (navigator.share && cardFile && navigator.canShare?.({ files })) {
-        await navigator.share({ title: 'Scicon Shooter Mission Record', text, url: recordUrl, files });
-      } else if (navigator.share) {
-        await navigator.share({ title: 'Scicon Shooter Mission Record', text, url: recordUrl });
-      } else {
-        await navigator.clipboard.writeText(`${text} ${recordUrl} Score card: ${cardUrl}`);
-        setShareStatus('Score card link copied');
-      }
-      trackEvent('share_action_used', { record_type: 'mission', method: navigator.share ? (cardFile ? 'native_file' : 'native') : 'clipboard' });
+      const method = await shareScoreCardImage({
+        cardUrl,
+        fileName: `scicon-score-${receipt.metrics.score}.png`,
+        title: 'Scicon Shooter Mission Record',
+        text
+      });
+      setShareStatus(method === 'native'
+        ? 'Score card image shared'
+        : method === 'clipboard'
+          ? 'Score card image copied'
+          : 'Score card image downloaded');
+      trackEvent('share_action_used', { record_type: 'mission', method });
     } catch (error: any) {
-      if (!/abort|cancel/i.test(error?.message || '')) setShareStatus('Share is unavailable');
+      if (/abort|cancel/i.test(error?.message || '')) setShareStatus('');
+      else setShareStatus('Score card image is unavailable');
     }
   };
 
@@ -134,17 +126,17 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
             </div>
           </div>
 
-          {runClaimStatus !== 'confirmed' ? (
+          {mintStatus !== 'confirmed' ? (
             <div className="mt-4 overflow-hidden rounded-[8px] border border-cyan-100/25 bg-[linear-gradient(135deg,rgba(8,47,73,0.72),rgba(6,78,59,0.34))] p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="arcade-font text-base font-black uppercase tracking-wider text-white">
-                    {needsBaseAccount ? 'Mint yours now' : 'Base Account ready'}
+                    {needsBaseAccount ? 'Mint yours now' : 'Ready to mint'}
                   </p>
                   <p className="mt-1 text-[11px] font-semibold leading-relaxed text-cyan-100">
                     {needsBaseAccount
                       ? 'Keep this run onchain. New to Base? Sign in can create a passkey account; your global score stays saved either way.'
-                      : 'Verify one wallet signature to attach this score to your account and unlock minting.'}
+                      : 'Turn this verified run into a Base collectible owned by your connected account.'}
                   </p>
                 </div>
                 <span className="shrink-0 rounded-[5px] border border-white/20 bg-white/10 px-2 py-1 font-mono text-[8px] font-black uppercase tracking-[0.16em] text-white">
@@ -152,7 +144,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
                 </span>
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-[9px] font-semibold text-slate-400">
-                <span>Sign-in has no network fee. Minting may require a small Base network fee.</span>
+                <span>The mint transaction proves ownership. No separate score signature is needed.</span>
                 <a
                   href="https://docs.base.org/base-account/overview/what-is-base-account"
                   target="_blank"
@@ -166,27 +158,18 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
           ) : null}
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <button type="button" onClick={() => void shareRecord()} className="min-h-11 rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share score card</button>
-            {runClaimStatus !== 'confirmed' ? (
-              <button type="button" onClick={onAttachWallet} disabled={isClaimBusy} className="flex min-h-11 items-center justify-center gap-2 rounded-[8px] border border-emerald-100/40 bg-emerald-300/20 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-emerald-50 shadow-[0_0_24px_rgba(110,231,183,0.08)] transition hover:bg-emerald-300/30 disabled:opacity-60">
-                {needsBaseAccount && !isClaimBusy ? <span aria-hidden="true" className="h-3 w-3 shrink-0 bg-white" /> : null}
-                <span>
-                  {runClaimStatus === 'signing'
-                    ? 'Sign to verify score'
-                    : runClaimStatus === 'connecting'
-                      ? 'Opening Base...'
-                      : needsBaseAccount
-                        ? 'Sign in with Base'
-                        : 'Verify this score'}
-                </span>
-              </button>
-            ) : (
-              <button type="button" onClick={onMint} disabled={!mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="min-h-11 rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
-                {mintStatus === 'confirmed' ? 'Score Record minted' : mintStatus === 'authorizing' || mintStatus === 'confirming' ? 'Confirm in Base Account' : mintConfigured ? 'Mint score card' : 'Mint setup awaiting approval'}
-              </button>
-            )}
+            <button type="button" onClick={() => void shareRecord()} className="min-h-11 rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share image</button>
+            <button type="button" onClick={onMint} disabled={!mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="min-h-11 rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
+              {mintStatus === 'confirmed'
+                ? 'Score card minted'
+                : mintStatus === 'authorizing' || mintStatus === 'confirming'
+                  ? 'Confirm in Base Account'
+                  : mintConfigured
+                    ? needsBaseAccount ? 'Connect + mint score card' : 'Mint score card'
+                    : 'Mint setup awaiting approval'}
+            </button>
           </div>
-          {shareStatus || runClaimMessage || mintMessage ? <p className="mt-3 text-center text-[10px] font-semibold text-slate-400">{mintMessage || runClaimMessage || shareStatus}</p> : null}
+          {shareStatus || mintMessage ? <p className="mt-3 text-center text-[10px] font-semibold text-slate-400">{mintMessage || shareStatus}</p> : null}
           {mintHash ? <a href={`${explorerUrl}/tx/${mintHash}`} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200 underline underline-offset-2">View Score Record transaction</a> : null}
         </div>
       </div>

@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 
 const MINTS_TABLE = process.env.SUPABASE_MINT_RECORDS_TABLE || 'scicon_mint_records';
+const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
+const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
@@ -79,6 +81,7 @@ module.exports = async (req, res) => {
     if (!mintEvent) {
       return sendJson(res, 409, { error: 'The confirmed transaction did not mint this Mission Record' });
     }
+    const confirmedAt = new Date().toISOString();
     await fetchSupabaseJson(`${MINTS_TABLE}?record_type=eq.mission&run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=eq.${body.address.toLowerCase()}`, {
       method: 'PATCH',
       headers: supabaseHeaders({ Prefer: 'return=minimal' }),
@@ -86,9 +89,24 @@ module.exports = async (req, res) => {
         status: 'confirmed',
         token_id: mintEvent.args.tokenId.toString(),
         transaction_hash: body.transactionHash,
-        confirmed_at: new Date().toISOString(),
+        confirmed_at: confirmedAt,
         sponsored: Boolean(body.sponsored)
       })
+    });
+    const ownershipUpdates = await Promise.allSettled([
+      fetchSupabaseJson(`${RECEIPTS_TABLE}?run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=is.null`, {
+        method: 'PATCH',
+        headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+        body: JSON.stringify({ wallet_address: body.address.toLowerCase(), wallet_claimed_at: confirmedAt })
+      }),
+      fetchSupabaseJson(`${LEADERBOARD_TABLE}?run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=is.null`, {
+        method: 'PATCH',
+        headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+        body: JSON.stringify({ wallet_address: body.address.toLowerCase() })
+      })
+    ]);
+    ownershipUpdates.forEach((result) => {
+      if (result.status === 'rejected') console.error('Mint ownership sync failed:', result.reason);
     });
     return sendJson(res, 200, { confirmed: true, transactionHash: body.transactionHash, tokenId: mintEvent.args.tokenId.toString() });
   } catch (error) {

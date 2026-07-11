@@ -10,7 +10,6 @@ import {
   sendRscContinuePayment,
   signBaseAccountMessage
 } from '../services/baseAccountWallet';
-import { associateRunWithWallet } from '../services/runClaimService';
 import type { RunReceipt } from '../services/runReceiptService';
 import { claimWeeklyChampionProposal } from '../services/weeklyClaimService';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
@@ -20,7 +19,6 @@ export type WalletRuntimeAction =
   | { nonce: number; type: 'connect' }
   | { nonce: number; type: 'disconnect' }
   | { nonce: number; type: 'continue' }
-  | { nonce: number; type: 'claim-run'; receipt: RunReceipt }
   | { nonce: number; type: 'claim-champion'; weekKey: string; proposal: ResearchHubProposal }
   | { nonce: number; type: 'mint-mission'; receipt: RunReceipt };
 
@@ -41,7 +39,6 @@ interface WalletRuntimeProps {
   onContinueSuccess: (transactionHash: string) => void;
   onWalletChange: (wallet: WalletSession) => void;
   onWalletError: (message: string) => void;
-  onRunClaimStatus: (status: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error', message?: string) => void;
   onChampionClaimStatus: (status: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error', message?: string) => void;
   onMissionMintStatus: (status: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error', message?: string, hash?: string) => void;
 }
@@ -75,7 +72,6 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   onContinueSuccess,
   onWalletChange,
   onWalletError,
-  onRunClaimStatus,
   onChampionClaimStatus,
   onMissionMintStatus
 }) => {
@@ -172,29 +168,6 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     }
   }, [activeWalletAddress, connectWallet, continueCost, isContinuePaymentBusy, onContinueStatusChange, onContinueSuccess]);
 
-  const claimRun = useCallback(async (receipt: RunReceipt) => {
-    onRunClaimStatus('connecting');
-    const wasConnected = Boolean(activeWalletAddress);
-    const address = activeWalletAddress || await connectWallet();
-    if (!address) {
-      onRunClaimStatus('error', 'Connect a Base Account to attach this run.');
-      return;
-    }
-
-    if (!wasConnected) {
-      onRunClaimStatus('idle', 'Base Account ready. Verify this score to unlock minting.');
-      return;
-    }
-
-    try {
-      onRunClaimStatus('signing');
-      await associateRunWithWallet({ address, receipt, signMessage: signBaseAccountMessage });
-      onRunClaimStatus('confirmed');
-    } catch (error: any) {
-      onRunClaimStatus('error', getUserFacingMessage(error, 'Run association was cancelled.'));
-    }
-  }, [activeWalletAddress, connectWallet, onRunClaimStatus]);
-
   const claimChampion = useCallback(async (weekKey: string, proposal: ResearchHubProposal) => {
     onChampionClaimStatus('connecting');
     const address = activeWalletAddress || await connectWallet();
@@ -240,8 +213,6 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
         await disconnectWallet();
       } else if (currentAction.type === 'continue') {
         await continueWithRsc();
-      } else if (currentAction.type === 'claim-run') {
-        await claimRun(currentAction.receipt);
       } else if (currentAction.type === 'claim-champion') {
         await claimChampion(currentAction.weekKey, currentAction.proposal);
       } else {
@@ -250,7 +221,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     };
 
     void runAction();
-  }, [action, claimChampion, claimRun, connectWallet, continueWithRsc, disconnectWallet, mintMission, onActionHandled]);
+  }, [action, claimChampion, connectWallet, continueWithRsc, disconnectWallet, mintMission, onActionHandled]);
 
   return null;
 };
