@@ -1,11 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import { GameEngine } from '../services/gameLogic';
-import { Stats, GameState, GamePolishSettings } from '../types';
+import { GameEngine, type GameRuntimeState } from '../services/gameLogic';
+import type { GameCampaign } from '../game-config/types';
+import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
 
 export { preloadGameplayAssets } from '../services/gameLogic';
 
 const HUD_STATS_SYNC_INTERVAL_MS = 650;
+const RUNTIME_STATE_SYNC_INTERVAL_MS = 200;
 const SIMULATION_STEP_MS = 1000 / 60;
 const MAX_SIMULATION_STEPS_PER_FRAME = 4;
 
@@ -69,45 +71,93 @@ const shouldPublishHudStats = (previous: Stats | null, next: Stats, elapsedMs: n
   return false;
 };
 
-interface GameCanvasProps {
-  setStats: (stats: Stats) => void;
-  setGameState: (state: GameState) => void;
+export interface GameCanvasProps {
   stats: Stats;
-  gameState: GameState;
+  onStatsChange: (stats: Stats) => void;
+  running: boolean;
+  onGameOver?: () => void;
+  onContinueStarted?: () => void;
   isTransmissionOpen?: boolean;
   bombCommand?: { nonce: number } | null;
   continueCommand?: { nonce: number; lives: number } | null;
   polishSettings: GamePolishSettings;
+  campaign?: GameCampaign;
+  levelId?: string;
+  waveId?: string;
+  previewMode?: boolean;
+  audioEnabled?: boolean;
+  autoFire?: boolean;
+  restartToken?: number;
+  onRuntimeState?: (state: GameRuntimeState) => void;
 }
 
-const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, gameState, isTransmissionOpen = false, bombCommand = null, continueCommand = null, polishSettings }) => {
+const GameCanvas: React.FC<GameCanvasProps> = ({
+  stats,
+  onStatsChange,
+  running,
+  onGameOver,
+  onContinueStarted,
+  isTransmissionOpen = false,
+  bombCommand = null,
+  continueCommand = null,
+  polishSettings,
+  campaign,
+  levelId,
+  waveId,
+  previewMode = false,
+  audioEnabled = !previewMode,
+  autoFire = false,
+  restartToken = 0,
+  onRuntimeState
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const requestRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const handledBombNonceRef = useRef<number | null>(null);
   const handledContinueNonceRef = useRef<number | null>(null);
+  const handledRestartTokenRef = useRef(restartToken);
   const activeTouchIdRef = useRef<number | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const lastPublishedStatsRef = useRef<Stats | null>(null);
   const lastStatsPublishTimeRef = useRef<number>(0);
   const gameOverSentRef = useRef(false);
-  
-  // Use a ref to track gameState inside the animation loop closure
-  const gameStateRef = useRef(gameState);
+  const keysRef = useRef<Record<string, boolean>>(autoFire ? { ' ': true } : {});
+  const runningRef = useRef(running);
   const isTransmissionOpenRef = useRef(isTransmissionOpen);
+  const onStatsChangeRef = useRef(onStatsChange);
+  const onGameOverRef = useRef(onGameOver);
+  const onContinueStartedRef = useRef(onContinueStarted);
+  const onRuntimeStateRef = useRef(onRuntimeState);
 
-  // Sync the ref whenever the prop changes
   useEffect(() => {
-    gameStateRef.current = gameState;
-    if (gameState !== GameState.PLAYING) {
+    onStatsChangeRef.current = onStatsChange;
+  }, [onStatsChange]);
+
+  useEffect(() => {
+    onGameOverRef.current = onGameOver;
+  }, [onGameOver]);
+
+  useEffect(() => {
+    onContinueStartedRef.current = onContinueStarted;
+  }, [onContinueStarted]);
+
+  useEffect(() => {
+    onRuntimeStateRef.current = onRuntimeState;
+  }, [onRuntimeState]);
+
+  useEffect(() => {
+    runningRef.current = running;
+    if (!running) {
       activeTouchIdRef.current = null;
       activePointerIdRef.current = null;
       engineRef.current?.handleInput({}, null);
     } else {
       gameOverSentRef.current = false;
+      if (autoFire) keysRef.current[' '] = true;
+      engineRef.current?.handleInput(keysRef.current, null);
     }
-  }, [gameState]);
+  }, [autoFire, running]);
 
   useEffect(() => {
     isTransmissionOpenRef.current = isTransmissionOpen;
@@ -130,9 +180,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     };
 
     if (engineRef.current.triggerBomb()) {
-      setStats({ ...engineRef.current.stats });
+      onStatsChangeRef.current(cloneStatsForReact(engineRef.current.stats));
     }
-  }, [bombCommand, setStats, stats]);
+  }, [bombCommand, stats]);
 
   useEffect(() => {
     if (!continueCommand || !engineRef.current) return;
@@ -144,9 +194,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       ...stats
     };
     engineRef.current.continueRun(continueCommand.lives);
-    setStats({ ...engineRef.current.stats });
-    setGameState(GameState.PLAYING);
-  }, [continueCommand, setGameState, setStats, stats]);
+    onStatsChangeRef.current(cloneStatsForReact(engineRef.current.stats));
+    onContinueStartedRef.current?.();
+  }, [continueCommand, stats]);
 
   // Sync Stats (specifically upgrades/coins modified by React UI) to Engine
   useEffect(() => {
@@ -174,14 +224,47 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
   }, [stats.bombCharge, stats.lives, stats.repairsCount, stats.upgrades]);
 
   useEffect(() => {
+    const engine = engineRef.current;
+    if (!previewMode || !engine || !levelId || !waveId) return;
+    if (!engine.loadPreviewWave(levelId, waveId)) return;
+
+    if (autoFire) keysRef.current[' '] = true;
+    engine.handleInput(runningRef.current ? keysRef.current : {}, null);
+    const statsSnapshot = cloneStatsForReact(engine.stats);
+    lastPublishedStatsRef.current = statsSnapshot;
+    onStatsChangeRef.current(statsSnapshot);
+    onRuntimeStateRef.current?.(engine.getRuntimeState());
+  }, [autoFire, levelId, previewMode, waveId]);
+
+  useEffect(() => {
+    if (handledRestartTokenRef.current === restartToken) return;
+    handledRestartTokenRef.current = restartToken;
+    const engine = engineRef.current;
+    if (!previewMode || !engine) return;
+
+    engine.restartPreview();
+    if (autoFire) keysRef.current[' '] = true;
+    engine.handleInput(runningRef.current ? keysRef.current : {}, null);
+    const statsSnapshot = cloneStatsForReact(engine.stats);
+    lastPublishedStatsRef.current = statsSnapshot;
+    onStatsChangeRef.current(statsSnapshot);
+    onRuntimeStateRef.current?.(engine.getRuntimeState());
+  }, [autoFire, previewMode, restartToken]);
+
+  useEffect(() => {
     if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Initialize Engine
-    const engine = new GameEngine(stats);
+    const engine = new GameEngine(cloneStatsForReact(stats), {
+      campaign,
+      previewMode,
+      audioEnabled,
+      initialLevelId: levelId,
+      initialWaveId: waveId
+    });
     engine.polishSettings = polishSettings;
     engineRef.current = engine;
     let targetFPS = 60;
@@ -191,6 +274,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     let recoveryFrameScore = 0;
     let simulationAccumulator = 0;
     let lastRenderTime = 0;
+    let lastRuntimeStatePublishTime = 0;
 
     const refreshFrameBudget = () => {
       const rect = canvas.getBoundingClientRect();
@@ -231,8 +315,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     // Resize Handler
     const handleResize = () => {
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      const width = Math.max(1, Math.round(rect.width || 720));
+      const height = Math.max(1, Math.round(rect.height || 720));
+      if (canvas.width === width && canvas.height === height) return;
+      canvas.width = width;
+      canvas.height = height;
       ctx.imageSmoothingEnabled = false;
       refreshFrameBudget();
       engine.resize(canvas.width, canvas.height);
@@ -240,9 +327,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     
     handleResize();
     window.addEventListener('resize', handleResize);
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(handleResize);
+    resizeObserver?.observe(canvas);
     engine.init(canvas.width, canvas.height);
+    if (autoFire) keysRef.current[' '] = true;
+    engine.handleInput(runningRef.current ? keysRef.current : {}, null);
     lastPublishedStatsRef.current = null;
     lastStatsPublishTimeRef.current = 0;
+    lastTimeRef.current = 0;
+    onRuntimeStateRef.current?.(engine.getRuntimeState());
 
     const publishHudStats = (force = false, timestamp = performance.now()) => {
       const elapsedMs = timestamp - lastStatsPublishTimeRef.current;
@@ -255,22 +348,25 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       const statsSnapshot = cloneStatsForReact(nextStats);
       lastPublishedStatsRef.current = statsSnapshot;
       lastStatsPublishTimeRef.current = timestamp;
-      setStats(statsSnapshot);
+      onStatsChangeRef.current(statsSnapshot);
     };
 
-    // Input Handlers
-    const keys: Record<string, boolean> = {};
-    engine.handleInput(keys, null);
+    const keys = keysRef.current;
 
-    const handleKeyDown = (e: KeyboardEvent) => { 
-      keys[e.key] = true; 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!runningRef.current) return;
+      keys[e.key] = true;
+      if (autoFire) keys[' '] = true;
+      engine.handleInput(keys, engine.touchPos);
       if (!e.repeat && (e.key === 'b' || e.key === 'B') && engine.triggerBomb()) {
         publishHudStats(true);
       }
     };
     
-    const handleKeyUp = (e: KeyboardEvent) => { 
-      keys[e.key] = false; 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keys[e.key] = autoFire && e.key === ' ';
+      if (autoFire) keys[' '] = true;
+      engine.handleInput(keys, engine.touchPos);
     };
     
     const updateClientTarget = (clientX: number, clientY: number) => {
@@ -303,6 +399,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
 
     const handleTouchStart = (e: TouchEvent) => {
       if (e.cancelable) e.preventDefault();
+      if (!runningRef.current) return;
       const touch = e.changedTouches[0] || e.touches[0];
       if (!touch) return;
 
@@ -311,6 +408,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      if (!runningRef.current) return;
       const touch = findTrackedTouch(e.touches);
       if (!touch) return;
 
@@ -321,6 +419,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     const handlePointerDown = (e: PointerEvent) => {
       if (e.pointerType !== 'touch' && e.pointerType !== 'pen' && e.pointerType !== 'mouse') return;
       if (e.cancelable) e.preventDefault();
+      if (previewMode) canvas.focus();
+      if (!runningRef.current) return;
 
       activePointerIdRef.current = e.pointerId;
       try {
@@ -332,6 +432,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
     };
 
     const handlePointerMove = (e: PointerEvent) => {
+      if (!runningRef.current) return;
       if (activePointerIdRef.current === null || e.pointerId !== activePointerIdRef.current) return;
       if (e.cancelable) e.preventDefault();
 
@@ -349,23 +450,27 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       } catch {
         // Capture may already be released by the browser.
       }
-      engine.handleInput(keys, null);
+      engine.handleInput(runningRef.current ? keys : {}, null);
     };
     
     const handleTouchEnd = () => {
       activeTouchIdRef.current = null;
-      engine.handleInput(keys, null);
+      engine.handleInput(runningRef.current ? keys : {}, null);
     };
 
     const handleTouchCancel = () => {
       activeTouchIdRef.current = null;
-      engine.handleInput(keys, null);
+      engine.handleInput(runningRef.current ? keys : {}, null);
     };
 
     const handleWindowBlur = () => {
       activeTouchIdRef.current = null;
       activePointerIdRef.current = null;
-      engine.handleInput(keys, null);
+      Object.keys(keys).forEach((key) => {
+        keys[key] = false;
+      });
+      if (autoFire) keys[' '] = true;
+      engine.handleInput(runningRef.current ? keys : {}, null);
     };
 
     const handleVisibilityChange = () => {
@@ -375,17 +480,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    const keyboardTarget: Window | HTMLCanvasElement = previewMode ? canvas : window;
+    const pointerTarget: Window | HTMLCanvasElement = previewMode ? canvas : window;
+    const touchTarget: Window | HTMLCanvasElement = previewMode ? canvas : window;
+
+    keyboardTarget.addEventListener('keydown', handleKeyDown as EventListener);
+    keyboardTarget.addEventListener('keyup', handleKeyUp as EventListener);
     canvas.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('pointermove', handlePointerMove, { passive: false });
-    window.addEventListener('pointerup', handlePointerEnd);
-    window.addEventListener('pointercancel', handlePointerEnd);
+    pointerTarget.addEventListener('pointermove', handlePointerMove as EventListener, { passive: false });
+    pointerTarget.addEventListener('pointerup', handlePointerEnd as EventListener);
+    pointerTarget.addEventListener('pointercancel', handlePointerEnd as EventListener);
     canvas.addEventListener('lostpointercapture', handlePointerEnd);
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
-    window.addEventListener('touchend', handleTouchEnd);
-    window.addEventListener('touchcancel', handleTouchCancel);
+    touchTarget.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false });
+    touchTarget.addEventListener('touchend', handleTouchEnd);
+    touchTarget.addEventListener('touchcancel', handleTouchCancel);
     window.addEventListener('blur', handleWindowBlur);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -406,7 +515,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       const elapsed = Math.min(100, Math.max(0, timestamp - lastTimeRef.current));
       lastTimeRef.current = timestamp;
 
-      if (gameStateRef.current === GameState.PLAYING) {
+      if (runningRef.current && engine.gameActive) {
         simulationAccumulator += elapsed;
         let simulationSteps = 0;
 
@@ -421,14 +530,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
           engine.setPerformanceMode(true);
         }
 
-        if (!engine.gameActive && engine.lives <= 0 && !gameOverSentRef.current) {
-          gameOverSentRef.current = true;
-          gameStateRef.current = GameState.GAMEOVER;
-          publishHudStats(true, timestamp);
-          setGameState(GameState.GAMEOVER);
-        }
       } else {
         simulationAccumulator = 0;
+      }
+
+      if (!previewMode && !engine.gameActive && engine.lives <= 0 && !gameOverSentRef.current) {
+        gameOverSentRef.current = true;
+        runningRef.current = false;
+        publishHudStats(true, timestamp);
+        onGameOverRef.current?.();
       }
 
       const renderElapsed = timestamp - lastRenderTime;
@@ -437,6 +547,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
         updateAdaptivePerformanceMode(renderElapsed);
         publishHudStats(false, timestamp);
         engine.draw(ctx);
+      }
+
+      if (timestamp - lastRuntimeStatePublishTime >= RUNTIME_STATE_SYNC_INTERVAL_MS) {
+        lastRuntimeStatePublishTime = timestamp;
+        onRuntimeStateRef.current?.(engine.getRuntimeState());
       }
       
       requestRef.current = requestAnimationFrame(animate);
@@ -450,27 +565,32 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ setStats, setGameState, stats, 
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      resizeObserver?.disconnect();
+      keyboardTarget.removeEventListener('keydown', handleKeyDown as EventListener);
+      keyboardTarget.removeEventListener('keyup', handleKeyUp as EventListener);
       canvas.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerEnd);
-      window.removeEventListener('pointercancel', handlePointerEnd);
+      pointerTarget.removeEventListener('pointermove', handlePointerMove as EventListener);
+      pointerTarget.removeEventListener('pointerup', handlePointerEnd as EventListener);
+      pointerTarget.removeEventListener('pointercancel', handlePointerEnd as EventListener);
       canvas.removeEventListener('lostpointercapture', handlePointerEnd);
       canvas.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
-      window.removeEventListener('touchcancel', handleTouchCancel);
+      touchTarget.removeEventListener('touchmove', handleTouchMove as EventListener);
+      touchTarget.removeEventListener('touchend', handleTouchEnd);
+      touchTarget.removeEventListener('touchcancel', handleTouchCancel);
       window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (engineRef.current === engine) engineRef.current = null;
+      requestRef.current = null;
     };
-  }, []); // Run once on mount
+  }, [audioEnabled, campaign, previewMode]);
 
   return (
     <canvas 
       ref={canvasRef} 
+      tabIndex={previewMode ? 0 : undefined}
+      aria-label={previewMode ? 'Live Scicon Shooter wave preview' : 'Scicon Shooter game canvas'}
       className="absolute left-0 top-0 z-0 block h-full w-full"
-      style={{ touchAction: 'none' }}
+      style={{ touchAction: 'none', outline: 'none' }}
     />
   );
 };

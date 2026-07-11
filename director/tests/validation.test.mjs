@@ -75,3 +75,41 @@ test('review validation requires normalized anchors and resolution timestamps', 
   assert.ok(result.errors.some((error) => error.includes('/anchor/x')));
   assert.ok(result.errors.some((error) => error.includes('/resolvedAt is required')));
 });
+
+test('level-editor review context is optional, normalized, and internally complete', () => {
+  const review = {
+    id: 'review-0004-abcdef',
+    sequence: 4,
+    surface: 'wave',
+    configVersion: 'game-campaign-disk-r1-0123456789ab',
+    target: 'Operation Open Galaxy / OPEN ORBIT / Gatekeeper',
+    note: 'Move this warning away from the boss sprite.',
+    status: 'open',
+    anchor: { x: 0.72, y: 0.22 },
+    context: {
+      source: 'level-editor',
+      campaignId: 'scicon-shooter-campaign',
+      campaignRevision: 1,
+      campaignContentHash: `sha256:${'a'.repeat(64)}`,
+      draftContentHash: `sha256:${'b'.repeat(64)}`,
+      levelId: 'operation-open-galaxy',
+      levelName: 'Operation Open Galaxy',
+      waveId: 'open-orbit',
+      waveName: 'OPEN ORBIT',
+      eventId: 'wave-1-gatekeeper',
+      eventLabel: 'Gatekeeper',
+      eventKind: 'boss',
+      elapsedSeconds: 60,
+      draft: true
+    },
+    createdAt: '2026-07-11T20:00:00.000Z'
+  };
+  assert.deepEqual(validateReview(review), { valid: true, errors: [] });
+
+  delete review.context.eventKind;
+  review.surface = 'scorecard';
+  const result = validateReview(review);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes('provided together')));
+  assert.ok(result.errors.some((error) => error.includes('surface must be wave')));
+});

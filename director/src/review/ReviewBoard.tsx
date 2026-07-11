@@ -96,7 +96,9 @@ export const ReviewBoard = ({ reviews, versions, status, onCreate, onUpdate }: R
     review.surface === surface && (filter === 'all' || review.status === filter)
   )), [filter, reviews, surface]);
 
-  const canvasReviews = useMemo(() => reviews.filter((review) => review.surface === surface), [reviews, surface]);
+  const canvasReviews = useMemo(() => reviews.filter((review) => (
+    review.surface === surface && review.context?.source !== 'level-editor'
+  )), [reviews, surface]);
 
   const setSurfaceAndTarget = (nextSurface: ReviewRequest['surface']) => {
     setSurface(nextSurface);
@@ -197,6 +199,13 @@ export const ReviewBoard = ({ reviews, versions, status, onCreate, onUpdate }: R
                   <strong>{review.target}</strong>
                   <time>{formatTime(review.createdAt)}</time>
                 </div>
+                {review.context?.source === 'level-editor' ? (
+                  <div className="request-context">
+                    <span>Live level preview</span>
+                    <strong>{review.context.levelName} / {review.context.waveName}{review.context.eventLabel ? ` / ${review.context.eventLabel}` : ''}</strong>
+                    <small>r{review.context.campaignRevision} · {review.context.elapsedSeconds.toFixed(1)}s{review.context.draft ? ` · draft ${review.context.draftContentHash?.slice(7, 15) ?? ''}` : ''}</small>
+                  </div>
+                ) : null}
                 <p>{review.note}</p>
                 <button type="button" onClick={() => void onUpdate(review.id, { status: review.status === 'open' ? 'resolved' : 'open' })}>
                   <Icon name="resolve" />{review.status === 'open' ? 'Resolve' : 'Reopen'}

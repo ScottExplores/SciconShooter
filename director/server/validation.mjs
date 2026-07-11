@@ -224,6 +224,20 @@ export const validateReview = (review) => {
   if (review?.status === 'open' && review?.resolvedAt !== undefined) {
     errors.push('/resolvedAt must be omitted when status is open');
   }
+  if (review?.context?.source === 'level-editor') {
+    if (review.surface !== 'wave') errors.push('/surface must be wave for level-editor review context');
+    if (review.context.draft && review.context.draftContentHash === undefined) {
+      errors.push('/context/draftContentHash is required when draft is true');
+    }
+    if (!review.context.draft && review.context.draftContentHash !== undefined) {
+      errors.push('/context/draftContentHash must be omitted when draft is false');
+    }
+    const eventFields = ['eventId', 'eventLabel', 'eventKind'];
+    const presentEventFields = eventFields.filter((field) => review.context[field] !== undefined);
+    if (presentEventFields.length > 0 && presentEventFields.length !== eventFields.length) {
+      errors.push('/context eventId, eventLabel, and eventKind must be provided together');
+    }
+  }
   return { valid: errors.length === 0, errors: uniqueErrors(errors) };
 };
 

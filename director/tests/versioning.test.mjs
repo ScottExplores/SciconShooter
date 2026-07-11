@@ -10,14 +10,15 @@ const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, '..', '..');
 const fixtureRoot = path.join(repositoryRoot, 'director-data', 'fixtures');
 
-const makeRepository = async (t) => {
+const makeRepository = async (t, options = {}) => {
   const dataRoot = await mkdtemp(path.join(os.tmpdir(), 'scicon-director-repo-'));
   let seconds = 0;
   const repository = new ConfigRepository({
     repositoryRoot,
     dataRoot,
     fixtureRoot,
-    clock: () => new Date(Date.UTC(2026, 6, 10, 20, 0, seconds++))
+    clock: () => new Date(Date.UTC(2026, 6, 10, 20, 0, seconds++)),
+    ...options
   });
   t.after(() => rm(dataRoot, { recursive: true, force: true }));
   return { repository, dataRoot };
@@ -163,5 +164,50 @@ test('review requests reference a real config version and resolve by creating ti
       anchor: { x: 0.5, y: 0.5 }
     }),
     /Invalid configuration version ID/
+  );
+});
+
+test('level-editor review context uses the injected game-campaign resolver and remains immutable', async (t) => {
+  const resolutions = [];
+  const { repository } = await makeRepository(t, {
+    reviewVersionResolver: async (requestedVersion, context, draftCampaign) => {
+      resolutions.push({ requestedVersion, context, draftCampaign });
+      return requestedVersion;
+    }
+  });
+  const context = {
+    source: 'level-editor',
+    campaignId: 'scicon-shooter-campaign',
+    campaignRevision: 1,
+    campaignContentHash: `sha256:${'b'.repeat(64)}`,
+    draftContentHash: `sha256:${'c'.repeat(64)}`,
+    levelId: 'operation-open-galaxy',
+    levelName: 'Operation Open Galaxy',
+    waveId: 'open-orbit',
+    waveName: 'OPEN ORBIT',
+    eventId: 'wave-1-gatekeeper',
+    eventLabel: 'Gatekeeper',
+    eventKind: 'boss',
+    elapsedSeconds: 60,
+    draft: true
+  };
+  const draftCampaign = { id: 'scicon-shooter-campaign', revision: 1 };
+  const configVersion = 'game-campaign-draft-r1-cccccccccccc';
+  const review = await repository.createReview({
+    surface: 'wave',
+    configVersion,
+    target: 'Operation Open Galaxy / OPEN ORBIT / Gatekeeper',
+    note: 'Move the warning away from the sprite.',
+    status: 'open',
+    anchor: { x: 0.7, y: 0.2 },
+    context,
+    draftCampaign
+  });
+
+  assert.deepEqual(resolutions, [{ requestedVersion: configVersion, context, draftCampaign }]);
+  assert.deepEqual(review.context, context);
+  await assert.rejects(
+    () => repository.updateReview(review.id, { context: { ...context, waveId: 'citation-storm' } }),
+    /Invalid review update/
   );
 });

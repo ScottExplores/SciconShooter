@@ -3637,7 +3637,9 @@ export class GameEngine {
           }
       }
       
-      const isInvincible = this.invincibleTimer > 0 || this.activePowerups.has(PowerupType.SHIELD);
+      // The Director is an inspection surface, so its preview ship must survive long
+      // enough to observe a complete wave without changing production combat rules.
+      const isInvincible = this.previewMode || this.invincibleTimer > 0 || this.activePowerups.has(PowerupType.SHIELD);
 
       if (hurtsPlayer && intersectsPlayer(e)) {
         if (isInvincible) {

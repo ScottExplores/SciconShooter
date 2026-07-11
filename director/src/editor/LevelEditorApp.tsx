@@ -3,18 +3,22 @@ import { GameEditorCanvas } from '../../../components/GameEditorCanvas';
 import type { GameCampaignConfig, LevelDefinition, WaveDefinition, WaveEvent } from '../../../game-config/types';
 import {
   applyGameCampaign,
+  createReview,
   fetchGameCampaign,
   fetchGameCampaignVersions,
+  fetchReviews,
   revertGameCampaignEdits,
   rollbackGameCampaign,
   type GameCampaignDiskState,
   type GameCampaignVersionSummary
 } from '@director/api/directorClient';
+import type { ReviewRequest } from '@director/domain/types';
 import { useUndoableState } from '@director/hooks/useUndoableState';
 import { EditorIcon } from './EditorIcon';
 import { EditorInspector, type InspectorTab } from './EditorInspector';
 import { EventTimeline } from './EventTimeline';
 import { LevelRail } from './LevelRail';
+import { LivePreviewAnnotations } from './LivePreviewAnnotations';
 import { WaveStrip } from './WaveStrip';
 import {
   cloneJson,
@@ -31,6 +35,20 @@ import {
 import './level-editor.css';
 
 const DRAFT_KEY = 'scicon-director-game-campaign-draft-v1';
+
+const canonicalJson = (value: unknown): string => {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`;
+};
+
+const hashDraftCampaign = async (campaign: GameCampaignConfig) => {
+  const bytes = new TextEncoder().encode(canonicalJson(campaign));
+  const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+  const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `sha256:${hex}`;
+};
 
 type PreviewRuntimeState = {
   levelId: string;
@@ -120,6 +138,9 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [versions, setVersions] = useState<GameCampaignVersionSummary[]>([]);
+  const [reviews, setReviews] = useState<ReviewRequest[]>([]);
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [draftContentHash, setDraftContentHash] = useState<string | null>(null);
 
   const selectedLevel = campaign.value.levels.find((level) => level.id === selectedLevelId) ?? campaign.value.levels[0];
   const selectedWave = selectedLevel?.waves.find((wave) => wave.id === selectedWaveId) ?? selectedLevel?.waves[0];
@@ -142,6 +163,29 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
       window.localStorage.removeItem(DRAFT_KEY);
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchReviews()
+      .then((result) => { if (!cancelled) setReviews(result.reviews); })
+      .catch((error) => {
+        if (!cancelled) notify(error instanceof Error ? error.message : 'Review notes are unavailable', true);
+      });
+    return () => { cancelled = true; };
+  }, [notify]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!campaign.isDirty) {
+      setDraftContentHash(null);
+      return () => { cancelled = true; };
+    }
+    setDraftContentHash(null);
+    void hashDraftCampaign(campaign.value)
+      .then((hash) => { if (!cancelled) setDraftContentHash(hash); })
+      .catch(() => { if (!cancelled) notify('Could not fingerprint the current draft for annotations', true); });
+    return () => { cancelled = true; };
+  }, [campaign.isDirty, campaign.value, notify]);
 
   useEffect(() => {
     if (!selectedLevel) return;
@@ -183,6 +227,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     setSelectedLevelId(levelId);
     setSelectedWaveId(wave?.id ?? '');
     setSelectedEventId(wave?.events[0]?.id ?? '');
+    setAnnotationMode(false);
     setRestartToken((value) => value + 1);
   };
 
@@ -199,6 +244,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     setSelectedWaveId(level.waves[0]?.id ?? '');
     setSelectedEventId(level.waves[0]?.events[0]?.id ?? '');
     setInspectorTab('level');
+    setAnnotationMode(false);
     setRestartToken((value) => value + 1);
   };
 
@@ -265,6 +311,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     const wave = selectedLevel?.waves.find((item) => item.id === waveId);
     setSelectedWaveId(waveId);
     setSelectedEventId(wave?.events[0]?.id ?? '');
+    setAnnotationMode(false);
     setRestartToken((value) => value + 1);
   };
 
@@ -389,9 +436,79 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
   };
 
   const previewLabel = useMemo(() => {
-    if (!runtimeState) return playing ? 'Live game renderer' : 'Preview paused';
+    if (!runtimeState) return playing ? 'Live shared game' : 'Preview paused';
+    if (!playing) return `${annotationMode ? 'Annotating' : 'Paused'} at ${runtimeState.elapsedSeconds.toFixed(1)} seconds`;
     return `${runtimeState.elapsedSeconds.toFixed(1)} / ${runtimeState.durationSeconds.toFixed(0)} seconds`;
-  }, [playing, runtimeState]);
+  }, [annotationMode, playing, runtimeState]);
+
+  const runtimeEvent = useMemo(() => {
+    if (!selectedWave) return undefined;
+    const elapsedSeconds = runtimeState?.elapsedSeconds ?? 0;
+    return selectedWave.events
+      .filter((event) => event.startSeconds <= elapsedSeconds + 1e-6)
+      .at(-1) ?? selectedWave.events.find((event) => event.id === selectedEventId);
+  }, [runtimeState?.elapsedSeconds, selectedEventId, selectedWave]);
+
+  const appliedReviewConfigVersion = activeVersionId
+    ?? `game-campaign-disk-r${campaign.value.revision}-${contentHash.slice(7, 19)}`;
+  const reviewConfigVersion = campaign.isDirty
+    ? draftContentHash
+      ? `game-campaign-draft-r${campaign.value.revision}-${draftContentHash.slice(7, 19)}`
+      : null
+    : appliedReviewConfigVersion;
+
+  const previewReviews = useMemo(() => reviews.filter((review) => (
+    review.surface === 'wave'
+    && review.configVersion === reviewConfigVersion
+    && review.context?.source === 'level-editor'
+    && review.context.levelId === selectedLevel?.id
+    && review.context.waveId === selectedWave?.id
+  )), [reviewConfigVersion, reviews, selectedLevel?.id, selectedWave?.id]);
+
+  const setAnnotating = (enabled: boolean) => {
+    setAnnotationMode(enabled);
+    if (enabled) setPlaying(false);
+  };
+
+  const createPreviewReview = async (anchor: ReviewRequest['anchor'], note: string) => {
+    if (!selectedLevel || !selectedWave) return;
+    try {
+      const event = runtimeEvent;
+      const isDraft = campaign.isDirty;
+      const currentDraftHash = isDraft ? await hashDraftCampaign(campaign.value) : null;
+      const configVersion = currentDraftHash
+        ? `game-campaign-draft-r${campaign.value.revision}-${currentDraftHash.slice(7, 19)}`
+        : appliedReviewConfigVersion;
+      const result = await createReview({
+        surface: 'wave',
+        configVersion,
+        target: `${selectedLevel.name} / ${selectedWave.name}${event ? ` / ${event.label}` : ''}`,
+        note,
+        status: 'open',
+        anchor,
+        context: {
+          source: 'level-editor',
+          campaignId: campaign.value.id,
+          campaignRevision: campaign.value.revision,
+          campaignContentHash: contentHash,
+          ...(currentDraftHash ? { draftContentHash: currentDraftHash } : {}),
+          levelId: selectedLevel.id,
+          levelName: selectedLevel.name,
+          waveId: selectedWave.id,
+          waveName: selectedWave.name,
+          ...(event ? { eventId: event.id, eventLabel: event.label, eventKind: event.kind } : {}),
+          elapsedSeconds: runtimeState?.elapsedSeconds ?? 0,
+          draft: isDraft
+        },
+        ...(isDraft ? { draftCampaign: campaign.value } : {})
+      });
+      setReviews((current) => [...current, result.review]);
+      notify(`Review note ${result.review.sequence} pinned to the live preview`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not save the review note', true);
+      throw error;
+    }
+  };
 
   if (!selectedLevel || !selectedWave) {
     return <div className="le-preview__error">The campaign requires at least one level and one wave.</div>;
@@ -445,16 +562,25 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
               playing={playing}
               restartToken={restartToken}
               onRuntimeState={(state) => setRuntimeState(state as PreviewRuntimeState)}
+              onPlayingChange={setPlaying}
             />
-            <div className="le-preview__badge">REAL GAME RENDERER · {selectedWave.name}</div>
+            <LivePreviewAnnotations
+              enabled={annotationMode}
+              reviews={previewReviews}
+              contextLabel={`${selectedLevel.name} · ${selectedWave.name}${runtimeEvent ? ` · ${runtimeEvent.label}` : ''}`}
+              disabled={busy || (campaign.isDirty && !draftContentHash)}
+              onCreate={createPreviewReview}
+            />
+            <div className="le-preview__badge">ACTUAL GAME SURFACE · {selectedWave.name}</div>
           </section>
           <EventTimeline events={selectedWave.events} selectedEventId={selectedEventId} onSelect={(event) => handleSelectEvent(event.id)} />
           <div>
             <div className="le-preview-controls" aria-label="Game preview controls">
               <button className="le-button" type="button" disabled={selectedWave.order <= 1} onClick={() => selectAdjacentWave(-1)}><EditorIcon name="back" /> Previous</button>
-              <button className={`le-button${playing ? ' is-active' : ''}`} type="button" onClick={() => setPlaying(true)}><EditorIcon name="play" /> Play</button>
+              <button className={`le-button${playing ? ' is-active' : ''}`} type="button" onClick={() => { setAnnotationMode(false); setPlaying(true); }}><EditorIcon name="play" /> Play</button>
               <button className={`le-button${!playing ? ' is-active' : ''}`} type="button" onClick={() => setPlaying(false)}><EditorIcon name="pause" /> Pause</button>
               <button className="le-button" type="button" onClick={() => setRestartToken((value) => value + 1)}><EditorIcon name="restart" /> Restart</button>
+              <button className={`le-button${annotationMode ? ' is-active' : ''}`} type="button" disabled={busy || (campaign.isDirty && !draftContentHash)} aria-pressed={annotationMode} onClick={() => setAnnotating(!annotationMode)}><EditorIcon name="review" /> {annotationMode ? 'Done' : 'Annotate'}</button>
               <button className="le-button" type="button" disabled={selectedWave.order >= selectedLevel.waves.length} onClick={() => selectAdjacentWave(1)}>Next <EditorIcon name="forward" /></button>
             </div>
             <WaveStrip

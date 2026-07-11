@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { FieldUpgradeType, Stats, GameState } from '../types';
+import { FieldUpgradeType, Stats } from '../types';
 import { audioService } from '../services/audioService';
 import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress } from '../services/flaskProgress';
 
-interface UIOverlayProps {
+export interface UIOverlayProps {
   stats: Stats;
-  setGameState: (s: GameState) => void;
-  lives: number;
   showLabGlow: boolean;
   onDisableLabGlow: () => void;
   isUpgradeReady?: boolean;
+  onPause: () => void;
   onUseBomb: () => void;
   onUpgrade: (type: FieldUpgradeType) => void;
   bombLocked?: boolean;
+  muted?: boolean;
+  onToggleMute?: () => boolean | void;
 }
 
 type HudIconName = 'sound' | 'muted' | 'pause' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
@@ -176,15 +177,18 @@ const fieldUpgradeColors: Record<FieldUpgradeType, {
 
 const UIOverlay: React.FC<UIOverlayProps> = ({
   stats,
-  setGameState,
   showLabGlow,
   onDisableLabGlow,
   isUpgradeReady = false,
+  onPause,
   onUseBomb,
   onUpgrade,
-  bombLocked = false
+  bombLocked = false,
+  muted: controlledMuted,
+  onToggleMute
 }) => {
-  const [muted, setMuted] = useState(false);
+  const [internalMuted, setInternalMuted] = useState(false);
+  const muted = controlledMuted ?? internalMuted;
 
   useEffect(() => {
     if (!showLabGlow) return;
@@ -197,8 +201,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   }, [showLabGlow, onDisableLabGlow]);
 
   const toggleMute = () => {
-    const isMuted = audioService.toggleMute();
-    setMuted(isMuted);
+    const result = onToggleMute ? onToggleMute() : audioService.toggleMute();
+    if (controlledMuted === undefined) {
+      setInternalMuted(typeof result === 'boolean' ? result : !muted);
+    }
   };
 
   const bombChargeMax = stats.bombChargeMax || BASE_FLASK_CHARGE_MAX;
@@ -255,7 +261,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           </button>
 
           <button
-            onClick={() => setGameState(GameState.PAUSED)}
+            onClick={onPause}
             className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-cyan-200/18 bg-white text-slate-950 shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition hover:bg-blue-100 sm:h-10 sm:w-10"
             aria-label="Pause mission"
           >

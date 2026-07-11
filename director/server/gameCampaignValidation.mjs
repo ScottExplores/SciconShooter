@@ -11,6 +11,11 @@ const ASSET_KEYS = new Set([
   'ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ENEMY_JOURNAL',
   'MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS'
 ]);
+const ENEMY_SPRITE_KEYS = new Set([
+  'ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ENEMY_JOURNAL'
+]);
+const BOSS_SPRITE_KEYS = new Set(['MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS']);
+const ASTEROID_SPRITE_KEYS = new Set(['ENEMY_BRICK_FRAMES']);
 const ENEMY_IDS = new Set(['drone', 'swarm', 'brick', 'journal']);
 const BOSS_IDS = new Set(['bottleneck-drone', 'paywall-wall', 'gatekeeper']);
 const POWERUP_IDS = new Set(['double-shot', 'triple-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
@@ -101,7 +106,7 @@ const validateSpawnEnemy = (enemy, location, errors) => {
   if (!requireObject(enemy, location, errors)) return;
   allowedKeys(enemy, ['enemyId', 'spriteKey', 'weight', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'], location, errors);
   requireEnum(enemy.enemyId, ENEMY_IDS, `${location}/enemyId`, errors);
-  requireEnum(enemy.spriteKey, ASSET_KEYS, `${location}/spriteKey`, errors);
+  requireEnum(enemy.spriteKey, ENEMY_SPRITE_KEYS, `${location}/spriteKey`, errors);
   requireNumber(enemy.weight, `${location}/weight`, errors, { minimum: 0, maximum: 1 });
   requireNumber(enemy.health, `${location}/health`, errors, { minimum: 0.01, maximum: 100000000 });
   requireNumber(enemy.speed, `${location}/speed`, errors, { minimum: 0, maximum: 100000 });
@@ -171,7 +176,7 @@ const validateBossPhase = (phase, location, weaponIds, previousRatio, errors) =>
 const validateBossEvent = (event, location, errors) => {
   allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'bossId', 'spriteKey', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'], location, errors);
   requireEnum(event.bossId, BOSS_IDS, `${location}/bossId`, errors);
-  requireEnum(event.spriteKey, ASSET_KEYS, `${location}/spriteKey`, errors);
+  requireEnum(event.spriteKey, BOSS_SPRITE_KEYS, `${location}/spriteKey`, errors);
   requireEnum(event.positionId, SPAWN_POSITIONS, `${location}/positionId`, errors);
   requireEnum(event.movementPatternId, MOVEMENT_PATTERNS, `${location}/movementPatternId`, errors);
   requireNumber(event.warningSeconds, `${location}/warningSeconds`, errors, { minimum: 0, maximum: 300 });
@@ -207,7 +212,7 @@ const validateBossEvent = (event, location, errors) => {
 
 const validateAsteroidEvent = (event, location, errors) => {
   allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spriteKey', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'], location, errors);
-  requireEnum(event.spriteKey, ASSET_KEYS, `${location}/spriteKey`, errors);
+  requireEnum(event.spriteKey, ASTEROID_SPRITE_KEYS, `${location}/spriteKey`, errors);
   requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 10000, integer: true });
   requireNumber(event.density, `${location}/density`, errors, { minimum: 0, maximum: 1 });
   requireEnum(event.patternId, SPAWN_PATTERNS, `${location}/patternId`, errors);
@@ -345,4 +350,3 @@ export const assertValidGameCampaign = (campaign, message = 'Invalid game campai
   if (!result.valid) throw new ValidationError(message, result.errors);
   return campaign;
 };
-

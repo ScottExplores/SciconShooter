@@ -114,6 +114,18 @@ Returns all local visual change requests in sequence order.
 surface. `status` may be omitted or set to `open`; IDs, sequence numbers, timestamps,
 and initial status are assigned by the server.
 
+Live level-preview pins reuse this route with `surface: "wave"` and an optional
+immutable `context` containing the campaign ID/revision/content hash, level/wave/event
+IDs and labels, elapsed preview seconds, and a `draft` flag. Applied
+`game-campaign-...` references are hash-verified against the active local version.
+Before the first apply, the server verifies a deterministic
+`game-campaign-disk-r<revision>-<hash>` reference against the tracked campaign file.
+Dirty previews use `game-campaign-draft-r<revision>-<hash>`; the request includes the
+draft campaign only long enough for the server to validate it and recompute its
+canonical hash. The draft payload is discarded, while the exact hash remains on the
+review context.
+Legacy reviews without `context` remain unchanged.
+
 ### `PATCH /__director/reviews/:id`
 
 Accepts one or more of `target`, `note`, `anchor`, and `status`. Resolving adds a

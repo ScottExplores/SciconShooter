@@ -247,14 +247,17 @@ export const createDirectorApiPlugin = ({ repositoryRoot, directorRoot: _directo
   const resolvedRepositoryRoot = path.resolve(repositoryRoot);
   const dataRoot = resolveWithin(resolvedRepositoryRoot, 'director-data');
   const fixtureRoot = resolveWithin(dataRoot, 'fixtures');
-  const repository = new ConfigRepository({
-    repositoryRoot: resolvedRepositoryRoot,
-    dataRoot,
-    fixtureRoot
-  });
   const gameCampaignRepository = new GameCampaignRepository({
     repositoryRoot: resolvedRepositoryRoot,
     dataRoot
+  });
+  const repository = new ConfigRepository({
+    repositoryRoot: resolvedRepositoryRoot,
+    dataRoot,
+    fixtureRoot,
+    reviewVersionResolver: (requestedVersion, context, draftCampaign) => (
+      gameCampaignRepository.resolveReviewConfigReference(requestedVersion, context, draftCampaign)
+    )
   });
   const requestHandler = createDirectorRequestHandler({
     repository,

@@ -19,6 +19,7 @@ import type {
   WaveEvent,
   WeaponId
 } from '../../../game-config/types';
+import { ASSET_CATALOG, BOSS_CATALOG, ENEMY_CATALOG } from '../../../game-config/catalog';
 import { EditorIcon } from './EditorIcon';
 
 export type InspectorTab = 'wave' | 'boss' | 'level';
@@ -37,35 +38,27 @@ interface EditorInspectorProps {
   onDeleteEvent: (eventId: string) => void;
 }
 
-const ENEMIES: Array<{ id: EnemyId; label: string; spriteKey: AssetKey }> = [
-  { id: 'drone', label: 'Paywall Drone', spriteKey: 'ENEMY_DRONE_FRAMES' },
-  { id: 'swarm', label: 'Misinformation Swarm', spriteKey: 'ENEMY_SWARM_FRAMES' },
-  { id: 'brick', label: 'Bureaucracy Brick', spriteKey: 'ENEMY_BRICK_FRAMES' },
-  { id: 'journal', label: 'Predatory Journal', spriteKey: 'ENEMY_JOURNAL' }
-];
+const ENEMIES: Array<{ id: EnemyId; label: string; spriteKey: AssetKey }> = Object.values(ENEMY_CATALOG).map((enemy) => ({
+  id: enemy.id,
+  label: enemy.label,
+  spriteKey: enemy.defaultSpriteKey
+}));
 
-const BOSSES: Array<{ id: BossId; label: string; spriteKey: AssetKey; movement: MovementPatternId }> = [
-  { id: 'bottleneck-drone', label: 'Bottleneck mini-boss', spriteKey: 'MINI_BOSS', movement: 'track-player' },
-  { id: 'paywall-wall', label: 'Paywall wall', spriteKey: 'WALL_BOSS_SEGMENT', movement: 'wall-march' },
-  { id: 'gatekeeper', label: 'Gatekeeper', spriteKey: 'FINAL_BOSS', movement: 'gatekeeper-cycle' }
-];
+const BOSSES: Array<{ id: BossId; label: string; spriteKey: AssetKey; movement: MovementPatternId }> = Object.values(BOSS_CATALOG).map((boss) => ({
+  id: boss.id,
+  label: boss.label,
+  spriteKey: boss.defaultSpriteKey,
+  movement: boss.defaultMovementPatternId
+}));
 
-const ENEMY_SPRITES: Array<{ value: AssetKey; label: string }> = [
-  { value: 'ENEMY_DRONE_FRAMES', label: 'Drone animation' },
-  { value: 'ENEMY_SWARM_FRAMES', label: 'Swarm animation' },
-  { value: 'ENEMY_BRICK_FRAMES', label: 'Asteroid / brick animation' },
-  { value: 'ENEMY_JOURNAL', label: 'Journal ace' }
-];
+const toAssetOptions = (keys: readonly AssetKey[]) => [...new Set(keys)].map((value) => ({
+  value,
+  label: ASSET_CATALOG[value].label
+}));
 
-const BOSS_SPRITES: Array<{ value: AssetKey; label: string }> = [
-  { value: 'MINI_BOSS', label: 'Mini-boss drone' },
-  { value: 'WALL_BOSS_SEGMENT', label: 'Wall segment' },
-  { value: 'FINAL_BOSS', label: 'Gatekeeper sentinel' }
-];
-
-const ASTEROID_SPRITES: Array<{ value: AssetKey; label: string }> = [
-  { value: 'ENEMY_BRICK_FRAMES', label: 'Real asteroid animation' }
-];
+const ENEMY_SPRITES = toAssetOptions(ENEMIES.map((enemy) => enemy.spriteKey));
+const BOSS_SPRITES = toAssetOptions(BOSSES.map((boss) => boss.spriteKey));
+const ASTEROID_SPRITES = toAssetOptions(['ENEMY_BRICK_FRAMES']);
 
 const PATTERNS: Array<{ value: SpawnPatternId; label: string }> = [
   { value: 'single-random', label: 'Single / random' },
@@ -162,6 +155,36 @@ function SelectField<T extends string>({
       <select value={value} onChange={(event) => onChange(event.target.value as T)}>
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
+    </label>
+  );
+}
+
+function AssetSelectField({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string;
+  value: AssetKey;
+  options: Array<{ value: AssetKey; label: string }>;
+  onChange: (value: AssetKey) => void;
+}) {
+  const selected = ASSET_CATALOG[value] ?? ASSET_CATALOG[options[0].value];
+  return (
+    <label className="le-field le-asset-field">
+      <span>{label}</span>
+      <span className="le-asset-field__preview" aria-hidden="true">
+        {selected.paths.map((path, index) => (
+          <img key={path} src={path} alt="" loading="lazy" decoding="async" draggable={false} title={`${selected.label} frame ${index + 1}`} />
+        ))}
+      </span>
+      <select value={value} onChange={(event) => onChange(event.target.value as AssetKey)}>
+        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+      <small className="le-asset-field__meta">
+        {selected.paths.length === 1 ? 'Single image' : `${selected.paths.length} animation frames`} / {selected.id}
+      </small>
     </label>
   );
 }
@@ -290,7 +313,7 @@ function WaveSettings({
               const selected = ENEMIES.find((item) => item.id === enemyId)!;
               updateEnemy({ enemyId, spriteKey: selected.spriteKey });
             }} />
-            <SelectField label="Enemy sprite" value={enemy.spriteKey} options={ENEMY_SPRITES} onChange={(spriteKey) => updateEnemy({ spriteKey })} />
+            <AssetSelectField label="Enemy sprite" value={enemy.spriteKey} options={ENEMY_SPRITES} onChange={(spriteKey) => updateEnemy({ spriteKey })} />
             <div className="le-field-row">
               <NumberField label="Speed" value={enemy.speed} onChange={(speed) => updateEnemy({ speed })} min={0.1} max={20} step={0.1} unit="×" />
               <NumberField label="Health" value={enemy.health} onChange={(health) => updateEnemy({ health })} min={1} max={10000} step={1} unit="HP" />
@@ -336,7 +359,7 @@ function AsteroidSettings({
         <button className="le-icon-button" type="button" title="Add boss encounter" aria-label="Add boss encounter" onClick={() => onAddEvent('boss')}><EditorIcon name="add" /></button>
       </div>
       <EventTiming event={asteroid} onChange={onUpdateEvent} />
-      <SelectField label="Asteroid sprite" value={asteroid.spriteKey} options={ASTEROID_SPRITES} onChange={(spriteKey) => updateAsteroid({ spriteKey })} />
+      <AssetSelectField label="Asteroid sprite" value={asteroid.spriteKey} options={ASTEROID_SPRITES} onChange={(spriteKey) => updateAsteroid({ spriteKey })} />
       <SelectField label="Belt pattern" value={asteroid.patternId} options={PATTERNS} onChange={(patternId) => updateAsteroid({ patternId })} />
       <SelectField label="Spawn position" value={asteroid.positionId} options={POSITIONS} onChange={(positionId) => updateAsteroid({ positionId })} />
       <div className="le-field-row">
@@ -435,7 +458,7 @@ function BossSettings({
             const selected = BOSSES.find((item) => item.id === bossId)!;
             updateBoss({ bossId, spriteKey: selected.spriteKey, movementPatternId: selected.movement });
           }} />
-          <SelectField label="Boss sprite" value={boss.spriteKey} options={BOSS_SPRITES} onChange={(spriteKey) => updateBoss({ spriteKey })} />
+          <AssetSelectField label="Boss sprite" value={boss.spriteKey} options={BOSS_SPRITES} onChange={(spriteKey) => updateBoss({ spriteKey })} />
           <SelectField label="Movement pattern" value={boss.movementPatternId} options={MOVEMENTS} onChange={(movementPatternId) => updateBoss({ movementPatternId })} />
           <SelectField label="Spawn position" value={boss.positionId} options={POSITIONS} onChange={(positionId) => updateBoss({ positionId })} />
           <div className="le-field-row">

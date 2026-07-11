@@ -53,5 +53,19 @@ Publish and rollback only create local configuration revisions. Real-run loading
 fixed-origin, GET-only, and sanitized. The Director has no production database write,
 wallet, signing, or mainnet transaction path.
 
+## One shared game surface
+
+`components/GameStage.tsx` is the canonical gameplay surface for both the public game
+and the local Director. It composes the real `GameCanvas` and `UIOverlay`, so renderer,
+HUD, sprite, effect, and asset changes automatically appear in both places. The
+Director's `GameEditorCanvas` is only a local preview-state wrapper around that stage;
+it does not contain a second renderer.
+
+The Director can inject its in-memory draft campaign, selected level, and selected
+wave into the shared canvas for immediate preview. The public game keeps the validated
+tracked campaign as its default. Wallet, leaderboard, score submission, minting, and
+other production integrations remain outside `GameStage` and are never imported into
+the Director.
+
 See [server/README.md](server/README.md) for API and safety details and
 [design/design-spec.md](design/design-spec.md) for the interface model.

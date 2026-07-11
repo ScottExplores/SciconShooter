@@ -19,19 +19,16 @@ import { trackEvent, trackInitialVisit } from './services/analyticsService';
 import { getWalletRecords } from './services/recordService';
 
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
-const loadGameCanvas = () => import('./components/GameCanvas');
-const loadUIOverlay = () => import('./components/UIOverlay');
+const loadGameStage = () => import('./components/GameStage');
 const loadStoryTransmission = () => import('./components/StoryTransmission');
 const MissionRecordPreview = React.lazy(() => import('./components/MissionRecordPreview'));
-const GameCanvas = React.lazy(loadGameCanvas);
-const UIOverlay = React.lazy(loadUIOverlay);
+const GameStage = React.lazy(loadGameStage);
 const StoryTransmission = React.lazy(loadStoryTransmission);
 
 const preloadGameplayComponents = () => {
-  const gameCanvasModule = loadGameCanvas();
+  const gameStageModule = loadGameStage();
   void Promise.all([
-    gameCanvasModule,
-    loadUIOverlay(),
+    gameStageModule,
     loadStoryTransmission()
   ]).then(async ([gameplay]) => {
     await gameplay.preloadGameplayAssets();
@@ -1063,35 +1060,31 @@ const App: React.FC = () => {
 
       {(gameState === GameState.PLAYING || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
         <React.Suspense fallback={null}>
-          <GameCanvas
+          <GameStage
             key={gameId}
-            stats={stats}
-            setStats={setStats}
-            setGameState={setGameState}
-            gameState={gameState}
-            isTransmissionOpen={Boolean(activeStoryBeat)}
-            bombCommand={bombCommand}
-            continueCommand={continueCommand}
-            polishSettings={polishSettings}
-          />
-        </React.Suspense>
-      )}
-
-      {gameState === GameState.PLAYING && (
-        <React.Suspense fallback={null}>
-          <UIOverlay
-            stats={stats}
-            setGameState={setGameState}
-            lives={stats.lives}
-            showLabGlow={showLabGlow}
-            onDisableLabGlow={() => setShowLabGlow(false)}
-            isUpgradeReady={false}
-            bombLocked={introMissionLocked || Boolean(activeStoryBeat)}
-            onUseBomb={() => {
-              if (introMissionLocked || activeStoryBeat) return;
-              setBombCommand({ nonce: Date.now() });
+            canvas={{
+              stats,
+              onStatsChange: setStats,
+              running: gameState === GameState.PLAYING,
+              onGameOver: () => setGameState(GameState.GAMEOVER),
+              onContinueStarted: () => setGameState(GameState.PLAYING),
+              isTransmissionOpen: Boolean(activeStoryBeat),
+              bombCommand,
+              continueCommand,
+              polishSettings
             }}
-            onUpgrade={handleFieldUpgrade}
+            hud={gameState === GameState.PLAYING ? {
+              showLabGlow,
+              onDisableLabGlow: () => setShowLabGlow(false),
+              isUpgradeReady: false,
+              onPause: () => setGameState(GameState.PAUSED),
+              bombLocked: introMissionLocked || Boolean(activeStoryBeat),
+              onUseBomb: () => {
+                if (introMissionLocked || activeStoryBeat) return;
+                setBombCommand({ nonce: Date.now() });
+              },
+              onUpgrade: handleFieldUpgrade
+            } : false}
           />
         </React.Suspense>
       )}

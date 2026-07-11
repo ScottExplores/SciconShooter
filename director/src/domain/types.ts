@@ -141,6 +141,23 @@ export interface WaveCampaignConfig {
   powerups: PowerupWeight[];
 }
 
+export interface LevelEditorReviewContext {
+  source: 'level-editor';
+  campaignId: string;
+  campaignRevision: number;
+  campaignContentHash: string;
+  draftContentHash?: string;
+  levelId: string;
+  levelName: string;
+  waveId: string;
+  waveName: string;
+  eventId?: string;
+  eventLabel?: string;
+  eventKind?: 'spawn' | 'boss' | 'asteroid-belt' | 'powerup' | 'recovery';
+  elapsedSeconds: number;
+  draft: boolean;
+}
+
 export interface ReviewRequest {
   id: string;
   sequence: number;
@@ -150,6 +167,7 @@ export interface ReviewRequest {
   note: string;
   status: 'open' | 'resolved';
   anchor: { x: number; y: number };
+  context?: LevelEditorReviewContext;
   createdAt: string;
   resolvedAt?: string;
 }

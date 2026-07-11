@@ -1,11 +1,15 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { GameCampaign } from '../game-config/types';
-import { GameEngine, type GameRuntimeState } from '../services/gameLogic';
-import { PowerupType, type Stats } from '../types';
+import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
+import { BASE_FLASK_CHARGE_MAX, getFlaskProgress, spendStoredFlasks } from '../services/flaskProgress';
+import type { GameRuntimeState } from '../services/gameLogic';
+import { FieldUpgradeType, PowerupType, type GamePolishSettings, type Stats } from '../types';
+import GameStage from './GameStage';
 
-const SIMULATION_STEP_MS = 1000 / 60;
-const MAX_SIMULATION_STEPS_PER_FRAME = 4;
-const RUNTIME_STATE_INTERVAL_MS = 200;
+const EDITOR_POLISH_SETTINGS: GamePolishSettings = {
+  screenShake: true,
+  highDensityParticles: true
+};
 
 const createPreviewStats = (): Stats => ({
   score: 0,
@@ -16,7 +20,7 @@ const createPreviewStats = (): Stats => ({
   enemiesDefeated: 0,
   bombs: 2,
   bombCharge: 0,
-  bombChargeMax: 100,
+  bombChargeMax: BASE_FLASK_CHARGE_MAX,
   lives: 3,
   repairsCount: 0,
   upgrades: { fireRate: 2, speed: 1, missile: 0 },
@@ -41,6 +45,7 @@ export interface GameEditorCanvasProps {
   playing: boolean;
   restartToken: number;
   onRuntimeState?: (state: GameRuntimeState) => void;
+  onPlayingChange?: (playing: boolean) => void;
 }
 
 export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
@@ -49,156 +54,79 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
   waveId,
   playing,
   restartToken,
-  onRuntimeState
+  onRuntimeState,
+  onPlayingChange
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const engineRef = useRef<GameEngine | null>(null);
-  const playingRef = useRef(playing);
-  const callbackRef = useRef(onRuntimeState);
-  const keysRef = useRef<Record<string, boolean>>({ ' ': true });
-  const lastRestartTokenRef = useRef(restartToken);
+  const [stats, setStats] = useState<Stats>(createPreviewStats);
+  const [bombCommand, setBombCommand] = useState<{ nonce: number } | null>(null);
 
-  useEffect(() => {
-    playingRef.current = playing;
-  }, [playing]);
+  const handlePreviewUpgrade = useCallback((type: FieldUpgradeType) => {
+    setStats((previous) => {
+      const chargeMax = previous.bombChargeMax || BASE_FLASK_CHARGE_MAX;
+      const flaskCount = getFlaskProgress(previous.bombCharge || 0, chargeMax).storedFlasks;
+      const flaskCost = getFieldUpgradeFlaskCost(previous, type);
+      const config = FIELD_UPGRADE_CONFIG[type];
+      const level = getFieldUpgradeLevel(previous, type);
+      const isLifeUpgrade = type === 'extraLife';
+      const isAtCap = isLifeUpgrade
+        ? previous.lives >= GAME_CONFIG.MAX_LIVES
+        : level >= config.maxLevel;
 
-  useEffect(() => {
-    callbackRef.current = onRuntimeState;
-  }, [onRuntimeState]);
+      if (flaskCount < flaskCost || isAtCap) return previous;
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return undefined;
-    const context = canvas.getContext('2d');
-    if (!context) return undefined;
+      const bombCharge = spendStoredFlasks(previous.bombCharge || 0, flaskCost, chargeMax);
+      if (isLifeUpgrade) {
+        return {
+          ...previous,
+          bombCharge,
+          lives: Math.min(GAME_CONFIG.MAX_LIVES, previous.lives + 1),
+          repairsCount: (previous.repairsCount || 0) + 1
+        };
+      }
 
-    const engine = new GameEngine(createPreviewStats(), {
-      campaign,
-      previewMode: true,
-      audioEnabled: false,
-      initialLevelId: levelId,
-      initialWaveId: waveId
-    });
-    engineRef.current = engine;
-
-    const resize = () => {
-      const bounds = canvas.getBoundingClientRect();
-      const width = Math.max(1, Math.round(bounds.width || 720));
-      const height = Math.max(1, Math.round(bounds.height || 720));
-      if (canvas.width === width && canvas.height === height) return;
-      canvas.width = width;
-      canvas.height = height;
-      context.imageSmoothingEnabled = false;
-      if (engine.width === 0 || engine.height === 0) engine.init(width, height);
-      else engine.resize(width, height);
-    };
-
-    resize();
-    if (engine.width === 0 || engine.height === 0) engine.init(canvas.width || 720, canvas.height || 720);
-    engine.loadPreviewWave(levelId, waveId);
-    engine.handleInput(keysRef.current, null);
-    callbackRef.current?.(engine.getRuntimeState());
-
-    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize);
-    resizeObserver?.observe(canvas);
-    window.addEventListener('resize', resize);
-
-    let frameId = 0;
-    let previousTime = 0;
-    let accumulator = 0;
-    let lastRuntimePublish = 0;
-    const frame = (timestamp: number) => {
-      if (!previousTime) previousTime = timestamp;
-      const elapsed = Math.min(100, Math.max(0, timestamp - previousTime));
-      previousTime = timestamp;
-
-      if (playingRef.current && engine.gameActive) {
-        accumulator += elapsed;
-        let simulationSteps = 0;
-        while (accumulator >= SIMULATION_STEP_MS && simulationSteps < MAX_SIMULATION_STEPS_PER_FRAME) {
-          engine.update(false);
-          accumulator -= SIMULATION_STEP_MS;
-          simulationSteps++;
+      return {
+        ...previous,
+        bombCharge,
+        upgrades: {
+          ...previous.upgrades,
+          [type]: previous.upgrades[type] + 1
         }
-        if (simulationSteps >= MAX_SIMULATION_STEPS_PER_FRAME) accumulator = 0;
-      } else {
-        accumulator = 0;
-      }
-
-      engine.draw(context);
-      if (timestamp - lastRuntimePublish >= RUNTIME_STATE_INTERVAL_MS) {
-        lastRuntimePublish = timestamp;
-        callbackRef.current?.(engine.getRuntimeState());
-      }
-      frameId = window.requestAnimationFrame(frame);
-    };
-    frameId = window.requestAnimationFrame(frame);
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      resizeObserver?.disconnect();
-      window.removeEventListener('resize', resize);
-      engine.gameActive = false;
-      if (engineRef.current === engine) engineRef.current = null;
-    };
-  }, [campaign, levelId, waveId]);
-
-  useEffect(() => {
-    if (lastRestartTokenRef.current === restartToken) return;
-    lastRestartTokenRef.current = restartToken;
-    const engine = engineRef.current;
-    if (!engine) return;
-    engine.restartPreview();
-    engine.handleInput(keysRef.current, null);
-    callbackRef.current?.(engine.getRuntimeState());
-  }, [restartToken]);
-
-  const updatePointerTarget = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const engine = engineRef.current;
-    const canvas = canvasRef.current;
-    if (!engine || !canvas) return;
-    const bounds = canvas.getBoundingClientRect();
-    engine.handleInput(keysRef.current, {
-      x: Math.max(0, Math.min(bounds.width, event.clientX - bounds.left)),
-      y: Math.max(0, Math.min(bounds.height, event.clientY - bounds.top))
+      };
     });
-  };
+  }, []);
+
+  const hasStoredFlask = getFlaskProgress(
+    stats.bombCharge || 0,
+    stats.bombChargeMax || BASE_FLASK_CHARGE_MAX
+  ).storedFlasks > 0;
 
   return (
-    <canvas
-      ref={canvasRef}
-      tabIndex={0}
-      aria-label="Live Scicon Shooter wave preview"
-      onKeyDown={(event) => {
-        keysRef.current[event.key] = true;
-        engineRef.current?.handleInput(keysRef.current, null);
+    <GameStage
+      canvas={{
+        stats,
+        onStatsChange: setStats,
+        running: playing,
+        polishSettings: EDITOR_POLISH_SETTINGS,
+        campaign,
+        levelId,
+        waveId,
+        previewMode: true,
+        audioEnabled: false,
+        autoFire: true,
+        restartToken,
+        bombCommand,
+        onRuntimeState
       }}
-      onKeyUp={(event) => {
-        keysRef.current[event.key] = false;
-        engineRef.current?.handleInput(keysRef.current, null);
-      }}
-      onPointerDown={(event) => {
-        event.currentTarget.focus();
-        event.currentTarget.setPointerCapture(event.pointerId);
-        updatePointerTarget(event);
-      }}
-      onPointerMove={(event) => {
-        if (event.buttons > 0) updatePointerTarget(event);
-      }}
-      onPointerUp={(event) => {
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-        engineRef.current?.handleInput(keysRef.current, null);
-      }}
-      style={{
-        display: 'block',
-        width: '100%',
-        height: '100%',
-        background: '#0b1020',
-        imageRendering: 'pixelated',
-        outline: 'none',
-        touchAction: 'none'
+      hud={{
+        showLabGlow: false,
+        onDisableLabGlow: () => undefined,
+        isUpgradeReady: hasStoredFlask,
+        onPause: () => onPlayingChange?.(false),
+        onUseBomb: () => setBombCommand({ nonce: Date.now() }),
+        onUpgrade: handlePreviewUpgrade,
+        bombLocked: false,
+        muted: true,
+        onToggleMute: () => true
       }}
     />
   );

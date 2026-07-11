@@ -94,8 +94,17 @@ export const fetchVersions = async <T,>(kind: ConfigKind) => readJson<{ versions
   await fetch(`${API_ROOT}/versions/${kind}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
 );
 
-export const createReview = async (request: Omit<ReviewRequest, 'id' | 'sequence' | 'createdAt'>) => (
+export type CreateReviewInput = Omit<ReviewRequest, 'id' | 'sequence' | 'createdAt'> & {
+  /** Verified by the local server for dirty level-editor references, then discarded. */
+  draftCampaign?: unknown;
+};
+
+export const createReview = async (request: CreateReviewInput) => (
   mutation<{ review: ReviewRequest }>('/reviews', 'POST', request)
+);
+
+export const fetchReviews = async () => readJson<{ reviews: ReviewRequest[] }>(
+  await fetch(`${API_ROOT}/reviews`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
 );
 
 export const updateReview = async (id: string, updates: Partial<Pick<ReviewRequest, 'note' | 'status' | 'target'>>) => (

@@ -156,6 +156,75 @@ export class GameCampaignRepository {
     };
   }
 
+  async resolveReviewConfigReference(requestedVersion, context, draftCampaign = undefined) {
+    const disk = await this.readCampaign();
+    const expectedDiskReference = `game-campaign-disk-r${disk.revision}-${disk.contentHash.slice(7, 19)}`;
+    const errors = [];
+    let referencedCampaign = disk.campaign;
+    let expectedDraftReference = null;
+
+    if (!context || typeof context !== 'object' || Array.isArray(context)) {
+      errors.push('level-editor review context is required');
+    } else {
+      if (context.campaignId !== disk.campaign.id) errors.push('review campaignId does not match the tracked campaign');
+      if (context.campaignRevision !== disk.revision) errors.push('review campaignRevision does not match the tracked campaign');
+      if (context.campaignContentHash !== disk.contentHash) errors.push('review campaignContentHash does not match the tracked campaign');
+
+      if (context.draft === true) {
+        if (!draftCampaign || typeof draftCampaign !== 'object' || Array.isArray(draftCampaign)) {
+          errors.push('draftCampaign is required for a draft review reference');
+        } else {
+          assertValidGameCampaign(draftCampaign, 'Invalid level-editor draft campaign');
+          const draftHash = contentHash(draftCampaign);
+          expectedDraftReference = `game-campaign-draft-r${disk.revision}-${draftHash.slice(7, 19)}`;
+          referencedCampaign = draftCampaign;
+          if (draftCampaign.id !== disk.campaign.id) errors.push('draftCampaign id does not match the tracked campaign');
+          if (draftCampaign.revision !== disk.revision) errors.push('draftCampaign revision does not match the tracked campaign');
+          if (context.draftContentHash !== draftHash) errors.push('review draftContentHash does not match draftCampaign');
+          if (requestedVersion !== expectedDraftReference) errors.push(`configVersion must be ${expectedDraftReference} for this draft`);
+        }
+      } else {
+        if (context.draftContentHash !== undefined) errors.push('review draftContentHash is only valid for a draft');
+        if (draftCampaign !== undefined) errors.push('draftCampaign must be omitted for an applied review reference');
+      }
+
+      if (context.levelId) {
+        const level = referencedCampaign.levels?.find((item) => item.id === context.levelId);
+        const wave = level?.waves?.find((item) => item.id === context.waveId);
+        const event = wave?.events?.find((item) => item.id === context.eventId);
+        if (!level) errors.push('review levelId does not exist in the referenced campaign');
+        else if (level.name !== context.levelName) errors.push('review levelName does not match the referenced campaign');
+        if (!wave) errors.push('review waveId does not exist in the referenced campaign');
+        else if (wave.name !== context.waveName) errors.push('review waveName does not match the referenced campaign');
+        if (context.eventId && !event) errors.push('review eventId does not exist in the referenced campaign');
+        if (event && (event.label !== context.eventLabel || event.kind !== context.eventKind)) {
+          errors.push('review event metadata does not match the referenced campaign');
+        }
+      }
+    }
+    if (errors.length) throw new ValidationError('Invalid level-editor review reference', errors);
+
+    if (expectedDraftReference) return expectedDraftReference;
+
+    if (typeof requestedVersion === 'string' && VERSION_ID_PATTERN.test(requestedVersion)) {
+      const version = await this._readVersion(requestedVersion);
+      if (requestedVersion !== disk.activeVersionId) {
+        throw new ValidationError('Invalid level-editor review reference', ['configVersion is not the active tracked game campaign version']);
+      }
+      if (version.contentHash !== context.campaignContentHash || version.payload.id !== context.campaignId) {
+        throw new ValidationError('Invalid level-editor review reference', ['configVersion does not match the supplied campaign context']);
+      }
+      return version.id;
+    }
+
+    if (requestedVersion !== expectedDiskReference) {
+      throw new ValidationError('Invalid level-editor review reference', [
+        `configVersion must be ${expectedDiskReference} before the first applied game-campaign version`
+      ]);
+    }
+    return expectedDiskReference;
+  }
+
   _versionPath(versionId) {
     if (typeof versionId !== 'string' || !VERSION_ID_PATTERN.test(versionId)) {
       throw new HttpError(400, 'Invalid game campaign version ID');

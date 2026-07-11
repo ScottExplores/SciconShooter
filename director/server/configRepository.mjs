@@ -98,12 +98,14 @@ export class ConfigRepository {
     repositoryRoot = defaultRepositoryRoot,
     dataRoot = path.join(repositoryRoot, 'director-data'),
     fixtureRoot = path.join(repositoryRoot, 'director-data', 'fixtures'),
-    clock = () => new Date()
+    clock = () => new Date(),
+    reviewVersionResolver = null
   } = {}) {
     this.repositoryRoot = path.resolve(repositoryRoot);
     this.dataRoot = path.resolve(dataRoot);
     this.fixtureRoot = path.resolve(fixtureRoot);
     this.clock = clock;
+    this.reviewVersionResolver = reviewVersionResolver;
     this.initializing = null;
     this.writeQueues = new Map();
 
@@ -468,7 +470,13 @@ export class ConfigRepository {
     return cloneJson(reviews);
   }
 
-  async _resolveReviewVersion(surface, requestedVersion) {
+  async _resolveReviewVersion(surface, requestedVersion, context = undefined, draftCampaign = undefined) {
+    if (context?.source === 'level-editor') {
+      if (typeof this.reviewVersionResolver !== 'function') {
+        throw new HttpError(503, 'Level-editor review version resolution is unavailable');
+      }
+      return this.reviewVersionResolver(requestedVersion, context, draftCampaign);
+    }
     const kind = surface === 'scorecard' ? 'scorecard' : 'wave-campaign';
     if (requestedVersion === undefined) return (await this.getActive(kind)).id;
     await this._readVersionFile(kind, requestedVersion);
@@ -478,14 +486,22 @@ export class ConfigRepository {
   async createReview(input) {
     await this.initialize();
     assertPlainObject(input, 'review request');
-    assertAllowedKeys(input, ['surface', 'configVersion', 'target', 'note', 'anchor', 'status'], 'review request');
+    assertAllowedKeys(input, ['surface', 'configVersion', 'target', 'note', 'anchor', 'status', 'context', 'draftCampaign'], 'review request');
     if (!['scorecard', 'wave'].includes(input.surface)) {
       throw new ValidationError('Invalid review request', ['surface must be scorecard or wave']);
     }
     if (input.status !== undefined && input.status !== 'open') {
       throw new ValidationError('Invalid review request', ['new review requests must have open status']);
     }
-    const configVersion = await this._resolveReviewVersion(input.surface, input.configVersion);
+    if (input.draftCampaign !== undefined && input.context?.source !== 'level-editor') {
+      throw new ValidationError('Invalid review request', ['draftCampaign is only accepted for a level-editor review']);
+    }
+    const configVersion = await this._resolveReviewVersion(
+      input.surface,
+      input.configVersion,
+      input.context,
+      input.draftCampaign
+    );
 
     return this._withWriteLock('reviews', async () => {
       const reviews = await this.listReviews();
@@ -499,6 +515,7 @@ export class ConfigRepository {
         note: input.note,
         status: 'open',
         anchor: cloneJson(input.anchor),
+        ...(input.context ? { context: cloneJson(input.context) } : {}),
         createdAt: this.clock().toISOString()
       };
       assertValidReview(review);

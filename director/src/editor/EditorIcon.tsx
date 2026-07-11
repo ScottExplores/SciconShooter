@@ -13,6 +13,7 @@ export type EditorIconName =
   | 'history'
   | 'pause'
   | 'play'
+  | 'review'
   | 'restart'
   | 'save'
   | 'spawn'
@@ -38,6 +39,7 @@ export function EditorIcon({ name, ...props }: EditorIconProps) {
       {name === 'history' ? <><path d="M4 5v5h5" /><path d="M5.5 10a7 7 0 1 1 .5 6" /></> : null}
       {name === 'pause' ? <><path d="M8 5v14M16 5v14" /></> : null}
       {name === 'play' ? <path d="m8 5 11 7-11 7V5Z" /> : null}
+      {name === 'review' ? <><path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Z" /><circle cx="12" cy="10" r="2" /></> : null}
       {name === 'restart' ? <><path d="M20 7v5h-5" /><path d="M19 12a7 7 0 1 1-2-5" /></> : null}
       {name === 'save' ? <><path d="M4 4h13l3 3v13H4V4Z" /><path d="M8 4v6h8V4m-8 16v-6h8v6" /></> : null}
       {name === 'spawn' ? <><path d="M12 3v4M5.6 5.6l2.8 2.8M3 12h4m-1.4 6.4 2.8-2.8M12 17v4m6.4-2.6-2.8-2.8M17 12h4m-2.6-6.4-2.8 2.8" /><circle cx="12" cy="12" r="3" /></> : null}

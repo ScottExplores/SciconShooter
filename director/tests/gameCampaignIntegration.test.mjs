@@ -4,6 +4,7 @@ import { createServer, request as httpRequest } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { ConfigRepository, contentHash } from '../server/configRepository.mjs';
 import { fileURLToPath } from 'node:url';
 import { GameCampaignRepository } from '../server/gameCampaignRepository.mjs';
 import { validateGameCampaign } from '../server/gameCampaignValidation.mjs';
@@ -193,6 +194,47 @@ test('structural game campaign validation covers nested runtime tuning fields', 
   assert.ok(result.errors.some((error) => error.includes('weaponSettingIds')));
 });
 
+test('sprite validation permits catalog swaps only within gameplay categories', () => {
+  const validSwap = makeCampaign();
+  validSwap.levels[0].waves[0].events[0].enemies[0].spriteKey = 'ENEMY_JOURNAL';
+  validSwap.levels[0].waves[0].events[1].spriteKey = 'MINI_BOSS';
+  assert.deepEqual(validateGameCampaign(validSwap), { valid: true, errors: [] });
+
+  const invalid = makeCampaign();
+  const events = invalid.levels[0].waves[0].events;
+  events[0].enemies[0].spriteKey = 'FINAL_BOSS';
+  events[1].spriteKey = 'GAME_BG_BACK';
+  events.splice(1, 0, {
+    id: 'unsafe-asteroid-belt',
+    label: 'Unsafe asteroid belt',
+    kind: 'asteroid-belt',
+    startSeconds: 30,
+    durationSeconds: 5,
+    delayAfterSeconds: 0,
+    blocksWaveClock: true,
+    spriteKey: 'PLAYER_SHIP',
+    count: 5,
+    density: 0.5,
+    patternId: 'asteroid-lanes',
+    positionId: 'lane-top',
+    spawnIntervalSeconds: 0.5,
+    warningSeconds: 1,
+    health: 4,
+    speed: 2,
+    damage: 1,
+    scoreValue: 20,
+    powerupDropChance: 0.08
+  });
+
+  const result = validateGameCampaign(invalid);
+  assert.equal(result.valid, false);
+  const spriteErrors = result.errors.filter((error) => error.includes('/spriteKey has unsupported value'));
+  assert.equal(spriteErrors.length, 3);
+  assert.ok(spriteErrors.some((error) => error.includes('/events/0/enemies/0/spriteKey')));
+  assert.ok(spriteErrors.some((error) => error.includes('/events/1/spriteKey')));
+  assert.ok(spriteErrors.some((error) => error.includes('/events/2/spriteKey')));
+});
+
 test('the actual tracked game campaign passes the local server mirror validator', async () => {
   const campaign = JSON.parse(await readFile(path.join(trackedRepositoryRoot, 'game-config', 'campaign.json'), 'utf8'));
   assert.deepEqual(validateGameCampaign(campaign), { valid: true, errors: [] });
@@ -250,6 +292,61 @@ test('apply snapshots the baseline, atomically updates disk, and enforces optimi
     /changed; revert or reload/
   );
   assert.deepEqual(await repository.listVersions(), history);
+});
+
+test('review references resolve only to the current disk hash or active immutable campaign version', async (t) => {
+  const { repository } = await makeRepository(t);
+  const disk = await repository.readCampaign();
+  const diskContext = {
+    campaignId: disk.campaign.id,
+    campaignRevision: disk.revision,
+    campaignContentHash: disk.contentHash
+  };
+  const diskReference = `game-campaign-disk-r${disk.revision}-${disk.contentHash.slice(7, 19)}`;
+  assert.equal(await repository.resolveReviewConfigReference(diskReference, diskContext), diskReference);
+  await assert.rejects(
+    () => repository.resolveReviewConfigReference('game-campaign-disk-r1-000000000000', diskContext),
+    /Invalid level-editor review reference/
+  );
+
+  const draft = structuredClone(disk.campaign);
+  draft.levels[0].waves[0].name = 'Draft Opening Review';
+  const draftHash = contentHash(draft);
+  const draftReference = `game-campaign-draft-r${disk.revision}-${draftHash.slice(7, 19)}`;
+  const draftContext = {
+    ...diskContext,
+    draft: true,
+    draftContentHash: draftHash,
+    levelId: draft.levels[0].id,
+    levelName: draft.levels[0].name,
+    waveId: draft.levels[0].waves[0].id,
+    waveName: draft.levels[0].waves[0].name
+  };
+  assert.equal(
+    await repository.resolveReviewConfigReference(draftReference, draftContext, draft),
+    draftReference
+  );
+  await assert.rejects(
+    () => repository.resolveReviewConfigReference(draftReference, { ...draftContext, waveName: 'Not in draft' }, draft),
+    /Invalid level-editor review reference/
+  );
+
+  const edited = structuredClone(disk.campaign);
+  edited.levels[0].name = 'Reviewed Open Orbit';
+  const applied = await repository.applyCampaign(edited, { expectedContentHash: disk.contentHash });
+  const appliedContext = {
+    campaignId: applied.campaign.id,
+    campaignRevision: applied.campaign.revision,
+    campaignContentHash: applied.contentHash
+  };
+  assert.equal(
+    await repository.resolveReviewConfigReference(applied.activeVersionId, appliedContext),
+    applied.activeVersionId
+  );
+  await assert.rejects(
+    () => repository.resolveReviewConfigReference(applied.activeVersionId, { ...appliedContext, campaignRevision: 1 }),
+    /Invalid level-editor review reference/
+  );
 });
 
 test('rollback verifies a selected immutable version and records a new rollback revision', async (t) => {
@@ -310,4 +407,91 @@ test('game campaign HTTP routes require the mutation token and return validation
   const disk = JSON.parse(await readFile(path.join(repositoryRoot, 'game-config', 'campaign.json'), 'utf8'));
   assert.deepEqual(disk, fetched.body.campaign);
   assert.deepEqual(await repository.listVersions(), []);
+});
+
+test('the existing review API persists normalized live-preview context through a verified disk reference', async (t) => {
+  const { repository: gameRepository, repositoryRoot, dataRoot } = await makeRepository(t);
+  const disk = await gameRepository.readCampaign();
+  const configVersion = `game-campaign-disk-r${disk.revision}-${disk.contentHash.slice(7, 19)}`;
+  const repository = new ConfigRepository({
+    repositoryRoot,
+    dataRoot,
+    fixtureRoot: path.join(trackedRepositoryRoot, 'director-data', 'fixtures'),
+    reviewVersionResolver: (requestedVersion, context, draftCampaign) => (
+      gameRepository.resolveReviewConfigReference(requestedVersion, context, draftCampaign)
+    )
+  });
+  const handler = createDirectorRequestHandler({
+    repository,
+    realRunReader: { listRuns: async () => [] },
+    gameCampaignRepository: gameRepository
+  });
+  const server = createServer((request, response) => handler(request, response));
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const { port } = server.address();
+  const context = {
+    source: 'level-editor',
+    campaignId: disk.campaign.id,
+    campaignRevision: disk.revision,
+    campaignContentHash: disk.contentHash,
+    levelId: 'open-orbit',
+    levelName: 'Open Orbit',
+    waveId: 'wave-1',
+    waveName: 'Opening Review',
+    eventId: 'review-gatekeeper',
+    eventLabel: 'Review Gatekeeper',
+    eventKind: 'boss',
+    elapsedSeconds: 42.5,
+    draft: false
+  };
+  const response = await requestJson({
+    port,
+    path: '/__director/reviews',
+    method: 'POST',
+    headers: { 'X-Scicon-Director': 'local' },
+    body: {
+      surface: 'wave',
+      configVersion,
+      target: 'Open Orbit / Opening Review / Review Gatekeeper',
+      note: 'Move this warning away from the sprite.',
+      status: 'open',
+      anchor: { x: 0.74, y: 0.22 },
+      context
+    }
+  });
+  assert.equal(response.status, 201);
+  assert.equal(response.body.review.configVersion, configVersion);
+  assert.deepEqual(response.body.review.anchor, { x: 0.74, y: 0.22 });
+  assert.deepEqual(response.body.review.context, context);
+
+  const draftCampaign = structuredClone(disk.campaign);
+  draftCampaign.levels[0].waves[0].name = 'Draft Review Wave';
+  const draftContentHash = contentHash(draftCampaign);
+  const draftVersion = `game-campaign-draft-r${disk.revision}-${draftContentHash.slice(7, 19)}`;
+  const draftContext = {
+    ...context,
+    draft: true,
+    draftContentHash,
+    waveName: 'Draft Review Wave'
+  };
+  const draftResponse = await requestJson({
+    port,
+    path: '/__director/reviews',
+    method: 'POST',
+    headers: { 'X-Scicon-Director': 'local' },
+    body: {
+      surface: 'wave',
+      configVersion: draftVersion,
+      target: 'Open Orbit / Draft Review Wave / Review Gatekeeper',
+      note: 'This note belongs to the exact unsaved draft.',
+      status: 'open',
+      anchor: { x: 0.42, y: 0.58 },
+      context: draftContext,
+      draftCampaign
+    }
+  });
+  assert.equal(draftResponse.status, 201);
+  assert.equal(draftResponse.body.review.configVersion, draftVersion);
+  assert.equal(draftResponse.body.review.context.draftContentHash, draftContentHash);
 });
