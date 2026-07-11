@@ -49,6 +49,8 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   const recordUrl = `${window.location.origin}/?record=${encodeURIComponent(receipt.runId)}`;
   const cardUrl = `${window.location.origin}/api/record-card?runId=${encodeURIComponent(receipt.runId)}`;
   const explorerUrl = mintChainId === 8453 ? 'https://basescan.org' : 'https://sepolia.basescan.org';
+  const needsBaseAccount = !walletAddress;
+  const isClaimBusy = runClaimStatus === 'connecting' || runClaimStatus === 'signing';
 
   const shareRecord = async () => {
     const text = `${pilotName} scored ${receipt.metrics.score.toLocaleString()} in Scicon Shooter and reached wave ${receipt.metrics.wave}. Play. Win the week. Choose what research gets funded.`;
@@ -74,7 +76,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/92 p-4 backdrop-blur-xl">
+    <div className="absolute inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/92 p-4 backdrop-blur-xl sm:items-center">
       <div className="relative w-full max-w-md overflow-hidden rounded-[8px] border border-cyan-200/35 bg-[#020817] shadow-[0_28px_100px_rgba(0,0,0,0.72),0_0_70px_rgba(34,211,238,0.12)]">
         <div className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(34,211,238,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.035)_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="relative border-b border-cyan-200/15 px-5 py-4">
@@ -87,8 +89,8 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
           </div>
         </div>
 
-        <div className="relative p-5">
-          <div className="relative overflow-hidden rounded-[8px] border border-cyan-100/25 bg-[radial-gradient(circle_at_50%_35%,rgba(34,211,238,0.22),transparent_34%),linear-gradient(145deg,#07152a,#020611_72%)] p-5">
+        <div className="relative p-4 sm:p-5">
+          <div className="relative overflow-hidden rounded-[8px] border border-cyan-100/25 bg-[radial-gradient(circle_at_50%_35%,rgba(34,211,238,0.22),transparent_34%),linear-gradient(145deg,#07152a,#020611_72%)] p-4 sm:p-5">
             <div className="absolute -right-10 -top-12 h-44 w-44 rotate-12 border border-cyan-200/10" />
             <div className="flex items-center gap-4">
               <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-[8px] border border-cyan-200/20 bg-cyan-300/8">
@@ -113,15 +115,51 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
             </div>
           </div>
 
-          <div className="mt-4 rounded-[8px] border border-emerald-200/15 bg-emerald-300/8 px-3 py-2 text-[10px] font-semibold leading-relaxed text-emerald-50/80">
-            Global score submission stays free and wallet-optional. This collectible records one run; only a finalized Champion Record can include a selected research proposal.
-          </div>
+          {runClaimStatus !== 'confirmed' ? (
+            <div className="mt-4 overflow-hidden rounded-[8px] border border-cyan-100/25 bg-[linear-gradient(135deg,rgba(8,47,73,0.72),rgba(6,78,59,0.34))] p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="arcade-font text-base font-black uppercase tracking-wider text-white">
+                    {needsBaseAccount ? 'Mint yours now' : 'Base Account ready'}
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-cyan-100">
+                    {needsBaseAccount
+                      ? 'Keep this run onchain. New to Base? Sign in can create a passkey account; your global score stays saved either way.'
+                      : 'Verify one wallet signature to attach this score to your account and unlock minting.'}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-[5px] border border-white/20 bg-white/10 px-2 py-1 font-mono text-[8px] font-black uppercase tracking-[0.16em] text-white">
+                  Onchain
+                </span>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-[9px] font-semibold text-slate-400">
+                <span>Sign-in has no network fee. Minting may require a small Base network fee.</span>
+                <a
+                  href="https://docs.base.org/base-account/overview/what-is-base-account"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-black uppercase tracking-wider text-cyan-200 underline decoration-cyan-200/40 underline-offset-2 hover:text-white"
+                >
+                  About Base Account
+                </a>
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <button type="button" onClick={() => void shareRecord()} className="rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share score card</button>
             {runClaimStatus !== 'confirmed' ? (
-              <button type="button" onClick={onAttachWallet} disabled={runClaimStatus === 'connecting' || runClaimStatus === 'signing'} className="rounded-[8px] border border-emerald-100/30 bg-emerald-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-emerald-50 transition hover:bg-emerald-300/25 disabled:opacity-60">
-                {runClaimStatus === 'signing' ? 'Sign message' : runClaimStatus === 'connecting' ? 'Connecting...' : 'Verify wallet to mint'}
+              <button type="button" onClick={onAttachWallet} disabled={isClaimBusy} className="flex items-center justify-center gap-2 rounded-[8px] border border-emerald-100/40 bg-emerald-300/20 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-emerald-50 shadow-[0_0_24px_rgba(110,231,183,0.08)] transition hover:bg-emerald-300/30 disabled:opacity-60">
+                {needsBaseAccount && !isClaimBusy ? <span aria-hidden="true" className="h-3 w-3 shrink-0 bg-white" /> : null}
+                <span>
+                  {runClaimStatus === 'signing'
+                    ? 'Sign to verify score'
+                    : runClaimStatus === 'connecting'
+                      ? 'Opening Base...'
+                      : needsBaseAccount
+                        ? 'Sign in with Base'
+                        : 'Verify this score'}
+                </span>
               </button>
             ) : (
               <button type="button" onClick={onMint} disabled={!mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">

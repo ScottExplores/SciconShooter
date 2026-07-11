@@ -173,9 +173,15 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
 
   const claimRun = useCallback(async (receipt: RunReceipt) => {
     onRunClaimStatus('connecting');
+    const wasConnected = Boolean(activeWalletAddress);
     const address = activeWalletAddress || await connectWallet();
     if (!address) {
       onRunClaimStatus('error', 'Connect a Base Account to attach this run.');
+      return;
+    }
+
+    if (!wasConnected) {
+      onRunClaimStatus('idle', 'Base Account ready. Verify this score to unlock minting.');
       return;
     }
 
