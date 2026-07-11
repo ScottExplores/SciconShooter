@@ -103,7 +103,7 @@ export const GAME_CONFIG = {
   FPS: 60,
   BASE_PLAYER_SPEED: 2.5, // Reduced from 3.2 to make start heavier
   PLAYER_LIVES: 3,
-  MAX_LIVES: 5,
+  MAX_LIVES: 15,
   BASE_SPAWN_RATE: 80, // Faster spawns
   // We now use milestones, but this controls the fill speed of the bar between bosses
   WAVE_DURATION_FRAMES: 3600, 
@@ -133,10 +133,10 @@ export const FIELD_UPGRADE_CONFIG: Record<FieldUpgradeType, {
   fireRate: {
     title: 'Rapid Fire',
     shortTitle: 'Rapid',
-    description: 'Faster shots that evolve into plasma, ion, and Nova fire',
+    description: 'Faster shots that evolve into plasma, ion, Nova, and Singularity fire',
     baseCost: 8,
     costStep: 6,
-    maxLevel: 6
+    maxLevel: 7
   },
   speed: {
     title: 'Speed',
@@ -144,7 +144,7 @@ export const FIELD_UPGRADE_CONFIG: Record<FieldUpgradeType, {
     description: 'Sharper movement',
     baseCost: 7,
     costStep: 5,
-    maxLevel: 5
+    maxLevel: 6
   },
   extraLife: {
     title: 'Extra Life',
@@ -166,9 +166,13 @@ export const getFieldUpgradeCost = (stats: Stats, type: FieldUpgradeType) => {
   return config.baseCost + (level * config.costStep);
 };
 
-export const getFieldUpgradeFlaskCost = (stats: Stats, type: FieldUpgradeType) => (
-  type === 'fireRate' && getFieldUpgradeLevel(stats, type) >= 5 ? 5 : 1
-);
+export const getFieldUpgradeFlaskCost = (stats: Stats, type: FieldUpgradeType) => {
+  const level = getFieldUpgradeLevel(stats, type);
+  if (type === 'fireRate' && level >= 6) return 10;
+  if (type === 'fireRate' && level >= 5) return 5;
+  if (type === 'speed' && level >= 5) return 5;
+  return 1;
+};
 
 export const TEXT_STRINGS = {
   TITLE: "Scicon Shooter",

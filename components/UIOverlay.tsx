@@ -335,12 +335,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           const isAtCap = isLifeUpgrade ? stats.lives >= GAME_CONFIG.MAX_LIVES : level >= config.maxLevel;
           const canPick = flaskCount >= flaskCost && !isAtCap;
           const shortTitle = type === 'fireRate'
-            ? level >= 5
-              ? 'Nova'
-              : level >= 3
-                ? 'Plasma'
-                : config.shortTitle
-            : config.shortTitle;
+            ? level >= 6
+              ? 'Singularity'
+              : level >= 5
+                ? 'Nova'
+                : level >= 3
+                  ? 'Plasma'
+                  : config.shortTitle
+            : type === 'speed' && level >= 5
+              ? 'Warp'
+              : config.shortTitle;
           const upgradeStatus = isAtCap
             ? 'MAX'
             : flaskCost > 1
