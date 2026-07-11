@@ -41,10 +41,14 @@ test('leaderboard derives score and wave from the signed receipt', async () => {
     run_id: runId, verified: true, receipt_hash: 'hash'
   };
   const originalFetch = global.fetch;
+  let writeRequest;
   global.fetch = async (url, options = {}) => {
     const value = String(url);
     if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
-    if (options.method === 'POST') return jsonResponse(null, 204);
+    if (options.method === 'POST') {
+      writeRequest = { url: value, options };
+      return jsonResponse(null, 204);
+    }
     return jsonResponse([row]);
   };
 
@@ -59,12 +63,14 @@ test('leaderboard derives score and wave from the signed receipt', async () => {
     assert.equal(res.body.scores[0].score, 4321);
     assert.equal(res.body.scores[0].wave, 4);
     assert.equal(res.body.scores[0].runId, runId);
+    assert.equal(writeRequest.url.includes('on_conflict'), false);
+    assert.equal(writeRequest.options.headers.Prefer, 'return=minimal');
   } finally {
     global.fetch = originalFetch;
   }
 });
 
-test('leaderboard rejects a replayed run ID', async () => {
+test('leaderboard treats a replayed run ID as an idempotent save', async () => {
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
   global.fetch = async () => jsonResponse([{ run_id: runId }]);
@@ -73,8 +79,35 @@ test('leaderboard rejects a replayed run ID', async () => {
     await leaderboardHandler({
       method: 'POST', body: { name: 'pilot', receiptToken: makeReceipt(runId) }, headers: {}, socket: { remoteAddress: '127.0.0.1' }
     }, res);
-    assert.equal(res.statusCode, 409);
-    assert.match(res.body.error, /already been submitted/i);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.alreadySubmitted, true);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('leaderboard treats a duplicate insert race as an idempotent save', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  const row = {
+    name: 'PILOT', score: 4321, wave: 4, date: new Date().toISOString(), wallet_address: null,
+    donated: false, proposal_id: null, proposal_title: null, proposal_url: null, proposal_author: null,
+    run_id: runId, verified: true, receipt_hash: 'hash'
+  };
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
+    if (options.method === 'POST') return jsonResponse({ code: '23505', message: 'duplicate key value violates unique constraint' }, 409);
+    return jsonResponse([row]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST', body: { name: 'pilot', receiptToken: makeReceipt(runId) }, headers: {}, socket: { remoteAddress: '127.0.0.1' }
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.scores[0].runId, runId);
   } finally {
     global.fetch = originalFetch;
   }

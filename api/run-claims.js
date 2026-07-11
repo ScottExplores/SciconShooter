@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
+const { verifyBaseMessage } = require('./_lib/baseSignatures');
 
 const NONCES_TABLE = process.env.SUPABASE_WALLET_NONCES_TABLE || 'scicon_wallet_nonces';
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
@@ -59,25 +60,60 @@ const createChallenge = async ({ address, receiptToken }) => {
   return { challengeId, message, expiresAt, runId: receipt.runId };
 };
 
+const syncLeaderboardWallet = async (runId, walletAddress) => {
+  try {
+    await fetchSupabaseJson(`${LEADERBOARD_TABLE}?run_id=eq.${encodeURIComponent(runId)}`, {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+      body: JSON.stringify({ wallet_address: walletAddress })
+    });
+  } catch (error) {
+    // The verified receipt owns wallet association; leaderboard denormalization can recover later.
+    console.error('Run claim leaderboard sync failed:', error);
+  }
+};
+
 const claimRun = async ({ address, receiptToken, challengeId, signature }) => {
   const normalizedAddress = normalizeAddress(address);
   if (!normalizedAddress || !challengeId || !signature) {
     throw Object.assign(new Error('Wallet, challenge, and signature are required.'), { statusCode: 400 });
   }
   const receipt = verifyRunReceipt(receiptToken);
-  const rows = await fetchSupabaseJson(`${NONCES_TABLE}?select=*&challenge_id=eq.${encodeURIComponent(challengeId)}&limit=1`, {
-    headers: supabaseHeaders()
-  });
+  const [rows, receiptRows] = await Promise.all([
+    fetchSupabaseJson(`${NONCES_TABLE}?select=*&challenge_id=eq.${encodeURIComponent(challengeId)}&limit=1`, {
+      headers: supabaseHeaders()
+    }),
+    fetchSupabaseJson(`${RECEIPTS_TABLE}?select=wallet_address,wallet_claimed_at&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
+      headers: supabaseHeaders()
+    })
+  ]);
   const challenge = Array.isArray(rows) ? rows[0] : null;
-  if (!challenge || challenge.used_at || new Date(challenge.expires_at).getTime() <= Date.now()) {
-    throw Object.assign(new Error('This wallet challenge is missing, used, or expired.'), { statusCode: 410 });
+  if (!challenge || new Date(challenge.expires_at).getTime() <= Date.now()) {
+    throw Object.assign(new Error('This wallet challenge is missing or expired.'), { statusCode: 410 });
   }
   if (challenge.run_id !== receipt.runId || challenge.wallet_address !== normalizedAddress) {
     throw Object.assign(new Error('The wallet challenge does not match this run.'), { statusCode: 403 });
   }
 
-  const { verifyMessage } = await import('viem');
-  const valid = await verifyMessage({
+  const storedReceipt = Array.isArray(receiptRows) ? receiptRows[0] : null;
+  const storedWallet = storedReceipt?.wallet_address?.toLowerCase() || null;
+  if (storedWallet && storedWallet !== normalizedAddress) {
+    throw Object.assign(new Error('This run is already attached to another Base Account.'), { statusCode: 409 });
+  }
+
+  if (challenge.used_at) {
+    if (storedWallet !== normalizedAddress) {
+      throw Object.assign(new Error('This wallet challenge was already used.'), { statusCode: 410 });
+    }
+    await syncLeaderboardWallet(receipt.runId, normalizedAddress);
+    return {
+      runId: receipt.runId,
+      walletAddress: normalizedAddress,
+      claimedAt: storedReceipt.wallet_claimed_at || challenge.used_at
+    };
+  }
+
+  const valid = await verifyBaseMessage({
     address: normalizedAddress,
     message: challenge.message,
     signature
@@ -85,24 +121,40 @@ const claimRun = async ({ address, receiptToken, challengeId, signature }) => {
   if (!valid) throw Object.assign(new Error('Wallet signature could not be verified.'), { statusCode: 401 });
 
   const now = new Date().toISOString();
-  await Promise.all([
-    fetchSupabaseJson(`${NONCES_TABLE}?challenge_id=eq.${encodeURIComponent(challengeId)}&used_at=is.null`, {
+  if (!storedWallet) {
+    const claimedReceipts = await fetchSupabaseJson(`${RECEIPTS_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}&wallet_address=is.null`, {
       method: 'PATCH',
-      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
-      body: JSON.stringify({ used_at: now })
-    }),
-    fetchSupabaseJson(`${RECEIPTS_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}`, {
-      method: 'PATCH',
-      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+      headers: supabaseHeaders({ Prefer: 'return=representation' }),
       body: JSON.stringify({ wallet_address: normalizedAddress, wallet_claimed_at: now })
-    }),
-    fetchSupabaseJson(`${LEADERBOARD_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}`, {
-      method: 'PATCH',
-      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
-      body: JSON.stringify({ wallet_address: normalizedAddress })
-    })
-  ]);
-  return { runId: receipt.runId, walletAddress: normalizedAddress, claimedAt: now };
+    });
+    if (!Array.isArray(claimedReceipts) || claimedReceipts.length !== 1) {
+      const currentRows = await fetchSupabaseJson(`${RECEIPTS_TABLE}?select=wallet_address,wallet_claimed_at&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
+        headers: supabaseHeaders()
+      });
+      const currentReceipt = Array.isArray(currentRows) ? currentRows[0] : null;
+      if (currentReceipt?.wallet_address?.toLowerCase() !== normalizedAddress) {
+        throw Object.assign(new Error('This run was attached by another account. Refresh before retrying.'), { statusCode: 409 });
+      }
+    }
+  }
+
+  const consumedChallenges = await fetchSupabaseJson(`${NONCES_TABLE}?challenge_id=eq.${encodeURIComponent(challengeId)}&used_at=is.null`, {
+    method: 'PATCH',
+    headers: supabaseHeaders({ Prefer: 'return=representation' }),
+    body: JSON.stringify({ used_at: now })
+  });
+  if (!Array.isArray(consumedChallenges) || consumedChallenges.length !== 1) {
+    const currentRows = await fetchSupabaseJson(`${RECEIPTS_TABLE}?select=wallet_address&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
+      headers: supabaseHeaders()
+    });
+    const currentWallet = Array.isArray(currentRows) ? currentRows[0]?.wallet_address?.toLowerCase() : null;
+    if (currentWallet !== normalizedAddress) {
+      throw Object.assign(new Error('This wallet challenge was already used.'), { statusCode: 409 });
+    }
+  }
+
+  await syncLeaderboardWallet(receipt.runId, normalizedAddress);
+  return { runId: receipt.runId, walletAddress: normalizedAddress, claimedAt: storedReceipt?.wallet_claimed_at || now };
 };
 
 module.exports = async (req, res) => {

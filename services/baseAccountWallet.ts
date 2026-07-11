@@ -46,7 +46,7 @@ const builderCodeSuffix = Attribution.toDataSuffix({
   codes: [DONATION_CONFIG.BUILDER_CODE]
 });
 
-const waitForCallsStatus = async (callsId: Hex): Promise<Hex> => {
+export const waitForBaseCallsTransaction = async (callsId: Hex): Promise<Hex> => {
   for (let attempt = 0; attempt < 90; attempt += 1) {
     const result = await baseAccountProvider.request({
       method: 'wallet_getCallsStatus',
@@ -55,7 +55,7 @@ const waitForCallsStatus = async (callsId: Hex): Promise<Hex> => {
 
     if (result.status === 200) {
       const transactionHash = result.receipts?.find((receipt) => receipt.transactionHash)?.transactionHash;
-      return transactionHash || callsId;
+      if (transactionHash) return transactionHash;
     }
 
     if (typeof result.status === 'number' && result.status >= 400) {
@@ -83,21 +83,28 @@ export const disconnectBaseAccount = async () => {
   await baseAccountProvider.disconnect();
 };
 
-export const signBaseAccountMessage = async (address: Address, message: string): Promise<Hex> => (
-  baseAccountProvider.request({
+export const signBaseAccountMessage = async (address: Address, message: string): Promise<Hex> => {
+  const response = await baseAccountProvider.request({
     method: 'personal_sign',
     params: [stringToHex(message), address]
-  }) as Promise<Hex>
-);
+  }) as Hex | { result?: Hex; signature?: Hex };
+  const signature = typeof response === 'string'
+    ? response
+    : response.signature || response.result;
+  if (!signature) throw new Error('Base Account did not return a message signature.');
+  return signature;
+};
 
 export const sendAttributedBaseCalls = async ({
   from,
   calls,
-  sponsorGas = false
+  sponsorGas = false,
+  onSubmitted
 }: {
   from: Address;
   calls: BaseCall[];
   sponsorGas?: boolean;
+  onSubmitted?: (callsId: Hex) => void;
 }): Promise<Hex> => {
   const paymasterProxyUrl = (import.meta.env.VITE_PAYMASTER_PROXY_URL as string | undefined)?.trim();
   const capabilities: Record<string, unknown> = {
@@ -116,6 +123,7 @@ export const sendAttributedBaseCalls = async ({
     params: [{
       version: '2.0.0',
       chainId: DONATION_CONFIG.BASE_CHAIN_ID_HEX as Hex,
+      atomicRequired: true,
       from,
       calls,
       capabilities
@@ -130,7 +138,8 @@ export const sendAttributedBaseCalls = async ({
     throw new Error('Base Account did not return a transaction batch ID.');
   }
 
-  return waitForCallsStatus(callsId);
+  onSubmitted?.(callsId);
+  return waitForBaseCallsTransaction(callsId);
 };
 
 export const sendRscContinuePayment = async ({

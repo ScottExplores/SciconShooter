@@ -299,6 +299,7 @@ const App: React.FC = () => {
   const runSessionPromiseRef = useRef<Promise<RunSession> | null>(null);
   const runReceiptPromiseRef = useRef<Promise<RunReceipt> | null>(null);
   const finalizedRunGameIdRef = useRef<number | null>(null);
+  const walletActionNonceRef = useRef(0);
   const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
   const [latestVerifiedRun, setLatestVerifiedRun] = useState<RunReceipt | null>(readLatestVerifiedRun);
   const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
@@ -642,7 +643,8 @@ const App: React.FC = () => {
 
   const requestWalletRuntimeAction = useCallback((type: 'connect' | 'disconnect' | 'continue') => {
     setWalletRuntimeEnabled(true);
-    setWalletRuntimeAction({ type, nonce: Date.now() });
+    walletActionNonceRef.current += 1;
+    setWalletRuntimeAction({ type, nonce: walletActionNonceRef.current });
   }, []);
 
   const connectWallet = useCallback(() => {
@@ -659,9 +661,9 @@ const App: React.FC = () => {
   }, [requestWalletRuntimeAction]);
 
   const handleContinueWithRsc = useCallback(() => {
-    if (isContinuePaymentBusy) return;
+    if (isContinuePaymentBusy || runReceipt || runReceiptPromiseRef.current) return;
     requestWalletRuntimeAction('continue');
-  }, [isContinuePaymentBusy, requestWalletRuntimeAction]);
+  }, [isContinuePaymentBusy, requestWalletRuntimeAction, runReceipt]);
 
   const handleWalletRuntimeActionHandled = useCallback((nonce: number) => {
     setWalletRuntimeAction((current) => current?.nonce === nonce ? null : current);
@@ -693,9 +695,9 @@ const App: React.FC = () => {
     setActiveStoryBeat(null);
     setStats(prev => ({
       ...prev,
-      lives: 3
+      lives: 5
     }));
-    setContinueCommand({ nonce: Date.now(), lives: 3 });
+    setContinueCommand({ nonce: Date.now(), lives: 5 });
     setGameState(GameState.PLAYING);
     audioService.playSound('powerup');
 
@@ -721,37 +723,45 @@ const App: React.FC = () => {
     }
   }, [activeStoryBeat, gameState, stats.wave]);
 
+  const finalizeCurrentRun = async (): Promise<RunReceipt | null> => {
+    if (runReceipt) return runReceipt;
+    if (runReceiptPromiseRef.current) return runReceiptPromiseRef.current;
+    if (finalizedRunGameIdRef.current === gameId) return null;
+
+    trackEvent('mission_completed', { score: stats.score, wave: stats.wave });
+    finalizedRunGameIdRef.current = gameId;
+    setRunReceiptStatus('finalizing');
+    const sessionPromise = runSessionPromiseRef.current ?? startRunSession();
+    const receiptPromise = sessionPromise
+      .then((session) => finishRunSession(session, {
+        score: stats.score,
+        wave: stats.wave,
+        durationMs: Math.max(0, Date.now() - new Date(session.issuedAt).getTime()),
+        enemiesDefeated: stats.enemiesDefeated,
+        coinsCollected: stats.coins
+      }))
+      .then((receipt) => {
+        setRunReceipt(receipt);
+        setRunReceiptStatus(receipt.integrity === 'local-unverified' ? 'local' : 'ready');
+        if (receipt.integrity !== 'local-unverified') {
+          setLatestVerifiedRun(receipt);
+          localStorage.setItem(STORAGE_KEYS.LATEST_RUN_RECEIPT, JSON.stringify(receipt));
+        }
+        return receipt;
+      })
+      .catch((error) => {
+        console.error('Run receipt finalization failed:', error);
+        finalizedRunGameIdRef.current = null;
+        runReceiptPromiseRef.current = null;
+        setRunReceiptStatus('error');
+        throw error;
+      });
+    runReceiptPromiseRef.current = receiptPromise;
+    return receiptPromise;
+  };
+
   useEffect(() => {
     if (gameState === GameState.GAMEOVER) {
-      if (finalizedRunGameIdRef.current !== gameId && !runReceiptPromiseRef.current) {
-        trackEvent('mission_completed', { score: stats.score, wave: stats.wave });
-        finalizedRunGameIdRef.current = gameId;
-        setRunReceiptStatus('finalizing');
-        const sessionPromise = runSessionPromiseRef.current ?? startRunSession();
-        runReceiptPromiseRef.current = sessionPromise
-          .then((session) => finishRunSession(session, {
-            score: stats.score,
-            wave: stats.wave,
-            durationMs: Math.max(0, Date.now() - new Date(session.issuedAt).getTime()),
-            enemiesDefeated: stats.enemiesDefeated,
-            coinsCollected: stats.coins
-          }))
-          .then((receipt) => {
-            setRunReceipt(receipt);
-            setRunReceiptStatus(receipt.integrity === 'local-unverified' ? 'local' : 'ready');
-            if (receipt.integrity !== 'local-unverified') {
-              setLatestVerifiedRun(receipt);
-              localStorage.setItem(STORAGE_KEYS.LATEST_RUN_RECEIPT, JSON.stringify(receipt));
-            }
-            return receipt;
-          })
-          .catch((error) => {
-            console.error('Run receipt finalization failed:', error);
-            setRunReceiptStatus('error');
-            throw error;
-          });
-      }
-
       const scoreKey = `${gameId}:${stats.score}:${stats.wave}`;
       if (submittedScoreKeysRef.current.has(scoreKey)) {
         return;
@@ -804,7 +814,7 @@ const App: React.FC = () => {
 
     let confirmedSave = false;
     try {
-      const verifiedReceipt = runReceipt ?? await runReceiptPromiseRef.current;
+      const verifiedReceipt = await finalizeCurrentRun();
       if (!verifiedReceipt) {
         throw new Error('Run verification is still preparing. Please try again.');
       }
@@ -815,7 +825,7 @@ const App: React.FC = () => {
         receipt: verifiedReceipt
       });
       if (updatedData.remoteSaved === false) {
-        throw new Error('Global leaderboard save did not confirm');
+        throw new Error(updatedData.remoteError || 'Global leaderboard save did not confirm');
       }
       if (updatedData.scores.length > 0) {
         setLeaderboard(updatedData.scores);
@@ -831,7 +841,7 @@ const App: React.FC = () => {
       submittedScoreKeysRef.current.delete(scoreKey);
       setLeaderboard(previousLeaderboard);
       setMonthlyLeaderboard(previousMonthlyLeaderboard);
-      setScoreSubmitError('Global save did not confirm. Please submit again before sharing.');
+      setScoreSubmitError(error instanceof Error ? error.message : 'Global save did not confirm. Please try again.');
       return false;
     } finally {
       submittingScoreRef.current = false;
@@ -855,8 +865,9 @@ const App: React.FC = () => {
   const claimCurrentRun = () => {
     if (!runReceipt || runReceipt.integrity === 'local-unverified') return;
     setWalletRuntimeEnabled(true);
+    walletActionNonceRef.current += 1;
     setWalletRuntimeAction({
-      nonce: Date.now(),
+      nonce: walletActionNonceRef.current,
       type: 'claim-run',
       receipt: runReceipt
     });
@@ -887,8 +898,9 @@ const App: React.FC = () => {
     setWalletRuntimeEnabled(true);
     setChampionClaimStatus('connecting');
     setChampionClaimMessage('');
+    walletActionNonceRef.current += 1;
     setWalletRuntimeAction({
-      nonce: Date.now(),
+      nonce: walletActionNonceRef.current,
       type: 'claim-champion',
       weekKey: winner.periodKey,
       proposal
@@ -901,7 +913,8 @@ const App: React.FC = () => {
   const mintCurrentMissionRecord = () => {
     if (!runReceipt || runClaimStatus !== 'confirmed') return;
     setWalletRuntimeEnabled(true);
-    setWalletRuntimeAction({ nonce: Date.now(), type: 'mint-mission', receipt: runReceipt });
+    walletActionNonceRef.current += 1;
+    setWalletRuntimeAction({ nonce: walletActionNonceRef.current, type: 'mint-mission', receipt: runReceipt });
   };
 
   const handleMissionMintStatus = (
@@ -972,6 +985,7 @@ const App: React.FC = () => {
 
   const pubStatus = getPubStatus(stats.score);
   const scoreQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, stats.score);
+  const nextContinueRscCost = continueRscCost + 5;
   const continueStatusText = continuePaymentStatus === 'switching_network'
     ? 'Switching wallet to Base...'
     : continuePaymentStatus === 'processing'
@@ -982,37 +996,33 @@ const App: React.FC = () => {
           ? 'Continue confirmed.'
           : continuePaymentStatus === 'error'
             ? continuePaymentError
-            : `Next continue costs ${continueRscCost} RSC.`;
+            : '';
   const continueRunControls = (
-    <div className="rounded-[8px] border border-emerald-200/25 bg-[radial-gradient(circle_at_50%_0%,rgba(16,185,129,0.22),transparent_44%),rgba(6,78,59,0.18)] p-4 text-left">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">Continue run</p>
-          <h3 className="mt-1 text-xl font-black uppercase tracking-wide text-white">{continueRscCost} RSC</h3>
+    <div className="rounded-[8px] border border-emerald-200/25 bg-[radial-gradient(circle_at_20%_0%,rgba(16,185,129,0.2),transparent_48%),rgba(6,78,59,0.16)] p-3 text-left">
+      <div className="grid grid-cols-[1fr_auto] items-center gap-3">
+        <div className="min-w-0">
+          <p className="font-mono text-[9px] font-black uppercase tracking-[0.18em] text-emerald-200">Continue run</p>
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <strong className="text-xl font-black uppercase tracking-wide text-white">{continueRscCost} RSC</strong>
+            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-emerald-100">+5 lives</span>
+          </div>
+          <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">Next continue: {nextContinueRscCost} RSC</p>
         </div>
-        <div className="rounded-[6px] border border-emerald-100/25 bg-emerald-300/12 px-3 py-2 text-right">
-          <div className="font-mono text-[9px] font-black uppercase tracking-[0.16em] text-emerald-100/70">Lives</div>
-          <div className="text-2xl font-black text-white">3</div>
-        </div>
+        <button
+          type="button"
+          onClick={() => void handleContinueWithRsc()}
+          disabled={isContinuePaymentBusy}
+          className="min-h-11 rounded-[7px] border border-emerald-100/40 bg-emerald-300 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-950 transition hover:bg-white disabled:cursor-wait disabled:border-white/10 disabled:bg-white/10 disabled:text-slate-400"
+        >
+          {isContinuePaymentBusy ? 'Confirm' : activeWalletAddress ? 'Continue' : 'Connect + Continue'}
+        </button>
       </div>
 
-      <p className="mt-3 text-xs font-semibold leading-relaxed text-slate-300">
-        Pay {continueRscCost} RSC to continue this run with three hearts.
-        {continuesUsed === 0 ? ' The next continue costs 10 RSC.' : ` The next continue costs ${continueRscCost + 5} RSC.`}
-      </p>
-
-      <button
-        type="button"
-        onClick={() => void handleContinueWithRsc()}
-        disabled={isContinuePaymentBusy}
-        className="mt-3 w-full rounded-[8px] border border-emerald-100/40 bg-emerald-300 px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-slate-950 transition hover:bg-white disabled:cursor-wait disabled:border-white/10 disabled:bg-white/10 disabled:text-slate-400"
-      >
-        {isContinuePaymentBusy ? 'Confirm in wallet' : activeWalletAddress ? `Continue for ${continueRscCost} RSC` : `Connect + Continue for ${continueRscCost} RSC`}
-      </button>
-
-      <div className={`mt-2 min-h-4 text-center text-[10px] font-black uppercase tracking-[0.12em] ${continuePaymentStatus === 'error' ? 'text-red-200' : continuePaymentStatus === 'success' ? 'text-emerald-100' : 'text-slate-400'}`}>
-        {continueStatusText}
-      </div>
+      {continueStatusText ? (
+        <div className={`mt-2 text-center text-[9px] font-black uppercase tracking-[0.1em] ${continuePaymentStatus === 'error' ? 'text-red-200' : continuePaymentStatus === 'success' ? 'text-emerald-100' : 'text-slate-300'}`}>
+          {continueStatusText}
+        </div>
+      ) : null}
 
       {continuePaymentHash ? (
         <a
@@ -1026,32 +1036,31 @@ const App: React.FC = () => {
       ) : null}
     </div>
   );
-  const highScoreActionControls = (
-    <div className="sticky top-0 z-20 rounded-2xl border border-white/10 bg-slate-950/92 p-3 shadow-[0_16px_46px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-      {scoreSubmitError ? (
-        <p className="mb-3 rounded-xl border border-red-300/20 bg-red-500/10 px-3 py-2 text-center text-[11px] font-semibold leading-relaxed text-red-100">
-          {scoreSubmitError}
-        </p>
-      ) : null}
+  const resultEncounter = stats.wave <= 1
+    ? 'Gatekeeper Sector'
+    : stats.wave === 2
+      ? 'Replication Rift'
+      : 'Deep Review Space';
+  const missionResultBanner = (
+    <div className="relative overflow-hidden border border-cyan-200/30 bg-[radial-gradient(circle_at_82%_48%,rgba(59,130,246,0.24),transparent_27%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.98))] px-4 py-3 shadow-[0_0_36px_rgba(34,211,238,0.12)] [clip-path:polygon(18px_0,calc(50%_-_26px)_0,calc(50%_-_16px)_8px,calc(50%_+_16px)_8px,calc(50%_+_26px)_0,calc(100%_-_18px)_0,100%_18px,100%_calc(100%_-_18px),calc(100%_-_18px)_100%,18px_100%,0_calc(100%_-_18px),0_18px)]">
+      <div className="pointer-events-none absolute left-0 top-5 h-12 w-24 -translate-x-10 -skew-x-[24deg] border-y border-r border-yellow-200/35 bg-yellow-300/10" />
+      <div className="pointer-events-none absolute right-0 top-5 h-12 w-24 translate-x-10 skew-x-[24deg] border-y border-l border-yellow-200/35 bg-yellow-300/10" />
+      <div className="pointer-events-none absolute left-1/2 top-0 h-3 w-14 -translate-x-1/2 bg-yellow-300 shadow-[0_0_16px_rgba(250,204,21,0.55)] [clip-path:polygon(12%_0,88%_0,100%_50%,88%_100%,12%_100%,0_50%)]" />
+      <img src={ASSETS.FINAL_BOSS} alt="" aria-hidden="true" className="pointer-events-none absolute right-5 top-8 h-20 w-20 object-contain opacity-35 [image-rendering:pixelated]" />
 
-      <div className="grid gap-2">
-        <button
-          type="submit"
-          disabled={!playerNameInput || isSubmittingScore}
-          className={`scicon-btn w-full py-3 text-lg font-bold ${isSubmittingScore ? 'cursor-wait opacity-70' : ''}`}
-        >
-          {isSubmittingScore ? 'TRANSMITTING...' : 'SUBMIT RECORD'}
-        </button>
-        <button
-          type="button"
-          onClick={skipScoreSubmission}
-          disabled={isSubmittingScore}
-          className="w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-slate-400 transition hover:border-red-200/45 hover:bg-red-300/10 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Do Not Submit Score
-        </button>
+      <div className="relative">
+        <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-cyan-200">Stage {stats.wave} - {resultEncounter}</p>
+        <h2 className={`arcade-font mt-1 text-xl font-black uppercase tracking-widest ${showNameInput && scoreQualification.isMonthlyChampion ? 'text-yellow-300' : pubStatus.color}`}>
+          {showNameInput ? (scoreQualification.isMonthlyChampion ? 'Current Weekly Lead' : 'Mission Record') : pubStatus.title}
+        </h2>
+        <p className="mt-1 text-3xl font-black text-white">{stats.score.toLocaleString()}</p>
       </div>
 
+      <div className="relative mt-2 grid grid-cols-3 divide-x divide-white/10 border-t border-cyan-100/15 pt-2 text-center">
+        <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Wave</span><strong className="text-sm text-cyan-100">{stats.wave}</strong></div>
+        <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Targets</span><strong className="text-sm text-emerald-100">{stats.enemiesDefeated}</strong></div>
+        <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Coins</span><strong className="text-sm text-yellow-200">{stats.coins}</strong></div>
+      </div>
     </div>
   );
 
@@ -1202,122 +1211,92 @@ const App: React.FC = () => {
       )}
 
       {gameState === GameState.GAMEOVER && (
-        <div className="absolute inset-0 z-20 flex touch-pan-y items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-          <div className="relative flex max-h-[95vh] w-full max-w-md flex-col overflow-hidden border border-red-300/20 bg-slate-950/88 shadow-[0_24px_90px_rgba(0,0,0,0.58)] backdrop-blur-xl animate-bounce-in [clip-path:polygon(18px_0,100%_0,100%_92%,96%_100%,0_100%,0_18px)]">
+        <div className="absolute inset-0 z-20 flex items-center justify-center overflow-hidden bg-black/82 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-md">
+          <div className="relative w-full max-w-md overflow-hidden border border-red-300/20 bg-slate-950/94 shadow-[0_24px_90px_rgba(0,0,0,0.62)] backdrop-blur-xl animate-bounce-in [clip-path:polygon(18px_0,100%_0,100%_calc(100%_-_18px),calc(100%_-_18px)_100%,0_100%,0_18px)]">
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-300/70 to-transparent"></div>
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-300/45 to-transparent"></div>
 
-            <div className="relative z-10 min-h-0 flex-1 touch-pan-y space-y-4 overflow-y-auto overscroll-contain p-6 text-center custom-scrollbar">
+            <div className="relative z-10 grid gap-3 p-3 text-center">
+              {missionResultBanner}
+
               {showNameInput ? (
-                <div className="space-y-4">
-                  <div className="relative overflow-hidden rounded-[8px] border border-cyan-200/25 bg-[radial-gradient(circle_at_50%_0%,rgba(59,130,246,0.22),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.95),rgba(2,6,23,0.96))] px-4 py-5 shadow-[0_0_36px_rgba(34,211,238,0.12)]">
-                    <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-yellow-200/80 to-transparent" />
-                    <div className="pointer-events-none absolute left-3 top-1/2 h-12 w-16 -translate-y-1/2 skew-x-[-18deg] border-y border-l border-cyan-200/30 bg-cyan-300/8" />
-                    <div className="pointer-events-none absolute right-3 top-1/2 h-12 w-16 -translate-y-1/2 skew-x-[18deg] border-y border-r border-cyan-200/30 bg-cyan-300/8" />
-                    <p className="relative text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200">Stage {stats.wave} - Mission Result</p>
-                    <h2 className="arcade-font relative mt-2 text-2xl font-black tracking-widest text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.45)]">
-                      {scoreQualification.isMonthlyChampion ? 'CURRENT WEEKLY LEAD' : 'NEW HIGH SCORE'}
-                    </h2>
-                    <p className="relative mt-2 text-4xl font-black text-white">{stats.score.toLocaleString()}</p>
-                  </div>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {scoreQualification.qualifiesMonthlyTop5 ? (
-                      <span className="rounded-full border border-emerald-200/25 bg-emerald-300/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100">
-                        Weekly #{scoreQualification.monthlyRank}
-                      </span>
-                    ) : null}
-                    {scoreQualification.qualifiesAllTimeTop25 ? (
-                      <span className="rounded-full border border-blue-200/25 bg-blue-300/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-blue-100">
-                        All-Time #{scoreQualification.allTimeRank}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className={`rounded-[8px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] ${runReceiptStatus === 'ready' ? 'border-emerald-200/25 bg-emerald-300/10 text-emerald-100' : runReceiptStatus === 'local' || runReceiptStatus === 'error' ? 'border-amber-200/25 bg-amber-300/10 text-amber-100' : 'border-cyan-200/20 bg-cyan-300/8 text-cyan-100'}`}>
-                    {runReceiptStatus === 'ready'
-                      ? 'Global score verification ready'
-                      : runReceiptStatus === 'local' || runReceiptStatus === 'error'
-                        ? 'Network verification unavailable - this run is saved on this device only'
-                        : 'Verifying run receipt...'}
-                  </div>
-                  {continueRunControls}
-                  <p className="font-mono text-sm text-gray-300">ENTER YOUR NAME:</p>
+                <>
+                  {runReceiptStatus === 'local' || runReceiptStatus === 'error' ? (
+                    <div className="rounded-[7px] border border-amber-200/25 bg-amber-300/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
+                      Run verification is offline. Retry when connected to submit globally.
+                    </div>
+                  ) : null}
+                  {!runReceipt && runReceiptStatus !== 'finalizing' ? continueRunControls : null}
 
-                  <form onSubmit={submitScore} className="space-y-4">
-                    <input
-                      type="text"
-                      maxLength={15}
-                      value={playerNameInput}
-                      onChange={(e) => setPlayerNameInput(e.target.value.toUpperCase())}
-                      className="w-full border border-indigo-500 bg-black/50 p-2 text-center font-mono text-xl uppercase text-white focus:border-yellow-400 focus:outline-none disabled:opacity-50"
-                      placeholder="NAME"
-                      autoFocus
+                  <form onSubmit={submitScore} className="grid gap-2">
+                    {scoreSubmitError ? (
+                      <p className="rounded-[7px] border border-red-300/20 bg-red-500/10 px-3 py-2 text-center text-[10px] font-semibold leading-snug text-red-100">
+                        {scoreSubmitError}
+                      </p>
+                    ) : null}
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                      <label htmlFor="pilot-score-name" className="sr-only">Pilot name</label>
+                      <input
+                        id="pilot-score-name"
+                        type="text"
+                        maxLength={15}
+                        value={playerNameInput}
+                        onChange={(e) => setPlayerNameInput(e.target.value.toUpperCase())}
+                        className="min-h-11 min-w-0 rounded-[7px] border border-indigo-400/70 bg-black/55 px-3 py-2.5 text-center font-mono text-lg uppercase text-white focus:border-yellow-300 focus:outline-none disabled:opacity-50"
+                        placeholder="PILOT NAME"
+                        autoFocus
+                        disabled={isSubmittingScore}
+                      />
+                      <button
+                        type="submit"
+                        disabled={!playerNameInput || isSubmittingScore}
+                        className="scicon-btn min-h-11 min-w-28 px-3 py-2 text-[11px] font-bold disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {isSubmittingScore ? 'Saving...' : 'Submit'}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={skipScoreSubmission}
                       disabled={isSubmittingScore}
-                    />
-
-                    {highScoreActionControls}
+                      className="justify-self-center px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-500 transition hover:text-red-100 disabled:opacity-50"
+                    >
+                      Skip score
+                    </button>
                   </form>
-                </div>
+                </>
               ) : (
                 <>
-                  <div>
-                    <h2 className={`arcade-font mb-1 text-3xl font-black tracking-widest ${pubStatus.color}`}>{pubStatus.title}</h2>
-                    <p className="font-mono text-sm uppercase text-gray-400">{pubStatus.desc}</p>
-                  </div>
+                  {!runReceipt && runReceiptStatus !== 'finalizing' ? continueRunControls : null}
 
-                  <div className="border border-white/10 bg-white/[0.04] p-4 [clip-path:polygon(12px_0,100%_0,100%_90%,96%_100%,0_100%,0_12px)]">
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-gray-400">SCORE</span>
-                      <span className="text-2xl font-bold text-white">{stats.score}</span>
-                    </div>
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-gray-400">WAVE</span>
-                      <span className="text-xl font-bold text-indigo-400">{stats.wave}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">HIGH SCORE</span>
-                      <span className="text-xl font-bold text-yellow-400">{Math.max(stats.score, stats.highScore)}</span>
-                    </div>
-                  </div>
-
-                  {continueRunControls}
-
-                  <div className="space-y-3 pt-2">
+                  <div className="grid gap-2">
                     {runReceipt && runReceipt.integrity !== 'local-unverified' ? (
-                      <div className="rounded-[8px] border border-cyan-200/20 bg-cyan-300/8 p-3 text-left">
-                        <p className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200">Optional Score Record</p>
-                        <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-300">
-                          Your leaderboard score is already global without a wallet. Connect a Base Account only if you want to mint this verified run.
-                        </p>
+                      <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-[8px] border border-cyan-200/20 bg-cyan-300/8 p-3 text-left">
+                        <div>
+                          <p className="font-mono text-[9px] font-black uppercase tracking-[0.16em] text-cyan-200">Mission Record</p>
+                          <p className="mt-0.5 text-[10px] font-semibold text-slate-300">Share it free or mint it on Base.</p>
+                        </div>
                         <button
                           type="button"
                           onClick={() => {
                             setShowMissionRecordPreview(true);
                             trackEvent('mint_preview_opened', { record_type: 'mission' });
                           }}
-                          className="mt-3 w-full rounded-[8px] border border-cyan-100/35 bg-cyan-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/25 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-[7px] border border-cyan-100/35 bg-cyan-300/15 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-50 transition hover:bg-cyan-300/25"
                         >
-                          Preview Score Record
+                          Preview
                         </button>
-                        {runClaimMessage ? <p className="mt-2 text-center text-[10px] font-semibold text-red-200">{runClaimMessage}</p> : null}
                       </div>
                     ) : null}
                     {scoreSaved ? (
-                      <p className="rounded-[8px] border border-emerald-200/20 bg-emerald-300/10 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
-                        Verified score saved
+                      <p className="text-center text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100">
+                        Global score saved
                       </p>
                     ) : null}
-                    <button
-                      onClick={startGame}
-                      className="scicon-btn w-full py-4 text-xl font-bold animate-pulse"
-                    >
-                      RETRY MISSION
-                    </button>
-                    <button
-                      onClick={() => setGameState(GameState.MENU)}
-                      className="scicon-btn scicon-btn-secondary w-full py-3 text-sm font-bold text-gray-400"
-                    >
-                      MAIN MENU
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={startGame} className="scicon-btn py-3 text-sm font-bold">RETRY</button>
+                      <button onClick={() => setGameState(GameState.MENU)} className="scicon-btn scicon-btn-secondary py-3 text-xs font-bold text-gray-300">MAIN MENU</button>
+                    </div>
                   </div>
                 </>
               )}
@@ -1357,7 +1336,7 @@ const App: React.FC = () => {
                 <div>
                   <strong className="text-indigo-400">RSC LAB:</strong>
                   <ul className="mt-1 list-inside list-disc space-y-1 pl-2">
-                    <li><span className="text-yellow-300">Continues:</span> After a crash, pay RSC to revive this run with three hearts.</li>
+                    <li><span className="text-yellow-300">Continues:</span> After a crash, pay RSC to revive this run with five hearts.</li>
                     <li><span className="text-cyan-300">Upgrades:</span> Dock at the lab for fire rate, handling, missiles, and emergency repairs.</li>
                     <li><span className="text-purple-400">Current Run:</span> Lab upgrades reset each mission, so the best pilots decide when to tune up.</li>
                   </ul>

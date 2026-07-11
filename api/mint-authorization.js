@@ -43,11 +43,17 @@ module.exports = async (req, res) => {
       return sendJson(res, 403, { error: 'Attach this verified run to the connected Base Account first.' });
     }
 
-    const existingRows = await fetchSupabaseJson(`${MINTS_TABLE}?select=status,transaction_hash&record_type=eq.mission&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
+    const existingRows = await fetchSupabaseJson(`${MINTS_TABLE}?select=status,transaction_hash,token_id,sponsored&record_type=eq.mission&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
       headers: supabaseHeaders()
     });
-    if (Array.isArray(existingRows) && existingRows.some((row) => row.status === 'confirmed')) {
-      return sendJson(res, 409, { error: 'A Mission Record for this run has already been minted.' });
+    const confirmedMint = Array.isArray(existingRows) ? existingRows.find((row) => row.status === 'confirmed') : null;
+    if (confirmedMint) {
+      return sendJson(res, 200, {
+        alreadyMinted: true,
+        transactionHash: confirmedMint.transaction_hash,
+        tokenId: confirmedMint.token_id,
+        sponsored: Boolean(confirmedMint.sponsored)
+      });
     }
 
     const now = new Date();
@@ -85,14 +91,16 @@ module.exports = async (req, res) => {
       }
     });
 
-    await fetchSupabaseJson(`${MINTS_TABLE}?on_conflict=record_type,run_id`, {
-      method: 'POST',
-      headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
-      body: JSON.stringify({
-        record_type: 'mission', run_id: receipt.runId, wallet_address: address, chain_id: chainId,
-        status: 'pending', sponsored: sponsoredEligible
-      })
-    });
+    if (!Array.isArray(existingRows) || existingRows.length === 0) {
+      await fetchSupabaseJson(MINTS_TABLE, {
+        method: 'POST',
+        headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+        body: JSON.stringify({
+          record_type: 'mission', run_id: receipt.runId, wallet_address: address, chain_id: chainId,
+          status: 'pending', sponsored: sponsoredEligible
+        })
+      });
+    }
 
     return sendJson(res, 200, {
       contractAddress, chainId, runId, score: receipt.metrics.score, wave: receipt.metrics.wave,

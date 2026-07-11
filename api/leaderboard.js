@@ -43,6 +43,10 @@ const isMissingProposalColumnError = (error) => (
   /proposal_|schema cache|column/i.test(error?.message || '')
 );
 
+const isDuplicateKeyError = (details) => (
+  /23505|duplicate key|already exists/i.test(details || '')
+);
+
 const getCurrentWeekRange = () => {
   const now = new Date();
   const dayOffsetFromMonday = (now.getDay() + 6) % 7;
@@ -206,16 +210,15 @@ const readSupabaseScores = async () => {
 };
 
 const insertSupabaseRows = async (rows) => {
-  let response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=run_id`), {
+  let response = await fetch(supabaseUrl(SUPABASE_TABLE), {
     method: 'POST',
-    headers: supabaseHeaders({
-      Prefer: 'resolution=merge-duplicates,return=minimal'
-    }),
+    headers: supabaseHeaders({ Prefer: 'return=minimal' }),
     body: JSON.stringify(rows)
   });
 
   if (!response.ok) {
     const details = await response.text();
+    if (isDuplicateKeyError(details)) return;
     if (!isMissingProposalColumnError(new Error(details))) {
       throw new Error(`Supabase leaderboard save failed with ${response.status}: ${details}`);
     }
@@ -339,7 +342,8 @@ module.exports = async (req, res) => {
       }
 
       if (await hasSubmittedRun(entry.runId)) {
-        return sendJson(res, 409, { error: 'This run has already been submitted' });
+        const scores = await readScores();
+        return sendJson(res, 200, { ...toLeaderboardPayload(scores), alreadySubmitted: true });
       }
 
       const scores = await writeScores([entry]);

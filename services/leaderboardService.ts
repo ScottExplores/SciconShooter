@@ -131,7 +131,8 @@ const writeRemoteLeaderboardData = async (
   });
 
   if (!response.ok) {
-    throw new Error(`Leaderboard save failed with ${response.status}`);
+    const details = await response.json().catch(() => ({}));
+    throw new Error(details.error || details.details || `Leaderboard save failed with ${response.status}`);
   }
 
   const data = await response.json();
@@ -192,6 +193,9 @@ export const saveScore = async (
     return await writeRemoteLeaderboardData(newEntry, options.receipt);
   } catch (error) {
     console.error("Save error:", error);
-    return toLeaderboardData([newEntry], false);
+    return {
+      ...toLeaderboardData([newEntry], false),
+      remoteError: error instanceof Error ? error.message : 'Global leaderboard save failed.'
+    };
   }
 };

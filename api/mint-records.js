@@ -25,6 +25,17 @@ module.exports = async (req, res) => {
     if (body.action !== 'confirm' || body.recordType !== 'mission' || !body.runId || !addressPattern.test(body.address || '') || !hashPattern.test(body.transactionHash || '')) {
       return sendJson(res, 400, { error: 'Mint confirmation details are invalid' });
     }
+    const existingRows = await fetchSupabaseJson(`${MINTS_TABLE}?select=status,token_id,transaction_hash&record_type=eq.mission&run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=eq.${body.address.toLowerCase()}&limit=1`, {
+      headers: supabaseHeaders()
+    });
+    const existingMint = Array.isArray(existingRows) ? existingRows[0] : null;
+    if (existingMint?.status === 'confirmed') {
+      return sendJson(res, 200, {
+        confirmed: true,
+        transactionHash: existingMint.transaction_hash,
+        tokenId: existingMint.token_id
+      });
+    }
     const contractAddress = process.env.MISSION_RECORD_CONTRACT_ADDRESS?.toLowerCase();
     if (!addressPattern.test(contractAddress || '')) return sendJson(res, 503, { error: 'Mission Record contract is not configured' });
     const { createPublicClient, decodeEventLog, http } = await import('viem');

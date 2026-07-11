@@ -1,0 +1,33 @@
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const getEncounter = (wave) => (
+  wave <= 1 ? 'Gatekeeper Sector' : wave === 2 ? 'Replication Rift' : 'Deep Review Space'
+);
+
+const formatDuration = (durationMs) => {
+  const totalSeconds = Math.max(0, Math.floor(toNumber(durationMs) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  return `${minutes}:${String(totalSeconds % 60).padStart(2, '0')}`;
+};
+
+const getRecordPresentation = (receipt, leaderboardRow = null) => {
+  const wave = Math.max(1, Math.floor(toNumber(receipt?.wave ?? leaderboardRow?.wave, 1)));
+  return {
+    pilotName: String(leaderboardRow?.name || 'PILOT').slice(0, 15).toUpperCase(),
+    score: Math.max(0, Math.floor(toNumber(receipt?.score ?? leaderboardRow?.score))),
+    wave,
+    encounter: getEncounter(wave),
+    targetsDefeated: Math.max(0, Math.floor(toNumber(receipt?.enemies_defeated))),
+    coinsCollected: Math.max(0, Math.floor(toNumber(receipt?.coins_collected))),
+    durationMs: Math.max(0, Math.floor(toNumber(receipt?.duration_ms))),
+    durationLabel: formatDuration(receipt?.duration_ms),
+    finishedAt: receipt?.finished_at || leaderboardRow?.date || null,
+    gameVersion: receipt?.game_version || 'unknown',
+    integrity: receipt?.integrity_status || 'review'
+  };
+};
+
+module.exports = { formatDuration, getEncounter, getRecordPresentation };

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Address } from 'viem';
 import { DONATION_CONFIG, STORAGE_KEYS } from '../constants';
 import { DonationStatus, WalletSession } from '../types';
@@ -81,6 +81,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
 }) => {
   const [activeWalletAddress, setActiveWalletAddress] = useState<Address | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const startedActionNonceRef = useRef<number | null>(null);
 
   const wallet = useMemo<WalletSession>(() => ({
     address: activeWalletAddress,
@@ -219,38 +220,36 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     try {
       onMissionMintStatus('authorizing');
       const result = await mintMissionRecord({ address, receipt });
-      onMissionMintStatus('confirmed', '', result.transactionHash);
+      onMissionMintStatus('confirmed', result.tokenId ? `Mission Record #${result.tokenId} minted.` : 'Mission Record minted.', result.transactionHash);
     } catch (error: any) {
       onMissionMintStatus('error', getUserFacingMessage(error, 'Mission Record mint was cancelled.'));
     }
   }, [activeWalletAddress, connectWallet, onMissionMintStatus]);
 
   useEffect(() => {
-    if (!action) return;
+    if (!action || startedActionNonceRef.current === action.nonce) return;
 
-    let cancelled = false;
+    const currentAction = action;
+    startedActionNonceRef.current = currentAction.nonce;
+    onActionHandled(currentAction.nonce);
+
     const runAction = async () => {
-      if (action.type === 'connect') {
+      if (currentAction.type === 'connect') {
         await connectWallet();
-      } else if (action.type === 'disconnect') {
+      } else if (currentAction.type === 'disconnect') {
         await disconnectWallet();
-      } else if (action.type === 'continue') {
+      } else if (currentAction.type === 'continue') {
         await continueWithRsc();
-      } else if (action.type === 'claim-run') {
-        await claimRun(action.receipt);
-      } else if (action.type === 'claim-champion') {
-        await claimChampion(action.weekKey, action.proposal);
+      } else if (currentAction.type === 'claim-run') {
+        await claimRun(currentAction.receipt);
+      } else if (currentAction.type === 'claim-champion') {
+        await claimChampion(currentAction.weekKey, currentAction.proposal);
       } else {
-        await mintMission(action.receipt);
+        await mintMission(currentAction.receipt);
       }
-
-      if (!cancelled) onActionHandled(action.nonce);
     };
 
     void runAction();
-    return () => {
-      cancelled = true;
-    };
   }, [action, claimChampion, claimRun, connectWallet, continueWithRsc, disconnectWallet, mintMission, onActionHandled]);
 
   return null;

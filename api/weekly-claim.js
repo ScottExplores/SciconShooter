@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
 const { sendBaseNotificationBroadcast } = require('./_lib/baseNotifications');
+const { verifyBaseMessage } = require('./_lib/baseSignatures');
 
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
@@ -83,8 +84,7 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
   if (!challenge || challenge.used_at || challenge.wallet_address !== wallet || challenge.run_id !== competition.winner_run_id || new Date(challenge.expires_at).getTime() <= Date.now()) {
     throw Object.assign(new Error('Champion challenge is invalid or expired.'), { statusCode: 410 });
   }
-  const { verifyMessage } = await import('viem');
-  const valid = await verifyMessage({ address: wallet, message: challenge.message, signature });
+  const valid = await verifyBaseMessage({ address: wallet, message: challenge.message, signature });
   if (!valid || !challenge.message.includes(`Proposal: ${proposal.id} - ${proposal.title}`)) {
     throw Object.assign(new Error('Champion signature could not be verified.'), { statusCode: 401 });
   }

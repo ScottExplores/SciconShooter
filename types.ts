@@ -70,6 +70,7 @@ export interface LeaderboardData {
   scores: LeaderboardEntry[];
   monthlyScores: LeaderboardEntry[];
   remoteSaved?: boolean;
+  remoteError?: string;
 }
 
 export interface ArchivedWinner {

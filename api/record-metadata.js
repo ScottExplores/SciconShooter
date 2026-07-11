@@ -1,4 +1,5 @@
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
+const { getRecordPresentation } = require('./_lib/recordPresentation');
 
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
@@ -21,19 +22,24 @@ module.exports = async (req, res) => {
     ]);
     const receipt = Array.isArray(receiptRows) ? receiptRows[0] : null;
     const score = Array.isArray(scoreRows) ? scoreRows[0] : null;
-    if (!receipt || !score || !receipt.wallet_address) return sendJson(res, 404, { error: 'Mission Record run not found' });
-    const origin = `https://${req.headers['x-forwarded-host'] || req.headers.host || 'sciconshooter.xyz'}`;
+    if (!receipt || !receipt.wallet_address) return sendJson(res, 404, { error: 'Mission Record run not found' });
+    const record = getRecordPresentation(receipt, score);
+    const origin = (process.env.PUBLIC_APP_URL || 'https://www.sciconshooter.xyz').replace(/\/$/, '');
     return sendJson(res, 200, {
-      name: `Scicon Mission Record - ${score.name}`,
-      description: `A verified Scicon Shooter run: ${score.score} points, wave ${score.wave}. This record does not represent weekly-champion or funding status.`,
+      name: `Scicon Mission Record - ${record.pilotName}`,
+      description: `${record.pilotName} scored ${record.score.toLocaleString('en-US')} in ${record.encounter}, reaching wave ${record.wave} with ${record.targetsDefeated} targets defeated.`,
       image: `${origin}/api/record-card?runId=${encodeURIComponent(runId)}`,
-      external_url: `${origin}/?record=${encodeURIComponent(runId)}`,
+      external_url: `${origin}/?view=trophies`,
       attributes: [
         { trait_type: 'Record Type', value: 'Mission Record' },
-        { trait_type: 'Score', value: score.score, display_type: 'number' },
-        { trait_type: 'Wave', value: score.wave, display_type: 'number' },
-        { trait_type: 'Game Version', value: receipt.game_version },
-        { trait_type: 'Integrity', value: receipt.integrity_status }
+        { trait_type: 'Score', value: record.score, display_type: 'number' },
+        { trait_type: 'Wave', value: record.wave, display_type: 'number' },
+        { trait_type: 'Encounter', value: record.encounter },
+        { trait_type: 'Targets Defeated', value: record.targetsDefeated, display_type: 'number' },
+        { trait_type: 'Coins Collected', value: record.coinsCollected, display_type: 'number' },
+        { trait_type: 'Flight Time', value: record.durationLabel },
+        { trait_type: 'Game Version', value: record.gameVersion },
+        { trait_type: 'Integrity', value: record.integrity }
       ]
     });
   } catch (error) {

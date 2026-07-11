@@ -41,7 +41,7 @@ const Tutorial: React.FC<TutorialProps> = ({ onReady }) => {
               <h3 className="font-bold text-lg text-blue-400">CRYPTO FUNDING</h3>
               <p className="text-gray-400 text-sm">Connect a Base wallet to continue runs with RSC after a crash.</p>
               <p className="text-red-400 text-[10px] font-bold italic mt-1 leading-tight">
-                Each continue restores three hearts and costs 5 more RSC than the last.
+                Each continue restores five hearts and costs 5 more RSC than the last.
               </p>
             </div>
           </div>
