@@ -85,7 +85,8 @@ export const STORAGE_KEYS = {
   WALLET_PROFILES: "scicon_wallet_profiles",
   DONATED_WALLETS: "scicon_donated_wallets",
   CREDITED_FUNDING_TXS: "scicon_credited_funding_txs",
-  POLISH_SETTINGS: "scicon_polish_settings"
+  POLISH_SETTINGS: "scicon_polish_settings",
+  LATEST_RUN_RECEIPT: "scicon_latest_run_receipt"
 };
 
 export const COLORS = {

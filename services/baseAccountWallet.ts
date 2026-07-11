@@ -18,6 +18,11 @@ type CallsStatusResponse = {
   receipts?: Array<{ transactionHash?: Hex }>;
 };
 
+type SendCallsResponse = Hex | {
+  id?: Hex;
+  batchId?: Hex;
+};
+
 export type BaseCall = {
   to: Address;
   data?: Hex;
@@ -106,7 +111,7 @@ export const sendAttributedBaseCalls = async ({
     capabilities.paymasterService = { url: paymasterProxyUrl };
   }
 
-  const callsId = await baseAccountProvider.request({
+  const response = await baseAccountProvider.request({
     method: 'wallet_sendCalls',
     params: [{
       version: '2.0.0',
@@ -115,7 +120,15 @@ export const sendAttributedBaseCalls = async ({
       calls,
       capabilities
     }]
-  }) as Hex;
+  }) as SendCallsResponse;
+
+  const callsId = typeof response === 'string'
+    ? response
+    : response.id || response.batchId;
+
+  if (!callsId) {
+    throw new Error('Base Account did not return a transaction batch ID.');
+  }
 
   return waitForCallsStatus(callsId);
 };

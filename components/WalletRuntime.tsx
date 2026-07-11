@@ -57,6 +57,10 @@ const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') 
     return `Not enough ${tokenLabel} or gas for that action.`;
   }
 
+  if (/cannot unmarshal|invalid argument|invalid params|json:/i.test(message)) {
+    return 'Base could not finish syncing that transaction. Check wallet activity before retrying.';
+  }
+
   return message;
 };
 

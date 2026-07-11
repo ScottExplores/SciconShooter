@@ -121,11 +121,11 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
             <button type="button" onClick={() => void shareRecord()} className="rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share score card</button>
             {runClaimStatus !== 'confirmed' ? (
               <button type="button" onClick={onAttachWallet} disabled={runClaimStatus === 'connecting' || runClaimStatus === 'signing'} className="rounded-[8px] border border-emerald-100/30 bg-emerald-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-emerald-50 transition hover:bg-emerald-300/25 disabled:opacity-60">
-                {runClaimStatus === 'signing' ? 'Sign message' : runClaimStatus === 'connecting' ? 'Connecting...' : 'Attach Base Account'}
+                {runClaimStatus === 'signing' ? 'Sign message' : runClaimStatus === 'connecting' ? 'Connecting...' : 'Verify wallet to mint'}
               </button>
             ) : (
               <button type="button" onClick={onMint} disabled={!mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
-                {mintStatus === 'confirmed' ? 'Score Record minted' : mintStatus === 'authorizing' || mintStatus === 'confirming' ? 'Confirm in Base Account' : mintConfigured ? 'Mint score' : 'Mint setup awaiting approval'}
+                {mintStatus === 'confirmed' ? 'Score Record minted' : mintStatus === 'authorizing' || mintStatus === 'confirming' ? 'Confirm in Base Account' : mintConfigured ? 'Mint score card' : 'Mint setup awaiting approval'}
               </button>
             )}
           </div>

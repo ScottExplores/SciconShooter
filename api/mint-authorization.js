@@ -46,8 +46,8 @@ module.exports = async (req, res) => {
     const existingRows = await fetchSupabaseJson(`${MINTS_TABLE}?select=status,transaction_hash&record_type=eq.mission&run_id=eq.${encodeURIComponent(receipt.runId)}&limit=1`, {
       headers: supabaseHeaders()
     });
-    if (Array.isArray(existingRows) && existingRows.some((row) => row.status === 'confirmed' || row.status === 'pending')) {
-      return sendJson(res, 409, { error: 'A Mission Record for this run already exists or is pending.' });
+    if (Array.isArray(existingRows) && existingRows.some((row) => row.status === 'confirmed')) {
+      return sendJson(res, 409, { error: 'A Mission Record for this run has already been minted.' });
     }
 
     const now = new Date();

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
 import { ASSETS, DONATION_CONFIG } from '../constants';
+import type { RunReceipt } from '../services/runReceiptService';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -11,6 +12,8 @@ interface StartScreenProps {
   monthlyLeaderboard: LeaderboardEntry[];
   archivedWinners: ArchivedWinner[];
   walletRecords: MintRecord[];
+  walletAddress?: string | null;
+  latestRunReceipt?: RunReceipt | null;
   isLoading: boolean;
   proposals: ResearchHubProposal[];
   proposalStatus: ProposalFeedStatus;
@@ -20,6 +23,7 @@ interface StartScreenProps {
   onOpenXProfile: () => void;
   onOpenTreasurySend: () => void;
   onOpenSwap: () => void;
+  onOpenLatestRecord: () => void;
   walletControl?: React.ReactNode;
   championClaimStatus: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error';
   championClaimMessage?: string;
@@ -314,8 +318,8 @@ const StatusPill: React.FC<{ children: React.ReactNode; tone?: 'cyan' | 'green' 
   );
 };
 
-const HudPanel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <section className={`relative overflow-hidden rounded-[8px] border border-cyan-300/20 bg-slate-950/72 shadow-[0_0_30px_rgba(8,145,178,0.16)] backdrop-blur-xl ${className}`}>
+const HudPanel: React.FC<{ children: React.ReactNode; className?: string; style?: React.CSSProperties }> = ({ children, className = '', style }) => (
+  <section style={style} className={`relative overflow-hidden rounded-[8px] border border-cyan-300/20 bg-slate-950/72 shadow-[0_0_30px_rgba(8,145,178,0.16)] backdrop-blur-xl ${className}`}>
     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.12),transparent_36%),linear-gradient(135deg,rgba(34,211,238,0.08),transparent_42%,rgba(16,185,129,0.08))]" />
     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/80 to-transparent" />
     <div className="relative z-10">{children}</div>
@@ -328,6 +332,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   monthlyLeaderboard,
   archivedWinners,
   walletRecords,
+  walletAddress,
+  latestRunReceipt,
   isLoading,
   proposals,
   proposalStatus,
@@ -337,6 +343,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onOpenXProfile,
   onOpenTreasurySend,
   onOpenSwap,
+  onOpenLatestRecord,
   walletControl,
   championClaimStatus,
   championClaimMessage,
@@ -503,21 +510,24 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   const HeroPanel = ({ compact = false }: { compact?: boolean }) => (
-    <HudPanel className={compact ? 'min-h-[22rem]' : 'min-h-[34rem] xl:min-h-[40rem]'}>
+    <HudPanel className={compact ? '' : 'min-h-[34rem] xl:min-h-[40rem]'} {...(compact ? { style: { minHeight: '17.5rem' } } : {})}>
       <div className="absolute inset-0">
         <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-68" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(34,211,238,0.2),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.18),rgba(2,6,23,0.88)_76%,rgba(2,6,23,0.96))]" />
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,rgba(4,120,87,0.09))]" />
       </div>
 
-      <div className={`relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'gap-2 py-4' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
-        <div className={compact ? 'space-y-1.5' : 'space-y-3'}>
+      <div className={`relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'gap-1 py-2' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
+        <div className={compact ? 'space-y-1' : 'space-y-3'}>
           <div className="mx-auto flex w-fit items-center gap-3 text-yellow-200/90">
             <span className="h-px w-14 bg-gradient-to-r from-transparent to-yellow-200/80" />
             <span className="h-2 w-16 skew-x-[-28deg] bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.45)]" />
             <span className="h-px w-14 bg-gradient-to-l from-transparent to-yellow-200/80" />
           </div>
-          <div className={`scicon-hero-title ${compact ? 'text-[2.15rem]' : 'text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]'}`}>
+          <div
+            className={`scicon-hero-title ${compact ? '' : 'text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]'}`}
+            {...(compact ? { style: { fontSize: '1.75rem' } } : {})}
+          >
             <span>Scicon</span>
             <span>Shooter</span>
           </div>
@@ -526,7 +536,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </p>
         </div>
 
-        <div className={`relative flex w-full items-center justify-center ${compact ? 'min-h-[8.5rem]' : 'min-h-[14rem]'}`}>
+        <div
+          className={`relative flex w-full items-center justify-center ${compact ? '' : 'min-h-[14rem]'}`}
+          {...(compact ? { style: { minHeight: '5rem' } } : {})}
+        >
           <div className="sci-ship-orbit" />
           <div className="absolute bottom-2 h-12 w-64 rounded-[50%] border border-cyan-300/24 bg-cyan-300/7 blur-sm" />
           <div className="absolute bottom-7 h-7 w-56 rounded-[50%] border border-emerald-300/28 bg-emerald-300/8" />
@@ -546,23 +559,23 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <button
             type="button"
             onClick={onStart}
-            className={`sci-start-button group mx-auto flex w-full max-w-[25rem] items-center justify-center gap-3 font-black uppercase text-white ${compact ? 'px-5 py-3 text-lg' : 'px-7 py-4 text-xl md:text-2xl'}`}
+            className={`sci-start-button group mx-auto flex w-full max-w-[25rem] items-center justify-center gap-3 font-black uppercase text-white ${compact ? 'px-5 py-2 text-base' : 'px-7 py-4 text-xl md:text-2xl'}`}
           >
             <span className={`flex items-center justify-center rounded-full bg-white/95 text-emerald-700 shadow-[0_0_16px_rgba(255,255,255,0.45)] transition group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-9 w-9'}`}>
               <Icon name="play" className="h-5 w-5 translate-x-0.5" />
             </span>
             Start Mission
           </button>
-          <p className={`${compact ? 'text-xs' : 'text-sm'} font-bold text-emerald-200`}>Complete. Earn. Fund.</p>
+          {!compact ? <p className="text-sm font-bold text-emerald-200">Complete. Earn. Fund.</p> : null}
         </div>
       </div>
     </HudPanel>
   );
 
-  const WeeklyFundingCard = () => (
+  const WeeklyFundingCard = ({ compact = false }: { compact?: boolean } = {}) => (
     <HudPanel>
-      <div className="p-4 md:p-5">
-        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14 pb-3">
+      <div className={compact ? 'p-3' : 'p-4 md:p-5'}>
+        <div className={`${compact ? 'mb-2 pb-2' : 'mb-3 pb-3'} grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14`}>
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-black text-emerald-200">Weekly Funding</h2>
@@ -585,10 +598,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <button
             type="button"
             onClick={() => setDashboardTab('proposals')}
-            className="sci-weekly-winner-card group relative w-full overflow-hidden rounded-[8px] border border-emerald-300/24 bg-slate-950/50 p-3 text-left transition hover:border-emerald-200/65 hover:bg-emerald-300/10"
+            className={`sci-weekly-winner-card group relative w-full overflow-hidden rounded-[8px] border border-emerald-300/24 bg-slate-950/50 text-left transition hover:border-emerald-200/65 hover:bg-emerald-300/10 ${compact ? 'p-2' : 'p-3'}`}
           >
             <div className="sci-weekly-scan" />
-            <div className="relative z-10 grid grid-cols-[5.25rem_minmax(0,1fr)] gap-3">
+            <div
+              className={`relative z-10 grid gap-3 ${compact ? '' : 'grid-cols-[5.25rem_minmax(0,1fr)]'}`}
+              {...(compact ? { style: { gridTemplateColumns: '4rem minmax(0,1fr)' } } : {})}
+            >
               <div className="sci-weekly-project-image relative flex aspect-square items-center justify-center overflow-hidden rounded-[8px] border border-cyan-200/25 bg-cyan-300/10">
                 <img src={ASSETS.PLAYER_SHIP} alt="" className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.7)]" />
                 {weeklyProposalPreview?.imageUrl ? (
@@ -620,13 +636,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
                     <p className="text-[0.58rem] font-bold uppercase text-cyan-200/70">Score</p>
                   </div>
                 </div>
-                <div className="mt-3 rounded-[6px] border border-cyan-200/10 bg-cyan-300/[0.06] px-2.5 py-2">
+                <div className={`${compact ? 'mt-2 px-2 py-1.5' : 'mt-3 px-2.5 py-2'} rounded-[6px] border border-cyan-200/10 bg-cyan-300/[0.06]`}>
                   <p className="truncate text-sm font-bold text-white">{weeklyFundingTitle}</p>
                   <div className="mt-1 flex items-center justify-between gap-2 text-[0.62rem] font-bold uppercase text-slate-400">
                     <span className="truncate">{weeklyFundingAuthor}</span>
                     <span className="shrink-0 text-emerald-200">{weeklyFundingProgress}% week</span>
                   </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
+                  <div className={`${compact ? 'mt-1' : 'mt-2'} h-1.5 overflow-hidden rounded-full bg-slate-800`}>
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-blue-400 shadow-[0_0_12px_rgba(45,212,191,0.55)]"
                       style={{ width: `${weeklyFundingProgress}%` }}
@@ -851,6 +867,22 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         {!isLoading && leaderboardView === 'records' && (
           <div className="space-y-3">
+            {latestRunReceipt && !walletRecords.some((record) => record.recordType === 'mission' && record.runId === latestRunReceipt.runId && record.status === 'confirmed') ? (
+              <button
+                type="button"
+                onClick={onOpenLatestRecord}
+                className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[8px] border border-yellow-200/25 bg-yellow-300/10 p-3 text-left transition hover:border-yellow-100/50 hover:bg-yellow-300/15"
+              >
+                <div className="flex h-11 w-11 items-center justify-center rounded-[8px] border border-yellow-200/30 bg-slate-950/70 text-yellow-100">
+                  <Icon name="rocket" className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-white">Latest verified run</p>
+                  <p className="truncate text-xs text-slate-300">{formatNumber(latestRunReceipt.metrics.score)} pts - Wave {latestRunReceipt.metrics.wave}</p>
+                </div>
+                <span className="text-[10px] font-black uppercase text-yellow-100">Preview</span>
+              </button>
+            ) : null}
             {walletRecords.map((record) => (
               <a
                 key={`${record.recordType}-${record.runId}`}
@@ -869,9 +901,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <span className={`text-[10px] font-black uppercase ${record.status === 'confirmed' ? 'text-emerald-200' : record.status === 'failed' ? 'text-red-200' : 'text-yellow-200'}`}>{record.status}</span>
               </a>
             ))}
-            {walletRecords.length === 0 ? (
+            {!walletAddress ? (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
-                Connect a Base Account to view its Mission Records and Weekly Champion Records. Minting remains optional.
+                <p>Connect a Base Account to view and mint your personal Mission Records.</p>
+                {walletControl ? <div className="mt-3 flex justify-start">{walletControl}</div> : null}
+              </div>
+            ) : walletRecords.length === 0 && !latestRunReceipt ? (
+              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
+                <p className="font-bold text-white">No records minted yet</p>
+                <p className="mt-1 text-xs text-slate-400">Finish a mission, submit the score, then mint its score card here.</p>
               </div>
             ) : null}
           </div>
@@ -992,7 +1030,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
     return (
       <>
-        <WeeklyFundingCard />
+        <WeeklyFundingCard compact />
         <HeroPanel compact />
       </>
     );
@@ -1006,14 +1044,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   return (
-    <div className="scicon-start-screen relative min-h-screen overflow-y-auto bg-slate-950 text-white">
+    <div className="scicon-start-screen relative h-full min-h-0 overflow-hidden bg-slate-950 text-white">
       <div className="fixed inset-0 -z-10">
         <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-55" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_86%_22%,rgba(16,185,129,0.16),transparent_26%),linear-gradient(180deg,rgba(2,6,23,0.58),rgba(2,6,23,0.96)_74%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
       </div>
 
-      <div className="scicon-start-shell mx-auto flex min-h-screen w-full max-w-[1560px] flex-col gap-4 px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
+      <div className="scicon-start-shell mx-auto flex h-full min-h-0 w-full max-w-[1560px] flex-col gap-4 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
         <main className="hidden lg:block">
           {dashboardTab === 'home' ? (
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.14fr)_minmax(25rem,0.86fr)]">
@@ -1035,10 +1073,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </main>
 
         <main
-          className="scicon-mobile-main flex min-h-0 flex-col overflow-hidden pb-[env(safe-area-inset-bottom)] lg:hidden"
-          style={{ height: 'calc(var(--app-visual-height) - 1.5rem - var(--app-safe-bottom))' }}
+          className="scicon-mobile-main flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden"
         >
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-px custom-scrollbar">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-px custom-scrollbar">
             <MobileDashboardContent />
           </div>
           <DashboardNav docked />

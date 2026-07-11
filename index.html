@@ -129,25 +129,26 @@
 
       @media (display-mode: standalone), (display-mode: fullscreen) {
         :root {
-          --app-bottom-buffer: max(2.25rem, calc(var(--app-safe-bottom) + 1.5rem));
+          --app-bottom-buffer: max(0.5rem, var(--app-safe-bottom));
         }
       }
 
       @media (display-mode: standalone) and (max-width: 640px), (display-mode: fullscreen) and (max-width: 640px) {
         #root .scicon-start-screen {
-          min-height: var(--app-visual-height);
-          height: 100%;
+          height: var(--app-visual-height);
+          min-height: 0;
           overscroll-behavior: contain;
         }
 
         #root .scicon-start-shell {
-          min-height: var(--app-visual-height);
+          height: 100%;
+          min-height: 0;
           padding-bottom: var(--app-bottom-buffer);
         }
 
         #root .scicon-mobile-main {
-          min-height: calc(var(--app-visual-height) - var(--app-bottom-buffer) - 1rem);
-          padding-bottom: var(--app-bottom-buffer);
+          min-height: 0;
+          padding-bottom: 0;
           scroll-padding-bottom: var(--app-bottom-buffer);
         }
       }

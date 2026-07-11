@@ -87,6 +87,23 @@ const runAfterFirstPaint = (
   };
 };
 
+const readLatestVerifiedRun = (): RunReceipt | null => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.LATEST_RUN_RECEIPT);
+    if (!stored) return null;
+    const receipt = JSON.parse(stored) as RunReceipt;
+    const expiresAt = new Date(receipt.expiresAt).getTime();
+    if (!receipt.runId || receipt.integrity === 'local-unverified' || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      localStorage.removeItem(STORAGE_KEYS.LATEST_RUN_RECEIPT);
+      return null;
+    }
+    return receipt;
+  } catch {
+    localStorage.removeItem(STORAGE_KEYS.LATEST_RUN_RECEIPT);
+    return null;
+  }
+};
+
 const openExternalUrl = async (url: string) => {
   window.open(url, '_blank', 'noopener,noreferrer');
 };
@@ -283,6 +300,7 @@ const App: React.FC = () => {
   const runReceiptPromiseRef = useRef<Promise<RunReceipt> | null>(null);
   const finalizedRunGameIdRef = useRef<number | null>(null);
   const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
+  const [latestVerifiedRun, setLatestVerifiedRun] = useState<RunReceipt | null>(readLatestVerifiedRun);
   const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
   const [runClaimStatus, setRunClaimStatus] = useState<'idle' | 'connecting' | 'signing' | 'confirmed' | 'error'>('idle');
   const [runClaimMessage, setRunClaimMessage] = useState('');
@@ -721,6 +739,10 @@ const App: React.FC = () => {
           .then((receipt) => {
             setRunReceipt(receipt);
             setRunReceiptStatus(receipt.integrity === 'local-unverified' ? 'local' : 'ready');
+            if (receipt.integrity !== 'local-unverified') {
+              setLatestVerifiedRun(receipt);
+              localStorage.setItem(STORAGE_KEYS.LATEST_RUN_RECEIPT, JSON.stringify(receipt));
+            }
             return receipt;
           })
           .catch((error) => {
@@ -740,14 +762,12 @@ const App: React.FC = () => {
         setStats(s => ({ ...s, highScore: s.score }));
       }
 
-      const scoreQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, stats.score);
-
-      if (scoreQualification.qualifiesMonthlyTop5 || scoreQualification.qualifiesAllTimeTop25) {
+      if (stats.score > 0) {
         setScoreSubmitError('');
         setShowNameInput(true);
       }
     }
-  }, [gameId, gameState, monthlyLeaderboard, stats.score, stats.wave, stats.highScore, leaderboard]);
+  }, [gameId, gameState, stats.score, stats.wave, stats.highScore]);
 
   const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
@@ -818,6 +838,7 @@ const App: React.FC = () => {
       setIsSubmittingScore(false);
       if (confirmedSave) {
         setShowNameInput(false);
+        setShowMissionRecordPreview(true);
       }
     }
   };
@@ -891,9 +912,26 @@ const App: React.FC = () => {
     setMissionMintStatus(status);
     setMissionMintMessage(message);
     if (hash) setMissionMintHash(hash);
-    if (status === 'confirmed') trackEvent('mission_record_minted', {
-      chain: missionRecordChainId === 8453 ? 'base' : 'base_sepolia'
-    });
+    if (status === 'confirmed') {
+      trackEvent('mission_record_minted', {
+        chain: missionRecordChainId === 8453 ? 'base' : 'base_sepolia'
+      });
+      if (activeWalletAddress) {
+        void getWalletRecords(activeWalletAddress).then(setWalletRecords);
+      }
+    }
+  };
+
+  const openLatestMissionRecord = () => {
+    if (!latestVerifiedRun) return;
+    setRunReceipt(latestVerifiedRun);
+    setRunClaimStatus('idle');
+    setRunClaimMessage('');
+    setMissionMintStatus('idle');
+    setMissionMintMessage('');
+    setMissionMintHash('');
+    setShowMissionRecordPreview(true);
+    trackEvent('mint_preview_opened', { record_type: 'mission', source: 'trophy_deck' });
   };
 
   const skipScoreSubmission = () => {
@@ -934,18 +972,6 @@ const App: React.FC = () => {
 
   const pubStatus = getPubStatus(stats.score);
   const scoreQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, stats.score);
-  const scoreQualificationMessage = scoreQualification.isMonthlyChampion
-    ? 'Current weekly lead. The result stays changeable until the weekly competition closes and is finalized.'
-    : scoreQualification.qualifiesMonthlyTop5 && scoreQualification.qualifiesAllTimeTop25
-      ? 'This score qualifies for weekly Top 5 and all-time Top 25. It is saved once and appears on both boards while it ranks on both.'
-      : scoreQualification.qualifiesMonthlyTop5
-        ? `Weekly Top 5 run at projected rank #${scoreQualification.monthlyRank}. Push for #1 to unlock the champion proposal pick.`
-        : scoreQualification.qualifiesAllTimeTop25
-          ? `All-time Top 25 run at projected rank #${scoreQualification.allTimeRank}. Try again this week for #1 so you can steer the RSC allocation.`
-          : '';
-  const scoreSubmitHint = scoreQualification.isMonthlyChampion
-    ? 'This can become the champion run only if it is still #1 when the week closes.'
-    : 'Verified scores save to every leaderboard they qualify for.';
   const continueStatusText = continuePaymentStatus === 'switching_network'
     ? 'Switching wallet to Base...'
     : continuePaymentStatus === 'processing'
@@ -1026,9 +1052,6 @@ const App: React.FC = () => {
         </button>
       </div>
 
-      <p className="mt-2 text-center text-[10px] font-semibold leading-relaxed text-slate-500">
-        {scoreSubmitHint}
-      </p>
     </div>
   );
 
@@ -1096,6 +1119,8 @@ const App: React.FC = () => {
           monthlyLeaderboard={monthlyLeaderboard}
           archivedWinners={archivedWinners}
           walletRecords={walletRecords}
+          walletAddress={activeWalletAddress}
+          latestRunReceipt={latestVerifiedRun}
           isLoading={loadingLeaderboard}
           proposals={fundingProposals}
           proposalStatus={proposalStatus}
@@ -1105,6 +1130,7 @@ const App: React.FC = () => {
           onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
           onOpenTreasurySend={openTreasurySend}
           onOpenSwap={openRscSwap}
+          onOpenLatestRecord={openLatestMissionRecord}
           championClaimStatus={championClaimStatus}
           championClaimMessage={championClaimMessage}
           onClaimWeeklyChampion={claimWeeklyChampion}
@@ -1206,14 +1232,9 @@ const App: React.FC = () => {
                       </span>
                     ) : null}
                   </div>
-                  {scoreQualificationMessage ? (
-                    <p className="rounded-[8px] border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] font-semibold leading-relaxed text-slate-300">
-                      {scoreQualificationMessage}
-                    </p>
-                  ) : null}
                   <div className={`rounded-[8px] border px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] ${runReceiptStatus === 'ready' ? 'border-emerald-200/25 bg-emerald-300/10 text-emerald-100' : runReceiptStatus === 'local' || runReceiptStatus === 'error' ? 'border-amber-200/25 bg-amber-300/10 text-amber-100' : 'border-cyan-200/20 bg-cyan-300/8 text-cyan-100'}`}>
                     {runReceiptStatus === 'ready'
-                      ? 'Guest global score submission ready'
+                      ? 'Global score verification ready'
                       : runReceiptStatus === 'local' || runReceiptStatus === 'error'
                         ? 'Network verification unavailable - this run is saved on this device only'
                         : 'Verifying run receipt...'}

@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 
 const MINTS_TABLE = process.env.SUPABASE_MINT_RECORDS_TABLE || 'scicon_mint_records';
@@ -26,7 +27,7 @@ module.exports = async (req, res) => {
     }
     const contractAddress = process.env.MISSION_RECORD_CONTRACT_ADDRESS?.toLowerCase();
     if (!addressPattern.test(contractAddress || '')) return sendJson(res, 503, { error: 'Mission Record contract is not configured' });
-    const { createPublicClient, http } = await import('viem');
+    const { createPublicClient, decodeEventLog, http } = await import('viem');
     const { base, baseSepolia } = await import('viem/chains');
     const chainId = Number(process.env.MISSION_RECORD_CHAIN_ID || 8453);
     const chain = chainId === 8453 ? base : baseSepolia;
@@ -36,19 +37,49 @@ module.exports = async (req, res) => {
         ? (process.env.BASE_RPC_URL || 'https://mainnet.base.org')
         : (process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'))
     });
-    const [transaction, receipt] = await Promise.all([
-      client.getTransaction({ hash: body.transactionHash }),
-      client.getTransactionReceipt({ hash: body.transactionHash })
-    ]);
-    if (transaction.to?.toLowerCase() !== contractAddress || receipt.status !== 'success') {
-      return sendJson(res, 409, { error: 'The Mission Record transaction is not confirmed on the configured Base contract' });
+    const receipt = await client.getTransactionReceipt({ hash: body.transactionHash });
+    if (receipt.status !== 'success') {
+      return sendJson(res, 409, { error: 'The Mission Record transaction did not confirm successfully' });
+    }
+    const missionEventAbi = [{
+      type: 'event',
+      name: 'MissionRecordMinted',
+      inputs: [
+        { name: 'tokenId', type: 'uint256', indexed: true },
+        { name: 'runId', type: 'bytes32', indexed: true },
+        { name: 'player', type: 'address', indexed: true },
+        { name: 'score', type: 'uint256', indexed: false },
+        { name: 'wave', type: 'uint256', indexed: false }
+      ]
+    }];
+    const expectedRunId = `0x${crypto.createHash('sha256').update(body.runId).digest('hex')}`;
+    const mintEvent = receipt.logs
+      .filter((log) => log.address.toLowerCase() === contractAddress)
+      .map((log) => {
+        try {
+          return decodeEventLog({ abi: missionEventAbi, data: log.data, topics: log.topics });
+        } catch {
+          return null;
+        }
+      })
+      .find((event) => event?.eventName === 'MissionRecordMinted'
+        && event.args.runId?.toLowerCase() === expectedRunId
+        && event.args.player?.toLowerCase() === body.address.toLowerCase());
+    if (!mintEvent) {
+      return sendJson(res, 409, { error: 'The confirmed transaction did not mint this Mission Record' });
     }
     await fetchSupabaseJson(`${MINTS_TABLE}?record_type=eq.mission&run_id=eq.${encodeURIComponent(body.runId)}&wallet_address=eq.${body.address.toLowerCase()}`, {
       method: 'PATCH',
       headers: supabaseHeaders({ Prefer: 'return=minimal' }),
-      body: JSON.stringify({ status: 'confirmed', transaction_hash: body.transactionHash, confirmed_at: new Date().toISOString(), sponsored: Boolean(body.sponsored) })
+      body: JSON.stringify({
+        status: 'confirmed',
+        token_id: mintEvent.args.tokenId.toString(),
+        transaction_hash: body.transactionHash,
+        confirmed_at: new Date().toISOString(),
+        sponsored: Boolean(body.sponsored)
+      })
     });
-    return sendJson(res, 200, { confirmed: true, transactionHash: body.transactionHash });
+    return sendJson(res, 200, { confirmed: true, transactionHash: body.transactionHash, tokenId: mintEvent.args.tokenId.toString() });
   } catch (error) {
     console.error('Mint confirmation failed:', error);
     return sendJson(res, 500, { error: error.message || 'Mint confirmation failed' });

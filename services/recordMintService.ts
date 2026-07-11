@@ -25,9 +25,14 @@ export const mintMissionRecord = async ({
     receiptToken: receipt.receiptToken
   });
 
+  const sponsorGas = Boolean(
+    authorization.sponsoredEligible
+    && (import.meta.env.VITE_PAYMASTER_PROXY_URL as string | undefined)?.trim()
+  );
+
   const transactionHash = await sendAttributedBaseCalls({
     from: address,
-    sponsorGas: Boolean(authorization.sponsoredEligible),
+    sponsorGas,
     calls: [{
       to: authorization.contractAddress as Address,
       value: '0x0',
@@ -53,7 +58,7 @@ export const mintMissionRecord = async ({
     runId: receipt.runId,
     address,
     transactionHash,
-    sponsored: Boolean(authorization.sponsoredEligible)
+    sponsored: sponsorGas
   });
-  return { transactionHash, sponsored: Boolean(authorization.sponsoredEligible) };
+  return { transactionHash, sponsored: sponsorGas };
 };
