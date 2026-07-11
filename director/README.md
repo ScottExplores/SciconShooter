@@ -16,6 +16,27 @@ Then open `http://127.0.0.1:5174` in a browser. The server binds only to loopbac
 and uses a strict, separate port. Stop it with `Ctrl+C` in the terminal that started
 it.
 
+## Windows one-click access
+
+Run the shortcut installer once from the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-scicon-director-shortcuts.ps1
+```
+
+It creates:
+
+- `Scicon Director` on the desktop. Double-clicking it starts the local server if
+  necessary and opens the Director in the default browser.
+- `Scicon Director Auto Start` in the current user's Windows Startup folder. It
+  starts the server silently after Windows sign-in following a restart, but does
+  not open a browser window automatically.
+
+The launcher refuses to use anything except the Director's loopback health check.
+Startup logs live in `%LOCALAPPDATA%\Scicon Director`. To disable automatic startup,
+disable or remove `Scicon Director Auto Start` from the Windows Startup folder; the
+desktop shortcut will continue to work.
+
 The Director has no deployment build. `npm --prefix director run build` exits with
 an error by design, `.vercelignore` excludes the package and its data, and the root
 production build verifies that no Director files or markers reached `dist`.

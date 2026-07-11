@@ -8,6 +8,7 @@
     "preview": "vite preview",
     "director:dev": "npm --prefix director run dev",
     "director:check": "npm --prefix director run check",
+    "director:shortcuts": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-scicon-director-shortcuts.ps1",
     "contract:compile": "node tools/compile-contract.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
