@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StartScreen from './components/StartScreen';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, MintRecord, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
-import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeLevel } from './constants';
+import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from './constants';
 import { getLeaderboardData, saveScore } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
-import { BASE_FLASK_CHARGE_MAX, getFlaskProgress, spendStoredFlask } from './services/flaskProgress';
+import { BASE_FLASK_CHARGE_MAX, getFlaskProgress, spendStoredFlasks } from './services/flaskProgress';
 import type { WalletRuntimeAction } from './components/WalletRuntime';
 import {
   finishRunSession,
@@ -598,28 +598,29 @@ const App: React.FC = () => {
   const handleFieldUpgrade = (type: FieldUpgradeType) => {
     const bombChargeMax = stats.bombChargeMax || BASE_FLASK_CHARGE_MAX;
     const flaskCount = getFlaskProgress(stats.bombCharge || 0, bombChargeMax).storedFlasks;
-    const flaskReady = flaskCount > 0;
+    const flaskCost = getFieldUpgradeFlaskCost(stats, type);
     const config = FIELD_UPGRADE_CONFIG[type];
     const level = getFieldUpgradeLevel(stats, type);
     const isLifeUpgrade = type === 'extraLife';
     const isAtCap = isLifeUpgrade ? stats.lives >= GAME_CONFIG.MAX_LIVES : level >= config.maxLevel;
 
-    if (!flaskReady || isAtCap) {
+    if (flaskCount < flaskCost || isAtCap) {
       return;
     }
 
-    audioService.playSound(isLifeUpgrade ? 'powerup' : 'coin');
+    audioService.playSound(isLifeUpgrade || flaskCost > 1 ? 'powerup' : 'coin');
 
     setStats(prev => {
       const prevChargeMax = prev.bombChargeMax || bombChargeMax;
       const prevFlaskCount = getFlaskProgress(prev.bombCharge || 0, prevChargeMax).storedFlasks;
       const prevLevel = getFieldUpgradeLevel(prev, type);
+      const prevFlaskCost = getFieldUpgradeFlaskCost(prev, type);
       const prevIsAtCap = isLifeUpgrade ? prev.lives >= GAME_CONFIG.MAX_LIVES : prevLevel >= config.maxLevel;
-      if (prevFlaskCount <= 0 || prevIsAtCap) {
+      if (prevFlaskCount < prevFlaskCost || prevIsAtCap) {
         return prev;
       }
 
-      const nextCharge = spendStoredFlask(prev.bombCharge || 0, prevChargeMax);
+      const nextCharge = spendStoredFlasks(prev.bombCharge || 0, prevFlaskCost, prevChargeMax);
 
       if (type === 'extraLife') {
         return {

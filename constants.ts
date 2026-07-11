@@ -133,10 +133,10 @@ export const FIELD_UPGRADE_CONFIG: Record<FieldUpgradeType, {
   fireRate: {
     title: 'Rapid Fire',
     shortTitle: 'Rapid',
-    description: 'Faster shots that evolve into plasma and ion fire',
+    description: 'Faster shots that evolve into plasma, ion, and Nova fire',
     baseCost: 8,
     costStep: 6,
-    maxLevel: 5
+    maxLevel: 6
   },
   speed: {
     title: 'Speed',
@@ -165,6 +165,10 @@ export const getFieldUpgradeCost = (stats: Stats, type: FieldUpgradeType) => {
   const level = getFieldUpgradeLevel(stats, type);
   return config.baseCost + (level * config.costStep);
 };
+
+export const getFieldUpgradeFlaskCost = (stats: Stats, type: FieldUpgradeType) => (
+  type === 'fireRate' && getFieldUpgradeLevel(stats, type) >= 5 ? 5 : 1
+);
 
 export const TEXT_STRINGS = {
   TITLE: "Scicon Shooter",

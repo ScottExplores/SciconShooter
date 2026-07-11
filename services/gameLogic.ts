@@ -8,7 +8,7 @@ import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getFlaskProgress } from '
 // --- Helper Classes ---
 
 type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'orbit';
-type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion';
+type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion' | 'nova';
 type PendingPlayerShot = {
   fireFrame: number;
   speed: number;
@@ -325,12 +325,12 @@ const GAME_FEEL = {
 };
 
 const MAX_BOMBS = 5;
-const BASE_COIN_MAGNET_RADIUS = 150;
+const BASE_COIN_MAGNET_RADIUS = 100;
 const POWERUP_COIN_MAGNET_RADIUS = 420;
-const BOMB_DROP_CHANCE = 0.018;
-const ELITE_BOMB_DROP_CHANCE = 0.065;
-const MINI_BOSS_BOMB_REWARD_CHANCE = 0.35;
-const BOSS_BOMB_REWARD_CHANCE = 0.5;
+const BOMB_DROP_CHANCE = 0.012;
+const ELITE_BOMB_DROP_CHANCE = 0.05;
+const MINI_BOSS_BOMB_REWARD_CHANCE = 0.28;
+const BOSS_BOMB_REWARD_CHANCE = 0.4;
 const BOMB_DAMAGE_BOSS = 14;
 const BOMB_DAMAGE_MINI_BOSS = 18;
 const BOMB_DAMAGE_INVADER = 3;
@@ -620,19 +620,21 @@ export class GameEngine {
     entities.length = writeIndex;
   }
 
-  keepOnlyPassiveEntities() {
+  prepareEntitiesForContinue() {
     const entities = this.entities;
     let writeIndex = 0;
 
     for (let readIndex = 0; readIndex < entities.length; readIndex++) {
       const entity = entities[readIndex];
-      if (entity.type === EntityType.PARTICLE || entity.type === EntityType.EFFECT) {
+      if (entity.type !== EntityType.PROJECTILE && entity.type !== EntityType.MISSILE) {
         entities[writeIndex] = entity;
         writeIndex++;
       }
     }
 
     entities.length = writeIndex;
+    this.pendingPlayerShots.length = 0;
+    this.refreshLoadState();
   }
 
   keepEntitiesForNextWave() {
@@ -831,7 +833,7 @@ export class GameEngine {
     this.playerSquashVelocity = 0;
     this.playerDrawAlpha = 1;
     this.playerDrawScale = 1;
-    this.keepOnlyPassiveEntities();
+    this.prepareEntitiesForContinue();
     this.flashAlpha = Math.max(this.flashAlpha, 0.35);
     this.addShake(2.6);
     this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#67e8f9');
@@ -890,7 +892,7 @@ export class GameEngine {
     this.lastShotFrame = -999;
     this.lastBombFrame = -999;
     this.weaponVolley = 0;
-    this.announcedFireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 5);
+    this.announcedFireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 6);
     this.introFlightDuration = 150;
     this.introFlightFrames = this.introFlightDuration;
     this.waveDepartureFrames = 0;
@@ -1368,14 +1370,14 @@ export class GameEngine {
     // Level 2: 10 (6 shots/sec)
     // Level 3: 8 (7.5 shots/sec)
     // Level 4: 6 (10 shots/sec)
-    // Level 5: 5 (12 shots/sec)
-    const fireRates = [15, 12, 10, 8, 6, 5];
-    const level = Math.min(this.stats.upgrades.fireRate, 5);
+    // Level 5-6: 5 (12 shots/sec); Nova adds power without extra projectile load.
+    const fireRates = [15, 12, 10, 8, 6, 5, 5];
+    const level = Math.min(this.stats.upgrades.fireRate, 6);
     const fireInterval = fireRates[level] || 5;
 
     if (level > this.announcedFireRateLevel) {
-      const weaponLabel = level >= 5 ? 'ION LANCE ONLINE' : level >= 3 ? 'PLASMA CANNON ONLINE' : `RAPID FIRE L${level + 1}`;
-      const weaponColor = level >= 5 ? '#f0abfc' : level >= 3 ? '#67e8f9' : '#fde68a';
+      const weaponLabel = level >= 6 ? 'NOVA LANCE ONLINE' : level >= 5 ? 'ION LANCE ONLINE' : level >= 3 ? 'PLASMA CANNON ONLINE' : `RAPID FIRE L${level + 1}`;
+      const weaponColor = level >= 6 ? '#facc15' : level >= 5 ? '#f0abfc' : level >= 3 ? '#67e8f9' : '#fde68a';
       this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 18, weaponLabel, weaponColor, this.mobileProfile ? 16 : 19);
       this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, weaponColor);
       audioService.playSound('powerup', 1, { pitchOffset: level * 0.04 });
@@ -1689,28 +1691,29 @@ export class GameEngine {
       return false;
     }
 
-    const bulletColor = weaponKind === 'ion' ? '#f0abfc' : weaponKind === 'plasma' ? '#22d3ee' : '#6c63ff';
-    const bulletWidth = weaponKind === 'ion' ? 24 : weaponKind === 'plasma' ? 14 : 10;
+    const isNova = weaponKind === 'nova';
+    const bulletColor = isNova ? '#facc15' : weaponKind === 'ion' ? '#f0abfc' : weaponKind === 'plasma' ? '#22d3ee' : '#6c63ff';
+    const bulletWidth = isNova ? 32 : weaponKind === 'ion' ? 24 : weaponKind === 'plasma' ? 14 : 10;
     const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - bulletWidth / 2 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
     const angle = randomRange(-0.035, 0.035) + angleBias;
     b.width = bulletWidth;
-    b.height = weaponKind === 'ion' ? 54 : weaponKind === 'plasma' ? 34 : 28;
+    b.height = isNova ? 68 : weaponKind === 'ion' ? 54 : weaponKind === 'plasma' ? 34 : 28;
     b.vx = Math.sin(angle) * speed;
     b.vy = -Math.cos(angle) * speed;
     b.color = bulletColor;
     b.isPlayerShot = true;
     b.weaponKind = weaponKind;
-    b.damage = weaponKind === 'ion' ? 2.4 : weaponKind === 'plasma' ? 1.3 : 1;
-    if (weaponKind === 'ion') {
-      b.pierceRemaining = 3;
+    b.damage = isNova ? 4.2 : weaponKind === 'ion' ? 2.4 : weaponKind === 'plasma' ? 1.3 : 1;
+    if (weaponKind === 'ion' || isNova) {
+      b.pierceRemaining = isNova ? 6 : 3;
       b.hitTargetIds = new Set<string>();
     }
     this.entities.push(b);
     this.livePlayerShotCount++;
     if (playSound) {
       audioService.playSound('shoot', 1, {
-        pitchJitter: weaponKind === 'ion' ? 0.08 : 0.22,
-        pitchOffset: pitchOffset + (weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? 0.08 : 0)
+        pitchJitter: isNova ? 0.05 : weaponKind === 'ion' ? 0.08 : 0.22,
+        pitchOffset: pitchOffset + (isNova ? -0.28 : weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? 0.08 : 0)
       });
     }
     return true;
@@ -1746,13 +1749,15 @@ export class GameEngine {
 
     this.playerVel.y += 0.2;
     this.playerVel.x += randomRange(-0.05, 0.05);
-    const fireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 5);
-    const weaponKind: PlayerWeaponKind = fireRateLevel >= 5 && this.weaponVolley % 4 === 0
-      ? 'ion'
-      : fireRateLevel >= 3
-        ? 'plasma'
-        : 'pulse';
-    const weaponSpeed = weaponKind === 'ion' ? 12.8 : weaponKind === 'plasma' ? 11.2 : 10;
+    const fireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 6);
+    const weaponKind: PlayerWeaponKind = fireRateLevel >= 6
+      ? this.weaponVolley % 3 === 0 ? 'nova' : 'ion'
+      : fireRateLevel >= 5 && this.weaponVolley % 4 === 0
+        ? 'ion'
+        : fireRateLevel >= 3
+          ? 'plasma'
+          : 'pulse';
+    const weaponSpeed = weaponKind === 'nova' ? 14.2 : weaponKind === 'ion' ? 12.8 : weaponKind === 'plasma' ? 11.2 : 10;
     this.spawnPlayerBullet(weaponSpeed, 0, 0, 0, -0.04, true, weaponKind);
 
     const lean = this.shouldUseLeanEffects();
@@ -2910,7 +2915,7 @@ export class GameEngine {
           ? (isBossTarget ? 8 : 5)
           : shot.damage * (isBossTarget ? 1.35 : 1);
         if (!shot.isBeam) {
-          if (shot.weaponKind === 'ion' && shot.pierceRemaining > 0) {
+          if ((shot.weaponKind === 'ion' || shot.weaponKind === 'nova') && shot.pierceRemaining > 0) {
             shot.hitTargetIds?.add(target.id);
             shot.pierceRemaining--;
           } else {
@@ -3954,7 +3959,8 @@ export class GameEngine {
         ctx.globalCompositeOperation = 'lighter';
         const leanShot = e.isPlayerShot && this.shouldUseLeanEffects();
         const isIonShot = e.isPlayerShot && e.weaponKind === 'ion';
-        ctx.shadowBlur = this.getGlowBlur(leanShot ? (isIonShot ? 8 : 5) : isIonShot ? 26 : e.isPlayerShot ? 18 : 12);
+        const isNovaShot = e.isPlayerShot && e.weaponKind === 'nova';
+        ctx.shadowBlur = this.getGlowBlur(leanShot ? (isNovaShot ? 10 : isIonShot ? 8 : 5) : isNovaShot ? 34 : isIonShot ? 26 : e.isPlayerShot ? 18 : 12);
         ctx.shadowColor = e.color || (e.isPlayerShot ? '#67e8f9' : '#fb7185');
 
         if (e.text) { 
@@ -3963,7 +3969,34 @@ export class GameEngine {
            ctx.textBaseline = 'middle';
            ctx.fillText(e.text, 0, 0);
         } else if (e.isPlayerShot) {
-          if (isIonShot) {
+          if (isNovaShot) {
+            const pulse = 0.84 + Math.sin((this.frameCount + e.variant) * 0.44) * 0.16;
+            ctx.fillStyle = `rgba(250,204,21,${0.24 * pulse})`;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, e.width * 0.82, e.height * 0.54, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const novaCore = ctx.createLinearGradient(0, -e.height * 0.68, 0, e.height * 0.62);
+            novaCore.addColorStop(0, 'rgba(255,255,255,0)');
+            novaCore.addColorStop(0.18, '#ffffff');
+            novaCore.addColorStop(0.46, '#67e8f9');
+            novaCore.addColorStop(0.72, '#f0abfc');
+            novaCore.addColorStop(1, 'rgba(250,204,21,0)');
+            ctx.fillStyle = novaCore;
+            ctx.beginPath();
+            ctx.moveTo(0, -e.height * 0.7);
+            ctx.lineTo(e.width * 0.62, -e.height * 0.08);
+            ctx.lineTo(e.width * 0.24, e.height * 0.62);
+            ctx.lineTo(-e.width * 0.24, e.height * 0.62);
+            ctx.lineTo(-e.width * 0.62, -e.height * 0.08);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#fde68a';
+            ctx.lineWidth = leanShot ? 1.5 : 2.4;
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-2, -e.height * 0.48, 4, e.height * 0.88);
+          } else if (isIonShot) {
             const pulse = 0.82 + Math.sin((this.frameCount + e.variant) * 0.38) * 0.18;
             ctx.fillStyle = `rgba(240,171,252,${0.32 * pulse})`;
             ctx.beginPath();

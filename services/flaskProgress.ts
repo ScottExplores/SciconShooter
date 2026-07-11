@@ -1,7 +1,7 @@
 export const BASE_FLASK_CHARGE_MAX = 58;
 export const FLASK_CHARGE_PER_COIN = 5;
 
-const FLASK_REQUIREMENT_GROWTH = 0.1;
+const FLASK_REQUIREMENT_GROWTH = 0.15;
 
 export type FlaskProgress = {
   storedFlasks: number;
@@ -38,13 +38,24 @@ export const getFlaskProgress = (
   };
 };
 
-export const spendStoredFlask = (
+export const spendStoredFlasks = (
   charge: number = 0,
+  flaskCount: number = 1,
   baseMax: number = BASE_FLASK_CHARGE_MAX
 ) => {
   const progress = getFlaskProgress(charge, baseMax);
-  if (progress.storedFlasks <= 0) return Math.max(0, charge || 0);
+  const spendCount = Math.min(progress.storedFlasks, Math.max(0, Math.floor(flaskCount)));
+  if (spendCount <= 0) return Math.max(0, charge || 0);
 
-  const spentFlaskCost = getFlaskRequirement(progress.storedFlasks - 1, baseMax);
-  return Math.max(0, (charge || 0) - spentFlaskCost);
+  let spentCharge = 0;
+  for (let index = 0; index < spendCount; index++) {
+    spentCharge += getFlaskRequirement(progress.storedFlasks - 1 - index, baseMax);
+  }
+
+  return Math.max(0, (charge || 0) - spentCharge);
 };
+
+export const spendStoredFlask = (
+  charge: number = 0,
+  baseMax: number = BASE_FLASK_CHARGE_MAX
+) => spendStoredFlasks(charge, 1, baseMax);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FieldUpgradeType, Stats, GameState } from '../types';
 import { audioService } from '../services/audioService';
-import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeLevel } from '../constants';
+import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress } from '../services/flaskProgress';
 
 interface UIOverlayProps {
@@ -330,16 +330,24 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           const config = FIELD_UPGRADE_CONFIG[type];
           const colors = fieldUpgradeColors[type];
           const level = getFieldUpgradeLevel(stats, type);
+          const flaskCost = getFieldUpgradeFlaskCost(stats, type);
           const isLifeUpgrade = type === 'extraLife';
           const isAtCap = isLifeUpgrade ? stats.lives >= GAME_CONFIG.MAX_LIVES : level >= config.maxLevel;
-          const canPick = flaskReady && !isAtCap;
+          const canPick = flaskCount >= flaskCost && !isAtCap;
           const shortTitle = type === 'fireRate'
             ? level >= 5
-              ? 'Ion'
+              ? 'Nova'
               : level >= 3
                 ? 'Plasma'
                 : config.shortTitle
             : config.shortTitle;
+          const upgradeStatus = isAtCap
+            ? 'MAX'
+            : flaskCost > 1
+              ? `x${flaskCost}`
+              : canPick
+                ? 'PICK'
+                : `L${level + 1}`;
 
           return (
             <button
@@ -356,7 +364,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                   ? `${colors.active} hover:border-white hover:brightness-125`
                   : colors.idle
               }`}
-              aria-label={`Upgrade ${config.title}`}
+              aria-label={`Upgrade ${config.title} for ${flaskCost} flask${flaskCost === 1 ? '' : 's'}`}
             >
               {canPick ? (
                 <span className={`pointer-events-none absolute inset-0 ${colors.glow}`} />
@@ -367,7 +375,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 }`}>
                   <HudIcon name={fieldUpgradeIcons[type]} className="h-5 w-5" />
                 </span>
-                <span className="font-mono text-[9px] font-black text-white/85">{isAtCap ? 'MAX' : flaskReady ? 'PICK' : `L${level + 1}`}</span>
+                <span className="font-mono text-[9px] font-black text-white/85">{upgradeStatus}</span>
               </div>
               <div className="relative mt-1 text-[9px] font-black uppercase leading-tight tracking-[0.08em] text-white sm:text-[10px]">
                 {shortTitle}
