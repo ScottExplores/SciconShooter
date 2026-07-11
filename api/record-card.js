@@ -47,7 +47,7 @@ module.exports = async (req, res) => {
       embedImage(`${assetOrigin}/game-art/branding/researchhub-ship.png`)
     ]);
 
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200" style="display:block;width:100%;height:auto;max-width:1200px;background:#020617">
       <defs>
         <radialGradient id="space" cx="70%" cy="30%"><stop stop-color="#123c52"/><stop offset=".52" stop-color="#07152a"/><stop offset="1" stop-color="#020617"/></radialGradient>
         <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b2038"/><stop offset="1" stop-color="#020817"/></linearGradient>
