@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { ConfigRepository } from './configRepository.mjs';
+import { GameCampaignRepository } from './gameCampaignRepository.mjs';
 import { RealRunReader } from './realRunReader.mjs';
 import {
   assertLoopbackRequest,
@@ -28,6 +29,13 @@ const requiredPayload = (body) => {
   return body.payload;
 };
 
+const requiredCampaign = (body) => {
+  if (!Object.hasOwn(body, 'campaign')) {
+    throw new ValidationError('Missing game campaign', ['campaign is required']);
+  }
+  return body.campaign;
+};
+
 const normalizedPathname = (requestUrl) => {
   const url = new URL(requestUrl || '/', 'http://director.local');
   if (url.pathname === DIRECTOR_API_PREFIX) return '/';
@@ -37,7 +45,7 @@ const normalizedPathname = (requestUrl) => {
 
 const isMutationMethod = (method) => ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
 
-export const createDirectorRequestHandler = ({ repository, realRunReader }) => {
+export const createDirectorRequestHandler = ({ repository, realRunReader, gameCampaignRepository = null }) => {
   if (!repository || !realRunReader) throw new Error('Director API requires a repository and real-run reader');
 
   return async (request, response) => {
@@ -58,6 +66,59 @@ export const createDirectorRequestHandler = ({ repository, realRunReader }) => {
 
       if (method === 'GET' && pathname === '/bootstrap') {
         return sendJson(response, 200, await repository.bootstrap());
+      }
+
+      if (pathname.startsWith('/api/game-campaign') && !gameCampaignRepository) {
+        throw new HttpError(503, 'Game campaign file integration is unavailable');
+      }
+
+      if (method === 'GET' && pathname === '/api/game-campaign') {
+        return sendJson(response, 200, {
+          ok: true,
+          ...(await gameCampaignRepository.readCampaign())
+        });
+      }
+
+      if (method === 'GET' && pathname === '/api/game-campaign/versions') {
+        const [disk, versions] = await Promise.all([
+          gameCampaignRepository.readCampaign(),
+          gameCampaignRepository.listVersions()
+        ]);
+        return sendJson(response, 200, {
+          ok: true,
+          activeVersionId: disk.activeVersionId,
+          currentContentHash: disk.contentHash,
+          versions
+        });
+      }
+
+      if (method === 'POST' && pathname === '/api/game-campaign/apply') {
+        const body = await readJsonBody(request);
+        const result = await gameCampaignRepository.applyCampaign(requiredCampaign(body), {
+          expectedContentHash: body.expectedContentHash,
+          changeNote: body.changeNote
+        });
+        return sendJson(response, 201, {
+          ok: true,
+          message: `Applied game campaign revision ${result.campaign.revision} to game-config/campaign.json`,
+          ...result
+        });
+      }
+
+      if (method === 'POST' && pathname === '/api/game-campaign/rollback') {
+        const body = await readJsonBody(request);
+        if (typeof body.versionId !== 'string') {
+          throw new ValidationError('Missing game campaign rollback target', ['versionId is required']);
+        }
+        const result = await gameCampaignRepository.rollback(body.versionId, {
+          expectedContentHash: body.expectedContentHash,
+          changeNote: body.changeNote
+        });
+        return sendJson(response, 201, {
+          ok: true,
+          message: `Rolled back game campaign in new revision ${result.campaign.revision}`,
+          ...result
+        });
       }
 
       let match = /^\/versions\/(scorecard|wave-campaign)$/.exec(pathname);
@@ -191,9 +252,14 @@ export const createDirectorApiPlugin = ({ repositoryRoot, directorRoot: _directo
     dataRoot,
     fixtureRoot
   });
+  const gameCampaignRepository = new GameCampaignRepository({
+    repositoryRoot: resolvedRepositoryRoot,
+    dataRoot
+  });
   const requestHandler = createDirectorRequestHandler({
     repository,
-    realRunReader: new RealRunReader()
+    realRunReader: new RealRunReader(),
+    gameCampaignRepository
   });
 
   return {

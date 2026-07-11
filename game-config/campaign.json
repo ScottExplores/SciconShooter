@@ -1,0 +1,1259 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "id": "scicon-shooter-campaign",
+  "name": "Scicon Shooter Campaign",
+  "updatedAt": "2026-07-11T00:00:00.000Z",
+  "fps": 60,
+  "levels": [
+    {
+      "id": "operation-open-galaxy",
+      "name": "Operation Open Galaxy",
+      "description": "The current Scicon Shooter mission, expressed as editable real-game waves.",
+      "order": 1,
+      "backgroundId": "open-orbit",
+      "musicId": "procedural-main",
+      "startingDifficulty": 1,
+      "scoreTarget": 0,
+      "durationSeconds": null,
+      "loopWaves": true,
+      "availablePowerupIds": [
+        "double-shot",
+        "triple-shot",
+        "magnet",
+        "shield",
+        "research-beam"
+      ],
+      "scorecard": {
+        "trigger": "mission-end",
+        "title": "Mission Record",
+        "subtitle": "Scicon Shooter",
+        "scoreLabel": "Final Score",
+        "metrics": [
+          "wave",
+          "targets",
+          "coins",
+          "flight"
+        ],
+        "showEncounterArt": true,
+        "encounterAssetKey": "FINAL_BOSS"
+      },
+      "waves": [
+        {
+          "id": "open-orbit",
+          "name": "OPEN ORBIT",
+          "order": 1,
+          "accent": "#67e8f9",
+          "backgroundId": "open-orbit",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 60,
+          "introSeconds": 2.5,
+          "delayAfterSeconds": 2.8,
+          "scoreMultiplier": 1,
+          "threatCap": 34,
+          "events": [
+            {
+              "id": "open-orbit-phase-1",
+              "kind": "spawn",
+              "label": "Phase 1 - Drone approach",
+              "startSeconds": 0,
+              "durationSeconds": 19.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 13,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.533,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.88,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.12,
+                  "health": 1,
+                  "speed": 3.5,
+                  "damage": 1,
+                  "scoreValue": 12,
+                  "powerupDropChance": 0
+                }
+              ]
+            },
+            {
+              "id": "open-orbit-powerups",
+              "kind": "powerup",
+              "label": "Ambient power-up signal",
+              "startSeconds": 0,
+              "durationSeconds": 60,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 40,
+              "powerupIds": [
+                "double-shot",
+                "triple-shot",
+                "magnet",
+                "shield",
+                "research-beam"
+              ]
+            },
+            {
+              "id": "open-orbit-mini-boss",
+              "kind": "boss",
+              "label": "Bottleneck Drone",
+              "startSeconds": 19.8,
+              "durationSeconds": 14,
+              "delayAfterSeconds": 2,
+              "blocksWaveClock": true,
+              "bossId": "bottleneck-drone",
+              "spriteKey": "MINI_BOSS",
+              "positionId": "center-top",
+              "movementPatternId": "track-player",
+              "warningSeconds": 1.5,
+              "health": 44,
+              "speed": 2,
+              "damage": 1,
+              "scoreReward": 510,
+              "powerupDropChance": 1,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "mini-aimed-shot",
+                  "weaponId": "aimed-shot",
+                  "attackIntervalSeconds": 1.2,
+                  "damage": 1,
+                  "projectileSpeed": 5.5,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "mini-standard",
+                  "label": "Tracking fire",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "track-player",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "mini-aimed-shot"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "open-orbit-phase-2",
+              "kind": "spawn",
+              "label": "Phase 2 - Heavy formation",
+              "startSeconds": 21.8,
+              "durationSeconds": 17.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 12,
+              "patternId": "row",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.533,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.64,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.1,
+                  "health": 1,
+                  "speed": 3.5,
+                  "damage": 1,
+                  "scoreValue": 12,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.26,
+                  "health": 8,
+                  "speed": 1.5,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "open-orbit-paywall-wall",
+              "kind": "boss",
+              "label": "Paywall Wall",
+              "startSeconds": 39.6,
+              "durationSeconds": 18,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": true,
+              "bossId": "paywall-wall",
+              "spriteKey": "WALL_BOSS_SEGMENT",
+              "positionId": "formation-top",
+              "movementPatternId": "wall-march",
+              "warningSeconds": 1.5,
+              "health": 50,
+              "speed": 1.55,
+              "damage": 1,
+              "scoreReward": 200,
+              "powerupDropChance": 0.08,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "wall-bolt",
+                  "weaponId": "wall-bolt",
+                  "attackIntervalSeconds": 0.7,
+                  "damage": 1,
+                  "projectileSpeed": 5.4,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "wall-standard",
+                  "label": "Wall march",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "wall-march",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "wall-bolt"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "open-orbit-phase-3",
+              "kind": "spawn",
+              "label": "Phase 3 - Final approach",
+              "startSeconds": 39.6,
+              "durationSeconds": 20.4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 13,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.533,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.44,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.1,
+                  "health": 1,
+                  "speed": 3.5,
+                  "damage": 1,
+                  "scoreValue": 12,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.2,
+                  "health": 8,
+                  "speed": 1.5,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL",
+                  "weight": 0.26,
+                  "health": 3,
+                  "speed": 4.4,
+                  "damage": 1,
+                  "scoreValue": 30,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "open-orbit-gatekeeper",
+              "kind": "boss",
+              "label": "Gatekeeper Prime",
+              "startSeconds": 60,
+              "durationSeconds": 20,
+              "delayAfterSeconds": 2.8,
+              "blocksWaveClock": true,
+              "bossId": "gatekeeper",
+              "spriteKey": "FINAL_BOSS",
+              "positionId": "center-top",
+              "movementPatternId": "gatekeeper-cycle",
+              "warningSeconds": 5,
+              "health": 235,
+              "speed": 2,
+              "damage": 1,
+              "scoreReward": 1010,
+              "powerupDropChance": 1,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "gatekeeper-burst",
+                  "weaponId": "burst-volley",
+                  "attackIntervalSeconds": 0.883,
+                  "damage": 1,
+                  "projectileSpeed": 6.55,
+                  "burstCount": 3
+                },
+                {
+                  "id": "gatekeeper-beam",
+                  "weaponId": "lane-beam",
+                  "attackIntervalSeconds": 0.4,
+                  "damage": 1,
+                  "projectileSpeed": 0,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "gatekeeper-standard",
+                  "label": "Burst and beam cycle",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "gatekeeper-cycle",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "gatekeeper-burst",
+                    "gatekeeper-beam"
+                  ]
+                },
+                {
+                  "id": "gatekeeper-low-health",
+                  "label": "Low-health cycle",
+                  "triggerHealthRatio": 0.35,
+                  "movementPatternId": "gatekeeper-cycle",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "gatekeeper-burst",
+                    "gatekeeper-beam"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "citation-storm",
+          "name": "CITATION STORM",
+          "order": 2,
+          "accent": "#c4b5fd",
+          "backgroundId": "citation-storm",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 60,
+          "introSeconds": 1.967,
+          "delayAfterSeconds": 2.8,
+          "scoreMultiplier": 2,
+          "threatCap": 37,
+          "events": [
+            {
+              "id": "citation-storm-phase-1",
+              "kind": "spawn",
+              "label": "Phase 1 - Swarm signal",
+              "startSeconds": 0,
+              "durationSeconds": 19.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 15,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.367,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.7,
+                  "health": 3.36,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.3,
+                  "health": 1.68,
+                  "speed": 4.27,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0
+                }
+              ]
+            },
+            {
+              "id": "citation-storm-powerups",
+              "kind": "powerup",
+              "label": "Ambient power-up signal",
+              "startSeconds": 0,
+              "durationSeconds": 60,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 40,
+              "powerupIds": [
+                "double-shot",
+                "triple-shot",
+                "magnet",
+                "shield",
+                "research-beam"
+              ]
+            },
+            {
+              "id": "citation-storm-mini-boss",
+              "kind": "boss",
+              "label": "Bottleneck Drone",
+              "startSeconds": 19.8,
+              "durationSeconds": 16,
+              "delayAfterSeconds": 2,
+              "blocksWaveClock": true,
+              "bossId": "bottleneck-drone",
+              "spriteKey": "MINI_BOSS",
+              "positionId": "center-top",
+              "movementPatternId": "track-player",
+              "warningSeconds": 1.5,
+              "health": 89,
+              "speed": 2,
+              "damage": 1,
+              "scoreReward": 1020,
+              "powerupDropChance": 1,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "mini-aimed-shot",
+                  "weaponId": "aimed-shot",
+                  "attackIntervalSeconds": 0.833,
+                  "damage": 1,
+                  "projectileSpeed": 6,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "mini-standard",
+                  "label": "Tracking fire",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "track-player",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "mini-aimed-shot"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "citation-storm-phase-2",
+              "kind": "spawn",
+              "label": "Phase 2 - Citation pressure",
+              "startSeconds": 21.8,
+              "durationSeconds": 17.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 13,
+              "patternId": "row",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.367,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.5,
+                  "health": 3.36,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 1.68,
+                  "speed": 4.27,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.3,
+                  "health": 13.44,
+                  "speed": 1.83,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "citation-storm-asteroid-belt",
+              "kind": "asteroid-belt",
+              "label": "Asteroid Belt",
+              "startSeconds": 39.6,
+              "durationSeconds": 22,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": true,
+              "spriteKey": "ENEMY_BRICK_FRAMES",
+              "count": 18,
+              "density": 0.75,
+              "patternId": "asteroid-lanes",
+              "positionId": "lane-top",
+              "spawnIntervalSeconds": 0.18,
+              "warningSeconds": 1.5,
+              "health": 8,
+              "speed": 2.665,
+              "damage": 1,
+              "scoreValue": 40,
+              "powerupDropChance": 0.08
+            },
+            {
+              "id": "citation-storm-phase-3",
+              "kind": "spawn",
+              "label": "Phase 3 - Elite pressure",
+              "startSeconds": 39.6,
+              "durationSeconds": 20.4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 15,
+              "patternId": "sine",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.367,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 3.36,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.15,
+                  "health": 1.68,
+                  "speed": 4.27,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 13.44,
+                  "speed": 1.83,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL",
+                  "weight": 0.3,
+                  "health": 5.04,
+                  "speed": 5.368,
+                  "damage": 1,
+                  "scoreValue": 60,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "citation-storm-gatekeeper",
+              "kind": "boss",
+              "label": "Review Sentinel",
+              "startSeconds": 60,
+              "durationSeconds": 24,
+              "delayAfterSeconds": 2.8,
+              "blocksWaveClock": true,
+              "bossId": "gatekeeper",
+              "spriteKey": "MINI_BOSS",
+              "positionId": "center-top",
+              "movementPatternId": "gatekeeper-cycle",
+              "warningSeconds": 5,
+              "health": 430,
+              "speed": 2,
+              "damage": 1,
+              "scoreReward": 2020,
+              "powerupDropChance": 1,
+              "shieldCount": 5,
+              "weapons": [
+                {
+                  "id": "gatekeeper-burst",
+                  "weaponId": "burst-volley",
+                  "attackIntervalSeconds": 0.767,
+                  "damage": 1,
+                  "projectileSpeed": 7.1,
+                  "burstCount": 5
+                },
+                {
+                  "id": "gatekeeper-beam",
+                  "weaponId": "lane-beam",
+                  "attackIntervalSeconds": 0.367,
+                  "damage": 1,
+                  "projectileSpeed": 0,
+                  "burstCount": 2
+                }
+              ],
+              "phases": [
+                {
+                  "id": "gatekeeper-standard",
+                  "label": "Burst and beam cycle",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "gatekeeper-cycle",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "gatekeeper-burst",
+                    "gatekeeper-beam"
+                  ]
+                },
+                {
+                  "id": "gatekeeper-low-health",
+                  "label": "Low-health cycle",
+                  "triggerHealthRatio": 0.35,
+                  "movementPatternId": "gatekeeper-cycle",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "gatekeeper-burst",
+                    "gatekeeper-beam"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "paywall-siege",
+          "name": "PAYWALL SIEGE",
+          "order": 3,
+          "accent": "#fde68a",
+          "backgroundId": "paywall-siege",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 60,
+          "introSeconds": 1.967,
+          "delayAfterSeconds": 2.8,
+          "scoreMultiplier": 4,
+          "threatCap": 40,
+          "events": [
+            {
+              "id": "paywall-siege-phase-1",
+              "kind": "spawn",
+              "label": "Phase 1 - Siege approach",
+              "startSeconds": 0,
+              "durationSeconds": 19.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 17,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.2,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.7,
+                  "health": 4.04,
+                  "speed": 3.325,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.3,
+                  "health": 2.02,
+                  "speed": 4.655,
+                  "damage": 1,
+                  "scoreValue": 48,
+                  "powerupDropChance": 0
+                }
+              ]
+            },
+            {
+              "id": "paywall-siege-powerups",
+              "kind": "powerup",
+              "label": "Ambient power-up signal",
+              "startSeconds": 0,
+              "durationSeconds": 60,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 40,
+              "powerupIds": [
+                "double-shot",
+                "triple-shot",
+                "magnet",
+                "shield",
+                "research-beam"
+              ]
+            },
+            {
+              "id": "paywall-siege-mini-boss",
+              "kind": "boss",
+              "label": "Bottleneck Drone",
+              "startSeconds": 19.8,
+              "durationSeconds": 18,
+              "delayAfterSeconds": 2,
+              "blocksWaveClock": true,
+              "bossId": "bottleneck-drone",
+              "spriteKey": "MINI_BOSS",
+              "positionId": "center-top",
+              "movementPatternId": "track-player",
+              "warningSeconds": 1.5,
+              "health": 111,
+              "speed": 2,
+              "damage": 1,
+              "scoreReward": 2040,
+              "powerupDropChance": 1,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "mini-aimed-shot",
+                  "weaponId": "aimed-shot",
+                  "attackIntervalSeconds": 0.75,
+                  "damage": 1,
+                  "projectileSpeed": 6.5,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "mini-standard",
+                  "label": "Tracking fire",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "track-player",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "mini-aimed-shot"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "paywall-siege-phase-2",
+              "kind": "spawn",
+              "label": "Phase 2 - Pincer pressure",
+              "startSeconds": 21.8,
+              "durationSeconds": 17.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 15,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.2,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.5,
+                  "health": 4.04,
+                  "speed": 3.325,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 2.02,
+                  "speed": 4.655,
+                  "damage": 1,
+                  "scoreValue": 48,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.3,
+                  "health": 16.16,
+                  "speed": 1.995,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "paywall-siege-paywall-wall",
+              "kind": "boss",
+              "label": "Paywall Wall",
+              "startSeconds": 39.6,
+              "durationSeconds": 20,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": true,
+              "bossId": "paywall-wall",
+              "spriteKey": "WALL_BOSS_SEGMENT",
+              "positionId": "formation-top",
+              "movementPatternId": "wall-march",
+              "warningSeconds": 1.5,
+              "health": 168,
+              "speed": 2.9,
+              "damage": 1,
+              "scoreReward": 960,
+              "powerupDropChance": 0.08,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "wall-bolt",
+                  "weaponId": "wall-bolt",
+                  "attackIntervalSeconds": 0.283,
+                  "damage": 1,
+                  "projectileSpeed": 8.5,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "wall-standard",
+                  "label": "Wall march",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "wall-march",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "wall-bolt"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "paywall-siege-phase-3",
+              "kind": "spawn",
+              "label": "Phase 3 - Full roster",
+              "startSeconds": 39.6,
+              "durationSeconds": 20.4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 17,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.2,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 4.04,
+                  "speed": 3.325,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.15,
+                  "health": 2.02,
+                  "speed": 4.655,
+                  "damage": 1,
+                  "scoreValue": 48,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 16.16,
+                  "speed": 1.995,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL",
+                  "weight": 0.3,
+                  "health": 6.06,
+                  "speed": 5.852,
+                  "damage": 1,
+                  "scoreValue": 120,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "paywall-siege-gatekeeper",
+              "kind": "boss",
+              "label": "Paywall Core",
+              "startSeconds": 60,
+              "durationSeconds": 28,
+              "delayAfterSeconds": 2.8,
+              "blocksWaveClock": true,
+              "bossId": "gatekeeper",
+              "spriteKey": "WALL_BOSS_SEGMENT",
+              "positionId": "center-top",
+              "movementPatternId": "gatekeeper-cycle",
+              "warningSeconds": 5,
+              "health": 535,
+              "speed": 2,
+              "damage": 1,
+              "scoreReward": 4040,
+              "powerupDropChance": 1,
+              "shieldCount": 6,
+              "weapons": [
+                {
+                  "id": "gatekeeper-burst",
+                  "weaponId": "burst-volley",
+                  "attackIntervalSeconds": 0.65,
+                  "damage": 1,
+                  "projectileSpeed": 7.65,
+                  "burstCount": 7
+                },
+                {
+                  "id": "gatekeeper-beam",
+                  "weaponId": "lane-beam",
+                  "attackIntervalSeconds": 0.333,
+                  "damage": 1,
+                  "projectileSpeed": 0,
+                  "burstCount": 3
+                }
+              ],
+              "phases": [
+                {
+                  "id": "gatekeeper-standard",
+                  "label": "Burst and beam cycle",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "gatekeeper-cycle",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "gatekeeper-burst",
+                    "gatekeeper-beam"
+                  ]
+                },
+                {
+                  "id": "gatekeeper-low-health",
+                  "label": "Low-health cycle",
+                  "triggerHealthRatio": 0.35,
+                  "movementPatternId": "gatekeeper-cycle",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "gatekeeper-burst",
+                    "gatekeeper-beam"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "open-galaxy",
+          "name": "OPEN GALAXY",
+          "order": 4,
+          "accent": "#6ee7b7",
+          "backgroundId": "open-galaxy",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 60,
+          "introSeconds": 1.967,
+          "delayAfterSeconds": 2.8,
+          "scoreMultiplier": 8,
+          "threatCap": 43,
+          "events": [
+            {
+              "id": "open-galaxy-phase-1",
+              "kind": "spawn",
+              "label": "Phase 1 - Open-space assault",
+              "startSeconds": 0,
+              "durationSeconds": 19.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 20,
+              "patternId": "v",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.033,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.7,
+                  "health": 4.72,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.3,
+                  "health": 2.36,
+                  "speed": 5.04,
+                  "damage": 1,
+                  "scoreValue": 96,
+                  "powerupDropChance": 0
+                }
+              ]
+            },
+            {
+              "id": "open-galaxy-powerups",
+              "kind": "powerup",
+              "label": "Ambient power-up signal",
+              "startSeconds": 0,
+              "durationSeconds": 60,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 40,
+              "powerupIds": [
+                "double-shot",
+                "triple-shot",
+                "magnet",
+                "shield",
+                "research-beam"
+              ]
+            },
+            {
+              "id": "open-galaxy-mini-boss",
+              "kind": "boss",
+              "label": "Bottleneck Drone",
+              "startSeconds": 19.8,
+              "durationSeconds": 20,
+              "delayAfterSeconds": 2,
+              "blocksWaveClock": true,
+              "bossId": "bottleneck-drone",
+              "spriteKey": "MINI_BOSS",
+              "positionId": "center-top",
+              "movementPatternId": "track-player",
+              "warningSeconds": 1.5,
+              "health": 133,
+              "speed": 2,
+              "damage": 1,
+              "scoreReward": 4080,
+              "powerupDropChance": 1,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "mini-aimed-shot",
+                  "weaponId": "aimed-shot",
+                  "attackIntervalSeconds": 0.667,
+                  "damage": 1,
+                  "projectileSpeed": 7,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "mini-standard",
+                  "label": "Tracking fire",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "track-player",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "mini-aimed-shot"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "open-galaxy-phase-2",
+              "kind": "spawn",
+              "label": "Phase 2 - Pincer pressure",
+              "startSeconds": 21.8,
+              "durationSeconds": 17.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 18,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.033,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.5,
+                  "health": 4.72,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 2.36,
+                  "speed": 5.04,
+                  "damage": 1,
+                  "scoreValue": 96,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.3,
+                  "health": 18.88,
+                  "speed": 2.16,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "open-galaxy-asteroid-belt",
+              "kind": "asteroid-belt",
+              "label": "Asteroid Belt",
+              "startSeconds": 39.6,
+              "durationSeconds": 24,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": true,
+              "spriteKey": "ENEMY_BRICK_FRAMES",
+              "count": 24,
+              "density": 1,
+              "patternId": "asteroid-lanes",
+              "positionId": "lane-top",
+              "spawnIntervalSeconds": 0.12,
+              "warningSeconds": 1.5,
+              "health": 12,
+              "speed": 3.305,
+              "damage": 1,
+              "scoreValue": 160,
+              "powerupDropChance": 0.08
+            },
+            {
+              "id": "open-galaxy-phase-3",
+              "kind": "spawn",
+              "label": "Phase 3 - Full roster",
+              "startSeconds": 39.6,
+              "durationSeconds": 20.4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 20,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 1.033,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 4.72,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.15,
+                  "health": 2.36,
+                  "speed": 5.04,
+                  "damage": 1,
+                  "scoreValue": 96,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 18.88,
+                  "speed": 2.16,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL",
+                  "weight": 0.3,
+                  "health": 7.08,
+                  "speed": 6.336,
+                  "damage": 1,
+                  "scoreValue": 240,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "open-galaxy-gatekeeper",
+              "kind": "boss",
+              "label": "Gatekeeper Prime",
+              "startSeconds": 60,
+              "durationSeconds": 30,
+              "delayAfterSeconds": 2.8,
+              "blocksWaveClock": true,
+              "bossId": "gatekeeper",
+              "spriteKey": "FINAL_BOSS",
+              "positionId": "center-top",
+              "movementPatternId": "gatekeeper-cycle",
+              "warningSeconds": 5,
+              "health": 640,
+              "speed": 2,
+              "damage": 1,
+              "scoreReward": 8080,
+              "powerupDropChance": 1,
+              "shieldCount": 7,
+              "weapons": [
+                {
+                  "id": "gatekeeper-burst",
+                  "weaponId": "burst-volley",
+                  "attackIntervalSeconds": 0.533,
+                  "damage": 1,
+                  "projectileSpeed": 8.2,
+                  "burstCount": 7
+                },
+                {
+                  "id": "gatekeeper-beam",
+                  "weaponId": "lane-beam",
+                  "attackIntervalSeconds": 0.3,
+                  "damage": 1,
+                  "projectileSpeed": 0,
+                  "burstCount": 4
+                }
+              ],
+              "phases": [
+                {
+                  "id": "gatekeeper-standard",
+                  "label": "Burst and beam cycle",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "gatekeeper-cycle",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "gatekeeper-burst",
+                    "gatekeeper-beam"
+                  ]
+                },
+                {
+                  "id": "gatekeeper-low-health",
+                  "label": "Low-health cycle",
+                  "triggerHealthRatio": 0.35,
+                  "movementPatternId": "gatekeeper-cycle",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "gatekeeper-burst",
+                    "gatekeeper-beam"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

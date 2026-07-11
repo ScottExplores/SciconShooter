@@ -16,6 +16,12 @@ export default defineConfig(({ command }) => {
     root: directorRoot,
     envDir: path.join(directorRoot, 'env'),
     publicDir: path.join(repositoryRoot, 'public'),
+    resolve: {
+      alias: {
+        '@director': path.join(directorRoot, 'src')
+      },
+      dedupe: ['react', 'react-dom']
+    },
     plugins: [
       react(),
       createDirectorApiPlugin({ repositoryRoot, directorRoot })

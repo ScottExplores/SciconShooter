@@ -1,0 +1,153 @@
+import type {
+  BossEvent,
+  GameCampaignConfig,
+  LevelDefinition,
+  SpawnEvent,
+  WaveDefinition,
+  WaveEvent
+} from '../../../game-config/types';
+
+export const cloneJson = <T,>(value: T): T => structuredClone(value);
+
+export const createEditorId = (prefix: string) => (
+  `${prefix}-${globalThis.crypto?.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10)}`
+);
+
+const cloneBossEvent = (event: BossEvent): BossEvent => {
+  const weaponIdMap = new Map<string, string>();
+  const weapons = event.weapons.map((weapon) => {
+    const nextId = createEditorId('weapon');
+    weaponIdMap.set(weapon.id, nextId);
+    return { ...cloneJson(weapon), id: nextId };
+  });
+  return {
+    ...cloneJson(event),
+    id: createEditorId('boss'),
+    weapons,
+    phases: event.phases.map((phase) => ({
+      ...cloneJson(phase),
+      id: createEditorId('phase'),
+      weaponSettingIds: phase.weaponSettingIds.map((id) => weaponIdMap.get(id)).filter((id): id is string => Boolean(id))
+    }))
+  };
+};
+
+export const cloneWaveEvent = (event: WaveEvent): WaveEvent => {
+  if (event.kind === 'boss') return cloneBossEvent(event);
+  return { ...cloneJson(event), id: createEditorId(event.kind) };
+};
+
+export const cloneWave = (wave: WaveDefinition, name = `${wave.name} Copy`): WaveDefinition => ({
+  ...cloneJson(wave),
+  id: createEditorId('wave'),
+  name,
+  events: wave.events.map(cloneWaveEvent)
+});
+
+export const cloneLevel = (level: LevelDefinition, name = `${level.name} Copy`): LevelDefinition => ({
+  ...cloneJson(level),
+  id: createEditorId('level'),
+  name,
+  waves: level.waves.map((wave) => cloneWave(wave, wave.name))
+});
+
+const normalizeLevelOrder = (levels: LevelDefinition[]) => levels.map((level, index) => ({
+  ...level,
+  order: index + 1,
+  waves: level.waves.map((wave, waveIndex) => ({ ...wave, order: waveIndex + 1 }))
+}));
+
+export const updateLevelInCampaign = (
+  campaign: GameCampaignConfig,
+  levelId: string,
+  update: (level: LevelDefinition) => LevelDefinition
+): GameCampaignConfig => ({
+  ...campaign,
+  levels: normalizeLevelOrder(campaign.levels.map((level) => level.id === levelId ? update(level) : level))
+});
+
+export const moveLevel = (campaign: GameCampaignConfig, levelId: string, direction: -1 | 1) => {
+  const levels = [...campaign.levels];
+  const index = levels.findIndex((level) => level.id === levelId);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= levels.length) return campaign;
+  [levels[index], levels[target]] = [levels[target], levels[index]];
+  return { ...campaign, levels: normalizeLevelOrder(levels) };
+};
+
+export const moveWave = (level: LevelDefinition, waveId: string, direction: -1 | 1): LevelDefinition => {
+  const waves = [...level.waves];
+  const index = waves.findIndex((wave) => wave.id === waveId);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= waves.length) return level;
+  [waves[index], waves[target]] = [waves[target], waves[index]];
+  return { ...level, waves: waves.map((wave, waveIndex) => ({ ...wave, order: waveIndex + 1 })) };
+};
+
+export const reorderWave = (level: LevelDefinition, sourceId: string, targetId: string): LevelDefinition => {
+  const waves = [...level.waves];
+  const sourceIndex = waves.findIndex((wave) => wave.id === sourceId);
+  const targetIndex = waves.findIndex((wave) => wave.id === targetId);
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return level;
+  const [source] = waves.splice(sourceIndex, 1);
+  waves.splice(targetIndex, 0, source);
+  return { ...level, waves: waves.map((wave, index) => ({ ...wave, order: index + 1 })) };
+};
+
+export const sortWaveEvents = (events: WaveEvent[]) => [...events].sort((left, right) => (
+  left.startSeconds - right.startSeconds || left.label.localeCompare(right.label)
+));
+
+export const createSpawnEvent = (wave: WaveDefinition): SpawnEvent => {
+  const startSeconds = Math.min(Math.max(0, wave.durationSeconds * 0.1), Math.max(0, wave.durationSeconds - 5));
+  return {
+    id: createEditorId('spawn'),
+    kind: 'spawn',
+    label: 'New enemy phase',
+    startSeconds,
+    durationSeconds: Math.max(1, Math.min(12, wave.durationSeconds - startSeconds)),
+    delayAfterSeconds: 0,
+    blocksWaveClock: false,
+    count: 12,
+    patternId: 'v',
+    positionId: 'formation-top',
+    spawnIntervalSeconds: 0.8,
+    enemies: [{
+      enemyId: 'drone',
+      spriteKey: 'ENEMY_DRONE_FRAMES',
+      weight: 1,
+      health: 2,
+      speed: 2.5,
+      damage: 1,
+      scoreValue: 100,
+      powerupDropChance: 0.08
+    }]
+  };
+};
+
+export const createBossEvent = (wave: WaveDefinition): BossEvent => {
+  const startSeconds = Math.max(0, Math.min(wave.durationSeconds - 4, wave.durationSeconds * 0.75));
+  const weaponId = createEditorId('weapon');
+  return {
+    id: createEditorId('boss'),
+    kind: 'boss',
+    label: 'New mini-boss',
+    startSeconds,
+    durationSeconds: Math.max(1, Math.min(10, wave.durationSeconds - startSeconds)),
+    delayAfterSeconds: 0,
+    blocksWaveClock: true,
+    bossId: 'bottleneck-drone',
+    spriteKey: 'MINI_BOSS',
+    positionId: 'center-top',
+    movementPatternId: 'track-player',
+    warningSeconds: 2,
+    health: 40,
+    speed: 1.4,
+    damage: 1,
+    scoreReward: 1500,
+    powerupDropChance: 0.4,
+    shieldCount: 0,
+    weapons: [{ id: weaponId, weaponId: 'aimed-shot', attackIntervalSeconds: 1.3, damage: 1, projectileSpeed: 4, burstCount: 1 }],
+    phases: [{ id: createEditorId('phase'), label: 'Opening', triggerHealthRatio: 1, movementPatternId: 'track-player', speedMultiplier: 1, weaponSettingIds: [weaponId] }]
+  };
+};

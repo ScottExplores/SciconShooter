@@ -2,6 +2,23 @@
 
 import { EntityType, GamePolishSettings, PowerupType, Stats } from '../types';
 import { ASSETS, GAME_CONFIG, COLORS } from '../constants';
+import type {
+  AssetKey,
+  AsteroidEvent,
+  BossEvent,
+  GameCampaign,
+  LevelDefinition,
+  SpawnEvent,
+  WaveDefinition
+} from '../game-config/types';
+import {
+  DEFAULT_GAME_CAMPAIGN,
+  cloneGameCampaign,
+  getAssetPaths,
+  getDifficultyMultiplier,
+  getPowerup,
+  getPrimaryAssetPath
+} from './levelConfig';
 import { audioService } from './audioService';
 import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getFlaskProgress } from './flaskProgress';
 
@@ -64,6 +81,21 @@ export class Entity {
   pierceRemaining: number = 0;
   weaponKind: PlayerWeaponKind = 'pulse';
   hitTargetIds?: Set<string>;
+  spriteUrl?: string;
+  spriteFrames?: string[];
+  scoreValue?: number;
+  scoreReward?: number;
+  powerupDropChance?: number;
+  contactDamage: number = 1;
+  projectileDamage: number = 1;
+  projectileSpeed?: number;
+  configuredSpeed?: number;
+  attackIntervalFrames?: number;
+  movementPattern?: string;
+  phaseThresholds: number[] = [];
+  weaponKinds: string[] = [];
+  configuredBurstCount?: number;
+  completesWave: boolean = false;
   
   constructor(type: EntityType, x: number, y: number) {
     this.id = Math.random().toString(36).substr(2, 9);
@@ -373,6 +405,136 @@ type PlayerAfterimage = {
 
 type BossWarningType = 'mini1' | 'wall' | 'asteroid' | 'gatekeeper';
 
+type RuntimeSpawnEnemy = {
+  enemyId: string;
+  spriteKey?: string;
+  weight: number;
+  health: number;
+  speed: number;
+  damage: number;
+  scoreValue: number;
+  powerupDropChance: number;
+};
+
+type RuntimeSpawnEvent = SpawnEvent & {
+  id: string;
+  startSeconds: number;
+  durationSeconds?: number;
+  count: number;
+  spawnIntervalSeconds: number;
+  patternId?: string;
+  positionId?: string;
+  enemies: RuntimeSpawnEnemy[];
+};
+
+type RuntimeBossWeapon = {
+  id?: string;
+  weaponId?: string;
+  attackIntervalSeconds?: number;
+  attackFrequencySeconds?: number;
+  frequencySeconds?: number;
+  damage?: number;
+  projectileSpeed?: number;
+  burstCount?: number;
+};
+
+type RuntimeBossPhase = {
+  healthThreshold?: number;
+  threshold?: number;
+};
+
+type RuntimeBossEvent = BossEvent & {
+  id: string;
+  startSeconds: number;
+  bossId: string;
+  spriteKey?: string;
+  speed?: number;
+  health: number;
+  movementPattern?: string;
+  contactDamage?: number;
+  scoreReward?: number;
+  warningSeconds?: number;
+  weapons?: RuntimeBossWeapon[];
+  phases?: RuntimeBossPhase[];
+};
+
+type RuntimeAsteroidEvent = AsteroidEvent & {
+  id: string;
+  startSeconds: number;
+  count?: number;
+  spriteKey?: string;
+  speed?: number;
+  health?: number;
+  contactDamage?: number;
+  damage?: number;
+  scoreValue?: number;
+  powerupDropChance?: number;
+  warningSeconds?: number;
+};
+
+type RuntimeEncounterEvent = RuntimeBossEvent | RuntimeAsteroidEvent;
+
+type CampaignWaveEntry = {
+  level: LevelDefinition;
+  wave: WaveDefinition;
+  levelIndex: number;
+  waveIndex: number;
+};
+
+type EnemyRuntimeOverrides = {
+  speed?: number;
+  health?: number;
+  contactDamage?: number;
+  projectileDamage?: number;
+  scoreValue?: number;
+  powerupDropChance?: number;
+  spriteUrl?: string;
+  spriteFrames?: string[];
+};
+
+export interface GameEngineOptions {
+  campaign?: GameCampaign;
+  previewMode?: boolean;
+  audioEnabled?: boolean;
+  initialLevelId?: string;
+  initialWaveId?: string;
+}
+
+export interface GameRuntimeState {
+  levelId: string;
+  levelName: string;
+  waveId: string;
+  waveName: string;
+  elapsedSeconds: number;
+  durationSeconds: number;
+  progress: number;
+  bossActive: boolean;
+  complete: boolean;
+}
+
+export interface GameEngineDebugSnapshot {
+  readonly runtime: Readonly<GameRuntimeState>;
+  readonly difficultyMultiplier: number;
+  readonly waveProgressFrames: number;
+  readonly configuredSpawnCounts: Readonly<Record<string, number>>;
+  readonly entities: ReadonlyArray<Readonly<{
+    id: string;
+    type: EntityType;
+    hp: number;
+    maxHp: number;
+    vx: number;
+    vy: number;
+    damage: number;
+    contactDamage: number;
+    projectileDamage: number;
+    projectileSpeed: number | null;
+    scoreValue: number | null;
+    powerupDropChance: number | null;
+    attackIntervalFrames: number | null;
+    spriteUrl: string | null;
+  }>>;
+}
+
 const WAVE_SECTORS = [
   { name: 'OPEN ORBIT', accent: '#67e8f9' },
   { name: 'CITATION STORM', accent: '#c4b5fd' },
@@ -454,14 +616,191 @@ export class GameEngine {
   polishSettings: GamePolishSettings = { ...DEFAULT_POLISH_SETTINGS };
   performanceMode: boolean = false;
   heavySceneLoad: boolean = false;
+  campaign: GameCampaign;
+  campaignWaves: CampaignWaveEntry[] = [];
+  currentCampaignIndex: number = 0;
+  previewMode: boolean = false;
+  audioEnabled: boolean = true;
+  previewComplete: boolean = false;
+  configuredEncounterIds: Set<string> = new Set();
+  configuredSpawnCounts: Map<string, number> = new Map();
+  configuredSpawnFrames: Map<string, number> = new Map();
+  pendingConfiguredEncounter: RuntimeEncounterEvent | null = null;
+  initialLevelId?: string;
+  initialWaveId?: string;
   
-  constructor(stats: Stats) {
+  constructor(stats: Stats, options: GameEngineOptions = {}) {
     this.stats = stats;
+    this.campaign = cloneGameCampaign(options.campaign ?? DEFAULT_GAME_CAMPAIGN);
+    this.campaignWaves = this.buildCampaignWaveEntries(this.campaign);
+    this.previewMode = options.previewMode ?? false;
+    this.audioEnabled = options.audioEnabled ?? !this.previewMode;
+    this.initialLevelId = options.initialLevelId;
+    this.initialWaveId = options.initialWaveId;
+    const initialIndex = this.findCampaignWaveIndex(options.initialLevelId, options.initialWaveId);
+    this.currentCampaignIndex = initialIndex >= 0 ? initialIndex : 0;
     this.player = new Entity(EntityType.PLAYER, 0, 0);
     this.player.width = 128;
     this.player.height = 128;
     
     GAMEPLAY_ASSET_URLS.forEach(loadImage);
+  }
+
+  buildCampaignWaveEntries(campaign: GameCampaign): CampaignWaveEntry[] {
+    const entries: CampaignWaveEntry[] = [];
+    const levels = Array.isArray(campaign.levels)
+      ? campaign.levels.map((level, sourceIndex) => ({ level, sourceIndex })).sort((a, b) => a.level.order - b.level.order)
+      : [];
+    levels.forEach(({ level, sourceIndex: levelIndex }) => {
+      const waves = Array.isArray(level.waves)
+        ? level.waves.map((wave, sourceIndex) => ({ wave, sourceIndex })).sort((a, b) => a.wave.order - b.wave.order)
+        : [];
+      waves.forEach(({ wave, sourceIndex: waveIndex }) => entries.push({ level, wave, levelIndex, waveIndex }));
+    });
+    return entries;
+  }
+
+  findCampaignWaveIndex(levelId?: string, waveId?: string) {
+    if (!levelId && !waveId) return -1;
+    return this.campaignWaves.findIndex((entry) => (
+      (!levelId || entry.level.id === levelId)
+      && (!waveId || entry.wave.id === waveId)
+    ));
+  }
+
+  getCurrentCampaignEntry() {
+    if (this.campaignWaves.length === 0) return null;
+    const index = ((this.currentCampaignIndex % this.campaignWaves.length) + this.campaignWaves.length) % this.campaignWaves.length;
+    return this.campaignWaves[index] ?? null;
+  }
+
+  getCurrentLevelDefinition() {
+    return this.getCurrentCampaignEntry()?.level ?? null;
+  }
+
+  getCurrentWaveDefinition() {
+    return this.getCurrentCampaignEntry()?.wave ?? null;
+  }
+
+  getCurrentDifficultyMultiplier() {
+    const entry = this.getCurrentCampaignEntry();
+    return entry ? getDifficultyMultiplier(entry.level, entry.wave) : 1;
+  }
+
+  getConfiguredWaveDurationSeconds() {
+    const configured = Number(this.getCurrentWaveDefinition()?.durationSeconds);
+    return Number.isFinite(configured) && configured > 0
+      ? configured
+      : GAME_CONFIG.WAVE_DURATION_FRAMES / GAME_CONFIG.FPS;
+  }
+
+  getConfiguredWaveDurationFrames() {
+    return Math.max(1, Math.round(this.getConfiguredWaveDurationSeconds() * GAME_CONFIG.FPS));
+  }
+
+  getWaveElapsedSeconds() {
+    return this.waveProgressFrames / GAME_CONFIG.FPS;
+  }
+
+  getConfiguredSpawnEvents() {
+    const events = this.getCurrentWaveDefinition()?.events;
+    if (!Array.isArray(events)) return [];
+    return events.filter((event): event is SpawnEvent => event.kind === 'spawn') as RuntimeSpawnEvent[];
+  }
+
+  getConfiguredEncounterEvents() {
+    const events = this.getCurrentWaveDefinition()?.events;
+    if (!Array.isArray(events)) return [];
+    return events
+      .filter((event): event is BossEvent | AsteroidEvent => event.kind === 'boss' || event.kind === 'asteroid-belt')
+      .slice()
+      .sort((a, b) => Number(a.startSeconds) - Number(b.startSeconds)) as RuntimeEncounterEvent[];
+  }
+
+  playSound(...args: Parameters<typeof audioService.playSound>) {
+    if (!this.audioEnabled) return;
+    audioService.playSound(...args);
+  }
+
+  getRuntimeState(): GameRuntimeState {
+    const entry = this.getCurrentCampaignEntry();
+    const durationSeconds = this.getConfiguredWaveDurationSeconds();
+    return {
+      levelId: entry?.level.id ?? `level-${Math.max(1, this.wave)}`,
+      levelName: entry?.level.name ?? this.getWaveSector().name,
+      waveId: entry?.wave.id ?? `wave-${Math.max(1, this.wave)}`,
+      waveName: entry?.wave.name ?? `Wave ${Math.max(1, this.wave)}`,
+      elapsedSeconds: Math.min(durationSeconds, this.getWaveElapsedSeconds()),
+      durationSeconds,
+      progress: Math.min(1, Math.max(0, this.stats.bossProgress || 0)),
+      bossActive: Boolean(this.stats.isBossActive),
+      complete: this.previewComplete
+    };
+  }
+
+  getDebugSnapshot(): Readonly<GameEngineDebugSnapshot> {
+    const runtime = Object.freeze({ ...this.getRuntimeState() });
+    const configuredSpawnCounts = Object.freeze(Object.fromEntries(this.configuredSpawnCounts));
+    const entities = Object.freeze(this.entities
+      .filter((entity) => !entity.markedForDeletion)
+      .map((entity) => Object.freeze({
+        id: entity.id,
+        type: entity.type,
+        hp: entity.hp,
+        maxHp: entity.maxHp,
+        vx: entity.vx,
+        vy: entity.vy,
+        damage: entity.damage,
+        contactDamage: entity.contactDamage,
+        projectileDamage: entity.projectileDamage,
+        projectileSpeed: Number.isFinite(entity.projectileSpeed) ? entity.projectileSpeed as number : null,
+        scoreValue: Number.isFinite(entity.scoreValue) ? entity.scoreValue as number : null,
+        powerupDropChance: Number.isFinite(entity.powerupDropChance) ? entity.powerupDropChance as number : null,
+        attackIntervalFrames: Number.isFinite(entity.attackIntervalFrames) ? entity.attackIntervalFrames as number : null,
+        spriteUrl: entity.spriteUrl ?? null
+      })));
+    return Object.freeze({
+      runtime,
+      difficultyMultiplier: this.getCurrentDifficultyMultiplier(),
+      waveProgressFrames: this.waveProgressFrames,
+      configuredSpawnCounts,
+      entities
+    });
+  }
+
+  loadPreviewWave(levelId: string, waveId: string) {
+    const index = this.findCampaignWaveIndex(levelId, waveId);
+    if (index < 0) return false;
+    this.currentCampaignIndex = index;
+    this.wave = index + 1;
+    this.stats.wave = this.wave;
+    this.restartPreview();
+    return true;
+  }
+
+  restartPreview() {
+    this.entities = [];
+    this.pendingPlayerShots = [];
+    this.activePowerups.clear();
+    this.frameCount = 0;
+    this.gameActive = true;
+    this.previewComplete = false;
+    this.lives = GAME_CONFIG.PLAYER_LIVES;
+    this.stats.lives = this.lives;
+    this.stats.score = 0;
+    this.stats.coins = 0;
+    this.stats.enemiesDefeated = 0;
+    this.resetWaveProgress();
+    this.introFlightFrames = 0;
+    this.waveDepartureFrames = 0;
+    this.deathSequenceFrames = 0;
+    this.invincibleTimer = 180;
+    this.playerDrawScale = 1;
+    this.playerDrawAlpha = 1;
+    this.playerTilt = 0;
+    this.playerVel = { x: 0, y: 0 };
+    this.setPlayerHomePosition();
+    this.refreshLoadState();
   }
 
   getAnimatedFrame(frames: string[], entity: Entity, speed: number) {
@@ -569,15 +908,24 @@ export class GameEngine {
       ctx.restore();
     }
 
+    const configuredBackgroundId = this.getCurrentWaveDefinition()?.backgroundId ?? this.getCurrentLevelDefinition()?.backgroundId;
+    const configuredTints: Record<string, string> = {
+      'open-orbit': 'rgba(34, 211, 238, 0)',
+      'citation-storm': 'rgba(79, 70, 229, 0.12)',
+      'paywall-siege': 'rgba(245, 158, 11, 0.08)',
+      'open-galaxy': 'rgba(16, 185, 129, 0.11)'
+    };
     const tintIndex = (this.wave - 1 + this.sectorTint) % 3;
-    if (tintIndex > 0) {
-      const colors = [
-        'rgba(34, 211, 238, 0)',
-        'rgba(79, 70, 229, 0.12)',
-        'rgba(16, 185, 129, 0.11)'
-      ];
+    const tint = configuredBackgroundId
+      ? configuredTints[configuredBackgroundId] ?? 'rgba(34, 211, 238, 0)'
+      : [
+          'rgba(34, 211, 238, 0)',
+          'rgba(79, 70, 229, 0.12)',
+          'rgba(16, 185, 129, 0.11)'
+        ][tintIndex];
+    if (tint !== 'rgba(34, 211, 238, 0)') {
       ctx.save();
-      ctx.fillStyle = colors[tintIndex];
+      ctx.fillStyle = tint;
       ctx.fillRect(0, 0, this.width, this.height);
       ctx.restore();
     }
@@ -789,7 +1137,7 @@ export class GameEngine {
     this.flashAlpha = Math.max(this.flashAlpha, 0.72);
     this.addShake(14);
     this.addHitStop(14);
-    audioService.playSound('gameover');
+    this.playSound('gameover');
     this.spawnFloatingText(this.width / 2, this.height * 0.42, 'MISSION LOST', '#fb7185', 24);
   }
 
@@ -838,7 +1186,7 @@ export class GameEngine {
     this.addShake(2.6);
     this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#67e8f9');
     this.spawnFloatingText(this.width / 2, this.height * 0.42, 'CONTINUE', '#67e8f9', 24);
-    audioService.playSound('launch');
+    this.playSound('launch');
   }
 
   init(width: number, height: number) {
@@ -861,17 +1209,27 @@ export class GameEngine {
     this.gameActive = true;
     this.lives = GAME_CONFIG.PLAYER_LIVES;
     this.stats.lives = this.lives;
-    this.wave = 1;
+    if (!this.previewMode) {
+      this.currentCampaignIndex = 0;
+    }
+    this.wave = this.currentCampaignIndex + 1;
     this.stats.score = 0;
     this.stats.coins = 0;
     this.stats.totalCoins = 0;
     this.stats.bombs = 2;
     this.stats.bombCharge = 0;
     this.stats.bombChargeMax = BASE_FLASK_CHARGE_MAX;
-    this.stats.wave = 1;
+    this.stats.wave = this.wave;
     this.resetWaveProgress();
     const openingSector = this.getWaveSector();
-    this.spawnFloatingText(this.width/2, this.height/2, `WAVE 1 - ${openingSector.name}`, openingSector.accent, this.mobileProfile ? 20 : 26);
+    const openingWave = this.getCurrentWaveDefinition();
+    this.spawnFloatingText(
+      this.width / 2,
+      this.height / 2,
+      openingWave ? `${openingWave.name} - ${openingSector.name}` : `WAVE ${this.wave} - ${openingSector.name}`,
+      openingSector.accent,
+      this.mobileProfile ? 20 : 26
+    );
     this.bossRef = null;
     this.miniBossRef = null;
     this.activePowerups.clear();
@@ -893,17 +1251,20 @@ export class GameEngine {
     this.lastBombFrame = -999;
     this.weaponVolley = 0;
     this.announcedFireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 7);
-    this.introFlightDuration = 150;
-    this.introFlightFrames = this.introFlightDuration;
+    const configuredIntroSeconds = Number(this.getCurrentWaveDefinition()?.introSeconds);
+    this.introFlightDuration = Number.isFinite(configuredIntroSeconds) && configuredIntroSeconds >= 0
+      ? Math.max(0, Math.round(configuredIntroSeconds * GAME_CONFIG.FPS))
+      : 150;
+    this.introFlightFrames = this.previewMode ? 0 : this.introFlightDuration;
     this.waveDepartureFrames = 0;
     this.deathSequenceFrames = 0;
-    this.playerDrawScale = 1.55;
-    this.playerDrawAlpha = 0;
+    this.playerDrawScale = this.previewMode || this.introFlightFrames <= 0 ? 1 : 1.55;
+    this.playerDrawAlpha = this.previewMode || this.introFlightFrames <= 0 ? 1 : 0;
     this.sectorTint = 0;
     
     // START MUSIC
-    audioService.startMusic();
-    audioService.playSound('launch');
+    if (this.audioEnabled) audioService.startMusic();
+    this.playSound('launch');
   }
   
   resetWaveProgress() {
@@ -923,6 +1284,11 @@ export class GameEngine {
     this.pendingBossType = null;
     this.waveTransitionPending = false;
     this.phaseAnnouncementMask = 0;
+    this.previewComplete = false;
+    this.configuredEncounterIds.clear();
+    this.configuredSpawnCounts.clear();
+    this.configuredSpawnFrames.clear();
+    this.pendingConfiguredEncounter = null;
   }
 
   getPlayerMovementBounds() {
@@ -939,18 +1305,38 @@ export class GameEngine {
       return;
     }
 
+    if (this.previewMode) {
+      this.waveDepartureFrames = 0;
+      this.previewComplete = true;
+      this.gameActive = false;
+      return;
+    }
+
     this.wave++;
-    this.stats.wave++;
+    this.stats.wave = this.wave;
+    if (this.campaignWaves.length > 0) {
+      this.currentCampaignIndex = (this.currentCampaignIndex + 1) % this.campaignWaves.length;
+    }
     this.resetWaveProgress();
     this.keepEntitiesForNextWave();
     const sector = this.getWaveSector();
-    this.spawnFloatingText(this.width/2, this.height/2, `WAVE ${this.wave} - ${sector.name}`, sector.accent, this.mobileProfile ? 20 : 26);
-    this.introFlightDuration = 118;
+    const nextWave = this.getCurrentWaveDefinition();
+    this.spawnFloatingText(
+      this.width / 2,
+      this.height / 2,
+      nextWave ? `${nextWave.name} - ${sector.name}` : `WAVE ${this.wave} - ${sector.name}`,
+      sector.accent,
+      this.mobileProfile ? 20 : 26
+    );
+    const configuredIntroSeconds = Number(this.getCurrentWaveDefinition()?.introSeconds);
+    this.introFlightDuration = Number.isFinite(configuredIntroSeconds) && configuredIntroSeconds >= 0
+      ? Math.max(0, Math.round(configuredIntroSeconds * GAME_CONFIG.FPS))
+      : 118;
     this.introFlightFrames = this.introFlightDuration;
-    this.playerDrawScale = 1.46;
-    this.playerDrawAlpha = 0;
+    this.playerDrawScale = this.introFlightFrames > 0 ? 1.46 : 1;
+    this.playerDrawAlpha = this.introFlightFrames > 0 ? 0 : 1;
     this.sectorTint = (this.sectorTint + 1) % 3;
-    audioService.playSound('wave');
+    this.playSound('wave');
   }
 
   resize(width: number, height: number) {
@@ -978,6 +1364,13 @@ export class GameEngine {
   }
 
   getWaveSector() {
+    const entry = this.getCurrentCampaignEntry();
+    if (entry) {
+      return {
+        name: entry.level.name,
+        accent: entry.wave.accent || WAVE_SECTORS[(Math.max(1, this.wave) - 1) % WAVE_SECTORS.length].accent
+      };
+    }
     return WAVE_SECTORS[(Math.max(1, this.wave) - 1) % WAVE_SECTORS.length];
   }
 
@@ -994,7 +1387,10 @@ export class GameEngine {
   }
 
   getThreatCap() {
-    const progressionCap = Math.min(DESKTOP_THREAT_CAP, MOBILE_THREAT_CAP + ((Math.max(1, this.wave) - 1) * 3));
+    const configuredCap = Number(this.getCurrentWaveDefinition()?.threatCap);
+    const progressionCap = Number.isFinite(configuredCap) && configuredCap > 0
+      ? Math.min(DESKTOP_THREAT_CAP, Math.floor(configuredCap))
+      : Math.min(DESKTOP_THREAT_CAP, MOBILE_THREAT_CAP + ((Math.max(1, this.wave) - 1) * 3));
     if (this.performanceMode && this.mobileProfile) return Math.max(MOBILE_THREAT_CAP - 4, Math.floor(progressionCap * 0.9));
     return progressionCap;
   }
@@ -1180,15 +1576,18 @@ export class GameEngine {
     }
   }
 
-  startBossWarning(type: BossWarningType) {
+  startBossWarning(type: BossWarningType, durationSeconds?: number) {
     this.inBossWarningSequence = true;
-    this.bossWarningDuration = type === 'gatekeeper' ? 300 : 90;
+    const configuredFrames = Number.isFinite(durationSeconds)
+      ? Math.max(1, Math.round((durationSeconds as number) * GAME_CONFIG.FPS))
+      : 0;
+    this.bossWarningDuration = configuredFrames || (type === 'gatekeeper' ? 300 : 90);
     this.bossWarningFrame = this.bossWarningDuration;
     this.pendingBossType = type;
     if (type === 'gatekeeper') {
       this.clearThreatsForMainBoss();
     }
-    audioService.playSound(this.isSubBossWarning(type) ? 'siren' : 'boss_roar');
+    this.playSound(this.isSubBossWarning(type) ? 'siren' : 'boss_roar');
   }
 
   clearThreatsForMainBoss() {
@@ -1227,6 +1626,49 @@ export class GameEngine {
       }
     }
     return count;
+  }
+
+  getEncounterWarningType(event: RuntimeEncounterEvent): BossWarningType {
+    if (event.kind === 'asteroid-belt') return 'asteroid';
+    const bossId = String(event.bossId || '').toLowerCase();
+    if (bossId.includes('wall') || bossId.includes('paywall')) return 'wall';
+    if (bossId.includes('gate') || bossId.includes('final') || bossId.includes('sentinel')) return 'gatekeeper';
+    return 'mini1';
+  }
+
+  queueConfiguredEncounter(event: RuntimeEncounterEvent) {
+    if (this.configuredEncounterIds.has(event.id) || this.inBossWarningSequence) return;
+    this.configuredEncounterIds.add(event.id);
+    this.pendingConfiguredEncounter = event;
+    const warningSeconds = Number(event.warningSeconds);
+    this.startBossWarning(
+      this.getEncounterWarningType(event),
+      Number.isFinite(warningSeconds) && warningSeconds >= 0 ? warningSeconds : undefined
+    );
+  }
+
+  spawnConfiguredEncounter(event: RuntimeEncounterEvent) {
+    if (event.kind === 'asteroid-belt') {
+      this.spawnAsteroidBelt(event);
+      return;
+    }
+
+    const warningType = this.getEncounterWarningType(event);
+    if (warningType === 'wall') {
+      this.spawnWallBoss(event);
+    } else if (warningType === 'gatekeeper') {
+      this.spawnBoss(event);
+    } else {
+      this.spawnMiniBoss(1, event);
+    }
+  }
+
+  getDueConfiguredEncounter() {
+    const elapsedSeconds = this.getWaveElapsedSeconds();
+    return this.getConfiguredEncounterEvents().find((event) => (
+      !this.configuredEncounterIds.has(event.id)
+      && elapsedSeconds >= Math.max(0, Number(event.startSeconds) || 0)
+    ));
   }
 
   update(cinematicPause: boolean = false) {
@@ -1296,8 +1738,14 @@ export class GameEngine {
             hp = this.miniBossRef.hp;
             maxHp = this.miniBossRef.maxHp;
         } else if (invaderCount > 0) {
-            hp = invaderCount; 
-            maxHp = this.wave === 1 ? 10 : 12;
+            hp = 0;
+            maxHp = 0;
+            for (const invader of this.entities) {
+              if (!invader.markedForDeletion && invader.type === EntityType.ENEMY_INVADER) {
+                hp += Math.max(0, invader.hp);
+                maxHp += Math.max(0, invader.maxHp);
+              }
+            }
         } else if (asteroidBeltCount > 0) {
             hp = asteroidBeltCount;
             maxHp = this.asteroidBeltMaxCount || asteroidBeltCount;
@@ -1313,39 +1761,49 @@ export class GameEngine {
         // Progress bar logic
         if (!this.inBossWarningSequence) {
              this.waveProgressFrames++;
-             const totalDuration = GAME_CONFIG.WAVE_DURATION_FRAMES;
+             const totalDuration = this.getConfiguredWaveDurationFrames();
              this.stats.bossProgress = Math.min(1, this.waveProgressFrames / totalDuration);
         }
-        
-        // CHECKPOINT 1: 33% (Mini Boss 1 - Bottleneck)
-        if (this.stats.bossProgress >= 0.33 && !this.spawnedMiniBoss1) {
-             if (!this.inBossWarningSequence) {
-                 this.startBossWarning('mini1');
-             }
-        }
-        // CHECKPOINT 2: 66% (Mini Boss 2 - The Wall)
-        else if (this.stats.bossProgress >= 0.66 && !this.spawnedWallBoss) {
-             if (!this.inBossWarningSequence) {
-                 this.startBossWarning(this.getSecondSubBossType());
-             }
-        }
-        // CHECKPOINT 3: 100% (Final Boss)
-        else if (this.stats.bossProgress >= 1 && !this.bossRef && !this.mainBossDefeated) {
-             if (!this.inBossWarningSequence) {
-                 this.startBossWarning('gatekeeper');
-             }
+
+        const configuredEncounters = this.getConfiguredEncounterEvents();
+        if (configuredEncounters.length > 0) {
+          const dueEncounter = this.getDueConfiguredEncounter();
+          if (dueEncounter && !this.inBossWarningSequence) {
+            this.queueConfiguredEncounter(dueEncounter);
+          }
+        } else {
+          // Legacy milestone fallback for campaigns without event configuration.
+          if (this.stats.bossProgress >= 0.33 && !this.spawnedMiniBoss1) {
+               if (!this.inBossWarningSequence) {
+                   this.startBossWarning('mini1');
+               }
+          }
+          else if (this.stats.bossProgress >= 0.66 && !this.spawnedWallBoss) {
+               if (!this.inBossWarningSequence) {
+                   this.startBossWarning(this.getSecondSubBossType());
+               }
+          }
+          else if (this.stats.bossProgress >= 1 && !this.bossRef && !this.mainBossDefeated) {
+               if (!this.inBossWarningSequence) {
+                   this.startBossWarning('gatekeeper');
+               }
+          }
         }
     }
     
     if (this.inBossWarningSequence) {
         if (this.isSubBossWarning() && this.bossWarningFrame > 0 && this.bossWarningFrame % 36 === 0) {
-            audioService.playSound('siren');
+            this.playSound('siren');
         }
         this.bossWarningFrame--;
         if (this.bossWarningFrame <= 0) {
             this.inBossWarningSequence = false;
-            
-            if (this.pendingBossType === 'mini1') {
+
+            if (this.pendingConfiguredEncounter) {
+                const encounter = this.pendingConfiguredEncounter;
+                this.pendingConfiguredEncounter = null;
+                this.spawnConfiguredEncounter(encounter);
+            } else if (this.pendingBossType === 'mini1') {
                 this.spawnMiniBoss(1);
                 this.spawnedMiniBoss1 = true;
             } else if (this.pendingBossType === 'wall') {
@@ -1383,7 +1841,7 @@ export class GameEngine {
       const weaponColor = level >= 7 ? '#a78bfa' : level >= 6 ? '#facc15' : level >= 5 ? '#f0abfc' : level >= 3 ? '#67e8f9' : '#fde68a';
       this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 18, weaponLabel, weaponColor, this.mobileProfile ? 16 : 19);
       this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, weaponColor);
-      audioService.playSound('powerup', 1, { pitchOffset: level * 0.04 });
+      this.playSound('powerup', 1, { pitchOffset: level * 0.04 });
       this.announcedFireRateLevel = level;
     }
     
@@ -1408,6 +1866,7 @@ export class GameEngine {
     
     if (this.invincibleTimer > 0) this.invincibleTimer--;
 
+    this.spawnConfiguredSupportEvents();
     this.spawnEnemies();
     this.updateEnemyFire();
     this.announceWaveProgress();
@@ -1604,7 +2063,7 @@ export class GameEngine {
       this.phaseAnnouncementMask |= milestone.bit;
       const sector = this.getWaveSector();
       this.spawnFloatingText(this.width / 2, Math.max(96, this.height * 0.2), milestone.label, sector.accent, this.mobileProfile ? 17 : 21);
-      audioService.playSound('wave', 0.72, { pitchOffset: milestone.threshold * 0.08 });
+      this.playSound('wave', 0.72, { pitchOffset: milestone.threshold * 0.08 });
     }
   }
 
@@ -1715,7 +2174,7 @@ export class GameEngine {
     this.entities.push(b);
     this.livePlayerShotCount++;
     if (playSound) {
-      audioService.playSound('shoot', 1, {
+      this.playSound('shoot', 1, {
         pitchJitter: isSingularity ? 0.035 : isNova ? 0.05 : weaponKind === 'ion' ? 0.08 : 0.22,
         pitchOffset: pitchOffset + (isSingularity ? -0.36 : isNova ? -0.28 : weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? 0.08 : 0)
       });
@@ -1799,7 +2258,7 @@ export class GameEngine {
       m.isPlayerShot = true; // Mark as player shot
       this.entities.push(m);
       this.livePlayerShotCount++;
-      audioService.playSound('missile');
+      this.playSound('missile');
   }
 
   addFlaskChargeFromCoin() {
@@ -1814,7 +2273,7 @@ export class GameEngine {
     if (nextFlasks > previousFlasks) {
       this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 10, `FLASK +${nextFlasks}`, '#34d399', 18);
       this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#facc15');
-      audioService.playSound('powerup');
+      this.playSound('powerup');
     }
 
     this.stats.bombCharge = nextCharge;
@@ -1835,7 +2294,7 @@ export class GameEngine {
     this.spawnRingEffect(cx, cy, '#facc15');
     this.spawnFloatingText(cx, cy - 48, 'RSC BLAST', '#facc15', 22);
     this.spawnBurst(cx, cy, '#facc15', 30, 8, 6);
-    audioService.playSound('bomb');
+    this.playSound('bomb');
 
     const targets = this.enemyTargetsBuffer;
     targets.length = 0;
@@ -1921,8 +2380,10 @@ export class GameEngine {
     }
   }
 
-  spawnBossShieldRing(boss: Entity, phase: number) {
-    const count = Math.min(this.mobileProfile ? 5 : 8, 3 + phase);
+  spawnBossShieldRing(boss: Entity, phase: number, configuredCount?: number) {
+    const count = Number.isFinite(configuredCount)
+      ? Math.max(0, Math.floor(configuredCount as number))
+      : Math.min(this.mobileProfile ? 5 : 8, 3 + phase);
     const hp = Math.max(3, Math.round(2.5 + phase * 1.2));
 
     for (let i = 0; i < count; i++) {
@@ -1949,18 +2410,27 @@ export class GameEngine {
     target.markedForDeletion = true;
     this.spawnExplosion(target.x, target.y, target.color);
     this.stats.enemiesDefeated++;
-    const waveMult = Math.pow(2, this.stats.wave - 1);
+    const configuredScoreMultiplier = Number(this.getCurrentWaveDefinition()?.scoreMultiplier);
+    const waveMult = Number.isFinite(configuredScoreMultiplier) && configuredScoreMultiplier > 0
+      ? configuredScoreMultiplier
+      : Math.pow(2, this.stats.wave - 1);
     let basePoints = 10;
     if (target.type === EntityType.ENEMY_DRONE) basePoints = 10;
     if (target.type === EntityType.ENEMY_SWARM) basePoints = 12;
     if (target.type === EntityType.ENEMY_BRICK || target.type === EntityType.ENEMY_INVADER) basePoints = 20;
     if (target.type === EntityType.ENEMY_JOURNAL) basePoints = 30;
 
-    const points = basePoints * waveMult;
+    const hasConfiguredBossReward = (target.type === EntityType.MINI_BOSS || target.type === EntityType.BOSS)
+      && Number.isFinite(target.scoreReward);
+    const points = hasConfiguredBossReward
+      ? 0
+      : Number.isFinite(target.scoreValue)
+        ? Math.max(0, target.scoreValue as number)
+        : basePoints * waveMult;
     this.stats.score += points;
     const centerX = target.x + target.width / 2;
     const centerY = target.y + target.height / 2;
-    this.spawnFloatingText(centerX, centerY - 10, `+${points}`, '#67e8f9', 16);
+    if (points > 0) this.spawnFloatingText(centerX, centerY - 10, `+${points}`, '#67e8f9', 16);
     this.spawnCoin(target.x + target.width / 2, target.y + target.height / 2);
     if (target.type === EntityType.ENEMY_SWARM && target.formation === 'orbit') {
       this.spawnFloatingText(centerX, centerY - 26, 'SHIELD -1', '#a7f3d0', 14);
@@ -1973,7 +2443,11 @@ export class GameEngine {
     this.addHitStop(isElite ? 4 : 2);
     this.addShake(isElite ? 1.8 : 0.7);
     this.spawnBurst(centerX, centerY, isElite ? '#facc15' : target.color, isElite ? 12 : 6, isElite ? 5.2 : 3.2, isElite ? 5 : 3);
-    if (isElite && Math.random() > 0.92) this.spawnPowerup(target.x, target.y);
+    const configuredPowerupDropChance = Number(target.powerupDropChance);
+    const powerupDropChance = Number.isFinite(configuredPowerupDropChance)
+      ? clamp(configuredPowerupDropChance, 0, 1)
+      : isElite ? 0.08 : 0;
+    if (powerupDropChance > 0 && Math.random() < powerupDropChance) this.spawnPowerup(target.x, target.y);
     if (!this.isBombResolving && (this.stats.bombs || 0) < MAX_BOMBS) {
       const dropChance = isElite ? ELITE_BOMB_DROP_CHANCE : BOMB_DROP_CHANCE;
       if (Math.random() < dropChance) {
@@ -1982,20 +2456,23 @@ export class GameEngine {
     }
 
     if (target.type === EntityType.MINI_BOSS) {
-      this.stats.score += 500 * waveMult;
-      this.spawnFloatingText(centerX, centerY - 42, `+${500 * waveMult}`, '#fef08a', 22);
+      const reward = Number.isFinite(target.scoreReward) ? Math.max(0, target.scoreReward as number) : 500 * waveMult;
+      this.stats.score += reward;
+      this.spawnFloatingText(centerX, centerY - 42, `+${reward}`, '#fef08a', 22);
       this.addHitStop(8);
       this.addShake(4.2);
       const miniBossCoinDrops = 4 + Math.min(8, this.stats.wave * 2);
       for (let i = 0; i < miniBossCoinDrops; i++) {
         this.spawnCoin(target.x + Math.random() * target.width, target.y + Math.random() * target.height);
       }
-      const miniBossPowerupDrops = this.stats.wave >= 2 ? 2 : 1;
-      for (let i = 0; i < miniBossPowerupDrops; i++) {
-        this.spawnPowerup(
-          target.x + (target.width * ((i + 1) / (miniBossPowerupDrops + 1))),
-          target.y + Math.random() * target.height
-        );
+      if (!Number.isFinite(target.powerupDropChance)) {
+        const miniBossPowerupDrops = this.stats.wave >= 2 ? 2 : 1;
+        for (let i = 0; i < miniBossPowerupDrops; i++) {
+          this.spawnPowerup(
+            target.x + (target.width * ((i + 1) / (miniBossPowerupDrops + 1))),
+            target.y + Math.random() * target.height
+          );
+        }
       }
       if ((this.stats.bombs || 0) < MAX_BOMBS && Math.random() < MINI_BOSS_BOMB_REWARD_CHANCE) {
         this.spawnBombDrop(centerX - 19, centerY - 19);
@@ -2007,8 +2484,9 @@ export class GameEngine {
     if (target.type === EntityType.BOSS) {
       if (this.waveTransitionPending) return;
 
-      this.stats.score += 1000 * waveMult;
-      this.spawnFloatingText(centerX, centerY - 52, `+${1000 * waveMult}`, '#fef08a', 24);
+      const reward = Number.isFinite(target.scoreReward) ? Math.max(0, target.scoreReward as number) : 1000 * waveMult;
+      this.stats.score += reward;
+      this.spawnFloatingText(centerX, centerY - 52, `+${reward}`, '#fef08a', 24);
       this.flashAlpha = Math.max(this.flashAlpha, 0.26);
       this.addHitStop(12);
       this.addShake(6.5);
@@ -2023,12 +2501,14 @@ export class GameEngine {
       for (let i = 0; i < bossCoinDrops; i++) {
         this.spawnCoin(target.x + Math.random() * target.width, target.y + Math.random() * target.height);
       }
-      const bossPowerupDrops = 2 + Math.min(2, Math.floor(this.stats.wave / 2));
-      for (let i = 0; i < bossPowerupDrops; i++) {
-        this.spawnPowerup(
-          target.x + (target.width * ((i + 1) / (bossPowerupDrops + 1))),
-          target.y + 50 + Math.random() * Math.max(30, target.height - 70)
-        );
+      if (!Number.isFinite(target.powerupDropChance)) {
+        const bossPowerupDrops = 2 + Math.min(2, Math.floor(this.stats.wave / 2));
+        for (let i = 0; i < bossPowerupDrops; i++) {
+          this.spawnPowerup(
+            target.x + (target.width * ((i + 1) / (bossPowerupDrops + 1))),
+            target.y + 50 + Math.random() * Math.max(30, target.height - 70)
+          );
+        }
       }
       const bossBombDrops = (this.stats.bombs || 0) < MAX_BOMBS && Math.random() < BOSS_BOMB_REWARD_CHANCE ? 1 : 0;
       for (let i = 0; i < bossBombDrops; i++) {
@@ -2038,9 +2518,13 @@ export class GameEngine {
         );
       }
 
-      audioService.playSound('electricity');
+      this.playSound('electricity');
 
       this.spawnFloatingText(this.width / 2, this.height / 2, "WAVE COMPLETE!", "#00FF00");
+      const configuredDelay = Number(this.getCurrentWaveDefinition()?.delayAfterSeconds);
+      this.waveDepartureDuration = Number.isFinite(configuredDelay) && configuredDelay >= 0
+        ? Math.max(1, Math.round(configuredDelay * GAME_CONFIG.FPS))
+        : 168;
       this.waveDepartureFrames = this.waveDepartureDuration;
     }
   }
@@ -2092,7 +2576,11 @@ export class GameEngine {
   updateEnemyFire() {
     if (this.wave < 2 || this.stats.isBossActive || this.inBossWarningSequence || this.deathSequenceFrames > 0) return;
 
-    const fireInterval = Math.max(42, 118 - ((this.wave - 2) * 18));
+    const baseFireInterval = Math.max(42, 118 - ((this.wave - 2) * 18));
+    const difficultyMultiplier = this.getConfiguredSpawnEvents().length > 0
+      ? this.getCurrentDifficultyMultiplier()
+      : 1;
+    const fireInterval = Math.max(1, Math.round(baseFireInterval / difficultyMultiplier));
     if (this.frameCount % fireInterval !== 0) return;
 
     let activeEnemyShots = 0;
@@ -2136,13 +2624,201 @@ export class GameEngine {
     shot.vy = (dy / length) * speed;
     shot.color = source.type === EntityType.ENEMY_JOURNAL ? '#f472b6' : this.wave >= 4 ? '#fbbf24' : '#fb7185';
     shot.isPlayerShot = false;
+    shot.damage = Math.max(1, Number(source.projectileDamage) || 1);
     this.entities.push(shot);
+  }
+
+  resolveSpriteUrl(spriteKey: AssetKey | string | undefined, entityType: EntityType) {
+    if (spriteKey?.startsWith('/')) return spriteKey;
+    if (spriteKey) {
+      try {
+        const catalogPath = getPrimaryAssetPath(spriteKey as AssetKey);
+        if (catalogPath) return catalogPath;
+      } catch {
+        // The validated campaign only supplies catalog keys; legacy callers may not.
+      }
+    }
+    const normalized = String(spriteKey || '').toLowerCase();
+    if (normalized.includes('journal')) return ASSETS.ENEMY_JOURNAL;
+    if (normalized.includes('swarm')) return ASSETS.ENEMY_SWARM_FRAMES[0];
+    if (normalized.includes('asteroid') || normalized.includes('brick')) return ASSETS.ENEMY_BRICK_FRAMES[0];
+    if (normalized.includes('mini') || normalized.includes('bottleneck')) return ASSETS.MINI_BOSS;
+    if (normalized.includes('wall') || normalized.includes('paywall')) return ASSETS.WALL_BOSS_SEGMENT;
+    if (normalized.includes('gate') || normalized.includes('sentinel') || normalized.includes('final')) return ASSETS.FINAL_BOSS;
+    if (normalized.includes('drone')) return ASSETS.ENEMY_DRONE_FRAMES[0];
+
+    if (entityType === EntityType.ENEMY_JOURNAL) return ASSETS.ENEMY_JOURNAL;
+    if (entityType === EntityType.ENEMY_SWARM) return ASSETS.ENEMY_SWARM_FRAMES[0];
+    if (entityType === EntityType.ENEMY_BRICK) return ASSETS.ENEMY_BRICK_FRAMES[0];
+    if (entityType === EntityType.MINI_BOSS) return ASSETS.MINI_BOSS;
+    if (entityType === EntityType.ENEMY_INVADER) return ASSETS.WALL_BOSS_SEGMENT;
+    if (entityType === EntityType.BOSS) return ASSETS.FINAL_BOSS;
+    return ASSETS.ENEMY_DRONE_FRAMES[0];
+  }
+
+  resolveSpriteFrames(spriteKey: AssetKey | string | undefined) {
+    if (!spriteKey || spriteKey.startsWith('/')) return undefined;
+    try {
+      const paths = getAssetPaths(spriteKey as AssetKey);
+      return paths.length > 1 ? [...paths] : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  resolveConfiguredEnemyType(enemyId: string) {
+    const normalized = String(enemyId || '').toLowerCase();
+    if (normalized.includes('journal')) return EntityType.ENEMY_JOURNAL;
+    if (normalized.includes('swarm')) return EntityType.ENEMY_SWARM;
+    if (normalized.includes('brick') || normalized.includes('asteroid')) return EntityType.ENEMY_BRICK;
+    return EntityType.ENEMY_DRONE;
+  }
+
+  pickConfiguredEnemy(event: RuntimeSpawnEvent) {
+    const enemies = Array.isArray(event.enemies) ? event.enemies : [];
+    if (enemies.length === 0) return null;
+    const totalWeight = enemies.reduce((sum, enemy) => sum + Math.max(0, Number(enemy.weight) || 0), 0);
+    if (totalWeight <= 0) return enemies[0];
+    let roll = Math.random() * totalWeight;
+    for (const enemy of enemies) {
+      roll -= Math.max(0, Number(enemy.weight) || 0);
+      if (roll <= 0) return enemy;
+    }
+    return enemies[enemies.length - 1];
+  }
+
+  getConfiguredSpawnPoint(event: RuntimeSpawnEvent, index: number, count: number) {
+    const positionId = String(event.positionId || 'top-random').toLowerCase();
+    const patternId = String(event.patternId || 'row').toLowerCase();
+    const normalizedIndex = count <= 1 ? 0.5 : index / Math.max(1, count - 1);
+    let x = Math.random() * Math.max(1, this.width - 56);
+    let y = -60;
+
+    if (positionId.includes('left')) x = this.width * 0.2;
+    else if (positionId.includes('right')) x = this.width * 0.8;
+    else if (positionId.includes('center')) x = this.width * 0.5;
+
+    if (patternId.includes('row') || patternId.includes('line')) {
+      x = 24 + normalizedIndex * Math.max(1, this.width - 72);
+    } else if (patternId.includes('v')) {
+      x = this.width * 0.16 + normalizedIndex * this.width * 0.68;
+      y -= Math.abs(normalizedIndex - 0.5) * 120;
+    } else if (patternId.includes('pincer')) {
+      x = index % 2 === 0 ? -24 : this.width + 24;
+      y -= Math.floor(index / 2) * 26;
+    } else if (patternId.includes('sine') || patternId.includes('wave')) {
+      x = 24 + normalizedIndex * Math.max(1, this.width - 72);
+      y -= (Math.sin(index * 1.35) + 1) * 28;
+    }
+
+    return { x, y };
+  }
+
+  spawnConfiguredEnemies() {
+    const events = this.getConfiguredSpawnEvents();
+    if (events.length === 0) return false;
+    const elapsedSeconds = this.getWaveElapsedSeconds();
+    const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
+    const threatCap = Math.max(1, Number(this.getCurrentWaveDefinition()?.threatCap) || this.getThreatCap());
+
+    for (const event of events) {
+      const startSeconds = Math.max(0, Number(event.startSeconds) || 0);
+      const durationSeconds = Math.max(0, Number(event.durationSeconds) || 0);
+      const endSeconds = durationSeconds > 0 ? startSeconds + durationSeconds : Number.POSITIVE_INFINITY;
+      const count = Math.max(0, Math.floor(Number(event.count) || 0));
+      const spawned = this.configuredSpawnCounts.get(event.id) || 0;
+      if (elapsedSeconds < startSeconds || elapsedSeconds > endSeconds || spawned >= count) continue;
+      if (this.getActiveThreatCount() >= threatCap) break;
+
+      const intervalFrames = Math.max(1, Math.round(
+        ((Number(event.spawnIntervalSeconds) || 0.8) * GAME_CONFIG.FPS) / difficultyMultiplier
+      ));
+      const previousFrame = this.configuredSpawnFrames.get(event.id);
+      if (previousFrame !== undefined && this.waveProgressFrames - previousFrame < intervalFrames) continue;
+
+      const enemySetting = this.pickConfiguredEnemy(event);
+      if (!enemySetting) continue;
+      const enemyType = this.resolveConfiguredEnemyType(enemySetting.enemyId);
+      const point = this.getConfiguredSpawnPoint(event, spawned, count);
+      const enemy = this.createEnemy(enemyType, point.x, point.y, {
+        speed: Number(enemySetting.speed) * difficultyMultiplier,
+        health: Number(enemySetting.health) * difficultyMultiplier,
+        contactDamage: Number(enemySetting.damage) * difficultyMultiplier,
+        projectileDamage: Number(enemySetting.damage) * difficultyMultiplier,
+        scoreValue: Number(enemySetting.scoreValue),
+        powerupDropChance: Number(enemySetting.powerupDropChance),
+        spriteUrl: this.resolveSpriteUrl(enemySetting.spriteKey, enemyType),
+        spriteFrames: this.resolveSpriteFrames(enemySetting.spriteKey)
+      });
+      const patternId = String(event.patternId || '').toLowerCase();
+      enemy.formation = patternId.includes('pincer')
+        ? 'pincer'
+        : patternId.includes('sine') || patternId.includes('wave')
+          ? 'sine'
+          : patternId.includes('v')
+            ? 'v'
+            : 'row';
+      enemy.formationIndex = spawned;
+      enemy.formationSeed = this.waveProgressFrames + spawned * 19;
+      this.configuredSpawnCounts.set(event.id, spawned + 1);
+      this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
+    }
+
+    return true;
+  }
+
+  spawnConfiguredSupportEvents() {
+    const events = this.getCurrentWaveDefinition()?.events;
+    if (!Array.isArray(events) || events.length === 0) return;
+    const elapsedSeconds = this.getWaveElapsedSeconds();
+
+    for (const event of events) {
+      if (event.kind === 'powerup') {
+        const startSeconds = Math.max(0, Number(event.startSeconds) || 0);
+        const endSeconds = startSeconds + Math.max(0, Number(event.durationSeconds) || 0);
+        if (elapsedSeconds < startSeconds || elapsedSeconds > endSeconds) continue;
+        const intervalFrames = Math.max(1, Math.round((Number(event.spawnIntervalSeconds) || 40) * GAME_CONFIG.FPS));
+        const startFrame = Math.round(startSeconds * GAME_CONFIG.FPS);
+        const previousFrame = this.configuredSpawnFrames.get(event.id) ?? startFrame;
+        if (this.waveProgressFrames - previousFrame < intervalFrames) continue;
+        const powerupIds = Array.isArray(event.powerupIds) ? event.powerupIds : [];
+        const totalWeight = powerupIds.reduce((sum, id) => sum + Math.max(0, getPowerup(id).defaultWeight), 0);
+        let powerupId = powerupIds[0];
+        if (totalWeight > 0) {
+          let roll = Math.random() * totalWeight;
+          for (const id of powerupIds) {
+            roll -= Math.max(0, getPowerup(id).defaultWeight);
+            if (roll <= 0) {
+              powerupId = id;
+              break;
+            }
+          }
+        }
+        this.spawnPowerup(Math.random() * Math.max(1, this.width - 40), -40, powerupId);
+        this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
+        this.configuredSpawnCounts.set(event.id, (this.configuredSpawnCounts.get(event.id) || 0) + 1);
+      } else if (event.kind === 'recovery' && !this.configuredEncounterIds.has(event.id)) {
+        if (elapsedSeconds < Math.max(0, Number(event.startSeconds) || 0)) continue;
+        this.configuredEncounterIds.add(event.id);
+        const coinCount = Math.max(0, Math.floor(Number(event.coinCount) || 0));
+        for (let index = 0; index < coinCount; index++) {
+          this.spawnCoin(
+            this.width * ((index + 1) / Math.max(2, coinCount + 1)),
+            -30 - index * 22
+          );
+        }
+        for (const powerupId of event.powerupIds || []) {
+          this.spawnPowerup(Math.random() * Math.max(1, this.width - 40), -50, powerupId);
+        }
+      }
+    }
   }
 
   spawnEnemies() {
     const invaderCount = this.countEntities(EntityType.ENEMY_INVADER);
     const asteroidBeltCount = this.getAsteroidBeltCount();
     if (this.bossRef || this.miniBossRef || invaderCount > 0 || asteroidBeltCount > 0 || this.inBossWarningSequence) return;
+    if (this.spawnConfiguredEnemies()) return;
     const activeThreatCount = this.getActiveThreatCount();
     const threatCap = this.getThreatCap();
     if (activeThreatCount >= threatCap) return;
@@ -2191,7 +2867,7 @@ export class GameEngine {
   }
 
   spawnSwarmFormation() {
-    const modes: EnemyFormationMode[] = this.wave <= 1
+    const modes: Exclude<EnemyFormationMode, 'orbit'>[] = this.wave <= 1
       ? ['row', 'v']
       : this.wave === 2
         ? ['row', 'v', 'sine']
@@ -2250,7 +2926,7 @@ export class GameEngine {
     this.spawnFloatingText(centerX, Math.max(90, this.height * 0.18), labels[mode], '#34d399', this.width < 520 ? 18 : 22);
   }
 
-  createEnemy(type: EntityType, x: number, y: number) {
+  createEnemy(type: EntityType, x: number, y: number, overrides: EnemyRuntimeOverrides = {}) {
     const e = new Entity(type, x, y);
     const hpMult = this.wave === 1 ? 1 : 1 + (this.wave * 0.34);
     const speedBoost = this.wave === 1 ? 1 : 1 + (this.wave * 0.11);
@@ -2287,24 +2963,62 @@ export class GameEngine {
       e.text = "🪰";
     } 
 
+    if (Number.isFinite(overrides.speed)) e.vy = overrides.speed as number;
+    if (Number.isFinite(overrides.health)) e.hp = Math.max(0.1, overrides.health as number);
+    if (Number.isFinite(overrides.contactDamage)) e.contactDamage = Math.max(0, overrides.contactDamage as number);
+    if (Number.isFinite(overrides.projectileDamage)) e.projectileDamage = Math.max(0, overrides.projectileDamage as number);
+    if (Number.isFinite(overrides.scoreValue)) e.scoreValue = Math.max(0, overrides.scoreValue as number);
+    if (Number.isFinite(overrides.powerupDropChance)) {
+      e.powerupDropChance = clamp(overrides.powerupDropChance as number, 0, 1);
+    }
+    if (overrides.spriteUrl) {
+      e.spriteUrl = overrides.spriteUrl;
+      loadImage(e.spriteUrl);
+    }
+    if (overrides.spriteFrames?.length) {
+      e.spriteFrames = [...overrides.spriteFrames];
+      e.spriteFrames.forEach(loadImage);
+    }
     e.maxHp = e.hp;
     this.entities.push(e);
     return e;
   }
 
-  spawnMiniBoss(_num: number) {
+  spawnMiniBoss(_num: number, configured?: RuntimeBossEvent) {
+    const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
     const mb = new Entity(EntityType.MINI_BOSS, this.width/2 - 50, -100);
     mb.width = 140;
     mb.height = 160;
-    mb.hp = this.wave === 1 ? 44 : 45 + (this.wave * 22);
+    mb.hp = configured
+      ? Math.max(1, (Number(configured.health) || 1) * difficultyMultiplier)
+      : this.wave === 1 ? 44 : 45 + (this.wave * 22);
     mb.maxHp = mb.hp;
-    mb.vy = 2;
+    mb.configuredSpeed = configured ? Math.max(0.1, (Number(configured.speed) || 2) * difficultyMultiplier) : 2;
+    mb.vy = mb.configuredSpeed;
     mb.color = '#fb7185';
+    if (configured) {
+      const weapon = configured.weapons?.[0];
+      mb.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.MINI_BOSS);
+      mb.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
+      mb.projectileDamage = Math.max(0, (Number(weapon?.damage ?? configured.damage) || 1) * difficultyMultiplier);
+      mb.projectileSpeed = Math.max(0.1, (Number(weapon?.projectileSpeed) || 5) * difficultyMultiplier);
+      mb.attackIntervalFrames = Math.max(1, Math.round(
+        ((Number(weapon?.attackIntervalSeconds) || 1) * GAME_CONFIG.FPS) / difficultyMultiplier
+      ));
+      mb.weaponKinds = configured.weapons.map((setting) => String(setting.weaponId));
+      mb.configuredBurstCount = Math.max(1, Math.floor(Number(weapon?.burstCount) || 1));
+      mb.movementPattern = configured.movementPatternId;
+      mb.scoreReward = Math.max(0, Number(configured.scoreReward) || 0);
+      mb.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
+      mb.phaseThresholds = configured.phases.map((phase) => Number(phase.triggerHealthRatio)).filter(Number.isFinite);
+      if (mb.spriteUrl) loadImage(mb.spriteUrl);
+    }
     this.miniBossRef = mb;
     this.entities.push(mb);
   }
   
-  spawnWallBoss() {
+  spawnWallBoss(configured?: RuntimeBossEvent) {
+    const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
     const rows = 2; // UPDATED to 2 rows
     const cols = this.wave === 1 ? 5 : 6;
     const isMobile = this.width < 600;
@@ -2313,25 +3027,47 @@ export class GameEngine {
     const gap = 4;
     const startX = (this.width - ((blockW+gap)*cols))/2;
     
+    const segmentCount = rows * cols;
     for (let r=0; r<rows; r++) {
         for (let c=0; c<cols; c++) {
             const e = new Entity(EntityType.ENEMY_INVADER, startX + c*(blockW+gap), -200 + r*(blockH+gap));
             e.width = blockW;
             e.height = blockH;
-            e.hp = this.wave === 1 ? 5 : Math.round(5 + (this.wave * 3.1));
+            e.hp = configured
+              ? Math.max(1, Math.ceil(((Number(configured.health) || segmentCount) * difficultyMultiplier) / segmentCount))
+              : this.wave === 1 ? 5 : Math.round(5 + (this.wave * 3.1));
             e.maxHp = e.hp;
             e.color = '#fb7185'; 
             e.text = "🧱"; // UPDATED to Brick Emoji
             e.variant = (r * cols) + c;
             e.vx = 0;
+            if (configured) {
+              const weapon = configured.weapons?.[0];
+              e.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.ENEMY_INVADER);
+              e.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
+              e.projectileDamage = Math.max(0, (Number(weapon?.damage ?? configured.damage) || 1) * difficultyMultiplier);
+              e.projectileSpeed = Math.max(0.1, (Number(weapon?.projectileSpeed) || 5.4) * difficultyMultiplier);
+              e.attackIntervalFrames = Math.max(1, Math.round(
+                ((Number(weapon?.attackIntervalSeconds) || 0.7) * GAME_CONFIG.FPS) / difficultyMultiplier
+              ));
+              e.weaponKinds = configured.weapons.map((setting) => String(setting.weaponId));
+              e.configuredBurstCount = Math.max(1, Math.floor(Number(weapon?.burstCount) || 1));
+              e.scoreValue = Math.max(0, Math.round((Number(configured.scoreReward) || 0) / segmentCount));
+              e.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
+              e.configuredSpeed = Math.max(0.1, (Number(configured.speed) || 1.15) * difficultyMultiplier);
+              if (e.spriteUrl) loadImage(e.spriteUrl);
+            }
             this.entities.push(e);
         }
     }
     this.invaderDirection = 1; 
   }
 
-  spawnAsteroidBelt() {
-    const count = Math.min(24, 12 + (this.wave * 3));
+  spawnAsteroidBelt(configured?: RuntimeAsteroidEvent) {
+    const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
+    const count = configured
+      ? Math.max(1, Math.floor(Number(configured.count) || 1))
+      : Math.min(24, 12 + (this.wave * 3));
     const lanes = Math.max(4, Math.min(7, Math.floor(this.width / 88)));
     const laneWidth = this.width / lanes;
     this.asteroidBeltMaxCount = count;
@@ -2348,12 +3084,25 @@ export class GameEngine {
 
       asteroid.width = size;
       asteroid.height = size;
-      asteroid.vy = 1.8 + (this.wave * 0.32) + (Math.random() * 0.45);
+      asteroid.vy = configured
+        ? Math.max(0.1, (Number(configured.speed) || 1.8) * difficultyMultiplier) + (Math.random() * 0.18)
+        : 1.8 + (this.wave * 0.32) + (Math.random() * 0.45);
       asteroid.vx = (Math.random() - 0.5) * (0.45 + (this.wave * 0.08));
-      asteroid.hp = Math.round(4 + (this.wave * 1.9));
+      asteroid.hp = configured
+        ? Math.max(1, (Number(configured.health) || 1) * difficultyMultiplier)
+        : Math.round(4 + (this.wave * 1.9));
       asteroid.maxHp = asteroid.hp;
       asteroid.variant = 900 + i;
       asteroid.color = '#f59e0b';
+      if (configured) {
+        asteroid.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.ENEMY_BRICK);
+        asteroid.spriteFrames = this.resolveSpriteFrames(configured.spriteKey);
+        asteroid.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
+        asteroid.scoreValue = Math.max(0, Number(configured.scoreValue) || 0);
+        asteroid.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
+        if (asteroid.spriteUrl) loadImage(asteroid.spriteUrl);
+        asteroid.spriteFrames?.forEach(loadImage);
+      }
       this.entities.push(asteroid);
     }
 
@@ -2368,7 +3117,10 @@ export class GameEngine {
       invaders.forEach(inv => { if (inv.y < minY) minY = inv.y; });
 
       const isEntering = minY < 50;
-      const verticalSpeed = isEntering ? (this.wave === 1 ? 1.15 : 1.5 + (this.wave - 1)) : 0;
+      const configuredVerticalSpeed = invaders.find((invader) => Number.isFinite(invader.configuredSpeed))?.configuredSpeed;
+      const verticalSpeed = isEntering
+        ? configuredVerticalSpeed ?? (this.wave === 1 ? 1.15 : 1.5 + (this.wave - 1))
+        : 0;
       
       let hitEdge = false;
       invaders.forEach(inv => {
@@ -2390,15 +3142,17 @@ export class GameEngine {
           inv.y += moveY;
       });
       
-      const shootRate = this.wave === 1 ? 42 : Math.max(8, 20 - this.wave);
+      const configuredAttackInterval = invaders.find((invader) => Number.isFinite(invader.attackIntervalFrames))?.attackIntervalFrames;
+      const shootRate = configuredAttackInterval ?? (this.wave === 1 ? 42 : Math.max(8, 20 - this.wave));
       if (this.frameCount % shootRate === 0) { 
           const shooter = invaders[Math.floor(Math.random() * invaders.length)];
           const b = new Entity(EntityType.PROJECTILE, shooter.x + shooter.width/2, shooter.y + shooter.height);
           b.vx = 0;
-          b.vy = this.wave === 1 ? 5.4 : 7 + (this.wave * 0.5);
+          b.vy = shooter.projectileSpeed ?? (this.wave === 1 ? 5.4 : 7 + (this.wave * 0.5));
           b.width = this.wave === 1 ? 12 : 14;
           b.height = this.wave === 1 ? 12 : 14;
           b.color = '#ff4444';
+          b.damage = Math.max(1, Number(shooter.projectileDamage) || 1);
           // Solid projectile
           this.entities.push(b);
       }
@@ -2410,7 +3164,7 @@ export class GameEngine {
      const dx = targetX - boss.x;
      if (boss.y > 0) boss.x += dx * (0.03 + (this.wave * 0.005));
 
-     if (boss.y < 100) boss.vy = 2;
+     if (boss.y < 100) boss.vy = boss.configuredSpeed ?? 2;
      else {
         boss.vy = 0;
         boss.x += Math.sin(boss.attackTimer * 0.05) * 3;
@@ -2418,33 +3172,65 @@ export class GameEngine {
      
      boss.x = Math.max(0, Math.min(this.width - boss.width, boss.x));
      
-     const shootRate = this.wave === 1 ? 72 : Math.max(30, 60 - (this.wave * 5));
+     const healthRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
+     const activePhaseCount = boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length;
+     const phaseCadenceMultiplier = Math.max(0.45, 1 - Math.max(0, activePhaseCount - 1) * 0.16);
+     const baseShootRate = boss.attackIntervalFrames ?? (this.wave === 1 ? 72 : Math.max(30, 60 - (this.wave * 5)));
+     const shootRate = Math.max(8, Math.round(baseShootRate * phaseCadenceMultiplier));
      if (boss.attackTimer % shootRate === 0) {
-        const b = new Entity(EntityType.PROJECTILE, boss.x + boss.width/2, boss.y + boss.height);
-        b.vx = 0;
-        b.vy = 5 + (this.wave * 0.5);
-        b.width = 16; 
-        b.height = 16; 
-        b.color = '#ff0000';
-        this.entities.push(b);
+        const burstCount = Math.max(1, boss.configuredBurstCount ?? 1);
+        for (let index = 0; index < burstCount; index++) {
+          const offset = index - ((burstCount - 1) / 2);
+          const b = new Entity(EntityType.PROJECTILE, boss.x + boss.width/2, boss.y + boss.height);
+          b.vx = offset * 0.85;
+          b.vy = boss.projectileSpeed ?? (5 + (this.wave * 0.5));
+          b.width = 16;
+          b.height = 16;
+          b.color = '#ff0000';
+          b.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+          this.entities.push(b);
+        }
      }
   }
 
-  spawnBoss() {
+  spawnBoss(configured?: RuntimeBossEvent) {
+    const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
     const boss = new Entity(EntityType.BOSS, this.width / 2 - 100, -200);
     const phase = Math.max(1, this.stats.wave);
     boss.width = 220;
     boss.height = 200;
-    boss.hp = phase === 1 ? 235 : 220 + (phase * 105);
+    boss.hp = configured
+      ? Math.max(1, (Number(configured.health) || 1) * difficultyMultiplier)
+      : phase === 1 ? 235 : 220 + (phase * 105);
     boss.maxHp = boss.hp;
     boss.variant = (this.stats.wave - 1) % 3;
     boss.color = '#990000';
     boss.text = "GATEKEEPER";
-    boss.vy = 2;
+    boss.configuredSpeed = configured ? Math.max(0.1, (Number(configured.speed) || 2) * difficultyMultiplier) : 2;
+    boss.vy = boss.configuredSpeed;
+    if (configured) {
+      const weapon = configured.weapons?.[0];
+      boss.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.BOSS);
+      boss.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
+      boss.projectileDamage = Math.max(0, (Number(weapon?.damage ?? configured.damage) || 1) * difficultyMultiplier);
+      boss.projectileSpeed = Math.max(0.1, (Number(weapon?.projectileSpeed) || 6.5) * difficultyMultiplier);
+      boss.attackIntervalFrames = Math.max(1, Math.round(
+        ((Number(weapon?.attackIntervalSeconds) || 1) * GAME_CONFIG.FPS) / difficultyMultiplier
+      ));
+      boss.weaponKinds = configured.weapons.map((setting) => String(setting.weaponId));
+      boss.configuredBurstCount = Math.max(1, Math.floor(Number(weapon?.burstCount) || 1));
+      boss.movementPattern = configured.movementPatternId;
+      boss.scoreReward = Math.max(0, Number(configured.scoreReward) || 0);
+      boss.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
+      boss.phaseThresholds = configured.phases.map((healthPhase) => Number(healthPhase.triggerHealthRatio)).filter(Number.isFinite);
+      boss.completesWave = true;
+      if (boss.spriteUrl) loadImage(boss.spriteUrl);
+    }
     this.bossRef = boss;
     this.entities.push(boss);
-    if (phase >= 2) {
-      this.spawnBossShieldRing(boss, phase);
+    const shieldCount = configured ? Math.max(0, Math.floor(Number(configured.shieldCount) || 0)) : undefined;
+    if ((configured && (shieldCount || 0) > 0) || (!configured && phase >= 2)) {
+      this.spawnBossShieldRing(boss, phase, shieldCount);
     }
   }
 
@@ -2461,9 +3247,9 @@ export class GameEngine {
     const px = this.player.x + this.player.width / 2;
     const py = this.player.y + this.player.height / 2;
     const angle = Math.atan2(py - cy, px - cx);
-    const shotCount = phase <= 1 ? 3 : phase === 2 ? 5 : 7;
+    const shotCount = boss.configuredBurstCount ?? (phase <= 1 ? 3 : phase === 2 ? 5 : 7);
     const spread = phase <= 1 ? 0.2 : phase === 2 ? 0.18 : 0.16;
-    const speed = Math.min(10.5, 6 + phase * 0.55);
+    const speed = boss.projectileSpeed ?? Math.min(10.5, 6 + phase * 0.55);
 
     for (let i = 0; i < shotCount; i++) {
       const offset = i - ((shotCount - 1) / 2);
@@ -2473,6 +3259,7 @@ export class GameEngine {
       b.width = 15;
       b.height = 15;
       b.color = phase >= 3 ? '#ff7a18' : '#ff0000';
+      b.damage = Math.max(1, Number(boss.projectileDamage) || 1);
       b.text = "";
       this.entities.push(b);
     }
@@ -2485,6 +3272,7 @@ export class GameEngine {
         b.width = 13;
         b.height = 18;
         b.color = '#f97316';
+        b.damage = Math.max(1, Number(boss.projectileDamage) || 1);
         this.entities.push(b);
       });
     }
@@ -2501,21 +3289,26 @@ export class GameEngine {
     beam.life = phase <= 1 ? 68 : Math.max(18, 32 - phase * 3);
     beam.maxLife = beam.life;
     beam.color = phase >= 3 ? '#ff7a18' : '#ff0000';
+    beam.damage = Math.max(1, Number(boss.projectileDamage) || 1);
     beam.beamAnchorOffsetX = boss.width / 2 - beamWidth / 2;
     beam.variant = pulseIndex;
     this.entities.push(beam);
 
-    audioService.playSound(pulseIndex === 0 ? 'boss_roar' : 'electricity');
+    this.playSound(pulseIndex === 0 ? 'boss_roar' : 'electricity');
   }
 
   updateBoss(boss: Entity) {
     boss.attackTimer++;
-    const phase = Math.max(1, this.stats.wave);
+    const healthRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
+    const configuredPhase = boss.phaseThresholds.length > 0
+      ? Math.max(1, boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length)
+      : 0;
+    const phase = configuredPhase || Math.max(1, this.stats.wave);
     const speedMult = 1 + (phase * 0.1);
     const playerCenterX = this.player.x + this.player.width / 2;
     const playerNearEdge = playerCenterX < this.width * 0.18 || playerCenterX > this.width * 0.82;
     const hasActiveBeam = this.entities.some(e => e.isBeam && !e.markedForDeletion);
-    if (boss.y < 80) boss.vy = 2;
+    if (boss.y < 80) boss.vy = boss.configuredSpeed ?? 2;
     else {
       boss.vy = 0;
       if (!boss.isCharging && !hasActiveBeam) {
@@ -2536,11 +3329,14 @@ export class GameEngine {
     const burstEnd = Math.max(210, 250 - Math.min(4, phase - 1) * 8);
     const chargeEnd = burstEnd + 70;
     const attackCycle = boss.attackTimer % cycleLength;
+    const hasConfiguredWeapons = boss.weaponKinds.length > 0;
+    const allowsBeam = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => kind.includes('beam'));
+    const allowsBurst = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => !kind.includes('beam'));
     
-    if (attackCycle < burstEnd) {
+    if (attackCycle < burstEnd || !allowsBeam) {
         boss.isCharging = false;
-        const fireRate = Math.max(20, 60 - (phase * 7));
-        if (boss.attackTimer % fireRate === 0) { 
+        const fireRate = boss.attackIntervalFrames ?? Math.max(20, 60 - (phase * 7));
+        if (allowsBurst && boss.attackTimer % fireRate === 0) {
           this.spawnBossBurst(boss, phase);
         }
     } else if (attackCycle >= burstEnd && attackCycle < chargeEnd) {
@@ -2569,14 +3365,42 @@ export class GameEngine {
     }
   }
 
-  spawnPowerup(x: number, y: number) {
-    const r = Math.random();
-    let type: PowerupType = PowerupType.DOUBLE_SHOT;
-    if (r < 0.08) type = PowerupType.RESEARCH_BEAM;
-    else if (r < 0.44) type = PowerupType.DOUBLE_SHOT;
-    else if (r < 0.78) type = PowerupType.TRIPLE_SHOT;
-    else if (r < 0.9) type = PowerupType.MAGNET;
-    else type = PowerupType.SHIELD;
+  spawnPowerup(x: number, y: number, forcedPowerupId?: string) {
+    const powerupIdToType: Record<string, PowerupType> = {
+      'double-shot': PowerupType.DOUBLE_SHOT,
+      'triple-shot': PowerupType.TRIPLE_SHOT,
+      magnet: PowerupType.MAGNET,
+      shield: PowerupType.SHIELD,
+      'research-beam': PowerupType.RESEARCH_BEAM,
+      'extra-life': PowerupType.EXTRA_LIFE
+    };
+    const weights = new Map<PowerupType, number>([
+      [PowerupType.RESEARCH_BEAM, 0.08],
+      [PowerupType.DOUBLE_SHOT, 0.36],
+      [PowerupType.TRIPLE_SHOT, 0.34],
+      [PowerupType.MAGNET, 0.12],
+      [PowerupType.SHIELD, 0.1],
+      [PowerupType.EXTRA_LIFE, 0.02]
+    ]);
+    const configuredIds = this.getCurrentLevelDefinition()?.availablePowerupIds;
+    const allowed = Array.isArray(configuredIds) && configuredIds.length > 0
+      ? configuredIds.map((id) => powerupIdToType[id]).filter((type): type is PowerupType => Boolean(type))
+      : Array.from(weights.keys()).filter((type) => type !== PowerupType.EXTRA_LIFE);
+    const candidates = allowed.length > 0 ? allowed : [PowerupType.DOUBLE_SHOT];
+    const totalWeight = candidates.reduce((sum, candidate) => sum + (weights.get(candidate) || 0.01), 0);
+    let roll = Math.random() * totalWeight;
+    let type = forcedPowerupId && powerupIdToType[forcedPowerupId]
+      ? powerupIdToType[forcedPowerupId]
+      : candidates[0];
+    if (!forcedPowerupId || !powerupIdToType[forcedPowerupId]) {
+      for (const candidate of candidates) {
+        roll -= weights.get(candidate) || 0.01;
+        if (roll <= 0) {
+          type = candidate;
+          break;
+        }
+      }
+    }
 
     const p = new Entity(EntityType.POWERUP, x, y);
     p.text = type; 
@@ -2607,7 +3431,7 @@ export class GameEngine {
   }
 
   spawnExplosion(x: number, y: number, color: string) {
-    audioService.playSound('explode');
+    this.playSound('explode');
     this.spawnBurst(x, y, color, this.shouldUseLeanEffects() ? 7 : 12, 5, 5);
     this.addShake(this.shouldUseLeanEffects() ? 0.55 : 0.9);
   }
@@ -2629,7 +3453,7 @@ export class GameEngine {
     this.coinComboTimer = GAME_FEEL.comboWindowFrames;
     const label = this.coinCombo > 1 ? `+1 x${Math.min(this.coinCombo, 99)}` : '+1';
     const lean = this.shouldUseLeanEffects();
-    audioService.playSound('coin', Math.min(this.coinCombo, 10));
+    this.playSound('coin', Math.min(this.coinCombo, 10));
     if (!lean || this.coinCombo % 3 === 0) {
       this.spawnFloatingText(x, y - 12, label, this.coinCombo > 1 ? '#facc15' : '#67e8f9', this.coinCombo > 1 ? 18 : 16);
     }
@@ -2652,7 +3476,7 @@ export class GameEngine {
       this.activePowerups.set(type, currentDuration + duration);
     }
 
-    audioService.playSound('powerup');
+    this.playSound('powerup');
     const cx = this.player.x + this.player.width / 2;
     const cy = this.player.y + this.player.height / 2;
 
@@ -2787,7 +3611,7 @@ export class GameEngine {
         this.spawnBurst(e.x + e.width / 2, e.y + e.height / 2, '#facc15', 9, 3.2, 4);
         this.kickPlayerSquash(0.045);
         this.addShake(0.5);
-        audioService.playSound('powerup');
+        this.playSound('powerup');
       }
 
       // Determine if this entity hurts the player
@@ -2841,9 +3665,12 @@ export class GameEngine {
              this.spawnExplosion(e.x, e.y, e.color);
            }
         } else {
-          this.lives--;
+          const incomingDamage = e.type === EntityType.PROJECTILE
+            ? Math.max(1, Math.round(Number(e.damage) || 1))
+            : Math.max(1, Math.round(Number(e.contactDamage) || 1));
+          this.lives -= incomingDamage;
           this.invincibleTimer = 60; 
-          audioService.playSound('hit');
+          this.playSound('hit');
           this.spawnExplosion(this.player.x, this.player.y, '#ffffff');
           this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y + 8, 'HIT!', '#fb7185', 22);
           this.flashAlpha = Math.max(this.flashAlpha, 0.48);
@@ -3312,6 +4139,8 @@ export class GameEngine {
   }
 
   getHitFlashSprite(e: Entity) {
+    if (e.spriteFrames?.length) return this.getAnimatedFrame(e.spriteFrames, e, 6);
+    if (e.spriteUrl) return e.spriteUrl;
     if (e.type === EntityType.ENEMY_DRONE) {
       return this.getAnimatedFrame(ASSETS.ENEMY_DRONE_FRAMES, e, 6);
     }
@@ -3341,7 +4170,7 @@ export class GameEngine {
       this.drawHealthBar(ctx, e, 12);
       ctx.globalAlpha = 1.0;
       const bob = Math.sin(this.frameCount * 0.08) * 4;
-      const drewSprite = this.drawSprite(ctx, ASSETS.MINI_BOSS, e.width, e.height, {
+      const drewSprite = this.drawSprite(ctx, e.spriteUrl || ASSETS.MINI_BOSS, e.width, e.height, {
         shadowColor: '#fb7185',
         shadowBlur: 22,
         yOffset: bob
@@ -3370,7 +4199,7 @@ export class GameEngine {
       const skin = this.getBossSkin(e);
       const pulse = e.isCharging ? 42 : 24;
       const bob = Math.sin(this.frameCount * 0.04) * 5;
-      const drewSprite = this.drawSprite(ctx, skin.sprite, e.width, e.height, {
+      const drewSprite = this.drawSprite(ctx, e.spriteUrl || skin.sprite, e.width, e.height, {
         shadowColor: e.isCharging ? '#ffffff' : skin.shadow,
         shadowBlur: pulse,
         yOffset: bob
@@ -3691,7 +4520,9 @@ export class GameEngine {
        }
 
     } else if (e.type === EntityType.ENEMY_DRONE) {
-        const frame = this.getAnimatedFrame(ASSETS.ENEMY_DRONE_FRAMES, e, 6);
+        const frame = e.spriteFrames?.length
+          ? this.getAnimatedFrame(e.spriteFrames, e, 6)
+          : e.spriteUrl || this.getAnimatedFrame(ASSETS.ENEMY_DRONE_FRAMES, e, 6);
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             shadowColor: '#38bdf8',
             shadowBlur: 10
@@ -3702,7 +4533,9 @@ export class GameEngine {
         }
 
     } else if (e.type === EntityType.ENEMY_SWARM) {
-        const frame = this.getAnimatedFrame(ASSETS.ENEMY_SWARM_FRAMES, e, 5);
+        const frame = e.spriteFrames?.length
+          ? this.getAnimatedFrame(e.spriteFrames, e, 5)
+          : e.spriteUrl || this.getAnimatedFrame(ASSETS.ENEMY_SWARM_FRAMES, e, 5);
         const rotation = Math.sin((this.frameCount + e.variant) * 0.08) * 0.12;
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             rotation,
@@ -3715,7 +4548,9 @@ export class GameEngine {
         }
 
     } else if (e.type === EntityType.ENEMY_BRICK) {
-        const frame = ASSETS.ENEMY_BRICK_FRAMES[e.variant % ASSETS.ENEMY_BRICK_FRAMES.length];
+        const frame = e.spriteFrames?.length
+          ? e.spriteFrames[e.variant % e.spriteFrames.length]
+          : e.spriteUrl || ASSETS.ENEMY_BRICK_FRAMES[e.variant % ASSETS.ENEMY_BRICK_FRAMES.length];
         const rotation = Math.sin((this.frameCount + e.variant) * 0.03) * 0.2;
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             rotation,
@@ -3729,7 +4564,10 @@ export class GameEngine {
 
     } else if (e.type === EntityType.ENEMY_JOURNAL) {
         const sway = Math.sin((this.frameCount + e.variant) * 0.04) * 0.12;
-        const drewSprite = this.drawSprite(ctx, ASSETS.ENEMY_JOURNAL, e.width, e.height, {
+        const journalSprite = e.spriteFrames?.length
+          ? this.getAnimatedFrame(e.spriteFrames, e, 6)
+          : e.spriteUrl || ASSETS.ENEMY_JOURNAL;
+        const drewSprite = this.drawSprite(ctx, journalSprite, e.width, e.height, {
             rotation: sway,
             shadowColor: '#fb7185',
             shadowBlur: 14
@@ -3775,7 +4613,7 @@ export class GameEngine {
         this.drawBoss(ctx, e);
     } else if (e.type === EntityType.ENEMY_INVADER) {
         const sway = Math.sin((this.frameCount + e.variant) * 0.05) * 0.08;
-        const drewSprite = this.drawSprite(ctx, ASSETS.WALL_BOSS_SEGMENT, e.width, e.height, {
+        const drewSprite = this.drawSprite(ctx, e.spriteUrl || ASSETS.WALL_BOSS_SEGMENT, e.width, e.height, {
             rotation: sway,
             shadowColor: '#fb7185',
             shadowBlur: 8

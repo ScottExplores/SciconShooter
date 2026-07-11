@@ -8,10 +8,45 @@ import type {
 
 const API_ROOT = '/__director';
 
+export interface GameCampaignDiskState<T = unknown> {
+  ok: true;
+  campaign: T;
+  contentHash: string;
+  activeVersionId: string | null;
+  revision: number;
+  updatedAt: string;
+  sourcePath: 'game-config/campaign.json';
+  diskMatchesManifest: boolean;
+}
+
+export interface GameCampaignVersionSummary {
+  id: string;
+  revision: number;
+  parentId: string | null;
+  rollbackOf: string | null;
+  source: 'baseline' | 'apply' | 'rollback';
+  createdAt: string;
+  changeNote: string;
+  contentHash: string;
+}
+
+export interface GameCampaignMutationResult<T = unknown> {
+  ok: true;
+  message: string;
+  campaign: T;
+  contentHash: string;
+  activeVersionId: string;
+  version: GameCampaignVersionSummary & { payload: T; schemaVersion: 1; kind: 'game-campaign' };
+}
+
 const readJson = async <T,>(response: Response): Promise<T> => {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = typeof payload?.error === 'string' ? payload.error : `Director request failed with ${response.status}`;
+    const headline = typeof payload?.error === 'string' ? payload.error : `Director request failed with ${response.status}`;
+    const details = Array.isArray(payload?.errors)
+      ? payload.errors.filter((item: unknown): item is string => typeof item === 'string')
+      : [];
+    const message = details.length > 0 ? `${headline}; ${details.join('; ')}` : headline;
     throw new Error(message);
   }
   return payload as T;
@@ -66,3 +101,45 @@ export const createReview = async (request: Omit<ReviewRequest, 'id' | 'sequence
 export const updateReview = async (id: string, updates: Partial<Pick<ReviewRequest, 'note' | 'status' | 'target'>>) => (
   mutation<{ review: ReviewRequest }>(`/reviews/${encodeURIComponent(id)}`, 'PATCH', updates)
 );
+
+export const fetchGameCampaign = async <T = unknown>() => readJson<GameCampaignDiskState<T>>(
+  await fetch(`${API_ROOT}/api/game-campaign`, {
+    headers: { Accept: 'application/json' },
+    credentials: 'same-origin'
+  })
+);
+
+// Revert is intentionally a disk reread. Unsaved browser state never reaches the file API.
+export const revertGameCampaignEdits = fetchGameCampaign;
+
+export const applyGameCampaign = async <T>(
+  campaign: T,
+  expectedContentHash: string,
+  changeNote?: string
+) => mutation<GameCampaignMutationResult<T>>('/api/game-campaign/apply', 'POST', {
+  campaign,
+  expectedContentHash,
+  ...(changeNote ? { changeNote } : {})
+});
+
+export const fetchGameCampaignVersions = async () => readJson<{
+  ok: true;
+  activeVersionId: string | null;
+  currentContentHash: string;
+  versions: GameCampaignVersionSummary[];
+}>(
+  await fetch(`${API_ROOT}/api/game-campaign/versions`, {
+    headers: { Accept: 'application/json' },
+    credentials: 'same-origin'
+  })
+);
+
+export const rollbackGameCampaign = async <T = unknown>(
+  versionId: string,
+  expectedContentHash: string,
+  changeNote?: string
+) => mutation<GameCampaignMutationResult<T>>('/api/game-campaign/rollback', 'POST', {
+  versionId,
+  expectedContentHash,
+  ...(changeNote ? { changeNote } : {})
+});

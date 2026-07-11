@@ -12,7 +12,9 @@ The Vite server binds to `127.0.0.1:5174`.
   `X-Scicon-Director: local`.
 - Mutation bodies are capped at 256 KiB.
 - The server resolves all data paths beneath `director-data`; version, review, and
-  configuration identifiers are allowlisted before becoming path segments.
+  configuration identifiers are allowlisted before becoming path segments. The game
+  campaign integration has one additional allowlisted target inside the repository:
+  `game-config/campaign.json`.
 - Responses are `Cache-Control: no-store`.
 
 Client helper:
@@ -130,6 +132,110 @@ write method.
 ### `GET /__director/health`
 
 Returns local-only safety flags without accessing production services.
+
+## Real game campaign file API
+
+These routes are local Vite middleware only. They never call a network service, API,
+database, wallet, or chain. Mutating routes require the same loopback origin, JSON
+content type, body limit, and `X-Scicon-Director: local` header described above.
+
+### `GET /__director/api/game-campaign`
+
+Reads and validates the tracked `game-config/campaign.json` file. It does not return a
+Director fixture or draft.
+
+```json
+{
+  "ok": true,
+  "campaign": {},
+  "contentHash": "sha256:...",
+  "activeVersionId": "game-campaign-20260711T120000000Z-...",
+  "revision": 2,
+  "updatedAt": "2026-07-11T12:00:00.000Z",
+  "sourcePath": "game-config/campaign.json",
+  "diskMatchesManifest": true
+}
+```
+
+`activeVersionId` is `null` and `diskMatchesManifest` is `false` before the first
+Director apply or after an external/manual file edit. Revert in the client is this
+same GET request, so unsaved browser edits are discarded without a server mutation.
+
+### `POST /__director/api/game-campaign/apply`
+
+```json
+{
+  "campaign": {},
+  "expectedContentHash": "sha256:...",
+  "changeNote": "Tune opening wave"
+}
+```
+
+The server treats `revision` and `updatedAt` as authoritative metadata, incrementing
+the current disk revision and assigning the local server timestamp. It validates the
+normalized candidate before any write. `expectedContentHash` provides optimistic
+concurrency and returns `409` when the tracked file changed. A successful request
+atomically replaces `game-config/campaign.json`, creates an immutable hash-checked
+snapshot under `director-data/game-campaign/versions`, and atomically advances
+`director-data/game-campaign/manifest.json`. The first successful apply also captures
+the pre-edit tracked file as a baseline version.
+
+Success is `201`:
+
+```json
+{
+  "ok": true,
+  "message": "Applied game campaign revision 2 to game-config/campaign.json",
+  "campaign": {},
+  "contentHash": "sha256:...",
+  "activeVersionId": "game-campaign-...",
+  "version": {}
+}
+```
+
+Invalid candidates return `422` with `{ "ok": false, "error": "...", "errors": [] }`.
+Neither the tracked file nor manifest is changed on validation failure.
+
+### `GET /__director/api/game-campaign/versions`
+
+Returns the current disk hash, active version ID, and newest-first immutable metadata
+history. Payloads are omitted from the list response.
+
+```json
+{
+  "ok": true,
+  "activeVersionId": "game-campaign-...",
+  "currentContentHash": "sha256:...",
+  "versions": [
+    {
+      "id": "game-campaign-...",
+      "revision": 2,
+      "parentId": "game-campaign-...",
+      "rollbackOf": null,
+      "source": "apply",
+      "createdAt": "2026-07-11T12:00:00.000Z",
+      "changeNote": "Tune opening wave",
+      "contentHash": "sha256:..."
+    }
+  ]
+}
+```
+
+### `POST /__director/api/game-campaign/rollback`
+
+```json
+{
+  "versionId": "game-campaign-...",
+  "expectedContentHash": "sha256:...",
+  "changeNote": "Restore approved opening"
+}
+```
+
+The target snapshot is path-allowlisted, structurally validated, and content-hash
+verified. Rollback never rewrites history: it applies the target payload with a new
+revision/timestamp and creates a new snapshot whose `source` is `rollback` and whose
+`rollbackOf` references the selected version. Success is `201` with the same shape as
+the apply response.
 
 ## Validation and storage
 

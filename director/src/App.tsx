@@ -43,7 +43,12 @@ const DirectorMark = () => (
 );
 
 export default function App() {
-  const [section, setSection] = useState<DirectorSection>('waves');
+  const [section, setSection] = useState<DirectorSection>(() => {
+    const requested = new URLSearchParams(window.location.search).get('section');
+    return requested === 'scorecard' || requested === 'review' || requested === 'waves'
+      ? requested
+      : 'waves';
+  });
   const scorecard = useUndoableState<ScorecardConfig>(cloneValue(defaultScorecard));
   const waves = useUndoableState<WaveCampaignConfig>(cloneValue(defaultWaveCampaign));
   const [runs, setRuns] = useState<RunSnapshot[]>(() => cloneValue(sampleRuns));
