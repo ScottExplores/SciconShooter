@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://local.scicon.director/schemas/scorecard.schema.json",
+  "title": "Scicon Director scorecard configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "canvas", "theme", "typography", "copy", "metrics", "encounters", "layout"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["size", "background", "borderGlow", "vignette"],
+      "properties": {
+        "size": { "type": "integer", "minimum": 600, "maximum": 2400 },
+        "background": { "$ref": "#/definitions/color" },
+        "borderGlow": { "$ref": "#/definitions/color" },
+        "vignette": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary", "success", "warning", "danger", "text", "muted"],
+      "properties": {
+        "primary": { "$ref": "#/definitions/color" },
+        "secondary": { "$ref": "#/definitions/color" },
+        "success": { "$ref": "#/definitions/color" },
+        "warning": { "$ref": "#/definitions/color" },
+        "danger": { "$ref": "#/definitions/color" },
+        "text": { "$ref": "#/definitions/color" },
+        "muted": { "$ref": "#/definitions/color" }
+      }
+    },
+    "typography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["displayFont", "uiFont", "titleScale", "numberScale"],
+      "properties": {
+        "displayFont": { "const": "Orbitron" },
+        "uiFont": { "const": "Inter" },
+        "titleScale": { "type": "number", "minimum": 0.7, "maximum": 1.6 },
+        "numberScale": { "type": "number", "minimum": 0.7, "maximum": 1.8 }
+      }
+    },
+    "copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "subtitle", "callsignLabel", "scoreLabel", "verifiedLabel", "reviewLabel"],
+      "properties": {
+        "title": { "$ref": "#/definitions/label" },
+        "subtitle": { "$ref": "#/definitions/label" },
+        "callsignLabel": { "$ref": "#/definitions/label" },
+        "scoreLabel": { "$ref": "#/definitions/label" },
+        "verifiedLabel": { "$ref": "#/definitions/label" },
+        "reviewLabel": { "$ref": "#/definitions/label" }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "label", "visible", "accent"],
+        "properties": {
+          "key": { "enum": ["wave", "targets", "coins", "flight"] },
+          "label": { "$ref": "#/definitions/label" },
+          "visible": { "type": "boolean" },
+          "accent": { "$ref": "#/definitions/color" }
+        }
+      }
+    },
+    "encounters": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "minWave", "label", "assetPath"],
+        "properties": {
+          "id": { "$ref": "#/definitions/id" },
+          "minWave": { "type": "integer", "minimum": 1, "maximum": 999 },
+          "maxWave": { "type": "integer", "minimum": 1, "maximum": 999 },
+          "label": { "$ref": "#/definitions/label" },
+          "assetPath": { "$ref": "#/definitions/assetPath" }
+        }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artScale", "panelOpacity", "showGrid"],
+      "properties": {
+        "artScale": { "type": "number", "minimum": 0.5, "maximum": 2 },
+        "panelOpacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "showGrid": { "type": "boolean" }
+      }
+    }
+  },
+  "definitions": {
+    "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "assetPath": { "type": "string", "maxLength": 240, "pattern": "^/game-art/[A-Za-z0-9_./-]+\\.(?:png|webp|jpg|jpeg|svg)$" }
+  }
+}

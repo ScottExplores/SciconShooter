@@ -4,8 +4,10 @@
   "scripts": {
     "dev": "vite",
     "generate:tailwind": "powershell -ExecutionPolicy Bypass -File tools/generate-tailwind.ps1",
-    "build": "vite build",
+    "build": "vite build && node tools/assert-director-excluded.mjs",
     "preview": "vite preview",
+    "director:dev": "npm --prefix director run dev",
+    "director:check": "npm --prefix director run check",
     "contract:compile": "node tools/compile-contract.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

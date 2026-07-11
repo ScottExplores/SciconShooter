@@ -1,0 +1,44 @@
+[
+  {
+    "id": "review-0001-a11ce1",
+    "sequence": 1,
+    "surface": "wave",
+    "configVersion": "wave-campaign-000001-19ea80dc3b20",
+    "target": "Mini-boss",
+    "note": "Make this checkpoint visually distinct from normal phases and keep its warning readable.",
+    "status": "open",
+    "anchor": {
+      "x": 0.34,
+      "y": 0.3
+    },
+    "createdAt": "2026-07-11T06:10:50.294Z"
+  },
+  {
+    "id": "review-0002-a57e01",
+    "sequence": 2,
+    "surface": "wave",
+    "configVersion": "wave-campaign-000001-19ea80dc3b20",
+    "target": "Asteroid belt",
+    "note": "Increase hazard contrast so the asteroid-belt transition reads at a glance.",
+    "status": "open",
+    "anchor": {
+      "x": 0.57,
+      "y": 0.52
+    },
+    "createdAt": "2026-07-11T06:10:50.294Z"
+  },
+  {
+    "id": "review-0003-6a7e01",
+    "sequence": 3,
+    "surface": "wave",
+    "configVersion": "wave-campaign-000001-19ea80dc3b20",
+    "target": "Gatekeeper",
+    "note": "Strengthen the boss entrance and keep the Gatekeeper label visible in the preview.",
+    "status": "open",
+    "anchor": {
+      "x": 0.79,
+      "y": 0.31
+    },
+    "createdAt": "2026-07-11T06:10:50.294Z"
+  }
+]

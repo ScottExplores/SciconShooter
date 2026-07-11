@@ -1,0 +1,41 @@
+[
+  {
+    "source": "sample",
+    "runId": "sample-nova-01",
+    "pilotName": "NOVA",
+    "score": 12450,
+    "wave": 3,
+    "targetsDefeated": 84,
+    "coinsCollected": 26,
+    "durationLabel": "02:18",
+    "finishedAt": "2026-07-10T19:32:00.000Z",
+    "gameVersion": "director-sample-1",
+    "integrity": "server-verified"
+  },
+  {
+    "source": "sample",
+    "runId": "sample-ace-02",
+    "pilotName": "ACE",
+    "score": 8320,
+    "wave": 2,
+    "targetsDefeated": 57,
+    "coinsCollected": 19,
+    "durationLabel": "01:47",
+    "finishedAt": "2026-07-09T16:10:00.000Z",
+    "gameVersion": "director-sample-1",
+    "integrity": "review"
+  },
+  {
+    "source": "sample",
+    "runId": "sample-orbit-03",
+    "pilotName": "ORBIT",
+    "score": 3960,
+    "wave": 1,
+    "targetsDefeated": 31,
+    "coinsCollected": 11,
+    "durationLabel": "01:03",
+    "finishedAt": "2026-07-08T21:45:00.000Z",
+    "gameVersion": "director-sample-1",
+    "integrity": "local-unverified"
+  }
+]

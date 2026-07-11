@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "kind": "scorecard",
+  "id": "scorecard-000001-5fa460aa32cf",
+  "revision": 1,
+  "parentId": null,
+  "rollbackOf": null,
+  "createdAt": "2026-07-11T06:10:50.280Z",
+  "changeNote": "Initial Director configuration",
+  "contentHash": "sha256:5fa460aa32cfd62b74f9d3ccea144d479213c399dc6c2e3c40e658c4326f430e",
+  "payload": {
+    "schemaVersion": 1,
+    "canvas": {
+      "size": 1200,
+      "background": "#020817",
+      "borderGlow": "#22d3ee",
+      "vignette": 0.34
+    },
+    "theme": {
+      "primary": "#22d3ee",
+      "secondary": "#8b5cf6",
+      "success": "#34d399",
+      "warning": "#fbbf24",
+      "danger": "#fb7185",
+      "text": "#f8fafc",
+      "muted": "#94a3b8"
+    },
+    "typography": {
+      "displayFont": "Orbitron",
+      "uiFont": "Inter",
+      "titleScale": 1,
+      "numberScale": 1
+    },
+    "copy": {
+      "title": "MISSION RECORD",
+      "subtitle": "SCICON SHOOTER",
+      "callsignLabel": "CALLSIGN",
+      "scoreLabel": "FINAL SCORE",
+      "verifiedLabel": "SERVER VERIFIED",
+      "reviewLabel": "REVIEWED RUN"
+    },
+    "metrics": [
+      {
+        "key": "wave",
+        "label": "WAVE",
+        "visible": true,
+        "accent": "#8b5cf6"
+      },
+      {
+        "key": "targets",
+        "label": "TARGETS",
+        "visible": true,
+        "accent": "#34d399"
+      },
+      {
+        "key": "coins",
+        "label": "COINS",
+        "visible": true,
+        "accent": "#fbbf24"
+      },
+      {
+        "key": "flight",
+        "label": "FLIGHT",
+        "visible": true,
+        "accent": "#22d3ee"
+      }
+    ],
+    "encounters": [
+      {
+        "id": "gatekeeper-sector",
+        "minWave": 1,
+        "maxWave": 1,
+        "label": "GATEKEEPER SECTOR",
+        "assetPath": "/game-art/bosses/final-boss-sentinel.png"
+      },
+      {
+        "id": "replication-rift",
+        "minWave": 2,
+        "maxWave": 2,
+        "label": "REPLICATION RIFT",
+        "assetPath": "/game-art/bosses/mini-boss-drone.png"
+      },
+      {
+        "id": "deep-review-space",
+        "minWave": 3,
+        "label": "DEEP REVIEW SPACE",
+        "assetPath": "/game-art/bosses/final-boss-sentinel.png"
+      }
+    ],
+    "layout": {
+      "artScale": 1,
+      "panelOpacity": 0.82,
+      "showGrid": true
+    }
+  }
+}

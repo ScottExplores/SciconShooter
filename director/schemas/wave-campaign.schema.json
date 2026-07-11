@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://local.scicon.director/schemas/wave-campaign.schema.json",
+  "title": "Scicon Director wave campaign configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "fps", "seed", "waves", "backgrounds", "powerups"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "fps": { "const": 60 },
+    "seed": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9_-]+(?:-[A-Za-z0-9_-]+)*$" },
+    "waves": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": { "$ref": "#/definitions/wave" }
+    },
+    "backgrounds": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": { "$ref": "#/definitions/background" }
+    },
+    "powerups": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": { "$ref": "#/definitions/powerup" }
+    }
+  },
+  "definitions": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "assetPath": { "type": "string", "maxLength": 240, "pattern": "^/game-art/[A-Za-z0-9_./-]+\\.(?:png|webp|jpg|jpeg|svg)$" },
+    "enemyWeights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["drone", "swarm", "brick", "journal"],
+      "properties": {
+        "drone": { "type": "number", "minimum": 0, "maximum": 1 },
+        "swarm": { "type": "number", "minimum": 0, "maximum": 1 },
+        "brick": { "type": "number", "minimum": 0, "maximum": 1 },
+        "journal": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "type", "durationSeconds", "description"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "label": { "$ref": "#/definitions/label" },
+        "type": { "enum": ["launch", "phase", "mini-boss", "asteroid-belt", "boss", "recovery", "inter-wave"] },
+        "durationSeconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 600 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "formation": { "enum": ["row", "v", "sine", "pincer"] },
+        "formationCount": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "spawnIntervalSeconds": { "type": "number", "minimum": 0.05, "maximum": 60 },
+        "enemyWeights": { "$ref": "#/definitions/enemyWeights" },
+        "bossType": { "enum": ["mini-boss", "wall", "asteroid-belt", "gatekeeper"] },
+        "warningSeconds": { "type": "number", "minimum": 0, "maximum": 30 },
+        "hpMultiplier": { "type": "number", "minimum": 0.1, "maximum": 100 },
+        "density": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "wave": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "accent", "backgroundId", "difficultyMultiplier", "segments", "betweenWaves"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "name": { "$ref": "#/definitions/label" },
+        "accent": { "$ref": "#/definitions/color" },
+        "backgroundId": { "$ref": "#/definitions/id" },
+        "difficultyMultiplier": { "type": "number", "minimum": 0.1, "maximum": 20 },
+        "segments": { "type": "array", "minItems": 1, "maxItems": 100, "items": { "$ref": "#/definitions/segment" } },
+        "betweenWaves": { "type": "array", "maxItems": 20, "items": { "$ref": "#/definitions/segment" } }
+      }
+    },
+    "background": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "layers", "tint", "starDensity"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "label": { "$ref": "#/definitions/label" },
+        "layers": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "$ref": "#/definitions/assetPath" } },
+        "tint": { "$ref": "#/definitions/color" },
+        "starDensity": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "powerup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "weight"],
+      "properties": {
+        "id": { "enum": ["shield", "double-shot", "triple-shot", "magnet", "research-beam", "extra-life"] },
+        "label": { "$ref": "#/definitions/label" },
+        "weight": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}

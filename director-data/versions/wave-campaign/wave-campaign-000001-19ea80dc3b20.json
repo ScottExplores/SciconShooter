@@ -1,0 +1,428 @@
+{
+  "schemaVersion": 1,
+  "kind": "wave-campaign",
+  "id": "wave-campaign-000001-19ea80dc3b20",
+  "revision": 1,
+  "parentId": null,
+  "rollbackOf": null,
+  "createdAt": "2026-07-11T06:10:50.294Z",
+  "changeNote": "Initial Director configuration",
+  "contentHash": "sha256:19ea80dc3b2028ca26e073dcfc816ffa5dd68c4d30974c10d945bb8b0e36c58b",
+  "payload": {
+    "schemaVersion": 1,
+    "fps": 60,
+    "seed": "7A9F-3C2B-1E8D",
+    "waves": [
+      {
+        "id": "wave-1",
+        "name": "OPEN ORBIT",
+        "accent": "#22d3ee",
+        "backgroundId": "open-orbit",
+        "difficultyMultiplier": 1,
+        "segments": [
+          {
+            "id": "w1-launch",
+            "label": "Launch",
+            "type": "launch",
+            "durationSeconds": 10,
+            "description": "Arrival lane and player orientation."
+          },
+          {
+            "id": "w1-phase-1",
+            "label": "Phase 1",
+            "type": "phase",
+            "durationSeconds": 20,
+            "description": "Drone and swarm introduction.",
+            "formation": "v",
+            "formationCount": 7,
+            "spawnIntervalSeconds": 2.8,
+            "enemyWeights": {
+              "drone": 0.58,
+              "swarm": 0.32,
+              "brick": 0.1,
+              "journal": 0
+            }
+          },
+          {
+            "id": "w1-mini",
+            "label": "Mini-boss",
+            "type": "mini-boss",
+            "durationSeconds": 14,
+            "description": "First combat checkpoint.",
+            "bossType": "mini-boss",
+            "warningSeconds": 3,
+            "hpMultiplier": 1
+          },
+          {
+            "id": "w1-phase-2",
+            "label": "Phase 2",
+            "type": "phase",
+            "durationSeconds": 22,
+            "description": "Mixed formations with heavier targets.",
+            "formation": "row",
+            "formationCount": 8,
+            "spawnIntervalSeconds": 2.4,
+            "enemyWeights": {
+              "drone": 0.4,
+              "swarm": 0.28,
+              "brick": 0.24,
+              "journal": 0.08
+            }
+          },
+          {
+            "id": "w1-asteroids",
+            "label": "Asteroid belt",
+            "type": "asteroid-belt",
+            "durationSeconds": 22,
+            "description": "Dense moving hazard corridor.",
+            "bossType": "asteroid-belt",
+            "warningSeconds": 2.5,
+            "hpMultiplier": 1,
+            "density": 0.66
+          },
+          {
+            "id": "w1-phase-3",
+            "label": "Phase 3",
+            "type": "phase",
+            "durationSeconds": 24,
+            "description": "Final escalation before the gate.",
+            "formation": "sine",
+            "formationCount": 9,
+            "spawnIntervalSeconds": 2.1,
+            "enemyWeights": {
+              "drone": 0.3,
+              "swarm": 0.25,
+              "brick": 0.25,
+              "journal": 0.2
+            }
+          },
+          {
+            "id": "w1-boss",
+            "label": "Gatekeeper",
+            "type": "boss",
+            "durationSeconds": 20,
+            "description": "Primary wave boss.",
+            "bossType": "gatekeeper",
+            "warningSeconds": 5,
+            "hpMultiplier": 1
+          }
+        ],
+        "betweenWaves": [
+          {
+            "id": "w1-recovery",
+            "label": "Recovery window",
+            "type": "recovery",
+            "durationSeconds": 16,
+            "description": "Collect drops and reset formation spacing."
+          },
+          {
+            "id": "w1-transit",
+            "label": "Asteroid belt transit",
+            "type": "asteroid-belt",
+            "durationSeconds": 18,
+            "description": "Inter-wave asteroid crossing before Wave 2.",
+            "bossType": "asteroid-belt",
+            "warningSeconds": 2,
+            "hpMultiplier": 1,
+            "density": 0.72
+          }
+        ]
+      },
+      {
+        "id": "wave-2",
+        "name": "CITATION STORM",
+        "accent": "#8b5cf6",
+        "backgroundId": "citation-storm",
+        "difficultyMultiplier": 1.25,
+        "segments": [
+          {
+            "id": "w2-launch",
+            "label": "Launch",
+            "type": "launch",
+            "durationSeconds": 8,
+            "description": "Fast re-entry into the citation storm."
+          },
+          {
+            "id": "w2-phase-1",
+            "label": "Phase 1",
+            "type": "phase",
+            "durationSeconds": 22,
+            "description": "Sine formations and journal aces.",
+            "formation": "sine",
+            "formationCount": 8,
+            "spawnIntervalSeconds": 2.3,
+            "enemyWeights": {
+              "drone": 0.35,
+              "swarm": 0.3,
+              "brick": 0.18,
+              "journal": 0.17
+            }
+          },
+          {
+            "id": "w2-mini",
+            "label": "Mini-boss",
+            "type": "mini-boss",
+            "durationSeconds": 16,
+            "description": "Replication drone checkpoint.",
+            "bossType": "mini-boss",
+            "warningSeconds": 2.5,
+            "hpMultiplier": 1.35
+          },
+          {
+            "id": "w2-phase-2",
+            "label": "Phase 2",
+            "type": "phase",
+            "durationSeconds": 24,
+            "description": "Pincer formations and crossfire.",
+            "formation": "pincer",
+            "formationCount": 10,
+            "spawnIntervalSeconds": 2,
+            "enemyWeights": {
+              "drone": 0.28,
+              "swarm": 0.28,
+              "brick": 0.24,
+              "journal": 0.2
+            }
+          },
+          {
+            "id": "w2-asteroids",
+            "label": "Asteroid belt",
+            "type": "asteroid-belt",
+            "durationSeconds": 24,
+            "description": "High-density belt under enemy fire.",
+            "bossType": "asteroid-belt",
+            "warningSeconds": 2,
+            "hpMultiplier": 1.2,
+            "density": 0.8
+          },
+          {
+            "id": "w2-phase-3",
+            "label": "Phase 3",
+            "type": "phase",
+            "durationSeconds": 26,
+            "description": "Combined elite formation pass.",
+            "formation": "pincer",
+            "formationCount": 11,
+            "spawnIntervalSeconds": 1.8,
+            "enemyWeights": {
+              "drone": 0.24,
+              "swarm": 0.24,
+              "brick": 0.27,
+              "journal": 0.25
+            }
+          },
+          {
+            "id": "w2-boss",
+            "label": "Gatekeeper",
+            "type": "boss",
+            "durationSeconds": 24,
+            "description": "Shielded gatekeeper variant.",
+            "bossType": "gatekeeper",
+            "warningSeconds": 4.5,
+            "hpMultiplier": 1.5
+          }
+        ],
+        "betweenWaves": [
+          {
+            "id": "w2-recovery",
+            "label": "Recovery window",
+            "type": "recovery",
+            "durationSeconds": 14,
+            "description": "Short recovery before the ambush."
+          },
+          {
+            "id": "w2-warden",
+            "label": "Inter-wave mini-boss",
+            "type": "inter-wave",
+            "durationSeconds": 18,
+            "description": "A mini-boss guards the route to Wave 3.",
+            "bossType": "mini-boss",
+            "warningSeconds": 2.5,
+            "hpMultiplier": 1.65
+          }
+        ]
+      },
+      {
+        "id": "wave-3",
+        "name": "PAYWALL SIEGE",
+        "accent": "#fbbf24",
+        "backgroundId": "paywall-siege",
+        "difficultyMultiplier": 1.55,
+        "segments": [
+          {
+            "id": "w3-launch",
+            "label": "Launch",
+            "type": "launch",
+            "durationSeconds": 8,
+            "description": "Immediate siege approach."
+          },
+          {
+            "id": "w3-phase-1",
+            "label": "Phase 1",
+            "type": "phase",
+            "durationSeconds": 24,
+            "description": "Heavy targets in V formations.",
+            "formation": "v",
+            "formationCount": 10,
+            "spawnIntervalSeconds": 2,
+            "enemyWeights": {
+              "drone": 0.25,
+              "swarm": 0.25,
+              "brick": 0.3,
+              "journal": 0.2
+            }
+          },
+          {
+            "id": "w3-mini",
+            "label": "Mini-boss",
+            "type": "mini-boss",
+            "durationSeconds": 18,
+            "description": "Elite research blockade.",
+            "bossType": "mini-boss",
+            "warningSeconds": 2.2,
+            "hpMultiplier": 1.75
+          },
+          {
+            "id": "w3-phase-2",
+            "label": "Phase 2",
+            "type": "phase",
+            "durationSeconds": 26,
+            "description": "Alternating sine and pincer pressure.",
+            "formation": "pincer",
+            "formationCount": 11,
+            "spawnIntervalSeconds": 1.7,
+            "enemyWeights": {
+              "drone": 0.2,
+              "swarm": 0.22,
+              "brick": 0.3,
+              "journal": 0.28
+            }
+          },
+          {
+            "id": "w3-asteroids",
+            "label": "Asteroid belt",
+            "type": "asteroid-belt",
+            "durationSeconds": 26,
+            "description": "Maximum-density debris corridor.",
+            "bossType": "asteroid-belt",
+            "warningSeconds": 1.8,
+            "hpMultiplier": 1.35,
+            "density": 0.92
+          },
+          {
+            "id": "w3-phase-3",
+            "label": "Phase 3",
+            "type": "phase",
+            "durationSeconds": 28,
+            "description": "Full enemy roster final assault.",
+            "formation": "pincer",
+            "formationCount": 12,
+            "spawnIntervalSeconds": 1.5,
+            "enemyWeights": {
+              "drone": 0.2,
+              "swarm": 0.2,
+              "brick": 0.3,
+              "journal": 0.3
+            }
+          },
+          {
+            "id": "w3-boss",
+            "label": "Gatekeeper",
+            "type": "boss",
+            "durationSeconds": 28,
+            "description": "Three-phase siege boss.",
+            "bossType": "gatekeeper",
+            "warningSeconds": 4,
+            "hpMultiplier": 2
+          }
+        ],
+        "betweenWaves": [
+          {
+            "id": "w3-recovery",
+            "label": "Recovery window",
+            "type": "recovery",
+            "durationSeconds": 12,
+            "description": "Final repair and drop collection."
+          },
+          {
+            "id": "w3-deep-ambush",
+            "label": "Deep-space ambush",
+            "type": "inter-wave",
+            "durationSeconds": 20,
+            "description": "Alternates mini-boss and asteroid threats on campaign loop.",
+            "bossType": "mini-boss",
+            "warningSeconds": 2,
+            "hpMultiplier": 2.1
+          }
+        ]
+      }
+    ],
+    "backgrounds": [
+      {
+        "id": "open-orbit",
+        "label": "Open Orbit",
+        "layers": [
+          "/game-art/backgrounds/bg-back.png",
+          "/game-art/backgrounds/bg-stars.png",
+          "/game-art/backgrounds/parallax-big-planet.png"
+        ],
+        "tint": "#0f4c81",
+        "starDensity": 0.62
+      },
+      {
+        "id": "citation-storm",
+        "label": "Citation Storm",
+        "layers": [
+          "/game-art/backgrounds/parallax-back.png",
+          "/game-art/backgrounds/parallax-stars.png",
+          "/game-art/backgrounds/parallax-ring-planet.png"
+        ],
+        "tint": "#4c1d95",
+        "starDensity": 0.78
+      },
+      {
+        "id": "paywall-siege",
+        "label": "Paywall Siege",
+        "layers": [
+          "/game-art/backgrounds/bg-back.png",
+          "/game-art/backgrounds/parallax-far-planets.png",
+          "/game-art/backgrounds/bg-planet.png"
+        ],
+        "tint": "#92400e",
+        "starDensity": 0.88
+      }
+    ],
+    "powerups": [
+      {
+        "id": "shield",
+        "label": "Shield",
+        "weight": 0.15
+      },
+      {
+        "id": "double-shot",
+        "label": "Double Shot",
+        "weight": 0.28
+      },
+      {
+        "id": "triple-shot",
+        "label": "Triple Shot",
+        "weight": 0.24
+      },
+      {
+        "id": "magnet",
+        "label": "Magnet",
+        "weight": 0.14
+      },
+      {
+        "id": "research-beam",
+        "label": "Research Beam",
+        "weight": 0.1
+      },
+      {
+        "id": "extra-life",
+        "label": "Extra Life",
+        "weight": 0.09
+      }
+    ]
+  }
+}

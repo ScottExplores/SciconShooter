@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+director-data/workspace/
+.qa-chrome*/
 .codex-remote-attachments/
 contracts/out/
 public/dev-researchhub-proposals.json
