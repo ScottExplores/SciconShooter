@@ -194,6 +194,21 @@ test('structural game campaign validation covers nested runtime tuning fields', 
   assert.ok(result.errors.some((error) => error.includes('weaponSettingIds')));
 });
 
+test('spawn anchors are optional normalized points with no extra fields', () => {
+  const anchored = makeCampaign();
+  anchored.levels[0].waves[0].events[0].spawnAnchor = { x: 0.35, y: 0.2 };
+  anchored.levels[0].waves[0].events[1].spawnAnchor = { x: 0.5, y: 0.25 };
+  assert.deepEqual(validateGameCampaign(anchored), { valid: true, errors: [] });
+
+  const invalid = makeCampaign();
+  invalid.levels[0].waves[0].events[0].spawnAnchor = { x: -0.1, y: 1.1, z: 0.5 };
+  const result = validateGameCampaign(invalid);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes('/spawnAnchor/x')));
+  assert.ok(result.errors.some((error) => error.includes('/spawnAnchor/y')));
+  assert.ok(result.errors.some((error) => error.includes('unsupported fields: z')));
+});
+
 test('sprite validation permits catalog swaps only within gameplay categories', () => {
   const validSwap = makeCampaign();
   validSwap.levels[0].waves[0].events[0].enemies[0].spriteKey = 'ENEMY_JOURNAL';

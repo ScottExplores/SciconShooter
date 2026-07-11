@@ -11,6 +11,8 @@ import type {
   LevelDefinition,
   MovementPatternId,
   PowerupId,
+  RecordCardArtRegion,
+  RecordCardConfig,
   SpawnEnemySetting,
   SpawnEvent,
   SpawnPatternId,
@@ -20,17 +22,25 @@ import type {
   WeaponId
 } from '../../../game-config/types';
 import { ASSET_CATALOG, BOSS_CATALOG, ENEMY_CATALOG } from '../../../game-config/catalog';
+import { DEFAULT_RECORD_CARD_CONFIG } from '../../../game-config/recordCard';
 import { EditorIcon } from './EditorIcon';
+import {
+  SPRITE_ASSET_DRAG_MIME,
+  SpriteWorkshop,
+  type SpriteStyle
+} from './SpriteWorkshop';
 
-export type InspectorTab = 'wave' | 'boss' | 'level';
+export type InspectorTab = 'wave' | 'boss' | 'level' | 'card';
 
 interface EditorInspectorProps {
+  recordCard: RecordCardConfig;
   level: LevelDefinition;
   wave: WaveDefinition;
   selectedEventId: string;
   tab: InspectorTab;
   onTabChange: (tab: InspectorTab) => void;
   onSelectEvent: (eventId: string) => void;
+  onUpdateRecordCard: (recordCard: RecordCardConfig) => void;
   onUpdateLevel: (patch: Partial<LevelDefinition>) => void;
   onUpdateWave: (patch: Partial<WaveDefinition>) => void;
   onUpdateEvent: (nextEvent: WaveEvent) => void;
@@ -59,6 +69,7 @@ const toAssetOptions = (keys: readonly AssetKey[]) => [...new Set(keys)].map((va
 const ENEMY_SPRITES = toAssetOptions(ENEMIES.map((enemy) => enemy.spriteKey));
 const BOSS_SPRITES = toAssetOptions(BOSSES.map((boss) => boss.spriteKey));
 const ASTEROID_SPRITES = toAssetOptions(['ENEMY_BRICK_FRAMES']);
+const CARD_ASSETS = toAssetOptions(Object.keys(ASSET_CATALOG) as AssetKey[]);
 
 const PATTERNS: Array<{ value: SpawnPatternId; label: string }> = [
   { value: 'single-random', label: 'Single / random' },
@@ -163,29 +174,57 @@ function AssetSelectField({
   label,
   value,
   options,
-  onChange
+  onChange,
+  style = {},
+  onStyleChange
 }: {
   label: string;
   value: AssetKey;
   options: Array<{ value: AssetKey; label: string }>;
   onChange: (value: AssetKey) => void;
+  style?: SpriteStyle;
+  onStyleChange?: (style: SpriteStyle) => void;
 }) {
+  const [workshopOpen, setWorkshopOpen] = useState(false);
   const selected = ASSET_CATALOG[value] ?? ASSET_CATALOG[options[0].value];
   return (
-    <label className="le-field le-asset-field">
+    <div className="le-field le-asset-field">
       <span>{label}</span>
-      <span className="le-asset-field__preview" aria-hidden="true">
+      <span
+        className="le-asset-field__preview"
+        draggable
+        title="Drag this real game sprite onto the preview in Place mode"
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = 'copy';
+          event.dataTransfer.setData(SPRITE_ASSET_DRAG_MIME, value);
+        }}
+      >
         {selected.paths.map((path, index) => (
           <img key={path} src={path} alt="" loading="lazy" decoding="async" draggable={false} title={`${selected.label} frame ${index + 1}`} />
         ))}
       </span>
-      <select value={value} onChange={(event) => onChange(event.target.value as AssetKey)}>
+      <select aria-label={label} value={value} onChange={(event) => onChange(event.target.value as AssetKey)}>
         {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
       <small className="le-asset-field__meta">
         {selected.paths.length === 1 ? 'Single image' : `${selected.paths.length} animation frames`} / {selected.id}
       </small>
-    </label>
+      {onStyleChange ? (
+        <button className="le-button le-sprite-workshop-button" type="button" onClick={() => setWorkshopOpen(true)}>
+          <EditorIcon name="edit" /> Open Sprite Workshop
+        </button>
+      ) : null}
+      {workshopOpen && onStyleChange ? (
+        <SpriteWorkshop
+          assetKey={value}
+          allowedAssetKeys={options.map((option) => option.value)}
+          style={style}
+          onAssetChange={onChange}
+          onStyleChange={onStyleChange}
+          onClose={() => setWorkshopOpen(false)}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -313,7 +352,14 @@ function WaveSettings({
               const selected = ENEMIES.find((item) => item.id === enemyId)!;
               updateEnemy({ enemyId, spriteKey: selected.spriteKey });
             }} />
-            <AssetSelectField label="Enemy sprite" value={enemy.spriteKey} options={ENEMY_SPRITES} onChange={(spriteKey) => updateEnemy({ spriteKey })} />
+            <AssetSelectField
+              label="Enemy sprite"
+              value={enemy.spriteKey}
+              options={ENEMY_SPRITES}
+              style={enemy.spriteStyle ?? {}}
+              onChange={(spriteKey) => updateEnemy({ spriteKey })}
+              onStyleChange={(spriteStyle) => updateEnemy({ spriteStyle })}
+            />
             <div className="le-field-row">
               <NumberField label="Speed" value={enemy.speed} onChange={(speed) => updateEnemy({ speed })} min={0.1} max={20} step={0.1} unit="×" />
               <NumberField label="Health" value={enemy.health} onChange={(health) => updateEnemy({ health })} min={1} max={10000} step={1} unit="HP" />
@@ -359,7 +405,14 @@ function AsteroidSettings({
         <button className="le-icon-button" type="button" title="Add boss encounter" aria-label="Add boss encounter" onClick={() => onAddEvent('boss')}><EditorIcon name="add" /></button>
       </div>
       <EventTiming event={asteroid} onChange={onUpdateEvent} />
-      <AssetSelectField label="Asteroid sprite" value={asteroid.spriteKey} options={ASTEROID_SPRITES} onChange={(spriteKey) => updateAsteroid({ spriteKey })} />
+      <AssetSelectField
+        label="Asteroid sprite"
+        value={asteroid.spriteKey}
+        options={ASTEROID_SPRITES}
+        style={asteroid.spriteStyle ?? {}}
+        onChange={(spriteKey) => updateAsteroid({ spriteKey })}
+        onStyleChange={(spriteStyle) => updateAsteroid({ spriteStyle })}
+      />
       <SelectField label="Belt pattern" value={asteroid.patternId} options={PATTERNS} onChange={(patternId) => updateAsteroid({ patternId })} />
       <SelectField label="Spawn position" value={asteroid.positionId} options={POSITIONS} onChange={(positionId) => updateAsteroid({ positionId })} />
       <div className="le-field-row">
@@ -458,7 +511,14 @@ function BossSettings({
             const selected = BOSSES.find((item) => item.id === bossId)!;
             updateBoss({ bossId, spriteKey: selected.spriteKey, movementPatternId: selected.movement });
           }} />
-          <AssetSelectField label="Boss sprite" value={boss.spriteKey} options={BOSS_SPRITES} onChange={(spriteKey) => updateBoss({ spriteKey })} />
+          <AssetSelectField
+            label="Boss sprite"
+            value={boss.spriteKey}
+            options={BOSS_SPRITES}
+            style={boss.spriteStyle ?? {}}
+            onChange={(spriteKey) => updateBoss({ spriteKey })}
+            onStyleChange={(spriteStyle) => updateBoss({ spriteStyle })}
+          />
           <SelectField label="Movement pattern" value={boss.movementPatternId} options={MOVEMENTS} onChange={(movementPatternId) => updateBoss({ movementPatternId })} />
           <SelectField label="Spawn position" value={boss.positionId} options={POSITIONS} onChange={(positionId) => updateBoss({ positionId })} />
           <div className="le-field-row">
@@ -579,12 +639,133 @@ function LevelSettings({ level, onUpdateLevel }: Pick<EditorInspectorProps, 'lev
   );
 }
 
+function CardColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="le-field le-color-field">
+      <span>{label}</span>
+      <span>
+        <input type="color" value={value} onChange={(event) => onChange(event.target.value.toUpperCase())} />
+        <code>{value.toUpperCase()}</code>
+      </span>
+    </label>
+  );
+}
+
+function CardRegionSettings({
+  label,
+  region,
+  onChange
+}: {
+  label: string;
+  region: RecordCardArtRegion;
+  onChange: (patch: Partial<RecordCardArtRegion>) => void;
+}) {
+  return (
+    <fieldset className="le-fieldset">
+      <legend>{label}</legend>
+      <label className="le-check-row">
+        <input type="checkbox" checked={region.visible} onChange={(event) => onChange({ visible: event.target.checked })} />
+        <span>Show this artwork</span>
+      </label>
+      <div className="le-field-row">
+        <NumberField label="X" value={region.x} onChange={(x) => onChange({ x: Math.round(x) })} min={0} max={1200 - region.width} unit="px" />
+        <NumberField label="Y" value={region.y} onChange={(y) => onChange({ y: Math.round(y) })} min={0} max={1200 - region.height} unit="px" />
+      </div>
+      <div className="le-field-row">
+        <NumberField label="Width" value={region.width} onChange={(width) => onChange({ width: Math.round(width), x: Math.min(region.x, 1200 - width) })} min={40} max={1200 - region.x} unit="px" />
+        <NumberField label="Height" value={region.height} onChange={(height) => onChange({ height: Math.round(height), y: Math.min(region.y, 1200 - height) })} min={40} max={1200 - region.y} unit="px" />
+      </div>
+      <div className="le-field-row">
+        <NumberField label="Rotation" value={region.rotation} onChange={(rotation) => onChange({ rotation })} min={-180} max={180} unit="°" />
+        <NumberField label="Opacity" value={Math.round(region.opacity * 100)} onChange={(opacity) => onChange({ opacity: opacity / 100 })} min={0} max={100} unit="%" />
+      </div>
+    </fieldset>
+  );
+}
+
+function CardSettings({ recordCard, onUpdateRecordCard }: Pick<EditorInspectorProps, 'recordCard' | 'onUpdateRecordCard'>) {
+  const updateCopy = (patch: Partial<RecordCardConfig['copy']>) => onUpdateRecordCard({
+    ...recordCard,
+    copy: { ...recordCard.copy, ...patch }
+  });
+  const updateColors = (patch: Partial<RecordCardConfig['colors']>) => onUpdateRecordCard({
+    ...recordCard,
+    colors: { ...recordCard.colors, ...patch }
+  });
+  const updateRegion = (regionId: 'ship' | 'encounter', patch: Partial<RecordCardArtRegion>) => onUpdateRecordCard({
+    ...recordCard,
+    art: { ...recordCard.art, [regionId]: { ...recordCard.art[regionId], ...patch } }
+  });
+
+  return (
+    <>
+      <div className="le-inspector-title"><p>Shared production visual</p><h2>Mission / NFT card</h2></div>
+      <p className="le-inspector-note">This is the same SVG used by the in-game mission record and generated share/NFT image. Only local sample data is shown here.</p>
+      <TextField label="Title" value={recordCard.copy.title} onChange={(title) => updateCopy({ title })} />
+      <TextField label="Subtitle" value={recordCard.copy.subtitle} onChange={(subtitle) => updateCopy({ subtitle })} />
+      <div className="le-field-row">
+        <TextField label="Callsign label" value={recordCard.copy.callsignLabel} onChange={(callsignLabel) => updateCopy({ callsignLabel })} />
+        <TextField label="Score label" value={recordCard.copy.scoreLabel} onChange={(scoreLabel) => updateCopy({ scoreLabel })} />
+      </div>
+      <div className="le-field-row">
+        <TextField label="Verified label" value={recordCard.copy.verifiedLabel} onChange={(verifiedLabel) => updateCopy({ verifiedLabel })} />
+        <TextField label="Review label" value={recordCard.copy.reviewLabel} onChange={(reviewLabel) => updateCopy({ reviewLabel })} />
+      </div>
+
+      <fieldset className="le-fieldset">
+        <legend>Artwork</legend>
+        <AssetSelectField label="Ship art" value={recordCard.shipAssetKey} options={CARD_ASSETS} onChange={(shipAssetKey) => onUpdateRecordCard({ ...recordCard, shipAssetKey })} />
+        <label className="le-field">
+          <span>Encounter art</span>
+          <select value={recordCard.encounterAssetKey} onChange={(event) => onUpdateRecordCard({ ...recordCard, encounterAssetKey: event.target.value as RecordCardConfig['encounterAssetKey'] })}>
+            <option value="AUTO">Automatic from the real wave</option>
+            {CARD_ASSETS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        {recordCard.encounterAssetKey !== 'AUTO' ? (
+          <span
+            className="le-asset-field__preview le-card-asset-preview"
+            draggable
+            title="Drag onto the encounter region"
+            onDragStart={(event) => {
+              event.dataTransfer.effectAllowed = 'copy';
+              event.dataTransfer.setData(SPRITE_ASSET_DRAG_MIME, recordCard.encounterAssetKey);
+            }}
+          >
+            <img src={ASSET_CATALOG[recordCard.encounterAssetKey].paths[0]} alt="" draggable={false} />
+          </span>
+        ) : null}
+        <small className="le-asset-field__meta">Drag the selected asset preview onto either outlined card region.</small>
+      </fieldset>
+
+      <fieldset className="le-fieldset">
+        <legend>Color system</legend>
+        <div className="le-field-row"><CardColorField label="Background" value={recordCard.colors.background} onChange={(background) => updateColors({ background })} /><CardColorField label="Panel" value={recordCard.colors.panel} onChange={(panel) => updateColors({ panel })} /></div>
+        <div className="le-field-row"><CardColorField label="Primary" value={recordCard.colors.primary} onChange={(primary) => updateColors({ primary })} /><CardColorField label="Secondary" value={recordCard.colors.secondary} onChange={(secondary) => updateColors({ secondary })} /></div>
+        <div className="le-field-row"><CardColorField label="Success" value={recordCard.colors.success} onChange={(success) => updateColors({ success })} /><CardColorField label="Warning" value={recordCard.colors.warning} onChange={(warning) => updateColors({ warning })} /></div>
+        <div className="le-field-row"><CardColorField label="Text" value={recordCard.colors.text} onChange={(text) => updateColors({ text })} /><CardColorField label="Muted" value={recordCard.colors.muted} onChange={(muted) => updateColors({ muted })} /></div>
+        <label className="le-check-row"><input type="checkbox" checked={recordCard.showGrid} onChange={(event) => onUpdateRecordCard({ ...recordCard, showGrid: event.target.checked })} /><span>Show tactical grid</span></label>
+      </fieldset>
+
+      <CardRegionSettings label="Ship region" region={recordCard.art.ship} onChange={(patch) => updateRegion('ship', patch)} />
+      <CardRegionSettings label="Encounter region" region={recordCard.art.encounter} onChange={(patch) => updateRegion('encounter', patch)} />
+      <button className="le-button" type="button" onClick={() => onUpdateRecordCard({
+        ...recordCard,
+        art: {
+          ship: { ...DEFAULT_RECORD_CARD_CONFIG.art.ship },
+          encounter: { ...DEFAULT_RECORD_CARD_CONFIG.art.encounter }
+        }
+      })}><EditorIcon name="restart" /> Reset card layout</button>
+    </>
+  );
+}
+
 export function EditorInspector(props: EditorInspectorProps) {
   const selectedEvent = props.wave.events.find((event) => event.id === props.selectedEventId);
   return (
     <aside className="le-inspector" aria-label="Level and wave settings">
       <nav className="le-inspector-tabs" aria-label="Settings categories">
-        {(['wave', 'boss', 'level'] as const).map((tab) => (
+        {(['wave', 'boss', 'level', 'card'] as const).map((tab) => (
           <button key={tab} type="button" className={props.tab === tab ? 'is-selected' : ''} aria-current={props.tab === tab ? 'page' : undefined} onClick={() => props.onTabChange(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>
         ))}
       </nav>
@@ -593,6 +774,7 @@ export function EditorInspector(props: EditorInspectorProps) {
         {props.tab === 'boss' && selectedEvent?.kind === 'asteroid-belt' ? <AsteroidSettings {...props} /> : null}
         {props.tab === 'boss' && selectedEvent?.kind !== 'asteroid-belt' ? <BossSettings {...props} /> : null}
         {props.tab === 'level' ? <LevelSettings {...props} /> : null}
+        {props.tab === 'card' ? <CardSettings {...props} /> : null}
       </div>
     </aside>
   );

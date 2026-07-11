@@ -8,6 +8,7 @@ import type {
   BossEvent,
   GameCampaign,
   LevelDefinition,
+  SpriteStyle,
   SpawnEvent,
   WaveDefinition
 } from '../game-config/types';
@@ -83,6 +84,7 @@ export class Entity {
   hitTargetIds?: Set<string>;
   spriteUrl?: string;
   spriteFrames?: string[];
+  spriteStyle?: SpriteStyle;
   scoreValue?: number;
   scoreReward?: number;
   powerupDropChance?: number;
@@ -96,6 +98,9 @@ export class Entity {
   weaponKinds: string[] = [];
   configuredBurstCount?: number;
   completesWave: boolean = false;
+  /** Configuration provenance used by the local visual editor. */
+  sourceEventId?: string;
+  sourceItemId?: string;
   
   constructor(type: EntityType, x: number, y: number) {
     this.id = Math.random().toString(36).substr(2, 9);
@@ -408,6 +413,7 @@ type BossWarningType = 'mini1' | 'wall' | 'asteroid' | 'gatekeeper';
 type RuntimeSpawnEnemy = {
   enemyId: string;
   spriteKey?: string;
+  spriteStyle?: SpriteStyle;
   weight: number;
   health: number;
   speed: number;
@@ -490,6 +496,7 @@ type EnemyRuntimeOverrides = {
   powerupDropChance?: number;
   spriteUrl?: string;
   spriteFrames?: string[];
+  spriteStyle?: SpriteStyle;
 };
 
 export interface GameEngineOptions {
@@ -512,6 +519,28 @@ export interface GameRuntimeState {
   complete: boolean;
 }
 
+export interface GameEditorEntitySnapshot {
+  readonly id: string;
+  readonly sourceEventId: string;
+  readonly sourceItemId: string | null;
+  readonly type: EntityType;
+  /** Normalized canvas bounds. Values may extend slightly outside 0..1 while entering. */
+  readonly bounds: Readonly<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>;
+}
+
+export interface GameEditorSnapshot {
+  readonly viewport: Readonly<{
+    width: number;
+    height: number;
+  }>;
+  readonly entities: ReadonlyArray<Readonly<GameEditorEntitySnapshot>>;
+}
+
 export interface GameEngineDebugSnapshot {
   readonly runtime: Readonly<GameRuntimeState>;
   readonly difficultyMultiplier: number;
@@ -532,6 +561,7 @@ export interface GameEngineDebugSnapshot {
     powerupDropChance: number | null;
     attackIntervalFrames: number | null;
     spriteUrl: string | null;
+    spriteStyle: Readonly<SpriteStyle> | null;
   }>>;
 }
 
@@ -757,7 +787,8 @@ export class GameEngine {
         scoreValue: Number.isFinite(entity.scoreValue) ? entity.scoreValue as number : null,
         powerupDropChance: Number.isFinite(entity.powerupDropChance) ? entity.powerupDropChance as number : null,
         attackIntervalFrames: Number.isFinite(entity.attackIntervalFrames) ? entity.attackIntervalFrames as number : null,
-        spriteUrl: entity.spriteUrl ?? null
+        spriteUrl: entity.spriteUrl ?? null,
+        spriteStyle: entity.spriteStyle ? Object.freeze({ ...entity.spriteStyle }) : null
       })));
     return Object.freeze({
       runtime,
@@ -766,6 +797,35 @@ export class GameEngine {
       configuredSpawnCounts,
       entities
     });
+  }
+
+  getEditorSnapshot(): Readonly<GameEditorSnapshot> {
+    const width = Math.max(1, this.width);
+    const height = Math.max(1, this.height);
+    const viewport = Object.freeze({ width, height });
+    const entities = Object.freeze(this.entities
+      .filter((entity) => (
+        !entity.markedForDeletion
+        && Boolean(entity.sourceEventId)
+        && entity.x + entity.width >= 0
+        && entity.x <= width
+        && entity.y + entity.height >= 0
+        && entity.y <= height
+      ))
+      .map((entity) => Object.freeze({
+        id: entity.id,
+        sourceEventId: entity.sourceEventId as string,
+        sourceItemId: entity.sourceItemId ?? null,
+        type: entity.type,
+        bounds: Object.freeze({
+          x: entity.x / width,
+          y: entity.y / height,
+          width: entity.width / width,
+          height: entity.height / height
+        })
+      })));
+
+    return Object.freeze({ viewport, entities });
   }
 
   loadPreviewWave(levelId: string, waveId: string) {
@@ -821,6 +881,7 @@ export class GameEngine {
       yOffset?: number;
       filter?: string;
       compositeOperation?: GlobalCompositeOperation;
+      spriteStyle?: SpriteStyle;
     } = {}
   ) {
     const img = getReadyImage(url);
@@ -828,13 +889,33 @@ export class GameEngine {
       return false;
     }
 
+    const spriteStyle = options.spriteStyle;
+    const styleFilters: string[] = [];
+    if (spriteStyle?.hueRotateDegrees !== undefined) {
+      styleFilters.push(`hue-rotate(${spriteStyle.hueRotateDegrees}deg)`);
+    }
+    if (spriteStyle?.saturation !== undefined) {
+      styleFilters.push(`saturate(${spriteStyle.saturation})`);
+    }
+    if (spriteStyle?.brightness !== undefined) {
+      styleFilters.push(`brightness(${spriteStyle.brightness})`);
+    }
+    const filter = [options.filter, ...styleFilters].filter(Boolean).join(' ');
+    const rotation = (options.rotation ?? 0) + (((spriteStyle?.rotationDegrees ?? 0) * Math.PI) / 180);
+    const scale = spriteStyle?.scale ?? 1;
+
     ctx.save();
-    ctx.globalAlpha = options.alpha ?? 1;
+    ctx.globalAlpha = (options.alpha ?? 1) * (spriteStyle?.opacity ?? 1);
     if (options.shadowColor) ctx.shadowColor = options.shadowColor;
     if (options.shadowBlur) ctx.shadowBlur = this.getGlowBlur(options.shadowBlur);
+    if (spriteStyle?.glowColor !== undefined) ctx.shadowColor = spriteStyle.glowColor;
+    if (spriteStyle?.glowBlur !== undefined) ctx.shadowBlur = this.getGlowBlur(spriteStyle.glowBlur);
     if (options.compositeOperation) ctx.globalCompositeOperation = options.compositeOperation;
-    if (options.filter) ctx.filter = options.filter;
-    if (options.rotation) ctx.rotate(options.rotation);
+    if (filter) ctx.filter = filter;
+    if (rotation) ctx.rotate(rotation);
+    if (spriteStyle && (scale !== 1 || spriteStyle.flipX)) {
+      ctx.scale(spriteStyle.flipX ? -scale : scale, scale);
+    }
     const yOffset = options.yOffset ?? 0;
     ctx.drawImage(img, -width / 2, -height / 2 + yOffset, width, height);
     ctx.restore();
@@ -2398,6 +2479,8 @@ export class GameEngine {
       shield.formationSeed = (Math.PI * 2 * i) / count;
       shield.shieldHostId = boss.id;
       shield.variant = 300 + i;
+      shield.sourceEventId = boss.sourceEventId;
+      shield.sourceItemId = boss.sourceItemId;
       this.entities.push(shield);
     }
 
@@ -2687,6 +2770,29 @@ export class GameEngine {
     return enemies[enemies.length - 1];
   }
 
+  getConfiguredSpawnAnchor(event?: { spawnAnchor?: { x: number; y: number } }) {
+    const x = Number(event?.spawnAnchor?.x);
+    const y = Number(event?.spawnAnchor?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return {
+      x: clamp(x, 0, 1),
+      y: clamp(y, 0, 1)
+    };
+  }
+
+  getAnchoredTopLeft(
+    event: { spawnAnchor?: { x: number; y: number } } | undefined,
+    entityWidth: number,
+    entityHeight: number
+  ) {
+    const anchor = this.getConfiguredSpawnAnchor(event);
+    if (!anchor) return null;
+    return {
+      x: (anchor.x * this.width) - (entityWidth / 2),
+      y: (anchor.y * this.height) - (entityHeight / 2)
+    };
+  }
+
   getConfiguredSpawnPoint(event: RuntimeSpawnEvent, index: number, count: number) {
     const positionId = String(event.positionId || 'top-random').toLowerCase();
     const patternId = String(event.patternId || 'row').toLowerCase();
@@ -2711,7 +2817,20 @@ export class GameEngine {
       y -= (Math.sin(index * 1.35) + 1) * 28;
     }
 
-    return { x, y };
+    const anchor = this.getConfiguredSpawnAnchor(event);
+    if (!anchor) return { x, y };
+
+    if (patternId.includes('single') || patternId.includes('random')) {
+      return {
+        x: anchor.x * this.width,
+        y: anchor.y * this.height
+      };
+    }
+
+    return {
+      x: x + ((anchor.x * this.width) - (this.width / 2)),
+      y: y + ((anchor.y * this.height) - (-60))
+    };
   }
 
   spawnConfiguredEnemies() {
@@ -2748,9 +2867,16 @@ export class GameEngine {
         scoreValue: Number(enemySetting.scoreValue),
         powerupDropChance: Number(enemySetting.powerupDropChance),
         spriteUrl: this.resolveSpriteUrl(enemySetting.spriteKey, enemyType),
-        spriteFrames: this.resolveSpriteFrames(enemySetting.spriteKey)
+        spriteFrames: this.resolveSpriteFrames(enemySetting.spriteKey),
+        spriteStyle: enemySetting.spriteStyle
       });
       const patternId = String(event.patternId || '').toLowerCase();
+      if (this.getConfiguredSpawnAnchor(event) && (patternId.includes('single') || patternId.includes('random'))) {
+        enemy.x -= enemy.width / 2;
+        enemy.y -= enemy.height / 2;
+      }
+      enemy.sourceEventId = event.id;
+      enemy.sourceItemId = enemySetting.enemyId;
       enemy.formation = patternId.includes('pincer')
         ? 'pincer'
         : patternId.includes('sine') || patternId.includes('wave')
@@ -2794,21 +2920,40 @@ export class GameEngine {
             }
           }
         }
-        this.spawnPowerup(Math.random() * Math.max(1, this.width - 40), -40, powerupId);
+        const anchor = this.getConfiguredSpawnAnchor(event);
+        const powerup = this.spawnPowerup(
+          anchor ? (anchor.x * this.width) - 18 : Math.random() * Math.max(1, this.width - 40),
+          anchor ? (anchor.y * this.height) - 18 : -40,
+          powerupId
+        );
+        powerup.sourceEventId = event.id;
+        powerup.sourceItemId = powerupId;
         this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
         this.configuredSpawnCounts.set(event.id, (this.configuredSpawnCounts.get(event.id) || 0) + 1);
       } else if (event.kind === 'recovery' && !this.configuredEncounterIds.has(event.id)) {
         if (elapsedSeconds < Math.max(0, Number(event.startSeconds) || 0)) continue;
         this.configuredEncounterIds.add(event.id);
         const coinCount = Math.max(0, Math.floor(Number(event.coinCount) || 0));
+        const anchor = this.getConfiguredSpawnAnchor(event);
         for (let index = 0; index < coinCount; index++) {
-          this.spawnCoin(
-            this.width * ((index + 1) / Math.max(2, coinCount + 1)),
-            -30 - index * 22
+          const coin = this.spawnCoin(
+            this.width * ((index + 1) / Math.max(2, coinCount + 1)) + (anchor ? (anchor.x * this.width) - (this.width / 2) : 0),
+            -30 - index * 22 + (anchor ? (anchor.y * this.height) - (-30) : 0)
           );
+          coin.sourceEventId = event.id;
+          coin.sourceItemId = 'coin';
         }
-        for (const powerupId of event.powerupIds || []) {
-          this.spawnPowerup(Math.random() * Math.max(1, this.width - 40), -50, powerupId);
+        const powerupIds = event.powerupIds || [];
+        for (const [index, powerupId] of powerupIds.entries()) {
+          const powerup = this.spawnPowerup(
+            anchor
+              ? (anchor.x * this.width) - 18 + ((index - ((powerupIds.length - 1) / 2)) * 44)
+              : Math.random() * Math.max(1, this.width - 40),
+            anchor ? (anchor.y * this.height) - 18 : -50,
+            powerupId
+          );
+          powerup.sourceEventId = event.id;
+          powerup.sourceItemId = powerupId;
         }
       }
     }
@@ -2979,6 +3124,7 @@ export class GameEngine {
       e.spriteFrames = [...overrides.spriteFrames];
       e.spriteFrames.forEach(loadImage);
     }
+    if (overrides.spriteStyle) e.spriteStyle = { ...overrides.spriteStyle };
     e.maxHp = e.hp;
     this.entities.push(e);
     return e;
@@ -2986,7 +3132,12 @@ export class GameEngine {
 
   spawnMiniBoss(_num: number, configured?: RuntimeBossEvent) {
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
-    const mb = new Entity(EntityType.MINI_BOSS, this.width/2 - 50, -100);
+    const anchoredPosition = this.getAnchoredTopLeft(configured, 140, 160);
+    const mb = new Entity(
+      EntityType.MINI_BOSS,
+      anchoredPosition?.x ?? this.width/2 - 50,
+      anchoredPosition?.y ?? -100
+    );
     mb.width = 140;
     mb.height = 160;
     mb.hp = configured
@@ -2999,6 +3150,7 @@ export class GameEngine {
     if (configured) {
       const weapon = configured.weapons?.[0];
       mb.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.MINI_BOSS);
+      if (configured.spriteStyle) mb.spriteStyle = { ...configured.spriteStyle };
       mb.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
       mb.projectileDamage = Math.max(0, (Number(weapon?.damage ?? configured.damage) || 1) * difficultyMultiplier);
       mb.projectileSpeed = Math.max(0.1, (Number(weapon?.projectileSpeed) || 5) * difficultyMultiplier);
@@ -3011,6 +3163,8 @@ export class GameEngine {
       mb.scoreReward = Math.max(0, Number(configured.scoreReward) || 0);
       mb.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
       mb.phaseThresholds = configured.phases.map((phase) => Number(phase.triggerHealthRatio)).filter(Number.isFinite);
+      mb.sourceEventId = configured.id;
+      mb.sourceItemId = configured.bossId;
       if (mb.spriteUrl) loadImage(mb.spriteUrl);
     }
     this.miniBossRef = mb;
@@ -3025,12 +3179,18 @@ export class GameEngine {
     const blockW = isMobile ? 42 : 52;
     const blockH = isMobile ? 50 : 60;
     const gap = 4;
-    const startX = (this.width - ((blockW+gap)*cols))/2;
+    const anchoredPosition = this.getAnchoredTopLeft(
+      configured,
+      (blockW * cols) + (gap * Math.max(0, cols - 1)),
+      (blockH * rows) + (gap * Math.max(0, rows - 1))
+    );
+    const startX = anchoredPosition?.x ?? (this.width - ((blockW+gap)*cols))/2;
+    const startY = anchoredPosition?.y ?? -200;
     
     const segmentCount = rows * cols;
     for (let r=0; r<rows; r++) {
         for (let c=0; c<cols; c++) {
-            const e = new Entity(EntityType.ENEMY_INVADER, startX + c*(blockW+gap), -200 + r*(blockH+gap));
+            const e = new Entity(EntityType.ENEMY_INVADER, startX + c*(blockW+gap), startY + r*(blockH+gap));
             e.width = blockW;
             e.height = blockH;
             e.hp = configured
@@ -3044,6 +3204,7 @@ export class GameEngine {
             if (configured) {
               const weapon = configured.weapons?.[0];
               e.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.ENEMY_INVADER);
+              if (configured.spriteStyle) e.spriteStyle = { ...configured.spriteStyle };
               e.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
               e.projectileDamage = Math.max(0, (Number(weapon?.damage ?? configured.damage) || 1) * difficultyMultiplier);
               e.projectileSpeed = Math.max(0.1, (Number(weapon?.projectileSpeed) || 5.4) * difficultyMultiplier);
@@ -3055,6 +3216,8 @@ export class GameEngine {
               e.scoreValue = Math.max(0, Math.round((Number(configured.scoreReward) || 0) / segmentCount));
               e.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
               e.configuredSpeed = Math.max(0.1, (Number(configured.speed) || 1.15) * difficultyMultiplier);
+              e.sourceEventId = configured.id;
+              e.sourceItemId = configured.bossId;
               if (e.spriteUrl) loadImage(e.spriteUrl);
             }
             this.entities.push(e);
@@ -3070,16 +3233,23 @@ export class GameEngine {
       : Math.min(24, 12 + (this.wave * 3));
     const lanes = Math.max(4, Math.min(7, Math.floor(this.width / 88)));
     const laneWidth = this.width / lanes;
+    const anchor = this.getConfiguredSpawnAnchor(configured);
+    const rowCount = Math.max(1, Math.ceil(count / lanes));
+    const defaultCenterY = -140 - (((rowCount - 1) * 72) / 2) - 22.5;
+    const anchorOffsetX = anchor ? (anchor.x * this.width) - (this.width / 2) : 0;
+    const anchorOffsetY = anchor ? (anchor.y * this.height) - defaultCenterY : 0;
     this.asteroidBeltMaxCount = count;
 
     for (let i = 0; i < count; i++) {
       const lane = i % lanes;
       const jitter = (Math.random() - 0.5) * laneWidth * 0.5;
       const size = 42 + Math.random() * 28 + (this.wave * 2);
+      const defaultX = Math.max(8, Math.min(this.width - size - 8, (lane * laneWidth) + (laneWidth / 2) - (size / 2) + jitter));
+      const defaultY = -140 - (Math.floor(i / lanes) * 72) - (Math.random() * 45);
       const asteroid = new Entity(
         EntityType.ENEMY_BRICK,
-        Math.max(8, Math.min(this.width - size - 8, (lane * laneWidth) + (laneWidth / 2) - (size / 2) + jitter)),
-        -140 - (Math.floor(i / lanes) * 72) - (Math.random() * 45)
+        defaultX + anchorOffsetX,
+        defaultY + anchorOffsetY
       );
 
       asteroid.width = size;
@@ -3097,9 +3267,12 @@ export class GameEngine {
       if (configured) {
         asteroid.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.ENEMY_BRICK);
         asteroid.spriteFrames = this.resolveSpriteFrames(configured.spriteKey);
+        if (configured.spriteStyle) asteroid.spriteStyle = { ...configured.spriteStyle };
         asteroid.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
         asteroid.scoreValue = Math.max(0, Number(configured.scoreValue) || 0);
         asteroid.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
+        asteroid.sourceEventId = configured.id;
+        asteroid.sourceItemId = 'asteroid-belt';
         if (asteroid.spriteUrl) loadImage(asteroid.spriteUrl);
         asteroid.spriteFrames?.forEach(loadImage);
       }
@@ -3195,7 +3368,12 @@ export class GameEngine {
 
   spawnBoss(configured?: RuntimeBossEvent) {
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
-    const boss = new Entity(EntityType.BOSS, this.width / 2 - 100, -200);
+    const anchoredPosition = this.getAnchoredTopLeft(configured, 220, 200);
+    const boss = new Entity(
+      EntityType.BOSS,
+      anchoredPosition?.x ?? this.width / 2 - 100,
+      anchoredPosition?.y ?? -200
+    );
     const phase = Math.max(1, this.stats.wave);
     boss.width = 220;
     boss.height = 200;
@@ -3211,6 +3389,7 @@ export class GameEngine {
     if (configured) {
       const weapon = configured.weapons?.[0];
       boss.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.BOSS);
+      if (configured.spriteStyle) boss.spriteStyle = { ...configured.spriteStyle };
       boss.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
       boss.projectileDamage = Math.max(0, (Number(weapon?.damage ?? configured.damage) || 1) * difficultyMultiplier);
       boss.projectileSpeed = Math.max(0.1, (Number(weapon?.projectileSpeed) || 6.5) * difficultyMultiplier);
@@ -3224,6 +3403,8 @@ export class GameEngine {
       boss.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
       boss.phaseThresholds = configured.phases.map((healthPhase) => Number(healthPhase.triggerHealthRatio)).filter(Number.isFinite);
       boss.completesWave = true;
+      boss.sourceEventId = configured.id;
+      boss.sourceItemId = configured.bossId;
       if (boss.spriteUrl) loadImage(boss.spriteUrl);
     }
     this.bossRef = boss;
@@ -3408,6 +3589,7 @@ export class GameEngine {
     p.height = 36;
     p.vy = 2.0;
     this.entities.push(p);
+    return p;
   }
 
   spawnBombDrop(x: number, y: number) {
@@ -3428,6 +3610,7 @@ export class GameEngine {
     c.vx = randomRange(-0.25, 0.25);
     c.variant = Math.floor(Math.random() * 1000);
     this.entities.push(c);
+    return c;
   }
 
   spawnExplosion(x: number, y: number, color: string) {
@@ -4118,7 +4301,8 @@ export class GameEngine {
         const drewSprite = this.drawSprite(ctx, flashSprite, e.width, e.height, {
           alpha: 0.92,
           filter: 'brightness(0) saturate(0) invert(1)',
-          compositeOperation: 'lighter'
+          compositeOperation: 'lighter',
+          spriteStyle: e.spriteStyle
         });
 
         if (drewSprite) {
@@ -4175,7 +4359,8 @@ export class GameEngine {
       const drewSprite = this.drawSprite(ctx, e.spriteUrl || ASSETS.MINI_BOSS, e.width, e.height, {
         shadowColor: '#fb7185',
         shadowBlur: 22,
-        yOffset: bob
+        yOffset: bob,
+        spriteStyle: e.spriteStyle
       });
 
       if (!drewSprite) {
@@ -4204,7 +4389,8 @@ export class GameEngine {
       const drewSprite = this.drawSprite(ctx, e.spriteUrl || skin.sprite, e.width, e.height, {
         shadowColor: e.isCharging ? '#ffffff' : skin.shadow,
         shadowBlur: pulse,
-        yOffset: bob
+        yOffset: bob,
+        spriteStyle: e.spriteStyle
       });
 
       if (!drewSprite) {
@@ -4527,7 +4713,8 @@ export class GameEngine {
           : e.spriteUrl || this.getAnimatedFrame(ASSETS.ENEMY_DRONE_FRAMES, e, 6);
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             shadowColor: '#38bdf8',
-            shadowBlur: 10
+            shadowBlur: 10,
+            spriteStyle: e.spriteStyle
         });
         if (!drewSprite) {
             ctx.fillStyle = e.color;
@@ -4542,7 +4729,8 @@ export class GameEngine {
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             rotation,
             shadowColor: e.formation === 'orbit' ? '#a7f3d0' : '#34d399',
-            shadowBlur: e.formation === 'orbit' ? 14 : 8
+            shadowBlur: e.formation === 'orbit' ? 14 : 8,
+            spriteStyle: e.spriteStyle
         });
         if (!drewSprite) {
             ctx.fillStyle = e.color;
@@ -4557,7 +4745,8 @@ export class GameEngine {
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             rotation,
             shadowColor: '#f59e0b',
-            shadowBlur: 6
+            shadowBlur: 6,
+            spriteStyle: e.spriteStyle
         });
         if (!drewSprite) {
             ctx.fillStyle = e.color;
@@ -4572,7 +4761,8 @@ export class GameEngine {
         const drewSprite = this.drawSprite(ctx, journalSprite, e.width, e.height, {
             rotation: sway,
             shadowColor: '#fb7185',
-            shadowBlur: 14
+            shadowBlur: 14,
+            spriteStyle: e.spriteStyle
         });
         if (!drewSprite) {
             ctx.fillStyle = e.color;
@@ -4618,7 +4808,8 @@ export class GameEngine {
         const drewSprite = this.drawSprite(ctx, e.spriteUrl || ASSETS.WALL_BOSS_SEGMENT, e.width, e.height, {
             rotation: sway,
             shadowColor: '#fb7185',
-            shadowBlur: 8
+            shadowBlur: 8,
+            spriteStyle: e.spriteStyle
         });
         if (drewSprite) {
             this.drawHitFlash(ctx, e);

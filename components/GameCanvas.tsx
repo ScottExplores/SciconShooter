@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { GameEngine, type GameRuntimeState } from '../services/gameLogic';
+import { GameEngine, type GameEditorSnapshot, type GameRuntimeState } from '../services/gameLogic';
 import type { GameCampaign } from '../game-config/types';
 import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
@@ -89,6 +89,8 @@ export interface GameCanvasProps {
   autoFire?: boolean;
   restartToken?: number;
   onRuntimeState?: (state: GameRuntimeState) => void;
+  /** Preview-only entity positions for direct manipulation in the local editor. */
+  onEditorSnapshot?: (snapshot: GameEditorSnapshot) => void;
 }
 
 const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -108,7 +110,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   audioEnabled = !previewMode,
   autoFire = false,
   restartToken = 0,
-  onRuntimeState
+  onRuntimeState,
+  onEditorSnapshot
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
@@ -129,6 +132,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const onGameOverRef = useRef(onGameOver);
   const onContinueStartedRef = useRef(onContinueStarted);
   const onRuntimeStateRef = useRef(onRuntimeState);
+  const onEditorSnapshotRef = useRef(onEditorSnapshot);
 
   useEffect(() => {
     onStatsChangeRef.current = onStatsChange;
@@ -147,6 +151,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [onRuntimeState]);
 
   useEffect(() => {
+    onEditorSnapshotRef.current = onEditorSnapshot;
+  }, [onEditorSnapshot]);
+
+  useEffect(() => {
     runningRef.current = running;
     if (!running) {
       activeTouchIdRef.current = null;
@@ -156,6 +164,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       gameOverSentRef.current = false;
       if (autoFire) keysRef.current[' '] = true;
       engineRef.current?.handleInput(keysRef.current, null);
+    }
+    if (engineRef.current && onEditorSnapshotRef.current) {
+      onEditorSnapshotRef.current(engineRef.current.getEditorSnapshot());
     }
   }, [autoFire, running]);
 
@@ -234,6 +245,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lastPublishedStatsRef.current = statsSnapshot;
     onStatsChangeRef.current(statsSnapshot);
     onRuntimeStateRef.current?.(engine.getRuntimeState());
+    onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
   }, [autoFire, levelId, previewMode, waveId]);
 
   useEffect(() => {
@@ -249,6 +261,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lastPublishedStatsRef.current = statsSnapshot;
     onStatsChangeRef.current(statsSnapshot);
     onRuntimeStateRef.current?.(engine.getRuntimeState());
+    onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
   }, [autoFire, previewMode, restartToken]);
 
   useEffect(() => {
@@ -336,6 +349,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lastStatsPublishTimeRef.current = 0;
     lastTimeRef.current = 0;
     onRuntimeStateRef.current?.(engine.getRuntimeState());
+    onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
 
     const publishHudStats = (force = false, timestamp = performance.now()) => {
       const elapsedMs = timestamp - lastStatsPublishTimeRef.current;
@@ -552,6 +566,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (timestamp - lastRuntimeStatePublishTime >= RUNTIME_STATE_SYNC_INTERVAL_MS) {
         lastRuntimeStatePublishTime = timestamp;
         onRuntimeStateRef.current?.(engine.getRuntimeState());
+        onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
       }
       
       requestRef.current = requestAnimationFrame(animate);

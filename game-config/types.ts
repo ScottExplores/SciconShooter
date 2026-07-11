@@ -44,12 +44,64 @@ export interface GameCampaignConfig {
   updatedAt: string;
   /** The real game simulation rate. Current and required default: 60. */
   fps: 60;
+  /** Shared by the in-game record, local Director, and NFT/share SVG renderer. */
+  recordCard: RecordCardConfig;
   /** At least one level is required. */
   levels: LevelDefinition[];
 }
 
 /** Compatibility-friendly short name for engine/editor consumers. */
 export type GameCampaign = GameCampaignConfig;
+
+export interface RecordCardCopy {
+  title: string;
+  subtitle: string;
+  callsignLabel: string;
+  scoreLabel: string;
+  verifiedLabel: string;
+  reviewLabel: string;
+  metricLabels: {
+    wave: string;
+    targets: string;
+    coins: string;
+    flight: string;
+  };
+}
+
+export interface RecordCardColors {
+  background: string;
+  panel: string;
+  primary: string;
+  secondary: string;
+  success: string;
+  warning: string;
+  text: string;
+  muted: string;
+}
+
+export interface RecordCardArtRegion {
+  /** 1200 x 1200 card design-space coordinates. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  opacity: number;
+  visible: boolean;
+}
+
+export interface RecordCardConfig {
+  copy: RecordCardCopy;
+  colors: RecordCardColors;
+  showGrid: boolean;
+  shipAssetKey: AssetKey;
+  /** AUTO keeps the encounter art selected by the real run/wave. */
+  encounterAssetKey: AssetKey | 'AUTO';
+  art: {
+    ship: RecordCardArtRegion;
+    encounter: RecordCardArtRegion;
+  };
+}
 
 export interface LevelDefinition {
   id: string;
@@ -121,11 +173,41 @@ export interface BaseWaveEvent {
   delayAfterSeconds: number;
   /** Boss-like encounters default true; normal spawns and pickups default false. */
   blocksWaveClock: boolean;
+  /**
+   * Optional normalized center point for this event's initial gameplay placement.
+   * Omit it to preserve the positionId preset and the original game behavior.
+   */
+  spawnAnchor?: {
+    x: number;
+    y: number;
+  };
+}
+
+/**
+ * Optional, non-destructive presentation applied while drawing a configured
+ * sprite. These values never change the entity's collision box.
+ */
+export interface SpriteStyle {
+  /** Uniform visual scale. Omit to preserve the renderer default. */
+  scale?: number;
+  /** Additional clockwise rotation composed with renderer animation. */
+  rotationDegrees?: number;
+  /** Mirror the artwork horizontally without changing movement or collision. */
+  flipX?: boolean;
+  opacity?: number;
+  hueRotateDegrees?: number;
+  saturation?: number;
+  brightness?: number;
+  /** Six-digit hexadecimal shadow color. */
+  glowColor?: string;
+  /** Canvas shadow blur in CSS pixels. */
+  glowBlur?: number;
 }
 
 export interface SpawnEnemySetting {
   enemyId: EnemyId;
   spriteKey: AssetKey;
+  spriteStyle?: SpriteStyle;
   /** Relative selection probability within the event; all rows must sum to 1. */
   weight: number;
   health: number;
@@ -173,6 +255,7 @@ export interface BossEvent extends BaseWaveEvent {
   kind: 'boss';
   bossId: BossId;
   spriteKey: AssetKey;
+  spriteStyle?: SpriteStyle;
   positionId: SpawnPositionId;
   movementPatternId: MovementPatternId;
   warningSeconds: number;
@@ -190,6 +273,7 @@ export interface BossEvent extends BaseWaveEvent {
 export interface AsteroidEvent extends BaseWaveEvent {
   kind: 'asteroid-belt';
   spriteKey: AssetKey;
+  spriteStyle?: SpriteStyle;
   count: number;
   /** Preview density from 0 to 1; count remains authoritative in gameplay. */
   density: number;

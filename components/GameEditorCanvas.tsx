@@ -2,9 +2,11 @@ import React, { useCallback, useState } from 'react';
 import type { GameCampaign } from '../game-config/types';
 import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress, spendStoredFlasks } from '../services/flaskProgress';
-import type { GameRuntimeState } from '../services/gameLogic';
+import type { GameEditorSnapshot, GameRuntimeState } from '../services/gameLogic';
 import { FieldUpgradeType, PowerupType, type GamePolishSettings, type Stats } from '../types';
 import GameStage from './GameStage';
+
+export type { GameEditorEntitySnapshot, GameEditorSnapshot } from '../services/gameLogic';
 
 const EDITOR_POLISH_SETTINGS: GamePolishSettings = {
   screenShake: true,
@@ -45,6 +47,7 @@ export interface GameEditorCanvasProps {
   playing: boolean;
   restartToken: number;
   onRuntimeState?: (state: GameRuntimeState) => void;
+  onEditorSnapshot?: (snapshot: GameEditorSnapshot) => void;
   onPlayingChange?: (playing: boolean) => void;
 }
 
@@ -55,6 +58,7 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
   playing,
   restartToken,
   onRuntimeState,
+  onEditorSnapshot,
   onPlayingChange
 }) => {
   const [stats, setStats] = useState<Stats>(createPreviewStats);
@@ -115,7 +119,8 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
         autoFire: true,
         restartToken,
         bombCommand,
-        onRuntimeState
+        onRuntimeState,
+        onEditorSnapshot
       }}
       hud={{
         showLabGlow: false,

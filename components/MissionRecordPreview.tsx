@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { ASSETS } from '../constants';
+import type { AssetKey } from '../game-config/types';
+import { resolveRecordCardEncounterAssetKey } from '../shared/record-card/renderRecordCardSvg.mjs';
+import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
 import type { RunReceipt } from '../services/runReceiptService';
 import { trackEvent } from '../services/analyticsService';
 import { shareScoreCardImage } from '../services/scoreCardShareService';
+import { MissionRecordCard } from './MissionRecordCard';
 
 interface MissionRecordPreviewProps {
   pilotName: string;
@@ -16,10 +19,6 @@ interface MissionRecordPreviewProps {
   onMint: () => void;
   onClose: () => void;
 }
-
-const shortAddress = (address?: string | null) => address
-  ? `${address.slice(0, 6)}...${address.slice(-4)}`
-  : 'Guest run';
 
 const formatFlightTime = (durationMs: number) => {
   const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
@@ -46,13 +45,31 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   const [shareStatus, setShareStatus] = useState('');
   const finished = new Date(receipt.finishedAt);
   const dateLabel = Number.isFinite(finished.getTime())
-    ? finished.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    ? finished.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
     : 'Verified run';
   const cardUrl = `${window.location.origin}/api/record-card?runId=${encodeURIComponent(receipt.runId)}`;
   const explorerUrl = mintChainId === 8453 ? 'https://basescan.org' : 'https://sepolia.basescan.org';
   const needsBaseAccount = !walletAddress;
   const encounter = getEncounter(receipt.metrics.wave);
-  const encounterArt = receipt.metrics.wave === 2 ? ASSETS.MINI_BOSS : ASSETS.FINAL_BOSS;
+  const recordCardConfig = DEFAULT_GAME_CAMPAIGN.recordCard;
+  const encounterAssetKey = recordCardConfig.encounterAssetKey === 'AUTO'
+    ? resolveRecordCardEncounterAssetKey(DEFAULT_GAME_CAMPAIGN, receipt.metrics.wave) as AssetKey
+    : recordCardConfig.encounterAssetKey;
+  const encounterArt = getPrimaryAssetPath(encounterAssetKey);
+  const shipArt = getPrimaryAssetPath(recordCardConfig.shipAssetKey);
+  const cardRecord = {
+    pilotName,
+    encounterLabel: encounter,
+    encounterArt,
+    score: receipt.metrics.score,
+    wave: receipt.metrics.wave,
+    targetsDefeated: receipt.metrics.enemiesDefeated,
+    coinsCollected: receipt.metrics.coinsCollected,
+    flightTimeLabel: formatFlightTime(receipt.metrics.durationMs),
+    dateLabel,
+    gameVersion: receipt.gameVersion,
+    integrity: receipt.integrity
+  };
 
   const shareRecord = async () => {
     const text = `${pilotName} scored ${receipt.metrics.score.toLocaleString()} in Scicon Shooter and reached wave ${receipt.metrics.wave}. Play. Win the week. Choose what research gets funded.`;
@@ -91,40 +108,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
         </div>
 
         <div className="relative p-4 sm:p-5">
-          <div className="relative overflow-hidden border border-cyan-100/30 bg-[radial-gradient(circle_at_72%_34%,rgba(59,130,246,0.25),transparent_28%),linear-gradient(145deg,#07152a,#020611_72%)] p-4 [clip-path:polygon(16px_0,calc(50%_-_24px)_0,calc(50%_-_14px)_8px,calc(50%_+_14px)_8px,calc(50%_+_24px)_0,calc(100%_-_16px)_0,100%_16px,100%_calc(100%_-_16px),calc(100%_-_16px)_100%,16px_100%,0_calc(100%_-_16px),0_16px)] sm:p-5">
-            <div className="pointer-events-none absolute left-0 top-5 h-12 w-24 -translate-x-12 -skew-x-[24deg] border-y border-r border-yellow-200/30 bg-yellow-300/10" />
-            <div className="pointer-events-none absolute right-0 top-5 h-12 w-24 translate-x-12 skew-x-[24deg] border-y border-l border-yellow-200/30 bg-yellow-300/10" />
-            <div className="pointer-events-none absolute left-1/2 top-0 h-2.5 w-14 -translate-x-1/2 bg-yellow-300 shadow-[0_0_16px_rgba(250,204,21,0.5)] [clip-path:polygon(12%_0,88%_0,100%_50%,88%_100%,12%_100%,0_50%)]" />
-            <img src={encounterArt} alt="" aria-hidden="true" className="pointer-events-none absolute right-4 top-10 h-24 w-24 object-contain opacity-35 [image-rendering:pixelated]" />
-
-            <div className="relative flex items-center gap-3">
-              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center border border-cyan-200/20 bg-cyan-300/8 [clip-path:polygon(10px_0,100%_0,100%_calc(100%_-_10px),calc(100%_-_10px)_100%,0_100%,0_10px)]">
-                <div className="absolute inset-x-2 bottom-2 h-6 rounded-full bg-cyan-300/25 blur-md" />
-                <img src={ASSETS.PLAYER_SHIP} alt="ResearchHub flask ship" className="relative h-16 w-16 object-contain drop-shadow-[0_12px_18px_rgba(34,211,238,0.4)]" />
-              </div>
-              <div className="min-w-0 flex-1 pr-12">
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-200">Server verified</p>
-                <p className="mt-1 truncate text-lg font-black uppercase text-white">{pilotName || 'Pilot'}</p>
-                <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-[0.12em] text-cyan-200">{encounter}</p>
-                <p className="mt-1 font-mono text-[8px] uppercase text-slate-500">{shortAddress(walletAddress)}</p>
-              </div>
-            </div>
-
-            <div className="relative mt-4 border-y border-white/10 py-3 text-center">
-              <span className="block text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">Final Score</span>
-              <strong className="mt-0.5 block text-3xl text-white">{receipt.metrics.score.toLocaleString()}</strong>
-            </div>
-            <div className="relative grid grid-cols-4 divide-x divide-white/10 py-3 text-center">
-              <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Wave</span><strong className="mt-1 block text-sm text-cyan-200">{receipt.metrics.wave}</strong></div>
-              <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Targets</span><strong className="mt-1 block text-sm text-emerald-200">{receipt.metrics.enemiesDefeated}</strong></div>
-              <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Coins</span><strong className="mt-1 block text-sm text-yellow-200">{receipt.metrics.coinsCollected}</strong></div>
-              <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Flight</span><strong className="mt-1 block text-sm text-white">{formatFlightTime(receipt.metrics.durationMs)}</strong></div>
-            </div>
-            <div className="relative flex items-center justify-between gap-3 border-t border-white/10 pt-2 font-mono text-[8px] uppercase tracking-[0.12em] text-slate-500">
-              <span>{dateLabel}</span>
-              <span>Verified mission data</span>
-            </div>
-          </div>
+          <MissionRecordCard record={cardRecord} shipArt={shipArt} presentation={recordCardConfig} />
 
           {mintStatus !== 'confirmed' ? (
             <div className="mt-4 overflow-hidden rounded-[8px] border border-cyan-100/25 bg-[linear-gradient(135deg,rgba(8,47,73,0.72),rgba(6,78,59,0.34))] p-4">

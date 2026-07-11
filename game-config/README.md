@@ -5,10 +5,12 @@
 ## Shape
 
 - A campaign contains ordered `levels`.
+- The campaign-level `recordCard` presentation feeds the Director preview, in-game mission record, and NFT/share SVG renderer.
 - A level owns its background, music cue, difficulty, score target, available power-ups, scorecard presentation, and ordered `waves`.
 - A wave owns its active duration, intro/departure timing, threat cap, score multiplier, and ordered `events`.
 - Event kinds are `spawn`, `boss`, `asteroid-belt`, `powerup`, and `recovery`.
 - JSON stores constrained catalog IDs such as `ENEMY_JOURNAL` or `gatekeeper`; arbitrary asset paths and executable behavior are rejected.
+- Optional normalized `spawnAnchor` points power visual placement, while bounded `spriteStyle` values change artwork without changing collision boxes.
 
 The checked-in revision reproduces the existing Open Orbit, Citation Storm, Paywall Siege, and Open Galaxy progression. Difficulty defaults to `1` because each event already contains the current wave's concrete combat values.
 
@@ -22,6 +24,6 @@ The checked-in revision reproduces the existing Open Orbit, Citation Storm, Payw
 
 ## Editing safely
 
-Open `http://127.0.0.1:5174/level-editor` through the Scicon Director desktop shortcut. Unsaved changes exist only in the browser preview. **Apply to game** validates and atomically updates `campaign.json`, while creating immutable local snapshots under ignored `director-data/game-campaign`. **Revert** rereads the tracked file, and **History** can roll a prior snapshot forward as a new revision.
+Open `http://127.0.0.1:5174/level-editor` through the Scicon Director desktop shortcut. Use **Place** to select and move configured gameplay groups, **Sprite Workshop** for local catalog art recipes, and **Scorecard** for the shared record surface. Unsaved changes exist only in the browser preview. **Apply to game** validates and atomically updates `campaign.json`, while creating immutable local snapshots under ignored `director-data/game-campaign`. **Revert** rereads the tracked file, and **History** can roll a prior snapshot forward as a new revision.
 
 The editor server binds only to loopback, cannot be built for Vercel, and has no wallet, chain, Supabase, or production-write dependencies.

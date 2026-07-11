@@ -41,21 +41,29 @@ export class CampaignValidationError extends Error {
 
 type UnknownRecord = Record<string, unknown>;
 
-const CAMPAIGN_KEYS = ['schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'levels'];
+const CAMPAIGN_KEYS = ['schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'levels'];
 const LEVEL_KEYS = ['id', 'name', 'description', 'order', 'backgroundId', 'musicId', 'startingDifficulty', 'scoreTarget', 'durationSeconds', 'loopWaves', 'availablePowerupIds', 'scorecard', 'waves'];
 const SCORECARD_KEYS = ['trigger', 'title', 'subtitle', 'scoreLabel', 'metrics', 'showEncounterArt', 'encounterAssetKey'];
+const RECORD_CARD_KEYS = ['copy', 'colors', 'showGrid', 'shipAssetKey', 'encounterAssetKey', 'art'];
+const RECORD_CARD_COPY_KEYS = ['title', 'subtitle', 'callsignLabel', 'scoreLabel', 'verifiedLabel', 'reviewLabel', 'metricLabels'];
+const RECORD_CARD_METRIC_LABEL_KEYS = ['wave', 'targets', 'coins', 'flight'];
+const RECORD_CARD_COLOR_KEYS = ['background', 'panel', 'primary', 'secondary', 'success', 'warning', 'text', 'muted'];
+const RECORD_CARD_ART_KEYS = ['ship', 'encounter'];
+const RECORD_CARD_REGION_KEYS = ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'visible'];
 const WAVE_KEYS = ['id', 'name', 'order', 'accent', 'backgroundId', 'difficultyMultiplier', 'durationSeconds', 'introSeconds', 'delayAfterSeconds', 'scoreMultiplier', 'threatCap', 'events'];
-const BASE_EVENT_KEYS = ['id', 'kind', 'label', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock'];
+const BASE_EVENT_KEYS = ['id', 'kind', 'label', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor'];
 const EVENT_KEYS: Record<string, string[]> = {
   spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'enemies'],
-  boss: [...BASE_EVENT_KEYS, 'bossId', 'spriteKey', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'],
-  'asteroid-belt': [...BASE_EVENT_KEYS, 'spriteKey', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'],
+  boss: [...BASE_EVENT_KEYS, 'bossId', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'],
+  'asteroid-belt': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'],
   powerup: [...BASE_EVENT_KEYS, 'positionId', 'spawnIntervalSeconds', 'powerupIds'],
   recovery: [...BASE_EVENT_KEYS, 'positionId', 'coinCount', 'powerupIds']
 };
-const SPAWN_ENEMY_KEYS = ['enemyId', 'spriteKey', 'weight', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'];
+const SPAWN_ENEMY_KEYS = ['enemyId', 'spriteKey', 'spriteStyle', 'weight', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'];
 const BOSS_WEAPON_KEYS = ['id', 'weaponId', 'attackIntervalSeconds', 'damage', 'projectileSpeed', 'burstCount'];
 const BOSS_PHASE_KEYS = ['id', 'label', 'triggerHealthRatio', 'movementPatternId', 'speedMultiplier', 'weaponSettingIds'];
+const SPAWN_ANCHOR_KEYS = ['x', 'y'];
+const SPRITE_STYLE_KEYS = ['scale', 'rotationDegrees', 'flipX', 'opacity', 'hueRotateDegrees', 'saturation', 'brightness', 'glowColor', 'glowBlur'];
 
 const SPRITE_KEYS = new Set([
   'ENEMY_DRONE_FRAMES',
@@ -158,6 +166,101 @@ const checkArray = (value: unknown, path: string, issues: CampaignValidationIssu
   return true;
 };
 
+const validateSpawnAnchor = (value: unknown, path: string, issues: CampaignValidationIssue[]) => {
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    pushIssue(issues, path, 'required_object', 'Spawn anchors must be objects');
+    return;
+  }
+  checkKeys(value, SPAWN_ANCHOR_KEYS, path, issues);
+  checkNumber(value.x, `${path}/x`, issues, 0, 1);
+  checkNumber(value.y, `${path}/y`, issues, 0, 1);
+};
+
+const validateSpriteStyle = (value: unknown, path: string, issues: CampaignValidationIssue[]) => {
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    pushIssue(issues, path, 'required_object', 'Sprite styles must be objects');
+    return;
+  }
+  checkKeys(value, SPRITE_STYLE_KEYS, path, issues);
+  if (Object.hasOwn(value, 'scale')) checkNumber(value.scale, `${path}/scale`, issues, 0.25, 3);
+  if (Object.hasOwn(value, 'rotationDegrees')) checkNumber(value.rotationDegrees, `${path}/rotationDegrees`, issues, -180, 180);
+  if (Object.hasOwn(value, 'flipX')) checkBoolean(value.flipX, `${path}/flipX`, issues);
+  if (Object.hasOwn(value, 'opacity')) checkNumber(value.opacity, `${path}/opacity`, issues, 0.1, 1);
+  if (Object.hasOwn(value, 'hueRotateDegrees')) checkNumber(value.hueRotateDegrees, `${path}/hueRotateDegrees`, issues, -180, 180);
+  if (Object.hasOwn(value, 'saturation')) checkNumber(value.saturation, `${path}/saturation`, issues, 0, 2);
+  if (Object.hasOwn(value, 'brightness')) checkNumber(value.brightness, `${path}/brightness`, issues, 0.25, 2);
+  if (Object.hasOwn(value, 'glowColor')) checkString(value.glowColor, `${path}/glowColor`, issues, { max: 7, color: true });
+  if (Object.hasOwn(value, 'glowBlur')) checkNumber(value.glowBlur, `${path}/glowBlur`, issues, 0, 40);
+};
+
+const validateRecordCardRegion = (value: unknown, path: string, issues: CampaignValidationIssue[]) => {
+  if (!isRecord(value)) {
+    pushIssue(issues, path, 'required_object', 'Record-card art regions must be objects');
+    return;
+  }
+  checkKeys(value, RECORD_CARD_REGION_KEYS, path, issues);
+  const xValid = checkNumber(value.x, `${path}/x`, issues, 0, 1200);
+  const yValid = checkNumber(value.y, `${path}/y`, issues, 0, 1200);
+  const widthValid = checkNumber(value.width, `${path}/width`, issues, 1, 1200);
+  const heightValid = checkNumber(value.height, `${path}/height`, issues, 1, 1200);
+  checkNumber(value.rotation, `${path}/rotation`, issues, -180, 180);
+  checkNumber(value.opacity, `${path}/opacity`, issues, 0, 1);
+  checkBoolean(value.visible, `${path}/visible`, issues);
+  if (xValid && widthValid && (value.x as number) + (value.width as number) > 1200) {
+    pushIssue(issues, `${path}/width`, 'out_of_bounds', 'Art regions must fit inside the 1200px card width');
+  }
+  if (yValid && heightValid && (value.y as number) + (value.height as number) > 1200) {
+    pushIssue(issues, `${path}/height`, 'out_of_bounds', 'Art regions must fit inside the 1200px card height');
+  }
+};
+
+const validateRecordCard = (value: unknown, path: string, issues: CampaignValidationIssue[]) => {
+  // Optional only for schema-v1 rollback compatibility; the tracked campaign includes it.
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    pushIssue(issues, path, 'required_object', 'Shared record-card presentation is required');
+    return;
+  }
+  checkKeys(value, RECORD_CARD_KEYS, path, issues);
+  if (!isRecord(value.copy)) {
+    pushIssue(issues, `${path}/copy`, 'required_object', 'Record-card copy settings are required');
+  } else {
+    const copy = value.copy;
+    checkKeys(copy, RECORD_CARD_COPY_KEYS, `${path}/copy`, issues);
+    ['title', 'subtitle', 'callsignLabel', 'scoreLabel', 'verifiedLabel', 'reviewLabel'].forEach((key) => {
+      checkString(copy[key], `${path}/copy/${key}`, issues, { max: 80 });
+    });
+    if (!isRecord(copy.metricLabels)) {
+      pushIssue(issues, `${path}/copy/metricLabels`, 'required_object', 'Metric labels are required');
+    } else {
+      const metricLabels = copy.metricLabels;
+      checkKeys(metricLabels, RECORD_CARD_METRIC_LABEL_KEYS, `${path}/copy/metricLabels`, issues);
+      RECORD_CARD_METRIC_LABEL_KEYS.forEach((key) => checkString(metricLabels[key], `${path}/copy/metricLabels/${key}`, issues, { max: 40 }));
+    }
+  }
+  if (!isRecord(value.colors)) {
+    pushIssue(issues, `${path}/colors`, 'required_object', 'Record-card colors are required');
+  } else {
+    const colors = value.colors;
+    checkKeys(colors, RECORD_CARD_COLOR_KEYS, `${path}/colors`, issues);
+    RECORD_CARD_COLOR_KEYS.forEach((key) => checkString(colors[key], `${path}/colors/${key}`, issues, { max: 7, color: true }));
+  }
+  checkBoolean(value.showGrid, `${path}/showGrid`, issues);
+  checkCatalogRef(value.shipAssetKey, ASSET_CATALOG, `${path}/shipAssetKey`, issues);
+  if (value.encounterAssetKey !== 'AUTO') {
+    checkCatalogRef(value.encounterAssetKey, ASSET_CATALOG, `${path}/encounterAssetKey`, issues);
+  }
+  if (!isRecord(value.art)) {
+    pushIssue(issues, `${path}/art`, 'required_object', 'Record-card art layout is required');
+  } else {
+    checkKeys(value.art, RECORD_CARD_ART_KEYS, `${path}/art`, issues);
+    validateRecordCardRegion(value.art.ship, `${path}/art/ship`, issues);
+    validateRecordCardRegion(value.art.encounter, `${path}/art/encounter`, issues);
+  }
+};
+
 const checkUniqueStrings = (values: unknown[], path: string, issues: CampaignValidationIssue[]) => {
   const seen = new Set<string>();
   values.forEach((value, index) => {
@@ -230,6 +333,7 @@ const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignVali
     if (!checkCatalogRef(candidate.spriteKey, ASSET_CATALOG, `${itemPath}/spriteKey`, issues) || !SPRITE_KEYS.has(candidate.spriteKey as string)) {
       pushIssue(issues, `${itemPath}/spriteKey`, 'invalid_sprite', 'Enemy sprites must reference a gameplay sprite key');
     }
+    validateSpriteStyle(candidate.spriteStyle, `${itemPath}/spriteStyle`, issues);
     if (checkNumber(candidate.weight, `${itemPath}/weight`, issues, Number.EPSILON, 1)) weight += candidate.weight as number;
     checkNumber(candidate.health, `${itemPath}/health`, issues, Number.EPSILON, 1000000);
     checkNumber(candidate.speed, `${itemPath}/speed`, issues, 0, 100);
@@ -248,6 +352,7 @@ const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValida
   if (!checkCatalogRef(event.spriteKey, ASSET_CATALOG, `${path}/spriteKey`, issues) || !SPRITE_KEYS.has(event.spriteKey as string)) {
     pushIssue(issues, `${path}/spriteKey`, 'invalid_sprite', 'Boss sprites must reference a gameplay sprite key');
   }
+  validateSpriteStyle(event.spriteStyle, `${path}/spriteStyle`, issues);
   checkCatalogRef(event.positionId, SPAWN_POSITION_CATALOG, `${path}/positionId`, issues);
   checkCatalogRef(event.movementPatternId, MOVEMENT_PATTERN_CATALOG, `${path}/movementPatternId`, issues);
   checkNumber(event.warningSeconds, `${path}/warningSeconds`, issues, 0, 60);
@@ -351,6 +456,7 @@ const validateEvent = (
   checkNumber(candidate.durationSeconds, `${path}/durationSeconds`, issues, Number.EPSILON, 3600);
   checkNumber(candidate.delayAfterSeconds, `${path}/delayAfterSeconds`, issues, 0, 600);
   checkBoolean(candidate.blocksWaveClock, `${path}/blocksWaveClock`, issues);
+  validateSpawnAnchor(candidate.spawnAnchor, `${path}/spawnAnchor`, issues);
   if (typeof candidate.startSeconds === 'number' && typeof wave.durationSeconds === 'number') {
     if (candidate.startSeconds > wave.durationSeconds + EPSILON) {
       pushIssue(issues, `${path}/startSeconds`, 'invalid_timing', 'Event cannot start after the active wave duration');
@@ -380,6 +486,7 @@ const validateEvent = (
     if (!checkCatalogRef(candidate.spriteKey, ASSET_CATALOG, `${path}/spriteKey`, issues) || candidate.spriteKey !== 'ENEMY_BRICK_FRAMES') {
       pushIssue(issues, `${path}/spriteKey`, 'invalid_sprite', 'Asteroid belts must use the real asteroid frame set');
     }
+    validateSpriteStyle(candidate.spriteStyle, `${path}/spriteStyle`, issues);
     if (!checkCatalogRef(candidate.patternId, SPAWN_PATTERN_CATALOG, `${path}/patternId`, issues) || candidate.patternId !== 'asteroid-lanes') {
       pushIssue(issues, `${path}/patternId`, 'invalid_pattern', 'Asteroid belts require the asteroid-lanes pattern');
     }
@@ -533,6 +640,7 @@ export const validateGameCampaign = (value: unknown): CampaignValidationResult =
     pushIssue(issues, '/updatedAt', 'invalid_timestamp', 'Expected an ISO-8601 timestamp');
   }
   if (value.fps !== 60) pushIssue(issues, '/fps', 'unsupported_fps', 'Scicon Shooter campaign data must use 60 FPS');
+  validateRecordCard(value.recordCard, '/recordCard', issues);
 
   // One namespace keeps editor selections and version diffs unambiguous across the tree.
   const allIds = new Set<string>();

@@ -81,6 +81,85 @@ const validateUniqueEnumArray = (values, allowed, location, errors, { minimumIte
   });
 };
 
+const validateSpawnAnchor = (anchor, location, errors) => {
+  if (anchor === undefined) return;
+  if (!requireObject(anchor, location, errors)) return;
+  allowedKeys(anchor, ['x', 'y'], location, errors);
+  requireNumber(anchor.x, `${location}/x`, errors, { minimum: 0, maximum: 1 });
+  requireNumber(anchor.y, `${location}/y`, errors, { minimum: 0, maximum: 1 });
+};
+
+const validateSpriteStyle = (style, location, errors) => {
+  if (style === undefined) return;
+  if (!requireObject(style, location, errors)) return;
+  allowedKeys(style, [
+    'scale',
+    'rotationDegrees',
+    'flipX',
+    'opacity',
+    'hueRotateDegrees',
+    'saturation',
+    'brightness',
+    'glowColor',
+    'glowBlur'
+  ], location, errors);
+  if (Object.hasOwn(style, 'scale')) requireNumber(style.scale, `${location}/scale`, errors, { minimum: 0.25, maximum: 3 });
+  if (Object.hasOwn(style, 'rotationDegrees')) requireNumber(style.rotationDegrees, `${location}/rotationDegrees`, errors, { minimum: -180, maximum: 180 });
+  if (Object.hasOwn(style, 'flipX') && typeof style.flipX !== 'boolean') errors.push(`${location}/flipX must be a boolean`);
+  if (Object.hasOwn(style, 'opacity')) requireNumber(style.opacity, `${location}/opacity`, errors, { minimum: 0.1, maximum: 1 });
+  if (Object.hasOwn(style, 'hueRotateDegrees')) requireNumber(style.hueRotateDegrees, `${location}/hueRotateDegrees`, errors, { minimum: -180, maximum: 180 });
+  if (Object.hasOwn(style, 'saturation')) requireNumber(style.saturation, `${location}/saturation`, errors, { minimum: 0, maximum: 2 });
+  if (Object.hasOwn(style, 'brightness')) requireNumber(style.brightness, `${location}/brightness`, errors, { minimum: 0.25, maximum: 2 });
+  if (Object.hasOwn(style, 'glowColor') && (typeof style.glowColor !== 'string' || !HEX_COLOR_PATTERN.test(style.glowColor))) {
+    errors.push(`${location}/glowColor must be a six-digit hexadecimal color`);
+  }
+  if (Object.hasOwn(style, 'glowBlur')) requireNumber(style.glowBlur, `${location}/glowBlur`, errors, { minimum: 0, maximum: 40 });
+};
+
+const validateRecordCardRegion = (region, location, errors) => {
+  if (!requireObject(region, location, errors)) return;
+  allowedKeys(region, ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'visible'], location, errors);
+  requireNumber(region.x, `${location}/x`, errors, { minimum: 0, maximum: 1200 });
+  requireNumber(region.y, `${location}/y`, errors, { minimum: 0, maximum: 1200 });
+  requireNumber(region.width, `${location}/width`, errors, { minimum: 1, maximum: 1200 });
+  requireNumber(region.height, `${location}/height`, errors, { minimum: 1, maximum: 1200 });
+  requireNumber(region.rotation, `${location}/rotation`, errors, { minimum: -180, maximum: 180 });
+  requireNumber(region.opacity, `${location}/opacity`, errors, { minimum: 0, maximum: 1 });
+  if (typeof region.visible !== 'boolean') errors.push(`${location}/visible must be a boolean`);
+  if (isFiniteNumber(region.x) && isFiniteNumber(region.width) && region.x + region.width > 1200) errors.push(`${location} must fit inside the 1200px card width`);
+  if (isFiniteNumber(region.y) && isFiniteNumber(region.height) && region.y + region.height > 1200) errors.push(`${location} must fit inside the 1200px card height`);
+};
+
+const validateRecordCard = (recordCard, location, errors) => {
+  // Optional only so immutable pre-card schema-v1 revisions can still be rolled back.
+  if (recordCard === undefined) return;
+  if (!requireObject(recordCard, location, errors)) return;
+  allowedKeys(recordCard, ['copy', 'colors', 'showGrid', 'shipAssetKey', 'encounterAssetKey', 'art'], location, errors);
+  if (requireObject(recordCard.copy, `${location}/copy`, errors)) {
+    allowedKeys(recordCard.copy, ['title', 'subtitle', 'callsignLabel', 'scoreLabel', 'verifiedLabel', 'reviewLabel', 'metricLabels'], `${location}/copy`, errors);
+    ['title', 'subtitle', 'callsignLabel', 'scoreLabel', 'verifiedLabel', 'reviewLabel'].forEach((key) => requireString(recordCard.copy[key], `${location}/copy/${key}`, errors, 80));
+    if (requireObject(recordCard.copy.metricLabels, `${location}/copy/metricLabels`, errors)) {
+      allowedKeys(recordCard.copy.metricLabels, ['wave', 'targets', 'coins', 'flight'], `${location}/copy/metricLabels`, errors);
+      ['wave', 'targets', 'coins', 'flight'].forEach((key) => requireString(recordCard.copy.metricLabels[key], `${location}/copy/metricLabels/${key}`, errors, 40));
+    }
+  }
+  if (requireObject(recordCard.colors, `${location}/colors`, errors)) {
+    const colorKeys = ['background', 'panel', 'primary', 'secondary', 'success', 'warning', 'text', 'muted'];
+    allowedKeys(recordCard.colors, colorKeys, `${location}/colors`, errors);
+    colorKeys.forEach((key) => {
+      if (typeof recordCard.colors[key] !== 'string' || !HEX_COLOR_PATTERN.test(recordCard.colors[key])) errors.push(`${location}/colors/${key} must be a six-digit hex color`);
+    });
+  }
+  if (typeof recordCard.showGrid !== 'boolean') errors.push(`${location}/showGrid must be a boolean`);
+  requireEnum(recordCard.shipAssetKey, ASSET_KEYS, `${location}/shipAssetKey`, errors);
+  requireEnum(recordCard.encounterAssetKey, new Set(['AUTO', ...ASSET_KEYS]), `${location}/encounterAssetKey`, errors);
+  if (requireObject(recordCard.art, `${location}/art`, errors)) {
+    allowedKeys(recordCard.art, ['ship', 'encounter'], `${location}/art`, errors);
+    validateRecordCardRegion(recordCard.art.ship, `${location}/art/ship`, errors);
+    validateRecordCardRegion(recordCard.art.encounter, `${location}/art/encounter`, errors);
+  }
+};
+
 const validateScorecard = (scorecard, location, errors) => {
   if (!requireObject(scorecard, location, errors)) return;
   allowedKeys(scorecard, ['trigger', 'title', 'subtitle', 'scoreLabel', 'metrics', 'showEncounterArt', 'encounterAssetKey'], location, errors);
@@ -100,13 +179,15 @@ const validateBaseEvent = (event, location, waveDuration, errors) => {
   requireNumber(event.durationSeconds, `${location}/durationSeconds`, errors, { minimum: 0.01, maximum: 86400 });
   requireNumber(event.delayAfterSeconds, `${location}/delayAfterSeconds`, errors, { minimum: 0, maximum: 3600 });
   if (typeof event.blocksWaveClock !== 'boolean') errors.push(`${location}/blocksWaveClock must be a boolean`);
+  validateSpawnAnchor(event.spawnAnchor, `${location}/spawnAnchor`, errors);
 };
 
 const validateSpawnEnemy = (enemy, location, errors) => {
   if (!requireObject(enemy, location, errors)) return;
-  allowedKeys(enemy, ['enemyId', 'spriteKey', 'weight', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'], location, errors);
+  allowedKeys(enemy, ['enemyId', 'spriteKey', 'spriteStyle', 'weight', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'], location, errors);
   requireEnum(enemy.enemyId, ENEMY_IDS, `${location}/enemyId`, errors);
   requireEnum(enemy.spriteKey, ENEMY_SPRITE_KEYS, `${location}/spriteKey`, errors);
+  validateSpriteStyle(enemy.spriteStyle, `${location}/spriteStyle`, errors);
   requireNumber(enemy.weight, `${location}/weight`, errors, { minimum: 0, maximum: 1 });
   requireNumber(enemy.health, `${location}/health`, errors, { minimum: 0.01, maximum: 100000000 });
   requireNumber(enemy.speed, `${location}/speed`, errors, { minimum: 0, maximum: 100000 });
@@ -116,7 +197,7 @@ const validateSpawnEnemy = (enemy, location, errors) => {
 };
 
 const validateSpawnEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'enemies'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'enemies'], location, errors);
   requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 10000, integer: true });
   requireEnum(event.patternId, SPAWN_PATTERNS, `${location}/patternId`, errors);
   requireEnum(event.positionId, SPAWN_POSITIONS, `${location}/positionId`, errors);
@@ -174,9 +255,10 @@ const validateBossPhase = (phase, location, weaponIds, previousRatio, errors) =>
 };
 
 const validateBossEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'bossId', 'spriteKey', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'], location, errors);
   requireEnum(event.bossId, BOSS_IDS, `${location}/bossId`, errors);
   requireEnum(event.spriteKey, BOSS_SPRITE_KEYS, `${location}/spriteKey`, errors);
+  validateSpriteStyle(event.spriteStyle, `${location}/spriteStyle`, errors);
   requireEnum(event.positionId, SPAWN_POSITIONS, `${location}/positionId`, errors);
   requireEnum(event.movementPatternId, MOVEMENT_PATTERNS, `${location}/movementPatternId`, errors);
   requireNumber(event.warningSeconds, `${location}/warningSeconds`, errors, { minimum: 0, maximum: 300 });
@@ -211,8 +293,9 @@ const validateBossEvent = (event, location, errors) => {
 };
 
 const validateAsteroidEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spriteKey', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'], location, errors);
   requireEnum(event.spriteKey, ASTEROID_SPRITE_KEYS, `${location}/spriteKey`, errors);
+  validateSpriteStyle(event.spriteStyle, `${location}/spriteStyle`, errors);
   requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 10000, integer: true });
   requireNumber(event.density, `${location}/density`, errors, { minimum: 0, maximum: 1 });
   requireEnum(event.patternId, SPAWN_PATTERNS, `${location}/patternId`, errors);
@@ -227,7 +310,7 @@ const validateAsteroidEvent = (event, location, errors) => {
 };
 
 const validatePowerupEvent = (event, location, availablePowerups, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'positionId', 'spawnIntervalSeconds', 'powerupIds'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'positionId', 'spawnIntervalSeconds', 'powerupIds'], location, errors);
   requireEnum(event.positionId, SPAWN_POSITIONS, `${location}/positionId`, errors);
   requireNumber(event.spawnIntervalSeconds, `${location}/spawnIntervalSeconds`, errors, { minimum: 0.01, maximum: 3600 });
   validateUniqueEnumArray(event.powerupIds, POWERUP_IDS, `${location}/powerupIds`, errors, { minimumItems: 1 });
@@ -237,7 +320,7 @@ const validatePowerupEvent = (event, location, availablePowerups, errors) => {
 };
 
 const validateRecoveryEvent = (event, location, availablePowerups, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'positionId', 'coinCount', 'powerupIds'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'positionId', 'coinCount', 'powerupIds'], location, errors);
   requireEnum(event.positionId, SPAWN_POSITIONS, `${location}/positionId`, errors);
   requireNumber(event.coinCount, `${location}/coinCount`, errors, { minimum: 0, maximum: 10000, integer: true });
   validateUniqueEnumArray(event.powerupIds, POWERUP_IDS, `${location}/powerupIds`, errors);
@@ -322,13 +405,14 @@ const validateLevel = (level, location, errors) => {
 export const validateGameCampaign = (campaign) => {
   const errors = [];
   if (!requireObject(campaign, '/', errors)) return { valid: false, errors };
-  allowedKeys(campaign, ['schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'levels'], '/', errors);
+  allowedKeys(campaign, ['schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'levels'], '/', errors);
   if (campaign.schemaVersion !== 1) errors.push('/schemaVersion must be 1');
   requireNumber(campaign.revision, '/revision', errors, { minimum: 1, maximum: 1000000000, integer: true });
   requireId(campaign.id, '/id', errors);
   requireString(campaign.name, '/name', errors, 120);
   if (typeof campaign.updatedAt !== 'string' || !Number.isFinite(Date.parse(campaign.updatedAt))) errors.push('/updatedAt must be an ISO date-time string');
   if (campaign.fps !== 60) errors.push('/fps must be 60');
+  validateRecordCard(campaign.recordCard, '/recordCard', errors);
   if (!Array.isArray(campaign.levels) || campaign.levels.length === 0) {
     errors.push('/levels must be a non-empty array');
     return { valid: false, errors: [...new Set(errors)] };

@@ -12,6 +12,7 @@ import {
   WEAPON_CATALOG
 } from '../game-config/catalog';
 import { parseGameCampaign } from '../game-config/validate';
+import { normalizeGameCampaignRecordCard } from '../game-config/recordCard';
 import type {
   AssetKey,
   BackgroundId,
@@ -38,7 +39,9 @@ const deepFreeze = <T,>(value: T): T => {
 };
 
 /** Validated, immutable source of truth used by both the real game and local editor. */
-export const DEFAULT_GAME_CAMPAIGN: GameCampaignConfig = deepFreeze(parseGameCampaign(campaignJson));
+export const DEFAULT_GAME_CAMPAIGN: GameCampaignConfig = deepFreeze(
+  normalizeGameCampaignRecordCard(parseGameCampaign(campaignJson))
+);
 
 export const cloneGameCampaign = (
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN
