@@ -25,7 +25,9 @@ import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getFlaskProgress } from '
 
 // --- Helper Classes ---
 
-type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'orbit';
+type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'grid' | 'diamond' | 'spiral' | 'orbit';
+type ConfiguredEnemyFormationMode = Exclude<EnemyFormationMode, 'orbit'>;
+type EnemyFormationState = 'entry' | 'hold' | 'dive' | 'return';
 type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion' | 'nova' | 'singularity';
 type PendingPlayerShot = {
   fireFrame: number;
@@ -76,6 +78,17 @@ export class Entity {
   formation?: EnemyFormationMode;
   formationIndex: number = 0;
   formationSeed: number = 0;
+  formationGroupSeed: number = 0;
+  formationState?: EnemyFormationState;
+  formationTargetX?: number;
+  formationTargetY?: number;
+  formationStartX?: number;
+  formationStartY?: number;
+  formationStateFrame: number = 0;
+  formationEntryFrames: number = 0;
+  formationDiveFrame: number = 0;
+  formationBaseSpeed: number = 0;
+  formationCycle: number = 0;
   encounterGroupSize: number = 1;
   flashFrames: number = 0;
   shieldHostId?: string;
@@ -301,7 +314,8 @@ const GAMEPLAY_ASSET_URLS = [
   DEFAULT_BOMB_SPRITE_URL,
   ...ASSETS.ENEMY_DRONE_FRAMES,
   ...ASSETS.ENEMY_SWARM_FRAMES,
-  ...ASSETS.ENEMY_BRICK_FRAMES
+  ...ASSETS.ENEMY_BRICK_FRAMES,
+  ...ASSETS.ENEMY_JOURNAL_FRAMES
 ];
 
 export const preloadGameplayAssets = async () => {
@@ -554,8 +568,14 @@ export interface GameEngineDebugSnapshot {
     type: EntityType;
     hp: number;
     maxHp: number;
+    x: number;
+    y: number;
     vx: number;
     vy: number;
+    formation: EnemyFormationMode | null;
+    formationState: EnemyFormationState | null;
+    formationIndex: number;
+    formationGroupSize: number;
     damage: number;
     contactDamage: number;
     projectileDamage: number;
@@ -786,8 +806,14 @@ export class GameEngine {
         type: entity.type,
         hp: entity.hp,
         maxHp: entity.maxHp,
+        x: entity.x,
+        y: entity.y,
         vx: entity.vx,
         vy: entity.vy,
+        formation: entity.formation ?? null,
+        formationState: entity.formationState ?? null,
+        formationIndex: entity.formationIndex,
+        formationGroupSize: entity.encounterGroupSize,
         damage: entity.damage,
         contactDamage: entity.contactDamage,
         projectileDamage: entity.projectileDamage,
@@ -2061,7 +2087,8 @@ export class GameEngine {
       }
 
       if (e.type === EntityType.ENEMY_DRONE || e.type === EntityType.ENEMY_JOURNAL || e.type === EntityType.ENEMY_SWARM || e.type === EntityType.ENEMY_BRICK) {
-        if (e.type === EntityType.ENEMY_SWARM) {
+        const formationHandled = this.updateConfiguredEnemyFormation(e);
+        if (e.type === EntityType.ENEMY_SWARM && !formationHandled) {
           if (e.formation === 'orbit') {
             const boss = this.bossRef;
             if (!boss || boss.markedForDeletion) {
@@ -2101,10 +2128,10 @@ export class GameEngine {
 
           e.vx *= 0.94;
         }
-        if (e.type === EntityType.ENEMY_BRICK && e.variant >= 900) {
+        if (!formationHandled && e.type === EntityType.ENEMY_BRICK && e.variant >= 900) {
           e.x += Math.sin((this.frameCount + e.variant) * 0.025) * (0.55 + (this.wave * 0.12));
         }
-        if (e.y > this.height) e.markedForDeletion = true;
+        if (!formationHandled && e.y > this.height) e.markedForDeletion = true;
       }
       
       if (e.type === EntityType.PROJECTILE) {
@@ -2840,10 +2867,101 @@ export class GameEngine {
     };
   }
 
+  getFormationGroupSeed(eventId: string) {
+    let hash = 0;
+    for (let index = 0; index < eventId.length; index++) {
+      hash = ((hash << 5) - hash + eventId.charCodeAt(index)) | 0;
+    }
+    return Math.abs(hash % 10000);
+  }
+
+  resolveConfiguredFormationMode(patternId?: string): ConfiguredEnemyFormationMode {
+    const pattern = String(patternId || 'row').toLowerCase();
+    if (pattern.includes('grid') || pattern.includes('wall')) return 'grid';
+    if (pattern.includes('diamond')) return 'diamond';
+    if (pattern.includes('spiral')) return 'spiral';
+    if (pattern.includes('pincer')) return 'pincer';
+    if (pattern.includes('sine') || pattern.includes('wave')) return 'sine';
+    if (pattern.includes('v')) return 'v';
+    return 'row';
+  }
+
+  getConfiguredFormationTarget(
+    event: RuntimeSpawnEvent,
+    index: number,
+    count: number,
+    entityWidth: number,
+    entityHeight: number
+  ) {
+    const mode = this.resolveConfiguredFormationMode(event.patternId);
+    const anchor = this.getConfiguredSpawnAnchor(event);
+    const centerX = (anchor?.x ?? 0.5) * this.width;
+    const topY = (anchor?.y ?? 0.16) * this.height;
+    const left = Math.max(entityWidth * 0.6, 24);
+    const right = Math.max(left, this.width - left);
+    const mobile = this.width < 520;
+    let targetCenterX = centerX;
+    let targetCenterY = topY;
+
+    if (mode === 'grid') {
+      const columns = Math.min(mobile ? 5 : 8, Math.max(3, Math.ceil(Math.sqrt(count * 1.45))));
+      const row = Math.floor(index / columns);
+      const column = index % columns;
+      const rowCount = Math.min(columns, count - row * columns);
+      const gapX = Math.min(mobile ? 58 : 70, (this.width - left * 2) / Math.max(1, columns - 1));
+      targetCenterX = centerX + (column - (rowCount - 1) / 2) * gapX;
+      targetCenterY = topY + row * (mobile ? 48 : 56);
+    } else if (mode === 'v') {
+      const squadSize = Math.min(7, count);
+      const squad = Math.floor(index / squadSize);
+      const localIndex = index % squadSize;
+      const localCount = Math.min(squadSize, count - squad * squadSize);
+      const offset = localIndex - (localCount - 1) / 2;
+      const gapX = Math.min(mobile ? 48 : 58, (this.width - left * 2) / Math.max(1, localCount - 1));
+      targetCenterX = centerX + offset * gapX;
+      targetCenterY = topY + squad * (mobile ? 70 : 78) + Math.abs(offset) * (mobile ? 17 : 20);
+    } else if (mode === 'diamond') {
+      const squadSize = Math.min(8, count);
+      const squad = Math.floor(index / squadSize);
+      const localIndex = index % squadSize;
+      const localCount = Math.min(squadSize, count - squad * squadSize);
+      const angle = (localIndex / Math.max(1, localCount)) * Math.PI * 2 - Math.PI / 2;
+      const denominator = Math.max(0.001, Math.abs(Math.cos(angle)) + Math.abs(Math.sin(angle)));
+      const diamondX = Math.cos(angle) / denominator;
+      const diamondY = Math.sin(angle) / denominator;
+      targetCenterX = centerX + diamondX * Math.min(this.width * 0.24, mobile ? 88 : 132);
+      targetCenterY = topY + 38 + squad * (mobile ? 92 : 108) + diamondY * (mobile ? 44 : 52);
+    } else if (mode === 'spiral') {
+      const ringSize = Math.min(10, count);
+      const ring = Math.floor(index / ringSize);
+      const localIndex = index % ringSize;
+      const localCount = Math.min(ringSize, count - ring * ringSize);
+      const angle = (localIndex / Math.max(1, localCount)) * Math.PI * 2 - Math.PI / 2;
+      targetCenterX = centerX + Math.cos(angle) * Math.min(this.width * (0.2 + ring * 0.08), mobile ? 104 : 158);
+      targetCenterY = topY + 54 + ring * (mobile ? 82 : 96) + Math.sin(angle) * (mobile ? 40 : 52);
+    } else if (mode === 'pincer') {
+      const row = Math.floor(index / 2);
+      targetCenterX = centerX + (index % 2 === 0 ? -1 : 1) * Math.min(this.width * 0.24, mobile ? 92 : 138);
+      targetCenterY = topY + row * (mobile ? 40 : 46);
+    } else {
+      const columns = Math.min(mode === 'sine' ? (mobile ? 6 : 9) : (mobile ? 6 : 10), count);
+      const row = Math.floor(index / columns);
+      const column = index % columns;
+      const rowCount = Math.min(columns, count - row * columns);
+      const gapX = Math.min(mobile ? 54 : 66, (this.width - left * 2) / Math.max(1, columns - 1));
+      targetCenterX = centerX + (column - (rowCount - 1) / 2) * gapX;
+      targetCenterY = topY + row * (mobile ? 54 : 62) + (mode === 'sine' ? Math.sin(column * 1.25) * 24 : 0);
+    }
+
+    return {
+      x: clamp(targetCenterX - entityWidth / 2, left - entityWidth / 2, right - entityWidth / 2),
+      y: clamp(targetCenterY - entityHeight / 2, 54, this.height * 0.42)
+    };
+  }
+
   getConfiguredSpawnPoint(event: RuntimeSpawnEvent, index: number, count: number) {
     const positionId = String(event.positionId || 'top-random').toLowerCase();
     const patternId = String(event.patternId || 'row').toLowerCase();
-    const normalizedIndex = count <= 1 ? 0.5 : index / Math.max(1, count - 1);
     let x = Math.random() * Math.max(1, this.width - 56);
     let y = -60;
 
@@ -2851,33 +2969,174 @@ export class GameEngine {
     else if (positionId.includes('right')) x = this.width * 0.8;
     else if (positionId.includes('center')) x = this.width * 0.5;
 
-    if (patternId.includes('row') || patternId.includes('line')) {
-      x = 24 + normalizedIndex * Math.max(1, this.width - 72);
-    } else if (patternId.includes('v')) {
-      x = this.width * 0.16 + normalizedIndex * this.width * 0.68;
-      y -= Math.abs(normalizedIndex - 0.5) * 120;
-    } else if (patternId.includes('pincer')) {
-      x = index % 2 === 0 ? -24 : this.width + 24;
-      y -= Math.floor(index / 2) * 26;
-    } else if (patternId.includes('sine') || patternId.includes('wave')) {
-      x = 24 + normalizedIndex * Math.max(1, this.width - 72);
-      y -= (Math.sin(index * 1.35) + 1) * 28;
+    const anchor = this.getConfiguredSpawnAnchor(event);
+    if (patternId.includes('single') || patternId.includes('random')) {
+      return anchor
+        ? { x: anchor.x * this.width, y: anchor.y * this.height }
+        : { x, y };
     }
 
-    const anchor = this.getConfiguredSpawnAnchor(event);
-    if (!anchor) return { x, y };
-
-    if (patternId.includes('single') || patternId.includes('random')) {
-      return {
-        x: anchor.x * this.width,
-        y: anchor.y * this.height
-      };
+    const mode = this.resolveConfiguredFormationMode(patternId);
+    const side = (index + this.getFormationGroupSeed(event.id)) % 2 === 0 ? -1 : 1;
+    const pair = Math.floor(index / 2);
+    if (mode === 'pincer') {
+      x = side < 0 ? -72 : this.width + 72;
+      y = Math.max(24, this.height * 0.08) + pair * 22;
+    } else if (mode === 'spiral') {
+      const angle = index * 0.92;
+      x = this.width / 2 + Math.cos(angle) * Math.min(this.width * 0.42, 190);
+      y = -96 - pair * 18;
+    } else if (mode === 'sine') {
+      x = 24 + (index / Math.max(1, count - 1)) * Math.max(1, this.width - 72);
+      y = -80 - (Math.sin(index * 1.35) + 1) * 30;
+    } else {
+      x = side < 0 ? -78 - (index % 3) * 18 : this.width + 78 + (index % 3) * 18;
+      y = -104 - pair * 14;
     }
 
     return {
-      x: x + ((anchor.x * this.width) - (this.width / 2)),
-      y: y + ((anchor.y * this.height) - (-60))
+      x,
+      y
     };
+  }
+
+  configureEnemyFormation(enemy: Entity, event: RuntimeSpawnEvent, index: number, count: number) {
+    const patternId = String(event.patternId || '').toLowerCase();
+    if (patternId.includes('single') || patternId.includes('random')) return;
+
+    const formation = this.resolveConfiguredFormationMode(patternId);
+    const target = this.getConfiguredFormationTarget(event, index, count, enemy.width, enemy.height);
+    const entryFrames = 52 + (index % 4) * 5 + (formation === 'spiral' ? 14 : 0);
+    const holdFramesByMode: Record<ConfiguredEnemyFormationMode, number> = {
+      row: 116,
+      v: 106,
+      sine: 72,
+      pincer: 64,
+      grid: 136,
+      diamond: 96,
+      spiral: 82
+    };
+    const diveCadence = formation === 'grid' ? 18 : formation === 'row' ? 20 : formation === 'v' ? 16 : 12;
+
+    enemy.formation = formation;
+    enemy.formationIndex = index;
+    enemy.formationSeed = this.waveProgressFrames + index * 19;
+    enemy.formationGroupSeed = this.getFormationGroupSeed(event.id);
+    enemy.formationState = 'entry';
+    enemy.formationTargetX = target.x;
+    enemy.formationTargetY = target.y;
+    enemy.formationStartX = enemy.x;
+    enemy.formationStartY = enemy.y;
+    enemy.formationStateFrame = this.frameCount;
+    enemy.formationEntryFrames = entryFrames;
+    enemy.formationDiveFrame = this.frameCount + entryFrames + holdFramesByMode[formation] + (index % 6) * diveCadence;
+    enemy.formationBaseSpeed = Math.max(2.2, Math.abs(enemy.vy));
+    enemy.formationCycle = 0;
+    enemy.encounterGroupSize = count;
+    enemy.vx = 0;
+    enemy.vy = 0;
+  }
+
+  updateConfiguredEnemyFormation(enemy: Entity) {
+    const state = enemy.formationState;
+    const formation = enemy.formation;
+    const targetX = enemy.formationTargetX;
+    const targetY = enemy.formationTargetY;
+    if (!state || !formation || formation === 'orbit' || targetX === undefined || targetY === undefined) return false;
+
+    if (state === 'entry' || state === 'return') {
+      const duration = Math.max(1, enemy.formationEntryFrames || 54);
+      const progress = clamp((this.frameCount - enemy.formationStateFrame) / duration, 0, 1);
+      const eased = progress * progress * (3 - 2 * progress);
+      const startX = enemy.formationStartX ?? enemy.x;
+      const startY = enemy.formationStartY ?? enemy.y;
+      const direction = enemy.formationIndex % 2 === 0 ? 1 : -1;
+      const arcStrength = formation === 'spiral'
+        ? Math.min(this.width * 0.2, 92)
+        : formation === 'pincer'
+          ? Math.min(this.width * 0.14, 66)
+          : Math.min(this.width * 0.11, 52);
+      const spiralOffset = formation === 'spiral'
+        ? Math.sin(progress * Math.PI * 2 + enemy.formationIndex * 0.55) * (1 - progress) * 38
+        : 0;
+      enemy.x = lerp(startX, targetX, eased) + Math.sin(progress * Math.PI) * arcStrength * direction + spiralOffset;
+      enemy.y = lerp(startY, targetY, eased) - Math.sin(progress * Math.PI) * (formation === 'spiral' ? 42 : 26);
+      enemy.vx = 0;
+      enemy.vy = 0;
+      enemy.angle = Math.sin(progress * Math.PI) * direction * (formation === 'spiral' ? 0.5 : 0.32);
+
+      if (progress >= 1) {
+        enemy.x = targetX;
+        enemy.y = targetY;
+        enemy.angle = 0;
+        enemy.formationState = 'hold';
+        enemy.formationStateFrame = this.frameCount;
+      }
+      return true;
+    }
+
+    if (state === 'hold') {
+      const swayByMode: Record<Exclude<EnemyFormationMode, 'orbit'>, number> = {
+        row: 12,
+        v: 16,
+        sine: 22,
+        pincer: 18,
+        grid: 10,
+        diamond: 20,
+        spiral: 28
+      };
+      const groupSway = Math.sin((this.frameCount + enemy.formationGroupSeed) * 0.018) * swayByMode[formation];
+      const formationPulse = formation === 'diamond' || formation === 'spiral'
+        ? Math.sin((this.frameCount + enemy.formationIndex * 11) * 0.035) * 4
+        : 0;
+      enemy.x = targetX + groupSway;
+      enemy.y = targetY + formationPulse + Math.sin((this.frameCount + enemy.formationIndex * 17) * 0.045) * 2.5;
+      enemy.vx = 0;
+      enemy.vy = 0;
+      enemy.angle = Math.sin((this.frameCount + enemy.formationGroupSeed) * 0.018) * 0.05;
+
+      if (this.frameCount >= enemy.formationDiveFrame) {
+        const enemyCenterX = enemy.x + enemy.width / 2;
+        const enemyCenterY = enemy.y + enemy.height / 2;
+        const laneOffset = ((enemy.formationIndex % 3) - 1) * (this.mobileProfile ? 18 : 28);
+        const aimX = this.player.x + this.player.width / 2 + laneOffset + this.playerVel.x * 6;
+        const aimY = Math.min(this.height + 80, this.player.y + this.player.height * 0.7);
+        const dx = aimX - enemyCenterX;
+        const dy = Math.max(90, aimY - enemyCenterY);
+        const length = Math.max(1, Math.hypot(dx, dy));
+        const diveSpeed = enemy.formationBaseSpeed * (1.28 + Math.min(0.38, this.wave * 0.055));
+        enemy.vx = (dx / length) * diveSpeed;
+        enemy.vy = Math.max(diveSpeed * 0.72, (dy / length) * diveSpeed);
+        enemy.formationState = 'dive';
+        enemy.formationStateFrame = this.frameCount;
+      }
+      return true;
+    }
+
+    const diveAge = this.frameCount - enemy.formationStateFrame;
+    const curveStrength = formation === 'diamond' || formation === 'pincer' ? 1.2 : formation === 'spiral' ? 1.6 : 0.75;
+    enemy.x += Math.sin(diveAge * 0.09 + enemy.formationSeed) * curveStrength;
+    enemy.angle = clamp(enemy.vx * 0.065, -0.46, 0.46);
+
+    if (enemy.y > this.height + 72 || enemy.x < -140 || enemy.x > this.width + 140) {
+      const returnDirection = (enemy.formationIndex + enemy.formationCycle) % 2 === 0 ? -1 : 1;
+      enemy.formationStartX = clamp(targetX + returnDirection * Math.min(this.width * 0.18, 78), -60, this.width + 60);
+      enemy.formationStartY = -72 - (enemy.formationIndex % 3) * 18;
+      enemy.x = enemy.formationStartX;
+      enemy.y = enemy.formationStartY;
+      enemy.vx = 0;
+      enemy.vy = 0;
+      enemy.angle = 0;
+      enemy.formationState = 'return';
+      enemy.formationStateFrame = this.frameCount;
+      enemy.formationEntryFrames = 46 + (enemy.formationIndex % 4) * 4;
+      enemy.formationCycle++;
+      enemy.formationDiveFrame = this.frameCount
+        + enemy.formationEntryFrames
+        + Math.max(76, 148 - this.wave * 10)
+        + (enemy.formationIndex % 5) * 14;
+    }
+    return true;
   }
 
   spawnConfiguredEnemies() {
@@ -2924,15 +3183,7 @@ export class GameEngine {
       }
       enemy.sourceEventId = event.id;
       enemy.sourceItemId = enemySetting.enemyId;
-      enemy.formation = patternId.includes('pincer')
-        ? 'pincer'
-        : patternId.includes('sine') || patternId.includes('wave')
-          ? 'sine'
-          : patternId.includes('v')
-            ? 'v'
-            : 'row';
-      enemy.formationIndex = spawned;
-      enemy.formationSeed = this.waveProgressFrames + spawned * 19;
+      this.configureEnemyFormation(enemy, event, spawned, count);
       this.configuredSpawnCounts.set(event.id, spawned + 1);
       this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
     }
@@ -3059,7 +3310,7 @@ export class GameEngine {
   }
 
   spawnSwarmFormation() {
-    const modes: Exclude<EnemyFormationMode, 'orbit'>[] = this.wave <= 1
+    const modes: Array<'row' | 'v' | 'sine' | 'pincer'> = this.wave <= 1
       ? ['row', 'v']
       : this.wave === 2
         ? ['row', 'v', 'sine']
@@ -3109,7 +3360,7 @@ export class GameEngine {
         : Math.sin(i * 0.9) * 0.55;
     }
 
-    const labels: Record<Exclude<EnemyFormationMode, 'orbit'>, string> = {
+    const labels: Record<'row' | 'v' | 'sine' | 'pincer', string> = {
       row: 'LINE SWARM!',
       v: 'V-SWARM!',
       sine: 'WAVE SWARM!',
@@ -3139,6 +3390,7 @@ export class GameEngine {
       e.text = "📕"; 
       e.width = 56;
       e.height = 66;
+      e.spriteFrames = [...ASSETS.ENEMY_JOURNAL_FRAMES];
     } else if (type === EntityType.ENEMY_BRICK) {
       e.vy = 1.5 * speedBoost;
       e.hp = 8 * hpMult;
@@ -4410,7 +4662,7 @@ export class GameEngine {
       return ASSETS.ENEMY_BRICK_FRAMES[e.variant % ASSETS.ENEMY_BRICK_FRAMES.length];
     }
     if (e.type === EntityType.ENEMY_JOURNAL) {
-      return ASSETS.ENEMY_JOURNAL;
+      return this.getAnimatedFrame(ASSETS.ENEMY_JOURNAL_FRAMES, e, 6);
     }
     if (e.type === EntityType.ENEMY_INVADER) {
       return ASSETS.WALL_BOSS_SEGMENT;
@@ -4830,7 +5082,7 @@ export class GameEngine {
         const sway = Math.sin((this.frameCount + e.variant) * 0.04) * 0.12;
         const journalSprite = e.spriteFrames?.length
           ? this.getAnimatedFrame(e.spriteFrames, e, 6)
-          : e.spriteUrl || ASSETS.ENEMY_JOURNAL;
+          : e.spriteUrl || this.getAnimatedFrame(ASSETS.ENEMY_JOURNAL_FRAMES, e, 6);
         const drewSprite = this.drawSprite(ctx, journalSprite, e.width, e.height, {
             rotation: sway,
             shadowColor: '#fb7185',

@@ -88,6 +88,9 @@ const PATTERNS: Array<{ value: SpawnPatternId; label: string }> = [
   { value: 'v', label: 'V-formation' },
   { value: 'sine', label: 'Sine wave' },
   { value: 'pincer', label: 'Pincer' },
+  { value: 'grid', label: 'Formation wall' },
+  { value: 'diamond', label: 'Diamond pack' },
+  { value: 'spiral', label: 'Spiral entry' },
   { value: 'asteroid-lanes', label: 'Asteroid lanes' }
 ];
 

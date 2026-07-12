@@ -65,6 +65,7 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   ENEMY_SWARM_FRAMES: asset('ENEMY_SWARM_FRAMES', 'Misinformation swarm', ASSETS.ENEMY_SWARM_FRAMES, ['enemy', 'scorecard']),
   ENEMY_BRICK_FRAMES: asset('ENEMY_BRICK_FRAMES', 'Bureaucracy asteroid', ASSETS.ENEMY_BRICK_FRAMES, ['enemy', 'asteroid', 'scorecard']),
   ENEMY_JOURNAL: asset('ENEMY_JOURNAL', 'Predatory journal', ASSETS.ENEMY_JOURNAL, ['enemy', 'scorecard']),
+  ENEMY_JOURNAL_FRAMES: asset('ENEMY_JOURNAL_FRAMES', 'Animated predatory journal', ASSETS.ENEMY_JOURNAL_FRAMES, ['enemy', 'scorecard']),
   MINI_BOSS: asset('MINI_BOSS', 'Bottleneck drone', ASSETS.MINI_BOSS, ['boss', 'scorecard']),
   WALL_BOSS_SEGMENT: asset('WALL_BOSS_SEGMENT', 'Paywall segment', ASSETS.WALL_BOSS_SEGMENT, ['boss', 'scorecard']),
   FINAL_BOSS: asset('FINAL_BOSS', 'Gatekeeper sentinel', ASSETS.FINAL_BOSS, ['boss', 'scorecard'])
@@ -274,7 +275,7 @@ export const ENEMY_CATALOG: Record<EnemyId, EnemyCatalogEntry> = {
     id: 'journal',
     label: 'Predatory Journal',
     entityType: 'ENEMY_JOURNAL',
-    defaultSpriteKey: 'ENEMY_JOURNAL',
+    defaultSpriteKey: 'ENEMY_JOURNAL_FRAMES',
     defaultMovementPatternId: 'sine-drift',
     baseHealth: 3,
     baseSpeed: 4.4,
@@ -348,6 +349,9 @@ export const SPAWN_PATTERN_CATALOG: Record<SpawnPatternId, NamedCatalogEntry<Spa
   v: { id: 'v', label: 'V formation' },
   sine: { id: 'sine', label: 'Sine wave' },
   pincer: { id: 'pincer', label: 'Pincer' },
+  grid: { id: 'grid', label: 'Formation wall' },
+  diamond: { id: 'diamond', label: 'Diamond pack' },
+  spiral: { id: 'spiral', label: 'Spiral entry' },
   'asteroid-lanes': { id: 'asteroid-lanes', label: 'Asteroid lanes' }
 };
 

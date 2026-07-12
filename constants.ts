@@ -56,6 +56,12 @@ export const ASSETS = {
     "/game-art/enemies/asteroid-5.png"
   ],
   ENEMY_JOURNAL: "/game-art/enemies/journal-ace.png",
+  ENEMY_JOURNAL_FRAMES: [
+    "/game-art/enemies/journal-ace-frame-1.png",
+    "/game-art/enemies/journal-ace-frame-2.png",
+    "/game-art/enemies/journal-ace-frame-3.png",
+    "/game-art/enemies/journal-ace-frame-4.png"
+  ],
   MINI_BOSS: "/game-art/bosses/mini-boss-drone.png",
   WALL_BOSS_SEGMENT: "/game-art/bosses/wall-segment.png",
   FINAL_BOSS: "/game-art/bosses/final-boss-sentinel.png",

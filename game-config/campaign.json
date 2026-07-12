@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 3,
+  "revision": 4,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
-  "updatedAt": "2026-07-12T01:19:22.888Z",
+  "updatedAt": "2026-07-12T22:26:01.576Z",
   "fps": 60,
   "recordCard": {
     "copy": {
@@ -43,13 +43,13 @@
         "opacity": 1,
         "visible": true
       },
-        "encounter": {
-          "x": 805,
-          "y": 365,
-          "width": 210,
-          "height": 210,
-          "rotation": 0,
-          "opacity": 0.88,
+      "encounter": {
+        "x": 805,
+        "y": 365,
+        "width": 210,
+        "height": 210,
+        "rotation": 0,
+        "opacity": 0.88,
         "visible": true
       }
     }
@@ -112,10 +112,10 @@
               "durationSeconds": 19.8,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 13,
+              "count": 12,
               "patternId": "v",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.533,
+              "spawnIntervalSeconds": 0.18,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -207,10 +207,10 @@
               "durationSeconds": 17.8,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 12,
-              "patternId": "row",
+              "count": 14,
+              "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.533,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -294,10 +294,10 @@
               "durationSeconds": 20.4,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 13,
+              "count": 14,
               "patternId": "sine",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.533,
+              "spawnIntervalSeconds": 0.14,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -331,7 +331,7 @@
                 },
                 {
                   "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
                   "weight": 0.26,
                   "health": 3,
                   "speed": 4.4,
@@ -427,9 +427,9 @@
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 15,
-              "patternId": "sine",
+              "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.367,
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -565,10 +565,10 @@
               "durationSeconds": 17.8,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 13,
-              "patternId": "row",
+              "count": 16,
+              "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.367,
+              "spawnIntervalSeconds": 0.14,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -631,10 +631,10 @@
               "durationSeconds": 20.4,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 15,
-              "patternId": "sine",
+              "count": 16,
+              "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.367,
+              "spawnIntervalSeconds": 0.13,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -668,7 +668,7 @@
                 },
                 {
                   "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
                   "weight": 0.3,
                   "health": 5.04,
                   "speed": 5.368,
@@ -763,10 +763,10 @@
               "durationSeconds": 19.8,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 17,
-              "patternId": "v",
+              "count": 18,
+              "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.2,
+              "spawnIntervalSeconds": 0.14,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -859,10 +859,10 @@
               "durationSeconds": 17.8,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 15,
+              "count": 16,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.2,
+              "spawnIntervalSeconds": 0.12,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -946,10 +946,10 @@
               "durationSeconds": 20.4,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 17,
-              "patternId": "pincer",
+              "count": 18,
+              "patternId": "diamond",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.2,
+              "spawnIntervalSeconds": 0.11,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -983,7 +983,7 @@
                 },
                 {
                   "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
                   "weight": 0.3,
                   "health": 6.06,
                   "speed": 5.852,
@@ -1079,9 +1079,9 @@
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 20,
-              "patternId": "v",
+              "patternId": "spiral",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.033,
+              "spawnIntervalSeconds": 0.12,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -1176,7 +1176,7 @@
               "count": 18,
               "patternId": "pincer",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.033,
+              "spawnIntervalSeconds": 0.1,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -1239,10 +1239,10 @@
               "durationSeconds": 20.4,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 20,
-              "patternId": "pincer",
+              "count": 22,
+              "patternId": "grid",
               "positionId": "formation-top",
-              "spawnIntervalSeconds": 1.033,
+              "spawnIntervalSeconds": 0.09,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -1276,7 +1276,7 @@
                 },
                 {
                   "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
                   "weight": 0.3,
                   "health": 7.08,
                   "speed": 6.336,

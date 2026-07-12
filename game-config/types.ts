@@ -18,6 +18,7 @@ export type BuiltInAssetKey =
   | 'ENEMY_SWARM_FRAMES'
   | 'ENEMY_BRICK_FRAMES'
   | 'ENEMY_JOURNAL'
+  | 'ENEMY_JOURNAL_FRAMES'
   | 'MINI_BOSS'
   | 'WALL_BOSS_SEGMENT'
   | 'FINAL_BOSS';
@@ -44,7 +45,16 @@ export type BossId = 'bottleneck-drone' | 'paywall-wall' | 'gatekeeper';
 export type PowerupId = 'double-shot' | 'triple-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
 export type BackgroundId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'open-galaxy';
 export type MusicId = 'procedural-main';
-export type SpawnPatternId = 'single-random' | 'row' | 'v' | 'sine' | 'pincer' | 'asteroid-lanes';
+export type SpawnPatternId =
+  | 'single-random'
+  | 'row'
+  | 'v'
+  | 'sine'
+  | 'pincer'
+  | 'grid'
+  | 'diamond'
+  | 'spiral'
+  | 'asteroid-lanes';
 export type SpawnPositionId = 'random-top' | 'formation-top' | 'center-top' | 'lane-top';
 export type MovementPatternId = 'drift-down' | 'sine-drift' | 'track-player' | 'wall-march' | 'asteroid-drift' | 'gatekeeper-cycle';
 export type WeaponId = 'aimed-shot' | 'wall-bolt' | 'burst-volley' | 'lane-beam';

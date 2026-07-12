@@ -9,7 +9,8 @@
 - A level owns its background, music cue, difficulty, score target, available power-ups, scorecard presentation, and ordered `waves`.
 - A wave owns its active duration, intro/departure timing, threat cap, score multiplier, and ordered `events`.
 - Event kinds are `spawn`, `boss`, `asteroid-belt`, `powerup`, and `recovery`.
-- JSON stores constrained catalog IDs such as `ENEMY_JOURNAL` or `gatekeeper`; arbitrary asset paths and executable behavior are rejected.
+- JSON stores constrained catalog IDs such as `ENEMY_JOURNAL_FRAMES` or `gatekeeper`; arbitrary asset paths and executable behavior are rejected.
+- Spawn events select a reusable formation grammar: row, V, sine, pincer, grid, diamond, or spiral. The runtime owns the shared enter, assemble, dive, and return behavior.
 - `hudAssets.bombIconAssetKey` selects the bomb control artwork used by the shared real-game HUD.
 - Optional normalized `spawnAnchor` points power visual placement, while bounded `spriteStyle` values change artwork without changing collision boxes.
 

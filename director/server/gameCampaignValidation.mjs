@@ -9,7 +9,7 @@ const BUILT_IN_ASSET_KEYS = [
   'PLAYER_SHIP', 'RSC_TOKEN', 'REAL_RSC_ICON', 'GAME_BG_BACK', 'GAME_BG_STARS',
   'GAME_BG_PLANET', 'GAME_PARALLAX_BACK', 'GAME_PARALLAX_STARS',
   'GAME_PARALLAX_FAR_PLANETS', 'GAME_PARALLAX_BIG_PLANET', 'GAME_PARALLAX_RING_PLANET',
-  'ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ENEMY_JOURNAL',
+  'ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ENEMY_JOURNAL', 'ENEMY_JOURNAL_FRAMES',
   'MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS'
 ];
 const GENERATED_ASSET_ROLES = new Set(['enemy', 'boss', 'asteroid', 'hud', 'player', 'background', 'scorecard']);
@@ -86,6 +86,7 @@ const refreshGeneratedAssetCatalog = () => {
     'ENEMY_SWARM_FRAMES',
     'ENEMY_BRICK_FRAMES',
     'ENEMY_JOURNAL',
+    'ENEMY_JOURNAL_FRAMES',
     ...generatedForRole('enemy')
   ]);
   replaceSet(BOSS_SPRITE_KEYS, ['MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS', ...generatedForRole('boss')]);
@@ -93,7 +94,7 @@ const refreshGeneratedAssetCatalog = () => {
   replaceSet(HUD_ASSET_KEYS, ['RSC_TOKEN', 'REAL_RSC_ICON', ...generatedForRole('hud')]);
   replaceSet(SCORECARD_ASSET_KEYS, [
     'PLAYER_SHIP', 'RSC_TOKEN', 'REAL_RSC_ICON',
-    'ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ENEMY_JOURNAL',
+    'ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ENEMY_JOURNAL', 'ENEMY_JOURNAL_FRAMES',
     'MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS',
     ...generatedForRole('scorecard')
   ]);
@@ -105,7 +106,17 @@ const BOSS_IDS = new Set(['bottleneck-drone', 'paywall-wall', 'gatekeeper']);
 const POWERUP_IDS = new Set(['double-shot', 'triple-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
 const BACKGROUND_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy']);
 const MUSIC_IDS = new Set(['procedural-main']);
-const SPAWN_PATTERNS = new Set(['single-random', 'row', 'v', 'sine', 'pincer', 'asteroid-lanes']);
+const SPAWN_PATTERNS = new Set([
+  'single-random',
+  'row',
+  'v',
+  'sine',
+  'pincer',
+  'grid',
+  'diamond',
+  'spiral',
+  'asteroid-lanes'
+]);
 const SPAWN_POSITIONS = new Set(['random-top', 'formation-top', 'center-top', 'lane-top']);
 const MOVEMENT_PATTERNS = new Set(['drift-down', 'sine-drift', 'track-player', 'wall-march', 'asteroid-drift', 'gatekeeper-cycle']);
 const WEAPON_IDS = new Set(['aimed-shot', 'wall-bolt', 'burst-volley', 'lane-beam']);

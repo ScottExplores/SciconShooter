@@ -23,7 +23,7 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
 
 test('tracked campaign contains the current four real-game sector waves', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 3);
+  assert.equal(campaign.revision, 4);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 1);
@@ -130,6 +130,39 @@ test('spawn pools are complete, weighted, and contain directly editable combat v
       assert.ok(enemy.powerupDropChance >= 0 && enemy.powerupDropChance <= 1);
     });
   });
+});
+
+test('sector waves escalate through readable formation packs instead of slow single-file spawns', () => {
+  const wavePatterns = campaign.levels[0].waves.map((wave) => (
+    wave.events
+      .filter((event) => event.kind === 'spawn')
+      .map((event) => event.patternId)
+  ));
+  const spawnIntervals = campaign.levels[0].waves.map((wave) => (
+    wave.events
+      .filter((event) => event.kind === 'spawn')
+      .map((event) => event.spawnIntervalSeconds)
+  ));
+
+  assert.deepEqual(wavePatterns[0], ['v', 'grid', 'sine']);
+  assert.deepEqual(wavePatterns[1], ['spiral', 'grid', 'diamond']);
+  assert.deepEqual(wavePatterns[2], ['grid', 'pincer', 'diamond']);
+  assert.deepEqual(wavePatterns[3], ['spiral', 'pincer', 'grid']);
+  spawnIntervals.flat().forEach((interval) => assert.ok(interval <= 0.18));
+  assert.ok(Math.max(...spawnIntervals[3]) < Math.max(...spawnIntervals[0]));
+});
+
+test('every predatory journal spawn uses the animated frame catalog', () => {
+  const journalSettings = campaign.levels.flatMap((level) => (
+    level.waves.flatMap((wave) => (
+      wave.events
+        .filter((event) => event.kind === 'spawn')
+        .flatMap((event) => event.enemies.filter((enemy) => enemy.enemyId === 'journal'))
+    ))
+  ));
+
+  assert.ok(journalSettings.length > 0);
+  journalSettings.forEach((enemy) => assert.equal(enemy.spriteKey, 'ENEMY_JOURNAL_FRAMES'));
 });
 
 test('campaign JSON contains catalog keys only, never arbitrary asset paths or executable fields', () => {

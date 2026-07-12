@@ -185,7 +185,10 @@ const FORMATION_OPTIONS: Array<{ value: FormationPattern; label: string }> = [
   { value: 'row', label: 'Row' },
   { value: 'v', label: 'V-Formation' },
   { value: 'sine', label: 'Sine wave' },
-  { value: 'pincer', label: 'Pincer' }
+  { value: 'pincer', label: 'Pincer' },
+  { value: 'grid', label: 'Formation wall' },
+  { value: 'diamond', label: 'Diamond pack' },
+  { value: 'spiral', label: 'Spiral entry' }
 ];
 
 const BOSS_OPTIONS: Array<{ value: BossType; label: string }> = [

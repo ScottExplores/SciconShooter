@@ -81,7 +81,7 @@ export type WaveSegmentType =
   | 'recovery'
   | 'inter-wave';
 
-export type FormationPattern = 'row' | 'v' | 'sine' | 'pincer';
+export type FormationPattern = 'row' | 'v' | 'sine' | 'pincer' | 'grid' | 'diamond' | 'spiral';
 export type EnemyType = 'drone' | 'swarm' | 'brick' | 'journal';
 export type BossType = 'mini-boss' | 'wall' | 'asteroid-belt' | 'gatekeeper';
 

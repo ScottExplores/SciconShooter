@@ -126,6 +126,26 @@ const getFormationPoint = (
         x: index % 2 === 0 ? 25 + random() * 13 : 62 + random() * 13,
         y: 22 + Math.floor(index / 2) * 7
       };
+    case 'grid': {
+      const columns = Math.min(5, Math.max(3, Math.ceil(Math.sqrt(count * 1.4))));
+      const row = Math.floor(index / columns);
+      const column = index % columns;
+      return { x: 22 + column * 14, y: 23 + row * 10 };
+    }
+    case 'diamond': {
+      const angle = (index / Math.max(1, count)) * Math.PI * 2 - Math.PI / 2;
+      const denominator = Math.max(0.001, Math.abs(Math.cos(angle)) + Math.abs(Math.sin(angle)));
+      return {
+        x: 50 + (Math.cos(angle) / denominator) * 27,
+        y: 34 + (Math.sin(angle) / denominator) * 16
+      };
+    }
+    case 'spiral': {
+      const progress = index / Math.max(1, count - 1);
+      const angle = progress * Math.PI * 3.5;
+      const radius = 6 + progress * 25;
+      return { x: 50 + Math.cos(angle) * radius, y: 34 + Math.sin(angle) * radius * 0.62 };
+    }
     case 'row':
     default:
       return { x: 14 + (index / Math.max(1, count - 1)) * 72, y: 31 + (random() - 0.5) * 4 };
