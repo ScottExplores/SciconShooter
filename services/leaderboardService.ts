@@ -2,7 +2,7 @@ import { LeaderboardData, LeaderboardEntry } from '../types';
 import type { RunReceipt } from './runReceiptService';
 
 const API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL as string | undefined)?.trim() || '/api/leaderboard';
-const MAX_SCORES = 25;
+export const ALL_TIME_SCORE_LIMIT = 100;
 const MAX_MONTHLY_SCORES = 5;
 
 const sanitizeText = (value: unknown, maxLength: number): string | undefined => {
@@ -79,7 +79,7 @@ const dedupeAndSort = (scores: LeaderboardEntry[], limit: number): LeaderboardEn
 };
 
 const toLeaderboardData = (scores: LeaderboardEntry[], remoteSaved?: boolean): LeaderboardData => {
-  const allTime = dedupeAndSort(scores, MAX_SCORES);
+  const allTime = dedupeAndSort(scores, ALL_TIME_SCORE_LIMIT);
   const monthlyScores = dedupeAndSort(scores.filter(isCurrentWeekEntry), MAX_MONTHLY_SCORES);
 
   return {
@@ -105,7 +105,7 @@ const readRemoteLeaderboardData = async (): Promise<LeaderboardData> => {
   }
 
   const data = await response.json();
-  const scores = Array.isArray(data.scores) ? dedupeAndSort(data.scores, MAX_SCORES) : [];
+  const scores = Array.isArray(data.scores) ? dedupeAndSort(data.scores, ALL_TIME_SCORE_LIMIT) : [];
   const monthlyScores = Array.isArray(data.monthlyScores)
     ? dedupeAndSort(data.monthlyScores, MAX_MONTHLY_SCORES)
     : dedupeAndSort(scores.filter(isCurrentWeekEntry), MAX_MONTHLY_SCORES);
@@ -136,7 +136,7 @@ const writeRemoteLeaderboardData = async (
   }
 
   const data = await response.json();
-  const nextScores = Array.isArray(data.scores) ? dedupeAndSort(data.scores, MAX_SCORES) : [];
+  const nextScores = Array.isArray(data.scores) ? dedupeAndSort(data.scores, ALL_TIME_SCORE_LIMIT) : [];
   const monthlyScores = Array.isArray(data.monthlyScores)
     ? dedupeAndSort(data.monthlyScores, MAX_MONTHLY_SCORES)
     : dedupeAndSort(nextScores.filter(isCurrentWeekEntry), MAX_MONTHLY_SCORES);

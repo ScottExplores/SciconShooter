@@ -3,6 +3,7 @@ import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
 import { ASSETS, DONATION_CONFIG } from '../constants';
 import type { RunReceipt } from '../services/runReceiptService';
+import { ALL_TIME_SCORE_LIMIT } from '../services/leaderboardService';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
@@ -400,6 +401,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
     : leaderboardView === 'allTime'
       ? allTimeLeaderboard
       : [];
+  const displayedLeaderboard = leaderboardView === 'allTime'
+    ? visibleLeaderboard.slice(0, ALL_TIME_SCORE_LIMIT)
+    : visibleLeaderboard;
 
   const topPilotScore = Math.max(weeklyLeader?.score ?? 0, allTimeLeader?.score ?? 0);
   const pilotLevel = Math.max(1, Math.min(12, Math.floor(topPilotScore / 1000) + 1));
@@ -783,7 +787,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         {!isLoading && leaderboardView !== 'pastPicks' && leaderboardView !== 'records' && (
           <div className="space-y-2">
-            {visibleLeaderboard.slice(0, 8).map((entry, index) => (
+            {displayedLeaderboard.map((entry, index) => (
               <div key={`${entry.name}-${entry.score}-${index}`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[6px] border border-cyan-300/12 bg-white/[0.035] p-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-cyan-300/25 bg-cyan-300/10 text-sm font-black text-cyan-100">
                   {index + 1}

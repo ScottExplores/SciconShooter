@@ -7,6 +7,10 @@ const source = fs.readFileSync(
   path.join(__dirname, '..', 'components', 'StartScreen.tsx'),
   'utf8'
 );
+const leaderboardServiceSource = fs.readFileSync(
+  path.join(__dirname, '..', 'services', 'leaderboardService.ts'),
+  'utf8'
+);
 
 test('home winner card uses the same proposal progress calculation as proposal rows', () => {
   assert.match(
@@ -28,4 +32,11 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(source, /className="flex min-h-full flex-col gap-2"/);
   assert.match(source, /<HeroPanel compact fill\s*\/>/);
   assert.match(source, /fill \? 'flex-1' : ''/);
+});
+
+test('all-time Trophy Deck retains and renders up to 100 scores', () => {
+  assert.match(leaderboardServiceSource, /export const ALL_TIME_SCORE_LIMIT = 100/);
+  assert.match(source, /visibleLeaderboard\.slice\(0, ALL_TIME_SCORE_LIMIT\)/);
+  assert.match(source, /displayedLeaderboard\.map/);
+  assert.doesNotMatch(source, /visibleLeaderboard\.slice\(0, 8\)/);
 });

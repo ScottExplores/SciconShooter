@@ -3,7 +3,7 @@ import StartScreen from './components/StartScreen';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, MintRecord, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from './constants';
-import { getLeaderboardData, saveScore } from './services/leaderboardService';
+import { ALL_TIME_SCORE_LIMIT, getLeaderboardData, saveScore } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
@@ -801,7 +801,7 @@ const App: React.FC = () => {
     );
     const previousLeaderboard = leaderboard;
     const previousMonthlyLeaderboard = monthlyLeaderboard;
-    const optimisticList = [...leaderboard, newEntry].sort(scoreSorter).slice(0, 25);
+    const optimisticList = [...leaderboard, newEntry].sort(scoreSorter).slice(0, ALL_TIME_SCORE_LIMIT);
     const optimisticMonthlyList = [...monthlyLeaderboard, newEntry].sort(scoreSorter).slice(0, 5);
     setLeaderboard(optimisticList);
     setMonthlyLeaderboard(optimisticMonthlyList);

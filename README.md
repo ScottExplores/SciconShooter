@@ -21,7 +21,7 @@ Scicon Shooter is not presented as an official ResearchHub product.
 ## Core features
 
 - Arcade shooter gameplay with waves, bosses, formations, upgrades, coins, bombs, and mobile controls.
-- Guest-first weekly and all-time leaderboards.
+- Guest-first weekly and Top 100 all-time leaderboards.
 - Signed run receipts, replay protection, anomaly checks, and practical API rate limits.
 - Direct Base Account connection and attributed Base transactions.
 - Optional RSC continues on Base.

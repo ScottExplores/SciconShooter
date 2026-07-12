@@ -1,6 +1,6 @@
-const MAX_SCORES = 25;
+const ALL_TIME_SCORE_LIMIT = 100;
 const MAX_MONTHLY_SCORES = 5;
-const SYNC_SCORE_LIMIT = 100;
+const SYNC_SCORE_LIMIT = ALL_TIME_SCORE_LIMIT + MAX_MONTHLY_SCORES;
 const SUPABASE_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const crypto = require('crypto');
@@ -79,7 +79,7 @@ const sanitizeEntry = (entry) => {
   };
 };
 
-const dedupeAndSort = (scores, limit = MAX_SCORES) => {
+const dedupeAndSort = (scores, limit = ALL_TIME_SCORE_LIMIT) => {
   const seen = new Set();
   const normalized = scores
     .map(sanitizeEntry)
@@ -102,7 +102,7 @@ const dedupeAndSort = (scores, limit = MAX_SCORES) => {
 const toLeaderboardPayload = (scores) => {
   const archive = dedupeAndSort(scores, SYNC_SCORE_LIMIT);
   return {
-    scores: dedupeAndSort(archive, MAX_SCORES),
+    scores: dedupeAndSort(archive, ALL_TIME_SCORE_LIMIT),
     monthlyScores: dedupeAndSort(archive.filter(isCurrentWeekEntry), MAX_MONTHLY_SCORES)
   };
 };
@@ -174,14 +174,14 @@ const readSupabaseScores = async () => {
   let monthlyRows;
 
   try {
-    rows = await requestSupabaseScores(SUPABASE_SELECT, `&limit=${SYNC_SCORE_LIMIT}`);
+    rows = await requestSupabaseScores(SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
     monthlyRows = await requestSupabaseScores(SUPABASE_SELECT, monthlyQuery);
   } catch (error) {
     if (!isMissingProposalColumnError(error)) {
       throw error;
     }
 
-    rows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, `&limit=${SYNC_SCORE_LIMIT}`);
+    rows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
     monthlyRows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, monthlyQuery);
   }
 

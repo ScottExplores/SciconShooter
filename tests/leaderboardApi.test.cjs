@@ -147,3 +147,58 @@ test('leaderboard saves a verified receipt through the legacy schema fallback', 
     global.fetch = originalFetch;
   }
 });
+
+test('leaderboard returns the top 100 all-time scores while keeping the weekly board focused', async () => {
+  const originalFetch = global.fetch;
+  const historicRows = Array.from({ length: 120 }, (_, index) => ({
+    name: `PILOT${index}`,
+    score: 1200 - index,
+    wave: 1 + (index % 5),
+    date: new Date(Date.UTC(2025, 0, 1, 0, 0, index)).toISOString(),
+    wallet_address: null,
+    donated: false,
+    proposal_id: null,
+    proposal_title: null,
+    proposal_url: null,
+    proposal_author: null,
+    run_id: `run-${index}`,
+    verified: true,
+    receipt_hash: `hash-${index}`
+  }));
+  const weeklyRows = Array.from({ length: 5 }, (_, index) => ({
+    ...historicRows[index],
+    name: `WEEKLY${index}`,
+    score: 100 - index,
+    date: new Date(Date.now() - (index * 60_000)).toISOString(),
+    run_id: `weekly-run-${index}`,
+    receipt_hash: `weekly-hash-${index}`
+  }));
+  let allTimeRequest = '';
+  let weeklyRequest = '';
+
+  global.fetch = async (url) => {
+    const value = String(url);
+    if (value.includes('&date=gte.')) {
+      weeklyRequest = value;
+      return jsonResponse(weeklyRows);
+    }
+    allTimeRequest = value;
+    return jsonResponse(historicRows.slice(0, 100));
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({ method: 'GET', headers: {}, socket: { remoteAddress: '127.0.0.1' } }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.scores.length, 100);
+    assert.equal(res.body.scores[0].score, 1200);
+    assert.equal(res.body.scores[99].score, 1101);
+    assert.equal(res.body.monthlyScores.length, 5);
+    assert.equal(res.body.monthlyScores[0].name, 'WEEKLY0');
+    assert.match(allTimeRequest, /limit=100/);
+    assert.match(weeklyRequest, /limit=5/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
