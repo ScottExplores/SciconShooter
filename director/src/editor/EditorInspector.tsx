@@ -535,7 +535,12 @@ function BossSettings({
           <EventTiming event={boss} onChange={onUpdateEvent} />
           <SelectField label="Boss type" value={boss.bossId} options={BOSSES.map((item) => ({ value: item.id, label: item.label }))} onChange={(bossId) => {
             const selected = BOSSES.find((item) => item.id === bossId)!;
-            updateBoss({ bossId, spriteKey: selected.spriteKey, movementPatternId: selected.movement });
+            updateBoss({
+              bossId,
+              count: bossId === 'bottleneck-drone' ? (boss.count ?? 1) : 1,
+              spriteKey: selected.spriteKey,
+              movementPatternId: selected.movement
+            });
           }} />
           <AssetSelectField
             label="Boss sprite"
@@ -548,6 +553,9 @@ function BossSettings({
           />
           <SelectField label="Movement pattern" value={boss.movementPatternId} options={MOVEMENTS} onChange={(movementPatternId) => updateBoss({ movementPatternId })} />
           <SelectField label="Spawn position" value={boss.positionId} options={POSITIONS} onChange={(positionId) => updateBoss({ positionId })} />
+          {boss.bossId === 'bottleneck-drone' ? (
+            <NumberField label="Boss count" value={boss.count ?? 1} onChange={(count) => updateBoss({ count: Math.round(count) })} min={1} max={4} step={1} />
+          ) : null}
           <div className="le-field-row">
             <NumberField label="Spawn warning" value={boss.warningSeconds} onChange={(warningSeconds) => updateBoss({ warningSeconds })} min={0} max={30} step={0.25} unit="s" />
             <NumberField label="Health" value={boss.health} onChange={(health) => updateBoss({ health })} min={1} max={1000000} step={10} unit="HP" />

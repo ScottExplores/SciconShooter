@@ -1,19 +1,63 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { finalizeWeeklyCompetition, getPreviousWeekKey } = require('../api/_lib/weeklyCompetitionService');
+const {
+  finalizeWeeklyCompetition,
+  getPreviousWeekKey,
+  getWeekRange
+} = require('../api/_lib/weeklyCompetitionService');
+const {
+  getCurrentWeekRange,
+  getWeeklyBoundaryMeta
+} = require('../shared/weeklyCompetitionBoundary.js');
 
-test('weekly competition keys use Monday UTC boundaries', () => {
-  assert.equal(getPreviousWeekKey(new Date('2026-07-09T18:00:00.000Z')), '2026-06-29');
-  assert.equal(getPreviousWeekKey(new Date('2026-07-13T00:05:00.000Z')), '2026-07-06');
+test('weekly competition resets Sunday at noon Pacific', () => {
+  const beforeSummerCutoff = new Date('2026-07-12T18:59:00.000Z');
+  const afterSummerCutoff = new Date('2026-07-12T19:01:00.000Z');
+  const beforeWinterCutoff = new Date('2026-01-04T19:59:00.000Z');
+  const afterWinterCutoff = new Date('2026-01-04T20:01:00.000Z');
+
+  assert.equal(getCurrentWeekRange(beforeSummerCutoff).weekKey, '2026-07-05');
+  assert.equal(getCurrentWeekRange(afterSummerCutoff).weekKey, '2026-07-12');
+  assert.equal(getCurrentWeekRange(beforeWinterCutoff).weekKey, '2025-12-28');
+  assert.equal(getCurrentWeekRange(afterWinterCutoff).weekKey, '2026-01-04');
+  assert.equal(getPreviousWeekKey(afterSummerCutoff), '2026-07-05');
+  assert.equal(getPreviousWeekKey(afterWinterCutoff), '2025-12-28');
+});
+
+test('weekly competition ranges preserve noon Pacific across daylight-saving changes', () => {
+  const summerRange = getWeekRange('2026-07-05');
+  assert.equal(summerRange.start.toISOString(), '2026-07-05T19:00:00.000Z');
+  assert.equal(summerRange.end.toISOString(), '2026-07-12T19:00:00.000Z');
+
+  const daylightSavingRange = getWeekRange('2026-03-01');
+  assert.equal(daylightSavingRange.start.toISOString(), '2026-03-01T20:00:00.000Z');
+  assert.equal(daylightSavingRange.end.toISOString(), '2026-03-08T19:00:00.000Z');
+
+  assert.throws(() => getWeekRange('2026-07-06'), /Sunday formatted as YYYY-MM-DD/);
+});
+
+test('weekly card metadata rolls to the next Sunday at the cutoff', () => {
+  assert.deepEqual(
+    {
+      daysLeft: getWeeklyBoundaryMeta(new Date('2026-07-12T18:59:00.000Z'), 'en-US').daysLeft,
+      endLabel: getWeeklyBoundaryMeta(new Date('2026-07-12T18:59:00.000Z'), 'en-US').endLabel
+    },
+    { daysLeft: 0, endLabel: 'Jul 12' }
+  );
+  assert.deepEqual(
+    {
+      daysLeft: getWeeklyBoundaryMeta(new Date('2026-07-12T19:01:00.000Z'), 'en-US').daysLeft,
+      endLabel: getWeeklyBoundaryMeta(new Date('2026-07-12T19:01:00.000Z'), 'en-US').endLabel
+    },
+    { daysLeft: 7, endLabel: 'Jul 19' }
+  );
 });
 
 test('an open weekly competition cannot be finalized', async () => {
-  const nextMonday = new Date();
-  nextMonday.setUTCDate(nextMonday.getUTCDate() + ((8 - nextMonday.getUTCDay()) % 7 || 7));
-  nextMonday.setUTCHours(0, 0, 0, 0);
+  const openWeekKey = getCurrentWeekRange().weekKey;
 
   await assert.rejects(
-    finalizeWeeklyCompetition(nextMonday.toISOString().slice(0, 10)),
+    finalizeWeeklyCompetition(openWeekKey),
     /open competition cannot be finalized/i
   );
 });
@@ -46,11 +90,13 @@ test('finalization locks the top verified score for a closed week', async (conte
     else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
   });
 
-  const result = await finalizeWeeklyCompetition('2020-01-06');
+  const result = await finalizeWeeklyCompetition('2020-01-05');
   assert.equal(result.finalized, true);
   assert.equal(result.competition.status, 'finalized');
   assert.equal(result.competition.winner_run_id, 'verified-run');
   assert.equal(result.competition.winning_score, 4321);
+  assert.equal(result.competition.starts_at, '2020-01-05T20:00:00.000Z');
+  assert.equal(result.competition.ends_at, '2020-01-12T20:00:00.000Z');
   assert.match(requests[1].url, /verified=eq\.true/);
   assert.match(requests[1].url, /order=score\.desc,date\.asc/);
   assert.equal(

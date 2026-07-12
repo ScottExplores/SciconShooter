@@ -45,11 +45,11 @@ const makeCampaign = () => ({
     encounterAssetKey: 'AUTO',
     art: {
       ship: { x: 290, y: 370, width: 260, height: 260, rotation: 0, opacity: 1, visible: true },
-      encounter: { x: 800, y: 292, width: 260, height: 260, rotation: 0, opacity: 0.72, visible: true }
+      encounter: { x: 805, y: 365, width: 210, height: 210, rotation: 0, opacity: 0.88, visible: true }
     }
   },
   hudAssets: {
-    bombIconAssetKey: 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C'
+    bombIconAssetKey: 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F'
   },
   levels: [
     {
@@ -286,13 +286,13 @@ test('generated assets are accepted only for their registered game roles and raw
   assert.deepEqual(validateGameCampaign(validHud), { valid: true, errors: [] });
 
   const wrongRole = makeCampaign();
-  wrongRole.levels[0].waves[0].events[0].enemies[0].spriteKey = 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C';
+  wrongRole.levels[0].waves[0].events[0].enemies[0].spriteKey = 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F';
   const wrongRoleResult = validateGameCampaign(wrongRole);
   assert.equal(wrongRoleResult.valid, false);
   assert.ok(wrongRoleResult.errors.some((error) => error.includes('/enemies/0/spriteKey has unsupported value')));
 
   const rawPath = makeCampaign();
-  rawPath.hudAssets.bombIconAssetKey = '/game-art/generated/biohazard-bomb-f29f11258b6c.png';
+  rawPath.hudAssets.bombIconAssetKey = '/game-art/generated/biohazard-bomb-e5d01d651f2f.png';
   const rawPathResult = validateGameCampaign(rawPath);
   assert.equal(rawPathResult.valid, false);
   assert.ok(rawPathResult.errors.some((error) => error.includes('/hudAssets/bombIconAssetKey has unsupported value')));

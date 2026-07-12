@@ -25,7 +25,7 @@ test('tracked campaign contains the current four real-game sector waves', () => 
   assert.equal(campaign.schemaVersion, 1);
   assert.equal(campaign.revision, 3);
   assert.equal(campaign.fps, 60);
-  assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C');
+  assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 1);
 
   const level = campaign.levels[0];
@@ -63,6 +63,23 @@ test('every wave exposes editable spawns, mini-boss, checkpoint encounter, final
     assert.deepEqual(starts, [...starts].sort((left, right) => left - right));
     assert.ok(wave.events.every((event) => event.startSeconds <= wave.durationSeconds));
   });
+});
+
+test('later waves escalate Bottleneck Drones from a relay to a simultaneous pair', () => {
+  const [, citationStorm, paywallSiege] = campaign.levels[0].waves;
+  const citationBottlenecks = citationStorm.events.filter((event) => (
+    event.kind === 'boss' && event.bossId === 'bottleneck-drone'
+  ));
+  const siegeBottlenecks = paywallSiege.events.filter((event) => (
+    event.kind === 'boss' && event.bossId === 'bottleneck-drone'
+  ));
+
+  assert.deepEqual(citationBottlenecks.map((event) => event.startSeconds), [19.8, 21.8]);
+  assert.deepEqual(citationBottlenecks.map((event) => event.count ?? 1), [1, 1]);
+  assert.equal(new Set(citationBottlenecks.map((event) => event.id)).size, 2);
+  assert.equal(siegeBottlenecks.length, 1);
+  assert.equal(siegeBottlenecks[0].count, 2);
+  assert.equal(siegeBottlenecks[0].label, 'Twin Bottleneck Drones');
 });
 
 test('ids are unique and boss health phases are strictly descending with valid weapon references', () => {

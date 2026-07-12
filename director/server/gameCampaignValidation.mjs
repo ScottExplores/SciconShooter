@@ -347,8 +347,14 @@ const validateBossPhase = (phase, location, weaponIds, previousRatio, errors) =>
 };
 
 const validateBossEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'], location, errors);
   requireEnum(event.bossId, BOSS_IDS, `${location}/bossId`, errors);
+  if (event.count !== undefined) {
+    requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 4, integer: true });
+    if (event.bossId !== 'bottleneck-drone' && event.count > 1) {
+      errors.push(`${location}/count supports groups only for bottleneck-drone`);
+    }
+  }
   requireEnum(event.spriteKey, BOSS_SPRITE_KEYS, `${location}/spriteKey`, errors);
   validateSpriteStyle(event.spriteStyle, `${location}/spriteStyle`, errors);
   requireEnum(event.positionId, SPAWN_POSITIONS, `${location}/positionId`, errors);

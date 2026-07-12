@@ -22,22 +22,17 @@ export interface MissionRecordCardData {
 export interface MissionRecordCardProps {
   record: MissionRecordCardData;
   shipArt?: string;
+  frameArt?: string;
   presentation?: RecordCardPresentation;
 }
 
-/**
- * The reusable, presentation-only mission record surface.
- *
- * It intentionally owns no modal controls, network calls, wallet behavior,
- * analytics, sharing, or minting so the exact game card can be rendered in
- * local visual tools with plain data.
- */
-export function MissionRecordCard({
+export function buildMissionRecordCardSvg({
   record,
   shipArt = ASSETS.PLAYER_SHIP,
+  frameArt,
   presentation
 }: MissionRecordCardProps) {
-  const svg = renderRecordCardSvg({
+  return renderRecordCardSvg({
     record: {
       pilotName: (record.pilotName || 'Pilot').slice(0, 15).toUpperCase(),
       score: record.score,
@@ -52,8 +47,25 @@ export function MissionRecordCard({
     },
     encounterImage: record.encounterArt,
     shipImage: shipArt,
+    frameImage: frameArt,
     presentation
   });
+}
+
+/**
+ * The reusable, presentation-only mission record surface.
+ *
+ * It intentionally owns no modal controls, network calls, wallet behavior,
+ * analytics, sharing, or minting so the exact game card can be rendered in
+ * local visual tools with plain data.
+ */
+export function MissionRecordCard({
+  record,
+  shipArt = ASSETS.PLAYER_SHIP,
+  frameArt,
+  presentation
+}: MissionRecordCardProps) {
+  const svg = buildMissionRecordCardSvg({ record, shipArt, frameArt, presentation });
 
   return (
     <div

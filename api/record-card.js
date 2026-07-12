@@ -43,6 +43,14 @@ const CARD_ASSET_PATHS = Object.freeze({
   ...BUILT_IN_CARD_ASSET_PATHS,
   ...GENERATED_CARD_ASSET_PATHS
 });
+const RECORD_CARD_FRAME_PATH = '/game-art/record-card/mission-record-frame.png';
+const LOOPBACK_HOST = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i;
+
+const resolveAssetOrigin = (req) => {
+  const host = String(req.headers?.host || '');
+  if (LOOPBACK_HOST.test(host)) return `http://${host}`;
+  return (process.env.PUBLIC_APP_URL || 'https://www.sciconshooter.xyz').replace(/\/$/, '');
+};
 
 const embedImage = async (url) => {
   const controller = new AbortController();
@@ -75,27 +83,31 @@ module.exports = async (req, res) => {
     if (!receipt) { res.statusCode = 404; return res.end('Record not found'); }
 
     const record = getRecordPresentation(receipt, scoreRow);
-    const assetOrigin = (process.env.PUBLIC_APP_URL || 'https://www.sciconshooter.xyz').replace(/\/$/, '');
-    const completed = record.finishedAt
-      ? new Date(record.finishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).toUpperCase()
-      : 'VERIFIED RUN';
+    const assetOrigin = resolveAssetOrigin(req);
     const cardConfig = gameCampaign.recordCard || {};
-    const { renderRecordCardSvg, resolveRecordCardEncounterAssetKey } = await recordCardRenderer;
+    const {
+      formatRecordCardCompletedLabel,
+      renderRecordCardSvg,
+      resolveRecordCardEncounterAssetKey
+    } = await recordCardRenderer;
+    const completed = formatRecordCardCompletedLabel(record.finishedAt);
     const automaticEncounterKey = resolveRecordCardEncounterAssetKey(gameCampaign, record.wave);
     const automaticEncounterPath = CARD_ASSET_PATHS[automaticEncounterKey] || CARD_ASSET_PATHS.FINAL_BOSS;
     const encounterPath = cardConfig.encounterAssetKey === 'AUTO'
       ? automaticEncounterPath
       : CARD_ASSET_PATHS[cardConfig.encounterAssetKey] || automaticEncounterPath;
     const shipPath = CARD_ASSET_PATHS[cardConfig.shipAssetKey] || CARD_ASSET_PATHS.PLAYER_SHIP;
-    const [bossImage, shipImage] = await Promise.all([
+    const [bossImage, shipImage, frameImage] = await Promise.all([
       embedImage(`${assetOrigin}${encounterPath}`),
-      embedImage(`${assetOrigin}${shipPath}`)
+      embedImage(`${assetOrigin}${shipPath}`),
+      embedImage(`${assetOrigin}${RECORD_CARD_FRAME_PATH}`)
     ]);
 
     const svg = renderRecordCardSvg({
       record: { ...record, completedLabel: completed },
       encounterImage: bossImage,
       shipImage,
+      frameImage,
       presentation: cardConfig
     });
 

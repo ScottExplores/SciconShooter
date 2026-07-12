@@ -3,6 +3,7 @@ import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
 import { ASSETS, DONATION_CONFIG } from '../constants';
 import type { RunReceipt } from '../services/runReceiptService';
+import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -68,18 +69,10 @@ const formatNumber = (value?: number) => (
     : '0'
 );
 
-const getWeeklyAllocationMeta = () => {
-  const now = new Date();
-  const daysUntilSunday = (7 - now.getDay()) % 7;
-  const weekEnd = new Date(now);
-  weekEnd.setDate(now.getDate() + daysUntilSunday);
-
-  return {
-    daysLeft: daysUntilSunday,
-    endLabel: weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    allocationRsc: 100
-  };
-};
+const getWeeklyAllocationMeta = (now = new Date()) => ({
+  ...getWeeklyBoundaryMeta(now),
+  allocationRsc: 100
+});
 
 const getPastPickTime = (pick: ArchivedWinner) => {
   const dateCandidates = [
@@ -322,7 +315,7 @@ const HudPanel: React.FC<{ children: React.ReactNode; className?: string; style?
   <section style={style} className={`relative overflow-hidden rounded-[8px] border border-cyan-300/20 bg-slate-950/72 shadow-[0_0_30px_rgba(8,145,178,0.16)] backdrop-blur-xl ${className}`}>
     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.12),transparent_36%),linear-gradient(135deg,rgba(34,211,238,0.08),transparent_42%,rgba(16,185,129,0.08))]" />
     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/80 to-transparent" />
-    <div className="relative z-10">{children}</div>
+    <div className="relative z-10 h-full">{children}</div>
   </section>
 );
 
@@ -362,6 +355,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [treasuryCopyStatus, setTreasuryCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [championClaimWinner, setChampionClaimWinner] = useState<ArchivedWinner | null>(null);
+  const [weeklyClock, setWeeklyClock] = useState(() => Date.now());
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
 
   useEffect(() => {
@@ -371,7 +365,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }, [dashboardTab]);
 
-  const weeklyAllocation = useMemo(getWeeklyAllocationMeta, []);
+  useEffect(() => {
+    const timer = window.setInterval(() => setWeeklyClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const weeklyAllocation = useMemo(
+    () => getWeeklyAllocationMeta(new Date(weeklyClock)),
+    [weeklyClock]
+  );
   const sortedProposals = useMemo(() => (
     [...proposals].sort((a, b) => (
       (b.votes + b.backers + b.comments) - (a.votes + a.backers + a.comments)
@@ -408,7 +410,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const weeklyFundingAuthor = weeklyProposalPreview
     ? `${sortedProposals.length} eligible - champion picks after cutoff`
     : `${sortedProposals.length} eligible proposal${sortedProposals.length === 1 ? '' : 's'}`;
-  const weeklyFundingProgress = clampPercent(((7 - weeklyAllocation.daysLeft) / 7) * 100);
+  const weeklyFundingProgress = weeklyProposalPreview ? getProposalProgress(weeklyProposalPreview) : 0;
   const copyTextWithFallback = async (text: string) => {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
@@ -509,8 +511,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
     );
   };
 
-  const HeroPanel = ({ compact = false }: { compact?: boolean }) => (
-    <HudPanel className={compact ? '' : 'min-h-[34rem] xl:min-h-[40rem]'} {...(compact ? { style: { minHeight: '17.5rem' } } : {})}>
+  const HeroPanel = ({ compact = false, fill = false }: { compact?: boolean; fill?: boolean }) => (
+    <HudPanel className={compact ? `min-h-[17.5rem] ${fill ? 'flex-1' : ''}` : 'min-h-[34rem] xl:min-h-[40rem]'}>
       <div className="absolute inset-0">
         <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-68" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(34,211,238,0.2),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.18),rgba(2,6,23,0.88)_76%,rgba(2,6,23,0.96))]" />
@@ -616,9 +618,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   />
                 ) : null}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-cyan-200/10" />
-                <div className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-[6px] border border-emerald-200/45 bg-slate-950/85 text-emerald-200 shadow-[0_0_14px_rgba(52,211,153,0.38)]">
-                  <Icon name="trophy" className="h-4 w-4" />
-                </div>
               </div>
 
               <div className="min-w-0">
@@ -640,7 +639,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   <p className="truncate text-sm font-bold text-white">{weeklyFundingTitle}</p>
                   <div className="mt-1 flex items-center justify-between gap-2 text-[0.62rem] font-bold uppercase text-slate-400">
                     <span className="truncate">{weeklyFundingAuthor}</span>
-                    <span className="shrink-0 text-emerald-200">{weeklyFundingProgress}% week</span>
+                    <span className="shrink-0 text-emerald-200">{weeklyFundingProgress}% progress</span>
                   </div>
                   <div className={`${compact ? 'mt-1' : 'mt-2'} h-1.5 overflow-hidden rounded-full bg-slate-800`}>
                     <div
@@ -1009,7 +1008,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div className="rounded-[8px] border border-cyan-200/15 bg-cyan-300/6 p-4">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-200">Funding transparency</p>
             <p className="mt-2 text-sm leading-relaxed text-slate-300">
-              A weekly leader is temporary until Monday's cutoff. A proposal is only marked selected after the finalized champion signs, and funding is only marked confirmed with a Base transaction reference.
+              A weekly leader is temporary until Sunday's noon-Pacific cutoff. A proposal is only marked selected after the finalized champion signs, and funding is only marked confirmed with a Base transaction reference.
             </p>
           </div>
           <div className="rounded-[8px] border border-cyan-200/15 bg-cyan-300/6 p-4">
@@ -1029,10 +1028,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
     if (dashboardTab === 'more') return <AboutDashboard />;
 
     return (
-      <>
+      <div className="flex min-h-full flex-col gap-2">
         <WeeklyFundingCard compact />
-        <HeroPanel compact />
-      </>
+        <HeroPanel compact fill />
+      </div>
     );
   };
 

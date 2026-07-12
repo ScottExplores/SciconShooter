@@ -6,6 +6,34 @@ const XML_ENTITIES = Object.freeze({
   '"': '&quot;'
 });
 
+export const RECORD_CARD_RENDER_VERSION = '2026-07-11-2';
+
+export const buildMissionRecordCardPath = (runId) => (
+  `/api/record-card?runId=${encodeURIComponent(String(runId ?? ''))}&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
+);
+
+export const buildMissionRecordMetadataPath = (runId) => (
+  `/api/record-metadata?type=mission&runId=${encodeURIComponent(String(runId ?? ''))}&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
+);
+
+export const formatRecordCardCompletedLabel = (value) => {
+  const completed = new Date(value);
+  if (!Number.isFinite(completed.getTime())) return 'VERIFIED RUN';
+  const date = completed.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC'
+  });
+  const time = completed.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'UTC'
+  });
+  return `${date} - ${time} UTC`.toUpperCase();
+};
+
 const DEFAULT_COPY = Object.freeze({
   title: 'MISSION RECORD',
   subtitle: 'SCICON SHOOTER',
@@ -32,6 +60,8 @@ const DEFAULT_COLORS = Object.freeze({
   muted: '#94a3b8'
 });
 
+const DEFAULT_FRAME_IMAGE = '/game-art/record-card/mission-record-frame.png';
+
 const DEFAULT_ART_REGION = Object.freeze({
   x: 0,
   y: 0,
@@ -50,9 +80,11 @@ const DEFAULT_ART_LAYOUT = Object.freeze({
   }),
   encounter: Object.freeze({
     ...DEFAULT_ART_REGION,
-    x: 800,
-    y: 292,
-    opacity: 0.72
+    x: 805,
+    y: 365,
+    width: 210,
+    height: 210,
+    opacity: 0.88
   })
 });
 
@@ -177,6 +209,7 @@ export const renderRecordCardSvg = ({
   record = {},
   shipImage = '',
   encounterImage = '',
+  frameImage = DEFAULT_FRAME_IMAGE,
   presentation = {}
 } = {}) => {
   const resolved = resolveRecordCardPresentation(presentation);
@@ -185,6 +218,13 @@ export const renderRecordCardSvg = ({
   const wave = Math.max(1, nonNegativeInteger(record.wave, 1));
   const targetsDefeated = nonNegativeInteger(record.targetsDefeated);
   const coinsCollected = nonNegativeInteger(record.coinsCollected);
+  const pilotName = String(record.pilotName || 'PILOT').slice(0, 15);
+  const encounterLabel = String(record.encounter || 'UNKNOWN SECTOR').slice(0, 24);
+  const pilotFontSize = pilotName.length > 12 ? 42 : pilotName.length > 9 ? 48 : 54;
+  const encounterFontSize = encounterLabel.length > 20 ? 30 : encounterLabel.length > 16 ? 34 : 38;
+  const durationLabel = String(record.durationLabel || '0:00').slice(0, 8);
+  const completedLabel = String(record.completedLabel || 'VERIFIED RUN').slice(0, 34);
+  const gameVersion = String(record.gameVersion || 'UNKNOWN').slice(0, 12);
   const integrityLabel = record.integrity === 'server-verified'
     ? copy.verifiedLabel
     : copy.reviewLabel;
@@ -192,13 +232,16 @@ export const renderRecordCardSvg = ({
     ? `<image href="${escapeRecordCardXml(encounterImage)}" x="${art.encounter.x}" y="${art.encounter.y}" width="${art.encounter.width}" height="${art.encounter.height}" opacity="${art.encounter.opacity}"${imageTransform(art.encounter)} style="image-rendering:pixelated"/>`
     : '';
   const shipArt = art.ship.visible
-    ? `<circle cx="420" cy="520" r="160" fill="#22d3ee" opacity=".08"/><ellipse cx="420" cy="650" rx="210" ry="44" fill="none" stroke="${colors.primary}" stroke-width="4" opacity=".6"/>
-      <ellipse cx="420" cy="650" rx="150" ry="26" fill="none" stroke="${colors.success}" stroke-width="3" opacity=".6"/>
+    ? `<circle cx="420" cy="510" r="150" fill="#22d3ee" opacity=".08"/><ellipse cx="420" cy="648" rx="200" ry="40" fill="none" stroke="${colors.primary}" stroke-width="4" opacity=".6"/>
+      <ellipse cx="420" cy="648" rx="142" ry="24" fill="none" stroke="${colors.success}" stroke-width="3" opacity=".6"/>
       <image href="${escapeRecordCardXml(shipImage)}" x="${art.ship.x}" y="${art.ship.y}" width="${art.ship.width}" height="${art.ship.height}" opacity="${art.ship.opacity}"${imageTransform(art.ship)} filter="url(#glow)"/>`
+    : '';
+  const frameArt = frameImage
+    ? `<image href="${escapeRecordCardXml(frameImage)}" x="0" y="0" width="1200" height="1200" preserveAspectRatio="none" style="image-rendering:pixelated"/>`
     : '';
   const grid = resolved.showGrid ? '<rect width="1200" height="1200" fill="url(#grid)"/>' : '';
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200" style="display:block;width:100%;height:auto;max-width:1200px;background:${colors.background}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200" role="img" aria-label="${escapeRecordCardXml(`${pilotName} mission record, score ${score}`)}" style="display:block;width:100%;height:auto;max-width:1200px;background:${colors.background}">
       <defs>
         <radialGradient id="space" cx="70%" cy="30%"><stop stop-color="#123c52"/><stop offset=".52" stop-color="${colors.panel}"/><stop offset="1" stop-color="${colors.background}"/></radialGradient>
         <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b2038"/><stop offset="1" stop-color="#020817"/></linearGradient>
@@ -209,33 +252,34 @@ export const renderRecordCardSvg = ({
       <rect width="1200" height="1200" fill="url(#space)"/>${grid}
       <circle cx="940" cy="250" r="260" fill="${colors.secondary}" opacity=".08"/><circle cx="220" cy="1040" r="300" fill="#14b8a6" opacity=".07"/>
 
-      <path d="M70 132L250 48H430L500 108H700L770 48H950L1130 132 990 178H760L700 220H500L440 178H210Z" fill="#070d20" stroke="${colors.primary}" stroke-width="4"/>
-      <path d="M70 132L250 72H410L452 110H210Z" fill="${colors.warning}" opacity=".42"/><path d="M1130 132L950 72H790L748 110H990Z" fill="${colors.warning}" opacity=".42"/>
-      <path d="M500 108H700L674 158H526Z" fill="url(#gold)"/>
-      <text x="600" y="152" text-anchor="middle" fill="${colors.text}" font-family="Arial, sans-serif" font-size="58" font-weight="900" letter-spacing="8">${escapeRecordCardXml(copy.title)}</text>
-      <text x="600" y="202" text-anchor="middle" fill="${colors.primary}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="7">${escapeRecordCardXml(copy.subtitle)}</text>
+      <path d="M150 190H1050L1070 210V1000L1050 1020H150L130 1000V210Z" fill="url(#panel)" stroke="${colors.primary}" stroke-opacity=".48" stroke-width="4"/>
+      <path d="M168 218H1032" stroke="${colors.warning}" stroke-opacity=".55" stroke-width="4"/>
 
-      <rect x="70" y="250" width="1060" height="510" rx="8" fill="url(#panel)" stroke="${colors.primary}" stroke-opacity=".5" stroke-width="3"/>
-      <path d="M70 320L160 250H70ZM1130 320L1040 250H1130Z" fill="${colors.warning}" opacity=".7"/>
+      <text x="600" y="274" text-anchor="middle" fill="${colors.text}" font-family="Arial, sans-serif" font-size="58" font-weight="900" letter-spacing="7">${escapeRecordCardXml(copy.title)}</text>
+      <text x="600" y="312" text-anchor="middle" fill="${colors.primary}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="6">${escapeRecordCardXml(copy.subtitle)}</text>
+
+      <rect x="170" y="338" width="860" height="368" rx="10" fill="#020817" fill-opacity=".88" stroke="${colors.primary}" stroke-opacity=".55" stroke-width="3"/>
+      <path d="M170 408L240 338H170ZM1030 408L960 338H1030Z" fill="${colors.warning}" opacity=".72"/>
       ${encounterArt}
       ${shipArt}
-      <text x="760" y="580" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="5">ENCOUNTER</text>
-      <text x="760" y="630" fill="${colors.text}" font-family="Arial, sans-serif" font-size="34" font-weight="900">${escapeRecordCardXml(record.encounter)}</text>
-      <text x="760" y="682" fill="${colors.success}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4">${escapeRecordCardXml(integrityLabel)}</text>
+      <text x="650" y="578" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="4">ENCOUNTER</text>
+      <text x="650" y="628" fill="${colors.text}" font-family="Arial, sans-serif" font-size="${encounterFontSize}" font-weight="900">${escapeRecordCardXml(encounterLabel)}</text>
+      <text x="650" y="674" fill="${colors.success}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="3">${escapeRecordCardXml(integrityLabel)}</text>
 
-      <text x="90" y="835" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="5">${escapeRecordCardXml(copy.callsignLabel)}</text>
-      <text x="90" y="895" fill="${colors.text}" font-family="Arial, sans-serif" font-size="54" font-weight="900">${escapeRecordCardXml(record.pilotName)}</text>
-      <text x="760" y="835" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="5">${escapeRecordCardXml(copy.scoreLabel)}</text>
-      <text x="760" y="900" fill="#fef08a" font-family="Arial, sans-serif" font-size="68" font-weight="900">${escapeRecordCardXml(score.toLocaleString('en-US'))}</text>
+      <path d="M170 734H1030" stroke="${colors.primary}" stroke-opacity=".25" stroke-width="2"/>
+      <text x="190" y="775" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4">${escapeRecordCardXml(copy.callsignLabel)}</text>
+      <text x="190" y="832" fill="${colors.text}" font-family="Arial, sans-serif" font-size="${pilotFontSize}" font-weight="900">${escapeRecordCardXml(pilotName)}</text>
+      <text x="1010" y="775" text-anchor="end" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4">${escapeRecordCardXml(copy.scoreLabel)}</text>
+      <text x="1010" y="836" text-anchor="end" fill="#fef08a" font-family="Arial, sans-serif" font-size="66" font-weight="900">${escapeRecordCardXml(score.toLocaleString('en-US'))}</text>
 
       <g font-family="Arial, sans-serif">
-        <rect x="70" y="950" width="250" height="130" rx="6" fill="${colors.panel}" stroke="${colors.primary}" stroke-opacity=".35"/><text x="195" y="995" text-anchor="middle" fill="#64748b" font-size="18" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.wave)}</text><text x="195" y="1052" text-anchor="middle" fill="${colors.primary}" font-size="42" font-weight="900">${wave}</text>
-        <rect x="340" y="950" width="250" height="130" rx="6" fill="${colors.panel}" stroke="${colors.success}" stroke-opacity=".35"/><text x="465" y="995" text-anchor="middle" fill="#64748b" font-size="18" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.targets)}</text><text x="465" y="1052" text-anchor="middle" fill="${colors.success}" font-size="42" font-weight="900">${targetsDefeated}</text>
-        <rect x="610" y="950" width="250" height="130" rx="6" fill="${colors.panel}" stroke="${colors.warning}" stroke-opacity=".35"/><text x="735" y="995" text-anchor="middle" fill="#64748b" font-size="18" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.coins)}</text><text x="735" y="1052" text-anchor="middle" fill="#fef08a" font-size="42" font-weight="900">${coinsCollected}</text>
-        <rect x="880" y="950" width="250" height="130" rx="6" fill="${colors.panel}" stroke="${colors.text}" stroke-opacity=".24"/><text x="1005" y="995" text-anchor="middle" fill="#64748b" font-size="18" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.flight)}</text><text x="1005" y="1052" text-anchor="middle" fill="${colors.text}" font-size="42" font-weight="900">${escapeRecordCardXml(record.durationLabel)}</text>
+        <rect x="190" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.primary}" stroke-opacity=".4"/><text x="285" y="899" text-anchor="middle" fill="${colors.muted}" font-size="20" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.wave)}</text><text x="285" y="949" text-anchor="middle" fill="${colors.primary}" font-size="40" font-weight="900">${wave}</text>
+        <rect x="400" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.success}" stroke-opacity=".4"/><text x="495" y="899" text-anchor="middle" fill="${colors.muted}" font-size="20" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.targets)}</text><text x="495" y="949" text-anchor="middle" fill="${colors.success}" font-size="40" font-weight="900">${targetsDefeated}</text>
+        <rect x="610" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.warning}" stroke-opacity=".4"/><text x="705" y="899" text-anchor="middle" fill="${colors.muted}" font-size="20" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.coins)}</text><text x="705" y="949" text-anchor="middle" fill="#fef08a" font-size="40" font-weight="900">${coinsCollected}</text>
+        <rect x="820" y="856" width="190" height="112" rx="8" fill="${colors.background}" fill-opacity=".7" stroke="${colors.text}" stroke-opacity=".28"/><text x="915" y="899" text-anchor="middle" fill="${colors.muted}" font-size="20" font-weight="700" letter-spacing="3">${escapeRecordCardXml(copy.metricLabels.flight)}</text><text x="915" y="949" text-anchor="middle" fill="${colors.text}" font-size="40" font-weight="900">${escapeRecordCardXml(durationLabel)}</text>
       </g>
-      <text x="70" y="1140" fill="#64748b" font-family="Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="3">${escapeRecordCardXml(record.completedLabel)}  //  ${escapeRecordCardXml(record.gameVersion)}</text>
-      <text x="1130" y="1140" text-anchor="end" fill="${colors.success}" font-family="Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="3">PLAY. WIN THE WEEK. FUND RESEARCH.</text>
+      <text x="600" y="1005" text-anchor="middle" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="1.5">${escapeRecordCardXml(completedLabel)}  //  SCICON V${escapeRecordCardXml(gameVersion)}</text>
+      ${frameArt}
     </svg>`;
 };
 

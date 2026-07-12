@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "assets": [
     {
-      "id": "GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C",
-      "label": "Biohazard bomb",
+      "id": "GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F",
+      "label": "Pixel biohazard bomb",
       "roles": [
         "hud"
       ],
-      "path": "/game-art/generated/biohazard-bomb-f29f11258b6c.png",
-      "sha256": "f29f11258b6cc6b4c454543ad5e14706f7cb14793158fc62d7099806d804e67f",
-      "width": 1254,
-      "height": 1254,
-      "createdAt": "2026-07-11T00:00:00.000Z"
+      "path": "/game-art/generated/biohazard-bomb-e5d01d651f2f.png",
+      "sha256": "e5d01d651f2fde72e26a6634ff35d311379350e0b7273a703d23fb250d74d899",
+      "width": 256,
+      "height": 256,
+      "createdAt": "2026-07-12T00:00:00.000Z"
     }
   ]
 }

@@ -1,21 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { AssetKey } from '../game-config/types';
-import { resolveRecordCardEncounterAssetKey } from '../shared/record-card/renderRecordCardSvg.mjs';
+import {
+  buildMissionRecordCardPath,
+  formatRecordCardCompletedLabel,
+  resolveRecordCardEncounterAssetKey
+} from '../shared/record-card/renderRecordCardSvg.mjs';
 import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
 import type { RunReceipt } from '../services/runReceiptService';
 import { trackEvent } from '../services/analyticsService';
 import { shareScoreCardImage } from '../services/scoreCardShareService';
-import { MissionRecordCard } from './MissionRecordCard';
+import { buildMissionRecordCardSvg, MissionRecordCard } from './MissionRecordCard';
 
 interface MissionRecordPreviewProps {
   pilotName: string;
   receipt: RunReceipt;
   walletAddress?: string | null;
+  walletStatus?: 'idle' | 'connecting' | 'connected' | 'error';
   mintConfigured: boolean;
   mintChainId: number;
   mintStatus: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error';
   mintMessage?: string;
   mintHash?: string;
+  onConnect: () => void;
+  onGetBaseApp: () => void;
   onMint: () => void;
   onClose: () => void;
 }
@@ -30,24 +37,29 @@ const getEncounter = (wave: number) => (
   wave <= 1 ? 'Gatekeeper Sector' : wave === 2 ? 'Replication Rift' : 'Deep Review Space'
 );
 
+const toAbsoluteAssetUrl = (path: string) => new URL(path, window.location.origin).toString();
+
 const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   pilotName,
   receipt,
   walletAddress,
+  walletStatus = 'idle',
   mintConfigured,
   mintChainId,
   mintStatus,
   mintMessage,
   mintHash,
+  onConnect,
+  onGetBaseApp,
   onMint,
   onClose
 }) => {
   const [shareStatus, setShareStatus] = useState('');
-  const finished = new Date(receipt.finishedAt);
-  const dateLabel = Number.isFinite(finished.getTime())
-    ? finished.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
-    : 'Verified run';
-  const cardUrl = `${window.location.origin}/api/record-card?runId=${encodeURIComponent(receipt.runId)}`;
+  const [cardImageLoaded, setCardImageLoaded] = useState(false);
+  const [cardImageFailed, setCardImageFailed] = useState(false);
+  const useCanonicalServerImage = import.meta.env.PROD;
+  const dateLabel = formatRecordCardCompletedLabel(receipt.finishedAt);
+  const cardUrl = `${window.location.origin}${buildMissionRecordCardPath(receipt.runId)}`;
   const explorerUrl = mintChainId === 8453 ? 'https://basescan.org' : 'https://sepolia.basescan.org';
   const needsBaseAccount = !walletAddress;
   const encounter = getEncounter(receipt.metrics.wave);
@@ -71,12 +83,24 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
     integrity: receipt.integrity
   };
 
+  useEffect(() => {
+    setCardImageLoaded(false);
+    setCardImageFailed(false);
+    setShareStatus('');
+  }, [cardUrl]);
+
   const shareRecord = async () => {
     const text = `${pilotName} scored ${receipt.metrics.score.toLocaleString()} in Scicon Shooter and reached wave ${receipt.metrics.wave}. Play. Win the week. Choose what research gets funded.`;
     setShareStatus('Preparing score card image...');
     try {
       const method = await shareScoreCardImage({
         cardUrl,
+        sourceSvg: import.meta.env.DEV ? buildMissionRecordCardSvg({
+          record: { ...cardRecord, encounterArt: toAbsoluteAssetUrl(encounterArt) },
+          shipArt: toAbsoluteAssetUrl(shipArt),
+          frameArt: toAbsoluteAssetUrl('/game-art/record-card/mission-record-frame.png'),
+          presentation: recordCardConfig
+        }) : undefined,
         fileName: `scicon-score-${receipt.metrics.score}.png`,
         title: 'Scicon Shooter Mission Record',
         text
@@ -107,49 +131,70 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
           </div>
         </div>
 
-        <div className="relative p-4 sm:p-5">
-          <MissionRecordCard record={cardRecord} shipArt={shipArt} presentation={recordCardConfig} />
+        <div className="relative p-3 sm:p-4">
+          <div className="relative aspect-square overflow-hidden bg-[#020617]" aria-live="polite">
+            <div className={`absolute inset-0 transition-opacity ${useCanonicalServerImage && cardImageLoaded && !cardImageFailed ? 'opacity-0' : 'opacity-100'}`}>
+              <MissionRecordCard record={cardRecord} shipArt={shipArt} presentation={recordCardConfig} />
+            </div>
+            {useCanonicalServerImage && !cardImageFailed ? (
+              <img
+                src={cardUrl}
+                alt={`Mintable Scicon Shooter mission record for ${pilotName || 'Pilot'}`}
+                className={`relative block h-full w-full object-contain transition-opacity ${cardImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                onLoad={() => setCardImageLoaded(true)}
+                onError={() => setCardImageFailed(true)}
+              />
+            ) : null}
+          </div>
 
           {mintStatus !== 'confirmed' ? (
-            <div className="mt-4 overflow-hidden rounded-[8px] border border-cyan-100/25 bg-[linear-gradient(135deg,rgba(8,47,73,0.72),rgba(6,78,59,0.34))] p-4">
+            <div className="mt-3 overflow-hidden rounded-[8px] border border-cyan-100/25 bg-[linear-gradient(135deg,rgba(8,47,73,0.72),rgba(6,78,59,0.34))] p-3">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="arcade-font text-base font-black uppercase tracking-wider text-white">
-                    {needsBaseAccount ? 'Mint yours now' : 'Ready to mint'}
+                  <p className="arcade-font text-sm font-black uppercase tracking-wider text-white">
+                    {needsBaseAccount ? 'Connect wallet' : 'Base Account connected'}
                   </p>
-                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-cyan-100">
+                  <p className="mt-1 text-[10px] font-semibold leading-relaxed text-cyan-100">
                     {needsBaseAccount
-                      ? 'Keep this run onchain. New to Base? Sign in can create a passkey account; your global score stays saved either way.'
-                      : 'Turn this verified run into a Base collectible owned by your connected account.'}
+                      ? 'Connect to mint this mission record, or get the Base app to create an account.'
+                      : `${walletAddress?.slice(0, 6)}...${walletAddress?.slice(-4)} is ready to mint this record.`}
                   </p>
                 </div>
                 <span className="shrink-0 rounded-[5px] border border-white/20 bg-white/10 px-2 py-1 font-mono text-[8px] font-black uppercase tracking-[0.16em] text-white">
                   Onchain
                 </span>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-[9px] font-semibold text-slate-400">
-                <span>The mint transaction proves ownership. No separate score signature is needed.</span>
-                <a
-                  href="https://docs.base.org/base-account/overview/what-is-base-account"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-black uppercase tracking-wider text-cyan-200 underline decoration-cyan-200/40 underline-offset-2 hover:text-white"
-                >
-                  About Base Account
-                </a>
-              </div>
+              {needsBaseAccount ? (
+                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+                  <button
+                    type="button"
+                    onClick={onConnect}
+                    disabled={walletStatus === 'connecting'}
+                    className="min-h-10 rounded-[7px] border border-cyan-100/35 bg-cyan-300/15 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-50 transition hover:bg-cyan-300/25 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {walletStatus === 'connecting' ? 'Connecting...' : 'Connect wallet'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onGetBaseApp}
+                    className="min-h-10 rounded-[7px] border border-white/20 bg-white/8 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/15"
+                  >
+                    Get Base app
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <button type="button" onClick={() => void shareRecord()} className="min-h-11 rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share image</button>
-            <button type="button" onClick={onMint} disabled={!mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="min-h-11 rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
+            <button type="button" onClick={onMint} disabled={!walletAddress || !mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="min-h-11 rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
               {mintStatus === 'confirmed'
-                ? 'Score card minted'
+                ? 'NFT minted'
                 : mintStatus === 'authorizing' || mintStatus === 'confirming'
                   ? 'Confirm in Base Account'
                   : mintConfigured
-                    ? needsBaseAccount ? 'Connect + mint score card' : 'Mint score card'
+                    ? needsBaseAccount ? 'Connect to mint' : 'Mint NFT'
                     : 'Mint setup awaiting approval'}
             </button>
           </div>

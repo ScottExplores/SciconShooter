@@ -25,12 +25,12 @@ export const DEFAULT_RECORD_CARD_CONFIG: RecordCardConfig = {
   encounterAssetKey: 'AUTO',
   art: {
     ship: { x: 290, y: 370, width: 260, height: 260, rotation: 0, opacity: 1, visible: true },
-    encounter: { x: 800, y: 292, width: 260, height: 260, rotation: 0, opacity: 0.72, visible: true }
+    encounter: { x: 805, y: 365, width: 210, height: 210, rotation: 0, opacity: 0.88, visible: true }
   }
 };
 
 export const DEFAULT_HUD_ASSETS_CONFIG: HudAssetsConfig = {
-  bombIconAssetKey: 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C'
+  bombIconAssetKey: 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F'
 };
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

@@ -940,6 +940,10 @@ const App: React.FC = () => {
     await openExternalUrl(ASSETS.REFERRAL_LINK);
   };
 
+  const openBaseAppInvite = async () => {
+    await openExternalUrl(DONATION_CONFIG.BASE_APP_INVITE_URL);
+  };
+
   const openResearchHubFund = async () => {
     await openExternalUrl('https://www.researchhub.com/fund');
   };
@@ -1346,11 +1350,14 @@ const App: React.FC = () => {
             pilotName={playerNameInput || 'PILOT'}
             receipt={runReceipt}
             walletAddress={activeWalletAddress}
+            walletStatus={wallet.status}
             mintConfigured={mintConfigured}
             mintChainId={missionRecordChainId}
             mintStatus={missionMintStatus}
             mintMessage={missionMintMessage}
             mintHash={missionMintHash}
+            onConnect={connectWallet}
+            onGetBaseApp={openBaseAppInvite}
             onMint={mintCurrentMissionRecord}
             onClose={() => setShowMissionRecordPreview(false)}
           />

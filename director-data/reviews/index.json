@@ -40,5 +40,34 @@
       "y": 0.31
     },
     "createdAt": "2026-07-11T06:10:50.294Z"
+  },
+  {
+    "id": "review-0004-e6f539",
+    "sequence": 4,
+    "surface": "wave",
+    "configVersion": "game-campaign-20260712T011922888Z-c113a1c8946a-8b36e0",
+    "target": "Operation Open Galaxy / OPEN GALAXY / Bottleneck Drone",
+    "note": "have another bottle neck",
+    "status": "open",
+    "anchor": {
+      "x": 0.6036231884057971,
+      "y": 0.30854430379746833
+    },
+    "context": {
+      "source": "level-editor",
+      "campaignId": "scicon-shooter-campaign",
+      "campaignRevision": 3,
+      "campaignContentHash": "sha256:c113a1c8946ac931d19153fa189771b4decf67932fadf8f30c942ae527d3b511",
+      "levelId": "operation-open-galaxy",
+      "levelName": "Operation Open Galaxy",
+      "waveId": "open-galaxy",
+      "waveName": "OPEN GALAXY",
+      "eventId": "open-galaxy-mini-boss",
+      "eventLabel": "Bottleneck Drone",
+      "eventKind": "boss",
+      "elapsedSeconds": 19.8,
+      "draft": false
+    },
+    "createdAt": "2026-07-12T01:43:45.125Z"
   }
 ]

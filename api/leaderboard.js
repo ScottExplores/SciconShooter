@@ -5,6 +5,7 @@ const SUPABASE_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderb
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const crypto = require('crypto');
 const { checkRateLimit } = require('./_lib/rateLimit');
+const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 
 const LEGACY_SUPABASE_SELECT = 'name,score,wave,date,wallet_address,donated';
 const SUPABASE_SELECT = `${LEGACY_SUPABASE_SELECT},proposal_id,proposal_title,proposal_url,proposal_author,run_id,verified,receipt_hash`;
@@ -46,21 +47,6 @@ const isMissingProposalColumnError = (error) => (
 const isDuplicateKeyError = (details) => (
   /23505|duplicate key|already exists/i.test(details || '')
 );
-
-const getCurrentWeekRange = () => {
-  const now = new Date();
-  const dayOffsetFromMonday = (now.getDay() + 6) % 7;
-  const start = new Date(now);
-  start.setDate(now.getDate() - dayOffsetFromMonday);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 7);
-
-  return {
-    start,
-    end
-  };
-};
 
 const isCurrentWeekEntry = (entry) => {
   const timestamp = new Date(entry.date || 0).getTime();

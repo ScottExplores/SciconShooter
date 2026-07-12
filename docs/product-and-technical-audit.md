@@ -4,7 +4,7 @@
 
 The strongest loop is: **Play -> score -> climb the weekly leaderboard -> finalize the champion -> champion selects an eligible proposal -> funding transaction confirms -> champion result is recorded.** Guest play must remain immediate. Wallet connection belongs after a good run or at a transaction boundary.
 
-The previous build mixed temporary weekly leadership with final champion status, stored proposal choices directly on score rows, and archived winners monthly despite weekly UI language. The experiment replaces those assumptions with signed run receipts, a Monday-to-Sunday UTC competition, a locked finalization step, and a 72-hour champion claim window.
+The previous build mixed temporary weekly leadership with final champion status, stored proposal choices directly on score rows, and archived winners monthly despite weekly UI language. The experiment replaces those assumptions with signed run receipts, a Sunday-noon-to-Sunday-noon Pacific competition, a locked finalization step, and a 72-hour champion claim window.
 
 ## Existing strengths
 

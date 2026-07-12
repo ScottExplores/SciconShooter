@@ -3,6 +3,7 @@ import { GameEngine, type GameEditorSnapshot, type GameRuntimeState } from '../s
 import type { GameCampaign } from '../game-config/types';
 import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
+import { audioService } from '../services/audioService';
 
 export { preloadGameplayAssets } from '../services/gameLogic';
 
@@ -288,6 +289,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     let simulationAccumulator = 0;
     let lastRenderTime = 0;
     let lastRuntimeStatePublishTime = 0;
+    let deathSequenceSafetyTimer: number | null = null;
 
     const refreshFrameBudget = () => {
       const rect = canvas.getBoundingClientRect();
@@ -363,6 +365,31 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       lastPublishedStatsRef.current = statsSnapshot;
       lastStatsPublishTimeRef.current = timestamp;
       onStatsChangeRef.current(statsSnapshot);
+    };
+
+    const dispatchGameOver = (timestamp = performance.now()) => {
+      if (previewMode || engine.lives > 0 || gameOverSentRef.current) return;
+
+      if (deathSequenceSafetyTimer !== null) {
+        window.clearTimeout(deathSequenceSafetyTimer);
+        deathSequenceSafetyTimer = null;
+      }
+      gameOverSentRef.current = true;
+      runningRef.current = false;
+      publishHudStats(true, timestamp);
+      onGameOverRef.current?.();
+    };
+
+    const armDeathSequenceSafetyTimer = () => {
+      if (previewMode || engine.deathSequenceFrames <= 0 || deathSequenceSafetyTimer !== null) return;
+
+      deathSequenceSafetyTimer = window.setTimeout(() => {
+        deathSequenceSafetyTimer = null;
+        if (engine.lives > 0 || engine.deathSequenceFrames <= 0 || gameOverSentRef.current) return;
+
+        engine.finishDeathSequence();
+        dispatchGameOver();
+      }, engine.deathSequenceMaxDurationMs);
     };
 
     const keys = keysRef.current;
@@ -544,15 +571,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           engine.setPerformanceMode(true);
         }
 
+        armDeathSequenceSafetyTimer();
+
       } else {
         simulationAccumulator = 0;
       }
 
       if (!previewMode && !engine.gameActive && engine.lives <= 0 && !gameOverSentRef.current) {
-        gameOverSentRef.current = true;
-        runningRef.current = false;
-        publishHudStats(true, timestamp);
-        onGameOverRef.current?.();
+        dispatchGameOver(timestamp);
       }
 
       const renderElapsed = timestamp - lastRenderTime;
@@ -578,6 +604,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       // Cleanup: Stop loop and remove listeners
       if (engineRef.current) engineRef.current.gameActive = false;
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      if (deathSequenceSafetyTimer !== null) window.clearTimeout(deathSequenceSafetyTimer);
       
       window.removeEventListener('resize', handleResize);
       resizeObserver?.disconnect();
@@ -594,6 +621,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       touchTarget.removeEventListener('touchcancel', handleTouchCancel);
       window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (audioEnabled) audioService.stopMusic();
       if (engineRef.current === engine) engineRef.current = null;
       requestRef.current = null;
     };

@@ -14,14 +14,14 @@ test('generated asset manifest registers the content-addressed biohazard HUD ico
   assert.equal(manifest.schemaVersion, 1);
   assert.equal(manifest.assets.length, 1);
   assert.deepEqual(manifest.assets[0], {
-    id: 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C',
-    label: 'Biohazard bomb',
+    id: 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F',
+    label: 'Pixel biohazard bomb',
     roles: ['hud'],
-    path: '/game-art/generated/biohazard-bomb-f29f11258b6c.png',
-    sha256: 'f29f11258b6cc6b4c454543ad5e14706f7cb14793158fc62d7099806d804e67f',
-    width: 1254,
-    height: 1254,
-    createdAt: '2026-07-11T00:00:00.000Z'
+    path: '/game-art/generated/biohazard-bomb-e5d01d651f2f.png',
+    sha256: 'e5d01d651f2fde72e26a6634ff35d311379350e0b7273a703d23fb250d74d899',
+    width: 256,
+    height: 256,
+    createdAt: '2026-07-12T00:00:00.000Z'
   });
 });
 
@@ -50,5 +50,7 @@ test('shared catalog validates generated metadata, exposes role helpers, and cam
 test('engine resolves catalog art on demand instead of adding generated images to eager preload constants', () => {
   assert.match(engineSource, /getPrimaryAssetPath\(spriteKey as AssetKey\)/);
   assert.match(engineSource, /loadImage\(catalogPath\)/);
-  assert.doesNotMatch(engineSource, /GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C/);
+  assert.match(engineSource, /getPrimaryAssetPath\(this\.campaign\.hudAssets\.bombIconAssetKey\)/);
+  assert.match(engineSource, /this\.drawSprite\(ctx, this\.bombSpriteUrl/);
+  assert.doesNotMatch(engineSource, /GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F/);
 });

@@ -14,11 +14,11 @@ No account should be created and nothing should be posted without approval.
 
 ## Weekly content loop
 
-- Monday: new competition, prize amount, and one featured eligible proposal theme.
+- Sunday after noon Pacific: new competition, prize amount, and one featured eligible proposal theme.
 - Wednesday: current leader card, clearly labeled temporary.
 - Friday: active-proposal roundup and gameplay clip.
-- Sunday: final countdown with exact UTC cutoff.
-- Monday after finalization: champion announcement and claim status.
+- Sunday before noon Pacific: final countdown to the weekly cutoff.
+- Sunday after finalization: champion announcement and claim status.
 - After selection: proposal selected, not “funded.”
 - After transaction confirmation: transparent funding result with explorer link.
 
@@ -26,7 +26,7 @@ No account should be created and nothing should be posted without approval.
 
 1. `Scicon Shooter is live: Play. Win the week. Choose what research gets funded.`
 2. `Anyone can play instantly. A wallet is optional until you want to own a verified Mission Record or claim a finalized championship.`
-3. `The Monday-to-Sunday leaderboard locks at the weekly cutoff. Temporary leaders are never minted as champions.`
+3. `The Sunday-noon-to-Sunday-noon Pacific leaderboard locks at the weekly cutoff. Temporary leaders are never minted as champions.`
 4. `The finalized winner chooses an active ResearchHub proposal for the community allocation. We publish the result and transaction transparently.`
 5. `Built on Base, community-built, and open source: https://sciconshooter.xyz`
 

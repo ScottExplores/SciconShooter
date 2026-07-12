@@ -56,7 +56,7 @@ const WAVE_KEYS = ['id', 'name', 'order', 'accent', 'backgroundId', 'difficultyM
 const BASE_EVENT_KEYS = ['id', 'kind', 'label', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor'];
 const EVENT_KEYS: Record<string, string[]> = {
   spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'enemies'],
-  boss: [...BASE_EVENT_KEYS, 'bossId', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'],
+  boss: [...BASE_EVENT_KEYS, 'bossId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'],
   'asteroid-belt': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'],
   powerup: [...BASE_EVENT_KEYS, 'positionId', 'spawnIntervalSeconds', 'powerupIds'],
   recovery: [...BASE_EVENT_KEYS, 'positionId', 'coinCount', 'powerupIds']
@@ -365,6 +365,12 @@ const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignVali
 
 const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValidationIssue[]) => {
   const bossKnown = checkCatalogRef(event.bossId, BOSS_CATALOG, `${path}/bossId`, issues);
+  if (event.count !== undefined) {
+    checkNumber(event.count, `${path}/count`, issues, 1, 4, true);
+    if (event.bossId !== 'bottleneck-drone' && Number(event.count) > 1) {
+      pushIssue(issues, `${path}/count`, 'unsupported_boss_group', 'Only Bottleneck Drones support simultaneous boss groups');
+    }
+  }
   if (!checkCatalogRef(event.spriteKey, ASSET_CATALOG, `${path}/spriteKey`, issues) || !isAssetAllowedForRole(event.spriteKey as string, 'boss')) {
     pushIssue(issues, `${path}/spriteKey`, 'invalid_sprite', 'Boss sprites must reference an asset registered for bosses');
   }

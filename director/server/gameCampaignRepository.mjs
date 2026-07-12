@@ -16,7 +16,7 @@ import { ValidationError } from './validation.mjs';
 const VERSION_ID_PATTERN = /^game-campaign-([0-9]{8}T[0-9]{9}Z)-([0-9a-f]{12})-([0-9a-f]{6})$/;
 const VERSION_SOURCES = new Set(['baseline', 'apply', 'rollback']);
 const DEFAULT_HUD_ASSETS = Object.freeze({
-  bombIconAssetKey: 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C'
+  bombIconAssetKey: 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F'
 });
 const DEFAULT_RECORD_CARD = Object.freeze({
   copy: Object.freeze({
@@ -43,7 +43,7 @@ const DEFAULT_RECORD_CARD = Object.freeze({
   encounterAssetKey: 'AUTO',
   art: Object.freeze({
     ship: Object.freeze({ x: 290, y: 370, width: 260, height: 260, rotation: 0, opacity: 1, visible: true }),
-    encounter: Object.freeze({ x: 800, y: 292, width: 260, height: 260, rotation: 0, opacity: 0.72, visible: true })
+    encounter: Object.freeze({ x: 805, y: 365, width: 210, height: 210, rotation: 0, opacity: 0.88, visible: true })
   })
 });
 

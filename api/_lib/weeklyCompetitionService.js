@@ -3,6 +3,10 @@ const {
   supabaseHeaders
 } = require('./supabase');
 const { sendBaseNotificationBroadcast } = require('./baseNotifications');
+const {
+  getPreviousWeekKey,
+  getWeekRange
+} = require('../../shared/weeklyCompetitionBoundary.js');
 
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
@@ -34,32 +38,6 @@ const parseBody = (body) => {
 const isAuthorized = (req) => {
   const tokens = [process.env.ADMIN_SECRET, process.env.CRON_SECRET].filter(Boolean);
   return tokens.some((token) => req.headers.authorization === `Bearer ${token}`);
-};
-
-const startOfUtcWeek = (date) => {
-  const start = new Date(date);
-  const dayOffsetFromMonday = (start.getUTCDay() + 6) % 7;
-  start.setUTCDate(start.getUTCDate() - dayOffsetFromMonday);
-  start.setUTCHours(0, 0, 0, 0);
-  return start;
-};
-
-const weekKeyFromStart = (start) => start.toISOString().slice(0, 10);
-
-const getWeekRange = (weekKey) => {
-  const start = new Date(`${weekKey}T00:00:00.000Z`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey || '') || !Number.isFinite(start.getTime()) || start.getUTCDay() !== 1) {
-    throw new Error('weekKey must be a Monday formatted as YYYY-MM-DD.');
-  }
-  const end = new Date(start);
-  end.setUTCDate(start.getUTCDate() + 7);
-  return { start, end };
-};
-
-const getPreviousWeekKey = (now = new Date()) => {
-  const currentStart = startOfUtcWeek(now);
-  currentStart.setUTCDate(currentStart.getUTCDate() - 7);
-  return weekKeyFromStart(currentStart);
 };
 
 const readWeeklyCompetitions = async (limit = 24) => {
@@ -154,6 +132,7 @@ const finalizeWeeklyCompetition = async (weekKey = getPreviousWeekKey()) => {
 module.exports = {
   finalizeWeeklyCompetition,
   getPreviousWeekKey,
+  getWeekRange,
   isAuthorized,
   parseBody,
   readWeeklyCompetitions,

@@ -2,7 +2,7 @@
   "name": "scicon-shooter",
   "version": "2.1.0",
   "scripts": {
-    "dev": "vite",
+    "dev": "node --use-system-ca --env-file-if-exists=.env.local ./node_modules/vite/bin/vite.js",
     "generate:tailwind": "powershell -ExecutionPolicy Bypass -File tools/generate-tailwind.ps1",
     "build": "vite build && node tools/assert-director-excluded.mjs",
     "preview": "vite preview",

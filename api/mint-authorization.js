@@ -1,10 +1,12 @@
 const crypto = require('crypto');
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
+const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const MINTS_TABLE = process.env.SUPABASE_MINT_RECORDS_TABLE || 'scicon_mint_records';
 const AUTH_LIFETIME_SECONDS = 10 * 60;
+const recordCardRenderer = import('../shared/record-card/renderRecordCardSvg.mjs');
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
@@ -63,11 +65,7 @@ module.exports = async (req, res) => {
       return sendJson(res, 409, { error: 'A mint is already pending for this run.' });
     }
 
-    const now = new Date();
-    const dayOffset = (now.getUTCDay() + 6) % 7;
-    const weekStart = new Date(now);
-    weekStart.setUTCDate(now.getUTCDate() - dayOffset);
-    weekStart.setUTCHours(0, 0, 0, 0);
+    const { start: weekStart } = getCurrentWeekRange();
     const sponsoredRows = await fetchSupabaseJson(`${MINTS_TABLE}?select=id&wallet_address=eq.${address}&record_type=eq.mission&sponsored=eq.true&created_at=gte.${encodeURIComponent(weekStart.toISOString())}&limit=1`, {
       headers: supabaseHeaders()
     });
@@ -77,7 +75,8 @@ module.exports = async (req, res) => {
     const visualSeed = BigInt(`0x${crypto.createHash('sha256').update(`visual:${receipt.runId}`).digest('hex').slice(0, 16)}`);
     const expiresAt = Math.floor(Date.now() / 1000) + AUTH_LIFETIME_SECONDS;
     const origin = `https://${req.headers['x-forwarded-host'] || req.headers.host || 'sciconshooter.xyz'}`;
-    const tokenUri = `${origin}/api/record-metadata?type=mission&runId=${encodeURIComponent(receipt.runId)}`;
+    const { buildMissionRecordMetadataPath } = await recordCardRenderer;
+    const tokenUri = `${origin}${buildMissionRecordMetadataPath(receipt.runId)}`;
     const { privateKeyToAccount } = await import('viem/accounts');
     const { keccak256, toBytes } = await import('viem');
     const account = privateKeyToAccount(privateKey);

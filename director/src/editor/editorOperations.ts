@@ -137,6 +137,7 @@ export const createBossEvent = (wave: WaveDefinition): BossEvent => {
     delayAfterSeconds: 0,
     blocksWaveClock: true,
     bossId: 'bottleneck-drone',
+    count: 1,
     spriteKey: 'MINI_BOSS',
     positionId: 'center-top',
     movementPatternId: 'track-player',

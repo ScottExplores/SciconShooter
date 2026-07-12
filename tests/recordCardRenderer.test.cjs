@@ -22,6 +22,7 @@ test('shared record-card renderer is deterministic and escapes record, copy, and
     record: { ...record, pilotName: '<ACE & "CO">' },
     shipImage: '/ship.png?one=1&two="2"',
     encounterImage: '/boss.png?one=1&two="2"',
+    frameImage: '/frame.png?one=1&two="2"',
     presentation: { copy: { title: '<MISSION & RECORD>' } }
   };
 
@@ -33,7 +34,66 @@ test('shared record-card renderer is deterministic and escapes record, copy, and
   assert.match(first, /&lt;ACE &amp; &quot;CO&quot;&gt;/);
   assert.match(first, /ship\.png\?one=1&amp;two=&quot;2&quot;/);
   assert.match(first, /boss\.png\?one=1&amp;two=&quot;2&quot;/);
+  assert.match(first, /frame\.png\?one=1&amp;two=&quot;2&quot;/);
   assert.doesNotMatch(first, /<ACE/);
+});
+
+test('shared record-card renderer uses the pixel frame as the outermost layer', async () => {
+  const { renderRecordCardSvg } = await renderer;
+  const svg = renderRecordCardSvg({ record, frameImage: '/frame.png' });
+
+  assert.match(svg, /href="\/frame\.png" x="0" y="0" width="1200" height="1200"/);
+  assert.ok(svg.lastIndexOf('href="/frame.png"') > svg.lastIndexOf('SCICON V'));
+});
+
+test('record-card URLs and completion timestamps stay canonical across preview and mint metadata', async () => {
+  const {
+    RECORD_CARD_RENDER_VERSION,
+    buildMissionRecordCardPath,
+    buildMissionRecordMetadataPath,
+    formatRecordCardCompletedLabel
+  } = await renderer;
+
+  const runId = '11111111-2222-4333-8444-555555555555';
+  assert.equal(
+    buildMissionRecordCardPath(runId),
+    `/api/record-card?runId=${runId}&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
+  );
+  assert.equal(
+    buildMissionRecordMetadataPath(runId),
+    `/api/record-metadata?type=mission&runId=${runId}&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
+  );
+  assert.equal(formatRecordCardCompletedLabel('2026-07-10T22:09:00.000Z'), 'JUL 10, 2026 - 10:09 PM UTC');
+  assert.equal(formatRecordCardCompletedLabel('not-a-date'), 'VERIFIED RUN');
+});
+
+test('record-card layout keeps long callsigns, encounter names, and scores inside the pixel frame', async () => {
+  const { renderRecordCardSvg } = await renderer;
+  const svg = renderRecordCardSvg({
+    record: {
+      ...record,
+      pilotName: 'LONGPILOTNAME15',
+      encounter: 'Deep Review Space',
+      score: 9_999_999,
+      completedLabel: 'JUL 10, 2026 - 10:09 PM UTC'
+    }
+  });
+
+  assert.match(svg, /font-size="42" font-weight="900">LONGPILOTNAME15/);
+  assert.match(svg, /font-size="34" font-weight="900">Deep Review Space/);
+  assert.match(svg, /x="1010" y="836" text-anchor="end"/);
+  assert.match(svg, /JUL 10, 2026 - 10:09 PM UTC/);
+});
+
+test('record-card content stays on one inset plate inside the pixel border', async () => {
+  const { renderRecordCardSvg } = await renderer;
+  const svg = renderRecordCardSvg({ record, frameImage: '/frame.png' });
+
+  assert.match(svg, /M150 190H1050L1070 210V1000L1050 1020H150L130 1000V210Z/);
+  assert.match(svg, /<rect x="170" y="338" width="860" height="368"/);
+  assert.match(svg, /<rect x="190" y="856" width="190" height="112"/);
+  assert.match(svg, /font-size="20" font-weight="700" letter-spacing="3">WAVE/);
+  assert.ok(svg.lastIndexOf('href="/frame.png"') > svg.lastIndexOf('SCICON V'));
 });
 
 test('shared record-card renderer applies safe presentation and art layout overrides', async () => {

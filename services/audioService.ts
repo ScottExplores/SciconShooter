@@ -7,6 +7,8 @@ class AudioService {
   private masterGain: GainNode | null = null;
   private musicTimer: number | null = null;
   private musicStep: number = 0;
+  private musicRequested: boolean = false;
+  private pageActive: boolean = !document.hidden;
   private lastSoundTime: Partial<Record<GameSoundType, number>> = {};
 
   constructor() {
@@ -21,29 +23,96 @@ class AudioService {
     } catch {
       console.error("WebAudio not supported");
     }
+
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    window.addEventListener('pagehide', this.handlePageHide);
+    window.addEventListener('pageshow', this.handlePageShow);
+    window.addEventListener('blur', this.handleBlur);
+    window.addEventListener('focus', this.handleFocus);
+  }
+
+  private handleVisibilityChange = () => {
+    this.setPageActive(!document.hidden);
+  };
+
+  private handlePageHide = () => {
+    this.setPageActive(false);
+  };
+
+  private handlePageShow = () => {
+    this.setPageActive(!document.hidden);
+  };
+
+  private handleBlur = () => {
+    this.setPageActive(false);
+  };
+
+  private handleFocus = () => {
+    if (!document.hidden) this.setPageActive(true);
+  };
+
+  private clearMusicTimer() {
+    if (this.musicTimer === null) return;
+    window.clearInterval(this.musicTimer);
+    this.musicTimer = null;
+  }
+
+  private setPageActive(active: boolean) {
+    if (this.pageActive === active) return;
+    this.pageActive = active;
+
+    if (!active) {
+      this.clearMusicTimer();
+      void this.ctx?.suspend().catch(() => undefined);
+      return;
+    }
+
+    if (this.muted) return;
+    void this.ctx?.resume().catch(() => undefined);
+    this.setMasterVolume(0.3);
+    this.beginMusicTimer();
+  }
+
+  private setMasterVolume(volume: number) {
+    if (!this.masterGain) return;
+    const t = this.ctx?.currentTime || 0;
+    this.masterGain.gain.setTargetAtTime(volume, t, 0.08);
   }
 
   public init() {
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+    if (this.pageActive && !this.muted && this.ctx?.state === 'suspended') {
+      void this.ctx.resume().catch(() => undefined);
     }
   }
 
   public toggleMute() {
     this.muted = !this.muted;
-    if (this.masterGain) {
-      // Smooth fade to avoid pops
-      const t = this.ctx?.currentTime || 0;
-      this.masterGain.gain.setTargetAtTime(this.muted ? 0 : 0.3, t, 0.1);
+    this.setMasterVolume(this.muted || !this.pageActive ? 0 : 0.3);
+    if (this.muted) {
+      this.clearMusicTimer();
+    } else if (this.pageActive) {
+      this.init();
+      this.beginMusicTimer();
     }
     return this.muted;
   }
 
   public startMusic() {
-    if (!this.ctx || this.musicTimer !== null) return;
+    this.musicRequested = true;
+    this.beginMusicTimer();
+  }
+
+  public stopMusic() {
+    this.musicRequested = false;
+    this.musicStep = 0;
+    this.clearMusicTimer();
+  }
+
+  private beginMusicTimer() {
+    if (!this.ctx || this.musicTimer !== null || !this.musicRequested || this.muted || !this.pageActive) return;
 
     const pulse = () => {
-      if (!this.ctx || this.muted || !this.masterGain) return;
+      if (!this.ctx || this.muted || !this.masterGain || !this.pageActive) return;
 
       const t = this.ctx.currentTime;
       const bassNotes = [55, 55, 82.41, 73.42, 55, 98, 82.41, 73.42];
@@ -82,7 +151,7 @@ class AudioService {
   }
 
   public playDialogBlip() {
-    if (!this.ctx || this.muted) return;
+    if (!this.ctx || this.muted || !this.pageActive) return;
 
     const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -105,7 +174,7 @@ class AudioService {
     intensity: number = 1,
     options: { pitchJitter?: number; pitchOffset?: number } = {}
   ) {
-    if (!this.ctx || this.muted) return;
+    if (!this.ctx || this.muted || !this.pageActive) return;
 
     const minSpacingMs: Partial<Record<GameSoundType, number>> = {
       shoot: 28,

@@ -12,7 +12,7 @@ Scicon Shooter is not presented as an official ResearchHub product.
 
 1. Play a mission without connecting a wallet.
 2. Save a completed run with a signed server receipt.
-3. Climb the Monday-to-Sunday UTC leaderboard.
+3. Climb the Sunday-noon-to-Sunday-noon Pacific leaderboard.
 4. Finalize and lock the weekly champion after the cutoff.
 5. Let the champion connect the Base Account associated with the winning run.
 6. Select an active, unfunded ResearchHub proposal during the claim window.
@@ -106,7 +106,7 @@ Run `supabase/leaderboard.sql` for the legacy leaderboard base, then apply `supa
 - Anonymous product events
 - Resilient proposal caching
 
-The active product flow uses `/api/weekly-competitions` and Monday's `/api/finalize-weekly-competition` cron. When `BASE_DASHBOARD_API_KEY` is configured, finalized-champion and proposal-selection events notify users who pinned the app and opted in through Base.
+The active product flow uses `/api/weekly-competitions` and a Sunday post-cutoff `/api/finalize-weekly-competition` cron. When `BASE_DASHBOARD_API_KEY` is configured, finalized-champion and proposal-selection events notify users who pinned the app and opted in through Base.
 
 ## Deployment and workflow
 

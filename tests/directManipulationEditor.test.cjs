@@ -41,13 +41,33 @@ test('Director, in-game mission record, and NFT image share the same card config
   const missionRecord = read('components/MissionRecordPreview.tsx');
   const cardSurface = read('components/MissionRecordCard.tsx');
   const api = read('api/record-card.js');
+  const metadataApi = read('api/record-metadata.js');
+  const mintAuthorizationApi = read('api/mint-authorization.js');
   const levelConfig = read('services/levelConfig.ts');
 
   assert.match(editor, /campaign\.value\.recordCard/);
   assert.match(missionRecord, /DEFAULT_GAME_CAMPAIGN\.recordCard/);
   assert.match(missionRecord, /presentation=\{recordCardConfig\}/);
+  assert.match(missionRecord, /src=\{cardUrl\}/);
+  assert.match(missionRecord, /shareScoreCardImage\(\{[\s\S]*cardUrl/);
+  assert.match(missionRecord, /Connect wallet/);
+  assert.match(missionRecord, /Get Base app/);
   assert.match(cardSurface, /renderRecordCardSvg/);
   assert.match(api, /renderRecordCardSvg/);
   assert.match(api, /presentation: cardConfig/);
+  assert.match(metadataApi, /buildMissionRecordCardPath/);
+  assert.match(mintAuthorizationApi, /buildMissionRecordMetadataPath/);
   assert.match(levelConfig, /normalizeGameCampaignRecordCard\(parseGameCampaign\(campaignJson\)\)/);
+});
+
+test('mission-record onboarding uses the configured Base app invite and a separate wallet connection', () => {
+  const app = read('App.tsx');
+  const constants = read('constants.ts');
+  const missionRecord = read('components/MissionRecordPreview.tsx');
+
+  assert.match(constants, /BASE_APP_INVITE_URL:\s*"https:\/\/base\.app\/invite\/scottexplores\/6SR3DKQB"/);
+  assert.match(app, /onConnect=\{connectWallet\}/);
+  assert.match(app, /onGetBaseApp=\{openBaseAppInvite\}/);
+  assert.match(missionRecord, /disabled=\{!walletAddress \|\| !mintConfigured/);
+  assert.doesNotMatch(missionRecord, /About Base Account/);
 });

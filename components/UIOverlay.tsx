@@ -120,42 +120,45 @@ const BombSprite = ({ active, src }: { active: boolean; src: string }) => (
 
 const fieldUpgradeOrder: FieldUpgradeType[] = ['fireRate', 'speed', 'extraLife'];
 
-const fieldUpgradeIcons: Record<FieldUpgradeType, HudIconName> = {
-  fireRate: 'bolt',
-  speed: 'ship',
-  extraLife: 'plus'
+const fieldUpgradeSprites: Record<FieldUpgradeType, string> = {
+  fireRate: '/game-art/powerups/rapid-fire.png',
+  speed: '/game-art/powerups/speed.png',
+  extraLife: '/game-art/powerups/extra-life.png'
 };
+
+const FieldUpgradeSprite = ({ type, highlighted }: { type: FieldUpgradeType; highlighted: boolean }) => (
+  <img
+    src={fieldUpgradeSprites[type]}
+    alt=""
+    aria-hidden="true"
+    draggable={false}
+    decoding="async"
+    className={`h-14 w-14 object-contain [image-rendering:pixelated] transition duration-200 ${type === 'speed' ? '-rotate-90' : ''} ${
+      highlighted
+        ? 'opacity-100 saturate-125 brightness-110 drop-shadow-[0_0_12px_currentColor]'
+        : 'grayscale opacity-35 brightness-50'
+    }`}
+  />
+);
 
 const fieldUpgradeColors: Record<FieldUpgradeType, {
   active: string;
   idle: string;
-  iconActive: string;
-  iconIdle: string;
-  meter: string;
   glow: string;
 }> = {
   fireRate: {
     active: 'border-yellow-200/80 bg-yellow-300/18 text-yellow-50 shadow-[0_0_30px_rgba(250,204,21,0.18)]',
     idle: 'border-yellow-100/14 bg-slate-950/42 text-yellow-100/55',
-    iconActive: 'border-yellow-100/60 bg-yellow-300/24 text-yellow-100',
-    iconIdle: 'border-white/10 bg-white/[0.04] text-yellow-100/55',
-    meter: 'bg-yellow-300',
     glow: 'bg-[radial-gradient(circle_at_50%_0%,rgba(250,204,21,0.26),transparent_60%)]'
   },
   speed: {
     active: 'border-cyan-200/80 bg-cyan-300/18 text-cyan-50 shadow-[0_0_30px_rgba(34,211,238,0.18)]',
     idle: 'border-cyan-100/14 bg-slate-950/42 text-cyan-100/55',
-    iconActive: 'border-cyan-100/60 bg-cyan-300/24 text-cyan-100',
-    iconIdle: 'border-white/10 bg-white/[0.04] text-cyan-100/55',
-    meter: 'bg-cyan-300',
     glow: 'bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.26),transparent_60%)]'
   },
   extraLife: {
     active: 'border-rose-200/80 bg-rose-300/18 text-rose-50 shadow-[0_0_30px_rgba(251,113,133,0.18)]',
     idle: 'border-rose-100/14 bg-slate-950/42 text-rose-100/55',
-    iconActive: 'border-rose-100/60 bg-rose-300/24 text-rose-100',
-    iconIdle: 'border-white/10 bg-white/[0.04] text-rose-100/55',
-    meter: 'bg-rose-300',
     glow: 'bg-[radial-gradient(circle_at_50%_0%,rgba(251,113,133,0.26),transparent_60%)]'
   }
 };
@@ -206,20 +209,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-2 sm:p-4">
       <div className="flex w-full items-start justify-between gap-1.5">
-        <div className="pointer-events-auto flex max-w-[calc(100vw-10.75rem)] flex-1 min-w-0 items-center gap-1.5 rounded-[8px] border border-cyan-200/18 bg-slate-950/70 px-1.5 py-1.5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:max-w-none sm:gap-2 sm:px-2.5 sm:py-2">
+        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-[8px] border border-cyan-200/18 bg-slate-950/70 px-1.5 py-1.5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:gap-2 sm:px-2.5 sm:py-2">
           <div className="flex h-8 shrink-0 items-center gap-1 rounded-[6px] border border-red-300/24 bg-red-500/12 px-2 text-red-100 sm:h-9">
             <HudIcon name="heart" className="h-4 w-4 text-red-400 sm:h-5 sm:w-5" />
             <span className="arcade-font min-w-4 text-lg font-black leading-none text-white">{stats.lives}</span>
           </div>
 
-          <div className="hidden h-8 shrink-0 items-center rounded-[6px] border border-cyan-300/18 bg-cyan-300/8 px-2 text-[9px] font-black uppercase tracking-[0.08em] text-cyan-100 min-[560px]:flex sm:h-9 sm:text-[10px] sm:tracking-[0.12em]">
-            Wave {stats.wave}
-          </div>
-
-          <div className="flex min-w-0 flex-1 items-center gap-2 sm:w-32 sm:flex-none">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <HudIcon name="flask" className="h-5 w-5 shrink-0 text-cyan-200 sm:h-6 sm:w-6" />
-            <div className="min-w-0 flex-1">
-              <div className="h-3 overflow-hidden rounded-full border border-cyan-100/10 bg-slate-700/70">
+            <div className="min-w-0 max-w-full flex-1 overflow-hidden">
+              <div className="h-3 w-full max-w-full overflow-hidden rounded-full border border-cyan-100/10 bg-slate-700/70">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-emerald-300 to-yellow-300 transition-all duration-300"
                   style={{ width: `${nextFlaskPct}%` }}
@@ -298,26 +297,20 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
       )}
 
       <div
-        className="pointer-events-auto absolute right-2 z-20 flex w-[4.85rem] flex-col gap-2 sm:right-4 sm:w-24"
+        className="pointer-events-auto absolute right-2 z-20 flex w-[4.6rem] flex-col gap-1.5 sm:right-4"
         style={{ bottom: 'max(2.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))' }}
       >
-        <div className={`relative rounded-[10px] border px-2 py-1.5 text-center shadow-[0_12px_32px_rgba(0,0,0,0.3)] backdrop-blur-md ${
+        <div className={`relative rounded-[8px] border px-1.5 py-1.5 text-center shadow-[0_12px_32px_rgba(0,0,0,0.3)] backdrop-blur-md ${
           flaskReady || isUpgradeReady
             ? 'border-emerald-200/55 bg-emerald-300/16 text-emerald-100'
             : 'border-cyan-200/18 bg-slate-950/52 text-cyan-100/70'
         }`}>
           {showLabGlow && !flaskReady ? (
-            <span className="pointer-events-none absolute -inset-1 rounded-[12px] bg-cyan-300/8 blur-md" />
+            <span className="pointer-events-none absolute -inset-1 rounded-[10px] bg-cyan-300/8 blur-md" />
           ) : null}
-          <div className="relative flex items-center justify-center gap-1">
-            <HudIcon name="flask" className="h-3.5 w-3.5" />
-            <span className="font-mono text-[8px] font-black uppercase tracking-[0.12em]">x{flaskCount}</span>
-          </div>
-          <div className="relative mt-1 h-1 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-emerald-300 to-yellow-300 transition-all duration-300"
-              style={{ width: `${nextFlaskPct}%` }}
-            />
+          <div className="relative flex items-center justify-center gap-1.5">
+            <HudIcon name="flask" className="h-4 w-4" />
+            <span className="arcade-font text-sm font-black leading-none">x{flaskCount}</span>
           </div>
         </div>
 
@@ -329,24 +322,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           const isLifeUpgrade = type === 'extraLife';
           const isAtCap = isLifeUpgrade ? stats.lives >= GAME_CONFIG.MAX_LIVES : level >= config.maxLevel;
           const canPick = flaskCount >= flaskCost && !isAtCap;
-          const shortTitle = type === 'fireRate'
-            ? level >= 6
-              ? 'Singularity'
-              : level >= 5
-                ? 'Nova'
-                : level >= 3
-                  ? 'Plasma'
-                  : config.shortTitle
-            : type === 'speed' && level >= 5
-              ? 'Warp'
-              : config.shortTitle;
-          const upgradeStatus = isAtCap
-            ? 'MAX'
-            : flaskCost > 1
-              ? `x${flaskCost}`
-              : canPick
-                ? 'PICK'
-                : `L${level + 1}`;
+          const highlighted = canPick || isAtCap;
+          const displayedLevel = Math.min(config.maxLevel, level + 1);
+          const accessibleLabel = isAtCap
+            ? `${config.title} is at max level`
+            : `Upgrade ${config.title} for ${flaskCost} flask${flaskCost === 1 ? '' : 's'}`;
 
           return (
             <button
@@ -358,33 +338,36 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 onUpgrade(type);
               }}
               disabled={!canPick}
-              className={`group relative overflow-hidden rounded-[12px] border p-1.5 text-left shadow-[0_14px_38px_rgba(0,0,0,0.3)] backdrop-blur-md transition active:scale-95 sm:p-2 ${
-                canPick
-                  ? `${colors.active} hover:border-white hover:brightness-125`
+              className={`group relative flex h-[4.6rem] w-[4.6rem] items-center justify-center overflow-visible rounded-[10px] border p-0.5 shadow-[0_14px_38px_rgba(0,0,0,0.3)] backdrop-blur-md transition active:scale-95 ${
+                highlighted
+                  ? `${colors.active} ${canPick ? 'hover:border-white hover:brightness-125' : ''}`
                   : colors.idle
               }`}
-              aria-label={`Upgrade ${config.title} for ${flaskCost} flask${flaskCost === 1 ? '' : 's'}`}
+              aria-label={accessibleLabel}
+              title={accessibleLabel}
             >
               {canPick ? (
-                <span className={`pointer-events-none absolute inset-0 ${colors.glow}`} />
+                <span className={`pointer-events-none absolute inset-0 overflow-hidden rounded-[9px] ${colors.glow}`} />
               ) : null}
-              <div className="relative flex items-center justify-between gap-1">
-                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border ${
-                  canPick ? colors.iconActive : colors.iconIdle
+              {!isAtCap ? (
+                <span className={`absolute -left-1.5 -top-1.5 z-20 flex h-6 min-w-6 items-center justify-center rounded-full border px-1 text-xs font-black ${
+                  canPick
+                    ? 'border-emerald-100/80 bg-emerald-300 text-slate-950'
+                    : 'border-slate-400/35 bg-slate-950 text-slate-300'
                 }`}>
-                  <HudIcon name={fieldUpgradeIcons[type]} className="h-5 w-5" />
+                  x{flaskCost}
                 </span>
-                <span className="font-mono text-[9px] font-black text-white/85">{upgradeStatus}</span>
-              </div>
-              <div className="relative mt-1 text-[9px] font-black uppercase leading-tight tracking-[0.08em] text-white sm:text-[10px]">
-                {shortTitle}
-              </div>
-              <div className="relative mt-1 h-1 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className={`h-full rounded-full ${canPick ? colors.meter : 'bg-white/25'}`}
-                  style={{ width: `${Math.min(100, (level / config.maxLevel) * 100)}%` }}
-                />
-              </div>
+              ) : null}
+              <span className={`absolute -right-1.5 -top-1.5 z-20 flex items-center justify-center rounded-full border font-black ${
+                isAtCap
+                  ? 'h-8 min-w-8 border-yellow-100/85 bg-yellow-300 px-1 text-[8px] text-slate-950 shadow-[0_0_18px_rgba(250,204,21,0.5)]'
+                  : 'h-6 min-w-6 border-cyan-100/55 bg-slate-950 px-1 text-xs text-cyan-100'
+              }`}>
+                {isAtCap ? 'MAX' : `L${displayedLevel}`}
+              </span>
+              <span className="relative flex h-full w-full items-center justify-center">
+                <FieldUpgradeSprite type={type} highlighted={highlighted} />
+              </span>
             </button>
           );
         })}

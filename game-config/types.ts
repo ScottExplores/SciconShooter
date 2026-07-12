@@ -277,6 +277,8 @@ export interface BossHealthPhase {
 export interface BossEvent extends BaseWaveEvent {
   kind: 'boss';
   bossId: BossId;
+  /** Number of matching bosses spawned together. Multi-boss groups are currently supported by Bottleneck Drones. */
+  count?: number;
   spriteKey: AssetKey;
   spriteStyle?: SpriteStyle;
   positionId: SpawnPositionId;

@@ -15,7 +15,12 @@ const mintRecordsHandler = require('./api/mint-records.js');
 const recordMetadataHandler = require('./api/record-metadata.js');
 const recordCardHandler = require('./api/record-card.js');
 
-process.env.RUN_RECEIPT_SECRET ||= 'scicon-local-development-receipt-secret';
+const PUBLIC_API_ORIGIN = process.env.SCICON_PUBLIC_API_ORIGIN || 'https://sciconshooter.xyz';
+const hasLocalLeaderboardStorage = Boolean(
+  process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+const hasLocalReceiptSecret = Boolean(process.env.RUN_RECEIPT_SECRET);
+const useRemotePersistence = !hasLocalLeaderboardStorage || !hasLocalReceiptSecret;
 
 const readBody = (req: any) => new Promise((resolve) => {
   if (req.method === 'GET' || req.method === 'OPTIONS') {
@@ -41,6 +46,40 @@ const readBody = (req: any) => new Promise((resolve) => {
   });
 });
 
+const proxyPublicApi = async (path: string, req: any, res: any) => {
+  try {
+    const query = new URL(req.url || '/', 'http://localhost').search;
+    const method = String(req.method || 'GET').toUpperCase();
+    const headers: Record<string, string> = {
+      Accept: String(req.headers?.accept || 'application/json')
+    };
+    if (req.headers?.authorization) headers.Authorization = String(req.headers.authorization);
+    const hasBody = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && req.body !== undefined;
+    if (hasBody) headers['Content-Type'] = 'application/json';
+    const upstream = await fetch(`${PUBLIC_API_ORIGIN}${path}${query}`, {
+      method,
+      headers,
+      body: hasBody
+        ? typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+        : undefined,
+      redirect: 'follow'
+    });
+    const body = await upstream.text();
+
+    res.statusCode = upstream.status;
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/json');
+    res.setHeader('Cache-Control', upstream.headers.get('cache-control') || 'no-store');
+    res.end(body);
+  } catch (error) {
+    res.statusCode = 502;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({
+      error: 'Development API relay is unavailable',
+      details: error instanceof Error ? error.message : 'Unknown upstream error'
+    }));
+  }
+};
+
 const localApiRoutes = () => ({
   name: 'local-api-routes',
   configureServer(server: any) {
@@ -53,17 +92,52 @@ const localApiRoutes = () => ({
       });
     };
 
-    mount('/api/leaderboard', leaderboardHandler);
-    mount('/api/researchhub-proposals', researchHubProposalsHandler);
-    mount('/api/run-receipts', runReceiptsHandler);
-    mount('/api/weekly-competitions', weeklyCompetitionsHandler);
-    mount('/api/events', eventsHandler);
-    mount('/api/run-claims', runClaimsHandler);
-    mount('/api/weekly-claim', weeklyClaimHandler);
-    mount('/api/mint-authorization', mintAuthorizationHandler);
-    mount('/api/mint-records', mintRecordsHandler);
-    mount('/api/record-metadata', recordMetadataHandler);
-    mount('/api/record-card', recordCardHandler);
+    mount('/api/leaderboard', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/leaderboard', req, res);
+      return leaderboardHandler(req, res);
+    });
+    mount('/api/researchhub-proposals', async (req, res) => {
+      if (req.method === 'GET') {
+        return proxyPublicApi('/api/researchhub-proposals', req, res);
+      }
+      return researchHubProposalsHandler(req, res);
+    });
+    mount('/api/run-receipts', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/run-receipts', req, res);
+      return runReceiptsHandler(req, res);
+    });
+    mount('/api/weekly-competitions', async (req, res) => {
+      if (useRemotePersistence || req.method === 'GET') return proxyPublicApi('/api/weekly-competitions', req, res);
+      return weeklyCompetitionsHandler(req, res);
+    });
+    mount('/api/events', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/events', req, res);
+      return eventsHandler(req, res);
+    });
+    mount('/api/run-claims', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/run-claims', req, res);
+      return runClaimsHandler(req, res);
+    });
+    mount('/api/weekly-claim', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/weekly-claim', req, res);
+      return weeklyClaimHandler(req, res);
+    });
+    mount('/api/mint-authorization', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/mint-authorization', req, res);
+      return mintAuthorizationHandler(req, res);
+    });
+    mount('/api/mint-records', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/mint-records', req, res);
+      return mintRecordsHandler(req, res);
+    });
+    mount('/api/record-metadata', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/record-metadata', req, res);
+      return recordMetadataHandler(req, res);
+    });
+    mount('/api/record-card', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/record-card', req, res);
+      return recordCardHandler(req, res);
+    });
 
   }
 });

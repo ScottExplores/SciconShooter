@@ -73,10 +73,15 @@ export interface RenderRecordCardSvgOptions {
   record: Partial<RecordCardRenderData>;
   shipImage?: string;
   encounterImage?: string;
+  frameImage?: string;
   presentation?: RecordCardPresentation;
 }
 
 export const DEFAULT_RECORD_CARD_PRESENTATION: Readonly<ResolvedRecordCardPresentation>;
+export const RECORD_CARD_RENDER_VERSION: string;
+export function buildMissionRecordCardPath(runId: unknown): string;
+export function buildMissionRecordMetadataPath(runId: unknown): string;
+export function formatRecordCardCompletedLabel(value: unknown): string;
 export function resolveRecordCardEncounterAssetKey(campaign: unknown, waveRef: unknown): string;
 export function escapeRecordCardXml(value: unknown): string;
 export function resolveRecordCardPresentation(presentation?: RecordCardPresentation): ResolvedRecordCardPresentation;

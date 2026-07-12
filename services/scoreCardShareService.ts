@@ -1,5 +1,6 @@
 type ShareScoreCardImageOptions = {
   cardUrl: string;
+  sourceSvg?: string;
   fileName: string;
   title: string;
   text: string;
@@ -48,25 +49,23 @@ const downloadImage = (blob: Blob, fileName: string) => {
 
 export const shareScoreCardImage = async ({
   cardUrl,
+  sourceSvg,
   fileName,
   title,
   text
 }: ShareScoreCardImageOptions): Promise<ScoreCardShareMethod> => {
-  const response = await fetch(cardUrl, { headers: { Accept: 'image/svg+xml' } });
-  if (!response.ok) throw new Error('Score card image is unavailable.');
+  let svgBlob: Blob;
+  if (sourceSvg) {
+    svgBlob = new Blob([sourceSvg], { type: 'image/svg+xml' });
+  } else {
+    const response = await fetch(cardUrl, { headers: { Accept: 'image/svg+xml' } });
+    if (!response.ok) throw new Error('Score card image is unavailable.');
+    svgBlob = await response.blob();
+  }
 
-  const pngBlob = await svgToPng(await response.blob());
+  const pngBlob = await svgToPng(svgBlob);
   const file = new File([pngBlob], fileName, { type: 'image/png' });
   const canShareFile = Boolean(navigator.share && navigator.canShare?.({ files: [file] }));
-
-  if (canShareFile) {
-    try {
-      await navigator.share({ title, text, files: [file] });
-      return 'native';
-    } catch (error: any) {
-      if (/abort|cancel/i.test(error?.name || error?.message || '')) throw error;
-    }
-  }
 
   if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
     try {
@@ -74,6 +73,15 @@ export const shareScoreCardImage = async ({
       return 'clipboard';
     } catch {
       // Embedded browsers can expose the clipboard API while blocking image writes.
+    }
+  }
+
+  if (canShareFile) {
+    try {
+      await navigator.share({ title, text, files: [file] });
+      return 'native';
+    } catch (error: any) {
+      if (/abort|cancel/i.test(error?.name || error?.message || '')) throw error;
     }
   }
 
