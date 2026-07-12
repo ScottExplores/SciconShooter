@@ -16,6 +16,12 @@ Then open `http://127.0.0.1:5174` in a browser. The server binds only to loopbac
 and uses a strict, separate port. Stop it with `Ctrl+C` in the terminal that started
 it.
 
+The game-first editor is at `http://127.0.0.1:5174/level-editor`. Its center stage
+is the real `GameStage`, not a mock dashboard. Select levels and waves on the left,
+click gameplay groups in the game view, and edit their settings on the right. The
+same campaign, renderer, sprites, HUD, boss art, and scorecard presentation are used
+by the real game.
+
 ## Windows one-click access
 
 Run the shortcut installer once from the repository root:
@@ -40,6 +46,31 @@ desktop shortcut will continue to work.
 The Director has no deployment build. `npm --prefix director run build` exits with
 an error by design, `.vercelignore` excludes the package and its data, and the root
 production build verifies that no Director files or markers reached `dist`.
+
+## Prompt-based Sprite Generator
+
+Open **Sprite Generator** from an enemy, boss, asteroid, HUD icon, or scorecard art
+setting. Generated images enter the same validated asset catalog as the built-in
+game art, so they can be selected, previewed in the real game surface, dragged where
+supported, and applied with the campaign.
+
+To enable new generations on this computer:
+
+```powershell
+Copy-Item director/env/.env.example director/env/.env.local
+notepad director/env/.env.local
+```
+
+Set `OPENAI_API_KEY` in that local file and restart the Director. The key stays on the
+loopback server and is never exposed as a Vite browser variable. Generation uses the
+OpenAI API credits for that key. Resulting PNGs are stored under
+`public/game-art/generated`, their safe catalog entries are stored in
+`game-config/generated-assets.json`, and prompt metadata remains in ignored local
+Director data. Content hashes make generated filenames immutable.
+
+The checked-in **Biohazard bomb** is the first generated HUD asset and replaces the
+old drawn bomb icon in the shared `UIOverlay`. It remains usable even when no API key
+is configured.
 
 ## Local data model
 

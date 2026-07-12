@@ -2,7 +2,7 @@
  * Stable asset identifiers backed by `ASSETS` in `constants.ts`.
  * Campaign JSON stores only these identifiers; it never accepts file paths.
  */
-export type AssetKey =
+export type BuiltInAssetKey =
   | 'PLAYER_SHIP'
   | 'RSC_TOKEN'
   | 'REAL_RSC_ICON'
@@ -21,6 +21,23 @@ export type AssetKey =
   | 'MINI_BOSS'
   | 'WALL_BOSS_SEGMENT'
   | 'FINAL_BOSS';
+
+/**
+ * Generated asset IDs are stable, content-addressed catalog identifiers. The
+ * runtime validator still requires every ID to be present in generated-assets.json.
+ */
+export type GeneratedAssetKey = `GENERATED_${Uppercase<string>}`;
+export type AssetKey = BuiltInAssetKey | GeneratedAssetKey;
+
+/** Roles constrain which game surfaces may consume a generated image. */
+export type GeneratedAssetRole =
+  | 'enemy'
+  | 'boss'
+  | 'asteroid'
+  | 'hud'
+  | 'player'
+  | 'background'
+  | 'scorecard';
 
 export type EnemyId = 'drone' | 'swarm' | 'brick' | 'journal';
 export type BossId = 'bottleneck-drone' | 'paywall-wall' | 'gatekeeper';
@@ -46,12 +63,18 @@ export interface GameCampaignConfig {
   fps: 60;
   /** Shared by the in-game record, local Director, and NFT/share SVG renderer. */
   recordCard: RecordCardConfig;
+  /** Shared HUD art selected by the Director and rendered by the real game. */
+  hudAssets: HudAssetsConfig;
   /** At least one level is required. */
   levels: LevelDefinition[];
 }
 
 /** Compatibility-friendly short name for engine/editor consumers. */
 export type GameCampaign = GameCampaignConfig;
+
+export interface HudAssetsConfig {
+  bombIconAssetKey: AssetKey;
+}
 
 export interface RecordCardCopy {
   title: string;
@@ -310,6 +333,15 @@ export interface AssetCatalogEntry {
   label: string;
   /** Resolved from the real ASSETS catalog; arrays represent animation frames. */
   paths: readonly string[];
+  /** Surfaces on which this artwork may be selected. */
+  roles: readonly GeneratedAssetRole[];
+  /** Present only for content-addressed images created by the local Director. */
+  generated?: {
+    sha256: string;
+    width: number;
+    height: number;
+    createdAt: string;
+  };
 }
 
 export interface EnemyCatalogEntry {

@@ -3,21 +3,24 @@ import { FieldUpgradeType, Stats } from '../types';
 import { audioService } from '../services/audioService';
 import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress } from '../services/flaskProgress';
+import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
 
 export interface UIOverlayProps {
   stats: Stats;
   showLabGlow: boolean;
   onDisableLabGlow: () => void;
   isUpgradeReady?: boolean;
+  paused?: boolean;
   onPause: () => void;
   onUseBomb: () => void;
   onUpgrade: (type: FieldUpgradeType) => void;
+  bombIconSrc?: string;
   bombLocked?: boolean;
   muted?: boolean;
   onToggleMute?: () => boolean | void;
 }
 
-type HudIconName = 'sound' | 'muted' | 'pause' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
+type HudIconName = 'sound' | 'muted' | 'play' | 'pause' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
 
 const HudIcon = ({
   name,
@@ -53,6 +56,9 @@ const HudIcon = ({
       ) : null}
       {name === 'pause' ? (
         <path {...common} d="M8 5.5v13M16 5.5v13" />
+      ) : null}
+      {name === 'play' ? (
+        <path {...common} fill="currentColor" d="m8.5 5.5 9 6.5-9 6.5z" />
       ) : null}
       {name === 'lab' || name === 'flask' ? (
         <>
@@ -102,35 +108,14 @@ const HudIcon = ({
   );
 };
 
-const BombSprite = ({ active }: { active: boolean }) => (
-  <svg
-    viewBox="0 0 64 64"
-    className="relative h-12 w-12 drop-shadow-[0_0_18px_rgba(251,191,36,0.45)]"
+const BombSprite = ({ active, src }: { active: boolean; src: string }) => (
+  <img
+    src={src}
+    alt=""
     aria-hidden="true"
-    style={{ imageRendering: 'pixelated' }}
-  >
-    <defs>
-      <radialGradient id="scicon-bomb-core" cx="34%" cy="28%" r="70%">
-        <stop offset="0%" stopColor="#fff7ad" />
-        <stop offset="28%" stopColor="#facc15" />
-        <stop offset="62%" stopColor="#f97316" />
-        <stop offset="100%" stopColor="#7c2d12" />
-      </radialGradient>
-      <linearGradient id="scicon-bomb-fuse" x1="31" y1="10" x2="52" y2="4" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#f8fafc" />
-        <stop offset="1" stopColor="#67e8f9" />
-      </linearGradient>
-    </defs>
-    <rect x="21" y="8" width="18" height="9" rx="2" fill="#f59e0b" />
-    <rect x="29" y="4" width="9" height="8" rx="2" fill="#fde68a" />
-    <path d="M36 8 C44 3 50 5 55 10" fill="none" stroke="url(#scicon-bomb-fuse)" strokeWidth="4" strokeLinecap="round" />
-    <path d="M54 5h4v4h-4zM57 11h3v3h-3zM48 1h3v3h-3z" fill={active ? '#fef08a' : '#64748b'} />
-    <circle cx="31" cy="35" r="22" fill="url(#scicon-bomb-core)" />
-    <circle cx="24" cy="26" r="6" fill="#fff7ad" opacity="0.82" />
-    <path d="M15 45h6v5h-6zM40 17h6v5h-6zM45 40h5v5h-5z" fill="#fef3c7" opacity="0.72" />
-    <path d="M16 54h30" stroke="#451a03" strokeWidth="4" strokeLinecap="round" opacity="0.45" />
-    <path d="M31 15c10 0 20 8 22 19" fill="none" stroke="#fff7ed" strokeWidth="2" opacity="0.34" />
-  </svg>
+    draggable={false}
+    className={`relative h-14 w-14 object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.5)] transition ${active ? '' : 'grayscale opacity-55'}`}
+  />
 );
 
 const fieldUpgradeOrder: FieldUpgradeType[] = ['fireRate', 'speed', 'extraLife'];
@@ -180,9 +165,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   showLabGlow,
   onDisableLabGlow,
   isUpgradeReady = false,
+  paused = false,
   onPause,
   onUseBomb,
   onUpgrade,
+  bombIconSrc = getPrimaryAssetPath(DEFAULT_GAME_CAMPAIGN.hudAssets.bombIconAssetKey),
   bombLocked = false,
   muted: controlledMuted,
   onToggleMute
@@ -261,11 +248,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={onPause}
             className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-cyan-200/18 bg-white text-slate-950 shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition hover:bg-blue-100 sm:h-10 sm:w-10"
-            aria-label="Pause mission"
+            aria-label={paused ? 'Resume mission' : 'Pause mission'}
+            aria-pressed={paused}
           >
-            <HudIcon name="pause" className="h-5 w-5" />
+            <HudIcon name={paused ? 'play' : 'pause'} className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -289,7 +278,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             {bombs}
           </span>
           <div className="absolute inset-1 rounded-[18px] bg-[radial-gradient(circle_at_50%_20%,rgba(250,204,21,0.2),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.1),rgba(0,0,0,0.42))]" />
-          <BombSprite active={canUseBomb} />
+          <BombSprite active={canUseBomb} src={bombIconSrc} />
         </button>
       </div>
 

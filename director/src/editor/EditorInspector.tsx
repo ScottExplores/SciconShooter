@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type {
+  AssetCatalogEntry,
   AssetKey,
   AsteroidEvent,
   BackgroundId,
@@ -8,6 +9,8 @@ import type {
   BossId,
   BossWeaponSetting,
   EnemyId,
+  GameCampaignConfig,
+  GeneratedAssetRole,
   LevelDefinition,
   MovementPatternId,
   PowerupId,
@@ -21,7 +24,12 @@ import type {
   WaveEvent,
   WeaponId
 } from '../../../game-config/types';
-import { ASSET_CATALOG, BOSS_CATALOG, ENEMY_CATALOG } from '../../../game-config/catalog';
+import {
+  ASSET_CATALOG,
+  BOSS_CATALOG,
+  ENEMY_CATALOG,
+  getAssetKeysForRole
+} from '../../../game-config/catalog';
 import { DEFAULT_RECORD_CARD_CONFIG } from '../../../game-config/recordCard';
 import { EditorIcon } from './EditorIcon';
 import {
@@ -34,6 +42,7 @@ export type InspectorTab = 'wave' | 'boss' | 'level' | 'card';
 
 interface EditorInspectorProps {
   recordCard: RecordCardConfig;
+  hudAssets: GameCampaignConfig['hudAssets'];
   level: LevelDefinition;
   wave: WaveDefinition;
   selectedEventId: string;
@@ -41,6 +50,7 @@ interface EditorInspectorProps {
   onTabChange: (tab: InspectorTab) => void;
   onSelectEvent: (eventId: string) => void;
   onUpdateRecordCard: (recordCard: RecordCardConfig) => void;
+  onUpdateHudAssets: (hudAssets: GameCampaignConfig['hudAssets']) => void;
   onUpdateLevel: (patch: Partial<LevelDefinition>) => void;
   onUpdateWave: (patch: Partial<WaveDefinition>) => void;
   onUpdateEvent: (nextEvent: WaveEvent) => void;
@@ -66,10 +76,11 @@ const toAssetOptions = (keys: readonly AssetKey[]) => [...new Set(keys)].map((va
   label: ASSET_CATALOG[value].label
 }));
 
-const ENEMY_SPRITES = toAssetOptions(ENEMIES.map((enemy) => enemy.spriteKey));
-const BOSS_SPRITES = toAssetOptions(BOSSES.map((boss) => boss.spriteKey));
-const ASTEROID_SPRITES = toAssetOptions(['ENEMY_BRICK_FRAMES']);
-const CARD_ASSETS = toAssetOptions(Object.keys(ASSET_CATALOG) as AssetKey[]);
+const ENEMY_SPRITES = toAssetOptions(getAssetKeysForRole('enemy'));
+const BOSS_SPRITES = toAssetOptions(getAssetKeysForRole('boss'));
+const ASTEROID_SPRITES = toAssetOptions(getAssetKeysForRole('asteroid'));
+const HUD_ASSETS = toAssetOptions(getAssetKeysForRole('hud'));
+const CARD_ASSETS = toAssetOptions(getAssetKeysForRole('scorecard'));
 
 const PATTERNS: Array<{ value: SpawnPatternId; label: string }> = [
   { value: 'single-random', label: 'Single / random' },
@@ -175,6 +186,7 @@ function AssetSelectField({
   value,
   options,
   onChange,
+  assetRole,
   style = {},
   onStyleChange
 }: {
@@ -182,11 +194,18 @@ function AssetSelectField({
   value: AssetKey;
   options: Array<{ value: AssetKey; label: string }>;
   onChange: (value: AssetKey) => void;
+  assetRole?: GeneratedAssetRole;
   style?: SpriteStyle;
   onStyleChange?: (style: SpriteStyle) => void;
 }) {
   const [workshopOpen, setWorkshopOpen] = useState(false);
-  const selected = ASSET_CATALOG[value] ?? ASSET_CATALOG[options[0].value];
+  const [generatedOverride, setGeneratedOverride] = useState<AssetCatalogEntry | null>(null);
+  const selected = ASSET_CATALOG[value]
+    ?? (generatedOverride?.id === value ? generatedOverride : undefined)
+    ?? ASSET_CATALOG[options[0].value];
+  const visibleOptions = options.some((option) => option.value === selected.id)
+    ? options
+    : [{ value: selected.id, label: `${selected.label} · generated` }, ...options];
   return (
     <div className="le-field le-asset-field">
       <span>{label}</span>
@@ -204,23 +223,28 @@ function AssetSelectField({
         ))}
       </span>
       <select aria-label={label} value={value} onChange={(event) => onChange(event.target.value as AssetKey)}>
-        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        {visibleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
       <small className="le-asset-field__meta">
         {selected.paths.length === 1 ? 'Single image' : `${selected.paths.length} animation frames`} / {selected.id}
       </small>
-      {onStyleChange ? (
+      {assetRole || onStyleChange ? (
         <button className="le-button le-sprite-workshop-button" type="button" onClick={() => setWorkshopOpen(true)}>
-          <EditorIcon name="edit" /> Open Sprite Workshop
+          <EditorIcon name="edit" /> {assetRole ? 'Open Sprite Generator' : 'Open Sprite Workshop'}
         </button>
       ) : null}
-      {workshopOpen && onStyleChange ? (
+      {workshopOpen && (assetRole || onStyleChange) ? (
         <SpriteWorkshop
           assetKey={value}
           allowedAssetKeys={options.map((option) => option.value)}
+          assetRole={assetRole}
+          styleEditingEnabled={Boolean(onStyleChange)}
           style={style}
-          onAssetChange={onChange}
-          onStyleChange={onStyleChange}
+          onAssetChange={(nextAssetKey, generatedAsset) => {
+            if (generatedAsset) setGeneratedOverride(generatedAsset);
+            onChange(nextAssetKey);
+          }}
+          onStyleChange={onStyleChange ?? (() => undefined)}
           onClose={() => setWorkshopOpen(false)}
         />
       ) : null}
@@ -352,10 +376,11 @@ function WaveSettings({
               const selected = ENEMIES.find((item) => item.id === enemyId)!;
               updateEnemy({ enemyId, spriteKey: selected.spriteKey });
             }} />
-            <AssetSelectField
-              label="Enemy sprite"
+          <AssetSelectField
+            label="Enemy sprite"
               value={enemy.spriteKey}
-              options={ENEMY_SPRITES}
+            options={ENEMY_SPRITES}
+            assetRole="enemy"
               style={enemy.spriteStyle ?? {}}
               onChange={(spriteKey) => updateEnemy({ spriteKey })}
               onStyleChange={(spriteStyle) => updateEnemy({ spriteStyle })}
@@ -409,6 +434,7 @@ function AsteroidSettings({
         label="Asteroid sprite"
         value={asteroid.spriteKey}
         options={ASTEROID_SPRITES}
+        assetRole="asteroid"
         style={asteroid.spriteStyle ?? {}}
         onChange={(spriteKey) => updateAsteroid({ spriteKey })}
         onStyleChange={(spriteStyle) => updateAsteroid({ spriteStyle })}
@@ -515,6 +541,7 @@ function BossSettings({
             label="Boss sprite"
             value={boss.spriteKey}
             options={BOSS_SPRITES}
+            assetRole="boss"
             style={boss.spriteStyle ?? {}}
             onChange={(spriteKey) => updateBoss({ spriteKey })}
             onStyleChange={(spriteStyle) => updateBoss({ spriteStyle })}
@@ -583,7 +610,12 @@ function BossSettings({
   );
 }
 
-function LevelSettings({ level, onUpdateLevel }: Pick<EditorInspectorProps, 'level' | 'onUpdateLevel'>) {
+function LevelSettings({
+  level,
+  hudAssets,
+  onUpdateLevel,
+  onUpdateHudAssets
+}: Pick<EditorInspectorProps, 'level' | 'hudAssets' | 'onUpdateLevel' | 'onUpdateHudAssets'>) {
   const togglePowerup = (powerupId: PowerupId) => {
     const exists = level.availablePowerupIds.includes(powerupId);
     onUpdateLevel({ availablePowerupIds: exists ? level.availablePowerupIds.filter((id) => id !== powerupId) : [...level.availablePowerupIds, powerupId] });
@@ -622,6 +654,18 @@ function LevelSettings({ level, onUpdateLevel }: Pick<EditorInspectorProps, 'lev
             </label>
           ))}
         </div>
+      </fieldset>
+
+      <fieldset className="le-fieldset">
+        <legend>Gameplay HUD artwork</legend>
+        <p className="le-inspector-note">This is the icon rendered by the real bomb control in both the editor and the game.</p>
+        <AssetSelectField
+          label="Bomb button icon"
+          value={hudAssets.bombIconAssetKey}
+          options={HUD_ASSETS}
+          assetRole="hud"
+          onChange={(bombIconAssetKey) => onUpdateHudAssets({ ...hudAssets, bombIconAssetKey })}
+        />
       </fieldset>
 
       <fieldset className="le-fieldset">
@@ -714,7 +758,7 @@ function CardSettings({ recordCard, onUpdateRecordCard }: Pick<EditorInspectorPr
 
       <fieldset className="le-fieldset">
         <legend>Artwork</legend>
-        <AssetSelectField label="Ship art" value={recordCard.shipAssetKey} options={CARD_ASSETS} onChange={(shipAssetKey) => onUpdateRecordCard({ ...recordCard, shipAssetKey })} />
+        <AssetSelectField label="Ship art" value={recordCard.shipAssetKey} options={CARD_ASSETS} assetRole="scorecard" onChange={(shipAssetKey) => onUpdateRecordCard({ ...recordCard, shipAssetKey })} />
         <label className="le-field">
           <span>Encounter art</span>
           <select value={recordCard.encounterAssetKey} onChange={(event) => onUpdateRecordCard({ ...recordCard, encounterAssetKey: event.target.value as RecordCardConfig['encounterAssetKey'] })}>

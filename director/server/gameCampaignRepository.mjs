@@ -15,6 +15,37 @@ import { ValidationError } from './validation.mjs';
 
 const VERSION_ID_PATTERN = /^game-campaign-([0-9]{8}T[0-9]{9}Z)-([0-9a-f]{12})-([0-9a-f]{6})$/;
 const VERSION_SOURCES = new Set(['baseline', 'apply', 'rollback']);
+const DEFAULT_HUD_ASSETS = Object.freeze({
+  bombIconAssetKey: 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C'
+});
+const DEFAULT_RECORD_CARD = Object.freeze({
+  copy: Object.freeze({
+    title: 'MISSION RECORD',
+    subtitle: 'SCICON SHOOTER',
+    callsignLabel: 'CALLSIGN',
+    scoreLabel: 'FINAL SCORE',
+    verifiedLabel: 'SERVER VERIFIED',
+    reviewLabel: 'REVIEWED RUN',
+    metricLabels: Object.freeze({ wave: 'WAVE', targets: 'TARGETS', coins: 'COINS', flight: 'FLIGHT' })
+  }),
+  colors: Object.freeze({
+    background: '#020617',
+    panel: '#07152A',
+    primary: '#67E8F9',
+    secondary: '#2563EB',
+    success: '#6EE7B7',
+    warning: '#FACC15',
+    text: '#FFFFFF',
+    muted: '#94A3B8'
+  }),
+  showGrid: true,
+  shipAssetKey: 'PLAYER_SHIP',
+  encounterAssetKey: 'AUTO',
+  art: Object.freeze({
+    ship: Object.freeze({ x: 290, y: 370, width: 260, height: 260, rotation: 0, opacity: 1, visible: true }),
+    encounter: Object.freeze({ x: 800, y: 292, width: 260, height: 260, rotation: 0, opacity: 0.72, visible: true })
+  })
+});
 
 const cloneJson = (value) => JSON.parse(JSON.stringify(value));
 
@@ -98,6 +129,8 @@ export class GameCampaignRepository {
       throw new HttpError(404, 'Tracked game campaign not found at game-config/campaign.json');
     }
     assertValidGameCampaign(campaign, 'Tracked game campaign is invalid');
+    if (!campaign.recordCard) campaign.recordCard = cloneJson(DEFAULT_RECORD_CARD);
+    if (!campaign.hudAssets) campaign.hudAssets = cloneJson(DEFAULT_HUD_ASSETS);
     return campaign;
   }
 
@@ -343,6 +376,12 @@ export class GameCampaignRepository {
     const baselineCreatedAt = current.activeVersionId ? null : this.clock().toISOString();
     const now = this.clock().toISOString();
     const normalized = cloneJson(candidate);
+    // Revisions created before shared presentation fields keep the currently
+    // active presentation instead of writing an incomplete campaign to disk.
+    if (!normalized.recordCard) normalized.recordCard = cloneJson(current.campaign.recordCard ?? DEFAULT_RECORD_CARD);
+    if (!normalized.hudAssets) {
+      normalized.hudAssets = cloneJson(current.campaign.hudAssets ?? DEFAULT_HUD_ASSETS);
+    }
     normalized.revision = current.campaign.revision + 1;
     normalized.updatedAt = now;
     assertValidGameCampaign(normalized);

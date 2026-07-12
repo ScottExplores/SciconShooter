@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 director-data/workspace/
+director-data/generated-assets/
+director-data/game-campaign/
 .qa-chrome*/
 .codex-remote-attachments/
 contracts/out/

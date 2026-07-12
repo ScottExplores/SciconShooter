@@ -1,0 +1,54 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..');
+const manifest = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'generated-assets.json'), 'utf8'));
+const catalogSource = fs.readFileSync(path.join(root, 'game-config', 'catalog.ts'), 'utf8');
+const validatorSource = fs.readFileSync(path.join(root, 'game-config', 'validate.ts'), 'utf8');
+const engineSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+
+test('generated asset manifest registers the content-addressed biohazard HUD icon', () => {
+  assert.equal(manifest.schemaVersion, 1);
+  assert.equal(manifest.assets.length, 1);
+  assert.deepEqual(manifest.assets[0], {
+    id: 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C',
+    label: 'Biohazard bomb',
+    roles: ['hud'],
+    path: '/game-art/generated/biohazard-bomb-f29f11258b6c.png',
+    sha256: 'f29f11258b6cc6b4c454543ad5e14706f7cb14793158fc62d7099806d804e67f',
+    width: 1254,
+    height: 1254,
+    createdAt: '2026-07-11T00:00:00.000Z'
+  });
+});
+
+test('registered biohazard PNG exists with the manifest hash and dimensions', () => {
+  const entry = manifest.assets[0];
+  const filePath = path.join(root, 'public', ...entry.path.split('/').filter(Boolean));
+  const png = fs.readFileSync(filePath);
+  assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.equal(createHash('sha256').update(png).digest('hex'), entry.sha256);
+  assert.equal(png.readUInt32BE(16), entry.width);
+  assert.equal(png.readUInt32BE(20), entry.height);
+});
+
+test('shared catalog validates generated metadata, exposes role helpers, and campaign validation uses them', () => {
+  assert.match(catalogSource, /parseGeneratedAssetCatalog/);
+  assert.match(catalogSource, /GENERATED_ASSET_PATH_PATTERN/);
+  assert.match(catalogSource, /export const getAssetKeysForRole/);
+  assert.match(catalogSource, /export const isAssetAllowedForRole/);
+  assert.match(catalogSource, /export const registerGeneratedAssetForPreview/);
+  assert.match(validatorSource, /validateHudAssets/);
+  assert.match(validatorSource, /isAssetAllowedForRole\(candidate\.spriteKey as string, 'enemy'\)/);
+  assert.match(validatorSource, /isAssetAllowedForRole\(event\.spriteKey as string, 'boss'\)/);
+  assert.match(validatorSource, /isAssetAllowedForRole\(candidate\.spriteKey as string, 'asteroid'\)/);
+});
+
+test('engine resolves catalog art on demand instead of adding generated images to eager preload constants', () => {
+  assert.match(engineSource, /getPrimaryAssetPath\(spriteKey as AssetKey\)/);
+  assert.match(engineSource, /loadImage\(catalogPath\)/);
+  assert.doesNotMatch(engineSource, /GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C/);
+});

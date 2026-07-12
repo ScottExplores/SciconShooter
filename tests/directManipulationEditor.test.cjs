@@ -19,16 +19,20 @@ test('the local editor manipulates the canonical game canvas instead of a mock s
   assert.match(overlay, /onCommitAnchor/);
 });
 
-test('Sprite Workshop is local catalog editing with no generation or upload network surface', () => {
+test('Sprite Generator creates catalog assets through the loopback-only Director client', () => {
   const workshop = read('director/src/editor/SpriteWorkshop.tsx');
   const inspector = read('director/src/editor/EditorInspector.tsx');
 
   assert.match(workshop, /ASSET_CATALOG/);
   assert.match(workshop, /application\/x-scicon-asset-key/);
-  assert.match(workshop, /No AI or network/);
+  assert.match(workshop, /fetchGeneratedAssets/);
+  assert.match(workshop, /generateAsset/);
+  assert.match(workshop, /Generate new artwork/);
   assert.doesNotMatch(workshop, /\bfetch\s*\(/);
+  assert.doesNotMatch(workshop, /OPENAI_API_KEY\s*=/);
+  assert.doesNotMatch(workshop, /api\.openai\.com/);
   assert.doesNotMatch(workshop, /type=["']file["']/);
-  assert.match(inspector, /Open Sprite Workshop/);
+  assert.match(inspector, /Open Sprite Generator/);
   assert.match(inspector, /spriteStyle/);
 });
 

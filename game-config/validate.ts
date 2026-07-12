@@ -8,7 +8,8 @@ import {
   POWERUP_CATALOG,
   SPAWN_PATTERN_CATALOG,
   SPAWN_POSITION_CATALOG,
-  WEAPON_CATALOG
+  WEAPON_CATALOG,
+  isAssetAllowedForRole
 } from './catalog';
 import type {
   BossEvent,
@@ -41,7 +42,8 @@ export class CampaignValidationError extends Error {
 
 type UnknownRecord = Record<string, unknown>;
 
-const CAMPAIGN_KEYS = ['schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'levels'];
+const CAMPAIGN_KEYS = ['schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'hudAssets', 'levels'];
+const HUD_ASSET_KEYS = ['bombIconAssetKey'];
 const LEVEL_KEYS = ['id', 'name', 'description', 'order', 'backgroundId', 'musicId', 'startingDifficulty', 'scoreTarget', 'durationSeconds', 'loopWaves', 'availablePowerupIds', 'scorecard', 'waves'];
 const SCORECARD_KEYS = ['trigger', 'title', 'subtitle', 'scoreLabel', 'metrics', 'showEncounterArt', 'encounterAssetKey'];
 const RECORD_CARD_KEYS = ['copy', 'colors', 'showGrid', 'shipAssetKey', 'encounterAssetKey', 'art'];
@@ -65,15 +67,6 @@ const BOSS_PHASE_KEYS = ['id', 'label', 'triggerHealthRatio', 'movementPatternId
 const SPAWN_ANCHOR_KEYS = ['x', 'y'];
 const SPRITE_STYLE_KEYS = ['scale', 'rotationDegrees', 'flipX', 'opacity', 'hueRotateDegrees', 'saturation', 'brightness', 'glowColor', 'glowBlur'];
 
-const SPRITE_KEYS = new Set([
-  'ENEMY_DRONE_FRAMES',
-  'ENEMY_SWARM_FRAMES',
-  'ENEMY_BRICK_FRAMES',
-  'ENEMY_JOURNAL',
-  'MINI_BOSS',
-  'WALL_BOSS_SEGMENT',
-  'FINAL_BOSS'
-]);
 const SCORECARD_METRICS = new Set(['wave', 'targets', 'coins', 'flight']);
 const EVENT_KINDS = new Set(Object.keys(EVENT_KEYS));
 const SAFE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -248,9 +241,15 @@ const validateRecordCard = (value: unknown, path: string, issues: CampaignValida
     RECORD_CARD_COLOR_KEYS.forEach((key) => checkString(colors[key], `${path}/colors/${key}`, issues, { max: 7, color: true }));
   }
   checkBoolean(value.showGrid, `${path}/showGrid`, issues);
-  checkCatalogRef(value.shipAssetKey, ASSET_CATALOG, `${path}/shipAssetKey`, issues);
+  const shipKnown = checkCatalogRef(value.shipAssetKey, ASSET_CATALOG, `${path}/shipAssetKey`, issues);
+  if (shipKnown && !isAssetAllowedForRole(value.shipAssetKey as string, 'scorecard')) {
+    pushIssue(issues, `${path}/shipAssetKey`, 'invalid_asset_role', 'Record-card artwork must be registered for scorecards');
+  }
   if (value.encounterAssetKey !== 'AUTO') {
-    checkCatalogRef(value.encounterAssetKey, ASSET_CATALOG, `${path}/encounterAssetKey`, issues);
+    const encounterKnown = checkCatalogRef(value.encounterAssetKey, ASSET_CATALOG, `${path}/encounterAssetKey`, issues);
+    if (encounterKnown && !isAssetAllowedForRole(value.encounterAssetKey as string, 'scorecard')) {
+      pushIssue(issues, `${path}/encounterAssetKey`, 'invalid_asset_role', 'Record-card artwork must be registered for scorecards');
+    }
   }
   if (!isRecord(value.art)) {
     pushIssue(issues, `${path}/art`, 'required_object', 'Record-card art layout is required');
@@ -258,6 +257,20 @@ const validateRecordCard = (value: unknown, path: string, issues: CampaignValida
     checkKeys(value.art, RECORD_CARD_ART_KEYS, `${path}/art`, issues);
     validateRecordCardRegion(value.art.ship, `${path}/art/ship`, issues);
     validateRecordCardRegion(value.art.encounter, `${path}/art/encounter`, issues);
+  }
+};
+
+const validateHudAssets = (value: unknown, path: string, issues: CampaignValidationIssue[]) => {
+  // Optional only so immutable schema-v1 revisions created before HUD assets can be opened and normalized.
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    pushIssue(issues, path, 'required_object', 'Shared HUD assets are required');
+    return;
+  }
+  checkKeys(value, HUD_ASSET_KEYS, path, issues);
+  const known = checkCatalogRef(value.bombIconAssetKey, ASSET_CATALOG, `${path}/bombIconAssetKey`, issues);
+  if (known && !isAssetAllowedForRole(value.bombIconAssetKey as string, 'hud')) {
+    pushIssue(issues, `${path}/bombIconAssetKey`, 'invalid_asset_role', 'Bomb icons must reference an asset registered for the HUD');
   }
 };
 
@@ -314,7 +327,10 @@ const validateScorecard = (value: unknown, path: string, issues: CampaignValidat
     });
   }
   checkBoolean(value.showEncounterArt, `${path}/showEncounterArt`, issues);
-  checkCatalogRef(value.encounterAssetKey, ASSET_CATALOG, `${path}/encounterAssetKey`, issues);
+  const encounterKnown = checkCatalogRef(value.encounterAssetKey, ASSET_CATALOG, `${path}/encounterAssetKey`, issues);
+  if (encounterKnown && !isAssetAllowedForRole(value.encounterAssetKey as string, 'scorecard')) {
+    pushIssue(issues, `${path}/encounterAssetKey`, 'invalid_asset_role', 'Level scorecard artwork must be registered for scorecards');
+  }
 };
 
 const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignValidationIssue[]) => {
@@ -330,8 +346,8 @@ const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignVali
     checkKeys(candidate, SPAWN_ENEMY_KEYS, itemPath, issues);
     ids.push(candidate.enemyId);
     checkCatalogRef(candidate.enemyId, ENEMY_CATALOG, `${itemPath}/enemyId`, issues);
-    if (!checkCatalogRef(candidate.spriteKey, ASSET_CATALOG, `${itemPath}/spriteKey`, issues) || !SPRITE_KEYS.has(candidate.spriteKey as string)) {
-      pushIssue(issues, `${itemPath}/spriteKey`, 'invalid_sprite', 'Enemy sprites must reference a gameplay sprite key');
+    if (!checkCatalogRef(candidate.spriteKey, ASSET_CATALOG, `${itemPath}/spriteKey`, issues) || !isAssetAllowedForRole(candidate.spriteKey as string, 'enemy')) {
+      pushIssue(issues, `${itemPath}/spriteKey`, 'invalid_sprite', 'Enemy sprites must reference an asset registered for enemies');
     }
     validateSpriteStyle(candidate.spriteStyle, `${itemPath}/spriteStyle`, issues);
     if (checkNumber(candidate.weight, `${itemPath}/weight`, issues, Number.EPSILON, 1)) weight += candidate.weight as number;
@@ -349,8 +365,8 @@ const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignVali
 
 const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValidationIssue[]) => {
   const bossKnown = checkCatalogRef(event.bossId, BOSS_CATALOG, `${path}/bossId`, issues);
-  if (!checkCatalogRef(event.spriteKey, ASSET_CATALOG, `${path}/spriteKey`, issues) || !SPRITE_KEYS.has(event.spriteKey as string)) {
-    pushIssue(issues, `${path}/spriteKey`, 'invalid_sprite', 'Boss sprites must reference a gameplay sprite key');
+  if (!checkCatalogRef(event.spriteKey, ASSET_CATALOG, `${path}/spriteKey`, issues) || !isAssetAllowedForRole(event.spriteKey as string, 'boss')) {
+    pushIssue(issues, `${path}/spriteKey`, 'invalid_sprite', 'Boss sprites must reference an asset registered for bosses');
   }
   validateSpriteStyle(event.spriteStyle, `${path}/spriteStyle`, issues);
   checkCatalogRef(event.positionId, SPAWN_POSITION_CATALOG, `${path}/positionId`, issues);
@@ -483,8 +499,8 @@ const validateEvent = (
   } else if (kind === 'boss') {
     validateBoss(candidate, path, issues);
   } else if (kind === 'asteroid-belt') {
-    if (!checkCatalogRef(candidate.spriteKey, ASSET_CATALOG, `${path}/spriteKey`, issues) || candidate.spriteKey !== 'ENEMY_BRICK_FRAMES') {
-      pushIssue(issues, `${path}/spriteKey`, 'invalid_sprite', 'Asteroid belts must use the real asteroid frame set');
+    if (!checkCatalogRef(candidate.spriteKey, ASSET_CATALOG, `${path}/spriteKey`, issues) || !isAssetAllowedForRole(candidate.spriteKey as string, 'asteroid')) {
+      pushIssue(issues, `${path}/spriteKey`, 'invalid_sprite', 'Asteroid belts must reference an asset registered for asteroids');
     }
     validateSpriteStyle(candidate.spriteStyle, `${path}/spriteStyle`, issues);
     if (!checkCatalogRef(candidate.patternId, SPAWN_PATTERN_CATALOG, `${path}/patternId`, issues) || candidate.patternId !== 'asteroid-lanes') {
@@ -641,6 +657,7 @@ export const validateGameCampaign = (value: unknown): CampaignValidationResult =
   }
   if (value.fps !== 60) pushIssue(issues, '/fps', 'unsupported_fps', 'Scicon Shooter campaign data must use 60 FPS');
   validateRecordCard(value.recordCard, '/recordCard', issues);
+  validateHudAssets(value.hudAssets, '/hudAssets', issues);
 
   // One namespace keeps editor selections and version diffs unambiguous across the tree.
   const allIds = new Set<string>();

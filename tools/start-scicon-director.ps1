@@ -36,8 +36,9 @@ try {
   if (-not (Test-DirectorReady)) {
     $nodeCommand = Get-Command node.exe -ErrorAction Stop
     $viteEntry = Join-Path $directorRoot 'node_modules\vite\bin\vite.js'
+    $spriteDependency = Join-Path $directorRoot 'node_modules\pngjs\package.json'
 
-    if (-not (Test-Path -LiteralPath $viteEntry)) {
+    if (-not (Test-Path -LiteralPath $viteEntry) -or -not (Test-Path -LiteralPath $spriteDependency)) {
       Write-DirectorLauncherLog 'Director dependencies are missing; installing the locked local package.'
       $npmCommand = Get-Command npm.cmd -ErrorAction Stop
       & $npmCommand.Source --prefix $directorRoot install --ignore-scripts --no-audit --no-fund 1>> $standardLog 2>> $errorLog

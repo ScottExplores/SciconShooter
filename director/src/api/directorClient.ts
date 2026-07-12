@@ -39,6 +39,29 @@ export interface GameCampaignMutationResult<T = unknown> {
   version: GameCampaignVersionSummary & { payload: T; schemaVersion: 1; kind: 'game-campaign' };
 }
 
+export type GeneratedAssetRole = 'enemy' | 'boss' | 'asteroid' | 'hud' | 'player' | 'background' | 'scorecard';
+
+export interface GeneratedAssetEntry {
+  id: string;
+  label: string;
+  roles: GeneratedAssetRole[];
+  path: string;
+  sha256: string;
+  width: number;
+  height: number;
+  createdAt: string;
+}
+
+export interface GeneratedAssetLibrary {
+  ok: true;
+  generator: {
+    available: boolean;
+    model: string;
+    backgroundRemoval: 'local-chroma-key';
+  };
+  assets: GeneratedAssetEntry[];
+}
+
 const readJson = async <T,>(response: Response): Promise<T> => {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -152,3 +175,20 @@ export const rollbackGameCampaign = async <T = unknown>(
   expectedContentHash,
   ...(changeNote ? { changeNote } : {})
 });
+
+export const fetchGeneratedAssets = async () => readJson<GeneratedAssetLibrary>(
+  await fetch(`${API_ROOT}/api/generated-assets`, {
+    headers: { Accept: 'application/json' },
+    credentials: 'same-origin'
+  })
+);
+
+export const generateAsset = async (input: {
+  prompt: string;
+  label: string;
+  role: GeneratedAssetRole;
+}) => mutation<{
+  ok: true;
+  message: string;
+  asset: GeneratedAssetEntry;
+}>('/api/generated-assets', 'POST', input);

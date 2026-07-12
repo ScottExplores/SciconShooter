@@ -3,6 +3,7 @@ import type { GameCampaign } from '../game-config/types';
 import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress, spendStoredFlasks } from '../services/flaskProgress';
 import type { GameEditorSnapshot, GameRuntimeState } from '../services/gameLogic';
+import { getPrimaryAssetPath } from '../services/levelConfig';
 import { FieldUpgradeType, PowerupType, type GamePolishSettings, type Stats } from '../types';
 import GameStage from './GameStage';
 
@@ -126,9 +127,11 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
         showLabGlow: false,
         onDisableLabGlow: () => undefined,
         isUpgradeReady: hasStoredFlask,
-        onPause: () => onPlayingChange?.(false),
+        paused: !playing,
+        onPause: () => onPlayingChange?.(!playing),
         onUseBomb: () => setBombCommand({ nonce: Date.now() }),
         onUpgrade: handlePreviewUpgrade,
+        bombIconSrc: getPrimaryAssetPath(campaign.hudAssets.bombIconAssetKey),
         bombLocked: false,
         muted: true,
         onToggleMute: () => true

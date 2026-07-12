@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C",
+      "label": "Biohazard bomb",
+      "roles": [
+        "hud"
+      ],
+      "path": "/game-art/generated/biohazard-bomb-f29f11258b6c.png",
+      "sha256": "f29f11258b6cc6b4c454543ad5e14706f7cb14793158fc62d7099806d804e67f",
+      "width": 1254,
+      "height": 1254,
+      "createdAt": "2026-07-11T00:00:00.000Z"
+    }
+  ]
+}

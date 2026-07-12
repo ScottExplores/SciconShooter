@@ -1,21 +1,105 @@
 import { ValidationError } from './validation.mjs';
+import { readFileSync } from 'node:fs';
 
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const EPSILON = 1e-6;
 
-const ASSET_KEYS = new Set([
+const BUILT_IN_ASSET_KEYS = [
   'PLAYER_SHIP', 'RSC_TOKEN', 'REAL_RSC_ICON', 'GAME_BG_BACK', 'GAME_BG_STARS',
   'GAME_BG_PLANET', 'GAME_PARALLAX_BACK', 'GAME_PARALLAX_STARS',
   'GAME_PARALLAX_FAR_PLANETS', 'GAME_PARALLAX_BIG_PLANET', 'GAME_PARALLAX_RING_PLANET',
   'ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ENEMY_JOURNAL',
   'MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS'
-]);
-const ENEMY_SPRITE_KEYS = new Set([
-  'ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ENEMY_JOURNAL'
-]);
-const BOSS_SPRITE_KEYS = new Set(['MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS']);
-const ASTEROID_SPRITE_KEYS = new Set(['ENEMY_BRICK_FRAMES']);
+];
+const GENERATED_ASSET_ROLES = new Set(['enemy', 'boss', 'asteroid', 'hud', 'player', 'background', 'scorecard']);
+const GENERATED_ASSET_ID_PATTERN = /^GENERATED_[A-Z0-9]+(?:_[A-Z0-9]+)*$/;
+const GENERATED_ASSET_PATH_PATTERN = /^\/game-art\/generated\/[a-z0-9]+(?:-[a-z0-9]+)*\.png$/;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const GENERATED_ASSET_MANIFEST_URL = new URL('../../game-config/generated-assets.json', import.meta.url);
+
+const readGeneratedAssets = (manifest) => {
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new Error('generated-assets.json must contain an object');
+  }
+  if (manifest.schemaVersion !== 1 || Object.keys(manifest).some((key) => key !== 'schemaVersion' && key !== 'assets')) {
+    throw new Error('generated-assets.json must use schemaVersion 1 and only known fields');
+  }
+  if (!Array.isArray(manifest.assets)) throw new Error('generated-assets.json assets must be an array');
+  const entries = [];
+  const ids = new Set(BUILT_IN_ASSET_KEYS);
+  const paths = new Set();
+  manifest.assets.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new Error(`generated-assets.json assets/${index} must be an object`);
+    }
+    const allowed = new Set(['id', 'label', 'roles', 'path', 'sha256', 'width', 'height', 'createdAt']);
+    if (Object.keys(entry).some((key) => !allowed.has(key))) throw new Error(`generated-assets.json assets/${index} contains unsupported fields`);
+    if (typeof entry.id !== 'string' || !GENERATED_ASSET_ID_PATTERN.test(entry.id) || ids.has(entry.id)) {
+      throw new Error(`generated-assets.json assets/${index}/id is invalid or duplicated`);
+    }
+    if (typeof entry.label !== 'string' || !entry.label.trim() || entry.label.length > 80) throw new Error(`generated-assets.json assets/${index}/label is invalid`);
+    if (!Array.isArray(entry.roles) || entry.roles.length === 0 || entry.roles.some((role) => !GENERATED_ASSET_ROLES.has(role)) || new Set(entry.roles).size !== entry.roles.length) {
+      throw new Error(`generated-assets.json assets/${index}/roles is invalid`);
+    }
+    if (typeof entry.path !== 'string' || !GENERATED_ASSET_PATH_PATTERN.test(entry.path) || paths.has(entry.path)) throw new Error(`generated-assets.json assets/${index}/path is invalid or duplicated`);
+    if (typeof entry.sha256 !== 'string' || !SHA256_PATTERN.test(entry.sha256)) throw new Error(`generated-assets.json assets/${index}/sha256 is invalid`);
+    const shortHash = entry.sha256.slice(0, 12);
+    if (!entry.id.endsWith(`_${shortHash.toUpperCase()}`) || !entry.path.endsWith(`-${shortHash}.png`)) throw new Error(`generated-assets.json assets/${index} id and path must match its content hash`);
+    if (!Number.isInteger(entry.width) || entry.width < 1 || entry.width > 4096) throw new Error(`generated-assets.json assets/${index}/width is invalid`);
+    if (!Number.isInteger(entry.height) || entry.height < 1 || entry.height > 4096) throw new Error(`generated-assets.json assets/${index}/height is invalid`);
+    if (typeof entry.createdAt !== 'string' || Number.isNaN(Date.parse(entry.createdAt))) throw new Error(`generated-assets.json assets/${index}/createdAt is invalid`);
+    ids.add(entry.id);
+    paths.add(entry.path);
+    entries.push(entry);
+  });
+  return entries;
+};
+
+const ASSET_KEYS = new Set();
+const ENEMY_SPRITE_KEYS = new Set();
+const BOSS_SPRITE_KEYS = new Set();
+const ASTEROID_SPRITE_KEYS = new Set();
+const HUD_ASSET_KEYS = new Set();
+const SCORECARD_ASSET_KEYS = new Set();
+
+const replaceSet = (target, values) => {
+  target.clear();
+  values.forEach((value) => target.add(value));
+};
+
+/** Reloads after each atomic generator write, so newly created art can be applied without restarting. */
+const refreshGeneratedAssetCatalog = () => {
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(GENERATED_ASSET_MANIFEST_URL, 'utf8'));
+  } catch (error) {
+    throw new Error(`Could not read generated-assets.json: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const generatedAssets = readGeneratedAssets(manifest);
+  const generatedForRole = (role) => generatedAssets
+    .filter((entry) => entry.roles.includes(role))
+    .map((entry) => entry.id);
+  replaceSet(ASSET_KEYS, [...BUILT_IN_ASSET_KEYS, ...generatedAssets.map((entry) => entry.id)]);
+  replaceSet(ENEMY_SPRITE_KEYS, [
+    'ENEMY_DRONE_FRAMES',
+    'ENEMY_SWARM_FRAMES',
+    'ENEMY_BRICK_FRAMES',
+    'ENEMY_JOURNAL',
+    ...generatedForRole('enemy')
+  ]);
+  replaceSet(BOSS_SPRITE_KEYS, ['MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS', ...generatedForRole('boss')]);
+  replaceSet(ASTEROID_SPRITE_KEYS, ['ENEMY_BRICK_FRAMES', ...generatedForRole('asteroid')]);
+  replaceSet(HUD_ASSET_KEYS, ['RSC_TOKEN', 'REAL_RSC_ICON', ...generatedForRole('hud')]);
+  replaceSet(SCORECARD_ASSET_KEYS, [
+    'PLAYER_SHIP', 'RSC_TOKEN', 'REAL_RSC_ICON',
+    'ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ENEMY_JOURNAL',
+    'MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS',
+    ...generatedForRole('scorecard')
+  ]);
+};
+
+refreshGeneratedAssetCatalog();
 const ENEMY_IDS = new Set(['drone', 'swarm', 'brick', 'journal']);
 const BOSS_IDS = new Set(['bottleneck-drone', 'paywall-wall', 'gatekeeper']);
 const POWERUP_IDS = new Set(['double-shot', 'triple-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
@@ -151,13 +235,21 @@ const validateRecordCard = (recordCard, location, errors) => {
     });
   }
   if (typeof recordCard.showGrid !== 'boolean') errors.push(`${location}/showGrid must be a boolean`);
-  requireEnum(recordCard.shipAssetKey, ASSET_KEYS, `${location}/shipAssetKey`, errors);
-  requireEnum(recordCard.encounterAssetKey, new Set(['AUTO', ...ASSET_KEYS]), `${location}/encounterAssetKey`, errors);
+  requireEnum(recordCard.shipAssetKey, SCORECARD_ASSET_KEYS, `${location}/shipAssetKey`, errors);
+  requireEnum(recordCard.encounterAssetKey, new Set(['AUTO', ...SCORECARD_ASSET_KEYS]), `${location}/encounterAssetKey`, errors);
   if (requireObject(recordCard.art, `${location}/art`, errors)) {
     allowedKeys(recordCard.art, ['ship', 'encounter'], `${location}/art`, errors);
     validateRecordCardRegion(recordCard.art.ship, `${location}/art/ship`, errors);
     validateRecordCardRegion(recordCard.art.encounter, `${location}/art/encounter`, errors);
   }
+};
+
+const validateHudAssets = (hudAssets, location, errors) => {
+  // Optional only for immutable schema-v1 revisions created before shared HUD artwork.
+  if (hudAssets === undefined) return;
+  if (!requireObject(hudAssets, location, errors)) return;
+  allowedKeys(hudAssets, ['bombIconAssetKey'], location, errors);
+  requireEnum(hudAssets.bombIconAssetKey, HUD_ASSET_KEYS, `${location}/bombIconAssetKey`, errors);
 };
 
 const validateScorecard = (scorecard, location, errors) => {
@@ -169,7 +261,7 @@ const validateScorecard = (scorecard, location, errors) => {
   requireString(scorecard.scoreLabel, `${location}/scoreLabel`, errors, 80);
   validateUniqueEnumArray(scorecard.metrics, SCORECARD_METRICS, `${location}/metrics`, errors, { minimumItems: 1 });
   if (typeof scorecard.showEncounterArt !== 'boolean') errors.push(`${location}/showEncounterArt must be a boolean`);
-  requireEnum(scorecard.encounterAssetKey, ASSET_KEYS, `${location}/encounterAssetKey`, errors);
+  requireEnum(scorecard.encounterAssetKey, SCORECARD_ASSET_KEYS, `${location}/encounterAssetKey`, errors);
 };
 
 const validateBaseEvent = (event, location, waveDuration, errors) => {
@@ -403,9 +495,10 @@ const validateLevel = (level, location, errors) => {
 };
 
 export const validateGameCampaign = (campaign) => {
+  refreshGeneratedAssetCatalog();
   const errors = [];
   if (!requireObject(campaign, '/', errors)) return { valid: false, errors };
-  allowedKeys(campaign, ['schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'levels'], '/', errors);
+  allowedKeys(campaign, ['schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'hudAssets', 'levels'], '/', errors);
   if (campaign.schemaVersion !== 1) errors.push('/schemaVersion must be 1');
   requireNumber(campaign.revision, '/revision', errors, { minimum: 1, maximum: 1000000000, integer: true });
   requireId(campaign.id, '/id', errors);
@@ -413,6 +506,7 @@ export const validateGameCampaign = (campaign) => {
   if (typeof campaign.updatedAt !== 'string' || !Number.isFinite(Date.parse(campaign.updatedAt))) errors.push('/updatedAt must be an ISO date-time string');
   if (campaign.fps !== 60) errors.push('/fps must be 60');
   validateRecordCard(campaign.recordCard, '/recordCard', errors);
+  validateHudAssets(campaign.hudAssets, '/hudAssets', errors);
   if (!Array.isArray(campaign.levels) || campaign.levels.length === 0) {
     errors.push('/levels must be a non-empty array');
     return { valid: false, errors: [...new Set(errors)] };

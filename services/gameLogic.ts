@@ -2716,7 +2716,12 @@ export class GameEngine {
     if (spriteKey) {
       try {
         const catalogPath = getPrimaryAssetPath(spriteKey as AssetKey);
-        if (catalogPath) return catalogPath;
+        if (catalogPath) {
+          // Catalog images created by the local Director are loaded only when a
+          // configured entity first resolves them, never in the eager preload.
+          loadImage(catalogPath);
+          return catalogPath;
+        }
       } catch {
         // The validated campaign only supplies catalog keys; legacy callers may not.
       }
@@ -2743,7 +2748,11 @@ export class GameEngine {
     if (!spriteKey || spriteKey.startsWith('/')) return undefined;
     try {
       const paths = getAssetPaths(spriteKey as AssetKey);
-      return paths.length > 1 ? [...paths] : undefined;
+      if (paths.length > 1) {
+        paths.forEach(loadImage);
+        return [...paths];
+      }
+      return undefined;
     } catch {
       return undefined;
     }

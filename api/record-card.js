@@ -1,11 +1,12 @@
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 const { getRecordPresentation } = require('./_lib/recordPresentation');
 const gameCampaign = require('../game-config/campaign.json');
+const generatedAssetsManifest = require('../game-config/generated-assets.json');
 
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const recordCardRenderer = import('../shared/record-card/renderRecordCardSvg.mjs');
-const CARD_ASSET_PATHS = Object.freeze({
+const BUILT_IN_CARD_ASSET_PATHS = {
   PLAYER_SHIP: '/game-art/branding/researchhub-ship.png',
   RSC_TOKEN: '/game-art/tokens/rsc-coin.svg',
   REAL_RSC_ICON: '/game-art/tokens/rsc-bottle.png',
@@ -24,6 +25,23 @@ const CARD_ASSET_PATHS = Object.freeze({
   MINI_BOSS: '/game-art/bosses/mini-boss-drone.png',
   WALL_BOSS_SEGMENT: '/game-art/bosses/wall-segment.png',
   FINAL_BOSS: '/game-art/bosses/final-boss-sentinel.png'
+};
+const GENERATED_CARD_ASSET_PATHS = Object.fromEntries(
+  (Array.isArray(generatedAssetsManifest.assets) ? generatedAssetsManifest.assets : [])
+    .filter((entry) => (
+      entry
+      && typeof entry.id === 'string'
+      && /^GENERATED_[A-Z0-9]+(?:_[A-Z0-9]+)*$/.test(entry.id)
+      && typeof entry.path === 'string'
+      && /^\/game-art\/generated\/[a-z0-9]+(?:-[a-z0-9]+)*\.png$/.test(entry.path)
+      && Array.isArray(entry.roles)
+      && entry.roles.includes('scorecard')
+    ))
+    .map((entry) => [entry.id, entry.path])
+);
+const CARD_ASSET_PATHS = Object.freeze({
+  ...BUILT_IN_CARD_ASSET_PATHS,
+  ...GENERATED_CARD_ASSET_PATHS
 });
 
 const embedImage = async (url) => {

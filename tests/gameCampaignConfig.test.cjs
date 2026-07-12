@@ -23,8 +23,9 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
 
 test('tracked campaign contains the current four real-game sector waves', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 1);
+  assert.equal(campaign.revision, 3);
   assert.equal(campaign.fps, 60);
+  assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C');
   assert.equal(campaign.levels.length, 1);
 
   const level = campaign.levels[0];

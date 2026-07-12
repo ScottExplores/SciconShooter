@@ -1,4 +1,4 @@
-import type { GameCampaignConfig, RecordCardConfig } from './types';
+import type { GameCampaignConfig, HudAssetsConfig, RecordCardConfig } from './types';
 
 export const DEFAULT_RECORD_CARD_CONFIG: RecordCardConfig = {
   copy: {
@@ -29,11 +29,19 @@ export const DEFAULT_RECORD_CARD_CONFIG: RecordCardConfig = {
   }
 };
 
+export const DEFAULT_HUD_ASSETS_CONFIG: HudAssetsConfig = {
+  bombIconAssetKey: 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C'
+};
+
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
-/** Adds the shared card defaults when opening an immutable pre-card schema-v1 revision. */
+/** Adds shared presentation defaults when opening immutable earlier schema-v1 revisions. */
 export const normalizeGameCampaignRecordCard = <T extends GameCampaignConfig>(campaign: T): T => (
-  campaign.recordCard
+  campaign.recordCard && campaign.hudAssets
     ? campaign
-    : { ...campaign, recordCard: clone(DEFAULT_RECORD_CARD_CONFIG) }
+    : {
+        ...campaign,
+        ...(!campaign.recordCard ? { recordCard: clone(DEFAULT_RECORD_CARD_CONFIG) } : {}),
+        ...(!campaign.hudAssets ? { hudAssets: clone(DEFAULT_HUD_ASSETS_CONFIG) } : {})
+      }
 );

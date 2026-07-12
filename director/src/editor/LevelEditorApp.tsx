@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GameEditorCanvas, type GameEditorSnapshot } from '../../../components/GameEditorCanvas';
+import { isAssetAllowedForRole } from '../../../game-config/catalog';
 import { normalizeGameCampaignRecordCard } from '../../../game-config/recordCard';
 import type { GameCampaignConfig, LevelDefinition, WaveDefinition, WaveEvent } from '../../../game-config/types';
 import {
@@ -10,6 +11,7 @@ import {
   fetchReviews,
   revertGameCampaignEdits,
   rollbackGameCampaign,
+  updateReview,
   type GameCampaignDiskState,
   type GameCampaignVersionSummary
 } from '@director/api/directorClient';
@@ -22,6 +24,7 @@ import { LevelRail } from './LevelRail';
 import { GameplayPlacementOverlay } from './GameplayPlacementOverlay';
 import { LivePreviewAnnotations } from './LivePreviewAnnotations';
 import { RecordCardEditorSurface } from './RecordCardEditorSurface';
+import { ReviewNotesPanel } from './ReviewNotesPanel';
 import { WaveStrip } from './WaveStrip';
 import {
   cloneJson,
@@ -65,6 +68,14 @@ type PreviewRuntimeState = {
 };
 
 type Notice = { message: string; error?: boolean } | null;
+type EditorSurface = 'game' | 'card' | 'review';
+
+const readEditorSurface = (): EditorSurface => {
+  const surface = new URLSearchParams(window.location.search).get('surface');
+  if (surface === 'scorecard') return 'card';
+  if (surface === 'review') return 'review';
+  return 'game';
+};
 
 const formatDate = (value: string) => {
   const date = new Date(value);
@@ -126,16 +137,15 @@ function HistoryDrawer({
 }
 
 function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDiskState<GameCampaignConfig> }) {
+  const initialSurface = readEditorSurface();
   const campaign = useUndoableState<GameCampaignConfig>(normalizeGameCampaignRecordCard(cloneJson(initialState.campaign)));
   const [contentHash, setContentHash] = useState(initialState.contentHash);
   const [activeVersionId, setActiveVersionId] = useState(initialState.activeVersionId);
   const [selectedLevelId, setSelectedLevelId] = useState(initialState.campaign.levels[0]?.id ?? '');
   const [selectedWaveId, setSelectedWaveId] = useState(initialState.campaign.levels[0]?.waves[0]?.id ?? '');
   const [selectedEventId, setSelectedEventId] = useState(initialState.campaign.levels[0]?.waves[0]?.events[0]?.id ?? '');
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>(() => (
-    new URLSearchParams(window.location.search).get('surface') === 'scorecard' ? 'card' : 'wave'
-  ));
-  const [playing, setPlaying] = useState(true);
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>(initialSurface === 'card' ? 'card' : 'wave');
+  const [playing, setPlaying] = useState(initialSurface === 'game');
   const [restartToken, setRestartToken] = useState(0);
   const [runtimeState, setRuntimeState] = useState<PreviewRuntimeState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -144,13 +154,12 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
   const [historyOpen, setHistoryOpen] = useState(false);
   const [versions, setVersions] = useState<GameCampaignVersionSummary[]>([]);
   const [reviews, setReviews] = useState<ReviewRequest[]>([]);
-  const [annotationMode, setAnnotationMode] = useState(false);
+  const [annotationMode, setAnnotationMode] = useState(initialSurface === 'review');
   const [placementMode, setPlacementMode] = useState(false);
-  const [surfaceMode, setSurfaceMode] = useState<'game' | 'card'>(() => (
-    new URLSearchParams(window.location.search).get('surface') === 'scorecard' ? 'card' : 'game'
-  ));
+  const [surfaceMode, setSurfaceMode] = useState<EditorSurface>(initialSurface);
   const [editorSnapshot, setEditorSnapshot] = useState<GameEditorSnapshot | null>(null);
   const [draftContentHash, setDraftContentHash] = useState<string | null>(null);
+  const [updatingReviewId, setUpdatingReviewId] = useState<string | null>(null);
 
   const selectedLevel = campaign.value.levels.find((level) => level.id === selectedLevelId) ?? campaign.value.levels[0];
   const selectedWave = selectedLevel?.waves.find((wave) => wave.id === selectedWaveId) ?? selectedLevel?.waves[0];
@@ -494,16 +503,19 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     }
   };
 
-  const selectSurface = (surface: 'game' | 'card') => {
+  const selectSurface = (surface: EditorSurface) => {
     setSurfaceMode(surface);
     const url = new URL(window.location.href);
     if (surface === 'card') url.searchParams.set('surface', 'scorecard');
+    else if (surface === 'review') url.searchParams.set('surface', 'review');
     else url.searchParams.delete('surface');
     window.history.replaceState(null, '', `${url.pathname}${url.search}`);
-    setAnnotationMode(false);
+    setAnnotationMode(surface === 'review');
     setPlacementMode(false);
-    if (surface === 'card') {
+    if (surface !== 'game') {
       setPlaying(false);
+    }
+    if (surface === 'card') {
       setInspectorTab('card');
     } else if (inspectorTab === 'card') {
       setInspectorTab('wave');
@@ -524,10 +536,8 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     if (!selectedWave) return;
     const event = selectedWave.events.find((candidate) => candidate.id === eventId);
     if (!event) return;
-    const enemyAssets = new Set(['ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ENEMY_JOURNAL']);
-    const bossAssets = new Set(['MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS']);
     let next: WaveEvent | null = null;
-    if (event.kind === 'spawn' && enemyAssets.has(assetKey) && event.enemies[0]) {
+    if (event.kind === 'spawn' && isAssetAllowedForRole(assetKey, 'enemy') && event.enemies[0]) {
       next = {
         ...event,
         spawnAnchor,
@@ -535,9 +545,9 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
           ? { ...enemy, spriteKey: assetKey as typeof enemy.spriteKey }
           : enemy)
       };
-    } else if (event.kind === 'boss' && bossAssets.has(assetKey)) {
+    } else if (event.kind === 'boss' && isAssetAllowedForRole(assetKey, 'boss')) {
       next = { ...event, spawnAnchor, spriteKey: assetKey as typeof event.spriteKey };
-    } else if (event.kind === 'asteroid-belt' && assetKey === 'ENEMY_BRICK_FRAMES') {
+    } else if (event.kind === 'asteroid-belt' && isAssetAllowedForRole(assetKey, 'asteroid')) {
       next = { ...event, spawnAnchor, spriteKey: assetKey };
     }
     if (!next) {
@@ -589,6 +599,20 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     }
   };
 
+  const togglePreviewReviewStatus = async (review: ReviewRequest) => {
+    setUpdatingReviewId(review.id);
+    const nextStatus = review.status === 'open' ? 'resolved' : 'open';
+    try {
+      const result = await updateReview(review.id, { status: nextStatus });
+      setReviews((current) => current.map((item) => item.id === review.id ? result.review : item));
+      notify(nextStatus === 'resolved' ? `Review note ${review.sequence} resolved` : `Review note ${review.sequence} reopened`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not update the review note', true);
+    } finally {
+      setUpdatingReviewId(null);
+    }
+  };
+
   if (!selectedLevel || !selectedWave) {
     return <div className="le-preview__error">The campaign requires at least one level and one wave.</div>;
   }
@@ -602,9 +626,9 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
           <span className="le-local"><i />Local only</span>
         </div>
         <nav className="le-topnav" aria-label="Director tools">
-          <a href="/level-editor" aria-current={surfaceMode === 'game' ? 'page' : undefined}>Level editor</a>
-          <a href="/level-editor?surface=scorecard" aria-current={surfaceMode === 'card' ? 'page' : undefined}>Scorecard</a>
-          <a href="/studio?section=review">Review notes</a>
+          <a href="/level-editor" aria-current={surfaceMode === 'game' ? 'page' : undefined} onClick={(event) => { event.preventDefault(); selectSurface('game'); }}>Level editor</a>
+          <a href="/level-editor?surface=scorecard" aria-current={surfaceMode === 'card' ? 'page' : undefined} onClick={(event) => { event.preventDefault(); selectSurface('card'); }}>Scorecard</a>
+          <a href="/level-editor?surface=review" aria-current={surfaceMode === 'review' ? 'page' : undefined} onClick={(event) => { event.preventDefault(); selectSurface('review'); }}>Review notes</a>
         </nav>
         <div className="le-top-actions">
           <button className="le-button le-button--quiet" type="button" disabled={!campaign.canUndo || busy} onClick={campaign.undo}><EditorIcon name="undo" /><span>Undo</span></button>
@@ -631,15 +655,20 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
         <main className="le-stage-column">
           <header className="le-preview-heading">
             <div>
-              <h1>{surfaceMode === 'game' ? `Previewing Wave ${selectedWave.order} · ${selectedWave.name}` : 'Mission / NFT Record Card'}</h1>
-              <p>{surfaceMode === 'game' ? previewLabel : 'One shared production renderer · local sample data'}</p>
+              <h1>{surfaceMode === 'game'
+                ? `Previewing Wave ${selectedWave.order} · ${selectedWave.name}`
+                : surfaceMode === 'review' ? `Reviewing Wave ${selectedWave.order} · ${selectedWave.name}` : 'Mission / NFT Record Card'}</h1>
+              <p>{surfaceMode === 'game'
+                ? previewLabel
+                : surfaceMode === 'review' ? 'Frozen actual-game frame · click to pin a change request' : 'One shared production renderer · local sample data'}</p>
             </div>
             <div className="le-surface-toggle" aria-label="Editing surface">
               <button type="button" className={surfaceMode === 'game' ? 'is-active' : ''} onClick={() => selectSurface('game')}>Game</button>
               <button type="button" className={surfaceMode === 'card' ? 'is-active' : ''} onClick={() => selectSurface('card')}>Scorecard</button>
+              <button type="button" className={surfaceMode === 'review' ? 'is-active' : ''} onClick={() => selectSurface('review')}>Review</button>
             </div>
           </header>
-          {surfaceMode === 'game' ? (
+          {surfaceMode !== 'card' ? (
           <section className="le-preview" aria-label="Live Scicon Shooter game preview">
             <GameEditorCanvas
               campaign={campaign.value}
@@ -652,7 +681,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
               onPlayingChange={setPlaying}
             />
             <GameplayPlacementOverlay
-              enabled={placementMode}
+              enabled={surfaceMode === 'game' && placementMode}
               wave={selectedWave}
               entities={editorSnapshot?.entities ?? []}
               selectedEventId={selectedEventId}
@@ -661,13 +690,13 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
               onDropAsset={dropEventAsset}
             />
             <LivePreviewAnnotations
-              enabled={annotationMode}
+              enabled={surfaceMode === 'review' || annotationMode}
               reviews={previewReviews}
               contextLabel={`${selectedLevel.name} · ${selectedWave.name}${runtimeEvent ? ` · ${runtimeEvent.label}` : ''}`}
               disabled={busy || (campaign.isDirty && !draftContentHash)}
               onCreate={createPreviewReview}
             />
-            <div className="le-preview__badge">ACTUAL GAME SURFACE · {selectedWave.name}</div>
+            <div className="le-preview__badge">{surfaceMode === 'review' ? 'ACTUAL GAME REVIEW SURFACE' : 'ACTUAL GAME SURFACE'} · {selectedWave.name}</div>
           </section>
           ) : (
             <section className="le-preview le-preview--card" aria-label="Shared mission and NFT scorecard preview">
@@ -679,7 +708,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
               <div className="le-preview__badge">ACTUAL SHARED RECORD SVG</div>
             </section>
           )}
-          {surfaceMode === 'game'
+          {surfaceMode !== 'card'
             ? <EventTimeline events={selectedWave.events} selectedEventId={selectedEventId} onSelect={(event) => handleSelectEvent(event.id)} />
             : <div className="le-card-mode-strip">Drag ship or encounter art directly on the card. Edit copy, color, size, and coordinates at right.</div>}
           <div>
@@ -693,6 +722,13 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
               <button className={`le-button${annotationMode ? ' is-active' : ''}`} type="button" disabled={busy || (campaign.isDirty && !draftContentHash)} aria-pressed={annotationMode} onClick={() => setAnnotating(!annotationMode)}><EditorIcon name="review" /> {annotationMode ? 'Done' : 'Annotate'}</button>
               <button className="le-button" type="button" disabled={selectedWave.order >= selectedLevel.waves.length} onClick={() => selectAdjacentWave(1)}>Next <EditorIcon name="forward" /></button>
             </div>
+            ) : surfaceMode === 'review' ? (
+              <div className="le-preview-controls" aria-label="Review preview controls">
+                <button className="le-button" type="button" disabled={selectedWave.order <= 1} onClick={() => selectAdjacentWave(-1)}><EditorIcon name="back" /> Previous</button>
+                <button className="le-button" type="button" onClick={() => setRestartToken((value) => value + 1)}><EditorIcon name="restart" /> Restart frame</button>
+                <button className="le-button is-active" type="button" onClick={() => selectSurface('game')}><EditorIcon name="edit" /> Back to editing</button>
+                <button className="le-button" type="button" disabled={selectedWave.order >= selectedLevel.waves.length} onClick={() => selectAdjacentWave(1)}>Next <EditorIcon name="forward" /></button>
+              </div>
             ) : (
               <div className="le-preview-controls" aria-label="Scorecard preview controls">
                 <button className="le-button" type="button" disabled={selectedWave.order <= 1} onClick={() => selectAdjacentWave(-1)}><EditorIcon name="back" /> Previous wave art</button>
@@ -713,8 +749,18 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
           </div>
         </main>
 
-        <EditorInspector
+        {surfaceMode === 'review' ? (
+          <ReviewNotesPanel
+            level={selectedLevel}
+            wave={selectedWave}
+            reviews={previewReviews}
+            configVersion={reviewConfigVersion}
+            updatingReviewId={updatingReviewId}
+            onToggleStatus={(review) => void togglePreviewReviewStatus(review)}
+          />
+        ) : <EditorInspector
           recordCard={campaign.value.recordCard}
+          hudAssets={campaign.value.hudAssets}
           level={selectedLevel}
           wave={selectedWave}
           selectedEventId={selectedEventId}
@@ -722,12 +768,13 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
           onTabChange={setInspectorTab}
           onSelectEvent={handleSelectEvent}
           onUpdateRecordCard={(recordCard) => setCampaign({ ...campaign.value, recordCard })}
+          onUpdateHudAssets={(hudAssets) => setCampaign({ ...campaign.value, hudAssets })}
           onUpdateLevel={handleUpdateLevel}
           onUpdateWave={handleUpdateWave}
           onUpdateEvent={handleUpdateEvent}
           onAddEvent={handleAddEvent}
           onDeleteEvent={handleDeleteEvent}
-        />
+        />}
       </div>
 
       <HistoryDrawer open={historyOpen} versions={versions} activeVersionId={activeVersionId} busy={busy} onClose={() => setHistoryOpen(false)} onRollback={(versionId) => void rollback(versionId)} />

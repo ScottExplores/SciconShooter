@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState, type CSSProperties, type DragEvent } from 'react';
-import { ASSET_CATALOG } from '../../../game-config/catalog';
-import type { AssetKey } from '../../../game-config/types';
+import { ASSET_CATALOG, registerGeneratedAssetForPreview } from '../../../game-config/catalog';
+import type { AssetCatalogEntry, AssetKey, GeneratedAssetRole } from '../../../game-config/types';
+import {
+  fetchGeneratedAssets,
+  generateAsset,
+  type GeneratedAssetEntry
+} from '@director/api/directorClient';
 
 export const SPRITE_ASSET_DRAG_MIME = 'application/x-scicon-asset-key';
 
@@ -24,8 +29,10 @@ export interface SpriteStyle {
 export interface SpriteWorkshopProps {
   assetKey: AssetKey;
   allowedAssetKeys: readonly AssetKey[];
+  assetRole?: GeneratedAssetRole;
+  styleEditingEnabled?: boolean;
   style: SpriteStyle;
-  onAssetChange: (assetKey: AssetKey) => void;
+  onAssetChange: (assetKey: AssetKey, generatedAsset?: AssetCatalogEntry) => void;
   onStyleChange: (style: SpriteStyle) => void;
   onClose: () => void;
 }
@@ -151,6 +158,7 @@ const WORKSHOP_CSS = `
   .sw-assets{display:flex;gap:9px;overflow-x:auto;padding-bottom:2px}.sw-asset{position:relative;flex:0 0 92px;min-height:88px;padding:7px;border:1px solid rgba(148,163,184,.16);border-radius:7px;background:rgba(255,255,255,.025);color:#cbd5e1;text-align:left;cursor:grab}.sw-asset:hover,.sw-asset.is-selected{border-color:#22d3ee;background:rgba(34,211,238,.09);color:white}.sw-asset:active{cursor:grabbing}.sw-asset img{display:block;width:44px;height:44px;margin:0 auto 6px;object-fit:contain;image-rendering:pixelated}.sw-asset strong{display:block;overflow:hidden;font-size:9px;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}.sw-asset span{display:block;margin-top:2px;font:600 8px/1 ui-monospace,SFMono-Regular,monospace;color:#64748b}
   .sw-controls{min-height:0;overflow:auto;padding:15px 16px 20px}.sw-recipes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:18px}.sw-recipe{padding:9px 10px;border:1px solid rgba(148,163,184,.16);border-radius:7px;background:rgba(255,255,255,.025);color:#e2e8f0;text-align:left;cursor:pointer}.sw-recipe:hover{border-color:#67e8f9;background:rgba(34,211,238,.08)}.sw-recipe strong{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.sw-recipe span{display:block;margin-top:3px;font-size:9px;line-height:1.35;color:#64748b}
   .sw-control{display:grid;gap:6px;margin-bottom:13px}.sw-control>span{display:flex;justify-content:space-between;gap:10px;font-size:10px;font-weight:750;color:#cbd5e1}.sw-control output{font:700 9px ui-monospace,SFMono-Regular,monospace;color:#67e8f9}.sw-control input[type=range]{width:100%;accent-color:#22d3ee}.sw-control-row{display:grid;grid-template-columns:1fr 76px;align-items:end;gap:10px}.sw-color{width:100%;height:34px;padding:3px;border:1px solid rgba(148,163,184,.22);border-radius:6px;background:#020611}.sw-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 16px;padding:10px 11px;border:1px solid rgba(148,163,184,.14);border-radius:7px;background:rgba(255,255,255,.02);font-size:10px;font-weight:750;color:#cbd5e1}.sw-toggle input{accent-color:#22d3ee}
+  .sw-generator{display:grid;gap:9px;margin-bottom:18px;padding:12px;border:1px solid rgba(163,230,53,.25);border-radius:8px;background:linear-gradient(145deg,rgba(77,124,15,.14),rgba(8,47,73,.12))}.sw-generator label{display:grid;gap:5px;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#a7f3d0}.sw-generator input,.sw-generator textarea{width:100%;border:1px solid rgba(148,163,184,.2);border-radius:6px;background:#020611;padding:8px;color:#f8fafc;font:500 11px/1.45 ui-sans-serif,system-ui,sans-serif;resize:vertical}.sw-generator textarea{min-height:82px}.sw-generator input:focus,.sw-generator textarea:focus{outline:1px solid #67e8f9;border-color:#67e8f9}.sw-generate{display:flex;align-items:center;justify-content:center;min-height:38px;border:1px solid rgba(190,242,100,.55);border-radius:7px;background:linear-gradient(135deg,rgba(132,204,22,.32),rgba(6,182,212,.25));color:#f7fee7;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}.sw-generate:hover:not(:disabled){filter:brightness(1.2)}.sw-generate:disabled{cursor:not-allowed;opacity:.42}.sw-generator-status{margin:0;font-size:9px;line-height:1.45;color:#94a3b8}.sw-generator-status.is-error{color:#fda4af}.sw-generator-status strong{color:#d9f99d}
   .sw-reset{width:100%;padding:10px 12px;border:1px solid rgba(248,113,113,.28);border-radius:7px;background:rgba(127,29,29,.12);color:#fecaca;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.sw-reset:hover{background:rgba(127,29,29,.22);border-color:#fb7185}
   @media(max-width:760px){.sw-scrim{padding:0}.sw-dialog{height:100%;max-height:none;border-radius:0}.sw-body{grid-template-columns:1fr;overflow:auto}.sw-stage-column{border-right:0}.sw-controls{overflow:visible;border-top:1px solid rgba(148,163,184,.14)}.sw-stage{min-height:280px}.sw-header{padding:12px 14px}}
 `;
@@ -178,21 +186,71 @@ const getPreviewStyle = (style: EffectiveSpriteStyle): CSSProperties => {
   };
 };
 
+const toWorkshopAsset = (entry: GeneratedAssetEntry): AssetCatalogEntry => ({
+  id: entry.id as AssetKey,
+  label: entry.label,
+  paths: [entry.path],
+  roles: entry.roles as GeneratedAssetRole[],
+  generated: {
+    sha256: entry.sha256.replace(/^sha256:/, ''),
+    width: entry.width,
+    height: entry.height,
+    createdAt: entry.createdAt
+  }
+});
+
 export function SpriteWorkshop({
   assetKey,
   allowedAssetKeys,
+  assetRole,
+  styleEditingEnabled = true,
   style,
   onAssetChange,
   onStyleChange,
   onClose
 }: SpriteWorkshopProps) {
   const [frameIndex, setFrameIndex] = useState(0);
+  const [generatedAssets, setGeneratedAssets] = useState<GeneratedAssetEntry[]>([]);
+  const [generatorAvailable, setGeneratorAvailable] = useState(false);
+  const [generatorModel, setGeneratorModel] = useState('gpt-image-2');
+  const [prompt, setPrompt] = useState('');
+  const [label, setLabel] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [generationNotice, setGenerationNotice] = useState<{ message: string; error?: boolean } | null>(null);
+  const localGeneratedCatalog = useMemo(() => new Map(
+    generatedAssets.map((entry) => [entry.id as AssetKey, toWorkshopAsset(entry)])
+  ), [generatedAssets]);
   const allowedAssets = useMemo(() => (
-    [...new Set(allowedAssetKeys)].filter((key) => Boolean(ASSET_CATALOG[key]))
-  ), [allowedAssetKeys]);
-  const selectedAsset = ASSET_CATALOG[assetKey] ?? ASSET_CATALOG[allowedAssets[0]];
+    [...new Set([
+      ...allowedAssetKeys,
+      ...generatedAssets
+        .filter((entry) => !assetRole || entry.roles.includes(assetRole))
+        .map((entry) => entry.id as AssetKey)
+    ])].filter((key) => Boolean(ASSET_CATALOG[key] ?? localGeneratedCatalog.get(key)))
+  ), [allowedAssetKeys, assetRole, generatedAssets, localGeneratedCatalog]);
+  const getWorkshopAsset = (key: AssetKey) => ASSET_CATALOG[key] ?? localGeneratedCatalog.get(key);
+  const selectedAsset = getWorkshopAsset(assetKey) ?? (allowedAssets[0] ? getWorkshopAsset(allowedAssets[0]) : undefined);
   const frames = selectedAsset?.paths ?? [];
   const effectiveStyle = getEffectiveStyle(style);
+
+  useEffect(() => {
+    if (!assetRole) return undefined;
+    let cancelled = false;
+    void fetchGeneratedAssets()
+      .then((result) => {
+        if (cancelled) return;
+        setGeneratedAssets(result.assets);
+        setGeneratorAvailable(result.generator.available);
+        setGeneratorModel(result.generator.model);
+      })
+      .catch((error) => {
+        if (!cancelled) setGenerationNotice({
+          message: error instanceof Error ? error.message : 'Could not load the generated sprite library',
+          error: true
+        });
+      });
+    return () => { cancelled = true; };
+  }, [assetRole]);
 
   useEffect(() => {
     setFrameIndex(0);
@@ -223,7 +281,27 @@ export function SpriteWorkshop({
   const acceptAssetDrop = (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
     const key = event.dataTransfer.getData(SPRITE_ASSET_DRAG_MIME) as AssetKey;
-    if (allowedAssets.includes(key) && ASSET_CATALOG[key]) onAssetChange(key);
+    if (allowedAssets.includes(key) && getWorkshopAsset(key)) onAssetChange(key);
+  };
+
+  const createGeneratedAsset = async () => {
+    if (!assetRole || !prompt.trim() || !label.trim() || generating) return;
+    setGenerating(true);
+    setGenerationNotice({ message: `Generating polished ${assetRole} art with ${generatorModel}...` });
+    try {
+      const result = await generateAsset({ prompt: prompt.trim(), label: label.trim(), role: assetRole });
+      setGeneratedAssets((current) => [result.asset, ...current.filter((entry) => entry.id !== result.asset.id)]);
+      const workshopAsset = registerGeneratedAssetForPreview(toWorkshopAsset(result.asset));
+      onAssetChange(result.asset.id as AssetKey, workshopAsset);
+      setGenerationNotice({ message: `${result.asset.label} is now selected. Apply to game when the preview looks right.` });
+    } catch (error) {
+      setGenerationNotice({
+        message: error instanceof Error ? error.message : 'Sprite generation failed',
+        error: true
+      });
+    } finally {
+      setGenerating(false);
+    }
   };
 
   if (!selectedAsset) return null;
@@ -234,8 +312,8 @@ export function SpriteWorkshop({
       <section className="sw-dialog" role="dialog" aria-modal="true" aria-labelledby="sprite-workshop-title">
         <header className="sw-header">
           <div>
-            <p>Local game artwork</p>
-            <h2 id="sprite-workshop-title">Sprite Workshop</h2>
+            <p>Real game artwork · local-only generation</p>
+            <h2 id="sprite-workshop-title">Sprite Generator</h2>
           </div>
           <button className="sw-close" type="button" aria-label="Close Sprite Workshop" onClick={onClose}>×</button>
         </header>
@@ -283,7 +361,8 @@ export function SpriteWorkshop({
               </p>
               <div className="sw-assets">
                 {allowedAssets.map((key) => {
-                  const entry = ASSET_CATALOG[key];
+                  const entry = getWorkshopAsset(key);
+                  if (!entry) return null;
                   return (
                     <button
                       className={`sw-asset${key === assetKey ? ' is-selected' : ''}`}
@@ -305,54 +384,99 @@ export function SpriteWorkshop({
           </div>
 
           <aside className="sw-controls" aria-label="Sprite appearance controls">
-            <p className="sw-section-label"><span>Deterministic recipes</span><small>No AI or network</small></p>
-            <div className="sw-recipes">
-              {STYLE_RECIPES.map((recipe) => (
-                <button className="sw-recipe" key={recipe.id} type="button" onClick={() => onStyleChange({ ...recipe.value })}>
-                  <strong>{recipe.label}</strong>
-                  <span>{recipe.description}</span>
-                </button>
-              ))}
-            </div>
-
-            {NUMBER_CONTROLS.map((control) => {
-              const value = effectiveStyle[control.key];
-              return (
-                <label className="sw-control" key={control.key}>
-                  <span>{control.label}<output>{control.format(value)}</output></span>
+            {assetRole ? (
+              <section className="sw-generator" aria-label="Prompt-based sprite generator">
+                <p className="sw-section-label"><span>Generate new artwork</span><small>{generatorModel}</small></p>
+                <label>
+                  Asset name
                   <input
-                    type="range"
-                    min={control.min}
-                    max={control.max}
-                    step={control.step}
-                    value={value}
-                    onChange={(event) => setNumber(control.key, Number(event.target.value))}
+                    type="text"
+                    maxLength={80}
+                    value={label}
+                    placeholder={`New ${assetRole} sprite`}
+                    onChange={(event) => setLabel(event.target.value)}
                   />
                 </label>
-              );
-            })}
+                <label>
+                  Describe the sprite
+                  <textarea
+                    maxLength={1500}
+                    value={prompt}
+                    placeholder="Example: armored citation drone with a bright cyan core, front-facing, readable at arcade size"
+                    onChange={(event) => setPrompt(event.target.value)}
+                  />
+                </label>
+                <button
+                  className="sw-generate"
+                  type="button"
+                  disabled={!generatorAvailable || generating || !prompt.trim() || !label.trim()}
+                  onClick={() => void createGeneratedAsset()}
+                >
+                  {generating ? 'Generating…' : `Generate ${assetRole} art`}
+                </button>
+                {!generatorAvailable ? (
+                  <p className="sw-generator-status is-error">Generation is ready but needs <strong>OPENAI_API_KEY</strong> in director/env/.env.local. Existing generated art remains usable.</p>
+                ) : (
+                  <p className="sw-generator-status">Generation uses the OpenAI API credits for your locally configured key. Every result is saved only to this branch's local game-art library.</p>
+                )}
+                {generationNotice ? <p className={`sw-generator-status${generationNotice.error ? ' is-error' : ''}`}>{generationNotice.message}</p> : null}
+              </section>
+            ) : null}
 
-            <div className="sw-control-row">
-              <label className="sw-control">
-                <span>Glow color<output>{effectiveStyle.glowColor.toUpperCase()}</output></span>
-                <input
-                  className="sw-color"
-                  type="color"
-                  value={effectiveStyle.glowColor}
-                  onChange={(event) => onStyleChange({ ...style, glowColor: event.target.value.toUpperCase() })}
-                />
-              </label>
-              <label className="sw-toggle">
-                <span>Flip</span>
-                <input
-                  type="checkbox"
-                  checked={effectiveStyle.flipX}
-                  onChange={(event) => onStyleChange({ ...style, flipX: event.target.checked })}
-                />
-              </label>
-            </div>
+            {styleEditingEnabled ? (
+              <>
+                <p className="sw-section-label"><span>Instant appearance recipes</span><small>Local preview</small></p>
+                <div className="sw-recipes">
+                  {STYLE_RECIPES.map((recipe) => (
+                    <button className="sw-recipe" key={recipe.id} type="button" onClick={() => onStyleChange({ ...recipe.value })}>
+                      <strong>{recipe.label}</strong>
+                      <span>{recipe.description}</span>
+                    </button>
+                  ))}
+                </div>
 
-            <button className="sw-reset" type="button" onClick={() => onStyleChange({})}>Reset to game default</button>
+                {NUMBER_CONTROLS.map((control) => {
+                  const value = effectiveStyle[control.key];
+                  return (
+                    <label className="sw-control" key={control.key}>
+                      <span>{control.label}<output>{control.format(value)}</output></span>
+                      <input
+                        type="range"
+                        min={control.min}
+                        max={control.max}
+                        step={control.step}
+                        value={value}
+                        onChange={(event) => setNumber(control.key, Number(event.target.value))}
+                      />
+                    </label>
+                  );
+                })}
+
+                <div className="sw-control-row">
+                  <label className="sw-control">
+                    <span>Glow color<output>{effectiveStyle.glowColor.toUpperCase()}</output></span>
+                    <input
+                      className="sw-color"
+                      type="color"
+                      value={effectiveStyle.glowColor}
+                      onChange={(event) => onStyleChange({ ...style, glowColor: event.target.value.toUpperCase() })}
+                    />
+                  </label>
+                  <label className="sw-toggle">
+                    <span>Flip</span>
+                    <input
+                      type="checkbox"
+                      checked={effectiveStyle.flipX}
+                      onChange={(event) => onStyleChange({ ...style, flipX: event.target.checked })}
+                    />
+                  </label>
+                </div>
+
+                <button className="sw-reset" type="button" onClick={() => onStyleChange({})}>Reset to game default</button>
+              </>
+            ) : (
+              <p className="sw-generator-status">This surface uses the generated image exactly as saved. Select it here, then use <strong>Apply to game</strong> in the editor.</p>
+            )}
           </aside>
         </div>
       </section>

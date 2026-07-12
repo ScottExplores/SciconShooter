@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 1,
+  "revision": 3,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
-  "updatedAt": "2026-07-11T00:00:00.000Z",
+  "updatedAt": "2026-07-12T01:19:22.888Z",
   "fps": 60,
   "recordCard": {
     "copy": {
@@ -34,9 +34,28 @@
     "shipAssetKey": "PLAYER_SHIP",
     "encounterAssetKey": "AUTO",
     "art": {
-      "ship": { "x": 290, "y": 370, "width": 260, "height": 260, "rotation": 0, "opacity": 1, "visible": true },
-      "encounter": { "x": 800, "y": 292, "width": 260, "height": 260, "rotation": 0, "opacity": 0.72, "visible": true }
+      "ship": {
+        "x": 290,
+        "y": 370,
+        "width": 260,
+        "height": 260,
+        "rotation": 0,
+        "opacity": 1,
+        "visible": true
+      },
+      "encounter": {
+        "x": 800,
+        "y": 292,
+        "width": 260,
+        "height": 260,
+        "rotation": 0,
+        "opacity": 0.72,
+        "visible": true
+      }
     }
+  },
+  "hudAssets": {
+    "bombIconAssetKey": "GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C"
   },
   "levels": [
     {

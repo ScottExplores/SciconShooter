@@ -20,6 +20,37 @@ const makeCampaign = () => ({
   name: 'Scicon Shooter Campaign',
   updatedAt: '2026-07-11T12:00:00.000Z',
   fps: 60,
+  recordCard: {
+    copy: {
+      title: 'MISSION RECORD',
+      subtitle: 'SCICON SHOOTER',
+      callsignLabel: 'CALLSIGN',
+      scoreLabel: 'FINAL SCORE',
+      verifiedLabel: 'SERVER VERIFIED',
+      reviewLabel: 'REVIEWED RUN',
+      metricLabels: { wave: 'WAVE', targets: 'TARGETS', coins: 'COINS', flight: 'FLIGHT' }
+    },
+    colors: {
+      background: '#020617',
+      panel: '#07152A',
+      primary: '#67E8F9',
+      secondary: '#2563EB',
+      success: '#6EE7B7',
+      warning: '#FACC15',
+      text: '#FFFFFF',
+      muted: '#94A3B8'
+    },
+    showGrid: true,
+    shipAssetKey: 'PLAYER_SHIP',
+    encounterAssetKey: 'AUTO',
+    art: {
+      ship: { x: 290, y: 370, width: 260, height: 260, rotation: 0, opacity: 1, visible: true },
+      encounter: { x: 800, y: 292, width: 260, height: 260, rotation: 0, opacity: 0.72, visible: true }
+    }
+  },
+  hudAssets: {
+    bombIconAssetKey: 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C'
+  },
   levels: [
     {
       id: 'open-orbit',
@@ -250,6 +281,23 @@ test('sprite validation permits catalog swaps only within gameplay categories', 
   assert.ok(spriteErrors.some((error) => error.includes('/events/2/spriteKey')));
 });
 
+test('generated assets are accepted only for their registered game roles and raw paths stay forbidden', () => {
+  const validHud = makeCampaign();
+  assert.deepEqual(validateGameCampaign(validHud), { valid: true, errors: [] });
+
+  const wrongRole = makeCampaign();
+  wrongRole.levels[0].waves[0].events[0].enemies[0].spriteKey = 'GENERATED_HUD_BIOHAZARD_BOMB_F29F11258B6C';
+  const wrongRoleResult = validateGameCampaign(wrongRole);
+  assert.equal(wrongRoleResult.valid, false);
+  assert.ok(wrongRoleResult.errors.some((error) => error.includes('/enemies/0/spriteKey has unsupported value')));
+
+  const rawPath = makeCampaign();
+  rawPath.hudAssets.bombIconAssetKey = '/game-art/generated/biohazard-bomb-f29f11258b6c.png';
+  const rawPathResult = validateGameCampaign(rawPath);
+  assert.equal(rawPathResult.valid, false);
+  assert.ok(rawPathResult.errors.some((error) => error.includes('/hudAssets/bombIconAssetKey has unsupported value')));
+});
+
 test('the actual tracked game campaign passes the local server mirror validator', async () => {
   const campaign = JSON.parse(await readFile(path.join(trackedRepositoryRoot, 'game-config', 'campaign.json'), 'utf8'));
   assert.deepEqual(validateGameCampaign(campaign), { valid: true, errors: [] });
@@ -381,6 +429,24 @@ test('rollback verifies a selected immutable version and records a new rollback 
   assert.equal(rolledBack.version.source, 'rollback');
   assert.equal(rolledBack.version.rollbackOf, baseline.id);
   assert.deepEqual((await repository.listVersions()).map((version) => version.revision), [3, 2, 1]);
+});
+
+test('legacy schema-v1 payloads retain current scorecard and HUD presentation when applied', async (t) => {
+  const { repository } = await makeRepository(t);
+  const before = await repository.readCampaign();
+  const legacyPayload = structuredClone(before.campaign);
+  delete legacyPayload.recordCard;
+  delete legacyPayload.hudAssets;
+  legacyPayload.levels[0].waves[0].events[0].count = 11;
+
+  const applied = await repository.applyCampaign(legacyPayload, {
+    expectedContentHash: before.contentHash,
+    changeNote: 'Open an earlier schema-v1 revision'
+  });
+
+  assert.deepEqual(applied.campaign.recordCard, before.campaign.recordCard);
+  assert.deepEqual(applied.campaign.hudAssets, before.campaign.hudAssets);
+  assert.equal(applied.campaign.levels[0].waves[0].events[0].count, 11);
 });
 
 test('game campaign HTTP routes require the mutation token and return validation errors without writes', async (t) => {

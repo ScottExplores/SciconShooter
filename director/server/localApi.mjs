@@ -1,6 +1,14 @@
 import path from 'node:path';
 import { ConfigRepository } from './configRepository.mjs';
+import {
+  GeneratedAssetRepository,
+  normalizeGeneratedAssetRequest
+} from './generatedAssetRepository.mjs';
 import { GameCampaignRepository } from './gameCampaignRepository.mjs';
+import {
+  DIRECTOR_IMAGE_MODEL,
+  OpenAIImageGenerationClient
+} from './imageGenerationClient.mjs';
 import { RealRunReader } from './realRunReader.mjs';
 import {
   assertLoopbackRequest,
@@ -45,7 +53,13 @@ const normalizedPathname = (requestUrl) => {
 
 const isMutationMethod = (method) => ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method);
 
-export const createDirectorRequestHandler = ({ repository, realRunReader, gameCampaignRepository = null }) => {
+export const createDirectorRequestHandler = ({
+  repository,
+  realRunReader,
+  gameCampaignRepository = null,
+  generatedAssetRepository = null,
+  imageGenerationClient = null
+}) => {
   if (!repository || !realRunReader) throw new Error('Director API requires a repository and real-run reader');
 
   return async (request, response) => {
@@ -66,6 +80,46 @@ export const createDirectorRequestHandler = ({ repository, realRunReader, gameCa
 
       if (method === 'GET' && pathname === '/bootstrap') {
         return sendJson(response, 200, await repository.bootstrap());
+      }
+
+      if (pathname.startsWith('/api/generated-assets') && !generatedAssetRepository) {
+        throw new HttpError(503, 'Generated asset storage is unavailable');
+      }
+
+      if (method === 'GET' && pathname === '/api/generated-assets') {
+        return sendJson(response, 200, {
+          ok: true,
+          generator: imageGenerationClient?.getPublicStatus?.() ?? {
+            available: false,
+            model: DIRECTOR_IMAGE_MODEL,
+            backgroundRemoval: 'local-chroma-key'
+          },
+          assets: await generatedAssetRepository.listAssets()
+        });
+      }
+
+      if (method === 'POST' && pathname === '/api/generated-assets') {
+        if (!imageGenerationClient?.isConfigured?.()) {
+          throw new HttpError(
+            503,
+            'Sprite generation is not configured locally. Set OPENAI_API_KEY in director/env/.env.local and restart Scicon Director.'
+          );
+        }
+        const requestBody = normalizeGeneratedAssetRequest(await readJsonBody(request, { limit: 16 * 1024 }));
+        const generated = await imageGenerationClient.generateSprite(requestBody);
+        const result = await generatedAssetRepository.createAsset({
+          request: requestBody,
+          sourcePng: generated.png,
+          model: generated.model,
+          normalizedPrompt: generated.normalizedPrompt
+        });
+        return sendJson(response, result.created ? 201 : 200, {
+          ok: true,
+          message: result.created
+            ? 'Generated sprite saved to the local game asset library'
+            : 'The same generated sprite is already in the local game asset library',
+          asset: result.asset
+        });
       }
 
       if (pathname.startsWith('/api/game-campaign') && !gameCampaignRepository) {
@@ -243,10 +297,19 @@ export const createDirectorRequestHandler = ({ repository, realRunReader, gameCa
   };
 };
 
-export const createDirectorApiPlugin = ({ repositoryRoot, directorRoot: _directorRoot }) => {
+export const createDirectorApiPlugin = ({
+  repositoryRoot,
+  directorRoot: _directorRoot,
+  imageApiKey = ''
+}) => {
   const resolvedRepositoryRoot = path.resolve(repositoryRoot);
   const dataRoot = resolveWithin(resolvedRepositoryRoot, 'director-data');
   const fixtureRoot = resolveWithin(dataRoot, 'fixtures');
+  const generatedAssetRepository = new GeneratedAssetRepository({
+    repositoryRoot: resolvedRepositoryRoot,
+    dataRoot
+  });
+  const imageGenerationClient = new OpenAIImageGenerationClient({ apiKey: imageApiKey });
   const gameCampaignRepository = new GameCampaignRepository({
     repositoryRoot: resolvedRepositoryRoot,
     dataRoot
@@ -262,7 +325,9 @@ export const createDirectorApiPlugin = ({ repositoryRoot, directorRoot: _directo
   const requestHandler = createDirectorRequestHandler({
     repository,
     realRunReader: new RealRunReader(),
-    gameCampaignRepository
+    gameCampaignRepository,
+    generatedAssetRepository,
+    imageGenerationClient
   });
 
   return {
