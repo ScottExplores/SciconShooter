@@ -7,6 +7,7 @@ import {
 } from '../shared/record-card/renderRecordCardSvg.mjs';
 import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
 import type { RunReceipt } from '../services/runReceiptService';
+import type { MissionRecordWeeklyFunding } from '../services/weeklyFundingFlow';
 import { trackEvent } from '../services/analyticsService';
 import { shareScoreCardImage } from '../services/scoreCardShareService';
 import { buildMissionRecordCardSvg, MissionRecordCard } from './MissionRecordCard';
@@ -24,6 +25,8 @@ interface MissionRecordPreviewProps {
   onConnect: () => void;
   onGetBaseApp: () => void;
   onMint: () => void;
+  weeklyFunding?: MissionRecordWeeklyFunding | null;
+  onOpenWeeklyFunding?: () => void;
   onClose: () => void;
 }
 
@@ -52,6 +55,8 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   onConnect,
   onGetBaseApp,
   onMint,
+  weeklyFunding = null,
+  onOpenWeeklyFunding,
   onClose
 }) => {
   const [shareStatus, setShareStatus] = useState('');
@@ -200,6 +205,46 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
           </div>
           {shareStatus || mintMessage ? <p className="mt-3 text-center text-[10px] font-semibold text-slate-400">{mintMessage || shareStatus}</p> : null}
           {mintHash ? <a href={`${explorerUrl}/tx/${mintHash}`} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200 underline underline-offset-2">View Score Record transaction</a> : null}
+
+          {weeklyFunding ? (
+            <div className="mt-4 border-t border-yellow-200/20 pt-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-yellow-200">Weekly funding</p>
+                  <h3 className="arcade-font mt-1 text-sm font-black uppercase tracking-wider text-white">
+                    {weeklyFunding.status === 'claimable'
+                      ? 'Weekly champion confirmed'
+                      : weeklyFunding.status === 'selected'
+                        ? 'Proposal selected'
+                        : 'Current weekly leader'}
+                  </h3>
+                </div>
+                <span className="shrink-0 border border-yellow-200/30 bg-yellow-300/10 px-2 py-1 font-mono text-[9px] font-black uppercase tracking-[0.12em] text-yellow-100">
+                  {weeklyFunding.allocationRsc} RSC
+                </span>
+              </div>
+              <p className="mt-2 text-[10px] font-semibold leading-relaxed text-slate-300">
+                {weeklyFunding.status === 'claimable'
+                  ? 'Your winning score is locked. Choose the ResearchHub proposal for this weekly allocation.'
+                  : weeklyFunding.status === 'selected'
+                    ? weeklyFunding.proposalTitle || 'Your weekly funding proposal has been selected.'
+                    : 'You are #1 right now. If you still lead at Sunday\'s noon Pacific cutoff, proposal choice unlocks here.'}
+              </p>
+              {onOpenWeeklyFunding ? (
+                <button
+                  type="button"
+                  onClick={onOpenWeeklyFunding}
+                  className="mt-3 min-h-11 w-full border border-yellow-100/35 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25"
+                >
+                  {weeklyFunding.status === 'claimable'
+                    ? 'Choose weekly proposal'
+                    : weeklyFunding.status === 'selected'
+                      ? 'View selected proposal'
+                      : 'Browse eligible proposals'}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

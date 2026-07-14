@@ -5,6 +5,7 @@ import { ASSETS, DONATION_CONFIG } from '../constants';
 import type { RunReceipt } from '../services/runReceiptService';
 import { ALL_TIME_SCORE_LIMIT } from '../services/leaderboardService';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
+import { PLAYER_SHIPS, type PlayerShipId } from '../services/playerShipService';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -15,6 +16,9 @@ interface StartScreenProps {
   archivedWinners: ArchivedWinner[];
   walletRecords: MintRecord[];
   walletAddress?: string | null;
+  selectedShipId: PlayerShipId;
+  bioShipUnlocked: boolean;
+  onSelectShip: (shipId: PlayerShipId) => void;
   latestRunReceipt?: RunReceipt | null;
   isLoading: boolean;
   proposals: ResearchHubProposal[];
@@ -30,6 +34,10 @@ interface StartScreenProps {
   championClaimStatus: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error';
   championClaimMessage?: string;
   onClaimWeeklyChampion: (winner: ArchivedWinner, proposal: ResearchHubProposal) => void;
+  requestedChampionWinner?: ArchivedWinner | null;
+  onCloseRequestedChampion?: () => void;
+  testChampionWinner?: ArchivedWinner | null;
+  onCloseTestChampionPreview?: () => void;
 }
 
 type LeaderboardView = 'weekly' | 'allTime' | 'pastPicks' | 'records';
@@ -53,7 +61,10 @@ type IconName =
   | 'mint'
   | 'base'
   | 'rocket'
-  | 'flask';
+  | 'flask'
+  | 'chevronLeft'
+  | 'chevronRight'
+  | 'lock';
 
 const dashboardTabs: Array<{ id: DashboardTab; label: string; icon: IconName; hint: string }> = [
   { id: 'home', label: 'Home', icon: 'home', hint: 'Mission' },
@@ -61,6 +72,8 @@ const dashboardTabs: Array<{ id: DashboardTab; label: string; icon: IconName; hi
   { id: 'trophies', label: 'Trophies', icon: 'trophy', hint: 'Rank' },
   { id: 'more', label: 'More', icon: 'more', hint: 'About' }
 ];
+
+const playerShipOrder: PlayerShipId[] = ['researchhub', 'bio'];
 
 const clampPercent = (value: number) => Math.max(8, Math.min(100, Math.round(value)));
 
@@ -289,6 +302,25 @@ const Icon: React.FC<{ name: IconName; className?: string; strokeWidth?: number 
           <path d="M8 14h8" />
         </svg>
       );
+    case 'chevronLeft':
+      return (
+        <svg {...common}>
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+      );
+    case 'chevronRight':
+      return (
+        <svg {...common}>
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      );
+    case 'lock':
+      return (
+        <svg {...common}>
+          <rect x="5" y="10" width="14" height="10" rx="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -327,6 +359,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
   archivedWinners,
   walletRecords,
   walletAddress,
+  selectedShipId,
+  bioShipUnlocked,
+  onSelectShip,
   latestRunReceipt,
   isLoading,
   proposals,
@@ -341,10 +376,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
   walletControl,
   championClaimStatus,
   championClaimMessage,
-  onClaimWeeklyChampion
+  onClaimWeeklyChampion,
+  requestedChampionWinner = null,
+  onCloseRequestedChampion,
+  testChampionWinner = null,
+  onCloseTestChampionPreview
 }) => {
   const [leaderboardView, setLeaderboardView] = useState<LeaderboardView>('weekly');
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>(() => {
+    if (testChampionWinner || requestedChampionWinner) return 'proposals';
     const requested = new URLSearchParams(window.location.search).get('view');
     return requested === 'proposals' || requested === 'trophies' || requested === 'more' ? requested : 'home';
   });
@@ -356,20 +396,48 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [treasuryCopyStatus, setTreasuryCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [championClaimWinner, setChampionClaimWinner] = useState<ArchivedWinner | null>(null);
+  const [testSelectedProposal, setTestSelectedProposal] = useState<ResearchHubProposal | null>(null);
+  const [shipFocusId, setShipFocusId] = useState<PlayerShipId>(selectedShipId);
   const [weeklyClock, setWeeklyClock] = useState(() => Date.now());
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
 
   useEffect(() => {
+    if (testChampionWinner) return;
     const url = new URL(window.location.href);
     if (dashboardTab === 'home') url.searchParams.delete('view');
     else url.searchParams.set('view', dashboardTab);
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-  }, [dashboardTab]);
+  }, [dashboardTab, testChampionWinner]);
+
+  useEffect(() => {
+    const requestedWinner = testChampionWinner || requestedChampionWinner;
+    if (!requestedWinner) return;
+    setChampionClaimWinner(requestedWinner);
+    setTestSelectedProposal(null);
+    setDashboardTab('proposals');
+  }, [requestedChampionWinner, testChampionWinner]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setWeeklyClock(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    setShipFocusId(selectedShipId);
+  }, [selectedShipId]);
+
+  const cycleShip = (direction: -1 | 1) => {
+    const currentIndex = playerShipOrder.indexOf(shipFocusId);
+    const nextIndex = (currentIndex + direction + playerShipOrder.length) % playerShipOrder.length;
+    const nextShipId = playerShipOrder[nextIndex];
+    setShipFocusId(nextShipId);
+
+    if (nextShipId !== 'bio' || bioShipUnlocked) {
+      onSelectShip(nextShipId);
+    }
+  };
+  const focusedShip = PLAYER_SHIPS[shipFocusId];
+  const focusedShipLocked = shipFocusId === 'bio' && !bioShipUnlocked;
 
   const weeklyAllocation = useMemo(
     () => getWeeklyAllocationMeta(new Date(weeklyClock)),
@@ -474,10 +542,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
       <button
         key={proposal.id}
         type="button"
-        onClick={() => championClaimWinner
-          ? onClaimWeeklyChampion(championClaimWinner, proposal)
-          : onOpenProposal(proposal.url)}
-        className="group w-full rounded-[6px] border border-white/5 bg-white/[0.025] p-3 text-left transition hover:border-cyan-300/35 hover:bg-cyan-300/10"
+        onClick={() => testChampionWinner
+          ? setTestSelectedProposal(proposal)
+          : championClaimWinner
+            ? onClaimWeeklyChampion(championClaimWinner, proposal)
+            : onOpenProposal(proposal.url)}
+        className={`group w-full rounded-[6px] border p-3 text-left transition hover:border-cyan-300/35 hover:bg-cyan-300/10 ${testSelectedProposal?.id === proposal.id ? 'border-yellow-200/60 bg-yellow-300/12' : 'border-white/5 bg-white/[0.025]'}`}
       >
         <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-[6px] border border-cyan-300/30 bg-cyan-300/10 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.14)]">
@@ -549,10 +619,51 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div className="sci-ship-orbit" />
           <div className="absolute bottom-2 h-12 w-64 rounded-[50%] border border-cyan-300/24 bg-cyan-300/7 blur-sm" />
           <div className="absolute bottom-7 h-7 w-56 rounded-[50%] border border-emerald-300/28 bg-emerald-300/8" />
-          <div className={`sci-rh-ship ${compact ? 'sci-rh-ship--compact' : ''}`} role="img" aria-label="ResearchHub logo">
-            <span className="sci-rh-ship-core">
-              <img src={ASSETS.PLAYER_SHIP} alt="" />
-            </span>
+          <div className={`sci-rh-ship sci-ship-carousel ${compact ? 'sci-rh-ship--compact sci-ship-carousel--compact' : ''}`}>
+            <button
+              type="button"
+              onClick={() => cycleShip(-1)}
+              className="sci-ship-carousel-control sci-ship-carousel-control--left"
+              aria-label="Previous ship"
+            >
+              <Icon name="chevronLeft" className="h-6 w-6" strokeWidth={2.2} />
+            </button>
+
+            <div className="sci-ship-carousel-stage" aria-live="polite">
+              <div
+                key={shipFocusId}
+                className={`sci-ship-carousel-item sci-ship-carousel-item--active ${focusedShipLocked ? 'sci-ship-carousel-item--locked' : ''}`}
+                role="img"
+                aria-label={focusedShipLocked
+                  ? `${focusedShip.name} locked. Mint a high score NFT to unlock this ship.`
+                  : `${focusedShip.name} selected`}
+              >
+                <span className="sci-rh-ship-core sci-ship-carousel-core">
+                  <img
+                    src={focusedShip.assetUrl}
+                    alt=""
+                    className={shipFocusId === 'bio' ? 'sci-ship-carousel-image--pixel' : 'sci-ship-carousel-image--researchhub'}
+                  />
+                </span>
+                {focusedShipLocked ? (
+                  <span className="sci-ship-carousel-lock" aria-hidden="true">
+                    <Icon name="lock" className="h-7 w-7" strokeWidth={2.2} />
+                  </span>
+                ) : null}
+              </div>
+              {focusedShipLocked ? (
+                <p className="sci-ship-carousel-status">Mint a high score NFT to unlock this ship.</p>
+              ) : null}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => cycleShip(1)}
+              className="sci-ship-carousel-control sci-ship-carousel-control--right"
+              aria-label="Next ship"
+            >
+              <Icon name="chevronRight" className="h-6 w-6" strokeWidth={2.2} />
+            </button>
           </div>
         </div>
 
@@ -712,13 +823,33 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div className="mb-4 rounded-[8px] border border-yellow-200/30 bg-yellow-300/10 p-3">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-yellow-100">Champion proposal selection</p>
-                <p className="mt-1 text-sm font-semibold text-white">{championClaimWinner.winnerName}, choose one eligible proposal for week {championClaimWinner.periodKey}.</p>
-                <p className="mt-1 text-xs text-slate-300">A Base Account signature locks the selection. It does not transfer funds or mint yet.</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-yellow-100">{testChampionWinner ? 'Pilot Test: Champion Choice' : 'Champion proposal selection'}</p>
+                <p className="mt-1 text-sm font-semibold text-white">{championClaimWinner.winnerName}, choose one eligible proposal for {testChampionWinner ? 'this preview' : `week ${championClaimWinner.periodKey}`}.</p>
+                <p className="mt-1 text-xs text-slate-300">
+                  {testChampionWinner
+                    ? testSelectedProposal
+                      ? `Preview selected: ${testSelectedProposal.title}. No claim was submitted.`
+                      : 'Choose any proposal to preview the winner flow. This does not sign or submit a claim.'
+                    : 'A Base Account signature locks the selection. It does not transfer funds or mint yet.'}
+                </p>
               </div>
-              <button type="button" aria-label="Cancel champion selection" onClick={() => setChampionClaimWinner(null)} className="sci-icon-button shrink-0"><Icon name="x" /></button>
+              <button
+                type="button"
+                aria-label="Cancel champion selection"
+                onClick={() => {
+                  if (testChampionWinner) {
+                    onCloseTestChampionPreview?.();
+                    return;
+                  }
+                  setChampionClaimWinner(null);
+                  if (requestedChampionWinner) onCloseRequestedChampion?.();
+                }}
+                className="sci-icon-button shrink-0"
+              >
+                <Icon name="x" />
+              </button>
             </div>
-            {championClaimStatus !== 'idle' ? (
+            {!testChampionWinner && championClaimStatus !== 'idle' ? (
               <p className={`mt-2 text-xs font-bold ${championClaimStatus === 'error' ? 'text-red-200' : championClaimStatus === 'confirmed' ? 'text-emerald-200' : 'text-cyan-200'}`}>
                 {championClaimMessage || (championClaimStatus === 'signing' ? 'Sign the proposal selection in Base Account.' : championClaimStatus === 'connecting' ? 'Connecting Base Account...' : 'Proposal selection confirmed.')}
               </p>
@@ -1048,6 +1179,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   return (
     <div className="scicon-start-screen relative h-full min-h-0 overflow-hidden bg-slate-950 text-white">
+      {testChampionWinner && onCloseTestChampionPreview ? (
+        <button
+          type="button"
+          onClick={onCloseTestChampionPreview}
+          className="fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[60] border border-cyan-100/45 bg-slate-950/92 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.2)]"
+        >
+          Return to frozen run
+        </button>
+      ) : null}
       <div className="fixed inset-0 -z-10">
         <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-55" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_86%_22%,rgba(16,185,129,0.16),transparent_26%),linear-gradient(180deg,rgba(2,6,23,0.58),rgba(2,6,23,0.96)_74%)]" />

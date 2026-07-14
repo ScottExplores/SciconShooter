@@ -38,6 +38,18 @@ export const getFlaskProgress = (
   };
 };
 
+export const getChargeForStoredFlasks = (
+  flaskCount: number,
+  baseMax: number = BASE_FLASK_CHARGE_MAX
+) => {
+  const safeCount = Math.max(0, Math.floor(flaskCount));
+  let charge = 0;
+  for (let index = 0; index < safeCount; index++) {
+    charge += getFlaskRequirement(index, baseMax);
+  }
+  return charge;
+};
+
 export const spendStoredFlasks = (
   charge: number = 0,
   flaskCount: number = 1,

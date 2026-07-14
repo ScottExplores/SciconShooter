@@ -46,3 +46,18 @@ test('the top HUD prioritizes hearts and flask progress while the upgrade rail s
   assert.doesNotMatch(source, /sm:w-32 sm:flex-none/);
   assert.match(source, /arcade-font text-sm font-black leading-none">x\{flaskCount\}/);
 });
+
+test('speed upgrades visibly evolve the player thruster palette and flame strength', () => {
+  const source = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+
+  assert.match(source, /const PLAYER_THRUSTER_PALETTES = \[/);
+  assert.match(source, /glow: '#22d3ee'/);
+  assert.match(source, /glow: '#a78bfa'/);
+  assert.match(source, /glow: '#facc15'/);
+  assert.match(source, /const speedLevel = Math\.min\(6, Math\.max\(0, Math\.floor\(this\.stats\.upgrades\.speed \|\| 0\)\)\)/);
+  assert.match(source, /const upgradeBoost = 1 \+ speedLevel \* 0\.055/);
+  assert.match(source, /ctx\.shadowColor = palette\.glow/);
+  assert.match(source, /drawPlayerThrusterUpgradeOverlay\(ctx: CanvasRenderingContext2D, e: Entity\)/);
+  assert.match(source, /if \(speedLevel <= 0\) return/);
+  assert.match(source, /this\.drawPlayerThrusterUpgradeOverlay\(ctx, e\)/);
+});

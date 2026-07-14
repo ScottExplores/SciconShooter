@@ -307,6 +307,10 @@ module.exports = async (req, res) => {
         return sendJson(res, 401, { error: 'A valid run receipt is required', details: error.message });
       }
 
+      if (receipt.testRun) {
+        return sendJson(res, 403, { error: 'Pilot Test runs are not eligible for leaderboards.' });
+      }
+
       const name = sanitizeText(body.name, 15)?.toUpperCase();
       if (!name) {
         return sendJson(res, 400, { error: 'Pilot name is required' });

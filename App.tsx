@@ -5,9 +5,10 @@ import { audioService } from './services/audioService';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from './constants';
 import { ALL_TIME_SCORE_LIMIT, getLeaderboardData, saveScore } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
+import { getMissionRecordWeeklyFunding } from './services/weeklyFundingFlow';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
-import { BASE_FLASK_CHARGE_MAX, getFlaskProgress, spendStoredFlasks } from './services/flaskProgress';
+import { BASE_FLASK_CHARGE_MAX, getChargeForStoredFlasks, getFlaskProgress, spendStoredFlasks } from './services/flaskProgress';
 import type { WalletRuntimeAction } from './components/WalletRuntime';
 import {
   finishRunSession,
@@ -17,6 +18,14 @@ import {
 } from './services/runReceiptService';
 import { trackEvent, trackInitialVisit } from './services/analyticsService';
 import { getWalletRecords } from './services/recordService';
+import {
+  getUsablePlayerShip,
+  hasBioShipUnlock,
+  ownsSciconRecordNft,
+  parsePlayerShipId,
+  PLAYER_SHIPS,
+  type PlayerShipId
+} from './services/playerShipService';
 
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
 const loadGameStage = () => import('./components/GameStage');
@@ -38,6 +47,10 @@ const preloadGameplayComponents = () => {
 };
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
+type ActiveRunMode = 'standard' | 'owner-test';
+
+const OWNER_TEST_FLASK_COUNT = 40;
+const OWNER_TEST_FLASK_CHARGE = getChargeForStoredFlasks(OWNER_TEST_FLASK_COUNT);
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
   cancelIdleCallback?: (handle: number) => void;
@@ -253,6 +266,10 @@ const App: React.FC = () => {
   const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [archivedWinners, setArchivedWinners] = useState<ArchivedWinner[]>([]);
   const [walletRecords, setWalletRecords] = useState<MintRecord[]>([]);
+  const [onchainRecordOwner, setOnchainRecordOwner] = useState<string | null>(null);
+  const [selectedShipId, setSelectedShipId] = useState<PlayerShipId>(() => (
+    parsePlayerShipId(localStorage.getItem(STORAGE_KEYS.SELECTED_SHIP))
+  ));
   const [fundingProposals, setFundingProposals] = useState<ResearchHubProposal[]>([]);
   const [proposalStatus, setProposalStatus] = useState<ProposalFeedStatus>('loading');
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
@@ -280,6 +297,10 @@ const App: React.FC = () => {
   const [activeStoryBeat, setActiveStoryBeat] = useState<StoryBeat | null>(null);
   const [bombCommand, setBombCommand] = useState<{ nonce: number } | null>(null);
   const [continueCommand, setContinueCommand] = useState<{ nonce: number; lives: number } | null>(null);
+  const [activeRunMode, setActiveRunMode] = useState<ActiveRunMode>('standard');
+  const [testWaveCommand, setTestWaveCommand] = useState<{ nonce: number; wave: number } | null>(null);
+  const [testFlaskCommand, setTestFlaskCommand] = useState<{ nonce: number; charge: number } | null>(null);
+  const [showTestChampionPreview, setShowTestChampionPreview] = useState(false);
   const [introMissionLocked, setIntroMissionLocked] = useState(false);
   const [donatedWallets] = useState<Record<string, boolean>>(() => {
     try {
@@ -301,6 +322,7 @@ const App: React.FC = () => {
   const [latestVerifiedRun, setLatestVerifiedRun] = useState<RunReceipt | null>(readLatestVerifiedRun);
   const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
   const [showMissionRecordPreview, setShowMissionRecordPreview] = useState(false);
+  const [scorecardChampionWinner, setScorecardChampionWinner] = useState<ArchivedWinner | null>(null);
   const [championClaimStatus, setChampionClaimStatus] = useState<'idle' | 'connecting' | 'signing' | 'confirmed' | 'error'>('idle');
   const [championClaimMessage, setChampionClaimMessage] = useState('');
   const [missionMintStatus, setMissionMintStatus] = useState<'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error'>('idle');
@@ -346,6 +368,21 @@ const App: React.FC = () => {
     };
   }, [donatedWallets, walletError, walletRuntimeAction?.type, walletSession]);
   const activeWalletAddress = wallet.address ?? null;
+  const isOwnerWallet = activeWalletAddress?.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase();
+  const isOwnerTestRun = activeRunMode === 'owner-test';
+  const missionRecordWeeklyFunding = useMemo(() => runReceipt ? getMissionRecordWeeklyFunding({
+    receipt: runReceipt,
+    pilotName: playerNameInput || 'PILOT',
+    weeklyLeaderboard: monthlyLeaderboard,
+    archivedWinners
+  }) : null, [archivedWinners, monthlyLeaderboard, playerNameInput, runReceipt]);
+  const bioShipUnlocked = useMemo(
+    () => hasBioShipUnlock(activeWalletAddress, walletRecords)
+      || Boolean(activeWalletAddress && onchainRecordOwner === activeWalletAddress.toLowerCase()),
+    [activeWalletAddress, onchainRecordOwner, walletRecords]
+  );
+  const usableShipId = getUsablePlayerShip(selectedShipId, bioShipUnlocked);
+  const playerShipUrl = PLAYER_SHIPS[usableShipId].assetUrl;
   const continueRscCost = (continuesUsed + 1) * 5;
   const isContinuePaymentBusy = continuePaymentStatus === 'switching_network'
     || continuePaymentStatus === 'processing'
@@ -373,6 +410,22 @@ const App: React.FC = () => {
       playerName: ''
     };
   };
+
+  useEffect(() => {
+    let active = true;
+    setOnchainRecordOwner(null);
+    if (!activeWalletAddress) return () => { active = false; };
+
+    void ownsSciconRecordNft(activeWalletAddress)
+      .then((ownsRecord) => {
+        if (active && ownsRecord) setOnchainRecordOwner(activeWalletAddress.toLowerCase());
+      })
+      .catch(() => {
+        // The confirmed mint API remains a fallback when a public RPC is unavailable.
+      });
+
+    return () => { active = false; };
+  }, [activeWalletAddress]);
 
   useEffect(() => {
     let active = true;
@@ -496,6 +549,10 @@ const App: React.FC = () => {
     localStorage.setItem(STORAGE_KEYS.POLISH_SETTINGS, JSON.stringify(polishSettings));
   }, [polishSettings]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SELECTED_SHIP, selectedShipId);
+  }, [selectedShipId]);
+
   const togglePolishSetting = (key: keyof GamePolishSettings) => {
     setPolishSettings(prev => ({
       ...prev,
@@ -520,7 +577,28 @@ const App: React.FC = () => {
 
   }, [activeWalletAddress]);
 
+  useEffect(() => {
+    if (!isOwnerWallet || activeRunMode === 'owner-test') return;
+    if (gameState !== GameState.PLAYING && gameState !== GameState.PAUSED) return;
+
+    setActiveRunMode('owner-test');
+    setStats(prev => ({
+      ...prev,
+      bombCharge: Math.max(prev.bombCharge || 0, OWNER_TEST_FLASK_CHARGE)
+    }));
+    setTestFlaskCommand(current => ({ nonce: (current?.nonce ?? 0) + 1, charge: OWNER_TEST_FLASK_CHARGE }));
+    setRunReceipt(null);
+    setRunReceiptStatus('starting');
+    finalizedRunGameIdRef.current = null;
+    runReceiptPromiseRef.current = null;
+    runSessionPromiseRef.current = startRunSession({ testRun: true }).then((session) => {
+      setRunReceiptStatus(session.localOnly ? 'local' : 'idle');
+      return session;
+    });
+  }, [activeRunMode, gameState, isOwnerWallet]);
+
   const startGame = () => {
+    const startInTestMode = isOwnerWallet;
     preloadGameplayComponents();
     audioService.init();
     clearIntroStoryTimeout();
@@ -533,7 +611,7 @@ const App: React.FC = () => {
       coins: 0,
       enemiesDefeated: 0,
       bombs: 2,
-      bombCharge: 0,
+      bombCharge: startInTestMode ? OWNER_TEST_FLASK_CHARGE : 0,
       bombChargeMax: BASE_FLASK_CHARGE_MAX,
       lives: 3,
       repairsCount: 0,
@@ -550,6 +628,10 @@ const App: React.FC = () => {
     setContinuesUsed(0);
     setBombCommand(null);
     setContinueCommand(null);
+    setTestWaveCommand(null);
+    setTestFlaskCommand(null);
+    setActiveRunMode(startInTestMode ? 'owner-test' : 'standard');
+    setShowTestChampionPreview(false);
     setIntroMissionLocked(true);
     setShowNameInput(false);
     setPlayerNameInput('');
@@ -558,12 +640,13 @@ const App: React.FC = () => {
     setRunReceipt(null);
     setRunReceiptStatus('starting');
     setShowMissionRecordPreview(false);
+    setScorecardChampionWinner(null);
     setMissionMintStatus('idle');
     setMissionMintMessage('');
     setMissionMintHash('');
     finalizedRunGameIdRef.current = null;
     runReceiptPromiseRef.current = null;
-    runSessionPromiseRef.current = startRunSession().then((session) => {
+    runSessionPromiseRef.current = startRunSession({ testRun: startInTestMode }).then((session) => {
       setRunReceiptStatus(session.localOnly ? 'local' : 'idle');
       return session;
     });
@@ -578,13 +661,16 @@ const App: React.FC = () => {
       if (gameStateRef.current === GameState.PLAYING) {
         setActiveStoryBeat(getStoryBeatForPhase(1));
       }
-    }, 3600);
+    }, 2650);
   };
 
   const resetGame = () => {
     clearIntroStoryTimeout();
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
+    setShowTestChampionPreview(false);
+    setScorecardChampionWinner(null);
+    setActiveRunMode('standard');
     setGameState(GameState.MENU);
   };
 
@@ -633,6 +719,34 @@ const App: React.FC = () => {
         }
       };
     });
+  };
+
+  const jumpOwnerTestWave = (wave: number) => {
+    if (!isOwnerWallet || !isOwnerTestRun) return;
+    const safeWave = Math.max(1, Math.min(4, Math.floor(wave)));
+    clearIntroStoryTimeout();
+    setActiveStoryBeat(null);
+    setIntroMissionLocked(false);
+    lastStoryWaveRef.current = safeWave;
+    setTestWaveCommand(current => ({ nonce: (current?.nonce ?? 0) + 1, wave: safeWave }));
+  };
+
+  const refillOwnerTestFlasks = () => {
+    if (!isOwnerWallet || !isOwnerTestRun) return;
+    setStats(prev => ({
+      ...prev,
+      bombCharge: Math.max(prev.bombCharge || 0, OWNER_TEST_FLASK_CHARGE)
+    }));
+    setTestFlaskCommand(current => ({ nonce: (current?.nonce ?? 0) + 1, charge: OWNER_TEST_FLASK_CHARGE }));
+  };
+
+  const finishOwnerTestRun = () => {
+    if (!isOwnerWallet || !isOwnerTestRun) return;
+    clearIntroStoryTimeout();
+    setActiveStoryBeat(null);
+    setIntroMissionLocked(false);
+    setShowTestChampionPreview(false);
+    setGameState(GameState.GAMEOVER);
   };
 
   const requestWalletRuntimeAction = useCallback((type: 'connect' | 'disconnect' | 'continue') => {
@@ -725,7 +839,7 @@ const App: React.FC = () => {
     trackEvent('mission_completed', { score: stats.score, wave: stats.wave });
     finalizedRunGameIdRef.current = gameId;
     setRunReceiptStatus('finalizing');
-    const sessionPromise = runSessionPromiseRef.current ?? startRunSession();
+    const sessionPromise = runSessionPromiseRef.current ?? startRunSession({ testRun: isOwnerTestRun });
     const receiptPromise = sessionPromise
       .then((session) => finishRunSession(session, {
         score: stats.score,
@@ -737,7 +851,7 @@ const App: React.FC = () => {
       .then((receipt) => {
         setRunReceipt(receipt);
         setRunReceiptStatus(receipt.integrity === 'local-unverified' ? 'local' : 'ready');
-        if (receipt.integrity !== 'local-unverified') {
+        if (receipt.integrity !== 'local-unverified' && !receipt.testRun) {
           setLatestVerifiedRun(receipt);
           localStorage.setItem(STORAGE_KEYS.LATEST_RUN_RECEIPT, JSON.stringify(receipt));
         }
@@ -761,17 +875,17 @@ const App: React.FC = () => {
         return;
       }
 
-      if (stats.score > stats.highScore) {
+      if (!isOwnerTestRun && stats.score > stats.highScore) {
         localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.score.toString());
         setStats(s => ({ ...s, highScore: s.score }));
       }
 
-      if (stats.score > 0) {
+      if (stats.score > 0 || isOwnerTestRun) {
         setScoreSubmitError('');
         setShowNameInput(true);
       }
     }
-  }, [gameId, gameState, stats.score, stats.wave, stats.highScore]);
+  }, [gameId, gameState, isOwnerTestRun, stats.score, stats.wave, stats.highScore]);
 
   const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
@@ -785,6 +899,30 @@ const App: React.FC = () => {
     const wave = stats.wave;
     const scoreKey = `${gameId}:${score}:${wave}`;
     const submittedAt = new Date().toISOString();
+
+    if (isOwnerTestRun) {
+      let recordReady = false;
+      try {
+        const verifiedReceipt = await finalizeCurrentRun();
+        if (!verifiedReceipt) {
+          throw new Error('Test record is still preparing. Please try again.');
+        }
+        submittedScoreKeysRef.current.add(scoreKey);
+        recordReady = true;
+        return true;
+      } catch (error) {
+        console.error('Test record preparation error', error);
+        setScoreSubmitError(error instanceof Error ? error.message : 'Test record could not be prepared.');
+        return false;
+      } finally {
+        submittingScoreRef.current = false;
+        setIsSubmittingScore(false);
+        if (recordReady) {
+          setShowNameInput(false);
+          setShowMissionRecordPreview(true);
+        }
+      }
+    }
 
     const newEntry: LeaderboardEntry = {
       name,
@@ -926,6 +1064,26 @@ const App: React.FC = () => {
     setShowNameInput(false);
     setPlayerNameInput('');
     setScoreSubmitError('');
+    setActiveRunMode('standard');
+    setGameState(GameState.MENU);
+  };
+
+  const openMissionRecordWeeklyFunding = () => {
+    if (!missionRecordWeeklyFunding) return;
+    if (missionRecordWeeklyFunding.status === 'selected' && missionRecordWeeklyFunding.proposalUrl) {
+      void openResearchHubProposal(missionRecordWeeklyFunding.proposalUrl);
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', 'proposals');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    setScorecardChampionWinner(
+      missionRecordWeeklyFunding.status === 'claimable'
+        ? missionRecordWeeklyFunding.winner ?? null
+        : null
+    );
+    setShowMissionRecordPreview(false);
     setGameState(GameState.MENU);
   };
 
@@ -1018,6 +1176,16 @@ const App: React.FC = () => {
     : stats.wave === 2
       ? 'Replication Rift'
       : 'Deep Review Space';
+  const testChampionWinner: ArchivedWinner = {
+    periodKey: 'PILOT-TEST',
+    periodLabel: 'Pilot Test Preview',
+    winnerName: playerNameInput.trim().toUpperCase() || 'PROJECT WALLET',
+    score: stats.score,
+    wave: stats.wave,
+    scoreDate: new Date().toISOString(),
+    allocationRsc: 100,
+    status: 'finalized'
+  };
   const missionResultBanner = (
     <div className="relative overflow-hidden border border-cyan-200/30 bg-[radial-gradient(circle_at_82%_48%,rgba(59,130,246,0.24),transparent_27%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.98))] px-4 py-3 shadow-[0_0_36px_rgba(34,211,238,0.12)] [clip-path:polygon(18px_0,calc(50%_-_26px)_0,calc(50%_-_16px)_8px,calc(50%_+_16px)_8px,calc(50%_+_26px)_0,calc(100%_-_18px)_0,100%_18px,100%_calc(100%_-_18px),calc(100%_-_18px)_100%,18px_100%,0_calc(100%_-_18px),0_18px)]">
       <div className="pointer-events-none absolute left-0 top-5 h-12 w-24 -translate-x-10 -skew-x-[24deg] border-y border-r border-yellow-200/35 bg-yellow-300/10" />
@@ -1027,8 +1195,8 @@ const App: React.FC = () => {
 
       <div className="relative">
         <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-cyan-200">Stage {stats.wave} - {resultEncounter}</p>
-        <h2 className={`arcade-font mt-1 text-xl font-black uppercase tracking-widest ${showNameInput && scoreQualification.isMonthlyChampion ? 'text-yellow-300' : pubStatus.color}`}>
-          {showNameInput ? (scoreQualification.isMonthlyChampion ? 'Current Weekly Lead' : 'Mission Record') : pubStatus.title}
+        <h2 className={`arcade-font mt-1 text-xl font-black uppercase tracking-widest ${isOwnerTestRun || (showNameInput && scoreQualification.isMonthlyChampion) ? 'text-yellow-300' : pubStatus.color}`}>
+          {isOwnerTestRun ? 'Pilot Test Record' : showNameInput ? (scoreQualification.isMonthlyChampion ? 'Current Weekly Lead' : 'Mission Record') : pubStatus.title}
         </h2>
         <p className="mt-1 text-3xl font-black text-white">{stats.score.toLocaleString()}</p>
       </div>
@@ -1072,17 +1240,21 @@ const App: React.FC = () => {
               running: gameState === GameState.PLAYING,
               onGameOver: () => setGameState(GameState.GAMEOVER),
               onContinueStarted: () => setGameState(GameState.PLAYING),
-              isTransmissionOpen: Boolean(activeStoryBeat),
+              isTransmissionOpen: introMissionLocked || Boolean(activeStoryBeat),
               bombCommand,
               continueCommand,
-              polishSettings
+              polishSettings,
+              playerShipUrl,
+              testMode: isOwnerTestRun,
+              testWaveCommand,
+              testFlaskCommand
             }}
-            hud={gameState === GameState.PLAYING ? {
+            hud={gameState === GameState.PLAYING || (gameState === GameState.PAUSED && isOwnerWallet && isOwnerTestRun) ? {
               showLabGlow,
               onDisableLabGlow: () => setShowLabGlow(false),
               isUpgradeReady: false,
-              onPause: () => setGameState(GameState.PAUSED),
-              bombLocked: introMissionLocked || Boolean(activeStoryBeat),
+              onPause: () => setGameState(gameState === GameState.PAUSED ? GameState.PLAYING : GameState.PAUSED),
+              bombLocked: gameState !== GameState.PLAYING || introMissionLocked || Boolean(activeStoryBeat),
               onUseBomb: () => {
                 if (introMissionLocked || activeStoryBeat) return;
                 setBombCommand({ nonce: Date.now() });
@@ -1101,6 +1273,9 @@ const App: React.FC = () => {
           archivedWinners={archivedWinners}
           walletRecords={walletRecords}
           walletAddress={activeWalletAddress}
+          selectedShipId={usableShipId}
+          bioShipUnlocked={bioShipUnlocked}
+          onSelectShip={setSelectedShipId}
           latestRunReceipt={latestVerifiedRun}
           isLoading={loadingLeaderboard}
           proposals={fundingProposals}
@@ -1115,6 +1290,8 @@ const App: React.FC = () => {
           championClaimStatus={championClaimStatus}
           championClaimMessage={championClaimMessage}
           onClaimWeeklyChampion={claimWeeklyChampion}
+          requestedChampionWinner={scorecardChampionWinner}
+          onCloseRequestedChampion={() => setScorecardChampionWinner(null)}
           walletControl={!activeStoryBeat ? (
             <WalletControl
               wallet={wallet}
@@ -1127,7 +1304,39 @@ const App: React.FC = () => {
         />
       )}
 
-      {gameState === GameState.PAUSED && (
+      {gameState === GameState.PAUSED && isOwnerWallet && isOwnerTestRun && showTestChampionPreview ? (
+        <div className="absolute inset-0 z-40">
+          <StartScreen
+            onStart={() => setShowTestChampionPreview(false)}
+            allTimeLeaderboard={leaderboard}
+            monthlyLeaderboard={monthlyLeaderboard}
+            archivedWinners={archivedWinners}
+            walletRecords={walletRecords}
+            walletAddress={activeWalletAddress}
+            selectedShipId={usableShipId}
+            bioShipUnlocked={bioShipUnlocked}
+            onSelectShip={setSelectedShipId}
+            latestRunReceipt={runReceipt}
+            isLoading={loadingLeaderboard}
+            proposals={fundingProposals}
+            proposalStatus={proposalStatus}
+            onOpenReferral={openReferral}
+            onOpenFund={openResearchHubFund}
+            onOpenProposal={openResearchHubProposal}
+            onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
+            onOpenTreasurySend={openTreasurySend}
+            onOpenSwap={openRscSwap}
+            onOpenLatestRecord={openLatestMissionRecord}
+            championClaimStatus="idle"
+            championClaimMessage=""
+            onClaimWeeklyChampion={claimWeeklyChampion}
+            testChampionWinner={testChampionWinner}
+            onCloseTestChampionPreview={() => setShowTestChampionPreview(false)}
+          />
+        </div>
+      ) : null}
+
+      {gameState === GameState.PAUSED && !(isOwnerWallet && isOwnerTestRun) && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-sm p-1">
             <div className="scicon-border-container"></div>
@@ -1182,6 +1391,48 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {gameState === GameState.PAUSED && isOwnerWallet && isOwnerTestRun && !showTestChampionPreview ? (
+        <div className="absolute inset-x-3 top-[max(5.25rem,calc(env(safe-area-inset-top)+5.25rem))] z-50 mx-auto max-w-md border border-cyan-200/45 bg-slate-950/88 p-2 shadow-[0_0_30px_rgba(34,211,238,0.2)] backdrop-blur-md">
+          <div className="mb-2 flex items-center justify-between border-b border-cyan-200/20 pb-2">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100">Pilot Test Controls</p>
+              <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.1em] text-slate-400">Frame frozen</p>
+            </div>
+            <button type="button" onClick={() => setGameState(GameState.PLAYING)} className="border border-emerald-200/45 bg-emerald-300/18 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-50">
+              Resume
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            <span className="px-1 text-[9px] font-black uppercase tracking-[0.12em] text-cyan-200">Jump wave</span>
+            <div className="flex overflow-hidden border border-cyan-200/30">
+              {[1, 2, 3, 4].map((wave) => (
+                <button
+                  key={wave}
+                  type="button"
+                  onClick={() => jumpOwnerTestWave(wave)}
+                  className={`min-h-8 min-w-8 border-r border-cyan-200/20 px-2 text-[10px] font-black last:border-r-0 ${stats.wave === wave ? 'bg-cyan-300/25 text-white' : 'bg-slate-950/55 text-cyan-200'}`}
+                  aria-label={`Jump to wave ${wave}`}
+                >
+                  W{wave}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={refillOwnerTestFlasks} className="border border-cyan-200/35 bg-cyan-300/12 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-cyan-50">
+              Refill 40 flasks
+            </button>
+            <button type="button" onClick={() => setShowTestChampionPreview(true)} className="border border-yellow-200/35 bg-yellow-300/12 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-yellow-50">
+              Preview winner choice
+            </button>
+            <button type="button" onClick={finishOwnerTestRun} className="border border-violet-200/35 bg-violet-300/12 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-violet-50">
+              Finish test run
+            </button>
+            <button type="button" onClick={resetGame} className="border border-red-200/25 bg-red-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-red-100">
+              Quit
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {gameState === GameState.GAMEOVER && (
         <div className="absolute inset-0 z-20 flex items-center justify-center overflow-hidden bg-black/82 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-md">
           <div className="relative w-full max-w-md overflow-hidden border border-red-300/20 bg-slate-950/94 shadow-[0_24px_90px_rgba(0,0,0,0.62)] backdrop-blur-xl animate-bounce-in [clip-path:polygon(18px_0,100%_0,100%_calc(100%_-_18px),calc(100%_-_18px)_100%,0_100%,0_18px)]">
@@ -1195,10 +1446,10 @@ const App: React.FC = () => {
                 <>
                   {runReceiptStatus === 'local' || runReceiptStatus === 'error' ? (
                     <div className="rounded-[7px] border border-amber-200/25 bg-amber-300/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
-                      Run verification is offline. Retry when connected to submit globally.
+                      {isOwnerTestRun ? 'Test record verification is offline. Reconnect before preparing the mint preview.' : 'Run verification is offline. Retry when connected to submit globally.'}
                     </div>
                   ) : null}
-                  {!runReceipt && runReceiptStatus !== 'finalizing' ? continueRunControls : null}
+                  {!isOwnerTestRun && !runReceipt && runReceiptStatus !== 'finalizing' ? continueRunControls : null}
 
                   <form onSubmit={submitScore} className="grid gap-2">
                     {scoreSubmitError ? (
@@ -1224,7 +1475,7 @@ const App: React.FC = () => {
                         disabled={!playerNameInput || isSubmittingScore}
                         className="scicon-btn min-h-11 min-w-28 px-3 py-2 text-[11px] font-bold disabled:cursor-wait disabled:opacity-60"
                       >
-                        {isSubmittingScore ? 'Saving...' : 'Submit'}
+                        {isSubmittingScore ? 'Saving...' : isOwnerTestRun ? 'Prepare record' : 'Submit'}
                       </button>
                     </div>
                     <button
@@ -1233,13 +1484,13 @@ const App: React.FC = () => {
                       disabled={isSubmittingScore}
                       className="justify-self-center px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-500 transition hover:text-red-100 disabled:opacity-50"
                     >
-                      Skip score
+                      {isOwnerTestRun ? 'Exit test' : 'Skip score'}
                     </button>
                   </form>
                 </>
               ) : (
                 <>
-                  {!runReceipt && runReceiptStatus !== 'finalizing' ? continueRunControls : null}
+                  {!isOwnerTestRun && !runReceipt && runReceiptStatus !== 'finalizing' ? continueRunControls : null}
 
                   <div className="grid gap-2">
                     {runReceipt && runReceipt.integrity !== 'local-unverified' ? (
@@ -1260,7 +1511,7 @@ const App: React.FC = () => {
                         </button>
                       </div>
                     ) : null}
-                    {scoreSaved ? (
+                    {scoreSaved && !isOwnerTestRun ? (
                       <p className="text-center text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100">
                         Global score saved
                       </p>
@@ -1359,6 +1610,8 @@ const App: React.FC = () => {
             onConnect={connectWallet}
             onGetBaseApp={openBaseAppInvite}
             onMint={mintCurrentMissionRecord}
+            weeklyFunding={missionRecordWeeklyFunding}
+            onOpenWeeklyFunding={openMissionRecordWeeklyFunding}
             onClose={() => setShowMissionRecordPreview(false)}
           />
         </React.Suspense>

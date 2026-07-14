@@ -21,7 +21,7 @@ import {
   getPrimaryAssetPath
 } from './levelConfig';
 import { audioService } from './audioService';
-import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getFlaskProgress } from './flaskProgress';
+import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getChargeForStoredFlasks, getFlaskProgress } from './flaskProgress';
 
 // --- Helper Classes ---
 
@@ -297,6 +297,7 @@ const getReadyImage = (url: string) => {
 
 const GAMEPLAY_ASSET_URLS = [
   ASSETS.PLAYER_SHIP,
+  ASSETS.BIO_SHIP,
   ASSETS.RSC_TOKEN,
   ASSETS.REAL_RSC_ICON,
   ASSETS.GAME_BG_BACK,
@@ -315,6 +316,7 @@ const GAMEPLAY_ASSET_URLS = [
   ...ASSETS.ENEMY_DRONE_FRAMES,
   ...ASSETS.ENEMY_SWARM_FRAMES,
   ...ASSETS.ENEMY_BRICK_FRAMES,
+  ...ASSETS.ASTEROID_BELT_FRAMES,
   ...ASSETS.ENEMY_JOURNAL_FRAMES
 ];
 
@@ -384,10 +386,18 @@ const POWERUP_COIN_MAGNET_RADIUS = 420;
 const BOMB_DROP_CHANCE = 0.012;
 const ELITE_BOMB_DROP_CHANCE = 0.05;
 const MINI_BOSS_BOMB_REWARD_CHANCE = 0.28;
-const BOSS_BOMB_REWARD_CHANCE = 0.4;
 const BOMB_DAMAGE_BOSS = 14;
 const BOMB_DAMAGE_MINI_BOSS = 18;
 const BOMB_DAMAGE_INVADER = 3;
+const PLAYER_THRUSTER_PALETTES = [
+  { core: 'rgba(255,255,255,0.95)', mid: 'rgba(103,232,249,0.9)', edge: 'rgba(37,99,235,0.62)', fade: 'rgba(34,211,238,0)', glow: '#22d3ee', streak: 'rgba(103,232,249,0.34)' },
+  { core: 'rgba(255,255,255,0.98)', mid: 'rgba(167,139,250,0.98)', edge: 'rgba(109,40,217,0.84)', fade: 'rgba(124,58,237,0)', glow: '#a78bfa', streak: 'rgba(196,181,253,0.5)' },
+  { core: 'rgba(255,255,255,0.98)', mid: 'rgba(232,121,249,0.98)', edge: 'rgba(147,51,234,0.84)', fade: 'rgba(217,70,239,0)', glow: '#e879f9', streak: 'rgba(240,171,252,0.52)' },
+  { core: 'rgba(255,255,255,0.99)', mid: 'rgba(244,114,182,0.98)', edge: 'rgba(190,24,93,0.84)', fade: 'rgba(236,72,153,0)', glow: '#f472b6', streak: 'rgba(251,207,232,0.54)' },
+  { core: 'rgba(255,255,255,0.99)', mid: 'rgba(251,146,60,0.98)', edge: 'rgba(194,65,12,0.84)', fade: 'rgba(249,115,22,0)', glow: '#fb923c', streak: 'rgba(254,215,170,0.54)' },
+  { core: 'rgba(255,255,255,1)', mid: 'rgba(250,204,21,0.97)', edge: 'rgba(249,115,22,0.78)', fade: 'rgba(234,179,8,0)', glow: '#facc15', streak: 'rgba(254,240,138,0.52)' },
+  { core: 'rgba(255,255,255,1)', mid: 'rgba(254,240,138,0.99)', edge: 'rgba(251,146,60,0.86)', fade: 'rgba(250,204,21,0)', glow: '#fef08a', streak: 'rgba(255,255,255,0.58)' }
+] as const;
 const MOBILE_DETAIL_BREAKPOINT = 560;
 const MOBILE_PARTICLE_CAP = 120;
 const DESKTOP_PARTICLE_CAP = 240;
@@ -400,9 +410,9 @@ const MOBILE_LEAN_PLAYER_SHOT_CAP = 20;
 const DESKTOP_PLAYER_SHOT_CAP = 28;
 const PENDING_PLAYER_SHOT_CAP = 8;
 const COLLISION_COLUMN_WIDTH = 96;
-const EMPTY_WINGMAN_OFFSETS: number[] = [];
-const DOUBLE_WINGMAN_OFFSETS = [42];
-const TRIPLE_WINGMAN_OFFSETS = [-42, 42];
+const EMPTY_GUN_POD_OFFSETS: number[] = [];
+const DOUBLE_GUN_POD_OFFSETS = [42];
+const TRIPLE_GUN_POD_OFFSETS = [-42, 42];
 const DEFAULT_POLISH_SETTINGS: GamePolishSettings = {
   screenShake: true,
   highDensityParticles: true
@@ -520,8 +530,10 @@ export interface GameEngineOptions {
   campaign?: GameCampaign;
   previewMode?: boolean;
   audioEnabled?: boolean;
+  playerShipUrl?: string;
   initialLevelId?: string;
   initialWaveId?: string;
+  testMode?: boolean;
 }
 
 export interface GameRuntimeState {
@@ -666,13 +678,13 @@ export class GameEngine {
   liveThreatCount: number = 0;
   weaponVolley: number = 0;
   announcedFireRateLevel: number = 0;
-  phaseAnnouncementMask: number = 0;
   mobileProfile: boolean = false;
   polishSettings: GamePolishSettings = { ...DEFAULT_POLISH_SETTINGS };
   performanceMode: boolean = false;
   heavySceneLoad: boolean = false;
   campaign: GameCampaign;
   bombSpriteUrl: string = DEFAULT_BOMB_SPRITE_URL;
+  playerShipUrl: string = ASSETS.PLAYER_SHIP;
   campaignWaves: CampaignWaveEntry[] = [];
   currentCampaignIndex: number = 0;
   previewMode: boolean = false;
@@ -684,17 +696,21 @@ export class GameEngine {
   pendingConfiguredEncounter: RuntimeEncounterEvent | null = null;
   initialLevelId?: string;
   initialWaveId?: string;
+  testMode: boolean = false;
   
   constructor(stats: Stats, options: GameEngineOptions = {}) {
     this.stats = stats;
     this.campaign = cloneGameCampaign(options.campaign ?? DEFAULT_GAME_CAMPAIGN);
     this.bombSpriteUrl = getPrimaryAssetPath(this.campaign.hudAssets.bombIconAssetKey);
+    this.playerShipUrl = options.playerShipUrl || ASSETS.PLAYER_SHIP;
     loadImage(this.bombSpriteUrl);
+    loadImage(this.playerShipUrl);
     this.campaignWaves = this.buildCampaignWaveEntries(this.campaign);
     this.previewMode = options.previewMode ?? false;
     this.audioEnabled = options.audioEnabled ?? !this.previewMode;
     this.initialLevelId = options.initialLevelId;
     this.initialWaveId = options.initialWaveId;
+    this.testMode = Boolean(options.testMode);
     const initialIndex = this.findCampaignWaveIndex(options.initialLevelId, options.initialWaveId);
     this.currentCampaignIndex = initialIndex >= 0 ? initialIndex : 0;
     this.player = new Entity(EntityType.PLAYER, 0, 0);
@@ -869,6 +885,58 @@ export class GameEngine {
     this.wave = index + 1;
     this.stats.wave = this.wave;
     this.restartPreview();
+    return true;
+  }
+
+  setTestMode(enabled: boolean) {
+    this.testMode = Boolean(enabled);
+    if (this.testMode && this.lives <= 0) {
+      this.lives = Math.max(1, GAME_CONFIG.PLAYER_LIVES);
+      this.stats.lives = this.lives;
+      this.deathSequenceFrames = 0;
+      this.deathSequenceStartedAtMs = 0;
+      this.gameActive = true;
+      this.playerDrawAlpha = 1;
+      this.playerDrawScale = 1;
+      this.setPlayerHomePosition();
+    }
+  }
+
+  jumpToCampaignWave(waveNumber: number) {
+    if (this.campaignWaves.length === 0) return false;
+
+    const targetIndex = Math.max(0, Math.min(this.campaignWaves.length - 1, Math.floor(waveNumber) - 1));
+    this.currentCampaignIndex = targetIndex;
+    this.wave = targetIndex + 1;
+    this.stats.wave = this.wave;
+    this.entities = [];
+    this.pendingPlayerShots = [];
+    this.activePowerups.clear();
+    this.gameActive = true;
+    this.previewComplete = false;
+    this.resetWaveProgress();
+    this.introFlightFrames = 0;
+    this.waveDepartureFrames = 0;
+    this.deathSequenceFrames = 0;
+    this.deathSequenceStartedAtMs = 0;
+    this.invincibleTimer = 180;
+    this.playerDrawScale = 1;
+    this.playerDrawAlpha = 1;
+    this.playerTilt = 0;
+    this.playerVel = { x: 0, y: 0 };
+    this.setPlayerHomePosition();
+    this.refreshLoadState();
+
+    const sector = this.getWaveSector();
+    const wave = this.getCurrentWaveDefinition();
+    this.spawnFloatingText(
+      this.width / 2,
+      this.height / 2,
+      wave ? `${wave.name} - ${sector.name}` : `WAVE ${this.wave} - ${sector.name}`,
+      sector.accent,
+      this.mobileProfile ? 20 : 26
+    );
+    this.playSound('wave');
     return true;
   }
 
@@ -1352,7 +1420,7 @@ export class GameEngine {
     this.stats.coins = 0;
     this.stats.totalCoins = 0;
     this.stats.bombs = 2;
-    this.stats.bombCharge = 0;
+    this.stats.bombCharge = this.testMode ? getChargeForStoredFlasks(40) : 0;
     this.stats.bombChargeMax = BASE_FLASK_CHARGE_MAX;
     this.stats.wave = this.wave;
     this.resetWaveProgress();
@@ -1419,7 +1487,6 @@ export class GameEngine {
     this.bossWarningDuration = 0;
     this.pendingBossType = null;
     this.waveTransitionPending = false;
-    this.phaseAnnouncementMask = 0;
     this.previewComplete = false;
     this.configuredEncounterIds.clear();
     this.configuredSpawnCounts.clear();
@@ -2013,7 +2080,6 @@ export class GameEngine {
     this.spawnConfiguredSupportEvents();
     this.spawnEnemies();
     this.updateEnemyFire();
-    this.announceWaveProgress();
 
     this.entities.forEach(e => {
       if (e.isBeam) {
@@ -2194,34 +2260,16 @@ export class GameEngine {
     this.bgY = (this.bgY + 1) % this.height;
   }
 
-  announceWaveProgress() {
-    if (this.stats.isBossActive || this.inBossWarningSequence) return;
-
-    const milestones = [
-      { bit: 1, threshold: 0.18, label: 'FORMATION SIGNAL' },
-      { bit: 2, threshold: 0.48, label: 'ELITE PRESSURE' },
-      { bit: 4, threshold: 0.82, label: 'FINAL APPROACH' }
-    ];
-
-    for (const milestone of milestones) {
-      if (this.stats.bossProgress < milestone.threshold || (this.phaseAnnouncementMask & milestone.bit) !== 0) continue;
-      this.phaseAnnouncementMask |= milestone.bit;
-      const sector = this.getWaveSector();
-      this.spawnFloatingText(this.width / 2, Math.max(96, this.height * 0.2), milestone.label, sector.accent, this.mobileProfile ? 17 : 21);
-      this.playSound('wave', 0.72, { pitchOffset: milestone.threshold * 0.08 });
-    }
-  }
-
-  getWingmanOffsets() {
+  getGunPodOffsets() {
     if (this.activePowerups.has(PowerupType.TRIPLE_SHOT)) {
-      return TRIPLE_WINGMAN_OFFSETS;
+      return TRIPLE_GUN_POD_OFFSETS;
     }
 
     if (this.activePowerups.has(PowerupType.DOUBLE_SHOT)) {
-      return DOUBLE_WINGMAN_OFFSETS;
+      return DOUBLE_GUN_POD_OFFSETS;
     }
 
-    return EMPTY_WINGMAN_OFFSETS;
+    return EMPTY_GUN_POD_OFFSETS;
   }
 
   countPlayerShots(includeQueued: boolean = false) {
@@ -2371,7 +2419,7 @@ export class GameEngine {
     this.spawnPlayerBullet(weaponSpeed, 0, 0, 0, -0.04, true, weaponKind);
 
     const lean = this.shouldUseLeanEffects();
-    this.getWingmanOffsets().forEach((offsetX, index) => {
+    this.getGunPodOffsets().forEach((offsetX, index) => {
       this.queuePlayerBullet({
         fireFrame: this.frameCount + index + 1,
         speed: 10.4,
@@ -2578,7 +2626,9 @@ export class GameEngine {
     const centerX = target.x + target.width / 2;
     const centerY = target.y + target.height / 2;
     if (points > 0) this.spawnFloatingText(centerX, centerY - 10, `+${points}`, '#67e8f9', 16);
-    this.spawnCoin(target.x + target.width / 2, target.y + target.height / 2);
+    if (target.type !== EntityType.BOSS) {
+      this.spawnCoin(target.x + target.width / 2, target.y + target.height / 2);
+    }
     if (target.type === EntityType.ENEMY_SWARM && target.formation === 'orbit') {
       this.spawnFloatingText(centerX, centerY - 26, 'SHIELD -1', '#a7f3d0', 14);
       this.spawnRingEffect(centerX, centerY, '#a7f3d0');
@@ -2594,8 +2644,10 @@ export class GameEngine {
     const powerupDropChance = Number.isFinite(configuredPowerupDropChance)
       ? clamp(configuredPowerupDropChance, 0, 1)
       : isElite ? 0.08 : 0;
-    if (powerupDropChance > 0 && Math.random() < powerupDropChance) this.spawnPowerup(target.x, target.y);
-    if (!this.isBombResolving && (this.stats.bombs || 0) < MAX_BOMBS) {
+    if (target.type !== EntityType.BOSS && powerupDropChance > 0 && Math.random() < powerupDropChance) {
+      this.spawnPowerup(target.x, target.y);
+    }
+    if (target.type !== EntityType.BOSS && !this.isBombResolving && (this.stats.bombs || 0) < MAX_BOMBS) {
       const dropChance = isElite ? ELITE_BOMB_DROP_CHANCE : BOMB_DROP_CHANCE;
       if (Math.random() < dropChance) {
         this.spawnBombDrop(centerX - 19, centerY - 19);
@@ -2608,10 +2660,6 @@ export class GameEngine {
       this.spawnFloatingText(centerX, centerY - 42, `+${reward}`, '#fef08a', 22);
       this.addHitStop(8);
       this.addShake(4.2);
-      const miniBossCoinDrops = 4 + Math.min(8, this.stats.wave * 2);
-      for (let i = 0; i < miniBossCoinDrops; i++) {
-        this.spawnCoin(target.x + Math.random() * target.width, target.y + Math.random() * target.height);
-      }
       if (!Number.isFinite(target.powerupDropChance)) {
         const miniBossPowerupDrops = this.stats.wave >= 2 ? 2 : 1;
         for (let i = 0; i < miniBossPowerupDrops; i++) {
@@ -2645,27 +2693,6 @@ export class GameEngine {
       this.inBossWarningSequence = false;
       this.pendingBossType = null;
       this.bossWarningFrame = 0;
-      const bossCoinDrops = 7 + Math.min(11, this.stats.wave * 3);
-      for (let i = 0; i < bossCoinDrops; i++) {
-        this.spawnCoin(target.x + Math.random() * target.width, target.y + Math.random() * target.height);
-      }
-      if (!Number.isFinite(target.powerupDropChance)) {
-        const bossPowerupDrops = 2 + Math.min(2, Math.floor(this.stats.wave / 2));
-        for (let i = 0; i < bossPowerupDrops; i++) {
-          this.spawnPowerup(
-            target.x + (target.width * ((i + 1) / (bossPowerupDrops + 1))),
-            target.y + 50 + Math.random() * Math.max(30, target.height - 70)
-          );
-        }
-      }
-      const bossBombDrops = (this.stats.bombs || 0) < MAX_BOMBS && Math.random() < BOSS_BOMB_REWARD_CHANCE ? 1 : 0;
-      for (let i = 0; i < bossBombDrops; i++) {
-        this.spawnBombDrop(
-          target.x + (target.width * 0.5) - 19,
-          target.y + 50 + Math.random() * Math.max(30, target.height - 70)
-        );
-      }
-
       this.playSound('electricity');
 
       this.spawnFloatingText(this.width / 2, this.height / 2, "WAVE COMPLETE!", "#00FF00");
@@ -2794,7 +2821,8 @@ export class GameEngine {
     const normalized = String(spriteKey || '').toLowerCase();
     if (normalized.includes('journal')) return ASSETS.ENEMY_JOURNAL;
     if (normalized.includes('swarm')) return ASSETS.ENEMY_SWARM_FRAMES[0];
-    if (normalized.includes('asteroid') || normalized.includes('brick')) return ASSETS.ENEMY_BRICK_FRAMES[0];
+    if (normalized.includes('asteroid')) return ASSETS.ASTEROID_BELT_FRAMES[0];
+    if (normalized.includes('brick') || normalized.includes('bulwark')) return ASSETS.ENEMY_BRICK_FRAMES[0];
     if (normalized.includes('mini') || normalized.includes('bottleneck')) return ASSETS.MINI_BOSS;
     if (normalized.includes('wall') || normalized.includes('paywall')) return ASSETS.WALL_BOSS_SEGMENT;
     if (normalized.includes('gate') || normalized.includes('sentinel') || normalized.includes('final')) return ASSETS.FINAL_BOSS;
@@ -3360,13 +3388,6 @@ export class GameEngine {
         : Math.sin(i * 0.9) * 0.55;
     }
 
-    const labels: Record<'row' | 'v' | 'sine' | 'pincer', string> = {
-      row: 'LINE SWARM!',
-      v: 'V-SWARM!',
-      sine: 'WAVE SWARM!',
-      pincer: 'PINCER!'
-    };
-    this.spawnFloatingText(centerX, Math.max(90, this.height * 0.18), labels[mode], '#34d399', this.width < 520 ? 18 : 22);
   }
 
   createEnemy(type: EntityType, x: number, y: number, overrides: EnemyRuntimeOverrides = {}) {
@@ -3598,6 +3619,8 @@ export class GameEngine {
         asteroid.sourceItemId = 'asteroid-belt';
         if (asteroid.spriteUrl) loadImage(asteroid.spriteUrl);
         asteroid.spriteFrames?.forEach(loadImage);
+      } else {
+        asteroid.spriteFrames = [...ASSETS.ASTEROID_BELT_FRAMES];
       }
       this.entities.push(asteroid);
     }
@@ -4178,7 +4201,10 @@ export class GameEngine {
           const incomingDamage = e.type === EntityType.PROJECTILE
             ? Math.max(1, Math.round(Number(e.damage) || 1))
             : Math.max(1, Math.round(Number(e.contactDamage) || 1));
-          this.lives -= incomingDamage;
+          if (!this.testMode) {
+            this.lives -= incomingDamage;
+          }
+          this.stats.lives = this.lives;
           this.invincibleTimer = 60; 
           this.playSound('hit');
           this.spawnExplosion(this.player.x, this.player.y, '#ffffff');
@@ -4192,7 +4218,7 @@ export class GameEngine {
           this.playerVel.y += 2.4;
           // Only delete bullet if it isn't a beam
           if (e.type === EntityType.PROJECTILE && !e.isBeam) e.markedForDeletion = true;
-          if (this.lives <= 0) this.startDeathSequence();
+          if (!this.testMode && this.lives <= 0) this.startDeathSequence();
         }
       }
 
@@ -4528,7 +4554,7 @@ export class GameEngine {
     this.entities.forEach(e => this.drawEntity(ctx, e));
     this.drawPlayerAfterimages(ctx);
     this.drawResearchBeam(ctx);
-    this.drawWingmen(ctx);
+    this.drawGunPods(ctx);
     if (this.lives > 0 || this.deathSequenceFrames > 0) this.drawEntity(ctx, this.player);
     
     const invaders = this.invaderDrawBuffer;
@@ -4586,7 +4612,7 @@ export class GameEngine {
   }
 
   drawPlayerAfterimages(ctx: CanvasRenderingContext2D) {
-    const img = getReadyImage(ASSETS.PLAYER_SHIP);
+    const img = getReadyImage(this.playerShipUrl);
     if ((this.mobileProfile || this.performanceMode) && this.playerAfterimages.length > 3) {
       this.playerAfterimages.length = 3;
     }
@@ -4659,7 +4685,8 @@ export class GameEngine {
       return this.getAnimatedFrame(ASSETS.ENEMY_SWARM_FRAMES, e, 5);
     }
     if (e.type === EntityType.ENEMY_BRICK) {
-      return ASSETS.ENEMY_BRICK_FRAMES[e.variant % ASSETS.ENEMY_BRICK_FRAMES.length];
+      const frames = e.variant >= 900 ? ASSETS.ASTEROID_BELT_FRAMES : ASSETS.ENEMY_BRICK_FRAMES;
+      return frames[e.variant % frames.length];
     }
     if (e.type === EntityType.ENEMY_JOURNAL) {
       return this.getAnimatedFrame(ASSETS.ENEMY_JOURNAL_FRAMES, e, 6);
@@ -4852,31 +4879,79 @@ export class GameEngine {
       ctx.restore();
   }
 
-  drawWingmanThruster(ctx: CanvasRenderingContext2D, size: number) {
-      const flameLength = size * (0.34 + Math.sin(this.frameCount * 0.5) * 0.06);
-      const nozzleY = size * 0.3;
+  drawGunPod(ctx: CanvasRenderingContext2D, size: number, isTriple: boolean, index: number) {
+      const half = Math.round(size / 2);
+      const accent = isTriple ? '#a78bfa' : '#facc15';
+      const accentDark = isTriple ? '#6d28d9' : '#b45309';
+      const isFiring = this.frameCount - this.lastShotFrame <= 4 && (this.frameCount + index) % 3 === 0;
+      const hoverLength = Math.round(size * (0.16 + Math.sin((this.frameCount + index * 5) * 0.45) * 0.035));
 
       ctx.save();
+      ctx.imageSmoothingEnabled = false;
+
       ctx.globalCompositeOperation = 'lighter';
-      const gradient = ctx.createLinearGradient(0, nozzleY, 0, nozzleY + flameLength);
-      gradient.addColorStop(0, 'rgba(255,255,255,0.95)');
-      gradient.addColorStop(0.32, 'rgba(103,232,249,0.92)');
-      gradient.addColorStop(1, 'rgba(37,99,235,0)');
-      ctx.shadowBlur = this.getGlowBlur(16);
+      ctx.shadowBlur = this.getGlowBlur(10);
       ctx.shadowColor = '#22d3ee';
-      ctx.fillStyle = gradient;
+      ctx.fillStyle = '#ecfeff';
+      ctx.fillRect(-2, Math.round(size * 0.3), 4, hoverLength);
+      ctx.fillStyle = '#22d3ee';
+      ctx.fillRect(-1, Math.round(size * 0.3) + hoverLength, 2, Math.max(2, Math.round(size * 0.08)));
+
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.shadowBlur = this.getGlowBlur(8);
+      ctx.shadowColor = accent;
+
+      ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.moveTo(-size * 0.07, nozzleY);
-      ctx.lineTo(size * 0.07, nozzleY);
-      ctx.lineTo(size * 0.03, nozzleY + flameLength);
-      ctx.lineTo(-size * 0.03, nozzleY + flameLength);
+      ctx.moveTo(-half + 3, -4);
+      ctx.lineTo(-half + 7, -9);
+      ctx.lineTo(half - 7, -9);
+      ctx.lineTo(half - 3, -4);
+      ctx.lineTo(half - 3, 8);
+      ctx.lineTo(half - 8, 12);
+      ctx.lineTo(-half + 8, 12);
+      ctx.lineTo(-half + 3, 8);
       ctx.closePath();
       ctx.fill();
+
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(-half, -2, 5, 10);
+      ctx.fillRect(half - 5, -2, 5, 10);
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(-half + 1, 0, 3, 5);
+      ctx.fillRect(half - 4, 0, 3, 5);
+
+      const barrelWidth = Math.max(6, Math.round(size * 0.22));
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(-Math.floor(barrelWidth / 2), -half + 1, barrelWidth, half - 3);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(-Math.floor(barrelWidth / 2) + 1, -half + 2, 2, half - 6);
+      ctx.fillStyle = accentDark;
+      ctx.fillRect(Math.ceil(barrelWidth / 2) - 2, -half + 3, 2, half - 7);
+
+      ctx.fillStyle = accentDark;
+      ctx.fillRect(-half + 7, -6, size - 14, 4);
+      ctx.fillStyle = accent;
+      ctx.fillRect(-half + 8, -5, size - 16, 2);
+      ctx.fillRect(-5, 1, 10, 8);
+      ctx.fillStyle = '#ecfeff';
+      ctx.fillRect(-2, 3, 4, 4);
+
+      if (isFiring) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.shadowBlur = this.getGlowBlur(14);
+        ctx.shadowColor = accent;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-3, -half - 7, 6, 6);
+        ctx.fillStyle = accent;
+        ctx.fillRect(-1, -half - 12, 2, 5);
+      }
+
       ctx.restore();
   }
 
-  drawWingmen(ctx: CanvasRenderingContext2D) {
-      const offsets = this.getWingmanOffsets();
+  drawGunPods(ctx: CanvasRenderingContext2D) {
+      const offsets = this.getGunPodOffsets();
       if (offsets.length === 0 || this.lives <= 0) return;
 
       const isTriple = this.activePowerups.has(PowerupType.TRIPLE_SHOT);
@@ -4888,11 +4963,11 @@ export class GameEngine {
       const fade = Math.min(1, remaining / 36);
       const centerX = this.player.x + this.player.width / 2;
       const centerY = this.player.y + this.player.height / 2;
-      const size = this.width < 520 ? 46 : 54;
+      const size = this.width < 520 ? 30 : 34;
 
       offsets.forEach((offset, index) => {
         const side = offset < 0 ? -1 : 1;
-        const targetY = centerY + (this.width < 520 ? 20 : 14) + Math.sin((this.frameCount * 0.08) + index) * 4;
+        const targetY = centerY + (this.width < 520 ? 10 : 6) + Math.sin((this.frameCount * 0.08) + index) * 4;
         const flyInY = targetY + (1 - entry) * 96;
         const flyInX = centerX + (offset * entry) + side * Math.sin(entry * Math.PI) * 14;
 
@@ -4900,25 +4975,19 @@ export class GameEngine {
         ctx.globalAlpha = this.playerDrawAlpha * fade;
         ctx.translate(flyInX, flyInY);
         ctx.rotate(this.playerTilt * 0.55 + side * 0.08);
-        ctx.scale(0.9, 0.9);
-        this.drawWingmanThruster(ctx, size);
-        const drew = this.drawSprite(ctx, ASSETS.PLAYER_SHIP, size, size, {
-          shadowColor: isTriple ? '#8b5cf6' : '#facc15',
-          shadowBlur: 14
-        });
-        if (!drew) {
-          ctx.fillStyle = isTriple ? '#8b5cf6' : '#facc15';
-          ctx.fillRect(-size / 2, -size / 2, size, size);
-        }
+        this.drawGunPod(ctx, size, isTriple, index);
         ctx.restore();
       });
   }
 
   drawPlayerThrusters(ctx: CanvasRenderingContext2D, e: Entity) {
       const speed = Math.hypot(this.playerVel.x, this.playerVel.y);
+      const speedLevel = Math.min(6, Math.max(0, Math.floor(this.stats.upgrades.speed || 0)));
+      const palette = PLAYER_THRUSTER_PALETTES[speedLevel] ?? PLAYER_THRUSTER_PALETTES[0];
       const cinematicBoost = this.introFlightFrames > 0 || this.waveDepartureFrames > 0 ? 1.8 : 1;
       const deathFade = this.deathSequenceFrames > 0 ? 1 - (this.deathSequenceFrames / this.deathSequenceDuration) : 0;
-      const boost = Math.max(cinematicBoost, 0.72 + Math.min(0.9, speed / 6)) * (1 - deathFade * 0.7);
+      const upgradeBoost = 1 + speedLevel * 0.055;
+      const boost = Math.max(cinematicBoost, 0.72 + Math.min(0.9, speed / 6)) * upgradeBoost * (1 - deathFade * 0.7);
       const flameLength = e.height * (0.24 + boost * 0.16) * (0.78 + Math.sin(this.frameCount * 0.55) * 0.18);
       const flameWidth = e.width * 0.075;
       const nozzleY = e.height * 0.28;
@@ -4929,13 +4998,13 @@ export class GameEngine {
       [-1, 1].forEach((side) => {
         const x = side * nozzleSpread;
         const gradient = ctx.createLinearGradient(x, nozzleY, x, nozzleY + flameLength);
-        gradient.addColorStop(0, 'rgba(255,255,255,0.95)');
-        gradient.addColorStop(0.24, 'rgba(103,232,249,0.9)');
-        gradient.addColorStop(0.62, 'rgba(37,99,235,0.62)');
-        gradient.addColorStop(1, 'rgba(34,211,238,0)');
+        gradient.addColorStop(0, palette.core);
+        gradient.addColorStop(0.24, palette.mid);
+        gradient.addColorStop(0.62, palette.edge);
+        gradient.addColorStop(1, palette.fade);
 
         ctx.shadowBlur = this.getGlowBlur(24 * boost);
-        ctx.shadowColor = '#22d3ee';
+        ctx.shadowColor = palette.glow;
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.moveTo(x - flameWidth, nozzleY);
@@ -4952,7 +5021,7 @@ export class GameEngine {
       });
 
       if (cinematicBoost > 1.1) {
-        ctx.strokeStyle = 'rgba(103,232,249,0.34)';
+        ctx.strokeStyle = palette.streak;
         ctx.lineWidth = 1.5;
         for (let i = 0; i < 4; i++) {
           const x = (i - 1.5) * e.width * 0.12;
@@ -4966,6 +5035,40 @@ export class GameEngine {
       ctx.restore();
   }
 
+  drawPlayerThrusterUpgradeOverlay(ctx: CanvasRenderingContext2D, e: Entity) {
+      const speedLevel = Math.min(6, Math.max(0, Math.floor(this.stats.upgrades.speed || 0)));
+      if (speedLevel <= 0) return;
+
+      const palette = PLAYER_THRUSTER_PALETTES[speedLevel] ?? PLAYER_THRUSTER_PALETTES[0];
+      const nozzleY = e.height * 0.26;
+      const nozzleSpread = e.width * 0.16;
+      const flameLength = e.height * (0.32 + speedLevel * 0.018)
+        * (0.88 + Math.sin(this.frameCount * 0.58) * 0.12);
+      const flameWidth = e.width * (0.072 + speedLevel * 0.003);
+
+      ctx.save();
+      [-1, 1].forEach((side) => {
+        const x = side * nozzleSpread;
+        const gradient = ctx.createLinearGradient(x, nozzleY, x, nozzleY + flameLength);
+        gradient.addColorStop(0, palette.core);
+        gradient.addColorStop(0.22, palette.mid);
+        gradient.addColorStop(0.72, palette.edge);
+        gradient.addColorStop(1, palette.fade);
+
+        ctx.shadowBlur = this.getGlowBlur(12 + speedLevel * 2.5);
+        ctx.shadowColor = palette.glow;
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(x - flameWidth, nozzleY);
+        ctx.lineTo(x + flameWidth, nozzleY);
+        ctx.lineTo(x + flameWidth * 0.32, nozzleY + flameLength);
+        ctx.lineTo(x - flameWidth * 0.32, nozzleY + flameLength);
+        ctx.closePath();
+        ctx.fill();
+      });
+      ctx.restore();
+  }
+
   drawEntity(ctx: CanvasRenderingContext2D, e: Entity) {
     if (e.isBeam) {
         this.drawLaser(ctx, e);
@@ -4976,7 +5079,7 @@ export class GameEngine {
     ctx.globalAlpha = 1.0;
     
     if (e.type === EntityType.PLAYER) {
-       const img = imageCache[ASSETS.PLAYER_SHIP];
+       const img = imageCache[this.playerShipUrl];
        const squash = clamp(this.playerSquash, -0.24, 0.24);
        ctx.globalAlpha = this.playerDrawAlpha;
        ctx.scale(this.playerDrawScale, this.playerDrawScale);
@@ -5031,6 +5134,7 @@ export class GameEngine {
          ctx.fillStyle = '#6c63ff';
          ctx.fillRect(-20, -20, 40, 40);
        }
+       this.drawPlayerThrusterUpgradeOverlay(ctx, e);
 
     } else if (e.type === EntityType.ENEMY_DRONE) {
         const frame = e.spriteFrames?.length
@@ -5063,9 +5167,10 @@ export class GameEngine {
         }
 
     } else if (e.type === EntityType.ENEMY_BRICK) {
+        const fallbackFrames = e.variant >= 900 ? ASSETS.ASTEROID_BELT_FRAMES : ASSETS.ENEMY_BRICK_FRAMES;
         const frame = e.spriteFrames?.length
           ? e.spriteFrames[e.variant % e.spriteFrames.length]
-          : e.spriteUrl || ASSETS.ENEMY_BRICK_FRAMES[e.variant % ASSETS.ENEMY_BRICK_FRAMES.length];
+          : e.spriteUrl || fallbackFrames[e.variant % fallbackFrames.length];
         const rotation = Math.sin((this.frameCount + e.variant) * 0.03) * 0.2;
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             rotation,

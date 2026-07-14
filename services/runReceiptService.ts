@@ -13,6 +13,7 @@ export interface RunSession {
   issuedAt: string;
   expiresAt: string;
   startToken: string;
+  testRun?: boolean;
   localOnly?: boolean;
 }
 
@@ -23,6 +24,7 @@ export interface RunReceipt {
   finishedAt: string;
   expiresAt: string;
   metrics: RunMetrics;
+  testRun?: boolean;
   integrity: RunIntegrity;
   anomalies: string[];
   receiptToken: string;
@@ -49,23 +51,24 @@ const postReceiptAction = async (payload: Record<string, unknown>) => {
   return response.json();
 };
 
-const createLocalRunSession = (): RunSession => {
+const createLocalRunSession = (testRun = false): RunSession => {
   const issuedAt = new Date();
   return {
     runId: crypto.randomUUID(),
     issuedAt: issuedAt.toISOString(),
     expiresAt: new Date(issuedAt.getTime() + 3 * 60 * 60 * 1000).toISOString(),
     startToken: '',
+    testRun,
     localOnly: true
   };
 };
 
-export const startRunSession = async (): Promise<RunSession> => {
+export const startRunSession = async ({ testRun = false }: { testRun?: boolean } = {}): Promise<RunSession> => {
   try {
-    return await postReceiptAction({ action: 'start', gameVersion: GAME_VERSION });
+    return await postReceiptAction({ action: 'start', gameVersion: GAME_VERSION, testRun });
   } catch (error) {
     console.warn('Server run receipt unavailable; using a local unverified session.', error);
-    return createLocalRunSession();
+    return createLocalRunSession(testRun);
   }
 };
 
@@ -93,6 +96,7 @@ export const finishRunSession = async (
     finishedAt: new Date().toISOString(),
     expiresAt: session.expiresAt,
     metrics,
+    testRun: Boolean(session.testRun),
     integrity: 'local-unverified',
     anomalies: ['server_receipt_unavailable'],
     receiptToken: '',

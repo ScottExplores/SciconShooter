@@ -7,6 +7,7 @@ delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 delete process.env.SUPABASE_SERVICE_KEY;
 
 const {
+  createRunStart,
   finishRun,
   signPayload,
   verifyRunReceipt
@@ -59,4 +60,21 @@ test('rejects impossible run metrics', async () => {
     enemiesDefeated: 1,
     coinsCollected: 1
   }, requestStub), /integrity checks/i);
+});
+
+test('marks owner test receipts and permits wave-jump metrics without ranking integrity failures', async () => {
+  const start = createRunStart('test', { testRun: true });
+  assert.equal(start.testRun, true);
+
+  const receipt = await finishRun(start.startToken, {
+    score: 123,
+    wave: 4,
+    durationMs: 500,
+    enemiesDefeated: 0,
+    coinsCollected: 0
+  }, requestStub);
+
+  assert.equal(receipt.testRun, true);
+  assert.equal(receipt.integrity, 'server-verified');
+  assert.equal(verifyRunReceipt(receipt.receiptToken).testRun, true);
 });

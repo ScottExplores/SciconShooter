@@ -30,6 +30,10 @@ module.exports = async (req, res) => {
     const address = normalizeAddress(body.address);
     if (!address) return sendJson(res, 400, { error: 'A valid Base wallet is required' });
     const receipt = verifyRunReceipt(body.receiptToken);
+    const pilotTestWallet = String(process.env.PILOT_TEST_WALLET || '0x3a8d692aabdd4981080a8f6af8375a21359464bf').toLowerCase();
+    if (receipt.testRun && address !== pilotTestWallet) {
+      return sendJson(res, 403, { error: 'Pilot Test records can only be minted by the project wallet.' });
+    }
     const contractAddress = normalizeAddress(process.env.MISSION_RECORD_CONTRACT_ADDRESS);
     const privateKey = process.env.MINT_AUTHORIZER_PRIVATE_KEY;
     const chainId = Number(process.env.MISSION_RECORD_CHAIN_ID || 8453);

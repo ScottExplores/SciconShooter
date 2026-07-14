@@ -656,6 +656,156 @@
           drop-shadow(0 0 22px rgba(52, 211, 153, 0.45));
       }
 
+      .sci-ship-carousel {
+        overflow: visible;
+      }
+
+      .sci-ship-carousel-stage {
+        position: absolute;
+        inset: 0 44px;
+        z-index: 3;
+        perspective: 560px;
+        pointer-events: none;
+      }
+
+      .sci-ship-carousel-item {
+        position: absolute;
+        inset: 2% 12%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform-origin: 50% 62%;
+        opacity: 0;
+        transition:
+          transform 0.48s cubic-bezier(0.2, 0.75, 0.2, 1),
+          opacity 0.34s ease,
+          filter 0.34s ease;
+        will-change: transform, opacity;
+      }
+
+      .sci-ship-carousel-item--active {
+        z-index: 4;
+        opacity: 1;
+        transform: translate3d(0, -3%, 0) rotate(0deg) scale(1);
+        animation: sci-ship-select-in 0.42s cubic-bezier(0.2, 0.75, 0.2, 1);
+      }
+
+      .sci-ship-carousel-core {
+        width: 100%;
+        height: 100%;
+        aspect-ratio: auto;
+        animation: sci-rh-logo-float 3.2s ease-in-out infinite;
+      }
+
+      .sci-ship-carousel-core img {
+        width: 100%;
+        height: 100%;
+        transform: none;
+      }
+
+      .sci-ship-carousel-image--pixel {
+        image-rendering: pixelated;
+      }
+
+      .sci-ship-carousel-core .sci-ship-carousel-image--researchhub {
+        transform: scale(1.12);
+      }
+
+      .sci-ship-carousel-item--locked .sci-ship-carousel-core img {
+        opacity: 0.36;
+        filter: grayscale(0.92) blur(3px) brightness(0.46);
+      }
+
+      .sci-ship-carousel-lock {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        z-index: 7;
+        display: flex;
+        width: 48px;
+        height: 48px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(253, 224, 71, 0.7);
+        border-radius: 50%;
+        color: #fef08a;
+        background: rgba(2, 6, 23, 0.9);
+        box-shadow: 0 0 22px rgba(250, 204, 21, 0.35), inset 0 0 14px rgba(250, 204, 21, 0.08);
+        transform: translate(-50%, -50%);
+        transition: opacity 0.2s ease;
+      }
+
+      .sci-ship-carousel-status {
+        position: absolute;
+        inset: auto 0 -0.25rem;
+        z-index: 8;
+        margin: 0 auto;
+        width: min(100%, 18rem);
+        color: #fef08a;
+        font-size: 0.65rem;
+        font-weight: 900;
+        letter-spacing: 0;
+        line-height: 1.25;
+        text-align: center;
+        text-transform: uppercase;
+        text-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
+      }
+
+      .sci-ship-carousel-control {
+        position: absolute;
+        top: 50%;
+        z-index: 8;
+        display: flex;
+        width: 42px;
+        height: 42px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(103, 232, 249, 0.38);
+        border-radius: 50%;
+        color: rgba(207, 250, 254, 0.92);
+        background: rgba(2, 6, 23, 0.72);
+        box-shadow: 0 0 18px rgba(34, 211, 238, 0.16), inset 0 0 12px rgba(34, 211, 238, 0.08);
+        transform: translateY(-50%);
+        transition: border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+      }
+
+      .sci-ship-carousel-control:hover {
+        border-color: rgba(110, 231, 183, 0.78);
+        color: #ffffff;
+        transform: translateY(-50%) scale(1.06);
+      }
+
+      .sci-ship-carousel-control--left {
+        left: 0;
+      }
+
+      .sci-ship-carousel-control--right {
+        right: 0;
+      }
+
+      .sci-ship-carousel--compact .sci-ship-carousel-stage {
+        inset: 0 32px;
+      }
+
+      .sci-ship-carousel--compact .sci-ship-carousel-item {
+        inset: -4% 16% 8%;
+      }
+
+      .sci-ship-carousel--compact .sci-ship-carousel-control {
+        width: 34px;
+        height: 34px;
+      }
+
+      .sci-ship-carousel--compact .sci-ship-carousel-lock {
+        width: 38px;
+        height: 38px;
+      }
+
+      .sci-ship-carousel--compact .sci-ship-carousel-status {
+        bottom: -0.2rem;
+        font-size: 0.48rem;
+      }
+
       @keyframes sci-rh-ring-pulse {
         0%, 100% {
           opacity: 0.65;
@@ -684,6 +834,25 @@
         }
         50% {
           transform: translateY(-5px);
+        }
+      }
+
+      @keyframes sci-ship-select-in {
+        0% {
+          opacity: 0;
+          transform: translate3d(20%, 8%, 0) rotate(7deg) scale(0.78);
+        }
+        100% {
+          opacity: 1;
+          transform: translate3d(0, -3%, 0) rotate(0deg) scale(1);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sci-ship-carousel-item,
+        .sci-ship-carousel-core {
+          animation: none;
+          transition-duration: 0.01ms;
         }
       }
 

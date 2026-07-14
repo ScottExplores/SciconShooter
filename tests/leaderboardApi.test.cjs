@@ -8,7 +8,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
 const { signPayload } = require('../api/_lib/runReceipts');
 const leaderboardHandler = require('../api/leaderboard');
 
-const makeReceipt = (runId = crypto.randomUUID()) => signPayload({
+const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => signPayload({
   type: 'run-receipt',
   runId,
   gameVersion: 'test',
@@ -16,7 +16,8 @@ const makeReceipt = (runId = crypto.randomUUID()) => signPayload({
   finishedAt: Date.now(),
   expiresAt: Date.now() + 60_000,
   metrics: { score: 4321, wave: 4, durationMs: 60_000, enemiesDefeated: 20, coinsCollected: 12 },
-  integrity: 'server-verified'
+  integrity: 'server-verified',
+  ...overrides
 });
 
 const makeResponse = () => ({
@@ -65,6 +66,29 @@ test('leaderboard derives score and wave from the signed receipt', async () => {
     assert.equal(res.body.scores[0].runId, runId);
     assert.equal(writeRequest.url.includes('on_conflict'), false);
     assert.equal(writeRequest.options.headers.Prefer, 'return=minimal');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('leaderboard rejects signed Pilot Test receipts before touching storage', async () => {
+  const originalFetch = global.fetch;
+  let fetchCalled = false;
+  global.fetch = async () => {
+    fetchCalled = true;
+    return jsonResponse([]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: { name: 'owner', receiptToken: makeReceipt(crypto.randomUUID(), { testRun: true }) },
+      headers: {}, socket: { remoteAddress: '127.0.0.1' }
+    }, res);
+    assert.equal(res.statusCode, 403);
+    assert.match(res.body.error, /not eligible/i);
+    assert.equal(fetchCalled, false);
   } finally {
     global.fetch = originalFetch;
   }

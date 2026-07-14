@@ -82,6 +82,7 @@ export interface GameCanvasProps {
   bombCommand?: { nonce: number } | null;
   continueCommand?: { nonce: number; lives: number } | null;
   polishSettings: GamePolishSettings;
+  playerShipUrl?: string;
   campaign?: GameCampaign;
   levelId?: string;
   waveId?: string;
@@ -89,6 +90,9 @@ export interface GameCanvasProps {
   audioEnabled?: boolean;
   autoFire?: boolean;
   restartToken?: number;
+  testMode?: boolean;
+  testWaveCommand?: { nonce: number; wave: number } | null;
+  testFlaskCommand?: { nonce: number; charge: number } | null;
   onRuntimeState?: (state: GameRuntimeState) => void;
   /** Preview-only entity positions for direct manipulation in the local editor. */
   onEditorSnapshot?: (snapshot: GameEditorSnapshot) => void;
@@ -104,6 +108,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   bombCommand = null,
   continueCommand = null,
   polishSettings,
+  playerShipUrl,
   campaign,
   levelId,
   waveId,
@@ -111,6 +116,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   audioEnabled = !previewMode,
   autoFire = false,
   restartToken = 0,
+  testMode = false,
+  testWaveCommand = null,
+  testFlaskCommand = null,
   onRuntimeState,
   onEditorSnapshot
 }) => {
@@ -121,6 +129,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const handledBombNonceRef = useRef<number | null>(null);
   const handledContinueNonceRef = useRef<number | null>(null);
   const handledRestartTokenRef = useRef(restartToken);
+  const handledTestWaveNonceRef = useRef<number | null>(null);
+  const handledTestFlaskNonceRef = useRef<number | null>(null);
   const activeTouchIdRef = useRef<number | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const lastPublishedStatsRef = useRef<Stats | null>(null);
@@ -128,6 +138,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const gameOverSentRef = useRef(false);
   const keysRef = useRef<Record<string, boolean>>(autoFire ? { ' ': true } : {});
   const runningRef = useRef(running);
+  const testModeRef = useRef(testMode);
   const isTransmissionOpenRef = useRef(isTransmissionOpen);
   const onStatsChangeRef = useRef(onStatsChange);
   const onGameOverRef = useRef(onGameOver);
@@ -176,6 +187,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [isTransmissionOpen]);
 
   useEffect(() => {
+    testModeRef.current = testMode;
+    engineRef.current?.setTestMode(testMode);
+  }, [testMode]);
+
+  useEffect(() => {
     if (engineRef.current) {
       engineRef.current.polishSettings = polishSettings;
     }
@@ -209,6 +225,31 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     onStatsChangeRef.current(cloneStatsForReact(engineRef.current.stats));
     onContinueStartedRef.current?.();
   }, [continueCommand, stats]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!testWaveCommand || !engine) return;
+    if (handledTestWaveNonceRef.current === testWaveCommand.nonce) return;
+    handledTestWaveNonceRef.current = testWaveCommand.nonce;
+    if (!engine.jumpToCampaignWave(testWaveCommand.wave)) return;
+
+    const statsSnapshot = cloneStatsForReact(engine.stats);
+    lastPublishedStatsRef.current = statsSnapshot;
+    onStatsChangeRef.current(statsSnapshot);
+    onRuntimeStateRef.current?.(engine.getRuntimeState());
+    onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
+  }, [testWaveCommand]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!testFlaskCommand || !engine) return;
+    if (handledTestFlaskNonceRef.current === testFlaskCommand.nonce) return;
+    handledTestFlaskNonceRef.current = testFlaskCommand.nonce;
+    engine.stats.bombCharge = Math.max(engine.stats.bombCharge || 0, testFlaskCommand.charge);
+    const statsSnapshot = cloneStatsForReact(engine.stats);
+    lastPublishedStatsRef.current = statsSnapshot;
+    onStatsChangeRef.current(statsSnapshot);
+  }, [testFlaskCommand]);
 
   // Sync Stats (specifically upgrades/coins modified by React UI) to Engine
   useEffect(() => {
@@ -276,8 +317,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       campaign,
       previewMode,
       audioEnabled,
+      playerShipUrl,
       initialLevelId: levelId,
-      initialWaveId: waveId
+      initialWaveId: waveId,
+      testMode: testModeRef.current
     });
     engine.polishSettings = polishSettings;
     engineRef.current = engine;
@@ -625,7 +668,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (engineRef.current === engine) engineRef.current = null;
       requestRef.current = null;
     };
-  }, [audioEnabled, campaign, previewMode]);
+  }, [audioEnabled, campaign, playerShipUrl, previewMode]);
 
   return (
     <canvas 

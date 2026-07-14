@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
     });
     if (!rate.allowed) return sendJson(res, 429, { error: 'Too many run requests. Please wait before trying again.' });
     if (body.action === 'start') {
-      return sendJson(res, 200, createRunStart(body.gameVersion));
+      return sendJson(res, 200, createRunStart(body.gameVersion, { testRun: Boolean(body.testRun) }));
     }
     if (body.action === 'finish') {
       const receipt = await finishRun(body.startToken, body.metrics, req);

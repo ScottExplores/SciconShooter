@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 4,
+  "revision": 6,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
-  "updatedAt": "2026-07-12T22:26:01.576Z",
+  "updatedAt": "2026-07-13T00:00:00.000Z",
   "fps": 60,
   "recordCard": {
     "copy": {
@@ -100,19 +100,44 @@
           "difficultyMultiplier": 1,
           "durationSeconds": 60,
           "introSeconds": 2.5,
-          "delayAfterSeconds": 2.8,
+          "delayAfterSeconds": 1.25,
           "scoreMultiplier": 1,
           "threatCap": 34,
           "events": [
             {
+              "id": "open-orbit-opening-drifters",
+              "kind": "spawn",
+              "label": "Opening interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.15,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0
+                }
+              ]
+            },
+            {
               "id": "open-orbit-phase-1",
               "kind": "spawn",
               "label": "Phase 1 - Drone approach",
-              "startSeconds": 0,
-              "durationSeconds": 19.8,
+              "startSeconds": 5.4,
+              "durationSeconds": 10,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 12,
+              "count": 8,
               "patternId": "v",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.18,
@@ -120,21 +145,11 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.88,
+                  "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
-                  "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.12,
-                  "health": 1,
-                  "speed": 3.5,
-                  "damage": 1,
-                  "scoreValue": 12,
                   "powerupDropChance": 0
                 }
               ]
@@ -143,18 +158,43 @@
               "id": "open-orbit-powerups",
               "kind": "powerup",
               "label": "Ambient power-up signal",
-              "startSeconds": 0,
-              "durationSeconds": 60,
+              "startSeconds": 5.4,
+              "durationSeconds": 54.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "positionId": "random-top",
-              "spawnIntervalSeconds": 40,
+              "spawnIntervalSeconds": 35,
               "powerupIds": [
                 "double-shot",
                 "triple-shot",
                 "magnet",
                 "shield",
                 "research-beam"
+              ]
+            },
+            {
+              "id": "open-orbit-drifters-before-mini",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 15.8,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.15,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0
+                }
               ]
             },
             {
@@ -200,11 +240,46 @@
               ]
             },
             {
+              "id": "open-orbit-drifters-after-mini",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 21.8,
+              "durationSeconds": 2.7,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.85,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.78,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.22,
+                  "health": 1,
+                  "speed": 3.5,
+                  "damage": 1,
+                  "scoreValue": 12,
+                  "powerupDropChance": 0
+                }
+              ]
+            },
+            {
               "id": "open-orbit-phase-2",
               "kind": "spawn",
               "label": "Phase 2 - Heavy formation",
-              "startSeconds": 21.8,
-              "durationSeconds": 17.8,
+              "startSeconds": 24.6,
+              "durationSeconds": 15,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 14,
@@ -215,7 +290,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.64,
+                  "weight": 0.78,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
@@ -225,22 +300,47 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.1,
+                  "weight": 0.22,
                   "health": 1,
                   "speed": 3.5,
                   "damage": 1,
                   "scoreValue": 12,
                   "powerupDropChance": 0
+                }
+              ]
+            },
+            {
+              "id": "open-orbit-drifters-before-checkpoint",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 36,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.15,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.78,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0
                 },
                 {
-                  "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.26,
-                  "health": 8,
-                  "speed": 1.5,
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.22,
+                  "health": 1,
+                  "speed": 3.5,
                   "damage": 1,
-                  "scoreValue": 20,
-                  "powerupDropChance": 0.08
+                  "scoreValue": 12,
+                  "powerupDropChance": 0
                 }
               ]
             },
@@ -287,11 +387,56 @@
               ]
             },
             {
+              "id": "open-orbit-drifters-after-checkpoint",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 39.6,
+              "durationSeconds": 2.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.8,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.55,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 1,
+                  "speed": 3.5,
+                  "damage": 1,
+                  "scoreValue": 12,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 8,
+                  "speed": 1.5,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
               "id": "open-orbit-phase-3",
               "kind": "spawn",
               "label": "Phase 3 - Final approach",
-              "startSeconds": 39.6,
-              "durationSeconds": 20.4,
+              "startSeconds": 42.4,
+              "durationSeconds": 17.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 14,
@@ -302,7 +447,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.44,
+                  "weight": 0.55,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
@@ -312,7 +457,7 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.1,
+                  "weight": 0.2,
                   "health": 1,
                   "speed": 3.5,
                   "damage": 1,
@@ -322,21 +467,56 @@
                 {
                   "enemyId": "brick",
                   "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.2,
+                  "weight": 0.25,
                   "health": 8,
                   "speed": 1.5,
                   "damage": 1,
                   "scoreValue": 20,
                   "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "open-orbit-drifters-before-gatekeeper",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 56.2,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.1,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.55,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0
                 },
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.26,
-                  "health": 3,
-                  "speed": 4.4,
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 1,
+                  "speed": 3.5,
                   "damage": 1,
-                  "scoreValue": 30,
+                  "scoreValue": 12,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 8,
+                  "speed": 1.5,
+                  "damage": 1,
+                  "scoreValue": 20,
                   "powerupDropChance": 0.08
                 }
               ]
@@ -354,7 +534,7 @@
               "positionId": "center-top",
               "movementPatternId": "gatekeeper-cycle",
               "warningSeconds": 5,
-              "health": 235,
+              "health": 200,
               "speed": 2,
               "damage": 1,
               "scoreReward": 1010,
@@ -414,19 +594,54 @@
           "difficultyMultiplier": 1,
           "durationSeconds": 60,
           "introSeconds": 1.967,
-          "delayAfterSeconds": 2.8,
+          "delayAfterSeconds": 1.25,
           "scoreMultiplier": 2,
           "threatCap": 37,
           "events": [
             {
+              "id": "citation-storm-opening-drifters",
+              "kind": "spawn",
+              "label": "Opening interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4.8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 5,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 0.7,
+                  "health": 3.36,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "LEGACY_ENEMY_SWARM_FRAMES",
+                  "weight": 0.3,
+                  "health": 1.68,
+                  "speed": 4.27,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0
+                }
+              ]
+            },
+            {
               "id": "citation-storm-phase-1",
               "kind": "spawn",
               "label": "Phase 1 - Swarm signal",
-              "startSeconds": 0,
-              "durationSeconds": 19.8,
+              "startSeconds": 5.4,
+              "durationSeconds": 10,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 15,
+              "count": 12,
               "patternId": "spiral",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.16,
@@ -457,18 +672,53 @@
               "id": "citation-storm-powerups",
               "kind": "powerup",
               "label": "Ambient power-up signal",
-              "startSeconds": 0,
-              "durationSeconds": 60,
+              "startSeconds": 5.4,
+              "durationSeconds": 54.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "positionId": "random-top",
-              "spawnIntervalSeconds": 40,
+              "spawnIntervalSeconds": 35,
               "powerupIds": [
                 "double-shot",
                 "triple-shot",
                 "magnet",
                 "shield",
                 "research-beam"
+              ]
+            },
+            {
+              "id": "citation-storm-drifters-before-mini",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 15.8,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.15,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.7,
+                  "health": 3.36,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.3,
+                  "health": 1.68,
+                  "speed": 4.27,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0
+                }
               ]
             },
             {
@@ -558,17 +808,107 @@
               ]
             },
             {
+              "id": "citation-storm-drifters-after-mini",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 23.8,
+              "durationSeconds": 2.7,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.85,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.5,
+                  "health": 3.36,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 1.68,
+                  "speed": 4.27,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.3,
+                  "health": 13.44,
+                  "speed": 1.83,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
               "id": "citation-storm-phase-2",
               "kind": "spawn",
               "label": "Phase 2 - Citation pressure",
-              "startSeconds": 21.8,
-              "durationSeconds": 17.8,
+              "startSeconds": 26.6,
+              "durationSeconds": 13,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 16,
               "patternId": "grid",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.14,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.5,
+                  "health": 3.36,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 1.68,
+                  "speed": 4.27,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.3,
+                  "health": 13.44,
+                  "speed": 1.83,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "citation-storm-drifters-before-checkpoint",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 36,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.15,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -610,7 +950,7 @@
               "durationSeconds": 22,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
-              "spriteKey": "ENEMY_BRICK_FRAMES",
+              "spriteKey": "ASTEROID_BELT_FRAMES",
               "count": 18,
               "density": 0.75,
               "patternId": "asteroid-lanes",
@@ -624,17 +964,127 @@
               "powerupDropChance": 0.08
             },
             {
+              "id": "citation-storm-drifters-after-checkpoint",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 39.6,
+              "durationSeconds": 2.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.8,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 3.36,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.15,
+                  "health": 1.68,
+                  "speed": 4.27,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 13.44,
+                  "speed": 1.83,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.3,
+                  "health": 5.04,
+                  "speed": 5.368,
+                  "damage": 1,
+                  "scoreValue": 60,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
               "id": "citation-storm-phase-3",
               "kind": "spawn",
               "label": "Phase 3 - Elite pressure",
-              "startSeconds": 39.6,
-              "durationSeconds": 20.4,
+              "startSeconds": 42.4,
+              "durationSeconds": 17.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 16,
               "patternId": "diamond",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.13,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 3.36,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.15,
+                  "health": 1.68,
+                  "speed": 4.27,
+                  "damage": 1,
+                  "scoreValue": 24,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 13.44,
+                  "speed": 1.83,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.3,
+                  "health": 5.04,
+                  "speed": 5.368,
+                  "damage": 1,
+                  "scoreValue": 60,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "citation-storm-drifters-before-gatekeeper",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 56.2,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.1,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -751,19 +1201,64 @@
           "difficultyMultiplier": 1,
           "durationSeconds": 60,
           "introSeconds": 1.967,
-          "delayAfterSeconds": 2.8,
+          "delayAfterSeconds": 1.25,
           "scoreMultiplier": 4,
           "threatCap": 40,
           "events": [
             {
+              "id": "paywall-siege-opening-drifters",
+              "kind": "spawn",
+              "label": "Opening interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 6,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.9,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 0.56,
+                  "health": 4.04,
+                  "speed": 3.325,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "LEGACY_ENEMY_SWARM_FRAMES",
+                  "weight": 0.28,
+                  "health": 2.02,
+                  "speed": 4.655,
+                  "damage": 1,
+                  "scoreValue": 48,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.16,
+                  "health": 16.16,
+                  "speed": 1.995,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
               "id": "paywall-siege-phase-1",
               "kind": "spawn",
               "label": "Phase 1 - Siege approach",
-              "startSeconds": 0,
-              "durationSeconds": 19.8,
+              "startSeconds": 5.4,
+              "durationSeconds": 10,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 18,
+              "count": 15,
               "patternId": "grid",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.14,
@@ -771,7 +1266,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.7,
+                  "weight": 0.5,
                   "health": 4.04,
                   "speed": 3.325,
                   "damage": 1,
@@ -781,12 +1276,22 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.3,
+                  "weight": 0.28,
                   "health": 2.02,
                   "speed": 4.655,
                   "damage": 1,
                   "scoreValue": 48,
                   "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.22,
+                  "health": 16.16,
+                  "speed": 1.995,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -794,18 +1299,63 @@
               "id": "paywall-siege-powerups",
               "kind": "powerup",
               "label": "Ambient power-up signal",
-              "startSeconds": 0,
-              "durationSeconds": 60,
+              "startSeconds": 5.4,
+              "durationSeconds": 54.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "positionId": "random-top",
-              "spawnIntervalSeconds": 40,
+              "spawnIntervalSeconds": 35,
               "powerupIds": [
                 "double-shot",
                 "triple-shot",
                 "magnet",
                 "shield",
                 "research-beam"
+              ]
+            },
+            {
+              "id": "paywall-siege-drifters-before-mini",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 15.8,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.15,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.5,
+                  "health": 4.04,
+                  "speed": 3.325,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.28,
+                  "health": 2.02,
+                  "speed": 4.655,
+                  "damage": 1,
+                  "scoreValue": 48,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.22,
+                  "health": 16.16,
+                  "speed": 1.995,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0.08
+                }
               ]
             },
             {
@@ -852,22 +1402,22 @@
               ]
             },
             {
-              "id": "paywall-siege-phase-2",
+              "id": "paywall-siege-drifters-after-mini",
               "kind": "spawn",
-              "label": "Phase 2 - Pincer pressure",
+              "label": "Roaming interceptors",
               "startSeconds": 21.8,
-              "durationSeconds": 17.8,
+              "durationSeconds": 2.7,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 16,
-              "patternId": "pincer",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.12,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.85,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.5,
+                  "weight": 0.35,
                   "health": 4.04,
                   "speed": 3.325,
                   "damage": 1,
@@ -887,11 +1437,131 @@
                 {
                   "enemyId": "brick",
                   "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.3,
+                  "weight": 0.25,
                   "health": 16.16,
                   "speed": 1.995,
                   "damage": 1,
                   "scoreValue": 80,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.2,
+                  "health": 6.06,
+                  "speed": 5.852,
+                  "damage": 1,
+                  "scoreValue": 120,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "paywall-siege-phase-2",
+              "kind": "spawn",
+              "label": "Phase 2 - Pincer pressure",
+              "startSeconds": 24.6,
+              "durationSeconds": 15,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 16,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.12,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.35,
+                  "health": 4.04,
+                  "speed": 3.325,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 2.02,
+                  "speed": 4.655,
+                  "damage": 1,
+                  "scoreValue": 48,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 16.16,
+                  "speed": 1.995,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.2,
+                  "health": 6.06,
+                  "speed": 5.852,
+                  "damage": 1,
+                  "scoreValue": 120,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "paywall-siege-drifters-before-checkpoint",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 36,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.15,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.35,
+                  "health": 4.04,
+                  "speed": 3.325,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 2.02,
+                  "speed": 4.655,
+                  "damage": 1,
+                  "scoreValue": 48,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 16.16,
+                  "speed": 1.995,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.2,
+                  "health": 6.06,
+                  "speed": 5.852,
+                  "damage": 1,
+                  "scoreValue": 120,
                   "powerupDropChance": 0.08
                 }
               ]
@@ -939,17 +1609,127 @@
               ]
             },
             {
+              "id": "paywall-siege-drifters-after-checkpoint",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 39.6,
+              "durationSeconds": 2.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.8,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 4.04,
+                  "speed": 3.325,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.15,
+                  "health": 2.02,
+                  "speed": 4.655,
+                  "damage": 1,
+                  "scoreValue": 48,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 16.16,
+                  "speed": 1.995,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.3,
+                  "health": 6.06,
+                  "speed": 5.852,
+                  "damage": 1,
+                  "scoreValue": 120,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
               "id": "paywall-siege-phase-3",
               "kind": "spawn",
               "label": "Phase 3 - Full roster",
-              "startSeconds": 39.6,
-              "durationSeconds": 20.4,
+              "startSeconds": 42.4,
+              "durationSeconds": 17.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 18,
               "patternId": "diamond",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.11,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 4.04,
+                  "speed": 3.325,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.15,
+                  "health": 2.02,
+                  "speed": 4.655,
+                  "damage": 1,
+                  "scoreValue": 48,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 16.16,
+                  "speed": 1.995,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.3,
+                  "health": 6.06,
+                  "speed": 5.852,
+                  "damage": 1,
+                  "scoreValue": 120,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "paywall-siege-drifters-before-gatekeeper",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 56.2,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.1,
               "enemies": [
                 {
                   "enemyId": "drone",
@@ -1066,19 +1846,74 @@
           "difficultyMultiplier": 1,
           "durationSeconds": 60,
           "introSeconds": 1.967,
-          "delayAfterSeconds": 2.8,
+          "delayAfterSeconds": 1.25,
           "scoreMultiplier": 8,
           "threatCap": 43,
           "events": [
             {
+              "id": "open-galaxy-opening-drifters",
+              "kind": "spawn",
+              "label": "Opening interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 5.2,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 7,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.82,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 0.45,
+                  "health": 4.72,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "LEGACY_ENEMY_SWARM_FRAMES",
+                  "weight": 0.28,
+                  "health": 2.36,
+                  "speed": 5.04,
+                  "damage": 1,
+                  "scoreValue": 96,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.17,
+                  "health": 18.88,
+                  "speed": 2.16,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.1,
+                  "health": 7.08,
+                  "speed": 6.336,
+                  "damage": 1,
+                  "scoreValue": 240,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
               "id": "open-galaxy-phase-1",
               "kind": "spawn",
               "label": "Phase 1 - Open-space assault",
-              "startSeconds": 0,
-              "durationSeconds": 19.8,
+              "startSeconds": 5.4,
+              "durationSeconds": 10,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 20,
+              "count": 18,
               "patternId": "spiral",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.12,
@@ -1086,7 +1921,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.7,
+                  "weight": 0.42,
                   "health": 4.72,
                   "speed": 3.6,
                   "damage": 1,
@@ -1096,12 +1931,32 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.3,
+                  "weight": 0.28,
                   "health": 2.36,
                   "speed": 5.04,
                   "damage": 1,
                   "scoreValue": 96,
                   "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.18,
+                  "health": 18.88,
+                  "speed": 2.16,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.12,
+                  "health": 7.08,
+                  "speed": 6.336,
+                  "damage": 1,
+                  "scoreValue": 240,
+                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -1109,18 +1964,73 @@
               "id": "open-galaxy-powerups",
               "kind": "powerup",
               "label": "Ambient power-up signal",
-              "startSeconds": 0,
-              "durationSeconds": 60,
+              "startSeconds": 5.4,
+              "durationSeconds": 54.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "positionId": "random-top",
-              "spawnIntervalSeconds": 40,
+              "spawnIntervalSeconds": 35,
               "powerupIds": [
                 "double-shot",
                 "triple-shot",
                 "magnet",
                 "shield",
                 "research-beam"
+              ]
+            },
+            {
+              "id": "open-galaxy-drifters-before-mini",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 15.8,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.15,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.42,
+                  "health": 4.72,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.28,
+                  "health": 2.36,
+                  "speed": 5.04,
+                  "damage": 1,
+                  "scoreValue": 96,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.18,
+                  "health": 18.88,
+                  "speed": 2.16,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.12,
+                  "health": 7.08,
+                  "speed": 6.336,
+                  "damage": 1,
+                  "scoreValue": 240,
+                  "powerupDropChance": 0.08
+                }
               ]
             },
             {
@@ -1166,22 +2076,22 @@
               ]
             },
             {
-              "id": "open-galaxy-phase-2",
+              "id": "open-galaxy-drifters-after-mini",
               "kind": "spawn",
-              "label": "Phase 2 - Pincer pressure",
+              "label": "Roaming interceptors",
               "startSeconds": 21.8,
-              "durationSeconds": 17.8,
+              "durationSeconds": 2.7,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 18,
-              "patternId": "pincer",
-              "positionId": "formation-top",
-              "spawnIntervalSeconds": 0.1,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.85,
               "enemies": [
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.5,
+                  "weight": 0.3,
                   "health": 4.72,
                   "speed": 3.6,
                   "damage": 1,
@@ -1201,11 +2111,131 @@
                 {
                   "enemyId": "brick",
                   "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.3,
+                  "weight": 0.28,
                   "health": 18.88,
                   "speed": 2.16,
                   "damage": 1,
                   "scoreValue": 160,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.22,
+                  "health": 7.08,
+                  "speed": 6.336,
+                  "damage": 1,
+                  "scoreValue": 240,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "open-galaxy-phase-2",
+              "kind": "spawn",
+              "label": "Phase 2 - Pincer pressure",
+              "startSeconds": 24.6,
+              "durationSeconds": 15,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 18,
+              "patternId": "pincer",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.1,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 4.72,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 2.36,
+                  "speed": 5.04,
+                  "damage": 1,
+                  "scoreValue": 96,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.28,
+                  "health": 18.88,
+                  "speed": 2.16,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.22,
+                  "health": 7.08,
+                  "speed": 6.336,
+                  "damage": 1,
+                  "scoreValue": 240,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "open-galaxy-drifters-before-checkpoint",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 36,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.15,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 4.72,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.2,
+                  "health": 2.36,
+                  "speed": 5.04,
+                  "damage": 1,
+                  "scoreValue": 96,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.28,
+                  "health": 18.88,
+                  "speed": 2.16,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.22,
+                  "health": 7.08,
+                  "speed": 6.336,
+                  "damage": 1,
+                  "scoreValue": 240,
                   "powerupDropChance": 0.08
                 }
               ]
@@ -1218,7 +2248,7 @@
               "durationSeconds": 24,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
-              "spriteKey": "ENEMY_BRICK_FRAMES",
+              "spriteKey": "ASTEROID_BELT_FRAMES",
               "count": 24,
               "density": 1,
               "patternId": "asteroid-lanes",
@@ -1232,17 +2262,127 @@
               "powerupDropChance": 0.08
             },
             {
+              "id": "open-galaxy-drifters-after-checkpoint",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 39.6,
+              "durationSeconds": 2.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.8,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 4.72,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.15,
+                  "health": 2.36,
+                  "speed": 5.04,
+                  "damage": 1,
+                  "scoreValue": 96,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 18.88,
+                  "speed": 2.16,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.3,
+                  "health": 7.08,
+                  "speed": 6.336,
+                  "damage": 1,
+                  "scoreValue": 240,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
               "id": "open-galaxy-phase-3",
               "kind": "spawn",
               "label": "Phase 3 - Full roster",
-              "startSeconds": 39.6,
-              "durationSeconds": 20.4,
+              "startSeconds": 42.4,
+              "durationSeconds": 17.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 22,
               "patternId": "grid",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.09,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.3,
+                  "health": 4.72,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.15,
+                  "health": 2.36,
+                  "speed": 5.04,
+                  "damage": 1,
+                  "scoreValue": 96,
+                  "powerupDropChance": 0
+                },
+                {
+                  "enemyId": "brick",
+                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "weight": 0.25,
+                  "health": 18.88,
+                  "speed": 2.16,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0.08
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.3,
+                  "health": 7.08,
+                  "speed": 6.336,
+                  "damage": 1,
+                  "scoreValue": 240,
+                  "powerupDropChance": 0.08
+                }
+              ]
+            },
+            {
+              "id": "open-galaxy-drifters-before-gatekeeper",
+              "kind": "spawn",
+              "label": "Roaming interceptors",
+              "startSeconds": 56.2,
+              "durationSeconds": 3,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 2,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.1,
               "enemies": [
                 {
                   "enemyId": "drone",

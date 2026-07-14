@@ -87,3 +87,27 @@ test('does not authorize a run already attached to another wallet', async () => 
     global.fetch = originalFetch;
   }
 });
+
+test('only the project wallet can mint a Pilot Test record', async () => {
+  const testReceiptToken = signPayload({
+    type: 'run-receipt',
+    runId: crypto.randomUUID(),
+    gameVersion: 'test',
+    startedAt: Date.now() - 30_000,
+    finishedAt: Date.now(),
+    expiresAt: Date.now() + 60_000,
+    metrics: { score: 9999, wave: 4, durationMs: 30_000, enemiesDefeated: 1, coinsCollected: 1 },
+    testRun: true,
+    integrity: 'server-verified'
+  });
+  const res = makeResponse();
+
+  await mintAuthorizationHandler({
+    method: 'POST',
+    headers: { host: 'sciconshooter.xyz' },
+    body: { recordType: 'mission', address: wallet, receiptToken: testReceiptToken }
+  }, res);
+
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body.error, /project wallet/i);
+});

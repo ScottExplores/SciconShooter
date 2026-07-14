@@ -88,12 +88,13 @@ const hashIp = (req) => {
   return crypto.createHmac('sha256', getReceiptSecret()).update(rawIp).digest('hex').slice(0, 32);
 };
 
-const createRunStart = (gameVersion = 'unknown') => {
+const createRunStart = (gameVersion = 'unknown', { testRun = false } = {}) => {
   const issuedAt = Date.now();
   const payload = {
     type: 'run-start',
     runId: crypto.randomUUID(),
     gameVersion: String(gameVersion || 'unknown').slice(0, 32),
+    testRun: Boolean(testRun),
     issuedAt,
     expiresAt: issuedAt + MAX_RUN_DURATION_MS
   };
@@ -102,6 +103,7 @@ const createRunStart = (gameVersion = 'unknown') => {
     runId: payload.runId,
     issuedAt: new Date(issuedAt).toISOString(),
     expiresAt: new Date(payload.expiresAt).toISOString(),
+    testRun: payload.testRun,
     startToken: signPayload(payload)
   };
 };
@@ -144,8 +146,9 @@ const finishRun = async (startToken, rawMetrics, req) => {
   const now = Date.now();
   const measuredDuration = Math.max(0, now - start.issuedAt);
   const durationDelta = Math.abs(measuredDuration - metrics.durationMs);
-  const anomalies = inspectRunMetrics(metrics);
-  if (durationDelta > Math.max(30000, measuredDuration * 0.35)) anomalies.push('duration_mismatch');
+  const testRun = Boolean(start.testRun);
+  const anomalies = testRun ? [] : inspectRunMetrics(metrics);
+  if (!testRun && durationDelta > Math.max(30000, measuredDuration * 0.35)) anomalies.push('duration_mismatch');
 
   const hardFailure = anomalies.some((flag) => flag.endsWith('_impossible') || flag === 'run_too_long');
   if (hardFailure) {
@@ -163,6 +166,7 @@ const finishRun = async (startToken, rawMetrics, req) => {
     finishedAt: now,
     expiresAt: now + RECEIPT_LIFETIME_MS,
     metrics,
+    testRun,
     integrity: anomalies.length > 0 ? 'review' : 'server-verified'
   };
   const receiptToken = signPayload(receiptPayload);
@@ -173,6 +177,7 @@ const finishRun = async (startToken, rawMetrics, req) => {
     finishedAt: new Date(now).toISOString(),
     expiresAt: new Date(receiptPayload.expiresAt).toISOString(),
     metrics,
+    testRun,
     integrity: receiptPayload.integrity,
     anomalies,
     receiptToken

@@ -23,7 +23,7 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
 
 test('tracked campaign contains the current four real-game sector waves', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 4);
+  assert.equal(campaign.revision, 6);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 1);
@@ -135,12 +135,12 @@ test('spawn pools are complete, weighted, and contain directly editable combat v
 test('sector waves escalate through readable formation packs instead of slow single-file spawns', () => {
   const wavePatterns = campaign.levels[0].waves.map((wave) => (
     wave.events
-      .filter((event) => event.kind === 'spawn')
+      .filter((event) => event.kind === 'spawn' && event.patternId !== 'single-random')
       .map((event) => event.patternId)
   ));
   const spawnIntervals = campaign.levels[0].waves.map((wave) => (
     wave.events
-      .filter((event) => event.kind === 'spawn')
+      .filter((event) => event.kind === 'spawn' && event.patternId !== 'single-random')
       .map((event) => event.spawnIntervalSeconds)
   ));
 
@@ -150,6 +150,69 @@ test('sector waves escalate through readable formation packs instead of slow sin
   assert.deepEqual(wavePatterns[3], ['spiral', 'pincer', 'grid']);
   spawnIntervals.flat().forEach((interval) => assert.ok(interval <= 0.18));
   assert.ok(Math.max(...spawnIntervals[3]) < Math.max(...spawnIntervals[0]));
+});
+
+test('each wave opens with loose interceptors before formations and scales the pressure upward', () => {
+  const waves = campaign.levels[0].waves;
+  const openingCounts = [];
+  const firstFormationCounts = [];
+
+  waves.forEach((wave) => {
+    const opening = wave.events.find((event) => event.id === `${wave.id}-opening-drifters`);
+    const firstFormation = wave.events.find((event) => event.id === `${wave.id}-phase-1`);
+
+    assert.ok(opening);
+    assert.equal(opening.patternId, 'single-random');
+    assert.equal(opening.positionId, 'random-top');
+    assert.equal(opening.startSeconds, 0);
+    assert.ok(opening.spawnIntervalSeconds >= 0.8);
+    assert.ok(firstFormation.startSeconds > opening.durationSeconds);
+    assert.ok(opening.enemies.some((enemy) => enemy.spriteKey.startsWith('LEGACY_ENEMY_')));
+    openingCounts.push(opening.count);
+    firstFormationCounts.push(firstFormation.count);
+  });
+
+  assert.deepEqual(openingCounts, [4, 5, 6, 7]);
+  assert.deepEqual(firstFormationCounts, [8, 12, 15, 18]);
+
+  const firstFinalBoss = waves[0].events.find((event) => event.id === 'open-orbit-gatekeeper');
+  assert.equal(firstFinalBoss.health, Math.round(235 * 0.85));
+});
+
+test('small random intercepts bridge formations and boss encounters without replacing either', () => {
+  campaign.levels[0].waves.forEach((wave) => {
+    const drifters = wave.events.filter((event) => (
+      event.kind === 'spawn' && event.patternId === 'single-random' && event.id.includes('-drifters-')
+    ));
+    const phaseTwo = wave.events.find((event) => event.id === `${wave.id}-phase-2`);
+    const postMini = drifters.find((event) => event.id === `${wave.id}-drifters-after-mini`);
+    const phaseThree = wave.events.find((event) => event.id === `${wave.id}-phase-3`);
+    const postCheckpoint = drifters.find((event) => event.id === `${wave.id}-drifters-after-checkpoint`);
+
+    assert.equal(drifters.length, 5);
+    drifters.forEach((event) => {
+      assert.equal(event.positionId, 'random-top');
+      assert.ok(event.count >= 2 && event.count <= 3);
+      assert.ok(event.spawnIntervalSeconds >= 0.8);
+    });
+    assert.ok(postMini.startSeconds < phaseTwo.startSeconds);
+    assert.ok(postCheckpoint.startSeconds < phaseThree.startSeconds);
+  });
+});
+
+test('enemy families unlock progressively instead of all appearing in the opening wave', () => {
+  const waves = campaign.levels[0].waves;
+  const phaseEnemyIds = (wave, phase) => wave.events
+    .find((event) => event.id === `${wave.id}-phase-${phase}`)
+    .enemies.map((enemy) => enemy.enemyId);
+
+  assert.deepEqual(phaseEnemyIds(waves[0], 1), ['drone']);
+  assert.deepEqual(phaseEnemyIds(waves[0], 2), ['drone', 'swarm']);
+  assert.deepEqual(phaseEnemyIds(waves[0], 3), ['drone', 'swarm', 'brick']);
+  assert.equal(waves[0].events.some((event) => event.kind === 'spawn' && event.enemies.some((enemy) => enemy.enemyId === 'journal')), false);
+  assert.ok(phaseEnemyIds(waves[1], 3).includes('journal'));
+  assert.ok(phaseEnemyIds(waves[2], 1).includes('brick'));
+  assert.ok(phaseEnemyIds(waves[3], 1).includes('journal'));
 });
 
 test('every predatory journal spawn uses the animated frame catalog', () => {
@@ -163,6 +226,18 @@ test('every predatory journal spawn uses the animated frame catalog', () => {
 
   assert.ok(journalSettings.length > 0);
   journalSettings.forEach((enemy) => assert.equal(enemy.spriteKey, 'ENEMY_JOURNAL_FRAMES'));
+});
+
+test('asteroid art is reserved for asteroid-belt encounters', () => {
+  const events = campaign.levels.flatMap((level) => level.waves.flatMap((wave) => wave.events));
+  const asteroidEvents = events.filter((event) => event.kind === 'asteroid-belt');
+  const formationEnemies = events
+    .filter((event) => event.kind === 'spawn')
+    .flatMap((event) => event.enemies);
+
+  assert.ok(asteroidEvents.length > 0);
+  asteroidEvents.forEach((event) => assert.equal(event.spriteKey, 'ASTEROID_BELT_FRAMES'));
+  formationEnemies.forEach((enemy) => assert.notEqual(enemy.spriteKey, 'ASTEROID_BELT_FRAMES'));
 });
 
 test('campaign JSON contains catalog keys only, never arbitrary asset paths or executable fields', () => {

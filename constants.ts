@@ -3,6 +3,7 @@ import type { FieldUpgradeType, Stats } from './types';
 // --- ASSET CONFIGURATION ---
 export const ASSETS = {
   PLAYER_SHIP: "/game-art/branding/researchhub-ship.png",
+  BIO_SHIP: "/game-art/branding/bio-ship.png",
   
   // Founder Icons - Mapped to Powerups
   // Triple Shot (Brian)
@@ -36,6 +37,9 @@ export const ASSETS = {
   GAME_PARALLAX_BIG_PLANET: "/game-art/backgrounds/parallax-big-planet.png",
   GAME_PARALLAX_RING_PLANET: "/game-art/backgrounds/parallax-ring-planet.png",
   ENEMY_DRONE_FRAMES: [
+    "/game-art/enemies/paywall-interceptor.png"
+  ],
+  LEGACY_ENEMY_DRONE_FRAMES: [
     "/game-art/enemies/enemy-drone-1.png",
     "/game-art/enemies/enemy-drone-2.png",
     "/game-art/enemies/enemy-drone-3.png",
@@ -43,24 +47,27 @@ export const ASSETS = {
     "/game-art/enemies/enemy-drone-5.png"
   ],
   ENEMY_SWARM_FRAMES: [
+    "/game-art/enemies/citation-wraith.png"
+  ],
+  LEGACY_ENEMY_SWARM_FRAMES: [
     "/game-art/enemies/swarm-1.png",
     "/game-art/enemies/swarm-2.png",
     "/game-art/enemies/swarm-3.png",
     "/game-art/enemies/swarm-4.png"
   ],
   ENEMY_BRICK_FRAMES: [
+    "/game-art/enemies/peer-review-bulwark.png"
+  ],
+  ASTEROID_BELT_FRAMES: [
     "/game-art/enemies/asteroid-1.png",
     "/game-art/enemies/asteroid-2.png",
     "/game-art/enemies/asteroid-3.png",
     "/game-art/enemies/asteroid-4.png",
     "/game-art/enemies/asteroid-5.png"
   ],
-  ENEMY_JOURNAL: "/game-art/enemies/journal-ace.png",
+  ENEMY_JOURNAL: "/game-art/enemies/predatory-journal-raider.png",
   ENEMY_JOURNAL_FRAMES: [
-    "/game-art/enemies/journal-ace-frame-1.png",
-    "/game-art/enemies/journal-ace-frame-2.png",
-    "/game-art/enemies/journal-ace-frame-3.png",
-    "/game-art/enemies/journal-ace-frame-4.png"
+    "/game-art/enemies/predatory-journal-raider.png"
   ],
   MINI_BOSS: "/game-art/bosses/mini-boss-drone.png",
   WALL_BOSS_SEGMENT: "/game-art/bosses/wall-segment.png",
@@ -93,7 +100,8 @@ export const STORAGE_KEYS = {
   DONATED_WALLETS: "scicon_donated_wallets",
   CREDITED_FUNDING_TXS: "scicon_credited_funding_txs",
   POLISH_SETTINGS: "scicon_polish_settings",
-  LATEST_RUN_RECEIPT: "scicon_latest_run_receipt"
+  LATEST_RUN_RECEIPT: "scicon_latest_run_receipt",
+  SELECTED_SHIP: "scicon_selected_ship"
 };
 
 export const COLORS = {
