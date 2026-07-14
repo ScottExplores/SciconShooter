@@ -23,7 +23,7 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
 
 test('tracked campaign contains the current four real-game sector waves', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 6);
+  assert.equal(campaign.revision, 7);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 1);
@@ -202,17 +202,16 @@ test('small random intercepts bridge formations and boss encounters without repl
 
 test('enemy families unlock progressively instead of all appearing in the opening wave', () => {
   const waves = campaign.levels[0].waves;
-  const phaseEnemyIds = (wave, phase) => wave.events
-    .find((event) => event.id === `${wave.id}-phase-${phase}`)
-    .enemies.map((enemy) => enemy.enemyId);
+  const waveEnemyIds = (wave) => [...new Set(
+    wave.events
+      .filter((event) => event.kind === 'spawn')
+      .flatMap((event) => event.enemies.map((enemy) => enemy.enemyId))
+  )];
 
-  assert.deepEqual(phaseEnemyIds(waves[0], 1), ['drone']);
-  assert.deepEqual(phaseEnemyIds(waves[0], 2), ['drone', 'swarm']);
-  assert.deepEqual(phaseEnemyIds(waves[0], 3), ['drone', 'swarm', 'brick']);
-  assert.equal(waves[0].events.some((event) => event.kind === 'spawn' && event.enemies.some((enemy) => enemy.enemyId === 'journal')), false);
-  assert.ok(phaseEnemyIds(waves[1], 3).includes('journal'));
-  assert.ok(phaseEnemyIds(waves[2], 1).includes('brick'));
-  assert.ok(phaseEnemyIds(waves[3], 1).includes('journal'));
+  assert.deepEqual(waveEnemyIds(waves[0]), ['drone']);
+  assert.deepEqual(waveEnemyIds(waves[1]), ['drone', 'swarm']);
+  assert.deepEqual(waveEnemyIds(waves[2]), ['drone', 'swarm', 'brick']);
+  assert.deepEqual(waveEnemyIds(waves[3]), ['drone', 'swarm', 'brick', 'journal']);
 });
 
 test('every predatory journal spawn uses the animated frame catalog', () => {

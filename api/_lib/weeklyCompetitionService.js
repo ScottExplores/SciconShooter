@@ -50,7 +50,7 @@ const readWeeklyCompetitions = async (limit = 24) => {
 const readTopVerifiedScore = async (weekKey) => {
   const { start, end } = getWeekRange(weekKey);
   const query = [
-    'select=name,score,wave,date,wallet_address,run_id,verified',
+    'select=name,score,wave,date,wallet_address,run_id,verified,proposal_id,proposal_title,proposal_url,proposal_author',
     'verified=eq.true',
     'order=score.desc,date.asc',
     'limit=1',
@@ -85,11 +85,12 @@ const finalizeWeeklyCompetition = async (weekKey = getPreviousWeekKey()) => {
 
   const finalizedAt = new Date();
   const claimDeadline = new Date(finalizedAt.getTime() + CLAIM_WINDOW_MS);
+  const hasPreselectedProposal = Boolean(winner.proposal_id && winner.proposal_title);
   const row = {
     week_key: weekKey,
     starts_at: start.toISOString(),
     ends_at: end.toISOString(),
-    status: 'finalized',
+    status: hasPreselectedProposal ? 'claimed' : 'finalized',
     winner_run_id: winner.run_id,
     winner_name: winner.name,
     winner_wallet: winner.wallet_address || null,
@@ -97,6 +98,10 @@ const finalizeWeeklyCompetition = async (weekKey = getPreviousWeekKey()) => {
     winning_wave: winner.wave || 1,
     finalized_at: finalizedAt.toISOString(),
     claim_deadline: claimDeadline.toISOString(),
+    proposal_id: winner.proposal_id || null,
+    proposal_title: winner.proposal_title || null,
+    proposal_url: winner.proposal_url || null,
+    proposal_author: winner.proposal_author || null,
     allocation_rsc: Number(process.env.WEEKLY_ALLOCATION_RSC) || DEFAULT_ALLOCATION_RSC,
     updated_at: finalizedAt.toISOString()
   };
@@ -119,7 +124,9 @@ const finalizeWeeklyCompetition = async (weekKey = getPreviousWeekKey()) => {
 
   const notification = await sendBaseNotificationBroadcast({
     title: 'Weekly champion locked',
-    message: `${winner.name} won the week with ${Number(winner.score).toLocaleString('en-US')} points. The champion claim window is now open.`,
+    message: hasPreselectedProposal
+      ? `${winner.name} won with ${Number(winner.score).toLocaleString('en-US')} points and directed the weekly pick to ${winner.proposal_title}.`
+      : `${winner.name} won the week with ${Number(winner.score).toLocaleString('en-US')} points. The champion claim window is now open.`,
     targetPath: '/?view=trophies'
   }).catch((error) => {
     console.error('Base champion notification failed:', error);

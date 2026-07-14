@@ -26,12 +26,14 @@ test('engine test mode preserves lives and supports encounter-only wave jumps', 
   assert.match(canvasSource, /engine\.jumpToCampaignWave\(testWaveCommand\.wave\)/);
 });
 
-test('paused owner controls freeze the frame and preview champion selection without signing', () => {
-  assert.match(appSource, /gameState === GameState\.PAUSED && isOwnerWallet && isOwnerTestRun/);
-  assert.match(appSource, /Pilot Test Controls/);
-  assert.match(appSource, /Jump wave/);
-  assert.match(appSource, /top-\[max\(5\.25rem,calc\(env\(safe-area-inset-top\)\+5\.25rem\)\)\]/);
-  assert.match(appSource, /Preview winner choice/);
+test('owner controls provide a separate frame freeze and put wave tools in the normal pause menu', () => {
+  assert.match(appSource, /running: gameState === GameState\.PLAYING && !ownerFrameFrozen/);
+  assert.match(appSource, /showFreezeControl: isOwnerWallet && isOwnerTestRun/);
+  assert.match(appSource, /onToggleFreeze: isOwnerWallet && isOwnerTestRun/);
+  assert.match(appSource, /gameState === GameState\.PAUSED && !showTestChampionPreview/);
+  assert.match(appSource, /Founder Test Controls/);
+  assert.match(appSource, /Select wave/);
+  assert.match(appSource, /Preview winner/);
   assert.match(appSource, /Finish test run/);
   assert.match(startScreenSource, /testChampionWinner\s*\?\s*setTestSelectedProposal\(proposal\)/);
   assert.match(startScreenSource, /This does not sign or submit a claim/);

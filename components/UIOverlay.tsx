@@ -11,7 +11,10 @@ export interface UIOverlayProps {
   onDisableLabGlow: () => void;
   isUpgradeReady?: boolean;
   paused?: boolean;
+  frozen?: boolean;
+  showFreezeControl?: boolean;
   onPause: () => void;
+  onToggleFreeze?: () => void;
   onUseBomb: () => void;
   onUpgrade: (type: FieldUpgradeType) => void;
   bombIconSrc?: string;
@@ -20,7 +23,7 @@ export interface UIOverlayProps {
   onToggleMute?: () => boolean | void;
 }
 
-type HudIconName = 'sound' | 'muted' | 'play' | 'pause' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
+type HudIconName = 'sound' | 'muted' | 'play' | 'pause' | 'freeze' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
 
 const HudIcon = ({
   name,
@@ -59,6 +62,12 @@ const HudIcon = ({
       ) : null}
       {name === 'play' ? (
         <path {...common} fill="currentColor" d="m8.5 5.5 9 6.5-9 6.5z" />
+      ) : null}
+      {name === 'freeze' ? (
+        <>
+          <path {...common} d="M12 2.8v18.4M4 7.4l16 9.2M20 7.4 4 16.6" />
+          <path {...common} d="m12 2.8 2 2M12 2.8l-2 2M12 21.2l2-2M12 21.2l-2-2M4 7.4l2.7-.7M4 7.4l.7 2.7M20 16.6l-2.7.7M20 16.6l-.7-2.7M20 7.4l-2.7-.7M20 7.4l-.7 2.7M4 16.6l2.7.7M4 16.6l.7-2.7" />
+        </>
       ) : null}
       {name === 'lab' || name === 'flask' ? (
         <>
@@ -169,7 +178,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   onDisableLabGlow,
   isUpgradeReady = false,
   paused = false,
+  frozen = false,
+  showFreezeControl = false,
   onPause,
+  onToggleFreeze,
   onUseBomb,
   onUpgrade,
   bombIconSrc = getPrimaryAssetPath(DEFAULT_GAME_CAMPAIGN.hudAssets.bombIconAssetKey),
@@ -246,15 +258,33 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             <HudIcon name={muted ? 'muted' : 'sound'} className="h-5 w-5" />
           </button>
 
-          <button
-            type="button"
-            onClick={onPause}
-            className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-cyan-200/18 bg-white text-slate-950 shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition hover:bg-blue-100 sm:h-10 sm:w-10"
-            aria-label={paused ? 'Resume mission' : 'Pause mission'}
-            aria-pressed={paused}
-          >
-            <HudIcon name={paused ? 'play' : 'pause'} className="h-5 w-5" />
-          </button>
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={onPause}
+              className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-cyan-200/18 bg-white text-slate-950 shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition hover:bg-blue-100 sm:h-10 sm:w-10"
+              aria-label={paused ? 'Resume mission' : 'Pause mission'}
+              aria-pressed={paused}
+            >
+              <HudIcon name={paused ? 'play' : 'pause'} className="h-5 w-5" />
+            </button>
+            {showFreezeControl && onToggleFreeze ? (
+              <button
+                type="button"
+                onClick={onToggleFreeze}
+                className={`flex h-9 w-9 items-center justify-center rounded-[8px] border shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition sm:h-10 sm:w-10 ${
+                  frozen
+                    ? 'border-cyan-100/75 bg-cyan-300 text-slate-950 shadow-[0_0_22px_rgba(34,211,238,0.42)]'
+                    : 'border-cyan-200/24 bg-slate-950/78 text-cyan-100 hover:bg-cyan-300/18'
+                }`}
+                aria-label={frozen ? 'Unfreeze test frame' : 'Freeze test frame'}
+                aria-pressed={frozen}
+                title={frozen ? 'Unfreeze frame' : 'Freeze frame'}
+              >
+                <HudIcon name="freeze" className="h-5 w-5" />
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 

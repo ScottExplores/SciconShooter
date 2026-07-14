@@ -7,8 +7,10 @@ export interface MissionRecordWeeklyFunding {
   status: MissionRecordFundingStatus;
   allocationRsc: number;
   winner?: ArchivedWinner;
+  proposalId?: string;
   proposalTitle?: string;
   proposalUrl?: string;
+  proposalAuthor?: string;
 }
 
 interface MissionRecordWeeklyFundingInput {
@@ -55,8 +57,10 @@ export const getMissionRecordWeeklyFunding = ({
       status: 'selected',
       allocationRsc: archivedWinner.allocationRsc ?? 100,
       winner: archivedWinner,
+      proposalId: archivedWinner.proposalId,
       proposalTitle: archivedWinner.proposalTitle,
-      proposalUrl: archivedWinner.proposalUrl
+      proposalUrl: archivedWinner.proposalUrl,
+      proposalAuthor: archivedWinner.proposalAuthor
     };
   }
 
@@ -70,7 +74,18 @@ export const getMissionRecordWeeklyFunding = ({
     };
   }
 
-  if (leaderMatchesRun(weeklyLeaderboard[0], receipt, pilotName)) {
+  const currentLeader = weeklyLeaderboard[0];
+  if (leaderMatchesRun(currentLeader, receipt, pilotName)) {
+    if (currentLeader?.proposalId && currentLeader.proposalTitle) {
+      return {
+        status: 'selected',
+        allocationRsc: 100,
+        proposalId: currentLeader.proposalId,
+        proposalTitle: currentLeader.proposalTitle,
+        proposalUrl: currentLeader.proposalUrl,
+        proposalAuthor: currentLeader.proposalAuthor
+      };
+    }
     return {
       status: 'current-leader',
       allocationRsc: 100

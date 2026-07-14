@@ -67,6 +67,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   const cardUrl = `${window.location.origin}${buildMissionRecordCardPath(receipt.runId)}`;
   const explorerUrl = mintChainId === 8453 ? 'https://basescan.org' : 'https://sepolia.basescan.org';
   const needsBaseAccount = !walletAddress;
+  const weeklyChoiceRequired = Boolean(weeklyFunding && weeklyFunding.status !== 'selected');
   const encounter = getEncounter(receipt.metrics.wave);
   const recordCardConfig = DEFAULT_GAME_CAMPAIGN.recordCard;
   const encounterAssetKey = recordCardConfig.encounterAssetKey === 'AUTO'
@@ -152,7 +153,48 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
             ) : null}
           </div>
 
-          {mintStatus !== 'confirmed' ? (
+          {weeklyFunding ? (
+            <div className="mt-3 rounded-[8px] border border-yellow-200/30 bg-yellow-300/10 p-3 shadow-[0_0_18px_rgba(250,204,21,0.18)]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-yellow-200">Weekly funding</p>
+                  <h3 className="arcade-font mt-1 text-sm font-black uppercase tracking-wider text-white">
+                    {weeklyFunding.status === 'claimable'
+                      ? 'Weekly champion confirmed'
+                      : weeklyFunding.status === 'selected'
+                        ? 'Funding choice saved'
+                        : 'Weekly high score'}
+                  </h3>
+                </div>
+                <span className="shrink-0 border border-yellow-200/30 bg-black/30 px-2 py-1 font-mono text-[9px] font-black uppercase tracking-[0.12em] text-yellow-100">
+                  {weeklyFunding.allocationRsc} RSC
+                </span>
+              </div>
+              <p className="mt-2 text-[10px] font-semibold leading-relaxed text-slate-200">
+                {weeklyFunding.status === 'claimable'
+                  ? 'Your winning score is locked. Choose the ResearchHub proposal for this weekly allocation before minting or sharing.'
+                  : weeklyFunding.status === 'selected'
+                    ? weeklyFunding.proposalTitle || 'Your weekly funding proposal is saved with this mission record.'
+                    : 'You hold the weekly high score. Choose the proposal that follows this score into the weekly cutoff.'}
+              </p>
+              {weeklyFunding.status === 'selected' && weeklyFunding.proposalAuthor ? (
+                <p className="mt-1 truncate font-mono text-[8px] font-black uppercase tracking-[0.12em] text-cyan-100/75">
+                  {weeklyFunding.proposalAuthor}
+                </p>
+              ) : null}
+              {weeklyFunding.status !== 'selected' && onOpenWeeklyFunding ? (
+                <button
+                  type="button"
+                  onClick={onOpenWeeklyFunding}
+                  className="mt-3 min-h-11 w-full rounded-[6px] border border-yellow-100/40 bg-yellow-300/20 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/30"
+                >
+                  Choose weekly proposal
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!weeklyChoiceRequired && mintStatus !== 'confirmed' ? (
             <div className="mt-3 overflow-hidden rounded-[8px] border border-cyan-100/25 bg-[linear-gradient(135deg,rgba(8,47,73,0.72),rgba(6,78,59,0.34))] p-3">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -191,59 +233,23 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
             </div>
           ) : null}
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => void shareRecord()} className="min-h-11 rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share image</button>
-            <button type="button" onClick={onMint} disabled={!walletAddress || !mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="min-h-11 rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
-              {mintStatus === 'confirmed'
-                ? 'NFT minted'
-                : mintStatus === 'authorizing' || mintStatus === 'confirming'
-                  ? 'Confirm in Base Account'
-                  : mintConfigured
-                    ? needsBaseAccount ? 'Connect to mint' : 'Mint NFT'
-                    : 'Mint setup awaiting approval'}
-            </button>
-          </div>
-          {shareStatus || mintMessage ? <p className="mt-3 text-center text-[10px] font-semibold text-slate-400">{mintMessage || shareStatus}</p> : null}
-          {mintHash ? <a href={`${explorerUrl}/tx/${mintHash}`} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200 underline underline-offset-2">View Score Record transaction</a> : null}
-
-          {weeklyFunding ? (
-            <div className="mt-4 border-t border-yellow-200/20 pt-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-yellow-200">Weekly funding</p>
-                  <h3 className="arcade-font mt-1 text-sm font-black uppercase tracking-wider text-white">
-                    {weeklyFunding.status === 'claimable'
-                      ? 'Weekly champion confirmed'
-                      : weeklyFunding.status === 'selected'
-                        ? 'Proposal selected'
-                        : 'Current weekly leader'}
-                  </h3>
-                </div>
-                <span className="shrink-0 border border-yellow-200/30 bg-yellow-300/10 px-2 py-1 font-mono text-[9px] font-black uppercase tracking-[0.12em] text-yellow-100">
-                  {weeklyFunding.allocationRsc} RSC
-                </span>
-              </div>
-              <p className="mt-2 text-[10px] font-semibold leading-relaxed text-slate-300">
-                {weeklyFunding.status === 'claimable'
-                  ? 'Your winning score is locked. Choose the ResearchHub proposal for this weekly allocation.'
-                  : weeklyFunding.status === 'selected'
-                    ? weeklyFunding.proposalTitle || 'Your weekly funding proposal has been selected.'
-                    : 'You are #1 right now. If you still lead at Sunday\'s noon Pacific cutoff, proposal choice unlocks here.'}
-              </p>
-              {onOpenWeeklyFunding ? (
-                <button
-                  type="button"
-                  onClick={onOpenWeeklyFunding}
-                  className="mt-3 min-h-11 w-full border border-yellow-100/35 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25"
-                >
-                  {weeklyFunding.status === 'claimable'
-                    ? 'Choose weekly proposal'
-                    : weeklyFunding.status === 'selected'
-                      ? 'View selected proposal'
-                      : 'Browse eligible proposals'}
+          {!weeklyChoiceRequired ? (
+            <>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => void shareRecord()} className="min-h-11 rounded-[8px] border border-cyan-100/25 bg-cyan-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-cyan-50 transition hover:bg-cyan-300/20">Share image</button>
+                <button type="button" onClick={onMint} disabled={!walletAddress || !mintConfigured || mintStatus === 'authorizing' || mintStatus === 'confirming' || mintStatus === 'confirmed'} className="min-h-11 rounded-[8px] border border-yellow-100/30 bg-yellow-300/15 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-yellow-50 transition hover:bg-yellow-300/25 disabled:cursor-not-allowed disabled:opacity-55">
+                  {mintStatus === 'confirmed'
+                    ? 'NFT minted'
+                    : mintStatus === 'authorizing' || mintStatus === 'confirming'
+                      ? 'Confirm in Base Account'
+                      : mintConfigured
+                        ? needsBaseAccount ? 'Connect to mint' : 'Mint NFT'
+                        : 'Mint setup awaiting approval'}
                 </button>
-              ) : null}
-            </div>
+              </div>
+              {shareStatus || mintMessage ? <p className="mt-3 text-center text-[10px] font-semibold text-slate-400">{mintMessage || shareStatus}</p> : null}
+              {mintHash ? <a href={`${explorerUrl}/tx/${mintHash}`} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200 underline underline-offset-2">View Score Record transaction</a> : null}
+            </>
           ) : null}
         </div>
       </div>

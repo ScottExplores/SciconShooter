@@ -64,6 +64,7 @@ export class Entity {
 
   // Boss Props
   attackTimer: number = 0;
+  lastBurstAttackTimer: number = 0;
   isCharging: boolean = false;
   isBeam: boolean = false; 
   beamAnchorOffsetX: number | null = null;
@@ -389,6 +390,8 @@ const MINI_BOSS_BOMB_REWARD_CHANCE = 0.28;
 const BOMB_DAMAGE_BOSS = 14;
 const BOMB_DAMAGE_MINI_BOSS = 18;
 const BOMB_DAMAGE_INVADER = 3;
+const WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1.45;
+const WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0.35;
 const PLAYER_THRUSTER_PALETTES = [
   { core: 'rgba(255,255,255,0.95)', mid: 'rgba(103,232,249,0.9)', edge: 'rgba(37,99,235,0.62)', fade: 'rgba(34,211,238,0)', glow: '#22d3ee', streak: 'rgba(103,232,249,0.34)' },
   { core: 'rgba(255,255,255,0.98)', mid: 'rgba(167,139,250,0.98)', edge: 'rgba(109,40,217,0.84)', fade: 'rgba(124,58,237,0)', glow: '#a78bfa', streak: 'rgba(196,181,253,0.5)' },
@@ -416,6 +419,20 @@ const TRIPLE_GUN_POD_OFFSETS = [-42, 42];
 const DEFAULT_POLISH_SETTINGS: GamePolishSettings = {
   screenShake: true,
   highDensityParticles: true
+};
+
+const getWaveOneGatekeeperBurstInterval = (baseInterval: number, healthRatio: number) => {
+  const normalizedHealth = clamp(healthRatio, 0, 1);
+  const slowCadenceRatio = clamp(
+    (normalizedHealth - WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO)
+      / (1 - WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO),
+    0,
+    1
+  );
+  const intervalMultiplier = 1
+    + ((WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER - 1) * slowCadenceRatio);
+
+  return Math.max(baseInterval, Math.round(baseInterval * intervalMultiplier));
 };
 
 type CollisionBox = {
@@ -606,6 +623,10 @@ const WAVE_SECTORS = [
   { name: 'PAYWALL SIEGE', accent: '#fde68a' },
   { name: 'OPEN GALAXY', accent: '#6ee7b7' }
 ];
+
+const PAYWALL_INTERCEPTOR_SCALE = 1.05;
+const CITATION_WRAITH_SCALE = 1.2;
+const MAIN_BOSS_ALERT_FRAMES = 120;
 
 export class GameEngine {
   width: number = 0;
@@ -1790,7 +1811,7 @@ export class GameEngine {
     if (type === 'gatekeeper') {
       this.clearThreatsForMainBoss();
     }
-    this.playSound(this.isSubBossWarning(type) ? 'siren' : 'boss_roar');
+    this.playSound('siren');
   }
 
   clearThreatsForMainBoss() {
@@ -2003,8 +2024,14 @@ export class GameEngine {
     }
     
     if (this.inBossWarningSequence) {
-        if (this.isSubBossWarning() && this.bossWarningFrame > 0 && this.bossWarningFrame % 36 === 0) {
+        const warningAge = this.bossWarningDuration - this.bossWarningFrame;
+        const mainBossAlertFrames = Math.min(MAIN_BOSS_ALERT_FRAMES, Math.max(1, this.bossWarningDuration - 60));
+        const mainBossAlertActive = this.pendingBossType === 'gatekeeper' && warningAge < mainBossAlertFrames;
+        if ((this.isSubBossWarning() || mainBossAlertActive) && this.bossWarningFrame > 0 && this.bossWarningFrame % 36 === 0) {
             this.playSound('siren');
+        }
+        if (this.pendingBossType === 'gatekeeper' && warningAge === mainBossAlertFrames) {
+            this.playSound('boss_roar');
         }
         this.bossWarningFrame--;
         if (this.bossWarningFrame <= 0) {
@@ -3399,8 +3426,8 @@ export class GameEngine {
     if (type === EntityType.ENEMY_DRONE) {
       e.vy = 2.5 * speedBoost; 
       e.hp = 2 * hpMult;
-      e.width = 44;
-      e.height = 44;
+      e.width = Math.round(44 * PAYWALL_INTERCEPTOR_SCALE);
+      e.height = Math.round(44 * PAYWALL_INTERCEPTOR_SCALE);
       e.color = '#7dd3fc'; 
       e.text = "🔒"; 
     } else if (type === EntityType.ENEMY_JOURNAL) {
@@ -3422,8 +3449,8 @@ export class GameEngine {
     } else if (type === EntityType.ENEMY_SWARM) {
       e.vy = 3.5 * speedBoost;
       e.hp = 1 * hpMult;
-      e.width = 34;
-      e.height = 28;
+      e.width = Math.round(34 * CITATION_WRAITH_SCALE);
+      e.height = Math.round(28 * CITATION_WRAITH_SCALE);
       e.color = '#34d399'; 
       e.text = "🪰";
     } 
@@ -3864,9 +3891,18 @@ export class GameEngine {
     
     if (attackCycle < burstEnd || !allowsBeam) {
         boss.isCharging = false;
-        const fireRate = boss.attackIntervalFrames ?? Math.max(20, 60 - (phase * 7));
-        if (allowsBurst && boss.attackTimer % fireRate === 0) {
+        const baseFireRate = boss.attackIntervalFrames ?? Math.max(20, 60 - (phase * 7));
+        const isWaveOneGatekeeper = this.wave === 1
+          && (boss.sourceItemId === 'gatekeeper' || boss.text === 'GATEKEEPER');
+        const fireRate = isWaveOneGatekeeper
+          ? getWaveOneGatekeeperBurstInterval(baseFireRate, healthRatio)
+          : baseFireRate;
+        const isBurstReady = isWaveOneGatekeeper
+          ? boss.attackTimer - boss.lastBurstAttackTimer >= fireRate
+          : boss.attackTimer % fireRate === 0;
+        if (allowsBurst && isBurstReady) {
           this.spawnBossBurst(boss, phase);
+          boss.lastBurstAttackTimer = boss.attackTimer;
         }
     } else if (attackCycle >= burstEnd && attackCycle < chargeEnd) {
         if (attackCycle === burstEnd || boss.beamLaneSign === 0) {
@@ -4003,7 +4039,12 @@ export class GameEngine {
 
     if (type !== PowerupType.EXTRA_LIFE) {
       const currentDuration = this.activePowerups.get(type) || 0;
-      const duration = type === PowerupType.RESEARCH_BEAM ? GAME_CONFIG.RESEARCH_BEAM_DURATION : GAME_CONFIG.POWERUP_DURATION;
+      const isFounderShot = type === PowerupType.DOUBLE_SHOT || type === PowerupType.TRIPLE_SHOT;
+      const duration = type === PowerupType.RESEARCH_BEAM
+        ? GAME_CONFIG.RESEARCH_BEAM_DURATION
+        : isFounderShot
+          ? GAME_CONFIG.FOUNDER_SHOT_DURATION
+          : GAME_CONFIG.POWERUP_DURATION;
       this.activePowerups.set(type, currentDuration + duration);
     }
 
@@ -4479,6 +4520,52 @@ export class GameEngine {
     ctx.restore();
   }
 
+  drawMainBossAlert(ctx: CanvasRenderingContext2D) {
+    const duration = this.bossWarningDuration || 300;
+    const age = duration - this.bossWarningFrame;
+    const alertFrames = Math.min(MAIN_BOSS_ALERT_FRAMES, Math.max(1, duration - 60));
+    const alpha = Math.max(0, Math.min(1, age / 10, (alertFrames - age) / 16));
+    const flash = Math.sin(this.frameCount * 0.62) > 0 ? 1 : 0.32;
+    const panelWidth = Math.min(this.width - 34, 560);
+    const panelHeight = this.width < 520 ? 118 : 132;
+    const x = (this.width - panelWidth) / 2;
+    const y = Math.max(104, (this.height - panelHeight) * 0.3);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = `rgba(127, 0, 0, ${0.14 + flash * 0.24})`;
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    ctx.fillStyle = `rgba(239, 68, 68, ${0.12 + flash * 0.18})`;
+    const stripeHeight = 18;
+    for (let stripeY = 0; stripeY < this.height; stripeY += stripeHeight * 3) {
+      ctx.fillRect(0, stripeY, this.width, stripeHeight);
+    }
+
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 34 * flash;
+    ctx.fillStyle = `rgba(28, 3, 8, ${0.9 + flash * 0.06})`;
+    ctx.strokeStyle = `rgba(254, 240, 138, ${0.72 + flash * 0.28})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(x, y, panelWidth, panelHeight, 18);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#fef08a';
+    ctx.textAlign = 'center';
+    ctx.font = `bold ${this.width < 520 ? 34 : 46}px Orbitron`;
+    ctx.fillText('WARNING', this.width / 2, y + (this.width < 520 ? 50 : 60));
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${this.width < 520 ? 13 : 17}px Orbitron`;
+    ctx.fillText('GATEKEEPER SIGNAL DETECTED', this.width / 2, y + (this.width < 520 ? 82 : 96));
+    ctx.fillStyle = `rgba(248, 113, 113, ${0.72 + flash * 0.28})`;
+    ctx.font = `bold ${this.width < 520 ? 9 : 11}px Orbitron`;
+    ctx.fillText('BOSS INBOUND', this.width / 2, y + panelHeight - 16);
+    ctx.restore();
+  }
+
   drawSubBossWarning(ctx: CanvasRenderingContext2D) {
     if (!this.pendingBossType || !this.isSubBossWarning()) return;
 
@@ -4541,12 +4628,6 @@ export class GameEngine {
       this.bgEntities[index].draw(ctx);
     }
     
-    if (this.inBossWarningSequence && this.pendingBossType === 'gatekeeper') {
-        this.drawBossWarningComms(ctx);
-    } else if (this.inBossWarningSequence) {
-        this.drawSubBossWarning(ctx);
-    }
-    
     ctx.save();
     ctx.globalAlpha = 1.0;
     ctx.filter = "none";
@@ -4602,6 +4683,18 @@ export class GameEngine {
     
     ctx.restore();
     ctx.restore();
+
+    if (this.inBossWarningSequence && this.pendingBossType === 'gatekeeper') {
+      const warningAge = this.bossWarningDuration - this.bossWarningFrame;
+      const alertFrames = Math.min(MAIN_BOSS_ALERT_FRAMES, Math.max(1, this.bossWarningDuration - 60));
+      if (warningAge < alertFrames) {
+        this.drawMainBossAlert(ctx);
+      } else {
+        this.drawBossWarningComms(ctx);
+      }
+    } else if (this.inBossWarningSequence) {
+      this.drawSubBossWarning(ctx);
+    }
 
     if (this.flashAlpha > 0) {
       ctx.save();
@@ -4958,7 +5051,8 @@ export class GameEngine {
       const remaining = isTriple
         ? this.activePowerups.get(PowerupType.TRIPLE_SHOT) || 0
         : this.activePowerups.get(PowerupType.DOUBLE_SHOT) || 0;
-      const entryAge = GAME_CONFIG.POWERUP_DURATION - Math.min(GAME_CONFIG.POWERUP_DURATION, remaining);
+      const entryAge = GAME_CONFIG.FOUNDER_SHOT_DURATION
+        - Math.min(GAME_CONFIG.FOUNDER_SHOT_DURATION, remaining);
       const entry = easeOutCubic(clamp(entryAge / 42, 0, 1));
       const fade = Math.min(1, remaining / 36);
       const centerX = this.player.x + this.player.width / 2;

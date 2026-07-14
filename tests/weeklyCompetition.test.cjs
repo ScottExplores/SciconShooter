@@ -104,3 +104,42 @@ test('finalization locks the top verified score for a closed week', async (conte
     72 * 60 * 60 * 1000
   );
 });
+
+test('finalization carries a leading run proposal into the archived weekly result', async (context) => {
+  const originalFetch = global.fetch;
+  const originalUrl = process.env.SUPABASE_URL;
+  const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_URL = 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
+
+  let requestCount = 0;
+  const winner = {
+    name: 'Proposal Pilot', score: 7654, wave: 6, date: '2020-02-04T12:00:00.000Z',
+    wallet_address: null, run_id: 'proposal-run', verified: true,
+    proposal_id: '321', proposal_title: 'Open Science Target',
+    proposal_url: 'https://www.researchhub.com/post/321/open-science-target',
+    proposal_author: 'Ada Researcher'
+  };
+  global.fetch = async (_url, options = {}) => {
+    requestCount += 1;
+    if (requestCount === 1) return new Response('[]', { status: 200 });
+    if (requestCount === 2) return new Response(JSON.stringify([winner]), { status: 200 });
+    const saved = JSON.parse(options.body);
+    return new Response(JSON.stringify([saved]), { status: 200 });
+  };
+
+  context.after(() => {
+    global.fetch = originalFetch;
+    if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = originalUrl;
+    if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+  });
+
+  const result = await finalizeWeeklyCompetition('2020-02-02');
+  assert.equal(result.finalized, true);
+  assert.equal(result.competition.status, 'claimed');
+  assert.equal(result.competition.proposal_id, '321');
+  assert.equal(result.competition.proposal_title, 'Open Science Target');
+  assert.equal(result.competition.proposal_author, 'Ada Researcher');
+});

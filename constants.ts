@@ -123,6 +123,7 @@ export const GAME_CONFIG = {
   // We now use milestones, but this controls the fill speed of the bar between bosses
   WAVE_DURATION_FRAMES: 3600, 
   POWERUP_DURATION: 720, // 12 seconds @ 60fps
+  FOUNDER_SHOT_DURATION: 1440, // 24 seconds @ 60fps
   RESEARCH_BEAM_DURATION: 600, // 10 seconds @ 60fps
   SHIELD_DURATION: 240, // Reduced from 300 (4 seconds)
   BOSS_SPAWN_FRAMES: 3000,

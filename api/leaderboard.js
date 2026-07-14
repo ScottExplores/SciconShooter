@@ -3,6 +3,7 @@ const MAX_MONTHLY_SCORES = 5;
 const SYNC_SCORE_LIMIT = ALL_TIME_SCORE_LIMIT + MAX_MONTHLY_SCORES;
 const SUPABASE_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
+const { findEligibleProposal } = require('./_lib/researchHubEligibility');
 const crypto = require('crypto');
 const { checkRateLimit } = require('./_lib/rateLimit');
 const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
@@ -256,6 +257,54 @@ const hasSubmittedRun = async (runId) => {
   return Array.isArray(rows) && rows.length > 0;
 };
 
+const selectProposalForWeeklyLeader = async (receipt, proposalId) => {
+  const currentScores = await readScores();
+  const currentLeader = toLeaderboardPayload(currentScores).monthlyScores[0];
+
+  if (!currentLeader || currentLeader.runId !== receipt.runId) {
+    throw Object.assign(new Error('This run is no longer the current weekly high score.'), { statusCode: 409 });
+  }
+
+  if (currentLeader.proposalId) {
+    if (currentLeader.proposalId === String(proposalId)) {
+      return { ...toLeaderboardPayload(currentScores), selectedProposal: {
+        id: currentLeader.proposalId,
+        title: currentLeader.proposalTitle,
+        url: currentLeader.proposalUrl,
+        author: currentLeader.proposalAuthor
+      } };
+    }
+    throw Object.assign(new Error('A proposal has already been saved for this weekly-leading run.'), { statusCode: 409 });
+  }
+
+  const proposal = await findEligibleProposal(proposalId);
+  const response = await fetch(supabaseUrl(
+    `${SUPABASE_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}&verified=eq.true&proposal_id=is.null`
+  ), {
+    method: 'PATCH',
+    headers: supabaseHeaders({ Prefer: 'return=representation' }),
+    body: JSON.stringify({
+      proposal_id: proposal.id,
+      proposal_title: proposal.title,
+      proposal_url: proposal.url,
+      proposal_author: proposal.author
+    })
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Weekly proposal save failed with ${response.status}: ${details}`);
+  }
+
+  const rows = await response.json();
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw Object.assign(new Error('The weekly proposal could not be attached to this score.'), { statusCode: 409 });
+  }
+
+  const scores = await readScores();
+  return { ...toLeaderboardPayload(scores), selectedProposal: proposal };
+};
+
 const readScores = async () => {
   if (hasSupabaseConfig()) {
     return readSupabaseScores();
@@ -297,9 +346,14 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
-      const rate = checkRateLimit(req, { scope: 'leaderboard-submit', limit: 20, windowMs: 10 * 60 * 1000 });
-      if (!rate.allowed) return sendJson(res, 429, { error: 'Too many score submissions. Please wait before trying again.' });
       const body = parseBody(req.body);
+      const action = sanitizeText(body.action, 40) || 'submit-score';
+      const rate = checkRateLimit(req, {
+        scope: action === 'select-proposal' ? 'weekly-proposal-select' : 'leaderboard-submit',
+        limit: action === 'select-proposal' ? 10 : 20,
+        windowMs: 10 * 60 * 1000
+      });
+      if (!rate.allowed) return sendJson(res, 429, { error: 'Too many score submissions. Please wait before trying again.' });
       let receipt;
       try {
         receipt = verifyRunReceipt(body.receiptToken);
@@ -309,6 +363,15 @@ module.exports = async (req, res) => {
 
       if (receipt.testRun) {
         return sendJson(res, 403, { error: 'Pilot Test runs are not eligible for leaderboards.' });
+      }
+
+      if (action === 'select-proposal') {
+        const result = await selectProposalForWeeklyLeader(receipt, body.proposalId);
+        return sendJson(res, 200, result);
+      }
+
+      if (action !== 'submit-score') {
+        return sendJson(res, 400, { error: 'Unknown leaderboard action.' });
       }
 
       const name = sanitizeText(body.name, 15)?.toUpperCase();
@@ -343,8 +406,9 @@ module.exports = async (req, res) => {
     return sendJson(res, 405, { error: 'Method not allowed' });
   } catch (error) {
     console.error('Leaderboard API error:', error);
-    return sendJson(res, 500, {
-      error: 'Leaderboard storage is not configured',
+    const status = Number.isInteger(error?.statusCode) ? error.statusCode : 500;
+    return sendJson(res, status, {
+      error: status === 500 ? 'Leaderboard storage is not configured' : error.message,
       details: error.message
     });
   }

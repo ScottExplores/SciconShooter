@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 6,
+  "revision": 7,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
-  "updatedAt": "2026-07-13T00:00:00.000Z",
+  "updatedAt": "2026-07-14T00:00:00.000Z",
   "fps": 60,
   "recordCard": {
     "copy": {
@@ -255,21 +255,11 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.78,
+                  "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
-                  "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.22,
-                  "health": 1,
-                  "speed": 3.5,
-                  "damage": 1,
-                  "scoreValue": 12,
                   "powerupDropChance": 0
                 }
               ]
@@ -290,21 +280,11 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.78,
+                  "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
-                  "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.22,
-                  "health": 1,
-                  "speed": 3.5,
-                  "damage": 1,
-                  "scoreValue": 12,
                   "powerupDropChance": 0
                 }
               ]
@@ -325,21 +305,11 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.78,
+                  "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
-                  "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.22,
-                  "health": 1,
-                  "speed": 3.5,
-                  "damage": 1,
-                  "scoreValue": 12,
                   "powerupDropChance": 0
                 }
               ]
@@ -402,32 +372,12 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.55,
+                  "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
                   "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2,
-                  "health": 1,
-                  "speed": 3.5,
-                  "damage": 1,
-                  "scoreValue": 12,
-                  "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
-                  "health": 8,
-                  "speed": 1.5,
-                  "damage": 1,
-                  "scoreValue": 20,
-                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -447,32 +397,12 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.55,
+                  "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
                   "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2,
-                  "health": 1,
-                  "speed": 3.5,
-                  "damage": 1,
-                  "scoreValue": 12,
-                  "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
-                  "health": 8,
-                  "speed": 1.5,
-                  "damage": 1,
-                  "scoreValue": 20,
-                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -492,32 +422,12 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.55,
+                  "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
                   "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2,
-                  "health": 1,
-                  "speed": 3.5,
-                  "damage": 1,
-                  "scoreValue": 12,
-                  "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
-                  "health": 8,
-                  "speed": 1.5,
-                  "damage": 1,
-                  "scoreValue": 20,
-                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -823,7 +733,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.5,
+                  "weight": 0.7143,
                   "health": 3.36,
                   "speed": 3.05,
                   "damage": 1,
@@ -833,22 +743,12 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2,
+                  "weight": 0.2857,
                   "health": 1.68,
                   "speed": 4.27,
                   "damage": 1,
                   "scoreValue": 24,
                   "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.3,
-                  "health": 13.44,
-                  "speed": 1.83,
-                  "damage": 1,
-                  "scoreValue": 40,
-                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -868,7 +768,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.5,
+                  "weight": 0.7143,
                   "health": 3.36,
                   "speed": 3.05,
                   "damage": 1,
@@ -878,22 +778,12 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2,
+                  "weight": 0.2857,
                   "health": 1.68,
                   "speed": 4.27,
                   "damage": 1,
                   "scoreValue": 24,
                   "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.3,
-                  "health": 13.44,
-                  "speed": 1.83,
-                  "damage": 1,
-                  "scoreValue": 40,
-                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -913,7 +803,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.5,
+                  "weight": 0.7143,
                   "health": 3.36,
                   "speed": 3.05,
                   "damage": 1,
@@ -923,22 +813,12 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2,
+                  "weight": 0.2857,
                   "health": 1.68,
                   "speed": 4.27,
                   "damage": 1,
                   "scoreValue": 24,
                   "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.3,
-                  "health": 13.44,
-                  "speed": 1.83,
-                  "damage": 1,
-                  "scoreValue": 40,
-                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -979,7 +859,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.3,
+                  "weight": 0.6667,
                   "health": 3.36,
                   "speed": 3.05,
                   "damage": 1,
@@ -989,32 +869,12 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.15,
+                  "weight": 0.3333,
                   "health": 1.68,
                   "speed": 4.27,
                   "damage": 1,
                   "scoreValue": 24,
                   "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
-                  "health": 13.44,
-                  "speed": 1.83,
-                  "damage": 1,
-                  "scoreValue": 40,
-                  "powerupDropChance": 0.08
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.3,
-                  "health": 5.04,
-                  "speed": 5.368,
-                  "damage": 1,
-                  "scoreValue": 60,
-                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -1034,7 +894,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.3,
+                  "weight": 0.6667,
                   "health": 3.36,
                   "speed": 3.05,
                   "damage": 1,
@@ -1044,32 +904,12 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.15,
+                  "weight": 0.3333,
                   "health": 1.68,
                   "speed": 4.27,
                   "damage": 1,
                   "scoreValue": 24,
                   "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
-                  "health": 13.44,
-                  "speed": 1.83,
-                  "damage": 1,
-                  "scoreValue": 40,
-                  "powerupDropChance": 0.08
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.3,
-                  "health": 5.04,
-                  "speed": 5.368,
-                  "damage": 1,
-                  "scoreValue": 60,
-                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -1089,7 +929,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.3,
+                  "weight": 0.6667,
                   "health": 3.36,
                   "speed": 3.05,
                   "damage": 1,
@@ -1099,32 +939,12 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.15,
+                  "weight": 0.3333,
                   "health": 1.68,
                   "speed": 4.27,
                   "damage": 1,
                   "scoreValue": 24,
                   "powerupDropChance": 0
-                },
-                {
-                  "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
-                  "health": 13.44,
-                  "speed": 1.83,
-                  "damage": 1,
-                  "scoreValue": 40,
-                  "powerupDropChance": 0.08
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.3,
-                  "health": 5.04,
-                  "speed": 5.368,
-                  "damage": 1,
-                  "scoreValue": 60,
-                  "powerupDropChance": 0.08
                 }
               ]
             },
@@ -1417,7 +1237,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.35,
+                  "weight": 0.4375,
                   "health": 4.04,
                   "speed": 3.325,
                   "damage": 1,
@@ -1427,7 +1247,7 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2,
+                  "weight": 0.25,
                   "health": 2.02,
                   "speed": 4.655,
                   "damage": 1,
@@ -1437,21 +1257,11 @@
                 {
                   "enemyId": "brick",
                   "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
+                  "weight": 0.3125,
                   "health": 16.16,
                   "speed": 1.995,
                   "damage": 1,
                   "scoreValue": 80,
-                  "powerupDropChance": 0.08
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.2,
-                  "health": 6.06,
-                  "speed": 5.852,
-                  "damage": 1,
-                  "scoreValue": 120,
                   "powerupDropChance": 0.08
                 }
               ]
@@ -1472,7 +1282,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.35,
+                  "weight": 0.4375,
                   "health": 4.04,
                   "speed": 3.325,
                   "damage": 1,
@@ -1482,7 +1292,7 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2,
+                  "weight": 0.25,
                   "health": 2.02,
                   "speed": 4.655,
                   "damage": 1,
@@ -1492,21 +1302,11 @@
                 {
                   "enemyId": "brick",
                   "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
+                  "weight": 0.3125,
                   "health": 16.16,
                   "speed": 1.995,
                   "damage": 1,
                   "scoreValue": 80,
-                  "powerupDropChance": 0.08
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.2,
-                  "health": 6.06,
-                  "speed": 5.852,
-                  "damage": 1,
-                  "scoreValue": 120,
                   "powerupDropChance": 0.08
                 }
               ]
@@ -1527,7 +1327,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.35,
+                  "weight": 0.4375,
                   "health": 4.04,
                   "speed": 3.325,
                   "damage": 1,
@@ -1537,7 +1337,7 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.2,
+                  "weight": 0.25,
                   "health": 2.02,
                   "speed": 4.655,
                   "damage": 1,
@@ -1547,21 +1347,11 @@
                 {
                   "enemyId": "brick",
                   "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
+                  "weight": 0.3125,
                   "health": 16.16,
                   "speed": 1.995,
                   "damage": 1,
                   "scoreValue": 80,
-                  "powerupDropChance": 0.08
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.2,
-                  "health": 6.06,
-                  "speed": 5.852,
-                  "damage": 1,
-                  "scoreValue": 120,
                   "powerupDropChance": 0.08
                 }
               ]
@@ -1624,7 +1414,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.3,
+                  "weight": 0.4286,
                   "health": 4.04,
                   "speed": 3.325,
                   "damage": 1,
@@ -1634,7 +1424,7 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.15,
+                  "weight": 0.2143,
                   "health": 2.02,
                   "speed": 4.655,
                   "damage": 1,
@@ -1644,21 +1434,11 @@
                 {
                   "enemyId": "brick",
                   "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
+                  "weight": 0.3571,
                   "health": 16.16,
                   "speed": 1.995,
                   "damage": 1,
                   "scoreValue": 80,
-                  "powerupDropChance": 0.08
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.3,
-                  "health": 6.06,
-                  "speed": 5.852,
-                  "damage": 1,
-                  "scoreValue": 120,
                   "powerupDropChance": 0.08
                 }
               ]
@@ -1679,7 +1459,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.3,
+                  "weight": 0.4286,
                   "health": 4.04,
                   "speed": 3.325,
                   "damage": 1,
@@ -1689,7 +1469,7 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.15,
+                  "weight": 0.2143,
                   "health": 2.02,
                   "speed": 4.655,
                   "damage": 1,
@@ -1699,21 +1479,11 @@
                 {
                   "enemyId": "brick",
                   "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
+                  "weight": 0.3571,
                   "health": 16.16,
                   "speed": 1.995,
                   "damage": 1,
                   "scoreValue": 80,
-                  "powerupDropChance": 0.08
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.3,
-                  "health": 6.06,
-                  "speed": 5.852,
-                  "damage": 1,
-                  "scoreValue": 120,
                   "powerupDropChance": 0.08
                 }
               ]
@@ -1734,7 +1504,7 @@
                 {
                   "enemyId": "drone",
                   "spriteKey": "ENEMY_DRONE_FRAMES",
-                  "weight": 0.3,
+                  "weight": 0.4286,
                   "health": 4.04,
                   "speed": 3.325,
                   "damage": 1,
@@ -1744,7 +1514,7 @@
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
-                  "weight": 0.15,
+                  "weight": 0.2143,
                   "health": 2.02,
                   "speed": 4.655,
                   "damage": 1,
@@ -1754,21 +1524,11 @@
                 {
                   "enemyId": "brick",
                   "spriteKey": "ENEMY_BRICK_FRAMES",
-                  "weight": 0.25,
+                  "weight": 0.3571,
                   "health": 16.16,
                   "speed": 1.995,
                   "damage": 1,
                   "scoreValue": 80,
-                  "powerupDropChance": 0.08
-                },
-                {
-                  "enemyId": "journal",
-                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
-                  "weight": 0.3,
-                  "health": 6.06,
-                  "speed": 5.852,
-                  "damage": 1,
-                  "scoreValue": 120,
                   "powerupDropChance": 0.08
                 }
               ]

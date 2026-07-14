@@ -1,4 +1,5 @@
 import { LeaderboardData, LeaderboardEntry } from '../types';
+import type { ResearchHubProposal } from './researchHubProposals';
 import type { RunReceipt } from './runReceiptService';
 
 const API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL as string | undefined)?.trim() || '/api/leaderboard';
@@ -198,4 +199,38 @@ export const saveScore = async (
       remoteError: error instanceof Error ? error.message : 'Global leaderboard save failed.'
     };
   }
+};
+
+export const saveWeeklyLeaderProposal = async (
+  receipt: RunReceipt,
+  proposal: ResearchHubProposal
+): Promise<LeaderboardData> => {
+  if (!receipt.receiptToken || receipt.integrity === 'local-unverified' || receipt.testRun) {
+    throw new Error('A verified weekly-leading run is required to choose a proposal.');
+  }
+
+  const response = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      action: 'select-proposal',
+      proposalId: proposal.id,
+      receiptToken: receipt.receiptToken
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || data.details || `Proposal selection failed with ${response.status}`);
+  }
+
+  const scores = Array.isArray(data.scores) ? dedupeAndSort(data.scores, ALL_TIME_SCORE_LIMIT) : [];
+  const monthlyScores = Array.isArray(data.monthlyScores)
+    ? dedupeAndSort(data.monthlyScores, MAX_MONTHLY_SCORES)
+    : dedupeAndSort(scores.filter(isCurrentWeekEntry), MAX_MONTHLY_SCORES);
+
+  return { scores, monthlyScores, remoteSaved: true };
 };

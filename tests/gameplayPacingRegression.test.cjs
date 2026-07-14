@@ -30,3 +30,31 @@ test('formations stay visual and final bosses transition without a loot stall', 
     assert.ok(wave.delayAfterSeconds <= 1.5);
   });
 });
+
+test('the wave-one Gatekeeper ramps its three-shot cadence without exceeding the original speed', () => {
+  const firstWave = campaign.levels[0].waves[0];
+  const gatekeeper = firstWave.events.find((event) => event.id === 'open-orbit-gatekeeper');
+  const burstWeapon = gatekeeper.weapons.find((weapon) => weapon.id === 'gatekeeper-burst');
+
+  assert.equal(burstWeapon.burstCount, 3);
+  assert.equal(burstWeapon.attackIntervalSeconds, 0.883);
+  assert.match(engineSource, /WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1\.45/);
+  assert.match(engineSource, /WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0\.35/);
+  assert.match(engineSource, /getWaveOneGatekeeperBurstInterval\(baseFireRate, healthRatio\)/);
+  assert.match(engineSource, /Math\.max\(baseInterval, Math\.round\(baseInterval \* intervalMultiplier\)\)/);
+});
+
+test('main bosses use a siren alert before the transmission panel', () => {
+  assert.match(engineSource, /MAIN_BOSS_ALERT_FRAMES = 120/);
+  assert.match(engineSource, /drawMainBossAlert\(ctx/);
+  assert.match(engineSource, /GATEKEEPER SIGNAL DETECTED/);
+  assert.match(engineSource, /warningAge < alertFrames[\s\S]*?drawMainBossAlert\(ctx\)[\s\S]*?drawBossWarningComms\(ctx\)/);
+  assert.match(engineSource, /this\.playSound\('siren'\)/);
+});
+
+test('white Citation Wraiths and red Paywall Interceptors use enlarged gameplay bounds', () => {
+  assert.match(engineSource, /PAYWALL_INTERCEPTOR_SCALE = 1\.05/);
+  assert.match(engineSource, /CITATION_WRAITH_SCALE = 1\.2/);
+  assert.match(engineSource, /Math\.round\(44 \* PAYWALL_INTERCEPTOR_SCALE\)/);
+  assert.match(engineSource, /Math\.round\(34 \* CITATION_WRAITH_SCALE\)/);
+});

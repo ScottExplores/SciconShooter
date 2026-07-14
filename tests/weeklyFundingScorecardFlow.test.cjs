@@ -6,28 +6,48 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 const previewSource = fs.readFileSync(path.join(root, 'components', 'MissionRecordPreview.tsx'), 'utf8');
+const pickerSource = fs.readFileSync(path.join(root, 'components', 'WeeklyProposalSelection.tsx'), 'utf8');
 const startScreenSource = fs.readFileSync(path.join(root, 'components', 'StartScreen.tsx'), 'utf8');
 const flowSource = fs.readFileSync(path.join(root, 'services', 'weeklyFundingFlow.ts'), 'utf8');
+const leaderboardSource = fs.readFileSync(path.join(root, 'services', 'leaderboardService.ts'), 'utf8');
 
-test('mission scorecard exposes the weekly funding handoff below mint controls', () => {
-  assert.match(previewSource, /Weekly funding/);
-  assert.match(previewSource, /Choose weekly proposal/);
-  assert.match(previewSource, /Browse eligible proposals/);
-  assert.match(previewSource, /Sunday\\?'s noon Pacific cutoff/);
-  assert.match(appSource, /weeklyFunding=\{missionRecordWeeklyFunding\}/);
-  assert.match(appSource, /onOpenWeeklyFunding=\{openMissionRecordWeeklyFunding\}/);
+test('a new weekly leader enters a dedicated proposal step before the mission record', () => {
+  assert.match(appSource, /requiresWeeklyProposal/);
+  assert.match(appSource, /setShowWeeklyProposalSelection\(true\)/);
+  assert.match(appSource, /saveWeeklyLeaderProposal\(runReceipt, proposal\)/);
+  assert.match(pickerSource, /New weekly high score/);
+  assert.match(pickerSource, /You&apos;re #1/);
+  assert.match(pickerSource, /1\. Score saved/);
+  assert.match(pickerSource, /2\. Choose research/);
+  assert.match(pickerSource, /3\. Mint \+ share/);
 });
 
-test('only the matching finalized winner receives a real proposal claim flow', () => {
+test('proposal rows select in-app and require an explicit confirmation', () => {
+  assert.match(pickerSource, /onClick=\{\(\) => setSelectedProposal\(proposal\)\}/);
+  assert.match(pickerSource, /Confirm \$\{allocationRsc\} RSC proposal/);
+  assert.doesNotMatch(pickerSource, /window\.open|onOpenProposal|proposal\.url\)/);
+  assert.match(leaderboardSource, /action: 'select-proposal'/);
+  assert.match(leaderboardSource, /proposalId: proposal\.id/);
+});
+
+test('mint and share stay gated until the weekly proposal is saved', () => {
+  assert.match(previewSource, /weeklyChoiceRequired/);
+  assert.match(previewSource, /!weeklyChoiceRequired/);
+  assert.match(previewSource, /Funding choice saved/);
+  assert.match(previewSource, /Choose weekly proposal/);
+  assert.doesNotMatch(previewSource, /Browse eligible proposals|View selected proposal/);
+});
+
+test('the mission record resolves a proposal already attached to the leading run', () => {
+  assert.match(flowSource, /currentLeader\?\.proposalId && currentLeader\.proposalTitle/);
+  assert.match(flowSource, /status: 'selected'/);
+  assert.match(flowSource, /proposalAuthor: currentLeader\.proposalAuthor/);
   assert.match(flowSource, /winner\.winnerRunId === receipt\.runId/);
-  assert.match(flowSource, /status === 'finalized'/);
-  assert.match(flowSource, /status: 'claimable'/);
   assert.match(flowSource, /receipt\.testRun/);
 });
 
-test('scorecard claim action opens the existing proposal hangar with its winner', () => {
+test('finalized legacy winners retain the signed proposal claim fallback', () => {
   assert.match(appSource, /requestedChampionWinner=\{scorecardChampionWinner\}/);
   assert.match(startScreenSource, /testChampionWinner \|\| requestedChampionWinner/);
-  assert.match(startScreenSource, /setDashboardTab\('proposals'\)/);
   assert.match(startScreenSource, /onClaimWeeklyChampion\(championClaimWinner, proposal\)/);
 });

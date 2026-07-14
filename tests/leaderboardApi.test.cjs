@@ -226,3 +226,98 @@ test('leaderboard returns the top 100 all-time scores while keeping the weekly b
     global.fetch = originalFetch;
   }
 });
+
+test('the current weekly leader can attach one eligible proposal to the verified run', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  const now = new Date().toISOString();
+  let selected = false;
+  let patchBody;
+  const leaderboardRow = () => ({
+    name: 'PILOT', score: 4321, wave: 4, date: now, wallet_address: null,
+    donated: false,
+    proposal_id: selected ? '321' : null,
+    proposal_title: selected ? 'Open Science Target' : null,
+    proposal_url: selected ? 'https://www.researchhub.com/post/321/open-science-target' : null,
+    proposal_author: selected ? 'Ada Researcher' : null,
+    run_id: runId, verified: true, receipt_hash: 'hash'
+  });
+
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (value.includes('backend.prod.researchhub.com')) {
+      return jsonResponse({
+        results: [{
+          content_object: {
+            id: 321,
+            title: 'Open Science Target',
+            slug: 'open-science-target',
+            fundraise: { status: 'OPEN' }
+          },
+          author: { first_name: 'Ada', last_name: 'Researcher' }
+        }]
+      });
+    }
+    if (options.method === 'PATCH') {
+      patchBody = JSON.parse(options.body);
+      selected = true;
+      return jsonResponse([leaderboardRow()]);
+    }
+    return jsonResponse([leaderboardRow()]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: { action: 'select-proposal', proposalId: '321', receiptToken: makeReceipt(runId) },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.1' }
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.monthlyScores[0].proposalId, '321');
+    assert.equal(res.body.monthlyScores[0].proposalTitle, 'Open Science Target');
+    assert.deepEqual(patchBody, {
+      proposal_id: '321',
+      proposal_title: 'Open Science Target',
+      proposal_url: 'https://www.researchhub.com/post/321/open-science-target',
+      proposal_author: 'Ada Researcher'
+    });
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('a run that is not the current weekly leader cannot attach a proposal', async () => {
+  const requestedRunId = crypto.randomUUID();
+  const leadingRunId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  let patchCalled = false;
+  const leader = {
+    name: 'LEADER', score: 9000, wave: 5, date: new Date().toISOString(), wallet_address: null,
+    donated: false, proposal_id: null, proposal_title: null, proposal_url: null, proposal_author: null,
+    run_id: leadingRunId, verified: true, receipt_hash: 'leader-hash'
+  };
+
+  global.fetch = async (_url, options = {}) => {
+    if (options.method === 'PATCH') patchCalled = true;
+    return jsonResponse([leader]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: { action: 'select-proposal', proposalId: '321', receiptToken: makeReceipt(requestedRunId) },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.1' }
+    }, res);
+
+    assert.equal(res.statusCode, 409);
+    assert.match(res.body.error, /no longer the current weekly high score/i);
+    assert.equal(patchCalled, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
