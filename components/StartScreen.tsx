@@ -3,7 +3,7 @@ import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
 import { ASSETS, DONATION_CONFIG } from '../constants';
 import type { RunReceipt } from '../services/runReceiptService';
-import { ALL_TIME_SCORE_LIMIT } from '../services/leaderboardService';
+import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboardService';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import { PLAYER_SHIPS, type PlayerShipId } from '../services/playerShipService';
 
@@ -469,9 +469,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
     : leaderboardView === 'allTime'
       ? allTimeLeaderboard
       : [];
-  const displayedLeaderboard = leaderboardView === 'allTime'
-    ? visibleLeaderboard.slice(0, ALL_TIME_SCORE_LIMIT)
-    : visibleLeaderboard;
+  const displayedLeaderboard = leaderboardView === 'weekly'
+    ? visibleLeaderboard.slice(0, WEEKLY_SCORE_LIMIT)
+    : leaderboardView === 'allTime'
+      ? visibleLeaderboard.slice(0, ALL_TIME_SCORE_LIMIT)
+      : visibleLeaderboard;
 
   const topPilotScore = Math.max(weeklyLeader?.score ?? 0, allTimeLeader?.score ?? 0);
   const pilotLevel = Math.max(1, Math.min(12, Math.floor(topPilotScore / 1000) + 1));
@@ -917,7 +919,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         )}
 
         {!isLoading && leaderboardView !== 'pastPicks' && leaderboardView !== 'records' && (
-          <div className="space-y-2">
+          <div className="max-h-[min(62vh,48rem)] space-y-2 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
             {displayedLeaderboard.map((entry, index) => (
               <div key={`${entry.name}-${entry.score}-${index}`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[6px] border border-cyan-300/12 bg-white/[0.035] p-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-cyan-300/25 bg-cyan-300/10 text-sm font-black text-cyan-100">

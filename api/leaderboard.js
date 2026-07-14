@@ -1,6 +1,6 @@
 const ALL_TIME_SCORE_LIMIT = 100;
-const MAX_MONTHLY_SCORES = 5;
-const SYNC_SCORE_LIMIT = ALL_TIME_SCORE_LIMIT + MAX_MONTHLY_SCORES;
+const WEEKLY_SCORE_LIMIT = 100;
+const SYNC_SCORE_LIMIT = ALL_TIME_SCORE_LIMIT + WEEKLY_SCORE_LIMIT;
 const SUPABASE_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
@@ -104,7 +104,7 @@ const toLeaderboardPayload = (scores) => {
   const archive = dedupeAndSort(scores, SYNC_SCORE_LIMIT);
   return {
     scores: dedupeAndSort(archive, ALL_TIME_SCORE_LIMIT),
-    monthlyScores: dedupeAndSort(archive.filter(isCurrentWeekEntry), MAX_MONTHLY_SCORES)
+    monthlyScores: dedupeAndSort(archive.filter(isCurrentWeekEntry), WEEKLY_SCORE_LIMIT)
   };
 };
 
@@ -170,7 +170,7 @@ const requestSupabaseScores = async (selectColumns, query = '') => {
 
 const readSupabaseScores = async () => {
   const { start, end } = getCurrentWeekRange();
-  const monthlyQuery = `&date=gte.${encodeURIComponent(start.toISOString())}&date=lt.${encodeURIComponent(end.toISOString())}&limit=${MAX_MONTHLY_SCORES}`;
+  const monthlyQuery = `&date=gte.${encodeURIComponent(start.toISOString())}&date=lt.${encodeURIComponent(end.toISOString())}&limit=${WEEKLY_SCORE_LIMIT}`;
   let rows;
   let monthlyRows;
 

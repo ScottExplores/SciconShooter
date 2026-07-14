@@ -172,7 +172,7 @@ test('leaderboard saves a verified receipt through the legacy schema fallback', 
   }
 });
 
-test('leaderboard returns the top 100 all-time scores while keeping the weekly board focused', async () => {
+test('leaderboard returns the top 100 all-time and weekly scores', async () => {
   const originalFetch = global.fetch;
   const historicRows = Array.from({ length: 120 }, (_, index) => ({
     name: `PILOT${index}`,
@@ -189,7 +189,7 @@ test('leaderboard returns the top 100 all-time scores while keeping the weekly b
     verified: true,
     receipt_hash: `hash-${index}`
   }));
-  const weeklyRows = Array.from({ length: 5 }, (_, index) => ({
+  const weeklyRows = Array.from({ length: 120 }, (_, index) => ({
     ...historicRows[index],
     name: `WEEKLY${index}`,
     score: 100 - index,
@@ -218,10 +218,11 @@ test('leaderboard returns the top 100 all-time scores while keeping the weekly b
     assert.equal(res.body.scores.length, 100);
     assert.equal(res.body.scores[0].score, 1200);
     assert.equal(res.body.scores[99].score, 1101);
-    assert.equal(res.body.monthlyScores.length, 5);
+    assert.equal(res.body.monthlyScores.length, 100);
     assert.equal(res.body.monthlyScores[0].name, 'WEEKLY0');
+    assert.equal(res.body.monthlyScores[99].name, 'WEEKLY99');
     assert.match(allTimeRequest, /limit=100/);
-    assert.match(weeklyRequest, /limit=5/);
+    assert.match(weeklyRequest, /limit=100/);
   } finally {
     global.fetch = originalFetch;
   }

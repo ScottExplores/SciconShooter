@@ -34,9 +34,12 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(source, /fill \? 'flex-1' : ''/);
 });
 
-test('all-time Trophy Deck retains and renders up to 100 scores', () => {
+test('weekly and all-time Trophy Deck views retain and render up to 100 scores', () => {
   assert.match(leaderboardServiceSource, /export const ALL_TIME_SCORE_LIMIT = 100/);
+  assert.match(leaderboardServiceSource, /export const WEEKLY_SCORE_LIMIT = 100/);
+  assert.match(source, /visibleLeaderboard\.slice\(0, WEEKLY_SCORE_LIMIT\)/);
   assert.match(source, /visibleLeaderboard\.slice\(0, ALL_TIME_SCORE_LIMIT\)/);
   assert.match(source, /displayedLeaderboard\.map/);
+  assert.match(source, /max-h-\[min\(62vh,48rem\)\].*overflow-y-auto.*custom-scrollbar/);
   assert.doesNotMatch(source, /visibleLeaderboard\.slice\(0, 8\)/);
 });
