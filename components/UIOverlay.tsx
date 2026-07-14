@@ -142,7 +142,7 @@ const FieldUpgradeSprite = ({ type, highlighted }: { type: FieldUpgradeType; hig
     aria-hidden="true"
     draggable={false}
     decoding="async"
-    className={`h-14 w-14 object-contain [image-rendering:pixelated] transition duration-200 ${type === 'speed' ? '-rotate-90' : ''} ${
+    className={`h-[3.7rem] w-[3.7rem] object-contain [image-rendering:pixelated] transition duration-200 ${type === 'speed' ? '-rotate-90' : ''} ${
       highlighted
         ? 'opacity-100 saturate-125 brightness-110 drop-shadow-[0_0_12px_currentColor]'
         : 'grayscale opacity-35 brightness-50'
@@ -388,13 +388,15 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                   x{flaskCost}
                 </span>
               ) : null}
-              <span className={`absolute -right-1.5 -top-1.5 z-20 flex items-center justify-center rounded-full border font-black ${
-                isAtCap
-                  ? 'h-8 min-w-8 border-yellow-100/85 bg-yellow-300 px-1 text-[8px] text-slate-950 shadow-[0_0_18px_rgba(250,204,21,0.5)]'
-                  : 'h-6 min-w-6 border-cyan-100/55 bg-slate-950 px-1 text-xs text-cyan-100'
-              }`}>
-                {isAtCap ? 'MAX' : `L${displayedLevel}`}
-              </span>
+              {(isAtCap || !isLifeUpgrade) ? (
+                <span className={`absolute -right-1.5 -top-1.5 z-20 flex items-center justify-center rounded-full border font-black ${
+                  isAtCap
+                    ? 'h-8 min-w-8 border-yellow-100/85 bg-yellow-300 px-1 text-[8px] text-slate-950 shadow-[0_0_18px_rgba(250,204,21,0.5)]'
+                    : 'h-6 min-w-6 border-cyan-100/55 bg-slate-950 px-1 text-xs text-cyan-100'
+                }`}>
+                  {isAtCap ? 'MAX' : `L${displayedLevel}`}
+                </span>
+              ) : null}
               <span className="relative flex h-full w-full items-center justify-center">
                 <FieldUpgradeSprite type={type} highlighted={highlighted} />
               </span>

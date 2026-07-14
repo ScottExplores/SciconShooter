@@ -17,7 +17,7 @@ interface StartScreenProps {
   walletRecords: MintRecord[];
   walletAddress?: string | null;
   selectedShipId: PlayerShipId;
-  bioShipUnlocked: boolean;
+  ethShipUnlocked: boolean;
   onSelectShip: (shipId: PlayerShipId) => void;
   latestRunReceipt?: RunReceipt | null;
   isLoading: boolean;
@@ -73,7 +73,7 @@ const dashboardTabs: Array<{ id: DashboardTab; label: string; icon: IconName; hi
   { id: 'more', label: 'More', icon: 'more', hint: 'About' }
 ];
 
-const playerShipOrder: PlayerShipId[] = ['researchhub', 'bio'];
+const playerShipOrder: PlayerShipId[] = ['researchhub', 'bio', 'eth'];
 
 const clampPercent = (value: number) => Math.max(8, Math.min(100, Math.round(value)));
 
@@ -360,7 +360,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   walletRecords,
   walletAddress,
   selectedShipId,
-  bioShipUnlocked,
+  ethShipUnlocked,
   onSelectShip,
   latestRunReceipt,
   isLoading,
@@ -398,6 +398,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [championClaimWinner, setChampionClaimWinner] = useState<ArchivedWinner | null>(null);
   const [testSelectedProposal, setTestSelectedProposal] = useState<ResearchHubProposal | null>(null);
   const [shipFocusId, setShipFocusId] = useState<PlayerShipId>(selectedShipId);
+  const [shipCycleRevision, setShipCycleRevision] = useState(0);
   const [weeklyClock, setWeeklyClock] = useState(() => Date.now());
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
 
@@ -431,13 +432,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
     const nextIndex = (currentIndex + direction + playerShipOrder.length) % playerShipOrder.length;
     const nextShipId = playerShipOrder[nextIndex];
     setShipFocusId(nextShipId);
+    setShipCycleRevision((revision) => revision + 1);
 
-    if (nextShipId !== 'bio' || bioShipUnlocked) {
+    if (nextShipId !== 'eth' || ethShipUnlocked) {
       onSelectShip(nextShipId);
     }
   };
   const focusedShip = PLAYER_SHIPS[shipFocusId];
-  const focusedShipLocked = shipFocusId === 'bio' && !bioShipUnlocked;
+  const focusedShipLocked = shipFocusId === 'eth' && !ethShipUnlocked;
 
   const weeklyAllocation = useMemo(
     () => getWeeklyAllocationMeta(new Date(weeklyClock)),
@@ -633,8 +635,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
             <div className="sci-ship-carousel-stage" aria-live="polite">
               <div
-                key={shipFocusId}
-                className={`sci-ship-carousel-item sci-ship-carousel-item--active ${focusedShipLocked ? 'sci-ship-carousel-item--locked' : ''}`}
+                key={`${compact ? 'compact' : 'full'}-${shipCycleRevision}`}
+                className={`sci-ship-carousel-item sci-ship-carousel-item--active ${shipCycleRevision > 0 ? 'sci-ship-carousel-item--cycling' : ''} ${focusedShipLocked ? 'sci-ship-carousel-item--locked' : ''}`}
                 role="img"
                 aria-label={focusedShipLocked
                   ? `${focusedShip.name} locked. Mint a high score NFT to unlock this ship.`
@@ -644,7 +646,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   <img
                     src={focusedShip.assetUrl}
                     alt=""
-                    className={shipFocusId === 'bio' ? 'sci-ship-carousel-image--pixel' : 'sci-ship-carousel-image--researchhub'}
+                    className={shipFocusId === 'researchhub' ? 'sci-ship-carousel-image--researchhub' : 'sci-ship-carousel-image--pixel'}
                   />
                 </span>
                 {focusedShipLocked ? (

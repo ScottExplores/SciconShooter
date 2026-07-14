@@ -20,7 +20,7 @@ import { trackEvent, trackInitialVisit } from './services/analyticsService';
 import { getWalletRecords } from './services/recordService';
 import {
   getUsablePlayerShip,
-  hasBioShipUnlock,
+  hasEthShipUnlock,
   ownsSciconRecordNft,
   parsePlayerShipId,
   PLAYER_SHIPS,
@@ -393,12 +393,12 @@ const App: React.FC = () => {
     weeklyLeaderboard: monthlyLeaderboard,
     archivedWinners
   }) : null, [archivedWinners, monthlyLeaderboard, playerNameInput, runReceipt]);
-  const bioShipUnlocked = useMemo(
-    () => hasBioShipUnlock(activeWalletAddress, walletRecords)
+  const ethShipUnlocked = useMemo(
+    () => hasEthShipUnlock(activeWalletAddress, walletRecords)
       || Boolean(activeWalletAddress && onchainRecordOwner === activeWalletAddress.toLowerCase()),
     [activeWalletAddress, onchainRecordOwner, walletRecords]
   );
-  const usableShipId = getUsablePlayerShip(selectedShipId, bioShipUnlocked);
+  const usableShipId = getUsablePlayerShip(selectedShipId, ethShipUnlocked);
   const playerShipUrl = PLAYER_SHIPS[usableShipId].assetUrl;
   const continueRscCost = (continuesUsed + 1) * 5;
   const isContinuePaymentBusy = continuePaymentStatus === 'switching_network'
@@ -1371,7 +1371,7 @@ const App: React.FC = () => {
           walletRecords={walletRecords}
           walletAddress={activeWalletAddress}
           selectedShipId={usableShipId}
-          bioShipUnlocked={bioShipUnlocked}
+          ethShipUnlocked={ethShipUnlocked}
           onSelectShip={setSelectedShipId}
           latestRunReceipt={latestVerifiedRun}
           isLoading={loadingLeaderboard}
@@ -1411,7 +1411,7 @@ const App: React.FC = () => {
             walletRecords={walletRecords}
             walletAddress={activeWalletAddress}
             selectedShipId={usableShipId}
-            bioShipUnlocked={bioShipUnlocked}
+            ethShipUnlocked={ethShipUnlocked}
             onSelectShip={setSelectedShipId}
             latestRunReceipt={runReceipt}
             isLoading={loadingLeaderboard}

@@ -17,17 +17,18 @@ test('pixel upgrade sprites are optimized square PNG assets', () => {
   });
 });
 
-test('the HUD uses large sprite-only upgrade buttons with cost and level badges', () => {
+test('the HUD uses enlarged sprite-only upgrade buttons with cost and appropriate level badges', () => {
   const source = fs.readFileSync(path.join(root, 'components', 'UIOverlay.tsx'), 'utf8');
   spriteNames.forEach((name) => assert.match(source, new RegExp(`/game-art/powerups/${name.replace('.', '\\.')}`)));
   assert.match(source, /highlighted=\{highlighted\}/);
   assert.match(source, /h-\[4\.6rem\] w-\[4\.6rem\]/);
-  assert.match(source, /h-14 w-14/);
+  assert.match(source, /h-\[3\.7rem\] w-\[3\.7rem\]/);
   assert.match(source, /w-\[4\.6rem\] flex-col/);
   assert.match(source, /type === 'speed' \? '-rotate-90'/);
   assert.match(source, /h-6 min-w-6.*text-xs font-black/);
   assert.match(source, /x\{flaskCost\}/);
   assert.match(source, /isAtCap \? 'MAX' : `L\$\{displayedLevel\}`/);
+  assert.match(source, /\(isAtCap \|\| !isLifeUpgrade\)/);
   assert.match(source, /saturate-125 brightness-110/);
   assert.match(source, /grayscale opacity-35 brightness-50/);
   assert.match(source, /\[image-rendering:pixelated\]/);

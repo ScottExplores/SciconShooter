@@ -4,6 +4,7 @@ import type { FieldUpgradeType, Stats } from './types';
 export const ASSETS = {
   PLAYER_SHIP: "/game-art/branding/researchhub-ship.png",
   BIO_SHIP: "/game-art/branding/bio-ship.png",
+  ETH_SHIP: "/game-art/branding/eth-ship.png",
   
   // Founder Icons - Mapped to Powerups
   // Triple Shot (Brian)

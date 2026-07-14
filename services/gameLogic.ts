@@ -28,7 +28,7 @@ import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getChargeForStoredFlasks,
 type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'grid' | 'diamond' | 'spiral' | 'orbit';
 type ConfiguredEnemyFormationMode = Exclude<EnemyFormationMode, 'orbit'>;
 type EnemyFormationState = 'entry' | 'hold' | 'dive' | 'return';
-type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion' | 'nova' | 'singularity';
+type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard';
 type PendingPlayerShot = {
   fireFrame: number;
   speed: number;
@@ -299,6 +299,7 @@ const getReadyImage = (url: string) => {
 const GAMEPLAY_ASSET_URLS = [
   ASSETS.PLAYER_SHIP,
   ASSETS.BIO_SHIP,
+  ASSETS.ETH_SHIP,
   ASSETS.RSC_TOKEN,
   ASSETS.REAL_RSC_ICON,
   ASSETS.GAME_BG_BACK,
@@ -392,6 +393,22 @@ const BOMB_DAMAGE_MINI_BOSS = 18;
 const BOMB_DAMAGE_INVADER = 3;
 const WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1.45;
 const WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0.35;
+const WAVE_TWO_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1.55;
+const WAVE_TWO_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0.3;
+type GatekeeperCadenceConfig = {
+  startIntervalMultiplier: number;
+  maxSpeedHealthRatio: number;
+};
+const GATEKEEPER_CADENCE_BY_WAVE: Partial<Record<number, GatekeeperCadenceConfig>> = {
+  1: {
+    startIntervalMultiplier: WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER,
+    maxSpeedHealthRatio: WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO
+  },
+  2: {
+    startIntervalMultiplier: WAVE_TWO_GATEKEEPER_START_INTERVAL_MULTIPLIER,
+    maxSpeedHealthRatio: WAVE_TWO_GATEKEEPER_MAX_SPEED_HEALTH_RATIO
+  }
+};
 const PLAYER_THRUSTER_PALETTES = [
   { core: 'rgba(255,255,255,0.95)', mid: 'rgba(103,232,249,0.9)', edge: 'rgba(37,99,235,0.62)', fade: 'rgba(34,211,238,0)', glow: '#22d3ee', streak: 'rgba(103,232,249,0.34)' },
   { core: 'rgba(255,255,255,0.98)', mid: 'rgba(167,139,250,0.98)', edge: 'rgba(109,40,217,0.84)', fade: 'rgba(124,58,237,0)', glow: '#a78bfa', streak: 'rgba(196,181,253,0.5)' },
@@ -421,16 +438,20 @@ const DEFAULT_POLISH_SETTINGS: GamePolishSettings = {
   highDensityParticles: true
 };
 
-const getWaveOneGatekeeperBurstInterval = (baseInterval: number, healthRatio: number) => {
+const getGatekeeperBurstInterval = (
+  baseInterval: number,
+  healthRatio: number,
+  cadence: GatekeeperCadenceConfig
+) => {
   const normalizedHealth = clamp(healthRatio, 0, 1);
   const slowCadenceRatio = clamp(
-    (normalizedHealth - WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO)
-      / (1 - WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO),
+    (normalizedHealth - cadence.maxSpeedHealthRatio)
+      / (1 - cadence.maxSpeedHealthRatio),
     0,
     1
   );
   const intervalMultiplier = 1
-    + ((WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER - 1) * slowCadenceRatio);
+    + ((cadence.startIntervalMultiplier - 1) * slowCadenceRatio);
 
   return Math.max(baseInterval, Math.round(baseInterval * intervalMultiplier));
 };
@@ -624,8 +645,10 @@ const WAVE_SECTORS = [
   { name: 'OPEN GALAXY', accent: '#6ee7b7' }
 ];
 
-const PAYWALL_INTERCEPTOR_SCALE = 1.05;
-const CITATION_WRAITH_SCALE = 1.2;
+const PLAYER_SHIP_SCALE = 0.95;
+const PAYWALL_INTERCEPTOR_SCALE = 1.1;
+const SPIRAL_PAYWALL_INTERCEPTOR_SCALE = 1.05;
+const CITATION_WRAITH_SCALE = 1.32;
 const MAIN_BOSS_ALERT_FRAMES = 120;
 
 export class GameEngine {
@@ -735,8 +758,8 @@ export class GameEngine {
     const initialIndex = this.findCampaignWaveIndex(options.initialLevelId, options.initialWaveId);
     this.currentCampaignIndex = initialIndex >= 0 ? initialIndex : 0;
     this.player = new Entity(EntityType.PLAYER, 0, 0);
-    this.player.width = 128;
-    this.player.height = 128;
+    this.player.width = Math.round(128 * PLAYER_SHIP_SCALE);
+    this.player.height = Math.round(128 * PLAYER_SHIP_SCALE);
     
     GAMEPLAY_ASSET_URLS.forEach(loadImage);
   }
@@ -1088,30 +1111,30 @@ export class GameEngine {
       this.drawTiledLayer(ctx, ASSETS.GAME_PARALLAX_FAR_PLANETS, 5, 0.12, 0.02, 0.35);
     }
 
-    if (!adaptiveLow || this.frameCount % 2 === 0) {
-      ctx.save();
-      ctx.globalAlpha = adaptiveLow ? 0.58 : 0.9;
-      const horizon = getReadyImage(ASSETS.GAME_BG_PLANET);
-      if (horizon) {
-        const planetHeight = Math.max(220, this.height * 0.3);
-        const planetYOffset = Math.max(180, this.height * 0.2);
-        ctx.drawImage(horizon, 0, this.height - planetHeight + planetYOffset, this.width, planetHeight);
-      }
-      ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = adaptiveLow ? 0.58 : 0.9;
+    const horizon = getReadyImage(ASSETS.GAME_BG_PLANET);
+    if (horizon) {
+      const planetHeight = Math.max(220, this.height * 0.3);
+      const planetYOffset = Math.max(180, this.height * 0.2);
+      ctx.drawImage(horizon, 0, this.height - planetHeight + planetYOffset, this.width, planetHeight);
     }
+    ctx.restore();
 
     const planetDrift = (this.frameCount * 0.2) % (this.width + 200);
-    if (!adaptiveLow) {
-      ctx.save();
-      ctx.translate(this.width - 130, 110 + Math.sin(this.frameCount * 0.01) * 10);
-      this.drawSprite(ctx, ASSETS.GAME_PARALLAX_BIG_PLANET, lowDetail ? 135 : 170, lowDetail ? 135 : 170, { alpha: lowDetail ? 0.38 : 0.55 });
-      ctx.restore();
+    ctx.save();
+    ctx.translate(this.width - 130, 110 + Math.sin(this.frameCount * 0.01) * 10);
+    this.drawSprite(ctx, ASSETS.GAME_PARALLAX_BIG_PLANET, lowDetail ? 135 : 170, lowDetail ? 135 : 170, {
+      alpha: adaptiveLow ? (lowDetail ? 0.28 : 0.4) : lowDetail ? 0.38 : 0.55
+    });
+    ctx.restore();
 
-      ctx.save();
-      ctx.translate((this.width + 100) - planetDrift, 180 + Math.sin(this.frameCount * 0.015) * 12);
-      this.drawSprite(ctx, ASSETS.GAME_PARALLAX_RING_PLANET, lowDetail ? 70 : 90, lowDetail ? 140 : 180, { alpha: lowDetail ? 0.52 : 0.75 });
-      ctx.restore();
-    }
+    ctx.save();
+    ctx.translate((this.width + 100) - planetDrift, 180 + Math.sin(this.frameCount * 0.015) * 12);
+    this.drawSprite(ctx, ASSETS.GAME_PARALLAX_RING_PLANET, lowDetail ? 70 : 90, lowDetail ? 140 : 180, {
+      alpha: adaptiveLow ? (lowDetail ? 0.36 : 0.5) : lowDetail ? 0.52 : 0.75
+    });
+    ctx.restore();
 
     const configuredBackgroundId = this.getCurrentWaveDefinition()?.backgroundId ?? this.getCurrentLevelDefinition()?.backgroundId;
     const configuredTints: Record<string, string> = {
@@ -2373,30 +2396,90 @@ export class GameEngine {
       return false;
     }
 
+    const isBioLaser = weaponKind === 'bio-laser';
+    const isEthShard = weaponKind === 'eth-shard';
     const isNova = weaponKind === 'nova';
     const isSingularity = weaponKind === 'singularity';
-    const bulletColor = isSingularity ? '#a78bfa' : isNova ? '#facc15' : weaponKind === 'ion' ? '#f0abfc' : weaponKind === 'plasma' ? '#22d3ee' : '#6c63ff';
-    const bulletWidth = isSingularity ? 40 : isNova ? 32 : weaponKind === 'ion' ? 24 : weaponKind === 'plasma' ? 14 : 10;
+    const bioLaserLevel = isBioLaser ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
+    const ethShardLevel = isEthShard ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
+    const bulletColor = isBioLaser
+      ? '#b7ff68'
+      : isEthShard
+        ? '#a78bfa'
+      : isSingularity
+        ? '#a78bfa'
+        : isNova
+          ? '#facc15'
+          : weaponKind === 'ion'
+            ? '#f0abfc'
+            : weaponKind === 'plasma'
+              ? '#22d3ee'
+              : '#6c63ff';
+    const bulletWidth = isBioLaser
+      ? Math.round(5 + bioLaserLevel * 2.3)
+      : isEthShard
+        ? Math.round(13 + ethShardLevel * 2.1)
+      : isSingularity
+        ? 40
+        : isNova
+          ? 32
+          : weaponKind === 'ion'
+            ? 24
+            : weaponKind === 'plasma'
+              ? 14
+              : 10;
     const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - bulletWidth / 2 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
     const angle = randomRange(-0.035, 0.035) + angleBias;
     b.width = bulletWidth;
-    b.height = isSingularity ? 82 : isNova ? 68 : weaponKind === 'ion' ? 54 : weaponKind === 'plasma' ? 34 : 28;
+    b.height = isBioLaser
+      ? Math.round(34 + bioLaserLevel * 6)
+      : isEthShard
+        ? Math.round(30 + ethShardLevel * 4.5)
+      : isSingularity
+        ? 82
+        : isNova
+          ? 68
+          : weaponKind === 'ion'
+            ? 54
+            : weaponKind === 'plasma'
+              ? 34
+              : 28;
     b.vx = Math.sin(angle) * speed;
     b.vy = -Math.cos(angle) * speed;
     b.color = bulletColor;
     b.isPlayerShot = true;
     b.weaponKind = weaponKind;
-    b.damage = isSingularity ? 7.5 : isNova ? 4.2 : weaponKind === 'ion' ? 2.4 : weaponKind === 'plasma' ? 1.3 : 1;
-    if (weaponKind === 'ion' || isNova || isSingularity) {
-      b.pierceRemaining = isSingularity ? 10 : isNova ? 6 : 3;
+    b.damage = isBioLaser
+      ? 0.9 + bioLaserLevel * 0.55
+      : isEthShard
+        ? 1.15 + ethShardLevel * 0.48
+      : isSingularity
+        ? 7.5
+        : isNova
+          ? 4.2
+          : weaponKind === 'ion'
+            ? 2.4
+            : weaponKind === 'plasma'
+              ? 1.3
+              : 1;
+    if (weaponKind === 'ion' || isNova || isSingularity || (isBioLaser && bioLaserLevel >= 3) || (isEthShard && ethShardLevel >= 4)) {
+      b.pierceRemaining = isBioLaser
+        ? Math.min(5, 1 + Math.floor((bioLaserLevel - 3) / 2))
+        : isEthShard
+          ? Math.min(4, 1 + Math.floor((ethShardLevel - 4) / 2))
+        : isSingularity
+          ? 10
+          : isNova
+            ? 6
+            : 3;
       b.hitTargetIds = new Set<string>();
     }
     this.entities.push(b);
     this.livePlayerShotCount++;
     if (playSound) {
       this.playSound('shoot', 1, {
-        pitchJitter: isSingularity ? 0.035 : isNova ? 0.05 : weaponKind === 'ion' ? 0.08 : 0.22,
-        pitchOffset: pitchOffset + (isSingularity ? -0.36 : isNova ? -0.28 : weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? 0.08 : 0)
+        pitchJitter: isBioLaser ? 0.055 : isEthShard ? 0.07 : isSingularity ? 0.035 : isNova ? 0.05 : weaponKind === 'ion' ? 0.08 : 0.22,
+        pitchOffset: pitchOffset + (isBioLaser ? -0.22 - bioLaserLevel * 0.018 : isEthShard ? 0.16 + ethShardLevel * 0.012 : isSingularity ? -0.36 : isNova ? -0.28 : weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? 0.08 : 0)
       });
     }
     return true;
@@ -2433,16 +2516,34 @@ export class GameEngine {
     this.playerVel.y += 0.2;
     this.playerVel.x += randomRange(-0.05, 0.05);
     const fireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 7);
-    const weaponKind: PlayerWeaponKind = fireRateLevel >= 7
-      ? this.weaponVolley % 3 === 0 ? 'singularity' : 'nova'
-      : fireRateLevel >= 6
-        ? this.weaponVolley % 3 === 0 ? 'nova' : 'ion'
-      : fireRateLevel >= 5 && this.weaponVolley % 4 === 0
-        ? 'ion'
-        : fireRateLevel >= 3
-          ? 'plasma'
-          : 'pulse';
-    const weaponSpeed = weaponKind === 'singularity' ? 15.4 : weaponKind === 'nova' ? 14.2 : weaponKind === 'ion' ? 12.8 : weaponKind === 'plasma' ? 11.2 : 10;
+    const bioLaserEquipped = this.playerShipUrl === ASSETS.BIO_SHIP;
+    const ethShardEquipped = this.playerShipUrl === ASSETS.ETH_SHIP;
+    const weaponKind: PlayerWeaponKind = bioLaserEquipped
+      ? 'bio-laser'
+      : ethShardEquipped
+        ? 'eth-shard'
+      : fireRateLevel >= 7
+        ? this.weaponVolley % 3 === 0 ? 'singularity' : 'nova'
+        : fireRateLevel >= 6
+          ? this.weaponVolley % 3 === 0 ? 'nova' : 'ion'
+          : fireRateLevel >= 5 && this.weaponVolley % 4 === 0
+            ? 'ion'
+            : fireRateLevel >= 3
+              ? 'plasma'
+              : 'pulse';
+    const weaponSpeed = weaponKind === 'bio-laser'
+      ? 11 + fireRateLevel * 0.55
+      : weaponKind === 'eth-shard'
+        ? 12 + fireRateLevel * 0.48
+      : weaponKind === 'singularity'
+        ? 15.4
+        : weaponKind === 'nova'
+          ? 14.2
+          : weaponKind === 'ion'
+            ? 12.8
+            : weaponKind === 'plasma'
+              ? 11.2
+              : 10;
     this.spawnPlayerBullet(weaponSpeed, 0, 0, 0, -0.04, true, weaponKind);
 
     const lean = this.shouldUseLeanEffects();
@@ -3060,6 +3161,10 @@ export class GameEngine {
     if (patternId.includes('single') || patternId.includes('random')) return;
 
     const formation = this.resolveConfiguredFormationMode(patternId);
+    if (formation === 'spiral' && enemy.type === EntityType.ENEMY_DRONE) {
+      enemy.width = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE);
+      enemy.height = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE);
+    }
     const target = this.getConfiguredFormationTarget(event, index, count, enemy.width, enemy.height);
     const entryFrames = 52 + (index % 4) * 5 + (formation === 'spiral' ? 14 : 0);
     const holdFramesByMode: Record<ConfiguredEnemyFormationMode, number> = {
@@ -3892,12 +3997,12 @@ export class GameEngine {
     if (attackCycle < burstEnd || !allowsBeam) {
         boss.isCharging = false;
         const baseFireRate = boss.attackIntervalFrames ?? Math.max(20, 60 - (phase * 7));
-        const isWaveOneGatekeeper = this.wave === 1
-          && (boss.sourceItemId === 'gatekeeper' || boss.text === 'GATEKEEPER');
-        const fireRate = isWaveOneGatekeeper
-          ? getWaveOneGatekeeperBurstInterval(baseFireRate, healthRatio)
+        const isGatekeeper = boss.sourceItemId === 'gatekeeper' || boss.text === 'GATEKEEPER';
+        const cadenceConfig = isGatekeeper ? GATEKEEPER_CADENCE_BY_WAVE[this.wave] : undefined;
+        const fireRate = cadenceConfig
+          ? getGatekeeperBurstInterval(baseFireRate, healthRatio, cadenceConfig)
           : baseFireRate;
-        const isBurstReady = isWaveOneGatekeeper
+        const isBurstReady = cadenceConfig
           ? boss.attackTimer - boss.lastBurstAttackTimer >= fireRate
           : boss.attackTimer % fireRate === 0;
         if (allowsBurst && isBurstReady) {
@@ -4325,7 +4430,7 @@ export class GameEngine {
           ? (isBossTarget ? 8 : 5)
           : shot.damage * (isBossTarget ? 1.35 : 1);
         if (!shot.isBeam) {
-          if ((shot.weaponKind === 'ion' || shot.weaponKind === 'nova' || shot.weaponKind === 'singularity') && shot.pierceRemaining > 0) {
+          if ((shot.weaponKind === 'ion' || shot.weaponKind === 'nova' || shot.weaponKind === 'singularity' || shot.weaponKind === 'bio-laser' || shot.weaponKind === 'eth-shard') && shot.pierceRemaining > 0) {
             shot.hitTargetIds?.add(target.id);
             shot.pierceRemaining--;
           } else {
@@ -4623,7 +4728,7 @@ export class GameEngine {
     for (let index = 0; index < this.stars.length; index += starStride) {
       this.stars[index].draw(ctx);
     }
-    const backgroundSpriteLimit = this.performanceMode ? 1 : this.bgEntities.length;
+    const backgroundSpriteLimit = this.bgEntities.length;
     for (let index = 0; index < backgroundSpriteLimit; index++) {
       this.bgEntities[index].draw(ctx);
     }
@@ -5234,7 +5339,9 @@ export class GameEngine {
         const frame = e.spriteFrames?.length
           ? this.getAnimatedFrame(e.spriteFrames, e, 6)
           : e.spriteUrl || this.getAnimatedFrame(ASSETS.ENEMY_DRONE_FRAMES, e, 6);
+        const rotation = e.formation === 'spiral' ? Math.PI / 2 + e.angle : 0;
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
+            rotation,
             shadowColor: '#38bdf8',
             shadowBlur: 10,
             spriteStyle: e.spriteStyle
@@ -5530,7 +5637,9 @@ export class GameEngine {
         const isIonShot = e.isPlayerShot && e.weaponKind === 'ion';
         const isNovaShot = e.isPlayerShot && e.weaponKind === 'nova';
         const isSingularityShot = e.isPlayerShot && e.weaponKind === 'singularity';
-        ctx.shadowBlur = this.getGlowBlur(leanShot ? (isSingularityShot ? 12 : isNovaShot ? 10 : isIonShot ? 8 : 5) : isSingularityShot ? 40 : isNovaShot ? 34 : isIonShot ? 26 : e.isPlayerShot ? 18 : 12);
+        const isBioLaserShot = e.isPlayerShot && e.weaponKind === 'bio-laser';
+        const isEthShardShot = e.isPlayerShot && e.weaponKind === 'eth-shard';
+        ctx.shadowBlur = this.getGlowBlur(leanShot ? (isSingularityShot ? 12 : isNovaShot ? 10 : isIonShot ? 8 : isBioLaserShot ? 7 : isEthShardShot ? 8 : 5) : isSingularityShot ? 40 : isNovaShot ? 34 : isIonShot ? 26 : isBioLaserShot ? 24 : isEthShardShot ? 28 : e.isPlayerShot ? 18 : 12);
         ctx.shadowColor = e.color || (e.isPlayerShot ? '#67e8f9' : '#fb7185');
 
         if (e.text) { 
@@ -5539,7 +5648,59 @@ export class GameEngine {
            ctx.textBaseline = 'middle';
            ctx.fillText(e.text, 0, 0);
         } else if (e.isPlayerShot) {
-          if (isSingularityShot) {
+          if (isEthShardShot) {
+            const pulse = 0.82 + Math.sin((this.frameCount + e.variant) * 0.5) * 0.18;
+            ctx.fillStyle = `rgba(139,92,246,${0.28 * pulse})`;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, e.width * 0.86, e.height * 0.54, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const shard = ctx.createLinearGradient(0, -e.height * 0.64, 0, e.height * 0.62);
+            shard.addColorStop(0, 'rgba(255,255,255,0)');
+            shard.addColorStop(0.14, '#ffffff');
+            shard.addColorStop(0.38, '#c4b5fd');
+            shard.addColorStop(0.7, '#7c3aed');
+            shard.addColorStop(1, 'rgba(76,29,149,0)');
+            ctx.fillStyle = shard;
+            ctx.beginPath();
+            ctx.moveTo(0, -e.height * 0.68);
+            ctx.lineTo(e.width * 0.62, 0);
+            ctx.lineTo(0, e.height * 0.64);
+            ctx.lineTo(-e.width * 0.62, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#67e8f9';
+            ctx.lineWidth = leanShot ? 1.2 : 1.8;
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(0, -e.height * 0.48);
+            ctx.lineTo(e.width * 0.14, 0);
+            ctx.lineTo(0, e.height * 0.38);
+            ctx.lineTo(-e.width * 0.14, 0);
+            ctx.closePath();
+            ctx.fill();
+          } else if (isBioLaserShot) {
+            const pulse = 0.78 + Math.sin((this.frameCount + e.variant) * 0.46) * 0.22;
+            const outerGlow = ctx.createLinearGradient(0, -e.height * 0.65, 0, e.height * 0.6);
+            outerGlow.addColorStop(0, 'rgba(255,255,255,0)');
+            outerGlow.addColorStop(0.16, `rgba(214,255,177,${0.78 * pulse})`);
+            outerGlow.addColorStop(0.5, '#b7ff68');
+            outerGlow.addColorStop(0.84, `rgba(34,197,94,${0.72 * pulse})`);
+            outerGlow.addColorStop(1, 'rgba(22,163,74,0)');
+            ctx.fillStyle = outerGlow;
+            ctx.beginPath();
+            ctx.roundRect(-e.width * 0.48, -e.height * 0.64, e.width * 0.96, e.height * 1.24, Math.max(2, e.width * 0.38));
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.roundRect(-Math.max(1, e.width * 0.12), -e.height * 0.55, Math.max(2, e.width * 0.24), e.height, Math.max(1, e.width * 0.12));
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(190,242,100,0.9)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          } else if (isSingularityShot) {
             const pulse = 0.82 + Math.sin((this.frameCount + e.variant) * 0.5) * 0.18;
             ctx.fillStyle = `rgba(167,139,250,${0.3 * pulse})`;
             ctx.beginPath();

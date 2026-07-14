@@ -31,17 +31,31 @@ test('formations stay visual and final bosses transition without a loot stall', 
   });
 });
 
-test('the wave-one Gatekeeper ramps its three-shot cadence without exceeding the original speed', () => {
+test('the first two Gatekeepers ramp their cadence without exceeding the configured maximum speed', () => {
   const firstWave = campaign.levels[0].waves[0];
-  const gatekeeper = firstWave.events.find((event) => event.id === 'open-orbit-gatekeeper');
-  const burstWeapon = gatekeeper.weapons.find((weapon) => weapon.id === 'gatekeeper-burst');
+  const secondWave = campaign.levels[0].waves[1];
+  const firstGatekeeper = firstWave.events.find((event) => event.id === 'open-orbit-gatekeeper');
+  const secondGatekeeper = secondWave.events.find((event) => event.id === 'citation-storm-gatekeeper');
+  const firstBurstWeapon = firstGatekeeper.weapons.find((weapon) => weapon.id === 'gatekeeper-burst');
+  const secondBurstWeapon = secondGatekeeper.weapons.find((weapon) => weapon.id === 'gatekeeper-burst');
 
-  assert.equal(burstWeapon.burstCount, 3);
-  assert.equal(burstWeapon.attackIntervalSeconds, 0.883);
+  assert.equal(firstBurstWeapon.burstCount, 3);
+  assert.equal(firstBurstWeapon.attackIntervalSeconds, 0.883);
+  assert.equal(secondBurstWeapon.burstCount, 5);
+  assert.equal(secondBurstWeapon.attackIntervalSeconds, 0.767);
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1\.45/);
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0\.35/);
-  assert.match(engineSource, /getWaveOneGatekeeperBurstInterval\(baseFireRate, healthRatio\)/);
+  assert.match(engineSource, /WAVE_TWO_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1\.55/);
+  assert.match(engineSource, /WAVE_TWO_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0\.3/);
+  assert.match(engineSource, /getGatekeeperBurstInterval\(baseFireRate, healthRatio, cadenceConfig\)/);
   assert.match(engineSource, /Math\.max\(baseInterval, Math\.round\(baseInterval \* intervalMultiplier\)\)/);
+});
+
+test('adaptive performance preserves the planetary background instead of popping layers on and off', () => {
+  assert.doesNotMatch(engineSource, /if \(!adaptiveLow \|\| this\.frameCount % 2 === 0\)/);
+  assert.doesNotMatch(engineSource, /if \(!adaptiveLow\) \{\s*ctx\.save\(\);\s*ctx\.translate\(this\.width - 130/s);
+  assert.match(engineSource, /alpha: adaptiveLow \? \(lowDetail \? 0\.28 : 0\.4\)/);
+  assert.match(engineSource, /const backgroundSpriteLimit = this\.bgEntities\.length/);
 });
 
 test('main bosses use a siren alert before the transmission panel', () => {
@@ -52,9 +66,33 @@ test('main bosses use a siren alert before the transmission panel', () => {
   assert.match(engineSource, /this\.playSound\('siren'\)/);
 });
 
-test('white Citation Wraiths and red Paywall Interceptors use enlarged gameplay bounds', () => {
-  assert.match(engineSource, /PAYWALL_INTERCEPTOR_SCALE = 1\.05/);
-  assert.match(engineSource, /CITATION_WRAITH_SCALE = 1\.2/);
+test('white Citation Wraiths and standard red Paywall Interceptors use enlarged gameplay bounds', () => {
+  assert.match(engineSource, /PAYWALL_INTERCEPTOR_SCALE = 1\.1/);
+  assert.match(engineSource, /SPIRAL_PAYWALL_INTERCEPTOR_SCALE = 1\.05/);
+  assert.match(engineSource, /CITATION_WRAITH_SCALE = 1\.32/);
   assert.match(engineSource, /Math\.round\(44 \* PAYWALL_INTERCEPTOR_SCALE\)/);
   assert.match(engineSource, /Math\.round\(34 \* CITATION_WRAITH_SCALE\)/);
+  assert.match(engineSource, /formation === 'spiral' && enemy\.type === EntityType\.ENEMY_DRONE/);
+  assert.match(engineSource, /e\.formation === 'spiral' \? Math\.PI \/ 2 \+ e\.angle : 0/);
+});
+
+test('player ship uses a five-percent smaller gameplay footprint', () => {
+  assert.match(engineSource, /PLAYER_SHIP_SCALE = 0\.95/);
+  assert.match(engineSource, /this\.player\.width = Math\.round\(128 \* PLAYER_SHIP_SCALE\)/);
+  assert.match(engineSource, /this\.player\.height = Math\.round\(128 \* PLAYER_SHIP_SCALE\)/);
+});
+
+test('BIO ship equips a laser that grows and gains damage with fire-rate upgrades', () => {
+  assert.match(engineSource, /this\.playerShipUrl === ASSETS\.BIO_SHIP/);
+  assert.match(engineSource, /'bio-laser'/);
+  assert.match(engineSource, /Math\.round\(5 \+ bioLaserLevel \* 2\.3\)/);
+  assert.match(engineSource, /0\.9 \+ bioLaserLevel \* 0\.55/);
+});
+
+test('ETH ship equips an upgradeable piercing crystal-shard weapon', () => {
+  assert.match(engineSource, /this\.playerShipUrl === ASSETS\.ETH_SHIP/);
+  assert.match(engineSource, /'eth-shard'/);
+  assert.match(engineSource, /Math\.round\(13 \+ ethShardLevel \* 2\.1\)/);
+  assert.match(engineSource, /1\.15 \+ ethShardLevel \* 0\.48/);
+  assert.match(engineSource, /isEthShard && ethShardLevel >= 4/);
 });

@@ -1,7 +1,7 @@
 import { ASSETS } from '../constants';
 import type { MintRecord } from '../types';
 
-export type PlayerShipId = 'researchhub' | 'bio';
+export type PlayerShipId = 'researchhub' | 'bio' | 'eth';
 
 export const PLAYER_SHIPS: Readonly<Record<PlayerShipId, {
   id: PlayerShipId;
@@ -17,14 +17,19 @@ export const PLAYER_SHIPS: Readonly<Record<PlayerShipId, {
     id: 'bio',
     name: 'BIO ship',
     assetUrl: ASSETS.BIO_SHIP
+  },
+  eth: {
+    id: 'eth',
+    name: 'ETH ship',
+    assetUrl: ASSETS.ETH_SHIP
   }
 });
 
 export const parsePlayerShipId = (value?: string | null): PlayerShipId => (
-  value === 'bio' ? 'bio' : 'researchhub'
+  value === 'bio' || value === 'eth' ? value : 'researchhub'
 );
 
-export const hasBioShipUnlock = (
+export const hasEthShipUnlock = (
   walletAddress: string | null | undefined,
   walletRecords: MintRecord[]
 ) => {
@@ -71,7 +76,7 @@ export const ownsSciconRecordNft = async (
 
 export const getUsablePlayerShip = (
   selectedShip: PlayerShipId,
-  bioShipUnlocked: boolean
+  ethShipUnlocked: boolean
 ): PlayerShipId => (
-  selectedShip === 'bio' && !bioShipUnlocked ? 'researchhub' : selectedShip
+  selectedShip === 'eth' && !ethShipUnlocked ? 'researchhub' : selectedShip
 );
