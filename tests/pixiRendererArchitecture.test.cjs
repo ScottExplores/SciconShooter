@@ -12,6 +12,7 @@ test('canonical gameplay renders through one manually-driven Pixi scene', () => 
   const renderer = read('services/pixi/PixiGameRenderer.ts');
 
   assert.match(packageJson.dependencies['pixi.js'], /^\^8\./);
+  assert.match(renderer, /import 'pixi\.js\/unsafe-eval'/);
   assert.match(canvas, /new PixiGameRenderer\(\)/);
   assert.match(canvas, /renderer\.sync\(engine, timestamp\)/);
   assert.doesNotMatch(canvas, /getContext\(['"]2d['"]\)/);
@@ -22,6 +23,8 @@ test('canonical gameplay renders through one manually-driven Pixi scene', () => 
   assert.match(renderer, /sharedTicker:\s*false/);
   assert.match(renderer, /this\.app\.stop\(\)/);
   assert.match(renderer, /this\.app\.renderer\.render\(this\.app\.stage\)/);
+  assert.match(renderer, /if \(!this\.appReady \|\| this\.appDestroyed\) return/);
+  assert.match(renderer, /if \(this\.destroyed\) \{\s*this\.destroyApplication\(\)/);
 });
 
 test('Pixi presentation keeps ordered gameplay layers and pooled effects', () => {
@@ -57,4 +60,12 @@ test('Pixi presentation keeps ordered gameplay layers and pooled effects', () =>
   assert.match(renderer, /engine\.entities/);
   assert.doesNotMatch(renderer, /new GameEngine/);
   assert.doesNotMatch(renderer, /requestAnimationFrame/);
+});
+
+test('the local Director can decode Pixi textures without enabling remote scripts', () => {
+  const directorHtml = read('director/index.html');
+
+  assert.match(directorHtml, /script-src 'self'/);
+  assert.match(directorHtml, /worker-src 'self' blob:/);
+  assert.doesNotMatch(directorHtml, /script-src[^;]*unsafe-eval/);
 });

@@ -1,3 +1,4 @@
+import 'pixi.js/unsafe-eval';
 import {
   Application,
   Container,
@@ -200,6 +201,8 @@ export class PixiGameRenderer {
   private bossDeathHandled = false;
   private bossDeathTextureRequest = 0;
   private phaseTextUntilFrame = -1;
+  private appReady = false;
+  private appDestroyed = false;
   private initialized = false;
   private renderFrame = 0;
   private width = 1;
@@ -227,7 +230,11 @@ export class PixiGameRenderer {
       powerPreference: 'high-performance',
       preference: 'webgl'
     });
-    if (this.destroyed) return;
+    this.appReady = true;
+    if (this.destroyed) {
+      this.destroyApplication();
+      return;
+    }
     this.app.stop();
     this.app.canvas.className = 'absolute left-0 top-0 z-0 block h-full w-full';
     this.app.canvas.style.touchAction = 'none';
@@ -1062,6 +1069,12 @@ export class PixiGameRenderer {
     this.textureBank.destroy();
     this.views.clear();
     this.recycledViews.clear();
+    this.destroyApplication();
+  }
+
+  private destroyApplication() {
+    if (!this.appReady || this.appDestroyed) return;
+    this.appDestroyed = true;
     this.app.destroy({ removeView: true }, { children: true, texture: false, textureSource: false });
   }
 }
