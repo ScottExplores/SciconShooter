@@ -41,6 +41,7 @@ type EntityView = {
   lastHp: number;
   lastFlashFrames: number;
   lastMarkedForDeletion: boolean;
+  hasFallbackBody: boolean;
   seenFrame: number;
 };
 
@@ -334,6 +335,7 @@ export class PixiGameRenderer {
       reused.lastHp = entity.hp;
       reused.lastFlashFrames = 0;
       reused.lastMarkedForDeletion = false;
+      reused.hasFallbackBody = false;
       return reused;
     }
 
@@ -365,6 +367,7 @@ export class PixiGameRenderer {
       lastHp: entity.hp,
       lastFlashFrames: 0,
       lastMarkedForDeletion: false,
+      hasFallbackBody: false,
       seenFrame: this.renderFrame
     };
     this.layers[getEntityLayer(entity.type)].addChild(root);
@@ -376,6 +379,13 @@ export class PixiGameRenderer {
     view.sprite.texture = Texture.WHITE;
     view.textureKey = null;
     view.textureRequest++;
+    view.trail.clear();
+    view.aura.clear();
+    view.body.clear();
+    view.flash.clear();
+    view.health.clear();
+    view.label.text = '';
+    view.hasFallbackBody = false;
     const pool = this.recycledViews.get(view.type) ?? [];
     pool.push(view);
     this.recycledViews.set(view.type, pool);
@@ -420,8 +430,6 @@ export class PixiGameRenderer {
 
   private drawHealthBar(view: EntityView, entity: Entity) {
     view.health.clear();
-    view.label.text = '';
-    if (entity.type !== EntityType.BOSS && entity.type !== EntityType.MINI_BOSS && entity.type !== EntityType.ENEMY_INVADER) return;
 
     const width = entity.type === EntityType.ENEMY_INVADER ? entity.width * 0.92 : entity.width;
     const y = -entity.height * 0.5 - 18;
@@ -439,8 +447,15 @@ export class PixiGameRenderer {
   }
 
   private drawFallbackBody(view: EntityView, entity: Entity) {
+    if (view.sprite.visible) {
+      if (view.hasFallbackBody) {
+        view.body.clear();
+        view.hasFallbackBody = false;
+      }
+      return;
+    }
+    if (view.hasFallbackBody) return;
     view.body.clear();
-    if (view.sprite.visible) return;
     const w = entity.width;
     const h = entity.height;
     if (entity.type === EntityType.PARTICLE) {
@@ -453,6 +468,7 @@ export class PixiGameRenderer {
     view.body.moveTo(0, -h * 0.5).lineTo(w * 0.45, h * 0.32).lineTo(0, h * 0.18).lineTo(-w * 0.45, h * 0.32).closePath();
     view.body.fill(entity.color || '#67e8f9');
     view.body.stroke({ color: '#ffffff', width: 1.5, alpha: 0.7 });
+    view.hasFallbackBody = true;
   }
 
   private drawProjectile(view: EntityView, entity: Entity) {
@@ -762,17 +778,13 @@ export class PixiGameRenderer {
     view.sprite.visible = true;
     view.sprite.alpha = 1;
     view.sprite.tint = '#ffffff';
-    view.label.text = '';
-    view.trail.clear();
-    view.aura.clear();
-    view.body.clear();
-    view.flash.clear();
-    view.health.clear();
 
     if (entity.type === EntityType.PROJECTILE || entity.type === EntityType.MISSILE) {
       this.drawProjectile(view, entity);
     } else if (entity.type === EntityType.EFFECT) {
       view.sprite.visible = false;
+      view.body.clear();
+      view.label.text = '';
       const effect = entity as VisualEffect;
       if (effect.effectType === 'text') {
         view.label.text = effect.text ?? '';
@@ -785,6 +797,7 @@ export class PixiGameRenderer {
       }
     } else if (entity.type === EntityType.PARTICLE) {
       view.sprite.visible = false;
+      view.body.clear();
       view.body.rect(-entity.width / 2, -entity.height / 2, entity.width, entity.height).fill({
         color: entity.color,
         alpha: clamp(entity.life / Math.max(1, entity.maxLife), 0, 1)
@@ -830,12 +843,17 @@ export class PixiGameRenderer {
     } else if (entity.type === EntityType.POWERUP) {
       const pulse = 1 + Math.sin((engine.frameCount + entity.variant) * 0.14) * 0.08;
       view.root.scale.set(pulse);
+      view.aura.clear();
       view.aura.circle(0, 0, entity.width * 0.55).fill({ color: '#67e8f9', alpha: 0.11 });
       view.aura.circle(0, 0, entity.width * 0.52).stroke({ color: '#ffffff', width: 2, alpha: 0.74 });
     }
 
-    this.drawHealthBar(view, entity);
-    this.drawFlash(view, entity);
+    if (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS || entity.type === EntityType.ENEMY_INVADER) {
+      this.drawHealthBar(view, entity);
+    }
+    if (entity.flashFrames > 0 || view.lastFlashFrames > 0) {
+      this.drawFlash(view, entity);
+    }
 
     if (entity.flashFrames > view.lastFlashFrames + 2) {
       this.effectPool.spawn('ring', entity.x + entity.width / 2, entity.y + entity.height / 2, Math.max(18, entity.width * 0.6), '#ffffff', 180);

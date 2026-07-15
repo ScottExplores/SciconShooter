@@ -171,7 +171,8 @@ export class PixiEnvironment {
     this.width = Math.max(1, Math.round(width));
     this.height = Math.max(1, Math.round(height));
     this.backgroundFill.clear().rect(0, 0, this.width, this.height).fill('#020617');
-    this.sectorTint.clear().rect(0, 0, this.width, this.height).fill({ color: '#0f172a', alpha: 0 });
+    this.sectorTint.clear().rect(0, 0, this.width, this.height).fill('#ffffff');
+    this.sectorTint.alpha = 0;
 
     this.horizon.anchor.set(0.5, 1);
     this.horizon.position.set(this.width / 2, this.height + Math.max(80, this.height * 0.15));
@@ -220,7 +221,8 @@ export class PixiEnvironment {
       star.sprite.alpha = Math.max(0.08, Math.min(0.78, 0.28 + Math.sin(engine.frameCount * 0.025 + star.phase) * 0.22));
     }
 
-    this.sectorTint.clear().rect(0, 0, this.width, this.height).fill({ color: identity.tint, alpha: lowQuality ? 0.075 : 0.115 });
+    this.sectorTint.tint = identity.tint;
+    this.sectorTint.alpha = lowQuality ? 0.075 : 0.115;
     this.bigPlanet.y = 125 + Math.sin(engine.frameCount * 0.008) * 12;
     this.ringPlanet.position.set(
       this.width + 80 - ((engine.frameCount * 0.16) % (this.width + 180)),
