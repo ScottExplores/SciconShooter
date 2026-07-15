@@ -22,6 +22,7 @@ test('connected Trophy Deck shows five clickable runs instead of transaction lin
   assert.match(appSource, /const openWalletRunRecord = \(record: WalletRunRecord\)/);
   assert.match(appSource, /setRunReceipt\(record\.receipt\)/);
   assert.match(appSource, /setMissionRecordPilotName\(record\.pilotName\)/);
+  assert.match(screenSource, /month: 'short', day: 'numeric', year: 'numeric'/);
   assert.doesNotMatch(previewSource, /View Score Record transaction|basescan\.org/);
   assert.match(viteSource, /mount\('\/api\/player-runs'/);
 });
@@ -125,22 +126,8 @@ test('recent run API returns a wallet-bound, mintable receipt', async () => {
   }
 });
 
-test('recent run API supports the legacy receipt schema used in production', async () => {
+test('recent run API reports schema drift instead of discarding the selected ship', async () => {
   const wallet = '0x2222222222222222222222222222222222222222';
-  const storedRun = {
-    run_id: '22222222-3333-4444-8555-666666666666',
-    started_at: '2026-07-14T20:00:00.000Z',
-    finished_at: '2026-07-14T20:01:00.000Z',
-    duration_ms: 60_000,
-    score: 4_321,
-    wave: 2,
-    enemies_defeated: 20,
-    coins_collected: 12,
-    game_version: '2.2.0-base-readiness',
-    integrity_status: 'server-verified',
-    anomaly_flags: [],
-    wallet_address: wallet
-  };
   const supabasePath = require.resolve('../api/_lib/supabase');
   const handlerPath = require.resolve('../api/_lib/playerRuns');
   const runReceiptsPath = require.resolve('../api/_lib/runReceipts');
@@ -162,7 +149,6 @@ test('recent run API supports the legacy receipt schema used in production', asy
           modernSelectAttempts += 1;
           throw new Error('column scicon_run_receipts.player_ship_id does not exist');
         }
-        if (value.includes('wallet_address=eq.')) return [storedRun];
         throw new Error(`Unexpected query: ${value}`);
       }
     }
@@ -179,11 +165,9 @@ test('recent run API supports the legacy receipt schema used in production', asy
   try {
     await handlePlayerRuns({ method: 'GET', query: { wallet } }, response);
     const payload = JSON.parse(response.body);
-    assert.equal(response.statusCode, 200);
+    assert.equal(response.statusCode, 500);
     assert.equal(modernSelectAttempts, 1);
-    assert.equal(payload.runs.length, 1);
-    assert.equal(payload.runs[0].receipt.metrics.score, 4_321);
-    assert.equal(payload.runs[0].receipt.metrics.playerShipId, 'researchhub');
+    assert.match(payload.error, /player_ship_id/);
   } finally {
     delete require.cache[handlerPath];
     delete require.cache[runReceiptsPath];

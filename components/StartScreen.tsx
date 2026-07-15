@@ -105,7 +105,7 @@ const formatNumber = (value?: number) => (
 const formatRunDate = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Recent run';
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 };
 
 const getWeeklyAllocationMeta = (now = new Date()) => ({
@@ -645,7 +645,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       </div>
 
       <div className={`sci-hero-content relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'sci-hero-content--compact gap-1 py-2' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
-        <div className={compact ? 'space-y-1' : 'space-y-3'}>
+        <div className={`sci-hero-brand flex flex-col items-center text-center ${compact ? 'space-y-1' : 'space-y-3'}`}>
           <div className="mx-auto flex w-fit items-center gap-3 text-yellow-200/90">
             <span className="h-px w-14 bg-gradient-to-r from-transparent to-yellow-200/80" />
             <span className="h-2 w-16 skew-x-[-28deg] bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.45)]" />

@@ -57,14 +57,20 @@ test('confirmed Mission Record scores cumulatively unlock ETH and BTC ships', ()
   assert.match(shipServiceSource, /record\.status === 'confirmed'/);
   assert.match(shipServiceSource, /ETH_SHIP_SCORE_THRESHOLD = 1_000/);
   assert.match(shipServiceSource, /BTC_SHIP_SCORE_THRESHOLD = 10_000/);
-  assert.match(shipServiceSource, /eth: highestMintedScore >= ETH_SHIP_SCORE_THRESHOLD/);
-  assert.match(shipServiceSource, /btc: highestMintedScore >= BTC_SHIP_SCORE_THRESHOLD/);
+  assert.match(shipServiceSource, /eth: options\.unlockAll === true \|\| highestMintedScore >= ETH_SHIP_SCORE_THRESHOLD/);
+  assert.match(shipServiceSource, /btc: options\.unlockAll === true \|\| highestMintedScore >= BTC_SHIP_SCORE_THRESHOLD/);
   assert.match(mintRecordsSource, /select=run_id,score/);
   assert.match(mintRecordsSource, /functionName: 'ownerOf'/);
-  assert.match(appSource, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords\)/);
+  assert.match(appSource, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords, \{ unlockAll: isOwnerWallet \}\)/);
   assert.match(appSource, /getUsablePlayerShip\(selectedShipId, shipUnlocks\)/);
   assert.match(metadataSource, /Bitcoin Ace/);
   assert.match(metadataSource, /Ethereum Pilot/);
+});
+
+test('project wallet bypasses every score-gated ship lock', () => {
+  assert.match(shipServiceSource, /export interface PlayerShipUnlockOptions/);
+  assert.match(shipServiceSource, /unlockAll\?: boolean/);
+  assert.match(appSource, /\[activeWalletAddress, isOwnerWallet, walletRecords\]/);
 });
 
 test('title screen keeps BIO open and explains score-tier ETH and BTC locks', () => {

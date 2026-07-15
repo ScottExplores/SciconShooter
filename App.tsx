@@ -380,8 +380,8 @@ const App: React.FC = () => {
     archivedWinners
   }) : null, [archivedWinners, monthlyLeaderboard, previewPilotName, runReceipt]);
   const shipUnlocks = useMemo(
-    () => getPlayerShipUnlocks(activeWalletAddress, walletRecords),
-    [activeWalletAddress, walletRecords]
+    () => getPlayerShipUnlocks(activeWalletAddress, walletRecords, { unlockAll: isOwnerWallet }),
+    [activeWalletAddress, isOwnerWallet, walletRecords]
   );
   const usableShipId = getUsablePlayerShip(selectedShipId, shipUnlocks);
   const playerShipUrl = PLAYER_SHIPS[usableShipId].assetUrl;

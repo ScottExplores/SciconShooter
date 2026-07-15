@@ -148,12 +148,6 @@ const saveReceipt = async (receipt, req) => {
     await persistRow(row);
     return true;
   } catch (error) {
-    if (/player_ship_id|PGRST204/i.test(error.message || '')) {
-      const { player_ship_id, ...legacyRow } = row;
-      void player_ship_id;
-      await persistRow(legacyRow);
-      return true;
-    }
     if (/PGRST205|schema cache|Could not find the table/i.test(error.message || '')) return false;
     throw error;
   }

@@ -9,6 +9,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const appSource = read('App.tsx');
 const receiptClientSource = read('services/runReceiptService.ts');
 const receiptServerSource = read('api/_lib/runReceipts.js');
+const playerRunsSource = read('api/_lib/playerRuns.js');
 const previewSource = read('components/MissionRecordPreview.tsx');
 const cardApiSource = read('api/record-card.js');
 const metadataApiSource = read('api/record-metadata.js');
@@ -27,6 +28,10 @@ test('selected ship identity travels through the signed receipt and scorecard pr
   assert.match(receiptClientSource, /action: 'start'[\s\S]*?playerShipId/);
   assert.match(receiptServerSource, /playerShipId: normalizePlayerShipId\(playerShipId\)/);
   assert.match(receiptServerSource, /playerShipId: normalizePlayerShipId\(start\.playerShipId\)/);
+  assert.match(receiptServerSource, /player_ship_id: receipt\.metrics\.playerShipId/);
+  assert.doesNotMatch(receiptServerSource, /legacyRow|\.\.\.legacyRow/);
+  assert.match(playerRunsSource, /'player_ship_id'/);
+  assert.doesNotMatch(playerRunsSource, /legacyReceiptColumns/);
   assert.match(previewSource, /PLAYER_SHIPS\[playerShipId\]\.assetUrl/);
   assert.match(previewSource, /buildMissionRecordCardPath\(receipt\.runId, playerShipId\)/);
 });

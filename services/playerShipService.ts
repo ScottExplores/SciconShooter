@@ -12,6 +12,10 @@ export interface PlayerShipUnlocks {
   highestMintedScore: number;
 }
 
+export interface PlayerShipUnlockOptions {
+  unlockAll?: boolean;
+}
+
 export const PLAYER_SHIPS: Readonly<Record<PlayerShipId, {
   id: PlayerShipId;
   name: string;
@@ -45,7 +49,8 @@ export const parsePlayerShipId = (value?: string | null): PlayerShipId => (
 
 export const getPlayerShipUnlocks = (
   walletAddress: string | null | undefined,
-  walletRecords: MintRecord[]
+  walletRecords: MintRecord[],
+  options: PlayerShipUnlockOptions = {}
 ): PlayerShipUnlocks => {
   const normalizedWallet = walletAddress?.toLowerCase();
   const highestMintedScore = normalizedWallet
@@ -62,8 +67,8 @@ export const getPlayerShipUnlocks = (
     : 0;
 
   return {
-    eth: highestMintedScore >= ETH_SHIP_SCORE_THRESHOLD,
-    btc: highestMintedScore >= BTC_SHIP_SCORE_THRESHOLD,
+    eth: options.unlockAll === true || highestMintedScore >= ETH_SHIP_SCORE_THRESHOLD,
+    btc: options.unlockAll === true || highestMintedScore >= BTC_SHIP_SCORE_THRESHOLD,
     highestMintedScore
   };
 };

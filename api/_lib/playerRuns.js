@@ -20,10 +20,6 @@ const receiptColumns = [
   'anomaly_flags',
   'wallet_address'
 ].join(',');
-const legacyReceiptColumns = receiptColumns
-  .split(',')
-  .filter((column) => column !== 'player_ship_id')
-  .join(',');
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
@@ -37,20 +33,10 @@ const normalizePilotName = (value) => {
   return name ? name.slice(0, 15) : 'PILOT';
 };
 
-const fetchReceiptRows = async (query) => {
-  try {
-    return await fetchSupabaseJson(
-      `${RECEIPTS_TABLE}?select=${receiptColumns}&${query}`,
-      { headers: supabaseHeaders() }
-    );
-  } catch (error) {
-    if (!/player_ship_id/i.test(String(error?.message || error))) throw error;
-    return fetchSupabaseJson(
-      `${RECEIPTS_TABLE}?select=${legacyReceiptColumns}&${query}`,
-      { headers: supabaseHeaders() }
-    );
-  }
-};
+const fetchReceiptRows = (query) => fetchSupabaseJson(
+  `${RECEIPTS_TABLE}?select=${receiptColumns}&${query}`,
+  { headers: supabaseHeaders() }
+);
 
 const handlePlayerRuns = async (req, res) => {
   if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
