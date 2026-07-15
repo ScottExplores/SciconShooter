@@ -1,6 +1,5 @@
 import {
   Application,
-  Assets,
   Container,
   Graphics,
   Sprite,
@@ -10,6 +9,9 @@ import {
 import { ASSETS } from '../../constants';
 import { EntityType, PowerupType } from '../../types';
 import { Entity, GameEngine, VisualEffect } from '../gameLogic';
+import { ArcadeEffectPool } from './ArcadeEffectPool';
+import { PixiEnvironment } from './PixiEnvironment';
+import { PixiTextureBank } from './PixiTextureBank';
 
 type SceneLayerName =
   | 'background'
@@ -41,34 +43,13 @@ type EntityView = {
   seenFrame: number;
 };
 
-type ParallaxLayer = {
-  root: Container;
-  sprites: [Sprite, Sprite];
-  speed: number;
-  alpha: number;
+type BossSnapshot = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   textureKey: string;
-};
-
-type StarPoint = {
-  sprite: Sprite;
-  speed: number;
-  phase: number;
-};
-
-type EffectKind = 'burst' | 'ring' | 'spark' | 'shockwave' | 'muzzle' | 'smoke';
-
-type PooledEffect = {
-  root: Container;
-  graphic: Graphics;
-  kind: EffectKind;
-  age: number;
-  duration: number;
-  size: number;
-  color: string;
-  velocityX: number;
-  velocityY: number;
-  spin: number;
-  active: boolean;
 };
 
 const PLAYER_THRUSTER_COLORS = [
@@ -79,13 +60,6 @@ const PLAYER_THRUSTER_COLORS = [
   ['#fca5a5', '#ef4444'],
   ['#ffffff', '#38bdf8'],
   ['#ffffff', '#facc15']
-] as const;
-
-const BACKGROUND_LAYERS = [
-  { url: ASSETS.GAME_PARALLAX_BACK, speed: 0.08, alpha: 0.72 },
-  { url: ASSETS.GAME_PARALLAX_STARS, speed: 0.18, alpha: 0.46 },
-  { url: ASSETS.GAME_BG_BACK, speed: 0.3, alpha: 0.28 },
-  { url: ASSETS.GAME_BG_STARS, speed: 0.48, alpha: 0.55 }
 ] as const;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -187,187 +161,10 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
   }
 };
 
-class TextureBank {
-  private textures = new Map<string, Texture>();
-  private pending = new Map<string, Promise<Texture>>();
-
-  async load(url: string) {
-    const cached = this.textures.get(url);
-    if (cached) return cached;
-
-    const pending = this.pending.get(url);
-    if (pending) return pending;
-
-    const request = Assets.load<Texture>(url)
-      .then((texture) => {
-        texture.source.scaleMode = 'nearest';
-        this.textures.set(url, texture);
-        this.pending.delete(url);
-        return texture;
-      })
-      .catch((error) => {
-        this.pending.delete(url);
-        throw error;
-      });
-    this.pending.set(url, request);
-    return request;
-  }
-
-  preload(urls: string[]) {
-    return Promise.allSettled([...new Set(urls.filter(Boolean))].map((url) => this.load(url)));
-  }
-
-  get(url: string) {
-    return this.textures.get(url) ?? null;
-  }
-}
-
-class ArcadeEffectPool {
-  private readonly layer: Container;
-  private readonly effects: PooledEffect[] = [];
-
-  constructor(layer: Container) {
-    this.layer = layer;
-  }
-
-  private acquire(kind: EffectKind) {
-    let effect = this.effects.find((candidate) => !candidate.active);
-    if (!effect) {
-      const root = new Container();
-      const graphic = new Graphics();
-      root.addChild(graphic);
-      root.eventMode = 'none';
-      effect = {
-        root,
-        graphic,
-        kind,
-        age: 0,
-        duration: 1,
-        size: 1,
-        color: '#ffffff',
-        velocityX: 0,
-        velocityY: 0,
-        spin: 0,
-        active: false
-      };
-      this.effects.push(effect);
-      this.layer.addChild(root);
-    }
-    effect.active = true;
-    effect.root.visible = true;
-    effect.root.alpha = 1;
-    effect.root.scale.set(1);
-    effect.root.rotation = 0;
-    effect.graphic.clear();
-    return effect;
-  }
-
-  spawn(kind: EffectKind, x: number, y: number, size: number, color: string, duration = 360) {
-    const effect = this.acquire(kind);
-    effect.kind = kind;
-    effect.age = 0;
-    effect.duration = duration;
-    effect.size = size;
-    effect.color = color;
-    effect.velocityX = kind === 'spark' ? (Math.random() - 0.5) * 2.5 : 0;
-    effect.velocityY = kind === 'smoke' ? -0.24 : kind === 'spark' ? (Math.random() - 0.5) * 2.5 : 0;
-    effect.spin = (Math.random() - 0.5) * 0.08;
-    effect.root.position.set(x, y);
-    this.drawEffect(effect, 0);
-    return effect;
-  }
-
-  spawnExplosion(x: number, y: number, size: number, color = '#67e8f9', intensity = 1) {
-    this.spawn('shockwave', x, y, size * 1.5, color, 520);
-    this.spawn('burst', x, y, size, color, 420);
-    const sparks = Math.max(3, Math.round(5 * intensity));
-    for (let index = 0; index < sparks; index++) {
-      const spark = this.spawn('spark', x, y, Math.max(2, size * 0.08), index % 2 ? '#ffffff' : color, 260 + Math.random() * 240);
-      spark.velocityX = (Math.random() - 0.5) * size * 0.045;
-      spark.velocityY = (Math.random() - 0.5) * size * 0.045;
-    }
-    if (size > 80) {
-      this.spawn('smoke', x - size * 0.2, y, size * 0.42, '#64748b', 900);
-      this.spawn('smoke', x + size * 0.2, y + size * 0.08, size * 0.34, '#334155', 980);
-    }
-  }
-
-  private drawEffect(effect: PooledEffect, progress: number) {
-    const graphic = effect.graphic;
-    graphic.clear();
-
-    if (effect.kind === 'ring' || effect.kind === 'shockwave') {
-      const radius = effect.size * (0.16 + progress * 0.84);
-      graphic.circle(0, 0, radius).stroke({
-        color: effect.color,
-        width: Math.max(1, effect.size * 0.045 * (1 - progress)),
-        alpha: 0.95
-      });
-      if (effect.kind === 'shockwave') {
-        graphic.circle(0, 0, radius * 0.7).stroke({ color: '#ffffff', width: 1.5, alpha: 0.55 });
-      }
-      return;
-    }
-
-    if (effect.kind === 'muzzle') {
-      const length = effect.size * (1 - progress * 0.65);
-      graphic.moveTo(0, -length).lineTo(effect.size * 0.28, 0).lineTo(0, length * 0.28).lineTo(-effect.size * 0.28, 0).closePath();
-      graphic.fill({ color: '#ffffff', alpha: 0.95 });
-      graphic.circle(0, 0, effect.size * 0.22).fill({ color: effect.color, alpha: 0.85 });
-      return;
-    }
-
-    if (effect.kind === 'spark') {
-      graphic.roundRect(-effect.size * 0.35, -effect.size * 1.8, effect.size * 0.7, effect.size * 3.6, effect.size * 0.3)
-        .fill({ color: effect.color, alpha: 0.95 });
-      return;
-    }
-
-    if (effect.kind === 'smoke') {
-      graphic.circle(0, 0, effect.size * (0.56 + progress * 0.44)).fill({ color: effect.color, alpha: 0.24 });
-      graphic.circle(-effect.size * 0.22, -effect.size * 0.08, effect.size * 0.34).fill({ color: effect.color, alpha: 0.18 });
-      return;
-    }
-
-    const rays = 10;
-    for (let index = 0; index < rays; index++) {
-      const angle = (Math.PI * 2 * index) / rays + effect.root.rotation;
-      const inner = effect.size * (0.08 + progress * 0.18);
-      const outer = effect.size * (0.32 + progress * 0.72) * (0.72 + (index % 3) * 0.12);
-      graphic.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
-      graphic.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
-      graphic.stroke({ color: index % 2 ? '#ffffff' : effect.color, width: Math.max(1, effect.size * 0.055), alpha: 0.9 });
-    }
-    graphic.circle(0, 0, effect.size * (0.28 + progress * 0.16)).fill({ color: effect.color, alpha: 0.72 });
-    graphic.circle(0, 0, effect.size * 0.12).fill({ color: '#ffffff', alpha: 0.98 });
-  }
-
-  update(deltaMs: number) {
-    for (const effect of this.effects) {
-      if (!effect.active) continue;
-      effect.age += deltaMs;
-      const progress = clamp(effect.age / effect.duration, 0, 1);
-      effect.root.x += effect.velocityX * (deltaMs / 16.667);
-      effect.root.y += effect.velocityY * (deltaMs / 16.667);
-      effect.root.rotation += effect.spin * (deltaMs / 16.667);
-      effect.root.alpha = (1 - progress) * (effect.kind === 'smoke' ? 0.72 : 1);
-      this.drawEffect(effect, progress);
-      if (progress >= 1) {
-        effect.active = false;
-        effect.root.visible = false;
-      }
-    }
-  }
-
-  destroy() {
-    this.effects.length = 0;
-  }
-}
-
 export class PixiGameRenderer {
   readonly app = new Application();
 
-  private readonly textureBank = new TextureBank();
+  private readonly textureBank = new PixiTextureBank();
   private readonly layers: Record<SceneLayerName, Container> = {
     background: createLayer(),
     environment: createLayer(),
@@ -383,21 +180,26 @@ export class PixiGameRenderer {
   private readonly world = createLayer();
   private readonly views = new Map<string, EntityView>();
   private readonly recycledViews = new Map<EntityType, EntityView[]>();
-  private readonly parallaxLayers: ParallaxLayer[] = [];
-  private readonly stars: StarPoint[] = [];
-  private readonly backgroundFill = new Graphics();
-  private readonly sectorTint = new Graphics();
-  private readonly horizon = new Sprite(Texture.WHITE);
-  private readonly bigPlanet = new Sprite(Texture.WHITE);
-  private readonly ringPlanet = new Sprite(Texture.WHITE);
+  private readonly environment = new PixiEnvironment(this.layers.background, this.layers.environment, this.textureBank);
   private readonly warningShade = new Graphics();
   private readonly warningFrame = new Graphics();
   private readonly warningText = createText(30, '#fef08a');
   private readonly warningSubtext = createText(13, '#ffffff', 'normal');
+  private readonly phaseText = createText(18, '#fef08a');
   private readonly flashOverlay = new Graphics();
   private readonly scanlines = new Graphics();
   private readonly effectPool = new ArcadeEffectPool(this.layers.effects);
   private readonly seenBossPhase = new Map<string, number>();
+  private readonly bossDeathRoot = new Container();
+  private readonly bossDeathSprite = new Sprite(Texture.WHITE);
+  private readonly bossDeathCore = new Graphics();
+  private readonly bossDeathText = createText(24, '#a7f3d0');
+  private lastBossSnapshot: BossSnapshot | null = null;
+  private bossDeathAge = -1;
+  private bossDeathStage = -1;
+  private bossDeathHandled = false;
+  private bossDeathTextureRequest = 0;
+  private phaseTextUntilFrame = -1;
   private initialized = false;
   private renderFrame = 0;
   private width = 1;
@@ -446,15 +248,19 @@ export class PixiGameRenderer {
       this.layers.foreground
     );
 
-    this.layers.background.addChild(this.backgroundFill);
-    this.buildBackground();
-    this.layers.background.addChild(this.sectorTint);
-    this.layers.environment.addChild(this.horizon, this.bigPlanet, this.ringPlanet);
+    this.bossDeathSprite.anchor.set(0.5);
+    this.bossDeathText.anchor.set(0.5);
+    this.bossDeathRoot.eventMode = 'none';
+    this.bossDeathRoot.visible = false;
+    this.bossDeathRoot.addChild(this.bossDeathSprite, this.bossDeathCore, this.bossDeathText);
+    this.layers.foreground.addChild(this.bossDeathRoot);
+
     this.layers.overlay.addChild(
       this.warningShade,
       this.warningFrame,
       this.warningText,
       this.warningSubtext,
+      this.phaseText,
       this.flashOverlay,
       this.scanlines
     );
@@ -465,19 +271,14 @@ export class PixiGameRenderer {
     this.warningFrame.visible = false;
     this.warningText.visible = false;
     this.warningSubtext.visible = false;
+    this.phaseText.visible = false;
     this.flashOverlay.visible = false;
 
+    await this.environment.init(this.width, this.height);
+    if (this.destroyed) return;
     this.resize(this.width, this.height);
-    this.initialized = true;
 
     await this.textureBank.preload([
-      ASSETS.GAME_PARALLAX_BACK,
-      ASSETS.GAME_PARALLAX_STARS,
-      ASSETS.GAME_BG_BACK,
-      ASSETS.GAME_BG_STARS,
-      ASSETS.GAME_BG_PLANET,
-      ASSETS.GAME_PARALLAX_BIG_PLANET,
-      ASSETS.GAME_PARALLAX_RING_PLANET,
       ...ASSETS.ENEMY_DRONE_FRAMES,
       ...ASSETS.ENEMY_SWARM_FRAMES,
       ...ASSETS.ENEMY_BRICK_FRAMES,
@@ -487,59 +288,8 @@ export class PixiGameRenderer {
       ASSETS.WALL_BOSS_SEGMENT,
       ASSETS.RSC_TOKEN
     ]);
-    await this.loadBackgroundTextures();
-  }
-
-  private buildBackground() {
-    for (const definition of BACKGROUND_LAYERS) {
-      const root = createLayer();
-      const first = new Sprite(Texture.WHITE);
-      const second = new Sprite(Texture.WHITE);
-      first.alpha = definition.alpha;
-      second.alpha = definition.alpha;
-      root.addChild(first, second);
-      this.parallaxLayers.push({
-        root,
-        sprites: [first, second],
-        speed: definition.speed,
-        alpha: definition.alpha,
-        textureKey: definition.url
-      });
-      this.layers.background.addChild(root);
-    }
-
-    const starCount = this.width < 620 ? 72 : 120;
-    for (let index = 0; index < starCount; index++) {
-      const sprite = new Sprite(Texture.WHITE);
-      const depth = 0.25 + Math.random() * 0.75;
-      sprite.tint = index % 8 === 0 ? '#67e8f9' : index % 13 === 0 ? '#c4b5fd' : '#e2f4ff';
-      sprite.alpha = 0.2 + depth * 0.7;
-      const size = 0.7 + depth * 1.9;
-      sprite.width = size;
-      sprite.height = size;
-      this.stars.push({ sprite, speed: 0.2 + depth * 1.35, phase: Math.random() * Math.PI * 2 });
-      this.layers.background.addChild(sprite);
-    }
-  }
-
-  private async loadBackgroundTextures() {
-    for (const layer of this.parallaxLayers) {
-      const texture = this.textureBank.get(layer.textureKey) ?? await this.textureBank.load(layer.textureKey).catch(() => null);
-      if (!texture || this.destroyed) continue;
-      layer.sprites[0].texture = texture;
-      layer.sprites[1].texture = texture;
-      texture.source.scaleMode = 'nearest';
-    }
-
-    const assignments = [
-      [this.horizon, ASSETS.GAME_BG_PLANET],
-      [this.bigPlanet, ASSETS.GAME_PARALLAX_BIG_PLANET],
-      [this.ringPlanet, ASSETS.GAME_PARALLAX_RING_PLANET]
-    ] as const;
-    for (const [sprite, url] of assignments) {
-      const texture = this.textureBank.get(url) ?? await this.textureBank.load(url).catch(() => null);
-      if (texture && !this.destroyed) sprite.texture = texture;
-    }
+    if (this.destroyed) return;
+    this.initialized = true;
   }
 
   get canvas() {
@@ -552,41 +302,8 @@ export class PixiGameRenderer {
     this.height = Math.max(1, Math.round(height));
     if (this.app.renderer) this.app.renderer.resize(this.width, this.height);
 
-    this.backgroundFill.clear().rect(0, 0, this.width, this.height).fill('#020617');
-    this.sectorTint.clear().rect(0, 0, this.width, this.height).fill({ color: '#0f172a', alpha: 0 });
     this.flashOverlay.clear().rect(0, 0, this.width, this.height).fill({ color: '#f87171', alpha: 1 });
-
-    this.horizon.anchor.set(0.5, 1);
-    this.horizon.position.set(this.width / 2, this.height + Math.max(80, this.height * 0.15));
-    this.horizon.width = this.width;
-    this.horizon.height = Math.max(240, this.height * 0.34);
-    this.horizon.alpha = 0.52;
-
-    this.bigPlanet.anchor.set(0.5);
-    this.bigPlanet.width = this.width < 620 ? 150 : 210;
-    this.bigPlanet.height = this.bigPlanet.width;
-    this.bigPlanet.position.set(this.width - this.bigPlanet.width * 0.5, 130);
-    this.bigPlanet.alpha = 0.52;
-
-    this.ringPlanet.anchor.set(0.5);
-    this.ringPlanet.width = this.width < 620 ? 72 : 110;
-    this.ringPlanet.height = this.ringPlanet.width * 1.8;
-    this.ringPlanet.alpha = 0.62;
-
-    for (const layer of this.parallaxLayers) {
-      for (const sprite of layer.sprites) {
-        sprite.width = this.width;
-        sprite.height = this.height + 4;
-        sprite.alpha = layer.alpha;
-      }
-    }
-
-    for (let index = 0; index < this.stars.length; index++) {
-      const star = this.stars[index];
-      star.sprite.x = (index * 79.31) % this.width;
-      star.sprite.y = (index * 131.77) % this.height;
-    }
-
+    this.environment.resize(this.width, this.height);
     this.drawScanlines();
   }
 
@@ -596,49 +313,6 @@ export class PixiGameRenderer {
     for (let y = 0; y < this.height; y += 5) {
       this.scanlines.rect(0, y, this.width, 1).fill({ color: '#0ea5e9', alpha: 0.018 });
     }
-  }
-
-  private applyBackgroundTextures() {
-    for (const layer of this.parallaxLayers) {
-      const texture = this.textureBank.get(layer.textureKey);
-      if (!texture) continue;
-      layer.sprites[0].texture = texture;
-      layer.sprites[1].texture = texture;
-    }
-    const horizon = this.textureBank.get(ASSETS.GAME_BG_PLANET);
-    const bigPlanet = this.textureBank.get(ASSETS.GAME_PARALLAX_BIG_PLANET);
-    const ringPlanet = this.textureBank.get(ASSETS.GAME_PARALLAX_RING_PLANET);
-    if (horizon) this.horizon.texture = horizon;
-    if (bigPlanet) this.bigPlanet.texture = bigPlanet;
-    if (ringPlanet) this.ringPlanet.texture = ringPlanet;
-  }
-
-  private updateBackground(engine: GameEngine) {
-    const lowQuality = engine.performanceMode;
-    for (let index = 0; index < this.parallaxLayers.length; index++) {
-      const layer = this.parallaxLayers[index];
-      const offset = -((engine.frameCount * layer.speed) % this.height);
-      layer.root.visible = !(lowQuality && (index === 1 || index === 2));
-      layer.sprites[0].position.set(0, offset);
-      layer.sprites[1].position.set(0, offset + this.height);
-    }
-
-    for (let index = 0; index < this.stars.length; index++) {
-      const star = this.stars[index];
-      star.sprite.visible = !lowQuality || index % 2 === 0;
-      star.sprite.y = (star.sprite.y + star.speed) % this.height;
-      star.sprite.alpha = clamp(0.28 + Math.sin(engine.frameCount * 0.025 + star.phase) * 0.22, 0.08, 0.78);
-    }
-
-    const wave = Math.max(1, engine.wave);
-    const tints = ['#082f49', '#312e81', '#713f12', '#064e3b'];
-    this.sectorTint.clear().rect(0, 0, this.width, this.height).fill({ color: tints[(wave - 1) % tints.length], alpha: lowQuality ? 0.075 : 0.115 });
-    this.bigPlanet.y = 125 + Math.sin(engine.frameCount * 0.008) * 12;
-    this.ringPlanet.position.set(
-      this.width + 80 - ((engine.frameCount * 0.16) % (this.width + 180)),
-      190 + Math.sin(engine.frameCount * 0.012) * 18
-    );
-    this.horizon.alpha = lowQuality ? 0.34 : 0.52;
   }
 
   private createEntityView(entity: Entity) {
@@ -880,6 +554,8 @@ export class PixiGameRenderer {
   }
 
   private drawBossRig(view: EntityView, entity: Entity, engine: GameEngine) {
+    view.body.clear();
+    view.trail.clear();
     view.aura.clear();
     const progress = clamp(entity.hp / Math.max(1, entity.maxHp), 0, 1);
     const shieldCount = engine.getBossShieldCount();
@@ -896,15 +572,162 @@ export class PixiGameRenderer {
         .stroke({ color: '#67e8f9', width: 1, alpha: 0.34 });
     }
 
+    const componentMotion = Math.sin(engine.frameCount * 0.055) * entity.width * 0.025;
+    const turretY = entity.height * 0.1;
+    for (const side of [-1, 1]) {
+      const turretX = side * (entity.width * 0.31 + componentMotion * side);
+      view.body.roundRect(turretX - entity.width * 0.07, turretY - entity.height * 0.09, entity.width * 0.14, entity.height * 0.18, 5)
+        .fill({ color: '#071827', alpha: 0.72 })
+        .stroke({ color: phaseColor, width: 1.5, alpha: 0.82 });
+      view.body.circle(turretX, turretY + entity.height * 0.015, entity.width * 0.025)
+        .fill({ color: entity.isCharging ? '#ffffff' : phaseColor, alpha: 0.92 });
+      const engineY = entity.height * 0.37;
+      const engineLength = entity.height * (0.1 + Math.abs(Math.sin(engine.frameCount * 0.22 + side)) * 0.05);
+      view.body.moveTo(turretX - entity.width * 0.025, engineY)
+        .lineTo(turretX + entity.width * 0.025, engineY)
+        .lineTo(turretX, engineY + engineLength)
+        .closePath()
+        .fill({ color: side > 0 ? '#22d3ee' : '#a78bfa', alpha: 0.8 });
+    }
+
+    if (entity.isCharging) {
+      const laneWidth = Math.max(62, entity.width * 0.38);
+      const laneTop = entity.height * 0.46;
+      const laneHeight = Math.max(0, this.height - entity.y - entity.height * 0.5 - laneTop);
+      const lanePulse = 0.18 + Math.abs(Math.sin(engine.frameCount * 0.28)) * 0.14;
+      view.trail.rect(-laneWidth * 0.58, laneTop, laneWidth * 1.16, laneHeight)
+        .fill({ color: '#fb7185', alpha: lanePulse * 0.34 });
+      view.trail.rect(-laneWidth * 0.5, laneTop, laneWidth, laneHeight)
+        .stroke({ color: '#fef08a', width: 2, alpha: 0.72 });
+      for (let markerY = laneTop + 16; markerY < laneTop + laneHeight; markerY += 34) {
+        view.trail.moveTo(-laneWidth * 0.5, markerY).lineTo(-laneWidth * 0.34, markerY + 10)
+          .stroke({ color: '#ffffff', width: 2, alpha: 0.55 });
+        view.trail.moveTo(laneWidth * 0.5, markerY).lineTo(laneWidth * 0.34, markerY + 10)
+          .stroke({ color: '#ffffff', width: 2, alpha: 0.55 });
+      }
+    }
+
+    if (progress < 0.55) {
+      const cracks = progress < 0.28 ? 7 : 4;
+      for (let index = 0; index < cracks; index++) {
+        const angle = (Math.PI * 2 * index) / cracks + 0.35;
+        const inner = entity.width * 0.11;
+        const outer = entity.width * (0.2 + (index % 2) * 0.06);
+        view.body.moveTo(Math.cos(angle) * inner, entity.height * 0.06 + Math.sin(angle) * inner)
+          .lineTo(Math.cos(angle) * outer, entity.height * 0.06 + Math.sin(angle) * outer)
+          .stroke({ color: progress < 0.28 ? '#fef08a' : '#fb7185', width: 1.5, alpha: 0.7 });
+      }
+    }
+
     const phase = progress > 0.66 ? 0 : progress > 0.33 ? 1 : 2;
     const previousPhase = this.seenBossPhase.get(entity.id);
     if (previousPhase !== undefined && phase > previousPhase) {
       this.effectPool.spawnExplosion(entity.x + entity.width / 2, entity.y + entity.height / 2, entity.width * 0.75, phaseColor, 1.5);
+      this.phaseText.text = phase === 1 ? 'CORE ARMOR BREACHED' : 'FINAL REVIEW PROTOCOL';
+      this.phaseText.style.fill = phaseColor;
+      this.phaseTextUntilFrame = engine.frameCount + 96;
     }
     this.seenBossPhase.set(entity.id, phase);
     if (progress < 0.52 && engine.frameCount % (engine.performanceMode ? 48 : 30) === 0) {
       this.effectPool.spawn('smoke', entity.x + entity.width * (0.25 + Math.random() * 0.5), entity.y + entity.height * (0.35 + Math.random() * 0.4), entity.width * 0.18, '#475569', 800);
       this.effectPool.spawn('spark', entity.x + entity.width * Math.random(), entity.y + entity.height * Math.random(), Math.max(3, entity.width * 0.035), phaseColor, 380);
+    }
+  }
+
+  private startBossDeath(snapshot: BossSnapshot) {
+    this.bossDeathHandled = true;
+    this.bossDeathAge = 0;
+    this.bossDeathStage = -1;
+    this.bossDeathRoot.visible = true;
+    this.bossDeathRoot.position.set(snapshot.x + snapshot.width / 2, snapshot.y + snapshot.height / 2);
+    this.bossDeathRoot.scale.set(1);
+    this.bossDeathSprite.width = snapshot.width;
+    this.bossDeathSprite.height = snapshot.height;
+    this.bossDeathSprite.alpha = 1;
+    this.bossDeathSprite.tint = '#ffffff';
+    this.bossDeathCore.clear();
+    this.bossDeathText.visible = false;
+    this.bossDeathText.text = 'SECTOR CLEARED';
+    this.bossDeathText.position.set(0, snapshot.height * 0.7);
+
+    const request = ++this.bossDeathTextureRequest;
+    const cached = this.textureBank.get(snapshot.textureKey);
+    if (cached) {
+      this.bossDeathSprite.texture = cached;
+    } else {
+      this.textureBank.load(snapshot.textureKey).then((texture) => {
+        if (this.destroyed || request !== this.bossDeathTextureRequest) return;
+        this.bossDeathSprite.texture = texture;
+      }).catch(() => undefined);
+    }
+  }
+
+  private updateBossPresentation(engine: GameEngine, deltaMs: number) {
+    const boss = engine.entities.find((entity) => entity.type === EntityType.BOSS && !entity.markedForDeletion);
+    if (boss) {
+      this.lastBossSnapshot = {
+        id: boss.id,
+        x: boss.x,
+        y: boss.y,
+        width: boss.width,
+        height: boss.height,
+        textureKey: getDefaultEntityTexture(engine, boss) || ASSETS.FINAL_BOSS
+      };
+      this.bossDeathHandled = false;
+      this.bossDeathAge = -1;
+      this.bossDeathRoot.visible = false;
+    } else if (engine.mainBossDefeated && engine.waveTransitionPending && this.lastBossSnapshot && !this.bossDeathHandled) {
+      this.startBossDeath(this.lastBossSnapshot);
+    } else if (!engine.mainBossDefeated && this.bossDeathAge < 0) {
+      this.lastBossSnapshot = null;
+      this.bossDeathHandled = false;
+    }
+
+    this.phaseText.visible = engine.frameCount <= this.phaseTextUntilFrame && engine.stats.isBossActive;
+    if (this.phaseText.visible) {
+      const remaining = this.phaseTextUntilFrame - engine.frameCount;
+      this.phaseText.position.set(this.width / 2, this.height * 0.27);
+      this.phaseText.alpha = clamp(remaining / 22, 0, 1);
+      this.phaseText.scale.set(1 + Math.sin(remaining * 0.2) * 0.04);
+    }
+
+    if (this.bossDeathAge < 0 || !this.lastBossSnapshot) return;
+    const snapshot = this.lastBossSnapshot;
+    const previousAge = this.bossDeathAge;
+    this.bossDeathAge += deltaMs;
+    const progress = clamp(this.bossDeathAge / 1320, 0, 1);
+    this.bossDeathRoot.x = snapshot.x + snapshot.width / 2 + Math.sin(this.bossDeathAge * 0.12) * (1 - progress) * 8;
+    this.bossDeathRoot.rotation = Math.sin(this.bossDeathAge * 0.045) * 0.08 * (1 - progress);
+    this.bossDeathRoot.scale.set(1 + progress * 0.22);
+    this.bossDeathSprite.alpha = clamp(1 - Math.max(0, progress - 0.62) / 0.38, 0, 1);
+    this.bossDeathSprite.tint = Math.floor(this.bossDeathAge / 70) % 2 === 0 ? '#ffffff' : '#fb7185';
+
+    this.bossDeathCore.clear();
+    const corePulse = 1 + Math.sin(this.bossDeathAge * 0.035) * 0.18;
+    this.bossDeathCore.circle(0, snapshot.height * 0.06, snapshot.width * (0.09 + progress * 0.18) * corePulse)
+      .fill({ color: progress > 0.66 ? '#ffffff' : '#fef08a', alpha: 0.28 + progress * 0.55 });
+    this.bossDeathCore.circle(0, snapshot.height * 0.06, snapshot.width * (0.15 + progress * 0.34))
+      .stroke({ color: progress > 0.66 ? '#fb7185' : '#67e8f9', width: Math.max(1, 4 * (1 - progress)), alpha: 0.82 });
+
+    const stages = [120, 300, 490, 690, 900];
+    for (let stage = this.bossDeathStage + 1; stage < stages.length; stage++) {
+      if (previousAge < stages[stage] && this.bossDeathAge >= stages[stage]) {
+        const side = stage % 2 === 0 ? -1 : 1;
+        const x = snapshot.x + snapshot.width / 2 + side * snapshot.width * (0.18 + stage * 0.035);
+        const y = snapshot.y + snapshot.height * (0.3 + (stage % 3) * 0.18);
+        const finalStage = stage === stages.length - 1;
+        this.effectPool.spawnExplosion(x, y, finalStage ? snapshot.width * 1.45 : snapshot.width * 0.42, finalStage ? '#ffffff' : stage > 2 ? '#fb7185' : '#67e8f9', finalStage ? 2.8 : 1.2);
+        this.bossDeathStage = stage;
+      }
+    }
+
+    this.bossDeathText.visible = this.bossDeathAge >= 880;
+    this.bossDeathText.alpha = clamp((this.bossDeathAge - 880) / 180, 0, 1) * (1 - progress * 0.38);
+    this.bossDeathText.scale.set(0.9 + clamp((this.bossDeathAge - 880) / 240, 0, 1) * 0.12);
+    if (progress >= 1) {
+      this.bossDeathRoot.visible = false;
+      this.bossDeathAge = -1;
+      this.lastBossSnapshot = null;
     }
   }
 
@@ -1207,12 +1030,14 @@ export class PixiGameRenderer {
     const deltaMs = this.lastTimestamp ? clamp(timestamp - this.lastTimestamp, 0, 50) : 16.667;
     this.lastTimestamp = timestamp;
     this.camera.position.set(engine.shakeX, engine.shakeY);
-    this.updateBackground(engine);
+    this.environment.update(engine);
     this.syncEntities(engine);
     this.syncPlayerAfterimages(engine);
     this.syncGunPods(engine);
     this.syncResearchBeam(engine);
     this.updateWarnings(engine);
+    this.updateBossPresentation(engine, deltaMs);
+    this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile);
     this.effectPool.update(deltaMs);
 
     if (engine.lastShotFrame !== this.lastShotFrame) this.lastShotFrame = engine.lastShotFrame;
@@ -1233,10 +1058,10 @@ export class PixiGameRenderer {
     this.destroyed = true;
     this.initialized = false;
     this.effectPool.destroy();
+    this.environment.destroy();
+    this.textureBank.destroy();
     this.views.clear();
     this.recycledViews.clear();
-    this.parallaxLayers.length = 0;
-    this.stars.length = 0;
     this.app.destroy({ removeView: true }, { children: true, texture: false, textureSource: false });
   }
 }

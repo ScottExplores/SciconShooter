@@ -26,6 +26,9 @@ test('canonical gameplay renders through one manually-driven Pixi scene', () => 
 
 test('Pixi presentation keeps ordered gameplay layers and pooled effects', () => {
   const renderer = read('services/pixi/PixiGameRenderer.ts');
+  const effects = read('services/pixi/ArcadeEffectPool.ts');
+  const environment = read('services/pixi/PixiEnvironment.ts');
+  const textures = read('services/pixi/PixiTextureBank.ts');
 
   for (const layer of [
     'background',
@@ -41,7 +44,14 @@ test('Pixi presentation keeps ordered gameplay layers and pooled effects', () =>
     assert.match(renderer, new RegExp(`${layer}: createLayer\\(\\)`));
   }
 
-  assert.match(renderer, /class ArcadeEffectPool/);
+  assert.match(renderer, /new ArcadeEffectPool/);
+  assert.match(renderer, /new PixiEnvironment/);
+  assert.match(renderer, /new PixiTextureBank/);
+  assert.match(effects, /class ArcadeEffectPool/);
+  assert.match(effects, /this\.effects\.length >= this\.maxEffects/);
+  assert.match(environment, /class PixiEnvironment/);
+  assert.match(environment, /this\.parallaxLayers/);
+  assert.match(textures, /class PixiTextureBank/);
   assert.match(renderer, /private readonly recycledViews = new Map/);
   assert.match(renderer, /syncEntities\(engine\)/);
   assert.match(renderer, /engine\.entities/);

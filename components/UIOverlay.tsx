@@ -217,6 +217,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const flaskReady = flaskCount > 0;
   const bombs = stats.bombs || 0;
   const canUseBomb = bombs > 0 && !bombLocked;
+  const bossHealthRatio = stats.isBossActive
+    ? Math.max(0, Math.min(1, stats.bossHp / Math.max(1, stats.bossMaxHp)))
+    : 0;
+  const bossPhase = bossHealthRatio > 0.66 ? 1 : bossHealthRatio > 0.33 ? 2 : 3;
+  const bossPhaseLabel = bossPhase === 1 ? 'SHIELDED' : bossPhase === 2 ? 'CORE EXPOSED' : 'FINAL PROTOCOL';
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-2 sm:p-4">
@@ -287,6 +292,34 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           </div>
         </div>
       </div>
+
+      {stats.isBossActive ? (
+        <div className="pointer-events-none absolute left-1/2 top-[3.65rem] z-20 w-[min(76%,30rem)] -translate-x-1/2 sm:top-[4.25rem]">
+          <div className="relative overflow-hidden rounded-[6px] border border-cyan-100/36 bg-slate-950/82 px-2.5 py-1.5 shadow-[0_14px_36px_rgba(0,0,0,0.42),0_0_24px_rgba(34,211,238,0.09)] backdrop-blur-md">
+            <div className="absolute left-0 top-0 h-px w-full bg-gradient-to-r from-transparent via-cyan-200/80 to-transparent" />
+            <div className="flex items-center justify-between gap-2 text-[8px] font-black uppercase tracking-[0.12em] text-cyan-100/75 sm:text-[9px]">
+              <span className="truncate">Gatekeeper Sentinel</span>
+              <span className={bossPhase === 3 ? 'text-rose-300' : bossPhase === 2 ? 'text-yellow-200' : 'text-emerald-200'}>
+                P{bossPhase} {bossPhaseLabel}
+              </span>
+            </div>
+            <div className="relative mt-1 h-2 overflow-hidden rounded-[3px] border border-white/10 bg-slate-800/90">
+              <div
+                className={`h-full transition-[width] duration-150 ${
+                  bossPhase === 3
+                    ? 'bg-gradient-to-r from-rose-500 via-red-300 to-white'
+                    : bossPhase === 2
+                      ? 'bg-gradient-to-r from-yellow-500 via-amber-200 to-white'
+                      : 'bg-gradient-to-r from-emerald-500 via-cyan-300 to-white'
+                }`}
+                style={{ width: `${bossHealthRatio * 100}%` }}
+              />
+              <span className="absolute left-1/3 top-0 h-full w-px bg-slate-950/70" />
+              <span className="absolute left-2/3 top-0 h-full w-px bg-slate-950/70" />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="pointer-events-auto absolute left-3 top-[57%] z-20 -translate-y-1/2 sm:left-5">
         <button
