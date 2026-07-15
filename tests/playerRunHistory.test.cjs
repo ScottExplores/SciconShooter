@@ -26,6 +26,22 @@ test('connected Trophy Deck shows five clickable runs instead of transaction lin
   assert.match(viteSource, /mount\('\/api\/player-runs'/);
 });
 
+test('player run history shares a Vercel function and stays within the Hobby limit', () => {
+  const vercelConfig = JSON.parse(read('vercel.json'));
+  const mintSource = read('api/mint-records.js');
+  const apiFunctions = fs.readdirSync(path.join(root, 'api'))
+    .filter((entry) => entry.endsWith('.js'));
+
+  assert.deepEqual(vercelConfig.rewrites[0], {
+    source: '/api/player-runs',
+    destination: '/api/mint-records?route=player-runs'
+  });
+  assert.ok(apiFunctions.length <= 12, `Expected at most 12 Vercel functions, found ${apiFunctions.length}`);
+  assert.equal(apiFunctions.includes('player-runs.js'), false);
+  assert.match(mintSource, /req\.query\?\.route === 'player-runs'/);
+  assert.match(mintSource, /handlePlayerRuns\(req, res\)/);
+});
+
 test('recent run API returns a wallet-bound, mintable receipt', async () => {
   const wallet = '0x1111111111111111111111111111111111111111';
   const runId = '11111111-2222-4333-8444-555555555555';
@@ -46,7 +62,7 @@ test('recent run API returns a wallet-bound, mintable receipt', async () => {
     wallet_address: wallet
   };
   const supabasePath = require.resolve('../api/_lib/supabase');
-  const handlerPath = require.resolve('../api/player-runs');
+  const handlerPath = require.resolve('../api/_lib/playerRuns');
   const runReceiptsPath = require.resolve('../api/_lib/runReceipts');
   const originalSupabaseCache = require.cache[supabasePath];
   const originalSecret = process.env.RUN_RECEIPT_SECRET;
@@ -76,7 +92,7 @@ test('recent run API returns a wallet-bound, mintable receipt', async () => {
   };
   delete require.cache[handlerPath];
   delete require.cache[runReceiptsPath];
-  const handler = require('../api/player-runs');
+  const { handlePlayerRuns: handler } = require('../api/_lib/playerRuns');
   const response = {
     headers: {},
     setHeader(name, value) { this.headers[name] = value; },

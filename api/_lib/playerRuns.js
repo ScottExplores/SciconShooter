@@ -1,5 +1,5 @@
-const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
-const { reissueStoredRunReceipt } = require('./_lib/runReceipts');
+const { fetchSupabaseJson, supabaseHeaders } = require('./supabase');
+const { reissueStoredRunReceipt } = require('./runReceipts');
 
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
@@ -33,7 +33,7 @@ const normalizePilotName = (value) => {
   return name ? name.slice(0, 15) : 'PILOT';
 };
 
-module.exports = async (req, res) => {
+const handlePlayerRuns = async (req, res) => {
   if (req.method !== 'GET') return sendJson(res, 405, { error: 'Method not allowed' });
 
   try {
@@ -94,3 +94,5 @@ module.exports = async (req, res) => {
     return sendJson(res, 500, { error: error.message || 'Player run history is unavailable' });
   }
 };
+
+module.exports = { handlePlayerRuns };

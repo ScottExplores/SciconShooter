@@ -20,6 +20,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/player-runs",
+      "destination": "/api/mint-records?route=player-runs"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
