@@ -4,6 +4,7 @@ import type { GameCampaign } from '../game-config/types';
 import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
 import { audioService } from '../services/audioService';
+import { PixiGameRenderer } from '../services/pixi/PixiGameRenderer';
 
 export { preloadGameplayAssets } from '../services/gameLogic';
 
@@ -122,7 +123,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   onRuntimeState,
   onEditorSnapshot
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const pixiRendererRef = useRef<PixiGameRenderer | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const requestRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
@@ -307,32 +309,51 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [autoFire, previewMode, restartToken]);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    const host = hostRef.current;
+    if (!host) return;
+    let disposed = false;
+    let disposeRuntime = () => {};
+    let pendingRenderer: PixiGameRenderer | null = null;
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const setupRuntime = async () => {
+      const initialRect = host.getBoundingClientRect();
+      const initialWidth = Math.max(1, Math.round(initialRect.width || 720));
+      const initialHeight = Math.max(1, Math.round(initialRect.height || 720));
+      const renderer = new PixiGameRenderer();
+      pendingRenderer = renderer;
+      await renderer.init(host, initialWidth, initialHeight);
+      if (disposed) {
+        renderer.destroy();
+        return;
+      }
+      pixiRendererRef.current = renderer;
+      const canvas = renderer.canvas;
+      canvas.tabIndex = previewMode ? 0 : -1;
+      canvas.setAttribute(
+        'aria-label',
+        previewMode ? 'Live Scicon Shooter Pixi wave preview' : 'Scicon Shooter Pixi gameplay'
+      );
 
-    const engine = new GameEngine(cloneStatsForReact(stats), {
-      campaign,
-      previewMode,
-      audioEnabled,
-      playerShipUrl,
-      initialLevelId: levelId,
-      initialWaveId: waveId,
-      testMode: testModeRef.current
-    });
-    engine.polishSettings = polishSettings;
-    engineRef.current = engine;
-    let targetFPS = 60;
-    let frameInterval = 1000 / targetFPS;
-    let mobileFrameBudget = false;
-    let slowFrameScore = 0;
-    let recoveryFrameScore = 0;
-    let simulationAccumulator = 0;
-    let lastRenderTime = 0;
-    let lastRuntimeStatePublishTime = 0;
-    let deathSequenceSafetyTimer: number | null = null;
+      const engine = new GameEngine(cloneStatsForReact(stats), {
+        campaign,
+        previewMode,
+        audioEnabled,
+        playerShipUrl,
+        initialLevelId: levelId,
+        initialWaveId: waveId,
+        testMode: testModeRef.current
+      });
+      engine.polishSettings = polishSettings;
+      engineRef.current = engine;
+      let targetFPS = 60;
+      let frameInterval = 1000 / targetFPS;
+      let mobileFrameBudget = false;
+      let slowFrameScore = 0;
+      let recoveryFrameScore = 0;
+      let simulationAccumulator = 0;
+      let lastRenderTime = 0;
+      let lastRuntimeStatePublishTime = 0;
+      let deathSequenceSafetyTimer: number | null = null;
 
     const refreshFrameBudget = () => {
       const rect = canvas.getBoundingClientRect();
@@ -371,23 +392,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
     
     // Resize Handler
-    const handleResize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const width = Math.max(1, Math.round(rect.width || 720));
-      const height = Math.max(1, Math.round(rect.height || 720));
-      if (canvas.width === width && canvas.height === height) return;
-      canvas.width = width;
-      canvas.height = height;
-      ctx.imageSmoothingEnabled = false;
-      refreshFrameBudget();
-      engine.resize(canvas.width, canvas.height);
-    };
+      const handleResize = () => {
+        const rect = host.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width || 720));
+        const height = Math.max(1, Math.round(rect.height || 720));
+        if (engine.width === width && engine.height === height) return;
+        renderer.resize(width, height);
+        refreshFrameBudget();
+        engine.resize(width, height);
+      };
     
     handleResize();
     window.addEventListener('resize', handleResize);
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(handleResize);
-    resizeObserver?.observe(canvas);
-    engine.init(canvas.width, canvas.height);
+    resizeObserver?.observe(host);
+    engine.init(initialWidth, initialHeight);
     if (autoFire) keysRef.current[' '] = true;
     engine.handleInput(runningRef.current ? keysRef.current : {}, null);
     lastPublishedStatsRef.current = null;
@@ -629,7 +648,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         lastRenderTime = timestamp - (renderElapsed % frameInterval);
         updateAdaptivePerformanceMode(renderElapsed);
         publishHudStats(false, timestamp);
-        engine.draw(ctx);
+        renderer.sync(engine, timestamp);
       }
 
       if (timestamp - lastRuntimeStatePublishTime >= RUNTIME_STATE_SYNC_INTERVAL_MS) {
@@ -643,7 +662,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     requestRef.current = requestAnimationFrame(animate);
 
-    return () => {
+    disposeRuntime = () => {
       // Cleanup: Stop loop and remove listeners
       if (engineRef.current) engineRef.current.gameActive = false;
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
@@ -666,17 +685,34 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (audioEnabled) audioService.stopMusic();
       if (engineRef.current === engine) engineRef.current = null;
+      if (pixiRendererRef.current === renderer) pixiRendererRef.current = null;
+      renderer.destroy();
+      pendingRenderer = null;
       requestRef.current = null;
+    };
+    };
+
+    void setupRuntime().catch((error) => {
+      pendingRenderer?.destroy();
+      pendingRenderer = null;
+      console.error('Failed to initialize the Pixi gameplay renderer.', error);
+    });
+
+    return () => {
+      disposed = true;
+      disposeRuntime();
+      pendingRenderer?.destroy();
+      pendingRenderer = null;
     };
   }, [audioEnabled, campaign, playerShipUrl, previewMode]);
 
   return (
-    <canvas 
-      ref={canvasRef} 
+    <div
+      ref={hostRef}
       tabIndex={previewMode ? 0 : undefined}
-      aria-label={previewMode ? 'Live Scicon Shooter wave preview' : 'Scicon Shooter game canvas'}
-      className="absolute left-0 top-0 z-0 block h-full w-full"
-      style={{ touchAction: 'none', outline: 'none' }}
+      aria-label={previewMode ? 'Live Scicon Shooter wave preview' : 'Scicon Shooter game stage'}
+      className="absolute left-0 top-0 z-0 block h-full w-full overflow-hidden"
+      style={{ touchAction: 'none', outline: 'none', background: '#020617' }}
     />
   );
 };
