@@ -8,6 +8,8 @@ const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 const startScreenSource = fs.readFileSync(path.join(root, 'components', 'StartScreen.tsx'), 'utf8');
 const runtimeSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 const shipServiceSource = fs.readFileSync(path.join(root, 'services', 'playerShipService.ts'), 'utf8');
+const mintRecordsSource = fs.readFileSync(path.join(root, 'api', 'mint-records.js'), 'utf8');
+const metadataSource = fs.readFileSync(path.join(root, 'api', 'record-metadata.js'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 test('BIO ship is a compact square RGBA pixel sprite', () => {
@@ -40,26 +42,40 @@ test('ETH ship is a compact square RGBA pixel spacecraft', () => {
   assert.ok(png.length < 150_000);
 });
 
-test('confirmed Mission Record ownership unlocks the ETH ship for the connected wallet only', () => {
+test('BTC ship is a crisp square pixel spacecraft asset', () => {
+  const spritePath = path.join(root, 'public', 'game-art', 'branding', 'btc-ship.svg');
+  const svg = fs.readFileSync(spritePath, 'utf8');
+  assert.match(svg, /viewBox="0 0 256 256"/);
+  assert.match(svg, /shape-rendering="crispEdges"/);
+  assert.match(svg, /#fbbf24/);
+  assert.ok(svg.length < 15_000);
+});
+
+test('confirmed Mission Record scores cumulatively unlock ETH and BTC ships', () => {
   assert.match(shipServiceSource, /record\.walletAddress\?\.toLowerCase\(\) === normalizedWallet/);
   assert.match(shipServiceSource, /record\.recordType === 'mission'/);
   assert.match(shipServiceSource, /record\.status === 'confirmed'/);
-  assert.match(shipServiceSource, /functionName: 'balanceOf'/);
-  assert.match(shipServiceSource, /return balance > 0n/);
-  assert.match(appSource, /ownsSciconRecordNft\(activeWalletAddress\)/);
-  assert.match(appSource, /onchainRecordOwner === activeWalletAddress\.toLowerCase\(\)/);
-  assert.match(appSource, /getUsablePlayerShip\(selectedShipId, ethShipUnlocked\)/);
+  assert.match(shipServiceSource, /ETH_SHIP_SCORE_THRESHOLD = 1_000/);
+  assert.match(shipServiceSource, /BTC_SHIP_SCORE_THRESHOLD = 10_000/);
+  assert.match(shipServiceSource, /eth: highestMintedScore >= ETH_SHIP_SCORE_THRESHOLD/);
+  assert.match(shipServiceSource, /btc: highestMintedScore >= BTC_SHIP_SCORE_THRESHOLD/);
+  assert.match(mintRecordsSource, /select=run_id,score/);
+  assert.match(mintRecordsSource, /functionName: 'ownerOf'/);
+  assert.match(appSource, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords\)/);
+  assert.match(appSource, /getUsablePlayerShip\(selectedShipId, shipUnlocks\)/);
+  assert.match(metadataSource, /Bitcoin Ace/);
+  assert.match(metadataSource, /Ethereum Pilot/);
 });
 
-test('title screen keeps BIO open and explains the locked ETH unlock', () => {
+test('title screen keeps BIO open and explains score-tier ETH and BTC locks', () => {
   assert.match(startScreenSource, /aria-label="Previous ship"/);
   assert.match(startScreenSource, /aria-label="Next ship"/);
   assert.match(startScreenSource, /PLAYER_SHIPS\[shipFocusId\]/);
   assert.match(startScreenSource, /sci-ship-carousel-item--locked/);
-  assert.match(startScreenSource, /Mint a high score NFT to unlock this ship/);
-  assert.match(startScreenSource, /\['researchhub', 'bio', 'eth'\]/);
-  assert.match(startScreenSource, /if \(nextShipId !== 'eth' \|\| ethShipUnlocked\)/);
-  assert.match(startScreenSource, /shipFocusId === 'eth' && !ethShipUnlocked/);
+  assert.match(startScreenSource, /Mint a \$\{focusedShipUnlockScore\.toLocaleString\(\)\}\+ score NFT to unlock this ship/);
+  assert.match(startScreenSource, /\['researchhub', 'bio', 'eth', 'btc'\]/);
+  assert.match(startScreenSource, /isPlayerShipUnlocked\(nextShipId, shipUnlocks\)/);
+  assert.match(startScreenSource, /shipFocusId === 'btc'/);
   assert.doesNotMatch(startScreenSource, /sci-ship-carousel-item--behind-/);
   assert.match(startScreenSource, /setShipCycleRevision\(\(revision\) => revision \+ 1\)/);
   assert.match(startScreenSource, /shipCycleRevision > 0 \? 'sci-ship-carousel-item--cycling'/);

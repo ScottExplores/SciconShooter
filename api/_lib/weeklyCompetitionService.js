@@ -12,6 +12,9 @@ const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_lead
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
 const DEFAULT_ALLOCATION_RSC = 100;
 const CLAIM_WINDOW_MS = 72 * 60 * 60 * 1000;
+const PILOT_TEST_WALLET = String(
+  process.env.PILOT_TEST_WALLET || '0x3a8d692aabdd4981080a8f6af8375a21359464bf'
+).toLowerCase();
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
@@ -47,20 +50,78 @@ const readWeeklyCompetitions = async (limit = 24) => {
   return Array.isArray(rows) ? rows : [];
 };
 
-const readTopVerifiedScore = async (weekKey) => {
+const readTopEligibleScore = async (weekKey) => {
   const { start, end } = getWeekRange(weekKey);
   const query = [
     'select=name,score,wave,date,wallet_address,run_id,verified,proposal_id,proposal_title,proposal_url,proposal_author',
-    'verified=eq.true',
     'order=score.desc,date.asc',
-    'limit=1',
+    'limit=100',
     `date=gte.${encodeURIComponent(start.toISOString())}`,
     `date=lt.${encodeURIComponent(end.toISOString())}`
   ].join('&');
   const rows = await fetchSupabaseJson(`${LEADERBOARD_TABLE}?${query}`, {
     headers: supabaseHeaders()
   });
-  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  if (!Array.isArray(rows)) return null;
+
+  // New submissions are server verified. Legacy leaderboard rows predate run
+  // receipts but remain eligible because players saw them on the live board.
+  return rows.find((row) => String(row?.wallet_address || '').toLowerCase() !== PILOT_TEST_WALLET) || null;
+};
+
+const winnerMatchesCompetition = (winner, competition) => {
+  if (winner?.run_id && competition?.winner_run_id) {
+    return winner.run_id === competition.winner_run_id;
+  }
+
+  return String(winner?.name || '').trim().toUpperCase() === String(competition?.winner_name || '').trim().toUpperCase()
+    && Number(winner?.score) === Number(competition?.winning_score)
+    && Number(winner?.wave || 1) === Number(competition?.winning_wave || 1);
+};
+
+const buildCompetitionRow = ({ weekKey, start, end, winner, existing }) => {
+  const now = new Date();
+  const finalizedAt = existing?.finalized_at ? new Date(existing.finalized_at) : now;
+  const safeFinalizedAt = Number.isFinite(finalizedAt.getTime()) ? finalizedAt : now;
+  const existingDeadline = existing?.claim_deadline ? new Date(existing.claim_deadline) : null;
+  const claimDeadline = existingDeadline && Number.isFinite(existingDeadline.getTime())
+    ? existingDeadline
+    : new Date(safeFinalizedAt.getTime() + CLAIM_WINDOW_MS);
+  const hasPreselectedProposal = Boolean(winner.proposal_id && winner.proposal_title);
+  const allocationRsc = Number(existing?.allocation_rsc)
+    || Number(process.env.WEEKLY_ALLOCATION_RSC)
+    || DEFAULT_ALLOCATION_RSC;
+
+  return {
+    week_key: weekKey,
+    starts_at: start.toISOString(),
+    ends_at: end.toISOString(),
+    status: hasPreselectedProposal ? 'claimed' : 'finalized',
+    winner_run_id: winner.run_id || null,
+    winner_name: winner.name,
+    winner_wallet: winner.wallet_address || null,
+    winning_score: winner.score,
+    winning_wave: winner.wave || 1,
+    finalized_at: safeFinalizedAt.toISOString(),
+    claim_deadline: claimDeadline.toISOString(),
+    proposal_id: winner.proposal_id || null,
+    proposal_title: winner.proposal_title || null,
+    proposal_url: winner.proposal_url || null,
+    proposal_author: winner.proposal_author || null,
+    allocation_rsc: allocationRsc,
+    allocation_tx_hash: existing?.allocation_tx_hash || null,
+    champion_token_id: existing?.champion_token_id || null,
+    updated_at: now.toISOString()
+  };
+};
+
+const saveCompetition = async (row) => {
+  const saved = await fetchSupabaseJson(`${COMPETITIONS_TABLE}?on_conflict=week_key`, {
+    method: 'POST',
+    headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=representation' }),
+    body: JSON.stringify(row)
+  });
+  return Array.isArray(saved) ? saved[0] : row;
 };
 
 const finalizeWeeklyCompetition = async (weekKey = getPreviousWeekKey()) => {
@@ -74,44 +135,42 @@ const finalizeWeeklyCompetition = async (weekKey = getPreviousWeekKey()) => {
   const existing = await fetchSupabaseJson(`${COMPETITIONS_TABLE}?select=*&week_key=eq.${encodeURIComponent(weekKey)}&limit=1`, {
     headers: supabaseHeaders()
   });
-  if (Array.isArray(existing) && existing[0]?.status && existing[0].status !== 'open') {
-    return { finalized: false, weekKey, reason: 'Competition is already locked.', competition: existing[0] };
+  const existingCompetition = Array.isArray(existing) ? existing[0] : null;
+  if (existingCompetition?.status && existingCompetition.status !== 'open') {
+    const canReconcile = ['finalized', 'claimed'].includes(existingCompetition.status)
+      && !existingCompetition.allocation_tx_hash;
+    if (!canReconcile) {
+      return { finalized: false, weekKey, reason: 'Competition is already locked.', competition: existingCompetition };
+    }
+
+    const actualWinner = await readTopEligibleScore(weekKey);
+    if (!actualWinner || winnerMatchesCompetition(actualWinner, existingCompetition)) {
+      return { finalized: false, weekKey, reason: 'Competition is already locked.', competition: existingCompetition };
+    }
+
+    const repairedCompetition = await saveCompetition(buildCompetitionRow({
+      weekKey,
+      start,
+      end,
+      winner: actualWinner,
+      existing: existingCompetition
+    }));
+    return {
+      finalized: false,
+      repaired: true,
+      weekKey,
+      reason: 'Archived winner reconciled with the final weekly leaderboard.',
+      competition: repairedCompetition
+    };
   }
 
-  const winner = await readTopVerifiedScore(weekKey);
+  const winner = await readTopEligibleScore(weekKey);
   if (!winner) {
-    return { finalized: false, weekKey, reason: 'No verified scores were submitted for this week.' };
+    return { finalized: false, weekKey, reason: 'No eligible scores were submitted for this week.' };
   }
 
-  const finalizedAt = new Date();
-  const claimDeadline = new Date(finalizedAt.getTime() + CLAIM_WINDOW_MS);
   const hasPreselectedProposal = Boolean(winner.proposal_id && winner.proposal_title);
-  const row = {
-    week_key: weekKey,
-    starts_at: start.toISOString(),
-    ends_at: end.toISOString(),
-    status: hasPreselectedProposal ? 'claimed' : 'finalized',
-    winner_run_id: winner.run_id,
-    winner_name: winner.name,
-    winner_wallet: winner.wallet_address || null,
-    winning_score: winner.score,
-    winning_wave: winner.wave || 1,
-    finalized_at: finalizedAt.toISOString(),
-    claim_deadline: claimDeadline.toISOString(),
-    proposal_id: winner.proposal_id || null,
-    proposal_title: winner.proposal_title || null,
-    proposal_url: winner.proposal_url || null,
-    proposal_author: winner.proposal_author || null,
-    allocation_rsc: Number(process.env.WEEKLY_ALLOCATION_RSC) || DEFAULT_ALLOCATION_RSC,
-    updated_at: finalizedAt.toISOString()
-  };
-
-  const saved = await fetchSupabaseJson(`${COMPETITIONS_TABLE}?on_conflict=week_key`, {
-    method: 'POST',
-    headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=representation' }),
-    body: JSON.stringify(row)
-  });
-  const competition = Array.isArray(saved) ? saved[0] : row;
+  const competition = await saveCompetition(buildCompetitionRow({ weekKey, start, end, winner }));
 
   const webhookUrl = process.env.WEEKLY_CHAMPION_WEBHOOK_URL;
   if (webhookUrl) {

@@ -1,6 +1,7 @@
 import { LeaderboardData, LeaderboardEntry } from '../types';
 import type { ResearchHubProposal } from './researchHubProposals';
 import type { RunReceipt } from './runReceiptService';
+import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 
 const API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL as string | undefined)?.trim() || '/api/leaderboard';
 export const ALL_TIME_SCORE_LIMIT = 100;
@@ -18,17 +19,11 @@ const sanitizeUrl = (value: unknown): string | undefined => {
 };
 
 const getCurrentWeekRange = () => {
-  const now = new Date();
-  const dayOffsetFromMonday = (now.getDay() + 6) % 7;
-  const start = new Date(now);
-  start.setDate(now.getDate() - dayOffsetFromMonday);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 7);
+  const boundary = getWeeklyBoundaryMeta();
 
   return {
-    start: start.getTime(),
-    end: end.getTime()
+    start: boundary.startsAt.getTime(),
+    end: boundary.endsAt.getTime()
   };
 };
 

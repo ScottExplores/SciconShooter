@@ -23,7 +23,11 @@ export const getWalletRecords = async (walletAddress: string): Promise<MintRecor
         status: record.status === 'confirmed' ? 'confirmed' : record.status === 'failed' ? 'failed' : 'pending',
         sponsored: Boolean(record.sponsored),
         createdAt: String(record.created_at || ''),
-        confirmedAt: record.confirmed_at ? String(record.confirmed_at) : undefined
+        confirmedAt: record.confirmed_at ? String(record.confirmed_at) : undefined,
+        score: Number.isFinite(Number(record.score)) ? Math.max(0, Math.floor(Number(record.score))) : undefined,
+        ownershipVerified: typeof record.ownership_verified === 'boolean'
+          ? record.ownership_verified
+          : undefined
       }));
   } catch {
     return [];

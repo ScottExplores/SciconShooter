@@ -2,10 +2,18 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
 import { ASSETS, DONATION_CONFIG } from '../constants';
-import type { RunReceipt } from '../services/runReceiptService';
+import type { WalletRunRecord } from '../services/playerRunService';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboardService';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
-import { PLAYER_SHIPS, type PlayerShipId } from '../services/playerShipService';
+import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
+import {
+  BTC_SHIP_SCORE_THRESHOLD,
+  ETH_SHIP_SCORE_THRESHOLD,
+  isPlayerShipUnlocked,
+  PLAYER_SHIPS,
+  type PlayerShipId,
+  type PlayerShipUnlocks
+} from '../services/playerShipService';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -15,11 +23,12 @@ interface StartScreenProps {
   monthlyLeaderboard: LeaderboardEntry[];
   archivedWinners: ArchivedWinner[];
   walletRecords: MintRecord[];
+  walletRuns: WalletRunRecord[];
+  walletRunsLoading: boolean;
   walletAddress?: string | null;
   selectedShipId: PlayerShipId;
-  ethShipUnlocked: boolean;
+  shipUnlocks: PlayerShipUnlocks;
   onSelectShip: (shipId: PlayerShipId) => void;
-  latestRunReceipt?: RunReceipt | null;
   isLoading: boolean;
   proposals: ResearchHubProposal[];
   proposalStatus: ProposalFeedStatus;
@@ -29,7 +38,7 @@ interface StartScreenProps {
   onOpenXProfile: () => void;
   onOpenTreasurySend: () => void;
   onOpenSwap: () => void;
-  onOpenLatestRecord: () => void;
+  onOpenWalletRun: (record: WalletRunRecord) => void;
   walletControl?: React.ReactNode;
   championClaimStatus: 'idle' | 'connecting' | 'signing' | 'confirmed' | 'error';
   championClaimMessage?: string;
@@ -73,7 +82,17 @@ const dashboardTabs: Array<{ id: DashboardTab; label: string; icon: IconName; hi
   { id: 'more', label: 'More', icon: 'more', hint: 'About' }
 ];
 
-const playerShipOrder: PlayerShipId[] = ['researchhub', 'bio', 'eth'];
+const playerShipOrder: PlayerShipId[] = ['researchhub', 'bio', 'eth', 'btc'];
+
+const podiumRanks = [
+  { label: 'Gold', tone: 'gold' },
+  { label: 'Silver', tone: 'silver' },
+  { label: 'Bronze', tone: 'bronze' }
+] as const;
+
+const hasViewableMissionRecord = (entry: LeaderboardEntry) => (
+  /^[0-9a-f-]{36}$/i.test(entry.runId || '')
+);
 
 const clampPercent = (value: number) => Math.max(8, Math.min(100, Math.round(value)));
 
@@ -82,6 +101,12 @@ const formatNumber = (value?: number) => (
     ? value.toLocaleString()
     : '0'
 );
+
+const formatRunDate = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Recent run';
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+};
 
 const getWeeklyAllocationMeta = (now = new Date()) => ({
   ...getWeeklyBoundaryMeta(now),
@@ -348,7 +373,7 @@ const HudPanel: React.FC<{ children: React.ReactNode; className?: string; style?
   <section style={style} className={`relative overflow-hidden rounded-[8px] border border-cyan-300/20 bg-slate-950/72 shadow-[0_0_30px_rgba(8,145,178,0.16)] backdrop-blur-xl ${className}`}>
     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.12),transparent_36%),linear-gradient(135deg,rgba(34,211,238,0.08),transparent_42%,rgba(16,185,129,0.08))]" />
     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/80 to-transparent" />
-    <div className="relative z-10 h-full">{children}</div>
+    <div className="relative z-10 h-full min-h-0 w-full">{children}</div>
   </section>
 );
 
@@ -358,11 +383,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
   monthlyLeaderboard,
   archivedWinners,
   walletRecords,
+  walletRuns,
+  walletRunsLoading,
   walletAddress,
   selectedShipId,
-  ethShipUnlocked,
+  shipUnlocks,
   onSelectShip,
-  latestRunReceipt,
   isLoading,
   proposals,
   proposalStatus,
@@ -372,7 +398,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onOpenXProfile,
   onOpenTreasurySend,
   onOpenSwap,
-  onOpenLatestRecord,
+  onOpenWalletRun,
   walletControl,
   championClaimStatus,
   championClaimMessage,
@@ -400,6 +426,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [shipFocusId, setShipFocusId] = useState<PlayerShipId>(selectedShipId);
   const [shipCycleRevision, setShipCycleRevision] = useState(0);
   const [weeklyClock, setWeeklyClock] = useState(() => Date.now());
+  const [selectedLeaderboardRecord, setSelectedLeaderboardRecord] = useState<LeaderboardEntry | null>(null);
+  const [leaderboardRecordStatus, setLeaderboardRecordStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
 
   useEffect(() => {
@@ -427,6 +455,21 @@ const StartScreen: React.FC<StartScreenProps> = ({
     setShipFocusId(selectedShipId);
   }, [selectedShipId]);
 
+  useEffect(() => {
+    if (!selectedLeaderboardRecord) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedLeaderboardRecord(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [selectedLeaderboardRecord]);
+
+  const openLeaderboardRecord = (entry: LeaderboardEntry) => {
+    if (!hasViewableMissionRecord(entry)) return;
+    setLeaderboardRecordStatus('loading');
+    setSelectedLeaderboardRecord(entry);
+  };
+
   const cycleShip = (direction: -1 | 1) => {
     const currentIndex = playerShipOrder.indexOf(shipFocusId);
     const nextIndex = (currentIndex + direction + playerShipOrder.length) % playerShipOrder.length;
@@ -434,12 +477,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
     setShipFocusId(nextShipId);
     setShipCycleRevision((revision) => revision + 1);
 
-    if (nextShipId !== 'eth' || ethShipUnlocked) {
+    if (isPlayerShipUnlocked(nextShipId, shipUnlocks)) {
       onSelectShip(nextShipId);
     }
   };
   const focusedShip = PLAYER_SHIPS[shipFocusId];
-  const focusedShipLocked = shipFocusId === 'eth' && !ethShipUnlocked;
+  const focusedShipLocked = !isPlayerShipUnlocked(shipFocusId, shipUnlocks);
+  const focusedShipUnlockScore = shipFocusId === 'btc'
+    ? BTC_SHIP_SCORE_THRESHOLD
+    : ETH_SHIP_SCORE_THRESHOLD;
+  const focusedShipUnlockMessage = `Mint a ${focusedShipUnlockScore.toLocaleString()}+ score NFT to unlock this ship.`;
 
   const weeklyAllocation = useMemo(
     () => getWeeklyAllocationMeta(new Date(weeklyClock)),
@@ -590,14 +637,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   const HeroPanel = ({ compact = false, fill = false }: { compact?: boolean; fill?: boolean }) => (
-    <HudPanel className={compact ? `min-h-[17.5rem] ${fill ? 'flex-1' : ''}` : 'min-h-[34rem] xl:min-h-[40rem]'}>
+    <HudPanel className={compact ? `sci-mobile-hero min-h-[17.5rem] ${fill ? 'flex-1' : ''}` : 'min-h-[34rem] xl:min-h-[40rem]'}>
       <div className="absolute inset-0">
         <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-68" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(34,211,238,0.2),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.18),rgba(2,6,23,0.88)_76%,rgba(2,6,23,0.96))]" />
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,rgba(4,120,87,0.09))]" />
       </div>
 
-      <div className={`relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'gap-1 py-2' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
+      <div className={`sci-hero-content relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'sci-hero-content--compact gap-1 py-2' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
         <div className={compact ? 'space-y-1' : 'space-y-3'}>
           <div className="mx-auto flex w-fit items-center gap-3 text-yellow-200/90">
             <span className="h-px w-14 bg-gradient-to-r from-transparent to-yellow-200/80" />
@@ -605,8 +652,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <span className="h-px w-14 bg-gradient-to-l from-transparent to-yellow-200/80" />
           </div>
           <div
-            className={`scicon-hero-title ${compact ? '' : 'text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]'}`}
-            {...(compact ? { style: { fontSize: '1.75rem' } } : {})}
+            className={`scicon-hero-title ${compact ? 'scicon-hero-title--compact' : 'text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]'}`}
           >
             <span>Scicon</span>
             <span>Shooter</span>
@@ -617,8 +663,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
 
         <div
-          className={`relative flex w-full items-center justify-center ${compact ? '' : 'min-h-[14rem]'}`}
-          {...(compact ? { style: { minHeight: '5rem' } } : {})}
+          className={`sci-hero-ship-stage relative flex w-full items-center justify-center ${compact ? 'sci-hero-ship-stage--compact' : 'min-h-[14rem]'}`}
         >
           <div className="sci-ship-orbit" />
           <div className="absolute bottom-2 h-12 w-64 rounded-[50%] border border-cyan-300/24 bg-cyan-300/7 blur-sm" />
@@ -639,7 +684,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 className={`sci-ship-carousel-item sci-ship-carousel-item--active ${shipCycleRevision > 0 ? 'sci-ship-carousel-item--cycling' : ''} ${focusedShipLocked ? 'sci-ship-carousel-item--locked' : ''}`}
                 role="img"
                 aria-label={focusedShipLocked
-                  ? `${focusedShip.name} locked. Mint a high score NFT to unlock this ship.`
+                  ? `${focusedShip.name} locked. ${focusedShipUnlockMessage}`
                   : `${focusedShip.name} selected`}
               >
                 <span className="sci-rh-ship-core sci-ship-carousel-core">
@@ -656,7 +701,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 ) : null}
               </div>
               {focusedShipLocked ? (
-                <p className="sci-ship-carousel-status">Mint a high score NFT to unlock this ship.</p>
+                <p className="sci-ship-carousel-status">{focusedShipUnlockMessage}</p>
               ) : null}
             </div>
 
@@ -722,6 +767,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             className={`sci-weekly-winner-card group relative w-full overflow-hidden rounded-[8px] border border-emerald-300/24 bg-slate-950/50 text-left transition hover:border-emerald-200/65 hover:bg-emerald-300/10 ${compact ? 'p-2' : 'p-3'}`}
           >
             <div className="sci-weekly-scan" />
+            <div className="sci-weekly-frame" aria-hidden="true" />
             <div
               className={`relative z-10 grid gap-3 ${compact ? '' : 'grid-cols-[5.25rem_minmax(0,1fr)]'}`}
               {...(compact ? { style: { gridTemplateColumns: '4rem minmax(0,1fr)' } } : {})}
@@ -891,7 +937,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-black text-white">Trophy Deck</h2>
-            <p className="text-sm text-slate-300">High scores, champion picks, confirmed funding, and onchain records.</p>
+            <p className="text-sm text-slate-300">High scores, champion picks, confirmed funding, and your recent missions.</p>
           </div>
           <div className="flex rounded-[6px] border border-cyan-300/18 bg-slate-950/70 p-1">
             {[
@@ -922,18 +968,41 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         {!isLoading && leaderboardView !== 'pastPicks' && leaderboardView !== 'records' && (
           <div className="max-h-[min(62vh,48rem)] space-y-2 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
-            {displayedLeaderboard.map((entry, index) => (
-              <div key={`${entry.name}-${entry.score}-${index}`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[6px] border border-cyan-300/12 bg-white/[0.035] p-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-[6px] border border-cyan-300/25 bg-cyan-300/10 text-sm font-black text-cyan-100">
-                  {index + 1}
+            {displayedLeaderboard.map((entry, index) => {
+              const podium = podiumRanks[index];
+              const recordAvailable = hasViewableMissionRecord(entry);
+              return (
+                <div
+                  key={`${entry.name}-${entry.score}-${index}`}
+                  className={`sci-leaderboard-row grid grid-cols-[auto_1fr_auto] items-center gap-3 p-3 ${podium ? `sci-leaderboard-row--${podium.tone}` : ''}`}
+                >
+                  <div className={`sci-leaderboard-rank ${podium ? `sci-leaderboard-rank--${podium.tone}` : ''}`}>
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {recordAvailable ? (
+                        <button
+                          type="button"
+                          onClick={() => openLeaderboardRecord(entry)}
+                          className="min-w-0 truncate text-left text-sm font-bold text-white underline decoration-cyan-300/0 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-300/80 focus-visible:text-cyan-100 focus-visible:decoration-cyan-300/80"
+                          aria-label={`View ${entry.name}'s Mission Record`}
+                        >
+                          {entry.name}
+                        </button>
+                      ) : (
+                        <p className="min-w-0 truncate text-sm font-bold text-white">{entry.name}</p>
+                      )}
+                      {podium ? (
+                        <span className={`sci-podium-label sci-podium-label--${podium.tone}`}>{podium.label}</span>
+                      ) : null}
+                    </div>
+                    <p className="truncate text-xs text-slate-400">{entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`}</p>
+                  </div>
+                  <p className="font-black text-white">{formatNumber(entry.score)}</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-white">{entry.name}</p>
-                  <p className="truncate text-xs text-slate-400">{entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`}</p>
-                </div>
-                <p className="font-black text-white">{formatNumber(entry.score)}</p>
-              </div>
-            ))}
+              );
+            })}
             {visibleLeaderboard.length === 0 && (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
                 No scores yet. Start a mission and claim the board.
@@ -943,55 +1012,41 @@ const StartScreen: React.FC<StartScreenProps> = ({
         )}
 
         {!isLoading && leaderboardView === 'pastPicks' && (
-          <div className="space-y-3">
-            {sortedPastPicks.slice(0, 8).map((winner) => (
+          <div className="max-h-[min(62vh,48rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
+            {sortedPastPicks.map((winner) => (
               <button
                 key={`${winner.periodKey}-${winner.winnerName}`}
                 type="button"
-                onClick={() => {
-                  if (winner.status === 'finalized') {
-                    setChampionClaimWinner(winner);
-                    setDashboardTab('proposals');
-                  } else if (winner.proposalUrl) {
-                    onOpenProposal(winner.proposalUrl);
-                  }
-                }}
-                className="grid w-full gap-3 rounded-[8px] border border-cyan-300/12 bg-white/[0.035] p-3 text-left transition hover:border-cyan-300/35 hover:bg-cyan-300/8 sm:grid-cols-[auto_1fr_auto] sm:items-center"
+                onClick={() => winner.proposalUrl && onOpenProposal(winner.proposalUrl)}
+                disabled={!winner.proposalUrl}
+                aria-label={`${winner.winnerName} won ${winner.periodLabel} with ${formatNumber(winner.score)} points${winner.proposalTitle ? ` and selected ${winner.proposalTitle}` : ''}`}
+                className="sci-past-pick-card group relative w-full overflow-hidden p-3 text-left disabled:cursor-default sm:p-4"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-[8px] border border-yellow-300/28 bg-yellow-300/10 text-yellow-100">
-                  <Icon name="trophy" className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 space-y-2">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="text-xs font-black uppercase tracking-wide text-yellow-200">{winner.periodLabel}</p>
-                    <span className="rounded-full border border-emerald-300/24 bg-emerald-300/10 px-2 py-0.5 text-[0.65rem] font-black uppercase text-emerald-100">
-                      Weekly high score
-                    </span>
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:items-start">
+                <span className="sci-past-pick-accent" aria-hidden="true" />
+                <div className="relative z-10">
+                  <div className="flex items-start justify-between gap-3 border-b border-cyan-200/14 pb-2.5">
                     <div className="min-w-0">
-                      <p className="text-xs font-bold uppercase text-slate-400">Winner</p>
-                      <p className="truncate text-base font-black text-white">{winner.winnerName}</p>
-                      <p className="text-xs text-cyan-200">{formatNumber(winner.score)} pts{winner.wave ? ` - Wave ${winner.wave}` : ''}</p>
+                      <p className="text-xs font-black uppercase tracking-[0.12em] text-yellow-200">{winner.periodLabel}</p>
+                      <p className="mt-0.5 text-[0.65rem] font-bold uppercase text-emerald-200">Weekly champion</p>
                     </div>
-                    <div className="min-w-0 rounded-[6px] border border-cyan-300/12 bg-slate-950/38 p-3">
-                      <p className="text-xs font-bold uppercase text-slate-400">Allocated funding to</p>
-                      <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white">{winner.proposalTitle ?? 'Funding pick pending'}</p>
-                      {winner.proposalAuthor && <p className="mt-1 truncate text-xs uppercase text-cyan-200">{winner.proposalAuthor}</p>}
+                    <div className="shrink-0 text-right">
+                      <p className="text-lg font-black leading-none text-white">{winner.allocationRsc ?? weeklyAllocation.allocationRsc} <span className="text-xs text-emerald-200">RSC</span></p>
+                      <p className="mt-1 text-[0.58rem] font-bold uppercase tracking-wide text-cyan-200">Final allocation</p>
                     </div>
                   </div>
-                </div>
-                <div className="justify-self-start rounded-[8px] border border-cyan-300/16 bg-cyan-300/8 px-3 py-2 text-left sm:justify-self-end sm:text-right">
-                  <p className="text-base font-black text-white">{winner.allocationRsc ?? weeklyAllocation.allocationRsc} RSC</p>
-                  <p className="text-[0.65rem] font-bold uppercase text-cyan-200">
-                    {winner.status === 'funded' && winner.allocationTxHash
-                      ? 'Funding confirmed'
-                      : winner.status === 'claimed'
-                        ? 'Proposal selected'
-                        : winner.status === 'expired'
-                          ? 'Claim window closed'
-                          : 'Champion finalized'}
-                  </p>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] sm:items-center">
+                    <div className="min-w-0">
+                      <p className="text-[0.62rem] font-bold uppercase tracking-wide text-slate-400">Winner</p>
+                      <p className="mt-0.5 truncate text-lg font-black text-white">{winner.winnerName}</p>
+                      <p className="mt-1 text-xs font-bold text-cyan-100">{formatNumber(winner.score)} pts <span className="text-slate-500">/</span> Wave {winner.wave || 1}</p>
+                    </div>
+                    <div className="min-w-0 border-l-2 border-emerald-300/35 pl-3">
+                      <p className="text-[0.62rem] font-bold uppercase tracking-wide text-emerald-200">Proposal selected</p>
+                      <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white">{winner.proposalTitle ?? 'Champion selection pending'}</p>
+                      {winner.proposalAuthor && <p className="mt-1 truncate text-[0.68rem] font-bold uppercase text-cyan-200">{winner.proposalAuthor}</p>}
+                    </div>
+                  </div>
                 </div>
               </button>
             ))}
@@ -1005,51 +1060,51 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         {!isLoading && leaderboardView === 'records' && (
           <div className="space-y-3">
-            {latestRunReceipt && !walletRecords.some((record) => record.recordType === 'mission' && record.runId === latestRunReceipt.runId && record.status === 'confirmed') ? (
-              <button
-                type="button"
-                onClick={onOpenLatestRecord}
-                className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[8px] border border-yellow-200/25 bg-yellow-300/10 p-3 text-left transition hover:border-yellow-100/50 hover:bg-yellow-300/15"
-              >
-                <div className="flex h-11 w-11 items-center justify-center rounded-[8px] border border-yellow-200/30 bg-slate-950/70 text-yellow-100">
-                  <Icon name="rocket" className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-black text-white">Latest verified run</p>
-                  <p className="truncate text-xs text-slate-300">{formatNumber(latestRunReceipt.metrics.score)} pts - Wave {latestRunReceipt.metrics.wave}</p>
-                </div>
-                <span className="text-[10px] font-black uppercase text-yellow-100">Preview</span>
-              </button>
-            ) : null}
-            {walletRecords.map((record) => (
-              <a
-                key={`${record.recordType}-${record.runId}`}
-                href={record.transactionHash ? `${record.chainId === 8453 ? 'https://basescan.org' : 'https://sepolia.basescan.org'}/tx/${record.transactionHash}` : undefined}
-                target={record.transactionHash ? '_blank' : undefined}
-                rel={record.transactionHash ? 'noopener noreferrer' : undefined}
-                className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[8px] border border-cyan-300/15 bg-white/[0.035] p-3"
-              >
-                <div className={`flex h-11 w-11 items-center justify-center rounded-[8px] border ${record.recordType === 'champion' ? 'border-yellow-200/30 bg-yellow-300/10 text-yellow-100' : 'border-cyan-200/25 bg-cyan-300/10 text-cyan-100'}`}>
-                  <Icon name={record.recordType === 'champion' ? 'trophy' : 'mint'} className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-black text-white">{record.recordType === 'champion' ? 'Weekly Champion Record' : 'Mission Record'}</p>
-                  <p className="truncate font-mono text-[10px] uppercase text-slate-400">Run {record.runId.slice(0, 8)}{record.weekKey ? ` - ${record.weekKey}` : ''}</p>
-                </div>
-                <span className={`text-[10px] font-black uppercase ${record.status === 'confirmed' ? 'text-emerald-200' : record.status === 'failed' ? 'text-red-200' : 'text-yellow-200'}`}>{record.status}</span>
-              </a>
-            ))}
             {!walletAddress ? (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
-                <p>Connect a Base Account to view and mint your personal Mission Records.</p>
+                <p>Connect a Base Account to view your five most recent runs.</p>
                 {walletControl ? <div className="mt-3 flex justify-start">{walletControl}</div> : null}
               </div>
-            ) : walletRecords.length === 0 && !latestRunReceipt ? (
-              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
-                <p className="font-bold text-white">No records minted yet</p>
-                <p className="mt-1 text-xs text-slate-400">Finish a mission, submit the score, then mint its score card here.</p>
+            ) : walletRunsLoading ? (
+              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-300">
+                Loading your recent runs...
               </div>
-            ) : null}
+            ) : walletRuns.length === 0 ? (
+              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
+                <p className="font-bold text-white">No saved runs yet</p>
+                <p className="mt-1 text-xs text-slate-400">Finish a mission and submit your score. Your latest five runs will appear here.</p>
+              </div>
+            ) : walletRuns.slice(0, 5).map((run) => {
+              const minted = walletRecords.some((record) => (
+                record.recordType === 'mission'
+                && record.runId === run.receipt.runId
+                && record.status === 'confirmed'
+              ));
+              return (
+                <button
+                  key={run.receipt.runId}
+                  type="button"
+                  onClick={() => onOpenWalletRun(run)}
+                  className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[8px] border border-cyan-300/15 bg-white/[0.035] p-3 text-left transition hover:border-cyan-200/40 hover:bg-cyan-300/8"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-[8px] border border-cyan-200/25 bg-cyan-300/10 text-cyan-100">
+                    <Icon name="rocket" className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="truncate text-sm font-black text-white">{run.pilotName}</p>
+                      <span className="shrink-0 text-[9px] font-black uppercase text-slate-500">{formatRunDate(run.receipt.finishedAt)}</span>
+                    </div>
+                    <p className="truncate text-xs text-slate-300">
+                      {formatNumber(run.receipt.metrics.score)} pts - Wave {run.receipt.metrics.wave}
+                    </p>
+                  </div>
+                  <span className={`text-[10px] font-black uppercase ${minted ? 'text-emerald-200' : 'text-cyan-200'}`}>
+                    {minted ? 'Minted' : 'View'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1167,7 +1222,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
     if (dashboardTab === 'more') return <AboutDashboard />;
 
     return (
-      <div className="flex min-h-full flex-col gap-2">
+      <div className="scicon-mobile-home flex min-h-full flex-col gap-2">
         <WeeklyFundingCard compact />
         <HeroPanel compact fill />
       </div>
@@ -1228,6 +1283,61 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <DashboardNav docked />
         </main>
       </div>
+
+      {selectedLeaderboardRecord?.runId ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-5">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/82 backdrop-blur-sm"
+            onClick={() => setSelectedLeaderboardRecord(null)}
+            aria-label="Close Mission Record"
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="leaderboard-record-title"
+            className="relative z-10 w-full max-w-xl overflow-hidden rounded-[8px] border border-cyan-200/35 bg-slate-950 shadow-[0_0_52px_rgba(34,211,238,0.24)]"
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-cyan-200/15 px-4 py-3">
+              <div className="min-w-0">
+                <p className="font-mono text-[0.62rem] font-black uppercase tracking-[0.18em] text-cyan-200">Leaderboard Record</p>
+                <h2 id="leaderboard-record-title" className="truncate text-lg font-black text-white">
+                  {selectedLeaderboardRecord.name} / {formatNumber(selectedLeaderboardRecord.score)}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedLeaderboardRecord(null)}
+                className="sci-icon-button shrink-0"
+                aria-label="Close Mission Record"
+              >
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="relative aspect-square w-full overflow-hidden bg-slate-950 p-2 sm:p-3">
+              {leaderboardRecordStatus === 'loading' ? (
+                <div className="absolute inset-0 flex items-center justify-center font-mono text-xs font-black uppercase tracking-[0.16em] text-cyan-200">
+                  Loading Mission Record
+                </div>
+              ) : null}
+              {leaderboardRecordStatus === 'error' ? (
+                <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm font-bold text-slate-300">
+                  This legacy Mission Record is unavailable.
+                </div>
+              ) : (
+                <img
+                  src={buildMissionRecordCardPath(selectedLeaderboardRecord.runId)}
+                  alt={`${selectedLeaderboardRecord.name} Mission Record`}
+                  onLoad={() => setLeaderboardRecordStatus('ready')}
+                  onError={() => setLeaderboardRecordStatus('error')}
+                  className={`h-full w-full object-contain transition-opacity duration-200 ${leaderboardRecordStatus === 'ready' ? 'opacity-100' : 'opacity-0'}`}
+                />
+              )}
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {showFeedback && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]">

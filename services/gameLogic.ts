@@ -28,7 +28,7 @@ import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getChargeForStoredFlasks,
 type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'grid' | 'diamond' | 'spiral' | 'orbit';
 type ConfiguredEnemyFormationMode = Exclude<EnemyFormationMode, 'orbit'>;
 type EnemyFormationState = 'entry' | 'hold' | 'dive' | 'return';
-type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard';
+type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard' | 'btc-hash';
 type PendingPlayerShot = {
   fireFrame: number;
   speed: number;
@@ -300,6 +300,7 @@ const GAMEPLAY_ASSET_URLS = [
   ASSETS.PLAYER_SHIP,
   ASSETS.BIO_SHIP,
   ASSETS.ETH_SHIP,
+  ASSETS.BTC_SHIP,
   ASSETS.RSC_TOKEN,
   ASSETS.REAL_RSC_ICON,
   ASSETS.GAME_BG_BACK,
@@ -2398,14 +2399,18 @@ export class GameEngine {
 
     const isBioLaser = weaponKind === 'bio-laser';
     const isEthShard = weaponKind === 'eth-shard';
+    const isBtcHash = weaponKind === 'btc-hash';
     const isNova = weaponKind === 'nova';
     const isSingularity = weaponKind === 'singularity';
     const bioLaserLevel = isBioLaser ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
     const ethShardLevel = isEthShard ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
+    const btcHashLevel = isBtcHash ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
     const bulletColor = isBioLaser
       ? '#b7ff68'
       : isEthShard
         ? '#a78bfa'
+      : isBtcHash
+        ? '#fbbf24'
       : isSingularity
         ? '#a78bfa'
         : isNova
@@ -2419,6 +2424,8 @@ export class GameEngine {
       ? Math.round(5 + bioLaserLevel * 2.3)
       : isEthShard
         ? Math.round(13 + ethShardLevel * 2.1)
+      : isBtcHash
+        ? Math.round(12 + btcHashLevel * 1.9)
       : isSingularity
         ? 40
         : isNova
@@ -2435,6 +2442,8 @@ export class GameEngine {
       ? Math.round(34 + bioLaserLevel * 6)
       : isEthShard
         ? Math.round(30 + ethShardLevel * 4.5)
+      : isBtcHash
+        ? Math.round(32 + btcHashLevel * 4.8)
       : isSingularity
         ? 82
         : isNova
@@ -2453,6 +2462,8 @@ export class GameEngine {
       ? 0.9 + bioLaserLevel * 0.55
       : isEthShard
         ? 1.15 + ethShardLevel * 0.48
+      : isBtcHash
+        ? 1.3 + btcHashLevel * 0.54
       : isSingularity
         ? 7.5
         : isNova
@@ -2462,11 +2473,13 @@ export class GameEngine {
             : weaponKind === 'plasma'
               ? 1.3
               : 1;
-    if (weaponKind === 'ion' || isNova || isSingularity || (isBioLaser && bioLaserLevel >= 3) || (isEthShard && ethShardLevel >= 4)) {
+    if (weaponKind === 'ion' || isNova || isSingularity || (isBioLaser && bioLaserLevel >= 3) || (isEthShard && ethShardLevel >= 4) || (isBtcHash && btcHashLevel >= 3)) {
       b.pierceRemaining = isBioLaser
         ? Math.min(5, 1 + Math.floor((bioLaserLevel - 3) / 2))
         : isEthShard
           ? Math.min(4, 1 + Math.floor((ethShardLevel - 4) / 2))
+        : isBtcHash
+          ? Math.min(5, 1 + Math.floor((btcHashLevel - 3) / 2))
         : isSingularity
           ? 10
           : isNova
@@ -2478,8 +2491,8 @@ export class GameEngine {
     this.livePlayerShotCount++;
     if (playSound) {
       this.playSound('shoot', 1, {
-        pitchJitter: isBioLaser ? 0.055 : isEthShard ? 0.07 : isSingularity ? 0.035 : isNova ? 0.05 : weaponKind === 'ion' ? 0.08 : 0.22,
-        pitchOffset: pitchOffset + (isBioLaser ? -0.22 - bioLaserLevel * 0.018 : isEthShard ? 0.16 + ethShardLevel * 0.012 : isSingularity ? -0.36 : isNova ? -0.28 : weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? 0.08 : 0)
+        pitchJitter: isBioLaser ? 0.055 : isEthShard ? 0.07 : isBtcHash ? 0.045 : isSingularity ? 0.035 : isNova ? 0.05 : weaponKind === 'ion' ? 0.08 : 0.22,
+        pitchOffset: pitchOffset + (isBioLaser ? -0.22 - bioLaserLevel * 0.018 : isEthShard ? 0.16 + ethShardLevel * 0.012 : isBtcHash ? -0.12 - btcHashLevel * 0.01 : isSingularity ? -0.36 : isNova ? -0.28 : weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? 0.08 : 0)
       });
     }
     return true;
@@ -2518,10 +2531,13 @@ export class GameEngine {
     const fireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 7);
     const bioLaserEquipped = this.playerShipUrl === ASSETS.BIO_SHIP;
     const ethShardEquipped = this.playerShipUrl === ASSETS.ETH_SHIP;
+    const btcHashEquipped = this.playerShipUrl === ASSETS.BTC_SHIP;
     const weaponKind: PlayerWeaponKind = bioLaserEquipped
       ? 'bio-laser'
       : ethShardEquipped
         ? 'eth-shard'
+      : btcHashEquipped
+        ? 'btc-hash'
       : fireRateLevel >= 7
         ? this.weaponVolley % 3 === 0 ? 'singularity' : 'nova'
         : fireRateLevel >= 6
@@ -2535,6 +2551,8 @@ export class GameEngine {
       ? 11 + fireRateLevel * 0.55
       : weaponKind === 'eth-shard'
         ? 12 + fireRateLevel * 0.48
+      : weaponKind === 'btc-hash'
+        ? 11.6 + fireRateLevel * 0.52
       : weaponKind === 'singularity'
         ? 15.4
         : weaponKind === 'nova'
@@ -4430,7 +4448,7 @@ export class GameEngine {
           ? (isBossTarget ? 8 : 5)
           : shot.damage * (isBossTarget ? 1.35 : 1);
         if (!shot.isBeam) {
-          if ((shot.weaponKind === 'ion' || shot.weaponKind === 'nova' || shot.weaponKind === 'singularity' || shot.weaponKind === 'bio-laser' || shot.weaponKind === 'eth-shard') && shot.pierceRemaining > 0) {
+          if ((shot.weaponKind === 'ion' || shot.weaponKind === 'nova' || shot.weaponKind === 'singularity' || shot.weaponKind === 'bio-laser' || shot.weaponKind === 'eth-shard' || shot.weaponKind === 'btc-hash') && shot.pierceRemaining > 0) {
             shot.hitTargetIds?.add(target.id);
             shot.pierceRemaining--;
           } else {
@@ -5639,7 +5657,8 @@ export class GameEngine {
         const isSingularityShot = e.isPlayerShot && e.weaponKind === 'singularity';
         const isBioLaserShot = e.isPlayerShot && e.weaponKind === 'bio-laser';
         const isEthShardShot = e.isPlayerShot && e.weaponKind === 'eth-shard';
-        ctx.shadowBlur = this.getGlowBlur(leanShot ? (isSingularityShot ? 12 : isNovaShot ? 10 : isIonShot ? 8 : isBioLaserShot ? 7 : isEthShardShot ? 8 : 5) : isSingularityShot ? 40 : isNovaShot ? 34 : isIonShot ? 26 : isBioLaserShot ? 24 : isEthShardShot ? 28 : e.isPlayerShot ? 18 : 12);
+        const isBtcHashShot = e.isPlayerShot && e.weaponKind === 'btc-hash';
+        ctx.shadowBlur = this.getGlowBlur(leanShot ? (isSingularityShot ? 12 : isNovaShot ? 10 : isIonShot ? 8 : isBioLaserShot ? 7 : isEthShardShot ? 8 : isBtcHashShot ? 8 : 5) : isSingularityShot ? 40 : isNovaShot ? 34 : isIonShot ? 26 : isBioLaserShot ? 24 : isEthShardShot ? 28 : isBtcHashShot ? 30 : e.isPlayerShot ? 18 : 12);
         ctx.shadowColor = e.color || (e.isPlayerShot ? '#67e8f9' : '#fb7185');
 
         if (e.text) { 
@@ -5648,7 +5667,32 @@ export class GameEngine {
            ctx.textBaseline = 'middle';
            ctx.fillText(e.text, 0, 0);
         } else if (e.isPlayerShot) {
-          if (isEthShardShot) {
+          if (isBtcHashShot) {
+            const pulse = 0.84 + Math.sin((this.frameCount + e.variant) * 0.42) * 0.16;
+            ctx.fillStyle = `rgba(245,158,11,${0.3 * pulse})`;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, e.width * 0.9, e.height * 0.52, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fbbf24';
+            ctx.strokeStyle = '#fff7d6';
+            ctx.lineWidth = leanShot ? 1.2 : 1.8;
+            ctx.beginPath();
+            ctx.moveTo(0, -e.height * 0.58);
+            ctx.lineTo(e.width * 0.62, -e.height * 0.12);
+            ctx.lineTo(e.width * 0.48, e.height * 0.5);
+            ctx.lineTo(0, e.height * 0.66);
+            ctx.lineTo(-e.width * 0.48, e.height * 0.5);
+            ctx.lineTo(-e.width * 0.62, -e.height * 0.12);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(-e.width * 0.18, -e.height * 0.34, e.width * 0.12, e.height * 0.68);
+            ctx.fillRect(e.width * 0.08, -e.height * 0.34, e.width * 0.12, e.height * 0.68);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-e.width * 0.28, -e.height * 0.12, e.width * 0.56, e.height * 0.1);
+            ctx.fillRect(-e.width * 0.28, e.height * 0.14, e.width * 0.56, e.height * 0.1);
+          } else if (isEthShardShot) {
             const pulse = 0.82 + Math.sin((this.frameCount + e.variant) * 0.5) * 0.18;
             ctx.fillStyle = `rgba(139,92,246,${0.28 * pulse})`;
             ctx.beginPath();

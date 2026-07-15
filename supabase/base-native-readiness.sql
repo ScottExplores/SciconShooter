@@ -10,6 +10,7 @@ create table if not exists public.scicon_run_receipts (
   wave integer not null check (wave >= 1),
   enemies_defeated integer not null default 0 check (enemies_defeated >= 0),
   coins_collected integer not null default 0 check (coins_collected >= 0),
+  player_ship_id text not null default 'researchhub' check (player_ship_id in ('researchhub', 'bio', 'eth', 'btc')),
   game_version text not null,
   integrity_status text not null check (integrity_status in ('server-verified', 'review')),
   anomaly_flags text[] not null default '{}',
@@ -20,6 +21,17 @@ create table if not exists public.scicon_run_receipts (
   claimed_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.scicon_run_receipts
+  add column if not exists player_ship_id text not null default 'researchhub'
+  check (player_ship_id in ('researchhub', 'bio', 'eth', 'btc'));
+
+alter table public.scicon_run_receipts
+  drop constraint if exists scicon_run_receipts_player_ship_id_check;
+
+alter table public.scicon_run_receipts
+  add constraint scicon_run_receipts_player_ship_id_check
+  check (player_ship_id in ('researchhub', 'bio', 'eth', 'btc'));
 
 alter table public.scicon_leaderboard
   add column if not exists run_id uuid,

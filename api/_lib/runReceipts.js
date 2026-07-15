@@ -8,6 +8,7 @@ const {
 const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const MAX_RUN_DURATION_MS = 3 * 60 * 60 * 1000;
 const RECEIPT_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+const PLAYER_SHIP_IDS = new Set(['researchhub', 'bio', 'eth', 'btc']);
 
 const getReceiptSecret = () => (
   process.env.RUN_RECEIPT_SECRET
@@ -54,12 +55,19 @@ const normalizeMetric = (value, min = 0, max = Number.MAX_SAFE_INTEGER) => {
   return Math.min(max, Math.max(min, Math.floor(numeric)));
 };
 
+const normalizePlayerShipId = (value) => (
+  PLAYER_SHIP_IDS.has(String(value || '').toLowerCase())
+    ? String(value).toLowerCase()
+    : 'researchhub'
+);
+
 const normalizeRunMetrics = (metrics = {}) => ({
   score: normalizeMetric(metrics.score, 0, 100000000),
   wave: normalizeMetric(metrics.wave, 1, 1000),
   durationMs: normalizeMetric(metrics.durationMs, 0, MAX_RUN_DURATION_MS + 1),
   enemiesDefeated: normalizeMetric(metrics.enemiesDefeated, 0, 1000000),
-  coinsCollected: normalizeMetric(metrics.coinsCollected, 0, 1000000)
+  coinsCollected: normalizeMetric(metrics.coinsCollected, 0, 1000000),
+  playerShipId: normalizePlayerShipId(metrics.playerShipId)
 });
 
 const inspectRunMetrics = (metrics) => {
@@ -88,12 +96,13 @@ const hashIp = (req) => {
   return crypto.createHmac('sha256', getReceiptSecret()).update(rawIp).digest('hex').slice(0, 32);
 };
 
-const createRunStart = (gameVersion = 'unknown', { testRun = false } = {}) => {
+const createRunStart = (gameVersion = 'unknown', { testRun = false, playerShipId = 'researchhub' } = {}) => {
   const issuedAt = Date.now();
   const payload = {
     type: 'run-start',
     runId: crypto.randomUUID(),
     gameVersion: String(gameVersion || 'unknown').slice(0, 32),
+    playerShipId: normalizePlayerShipId(playerShipId),
     testRun: Boolean(testRun),
     issuedAt,
     expiresAt: issuedAt + MAX_RUN_DURATION_MS
@@ -103,6 +112,7 @@ const createRunStart = (gameVersion = 'unknown', { testRun = false } = {}) => {
     runId: payload.runId,
     issuedAt: new Date(issuedAt).toISOString(),
     expiresAt: new Date(payload.expiresAt).toISOString(),
+    playerShipId: payload.playerShipId,
     testRun: payload.testRun,
     startToken: signPayload(payload)
   };
@@ -120,6 +130,7 @@ const saveReceipt = async (receipt, req) => {
     wave: receipt.metrics.wave,
     enemies_defeated: receipt.metrics.enemiesDefeated,
     coins_collected: receipt.metrics.coinsCollected,
+    player_ship_id: receipt.metrics.playerShipId,
     game_version: receipt.gameVersion,
     integrity_status: receipt.integrity,
     anomaly_flags: receipt.anomalies,
@@ -127,14 +138,22 @@ const saveReceipt = async (receipt, req) => {
     receipt_hash: receiptHash
   };
 
+  const persistRow = (value) => fetchSupabaseJson(`${RUN_RECEIPTS_TABLE}?on_conflict=run_id`, {
+    method: 'POST',
+    headers: supabaseHeaders({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+    body: JSON.stringify(value)
+  });
+
   try {
-    await fetchSupabaseJson(`${RUN_RECEIPTS_TABLE}?on_conflict=run_id`, {
-      method: 'POST',
-      headers: supabaseHeaders({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
-      body: JSON.stringify(row)
-    });
+    await persistRow(row);
     return true;
   } catch (error) {
+    if (/player_ship_id|PGRST204/i.test(error.message || '')) {
+      const { player_ship_id, ...legacyRow } = row;
+      void player_ship_id;
+      await persistRow(legacyRow);
+      return true;
+    }
     if (/PGRST205|schema cache|Could not find the table/i.test(error.message || '')) return false;
     throw error;
   }
@@ -142,7 +161,10 @@ const saveReceipt = async (receipt, req) => {
 
 const finishRun = async (startToken, rawMetrics, req) => {
   const start = verifyPayload(startToken, 'run-start');
-  const metrics = normalizeRunMetrics(rawMetrics);
+  const metrics = {
+    ...normalizeRunMetrics(rawMetrics),
+    playerShipId: normalizePlayerShipId(start.playerShipId)
+  };
   const now = Date.now();
   const measuredDuration = Math.max(0, now - start.issuedAt);
   const durationDelta = Math.abs(measuredDuration - metrics.durationMs);
@@ -186,12 +208,57 @@ const finishRun = async (startToken, rawMetrics, req) => {
   return receipt;
 };
 
+const reissueStoredRunReceipt = (row) => {
+  const startedAt = new Date(row?.started_at);
+  const finishedAt = new Date(row?.finished_at);
+  if (!row?.run_id || Number.isNaN(startedAt.getTime()) || Number.isNaN(finishedAt.getTime())) {
+    throw new Error('Stored run receipt data is incomplete.');
+  }
+
+  const expiresAt = Date.now() + RECEIPT_LIFETIME_MS;
+  const metrics = normalizeRunMetrics({
+    score: row.score,
+    wave: row.wave,
+    durationMs: row.duration_ms,
+    enemiesDefeated: row.enemies_defeated,
+    coinsCollected: row.coins_collected,
+    playerShipId: row.player_ship_id
+  });
+  const integrity = row.integrity_status === 'review' ? 'review' : 'server-verified';
+  const receiptPayload = {
+    type: 'run-receipt',
+    runId: String(row.run_id),
+    gameVersion: String(row.game_version || 'unknown').slice(0, 32),
+    startedAt: startedAt.getTime(),
+    finishedAt: finishedAt.getTime(),
+    expiresAt,
+    metrics,
+    testRun: false,
+    integrity
+  };
+
+  return {
+    runId: receiptPayload.runId,
+    gameVersion: receiptPayload.gameVersion,
+    startedAt: startedAt.toISOString(),
+    finishedAt: finishedAt.toISOString(),
+    expiresAt: new Date(expiresAt).toISOString(),
+    metrics,
+    testRun: false,
+    integrity,
+    anomalies: Array.isArray(row.anomaly_flags) ? row.anomaly_flags : [],
+    receiptToken: signPayload(receiptPayload),
+    persisted: true
+  };
+};
+
 const verifyRunReceipt = (receiptToken) => verifyPayload(receiptToken, 'run-receipt');
 
 module.exports = {
   createRunStart,
   finishRun,
   getReceiptSecret,
+  reissueStoredRunReceipt,
   signPayload,
   verifyRunReceipt
 };

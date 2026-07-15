@@ -1,6 +1,23 @@
 
 type GameSoundType = 'shoot' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb';
 
+const MISSION_BPM = 154;
+const MISSION_STEP_MS = (60_000 / MISSION_BPM) / 2;
+const SILENCE_GAIN = 0.0001;
+const MISSION_BASS_PATTERN = [
+  73.42, 55, 73.42, 65.41,
+  73.42, 87.31, 73.42, 77.78,
+  73.42, 55, 65.41, 73.42,
+  87.31, 77.78, 65.41, 55
+];
+const MISSION_LEAD_PATTERN = [
+  293.66, 0, 349.23, 0,
+  261.63, 0, 311.13, 0,
+  293.66, 0, 392, 0,
+  349.23, 311.13, 261.63, 0
+];
+const MISSION_RISE_PATTERN = [146.83, 174.61, 196, 220, 261.63, 293.66, 349.23, 392];
+
 class AudioService {
   private ctx: AudioContext | null = null;
   private muted: boolean = false;
@@ -8,6 +25,8 @@ class AudioService {
   private musicTimer: number | null = null;
   private musicStep: number = 0;
   private musicRequested: boolean = false;
+  private musicLaunchPending: boolean = false;
+  private activeMusicNodes = new Set<OscillatorNode>();
   private pageActive: boolean = !document.hidden;
   private lastSoundTime: Partial<Record<GameSoundType, number>> = {};
 
@@ -57,12 +76,24 @@ class AudioService {
     this.musicTimer = null;
   }
 
+  private stopActiveMusicNodes() {
+    this.activeMusicNodes.forEach((node) => {
+      try {
+        node.stop();
+      } catch {
+        // The node may already have reached its scheduled stop time.
+      }
+    });
+    this.activeMusicNodes.clear();
+  }
+
   private setPageActive(active: boolean) {
     if (this.pageActive === active) return;
     this.pageActive = active;
 
     if (!active) {
       this.clearMusicTimer();
+      this.stopActiveMusicNodes();
       void this.ctx?.suspend().catch(() => undefined);
       return;
     }
@@ -90,6 +121,7 @@ class AudioService {
     this.setMasterVolume(this.muted || !this.pageActive ? 0 : 0.3);
     if (this.muted) {
       this.clearMusicTimer();
+      this.stopActiveMusicNodes();
     } else if (this.pageActive) {
       this.init();
       this.beginMusicTimer();
@@ -98,6 +130,10 @@ class AudioService {
   }
 
   public startMusic() {
+    if (!this.musicRequested) {
+      this.musicStep = 0;
+      this.musicLaunchPending = true;
+    }
     this.musicRequested = true;
     this.beginMusicTimer();
   }
@@ -105,49 +141,138 @@ class AudioService {
   public stopMusic() {
     this.musicRequested = false;
     this.musicStep = 0;
+    this.musicLaunchPending = false;
     this.clearMusicTimer();
+    this.stopActiveMusicNodes();
+  }
+
+  private scheduleMusicTone(
+    frequency: number,
+    type: OscillatorType,
+    startTime: number,
+    duration: number,
+    volume: number,
+    endFrequency: number = frequency,
+    attack: number = 0.004
+  ) {
+    if (!this.ctx || !this.masterGain) return;
+
+    const oscillator = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const attackEnd = startTime + Math.min(attack, duration * 0.35);
+    const stopTime = startTime + duration;
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(Math.max(1, frequency), startTime);
+    if (endFrequency !== frequency) {
+      oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), stopTime);
+    }
+    gain.gain.setValueAtTime(SILENCE_GAIN, startTime);
+    gain.gain.linearRampToValueAtTime(volume, attackEnd);
+    gain.gain.exponentialRampToValueAtTime(SILENCE_GAIN, stopTime);
+
+    oscillator.connect(gain);
+    gain.connect(this.masterGain);
+    oscillator.onended = () => this.activeMusicNodes.delete(oscillator);
+    this.activeMusicNodes.add(oscillator);
+    oscillator.start(startTime);
+    oscillator.stop(stopTime + 0.01);
+  }
+
+  private scheduleKick(startTime: number, accent: boolean) {
+    this.scheduleMusicTone(168, 'sine', startTime, 0.16, accent ? 0.2 : 0.16, 43, 0.002);
+    if (accent) {
+      this.scheduleMusicTone(62, 'triangle', startTime, 0.2, 0.045, 34, 0.002);
+    }
+  }
+
+  private scheduleHat(startTime: number, open: boolean) {
+    this.scheduleMusicTone(
+      open ? 7_100 : 8_600,
+      'square',
+      startTime,
+      open ? 0.11 : 0.035,
+      open ? 0.012 : 0.008,
+      open ? 5_200 : 7_400,
+      0.001
+    );
+  }
+
+  private scheduleClap(startTime: number) {
+    this.scheduleMusicTone(1_350, 'square', startTime, 0.07, 0.014, 460, 0.001);
+    this.scheduleMusicTone(210, 'triangle', startTime, 0.1, 0.022, 92, 0.001);
+  }
+
+  private scheduleBass(startTime: number, step: number, underKick: boolean) {
+    const note = MISSION_BASS_PATTERN[step % MISSION_BASS_PATTERN.length];
+    this.scheduleMusicTone(note, 'sawtooth', startTime, 0.17, underKick ? 0.024 : 0.043, note * 0.97, 0.003);
+  }
+
+  private scheduleLead(startTime: number, step: number, elevated: boolean) {
+    const note = MISSION_LEAD_PATTERN[step % MISSION_LEAD_PATTERN.length];
+    if (!note) return;
+
+    const frequency = elevated ? note * 2 : note;
+    this.scheduleMusicTone(frequency, 'triangle', startTime, 0.15, elevated ? 0.018 : 0.026, frequency * 0.995, 0.008);
+    if (!elevated) {
+      this.scheduleMusicTone(frequency * 0.5, 'square', startTime, 0.11, 0.008, frequency * 0.49, 0.004);
+    }
+  }
+
+  private playMissionLaunchCue() {
+    if (!this.ctx || !this.masterGain) return;
+    const startTime = this.ctx.currentTime + 0.015;
+    [110, 146.83, 196, 293.66].forEach((note, index) => {
+      this.scheduleMusicTone(note, 'triangle', startTime + (index * 0.085), 0.22, 0.024, note * 1.9, 0.008);
+    });
   }
 
   private beginMusicTimer() {
     if (!this.ctx || this.musicTimer !== null || !this.musicRequested || this.muted || !this.pageActive) return;
 
+    if (this.musicLaunchPending) {
+      this.musicLaunchPending = false;
+      this.playMissionLaunchCue();
+    }
+
     const pulse = () => {
       if (!this.ctx || this.muted || !this.masterGain || !this.pageActive) return;
 
-      const t = this.ctx.currentTime;
-      const bassNotes = [55, 55, 82.41, 73.42, 55, 98, 82.41, 73.42];
-      const leadNotes = [220, 246.94, 293.66, 329.63, 293.66, 246.94, 220, 196];
-      const bass = this.ctx.createOscillator();
-      const bassGain = this.ctx.createGain();
-      const lead = this.ctx.createOscillator();
-      const leadGain = this.ctx.createGain();
-      const beat = this.musicStep % bassNotes.length;
+      const startTime = this.ctx.currentTime + 0.01;
+      const cycleStep = this.musicStep % 128;
+      const section = Math.floor(cycleStep / 32);
+      const sectionStep = cycleStep % 32;
+      const beatStep = this.musicStep % 16;
+      const breakdown = section === 3 && sectionStep >= 24;
+      const kickStep = this.musicStep % 2 === 0;
 
-      bass.type = 'sawtooth';
-      bass.frequency.setValueAtTime(bassNotes[beat], t);
-      bassGain.gain.setValueAtTime(beat % 2 === 0 ? 0.045 : 0.026, t);
-      bassGain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      bass.connect(bassGain);
-      bassGain.connect(this.masterGain);
-      bass.start(t);
-      bass.stop(t + 0.24);
+      if (!breakdown || sectionStep % 4 === 0) {
+        if (kickStep) this.scheduleKick(startTime, this.musicStep % 8 === 0);
+        this.scheduleBass(startTime, beatStep, kickStep);
+      }
 
-      if (this.musicStep % 2 === 0) {
-        lead.type = 'triangle';
-        lead.frequency.setValueAtTime(leadNotes[beat], t);
-        leadGain.gain.setValueAtTime(0.018, t);
-        leadGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-        lead.connect(leadGain);
-        leadGain.connect(this.masterGain);
-        lead.start(t);
-        lead.stop(t + 0.2);
+      if (!breakdown || sectionStep % 2 === 1) {
+        this.scheduleHat(startTime, this.musicStep % 8 === 7);
+      }
+
+      if (!breakdown && (this.musicStep % 8 === 2 || this.musicStep % 8 === 6)) {
+        this.scheduleClap(startTime);
+      }
+
+      if ((!breakdown && (section > 0 || sectionStep >= 8)) && this.musicStep % 2 === 0) {
+        this.scheduleLead(startTime, beatStep, section === 2 && this.musicStep % 4 === 0);
+      }
+
+      if (breakdown) {
+        const riseNote = MISSION_RISE_PATTERN[sectionStep - 24];
+        this.scheduleMusicTone(riseNote, 'sawtooth', startTime, 0.16, 0.018, riseNote * 1.45, 0.01);
       }
 
       this.musicStep++;
     };
 
     pulse();
-    this.musicTimer = window.setInterval(pulse, 260);
+    this.musicTimer = window.setInterval(pulse, MISSION_STEP_MS);
   }
 
   public playDialogBlip() {

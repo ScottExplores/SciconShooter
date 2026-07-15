@@ -13,7 +13,8 @@ test('project wallet enables a sticky test run with real flask charge and no lea
   assert.match(appSource, /activeWalletAddress\?\.toLowerCase\(\) === DONATION_CONFIG\.RECIPIENT_ADDRESS\.toLowerCase\(\)/);
   assert.match(appSource, /type ActiveRunMode = 'standard' \| 'owner-test'/);
   assert.match(appSource, /OWNER_TEST_FLASK_COUNT = 40/);
-  assert.match(appSource, /startRunSession\(\{ testRun: startInTestMode \}\)/);
+  assert.match(appSource, /beginRunSession\(isOwnerTestRun \|\| isOwnerWallet\)/);
+  assert.match(appSource, /completedPhase === 1/);
   assert.match(appSource, /if \(isOwnerTestRun\) \{[\s\S]*?finalizeCurrentRun\(\)/);
   assert.match(appSource, /!isOwnerTestRun && stats\.score > stats\.highScore/);
 });

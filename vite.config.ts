@@ -12,6 +12,7 @@ const runClaimsHandler = require('./api/run-claims.js');
 const weeklyClaimHandler = require('./api/weekly-claim.js');
 const mintAuthorizationHandler = require('./api/mint-authorization.js');
 const mintRecordsHandler = require('./api/mint-records.js');
+const playerRunsHandler = require('./api/player-runs.js');
 const recordMetadataHandler = require('./api/record-metadata.js');
 const recordCardHandler = require('./api/record-card.js');
 
@@ -129,6 +130,10 @@ const localApiRoutes = () => ({
     mount('/api/mint-records', async (req, res) => {
       if (useRemotePersistence) return proxyPublicApi('/api/mint-records', req, res);
       return mintRecordsHandler(req, res);
+    });
+    mount('/api/player-runs', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/player-runs', req, res);
+      return playerRunsHandler(req, res);
     });
     mount('/api/record-metadata', async (req, res) => {
       if (useRemotePersistence) return proxyPublicApi('/api/record-metadata', req, res);

@@ -1,5 +1,5 @@
 const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
-const { getRecordPresentation } = require('./_lib/recordPresentation');
+const { getPlayerShipId, getRecordPresentation } = require('./_lib/recordPresentation');
 const gameCampaign = require('../game-config/campaign.json');
 const generatedAssetsManifest = require('../game-config/generated-assets.json');
 
@@ -8,6 +8,9 @@ const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_lead
 const recordCardRenderer = import('../shared/record-card/renderRecordCardSvg.mjs');
 const BUILT_IN_CARD_ASSET_PATHS = {
   PLAYER_SHIP: '/game-art/branding/researchhub-ship.png',
+  BIO_SHIP: '/game-art/branding/bio-ship.png',
+  ETH_SHIP: '/game-art/branding/eth-ship.png',
+  BTC_SHIP: '/game-art/branding/btc-ship.svg',
   RSC_TOKEN: '/game-art/tokens/rsc-coin.svg',
   REAL_RSC_ICON: '/game-art/tokens/rsc-bottle.png',
   GAME_BG_BACK: '/game-art/backgrounds/bg-back.png',
@@ -47,6 +50,12 @@ const CARD_ASSET_PATHS = Object.freeze({
 });
 const RECORD_CARD_FRAME_PATH = '/game-art/record-card/mission-record-frame.png';
 const LOOPBACK_HOST = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i;
+const PLAYER_SHIP_ASSET_KEYS = Object.freeze({
+  researchhub: 'PLAYER_SHIP',
+  bio: 'BIO_SHIP',
+  eth: 'ETH_SHIP',
+  btc: 'BTC_SHIP'
+});
 
 const resolveAssetOrigin = (req) => {
   const host = String(req.headers?.host || '');
@@ -77,14 +86,18 @@ module.exports = async (req, res) => {
 
   try {
     const [receiptRows, scoreRows] = await Promise.all([
-      fetchSupabaseJson(`${RECEIPTS_TABLE}?select=game_version,integrity_status,finished_at,duration_ms,score,wave,enemies_defeated,coins_collected&run_id=eq.${encodeURIComponent(runId)}&limit=1`, { headers: supabaseHeaders() }),
+      fetchSupabaseJson(`${RECEIPTS_TABLE}?select=*&run_id=eq.${encodeURIComponent(runId)}&limit=1`, { headers: supabaseHeaders() }),
       fetchSupabaseJson(`${LEADERBOARD_TABLE}?select=name,score,wave,date&run_id=eq.${encodeURIComponent(runId)}&limit=1`, { headers: supabaseHeaders() })
     ]);
     const receipt = Array.isArray(receiptRows) ? receiptRows[0] : null;
     const scoreRow = Array.isArray(scoreRows) ? scoreRows[0] : null;
     if (!receipt) { res.statusCode = 404; return res.end('Record not found'); }
 
-    const record = getRecordPresentation(receipt, scoreRow);
+    const requestedPlayerShipId = getPlayerShipId(req.query?.ship || receipt.player_ship_id);
+    const record = {
+      ...getRecordPresentation(receipt, scoreRow),
+      playerShipId: requestedPlayerShipId
+    };
     const assetOrigin = resolveAssetOrigin(req);
     const cardConfig = gameCampaign.recordCard || {};
     const {
@@ -98,7 +111,8 @@ module.exports = async (req, res) => {
     const encounterPath = cardConfig.encounterAssetKey === 'AUTO'
       ? automaticEncounterPath
       : CARD_ASSET_PATHS[cardConfig.encounterAssetKey] || automaticEncounterPath;
-    const shipPath = CARD_ASSET_PATHS[cardConfig.shipAssetKey] || CARD_ASSET_PATHS.PLAYER_SHIP;
+    const shipAssetKey = PLAYER_SHIP_ASSET_KEYS[record.playerShipId] || cardConfig.shipAssetKey || 'PLAYER_SHIP';
+    const shipPath = CARD_ASSET_PATHS[shipAssetKey] || CARD_ASSET_PATHS.PLAYER_SHIP;
     const [bossImage, shipImage, frameImage] = await Promise.all([
       embedImage(`${assetOrigin}${encounterPath}`),
       embedImage(`${assetOrigin}${shipPath}`),

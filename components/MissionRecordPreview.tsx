@@ -10,6 +10,7 @@ import type { RunReceipt } from '../services/runReceiptService';
 import type { MissionRecordWeeklyFunding } from '../services/weeklyFundingFlow';
 import { trackEvent } from '../services/analyticsService';
 import { shareScoreCardImage } from '../services/scoreCardShareService';
+import { parsePlayerShipId, PLAYER_SHIPS } from '../services/playerShipService';
 import { buildMissionRecordCardSvg, MissionRecordCard } from './MissionRecordCard';
 
 interface MissionRecordPreviewProps {
@@ -18,10 +19,8 @@ interface MissionRecordPreviewProps {
   walletAddress?: string | null;
   walletStatus?: 'idle' | 'connecting' | 'connected' | 'error';
   mintConfigured: boolean;
-  mintChainId: number;
   mintStatus: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error';
   mintMessage?: string;
-  mintHash?: string;
   onConnect: () => void;
   onGetBaseApp: () => void;
   onMint: () => void;
@@ -48,10 +47,8 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   walletAddress,
   walletStatus = 'idle',
   mintConfigured,
-  mintChainId,
   mintStatus,
   mintMessage,
-  mintHash,
   onConnect,
   onGetBaseApp,
   onMint,
@@ -64,8 +61,8 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   const [cardImageFailed, setCardImageFailed] = useState(false);
   const useCanonicalServerImage = import.meta.env.PROD;
   const dateLabel = formatRecordCardCompletedLabel(receipt.finishedAt);
-  const cardUrl = `${window.location.origin}${buildMissionRecordCardPath(receipt.runId)}`;
-  const explorerUrl = mintChainId === 8453 ? 'https://basescan.org' : 'https://sepolia.basescan.org';
+  const playerShipId = parsePlayerShipId(receipt.metrics.playerShipId);
+  const cardUrl = `${window.location.origin}${buildMissionRecordCardPath(receipt.runId, playerShipId)}`;
   const needsBaseAccount = !walletAddress;
   const weeklyChoiceRequired = Boolean(weeklyFunding && weeklyFunding.status !== 'selected');
   const encounter = getEncounter(receipt.metrics.wave);
@@ -74,7 +71,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
     ? resolveRecordCardEncounterAssetKey(DEFAULT_GAME_CAMPAIGN, receipt.metrics.wave) as AssetKey
     : recordCardConfig.encounterAssetKey;
   const encounterArt = getPrimaryAssetPath(encounterAssetKey);
-  const shipArt = getPrimaryAssetPath(recordCardConfig.shipAssetKey);
+  const shipArt = PLAYER_SHIPS[playerShipId].assetUrl;
   const cardRecord = {
     pilotName,
     encounterLabel: encounter,
@@ -248,7 +245,6 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
                 </button>
               </div>
               {shareStatus || mintMessage ? <p className="mt-3 text-center text-[10px] font-semibold text-slate-400">{mintMessage || shareStatus}</p> : null}
-              {mintHash ? <a href={`${explorerUrl}/tx/${mintHash}`} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-[10px] font-black uppercase tracking-[0.14em] text-cyan-200 underline underline-offset-2">View Score Record transaction</a> : null}
             </>
           ) : null}
         </div>

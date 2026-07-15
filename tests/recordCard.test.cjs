@@ -17,8 +17,10 @@ const jsonResponse = (data) => ({
 test('record card embeds encounter art and meaningful run values', async () => {
   const runId = '11111111-2222-4333-8444-555555555555';
   const originalFetch = global.fetch;
+  const fetchedUrls = [];
   global.fetch = async (url) => {
     const value = String(url);
+    fetchedUrls.push(value);
     if (value.includes('scicon_run_receipts')) {
       return jsonResponse([{
         game_version: '2.1.0',
@@ -51,7 +53,7 @@ test('record card embeds encounter art and meaningful run values', async () => {
   };
 
   try {
-    await recordCardHandler({ method: 'GET', query: { runId } }, res);
+    await recordCardHandler({ method: 'GET', query: { runId, ship: 'bio' } }, res);
     assert.equal(res.statusCode, 200);
     assert.equal(res.headers['Content-Type'], 'image/svg+xml');
     assert.match(res.body, /MISSION RECORD/);
@@ -61,6 +63,11 @@ test('record card embeds encounter art and meaningful run values', async () => {
     assert.match(res.body, /JUL 10, 2026 - 12:00 PM UTC/);
     assert.match(res.body, /data:image\/png;base64,/);
     assert.match(res.body, /preserveAspectRatio="none" style="image-rendering:pixelated"/);
+    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/branding/bio-ship.png')));
+
+    await recordCardHandler({ method: 'GET', query: { runId, ship: 'btc' } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/branding/btc-ship.svg')));
   } finally {
     global.fetch = originalFetch;
   }

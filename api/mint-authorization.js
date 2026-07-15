@@ -80,7 +80,7 @@ module.exports = async (req, res) => {
     const expiresAt = Math.floor(Date.now() / 1000) + AUTH_LIFETIME_SECONDS;
     const origin = `https://${req.headers['x-forwarded-host'] || req.headers.host || 'sciconshooter.xyz'}`;
     const { buildMissionRecordMetadataPath } = await recordCardRenderer;
-    const tokenUri = `${origin}${buildMissionRecordMetadataPath(receipt.runId)}`;
+    const tokenUri = `${origin}${buildMissionRecordMetadataPath(receipt.runId, receipt.metrics.playerShipId)}`;
     const { privateKeyToAccount } = await import('viem/accounts');
     const { keccak256, toBytes } = await import('viem');
     const account = privateKeyToAccount(privateKey);

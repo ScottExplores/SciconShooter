@@ -1,7 +1,16 @@
 import { ASSETS } from '../constants';
 import type { MintRecord } from '../types';
 
-export type PlayerShipId = 'researchhub' | 'bio' | 'eth';
+export type PlayerShipId = 'researchhub' | 'bio' | 'eth' | 'btc';
+
+export const ETH_SHIP_SCORE_THRESHOLD = 1_000;
+export const BTC_SHIP_SCORE_THRESHOLD = 10_000;
+
+export interface PlayerShipUnlocks {
+  eth: boolean;
+  btc: boolean;
+  highestMintedScore: number;
+}
 
 export const PLAYER_SHIPS: Readonly<Record<PlayerShipId, {
   id: PlayerShipId;
@@ -22,61 +31,51 @@ export const PLAYER_SHIPS: Readonly<Record<PlayerShipId, {
     id: 'eth',
     name: 'ETH ship',
     assetUrl: ASSETS.ETH_SHIP
+  },
+  btc: {
+    id: 'btc',
+    name: 'BTC ship',
+    assetUrl: ASSETS.BTC_SHIP
   }
 });
 
 export const parsePlayerShipId = (value?: string | null): PlayerShipId => (
-  value === 'bio' || value === 'eth' ? value : 'researchhub'
+  value === 'bio' || value === 'eth' || value === 'btc' ? value : 'researchhub'
 );
 
-export const hasEthShipUnlock = (
+export const getPlayerShipUnlocks = (
   walletAddress: string | null | undefined,
   walletRecords: MintRecord[]
-) => {
+): PlayerShipUnlocks => {
   const normalizedWallet = walletAddress?.toLowerCase();
-  return Boolean(
-    normalizedWallet
-    && walletRecords.some((record) => (
+  const highestMintedScore = normalizedWallet
+    ? walletRecords.reduce((highestScore, record) => {
+      const qualifies = (
       record.walletAddress?.toLowerCase() === normalizedWallet
       && record.recordType === 'mission'
       && record.status === 'confirmed'
-    ))
-  );
+      && record.ownershipVerified !== false
+      && Number.isFinite(record.score)
+      );
+      return qualifies ? Math.max(highestScore, Math.floor(record.score || 0)) : highestScore;
+    }, 0)
+    : 0;
+
+  return {
+    eth: highestMintedScore >= ETH_SHIP_SCORE_THRESHOLD,
+    btc: highestMintedScore >= BTC_SHIP_SCORE_THRESHOLD,
+    highestMintedScore
+  };
 };
 
-export const ownsSciconRecordNft = async (
-  walletAddress: string | null | undefined
-): Promise<boolean> => {
-  const contractAddress = (import.meta.env.VITE_MISSION_RECORD_CONTRACT_ADDRESS as string | undefined)?.trim();
-  if (!walletAddress || !contractAddress || !/^0x[a-fA-F0-9]{40}$/.test(contractAddress)) return false;
-
-  const [{ createPublicClient, http }, { base }] = await Promise.all([
-    import('viem'),
-    import('viem/chains')
-  ]);
-  const client = createPublicClient({
-    chain: base,
-    transport: http()
-  });
-  const balance = await client.readContract({
-    address: contractAddress as `0x${string}`,
-    abi: [{
-      type: 'function',
-      name: 'balanceOf',
-      stateMutability: 'view',
-      inputs: [{ name: 'owner', type: 'address' }],
-      outputs: [{ name: '', type: 'uint256' }]
-    }],
-    functionName: 'balanceOf',
-    args: [walletAddress as `0x${string}`]
-  } as any) as bigint;
-
-  return balance > 0n;
-};
+export const isPlayerShipUnlocked = (
+  shipId: PlayerShipId,
+  unlocks: PlayerShipUnlocks
+) => shipId !== 'eth' && shipId !== 'btc' ? true : unlocks[shipId];
 
 export const getUsablePlayerShip = (
   selectedShip: PlayerShipId,
-  ethShipUnlocked: boolean
+  unlocks: PlayerShipUnlocks
 ): PlayerShipId => (
-  selectedShip === 'eth' && !ethShipUnlocked ? 'researchhub' : selectedShip
+  isPlayerShipUnlocked(selectedShip, unlocks) ? selectedShip : 'researchhub'
 );

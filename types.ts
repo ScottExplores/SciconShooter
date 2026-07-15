@@ -105,6 +105,8 @@ export interface MintRecord {
   sponsored: boolean;
   createdAt: string;
   confirmedAt?: string;
+  score?: number;
+  ownershipVerified?: boolean;
 }
 
 export interface Stats {

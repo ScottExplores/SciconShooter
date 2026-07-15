@@ -12,15 +12,97 @@ const sendJson = (res, status, payload) => {
 const addressPattern = /^0x[a-f0-9]{40}$/i;
 const hashPattern = /^0x[a-f0-9]{64}$/i;
 
+const loadMissionScores = async (rows) => {
+  const runIds = [...new Set(rows
+    .filter((row) => row?.record_type === 'mission' && row?.run_id)
+    .map((row) => String(row.run_id))
+  )];
+  if (runIds.length === 0) return new Map();
+
+  try {
+    const receipts = await fetchSupabaseJson(
+      `${RECEIPTS_TABLE}?select=run_id,score&run_id=in.(${runIds.map(encodeURIComponent).join(',')})&limit=${runIds.length}`,
+      { headers: supabaseHeaders() }
+    );
+    return new Map((Array.isArray(receipts) ? receipts : []).map((receipt) => [
+      String(receipt.run_id),
+      Math.max(0, Math.floor(Number(receipt.score) || 0))
+    ]));
+  } catch (error) {
+    console.error('Mint score enrichment failed:', error);
+    return new Map();
+  }
+};
+
+const verifyCurrentTokenOwnership = async (rows, wallet) => {
+  const contractAddress = process.env.MISSION_RECORD_CONTRACT_ADDRESS?.toLowerCase();
+  const tokenRows = rows.filter((row) => (
+    row?.status === 'confirmed'
+    && /^\d+$/.test(String(row.token_id || ''))
+  ));
+  if (!addressPattern.test(contractAddress || '') || tokenRows.length === 0) return new Map();
+
+  try {
+    const { createPublicClient, http } = await import('viem');
+    const { base, baseSepolia } = await import('viem/chains');
+    const chainId = Number(process.env.MISSION_RECORD_CHAIN_ID || 8453);
+    const chain = chainId === 8453 ? base : baseSepolia;
+    const client = createPublicClient({
+      chain,
+      transport: http(chainId === 8453
+        ? (process.env.BASE_RPC_URL || 'https://mainnet.base.org')
+        : (process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'), {
+        retryCount: 0,
+        timeout: 3500
+      })
+    });
+    const ownershipResults = await client.multicall({
+      allowFailure: true,
+      contracts: tokenRows.map((row) => ({
+        address: contractAddress,
+        abi: [{
+          type: 'function',
+          name: 'ownerOf',
+          stateMutability: 'view',
+          inputs: [{ name: 'tokenId', type: 'uint256' }],
+          outputs: [{ name: '', type: 'address' }]
+        }],
+        functionName: 'ownerOf',
+        args: [BigInt(row.token_id)]
+      }))
+    });
+    return new Map(tokenRows.map((row, index) => {
+      const result = ownershipResults[index];
+      return [String(row.token_id), result?.status === 'success' && String(result.result).toLowerCase() === wallet];
+    }));
+  } catch (error) {
+    console.error('Mint ownership verification failed:', error);
+    return new Map();
+  }
+};
+
 module.exports = async (req, res) => {
   try {
     if (req.method === 'GET') {
       const wallet = String(req.query?.wallet || '').toLowerCase();
       if (!addressPattern.test(wallet)) return sendJson(res, 400, { error: 'Valid wallet is required' });
-      const rows = await fetchSupabaseJson(`${MINTS_TABLE}?select=record_type,run_id,week_key,wallet_address,chain_id,token_id,transaction_hash,status,sponsored,created_at,confirmed_at&wallet_address=eq.${wallet}&order=created_at.desc&limit=50`, {
+      const rows = await fetchSupabaseJson(`${MINTS_TABLE}?select=record_type,run_id,week_key,wallet_address,chain_id,token_id,transaction_hash,status,sponsored,created_at,confirmed_at&wallet_address=eq.${wallet}&order=created_at.desc&limit=100`, {
         headers: supabaseHeaders()
       });
-      return sendJson(res, 200, { records: Array.isArray(rows) ? rows : [] });
+      const records = Array.isArray(rows) ? rows : [];
+      const [scoresByRunId, ownershipByTokenId] = await Promise.all([
+        loadMissionScores(records),
+        verifyCurrentTokenOwnership(records, wallet)
+      ]);
+      return sendJson(res, 200, {
+        records: records.map((record) => ({
+          ...record,
+          score: scoresByRunId.get(String(record.run_id)),
+          ownership_verified: record.token_id && ownershipByTokenId.has(String(record.token_id))
+            ? ownershipByTokenId.get(String(record.token_id))
+            : undefined
+        }))
+      });
     }
     if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed' });
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});

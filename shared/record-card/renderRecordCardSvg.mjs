@@ -6,14 +6,18 @@ const XML_ENTITIES = Object.freeze({
   '"': '&quot;'
 });
 
-export const RECORD_CARD_RENDER_VERSION = '2026-07-11-2';
+export const RECORD_CARD_RENDER_VERSION = '2026-07-14-2';
 
-export const buildMissionRecordCardPath = (runId) => (
-  `/api/record-card?runId=${encodeURIComponent(String(runId ?? ''))}&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
+const buildShipQuery = (playerShipId) => (
+  playerShipId ? `&ship=${encodeURIComponent(String(playerShipId))}` : ''
 );
 
-export const buildMissionRecordMetadataPath = (runId) => (
-  `/api/record-metadata?type=mission&runId=${encodeURIComponent(String(runId ?? ''))}&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
+export const buildMissionRecordCardPath = (runId, playerShipId) => (
+  `/api/record-card?runId=${encodeURIComponent(String(runId ?? ''))}${buildShipQuery(playerShipId)}&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
+);
+
+export const buildMissionRecordMetadataPath = (runId, playerShipId) => (
+  `/api/record-metadata?type=mission&runId=${encodeURIComponent(String(runId ?? ''))}${buildShipQuery(playerShipId)}&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
 );
 
 export const formatRecordCardCompletedLabel = (value) => {

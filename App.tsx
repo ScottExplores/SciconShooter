@@ -18,10 +18,10 @@ import {
 } from './services/runReceiptService';
 import { trackEvent, trackInitialVisit } from './services/analyticsService';
 import { getWalletRecords } from './services/recordService';
+import { getWalletRuns, type WalletRunRecord } from './services/playerRunService';
 import {
   getUsablePlayerShip,
-  hasEthShipUnlock,
-  ownsSciconRecordNft,
+  getPlayerShipUnlocks,
   parsePlayerShipId,
   PLAYER_SHIPS,
   type PlayerShipId
@@ -97,23 +97,6 @@ const runAfterFirstPaint = (
       idleWindow.cancelIdleCallback(idleHandle);
     }
   };
-};
-
-const readLatestVerifiedRun = (): RunReceipt | null => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.LATEST_RUN_RECEIPT);
-    if (!stored) return null;
-    const receipt = JSON.parse(stored) as RunReceipt;
-    const expiresAt = new Date(receipt.expiresAt).getTime();
-    if (!receipt.runId || receipt.integrity === 'local-unverified' || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-      localStorage.removeItem(STORAGE_KEYS.LATEST_RUN_RECEIPT);
-      return null;
-    }
-    return receipt;
-  } catch {
-    localStorage.removeItem(STORAGE_KEYS.LATEST_RUN_RECEIPT);
-    return null;
-  }
 };
 
 const openExternalUrl = async (url: string) => {
@@ -268,7 +251,8 @@ const App: React.FC = () => {
   const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [archivedWinners, setArchivedWinners] = useState<ArchivedWinner[]>([]);
   const [walletRecords, setWalletRecords] = useState<MintRecord[]>([]);
-  const [onchainRecordOwner, setOnchainRecordOwner] = useState<string | null>(null);
+  const [walletRuns, setWalletRuns] = useState<WalletRunRecord[]>([]);
+  const [walletRunsLoading, setWalletRunsLoading] = useState(false);
   const [selectedShipId, setSelectedShipId] = useState<PlayerShipId>(() => (
     parsePlayerShipId(localStorage.getItem(STORAGE_KEYS.SELECTED_SHIP))
   ));
@@ -319,13 +303,15 @@ const App: React.FC = () => {
   const submittingScoreRef = useRef(false);
   const submittedScoreKeysRef = useRef<Set<string>>(new Set());
   const runSessionPromiseRef = useRef<Promise<RunSession> | null>(null);
+  const runStartedAtRef = useRef<number | null>(null);
+  const activeRunShipIdRef = useRef<PlayerShipId>('researchhub');
   const runReceiptPromiseRef = useRef<Promise<RunReceipt> | null>(null);
   const finalizedRunGameIdRef = useRef<number | null>(null);
   const walletActionNonceRef = useRef(0);
   const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
-  const [latestVerifiedRun, setLatestVerifiedRun] = useState<RunReceipt | null>(readLatestVerifiedRun);
   const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
   const [showMissionRecordPreview, setShowMissionRecordPreview] = useState(false);
+  const [missionRecordPilotName, setMissionRecordPilotName] = useState<string | null>(null);
   const [showWeeklyProposalSelection, setShowWeeklyProposalSelection] = useState(false);
   const [weeklyProposalSelectionStatus, setWeeklyProposalSelectionStatus] = useState<ProposalSelectionStatus>('idle');
   const [weeklyProposalSelectionMessage, setWeeklyProposalSelectionMessage] = useState('');
@@ -334,7 +320,6 @@ const App: React.FC = () => {
   const [championClaimMessage, setChampionClaimMessage] = useState('');
   const [missionMintStatus, setMissionMintStatus] = useState<'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error'>('idle');
   const [missionMintMessage, setMissionMintMessage] = useState('');
-  const [missionMintHash, setMissionMintHash] = useState('');
 
   const clearIntroStoryTimeout = () => {
     if (introStoryTimeoutRef.current) {
@@ -387,19 +372,32 @@ const App: React.FC = () => {
   const activeWalletAddress = wallet.address ?? null;
   const isOwnerWallet = activeWalletAddress?.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase();
   const isOwnerTestRun = activeRunMode === 'owner-test';
+  const previewPilotName = missionRecordPilotName || playerNameInput || 'PILOT';
   const missionRecordWeeklyFunding = useMemo(() => runReceipt ? getMissionRecordWeeklyFunding({
     receipt: runReceipt,
-    pilotName: playerNameInput || 'PILOT',
+    pilotName: previewPilotName,
     weeklyLeaderboard: monthlyLeaderboard,
     archivedWinners
-  }) : null, [archivedWinners, monthlyLeaderboard, playerNameInput, runReceipt]);
-  const ethShipUnlocked = useMemo(
-    () => hasEthShipUnlock(activeWalletAddress, walletRecords)
-      || Boolean(activeWalletAddress && onchainRecordOwner === activeWalletAddress.toLowerCase()),
-    [activeWalletAddress, onchainRecordOwner, walletRecords]
+  }) : null, [archivedWinners, monthlyLeaderboard, previewPilotName, runReceipt]);
+  const shipUnlocks = useMemo(
+    () => getPlayerShipUnlocks(activeWalletAddress, walletRecords),
+    [activeWalletAddress, walletRecords]
   );
-  const usableShipId = getUsablePlayerShip(selectedShipId, ethShipUnlocked);
+  const usableShipId = getUsablePlayerShip(selectedShipId, shipUnlocks);
   const playerShipUrl = PLAYER_SHIPS[usableShipId].assetUrl;
+  const beginRunSession = useCallback((testRun: boolean) => {
+    if (runSessionPromiseRef.current) return;
+
+    runStartedAtRef.current = Date.now();
+    setRunReceiptStatus('starting');
+    runSessionPromiseRef.current = startRunSession({
+      testRun,
+      playerShipId: activeRunShipIdRef.current
+    }).then((session) => {
+      setRunReceiptStatus(session.localOnly ? 'local' : 'idle');
+      return session;
+    });
+  }, []);
   const continueRscCost = (continuesUsed + 1) * 5;
   const isContinuePaymentBusy = continuePaymentStatus === 'switching_network'
     || continuePaymentStatus === 'processing'
@@ -427,22 +425,6 @@ const App: React.FC = () => {
       playerName: ''
     };
   };
-
-  useEffect(() => {
-    let active = true;
-    setOnchainRecordOwner(null);
-    if (!activeWalletAddress) return () => { active = false; };
-
-    void ownsSciconRecordNft(activeWalletAddress)
-      .then((ownsRecord) => {
-        if (active && ownsRecord) setOnchainRecordOwner(activeWalletAddress.toLowerCase());
-      })
-      .catch(() => {
-        // The confirmed mint API remains a fallback when a public RPC is unavailable.
-      });
-
-    return () => { active = false; };
-  }, [activeWalletAddress]);
 
   useEffect(() => {
     let active = true;
@@ -572,7 +554,13 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!activeWalletAddress) return;
+    let cancelled = false;
+    if (!activeWalletAddress) {
+      setWalletRecords([]);
+      setWalletRuns([]);
+      setWalletRunsLoading(false);
+      return undefined;
+    }
 
     trackEvent('wallet_connected');
 
@@ -584,8 +572,21 @@ const App: React.FC = () => {
       totalCoins: Math.max(prev.totalCoins, savedStats.totalCoins || 0)
     }));
 
-    void getWalletRecords(activeWalletAddress).then(setWalletRecords);
+    setWalletRunsLoading(true);
+    void Promise.all([
+      getWalletRecords(activeWalletAddress),
+      getWalletRuns(activeWalletAddress)
+    ]).then(([records, runs]) => {
+      if (cancelled) return;
+      setWalletRecords(records);
+      setWalletRuns(runs);
+    }).finally(() => {
+      if (!cancelled) setWalletRunsLoading(false);
+    });
 
+    return () => {
+      cancelled = true;
+    };
   }, [activeWalletAddress]);
 
   useEffect(() => {
@@ -602,14 +603,13 @@ const App: React.FC = () => {
     setRunReceiptStatus('starting');
     finalizedRunGameIdRef.current = null;
     runReceiptPromiseRef.current = null;
-    runSessionPromiseRef.current = startRunSession({ testRun: true }).then((session) => {
-      setRunReceiptStatus(session.localOnly ? 'local' : 'idle');
-      return session;
-    });
-  }, [activeRunMode, gameState, isOwnerWallet]);
+    runSessionPromiseRef.current = null;
+    beginRunSession(true);
+  }, [activeRunMode, beginRunSession, gameState, isOwnerWallet]);
 
   const startGame = () => {
     const startInTestMode = isOwnerWallet;
+    setMissionRecordPilotName(null);
     preloadGameplayComponents();
     audioService.init();
     clearIntroStoryTimeout();
@@ -650,7 +650,6 @@ const App: React.FC = () => {
     setIsSubmittingScore(false);
     setScoreSaved(false);
     setRunReceipt(null);
-    setRunReceiptStatus('starting');
     setShowMissionRecordPreview(false);
     setShowWeeklyProposalSelection(false);
     setWeeklyProposalSelectionStatus('idle');
@@ -659,13 +658,12 @@ const App: React.FC = () => {
     setScorecardChampionWinner(null);
     setMissionMintStatus('idle');
     setMissionMintMessage('');
-    setMissionMintHash('');
     finalizedRunGameIdRef.current = null;
+    activeRunShipIdRef.current = usableShipId;
+    runStartedAtRef.current = null;
     runReceiptPromiseRef.current = null;
-    runSessionPromiseRef.current = startRunSession({ testRun: startInTestMode }).then((session) => {
-      setRunReceiptStatus(session.localOnly ? 'local' : 'idle');
-      return session;
-    });
+    runSessionPromiseRef.current = null;
+    setRunReceiptStatus('idle');
     submittingScoreRef.current = false;
     setGameId(prev => prev + 1);
     lastStoryWaveRef.current = 1;
@@ -692,7 +690,17 @@ const App: React.FC = () => {
     setScorecardChampionWinner(null);
     setActiveRunMode('standard');
     setOwnerFrameFrozen(false);
+    runStartedAtRef.current = null;
+    runSessionPromiseRef.current = null;
     setGameState(GameState.MENU);
+  };
+
+  const completeStoryTransmission = () => {
+    const completedPhase = activeStoryBeat?.phase;
+    if (completedPhase === 1) {
+      beginRunSession(isOwnerTestRun || isOwnerWallet);
+    }
+    setActiveStoryBeat(null);
   };
 
   const handleFieldUpgrade = (type: FieldUpgradeType) => {
@@ -861,22 +869,25 @@ const App: React.FC = () => {
     trackEvent('mission_completed', { score: stats.score, wave: stats.wave });
     finalizedRunGameIdRef.current = gameId;
     setRunReceiptStatus('finalizing');
-    const sessionPromise = runSessionPromiseRef.current ?? startRunSession({ testRun: isOwnerTestRun });
+    const gameplayStartedAt = runStartedAtRef.current ?? Date.now();
+    runStartedAtRef.current = gameplayStartedAt;
+    const sessionPromise = runSessionPromiseRef.current ?? startRunSession({
+      testRun: isOwnerTestRun,
+      playerShipId: activeRunShipIdRef.current
+    });
+    runSessionPromiseRef.current = sessionPromise;
     const receiptPromise = sessionPromise
       .then((session) => finishRunSession(session, {
         score: stats.score,
         wave: stats.wave,
-        durationMs: Math.max(0, Date.now() - new Date(session.issuedAt).getTime()),
+        durationMs: Math.max(0, Date.now() - gameplayStartedAt),
         enemiesDefeated: stats.enemiesDefeated,
-        coinsCollected: stats.coins
+        coinsCollected: stats.coins,
+        playerShipId: activeRunShipIdRef.current
       }))
       .then((receipt) => {
         setRunReceipt(receipt);
         setRunReceiptStatus(receipt.integrity === 'local-unverified' ? 'local' : 'ready');
-        if (receipt.integrity !== 'local-unverified' && !receipt.testRun) {
-          setLatestVerifiedRun(receipt);
-          localStorage.setItem(STORAGE_KEYS.LATEST_RUN_RECEIPT, JSON.stringify(receipt));
-        }
         return receipt;
       })
       .catch((error) => {
@@ -996,6 +1007,13 @@ const App: React.FC = () => {
       submittedScoreKeysRef.current.add(scoreKey);
       setScoreSaved(true);
       trackEvent('score_submitted', { score, wave, integrity: verifiedReceipt.integrity });
+      if (activeWalletAddress) {
+        setWalletRuns(current => [
+          { pilotName: name, receipt: verifiedReceipt },
+          ...current.filter(run => run.receipt.runId !== verifiedReceipt.runId)
+        ].slice(0, 5));
+        void getWalletRuns(activeWalletAddress).then(setWalletRuns);
+      }
       confirmedSave = true;
       return true;
     } catch (error) {
@@ -1070,29 +1088,38 @@ const App: React.FC = () => {
   const handleMissionMintStatus = (
     status: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error',
     message = '',
-    hash = ''
+    _hash = ''
   ) => {
     setMissionMintStatus(status);
     setMissionMintMessage(message);
-    if (hash) setMissionMintHash(hash);
     if (status === 'confirmed') {
       trackEvent('mission_record_minted', {
         chain: missionRecordChainId === 8453 ? 'base' : 'base_sepolia'
       });
       if (activeWalletAddress) {
-        void getWalletRecords(activeWalletAddress).then(setWalletRecords);
+        void Promise.all([
+          getWalletRecords(activeWalletAddress),
+          getWalletRuns(activeWalletAddress)
+        ]).then(([records, runs]) => {
+          setWalletRecords(records);
+          setWalletRuns(runs);
+        });
       }
     }
   };
 
-  const openLatestMissionRecord = () => {
-    if (!latestVerifiedRun) return;
-    setRunReceipt(latestVerifiedRun);
-    setMissionMintStatus('idle');
-    setMissionMintMessage('');
-    setMissionMintHash('');
+  const openWalletRunRecord = (record: WalletRunRecord) => {
+    const existingMint = walletRecords.find((mint) => (
+      mint.recordType === 'mission'
+      && mint.runId === record.receipt.runId
+      && mint.status === 'confirmed'
+    ));
+    setRunReceipt(record.receipt);
+    setMissionRecordPilotName(record.pilotName);
+    setMissionMintStatus(existingMint ? 'confirmed' : 'idle');
+    setMissionMintMessage(existingMint ? 'This Mission Record is already minted.' : '');
     setShowMissionRecordPreview(true);
-    trackEvent('mint_preview_opened', { record_type: 'mission', source: 'trophy_deck' });
+    trackEvent('mint_preview_opened', { record_type: 'mission', source: 'wallet_run_history' });
   };
 
   const skipScoreSubmission = () => {
@@ -1369,11 +1396,12 @@ const App: React.FC = () => {
           monthlyLeaderboard={monthlyLeaderboard}
           archivedWinners={archivedWinners}
           walletRecords={walletRecords}
+          walletRuns={walletRuns}
+          walletRunsLoading={walletRunsLoading}
           walletAddress={activeWalletAddress}
           selectedShipId={usableShipId}
-          ethShipUnlocked={ethShipUnlocked}
+          shipUnlocks={shipUnlocks}
           onSelectShip={setSelectedShipId}
-          latestRunReceipt={latestVerifiedRun}
           isLoading={loadingLeaderboard}
           proposals={fundingProposals}
           proposalStatus={proposalStatus}
@@ -1383,7 +1411,7 @@ const App: React.FC = () => {
           onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
           onOpenTreasurySend={openTreasurySend}
           onOpenSwap={openRscSwap}
-          onOpenLatestRecord={openLatestMissionRecord}
+          onOpenWalletRun={openWalletRunRecord}
           championClaimStatus={championClaimStatus}
           championClaimMessage={championClaimMessage}
           onClaimWeeklyChampion={claimWeeklyChampion}
@@ -1409,11 +1437,12 @@ const App: React.FC = () => {
             monthlyLeaderboard={monthlyLeaderboard}
             archivedWinners={archivedWinners}
             walletRecords={walletRecords}
+            walletRuns={walletRuns}
+            walletRunsLoading={walletRunsLoading}
             walletAddress={activeWalletAddress}
             selectedShipId={usableShipId}
-            ethShipUnlocked={ethShipUnlocked}
+            shipUnlocks={shipUnlocks}
             onSelectShip={setSelectedShipId}
-            latestRunReceipt={runReceipt}
             isLoading={loadingLeaderboard}
             proposals={fundingProposals}
             proposalStatus={proposalStatus}
@@ -1423,7 +1452,7 @@ const App: React.FC = () => {
             onOpenXProfile={() => openExternalUrl(DONATION_CONFIG.X_PROFILE_URL)}
             onOpenTreasurySend={openTreasurySend}
             onOpenSwap={openRscSwap}
-            onOpenLatestRecord={openLatestMissionRecord}
+            onOpenWalletRun={openWalletRunRecord}
             championClaimStatus="idle"
             championClaimMessage=""
             onClaimWeeklyChampion={claimWeeklyChampion}
@@ -1685,7 +1714,7 @@ const App: React.FC = () => {
         <React.Suspense fallback={null}>
           <StoryTransmission
             beat={activeStoryBeat}
-            onComplete={() => setActiveStoryBeat(null)}
+            onComplete={completeStoryTransmission}
           />
         </React.Suspense>
       ) : null}
@@ -1709,15 +1738,13 @@ const App: React.FC = () => {
       {showMissionRecordPreview && runReceipt ? (
         <React.Suspense fallback={null}>
           <MissionRecordPreview
-            pilotName={playerNameInput || 'PILOT'}
+            pilotName={previewPilotName}
             receipt={runReceipt}
             walletAddress={activeWalletAddress}
             walletStatus={wallet.status}
             mintConfigured={mintConfigured}
-            mintChainId={missionRecordChainId}
             mintStatus={missionMintStatus}
             mintMessage={missionMintMessage}
-            mintHash={missionMintHash}
             onConnect={connectWallet}
             onGetBaseApp={openBaseAppInvite}
             onMint={mintCurrentMissionRecord}

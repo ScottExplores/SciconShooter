@@ -96,3 +96,10 @@ test('ETH ship equips an upgradeable piercing crystal-shard weapon', () => {
   assert.match(engineSource, /1\.15 \+ ethShardLevel \* 0\.48/);
   assert.match(engineSource, /isEthShard && ethShardLevel >= 4/);
 });
+
+test('BTC ship equips an upgradeable golden hash-bolt weapon', () => {
+  assert.match(engineSource, /this\.playerShipUrl === ASSETS\.BTC_SHIP/);
+  assert.match(engineSource, /'btc-hash'/);
+  assert.match(engineSource, /1\.3 \+ btcHashLevel \* 0\.54/);
+  assert.match(engineSource, /isBtcHashShot/);
+});

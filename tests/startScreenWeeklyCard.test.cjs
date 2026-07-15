@@ -11,6 +11,10 @@ const leaderboardServiceSource = fs.readFileSync(
   path.join(__dirname, '..', 'services', 'leaderboardService.ts'),
   'utf8'
 );
+const htmlSource = fs.readFileSync(
+  path.join(__dirname, '..', 'index.html'),
+  'utf8'
+);
 
 test('home winner card uses the same proposal progress calculation as proposal rows', () => {
   assert.match(
@@ -29,9 +33,20 @@ test('home winner image has no trophy overlay', () => {
 });
 
 test('mobile home lets its mission panel fill the available space above navigation', () => {
-  assert.match(source, /className="flex min-h-full flex-col gap-2"/);
+  assert.match(source, /className="scicon-mobile-home flex min-h-full flex-col gap-2"/);
   assert.match(source, /<HeroPanel compact fill\s*\/>/);
   assert.match(source, /fill \? 'flex-1' : ''/);
+  assert.match(source, /sci-hero-content--compact/);
+  assert.match(htmlSource, /#root \.scicon-mobile-home[\s\S]*grid-template-rows: auto minmax\(17\.5rem, 1fr\)/);
+  assert.match(htmlSource, /#root \.sci-hero-content--compact[\s\S]*grid-template-rows: auto minmax\(6rem, 1fr\) auto/);
+  assert.match(htmlSource, /max-height: 720px/);
+});
+
+test('weekly leader uses the animated arcade frame treatment', () => {
+  assert.match(source, /className="sci-weekly-frame" aria-hidden="true"/);
+  assert.match(htmlSource, /\.sci-weekly-frame \{/);
+  assert.match(htmlSource, /clip-path: polygon\(12px 0/);
+  assert.match(htmlSource, /\.sci-weekly-frame::before/);
 });
 
 test('weekly and all-time Trophy Deck views retain and render up to 100 scores', () => {
@@ -42,4 +57,52 @@ test('weekly and all-time Trophy Deck views retain and render up to 100 scores',
   assert.match(source, /displayedLeaderboard\.map/);
   assert.match(source, /max-h-\[min\(62vh,48rem\)\].*overflow-y-auto.*custom-scrollbar/);
   assert.doesNotMatch(source, /visibleLeaderboard\.slice\(0, 8\)/);
+});
+
+test('Weekly and All-time leaders share gold, silver, and bronze podium framing', () => {
+  assert.match(source, /\{ label: 'Gold', tone: 'gold' \}/);
+  assert.match(source, /\{ label: 'Silver', tone: 'silver' \}/);
+  assert.match(source, /\{ label: 'Bronze', tone: 'bronze' \}/);
+  assert.match(source, /const podium = podiumRanks\[index\]/);
+  assert.match(source, /sci-leaderboard-row--\$\{podium\.tone\}/);
+  assert.match(htmlSource, /\.sci-leaderboard-row--gold/);
+  assert.match(htmlSource, /\.sci-leaderboard-row--silver/);
+  assert.match(htmlSource, /\.sci-leaderboard-row--bronze/);
+});
+
+test('leaderboard names open the canonical Mission Record in a read-only viewer', () => {
+  assert.match(source, /hasViewableMissionRecord\(entry\)/);
+  assert.match(source, /onClick=\{\(\) => openLeaderboardRecord\(entry\)\}/);
+  assert.match(source, /View \$\{entry\.name\}'s Mission Record/);
+
+  const viewerStart = source.indexOf('selectedLeaderboardRecord?.runId');
+  const viewerEnd = source.indexOf('{showFeedback &&', viewerStart);
+  assert.ok(viewerStart >= 0 && viewerEnd > viewerStart);
+  const viewerSource = source.slice(viewerStart, viewerEnd);
+
+  assert.match(viewerSource, /role="dialog"/);
+  assert.match(viewerSource, /buildMissionRecordCardPath\(selectedLeaderboardRecord\.runId\)/);
+  assert.doesNotMatch(viewerSource, /onMint|shareRecord|Share Image|Mint/);
+});
+
+test('client leaderboard filtering uses the same Sunday noon-Pacific boundary as finalization', () => {
+  assert.match(leaderboardServiceSource, /weeklyCompetitionBoundary\.browser/);
+  assert.match(leaderboardServiceSource, /boundary\.startsAt\.getTime\(\)/);
+  assert.match(leaderboardServiceSource, /boundary\.endsAt\.getTime\(\)/);
+  assert.doesNotMatch(leaderboardServiceSource, /dayOffsetFromMonday/);
+});
+
+test('Past Picks renders the complete framed winner archive without trophy thumbnails', () => {
+  const archiveStart = source.indexOf("leaderboardView === 'pastPicks'");
+  const archiveEnd = source.indexOf("leaderboardView === 'records'", archiveStart);
+  assert.ok(archiveStart >= 0 && archiveEnd > archiveStart);
+  const archiveSource = source.slice(archiveStart, archiveEnd);
+
+  assert.match(archiveSource, /sortedPastPicks\.map/);
+  assert.doesNotMatch(archiveSource, /sortedPastPicks\.slice/);
+  assert.match(archiveSource, /sci-past-pick-card/);
+  assert.match(archiveSource, /Final allocation/);
+  assert.match(archiveSource, /winner\.allocationRsc \?\? weeklyAllocation\.allocationRsc/);
+  assert.match(archiveSource, /Proposal selected/);
+  assert.doesNotMatch(archiveSource, /name="trophy"/);
 });

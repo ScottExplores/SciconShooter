@@ -79,8 +79,8 @@ export interface RenderRecordCardSvgOptions {
 
 export const DEFAULT_RECORD_CARD_PRESENTATION: Readonly<ResolvedRecordCardPresentation>;
 export const RECORD_CARD_RENDER_VERSION: string;
-export function buildMissionRecordCardPath(runId: unknown): string;
-export function buildMissionRecordMetadataPath(runId: unknown): string;
+export function buildMissionRecordCardPath(runId: unknown, playerShipId?: unknown): string;
+export function buildMissionRecordMetadataPath(runId: unknown, playerShipId?: unknown): string;
 export function formatRecordCardCompletedLabel(value: unknown): string;
 export function resolveRecordCardEncounterAssetKey(campaign: unknown, waveRef: unknown): string;
 export function escapeRecordCardXml(value: unknown): string;

@@ -18,6 +18,7 @@ const loadAudioService = () => {
   const listeners = new Map();
   const intervals = new Map();
   let nextIntervalId = 1;
+  let oscillatorsCreated = 0;
 
   class FakeAudioParam {
     setTargetAtTime() {}
@@ -36,6 +37,7 @@ const loadAudioService = () => {
 
   class FakeOscillatorNode extends FakeAudioNode {
     frequency = new FakeAudioParam();
+    onended = null;
     start() {}
     stop() {}
   }
@@ -47,7 +49,10 @@ const loadAudioService = () => {
     suspendCalls = 0;
     resumeCalls = 0;
     createGain() { return new FakeGainNode(); }
-    createOscillator() { return new FakeOscillatorNode(); }
+    createOscillator() {
+      oscillatorsCreated += 1;
+      return new FakeOscillatorNode();
+    }
     suspend() {
       this.state = 'suspended';
       this.suspendCalls += 1;
@@ -91,9 +96,29 @@ const loadAudioService = () => {
     audioContext: context.module.exports.audioService.ctx,
     document: context.document,
     listeners,
-    intervals
+    intervals,
+    get oscillatorsCreated() {
+      return oscillatorsCreated;
+    }
   };
 };
+
+test('mission music opens with one launch cue and one progressive sequencer timer', () => {
+  const harness = loadAudioService();
+  harness.audioService.startMusic();
+
+  assert.equal(harness.intervals.size, 1);
+  assert.ok(harness.oscillatorsCreated >= 6);
+
+  const afterFirstStart = harness.oscillatorsCreated;
+  harness.audioService.startMusic();
+  assert.equal(harness.intervals.size, 1);
+  assert.equal(harness.oscillatorsCreated, afterFirstStart);
+
+  const pulse = [...harness.intervals.values()][0];
+  pulse();
+  assert.ok(harness.oscillatorsCreated > afterFirstStart);
+});
 
 test('backgrounding clears music and suspends Web Audio until the page is visible again', async () => {
   const harness = loadAudioService();

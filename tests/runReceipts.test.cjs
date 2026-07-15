@@ -33,11 +33,32 @@ test('creates a server-verified receipt for plausible metrics', async () => {
     wave: 2,
     durationMs: 30_000,
     enemiesDefeated: 10,
-    coinsCollected: 5
+    coinsCollected: 5,
+    playerShipId: 'bio'
   }, requestStub);
   assert.equal(receipt.integrity, 'server-verified');
   assert.equal(receipt.persisted, false);
   assert.equal(verifyRunReceipt(receipt.receiptToken).metrics.score, 5000);
+  assert.equal(receipt.metrics.playerShipId, 'researchhub');
+});
+
+test('binds the selected ship from the signed run start to the finished receipt', async () => {
+  const start = createRunStart('test', { playerShipId: 'eth' });
+  const receipt = await finishRun(start.startToken, {
+    score: 1200,
+    wave: 1,
+    durationMs: 1_500,
+    enemiesDefeated: 3,
+    coinsCollected: 2,
+    playerShipId: 'bio'
+  }, requestStub);
+
+  assert.equal(start.playerShipId, 'eth');
+  assert.equal(receipt.metrics.playerShipId, 'eth');
+  assert.equal(verifyRunReceipt(receipt.receiptToken).metrics.playerShipId, 'eth');
+
+  const btcStart = createRunStart('test', { playerShipId: 'btc' });
+  assert.equal(btcStart.playerShipId, 'btc');
 });
 
 test('rejects a tampered receipt signature', async () => {

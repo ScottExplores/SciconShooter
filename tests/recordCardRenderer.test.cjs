@@ -63,6 +63,14 @@ test('record-card URLs and completion timestamps stay canonical across preview a
     buildMissionRecordMetadataPath(runId),
     `/api/record-metadata?type=mission&runId=${runId}&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
   );
+  assert.equal(
+    buildMissionRecordCardPath(runId, 'bio'),
+    `/api/record-card?runId=${runId}&ship=bio&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
+  );
+  assert.equal(
+    buildMissionRecordMetadataPath(runId, 'eth'),
+    `/api/record-metadata?type=mission&runId=${runId}&ship=eth&v=${encodeURIComponent(RECORD_CARD_RENDER_VERSION)}`
+  );
   assert.equal(formatRecordCardCompletedLabel('2026-07-10T22:09:00.000Z'), 'JUL 10, 2026 - 10:09 PM UTC');
   assert.equal(formatRecordCardCompletedLabel('not-a-date'), 'VERIFIED RUN');
 });
