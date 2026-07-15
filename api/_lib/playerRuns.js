@@ -20,6 +20,10 @@ const receiptColumns = [
   'anomaly_flags',
   'wallet_address'
 ].join(',');
+const legacyReceiptColumns = receiptColumns
+  .split(',')
+  .filter((column) => column !== 'player_ship_id')
+  .join(',');
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
@@ -31,6 +35,21 @@ const sendJson = (res, status, payload) => {
 const normalizePilotName = (value) => {
   const name = String(value || '').trim().toUpperCase();
   return name ? name.slice(0, 15) : 'PILOT';
+};
+
+const fetchReceiptRows = async (query) => {
+  try {
+    return await fetchSupabaseJson(
+      `${RECEIPTS_TABLE}?select=${receiptColumns}&${query}`,
+      { headers: supabaseHeaders() }
+    );
+  } catch (error) {
+    if (!/player_ship_id/i.test(String(error?.message || error))) throw error;
+    return fetchSupabaseJson(
+      `${RECEIPTS_TABLE}?select=${legacyReceiptColumns}&${query}`,
+      { headers: supabaseHeaders() }
+    );
+  }
 };
 
 const handlePlayerRuns = async (req, res) => {
@@ -45,10 +64,7 @@ const handlePlayerRuns = async (req, res) => {
         `${LEADERBOARD_TABLE}?select=run_id,name,date&wallet_address=eq.${wallet}&run_id=not.is.null&order=date.desc&limit=10`,
         { headers: supabaseHeaders() }
       ),
-      fetchSupabaseJson(
-        `${RECEIPTS_TABLE}?select=${receiptColumns}&wallet_address=eq.${wallet}&order=finished_at.desc&limit=${RECENT_RUN_LIMIT}`,
-        { headers: supabaseHeaders() }
-      )
+      fetchReceiptRows(`wallet_address=eq.${wallet}&order=finished_at.desc&limit=${RECENT_RUN_LIMIT}`)
     ]);
 
     const scoreRows = Array.isArray(leaderboardRows) ? leaderboardRows : [];
@@ -66,9 +82,8 @@ const handlePlayerRuns = async (req, res) => {
           body: JSON.stringify({ wallet_address: wallet, wallet_claimed_at: new Date().toISOString() })
         }
       );
-      linkedRows = await fetchSupabaseJson(
-        `${RECEIPTS_TABLE}?select=${receiptColumns}&run_id=in.(${runFilter})&wallet_address=eq.${wallet}&order=finished_at.desc&limit=10`,
-        { headers: supabaseHeaders() }
+      linkedRows = await fetchReceiptRows(
+        `run_id=in.(${runFilter})&wallet_address=eq.${wallet}&order=finished_at.desc&limit=10`
       );
     }
 

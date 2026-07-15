@@ -124,3 +124,72 @@ test('recent run API returns a wallet-bound, mintable receipt', async () => {
     else process.env.RUN_RECEIPT_SECRET = originalSecret;
   }
 });
+
+test('recent run API supports the legacy receipt schema used in production', async () => {
+  const wallet = '0x2222222222222222222222222222222222222222';
+  const storedRun = {
+    run_id: '22222222-3333-4444-8555-666666666666',
+    started_at: '2026-07-14T20:00:00.000Z',
+    finished_at: '2026-07-14T20:01:00.000Z',
+    duration_ms: 60_000,
+    score: 4_321,
+    wave: 2,
+    enemies_defeated: 20,
+    coins_collected: 12,
+    game_version: '2.2.0-base-readiness',
+    integrity_status: 'server-verified',
+    anomaly_flags: [],
+    wallet_address: wallet
+  };
+  const supabasePath = require.resolve('../api/_lib/supabase');
+  const handlerPath = require.resolve('../api/_lib/playerRuns');
+  const runReceiptsPath = require.resolve('../api/_lib/runReceipts');
+  const originalSupabaseCache = require.cache[supabasePath];
+  const originalSecret = process.env.RUN_RECEIPT_SECRET;
+  let modernSelectAttempts = 0;
+  process.env.RUN_RECEIPT_SECRET = 'legacy-player-run-history-test-secret';
+
+  require.cache[supabasePath] = {
+    id: supabasePath,
+    filename: supabasePath,
+    loaded: true,
+    exports: {
+      supabaseHeaders: (extra = {}) => extra,
+      fetchSupabaseJson: async (url) => {
+        const value = String(url);
+        if (value.includes('scicon_leaderboard')) return [];
+        if (value.includes('player_ship_id')) {
+          modernSelectAttempts += 1;
+          throw new Error('column scicon_run_receipts.player_ship_id does not exist');
+        }
+        if (value.includes('wallet_address=eq.')) return [storedRun];
+        throw new Error(`Unexpected query: ${value}`);
+      }
+    }
+  };
+  delete require.cache[handlerPath];
+  delete require.cache[runReceiptsPath];
+  const { handlePlayerRuns } = require('../api/_lib/playerRuns');
+  const response = {
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; },
+    end(body) { this.body = body; }
+  };
+
+  try {
+    await handlePlayerRuns({ method: 'GET', query: { wallet } }, response);
+    const payload = JSON.parse(response.body);
+    assert.equal(response.statusCode, 200);
+    assert.equal(modernSelectAttempts, 1);
+    assert.equal(payload.runs.length, 1);
+    assert.equal(payload.runs[0].receipt.metrics.score, 4_321);
+    assert.equal(payload.runs[0].receipt.metrics.playerShipId, 'researchhub');
+  } finally {
+    delete require.cache[handlerPath];
+    delete require.cache[runReceiptsPath];
+    if (originalSupabaseCache) require.cache[supabasePath] = originalSupabaseCache;
+    else delete require.cache[supabasePath];
+    if (originalSecret === undefined) delete process.env.RUN_RECEIPT_SECRET;
+    else process.env.RUN_RECEIPT_SECRET = originalSecret;
+  }
+});
