@@ -1,9 +1,15 @@
 import React, { useEffect, useRef } from 'react';
-import { GameEngine, type GameEditorSnapshot, type GameRuntimeState } from '../services/gameLogic';
+import {
+  GameEngine,
+  type GameEditorSnapshot,
+  type GameRuntimeState,
+  type WaveVictorySummary
+} from '../services/gameLogic';
 import type { GameCampaign } from '../game-config/types';
 import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
 import { audioService } from '../services/audioService';
+import { PixiGameRenderer } from '../services/pixi/PixiGameRenderer';
 
 export { preloadGameplayAssets } from '../services/gameLogic';
 
@@ -78,9 +84,11 @@ export interface GameCanvasProps {
   running: boolean;
   onGameOver?: () => void;
   onContinueStarted?: () => void;
+  onWaveVictory?: (summary: WaveVictorySummary) => void;
   isTransmissionOpen?: boolean;
   bombCommand?: { nonce: number } | null;
   continueCommand?: { nonce: number; lives: number } | null;
+  waveContinueCommand?: { nonce: number } | null;
   polishSettings: GamePolishSettings;
   playerShipUrl?: string;
   campaign?: GameCampaign;
@@ -92,6 +100,7 @@ export interface GameCanvasProps {
   restartToken?: number;
   testMode?: boolean;
   testWaveCommand?: { nonce: number; wave: number } | null;
+  testBossCommand?: { nonce: number; wave: number } | null;
   testFlaskCommand?: { nonce: number; charge: number } | null;
   onRuntimeState?: (state: GameRuntimeState) => void;
   /** Preview-only entity positions for direct manipulation in the local editor. */
@@ -104,9 +113,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   running,
   onGameOver,
   onContinueStarted,
+  onWaveVictory,
   isTransmissionOpen = false,
   bombCommand = null,
   continueCommand = null,
+  waveContinueCommand = null,
   polishSettings,
   playerShipUrl,
   campaign,
@@ -118,24 +129,29 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   restartToken = 0,
   testMode = false,
   testWaveCommand = null,
+  testBossCommand = null,
   testFlaskCommand = null,
   onRuntimeState,
   onEditorSnapshot
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const pixiRendererRef = useRef<PixiGameRenderer | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const requestRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const handledBombNonceRef = useRef<number | null>(null);
   const handledContinueNonceRef = useRef<number | null>(null);
+  const handledWaveContinueNonceRef = useRef<number | null>(null);
   const handledRestartTokenRef = useRef(restartToken);
   const handledTestWaveNonceRef = useRef<number | null>(null);
+  const handledTestBossNonceRef = useRef<number | null>(null);
   const handledTestFlaskNonceRef = useRef<number | null>(null);
   const activeTouchIdRef = useRef<number | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const lastPublishedStatsRef = useRef<Stats | null>(null);
   const lastStatsPublishTimeRef = useRef<number>(0);
   const gameOverSentRef = useRef(false);
+  const lastWaveVictoryIdRef = useRef<string | null>(null);
   const keysRef = useRef<Record<string, boolean>>(autoFire ? { ' ': true } : {});
   const runningRef = useRef(running);
   const testModeRef = useRef(testMode);
@@ -143,6 +159,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const onStatsChangeRef = useRef(onStatsChange);
   const onGameOverRef = useRef(onGameOver);
   const onContinueStartedRef = useRef(onContinueStarted);
+  const onWaveVictoryRef = useRef(onWaveVictory);
   const onRuntimeStateRef = useRef(onRuntimeState);
   const onEditorSnapshotRef = useRef(onEditorSnapshot);
 
@@ -157,6 +174,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     onContinueStartedRef.current = onContinueStarted;
   }, [onContinueStarted]);
+
+  useEffect(() => {
+    onWaveVictoryRef.current = onWaveVictory;
+  }, [onWaveVictory]);
 
   useEffect(() => {
     onRuntimeStateRef.current = onRuntimeState;
@@ -228,6 +249,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   useEffect(() => {
     const engine = engineRef.current;
+    if (!waveContinueCommand || !engine) return;
+    if (handledWaveContinueNonceRef.current === waveContinueCommand.nonce) return;
+    handledWaveContinueNonceRef.current = waveContinueCommand.nonce;
+    if (!engine.continueToNextWave()) return;
+
+    const statsSnapshot = cloneStatsForReact(engine.stats);
+    lastPublishedStatsRef.current = statsSnapshot;
+    onStatsChangeRef.current(statsSnapshot);
+    onRuntimeStateRef.current?.(engine.getRuntimeState());
+  }, [waveContinueCommand]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
     if (!testWaveCommand || !engine) return;
     if (handledTestWaveNonceRef.current === testWaveCommand.nonce) return;
     handledTestWaveNonceRef.current = testWaveCommand.nonce;
@@ -239,6 +273,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     onRuntimeStateRef.current?.(engine.getRuntimeState());
     onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
   }, [testWaveCommand]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!testBossCommand || !engine) return;
+    if (handledTestBossNonceRef.current === testBossCommand.nonce) return;
+    handledTestBossNonceRef.current = testBossCommand.nonce;
+    if (!engine.jumpToCampaignBoss(testBossCommand.wave)) return;
+
+    const statsSnapshot = cloneStatsForReact(engine.stats);
+    lastPublishedStatsRef.current = statsSnapshot;
+    onStatsChangeRef.current(statsSnapshot);
+    onRuntimeStateRef.current?.(engine.getRuntimeState());
+    onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
+  }, [testBossCommand]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -307,32 +355,51 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [autoFire, previewMode, restartToken]);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    const host = hostRef.current;
+    if (!host) return;
+    let disposed = false;
+    let disposeRuntime = () => {};
+    let pendingRenderer: PixiGameRenderer | null = null;
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const setupRuntime = async () => {
+      const initialRect = host.getBoundingClientRect();
+      const initialWidth = Math.max(1, Math.round(initialRect.width || 720));
+      const initialHeight = Math.max(1, Math.round(initialRect.height || 720));
+      const renderer = new PixiGameRenderer();
+      pendingRenderer = renderer;
+      await renderer.init(host, initialWidth, initialHeight);
+      if (disposed) {
+        renderer.destroy();
+        return;
+      }
+      pixiRendererRef.current = renderer;
+      const canvas = renderer.canvas;
+      canvas.tabIndex = previewMode ? 0 : -1;
+      canvas.setAttribute(
+        'aria-label',
+        previewMode ? 'Live Scicon Shooter Pixi wave preview' : 'Scicon Shooter Pixi gameplay'
+      );
 
-    const engine = new GameEngine(cloneStatsForReact(stats), {
-      campaign,
-      previewMode,
-      audioEnabled,
-      playerShipUrl,
-      initialLevelId: levelId,
-      initialWaveId: waveId,
-      testMode: testModeRef.current
-    });
-    engine.polishSettings = polishSettings;
-    engineRef.current = engine;
-    let targetFPS = 60;
-    let frameInterval = 1000 / targetFPS;
-    let mobileFrameBudget = false;
-    let slowFrameScore = 0;
-    let recoveryFrameScore = 0;
-    let simulationAccumulator = 0;
-    let lastRenderTime = 0;
-    let lastRuntimeStatePublishTime = 0;
-    let deathSequenceSafetyTimer: number | null = null;
+      const engine = new GameEngine(cloneStatsForReact(stats), {
+        campaign,
+        previewMode,
+        audioEnabled,
+        playerShipUrl,
+        initialLevelId: levelId,
+        initialWaveId: waveId,
+        testMode: testModeRef.current
+      });
+      engine.polishSettings = polishSettings;
+      engineRef.current = engine;
+      let targetFPS = 60;
+      let frameInterval = 1000 / targetFPS;
+      let mobileFrameBudget = false;
+      let slowFrameScore = 0;
+      let recoveryFrameScore = 0;
+      let simulationAccumulator = 0;
+      let lastRenderTime = 0;
+      let lastRuntimeStatePublishTime = 0;
+      let deathSequenceSafetyTimer: number | null = null;
 
     const refreshFrameBudget = () => {
       const rect = canvas.getBoundingClientRect();
@@ -371,26 +438,25 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
     
     // Resize Handler
-    const handleResize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const width = Math.max(1, Math.round(rect.width || 720));
-      const height = Math.max(1, Math.round(rect.height || 720));
-      if (canvas.width === width && canvas.height === height) return;
-      canvas.width = width;
-      canvas.height = height;
-      ctx.imageSmoothingEnabled = false;
-      refreshFrameBudget();
-      engine.resize(canvas.width, canvas.height);
-    };
+      const handleResize = () => {
+        const rect = host.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width || 720));
+        const height = Math.max(1, Math.round(rect.height || 720));
+        if (engine.width === width && engine.height === height) return;
+        renderer.resize(width, height);
+        refreshFrameBudget();
+        engine.resize(width, height);
+      };
     
     handleResize();
     window.addEventListener('resize', handleResize);
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(handleResize);
-    resizeObserver?.observe(canvas);
-    engine.init(canvas.width, canvas.height);
+    resizeObserver?.observe(host);
+    engine.init(initialWidth, initialHeight);
     if (autoFire) keysRef.current[' '] = true;
     engine.handleInput(runningRef.current ? keysRef.current : {}, null);
     lastPublishedStatsRef.current = null;
+    lastWaveVictoryIdRef.current = null;
     lastStatsPublishTimeRef.current = 0;
     lastTimeRef.current = 0;
     onRuntimeStateRef.current?.(engine.getRuntimeState());
@@ -624,12 +690,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         dispatchGameOver(timestamp);
       }
 
+      const waveVictory = previewMode ? null : engine.getWaveVictorySummary();
+      if (waveVictory && lastWaveVictoryIdRef.current !== waveVictory.id) {
+        lastWaveVictoryIdRef.current = waveVictory.id;
+        publishHudStats(true, timestamp);
+        onWaveVictoryRef.current?.(waveVictory);
+      }
+
       const renderElapsed = timestamp - lastRenderTime;
       if (renderElapsed >= frameInterval) {
         lastRenderTime = timestamp - (renderElapsed % frameInterval);
         updateAdaptivePerformanceMode(renderElapsed);
         publishHudStats(false, timestamp);
-        engine.draw(ctx);
+        renderer.sync(engine, timestamp);
       }
 
       if (timestamp - lastRuntimeStatePublishTime >= RUNTIME_STATE_SYNC_INTERVAL_MS) {
@@ -643,7 +716,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     requestRef.current = requestAnimationFrame(animate);
 
-    return () => {
+    disposeRuntime = () => {
       // Cleanup: Stop loop and remove listeners
       if (engineRef.current) engineRef.current.gameActive = false;
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
@@ -666,17 +739,34 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (audioEnabled) audioService.stopMusic();
       if (engineRef.current === engine) engineRef.current = null;
+      if (pixiRendererRef.current === renderer) pixiRendererRef.current = null;
+      renderer.destroy();
+      pendingRenderer = null;
       requestRef.current = null;
+    };
+    };
+
+    void setupRuntime().catch((error) => {
+      pendingRenderer?.destroy();
+      pendingRenderer = null;
+      console.error('Failed to initialize the Pixi gameplay renderer.', error);
+    });
+
+    return () => {
+      disposed = true;
+      disposeRuntime();
+      pendingRenderer?.destroy();
+      pendingRenderer = null;
     };
   }, [audioEnabled, campaign, playerShipUrl, previewMode]);
 
   return (
-    <canvas 
-      ref={canvasRef} 
+    <div
+      ref={hostRef}
       tabIndex={previewMode ? 0 : undefined}
-      aria-label={previewMode ? 'Live Scicon Shooter wave preview' : 'Scicon Shooter game canvas'}
-      className="absolute left-0 top-0 z-0 block h-full w-full"
-      style={{ touchAction: 'none', outline: 'none' }}
+      aria-label={previewMode ? 'Live Scicon Shooter wave preview' : 'Scicon Shooter game stage'}
+      className="absolute left-0 top-0 z-0 block h-full w-full overflow-hidden"
+      style={{ touchAction: 'none', outline: 'none', background: '#020617' }}
     />
   );
 };

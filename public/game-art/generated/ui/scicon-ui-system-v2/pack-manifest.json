@@ -1,0 +1,2411 @@
+{
+  "id": "scicon-ui-system-v2",
+  "displayName": "Scicon UI System v2 - Orbital Research Command",
+  "theme": "Orbital Research Command",
+  "productionFormat": "transparent layered PNG with runtime text",
+  "baseAssetCount": 160,
+  "stateVariantCount": 232,
+  "productionPngCount": 392,
+  "masterSheetCount": 20,
+  "catalogPageCount": 14,
+  "animationIds": [
+    "weekly-champion-reveal",
+    "funding-vault-unseal",
+    "mission-record-verification",
+    "alert-banner-deploy"
+  ],
+  "catalogPages": [
+    "catalog-pages/scicon-ui-system-v2-catalog-01.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-02.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-03.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-04.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-05.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-06.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-07.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-08.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-09.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-10.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-11.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-12.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-13.png",
+    "catalog-pages/scicon-ui-system-v2-catalog-14.png"
+  ],
+  "assets": [
+    {
+      "id": "shell:app-shell-mobile",
+      "family": "shell",
+      "name": "app-shell-mobile",
+      "path": "base/shell/app-shell-mobile.png",
+      "nativeSize": {
+        "width": 294,
+        "height": 472
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "shell:top-status-rail",
+      "family": "shell",
+      "name": "top-status-rail",
+      "path": "base/shell/top-status-rail.png",
+      "nativeSize": {
+        "width": 435,
+        "height": 138
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "shell:bottom-navigation-rail",
+      "family": "shell",
+      "name": "bottom-navigation-rail",
+      "path": "base/shell/bottom-navigation-rail.png",
+      "nativeSize": {
+        "width": 444,
+        "height": 154
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "shell:modal-full",
+      "family": "shell",
+      "name": "modal-full",
+      "path": "base/shell/modal-full.png",
+      "nativeSize": {
+        "width": 374,
+        "height": 463
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "shell:modal-compact",
+      "family": "shell",
+      "name": "modal-compact",
+      "path": "base/shell/modal-compact.png",
+      "nativeSize": {
+        "width": 292,
+        "height": 276
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "shell:scrolling-list",
+      "family": "shell",
+      "name": "scrolling-list",
+      "path": "base/shell/scrolling-list.png",
+      "nativeSize": {
+        "width": 321,
+        "height": 376
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "shell:content-card",
+      "family": "shell",
+      "name": "content-card",
+      "path": "base/shell/content-card.png",
+      "nativeSize": {
+        "width": 282,
+        "height": 309
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/shell/content-card/hover.png",
+        "pressed": "states/shell/content-card/pressed.png",
+        "selected": "states/shell/content-card/selected.png",
+        "disabled": "states/shell/content-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "shell:tooltip-callout",
+      "family": "shell",
+      "name": "tooltip-callout",
+      "path": "base/shell/tooltip-callout.png",
+      "nativeSize": {
+        "width": 338,
+        "height": 162
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/shell/tooltip-callout/hover.png",
+        "pressed": "states/shell/tooltip-callout/pressed.png",
+        "selected": "states/shell/tooltip-callout/selected.png",
+        "disabled": "states/shell/tooltip-callout/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-primary:lives-health-capsule",
+      "family": "hud-primary",
+      "name": "lives-health-capsule",
+      "path": "base/hud-primary/lives-health-capsule.png",
+      "nativeSize": {
+        "width": 268,
+        "height": 146
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-primary:flask-charge-meter",
+      "family": "hud-primary",
+      "name": "flask-charge-meter",
+      "path": "base/hud-primary/flask-charge-meter.png",
+      "nativeSize": {
+        "width": 377,
+        "height": 186
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-primary:score-counter",
+      "family": "hud-primary",
+      "name": "score-counter",
+      "path": "base/hud-primary/score-counter.png",
+      "nativeSize": {
+        "width": 329,
+        "height": 150
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-primary:high-score-plaque",
+      "family": "hud-primary",
+      "name": "high-score-plaque",
+      "path": "base/hud-primary/high-score-plaque.png",
+      "nativeSize": {
+        "width": 416,
+        "height": 208
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-primary:wave-sector-badge",
+      "family": "hud-primary",
+      "name": "wave-sector-badge",
+      "path": "base/hud-primary/wave-sector-badge.png",
+      "nativeSize": {
+        "width": 248,
+        "height": 199
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-primary:pause-control",
+      "family": "hud-primary",
+      "name": "pause-control",
+      "path": "base/hud-primary/pause-control.png",
+      "nativeSize": {
+        "width": 197,
+        "height": 212
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/hud-primary/pause-control/hover.png",
+        "pressed": "states/hud-primary/pause-control/pressed.png",
+        "selected": "states/hud-primary/pause-control/selected.png",
+        "disabled": "states/hud-primary/pause-control/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-primary:boss-integrity-bar",
+      "family": "hud-primary",
+      "name": "boss-integrity-bar",
+      "path": "base/hud-primary/boss-integrity-bar.png",
+      "nativeSize": {
+        "width": 737,
+        "height": 143
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-primary:sector-progress-rail",
+      "family": "hud-primary",
+      "name": "sector-progress-rail",
+      "path": "base/hud-primary/sector-progress-rail.png",
+      "nativeSize": {
+        "width": 115,
+        "height": 355
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-actions:bomb-ability-slot",
+      "family": "hud-actions",
+      "name": "bomb-ability-slot",
+      "path": "base/hud-actions/bomb-ability-slot.png",
+      "nativeSize": {
+        "width": 365,
+        "height": 388
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/hud-actions/bomb-ability-slot/hover.png",
+        "pressed": "states/hud-actions/bomb-ability-slot/pressed.png",
+        "selected": "states/hud-actions/bomb-ability-slot/selected.png",
+        "disabled": "states/hud-actions/bomb-ability-slot/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-actions:rapid-fire-upgrade-slot",
+      "family": "hud-actions",
+      "name": "rapid-fire-upgrade-slot",
+      "path": "base/hud-actions/rapid-fire-upgrade-slot.png",
+      "nativeSize": {
+        "width": 289,
+        "height": 331
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/hud-actions/rapid-fire-upgrade-slot/hover.png",
+        "pressed": "states/hud-actions/rapid-fire-upgrade-slot/pressed.png",
+        "selected": "states/hud-actions/rapid-fire-upgrade-slot/selected.png",
+        "disabled": "states/hud-actions/rapid-fire-upgrade-slot/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-actions:speed-upgrade-slot",
+      "family": "hud-actions",
+      "name": "speed-upgrade-slot",
+      "path": "base/hud-actions/speed-upgrade-slot.png",
+      "nativeSize": {
+        "width": 295,
+        "height": 331
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/hud-actions/speed-upgrade-slot/hover.png",
+        "pressed": "states/hud-actions/speed-upgrade-slot/pressed.png",
+        "selected": "states/hud-actions/speed-upgrade-slot/selected.png",
+        "disabled": "states/hud-actions/speed-upgrade-slot/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-actions:extra-life-upgrade-slot",
+      "family": "hud-actions",
+      "name": "extra-life-upgrade-slot",
+      "path": "base/hud-actions/extra-life-upgrade-slot.png",
+      "nativeSize": {
+        "width": 289,
+        "height": 331
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/hud-actions/extra-life-upgrade-slot/hover.png",
+        "pressed": "states/hud-actions/extra-life-upgrade-slot/pressed.png",
+        "selected": "states/hud-actions/extra-life-upgrade-slot/selected.png",
+        "disabled": "states/hud-actions/extra-life-upgrade-slot/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-actions:locked-ability-slot",
+      "family": "hud-actions",
+      "name": "locked-ability-slot",
+      "path": "base/hud-actions/locked-ability-slot.png",
+      "nativeSize": {
+        "width": 310,
+        "height": 316
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-actions:ready-glow-ring",
+      "family": "hud-actions",
+      "name": "ready-glow-ring",
+      "path": "base/hud-actions/ready-glow-ring.png",
+      "nativeSize": {
+        "width": 315,
+        "height": 316
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-actions:max-status-badge",
+      "family": "hud-actions",
+      "name": "max-status-badge",
+      "path": "base/hud-actions/max-status-badge.png",
+      "nativeSize": {
+        "width": 260,
+        "height": 224
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hud-actions:cost-count-badge",
+      "family": "hud-actions",
+      "name": "cost-count-badge",
+      "path": "base/hud-actions/cost-count-badge.png",
+      "nativeSize": {
+        "width": 202,
+        "height": 210
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "leaderboard-podium:first-place-row",
+      "family": "leaderboard-podium",
+      "name": "first-place-row",
+      "path": "base/leaderboard-podium/first-place-row.png",
+      "nativeSize": {
+        "width": 752,
+        "height": 306
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/leaderboard-podium/first-place-row/hover.png",
+        "pressed": "states/leaderboard-podium/first-place-row/pressed.png",
+        "selected": "states/leaderboard-podium/first-place-row/selected.png",
+        "disabled": "states/leaderboard-podium/first-place-row/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "leaderboard-podium:second-place-row",
+      "family": "leaderboard-podium",
+      "name": "second-place-row",
+      "path": "base/leaderboard-podium/second-place-row.png",
+      "nativeSize": {
+        "width": 686,
+        "height": 277
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/leaderboard-podium/second-place-row/hover.png",
+        "pressed": "states/leaderboard-podium/second-place-row/pressed.png",
+        "selected": "states/leaderboard-podium/second-place-row/selected.png",
+        "disabled": "states/leaderboard-podium/second-place-row/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "leaderboard-podium:third-place-row",
+      "family": "leaderboard-podium",
+      "name": "third-place-row",
+      "path": "base/leaderboard-podium/third-place-row.png",
+      "nativeSize": {
+        "width": 736,
+        "height": 266
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/leaderboard-podium/third-place-row/hover.png",
+        "pressed": "states/leaderboard-podium/third-place-row/pressed.png",
+        "selected": "states/leaderboard-podium/third-place-row/selected.png",
+        "disabled": "states/leaderboard-podium/third-place-row/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "leaderboard-podium:standard-leaderboard-row",
+      "family": "leaderboard-podium",
+      "name": "standard-leaderboard-row",
+      "path": "base/leaderboard-podium/standard-leaderboard-row.png",
+      "nativeSize": {
+        "width": 649,
+        "height": 185
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/leaderboard-podium/standard-leaderboard-row/hover.png",
+        "pressed": "states/leaderboard-podium/standard-leaderboard-row/pressed.png",
+        "selected": "states/leaderboard-podium/standard-leaderboard-row/selected.png",
+        "disabled": "states/leaderboard-podium/standard-leaderboard-row/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "leaderboard-podium:first-place-medal",
+      "family": "leaderboard-podium",
+      "name": "first-place-medal",
+      "path": "base/leaderboard-podium/first-place-medal.png",
+      "nativeSize": {
+        "width": 273,
+        "height": 328
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "leaderboard-podium:second-place-medal",
+      "family": "leaderboard-podium",
+      "name": "second-place-medal",
+      "path": "base/leaderboard-podium/second-place-medal.png",
+      "nativeSize": {
+        "width": 271,
+        "height": 316
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "leaderboard-podium:third-place-medal",
+      "family": "leaderboard-podium",
+      "name": "third-place-medal",
+      "path": "base/leaderboard-podium/third-place-medal.png",
+      "nativeSize": {
+        "width": 258,
+        "height": 304
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "leaderboard-podium:champion-divider",
+      "family": "leaderboard-podium",
+      "name": "champion-divider",
+      "path": "base/leaderboard-podium/champion-divider.png",
+      "nativeSize": {
+        "width": 507,
+        "height": 172
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "weekly-competition:weekly-winner-feature",
+      "family": "weekly-competition",
+      "name": "weekly-winner-feature",
+      "path": "base/weekly-competition/weekly-winner-feature.png",
+      "nativeSize": {
+        "width": 675,
+        "height": 287
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/weekly-competition/weekly-winner-feature/hover.png",
+        "pressed": "states/weekly-competition/weekly-winner-feature/pressed.png",
+        "selected": "states/weekly-competition/weekly-winner-feature/selected.png",
+        "disabled": "states/weekly-competition/weekly-winner-feature/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "weekly-competition:weekly-countdown-plaque",
+      "family": "weekly-competition",
+      "name": "weekly-countdown-plaque",
+      "path": "base/weekly-competition/weekly-countdown-plaque.png",
+      "nativeSize": {
+        "width": 319,
+        "height": 223
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "weekly-competition:funding-allocation-plaque",
+      "family": "weekly-competition",
+      "name": "funding-allocation-plaque",
+      "path": "base/weekly-competition/funding-allocation-plaque.png",
+      "nativeSize": {
+        "width": 258,
+        "height": 267
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "weekly-competition:season-week-badge",
+      "family": "weekly-competition",
+      "name": "season-week-badge",
+      "path": "base/weekly-competition/season-week-badge.png",
+      "nativeSize": {
+        "width": 218,
+        "height": 207
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "weekly-competition:live-status-beacon",
+      "family": "weekly-competition",
+      "name": "live-status-beacon",
+      "path": "base/weekly-competition/live-status-beacon.png",
+      "nativeSize": {
+        "width": 176,
+        "height": 163
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "weekly-competition:weekly-score-chip",
+      "family": "weekly-competition",
+      "name": "weekly-score-chip",
+      "path": "base/weekly-competition/weekly-score-chip.png",
+      "nativeSize": {
+        "width": 291,
+        "height": 153
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "weekly-competition:weekly-wave-chip",
+      "family": "weekly-competition",
+      "name": "weekly-wave-chip",
+      "path": "base/weekly-competition/weekly-wave-chip.png",
+      "nativeSize": {
+        "width": 327,
+        "height": 158
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "weekly-competition:archived-winner-card",
+      "family": "weekly-competition",
+      "name": "archived-winner-card",
+      "path": "base/weekly-competition/archived-winner-card.png",
+      "nativeSize": {
+        "width": 632,
+        "height": 275
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/weekly-competition/archived-winner-card/hover.png",
+        "pressed": "states/weekly-competition/archived-winner-card/pressed.png",
+        "selected": "states/weekly-competition/archived-winner-card/selected.png",
+        "disabled": "states/weekly-competition/archived-winner-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "funding-proposals:proposal-card",
+      "family": "funding-proposals",
+      "name": "proposal-card",
+      "path": "base/funding-proposals/proposal-card.png",
+      "nativeSize": {
+        "width": 397,
+        "height": 276
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/funding-proposals/proposal-card/hover.png",
+        "pressed": "states/funding-proposals/proposal-card/pressed.png",
+        "selected": "states/funding-proposals/proposal-card/selected.png",
+        "disabled": "states/funding-proposals/proposal-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "funding-proposals:proposal-card-selected",
+      "family": "funding-proposals",
+      "name": "proposal-card-selected",
+      "path": "base/funding-proposals/proposal-card-selected.png",
+      "nativeSize": {
+        "width": 403,
+        "height": 284
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/funding-proposals/proposal-card-selected/hover.png",
+        "pressed": "states/funding-proposals/proposal-card-selected/pressed.png",
+        "selected": "states/funding-proposals/proposal-card-selected/selected.png",
+        "disabled": "states/funding-proposals/proposal-card-selected/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "funding-proposals:proposal-card-confirmed",
+      "family": "funding-proposals",
+      "name": "proposal-card-confirmed",
+      "path": "base/funding-proposals/proposal-card-confirmed.png",
+      "nativeSize": {
+        "width": 397,
+        "height": 276
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/funding-proposals/proposal-card-confirmed/hover.png",
+        "pressed": "states/funding-proposals/proposal-card-confirmed/pressed.png",
+        "selected": "states/funding-proposals/proposal-card-confirmed/selected.png",
+        "disabled": "states/funding-proposals/proposal-card-confirmed/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "funding-proposals:funding-progress-bar",
+      "family": "funding-proposals",
+      "name": "funding-progress-bar",
+      "path": "base/funding-proposals/funding-progress-bar.png",
+      "nativeSize": {
+        "width": 418,
+        "height": 141
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "funding-proposals:allocation-amount-badge",
+      "family": "funding-proposals",
+      "name": "allocation-amount-badge",
+      "path": "base/funding-proposals/allocation-amount-badge.png",
+      "nativeSize": {
+        "width": 319,
+        "height": 208
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "funding-proposals:treasury-address-field",
+      "family": "funding-proposals",
+      "name": "treasury-address-field",
+      "path": "base/funding-proposals/treasury-address-field.png",
+      "nativeSize": {
+        "width": 480,
+        "height": 222
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "funding-proposals:copy-action",
+      "family": "funding-proposals",
+      "name": "copy-action",
+      "path": "base/funding-proposals/copy-action.png",
+      "nativeSize": {
+        "width": 183,
+        "height": 180
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/funding-proposals/copy-action/hover.png",
+        "pressed": "states/funding-proposals/copy-action/pressed.png",
+        "selected": "states/funding-proposals/copy-action/selected.png",
+        "disabled": "states/funding-proposals/copy-action/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "funding-proposals:external-send-action",
+      "family": "funding-proposals",
+      "name": "external-send-action",
+      "path": "base/funding-proposals/external-send-action.png",
+      "nativeSize": {
+        "width": 182,
+        "height": 180
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/funding-proposals/external-send-action/hover.png",
+        "pressed": "states/funding-proposals/external-send-action/pressed.png",
+        "selected": "states/funding-proposals/external-send-action/selected.png",
+        "disabled": "states/funding-proposals/external-send-action/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "records-wallet:mission-record-frame",
+      "family": "records-wallet",
+      "name": "mission-record-frame",
+      "path": "base/records-wallet/mission-record-frame.png",
+      "nativeSize": {
+        "width": 363,
+        "height": 501
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "records-wallet:mint-preview-frame",
+      "family": "records-wallet",
+      "name": "mint-preview-frame",
+      "path": "base/records-wallet/mint-preview-frame.png",
+      "nativeSize": {
+        "width": 273,
+        "height": 370
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "records-wallet:server-verified-seal",
+      "family": "records-wallet",
+      "name": "server-verified-seal",
+      "path": "base/records-wallet/server-verified-seal.png",
+      "nativeSize": {
+        "width": 292,
+        "height": 313
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "records-wallet:review-seal",
+      "family": "records-wallet",
+      "name": "review-seal",
+      "path": "base/records-wallet/review-seal.png",
+      "nativeSize": {
+        "width": 293,
+        "height": 313
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "records-wallet:local-unverified-seal",
+      "family": "records-wallet",
+      "name": "local-unverified-seal",
+      "path": "base/records-wallet/local-unverified-seal.png",
+      "nativeSize": {
+        "width": 291,
+        "height": 314
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "records-wallet:wallet-connect-button",
+      "family": "records-wallet",
+      "name": "wallet-connect-button",
+      "path": "base/records-wallet/wallet-connect-button.png",
+      "nativeSize": {
+        "width": 363,
+        "height": 234
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/records-wallet/wallet-connect-button/hover.png",
+        "pressed": "states/records-wallet/wallet-connect-button/pressed.png",
+        "selected": "states/records-wallet/wallet-connect-button/selected.png",
+        "disabled": "states/records-wallet/wallet-connect-button/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "records-wallet:wallet-connected-plaque",
+      "family": "records-wallet",
+      "name": "wallet-connected-plaque",
+      "path": "base/records-wallet/wallet-connected-plaque.png",
+      "nativeSize": {
+        "width": 419,
+        "height": 233
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "records-wallet:transaction-status-frame",
+      "family": "records-wallet",
+      "name": "transaction-status-frame",
+      "path": "base/records-wallet/transaction-status-frame.png",
+      "nativeSize": {
+        "width": 184,
+        "height": 243
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "home-navigation:hero-ship-carousel",
+      "family": "home-navigation",
+      "name": "hero-ship-carousel",
+      "path": "base/home-navigation/hero-ship-carousel.png",
+      "nativeSize": {
+        "width": 416,
+        "height": 410
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/home-navigation/hero-ship-carousel/hover.png",
+        "pressed": "states/home-navigation/hero-ship-carousel/pressed.png",
+        "selected": "states/home-navigation/hero-ship-carousel/selected.png",
+        "disabled": "states/home-navigation/hero-ship-carousel/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "home-navigation:launch-primary-button",
+      "family": "home-navigation",
+      "name": "launch-primary-button",
+      "path": "base/home-navigation/launch-primary-button.png",
+      "nativeSize": {
+        "width": 449,
+        "height": 264
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/home-navigation/launch-primary-button/hover.png",
+        "pressed": "states/home-navigation/launch-primary-button/pressed.png",
+        "selected": "states/home-navigation/launch-primary-button/selected.png",
+        "disabled": "states/home-navigation/launch-primary-button/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "home-navigation:previous-arrow",
+      "family": "home-navigation",
+      "name": "previous-arrow",
+      "path": "base/home-navigation/previous-arrow.png",
+      "nativeSize": {
+        "width": 265,
+        "height": 279
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/home-navigation/previous-arrow/hover.png",
+        "pressed": "states/home-navigation/previous-arrow/pressed.png",
+        "selected": "states/home-navigation/previous-arrow/selected.png",
+        "disabled": "states/home-navigation/previous-arrow/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "home-navigation:next-arrow",
+      "family": "home-navigation",
+      "name": "next-arrow",
+      "path": "base/home-navigation/next-arrow.png",
+      "nativeSize": {
+        "width": 265,
+        "height": 279
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/home-navigation/next-arrow/hover.png",
+        "pressed": "states/home-navigation/next-arrow/pressed.png",
+        "selected": "states/home-navigation/next-arrow/selected.png",
+        "disabled": "states/home-navigation/next-arrow/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "home-navigation:navigation-tab-active",
+      "family": "home-navigation",
+      "name": "navigation-tab-active",
+      "path": "base/home-navigation/navigation-tab-active.png",
+      "nativeSize": {
+        "width": 466,
+        "height": 219
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/home-navigation/navigation-tab-active/hover.png",
+        "pressed": "states/home-navigation/navigation-tab-active/pressed.png",
+        "selected": "states/home-navigation/navigation-tab-active/selected.png",
+        "disabled": "states/home-navigation/navigation-tab-active/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "home-navigation:navigation-tab-inactive",
+      "family": "home-navigation",
+      "name": "navigation-tab-inactive",
+      "path": "base/home-navigation/navigation-tab-inactive.png",
+      "nativeSize": {
+        "width": 460,
+        "height": 214
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/home-navigation/navigation-tab-inactive/hover.png",
+        "pressed": "states/home-navigation/navigation-tab-inactive/pressed.png",
+        "selected": "states/home-navigation/navigation-tab-inactive/selected.png",
+        "disabled": "states/home-navigation/navigation-tab-inactive/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "home-navigation:market-action-card",
+      "family": "home-navigation",
+      "name": "market-action-card",
+      "path": "base/home-navigation/market-action-card.png",
+      "nativeSize": {
+        "width": 254,
+        "height": 335
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/home-navigation/market-action-card/hover.png",
+        "pressed": "states/home-navigation/market-action-card/pressed.png",
+        "selected": "states/home-navigation/market-action-card/selected.png",
+        "disabled": "states/home-navigation/market-action-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "home-navigation:notification-count-chip",
+      "family": "home-navigation",
+      "name": "notification-count-chip",
+      "path": "base/home-navigation/notification-count-chip.png",
+      "nativeSize": {
+        "width": 204,
+        "height": 112
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "pause-settings:pause-menu-frame",
+      "family": "pause-settings",
+      "name": "pause-menu-frame",
+      "path": "base/pause-settings/pause-menu-frame.png",
+      "nativeSize": {
+        "width": 399,
+        "height": 430
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "pause-settings:settings-menu-frame",
+      "family": "pause-settings",
+      "name": "settings-menu-frame",
+      "path": "base/pause-settings/settings-menu-frame.png",
+      "nativeSize": {
+        "width": 373,
+        "height": 429
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "pause-settings:settings-slider",
+      "family": "pause-settings",
+      "name": "settings-slider",
+      "path": "base/pause-settings/settings-slider.png",
+      "nativeSize": {
+        "width": 535,
+        "height": 135
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/pause-settings/settings-slider/hover.png",
+        "pressed": "states/pause-settings/settings-slider/pressed.png",
+        "selected": "states/pause-settings/settings-slider/selected.png",
+        "disabled": "states/pause-settings/settings-slider/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "pause-settings:settings-toggle",
+      "family": "pause-settings",
+      "name": "settings-toggle",
+      "path": "base/pause-settings/settings-toggle.png",
+      "nativeSize": {
+        "width": 238,
+        "height": 117
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/pause-settings/settings-toggle/hover.png",
+        "pressed": "states/pause-settings/settings-toggle/pressed.png",
+        "selected": "states/pause-settings/settings-toggle/selected.png",
+        "disabled": "states/pause-settings/settings-toggle/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "pause-settings:audio-settings-row",
+      "family": "pause-settings",
+      "name": "audio-settings-row",
+      "path": "base/pause-settings/audio-settings-row.png",
+      "nativeSize": {
+        "width": 453,
+        "height": 143
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/pause-settings/audio-settings-row/hover.png",
+        "pressed": "states/pause-settings/audio-settings-row/pressed.png",
+        "selected": "states/pause-settings/audio-settings-row/selected.png",
+        "disabled": "states/pause-settings/audio-settings-row/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "pause-settings:controls-settings-row",
+      "family": "pause-settings",
+      "name": "controls-settings-row",
+      "path": "base/pause-settings/controls-settings-row.png",
+      "nativeSize": {
+        "width": 484,
+        "height": 143
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/pause-settings/controls-settings-row/hover.png",
+        "pressed": "states/pause-settings/controls-settings-row/pressed.png",
+        "selected": "states/pause-settings/controls-settings-row/selected.png",
+        "disabled": "states/pause-settings/controls-settings-row/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "pause-settings:resume-button",
+      "family": "pause-settings",
+      "name": "resume-button",
+      "path": "base/pause-settings/resume-button.png",
+      "nativeSize": {
+        "width": 475,
+        "height": 160
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/pause-settings/resume-button/hover.png",
+        "pressed": "states/pause-settings/resume-button/pressed.png",
+        "selected": "states/pause-settings/resume-button/selected.png",
+        "disabled": "states/pause-settings/resume-button/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "pause-settings:quit-button",
+      "family": "pause-settings",
+      "name": "quit-button",
+      "path": "base/pause-settings/quit-button.png",
+      "nativeSize": {
+        "width": 481,
+        "height": 159
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/pause-settings/quit-button/hover.png",
+        "pressed": "states/pause-settings/quit-button/pressed.png",
+        "selected": "states/pause-settings/quit-button/selected.png",
+        "disabled": "states/pause-settings/quit-button/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "mission-results:game-over-result-frame",
+      "family": "mission-results",
+      "name": "game-over-result-frame",
+      "path": "base/mission-results/game-over-result-frame.png",
+      "nativeSize": {
+        "width": 347,
+        "height": 367
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "mission-results:mission-result-plaque",
+      "family": "mission-results",
+      "name": "mission-result-plaque",
+      "path": "base/mission-results/mission-result-plaque.png",
+      "nativeSize": {
+        "width": 384,
+        "height": 289
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "mission-results:weekly-lead-plaque",
+      "family": "mission-results",
+      "name": "weekly-lead-plaque",
+      "path": "base/mission-results/weekly-lead-plaque.png",
+      "nativeSize": {
+        "width": 372,
+        "height": 318
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "mission-results:pilot-name-input",
+      "family": "mission-results",
+      "name": "pilot-name-input",
+      "path": "base/mission-results/pilot-name-input.png",
+      "nativeSize": {
+        "width": 387,
+        "height": 148
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/mission-results/pilot-name-input/hover.png",
+        "pressed": "states/mission-results/pilot-name-input/pressed.png",
+        "selected": "states/mission-results/pilot-name-input/selected.png",
+        "disabled": "states/mission-results/pilot-name-input/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "mission-results:submit-confirm-button",
+      "family": "mission-results",
+      "name": "submit-confirm-button",
+      "path": "base/mission-results/submit-confirm-button.png",
+      "nativeSize": {
+        "width": 358,
+        "height": 211
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/mission-results/submit-confirm-button/hover.png",
+        "pressed": "states/mission-results/submit-confirm-button/pressed.png",
+        "selected": "states/mission-results/submit-confirm-button/selected.png",
+        "disabled": "states/mission-results/submit-confirm-button/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "mission-results:skip-later-button",
+      "family": "mission-results",
+      "name": "skip-later-button",
+      "path": "base/mission-results/skip-later-button.png",
+      "nativeSize": {
+        "width": 351,
+        "height": 187
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/mission-results/skip-later-button/hover.png",
+        "pressed": "states/mission-results/skip-later-button/pressed.png",
+        "selected": "states/mission-results/skip-later-button/selected.png",
+        "disabled": "states/mission-results/skip-later-button/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "mission-results:retry-button",
+      "family": "mission-results",
+      "name": "retry-button",
+      "path": "base/mission-results/retry-button.png",
+      "nativeSize": {
+        "width": 359,
+        "height": 187
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/mission-results/retry-button/hover.png",
+        "pressed": "states/mission-results/retry-button/pressed.png",
+        "selected": "states/mission-results/retry-button/selected.png",
+        "disabled": "states/mission-results/retry-button/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "mission-results:main-menu-button",
+      "family": "mission-results",
+      "name": "main-menu-button",
+      "path": "base/mission-results/main-menu-button.png",
+      "nativeSize": {
+        "width": 376,
+        "height": 174
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/mission-results/main-menu-button/hover.png",
+        "pressed": "states/mission-results/main-menu-button/pressed.png",
+        "selected": "states/mission-results/main-menu-button/selected.png",
+        "disabled": "states/mission-results/main-menu-button/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "tutorial-story:tutorial-frame",
+      "family": "tutorial-story",
+      "name": "tutorial-frame",
+      "path": "base/tutorial-story/tutorial-frame.png",
+      "nativeSize": {
+        "width": 392,
+        "height": 329
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "tutorial-story:tutorial-instruction-row",
+      "family": "tutorial-story",
+      "name": "tutorial-instruction-row",
+      "path": "base/tutorial-story/tutorial-instruction-row.png",
+      "nativeSize": {
+        "width": 371,
+        "height": 174
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/tutorial-story/tutorial-instruction-row/hover.png",
+        "pressed": "states/tutorial-story/tutorial-instruction-row/pressed.png",
+        "selected": "states/tutorial-story/tutorial-instruction-row/selected.png",
+        "disabled": "states/tutorial-story/tutorial-instruction-row/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "tutorial-story:transmission-portrait-frame",
+      "family": "tutorial-story",
+      "name": "transmission-portrait-frame",
+      "path": "base/tutorial-story/transmission-portrait-frame.png",
+      "nativeSize": {
+        "width": 233,
+        "height": 269
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "tutorial-story:transmission-dialogue-frame",
+      "family": "tutorial-story",
+      "name": "transmission-dialogue-frame",
+      "path": "base/tutorial-story/transmission-dialogue-frame.png",
+      "nativeSize": {
+        "width": 438,
+        "height": 212
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "tutorial-story:receiving-signal-indicator",
+      "family": "tutorial-story",
+      "name": "receiving-signal-indicator",
+      "path": "base/tutorial-story/receiving-signal-indicator.png",
+      "nativeSize": {
+        "width": 237,
+        "height": 210
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "tutorial-story:continue-deploy-button",
+      "family": "tutorial-story",
+      "name": "continue-deploy-button",
+      "path": "base/tutorial-story/continue-deploy-button.png",
+      "nativeSize": {
+        "width": 501,
+        "height": 197
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/tutorial-story/continue-deploy-button/hover.png",
+        "pressed": "states/tutorial-story/continue-deploy-button/pressed.png",
+        "selected": "states/tutorial-story/continue-deploy-button/selected.png",
+        "disabled": "states/tutorial-story/continue-deploy-button/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "tutorial-story:input-method-badge",
+      "family": "tutorial-story",
+      "name": "input-method-badge",
+      "path": "base/tutorial-story/input-method-badge.png",
+      "nativeSize": {
+        "width": 202,
+        "height": 210
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "tutorial-story:hazard-warning-plaque",
+      "family": "tutorial-story",
+      "name": "hazard-warning-plaque",
+      "path": "base/tutorial-story/hazard-warning-plaque.png",
+      "nativeSize": {
+        "width": 433,
+        "height": 219
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hangar-upgrades:ship-selector-showcase",
+      "family": "hangar-upgrades",
+      "name": "ship-selector-showcase",
+      "path": "base/hangar-upgrades/ship-selector-showcase.png",
+      "nativeSize": {
+        "width": 412,
+        "height": 441
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hangar-upgrades:locked-ship-card",
+      "family": "hangar-upgrades",
+      "name": "locked-ship-card",
+      "path": "base/hangar-upgrades/locked-ship-card.png",
+      "nativeSize": {
+        "width": 296,
+        "height": 420
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/hangar-upgrades/locked-ship-card/hover.png",
+        "pressed": "states/hangar-upgrades/locked-ship-card/pressed.png",
+        "selected": "states/hangar-upgrades/locked-ship-card/selected.png",
+        "disabled": "states/hangar-upgrades/locked-ship-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hangar-upgrades:unlocked-ship-card",
+      "family": "hangar-upgrades",
+      "name": "unlocked-ship-card",
+      "path": "base/hangar-upgrades/unlocked-ship-card.png",
+      "nativeSize": {
+        "width": 296,
+        "height": 420
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/hangar-upgrades/unlocked-ship-card/hover.png",
+        "pressed": "states/hangar-upgrades/unlocked-ship-card/pressed.png",
+        "selected": "states/hangar-upgrades/unlocked-ship-card/selected.png",
+        "disabled": "states/hangar-upgrades/unlocked-ship-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hangar-upgrades:upgrade-card",
+      "family": "hangar-upgrades",
+      "name": "upgrade-card",
+      "path": "base/hangar-upgrades/upgrade-card.png",
+      "nativeSize": {
+        "width": 296,
+        "height": 431
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/hangar-upgrades/upgrade-card/hover.png",
+        "pressed": "states/hangar-upgrades/upgrade-card/pressed.png",
+        "selected": "states/hangar-upgrades/upgrade-card/selected.png",
+        "disabled": "states/hangar-upgrades/upgrade-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hangar-upgrades:maxed-upgrade-card",
+      "family": "hangar-upgrades",
+      "name": "maxed-upgrade-card",
+      "path": "base/hangar-upgrades/maxed-upgrade-card.png",
+      "nativeSize": {
+        "width": 277,
+        "height": 344
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/hangar-upgrades/maxed-upgrade-card/hover.png",
+        "pressed": "states/hangar-upgrades/maxed-upgrade-card/pressed.png",
+        "selected": "states/hangar-upgrades/maxed-upgrade-card/selected.png",
+        "disabled": "states/hangar-upgrades/maxed-upgrade-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hangar-upgrades:segmented-stat-bar",
+      "family": "hangar-upgrades",
+      "name": "segmented-stat-bar",
+      "path": "base/hangar-upgrades/segmented-stat-bar.png",
+      "nativeSize": {
+        "width": 445,
+        "height": 156
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hangar-upgrades:upgrade-cost-plaque",
+      "family": "hangar-upgrades",
+      "name": "upgrade-cost-plaque",
+      "path": "base/hangar-upgrades/upgrade-cost-plaque.png",
+      "nativeSize": {
+        "width": 252,
+        "height": 190
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "hangar-upgrades:equip-select-button",
+      "family": "hangar-upgrades",
+      "name": "equip-select-button",
+      "path": "base/hangar-upgrades/equip-select-button.png",
+      "nativeSize": {
+        "width": 357,
+        "height": 168
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/hangar-upgrades/equip-select-button/hover.png",
+        "pressed": "states/hangar-upgrades/equip-select-button/pressed.png",
+        "selected": "states/hangar-upgrades/equip-select-button/selected.png",
+        "disabled": "states/hangar-upgrades/equip-select-button/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "notifications-status:success-strip",
+      "family": "notifications-status",
+      "name": "success-strip",
+      "path": "base/notifications-status/success-strip.png",
+      "nativeSize": {
+        "width": 405,
+        "height": 187
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "notifications-status:warning-strip",
+      "family": "notifications-status",
+      "name": "warning-strip",
+      "path": "base/notifications-status/warning-strip.png",
+      "nativeSize": {
+        "width": 402,
+        "height": 187
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "notifications-status:error-strip",
+      "family": "notifications-status",
+      "name": "error-strip",
+      "path": "base/notifications-status/error-strip.png",
+      "nativeSize": {
+        "width": 402,
+        "height": 187
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "notifications-status:information-strip",
+      "family": "notifications-status",
+      "name": "information-strip",
+      "path": "base/notifications-status/information-strip.png",
+      "nativeSize": {
+        "width": 402,
+        "height": 187
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "notifications-status:loading-placeholder",
+      "family": "notifications-status",
+      "name": "loading-placeholder",
+      "path": "base/notifications-status/loading-placeholder.png",
+      "nativeSize": {
+        "width": 314,
+        "height": 251
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "notifications-status:empty-state-frame",
+      "family": "notifications-status",
+      "name": "empty-state-frame",
+      "path": "base/notifications-status/empty-state-frame.png",
+      "nativeSize": {
+        "width": 311,
+        "height": 253
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "notifications-status:offline-status-plaque",
+      "family": "notifications-status",
+      "name": "offline-status-plaque",
+      "path": "base/notifications-status/offline-status-plaque.png",
+      "nativeSize": {
+        "width": 470,
+        "height": 189
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "notifications-status:maintenance-status-plaque",
+      "family": "notifications-status",
+      "name": "maintenance-status-plaque",
+      "path": "base/notifications-status/maintenance-status-plaque.png",
+      "nativeSize": {
+        "width": 429,
+        "height": 189
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "achievements-more:trophy-showcase-card",
+      "family": "achievements-more",
+      "name": "trophy-showcase-card",
+      "path": "base/achievements-more/trophy-showcase-card.png",
+      "nativeSize": {
+        "width": 331,
+        "height": 438
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/achievements-more/trophy-showcase-card/hover.png",
+        "pressed": "states/achievements-more/trophy-showcase-card/pressed.png",
+        "selected": "states/achievements-more/trophy-showcase-card/selected.png",
+        "disabled": "states/achievements-more/trophy-showcase-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "achievements-more:achievement-locked-card",
+      "family": "achievements-more",
+      "name": "achievement-locked-card",
+      "path": "base/achievements-more/achievement-locked-card.png",
+      "nativeSize": {
+        "width": 305,
+        "height": 437
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/achievements-more/achievement-locked-card/hover.png",
+        "pressed": "states/achievements-more/achievement-locked-card/pressed.png",
+        "selected": "states/achievements-more/achievement-locked-card/selected.png",
+        "disabled": "states/achievements-more/achievement-locked-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "achievements-more:achievement-unlocked-card",
+      "family": "achievements-more",
+      "name": "achievement-unlocked-card",
+      "path": "base/achievements-more/achievement-unlocked-card.png",
+      "nativeSize": {
+        "width": 332,
+        "height": 452
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/achievements-more/achievement-unlocked-card/hover.png",
+        "pressed": "states/achievements-more/achievement-unlocked-card/pressed.png",
+        "selected": "states/achievements-more/achievement-unlocked-card/selected.png",
+        "disabled": "states/achievements-more/achievement-unlocked-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "achievements-more:season-rank-card",
+      "family": "achievements-more",
+      "name": "season-rank-card",
+      "path": "base/achievements-more/season-rank-card.png",
+      "nativeSize": {
+        "width": 312,
+        "height": 439
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/achievements-more/season-rank-card/hover.png",
+        "pressed": "states/achievements-more/season-rank-card/pressed.png",
+        "selected": "states/achievements-more/season-rank-card/selected.png",
+        "disabled": "states/achievements-more/season-rank-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "achievements-more:referral-reward-card",
+      "family": "achievements-more",
+      "name": "referral-reward-card",
+      "path": "base/achievements-more/referral-reward-card.png",
+      "nativeSize": {
+        "width": 300,
+        "height": 430
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/achievements-more/referral-reward-card/hover.png",
+        "pressed": "states/achievements-more/referral-reward-card/pressed.png",
+        "selected": "states/achievements-more/referral-reward-card/selected.png",
+        "disabled": "states/achievements-more/referral-reward-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "achievements-more:feedback-action-card",
+      "family": "achievements-more",
+      "name": "feedback-action-card",
+      "path": "base/achievements-more/feedback-action-card.png",
+      "nativeSize": {
+        "width": 304,
+        "height": 430
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/achievements-more/feedback-action-card/hover.png",
+        "pressed": "states/achievements-more/feedback-action-card/pressed.png",
+        "selected": "states/achievements-more/feedback-action-card/selected.png",
+        "disabled": "states/achievements-more/feedback-action-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "achievements-more:treasury-funding-card",
+      "family": "achievements-more",
+      "name": "treasury-funding-card",
+      "path": "base/achievements-more/treasury-funding-card.png",
+      "nativeSize": {
+        "width": 304,
+        "height": 431
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/achievements-more/treasury-funding-card/hover.png",
+        "pressed": "states/achievements-more/treasury-funding-card/pressed.png",
+        "selected": "states/achievements-more/treasury-funding-card/selected.png",
+        "disabled": "states/achievements-more/treasury-funding-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "achievements-more:external-ecosystem-card",
+      "family": "achievements-more",
+      "name": "external-ecosystem-card",
+      "path": "base/achievements-more/external-ecosystem-card.png",
+      "nativeSize": {
+        "width": 307,
+        "height": 431
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/achievements-more/external-ecosystem-card/hover.png",
+        "pressed": "states/achievements-more/external-ecosystem-card/pressed.png",
+        "selected": "states/achievements-more/external-ecosystem-card/selected.png",
+        "disabled": "states/achievements-more/external-ecosystem-card/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "form-controls:search-input",
+      "family": "form-controls",
+      "name": "search-input",
+      "path": "base/form-controls/search-input.png",
+      "nativeSize": {
+        "width": 637,
+        "height": 227
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/form-controls/search-input/hover.png",
+        "pressed": "states/form-controls/search-input/pressed.png",
+        "selected": "states/form-controls/search-input/selected.png",
+        "disabled": "states/form-controls/search-input/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "form-controls:multiline-text-area",
+      "family": "form-controls",
+      "name": "multiline-text-area",
+      "path": "base/form-controls/multiline-text-area.png",
+      "nativeSize": {
+        "width": 588,
+        "height": 354
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/form-controls/multiline-text-area/hover.png",
+        "pressed": "states/form-controls/multiline-text-area/pressed.png",
+        "selected": "states/form-controls/multiline-text-area/selected.png",
+        "disabled": "states/form-controls/multiline-text-area/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "form-controls:dropdown-select",
+      "family": "form-controls",
+      "name": "dropdown-select",
+      "path": "base/form-controls/dropdown-select.png",
+      "nativeSize": {
+        "width": 605,
+        "height": 205
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/form-controls/dropdown-select/hover.png",
+        "pressed": "states/form-controls/dropdown-select/pressed.png",
+        "selected": "states/form-controls/dropdown-select/selected.png",
+        "disabled": "states/form-controls/dropdown-select/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "form-controls:checkbox-control",
+      "family": "form-controls",
+      "name": "checkbox-control",
+      "path": "base/form-controls/checkbox-control.png",
+      "nativeSize": {
+        "width": 205,
+        "height": 223
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/form-controls/checkbox-control/hover.png",
+        "pressed": "states/form-controls/checkbox-control/pressed.png",
+        "selected": "states/form-controls/checkbox-control/selected.png",
+        "disabled": "states/form-controls/checkbox-control/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "form-controls:radio-control",
+      "family": "form-controls",
+      "name": "radio-control",
+      "path": "base/form-controls/radio-control.png",
+      "nativeSize": {
+        "width": 199,
+        "height": 227
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/form-controls/radio-control/hover.png",
+        "pressed": "states/form-controls/radio-control/pressed.png",
+        "selected": "states/form-controls/radio-control/selected.png",
+        "disabled": "states/form-controls/radio-control/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "form-controls:segmented-tabs",
+      "family": "form-controls",
+      "name": "segmented-tabs",
+      "path": "base/form-controls/segmented-tabs.png",
+      "nativeSize": {
+        "width": 633,
+        "height": 250
+      },
+      "runtimeText": true,
+      "states": {
+        "hover": "states/form-controls/segmented-tabs/hover.png",
+        "pressed": "states/form-controls/segmented-tabs/pressed.png",
+        "selected": "states/form-controls/segmented-tabs/selected.png",
+        "disabled": "states/form-controls/segmented-tabs/disabled.png"
+      },
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "form-controls:scroll-track",
+      "family": "form-controls",
+      "name": "scroll-track",
+      "path": "base/form-controls/scroll-track.png",
+      "nativeSize": {
+        "width": 132,
+        "height": 368
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "form-controls:scroll-thumb",
+      "family": "form-controls",
+      "name": "scroll-thumb",
+      "path": "base/form-controls/scroll-thumb.png",
+      "nativeSize": {
+        "width": 101,
+        "height": 233
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "general-borders:avatar-frame",
+      "family": "general-borders",
+      "name": "avatar-frame",
+      "path": "base/general-borders/avatar-frame.png",
+      "nativeSize": {
+        "width": 362,
+        "height": 365
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "general-borders:square-image-frame",
+      "family": "general-borders",
+      "name": "square-image-frame",
+      "path": "base/general-borders/square-image-frame.png",
+      "nativeSize": {
+        "width": 318,
+        "height": 325
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "general-borders:portrait-frame",
+      "family": "general-borders",
+      "name": "portrait-frame",
+      "path": "base/general-borders/portrait-frame.png",
+      "nativeSize": {
+        "width": 223,
+        "height": 355
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "general-borders:cinematic-banner-frame",
+      "family": "general-borders",
+      "name": "cinematic-banner-frame",
+      "path": "base/general-borders/cinematic-banner-frame.png",
+      "nativeSize": {
+        "width": 441,
+        "height": 344
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "general-borders:stat-tile",
+      "family": "general-borders",
+      "name": "stat-tile",
+      "path": "base/general-borders/stat-tile.png",
+      "nativeSize": {
+        "width": 342,
+        "height": 169
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "general-borders:icon-tile",
+      "family": "general-borders",
+      "name": "icon-tile",
+      "path": "base/general-borders/icon-tile.png",
+      "nativeSize": {
+        "width": 247,
+        "height": 239
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "general-borders:information-card",
+      "family": "general-borders",
+      "name": "information-card",
+      "path": "base/general-borders/information-card.png",
+      "nativeSize": {
+        "width": 570,
+        "height": 263
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "general-borders:section-divider",
+      "family": "general-borders",
+      "name": "section-divider",
+      "path": "base/general-borders/section-divider.png",
+      "nativeSize": {
+        "width": 1354,
+        "height": 131
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "ui-component"
+    },
+    {
+      "id": "champion-rig:plaque-body",
+      "family": "champion-rig",
+      "name": "plaque-body",
+      "path": "animations/weekly-champion-reveal/parts/plaque-body.png",
+      "nativeSize": {
+        "width": 581,
+        "height": 282
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "champion-rig:crown-cap",
+      "family": "champion-rig",
+      "name": "crown-cap",
+      "path": "animations/weekly-champion-reveal/parts/crown-cap.png",
+      "nativeSize": {
+        "width": 277,
+        "height": 222
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "champion-rig:wing-left",
+      "family": "champion-rig",
+      "name": "wing-left",
+      "path": "animations/weekly-champion-reveal/parts/wing-left.png",
+      "nativeSize": {
+        "width": 278,
+        "height": 325
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "champion-rig:wing-right",
+      "family": "champion-rig",
+      "name": "wing-right",
+      "path": "animations/weekly-champion-reveal/parts/wing-right.png",
+      "nativeSize": {
+        "width": 279,
+        "height": 326
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "champion-rig:scan-bar",
+      "family": "champion-rig",
+      "name": "scan-bar",
+      "path": "animations/weekly-champion-reveal/parts/scan-bar.png",
+      "nativeSize": {
+        "width": 396,
+        "height": 48
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "champion-rig:first-medal",
+      "family": "champion-rig",
+      "name": "first-medal",
+      "path": "animations/weekly-champion-reveal/parts/first-medal.png",
+      "nativeSize": {
+        "width": 332,
+        "height": 310
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "champion-rig:energy-flare",
+      "family": "champion-rig",
+      "name": "energy-flare",
+      "path": "animations/weekly-champion-reveal/parts/energy-flare.png",
+      "nativeSize": {
+        "width": 279,
+        "height": 296
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "champion-rig:energy-glow",
+      "family": "champion-rig",
+      "name": "energy-glow",
+      "path": "animations/weekly-champion-reveal/parts/energy-glow.png",
+      "nativeSize": {
+        "width": 364,
+        "height": 174
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "funding-vault-rig:vault-frame-body",
+      "family": "funding-vault-rig",
+      "name": "vault-frame-body",
+      "path": "animations/funding-vault-unseal/parts/vault-frame-body.png",
+      "nativeSize": {
+        "width": 553,
+        "height": 465
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "funding-vault-rig:shutter-left",
+      "family": "funding-vault-rig",
+      "name": "shutter-left",
+      "path": "animations/funding-vault-unseal/parts/shutter-left.png",
+      "nativeSize": {
+        "width": 206,
+        "height": 434
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "funding-vault-rig:shutter-right",
+      "family": "funding-vault-rig",
+      "name": "shutter-right",
+      "path": "animations/funding-vault-unseal/parts/shutter-right.png",
+      "nativeSize": {
+        "width": 207,
+        "height": 434
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "funding-vault-rig:research-core",
+      "family": "funding-vault-rig",
+      "name": "research-core",
+      "path": "animations/funding-vault-unseal/parts/research-core.png",
+      "nativeSize": {
+        "width": 175,
+        "height": 370
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "funding-vault-rig:energy-ring",
+      "family": "funding-vault-rig",
+      "name": "energy-ring",
+      "path": "animations/funding-vault-unseal/parts/energy-ring.png",
+      "nativeSize": {
+        "width": 317,
+        "height": 324
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "funding-vault-rig:mechanical-seal",
+      "family": "funding-vault-rig",
+      "name": "mechanical-seal",
+      "path": "animations/funding-vault-unseal/parts/mechanical-seal.png",
+      "nativeSize": {
+        "width": 253,
+        "height": 249
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "funding-vault-rig:energy-beam",
+      "family": "funding-vault-rig",
+      "name": "energy-beam",
+      "path": "animations/funding-vault-unseal/parts/energy-beam.png",
+      "nativeSize": {
+        "width": 100,
+        "height": 339
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "funding-vault-rig:energy-glow",
+      "family": "funding-vault-rig",
+      "name": "energy-glow",
+      "path": "animations/funding-vault-unseal/parts/energy-glow.png",
+      "nativeSize": {
+        "width": 389,
+        "height": 172
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "record-verify-rig:scanner-clamp-top",
+      "family": "record-verify-rig",
+      "name": "scanner-clamp-top",
+      "path": "animations/mission-record-verification/parts/scanner-clamp-top.png",
+      "nativeSize": {
+        "width": 396,
+        "height": 153
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "record-verify-rig:record-card-body",
+      "family": "record-verify-rig",
+      "name": "record-card-body",
+      "path": "animations/mission-record-verification/parts/record-card-body.png",
+      "nativeSize": {
+        "width": 343,
+        "height": 583
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "record-verify-rig:verified-seal",
+      "family": "record-verify-rig",
+      "name": "verified-seal",
+      "path": "animations/mission-record-verification/parts/verified-seal.png",
+      "nativeSize": {
+        "width": 324,
+        "height": 327
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "record-verify-rig:scanner-clamp-bottom",
+      "family": "record-verify-rig",
+      "name": "scanner-clamp-bottom",
+      "path": "animations/mission-record-verification/parts/scanner-clamp-bottom.png",
+      "nativeSize": {
+        "width": 397,
+        "height": 145
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "record-verify-rig:scan-strip",
+      "family": "record-verify-rig",
+      "name": "scan-strip",
+      "path": "animations/mission-record-verification/parts/scan-strip.png",
+      "nativeSize": {
+        "width": 322,
+        "height": 32
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "record-verify-rig:status-lamp",
+      "family": "record-verify-rig",
+      "name": "status-lamp",
+      "path": "animations/mission-record-verification/parts/status-lamp.png",
+      "nativeSize": {
+        "width": 242,
+        "height": 124
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "record-verify-rig:pulse-ring",
+      "family": "record-verify-rig",
+      "name": "pulse-ring",
+      "path": "animations/mission-record-verification/parts/pulse-ring.png",
+      "nativeSize": {
+        "width": 233,
+        "height": 251
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "record-verify-rig:energy-glow",
+      "family": "record-verify-rig",
+      "name": "energy-glow",
+      "path": "animations/mission-record-verification/parts/energy-glow.png",
+      "nativeSize": {
+        "width": 273,
+        "height": 156
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "alert-rig:alert-banner-body",
+      "family": "alert-rig",
+      "name": "alert-banner-body",
+      "path": "animations/alert-banner-deploy/parts/alert-banner-body.png",
+      "nativeSize": {
+        "width": 601,
+        "height": 293
+      },
+      "runtimeText": true,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "alert-rig:shutter-left",
+      "family": "alert-rig",
+      "name": "shutter-left",
+      "path": "animations/alert-banner-deploy/parts/shutter-left.png",
+      "nativeSize": {
+        "width": 270,
+        "height": 160
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "alert-rig:shutter-right",
+      "family": "alert-rig",
+      "name": "shutter-right",
+      "path": "animations/alert-banner-deploy/parts/shutter-right.png",
+      "nativeSize": {
+        "width": 259,
+        "height": 158
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "alert-rig:hazard-beacon",
+      "family": "alert-rig",
+      "name": "hazard-beacon",
+      "path": "animations/alert-banner-deploy/parts/hazard-beacon.png",
+      "nativeSize": {
+        "width": 145,
+        "height": 216
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "alert-rig:caution-rail",
+      "family": "alert-rig",
+      "name": "caution-rail",
+      "path": "animations/alert-banner-deploy/parts/caution-rail.png",
+      "nativeSize": {
+        "width": 461,
+        "height": 128
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "alert-rig:warning-crystal",
+      "family": "alert-rig",
+      "name": "warning-crystal",
+      "path": "animations/alert-banner-deploy/parts/warning-crystal.png",
+      "nativeSize": {
+        "width": 225,
+        "height": 211
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "alert-rig:pulse-ring",
+      "family": "alert-rig",
+      "name": "pulse-ring",
+      "path": "animations/alert-banner-deploy/parts/pulse-ring.png",
+      "nativeSize": {
+        "width": 269,
+        "height": 273
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    },
+    {
+      "id": "alert-rig:energy-glow",
+      "family": "alert-rig",
+      "name": "energy-glow",
+      "path": "animations/alert-banner-deploy/parts/energy-glow.png",
+      "nativeSize": {
+        "width": 341,
+        "height": 168
+      },
+      "runtimeText": false,
+      "states": {},
+      "productionRole": "animation-part"
+    }
+  ],
+  "implementationRules": [
+    "React owns text, values, localization, focus, semantics, and application state.",
+    "Pixi owns frame-driven HUD presentation and must not change simulation or hitboxes.",
+    "GIF files are gallery proofs only; production animation uses layered PNG parts and manifests.",
+    "Use CSS object-fit contain for fixed controls and nine-slice/corner composition for resizable panels."
+  ]
+}

@@ -8,7 +8,9 @@ import type {
   BossHealthPhase,
   BossId,
   BossWeaponSetting,
+  EnemyAttackPatternId,
   EnemyId,
+  EnemyRank,
   GameCampaignConfig,
   GeneratedAssetRole,
   LevelDefinition,
@@ -107,7 +109,17 @@ const MOVEMENTS: Array<{ value: MovementPatternId; label: string }> = [
   { value: 'track-player', label: 'Track player' },
   { value: 'wall-march', label: 'Wall march' },
   { value: 'asteroid-drift', label: 'Asteroid drift' },
-  { value: 'gatekeeper-cycle', label: 'Gatekeeper cycle' }
+  { value: 'gatekeeper-cycle', label: 'Gatekeeper cycle' },
+  { value: 'arena-roam', label: 'Arena roam' }
+];
+
+const ENEMY_RANKS: Array<{ value: EnemyRank; label: string }> = [
+  { value: 'standard', label: 'Standard enemy' },
+  { value: 'elite', label: 'Elite enemy' }
+];
+
+const ENEMY_ATTACKS: Array<{ value: EnemyAttackPatternId; label: string }> = [
+  { value: 'aimed-burst', label: 'Aimed burst' }
 ];
 
 const WEAPONS: Array<{ value: WeaponId; label: string }> = [
@@ -400,6 +412,26 @@ function WaveSettings({
               <NumberField label="Drop chance" value={enemy.powerupDropChance * 100} onChange={(value) => updateEnemy({ powerupDropChance: value / 100 })} min={0} max={100} step={1} unit="%" />
               <NumberField label="Mix weight" value={enemy.weight * 100} onChange={(value) => updateEnemy({ weight: value / 100 })} min={0} max={100} step={1} unit="%" />
             </div>
+            <div className="le-field-row">
+              <SelectField label="Enemy rank" value={enemy.rank ?? 'standard'} options={ENEMY_RANKS} onChange={(rank) => updateEnemy(rank === 'standard' ? {
+                rank: undefined,
+                attackPatternId: undefined,
+                attackIntervalSeconds: undefined,
+                projectileSpeed: undefined,
+                burstCount: undefined
+              } : { rank, attackPatternId: enemy.attackPatternId ?? 'aimed-burst' })} />
+              <NumberField label="Visual size" value={enemy.sizeMultiplier ?? 1} onChange={(sizeMultiplier) => updateEnemy({ sizeMultiplier })} min={0.5} max={2.5} step={0.05} unit="×" />
+            </div>
+            {enemy.rank === 'elite' ? (
+              <>
+                <SelectField label="Elite attack" value={enemy.attackPatternId ?? 'aimed-burst'} options={ENEMY_ATTACKS} onChange={(attackPatternId) => updateEnemy({ attackPatternId })} />
+                <div className="le-field-row">
+                  <NumberField label="Attack interval" value={enemy.attackIntervalSeconds ?? 1.5} onChange={(attackIntervalSeconds) => updateEnemy({ attackIntervalSeconds })} min={0.3} max={10} step={0.05} unit="s" />
+                  <NumberField label="Projectile speed" value={enemy.projectileSpeed ?? 4.8} onChange={(projectileSpeed) => updateEnemy({ projectileSpeed })} min={0.5} max={20} step={0.1} />
+                </div>
+                <NumberField label="Burst count" value={enemy.burstCount ?? 3} onChange={(burstCount) => updateEnemy({ burstCount: Math.round(burstCount) })} min={1} max={7} step={1} />
+              </>
+            ) : null}
             <button className="le-button le-button--danger" type="button" disabled={spawn.enemies.length <= 1} onClick={removeEnemy}><EditorIcon name="delete" /> Remove enemy type</button>
             <button className="le-button le-button--danger" type="button" disabled={spawns.length <= 1} onClick={() => onDeleteEvent(spawn.id)}><EditorIcon name="delete" /> Delete enemy phase</button>
           </>
@@ -572,6 +604,7 @@ function BossSettings({
             <NumberField label="Drop chance" value={boss.powerupDropChance * 100} onChange={(value) => updateBoss({ powerupDropChance: value / 100 })} min={0} max={100} step={1} unit="%" />
           </div>
           <NumberField label="Orbiting shields" value={boss.shieldCount} onChange={(shieldCount) => updateBoss({ shieldCount: Math.round(shieldCount) })} min={0} max={12} step={1} />
+          <NumberField label="Boss visual size" value={boss.sizeMultiplier ?? 1} onChange={(sizeMultiplier) => updateBoss({ sizeMultiplier })} min={0.5} max={1.5} step={0.05} unit="×" />
 
           <fieldset className="le-fieldset">
             <legend>Weapons</legend>

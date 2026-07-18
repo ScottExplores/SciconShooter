@@ -1,0 +1,401 @@
+{
+  "id": "scicon-flight-motion-pack-v1",
+  "version": 1,
+  "created": "2026-07-17",
+  "style": "premium semi-pixel Scicon arcade",
+  "assets": [
+    {
+      "id": "researchhub",
+      "title": "ResearchHub Five-View Steering",
+      "role": "ships",
+      "fps": 10,
+      "loop": "input-driven",
+      "states": [
+        "hard-left",
+        "bank-left",
+        "neutral",
+        "bank-right",
+        "hard-right"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub/frames/researchhub-01-hard-left.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub/frames/researchhub-02-bank-left.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub/frames/researchhub-03-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub/frames/researchhub-04-bank-right.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub/frames/researchhub-05-hard-right.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub/researchhub-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub/previews/researchhub-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "bio",
+      "title": "BIO Five-View Steering",
+      "role": "ships",
+      "fps": 10,
+      "loop": "input-driven",
+      "states": [
+        "hard-left",
+        "bank-left",
+        "neutral",
+        "bank-right",
+        "hard-right"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-01-hard-left.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-02-bank-left.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-03-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-04-bank-right.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/frames/bio-05-hard-right.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/bio-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio/previews/bio-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "eth",
+      "title": "ETH Five-View Steering",
+      "role": "ships",
+      "fps": 10,
+      "loop": "input-driven",
+      "states": [
+        "hard-left",
+        "bank-left",
+        "neutral",
+        "bank-right",
+        "hard-right"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth/frames/eth-01-hard-left.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth/frames/eth-02-bank-left.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth/frames/eth-03-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth/frames/eth-04-bank-right.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth/frames/eth-05-hard-right.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth/eth-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth/previews/eth-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "btc-token-ship",
+      "title": "BTC Token Five-View Steering",
+      "role": "ships",
+      "fps": 10,
+      "loop": "input-driven",
+      "states": [
+        "hard-left",
+        "bank-left",
+        "neutral",
+        "bank-right",
+        "hard-right"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-01-hard-left.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-02-bank-left.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-03-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-04-bank-right.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-05-hard-right.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/btc-token-ship-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/previews/btc-token-ship-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "researchhub-selection-idle",
+      "title": "ResearchHub Selection Pulse",
+      "role": "ships",
+      "fps": 5,
+      "loop": "selection-idle",
+      "states": [
+        "rest",
+        "flask-pulse",
+        "top-antenna-pulse",
+        "side-sensors-pulse",
+        "rest-hold",
+        "settle"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub-selection-idle/frames/researchhub-selection-idle-01-rest.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub-selection-idle/frames/researchhub-selection-idle-02-flask-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub-selection-idle/frames/researchhub-selection-idle-03-top-antenna-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub-selection-idle/frames/researchhub-selection-idle-04-side-sensors-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub-selection-idle/frames/researchhub-selection-idle-05-rest-hold.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub-selection-idle/frames/researchhub-selection-idle-06-settle.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub-selection-idle/researchhub-selection-idle-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/researchhub-selection-idle/previews/researchhub-selection-idle-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "bio-selection-idle",
+      "title": "BIO Selection Pulse",
+      "role": "ships",
+      "fps": 5,
+      "loop": "selection-idle",
+      "states": [
+        "rest",
+        "gene-core-pulse",
+        "upper-channel-pulse",
+        "sensor-pod-pulse",
+        "rest-hold",
+        "settle"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-01-rest.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-02-gene-core-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-03-upper-channel-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-04-sensor-pod-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-05-rest-hold.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/frames/bio-selection-idle-06-settle.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/bio-selection-idle-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/bio-selection-idle/previews/bio-selection-idle-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "eth-selection-idle",
+      "title": "ETH Selection Pulse",
+      "role": "ships",
+      "fps": 5,
+      "loop": "selection-idle",
+      "states": [
+        "rest",
+        "reactor-pulse",
+        "crystal-pulse",
+        "wing-conduit-pulse",
+        "rest-hold",
+        "settle"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth-selection-idle/frames/eth-selection-idle-01-rest.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth-selection-idle/frames/eth-selection-idle-02-reactor-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth-selection-idle/frames/eth-selection-idle-03-crystal-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth-selection-idle/frames/eth-selection-idle-04-wing-conduit-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth-selection-idle/frames/eth-selection-idle-05-rest-hold.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth-selection-idle/frames/eth-selection-idle-06-settle.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth-selection-idle/eth-selection-idle-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/eth-selection-idle/previews/eth-selection-idle-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "btc-token-ship-selection-idle",
+      "title": "BTC Token Selection Pulse",
+      "role": "ships",
+      "fps": 5,
+      "loop": "selection-idle",
+      "states": [
+        "rest",
+        "hash-rail-pulse",
+        "upper-rail-pulse",
+        "token-rim-pulse",
+        "rest-hold",
+        "settle"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship-selection-idle/frames/btc-token-ship-selection-idle-01-rest.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship-selection-idle/frames/btc-token-ship-selection-idle-02-hash-rail-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship-selection-idle/frames/btc-token-ship-selection-idle-03-upper-rail-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship-selection-idle/frames/btc-token-ship-selection-idle-04-token-rim-pulse.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship-selection-idle/frames/btc-token-ship-selection-idle-05-rest-hold.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship-selection-idle/frames/btc-token-ship-selection-idle-06-settle.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship-selection-idle/btc-token-ship-selection-idle-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship-selection-idle/previews/btc-token-ship-selection-idle-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "paywall-interceptor",
+      "title": "Paywall Interceptor Motion",
+      "role": "enemies",
+      "fps": 8,
+      "loop": "ping-pong",
+      "states": [
+        "contracted",
+        "neutral",
+        "charged"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/paywall-interceptor/frames/paywall-interceptor-01-contracted.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/paywall-interceptor/frames/paywall-interceptor-02-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/paywall-interceptor/frames/paywall-interceptor-03-charged.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/enemies/paywall-interceptor/paywall-interceptor-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/enemies/paywall-interceptor/previews/paywall-interceptor-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "citation-wraith",
+      "title": "Citation Wraith Motion",
+      "role": "enemies",
+      "fps": 8,
+      "loop": "ping-pong",
+      "states": [
+        "contracted",
+        "neutral",
+        "charged"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/citation-wraith/frames/citation-wraith-01-contracted.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/citation-wraith/frames/citation-wraith-02-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/citation-wraith/frames/citation-wraith-03-charged.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/enemies/citation-wraith/citation-wraith-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/enemies/citation-wraith/previews/citation-wraith-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "peer-review-bulwark",
+      "title": "Peer Review Bulwark Motion",
+      "role": "enemies",
+      "fps": 7,
+      "loop": "ping-pong",
+      "states": [
+        "guard-low",
+        "neutral",
+        "guard-high"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/peer-review-bulwark/frames/peer-review-bulwark-01-guard-low.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/peer-review-bulwark/frames/peer-review-bulwark-02-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/peer-review-bulwark/frames/peer-review-bulwark-03-guard-high.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/enemies/peer-review-bulwark/peer-review-bulwark-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/enemies/peer-review-bulwark/previews/peer-review-bulwark-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "predatory-journal-raider",
+      "title": "Predatory Journal Raider Motion",
+      "role": "enemies",
+      "fps": 9,
+      "loop": "ping-pong",
+      "states": [
+        "wings-in",
+        "neutral",
+        "wings-out"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/predatory-journal-raider/frames/predatory-journal-raider-01-wings-in.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/predatory-journal-raider/frames/predatory-journal-raider-02-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/enemies/predatory-journal-raider/frames/predatory-journal-raider-03-wings-out.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/enemies/predatory-journal-raider/predatory-journal-raider-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/enemies/predatory-journal-raider/previews/predatory-journal-raider-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "bottleneck-harvester",
+      "title": "Bottleneck Harvester Mini-Boss",
+      "role": "bosses",
+      "fps": 7,
+      "loop": "ping-pong",
+      "states": [
+        "idle",
+        "neutral",
+        "attack",
+        "damage-50",
+        "critical-15"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-01-idle.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-02-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-03-attack.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-04-damage-50.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-05-critical-15.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/bottleneck-harvester-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/previews/bottleneck-harvester-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    },
+    {
+      "id": "paywall-bastion",
+      "title": "Paywall Bastion Mini-Boss",
+      "role": "bosses",
+      "fps": 7,
+      "loop": "ping-pong",
+      "states": [
+        "idle",
+        "neutral",
+        "attack",
+        "damage-50",
+        "critical-15"
+      ],
+      "frames": [
+        "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-01-idle.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-02-neutral.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-03-attack.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-04-damage-50.png",
+        "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-05-critical-15.png"
+      ],
+      "sheet": "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/paywall-bastion-sprite-sheet.png",
+      "previewGif": "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/previews/paywall-bastion-animation-preview.gif",
+      "productionNote": "Use PNG frames in Pixi; GIF is gallery preview only."
+    }
+  ],
+  "steeringContract": {
+    "recommendedDeadzone": 0.12,
+    "recommendedBlendMs": 90,
+    "stateThresholds": {
+      "hard-left": "normalized horizontal input/velocity <= -0.95",
+      "bank-left": "-0.95 < normalized horizontal input/velocity < -0.42",
+      "neutral": "-0.42 <= normalized horizontal input/velocity <= 0.42",
+      "bank-right": "0.42 < normalized horizontal input/velocity < 0.95",
+      "hard-right": "normalized horizontal input/velocity >= 0.95"
+    },
+    "bankingRule": "Use full redrawn views: broad neutral, 3/4 bank, then a narrow nearly edge-on hard-bank profile. The nose still points toward 12 o'clock; never rotate one flat texture in the image plane.",
+    "hitboxInvariant": "Changing steering frames must never change collision geometry."
+  },
+  "selectionIdleContract": {
+    "targetShips": [
+      "researchhub",
+      "bio",
+      "eth",
+      "btc-token-ship"
+    ],
+    "fps": 5,
+    "productionUse": "ship selection screen only",
+    "fixedRegistration": true,
+    "animatedComponents": {
+      "researchhub": [
+        "central flask/core",
+        "top antenna node",
+        "side sensors/canisters"
+      ],
+      "bio": [
+        "gene membrane/core",
+        "upper seed channel",
+        "outer sensor pods"
+      ],
+      "eth": [
+        "central diamond reactor",
+        "upper crystal facets",
+        "wing conduits"
+      ],
+      "btc-token-ship": [
+        "central hash rails",
+        "upper token rails",
+        "outer token rim/side nodes"
+      ]
+    },
+    "rule": "Keep identical scale and registration in every frame. Treat the hull and boosters as one composited ship so they never separate while the named components pulse."
+  },
+  "enemyAnimationContract": {
+    "mode": "ping-pong",
+    "recommendedFpsRange": [
+      7,
+      9
+    ],
+    "desynchronize": true
+  },
+  "bossDamageContract": {
+    "idleFrames": [
+      0,
+      1,
+      2
+    ],
+    "damage50Frame": 3,
+    "critical15Frame": 4,
+    "damageFramesArePresentationOnly": true
+  }
+}

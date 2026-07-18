@@ -1,0 +1,318 @@
+.sci-pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: max(0.65rem, env(safe-area-inset-top)) 0.65rem max(0.65rem, env(safe-area-inset-bottom));
+  background-color: rgba(1, 5, 15, 0.88);
+  backdrop-filter: blur(7px);
+}
+
+.sci-pause-overlay__grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.24;
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
+}
+
+.sci-pause-scroll {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 405px);
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.15rem;
+}
+
+.sci-pause-shell {
+  position: relative;
+  width: 100%;
+  min-height: 430px;
+  overflow: hidden;
+  padding: 3.45rem 2.65rem 3.1rem;
+  background-image: url('/game-art/generated/ui/scicon-ui-system-v2/base/pause-settings/pause-menu-frame.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  filter: drop-shadow(0 22px 42px rgba(0, 0, 0, 0.64));
+  animation: sci-pause-frame-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.sci-pause-shell__scan {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  top: 18%;
+  height: 1px;
+  background: rgba(103, 232, 249, 0.8);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.75);
+  opacity: 0;
+  pointer-events: none;
+  animation: sci-pause-scan 3.8s linear 420ms infinite;
+}
+
+.sci-pause-content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.sci-pause-header {
+  display: grid;
+  grid-template-columns: 2.6rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 3.2rem;
+  text-align: left;
+}
+
+.sci-pause-header img {
+  width: 2.45rem;
+  height: 2.45rem;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 7px rgba(34, 211, 238, 0.45));
+}
+
+.sci-pause-header p {
+  margin: 0 0 0.12rem;
+  overflow: hidden;
+  color: rgba(165, 243, 252, 0.68);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sci-pause-header h2 {
+  margin: 0;
+  color: white;
+  font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(1.05rem, 5vw, 1.38rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px rgba(34, 211, 238, 0.45);
+}
+
+.sci-pause-actions {
+  display: grid;
+  grid-template-columns: 1fr 0.72fr;
+  gap: 0.35rem;
+}
+
+.sci-pause-action {
+  position: relative;
+  min-width: 0;
+  min-height: 3.15rem;
+  border: 0;
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  color: #03111d;
+  cursor: pointer;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.sci-pause-action span {
+  display: block;
+  padding: 0 1.15rem;
+  overflow: hidden;
+  font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sci-pause-action--resume {
+  background-image: url('/game-art/generated/ui/scicon-ui-system-v2/base/pause-settings/resume-button.png');
+}
+
+.sci-pause-action--resume:hover,
+.sci-pause-action--resume:focus-visible {
+  background-image: url('/game-art/generated/ui/scicon-ui-system-v2/states/pause-settings/resume-button/hover.png');
+  filter: brightness(1.08) drop-shadow(0 0 9px rgba(34, 211, 238, 0.42));
+}
+
+.sci-pause-action--resume:active {
+  background-image: url('/game-art/generated/ui/scicon-ui-system-v2/states/pause-settings/resume-button/pressed.png');
+}
+
+.sci-pause-action--quit {
+  background-image: url('/game-art/generated/ui/scicon-ui-system-v2/base/pause-settings/quit-button.png');
+  color: #fff5ed;
+}
+
+.sci-pause-action--quit:hover,
+.sci-pause-action--quit:focus-visible {
+  background-image: url('/game-art/generated/ui/scicon-ui-system-v2/states/pause-settings/quit-button/hover.png');
+  filter: brightness(1.06) drop-shadow(0 0 8px rgba(248, 113, 113, 0.34));
+}
+
+.sci-pause-action--quit:active {
+  background-image: url('/game-art/generated/ui/scicon-ui-system-v2/states/pause-settings/quit-button/pressed.png');
+}
+
+.sci-pause-settings {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.sci-pause-settings__title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  color: #a5f3fc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.sci-pause-settings__title img {
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.sci-pause-setting {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.6rem;
+  align-items: center;
+  width: 100%;
+  min-height: 2.65rem;
+  overflow: hidden;
+  border: 0;
+  padding: 0.22rem 0.42rem 0.22rem 4rem;
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  color: #e0f2fe;
+  cursor: pointer;
+  transition: filter 140ms ease, transform 140ms ease;
+}
+
+.sci-pause-setting--audio {
+  background-image: url('/game-art/generated/ui/scicon-ui-system-v2/base/pause-settings/audio-settings-row.png');
+}
+
+.sci-pause-setting--controls {
+  background-image: url('/game-art/generated/ui/scicon-ui-system-v2/base/pause-settings/controls-settings-row.png');
+}
+
+.sci-pause-setting:hover,
+.sci-pause-setting:focus-visible {
+  filter: brightness(1.12) drop-shadow(0 0 7px rgba(34, 211, 238, 0.23));
+  transform: translateX(1px);
+}
+
+.sci-pause-setting__label {
+  min-width: 0;
+  overflow: hidden;
+  font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.54rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sci-pause-setting__toggle {
+  width: 3.55rem;
+  height: 1.65rem;
+  object-fit: fill;
+  justify-self: end;
+  filter: saturate(0.5) brightness(0.72);
+  transition: filter 160ms ease, transform 160ms ease;
+}
+
+.sci-pause-setting__toggle--on {
+  filter: saturate(1.05) brightness(1.05) drop-shadow(0 0 7px rgba(34, 211, 238, 0.42));
+}
+
+.sci-pause-founder {
+  position: relative;
+  margin: 0.5rem 0.25rem 0.25rem;
+  padding: 1.1rem;
+  border: 1px solid rgba(103, 232, 249, 0.3);
+  background: rgba(2, 8, 23, 0.93);
+  box-shadow: inset 0 0 22px rgba(34, 211, 238, 0.08), 0 12px 32px rgba(0, 0, 0, 0.45);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+@keyframes sci-pause-frame-enter {
+  from { opacity: 0; transform: scale(0.93); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes sci-pause-scan {
+  0% { opacity: 0; transform: translateY(0); }
+  8% { opacity: 0.7; }
+  82% { opacity: 0.2; }
+  100% { opacity: 0; transform: translateY(290px); }
+}
+
+@media (max-width: 420px) {
+  .sci-pause-shell {
+    min-height: 414px;
+    padding: 3.15rem 2.35rem 2.9rem;
+  }
+
+  .sci-pause-content {
+    gap: 0.45rem;
+  }
+
+  .sci-pause-header {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    min-height: 2.8rem;
+  }
+
+  .sci-pause-header img {
+    width: 2.1rem;
+    height: 2.1rem;
+  }
+
+  .sci-pause-action {
+    min-height: 2.9rem;
+  }
+
+  .sci-pause-setting {
+    min-height: 2.45rem;
+    padding-left: 3.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sci-pause-shell,
+  .sci-pause-shell__scan {
+    animation: none;
+  }
+
+  .sci-pause-action,
+  .sci-pause-setting,
+  .sci-pause-setting__toggle {
+    transition: none;
+  }
+}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { audioService } from '../services/audioService';
 import { StoryBeat } from '../services/storyBeats';
+import FundingVaultUnseal, { FUNDING_VAULT_UNSEAL_DURATION_MS } from './FundingVaultUnseal';
 
 interface StoryTransmissionProps {
   beat: StoryBeat;
@@ -9,14 +10,24 @@ interface StoryTransmissionProps {
 
 const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete }) => {
   const [visibleCount, setVisibleCount] = useState(0);
+  const [vaultUnsealed, setVaultUnsealed] = useState(false);
   const isComplete = visibleCount >= beat.text.length;
 
   useEffect(() => {
     setVisibleCount(0);
+    setVaultUnsealed(false);
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timer = window.setTimeout(
+      () => setVaultUnsealed(true),
+      reducedMotion ? 320 : FUNDING_VAULT_UNSEAL_DURATION_MS
+    );
+
+    return () => window.clearTimeout(timer);
   }, [beat.phase]);
 
   useEffect(() => {
-    if (isComplete) return;
+    if (!vaultUnsealed || isComplete) return;
 
     const timer = window.setTimeout(() => {
       setVisibleCount((count) => {
@@ -30,12 +41,14 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
     }, 24);
 
     return () => window.clearTimeout(timer);
-  }, [beat.text, isComplete, visibleCount]);
+  }, [beat.text, isComplete, vaultUnsealed, visibleCount]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
+
+      if (!vaultUnsealed) return;
 
       if (!isComplete) {
         setVisibleCount(beat.text.length);
@@ -47,9 +60,11 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [beat.text.length, isComplete, onComplete]);
+  }, [beat.text.length, isComplete, onComplete, vaultUnsealed]);
 
   const handleAdvance = () => {
+    if (!vaultUnsealed) return;
+
     if (!isComplete) {
       setVisibleCount(beat.text.length);
       return;
@@ -59,11 +74,11 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
   };
 
   return (
-    <div className="absolute inset-0 z-40 flex items-start justify-center bg-black/35 px-3 pb-5 pt-[18vh] backdrop-blur-[2px] sm:p-6 sm:pt-[16vh]">
-      <button
+    <div className={`absolute inset-0 z-40 flex justify-center bg-black/45 backdrop-blur-[2px] ${vaultUnsealed ? 'items-start px-3 pb-5 pt-[18vh] sm:p-6 sm:pt-[16vh]' : 'items-center p-2 sm:p-5'}`}>
+      {!vaultUnsealed ? <FundingVaultUnseal /> : <button
         type="button"
         onClick={handleAdvance}
-        className="group relative grid w-full max-w-3xl grid-cols-[92px_1fr] gap-3 overflow-hidden border border-cyan-200/25 bg-slate-950/92 p-3 text-left shadow-[0_22px_90px_rgba(0,0,0,0.62)] [clip-path:polygon(16px_0,100%_0,100%_92%,96%_100%,0_100%,0_16px)] sm:grid-cols-[132px_1fr] sm:gap-4 sm:p-4"
+        className="group relative grid w-full max-w-3xl animate-bounce-in grid-cols-[92px_1fr] gap-3 overflow-hidden border border-cyan-200/25 bg-slate-950/92 p-3 text-left shadow-[0_22px_90px_rgba(0,0,0,0.62)] [clip-path:polygon(16px_0,100%_0,100%_92%,96%_100%,0_100%,0_16px)] sm:grid-cols-[132px_1fr] sm:gap-4 sm:p-4"
       >
         <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${beat.accent}`}></div>
         <div className="absolute inset-0 bg-[linear-gradient(rgba(103,232,249,0.04)_1px,transparent_1px)] bg-[size:100%_8px] opacity-50"></div>
@@ -100,7 +115,7 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
             {isComplete ? 'Tap to deploy' : 'Receiving transmission'}
           </div>
         </div>
-      </button>
+      </button>}
     </div>
   );
 };

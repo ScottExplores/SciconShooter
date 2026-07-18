@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { FieldUpgradeType, Stats } from '../types';
-import { audioService } from '../services/audioService';
 import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress } from '../services/flaskProgress';
 import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
@@ -19,11 +18,9 @@ export interface UIOverlayProps {
   onUpgrade: (type: FieldUpgradeType) => void;
   bombIconSrc?: string;
   bombLocked?: boolean;
-  muted?: boolean;
-  onToggleMute?: () => boolean | void;
 }
 
-type HudIconName = 'sound' | 'muted' | 'play' | 'pause' | 'freeze' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
+type HudIconName = 'play' | 'pause' | 'freeze' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
 
 const HudIcon = ({
   name,
@@ -44,19 +41,6 @@ const HudIcon = ({
 
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      {name === 'sound' ? (
-        <>
-          <path {...common} d="M4.5 14.5h3.2l5.1 4.1V5.4L7.7 9.5H4.5z" />
-          <path {...common} d="M16 9c.9.9 1.3 1.9 1.3 3s-.4 2.1-1.3 3" />
-          <path {...common} d="M18.7 6.5a7.6 7.6 0 0 1 0 11" />
-        </>
-      ) : null}
-      {name === 'muted' ? (
-        <>
-          <path {...common} d="M4.5 14.5h3.2l5.1 4.1V5.4L7.7 9.5H4.5z" />
-          <path {...common} d="m16.5 9.5 4 5M20.5 9.5l-4 5" />
-        </>
-      ) : null}
       {name === 'pause' ? (
         <path {...common} d="M8 5.5v13M16 5.5v13" />
       ) : null}
@@ -123,7 +107,7 @@ const BombSprite = ({ active, src }: { active: boolean; src: string }) => (
     alt=""
     aria-hidden="true"
     draggable={false}
-    className={`relative h-14 w-14 object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.5)] transition ${active ? '' : 'grayscale opacity-55'}`}
+    className={`relative h-[3.325rem] w-[3.325rem] object-contain drop-shadow-[0_0_18px_rgba(163,230,53,0.5)] transition ${active ? '' : 'grayscale opacity-55'}`}
   />
 );
 
@@ -142,7 +126,7 @@ const FieldUpgradeSprite = ({ type, highlighted }: { type: FieldUpgradeType; hig
     aria-hidden="true"
     draggable={false}
     decoding="async"
-    className={`h-[3.7rem] w-[3.7rem] object-contain [image-rendering:pixelated] transition duration-200 ${type === 'speed' ? '-rotate-90' : ''} ${
+    className={`h-[3.5rem] w-[3.5rem] object-contain [image-rendering:pixelated] transition duration-200 ${type === 'speed' ? '-rotate-90' : ''} ${
       highlighted
         ? 'opacity-100 saturate-125 brightness-110 drop-shadow-[0_0_12px_currentColor]'
         : 'grayscale opacity-35 brightness-50'
@@ -172,6 +156,24 @@ const fieldUpgradeColors: Record<FieldUpgradeType, {
   }
 };
 
+const compactHudRoot = '/game-art/generated/ui/scicon-compact-top-hud-v1';
+
+const compactHudAssets = {
+  lifeFrame: `${compactHudRoot}/frames/life-counter-frame.png`,
+  flaskFrame: `${compactHudRoot}/frames/flask-progress-frame.png`,
+  scoreFrame: `${compactHudRoot}/frames/score-counter-frame.png`,
+  flaskFill: `${compactHudRoot}/fills/flask-fill-cyan.png`,
+  heartShell: `${compactHudRoot}/meter-parts/heart-health-shell.png`,
+  heartFill: `${compactHudRoot}/meter-parts/heart-health-fill.png`,
+  beakerShell: `${compactHudRoot}/meter-parts/beaker-charge-shell.png`,
+  beakerLiquid: `${compactHudRoot}/meter-parts/beaker-charge-liquid.png`,
+  scoreIcon: `${compactHudRoot}/icons/research-score-icon.png`,
+  pauseNormal: `${compactHudRoot}/buttons/pause-button-normal.png`,
+  pauseSelected: `${compactHudRoot}/buttons/pause-button-selected.png`
+} as const;
+
+const pixelSpriteClass = 'pointer-events-none absolute select-none object-contain [image-rendering:pixelated]';
+
 const UIOverlay: React.FC<UIOverlayProps> = ({
   stats,
   showLabGlow,
@@ -185,13 +187,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   onUseBomb,
   onUpgrade,
   bombIconSrc = getPrimaryAssetPath(DEFAULT_GAME_CAMPAIGN.hudAssets.bombIconAssetKey),
-  bombLocked = false,
-  muted: controlledMuted,
-  onToggleMute
+  bombLocked = false
 }) => {
-  const [internalMuted, setInternalMuted] = useState(false);
-  const muted = controlledMuted ?? internalMuted;
-
   useEffect(() => {
     if (!showLabGlow) return;
 
@@ -202,13 +199,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     return () => clearTimeout(timer);
   }, [showLabGlow, onDisableLabGlow]);
 
-  const toggleMute = () => {
-    const result = onToggleMute ? onToggleMute() : audioService.toggleMute();
-    if (controlledMuted === undefined) {
-      setInternalMuted(typeof result === 'boolean' ? result : !muted);
-    }
-  };
-
   const bombChargeMax = stats.bombChargeMax || BASE_FLASK_CHARGE_MAX;
   const flaskCharge = Math.max(0, stats.bombCharge || 0);
   const flaskProgress = getFlaskProgress(flaskCharge, bombChargeMax);
@@ -217,56 +207,125 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const flaskReady = flaskCount > 0;
   const bombs = stats.bombs || 0;
   const canUseBomb = bombs > 0 && !bombLocked;
+  const lifeCapacityRef = useRef(Math.max(1, stats.lives));
+  lifeCapacityRef.current = Math.max(lifeCapacityRef.current, stats.lives);
+  const remainingLifePct = Math.max(0, Math.min(100, (stats.lives / lifeCapacityRef.current) * 100));
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-2 sm:p-4">
-      <div className="flex w-full items-start justify-between gap-1.5">
-        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-[8px] border border-cyan-200/18 bg-slate-950/70 px-1.5 py-1.5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-md sm:gap-2 sm:px-2.5 sm:py-2">
-          <div className="flex h-8 shrink-0 items-center gap-1 rounded-[6px] border border-red-300/24 bg-red-500/12 px-2 text-red-100 sm:h-9">
-            <HudIcon name="heart" className="h-4 w-4 text-red-400 sm:h-5 sm:w-5" />
-            <span className="arcade-font min-w-4 text-lg font-black leading-none text-white">{stats.lives}</span>
+    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-1.5 sm:p-3">
+      <div className="flex w-full items-start justify-between gap-2">
+        <div className="pointer-events-auto relative h-[4.625rem] w-[9.25rem] shrink-0" data-testid="compact-status-hud">
+          <div className="relative h-[2.625rem] w-[7.875rem]" aria-label={`${stats.lives} lives remaining`}>
+            <img
+              src={compactHudAssets.lifeFrame}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className={`${pixelSpriteClass} inset-0 h-full w-full`}
+            />
+            <div className="absolute left-[0.2rem] top-[0.15rem] h-[2.2rem] w-[2.2rem]">
+              <img
+                src={compactHudAssets.heartFill}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className={`${pixelSpriteClass} inset-0 h-full w-full transition-[clip-path] duration-200`}
+                style={{ clipPath: `inset(${100 - remainingLifePct}% 0 0 0)` }}
+              />
+              <img
+                src={compactHudAssets.heartShell}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className={`${pixelSpriteClass} inset-0 h-full w-full`}
+              />
+            </div>
+            <span className="arcade-font absolute left-[3.55rem] top-1/2 -translate-y-[58%] text-[1.15rem] font-black leading-none tracking-wide text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">
+              {stats.lives}
+            </span>
           </div>
 
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            <HudIcon name="flask" className="h-5 w-5 shrink-0 text-cyan-200 sm:h-6 sm:w-6" />
-            <div className="min-w-0 max-w-full flex-1 overflow-hidden">
-              <div className="h-3 w-full max-w-full overflow-hidden rounded-full border border-cyan-100/10 bg-slate-700/70">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-emerald-300 to-yellow-300 transition-all duration-300"
-                  style={{ width: `${nextFlaskPct}%` }}
+          <div className="absolute bottom-0 left-0 h-[2.25rem] w-full" aria-label={`Flasks ${flaskCount}, ${Math.round(nextFlaskPct)} percent charged`}>
+            <div className="absolute left-[2.45rem] top-[0.53rem] h-[0.64rem] w-[5.92rem] overflow-hidden">
+              <div
+                className="relative h-full overflow-hidden transition-[width] duration-300"
+                style={{ width: `${nextFlaskPct}%` }}
+              >
+                <img
+                  src={compactHudAssets.flaskFill}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className={`${pixelSpriteClass} left-0 top-0 h-full w-[5.92rem] max-w-none`}
                 />
               </div>
-              <div className="mt-0.5 truncate text-[8px] font-black uppercase tracking-[0.08em] text-cyan-100/75 sm:text-[9px] sm:tracking-[0.12em]">
-                Flasks {flaskCount}
-              </div>
             </div>
+            <img
+              src={compactHudAssets.flaskFrame}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className={`${pixelSpriteClass} left-[1.75rem] top-[0.22rem] h-[1.875rem] w-[7.5rem]`}
+            />
+            <div className="absolute left-0 top-0 h-[2.25rem] w-[2.25rem]">
+              <img
+                src={compactHudAssets.beakerLiquid}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className={`${pixelSpriteClass} inset-0 h-full w-full transition-[clip-path] duration-300`}
+                style={{ clipPath: `inset(${100 - nextFlaskPct}% 0 0 0)` }}
+              />
+              <img
+                src={compactHudAssets.beakerShell}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className={`${pixelSpriteClass} inset-0 h-full w-full`}
+              />
+            </div>
+            <span className="arcade-font absolute left-[3.2rem] top-[1.18rem] text-[0.5rem] font-black uppercase leading-none tracking-[0.08em] text-cyan-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
+              Flasks {flaskCount}
+            </span>
           </div>
         </div>
 
         <div className="pointer-events-auto flex shrink-0 items-start gap-1">
-          <div className="flex h-9 min-w-[70px] items-center justify-center rounded-[6px] border border-cyan-200/18 bg-slate-950/72 px-2 shadow-[0_10px_28px_rgba(0,0,0,0.24)] backdrop-blur-md sm:h-10 sm:min-w-[96px] sm:px-2.5">
-            <div className="arcade-font text-base font-black tracking-wider text-white sm:text-2xl">
+          <div className="relative h-[2.625rem] w-[7.875rem]" aria-label={`Score ${stats.score}`}>
+            <img
+              src={compactHudAssets.scoreFrame}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className={`${pixelSpriteClass} inset-0 h-full w-full`}
+            />
+            <img
+              src={compactHudAssets.scoreIcon}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className={`${pixelSpriteClass} left-[0.28rem] top-[0.24rem] h-[2rem] w-[2rem]`}
+            />
+            <span className="arcade-font absolute left-[2.55rem] right-[0.35rem] top-1/2 -translate-y-[57%] text-center text-[0.92rem] font-black leading-none tracking-[0.06em] text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">
               {stats.score.toString().padStart(6, '0')}
-            </div>
+            </span>
           </div>
-
-          <button
-            onClick={toggleMute}
-            className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-cyan-200/18 bg-white text-slate-950 shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition hover:bg-blue-100 sm:h-10 sm:w-10"
-            aria-label={muted ? 'Unmute sound' : 'Mute sound'}
-          >
-            <HudIcon name={muted ? 'muted' : 'sound'} className="h-5 w-5" />
-          </button>
 
           <div className="flex flex-col gap-1">
             <button
               type="button"
               onClick={onPause}
-              className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-cyan-200/18 bg-white text-slate-950 shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition hover:bg-blue-100 sm:h-10 sm:w-10"
+              className="group relative h-[2.625rem] w-[2.625rem] shrink-0 transition-transform active:scale-90"
               aria-label={paused ? 'Resume mission' : 'Pause mission'}
               aria-pressed={paused}
             >
-              <HudIcon name={paused ? 'play' : 'pause'} className="h-5 w-5" />
+              <img
+                src={paused ? compactHudAssets.pauseSelected : compactHudAssets.pauseNormal}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="h-full w-full select-none object-contain [image-rendering:pixelated] transition group-hover:brightness-125 group-focus-visible:brightness-125"
+              />
             </button>
             {showFreezeControl && onToggleFreeze ? (
               <button
@@ -293,7 +352,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           type="button"
           onClick={onUseBomb}
           disabled={!canUseBomb}
-          className={`relative flex h-[4.6rem] w-[4.6rem] items-center justify-center rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
+          className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
             canUseBomb
               ? 'border-yellow-200/70 bg-slate-950/70 text-white shadow-[0_0_34px_rgba(251,191,36,0.2)] hover:border-yellow-100 hover:brightness-110'
               : 'border-slate-400/20 bg-slate-900/54 text-slate-400 opacity-75'
@@ -327,7 +386,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
       )}
 
       <div
-        className="pointer-events-auto absolute right-2 z-20 flex w-[4.6rem] flex-col gap-1.5 sm:right-4"
+        className="pointer-events-auto absolute right-2 z-20 flex w-[4.375rem] flex-col gap-1.5 sm:right-4"
         style={{ bottom: 'max(2.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))' }}
       >
         <div className={`relative rounded-[8px] border px-1.5 py-1.5 text-center shadow-[0_12px_32px_rgba(0,0,0,0.3)] backdrop-blur-md ${
@@ -368,7 +427,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 onUpgrade(type);
               }}
               disabled={!canPick}
-              className={`group relative flex h-[4.6rem] w-[4.6rem] items-center justify-center overflow-visible rounded-[10px] border p-0.5 shadow-[0_14px_38px_rgba(0,0,0,0.3)] backdrop-blur-md transition active:scale-95 ${
+              className={`group relative flex h-[4.375rem] w-[4.375rem] items-center justify-center overflow-visible rounded-[10px] border p-0.5 shadow-[0_14px_38px_rgba(0,0,0,0.3)] backdrop-blur-md transition active:scale-95 ${
                 highlighted
                   ? `${colors.active} ${canPick ? 'hover:border-white hover:brightness-125' : ''}`
                   : colors.idle

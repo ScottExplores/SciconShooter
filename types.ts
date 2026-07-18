@@ -4,6 +4,7 @@ export enum GameState {
   MENU = 'MENU',
   TUTORIAL = 'TUTORIAL',
   PLAYING = 'PLAYING',
+  WAVE_COMPLETE = 'WAVE_COMPLETE',
   PAUSED = 'PAUSED',
   GAMEOVER = 'GAMEOVER',
   ABOUT = 'ABOUT',

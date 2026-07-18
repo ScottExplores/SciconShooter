@@ -1,0 +1,16 @@
+{
+  "id": "alert-banner-deploy",
+  "runtimeText": true,
+  "durationMs": 2016,
+  "events": [
+    {
+      "atMs": 0,
+      "name": "ui.alert.deploy"
+    },
+    {
+      "atMs": 680,
+      "name": "ui.alert.lock"
+    }
+  ],
+  "production": "layered-png"
+}

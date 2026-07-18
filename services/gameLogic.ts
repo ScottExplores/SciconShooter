@@ -6,6 +6,8 @@ import type {
   AssetKey,
   AsteroidEvent,
   BossEvent,
+  EnemyAttackPatternId,
+  EnemyRank,
   GameCampaign,
   LevelDefinition,
   SpriteStyle,
@@ -29,6 +31,21 @@ type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'grid' | 'diamond' |
 type ConfiguredEnemyFormationMode = Exclude<EnemyFormationMode, 'orbit'>;
 type EnemyFormationState = 'entry' | 'hold' | 'dive' | 'return';
 type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard' | 'btc-hash';
+export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
+export type BossPartId = 'left-cannon' | 'right-cannon' | 'helmet';
+export type BossComponentState = {
+  id: BossPartId;
+  label: string;
+  hp: number;
+  maxHp: number;
+  centerXRatio: number;
+  centerYRatio: number;
+  widthRatio: number;
+  heightRatio: number;
+  destroyed: boolean;
+  flashFrames: number;
+};
+export type BossProjectileVisualKind = 'boss-ray' | 'boss-bolt' | 'crown-claw-left' | 'crown-claw-right';
 type PendingPlayerShot = {
   fireFrame: number;
   speed: number;
@@ -67,8 +84,20 @@ export class Entity {
   lastBurstAttackTimer: number = 0;
   isCharging: boolean = false;
   isBeam: boolean = false; 
+  beamAxis: 'vertical' | 'horizontal' = 'vertical';
+  beamFromCenter: boolean = false;
+  isTelegraph: boolean = false;
   beamAnchorOffsetX: number | null = null;
   beamLaneSign: number = 0;
+  bossRigId?: BossRigId;
+  bossComponents?: BossComponentState[];
+  bossDecayStage: number = 0;
+  projectileVisualKind?: BossProjectileVisualKind;
+  bossOwnerId?: string;
+  bossComponentId?: BossPartId;
+  clawOutboundFrames: number = 0;
+  clawReturning: boolean = false;
+  clawHasHitPlayer: boolean = false;
 
   // Missile Props
   isMissile: boolean = false;
@@ -112,6 +141,9 @@ export class Entity {
   phaseThresholds: number[] = [];
   weaponKinds: string[] = [];
   configuredBurstCount?: number;
+  isElite: boolean = false;
+  eliteRank?: EnemyRank;
+  eliteAttackPattern?: EnemyAttackPatternId;
   completesWave: boolean = false;
   /** Configuration provenance used by the local visual editor. */
   sourceEventId?: string;
@@ -314,6 +346,7 @@ const GAMEPLAY_ASSET_URLS = [
   ASSETS.ENEMY_JOURNAL,
   ASSETS.MINI_BOSS,
   ASSETS.WALL_BOSS_SEGMENT,
+  ...ASSETS.PAYWALL_BASTION_FRAMES,
   ASSETS.FINAL_BOSS,
   DEFAULT_BOMB_SPRITE_URL,
   ...ASSETS.ENEMY_DRONE_FRAMES,
@@ -432,8 +465,56 @@ const DESKTOP_PLAYER_SHOT_CAP = 28;
 const PENDING_PLAYER_SHOT_CAP = 8;
 const COLLISION_COLUMN_WIDTH = 96;
 const EMPTY_GUN_POD_OFFSETS: number[] = [];
-const DOUBLE_GUN_POD_OFFSETS = [42];
 const TRIPLE_GUN_POD_OFFSETS = [-42, 42];
+const DOUBLE_GUN_POD_EDGE_ENTER_RATIO = 0.38;
+const DOUBLE_GUN_POD_EDGE_EXIT_RATIO = 0.62;
+const DOUBLE_GUN_POD_EASING = 0.09;
+const BOSS_RIG_BY_EVENT_ID: Readonly<Record<string, BossRigId>> = Object.freeze({
+  'open-orbit-gatekeeper': 'open-orbit',
+  'citation-storm-gatekeeper': 'citation-storm',
+  'paywall-siege-gatekeeper': 'paywall-siege',
+  'open-galaxy-gatekeeper': 'crown-claw'
+});
+const BOSS_COMPONENT_DURABILITY: Readonly<Record<BossRigId, Readonly<Partial<Record<BossPartId, number>>>>> = Object.freeze({
+  'open-orbit': Object.freeze({ 'left-cannon': 5, 'right-cannon': 5 }),
+  'citation-storm': Object.freeze({ 'left-cannon': 6, 'right-cannon': 6 }),
+  'paywall-siege': Object.freeze({ 'left-cannon': 7, 'right-cannon': 7, helmet: 7 }),
+  'crown-claw': Object.freeze({ 'left-cannon': 8, 'right-cannon': 8 })
+});
+const BOSS_CANNON_HEALTH_BASE_RATIO = 0.07;
+const BOSS_CANNON_HEALTH_WAVE_STEP = 0.0075;
+const BOSS_CANNON_HEALTH_MAX_RATIO = 0.1;
+const BOSS_HELMET_HEALTH_MULTIPLIER = 1.15;
+export const BOSS_CANNON_SCALE = 1.6;
+export const CROWNCLAW_ARM_SCALE = 1.42;
+const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1.5;
+const CROWNCLAW_STRIKE_MAX_LIFE = 132;
+const PAYWALL_BOSS_COMPONENT_LAYOUT: ReadonlyArray<Omit<BossComponentState, 'hp' | 'maxHp' | 'destroyed' | 'flashFrames'>> = Object.freeze([
+  {
+    id: 'left-cannon',
+    label: 'LEFT CANNON',
+    centerXRatio: 0.22,
+    centerYRatio: 0.47,
+    widthRatio: 0.24,
+    heightRatio: 0.34
+  },
+  {
+    id: 'right-cannon',
+    label: 'RIGHT CANNON',
+    centerXRatio: 0.78,
+    centerYRatio: 0.47,
+    widthRatio: 0.24,
+    heightRatio: 0.34
+  },
+  {
+    id: 'helmet',
+    label: 'CORE HELMET',
+    centerXRatio: 0.5,
+    centerYRatio: 0.32,
+    widthRatio: 0.3,
+    heightRatio: 0.3
+  }
+]);
 const DEFAULT_POLISH_SETTINGS: GamePolishSettings = {
   screenShake: true,
   highDensityParticles: true
@@ -486,6 +567,12 @@ type RuntimeSpawnEnemy = {
   damage: number;
   scoreValue: number;
   powerupDropChance: number;
+  rank?: EnemyRank;
+  sizeMultiplier?: number;
+  attackPatternId?: EnemyAttackPatternId;
+  attackIntervalSeconds?: number;
+  projectileSpeed?: number;
+  burstCount?: number;
 };
 
 type RuntimeSpawnEvent = SpawnEvent & {
@@ -563,6 +650,12 @@ type EnemyRuntimeOverrides = {
   spriteUrl?: string;
   spriteFrames?: string[];
   spriteStyle?: SpriteStyle;
+  rank?: EnemyRank;
+  sizeMultiplier?: number;
+  attackPatternId?: EnemyAttackPatternId;
+  attackIntervalSeconds?: number;
+  projectileSpeed?: number;
+  burstCount?: number;
 };
 
 export interface GameEngineOptions {
@@ -585,6 +678,19 @@ export interface GameRuntimeState {
   progress: number;
   bossActive: boolean;
   complete: boolean;
+}
+
+export interface WaveVictorySummary {
+  id: string;
+  wave: number;
+  waveName: string;
+  sectorName: string;
+  scoreEarned: number;
+  totalScore: number;
+  enemiesDefeated: number;
+  coinsCollected: number;
+  elapsedSeconds: number;
+  nextWave: number;
 }
 
 export interface GameEditorEntitySnapshot {
@@ -643,14 +749,19 @@ const WAVE_SECTORS = [
   { name: 'OPEN ORBIT', accent: '#67e8f9' },
   { name: 'CITATION STORM', accent: '#c4b5fd' },
   { name: 'PAYWALL SIEGE', accent: '#fde68a' },
-  { name: 'OPEN GALAXY', accent: '#6ee7b7' }
+  { name: 'OPEN GALAXY', accent: '#6ee7b7' },
+  { name: 'BASTION PROTOCOL', accent: '#f9a8d4' }
 ];
 
 const PLAYER_SHIP_SCALE = 0.95;
 const PAYWALL_INTERCEPTOR_SCALE = 1.1;
 const SPIRAL_PAYWALL_INTERCEPTOR_SCALE = 1.05;
 const CITATION_WRAITH_SCALE = 1.32;
+const BOSS_SHIELD_ESCORT_MOBILE_SIZE = Object.freeze({ width: 48, height: 42 });
+const BOSS_SHIELD_ESCORT_DESKTOP_SIZE = Object.freeze({ width: 54, height: 48 });
+const getBossShieldEscortHp = (wave: number) => Math.min(8, Math.max(2, Math.round(wave)));
 const MAIN_BOSS_ALERT_FRAMES = 120;
+const PLAYER_RAM_COOLDOWN_FRAMES = 14;
 
 export class GameEngine {
   width: number = 0;
@@ -698,10 +809,17 @@ export class GameEngine {
   coinComboTimer: number = 0;
   lastShotFrame: number = -999;
   lastBombFrame: number = -999;
+  lastPlayerRamFrame: number = -999;
   introFlightFrames: number = 0;
   introFlightDuration: number = 150;
   waveDepartureFrames: number = 0;
   waveDepartureDuration: number = 168;
+  waveVictoryReady: boolean = false;
+  waveVictorySummary: WaveVictorySummary | null = null;
+  waveStartScore: number = 0;
+  waveStartEnemiesDefeated: number = 0;
+  waveStartTotalCoins: number = 0;
+  waveFlightFrames: number = 0;
   deathSequenceFrames: number = 0;
   deathSequenceDuration: number = 88;
   deathSequenceStartedAtMs: number = 0;
@@ -723,6 +841,9 @@ export class GameEngine {
   liveThreatCount: number = 0;
   weaponVolley: number = 0;
   announcedFireRateLevel: number = 0;
+  private doubleGunPodSide: -1 | 1 = -1;
+  private doubleGunPodOffset: number = -104;
+  private doubleGunPodActive: boolean = false;
   mobileProfile: boolean = false;
   polishSettings: GamePolishSettings = { ...DEFAULT_POLISH_SETTINGS };
   performanceMode: boolean = false;
@@ -985,11 +1106,74 @@ export class GameEngine {
     return true;
   }
 
+  getWaveVictorySummary() {
+    return this.waveVictoryReady && this.waveVictorySummary
+      ? { ...this.waveVictorySummary }
+      : null;
+  }
+
+  buildWaveVictorySummary(): WaveVictorySummary {
+    const entry = this.getCurrentCampaignEntry();
+    return {
+      id: `${this.wave}-${this.frameCount}-${this.stats.score}`,
+      wave: this.wave,
+      waveName: entry?.wave.name ?? `Wave ${this.wave}`,
+      sectorName: entry?.level.name ?? this.getWaveSector().name,
+      scoreEarned: Math.max(0, this.stats.score - this.waveStartScore),
+      totalScore: Math.max(0, this.stats.score),
+      enemiesDefeated: Math.max(0, this.stats.enemiesDefeated - this.waveStartEnemiesDefeated),
+      coinsCollected: Math.max(0, this.stats.totalCoins - this.waveStartTotalCoins),
+      elapsedSeconds: Math.max(0, Math.round(this.waveFlightFrames / GAME_CONFIG.FPS)),
+      nextWave: this.wave + 1
+    };
+  }
+
+  jumpToCampaignBoss(waveNumber: number) {
+    if (!this.testMode || !this.jumpToCampaignWave(waveNumber)) return false;
+
+    const bossEvents = this.getConfiguredEncounterEvents()
+      .filter((event): event is RuntimeBossEvent => event.kind === 'boss');
+    const mainBoss = bossEvents
+      .slice()
+      .reverse()
+      .find((event) => this.getEncounterWarningType(event) === 'gatekeeper')
+      ?? bossEvents[bossEvents.length - 1];
+
+    if (!mainBoss) {
+      this.waveProgressFrames = this.getConfiguredWaveDurationFrames();
+      this.stats.bossProgress = 1;
+      this.startBossWarning('gatekeeper');
+      return true;
+    }
+
+    const bossStartSeconds = Math.max(0, Number(mainBoss.startSeconds) || 0);
+    this.waveProgressFrames = Math.round(bossStartSeconds * GAME_CONFIG.FPS);
+    this.stats.bossProgress = Math.min(1, this.waveProgressFrames / this.getConfiguredWaveDurationFrames());
+
+    const events = this.getCurrentWaveDefinition()?.events ?? [];
+    for (const event of events) {
+      if (Math.max(0, Number(event.startSeconds) || 0) > bossStartSeconds) continue;
+
+      if (event.kind === 'spawn') {
+        this.configuredSpawnCounts.set(event.id, Math.max(0, Math.floor(Number(event.count) || 0)));
+        this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
+      } else if (event.kind === 'powerup') {
+        this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
+      } else if (event.id !== mainBoss.id) {
+        this.configuredEncounterIds.add(event.id);
+      }
+    }
+
+    this.queueConfiguredEncounter(mainBoss);
+    return true;
+  }
+
   restartPreview() {
     this.entities = [];
     this.pendingPlayerShots = [];
     this.activePowerups.clear();
     this.frameCount = 0;
+    this.lastPlayerRamFrame = -999;
     this.gameActive = true;
     this.previewComplete = false;
     this.lives = GAME_CONFIG.PLAYER_LIVES;
@@ -1003,6 +1187,7 @@ export class GameEngine {
     this.deathSequenceFrames = 0;
     this.deathSequenceStartedAtMs = 0;
     this.invincibleTimer = 180;
+    this.lastPlayerRamFrame = -999;
     this.playerDrawScale = 1;
     this.playerDrawAlpha = 1;
     this.playerTilt = 0;
@@ -1142,7 +1327,8 @@ export class GameEngine {
       'open-orbit': 'rgba(34, 211, 238, 0)',
       'citation-storm': 'rgba(79, 70, 229, 0.12)',
       'paywall-siege': 'rgba(245, 158, 11, 0.08)',
-      'open-galaxy': 'rgba(16, 185, 129, 0.11)'
+      'open-galaxy': 'rgba(16, 185, 129, 0.11)',
+      'bastion-protocol': 'rgba(219, 39, 119, 0.08)'
     };
     const tintIndex = (this.wave - 1 + this.sectorTint) % 3;
     const tint = configuredBackgroundId
@@ -1354,7 +1540,16 @@ export class GameEngine {
     this.waveDepartureFrames--;
 
     if (this.waveDepartureFrames <= 0) {
-      this.startNextWave();
+      if (this.previewMode) {
+        this.startNextWave();
+        return;
+      }
+
+      this.playerDrawAlpha = 0;
+      this.playerVel = { x: 0, y: 0 };
+      this.waveVictoryReady = true;
+      this.gameActive = false;
+      this.playSound('powerup', 1.2, { pitchOffset: 0.12 });
     }
   }
 
@@ -1422,6 +1617,7 @@ export class GameEngine {
     this.lives = lives;
     this.stats.lives = lives;
     this.invincibleTimer = 180;
+    this.lastPlayerRamFrame = -999;
     this.setPlayerHomePosition();
     this.playerVel = { x: 0, y: 0 };
     this.playerTilt = 0;
@@ -1482,6 +1678,7 @@ export class GameEngine {
     this.miniBossRef = null;
     this.activePowerups.clear();
     this.frameCount = 0;
+    this.lastPlayerRamFrame = -999;
     this.missileTimer = 0;
     this.playerVel = { x: 0, y: 0 };
     this.playerTilt = 0;
@@ -1537,6 +1734,20 @@ export class GameEngine {
     this.configuredSpawnCounts.clear();
     this.configuredSpawnFrames.clear();
     this.pendingConfiguredEncounter = null;
+    this.waveVictoryReady = false;
+    this.waveVictorySummary = null;
+    this.waveStartScore = this.stats.score;
+    this.waveStartEnemiesDefeated = this.stats.enemiesDefeated;
+    this.waveStartTotalCoins = this.stats.totalCoins;
+    this.waveFlightFrames = 0;
+  }
+
+  continueToNextWave() {
+    if (!this.waveVictoryReady || !this.waveTransitionPending) return false;
+
+    this.waveVictoryReady = false;
+    this.startNextWave();
+    return true;
   }
 
   getPlayerMovementBounds() {
@@ -1566,6 +1777,7 @@ export class GameEngine {
       this.currentCampaignIndex = (this.currentCampaignIndex + 1) % this.campaignWaves.length;
     }
     this.resetWaveProgress();
+    this.gameActive = true;
     this.keepEntitiesForNextWave();
     const sector = this.getWaveSector();
     const nextWave = this.getCurrentWaveDefinition();
@@ -1967,6 +2179,8 @@ export class GameEngine {
       this.bgY = (this.bgY + 1) % this.height;
       return;
     }
+
+    this.waveFlightFrames++;
     
     let invaderCount = 0;
     let asteroidBeltCount = 0;
@@ -2086,6 +2300,7 @@ export class GameEngine {
       + (Math.min(speedLevel, 5) * 1.5)
       + (speedLevel >= 6 ? 3 : 0);
     this.updatePlayerMovement(speed);
+    this.updateDoubleGunPodPosition();
 
     // FIRE RATE PROGRESSION: Spaced out for distinct feeling
     // Level 0: 15 (4 shots/sec)
@@ -2136,13 +2351,28 @@ export class GameEngine {
       if (e.isBeam) {
           e.life--;
           if (e.life <= 0) e.markedForDeletion = true;
-          if (this.bossRef) {
-              const anchorX = e.beamAnchorOffsetX ?? (this.bossRef.width / 2 - e.width / 2);
+          const beamOwner = e.bossOwnerId
+            ? this.entities.find((candidate) => candidate.id === e.bossOwnerId && !candidate.markedForDeletion)
+            : this.bossRef;
+          if (beamOwner) {
+              if (e.beamAxis === 'horizontal') {
+                e.x = 0;
+                e.y = clamp(beamOwner.y + beamOwner.height / 2 - e.height / 2, 0, this.height - e.height);
+                e.width = this.width;
+                return;
+              }
+              if (e.beamFromCenter) {
+                e.x = clamp(beamOwner.x + beamOwner.width / 2 - e.width / 2, 0, this.width - e.width);
+                e.y = 0;
+                e.height = this.height;
+                return;
+              }
+              const anchorX = e.beamAnchorOffsetX ?? (beamOwner.width / 2 - e.width / 2);
               const waveOneDrift = this.stats.wave === 1
                 ? Math.sin((this.frameCount + (e.variant * 37)) * 0.075) * 16
                 : 0;
-              e.x = Math.max(0, Math.min(this.width - e.width, this.bossRef.x + anchorX + waveOneDrift));
-              e.y = this.bossRef.y + this.bossRef.height - 20;
+              e.x = Math.max(0, Math.min(this.width - e.width, beamOwner.x + anchorX + waveOneDrift));
+              e.y = beamOwner.y + beamOwner.height - 20;
           } else {
               e.markedForDeletion = true;
           }
@@ -2150,6 +2380,13 @@ export class GameEngine {
       }
 
       if (e.flashFrames > 0) e.flashFrames--;
+      for (const component of e.bossComponents ?? []) {
+        if (component.flashFrames > 0) component.flashFrames--;
+      }
+      if (this.isCrownClawProjectile(e)) {
+        this.updateCrownClawProjectile(e);
+        if (e.markedForDeletion) return;
+      }
       e.x += e.vx;
       e.y += e.vy;
       
@@ -2252,7 +2489,13 @@ export class GameEngine {
       }
       
       if (e.type === EntityType.PROJECTILE) {
-        if (e.y < -50 || e.y > this.height + 50) e.markedForDeletion = true;
+        if (this.isCrownClawProjectile(e)) {
+          if (e.y < -80 || e.y > this.height + 80 || e.x < -80 || e.x > this.width + 80) {
+            e.clawReturning = true;
+          }
+        } else if (e.y < -50 || e.y > this.height + 50) {
+          e.markedForDeletion = true;
+        }
       }
 
       if (e.type === EntityType.PARTICLE) {
@@ -2317,10 +2560,116 @@ export class GameEngine {
     }
 
     if (this.activePowerups.has(PowerupType.DOUBLE_SHOT)) {
-      return DOUBLE_GUN_POD_OFFSETS;
+      return [this.doubleGunPodOffset];
     }
 
     return EMPTY_GUN_POD_OFFSETS;
+  }
+
+  private getDoubleGunPodDistance() {
+    return clamp(this.width * 0.27, 88, 132);
+  }
+
+  private updateDoubleGunPodPosition() {
+    const doubleActive = this.activePowerups.has(PowerupType.DOUBLE_SHOT)
+      && !this.activePowerups.has(PowerupType.TRIPLE_SHOT);
+    const distance = this.getDoubleGunPodDistance();
+
+    if (!doubleActive) {
+      this.doubleGunPodActive = false;
+      this.doubleGunPodSide = -1;
+      this.doubleGunPodOffset = -distance;
+      return;
+    }
+
+    if (!this.doubleGunPodActive) {
+      this.doubleGunPodActive = true;
+      this.doubleGunPodSide = -1;
+      this.doubleGunPodOffset = -distance;
+    }
+
+    const playerCenterX = this.player.x + this.player.width / 2;
+    if (this.doubleGunPodSide < 0 && playerCenterX <= this.width * DOUBLE_GUN_POD_EDGE_ENTER_RATIO) {
+      this.doubleGunPodSide = 1;
+    } else if (this.doubleGunPodSide > 0 && playerCenterX >= this.width * DOUBLE_GUN_POD_EDGE_EXIT_RATIO) {
+      this.doubleGunPodSide = -1;
+    }
+
+    const targetOffset = this.doubleGunPodSide * distance;
+    this.doubleGunPodOffset += (targetOffset - this.doubleGunPodOffset) * DOUBLE_GUN_POD_EASING;
+    if (Math.abs(targetOffset - this.doubleGunPodOffset) < 0.5) {
+      this.doubleGunPodOffset = targetOffset;
+    }
+  }
+
+  isBioBeamFiring() {
+    return this.playerShipUrl === ASSETS.BIO_SHIP
+      && this.gameActive
+      && this.lives > 0
+      && this.introFlightFrames <= 0
+      && this.deathSequenceFrames <= 0
+      && this.waveDepartureFrames <= 0
+      && Boolean(this.keys[' '] || this.touchPos || this.keys['Enter']);
+  }
+
+  private applyBioLaserPulse(level: number) {
+    const beamWidth = 12 + Math.min(level, 7) * 2.4;
+    const beamBox = {
+      x: this.player.x + (this.player.width / 2) - (beamWidth / 2),
+      y: 0,
+      width: beamWidth,
+      height: Math.max(0, this.player.y + this.player.height * 0.18)
+    };
+    let nearestTarget: Entity | null = null;
+
+    for (let index = 0; index < this.entities.length; index++) {
+      const target = this.entities[index];
+      if (target.markedForDeletion || !this.isEnemyTarget(target)) continue;
+      const box = this.getCollisionBox(target);
+      const componentHit = target.type === EntityType.BOSS
+        ? this.getBossComponentHit(target, beamBox)
+        : undefined;
+      const intersects = Boolean(componentHit) || !(box.x > beamBox.x + beamBox.width
+        || box.x + box.width < beamBox.x
+        || box.y > beamBox.y + beamBox.height
+        || box.y + box.height < beamBox.y);
+      if (!intersects) continue;
+      if (!nearestTarget || target.y + target.height > nearestTarget.y + nearestTarget.height) {
+        nearestTarget = target;
+      }
+    }
+
+    if (!nearestTarget) return;
+    if (nearestTarget.type === EntityType.BOSS && this.isBossShielded()) {
+      this.flashEntity(nearestTarget, 4);
+      if (this.frameCount % 10 === 0) {
+        this.spawnRingEffect(nearestTarget.x + nearestTarget.width / 2, nearestTarget.y + nearestTarget.height / 2, '#a7f3d0');
+      }
+      return;
+    }
+
+    const damageByLevel = [1, 1, 1, 1.3, 1.3, 2.4, 4.2, 7.5];
+    const isBossTarget = nearestTarget.type === EntityType.BOSS || nearestTarget.type === EntityType.MINI_BOSS;
+    const laserDamage = damageByLevel[Math.min(level, damageByLevel.length - 1)] * (isBossTarget ? 1.35 : 1);
+    const componentHit = nearestTarget.type === EntityType.BOSS
+      ? this.getBossComponentHit(nearestTarget, beamBox)
+      : undefined;
+    if (componentHit) this.damageBossComponent(nearestTarget, componentHit, laserDamage);
+    else if (nearestTarget.type === EntityType.BOSS) this.damageBossHull(nearestTarget, laserDamage);
+    else {
+      nearestTarget.hp -= laserDamage;
+      this.flashEntity(nearestTarget, isBossTarget ? 7 : 5);
+    }
+    const beamColor = level > 0 ? '#38bdf8' : '#65f59a';
+    this.spawnBurst(
+      nearestTarget.x + nearestTarget.width / 2,
+      nearestTarget.y + nearestTarget.height / 2,
+      beamColor,
+      isBossTarget ? 4 : 2,
+      1.8,
+      2.6
+    );
+    if (nearestTarget.hp <= 0) this.handleEnemyDestroyed(nearestTarget);
   }
 
   countPlayerShots(includeQueued: boolean = false) {
@@ -2491,8 +2840,8 @@ export class GameEngine {
     this.livePlayerShotCount++;
     if (playSound) {
       this.playSound('shoot', 1, {
-        pitchJitter: isBioLaser ? 0.055 : isEthShard ? 0.07 : isBtcHash ? 0.045 : isSingularity ? 0.035 : isNova ? 0.05 : weaponKind === 'ion' ? 0.08 : 0.22,
-        pitchOffset: pitchOffset + (isBioLaser ? -0.22 - bioLaserLevel * 0.018 : isEthShard ? 0.16 + ethShardLevel * 0.012 : isBtcHash ? -0.12 - btcHashLevel * 0.01 : isSingularity ? -0.36 : isNova ? -0.28 : weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? 0.08 : 0)
+        pitchJitter: isBioLaser ? 0.055 : isEthShard ? 0.07 : isBtcHash ? 0.045 : isSingularity ? 0.035 : isNova ? 0.05 : weaponKind === 'ion' ? 0.08 : 0.06,
+        pitchOffset: pitchOffset + (isBioLaser ? -0.22 - bioLaserLevel * 0.018 : isEthShard ? 0.16 + ethShardLevel * 0.012 : isBtcHash ? -0.12 - btcHashLevel * 0.01 : isSingularity ? -0.36 : isNova ? -0.28 : weaponKind === 'ion' ? -0.18 : weaponKind === 'plasma' ? -0.04 : -0.12)
       });
     }
     return true;
@@ -2562,7 +2911,15 @@ export class GameEngine {
             : weaponKind === 'plasma'
               ? 11.2
               : 10;
-    this.spawnPlayerBullet(weaponSpeed, 0, 0, 0, -0.04, true, weaponKind);
+    if (bioLaserEquipped) {
+      this.applyBioLaserPulse(fireRateLevel);
+      this.playSound('shoot', 1, {
+        pitchJitter: 0.025,
+        pitchOffset: -0.34 + fireRateLevel * 0.012
+      });
+    } else {
+      this.spawnPlayerBullet(weaponSpeed, 0, 0, 0, -0.04, true, weaponKind);
+    }
 
     const lean = this.shouldUseLeanEffects();
     this.getGunPodOffsets().forEach((offsetX, index) => {
@@ -2661,7 +3018,8 @@ export class GameEngine {
           : target.type === EntityType.ENEMY_INVADER
             ? BOMB_DAMAGE_INVADER
             : 999;
-      target.hp -= bombDamage;
+      if (target.type === EntityType.BOSS) this.damageBossHull(target, bombDamage);
+      else target.hp -= bombDamage;
       this.flashEntity(target, isBossTarget ? 10 : 6);
       this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#fef08a', isBossTarget ? 8 : 5, 4.5, 4);
 
@@ -2723,12 +3081,15 @@ export class GameEngine {
     const count = Number.isFinite(configuredCount)
       ? Math.max(0, Math.floor(configuredCount as number))
       : Math.min(this.mobileProfile ? 5 : 8, 3 + phase);
-    const hp = Math.max(3, Math.round(2.5 + phase * 1.2));
+    const hp = getBossShieldEscortHp(phase);
+    const escortSize = this.mobileProfile
+      ? BOSS_SHIELD_ESCORT_MOBILE_SIZE
+      : BOSS_SHIELD_ESCORT_DESKTOP_SIZE;
 
     for (let i = 0; i < count; i++) {
       const shield = new Entity(EntityType.ENEMY_SWARM, boss.x + boss.width / 2, boss.y + boss.height / 2);
-      shield.width = this.mobileProfile ? 30 : 34;
-      shield.height = this.mobileProfile ? 26 : 30;
+      shield.width = escortSize.width;
+      shield.height = escortSize.height;
       shield.hp = hp;
       shield.maxHp = hp;
       shield.color = '#a7f3d0';
@@ -2749,7 +3110,14 @@ export class GameEngine {
     if (target.markedForDeletion) return;
 
     target.markedForDeletion = true;
-    this.spawnExplosion(target.x, target.y, target.color);
+    const destructionIntensity = target.type === EntityType.BOSS
+      ? 2.2
+      : target.type === EntityType.MINI_BOSS
+        ? 1.45
+        : target.type === EntityType.ENEMY_INVADER || target.type === EntityType.ENEMY_BRICK || target.type === EntityType.ENEMY_JOURNAL
+          ? 0.9
+          : 0.58;
+    this.spawnExplosion(target.x, target.y, target.color, destructionIntensity);
     this.stats.enemiesDefeated++;
     const configuredScoreMultiplier = Number(this.getCurrentWaveDefinition()?.scoreMultiplier);
     const waveMult = Number.isFinite(configuredScoreMultiplier) && configuredScoreMultiplier > 0
@@ -2841,6 +3209,8 @@ export class GameEngine {
       this.bossWarningFrame = 0;
       this.playSound('electricity');
 
+      this.waveVictorySummary = this.buildWaveVictorySummary();
+
       this.spawnFloatingText(this.width / 2, this.height / 2, "WAVE COMPLETE!", "#00FF00");
       const configuredDelay = Number(this.getCurrentWaveDefinition()?.delayAfterSeconds);
       this.waveDepartureDuration = Number.isFinite(configuredDelay) && configuredDelay >= 0
@@ -2863,7 +3233,10 @@ export class GameEngine {
 
     const intersectsBeam = (target: Entity) => {
       const box = this.getCollisionBox(target);
-      return !(box.x > beamBox.x + beamBox.width
+      const componentHit = target.type === EntityType.BOSS
+        ? this.getBossComponentHit(target, beamBox)
+        : undefined;
+      return Boolean(componentHit) || !(box.x > beamBox.x + beamBox.width
         || box.x + box.width < beamBox.x
         || box.y > beamBox.y + beamBox.height
         || box.y + box.height < beamBox.y);
@@ -2881,8 +3254,16 @@ export class GameEngine {
         return;
       }
 
-      target.hp -= isBossTarget ? 0.9 : 1.45;
-      this.flashEntity(target, isBossTarget ? 5 : 4);
+      const beamDamage = isBossTarget ? 0.9 : 1.45;
+      const componentHit = target.type === EntityType.BOSS
+        ? this.getBossComponentHit(target, beamBox)
+        : undefined;
+      if (componentHit) this.damageBossComponent(target, componentHit, beamDamage);
+      else if (target.type === EntityType.BOSS) this.damageBossHull(target, beamDamage);
+      else {
+        target.hp -= beamDamage;
+        this.flashEntity(target, isBossTarget ? 5 : 4);
+      }
 
       if (this.frameCount % 8 === 0) {
         this.entities.push(new Particle(target.x + target.width / 2, target.y + target.height / 2, '#a855f7', 1.8));
@@ -2895,7 +3276,9 @@ export class GameEngine {
   }
 
   updateEnemyFire() {
-    if (this.wave < 2 || this.stats.isBossActive || this.inBossWarningSequence || this.deathSequenceFrames > 0) return;
+    if (this.stats.isBossActive || this.inBossWarningSequence || this.deathSequenceFrames > 0) return;
+    this.updateEliteEnemyFire();
+    if (this.wave < 2) return;
 
     const baseFireInterval = Math.max(42, 118 - ((this.wave - 2) * 18));
     const difficultyMultiplier = this.getConfiguredSpawnEvents().length > 0
@@ -2920,6 +3303,7 @@ export class GameEngine {
       const candidate = candidates[(startIndex + offset) % candidates.length];
       if (
         candidate.markedForDeletion
+        || candidate.isElite
         || candidate.formation === 'orbit'
         || candidate.y < 38
         || candidate.y > this.height * 0.58
@@ -2949,6 +3333,58 @@ export class GameEngine {
     this.entities.push(shot);
   }
 
+  updateEliteEnemyFire() {
+    let activeEnemyShots = this.entities.reduce((count, entity) => (
+      count + (!entity.markedForDeletion && entity.type === EntityType.PROJECTILE && !entity.isPlayerShot ? 1 : 0)
+    ), 0);
+    const shotCap = Math.min(18, 7 + this.wave * 2);
+
+    for (const source of this.entities) {
+      if (
+        source.markedForDeletion
+        || !source.isElite
+        || source.eliteAttackPattern !== 'aimed-burst'
+        || source.y < 24
+        || source.y > this.height * 0.68
+      ) continue;
+
+      source.attackTimer++;
+      const interval = Math.max(18, source.attackIntervalFrames ?? 92);
+      if (source.attackTimer < interval || activeEnemyShots >= shotCap) continue;
+      source.attackTimer = 0;
+
+      const sourceX = source.x + source.width / 2;
+      const sourceY = source.y + source.height * 0.72;
+      const targetX = this.player.x + this.player.width / 2 + this.playerVel.x * 5;
+      const targetY = this.player.y + this.player.height / 2;
+      const baseAngle = Math.atan2(targetY - sourceY, targetX - sourceX);
+      const burstCount = Math.max(1, source.configuredBurstCount ?? 3);
+      const speed = source.projectileSpeed ?? 4.8;
+      const spread = burstCount <= 1 ? 0 : 0.14;
+
+      for (let index = 0; index < burstCount && activeEnemyShots < shotCap; index++) {
+        const centeredIndex = index - ((burstCount - 1) / 2);
+        const angle = baseAngle + centeredIndex * spread;
+        const shot = new Entity(EntityType.PROJECTILE, sourceX - 7, sourceY);
+        shot.width = 14;
+        shot.height = 20;
+        shot.vx = Math.cos(angle) * speed;
+        shot.vy = Math.sin(angle) * speed;
+        shot.color = '#a78bfa';
+        shot.isPlayerShot = false;
+        shot.damage = Math.max(1, Number(source.projectileDamage) || 1);
+        shot.projectileVisualKind = 'boss-bolt';
+        shot.spriteFrames = [...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES];
+        shot.sourceEventId = source.sourceEventId;
+        this.entities.push(shot);
+        activeEnemyShots++;
+      }
+
+      this.playSound('boss_shoot', 1.08, { pitchJitter: 0.08, pitchOffset: 0.14 });
+      this.flashEntity(source, 3);
+    }
+  }
+
   resolveSpriteUrl(spriteKey: AssetKey | string | undefined, entityType: EntityType) {
     if (spriteKey?.startsWith('/')) return spriteKey;
     if (spriteKey) {
@@ -2970,7 +3406,7 @@ export class GameEngine {
     if (normalized.includes('asteroid')) return ASSETS.ASTEROID_BELT_FRAMES[0];
     if (normalized.includes('brick') || normalized.includes('bulwark')) return ASSETS.ENEMY_BRICK_FRAMES[0];
     if (normalized.includes('mini') || normalized.includes('bottleneck')) return ASSETS.MINI_BOSS;
-    if (normalized.includes('wall') || normalized.includes('paywall')) return ASSETS.WALL_BOSS_SEGMENT;
+    if (normalized.includes('wall') || normalized.includes('paywall')) return ASSETS.PAYWALL_BASTION_FRAMES[1];
     if (normalized.includes('gate') || normalized.includes('sentinel') || normalized.includes('final')) return ASSETS.FINAL_BOSS;
     if (normalized.includes('drone')) return ASSETS.ENEMY_DRONE_FRAMES[0];
 
@@ -2978,7 +3414,7 @@ export class GameEngine {
     if (entityType === EntityType.ENEMY_SWARM) return ASSETS.ENEMY_SWARM_FRAMES[0];
     if (entityType === EntityType.ENEMY_BRICK) return ASSETS.ENEMY_BRICK_FRAMES[0];
     if (entityType === EntityType.MINI_BOSS) return ASSETS.MINI_BOSS;
-    if (entityType === EntityType.ENEMY_INVADER) return ASSETS.WALL_BOSS_SEGMENT;
+    if (entityType === EntityType.ENEMY_INVADER) return ASSETS.PAYWALL_BASTION_FRAMES[1];
     if (entityType === EntityType.BOSS) return ASSETS.FINAL_BOSS;
     return ASSETS.ENEMY_DRONE_FRAMES[0];
   }
@@ -3352,7 +3788,13 @@ export class GameEngine {
         powerupDropChance: Number(enemySetting.powerupDropChance),
         spriteUrl: this.resolveSpriteUrl(enemySetting.spriteKey, enemyType),
         spriteFrames: this.resolveSpriteFrames(enemySetting.spriteKey),
-        spriteStyle: enemySetting.spriteStyle
+        spriteStyle: enemySetting.spriteStyle,
+        rank: enemySetting.rank,
+        sizeMultiplier: enemySetting.sizeMultiplier,
+        attackPatternId: enemySetting.attackPatternId,
+        attackIntervalSeconds: enemySetting.attackIntervalSeconds,
+        projectileSpeed: enemySetting.projectileSpeed,
+        burstCount: enemySetting.burstCount
       });
       const patternId = String(event.patternId || '').toLowerCase();
       if (this.getConfiguredSpawnAnchor(event) && (patternId.includes('single') || patternId.includes('random'))) {
@@ -3552,6 +3994,7 @@ export class GameEngine {
       e.width = Math.round(44 * PAYWALL_INTERCEPTOR_SCALE);
       e.height = Math.round(44 * PAYWALL_INTERCEPTOR_SCALE);
       e.color = '#7dd3fc'; 
+      e.spriteFrames = [...ASSETS.ENEMY_DRONE_FRAMES];
       e.text = "🔒"; 
     } else if (type === EntityType.ENEMY_JOURNAL) {
       e.vy = 4.4 * speedBoost; 
@@ -3568,6 +4011,7 @@ export class GameEngine {
       e.width = 54;
       e.height = 54;
       e.color = '#f59e0b'; 
+      e.spriteFrames = [...ASSETS.ENEMY_BRICK_FRAMES];
       e.text = "📰";
     } else if (type === EntityType.ENEMY_SWARM) {
       e.vy = 3.5 * speedBoost;
@@ -3575,6 +4019,7 @@ export class GameEngine {
       e.width = Math.round(34 * CITATION_WRAITH_SCALE);
       e.height = Math.round(28 * CITATION_WRAITH_SCALE);
       e.color = '#34d399'; 
+      e.spriteFrames = [...ASSETS.ENEMY_SWARM_FRAMES];
       e.text = "🪰";
     } 
 
@@ -3585,6 +4030,25 @@ export class GameEngine {
     if (Number.isFinite(overrides.scoreValue)) e.scoreValue = Math.max(0, overrides.scoreValue as number);
     if (Number.isFinite(overrides.powerupDropChance)) {
       e.powerupDropChance = clamp(overrides.powerupDropChance as number, 0, 1);
+    }
+    const sizeMultiplier = clamp(Number(overrides.sizeMultiplier) || 1, 0.5, 2.5);
+    if (sizeMultiplier !== 1) {
+      e.width = Math.round(e.width * sizeMultiplier);
+      e.height = Math.round(e.height * sizeMultiplier);
+    }
+    e.eliteRank = overrides.rank;
+    e.isElite = overrides.rank === 'elite';
+    e.eliteAttackPattern = overrides.attackPatternId;
+    if (Number.isFinite(overrides.attackIntervalSeconds)) {
+      e.attackIntervalFrames = Math.max(18, Math.round(
+        (Number(overrides.attackIntervalSeconds) * GAME_CONFIG.FPS) / this.getCurrentDifficultyMultiplier()
+      ));
+    }
+    if (Number.isFinite(overrides.projectileSpeed)) {
+      e.projectileSpeed = Math.max(0.5, Number(overrides.projectileSpeed));
+    }
+    if (Number.isFinite(overrides.burstCount)) {
+      e.configuredBurstCount = Math.max(1, Math.min(7, Math.floor(Number(overrides.burstCount))));
     }
     if (overrides.spriteUrl) {
       e.spriteUrl = overrides.spriteUrl;
@@ -3667,9 +4131,11 @@ export class GameEngine {
   
   spawnWallBoss(configured?: RuntimeBossEvent) {
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
-    const rows = 2; // UPDATED to 2 rows
-    const cols = this.wave === 1 ? 5 : 6;
     const isMobile = this.width < 600;
+    const rows = configured
+      ? Math.max(1, Math.min(4, Math.floor(Number(configured.count ?? 2)) || 2))
+      : 2;
+    const cols = Math.min(isMobile ? 8 : 10, 4 + Math.max(1, this.wave));
     const blockW = isMobile ? 42 : 52;
     const blockH = isMobile ? 50 : 60;
     const gap = 4;
@@ -3698,6 +4164,7 @@ export class GameEngine {
             if (configured) {
               const weapon = configured.weapons?.[0];
               e.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.ENEMY_INVADER);
+              e.spriteFrames = this.resolveSpriteFrames(configured.spriteKey);
               if (configured.spriteStyle) e.spriteStyle = { ...configured.spriteStyle };
               e.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
               e.projectileDamage = Math.max(0, (Number(weapon?.damage ?? configured.damage) || 1) * difficultyMultiplier);
@@ -3713,6 +4180,10 @@ export class GameEngine {
               e.sourceEventId = configured.id;
               e.sourceItemId = configured.bossId;
               if (e.spriteUrl) loadImage(e.spriteUrl);
+              e.spriteFrames?.forEach(loadImage);
+            } else {
+              e.spriteUrl = ASSETS.PAYWALL_BASTION_FRAMES[1];
+              e.spriteFrames = [...ASSETS.PAYWALL_BASTION_FRAMES];
             }
             this.entities.push(e);
         }
@@ -3809,6 +4280,7 @@ export class GameEngine {
       invaders.forEach(inv => {
           inv.x += moveX;
           inv.y += moveY;
+          if (inv.attackTimer > 0) inv.attackTimer--;
       });
       
       const configuredAttackInterval = invaders.find((invader) => Number.isFinite(invader.attackIntervalFrames))?.attackIntervalFrames;
@@ -3822,8 +4294,10 @@ export class GameEngine {
           b.height = this.wave === 1 ? 12 : 14;
           b.color = '#ff4444';
           b.damage = Math.max(1, Number(shooter.projectileDamage) || 1);
+          shooter.attackTimer = 12;
           // Solid projectile
           this.entities.push(b);
+          this.playSound('boss_shoot', 0.72, { pitchJitter: 0.12, pitchOffset: 0.06 });
       }
   }
 
@@ -3861,20 +4335,209 @@ export class GameEngine {
           b.damage = Math.max(1, Number(boss.projectileDamage) || 1);
           this.entities.push(b);
         }
+        this.playSound('boss_shoot', 0.9, { pitchJitter: 0.1, pitchOffset: -0.02 });
      }
+  }
+
+  getBossComponentDurability(boss: Entity, componentId: BossPartId) {
+    const rigId = boss.bossRigId ?? 'open-orbit';
+    const minimumDurability = BOSS_COMPONENT_DURABILITY[rigId][componentId] ?? 5;
+    const waveStep = Math.max(0, this.stats.wave - 1) * BOSS_CANNON_HEALTH_WAVE_STEP;
+    const healthRatio = Math.min(
+      BOSS_CANNON_HEALTH_MAX_RATIO,
+      BOSS_CANNON_HEALTH_BASE_RATIO + waveStep
+    );
+    const componentMultiplier = componentId === 'helmet' ? BOSS_HELMET_HEALTH_MULTIPLIER : 1;
+    return Math.max(
+      minimumDurability,
+      Math.round(Math.max(1, boss.maxHp) * healthRatio * componentMultiplier)
+    );
+  }
+
+  createBossComponents(boss: Entity) {
+    if (boss.bossRigId === 'open-orbit' || boss.bossRigId === 'citation-storm') {
+      const isCitationStorm = boss.bossRigId === 'citation-storm';
+      return ([
+        {
+          id: 'left-cannon',
+          label: isCitationStorm ? 'LEFT PLASMA CLAW' : 'LEFT RAILGUN',
+          centerXRatio: 0.17,
+          centerYRatio: isCitationStorm ? 0.51 : 0.45,
+          widthRatio: 0.38,
+          heightRatio: isCitationStorm ? 0.62 : 0.58
+        },
+        {
+          id: 'right-cannon',
+          label: isCitationStorm ? 'RIGHT PLASMA CLAW' : 'RIGHT RAILGUN',
+          centerXRatio: 0.83,
+          centerYRatio: isCitationStorm ? 0.51 : 0.45,
+          widthRatio: 0.38,
+          heightRatio: isCitationStorm ? 0.62 : 0.58
+        }
+      ] as const).map((layout) => {
+        const maxHp = this.getBossComponentDurability(boss, layout.id);
+        return { ...layout, hp: maxHp, maxHp, destroyed: false, flashFrames: 0 } satisfies BossComponentState;
+      });
+    }
+
+    if (boss.bossRigId === 'paywall-siege') {
+      return PAYWALL_BOSS_COMPONENT_LAYOUT.map((layout) => {
+        const paywallLayout = layout.id === 'left-cannon'
+          ? { centerXRatio: 0.27, centerYRatio: 0.7, widthRatio: 0.3, heightRatio: 0.36 }
+          : layout.id === 'right-cannon'
+            ? { centerXRatio: 0.73, centerYRatio: 0.7, widthRatio: 0.3, heightRatio: 0.36 }
+            : { centerXRatio: 0.5, centerYRatio: 0.45, widthRatio: 0.32, heightRatio: 0.3 };
+        const maxHp = this.getBossComponentDurability(boss, layout.id);
+        return {
+          ...layout,
+          ...paywallLayout,
+          hp: maxHp,
+          maxHp,
+          destroyed: false,
+          flashFrames: 0
+        } satisfies BossComponentState;
+      });
+    }
+
+    if (boss.bossRigId === 'crown-claw') {
+      return ([
+        {
+          id: 'left-cannon',
+          label: 'LEFT CLAW',
+          centerXRatio: 0.2,
+          centerYRatio: 0.58,
+          widthRatio: 0.34,
+          heightRatio: 0.58
+        },
+        {
+          id: 'right-cannon',
+          label: 'RIGHT CLAW',
+          centerXRatio: 0.8,
+          centerYRatio: 0.58,
+          widthRatio: 0.34,
+          heightRatio: 0.58
+        }
+      ] as const).map((layout) => {
+        const maxHp = this.getBossComponentDurability(boss, layout.id);
+        return { ...layout, hp: maxHp, maxHp, destroyed: false, flashFrames: 0 } satisfies BossComponentState;
+      });
+    }
+
+    return [];
+  }
+
+  getBossComponentBox(boss: Entity, component: BossComponentState): CollisionBox {
+    const isCannon = component.id === 'left-cannon' || component.id === 'right-cannon';
+    const targetScale = isCannon
+      ? boss.bossRigId === 'crown-claw' ? CROWNCLAW_ARM_SCALE : BOSS_CANNON_SCALE
+      : 1;
+    const width = Math.max(18, boss.width * component.widthRatio * targetScale);
+    const height = Math.max(18, boss.height * component.heightRatio * targetScale);
+    return {
+      x: boss.x + boss.width * component.centerXRatio - width / 2,
+      y: boss.y + boss.height * component.centerYRatio - height / 2,
+      width,
+      height
+    };
+  }
+
+  getBossComponentHit(boss: Entity, shotBox: CollisionBox) {
+    const components = boss.bossComponents ?? [];
+    return components.find((component) => (
+      !component.destroyed && this.boxesIntersect(shotBox, this.getBossComponentBox(boss, component))
+    ));
+  }
+
+  updateBossDecayStage(boss: Entity) {
+    if (boss.type !== EntityType.BOSS) return;
+    const healthRatio = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
+    const destroyedCount = (boss.bossComponents ?? []).filter((component) => component.destroyed).length;
+    if (boss.bossRigId === 'open-orbit' || boss.bossRigId === 'citation-storm') {
+      boss.bossDecayStage = destroyedCount < 2
+        ? destroyedCount
+        : healthRatio <= 0.3 ? 4 : healthRatio <= 0.62 ? 3 : 2;
+      return;
+    }
+    if (boss.bossRigId === 'paywall-siege') {
+      const armorStage = destroyedCount >= 3 ? 2 : destroyedCount > 0 ? 1 : 0;
+      const exposedCoreStage = destroyedCount >= 3
+        ? healthRatio <= 0.2 ? 4 : healthRatio <= 0.45 ? 3 : 2
+        : armorStage;
+      boss.bossDecayStage = exposedCoreStage;
+      return;
+    }
+    if (boss.bossRigId === 'crown-claw') {
+      const armorStage = destroyedCount >= 2 ? 1 : 0;
+      boss.bossDecayStage = destroyedCount >= 2
+        ? healthRatio <= 0.12 ? 5 : healthRatio <= 0.28 ? 4 : healthRatio <= 0.48 ? 3 : healthRatio <= 0.7 ? 2 : 1
+        : armorStage;
+      return;
+    }
+    boss.bossDecayStage = healthRatio <= 0.18 ? 4 : healthRatio <= 0.4 ? 3 : healthRatio <= 0.64 ? 2 : healthRatio <= 0.82 ? 1 : 0;
+  }
+
+  damageBossComponent(boss: Entity, component: BossComponentState, damage: number) {
+    if (component.destroyed) return;
+    component.flashFrames = Math.max(component.flashFrames, 7);
+    component.hp -= Math.max(0, damage) * BOSS_COMPONENT_WEAK_POINT_MULTIPLIER;
+    const box = this.getBossComponentBox(boss, component);
+    const impactX = box.x + box.width / 2;
+    const impactY = box.y + box.height / 2;
+    if (component.hp <= 0) {
+      component.hp = 0;
+      component.destroyed = true;
+      const label = component.id === 'helmet'
+        ? 'CORE EXPOSED'
+        : boss.bossRigId === 'crown-claw'
+          ? `${component.label} SEVERED`
+          : `${component.label} DISABLED`;
+      this.spawnFloatingText(impactX, impactY, label, component.id === 'helmet' ? '#fef08a' : '#fb7185', 17);
+      this.spawnBurst(impactX, impactY, '#ffffff', 18, 5.2, 5);
+      this.addShake(component.id === 'helmet' ? 5 : 3.5);
+      this.addHitStop(component.id === 'helmet' ? 9 : 6);
+      this.playSound('explode', component.id === 'helmet' ? 1.55 : 1.3, {
+        pitchJitter: 0.08,
+        pitchOffset: component.id === 'helmet' ? -0.14 : -0.06
+      });
+      if (component.id === 'helmet') {
+        this.entities.forEach((entity) => {
+          if (entity.projectileVisualKind === 'boss-ray') entity.markedForDeletion = true;
+        });
+      }
+    }
+    this.updateBossDecayStage(boss);
+  }
+
+  isBossHullProtected(boss: Entity) {
+    return (boss.bossComponents ?? []).some((component) => (
+      component.id === 'helmet' && !component.destroyed
+    ));
+  }
+
+  damageBossHull(boss: Entity, damage: number) {
+    if (this.isBossHullProtected(boss)) {
+      this.flashEntity(boss, 7);
+      return;
+    }
+    boss.hp -= damage;
+    this.flashEntity(boss, 7);
+    this.updateBossDecayStage(boss);
   }
 
   spawnBoss(configured?: RuntimeBossEvent) {
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
-    const anchoredPosition = this.getAnchoredTopLeft(configured, 220, 200);
+    const sizeMultiplier = clamp(Number(configured?.sizeMultiplier) || 1, 0.5, 1.5);
+    const bossWidth = Math.round(220 * sizeMultiplier);
+    const bossHeight = Math.round(200 * sizeMultiplier);
+    const anchoredPosition = this.getAnchoredTopLeft(configured, bossWidth, bossHeight);
     const boss = new Entity(
       EntityType.BOSS,
-      anchoredPosition?.x ?? this.width / 2 - 100,
-      anchoredPosition?.y ?? -200
+      anchoredPosition?.x ?? this.width / 2 - bossWidth / 2,
+      anchoredPosition?.y ?? -bossHeight
     );
     const phase = Math.max(1, this.stats.wave);
-    boss.width = 220;
-    boss.height = 200;
+    boss.width = bossWidth;
+    boss.height = bossHeight;
     boss.hp = configured
       ? Math.max(1, (Number(configured.health) || 1) * difficultyMultiplier)
       : phase === 1 ? 235 : 220 + (phase * 105);
@@ -3887,6 +4550,7 @@ export class GameEngine {
     if (configured) {
       const weapon = configured.weapons?.[0];
       boss.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.BOSS);
+      boss.spriteFrames = this.resolveSpriteFrames(configured.spriteKey);
       if (configured.spriteStyle) boss.spriteStyle = { ...configured.spriteStyle };
       boss.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
       boss.projectileDamage = Math.max(0, (Number(weapon?.damage ?? configured.damage) || 1) * difficultyMultiplier);
@@ -3903,8 +4567,19 @@ export class GameEngine {
       boss.completesWave = true;
       boss.sourceEventId = configured.id;
       boss.sourceItemId = configured.bossId;
+      boss.bossRigId = BOSS_RIG_BY_EVENT_ID[configured.id] ?? 'open-orbit';
+      if (boss.bossRigId === 'crown-claw') {
+        const previousWidth = boss.width;
+        boss.width = Math.min(this.width * 0.78, 280);
+        boss.height = boss.width * (704 / 1024);
+        boss.x -= (boss.width - previousWidth) / 2;
+      }
+      boss.bossComponents = this.createBossComponents(boss);
       if (boss.spriteUrl) loadImage(boss.spriteUrl);
+      boss.spriteFrames?.forEach(loadImage);
     }
+    boss.bossRigId ??= 'open-orbit';
+    boss.bossComponents ??= this.createBossComponents(boss);
     this.bossRef = boss;
     this.entities.push(boss);
     const shieldCount = configured ? Math.max(0, Math.floor(Number(configured.shieldCount) || 0)) : undefined;
@@ -3921,18 +4596,34 @@ export class GameEngine {
   }
 
   spawnBossBurst(boss: Entity, phase: number) {
-    const cx = boss.x + boss.width / 2;
-    const cy = boss.y + boss.height - 20;
     const px = this.player.x + this.player.width / 2;
     const py = this.player.y + this.player.height / 2;
-    const angle = Math.atan2(py - cy, px - cx);
-    const shotCount = boss.configuredBurstCount ?? (phase <= 1 ? 3 : phase === 2 ? 5 : 7);
+    const configuredShotCount = boss.configuredBurstCount ?? (phase <= 1 ? 3 : phase === 2 ? 5 : 7);
+    const cannonComponents = (boss.bossComponents ?? []).filter((component) => (
+      component.id === 'left-cannon' || component.id === 'right-cannon'
+    ));
+    const activeCannons = cannonComponents.filter((component) => !component.destroyed);
+    if (cannonComponents.length > 0 && activeCannons.length === 0) {
+      this.spawnBossCoreVolley(boss, phase);
+      return;
+    }
+    const activeCannonCount = activeCannons.length;
+    const cannonStrength = cannonComponents.length > 0 ? activeCannonCount / cannonComponents.length : 1;
+    const shotCount = Math.max(3, Math.round(configuredShotCount * (0.35 + cannonStrength * 0.65)));
     const spread = phase <= 1 ? 0.2 : phase === 2 ? 0.18 : 0.16;
     const speed = boss.projectileSpeed ?? Math.min(10.5, 6 + phase * 0.55);
+    const origins = activeCannons.length > 0
+      ? activeCannons.map((component) => {
+        const box = this.getBossComponentBox(boss, component);
+        return { x: box.x + box.width / 2, y: box.y + box.height * 0.72 };
+      })
+      : [{ x: boss.x + boss.width / 2, y: boss.y + boss.height - 20 }];
 
     for (let i = 0; i < shotCount; i++) {
+      const origin = origins[i % origins.length];
+      const angle = Math.atan2(py - origin.y, px - origin.x);
       const offset = i - ((shotCount - 1) / 2);
-      const b = new Entity(EntityType.PROJECTILE, cx, cy);
+      const b = new Entity(EntityType.PROJECTILE, origin.x, origin.y);
       b.vx = Math.cos(angle + (offset * spread)) * speed;
       b.vy = Math.sin(angle + (offset * spread)) * speed;
       b.width = 15;
@@ -3945,6 +4636,8 @@ export class GameEngine {
 
     if (phase >= 4) {
       [-0.32, 0.32].forEach(offset => {
+        const cx = boss.x + boss.width / 2;
+        const cy = boss.y + boss.height - 20;
         const b = new Entity(EntityType.PROJECTILE, cx + boss.width * offset, cy - 8);
         b.vx = offset * 2.2;
         b.vy = speed * 0.95;
@@ -3955,6 +4648,85 @@ export class GameEngine {
         this.entities.push(b);
       });
     }
+    this.playSound('boss_shoot', phase >= 3 ? 1.25 : 1, {
+      pitchJitter: 0.09,
+      pitchOffset: phase >= 3 ? -0.12 : -0.04
+    });
+  }
+
+  spawnBossCoreVolley(boss: Entity, phase: number) {
+    const healthRatio = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
+    const pressure = 1 - healthRatio;
+    const rigId = boss.bossRigId ?? 'open-orbit';
+    const originX = boss.x + boss.width / 2;
+    const originY = boss.y + boss.height * (rigId === 'crown-claw' ? 0.58 : 0.66);
+    const playerX = this.player.x + this.player.width / 2;
+    const playerY = this.player.y + this.player.height / 2;
+    const baseAngle = Math.atan2(playerY - originY, playerX - originX);
+    const tier = pressure >= 0.68 ? 2 : pressure >= 0.34 ? 1 : 0;
+    const profiles: Record<BossRigId, {
+      shotCounts: readonly [number, number, number];
+      spread: number;
+      speedScale: number;
+      color: string;
+      angleDrift: number;
+    }> = {
+      'open-orbit': {
+        shotCounts: [1, 3, 5],
+        spread: 0.17,
+        speedScale: 0.92,
+        color: '#fb7185',
+        angleDrift: 0
+      },
+      'citation-storm': {
+        shotCounts: [3, 5, 7],
+        spread: 0.13,
+        speedScale: 0.88,
+        color: '#c084fc',
+        angleDrift: Math.sin(boss.attackTimer * 0.19) * 0.11
+      },
+      'paywall-siege': {
+        shotCounts: [3, 5, 7],
+        spread: 0.11,
+        speedScale: 0.84,
+        color: '#facc15',
+        angleDrift: 0
+      },
+      'crown-claw': {
+        shotCounts: [3, 5, 7],
+        spread: 0.2,
+        speedScale: 0.96,
+        color: '#2dd4bf',
+        angleDrift: Math.sin(boss.attackTimer * 0.13) * 0.06
+      }
+    };
+    const profile = profiles[rigId];
+    const shotCount = profile.shotCounts[tier];
+    const speed = (boss.projectileSpeed ?? Math.min(10.5, 6 + phase * 0.55))
+      * (profile.speedScale + pressure * 0.18);
+
+    for (let index = 0; index < shotCount; index++) {
+      const offset = index - ((shotCount - 1) / 2);
+      const angle = baseAngle + profile.angleDrift + offset * profile.spread;
+      const projectile = new Entity(EntityType.PROJECTILE, originX - 8, originY - 8);
+      projectile.vx = Math.cos(angle) * speed;
+      projectile.vy = Math.sin(angle) * speed;
+      projectile.width = tier >= 2 ? 17 : 15;
+      projectile.height = tier >= 2 ? 17 : 15;
+      projectile.color = profile.color;
+      projectile.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+      projectile.variant = index + tier * 10;
+      if (rigId === 'paywall-siege') {
+        projectile.projectileVisualKind = 'boss-bolt';
+        projectile.spriteFrames = [...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES];
+      }
+      this.entities.push(projectile);
+    }
+
+    this.playSound('boss_shoot', 0.95 + pressure * 0.28, {
+      pitchJitter: rigId === 'citation-storm' ? 0.12 : 0.06,
+      pitchOffset: rigId === 'crown-claw' ? -0.16 : rigId === 'citation-storm' ? 0.06 : -0.08
+    });
   }
 
   spawnBossBeam(boss: Entity, phase: number, pulseIndex: number) {
@@ -3973,16 +4745,337 @@ export class GameEngine {
     beam.variant = pulseIndex;
     this.entities.push(beam);
 
+    this.playSound('boss_shoot', 1.35, { pitchJitter: 0.04, pitchOffset: -0.18 });
     this.playSound(pulseIndex === 0 ? 'boss_roar' : 'electricity');
+  }
+
+  spawnPaywallBossRay(boss: Entity, enraged: boolean) {
+    const beamWidth = Math.max(42, Math.min(enraged ? 68 : 58, boss.width * (enraged ? 0.26 : 0.22)));
+    const anchorOffsetX = boss.width * 0.5 - beamWidth / 2;
+    const beam = new Entity(EntityType.PROJECTILE, boss.x + anchorOffsetX, boss.y + boss.height * 0.68);
+    beam.isBeam = true;
+    beam.projectileVisualKind = 'boss-ray';
+    beam.spriteFrames = [...ASSETS.PIXI_BOSS_PAYWALL_RAY_FRAMES];
+    beam.width = beamWidth;
+    beam.height = this.height;
+    beam.life = enraged ? 70 : 62;
+    beam.maxLife = beam.life;
+    beam.color = '#ff9d2e';
+    beam.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+    beam.beamAnchorOffsetX = anchorOffsetX;
+    beam.variant = enraged ? 1 : 0;
+    this.entities.push(beam);
+    this.playSound('boss_shoot', enraged ? 1.45 : 1.2, { pitchJitter: 0.04, pitchOffset: -0.2 });
+    this.playSound('electricity');
+  }
+
+  spawnPaywallBossBoltVolley(boss: Entity, component: BossComponentState, enraged: boolean) {
+    const componentBox = this.getBossComponentBox(boss, component);
+    const cx = componentBox.x + componentBox.width / 2;
+    const cy = componentBox.y + componentBox.height * 0.7;
+    const px = this.player.x + this.player.width / 2;
+    const py = this.player.y + this.player.height / 2;
+    const centerAngle = Math.atan2(py - cy, px - cx);
+    const shotCount = enraged ? 5 : 3;
+    const spread = enraged ? 0.12 : 0.15;
+    const speed = (boss.projectileSpeed ?? 7.65) * (enraged ? 1.08 : 0.96);
+    for (let index = 0; index < shotCount; index++) {
+      const offset = index - ((shotCount - 1) / 2);
+      const bolt = new Entity(EntityType.PROJECTILE, cx - 9, cy - 9);
+      bolt.projectileVisualKind = 'boss-bolt';
+      bolt.spriteFrames = [...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES];
+      bolt.vx = Math.cos(centerAngle + offset * spread) * speed;
+      bolt.vy = Math.sin(centerAngle + offset * spread) * speed;
+      bolt.width = enraged ? 19 : 17;
+      bolt.height = enraged ? 19 : 17;
+      bolt.color = enraged ? '#fef08a' : '#ff9d2e';
+      bolt.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+      bolt.variant = index + (component.id === 'right-cannon' ? 10 : 0);
+      this.entities.push(bolt);
+    }
+    this.playSound('boss_shoot', enraged ? 1.2 : 1, {
+      pitchJitter: 0.08,
+      pitchOffset: component.id === 'right-cannon' ? 0.04 : -0.04
+    });
+  }
+
+  spawnCrownClawStrike(boss: Entity, component: BossComponentState, enraged: boolean) {
+    const componentBox = this.getBossComponentBox(boss, component);
+    const cx = componentBox.x + componentBox.width / 2;
+    const cy = componentBox.y + componentBox.height * 0.72;
+    const playerCenterX = this.player.x + this.player.width / 2;
+    const playerCenterY = this.player.y + this.player.height / 2;
+    const angle = Math.atan2(playerCenterY - cy, playerCenterX - cx);
+    const speed = (boss.projectileSpeed ?? 8.2) * (enraged ? 1.08 : 0.9);
+    const claw = new Entity(EntityType.PROJECTILE, cx - 34, cy - 40);
+    const isLeft = component.id === 'left-cannon';
+    claw.projectileVisualKind = isLeft ? 'crown-claw-left' : 'crown-claw-right';
+    claw.spriteFrames = [isLeft ? ASSETS.PIXI_BOSS_CROWNCLAW_ROCKET_LEFT : ASSETS.PIXI_BOSS_CROWNCLAW_ROCKET_RIGHT];
+    claw.vx = Math.cos(angle) * speed;
+    claw.vy = Math.sin(angle) * speed;
+    claw.width = enraged ? 76 : 68;
+    claw.height = enraged ? 90 : 80;
+    claw.color = '#2dd4bf';
+    claw.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+    claw.variant = isLeft ? 0 : 1;
+    claw.life = CROWNCLAW_STRIKE_MAX_LIFE;
+    claw.maxLife = CROWNCLAW_STRIKE_MAX_LIFE;
+    claw.clawOutboundFrames = enraged ? 28 : 34;
+    claw.bossOwnerId = boss.id;
+    claw.bossComponentId = component.id;
+    this.entities.push(claw);
+    this.playSound('boss_shoot', enraged ? 1.2 : 0.95, {
+      pitchJitter: 0.05,
+      pitchOffset: isLeft ? -0.08 : -0.02
+    });
+  }
+
+  isCrownClawProjectile(entity: Entity) {
+    return entity.projectileVisualKind === 'crown-claw-left'
+      || entity.projectileVisualKind === 'crown-claw-right';
+  }
+
+  updateCrownClawProjectile(claw: Entity) {
+    claw.life--;
+    if (claw.life <= 0) {
+      claw.markedForDeletion = true;
+      return;
+    }
+
+    const owner = this.bossRef?.id === claw.bossOwnerId ? this.bossRef : null;
+    const component = owner?.bossComponents?.find((part) => part.id === claw.bossComponentId);
+    if (!owner || owner.markedForDeletion || !component || component.destroyed) {
+      claw.markedForDeletion = true;
+      return;
+    }
+
+    const age = claw.maxLife - claw.life;
+    if (!claw.clawReturning && age >= claw.clawOutboundFrames) {
+      claw.clawReturning = true;
+    }
+    if (!claw.clawReturning) return;
+
+    const componentBox = this.getBossComponentBox(owner, component);
+    const targetX = componentBox.x + componentBox.width / 2;
+    const targetY = componentBox.y + componentBox.height * 0.72;
+    const centerX = claw.x + claw.width / 2;
+    const centerY = claw.y + claw.height / 2;
+    const dx = targetX - centerX;
+    const dy = targetY - centerY;
+    const distance = Math.max(0.001, Math.hypot(dx, dy));
+    const returnSpeed = (owner.projectileSpeed ?? 8.2) * 1.28;
+    if (distance <= Math.max(18, returnSpeed * 1.35)) {
+      claw.markedForDeletion = true;
+      return;
+    }
+    claw.vx = (dx / distance) * returnSpeed;
+    claw.vy = (dy / distance) * returnSpeed;
+  }
+
+  updatePaywallLayeredBoss(boss: Entity) {
+    const healthRatio = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
+    const playerCenterX = this.player.x + this.player.width / 2;
+    const activeRays = this.entities.some((entity) => (
+      entity.projectileVisualKind === 'boss-ray' && !entity.markedForDeletion
+    ));
+    if (boss.y < 78) {
+      boss.vy = boss.configuredSpeed ?? 2;
+    } else {
+      boss.vy = 0;
+      if (!boss.isCharging && !activeRays) {
+        const targetX = playerCenterX - boss.width / 2;
+        boss.x += (targetX - boss.x) * 0.012;
+        boss.x += Math.sin(boss.attackTimer * 0.028) * 2.4;
+      }
+    }
+    boss.x = clamp(boss.x, 0, this.width - boss.width);
+
+    const cannons = (boss.bossComponents ?? []).filter((component) => (
+      !component.destroyed && (component.id === 'left-cannon' || component.id === 'right-cannon')
+    ));
+    const helmet = boss.bossComponents?.find((component) => component.id === 'helmet');
+    const coreEmitterOperational = boss.hp > 0;
+    const coreExposed = Boolean(helmet?.destroyed);
+    const allArmorDestroyed = (boss.bossComponents ?? []).every((component) => component.destroyed);
+    const rayCycleLength = healthRatio <= 0.25 ? 232 : healthRatio <= 0.55 ? 274 : 318;
+    const rayCycle = boss.attackTimer % rayCycleLength;
+    const rayChargeStart = Math.round(rayCycleLength * (coreExposed ? 0.46 : 0.52));
+    const rayChargeFrames = healthRatio <= 0.25 ? 32 : healthRatio <= 0.55 ? 40 : 48;
+    const rayFireFrame = rayChargeStart + rayChargeFrames;
+    boss.isCharging = coreEmitterOperational
+      ? (rayCycle >= rayChargeStart && rayCycle < rayFireFrame) || activeRays
+      : activeRays;
+    if (coreEmitterOperational && rayCycle === rayChargeStart) {
+      this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height * 0.82, 'CORE RAY CHARGING', '#fef08a', 16);
+      this.playSound('boss_roar');
+    }
+    if (coreEmitterOperational && rayCycle === rayFireFrame) {
+      this.spawnPaywallBossRay(boss, healthRatio <= 0.35 || coreExposed);
+      boss.isCharging = true;
+    }
+
+    const boltInterval = Math.max(46, Math.round((allArmorDestroyed ? 54 : 76) * (0.72 + healthRatio * 0.28)));
+    if (!boss.isCharging && cannons.length > 0 && boss.attackTimer - boss.lastBurstAttackTimer >= boltInterval) {
+      const enraged = healthRatio <= 0.38;
+      cannons.forEach((component) => this.spawnPaywallBossBoltVolley(boss, component, enraged));
+      boss.lastBurstAttackTimer = boss.attackTimer;
+    }
+    if (!boss.isCharging && cannons.length === 0) {
+      const coreInterval = healthRatio <= 0.25 ? 42 : healthRatio <= 0.55 ? 56 : 74;
+      if (boss.attackTimer - boss.lastBurstAttackTimer >= coreInterval) {
+        this.spawnBossCoreVolley(boss, 3);
+        boss.lastBurstAttackTimer = boss.attackTimer;
+      }
+    }
+  }
+
+  updateCrownClawBoss(boss: Entity) {
+    const healthRatio = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
+    const playerCenterX = this.player.x + this.player.width / 2;
+    if (boss.y < 64) {
+      boss.vy = boss.configuredSpeed ?? 2;
+    } else {
+      boss.vy = 0;
+      const targetX = playerCenterX - boss.width / 2;
+      boss.x += (targetX - boss.x) * 0.009;
+      boss.x += Math.sin(boss.attackTimer * 0.026) * 1.8;
+    }
+    boss.x = clamp(boss.x, 0, this.width - boss.width);
+
+    const activeClaws = (boss.bossComponents ?? []).filter((component) => !component.destroyed);
+    const attackInterval = Math.max(66, Math.round(126 * (0.52 + healthRatio * 0.48)));
+    const framesSinceAttack = boss.attackTimer - boss.lastBurstAttackTimer;
+    boss.isCharging = activeClaws.length > 0 && framesSinceAttack >= attackInterval - 18;
+    if (framesSinceAttack < attackInterval) return;
+
+    if (activeClaws.length > 0) {
+      const attackIndex = Math.floor(boss.attackTimer / attackInterval) % activeClaws.length;
+      const component = activeClaws[attackIndex];
+      boss.beamLaneSign = component.id === 'left-cannon' ? -1 : 1;
+      this.spawnCrownClawStrike(boss, component, healthRatio <= 0.35);
+    } else {
+      boss.beamLaneSign = 0;
+      this.spawnBossBurst(boss, 4);
+    }
+    boss.lastBurstAttackTimer = boss.attackTimer;
+    boss.isCharging = false;
+  }
+
+  spawnBossCrossBeamPair(boss: Entity, telegraph: boolean) {
+    if (!telegraph) {
+      for (const entity of this.entities) {
+        if (entity.isBeam && entity.isTelegraph && entity.bossOwnerId === boss.id) {
+          entity.markedForDeletion = true;
+        }
+      }
+    }
+
+    const thickness = telegraph ? 9 : 20;
+    const lifetime = telegraph ? 34 : 26;
+    const color = telegraph ? '#7dd3fc' : '#22d3ee';
+    const createBeam = (axis: 'vertical' | 'horizontal') => {
+      const beam = new Entity(
+        EntityType.PROJECTILE,
+        axis === 'vertical' ? boss.x + boss.width / 2 - thickness / 2 : 0,
+        axis === 'horizontal' ? boss.y + boss.height / 2 - thickness / 2 : 0
+      );
+      beam.isBeam = true;
+      beam.beamAxis = axis;
+      beam.beamFromCenter = true;
+      beam.isTelegraph = telegraph;
+      beam.bossOwnerId = boss.id;
+      beam.width = axis === 'vertical' ? thickness : this.width;
+      beam.height = axis === 'horizontal' ? thickness : this.height;
+      beam.life = lifetime;
+      beam.maxLife = lifetime;
+      beam.color = color;
+      beam.damage = telegraph ? 0 : Math.max(1, Number(boss.projectileDamage) || 1);
+      this.entities.push(beam);
+    };
+
+    createBeam('vertical');
+    createBeam('horizontal');
+    if (telegraph) {
+      this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height + 8, 'CROSS-LINK CHARGING', '#bae6fd', 15);
+    } else {
+      this.playSound('electricity');
+      this.playSound('boss_shoot', 1.18, { pitchJitter: 0.03, pitchOffset: 0.08 });
+      this.addShake(2.6);
+      this.addHitStop(3);
+    }
+  }
+
+  updateArenaRoamingBoss(boss: Entity, healthRatio: number, phase: number) {
+    const targetEntranceY = Math.max(72, Math.min(this.height * 0.13, 116));
+    if (boss.y < targetEntranceY) {
+      boss.y += Math.max(1.4, boss.configuredSpeed ?? 2);
+      boss.x += ((this.width - boss.width) / 2 - boss.x) * 0.06;
+      return;
+    }
+
+    boss.vx = 0;
+    boss.vy = 0;
+    const roamWidth = Math.max(24, this.width - boss.width - 24);
+    const roamHeight = Math.max(42, Math.min(this.height * 0.34, 280) - targetEntranceY);
+    const targetX = 12
+      + roamWidth * (0.5 + Math.sin(boss.attackTimer * 0.017) * 0.37)
+      + Math.sin(boss.attackTimer * 0.006) * Math.min(26, this.width * 0.05);
+    const targetY = targetEntranceY
+      + roamHeight * (0.43 + Math.cos(boss.attackTimer * 0.013) * 0.34);
+    const pressure = 1 - clamp(healthRatio, 0, 1);
+    boss.x += (targetX - boss.x) * (0.035 + pressure * 0.018);
+    boss.y += (targetY - boss.y) * (0.028 + pressure * 0.012);
+    boss.x = clamp(boss.x, 10, this.width - boss.width - 10);
+    boss.y = clamp(boss.y, targetEntranceY, Math.max(targetEntranceY, this.height * 0.48 - boss.height));
+
+    const cycleLength = Math.max(250, 318 - Math.round(pressure * 44));
+    const attackCycle = boss.attackTimer % cycleLength;
+    const telegraphFrame = cycleLength - 70;
+    const fireFrame = cycleLength - 34;
+    const crossActive = this.entities.some((entity) => (
+      entity.isBeam && entity.bossOwnerId === boss.id && !entity.markedForDeletion
+    ));
+    if (attackCycle === telegraphFrame) {
+      boss.isCharging = true;
+      this.spawnBossCrossBeamPair(boss, true);
+      return;
+    }
+    if (attackCycle === fireFrame) {
+      boss.isCharging = true;
+      this.spawnBossCrossBeamPair(boss, false);
+      return;
+    }
+
+    boss.isCharging = crossActive || (attackCycle >= telegraphFrame && attackCycle <= fireFrame + 30);
+    if (boss.isCharging) return;
+
+    const baseInterval = boss.attackIntervalFrames ?? 58;
+    const fireInterval = Math.max(20, Math.round(baseInterval * (1 - pressure * 0.34)));
+    if (boss.attackTimer - boss.lastBurstAttackTimer >= fireInterval) {
+      this.spawnBossBurst(boss, Math.max(2, phase));
+      boss.lastBurstAttackTimer = boss.attackTimer;
+    }
   }
 
   updateBoss(boss: Entity) {
     boss.attackTimer++;
+    if (boss.bossRigId === 'paywall-siege') {
+      this.updatePaywallLayeredBoss(boss);
+      return;
+    }
+    if (boss.bossRigId === 'crown-claw') {
+      this.updateCrownClawBoss(boss);
+      return;
+    }
     const healthRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
     const configuredPhase = boss.phaseThresholds.length > 0
       ? Math.max(1, boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length)
       : 0;
     const phase = configuredPhase || Math.max(1, this.stats.wave);
+    if (boss.movementPattern === 'arena-roam') {
+      this.updateArenaRoamingBoss(boss, healthRatio, phase);
+      return;
+    }
     const speedMult = 1 + (phase * 0.1);
     const playerCenterX = this.player.x + this.player.width / 2;
     const playerNearEdge = playerCenterX < this.width * 0.18 || playerCenterX > this.width * 0.82;
@@ -4009,6 +5102,10 @@ export class GameEngine {
     const chargeEnd = burstEnd + 70;
     const attackCycle = boss.attackTimer % cycleLength;
     const hasConfiguredWeapons = boss.weaponKinds.length > 0;
+    const bossComponents = boss.bossComponents ?? [];
+    const hasOperationalCannon = bossComponents.length === 0 || bossComponents.some((component) => (
+      !component.destroyed && (component.id === 'left-cannon' || component.id === 'right-cannon')
+    ));
     const allowsBeam = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => kind.includes('beam'));
     const allowsBurst = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => !kind.includes('beam'));
     
@@ -4017,12 +5114,16 @@ export class GameEngine {
         const baseFireRate = boss.attackIntervalFrames ?? Math.max(20, 60 - (phase * 7));
         const isGatekeeper = boss.sourceItemId === 'gatekeeper' || boss.text === 'GATEKEEPER';
         const cadenceConfig = isGatekeeper ? GATEKEEPER_CADENCE_BY_WAVE[this.wave] : undefined;
+        const healthScaledBaseFireRate = cadenceConfig
+          ? baseFireRate
+          : Math.max(14, Math.round(baseFireRate * (0.62 + clamp(healthRatio, 0, 1) * 0.38)));
         const fireRate = cadenceConfig
           ? getGatekeeperBurstInterval(baseFireRate, healthRatio, cadenceConfig)
-          : baseFireRate;
-        const isBurstReady = cadenceConfig
-          ? boss.attackTimer - boss.lastBurstAttackTimer >= fireRate
-          : boss.attackTimer % fireRate === 0;
+          : healthScaledBaseFireRate;
+        const activeFireRate = hasOperationalCannon
+          ? fireRate
+          : Math.max(16, Math.round(fireRate * (boss.bossRigId === 'citation-storm' ? 1.02 : 1.12)));
+        const isBurstReady = boss.attackTimer - boss.lastBurstAttackTimer >= activeFireRate;
         if (allowsBurst && isBurstReady) {
           this.spawnBossBurst(boss, phase);
           boss.lastBurstAttackTimer = boss.attackTimer;
@@ -4120,8 +5221,18 @@ export class GameEngine {
     return c;
   }
 
-  spawnExplosion(x: number, y: number, color: string) {
-    this.playSound('explode');
+  spawnExplosion(x: number, y: number, color: string, intensity: number = 1) {
+    if (intensity >= 1.2) {
+      this.playSound('explode', intensity, {
+        pitchJitter: 0.08,
+        pitchOffset: -0.14
+      });
+    } else {
+      this.playSound('impact', Math.max(0.18, intensity * 0.32), {
+        pitchJitter: 0.08,
+        pitchOffset: -0.1
+      });
+    }
     this.spawnBurst(x, y, color, this.shouldUseLeanEffects() ? 7 : 12, 5, 5);
     this.addShake(this.shouldUseLeanEffects() ? 0.55 : 0.9);
   }
@@ -4249,6 +5360,70 @@ export class GameEngine {
     return !(b.x > a.x + a.width || b.x + b.width < a.x || b.y > a.y + a.height || b.y + b.height < a.y);
   }
 
+  resolvePlayerRamCollision(enemy: Entity, protectedFromDamage: boolean) {
+    if (this.frameCount - this.lastPlayerRamFrame < PLAYER_RAM_COOLDOWN_FRAMES) return;
+    this.lastPlayerRamFrame = this.frameCount;
+
+    const bossContact = enemy.type === EntityType.BOSS || enemy.type === EntityType.MINI_BOSS;
+    const playerCenterX = this.player.x + this.player.width / 2;
+    const playerCenterY = this.player.y + this.player.height / 2;
+    const enemyCenterX = enemy.x + enemy.width / 2;
+    const enemyCenterY = enemy.y + enemy.height / 2;
+    const deltaX = playerCenterX - enemyCenterX;
+    const deltaY = playerCenterY - enemyCenterY;
+    const distance = Math.hypot(deltaX, deltaY);
+    const normalX = distance > 0.001 ? deltaX / distance : 0;
+    const normalY = distance > 0.001 ? deltaY / distance : 1;
+    const recoilForce = bossContact ? 11.5 : 8.5;
+    const separation = bossContact ? 14 : 9;
+
+    this.playerVel.x += normalX * recoilForce;
+    this.playerVel.y += normalY * recoilForce;
+    this.player.x = clamp(
+      this.player.x + normalX * separation,
+      0,
+      Math.max(0, this.width - this.player.width)
+    );
+    this.player.y = clamp(
+      this.player.y + normalY * separation,
+      0,
+      Math.max(0, this.height - this.player.height)
+    );
+
+    if (!bossContact) {
+      enemy.vx -= normalX * 1.8;
+      enemy.vy -= normalY * 1.2;
+    }
+
+    if (!protectedFromDamage) {
+      const incomingDamage = Math.max(1, Math.round(Number(enemy.contactDamage) || 1));
+      if (!this.testMode) this.lives -= incomingDamage;
+      this.invincibleTimer = 60;
+    } else if (this.activePowerups.has(PowerupType.SHIELD)) {
+      const shieldPenalty = bossContact ? 150 : 30;
+      const currentShieldTime = this.activePowerups.get(PowerupType.SHIELD) || 0;
+      this.activePowerups.set(PowerupType.SHIELD, Math.max(0, currentShieldTime - shieldPenalty));
+    }
+
+    this.stats.lives = this.lives;
+    const contactX = (playerCenterX + enemyCenterX) / 2;
+    const contactY = (playerCenterY + enemyCenterY) / 2;
+    const contactColor = protectedFromDamage ? '#67e8f9' : '#fb7185';
+    this.playSound('hit');
+    this.spawnRingEffect(contactX, contactY, contactColor);
+    this.spawnBurst(contactX, contactY, contactColor, bossContact ? 12 : 8, bossContact ? 4.8 : 3.6, 4);
+    this.flashAlpha = Math.max(this.flashAlpha, protectedFromDamage ? 0.3 : 0.5);
+    this.addShake(bossContact ? 9.5 : 6.5);
+    this.addHitStop(bossContact ? 10 : 7);
+    this.kickPlayerSquash(bossContact ? 0.28 : 0.2);
+
+    if (!bossContact && !enemy.markedForDeletion) {
+      this.handleEnemyDestroyed(enemy);
+    }
+
+    if (!this.testMode && this.lives <= 0) this.startDeathSequence();
+  }
+
   checkCollisions() {
     const collisionBoxes = this.collisionBoxes;
     collisionBoxes.clear();
@@ -4321,10 +5496,10 @@ export class GameEngine {
       if (e.type === EntityType.PROJECTILE) {
           // If it's a beam, it hurts (Boss weapon)
           if (e.isBeam) {
-              hurtsPlayer = true;
+              hurtsPlayer = !e.isTelegraph;
           }
           // If it's NOT a player shot, it hurts
-          else if (!e.isPlayerShot) {
+          else if (!e.isPlayerShot && !e.clawReturning && !e.clawHasHitPlayer) {
                // EXTRA FAILSAFE: If it's Cyan or Purple, assume it's player ammo (glitch protection)
                if (e.color !== '#00FFFF' && e.color !== '#00ffff' && e.color !== '#6c63ff') {
                    hurtsPlayer = true;
@@ -4337,18 +5512,28 @@ export class GameEngine {
       const isInvincible = this.previewMode || this.invincibleTimer > 0 || this.activePowerups.has(PowerupType.SHIELD);
 
       if (hurtsPlayer && intersectsPlayer(e)) {
+        if (isEnemy) {
+          this.resolvePlayerRamCollision(e, isInvincible);
+          continue;
+        }
+
         if (isInvincible) {
-           e.hp -= 5; 
+           if (e.type === EntityType.PROJECTILE && !e.isBeam) {
+             if (this.isCrownClawProjectile(e)) {
+               e.clawReturning = true;
+               e.clawHasHitPlayer = true;
+             } else {
+               e.markedForDeletion = true;
+             }
+           }
            this.spawnBurst(e.x + e.width / 2, e.y + e.height / 2, '#00C851', 7, 4, 4);
            this.addShake(1.1);
            this.kickPlayerSquash(0.055);
            
-           // SHIELD DEGRADATION LOGIC
-           // Hitting enemies reduces shield duration to prevent boss cheese
+           // Blocking hostile fire still consumes shield duration.
            if (this.activePowerups.has(PowerupType.SHIELD)) {
                const currentShieldTime = this.activePowerups.get(PowerupType.SHIELD) || 0;
-               // Heavy penalty for ramming bosses
-               const penalty = (e.type === EntityType.BOSS || e.type === EntityType.MINI_BOSS) ? 150 : 30; 
+               const penalty = 30;
                this.activePowerups.set(PowerupType.SHIELD, Math.max(0, currentShieldTime - penalty));
                
                // Also reduce base Invincible timer if active (e.g. from pickup)
@@ -4357,10 +5542,6 @@ export class GameEngine {
                }
            }
 
-           if (e.hp <= 0 && !e.isBeam) { 
-             e.markedForDeletion = true;
-             this.spawnExplosion(e.x, e.y, e.color);
-           }
         } else {
           const incomingDamage = e.type === EntityType.PROJECTILE
             ? Math.max(1, Math.round(Number(e.damage) || 1))
@@ -4381,7 +5562,14 @@ export class GameEngine {
           this.playerVel.x += shove;
           this.playerVel.y += 2.4;
           // Only delete bullet if it isn't a beam
-          if (e.type === EntityType.PROJECTILE && !e.isBeam) e.markedForDeletion = true;
+           if (e.type === EntityType.PROJECTILE && !e.isBeam) {
+             if (this.isCrownClawProjectile(e)) {
+               e.clawReturning = true;
+               e.clawHasHitPlayer = true;
+             } else {
+               e.markedForDeletion = true;
+             }
+           }
           if (!this.testMode && this.lives <= 0) this.startDeathSequence();
         }
       }
@@ -4397,7 +5585,7 @@ export class GameEngine {
     for (let index = 0; index < enemyTargets.length; index++) {
       const target = enemyTargets[index];
       const targetBox = getBox(target);
-      const projectilePadding = 28;
+      const projectilePadding = target.type === EntityType.BOSS ? 64 : 28;
       const startColumn = clamp(Math.floor((targetBox.x - projectilePadding) / COLLISION_COLUMN_WIDTH), 0, collisionColumnCount - 1);
       const endColumn = clamp(Math.floor((targetBox.x + targetBox.width + projectilePadding) / COLLISION_COLUMN_WIDTH), 0, collisionColumnCount - 1);
       for (let column = startColumn; column <= endColumn; column++) collisionColumns[column].push(target);
@@ -4415,16 +5603,19 @@ export class GameEngine {
         const target = nearbyTargets[index];
         if (target.markedForDeletion) continue;
         if (shot.hitTargetIds?.has(target.id)) continue;
+        const bossComponent = target.type === EntityType.BOSS
+          ? this.getBossComponentHit(target, shotBox)
+          : undefined;
         const padding = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS ? 42 : 18;
-        if (
+        if (!bossComponent && (
           shotBox.x > target.x + target.width + padding
           || shotBox.x + shotBox.width < target.x - padding
           || shotBox.y > target.y + target.height + padding
           || shotBox.y + shotBox.height < target.y - padding
-        ) {
+        )) {
           continue;
         }
-        if (!this.boxesIntersect(shotBox, getBox(target))) continue;
+        if (!bossComponent && !this.boxesIntersect(shotBox, getBox(target))) continue;
 
         // Boss-type enemies get shaved down a bit faster so fights don't drag.
         const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS;
@@ -4455,9 +5646,19 @@ export class GameEngine {
             shot.markedForDeletion = true;
           }
         }
-        target.hp -= dmg;
-        this.flashEntity(target, isBossTarget ? 7 : 5);
+        if (bossComponent) {
+          this.damageBossComponent(target, bossComponent, dmg);
+        } else if (target.type === EntityType.BOSS) {
+          this.damageBossHull(target, dmg);
+        } else {
+          target.hp -= dmg;
+          this.flashEntity(target, isBossTarget ? 7 : 5);
+        }
         this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, shot.color || '#67e8f9', shot.type === EntityType.MISSILE ? 8 : 3, shot.type === EntityType.MISSILE ? 3.8 : 1.6, shot.type === EntityType.MISSILE ? 4 : 2.5);
+        this.playSound('impact', isBossTarget ? 0.78 : 0.46, {
+          pitchJitter: 0.18,
+          pitchOffset: isBossTarget ? -0.08 : 0.08
+        });
         if (shot.type === EntityType.MISSILE) {
           this.addHitStop(3);
           this.addShake(isBossTarget ? 1.2 : 0.7);
@@ -4891,7 +6092,19 @@ export class GameEngine {
       ctx.restore();
   }
 
+  getPaywallBastionSprite(e: Entity) {
+    const frames = e.spriteFrames?.length && e.spriteFrames.length >= 5
+      ? e.spriteFrames
+      : ASSETS.PAYWALL_BASTION_FRAMES;
+    const healthRatio = e.maxHp > 0 ? e.hp / e.maxHp : 1;
+    if (healthRatio <= 0.15) return frames[4];
+    if (healthRatio <= 0.5) return frames[3];
+    if (e.attackTimer > 0) return frames[2];
+    return frames[Math.floor((this.frameCount + e.variant * 5) / 24) % 2];
+  }
+
   getHitFlashSprite(e: Entity) {
+    if (e.type === EntityType.ENEMY_INVADER) return this.getPaywallBastionSprite(e);
     if (e.spriteFrames?.length) return this.getAnimatedFrame(e.spriteFrames, e, 6);
     if (e.spriteUrl) return e.spriteUrl;
     if (e.type === EntityType.ENEMY_DRONE) {
@@ -4906,9 +6119,6 @@ export class GameEngine {
     }
     if (e.type === EntityType.ENEMY_JOURNAL) {
       return this.getAnimatedFrame(ASSETS.ENEMY_JOURNAL_FRAMES, e, 6);
-    }
-    if (e.type === EntityType.ENEMY_INVADER) {
-      return ASSETS.WALL_BOSS_SEGMENT;
     }
     if (e.type === EntityType.MINI_BOSS) {
       return ASSETS.MINI_BOSS;
@@ -5454,7 +6664,7 @@ export class GameEngine {
         this.drawBoss(ctx, e);
     } else if (e.type === EntityType.ENEMY_INVADER) {
         const sway = Math.sin((this.frameCount + e.variant) * 0.05) * 0.08;
-        const drewSprite = this.drawSprite(ctx, e.spriteUrl || ASSETS.WALL_BOSS_SEGMENT, e.width, e.height, {
+        const drewSprite = this.drawSprite(ctx, this.getPaywallBastionSprite(e), e.width, e.height, {
             rotation: sway,
             shadowColor: '#fb7185',
             shadowBlur: 8,

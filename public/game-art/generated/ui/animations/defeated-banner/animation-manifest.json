@@ -1,0 +1,132 @@
+{
+  "id": "scicon-defeated-banner-v1",
+  "displayName": "Scicon Defeated Banner",
+  "productionFormat": "layered-png",
+  "previewFormat": "animated-gif",
+  "coordinateSpace": {
+    "width": 1100,
+    "height": 460,
+    "origin": "top-left"
+  },
+  "bannerDisplaySize": [
+    960,
+    225
+  ],
+  "parts": {
+    "plaque": {
+      "path": "parts/scicon-defeated-plaque.png",
+      "displaySize": [
+        960,
+        225
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    "leftWing": {
+      "path": "parts/scicon-defeated-wing-left.png",
+      "displaySize": [
+        960,
+        225
+      ],
+      "pivot": [
+        201,
+        96
+      ]
+    },
+    "rightWing": {
+      "path": "parts/scicon-defeated-wing-right.png",
+      "displaySize": [
+        960,
+        225
+      ],
+      "pivot": [
+        759,
+        96
+      ]
+    },
+    "warningRotor": {
+      "path": "parts/scicon-defeated-warning-rotor.png",
+      "displaySize": [
+        96,
+        96
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    "lightScan": {
+      "path": "parts/scicon-defeated-light-scan.png",
+      "displaySize": [
+        70,
+        12
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    }
+  },
+  "timeline": {
+    "dropOpen": {
+      "startMs": 0,
+      "durationMs": 855,
+      "motion": [
+        "translateY",
+        "group.scale",
+        "banner.scaleX",
+        "wing.rotation"
+      ]
+    },
+    "damagedSettle": {
+      "startMs": 855,
+      "durationMs": 360,
+      "motion": [
+        "scaleOvershoot",
+        "wingDamping",
+        "warningPowerUp"
+      ]
+    },
+    "decayedIdleLoop": {
+      "startMs": 1215,
+      "durationMs": 1980,
+      "loop": true,
+      "motion": [
+        "translateY.sine",
+        "independentWingRotation.sine",
+        "warningRotor.rotation",
+        "lightScan.translateX",
+        "emergencyLight.flicker"
+      ]
+    }
+  },
+  "text": {
+    "value": "DEFEATED",
+    "mode": "runtime-live-text",
+    "anchor": [
+      0.5,
+      0.5
+    ],
+    "recommendedColor": "#52dde6",
+    "recommendedStroke": "#36040e"
+  },
+  "audio": {
+    "status": "not-authored",
+    "recommendedEvents": [
+      "damagedMechanismOpen",
+      "weakLatch",
+      "warningRotorStart",
+      "lowPowerIdle"
+    ],
+    "implementation": "Trigger future audio from timeline events. Never bake audio into the GIF preview."
+  },
+  "runtimeNotes": [
+    "Render DEFEATED as runtime text so localization and defeat-state copy can change without replacing artwork.",
+    "All plaque and wing PNGs share the same 960 x 225 registered canvas. Preserve their registration and rotate only around the supplied hinge pivots.",
+    "Rotate the warning rotor sprites in opposite directions at low speed; keep the motion subtle rather than arcade-fast.",
+    "Move light-scan particles along the damaged upper and lower energy rails and modulate alpha with a restrained flicker.",
+    "The GIF and sequence PNG are gallery/approval previews only. Use the layered PNG parts and timeline in PixiJS."
+  ]
+}

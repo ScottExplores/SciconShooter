@@ -14,6 +14,11 @@ import {
   type PlayerShipId,
   type PlayerShipUnlocks
 } from '../services/playerShipService';
+import {
+  PLAYER_SHIP_MOTION,
+  PLAYER_SHIP_SELECTION_FPS,
+  preloadPlayerShipSelectionFrames
+} from '../services/playerShipMotion';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -75,20 +80,105 @@ type IconName =
   | 'chevronRight'
   | 'lock';
 
-const dashboardTabs: Array<{ id: DashboardTab; label: string; icon: IconName; hint: string }> = [
-  { id: 'home', label: 'Home', icon: 'home', hint: 'Mission' },
-  { id: 'proposals', label: 'Proposals', icon: 'list', hint: 'Live' },
-  { id: 'trophies', label: 'Trophies', icon: 'trophy', hint: 'Rank' },
-  { id: 'more', label: 'More', icon: 'more', hint: 'About' }
+const DASHBOARD_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1';
+
+const dashboardTabs: Array<{
+  id: DashboardTab;
+  label: string;
+  hint: string;
+  icon: string;
+  selectedIcon: string;
+}> = [
+  {
+    id: 'home',
+    label: 'Home',
+    hint: 'Mission',
+    icon: `${DASHBOARD_ICON_ROOT}/normal/home.png`,
+    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/home-selected.png`
+  },
+  {
+    id: 'proposals',
+    label: 'Proposals',
+    hint: 'Live',
+    icon: `${DASHBOARD_ICON_ROOT}/normal/proposals.png`,
+    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/proposals-selected.png`
+  },
+  {
+    id: 'trophies',
+    label: 'Trophies',
+    hint: 'Rank',
+    icon: `${DASHBOARD_ICON_ROOT}/normal/trophies-leaderboard.png`,
+    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/trophies-leaderboard-selected.png`
+  },
+  {
+    id: 'more',
+    label: 'More',
+    hint: 'About',
+    icon: `${DASHBOARD_ICON_ROOT}/normal/more.png`,
+    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/more-selected.png`
+  }
 ];
 
 const playerShipOrder: PlayerShipId[] = ['researchhub', 'bio', 'eth', 'btc'];
 
-const podiumRanks = [
-  { label: 'Gold', tone: 'gold' },
-  { label: 'Silver', tone: 'silver' },
-  { label: 'Bronze', tone: 'bronze' }
-] as const;
+const PlayerShipSelectionImage = ({
+  shipId,
+  className
+}: {
+  shipId: PlayerShipId;
+  className: string;
+}) => {
+  const [activeFrame, setActiveFrame] = useState<{ shipId: PlayerShipId | null; index: number }>({
+    shipId: null,
+    index: -1
+  });
+
+  useEffect(() => {
+    let disposed = false;
+    let timer: number | undefined;
+    const frames = PLAYER_SHIP_MOTION[shipId].selectionIdleFrames;
+
+    setActiveFrame({ shipId: null, index: -1 });
+    preloadPlayerShipSelectionFrames().then(() => {
+      if (disposed) return;
+      let frameIndex = 0;
+      setActiveFrame({ shipId, index: frameIndex });
+      timer = window.setInterval(() => {
+        frameIndex = (frameIndex + 1) % frames.length;
+        setActiveFrame({ shipId, index: frameIndex });
+      }, 1000 / PLAYER_SHIP_SELECTION_FPS);
+    });
+
+    return () => {
+      disposed = true;
+      if (timer !== undefined) window.clearInterval(timer);
+    };
+  }, [shipId]);
+
+  const frameReady = activeFrame.shipId === shipId && activeFrame.index >= 0;
+  const src = frameReady
+    ? PLAYER_SHIP_MOTION[shipId].selectionIdleFrames[activeFrame.index]
+    : PLAYER_SHIPS[shipId].assetUrl;
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className={className}
+      data-player-ship={shipId}
+      data-selection-frame={frameReady ? activeFrame.index : 'preloading'}
+    />
+  );
+};
+
+const PODIUM_ASSET_ROOT = '/game-art/generated/ui/scicon-ui-system-v2';
+const FIRST_PLACE_ANIMATION_ROOT = `${PODIUM_ASSET_ROOT}/animations/first-place-row-idle/parts`;
+
+const podiumRowAssets = {
+  first: `${PODIUM_ASSET_ROOT}/base/leaderboard-podium/first-place-row.png`,
+  second: `${PODIUM_ASSET_ROOT}/base/leaderboard-podium/second-place-row.png`,
+  third: `${PODIUM_ASSET_ROOT}/base/leaderboard-podium/third-place-row.png`
+} as const;
 
 const hasViewableMissionRecord = (entry: LeaderboardEntry) => (
   /^[0-9a-f-]{36}$/i.test(entry.runId || '')
@@ -106,6 +196,99 @@ const formatRunDate = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Recent run';
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+};
+
+const FirstPlaceLivingRow = ({
+  entry,
+  onOpen
+}: {
+  entry?: LeaderboardEntry;
+  onOpen: (entry: LeaderboardEntry) => void;
+}) => {
+  const recordAvailable = entry ? hasViewableMissionRecord(entry) : false;
+
+  return (
+    <button
+      type="button"
+      className="sci-first-place-row"
+      onClick={() => entry && recordAvailable && onOpen(entry)}
+      disabled={!recordAvailable}
+      aria-label={entry ? `${entry.name}, first place with ${formatNumber(entry.score)} points` : 'First place is open'}
+    >
+      <img className="sci-first-place-row__base" src={podiumRowAssets.first} alt="" aria-hidden="true" />
+      <span className="sci-first-place-row__machinery" aria-hidden="true">
+        <img className="sci-first-place-turbine sci-first-place-turbine--left" src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-turbine-housing.png`} alt="" />
+        <img className="sci-first-place-turbine-blades sci-first-place-turbine-blades--left" src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-turbine-blades.png`} alt="" />
+        <img className="sci-first-place-turbine sci-first-place-turbine--right" src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-turbine-housing.png`} alt="" />
+        <img className="sci-first-place-turbine-blades sci-first-place-turbine-blades--right" src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-turbine-blades.png`} alt="" />
+        <span className="sci-first-place-crown">
+          {[0, 1, 2, 3].map((state) => (
+            <img
+              key={state}
+              className={`sci-first-place-crown__state sci-first-place-crown__state--${state}`}
+              src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-crown-diamond-${state}.png`}
+              alt=""
+            />
+          ))}
+        </span>
+        <span className="sci-first-place-lamps">
+          {Array.from({ length: 12 }, (_, index) => (
+            <img
+              key={index}
+              className={`sci-first-place-lamp sci-first-place-lamp--${index}`}
+              src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-rail-lamp-5.png`}
+              alt=""
+            />
+          ))}
+        </span>
+        <img className="sci-first-place-spark" src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-pixel-spark.png`} alt="" />
+        <img className="sci-first-place-gold-pixels" src={`${FIRST_PLACE_ANIMATION_ROOT}/first-place-gold-pixels.png`} alt="" />
+      </span>
+      <span className="sci-first-place-row__content">
+        <span className="sci-first-place-row__rank"><strong>1</strong><small>Champion</small></span>
+        <span className="sci-first-place-row__identity">
+          <strong>{entry?.name ?? 'First place open'}</strong>
+          <small>{entry ? (entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`) : 'Be the first pilot on the board'}</small>
+        </span>
+        <span className="sci-first-place-row__score"><strong>{formatNumber(entry?.score)}</strong><small>Points</small></span>
+      </span>
+    </button>
+  );
+};
+
+const PodiumRunnerRow = ({
+  entry,
+  rank,
+  tone,
+  onOpen
+}: {
+  entry: LeaderboardEntry;
+  rank: 2 | 3;
+  tone: 'silver' | 'bronze';
+  onOpen: (entry: LeaderboardEntry) => void;
+}) => {
+  const recordAvailable = hasViewableMissionRecord(entry);
+  const asset = rank === 2 ? podiumRowAssets.second : podiumRowAssets.third;
+
+  return (
+    <button
+      type="button"
+      className={`sci-podium-runner sci-podium-runner--${tone}`}
+      onClick={() => recordAvailable && onOpen(entry)}
+      disabled={!recordAvailable}
+      aria-label={`${entry.name}, ${rank === 2 ? 'second' : 'third'} place with ${formatNumber(entry.score)} points`}
+    >
+      <img className="sci-podium-runner__base" src={asset} alt="" aria-hidden="true" />
+      <span className="sci-podium-runner__content">
+        <span className="sci-podium-runner__rank">{rank}</span>
+        <span className="sci-podium-runner__identity">
+          <strong>{entry.name}</strong>
+          <small>{entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`}</small>
+        </span>
+        <span className="sci-podium-runner__score">{formatNumber(entry.score)}</span>
+      </span>
+    </button>
+  );
 };
 
 const getWeeklyAllocationMeta = (now = new Date()) => ({
@@ -431,6 +614,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
 
   useEffect(() => {
+    const iconImages = dashboardTabs.flatMap((tab) => [tab.icon, tab.selectedIcon]);
+    iconImages.forEach((source) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = source;
+    });
+  }, []);
+
+  useEffect(() => {
     if (testChampionWinner) return;
     const url = new URL(window.location.href);
     if (dashboardTab === 'home') url.searchParams.delete('view');
@@ -688,9 +880,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   : `${focusedShip.name} selected`}
               >
                 <span className="sci-rh-ship-core sci-ship-carousel-core">
-                  <img
-                    src={focusedShip.assetUrl}
-                    alt=""
+                  <PlayerShipSelectionImage
+                    shipId={shipFocusId}
                     className={shipFocusId === 'researchhub' ? 'sci-ship-carousel-image--researchhub' : 'sci-ship-carousel-image--pixel'}
                   />
                 </span>
@@ -823,8 +1014,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 
   const DashboardNav = ({ docked = false }: { docked?: boolean }) => (
-    <nav className={`${docked ? 'mt-auto shrink-0 pt-2' : ''}`}>
-      <div className="sci-dashboard-nav grid grid-cols-4 overflow-hidden rounded-[8px] border border-cyan-300/24 bg-slate-950/86 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
+    <nav className={`${docked ? 'mt-auto shrink-0' : ''} sci-dashboard-nav-shell pt-3`} aria-label="Primary dashboard">
+      <div className="sci-dashboard-nav grid grid-cols-4 overflow-visible rounded-[8px] border border-cyan-300/24 bg-slate-950/92 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
         {dashboardTabs.map((tab) => {
           const active = dashboardTab === tab.id;
           return (
@@ -832,17 +1023,32 @@ const StartScreen: React.FC<StartScreenProps> = ({
               key={tab.id}
               type="button"
               aria-label={tab.label}
+              aria-current={active ? 'page' : undefined}
               data-dashboard-tab={tab.id}
+              data-active={active ? 'true' : 'false'}
               onClick={() => setDashboardTab(tab.id)}
-              className={`relative flex min-h-[4.8rem] flex-col items-center justify-center gap-1 border-r border-cyan-200/12 px-1 text-center text-xs font-semibold transition last:border-r-0 ${
+              className={`sci-dashboard-nav-button group relative flex min-h-[4.8rem] flex-col items-center justify-end gap-0.5 border-r border-cyan-200/12 px-1 pb-1.5 text-center text-xs font-semibold last:border-r-0 ${
                 active
                   ? 'bg-gradient-to-br from-emerald-400/28 to-cyan-400/12 text-white shadow-[inset_0_0_26px_rgba(52,211,153,0.24)]'
                   : 'text-slate-300 hover:bg-cyan-300/8 hover:text-white'
               }`}
             >
-              <Icon name={tab.icon} className={`h-6 w-6 ${active ? 'text-emerald-200' : 'text-cyan-200/85'}`} />
-              <span>{tab.label}</span>
-              <span className={`h-1 w-1 rounded-full ${active ? 'bg-yellow-300' : 'bg-transparent'}`} />
+              <span className="sci-dashboard-nav-icon" aria-hidden="true">
+                <img
+                  src={tab.icon}
+                  alt=""
+                  draggable={false}
+                  className="sci-dashboard-nav-icon-image sci-dashboard-nav-icon-normal"
+                />
+                <img
+                  src={tab.selectedIcon}
+                  alt=""
+                  draggable={false}
+                  className="sci-dashboard-nav-icon-image sci-dashboard-nav-icon-selected"
+                />
+              </span>
+              <span className="sci-dashboard-nav-label">{tab.label}</span>
+              <span className={`sci-dashboard-nav-marker ${active ? 'is-active' : ''}`} aria-hidden="true" />
             </button>
           );
         })}
@@ -931,15 +1137,38 @@ const StartScreen: React.FC<StartScreenProps> = ({
     </HudPanel>
   );
 
-  const TrophiesDashboard = () => (
+  const TrophiesDashboard = () => {
+    const showsLeaderboard = leaderboardView === 'weekly' || leaderboardView === 'allTime';
+    const firstPlace = showsLeaderboard ? displayedLeaderboard[0] : undefined;
+    const secondPlace = showsLeaderboard ? displayedLeaderboard[1] : undefined;
+    const thirdPlace = showsLeaderboard ? displayedLeaderboard[2] : undefined;
+    const standardRanks = showsLeaderboard ? displayedLeaderboard.slice(3) : [];
+
+    return (
     <HudPanel>
       <div className="p-4 md:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-black text-white">Trophy Deck</h2>
-            <p className="text-sm text-slate-300">High scores, champion picks, confirmed funding, and your recent missions.</p>
+        <div className="mb-3">
+          <h2 className="text-2xl font-black text-white">Trophy Deck</h2>
+          <p className="text-sm text-slate-300">High scores, champion picks, confirmed funding, and your recent missions.</p>
+        </div>
+
+        {showsLeaderboard ? (
+          <div className="mb-2">
+            {isLoading ? (
+              <div className="sci-first-place-row animate-pulse" aria-label="Loading first place">
+                <img
+                  src={podiumRowAssets.first}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-contain opacity-35"
+                />
+              </div>
+            ) : (
+              <FirstPlaceLivingRow entry={firstPlace} onOpen={openLeaderboardRecord} />
+            )}
           </div>
-          <div className="flex rounded-[6px] border border-cyan-300/18 bg-slate-950/70 p-1">
+        ) : null}
+
+        <div className="mb-4 grid grid-cols-4 rounded-[6px] border border-cyan-300/18 bg-slate-950/70 p-1">
             {[
               ['weekly', 'Weekly'],
               ['allTime', 'All-time'],
@@ -950,64 +1179,68 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 key={id}
                 type="button"
                 onClick={() => setLeaderboardView(id as LeaderboardView)}
-                className={`rounded-[5px] px-3 py-2 text-xs font-bold uppercase transition ${
+                className={`min-w-0 rounded-[5px] px-1.5 py-2 text-[0.66rem] font-bold uppercase transition sm:px-3 sm:text-xs ${
                   leaderboardView === id ? 'bg-cyan-300/18 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 {label}
               </button>
             ))}
-          </div>
         </div>
 
         {isLoading && (
           <div className="space-y-2">
-            {[0, 1, 2].map((index) => <div key={index} className="h-12 animate-pulse rounded-[6px] bg-white/[0.04]" />)}
+            {[0, 1].map((index) => <div key={index} className="h-20 animate-pulse rounded-[6px] bg-white/[0.04]" />)}
           </div>
         )}
 
-        {!isLoading && leaderboardView !== 'pastPicks' && leaderboardView !== 'records' && (
-          <div className="max-h-[min(62vh,48rem)] space-y-2 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
-            {displayedLeaderboard.map((entry, index) => {
-              const podium = podiumRanks[index];
-              const recordAvailable = hasViewableMissionRecord(entry);
-              return (
-                <div
-                  key={`${entry.name}-${entry.score}-${index}`}
-                  className={`sci-leaderboard-row grid grid-cols-[auto_1fr_auto] items-center gap-3 p-3 ${podium ? `sci-leaderboard-row--${podium.tone}` : ''}`}
-                >
-                  <div className={`sci-leaderboard-rank ${podium ? `sci-leaderboard-rank--${podium.tone}` : ''}`}>
-                    {index + 1}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 items-center gap-2">
-                      {recordAvailable ? (
-                        <button
-                          type="button"
-                          onClick={() => openLeaderboardRecord(entry)}
-                          className="min-w-0 truncate text-left text-sm font-bold text-white underline decoration-cyan-300/0 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-300/80 focus-visible:text-cyan-100 focus-visible:decoration-cyan-300/80"
-                          aria-label={`View ${entry.name}'s Mission Record`}
-                        >
-                          {entry.name}
-                        </button>
-                      ) : (
-                        <p className="min-w-0 truncate text-sm font-bold text-white">{entry.name}</p>
-                      )}
-                      {podium ? (
-                        <span className={`sci-podium-label sci-podium-label--${podium.tone}`}>{podium.label}</span>
-                      ) : null}
+        {!isLoading && showsLeaderboard && visibleLeaderboard.length > 0 && (
+          <div className="space-y-2">
+            {secondPlace ? (
+              <PodiumRunnerRow entry={secondPlace} rank={2} tone="silver" onOpen={openLeaderboardRecord} />
+            ) : null}
+            {thirdPlace ? (
+              <PodiumRunnerRow entry={thirdPlace} rank={3} tone="bronze" onOpen={openLeaderboardRecord} />
+            ) : null}
+
+            {standardRanks.length > 0 ? (
+              <div className="sci-standard-rank-list max-h-[min(42vh,34rem)] space-y-2 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
+                {standardRanks.map((entry, index) => {
+                  const rank = index + 4;
+                  const recordAvailable = hasViewableMissionRecord(entry);
+                  return (
+                    <div
+                      key={`${entry.name}-${entry.score}-${rank}`}
+                      className="sci-leaderboard-row grid grid-cols-[auto_1fr_auto] items-center gap-3 p-3"
+                    >
+                      <div className="sci-leaderboard-rank">{rank}</div>
+                      <div className="min-w-0">
+                        {recordAvailable ? (
+                          <button
+                            type="button"
+                            onClick={() => openLeaderboardRecord(entry)}
+                            className="block w-full min-w-0 truncate text-left text-sm font-bold text-white underline decoration-cyan-300/0 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-300/80 focus-visible:text-cyan-100 focus-visible:decoration-cyan-300/80"
+                            aria-label={`View ${entry.name}'s Mission Record`}
+                          >
+                            {entry.name}
+                          </button>
+                        ) : (
+                          <p className="truncate text-sm font-bold text-white">{entry.name}</p>
+                        )}
+                        <p className="truncate text-xs text-slate-400">{entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`}</p>
+                      </div>
+                      <p className="font-black text-white">{formatNumber(entry.score)}</p>
                     </div>
-                    <p className="truncate text-xs text-slate-400">{entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`}</p>
-                  </div>
-                  <p className="font-black text-white">{formatNumber(entry.score)}</p>
-                </div>
-              );
-            })}
-            {visibleLeaderboard.length === 0 && (
-              <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
-                No scores yet. Start a mission and claim the board.
+                  );
+                })}
               </div>
-            )}
+            ) : null}
+          </div>
+        )}
+
+        {!isLoading && showsLeaderboard && visibleLeaderboard.length === 0 && (
+          <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
+            No scores yet. Start a mission and claim the board.
           </div>
         )}
 
@@ -1109,7 +1342,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
         )}
       </div>
     </HudPanel>
-  );
+    );
+  };
 
   const AboutDashboard = () => (
     <HudPanel>

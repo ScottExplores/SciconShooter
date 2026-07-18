@@ -1,0 +1,344 @@
+{
+  "id": "scicon-dashboard-icons-v1",
+  "version": 2,
+  "generated": "2026-07-17",
+  "overview": "/game-art/generated/ui/scicon-dashboard-icons-v1/scicon-dashboard-icons-v1-overview.png",
+  "navigationPreview": "/game-art/generated/ui/scicon-dashboard-icons-v1/previews/dashboard-navigation-preview.png",
+  "selectionPreviewGif": "/game-art/generated/ui/scicon-dashboard-icons-v1/previews/dashboard-navigation-selection-preview.gif",
+  "normalAtlas": "/game-art/generated/ui/scicon-dashboard-icons-v1/atlases/dashboard-icons-normal-atlas-5x4.png",
+  "selectedAtlas": "/game-art/generated/ui/scicon-dashboard-icons-v1/atlases/dashboard-icons-selected-atlas-5x4.png",
+  "assets": [
+    {
+      "id": "home",
+      "title": "Home",
+      "family": "primary-navigation",
+      "role": "Dashboard home and command center",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/home.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/home-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "science",
+      "title": "Science",
+      "family": "primary-navigation",
+      "role": "Science laboratory and research activity",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/science.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/science-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "proposals",
+      "title": "Proposals",
+      "family": "primary-navigation",
+      "role": "Science proposals and approvals",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/proposals.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/proposals-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "missions",
+      "title": "Missions",
+      "family": "primary-navigation",
+      "role": "Quick play and mission launch",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/missions.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/missions-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "map-sectors",
+      "title": "Map",
+      "family": "primary-navigation",
+      "role": "Sector map and stage selection",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/map-sectors.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/map-sectors-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "hangar-ships",
+      "title": "Hangar",
+      "family": "primary-navigation",
+      "role": "Player ships and hangar",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/hangar-ships.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/hangar-ships-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "research-proposals",
+      "title": "Research",
+      "family": "primary-navigation",
+      "role": "Research proposals and experiments",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/research-proposals.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/research-proposals-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "trophies-leaderboard",
+      "title": "Trophies",
+      "family": "primary-navigation",
+      "role": "Achievements and leaderboard",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/trophies-leaderboard.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/trophies-leaderboard-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "funding-wallet",
+      "title": "Funding",
+      "family": "primary-navigation",
+      "role": "Funding credits and wallet",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/funding-wallet.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/funding-wallet-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "inventory-upgrades",
+      "title": "Upgrades",
+      "family": "primary-navigation",
+      "role": "Inventory and upgrade systems",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/inventory-upgrades.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/inventory-upgrades-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "more",
+      "title": "More",
+      "family": "primary-navigation",
+      "role": "Additional navigation options",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/more.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/more-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "profile-squad",
+      "title": "Profile",
+      "family": "dashboard-system",
+      "role": "Player profile and squad identity",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/profile-squad.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/profile-squad-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "notifications-inbox",
+      "title": "Inbox",
+      "family": "dashboard-system",
+      "role": "Notifications and messages",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/notifications-inbox.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/notifications-inbox-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "settings",
+      "title": "Settings",
+      "family": "dashboard-system",
+      "role": "Game and account settings",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/settings.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/settings-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "weekly-calendar",
+      "title": "Weekly",
+      "family": "dashboard-system",
+      "role": "Weekly program and calendar",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/weekly-calendar.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/weekly-calendar-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "market-store",
+      "title": "Market",
+      "family": "dashboard-system",
+      "role": "Marketplace and supply store",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/market-store.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/market-store-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "stats-records",
+      "title": "Records",
+      "family": "dashboard-system",
+      "role": "Statistics, high scores, and records",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/stats-records.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/stats-records-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "multiplayer-network",
+      "title": "Multiplayer",
+      "family": "dashboard-system",
+      "role": "Multiplayer and connected squads",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/multiplayer-network.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/multiplayer-network-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "help-feedback",
+      "title": "Help",
+      "family": "dashboard-system",
+      "role": "Help, support, and feedback",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/help-feedback.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/help-feedback-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "security-lock",
+      "title": "Security",
+      "family": "dashboard-system",
+      "role": "Locked, protected, or secured features",
+      "size": [
+        256,
+        256
+      ],
+      "normal": "/game-art/generated/ui/scicon-dashboard-icons-v1/normal/security-lock.png",
+      "selected": "/game-art/generated/ui/scicon-dashboard-icons-v1/selected/security-lock-selected.png",
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    }
+  ],
+  "runtimeProtocol": {
+    "labels": "Render navigation labels as live text below the icon; labels are intentionally absent from PNG files.",
+    "state": "Use normal in inactive cards/tabs and selected while active, hovered, or keyboard-focused.",
+    "notifications": "Notification counts and orange/red attention dots are separate overlays, never baked into an icon.",
+    "sizing": "All production icons share a 256 x 256 transparent canvas and center anchor, so they can be swapped without layout drift."
+  },
+  "productionNotes": [
+    "Use the individual PNG files for UI implementation; atlas and GIF files are gallery/integration conveniences.",
+    "Keep labels, lock state, counts, and notification dots independent from icon artwork.",
+    "Use the separate science and proposals icons for dashboard navigation. The combined research-proposals identity remains available for backward compatibility.",
+    "The supplied app screenshots were used only for functional inspiration; every Scicon icon was newly designed."
+  ]
+}

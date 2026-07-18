@@ -23,9 +23,13 @@ test('project wallet enables a sticky test run with real flask charge and no lea
 test('engine test mode preserves lives and supports encounter-only wave jumps', () => {
   assert.match(engineSource, /testMode\?: boolean/);
   assert.match(engineSource, /jumpToCampaignWave\(waveNumber: number\)/);
+  assert.match(engineSource, /jumpToCampaignBoss\(waveNumber: number\)/);
+  assert.match(engineSource, /find\(\(event\) => this\.getEncounterWarningType\(event\) === 'gatekeeper'\)/);
+  assert.match(engineSource, /this\.queueConfiguredEncounter\(mainBoss\)/);
   assert.match(engineSource, /this\.entities = \[\][\s\S]*?this\.resetWaveProgress\(\)/);
   assert.match(engineSource, /if \(!this\.testMode\) \{\s*this\.lives -= incomingDamage/);
   assert.match(canvasSource, /engine\.jumpToCampaignWave\(testWaveCommand\.wave\)/);
+  assert.match(canvasSource, /engine\.jumpToCampaignBoss\(testBossCommand\.wave\)/);
 });
 
 test('owner controls provide a separate frame freeze and put wave tools in the normal pause menu', () => {
@@ -35,6 +39,7 @@ test('owner controls provide a separate frame freeze and put wave tools in the n
   assert.match(appSource, /gameState === GameState\.PAUSED && !showTestChampionPreview/);
   assert.match(appSource, /Founder Test Controls/);
   assert.match(appSource, /Select wave/);
+  assert.match(appSource, /Jump to W\{stats\.wave\} boss/);
   assert.match(appSource, /Preview winner/);
   assert.match(appSource, /Finish test run/);
   assert.match(startScreenSource, /testChampionWinner\s*\?\s*setTestSelectedProposal\(proposal\)/);

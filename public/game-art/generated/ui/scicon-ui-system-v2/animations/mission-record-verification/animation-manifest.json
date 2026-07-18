@@ -1,0 +1,16 @@
+{
+  "id": "mission-record-verification",
+  "runtimeText": true,
+  "durationMs": 2016,
+  "events": [
+    {
+      "atMs": 0,
+      "name": "ui.record.clamp"
+    },
+    {
+      "atMs": 1170,
+      "name": "ui.record.verify"
+    }
+  ],
+  "production": "layered-png"
+}

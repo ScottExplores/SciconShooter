@@ -1,0 +1,119 @@
+{
+  "id": "scicon-boss-alert-banners-v1",
+  "version": 1,
+  "generated": "2026-07-17",
+  "productionFormat": "registered-layered-png",
+  "previewFormat": "animated-gif",
+  "registeredSize": [
+    1024,
+    360
+  ],
+  "overview": "/game-art/generated/ui/animations/boss-alert-banners-v1/scicon-boss-alert-banners-v1-overview.png",
+  "sequencePreview": "/game-art/generated/ui/animations/boss-alert-banners-v1/previews/boss-alert-banners-sequence.png",
+  "tiers": [
+    {
+      "id": "mini-boss",
+      "tierLabel": "MINI-BOSS DETECTED",
+      "exampleBoss": "BOTTLENECK HARVESTER",
+      "frame": "/game-art/generated/ui/animations/boss-alert-banners-v1/frames/mini-boss-alert-frame.png",
+      "previewGif": "/game-art/generated/ui/animations/boss-alert-banners-v1/previews/mini-boss-alert-animation.gif",
+      "labeledFinalPreview": "/game-art/generated/ui/animations/boss-alert-banners-v1/previews/mini-boss-alert-final.png",
+      "size": [
+        1024,
+        360
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "accent": "#ffae31"
+    },
+    {
+      "id": "boss-incoming",
+      "tierLabel": "BOSS INCOMING",
+      "exampleBoss": "PAYWALL BASTION",
+      "frame": "/game-art/generated/ui/animations/boss-alert-banners-v1/frames/boss-incoming-alert-frame.png",
+      "previewGif": "/game-art/generated/ui/animations/boss-alert-banners-v1/previews/boss-incoming-alert-animation.gif",
+      "labeledFinalPreview": "/game-art/generated/ui/animations/boss-alert-banners-v1/previews/boss-incoming-alert-final.png",
+      "size": [
+        1024,
+        360
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "accent": "#ff3842"
+    },
+    {
+      "id": "apex-boss",
+      "tierLabel": "APEX THREAT",
+      "exampleBoss": "ASTRAL CROWNCLAW",
+      "frame": "/game-art/generated/ui/animations/boss-alert-banners-v1/frames/apex-boss-alert-frame.png",
+      "previewGif": "/game-art/generated/ui/animations/boss-alert-banners-v1/previews/apex-boss-alert-animation.gif",
+      "labeledFinalPreview": "/game-art/generated/ui/animations/boss-alert-banners-v1/previews/apex-boss-alert-final.png",
+      "size": [
+        1024,
+        360
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "accent": "#bb5cff"
+    }
+  ],
+  "timeline": {
+    "arrivalReveal": {
+      "startMs": 0,
+      "durationMs": 800,
+      "motion": [
+        "translateY",
+        "group.scale",
+        "frame.scaleX",
+        "text.glitchFade"
+      ]
+    },
+    "alertLock": {
+      "startMs": 800,
+      "durationMs": 300,
+      "motion": [
+        "scaleOvershoot",
+        "warningCore.powerUp"
+      ]
+    },
+    "warningHold": {
+      "startMs": 1100,
+      "durationMs": 1100,
+      "loop": true,
+      "motion": [
+        "warningCore.rotation",
+        "railScan.translateX",
+        "alert.flicker",
+        "translateY.sine"
+      ]
+    }
+  },
+  "runtimeProtocol": {
+    "text": "Render the tier label and boss name as live text. Do not bake either string into the production frame PNG.",
+    "handoff": "Play the encounter alert once, then transition to the existing compact boss-name plaque and boss-integrity frame for combat.",
+    "registration": "Every tier uses a 1024 x 360 transparent canvas and center anchor. Swap tiers without changing layout geometry.",
+    "effects": "Use the supplied ring and scan particles as optional overlays. Keep the hold loop subtle and stop it when the alert exits.",
+    "accessibility": "Reduced-motion mode should show the labeled final pose for 900 ms with no scale reveal, flicker, or rotation."
+  },
+  "audio": {
+    "status": "not-authored",
+    "recommendedEvents": [
+      "alertArrival",
+      "warningCoreLock",
+      "bossNameReveal",
+      "alertExit"
+    ],
+    "implementation": "Use one restrained mechanical alert family with intensity/gain increasing by tier. Do not bake audio into GIF previews."
+  },
+  "productionNotes": [
+    "GIFs and labeled final PNGs are approval/gallery previews only.",
+    "Keep the boss health bar separate; these banners announce an encounter and then exit.",
+    "Mini-Boss uses amber/cyan, Boss Incoming uses crimson/cyan, and Apex uses violet/emerald/gold with cyan research energy."
+  ]
+}

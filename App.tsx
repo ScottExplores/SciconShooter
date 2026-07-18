@@ -26,12 +26,16 @@ import {
   PLAYER_SHIPS,
   type PlayerShipId
 } from './services/playerShipService';
+import type { WaveVictorySummary } from './services/gameLogic';
+import PauseMenu from './components/PauseMenu';
+import GameOverPresentation from './components/GameOverPresentation';
 
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
 const loadGameStage = () => import('./components/GameStage');
 const loadStoryTransmission = () => import('./components/StoryTransmission');
 const MissionRecordPreview = React.lazy(() => import('./components/MissionRecordPreview'));
 const WeeklyProposalSelection = React.lazy(() => import('./components/WeeklyProposalSelection'));
+const WaveVictoryOverlay = React.lazy(() => import('./components/WaveVictoryOverlay'));
 const GameStage = React.lazy(loadGameStage);
 const StoryTransmission = React.lazy(loadStoryTransmission);
 
@@ -133,30 +137,6 @@ const defaultPowerupUses: Record<PowerupType, number> = {
   [PowerupType.SHIELD]: 0,
   [PowerupType.EXTRA_LIFE]: 0,
   [PowerupType.RESEARCH_BEAM]: 0
-};
-
-const getProjectedScoreQualification = (
-  allTimeEntries: LeaderboardEntry[],
-  monthlyEntries: LeaderboardEntry[],
-  score: number
-) => {
-  const sortByScoreThenFirstClaim = (entries: LeaderboardEntry[]) => [...entries].sort((a, b) => (
-    b.score !== a.score
-      ? b.score - a.score
-      : new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime()
-  ));
-  const allTimeSorted = sortByScoreThenFirstClaim(allTimeEntries);
-  const monthlySorted = sortByScoreThenFirstClaim(monthlyEntries);
-  const allTimeRank = allTimeSorted.filter((entry) => entry.score >= score).length + 1;
-  const monthlyRank = monthlySorted.filter((entry) => entry.score >= score).length + 1;
-
-  return {
-    allTimeRank,
-    monthlyRank,
-    qualifiesAllTimeTop25: score > 0 && allTimeRank <= 25,
-    qualifiesMonthlyTop5: score > 0 && monthlyRank <= 5,
-    isMonthlyChampion: score > 0 && monthlyRank === 1
-  };
 };
 
 interface WalletControlProps {
@@ -283,8 +263,11 @@ const App: React.FC = () => {
   const [activeStoryBeat, setActiveStoryBeat] = useState<StoryBeat | null>(null);
   const [bombCommand, setBombCommand] = useState<{ nonce: number } | null>(null);
   const [continueCommand, setContinueCommand] = useState<{ nonce: number; lives: number } | null>(null);
+  const [waveContinueCommand, setWaveContinueCommand] = useState<{ nonce: number } | null>(null);
+  const [waveVictorySummary, setWaveVictorySummary] = useState<WaveVictorySummary | null>(null);
   const [activeRunMode, setActiveRunMode] = useState<ActiveRunMode>('standard');
   const [testWaveCommand, setTestWaveCommand] = useState<{ nonce: number; wave: number } | null>(null);
+  const [testBossCommand, setTestBossCommand] = useState<{ nonce: number; wave: number } | null>(null);
   const [testFlaskCommand, setTestFlaskCommand] = useState<{ nonce: number; charge: number } | null>(null);
   const [showTestChampionPreview, setShowTestChampionPreview] = useState(false);
   const [ownerFrameFrozen, setOwnerFrameFrozen] = useState(false);
@@ -527,6 +510,7 @@ const App: React.FC = () => {
 
   const [stats, setStats] = useState<Stats>(getInitialStats);
   const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
+  const [audioMuted, setAudioMuted] = useState(() => audioService.isMuted());
 
   useEffect(() => {
     const statsToSave = {
@@ -639,7 +623,10 @@ const App: React.FC = () => {
     setContinuesUsed(0);
     setBombCommand(null);
     setContinueCommand(null);
+    setWaveContinueCommand(null);
+    setWaveVictorySummary(null);
     setTestWaveCommand(null);
+    setTestBossCommand(null);
     setTestFlaskCommand(null);
     setActiveRunMode(startInTestMode ? 'owner-test' : 'standard');
     setShowTestChampionPreview(false);
@@ -683,6 +670,8 @@ const App: React.FC = () => {
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
     setShowTestChampionPreview(false);
+    setWaveVictorySummary(null);
+    setWaveContinueCommand(null);
     setShowWeeklyProposalSelection(false);
     setWeeklyProposalSelectionStatus('idle');
     setWeeklyProposalSelectionMessage('');
@@ -693,6 +682,23 @@ const App: React.FC = () => {
     runStartedAtRef.current = null;
     runSessionPromiseRef.current = null;
     setGameState(GameState.MENU);
+  };
+
+  const toggleGameAudio = () => {
+    setAudioMuted(audioService.toggleMute());
+  };
+
+  const showWaveVictory = (summary: WaveVictorySummary) => {
+    setOwnerFrameFrozen(false);
+    setWaveVictorySummary(summary);
+    setGameState(GameState.WAVE_COMPLETE);
+  };
+
+  const continueAfterWaveVictory = () => {
+    if (!waveVictorySummary) return;
+    setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
+    setWaveVictorySummary(null);
+    setGameState(GameState.PLAYING);
   };
 
   const completeStoryTransmission = () => {
@@ -752,12 +758,22 @@ const App: React.FC = () => {
 
   const jumpOwnerTestWave = (wave: number) => {
     if (!isOwnerWallet || !isOwnerTestRun) return;
-    const safeWave = Math.max(1, Math.min(4, Math.floor(wave)));
+    const safeWave = Math.max(1, Math.min(5, Math.floor(wave)));
     clearIntroStoryTimeout();
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
     lastStoryWaveRef.current = safeWave;
     setTestWaveCommand(current => ({ nonce: (current?.nonce ?? 0) + 1, wave: safeWave }));
+  };
+
+  const jumpOwnerTestBoss = () => {
+    if (!isOwnerWallet || !isOwnerTestRun) return;
+    const safeWave = Math.max(1, Math.min(5, Math.floor(stats.wave || 1)));
+    clearIntroStoryTimeout();
+    setActiveStoryBeat(null);
+    setIntroMissionLocked(false);
+    lastStoryWaveRef.current = safeWave;
+    setTestBossCommand(current => ({ nonce: (current?.nonce ?? 0) + 1, wave: safeWave }));
   };
 
   const refillOwnerTestFlasks = () => {
@@ -775,6 +791,7 @@ const App: React.FC = () => {
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
     setShowTestChampionPreview(false);
+    setWaveVictorySummary(null);
     setOwnerFrameFrozen(false);
     setGameState(GameState.GAMEOVER);
   };
@@ -905,6 +922,7 @@ const App: React.FC = () => {
     if (gameState === GameState.GAMEOVER) {
       const scoreKey = `${gameId}:${stats.score}:${stats.wave}`;
       if (submittedScoreKeysRef.current.has(scoreKey)) {
+        setShowNameInput(false);
         return;
       }
 
@@ -913,10 +931,8 @@ const App: React.FC = () => {
         setStats(s => ({ ...s, highScore: s.score }));
       }
 
-      if (stats.score > 0 || isOwnerTestRun) {
-        setScoreSubmitError('');
-        setShowNameInput(true);
-      }
+      setScoreSubmitError('');
+      setShowNameInput(true);
     }
   }, [gameId, gameState, isOwnerTestRun, stats.score, stats.wave, stats.highScore]);
 
@@ -1199,13 +1215,6 @@ const App: React.FC = () => {
     setGameState(GameState.MENU);
   };
 
-  const getPubStatus = (score: number) => {
-    if (score < 500) return { title: "DESK REJECTED", color: "text-red-500", desc: "Try adding more novelty." };
-    if (score < 1500) return { title: "UNDER REVIEW", color: "text-yellow-400", desc: "Reviewer #2 has some notes." };
-    if (score < 3000) return { title: "ACCEPTED W/ REVISIONS", color: "text-blue-400", desc: "So close to the cover." };
-    return { title: "NATURE COVER", color: "text-purple-400", desc: "Scientific breakthrough!" };
-  };
-
   const openReferral = async () => {
     await openExternalUrl(ASSETS.REFERRAL_LINK);
   };
@@ -1230,8 +1239,6 @@ const App: React.FC = () => {
     await openExternalUrl(DONATION_CONFIG.RSC_SWAP_URL);
   };
 
-  const pubStatus = getPubStatus(stats.score);
-  const scoreQualification = getProjectedScoreQualification(leaderboard, monthlyLeaderboard, stats.score);
   const nextContinueRscCost = continueRscCost + 5;
   const continueStatusText = continuePaymentStatus === 'switching_network'
     ? 'Switching wallet to Base...'
@@ -1283,6 +1290,9 @@ const App: React.FC = () => {
       ) : null}
     </div>
   );
+  const gameOverContinueControls = !isOwnerTestRun && !runReceipt && runReceiptStatus !== 'finalizing'
+    ? continueRunControls
+    : null;
   const resultEncounter = stats.wave <= 1
     ? 'Gatekeeper Sector'
     : stats.wave === 2
@@ -1303,13 +1313,9 @@ const App: React.FC = () => {
       <div className="pointer-events-none absolute left-0 top-5 h-12 w-24 -translate-x-10 -skew-x-[24deg] border-y border-r border-yellow-200/35 bg-yellow-300/10" />
       <div className="pointer-events-none absolute right-0 top-5 h-12 w-24 translate-x-10 skew-x-[24deg] border-y border-l border-yellow-200/35 bg-yellow-300/10" />
       <div className="pointer-events-none absolute left-1/2 top-0 h-3 w-14 -translate-x-1/2 bg-yellow-300 shadow-[0_0_16px_rgba(250,204,21,0.55)] [clip-path:polygon(12%_0,88%_0,100%_50%,88%_100%,12%_100%,0_50%)]" />
-      <img src={ASSETS.FINAL_BOSS} alt="" aria-hidden="true" className="pointer-events-none absolute right-5 top-8 h-20 w-20 object-contain opacity-35 [image-rendering:pixelated]" />
-
       <div className="relative">
         <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-cyan-200">Stage {stats.wave} - {resultEncounter}</p>
-        <h2 className={`arcade-font mt-1 text-xl font-black uppercase tracking-widest ${isOwnerTestRun || (showNameInput && scoreQualification.isMonthlyChampion) ? 'text-yellow-300' : pubStatus.color}`}>
-          {isOwnerTestRun ? 'Pilot Test Record' : showNameInput ? (scoreQualification.isMonthlyChampion ? 'Current Weekly Lead' : 'Mission Record') : pubStatus.title}
-        </h2>
+        <h2 className="arcade-font mt-1 text-xl font-black uppercase tracking-widest text-cyan-100">Mission Record</h2>
         <p className="mt-1 text-3xl font-black text-white">{stats.score.toLocaleString()}</p>
       </div>
 
@@ -1342,7 +1348,7 @@ const App: React.FC = () => {
         </React.Suspense>
       ) : null}
 
-      {(gameState === GameState.PLAYING || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
+      {(gameState === GameState.PLAYING || gameState === GameState.WAVE_COMPLETE || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
         <React.Suspense fallback={null}>
           <GameStage
             key={gameId}
@@ -1355,13 +1361,16 @@ const App: React.FC = () => {
                 setGameState(GameState.GAMEOVER);
               },
               onContinueStarted: () => setGameState(GameState.PLAYING),
+              onWaveVictory: showWaveVictory,
               isTransmissionOpen: introMissionLocked || Boolean(activeStoryBeat),
               bombCommand,
               continueCommand,
+              waveContinueCommand,
               polishSettings,
               playerShipUrl,
               testMode: isOwnerTestRun,
               testWaveCommand,
+              testBossCommand,
               testFlaskCommand
             }}
             hud={gameState === GameState.PLAYING || (gameState === GameState.PAUSED && isOwnerWallet && isOwnerTestRun) ? {
@@ -1388,6 +1397,12 @@ const App: React.FC = () => {
           />
         </React.Suspense>
       )}
+
+      {gameState === GameState.WAVE_COMPLETE && waveVictorySummary ? (
+        <React.Suspense fallback={null}>
+          <WaveVictoryOverlay summary={waveVictorySummary} onContinue={continueAfterWaveVictory} />
+        </React.Suspense>
+      ) : null}
 
       {gameState === GameState.MENU && (
         <StartScreen
@@ -1463,60 +1478,18 @@ const App: React.FC = () => {
       ) : null}
 
       {gameState === GameState.PAUSED && !showTestChampionPreview && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm">
-          <div className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto p-1">
-            <div className="scicon-border-container"></div>
-            <div className="scicon-inner-bg"></div>
-            <div className="scicon-node node-tl-1"></div>
-            <div className="scicon-node node-tr-1"></div>
-            <div className="scicon-node node-bl-1"></div>
-            <div className="scicon-node node-br-1"></div>
-
-            <div className="relative z-10 space-y-4 p-5 text-center sm:p-7">
-              <h2 className="arcade-font text-3xl font-bold tracking-widest text-white text-shadow-neon">PAUSED</h2>
-              <div className="space-y-3">
-                <button
-                  onClick={() => {
-                    setOwnerFrameFrozen(false);
-                    setGameState(GameState.PLAYING);
-                  }}
-                  className="scicon-btn w-full py-3 text-sm font-bold"
-                >
-                  RESUME
-                </button>
-                <button
-                  onClick={resetGame}
-                  className="scicon-btn scicon-btn-secondary w-full py-3 text-sm font-bold text-gray-300"
-                >
-                  QUIT
-                </button>
-              </div>
-              <div className="rounded-[8px] border border-cyan-300/18 bg-cyan-300/8 p-3 text-left">
-                <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100">Performance FX</p>
-                <div className="space-y-2">
-                  {([
-                    ['screenShake', 'Screen Shake'],
-                    ['highDensityParticles', 'High-Density Particles']
-                  ] as Array<[keyof GamePolishSettings, string]>).map(([key, label]) => {
-                    const enabled = polishSettings[key];
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => togglePolishSetting(key)}
-                        className="flex w-full items-center justify-between rounded-[6px] border border-white/10 bg-slate-950/55 px-3 py-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-200 transition hover:border-cyan-200/40 hover:bg-cyan-300/10"
-                      >
-                        <span>{label}</span>
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${enabled ? 'border-emerald-200/35 bg-emerald-300/15 text-emerald-100' : 'border-slate-300/20 bg-slate-700/30 text-slate-400'}`}>
-                          {enabled ? 'On' : 'Off'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              {isOwnerWallet && isOwnerTestRun ? (
-                <div className="rounded-[8px] border border-cyan-200/35 bg-slate-950/72 p-3 text-left shadow-[0_0_26px_rgba(34,211,238,0.12)]">
+        <PauseMenu
+          audioMuted={audioMuted}
+          polishSettings={polishSettings}
+          onResume={() => {
+            setOwnerFrameFrozen(false);
+            setGameState(GameState.PLAYING);
+          }}
+          onQuit={resetGame}
+          onToggleAudio={toggleGameAudio}
+          onTogglePolishSetting={togglePolishSetting}
+          founderControls={isOwnerWallet && isOwnerTestRun ? (
+            <div className="text-left">
                   <div className="mb-3 border-b border-cyan-200/18 pb-2">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100">Founder Test Controls</p>
                     <p className="mt-1 text-[9px] font-bold leading-relaxed text-slate-400">Jump sectors, refill upgrades, or preview the winner flow. This test run cannot enter the leaderboard.</p>
@@ -1524,8 +1497,8 @@ const App: React.FC = () => {
                   <div className="space-y-3">
                     <div>
                       <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-cyan-200">Select wave</p>
-                      <div className="grid grid-cols-4 overflow-hidden border border-cyan-200/30">
-                        {[1, 2, 3, 4].map((wave) => (
+                      <div className="grid grid-cols-5 overflow-hidden border border-cyan-200/30">
+                        {[1, 2, 3, 4, 5].map((wave) => (
                           <button
                             key={wave}
                             type="button"
@@ -1537,6 +1510,14 @@ const App: React.FC = () => {
                           </button>
                         ))}
                       </div>
+                      <button
+                        type="button"
+                        onClick={jumpOwnerTestBoss}
+                        className="mt-2 min-h-10 w-full border border-red-200/35 bg-red-300/12 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-red-50 transition hover:border-red-100/60 hover:bg-red-300/20"
+                        aria-label={`Jump to boss of wave ${stats.wave}`}
+                      >
+                        Jump to W{stats.wave} boss
+                      </button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <button type="button" onClick={refillOwnerTestFlasks} className="border border-cyan-200/35 bg-cyan-300/12 px-2 py-2.5 text-[9px] font-black uppercase tracking-[0.08em] text-cyan-50">
@@ -1550,31 +1531,18 @@ const App: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                </div>
-              ) : null}
             </div>
-          </div>
-        </div>
+          ) : undefined}
+        />
       )}
 
       {gameState === GameState.GAMEOVER && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center overflow-hidden bg-black/82 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-md">
-          <div className="relative w-full max-w-md overflow-hidden border border-red-300/20 bg-slate-950/94 shadow-[0_24px_90px_rgba(0,0,0,0.62)] backdrop-blur-xl animate-bounce-in [clip-path:polygon(18px_0,100%_0,100%_calc(100%_-_18px),calc(100%_-_18px)_100%,0_100%,0_18px)]">
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-300/70 to-transparent"></div>
-            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-300/45 to-transparent"></div>
-
-            <div className="relative z-10 grid gap-3 p-3 text-center">
+        <GameOverPresentation footer={gameOverContinueControls}>
+            <div className="sci-gameover-result-content relative z-10 grid gap-2 p-1 text-center">
               {missionResultBanner}
 
               {showNameInput ? (
                 <>
-                  {runReceiptStatus === 'local' || runReceiptStatus === 'error' ? (
-                    <div className="rounded-[7px] border border-amber-200/25 bg-amber-300/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
-                      {isOwnerTestRun ? 'Test record verification is offline. Reconnect before preparing the mint preview.' : 'Run verification is offline. Retry when connected to submit globally.'}
-                    </div>
-                  ) : null}
-                  {!isOwnerTestRun && !runReceipt && runReceiptStatus !== 'finalizing' ? continueRunControls : null}
-
                   <form onSubmit={submitScore} className="grid gap-2">
                     {scoreSubmitError ? (
                       <p className="rounded-[7px] border border-red-300/20 bg-red-500/10 px-3 py-2 text-center text-[10px] font-semibold leading-snug text-red-100">
@@ -1591,7 +1559,6 @@ const App: React.FC = () => {
                         onChange={(e) => setPlayerNameInput(e.target.value.toUpperCase())}
                         className="min-h-11 min-w-0 rounded-[7px] border border-indigo-400/70 bg-black/55 px-3 py-2.5 text-center font-mono text-lg uppercase text-white focus:border-yellow-300 focus:outline-none disabled:opacity-50"
                         placeholder="PILOT NAME"
-                        autoFocus
                         disabled={isSubmittingScore}
                       />
                       <button
@@ -1599,14 +1566,14 @@ const App: React.FC = () => {
                         disabled={!playerNameInput || isSubmittingScore}
                         className="scicon-btn min-h-11 min-w-28 px-3 py-2 text-[11px] font-bold disabled:cursor-wait disabled:opacity-60"
                       >
-                        {isSubmittingScore ? 'Saving...' : isOwnerTestRun ? 'Prepare record' : 'Submit'}
+                        {isSubmittingScore ? 'Saving...' : 'Submit'}
                       </button>
                     </div>
                     <button
                       type="button"
                       onClick={skipScoreSubmission}
                       disabled={isSubmittingScore}
-                      className="justify-self-center px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-500 transition hover:text-red-100 disabled:opacity-50"
+                      className="sci-gameover-skip-score justify-self-center px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 transition hover:text-red-100 disabled:opacity-50"
                     >
                       {isOwnerTestRun ? 'Exit test' : 'Skip score'}
                     </button>
@@ -1614,8 +1581,6 @@ const App: React.FC = () => {
                 </>
               ) : (
                 <>
-                  {!isOwnerTestRun && !runReceipt && runReceiptStatus !== 'finalizing' ? continueRunControls : null}
-
                   <div className="grid gap-2">
                     {runReceipt && runReceipt.integrity !== 'local-unverified' ? (
                       <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-[8px] border border-cyan-200/20 bg-cyan-300/8 p-3 text-left">
@@ -1648,8 +1613,7 @@ const App: React.FC = () => {
                 </>
               )}
             </div>
-          </div>
-        </div>
+        </GameOverPresentation>
       )}
 
 

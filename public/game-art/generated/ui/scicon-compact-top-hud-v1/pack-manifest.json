@@ -1,0 +1,374 @@
+{
+  "id": "scicon-compact-top-hud-v1",
+  "version": 1,
+  "generated": "2026-07-17",
+  "overview": "/game-art/generated/ui/scicon-compact-top-hud-v1/scicon-compact-top-hud-v1-overview.png",
+  "composedPreview": "/game-art/generated/ui/scicon-compact-top-hud-v1/previews/compact-top-hud-composed-preview.png",
+  "fillPreviewGif": "/game-art/generated/ui/scicon-compact-top-hud-v1/previews/compact-top-hud-fill-demo.gif",
+  "heartDamagePreviewGif": "/game-art/generated/ui/scicon-compact-top-hud-v1/previews/heart-health-damage-preview.gif",
+  "beakerChargePreviewGif": "/game-art/generated/ui/scicon-compact-top-hud-v1/previews/beaker-charge-fill-preview.gif",
+  "soundControlIncluded": false,
+  "assets": [
+    {
+      "id": "life-counter-frame",
+      "group": "frames",
+      "role": "Blank lives/health counter with icon socket",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/frames/life-counter-frame.png",
+      "size": [
+        384,
+        128
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "flask-progress-frame",
+      "group": "frames",
+      "role": "Hollow flask meter frame; place a fill sprite behind it",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/frames/flask-progress-frame.png",
+      "size": [
+        512,
+        128
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "score-counter-frame",
+      "group": "frames",
+      "role": "Blank score counter for live numeric text",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/frames/score-counter-frame.png",
+      "size": [
+        384,
+        128
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "pause-button-normal",
+      "group": "buttons",
+      "role": "Default pause control",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/buttons/pause-button-normal.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "pause-button-selected",
+      "group": "buttons",
+      "role": "Hover/focus/selected pause control",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/buttons/pause-button-selected.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "pause-button-pressed",
+      "group": "buttons",
+      "role": "Pressed pause control",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/buttons/pause-button-pressed.png",
+      "size": [
+        160,
+        160
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "wave-counter-frame",
+      "group": "frames",
+      "role": "Blank wave/level counter with icon socket",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/frames/wave-counter-frame.png",
+      "size": [
+        384,
+        128
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "boss-name-plaque",
+      "group": "frames",
+      "role": "Blank boss name plaque for live text",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/frames/boss-name-plaque.png",
+      "size": [
+        288,
+        96
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "boss-integrity-frame",
+      "group": "frames",
+      "role": "Hollow boss integrity frame; place a fill behind it",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/frames/boss-integrity-frame.png",
+      "size": [
+        512,
+        96
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "heart-full-icon",
+      "group": "icons",
+      "role": "Full life icon",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/icons/heart-full-icon.png",
+      "size": [
+        96,
+        96
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "flask-icon",
+      "group": "icons",
+      "role": "Flask/research-charge icon",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/icons/flask-icon.png",
+      "size": [
+        96,
+        96
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "wave-chevron-icon",
+      "group": "icons",
+      "role": "Wave/level chevrons",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/icons/wave-chevron-icon.png",
+      "size": [
+        96,
+        96
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "flask-fill-cyan",
+      "group": "fills",
+      "role": "Primary progress fill; crop or mask horizontally",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/fills/flask-fill-cyan.png",
+      "size": [
+        420,
+        48
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "warning-fill-amber",
+      "group": "fills",
+      "role": "Warning progress fill; crop or mask horizontally",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/fills/warning-fill-amber.png",
+      "size": [
+        420,
+        48
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "critical-fill-red",
+      "group": "fills",
+      "role": "Critical progress fill; crop or mask horizontally",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/fills/critical-fill-red.png",
+      "size": [
+        420,
+        48
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "heart-empty-icon",
+      "group": "icons",
+      "role": "Lost/empty life icon",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/icons/heart-empty-icon.png",
+      "size": [
+        96,
+        96
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "flask-active-icon",
+      "group": "icons",
+      "role": "Charged flask icon",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/icons/flask-active-icon.png",
+      "size": [
+        96,
+        96
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "research-score-icon",
+      "group": "icons",
+      "role": "Research-score medallion",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/icons/research-score-icon.png",
+      "size": [
+        96,
+        96
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "heart-health-shell",
+      "group": "meter-parts",
+      "role": "Fixed hollow heart shell drawn above the health fill",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/meter-parts/heart-health-shell.png",
+      "size": [
+        128,
+        128
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "heart-health-fill",
+      "group": "meter-parts",
+      "role": "Coral heart fill revealed bottom-up by remaining health",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/meter-parts/heart-health-fill.png",
+      "size": [
+        128,
+        128
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "heart-health-full-reference",
+      "group": "references",
+      "role": "Registered full-heart composition reference",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/references/heart-health-full-reference.png",
+      "size": [
+        128,
+        128
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "beaker-charge-shell",
+      "group": "meter-parts",
+      "role": "Fixed hollow beaker shell, exactly the progress-frame height",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/meter-parts/beaker-charge-shell.png",
+      "size": [
+        128,
+        128
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "beaker-charge-liquid",
+      "group": "meter-parts",
+      "role": "Cyan liquid layer revealed bottom-up by charge",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/meter-parts/beaker-charge-liquid.png",
+      "size": [
+        128,
+        128
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "beaker-charge-full-reference",
+      "group": "references",
+      "role": "Registered full-beaker composition reference",
+      "path": "/game-art/generated/ui/scicon-compact-top-hud-v1/references/beaker-charge-full-reference.png",
+      "size": [
+        128,
+        128
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    }
+  ],
+  "runtimeProtocol": {
+    "text": "Render all numbers, labels, percentages, and boss names as live text above the blank PNG frames.",
+    "progressFill": "Place a fill sprite behind the hollow frame and reveal it left-to-right with a rectangular mask or source crop. Do not scale the outer frame to represent progress.",
+    "flaskFillRectAtNativeFrame": [
+      50,
+      40,
+      405,
+      46
+    ],
+    "heartHealth": "Draw heart-health-fill first, reveal only its bottom remaining-health percentage, then draw heart-health-shell above it. Keep the adjacent number panel blank in the PNG and render its value as live text.",
+    "beakerCharge": "Draw beaker-charge-liquid first, reveal it bottom-to-top by charge percentage, then draw beaker-charge-shell above it. Both beaker layers are 128 px high, exactly matching flask-progress-frame height.",
+    "pauseStates": {
+      "default": "pause-button-normal",
+      "hoverFocusSelected": "pause-button-selected",
+      "pointerDown": "pause-button-pressed"
+    },
+    "sound": "No top-bar sound button is included or expected."
+  },
+  "productionNotes": [
+    "Use PNG files in React/Pixi; the GIF is a gallery behavior preview only.",
+    "Keep the HUD fixed to the viewport rather than the scrolling game world.",
+    "Use nearest-neighbor or integer scaling when presenting at pixel-art game scale.",
+    "The cyan fill is the default flask charge. Amber and red are optional warning/critical states.",
+    "The heart and beaker use registered shell/fill pairs. Never scale the fill independently from its shell; change only the mask height."
+  ]
+}

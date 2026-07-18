@@ -1,0 +1,82 @@
+{
+  "id": "astral-crownclaw",
+  "displayName": "Astral Crownclaw",
+  "type": "boss",
+  "view": "top-down",
+  "style": "semi-pixel-art",
+  "sprites": {
+    "intact": {
+      "path": "astral-crownclaw-intact.png",
+      "width": 640,
+      "height": 512
+    },
+    "rocketClawRight": {
+      "path": "weapons/astral-crownclaw-rocket-claw-right.png",
+      "width": 256,
+      "height": 320,
+      "launchable": true
+    },
+    "rocketClawLeft": {
+      "path": "weapons/astral-crownclaw-rocket-claw-left.png",
+      "width": 256,
+      "height": 320,
+      "launchable": true
+    }
+  },
+  "rig": {
+    "coreChassis": {
+      "path": "rig/astral-crownclaw-core-chassis.png",
+      "width": 640,
+      "height": 512
+    },
+    "assembledPreview": "previews/astral-crownclaw-rig-assembly-preview.png",
+    "parts": {
+      "legs": {
+        "frontLeft": "rig/legs/astral-crownclaw-leg-front-left.png",
+        "frontRight": "rig/legs/astral-crownclaw-leg-front-right.png",
+        "middleLeft": "rig/legs/astral-crownclaw-leg-middle-left.png",
+        "middleRight": "rig/legs/astral-crownclaw-leg-middle-right.png",
+        "rearLeft": "rig/legs/astral-crownclaw-leg-rear-left.png",
+        "rearRight": "rig/legs/astral-crownclaw-leg-rear-right.png"
+      },
+      "weapons": {
+        "sharpClawLeft": "rig/weapons/astral-crownclaw-sharp-claw-projectile-left.png",
+        "sharpClawRight": "rig/weapons/astral-crownclaw-sharp-claw-projectile-right.png",
+        "underclawGunLeft": "rig/weapons/astral-crownclaw-underclaw-gun-left.png",
+        "underclawGunRight": "rig/weapons/astral-crownclaw-underclaw-gun-right.png"
+      }
+    },
+    "motion": {
+      "legSweepDegrees": 8,
+      "legCycleMs": 880,
+      "sharpClawLaunchAxis": "down",
+      "sharpClawLaunchableSide": "right",
+      "gunRemainsMountedAfterLaunch": true
+    }
+  },
+  "animations": {
+    "decay": {
+      "sheet": "animations/decay/astral-crownclaw-decay-sheet.png",
+      "columns": 3,
+      "rows": 2,
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "frameDurationMs": 140,
+      "loop": false,
+      "frames": [
+        "animations/decay/frames/astral-crownclaw-decay-frame-01.png",
+        "animations/decay/frames/astral-crownclaw-decay-frame-02.png",
+        "animations/decay/frames/astral-crownclaw-decay-frame-03.png",
+        "animations/decay/frames/astral-crownclaw-decay-frame-04.png",
+        "animations/decay/frames/astral-crownclaw-decay-frame-05.png",
+        "animations/decay/frames/astral-crownclaw-decay-frame-06.png"
+      ]
+    },
+    "gifPreviews": {
+      "legMotion": "previews/astral-crownclaw-leg-motion-preview.gif",
+      "clawLaunch": "previews/astral-crownclaw-claw-launch-preview.gif",
+      "decay": "previews/astral-crownclaw-decay-preview.gif",
+      "productionUse": false
+    }
+  }
+}

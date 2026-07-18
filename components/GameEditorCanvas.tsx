@@ -132,9 +132,7 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
         onUseBomb: () => setBombCommand({ nonce: Date.now() }),
         onUpgrade: handlePreviewUpgrade,
         bombIconSrc: getPrimaryAssetPath(campaign.hudAssets.bombIconAssetKey),
-        bombLocked: false,
-        muted: true,
-        onToggleMute: () => true
+        bombLocked: false
       }}
     />
   );

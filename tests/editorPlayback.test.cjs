@@ -14,5 +14,5 @@ test('the shared editor HUD toggles between pause and resume', () => {
   assert.match(editorCanvas, /onPause: \(\) => onPlayingChange\?\.\(!playing\)/);
   assert.match(hud, /paused = false/);
   assert.match(hud, /aria-label=\{paused \? 'Resume mission' : 'Pause mission'\}/);
-  assert.match(hud, /name=\{paused \? 'play' : 'pause'\}/);
+  assert.match(hud, /src=\{paused \? compactHudAssets\.pauseSelected : compactHudAssets\.pauseNormal\}/);
 });

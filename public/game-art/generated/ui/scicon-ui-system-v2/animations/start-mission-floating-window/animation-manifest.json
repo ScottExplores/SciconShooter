@@ -1,0 +1,34 @@
+{
+  "id": "start-mission-floating-window",
+  "productionFormat": "layered-png-plus-live-ui",
+  "partsRoot": "parts",
+  "parts": {
+    "shell": "parts/start-mission-window-shell.png",
+    "buttonContentReference": "parts/start-mission-button-content.png",
+    "energyGlow": "parts/start-mission-energy-glow.png"
+  },
+  "integration": {
+    "screen": "home",
+    "action": "existing onStart callback",
+    "buttonText": "START MISSION",
+    "buttonTextMode": "Render as live HTML/React text over the orange CTA cradle; the PNG overlay is a design reference.",
+    "centralWindow": "Reserved for existing dynamic ship-selection/home content.",
+    "clickTarget": "Use one accessible real button over the complete orange CTA cradle."
+  },
+  "motion": {
+    "durationMs": 1920,
+    "loop": true,
+    "translateY": {
+      "wave": "sine",
+      "amplitudePx": 6
+    },
+    "scaleInvariant": true,
+    "energyGlowOpacity": [
+      0.8,
+      1.0
+    ],
+    "reducedMotion": "Disable translation and show the final static state."
+  },
+  "preview": "previews/start-mission-floating-window.gif",
+  "productionNote": "Use the layered transparent PNGs and live text. The GIF and labeled final PNG are gallery previews only."
+}

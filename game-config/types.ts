@@ -14,6 +14,14 @@ export type BuiltInAssetKey =
   | 'GAME_PARALLAX_FAR_PLANETS'
   | 'GAME_PARALLAX_BIG_PLANET'
   | 'GAME_PARALLAX_RING_PLANET'
+  | 'PIXI_JET_SCOUT_FRAMES'
+  | 'PIXI_JET_INTERCEPTOR_FRAMES'
+  | 'PIXI_JET_HEAVY_FRAMES'
+  | 'PIXI_BOSS_OPEN_ORBIT_FRAMES'
+  | 'PIXI_BOSS_CITATION_FRAMES'
+  | 'PIXI_BOSS_PAYWALL_FRAMES'
+  | 'PIXI_BOSS_OPEN_GALAXY_FRAMES'
+  | 'PIXI_BOSS_CROWNCLAW_FRAMES'
   | 'ENEMY_DRONE_FRAMES'
   | 'LEGACY_ENEMY_DRONE_FRAMES'
   | 'ENEMY_SWARM_FRAMES'
@@ -24,6 +32,7 @@ export type BuiltInAssetKey =
   | 'ENEMY_JOURNAL_FRAMES'
   | 'MINI_BOSS'
   | 'WALL_BOSS_SEGMENT'
+  | 'PAYWALL_BASTION_FRAMES'
   | 'FINAL_BOSS';
 
 /**
@@ -46,7 +55,7 @@ export type GeneratedAssetRole =
 export type EnemyId = 'drone' | 'swarm' | 'brick' | 'journal';
 export type BossId = 'bottleneck-drone' | 'paywall-wall' | 'gatekeeper';
 export type PowerupId = 'double-shot' | 'triple-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
-export type BackgroundId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'open-galaxy';
+export type BackgroundId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'open-galaxy' | 'bastion-protocol';
 export type MusicId = 'procedural-main';
 export type SpawnPatternId =
   | 'single-random'
@@ -59,9 +68,18 @@ export type SpawnPatternId =
   | 'spiral'
   | 'asteroid-lanes';
 export type SpawnPositionId = 'random-top' | 'formation-top' | 'center-top' | 'lane-top';
-export type MovementPatternId = 'drift-down' | 'sine-drift' | 'track-player' | 'wall-march' | 'asteroid-drift' | 'gatekeeper-cycle';
+export type MovementPatternId =
+  | 'drift-down'
+  | 'sine-drift'
+  | 'track-player'
+  | 'wall-march'
+  | 'asteroid-drift'
+  | 'gatekeeper-cycle'
+  | 'arena-roam';
 export type WeaponId = 'aimed-shot' | 'wall-bolt' | 'burst-volley' | 'lane-beam';
 export type ScorecardMetricId = 'wave' | 'targets' | 'coins' | 'flight';
+export type EnemyRank = 'standard' | 'elite';
+export type EnemyAttackPatternId = 'aimed-burst';
 
 export interface GameCampaignConfig {
   /** Increment only for a breaking JSON shape change. Current default: 1. */
@@ -254,6 +272,14 @@ export interface SpawnEnemySetting {
   scoreValue: number;
   /** Probability from 0 to 1 after this enemy is defeated. */
   powerupDropChance: number;
+  /** Elites remain part of regular waves but receive an overhead health meter and their own fire cadence. */
+  rank?: EnemyRank;
+  /** Presentation and collision scale for this configured enemy. Default: 1. */
+  sizeMultiplier?: number;
+  attackPatternId?: EnemyAttackPatternId;
+  attackIntervalSeconds?: number;
+  projectileSpeed?: number;
+  burstCount?: number;
 }
 
 export interface SpawnEvent extends BaseWaveEvent {
@@ -290,7 +316,7 @@ export interface BossHealthPhase {
 export interface BossEvent extends BaseWaveEvent {
   kind: 'boss';
   bossId: BossId;
-  /** Number of matching bosses spawned together. Multi-boss groups are currently supported by Bottleneck Drones. */
+  /** Number of matching bosses spawned together, or rows for a configured paywall formation. */
   count?: number;
   spriteKey: AssetKey;
   spriteStyle?: SpriteStyle;
@@ -304,6 +330,8 @@ export interface BossEvent extends BaseWaveEvent {
   powerupDropChance: number;
   /** Number of orbiting shields; current wave 1 default: 0. */
   shieldCount: number;
+  /** Uniform encounter scale. Default: 1. */
+  sizeMultiplier?: number;
   weapons: BossWeaponSetting[];
   phases: BossHealthPhase[];
 }

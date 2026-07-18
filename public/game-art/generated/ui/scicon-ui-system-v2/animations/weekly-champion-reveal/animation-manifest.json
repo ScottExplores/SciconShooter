@@ -1,0 +1,17 @@
+{
+  "id": "weekly-champion-reveal",
+  "runtimeText": true,
+  "durationMs": 2016,
+  "events": [
+    {
+      "atMs": 0,
+      "name": "ui.champion.open"
+    },
+    {
+      "atMs": 760,
+      "name": "ui.champion.lock"
+    }
+  ],
+  "loop": "subtle-hover-after-reveal",
+  "production": "layered-png"
+}
