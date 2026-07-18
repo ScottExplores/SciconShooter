@@ -62,6 +62,9 @@ test('root build keeps an explicit dist-only Vercel boundary', () => {
   const vercel = JSON.parse(read('vercel.json'));
   assert.match(packageJson.scripts.build, /^vite build/);
   assert.match(packageJson.scripts.build, /assert-director-excluded/);
+  assert.match(packageJson.scripts['generate:tailwind'], /^tailwindcss /);
+  assert.doesNotMatch(packageJson.scripts['generate:tailwind'], /powershell/i);
+  assert.equal(packageJson.devDependencies.tailwindcss, '^3.4.17');
   assert.equal(vercel.buildCommand, 'npm run build');
   assert.equal(vercel.outputDirectory, 'dist');
 });
