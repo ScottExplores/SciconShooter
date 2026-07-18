@@ -121,7 +121,7 @@ test('the first two gatekeepers use optional detachable weapon weak points', () 
   }
 });
 
-test('boss components scale with boss health and wave while reserving the helmet for Boss 3', () => {
+test('boss components use predictable health shares while reserving the helmet for Boss 3', () => {
   const engine = read('services/gameLogic.ts');
   const componentFactory = engine.slice(
     engine.indexOf('createBossComponents(boss: Entity)'),
@@ -132,13 +132,12 @@ test('boss components scale with boss health and wave while reserving the helmet
   assert.match(engine, /'citation-storm': Object\.freeze\(\{ 'left-cannon': 6, 'right-cannon': 6 \}\)/);
   assert.match(engine, /'paywall-siege': Object\.freeze\(\{ 'left-cannon': 7, 'right-cannon': 7, helmet: 7 \}\)/);
   assert.match(engine, /'crown-claw': Object\.freeze\(\{ 'left-cannon': 8, 'right-cannon': 8 \}\)/);
-  assert.match(engine, /const BOSS_CANNON_HEALTH_BASE_RATIO = 0\.07/);
-  assert.match(engine, /const BOSS_CANNON_HEALTH_WAVE_STEP = 0\.0075/);
-  assert.match(engine, /const BOSS_CANNON_HEALTH_MAX_RATIO = 0\.1/);
+  assert.match(engine, /const BOSS_CANNON_HEALTH_RATIO = 0\.25/);
+  assert.match(engine, /const BOSS_HELMET_HEALTH_RATIO = 0\.18/);
   assert.match(engine, /getBossComponentDurability\(boss: Entity, componentId: BossPartId\)/);
-  assert.match(engine, /Math\.round\(Math\.max\(1, boss\.maxHp\) \* healthRatio \* componentMultiplier\)/);
+  assert.match(engine, /Math\.round\(Math\.max\(1, boss\.maxHp\) \* healthRatio\)/);
   assert.match(componentFactory, /this\.getBossComponentDurability\(boss, layout\.id\)/);
-  assert.match(engine, /const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1\.5/);
+  assert.match(engine, /const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1/);
   assert.match(engine, /component\.hp -= Math\.max\(0, damage\) \* BOSS_COMPONENT_WEAK_POINT_MULTIPLIER/);
   assert.match(componentFactory, /widthRatio: 0\.38/);
   assert.match(componentFactory, /widthRatio: 0\.34/);
@@ -152,7 +151,7 @@ test('boss components scale with boss health and wave while reserving the helmet
   assert.doesNotMatch(crownClawFactory, /id: 'helmet'/);
 });
 
-test('boss cannons share one enlarged visual and collision footprint', () => {
+test('boss cannons use enlarged visuals with focused collision footprints', () => {
   const engine = read('services/gameLogic.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const componentHitbox = engine.slice(
@@ -162,13 +161,15 @@ test('boss cannons share one enlarged visual and collision footprint', () => {
 
   assert.match(engine, /export const BOSS_CANNON_SCALE = 1\.6/);
   assert.match(engine, /export const CROWNCLAW_ARM_SCALE = 1\.42/);
+  assert.match(engine, /export const BOSS_CANNON_HITBOX_SCALE = 1\.12/);
+  assert.match(engine, /export const CROWNCLAW_ARM_HITBOX_SCALE = 1\.12/);
   assert.match(renderer, /getBossComponentVisualScale\(entity: Entity, component: BossComponentState\)/);
   assert.match(renderer, /entity\.bossRigId === 'crown-claw' \? CROWNCLAW_ARM_SCALE : BOSS_CANNON_SCALE/);
   assert.match(renderer, /drawBossComponentHealthBar\(/);
   assert.match(renderer, /component\.hp \/ Math\.max\(1, component\.maxHp\)/);
   assert.match(renderer, /sprite\.width = entity\.width \* component\.widthRatio \* visualScale/);
   assert.match(renderer, /sprite\.height = entity\.height \* component\.heightRatio \* visualScale/);
-  assert.match(componentHitbox, /boss\.bossRigId === 'crown-claw' \? CROWNCLAW_ARM_SCALE : BOSS_CANNON_SCALE/);
+  assert.match(componentHitbox, /boss\.bossRigId === 'crown-claw' \? CROWNCLAW_ARM_HITBOX_SCALE : BOSS_CANNON_HITBOX_SCALE/);
   assert.match(componentHitbox, /component\.widthRatio \* targetScale/);
   assert.match(componentHitbox, /component\.heightRatio \* targetScale/);
 
@@ -201,9 +202,11 @@ test('boss cannon and hull hits use geometry-matched collision and sprite-shaped
   );
 
   assert.match(engine, /flashFrames: number;/);
+  assert.match(engine, /lastDamageFlashFrame: number;/);
   assert.match(engine, /if \(component\.flashFrames > 0\) component\.flashFrames--/);
-  assert.match(componentDamage, /component\.flashFrames = Math\.max\(component\.flashFrames, 7\)/);
-  assert.match(hullDamage, /this\.flashEntity\(boss, 7\)/);
+  assert.match(componentDamage, /this\.pulseBossComponentFlash\(component\)/);
+  assert.match(hullDamage, /this\.pulseDamageFlash\(boss\)/);
+  assert.match(engine, /const BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES = 5/);
   assert.match(collisionFlow, /const bossComponent = target\.type === EntityType\.BOSS[\s\S]*?getBossComponentHit\(target, shotBox\)/);
   assert.match(collisionFlow, /if \(!bossComponent && \([\s\S]*?shotBox\.x > target\.x \+ target\.width \+ padding/);
   assert.match(collisionFlow, /if \(!bossComponent && !this\.boxesIntersect\(shotBox, getBox\(target\)\)\) continue/);
@@ -328,4 +331,16 @@ test('boss wound stages use the checked-in gallery explosion sequence', () => {
   for (let frame = 1; frame <= 5; frame++) {
     assert.ok(fs.existsSync(path.join(root, 'public/game-art/pixi/effects/boss-damage', `frame-${frame}.png`)));
   }
+});
+
+test('later campaign cycles keep bosses and add telegraphed escalation patterns', () => {
+  const engine = read('services/gameLogic.ts');
+
+  assert.match(engine, /this\.currentCampaignIndex \+= 1/);
+  assert.doesNotMatch(engine, /currentCampaignIndex = \(this\.currentCampaignIndex \+ 1\) %/);
+  assert.match(engine, /spawnBossGapRing\(boss: Entity\)/);
+  assert.match(engine, /queueBossTargetStrike\(boss: Entity\)/);
+  assert.match(engine, /MISSILE LOCK/);
+  assert.match(engine, /SIDE ENTRY/);
+  assert.match(engine, /ENDLESS_CYCLE_DIFFICULTY_CAP/);
 });

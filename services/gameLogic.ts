@@ -44,6 +44,7 @@ export type BossComponentState = {
   heightRatio: number;
   destroyed: boolean;
   flashFrames: number;
+  lastDamageFlashFrame: number;
 };
 export type BossProjectileVisualKind = 'boss-ray' | 'boss-bolt' | 'crown-claw-left' | 'crown-claw-right';
 type PendingPlayerShot = {
@@ -121,6 +122,7 @@ export class Entity {
   formationCycle: number = 0;
   encounterGroupSize: number = 1;
   flashFrames: number = 0;
+  lastDamageFlashFrame: number = -999;
   shieldHostId?: string;
   damage: number = 1;
   pierceRemaining: number = 0;
@@ -473,7 +475,8 @@ const BOSS_RIG_BY_EVENT_ID: Readonly<Record<string, BossRigId>> = Object.freeze(
   'open-orbit-gatekeeper': 'open-orbit',
   'citation-storm-gatekeeper': 'citation-storm',
   'paywall-siege-gatekeeper': 'paywall-siege',
-  'open-galaxy-gatekeeper': 'crown-claw'
+  'open-galaxy-gatekeeper': 'crown-claw',
+  'bastion-protocol-gatekeeper': 'citation-storm'
 });
 const BOSS_COMPONENT_DURABILITY: Readonly<Record<BossRigId, Readonly<Partial<Record<BossPartId, number>>>>> = Object.freeze({
   'open-orbit': Object.freeze({ 'left-cannon': 5, 'right-cannon': 5 }),
@@ -481,15 +484,26 @@ const BOSS_COMPONENT_DURABILITY: Readonly<Record<BossRigId, Readonly<Partial<Rec
   'paywall-siege': Object.freeze({ 'left-cannon': 7, 'right-cannon': 7, helmet: 7 }),
   'crown-claw': Object.freeze({ 'left-cannon': 8, 'right-cannon': 8 })
 });
-const BOSS_CANNON_HEALTH_BASE_RATIO = 0.07;
-const BOSS_CANNON_HEALTH_WAVE_STEP = 0.0075;
-const BOSS_CANNON_HEALTH_MAX_RATIO = 0.1;
-const BOSS_HELMET_HEALTH_MULTIPLIER = 1.15;
+const BOSS_CANNON_HEALTH_RATIO = 0.25;
+const BOSS_HELMET_HEALTH_RATIO = 0.18;
 export const BOSS_CANNON_SCALE = 1.6;
 export const CROWNCLAW_ARM_SCALE = 1.42;
-const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1.5;
+export const BOSS_CANNON_HITBOX_SCALE = 1.12;
+export const CROWNCLAW_ARM_HITBOX_SCALE = 1.12;
+const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1;
+const BOSS_DAMAGE_FLASH_FRAMES = 2;
+const BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES = 5;
+const ENDLESS_CYCLE_DIFFICULTY_STEP = 0.12;
+const ENDLESS_CYCLE_DIFFICULTY_CAP = 0.84;
+type PendingBossStrike = {
+  bossId: string;
+  x: number;
+  y: number;
+  frames: number;
+  warningFrames: number;
+};
 const CROWNCLAW_STRIKE_MAX_LIFE = 132;
-const PAYWALL_BOSS_COMPONENT_LAYOUT: ReadonlyArray<Omit<BossComponentState, 'hp' | 'maxHp' | 'destroyed' | 'flashFrames'>> = Object.freeze([
+const PAYWALL_BOSS_COMPONENT_LAYOUT: ReadonlyArray<Omit<BossComponentState, 'hp' | 'maxHp' | 'destroyed' | 'flashFrames' | 'lastDamageFlashFrame'>> = Object.freeze([
   {
     id: 'left-cannon',
     label: 'LEFT CANNON',
@@ -859,6 +873,8 @@ export class GameEngine {
   configuredEncounterIds: Set<string> = new Set();
   configuredSpawnCounts: Map<string, number> = new Map();
   configuredSpawnFrames: Map<string, number> = new Map();
+  escalationWarningsShown: Set<string> = new Set();
+  pendingBossStrikes: PendingBossStrike[] = [];
   pendingConfiguredEncounter: RuntimeEncounterEvent | null = null;
   initialLevelId?: string;
   initialWaveId?: string;
@@ -922,9 +938,19 @@ export class GameEngine {
     return this.getCurrentCampaignEntry()?.wave ?? null;
   }
 
+  getCampaignCycle() {
+    if (this.campaignWaves.length === 0) return 0;
+    return Math.floor(Math.max(0, this.currentCampaignIndex) / this.campaignWaves.length);
+  }
+
   getCurrentDifficultyMultiplier() {
     const entry = this.getCurrentCampaignEntry();
-    return entry ? getDifficultyMultiplier(entry.level, entry.wave) : 1;
+    const authoredDifficulty = entry ? getDifficultyMultiplier(entry.level, entry.wave) : 1;
+    const cycleDifficulty = 1 + Math.min(
+      ENDLESS_CYCLE_DIFFICULTY_CAP,
+      this.getCampaignCycle() * ENDLESS_CYCLE_DIFFICULTY_STEP
+    );
+    return authoredDifficulty * cycleDifficulty;
   }
 
   getConfiguredWaveDurationSeconds() {
@@ -1071,12 +1097,13 @@ export class GameEngine {
   jumpToCampaignWave(waveNumber: number) {
     if (this.campaignWaves.length === 0) return false;
 
-    const targetIndex = Math.max(0, Math.min(this.campaignWaves.length - 1, Math.floor(waveNumber) - 1));
+    const targetIndex = Math.max(0, Math.floor(waveNumber) - 1);
     this.currentCampaignIndex = targetIndex;
     this.wave = targetIndex + 1;
     this.stats.wave = this.wave;
     this.entities = [];
     this.pendingPlayerShots = [];
+    this.pendingBossStrikes = [];
     this.activePowerups.clear();
     this.gameActive = true;
     this.previewComplete = false;
@@ -1733,6 +1760,8 @@ export class GameEngine {
     this.configuredEncounterIds.clear();
     this.configuredSpawnCounts.clear();
     this.configuredSpawnFrames.clear();
+    this.escalationWarningsShown.clear();
+    this.pendingBossStrikes = [];
     this.pendingConfiguredEncounter = null;
     this.waveVictoryReady = false;
     this.waveVictorySummary = null;
@@ -1774,7 +1803,7 @@ export class GameEngine {
     this.wave++;
     this.stats.wave = this.wave;
     if (this.campaignWaves.length > 0) {
-      this.currentCampaignIndex = (this.currentCampaignIndex + 1) % this.campaignWaves.length;
+      this.currentCampaignIndex += 1;
     }
     this.resetWaveProgress();
     this.gameActive = true;
@@ -2181,6 +2210,7 @@ export class GameEngine {
     }
 
     this.waveFlightFrames++;
+    this.updatePendingBossStrikes();
     
     let invaderCount = 0;
     let asteroidBeltCount = 0;
@@ -3053,6 +3083,18 @@ export class GameEngine {
     entity.flashFrames = Math.max(entity.flashFrames, frames);
   }
 
+  pulseDamageFlash(entity: Entity, frames: number = BOSS_DAMAGE_FLASH_FRAMES) {
+    if (this.frameCount - entity.lastDamageFlashFrame < BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES) return;
+    entity.lastDamageFlashFrame = this.frameCount;
+    this.flashEntity(entity, frames);
+  }
+
+  pulseBossComponentFlash(component: BossComponentState, frames: number = BOSS_DAMAGE_FLASH_FRAMES) {
+    if (this.frameCount - component.lastDamageFlashFrame < BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES) return;
+    component.lastDamageFlashFrame = this.frameCount;
+    component.flashFrames = Math.max(component.flashFrames, frames);
+  }
+
   getBossShieldCount() {
     let count = 0;
     for (let index = 0; index < this.entities.length; index++) {
@@ -3764,7 +3806,14 @@ export class GameEngine {
       const startSeconds = Math.max(0, Number(event.startSeconds) || 0);
       const durationSeconds = Math.max(0, Number(event.durationSeconds) || 0);
       const endSeconds = durationSeconds > 0 ? startSeconds + durationSeconds : Number.POSITIVE_INFINITY;
-      const count = Math.max(0, Math.floor(Number(event.count) || 0));
+      const baseCount = Math.max(0, Math.floor(Number(event.count) || 0));
+      const cycle = this.getCampaignCycle();
+      const formationEvent = !String(event.patternId || '').toLowerCase().includes('single')
+        && !String(event.patternId || '').toLowerCase().includes('random');
+      const countBonus = formationEvent
+        ? Math.min(Math.ceil(baseCount * 0.5), Math.ceil(baseCount * cycle * 0.1))
+        : Math.min(2, cycle);
+      const count = baseCount + countBonus;
       const spawned = this.configuredSpawnCounts.get(event.id) || 0;
       if (elapsedSeconds < startSeconds || elapsedSeconds > endSeconds || spawned >= count) continue;
       if (this.getActiveThreatCount() >= threatCap) break;
@@ -3777,6 +3826,13 @@ export class GameEngine {
 
       const enemySetting = this.pickConfiguredEnemy(event);
       if (!enemySetting) continue;
+      if (cycle > 0 && formationEvent && spawned === 0 && !this.escalationWarningsShown.has(event.id)) {
+        this.escalationWarningsShown.add(event.id);
+        const entersFromLeft = (event.id.length + cycle) % 2 === 0;
+        const warningX = entersFromLeft ? 36 : this.width - 36;
+        this.spawnFloatingText(warningX, this.height * 0.22, 'SIDE ENTRY', '#fb7185', 15);
+        this.spawnRingEffect(warningX, this.height * 0.22, '#fb7185');
+      }
       const enemyType = this.resolveConfiguredEnemyType(enemySetting.enemyId);
       const point = this.getConfiguredSpawnPoint(event, spawned, count);
       const enemy = this.createEnemy(enemyType, point.x, point.y, {
@@ -4342,15 +4398,12 @@ export class GameEngine {
   getBossComponentDurability(boss: Entity, componentId: BossPartId) {
     const rigId = boss.bossRigId ?? 'open-orbit';
     const minimumDurability = BOSS_COMPONENT_DURABILITY[rigId][componentId] ?? 5;
-    const waveStep = Math.max(0, this.stats.wave - 1) * BOSS_CANNON_HEALTH_WAVE_STEP;
-    const healthRatio = Math.min(
-      BOSS_CANNON_HEALTH_MAX_RATIO,
-      BOSS_CANNON_HEALTH_BASE_RATIO + waveStep
-    );
-    const componentMultiplier = componentId === 'helmet' ? BOSS_HELMET_HEALTH_MULTIPLIER : 1;
+    const healthRatio = componentId === 'helmet'
+      ? BOSS_HELMET_HEALTH_RATIO
+      : BOSS_CANNON_HEALTH_RATIO;
     return Math.max(
       minimumDurability,
-      Math.round(Math.max(1, boss.maxHp) * healthRatio * componentMultiplier)
+      Math.round(Math.max(1, boss.maxHp) * healthRatio)
     );
   }
 
@@ -4376,7 +4429,14 @@ export class GameEngine {
         }
       ] as const).map((layout) => {
         const maxHp = this.getBossComponentDurability(boss, layout.id);
-        return { ...layout, hp: maxHp, maxHp, destroyed: false, flashFrames: 0 } satisfies BossComponentState;
+        return {
+          ...layout,
+          hp: maxHp,
+          maxHp,
+          destroyed: false,
+          flashFrames: 0,
+          lastDamageFlashFrame: -999
+        } satisfies BossComponentState;
       });
     }
 
@@ -4394,7 +4454,8 @@ export class GameEngine {
           hp: maxHp,
           maxHp,
           destroyed: false,
-          flashFrames: 0
+          flashFrames: 0,
+          lastDamageFlashFrame: -999
         } satisfies BossComponentState;
       });
     }
@@ -4419,7 +4480,14 @@ export class GameEngine {
         }
       ] as const).map((layout) => {
         const maxHp = this.getBossComponentDurability(boss, layout.id);
-        return { ...layout, hp: maxHp, maxHp, destroyed: false, flashFrames: 0 } satisfies BossComponentState;
+        return {
+          ...layout,
+          hp: maxHp,
+          maxHp,
+          destroyed: false,
+          flashFrames: 0,
+          lastDamageFlashFrame: -999
+        } satisfies BossComponentState;
       });
     }
 
@@ -4429,7 +4497,7 @@ export class GameEngine {
   getBossComponentBox(boss: Entity, component: BossComponentState): CollisionBox {
     const isCannon = component.id === 'left-cannon' || component.id === 'right-cannon';
     const targetScale = isCannon
-      ? boss.bossRigId === 'crown-claw' ? CROWNCLAW_ARM_SCALE : BOSS_CANNON_SCALE
+      ? boss.bossRigId === 'crown-claw' ? CROWNCLAW_ARM_HITBOX_SCALE : BOSS_CANNON_HITBOX_SCALE
       : 1;
     const width = Math.max(18, boss.width * component.widthRatio * targetScale);
     const height = Math.max(18, boss.height * component.heightRatio * targetScale);
@@ -4442,10 +4510,38 @@ export class GameEngine {
   }
 
   getBossComponentHit(boss: Entity, shotBox: CollisionBox) {
-    const components = boss.bossComponents ?? [];
-    return components.find((component) => (
-      !component.destroyed && this.boxesIntersect(shotBox, this.getBossComponentBox(boss, component))
-    ));
+    const shotCenterX = shotBox.x + shotBox.width / 2;
+    const shotCenterY = shotBox.y + shotBox.height / 2;
+    const candidates = (boss.bossComponents ?? [])
+      .filter((component) => !component.destroyed)
+      .map((component) => {
+        const box = this.getBossComponentBox(boss, component);
+        const overlapWidth = Math.max(0, Math.min(shotBox.x + shotBox.width, box.x + box.width) - Math.max(shotBox.x, box.x));
+        const overlapHeight = Math.max(0, Math.min(shotBox.y + shotBox.height, box.y + box.height) - Math.max(shotBox.y, box.y));
+        const containsShotCenter = shotCenterX >= box.x
+          && shotCenterX <= box.x + box.width
+          && shotCenterY >= box.y
+          && shotCenterY <= box.y + box.height;
+        const centerX = box.x + box.width / 2;
+        const centerY = box.y + box.height / 2;
+        const normalizedDistance = Math.hypot(
+          (shotCenterX - centerX) / Math.max(1, box.width),
+          (shotCenterY - centerY) / Math.max(1, box.height)
+        );
+        return {
+          component,
+          overlapArea: overlapWidth * overlapHeight,
+          containsShotCenter,
+          normalizedDistance
+        };
+      })
+      .filter((candidate) => candidate.overlapArea > 0)
+      .sort((left, right) => (
+        Number(right.containsShotCenter) - Number(left.containsShotCenter)
+        || left.normalizedDistance - right.normalizedDistance
+        || right.overlapArea - left.overlapArea
+      ));
+    return candidates[0]?.component;
   }
 
   updateBossDecayStage(boss: Entity) {
@@ -4478,7 +4574,7 @@ export class GameEngine {
 
   damageBossComponent(boss: Entity, component: BossComponentState, damage: number) {
     if (component.destroyed) return;
-    component.flashFrames = Math.max(component.flashFrames, 7);
+    this.pulseBossComponentFlash(component);
     component.hp -= Math.max(0, damage) * BOSS_COMPONENT_WEAK_POINT_MULTIPLIER;
     const box = this.getBossComponentBox(boss, component);
     const impactX = box.x + box.width / 2;
@@ -4516,11 +4612,11 @@ export class GameEngine {
 
   damageBossHull(boss: Entity, damage: number) {
     if (this.isBossHullProtected(boss)) {
-      this.flashEntity(boss, 7);
+      this.pulseDamageFlash(boss);
       return;
     }
     boss.hp -= damage;
-    this.flashEntity(boss, 7);
+    this.pulseDamageFlash(boss);
     this.updateBossDecayStage(boss);
   }
 
@@ -5057,8 +5153,110 @@ export class GameEngine {
     }
   }
 
+  spawnBossGapRing(boss: Entity) {
+    const cycle = this.getCampaignCycle();
+    const originX = boss.x + boss.width / 2;
+    const originY = boss.y + boss.height * 0.62;
+    const playerAngle = Math.atan2(
+      this.player.y + this.player.height / 2 - originY,
+      this.player.x + this.player.width / 2 - originX
+    );
+    const shotCount = Math.min(28, 16 + cycle * 2);
+    const gapHalfWidth = Math.max(0.34, 0.62 - cycle * 0.035);
+    const speed = Math.min(6.2, 3.3 + cycle * 0.3);
+
+    for (let index = 0; index < shotCount; index++) {
+      const angle = (Math.PI * 2 * index) / shotCount;
+      const distanceFromGap = Math.abs(Math.atan2(
+        Math.sin(angle - playerAngle),
+        Math.cos(angle - playerAngle)
+      ));
+      if (distanceFromGap < gapHalfWidth) continue;
+
+      const projectile = new Entity(EntityType.PROJECTILE, originX - 6, originY - 6);
+      projectile.vx = Math.cos(angle) * speed;
+      projectile.vy = Math.sin(angle) * speed;
+      projectile.width = 12;
+      projectile.height = 12;
+      projectile.color = '#fb7185';
+      projectile.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+      this.entities.push(projectile);
+    }
+
+    this.spawnRingEffect(originX, originY, '#fb7185');
+    this.playSound('boss_shoot', 1.08, { pitchJitter: 0.05, pitchOffset: -0.08 });
+  }
+
+  queueBossTargetStrike(boss: Entity) {
+    const targetX = clamp(this.player.x + this.player.width / 2, 34, this.width - 34);
+    const targetY = clamp(this.player.y + this.player.height / 2, 90, this.height - 54);
+    const warningFrames = 54;
+    this.pendingBossStrikes.push({
+      bossId: boss.id,
+      x: targetX,
+      y: targetY,
+      frames: warningFrames,
+      warningFrames
+    });
+    this.spawnFloatingText(targetX, targetY - 24, 'MISSILE LOCK', '#f87171', 15);
+    this.spawnRingEffect(targetX, targetY, '#ef4444');
+    this.playSound('siren', 0.74);
+  }
+
+  updatePendingBossStrikes() {
+    if (this.pendingBossStrikes.length === 0) return;
+    const activeBossIds = new Set(this.entities
+      .filter((entity) => entity.type === EntityType.BOSS && !entity.markedForDeletion)
+      .map((entity) => entity.id));
+
+    for (const strike of this.pendingBossStrikes) {
+      if (!activeBossIds.has(strike.bossId)) {
+        strike.frames = 0;
+        continue;
+      }
+      strike.frames--;
+      if (strike.frames > 0 && strike.frames % 10 === 0) {
+        this.spawnRingEffect(strike.x, strike.y, '#ef4444');
+      }
+      if (strike.frames !== 0) continue;
+
+      const cycle = this.getCampaignCycle();
+      const missileCount = Math.min(3, 1 + Math.floor(cycle / 2));
+      for (let index = 0; index < missileCount; index++) {
+        const offset = (index - (missileCount - 1) / 2) * 22;
+        const missile = new Entity(EntityType.PROJECTILE, strike.x + offset - 8, -34 - index * 18);
+        missile.vx = 0;
+        missile.vy = Math.min(10, 6.4 + cycle * 0.35);
+        missile.width = 16;
+        missile.height = 30;
+        missile.color = '#f97316';
+        missile.damage = 1;
+        this.entities.push(missile);
+      }
+      this.spawnRingEffect(strike.x, strike.y, '#facc15');
+      this.playSound('boss_shoot', 1.18, { pitchJitter: 0.03, pitchOffset: -0.16 });
+    }
+
+    this.pendingBossStrikes = this.pendingBossStrikes.filter((strike) => strike.frames > 0);
+  }
+
+  updateEscalationBossAttacks(boss: Entity) {
+    const cycle = this.getCampaignCycle();
+    if (cycle < 1 || boss.y < 48 || boss.isCharging) return;
+    const ringInterval = Math.max(250, 390 - cycle * 22);
+    const strikeInterval = Math.max(300, 470 - cycle * 24);
+    if (boss.attackTimer > 90 && boss.attackTimer % ringInterval === 0) {
+      this.spawnBossGapRing(boss);
+      return;
+    }
+    if (boss.attackTimer > 120 && boss.attackTimer % strikeInterval === Math.floor(strikeInterval * 0.48)) {
+      this.queueBossTargetStrike(boss);
+    }
+  }
+
   updateBoss(boss: Entity) {
     boss.attackTimer++;
+    this.updateEscalationBossAttacks(boss);
     if (boss.bossRigId === 'paywall-siege') {
       this.updatePaywallLayeredBoss(boss);
       return;
@@ -5622,7 +5820,7 @@ export class GameEngine {
         const bossShielded = target.type === EntityType.BOSS && bossShieldedNow;
         if (bossShielded) {
           if (!shot.isBeam) shot.markedForDeletion = true;
-          this.flashEntity(target, 5);
+          this.pulseDamageFlash(target);
           if (this.frameCount % 5 === 0) {
             this.spawnRingEffect(shot.x + shot.width / 2, shot.y + shot.height / 2, '#a7f3d0');
             this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, '#a7f3d0', shot.type === EntityType.MISSILE ? 6 : 3, 2.2, 3);

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 10,
+  "revision": 11,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
   "updatedAt": "2026-07-18T12:00:00.000Z",
@@ -2495,6 +2495,69 @@
                   "speedMultiplier": 1,
                   "weaponSettingIds": [
                     "bastion-core-bolt"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "bastion-protocol-gatekeeper",
+              "kind": "boss",
+              "label": "Bastion Overseer",
+              "startSeconds": 7.2,
+              "durationSeconds": 30,
+              "delayAfterSeconds": 2.4,
+              "blocksWaveClock": true,
+              "bossId": "gatekeeper",
+              "spriteKey": "PIXI_BOSS_CITATION_FRAMES",
+              "positionId": "center-top",
+              "movementPatternId": "arena-roam",
+              "warningSeconds": 4,
+              "health": 580,
+              "speed": 1.8,
+              "damage": 1,
+              "scoreReward": 9200,
+              "powerupDropChance": 1,
+              "shieldCount": 6,
+              "sizeMultiplier": 0.82,
+              "weapons": [
+                {
+                  "id": "bastion-overseer-burst",
+                  "weaponId": "burst-volley",
+                  "attackIntervalSeconds": 0.7,
+                  "damage": 1,
+                  "projectileSpeed": 7.4,
+                  "burstCount": 6
+                },
+                {
+                  "id": "bastion-overseer-beam",
+                  "weaponId": "lane-beam",
+                  "attackIntervalSeconds": 0.4,
+                  "damage": 1,
+                  "projectileSpeed": 0,
+                  "burstCount": 2
+                }
+              ],
+              "phases": [
+                {
+                  "id": "bastion-overseer-standard",
+                  "label": "Bastion cross-link",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "arena-roam",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "bastion-overseer-burst",
+                    "bastion-overseer-beam"
+                  ]
+                },
+                {
+                  "id": "bastion-overseer-critical",
+                  "label": "Critical cross-link",
+                  "triggerHealthRatio": 0.34,
+                  "movementPatternId": "arena-roam",
+                  "speedMultiplier": 1.12,
+                  "weaponSettingIds": [
+                    "bastion-overseer-burst",
+                    "bastion-overseer-beam"
                   ]
                 }
               ]

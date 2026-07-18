@@ -83,6 +83,8 @@ test('Paywall Bastions use attack and real health decay frames while Wave 5 incr
   assert.match(engine, /e\.spriteFrames = this\.resolveSpriteFrames\(configured\.spriteKey\)/);
 
   const bastionWave = campaign.levels[0].waves.find((wave) => wave.id === 'bastion-protocol');
-  const walls = bastionWave.events.filter((event) => event.kind === 'boss');
+  const walls = bastionWave.events.filter(
+    (event) => event.kind === 'boss' && event.spriteKey === 'PAYWALL_BASTION_FRAMES',
+  );
   assert.deepEqual(walls.map((event) => event.count), [1, 2, 3, 4]);
 });

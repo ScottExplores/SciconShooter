@@ -23,7 +23,7 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
 
 test('tracked campaign contains four sector waves plus the Bastion Protocol endurance wave', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 10);
+  assert.equal(campaign.revision, 11);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 1);
@@ -70,6 +70,7 @@ test('the four sector waves expose editable spawns, mini-bosses, checkpoints, fi
 test('Wave 5 is a finite escalating Paywall Bastion endurance encounter', () => {
   const wave = campaign.levels[0].waves[4];
   const walls = wave.events.filter((event) => event.kind === 'boss' && event.bossId === 'paywall-wall');
+  const gatekeeper = wave.events.find((event) => event.id === 'bastion-protocol-gatekeeper');
 
   assert.equal(wave.id, 'bastion-protocol');
   assert.equal(wave.durationSeconds, 8);
@@ -80,6 +81,10 @@ test('Wave 5 is a finite escalating Paywall Bastion endurance encounter', () => 
   assert.ok(walls.every((event) => event.blocksWaveClock));
   assert.ok(walls.every((event, index) => index === 0 || event.health > walls[index - 1].health));
   assert.ok(walls.every((event, index) => index === 0 || event.speed > walls[index - 1].speed));
+  assert.ok(gatekeeper);
+  assert.equal(gatekeeper.bossId, 'gatekeeper');
+  assert.equal(gatekeeper.movementPatternId, 'arena-roam');
+  assert.equal(gatekeeper.spriteKey, 'PIXI_BOSS_CITATION_FRAMES');
   const starts = wave.events.map((event) => event.startSeconds);
   assert.deepEqual(starts, [...starts].sort((left, right) => left - right));
 });
