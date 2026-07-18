@@ -21,9 +21,9 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
   return { keys, strings };
 };
 
-test('tracked campaign contains the current four real-game sector waves', () => {
+test('tracked campaign contains four sector waves plus the Bastion Protocol endurance wave', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 7);
+  assert.equal(campaign.revision, 10);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 1);
@@ -34,16 +34,16 @@ test('tracked campaign contains the current four real-game sector waves', () => 
   assert.equal(level.durationSeconds, null);
   assert.deepEqual(
     level.waves.map((wave) => wave.name),
-    ['OPEN ORBIT', 'CITATION STORM', 'PAYWALL SIEGE', 'OPEN GALAXY']
+    ['OPEN ORBIT', 'CITATION STORM', 'PAYWALL SIEGE', 'OPEN GALAXY', 'BASTION PROTOCOL']
   );
-  assert.deepEqual(level.waves.map((wave) => wave.order), [1, 2, 3, 4]);
-  assert.deepEqual(level.waves.map((wave) => wave.scoreMultiplier), [1, 2, 4, 8]);
+  assert.deepEqual(level.waves.map((wave) => wave.order), [1, 2, 3, 4, 5]);
+  assert.deepEqual(level.waves.map((wave) => wave.scoreMultiplier), [1, 2, 4, 8, 16]);
   assert.equal(level.startingDifficulty, 1);
-  assert.deepEqual(level.waves.map((wave) => wave.difficultyMultiplier), [1, 1, 1, 1]);
+  assert.deepEqual(level.waves.map((wave) => wave.difficultyMultiplier), [1, 1, 1, 1, 1]);
 });
 
-test('every wave exposes editable spawns, mini-boss, checkpoint encounter, final boss, and power-ups', () => {
-  const waves = campaign.levels[0].waves;
+test('the four sector waves expose editable spawns, mini-bosses, checkpoints, final bosses, and power-ups', () => {
+  const waves = campaign.levels[0].waves.slice(0, 4);
 
   waves.forEach((wave, index) => {
     assert.equal(wave.durationSeconds, 60);
@@ -52,17 +52,45 @@ test('every wave exposes editable spawns, mini-boss, checkpoint encounter, final
     assert.ok(wave.events.some((event) => event.kind === 'boss' && event.bossId === 'bottleneck-drone'));
     assert.ok(wave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'));
 
-    const expectedCheckpoint = index % 2 === 0 ? 'paywall-wall' : 'asteroid-belt';
-    assert.ok(wave.events.some((event) => (
-      expectedCheckpoint === 'asteroid-belt'
-        ? event.kind === 'asteroid-belt'
-        : event.kind === 'boss' && event.bossId === expectedCheckpoint
-    )));
+    const hasCheckpoint = index === 3
+      ? wave.events.some((event) => event.id === 'open-galaxy-river-ambush' && event.kind === 'spawn')
+      : wave.events.some((event) => (
+        index === 1
+          ? event.kind === 'asteroid-belt'
+          : event.kind === 'boss' && event.bossId === 'paywall-wall'
+      ));
+    assert.ok(hasCheckpoint);
 
     const starts = wave.events.map((event) => event.startSeconds);
     assert.deepEqual(starts, [...starts].sort((left, right) => left - right));
     assert.ok(wave.events.every((event) => event.startSeconds <= wave.durationSeconds));
   });
+});
+
+test('Wave 5 is a finite escalating Paywall Bastion endurance encounter', () => {
+  const wave = campaign.levels[0].waves[4];
+  const walls = wave.events.filter((event) => event.kind === 'boss' && event.bossId === 'paywall-wall');
+
+  assert.equal(wave.id, 'bastion-protocol');
+  assert.equal(wave.durationSeconds, 8);
+  assert.ok(wave.events.some((event) => event.kind === 'powerup'));
+  assert.equal(walls.length, 4);
+  assert.deepEqual(walls.map((event) => event.count), [1, 2, 3, 4]);
+  assert.deepEqual(walls.map((event) => event.spriteKey), Array(4).fill('PAYWALL_BASTION_FRAMES'));
+  assert.ok(walls.every((event) => event.blocksWaveClock));
+  assert.ok(walls.every((event, index) => index === 0 || event.health > walls[index - 1].health));
+  assert.ok(walls.every((event, index) => index === 0 || event.speed > walls[index - 1].speed));
+  const starts = wave.events.map((event) => event.startSeconds);
+  assert.deepEqual(starts, [...starts].sort((left, right) => left - right));
+});
+
+test('browser campaign validation permits multiple Paywall Bastion rows', () => {
+  const validator = fs.readFileSync(path.join(root, 'game-config', 'validate.ts'), 'utf8');
+  const directorValidator = fs.readFileSync(path.join(root, 'director', 'server', 'gameCampaignValidation.mjs'), 'utf8');
+
+  assert.match(validator, /\['bottleneck-drone', 'paywall-wall'\]\.includes\(String\(event\.bossId\)\)/);
+  assert.match(directorValidator, /\['bottleneck-drone', 'paywall-wall'\]\.includes\(event\.bossId\)/);
+  assert.match(directorValidator, /'bastion-protocol'/);
 });
 
 test('later waves escalate Bottleneck Drones from a relay to a simultaneous pair', () => {
@@ -133,12 +161,13 @@ test('spawn pools are complete, weighted, and contain directly editable combat v
 });
 
 test('sector waves escalate through readable formation packs instead of slow single-file spawns', () => {
-  const wavePatterns = campaign.levels[0].waves.map((wave) => (
+  const sectorWaves = campaign.levels[0].waves.slice(0, 4);
+  const wavePatterns = sectorWaves.map((wave) => (
     wave.events
       .filter((event) => event.kind === 'spawn' && event.patternId !== 'single-random')
       .map((event) => event.patternId)
   ));
-  const spawnIntervals = campaign.levels[0].waves.map((wave) => (
+  const spawnIntervals = sectorWaves.map((wave) => (
     wave.events
       .filter((event) => event.kind === 'spawn' && event.patternId !== 'single-random')
       .map((event) => event.spawnIntervalSeconds)
@@ -153,7 +182,7 @@ test('sector waves escalate through readable formation packs instead of slow sin
 });
 
 test('each wave opens with loose interceptors before formations and scales the pressure upward', () => {
-  const waves = campaign.levels[0].waves;
+  const waves = campaign.levels[0].waves.slice(0, 4);
   const openingCounts = [];
   const firstFormationCounts = [];
 
@@ -167,7 +196,13 @@ test('each wave opens with loose interceptors before formations and scales the p
     assert.equal(opening.startSeconds, 0);
     assert.ok(opening.spawnIntervalSeconds >= 0.8);
     assert.ok(firstFormation.startSeconds > opening.durationSeconds);
-    assert.ok(opening.enemies.some((enemy) => enemy.spriteKey.startsWith('LEGACY_ENEMY_')));
+    if (wave.order <= 2) {
+      assert.ok(opening.enemies.some((enemy) => enemy.spriteKey.startsWith('LEGACY_ENEMY_')));
+    } else {
+      assert.ok(opening.enemies.every((enemy) => (
+        enemy.spriteKey.startsWith('PIXI_JET_') || enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES'
+      )));
+    }
     openingCounts.push(opening.count);
     firstFormationCounts.push(firstFormation.count);
   });
@@ -176,11 +211,11 @@ test('each wave opens with loose interceptors before formations and scales the p
   assert.deepEqual(firstFormationCounts, [8, 12, 15, 18]);
 
   const firstFinalBoss = waves[0].events.find((event) => event.id === 'open-orbit-gatekeeper');
-  assert.equal(firstFinalBoss.health, Math.round(235 * 0.85));
+  assert.equal(firstFinalBoss.health, 170);
 });
 
 test('small random intercepts bridge formations and boss encounters without replacing either', () => {
-  campaign.levels[0].waves.forEach((wave) => {
+  campaign.levels[0].waves.slice(0, 4).forEach((wave) => {
     const drifters = wave.events.filter((event) => (
       event.kind === 'spawn' && event.patternId === 'single-random' && event.id.includes('-drifters-')
     ));
@@ -201,7 +236,7 @@ test('small random intercepts bridge formations and boss encounters without repl
 });
 
 test('enemy families unlock progressively instead of all appearing in the opening wave', () => {
-  const waves = campaign.levels[0].waves;
+  const waves = campaign.levels[0].waves.slice(0, 4);
   const waveEnemyIds = (wave) => [...new Set(
     wave.events
       .filter((event) => event.kind === 'spawn')

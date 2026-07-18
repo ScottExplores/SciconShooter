@@ -1,0 +1,378 @@
+{
+  "id": "scicon-parallax-terrain-pack-v1",
+  "version": 1,
+  "generated": "2026-07-17",
+  "productionFormat": "Long vertical round master plus separately placed transparent props",
+  "overview": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/scicon-parallax-terrain-pack-v1-overview.png",
+  "roundMaster": {
+    "size": [
+      512,
+      4096
+    ],
+    "sourceSegmentSize": [
+      512,
+      1536
+    ],
+    "internalCrossfadePx": 256,
+    "scrollDirection": "vertical",
+    "usage": "Use as one scrolling Sprite for a normal round. For rounds longer than 4096 art pixels, queue a second master and crossfade 256 px; do not hard-wrap the texture edge."
+  },
+  "style": {
+    "rendering": "semi-pixel illustrated Scicon shooter art",
+    "readability": "open central combat lane with detail concentrated toward terrain edges",
+    "props": "transparent and independently placed so collision, density, and parallax remain data-driven"
+  },
+  "terrains": [
+    {
+      "id": "desert",
+      "title": "Desert Canyon",
+      "originalReferences": [
+        "/game-art/pixi/backgrounds/desert-terrain.png",
+        "/game-art/pixi/backgrounds/desert-clouds.png"
+      ],
+      "roundMaster": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/backgrounds/desert-round-master-512x4096.png",
+      "roundMasterSize": [
+        512,
+        4096
+      ],
+      "scrollPreviewGif": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/previews/desert-round-scroll-preview.gif",
+      "propAtlas": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-props-atlas-3x3.png",
+      "propAtlasGrid": {
+        "columns": 3,
+        "rows": 3,
+        "cellWidth": 256,
+        "cellHeight": 256
+      },
+      "props": [
+        {
+          "id": "sandstone-boulder-cluster",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-prop-01-sandstone-boulder-cluster.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "sandstone-rock-spire",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-prop-02-sandstone-rock-spire.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "cracked-sandstone-slab",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-prop-03-cracked-sandstone-slab.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "fossil-rib-cage",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-prop-04-fossil-rib-cage.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "dry-thorn-bush",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-prop-05-dry-thorn-bush.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "desert-research-beacon",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-prop-06-desert-research-beacon.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "broken-desert-pipeline",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-prop-07-broken-desert-pipeline.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "amber-crystal-cluster",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-prop-08-amber-crystal-cluster.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "dust-impact-crater",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-prop-09-dust-impact-crater.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ],
+      "recommendedLayers": [
+        {
+          "asset": "/game-art/pixi/backgrounds/desert-clouds.png",
+          "speed": 0.18,
+          "role": "far haze/cloud layer"
+        },
+        {
+          "asset": "roundMaster",
+          "speed": 0.42,
+          "role": "terrain base"
+        },
+        {
+          "asset": "propAtlas",
+          "speed": 0.55,
+          "role": "near silhouettes and landmarks"
+        }
+      ]
+    },
+    {
+      "id": "river",
+      "title": "River Gorge",
+      "originalReferences": [
+        "/game-art/pixi/backgrounds/river-terrain.png",
+        "/game-art/pixi/backgrounds/river-props.png"
+      ],
+      "roundMaster": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/backgrounds/river-round-master-512x4096.png",
+      "roundMasterSize": [
+        512,
+        4096
+      ],
+      "scrollPreviewGif": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/previews/river-round-scroll-preview.gif",
+      "propAtlas": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-props-atlas-3x3.png",
+      "propAtlasGrid": {
+        "columns": 3,
+        "rows": 3,
+        "cellWidth": 256,
+        "cellHeight": 256
+      },
+      "props": [
+        {
+          "id": "mossy-river-boulders",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-prop-01-mossy-river-boulders.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "river-reed-clump",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-prop-02-river-reed-clump.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "river-lily-pads",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-prop-03-river-lily-pads.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "mossy-fallen-log",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-prop-04-mossy-fallen-log.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "river-stepping-stones",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-prop-05-river-stepping-stones.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "river-research-buoy",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-prop-06-river-research-buoy.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "ancient-river-stone-ring",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-prop-07-ancient-river-stone-ring.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "cyan-river-crystals",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-prop-08-cyan-river-crystals.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "broken-mossy-arch",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-prop-09-broken-mossy-arch.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ],
+      "recommendedLayers": [
+        {
+          "asset": "roundMaster",
+          "speed": 0.4,
+          "role": "river and gorge base"
+        },
+        {
+          "asset": "propAtlas",
+          "speed": 0.54,
+          "role": "banks, landmarks, and water props"
+        },
+        {
+          "asset": "/game-art/pixi/backgrounds/river-props.png",
+          "speed": 0.6,
+          "role": "legacy near-water accents"
+        }
+      ]
+    },
+    {
+      "id": "space",
+      "title": "Research Nebula",
+      "originalReferences": [
+        "/game-art/backgrounds/menu-hero.png",
+        "/game-art/backgrounds/bg-back.png",
+        "/game-art/backgrounds/bg-stars.png",
+        "/game-art/backgrounds/parallax-back.png",
+        "/game-art/backgrounds/parallax-stars.png",
+        "/game-art/backgrounds/parallax-far-planets.png"
+      ],
+      "roundMaster": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/backgrounds/space-round-master-512x4096.png",
+      "roundMasterSize": [
+        512,
+        4096
+      ],
+      "scrollPreviewGif": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/previews/space-round-scroll-preview.gif",
+      "propAtlas": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-props-atlas-3x3.png",
+      "propAtlasGrid": {
+        "columns": 3,
+        "rows": 3,
+        "cellWidth": 256,
+        "cellHeight": 256
+      },
+      "props": [
+        {
+          "id": "space-asteroid-cluster",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-prop-01-space-asteroid-cluster.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "violet-crater-moon",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-prop-02-violet-crater-moon.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "rose-ringed-planet",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-prop-03-rose-ringed-planet.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "blue-crystal-asteroid",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-prop-04-blue-crystal-asteroid.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "research-satellite",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-prop-05-research-satellite.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "damaged-solar-array",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-prop-06-damaged-solar-array.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "cyan-violet-energy-anomaly",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-prop-07-cyan-violet-energy-anomaly.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "research-comet-fragment",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-prop-08-research-comet-fragment.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "id": "orbital-research-beacon",
+          "path": "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-prop-09-orbital-research-beacon.png",
+          "anchor": [
+            0.5,
+            0.5
+          ]
+        }
+      ],
+      "recommendedLayers": [
+        {
+          "asset": "/game-art/backgrounds/parallax-back.png",
+          "speed": 0.1,
+          "role": "deep space color"
+        },
+        {
+          "asset": "/game-art/backgrounds/parallax-stars.png",
+          "speed": 0.2,
+          "role": "far stars"
+        },
+        {
+          "asset": "roundMaster",
+          "speed": 0.34,
+          "role": "nebula field"
+        },
+        {
+          "asset": "propAtlas",
+          "speed": 0.52,
+          "role": "planets, debris, and research landmarks"
+        }
+      ]
+    }
+  ],
+  "productionNotes": [
+    "GIF files are gallery motion previews only; runtime backgrounds and props use PNG files.",
+    "Keep collision geometry independent from decorative prop alpha.",
+    "Place large props away from the player start zone and maintain the central firing lane.",
+    "Existing legacy background files were preserved and are listed as reusable layer references."
+  ]
+}

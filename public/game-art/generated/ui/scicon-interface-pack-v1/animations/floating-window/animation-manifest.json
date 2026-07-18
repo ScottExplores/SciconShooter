@@ -1,0 +1,38 @@
+{
+  "id": "scicon-floating-window-hover",
+  "productionFormat": "layered-png",
+  "partsRoot": "parts",
+  "parts": {
+    "windowBody": "parts/window-body.png",
+    "leftThruster": "parts/thruster-left.png",
+    "rightThruster": "parts/thruster-right.png",
+    "flames": [
+      "parts/flame-short.png",
+      "parts/flame-medium.png",
+      "parts/flame-long.png"
+    ],
+    "energyGlow": "parts/energy-glow.png"
+  },
+  "motion": {
+    "durationMs": 1920,
+    "loop": true,
+    "windowTranslateY": {
+      "wave": "sine",
+      "amplitudePx": 7
+    },
+    "thrusterFlames": {
+      "mode": "frame-cycle",
+      "frameDurationMs": 80,
+      "asynchronous": true
+    },
+    "energyGlow": {
+      "wave": "sine",
+      "opacity": [
+        0.3,
+        0.38
+      ]
+    }
+  },
+  "audioFamily": "Use the restrained futuristic pressure-door/servo family in docs/scicon-animation-audio-style-guide.md when the window enters; hover should usually remain silent.",
+  "preview": "previews/scicon-floating-window-hover.gif"
+}

@@ -21,9 +21,9 @@ test('the HUD uses enlarged sprite-only upgrade buttons with cost and appropriat
   const source = fs.readFileSync(path.join(root, 'components', 'UIOverlay.tsx'), 'utf8');
   spriteNames.forEach((name) => assert.match(source, new RegExp(`/game-art/powerups/${name.replace('.', '\\.')}`)));
   assert.match(source, /highlighted=\{highlighted\}/);
-  assert.match(source, /h-\[4\.6rem\] w-\[4\.6rem\]/);
-  assert.match(source, /h-\[3\.7rem\] w-\[3\.7rem\]/);
-  assert.match(source, /w-\[4\.6rem\] flex-col/);
+  assert.match(source, /h-\[4\.375rem\] w-\[4\.375rem\]/);
+  assert.match(source, /h-\[3\.5rem\] w-\[3\.5rem\]/);
+  assert.match(source, /w-\[4\.375rem\] flex-col/);
   assert.match(source, /type === 'speed' \? '-rotate-90'/);
   assert.match(source, /h-6 min-w-6.*text-xs font-black/);
   assert.match(source, /x\{flaskCost\}/);
@@ -42,10 +42,31 @@ test('the top HUD prioritizes hearts and flask progress while the upgrade rail s
   assert.doesNotMatch(source, /Wave \{stats\.wave\}/);
   assert.match(source, /Flasks \{flaskCount\}/);
   assert.match(source, /style=\{\{ width: `\$\{nextFlaskPct\}%` \}\}/);
-  assert.match(source, /flex min-w-0 flex-1 items-center gap-1\.5 overflow-hidden/);
-  assert.match(source, /h-3 w-full max-w-full overflow-hidden/);
-  assert.doesNotMatch(source, /sm:w-32 sm:flex-none/);
+  assert.match(source, /scicon-compact-top-hud-v1/);
+  assert.match(source, /life-counter-frame\.png/);
+  assert.match(source, /flask-progress-frame\.png/);
+  assert.match(source, /score-counter-frame\.png/);
+  assert.match(source, /heart-health-fill\.png/);
+  assert.match(source, /beaker-charge-liquid\.png/);
+  assert.match(source, /pause-button-normal\.png/);
+  assert.match(source, /data-testid="compact-status-hud"/);
+  assert.match(source, /clipPath: `inset\(\$\{100 - remainingLifePct\}% 0 0 0\)`/);
+  assert.match(source, /h-\[4\.625rem\] w-\[9\.25rem\]/);
+  assert.doesNotMatch(source, /aria-label=\{muted \? 'Unmute sound' : 'Mute sound'\}/);
   assert.match(source, /arcade-font text-sm font-black leading-none">x\{flaskCount\}/);
+});
+
+test('sound controls live in the pause menu instead of consuming gameplay HUD space', () => {
+  const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
+  const pauseMenu = fs.readFileSync(path.join(root, 'components', 'PauseMenu.tsx'), 'utf8');
+  const hud = fs.readFileSync(path.join(root, 'components', 'UIOverlay.tsx'), 'utf8');
+
+  assert.match(pauseMenu, /Mission Settings/);
+  assert.match(pauseMenu, /Game audio/);
+  assert.match(app, /<PauseMenu/);
+  assert.match(app, /audioService\.toggleMute\(\)/);
+  assert.doesNotMatch(hud, /onClick=\{toggleMute\}/);
+  assert.doesNotMatch(hud, /name=\{muted \? 'muted' : 'sound'\}/);
 });
 
 test('speed upgrades visibly evolve the player thruster palette and flame strength', () => {

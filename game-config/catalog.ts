@@ -61,6 +61,14 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   GAME_PARALLAX_FAR_PLANETS: asset('GAME_PARALLAX_FAR_PLANETS', 'Far planets', ASSETS.GAME_PARALLAX_FAR_PLANETS, ['background']),
   GAME_PARALLAX_BIG_PLANET: asset('GAME_PARALLAX_BIG_PLANET', 'Big planet', ASSETS.GAME_PARALLAX_BIG_PLANET, ['background']),
   GAME_PARALLAX_RING_PLANET: asset('GAME_PARALLAX_RING_PLANET', 'Ring planet', ASSETS.GAME_PARALLAX_RING_PLANET, ['background']),
+  PIXI_JET_SCOUT_FRAMES: asset('PIXI_JET_SCOUT_FRAMES', 'Terrain jet scout', ASSETS.PIXI_JET_SCOUT_FRAMES, ['enemy']),
+  PIXI_JET_INTERCEPTOR_FRAMES: asset('PIXI_JET_INTERCEPTOR_FRAMES', 'Terrain jet interceptor', ASSETS.PIXI_JET_INTERCEPTOR_FRAMES, ['enemy']),
+  PIXI_JET_HEAVY_FRAMES: asset('PIXI_JET_HEAVY_FRAMES', 'Terrain heavy jet', ASSETS.PIXI_JET_HEAVY_FRAMES, ['enemy']),
+  PIXI_BOSS_OPEN_ORBIT_FRAMES: asset('PIXI_BOSS_OPEN_ORBIT_FRAMES', 'Open Orbit Gatekeeper', ASSETS.PIXI_BOSS_OPEN_ORBIT_FRAMES, ['boss', 'scorecard']),
+  PIXI_BOSS_CITATION_FRAMES: asset('PIXI_BOSS_CITATION_FRAMES', 'Citation Storm Arbiter', ASSETS.PIXI_BOSS_CITATION_FRAMES, ['boss', 'scorecard']),
+  PIXI_BOSS_PAYWALL_FRAMES: asset('PIXI_BOSS_PAYWALL_FRAMES', 'Paywall Decimator', ASSETS.PIXI_BOSS_PAYWALL_FRAMES, ['boss', 'scorecard']),
+  PIXI_BOSS_OPEN_GALAXY_FRAMES: asset('PIXI_BOSS_OPEN_GALAXY_FRAMES', 'Open Galaxy Dreadnought', ASSETS.PIXI_BOSS_OPEN_GALAXY_FRAMES, ['boss', 'scorecard']),
+  PIXI_BOSS_CROWNCLAW_FRAMES: asset('PIXI_BOSS_CROWNCLAW_FRAMES', 'Astral Crownclaw', ASSETS.PIXI_BOSS_CROWNCLAW_FRAMES, ['boss', 'scorecard']),
   ENEMY_DRONE_FRAMES: asset('ENEMY_DRONE_FRAMES', 'Paywall Interceptor', ASSETS.ENEMY_DRONE_FRAMES, ['enemy', 'scorecard']),
   LEGACY_ENEMY_DRONE_FRAMES: asset('LEGACY_ENEMY_DRONE_FRAMES', 'Legacy Research Drone', ASSETS.LEGACY_ENEMY_DRONE_FRAMES, ['enemy']),
   ENEMY_SWARM_FRAMES: asset('ENEMY_SWARM_FRAMES', 'Citation Wraith', ASSETS.ENEMY_SWARM_FRAMES, ['enemy', 'scorecard']),
@@ -71,6 +79,7 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   ENEMY_JOURNAL_FRAMES: asset('ENEMY_JOURNAL_FRAMES', 'Predatory Journal Raider', ASSETS.ENEMY_JOURNAL_FRAMES, ['enemy', 'scorecard']),
   MINI_BOSS: asset('MINI_BOSS', 'Bottleneck drone', ASSETS.MINI_BOSS, ['boss', 'scorecard']),
   WALL_BOSS_SEGMENT: asset('WALL_BOSS_SEGMENT', 'Paywall segment', ASSETS.WALL_BOSS_SEGMENT, ['boss', 'scorecard']),
+  PAYWALL_BASTION_FRAMES: asset('PAYWALL_BASTION_FRAMES', 'Paywall Bastion', ASSETS.PAYWALL_BASTION_FRAMES, ['boss', 'scorecard']),
   FINAL_BOSS: asset('FINAL_BOSS', 'Gatekeeper sentinel', ASSETS.FINAL_BOSS, ['boss', 'scorecard'])
 });
 
@@ -301,7 +310,7 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
     id: 'paywall-wall',
     label: 'Paywall Wall',
     entityType: 'ENEMY_INVADER',
-    defaultSpriteKey: 'WALL_BOSS_SEGMENT',
+    defaultSpriteKey: 'PAYWALL_BASTION_FRAMES',
     defaultMovementPatternId: 'wall-march',
     allowedWeaponIds: ['wall-bolt']
   },
@@ -339,7 +348,8 @@ export const BACKGROUND_CATALOG: Record<BackgroundId, BackgroundCatalogEntry> = 
   'open-orbit': { id: 'open-orbit', label: 'Open Orbit', layerAssetKeys: [...commonBackgroundLayers], tint: '#0f4c81' },
   'citation-storm': { id: 'citation-storm', label: 'Citation Storm', layerAssetKeys: [...commonBackgroundLayers], tint: '#4f46e5' },
   'paywall-siege': { id: 'paywall-siege', label: 'Paywall Siege', layerAssetKeys: [...commonBackgroundLayers], tint: '#d97706' },
-  'open-galaxy': { id: 'open-galaxy', label: 'Open Galaxy', layerAssetKeys: [...commonBackgroundLayers], tint: '#10b981' }
+  'open-galaxy': { id: 'open-galaxy', label: 'Open Galaxy', layerAssetKeys: [...commonBackgroundLayers], tint: '#10b981' },
+  'bastion-protocol': { id: 'bastion-protocol', label: 'Bastion Protocol', layerAssetKeys: [...commonBackgroundLayers], tint: '#db2777' }
 };
 
 export const MUSIC_CATALOG: Record<MusicId, MusicCatalogEntry> = {
@@ -371,7 +381,8 @@ export const MOVEMENT_PATTERN_CATALOG: Record<MovementPatternId, NamedCatalogEnt
   'track-player': { id: 'track-player', label: 'Track player' },
   'wall-march': { id: 'wall-march', label: 'Wall march' },
   'asteroid-drift': { id: 'asteroid-drift', label: 'Asteroid drift' },
-  'gatekeeper-cycle': { id: 'gatekeeper-cycle', label: 'Gatekeeper attack cycle' }
+  'gatekeeper-cycle': { id: 'gatekeeper-cycle', label: 'Gatekeeper attack cycle' },
+  'arena-roam': { id: 'arena-roam', label: 'Arena roam' }
 };
 
 export const WEAPON_CATALOG: Record<WeaponId, NamedCatalogEntry<WeaponId>> = {

@@ -54,6 +54,11 @@ test('Pixi presentation keeps ordered gameplay layers and pooled effects', () =>
   assert.match(effects, /this\.effects\.length >= this\.maxEffects/);
   assert.match(environment, /class PixiEnvironment/);
   assert.match(environment, /this\.parallaxLayers/);
+  assert.match(environment, /const BACKGROUND_PROFILES/);
+  assert.match(environment, /PIXI_TERRAIN_SPACE_MASTER/);
+  assert.match(environment, /private applyProfile/);
+  assert.doesNotMatch(environment, /engine\.performanceMode/);
+  assert.doesNotMatch(environment, /layer\.root\.visible = !\(lowQuality/);
   assert.match(textures, /class PixiTextureBank/);
   assert.match(renderer, /private readonly recycledViews = new Map/);
   assert.match(renderer, /syncEntities\(engine\)/);
@@ -68,4 +73,18 @@ test('the local Director can decode Pixi textures without enabling remote script
   assert.match(directorHtml, /script-src 'self'/);
   assert.match(directorHtml, /worker-src 'self' blob:/);
   assert.doesNotMatch(directorHtml, /script-src[^;]*unsafe-eval/);
+});
+
+test('boss warnings use the registered Scicon alert art with live reusable labels', () => {
+  const constants = read('constants.ts');
+  const renderer = read('services/pixi/PixiGameRenderer.ts');
+
+  assert.match(constants, /PIXI_BOSS_ALERT_FRAME/);
+  assert.match(constants, /boss-incoming-alert-frame\.png/);
+  assert.match(constants, /warning-ring-red\.png/);
+  assert.match(constants, /warning-crystal\.png/);
+  assert.match(renderer, /this\.warningRoot\.addChild/);
+  assert.match(renderer, /this\.warningText\.text = title/);
+  assert.match(renderer, /BOSS INCOMING/);
+  assert.match(renderer, /this\.warningCrystal\.position\.set/);
 });

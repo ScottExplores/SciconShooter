@@ -1,0 +1,31 @@
+{
+  "id": "scicon-victory-signet-sound-design",
+  "sampleRate": 48000,
+  "channels": 2,
+  "sampleFormat": "PCM signed 16-bit little-endian",
+  "authorship": "Original procedural synthesis; no third-party samples used.",
+  "previewDurationSeconds": 2.25,
+  "previewMix": "victory-signet-preview-mix.wav",
+  "cues": [
+    {
+      "name": "open",
+      "file": "victory-signet-open.wav",
+      "durationSeconds": 0.86
+    },
+    {
+      "name": "lock",
+      "file": "victory-signet-lock.wav",
+      "durationSeconds": 0.75
+    },
+    {
+      "name": "power-settle",
+      "file": "victory-signet-power-settle.wav",
+      "durationSeconds": 0.78
+    },
+    {
+      "name": "hover-loop",
+      "file": "victory-signet-hover-loop.wav",
+      "durationSeconds": 1.28
+    }
+  ]
+}

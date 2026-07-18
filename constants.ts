@@ -38,8 +38,132 @@ export const ASSETS = {
   GAME_PARALLAX_FAR_PLANETS: "/game-art/backgrounds/parallax-far-planets.png",
   GAME_PARALLAX_BIG_PLANET: "/game-art/backgrounds/parallax-big-planet.png",
   GAME_PARALLAX_RING_PLANET: "/game-art/backgrounds/parallax-ring-planet.png",
+  PIXI_DESERT_TERRAIN: "/game-art/pixi/backgrounds/desert-terrain.png",
+  PIXI_DESERT_CLOUDS: "/game-art/pixi/backgrounds/desert-clouds.png",
+  PIXI_RIVER_TERRAIN: "/game-art/pixi/backgrounds/river-terrain.png",
+  PIXI_RIVER_PROPS: "/game-art/pixi/backgrounds/river-props.png",
+  PIXI_TERRAIN_SPACE_MASTER: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/backgrounds/space-round-master-512x4096.png",
+  PIXI_TERRAIN_SPACE_PROPS: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-props-atlas-3x3.png",
+  PIXI_TERRAIN_DESERT_MASTER: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/backgrounds/desert-round-master-512x4096.png",
+  PIXI_TERRAIN_DESERT_PROPS: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-props-atlas-3x3.png",
+  PIXI_TERRAIN_RIVER_MASTER: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/backgrounds/river-round-master-512x4096.png",
+  PIXI_TERRAIN_RIVER_PROPS: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-props-atlas-3x3.png",
+  PIXI_THRUSTER_FRAMES: [
+    "/game-art/pixi/effects/thruster/frame-1.png",
+    "/game-art/pixi/effects/thruster/frame-2.png",
+    "/game-art/pixi/effects/thruster/frame-3.png"
+  ],
+  PIXI_BOSS_THRUSTER_FRAMES: [
+    "/game-art/generated/ui/scicon-interface-pack-v1/animations/floating-window/parts/flame-short.png",
+    "/game-art/generated/ui/scicon-interface-pack-v1/animations/floating-window/parts/flame-medium.png",
+    "/game-art/generated/ui/scicon-interface-pack-v1/animations/floating-window/parts/flame-long.png"
+  ],
+  PIXI_BOSS_HEALTH_FRAME: "/game-art/generated/ui/scicon-compact-top-hud-v1/frames/boss-integrity-frame.png",
+  PIXI_BOSS_ALERT_FRAME: "/game-art/generated/ui/animations/boss-alert-banners-v1/frames/boss-incoming-alert-frame.png",
+  PIXI_MINI_BOSS_ALERT_FRAME: "/game-art/generated/ui/animations/boss-alert-banners-v1/frames/mini-boss-alert-frame.png",
+  PIXI_BOSS_ALERT_RING: "/game-art/generated/ui/animations/boss-alert-banners-v1/effects/warning-ring-red.png",
+  PIXI_BOSS_ALERT_SCAN: "/game-art/generated/ui/animations/boss-alert-banners-v1/effects/rail-scan-red.png",
+  PIXI_BOSS_ALERT_CRYSTAL: "/game-art/generated/ui/scicon-ui-system-v2/animations/alert-banner-deploy/parts/warning-crystal.png",
+  PIXI_EXPLOSION_FRAMES: [
+    "/game-art/pixi/effects/explosion/frame-1.png",
+    "/game-art/pixi/effects/explosion/frame-2.png",
+    "/game-art/pixi/effects/explosion/frame-3.png",
+    "/game-art/pixi/effects/explosion/frame-4.png",
+    "/game-art/pixi/effects/explosion/frame-5.png",
+    "/game-art/pixi/effects/explosion/frame-6.png",
+    "/game-art/pixi/effects/explosion/frame-7.png"
+  ],
+  PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES: [
+    "/game-art/pixi/effects/boss-damage/frame-1.png",
+    "/game-art/pixi/effects/boss-damage/frame-2.png",
+    "/game-art/pixi/effects/boss-damage/frame-3.png",
+    "/game-art/pixi/effects/boss-damage/frame-4.png",
+    "/game-art/pixi/effects/boss-damage/frame-5.png"
+  ],
+  PIXI_ESCORT_DOUBLE: "/game-art/pixi/ships/escort-double.png",
+  PIXI_ESCORT_TRIPLE: "/game-art/pixi/ships/escort-triple.png",
+  PIXI_JET_SCOUT_FRAMES: [
+    "/game-art/pixi/enemies/jet-scout/frame-1.png",
+    "/game-art/pixi/enemies/jet-scout/frame-2.png"
+  ],
+  PIXI_JET_INTERCEPTOR_FRAMES: [
+    "/game-art/pixi/enemies/jet-interceptor/frame-1.png",
+    "/game-art/pixi/enemies/jet-interceptor/frame-2.png"
+  ],
+  PIXI_JET_HEAVY_FRAMES: [
+    "/game-art/pixi/enemies/jet-heavy/frame-1.png",
+    "/game-art/pixi/enemies/jet-heavy/frame-2.png"
+  ],
+  PIXI_BOSS_OPEN_ORBIT_FRAMES: [
+    "/game-art/pixi/bosses/open-orbit/frame-1.png",
+    "/game-art/pixi/bosses/open-orbit/frame-2.png",
+    "/game-art/pixi/bosses/open-orbit/frame-3.png",
+    "/game-art/pixi/bosses/open-orbit/frame-4.png",
+    "/game-art/pixi/bosses/open-orbit/frame-5.png"
+  ],
+  PIXI_BOSS_CITATION_FRAMES: [
+    "/game-art/pixi/bosses/citation-storm/frame-1.png",
+    "/game-art/pixi/bosses/citation-storm/frame-2.png",
+    "/game-art/pixi/bosses/citation-storm/frame-3.png",
+    "/game-art/pixi/bosses/citation-storm/frame-4.png",
+    "/game-art/pixi/bosses/citation-storm/frame-5.png"
+  ],
+  PIXI_BOSS_OPEN_ORBIT_ARM_LEFT: "/game-art/generated/boss-weapons/open-orbit-railgun-arm-left.png",
+  PIXI_BOSS_OPEN_ORBIT_ARM_RIGHT: "/game-art/generated/boss-weapons/open-orbit-railgun-arm-right.png",
+  PIXI_BOSS_CITATION_CLAW_LEFT: "/game-art/generated/boss-weapons/citation-storm-plasma-claw-left.png",
+  PIXI_BOSS_CITATION_CLAW_RIGHT: "/game-art/generated/boss-weapons/citation-storm-plasma-claw-right.png",
+  PIXI_BOSS_PAYWALL_FRAMES: [
+    "/game-art/pixi/bosses/paywall-decimator/body/frame-1.png",
+    "/game-art/pixi/bosses/paywall-decimator/body/frame-2.png",
+    "/game-art/pixi/bosses/paywall-decimator/body/frame-3.png",
+    "/game-art/pixi/bosses/paywall-decimator/body/frame-4.png",
+    "/game-art/pixi/bosses/paywall-decimator/body/frame-5.png"
+  ],
+  PIXI_BOSS_OPEN_GALAXY_FRAMES: [
+    "/game-art/pixi/bosses/open-galaxy/frame-1.png",
+    "/game-art/pixi/bosses/open-galaxy/frame-2.png",
+    "/game-art/pixi/bosses/open-galaxy/frame-3.png",
+    "/game-art/pixi/bosses/open-galaxy/frame-4.png",
+    "/game-art/pixi/bosses/open-galaxy/frame-5.png"
+  ],
+  PIXI_BOSS_CROWNCLAW_FRAMES: Array.from(
+    { length: 6 },
+    (_, index) => `/game-art/generated/bosses/astral-crownclaw/animations/decay/frames/astral-crownclaw-decay-frame-0${index + 1}.png`
+  ),
+  PIXI_BOSS_CROWNCLAW_CORE: "/game-art/generated/bosses/astral-crownclaw/rig/astral-crownclaw-core-chassis.png",
+  PIXI_BOSS_CROWNCLAW_LEGS: {
+    frontLeft: "/game-art/generated/bosses/astral-crownclaw/rig/legs/astral-crownclaw-leg-front-left.png",
+    frontRight: "/game-art/generated/bosses/astral-crownclaw/rig/legs/astral-crownclaw-leg-front-right.png",
+    middleLeft: "/game-art/generated/bosses/astral-crownclaw/rig/legs/astral-crownclaw-leg-middle-left.png",
+    middleRight: "/game-art/generated/bosses/astral-crownclaw/rig/legs/astral-crownclaw-leg-middle-right.png",
+    rearLeft: "/game-art/generated/bosses/astral-crownclaw/rig/legs/astral-crownclaw-leg-rear-left.png",
+    rearRight: "/game-art/generated/bosses/astral-crownclaw/rig/legs/astral-crownclaw-leg-rear-right.png"
+  },
+  PIXI_BOSS_CROWNCLAW_GUN_LEFT: "/game-art/generated/bosses/astral-crownclaw/rig/weapons/astral-crownclaw-underclaw-gun-left.png",
+  PIXI_BOSS_CROWNCLAW_GUN_RIGHT: "/game-art/generated/bosses/astral-crownclaw/rig/weapons/astral-crownclaw-underclaw-gun-right.png",
+  PIXI_BOSS_CROWNCLAW_CLAW_LEFT: "/game-art/generated/bosses/astral-crownclaw/rig/weapons/astral-crownclaw-sharp-claw-projectile-left.png",
+  PIXI_BOSS_CROWNCLAW_CLAW_RIGHT: "/game-art/generated/bosses/astral-crownclaw/rig/weapons/astral-crownclaw-sharp-claw-projectile-right.png",
+  PIXI_BOSS_CROWNCLAW_ROCKET_LEFT: "/game-art/generated/bosses/astral-crownclaw/weapons/astral-crownclaw-rocket-claw-left.png",
+  PIXI_BOSS_CROWNCLAW_ROCKET_RIGHT: "/game-art/generated/bosses/astral-crownclaw/weapons/astral-crownclaw-rocket-claw-right.png",
+  PIXI_BOSS_PAYWALL_RAY_FRAMES: Array.from(
+    { length: 11 },
+    (_, index) => `/game-art/pixi/bosses/paywall-decimator/rays/frame-${index + 1}.png`
+  ),
+  PIXI_BOSS_PAYWALL_BOLT_FRAMES: [
+    "/game-art/pixi/bosses/paywall-decimator/bolts/frame-1.png",
+    "/game-art/pixi/bosses/paywall-decimator/bolts/frame-2.png"
+  ],
+  PIXI_BOSS_PAYWALL_THRUST_FRAMES: [
+    "/game-art/pixi/bosses/paywall-decimator/thrust/frame-1.png",
+    "/game-art/pixi/bosses/paywall-decimator/thrust/frame-2.png"
+  ],
+  PIXI_BOSS_PAYWALL_CANNON_LEFT: "/game-art/pixi/bosses/paywall-decimator/cannon-left.png",
+  PIXI_BOSS_PAYWALL_CANNON_RIGHT: "/game-art/pixi/bosses/paywall-decimator/cannon-right.png",
+  PIXI_BOSS_PAYWALL_HELMET: "/game-art/pixi/bosses/paywall-decimator/helmet.png",
   ENEMY_DRONE_FRAMES: [
-    "/game-art/enemies/paywall-interceptor.png"
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/paywall-interceptor/frames/paywall-interceptor-01-contracted.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/paywall-interceptor/frames/paywall-interceptor-02-neutral.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/paywall-interceptor/frames/paywall-interceptor-03-charged.png"
   ],
   LEGACY_ENEMY_DRONE_FRAMES: [
     "/game-art/enemies/enemy-drone-1.png",
@@ -49,7 +173,9 @@ export const ASSETS = {
     "/game-art/enemies/enemy-drone-5.png"
   ],
   ENEMY_SWARM_FRAMES: [
-    "/game-art/enemies/citation-wraith.png"
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/citation-wraith/frames/citation-wraith-01-contracted.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/citation-wraith/frames/citation-wraith-02-neutral.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/citation-wraith/frames/citation-wraith-03-charged.png"
   ],
   LEGACY_ENEMY_SWARM_FRAMES: [
     "/game-art/enemies/swarm-1.png",
@@ -58,7 +184,9 @@ export const ASSETS = {
     "/game-art/enemies/swarm-4.png"
   ],
   ENEMY_BRICK_FRAMES: [
-    "/game-art/enemies/peer-review-bulwark.png"
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/peer-review-bulwark/frames/peer-review-bulwark-01-guard-low.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/peer-review-bulwark/frames/peer-review-bulwark-02-neutral.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/peer-review-bulwark/frames/peer-review-bulwark-03-guard-high.png"
   ],
   ASTEROID_BELT_FRAMES: [
     "/game-art/enemies/asteroid-1.png",
@@ -69,10 +197,19 @@ export const ASSETS = {
   ],
   ENEMY_JOURNAL: "/game-art/enemies/predatory-journal-raider.png",
   ENEMY_JOURNAL_FRAMES: [
-    "/game-art/enemies/predatory-journal-raider.png"
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/predatory-journal-raider/frames/predatory-journal-raider-01-wings-in.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/predatory-journal-raider/frames/predatory-journal-raider-02-neutral.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/enemies/predatory-journal-raider/frames/predatory-journal-raider-03-wings-out.png"
   ],
   MINI_BOSS: "/game-art/bosses/mini-boss-drone.png",
   WALL_BOSS_SEGMENT: "/game-art/bosses/wall-segment.png",
+  PAYWALL_BASTION_FRAMES: [
+    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-01-idle.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-02-neutral.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-03-attack.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-04-damage-50.png",
+    "/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-05-critical-15.png"
+  ],
   FINAL_BOSS: "/game-art/bosses/final-boss-sentinel.png",
   
   // Referral Assets

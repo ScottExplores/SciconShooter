@@ -22,5 +22,5 @@ test('the Director exposes and validates the same Bottleneck boss count', () => 
 
   assert.match(inspector, /label="Boss count"/);
   assert.match(inspector, /boss\.count \?\? 1/);
-  assert.match(validator, /event\.bossId !== 'bottleneck-drone' && event\.count > 1/);
+  assert.match(validator, /!\['bottleneck-drone', 'paywall-wall'\]\.includes\(event\.bossId\) && event\.count > 1/);
 });

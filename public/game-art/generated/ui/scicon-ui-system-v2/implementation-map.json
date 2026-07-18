@@ -1,0 +1,45 @@
+{
+  "surfaces": {
+    "StartScreen": [
+      "shell",
+      "home-navigation",
+      "weekly-competition",
+      "leaderboard-podium",
+      "funding-proposals",
+      "achievements-more",
+      "form-controls"
+    ],
+    "UIOverlay": [
+      "hud-primary",
+      "hud-actions",
+      "notifications-status"
+    ],
+    "Paused": [
+      "pause-settings",
+      "hud-primary"
+    ],
+    "GameOver": [
+      "mission-results",
+      "records-wallet",
+      "notifications-status"
+    ],
+    "WeeklyProposalSelection": [
+      "funding-proposals",
+      "form-controls",
+      "weekly-competition"
+    ],
+    "MissionRecord": [
+      "records-wallet",
+      "record-verify-rig"
+    ],
+    "StoryTransmission": [
+      "tutorial-story",
+      "general-borders"
+    ],
+    "Tutorial": [
+      "tutorial-story",
+      "hud-actions"
+    ]
+  },
+  "runtimeText": "Place live HTML/React or Pixi BitmapText above the blank interior region; never rasterize user-specific data into a production frame."
+}

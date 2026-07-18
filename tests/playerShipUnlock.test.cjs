@@ -102,8 +102,13 @@ test('double and triple shot use floating gun pods instead of duplicate player s
   const gunPodSource = runtimeSource.slice(gunPodStart, gunPodEnd);
 
   assert.ok(gunPodStart > 0 && gunPodEnd > gunPodStart);
-  assert.match(runtimeSource, /DOUBLE_GUN_POD_OFFSETS = \[42\]/);
   assert.match(runtimeSource, /TRIPLE_GUN_POD_OFFSETS = \[-42, 42\]/);
+  assert.match(runtimeSource, /doubleGunPodSide: -1 \| 1 = -1/);
+  assert.match(runtimeSource, /return clamp\(this\.width \* 0\.27, 88, 132\)/);
+  assert.match(runtimeSource, /DOUBLE_GUN_POD_EDGE_ENTER_RATIO = 0\.38/);
+  assert.match(runtimeSource, /DOUBLE_GUN_POD_EDGE_EXIT_RATIO = 0\.62/);
+  assert.match(runtimeSource, /this\.doubleGunPodOffset \+= \(targetOffset - this\.doubleGunPodOffset\) \* DOUBLE_GUN_POD_EASING/);
+  assert.match(runtimeSource, /return \[this\.doubleGunPodOffset\]/);
   assert.match(gunPodSource, /this\.drawGunPod\(ctx, size, isTriple, index\)/);
   assert.doesNotMatch(gunPodSource, /playerShipUrl/);
 });

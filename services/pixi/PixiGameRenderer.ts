@@ -1,15 +1,27 @@
 import 'pixi.js/unsafe-eval';
 import {
   Application,
+  ColorMatrixFilter,
   Container,
   Graphics,
   Sprite,
   Text,
   Texture
 } from 'pixi.js';
-import { ASSETS } from '../../constants';
+import { ASSETS, GAME_CONFIG } from '../../constants';
 import { EntityType, PowerupType } from '../../types';
-import { Entity, GameEngine, VisualEffect } from '../gameLogic';
+import { BOSS_CANNON_SCALE, CROWNCLAW_ARM_SCALE, Entity, GameEngine, VisualEffect } from '../gameLogic';
+import type { BossComponentState, BossPartId, BossRigId } from '../gameLogic';
+import {
+  PLAYER_SHIP_HARD_BANK_SWEEP_RATIO,
+  PLAYER_SHIP_STEERING_FRAME_URLS,
+  PLAYER_SHIP_TOUCH_SPEED_SCALE,
+  applyPlayerSteeringDeadzone,
+  getPlayerSteeringBlendMs,
+  getPlayerShipMotionByAssetUrl,
+  selectPlayerSteeringState,
+  type PlayerSteeringState
+} from '../playerShipMotion';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
 import { PixiEnvironment } from './PixiEnvironment';
 import { PixiTextureBank } from './PixiTextureBank';
@@ -42,7 +54,27 @@ type EntityView = {
   lastFlashFrames: number;
   lastMarkedForDeletion: boolean;
   hasFallbackBody: boolean;
+  bossRig?: BossRigView;
   seenFrame: number;
+};
+
+type BossRigView = {
+  parts: Container;
+  partSprites: Record<BossPartId, Sprite>;
+  thrust: Container;
+  thrusterSprites: readonly [Sprite, Sprite];
+  componentHealth: Graphics;
+  crownClaw: CrownClawRigView;
+};
+
+type CrownClawLegId = keyof typeof ASSETS.PIXI_BOSS_CROWNCLAW_LEGS;
+
+type CrownClawRigView = {
+  root: Container;
+  body: Sprite;
+  legs: Record<CrownClawLegId, Sprite>;
+  guns: Record<'left' | 'right', Sprite>;
+  claws: Record<'left' | 'right', Sprite>;
 };
 
 type BossSnapshot = {
@@ -63,6 +95,36 @@ const PLAYER_THRUSTER_COLORS = [
   ['#ffffff', '#38bdf8'],
   ['#ffffff', '#facc15']
 ] as const;
+
+const CROWNCLAW_LEG_LAYOUT: Record<CrownClawLegId, {
+  x: number;
+  y: number;
+  pivotX: number;
+  pivotY: number;
+  direction: number;
+  phase: number;
+}> = {
+  frontLeft: { x: -148, y: -174, pivotX: 231, pivotY: 128, direction: -1, phase: 0 },
+  frontRight: { x: 148, y: -174, pivotX: 25, pivotY: 128, direction: 1, phase: Math.PI },
+  middleLeft: { x: -161, y: -113, pivotX: 216, pivotY: 105, direction: -1, phase: Math.PI },
+  middleRight: { x: 161, y: -113, pivotX: 40, pivotY: 105, direction: 1, phase: 0 },
+  rearLeft: { x: -246, y: -59, pivotX: 207, pivotY: 64, direction: -1, phase: Math.PI * 0.5 },
+  rearRight: { x: 246, y: -59, pivotX: 49, pivotY: 64, direction: 1, phase: Math.PI * 1.5 }
+};
+
+const CROWNCLAW_WEAPON_LAYOUT = {
+  left: { x: -226, y: 34, pivotX: 164, pivotY: 67 },
+  right: { x: 226, y: 34, pivotX: 92, pivotY: 67 }
+} as const;
+
+const WHITE_HIT_FILTER = new ColorMatrixFilter();
+WHITE_HIT_FILTER.matrix = [
+  0, 0, 0, 0, 1,
+  0, 0, 0, 0, 1,
+  0, 0, 0, 0, 1,
+  0, 0, 0, 1, 0
+];
+const WHITE_HIT_FILTERS = [WHITE_HIT_FILTER];
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -126,8 +188,65 @@ const getEntityLayer = (type: EntityType): SceneLayerName => {
   return 'enemy';
 };
 
+const isFormationMotionEnemy = (entity: Entity) => (
+  entity.type === EntityType.ENEMY_DRONE
+  || entity.type === EntityType.ENEMY_SWARM
+  || entity.type === EntityType.ENEMY_BRICK
+  || entity.type === EntityType.ENEMY_JOURNAL
+);
+
+const getFormationMotionFrameIndex = (engine: GameEngine, entity: Entity) => {
+  const stateAge = Math.max(0, engine.frameCount - entity.formationStateFrame);
+  const pingPong = [0, 1, 2, 1] as const;
+  const phaseOffset = Math.abs(entity.variant * 13 + entity.formationIndex * 7);
+
+  if (entity.formationState === 'hold') {
+    const framesUntilDive = entity.formationDiveFrame - engine.frameCount;
+    if (entity.formationDiveFrame > 0 && framesUntilDive > 0 && framesUntilDive <= 36) {
+      return clamp(Math.floor((36 - framesUntilDive) / 12), 0, 2);
+    }
+
+    const idlePulseFrame = (stateAge + phaseOffset) % 210;
+    if (idlePulseFrame < 28) {
+      return pingPong[Math.floor(idlePulseFrame / 7) % pingPong.length];
+    }
+    return 1;
+  }
+
+  if (entity.formationState === 'dive') {
+    if (stateAge < 20) return 2;
+    return pingPong[Math.floor((stateAge + phaseOffset) / 8) % pingPong.length];
+  }
+
+  if (entity.formationState === 'entry' || entity.formationState === 'return') {
+    return pingPong[Math.floor((stateAge + phaseOffset) / 8) % pingPong.length];
+  }
+
+  const ambientFrame = (engine.frameCount + phaseOffset) % 240;
+  return ambientFrame < 28
+    ? pingPong[Math.floor(ambientFrame / 7) % pingPong.length]
+    : 1;
+};
+
+const getPaywallBastionFrameIndex = (engine: GameEngine, entity: Entity) => {
+  const healthRatio = entity.maxHp > 0 ? entity.hp / entity.maxHp : 1;
+  if (healthRatio <= 0.15) return 4;
+  if (healthRatio <= 0.5) return 3;
+  if (entity.attackTimer > 0) return 2;
+  return Math.floor((engine.frameCount + entity.variant * 5) / 24) % 2;
+};
+
 const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
   if (entity.spriteFrames?.length) {
+    if (entity.type === EntityType.BOSS) {
+      return entity.spriteFrames[clamp(entity.bossDecayStage, 0, entity.spriteFrames.length - 1)];
+    }
+    if (entity.type === EntityType.ENEMY_INVADER && entity.spriteFrames.length >= 5) {
+      return entity.spriteFrames[getPaywallBastionFrameIndex(engine, entity)];
+    }
+    if (isFormationMotionEnemy(entity) && entity.spriteFrames.length === 3) {
+      return entity.spriteFrames[getFormationMotionFrameIndex(engine, entity)];
+    }
     const speed = entity.type === EntityType.ENEMY_SWARM ? 5 : 6;
     return entity.spriteFrames[(Math.floor(engine.frameCount / speed) + entity.variant) % entity.spriteFrames.length];
   }
@@ -137,17 +256,19 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
     case EntityType.PLAYER:
       return engine.playerShipUrl;
     case EntityType.ENEMY_DRONE:
-      return ASSETS.ENEMY_DRONE_FRAMES[(Math.floor(engine.frameCount / 6) + entity.variant) % ASSETS.ENEMY_DRONE_FRAMES.length];
+      return ASSETS.ENEMY_DRONE_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     case EntityType.ENEMY_SWARM:
-      return ASSETS.ENEMY_SWARM_FRAMES[(Math.floor(engine.frameCount / 5) + entity.variant) % ASSETS.ENEMY_SWARM_FRAMES.length];
+      return ASSETS.ENEMY_SWARM_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     case EntityType.ENEMY_BRICK: {
       const frames = entity.variant >= 900 ? ASSETS.ASTEROID_BELT_FRAMES : ASSETS.ENEMY_BRICK_FRAMES;
-      return frames[entity.variant % frames.length];
+      return entity.variant >= 900
+        ? frames[entity.variant % frames.length]
+        : frames[getFormationMotionFrameIndex(engine, entity)];
     }
     case EntityType.ENEMY_JOURNAL:
-      return ASSETS.ENEMY_JOURNAL_FRAMES[(Math.floor(engine.frameCount / 6) + entity.variant) % ASSETS.ENEMY_JOURNAL_FRAMES.length];
+      return ASSETS.ENEMY_JOURNAL_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     case EntityType.ENEMY_INVADER:
-      return ASSETS.WALL_BOSS_SEGMENT;
+      return ASSETS.PAYWALL_BASTION_FRAMES[getPaywallBastionFrameIndex(engine, entity)];
     case EntityType.MINI_BOSS:
       return ASSETS.MINI_BOSS;
     case EntityType.BOSS:
@@ -185,13 +306,34 @@ export class PixiGameRenderer {
   private readonly environment = new PixiEnvironment(this.layers.background, this.layers.environment, this.textureBank);
   private readonly warningShade = new Graphics();
   private readonly warningFrame = new Graphics();
-  private readonly warningText = createText(30, '#fef08a');
-  private readonly warningSubtext = createText(13, '#ffffff', 'normal');
+  private readonly warningRoot = new Container();
+  private readonly warningBanner = new Sprite(Texture.WHITE);
+  private readonly warningRing = new Sprite(Texture.WHITE);
+  private readonly warningScan = new Sprite(Texture.WHITE);
+  private readonly warningCrystal = new Sprite(Texture.WHITE);
+  private readonly warningText = createText(34, '#fffbeb');
+  private readonly warningSubtext = createText(15, '#fda4af');
   private readonly phaseText = createText(18, '#fef08a');
   private readonly flashOverlay = new Graphics();
   private readonly scanlines = new Graphics();
   private readonly effectPool = new ArcadeEffectPool(this.layers.effects);
+  private readonly playerThrusterRoot = new Container();
+  private readonly playerThrusters = [new Sprite(Texture.WHITE), new Sprite(Texture.WHITE)] as const;
+  private readonly gunPodRoot = new Container();
+  private readonly gunPodSprites = [new Sprite(Texture.WHITE), new Sprite(Texture.WHITE)] as const;
+  private readonly bioBeamRoot = new Container();
+  private readonly bioBeamAura = new Graphics();
+  private readonly bioBeamCore = new Graphics();
+  private readonly wallHealthRoot = new Container();
+  private readonly wallHealthBar = new Graphics();
+  private readonly wallHealthLabel = createText(9, '#fef08a');
+  private readonly bossHealthRoot = new Container();
+  private readonly bossHealthFrame = new Sprite(Texture.WHITE);
+  private readonly bossHealthBar = new Graphics();
+  private readonly bossHealthName = createText(10, '#fef08a');
+  private readonly bossHealthPercent = createText(9, '#a7f3d0');
   private readonly seenBossPhase = new Map<string, number>();
+  private readonly seenBossComponents = new Map<string, Partial<Record<BossPartId, boolean>>>();
   private readonly bossDeathRoot = new Container();
   private readonly bossDeathSprite = new Sprite(Texture.WHITE);
   private readonly bossDeathCore = new Graphics();
@@ -209,6 +351,12 @@ export class PixiGameRenderer {
   private width = 1;
   private height = 1;
   private lastTimestamp = 0;
+  private playerSteeringVisual = 0;
+  private playerSteeringState: PlayerSteeringState = 'neutral';
+  private playerSteeringTextureKey: string | null = null;
+  private playerSteeringSweepOriginX: number | null = null;
+  private playerSteeringSweepDirection: -1 | 0 | 1 = 0;
+  private playerSteeringShipUrl: string | null = null;
   private lastShotFrame = -999;
   private lastBombFrame = -999;
   private destroyed = false;
@@ -256,6 +404,46 @@ export class PixiGameRenderer {
       this.layers.foreground
     );
 
+    this.playerThrusterRoot.eventMode = 'none';
+    this.playerThrusterRoot.visible = false;
+    for (const thruster of this.playerThrusters) {
+      thruster.anchor.set(0.76, 0.5);
+      thruster.rotation = -Math.PI / 2;
+      this.playerThrusterRoot.addChild(thruster);
+    }
+    this.layers.player.addChild(this.playerThrusterRoot);
+
+    this.gunPodRoot.eventMode = 'none';
+    this.gunPodRoot.visible = false;
+    for (const pod of this.gunPodSprites) {
+      pod.anchor.set(0.5);
+      this.gunPodRoot.addChild(pod);
+    }
+    this.layers.player.addChild(this.gunPodRoot);
+
+    this.bioBeamRoot.eventMode = 'none';
+    this.bioBeamRoot.visible = false;
+    this.bioBeamRoot.addChild(this.bioBeamAura, this.bioBeamCore);
+    this.layers.projectile.addChild(this.bioBeamRoot);
+
+    this.wallHealthLabel.anchor.set(0.5);
+    this.wallHealthRoot.eventMode = 'none';
+    this.wallHealthRoot.visible = false;
+    this.wallHealthRoot.addChild(this.wallHealthBar, this.wallHealthLabel);
+    this.layers.foreground.addChild(this.wallHealthRoot);
+
+    this.bossHealthFrame.anchor.set(0.5);
+    this.bossHealthName.anchor.set(0.5);
+    this.bossHealthPercent.anchor.set(0.5);
+    this.bossHealthRoot.eventMode = 'none';
+    this.bossHealthRoot.visible = false;
+    this.bossHealthRoot.addChild(
+      this.bossHealthFrame,
+      this.bossHealthBar,
+      this.bossHealthName,
+      this.bossHealthPercent
+    );
+
     this.bossDeathSprite.anchor.set(0.5);
     this.bossDeathText.anchor.set(0.5);
     this.bossDeathRoot.eventMode = 'none';
@@ -263,22 +451,35 @@ export class PixiGameRenderer {
     this.bossDeathRoot.addChild(this.bossDeathSprite, this.bossDeathCore, this.bossDeathText);
     this.layers.foreground.addChild(this.bossDeathRoot);
 
+    this.warningRoot.eventMode = 'none';
+    this.warningRoot.visible = false;
+    this.warningBanner.anchor.set(0.5);
+    this.warningRing.anchor.set(0.5);
+    this.warningScan.anchor.set(0.5);
+    this.warningCrystal.anchor.set(0.5);
+    this.warningText.anchor.set(0.5);
+    this.warningSubtext.anchor.set(0.5);
+    this.warningRoot.addChild(
+      this.warningBanner,
+      this.warningScan,
+      this.warningRing,
+      this.warningCrystal,
+      this.warningText,
+      this.warningSubtext
+    );
+
     this.layers.overlay.addChild(
+      this.bossHealthRoot,
       this.warningShade,
       this.warningFrame,
-      this.warningText,
-      this.warningSubtext,
+      this.warningRoot,
       this.phaseText,
       this.flashOverlay,
       this.scanlines
     );
 
-    this.warningText.anchor.set(0.5);
-    this.warningSubtext.anchor.set(0.5);
     this.warningShade.visible = false;
     this.warningFrame.visible = false;
-    this.warningText.visible = false;
-    this.warningSubtext.visible = false;
     this.phaseText.visible = false;
     this.flashOverlay.visible = false;
 
@@ -287,15 +488,69 @@ export class PixiGameRenderer {
     this.resize(this.width, this.height);
 
     await this.textureBank.preload([
+      ASSETS.PIXI_BOSS_HEALTH_FRAME,
+      ASSETS.PIXI_BOSS_ALERT_FRAME,
+      ASSETS.PIXI_MINI_BOSS_ALERT_FRAME,
+      ASSETS.PIXI_BOSS_ALERT_RING,
+      ASSETS.PIXI_BOSS_ALERT_SCAN,
+      ASSETS.PIXI_BOSS_ALERT_CRYSTAL,
       ...ASSETS.ENEMY_DRONE_FRAMES,
       ...ASSETS.ENEMY_SWARM_FRAMES,
       ...ASSETS.ENEMY_BRICK_FRAMES,
       ...ASSETS.ENEMY_JOURNAL_FRAMES,
+      ...ASSETS.PAYWALL_BASTION_FRAMES,
+      ...ASSETS.PIXI_JET_SCOUT_FRAMES,
+      ...ASSETS.PIXI_JET_INTERCEPTOR_FRAMES,
+      ...ASSETS.PIXI_JET_HEAVY_FRAMES,
+      ...ASSETS.PIXI_BOSS_OPEN_ORBIT_FRAMES,
+      ...ASSETS.PIXI_BOSS_CITATION_FRAMES,
+      ...ASSETS.PIXI_BOSS_PAYWALL_FRAMES,
+      ...ASSETS.PIXI_BOSS_OPEN_GALAXY_FRAMES,
+      ...ASSETS.PIXI_BOSS_CROWNCLAW_FRAMES,
+      ...Object.values(ASSETS.PIXI_BOSS_CROWNCLAW_LEGS),
+      ...ASSETS.PIXI_BOSS_PAYWALL_RAY_FRAMES,
+      ...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES,
+      ...ASSETS.PIXI_BOSS_THRUSTER_FRAMES,
+      ...ASSETS.PIXI_THRUSTER_FRAMES,
+      ...ASSETS.PIXI_EXPLOSION_FRAMES,
+      ...ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES,
+      ...PLAYER_SHIP_STEERING_FRAME_URLS,
+      ASSETS.PIXI_ESCORT_DOUBLE,
+      ASSETS.PIXI_ESCORT_TRIPLE,
+      ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_LEFT,
+      ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_RIGHT,
+      ASSETS.PIXI_BOSS_CITATION_CLAW_LEFT,
+      ASSETS.PIXI_BOSS_CITATION_CLAW_RIGHT,
+      ASSETS.PIXI_BOSS_PAYWALL_CANNON_LEFT,
+      ASSETS.PIXI_BOSS_PAYWALL_CANNON_RIGHT,
+      ASSETS.PIXI_BOSS_PAYWALL_HELMET,
+      ASSETS.PIXI_BOSS_CROWNCLAW_CORE,
+      ASSETS.PIXI_BOSS_CROWNCLAW_GUN_LEFT,
+      ASSETS.PIXI_BOSS_CROWNCLAW_GUN_RIGHT,
+      ASSETS.PIXI_BOSS_CROWNCLAW_CLAW_LEFT,
+      ASSETS.PIXI_BOSS_CROWNCLAW_CLAW_RIGHT,
+      ASSETS.PIXI_BOSS_CROWNCLAW_ROCKET_LEFT,
+      ASSETS.PIXI_BOSS_CROWNCLAW_ROCKET_RIGHT,
       ASSETS.MINI_BOSS,
       ASSETS.FINAL_BOSS,
       ASSETS.WALL_BOSS_SEGMENT,
       ASSETS.RSC_TOKEN
     ]);
+    this.bossHealthFrame.texture = this.textureBank.get(ASSETS.PIXI_BOSS_HEALTH_FRAME) ?? Texture.WHITE;
+    this.warningBanner.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_FRAME) ?? Texture.WHITE;
+    this.warningRing.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_RING) ?? Texture.WHITE;
+    this.warningScan.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_SCAN) ?? Texture.WHITE;
+    this.warningCrystal.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_CRYSTAL) ?? Texture.WHITE;
+    this.effectPool.setExplosionTextures(
+      ASSETS.PIXI_EXPLOSION_FRAMES
+        .map((url) => this.textureBank.get(url))
+        .filter((texture): texture is Texture => Boolean(texture))
+    );
+    this.effectPool.setBossExplosionTextures(
+      ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES
+        .map((url) => this.textureBank.get(url))
+        .filter((texture): texture is Texture => Boolean(texture))
+    );
     if (this.destroyed) return;
     this.initialized = true;
   }
@@ -330,12 +585,25 @@ export class PixiGameRenderer {
       reused.id = entity.id;
       reused.root.visible = true;
       reused.root.alpha = 1;
+      reused.sprite.filters = null;
+      reused.body.filters = null;
       reused.textureKey = null;
       reused.textureRequest++;
       reused.lastHp = entity.hp;
       reused.lastFlashFrames = 0;
       reused.lastMarkedForDeletion = false;
       reused.hasFallbackBody = false;
+      if (reused.bossRig) {
+        reused.bossRig.parts.filters = null;
+        reused.bossRig.parts.visible = false;
+        reused.bossRig.thrust.visible = false;
+        reused.bossRig.componentHealth.clear();
+        reused.bossRig.crownClaw.root.filters = null;
+        reused.bossRig.crownClaw.root.visible = false;
+        Object.values(reused.bossRig.partSprites).forEach((sprite) => {
+          sprite.filters = null;
+        });
+      }
       return reused;
     }
 
@@ -347,9 +615,86 @@ export class PixiGameRenderer {
     const flash = new Graphics();
     const health = new Graphics();
     const label = createText(11, '#ffffff');
+    const bossRig = entity.type === EntityType.BOSS ? (() => {
+      const parts = new Container();
+      const leftCannon = new Sprite(Texture.WHITE);
+      const rightCannon = new Sprite(Texture.WHITE);
+      const helmet = new Sprite(Texture.WHITE);
+      const thrust = new Container();
+      const leftThruster = new Sprite(Texture.WHITE);
+      const rightThruster = new Sprite(Texture.WHITE);
+      const componentHealth = new Graphics();
+      const crownRoot = new Container();
+      const crownBody = new Sprite(Texture.WHITE);
+      const crownLegs = Object.fromEntries(
+        Object.keys(ASSETS.PIXI_BOSS_CROWNCLAW_LEGS).map((key) => [key, new Sprite(Texture.WHITE)])
+      ) as Record<CrownClawLegId, Sprite>;
+      const crownGuns = {
+        left: new Sprite(Texture.WHITE),
+        right: new Sprite(Texture.WHITE)
+      };
+      const crownClaws = {
+        left: new Sprite(Texture.WHITE),
+        right: new Sprite(Texture.WHITE)
+      };
+      leftCannon.anchor.set(0.5);
+      rightCannon.anchor.set(0.5);
+      helmet.anchor.set(0.5);
+      leftThruster.anchor.set(0.5, 0);
+      rightThruster.anchor.set(0.5, 0);
+      thrust.addChild(leftThruster, rightThruster);
+      parts.addChild(leftCannon, rightCannon, helmet);
+      parts.visible = false;
+      thrust.visible = false;
+      crownRoot.eventMode = 'none';
+      crownRoot.visible = false;
+      for (const [key, leg] of Object.entries(crownLegs) as [CrownClawLegId, Sprite][]) {
+        const layout = CROWNCLAW_LEG_LAYOUT[key];
+        leg.anchor.set(0);
+        leg.pivot.set(layout.pivotX, layout.pivotY);
+        leg.position.set(layout.x, layout.y);
+        crownRoot.addChild(leg);
+      }
+      for (const side of ['left', 'right'] as const) {
+        const layout = CROWNCLAW_WEAPON_LAYOUT[side];
+        crownGuns[side].anchor.set(0);
+        crownGuns[side].pivot.set(layout.pivotX, layout.pivotY);
+        crownGuns[side].position.set(layout.x, layout.y);
+        crownClaws[side].anchor.set(0);
+        crownClaws[side].pivot.set(layout.pivotX, layout.pivotY);
+        crownClaws[side].position.set(layout.x, layout.y);
+        crownRoot.addChild(crownGuns[side], crownClaws[side]);
+      }
+      crownBody.anchor.set(0);
+      crownBody.position.set(-320, -320);
+      crownRoot.addChild(crownBody);
+      return {
+        parts,
+        partSprites: {
+          'left-cannon': leftCannon,
+          'right-cannon': rightCannon,
+          helmet
+        },
+        thrust,
+        thrusterSprites: [leftThruster, rightThruster],
+        componentHealth,
+        crownClaw: {
+          root: crownRoot,
+          body: crownBody,
+          legs: crownLegs,
+          guns: crownGuns,
+          claws: crownClaws
+        }
+      } satisfies BossRigView;
+    })() : undefined;
     sprite.anchor.set(0.5);
     label.anchor.set(0.5);
-    root.addChild(trail, aura, sprite, body, flash, health, label);
+    root.addChild(trail, aura);
+    if (bossRig) root.addChild(bossRig.thrust);
+    if (bossRig) root.addChild(bossRig.crownClaw.root);
+    root.addChild(sprite);
+    if (bossRig) root.addChild(bossRig.parts, bossRig.componentHealth);
+    root.addChild(body, flash, health, label);
     root.eventMode = 'none';
     const view: EntityView = {
       id: entity.id,
@@ -368,6 +713,7 @@ export class PixiGameRenderer {
       lastFlashFrames: 0,
       lastMarkedForDeletion: false,
       hasFallbackBody: false,
+      bossRig,
       seenFrame: this.renderFrame
     };
     this.layers[getEntityLayer(entity.type)].addChild(root);
@@ -377,6 +723,8 @@ export class PixiGameRenderer {
   private releaseEntityView(view: EntityView) {
     view.root.visible = false;
     view.sprite.texture = Texture.WHITE;
+    view.sprite.filters = null;
+    view.body.filters = null;
     view.textureKey = null;
     view.textureRequest++;
     view.trail.clear();
@@ -386,6 +734,17 @@ export class PixiGameRenderer {
     view.health.clear();
     view.label.text = '';
     view.hasFallbackBody = false;
+    if (view.bossRig) {
+      view.bossRig.parts.filters = null;
+      view.bossRig.parts.visible = false;
+      view.bossRig.thrust.visible = false;
+      view.bossRig.componentHealth.clear();
+      view.bossRig.crownClaw.root.filters = null;
+      view.bossRig.crownClaw.root.visible = false;
+      Object.values(view.bossRig.partSprites).forEach((sprite) => {
+        sprite.filters = null;
+      });
+    }
     const pool = this.recycledViews.get(view.type) ?? [];
     pool.push(view);
     this.recycledViews.set(view.type, pool);
@@ -430,18 +789,19 @@ export class PixiGameRenderer {
 
   private drawHealthBar(view: EntityView, entity: Entity) {
     view.health.clear();
+    view.label.text = '';
 
-    const width = entity.type === EntityType.ENEMY_INVADER ? entity.width * 0.92 : entity.width;
-    const y = -entity.height * 0.5 - 18;
+    const width = entity.isElite ? clamp(entity.width * 0.86, 42, 92) : entity.width;
+    const y = -entity.height * 0.5 - (entity.isElite ? 12 : 18);
     const progress = clamp(entity.hp / Math.max(1, entity.maxHp), 0, 1);
     view.health.roundRect(-width / 2, y, width, 8, 4).fill({ color: '#020617', alpha: 0.94 });
     view.health.roundRect(-width / 2 + 1, y + 1, Math.max(0, (width - 2) * progress), 6, 3)
       .fill(progress > 0.55 ? '#34d399' : progress > 0.25 ? '#facc15' : '#fb7185');
     view.health.roundRect(-width / 2, y, width, 8, 4).stroke({ color: '#bae6fd', width: 1, alpha: 0.75 });
 
-    if (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS) {
-      view.label.text = entity.type === EntityType.BOSS ? 'GATEKEEPER SENTINEL' : 'BOTTLENECK DRONE';
-      view.label.style.fill = entity.type === EntityType.BOSS ? '#fef08a' : '#fda4af';
+    if (entity.type === EntityType.MINI_BOSS) {
+      view.label.text = 'BOTTLENECK DRONE';
+      view.label.style.fill = '#fda4af';
       view.label.position.set(0, y - 13);
     }
   }
@@ -478,6 +838,52 @@ export class PixiGameRenderer {
     view.sprite.visible = false;
     const playerShot = entity.isPlayerShot;
     const color = entity.color || (playerShot ? '#67e8f9' : '#fb7185');
+    if (entity.projectileVisualKind && entity.spriteFrames?.length) {
+      const age = Math.max(0, entity.maxLife - entity.life);
+      const frameDelay = entity.projectileVisualKind === 'boss-ray' ? 4 : 3;
+      const textureKey = entity.spriteFrames[(Math.floor(age / frameDelay) + entity.variant) % entity.spriteFrames.length];
+      this.setTexture(view, textureKey);
+      view.sprite.tint = '#ffffff';
+      view.sprite.alpha = 1;
+      view.sprite.width = entity.width;
+      view.sprite.height = entity.height;
+      if (entity.projectileVisualKind === 'boss-ray') {
+        view.aura.roundRect(-entity.width * 0.7, -entity.height * 0.5, entity.width * 1.4, entity.height, entity.width * 0.38)
+          .fill({ color: '#ff9d2e', alpha: 0.18 });
+        view.aura.roundRect(-entity.width * 0.34, -entity.height * 0.5, entity.width * 0.68, entity.height, entity.width * 0.24)
+          .stroke({ color: '#fef08a', width: 2, alpha: 0.72 });
+      } else {
+        const isCrownClaw = entity.projectileVisualKind === 'crown-claw-left'
+          || entity.projectileVisualKind === 'crown-claw-right';
+        if (!isCrownClaw) {
+          view.aura.circle(0, 0, entity.width * 0.72).fill({ color: '#ff9d2e', alpha: 0.25 });
+          view.aura.circle(0, 0, entity.width * 0.54).stroke({ color: '#fef08a', width: 1.5, alpha: 0.82 });
+        }
+        view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
+      }
+      return;
+    }
+    if (entity.isBeam) {
+      const width = entity.width;
+      const height = entity.height;
+      const radius = Math.min(10, Math.min(width, height) * 0.45);
+      if (entity.isTelegraph) {
+        view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
+          .fill({ color, alpha: 0.08 });
+        view.body.roundRect(-width / 2, -height / 2, width, height, radius)
+          .stroke({ color, width: Math.max(1.5, Math.min(width, height) * 0.22), alpha: 0.82 });
+      } else {
+        view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
+          .fill({ color, alpha: 0.28 });
+        const coreWidth = entity.beamAxis === 'horizontal' ? width : Math.max(3, width * 0.34);
+        const coreHeight = entity.beamAxis === 'horizontal' ? Math.max(3, height * 0.34) : height;
+        view.body.roundRect(-coreWidth / 2, -coreHeight / 2, coreWidth, coreHeight, Math.min(6, radius))
+          .fill({ color: '#ffffff', alpha: 0.96 });
+        view.body.roundRect(-width / 2, -height / 2, width, height, radius)
+          .stroke({ color, width: Math.max(1, Math.min(width, height) * 0.12), alpha: 0.78 });
+      }
+      return;
+    }
     const speed = Math.max(1, Math.hypot(entity.vx, entity.vy));
     const nx = -entity.vx / speed;
     const ny = -entity.vy / speed;
@@ -488,14 +894,6 @@ export class PixiGameRenderer {
       .stroke({ color, width: Math.max(2, entity.width * (strong ? 0.7 : 0.42)), alpha: playerShot ? 0.48 : 0.3 });
     view.trail.moveTo(0, 0).lineTo(nx * trailLength * 0.55, ny * trailLength * 0.55)
       .stroke({ color: '#ffffff', width: Math.max(1, entity.width * 0.18), alpha: 0.72 });
-
-    if (entity.isBeam) {
-      view.aura.roundRect(-entity.width * 0.58, -entity.height * 0.5, entity.width * 1.16, entity.height, Math.min(12, entity.width * 0.4))
-        .fill({ color, alpha: 0.28 });
-      view.body.roundRect(-entity.width * 0.2, -entity.height * 0.5, entity.width * 0.4, entity.height, Math.min(8, entity.width * 0.25))
-        .fill('#ffffff');
-      return;
-    }
 
     if (entity.type === EntityType.MISSILE) {
       const angle = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
@@ -531,27 +929,6 @@ export class PixiGameRenderer {
   private drawPlayerRig(view: EntityView, entity: Entity, engine: GameEngine) {
     view.trail.clear();
     view.aura.clear();
-    const speedLevel = clamp(Math.floor(engine.stats.upgrades.speed || 0), 0, PLAYER_THRUSTER_COLORS.length - 1);
-    const [core, edge] = PLAYER_THRUSTER_COLORS[speedLevel];
-    const movement = Math.hypot(engine.playerVel.x, engine.playerVel.y);
-    const cinematic = engine.introFlightFrames > 0 || engine.waveDepartureFrames > 0;
-    const length = entity.height * (0.24 + Math.min(1, movement / 7) * 0.16 + speedLevel * 0.015) * (cinematic ? 1.45 : 1);
-    const nozzleY = entity.height * 0.3;
-    const spread = entity.width * 0.16;
-    const flicker = 0.82 + Math.sin(engine.frameCount * 0.6) * 0.14;
-
-    for (const side of [-1, 1]) {
-      const x = side * spread;
-      view.trail.moveTo(x - entity.width * 0.042, nozzleY)
-        .lineTo(x + entity.width * 0.042, nozzleY)
-        .lineTo(x + entity.width * 0.018, nozzleY + length * flicker)
-        .lineTo(x - entity.width * 0.018, nozzleY + length * flicker)
-        .closePath();
-      view.trail.fill({ color: edge, alpha: 0.78 });
-      view.trail.roundRect(x - entity.width * 0.014, nozzleY, entity.width * 0.028, length * 0.72, entity.width * 0.014)
-        .fill({ color: core, alpha: 0.98 });
-      view.trail.circle(x, nozzleY + length * 0.72, Math.max(2, entity.width * 0.024)).fill({ color: '#ffffff', alpha: 0.96 });
-    }
 
     const shielded = engine.activePowerups.has(PowerupType.SHIELD) || engine.invincibleTimer > 60;
     const magnetized = engine.activePowerups.has(PowerupType.MAGNET);
@@ -570,10 +947,305 @@ export class PixiGameRenderer {
       view.aura.circle(0, 0, entity.width * 0.68).stroke({ color: '#c084fc', width: 3, alpha: 0.72 });
     }
 
-    view.root.rotation = engine.playerTilt;
-    const squash = clamp(engine.playerSquash, -0.24, 0.24);
-    view.root.scale.set(engine.playerDrawScale * (1 + squash * 0.5), engine.playerDrawScale * (1 - squash * 0.38));
+    // Banking is represented by complete redrawn frames. Keep the world rig
+    // upright and uniformly scaled so presentation never moves the hitbox.
+    view.root.rotation = 0;
+    const visualScale = engine.playerDrawScale * 0.95;
+    view.root.scale.set(visualScale);
     view.root.alpha = engine.playerDrawAlpha;
+  }
+
+  private updatePlayerSteeringPresentation(engine: GameEngine, deltaMs: number) {
+    const motion = getPlayerShipMotionByAssetUrl(engine.playerShipUrl);
+    if (!motion) {
+      this.playerSteeringVisual = 0;
+      this.playerSteeringState = 'neutral';
+      this.playerSteeringTextureKey = engine.playerShipUrl;
+      this.playerSteeringSweepOriginX = null;
+      this.playerSteeringSweepDirection = 0;
+      this.playerSteeringShipUrl = null;
+      return;
+    }
+
+    const playerCenterX = engine.player.x + engine.player.width / 2;
+    if (this.playerSteeringShipUrl !== engine.playerShipUrl) {
+      this.playerSteeringVisual = 0;
+      this.playerSteeringSweepOriginX = playerCenterX;
+      this.playerSteeringSweepDirection = 0;
+      this.playerSteeringShipUrl = engine.playerShipUrl;
+    }
+
+    const speedLevel = Math.min(engine.stats.upgrades.speed || 0, 6);
+    const maxHorizontalSpeed = GAME_CONFIG.BASE_PLAYER_SPEED
+      + (Math.min(speedLevel, 5) * 1.5)
+      + (speedLevel >= 6 ? 3 : 0);
+    const presentationSpeed = maxHorizontalSpeed
+      * (engine.touchPos ? PLAYER_SHIP_TOUCH_SPEED_SCALE : 1);
+    const normalizedHorizontal = applyPlayerSteeringDeadzone(
+      engine.playerVel.x / Math.max(1, presentationSpeed)
+    );
+    const steeringDirection: -1 | 0 | 1 = normalizedHorizontal < 0
+      ? -1
+      : normalizedHorizontal > 0
+        ? 1
+        : 0;
+    if (steeringDirection !== 0 && steeringDirection !== this.playerSteeringSweepDirection) {
+      this.playerSteeringSweepOriginX = playerCenterX;
+      this.playerSteeringSweepDirection = steeringDirection;
+    } else if (steeringDirection === 0 && Math.abs(this.playerSteeringVisual) < 0.05) {
+      this.playerSteeringSweepOriginX = playerCenterX;
+      this.playerSteeringSweepDirection = 0;
+    }
+
+    const playableWidth = Math.max(1, engine.width - engine.player.width);
+    const signedSweep = this.playerSteeringSweepOriginX === null
+      ? 0
+      : (playerCenterX - this.playerSteeringSweepOriginX) * this.playerSteeringSweepDirection;
+    const hardBankEligible = Math.max(0, signedSweep) / playableWidth
+      >= PLAYER_SHIP_HARD_BANK_SWEEP_RATIO;
+    const steeringBlendMs = getPlayerSteeringBlendMs(speedLevel);
+    const blend = 1 - Math.exp(-Math.max(0, deltaMs) / steeringBlendMs);
+    this.playerSteeringVisual += (normalizedHorizontal - this.playerSteeringVisual) * blend;
+    if (normalizedHorizontal === 0 && Math.abs(this.playerSteeringVisual) < 0.01) {
+      this.playerSteeringVisual = 0;
+    }
+
+    const state = selectPlayerSteeringState(this.playerSteeringVisual, hardBankEligible);
+    this.playerSteeringState = state;
+    this.playerSteeringTextureKey = motion.steeringFrames[state];
+  }
+
+  private getBossComponentVisualScale(entity: Entity, component: BossComponentState) {
+    const isCannon = component.id === 'left-cannon' || component.id === 'right-cannon';
+    if (!isCannon) return 1;
+    return entity.bossRigId === 'crown-claw' ? CROWNCLAW_ARM_SCALE : BOSS_CANNON_SCALE;
+  }
+
+  private drawBossComponentHealthBar(
+    graphics: Graphics,
+    entity: Entity,
+    component: BossComponentState,
+    visualScale: number
+  ) {
+    if (component.destroyed) return;
+    const visualWidth = entity.width * component.widthRatio * visualScale;
+    const visualHeight = entity.height * component.heightRatio * visualScale;
+    const width = clamp(visualWidth * 0.52, 28, 58);
+    const x = (component.centerXRatio - 0.5) * entity.width - width / 2;
+    const y = (component.centerYRatio - 0.5) * entity.height - visualHeight / 2 - 8;
+    const progress = clamp(component.hp / Math.max(1, component.maxHp), 0, 1);
+    const fill = component.id === 'helmet'
+      ? progress > 0.45 ? '#fef08a' : '#fb7185'
+      : progress > 0.55 ? '#67e8f9' : progress > 0.25 ? '#facc15' : '#fb7185';
+
+    graphics.roundRect(x, y, width, 5, 2.5).fill({ color: '#020617', alpha: 0.94 });
+    graphics.roundRect(x + 1, y + 1, Math.max(0, (width - 2) * progress), 3, 1.5)
+      .fill({ color: fill, alpha: 0.96 });
+    graphics.roundRect(x, y, width, 5, 2.5).stroke({ color: '#dbeafe', width: 0.75, alpha: 0.72 });
+  }
+
+  private drawCrownClawComponents(view: EntityView, entity: Entity, engine: GameEngine) {
+    const rig = view.bossRig;
+    if (!rig) return;
+    const crown = rig.crownClaw;
+    const bob = Math.sin(engine.frameCount * 0.04) * 5;
+    const bodyTexture = this.textureBank.get(ASSETS.PIXI_BOSS_CROWNCLAW_CORE);
+    crown.root.visible = true;
+    crown.root.position.set(0, bob);
+    crown.root.scale.set(entity.width / 1024);
+    crown.body.visible = Boolean(bodyTexture);
+    if (bodyTexture) crown.body.texture = bodyTexture;
+    view.sprite.visible = !bodyTexture;
+
+    const gait = engine.frameCount * 0.075;
+    for (const [key, leg] of Object.entries(crown.legs) as [CrownClawLegId, Sprite][]) {
+      const layout = CROWNCLAW_LEG_LAYOUT[key];
+      const texture = this.textureBank.get(ASSETS.PIXI_BOSS_CROWNCLAW_LEGS[key]);
+      leg.visible = Boolean(texture);
+      if (texture) leg.texture = texture;
+      const stride = Math.sin(gait + layout.phase) * 0.085;
+      const tier = key.startsWith('front') ? 1 : key.startsWith('middle') ? 0.78 : 0.58;
+      leg.rotation = layout.direction * (0.02 + stride * tier);
+    }
+
+    const previousState = this.seenBossComponents.get(entity.id);
+    const nextState: Partial<Record<BossPartId, boolean>> = {};
+    const componentById = new Map((entity.bossComponents ?? []).map((component) => [component.id, component]));
+    for (const side of ['left', 'right'] as const) {
+      const componentId: BossPartId = side === 'left' ? 'left-cannon' : 'right-cannon';
+      const component = componentById.get(componentId);
+      const destroyed = component?.destroyed ?? true;
+      nextState[componentId] = destroyed;
+      const gunTexture = this.textureBank.get(
+        side === 'left' ? ASSETS.PIXI_BOSS_CROWNCLAW_GUN_LEFT : ASSETS.PIXI_BOSS_CROWNCLAW_GUN_RIGHT
+      );
+      const clawTexture = this.textureBank.get(
+        side === 'left' ? ASSETS.PIXI_BOSS_CROWNCLAW_CLAW_LEFT : ASSETS.PIXI_BOSS_CROWNCLAW_CLAW_RIGHT
+      );
+      const active = !destroyed;
+      const strikeInFlight = engine.entities.some((candidate) => (
+        !candidate.markedForDeletion
+        && candidate.bossOwnerId === entity.id
+        && candidate.bossComponentId === componentId
+        && (candidate.projectileVisualKind === 'crown-claw-left' || candidate.projectileVisualKind === 'crown-claw-right')
+      ));
+      crown.guns[side].visible = Boolean(active && gunTexture);
+      crown.claws[side].visible = Boolean(active && clawTexture && !strikeInFlight);
+      const componentFilters = (component?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : null;
+      crown.guns[side].filters = componentFilters;
+      crown.claws[side].filters = componentFilters;
+      if (gunTexture) crown.guns[side].texture = gunTexture;
+      if (clawTexture) crown.claws[side].texture = clawTexture;
+
+      const attacking = entity.isCharging && entity.beamLaneSign === (side === 'left' ? -1 : 1);
+      const weaponSwing = Math.sin(engine.frameCount * 0.055 + (side === 'left' ? 0 : Math.PI)) * 0.035;
+      crown.guns[side].rotation = weaponSwing;
+      crown.claws[side].rotation = weaponSwing + (attacking ? Math.sin(engine.frameCount * 0.42) * 0.055 : 0);
+      const layout = CROWNCLAW_WEAPON_LAYOUT[side];
+      crown.guns[side].position.set(layout.x, layout.y);
+      crown.claws[side].position.set(layout.x, layout.y + (attacking ? 15 + Math.sin(engine.frameCount * 0.32) * 9 : 0));
+      crown.guns[side].scale.set(CROWNCLAW_ARM_SCALE);
+      crown.claws[side].scale.set(CROWNCLAW_ARM_SCALE);
+
+      if (component) this.drawBossComponentHealthBar(rig.componentHealth, entity, component, CROWNCLAW_ARM_SCALE);
+
+      if (component && previousState && !previousState[componentId] && destroyed) {
+        const explosionX = entity.x + entity.width * component.centerXRatio;
+        const explosionY = entity.y + entity.height * component.centerYRatio + bob;
+        this.effectPool.spawnBossExplosion(explosionX, explosionY, Math.max(70, entity.width * 0.32), 1.45);
+        if (clawTexture) {
+          this.effectPool.spawnDetachedSprite(
+            clawTexture,
+            explosionX,
+            explosionY,
+            entity.width * component.widthRatio * CROWNCLAW_ARM_SCALE,
+            entity.height * component.heightRatio * CROWNCLAW_ARM_SCALE,
+            side === 'left' ? -1 : 1
+          );
+        }
+        this.phaseText.text = `${component.label} SEVERED`;
+        this.phaseText.style.fill = '#fb923c';
+        this.phaseTextUntilFrame = engine.frameCount + 88;
+      }
+    }
+    this.seenBossComponents.set(entity.id, nextState);
+  }
+
+  private drawBossComponents(view: EntityView, entity: Entity, engine: GameEngine) {
+    const rig = view.bossRig;
+    if (!rig) return;
+    const components = entity.bossComponents ?? [];
+    const bob = Math.sin(engine.frameCount * 0.04) * 5;
+    rig.parts.y = bob;
+    rig.componentHealth.y = bob;
+    rig.componentHealth.clear();
+    rig.crownClaw.root.visible = false;
+    if (entity.bossRigId === 'crown-claw') {
+      rig.parts.visible = false;
+      rig.thrust.visible = false;
+      this.drawCrownClawComponents(view, entity, engine);
+      return;
+    }
+    rig.parts.visible = components.length > 0;
+    rig.thrust.visible = entity.bossRigId === 'paywall-siege';
+    if (components.length === 0) {
+      Object.values(rig.partSprites).forEach((sprite) => {
+        sprite.visible = false;
+      });
+      this.seenBossComponents.delete(entity.id);
+      return;
+    }
+
+    const weaponTextures: Partial<Record<BossRigId, Partial<Record<BossPartId, string>>>> = {
+      'open-orbit': {
+        'left-cannon': ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_LEFT,
+        'right-cannon': ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_RIGHT
+      },
+      'citation-storm': {
+        'left-cannon': ASSETS.PIXI_BOSS_CITATION_CLAW_LEFT,
+        'right-cannon': ASSETS.PIXI_BOSS_CITATION_CLAW_RIGHT
+      },
+      'paywall-siege': {
+        'left-cannon': ASSETS.PIXI_BOSS_PAYWALL_CANNON_LEFT,
+        'right-cannon': ASSETS.PIXI_BOSS_PAYWALL_CANNON_RIGHT,
+        helmet: ASSETS.PIXI_BOSS_PAYWALL_HELMET
+      }
+    };
+    const partTextures = entity.bossRigId ? weaponTextures[entity.bossRigId] ?? {} : {};
+    const previousState = this.seenBossComponents.get(entity.id);
+    const nextState: Partial<Record<BossPartId, boolean>> = {};
+    for (const component of components) {
+      const sprite = rig.partSprites[component.id];
+      sprite.filters = component.flashFrames > 0 ? WHITE_HIT_FILTERS : null;
+      const textureKey = partTextures[component.id];
+      const texture = textureKey ? this.textureBank.get(textureKey) : undefined;
+      const visualScale = this.getBossComponentVisualScale(entity, component);
+      nextState[component.id] = component.destroyed;
+      if (previousState && !previousState[component.id] && component.destroyed) {
+        const explosionX = entity.x + entity.width * component.centerXRatio;
+        const explosionY = entity.y + entity.height * component.centerYRatio + bob;
+        this.effectPool.spawnBossExplosion(
+          explosionX,
+          explosionY,
+          Math.max(58, entity.width * component.widthRatio * visualScale * 1.35),
+          1.3
+        );
+        if (texture) {
+          const direction = component.id === 'left-cannon' ? -1 : component.id === 'right-cannon' ? 1 : 0.65;
+          this.effectPool.spawnDetachedSprite(
+            texture,
+            explosionX,
+            explosionY,
+            entity.width * component.widthRatio * visualScale,
+            entity.height * component.heightRatio * visualScale,
+            direction
+          );
+        }
+        this.phaseText.text = component.id === 'helmet' ? 'CORE EXPOSED' : `${component.label} DESTROYED`;
+        this.phaseText.style.fill = component.id === 'helmet' ? '#fef08a' : '#fb923c';
+        this.phaseTextUntilFrame = engine.frameCount + 88;
+      }
+      sprite.visible = Boolean(texture && !component.destroyed);
+      if (!texture || component.destroyed) continue;
+      sprite.texture = texture;
+      sprite.position.set(
+        (component.centerXRatio - 0.5) * entity.width,
+        (component.centerYRatio - 0.5) * entity.height
+      );
+      sprite.width = entity.width * component.widthRatio * visualScale;
+      sprite.height = entity.height * component.heightRatio * visualScale;
+      this.drawBossComponentHealthBar(rig.componentHealth, entity, component, visualScale);
+      const movementScale = entity.bossRigId === 'citation-storm' ? 1.45 : 1;
+      sprite.rotation = component.id === 'left-cannon'
+        ? -0.04 + Math.sin(engine.frameCount * 0.05) * 0.025 * movementScale
+        : component.id === 'right-cannon'
+          ? 0.04 - Math.sin(engine.frameCount * 0.05) * 0.025 * movementScale
+          : 0;
+      if (entity.isCharging && component.id !== 'helmet') {
+        sprite.y += 3 + Math.sin(engine.frameCount * 0.3) * 2;
+      }
+    }
+    this.seenBossComponents.set(entity.id, nextState);
+
+    const thrustFrameOrder = [0, 1, 2, 1] as const;
+    const thrustFrameIndex = thrustFrameOrder[Math.floor(engine.frameCount / 4) % thrustFrameOrder.length];
+    const thrustFrame = ASSETS.PIXI_BOSS_THRUSTER_FRAMES[thrustFrameIndex];
+    const thrustTexture = this.textureBank.get(thrustFrame);
+    rig.thrust.visible = Boolean(thrustTexture);
+    if (thrustTexture) {
+      const engineSpread = entity.bossRigId === 'paywall-siege' ? 0.16 : 0.18;
+      const flameWidth = entity.width * (entity.bossRigId === 'paywall-siege' ? 0.13 : 0.15);
+      const flameHeight = entity.height * (0.2 + Math.sin(engine.frameCount * 0.22) * 0.012);
+      rig.thrust.position.set(0, entity.height * 0.34 + bob);
+      rig.thrust.alpha = 0.9;
+      rig.thrusterSprites.forEach((thruster, index) => {
+        thruster.texture = thrustTexture;
+        thruster.position.set((index === 0 ? -1 : 1) * entity.width * engineSpread, 0);
+        thruster.width = flameWidth;
+        thruster.height = flameHeight;
+      });
+    }
+
   }
 
   private drawBossRig(view: EntityView, entity: Entity, engine: GameEngine) {
@@ -581,76 +1253,34 @@ export class PixiGameRenderer {
     view.trail.clear();
     view.aura.clear();
     const progress = clamp(entity.hp / Math.max(1, entity.maxHp), 0, 1);
-    const shieldCount = engine.getBossShieldCount();
-    const pulse = 0.86 + Math.sin(engine.frameCount * 0.08) * 0.14;
     const phaseColor = progress > 0.66 ? '#67e8f9' : progress > 0.33 ? '#facc15' : '#fb7185';
-    view.aura.circle(0, entity.height * 0.06, entity.width * 0.18 * pulse).fill({ color: phaseColor, alpha: entity.isCharging ? 0.42 : 0.18 });
-    view.aura.circle(0, entity.height * 0.06, entity.width * 0.25 * pulse).stroke({ color: phaseColor, width: 2, alpha: 0.78 });
-    view.aura.ellipse(0, entity.height * 0.16, entity.width * 0.38, entity.height * 0.12)
-      .stroke({ color: phaseColor, width: 2, alpha: 0.62 });
-    if (shieldCount > 0) {
-      view.aura.ellipse(0, entity.height * 0.08, entity.width * 0.64 * pulse, entity.height * 0.38 * pulse)
-        .stroke({ color: '#a7f3d0', width: 3, alpha: 0.72 });
-      view.aura.ellipse(0, entity.height * 0.08, entity.width * 0.74, entity.height * 0.46)
-        .stroke({ color: '#67e8f9', width: 1, alpha: 0.34 });
-    }
 
-    const componentMotion = Math.sin(engine.frameCount * 0.055) * entity.width * 0.025;
-    const turretY = entity.height * 0.1;
-    for (const side of [-1, 1]) {
-      const turretX = side * (entity.width * 0.31 + componentMotion * side);
-      view.body.roundRect(turretX - entity.width * 0.07, turretY - entity.height * 0.09, entity.width * 0.14, entity.height * 0.18, 5)
-        .fill({ color: '#071827', alpha: 0.72 })
-        .stroke({ color: phaseColor, width: 1.5, alpha: 0.82 });
-      view.body.circle(turretX, turretY + entity.height * 0.015, entity.width * 0.025)
-        .fill({ color: entity.isCharging ? '#ffffff' : phaseColor, alpha: 0.92 });
-      const engineY = entity.height * 0.37;
-      const engineLength = entity.height * (0.1 + Math.abs(Math.sin(engine.frameCount * 0.22 + side)) * 0.05);
-      view.body.moveTo(turretX - entity.width * 0.025, engineY)
-        .lineTo(turretX + entity.width * 0.025, engineY)
-        .lineTo(turretX, engineY + engineLength)
-        .closePath()
-        .fill({ color: side > 0 ? '#22d3ee' : '#a78bfa', alpha: 0.8 });
-    }
-
-    if (entity.isCharging) {
-      const laneWidth = Math.max(62, entity.width * 0.38);
-      const laneTop = entity.height * 0.46;
-      const laneHeight = Math.max(0, this.height - entity.y - entity.height * 0.5 - laneTop);
-      const lanePulse = 0.18 + Math.abs(Math.sin(engine.frameCount * 0.28)) * 0.14;
-      view.trail.rect(-laneWidth * 0.58, laneTop, laneWidth * 1.16, laneHeight)
-        .fill({ color: '#fb7185', alpha: lanePulse * 0.34 });
-      view.trail.rect(-laneWidth * 0.5, laneTop, laneWidth, laneHeight)
-        .stroke({ color: '#fef08a', width: 2, alpha: 0.72 });
-      for (let markerY = laneTop + 16; markerY < laneTop + laneHeight; markerY += 34) {
-        view.trail.moveTo(-laneWidth * 0.5, markerY).lineTo(-laneWidth * 0.34, markerY + 10)
-          .stroke({ color: '#ffffff', width: 2, alpha: 0.55 });
-        view.trail.moveTo(laneWidth * 0.5, markerY).lineTo(laneWidth * 0.34, markerY + 10)
-          .stroke({ color: '#ffffff', width: 2, alpha: 0.55 });
-      }
-    }
-
-    if (progress < 0.55) {
-      const cracks = progress < 0.28 ? 7 : 4;
-      for (let index = 0; index < cracks; index++) {
-        const angle = (Math.PI * 2 * index) / cracks + 0.35;
-        const inner = entity.width * 0.11;
-        const outer = entity.width * (0.2 + (index % 2) * 0.06);
-        view.body.moveTo(Math.cos(angle) * inner, entity.height * 0.06 + Math.sin(angle) * inner)
-          .lineTo(Math.cos(angle) * outer, entity.height * 0.06 + Math.sin(angle) * outer)
-          .stroke({ color: progress < 0.28 ? '#fef08a' : '#fb7185', width: 1.5, alpha: 0.7 });
-      }
-    }
-
-    const phase = progress > 0.66 ? 0 : progress > 0.33 ? 1 : 2;
+    const decayStage = clamp(entity.bossDecayStage, 0, 5);
     const previousPhase = this.seenBossPhase.get(entity.id);
-    if (previousPhase !== undefined && phase > previousPhase) {
-      this.effectPool.spawnExplosion(entity.x + entity.width / 2, entity.y + entity.height / 2, entity.width * 0.75, phaseColor, 1.5);
-      this.phaseText.text = phase === 1 ? 'CORE ARMOR BREACHED' : 'FINAL REVIEW PROTOCOL';
+    if (previousPhase !== undefined && decayStage > previousPhase) {
+      const stageNeedsExplosion = entity.bossRigId !== 'paywall-siege' || decayStage >= 3;
+      if (stageNeedsExplosion) {
+        const side = decayStage % 2 === 0 ? 0.22 : -0.22;
+        this.effectPool.spawnBossExplosion(
+          entity.x + entity.width * (0.5 + side),
+          entity.y + entity.height * (0.38 + decayStage * 0.08),
+          entity.width * (decayStage >= 4 ? 0.74 : 0.46),
+          decayStage >= 4 ? 1.8 : 1.1
+        );
+      }
+      this.phaseText.text = decayStage >= 5
+        ? 'CRITICAL CORE FAILURE'
+        : decayStage >= 4
+          ? 'CORE CASING RUPTURED'
+        : decayStage >= 3
+          ? 'HULL BREACH'
+          : decayStage >= 2
+            ? 'CORE ARMOR BREACHED'
+            : 'ARMOR FRACTURE';
       this.phaseText.style.fill = phaseColor;
       this.phaseTextUntilFrame = engine.frameCount + 96;
     }
-    this.seenBossPhase.set(entity.id, phase);
+    this.seenBossPhase.set(entity.id, decayStage);
     if (progress < 0.52 && engine.frameCount % (engine.performanceMode ? 48 : 30) === 0) {
       this.effectPool.spawn('smoke', entity.x + entity.width * (0.25 + Math.random() * 0.5), entity.y + entity.height * (0.35 + Math.random() * 0.4), entity.width * 0.18, '#475569', 800);
       this.effectPool.spawn('spark', entity.x + entity.width * Math.random(), entity.y + entity.height * Math.random(), Math.max(3, entity.width * 0.035), phaseColor, 380);
@@ -739,7 +1369,7 @@ export class PixiGameRenderer {
         const x = snapshot.x + snapshot.width / 2 + side * snapshot.width * (0.18 + stage * 0.035);
         const y = snapshot.y + snapshot.height * (0.3 + (stage % 3) * 0.18);
         const finalStage = stage === stages.length - 1;
-        this.effectPool.spawnExplosion(x, y, finalStage ? snapshot.width * 1.45 : snapshot.width * 0.42, finalStage ? '#ffffff' : stage > 2 ? '#fb7185' : '#67e8f9', finalStage ? 2.8 : 1.2);
+        this.effectPool.spawnBossExplosion(x, y, finalStage ? snapshot.width * 1.45 : snapshot.width * 0.42, finalStage ? 2.8 : 1.2);
         this.bossDeathStage = stage;
       }
     }
@@ -756,6 +1386,16 @@ export class PixiGameRenderer {
 
   private drawFlash(view: EntityView, entity: Entity) {
     view.flash.clear();
+    const filters = entity.flashFrames > 0 ? WHITE_HIT_FILTERS : null;
+    if (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS) {
+      view.sprite.filters = filters;
+      view.body.filters = filters;
+      if (view.bossRig) {
+        view.bossRig.parts.filters = filters;
+        view.bossRig.crownClaw.root.filters = filters;
+      }
+      return;
+    }
     if (entity.flashFrames <= 0) return;
     const alpha = clamp(entity.flashFrames / 10, 0.15, 0.74);
     if (entity.type === EntityType.ENEMY_BRICK) {
@@ -803,7 +1443,9 @@ export class PixiGameRenderer {
         alpha: clamp(entity.life / Math.max(1, entity.maxLife), 0, 1)
       });
     } else {
-      const textureKey = getDefaultEntityTexture(engine, entity);
+      const textureKey = entity.type === EntityType.PLAYER
+        ? this.playerSteeringTextureKey ?? engine.playerShipUrl
+        : getDefaultEntityTexture(engine, entity);
       this.setTexture(view, textureKey);
       const styleScale = entity.spriteStyle?.scale ?? 1;
       view.sprite.width = entity.width * styleScale;
@@ -816,7 +1458,14 @@ export class PixiGameRenderer {
     if (entity.type === EntityType.PLAYER) {
       this.drawPlayerRig(view, entity, engine);
     } else if (entity.type === EntityType.BOSS) {
+      const bossComponents = entity.bossComponents ?? [];
+      const leftDestroyed = bossComponents.find((component) => component.id === 'left-cannon')?.destroyed ?? false;
+      const rightDestroyed = bossComponents.find((component) => component.id === 'right-cannon')?.destroyed ?? false;
+      if ((entity.bossRigId === 'open-orbit' || entity.bossRigId === 'citation-storm') && rightDestroyed && !leftDestroyed) {
+        view.sprite.scale.x = -Math.abs(view.sprite.scale.x);
+      }
       view.sprite.y = Math.sin(engine.frameCount * 0.04) * 5;
+      this.drawBossComponents(view, entity, engine);
       this.drawBossRig(view, entity, engine);
     } else if (entity.type === EntityType.MINI_BOSS) {
       view.sprite.y = Math.sin(engine.frameCount * 0.08) * 4;
@@ -848,14 +1497,28 @@ export class PixiGameRenderer {
       view.aura.circle(0, 0, entity.width * 0.52).stroke({ color: '#ffffff', width: 2, alpha: 0.74 });
     }
 
-    if (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS || entity.type === EntityType.ENEMY_INVADER) {
+    if (entity.isElite && isEnemyType(entity.type)) {
+      const pulse = 0.74 + Math.sin((engine.frameCount + entity.variant) * 0.09) * 0.16;
+      view.aura.ellipse(0, 0, entity.width * 0.58, entity.height * 0.52)
+        .stroke({ color: '#c4b5fd', width: 2, alpha: pulse });
+    }
+
+    if (entity.type === EntityType.MINI_BOSS || entity.isElite) {
       this.drawHealthBar(view, entity);
+    } else if (entity.type === EntityType.BOSS) {
+      view.health.clear();
+      view.label.text = '';
     }
     if (entity.flashFrames > 0 || view.lastFlashFrames > 0) {
       this.drawFlash(view, entity);
     }
 
     if (entity.flashFrames > view.lastFlashFrames + 2) {
+      this.effectPool.spawnImpact(
+        entity.x + entity.width / 2,
+        entity.y + entity.height / 2,
+        Math.max(14, Math.min(34, entity.width * 0.34))
+      );
       this.effectPool.spawn('ring', entity.x + entity.width / 2, entity.y + entity.height / 2, Math.max(18, entity.width * 0.6), '#ffffff', 180);
       this.effectPool.spawn('spark', entity.x + entity.width / 2, entity.y + entity.height / 2, Math.max(2, entity.width * 0.04), entity.color || '#ffffff', 220);
     }
@@ -894,42 +1557,23 @@ export class PixiGameRenderer {
       if (id.startsWith('__') || view.seenFrame === this.renderFrame) continue;
       if (isEnemyType(view.type) && view.lastHp <= 0 && view.root.y > -80 && view.root.y < this.height + 80) {
         const size = view.type === EntityType.BOSS ? 180 : view.type === EntityType.MINI_BOSS ? 110 : 46;
-        this.effectPool.spawnExplosion(view.root.x, view.root.y, size, view.type === EntityType.BOSS ? '#fef08a' : '#67e8f9', view.type === EntityType.BOSS ? 2.2 : 0.85);
+        if (view.type === EntityType.BOSS) this.effectPool.spawnBossExplosion(view.root.x, view.root.y, size, 2.2);
+        else if (view.type === EntityType.MINI_BOSS) this.effectPool.spawnExplosion(view.root.x, view.root.y, size, '#67e8f9', 0.85);
+        else this.effectPool.spawnEnemyExplosion(view.root.x, view.root.y, size, '#67e8f9');
       }
       this.views.delete(id);
       this.seenBossPhase.delete(id);
+      this.seenBossComponents.delete(id);
       this.releaseEntityView(view);
     }
   }
 
   private syncGunPods(engine: GameEngine) {
-    const key = '__gun-pods__';
-    let view = this.views.get(key);
     const offsets = engine.getGunPodOffsets();
     if (offsets.length === 0 || engine.lives <= 0) {
-      if (view) view.root.visible = false;
+      this.gunPodRoot.visible = false;
       return;
     }
-    if (!view) {
-      const dummy = new Entity(EntityType.PLAYER, 0, 0);
-      view = this.createEntityView(dummy);
-      view.id = key;
-      view.type = EntityType.PLAYER;
-      view.sprite.visible = false;
-      this.views.set(key, view);
-    }
-    view.seenFrame = this.renderFrame;
-    view.root.visible = true;
-    view.root.position.set(0, 0);
-    view.root.rotation = 0;
-    view.root.scale.set(1);
-    view.root.alpha = engine.playerDrawAlpha;
-    view.body.clear();
-    view.aura.clear();
-    view.trail.clear();
-    view.flash.clear();
-    view.health.clear();
-    view.label.text = '';
 
     const centerX = engine.player.x + engine.player.width / 2;
     const centerY = engine.player.y + engine.player.height / 2;
@@ -938,17 +1582,144 @@ export class PixiGameRenderer {
       ? engine.activePowerups.get(PowerupType.TRIPLE_SHOT) || 0
       : engine.activePowerups.get(PowerupType.DOUBLE_SHOT) || 0;
     const fade = clamp(remaining / 36, 0, 1);
-    const color = triple ? '#a78bfa' : '#facc15';
-    for (const offset of offsets) {
-      const x = centerX + offset;
-      const y = centerY + 10 + Math.sin(engine.frameCount * 0.08 + offset) * 4;
-      view.body.roundRect(x - 15, y - 11, 30, 22, 5).fill('#0f172a').stroke({ color, width: 1.5, alpha: fade });
-      view.body.rect(x - 4, y - 22, 8, 17).fill('#cbd5e1');
-      view.body.rect(x - 2, y - 22, 4, 15).fill(color);
-      view.body.circle(x, y, 4).fill('#ecfeff');
-      view.trail.roundRect(x - 2, y + 9, 4, 16 + Math.sin(engine.frameCount * 0.5 + offset) * 3, 2)
-        .fill({ color: '#22d3ee', alpha: 0.8 * fade });
+    const texture = this.textureBank.get(triple ? ASSETS.PIXI_ESCORT_TRIPLE : ASSETS.PIXI_ESCORT_DOUBLE);
+    this.gunPodRoot.visible = Boolean(texture);
+    this.gunPodRoot.alpha = engine.playerDrawAlpha * fade;
+    for (let index = 0; index < this.gunPodSprites.length; index++) {
+      const pod = this.gunPodSprites[index];
+      const offset = offsets[index];
+      pod.visible = Boolean(texture && offset !== undefined);
+      if (!pod.visible || !texture || offset === undefined) continue;
+      pod.texture = texture;
+      pod.width = triple ? engine.player.width * 0.33 : engine.player.width * 0.4;
+      pod.height = triple ? engine.player.height * 0.33 : engine.player.height * 0.4;
+      pod.position.set(
+        centerX + offset,
+        centerY + 8 + Math.sin(engine.frameCount * 0.08 + offset) * 4
+      );
+      pod.rotation = Math.sin(engine.frameCount * 0.045 + offset) * 0.035;
     }
+  }
+
+  private syncPlayerThrusters(engine: GameEngine) {
+    const frameCount = ASSETS.PIXI_THRUSTER_FRAMES.length;
+    const speedLevel = clamp(Math.floor(engine.stats.upgrades.speed || 0), 0, PLAYER_THRUSTER_COLORS.length - 1);
+    const frameDelay = Math.max(2, 7 - speedLevel);
+    const texture = this.textureBank.get(ASSETS.PIXI_THRUSTER_FRAMES[Math.floor(engine.frameCount / frameDelay) % frameCount]);
+    const visible = Boolean(texture && engine.lives > 0 && engine.playerDrawAlpha > 0.02);
+    this.playerThrusterRoot.visible = visible;
+    if (!visible || !texture) return;
+
+    const [, edge] = PLAYER_THRUSTER_COLORS[speedLevel];
+    const movement = Math.min(1, Math.hypot(engine.playerVel.x, engine.playerVel.y) / 7);
+    const cinematic = engine.introFlightFrames > 0 || engine.waveDepartureFrames > 0;
+    const sizeBoost = (1 + speedLevel * 0.115 + movement * 0.2) * (cinematic ? 1.28 : 1);
+    const centerX = engine.player.x + engine.player.width / 2;
+    const centerY = engine.player.y + engine.player.height / 2;
+    this.playerThrusterRoot.position.set(centerX, centerY);
+    this.playerThrusterRoot.rotation = 0;
+    this.playerThrusterRoot.scale.set(engine.playerDrawScale * 0.95);
+    this.playerThrusterRoot.alpha = engine.playerDrawAlpha;
+
+    const hardBank = this.playerSteeringState === 'hard-left' || this.playerSteeringState === 'hard-right';
+    for (let index = 0; index < this.playerThrusters.length; index++) {
+      const thruster = this.playerThrusters[index];
+      thruster.visible = !hardBank || index === 0;
+      if (!thruster.visible) continue;
+      thruster.texture = texture;
+      thruster.tint = edge;
+      thruster.position.set(
+        hardBank ? 0 : (index === 0 ? -1 : 1) * engine.player.width * 0.16,
+        engine.player.height * (hardBank ? 0.34 : 0.3)
+      );
+      thruster.width = engine.player.height * 0.31 * sizeBoost;
+      thruster.height = engine.player.width * (0.12 + speedLevel * 0.005);
+    }
+  }
+
+  private syncBioPrimaryBeam(engine: GameEngine) {
+    const active = engine.isBioBeamFiring();
+    this.bioBeamRoot.visible = active;
+    this.bioBeamAura.clear();
+    this.bioBeamCore.clear();
+    if (!active) return;
+
+    const level = Math.min(engine.stats.upgrades.fireRate || 0, 7);
+    const color = level > 0 ? '#38bdf8' : '#65f59a';
+    const centerX = engine.player.x + engine.player.width / 2;
+    const endY = Math.max(0, engine.player.y + engine.player.height * 0.2);
+    const width = 5 + level * 1.55;
+    const pulse = 0.82 + Math.sin(engine.frameCount * 0.42) * 0.18;
+    this.bioBeamAura.rect(centerX - width * 1.8, 0, width * 3.6, endY)
+      .fill({ color, alpha: 0.15 * pulse });
+    this.bioBeamAura.rect(centerX - width * 0.72, 0, width * 1.44, endY)
+      .fill({ color, alpha: 0.62 });
+    this.bioBeamCore.rect(centerX - Math.max(1.5, width * 0.2), 0, Math.max(3, width * 0.4), endY)
+      .fill({ color: '#ffffff', alpha: 0.96 });
+  }
+
+  private syncWallHealth(engine: GameEngine) {
+    const segments = engine.entities.filter((entity) => entity.type === EntityType.ENEMY_INVADER && !entity.markedForDeletion);
+    this.wallHealthRoot.visible = segments.length > 0;
+    this.wallHealthBar.clear();
+    this.wallHealthLabel.text = '';
+    if (segments.length === 0) return;
+
+    const totalHp = segments.reduce((sum, segment) => sum + Math.max(0, segment.hp), 0);
+    const totalMaxHp = segments.reduce((sum, segment) => sum + Math.max(1, segment.maxHp), 0);
+    const progress = clamp(totalHp / Math.max(1, totalMaxHp), 0, 1);
+    const left = Math.min(...segments.map((segment) => segment.x));
+    const right = Math.max(...segments.map((segment) => segment.x + segment.width));
+    const top = Math.min(...segments.map((segment) => segment.y));
+    const width = clamp(right - left, 150, this.width * 0.74);
+    this.wallHealthRoot.position.set((left + right) / 2, Math.max(76, top - 14));
+    this.wallHealthBar.roundRect(-width / 2, 0, width, 9, 4).fill({ color: '#020617', alpha: 0.94 });
+    this.wallHealthBar.roundRect(-width / 2 + 1, 1, Math.max(0, (width - 2) * progress), 7, 3)
+      .fill(progress > 0.5 ? '#34d399' : progress > 0.22 ? '#facc15' : '#fb7185');
+    this.wallHealthBar.roundRect(-width / 2, 0, width, 9, 4).stroke({ color: '#bae6fd', width: 1, alpha: 0.8 });
+    this.wallHealthLabel.text = `PAYWALL INTEGRITY ${Math.ceil(progress * 100)}%`;
+    this.wallHealthLabel.position.set(0, -9);
+  }
+
+  private syncBossHealthHud(engine: GameEngine) {
+    const boss = engine.entities.find((entity) => (
+      entity.type === EntityType.BOSS && !entity.markedForDeletion
+    ));
+    this.bossHealthRoot.visible = Boolean(boss);
+    this.bossHealthBar.clear();
+    this.bossHealthName.text = '';
+    this.bossHealthPercent.text = '';
+    if (!boss) return;
+
+    const frameWidth = clamp(this.width * 0.76, 246, 342);
+    const frameHeight = frameWidth * (96 / 512);
+    const progress = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
+    const eventId = boss.sourceEventId ?? '';
+    const name = eventId.includes('citation')
+      ? 'REVIEW SENTINEL'
+      : boss.bossRigId === 'crown-claw'
+        ? 'ASTRAL CROWNCLAW'
+        : boss.bossRigId === 'paywall-siege'
+          ? 'PEER REVIEW DECIMATOR'
+          : 'GATEKEEPER SENTINEL';
+    const barWidth = frameWidth * 0.7;
+    const barY = frameHeight * 0.17;
+    const fillColor = progress > 0.55 ? '#34d399' : progress > 0.25 ? '#facc15' : '#fb7185';
+
+    this.bossHealthRoot.position.set(this.width / 2, this.width < 520 ? 78 : 82);
+    this.bossHealthFrame.width = frameWidth;
+    this.bossHealthFrame.height = frameHeight;
+    this.bossHealthFrame.alpha = 0.96;
+    this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, 9, 4)
+      .fill({ color: '#020617', alpha: 0.96 });
+    this.bossHealthBar.roundRect(-barWidth / 2 + 1, barY + 1, Math.max(0, (barWidth - 2) * progress), 7, 3)
+      .fill(fillColor);
+    this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, 9, 4)
+      .stroke({ color: '#bae6fd', width: 1, alpha: 0.78 });
+    this.bossHealthName.text = name;
+    this.bossHealthName.position.set(-frameWidth * 0.09, -frameHeight * 0.12);
+    this.bossHealthPercent.text = `${Math.ceil(progress * 100)}%`;
+    this.bossHealthPercent.position.set(frameWidth * 0.31, -frameHeight * 0.12);
   }
 
   private syncPlayerAfterimages(engine: GameEngine) {
@@ -960,7 +1731,7 @@ export class PixiGameRenderer {
       root = new Container({ label: 'player-afterimages' });
       this.layers.player.addChildAt(root, 0);
     }
-    const texture = this.textureBank.get(engine.playerShipUrl);
+    const texture = this.textureBank.get(this.playerSteeringTextureKey ?? engine.playerShipUrl);
     const desired = engine.performanceMode ? Math.min(2, engine.playerAfterimages.length) : engine.playerAfterimages.length;
     while (root.children.length < desired) {
       const sprite = new Sprite(Texture.WHITE);
@@ -976,7 +1747,7 @@ export class PixiGameRenderer {
       sprite.position.set(afterimage.x + afterimage.width / 2, afterimage.y + afterimage.height / 2);
       sprite.width = afterimage.width;
       sprite.height = afterimage.height;
-      sprite.rotation = afterimage.rotation;
+      sprite.rotation = 0;
       sprite.alpha = afterimage.alpha * 0.65;
       sprite.tint = '#67e8f9';
     }
@@ -1022,31 +1793,66 @@ export class PixiGameRenderer {
     const active = engine.inBossWarningSequence;
     this.warningShade.visible = active;
     this.warningFrame.visible = active;
-    this.warningText.visible = active;
-    this.warningSubtext.visible = active;
+    this.warningRoot.visible = active;
     if (!active) return;
 
     const elapsed = engine.bossWarningDuration - engine.bossWarningFrame;
-    const pulse = 0.42 + Math.abs(Math.sin(elapsed * 0.18)) * 0.32;
+    const pulseWave = (Math.sin(elapsed * 0.24) + 1) * 0.5;
+    const pulse = 0.58 + pulseWave * 0.42;
     const mainBoss = engine.pendingBossType === 'gatekeeper';
-    const title = mainBoss ? 'GATEKEEPER SIGNAL' : engine.pendingBossType === 'wall' ? 'PAYWALL BREACH' : 'BOTTLENECK DETECTED';
-    const subtitle = mainBoss ? 'PEER REVIEW SENTINEL ENTERING THE SECTOR' : 'HOSTILE RESEARCH INTERFERENCE INBOUND';
+    const title = mainBoss ? 'BOSS INCOMING' : 'THREAT INCOMING';
+    const subtitle = mainBoss
+      ? 'GATEKEEPER SENTINEL'
+      : engine.pendingBossType === 'wall'
+        ? 'PAYWALL BASTION'
+        : 'BOTTLENECK HARVESTER';
+    const entryProgress = clamp(elapsed / 24, 0, 1);
+    const exitProgress = clamp(engine.bossWarningFrame / 16, 0, 1);
+    const deployProgress = Math.min(entryProgress, exitProgress);
+    const easedDeploy = 1 - Math.pow(1 - deployProgress, 3);
+    const bannerBaseScale = Math.min((this.width * 0.98) / 1024, 0.78);
+    const bannerScale = bannerBaseScale * (0.86 + easedDeploy * 0.14);
+    const centerY = this.height * (this.height > this.width * 1.3 ? 0.39 : 0.43);
 
-    this.warningShade.clear().rect(0, 0, this.width, this.height).fill({ color: '#7f1d1d', alpha: pulse * 0.18 });
+    this.warningShade.clear().rect(0, 0, this.width, this.height).fill({ color: '#7f1d1d', alpha: pulse * 0.14 });
     this.warningFrame.clear();
-    this.warningFrame.rect(8, 8, this.width - 16, this.height - 16).stroke({ color: '#fb7185', width: 4, alpha: pulse });
-    this.warningFrame.rect(18, 18, this.width - 36, this.height - 36).stroke({ color: '#fef08a', width: 1, alpha: pulse * 0.75 });
-    for (let y = 0; y < this.height; y += 48) {
-      this.warningFrame.moveTo(0, y).lineTo(20, y - 20).stroke({ color: '#fb7185', width: 7, alpha: pulse * 0.62 });
-      this.warningFrame.moveTo(this.width, y).lineTo(this.width - 20, y - 20).stroke({ color: '#fb7185', width: 7, alpha: pulse * 0.62 });
+    this.warningFrame.rect(0, 0, this.width, 5).fill({ color: '#fb3847', alpha: pulse * 0.9 });
+    this.warningFrame.rect(0, this.height - 5, this.width, 5).fill({ color: '#fb3847', alpha: pulse * 0.9 });
+    for (let x = -20; x < this.width + 20; x += 42) {
+      this.warningFrame.poly([x, 0, x + 16, 0, x + 7, 12]).fill({ color: '#fef08a', alpha: pulse * 0.72 });
+      this.warningFrame.poly([x, this.height, x + 16, this.height, x + 7, this.height - 12]).fill({ color: '#fef08a', alpha: pulse * 0.72 });
     }
+
+    this.warningBanner.texture = this.textureBank.get(
+      mainBoss ? ASSETS.PIXI_BOSS_ALERT_FRAME : ASSETS.PIXI_MINI_BOSS_ALERT_FRAME
+    ) ?? Texture.WHITE;
+    this.warningRoot.position.set(this.width / 2, centerY - (1 - easedDeploy) * 46);
+    this.warningRoot.scale.set(bannerScale);
+    this.warningRoot.alpha = clamp(deployProgress * 1.35, 0, 1);
+    this.warningBanner.alpha = 0.96;
+
+    this.warningScan.position.set(-280 + ((elapsed * 18) % 560), -2);
+    this.warningScan.width = 420;
+    this.warningScan.height = 24;
+    this.warningScan.alpha = 0.25 + pulseWave * 0.35;
+
+    this.warningRing.position.set(0, 100);
+    this.warningRing.scale.set(1.18 + pulseWave * 0.14);
+    this.warningRing.rotation = elapsed * 0.025;
+    this.warningRing.alpha = 0.62 + pulseWave * 0.28;
+
+    this.warningCrystal.position.set(0, 100);
+    this.warningCrystal.scale.set(0.52 + pulseWave * 0.035);
+    this.warningCrystal.alpha = 0.9;
+
     this.warningText.text = title;
-    this.warningText.style.fontSize = this.width < 520 ? 24 : 34;
-    this.warningText.position.set(this.width / 2, this.height * 0.34);
-    this.warningText.alpha = pulse + 0.2;
+    this.warningText.style.fontSize = this.width < 520 ? 70 : 58;
+    this.warningText.position.set(0, -38);
+    this.warningText.alpha = 0.9 + pulseWave * 0.1;
     this.warningSubtext.text = subtitle;
-    this.warningSubtext.position.set(this.width / 2, this.height * 0.34 + 44);
-    this.warningSubtext.alpha = 0.82;
+    this.warningSubtext.style.fontSize = this.width < 520 ? 30 : 25;
+    this.warningSubtext.position.set(0, 34);
+    this.warningSubtext.alpha = 0.82 + pulseWave * 0.18;
   }
 
   sync(engine: GameEngine, timestamp = performance.now()) {
@@ -1054,12 +1860,17 @@ export class PixiGameRenderer {
     this.renderFrame++;
     const deltaMs = this.lastTimestamp ? clamp(timestamp - this.lastTimestamp, 0, 50) : 16.667;
     this.lastTimestamp = timestamp;
+    this.updatePlayerSteeringPresentation(engine, deltaMs);
     this.camera.position.set(engine.shakeX, engine.shakeY);
     this.environment.update(engine);
     this.syncEntities(engine);
     this.syncPlayerAfterimages(engine);
+    this.syncPlayerThrusters(engine);
     this.syncGunPods(engine);
+    this.syncBioPrimaryBeam(engine);
     this.syncResearchBeam(engine);
+    this.syncWallHealth(engine);
+    this.syncBossHealthHud(engine);
     this.updateWarnings(engine);
     this.updateBossPresentation(engine, deltaMs);
     this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile);
@@ -1087,6 +1898,8 @@ export class PixiGameRenderer {
     this.textureBank.destroy();
     this.views.clear();
     this.recycledViews.clear();
+    this.seenBossPhase.clear();
+    this.seenBossComponents.clear();
     this.destroyApplication();
   }
 

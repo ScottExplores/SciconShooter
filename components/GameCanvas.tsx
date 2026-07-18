@@ -1,5 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { GameEngine, type GameEditorSnapshot, type GameRuntimeState } from '../services/gameLogic';
+import {
+  GameEngine,
+  type GameEditorSnapshot,
+  type GameRuntimeState,
+  type WaveVictorySummary
+} from '../services/gameLogic';
 import type { GameCampaign } from '../game-config/types';
 import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
@@ -79,9 +84,11 @@ export interface GameCanvasProps {
   running: boolean;
   onGameOver?: () => void;
   onContinueStarted?: () => void;
+  onWaveVictory?: (summary: WaveVictorySummary) => void;
   isTransmissionOpen?: boolean;
   bombCommand?: { nonce: number } | null;
   continueCommand?: { nonce: number; lives: number } | null;
+  waveContinueCommand?: { nonce: number } | null;
   polishSettings: GamePolishSettings;
   playerShipUrl?: string;
   campaign?: GameCampaign;
@@ -93,6 +100,7 @@ export interface GameCanvasProps {
   restartToken?: number;
   testMode?: boolean;
   testWaveCommand?: { nonce: number; wave: number } | null;
+  testBossCommand?: { nonce: number; wave: number } | null;
   testFlaskCommand?: { nonce: number; charge: number } | null;
   onRuntimeState?: (state: GameRuntimeState) => void;
   /** Preview-only entity positions for direct manipulation in the local editor. */
@@ -105,9 +113,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   running,
   onGameOver,
   onContinueStarted,
+  onWaveVictory,
   isTransmissionOpen = false,
   bombCommand = null,
   continueCommand = null,
+  waveContinueCommand = null,
   polishSettings,
   playerShipUrl,
   campaign,
@@ -119,6 +129,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   restartToken = 0,
   testMode = false,
   testWaveCommand = null,
+  testBossCommand = null,
   testFlaskCommand = null,
   onRuntimeState,
   onEditorSnapshot
@@ -130,14 +141,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const lastTimeRef = useRef<number>(0);
   const handledBombNonceRef = useRef<number | null>(null);
   const handledContinueNonceRef = useRef<number | null>(null);
+  const handledWaveContinueNonceRef = useRef<number | null>(null);
   const handledRestartTokenRef = useRef(restartToken);
   const handledTestWaveNonceRef = useRef<number | null>(null);
+  const handledTestBossNonceRef = useRef<number | null>(null);
   const handledTestFlaskNonceRef = useRef<number | null>(null);
   const activeTouchIdRef = useRef<number | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const lastPublishedStatsRef = useRef<Stats | null>(null);
   const lastStatsPublishTimeRef = useRef<number>(0);
   const gameOverSentRef = useRef(false);
+  const lastWaveVictoryIdRef = useRef<string | null>(null);
   const keysRef = useRef<Record<string, boolean>>(autoFire ? { ' ': true } : {});
   const runningRef = useRef(running);
   const testModeRef = useRef(testMode);
@@ -145,6 +159,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const onStatsChangeRef = useRef(onStatsChange);
   const onGameOverRef = useRef(onGameOver);
   const onContinueStartedRef = useRef(onContinueStarted);
+  const onWaveVictoryRef = useRef(onWaveVictory);
   const onRuntimeStateRef = useRef(onRuntimeState);
   const onEditorSnapshotRef = useRef(onEditorSnapshot);
 
@@ -159,6 +174,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     onContinueStartedRef.current = onContinueStarted;
   }, [onContinueStarted]);
+
+  useEffect(() => {
+    onWaveVictoryRef.current = onWaveVictory;
+  }, [onWaveVictory]);
 
   useEffect(() => {
     onRuntimeStateRef.current = onRuntimeState;
@@ -230,6 +249,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
   useEffect(() => {
     const engine = engineRef.current;
+    if (!waveContinueCommand || !engine) return;
+    if (handledWaveContinueNonceRef.current === waveContinueCommand.nonce) return;
+    handledWaveContinueNonceRef.current = waveContinueCommand.nonce;
+    if (!engine.continueToNextWave()) return;
+
+    const statsSnapshot = cloneStatsForReact(engine.stats);
+    lastPublishedStatsRef.current = statsSnapshot;
+    onStatsChangeRef.current(statsSnapshot);
+    onRuntimeStateRef.current?.(engine.getRuntimeState());
+  }, [waveContinueCommand]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
     if (!testWaveCommand || !engine) return;
     if (handledTestWaveNonceRef.current === testWaveCommand.nonce) return;
     handledTestWaveNonceRef.current = testWaveCommand.nonce;
@@ -241,6 +273,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     onRuntimeStateRef.current?.(engine.getRuntimeState());
     onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
   }, [testWaveCommand]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!testBossCommand || !engine) return;
+    if (handledTestBossNonceRef.current === testBossCommand.nonce) return;
+    handledTestBossNonceRef.current = testBossCommand.nonce;
+    if (!engine.jumpToCampaignBoss(testBossCommand.wave)) return;
+
+    const statsSnapshot = cloneStatsForReact(engine.stats);
+    lastPublishedStatsRef.current = statsSnapshot;
+    onStatsChangeRef.current(statsSnapshot);
+    onRuntimeStateRef.current?.(engine.getRuntimeState());
+    onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
+  }, [testBossCommand]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -410,6 +456,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (autoFire) keysRef.current[' '] = true;
     engine.handleInput(runningRef.current ? keysRef.current : {}, null);
     lastPublishedStatsRef.current = null;
+    lastWaveVictoryIdRef.current = null;
     lastStatsPublishTimeRef.current = 0;
     lastTimeRef.current = 0;
     onRuntimeStateRef.current?.(engine.getRuntimeState());
@@ -641,6 +688,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
       if (!previewMode && !engine.gameActive && engine.lives <= 0 && !gameOverSentRef.current) {
         dispatchGameOver(timestamp);
+      }
+
+      const waveVictory = previewMode ? null : engine.getWaveVictorySummary();
+      if (waveVictory && lastWaveVictoryIdRef.current !== waveVictory.id) {
+        lastWaveVictoryIdRef.current = waveVictory.id;
+        publishHudStats(true, timestamp);
+        onWaveVictoryRef.current?.(waveVictory);
       }
 
       const renderElapsed = timestamp - lastRenderTime;

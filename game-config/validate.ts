@@ -56,12 +56,28 @@ const WAVE_KEYS = ['id', 'name', 'order', 'accent', 'backgroundId', 'difficultyM
 const BASE_EVENT_KEYS = ['id', 'kind', 'label', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor'];
 const EVENT_KEYS: Record<string, string[]> = {
   spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'enemies'],
-  boss: [...BASE_EVENT_KEYS, 'bossId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'],
+  boss: [...BASE_EVENT_KEYS, 'bossId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases'],
   'asteroid-belt': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'],
   powerup: [...BASE_EVENT_KEYS, 'positionId', 'spawnIntervalSeconds', 'powerupIds'],
   recovery: [...BASE_EVENT_KEYS, 'positionId', 'coinCount', 'powerupIds']
 };
-const SPAWN_ENEMY_KEYS = ['enemyId', 'spriteKey', 'spriteStyle', 'weight', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'];
+const SPAWN_ENEMY_KEYS = [
+  'enemyId',
+  'spriteKey',
+  'spriteStyle',
+  'weight',
+  'health',
+  'speed',
+  'damage',
+  'scoreValue',
+  'powerupDropChance',
+  'rank',
+  'sizeMultiplier',
+  'attackPatternId',
+  'attackIntervalSeconds',
+  'projectileSpeed',
+  'burstCount'
+];
 const BOSS_WEAPON_KEYS = ['id', 'weaponId', 'attackIntervalSeconds', 'damage', 'projectileSpeed', 'burstCount'];
 const BOSS_PHASE_KEYS = ['id', 'label', 'triggerHealthRatio', 'movementPatternId', 'speedMultiplier', 'weaponSettingIds'];
 const SPAWN_ANCHOR_KEYS = ['x', 'y'];
@@ -69,6 +85,8 @@ const SPRITE_STYLE_KEYS = ['scale', 'rotationDegrees', 'flipX', 'opacity', 'hueR
 
 const SCORECARD_METRICS = new Set(['wave', 'targets', 'coins', 'flight']);
 const EVENT_KINDS = new Set(Object.keys(EVENT_KEYS));
+const ENEMY_RANKS = new Set(['standard', 'elite']);
+const ENEMY_ATTACK_PATTERNS = new Set(['aimed-burst']);
 const SAFE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const EPSILON = 0.0001;
@@ -356,6 +374,19 @@ const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignVali
     checkNumber(candidate.damage, `${itemPath}/damage`, issues, Number.EPSILON, 100);
     checkNumber(candidate.scoreValue, `${itemPath}/scoreValue`, issues, 0, 10000000);
     checkNumber(candidate.powerupDropChance, `${itemPath}/powerupDropChance`, issues, 0, 1);
+    if (candidate.rank !== undefined && (typeof candidate.rank !== 'string' || !ENEMY_RANKS.has(candidate.rank))) {
+      pushIssue(issues, `${itemPath}/rank`, 'unknown_reference', `Unknown enemy rank: ${String(candidate.rank)}`);
+    }
+    if (candidate.sizeMultiplier !== undefined) checkNumber(candidate.sizeMultiplier, `${itemPath}/sizeMultiplier`, issues, 0.5, 2.5);
+    if (
+      candidate.attackPatternId !== undefined
+      && (typeof candidate.attackPatternId !== 'string' || !ENEMY_ATTACK_PATTERNS.has(candidate.attackPatternId))
+    ) {
+      pushIssue(issues, `${itemPath}/attackPatternId`, 'unknown_reference', `Unknown enemy attack pattern: ${String(candidate.attackPatternId)}`);
+    }
+    if (candidate.attackIntervalSeconds !== undefined) checkNumber(candidate.attackIntervalSeconds, `${itemPath}/attackIntervalSeconds`, issues, 0.1, 30);
+    if (candidate.projectileSpeed !== undefined) checkNumber(candidate.projectileSpeed, `${itemPath}/projectileSpeed`, issues, 0.1, 30);
+    if (candidate.burstCount !== undefined) checkNumber(candidate.burstCount, `${itemPath}/burstCount`, issues, 1, 8, true);
   });
   checkUniqueStrings(ids, `${path}/enemyId`, issues);
   if (value.length > 0 && Math.abs(weight - 1) > EPSILON) {
@@ -367,8 +398,8 @@ const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValida
   const bossKnown = checkCatalogRef(event.bossId, BOSS_CATALOG, `${path}/bossId`, issues);
   if (event.count !== undefined) {
     checkNumber(event.count, `${path}/count`, issues, 1, 4, true);
-    if (event.bossId !== 'bottleneck-drone' && Number(event.count) > 1) {
-      pushIssue(issues, `${path}/count`, 'unsupported_boss_group', 'Only Bottleneck Drones support simultaneous boss groups');
+    if (!['bottleneck-drone', 'paywall-wall'].includes(String(event.bossId)) && Number(event.count) > 1) {
+      pushIssue(issues, `${path}/count`, 'unsupported_boss_group', 'Only Bottleneck Drones and Paywall Wall rows support grouped boss counts');
     }
   }
   if (!checkCatalogRef(event.spriteKey, ASSET_CATALOG, `${path}/spriteKey`, issues) || !isAssetAllowedForRole(event.spriteKey as string, 'boss')) {
@@ -384,6 +415,7 @@ const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValida
   checkNumber(event.scoreReward, `${path}/scoreReward`, issues, 0, 100000000);
   checkNumber(event.powerupDropChance, `${path}/powerupDropChance`, issues, 0, 1);
   checkNumber(event.shieldCount, `${path}/shieldCount`, issues, 0, 100, true);
+  if (event.sizeMultiplier !== undefined) checkNumber(event.sizeMultiplier, `${path}/sizeMultiplier`, issues, 0.5, 1.5);
   if (typeof event.warningSeconds === 'number' && typeof event.durationSeconds === 'number' && event.warningSeconds > event.durationSeconds) {
     pushIssue(issues, `${path}/warningSeconds`, 'invalid_timing', 'Warning cannot exceed the event duration');
   }

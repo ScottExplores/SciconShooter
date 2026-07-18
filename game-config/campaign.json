@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 7,
+  "revision": 10,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
-  "updatedAt": "2026-07-14T00:00:00.000Z",
+  "updatedAt": "2026-07-18T12:00:00.000Z",
   "fps": 60,
   "recordCard": {
     "copy": {
@@ -323,7 +323,7 @@
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
               "bossId": "paywall-wall",
-              "spriteKey": "WALL_BOSS_SEGMENT",
+              "spriteKey": "PAYWALL_BASTION_FRAMES",
               "positionId": "formation-top",
               "movementPatternId": "wall-march",
               "warningSeconds": 1.5,
@@ -435,16 +435,16 @@
               "id": "open-orbit-gatekeeper",
               "kind": "boss",
               "label": "Gatekeeper Prime",
-              "startSeconds": 60,
+              "startSeconds": 59.5,
               "durationSeconds": 20,
               "delayAfterSeconds": 2.8,
               "blocksWaveClock": true,
               "bossId": "gatekeeper",
-              "spriteKey": "FINAL_BOSS",
+              "spriteKey": "PIXI_BOSS_OPEN_ORBIT_FRAMES",
               "positionId": "center-top",
               "movementPatternId": "gatekeeper-cycle",
               "warningSeconds": 5,
-              "health": 200,
+              "health": 170,
               "speed": 2,
               "damage": 1,
               "scoreReward": 1010,
@@ -914,6 +914,37 @@
               ]
             },
             {
+              "id": "citation-storm-elite-reviewers",
+              "kind": "spawn",
+              "label": "Elite review drones",
+              "startSeconds": 47.5,
+              "durationSeconds": 7.2,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 2.2,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 1,
+                  "health": 14,
+                  "speed": 1.65,
+                  "damage": 1,
+                  "scoreValue": 160,
+                  "powerupDropChance": 0.1,
+                  "rank": "elite",
+                  "sizeMultiplier": 1.35,
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 1.45,
+                  "projectileSpeed": 4.8,
+                  "burstCount": 3
+                }
+              ]
+            },
+            {
               "id": "citation-storm-drifters-before-gatekeeper",
               "kind": "spawn",
               "label": "Roaming interceptors",
@@ -952,14 +983,14 @@
               "id": "citation-storm-gatekeeper",
               "kind": "boss",
               "label": "Review Sentinel",
-              "startSeconds": 60,
+              "startSeconds": 59.5,
               "durationSeconds": 24,
               "delayAfterSeconds": 2.8,
               "blocksWaveClock": true,
               "bossId": "gatekeeper",
-              "spriteKey": "MINI_BOSS",
+              "spriteKey": "PIXI_BOSS_CITATION_FRAMES",
               "positionId": "center-top",
-              "movementPatternId": "gatekeeper-cycle",
+              "movementPatternId": "arena-roam",
               "warningSeconds": 5,
               "health": 430,
               "speed": 2,
@@ -967,6 +998,7 @@
               "scoreReward": 2020,
               "powerupDropChance": 1,
               "shieldCount": 5,
+              "sizeMultiplier": 0.78,
               "weapons": [
                 {
                   "id": "gatekeeper-burst",
@@ -990,7 +1022,7 @@
                   "id": "gatekeeper-standard",
                   "label": "Burst and beam cycle",
                   "triggerHealthRatio": 1,
-                  "movementPatternId": "gatekeeper-cycle",
+                  "movementPatternId": "arena-roam",
                   "speedMultiplier": 1,
                   "weaponSettingIds": [
                     "gatekeeper-burst",
@@ -1001,7 +1033,7 @@
                   "id": "gatekeeper-low-health",
                   "label": "Low-health cycle",
                   "triggerHealthRatio": 0.35,
-                  "movementPatternId": "gatekeeper-cycle",
+                  "movementPatternId": "arena-roam",
                   "speedMultiplier": 1,
                   "weaponSettingIds": [
                     "gatekeeper-burst",
@@ -1040,7 +1072,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.56,
                   "health": 4.04,
                   "speed": 3.325,
@@ -1050,7 +1082,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "LEGACY_ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.28,
                   "health": 2.02,
                   "speed": 4.655,
@@ -1060,7 +1092,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.16,
                   "health": 16.16,
                   "speed": 1.995,
@@ -1085,7 +1117,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.5,
                   "health": 4.04,
                   "speed": 3.325,
@@ -1095,7 +1127,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.28,
                   "health": 2.02,
                   "speed": 4.655,
@@ -1105,7 +1137,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.22,
                   "health": 16.16,
                   "speed": 1.995,
@@ -1148,7 +1180,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.5,
                   "health": 4.04,
                   "speed": 3.325,
@@ -1158,7 +1190,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.28,
                   "health": 2.02,
                   "speed": 4.655,
@@ -1168,7 +1200,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.22,
                   "health": 16.16,
                   "speed": 1.995,
@@ -1236,7 +1268,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.4375,
                   "health": 4.04,
                   "speed": 3.325,
@@ -1246,7 +1278,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.25,
                   "health": 2.02,
                   "speed": 4.655,
@@ -1256,7 +1288,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.3125,
                   "health": 16.16,
                   "speed": 1.995,
@@ -1281,7 +1313,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.4375,
                   "health": 4.04,
                   "speed": 3.325,
@@ -1291,7 +1323,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.25,
                   "health": 2.02,
                   "speed": 4.655,
@@ -1301,7 +1333,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.3125,
                   "health": 16.16,
                   "speed": 1.995,
@@ -1326,7 +1358,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.4375,
                   "health": 4.04,
                   "speed": 3.325,
@@ -1336,7 +1368,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.25,
                   "health": 2.02,
                   "speed": 4.655,
@@ -1346,7 +1378,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.3125,
                   "health": 16.16,
                   "speed": 1.995,
@@ -1365,7 +1397,7 @@
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
               "bossId": "paywall-wall",
-              "spriteKey": "WALL_BOSS_SEGMENT",
+              "spriteKey": "PAYWALL_BASTION_FRAMES",
               "positionId": "formation-top",
               "movementPatternId": "wall-march",
               "warningSeconds": 1.5,
@@ -1413,7 +1445,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.4286,
                   "health": 4.04,
                   "speed": 3.325,
@@ -1423,7 +1455,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.2143,
                   "health": 2.02,
                   "speed": 4.655,
@@ -1433,7 +1465,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.3571,
                   "health": 16.16,
                   "speed": 1.995,
@@ -1458,7 +1490,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.4286,
                   "health": 4.04,
                   "speed": 3.325,
@@ -1468,7 +1500,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.2143,
                   "health": 2.02,
                   "speed": 4.655,
@@ -1478,7 +1510,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.3571,
                   "health": 16.16,
                   "speed": 1.995,
@@ -1503,7 +1535,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.4286,
                   "health": 4.04,
                   "speed": 3.325,
@@ -1513,7 +1545,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.2143,
                   "health": 2.02,
                   "speed": 4.655,
@@ -1523,7 +1555,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.3571,
                   "health": 16.16,
                   "speed": 1.995,
@@ -1537,21 +1569,21 @@
               "id": "paywall-siege-gatekeeper",
               "kind": "boss",
               "label": "Paywall Core",
-              "startSeconds": 60,
+              "startSeconds": 59.5,
               "durationSeconds": 28,
               "delayAfterSeconds": 2.8,
               "blocksWaveClock": true,
               "bossId": "gatekeeper",
-              "spriteKey": "WALL_BOSS_SEGMENT",
+              "spriteKey": "PIXI_BOSS_PAYWALL_FRAMES",
               "positionId": "center-top",
               "movementPatternId": "gatekeeper-cycle",
               "warningSeconds": 5,
-              "health": 535,
+              "health": 400,
               "speed": 2,
               "damage": 1,
               "scoreReward": 4040,
               "powerupDropChance": 1,
-              "shieldCount": 6,
+              "shieldCount": 0,
               "weapons": [
                 {
                   "id": "gatekeeper-burst",
@@ -1625,7 +1657,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.45,
                   "health": 4.72,
                   "speed": 3.6,
@@ -1635,7 +1667,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "LEGACY_ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.28,
                   "health": 2.36,
                   "speed": 5.04,
@@ -1645,7 +1677,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.17,
                   "health": 18.88,
                   "speed": 2.16,
@@ -1680,7 +1712,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.42,
                   "health": 4.72,
                   "speed": 3.6,
@@ -1690,7 +1722,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.28,
                   "health": 2.36,
                   "speed": 5.04,
@@ -1700,7 +1732,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.18,
                   "health": 18.88,
                   "speed": 2.16,
@@ -1753,7 +1785,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.42,
                   "health": 4.72,
                   "speed": 3.6,
@@ -1763,7 +1795,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.28,
                   "health": 2.36,
                   "speed": 5.04,
@@ -1773,7 +1805,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.18,
                   "health": 18.88,
                   "speed": 2.16,
@@ -1850,7 +1882,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.3,
                   "health": 4.72,
                   "speed": 3.6,
@@ -1860,7 +1892,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.2,
                   "health": 2.36,
                   "speed": 5.04,
@@ -1870,7 +1902,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.28,
                   "health": 18.88,
                   "speed": 2.16,
@@ -1905,7 +1937,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.3,
                   "health": 4.72,
                   "speed": 3.6,
@@ -1915,7 +1947,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.2,
                   "health": 2.36,
                   "speed": 5.04,
@@ -1925,7 +1957,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.28,
                   "health": 18.88,
                   "speed": 2.16,
@@ -1960,7 +1992,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.3,
                   "health": 4.72,
                   "speed": 3.6,
@@ -1970,7 +2002,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.2,
                   "health": 2.36,
                   "speed": 5.04,
@@ -1980,7 +2012,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.28,
                   "health": 18.88,
                   "speed": 2.16,
@@ -2001,25 +2033,39 @@
               ]
             },
             {
-              "id": "open-galaxy-asteroid-belt",
-              "kind": "asteroid-belt",
-              "label": "Asteroid Belt",
+              "id": "open-galaxy-river-ambush",
+              "kind": "spawn",
+              "label": "River research ambush",
               "startSeconds": 39.6,
-              "durationSeconds": 24,
+              "durationSeconds": 9,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
-              "spriteKey": "ASTEROID_BELT_FRAMES",
-              "count": 24,
-              "density": 1,
-              "patternId": "asteroid-lanes",
-              "positionId": "lane-top",
-              "spawnIntervalSeconds": 0.12,
-              "warningSeconds": 1.5,
-              "health": 12,
-              "speed": 3.305,
-              "damage": 1,
-              "scoreValue": 160,
-              "powerupDropChance": 0.08
+              "count": 18,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 0.32,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 0.45,
+                  "health": 4.72,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0.04
+                },
+                {
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.55,
+                  "health": 7.08,
+                  "speed": 6.336,
+                  "damage": 1,
+                  "scoreValue": 240,
+                  "powerupDropChance": 0.08
+                }
+              ]
             },
             {
               "id": "open-galaxy-drifters-after-checkpoint",
@@ -2036,7 +2082,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.3,
                   "health": 4.72,
                   "speed": 3.6,
@@ -2046,7 +2092,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.15,
                   "health": 2.36,
                   "speed": 5.04,
@@ -2056,7 +2102,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.25,
                   "health": 18.88,
                   "speed": 2.16,
@@ -2091,7 +2137,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.3,
                   "health": 4.72,
                   "speed": 3.6,
@@ -2101,7 +2147,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.15,
                   "health": 2.36,
                   "speed": 5.04,
@@ -2111,7 +2157,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.25,
                   "health": 18.88,
                   "speed": 2.16,
@@ -2146,7 +2192,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.3,
                   "health": 4.72,
                   "speed": 3.6,
@@ -2156,7 +2202,7 @@
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.15,
                   "health": 2.36,
                   "speed": 5.04,
@@ -2166,7 +2212,7 @@
                 },
                 {
                   "enemyId": "brick",
-                  "spriteKey": "ENEMY_BRICK_FRAMES",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.25,
                   "health": 18.88,
                   "speed": 2.16,
@@ -2190,12 +2236,12 @@
               "id": "open-galaxy-gatekeeper",
               "kind": "boss",
               "label": "Gatekeeper Prime",
-              "startSeconds": 60,
+              "startSeconds": 59.5,
               "durationSeconds": 30,
               "delayAfterSeconds": 2.8,
               "blocksWaveClock": true,
               "bossId": "gatekeeper",
-              "spriteKey": "FINAL_BOSS",
+              "spriteKey": "PIXI_BOSS_CROWNCLAW_FRAMES",
               "positionId": "center-top",
               "movementPatternId": "gatekeeper-cycle",
               "warningSeconds": 5,
@@ -2204,7 +2250,7 @@
               "damage": 1,
               "scoreReward": 8080,
               "powerupDropChance": 1,
-              "shieldCount": 7,
+              "shieldCount": 0,
               "weapons": [
                 {
                   "id": "gatekeeper-burst",
@@ -2244,6 +2290,211 @@
                   "weaponSettingIds": [
                     "gatekeeper-burst",
                     "gatekeeper-beam"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "bastion-protocol",
+          "name": "BASTION PROTOCOL",
+          "order": 5,
+          "accent": "#f9a8d4",
+          "backgroundId": "bastion-protocol",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 8,
+          "introSeconds": 2.5,
+          "delayAfterSeconds": 1.5,
+          "scoreMultiplier": 16,
+          "threatCap": 48,
+          "events": [
+            {
+              "id": "bastion-protocol-powerups",
+              "kind": "powerup",
+              "label": "Bastion support signal",
+              "startSeconds": 0,
+              "durationSeconds": 8,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 22,
+              "powerupIds": [
+                "double-shot",
+                "triple-shot",
+                "magnet",
+                "shield",
+                "research-beam"
+              ]
+            },
+            {
+              "id": "bastion-protocol-line-1",
+              "kind": "boss",
+              "label": "Bastion Vanguard",
+              "startSeconds": 0.4,
+              "durationSeconds": 20,
+              "delayAfterSeconds": 0.4,
+              "blocksWaveClock": true,
+              "bossId": "paywall-wall",
+              "count": 1,
+              "spriteKey": "PAYWALL_BASTION_FRAMES",
+              "positionId": "formation-top",
+              "movementPatternId": "wall-march",
+              "warningSeconds": 1.2,
+              "health": 99,
+              "speed": 1.4,
+              "damage": 1,
+              "scoreReward": 1400,
+              "powerupDropChance": 0.08,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "bastion-vanguard-bolt",
+                  "weaponId": "wall-bolt",
+                  "attackIntervalSeconds": 1,
+                  "damage": 1,
+                  "projectileSpeed": 5.8,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "bastion-vanguard-march",
+                  "label": "Vanguard march",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "wall-march",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "bastion-vanguard-bolt"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "bastion-protocol-line-2",
+              "kind": "boss",
+              "label": "Bastion Phalanx",
+              "startSeconds": 2.2,
+              "durationSeconds": 24,
+              "delayAfterSeconds": 0.4,
+              "blocksWaveClock": true,
+              "bossId": "paywall-wall",
+              "count": 2,
+              "spriteKey": "PAYWALL_BASTION_FRAMES",
+              "positionId": "formation-top",
+              "movementPatternId": "wall-march",
+              "warningSeconds": 1,
+              "health": 198,
+              "speed": 1.55,
+              "damage": 1,
+              "scoreReward": 2600,
+              "powerupDropChance": 0.08,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "bastion-phalanx-bolt",
+                  "weaponId": "wall-bolt",
+                  "attackIntervalSeconds": 0.85,
+                  "damage": 1,
+                  "projectileSpeed": 6.2,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "bastion-phalanx-march",
+                  "label": "Phalanx march",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "wall-march",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "bastion-phalanx-bolt"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "bastion-protocol-line-3",
+              "kind": "boss",
+              "label": "Bastion Lockdown",
+              "startSeconds": 4,
+              "durationSeconds": 28,
+              "delayAfterSeconds": 0.4,
+              "blocksWaveClock": true,
+              "bossId": "paywall-wall",
+              "count": 3,
+              "spriteKey": "PAYWALL_BASTION_FRAMES",
+              "positionId": "formation-top",
+              "movementPatternId": "wall-march",
+              "warningSeconds": 0.9,
+              "health": 315,
+              "speed": 1.7,
+              "damage": 1,
+              "scoreReward": 4200,
+              "powerupDropChance": 0.1,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "bastion-lockdown-bolt",
+                  "weaponId": "wall-bolt",
+                  "attackIntervalSeconds": 0.72,
+                  "damage": 1,
+                  "projectileSpeed": 6.7,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "bastion-lockdown-march",
+                  "label": "Lockdown march",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "wall-march",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "bastion-lockdown-bolt"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "bastion-protocol-line-4",
+              "kind": "boss",
+              "label": "Bastion Core",
+              "startSeconds": 5.8,
+              "durationSeconds": 32,
+              "delayAfterSeconds": 1.2,
+              "blocksWaveClock": true,
+              "bossId": "paywall-wall",
+              "count": 4,
+              "spriteKey": "PAYWALL_BASTION_FRAMES",
+              "positionId": "formation-top",
+              "movementPatternId": "wall-march",
+              "warningSeconds": 0.8,
+              "health": 432,
+              "speed": 1.85,
+              "damage": 1,
+              "scoreReward": 6800,
+              "powerupDropChance": 0.12,
+              "shieldCount": 0,
+              "weapons": [
+                {
+                  "id": "bastion-core-bolt",
+                  "weaponId": "wall-bolt",
+                  "attackIntervalSeconds": 0.62,
+                  "damage": 1,
+                  "projectileSpeed": 7.2,
+                  "burstCount": 1
+                }
+              ],
+              "phases": [
+                {
+                  "id": "bastion-core-march",
+                  "label": "Core march",
+                  "triggerHealthRatio": 1,
+                  "movementPatternId": "wall-march",
+                  "speedMultiplier": 1,
+                  "weaponSettingIds": [
+                    "bastion-core-bolt"
                   ]
                 }
               ]

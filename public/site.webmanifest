@@ -1,7 +1,7 @@
 {
   "name": "Scicon Shooter",
   "short_name": "Scicon",
-  "description": "Play. Win the week. Choose what research gets funded. A community-built Base-native arcade game powered by active ResearchHub proposal data.",
+  "description": "Play games. Fund science. A DeSci-inspired, community-built Base arcade game where the finalized weekly winner can direct RSC funding credits toward an eligible science proposal.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -24,17 +24,17 @@
   ],
   "screenshots": [
     {
-      "src": "/preview.png",
+      "src": "/preview-dsci-v2.png",
       "sizes": "1200x628",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Scicon Shooter mission dashboard"
+      "label": "Scicon Shooter: Play games. Fund science."
     },
     {
       "src": "/app-thumbnail.png",
       "sizes": "1200x628",
       "type": "image/png",
-      "label": "Scicon Shooter Base app preview"
+      "label": "Scicon Shooter DeSci arcade preview built on Base"
     }
   ]
 }

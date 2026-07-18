@@ -1,0 +1,137 @@
+{
+  "id": "scicon-victory-signet",
+  "displayName": "Scicon Victory Signet",
+  "productionFormat": "layered-png",
+  "previewFormat": "animated-gif",
+  "coordinateSpace": {
+    "width": 1000,
+    "height": 480,
+    "origin": "top-left"
+  },
+  "parts": {
+    "plaque": {
+      "path": "parts/scicon-victory-plaque.png",
+      "displaySize": [
+        520,
+        195
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ]
+    },
+    "upperLeft": {
+      "path": "parts/scicon-victory-wing-upper-left.png",
+      "displaySize": [
+        230,
+        158
+      ],
+      "pivot": [
+        198,
+        79
+      ]
+    },
+    "upperRight": {
+      "path": "parts/scicon-victory-wing-upper-right.png",
+      "displaySize": [
+        230,
+        158
+      ],
+      "pivot": [
+        32,
+        79
+      ]
+    },
+    "lowerLeft": {
+      "path": "parts/scicon-victory-wing-lower-left.png",
+      "displaySize": [
+        230,
+        158
+      ],
+      "pivot": [
+        198,
+        79
+      ]
+    },
+    "lowerRight": {
+      "path": "parts/scicon-victory-wing-lower-right.png",
+      "displaySize": [
+        230,
+        158
+      ],
+      "pivot": [
+        32,
+        79
+      ]
+    }
+  },
+  "timeline": {
+    "dropAndOpen": {
+      "startMs": 0,
+      "durationMs": 760,
+      "motion": [
+        "translateY",
+        "scale",
+        "plaque.scaleX",
+        "wing.rotation"
+      ]
+    },
+    "settle": {
+      "startMs": 760,
+      "durationMs": 360,
+      "motion": [
+        "scaleOvershoot",
+        "sparkleBurst"
+      ]
+    },
+    "hoverLoop": {
+      "startMs": 1120,
+      "durationMs": 1260,
+      "loop": true,
+      "motion": [
+        "translateY.sine",
+        "scale.sine",
+        "independentWingRotation.sine"
+      ]
+    }
+  },
+  "audio": {
+    "format": "stereo 48 kHz 16-bit PCM WAV",
+    "cues": [
+      {
+        "event": "mechanismOpen",
+        "startMs": 0,
+        "path": "audio/ui/victory-signet/victory-signet-open.wav",
+        "gain": 0.72
+      },
+      {
+        "event": "plaqueLock",
+        "startMs": 620,
+        "path": "audio/ui/victory-signet/victory-signet-lock.wav",
+        "gain": 0.58
+      },
+      {
+        "event": "energySettle",
+        "startMs": 700,
+        "path": "audio/ui/victory-signet/victory-signet-power-settle.wav",
+        "gain": 0.46
+      },
+      {
+        "event": "hoverLoop",
+        "startMs": 1120,
+        "path": "audio/ui/victory-signet/victory-signet-hover-loop.wav",
+        "gain": 0.12,
+        "loop": true,
+        "fadeOutMs": 180
+      }
+    ],
+    "galleryPreview": "audio/ui/victory-signet/victory-signet-preview-mix.wav",
+    "implementation": "Trigger cues from animation events. Do not bake the mixdown into gameplay.",
+    "styleGuide": "docs/scicon-animation-audio-style-guide.md"
+  },
+  "runtimeNotes": [
+    "Render VICTORY as runtime text so localization and rewards screens can reuse the frame.",
+    "Rotate each wing sprite around its circular cyan hinge; do not rotate around the image center.",
+    "The GIF is an approval/gallery preview only. Use the layered PNGs in PixiJS for crisp, controllable animation."
+  ]
+}

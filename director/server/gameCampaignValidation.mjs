@@ -11,7 +11,10 @@ const BUILT_IN_ASSET_KEYS = [
   'GAME_PARALLAX_FAR_PLANETS', 'GAME_PARALLAX_BIG_PLANET', 'GAME_PARALLAX_RING_PLANET',
   'ENEMY_DRONE_FRAMES', 'LEGACY_ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'LEGACY_ENEMY_SWARM_FRAMES',
   'ENEMY_BRICK_FRAMES', 'ASTEROID_BELT_FRAMES', 'ENEMY_JOURNAL', 'ENEMY_JOURNAL_FRAMES',
-  'MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS'
+  'PIXI_JET_SCOUT_FRAMES', 'PIXI_JET_INTERCEPTOR_FRAMES', 'PIXI_JET_HEAVY_FRAMES',
+  'MINI_BOSS', 'WALL_BOSS_SEGMENT', 'PAYWALL_BASTION_FRAMES', 'FINAL_BOSS',
+  'PIXI_BOSS_OPEN_ORBIT_FRAMES', 'PIXI_BOSS_CITATION_FRAMES',
+  'PIXI_BOSS_PAYWALL_FRAMES', 'PIXI_BOSS_OPEN_GALAXY_FRAMES', 'PIXI_BOSS_CROWNCLAW_FRAMES'
 ];
 const GENERATED_ASSET_ROLES = new Set(['enemy', 'boss', 'asteroid', 'hud', 'player', 'background', 'scorecard']);
 const GENERATED_ASSET_ID_PATTERN = /^GENERATED_[A-Z0-9]+(?:_[A-Z0-9]+)*$/;
@@ -90,15 +93,30 @@ const refreshGeneratedAssetCatalog = () => {
     'ENEMY_BRICK_FRAMES',
     'ENEMY_JOURNAL',
     'ENEMY_JOURNAL_FRAMES',
+    'PIXI_JET_SCOUT_FRAMES',
+    'PIXI_JET_INTERCEPTOR_FRAMES',
+    'PIXI_JET_HEAVY_FRAMES',
     ...generatedForRole('enemy')
   ]);
-  replaceSet(BOSS_SPRITE_KEYS, ['MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS', ...generatedForRole('boss')]);
+  replaceSet(BOSS_SPRITE_KEYS, [
+    'MINI_BOSS',
+    'WALL_BOSS_SEGMENT',
+    'PAYWALL_BASTION_FRAMES',
+    'FINAL_BOSS',
+    'PIXI_BOSS_OPEN_ORBIT_FRAMES',
+    'PIXI_BOSS_CITATION_FRAMES',
+    'PIXI_BOSS_PAYWALL_FRAMES',
+    'PIXI_BOSS_OPEN_GALAXY_FRAMES',
+    'PIXI_BOSS_CROWNCLAW_FRAMES',
+    ...generatedForRole('boss')
+  ]);
   replaceSet(ASTEROID_SPRITE_KEYS, ['ASTEROID_BELT_FRAMES', ...generatedForRole('asteroid')]);
   replaceSet(HUD_ASSET_KEYS, ['RSC_TOKEN', 'REAL_RSC_ICON', ...generatedForRole('hud')]);
   replaceSet(SCORECARD_ASSET_KEYS, [
     'PLAYER_SHIP', 'RSC_TOKEN', 'REAL_RSC_ICON',
     'ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'ENEMY_BRICK_FRAMES', 'ASTEROID_BELT_FRAMES', 'ENEMY_JOURNAL', 'ENEMY_JOURNAL_FRAMES',
-    'MINI_BOSS', 'WALL_BOSS_SEGMENT', 'FINAL_BOSS',
+    'MINI_BOSS', 'WALL_BOSS_SEGMENT', 'PAYWALL_BASTION_FRAMES', 'FINAL_BOSS',
+    'PIXI_BOSS_OPEN_ORBIT_FRAMES', 'PIXI_BOSS_CITATION_FRAMES', 'PIXI_BOSS_PAYWALL_FRAMES', 'PIXI_BOSS_OPEN_GALAXY_FRAMES', 'PIXI_BOSS_CROWNCLAW_FRAMES',
     ...generatedForRole('scorecard')
   ]);
 };
@@ -107,7 +125,7 @@ refreshGeneratedAssetCatalog();
 const ENEMY_IDS = new Set(['drone', 'swarm', 'brick', 'journal']);
 const BOSS_IDS = new Set(['bottleneck-drone', 'paywall-wall', 'gatekeeper']);
 const POWERUP_IDS = new Set(['double-shot', 'triple-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
-const BACKGROUND_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy']);
+const BACKGROUND_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']);
 const MUSIC_IDS = new Set(['procedural-main']);
 const SPAWN_PATTERNS = new Set([
   'single-random',
@@ -121,8 +139,10 @@ const SPAWN_PATTERNS = new Set([
   'asteroid-lanes'
 ]);
 const SPAWN_POSITIONS = new Set(['random-top', 'formation-top', 'center-top', 'lane-top']);
-const MOVEMENT_PATTERNS = new Set(['drift-down', 'sine-drift', 'track-player', 'wall-march', 'asteroid-drift', 'gatekeeper-cycle']);
+const MOVEMENT_PATTERNS = new Set(['drift-down', 'sine-drift', 'track-player', 'wall-march', 'asteroid-drift', 'gatekeeper-cycle', 'arena-roam']);
 const WEAPON_IDS = new Set(['aimed-shot', 'wall-bolt', 'burst-volley', 'lane-beam']);
+const ENEMY_RANKS = new Set(['standard', 'elite']);
+const ENEMY_ATTACK_PATTERNS = new Set(['aimed-burst']);
 const SCORECARD_METRICS = new Set(['wave', 'targets', 'coins', 'flight']);
 const EVENT_KINDS = new Set(['spawn', 'boss', 'asteroid-belt', 'powerup', 'recovery']);
 
@@ -290,7 +310,7 @@ const validateBaseEvent = (event, location, waveDuration, errors) => {
 
 const validateSpawnEnemy = (enemy, location, errors) => {
   if (!requireObject(enemy, location, errors)) return;
-  allowedKeys(enemy, ['enemyId', 'spriteKey', 'spriteStyle', 'weight', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'], location, errors);
+  allowedKeys(enemy, ['enemyId', 'spriteKey', 'spriteStyle', 'weight', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance', 'rank', 'sizeMultiplier', 'attackPatternId', 'attackIntervalSeconds', 'projectileSpeed', 'burstCount'], location, errors);
   requireEnum(enemy.enemyId, ENEMY_IDS, `${location}/enemyId`, errors);
   requireEnum(enemy.spriteKey, ENEMY_SPRITE_KEYS, `${location}/spriteKey`, errors);
   validateSpriteStyle(enemy.spriteStyle, `${location}/spriteStyle`, errors);
@@ -300,6 +320,12 @@ const validateSpawnEnemy = (enemy, location, errors) => {
   requireNumber(enemy.damage, `${location}/damage`, errors, { minimum: 0, maximum: 100000 });
   requireNumber(enemy.scoreValue, `${location}/scoreValue`, errors, { minimum: 0, maximum: 100000000 });
   requireNumber(enemy.powerupDropChance, `${location}/powerupDropChance`, errors, { minimum: 0, maximum: 1 });
+  if (enemy.rank !== undefined) requireEnum(enemy.rank, ENEMY_RANKS, `${location}/rank`, errors);
+  if (enemy.sizeMultiplier !== undefined) requireNumber(enemy.sizeMultiplier, `${location}/sizeMultiplier`, errors, { minimum: 0.5, maximum: 2.5 });
+  if (enemy.attackPatternId !== undefined) requireEnum(enemy.attackPatternId, ENEMY_ATTACK_PATTERNS, `${location}/attackPatternId`, errors);
+  if (enemy.attackIntervalSeconds !== undefined) requireNumber(enemy.attackIntervalSeconds, `${location}/attackIntervalSeconds`, errors, { minimum: 0.1, maximum: 30 });
+  if (enemy.projectileSpeed !== undefined) requireNumber(enemy.projectileSpeed, `${location}/projectileSpeed`, errors, { minimum: 0.1, maximum: 30 });
+  if (enemy.burstCount !== undefined) requireNumber(enemy.burstCount, `${location}/burstCount`, errors, { minimum: 1, maximum: 8, integer: true });
 };
 
 const validateSpawnEvent = (event, location, errors) => {
@@ -361,12 +387,12 @@ const validateBossPhase = (phase, location, weaponIds, previousRatio, errors) =>
 };
 
 const validateBossEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'weapons', 'phases'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases'], location, errors);
   requireEnum(event.bossId, BOSS_IDS, `${location}/bossId`, errors);
   if (event.count !== undefined) {
     requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 4, integer: true });
-    if (event.bossId !== 'bottleneck-drone' && event.count > 1) {
-      errors.push(`${location}/count supports groups only for bottleneck-drone`);
+    if (!['bottleneck-drone', 'paywall-wall'].includes(event.bossId) && event.count > 1) {
+      errors.push(`${location}/count supports groups only for bottleneck-drone or paywall-wall`);
     }
   }
   requireEnum(event.spriteKey, BOSS_SPRITE_KEYS, `${location}/spriteKey`, errors);
@@ -380,6 +406,7 @@ const validateBossEvent = (event, location, errors) => {
   requireNumber(event.scoreReward, `${location}/scoreReward`, errors, { minimum: 0, maximum: 100000000 });
   requireNumber(event.powerupDropChance, `${location}/powerupDropChance`, errors, { minimum: 0, maximum: 1 });
   requireNumber(event.shieldCount, `${location}/shieldCount`, errors, { minimum: 0, maximum: 1000, integer: true });
+  if (event.sizeMultiplier !== undefined) requireNumber(event.sizeMultiplier, `${location}/sizeMultiplier`, errors, { minimum: 0.5, maximum: 1.5 });
 
   if (!Array.isArray(event.weapons) || event.weapons.length === 0) {
     errors.push(`${location}/weapons must be a non-empty array`);

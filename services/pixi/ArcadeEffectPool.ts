@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 
 export type ArcadeEffectKind =
   | 'burst'
@@ -7,11 +7,15 @@ export type ArcadeEffectKind =
   | 'shockwave'
   | 'muzzle'
   | 'smoke'
-  | 'debris';
+  | 'debris'
+  | 'sprite-explosion'
+  | 'boss-sprite-explosion'
+  | 'sprite-debris';
 
 type PooledEffect = {
   root: Container;
   graphic: Graphics;
+  sprite: Sprite;
   kind: ArcadeEffectKind;
   age: number;
   duration: number;
@@ -28,9 +32,19 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 /** A bounded presentation-only pool. It never owns gameplay entities. */
 export class ArcadeEffectPool {
   private readonly effects: PooledEffect[] = [];
+  private explosionTextures: Texture[] = [];
+  private bossExplosionTextures: Texture[] = [];
   private maxEffects = 150;
 
   constructor(private readonly layer: Container) {}
+
+  setExplosionTextures(textures: Texture[]) {
+    this.explosionTextures = textures.filter((texture) => texture !== Texture.EMPTY);
+  }
+
+  setBossExplosionTextures(textures: Texture[]) {
+    this.bossExplosionTextures = textures.filter((texture) => texture !== Texture.EMPTY);
+  }
 
   setQuality(performanceMode: boolean, mobileProfile: boolean) {
     this.maxEffects = performanceMode
@@ -46,11 +60,15 @@ export class ArcadeEffectPool {
     if (!effect) {
       const root = new Container();
       const graphic = new Graphics();
-      root.addChild(graphic);
+      const sprite = new Sprite(Texture.WHITE);
+      sprite.anchor.set(0.5);
+      sprite.visible = false;
+      root.addChild(graphic, sprite);
       root.eventMode = 'none';
       effect = {
         root,
         graphic,
+        sprite,
         kind,
         age: 0,
         duration: 1,
@@ -70,6 +88,9 @@ export class ArcadeEffectPool {
     effect.root.scale.set(1);
     effect.root.rotation = 0;
     effect.graphic.clear();
+    effect.sprite.visible = false;
+    effect.sprite.texture = Texture.WHITE;
+    effect.sprite.tint = '#ffffff';
     return effect;
   }
 
@@ -89,6 +110,7 @@ export class ArcadeEffectPool {
   }
 
   spawnExplosion(x: number, y: number, size: number, color = '#67e8f9', intensity = 1) {
+    this.spawnSpriteExplosion(x, y, size, 360);
     this.spawn('shockwave', x, y, size * 1.5, color, 520);
     this.spawn('burst', x, y, size, color, 420);
     const sparks = Math.max(3, Math.round(5 * intensity));
@@ -109,9 +131,84 @@ export class ArcadeEffectPool {
     }
   }
 
+  spawnBossExplosion(x: number, y: number, size: number, intensity = 1) {
+    this.spawnBossSpriteExplosion(x, y, size, 420);
+    this.spawn('shockwave', x, y, size * 1.35, '#fef08a', 480);
+    const sparks = Math.max(4, Math.round(6 * intensity));
+    for (let index = 0; index < sparks; index++) {
+      const spark = this.spawn('spark', x, y, Math.max(2, size * 0.065), index % 2 ? '#ffffff' : '#fb923c', 280 + Math.random() * 240);
+      spark.velocityX = (Math.random() - 0.5) * size * 0.042;
+      spark.velocityY = (Math.random() - 0.55) * size * 0.042;
+    }
+  }
+
+  spawnEnemyExplosion(x: number, y: number, size: number, color = '#67e8f9') {
+    this.spawnBossSpriteExplosion(x, y, size, 260);
+    this.spawn('ring', x, y, size * 0.62, color, 220);
+    for (let index = 0; index < 2; index++) {
+      const spark = this.spawn('spark', x, y, Math.max(2, size * 0.06), index === 0 ? '#ffffff' : color, 180 + index * 55);
+      spark.velocityX = (index === 0 ? -1 : 1) * size * 0.018;
+      spark.velocityY = -size * (0.012 + index * 0.004);
+    }
+  }
+
+  spawnDetachedSprite(texture: Texture, x: number, y: number, width: number, height: number, direction: number) {
+    if (texture === Texture.EMPTY) return;
+    const effect = this.spawn('sprite-debris', x, y, Math.max(width, height), '#ffffff', 760);
+    effect.sprite.texture = texture;
+    effect.sprite.visible = true;
+    effect.sprite.width = width;
+    effect.sprite.height = height;
+    effect.velocityX = direction * (1.4 + Math.random() * 0.8);
+    effect.velocityY = -1.3 - Math.random() * 0.8;
+    effect.spin = direction * (0.055 + Math.random() * 0.035);
+  }
+
+  spawnImpact(x: number, y: number, size: number) {
+    this.spawnSpriteExplosion(x, y, size, 160);
+  }
+
+  private spawnSpriteExplosion(x: number, y: number, size: number, duration: number) {
+    if (this.explosionTextures.length === 0) return;
+    const effect = this.spawn('sprite-explosion', x, y, size, '#ffffff', duration);
+    effect.spin = (Math.random() - 0.5) * 0.035;
+  }
+
+  private spawnBossSpriteExplosion(x: number, y: number, size: number, duration: number) {
+    if (this.bossExplosionTextures.length === 0) {
+      this.spawnSpriteExplosion(x, y, size, duration);
+      return;
+    }
+    const effect = this.spawn('boss-sprite-explosion', x, y, size, '#ffffff', duration);
+    effect.spin = (Math.random() - 0.5) * 0.025;
+  }
+
   private drawEffect(effect: PooledEffect, progress: number) {
     const graphic = effect.graphic;
     graphic.clear();
+    effect.sprite.visible = false;
+
+    if (effect.kind === 'sprite-explosion' || effect.kind === 'boss-sprite-explosion') {
+      const textures = effect.kind === 'boss-sprite-explosion'
+        ? this.bossExplosionTextures
+        : this.explosionTextures;
+      if (textures.length === 0) return;
+      const frameIndex = Math.min(
+        textures.length - 1,
+        Math.floor(progress * textures.length)
+      );
+      effect.sprite.texture = textures[frameIndex];
+      effect.sprite.visible = true;
+      const scale = 0.82 + Math.sin(progress * Math.PI) * 0.34;
+      effect.sprite.width = effect.size * scale;
+      effect.sprite.height = effect.size * scale;
+      return;
+    }
+
+    if (effect.kind === 'sprite-debris') {
+      effect.sprite.visible = true;
+      return;
+    }
 
     if (effect.kind === 'ring' || effect.kind === 'shockwave') {
       const radius = effect.size * (0.16 + progress * 0.84);
@@ -174,8 +271,13 @@ export class ArcadeEffectPool {
       const progress = clamp(effect.age / effect.duration, 0, 1);
       effect.root.x += effect.velocityX * (deltaMs / 16.667);
       effect.root.y += effect.velocityY * (deltaMs / 16.667);
+      if (effect.kind === 'sprite-debris') {
+        effect.velocityY += 0.12 * (deltaMs / 16.667);
+      }
       effect.root.rotation += effect.spin * (deltaMs / 16.667);
-      effect.root.alpha = (1 - progress) * (effect.kind === 'smoke' ? 0.72 : 1);
+      effect.root.alpha = effect.kind === 'sprite-explosion' || effect.kind === 'boss-sprite-explosion'
+        ? (progress < 0.74 ? 1 : (1 - progress) / 0.26)
+        : (1 - progress) * (effect.kind === 'smoke' ? 0.72 : 1);
       this.drawEffect(effect, progress);
       if (progress >= 1) {
         effect.active = false;

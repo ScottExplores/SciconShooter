@@ -1,0 +1,177 @@
+{
+  "id": "scicon-first-place-row-component-idle-v2",
+  "displayName": "Scicon First Place Row Living Machinery Idle",
+  "source": "../../base/leaderboard-podium/first-place-row.png",
+  "productionFormat": "fixed-base-plus-registered-component-sprites",
+  "previewFormat": "animated-gif",
+  "registeredSize": [
+    752,
+    306
+  ],
+  "anchor": [
+    0.5,
+    0.5
+  ],
+  "durationMs": 3840,
+  "loop": true,
+  "parts": {
+    "turbineHousing": {
+      "path": "parts/first-place-turbine-housing.png",
+      "displaySize": [
+        82,
+        82
+      ]
+    },
+    "turbineBlades": {
+      "path": "parts/first-place-turbine-blades.png",
+      "displaySize": [
+        52,
+        52
+      ]
+    },
+    "crownDiamondStates": {
+      "pathPattern": "parts/first-place-crown-diamond-{state}.png",
+      "states": 4,
+      "displaySize": [
+        34,
+        62
+      ]
+    },
+    "railLampStates": {
+      "pathPattern": "parts/first-place-rail-lamp-{state}.png",
+      "states": 6,
+      "displaySize": [
+        34,
+        10
+      ]
+    },
+    "shortPixelBeam": {
+      "path": "parts/first-place-short-pixel-beam.png",
+      "displaySize": [
+        54,
+        10
+      ]
+    },
+    "mediumPixelBeam": {
+      "path": "parts/first-place-medium-pixel-beam.png",
+      "displaySize": [
+        72,
+        10
+      ]
+    },
+    "crownPixelSpark": {
+      "path": "parts/first-place-pixel-spark.png",
+      "displaySize": [
+        32,
+        32
+      ]
+    },
+    "crownGoldPixels": {
+      "path": "parts/first-place-gold-pixels.png",
+      "displaySize": [
+        44,
+        30
+      ]
+    }
+  },
+  "componentMotion": {
+    "sideTurbines": {
+      "positions": [
+        [
+          127,
+          159
+        ],
+        [
+          665,
+          159
+        ]
+      ],
+      "leftDegrees": 360,
+      "rightDegrees": -360,
+      "outerHousingFixed": true
+    },
+    "crownDiamond": {
+      "position": [
+        376,
+        24
+      ],
+      "states": 4,
+      "mode": "registered-frame-swap"
+    },
+    "railLamps": {
+      "topPositions": [
+        [
+          167,
+          88
+        ],
+        [
+          224,
+          88
+        ],
+        [
+          281,
+          88
+        ],
+        [
+          443,
+          88
+        ],
+        [
+          500,
+          88
+        ],
+        [
+          557,
+          88
+        ]
+      ],
+      "bottomPositions": [
+        [
+          177,
+          229
+        ],
+        [
+          234,
+          229
+        ],
+        [
+          291,
+          229
+        ],
+        [
+          433,
+          229
+        ],
+        [
+          490,
+          229
+        ],
+        [
+          547,
+          229
+        ]
+      ],
+      "states": 6,
+      "mode": "staggered-frame-swap"
+    },
+    "pixelEnergyPackets": {
+      "count": 8,
+      "mode": "short-local-bursts-between-lamps"
+    },
+    "crownPixelDischarge": {
+      "trigger": "diamond-state-3",
+      "mode": "sparse-block-pixels"
+    }
+  },
+  "runtimeNotes": [
+    "Keep the original 752 x 306 row registration fixed; never translate, rotate, or rescale the complete row.",
+    "This is a component animation, not a full-row overlay: rotate the turbine blade sprites, swap the diamond and lamp PNG states, and show only short local pixel-energy packets.",
+    "Keep rank, player name, score, reward, and other row values as live UI above the blank center.",
+    "The GIF and sequence PNG are gallery previews only; runtime consumes the registered PNG component parts.",
+    "Reduced motion uses the untouched base row with the dim diamond and dim lamp states."
+  ],
+  "audio": {
+    "status": "silent-idle",
+    "implementation": "Use a restrained champion arrival cue only when first place is awarded; do not loop turbine or electrical audio."
+  }
+}

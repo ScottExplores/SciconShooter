@@ -8,6 +8,7 @@ const runtimeSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'
 const catalogSource = fs.readFileSync(path.join(root, 'game-config', 'catalog.ts'), 'utf8');
 const validatorSource = fs.readFileSync(path.join(root, 'director', 'server', 'gameCampaignValidation.mjs'), 'utf8');
 const constantsSource = fs.readFileSync(path.join(root, 'constants.ts'), 'utf8');
+const rendererSource = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
 
 test('configured squads enter, hold formation, dive, and return', () => {
   assert.match(runtimeSource, /type EnemyFormationState = 'entry' \| 'hold' \| 'dive' \| 'return'/);
@@ -27,28 +28,40 @@ test('runtime and Director share the new formation presets', () => {
   });
 });
 
-test('custom science-themed enemy sprites stay compact, square, and RGBA', () => {
-  const spriteNames = [
-    'paywall-interceptor.png',
-    'citation-wraith.png',
-    'peer-review-bulwark.png',
-    'predatory-journal-raider.png'
+test('custom science-themed enemy motion packs stay compact, square, and RGBA', () => {
+  const enemyPacks = [
+    'paywall-interceptor',
+    'citation-wraith',
+    'peer-review-bulwark',
+    'predatory-journal-raider'
   ];
 
-  spriteNames.forEach((spriteName) => {
-    const spritePath = path.join(root, 'public', 'game-art', 'enemies', spriteName);
-    const png = fs.readFileSync(spritePath);
-    assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
-    assert.equal(png.readUInt32BE(16), 64);
-    assert.equal(png.readUInt32BE(20), 64);
-    assert.equal(png[25], 6, `${spriteName} must retain an alpha channel`);
-    assert.ok(png.length < 100_000, `${spriteName} should remain lightweight for mobile`);
+  enemyPacks.forEach((packName) => {
+    const framesPath = path.join(root, 'public', 'game-art', 'generated', 'scicon-flight-motion-pack-v1', 'enemies', packName, 'frames');
+    const frameNames = fs.readdirSync(framesPath).filter((fileName) => fileName.endsWith('.png'));
+    assert.equal(frameNames.length, 3);
+    frameNames.forEach((frameName) => {
+      const png = fs.readFileSync(path.join(framesPath, frameName));
+      assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+      assert.equal(png.readUInt32BE(16), 256);
+      assert.equal(png.readUInt32BE(20), 256);
+      assert.equal(png[25], 6, `${frameName} must retain an alpha channel`);
+      assert.ok(png.length < 100_000, `${frameName} should remain lightweight for mobile`);
+    });
   });
 });
 
 test('ordinary formations and asteroid belts use separate sprite catalogs', () => {
-  assert.match(constantsSource, /ENEMY_BRICK_FRAMES:\s*\[\s*"\/game-art\/enemies\/peer-review-bulwark\.png"/);
+  assert.match(constantsSource, /ENEMY_BRICK_FRAMES:\s*\[\s*"\/game-art\/generated\/scicon-flight-motion-pack-v1\/enemies\/peer-review-bulwark\/frames\/peer-review-bulwark-01-guard-low\.png"/);
   assert.match(constantsSource, /ASTEROID_BELT_FRAMES:\s*\[\s*"\/game-art\/enemies\/asteroid-1\.png"/);
   assert.match(validatorSource, /ASTEROID_SPRITE_KEYS, \['ASTEROID_BELT_FRAMES'/);
   assert.match(runtimeSource, /e\.variant >= 900 \? ASSETS\.ASTEROID_BELT_FRAMES : ASSETS\.ENEMY_BRICK_FRAMES/);
+});
+
+test('Pixi presents formation assembly pulses and a charged pre-dive frame without changing simulation states', () => {
+  assert.match(rendererSource, /getFormationMotionFrameIndex/);
+  assert.match(rendererSource, /entity\.formationDiveFrame - engine\.frameCount/);
+  assert.match(rendererSource, /framesUntilDive > 0 && framesUntilDive <= 36/);
+  assert.match(rendererSource, /entity\.formationState === 'entry' \|\| entity\.formationState === 'return'/);
+  assert.match(rendererSource, /entity\.formationState === 'dive'/);
 });

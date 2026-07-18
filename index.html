@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="description" content="Play. Win the week. Choose what research gets funded. Scicon Shooter is a community-built Base-native arcade game powered by active ResearchHub proposal data." />
+    <meta name="description" content="Play games. Fund science. Scicon Shooter is a DeSci-inspired, community-built Base arcade game where the finalized weekly winner can direct RSC funding credits toward an eligible science proposal." />
     <meta name="theme-color" content="#0b1020" />
     <meta name="application-name" content="Scicon Shooter" />
     <meta name="apple-mobile-web-app-title" content="Scicon Shooter" />
@@ -16,10 +16,14 @@
     <link rel="apple-touch-icon" href="/icon.png" />
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/orbitron-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/game-art/generated/ui/scicon-ui-system-v2/base/leaderboard-podium/first-place-row.png" as="image" />
+    <link rel="preload" href="/game-art/generated/ui/scicon-ui-system-v2/base/leaderboard-podium/second-place-row.png" as="image" />
+    <link rel="preload" href="/game-art/generated/ui/scicon-ui-system-v2/base/leaderboard-podium/third-place-row.png" as="image" />
 
     <meta property="og:title" content="Scicon Shooter" />
-    <meta property="og:description" content="Play. Win the week. Choose what research gets funded. Compete for the finalized weekly high score and direct a community allocation to active research." />
-    <meta property="og:image" content="https://sciconshooter.xyz/preview.png" />
+    <meta property="og:description" content="Play games. Fund science. Chase the weekly high score and help direct RSC funding credits toward an eligible science proposal." />
+    <meta property="og:image" content="https://sciconshooter.xyz/preview-dsci-v2.png" />
+    <meta property="og:image:alt" content="Scicon Shooter: Play games. Fund science. Two playable science ships battle through a neon pixel-art space arena." />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="628" />
     <meta property="og:url" content="https://sciconshooter.xyz" />
@@ -27,8 +31,9 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Scicon Shooter" />
-    <meta name="twitter:description" content="Play. Win the week. Choose what research gets funded." />
-    <meta name="twitter:image" content="https://sciconshooter.xyz/preview.png" />
+    <meta name="twitter:description" content="Play games. Fund science. Chase the weekly high score and help direct RSC funding credits toward an eligible science proposal." />
+    <meta name="twitter:image" content="https://sciconshooter.xyz/preview-dsci-v2.png" />
+    <meta name="twitter:image:alt" content="Scicon Shooter: Play games. Fund science. Two playable science ships battle through a neon pixel-art space arena." />
 
     <title>Scicon Shooter</title>
     <style>
@@ -709,7 +714,7 @@
         width: 100%;
         height: 100%;
         aspect-ratio: auto;
-        animation: sci-rh-logo-float 3.2s ease-in-out infinite;
+        animation: none;
       }
 
       .sci-ship-carousel-core img {
@@ -1039,6 +1044,255 @@
         background: #6ee7b7;
         box-shadow: 0 0 0 0 rgba(110, 231, 183, 0.65);
         animation: sci-weekly-live-pulse 1.7s ease-in-out infinite;
+      }
+
+      .sci-first-place-row {
+        position: relative;
+        display: block;
+        width: 100%;
+        aspect-ratio: 752 / 306;
+        overflow: hidden;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: white;
+        isolation: isolate;
+        text-align: left;
+      }
+
+      .sci-first-place-row:not(:disabled) { cursor: pointer; }
+      .sci-first-place-row:disabled { cursor: default; opacity: 1; }
+
+      .sci-first-place-row__base,
+      .sci-first-place-row__machinery {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .sci-first-place-row__base {
+        z-index: 0;
+        object-fit: fill;
+        filter: drop-shadow(0 8px 18px rgba(1, 9, 25, 0.56));
+      }
+
+      .sci-first-place-row__machinery { z-index: 1; pointer-events: none; }
+
+      .sci-first-place-turbine,
+      .sci-first-place-turbine-blades,
+      .sci-first-place-crown,
+      .sci-first-place-lamp,
+      .sci-first-place-spark,
+      .sci-first-place-gold-pixels {
+        position: absolute;
+        display: block;
+      }
+
+      .sci-first-place-turbine { top: 38.56%; width: 10.9%; height: 26.8%; }
+      .sci-first-place-turbine--left { left: 11.44%; }
+      .sci-first-place-turbine--right { left: 82.98%; }
+
+      .sci-first-place-turbine-blades {
+        top: 43.46%;
+        width: 6.92%;
+        height: 16.99%;
+        transform-origin: 50% 50%;
+        animation: sci-first-place-turbine-spin 3.84s linear infinite;
+      }
+
+      .sci-first-place-turbine-blades--left { left: 13.43%; }
+      .sci-first-place-turbine-blades--right { left: 84.97%; animation-direction: reverse; }
+
+      .sci-first-place-crown { top: 0.3%; left: 47.74%; width: 4.52%; height: 20.26%; }
+
+      .sci-first-place-crown__state {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+        opacity: 0;
+        animation-duration: 3.84s;
+        animation-timing-function: steps(1, end);
+        animation-iteration-count: infinite;
+      }
+
+      .sci-first-place-crown__state--0 { animation-name: sci-first-place-crown-0; }
+      .sci-first-place-crown__state--1 { animation-name: sci-first-place-crown-1; }
+      .sci-first-place-crown__state--2 { animation-name: sci-first-place-crown-2; }
+      .sci-first-place-crown__state--3 { animation-name: sci-first-place-crown-3; }
+
+      .sci-first-place-lamp {
+        width: 4.52%;
+        height: 3.27%;
+        object-fit: fill;
+        opacity: 0.18;
+        animation: sci-first-place-lamp-pulse 3.84s steps(1, end) infinite;
+      }
+
+      .sci-first-place-lamp--0 { left: 19.95%; top: 27.12%; animation-delay: 0s; }
+      .sci-first-place-lamp--1 { left: 27.53%; top: 27.12%; animation-delay: -0.32s; }
+      .sci-first-place-lamp--2 { left: 35.11%; top: 27.12%; animation-delay: -0.64s; }
+      .sci-first-place-lamp--3 { left: 56.65%; top: 27.12%; animation-delay: -0.96s; }
+      .sci-first-place-lamp--4 { left: 64.23%; top: 27.12%; animation-delay: -1.28s; }
+      .sci-first-place-lamp--5 { left: 71.81%; top: 27.12%; animation-delay: -1.6s; }
+      .sci-first-place-lamp--6 { left: 21.28%; top: 73.2%; animation-delay: -1.92s; }
+      .sci-first-place-lamp--7 { left: 28.86%; top: 73.2%; animation-delay: -2.24s; }
+      .sci-first-place-lamp--8 { left: 36.44%; top: 73.2%; animation-delay: -2.56s; }
+      .sci-first-place-lamp--9 { left: 55.32%; top: 73.2%; animation-delay: -2.88s; }
+      .sci-first-place-lamp--10 { left: 62.9%; top: 73.2%; animation-delay: -3.2s; }
+      .sci-first-place-lamp--11 { left: 70.48%; top: 73.2%; animation-delay: -3.52s; }
+
+      .sci-first-place-spark {
+        top: 1%; left: 47.87%; width: 4.25%; height: 10.46%;
+        animation: sci-first-place-crown-discharge 3.84s steps(1, end) infinite;
+      }
+
+      .sci-first-place-gold-pixels {
+        top: 1%; left: 47.07%; width: 5.85%; height: 9.8%;
+        animation: sci-first-place-crown-discharge 3.84s steps(1, end) -0.12s infinite;
+      }
+
+      .sci-first-place-row__content {
+        position: absolute;
+        z-index: 2;
+        top: 31%;
+        right: 18.5%;
+        bottom: 25%;
+        left: 18.5%;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: clamp(0.35rem, 1.5vw, 0.8rem);
+        min-width: 0;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.86);
+      }
+
+      .sci-first-place-row__rank,
+      .sci-first-place-row__identity,
+      .sci-first-place-row__score {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .sci-first-place-row__rank { align-items: center; color: #fef08a; text-transform: uppercase; }
+      .sci-first-place-row__rank strong { font-size: clamp(1rem, 5.2vw, 2.1rem); line-height: 0.9; }
+
+      .sci-first-place-row__rank small,
+      .sci-first-place-row__identity small,
+      .sci-first-place-row__score small {
+        overflow: hidden;
+        font-size: clamp(0.42rem, 1.45vw, 0.68rem);
+        font-weight: 800;
+        line-height: 1.15;
+        letter-spacing: 0;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .sci-first-place-row__identity strong {
+        overflow: hidden;
+        color: #fff;
+        font-size: clamp(0.76rem, 3.2vw, 1.35rem);
+        font-weight: 950;
+        line-height: 1.05;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .sci-first-place-row__identity small { margin-top: 0.2rem; color: #bae6fd; }
+      .sci-first-place-row__score { align-items: flex-end; color: #fff; }
+      .sci-first-place-row__score strong { font-size: clamp(0.85rem, 3.5vw, 1.55rem); line-height: 1; }
+      .sci-first-place-row__score small { margin-top: 0.16rem; color: #fde68a; }
+
+      .sci-podium-runner {
+        position: relative;
+        display: block;
+        width: 94%;
+        aspect-ratio: 2.62 / 1;
+        margin-inline: auto;
+        overflow: hidden;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: white;
+        text-align: left;
+      }
+
+      .sci-podium-runner:not(:disabled) { cursor: pointer; }
+      .sci-podium-runner:disabled { cursor: default; opacity: 1; }
+
+      .sci-podium-runner__base {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+        filter: drop-shadow(0 7px 14px rgba(1, 9, 25, 0.48));
+      }
+
+      .sci-podium-runner__content {
+        position: absolute;
+        z-index: 1;
+        top: 32%;
+        right: 19%;
+        bottom: 25%;
+        left: 19%;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: clamp(0.35rem, 1.5vw, 0.75rem);
+        min-width: 0;
+        text-shadow: 0 2px 7px rgba(0, 0, 0, 0.82);
+      }
+
+      .sci-podium-runner__rank {
+        display: grid;
+        width: clamp(1.8rem, 8vw, 3rem);
+        aspect-ratio: 1;
+        place-items: center;
+        border: 1px solid currentColor;
+        border-radius: 5px;
+        font-size: clamp(0.8rem, 3vw, 1.15rem);
+        font-weight: 950;
+      }
+
+      .sci-podium-runner--silver .sci-podium-runner__rank { color: #e2e8f0; background: rgba(226, 232, 240, 0.1); }
+      .sci-podium-runner--bronze .sci-podium-runner__rank { color: #fdba74; background: rgba(251, 146, 60, 0.1); }
+      .sci-podium-runner__identity { display: flex; min-width: 0; flex-direction: column; }
+
+      .sci-podium-runner__identity strong,
+      .sci-podium-runner__identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      .sci-podium-runner__identity strong { font-size: clamp(0.72rem, 2.9vw, 1.12rem); font-weight: 950; text-transform: uppercase; }
+      .sci-podium-runner__identity small { margin-top: 0.15rem; color: #bae6fd; font-size: clamp(0.44rem, 1.55vw, 0.68rem); font-weight: 700; }
+      .sci-podium-runner__score { font-size: clamp(0.75rem, 3vw, 1.2rem); font-weight: 950; }
+
+      @keyframes sci-first-place-turbine-spin { to { transform: rotate(360deg); } }
+      @keyframes sci-first-place-crown-0 { 0%, 24.99% { opacity: 1; } 25%, 100% { opacity: 0; } }
+      @keyframes sci-first-place-crown-1 { 0%, 24.99%, 50%, 100% { opacity: 0; } 25%, 49.99% { opacity: 1; } }
+      @keyframes sci-first-place-crown-2 { 0%, 49.99%, 75%, 100% { opacity: 0; } 50%, 74.99% { opacity: 1; } }
+      @keyframes sci-first-place-crown-3 { 0%, 74.99% { opacity: 0; } 75%, 100% { opacity: 1; } }
+      @keyframes sci-first-place-lamp-pulse { 0%, 70%, 100% { opacity: 0.16; } 12%, 34% { opacity: 0.95; } }
+      @keyframes sci-first-place-crown-discharge { 0%, 72%, 100% { opacity: 0; transform: translateY(2px) scale(0.8); } 75%, 87% { opacity: 0.9; transform: translateY(-2px) scale(1); } }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sci-first-place-turbine-blades,
+        .sci-first-place-crown__state,
+        .sci-first-place-lamp,
+        .sci-first-place-spark,
+        .sci-first-place-gold-pixels { animation: none !important; }
+
+        .sci-first-place-crown__state { opacity: 0; }
+        .sci-first-place-crown__state--0 { opacity: 1; }
+        .sci-first-place-lamp { opacity: 0.25; }
+        .sci-first-place-spark,
+        .sci-first-place-gold-pixels { display: none; }
       }
 
       .sci-leaderboard-row {

@@ -54,20 +54,26 @@ test('weekly and all-time Trophy Deck views retain and render up to 100 scores',
   assert.match(leaderboardServiceSource, /export const WEEKLY_SCORE_LIMIT = 100/);
   assert.match(source, /visibleLeaderboard\.slice\(0, WEEKLY_SCORE_LIMIT\)/);
   assert.match(source, /visibleLeaderboard\.slice\(0, ALL_TIME_SCORE_LIMIT\)/);
-  assert.match(source, /displayedLeaderboard\.map/);
-  assert.match(source, /max-h-\[min\(62vh,48rem\)\].*overflow-y-auto.*custom-scrollbar/);
+  assert.match(source, /displayedLeaderboard\.slice\(3\)/);
+  assert.match(source, /standardRanks\.map/);
+  assert.match(source, /const rank = index \+ 4/);
+  assert.match(source, /max-h-\[min\(42vh,34rem\)\].*overflow-y-auto.*custom-scrollbar/);
   assert.doesNotMatch(source, /visibleLeaderboard\.slice\(0, 8\)/);
 });
 
-test('Weekly and All-time leaders share gold, silver, and bronze podium framing', () => {
-  assert.match(source, /\{ label: 'Gold', tone: 'gold' \}/);
-  assert.match(source, /\{ label: 'Silver', tone: 'silver' \}/);
-  assert.match(source, /\{ label: 'Bronze', tone: 'bronze' \}/);
-  assert.match(source, /const podium = podiumRanks\[index\]/);
-  assert.match(source, /sci-leaderboard-row--\$\{podium\.tone\}/);
-  assert.match(htmlSource, /\.sci-leaderboard-row--gold/);
-  assert.match(htmlSource, /\.sci-leaderboard-row--silver/);
-  assert.match(htmlSource, /\.sci-leaderboard-row--bronze/);
+test('Weekly and All-time leaders use generated living-machinery podium rows', () => {
+  assert.match(source, /first-place-row\.png/);
+  assert.match(source, /second-place-row\.png/);
+  assert.match(source, /third-place-row\.png/);
+  assert.match(source, /first-place-turbine-blades\.png/);
+  assert.match(source, /first-place-crown-diamond-\$\{state\}\.png/);
+  assert.match(source, /<FirstPlaceLivingRow entry=\{firstPlace\}/);
+  assert.match(source, /<PodiumRunnerRow entry=\{secondPlace\} rank=\{2\} tone="silver"/);
+  assert.match(source, /<PodiumRunnerRow entry=\{thirdPlace\} rank=\{3\} tone="bronze"/);
+  assert.match(htmlSource, /\.sci-first-place-turbine-blades/);
+  assert.match(htmlSource, /@keyframes sci-first-place-turbine-spin/);
+  assert.match(htmlSource, /\.sci-podium-runner--silver/);
+  assert.match(htmlSource, /\.sci-podium-runner--bronze/);
 });
 
 test('leaderboard names open the canonical Mission Record in a read-only viewer', () => {

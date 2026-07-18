@@ -1,0 +1,20 @@
+{
+  "id": "funding-vault-unseal",
+  "runtimeText": true,
+  "durationMs": 2184,
+  "events": [
+    {
+      "atMs": 0,
+      "name": "ui.vault.pressure"
+    },
+    {
+      "atMs": 760,
+      "name": "ui.vault.unseal"
+    },
+    {
+      "atMs": 1320,
+      "name": "ui.vault.power"
+    }
+  ],
+  "production": "layered-png"
+}

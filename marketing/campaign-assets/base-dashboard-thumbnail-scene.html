@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1024, initial-scale=1" />
+  <title>Scicon Shooter Base Dashboard Thumbnail</title>
+  <style>
+    @font-face {
+      font-family: "Orbitron";
+      src: url("../../public/fonts/orbitron-latin.woff2") format("woff2");
+      font-weight: 400 900;
+      font-style: normal;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 1024px; height: 1024px; margin: 0; overflow: hidden; background: #010415; }
+
+    .poster {
+      position: relative;
+      width: 1024px;
+      height: 1024px;
+      isolation: isolate;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 53%, rgba(5, 189, 238, 0.22), transparent 36%),
+        radial-gradient(circle at 79% 45%, rgba(91, 33, 182, 0.22), transparent 34%),
+        linear-gradient(180deg, #02051a 0%, #03102e 48%, #02051a 100%);
+    }
+
+    .stars {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-image: url("../../public/game-art/backgrounds/bg-stars.png");
+      background-size: 544px 320px;
+      image-rendering: pixelated;
+      opacity: 0.88;
+    }
+
+    .boss-aura {
+      position: absolute;
+      z-index: 1;
+      left: 206px;
+      top: 270px;
+      width: 612px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(255, 22, 80, 0.25), rgba(58, 22, 130, 0.13) 45%, transparent 72%);
+      filter: blur(20px);
+    }
+
+    .boss {
+      position: absolute;
+      z-index: 2;
+      left: 248px;
+      top: 315px;
+      width: 528px;
+      height: auto;
+      image-rendering: pixelated;
+      opacity: 0.72;
+      filter:
+        brightness(0.68)
+        saturate(0.82)
+        contrast(1.12)
+        drop-shadow(0 0 18px rgba(255, 22, 76, 0.42))
+        drop-shadow(0 30px 45px rgba(0, 0, 0, 0.72));
+    }
+
+    .nebula {
+      position: absolute;
+      z-index: 3;
+      left: -140px;
+      top: 300px;
+      width: 1304px;
+      height: 767px;
+      object-fit: cover;
+      image-rendering: pixelated;
+      opacity: 0.42;
+      mix-blend-mode: screen;
+      filter: saturate(1.18) contrast(1.05);
+    }
+
+    .impact {
+      position: absolute;
+      z-index: 5;
+      left: 489px;
+      top: 515px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #fff9ca;
+      box-shadow:
+        0 0 8px 4px rgba(255, 245, 170, 0.95),
+        0 0 22px 10px rgba(255, 120, 40, 0.76),
+        0 0 52px 18px rgba(255, 32, 80, 0.42);
+    }
+
+    .logo {
+      --chrome-blue: rgba(34, 211, 238, 0.72);
+      --chrome-pink: rgba(244, 114, 182, 0.46);
+      position: absolute;
+      z-index: 10;
+      top: 54px;
+      left: 50%;
+      display: grid;
+      width: 790px;
+      transform: translateX(-50%) skewX(-7deg);
+      filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.62)) drop-shadow(0 0 18px rgba(96, 165, 250, 0.26));
+    }
+
+    .logo-word {
+      position: relative;
+      display: block;
+      justify-self: center;
+      color: #f8fbff;
+      font-family: "Orbitron", sans-serif;
+      font-size: 102px;
+      font-style: italic;
+      font-weight: 900;
+      letter-spacing: 0.045em;
+      line-height: 0.78;
+      text-transform: uppercase;
+      -webkit-text-fill-color: #f8fbff;
+      -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.98);
+      text-shadow:
+        0 0 1px rgba(255, 255, 255, 0.96),
+        2px 2px 0 rgba(203, 213, 225, 0.95),
+        4px 4px 0 rgba(51, 65, 85, 0.96),
+        7px 7px 0 rgba(3, 7, 18, 0.99),
+        -2px -2px 0 var(--chrome-blue),
+        2px 3px 0 var(--chrome-pink),
+        0 0 18px rgba(219, 234, 254, 0.36);
+    }
+
+    .logo-word::before,
+    .logo-word::after {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .logo-word::before {
+      z-index: -1;
+      color: #020617;
+      -webkit-text-fill-color: #020617;
+      -webkit-text-stroke: 7px #020617;
+      text-shadow: 2px 0 0 rgba(34, 211, 238, 0.65), -2px 0 0 rgba(244, 114, 182, 0.42), 0 0 16px #020617;
+    }
+
+    .logo-word::after {
+      z-index: 1;
+      color: transparent;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.84) 0 18%, transparent 30% 58%, rgba(148,163,184,0.22) 68% 100%),
+        linear-gradient(90deg, rgba(191,219,254,0.42), transparent 18% 82%, rgba(248,113,113,0.22));
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      -webkit-text-stroke: 0;
+    }
+
+    .logo-word.sub { margin-top: 12px; font-size: 92px; letter-spacing: 0.035em; }
+
+    .tagline {
+      position: absolute;
+      z-index: 10;
+      top: 255px;
+      left: 0;
+      width: 100%;
+      color: #6ee7f9;
+      font-family: "Orbitron", sans-serif;
+      font-size: 25px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-align: center;
+      text-shadow: 0 3px 0 #020617, 0 0 13px rgba(34, 211, 238, 0.45);
+    }
+
+    .tagline b { color: #8bff3f; }
+
+    .ship {
+      position: absolute;
+      z-index: 8;
+      width: 330px;
+      height: 330px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      transform-origin: 50% 60%;
+    }
+
+    .ship-rh {
+      left: 104px;
+      top: 665px;
+      transform: rotate(9deg);
+      filter: drop-shadow(0 0 12px rgba(0, 220, 255, 0.7)) drop-shadow(0 25px 35px rgba(0, 0, 0, 0.7));
+    }
+
+    .ship-bio {
+      right: 104px;
+      top: 665px;
+      transform: rotate(-9deg);
+      filter: drop-shadow(0 0 13px rgba(118, 255, 45, 0.72)) drop-shadow(0 25px 35px rgba(0, 0, 0, 0.7));
+    }
+
+    .shot {
+      position: absolute;
+      z-index: 7;
+      width: 12px;
+      height: 72px;
+      border-radius: 10px;
+    }
+
+    .shot.cyan { background: #d7fbff; box-shadow: 0 0 8px 3px #22d3ee, 0 0 18px 7px rgba(14, 165, 233, 0.55); transform: rotate(42deg); }
+    .shot.lime { background: #f2ffd5; box-shadow: 0 0 8px 3px #8bff3f, 0 0 18px 7px rgba(84, 255, 36, 0.50); transform: rotate(-42deg); }
+    .c1 { left: 352px; top: 662px; }
+    .c2 { left: 405px; top: 602px; transform: rotate(42deg) scale(0.86) !important; }
+    .c3 { left: 453px; top: 551px; transform: rotate(42deg) scale(0.72) !important; }
+    .l1 { left: 660px; top: 662px; }
+    .l2 { left: 607px; top: 602px; transform: rotate(-42deg) scale(0.86) !important; }
+    .l3 { left: 559px; top: 551px; transform: rotate(-42deg) scale(0.72) !important; }
+
+    .vignette {
+      position: absolute;
+      z-index: 20;
+      inset: 0;
+      pointer-events: none;
+      box-shadow: inset 0 0 100px 30px rgba(0, 0, 12, 0.82);
+      border: 2px solid rgba(57, 189, 248, 0.12);
+    }
+  </style>
+</head>
+<body>
+  <main class="poster">
+    <div class="stars"></div>
+    <div class="boss-aura"></div>
+    <img class="boss" src="../../public/game-art/pixi/bosses/paywall-decimator/body/frame-1.png" alt="" />
+    <img class="nebula" src="../../public/game-art/backgrounds/menu-hero.png" alt="" />
+
+    <div class="logo" aria-label="Scicon Shooter">
+      <span class="logo-word" data-text="SCICON">SCICON</span>
+      <span class="logo-word sub" data-text="SHOOTER">SHOOTER</span>
+    </div>
+    <div class="tagline">PLAY GAMES. <b>FUND SCIENCE.</b></div>
+
+    <span class="shot cyan c1"></span><span class="shot cyan c2"></span><span class="shot cyan c3"></span>
+    <span class="shot lime l1"></span><span class="shot lime l2"></span><span class="shot lime l3"></span>
+    <div class="impact"></div>
+
+    <img class="ship ship-rh" src="../../public/game-art/branding/researchhub-ship.png" alt="ResearchHub ship" />
+    <img class="ship ship-bio" src="../../public/game-art/branding/bio-ship.png" alt="BIO ship" />
+    <div class="vignette"></div>
+  </main>
+</body>
+</html>

@@ -1,5 +1,26 @@
 
-type GameSoundType = 'shoot' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb';
+type GameSoundType = 'shoot' | 'boss_shoot' | 'impact' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb';
+type SampleKey = 'player-shot' | 'boss-shot' | 'hit' | 'explosion';
+
+type SampleProfile = {
+  sample: SampleKey;
+  volume: number;
+  maxDuration: number;
+};
+
+const SAMPLE_URLS: Record<SampleKey, string> = {
+  'player-shot': '/audio/sfx/player-shot.wav',
+  'boss-shot': '/audio/sfx/boss-shot.wav',
+  hit: '/audio/sfx/hit.wav',
+  explosion: '/audio/sfx/explosion.wav'
+};
+
+const SAMPLE_PROFILES: Partial<Record<GameSoundType, SampleProfile>> = {
+  boss_shoot: { sample: 'boss-shot', volume: 0.24, maxDuration: 0.38 },
+  impact: { sample: 'hit', volume: 0.075, maxDuration: 0.16 },
+  hit: { sample: 'hit', volume: 0.23, maxDuration: 0.42 },
+  explode: { sample: 'explosion', volume: 0.2, maxDuration: 0.82 }
+};
 
 const MISSION_BPM = 154;
 const MISSION_STEP_MS = (60_000 / MISSION_BPM) / 2;
@@ -27,6 +48,10 @@ class AudioService {
   private musicRequested: boolean = false;
   private musicLaunchPending: boolean = false;
   private activeMusicNodes = new Set<OscillatorNode>();
+  private activeProceduralNodes = new Set<OscillatorNode>();
+  private activeSampleNodes = new Set<AudioBufferSourceNode>();
+  private sampleBuffers: Partial<Record<SampleKey, AudioBuffer>> = {};
+  private sampleLoadPromise: Promise<void> | null = null;
   private pageActive: boolean = !document.hidden;
   private lastSoundTime: Partial<Record<GameSoundType, number>> = {};
 
@@ -38,6 +63,7 @@ class AudioService {
         this.ctx = new AudioContextClass();
         this.masterGain = this.ctx.createGain();
         this.masterGain.connect(this.ctx.destination);
+        void this.preloadSamples();
       }
     } catch {
       console.error("WebAudio not supported");
@@ -87,6 +113,88 @@ class AudioService {
     this.activeMusicNodes.clear();
   }
 
+  private stopActiveSampleNodes() {
+    this.activeSampleNodes.forEach((node) => {
+      try {
+        node.stop();
+      } catch {
+        // The sample may already have reached its scheduled stop time.
+      }
+    });
+    this.activeSampleNodes.clear();
+  }
+
+  private stopActiveProceduralNodes() {
+    this.activeProceduralNodes.forEach((node) => {
+      try {
+        node.stop();
+      } catch {
+        // The short procedural cue may already have ended.
+      }
+    });
+    this.activeProceduralNodes.clear();
+  }
+
+  private preloadSamples() {
+    if (
+      !this.ctx
+      || this.sampleLoadPromise
+      || typeof fetch !== 'function'
+      || typeof this.ctx.decodeAudioData !== 'function'
+    ) {
+      return this.sampleLoadPromise;
+    }
+
+    const context = this.ctx;
+    const loads = (Object.entries(SAMPLE_URLS) as Array<[SampleKey, string]>).map(async ([key, url]) => {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) return;
+        const data = await response.arrayBuffer();
+        this.sampleBuffers[key] = await context.decodeAudioData(data);
+      } catch {
+        // Procedural sounds remain available when a sample cannot be decoded.
+      }
+    });
+    this.sampleLoadPromise = Promise.all(loads).then(() => undefined);
+    return this.sampleLoadPromise;
+  }
+
+  private playSample(type: GameSoundType, intensity: number, pitch: number) {
+    if (!this.ctx || !this.masterGain) return false;
+    const profile = SAMPLE_PROFILES[type];
+    if (!profile) return false;
+    const buffer = this.sampleBuffers[profile.sample];
+    if (!buffer || typeof this.ctx.createBufferSource !== 'function') return false;
+
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+    const now = this.ctx.currentTime;
+    const playbackRate = Math.max(0.72, Math.min(1.38, pitch));
+    const intensityScale = type === 'explode'
+      ? Math.max(0.5, Math.min(1.5, 0.62 + intensity * 0.3))
+      : Math.max(0.65, Math.min(1.25, 0.82 + intensity * 0.12));
+    const volume = profile.volume * intensityScale;
+    const durationScale = type === 'explode'
+      ? Math.max(0.72, Math.min(1.75, intensity))
+      : 1;
+    const duration = Math.max(0.06, Math.min(buffer.duration / playbackRate, profile.maxDuration * durationScale));
+    const fadeStart = now + Math.max(0.01, duration - Math.min(0.14, duration * 0.35));
+
+    source.buffer = buffer;
+    source.playbackRate.setValueAtTime(playbackRate, now);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.setValueAtTime(volume, fadeStart);
+    gain.gain.exponentialRampToValueAtTime(SILENCE_GAIN, now + duration);
+    source.connect(gain);
+    gain.connect(this.masterGain);
+    source.onended = () => this.activeSampleNodes.delete(source);
+    this.activeSampleNodes.add(source);
+    source.start(now);
+    source.stop(now + duration + 0.02);
+    return true;
+  }
+
   private setPageActive(active: boolean) {
     if (this.pageActive === active) return;
     this.pageActive = active;
@@ -94,6 +202,8 @@ class AudioService {
     if (!active) {
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
+      this.stopActiveSampleNodes();
+      this.stopActiveProceduralNodes();
       void this.ctx?.suspend().catch(() => undefined);
       return;
     }
@@ -111,6 +221,7 @@ class AudioService {
   }
 
   public init() {
+    void this.preloadSamples();
     if (this.pageActive && !this.muted && this.ctx?.state === 'suspended') {
       void this.ctx.resume().catch(() => undefined);
     }
@@ -122,10 +233,16 @@ class AudioService {
     if (this.muted) {
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
+      this.stopActiveSampleNodes();
+      this.stopActiveProceduralNodes();
     } else if (this.pageActive) {
       this.init();
       this.beginMusicTimer();
     }
+    return this.muted;
+  }
+
+  public isMuted() {
     return this.muted;
   }
 
@@ -293,6 +410,45 @@ class AudioService {
     osc.stop(t + 0.045);
   }
 
+  private playBossWarningSiren(startTime: number) {
+    if (!this.ctx || !this.masterGain) return;
+
+    const bus = this.ctx.createGain();
+    const lowAlarm = this.ctx.createOscillator();
+    const highAlarm = this.ctx.createOscillator();
+    const stopTime = startTime + 0.72;
+
+    lowAlarm.type = 'sawtooth';
+    lowAlarm.frequency.setValueAtTime(172, startTime);
+    lowAlarm.frequency.linearRampToValueAtTime(236, startTime + 0.22);
+    lowAlarm.frequency.linearRampToValueAtTime(172, startTime + 0.36);
+    lowAlarm.frequency.linearRampToValueAtTime(248, startTime + 0.58);
+    lowAlarm.frequency.linearRampToValueAtTime(180, stopTime);
+
+    highAlarm.type = 'square';
+    highAlarm.detune.setValueAtTime(-9, startTime);
+    highAlarm.frequency.setValueAtTime(690, startTime);
+    highAlarm.frequency.linearRampToValueAtTime(510, startTime + 0.24);
+    highAlarm.frequency.linearRampToValueAtTime(760, startTime + 0.48);
+    highAlarm.frequency.linearRampToValueAtTime(540, stopTime);
+
+    bus.gain.setValueAtTime(SILENCE_GAIN, startTime);
+    bus.gain.linearRampToValueAtTime(0.16, startTime + 0.035);
+    bus.gain.exponentialRampToValueAtTime(0.045, startTime + 0.29);
+    bus.gain.linearRampToValueAtTime(0.15, startTime + 0.38);
+    bus.gain.exponentialRampToValueAtTime(SILENCE_GAIN, stopTime);
+
+    lowAlarm.connect(bus);
+    highAlarm.connect(bus);
+    bus.connect(this.masterGain);
+    for (const oscillator of [lowAlarm, highAlarm]) {
+      oscillator.onended = () => this.activeProceduralNodes.delete(oscillator);
+      this.activeProceduralNodes.add(oscillator);
+      oscillator.start(startTime);
+      oscillator.stop(stopTime + 0.01);
+    }
+  }
+
   // Procedural Sound Generation
   public playSound(
     type: GameSoundType,
@@ -303,13 +459,15 @@ class AudioService {
 
     const minSpacingMs: Partial<Record<GameSoundType, number>> = {
       shoot: 28,
+      boss_shoot: 95,
+      impact: 58,
       coin: 24,
-      explode: 42,
+      explode: 72,
       hit: 80,
       powerup: 80,
       missile: 70,
       electricity: 40,
-      siren: 120,
+      siren: 620,
       boss_roar: 180,
       bomb: 140
     };
@@ -324,8 +482,17 @@ class AudioService {
     const pitchOffset = options.pitchOffset ?? 0;
     const pitch = (1 - (pitchJitter / 2)) + (Math.random() * pitchJitter) + pitchOffset;
     const comboLift = Math.min(Math.max(intensity - 1, 0), 8) * 0.07;
+    if (this.playSample(type, intensity, pitch)) return;
+    if (type === 'siren') {
+      this.playBossWarningSiren(t);
+      return;
+    }
+
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
+
+    osc.onended = () => this.activeProceduralNodes.delete(osc);
+    this.activeProceduralNodes.add(osc);
 
     osc.connect(gain);
     gain.connect(this.masterGain!);
@@ -346,25 +513,34 @@ class AudioService {
         osc.stop(t + 0.5);
         break;
 
-      case 'siren':
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(520, t);
-        osc.frequency.linearRampToValueAtTime(880, t + 0.18);
-        osc.frequency.linearRampToValueAtTime(520, t + 0.36);
-        gain.gain.setValueAtTime(0.18, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.44);
+      case 'shoot':
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(520 * pitch, t);
+        osc.frequency.exponentialRampToValueAtTime(170 * pitch, t + 0.075);
+        gain.gain.setValueAtTime(0.045, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.075);
         osc.start(t);
-        osc.stop(t + 0.44);
+        osc.stop(t + 0.08);
         break;
 
-      case 'shoot':
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(880 * pitch, t);
-        osc.frequency.exponentialRampToValueAtTime(110 * pitch, t + 0.1);
-        gain.gain.setValueAtTime(0.1, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+      case 'boss_shoot':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(420 * pitch, t);
+        osc.frequency.exponentialRampToValueAtTime(74 * pitch, t + 0.22);
+        gain.gain.setValueAtTime(0.19, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.24);
         osc.start(t);
-        osc.stop(t + 0.1);
+        osc.stop(t + 0.25);
+        break;
+
+      case 'impact':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(260 * pitch, t);
+        osc.frequency.exponentialRampToValueAtTime(70 * pitch, t + 0.055);
+        gain.gain.setValueAtTime(0.06, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.06);
+        osc.start(t);
+        osc.stop(t + 0.065);
         break;
 
       case 'missile':
