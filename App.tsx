@@ -1538,7 +1538,7 @@ const App: React.FC = () => {
 
       {gameState === GameState.GAMEOVER && (
         <GameOverPresentation footer={gameOverContinueControls}>
-            <div className="relative z-10 grid gap-3 p-2 text-center">
+            <div className="sci-gameover-result-content relative z-10 grid gap-2 p-1 text-center">
               {missionResultBanner}
 
               {showNameInput ? (
@@ -1573,7 +1573,7 @@ const App: React.FC = () => {
                       type="button"
                       onClick={skipScoreSubmission}
                       disabled={isSubmittingScore}
-                      className="justify-self-center px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-500 transition hover:text-red-100 disabled:opacity-50"
+                      className="sci-gameover-skip-score justify-self-center px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 transition hover:text-red-100 disabled:opacity-50"
                     >
                       {isOwnerTestRun ? 'Exit test' : 'Skip score'}
                     </button>

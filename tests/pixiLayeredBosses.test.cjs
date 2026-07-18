@@ -121,7 +121,7 @@ test('the first two gatekeepers use optional detachable weapon weak points', () 
   }
 });
 
-test('boss components use low arcade durability, larger targets, and reserve the helmet for Boss 3', () => {
+test('boss components scale with boss health and wave while reserving the helmet for Boss 3', () => {
   const engine = read('services/gameLogic.ts');
   const componentFactory = engine.slice(
     engine.indexOf('createBossComponents(boss: Entity)'),
@@ -132,12 +132,17 @@ test('boss components use low arcade durability, larger targets, and reserve the
   assert.match(engine, /'citation-storm': Object\.freeze\(\{ 'left-cannon': 6, 'right-cannon': 6 \}\)/);
   assert.match(engine, /'paywall-siege': Object\.freeze\(\{ 'left-cannon': 7, 'right-cannon': 7, helmet: 7 \}\)/);
   assert.match(engine, /'crown-claw': Object\.freeze\(\{ 'left-cannon': 8, 'right-cannon': 8 \}\)/);
+  assert.match(engine, /const BOSS_CANNON_HEALTH_BASE_RATIO = 0\.07/);
+  assert.match(engine, /const BOSS_CANNON_HEALTH_WAVE_STEP = 0\.0075/);
+  assert.match(engine, /const BOSS_CANNON_HEALTH_MAX_RATIO = 0\.1/);
+  assert.match(engine, /getBossComponentDurability\(boss: Entity, componentId: BossPartId\)/);
+  assert.match(engine, /Math\.round\(Math\.max\(1, boss\.maxHp\) \* healthRatio \* componentMultiplier\)/);
+  assert.match(componentFactory, /this\.getBossComponentDurability\(boss, layout\.id\)/);
   assert.match(engine, /const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1\.5/);
   assert.match(engine, /component\.hp -= Math\.max\(0, damage\) \* BOSS_COMPONENT_WEAK_POINT_MULTIPLIER/);
   assert.match(componentFactory, /widthRatio: 0\.38/);
   assert.match(componentFactory, /widthRatio: 0\.34/);
   assert.match(engine, /const PAYWALL_BOSS_COMPONENT_LAYOUT/);
-  assert.doesNotMatch(componentFactory, /boss\.maxHp \* 0\./);
 
   const beforePaywall = componentFactory.slice(0, componentFactory.indexOf("if (boss.bossRigId === 'paywall-siege')"));
   const afterPaywall = componentFactory.slice(componentFactory.indexOf("if (boss.bossRigId === 'paywall-siege')"));

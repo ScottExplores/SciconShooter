@@ -481,6 +481,10 @@ const BOSS_COMPONENT_DURABILITY: Readonly<Record<BossRigId, Readonly<Partial<Rec
   'paywall-siege': Object.freeze({ 'left-cannon': 7, 'right-cannon': 7, helmet: 7 }),
   'crown-claw': Object.freeze({ 'left-cannon': 8, 'right-cannon': 8 })
 });
+const BOSS_CANNON_HEALTH_BASE_RATIO = 0.07;
+const BOSS_CANNON_HEALTH_WAVE_STEP = 0.0075;
+const BOSS_CANNON_HEALTH_MAX_RATIO = 0.1;
+const BOSS_HELMET_HEALTH_MULTIPLIER = 1.15;
 export const BOSS_CANNON_SCALE = 1.6;
 export const CROWNCLAW_ARM_SCALE = 1.42;
 const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1.5;
@@ -4335,6 +4339,21 @@ export class GameEngine {
      }
   }
 
+  getBossComponentDurability(boss: Entity, componentId: BossPartId) {
+    const rigId = boss.bossRigId ?? 'open-orbit';
+    const minimumDurability = BOSS_COMPONENT_DURABILITY[rigId][componentId] ?? 5;
+    const waveStep = Math.max(0, this.stats.wave - 1) * BOSS_CANNON_HEALTH_WAVE_STEP;
+    const healthRatio = Math.min(
+      BOSS_CANNON_HEALTH_MAX_RATIO,
+      BOSS_CANNON_HEALTH_BASE_RATIO + waveStep
+    );
+    const componentMultiplier = componentId === 'helmet' ? BOSS_HELMET_HEALTH_MULTIPLIER : 1;
+    return Math.max(
+      minimumDurability,
+      Math.round(Math.max(1, boss.maxHp) * healthRatio * componentMultiplier)
+    );
+  }
+
   createBossComponents(boss: Entity) {
     if (boss.bossRigId === 'open-orbit' || boss.bossRigId === 'citation-storm') {
       const isCitationStorm = boss.bossRigId === 'citation-storm';
@@ -4356,7 +4375,7 @@ export class GameEngine {
           heightRatio: isCitationStorm ? 0.62 : 0.58
         }
       ] as const).map((layout) => {
-        const maxHp = BOSS_COMPONENT_DURABILITY[boss.bossRigId!][layout.id] ?? 10;
+        const maxHp = this.getBossComponentDurability(boss, layout.id);
         return { ...layout, hp: maxHp, maxHp, destroyed: false, flashFrames: 0 } satisfies BossComponentState;
       });
     }
@@ -4368,7 +4387,7 @@ export class GameEngine {
           : layout.id === 'right-cannon'
             ? { centerXRatio: 0.73, centerYRatio: 0.7, widthRatio: 0.3, heightRatio: 0.36 }
             : { centerXRatio: 0.5, centerYRatio: 0.45, widthRatio: 0.32, heightRatio: 0.3 };
-        const maxHp = BOSS_COMPONENT_DURABILITY['paywall-siege'][layout.id] ?? 14;
+        const maxHp = this.getBossComponentDurability(boss, layout.id);
         return {
           ...layout,
           ...paywallLayout,
@@ -4399,7 +4418,7 @@ export class GameEngine {
           heightRatio: 0.58
         }
       ] as const).map((layout) => {
-        const maxHp = BOSS_COMPONENT_DURABILITY['crown-claw'][layout.id] ?? 16;
+        const maxHp = this.getBossComponentDurability(boss, layout.id);
         return { ...layout, hp: maxHp, maxHp, destroyed: false, flashFrames: 0 } satisfies BossComponentState;
       });
     }

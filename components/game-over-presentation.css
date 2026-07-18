@@ -241,7 +241,7 @@
 
 .sci-gameover-window__content {
   position: absolute;
-  inset: 14.5% 10.5% 15%;
+  inset: 13.5% 10.5% 12.5%;
   z-index: 3;
   min-width: 0;
   overflow-x: hidden;
@@ -251,6 +251,27 @@
   scrollbar-width: thin;
   opacity: 0;
   animation: sciGameOverContentIn 360ms ease-out 960ms forwards;
+}
+
+.sci-gameover-result-content {
+  min-height: 100%;
+  align-content: start;
+}
+
+.sci-gameover-result-content form {
+  min-width: 0;
+}
+
+.sci-gameover-result-content input,
+.sci-gameover-result-content button {
+  max-width: 100%;
+}
+
+.sci-gameover-skip-score {
+  position: relative;
+  z-index: 1;
+  margin-top: -2px;
+  line-height: 1.15;
 }
 
 .sci-gameover-footer {
@@ -387,6 +408,16 @@
 
   .sci-gameover-window__content {
     inset-inline: 9.5%;
+  }
+}
+
+@media (max-height: 760px) {
+  .sci-gameover-window__content {
+    inset-block: 12.5% 11.5%;
+  }
+
+  .sci-gameover-result-content {
+    gap: 0.35rem;
   }
 }
 
