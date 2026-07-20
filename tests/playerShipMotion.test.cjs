@@ -25,7 +25,7 @@ const readPngHeader = (publicUrl) => {
   };
 };
 
-test('player motion catalog mirrors the four production PNG sets in the manifest', () => {
+test('player motion catalog mirrors the four animated production PNG sets in the manifest', () => {
   const motion = read('services/playerShipMotion.ts');
 
   assert.equal(playerAssets.length, 8);
@@ -78,7 +78,7 @@ test('ship selection loops preloaded PNG frames at 5 FPS and cleans up its timer
   const motion = read('services/playerShipMotion.ts');
   const generator = read('tools/build-scicon-flight-motion-pack.py');
 
-  assert.match(selector, /const playerShipOrder: PlayerShipId\[\] = \['researchhub', 'bio', 'eth', 'btc'\]/);
+  assert.match(selector, /const playerShipOrder: PlayerShipId\[\] = \[\.\.\.PLAYABLE_PLAYER_SHIP_IDS\]/);
   assert.match(selector, /preloadPlayerShipSelectionFrames\(\)\.then/);
   assert.match(selector, /window\.setInterval/);
   assert.match(selector, /1000 \/ PLAYER_SHIP_SELECTION_FPS/);
@@ -87,6 +87,8 @@ test('ship selection loops preloaded PNG frames at 5 FPS and cleans up its timer
   assert.match(selector, /data-selection-frame=/);
   assert.doesNotMatch(selector, /previewGif|\.gif/);
   assert.match(motion, /PLAYER_SHIP_SELECTION_FPS = 5/);
+  assert.match(motion, /btc-token-ship\/frames\/btc-token-ship-03-neutral\.png/);
+  assert.match(motion, /btc-token-ship-selection-idle\/frames/);
   assert.doesNotMatch(generator, /booster_lock_y|resting_lower/);
 });
 

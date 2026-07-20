@@ -1,0 +1,476 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  isPlayerShipUnlocked,
+  PLAYABLE_PLAYER_SHIP_IDS,
+  PLAYER_SHIPS,
+  type PlayerShipId,
+  type PlayerShipUnlocks
+} from '../services/playerShipService';
+import {
+  PLAYER_SHIP_MOTION,
+  PLAYER_SHIP_SELECTION_FPS,
+  preloadPlayerShipSelectionFrames
+} from '../services/playerShipMotion';
+import {
+  getMainShipUpgradeCost,
+  getMiniShipUpgradeCost,
+  MAIN_SHIP_UPGRADE_MAX_LEVEL,
+  MAIN_SHIP_UPGRADES,
+  MINI_SHIP_BY_ID,
+  MINI_SHIP_CATALOG,
+  MINI_SHIP_MAX_LEVEL,
+  preloadMiniShipTextures,
+  RIGHT_SQUAD_SLOT_UNLOCK_COST,
+  type MainShipUpgradeId,
+  type MiniShipCatalogEntry,
+  type MiniShipId,
+  type SquadSlotId,
+  type WeeklySquadState
+} from '../services/squadProgression';
+
+type HangarPosition = 'main' | SquadSlotId;
+type HangarMode = 'catalog' | 'upgrades';
+
+interface SquadHangarProps {
+  state: WeeklySquadState;
+  mainShipId: PlayerShipId;
+  mainShipName: string;
+  shipUnlocks: PlayerShipUnlocks;
+  walletConnected: boolean;
+  onSelectMainShip: (id: PlayerShipId) => void;
+  onUnlockSlot: (slot: SquadSlotId) => void;
+  onPurchaseMini: (id: MiniShipId) => void;
+  onUpgradeMini: (id: MiniShipId) => void;
+  onEquipMini: (slot: SquadSlotId, id: MiniShipId | null) => void;
+  onUpgradeMainShip: (id: MainShipUpgradeId) => void;
+}
+
+const UI_ROOT = '/game-art/generated/ui/scicon-simple-arcade-kit-v1';
+const HANGAR_STARFIELD = '/game-art/generated/backgrounds/scicon-sparse-pixel-starfield-v1/scicon-sparse-pixel-starfield-twinkle.gif';
+const PLAYER_SHIP_ORDER: PlayerShipId[] = [...PLAYABLE_PLAYER_SHIP_IDS];
+const MINI_ANIMATION_SEQUENCE = [0, 1, 2, 1] as const;
+const PLAYER_SELECTION_FRAME_COUNT = Math.max(
+  ...Object.values(PLAYER_SHIP_MOTION).map((motion) => motion.selectionIdleFrames.length)
+);
+const SQUAD_CONNECTOR_POSITION: Record<HangarPosition, string> = {
+  main: 'left-[9%] h-[48%] w-[23%] border-b-2 border-l-2 sm:left-[8%] sm:w-[19%]',
+  left: 'left-[9%] h-[72%] w-[14%] border-b-2 border-l-2 sm:left-[8%]',
+  right: 'right-[9%] h-[72%] w-[14%] border-b-2 border-r-2 sm:right-[8%]'
+};
+
+const selectorFrames = (size: 'ship' | 'mini', color: 'lime' | 'gold') => (
+  Array.from({ length: 8 }, (_, index) => (
+    `${UI_ROOT}/selectors/diamond/${size}/${color}/frames/diamond-selector-${size}-${color}-${String(index + 1).padStart(2, '0')}.png`
+  ))
+);
+
+const traceFrames = Array.from({ length: 8 }, (_, index) => (
+  `${UI_ROOT}/trace-boxes/label/cyan/frames/trace-box-label-cyan-${String(index + 1).padStart(2, '0')}.png`
+));
+
+const useAnimationFrame = (frameCount: number, delay = 120) => {
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setFrame((current) => (current + 1) % frameCount);
+    }, delay);
+    return () => window.clearInterval(timer);
+  }, [delay, frameCount]);
+
+  return frame;
+};
+
+const AnimatedSelector = ({
+  size,
+  color,
+  className = ''
+}: {
+  size: 'ship' | 'mini';
+  color: 'lime' | 'gold';
+  className?: string;
+}) => {
+  const frames = useMemo(() => selectorFrames(size, color), [color, size]);
+  const frame = useAnimationFrame(frames.length);
+  return <img src={frames[frame]} alt="" draggable={false} className={`pointer-events-none select-none object-contain ${className}`} />;
+};
+
+const AnimatedTraceLabel = ({ children }: { children: React.ReactNode }) => {
+  const frame = useAnimationFrame(traceFrames.length, 135);
+  return (
+    <div className="relative mx-auto h-14 w-full max-w-[24rem]">
+      <img src={traceFrames[frame]} alt="" draggable={false} className="absolute inset-0 h-full w-full object-fill" />
+      <div className="relative flex h-full items-center justify-center px-9 pb-1 text-center text-sm font-black uppercase tracking-[0.08em] text-cyan-100 sm:text-base">
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const AnimatedMiniShip = ({
+  entry,
+  className = ''
+}: {
+  entry: MiniShipCatalogEntry;
+  className?: string;
+}) => {
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    let sequenceIndex = 0;
+    const timer = window.setInterval(() => {
+      sequenceIndex = (sequenceIndex + 1) % MINI_ANIMATION_SEQUENCE.length;
+      setFrame(MINI_ANIMATION_SEQUENCE[sequenceIndex]);
+    }, 210);
+    return () => window.clearInterval(timer);
+  }, [entry.id]);
+
+  return <img src={entry.frames[frame]} alt="" draggable={false} className={`pointer-events-none object-contain ${className}`} />;
+};
+
+const AnimatedPlayerShip = ({
+  shipId,
+  frame,
+  className = ''
+}: {
+  shipId: PlayerShipId;
+  frame: number;
+  className?: string;
+}) => {
+  const frames = PLAYER_SHIP_MOTION[shipId].selectionIdleFrames;
+  return (
+    <img
+      src={frames[frame % frames.length]}
+      alt=""
+      draggable={false}
+      data-player-ship={shipId}
+      data-selection-frame={frame % frames.length}
+      className={`pointer-events-none object-contain ${className}`}
+    />
+  );
+};
+
+const LevelPips = ({ level, max = 7 }: { level: number; max?: number }) => (
+  <div className="flex items-center gap-1" aria-label={`Level ${level} of ${max}`}>
+    {Array.from({ length: max }, (_, index) => (
+      <span
+        key={index}
+        className={`h-1.5 flex-1 skew-x-[-18deg] ${index < level ? 'bg-yellow-200 shadow-[0_0_7px_rgba(250,204,21,0.7)]' : 'bg-slate-700/80'}`}
+      />
+    ))}
+  </div>
+);
+
+const CurrencyRail = ({
+  icon,
+  value,
+  label,
+  tone
+}: {
+  icon: string;
+  value: number;
+  label: string;
+  tone: 'gold' | 'blue';
+}) => (
+  <div className={`grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)_2rem] items-center border px-1.5 py-1 ${tone === 'gold' ? 'border-yellow-200/35 bg-yellow-300/10' : 'border-cyan-200/35 bg-cyan-300/10'}`}>
+    <img src={icon} alt="" className="h-8 w-8 object-contain" />
+    <div className="min-w-0 px-1 text-center">
+      <p className="truncate text-base font-black leading-none text-white">{value.toLocaleString()}</p>
+      <p className="truncate text-[0.5rem] font-bold uppercase tracking-[0.08em] text-slate-400">{label}</p>
+    </div>
+    <button type="button" title={`${label} options coming soon`} className={`flex h-7 w-7 items-center justify-center border text-xl font-black ${tone === 'gold' ? 'border-yellow-200/45 bg-yellow-300 text-slate-950' : 'border-cyan-200/45 bg-cyan-300 text-slate-950'}`}>
+      <span aria-hidden="true">+</span>
+    </button>
+  </div>
+);
+
+const SquadHangar: React.FC<SquadHangarProps> = ({
+  state,
+  mainShipId,
+  mainShipName,
+  shipUnlocks,
+  walletConnected,
+  onSelectMainShip,
+  onUnlockSlot,
+  onPurchaseMini,
+  onUpgradeMini,
+  onEquipMini,
+  onUpgradeMainShip
+}) => {
+  const [activePosition, setActivePosition] = useState<HangarPosition>('main');
+  const [mode, setMode] = useState<HangarMode>('catalog');
+  const [selectedMiniId, setSelectedMiniId] = useState<MiniShipId | null>(null);
+  const playerSelectionFrame = useAnimationFrame(
+    PLAYER_SELECTION_FRAME_COUNT,
+    1000 / PLAYER_SHIP_SELECTION_FPS
+  );
+
+  useEffect(() => {
+    preloadMiniShipTextures();
+    preloadPlayerShipSelectionFrames();
+    const assets = [
+      ...selectorFrames('ship', 'lime'),
+      ...selectorFrames('ship', 'gold'),
+      ...selectorFrames('mini', 'lime'),
+      ...selectorFrames('mini', 'gold'),
+      ...traceFrames
+    ];
+    assets.forEach((src) => {
+      const image = new Image();
+      image.src = src;
+    });
+  }, []);
+
+  useEffect(() => {
+    setMode('catalog');
+    setSelectedMiniId(activePosition === 'main' ? null : state.equipped[activePosition]);
+  }, [activePosition, state.equipped]);
+
+  const activeMiniId = activePosition === 'main' ? null : (selectedMiniId || state.equipped[activePosition]);
+  const activeMini = activeMiniId ? MINI_SHIP_BY_ID[activeMiniId] : null;
+  const activeMiniLevel = activeMiniId ? state.ownedMiniShips[activeMiniId] || 0 : 0;
+  const totalUpgradeLevel = Object.values(state.upgrades).reduce((total, level) => total + level, 0);
+  const miniPower = Object.values(state.ownedMiniShips).reduce((total, level) => total + (level || 0) * 75, 0);
+  const power = 1000 + totalUpgradeLevel * 120 + miniPower;
+  const tier = Math.min(3, Math.max(1, Math.floor(totalUpgradeLevel / MAIN_SHIP_UPGRADE_MAX_LEVEL) + 1));
+
+  const activeName = activePosition === 'main'
+    ? mainShipName.replace(/ ship$/i, '')
+    : activeMini?.name || `${activePosition} wing`;
+
+  const choosePosition = (position: HangarPosition) => {
+    if (position !== 'main' && !state.unlockedSlots[position]) {
+      onUnlockSlot(position);
+      return;
+    }
+    setActivePosition(position);
+  };
+
+  const renderSquadMini = (slot: SquadSlotId) => {
+    const unlocked = state.unlockedSlots[slot];
+    const miniId = state.equipped[slot];
+    const entry = miniId ? MINI_SHIP_BY_ID[miniId] : null;
+    const active = activePosition === slot;
+
+    return (
+      <button
+        type="button"
+        onClick={() => choosePosition(slot)}
+        className="relative flex aspect-square w-[5.25rem] shrink-0 items-center justify-center sm:w-[6.25rem]"
+        aria-label={unlocked ? `${slot} wing${entry ? `, ${entry.name}` : ', empty'}` : `Unlock ${slot} wing for ${RIGHT_SQUAD_SLOT_UNLOCK_COST} coins`}
+      >
+        <span className="absolute inset-[13%]">
+          {active ? <AnimatedSelector size="ship" color="lime" className="absolute inset-0 h-full w-full scale-[1.8]" /> : <span className="absolute inset-0 rotate-45 border border-cyan-300/35 bg-cyan-300/5" />}
+        </span>
+        {!unlocked ? (
+          <span className="relative z-10 flex h-12 w-12 items-center justify-center border border-slate-400/55 bg-slate-800/90 text-lg text-slate-200" aria-hidden="true">LOCK</span>
+        ) : entry ? (
+          <AnimatedMiniShip entry={entry} className="relative z-10 h-[62%] w-[62%] object-contain drop-shadow-[0_0_10px_rgba(103,232,249,0.6)]" />
+        ) : (
+          <span className="relative z-10 text-2xl font-black text-cyan-200/70" aria-hidden="true">+</span>
+        )}
+      </button>
+    );
+  };
+
+  const renderMainCatalog = () => (
+    <div className="grid grid-cols-4 gap-2 sm:gap-3">
+      {PLAYER_SHIP_ORDER.map((shipId) => {
+        const ship = PLAYER_SHIPS[shipId];
+        const unlocked = isPlayerShipUnlocked(shipId, shipUnlocks);
+        const selected = mainShipId === shipId;
+        return (
+          <button
+            key={shipId}
+            type="button"
+            disabled={!unlocked}
+            onClick={() => {
+              if (selected) {
+                setMode('upgrades');
+                return;
+              }
+              onSelectMainShip(shipId);
+            }}
+            className={`relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 disabled:cursor-not-allowed ${selected ? 'border-yellow-200/70' : 'border-cyan-200/22'} ${unlocked ? '' : 'grayscale'}`}
+          >
+            {selected ? <AnimatedSelector size="ship" color="gold" className="absolute inset-0 h-full w-full scale-[1.17]" /> : null}
+            <span className="absolute left-1.5 top-1 text-[0.52rem] font-black uppercase text-white/85">L{state.upgrades.fireRate + 1}</span>
+            {!unlocked ? <span className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/66 text-[0.58rem] font-black uppercase text-slate-200">Locked</span> : null}
+            <AnimatedPlayerShip shipId={shipId} frame={playerSelectionFrame} className="relative z-10 mx-auto mt-4 h-[52%] w-[86%] drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
+            <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name.replace(/ ship$/i, '')}</span>
+            <div className="relative z-10 mt-1"><LevelPips level={Math.max(1, tier)} max={3} /></div>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderMiniCatalog = () => {
+    if (activePosition === 'main') return null;
+    return (
+      <div className="grid max-h-[24rem] grid-cols-4 gap-2 overflow-y-auto pr-1 custom-scrollbar sm:gap-3">
+        {MINI_SHIP_CATALOG.map((entry) => {
+          const level = state.ownedMiniShips[entry.id] || 0;
+          const owned = level > 0;
+          const equippedHere = state.equipped[activePosition] === entry.id;
+          return (
+            <button
+              key={entry.id}
+              type="button"
+              onClick={() => {
+                setSelectedMiniId(entry.id);
+                if (!owned) {
+                  onPurchaseMini(entry.id);
+                  return;
+                }
+                if (equippedHere) {
+                  setMode('upgrades');
+                  return;
+                }
+                onEquipMini(activePosition, entry.id);
+              }}
+              className={`relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 ${equippedHere ? 'border-yellow-200/75' : 'border-cyan-200/22'} ${owned ? '' : 'grayscale'}`}
+            >
+              {equippedHere ? <AnimatedSelector size="mini" color="gold" className="absolute inset-0 h-full w-full scale-[1.17]" /> : null}
+              <span className="absolute left-1.5 top-1 text-[0.52rem] font-black uppercase text-white/85">{owned ? `${level}/${MINI_SHIP_MAX_LEVEL}` : '0/5'}</span>
+              <AnimatedMiniShip entry={entry} className={`relative z-10 mx-auto mt-4 h-[50%] w-[86%] ${owned ? '' : 'opacity-45'}`} />
+              <span className={`relative z-10 mt-1 block truncate text-[0.48rem] font-black uppercase sm:text-[0.52rem] ${equippedHere ? 'text-yellow-200' : 'text-slate-300'}`}>{entry.name}</span>
+              <div className="relative z-10 mt-1"><LevelPips level={level} max={MINI_SHIP_MAX_LEVEL} /></div>
+              {!owned ? <span className="relative z-10 mt-1 block truncate text-[0.48rem] font-black text-yellow-200">{entry.purchaseCost === 0 ? 'Claim' : entry.purchaseCost}</span> : null}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="relative mx-auto min-h-full w-full max-w-3xl overflow-hidden border border-cyan-300/20 bg-[#020817] text-white shadow-[0_0_32px_rgba(8,145,178,0.18)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(34,211,238,0.15),transparent_30%),radial-gradient(circle_at_12%_44%,rgba(16,185,129,0.08),transparent_22%),linear-gradient(rgba(103,232,249,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.025)_1px,transparent_1px)] bg-[size:auto,auto,28px_28px,28px_28px]" />
+
+      <header className="relative z-10 border-b border-cyan-200/18 bg-slate-950/88 p-2">
+        <div className="grid min-w-0 grid-cols-2 gap-2">
+          <CurrencyRail icon="/game-art/tokens/rsc-coin-pixel.png" value={state.coins} label="Research coins" tone="gold" />
+          <CurrencyRail icon="/game-art/generated/ui/scicon-interface-pack-v1/resources/crystal.png" value={0} label="Continue tokens" tone="blue" />
+        </div>
+      </header>
+
+      <main className="relative z-10">
+        <section className="relative overflow-hidden border-b border-cyan-200/18 bg-[#03081c] px-3 pb-3 pt-3 sm:px-6 sm:pb-4">
+          <div className="sci-hangar-starfield pointer-events-none absolute inset-0" aria-hidden="true">
+            <div className="sci-hangar-starfield-track">
+              <img src={HANGAR_STARFIELD} alt="" draggable={false} />
+              <img src={HANGAR_STARFIELD} alt="" draggable={false} />
+            </div>
+          </div>
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,rgba(14,165,233,0.1),transparent_38%),linear-gradient(180deg,rgba(3,8,28,0.18),rgba(3,8,28,0.58))]" />
+          <AnimatedTraceLabel>{activeName}</AnimatedTraceLabel>
+
+          <div className="relative mx-auto mt-1 h-[12.75rem] w-full max-w-[26rem] sm:h-[16rem]">
+            <div
+              className={`pointer-events-none absolute top-[-0.25rem] border-cyan-300/65 drop-shadow-[0_0_7px_rgba(34,211,238,0.55)] transition-all duration-300 ${SQUAD_CONNECTOR_POSITION[activePosition]}`}
+              data-connector-target={activePosition}
+              aria-hidden="true"
+            />
+            <div className="absolute bottom-0 left-[8%] sm:left-[10%]">
+              {renderSquadMini('left')}
+            </div>
+            <div className="absolute left-1/2 top-0 -translate-x-1/2">
+              <button
+                type="button"
+                onClick={() => choosePosition('main')}
+                className="relative flex aspect-square w-[9.5rem] shrink-0 items-center justify-center sm:w-[12rem]"
+                aria-label={`${mainShipName}, main squad ship`}
+              >
+                <span className="absolute inset-[14%]">
+                  {activePosition === 'main' ? <AnimatedSelector size="ship" color="lime" className="absolute inset-0 h-full w-full scale-[1.8]" /> : <span className="absolute inset-0 rotate-45 border border-cyan-300/35 bg-cyan-300/5" />}
+                </span>
+                <AnimatedPlayerShip shipId={mainShipId} frame={playerSelectionFrame} className="relative z-10 h-[58%] w-[58%] drop-shadow-[0_0_16px_rgba(34,211,238,0.6)]" />
+              </button>
+            </div>
+            <div className="absolute bottom-0 right-[8%] sm:right-[10%]">
+              {renderSquadMini('right')}
+            </div>
+          </div>
+
+        </section>
+
+        <section className="border-b border-violet-200/18 bg-[#24234d]/95">
+          <div className="flex items-center justify-between gap-3 border-b border-violet-100/16 bg-[#171834] px-3 py-2 sm:px-5">
+            <p className="min-w-0 truncate text-sm font-black uppercase text-white">
+              {activePosition === 'main' ? 'Starship' : `${activePosition} wing`}: <span className="text-yellow-200">{activeName}</span>
+            </p>
+            <p className="shrink-0 text-sm font-black uppercase text-white">Power <span className="text-yellow-200">{power}</span></p>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 sm:px-5">
+            <div className="min-w-0">
+              <p className="text-sm font-black uppercase text-white">Tier {tier}</p>
+              <div className="mt-1 max-w-[13rem]"><LevelPips level={activePosition === 'main' ? totalUpgradeLevel : activeMiniLevel} max={activePosition === 'main' ? MAIN_SHIP_UPGRADE_MAX_LEVEL * 3 : MINI_SHIP_MAX_LEVEL} /></div>
+              <p className="mt-1 text-[0.58rem] font-bold uppercase text-cyan-100/70">{walletConnected ? 'Wallet squad saved' : 'Connect to save squad'}</p>
+            </div>
+            <button type="button" onClick={() => setMode('upgrades')} className="min-h-11 border border-yellow-100/60 bg-yellow-400 px-4 text-xs font-black uppercase text-slate-950 shadow-[inset_0_-4px_0_rgba(161,98,7,0.35)] transition hover:bg-yellow-300">
+              Upgrade
+            </button>
+          </div>
+        </section>
+
+        <section className="bg-[#080f2c] px-3 pb-4 pt-3 sm:px-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="grid grid-cols-3 gap-px border border-cyan-200/22 bg-cyan-200/20 p-px">
+              {[1, 2, 3].map((tierId) => (
+                <button key={tierId} type="button" disabled={tierId !== tier} className={`min-h-9 px-3 text-[0.62rem] font-black uppercase ${tierId === tier ? 'bg-blue-600 text-white' : 'bg-slate-900/90 text-slate-500'}`}>Tier {tierId}</button>
+              ))}
+            </div>
+            {mode === 'upgrades' ? <button type="button" onClick={() => setMode('catalog')} className="min-h-9 border border-cyan-200/30 bg-cyan-300/8 px-3 text-[0.62rem] font-black uppercase text-cyan-100">Fleet</button> : null}
+          </div>
+
+          {mode === 'catalog' ? (
+            <>
+              {activePosition === 'main' ? renderMainCatalog() : renderMiniCatalog()}
+              <p className="mt-3 text-center text-[0.55rem] font-bold uppercase tracking-[0.1em] text-slate-500">Tap the selected ship again to open upgrades</p>
+            </>
+          ) : activePosition === 'main' ? (
+            <div className="grid gap-2 sm:grid-cols-3">
+              {MAIN_SHIP_UPGRADES.map((upgrade) => {
+                const level = state.upgrades[upgrade.id];
+                const cost = getMainShipUpgradeCost(upgrade.id, level);
+                const atMax = level >= MAIN_SHIP_UPGRADE_MAX_LEVEL;
+                return (
+                  <article key={upgrade.id} className="border border-cyan-200/22 bg-slate-950/65 p-3">
+                    <h3 className="text-xs font-black uppercase text-white">{upgrade.name}</h3>
+                    <p className="mt-1 min-h-10 text-[0.62rem] leading-relaxed text-slate-400">{upgrade.description}</p>
+                    <div className="mt-2"><LevelPips level={level} max={MAIN_SHIP_UPGRADE_MAX_LEVEL} /></div>
+                    <button type="button" onClick={() => onUpgradeMainShip(upgrade.id)} disabled={atMax || state.coins < cost} className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600">
+                      {atMax ? 'Max level' : `${cost} coins`}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          ) : activeMini ? (
+            <div className="mx-auto grid max-w-md grid-cols-[6rem_minmax(0,1fr)] items-center gap-4 border border-cyan-200/22 bg-slate-950/65 p-3">
+              <AnimatedMiniShip entry={activeMini} className="h-24 w-24" />
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-black uppercase text-white">{activeMini.name}</h3>
+                <p className="mt-1 text-[0.65rem] text-slate-400">{activeMini.description}</p>
+                <div className="mt-2"><LevelPips level={activeMiniLevel} max={MINI_SHIP_MAX_LEVEL} /></div>
+                <button
+                  type="button"
+                  onClick={() => onUpgradeMini(activeMini.id)}
+                  disabled={activeMiniLevel >= MINI_SHIP_MAX_LEVEL || state.coins < getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)}
+                  className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                >
+                  {activeMiniLevel >= MINI_SHIP_MAX_LEVEL ? 'Max level' : `Upgrade ${getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)} coins`}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="border border-cyan-200/20 bg-slate-950/60 p-4 text-center text-xs uppercase text-slate-400">Choose or purchase a mini ship first.</p>
+          )}
+        </section>
+      </main>
+    </div>
+  );
+};
+
+export default SquadHangar;

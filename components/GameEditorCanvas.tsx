@@ -24,6 +24,8 @@ const createPreviewStats = (): Stats => ({
   bombs: 2,
   bombCharge: 0,
   bombChargeMax: BASE_FLASK_CHARGE_MAX,
+  shipAbilityCooldown: 0,
+  shipAbilityCooldownMax: 16 * 60,
   lives: 3,
   repairsCount: 0,
   upgrades: { fireRate: 2, speed: 1, missile: 0 },

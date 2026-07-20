@@ -4,7 +4,7 @@
   "scripts": {
     "predev": "npm run generate:tailwind",
     "dev": "node --use-system-ca --env-file-if-exists=.env.local ./node_modules/vite/bin/vite.js",
-    "generate:tailwind": "tailwindcss -c tailwind.config.cjs -i styles/tailwind.input.css -o styles/tailwind.generated.css --minify",
+    "generate:tailwind": "tailwindcss -c tailwind.config.cjs -i styles/tailwind.input.css -o styles/tailwind.generated.next.css --minify && node tools/promote-tailwind-css.mjs",
     "prebuild": "npm run generate:tailwind",
     "build": "vite build && node tools/assert-director-excluded.mjs",
     "preview": "vite preview",

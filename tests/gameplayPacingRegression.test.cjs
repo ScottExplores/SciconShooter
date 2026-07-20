@@ -88,24 +88,10 @@ test('player ship uses a five-percent smaller gameplay footprint', () => {
   assert.match(engineSource, /this\.player\.height = Math\.round\(128 \* PLAYER_SHIP_SCALE\)/);
 });
 
-test('BIO ship equips a laser that grows and gains damage with fire-rate upgrades', () => {
-  assert.match(engineSource, /this\.playerShipUrl === ASSETS\.BIO_SHIP/);
-  assert.match(engineSource, /'bio-laser'/);
-  assert.match(engineSource, /Math\.round\(5 \+ bioLaserLevel \* 2\.3\)/);
-  assert.match(engineSource, /0\.9 \+ bioLaserLevel \* 0\.55/);
-});
-
-test('ETH ship equips an upgradeable piercing crystal-shard weapon', () => {
-  assert.match(engineSource, /this\.playerShipUrl === ASSETS\.ETH_SHIP/);
-  assert.match(engineSource, /'eth-shard'/);
-  assert.match(engineSource, /Math\.round\(13 \+ ethShardLevel \* 2\.1\)/);
-  assert.match(engineSource, /1\.15 \+ ethShardLevel \* 0\.48/);
-  assert.match(engineSource, /isEthShard && ethShardLevel >= 4/);
-});
-
-test('BTC ship equips an upgradeable golden hash-bolt weapon', () => {
-  assert.match(engineSource, /this\.playerShipUrl === ASSETS\.BTC_SHIP/);
-  assert.match(engineSource, /'btc-hash'/);
-  assert.match(engineSource, /1\.3 \+ btcHashLevel \* 0\.54/);
-  assert.match(engineSource, /isBtcHashShot/);
+test('all player ships share one primary weapon whose upgrade changes cadence only', () => {
+  assert.match(engineSource, /const fireRates = \[15, 12, 10, 8, 6, 5, 5, 5\]/);
+  assert.match(engineSource, /const weaponKind: PlayerWeaponKind = 'pulse'/);
+  assert.match(engineSource, /const weaponSpeed = 10/);
+  assert.match(engineSource, /b\.weaponVisualLevel = 0/);
+  assert.doesNotMatch(engineSource, /if \(bioLaserEquipped\)/);
 });

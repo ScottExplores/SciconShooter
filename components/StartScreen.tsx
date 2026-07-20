@@ -1,15 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
+import {
+  formatFundingAmount,
+  formatFundingPercent,
+  getProposalFundingMetrics,
+  sortProposalsByFunding
+} from '../services/proposalFunding';
 import { ASSETS, DONATION_CONFIG } from '../constants';
 import type { WalletRunRecord } from '../services/playerRunService';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboardService';
+import { resolveProposalSelection } from '../services/weeklyProposalDisplay';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
 import {
   BTC_SHIP_SCORE_THRESHOLD,
   ETH_SHIP_SCORE_THRESHOLD,
   isPlayerShipUnlocked,
+  PLAYABLE_PLAYER_SHIP_IDS,
   PLAYER_SHIPS,
   type PlayerShipId,
   type PlayerShipUnlocks
@@ -19,6 +27,13 @@ import {
   PLAYER_SHIP_SELECTION_FPS,
   preloadPlayerShipSelectionFrames
 } from '../services/playerShipMotion';
+import SquadHangar from './SquadHangar';
+import type {
+  MainShipUpgradeId,
+  MiniShipId,
+  SquadSlotId,
+  WeeklySquadState
+} from '../services/squadProgression';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
@@ -52,10 +67,16 @@ interface StartScreenProps {
   onCloseRequestedChampion?: () => void;
   testChampionWinner?: ArchivedWinner | null;
   onCloseTestChampionPreview?: () => void;
+  weeklySquadState: WeeklySquadState;
+  onUnlockSquadSlot: (slot: SquadSlotId) => void;
+  onPurchaseMiniShip: (id: MiniShipId) => void;
+  onUpgradeMiniShip: (id: MiniShipId) => void;
+  onEquipMiniShip: (slot: SquadSlotId, id: MiniShipId | null) => void;
+  onUpgradeMainShip: (id: MainShipUpgradeId) => void;
 }
 
 type LeaderboardView = 'weekly' | 'allTime' | 'pastPicks' | 'records';
-type DashboardTab = 'home' | 'proposals' | 'trophies' | 'more';
+type DashboardTab = 'home' | 'proposals' | 'trophies' | 'more' | 'hangar';
 type IconName =
   | 'home'
   | 'list'
@@ -81,6 +102,8 @@ type IconName =
   | 'lock';
 
 const DASHBOARD_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1';
+const MORE_MENU_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1/normal';
+const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/icons/communication';
 
 const dashboardTabs: Array<{
   id: DashboardTab;
@@ -89,13 +112,6 @@ const dashboardTabs: Array<{
   icon: string;
   selectedIcon: string;
 }> = [
-  {
-    id: 'home',
-    label: 'Home',
-    hint: 'Mission',
-    icon: `${DASHBOARD_ICON_ROOT}/normal/home.png`,
-    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/home-selected.png`
-  },
   {
     id: 'proposals',
     label: 'Proposals',
@@ -111,6 +127,20 @@ const dashboardTabs: Array<{
     selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/trophies-leaderboard-selected.png`
   },
   {
+    id: 'home',
+    label: 'Home',
+    hint: 'Mission',
+    icon: `${DASHBOARD_ICON_ROOT}/selected/missions-selected.png`,
+    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/missions-selected.png`
+  },
+  {
+    id: 'hangar',
+    label: 'Hangar',
+    hint: 'Squad',
+    icon: `${DASHBOARD_ICON_ROOT}/normal/multiplayer-network.png`,
+    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/multiplayer-network-selected.png`
+  },
+  {
     id: 'more',
     label: 'More',
     hint: 'About',
@@ -119,7 +149,7 @@ const dashboardTabs: Array<{
   }
 ];
 
-const playerShipOrder: PlayerShipId[] = ['researchhub', 'bio', 'eth', 'btc'];
+const playerShipOrder: PlayerShipId[] = [...PLAYABLE_PLAYER_SHIP_IDS];
 
 const PlayerShipSelectionImage = ({
   shipId,
@@ -183,8 +213,6 @@ const podiumRowAssets = {
 const hasViewableMissionRecord = (entry: LeaderboardEntry) => (
   /^[0-9a-f-]{36}$/i.test(entry.runId || '')
 );
-
-const clampPercent = (value: number) => Math.max(8, Math.min(100, Math.round(value)));
 
 const formatNumber = (value?: number) => (
   typeof value === 'number' && Number.isFinite(value)
@@ -309,20 +337,6 @@ const getPastPickTime = (pick: ArchivedWinner) => {
   }
 
   return 0;
-};
-
-const getProposalProgress = (proposal: ResearchHubProposal) => {
-  if (proposal.requestedUsd && proposal.raisedUsd) {
-    return clampPercent((proposal.raisedUsd / proposal.requestedUsd) * 100);
-  }
-
-  const signal = proposal.votes + proposal.backers + proposal.comments;
-  return clampPercent(18 + signal * 4);
-};
-
-const getProposalSignalRsc = (proposal: ResearchHubProposal) => {
-  const signal = proposal.votes * 20 + proposal.backers * 35 + proposal.comments * 5;
-  return Math.max(100, Math.min(999, signal || 100));
 };
 
 const getProposalTag = (proposal: ResearchHubProposal, index: number) => {
@@ -560,6 +574,36 @@ const HudPanel: React.FC<{ children: React.ReactNode; className?: string; style?
   </section>
 );
 
+const MoreMenuTile: React.FC<{
+  label: string;
+  icon: string;
+  onClick?: () => void;
+  href?: string;
+}> = ({ label, icon, onClick, href }) => {
+  const content = (
+    <>
+      <span className="sci-more-menu-tile__art" aria-hidden="true">
+        <img src={icon} alt="" className="sci-more-menu-tile__icon" />
+      </span>
+      <span className="sci-more-menu-tile__label">{label}</span>
+    </>
+  );
+
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className="sci-more-menu-tile">
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} className="sci-more-menu-tile">
+      {content}
+    </button>
+  );
+};
+
 const StartScreen: React.FC<StartScreenProps> = ({
   onStart,
   allTimeLeaderboard,
@@ -589,17 +633,29 @@ const StartScreen: React.FC<StartScreenProps> = ({
   requestedChampionWinner = null,
   onCloseRequestedChampion,
   testChampionWinner = null,
-  onCloseTestChampionPreview
+  onCloseTestChampionPreview,
+  weeklySquadState,
+  onUnlockSquadSlot,
+  onPurchaseMiniShip,
+  onUpgradeMiniShip,
+  onEquipMiniShip,
+  onUpgradeMainShip
 }) => {
   const [leaderboardView, setLeaderboardView] = useState<LeaderboardView>('weekly');
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>(() => {
     if (testChampionWinner || requestedChampionWinner) return 'proposals';
     const requested = new URLSearchParams(window.location.search).get('view');
-    return requested === 'proposals' || requested === 'trophies' || requested === 'more' ? requested : 'home';
+    if (requested === 'hangar') return walletAddress ? 'hangar' : 'home';
+    return requested === 'proposals'
+      || requested === 'trophies'
+      || requested === 'more'
+      ? requested
+      : 'home';
   });
   const [proposalSearch, setProposalSearch] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
   const [showTreasury, setShowTreasury] = useState(false);
+  const [showLegal, setShowLegal] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isSending, setIsSending] = useState(false);
@@ -608,6 +664,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [testSelectedProposal, setTestSelectedProposal] = useState<ResearchHubProposal | null>(null);
   const [shipFocusId, setShipFocusId] = useState<PlayerShipId>(selectedShipId);
   const [shipCycleRevision, setShipCycleRevision] = useState(0);
+  const [shipLockNudgeRevision, setShipLockNudgeRevision] = useState(0);
+  const [connectNudgeActive, setConnectNudgeActive] = useState(false);
   const [weeklyClock, setWeeklyClock] = useState(() => Date.now());
   const [selectedLeaderboardRecord, setSelectedLeaderboardRecord] = useState<LeaderboardEntry | null>(null);
   const [leaderboardRecordStatus, setLeaderboardRecordStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -629,6 +687,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
     else url.searchParams.set('view', dashboardTab);
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }, [dashboardTab, testChampionWinner]);
+
+  useEffect(() => {
+    if (!walletAddress && dashboardTab === 'hangar') setDashboardTab('home');
+  }, [dashboardTab, walletAddress]);
+
+  useEffect(() => {
+    if (!connectNudgeActive) return undefined;
+    const timer = window.setTimeout(() => setConnectNudgeActive(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [connectNudgeActive]);
 
   useEffect(() => {
     const requestedWinner = testChampionWinner || requestedChampionWinner;
@@ -680,15 +748,31 @@ const StartScreen: React.FC<StartScreenProps> = ({
     : ETH_SHIP_SCORE_THRESHOLD;
   const focusedShipUnlockMessage = `Mint a ${focusedShipUnlockScore.toLocaleString()}+ score NFT to unlock this ship.`;
 
+  const requestHangar = () => {
+    if (walletAddress) {
+      setDashboardTab('hangar');
+      return;
+    }
+
+    setConnectNudgeActive(false);
+    window.requestAnimationFrame(() => setConnectNudgeActive(true));
+  };
+
+  const requestFocusedShip = () => {
+    if (focusedShipLocked) {
+      setShipLockNudgeRevision((revision) => revision + 1);
+      if (!walletAddress) requestHangar();
+      return;
+    }
+
+    requestHangar();
+  };
+
   const weeklyAllocation = useMemo(
     () => getWeeklyAllocationMeta(new Date(weeklyClock)),
     [weeklyClock]
   );
-  const sortedProposals = useMemo(() => (
-    [...proposals].sort((a, b) => (
-      (b.votes + b.backers + b.comments) - (a.votes + a.backers + a.comments)
-    ))
-  ), [proposals]);
+  const sortedProposals = useMemo(() => sortProposalsByFunding(proposals), [proposals]);
 
   const filteredProposals = useMemo(() => {
     const query = proposalSearch.trim().toLowerCase();
@@ -698,15 +782,22 @@ const StartScreen: React.FC<StartScreenProps> = ({
     ));
   }, [proposalSearch, sortedProposals]);
 
-  const weeklyLeader = monthlyLeaderboard[0];
-  const allTimeLeader = allTimeLeaderboard[0];
+  const weeklyStartTime = weeklyAllocation.startsAt.getTime();
+  const weeklyEndTime = weeklyAllocation.endsAt.getTime();
+  const activeWeeklyLeaderboard = useMemo(() => (
+    monthlyLeaderboard.filter((entry) => {
+      const scoreTime = new Date(entry.date || 0).getTime();
+      return Number.isFinite(scoreTime) && scoreTime >= weeklyStartTime && scoreTime < weeklyEndTime;
+    })
+  ), [monthlyLeaderboard, weeklyEndTime, weeklyStartTime]);
+  const weeklyLeader = activeWeeklyLeaderboard[0];
 
   const sortedPastPicks = useMemo(() => (
     [...archivedWinners].sort((a, b) => getPastPickTime(b) - getPastPickTime(a))
   ), [archivedWinners]);
 
   const visibleLeaderboard = leaderboardView === 'weekly'
-    ? monthlyLeaderboard
+    ? activeWeeklyLeaderboard
     : leaderboardView === 'allTime'
       ? allTimeLeaderboard
       : [];
@@ -716,16 +807,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
       ? visibleLeaderboard.slice(0, ALL_TIME_SCORE_LIMIT)
       : visibleLeaderboard;
 
-  const topPilotScore = Math.max(weeklyLeader?.score ?? 0, allTimeLeader?.score ?? 0);
-  const pilotLevel = Math.max(1, Math.min(12, Math.floor(topPilotScore / 1000) + 1));
   const weeklyLeaderName = leaderboardName(weeklyLeader);
   const weeklyLeaderScore = leaderboardScore(weeklyLeader);
-  const weeklyProposalPreview = sortedProposals[0];
-  const weeklyFundingTitle = weeklyProposalPreview?.title ?? 'Champion choice opens after cutoff';
-  const weeklyFundingAuthor = weeklyProposalPreview
-    ? `${sortedProposals.length} eligible - champion picks after cutoff`
-    : `${sortedProposals.length} eligible proposal${sortedProposals.length === 1 ? '' : 's'}`;
-  const weeklyFundingProgress = weeklyProposalPreview ? getProposalProgress(weeklyProposalPreview) : 0;
+  const weeklyProposalSelection = useMemo(
+    () => resolveProposalSelection(weeklyLeader, proposals),
+    [proposals, weeklyLeader]
+  );
+  const weeklyFunding = weeklyProposalSelection?.liveProposal
+    ? getProposalFundingMetrics(weeklyProposalSelection.liveProposal)
+    : null;
   const copyTextWithFallback = async (text: string) => {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
@@ -777,9 +867,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   const renderProposalRow = (proposal: ResearchHubProposal, index: number, compact = false) => {
-    const progress = getProposalProgress(proposal);
+    const funding = getProposalFundingMetrics(proposal);
+    const progressLabel = formatFundingPercent(funding.progressPercent);
     const tag = getProposalTag(proposal, index);
-    const signalRsc = getProposalSignalRsc(proposal);
 
     return (
       <button
@@ -813,15 +903,26 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-cyan-300 to-blue-400"
-                  style={{ width: `${progress}%` }}
+                  style={{ width: `${funding.barPercent}%` }}
                 />
               </div>
-              <span className="w-9 text-right text-[0.68rem] font-semibold text-cyan-100">{progress}%</span>
+              <span className="w-12 text-right text-[0.68rem] font-semibold text-cyan-100">{progressLabel}</span>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm font-black text-white">{signalRsc}</p>
-            <p className="text-[0.58rem] font-bold uppercase text-cyan-200/70">RSC</p>
+          <div className="min-w-[6.75rem] text-right">
+            {funding.currency ? (
+              <>
+                <p className="whitespace-nowrap text-xs font-black text-white">
+                  {formatFundingAmount(funding.raisedAmount, funding.currency)} / {formatFundingAmount(funding.goalAmount, funding.currency)}
+                </p>
+                <p className="text-[0.54rem] font-bold uppercase text-cyan-200/70">{funding.currency} raised / goal</p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-black text-slate-300">Not reported</p>
+                <p className="text-[0.54rem] font-bold uppercase text-slate-500">Funding progress</p>
+              </>
+            )}
           </div>
         </div>
       </button>
@@ -871,13 +972,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </button>
 
             <div className="sci-ship-carousel-stage" aria-live="polite">
-              <div
+              <button
+                type="button"
                 key={`${compact ? 'compact' : 'full'}-${shipCycleRevision}`}
                 className={`sci-ship-carousel-item sci-ship-carousel-item--active ${shipCycleRevision > 0 ? 'sci-ship-carousel-item--cycling' : ''} ${focusedShipLocked ? 'sci-ship-carousel-item--locked' : ''}`}
-                role="img"
-                aria-label={focusedShipLocked
-                  ? `${focusedShip.name} locked. ${focusedShipUnlockMessage}`
-                  : `${focusedShip.name} selected`}
+                onClick={requestFocusedShip}
+                aria-label={!walletAddress
+                  ? 'Connect your wallet for ship upgrades'
+                  : focusedShipLocked
+                    ? `${focusedShip.name} locked. ${focusedShipUnlockMessage}`
+                    : `Open ${focusedShip.name} Squad Hangar`}
               >
                 <span className="sci-rh-ship-core sci-ship-carousel-core">
                   <PlayerShipSelectionImage
@@ -886,11 +990,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   />
                 </span>
                 {focusedShipLocked ? (
-                  <span className="sci-ship-carousel-lock" aria-hidden="true">
+                  <span
+                    key={`${shipFocusId}-${shipLockNudgeRevision}`}
+                    className={`sci-ship-carousel-lock ${shipLockNudgeRevision > 0 ? 'sci-ship-carousel-lock--nudged' : ''}`}
+                    aria-hidden="true"
+                  >
                     <Icon name="lock" className="h-7 w-7" strokeWidth={2.2} />
                   </span>
                 ) : null}
-              </div>
+              </button>
               {focusedShipLocked ? (
                 <p className="sci-ship-carousel-status">{focusedShipUnlockMessage}</p>
               ) : null}
@@ -909,8 +1017,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <div className={`w-full max-w-xl ${compact ? 'space-y-2' : 'space-y-3'}`}>
           {walletControl ? (
-            <div className="flex justify-center">
+            <div className={`relative flex justify-center ${connectNudgeActive ? 'sci-wallet-connect-nudge' : ''}`}>
               {walletControl}
+              {!walletAddress && connectNudgeActive ? (
+                <span className="sci-wallet-connect-hint" role="status">
+                  Connect your wallet for ship upgrades
+                </span>
+              ) : null}
             </div>
           ) : null}
           <button
@@ -965,10 +1078,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
             >
               <div className="sci-weekly-project-image relative flex aspect-square items-center justify-center overflow-hidden rounded-[8px] border border-cyan-200/25 bg-cyan-300/10">
                 <img src={ASSETS.PLAYER_SHIP} alt="" className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.7)]" />
-                {weeklyProposalPreview?.imageUrl ? (
+                {weeklyProposalSelection?.imageUrl ? (
                   <img
-                    src={weeklyProposalPreview.imageUrl}
-                    alt={`${weeklyProposalPreview.title} proposal preview`}
+                    key={`${weeklyProposalSelection.id}:${weeklyProposalSelection.imageUrl}`}
+                    src={weeklyProposalSelection.imageUrl}
+                    alt={`${weeklyProposalSelection.title} proposal preview`}
                     className="absolute inset-0 h-full w-full object-cover"
                     onError={(event) => { event.currentTarget.style.display = 'none'; }}
                   />
@@ -991,19 +1105,25 @@ const StartScreen: React.FC<StartScreenProps> = ({
                     <p className="text-[0.58rem] font-bold uppercase text-cyan-200/70">Score</p>
                   </div>
                 </div>
-                <div className={`${compact ? 'mt-2 px-2 py-1.5' : 'mt-3 px-2.5 py-2'} rounded-[6px] border border-cyan-200/10 bg-cyan-300/[0.06]`}>
-                  <p className="truncate text-sm font-bold text-white">{weeklyFundingTitle}</p>
-                  <div className="mt-1 flex items-center justify-between gap-2 text-[0.62rem] font-bold uppercase text-slate-400">
-                    <span className="truncate">{weeklyFundingAuthor}</span>
-                    <span className="shrink-0 text-emerald-200">{weeklyFundingProgress}% progress</span>
+                {weeklyProposalSelection ? (
+                  <div className={`${compact ? 'mt-2 px-2 py-1.5' : 'mt-3 px-2.5 py-2'} rounded-[6px] border border-cyan-200/10 bg-cyan-300/[0.06]`}>
+                    <p className="truncate text-sm font-bold text-white">{weeklyProposalSelection.title}</p>
+                    <div className="mt-1 flex items-center justify-between gap-2 text-[0.62rem] font-bold uppercase text-slate-400">
+                      <span className="truncate">{weeklyProposalSelection.author ?? 'ResearchHub researcher'}</span>
+                      {weeklyFunding?.progressPercent !== null && weeklyFunding?.progressPercent !== undefined ? (
+                        <span className="shrink-0 text-emerald-200">{formatFundingPercent(weeklyFunding.progressPercent)} funded</span>
+                      ) : null}
+                    </div>
+                    {weeklyProposalSelection.liveProposal ? (
+                      <div className={`${compact ? 'mt-1' : 'mt-2'} h-1.5 overflow-hidden rounded-full bg-slate-800`}>
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-blue-400 shadow-[0_0_12px_rgba(45,212,191,0.55)]"
+                          style={{ width: `${weeklyFunding?.barPercent ?? 0}%` }}
+                        />
+                      </div>
+                    ) : null}
                   </div>
-                  <div className={`${compact ? 'mt-1' : 'mt-2'} h-1.5 overflow-hidden rounded-full bg-slate-800`}>
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-blue-400 shadow-[0_0_12px_rgba(45,212,191,0.55)]"
-                      style={{ width: `${weeklyFundingProgress}%` }}
-                    />
-                  </div>
-                </div>
+                ) : null}
               </div>
             </div>
           </button>
@@ -1015,18 +1135,25 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   const DashboardNav = ({ docked = false }: { docked?: boolean }) => (
     <nav className={`${docked ? 'mt-auto shrink-0' : ''} sci-dashboard-nav-shell pt-3`} aria-label="Primary dashboard">
-      <div className="sci-dashboard-nav grid grid-cols-4 overflow-visible rounded-[8px] border border-cyan-300/24 bg-slate-950/92 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
+      <div className="sci-dashboard-nav grid grid-cols-5 overflow-visible rounded-[8px] border border-cyan-300/24 bg-slate-950/92 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
         {dashboardTabs.map((tab) => {
           const active = dashboardTab === tab.id;
+          const hangarLocked = tab.id === 'hangar' && !walletAddress;
+          const tabLabel = hangarLocked
+            ? 'Hangar - Connect your wallet for ship upgrades'
+            : tab.label;
           return (
             <button
               key={tab.id}
               type="button"
-              aria-label={tab.label}
+              aria-label={tabLabel}
               aria-current={active ? 'page' : undefined}
+              title={hangarLocked ? 'Connect your wallet for ship upgrades' : undefined}
               data-dashboard-tab={tab.id}
               data-active={active ? 'true' : 'false'}
-              onClick={() => setDashboardTab(tab.id)}
+              data-locked={hangarLocked ? 'true' : 'false'}
+              data-lock-nudged={hangarLocked && connectNudgeActive ? 'true' : 'false'}
+              onClick={tab.id === 'hangar' ? requestHangar : () => setDashboardTab(tab.id)}
               className={`sci-dashboard-nav-button group relative flex min-h-[4.8rem] flex-col items-center justify-end gap-0.5 border-r border-cyan-200/12 px-1 pb-1.5 text-center text-xs font-semibold last:border-r-0 ${
                 active
                   ? 'bg-gradient-to-br from-emerald-400/28 to-cyan-400/12 text-white shadow-[inset_0_0_26px_rgba(52,211,153,0.24)]'
@@ -1046,9 +1173,22 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   draggable={false}
                   className="sci-dashboard-nav-icon-image sci-dashboard-nav-icon-selected"
                 />
+                {hangarLocked ? (
+                  <span className="sci-dashboard-nav-lock">
+                    <Icon name="lock" className="h-4 w-4" strokeWidth={2.5} />
+                  </span>
+                ) : null}
               </span>
               <span className="sci-dashboard-nav-label">{tab.label}</span>
               <span className={`sci-dashboard-nav-marker ${active ? 'is-active' : ''}`} aria-hidden="true" />
+              {hangarLocked ? (
+                <span
+                  className={`sci-dashboard-nav-tooltip ${connectNudgeActive ? 'is-visible' : ''}`}
+                  role="tooltip"
+                >
+                  Connect your wallet for ship upgrades
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -1062,7 +1202,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
           <div>
             <h2 className="text-2xl font-black text-white">Proposal Hangar</h2>
-            <p className="text-sm text-slate-300">Search active, unfunded ResearchHub proposals eligible for the finalized weekly champion's allocation.</p>
+            <p className="text-sm text-slate-300">Search eligible ResearchHub proposals sorted by their live funded percentage. USD values can move with the RSC market price.</p>
           </div>
           <label className="relative block min-w-[15rem]">
             <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-200/70" />
@@ -1115,7 +1255,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <div className="mb-3 flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-400">
           <span>{filteredProposals.length} active proposal{filteredProposals.length === 1 ? '' : 's'}</span>
-          {proposalSearch.trim() && <span>Search filtered</span>}
+          <span>{proposalSearch.trim() ? 'Search filtered · ' : ''}Most funded first</span>
         </div>
 
         <div className="max-h-[min(62vh,48rem)] space-y-2 overflow-y-auto pr-1">
@@ -1246,43 +1386,60 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         {!isLoading && leaderboardView === 'pastPicks' && (
           <div className="max-h-[min(62vh,48rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
-            {sortedPastPicks.map((winner) => (
-              <button
-                key={`${winner.periodKey}-${winner.winnerName}`}
-                type="button"
-                onClick={() => winner.proposalUrl && onOpenProposal(winner.proposalUrl)}
-                disabled={!winner.proposalUrl}
-                aria-label={`${winner.winnerName} won ${winner.periodLabel} with ${formatNumber(winner.score)} points${winner.proposalTitle ? ` and selected ${winner.proposalTitle}` : ''}`}
-                className="sci-past-pick-card group relative w-full overflow-hidden p-3 text-left disabled:cursor-default sm:p-4"
-              >
-                <span className="sci-past-pick-accent" aria-hidden="true" />
-                <div className="relative z-10">
-                  <div className="flex items-start justify-between gap-3 border-b border-cyan-200/14 pb-2.5">
-                    <div className="min-w-0">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-yellow-200">{winner.periodLabel}</p>
-                      <p className="mt-0.5 text-[0.65rem] font-bold uppercase text-emerald-200">Weekly champion</p>
+            {sortedPastPicks.map((winner) => {
+              const proposalSelection = resolveProposalSelection(winner, proposals);
+              return (
+                <button
+                  key={`${winner.periodKey}-${winner.winnerName}`}
+                  type="button"
+                  onClick={() => proposalSelection?.url && onOpenProposal(proposalSelection.url)}
+                  disabled={!proposalSelection?.url}
+                  aria-label={`${winner.winnerName} won ${winner.periodLabel} with ${formatNumber(winner.score)} points${proposalSelection ? ` and selected ${proposalSelection.title}` : ''}`}
+                  className="sci-past-pick-card group relative w-full overflow-hidden p-3 text-left disabled:cursor-default sm:p-4"
+                >
+                  <span className="sci-past-pick-accent" aria-hidden="true" />
+                  <div className="relative z-10">
+                    <div className="flex items-start justify-between gap-3 border-b border-cyan-200/14 pb-2.5">
+                      <div className="min-w-0">
+                        <p className="text-xs font-black uppercase tracking-[0.12em] text-yellow-200">{winner.periodLabel}</p>
+                        <p className="mt-0.5 text-[0.65rem] font-bold uppercase text-emerald-200">Weekly champion</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-lg font-black leading-none text-white">{winner.allocationRsc ?? weeklyAllocation.allocationRsc} <span className="text-xs text-emerald-200">RSC</span></p>
+                        <p className="mt-1 text-[0.58rem] font-bold uppercase tracking-wide text-cyan-200">Final allocation</p>
+                      </div>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-lg font-black leading-none text-white">{winner.allocationRsc ?? weeklyAllocation.allocationRsc} <span className="text-xs text-emerald-200">RSC</span></p>
-                      <p className="mt-1 text-[0.58rem] font-bold uppercase tracking-wide text-cyan-200">Final allocation</p>
-                    </div>
-                  </div>
 
-                  <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] sm:items-center">
-                    <div className="min-w-0">
-                      <p className="text-[0.62rem] font-bold uppercase tracking-wide text-slate-400">Winner</p>
-                      <p className="mt-0.5 truncate text-lg font-black text-white">{winner.winnerName}</p>
-                      <p className="mt-1 text-xs font-bold text-cyan-100">{formatNumber(winner.score)} pts <span className="text-slate-500">/</span> Wave {winner.wave || 1}</p>
-                    </div>
-                    <div className="min-w-0 border-l-2 border-emerald-300/35 pl-3">
-                      <p className="text-[0.62rem] font-bold uppercase tracking-wide text-emerald-200">Proposal selected</p>
-                      <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white">{winner.proposalTitle ?? 'Champion selection pending'}</p>
-                      {winner.proposalAuthor && <p className="mt-1 truncate text-[0.68rem] font-bold uppercase text-cyan-200">{winner.proposalAuthor}</p>}
+                    <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] sm:items-center">
+                      <div className="min-w-0">
+                        <p className="text-[0.62rem] font-bold uppercase tracking-wide text-slate-400">Winner</p>
+                        <p className="mt-0.5 truncate text-lg font-black text-white">{winner.winnerName}</p>
+                        <p className="mt-1 text-xs font-bold text-cyan-100">{formatNumber(winner.score)} pts <span className="text-slate-500">/</span> Wave {winner.wave || 1}</p>
+                      </div>
+                      <div className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 border-l-2 border-emerald-300/35 pl-3">
+                        <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[6px] border border-cyan-200/20 bg-cyan-300/[0.06]">
+                          <span className="text-[0.58rem] font-black uppercase tracking-wider text-cyan-200/55">RSC</span>
+                          {proposalSelection?.imageUrl ? (
+                            <img
+                              key={`${proposalSelection.id}:${proposalSelection.imageUrl}`}
+                              src={proposalSelection.imageUrl}
+                              alt=""
+                              className="absolute inset-0 h-full w-full object-cover"
+                              onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : null}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[0.62rem] font-bold uppercase tracking-wide text-emerald-200">{proposalSelection ? 'Proposal selected' : 'Proposal pending'}</p>
+                          <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white">{proposalSelection?.title ?? 'Champion selection pending'}</p>
+                          {proposalSelection?.author && <p className="mt-1 truncate text-[0.68rem] font-bold uppercase text-cyan-200">{proposalSelection.author}</p>}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
             {sortedPastPicks.length === 0 && (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
                 Past weekly picks will appear here after winners are archived, showing the weekly high-score pilot, their score, and the proposal they chose for the funding allocation.
@@ -1346,111 +1503,93 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   const AboutDashboard = () => (
-    <HudPanel>
-      <div className="grid gap-5 p-4 md:p-5">
-        <div className="grid gap-5 md:grid-cols-[1fr_auto] md:items-start">
-          <div>
-            <h2 className="text-2xl font-black text-white">More</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300">
-              Scicon Shooter is a community-built Base-native arcade game. Play instantly, climb the weekly board, and if your verified score is still No. 1 when the week closes, choose an eligible ResearchHub proposal for the community funding allocation.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <StatusPill tone="cyan">Arcade funding</StatusPill>
-              <StatusPill tone="green">ResearchHub proposals</StatusPill>
-              <StatusPill tone="gold">Base trophies</StatusPill>
-            </div>
-          </div>
-          <div className="rounded-[8px] border border-cyan-300/18 bg-cyan-300/8 p-4">
-            <p className="text-xs font-bold uppercase text-cyan-200">Pilot status</p>
-            <p className="mt-2 text-2xl font-black text-white">Level {pilotLevel}</p>
-            <p className="text-sm text-slate-300">{weeklyAllocation.allocationRsc} RSC weekly funding pool</p>
-          </div>
+    <HudPanel className="sci-more-menu-shell">
+      <div className="sci-more-menu">
+        <header className="sci-more-menu__header">
+          <p className="sci-more-menu__eyebrow">Scicon Shooter</p>
+          <h2>Menu</h2>
+          <p>
+            Play missions and climb the weekly leaderboard. When the round closes Sunday at noon Pacific,
+            the finalized No. 1 pilot chooses an eligible ResearchHub proposal for the announced
+            {` ${weeklyAllocation.allocationRsc} RSC`} funding allocation.
+          </p>
+          <p>
+            Guests can play and submit scores. A Base Account unlocks the Hangar, wallet actions, and
+            onchain Mission Records.
+          </p>
+        </header>
+
+        <div className="sci-more-menu__grid" aria-label="Scicon Shooter menu">
+          <MoreMenuTile
+            label="ResearchHub"
+            icon={`${MORE_MENU_ICON_ROOT}/research-proposals.png`}
+            onClick={onOpenFund}
+          />
+          <MoreMenuTile
+            label="Treasury"
+            icon={`${MORE_MENU_ICON_ROOT}/funding-wallet.png`}
+            onClick={() => setShowTreasury(true)}
+          />
+          <MoreMenuTile
+            label="RSC on Base"
+            icon={`${MORE_MENU_ICON_ROOT}/market-store.png`}
+            onClick={onOpenSwap}
+          />
+          <MoreMenuTile
+            label="Referral"
+            icon={`${COMMUNICATION_ICON_ROOT}/friends.png`}
+            onClick={onOpenReferral}
+          />
+          <MoreMenuTile
+            label="Feedback"
+            icon={`${COMMUNICATION_ICON_ROOT}/feedback.png`}
+            onClick={() => setShowFeedback(true)}
+          />
+          <MoreMenuTile
+            label="Updates"
+            icon={`${COMMUNICATION_ICON_ROOT}/notifications.png`}
+            onClick={onOpenXProfile}
+          />
+          <MoreMenuTile
+            label="Open Source"
+            icon={`${COMMUNICATION_ICON_ROOT}/server-switch.png`}
+            href="https://github.com/ScottExplores/SciconShooter"
+          />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <div className="sci-market-card">
-            <Icon name="base" className="h-8 w-8 text-blue-200" />
-            <span>
-              <strong>Base app alerts</strong>
-              <small>Pin Scicon Shooter in the Base app and enable notifications for weekly champion and research-pick updates.</small>
-            </span>
-          </div>
-          <button type="button" onClick={() => setDashboardTab('trophies')} className="sci-market-card">
-            <Icon name="chart" className="h-8 w-8 text-cyan-200" />
-            <span>
-              <strong>Leaderboard</strong>
-              <small>View ranks, trophies, and past funding picks.</small>
-            </span>
-          </button>
-          <button type="button" onClick={onOpenReferral} className="sci-market-card">
-            <Icon name="gift" className="h-8 w-8 text-yellow-200" />
-            <span>
-              <strong>Referral</strong>
-              <small>Open the ResearchHub referral reward.</small>
-            </span>
-          </button>
-          <button type="button" onClick={() => setShowFeedback(true)} className="sci-market-card">
-            <Icon name="settings" className="h-8 w-8 text-violet-200" />
-            <span>
-              <strong>Settings</strong>
-              <small>Send feedback and tune the mission deck.</small>
-            </span>
-          </button>
-          <button type="button" onClick={() => setShowTreasury(true)} className="sci-market-card">
-            <Icon name="wallet" className="h-8 w-8 text-emerald-200" />
-            <span>
-              <strong>Treasury</strong>
-              <small>View the research funding destination.</small>
-            </span>
-          </button>
-          <button type="button" onClick={onOpenSwap} className="sci-market-card">
-            <Icon name="coin" className="h-8 w-8 text-cyan-200" />
-            <span>
-              <strong>RSC on Base</strong>
-              <small>Open the external swap route when an action requires RSC.</small>
-            </span>
-          </button>
-          <button type="button" onClick={onOpenFund} className="sci-market-card">
-            <Icon name="flask" className="h-8 w-8 text-emerald-200" />
-            <span>
-              <strong>ResearchHub</strong>
-              <small>Browse the source funding ecosystem.</small>
-            </span>
-          </button>
-          <a href="https://github.com/ScottExplores/SciconShooter" target="_blank" rel="noopener noreferrer" className="sci-market-card">
-            <Icon name="external" className="h-8 w-8 text-slate-200" />
-            <span>
-              <strong>Open source</strong>
-              <small>Review the game code and technical notes on GitHub.</small>
-            </span>
-          </a>
-          <button type="button" onClick={onOpenXProfile} className="sci-market-card">
-            <Icon name="external" className="h-8 w-8 text-blue-200" />
-            <span>
-              <strong>Updates</strong>
-              <small>Follow Scicon Shooter development.</small>
-            </span>
-          </button>
-        </div>
-        <div className="grid gap-3 border-t border-cyan-200/12 pt-4 md:grid-cols-2">
-          <div className="rounded-[8px] border border-cyan-200/15 bg-cyan-300/6 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-200">Funding transparency</p>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">
-              A weekly leader is temporary until Sunday's noon-Pacific cutoff. A proposal is only marked selected after the finalized champion signs, and funding is only marked confirmed with a Base transaction reference.
-            </p>
-          </div>
-          <div className="rounded-[8px] border border-cyan-200/15 bg-cyan-300/6 p-4">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-cyan-200">Privacy and disclosure</p>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">
-              Guest play does not require a wallet. Anonymous product events avoid wallet addresses and names. Scicon Shooter is community-built, open source, and is not represented as an official ResearchHub product. Builder code: bc_ww78gi4f.
-            </p>
-          </div>
-        </div>
+        <button type="button" onClick={() => setShowLegal(true)} className="sci-more-menu__legal">
+          <img src={`${COMMUNICATION_ICON_ROOT}/privacy.png`} alt="" aria-hidden="true" />
+          <span>Terms of Use &amp; Privacy</span>
+        </button>
+
+        <p className="sci-more-menu__disclosure">
+          Community-built, open source, and not an official ResearchHub product.
+        </p>
       </div>
     </HudPanel>
   );
 
   const MobileDashboardContent = () => {
+    if (dashboardTab === 'hangar' && walletAddress) {
+      return (
+        <SquadHangar
+          state={weeklySquadState}
+          mainShipId={shipFocusId}
+          mainShipName={focusedShip.name}
+          shipUnlocks={shipUnlocks}
+          walletConnected={Boolean(walletAddress)}
+          onSelectMainShip={(shipId) => {
+            setShipFocusId(shipId);
+            onSelectShip(shipId);
+          }}
+          onUnlockSlot={onUnlockSquadSlot}
+          onPurchaseMini={onPurchaseMiniShip}
+          onUpgradeMini={onUpgradeMiniShip}
+          onEquipMini={onEquipMiniShip}
+          onUpgradeMainShip={onUpgradeMainShip}
+        />
+      );
+    }
     if (dashboardTab === 'proposals') return <ProposalsDashboard />;
     if (dashboardTab === 'trophies') return <TrophiesDashboard />;
     if (dashboardTab === 'more') return <AboutDashboard />;
@@ -1464,6 +1603,26 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   const SelectedDashboard = () => {
+    if (dashboardTab === 'hangar' && walletAddress) {
+      return (
+        <SquadHangar
+          state={weeklySquadState}
+          mainShipId={shipFocusId}
+          mainShipName={focusedShip.name}
+          shipUnlocks={shipUnlocks}
+          walletConnected={Boolean(walletAddress)}
+          onSelectMainShip={(shipId) => {
+            setShipFocusId(shipId);
+            onSelectShip(shipId);
+          }}
+          onUnlockSlot={onUnlockSquadSlot}
+          onPurchaseMini={onPurchaseMiniShip}
+          onUpgradeMini={onUpgradeMiniShip}
+          onEquipMini={onEquipMiniShip}
+          onUpgradeMainShip={onUpgradeMainShip}
+        />
+      );
+    }
     if (dashboardTab === 'proposals') return <ProposalsDashboard />;
     if (dashboardTab === 'trophies') return <TrophiesDashboard />;
     if (dashboardTab === 'more') return <AboutDashboard />;
@@ -1634,6 +1793,71 @@ const StartScreen: React.FC<StartScreenProps> = ({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {showLegal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/82 backdrop-blur-sm"
+            onClick={() => setShowLegal(false)}
+            aria-label="Close terms and privacy"
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scicon-legal-title"
+            className="relative z-10 max-h-[min(44rem,88svh)] w-full max-w-2xl overflow-y-auto rounded-[8px] border border-cyan-200/35 bg-slate-950 p-5 shadow-[0_0_52px_rgba(34,211,238,0.24)] custom-scrollbar sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-cyan-200/15 pb-4">
+              <div>
+                <p className="font-mono text-[0.65rem] font-black uppercase text-cyan-200">Scicon Shooter</p>
+                <h2 id="scicon-legal-title" className="mt-1 text-2xl font-black text-white">Terms of Use &amp; Privacy</h2>
+              </div>
+              <button type="button" onClick={() => setShowLegal(false)} className="sci-icon-button shrink-0" aria-label="Close terms and privacy">
+                <Icon name="x" />
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-5 text-sm leading-relaxed text-slate-300">
+              <section>
+                <h3 className="font-black uppercase text-cyan-100">Weekly competition</h3>
+                <p className="mt-2">
+                  Leaderboard positions remain provisional until the weekly cutoff. The finalized No. 1 pilot may choose an eligible ResearchHub proposal for the announced allocation. Selection and funding are separate steps; funding is only confirmed after a Base transaction reference is recorded.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-black uppercase text-cyan-100">Terms of use</h3>
+                <p className="mt-2">
+                  Scicon Shooter is an arcade game. Scores, rankings, availability, rewards, and funding events may be reviewed or corrected for integrity. Wallet transactions and mints are optional, require the player's approval, and do not promise a financial return.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-black uppercase text-cyan-100">Privacy &amp; disclosure</h3>
+                <p className="mt-2">
+                  Guest play does not require a wallet. Submitted pilot names and scores may appear publicly. Connected-wallet actions and minted records are public onchain. Scicon Shooter is community-built and open source; it is not represented as an official ResearchHub product.
+                </p>
+              </section>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3 border-t border-cyan-200/15 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLegal(false);
+                  setShowTreasury(true);
+                }}
+                className="sci-mini-cta"
+              >
+                <Icon name="wallet" className="h-4 w-4" />
+                View treasury
+              </button>
+              <button type="button" onClick={() => setShowLegal(false)} className="sci-mini-cta">
+                Close
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </div>

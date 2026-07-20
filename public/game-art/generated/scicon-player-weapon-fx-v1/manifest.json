@@ -1,0 +1,299 @@
+{
+  "id": "scicon-player-weapon-fx-v1",
+  "animationFramesPerLevel": 4,
+  "gunLevels": 8,
+  "families": [
+    {
+      "family": "research",
+      "frameSize": [
+        96,
+        128
+      ],
+      "layout": {
+        "columns": "launch frames",
+        "rows": "gun levels 0-7"
+      },
+      "levels": [
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-0/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-0/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-0/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-0/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-1/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-1/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-1/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-1/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-2/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-2/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-2/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-2/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-3/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-3/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-3/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-3/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-4/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-4/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-4/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-4/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-5/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-5/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-5/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-5/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-6/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-6/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-6/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-6/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-7/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-7/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-7/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/research/level-7/frame-4.png"
+        ]
+      ],
+      "levelSpriteSheets": [
+        "/game-art/generated/scicon-player-weapon-fx-v1/research/level-0/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/research/level-1/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/research/level-2/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/research/level-3/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/research/level-4/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/research/level-5/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/research/level-6/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/research/level-7/sprite-sheet.png"
+      ],
+      "spriteSheet": "/game-art/generated/scicon-player-weapon-fx-v1/research/research-weapon-levels-sprite-sheet.png",
+      "galleryPreview": "/game-art/generated/scicon-player-weapon-fx-v1/research/research-weapon-levels-gallery-preview.png"
+    },
+    {
+      "family": "bio",
+      "frameSize": [
+        96,
+        128
+      ],
+      "layout": {
+        "columns": "launch frames",
+        "rows": "gun levels 0-7"
+      },
+      "levels": [
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-0/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-0/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-0/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-0/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-1/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-1/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-1/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-1/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-2/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-2/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-2/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-2/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-3/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-3/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-3/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-3/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-4/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-4/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-4/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-4/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-5/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-5/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-5/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-5/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-6/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-6/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-6/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-6/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-7/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-7/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-7/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-7/frame-4.png"
+        ]
+      ],
+      "levelSpriteSheets": [
+        "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-0/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-1/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-2/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-3/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-4/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-5/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-6/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/bio/level-7/sprite-sheet.png"
+      ],
+      "spriteSheet": "/game-art/generated/scicon-player-weapon-fx-v1/bio/bio-weapon-levels-sprite-sheet.png",
+      "galleryPreview": "/game-art/generated/scicon-player-weapon-fx-v1/bio/bio-weapon-levels-gallery-preview.png"
+    },
+    {
+      "family": "eth",
+      "frameSize": [
+        96,
+        128
+      ],
+      "layout": {
+        "columns": "launch frames",
+        "rows": "gun levels 0-7"
+      },
+      "levels": [
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-0/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-0/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-0/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-0/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-1/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-1/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-1/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-1/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-2/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-2/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-2/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-2/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-3/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-3/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-3/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-3/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-4/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-4/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-4/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-4/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-5/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-5/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-5/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-5/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-6/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-6/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-6/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-6/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-7/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-7/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-7/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-7/frame-4.png"
+        ]
+      ],
+      "levelSpriteSheets": [
+        "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-0/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-1/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-2/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-3/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-4/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-5/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-6/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/eth/level-7/sprite-sheet.png"
+      ],
+      "spriteSheet": "/game-art/generated/scicon-player-weapon-fx-v1/eth/eth-weapon-levels-sprite-sheet.png",
+      "galleryPreview": "/game-art/generated/scicon-player-weapon-fx-v1/eth/eth-weapon-levels-gallery-preview.png"
+    },
+    {
+      "family": "btc",
+      "frameSize": [
+        96,
+        128
+      ],
+      "layout": {
+        "columns": "launch frames",
+        "rows": "gun levels 0-7"
+      },
+      "levels": [
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-0/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-0/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-0/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-0/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-1/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-1/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-1/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-1/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-2/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-2/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-2/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-2/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-3/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-3/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-3/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-3/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-4/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-4/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-4/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-4/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-5/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-5/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-5/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-5/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-6/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-6/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-6/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-6/frame-4.png"
+        ],
+        [
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-7/frame-1.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-7/frame-2.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-7/frame-3.png",
+          "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-7/frame-4.png"
+        ]
+      ],
+      "levelSpriteSheets": [
+        "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-0/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-1/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-2/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-3/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-4/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-5/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-6/sprite-sheet.png",
+        "/game-art/generated/scicon-player-weapon-fx-v1/btc/level-7/sprite-sheet.png"
+      ],
+      "spriteSheet": "/game-art/generated/scicon-player-weapon-fx-v1/btc/btc-weapon-levels-sprite-sheet.png",
+      "galleryPreview": "/game-art/generated/scicon-player-weapon-fx-v1/btc/btc-weapon-levels-gallery-preview.png"
+    }
+  ]
+}

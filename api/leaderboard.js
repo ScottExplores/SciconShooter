@@ -9,7 +9,9 @@ const { checkRateLimit } = require('./_lib/rateLimit');
 const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 
 const LEGACY_SUPABASE_SELECT = 'name,score,wave,date,wallet_address,donated';
-const SUPABASE_SELECT = `${LEGACY_SUPABASE_SELECT},proposal_id,proposal_title,proposal_url,proposal_author,run_id,verified,receipt_hash`;
+const PROPOSAL_SUPABASE_SELECT = `${LEGACY_SUPABASE_SELECT},proposal_id,proposal_title,proposal_url,proposal_author`;
+const VERIFIED_SUPABASE_SELECT = `${PROPOSAL_SUPABASE_SELECT},run_id,verified,receipt_hash`;
+const SUPABASE_SELECT = `${VERIFIED_SUPABASE_SELECT},proposal_image_url`;
 
 const getSupabaseConfig = () => ({
   url: process.env.SUPABASE_URL,
@@ -74,6 +76,7 @@ const sanitizeEntry = (entry) => {
     proposalTitle: sanitizeText(entry.proposalTitle, 180),
     proposalUrl: sanitizeUrl(entry.proposalUrl),
     proposalAuthor: sanitizeText(entry.proposalAuthor, 100),
+    proposalImageUrl: sanitizeUrl(entry.proposalImageUrl),
     runId: sanitizeText(entry.runId, 80),
     verified: Boolean(entry.verified),
     receiptHash: sanitizeText(entry.receiptHash, 80)
@@ -134,6 +137,7 @@ const toSupabaseRow = (entry) => ({
   proposal_title: entry.proposalTitle || null,
   proposal_url: entry.proposalUrl || null,
   proposal_author: entry.proposalAuthor || null,
+  proposal_image_url: entry.proposalImageUrl || null,
   run_id: entry.runId || null,
   verified: Boolean(entry.verified),
   receipt_hash: entry.receiptHash || null
@@ -150,6 +154,7 @@ const fromSupabaseRow = (row) => sanitizeEntry({
   proposalTitle: row.proposal_title,
   proposalUrl: row.proposal_url,
   proposalAuthor: row.proposal_author,
+  proposalImageUrl: row.proposal_image_url,
   runId: row.run_id,
   verified: row.verified,
   receiptHash: row.receipt_hash
@@ -182,8 +187,20 @@ const readSupabaseScores = async () => {
       throw error;
     }
 
-    rows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
-    monthlyRows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, monthlyQuery);
+    try {
+      rows = await requestSupabaseScores(VERIFIED_SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
+      monthlyRows = await requestSupabaseScores(VERIFIED_SUPABASE_SELECT, monthlyQuery);
+    } catch (verifiedError) {
+      if (!isMissingProposalColumnError(verifiedError)) throw verifiedError;
+      try {
+        rows = await requestSupabaseScores(PROPOSAL_SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
+        monthlyRows = await requestSupabaseScores(PROPOSAL_SUPABASE_SELECT, monthlyQuery);
+      } catch (proposalError) {
+        if (!isMissingProposalColumnError(proposalError)) throw proposalError;
+        rows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, `&limit=${ALL_TIME_SCORE_LIMIT}`);
+        monthlyRows = await requestSupabaseScores(LEGACY_SUPABASE_SELECT, monthlyQuery);
+      }
+    }
   }
 
   const combinedRows = [
@@ -209,7 +226,22 @@ const insertSupabaseRows = async (rows) => {
     if (!isMissingProposalColumnError(new Error(details))) {
       throw new Error(`Supabase leaderboard save failed with ${response.status}: ${details}`);
     }
-    const legacyRows = rows.map((row) => ({
+
+    const verifiedRows = rows.map(({ proposal_image_url: _proposalImageUrl, ...row }) => row);
+    response = await fetch(supabaseUrl(SUPABASE_TABLE), {
+      method: 'POST',
+      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+      body: JSON.stringify(verifiedRows)
+    });
+    if (response.ok) return;
+
+    const verifiedDetails = await response.text();
+    if (isDuplicateKeyError(verifiedDetails)) return;
+    if (!isMissingProposalColumnError(new Error(verifiedDetails))) {
+      throw new Error(`Supabase leaderboard save failed with ${response.status}: ${verifiedDetails}`);
+    }
+
+    const proposalRows = verifiedRows.map((row) => ({
       name: row.name,
       score: row.score,
       wave: row.wave,
@@ -224,11 +256,30 @@ const insertSupabaseRows = async (rows) => {
     response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=name,score,wave,date`), {
       method: 'POST',
       headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
-      body: JSON.stringify(legacyRows)
+      body: JSON.stringify(proposalRows)
     });
     if (!response.ok) {
-      const legacyDetails = await response.text();
-      throw new Error(`Legacy leaderboard save failed with ${response.status}: ${legacyDetails}`);
+      const proposalDetails = await response.text();
+      if (!isMissingProposalColumnError(new Error(proposalDetails))) {
+        throw new Error(`Legacy leaderboard save failed with ${response.status}: ${proposalDetails}`);
+      }
+      const legacyRows = proposalRows.map((row) => ({
+        name: row.name,
+        score: row.score,
+        wave: row.wave,
+        date: row.date,
+        wallet_address: row.wallet_address,
+        donated: row.donated
+      }));
+      response = await fetch(supabaseUrl(`${SUPABASE_TABLE}?on_conflict=name,score,wave,date`), {
+        method: 'POST',
+        headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+        body: JSON.stringify(legacyRows)
+      });
+      if (!response.ok) {
+        const legacyDetails = await response.text();
+        throw new Error(`Legacy leaderboard save failed with ${response.status}: ${legacyDetails}`);
+      }
     }
   }
 };
@@ -271,29 +322,44 @@ const selectProposalForWeeklyLeader = async (receipt, proposalId) => {
         id: currentLeader.proposalId,
         title: currentLeader.proposalTitle,
         url: currentLeader.proposalUrl,
-        author: currentLeader.proposalAuthor
+        author: currentLeader.proposalAuthor,
+        imageUrl: currentLeader.proposalImageUrl
       } };
     }
     throw Object.assign(new Error('A proposal has already been saved for this weekly-leading run.'), { statusCode: 409 });
   }
 
-  const proposal = await findEligibleProposal(proposalId);
-  const response = await fetch(supabaseUrl(
+  const proposal = await findEligibleProposal(proposalId, {
+    requiredOpenUntil: getCurrentWeekRange().end
+  });
+  const selectionUrl = supabaseUrl(
     `${SUPABASE_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}&verified=eq.true&proposal_id=is.null`
-  ), {
+  );
+  const proposalRow = {
+    proposal_id: proposal.id,
+    proposal_title: proposal.title,
+    proposal_url: proposal.url,
+    proposal_author: proposal.author,
+    ...(proposal.imageUrl ? { proposal_image_url: proposal.imageUrl } : {})
+  };
+  let response = await fetch(selectionUrl, {
     method: 'PATCH',
     headers: supabaseHeaders({ Prefer: 'return=representation' }),
-    body: JSON.stringify({
-      proposal_id: proposal.id,
-      proposal_title: proposal.title,
-      proposal_url: proposal.url,
-      proposal_author: proposal.author
-    })
+    body: JSON.stringify(proposalRow)
   });
 
   if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`Weekly proposal save failed with ${response.status}: ${details}`);
+    let details = await response.text();
+    if (proposal.imageUrl && isMissingProposalColumnError(new Error(details))) {
+      const { proposal_image_url: _proposalImageUrl, ...compatibleRow } = proposalRow;
+      response = await fetch(selectionUrl, {
+        method: 'PATCH',
+        headers: supabaseHeaders({ Prefer: 'return=representation' }),
+        body: JSON.stringify(compatibleRow)
+      });
+      if (!response.ok) details = await response.text();
+    }
+    if (!response.ok) throw new Error(`Weekly proposal save failed with ${response.status}: ${details}`);
   }
 
   const rows = await response.json();

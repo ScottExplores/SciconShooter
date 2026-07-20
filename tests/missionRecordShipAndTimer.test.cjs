@@ -39,7 +39,7 @@ test('selected ship identity travels through the signed receipt and scorecard pr
 test('shared card and mint metadata resolve the signed ship with legacy ResearchHub fallback', () => {
   assert.match(cardApiSource, /BIO_SHIP: '\/game-art\/branding\/bio-ship\.png'/);
   assert.match(cardApiSource, /ETH_SHIP: '\/game-art\/branding\/eth-ship\.png'/);
-  assert.match(cardApiSource, /BTC_SHIP: '\/game-art\/branding\/btc-ship\.svg'/);
+  assert.match(cardApiSource, /BTC_SHIP: '\/game-art\/generated\/scicon-flight-motion-pack-v1\/ships\/btc-token-ship\/frames\/btc-token-ship-03-neutral\.png'/);
   assert.match(cardApiSource, /getPlayerShipId\(req\.query\?\.ship \|\| receipt\.player_ship_id\)/);
   assert.match(metadataApiSource, /buildMissionRecordCardPath\(runId, record\.playerShipId\)/);
   assert.match(mintAuthorizationSource, /buildMissionRecordMetadataPath\(receipt\.runId, receipt\.metrics\.playerShipId\)/);

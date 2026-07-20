@@ -123,7 +123,8 @@ test('finalization carries a legacy leader proposal into the archive and exclude
     wallet_address: null, run_id: null, verified: false,
     proposal_id: '321', proposal_title: 'Open Science Target',
     proposal_url: 'https://www.researchhub.com/post/321/open-science-target',
-    proposal_author: 'Ada Researcher'
+    proposal_author: 'Ada Researcher',
+    proposal_image_url: 'https://images.researchhub.com/proposals/321.png'
   };
   global.fetch = async (_url, options = {}) => {
     requestCount += 1;
@@ -149,6 +150,7 @@ test('finalization carries a legacy leader proposal into the archive and exclude
   assert.equal(result.competition.proposal_id, '321');
   assert.equal(result.competition.proposal_title, 'Open Science Target');
   assert.equal(result.competition.proposal_author, 'Ada Researcher');
+  assert.equal(result.competition.proposal_image_url, 'https://images.researchhub.com/proposals/321.png');
 });
 
 test('re-finalization repairs an unlocked archive and preserves its event allocation', async (context) => {
@@ -176,7 +178,8 @@ test('re-finalization repairs an unlocked archive and preserves its event alloca
     name: 'Actual Winner', score: 8000, wave: 6, date: '2020-02-05T12:00:00.000Z',
     wallet_address: null, run_id: null, verified: false,
     proposal_id: 'legacy-pick', proposal_title: 'Legacy Winning Proposal',
-    proposal_url: 'https://www.researchhub.com/post/legacy-pick', proposal_author: 'Researcher One'
+    proposal_url: 'https://www.researchhub.com/post/legacy-pick', proposal_author: 'Researcher One',
+    proposal_image_url: 'https://images.researchhub.com/proposals/legacy-pick.png'
   };
   let requestCount = 0;
   global.fetch = async (_url, options = {}) => {
@@ -203,6 +206,7 @@ test('re-finalization repairs an unlocked archive and preserves its event alloca
   assert.equal(result.competition.winning_wave, 6);
   assert.equal(result.competition.status, 'claimed');
   assert.equal(result.competition.proposal_title, 'Legacy Winning Proposal');
+  assert.equal(result.competition.proposal_image_url, 'https://images.researchhub.com/proposals/legacy-pick.png');
   assert.equal(result.competition.allocation_rsc, 250);
   assert.equal(result.competition.finalized_at, existing.finalized_at);
 });

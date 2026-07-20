@@ -13,9 +13,7 @@ test('Pixi combat presentation uses checked-in sprite effects and escort ships',
 
   for (const assetPath of [
     '/game-art/pixi/effects/thruster/frame-1.png',
-    '/game-art/pixi/effects/explosion/frame-1.png',
-    '/game-art/pixi/ships/escort-double.png',
-    '/game-art/pixi/ships/escort-triple.png'
+    '/game-art/pixi/effects/explosion/frame-1.png'
   ]) {
     assert.match(constants, new RegExp(assetPath.replaceAll('/', '\\/').replaceAll('.', '\\.')));
   }
@@ -24,21 +22,21 @@ test('Pixi combat presentation uses checked-in sprite effects and escort ships',
   assert.match(renderer, /syncGunPods\(engine: GameEngine\)/);
   assert.match(renderer, /syncBioPrimaryBeam\(engine: GameEngine\)/);
   assert.match(renderer, /ASSETS\.PIXI_THRUSTER_FRAMES/);
-  assert.match(renderer, /ASSETS\.PIXI_ESCORT_DOUBLE/);
-  assert.match(renderer, /ASSETS\.PIXI_ESCORT_TRIPLE/);
+  assert.match(renderer, /engine\.getSquadCompanionVisuals\(\)/);
+  assert.match(renderer, /companion\?\.frames\[companion\.frameIndex\]/);
+  assert.match(renderer, /MINI_SHIP_CATALOG\.flatMap/);
   assert.match(effects, /'sprite-explosion'/);
   assert.match(effects, /setExplosionTextures/);
 });
 
-test('the BIO ship uses a sustained primary beam while damage stays in the simulation', () => {
+test('all ships share the projectile primary while the old BIO beam stays dormant', () => {
   const engine = read('services/gameLogic.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
 
-  assert.match(engine, /isBioBeamFiring\(\)/);
-  assert.match(engine, /private applyBioLaserPulse\(level: number\)/);
-  assert.match(engine, /if \(bioLaserEquipped\) \{\s*this\.applyBioLaserPulse\(fireRateLevel\)/);
+  assert.match(engine, /isBioBeamFiring\(\) \{\s*return false;\s*\}/);
+  assert.match(engine, /const weaponKind: PlayerWeaponKind = 'pulse'/);
+  assert.doesNotMatch(engine, /if \(bioLaserEquipped\)/);
   assert.match(renderer, /engine\.isBioBeamFiring\(\)/);
-  assert.match(renderer, /const color = level > 0 \? '#38bdf8' : '#65f59a'/);
 });
 
 test('paywall formations share one integrity bar and later waves use terrain-pack sectors', () => {

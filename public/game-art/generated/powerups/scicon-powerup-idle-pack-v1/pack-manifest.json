@@ -1,0 +1,86 @@
+{
+  "id": "scicon-powerup-idle-pack-v1",
+  "description": "Fixed-registration six-frame pixel power-ups with internal light pulses.",
+  "powerups": [
+    {
+      "id": "magnet",
+      "static": "game-art/powerups/magnet.png",
+      "frames": [
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-01-rest.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-02-core-rise.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-03-energy-pulse.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-04-peak-glint.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-05-rim-travel.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-06-settle.png"
+      ],
+      "frameSize": [
+        256,
+        256
+      ],
+      "registration": "fixed-center",
+      "runtimeFps": 8,
+      "spriteSheet": "game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/magnet-idle-sprite-sheet.png",
+      "previewGif": "game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/previews/magnet-idle-preview.gif"
+    },
+    {
+      "id": "overdrive-spread",
+      "static": "game-art/powerups/overdrive-spread.png",
+      "frames": [
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-01-rest.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-02-core-rise.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-03-energy-pulse.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-04-peak-glint.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-05-rim-travel.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-06-settle.png"
+      ],
+      "frameSize": [
+        256,
+        256
+      ],
+      "registration": "fixed-center",
+      "runtimeFps": 8,
+      "spriteSheet": "game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/overdrive-spread-idle-sprite-sheet.png",
+      "previewGif": "game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/previews/overdrive-spread-idle-preview.gif"
+    },
+    {
+      "id": "research-beam",
+      "static": "game-art/powerups/research-beam.png",
+      "frames": [
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-01-rest.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-02-core-rise.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-03-energy-pulse.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-04-peak-glint.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-05-rim-travel.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-06-settle.png"
+      ],
+      "frameSize": [
+        256,
+        256
+      ],
+      "registration": "fixed-center",
+      "runtimeFps": 8,
+      "spriteSheet": "game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/research-beam-idle-sprite-sheet.png",
+      "previewGif": "game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/previews/research-beam-idle-preview.gif"
+    },
+    {
+      "id": "shield",
+      "static": "game-art/powerups/shield.png",
+      "frames": [
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-01-rest.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-02-core-rise.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-03-energy-pulse.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-04-peak-glint.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-05-rim-travel.png",
+        "game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-06-settle.png"
+      ],
+      "frameSize": [
+        256,
+        256
+      ],
+      "registration": "fixed-center",
+      "runtimeFps": 8,
+      "spriteSheet": "game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/shield-idle-sprite-sheet.png",
+      "previewGif": "game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/previews/shield-idle-preview.gif"
+    }
+  ]
+}

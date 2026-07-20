@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
+import { sortProposalsByFunding } from '../services/proposalFunding';
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
@@ -31,15 +32,16 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
 }) => {
   const [query, setQuery] = useState('');
   const [selectedProposal, setSelectedProposal] = useState<ResearchHubProposal | null>(null);
+  const sortedProposals = useMemo(() => sortProposalsByFunding(proposals), [proposals]);
   const filteredProposals = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return proposals;
-    return proposals.filter((proposal) => (
+    if (!normalizedQuery) return sortedProposals;
+    return sortedProposals.filter((proposal) => (
       proposal.title.toLowerCase().includes(normalizedQuery)
       || proposal.author.toLowerCase().includes(normalizedQuery)
       || proposal.organization?.toLowerCase().includes(normalizedQuery)
     ));
-  }, [proposals, query]);
+  }, [query, sortedProposals]);
   const isSaving = selectionStatus === 'saving';
 
   return (
@@ -59,6 +61,9 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
           </p>
           <p className="relative mx-auto mt-2 max-w-sm text-[11px] font-semibold leading-relaxed text-slate-300">
             Choose the ResearchHub proposal that receives the {allocationRsc} RSC allocation if your score remains first at the weekly cutoff.
+          </p>
+          <p className="relative mx-auto mt-1 max-w-sm font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-cyan-200/70">
+            Only proposals open past Sunday&apos;s noon-Pacific cutoff are eligible.
           </p>
           <button
             type="button"

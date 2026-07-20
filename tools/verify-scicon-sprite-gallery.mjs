@@ -21,15 +21,22 @@ const parseArray = (name) => {
 
 const assets = parseArray("assets");
 const sounds = parseArray("sounds");
-const expectedSimpleCategories = ["All GIFs", "Sprite Sheets", "Ships", "Bosses", "Enemies", "UI & Menus", "Backgrounds", "Props & Effects", "Items & Power-Ups", "Characters", "Other"];
-const actualSimpleCategories = [...new Set(assets.map((item) => item.simpleCategory))];
+const expectedSimpleCategories = ["All GIFs", "Sprite Sheets", "Simple Arcade Kit", "Ships", "Bosses", "Enemies", "UI & Menus", "Backgrounds", "Props & Effects", "Items & Power-Ups", "Characters", "Other"];
+const actualSimpleCategories = [...new Set(assets.flatMap((item) => item.simpleCategories || [item.simpleCategory]))];
 const unexpectedSimpleCategories = actualSimpleCategories.filter((value) => !expectedSimpleCategories.includes(value));
 const missingSimpleCategories = expectedSimpleCategories.filter((value) => !actualSimpleCategories.includes(value));
 if (unexpectedSimpleCategories.length || missingSimpleCategories.length) {
   throw new Error(`Simple category mismatch. Unexpected: ${unexpectedSimpleCategories.join(", ") || "none"}; missing: ${missingSimpleCategories.join(", ") || "none"}`);
 }
 if (assets.some((item) => !item.simpleCategory)) throw new Error("Gallery items missing a simple category");
-if (assets.some((item) => item.kind === "GIF" && item.simpleCategory !== "All GIFs")) throw new Error("Not every GIF is in All GIFs");
+if (assets.some((item) => !Array.isArray(item.simpleCategories) || !item.simpleCategories.includes(item.simpleCategory))) {
+  throw new Error("Gallery items are missing multi-category metadata");
+}
+if (assets.some((item) => item.kind === "GIF" && !item.simpleCategories.includes("All GIFs"))) throw new Error("Not every GIF is in All GIFs");
+const simpleArcadeAssets = assets.filter((item) => item.simpleCategories.includes("Simple Arcade Kit"));
+if (!simpleArcadeAssets.length || simpleArcadeAssets.some((item) => !item.path.includes("scicon-simple-arcade-kit-v1"))) {
+  throw new Error("Simple Arcade Kit category is missing or contains unrelated assets");
+}
 if (!html.includes("All simple categories")) throw new Error("Simplified category control is missing from the gallery");
 if (!html.includes('id="inGameToggle"')) throw new Error("Yellow In Game filter is missing from the gallery");
 if (!html.includes('.in-game-toggle[aria-pressed="true"]')) throw new Error("In Game filter highlight style is missing");
@@ -53,13 +60,27 @@ const researchHubHardRight = assets.find((item) => item.name === "researchhub-05
 if (!researchHubHardRight?.inGame || !researchHubHardRight.usageLocations.some((value) => value.startsWith("services/playerShipMotion.ts:"))) {
   throw new Error("Template-based ship motion reference was not indexed correctly");
 }
-if (!html.includes("USED IN GAME") || !html.includes("Used in:")) throw new Error("In-game card usage labels are missing");
+if (!html.includes("USED IN GAME")) throw new Error("In-game card usage badge is missing");
+if (html.includes("usage.className = 'usage-reference'")) throw new Error("In-game code locations are still visible on gallery cards");
 const missingAbsolutePaths = [...assets, ...sounds].filter((item) => !item.absolutePath || !path.isAbsolute(item.absolutePath));
 if (missingAbsolutePaths.length) throw new Error(`Gallery items missing absolute copy paths: ${missingAbsolutePaths.slice(0, 10).map((item) => item.name).join(", ")}`);
 if (!html.includes("async function copyItemPath(item, button)")) throw new Error("Copy-path interaction is missing from the gallery");
 if (!html.includes("copyButton.className = 'copy-path'")) throw new Error("Copy-path buttons are missing from gallery cards");
 if (!html.includes("document.execCommand('copy')")) throw new Error("Local file clipboard fallback is missing from the gallery");
-if (!html.includes(".asset > button { display:block;")) throw new Error("Preview and copy-button styles are not correctly separated");
+if (!html.includes(".asset-preview { display:block;")) throw new Error("Preview and card-action styles are not correctly separated");
+if (!html.includes("async function deleteGalleryItem(item, button)")) throw new Error("Delete interaction is missing from the gallery");
+if (!html.includes("deleteButton.className = 'delete-asset'")) throw new Error("Delete buttons are missing from gallery cards");
+if (!html.includes("WARNING: ${item.name} is currently used by the game")) throw new Error("In-game deletion warning is missing");
+if (!html.includes("The file will be moved to the Windows Recycle Bin")) throw new Error("Recoverable deletion notice is missing");
+if (!html.includes('id="selectionToolbar"') || !html.includes("checkbox.setAttribute('aria-label', `Select ${item.name}`)")) {
+  throw new Error("Top-right multi-selection controls are missing");
+}
+if (!html.includes("async function deleteSelectedGalleryItems()") || !html.includes("bulkDeleteWarning(items)")) {
+  throw new Error("Bulk deletion workflow is missing");
+}
+if (html.includes('<div class="path">${item.pack}</div>') || !html.includes("viewerInfo.hidden = true")) {
+  throw new Error("Visible asset location text is still present");
+}
 const livingMachineryPreview = assets.find((item) => item.name === "first-place-row-living-machinery-idle.gif");
 if (!livingMachineryPreview?.absolutePath.endsWith("first-place-row-living-machinery-idle.gif")) {
   throw new Error("Animation copy path is not registered correctly");
@@ -84,5 +105,5 @@ if (!assets.some((item) => item.path.endsWith("first-place-row-living-machinery-
   throw new Error("First-place row living-machinery idle GIF is missing from the gallery");
 }
 
-const simpleCategoryCounts = Object.fromEntries(expectedSimpleCategories.map((value) => [value, assets.filter((item) => item.simpleCategory === value).length]));
+const simpleCategoryCounts = Object.fromEntries(expectedSimpleCategories.map((value) => [value, assets.filter((item) => item.simpleCategories.includes(value)).length]));
 console.log(JSON.stringify({ assets: assets.length, sounds: sounds.length, missing: 0, inGameAssets: inGameAssets.length, uiMenuImages, interfacePackImages, uiSystemV2Images, simpleCategoryCounts }));

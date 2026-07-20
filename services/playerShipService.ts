@@ -3,6 +3,8 @@ import type { MintRecord } from '../types';
 
 export type PlayerShipId = 'researchhub' | 'bio' | 'eth' | 'btc';
 
+export const PLAYABLE_PLAYER_SHIP_IDS = ['researchhub', 'bio', 'eth', 'btc'] as const satisfies readonly PlayerShipId[];
+
 export const ETH_SHIP_SCORE_THRESHOLD = 1_000;
 export const BTC_SHIP_SCORE_THRESHOLD = 10_000;
 
@@ -23,7 +25,7 @@ export const PLAYER_SHIPS: Readonly<Record<PlayerShipId, {
 }>> = Object.freeze({
   researchhub: {
     id: 'researchhub',
-    name: 'ResearchHub ship',
+    name: 'RSC ship',
     assetUrl: ASSETS.PLAYER_SHIP
   },
   bio: {

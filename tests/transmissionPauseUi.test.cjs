@@ -5,39 +5,24 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 
-test('story transmissions unseal the layered funding vault before typewriter playback', () => {
+test('story transmissions open a simple fitted shutter before typewriter playback', () => {
   const story = fs.readFileSync(path.join(root, 'components', 'StoryTransmission.tsx'), 'utf8');
   const vault = fs.readFileSync(path.join(root, 'components', 'FundingVaultUnseal.tsx'), 'utf8');
-  const partsRoot = path.join(
-    root,
-    'public',
-    'game-art',
-    'generated',
-    'ui',
-    'scicon-ui-system-v2',
-    'animations',
-    'funding-vault-unseal',
-    'parts'
-  );
-
-  [
-    'vault-frame-body.png',
-    'shutter-left.png',
-    'shutter-right.png',
-    'mechanical-seal.png',
-    'research-core.png',
-    'energy-ring.png',
-    'energy-glow.png',
-    'energy-beam.png'
-  ].forEach((name) => assert.ok(fs.existsSync(path.join(partsRoot, name)), `${name} should ship with the vault rig`));
-
+  const vaultCss = fs.readFileSync(path.join(root, 'styles', 'funding-vault-unseal.css'), 'utf8');
   assert.match(vault, /FUNDING_VAULT_UNSEAL_DURATION_MS = 2184/);
   assert.match(story, /const \[vaultUnsealed, setVaultUnsealed\]/);
   assert.match(story, /if \(!vaultUnsealed \|\| isComplete\) return/);
-  assert.match(story, /!vaultUnsealed \? <FundingVaultUnseal \/>/);
-  assert.match(vault, /shutter-left\.png/);
-  assert.match(vault, /shutter-right\.png/);
-  assert.match(vault, /research-core\.png/);
+  assert.match(story, /<FundingVaultUnseal open=\{vaultUnsealed\}>/);
+  assert.match(story, /sci-funding-vault__transmission/);
+  assert.match(vault, /sci-funding-vault--portrait/);
+  assert.match(vault, /sci-funding-vault__content/);
+  assert.match(vault, /sci-funding-vault__aperture/);
+  assert.match(vaultCss, /aspect-ratio: 1 \/ 1/);
+  assert.match(vaultCss, /sci-vault-shutter-left/);
+  assert.match(vaultCss, /sci-vault-shutter-right/);
+  assert.doesNotMatch(vault, /research-core|energy-ring|mechanical-seal|energy-beam|energy-glow/);
+  assert.doesNotMatch(vaultCss, /rotate\(90deg\)/);
+  assert.match(story, /h-\[92px\] w-\[92px\]/);
 });
 
 test('pause menu uses the generated game interface while preserving real setting controls', () => {

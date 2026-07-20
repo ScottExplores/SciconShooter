@@ -30,6 +30,7 @@ test('ResearchHub ship is a compact square RGBA pixel spacecraft', () => {
   assert.equal(png.readUInt32BE(20), 256);
   assert.equal(png[25], 6);
   assert.ok(png.length < 150_000);
+  assert.match(shipServiceSource, /name: 'RSC ship'/);
 });
 
 test('ETH ship is a compact square RGBA pixel spacecraft', () => {
@@ -42,13 +43,13 @@ test('ETH ship is a compact square RGBA pixel spacecraft', () => {
   assert.ok(png.length < 150_000);
 });
 
-test('BTC ship is a crisp square pixel spacecraft asset', () => {
-  const spritePath = path.join(root, 'public', 'game-art', 'branding', 'btc-ship.svg');
-  const svg = fs.readFileSync(spritePath, 'utf8');
-  assert.match(svg, /viewBox="0 0 256 256"/);
-  assert.match(svg, /shape-rendering="crispEdges"/);
-  assert.match(svg, /#fbbf24/);
-  assert.ok(svg.length < 15_000);
+test('BTC ship uses the updated neutral RGBA motion-pack frame', () => {
+  const spritePath = path.join(root, 'public', 'game-art', 'generated', 'scicon-flight-motion-pack-v1', 'ships', 'btc-token-ship', 'frames', 'btc-token-ship-03-neutral.png');
+  const png = fs.readFileSync(spritePath);
+  assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.equal(png.readUInt32BE(16), 256);
+  assert.equal(png.readUInt32BE(20), 256);
+  assert.equal(png[25], 6);
 });
 
 test('confirmed Mission Record scores cumulatively unlock ETH and BTC ships', () => {
@@ -73,13 +74,14 @@ test('project wallet bypasses every score-gated ship lock', () => {
   assert.match(appSource, /\[activeWalletAddress, isOwnerWallet, walletRecords\]/);
 });
 
-test('title screen keeps BIO open and explains score-tier ETH and BTC locks', () => {
+test('title screen keeps the updated BTC ship in the playable roster', () => {
   assert.match(startScreenSource, /aria-label="Previous ship"/);
   assert.match(startScreenSource, /aria-label="Next ship"/);
   assert.match(startScreenSource, /PLAYER_SHIPS\[shipFocusId\]/);
   assert.match(startScreenSource, /sci-ship-carousel-item--locked/);
   assert.match(startScreenSource, /Mint a \$\{focusedShipUnlockScore\.toLocaleString\(\)\}\+ score NFT to unlock this ship/);
-  assert.match(startScreenSource, /\['researchhub', 'bio', 'eth', 'btc'\]/);
+  assert.match(startScreenSource, /\[\.\.\.PLAYABLE_PLAYER_SHIP_IDS\]/);
+  assert.match(shipServiceSource, /PLAYABLE_PLAYER_SHIP_IDS = \['researchhub', 'bio', 'eth', 'btc'\]/);
   assert.match(startScreenSource, /isPlayerShipUnlocked\(nextShipId, shipUnlocks\)/);
   assert.match(startScreenSource, /shipFocusId === 'btc'/);
   assert.doesNotMatch(startScreenSource, /sci-ship-carousel-item--behind-/);
@@ -96,19 +98,10 @@ test('selected ship art is used by the player and afterimages', () => {
   assert.match(runtimeSource, /imageCache\[this\.playerShipUrl\]/);
 });
 
-test('double and triple shot use floating gun pods instead of duplicate player ships', () => {
-  const gunPodStart = runtimeSource.indexOf('  drawGunPods(ctx:');
-  const gunPodEnd = runtimeSource.indexOf('  drawPlayerThrusters(', gunPodStart);
-  const gunPodSource = runtimeSource.slice(gunPodStart, gunPodEnd);
-
-  assert.ok(gunPodStart > 0 && gunPodEnd > gunPodStart);
-  assert.match(runtimeSource, /TRIPLE_GUN_POD_OFFSETS = \[-42, 42\]/);
-  assert.match(runtimeSource, /doubleGunPodSide: -1 \| 1 = -1/);
-  assert.match(runtimeSource, /return clamp\(this\.width \* 0\.27, 88, 132\)/);
-  assert.match(runtimeSource, /DOUBLE_GUN_POD_EDGE_ENTER_RATIO = 0\.38/);
-  assert.match(runtimeSource, /DOUBLE_GUN_POD_EDGE_EXIT_RATIO = 0\.62/);
-  assert.match(runtimeSource, /this\.doubleGunPodOffset \+= \(targetOffset - this\.doubleGunPodOffset\) \* DOUBLE_GUN_POD_EASING/);
-  assert.match(runtimeSource, /return \[this\.doubleGunPodOffset\]/);
-  assert.match(gunPodSource, /this\.drawGunPod\(ctx, size, isTriple, index\)/);
-  assert.doesNotMatch(gunPodSource, /playerShipUrl/);
+test('equipped mini-ships replace the old duplicate-player gun pods', () => {
+  assert.match(runtimeSource, /getSquadCompanionVisuals\(\): SquadCompanionVisual\[\]/);
+  assert.match(runtimeSource, /private updateSquadCompanions\(\)/);
+  assert.match(runtimeSource, /private spawnSquadCompanionBullet\(companion: ActiveSquadCompanion\)/);
+  assert.match(runtimeSource, /return EMPTY_GUN_POD_OFFSETS/);
+  assert.match(runtimeSource, /angleBias: side \* \(Math\.PI \/ 6\)/);
 });

@@ -1,3 +1,7 @@
+import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
+import { isFundingDeadlineAfter } from '../shared/researchHubProposalEligibility.browser';
+import { getProposalFundingMetrics } from './proposalFunding';
+
 const RESEARCHHUB_FUND_URL = 'https://www.researchhub.com/fund';
 const PROPOSAL_FEED_PATH = '/api/researchhub-proposals';
 
@@ -8,8 +12,11 @@ export interface ResearchHubProposal {
   title: string;
   author: string;
   organization?: string;
+  goalCurrency?: string;
   requestedUsd?: number;
   raisedUsd?: number;
+  requestedRsc?: number;
+  raisedRsc?: number;
   backers: number;
   votes: number;
   comments: number;
@@ -34,22 +41,21 @@ const asNumber = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value !== 'string') return undefined;
 
-  const parsed = Number(value.replace(/[$,]/g, '').trim());
+  const normalized = value.replace(/[$,]/g, '').trim();
+  if (!normalized) return undefined;
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
-const getMoneyUsd = (value: unknown): number | undefined => {
+const getMoneyAmount = (value: unknown, currency: 'usd' | 'rsc'): number | undefined => {
   if (!isRecord(value)) return asNumber(value);
-  return asNumber(value.usd) ?? asNumber(value.amount);
+  return asNumber(value[currency]) ?? asNumber(value.amount);
 };
 
-const isPastDate = (value?: string) => {
-  if (!value) return false;
-  const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) && timestamp <= Date.now();
-};
-
-const isOpenUnfundedProposal = (proposal: ResearchHubProposal) => {
+export const isWeeklyProposalEligible = (
+  proposal: ResearchHubProposal,
+  requiredOpenUntil: Date | string | number
+) => {
   const status = proposal.status?.trim().toLowerCase();
   const closedStatuses = new Set([
     'closed',
@@ -65,15 +71,9 @@ const isOpenUnfundedProposal = (proposal: ResearchHubProposal) => {
   ]);
 
   if (status && closedStatuses.has(status)) return false;
-  if (isPastDate(proposal.endDate)) return false;
-  if (
-    typeof proposal.requestedUsd === 'number'
-    && proposal.requestedUsd > 0
-    && typeof proposal.raisedUsd === 'number'
-    && proposal.raisedUsd >= proposal.requestedUsd
-  ) {
-    return false;
-  }
+  if (!isFundingDeadlineAfter(proposal.endDate, requiredOpenUntil)) return false;
+  const funding = getProposalFundingMetrics(proposal);
+  if (funding.progressPercent !== null && funding.progressPercent >= 100) return false;
 
   return true;
 };
@@ -126,8 +126,10 @@ const normalizeProposal = (entry: RawRecord): ResearchHubProposal | null => {
   const metrics = isRecord(entry.metrics) ? entry.metrics : undefined;
   const reviewMetrics = isRecord(metrics?.review_metrics) ? metrics?.review_metrics : undefined;
   const contributors = isRecord(fundraise?.contributors) ? fundraise?.contributors : undefined;
-  const requestedUsd = getMoneyUsd(fundraise?.goal_amount);
-  const raisedUsd = getMoneyUsd(fundraise?.amount_raised);
+  const requestedUsd = getMoneyAmount(fundraise?.goal_amount, 'usd');
+  const raisedUsd = getMoneyAmount(fundraise?.amount_raised, 'usd');
+  const requestedRsc = getMoneyAmount(fundraise?.goal_amount, 'rsc');
+  const raisedRsc = getMoneyAmount(fundraise?.amount_raised, 'rsc');
   const endDate = asString(fundraise?.end_date);
 
   return {
@@ -137,8 +139,11 @@ const normalizeProposal = (entry: RawRecord): ResearchHubProposal | null => {
     organization: asString(entry.nonprofit?.name)
       ?? asString(firstGrant?.organization)
       ?? asString(authorProfile?.headline),
+    goalCurrency: asString(fundraise?.goal_currency)?.toUpperCase(),
     requestedUsd,
     raisedUsd,
+    requestedRsc,
+    raisedRsc,
     backers: Math.max(0, Math.floor(asNumber(contributors?.total) ?? 0)),
     votes: Math.max(0, Math.floor(asNumber(metrics?.votes) ?? asNumber(entry.adjusted_score) ?? 0)),
     comments: Math.max(0, Math.floor(asNumber(metrics?.replies) ?? 0)),
@@ -157,7 +162,9 @@ export const formatUsd = (value?: number) => {
   return `$${Math.round(value).toLocaleString()}`;
 };
 
-export const getResearchHubFundingProposals = async (): Promise<ResearchHubProposal[]> => {
+export const getResearchHubFundingProposals = async (
+  requiredOpenUntil: Date | string | number = getWeeklyBoundaryMeta().endsAt
+): Promise<ResearchHubProposal[]> => {
   let response = await fetch(PROPOSAL_FEED_PATH, {
     headers: { Accept: 'application/json' }
   });
@@ -183,5 +190,5 @@ export const getResearchHubFundingProposals = async (): Promise<ResearchHubPropo
     .filter(isRecord)
     .map(normalizeProposal)
     .filter((proposal): proposal is ResearchHubProposal => Boolean(proposal))
-    .filter(isOpenUnfundedProposal);
+    .filter((proposal) => isWeeklyProposalEligible(proposal, requiredOpenUntil));
 };

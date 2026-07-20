@@ -8,7 +8,8 @@ import {
   disconnectBaseAccount,
   getConnectedBaseAccount,
   sendRscContinuePayment,
-  signBaseAccountMessage
+  signBaseAccountMessage,
+  switchBaseAccount
 } from '../services/baseAccountWallet';
 import type { RunReceipt } from '../services/runReceiptService';
 import { claimWeeklyChampionProposal } from '../services/weeklyClaimService';
@@ -17,6 +18,7 @@ import { mintMissionRecord } from '../services/recordMintService';
 
 export type WalletRuntimeAction =
   | { nonce: number; type: 'connect' }
+  | { nonce: number; type: 'switch-account' }
   | { nonce: number; type: 'disconnect' }
   | { nonce: number; type: 'continue' }
   | { nonce: number; type: 'claim-champion'; weekKey: string; proposal: ResearchHubProposal }
@@ -82,7 +84,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   const wallet = useMemo<WalletSession>(() => ({
     address: activeWalletAddress,
     chainId: activeWalletAddress ? DONATION_CONFIG.BASE_CHAIN_ID : null,
-    status: activeWalletAddress ? 'connected' : isConnecting ? 'connecting' : walletError ? 'error' : 'idle',
+    status: isConnecting ? 'connecting' : activeWalletAddress ? 'connected' : walletError ? 'error' : 'idle',
     error: walletError,
     connectorName: activeWalletAddress ? 'Base Account' : undefined,
     hasDonated: activeWalletAddress ? Boolean(donatedWallets[activeWalletAddress.toLowerCase()]) : false
@@ -96,20 +98,31 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     let active = true;
     const handleAccountsChanged = (accounts: string[]) => {
       if (active) {
-        setActiveWalletAddress((accounts[0] as Address | undefined) || null);
+        const nextAddress = (accounts[0] as Address | undefined) || null;
+        if (!nextAddress) localStorage.removeItem(STORAGE_KEYS.WALLET_ADDRESS);
+        setActiveWalletAddress(nextAddress);
       }
+    };
+    const handleDisconnect = () => {
+      if (!active) return;
+      localStorage.removeItem(STORAGE_KEYS.WALLET_ADDRESS);
+      setActiveWalletAddress(null);
     };
 
     void getConnectedBaseAccount()
       .then((address) => {
-        if (active) setActiveWalletAddress(address);
+        if (!active) return;
+        if (!address) localStorage.removeItem(STORAGE_KEYS.WALLET_ADDRESS);
+        setActiveWalletAddress(address);
       })
       .catch(() => undefined);
 
     baseAccountProvider.on('accountsChanged', handleAccountsChanged);
+    baseAccountProvider.on('disconnect', handleDisconnect);
     return () => {
       active = false;
       baseAccountProvider.removeListener('accountsChanged', handleAccountsChanged);
+      baseAccountProvider.removeListener('disconnect', handleDisconnect);
     };
   }, []);
 
@@ -134,11 +147,35 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     }
   }, [activeWalletAddress, onWalletError]);
 
+  const switchWallet = useCallback(async () => {
+    setIsConnecting(true);
+    try {
+      onWalletError('');
+      const address = await switchBaseAccount();
+      setActiveWalletAddress(address);
+      if (activeWalletAddress && address.toLowerCase() === activeWalletAddress.toLowerCase()) {
+        onWalletError('Base kept the same account. Disconnect, then sign out of Base Account before reconnecting with a different identity.');
+      }
+      return address;
+    } catch (error: any) {
+      console.error('Base Account switch failed', error);
+      onWalletError(getUserFacingMessage(error, 'Wallet switch was cancelled.'));
+      return null;
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [activeWalletAddress, onWalletError]);
+
   const disconnectWallet = useCallback(async () => {
-    localStorage.removeItem(STORAGE_KEYS.WALLET_ADDRESS);
-    await disconnectBaseAccount();
-    setActiveWalletAddress(null);
-    onWalletError('');
+    try {
+      await disconnectBaseAccount();
+      localStorage.removeItem(STORAGE_KEYS.WALLET_ADDRESS);
+      setActiveWalletAddress(null);
+      onWalletError('');
+    } catch (error: any) {
+      console.error('Base Account disconnect failed', error);
+      onWalletError(getUserFacingMessage(error, 'Base Account could not disconnect.'));
+    }
   }, [onWalletError]);
 
   const continueWithRsc = useCallback(async () => {
@@ -209,6 +246,8 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     const runAction = async () => {
       if (currentAction.type === 'connect') {
         await connectWallet();
+      } else if (currentAction.type === 'switch-account') {
+        await switchWallet();
       } else if (currentAction.type === 'disconnect') {
         await disconnectWallet();
       } else if (currentAction.type === 'continue') {
@@ -221,7 +260,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
     };
 
     void runAction();
-  }, [action, claimChampion, connectWallet, continueWithRsc, disconnectWallet, mintMission, onActionHandled]);
+  }, [action, claimChampion, connectWallet, continueWithRsc, disconnectWallet, mintMission, onActionHandled, switchWallet]);
 
   return null;
 };

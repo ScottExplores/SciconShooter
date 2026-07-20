@@ -39,11 +39,14 @@ test('the real engine owns roaming attacks, cross-beam danger, and elite firing'
 test('Pixi presents a fixed boss meter and compact elite health bars', () => {
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const constants = read('constants.ts');
-  const framePath = path.join(root, 'public', 'game-art', 'generated', 'ui', 'scicon-compact-top-hud-v1', 'frames', 'boss-integrity-frame.png');
+  const framePath = path.join(root, 'public', 'game-art', 'generated', 'ui', 'scicon-ui-system-v2', 'base', 'hud-primary', 'boss-integrity-bar.png');
 
   assert.match(constants, /PIXI_BOSS_HEALTH_FRAME/);
+  assert.match(constants, /scicon-ui-system-v2\/base\/hud-primary\/boss-integrity-bar\.png/);
   assert.ok(fs.existsSync(framePath));
   assert.match(renderer, /private syncBossHealthHud\(engine: GameEngine\)/);
+  assert.match(renderer, /frameWidth \* \(143 \/ 737\)/);
+  assert.match(renderer, /\.fill\('#ef233c'\)/);
   assert.match(renderer, /this\.bossHealthRoot\.position\.set\(this\.width \/ 2/);
   assert.match(renderer, /entity\.type === EntityType\.MINI_BOSS \|\| entity\.isElite/);
   assert.doesNotMatch(renderer, /entity\.type === EntityType\.BOSS \|\| entity\.type === EntityType\.MINI_BOSS\) \{\s*this\.drawHealthBar/);

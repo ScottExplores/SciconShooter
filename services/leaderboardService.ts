@@ -49,6 +49,7 @@ const sanitizeEntry = (entry: Partial<LeaderboardEntry> | null | undefined): Lea
     proposalTitle: sanitizeText(entry.proposalTitle, 180),
     proposalUrl: sanitizeUrl(entry.proposalUrl),
     proposalAuthor: sanitizeText(entry.proposalAuthor, 100),
+    proposalImageUrl: sanitizeUrl(entry.proposalImageUrl),
     runId: sanitizeText(entry.runId, 80),
     verified: Boolean(entry.verified)
   };
@@ -166,6 +167,7 @@ export const saveScore = async (
     proposalTitle?: string;
     proposalUrl?: string;
     proposalAuthor?: string;
+    proposalImageUrl?: string;
     receipt?: RunReceipt;
   } = {}
 ): Promise<LeaderboardData> => {
@@ -179,7 +181,8 @@ export const saveScore = async (
     proposalId: sanitizeText(options.proposalId, 80),
     proposalTitle: sanitizeText(options.proposalTitle, 180),
     proposalUrl: sanitizeUrl(options.proposalUrl),
-    proposalAuthor: sanitizeText(options.proposalAuthor, 100)
+    proposalAuthor: sanitizeText(options.proposalAuthor, 100),
+    proposalImageUrl: sanitizeUrl(options.proposalImageUrl)
   };
 
   try {

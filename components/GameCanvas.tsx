@@ -10,6 +10,7 @@ import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
 import { audioService } from '../services/audioService';
 import { PixiGameRenderer } from '../services/pixi/PixiGameRenderer';
+import type { RuntimeSquadLoadout } from '../services/squadProgression';
 
 export { preloadGameplayAssets } from '../services/gameLogic';
 
@@ -32,6 +33,10 @@ const getFlaskBucket = (stats: Stats) => {
 };
 
 const getProgressBucket = (progress: number) => Math.floor(Math.max(0, Math.min(1, progress)) * 16);
+const getShipAbilityBucket = (stats: Stats) => {
+  const max = Math.max(1, stats.shipAbilityCooldownMax || 1);
+  return Math.floor((1 - Math.min(1, Math.max(0, stats.shipAbilityCooldown || 0) / max)) * 16);
+};
 
 const upgradesEqual = (previous: Stats['upgrades'], next: Stats['upgrades']) => {
   const keys = Object.keys(next) as Array<keyof Stats['upgrades']>;
@@ -56,6 +61,10 @@ const shouldPublishHudStats = (previous: Stats | null, next: Stats, elapsedMs: n
     const previousFlasks = getFlaskProgress(previous.bombCharge || 0, previous.bombChargeMax || 1).storedFlasks;
     const nextFlasks = getFlaskProgress(next.bombCharge || 0, next.bombChargeMax || 1).storedFlasks;
     return elapsedMs >= 220 || previousFlasks !== nextFlasks;
+  }
+
+  if (getShipAbilityBucket(previous) !== getShipAbilityBucket(next)) {
+    return elapsedMs >= 180 || (previous.shipAbilityCooldown > 0 && next.shipAbilityCooldown <= 0);
   }
 
   if (previous.isBossActive && previous.bossHp !== next.bossHp) {
@@ -87,10 +96,12 @@ export interface GameCanvasProps {
   onWaveVictory?: (summary: WaveVictorySummary) => void;
   isTransmissionOpen?: boolean;
   bombCommand?: { nonce: number } | null;
+  shipAbilityCommand?: { nonce: number } | null;
   continueCommand?: { nonce: number; lives: number } | null;
   waveContinueCommand?: { nonce: number } | null;
   polishSettings: GamePolishSettings;
   playerShipUrl?: string;
+  squadLoadout?: RuntimeSquadLoadout;
   campaign?: GameCampaign;
   levelId?: string;
   waveId?: string;
@@ -116,10 +127,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   onWaveVictory,
   isTransmissionOpen = false,
   bombCommand = null,
+  shipAbilityCommand = null,
   continueCommand = null,
   waveContinueCommand = null,
   polishSettings,
   playerShipUrl,
+  squadLoadout,
   campaign,
   levelId,
   waveId,
@@ -140,6 +153,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const requestRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const handledBombNonceRef = useRef<number | null>(null);
+  const handledShipAbilityNonceRef = useRef<number | null>(null);
   const handledContinueNonceRef = useRef<number | null>(null);
   const handledWaveContinueNonceRef = useRef<number | null>(null);
   const handledRestartTokenRef = useRef(restartToken);
@@ -232,6 +246,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       onStatsChangeRef.current(cloneStatsForReact(engineRef.current.stats));
     }
   }, [bombCommand, stats]);
+
+  useEffect(() => {
+    if (!shipAbilityCommand || !engineRef.current) return;
+    if (handledShipAbilityNonceRef.current === shipAbilityCommand.nonce) return;
+    handledShipAbilityNonceRef.current = shipAbilityCommand.nonce;
+
+    engineRef.current.stats = {
+      ...engineRef.current.stats,
+      ...stats
+    };
+
+    if (engineRef.current.triggerShipAbility()) {
+      onStatsChangeRef.current(cloneStatsForReact(engineRef.current.stats));
+    }
+  }, [shipAbilityCommand, stats]);
 
   useEffect(() => {
     if (!continueCommand || !engineRef.current) return;
@@ -385,6 +414,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         previewMode,
         audioEnabled,
         playerShipUrl,
+        squadLoadout,
         initialLevelId: levelId,
         initialWaveId: waveId,
         testMode: testModeRef.current
@@ -758,7 +788,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [audioEnabled, campaign, playerShipUrl, previewMode]);
+  }, [audioEnabled, campaign, playerShipUrl, previewMode, squadLoadout]);
 
   return (
     <div

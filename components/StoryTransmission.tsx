@@ -74,48 +74,47 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
   };
 
   return (
-    <div className={`absolute inset-0 z-40 flex justify-center bg-black/45 backdrop-blur-[2px] ${vaultUnsealed ? 'items-start px-3 pb-5 pt-[18vh] sm:p-6 sm:pt-[16vh]' : 'items-center p-2 sm:p-5'}`}>
-      {!vaultUnsealed ? <FundingVaultUnseal /> : <button
-        type="button"
-        onClick={handleAdvance}
-        className="group relative grid w-full max-w-3xl animate-bounce-in grid-cols-[92px_1fr] gap-3 overflow-hidden border border-cyan-200/25 bg-slate-950/92 p-3 text-left shadow-[0_22px_90px_rgba(0,0,0,0.62)] [clip-path:polygon(16px_0,100%_0,100%_92%,96%_100%,0_100%,0_16px)] sm:grid-cols-[132px_1fr] sm:gap-4 sm:p-4"
-      >
-        <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${beat.accent}`}></div>
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(103,232,249,0.04)_1px,transparent_1px)] bg-[size:100%_8px] opacity-50"></div>
-
-        <div className="relative">
-          <div className={`absolute -inset-1 bg-gradient-to-br ${beat.accent} opacity-30 blur-xl ${!isComplete ? 'animate-pulse' : ''}`}></div>
-          <div className="relative aspect-square overflow-hidden border border-cyan-200/30 bg-blue-700/20 [clip-path:polygon(10px_0,100%_0,100%_88%,88%_100%,0_100%,0_10px)]">
-            <img
-              src={beat.portrait}
-              alt={beat.speaker}
-              className={`h-full w-full object-cover ${!isComplete ? 'scicon-talk-portrait' : ''}`}
-            />
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(transparent_48%,rgba(255,255,255,0.12)_50%,transparent_52%)] bg-[size:100%_6px] mix-blend-screen"></div>
-          </div>
-        </div>
-
-        <div className="relative min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="arcade-font text-sm font-black uppercase tracking-[0.18em] text-white sm:text-lg">
-              {beat.speaker}
-            </span>
-          </div>
-
-          <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-yellow-200/80">
-            Wave {beat.phase}: {beat.title}
+    <div className="absolute inset-0 z-40 flex items-center justify-center overflow-hidden bg-black/45 p-2 backdrop-blur-[2px] sm:p-4">
+      <FundingVaultUnseal open={vaultUnsealed}>
+        <button
+          type="button"
+          onClick={handleAdvance}
+          className="sci-funding-vault__transmission group"
+        >
+          <div className="flex min-w-0 items-center gap-4 border-b border-cyan-200/20 pb-3">
+            <div className="relative h-[92px] w-[92px] shrink-0 sm:h-[104px] sm:w-[104px]">
+              <div className={`absolute -inset-1 bg-gradient-to-br ${beat.accent} opacity-25 blur-lg ${!isComplete ? 'animate-pulse' : ''}`}></div>
+              <div className="relative h-full w-full overflow-hidden border border-cyan-200/30 bg-blue-700/20 [clip-path:polygon(9px_0,100%_0,100%_86%,86%_100%,0_100%,0_9px)]">
+                <img
+                  src={beat.portrait}
+                  alt={beat.speaker}
+                  className={`h-full w-full object-cover ${!isComplete ? 'scicon-talk-portrait' : ''}`}
+                />
+                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(transparent_48%,rgba(255,255,255,0.12)_50%,transparent_52%)] bg-[size:100%_6px] mix-blend-screen"></div>
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div className="arcade-font text-base font-black uppercase leading-tight tracking-[0.1em] text-white sm:text-lg">
+                {beat.speaker}
+              </div>
+              <div className="mt-2 font-mono text-[10px] uppercase leading-relaxed tracking-[0.12em] text-yellow-200/85 sm:text-[11px]">
+                Wave {beat.phase}: {beat.title}
+              </div>
+            </div>
           </div>
 
-          <p className="mt-3 min-h-[112px] font-mono text-sm leading-relaxed text-cyan-50 sm:min-h-[120px] sm:text-base">
-            {beat.text.slice(0, visibleCount)}
-            {!isComplete ? <span className="animate-pulse text-cyan-200">_</span> : null}
-          </p>
+          <div className="flex min-h-0 flex-1 items-center py-3">
+            <p className="overflow-hidden font-mono text-[15px] leading-[1.55] text-cyan-50 sm:text-base">
+              {beat.text.slice(0, visibleCount)}
+              {!isComplete ? <span className="animate-pulse text-cyan-200">_</span> : null}
+            </p>
+          </div>
 
-          <div className="mt-3 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-200/60">
+          <div className="border-t border-cyan-200/20 pt-3 text-right font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-200/65">
             {isComplete ? 'Tap to deploy' : 'Receiving transmission'}
           </div>
-        </div>
-      </button>}
+        </button>
+      </FundingVaultUnseal>
     </div>
   );
 };

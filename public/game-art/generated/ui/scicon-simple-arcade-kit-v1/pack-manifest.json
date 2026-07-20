@@ -1,0 +1,3211 @@
+{
+  "id": "scicon-simple-arcade-kit-v1",
+  "version": 1,
+  "generated": "2026-07-19",
+  "sourceMode": "Mixed: OpenAI built-in image generation plus deterministic Pillow UI construction",
+  "galleryCategory": "Simple Arcade Kit",
+  "runtimeProtocol": {
+    "animations": "Use PNG frames/sheets; GIF files are previews only.",
+    "transparentCenters": "Place ships, live text, or tinted fill rectangles underneath the overlay images.",
+    "waveText": "Prefer live text or BitmapFont. Use the included glyph atlas only when sprite lettering is required.",
+    "projectiles": "Advance once from frame 1 through frame 4, then hold frame 4 while the projectile remains alive."
+  },
+  "assets": [
+    {
+      "id": "diamond-selector-mini-lime",
+      "kind": "diamond-selector",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/frames/diamond-selector-mini-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/frames/diamond-selector-mini-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/frames/diamond-selector-mini-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/frames/diamond-selector-mini-lime-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/frames/diamond-selector-mini-lime-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/frames/diamond-selector-mini-lime-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/frames/diamond-selector-mini-lime-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/frames/diamond-selector-mini-lime-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/diamond-selector-mini-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/diamond-selector-mini-lime-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "1e7227d6396cf4bbe88e85386ec0ea26b3155c880a6055658d88e803deaba6fe",
+        "ee7a272cf0603db05bdb3ec1e17d2756de2a9e8ac10bcf5e88b58951c3380ab5",
+        "87bf09541e99054e588125e9cec4223ca52b23de36290a05da41dd545118b033",
+        "dd8e3661a7cf67027f39e6afc9899d0d638f708f1162f274d60e0dca07d2ea0e",
+        "fe8f8f6d7db8b128fddd483ef4237365b4623dad9e42a1b86e192dca4c367e05",
+        "991fb95b30bc8963ac979fcd3c7ca9e413123034737edcffc2eac28b3aa1c9ad",
+        "e826ac2c98c1b4c88f39bb2c10cc8c9f39e03f21c3ed850a6457bd21c8ad6e89",
+        "837a441435a322d622791b711505ec2b07ef756043f7c019ba1faea9ef54141a"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-mini-lime-blank",
+      "kind": "diamond-selector",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/lime/diamond-selector-mini-lime-blank.png",
+      "size": [
+        128,
+        128
+      ],
+      "hash": "ff9c03b48d19342bb3c042bdf0eef739efda13ca3b60d99a08892418858ade02",
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-mini-cyan",
+      "kind": "diamond-selector",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/frames/diamond-selector-mini-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/frames/diamond-selector-mini-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/frames/diamond-selector-mini-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/frames/diamond-selector-mini-cyan-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/frames/diamond-selector-mini-cyan-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/frames/diamond-selector-mini-cyan-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/frames/diamond-selector-mini-cyan-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/frames/diamond-selector-mini-cyan-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/diamond-selector-mini-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/diamond-selector-mini-cyan-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "347a2bab0910afaec6fda7c3099028c903d4bc378032ecebaa2f1c451cc447f5",
+        "6323f968f82ff47b7c62b7871fa947303375a18d400400530a22762d33371737",
+        "c7af486d9a42c3da3981a091e69b85a4b6aa995b0fc96235ccfc8ac6139549b1",
+        "9b4abff3dec732a9ccf711de92057dc54067f0f63f50cfec3d73d8b8e65587af",
+        "64313e7f4f4ff0459186320af0998ffefe309c7e0b01ae84082dc9511319b504",
+        "923a8623861433c859beacc359450f2ca90ed13dd75b869d81d1d13dddfce21c",
+        "27bab63d5e95951cfa92d62fa3d2eab1199e97b743d986eb6017bb2db3bfa184",
+        "929ba169bb602623151f70c70b643d3f0d1d6830242348b66f63f0508ad63108"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-mini-cyan-blank",
+      "kind": "diamond-selector",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/cyan/diamond-selector-mini-cyan-blank.png",
+      "size": [
+        128,
+        128
+      ],
+      "hash": "6b9e1a6a5f50df218f5a4b5e6c2952658fc955b75f711fcd9f56970e277054a4",
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-mini-gold",
+      "kind": "diamond-selector",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/frames/diamond-selector-mini-gold-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/frames/diamond-selector-mini-gold-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/frames/diamond-selector-mini-gold-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/frames/diamond-selector-mini-gold-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/frames/diamond-selector-mini-gold-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/frames/diamond-selector-mini-gold-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/frames/diamond-selector-mini-gold-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/frames/diamond-selector-mini-gold-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/diamond-selector-mini-gold-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/diamond-selector-mini-gold-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "cc67b3a271a16b976635de14f02a3ba4491e60cb18d93f0d6c629ff48e48af5c",
+        "4af73db311c289e1b4678fc40469d740aaf19587e1126f64599010d2e559b834",
+        "1f2ab8fc426e9848bcd060fe74287eee2260d902173f442fb5ae000c74257763",
+        "a3506698956c6ab6d03ad1f42df35d652222dada38502ae81cef81d3faee5d19",
+        "37c3b803934a1de72b64ad4616dbd09e04fc666248409bdd0c78d5ec5d30e5b9",
+        "1f10586b6a839ae2acfd71913ed8369f8e6c036d62d9eb24c384ea800960d9e2",
+        "eba44af581c5f5cb3aa0986e45a626a3561f7152ffee4cca8384466702f692ce",
+        "b320819e208f6644297dafb6b7a92581b603f655874256dfcb4f96818f5cc532"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-mini-gold-blank",
+      "kind": "diamond-selector",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/gold/diamond-selector-mini-gold-blank.png",
+      "size": [
+        128,
+        128
+      ],
+      "hash": "42c8ad236777f641cd07e2a445ff24e4758eb51edd2bb8db4c18d9ce28e7f393",
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-mini-violet",
+      "kind": "diamond-selector",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/frames/diamond-selector-mini-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/frames/diamond-selector-mini-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/frames/diamond-selector-mini-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/frames/diamond-selector-mini-violet-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/frames/diamond-selector-mini-violet-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/frames/diamond-selector-mini-violet-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/frames/diamond-selector-mini-violet-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/frames/diamond-selector-mini-violet-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/diamond-selector-mini-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/diamond-selector-mini-violet-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "796107f41a5fb2a076617ecaf891b398062b6f675c4368397829732b0aebc27f",
+        "ac1db284086880f111afb64f32b5e3c19386de24c888d78765f4582ae347b7d2",
+        "182a4db038844dd95560c70fd1106678e01ae8da71e3ec9ba7aa85626323eb7e",
+        "a056740c2cbf04fe0eb0bc76af19399a827710bb02d3bf88eb24bff180894859",
+        "e8e7d077b6c28c5038508dcca2db048a5b40db79838cd8cde41b494e1d7dae99",
+        "cffc12ea89897e255bdc2311e01ccb8eab065ff7e162096f89b1462ee10d42d6",
+        "dd22fb7ffec900c42542f1b5ef915c2c92e08dd023240616998334650fb613f6",
+        "0f317f2dffda57b4e8e4594a0cec97f1c192ac736d5bf857b26cb8b76cbf41f0"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-mini-violet-blank",
+      "kind": "diamond-selector",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/mini/violet/diamond-selector-mini-violet-blank.png",
+      "size": [
+        128,
+        128
+      ],
+      "hash": "5177a3f88984375c1516c93f828340df1cda94977fb11c02bea7ca742368a5ae",
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-ship-lime",
+      "kind": "diamond-selector",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/frames/diamond-selector-ship-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/frames/diamond-selector-ship-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/frames/diamond-selector-ship-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/frames/diamond-selector-ship-lime-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/frames/diamond-selector-ship-lime-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/frames/diamond-selector-ship-lime-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/frames/diamond-selector-ship-lime-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/frames/diamond-selector-ship-lime-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/diamond-selector-ship-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/diamond-selector-ship-lime-preview.gif",
+      "frameSize": [
+        256,
+        256
+      ],
+      "frameHashes": [
+        "012357787a99b0ef1ebdc7634db2b4cabb352478c48c72d3df56cf4bb1f1ec33",
+        "8a3055535d78adfd42de542479277bc9e850c3a8ac99504982689b202acb6b79",
+        "7b0a90fa4e50b66916e2fb194b914ed1082f78c72ed37c0e97e5a01480b28cb2",
+        "487460d4abe27fc00426efd9659804c721ee94b18794014d05023b726d08c2ba",
+        "d7b09a59f23f93404f782b424f250e17599a17b2a8d1f9f58db14edeaa2444bd",
+        "6afdced0e46d5f02df721e1214c83f9b729426ec546706da3eba1a4bdd4afc19",
+        "a9b6f91ebc3fe7d62a52b99568a47d2bd8c39bfbeef4093f11b07b09e22c8848",
+        "4fcaa8d378bbf518603e5c8658576b4b48304928a12eb72de73360e0ec8f6300"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-ship-lime-blank",
+      "kind": "diamond-selector",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/lime/diamond-selector-ship-lime-blank.png",
+      "size": [
+        256,
+        256
+      ],
+      "hash": "c042a2fde75bf4711a5e5bc0d5419a8bd9958ea205aec77d8965f6f1452798ae",
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-ship-cyan",
+      "kind": "diamond-selector",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/frames/diamond-selector-ship-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/frames/diamond-selector-ship-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/frames/diamond-selector-ship-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/frames/diamond-selector-ship-cyan-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/frames/diamond-selector-ship-cyan-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/frames/diamond-selector-ship-cyan-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/frames/diamond-selector-ship-cyan-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/frames/diamond-selector-ship-cyan-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/diamond-selector-ship-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/diamond-selector-ship-cyan-preview.gif",
+      "frameSize": [
+        256,
+        256
+      ],
+      "frameHashes": [
+        "c14989980cf0e23137c61ae3989dfad2dd733ea206e49c637ec8b517069e11bb",
+        "c87ec49c0a010129ffcb8e2eccfcee1c4831ec97b810b789ceb1ff21357c6a1e",
+        "28e8324ad2b41616c7822871e1248c579a39752090f960d79ac0ac3392065aab",
+        "a3043a85d4232c66058e0575a39f58bc97a5d78b09d070f958e898f5cf587d19",
+        "8cfcda7cf9eccd8f561966ce7a787e4c2f84f411d56e91bc64b0e9f388dab453",
+        "37d5553a199d820047796ca905c973fb3020d381e638ab1af5d3f29938ee80b4",
+        "36a9175b6bde5a66f7915b5a2b66bd1c72d14f60ea2dc77bb1af99a92c32ca89",
+        "431fdf15a10db51d4c99f3e72304d2fdae788aa46d77536bb46ac89a10cddfd7"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-ship-cyan-blank",
+      "kind": "diamond-selector",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/cyan/diamond-selector-ship-cyan-blank.png",
+      "size": [
+        256,
+        256
+      ],
+      "hash": "cb7a1987febfd12c9d71de13628de08cd04beec450eea04bde61517a241f3a41",
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-ship-gold",
+      "kind": "diamond-selector",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/frames/diamond-selector-ship-gold-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/frames/diamond-selector-ship-gold-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/frames/diamond-selector-ship-gold-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/frames/diamond-selector-ship-gold-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/frames/diamond-selector-ship-gold-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/frames/diamond-selector-ship-gold-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/frames/diamond-selector-ship-gold-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/frames/diamond-selector-ship-gold-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/diamond-selector-ship-gold-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/diamond-selector-ship-gold-preview.gif",
+      "frameSize": [
+        256,
+        256
+      ],
+      "frameHashes": [
+        "de325c228b7d6a3c20fbb052d47e6d09afd0925e6b442bc35a801aba062ed3eb",
+        "c3713579df0099b97ecec28b74d22469d84cec86234af1a1f77a469070bb1a80",
+        "5d92819e4f41240fa1f82dca3eec360a9b7cba809a2525736c18727abe889a8d",
+        "b002537370ec65f6300d5d2cd733cac0915904449b76076b5602da7ff37ad694",
+        "f7206421593c9fd31a4eb0220a87af300647bac7622f4d378570e4eee7bde6ac",
+        "d3ec0afc53063a9a9d9d0491c1a19bd6951a28c97600d2744eee5755468fb6dd",
+        "d7b53e9498947c48ab63de1334c3d07d4372e6bd7dacf8dac0019ae70fc68cad",
+        "1a793136f20f6e6d91af2537e52f867503e7c46db588ea874e81f066af33358e"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-ship-gold-blank",
+      "kind": "diamond-selector",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/gold/diamond-selector-ship-gold-blank.png",
+      "size": [
+        256,
+        256
+      ],
+      "hash": "326d9013ec7120b627dc101f534db3cf52c42914c5c87d401f73313479c191e6",
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-ship-violet",
+      "kind": "diamond-selector",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/frames/diamond-selector-ship-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/frames/diamond-selector-ship-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/frames/diamond-selector-ship-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/frames/diamond-selector-ship-violet-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/frames/diamond-selector-ship-violet-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/frames/diamond-selector-ship-violet-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/frames/diamond-selector-ship-violet-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/frames/diamond-selector-ship-violet-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/diamond-selector-ship-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/diamond-selector-ship-violet-preview.gif",
+      "frameSize": [
+        256,
+        256
+      ],
+      "frameHashes": [
+        "da5d45bc8c2006916c60c407bbf807763775d9b42aa4933fcff850e22acb4305",
+        "be8e6b5135b3b57f74d2968f8365e29d1ca5bb1e3eda5af4295e3b884cd5ad90",
+        "52e0a6012c2d2e77aced4a14fec2ddd7d472df05ffaf27af731aea279378d88c",
+        "c67b9fcd80db9eb5acc059b7f2f8323b85c8a34480e0b50d3b36944a8d3d493c",
+        "70d8931e88cb3799b50da4e08be397aace6c5b983fc40b9320565d98eedd57df",
+        "99288ea6adfc2937875e3fee44d55346a371b8508fb8726258a56edf7c36dc1f",
+        "d99bf7ff69410d20f33d4620876a19863c12a5b9aadfed0fefa74dbeefa68b46",
+        "b707e0cf20f53951d38bf6b22f9b9dde9c7acdd1f6fd3591dbda5af4903484b6"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "diamond-selector-ship-violet-blank",
+      "kind": "diamond-selector",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/ship/violet/diamond-selector-ship-violet-blank.png",
+      "size": [
+        256,
+        256
+      ],
+      "hash": "339168eb31d6ce2c486e9f2ed65e1581ecba3a6ab1160cc071745534177e9cfa",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-label-cyan",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/frames/trace-box-label-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/frames/trace-box-label-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/frames/trace-box-label-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/frames/trace-box-label-cyan-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/frames/trace-box-label-cyan-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/frames/trace-box-label-cyan-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/frames/trace-box-label-cyan-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/frames/trace-box-label-cyan-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/trace-box-label-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/trace-box-label-cyan-preview.gif",
+      "frameSize": [
+        320,
+        96
+      ],
+      "frameHashes": [
+        "9538ee3316a3f3bb6624835d79f3c6c2e71e1ca36958dd22ccd4c644d2d4aed0",
+        "e5f5082a2b1f0c1637b19ddd1258fd8811174d036fb9a8e75431f4188ee7de37",
+        "d942ac20f69f1ac9f27b4cfe071df352e947d2bc60b469950637641ff81ae2fc",
+        "908950335e953f481bf16867e1a262cdeeaa3995d896a89a916ca93d30e93abb",
+        "6415a3d2526023b86e5a9c55951384bc2d934067a92bc338d2bc2deea632ce90",
+        "beeea02d87db821e6bc1b7f25c7783665342357fa8829b6a61087a286f23232c",
+        "012a92649dee64211c066a59d559b4d0f9fa70a996bdf1553ec3fd7cb189d189",
+        "50e863fa9f3bb9e7b05ab913976f676ff8cddcf788273ae30edf46dc1e5a2135"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-label-cyan-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/trace-box-label-cyan-blank.png",
+      "size": [
+        320,
+        96
+      ],
+      "hash": "8160ba2ae28f5b8eb41fe97acf603f742cdb573a9e926f76160b501be17c810f",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-label-gold",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/frames/trace-box-label-gold-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/frames/trace-box-label-gold-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/frames/trace-box-label-gold-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/frames/trace-box-label-gold-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/frames/trace-box-label-gold-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/frames/trace-box-label-gold-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/frames/trace-box-label-gold-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/frames/trace-box-label-gold-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/trace-box-label-gold-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/trace-box-label-gold-preview.gif",
+      "frameSize": [
+        320,
+        96
+      ],
+      "frameHashes": [
+        "0007b7fbab99a2939697901f329a5b22d308cab066c5def3addbf09075897c72",
+        "79069d588a981096940655893d2a59447f7de24c28501548588e5cbfe1c55abf",
+        "d4684baeec0060a45c61f9b4ee400bcf566cb781fe1ddfadeb635a6d2578e35a",
+        "453f371beddd47d105c3ab121e8b8a6a9d8e55b4b57425dfbf9bc9978d1f3a2d",
+        "78d6cf41bcac1993b816f14d310ddf1f0ca86b10ba5faf3b6dad0842f27ad7cd",
+        "a460410b61b70e7f92ce7de6703a4b8660a15555cc500ce41ebaf73d691558c1",
+        "589a026c7ad5cc19af1605f869ebae465a81f969e19d1e44fcd7954ec684139e",
+        "2b947d14205009690f54b8f89b7a5a03f3351c60faea017e6d17fb2066c8a122"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-label-gold-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/gold/trace-box-label-gold-blank.png",
+      "size": [
+        320,
+        96
+      ],
+      "hash": "cf933ca38b8e49419832f6462c45e5d588e2c01516ab74c812ce081086bb94b1",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-label-lime",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/frames/trace-box-label-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/frames/trace-box-label-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/frames/trace-box-label-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/frames/trace-box-label-lime-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/frames/trace-box-label-lime-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/frames/trace-box-label-lime-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/frames/trace-box-label-lime-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/frames/trace-box-label-lime-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/trace-box-label-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/trace-box-label-lime-preview.gif",
+      "frameSize": [
+        320,
+        96
+      ],
+      "frameHashes": [
+        "2eb62b63a21bb5130c9ae1ca9e4ffc2b98cd5740f19a27465ca07c3d802b01fb",
+        "047dec0b07fc45d4c887db2147d3f600c54a6237f17595e1f5904a2c68f5f285",
+        "30fced7cbc4092113a53adf721437e5efe6938b1fe9a538aef4bb5bfb7546c14",
+        "d8d5c068431136c17d4ad2d435f627c53bfa2d2b9d024fa8cef5b167c1e4a965",
+        "29c1149a36421bdfcb0bbaebda69aa621d1289a496c58ec534c30d1791d28b60",
+        "cf05099b571e642f8ef8574fd508b9854355eaff4d823dc6de6ce9033fd5e56d",
+        "c9a81198f8801cc6aa76a9d57e7db7e1f25dfb08e819c9c32b3dc9270a254657",
+        "3722035e116e24d774c76d677eb034a75e508eac2c6e96b6fd8a39c4c70d777a"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-label-lime-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/lime/trace-box-label-lime-blank.png",
+      "size": [
+        320,
+        96
+      ],
+      "hash": "28ed970ba37f8ea11ac97c1b06521cfae82e7048b08d610029593cc63ff62480",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-label-violet",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/frames/trace-box-label-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/frames/trace-box-label-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/frames/trace-box-label-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/frames/trace-box-label-violet-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/frames/trace-box-label-violet-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/frames/trace-box-label-violet-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/frames/trace-box-label-violet-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/frames/trace-box-label-violet-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/trace-box-label-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/trace-box-label-violet-preview.gif",
+      "frameSize": [
+        320,
+        96
+      ],
+      "frameHashes": [
+        "467c7d93a197c351fa87089e7c4162efa104e448d0cdf976be850d2b9a0c9399",
+        "6ef5d40d2558c76e51fb39f82df1741ce386b126e4e414f0a5121f479912acb9",
+        "bd7693aa68760bf3f0ea628f23b8e9fa1af2fbaa5f698179bb96bf68c02ea378",
+        "701f9f88cfe1573da5b9492d4c63046502f3fd996398843adf9bea385c4ddd01",
+        "9fa237fffd040a6c9f71975cf32d4748a916ae8155f45096e866f97b650ec345",
+        "ea8f3bacca5c6a1c10f219c2ed6e1993c8edb32c0e512620164ecb2140e5e8fc",
+        "bffed5cd18bf65fe1b75779bac1af2f0f9a51ffe116d047e84105a2a69281626",
+        "98f3b557c51c8f7fa2a63989b963e971b593b99db06d67fb7df1983d2d003180"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-label-violet-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/violet/trace-box-label-violet-blank.png",
+      "size": [
+        320,
+        96
+      ],
+      "hash": "d3b1b21d0c6c27990042ea060143f3c8295f4eaf0d5782f902d43b948858870d",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-card-cyan",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/frames/trace-box-card-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/frames/trace-box-card-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/frames/trace-box-card-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/frames/trace-box-card-cyan-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/frames/trace-box-card-cyan-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/frames/trace-box-card-cyan-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/frames/trace-box-card-cyan-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/frames/trace-box-card-cyan-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/trace-box-card-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/trace-box-card-cyan-preview.gif",
+      "frameSize": [
+        320,
+        240
+      ],
+      "frameHashes": [
+        "3fdbd9fdd1b06df76acd9db1adb04499d161570843721b4dd368fcf7590d5f58",
+        "18d652a1e6ae5289b3f964f84b1c2df783ef6b517f95fd60a3a46ed1089ccf09",
+        "a63249e9357a2fd5831a974968e55ea0aea8d0e5583e20b73d0f3b6c19c64d5b",
+        "80c96d9b4b7dd83cd3e4fc768b9c303612c39e6e882d3b2e52a64840d0d39a93",
+        "82f5e40aa24693366a0a29ee0fde47c59013966574ef3f0797ab2f0bf1337a78",
+        "563fcfb2ab5366da9dfbbe93cde8a4602321111e7555ab067bfe27f10c9b5d07",
+        "73c9cbef2dacd6ae5aa0623aa393baafe118128dba9ab7ae9d81ab8c8b06b354",
+        "1c660c28f4ad55010d2bb6b68e9d47c81f4c361f5b2887cd44ec45e5e3f0d117"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-card-cyan-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/cyan/trace-box-card-cyan-blank.png",
+      "size": [
+        320,
+        240
+      ],
+      "hash": "4548daf43fc7510262236cc9bfa54920667050b96a0d56e42c87f082ac3b57b6",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-card-gold",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/frames/trace-box-card-gold-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/frames/trace-box-card-gold-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/frames/trace-box-card-gold-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/frames/trace-box-card-gold-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/frames/trace-box-card-gold-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/frames/trace-box-card-gold-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/frames/trace-box-card-gold-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/frames/trace-box-card-gold-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/trace-box-card-gold-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/trace-box-card-gold-preview.gif",
+      "frameSize": [
+        320,
+        240
+      ],
+      "frameHashes": [
+        "54842c2523e8d6a91fbfc204a8294120d72f51a8d7d7ba93b84a6b9b345cfe72",
+        "a782245ae4c6159ededf206e14c16ce7997acd9b1ef4b33a73a4b31b2c49de1e",
+        "4427b2a143651fadf9151b8ca4f9ebca19b0e204e8eb6cfd6d33ee2574a578e3",
+        "ea748e273ea4c2f706cc540bdff7605653a030c5a8c20f9d7c0b154c8f381a11",
+        "226ca9e98e0b84f5dc5b63e9bf94a925c83fe26fdc3cb1e8449d0e682c9a44eb",
+        "a5ed472a0424ee4ca2313cb3d18c012f454c0f4f7b587345f5403bf78f9019e1",
+        "682594aa77c640fe59a3efe8307757f427831296c31a03729bdc100c0e0a03a9",
+        "5f724d3f6edd9b67d327bda654d5d066619861abef23542b47e4cc8287849e72"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-card-gold-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/gold/trace-box-card-gold-blank.png",
+      "size": [
+        320,
+        240
+      ],
+      "hash": "1ec3f10c5f96473a8206e395b201aa38f1940acac8be6bca88ae63d896e5010e",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-card-lime",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/frames/trace-box-card-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/frames/trace-box-card-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/frames/trace-box-card-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/frames/trace-box-card-lime-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/frames/trace-box-card-lime-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/frames/trace-box-card-lime-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/frames/trace-box-card-lime-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/frames/trace-box-card-lime-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/trace-box-card-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/trace-box-card-lime-preview.gif",
+      "frameSize": [
+        320,
+        240
+      ],
+      "frameHashes": [
+        "916ff2e5610e085dbb07727efa422a517724330410b3df2b00d3d6a7dc9d3c71",
+        "6fdf9fcb93131976fb2edd26398b10602fd2d3f54187fd8318e98cd0a3f6dfb0",
+        "866f11bc81c397d542e105020a3e8cb2410b60512f5364a970c43c617255719a",
+        "896fc2e080c56416c7cd1b62d05cdfbed630b341e701a460db81440dd9aa604d",
+        "5ac98e1b2d5072bde92b0649980ef3436bef1adb04446f2ec971e58c71cd885c",
+        "d3998d7c1125673123048952f6e7285abd89c4027290747edde924f52d42fc58",
+        "8dd8c3c45210793acb2cb51e34fc2201c2f923eaaa0aff36f500030d53d47c67",
+        "4c606b067ac6756c4c73f93ba622aca11c990792c5b40730c90ab2fc1d2bca4f"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-card-lime-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/lime/trace-box-card-lime-blank.png",
+      "size": [
+        320,
+        240
+      ],
+      "hash": "47804d09f3938f07fe6f95ef94d85a592f69fa5f26c505132f196eb76324d669",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-card-violet",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/frames/trace-box-card-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/frames/trace-box-card-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/frames/trace-box-card-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/frames/trace-box-card-violet-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/frames/trace-box-card-violet-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/frames/trace-box-card-violet-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/frames/trace-box-card-violet-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/frames/trace-box-card-violet-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/trace-box-card-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/trace-box-card-violet-preview.gif",
+      "frameSize": [
+        320,
+        240
+      ],
+      "frameHashes": [
+        "56a4c56f3dc164447c5867ef065025d0f984012cd90ce88e3d899733cae2136b",
+        "acd765cc3a5b06adc95fd3eae3335875a4ef49d7822e4d613d4bb8e9abcd677e",
+        "acad3e55cd45ffcb0e606e5ed62b265b5eafda75d596b1e3f54143c6be30be2c",
+        "7b2a38bfc35bff590cac5240e270c27dc299872eeb2f801da8a2de4be76f5344",
+        "32f914b26f43efd4bd87b8a29cb4015f78b13e57854a120af2aa9154332c2c41",
+        "473356280d7235d546bf7b08f278b60c346c0dc5b799615817101171a8828cf7",
+        "560371a773d370a71279e85ca9e444fd207bf4a0db8b32379f5a5e7ad1f7ccce",
+        "ba1822ac3af5f7ccc4887590610b4d9e9ad8d3d4a048d828bb2ee1f942a7c3b9"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-card-violet-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/card/violet/trace-box-card-violet-blank.png",
+      "size": [
+        320,
+        240
+      ],
+      "hash": "57832a5c5ed7153f6f001a9e0f4c7e44451eccb214d0fc28c8589cf04b6bba99",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-wide-cyan",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/frames/trace-box-wide-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/frames/trace-box-wide-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/frames/trace-box-wide-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/frames/trace-box-wide-cyan-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/frames/trace-box-wide-cyan-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/frames/trace-box-wide-cyan-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/frames/trace-box-wide-cyan-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/frames/trace-box-wide-cyan-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/trace-box-wide-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/trace-box-wide-cyan-preview.gif",
+      "frameSize": [
+        512,
+        128
+      ],
+      "frameHashes": [
+        "72370750ee5a8aad4ced7421463d768b4796fb7c529f55c93c0ad208557b946a",
+        "172077e74e58b9d641e0e6f6a7871ed6b25fb54d6c5848f3bcaff06b10f956b7",
+        "aa722bd9a170f46942f59badfb77768517ccb26d3b75f3b1ae94844cc597c234",
+        "11f35ba731ea789f5781a16573603d938fde68ec7aed74578d166f164f988e9d",
+        "46f19a1bca88ba497a23e774d00950413867d59fc7354407472f951c8019f0cd",
+        "d4eb080e12a986ff1f4ecd6fd24d5c7ef5e940c8f614d571b30c86af04ec2ba2",
+        "54484bddb87aa0793466d1413ff7608b32441e3572b93a2bd44e2f2ff9f063a3",
+        "ea6cc18a248bdbb2bba4df37cd661f0a041f17ccaaa827b3d100f605b1b9651f"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-wide-cyan-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/cyan/trace-box-wide-cyan-blank.png",
+      "size": [
+        512,
+        128
+      ],
+      "hash": "b98028d59c202f978baccae8b4860f6b62448ca6c658eac08c988fa7f66b179b",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-wide-gold",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/frames/trace-box-wide-gold-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/frames/trace-box-wide-gold-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/frames/trace-box-wide-gold-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/frames/trace-box-wide-gold-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/frames/trace-box-wide-gold-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/frames/trace-box-wide-gold-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/frames/trace-box-wide-gold-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/frames/trace-box-wide-gold-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/trace-box-wide-gold-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/trace-box-wide-gold-preview.gif",
+      "frameSize": [
+        512,
+        128
+      ],
+      "frameHashes": [
+        "509be05e91650bdbbb45e47d92dd873ba402e669caa923012661cf939e0976ac",
+        "e83a1e5992e01cfb60589b30097aa0433676e83ecdcf186fc1d6b0a53d66ce72",
+        "a593b32656b4a094b8ba418e450120748001e74a88cf9bcd683ab2dffce39002",
+        "514d37db5c2c5302b238531c6055ef5246492a3610ffd0e7afcfb0c38a4d7502",
+        "c099069af1206eed0329c542060f4e8e0c41c721a987e4a17e3a47c7a3c3fb1d",
+        "25375de8d247cabe59b8b06dc4ba686a52d17b4da833c1a25c463f92987108f5",
+        "61355857ae20d9058c037aca9b67b8ceeaf4ed99d58fdc40706759c325eef967",
+        "aa9088cd0c141fe479c6863093e2e851d01f63b1f7bf39328626fef266deea10"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-wide-gold-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/gold/trace-box-wide-gold-blank.png",
+      "size": [
+        512,
+        128
+      ],
+      "hash": "86156084cfa6fd36c6fc0838d345e9724ea1114f4fb0b02e3f0f36453ccf5462",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-wide-lime",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/frames/trace-box-wide-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/frames/trace-box-wide-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/frames/trace-box-wide-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/frames/trace-box-wide-lime-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/frames/trace-box-wide-lime-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/frames/trace-box-wide-lime-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/frames/trace-box-wide-lime-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/frames/trace-box-wide-lime-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/trace-box-wide-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/trace-box-wide-lime-preview.gif",
+      "frameSize": [
+        512,
+        128
+      ],
+      "frameHashes": [
+        "bf8623f17e57709b9464f58524505a0d85d0205980908eb87ca23e66017de09e",
+        "aa23b9dba32d6955e58170cbb693be663f7cc06687a9b0951ca1e6f6cc7f5811",
+        "0a352d6ebe716bb1f1c4fae92ef4bb72ccd3c2e3518f99a615f2acb41c2730cd",
+        "90a983d13278c7d87363f965055c97ff13c51b2abd34bc14b4ff5838d0aae05c",
+        "fab9eb72054a2aee4a179ec5c508b8a22df0d24fd14e79bcd5877c94dca14df6",
+        "083b7dce3cfe35d6748a2af0736112f9935cba489b11086785a9597930f1eec4",
+        "dd667530eea389738229d945a37df7ed34ef04836f4824a13104a979da3c7c74",
+        "ed6de93f290196f6406f09bfd03d4cebf986c30b37b99add7a58e86b76015b73"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-wide-lime-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/lime/trace-box-wide-lime-blank.png",
+      "size": [
+        512,
+        128
+      ],
+      "hash": "1cd6e648aae8e48b559c3ec1ffa9a0a6386f1d99572e454fbab8875077fec2eb",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-wide-violet",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/frames/trace-box-wide-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/frames/trace-box-wide-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/frames/trace-box-wide-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/frames/trace-box-wide-violet-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/frames/trace-box-wide-violet-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/frames/trace-box-wide-violet-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/frames/trace-box-wide-violet-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/frames/trace-box-wide-violet-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/trace-box-wide-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/trace-box-wide-violet-preview.gif",
+      "frameSize": [
+        512,
+        128
+      ],
+      "frameHashes": [
+        "0ee131388a6a81ca7c4bad18f91344a218fe56d3aced882caf4a2031f51409a0",
+        "30907dc04530a20eb1fa4f1bbbfa86065e80d6bfcfe705e2a7c2169912495d09",
+        "e79c99070c61c1b6888951180833e8aa1df6d40d59832cfcec76ba2cb11bda70",
+        "7f8f19190cd477a7bced01f79155391a4f55a596618781ab84900b3510033cfa",
+        "e5769e01272d937545b615b2b0d9080c7e79cd980afe56ab262d4bbc721521bc",
+        "ab3abc16d2c452c36fcaf713fc323c117690e46b0528d2d96fa4ab5134c25b34",
+        "ace205949448d24d3d7b56e72a34f0c977165f83a85ed0a85a1218ef5c46050d",
+        "8c0721e7bfa4bdf5a87aa5ba5c58371ecab4f2114891d50d55517db94dbeb1a2"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-wide-violet-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/wide/violet/trace-box-wide-violet-blank.png",
+      "size": [
+        512,
+        128
+      ],
+      "hash": "d161f159178d3a1bd1b8ea5e90e3f2abdee59d7b95f7aba2cbc9a68c5a0454a2",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-tall-cyan",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/frames/trace-box-tall-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/frames/trace-box-tall-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/frames/trace-box-tall-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/frames/trace-box-tall-cyan-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/frames/trace-box-tall-cyan-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/frames/trace-box-tall-cyan-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/frames/trace-box-tall-cyan-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/frames/trace-box-tall-cyan-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/trace-box-tall-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/trace-box-tall-cyan-preview.gif",
+      "frameSize": [
+        512,
+        640
+      ],
+      "frameHashes": [
+        "5700d80ef35eeb5a6a9a1d98a5455b98a5f966ccf90125c16174a2cfd3463d90",
+        "78dcb78eac0d0a8407803319db5c0f2b65d78cd3fffa10f3d43df542be459412",
+        "6ff5dabb7d0131826a33f958e7fd19d5728b105ed5da4d2a82b9442283509477",
+        "ea43d9fcecac4f02013452fdee968f60dfe36b162f7b297bfcb446e0f63ba96c",
+        "3092c1a967d3ddef4a92e5ec2ca93f58005f338de6c6a74e1af354745118ddf3",
+        "48aeb677a848fc631f0ad70b0fd133db55a410c6fe02f481976dc87a5525ee39",
+        "43fe4373c27e6f89264ebeaf7ab14072bb02d58de8f242a7b4d3911c0859e0ff",
+        "a6ef736dbf2bd49b30c91d982f529c702a4049f83d60dde7c43ac21c53b15384"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-tall-cyan-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/cyan/trace-box-tall-cyan-blank.png",
+      "size": [
+        512,
+        640
+      ],
+      "hash": "26c463b3a9be758263a54e04547ddfd1648af15ca891ef1bcdcc1b3bbc1f2a12",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-tall-gold",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/frames/trace-box-tall-gold-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/frames/trace-box-tall-gold-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/frames/trace-box-tall-gold-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/frames/trace-box-tall-gold-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/frames/trace-box-tall-gold-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/frames/trace-box-tall-gold-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/frames/trace-box-tall-gold-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/frames/trace-box-tall-gold-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/trace-box-tall-gold-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/trace-box-tall-gold-preview.gif",
+      "frameSize": [
+        512,
+        640
+      ],
+      "frameHashes": [
+        "6c8f064340ce7b32e3719b8442b76690d9867e289a51d88bf36bc87970da0276",
+        "18f615fb3f1f05750a574237823458d0389bbf45da80c326ff502f7eafe3a73c",
+        "37051a62668582f467830521e5e03ac27e7399b734001b1a2dd104cf23859073",
+        "0dc8c1f37519046b1cb837003bfed053244d054569592000ee39256460faf879",
+        "c08e6de9c060b1922d554c6fbe071d02a4b63b2fb8c007f2f3fe43c31d8b9063",
+        "5a686f42531aa7807695db03a1bd8873674d9ff4290fd0b9b2505f0f8dba93c6",
+        "d726811c4a0c851df26c4590817136d5ce3c87e2678a084551fd3bb2fdff0105",
+        "51477c611edd9930e5c14bfefe7e66de176b86f9ebd3bd845866e140640f82d2"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-tall-gold-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/gold/trace-box-tall-gold-blank.png",
+      "size": [
+        512,
+        640
+      ],
+      "hash": "eb9745554dbcbdd0d4251b81d0ab4d92b8958ed50ca4e7e47fba508e91969d02",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-tall-lime",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/frames/trace-box-tall-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/frames/trace-box-tall-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/frames/trace-box-tall-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/frames/trace-box-tall-lime-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/frames/trace-box-tall-lime-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/frames/trace-box-tall-lime-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/frames/trace-box-tall-lime-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/frames/trace-box-tall-lime-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/trace-box-tall-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/trace-box-tall-lime-preview.gif",
+      "frameSize": [
+        512,
+        640
+      ],
+      "frameHashes": [
+        "65adbefec8dbefa1caa018f67776f215aee65f190d004d97b8b37299eb0ab825",
+        "bf2288320e823aa94bc95de9f20dd0b0bec34219f241d0b4f651c78007999ec6",
+        "7d215e1f1686e0beaa6be1f9827c872631ba92a2b7c016fe1295a4f50fe40a8b",
+        "ca2c172e180bd6ba4a482bfdf69f492824f059207af29f95df563135fa18e359",
+        "766b935934ce514d966ffb7f49b4fba55e26f8ce82b346445ad4bcb872bdaf75",
+        "019250160683a09067add1f572d81fbb844e80fba45a759793c4ec1101020872",
+        "c0cae1ba5475e98e038d1bf9d8864fa5e47d4d8d80a006d378c6539147e1d6ec",
+        "9f01dda26a5d570536bb7ea1c4f3eb11c27541a6bb9a5251d9cee18730404157"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-tall-lime-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/lime/trace-box-tall-lime-blank.png",
+      "size": [
+        512,
+        640
+      ],
+      "hash": "3cd37a0bf200b06301eb87eb80939fc802581d7d6e915e5de7525c88d6279343",
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-tall-violet",
+      "kind": "trace-box",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/frames/trace-box-tall-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/frames/trace-box-tall-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/frames/trace-box-tall-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/frames/trace-box-tall-violet-04.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/frames/trace-box-tall-violet-05.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/frames/trace-box-tall-violet-06.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/frames/trace-box-tall-violet-07.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/frames/trace-box-tall-violet-08.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/trace-box-tall-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/trace-box-tall-violet-preview.gif",
+      "frameSize": [
+        512,
+        640
+      ],
+      "frameHashes": [
+        "8033617f726fd21fea825941cef972cb4e245f0ddfb6ee9400cb6f0ca08357bb",
+        "8cde5a270232f59f6f262c5a0826c9eeb69ec24c6f7f441f0ba3d778197160aa",
+        "12a31b378fcb88ff4e16ada096f8ef04f03541bf73adf215b2ceb70614d0f47f",
+        "28349ebddb5ed6f2d9959af0a19c7bafb57c794883df235094a9abc017e79f38",
+        "3f7e70201fd579cc14d47739cc48a73a31dbdb2329340af1929bee948751174f",
+        "379cc6515bbb00fc20a4ad6b53f92b511f06e4aca66dd4db34a6444eb877cef7",
+        "327ee38c6c2d6fa6fbc8abd80def994c8e8ef4bca86de7ec641ef1c9d15a96f5",
+        "83792c29215986805e06b644e5dd4fb924320abba8cb7120b0572540c5160fb1"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "trace-box-tall-violet-blank",
+      "kind": "trace-box",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/tall/violet/trace-box-tall-violet-blank.png",
+      "size": [
+        512,
+        640
+      ],
+      "hash": "2f9c7ac4f93d3fe418b2ecfc59a005ba7501b604bec170fc6e67973b80354f4c",
+      "transparentCenter": true
+    },
+    {
+      "id": "projectile-ring-bomb-red",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/red/frames/projectile-ring-bomb-red-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/red/frames/projectile-ring-bomb-red-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/red/frames/projectile-ring-bomb-red-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/red/frames/projectile-ring-bomb-red-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/red/projectile-ring-bomb-red-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/red/projectile-ring-bomb-red-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "7e847d2fb3ec8d10259e02739d188275e29593c3ac6ed702eb8f3fb56d469346",
+        "95918f40096ba10823f79dfdd5c8dbed0ec21f253003ae5cec82b828f79a47a5",
+        "8ef289c978fd57d378073d75cf36fc45390ef0c29d21c52663d99a7fc1c9d04c",
+        "b1f1320057405be72385be0fa0d7f25ef5f93f0f279b19aa310a53babbf3a991"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-ring-bomb-cyan",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/cyan/frames/projectile-ring-bomb-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/cyan/frames/projectile-ring-bomb-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/cyan/frames/projectile-ring-bomb-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/cyan/frames/projectile-ring-bomb-cyan-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/cyan/projectile-ring-bomb-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/cyan/projectile-ring-bomb-cyan-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "1c594256d8847137cea8d9a1898dbc1c9785caaa97e20db44c964ba4766d609e",
+        "1e3256ed95b7b2b8a2076d13253310636ca6c69baa96da92ba4fe7a8432ef437",
+        "728310be2047c82a8b281c4df80ce84184f83bbe21e48c9417b1a75b2f0fc335",
+        "72116f565d0d9f026cdaae6ce973ec1422507bf414904204536d0dacda42ed30"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-ring-bomb-lime",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/lime/frames/projectile-ring-bomb-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/lime/frames/projectile-ring-bomb-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/lime/frames/projectile-ring-bomb-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/lime/frames/projectile-ring-bomb-lime-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/lime/projectile-ring-bomb-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/lime/projectile-ring-bomb-lime-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "59af896bdd131325b5a9a470b97bffb061cd81ff4f49a0edf2aa84bd6099ab58",
+        "cb5b9005188e1862f56c2dc9c07910d3ff116864db01ceb9fbd9c226fbe0b420",
+        "2a0393420b105175eac3b4be8480741f211d066be08dbc24bf6f2de8ee114341",
+        "b974fa4a7426548d31a0f1e20176cbaa1c681e63d293d9fd108f1ffdd75ae758"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-ring-bomb-violet",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/violet/frames/projectile-ring-bomb-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/violet/frames/projectile-ring-bomb-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/violet/frames/projectile-ring-bomb-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/violet/frames/projectile-ring-bomb-violet-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/violet/projectile-ring-bomb-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/ring-bomb/violet/projectile-ring-bomb-violet-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "8e8862472816cc44536dc687df7e1b13bd03dd4a775265102204a29d7a2a3669",
+        "a77f91e57c6d2f2f33d699ec26318075d7a1597cfcc274393c9510918b6570f1",
+        "f6a3df481befa61d8db645e677c57f4014f457cdf8e86af93660f283497e0043",
+        "27df83c6b98b3d0416d106b7b532fc65a3ae54c19b0d452b4244909d28a32e30"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-needle-bolt-gold",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/gold/frames/projectile-needle-bolt-gold-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/gold/frames/projectile-needle-bolt-gold-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/gold/frames/projectile-needle-bolt-gold-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/gold/frames/projectile-needle-bolt-gold-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/gold/projectile-needle-bolt-gold-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/gold/projectile-needle-bolt-gold-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "911c4b315a4c7e79dc074519b126a232e8dcbece97fa420f0be20b8dec244335",
+        "5365c8b8d95b6d65c05eedcfb4ec8a002c14095b77a83e1e83a8be2ee193e3d5",
+        "6da5cc5b13c04e985068fe1f59839163499a20984c1c513b3417c457608aff85",
+        "e618a1c868335e53428183aa7a6ca550271fa401c48a7340e45172da0b9be544"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-needle-bolt-cyan",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/cyan/frames/projectile-needle-bolt-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/cyan/frames/projectile-needle-bolt-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/cyan/frames/projectile-needle-bolt-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/cyan/frames/projectile-needle-bolt-cyan-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/cyan/projectile-needle-bolt-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/cyan/projectile-needle-bolt-cyan-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "54af7b01cb77e1df9f9dbe4fe773f5ef033009720035b7d85a4834d84a5af4f3",
+        "6bfb00e280d54fb584fcf2ca411dacf02ea47e3cbc3344738251b58fcf608dde",
+        "9fdb6f9520c08937a82171833234974e74d4aa368c56313bcc8e3f3d2751901a",
+        "c31ee9531e9a229cad9bbb03e0393551dd0f3054ff9f7f0766cebbf10ab5d2e1"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-needle-bolt-lime",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/lime/frames/projectile-needle-bolt-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/lime/frames/projectile-needle-bolt-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/lime/frames/projectile-needle-bolt-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/lime/frames/projectile-needle-bolt-lime-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/lime/projectile-needle-bolt-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/lime/projectile-needle-bolt-lime-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "456f41695753f1ab93dd40ef9b48f3c9768337bd8b18d671ec272296c3dac4ee",
+        "269fe7b8bba00f583fddfc9dfe09ec82eb1b29d11c3d42617c1150c3350e40b4",
+        "be890c37496c70d687b434c172b4607e6ded1c9733244384fdad5c7e3a3b7cba",
+        "2653ffba4a8d7d38d1140ef866949d92ef10c58c8ba41cd34e10493b6197270a"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-needle-bolt-violet",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/violet/frames/projectile-needle-bolt-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/violet/frames/projectile-needle-bolt-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/violet/frames/projectile-needle-bolt-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/violet/frames/projectile-needle-bolt-violet-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/violet/projectile-needle-bolt-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/violet/projectile-needle-bolt-violet-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "902ee991a03e7c01900f55a0e0e7b8990bdb514b0f682e58e8422dfd3d243910",
+        "58e16b574d34c8ba65776b296a38879aff8fcd7393e17cd301cf3640a484d497",
+        "b22e8b6939039e9db5643c8b9d932f47746d30237e89263fb95a5907e1fddcad",
+        "e6b62317328c2127661cd43a2fa2dcfd28c32683d68513f4c244d1c0d360b795"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-needle-bolt-red",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/red/frames/projectile-needle-bolt-red-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/red/frames/projectile-needle-bolt-red-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/red/frames/projectile-needle-bolt-red-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/red/frames/projectile-needle-bolt-red-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/red/projectile-needle-bolt-red-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/needle-bolt/red/projectile-needle-bolt-red-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "d906be10c8babe1a7f2155bd3d3d39e569a73ef01b8b89257b0a3c88caaec537",
+        "05788d7149bf24e3ac0ec61dbccebedf0fd2528ed7e0c67b0494ed02b50f06a9",
+        "2d6bfde9afecb3c8bebea97786e9024253e70f9971b0cb460669800c3cb1bc0d",
+        "13402b776e5fea4ba031c570874677cd87480b8b54f6d78ab36a312b44f9a926"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-plasma-seed-cyan",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/cyan/frames/projectile-plasma-seed-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/cyan/frames/projectile-plasma-seed-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/cyan/frames/projectile-plasma-seed-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/cyan/frames/projectile-plasma-seed-cyan-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/cyan/projectile-plasma-seed-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/cyan/projectile-plasma-seed-cyan-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "349293a2905db27617d8af3b0bd15aa18b3c8c0b0f3517fb53d89b9776934a36",
+        "e878fa0bcfeb8c2a85f06cfab45df171f517cd77495922a372fbf4c8c1371cc3",
+        "fe2595a46e5e9b117ba7858fddfcc3d914908bf49200eaa7d368294c7df31050",
+        "04c85520a9d5f7c47beb1dd89c598a524f651580731f05cbd6097d5b6c54ea17"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-plasma-seed-lime",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/lime/frames/projectile-plasma-seed-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/lime/frames/projectile-plasma-seed-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/lime/frames/projectile-plasma-seed-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/lime/frames/projectile-plasma-seed-lime-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/lime/projectile-plasma-seed-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/lime/projectile-plasma-seed-lime-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "ae93fed80d3cd0a423aa914e52fa16b96ddb1e3f650887d13183fcd80b63cbec",
+        "c0219d6687aaf853d28f673a0e85068aab82fea0305a74cfd464e28f5fad6dbb",
+        "669b8b7d3d9ba00103d44da0be8c54cfc0131123d868238345c3c7df3da42cfb",
+        "060ed5e458a38bfadc64e866903a325eac60593858d96a2ad007fa85d3a1f28a"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-plasma-seed-gold",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/gold/frames/projectile-plasma-seed-gold-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/gold/frames/projectile-plasma-seed-gold-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/gold/frames/projectile-plasma-seed-gold-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/gold/frames/projectile-plasma-seed-gold-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/gold/projectile-plasma-seed-gold-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/gold/projectile-plasma-seed-gold-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "cb53325e1fd369643a38f5c01c13a0ea1446bf9b4419d1c0d46fa342e8338e49",
+        "fe37a614e93f09d7f381e2c22cd9966e9943793f3ecceecb5d983d5cd01a66ba",
+        "04893270fc2a19f34fd1cb07fa67e22194f2e2cc91ce6e1a7984120c176c63f1",
+        "1e27837b0c7a374bcbda7126962cb4c522b924c5e04f28819d20a9cebc7ca364"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-plasma-seed-violet",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/violet/frames/projectile-plasma-seed-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/violet/frames/projectile-plasma-seed-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/violet/frames/projectile-plasma-seed-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/violet/frames/projectile-plasma-seed-violet-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/violet/projectile-plasma-seed-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/violet/projectile-plasma-seed-violet-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "5d5db2e292e1060e700d99aa3b25d7b19898d459433b9750ac13dffb8c299c8a",
+        "98575ac033cb8bc3f38e3f3702562b213a5e156c0bb93e408bd051cf08b25b25",
+        "938f514b8f4bee18ec0c53d393733f543bd8494854aebe1d4890254d9328577d",
+        "6463774000e11b22137d90f8fcf2eed6e5a4c97cad2f10d17e4e69f97ae9c5d3"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-plasma-seed-red",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/red/frames/projectile-plasma-seed-red-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/red/frames/projectile-plasma-seed-red-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/red/frames/projectile-plasma-seed-red-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/red/frames/projectile-plasma-seed-red-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/red/projectile-plasma-seed-red-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/plasma-seed/red/projectile-plasma-seed-red-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "4718dc61375eeaa1c352bbfa83cb966b3c2efab1a0ecf255a74a85023df896e7",
+        "c18cfcba792dad3fd1c0bde3599a26a5870e5db5458d33d8b737ad28ca9aaa96",
+        "cb923a8f06a6e0885124c7c88e1b88eb50f352013c0dfa6efbd2b9ddef86fc58",
+        "74331b0ed8b91ce7241de2591a6fe58ec919fee2f9f92a26067dcdd3a95d0acb"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-prism-shard-violet",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/violet/frames/projectile-prism-shard-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/violet/frames/projectile-prism-shard-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/violet/frames/projectile-prism-shard-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/violet/frames/projectile-prism-shard-violet-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/violet/projectile-prism-shard-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/violet/projectile-prism-shard-violet-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "85ee0c1b1d37815ced17ead8771ba1f5a4620975ecb4fc706c7d51821c25cff3",
+        "f1cc4824cee789b0fcc0282ad82c72da0e7a15d820efb67f78aa930a4e5cde49",
+        "d39caa29800a39c92a2c6bc84b3014661509f7cd8cf9eaa3c693d44cd8f6aca1",
+        "252d255fe627ba9b373d8621eb6764bdf6f1366abe26439b543b5f2f133d544d"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-prism-shard-cyan",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/cyan/frames/projectile-prism-shard-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/cyan/frames/projectile-prism-shard-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/cyan/frames/projectile-prism-shard-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/cyan/frames/projectile-prism-shard-cyan-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/cyan/projectile-prism-shard-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/cyan/projectile-prism-shard-cyan-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "38bb8cc822dc330163b81e83edeec255b271307a5a6279b5fad543448a75aa11",
+        "e722d81e8eed30c3c559b618ffe4853049aa3439eb4861ef3ee63bc7432910cc",
+        "9b9de4f206d201ad51d6ba9fc27ba842d30218f8d75fad21ba805baa911cc9c9",
+        "88c0ae917b391f0d9ac6d5acd67ca1424ec2ed3f0d1f61bef46530280ac8be05"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-prism-shard-lime",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/lime/frames/projectile-prism-shard-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/lime/frames/projectile-prism-shard-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/lime/frames/projectile-prism-shard-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/lime/frames/projectile-prism-shard-lime-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/lime/projectile-prism-shard-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/lime/projectile-prism-shard-lime-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "b6995dce2e9af29ad96f45ab50186540dce6ff3c73daa329aa87d02bc5170342",
+        "b1f05f49fe0131ecf0b15efd0543892191f0827b4afdf0ba23e06a37576f4a9b",
+        "c466c43ceb866c15f0252504ec309aa192fdf16414db0edc1237c7f573efd430",
+        "0aa3e406e4bb2e08fcbb960f47db6c337e6811d650a4371a690e96348111abc3"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-prism-shard-gold",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/gold/frames/projectile-prism-shard-gold-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/gold/frames/projectile-prism-shard-gold-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/gold/frames/projectile-prism-shard-gold-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/gold/frames/projectile-prism-shard-gold-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/gold/projectile-prism-shard-gold-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/gold/projectile-prism-shard-gold-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "41f17508fb686904011ed052ae13bf4d55a7fdd64a71da686e3ff1a30cf22b05",
+        "5041a09fe0424c0239db04fc6168ac954e445fc08e19ee5e62e4e7ae5e7a0578",
+        "5b4d1400b133bb413b84a5f82364fa890087bd5b83ee552695603a1236ddd5e3",
+        "fb5b9a7c7a96e3b6d9ea0c8ee00822ce498686b916b14eee4d7479e13cbf6f56"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "projectile-prism-shard-red",
+      "kind": "projectile",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/red/frames/projectile-prism-shard-red-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/red/frames/projectile-prism-shard-red-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/red/frames/projectile-prism-shard-red-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/red/frames/projectile-prism-shard-red-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/red/projectile-prism-shard-red-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/red/projectile-prism-shard-red-preview.gif",
+      "frameSize": [
+        128,
+        128
+      ],
+      "frameHashes": [
+        "8f97032eee0840f608c04b164f804d1a79e56b4b9e27ab2e8415b036fe90a3dd",
+        "3bebf7929c929dea17af7a265efde4c087cea414fc3d237f1e237bef42dca8f8",
+        "b65830d5f9f915677029c46fe99e31fb8ebe921536514a4d086345746be848fa",
+        "b66b03e5a890f05f9945722a75dbccb6c3b3a0f62948bddc5646c44d2c3aab22"
+      ],
+      "transparentCenter": false
+    },
+    {
+      "id": "spiral-triangle-lime",
+      "kind": "spiral-triangle",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/lime/frames/spiral-triangle-lime-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/lime/frames/spiral-triangle-lime-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/lime/frames/spiral-triangle-lime-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/lime/frames/spiral-triangle-lime-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/lime/spiral-triangle-lime-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/lime/spiral-triangle-lime-preview.gif",
+      "frameSize": [
+        192,
+        192
+      ],
+      "frameHashes": [
+        "7a1d718af46c4edcefe8d34d839a3066f8b15a7c68bbd5656532ff10f8fe2aba",
+        "1bf924e9f5b3916bf8280c7066eec6151daa68bfbc7138525efac2f410aa126a",
+        "92a659a135b2f727e6c3da92c1bbeb8b0359ba0bcb82a25ef577983cc134e99a",
+        "8901772538a926f13db0cf8862b0b354e5562f966e95f2225528384a8d9c8c96"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "spiral-triangle-cyan",
+      "kind": "spiral-triangle",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/cyan/frames/spiral-triangle-cyan-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/cyan/frames/spiral-triangle-cyan-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/cyan/frames/spiral-triangle-cyan-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/cyan/frames/spiral-triangle-cyan-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/cyan/spiral-triangle-cyan-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/cyan/spiral-triangle-cyan-preview.gif",
+      "frameSize": [
+        192,
+        192
+      ],
+      "frameHashes": [
+        "d95e1bf2456e4aa416f7415f31edb833bd3f9c708bd3280be20294381e0c51d4",
+        "14096d9c2d86d75c43a5b7a2acb1abfda1c1d5d872e480931741d09f424eeaac",
+        "319bd9c00125adc92a79e67de2e496869ae96ae3f9c9c9d22ff2b3f6700fa59e",
+        "33dfa634d7c66b062b8a78b128fe1179215b2bf83462f3f1afbe8bae24f8d9c1"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "spiral-triangle-gold",
+      "kind": "spiral-triangle",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/gold/frames/spiral-triangle-gold-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/gold/frames/spiral-triangle-gold-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/gold/frames/spiral-triangle-gold-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/gold/frames/spiral-triangle-gold-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/gold/spiral-triangle-gold-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/gold/spiral-triangle-gold-preview.gif",
+      "frameSize": [
+        192,
+        192
+      ],
+      "frameHashes": [
+        "8608fae87ba254bb5630bf7e26f6a9e67af686db8eda5b04bad26e1ebb6f9557",
+        "25a48fe685dece926012b84d1019934856b674026084d6882536c7483ff05eba",
+        "ec69217055aeece32f65bdd6b7cdaef5a502ab35bc450c5beecaf67372c69dbf",
+        "2c2cd13ca1f7e4cd981ce8fa59a8bd916f38654caac6026cd1b9955f284bd1cb"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "spiral-triangle-violet",
+      "kind": "spiral-triangle",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/violet/frames/spiral-triangle-violet-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/violet/frames/spiral-triangle-violet-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/violet/frames/spiral-triangle-violet-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/violet/frames/spiral-triangle-violet-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/violet/spiral-triangle-violet-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/violet/spiral-triangle-violet-preview.gif",
+      "frameSize": [
+        192,
+        192
+      ],
+      "frameHashes": [
+        "e12de383235004010f033860a7c0e4707b8e75a287cbf982d80687d1c9375f8f",
+        "5a04b6e2a98c789a6c6366d761ec86ac06ac0a9cacab6ca506c65f79a8908e86",
+        "a1f8935d614a8fc5679ac6c7640419c96db87229c124fc3abeea665a866d6e11",
+        "ffec5e93da8ee8c49753c9b631d3ff250b5c25d6e477974f956d79c28c3f8f86"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "spiral-triangle-red",
+      "kind": "spiral-triangle",
+      "frames": [
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/red/frames/spiral-triangle-red-01.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/red/frames/spiral-triangle-red-02.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/red/frames/spiral-triangle-red-03.png",
+        "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/red/frames/spiral-triangle-red-04.png"
+      ],
+      "sheet": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/red/spiral-triangle-red-sprite-sheet.png",
+      "previewGif": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/spiral-triangles/red/spiral-triangle-red-preview.gif",
+      "frameSize": [
+        192,
+        192
+      ],
+      "frameHashes": [
+        "f4581c1f1d667ff990402050131831c2d9d22d7c2073b886f7b0a04886959a99",
+        "cc433aac8d6eff0f5367cb8e05f7cf368f86cb7b37b2b888e51739c493e00a4f",
+        "a99dbb6171c535f4e25b587bc328de8d857a37293af35dae737237a05c014fc6",
+        "2fe6c82fa56b42afeada12a73d620f79262ce16ab948dcac5e645685aff555f8"
+      ],
+      "transparentCenter": true
+    },
+    {
+      "id": "menu-panel-compact-cyan",
+      "kind": "menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/panels/cyan/menu-panel-compact-cyan.png",
+      "size": [
+        480,
+        320
+      ],
+      "hash": "8592f2d95100f0967b6aa19b3206a287804c8af457fa830b8ee20f3a843e8916",
+      "transparentCenter": true
+    },
+    {
+      "id": "menu-panel-standard-cyan",
+      "kind": "menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/panels/cyan/menu-panel-standard-cyan.png",
+      "size": [
+        640,
+        480
+      ],
+      "hash": "f7ea46bae9518dbc30b0794073e4864454a91de1e38d7cccf924540fc6fa31a6",
+      "transparentCenter": true
+    },
+    {
+      "id": "menu-panel-tall-cyan",
+      "kind": "menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/panels/cyan/menu-panel-tall-cyan.png",
+      "size": [
+        720,
+        960
+      ],
+      "hash": "d6d342ec7eecf850b9ba2c6d6f6f43e459c4e7b029672c889874edd171607c7c",
+      "transparentCenter": true
+    },
+    {
+      "id": "menu-panel-wide-cyan",
+      "kind": "menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/panels/cyan/menu-panel-wide-cyan.png",
+      "size": [
+        960,
+        540
+      ],
+      "hash": "dd694ac4082069f2ff741ba37632c53c47b88222c1d6972d8b8d57716f3218a0",
+      "transparentCenter": true
+    },
+    {
+      "id": "button-frame-small-cyan",
+      "kind": "button-frame",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/buttons/cyan/button-frame-small-cyan.png",
+      "size": [
+        240,
+        72
+      ],
+      "hash": "03a2f081785e719504cdad7df5b45c079ce97c51e5c3aa5608d790b344e5cec0",
+      "transparentCenter": true
+    },
+    {
+      "id": "button-frame-medium-cyan",
+      "kind": "button-frame",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/buttons/cyan/button-frame-medium-cyan.png",
+      "size": [
+        360,
+        88
+      ],
+      "hash": "bb74e9234efcf67bd16378283d81204b92646b4ea283acebe9c5b8cea3a2681a",
+      "transparentCenter": true
+    },
+    {
+      "id": "button-frame-wide-cyan",
+      "kind": "button-frame",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/buttons/cyan/button-frame-wide-cyan.png",
+      "size": [
+        512,
+        96
+      ],
+      "hash": "7fc2a762527faa0d1cc4d61983ece6d35d7c87f304a8058d8748ce7305f44cf4",
+      "transparentCenter": true
+    },
+    {
+      "id": "button-frame-square-cyan",
+      "kind": "button-frame",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/buttons/cyan/button-frame-square-cyan.png",
+      "size": [
+        96,
+        96
+      ],
+      "hash": "81524713ed025ee3c77583f3ba6dcdb01171f0f6ab9507ac253a18d218774b96",
+      "transparentCenter": true
+    },
+    {
+      "id": "menu-panel-compact-gold",
+      "kind": "menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/panels/gold/menu-panel-compact-gold.png",
+      "size": [
+        480,
+        320
+      ],
+      "hash": "55614b22a6ec2ae1090cede3ee3fa3cf0220e7bd3f2c6b9c7f1272ae3a62a6e5",
+      "transparentCenter": true
+    },
+    {
+      "id": "menu-panel-standard-gold",
+      "kind": "menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/panels/gold/menu-panel-standard-gold.png",
+      "size": [
+        640,
+        480
+      ],
+      "hash": "f1599d2c4e00c1a496ee740ca7a11569b15684443b9e9d22a166e8ecf70985dc",
+      "transparentCenter": true
+    },
+    {
+      "id": "menu-panel-tall-gold",
+      "kind": "menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/panels/gold/menu-panel-tall-gold.png",
+      "size": [
+        720,
+        960
+      ],
+      "hash": "6700f5e23240153c11c447d5e7552411039725b0913e2c9072ecc27c96fa5923",
+      "transparentCenter": true
+    },
+    {
+      "id": "menu-panel-wide-gold",
+      "kind": "menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/panels/gold/menu-panel-wide-gold.png",
+      "size": [
+        960,
+        540
+      ],
+      "hash": "400f4a3f3b4e2367e697451e0c60a32a2bbc29990a8c4c6a0e75ad8dc354c9df",
+      "transparentCenter": true
+    },
+    {
+      "id": "button-frame-small-gold",
+      "kind": "button-frame",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/buttons/gold/button-frame-small-gold.png",
+      "size": [
+        240,
+        72
+      ],
+      "hash": "d1244f8a7be498223f664f23c03346f9f4ea7bf12e5b2ff92ee90f9da483649c",
+      "transparentCenter": true
+    },
+    {
+      "id": "button-frame-medium-gold",
+      "kind": "button-frame",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/buttons/gold/button-frame-medium-gold.png",
+      "size": [
+        360,
+        88
+      ],
+      "hash": "ff8763d59692c88a661f125b35851aca0e246ad394fc90c69e9a2a242b0720f9",
+      "transparentCenter": true
+    },
+    {
+      "id": "button-frame-wide-gold",
+      "kind": "button-frame",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/buttons/gold/button-frame-wide-gold.png",
+      "size": [
+        512,
+        96
+      ],
+      "hash": "80683e957d738b74bdb8c02c73788df98dd2925a24154d3aaabf700b0d3f5cb3",
+      "transparentCenter": true
+    },
+    {
+      "id": "button-frame-square-gold",
+      "kind": "button-frame",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/buttons/gold/button-frame-square-gold.png",
+      "size": [
+        96,
+        96
+      ],
+      "hash": "ea41b3788138537856a20cea4ac9b5d76c78eb35613c08f92a586799055a01eb",
+      "transparentCenter": true
+    },
+    {
+      "id": "basic-menu-panel-compact-blue",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/blue/basic-menu-panel-compact-blue.png",
+      "size": [
+        480,
+        320
+      ],
+      "hash": "617dc9142e29410443a344b809acca543a9ef2b068a42e7581f3dc9c2ee59be9",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-standard-blue",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/blue/basic-menu-panel-standard-blue.png",
+      "size": [
+        640,
+        480
+      ],
+      "hash": "f94bbd80bfaded06ded7a675312e22bdc1ed121edaab7b07ff7e564a92f6b1c1",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-tall-blue",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/blue/basic-menu-panel-tall-blue.png",
+      "size": [
+        720,
+        960
+      ],
+      "hash": "72e5a5c6cac49518e492af00590f03887f1b4475a9ec244b7e28b6eca85f09ab",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-wide-blue",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/blue/basic-menu-panel-wide-blue.png",
+      "size": [
+        960,
+        540
+      ],
+      "hash": "2f0fc1eea7d13d722e8bb09becd4bac96fdf6dad43d730695ec490adf0a1bb10",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-compact-charcoal",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/charcoal/basic-menu-panel-compact-charcoal.png",
+      "size": [
+        480,
+        320
+      ],
+      "hash": "af22f9d6f85fafd4c94576ef18920c8725e81a2fb4ca98226af0a524948f91c5",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-standard-charcoal",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/charcoal/basic-menu-panel-standard-charcoal.png",
+      "size": [
+        640,
+        480
+      ],
+      "hash": "fa1b22a47cdfcd1ba47faef189025a256cc9e50690a072815d257edbef41399b",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-tall-charcoal",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/charcoal/basic-menu-panel-tall-charcoal.png",
+      "size": [
+        720,
+        960
+      ],
+      "hash": "5af36e377a4816ccf2ac72e5bf47232c99c727b6a35af428e8d32ecea4ba575f",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-wide-charcoal",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/charcoal/basic-menu-panel-wide-charcoal.png",
+      "size": [
+        960,
+        540
+      ],
+      "hash": "858ed2ec15f0334303a4e7db364e2b81fbb975b852fbcdb9b53e07dd4bbc96fb",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-compact-purple",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/purple/basic-menu-panel-compact-purple.png",
+      "size": [
+        480,
+        320
+      ],
+      "hash": "9c76f12248fd5613336c4c3443f6cb53bd4f5720efbf940a35a1d5d138f84e78",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-standard-purple",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/purple/basic-menu-panel-standard-purple.png",
+      "size": [
+        640,
+        480
+      ],
+      "hash": "ba1d1c8c10a903a8966e114e747fb5d2739bf733e032c58a61eac89990344575",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-tall-purple",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/purple/basic-menu-panel-tall-purple.png",
+      "size": [
+        720,
+        960
+      ],
+      "hash": "34e46fa24e3f6ad927e1f8aa4b5365ff6638924485ede0f04fc5b7811c6ba802",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-panel-wide-purple",
+      "kind": "basic-menu-panel",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/panels/purple/basic-menu-panel-wide-purple.png",
+      "size": [
+        960,
+        540
+      ],
+      "hash": "cb764857f35fb12c52a38e95854b4e45bb22c490b415894c244097736b8bcebf",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-small-cyan",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/cyan/basic-menu-button-small-cyan.png",
+      "size": [
+        240,
+        72
+      ],
+      "hash": "d6b251df4adbf3e7098b11b892877e3a0bf30bae6b703ca8839c00ab5df27a2e",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-medium-cyan",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/cyan/basic-menu-button-medium-cyan.png",
+      "size": [
+        360,
+        88
+      ],
+      "hash": "92525c96fb9dad1e8e25fdcfcf03f1f10d935099110f0781ecc6f4581d79a7e7",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-wide-cyan",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/cyan/basic-menu-button-wide-cyan.png",
+      "size": [
+        512,
+        96
+      ],
+      "hash": "052266c7ca95ed65c67f621ef4b722696dd368f8bdabd9372c1abacd98a430cf",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-square-cyan",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/cyan/basic-menu-button-square-cyan.png",
+      "size": [
+        96,
+        96
+      ],
+      "hash": "fcade7007690a07c2d1281379078ce9ec925a536344704cda5dd92eab77b2bf5",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-small-orange",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/orange/basic-menu-button-small-orange.png",
+      "size": [
+        240,
+        72
+      ],
+      "hash": "54e55fb5a71d0a02e1398e09148515ad2d86009c1e29a44dfa94bddaf052f5b9",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-medium-orange",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/orange/basic-menu-button-medium-orange.png",
+      "size": [
+        360,
+        88
+      ],
+      "hash": "43de4a2e1a734ff514f2e9eb0ebc871ed8b3438d54421a933e6d47f27a6cea16",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-wide-orange",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/orange/basic-menu-button-wide-orange.png",
+      "size": [
+        512,
+        96
+      ],
+      "hash": "36b7283d46d80bf3fc24e7b5896ba3dcba0fc9f20e7f9309691a48b368b8cd54",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-square-orange",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/orange/basic-menu-button-square-orange.png",
+      "size": [
+        96,
+        96
+      ],
+      "hash": "a9b2d06bd57386599039a0ad8ee5a74884841401c600a2ab678a440925117540",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-small-green",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/green/basic-menu-button-small-green.png",
+      "size": [
+        240,
+        72
+      ],
+      "hash": "86b1dd1346bdbe318a60e0f6ce02500713fc1762e3334be07e376fd3f88da1e1",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-medium-green",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/green/basic-menu-button-medium-green.png",
+      "size": [
+        360,
+        88
+      ],
+      "hash": "0d56fa023aeabbab6ac64198f4abf83311fd2482f1bfddfc38e50856797dadea",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-wide-green",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/green/basic-menu-button-wide-green.png",
+      "size": [
+        512,
+        96
+      ],
+      "hash": "5f00125f484d6e8ffe547d3e956bc7eef188eb8dca3e4f843cc4ef8c8cc62a52",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-square-green",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/green/basic-menu-button-square-green.png",
+      "size": [
+        96,
+        96
+      ],
+      "hash": "98f34c25631cd6ad7f5db2648479819559b7530ed669ece5d0198f56b07abbcc",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-small-gray",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/gray/basic-menu-button-small-gray.png",
+      "size": [
+        240,
+        72
+      ],
+      "hash": "d5cdfeb4c6f7a3dc9fb4d3e1de3285c80bc23e3dad8283685d8710edc039697b",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-medium-gray",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/gray/basic-menu-button-medium-gray.png",
+      "size": [
+        360,
+        88
+      ],
+      "hash": "1d172da843e27859fc355c2035fa2c6ef2eebdf4789051120f9031303a66cb80",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-wide-gray",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/gray/basic-menu-button-wide-gray.png",
+      "size": [
+        512,
+        96
+      ],
+      "hash": "df2cce037510770f29fa876360d896905ac211253ea0ddc8af0b90778fb50815",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-button-square-gray",
+      "kind": "basic-menu-button",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/buttons/gray/basic-menu-button-square-gray.png",
+      "size": [
+        96,
+        96
+      ],
+      "hash": "d1b7942ec76ba7702db289d81177eca14153cbfe2bd4c5a07c4f06021492668b",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-slider-track-medium-cyan",
+      "kind": "basic-menu-slider-track",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/sliders/basic-menu-slider-track-medium-cyan.png",
+      "size": [
+        400,
+        48
+      ],
+      "hash": "78ad743888f1b81c1fdc24a19611c043f5716e25c99f4abd815649521ae3e692",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-slider-track-wide-cyan",
+      "kind": "basic-menu-slider-track",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/sliders/basic-menu-slider-track-wide-cyan.png",
+      "size": [
+        600,
+        56
+      ],
+      "hash": "b28c10fd50cd8350b045d11d94fed5b79a00e7848a720966b19b4e70fcd00900",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-slider-knob-cyan",
+      "kind": "basic-menu-slider-knob",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/sliders/basic-menu-slider-knob-cyan.png",
+      "size": [
+        72,
+        56
+      ],
+      "hash": "2c2d727c4a2e07795e1ed4f7bcc09ef9b8d8c2ac074e35f5328cdaa229aabfbc",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-toggle-off-cyan",
+      "kind": "basic-menu-toggle",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/toggles/basic-menu-toggle-off-cyan.png",
+      "size": [
+        128,
+        56
+      ],
+      "hash": "c1f5f767e7f379608a50f77614907ac19242c102fdc3b2e1a442b1460e7d2cb7",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-toggle-on-cyan",
+      "kind": "basic-menu-toggle",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/toggles/basic-menu-toggle-on-cyan.png",
+      "size": [
+        128,
+        56
+      ],
+      "hash": "0cc22238acb6fc48f67f7c228c490de06b1502c5f7c1b08a38283fd8c8f4bf72",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-tab-inactive-cyan",
+      "kind": "basic-menu-tab",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/tabs/basic-menu-tab-inactive-cyan.png",
+      "size": [
+        320,
+        80
+      ],
+      "hash": "47f764abb77b07edb5d43d7bd40975b40b3b028330a61a764793c170073c7d22",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-tab-active-cyan",
+      "kind": "basic-menu-tab",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/tabs/basic-menu-tab-active-cyan.png",
+      "size": [
+        320,
+        80
+      ],
+      "hash": "76bdb1807a5ff8ba11add0ff270648197d358807f298049e3b8b2c446f0a0c3d",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-divider-small-cyan",
+      "kind": "basic-menu-divider",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/dividers/basic-menu-divider-small-cyan.png",
+      "size": [
+        320,
+        20
+      ],
+      "hash": "5c616ff57542dbc84f0b7962ac7e41ca7d8cf94fb2da4661acc86bd2db98951f",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-divider-medium-cyan",
+      "kind": "basic-menu-divider",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/dividers/basic-menu-divider-medium-cyan.png",
+      "size": [
+        512,
+        20
+      ],
+      "hash": "abf3bae7a51c388a6edff13c5246d518f845072e85f7c320a8f0a7db938a8274",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-divider-wide-cyan",
+      "kind": "basic-menu-divider",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/dividers/basic-menu-divider-wide-cyan.png",
+      "size": [
+        768,
+        20
+      ],
+      "hash": "933a406896149326eb0c266aafbfb600485cfa5177565bf18de1b9f27aaf4e0e",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-slider-track-medium-gold",
+      "kind": "basic-menu-slider-track",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/sliders/basic-menu-slider-track-medium-gold.png",
+      "size": [
+        400,
+        48
+      ],
+      "hash": "1574d68fcd2ca32afcf0d53ee4d18fa3ca16af6fa46be42f143a93858c04f54a",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-slider-track-wide-gold",
+      "kind": "basic-menu-slider-track",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/sliders/basic-menu-slider-track-wide-gold.png",
+      "size": [
+        600,
+        56
+      ],
+      "hash": "9bc6372fe0d67098eca498ea1cc4884cb15effab7f8bf966eae5ceaeedffe535",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-slider-knob-gold",
+      "kind": "basic-menu-slider-knob",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/sliders/basic-menu-slider-knob-gold.png",
+      "size": [
+        72,
+        56
+      ],
+      "hash": "d4a9e600acea918a76ea63bf62515d69f38b6dc42d3b3db3fffacd0644e619a4",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-toggle-off-gold",
+      "kind": "basic-menu-toggle",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/toggles/basic-menu-toggle-off-gold.png",
+      "size": [
+        128,
+        56
+      ],
+      "hash": "c1f5f767e7f379608a50f77614907ac19242c102fdc3b2e1a442b1460e7d2cb7",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-toggle-on-gold",
+      "kind": "basic-menu-toggle",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/toggles/basic-menu-toggle-on-gold.png",
+      "size": [
+        128,
+        56
+      ],
+      "hash": "681bd432e16f0c6ff7fb8f3fb7b460edcd560f39325d0231cc9130ca5561c72f",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-tab-inactive-gold",
+      "kind": "basic-menu-tab",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/tabs/basic-menu-tab-inactive-gold.png",
+      "size": [
+        320,
+        80
+      ],
+      "hash": "47f764abb77b07edb5d43d7bd40975b40b3b028330a61a764793c170073c7d22",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-tab-active-gold",
+      "kind": "basic-menu-tab",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/tabs/basic-menu-tab-active-gold.png",
+      "size": [
+        320,
+        80
+      ],
+      "hash": "24392d67294493c734dd20a9bf736d0d281108514dd4b3ebe43143bc85506d9a",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-divider-small-gold",
+      "kind": "basic-menu-divider",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/dividers/basic-menu-divider-small-gold.png",
+      "size": [
+        320,
+        20
+      ],
+      "hash": "fe7ffdaad6d41e7c7c095b311c9d50839a73d4589416b2f87cd9c30c493ddfd8",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-divider-medium-gold",
+      "kind": "basic-menu-divider",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/dividers/basic-menu-divider-medium-gold.png",
+      "size": [
+        512,
+        20
+      ],
+      "hash": "589a9f4cc2aba8485d166d262f42a1334133cfc93744fb9371d3428aeadfd043",
+      "transparentCenter": false
+    },
+    {
+      "id": "basic-menu-divider-wide-gold",
+      "kind": "basic-menu-divider",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/basic-menus/dividers/basic-menu-divider-wide-gold.png",
+      "size": [
+        768,
+        20
+      ],
+      "hash": "bbc497f5bf5c465fa30c342e6ecc631eb58a80cb249b8940994f330a78951df6",
+      "transparentCenter": false
+    },
+    {
+      "id": "boss-health-bar-compact-silver",
+      "kind": "boss-health-bar",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/boss-bars/compact/boss-health-bar-compact-silver.png",
+      "size": [
+        512,
+        64
+      ],
+      "hash": "d609706ab4f4b0ed4d49fc431c814eddcbada4b6546d6469203dd34ac0c4b036",
+      "transparentCenter": true
+    },
+    {
+      "id": "boss-health-bar-compact-gold",
+      "kind": "boss-health-bar",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/boss-bars/compact/boss-health-bar-compact-gold.png",
+      "size": [
+        512,
+        64
+      ],
+      "hash": "4d89f36641cd5712d1d33e433500e5e551a08cd4c4e3454acd1e5a6603f4ece2",
+      "transparentCenter": true
+    },
+    {
+      "id": "boss-health-bar-compact-cyan",
+      "kind": "boss-health-bar",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/boss-bars/compact/boss-health-bar-compact-cyan.png",
+      "size": [
+        512,
+        64
+      ],
+      "hash": "be75f95820c6dfcd2052ca1edc7bcadafefe4f7a0897211926e92dc2828afafb",
+      "transparentCenter": true
+    },
+    {
+      "id": "boss-health-fill-mask-compact",
+      "kind": "boss-health-fill-mask",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/boss-bars/compact/boss-health-fill-mask-compact.png",
+      "size": [
+        512,
+        64
+      ],
+      "hash": "7f57a0f0a0619bad78efb696a0299ae316e8c65ff44f622ef21a3e96e9978117",
+      "transparentCenter": false
+    },
+    {
+      "id": "boss-health-bar-standard-silver",
+      "kind": "boss-health-bar",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/boss-bars/standard/boss-health-bar-standard-silver.png",
+      "size": [
+        768,
+        80
+      ],
+      "hash": "3cc0c56ee87ac34a5b409242f2d71231876b49aaea32d06ae297ad3653929deb",
+      "transparentCenter": true
+    },
+    {
+      "id": "boss-health-bar-standard-gold",
+      "kind": "boss-health-bar",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/boss-bars/standard/boss-health-bar-standard-gold.png",
+      "size": [
+        768,
+        80
+      ],
+      "hash": "c307a2b56635c94dda3379cf5a3f4488eaf3f7abf38a5ce0a813537f990f8a0b",
+      "transparentCenter": true
+    },
+    {
+      "id": "boss-health-bar-standard-cyan",
+      "kind": "boss-health-bar",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/boss-bars/standard/boss-health-bar-standard-cyan.png",
+      "size": [
+        768,
+        80
+      ],
+      "hash": "ba577aa901a4c9b19d8506fec8d2c288133ad1ed9e2a82b9016c7291f84f9abb",
+      "transparentCenter": true
+    },
+    {
+      "id": "boss-health-fill-mask-standard",
+      "kind": "boss-health-fill-mask",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/boss-bars/standard/boss-health-fill-mask-standard.png",
+      "size": [
+        768,
+        80
+      ],
+      "hash": "0eceeac92f222c64d56441966d5e10d7b7381e98ad9a626928bcf99d828ca181",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-w-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-w-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "d1b8c6cec96c2ad899e0131e90ec742ed82ab0cc458595f670ca5de409822ebe",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-a-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-a-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "53fa092c2fc94d82669fd7775fbf74fdf934017b7f4a6ea534a248964d5e709c",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-v-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-v-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "27f6b7d6f5e75c9dcb77d41862b7e8ea5250f3045c8b8b131c88d2b3aa60a0ef",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-e-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-e-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "4c52ce16a3e169d7cf1c24c603454190b017fe5a4e56af8e1fdc1a31642a48d7",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-0-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-0-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "2c5ba8f46a45d9b1dcc93ef69f6cc2009e538f33aee59ce88e704dc4a71b88a1",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-1-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-1-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "71b442ef8923400abc6526a59a28168690dc0031a74712ce1bb13dc9f1b75ad4",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-2-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-2-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "9ec6c37bea0b09e2e248cb6c1003fce3c0a7831525f6b6b6fe935148af8b8bec",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-3-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-3-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "f54342461e18fab2f03fc3a31d1ba7ca84fb33b50d5e4c86bbff0d9a0b4d51eb",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-4-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-4-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "9c220fbfe47d05883d034f47eb122f0b0fd17ddedd487c28f1e0eb73babcabad",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-5-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-5-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "3c26284522f852970173645e112dfeb0677d3a607301cfc0ab0433436e9e1eb9",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-6-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-6-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "9748e1603112498552201c0ce47c320f4f51b08acc0c2cb84977a2545d893a69",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-7-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-7-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "57351686a0bc5c28370863e94ef3bf34f487afe1657a3dc41e3356cd00fb6cc4",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-8-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-8-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "cd10ba9a228a5dcbb599edc276c309ce65fef4846f83f971ad254b19612d6b98",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-9-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-9-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "8b6ef7da182777cee38c4bf62058370cf5f0f95037ec90c78d95f8e1290d757b",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-slash-cyan",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-slash-cyan.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "5fc6d7d2205cb51abfb145951a32140c36d05fc173f5e2485cd8ab149045bd13",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-atlas-cyan",
+      "kind": "wave-glyph-atlas",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-glyph-atlas-cyan.png",
+      "size": [
+        960,
+        80
+      ],
+      "glyphs": {
+        "W": {
+          "x": 0,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "A": {
+          "x": 64,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "V": {
+          "x": 128,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "E": {
+          "x": 192,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "0": {
+          "x": 256,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "1": {
+          "x": 320,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "2": {
+          "x": 384,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "3": {
+          "x": 448,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "4": {
+          "x": 512,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "5": {
+          "x": 576,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "6": {
+          "x": 640,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "7": {
+          "x": 704,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "8": {
+          "x": 768,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "9": {
+          "x": 832,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "/": {
+          "x": 896,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        }
+      },
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-title-cyan",
+      "kind": "wave-title",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan/wave-title-cyan.png",
+      "size": [
+        256,
+        80
+      ],
+      "hash": "2bb5b20c57dd5e3aff66a1f4884c66394bdbab9603d2776076e7b897ece36fb6",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-w-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-w-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "e08db8b432a74ebced3fe7cb210f02abad484773df12e7b5d21e4dd39560c402",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-a-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-a-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "9512dd704ef07ae7a612b61849ad9de6dbbcef0c9899269b30c9172c4eaee967",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-v-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-v-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "4332eee5dd33b10fb327e4c64719351362d1aabb9f4b2d15c89f39e4fbf9394e",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-e-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-e-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "d68d20b413a69b9bddb566ebb92c2cf8fff331639b1a87432bf736d784162d5e",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-0-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-0-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "83007fc141717d16c7d9c0c44e6fccc2237889169e4a8ea405dc682f660ead84",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-1-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-1-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "85a7e411e366d09b1a637ea1192c07cc7acc7a3cafa81a4fb3bff55cad5721ed",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-2-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-2-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "4044d140d584d10d98e8874e0539373810f82ef4177ca2fbc37709f82739c897",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-3-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-3-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "d095ff827c1eae90de623347911c1c59a70cff5d393bbc221d5c2e6289b0360a",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-4-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-4-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "ae82a828a2b8587c18a6c1a1e711d6f1ef5a7bf638ac6531f5f2d7872989b6aa",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-5-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-5-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "7dad332ad34e5a0638c444d2e5e6fb2b019355b720e9cf2707dbcebb8067cbaa",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-6-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-6-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "8d4835212c08fa75969ffeaa538f3dcee0b466e815d9e30676dfdce059f6f5af",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-7-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-7-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "b1b4cce911fcad8f7a42ca12489efcaf7cb5b032f60f1b505eae1113f1947f50",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-8-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-8-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "02a0101de88e17c577aa9251e7c52583fecd49e0802b9350b4296d648767d7b4",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-9-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-9-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "9c475690390222a6feeb8875209f340ccbc50bfa8454654d74dba35620e68154",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-slash-gold",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-slash-gold.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "be3034ad2f49518f80f312c3e6245030bc4223079a08a893cf7bc6e546350fee",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-atlas-gold",
+      "kind": "wave-glyph-atlas",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-glyph-atlas-gold.png",
+      "size": [
+        960,
+        80
+      ],
+      "glyphs": {
+        "W": {
+          "x": 0,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "A": {
+          "x": 64,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "V": {
+          "x": 128,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "E": {
+          "x": 192,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "0": {
+          "x": 256,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "1": {
+          "x": 320,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "2": {
+          "x": 384,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "3": {
+          "x": 448,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "4": {
+          "x": 512,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "5": {
+          "x": 576,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "6": {
+          "x": 640,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "7": {
+          "x": 704,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "8": {
+          "x": 768,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "9": {
+          "x": 832,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "/": {
+          "x": 896,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        }
+      },
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-title-gold",
+      "kind": "wave-title",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/gold/wave-title-gold.png",
+      "size": [
+        256,
+        80
+      ],
+      "hash": "35515b9b65c9160a5d3a3af270e3c788e70f9ca1add03d0fe4602c1c6ed09ec0",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-w-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-w-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "85c6875eaf923a4baf4a81184082519b836b60de3ec16880371fa698014ead69",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-a-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-a-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "66ac0a1f099c39a86fe684d8aa3cfe5dd055c309996a676fa06932ce1ed0b921",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-v-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-v-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "0d710a3ccf3c5797a573a1f7c9f263383e2e9f86dfa6bec3b8c85cfbe634201b",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-e-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-e-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "c3103f28c39bf7eef4e0e5c3143f45016b77edc75838581a9d74d5f84f2a2aa5",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-0-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-0-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "3970d8e9ab8faa8d169cbb546f868317d58d348af2123f57f3d8a79a615323ed",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-1-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-1-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "8a41e833a932d8e6880777847f5c607ddc1b59de410875c9e5dbad2e84dd303b",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-2-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-2-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "9a677d68f70e94b43116e8c3185d6b45b122a63d9c87c6e5f2ac785050e01994",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-3-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-3-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "3bcc400ba06652b3cc9a326bbd84f4a4c158c73c32d1884ab4e63a58f5204100",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-4-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-4-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "09fe3a56e6f79aae578b762963c9aae436afc63087434dafc5aa6cb37b076cff",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-5-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-5-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "cc66b78c0956b769a6ad157a95a452cafef4c95546b88c10a31748c5c6e2c532",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-6-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-6-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "ffe7ff75947a415fec9264bb54eb8189175111480fbc1a192e8dbdbb870b663d",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-7-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-7-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "8e93cad469a9536d3076aaf21b55fb1ba175ddf9570cae9c81fae4bea103ca2c",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-8-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-8-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "6bb8e165ccb39227ec4fb8a7c5341f2a652c94a25c0dbae29fa556944df16011",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-9-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-9-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "a075f8dd54af15ac0880db41d2c1e3f5793ef4e27fe60a47f355e54b6bbbac92",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-slash-violet",
+      "kind": "wave-glyph",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-slash-violet.png",
+      "size": [
+        64,
+        80
+      ],
+      "hash": "4e62400ef10f96904194e1ca3973d76008f3fb22b4a830bb3d1adb6798fde7a6",
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-glyph-atlas-violet",
+      "kind": "wave-glyph-atlas",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-glyph-atlas-violet.png",
+      "size": [
+        960,
+        80
+      ],
+      "glyphs": {
+        "W": {
+          "x": 0,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "A": {
+          "x": 64,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "V": {
+          "x": 128,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "E": {
+          "x": 192,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "0": {
+          "x": 256,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "1": {
+          "x": 320,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "2": {
+          "x": 384,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "3": {
+          "x": 448,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "4": {
+          "x": 512,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "5": {
+          "x": 576,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "6": {
+          "x": 640,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "7": {
+          "x": 704,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "8": {
+          "x": 768,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "9": {
+          "x": 832,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        },
+        "/": {
+          "x": 896,
+          "y": 0,
+          "width": 64,
+          "height": 80
+        }
+      },
+      "transparentCenter": false
+    },
+    {
+      "id": "wave-title-violet",
+      "kind": "wave-title",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/violet/wave-title-violet.png",
+      "size": [
+        256,
+        80
+      ],
+      "hash": "c093b84a06477ec4ef3bb1e0d3d29e4b6aeaf010eb1ec2e37a7159e7b82d7dc8",
+      "transparentCenter": false
+    },
+    {
+      "id": "simple-arcade-kit-overview",
+      "kind": "overview",
+      "path": "/game-art/generated/ui/scicon-simple-arcade-kit-v1/simple-arcade-kit-overview.png",
+      "size": [
+        1200,
+        1280
+      ],
+      "transparentCenter": false
+    }
+  ]
+}

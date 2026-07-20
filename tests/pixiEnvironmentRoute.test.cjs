@@ -31,13 +31,18 @@ test('long round masters do not hard-wrap and props stay inside their terrain fa
     'river-round-master-512x4096.png',
     'space-props-atlas-3x3.png',
     'desert-props-atlas-3x3.png',
-    'river-props-atlas-3x3.png'
+    'river-props-atlas-3x3.png',
+    'desert-ground-props-perspective-master-3x9.png',
+    'river-ground-props-perspective-master-3x9.png'
   ]) {
     assert.match(constants, new RegExp(asset.replaceAll('.', '\\.')));
   }
 
   assert.match(environment, /loop: false/);
   assert.match(environment, /Math\.min\(maxTravel, startingOffset \+ localFrame \* layer\.speed\)/);
+  assert.match(environment, /layer\.scrollDirection === 'down'/);
+  assert.match(environment, /PIXI_TERRAIN_DESERT_MASTER[^\n]+scrollDirection: 'down'/);
+  assert.match(environment, /PIXI_TERRAIN_RIVER_MASTER[^\n]+scrollDirection: 'down'/);
   assert.match(environment, /prop\.terrain === profile\.terrain/);
   assert.match(environment, /TERRAIN_PROP_ATLASES/);
 });
@@ -60,4 +65,26 @@ test('ground sectors use terrain aircraft and the river checkpoint is not an ast
     ambush.enemies.map((enemy) => enemy.spriteKey),
     ['PIXI_JET_SCOUT_FRAMES', 'ENEMY_JOURNAL_FRAMES']
   );
+});
+
+test('ground props remain registered to terrain while space landmarks use slow depth motion', () => {
+  const environment = read('services/pixi/PixiEnvironment.ts');
+
+  assert.match(environment, /const terrainTop = terrainLayer\?\.sprites\[0\]\.y \?\? 0/);
+  assert.match(environment, /const groundY = terrainTop \+ prop\.baseY \* terrainLayer\.tileHeight/);
+  assert.match(environment, /const perspectiveScale = 0\.76 \+ screenDepth \* 0\.48/);
+  assert.match(environment, /const perspectiveSpread = 0\.82 \+ screenDepth \* 0\.24/);
+  assert.match(environment, /const playerCenterY = engine\.player\.y \+ engine\.player\.height \/ 2/);
+  assert.match(environment, /const relativeY = groundY - playerCenterY/);
+  assert.match(environment, /getGroundPropPerspectiveState\(relativeY, overheadBand\)/);
+  assert.match(environment, /prop\.sprite\.texture = prop\.perspectiveTextures\[perspectiveState\]/);
+  assert.match(environment, /GROUND_PROP_PERSPECTIVE_SHEETS/);
+  assert.match(environment, /if \(prop\.terrain === 'space'\)/);
+  assert.match(environment, /widthRatio: 0\.72/);
+  assert.match(environment, /GAME_PARALLAX_FAR_PLANETS/);
+  assert.match(environment, /softness: 0\.8/);
+  assert.match(environment, /new BlurFilter\(\{ strength: definition\.softness \?\? 0, quality: 1/);
+  assert.match(environment, /PIXI_TERRAIN_SPACE_MASTER, speed: 0\.004/);
+  assert.match(environment, /GAME_PARALLAX_STARS, speed: 0\.028/);
+  assert.doesNotMatch(environment, /prop\.sprite\.y = \(\(prop\.baseY \* propCycle\)/);
 });

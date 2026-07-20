@@ -1,0 +1,224 @@
+{
+  "id": "scicon-ground-prop-perspective-v1",
+  "version": 1,
+  "generated": "2026-07-18",
+  "productionFormat": "Spatial three-view PNG sheets; not timed animation",
+  "frame": {
+    "width": 256,
+    "height": 256
+  },
+  "stateOrder": [
+    "ahead",
+    "overhead",
+    "behind"
+  ],
+  "stateMeaning": {
+    "ahead": "prop is north/ahead of the player; show its south/front face",
+    "overhead": "prop is crossing the player's flight line; show true top-down view",
+    "behind": "prop is south/behind the player; show its north/rear face"
+  },
+  "runtimeProtocol": "Select by prop center Y relative to player center Y. Do not advance these frames with a timer, GIF, AnimatedSprite, weapon level, or simulation state.",
+  "sourceMode": "OpenAI built-in image generation with flat #ff00ff chroma-key removal",
+  "terrains": [
+    {
+      "id": "desert",
+      "masterSheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/desert-ground-props-perspective-master-3x9.png",
+      "masterSize": [
+        768,
+        2304
+      ],
+      "props": [
+        {
+          "id": "sandstone-boulder-cluster",
+          "row": 0,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/sheets/desert-prop-01-sandstone-boulder-cluster-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "380fdd79d2ac8c69f2acb565471ec709c1cd55e96b1305949ffa54580a7679e1",
+            "overhead": "a3db41ea5f4c1428672983c1db1727c3ec548e6a93afbed953e2bd23845ff74e",
+            "behind": "7892aab966c093a025d2a8864fdae60c47a7ab662ce622f2f069dacdb2232fa4"
+          }
+        },
+        {
+          "id": "sandstone-rock-spire",
+          "row": 1,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/sheets/desert-prop-02-sandstone-rock-spire-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "32d164974cd93cc5b90b5e6b3f97926ab721af23c8d14477015beece3ec11e40",
+            "overhead": "5dcace443a149f867f35deed1f8bc68efb601c21cb8f424e6b16cec8afc657cf",
+            "behind": "9fef5a4107692c34c2e72ca5f79ea821f37411c86b8852ff02543e9070e25239"
+          }
+        },
+        {
+          "id": "cracked-sandstone-slab",
+          "row": 2,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/sheets/desert-prop-03-cracked-sandstone-slab-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "8017a7a37183d737db9ab01a2f10da1ec79bfa35891b1f98d83fa708218c928a",
+            "overhead": "1c73438dc9d792bc089e18cb5a4b672e5b9da2c0e37b16260b2c171269addcfb",
+            "behind": "a04546a61c15866438cea17fcc988518d87714258dbcb9386b9fa396ea01a943"
+          }
+        },
+        {
+          "id": "fossil-rib-cage",
+          "row": 3,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/sheets/desert-prop-04-fossil-rib-cage-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "a99a1b879c8e6815a94a91be213c0938e26f0e0918b5cdcb66e084617c0a9446",
+            "overhead": "b835dee19681db8545f5b33b33d1f4505a69216b9de8c7295a37a38df0b81794",
+            "behind": "e1104018f5a24726a96b6d75af4d1128ef58dd8ec6c7e8c7f138deec9009e8f3"
+          }
+        },
+        {
+          "id": "dry-thorn-bush",
+          "row": 4,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/sheets/desert-prop-05-dry-thorn-bush-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "29ae00f4421d9856d6d272a558d3c12c928455bdb6035ebe90088c0e4d3a4530",
+            "overhead": "503aebba1a8862f87ae4237637ef6b5a86cccd58bedd523c5831cc2e75f07cf2",
+            "behind": "7ef026442951fd18e4c0a67241171205d58584f4cedc7eac473572d2a2ea9a86"
+          }
+        },
+        {
+          "id": "desert-research-beacon",
+          "row": 5,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/sheets/desert-prop-06-desert-research-beacon-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "315018c562af5baefc84013fa7479b2f44e6fc09c206c6465051abb819f8b52f",
+            "overhead": "69397bef39609515c80e3c46120e31dd77e89edc9d9e9f562cb46935c82584c4",
+            "behind": "8fbf056dccc460a9ad7274cab98ce11b6127282f0eb4a9c9aff28fd9a64325e7"
+          }
+        },
+        {
+          "id": "broken-desert-pipeline",
+          "row": 6,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/sheets/desert-prop-07-broken-desert-pipeline-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "a9f909efad7d6b8a58f1953fdb31615174574537fea7f8626fce3a586fd87d90",
+            "overhead": "5b440f2466caaef63a032395eddc4dc1897825b4c4a24fe7bf92db31ec458941",
+            "behind": "ca2c5f49bda8f4b5b44e5476b99e1f61f6af8f2b4c0c6675428e28b8e822ebe2"
+          }
+        },
+        {
+          "id": "amber-crystal-cluster",
+          "row": 7,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/sheets/desert-prop-08-amber-crystal-cluster-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "13cf6aeb6a0d8193a164981e5bbd709f3b89ab35866ca7ab641b093ce4837ec1",
+            "overhead": "79b37c8a17e0bf2fd8b3a66d0f80a3d1cef35cf325d3bf8fa57d57803b8d59a1",
+            "behind": "ec75c41ba01de383689b8be3200b99b0de5fa6137002eb1a5728f435abca64a4"
+          }
+        },
+        {
+          "id": "dust-impact-crater",
+          "row": 8,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/sheets/desert-prop-09-dust-impact-crater-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "a5b53d1ac3bd9b417e6e103724317e7ff2c1504c79777af568959da653afb84d",
+            "overhead": "1fbcfaf627b23a8686d689df51c635c5de7597404d03660154f08cd8aa5ff2ef",
+            "behind": "e749a3f9295ffbdcf7d520665d8e8c226e4c4c213bf54b0b98c73a2e4c7c050d"
+          }
+        }
+      ]
+    },
+    {
+      "id": "river",
+      "masterSheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/river-ground-props-perspective-master-3x9.png",
+      "masterSize": [
+        768,
+        2304
+      ],
+      "props": [
+        {
+          "id": "mossy-river-boulders",
+          "row": 0,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/sheets/river-prop-01-mossy-river-boulders-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "bdc7449fc39601152ff5c7933aea108536322dbedd943a9f8e01d088eebd5248",
+            "overhead": "118e252f7a9555482e3f5cf7ebf08fc2ab8ef2d2604e54dc64ff1ff2e71cf513",
+            "behind": "eb9249ad21bc53a6a5e18370921bc0d4ce50beea047c071ba047220c9c197a5d"
+          }
+        },
+        {
+          "id": "river-reed-clump",
+          "row": 1,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/sheets/river-prop-02-river-reed-clump-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "6a60176c0feb709069c6162b819fd3ff1e0fc957d3ab48311de1bfa4b18d6669",
+            "overhead": "5bb343e902117b86ef5dfd3c083a2f80f3169a0f215dc617d248d1f067dda61a",
+            "behind": "f09564af6e1ac360dfd5cbcceddd2ba8487180c359fba9a7ab8fa5e0d10726a1"
+          }
+        },
+        {
+          "id": "river-lily-pads",
+          "row": 2,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/sheets/river-prop-03-river-lily-pads-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "44bd1cf49563d2eff5364980e500ff5b5d57b7e41b8ede6d4fc86eb8488dbcca",
+            "overhead": "6afd9669e43750e8abcf0a265b46664da276ce0c673f9ad620cf4e5c79f7837d",
+            "behind": "101b8bc0a46f485409d6de4649e1e36dc5093cd520526e8415891acd65a923a2"
+          }
+        },
+        {
+          "id": "mossy-fallen-log",
+          "row": 3,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/sheets/river-prop-04-mossy-fallen-log-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "1a5e2ad17de3c5674937ae96fc2f2b00a99a19b21e877049eb2bc0d93f447f74",
+            "overhead": "84bf25436bcd542f307aa6c12e8ea46d3a0caeac4b6352b7044f318ac9a94247",
+            "behind": "70d2bd5ccd6e0b70bcd902b9d9bd85dedcfb8aceb9f3c40097a7de115289a0ff"
+          }
+        },
+        {
+          "id": "river-stepping-stones",
+          "row": 4,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/sheets/river-prop-05-river-stepping-stones-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "b953d9c37764ac21d6d155220caa67cfa96c8f5b2fee2c80510d0564242e9160",
+            "overhead": "326c737b41e1e3109e5be75ce71f1bc2b8eceddeeb0af631e6b63807732ba17f",
+            "behind": "93cb25118661c4fda51e4eaa4d323521153028a37cb4f9db913196320028ae97"
+          }
+        },
+        {
+          "id": "river-research-buoy",
+          "row": 5,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/sheets/river-prop-06-river-research-buoy-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "ead4b2f12c0dd877457756bdb84965c0f361efaea1d8fe9c57e6645a9aab347a",
+            "overhead": "ee63155ccacd1a486d4b01414f96adcceb9dfd31bf4577290f8e0cd3c61b06a6",
+            "behind": "8130979ac5ac7c87eda07f5aa824cd48224ff2ef50a47b282d1cc0594c60eec6"
+          }
+        },
+        {
+          "id": "ancient-river-stone-ring",
+          "row": 6,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/sheets/river-prop-07-ancient-river-stone-ring-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "b4bf64a21653863ed63070f9f78dd747084b78253d7678ef8bb1314507b3aa8c",
+            "overhead": "a5742773d5becc088467b8d2548191b5bd931382c09e84696e9db124a125d5ef",
+            "behind": "516b6ed3b26a3d1191fdc1040a49f197e1110bf844c545637b1780c26a1f1ce9"
+          }
+        },
+        {
+          "id": "cyan-river-crystals",
+          "row": 7,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/sheets/river-prop-08-cyan-river-crystals-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "6592daec3be2f0270c63cbffc162dddcb0c1babcfda45f22d0e85d75edde0e51",
+            "overhead": "4bfd46b7dfbf9ae562eeccede23f81c3d6c27513291c3504127ea729e2e9718b",
+            "behind": "3a83b2a78e8e3a034e0c39d26b9dfc9958b051052bf49df1299e48c9fe2f3d08"
+          }
+        },
+        {
+          "id": "broken-mossy-arch",
+          "row": 8,
+          "sheet": "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/sheets/river-prop-09-broken-mossy-arch-perspective-sheet.png",
+          "frameHashes": {
+            "ahead": "fed3a1850c2e3c23fa086cbc2a58cabb875057b8a9e36cca8e16f3af6b89f678",
+            "overhead": "96d262f33ce26a23e4e339a584a1a8dbedbaae9db6b3064ec4ae315384b223a5",
+            "behind": "85a13975c946e24681a18495ed9dfcc2c6f8ef08e04c408d3868d821c58f04bd"
+          }
+        }
+      ]
+    }
+  ]
+}

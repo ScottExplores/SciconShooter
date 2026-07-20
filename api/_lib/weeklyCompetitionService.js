@@ -12,6 +12,8 @@ const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_lead
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
 const DEFAULT_ALLOCATION_RSC = 100;
 const CLAIM_WINDOW_MS = 72 * 60 * 60 * 1000;
+const LEADER_PROPOSAL_SELECT = 'name,score,wave,date,wallet_address,run_id,verified,proposal_id,proposal_title,proposal_url,proposal_author';
+const LEADER_PROPOSAL_IMAGE_SELECT = `${LEADER_PROPOSAL_SELECT},proposal_image_url`;
 const PILOT_TEST_WALLET = String(
   process.env.PILOT_TEST_WALLET || '0x3a8d692aabdd4981080a8f6af8375a21359464bf'
 ).toLowerCase();
@@ -52,16 +54,24 @@ const readWeeklyCompetitions = async (limit = 24) => {
 
 const readTopEligibleScore = async (weekKey) => {
   const { start, end } = getWeekRange(weekKey);
-  const query = [
-    'select=name,score,wave,date,wallet_address,run_id,verified,proposal_id,proposal_title,proposal_url,proposal_author',
+  const queryFor = (selectColumns) => [
+    `select=${selectColumns}`,
     'order=score.desc,date.asc',
     'limit=100',
     `date=gte.${encodeURIComponent(start.toISOString())}`,
     `date=lt.${encodeURIComponent(end.toISOString())}`
   ].join('&');
-  const rows = await fetchSupabaseJson(`${LEADERBOARD_TABLE}?${query}`, {
-    headers: supabaseHeaders()
-  });
+  let rows;
+  try {
+    rows = await fetchSupabaseJson(`${LEADERBOARD_TABLE}?${queryFor(LEADER_PROPOSAL_IMAGE_SELECT)}`, {
+      headers: supabaseHeaders()
+    });
+  } catch (error) {
+    if (!/proposal_image_url|schema cache/i.test(error?.message || '')) throw error;
+    rows = await fetchSupabaseJson(`${LEADERBOARD_TABLE}?${queryFor(LEADER_PROPOSAL_SELECT)}`, {
+      headers: supabaseHeaders()
+    });
+  }
   if (!Array.isArray(rows)) return null;
 
   // New submissions are server verified. Legacy leaderboard rows predate run
@@ -108,6 +118,7 @@ const buildCompetitionRow = ({ weekKey, start, end, winner, existing }) => {
     proposal_title: winner.proposal_title || null,
     proposal_url: winner.proposal_url || null,
     proposal_author: winner.proposal_author || null,
+    proposal_image_url: winner.proposal_image_url || null,
     allocation_rsc: allocationRsc,
     allocation_tx_hash: existing?.allocation_tx_hash || null,
     champion_token_id: existing?.champion_token_id || null,
@@ -116,11 +127,19 @@ const buildCompetitionRow = ({ weekKey, start, end, winner, existing }) => {
 };
 
 const saveCompetition = async (row) => {
-  const saved = await fetchSupabaseJson(`${COMPETITIONS_TABLE}?on_conflict=week_key`, {
+  const save = (value) => fetchSupabaseJson(`${COMPETITIONS_TABLE}?on_conflict=week_key`, {
     method: 'POST',
     headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates,return=representation' }),
-    body: JSON.stringify(row)
+    body: JSON.stringify(value)
   });
+  let saved;
+  try {
+    saved = await save(row);
+  } catch (error) {
+    if (!/proposal_image_url|schema cache/i.test(error?.message || '')) throw error;
+    const { proposal_image_url: _proposalImageUrl, ...compatibleRow } = row;
+    saved = await save(compatibleRow);
+  }
   return Array.isArray(saved) ? saved[0] : row;
 };
 

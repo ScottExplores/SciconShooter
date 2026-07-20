@@ -22,10 +22,14 @@ interface MissionRecordPreviewProps {
   mintStatus: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error';
   mintMessage?: string;
   onConnect: () => void;
+  onSwitchAccount: () => void;
+  onDisconnect: () => void;
   onGetBaseApp: () => void;
   onMint: () => void;
   weeklyFunding?: MissionRecordWeeklyFunding | null;
   onOpenWeeklyFunding?: () => void;
+  onRetryRun?: () => void;
+  onMainMenu?: () => void;
   onClose: () => void;
 }
 
@@ -50,10 +54,14 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   mintStatus,
   mintMessage,
   onConnect,
+  onSwitchAccount,
+  onDisconnect,
   onGetBaseApp,
   onMint,
   weeklyFunding = null,
   onOpenWeeklyFunding,
+  onRetryRun,
+  onMainMenu,
   onClose
 }) => {
   const [shareStatus, setShareStatus] = useState('');
@@ -121,7 +129,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/92 p-4 backdrop-blur-xl sm:items-center">
+    <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-slate-950/92 p-4 backdrop-blur-xl sm:items-center">
       <div className="relative w-full max-w-md overflow-hidden rounded-[8px] border border-cyan-200/35 bg-[#020817] shadow-[0_28px_100px_rgba(0,0,0,0.72),0_0_70px_rgba(34,211,238,0.12)]">
         <div className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(34,211,238,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.035)_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="relative border-b border-cyan-200/15 px-5 py-4">
@@ -226,7 +234,26 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
                     Get Base app
                   </button>
                 </div>
-              ) : null}
+              ) : (
+                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+                  <button
+                    type="button"
+                    onClick={onSwitchAccount}
+                    disabled={walletStatus === 'connecting'}
+                    className="min-h-10 rounded-[7px] border border-cyan-100/35 bg-cyan-300/15 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-50 transition hover:bg-cyan-300/25 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {walletStatus === 'connecting' ? 'Opening Base...' : 'Choose account'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onDisconnect}
+                    disabled={walletStatus === 'connecting'}
+                    className="min-h-10 rounded-[7px] border border-red-200/25 bg-red-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-red-100 transition hover:bg-red-500/20 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              )}
             </div>
           ) : null}
 
@@ -246,6 +273,31 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
               </div>
               {shareStatus || mintMessage ? <p className="mt-3 text-center text-[10px] font-semibold text-slate-400">{mintMessage || shareStatus}</p> : null}
             </>
+          ) : null}
+
+          {onRetryRun || onMainMenu ? (
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-cyan-100/15 pt-3">
+              {onRetryRun ? (
+                <button
+                  type="button"
+                  onClick={onRetryRun}
+                  className="group relative min-h-12 overflow-hidden rounded-[7px] text-xs font-black uppercase tracking-[0.12em] text-white transition active:scale-95"
+                >
+                  <img src="/game-art/generated/ui/scicon-ui-system-v2/base/mission-results/retry-button.png" alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-fill [image-rendering:pixelated] transition group-hover:brightness-125" />
+                  <span className="relative z-10 drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">Retry run</span>
+                </button>
+              ) : <span />}
+              {onMainMenu ? (
+                <button
+                  type="button"
+                  onClick={onMainMenu}
+                  className="group relative min-h-12 overflow-hidden rounded-[7px] text-xs font-black uppercase tracking-[0.12em] text-white transition active:scale-95"
+                >
+                  <img src="/game-art/generated/ui/scicon-ui-system-v2/base/mission-results/main-menu-button.png" alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-fill [image-rendering:pixelated] transition group-hover:brightness-125" />
+                  <span className="relative z-10 drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">Main menu</span>
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>

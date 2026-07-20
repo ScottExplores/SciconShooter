@@ -111,6 +111,7 @@ function Get-SimpleAssetCategory([string]$RelativePath, [string]$Extension) {
   $extensionLower = $Extension.ToLowerInvariant()
 
   if ($extensionLower -eq '.gif') { return 'All GIFs' }
+  if ($normalized -match 'scicon-simple-arcade-kit-v1') { return 'Simple Arcade Kit' }
   if ($normalized -match 'sprite.?sheet|spritesheets|sprite.?atlas|(^|/)[^/]*sheet[^/]*\.(png|jpg|jpeg|webp|bmp|svg)$') { return 'Sprite Sheets' }
   if ($normalized -match '(^|/)(ui|menus?|hud|dashboard|interface|buttons?|icons?)(/|$)' -or $normalized -match '^generated/ui/') { return 'UI & Menus' }
   if ($normalized -match 'background|backdrop|terrain|parallax|environment|tilemap|tile.?set|starfield|skybox') { return 'Backgrounds' }
@@ -121,6 +122,20 @@ function Get-SimpleAssetCategory([string]$RelativePath, [string]$Extension) {
   if ($normalized -match 'effects?|explosion|projectile|laser|bullet|missile|weapon|thrust|smoke|impact|muzzle|beam|props?|objects?|decoration') { return 'Props & Effects' }
   if ($normalized -match 'characters?|player|humans?|soldiers?|heroes?|portraits?|founders?|robots?|knights?|warriors?') { return 'Characters' }
   return 'Other'
+}
+
+function Get-SimpleAssetCategories([string]$RelativePath, [string]$Extension) {
+  $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  $categories = New-Object System.Collections.Generic.List[string]
+  $primary = Get-SimpleAssetCategory $RelativePath $Extension
+  $categories.Add($primary)
+  if ($normalized -match 'scicon-simple-arcade-kit-v1' -and -not $categories.Contains('Simple Arcade Kit')) {
+    $categories.Add('Simple Arcade Kit')
+  }
+  if ($normalized -match 'sprite.?sheet|spritesheets|sprite.?atlas|(^|/)[^/]*sheet[^/]*\.(png|jpg|jpeg|webp|bmp|svg)$' -and -not $categories.Contains('Sprite Sheets')) {
+    $categories.Add('Sprite Sheets')
+  }
+  return [string[]]$categories.ToArray()
 }
 
 function Get-ProjectAudioCategory([string]$RelativePath) {
@@ -234,6 +249,7 @@ for ($index = 0; $index -lt $categoryOrder.Count; $index += 1) {
 $simpleCategoryOrder = @(
   'All GIFs',
   'Sprite Sheets',
+  'Simple Arcade Kit',
   'Ships',
   'Bosses',
   'Enemies',
@@ -258,15 +274,18 @@ foreach ($file in $projectImageFiles) {
     $usageLocations = [string[]]@($assetUsageIndex[$usageKey] | Sort-Object)
   }
   $audioPreview = ''
+  $audioPreviewAbsolutePath = ''
   if ($relative -eq 'generated/ui/animations/victory-signet/previews/scicon-victory-signet-animation.gif') {
     $previewMixPath = Join-Path $ProjectAudioRoot 'ui\victory-signet\victory-signet-preview-mix.wav'
     if (Test-Path -LiteralPath $previewMixPath -PathType Leaf) {
       $audioPreview = Get-RelativeFileUrl $galleryRoot $previewMixPath
+      $audioPreviewAbsolutePath = $previewMixPath
     }
   }
   $assets.Add([pscustomobject][ordered]@{
     category = Get-ProjectCategory $relative
     simpleCategory = Get-SimpleAssetCategory $relative $file.Extension
+    simpleCategories = [string[]]@(Get-SimpleAssetCategories $relative $file.Extension)
     library = 'space'
     source = 'Scicon project'
     pack = Get-DirectoryLabel 'Scicon Shooter\public\game-art' $relative
@@ -276,6 +295,7 @@ foreach ($file in $projectImageFiles) {
     kind = $file.Extension.TrimStart('.').ToUpperInvariant()
     bytes = [int64]$file.Length
     audioPreview = $audioPreview
+    audioPreviewAbsolutePath = $audioPreviewAbsolutePath
     inGame = $usageLocations.Count -gt 0
     usageLocations = [string[]]$usageLocations
   })
@@ -286,6 +306,7 @@ foreach ($file in $legacyImageFiles) {
   $assets.Add([pscustomobject][ordered]@{
     category = Get-LegacyCategory $relative
     simpleCategory = Get-SimpleAssetCategory $relative $file.Extension
+    simpleCategories = [string[]]@(Get-SimpleAssetCategories $relative $file.Extension)
     library = Get-LegacyLibrary $relative
     source = 'Legacy Collection (CC0)'
     pack = Get-DirectoryLabel 'Legacy Collection' $relative
@@ -389,6 +410,12 @@ $controlsMarkup = @'
     <select id="category" aria-label="Simple asset category"></select>
     <div class="count" id="count"></div>
   </div>
+  <div class="selection-toolbar" id="selectionToolbar" hidden>
+    <strong id="selectionCount">0 selected</strong>
+    <button type="button" id="selectVisible">Select visible</button>
+    <button type="button" id="clearSelection">Clear</button>
+    <button type="button" class="bulk-delete" id="deleteSelected">Delete selected</button>
+  </div>
 </header>
 '@
 $updatedHtml = [System.Text.RegularExpressions.Regex]::Replace(
@@ -429,8 +456,10 @@ $updatedHtml = [System.Text.RegularExpressions.Regex]::Replace(
   $controlsCss.TrimEnd()
 )
 
-$updatedHtml = $updatedHtml.Replace('  .asset button { display:block;', '  .asset > button { display:block;')
-$updatedHtml = $updatedHtml.Replace('.asset button { height:128px; }', '.asset > button { height:128px; }')
+$updatedHtml = $updatedHtml.Replace('  .asset button { display:block;', '  .asset-preview { display:block;')
+$updatedHtml = $updatedHtml.Replace('  .asset > button { display:block;', '  .asset-preview { display:block;')
+$updatedHtml = $updatedHtml.Replace('.asset button { height:128px; }', '.asset-preview { height:128px; }')
+$updatedHtml = $updatedHtml.Replace('.asset > button { height:128px; }', '.asset-preview { height:128px; }')
 $updatedHtml = [System.Text.RegularExpressions.Regex]::Replace(
   $updatedHtml,
   '(?m)^  /\* Copy-path controls \*/\r?\n(?:.*\r?\n)*?^  /\* End copy-path controls \*/\r?\n?',
@@ -438,12 +467,33 @@ $updatedHtml = [System.Text.RegularExpressions.Regex]::Replace(
 )
 $copyPathCss = @'
   /* Copy-path controls */
-  .meta-actions { display:flex; align-items:flex-end; justify-content:space-between; gap:7px; margin-top:6px; }
+  .asset { position:relative; }
+  .asset.is-selected { border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan),0 0 18px rgba(57,211,255,.22); }
+  .asset-selector { position:absolute; top:7px; right:7px; z-index:3; display:grid; place-items:center; width:28px; height:28px; border:1px solid #507086; border-radius:6px; background:rgba(6,13,19,.9); box-shadow:0 2px 8px rgba(0,0,0,.55); cursor:pointer; }
+  .asset-selector:hover { border-color:var(--cyan); background:#102b3b; }
+  .asset-selector input { width:17px; height:17px; min-height:0; padding:0; margin:0; accent-color:#24caff; cursor:pointer; }
+  .asset-selector:has(input:focus-visible) { outline:2px solid var(--mint); outline-offset:2px; }
+  .meta-actions { display:flex; align-items:flex-end; justify-content:space-between; gap:7px; margin-top:4px; }
   .meta-tags { min-width:0; }
+  .meta-controls { display:flex; flex:0 0 auto; gap:5px; }
   .copy-path { flex:0 0 auto; min-height:28px; padding:5px 8px; border:1px solid #28769b; border-radius:5px; background:#102533; color:var(--cyan); font:700 10px/1 "Segoe UI",Arial,sans-serif; cursor:pointer; }
   .copy-path:hover { background:#153b50; border-color:var(--cyan); }
   .copy-path:focus-visible { outline:2px solid var(--mint); outline-offset:2px; }
   .copy-path.copied { border-color:#42c889; background:#123a2b; color:var(--mint); }
+  .delete-asset { flex:0 0 auto; min-height:28px; padding:5px 8px; border:1px solid #8c3340; border-radius:5px; background:#31141a; color:#ff9ba8; font:800 10px/1 "Segoe UI",Arial,sans-serif; cursor:pointer; }
+  .delete-asset:hover { background:#541a24; border-color:#ff5268; color:#ffd6db; }
+  .delete-asset:focus-visible { outline:2px solid #ff6a7c; outline-offset:2px; }
+  .delete-asset:disabled { opacity:.55; cursor:wait; }
+  .selection-toolbar { display:flex; align-items:center; justify-content:flex-end; gap:7px; margin-top:9px; padding:7px; border:1px solid #31556b; border-radius:7px; background:#0b151e; }
+  .selection-toolbar[hidden] { display:none; }
+  .selection-toolbar strong { margin-right:auto; color:var(--cyan); font-size:12px; }
+  .selection-toolbar button { min-height:32px; padding:6px 10px; border:1px solid #31556b; border-radius:5px; background:#112532; color:#c7d7e1; font:750 11px/1 "Segoe UI",Arial,sans-serif; cursor:pointer; }
+  .selection-toolbar button:hover { border-color:var(--cyan); color:#fff; }
+  .selection-toolbar .bulk-delete { border-color:#9f3443; background:#43151d; color:#ffadb8; }
+  .selection-toolbar .bulk-delete:hover { border-color:#ff5268; background:#611c28; color:#fff; }
+  .selection-toolbar button:focus-visible { outline:2px solid var(--mint); outline-offset:2px; }
+  .gallery-toast { position:fixed; right:18px; bottom:18px; z-index:1000; max-width:min(420px,calc(100vw - 36px)); padding:11px 14px; border:1px solid #42c889; border-radius:7px; background:#10281f; color:#baf8d7; box-shadow:0 10px 30px rgba(0,0,0,.45); font:700 12px/1.4 "Segoe UI",Arial,sans-serif; }
+  .gallery-toast.error { border-color:#ff5268; background:#351319; color:#ffd2d8; }
   .audio-copy-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
   /* End copy-path controls */
 '@
@@ -514,14 +564,26 @@ const viewerAvStatus = document.querySelector('#viewerAvStatus');
 const replayAvPreview = document.querySelector('#replayAvPreview');
 const viewerTitle = document.querySelector('#viewerTitle');
 const viewerInfo = document.querySelector('#viewerInfo');
+const selectionToolbar = document.querySelector('#selectionToolbar');
+const selectionCount = document.querySelector('#selectionCount');
+const selectVisibleButton = document.querySelector('#selectVisible');
+const clearSelectionButton = document.querySelector('#clearSelection');
+const deleteSelectedButton = document.querySelector('#deleteSelected');
 let activeLibrary = 'space';
 let inGameOnly = false;
 let categories = [];
 let currentViewerItem = null;
-const assetUrl = value => encodeURI(value).replaceAll('#','%23');
+let renderedAssetPaths = [];
+const selectedAssetPaths = new Set();
+const interactiveGallery = location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname);
+const assetUrl = value => {
+  const item = typeof value === 'string' ? { path: value, absolutePath: '' } : value;
+  if (interactiveGallery && item.absolutePath) return `/api/file?path=${encodeURIComponent(item.absolutePath)}`;
+  return encodeURI(item.path).replaceAll('#','%23');
+};
 const humanBytes = value => value < 1024 ? `${value} B` : `${(value / 1024).toFixed(1)} KB`;
 const transparentPixel = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-const simpleCategoryOrder = ['All GIFs', 'Sprite Sheets', 'Ships', 'Bosses', 'Enemies', 'UI & Menus', 'Backgrounds', 'Props & Effects', 'Items & Power-Ups', 'Characters', 'Other'];
+const simpleCategoryOrder = ['All GIFs', 'Sprite Sheets', 'Simple Arcade Kit', 'Ships', 'Bosses', 'Enemies', 'UI & Menus', 'Backgrounds', 'Props & Effects', 'Items & Power-Ups', 'Characters', 'Other'];
 async function copyItemPath(item, button) {
   const value = item.absolutePath;
   const original = button.textContent;
@@ -548,11 +610,136 @@ async function copyItemPath(item, button) {
     button.classList.remove('copied');
   }, 1400);
 }
+function showGalleryToast(message, isError = false) {
+  document.querySelector('.gallery-toast')?.remove();
+  const toast = document.createElement('div');
+  toast.className = `gallery-toast${isError ? ' error' : ''}`;
+  toast.textContent = message;
+  document.body.append(toast);
+  window.setTimeout(() => toast.remove(), 4200);
+}
+function inGameDeleteWarning(item, usageLocations = item.usageLocations || []) {
+  const locations = usageLocations.length ? `\n\nUsed in:\n${usageLocations.join('\n')}` : '';
+  return `WARNING: ${item.name} is currently used by the game.${locations}\n\nDeleting it can create missing artwork in gameplay. Are you absolutely sure you want to move it to the Recycle Bin?`;
+}
+function bulkDeleteWarning(items) {
+  const usedItems = items.filter(item => item.inGame);
+  if (!usedItems.length) {
+    return `Delete ${items.length} selected ${items.length === 1 ? 'asset' : 'assets'}?\n\nThe files will be moved to the Windows Recycle Bin and removed from this gallery.`;
+  }
+  const usedDetails = usedItems.slice(0, 12).map(item => {
+    const locations = (item.usageLocations || []).slice(0, 3);
+    return `- ${item.name}${locations.length ? `\n  Used in: ${locations.join(' | ')}` : ''}`;
+  }).join('\n');
+  const remaining = usedItems.length > 12 ? `\n- ...and ${usedItems.length - 12} more used assets` : '';
+  return `WARNING: ${usedItems.length} of the ${items.length} selected assets ${usedItems.length === 1 ? 'is' : 'are'} currently used by the game.\n\n${usedDetails}${remaining}\n\nDeleting them can create missing artwork in gameplay. Are you absolutely sure you want to move all ${items.length} selected files to the Recycle Bin?`;
+}
+async function sendDeleteRequest(item, confirmInGame) {
+  return fetch('/api/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ absolutePath: item.absolutePath, confirmInGame }),
+  });
+}
+async function deleteGalleryItem(item, button) {
+  if (!interactiveGallery) {
+    window.alert('Real deletion is available from the desktop shortcut: Scicon Space Sprite Gallery. The direct file version is read-only for browser safety.');
+    return;
+  }
+
+  const approved = window.confirm(item.inGame
+    ? inGameDeleteWarning(item)
+    : `Delete ${item.name}?\n\nThe file will be moved to the Windows Recycle Bin and removed from this gallery.`);
+  if (!approved) return;
+
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Deleting...';
+  try {
+    let response = await sendDeleteRequest(item, item.inGame === true);
+    let result = await response.json();
+    if (response.status === 409 && result.requiresConfirmation) {
+      const confirmed = window.confirm(inGameDeleteWarning(item, result.usageLocations || []));
+      if (!confirmed) return;
+      response = await sendDeleteRequest(item, true);
+      result = await response.json();
+    }
+    if (!response.ok) throw new Error(result.error || 'Delete failed.');
+
+    const index = assets.findIndex(candidate => candidate.absolutePath === item.absolutePath);
+    if (index >= 0) assets.splice(index, 1);
+    if (currentViewerItem?.absolutePath === item.absolutePath) viewer.close();
+    updateCategories();
+    render();
+    showGalleryToast(`${item.name} was moved to the Recycle Bin.`);
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = original;
+    showGalleryToast(error instanceof Error ? error.message : String(error), true);
+  }
+}
+function updateSelectionToolbar() {
+  for (const value of [...selectedAssetPaths]) {
+    if (!assets.some(item => item.absolutePath === value)) selectedAssetPaths.delete(value);
+  }
+  selectionToolbar.hidden = selectedAssetPaths.size === 0;
+  selectionCount.textContent = `${selectedAssetPaths.size} selected`;
+}
+async function deleteSelectedGalleryItems() {
+  const items = assets.filter(item => selectedAssetPaths.has(item.absolutePath));
+  if (!items.length) return;
+  if (!interactiveGallery) {
+    window.alert('Real deletion is available from the desktop shortcut: Scicon Space Sprite Gallery. The direct file version is read-only for browser safety.');
+    return;
+  }
+  if (!window.confirm(bulkDeleteWarning(items))) return;
+
+  const original = deleteSelectedButton.textContent;
+  deleteSelectedButton.disabled = true;
+  deleteSelectedButton.textContent = `Deleting 0/${items.length}...`;
+  const removedPaths = new Set();
+  const failures = [];
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    deleteSelectedButton.textContent = `Deleting ${index + 1}/${items.length}...`;
+    try {
+      let response = await sendDeleteRequest(item, item.inGame === true);
+      let result = await response.json();
+      if (response.status === 409 && result.requiresConfirmation) {
+        const confirmed = window.confirm(inGameDeleteWarning(item, result.usageLocations || []));
+        if (!confirmed) {
+          failures.push(`${item.name}: skipped`);
+          continue;
+        }
+        response = await sendDeleteRequest(item, true);
+        result = await response.json();
+      }
+      if (!response.ok) throw new Error(result.error || 'Delete failed.');
+      removedPaths.add(item.absolutePath);
+      selectedAssetPaths.delete(item.absolutePath);
+      if (currentViewerItem?.absolutePath === item.absolutePath) viewer.close();
+    } catch (error) {
+      failures.push(`${item.name}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  for (let index = assets.length - 1; index >= 0; index -= 1) {
+    if (removedPaths.has(assets[index].absolutePath)) assets.splice(index, 1);
+  }
+  deleteSelectedButton.disabled = false;
+  deleteSelectedButton.textContent = original;
+  updateCategories();
+  render();
+  if (failures.length) {
+    showGalleryToast(`${removedPaths.size} moved to the Recycle Bin. ${failures.length} could not be deleted.`, true);
+  } else {
+    showGalleryToast(`${removedPaths.size} selected ${removedPaths.size === 1 ? 'asset was' : 'assets were'} moved to the Recycle Bin.`);
+  }
+}
 const isInActiveLibrary = item => item.library === activeLibrary;
 const isInCurrentView = item => isInActiveLibrary(item) && (!inGameOnly || item.inGame);
 function updateCategories() {
   const previous = category.value;
-  const available = new Set(assets.filter(isInCurrentView).map(item => item.simpleCategory));
+  const available = new Set(assets.filter(isInCurrentView).flatMap(item => item.simpleCategories || [item.simpleCategory]));
   categories = simpleCategoryOrder.filter(value => available.has(value));
   category.innerHTML = '<option value="">All simple categories</option>' + categories.map(value => `<option>${value}</option>`).join('');
   category.value = categories.includes(previous) ? previous : '';
@@ -565,7 +752,7 @@ function loadViewerImage(item, restart = false) {
   }
   viewerImage.alt = item.name;
   viewerImage.onload = () => { viewerInfo.textContent = `${item.path} | ${viewerImage.naturalWidth} x ${viewerImage.naturalHeight} | ${humanBytes(item.bytes)}`; };
-  viewerImage.src = assetUrl(item.path);
+  viewerImage.src = assetUrl(item);
 }
 async function playSynchronizedPreview() {
   if (!currentViewerItem?.audioPreview) return;
@@ -584,7 +771,7 @@ function openViewer(item) {
   viewerAudio.pause();
   viewerTitle.textContent = item.name;
   if (item.audioPreview) {
-    viewerAudio.src = assetUrl(item.audioPreview);
+    viewerAudio.src = assetUrl({ path: item.audioPreview, absolutePath: item.audioPreviewAbsolutePath || '' });
     viewerAudio.load();
     viewerAv.hidden = false;
   } else {
@@ -592,7 +779,8 @@ function openViewer(item) {
     viewerAudio.load();
     viewerAv.hidden = true;
   }
-  viewerInfo.textContent = item.path;
+  viewerInfo.textContent = '';
+  viewerInfo.hidden = true;
   viewer.showModal();
   if (item.audioPreview) void playSynchronizedPreview();
   else loadViewerImage(item);
@@ -607,14 +795,16 @@ function render() {
   const selected = category.value;
   const libraryAssets = assets.filter(isInActiveLibrary);
   const viewAssets = libraryAssets.filter(item => !inGameOnly || item.inGame);
-  const filtered = viewAssets.filter(item => (!selected || item.simpleCategory === selected) && (!needle || `${item.name} ${item.path} ${item.pack} ${item.simpleCategory} ${item.category} ${item.source} ${(item.usageLocations || []).join(' ')}`.toLowerCase().includes(needle)));
+  const filtered = viewAssets.filter(item => (!selected || (item.simpleCategories || [item.simpleCategory]).includes(selected)) && (!needle || `${item.name} ${item.path} ${item.pack} ${(item.simpleCategories || [item.simpleCategory]).join(' ')} ${item.category} ${item.source} ${(item.usageLocations || []).join(' ')}`.toLowerCase().includes(needle)));
+  renderedAssetPaths = filtered.map(item => item.absolutePath);
   const label = { space: 'Space Shooter', extras: 'Legacy Extras' }[activeLibrary];
   count.textContent = inGameOnly
     ? `${filtered.length} of ${viewAssets.length} in-game images`
     : `${filtered.length} of ${libraryAssets.length} ${label} images`;
   sections.innerHTML = '';
-  for (const group of categories) {
-    const items = filtered.filter(item => item.simpleCategory === group);
+  const renderGroups = selected ? [selected] : categories;
+  for (const group of renderGroups) {
+    const items = selected ? filtered : filtered.filter(item => item.simpleCategory === group);
     if (!items.length) continue;
     const section = document.createElement('section');
     const heading = document.createElement('h2');
@@ -624,26 +814,35 @@ function render() {
     for (const item of items) {
       const card = document.createElement('article');
       card.className = 'asset';
+      card.classList.toggle('is-selected', selectedAssetPaths.has(item.absolutePath));
+      const selector = document.createElement('label');
+      selector.className = 'asset-selector';
+      selector.title = `Select ${item.name}`;
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = selectedAssetPaths.has(item.absolutePath);
+      checkbox.setAttribute('aria-label', `Select ${item.name}`);
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) selectedAssetPaths.add(item.absolutePath);
+        else selectedAssetPaths.delete(item.absolutePath);
+        card.classList.toggle('is-selected', checkbox.checked);
+        updateSelectionToolbar();
+      });
+      selector.append(checkbox);
       const preview = document.createElement('button');
       preview.type = 'button';
+      preview.className = 'asset-preview';
       preview.title = `Preview ${item.name}`;
       const image = document.createElement('img');
       image.loading = 'lazy';
-      image.src = assetUrl(item.path);
+      image.src = assetUrl(item);
       image.alt = item.name;
       preview.append(image);
       preview.addEventListener('click', () => openViewer(item));
       const meta = document.createElement('div');
       meta.className = 'meta';
       const avBadge = item.audioPreview ? ' <span class="kind av-kind">&#128266; SOUND</span>' : '';
-      meta.innerHTML = `<div class="name" title="${item.name.replaceAll('"','&quot;')}">${item.name}</div><div class="path">${item.pack}</div>`;
-      if (item.inGame && item.usageLocations?.length) {
-        const usage = document.createElement('div');
-        usage.className = 'usage-reference';
-        usage.textContent = `Used in: ${item.usageLocations.slice(0, 3).join(' | ')}${item.usageLocations.length > 3 ? ` | +${item.usageLocations.length - 3} more` : ''}`;
-        usage.title = item.usageLocations.join('\n');
-        meta.append(usage);
-      }
+      meta.innerHTML = `<div class="name" title="${item.name.replaceAll('"','&quot;')}">${item.name}</div>`;
       const actions = document.createElement('div');
       actions.className = 'meta-actions';
       const tags = document.createElement('div');
@@ -657,15 +856,26 @@ function render() {
       copyButton.title = `Copy full file path for ${item.name}`;
       copyButton.setAttribute('aria-label', `Copy full file path for ${item.name}`);
       copyButton.addEventListener('click', () => void copyItemPath(item, copyButton));
-      actions.append(tags, copyButton);
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'delete-asset';
+      deleteButton.textContent = 'Delete';
+      deleteButton.title = item.inGame ? `Delete ${item.name} (used in game — confirmation required)` : `Delete ${item.name}`;
+      deleteButton.setAttribute('aria-label', `Delete ${item.name}`);
+      deleteButton.addEventListener('click', () => void deleteGalleryItem(item, deleteButton));
+      const controls = document.createElement('div');
+      controls.className = 'meta-controls';
+      controls.append(copyButton, deleteButton);
+      actions.append(tags, controls);
       meta.append(actions);
-      card.append(preview, meta);
+      card.append(selector, preview, meta);
       grid.append(card);
     }
     section.append(heading, grid);
     sections.append(section);
   }
   if (!filtered.length) sections.innerHTML = '<div class="empty">No matching assets in this view.</div>';
+  updateSelectionToolbar();
 }
 for (const button of libraryButtons) {
   button.addEventListener('click', () => {
@@ -689,6 +899,15 @@ inGameToggle.addEventListener('click', () => {
   updateCategories();
   render();
 });
+selectVisibleButton.addEventListener('click', () => {
+  for (const absolutePath of renderedAssetPaths) selectedAssetPaths.add(absolutePath);
+  render();
+});
+clearSelectionButton.addEventListener('click', () => {
+  selectedAssetPaths.clear();
+  render();
+});
+deleteSelectedButton.addEventListener('click', () => void deleteSelectedGalleryItems());
 updateCategories();
 '@
 $updatedHtml = [System.Text.RegularExpressions.Regex]::Replace(
@@ -717,7 +936,7 @@ for (const sound of sounds) {
   const player = document.createElement('audio');
   player.controls = true;
   player.preload = 'none';
-  player.src = assetUrl(sound.path);
+  player.src = assetUrl(sound);
   item.append(row, player);
   audioGrid.append(item);
 }

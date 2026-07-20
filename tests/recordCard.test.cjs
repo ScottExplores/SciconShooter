@@ -67,7 +67,7 @@ test('record card embeds encounter art and meaningful run values', async () => {
 
     await recordCardHandler({ method: 'GET', query: { runId, ship: 'btc' } }, res);
     assert.equal(res.statusCode, 200);
-    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/branding/btc-ship.svg')));
+    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-03-neutral.png')));
   } finally {
     global.fetch = originalFetch;
   }

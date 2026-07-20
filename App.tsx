@@ -29,6 +29,25 @@ import {
 import type { WaveVictorySummary } from './services/gameLogic';
 import PauseMenu from './components/PauseMenu';
 import GameOverPresentation from './components/GameOverPresentation';
+import { WalletControl } from './components/WalletControl';
+import {
+  applySquadRunResult,
+  buildRuntimeSquadLoadout,
+  emitSquadDomainEvent,
+  equipMiniShip,
+  loadWeeklySquadState,
+  preloadMiniShipTextures,
+  purchaseMiniShip,
+  saveWeeklySquadState,
+  unlockSquadSlot,
+  upgradeMainShip,
+  upgradeMiniShip,
+  type MainShipUpgradeId,
+  type MiniShipId,
+  type RuntimeSquadLoadout,
+  type SquadSlotId,
+  type WeeklySquadState
+} from './services/squadProgression';
 
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
 const loadGameStage = () => import('./components/GameStage');
@@ -57,6 +76,7 @@ type ActiveRunMode = 'standard' | 'owner-test';
 
 const OWNER_TEST_FLASK_COUNT = 40;
 const OWNER_TEST_FLASK_CHARGE = getChargeForStoredFlasks(OWNER_TEST_FLASK_COUNT);
+const PROPOSAL_REFRESH_MS = 5 * 60 * 1000;
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
   cancelIdleCallback?: (handle: number) => void;
@@ -139,91 +159,6 @@ const defaultPowerupUses: Record<PowerupType, number> = {
   [PowerupType.RESEARCH_BEAM]: 0
 };
 
-interface WalletControlProps {
-  wallet: WalletSession;
-  onConnect: () => void;
-  onDisconnect: () => void;
-  onOpenSwap: () => void;
-  placement?: 'floating' | 'mission';
-}
-
-const WalletControl: React.FC<WalletControlProps> = ({
-  wallet,
-  onConnect,
-  onDisconnect,
-  onOpenSwap,
-  placement = 'mission'
-}) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const wrapperClassName = placement === 'mission'
-    ? 'relative z-30 inline-flex justify-center font-mono text-white'
-    : 'absolute right-3 top-3 z-50 font-mono text-white';
-  const walletMenuClassName = placement === 'mission'
-    ? 'absolute left-1/2 top-full mt-2 w-[224px] -translate-x-1/2 overflow-hidden rounded-[20px] border border-cyan-200/22 bg-[#06111f]/96 text-cyan-50 shadow-[0_22px_70px_rgba(0,0,0,0.55),0_0_36px_rgba(34,211,238,0.14)] backdrop-blur-xl'
-    : 'absolute right-0 mt-2 w-[224px] overflow-hidden rounded-[20px] border border-cyan-200/22 bg-[#06111f]/96 text-cyan-50 shadow-[0_22px_70px_rgba(0,0,0,0.55),0_0_36px_rgba(34,211,238,0.14)] backdrop-blur-xl';
-  const isConnected = Boolean(wallet.address);
-  const label = isConnected
-    ? `${wallet.address!.slice(0, 6)}...${wallet.address!.slice(-4)}`
-    : wallet.status === 'connecting'
-      ? 'Loading'
-      : 'Connect';
-
-  return (
-    <div className={wrapperClassName}>
-      <button
-        type="button"
-        onClick={() => {
-          if (!isConnected) {
-            onConnect();
-            return;
-          }
-          setIsMenuOpen((current) => !current);
-        }}
-        className="rounded-full border border-cyan-300/40 bg-black/75 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.18)] backdrop-blur-md transition hover:border-cyan-100 disabled:cursor-wait disabled:opacity-70"
-        disabled={wallet.status === 'connecting'}
-        aria-expanded={isConnected ? isMenuOpen : undefined}
-      >
-        {label}
-      </button>
-
-      {isMenuOpen && isConnected ? (
-        <div className={walletMenuClassName}>
-          <div className="border-b border-cyan-200/14 p-3">
-            <div className="truncate text-sm font-black text-white">{label}</div>
-            <div className="mt-0.5 truncate text-[10px] uppercase tracking-[0.14em] text-cyan-200/70">{wallet.connectorName || 'Base wallet'}</div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setIsMenuOpen(false);
-              onOpenSwap();
-            }}
-            className="block w-full px-3.5 py-3 text-left text-sm font-bold text-cyan-50 transition hover:bg-cyan-300/10"
-          >
-            Swap for RSC
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsMenuOpen(false);
-              onDisconnect();
-            }}
-            className="block w-full border-t border-cyan-200/12 px-3.5 py-3 text-left text-sm font-black text-red-200 transition hover:bg-red-500/10"
-          >
-            Sign out
-          </button>
-        </div>
-      ) : null}
-
-      {wallet.error ? (
-        <div className="absolute left-1/2 top-full mt-2 w-56 -translate-x-1/2 rounded-2xl border border-red-300/25 bg-black/90 p-3 text-[10px] leading-relaxed text-red-100 shadow-xl">
-          {wallet.error}
-        </div>
-      ) : null}
-    </div>
-  );
-};
-
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [gameId, setGameId] = useState<number>(0);
@@ -236,6 +171,9 @@ const App: React.FC = () => {
   const [selectedShipId, setSelectedShipId] = useState<PlayerShipId>(() => (
     parsePlayerShipId(localStorage.getItem(STORAGE_KEYS.SELECTED_SHIP))
   ));
+  const [weeklySquadState, setWeeklySquadState] = useState<WeeklySquadState>(() => (
+    loadWeeklySquadState(null)
+  ));
   const [fundingProposals, setFundingProposals] = useState<ResearchHubProposal[]>([]);
   const [proposalStatus, setProposalStatus] = useState<ProposalFeedStatus>('loading');
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
@@ -246,7 +184,9 @@ const App: React.FC = () => {
   const [scoreSubmitError, setScoreSubmitError] = useState<string>('');
   const [showLabGlow, setShowLabGlow] = useState<boolean>(true);
   const [walletError, setWalletError] = useState<string>('');
-  const [walletRuntimeEnabled, setWalletRuntimeEnabled] = useState(false);
+  const [walletRuntimeEnabled, setWalletRuntimeEnabled] = useState(() => (
+    Boolean(localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS))
+  ));
   const [walletRuntimeAction, setWalletRuntimeAction] = useState<WalletRuntimeAction | null>(null);
   const [walletSession, setWalletSession] = useState<WalletSession>({
     address: null,
@@ -262,6 +202,7 @@ const App: React.FC = () => {
   const [continuesUsed, setContinuesUsed] = useState(0);
   const [activeStoryBeat, setActiveStoryBeat] = useState<StoryBeat | null>(null);
   const [bombCommand, setBombCommand] = useState<{ nonce: number } | null>(null);
+  const [shipAbilityCommand, setShipAbilityCommand] = useState<{ nonce: number } | null>(null);
   const [continueCommand, setContinueCommand] = useState<{ nonce: number; lives: number } | null>(null);
   const [waveContinueCommand, setWaveContinueCommand] = useState<{ nonce: number } | null>(null);
   const [waveVictorySummary, setWaveVictorySummary] = useState<WaveVictorySummary | null>(null);
@@ -290,7 +231,13 @@ const App: React.FC = () => {
   const activeRunShipIdRef = useRef<PlayerShipId>('researchhub');
   const runReceiptPromiseRef = useRef<Promise<RunReceipt> | null>(null);
   const finalizedRunGameIdRef = useRef<number | null>(null);
+  const squadRunAppliedGameIdRef = useRef<number | null>(null);
+  const activeRunSquadLoadoutRef = useRef<RuntimeSquadLoadout>(
+    buildRuntimeSquadLoadout(weeklySquadState)
+  );
   const walletActionNonceRef = useRef(0);
+  const walletProfileAddressRef = useRef<string | null>(null);
+  const hasLoadedWalletProfileRef = useRef(walletRuntimeEnabled);
   const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
   const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
   const [showMissionRecordPreview, setShowMissionRecordPreview] = useState(false);
@@ -342,12 +289,20 @@ const App: React.FC = () => {
 
   const wallet = useMemo<WalletSession>(() => {
     const address = walletSession.address ?? null;
-    const isWalletBusy = walletRuntimeAction?.type === 'connect' || walletRuntimeAction?.type === 'continue';
+    const isWalletBusy = walletRuntimeAction?.type === 'connect'
+      || walletRuntimeAction?.type === 'switch-account'
+      || walletRuntimeAction?.type === 'continue';
 
     return {
       ...walletSession,
       address,
-      status: address ? 'connected' : isWalletBusy ? 'connecting' : walletError ? 'error' : walletSession.status,
+      status: isWalletBusy || walletSession.status === 'connecting'
+        ? 'connecting'
+        : address
+          ? 'connected'
+          : walletError
+            ? 'error'
+            : walletSession.status,
       error: walletError,
       hasDonated: address ? Boolean(donatedWallets[address.toLowerCase()]) : false
     };
@@ -368,6 +323,43 @@ const App: React.FC = () => {
   );
   const usableShipId = getUsablePlayerShip(selectedShipId, shipUnlocks);
   const playerShipUrl = PLAYER_SHIPS[usableShipId].assetUrl;
+
+  const updateWeeklySquadState = useCallback((
+    update: (current: WeeklySquadState) => WeeklySquadState
+  ) => {
+    setWeeklySquadState((current) => {
+      const next = update(current);
+      if (next !== current) saveWeeklySquadState(next);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const next = loadWeeklySquadState(activeWalletAddress);
+    setWeeklySquadState(next);
+    activeRunSquadLoadoutRef.current = buildRuntimeSquadLoadout(next);
+    preloadMiniShipTextures();
+  }, [activeWalletAddress]);
+
+  const handleUnlockSquadSlot = useCallback((slot: SquadSlotId) => {
+    updateWeeklySquadState((current) => unlockSquadSlot(current, slot));
+  }, [updateWeeklySquadState]);
+
+  const handlePurchaseMiniShip = useCallback((id: MiniShipId) => {
+    updateWeeklySquadState((current) => purchaseMiniShip(current, id));
+  }, [updateWeeklySquadState]);
+
+  const handleUpgradeMiniShip = useCallback((id: MiniShipId) => {
+    updateWeeklySquadState((current) => upgradeMiniShip(current, id));
+  }, [updateWeeklySquadState]);
+
+  const handleEquipMiniShip = useCallback((slot: SquadSlotId, id: MiniShipId | null) => {
+    updateWeeklySquadState((current) => equipMiniShip(current, slot, id));
+  }, [updateWeeklySquadState]);
+
+  const handleUpgradeMainShip = useCallback((id: MainShipUpgradeId) => {
+    updateWeeklySquadState((current) => upgradeMainShip(current, id));
+  }, [updateWeeklySquadState]);
   const beginRunSession = useCallback((testRun: boolean) => {
     if (runSessionPromiseRef.current) return;
 
@@ -391,8 +383,15 @@ const App: React.FC = () => {
   );
 
   const readSavedStats = (walletAddress?: string | null) => {
-    const profileKey = getWalletProfileKey(walletAddress);
-    const savedStats = localStorage.getItem(profileKey) || (!walletAddress ? null : localStorage.getItem(STORAGE_KEYS.PLAYER_STATS));
+    if (!walletAddress) {
+      return {
+        highScore: parseInt(localStorage.getItem(STORAGE_KEYS.HIGH_SCORE) || '0'),
+        totalCoins: 0,
+        playerName: ''
+      };
+    }
+
+    const savedStats = localStorage.getItem(getWalletProfileKey(walletAddress));
 
     if (savedStats) {
       try {
@@ -403,7 +402,7 @@ const App: React.FC = () => {
     }
 
     return {
-      highScore: parseInt(localStorage.getItem(STORAGE_KEYS.HIGH_SCORE) || '0'),
+      highScore: 0,
       totalCoins: 0,
       playerName: ''
     };
@@ -460,16 +459,18 @@ const App: React.FC = () => {
     };
   }, [gameState, leaderboard.length]);
 
-  const refreshFundingProposals = useCallback(async () => {
-    setProposalStatus('loading');
+  const refreshFundingProposals = useCallback(async (background = false) => {
+    if (!background) setProposalStatus('loading');
     try {
       const nextProposals = await getResearchHubFundingProposals();
       setFundingProposals(nextProposals);
       setProposalStatus(nextProposals.length > 0 ? 'ready' : 'empty');
     } catch (error) {
       console.error('ResearchHub proposal feed failed:', error);
-      setFundingProposals([]);
-      setProposalStatus('error');
+      if (!background) {
+        setFundingProposals([]);
+        setProposalStatus('error');
+      }
     }
   }, []);
 
@@ -484,6 +485,16 @@ const App: React.FC = () => {
     return cancelDeferredFetch;
   }, [refreshFundingProposals]);
 
+  useEffect(() => {
+    if (gameState !== GameState.MENU) return undefined;
+
+    const refreshId = window.setInterval(() => {
+      void refreshFundingProposals(true);
+    }, PROPOSAL_REFRESH_MS);
+
+    return () => window.clearInterval(refreshId);
+  }, [gameState, refreshFundingProposals]);
+
   const getInitialStats = (): Stats => {
     const parsed = readSavedStats(activeWalletAddress);
 
@@ -497,6 +508,8 @@ const App: React.FC = () => {
       bombs: 2,
       bombCharge: 0,
       bombChargeMax: BASE_FLASK_CHARGE_MAX,
+      shipAbilityCooldown: 0,
+      shipAbilityCooldownMax: 16 * 60,
       lives: 3,
       repairsCount: 0,
       upgrades: { ...defaultMissionUpgrades },
@@ -518,9 +531,27 @@ const App: React.FC = () => {
       totalCoins: stats.totalCoins,
       playerName: playerNameInput
     };
-    localStorage.setItem(getWalletProfileKey(activeWalletAddress), JSON.stringify(statsToSave));
-    localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.highScore.toString());
+    const walletProfileAddress = walletProfileAddressRef.current;
+    const normalizedActiveWalletAddress = activeWalletAddress?.toLowerCase() || null;
+    if (walletProfileAddress && walletProfileAddress === normalizedActiveWalletAddress) {
+      localStorage.setItem(getWalletProfileKey(walletProfileAddress), JSON.stringify(statsToSave));
+    } else if (!walletProfileAddress && !normalizedActiveWalletAddress) {
+      localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.highScore.toString());
+    }
   }, [activeWalletAddress, playerNameInput, stats.highScore, stats.totalCoins]);
+
+  useEffect(() => {
+    if (activeWalletAddress) return;
+
+    walletProfileAddressRef.current = null;
+    if (gameState !== GameState.MENU) return;
+
+    setStats((current) => ({
+      ...current,
+      highScore: parseInt(localStorage.getItem(STORAGE_KEYS.HIGH_SCORE) || '0'),
+      totalCoins: 0
+    }));
+  }, [activeWalletAddress, gameState]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.POLISH_SETTINGS, JSON.stringify(polishSettings));
@@ -550,11 +581,30 @@ const App: React.FC = () => {
 
     localStorage.setItem(STORAGE_KEYS.WALLET_ADDRESS, activeWalletAddress);
     const savedStats = readSavedStats(activeWalletAddress);
+    const shouldMergeLocalProgress = !hasLoadedWalletProfileRef.current;
+    walletProfileAddressRef.current = activeWalletAddress.toLowerCase();
+    hasLoadedWalletProfileRef.current = true;
+    const nextWalletProfile = {
+      highScore: shouldMergeLocalProgress
+        ? Math.max(stats.highScore, savedStats.highScore || 0)
+        : savedStats.highScore || 0,
+      totalCoins: shouldMergeLocalProgress
+        ? Math.max(stats.totalCoins, savedStats.totalCoins || 0)
+        : savedStats.totalCoins || 0,
+      playerName: shouldMergeLocalProgress
+        ? playerNameInput || savedStats.playerName || ''
+        : savedStats.playerName || ''
+    };
+    localStorage.setItem(
+      getWalletProfileKey(activeWalletAddress),
+      JSON.stringify(nextWalletProfile)
+    );
     setStats(prev => ({
       ...prev,
-      highScore: Math.max(prev.highScore, savedStats.highScore || 0),
-      totalCoins: Math.max(prev.totalCoins, savedStats.totalCoins || 0)
+      highScore: nextWalletProfile.highScore,
+      totalCoins: nextWalletProfile.totalCoins
     }));
+    setPlayerNameInput(nextWalletProfile.playerName);
 
     setWalletRunsLoading(true);
     void Promise.all([
@@ -593,6 +643,13 @@ const App: React.FC = () => {
 
   const startGame = () => {
     const startInTestMode = isOwnerWallet;
+    const squadLoadout = buildRuntimeSquadLoadout(weeklySquadState);
+    const startingLives = Math.min(
+      GAME_CONFIG.MAX_LIVES,
+      3 + squadLoadout.upgrades.startingHearts
+    );
+    activeRunSquadLoadoutRef.current = squadLoadout;
+    squadRunAppliedGameIdRef.current = null;
     setMissionRecordPilotName(null);
     preloadGameplayComponents();
     audioService.init();
@@ -608,9 +665,15 @@ const App: React.FC = () => {
       bombs: 2,
       bombCharge: startInTestMode ? OWNER_TEST_FLASK_CHARGE : 0,
       bombChargeMax: BASE_FLASK_CHARGE_MAX,
-      lives: 3,
+      shipAbilityCooldown: 0,
+      shipAbilityCooldownMax: 16 * 60,
+      lives: startingLives,
       repairsCount: 0,
-      upgrades: { ...defaultMissionUpgrades },
+      upgrades: {
+        ...defaultMissionUpgrades,
+        fireRate: squadLoadout.upgrades.fireRate,
+        speed: squadLoadout.upgrades.speed
+      },
       powerupUses: { ...defaultPowerupUses },
       bossProgress: 0,
       isBossActive: false,
@@ -622,6 +685,7 @@ const App: React.FC = () => {
     setContinuePaymentError('');
     setContinuesUsed(0);
     setBombCommand(null);
+    setShipAbilityCommand(null);
     setContinueCommand(null);
     setWaveContinueCommand(null);
     setWaveVictorySummary(null);
@@ -656,6 +720,11 @@ const App: React.FC = () => {
     lastStoryWaveRef.current = 1;
     setGameState(GameState.PLAYING);
     trackEvent('mission_started');
+    emitSquadDomainEvent('run_started', {
+      profileId: squadLoadout.profileId,
+      weekKey: squadLoadout.weekKey,
+      companions: squadLoadout.companions.map((companion) => companion.id)
+    });
     introStoryTimeoutRef.current = window.setTimeout(() => {
       introStoryTimeoutRef.current = null;
       setIntroMissionLocked(false);
@@ -682,6 +751,14 @@ const App: React.FC = () => {
     runStartedAtRef.current = null;
     runSessionPromiseRef.current = null;
     setGameState(GameState.MENU);
+  };
+
+  const openSquadHangar = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', 'hangar');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    setShowMissionRecordPreview(false);
+    resetGame();
   };
 
   const toggleGameAudio = () => {
@@ -796,7 +873,7 @@ const App: React.FC = () => {
     setGameState(GameState.GAMEOVER);
   };
 
-  const requestWalletRuntimeAction = useCallback((type: 'connect' | 'disconnect' | 'continue') => {
+  const requestWalletRuntimeAction = useCallback((type: 'connect' | 'switch-account' | 'disconnect' | 'continue') => {
     setWalletRuntimeEnabled(true);
     walletActionNonceRef.current += 1;
     setWalletRuntimeAction({ type, nonce: walletActionNonceRef.current });
@@ -815,6 +892,10 @@ const App: React.FC = () => {
     requestWalletRuntimeAction('disconnect');
   }, [requestWalletRuntimeAction]);
 
+  const switchWallet = useCallback(() => {
+    requestWalletRuntimeAction('switch-account');
+  }, [requestWalletRuntimeAction]);
+
   const handleContinueWithRsc = useCallback(() => {
     if (isContinuePaymentBusy || runReceipt || runReceiptPromiseRef.current) return;
     requestWalletRuntimeAction('continue');
@@ -826,7 +907,7 @@ const App: React.FC = () => {
 
   const handleWalletRuntimeChange = useCallback((nextWallet: WalletSession) => {
     setWalletSession(nextWallet);
-    if (nextWallet.address) {
+    if (nextWallet.address && !nextWallet.error) {
       setWalletError('');
     }
   }, []);
@@ -920,6 +1001,14 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (gameState === GameState.GAMEOVER) {
+      if (activeWalletAddress && !isOwnerTestRun && squadRunAppliedGameIdRef.current !== gameId) {
+        squadRunAppliedGameIdRef.current = gameId;
+        updateWeeklySquadState((current) => applySquadRunResult(current, {
+          score: stats.score,
+          enemiesDefeated: stats.enemiesDefeated,
+          coinsCollected: stats.coins
+        }));
+      }
       const scoreKey = `${gameId}:${stats.score}:${stats.wave}`;
       if (submittedScoreKeysRef.current.has(scoreKey)) {
         setShowNameInput(false);
@@ -927,14 +1016,16 @@ const App: React.FC = () => {
       }
 
       if (!isOwnerTestRun && stats.score > stats.highScore) {
-        localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.score.toString());
+        if (!activeWalletAddress) {
+          localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.score.toString());
+        }
         setStats(s => ({ ...s, highScore: s.score }));
       }
 
       setScoreSubmitError('');
       setShowNameInput(true);
     }
-  }, [gameId, gameState, isOwnerTestRun, stats.score, stats.wave, stats.highScore]);
+  }, [activeWalletAddress, gameId, gameState, isOwnerTestRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updateWeeklySquadState]);
 
   const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
@@ -1023,6 +1114,12 @@ const App: React.FC = () => {
       submittedScoreKeysRef.current.add(scoreKey);
       setScoreSaved(true);
       trackEvent('score_submitted', { score, wave, integrity: verifiedReceipt.integrity });
+      emitSquadDomainEvent('score_submitted', {
+        profileId: weeklySquadState.profileId,
+        score,
+        wave,
+        runId: verifiedReceipt.runId
+      });
       if (activeWalletAddress) {
         setWalletRuns(current => [
           { pilotName: name, receipt: verifiedReceipt },
@@ -1096,6 +1193,10 @@ const App: React.FC = () => {
 
   const mintCurrentMissionRecord = () => {
     if (!runReceipt || runReceipt.integrity === 'local-unverified') return;
+    emitSquadDomainEvent('mint_started', {
+      profileId: weeklySquadState.profileId,
+      runId: runReceipt.runId
+    });
     setWalletRuntimeEnabled(true);
     walletActionNonceRef.current += 1;
     setWalletRuntimeAction({ nonce: walletActionNonceRef.current, type: 'mint-mission', receipt: runReceipt });
@@ -1109,6 +1210,10 @@ const App: React.FC = () => {
     setMissionMintStatus(status);
     setMissionMintMessage(message);
     if (status === 'confirmed') {
+      emitSquadDomainEvent('mint_confirmed', {
+        profileId: weeklySquadState.profileId,
+        runId: runReceipt?.runId || null
+      });
       trackEvent('mission_record_minted', {
         chain: missionRecordChainId === 8453 ? 'base' : 'base_sepolia'
       });
@@ -1364,10 +1469,12 @@ const App: React.FC = () => {
               onWaveVictory: showWaveVictory,
               isTransmissionOpen: introMissionLocked || Boolean(activeStoryBeat),
               bombCommand,
+              shipAbilityCommand,
               continueCommand,
               waveContinueCommand,
               polishSettings,
               playerShipUrl,
+              squadLoadout: activeRunSquadLoadoutRef.current,
               testMode: isOwnerTestRun,
               testWaveCommand,
               testBossCommand,
@@ -1392,6 +1499,13 @@ const App: React.FC = () => {
                 if (introMissionLocked || activeStoryBeat) return;
                 setBombCommand({ nonce: Date.now() });
               },
+              selectedShipId: usableShipId,
+              shipAbilityLocked: gameState !== GameState.PLAYING || ownerFrameFrozen || introMissionLocked || Boolean(activeStoryBeat),
+              onUseShipAbility: () => {
+                if (introMissionLocked || activeStoryBeat) return;
+                setShipAbilityCommand({ nonce: Date.now() });
+              },
+              fieldUpgradesEnabled: false,
               onUpgrade: handleFieldUpgrade
             } : false}
           />
@@ -1417,6 +1531,12 @@ const App: React.FC = () => {
           selectedShipId={usableShipId}
           shipUnlocks={shipUnlocks}
           onSelectShip={setSelectedShipId}
+          weeklySquadState={weeklySquadState}
+          onUnlockSquadSlot={handleUnlockSquadSlot}
+          onPurchaseMiniShip={handlePurchaseMiniShip}
+          onUpgradeMiniShip={handleUpgradeMiniShip}
+          onEquipMiniShip={handleEquipMiniShip}
+          onUpgradeMainShip={handleUpgradeMainShip}
           isLoading={loadingLeaderboard}
           proposals={fundingProposals}
           proposalStatus={proposalStatus}
@@ -1436,6 +1556,7 @@ const App: React.FC = () => {
             <WalletControl
               wallet={wallet}
               onConnect={connectWallet}
+              onSwitchAccount={switchWallet}
               onDisconnect={disconnectWallet}
               onOpenSwap={openRscSwap}
               placement="mission"
@@ -1458,6 +1579,12 @@ const App: React.FC = () => {
             selectedShipId={usableShipId}
             shipUnlocks={shipUnlocks}
             onSelectShip={setSelectedShipId}
+            weeklySquadState={weeklySquadState}
+            onUnlockSquadSlot={handleUnlockSquadSlot}
+            onPurchaseMiniShip={handlePurchaseMiniShip}
+            onUpgradeMiniShip={handleUpgradeMiniShip}
+            onEquipMiniShip={handleEquipMiniShip}
+            onUpgradeMainShip={handleUpgradeMainShip}
             isLoading={loadingLeaderboard}
             proposals={fundingProposals}
             proposalStatus={proposalStatus}
@@ -1605,8 +1732,9 @@ const App: React.FC = () => {
                         Global score saved
                       </p>
                     ) : null}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <button onClick={startGame} className="scicon-btn py-3 text-sm font-bold">RETRY</button>
+                      <button onClick={openSquadHangar} className="scicon-btn py-3 text-[10px] font-bold">HANGAR</button>
                       <button onClick={() => setGameState(GameState.MENU)} className="scicon-btn scicon-btn-secondary py-3 text-xs font-bold text-gray-300">MAIN MENU</button>
                     </div>
                   </div>
@@ -1710,10 +1838,17 @@ const App: React.FC = () => {
             mintStatus={missionMintStatus}
             mintMessage={missionMintMessage}
             onConnect={connectWallet}
+            onSwitchAccount={switchWallet}
+            onDisconnect={disconnectWallet}
             onGetBaseApp={openBaseAppInvite}
             onMint={mintCurrentMissionRecord}
             weeklyFunding={missionRecordWeeklyFunding}
             onOpenWeeklyFunding={openMissionRecordWeeklyFunding}
+            onRetryRun={startGame}
+            onMainMenu={() => {
+              setShowMissionRecordPreview(false);
+              resetGame();
+            }}
             onClose={() => setShowMissionRecordPreview(false)}
           />
         </React.Suspense>

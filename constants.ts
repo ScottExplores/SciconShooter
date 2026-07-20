@@ -5,7 +5,7 @@ export const ASSETS = {
   PLAYER_SHIP: "/game-art/branding/researchhub-ship.png",
   BIO_SHIP: "/game-art/branding/bio-ship.png",
   ETH_SHIP: "/game-art/branding/eth-ship.png",
-  BTC_SHIP: "/game-art/branding/btc-ship.svg",
+  BTC_SHIP: "/game-art/generated/scicon-flight-motion-pack-v1/ships/btc-token-ship/frames/btc-token-ship-03-neutral.png",
   
   // Founder Icons - Mapped to Powerups
   // Triple Shot (Brian)
@@ -23,11 +23,61 @@ export const ASSETS = {
   // Extra Life (Arshia)
   FOUNDER_ARSHIA: "/game-art/founders/arshia.jpg",
 
-  // Coin Asset - Updated to Gold2 SVG
-  RSC_TOKEN: "/game-art/tokens/rsc-coin.svg",
+  // Pixel RSC coin: static face for UI plus upright yaw-flip frames for gameplay.
+  RSC_TOKEN: "/game-art/tokens/rsc-coin-pixel.png",
+  RSC_TOKEN_FLIP_FRAMES: [
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-01-000deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-02-030deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-03-060deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-04-090deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-05-120deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-06-150deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-07-180deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-08-210deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-09-240deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-10-270deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-11-300deg.png",
+    "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-12-330deg.png"
+  ],
 
   // Real RSC Token (Clean Bottle)
   REAL_RSC_ICON: "/game-art/tokens/rsc-bottle.png",
+  POWERUP_OVERDRIVE_SPREAD: "/game-art/powerups/overdrive-spread.png",
+  POWERUP_OVERDRIVE_SPREAD_FRAMES: [
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-01-rest.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-02-core-rise.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-03-energy-pulse.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-04-peak-glint.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-05-rim-travel.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-06-settle.png"
+  ],
+  POWERUP_MAGNET: "/game-art/powerups/magnet.png",
+  POWERUP_MAGNET_FRAMES: [
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-01-rest.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-02-core-rise.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-03-energy-pulse.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-04-peak-glint.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-05-rim-travel.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-06-settle.png"
+  ],
+  POWERUP_SHIELD: "/game-art/powerups/shield.png",
+  POWERUP_SHIELD_FRAMES: [
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-01-rest.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-02-core-rise.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-03-energy-pulse.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-04-peak-glint.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-05-rim-travel.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/shield/frames/shield-06-settle.png"
+  ],
+  POWERUP_RESEARCH_BEAM: "/game-art/powerups/research-beam.png",
+  POWERUP_RESEARCH_BEAM_FRAMES: [
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-01-rest.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-02-core-rise.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-03-energy-pulse.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-04-peak-glint.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-05-rim-travel.png",
+    "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/research-beam/frames/research-beam-06-settle.png"
+  ],
   
   MENU_HERO: "/game-art/backgrounds/menu-hero.png",
   GAME_BG_BACK: "/game-art/backgrounds/bg-back.png",
@@ -46,8 +96,10 @@ export const ASSETS = {
   PIXI_TERRAIN_SPACE_PROPS: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/space/props/space-props-atlas-3x3.png",
   PIXI_TERRAIN_DESERT_MASTER: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/backgrounds/desert-round-master-512x4096.png",
   PIXI_TERRAIN_DESERT_PROPS: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/desert/props/desert-props-atlas-3x3.png",
+  PIXI_TERRAIN_DESERT_PROP_PERSPECTIVES: "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/desert/desert-ground-props-perspective-master-3x9.png",
   PIXI_TERRAIN_RIVER_MASTER: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/backgrounds/river-round-master-512x4096.png",
   PIXI_TERRAIN_RIVER_PROPS: "/game-art/generated/backgrounds/scicon-parallax-terrain-pack-v1/river/props/river-props-atlas-3x3.png",
+  PIXI_TERRAIN_RIVER_PROP_PERSPECTIVES: "/game-art/generated/backgrounds/scicon-ground-prop-perspective-v1/river/river-ground-props-perspective-master-3x9.png",
   PIXI_THRUSTER_FRAMES: [
     "/game-art/pixi/effects/thruster/frame-1.png",
     "/game-art/pixi/effects/thruster/frame-2.png",
@@ -58,7 +110,7 @@ export const ASSETS = {
     "/game-art/generated/ui/scicon-interface-pack-v1/animations/floating-window/parts/flame-medium.png",
     "/game-art/generated/ui/scicon-interface-pack-v1/animations/floating-window/parts/flame-long.png"
   ],
-  PIXI_BOSS_HEALTH_FRAME: "/game-art/generated/ui/scicon-compact-top-hud-v1/frames/boss-integrity-frame.png",
+  PIXI_BOSS_HEALTH_FRAME: "/game-art/generated/ui/scicon-ui-system-v2/base/hud-primary/boss-integrity-bar.png",
   PIXI_BOSS_ALERT_FRAME: "/game-art/generated/ui/animations/boss-alert-banners-v1/frames/boss-incoming-alert-frame.png",
   PIXI_MINI_BOSS_ALERT_FRAME: "/game-art/generated/ui/animations/boss-alert-banners-v1/frames/mini-boss-alert-frame.png",
   PIXI_BOSS_ALERT_RING: "/game-art/generated/ui/animations/boss-alert-banners-v1/effects/warning-ring-red.png",
@@ -288,7 +340,7 @@ export const FIELD_UPGRADE_CONFIG: Record<FieldUpgradeType, {
   fireRate: {
     title: 'Rapid Fire',
     shortTitle: 'Rapid',
-    description: 'Faster shots that evolve into plasma, ion, Nova, and Singularity fire',
+    description: 'Fire the primary weapon more frequently',
     baseCost: 8,
     costStep: 6,
     maxLevel: 7

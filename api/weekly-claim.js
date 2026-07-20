@@ -3,10 +3,15 @@ const { fetchSupabaseJson, supabaseHeaders } = require('./_lib/supabase');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
 const { sendBaseNotificationBroadcast } = require('./_lib/baseNotifications');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
+const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 
 const COMPETITIONS_TABLE = process.env.SUPABASE_WEEKLY_COMPETITIONS_TABLE || 'scicon_weekly_competitions';
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const NONCES_TABLE = process.env.SUPABASE_WALLET_NONCES_TABLE || 'scicon_wallet_nonces';
+
+const findCurrentWeekEligibleProposal = (proposalId) => findEligibleProposal(proposalId, {
+  requiredOpenUntil: getCurrentWeekRange().end
+});
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
@@ -49,7 +54,7 @@ const assertWinnerWallet = async (competition, address) => {
 const createChallenge = async ({ weekKey, proposalId, address }) => {
   const wallet = normalizeAddress(address);
   if (!wallet) throw Object.assign(new Error('A valid Base wallet is required.'), { statusCode: 400 });
-  const [competition, proposal] = await Promise.all([getCompetition(weekKey), findEligibleProposal(proposalId)]);
+  const [competition, proposal] = await Promise.all([getCompetition(weekKey), findCurrentWeekEligibleProposal(proposalId)]);
   await assertWinnerWallet(competition, wallet);
   const challengeId = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -71,12 +76,39 @@ const createChallenge = async ({ weekKey, proposalId, address }) => {
   return { challengeId, message, expiresAt, proposal };
 };
 
+const saveClaimedCompetition = async ({ weekKey, wallet, proposal, now }) => {
+  const url = `${COMPETITIONS_TABLE}?week_key=eq.${encodeURIComponent(weekKey)}&status=eq.finalized`;
+  const patch = (value) => fetchSupabaseJson(url, {
+    method: 'PATCH',
+    headers: supabaseHeaders({ Prefer: 'return=representation' }),
+    body: JSON.stringify(value)
+  });
+  const proposalFields = {
+    status: 'claimed',
+    winner_wallet: wallet,
+    proposal_id: proposal.id,
+    proposal_title: proposal.title,
+    proposal_url: proposal.url,
+    proposal_author: proposal.author,
+    ...(proposal.imageUrl ? { proposal_image_url: proposal.imageUrl } : {}),
+    updated_at: now
+  };
+
+  try {
+    return await patch(proposalFields);
+  } catch (error) {
+    if (!proposal.imageUrl || !/proposal_image_url|schema cache/i.test(error?.message || '')) throw error;
+    const { proposal_image_url: _proposalImageUrl, ...compatibleFields } = proposalFields;
+    return patch(compatibleFields);
+  }
+};
+
 const completeClaim = async ({ weekKey, proposalId, address, challengeId, signature }) => {
   const wallet = normalizeAddress(address);
   if (!wallet || !challengeId || !signature) throw Object.assign(new Error('Claim signature details are incomplete.'), { statusCode: 400 });
   const [competition, proposal, challengeRows] = await Promise.all([
     getCompetition(weekKey),
-    findEligibleProposal(proposalId),
+    findCurrentWeekEligibleProposal(proposalId),
     fetchSupabaseJson(`${NONCES_TABLE}?select=*&challenge_id=eq.${encodeURIComponent(challengeId)}&limit=1`, { headers: supabaseHeaders() })
   ]);
   await assertWinnerWallet(competition, wallet);
@@ -93,14 +125,7 @@ const completeClaim = async ({ weekKey, proposalId, address, challengeId, signat
     fetchSupabaseJson(`${NONCES_TABLE}?challenge_id=eq.${encodeURIComponent(challengeId)}&used_at=is.null`, {
       method: 'PATCH', headers: supabaseHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify({ used_at: now })
     }),
-    fetchSupabaseJson(`${COMPETITIONS_TABLE}?week_key=eq.${encodeURIComponent(weekKey)}&status=eq.finalized`, {
-      method: 'PATCH',
-      headers: supabaseHeaders({ Prefer: 'return=representation' }),
-      body: JSON.stringify({
-        status: 'claimed', winner_wallet: wallet, proposal_id: proposal.id, proposal_title: proposal.title,
-        proposal_url: proposal.url, proposal_author: proposal.author, updated_at: now
-      })
-    })
+    saveClaimedCompetition({ weekKey, wallet, proposal, now })
   ]);
   await sendBaseNotificationBroadcast({
     title: 'Research pick selected',

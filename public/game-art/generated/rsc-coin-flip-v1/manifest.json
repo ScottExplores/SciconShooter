@@ -1,0 +1,17 @@
+{
+  "id": "rsc-coin-upright-flip-v1",
+  "sourceIdentity": "/game-art/tokens/rsc-coin.svg",
+  "basePixelAsset": "/game-art/tokens/rsc-coin-pixel.png",
+  "threeQuarterKeyframe": "/game-art/generated/rsc-coin-flip-v1/rsc-coin-three-quarter-right.png",
+  "animationType": "vertical-axis-yaw-flip",
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "frameCount": 12,
+  "sheetColumns": 6,
+  "sheetRows": 2,
+  "frameDurationMs": 80,
+  "loop": true,
+  "orientationRule": "The coin and flask remain upright; width compresses toward the edge instead of rotating clockwise.",
+  "spriteSheet": "/game-art/generated/rsc-coin-flip-v1/rsc-coin-flip-spritesheet-6x2.png",
+  "preview": "/game-art/generated/rsc-coin-flip-v1/previews/rsc-coin-upright-flip-preview.gif"
+}

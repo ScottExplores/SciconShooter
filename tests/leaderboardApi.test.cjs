@@ -193,7 +193,9 @@ test('leaderboard returns the top 100 all-time and weekly scores', async () => {
     ...historicRows[index],
     name: `WEEKLY${index}`,
     score: 100 - index,
-    date: new Date(Date.now() - (index * 60_000)).toISOString(),
+    // Keep every fixture inside the active week even when this test runs just
+    // after the Sunday noon-Pacific rollover.
+    date: new Date().toISOString(),
     run_id: `weekly-run-${index}`,
     receipt_hash: `weekly-hash-${index}`
   }));
@@ -241,6 +243,7 @@ test('the current weekly leader can attach one eligible proposal to the verified
     proposal_title: selected ? 'Open Science Target' : null,
     proposal_url: selected ? 'https://www.researchhub.com/post/321/open-science-target' : null,
     proposal_author: selected ? 'Ada Researcher' : null,
+    proposal_image_url: selected ? 'https://images.researchhub.com/proposals/321.png' : null,
     run_id: runId, verified: true, receipt_hash: 'hash'
   });
 
@@ -253,7 +256,8 @@ test('the current weekly leader can attach one eligible proposal to the verified
             id: 321,
             title: 'Open Science Target',
             slug: 'open-science-target',
-            fundraise: { status: 'OPEN' }
+            image_url: 'https://images.researchhub.com/proposals/321.png',
+            fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
           },
           author: { first_name: 'Ada', last_name: 'Researcher' }
         }]
@@ -279,12 +283,125 @@ test('the current weekly leader can attach one eligible proposal to the verified
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.monthlyScores[0].proposalId, '321');
     assert.equal(res.body.monthlyScores[0].proposalTitle, 'Open Science Target');
+    assert.equal(res.body.monthlyScores[0].proposalImageUrl, 'https://images.researchhub.com/proposals/321.png');
     assert.deepEqual(patchBody, {
       proposal_id: '321',
       proposal_title: 'Open Science Target',
       proposal_url: 'https://www.researchhub.com/post/321/open-science-target',
-      proposal_author: 'Ada Researcher'
+      proposal_author: 'Ada Researcher',
+      proposal_image_url: 'https://images.researchhub.com/proposals/321.png'
     });
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('proposal selection keeps current metadata working before the image column migration', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  const now = new Date().toISOString();
+  const patchBodies = [];
+  let selected = false;
+  const leaderboardRow = () => ({
+    name: 'PILOT', score: 4321, wave: 4, date: now, wallet_address: null,
+    donated: false,
+    proposal_id: selected ? '321' : null,
+    proposal_title: selected ? 'Open Science Target' : null,
+    proposal_url: selected ? 'https://www.researchhub.com/post/321/open-science-target' : null,
+    proposal_author: selected ? 'Ada Researcher' : null,
+    run_id: runId, verified: true, receipt_hash: 'hash'
+  });
+
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (value.includes('backend.prod.researchhub.com')) {
+      return jsonResponse({
+        results: [{
+          content_object: {
+            id: 321,
+            title: 'Open Science Target',
+            slug: 'open-science-target',
+            image_url: 'https://images.researchhub.com/proposals/321.png',
+            fundraise: { status: 'OPEN', end_date: '2099-01-01T00:00:00.000Z' }
+          },
+          author: { first_name: 'Ada', last_name: 'Researcher' }
+        }]
+      });
+    }
+    if (options.method === 'PATCH') {
+      const body = JSON.parse(options.body);
+      patchBodies.push(body);
+      if (Object.hasOwn(body, 'proposal_image_url')) {
+        return jsonResponse({ message: 'column proposal_image_url does not exist' }, 400);
+      }
+      selected = true;
+      return jsonResponse([leaderboardRow()]);
+    }
+    if (value.includes('proposal_image_url')) {
+      return jsonResponse({ message: 'column proposal_image_url does not exist' }, 400);
+    }
+    return jsonResponse([leaderboardRow()]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: { action: 'select-proposal', proposalId: '321', receiptToken: makeReceipt(runId) },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.1' }
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.monthlyScores[0].proposalId, '321');
+    assert.equal(res.body.monthlyScores[0].proposalTitle, 'Open Science Target');
+    assert.equal(patchBodies.length, 2);
+    assert.equal(patchBodies[0].proposal_image_url, 'https://images.researchhub.com/proposals/321.png');
+    assert.equal(Object.hasOwn(patchBodies[1], 'proposal_image_url'), false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('the current weekly leader cannot select a proposal that closes before the weekly cutoff', async () => {
+  const runId = crypto.randomUUID();
+  const originalFetch = global.fetch;
+  let patchCalled = false;
+  const leader = {
+    name: 'PILOT', score: 4321, wave: 4, date: new Date().toISOString(), wallet_address: null,
+    donated: false, proposal_id: null, proposal_title: null, proposal_url: null, proposal_author: null,
+    run_id: runId, verified: true, receipt_hash: 'hash'
+  };
+
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (value.includes('backend.prod.researchhub.com')) {
+      return jsonResponse({
+        results: [{
+          content_object: {
+            id: 321,
+            title: 'Closing Too Soon',
+            fundraise: { status: 'OPEN', end_date: '2000-01-01T00:00:00.000Z' }
+          }
+        }]
+      });
+    }
+    if (options.method === 'PATCH') patchCalled = true;
+    return jsonResponse([leader]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: { action: 'select-proposal', proposalId: '321', receiptToken: makeReceipt(runId) },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.1' }
+    }, res);
+
+    assert.equal(res.statusCode, 409);
+    assert.match(res.body.error, /closes before the weekly cutoff/i);
+    assert.equal(patchCalled, false);
   } finally {
     global.fetch = originalFetch;
   }

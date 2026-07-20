@@ -56,6 +56,7 @@ const normalizeWinner = (winner: RawWinner): ArchivedWinner | null => {
     proposalTitle: asString(winner.proposal_title, 180),
     proposalUrl: safeUrl(winner.proposal_url),
     proposalAuthor: asString(winner.proposal_author, 100),
+    proposalImageUrl: safeUrl(winner.proposal_image_url),
     allocationRsc: Math.max(0, Math.floor(asNumber(winner.allocation_rsc) || 100)),
     status: asString(winner.status, 20) as ArchivedWinner['status'],
     claimDeadline: asString(winner.claim_deadline),

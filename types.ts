@@ -62,6 +62,7 @@ export interface LeaderboardEntry {
   proposalTitle?: string;
   proposalUrl?: string;
   proposalAuthor?: string;
+  proposalImageUrl?: string;
   runId?: string;
   verified?: boolean;
   receiptHash?: string;
@@ -85,6 +86,7 @@ export interface ArchivedWinner {
   proposalTitle?: string;
   proposalUrl?: string;
   proposalAuthor?: string;
+  proposalImageUrl?: string;
   allocationRsc?: number;
   status?: 'finalized' | 'claimed' | 'funded' | 'expired';
   claimDeadline?: string;
@@ -120,6 +122,8 @@ export interface Stats {
   bombs: number;
   bombCharge: number;
   bombChargeMax: number;
+  shipAbilityCooldown: number;
+  shipAbilityCooldownMax: number;
   lives: number;
   repairsCount: number; // Track number of repairs for cost scaling
   upgrades: Upgrades;

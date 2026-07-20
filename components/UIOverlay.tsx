@@ -3,6 +3,12 @@ import { FieldUpgradeType, Stats } from '../types';
 import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress } from '../services/flaskProgress';
 import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
+import type { PlayerShipId } from '../services/playerShipService';
+import {
+  RESEARCH_CHARGE_COOLDOWN_FRAMES,
+  RESEARCH_CHARGE_COOLDOWN_SECONDS,
+  RESEARCH_CHARGE_ICON_URL
+} from '../services/shipAbilityService';
 
 export interface UIOverlayProps {
   stats: Stats;
@@ -15,6 +21,10 @@ export interface UIOverlayProps {
   onPause: () => void;
   onToggleFreeze?: () => void;
   onUseBomb: () => void;
+  selectedShipId?: PlayerShipId;
+  onUseShipAbility?: () => void;
+  shipAbilityLocked?: boolean;
+  fieldUpgradesEnabled?: boolean;
   onUpgrade: (type: FieldUpgradeType) => void;
   bombIconSrc?: string;
   bombLocked?: boolean;
@@ -159,15 +169,9 @@ const fieldUpgradeColors: Record<FieldUpgradeType, {
 const compactHudRoot = '/game-art/generated/ui/scicon-compact-top-hud-v1';
 
 const compactHudAssets = {
-  lifeFrame: `${compactHudRoot}/frames/life-counter-frame.png`,
-  flaskFrame: `${compactHudRoot}/frames/flask-progress-frame.png`,
-  scoreFrame: `${compactHudRoot}/frames/score-counter-frame.png`,
-  flaskFill: `${compactHudRoot}/fills/flask-fill-cyan.png`,
   heartShell: `${compactHudRoot}/meter-parts/heart-health-shell.png`,
   heartFill: `${compactHudRoot}/meter-parts/heart-health-fill.png`,
-  beakerShell: `${compactHudRoot}/meter-parts/beaker-charge-shell.png`,
-  beakerLiquid: `${compactHudRoot}/meter-parts/beaker-charge-liquid.png`,
-  scoreIcon: `${compactHudRoot}/icons/research-score-icon.png`,
+  matchCoin: '/game-art/generated/rsc-coin-flip-v1/rsc-coin-pixel-front.png',
   pauseNormal: `${compactHudRoot}/buttons/pause-button-normal.png`,
   pauseSelected: `${compactHudRoot}/buttons/pause-button-selected.png`
 } as const;
@@ -178,13 +182,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   stats,
   showLabGlow,
   onDisableLabGlow,
-  isUpgradeReady = false,
   paused = false,
   frozen = false,
   showFreezeControl = false,
   onPause,
   onToggleFreeze,
   onUseBomb,
+  selectedShipId,
+  onUseShipAbility,
+  shipAbilityLocked = false,
+  fieldUpgradesEnabled = true,
   onUpgrade,
   bombIconSrc = getPrimaryAssetPath(DEFAULT_GAME_CAMPAIGN.hudAssets.bombIconAssetKey),
   bombLocked = false
@@ -204,9 +211,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const flaskProgress = getFlaskProgress(flaskCharge, bombChargeMax);
   const flaskCount = flaskProgress.storedFlasks;
   const nextFlaskPct = flaskProgress.nextFlaskPct;
-  const flaskReady = flaskCount > 0;
   const bombs = stats.bombs || 0;
   const canUseBomb = bombs > 0 && !bombLocked;
+  const abilityCooldownMax = stats.shipAbilityCooldownMax || RESEARCH_CHARGE_COOLDOWN_FRAMES;
+  const abilityCooldown = Math.max(0, stats.shipAbilityCooldown || 0);
+  const abilityReady = abilityCooldown <= 0 && !shipAbilityLocked;
+  const abilityRevealDegrees = Math.round((1 - Math.min(1, abilityCooldown / abilityCooldownMax)) * 360);
+  const abilitySeconds = Math.max(1, Math.ceil((abilityCooldown / abilityCooldownMax) * RESEARCH_CHARGE_COOLDOWN_SECONDS));
   const lifeCapacityRef = useRef(Math.max(1, stats.lives));
   lifeCapacityRef.current = Math.max(lifeCapacityRef.current, stats.lives);
   const remainingLifePct = Math.max(0, Math.min(100, (stats.lives / lifeCapacityRef.current) * 100));
@@ -214,101 +225,63 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-1.5 sm:p-3">
       <div className="flex w-full items-start justify-between gap-2">
-        <div className="pointer-events-auto relative h-[4.625rem] w-[9.25rem] shrink-0" data-testid="compact-status-hud">
-          <div className="relative h-[2.625rem] w-[7.875rem]" aria-label={`${stats.lives} lives remaining`}>
-            <img
-              src={compactHudAssets.lifeFrame}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              className={`${pixelSpriteClass} inset-0 h-full w-full`}
-            />
-            <div className="absolute left-[0.2rem] top-[0.15rem] h-[2.2rem] w-[2.2rem]">
-              <img
-                src={compactHudAssets.heartFill}
-                alt=""
-                aria-hidden="true"
-                draggable={false}
-                className={`${pixelSpriteClass} inset-0 h-full w-full transition-[clip-path] duration-200`}
-                style={{ clipPath: `inset(${100 - remainingLifePct}% 0 0 0)` }}
-              />
-              <img
-                src={compactHudAssets.heartShell}
-                alt=""
-                aria-hidden="true"
-                draggable={false}
-                className={`${pixelSpriteClass} inset-0 h-full w-full`}
-              />
-            </div>
-            <span className="arcade-font absolute left-[3.55rem] top-1/2 -translate-y-[58%] text-[1.15rem] font-black leading-none tracking-wide text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">
-              {stats.lives}
-            </span>
-          </div>
-
-          <div className="absolute bottom-0 left-0 h-[2.25rem] w-full" aria-label={`Flasks ${flaskCount}, ${Math.round(nextFlaskPct)} percent charged`}>
-            <div className="absolute left-[2.45rem] top-[0.53rem] h-[0.64rem] w-[5.92rem] overflow-hidden">
-              <div
-                className="relative h-full overflow-hidden transition-[width] duration-300"
-                style={{ width: `${nextFlaskPct}%` }}
-              >
+        <div
+          className="sci-compact-status-hud pointer-events-auto h-[2.125rem] w-[10.75rem] shrink-0"
+          data-testid="compact-status-hud"
+        >
+          <div className="sci-compact-status-hud__inner flex h-full w-full">
+            <div className="relative z-10 flex h-full w-[3.625rem] shrink-0 items-center pl-[0.22rem] pr-[0.38rem]" aria-label={`${stats.lives} lives remaining`}>
+              <div className="relative h-[1.5rem] w-[1.5rem] shrink-0">
                 <img
-                  src={compactHudAssets.flaskFill}
+                  src={compactHudAssets.heartFill}
                   alt=""
                   aria-hidden="true"
                   draggable={false}
-                  className={`${pixelSpriteClass} left-0 top-0 h-full w-[5.92rem] max-w-none`}
+                  className={`${pixelSpriteClass} inset-0 h-full w-full transition-[clip-path] duration-200`}
+                  style={{ clipPath: `inset(${100 - remainingLifePct}% 0 0 0)` }}
+                />
+                <img
+                  src={compactHudAssets.heartShell}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className={`${pixelSpriteClass} inset-0 h-full w-full`}
                 />
               </div>
+              <span className="arcade-font ml-auto -translate-y-[3%] text-[0.8rem] font-black leading-none tracking-[0.04em] text-slate-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
+                {stats.lives}
+              </span>
+              <span className="sci-compact-status-hud__separator" aria-hidden="true" />
             </div>
-            <img
-              src={compactHudAssets.flaskFrame}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              className={`${pixelSpriteClass} left-[1.75rem] top-[0.22rem] h-[1.875rem] w-[7.5rem]`}
-            />
-            <div className="absolute left-0 top-0 h-[2.25rem] w-[2.25rem]">
-              <img
-                src={compactHudAssets.beakerLiquid}
-                alt=""
-                aria-hidden="true"
-                draggable={false}
-                className={`${pixelSpriteClass} inset-0 h-full w-full transition-[clip-path] duration-300`}
-                style={{ clipPath: `inset(${100 - nextFlaskPct}% 0 0 0)` }}
-              />
-              <img
-                src={compactHudAssets.beakerShell}
-                alt=""
-                aria-hidden="true"
-                draggable={false}
-                className={`${pixelSpriteClass} inset-0 h-full w-full`}
-              />
+
+            <div className="relative z-10 flex h-full min-w-0 flex-1 items-center pl-[0.3rem] pr-[0.75rem]" aria-label={`${stats.coins} coins collected this match`}>
+              <div className="relative h-[1.5rem] w-[1.5rem] shrink-0">
+                <img
+                  src={compactHudAssets.matchCoin}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className={`${pixelSpriteClass} inset-0 h-full w-full drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]`}
+                />
+              </div>
+              <span className={`arcade-font ml-[0.35rem] min-w-[3.25rem] flex-1 -translate-y-[3%] whitespace-nowrap text-center font-black leading-none text-slate-50 drop-shadow-[0_1px_2px_rgba(245,158,11,0.42)] [font-variant-numeric:tabular-nums] ${stats.coins >= 1000000 ? 'text-[0.66rem] tracking-[-0.04em]' : stats.coins >= 10000 ? 'text-[0.74rem] tracking-[-0.01em]' : 'text-[0.82rem] tracking-[0.04em]'}`}>
+                x{stats.coins}
+              </span>
             </div>
-            <span className="arcade-font absolute left-[3.2rem] top-[1.18rem] text-[0.5rem] font-black uppercase leading-none tracking-[0.08em] text-cyan-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
-              Flasks {flaskCount}
-            </span>
           </div>
         </div>
 
         <div className="pointer-events-auto flex shrink-0 items-start gap-1">
-          <div className="relative h-[2.625rem] w-[7.875rem]" aria-label={`Score ${stats.score}`}>
-            <img
-              src={compactHudAssets.scoreFrame}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              className={`${pixelSpriteClass} inset-0 h-full w-full`}
-            />
-            <img
-              src={compactHudAssets.scoreIcon}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              className={`${pixelSpriteClass} left-[0.28rem] top-[0.24rem] h-[2rem] w-[2rem]`}
-            />
-            <span className="arcade-font absolute left-[2.55rem] right-[0.35rem] top-1/2 -translate-y-[57%] text-center text-[0.92rem] font-black leading-none tracking-[0.06em] text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">
-              {stats.score.toString().padStart(6, '0')}
-            </span>
+          <div
+            className="sci-compact-score-hud h-[2.125rem] w-[6.5rem] shrink-0"
+            data-testid="compact-score-hud"
+            aria-label={`Score ${stats.score}`}
+          >
+            <div className="sci-compact-score-hud__inner flex h-full w-full items-center">
+              <span className={`arcade-font relative z-10 w-full -translate-y-[2%] whitespace-nowrap pl-[0.8rem] pr-[0.3rem] text-center font-black leading-none text-slate-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] [font-variant-numeric:tabular-nums] ${stats.score >= 100000000 ? 'text-[0.58rem] tracking-[0]' : stats.score >= 1000000 ? 'text-[0.68rem] tracking-[0.02em]' : 'text-[0.78rem] tracking-[0.06em]'}`}>
+                {stats.score.toString().padStart(6, '0')}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -347,7 +320,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         </div>
       </div>
 
-      <div className="pointer-events-auto absolute left-3 top-[57%] z-20 -translate-y-1/2 sm:left-5">
+      <div className="pointer-events-auto absolute left-3 top-[57%] z-20 flex -translate-y-1/2 flex-col gap-2 sm:left-5">
         <button
           type="button"
           onClick={onUseBomb}
@@ -368,6 +341,43 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           <div className="absolute inset-1 rounded-[18px] bg-[radial-gradient(circle_at_50%_20%,rgba(250,204,21,0.2),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.1),rgba(0,0,0,0.42))]" />
           <BombSprite active={canUseBomb} src={bombIconSrc} />
         </button>
+        {selectedShipId === 'researchhub' && onUseShipAbility ? (
+          <button
+            type="button"
+            onClick={onUseShipAbility}
+            disabled={!abilityReady}
+            className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center overflow-hidden rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
+              abilityReady
+                ? 'border-cyan-200/75 bg-slate-950/72 shadow-[0_0_34px_rgba(34,211,238,0.26)] hover:border-cyan-100 hover:brightness-110'
+                : 'border-slate-400/20 bg-slate-900/62'
+            }`}
+            aria-label={abilityReady ? 'Launch ResearchHub charge' : `ResearchHub charge ready in ${abilitySeconds} seconds`}
+            title={abilityReady ? 'Research charge' : `${abilitySeconds}s recharge`}
+          >
+            <div className="absolute inset-1 rounded-[18px] bg-[radial-gradient(circle_at_50%_35%,rgba(34,211,238,0.2),transparent_48%),linear-gradient(180deg,rgba(15,23,42,0.1),rgba(0,0,0,0.48))]" />
+            <img
+              src={RESEARCH_CHARGE_ICON_URL}
+              alt=""
+              className="absolute h-[78%] w-[78%] -rotate-90 object-contain opacity-30 grayscale [image-rendering:pixelated]"
+            />
+            <img
+              src={RESEARCH_CHARGE_ICON_URL}
+              alt=""
+              className="absolute h-[78%] w-[78%] -rotate-90 object-contain [image-rendering:pixelated]"
+              style={{
+                WebkitMaskImage: `conic-gradient(from 0deg, #000 0deg ${abilityRevealDegrees}deg, transparent ${abilityRevealDegrees}deg 360deg)`,
+                maskImage: `conic-gradient(from 0deg, #000 0deg ${abilityRevealDegrees}deg, transparent ${abilityRevealDegrees}deg 360deg)`
+              }}
+            />
+            {!abilityReady ? (
+              <span className="absolute bottom-1.5 right-1.5 rounded-full border border-cyan-100/35 bg-slate-950/88 px-1.5 py-0.5 text-[10px] font-black text-cyan-100">
+                {abilitySeconds}s
+              </span>
+            ) : (
+              <span className="absolute bottom-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.9)]" />
+            )}
+          </button>
+        ) : null}
       </div>
 
       {!stats.isBossActive && (
@@ -385,25 +395,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         </div>
       )}
 
-      <div
-        className="pointer-events-auto absolute right-2 z-20 flex w-[4.375rem] flex-col gap-1.5 sm:right-4"
-        style={{ bottom: 'max(2.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))' }}
-      >
-        <div className={`relative rounded-[8px] border px-1.5 py-1.5 text-center shadow-[0_12px_32px_rgba(0,0,0,0.3)] backdrop-blur-md ${
-          flaskReady || isUpgradeReady
-            ? 'border-emerald-200/55 bg-emerald-300/16 text-emerald-100'
-            : 'border-cyan-200/18 bg-slate-950/52 text-cyan-100/70'
-        }`}>
-          {showLabGlow && !flaskReady ? (
-            <span className="pointer-events-none absolute -inset-1 rounded-[10px] bg-cyan-300/8 blur-md" />
-          ) : null}
-          <div className="relative flex items-center justify-center gap-1.5">
-            <HudIcon name="flask" className="h-4 w-4" />
-            <span className="arcade-font text-sm font-black leading-none">x{flaskCount}</span>
-          </div>
-        </div>
-
-        {fieldUpgradeOrder.map((type) => {
+      {fieldUpgradesEnabled ? (
+        <div
+          className="pointer-events-auto absolute right-2 z-20 flex w-[4.375rem] flex-col gap-1.5 sm:right-4"
+          style={{ bottom: 'max(2.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))' }}
+        >
+          {fieldUpgradeOrder.map((type) => {
           const config = FIELD_UPGRADE_CONFIG[type];
           const colors = fieldUpgradeColors[type];
           const level = getFieldUpgradeLevel(stats, type);
@@ -461,8 +458,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
               </span>
             </button>
           );
-        })}
-      </div>
+          })}
+        </div>
+      ) : null}
     </div>
   );
 };

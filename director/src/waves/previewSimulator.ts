@@ -221,7 +221,7 @@ export const buildPreviewEntities = (
       kind: 'pickup' as const,
       assetPath:
         index % 2 === 0
-          ? '/game-art/tokens/rsc-coin.svg'
+          ? '/game-art/tokens/rsc-coin-pixel.png'
           : '/game-art/tokens/rsc-bottle.png',
       x: 20 + random() * 60,
       y: 18 + random() * 48,

@@ -23,6 +23,10 @@ type SendCallsResponse = Hex | {
   batchId?: Hex;
 };
 
+type WalletConnectResponse = {
+  accounts?: Array<{ address?: Address }>;
+};
+
 export type BaseCall = {
   to: Address;
   data?: Hex;
@@ -93,6 +97,16 @@ export const signBaseAccountMessage = async (address: Address, message: string):
     : response.signature || response.result;
   if (!signature) throw new Error('Base Account did not return a message signature.');
   return signature;
+};
+
+export const switchBaseAccount = async (): Promise<Address> => {
+  const result = await baseAccountProvider.request({
+    method: 'wallet_connect',
+    params: [{ version: '1' }]
+  }) as WalletConnectResponse;
+  const address = result.accounts?.[0]?.address;
+  if (!address) throw new Error('Base Account did not return a wallet address.');
+  return address;
 };
 
 export const sendAttributedBaseCalls = async ({

@@ -34,6 +34,8 @@ test('the canonical game-over flow keeps all existing actions inside the new pre
   assert.match(app, /onClick=\{skipScoreSubmission\}/);
   assert.match(app, /onClick=\{startGame\}/);
   assert.match(app, /setShowMissionRecordPreview\(true\)/);
+  assert.match(app, /onRetryRun=\{startGame\}/);
+  assert.match(app, /onMainMenu=\{\(\) => \{/);
   assert.match(app, /setShowNameInput\(true\)/);
   assert.match(app, /isSubmittingScore \? 'Saving\.\.\.' : 'Submit'/);
   assert.match(app, /sci-gameover-result-content/);
@@ -43,4 +45,14 @@ test('the canonical game-over flow keeps all existing actions inside the new pre
   assert.match(styles, /@media \(max-height: 760px\)/);
   assert.doesNotMatch(app, /Prepare record/);
   assert.doesNotMatch(app, /id="pilot-score-name"[\s\S]{0,500}autoFocus/);
+});
+
+test('saved mission records open above the defeat layer and provide illustrated run actions', () => {
+  const preview = fs.readFileSync(path.join(root, 'components', 'MissionRecordPreview.tsx'), 'utf8');
+
+  assert.match(preview, /fixed inset-0 z-\[80\]/);
+  assert.match(preview, /mission-results\/retry-button\.png/);
+  assert.match(preview, /mission-results\/main-menu-button\.png/);
+  assert.match(preview, />Retry run</);
+  assert.match(preview, />Main menu</);
 });

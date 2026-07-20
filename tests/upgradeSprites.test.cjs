@@ -36,24 +36,40 @@ test('the HUD uses enlarged sprite-only upgrade buttons with cost and appropriat
   assert.doesNotMatch(source, /style=\{\{ width: `\$\{Math\.min\(100, \(level \/ config\.maxLevel\)/);
 });
 
-test('the top HUD prioritizes hearts and flask progress while the upgrade rail shows only stored flasks', () => {
+test('the top HUD uses slim mirrored rails with room for multi-digit match coins', () => {
   const source = fs.readFileSync(path.join(root, 'components', 'UIOverlay.tsx'), 'utf8');
+  const styles = fs.readFileSync(path.join(root, 'styles', 'tailwind.input.css'), 'utf8');
 
   assert.doesNotMatch(source, /Wave \{stats\.wave\}/);
-  assert.match(source, /Flasks \{flaskCount\}/);
-  assert.match(source, /style=\{\{ width: `\$\{nextFlaskPct\}%` \}\}/);
+  assert.match(source, /aria-label=\{`\$\{stats\.coins\} coins collected this match`\}/);
+  assert.match(source, /matchCoin: '\/game-art\/generated\/rsc-coin-flip-v1\/rsc-coin-pixel-front\.png'/);
+  assert.match(source, /src=\{compactHudAssets\.matchCoin\}/);
+  assert.match(source, />\s*x\{stats\.coins\}\s*</);
   assert.match(source, /scicon-compact-top-hud-v1/);
-  assert.match(source, /life-counter-frame\.png/);
-  assert.match(source, /flask-progress-frame\.png/);
-  assert.match(source, /score-counter-frame\.png/);
+  assert.doesNotMatch(source, /life-counter-frame\.png/);
+  assert.doesNotMatch(source, /score-counter-frame\.png/);
+  assert.doesNotMatch(source, /research-score-icon\.png/);
   assert.match(source, /heart-health-fill\.png/);
-  assert.match(source, /beaker-charge-liquid\.png/);
+  assert.doesNotMatch(source, /beaker-charge-(?:liquid|shell)\.png/);
   assert.match(source, /pause-button-normal\.png/);
   assert.match(source, /data-testid="compact-status-hud"/);
   assert.match(source, /clipPath: `inset\(\$\{100 - remainingLifePct\}% 0 0 0\)`/);
-  assert.match(source, /h-\[4\.625rem\] w-\[9\.25rem\]/);
+  assert.match(source, /h-\[2\.125rem\] w-\[10\.75rem\]/);
+  assert.doesNotMatch(source, /sci-compact-status-hud[^\n]*sm:w-/);
+  assert.match(source, /sci-compact-status-hud__inner/);
+  assert.match(source, /min-w-\[3\.25rem\]/);
+  assert.match(source, /stats\.coins >= 1000000.*stats\.coins >= 10000/s);
+  assert.match(source, /data-testid="compact-score-hud"/);
+  assert.match(source, /h-\[2\.125rem\] w-\[6\.5rem\]/);
+  assert.match(source, /sci-compact-score-hud__inner/);
+  assert.match(styles, /\.sci-compact-status-hud \{/);
+  assert.match(styles, /\.sci-compact-score-hud \{/);
+  assert.match(styles, /\.sci-compact-status-hud::before/);
+  assert.match(styles, /\.sci-compact-score-hud::before/);
+  assert.match(styles, /inset: 0\.375rem 0;/);
+  assert.match(styles, /0\.4375rem/);
   assert.doesNotMatch(source, /aria-label=\{muted \? 'Unmute sound' : 'Mute sound'\}/);
-  assert.match(source, /arcade-font text-sm font-black leading-none">x\{flaskCount\}/);
+  assert.equal((source.match(/>\s*x\{stats\.coins\}\s*</g) || []).length, 1);
 });
 
 test('sound controls live in the pause menu instead of consuming gameplay HUD space', () => {

@@ -3,22 +3,27 @@ import '../styles/funding-vault-unseal.css';
 
 export const FUNDING_VAULT_UNSEAL_DURATION_MS = 2184;
 
-const VAULT_PARTS_ROOT = '/game-art/generated/ui/scicon-ui-system-v2/animations/funding-vault-unseal/parts';
+interface FundingVaultUnsealProps {
+  open?: boolean;
+  children?: React.ReactNode;
+}
 
-const FundingVaultUnseal: React.FC = () => (
-  <div className="sci-funding-vault" role="status" aria-live="polite" aria-label="Opening secure funding vault transmission">
+const FundingVaultUnseal: React.FC<FundingVaultUnsealProps> = ({ open = false, children }) => (
+  <div
+    className={`sci-funding-vault sci-funding-vault--portrait ${open ? 'sci-funding-vault--open' : ''}`}
+    role={open ? undefined : 'status'}
+    aria-live={open ? undefined : 'polite'}
+    aria-label={open ? undefined : 'Opening secure funding vault transmission'}
+  >
     <div className="sci-funding-vault__stage" aria-hidden="true">
-      <img className="sci-funding-vault__glow" src={`${VAULT_PARTS_ROOT}/energy-glow.png`} alt="" />
-      <img className="sci-funding-vault__beam" src={`${VAULT_PARTS_ROOT}/energy-beam.png`} alt="" />
-      <img className="sci-funding-vault__ring" src={`${VAULT_PARTS_ROOT}/energy-ring.png`} alt="" />
-      <img className="sci-funding-vault__core" src={`${VAULT_PARTS_ROOT}/research-core.png`} alt="" />
-      <img className="sci-funding-vault__frame" src={`${VAULT_PARTS_ROOT}/vault-frame-body.png`} alt="" />
-      <img className="sci-funding-vault__shutter sci-funding-vault__shutter--left" src={`${VAULT_PARTS_ROOT}/shutter-left.png`} alt="" />
-      <img className="sci-funding-vault__shutter sci-funding-vault__shutter--right" src={`${VAULT_PARTS_ROOT}/shutter-right.png`} alt="" />
-      <img className="sci-funding-vault__seal" src={`${VAULT_PARTS_ROOT}/mechanical-seal.png`} alt="" />
-      <div className="sci-funding-vault__scan"></div>
+      <div className="sci-funding-vault__aperture">
+        <div className="sci-funding-vault__shutter sci-funding-vault__shutter--left" />
+        <div className="sci-funding-vault__shutter sci-funding-vault__shutter--right" />
+        <div className="sci-funding-vault__scan"></div>
+      </div>
     </div>
-    <div className="sci-funding-vault__readout">
+    {open && children ? <div className="sci-funding-vault__content">{children}</div> : null}
+    <div className="sci-funding-vault__readout" aria-hidden={open}>
       <span>Funding vault</span>
       <strong>Secure channel opening</strong>
     </div>

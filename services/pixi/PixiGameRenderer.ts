@@ -22,6 +22,13 @@ import {
   selectPlayerSteeringState,
   type PlayerSteeringState
 } from '../playerShipMotion';
+import {
+  PLAYER_WEAPON_FRAME_URLS,
+  getPlayerWeaponFrames,
+  getPlayerWeaponLaunchFrameIndex
+} from '../playerWeaponVisuals';
+import { RESEARCH_CHARGE_FRAME_URLS, RESEARCH_IMPACT_FRAME_URLS } from '../shipAbilityService';
+import { MINI_SHIP_CATALOG } from '../squadProgression';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
 import { PixiEnvironment } from './PixiEnvironment';
 import { PixiTextureBank } from './PixiTextureBank';
@@ -146,21 +153,21 @@ const createText = (size: number, color = '#ffffff', weight: 'normal' | 'bold' =
   }
 });
 
-const getPowerupTexture = (powerup: PowerupType) => {
+const getPowerupFrames = (powerup: PowerupType): readonly string[] => {
   switch (powerup) {
     case PowerupType.TRIPLE_SHOT:
-      return ASSETS.FOUNDER_BRIAN;
-    case PowerupType.MAGNET:
-      return ASSETS.FOUNDER_PATRICK;
-    case PowerupType.SHIELD:
-      return ASSETS.FOUNDER_JEFFREY;
-    case PowerupType.EXTRA_LIFE:
-      return ASSETS.FOUNDER_ARSHIA;
-    case PowerupType.RESEARCH_BEAM:
-      return ASSETS.REAL_RSC_ICON;
     case PowerupType.DOUBLE_SHOT:
+      return ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES;
+    case PowerupType.MAGNET:
+      return ASSETS.POWERUP_MAGNET_FRAMES;
+    case PowerupType.SHIELD:
+      return ASSETS.POWERUP_SHIELD_FRAMES;
+    case PowerupType.EXTRA_LIFE:
+      return ['/game-art/powerups/extra-life.png'];
+    case PowerupType.RESEARCH_BEAM:
+      return ASSETS.POWERUP_RESEARCH_BEAM_FRAMES;
     default:
-      return ASSETS.FOUNDER_4;
+      return ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES;
   }
 };
 
@@ -273,12 +280,18 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
       return ASSETS.MINI_BOSS;
     case EntityType.BOSS:
       return ASSETS.FINAL_BOSS;
-    case EntityType.COIN:
-      return ASSETS.RSC_TOKEN;
+    case EntityType.COIN: {
+      const frameIndex = Math.floor((engine.frameCount + entity.variant) / 5)
+        % ASSETS.RSC_TOKEN_FLIP_FRAMES.length;
+      return ASSETS.RSC_TOKEN_FLIP_FRAMES[frameIndex];
+    }
     case EntityType.BOMB:
       return engine.bombSpriteUrl;
-    case EntityType.POWERUP:
-      return getPowerupTexture(entity.text as PowerupType);
+    case EntityType.POWERUP: {
+      const frames = getPowerupFrames(entity.text as PowerupType);
+      const frameIndex = Math.floor((engine.frameCount + entity.variant) / 8) % frames.length;
+      return frames[frameIndex];
+    }
     default:
       return null;
   }
@@ -324,6 +337,7 @@ export class PixiGameRenderer {
   private readonly bioBeamRoot = new Container();
   private readonly bioBeamAura = new Graphics();
   private readonly bioBeamCore = new Graphics();
+  private readonly bioBeamEmitter = new Sprite(Texture.WHITE);
   private readonly wallHealthRoot = new Container();
   private readonly wallHealthBar = new Graphics();
   private readonly wallHealthLabel = createText(9, '#fef08a');
@@ -359,6 +373,7 @@ export class PixiGameRenderer {
   private playerSteeringShipUrl: string | null = null;
   private lastShotFrame = -999;
   private lastBombFrame = -999;
+  private bioBeamVisualStartFrame = -1;
   private destroyed = false;
 
   async init(host: HTMLElement, width: number, height: number) {
@@ -423,7 +438,8 @@ export class PixiGameRenderer {
 
     this.bioBeamRoot.eventMode = 'none';
     this.bioBeamRoot.visible = false;
-    this.bioBeamRoot.addChild(this.bioBeamAura, this.bioBeamCore);
+    this.bioBeamEmitter.anchor.set(0.5, 1);
+    this.bioBeamRoot.addChild(this.bioBeamAura, this.bioBeamCore, this.bioBeamEmitter);
     this.layers.projectile.addChild(this.bioBeamRoot);
 
     this.wallHealthLabel.anchor.set(0.5);
@@ -515,8 +531,14 @@ export class PixiGameRenderer {
       ...ASSETS.PIXI_EXPLOSION_FRAMES,
       ...ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES,
       ...PLAYER_SHIP_STEERING_FRAME_URLS,
-      ASSETS.PIXI_ESCORT_DOUBLE,
-      ASSETS.PIXI_ESCORT_TRIPLE,
+      ...PLAYER_WEAPON_FRAME_URLS,
+      ...RESEARCH_CHARGE_FRAME_URLS,
+      ...RESEARCH_IMPACT_FRAME_URLS,
+      ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
+      ...ASSETS.POWERUP_MAGNET_FRAMES,
+      ...ASSETS.POWERUP_SHIELD_FRAMES,
+      ...ASSETS.POWERUP_RESEARCH_BEAM_FRAMES,
+      ...MINI_SHIP_CATALOG.flatMap((miniShip) => miniShip.frames),
       ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_LEFT,
       ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_RIGHT,
       ASSETS.PIXI_BOSS_CITATION_CLAW_LEFT,
@@ -534,7 +556,8 @@ export class PixiGameRenderer {
       ASSETS.MINI_BOSS,
       ASSETS.FINAL_BOSS,
       ASSETS.WALL_BOSS_SEGMENT,
-      ASSETS.RSC_TOKEN
+      ASSETS.RSC_TOKEN,
+      ...ASSETS.RSC_TOKEN_FLIP_FRAMES
     ]);
     this.bossHealthFrame.texture = this.textureBank.get(ASSETS.PIXI_BOSS_HEALTH_FRAME) ?? Texture.WHITE;
     this.warningBanner.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_FRAME) ?? Texture.WHITE;
@@ -831,7 +854,7 @@ export class PixiGameRenderer {
     view.hasFallbackBody = true;
   }
 
-  private drawProjectile(view: EntityView, entity: Entity) {
+  private drawProjectile(view: EntityView, entity: Entity, engineFrame: number) {
     view.body.clear();
     view.trail.clear();
     view.aura.clear();
@@ -839,15 +862,22 @@ export class PixiGameRenderer {
     const playerShot = entity.isPlayerShot;
     const color = entity.color || (playerShot ? '#67e8f9' : '#fb7185');
     if (entity.projectileVisualKind && entity.spriteFrames?.length) {
-      const age = Math.max(0, entity.maxLife - entity.life);
-      const frameDelay = entity.projectileVisualKind === 'boss-ray' ? 4 : 3;
+      const age = entity.projectileVisualKind === 'research-charge'
+        ? Math.max(0, engineFrame - entity.weaponVisualStartFrame)
+        : Math.max(0, entity.maxLife - entity.life);
+      const frameDelay = entity.projectileVisualKind === 'boss-ray' || entity.projectileVisualKind === 'research-charge' ? 4 : 3;
       const textureKey = entity.spriteFrames[(Math.floor(age / frameDelay) + entity.variant) % entity.spriteFrames.length];
       this.setTexture(view, textureKey);
       view.sprite.tint = '#ffffff';
       view.sprite.alpha = 1;
       view.sprite.width = entity.width;
       view.sprite.height = entity.height;
-      if (entity.projectileVisualKind === 'boss-ray') {
+      if (entity.projectileVisualKind === 'research-charge') {
+        const pulse = 0.78 + Math.sin(engineFrame * 0.18) * 0.12;
+        view.aura.circle(0, 0, entity.width * pulse).fill({ color: '#22d3ee', alpha: 0.14 });
+        view.aura.circle(0, 0, entity.width * 0.56).stroke({ color: '#a7f3d0', width: 2, alpha: 0.72 });
+        view.root.rotation = -Math.PI / 2;
+      } else if (entity.projectileVisualKind === 'boss-ray') {
         view.aura.roundRect(-entity.width * 0.7, -entity.height * 0.5, entity.width * 1.4, entity.height, entity.width * 0.38)
           .fill({ color: '#ff9d2e', alpha: 0.18 });
         view.aura.roundRect(-entity.width * 0.34, -entity.height * 0.5, entity.width * 0.68, entity.height, entity.width * 0.24)
@@ -882,6 +912,21 @@ export class PixiGameRenderer {
         view.body.roundRect(-width / 2, -height / 2, width, height, radius)
           .stroke({ color, width: Math.max(1, Math.min(width, height) * 0.12), alpha: 0.78 });
       }
+      return;
+    }
+    if (playerShot) {
+      const frames = getPlayerWeaponFrames(entity.weaponKind, entity.weaponVisualLevel);
+      const launchFrame = getPlayerWeaponLaunchFrameIndex(
+        engineFrame - entity.weaponVisualStartFrame,
+        frames.length
+      );
+      const textureKey = frames[launchFrame];
+      this.setTexture(view, textureKey);
+      view.sprite.tint = '#ffffff';
+      view.sprite.alpha = 1;
+      view.sprite.width = Math.max(34, entity.width * 2.05);
+      view.sprite.height = Math.max(48, entity.height * 1.2);
+      view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
       return;
     }
     const speed = Math.max(1, Math.hypot(entity.vx, entity.vy));
@@ -1420,7 +1465,7 @@ export class PixiGameRenderer {
     view.sprite.tint = '#ffffff';
 
     if (entity.type === EntityType.PROJECTILE || entity.type === EntityType.MISSILE) {
-      this.drawProjectile(view, entity);
+      this.drawProjectile(view, entity, engine.frameCount);
     } else if (entity.type === EntityType.EFFECT) {
       view.sprite.visible = false;
       view.body.clear();
@@ -1431,6 +1476,14 @@ export class PixiGameRenderer {
         view.label.style.fontSize = effect.fontSize;
         view.label.style.fill = effect.color;
         view.label.alpha = clamp(effect.life / Math.max(1, effect.maxLife), 0, 1);
+      } else if (effect.effectType === 'sprite' && effect.spriteFrames?.length) {
+        const age = Math.max(0, effect.maxLife - effect.life);
+        const frameIndex = Math.min(effect.spriteFrames.length - 1, Math.floor(age / 6));
+        this.setTexture(view, effect.spriteFrames[frameIndex]);
+        view.sprite.visible = true;
+        view.sprite.width = effect.width;
+        view.sprite.height = effect.height;
+        view.sprite.alpha = clamp(effect.life / Math.min(12, Math.max(1, effect.maxLife)), 0, 1);
       } else {
         const progress = 1 - clamp(effect.life / Math.max(1, effect.maxLife), 0, 1);
         view.body.circle(0, 0, 10 + progress * 80).stroke({ color: effect.color, width: Math.max(1, 3 * (1 - progress)), alpha: 1 - progress });
@@ -1482,18 +1535,20 @@ export class PixiGameRenderer {
     } else if (entity.type === EntityType.ENEMY_JOURNAL || entity.type === EntityType.ENEMY_INVADER) {
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.05) * 0.09;
     } else if (entity.type === EntityType.COIN) {
-      const spin = Math.max(0.16, Math.abs(Math.sin((engine.frameCount + entity.variant) * 0.16)));
-      view.root.scale.set(spin, 1);
-      view.root.rotation = (engine.frameCount + entity.variant) * 0.025;
+      // The frame art supplies the 3D yaw flip. Keep the flask upright and
+      // never rotate the pickup clockwise or change its gameplay dimensions.
+      view.root.scale.set(1);
+      view.root.rotation = 0;
     } else if (entity.type === EntityType.BOMB) {
       const pulse = 1 + Math.sin((engine.frameCount + entity.variant) * 0.18) * 0.08;
       view.root.scale.set(pulse);
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.045) * 0.12;
     } else if (entity.type === EntityType.POWERUP) {
-      const pulse = 1 + Math.sin((engine.frameCount + entity.variant) * 0.14) * 0.08;
-      view.root.scale.set(pulse);
+      const auraPulse = 0.08 + ((Math.sin((engine.frameCount + entity.variant) * 0.12) + 1) * 0.025);
+      view.root.scale.set(1);
+      view.root.rotation = 0;
       view.aura.clear();
-      view.aura.circle(0, 0, entity.width * 0.55).fill({ color: '#67e8f9', alpha: 0.11 });
+      view.aura.circle(0, 0, entity.width * 0.55).fill({ color: '#67e8f9', alpha: auraPulse });
       view.aura.circle(0, 0, entity.width * 0.52).stroke({ color: '#ffffff', width: 2, alpha: 0.74 });
     }
 
@@ -1569,35 +1624,27 @@ export class PixiGameRenderer {
   }
 
   private syncGunPods(engine: GameEngine) {
-    const offsets = engine.getGunPodOffsets();
-    if (offsets.length === 0 || engine.lives <= 0) {
+    const companions = engine.getSquadCompanionVisuals();
+    if (companions.length === 0 || engine.lives <= 0) {
       this.gunPodRoot.visible = false;
       return;
     }
 
-    const centerX = engine.player.x + engine.player.width / 2;
-    const centerY = engine.player.y + engine.player.height / 2;
-    const triple = engine.activePowerups.has(PowerupType.TRIPLE_SHOT);
-    const remaining = triple
-      ? engine.activePowerups.get(PowerupType.TRIPLE_SHOT) || 0
-      : engine.activePowerups.get(PowerupType.DOUBLE_SHOT) || 0;
-    const fade = clamp(remaining / 36, 0, 1);
-    const texture = this.textureBank.get(triple ? ASSETS.PIXI_ESCORT_TRIPLE : ASSETS.PIXI_ESCORT_DOUBLE);
-    this.gunPodRoot.visible = Boolean(texture);
-    this.gunPodRoot.alpha = engine.playerDrawAlpha * fade;
+    this.gunPodRoot.visible = true;
+    this.gunPodRoot.alpha = 1;
     for (let index = 0; index < this.gunPodSprites.length; index++) {
       const pod = this.gunPodSprites[index];
-      const offset = offsets[index];
-      pod.visible = Boolean(texture && offset !== undefined);
-      if (!pod.visible || !texture || offset === undefined) continue;
+      const companion = companions[index];
+      const textureKey = companion?.frames[companion.frameIndex] ?? '';
+      const texture = textureKey ? this.textureBank.get(textureKey) : null;
+      pod.visible = Boolean(companion && texture);
+      if (!pod.visible || !texture || !companion) continue;
       pod.texture = texture;
-      pod.width = triple ? engine.player.width * 0.33 : engine.player.width * 0.4;
-      pod.height = triple ? engine.player.height * 0.33 : engine.player.height * 0.4;
-      pod.position.set(
-        centerX + offset,
-        centerY + 8 + Math.sin(engine.frameCount * 0.08 + offset) * 4
-      );
-      pod.rotation = Math.sin(engine.frameCount * 0.045 + offset) * 0.035;
+      pod.width = companion.width;
+      pod.height = companion.height;
+      pod.alpha = companion.alpha;
+      pod.position.set(companion.x, companion.y);
+      pod.rotation = Math.sin(engine.frameCount * 0.04 + index * Math.PI) * 0.028;
     }
   }
 
@@ -1642,20 +1689,41 @@ export class PixiGameRenderer {
     this.bioBeamRoot.visible = active;
     this.bioBeamAura.clear();
     this.bioBeamCore.clear();
-    if (!active) return;
+    this.bioBeamEmitter.visible = active;
+    if (!active) {
+      this.bioBeamVisualStartFrame = -1;
+      return;
+    }
+
+    if (this.bioBeamVisualStartFrame < 0) {
+      this.bioBeamVisualStartFrame = engine.frameCount;
+    }
 
     const level = Math.min(engine.stats.upgrades.fireRate || 0, 7);
+    const frames = getPlayerWeaponFrames('bio-laser', level);
+    const launchFrame = getPlayerWeaponLaunchFrameIndex(
+      engine.frameCount - this.bioBeamVisualStartFrame,
+      frames.length
+    );
+    const launchProgress = (launchFrame + 1) / frames.length;
     const color = level > 0 ? '#38bdf8' : '#65f59a';
     const centerX = engine.player.x + engine.player.width / 2;
     const endY = Math.max(0, engine.player.y + engine.player.height * 0.2);
-    const width = 5 + level * 1.55;
-    const pulse = 0.82 + Math.sin(engine.frameCount * 0.42) * 0.18;
+    const width = (5 + level * 1.55) * launchProgress;
+    const pulse = 0.94 + Math.sin(engine.frameCount * 0.42) * 0.06;
     this.bioBeamAura.rect(centerX - width * 1.8, 0, width * 3.6, endY)
       .fill({ color, alpha: 0.15 * pulse });
     this.bioBeamAura.rect(centerX - width * 0.72, 0, width * 1.44, endY)
       .fill({ color, alpha: 0.62 });
     this.bioBeamCore.rect(centerX - Math.max(1.5, width * 0.2), 0, Math.max(3, width * 0.4), endY)
       .fill({ color: '#ffffff', alpha: 0.96 });
+    const textureKey = frames[launchFrame];
+    this.bioBeamEmitter.texture = this.textureBank.get(textureKey) ?? Texture.WHITE;
+    this.bioBeamEmitter.tint = '#ffffff';
+    this.bioBeamEmitter.alpha = 0.98;
+    this.bioBeamEmitter.position.set(centerX, endY + engine.player.height * 0.08);
+    this.bioBeamEmitter.width = 18 + level * 3.4;
+    this.bioBeamEmitter.height = 42 + level * 6.2;
   }
 
   private syncWallHealth(engine: GameEngine) {
@@ -1691,8 +1759,8 @@ export class PixiGameRenderer {
     this.bossHealthPercent.text = '';
     if (!boss) return;
 
-    const frameWidth = clamp(this.width * 0.76, 246, 342);
-    const frameHeight = frameWidth * (96 / 512);
+    const frameWidth = Math.min(clamp(this.width * 0.76, 210, 342), Math.max(180, this.width - 20));
+    const frameHeight = frameWidth * (143 / 737);
     const progress = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
     const eventId = boss.sourceEventId ?? '';
     const name = eventId.includes('citation')
@@ -1702,24 +1770,23 @@ export class PixiGameRenderer {
         : boss.bossRigId === 'paywall-siege'
           ? 'PEER REVIEW DECIMATOR'
           : 'GATEKEEPER SENTINEL';
-    const barWidth = frameWidth * 0.7;
-    const barY = frameHeight * 0.17;
-    const fillColor = progress > 0.55 ? '#34d399' : progress > 0.25 ? '#facc15' : '#fb7185';
+    const barWidth = frameWidth * 0.68;
+    const barY = frameHeight * 0.14;
 
     this.bossHealthRoot.position.set(this.width / 2, this.width < 520 ? 78 : 82);
     this.bossHealthFrame.width = frameWidth;
     this.bossHealthFrame.height = frameHeight;
     this.bossHealthFrame.alpha = 0.96;
-    this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, 9, 4)
-      .fill({ color: '#020617', alpha: 0.96 });
-    this.bossHealthBar.roundRect(-barWidth / 2 + 1, barY + 1, Math.max(0, (barWidth - 2) * progress), 7, 3)
-      .fill(fillColor);
-    this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, 9, 4)
-      .stroke({ color: '#bae6fd', width: 1, alpha: 0.78 });
+    this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, 9, 3)
+      .fill({ color: '#170508', alpha: 0.98 });
+    this.bossHealthBar.roundRect(-barWidth / 2 + 1, barY + 1, Math.max(0, (barWidth - 2) * progress), 7, 2)
+      .fill('#ef233c');
+    this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, 9, 3)
+      .stroke({ color: '#ff6b76', width: 1, alpha: 0.72 });
     this.bossHealthName.text = name;
-    this.bossHealthName.position.set(-frameWidth * 0.09, -frameHeight * 0.12);
+    this.bossHealthName.position.set(-frameWidth * 0.08, -frameHeight * 0.13);
     this.bossHealthPercent.text = `${Math.ceil(progress * 100)}%`;
-    this.bossHealthPercent.position.set(frameWidth * 0.31, -frameHeight * 0.12);
+    this.bossHealthPercent.position.set(frameWidth * 0.29, -frameHeight * 0.13);
   }
 
   private syncPlayerAfterimages(engine: GameEngine) {

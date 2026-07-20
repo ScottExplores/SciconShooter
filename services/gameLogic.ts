@@ -24,6 +24,23 @@ import {
 } from './levelConfig';
 import { audioService } from './audioService';
 import { BASE_FLASK_CHARGE_MAX, FLASK_CHARGE_PER_COIN, getChargeForStoredFlasks, getFlaskProgress } from './flaskProgress';
+import {
+  PLAYER_WEAPON_FRAME_URLS,
+  getPlayerWeaponFrames,
+  getPlayerWeaponLaunchFrameIndex
+} from './playerWeaponVisuals';
+import {
+  RESEARCH_CHARGE_BLAST_RADIUS,
+  RESEARCH_CHARGE_COOLDOWN_FRAMES,
+  RESEARCH_CHARGE_FRAME_URLS,
+  RESEARCH_IMPACT_FRAME_URLS
+} from './shipAbilityService';
+import {
+  emitSquadDomainEvent,
+  type RuntimeSquadCompanion,
+  type RuntimeSquadLoadout,
+  type SquadSlotId
+} from './squadProgression';
 
 // --- Helper Classes ---
 
@@ -46,7 +63,7 @@ export type BossComponentState = {
   flashFrames: number;
   lastDamageFlashFrame: number;
 };
-export type BossProjectileVisualKind = 'boss-ray' | 'boss-bolt' | 'crown-claw-left' | 'crown-claw-right';
+export type BossProjectileVisualKind = 'boss-ray' | 'boss-bolt' | 'crown-claw-left' | 'crown-claw-right' | 'research-charge';
 type PendingPlayerShot = {
   fireFrame: number;
   speed: number;
@@ -94,6 +111,7 @@ export class Entity {
   bossComponents?: BossComponentState[];
   bossDecayStage: number = 0;
   projectileVisualKind?: BossProjectileVisualKind;
+  shipAbilityKind?: 'research-charge';
   bossOwnerId?: string;
   bossComponentId?: BossPartId;
   clawOutboundFrames: number = 0;
@@ -127,6 +145,10 @@ export class Entity {
   damage: number = 1;
   pierceRemaining: number = 0;
   weaponKind: PlayerWeaponKind = 'pulse';
+  /** Presentation-only gun level used to select projectile art; never changes the collision box. */
+  weaponVisualLevel: number = 0;
+  /** Simulation-frame timestamp used only to play the launch art once. */
+  weaponVisualStartFrame: number = 0;
   hitTargetIds?: Set<string>;
   spriteUrl?: string;
   spriteFrames?: string[];
@@ -179,9 +201,9 @@ export class Particle extends Entity {
 }
 
 export class VisualEffect extends Entity {
-  effectType: 'text' | 'ring';
+  effectType: 'text' | 'ring' | 'sprite';
   fontSize: number = 32;
-  constructor(x: number, y: number, type: 'text' | 'ring', content: string = '', color: string = '#FFF', fontSize: number = 32) {
+  constructor(x: number, y: number, type: 'text' | 'ring' | 'sprite', content: string = '', color: string = '#FFF', fontSize: number = 32) {
     super(EntityType.EFFECT, x, y);
     this.effectType = type;
     this.text = content;
@@ -336,6 +358,14 @@ const GAMEPLAY_ASSET_URLS = [
   ASSETS.ETH_SHIP,
   ASSETS.BTC_SHIP,
   ASSETS.RSC_TOKEN,
+  ...ASSETS.RSC_TOKEN_FLIP_FRAMES,
+  ...PLAYER_WEAPON_FRAME_URLS,
+  ...RESEARCH_CHARGE_FRAME_URLS,
+  ...RESEARCH_IMPACT_FRAME_URLS,
+  ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
+  ...ASSETS.POWERUP_MAGNET_FRAMES,
+  ...ASSETS.POWERUP_SHIELD_FRAMES,
+  ...ASSETS.POWERUP_RESEARCH_BEAM_FRAMES,
   ASSETS.REAL_RSC_ICON,
   ASSETS.GAME_BG_BACK,
   ASSETS.GAME_BG_STARS,
@@ -392,6 +422,11 @@ const moveToward = (current: number, target: number, maxDelta: number) => {
 const lerp = (current: number, target: number, amount: number) => current + ((target - current) * amount);
 
 const randomRange = (min: number, max: number) => min + Math.random() * (max - min);
+export const PLAYER_PRIMARY_SHOT_SPREAD_DEGREES = 5;
+const PLAYER_PRIMARY_SHOT_SPREAD_RADIANS = PLAYER_PRIMARY_SHOT_SPREAD_DEGREES * (Math.PI / 180);
+const getRandomPrimaryShotAngle = () => (
+  (Math.floor(Math.random() * 3) - 1) * PLAYER_PRIMARY_SHOT_SPREAD_RADIANS
+);
 
 const easeOutCubic = (value: number) => 1 - Math.pow(1 - clamp(value, 0, 1), 3);
 
@@ -467,10 +502,6 @@ const DESKTOP_PLAYER_SHOT_CAP = 28;
 const PENDING_PLAYER_SHOT_CAP = 8;
 const COLLISION_COLUMN_WIDTH = 96;
 const EMPTY_GUN_POD_OFFSETS: number[] = [];
-const TRIPLE_GUN_POD_OFFSETS = [-42, 42];
-const DOUBLE_GUN_POD_EDGE_ENTER_RATIO = 0.38;
-const DOUBLE_GUN_POD_EDGE_EXIT_RATIO = 0.62;
-const DOUBLE_GUN_POD_EASING = 0.09;
 const BOSS_RIG_BY_EVENT_ID: Readonly<Record<string, BossRigId>> = Object.freeze({
   'open-orbit-gatekeeper': 'open-orbit',
   'citation-storm-gatekeeper': 'citation-storm',
@@ -484,7 +515,7 @@ const BOSS_COMPONENT_DURABILITY: Readonly<Record<BossRigId, Readonly<Partial<Rec
   'paywall-siege': Object.freeze({ 'left-cannon': 7, 'right-cannon': 7, helmet: 7 }),
   'crown-claw': Object.freeze({ 'left-cannon': 8, 'right-cannon': 8 })
 });
-const BOSS_CANNON_HEALTH_RATIO = 0.25;
+const BOSS_CANNON_HEALTH_RATIO = 0.15;
 const BOSS_HELMET_HEALTH_RATIO = 0.18;
 export const BOSS_CANNON_SCALE = 1.6;
 export const CROWNCLAW_ARM_SCALE = 1.42;
@@ -680,7 +711,28 @@ export interface GameEngineOptions {
   initialLevelId?: string;
   initialWaveId?: string;
   testMode?: boolean;
+  squadLoadout?: RuntimeSquadLoadout;
 }
+
+export interface SquadCompanionVisual {
+  slot: SquadSlotId;
+  id: string;
+  frames: [string, string, string];
+  frameIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  alpha: number;
+}
+
+type ActiveSquadCompanion = RuntimeSquadCompanion & {
+  x: number;
+  y: number;
+  frameIndex: number;
+  fireTimer: number;
+  entryProgress: number;
+};
 
 export interface GameRuntimeState {
   levelId: string;
@@ -822,6 +874,7 @@ export class GameEngine {
   coinCombo: number = 0;
   coinComboTimer: number = 0;
   lastShotFrame: number = -999;
+  bioBeamCanvasVisualStartFrame: number = -1;
   lastBombFrame: number = -999;
   lastPlayerRamFrame: number = -999;
   introFlightFrames: number = 0;
@@ -855,9 +908,6 @@ export class GameEngine {
   liveThreatCount: number = 0;
   weaponVolley: number = 0;
   announcedFireRateLevel: number = 0;
-  private doubleGunPodSide: -1 | 1 = -1;
-  private doubleGunPodOffset: number = -104;
-  private doubleGunPodActive: boolean = false;
   mobileProfile: boolean = false;
   polishSettings: GamePolishSettings = { ...DEFAULT_POLISH_SETTINGS };
   performanceMode: boolean = false;
@@ -879,9 +929,14 @@ export class GameEngine {
   initialLevelId?: string;
   initialWaveId?: string;
   testMode: boolean = false;
+  private readonly squadLoadout: RuntimeSquadLoadout | null;
+  private readonly squadCompanions: ActiveSquadCompanion[];
+  private readonly startingLives: number;
   
   constructor(stats: Stats, options: GameEngineOptions = {}) {
     this.stats = stats;
+    this.stats.shipAbilityCooldown = Math.max(0, Number(this.stats.shipAbilityCooldown) || 0);
+    this.stats.shipAbilityCooldownMax = RESEARCH_CHARGE_COOLDOWN_FRAMES;
     this.campaign = cloneGameCampaign(options.campaign ?? DEFAULT_GAME_CAMPAIGN);
     this.bombSpriteUrl = getPrimaryAssetPath(this.campaign.hudAssets.bombIconAssetKey);
     this.playerShipUrl = options.playerShipUrl || ASSETS.PLAYER_SHIP;
@@ -893,6 +948,20 @@ export class GameEngine {
     this.initialLevelId = options.initialLevelId;
     this.initialWaveId = options.initialWaveId;
     this.testMode = Boolean(options.testMode);
+    this.squadLoadout = options.squadLoadout ?? null;
+    this.squadCompanions = (options.squadLoadout?.companions ?? []).map((companion, index) => ({
+      ...companion,
+      x: 0,
+      y: 0,
+      frameIndex: 0,
+      fireTimer: Math.max(8, Math.floor(companion.fireIntervalFrames * (0.42 + index * 0.18))),
+      entryProgress: 0
+    }));
+    this.startingLives = clamp(
+      Math.floor(Number(stats.lives) || GAME_CONFIG.PLAYER_LIVES),
+      1,
+      GAME_CONFIG.MAX_LIVES
+    );
     const initialIndex = this.findCampaignWaveIndex(options.initialLevelId, options.initialWaveId);
     this.currentCampaignIndex = initialIndex >= 0 ? initialIndex : 0;
     this.player = new Entity(EntityType.PLAYER, 0, 0);
@@ -1678,7 +1747,7 @@ export class GameEngine {
     }
 
     this.gameActive = true;
-    this.lives = GAME_CONFIG.PLAYER_LIVES;
+    this.lives = this.startingLives;
     this.stats.lives = this.lives;
     if (!this.previewMode) {
       this.currentCampaignIndex = 0;
@@ -1690,6 +1759,8 @@ export class GameEngine {
     this.stats.bombs = 2;
     this.stats.bombCharge = this.testMode ? getChargeForStoredFlasks(40) : 0;
     this.stats.bombChargeMax = BASE_FLASK_CHARGE_MAX;
+    this.stats.shipAbilityCooldown = 0;
+    this.stats.shipAbilityCooldownMax = RESEARCH_CHARGE_COOLDOWN_FRAMES;
     this.stats.wave = this.wave;
     this.resetWaveProgress();
     const openingSector = this.getWaveSector();
@@ -1709,6 +1780,7 @@ export class GameEngine {
     this.missileTimer = 0;
     this.playerVel = { x: 0, y: 0 };
     this.playerTilt = 0;
+    this.resetSquadCompanionPositions();
     this.playerSquash = -0.18;
     this.playerSquashVelocity = 0;
     this.playerAfterimages = [];
@@ -1720,6 +1792,7 @@ export class GameEngine {
     this.coinCombo = 0;
     this.coinComboTimer = 0;
     this.lastShotFrame = -999;
+    this.bioBeamCanvasVisualStartFrame = -1;
     this.lastBombFrame = -999;
     this.weaponVolley = 0;
     this.announcedFireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 7);
@@ -2169,6 +2242,10 @@ export class GameEngine {
   update(cinematicPause: boolean = false) {
     if (!this.gameActive) return;
     this.frameCount++;
+    if ((this.stats.shipAbilityCooldown || 0) > 0) {
+      this.stats.shipAbilityCooldown = Math.max(0, this.stats.shipAbilityCooldown - 1);
+    }
+    this.stats.shipAbilityCooldownMax = RESEARCH_CHARGE_COOLDOWN_FRAMES;
     this.flushPendingPlayerShots();
     this.refreshLoadState();
     this.stats.lives = this.lives;
@@ -2330,7 +2407,7 @@ export class GameEngine {
       + (Math.min(speedLevel, 5) * 1.5)
       + (speedLevel >= 6 ? 3 : 0);
     this.updatePlayerMovement(speed);
-    this.updateDoubleGunPodPosition();
+    this.updateSquadCompanions();
 
     // FIRE RATE PROGRESSION: Spaced out for distinct feeling
     // Level 0: 15 (4 shots/sec)
@@ -2344,8 +2421,8 @@ export class GameEngine {
     const fireInterval = fireRates[level] || 5;
 
     if (level > this.announcedFireRateLevel) {
-      const weaponLabel = level >= 7 ? 'SINGULARITY CANNON ONLINE' : level >= 6 ? 'NOVA LANCE ONLINE' : level >= 5 ? 'ION LANCE ONLINE' : level >= 3 ? 'PLASMA CANNON ONLINE' : `RAPID FIRE L${level + 1}`;
-      const weaponColor = level >= 7 ? '#a78bfa' : level >= 6 ? '#facc15' : level >= 5 ? '#f0abfc' : level >= 3 ? '#67e8f9' : '#fde68a';
+      const weaponLabel = `RAPID FIRE L${level + 1}`;
+      const weaponColor = '#67e8f9';
       this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 18, weaponLabel, weaponColor, this.mobileProfile ? 16 : 19);
       this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, weaponColor);
       this.playSound('powerup', 1, { pitchOffset: level * 0.04 });
@@ -2523,6 +2600,8 @@ export class GameEngine {
           if (e.y < -80 || e.y > this.height + 80 || e.x < -80 || e.x > this.width + 80) {
             e.clawReturning = true;
           }
+        } else if (e.shipAbilityKind === 'research-charge' && e.y < -e.height * 0.45) {
+          this.detonateResearchCharge(e, e.x + e.width / 2, Math.max(54, e.height * 0.35));
         } else if (e.y < -50 || e.y > this.height + 50) {
           e.markedForDeletion = true;
         }
@@ -2585,61 +2664,101 @@ export class GameEngine {
   }
 
   getGunPodOffsets() {
-    if (this.activePowerups.has(PowerupType.TRIPLE_SHOT)) {
-      return TRIPLE_GUN_POD_OFFSETS;
-    }
-
-    if (this.activePowerups.has(PowerupType.DOUBLE_SHOT)) {
-      return [this.doubleGunPodOffset];
-    }
-
     return EMPTY_GUN_POD_OFFSETS;
   }
 
-  private getDoubleGunPodDistance() {
-    return clamp(this.width * 0.27, 88, 132);
+  getSquadCompanionVisuals(): SquadCompanionVisual[] {
+    const size = this.mobileProfile ? 42 : 50;
+    return this.squadCompanions.map((companion) => ({
+      slot: companion.slot,
+      id: companion.id,
+      frames: companion.frames,
+      frameIndex: companion.frameIndex,
+      x: companion.x,
+      y: companion.y,
+      width: size,
+      height: size,
+      alpha: this.playerDrawAlpha * companion.entryProgress
+    }));
   }
 
-  private updateDoubleGunPodPosition() {
-    const doubleActive = this.activePowerups.has(PowerupType.DOUBLE_SHOT)
-      && !this.activePowerups.has(PowerupType.TRIPLE_SHOT);
-    const distance = this.getDoubleGunPodDistance();
-
-    if (!doubleActive) {
-      this.doubleGunPodActive = false;
-      this.doubleGunPodSide = -1;
-      this.doubleGunPodOffset = -distance;
-      return;
-    }
-
-    if (!this.doubleGunPodActive) {
-      this.doubleGunPodActive = true;
-      this.doubleGunPodSide = -1;
-      this.doubleGunPodOffset = -distance;
-    }
-
-    const playerCenterX = this.player.x + this.player.width / 2;
-    if (this.doubleGunPodSide < 0 && playerCenterX <= this.width * DOUBLE_GUN_POD_EDGE_ENTER_RATIO) {
-      this.doubleGunPodSide = 1;
-    } else if (this.doubleGunPodSide > 0 && playerCenterX >= this.width * DOUBLE_GUN_POD_EDGE_EXIT_RATIO) {
-      this.doubleGunPodSide = -1;
-    }
-
-    const targetOffset = this.doubleGunPodSide * distance;
-    this.doubleGunPodOffset += (targetOffset - this.doubleGunPodOffset) * DOUBLE_GUN_POD_EASING;
-    if (Math.abs(targetOffset - this.doubleGunPodOffset) < 0.5) {
-      this.doubleGunPodOffset = targetOffset;
-    }
+  private resetSquadCompanionPositions() {
+    const centerX = this.player.x + this.player.width / 2;
+    const centerY = this.player.y + this.player.height / 2;
+    const distance = clamp(this.player.width * 0.62, 58, 82);
+    this.squadCompanions.forEach((companion, index) => {
+      const side = companion.slot === 'left' ? -1 : 1;
+      companion.x = centerX + side * distance;
+      companion.y = centerY + 18 + index * 2;
+      companion.frameIndex = 0;
+      companion.entryProgress = 0;
+    });
   }
 
-  isBioBeamFiring() {
-    return this.playerShipUrl === ASSETS.BIO_SHIP
-      && this.gameActive
+  private updateSquadCompanions() {
+    if (this.squadCompanions.length === 0) return;
+
+    const centerX = this.player.x + this.player.width / 2;
+    const centerY = this.player.y + this.player.height / 2;
+    const distance = clamp(this.player.width * 0.62, 58, 82);
+    const edgePadding = this.mobileProfile ? 24 : 30;
+    const canFire = this.gameActive
       && this.lives > 0
       && this.introFlightFrames <= 0
       && this.deathSequenceFrames <= 0
       && this.waveDepartureFrames <= 0
-      && Boolean(this.keys[' '] || this.touchPos || this.keys['Enter']);
+      && !this.inBossWarningSequence;
+
+    this.squadCompanions.forEach((companion, index) => {
+      const side = companion.slot === 'left' ? -1 : 1;
+      const targetX = clamp(centerX + side * distance, edgePadding, this.width - edgePadding);
+      const targetY = clamp(
+        centerY + 14 + Math.sin(this.frameCount * 0.055 + index * Math.PI) * 4,
+        34,
+        this.height - 34
+      );
+      companion.entryProgress = Math.min(1, companion.entryProgress + 0.045);
+      companion.x += (targetX - companion.x) * 0.14;
+      companion.y += (targetY - companion.y) * 0.14;
+      companion.frameIndex = Math.floor(this.frameCount / 10 + index) % companion.frames.length;
+
+      if (!canFire) return;
+      companion.fireTimer--;
+      if (companion.fireTimer > 0) return;
+      this.spawnSquadCompanionBullet(companion);
+      companion.fireTimer = companion.fireIntervalFrames;
+    });
+  }
+
+  private spawnSquadCompanionBullet(companion: ActiveSquadCompanion) {
+    if (this.livePlayerShotCount + this.pendingPlayerShots.length >= this.getPlayerShotCap()) return;
+
+    const width = 7 + Math.min(3, companion.level - 1);
+    const projectile = new Entity(
+      EntityType.PROJECTILE,
+      companion.x - width / 2,
+      companion.y - (this.mobileProfile ? 24 : 28)
+    );
+    projectile.width = width;
+    projectile.height = 20 + Math.min(8, companion.level * 2);
+    projectile.vx = 0;
+    projectile.vy = -(9.2 + companion.level * 0.22);
+    projectile.color = companion.projectileColor;
+    projectile.isPlayerShot = true;
+    projectile.weaponKind = 'pulse';
+    projectile.weaponVisualLevel = 0;
+    projectile.weaponVisualStartFrame = this.frameCount;
+    projectile.damage = companion.projectileDamage;
+    this.entities.push(projectile);
+    this.livePlayerShotCount++;
+
+    if (!this.shouldUseLeanEffects()) {
+      this.spawnBurst(companion.x, companion.y - 14, companion.projectileColor, 1, 0.8, 2);
+    }
+  }
+
+  isBioBeamFiring() {
+    return false;
   }
 
   private applyBioLaserPulse(level: number) {
@@ -2815,7 +2934,7 @@ export class GameEngine {
               ? 14
               : 10;
     const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - bulletWidth / 2 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
-    const angle = randomRange(-0.035, 0.035) + angleBias;
+    const angle = angleBias;
     b.width = bulletWidth;
     b.height = isBioLaser
       ? Math.round(34 + bioLaserLevel * 6)
@@ -2837,6 +2956,8 @@ export class GameEngine {
     b.color = bulletColor;
     b.isPlayerShot = true;
     b.weaponKind = weaponKind;
+    b.weaponVisualLevel = 0;
+    b.weaponVisualStartFrame = this.frameCount;
     b.damage = isBioLaser
       ? 0.9 + bioLaserLevel * 0.55
       : isEthShard
@@ -2907,63 +3028,27 @@ export class GameEngine {
 
     this.playerVel.y += 0.2;
     this.playerVel.x += randomRange(-0.05, 0.05);
-    const fireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 7);
-    const bioLaserEquipped = this.playerShipUrl === ASSETS.BIO_SHIP;
-    const ethShardEquipped = this.playerShipUrl === ASSETS.ETH_SHIP;
-    const btcHashEquipped = this.playerShipUrl === ASSETS.BTC_SHIP;
-    const weaponKind: PlayerWeaponKind = bioLaserEquipped
-      ? 'bio-laser'
-      : ethShardEquipped
-        ? 'eth-shard'
-      : btcHashEquipped
-        ? 'btc-hash'
-      : fireRateLevel >= 7
-        ? this.weaponVolley % 3 === 0 ? 'singularity' : 'nova'
-        : fireRateLevel >= 6
-          ? this.weaponVolley % 3 === 0 ? 'nova' : 'ion'
-          : fireRateLevel >= 5 && this.weaponVolley % 4 === 0
-            ? 'ion'
-            : fireRateLevel >= 3
-              ? 'plasma'
-              : 'pulse';
-    const weaponSpeed = weaponKind === 'bio-laser'
-      ? 11 + fireRateLevel * 0.55
-      : weaponKind === 'eth-shard'
-        ? 12 + fireRateLevel * 0.48
-      : weaponKind === 'btc-hash'
-        ? 11.6 + fireRateLevel * 0.52
-      : weaponKind === 'singularity'
-        ? 15.4
-        : weaponKind === 'nova'
-          ? 14.2
-          : weaponKind === 'ion'
-            ? 12.8
-            : weaponKind === 'plasma'
-              ? 11.2
-              : 10;
-    if (bioLaserEquipped) {
-      this.applyBioLaserPulse(fireRateLevel);
-      this.playSound('shoot', 1, {
-        pitchJitter: 0.025,
-        pitchOffset: -0.34 + fireRateLevel * 0.012
-      });
-    } else {
-      this.spawnPlayerBullet(weaponSpeed, 0, 0, 0, -0.04, true, weaponKind);
-    }
+    const weaponKind: PlayerWeaponKind = 'pulse';
+    const weaponSpeed = 10;
+    this.spawnPlayerBullet(weaponSpeed, 0, 0, getRandomPrimaryShotAngle(), -0.04, true, weaponKind);
 
     const lean = this.shouldUseLeanEffects();
-    this.getGunPodOffsets().forEach((offsetX, index) => {
-      this.queuePlayerBullet({
-        fireFrame: this.frameCount + index + 1,
-        speed: 10.4,
-        offsetX,
-        yOffset: 8,
-        angleBias: offsetX < 0 ? -0.042 : 0.042,
-        pitchOffset: offsetX < 0 ? -0.01 : 0.03,
-        weaponKind: fireRateLevel >= 3 ? 'plasma' : 'pulse',
-        playSound: !lean
+    const overdriveSpread = this.activePowerups.has(PowerupType.DOUBLE_SHOT)
+      || this.activePowerups.has(PowerupType.TRIPLE_SHOT);
+    if (overdriveSpread) {
+      [-1, 1].forEach((side, index) => {
+        this.queuePlayerBullet({
+          fireFrame: this.frameCount + index + 1,
+          speed: weaponSpeed,
+          offsetX: side * 4,
+          yOffset: 4,
+          angleBias: side * (Math.PI / 6),
+          pitchOffset: side < 0 ? -0.01 : 0.03,
+          weaponKind,
+          playSound: !lean
+        });
       });
-    });
+    }
   }
   
   fireMissile() {
@@ -3067,6 +3152,95 @@ export class GameEngine {
     }
 
     return true;
+  }
+
+  triggerShipAbility() {
+    const isResearchHubShip = this.playerShipUrl === ASSETS.PLAYER_SHIP;
+    if (
+      !isResearchHubShip
+      || (this.stats.shipAbilityCooldown || 0) > 0
+      || !this.gameActive
+      || this.introFlightFrames > 0
+      || this.deathSequenceFrames > 0
+      || this.waveDepartureFrames > 0
+    ) {
+      return false;
+    }
+
+    const projectile = new Entity(
+      EntityType.PROJECTILE,
+      this.player.x + this.player.width / 2 - 38,
+      this.player.y - 82
+    );
+    projectile.width = 76;
+    projectile.height = 92;
+    projectile.vx = 0;
+    projectile.vy = -7.2;
+    projectile.color = '#67e8f9';
+    projectile.isPlayerShot = true;
+    projectile.damage = 0;
+    projectile.shipAbilityKind = 'research-charge';
+    projectile.projectileVisualKind = 'research-charge';
+    projectile.spriteFrames = [...RESEARCH_CHARGE_FRAME_URLS];
+    projectile.weaponVisualStartFrame = this.frameCount;
+    this.entities.push(projectile);
+
+    this.stats.shipAbilityCooldown = RESEARCH_CHARGE_COOLDOWN_FRAMES;
+    this.stats.shipAbilityCooldownMax = RESEARCH_CHARGE_COOLDOWN_FRAMES;
+    this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + 8, '#67e8f9');
+    this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 24, 'RESEARCH CHARGE', '#a7f3d0', 17);
+    this.spawnBurst(this.player.x + this.player.width / 2, this.player.y, '#67e8f9', 10, 4.2, 4);
+    this.addShake(2.5);
+    this.playSound('powerup');
+    return true;
+  }
+
+  detonateResearchCharge(projectile: Entity, centerX: number, centerY: number) {
+    if (projectile.markedForDeletion) return;
+    projectile.markedForDeletion = true;
+
+    const impact = new VisualEffect(centerX - 86, centerY - 86, 'sprite', '', '#ffffff');
+    impact.width = 172;
+    impact.height = 172;
+    impact.spriteFrames = [...RESEARCH_IMPACT_FRAME_URLS];
+    impact.life = 42;
+    impact.maxLife = 42;
+    this.entities.push(impact);
+
+    this.flashAlpha = Math.max(this.flashAlpha, 0.28);
+    this.addShake(7);
+    this.addHitStop(5);
+    this.spawnRingEffect(centerX, centerY, '#a7f3d0');
+    this.spawnBurst(centerX, centerY, '#67e8f9', 24, 7, 5);
+    this.playSound('bomb', 0.72, { pitchJitter: 0.04, pitchOffset: 0.12 });
+
+    const radiusSq = RESEARCH_CHARGE_BLAST_RADIUS * RESEARCH_CHARGE_BLAST_RADIUS;
+    const targets = this.entities.filter((entity) => !entity.markedForDeletion && this.isEnemyTarget(entity));
+    for (const target of targets) {
+      const dx = target.x + target.width / 2 - centerX;
+      const dy = target.y + target.height / 2 - centerY;
+      const targetAllowance = Math.min(46, Math.max(target.width, target.height) * 0.25);
+      const effectiveRadius = RESEARCH_CHARGE_BLAST_RADIUS + targetAllowance;
+      if ((dx * dx + dy * dy) > Math.max(radiusSq, effectiveRadius * effectiveRadius)) continue;
+
+      if (target.type === EntityType.BOSS && this.isBossShielded()) {
+        this.flashEntity(target, 7);
+        continue;
+      }
+
+      const damage = target.type === EntityType.BOSS
+        ? 10
+        : target.type === EntityType.MINI_BOSS
+          ? 18
+          : target.type === EntityType.ENEMY_INVADER
+            ? 22
+            : 999;
+      if (target.type === EntityType.BOSS) this.damageBossHull(target, damage);
+      else target.hp -= damage;
+      this.flashEntity(target, target.type === EntityType.BOSS ? 7 : 5);
+      this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#a7f3d0', 5, 3.6, 3);
+      if (target.hp <= 0) this.handleEnemyDestroyed(target);
+    }
   }
 
   isEnemyTarget(entity: Entity) {
@@ -4377,7 +4551,8 @@ export class GameEngine {
      const activePhaseCount = boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length;
      const phaseCadenceMultiplier = Math.max(0.45, 1 - Math.max(0, activePhaseCount - 1) * 0.16);
      const baseShootRate = boss.attackIntervalFrames ?? (this.wave === 1 ? 72 : Math.max(30, 60 - (this.wave * 5)));
-     const shootRate = Math.max(8, Math.round(baseShootRate * phaseCadenceMultiplier));
+     const hullPressureMultiplier = 0.58 + clamp(healthRatio, 0, 1) * 0.42;
+     const shootRate = Math.max(8, Math.round(baseShootRate * phaseCadenceMultiplier * hullPressureMultiplier));
      if (boss.attackTimer % shootRate === 0) {
         const burstCount = Math.max(1, boss.configuredBurstCount ?? 1);
         for (let index = 0; index < burstCount; index++) {
@@ -4401,10 +4576,11 @@ export class GameEngine {
     const healthRatio = componentId === 'helmet'
       ? BOSS_HELMET_HEALTH_RATIO
       : BOSS_CANNON_HEALTH_RATIO;
-    return Math.max(
+    const durability = Math.max(
       minimumDurability,
       Math.round(Math.max(1, boss.maxHp) * healthRatio)
     );
+    return durability;
   }
 
   createBossComponents(boss: Entity) {
@@ -5295,8 +5471,10 @@ export class GameEngine {
     }
     
     boss.x = Math.max(0, Math.min(this.width - boss.width, boss.x));
-    const cycleLength = Math.max(320, 410 - Math.min(4, phase - 1) * 18);
-    const burstEnd = Math.max(210, 250 - Math.min(4, phase - 1) * 8);
+    const hullPressure = 1 - clamp(healthRatio, 0, 1);
+    const pressureCadence = 1 - hullPressure * 0.34;
+    const cycleLength = Math.max(250, Math.round((410 - Math.min(4, phase - 1) * 18) * pressureCadence));
+    const burstEnd = Math.max(170, Math.round((250 - Math.min(4, phase - 1) * 8) * pressureCadence));
     const chargeEnd = burstEnd + 70;
     const attackCycle = boss.attackTimer % cycleLength;
     const hasConfiguredWeapons = boss.weaponKinds.length > 0;
@@ -5321,7 +5499,8 @@ export class GameEngine {
         const activeFireRate = hasOperationalCannon
           ? fireRate
           : Math.max(16, Math.round(fireRate * (boss.bossRigId === 'citation-storm' ? 1.02 : 1.12)));
-        const isBurstReady = boss.attackTimer - boss.lastBurstAttackTimer >= activeFireRate;
+        const pressuredFireRate = Math.max(8, Math.round(activeFireRate * (1 - hullPressure * 0.28)));
+        const isBurstReady = boss.attackTimer - boss.lastBurstAttackTimer >= pressuredFireRate;
         if (allowsBurst && isBurstReady) {
           this.spawnBossBurst(boss, phase);
           boss.lastBurstAttackTimer = boss.attackTimer;
@@ -5394,6 +5573,7 @@ export class GameEngine {
     p.width = 36;
     p.height = 36;
     p.vy = 2.0;
+    p.variant = Math.floor(Math.random() * 1000);
     this.entities.push(p);
     return p;
   }
@@ -5491,12 +5671,9 @@ export class GameEngine {
     } else if (type === PowerupType.MAGNET) {
       this.spawnFloatingText(cx, cy - 20, "MAGNET!", "#FFD700");
       this.spawnRingEffect(cx, cy, "#FFD700");
-    } else if (type === PowerupType.TRIPLE_SHOT) {
-      this.spawnFloatingText(cx, cy - 20, "TRIPLE SHOT!", "#6c63ff");
-      this.spawnRingEffect(cx, cy, "#6c63ff");
-    } else if (type === PowerupType.DOUBLE_SHOT) {
-      this.spawnFloatingText(cx, cy - 20, "DOUBLE SHOT!", "#ffbb33");
-      this.spawnRingEffect(cx, cy, "#ffbb33");
+    } else if (type === PowerupType.TRIPLE_SHOT || type === PowerupType.DOUBLE_SHOT) {
+      this.spawnFloatingText(cx, cy - 20, "OVERDRIVE SPREAD!", "#67e8f9");
+      this.spawnRingEffect(cx, cy, "#67e8f9");
     } else if (type === PowerupType.RESEARCH_BEAM) {
       this.spawnFloatingText(cx, cy - 20, "RESEARCH BEAM!", "#a855f7");
       this.spawnRingEffect(cx, cy, "#a855f7");
@@ -5506,6 +5683,10 @@ export class GameEngine {
       this.spawnFloatingText(cx, cy - 20, "+1 LIFE!", "#ff4444");
       this.spawnRingEffect(cx, cy, "#ff4444");
     }
+    emitSquadDomainEvent('powerup_collected', {
+      profileId: this.squadLoadout?.profileId ?? 'guest',
+      powerup: type
+    });
   }
 
   getCollisionBox(entity: Entity) {
@@ -5814,6 +5995,11 @@ export class GameEngine {
           continue;
         }
         if (!bossComponent && !this.boxesIntersect(shotBox, getBox(target))) continue;
+
+        if (shot.shipAbilityKind === 'research-charge') {
+          this.detonateResearchCharge(shot, shot.x + shot.width / 2, shot.y + shot.height * 0.35);
+          break;
+        }
 
         // Boss-type enemies get shaved down a bit faster so fights don't drag.
         const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS;
@@ -6711,6 +6897,33 @@ export class GameEngine {
        ctx.rotate(this.playerTilt);
        ctx.scale(1 + squash * 0.78, 1 - squash * 0.58);
        this.drawPlayerThrusters(ctx, e);
+       const bioBeamActive = this.isBioBeamFiring();
+       const bioBeamLevel = Math.min(this.stats.upgrades.fireRate || 0, 7);
+       const bioBeamFrames = getPlayerWeaponFrames('bio-laser', bioBeamLevel);
+       if (bioBeamActive && this.bioBeamCanvasVisualStartFrame < 0) {
+         this.bioBeamCanvasVisualStartFrame = this.frameCount;
+       } else if (!bioBeamActive) {
+         this.bioBeamCanvasVisualStartFrame = -1;
+       }
+       const bioBeamLaunchFrame = getPlayerWeaponLaunchFrameIndex(
+         this.frameCount - Math.max(0, this.bioBeamCanvasVisualStartFrame),
+         bioBeamFrames.length
+       );
+       const bioBeamLaunchProgress = (bioBeamLaunchFrame + 1) / bioBeamFrames.length;
+       if (bioBeamActive) {
+         const beamWidth = (5 + bioBeamLevel * 1.55) * bioBeamLaunchProgress;
+         const beamTop = -(e.y + e.height / 2);
+         const beamEnd = -e.height * 0.3;
+         ctx.save();
+         ctx.globalCompositeOperation = 'lighter';
+         ctx.fillStyle = bioBeamLevel > 0 ? 'rgba(56,189,248,.18)' : 'rgba(101,245,154,.18)';
+         ctx.fillRect(-beamWidth * 1.8, beamTop, beamWidth * 3.6, beamEnd - beamTop);
+         ctx.fillStyle = bioBeamLevel > 0 ? '#38bdf8' : '#65f59a';
+         ctx.fillRect(-beamWidth * 0.7, beamTop, beamWidth * 1.4, beamEnd - beamTop);
+         ctx.fillStyle = '#ffffff';
+         ctx.fillRect(-Math.max(1.5, beamWidth * 0.2), beamTop, Math.max(3, beamWidth * 0.4), beamEnd - beamTop);
+         ctx.restore();
+       }
 
        if (this.activePowerups.has(PowerupType.MAGNET)) {
            const pulse = Math.sin(this.frameCount * 0.1) * 5;
@@ -6758,6 +6971,17 @@ export class GameEngine {
        } else {
          ctx.fillStyle = '#6c63ff';
          ctx.fillRect(-20, -20, 40, 40);
+       }
+       if (bioBeamActive) {
+         const emitter = getReadyImage(bioBeamFrames[bioBeamLaunchFrame]);
+         if (emitter) {
+           const emitterWidth = 18 + bioBeamLevel * 3.4;
+           const emitterHeight = 42 + bioBeamLevel * 6.2;
+           ctx.save();
+           ctx.imageSmoothingEnabled = false;
+           ctx.drawImage(emitter, -emitterWidth / 2, -e.height * 0.36 - emitterHeight, emitterWidth, emitterHeight);
+           ctx.restore();
+         }
        }
        this.drawPlayerThrusterUpgradeOverlay(ctx, e);
 
@@ -6834,13 +7058,13 @@ export class GameEngine {
         ctx.arc(0, 0, 18, 0, Math.PI * 2);
         ctx.clip();
         
-        let imgUrl = ASSETS.FOUNDER_4; 
-        if (type === PowerupType.TRIPLE_SHOT) imgUrl = ASSETS.FOUNDER_BRIAN;
-        if (type === PowerupType.MAGNET) imgUrl = ASSETS.FOUNDER_PATRICK;
-        if (type === PowerupType.SHIELD) imgUrl = ASSETS.FOUNDER_JEFFREY;
-        if (type === PowerupType.DOUBLE_SHOT) imgUrl = ASSETS.FOUNDER_4;
-        if (type === PowerupType.EXTRA_LIFE) imgUrl = ASSETS.FOUNDER_ARSHIA; // Arshia
-        if (type === PowerupType.RESEARCH_BEAM) imgUrl = ASSETS.REAL_RSC_ICON;
+        let frames: readonly string[] = ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES;
+        if (type === PowerupType.MAGNET) frames = ASSETS.POWERUP_MAGNET_FRAMES;
+        if (type === PowerupType.SHIELD) frames = ASSETS.POWERUP_SHIELD_FRAMES;
+        if (type === PowerupType.EXTRA_LIFE) frames = ['/game-art/powerups/extra-life.png'];
+        if (type === PowerupType.RESEARCH_BEAM) frames = ASSETS.POWERUP_RESEARCH_BEAM_FRAMES;
+        const frameIndex = Math.floor((this.frameCount + e.variant) / 8) % frames.length;
+        const imgUrl = frames[frameIndex];
         
         const img = loadImage(imgUrl);
         if (img && img.complete && img.naturalWidth > 0) {
@@ -6882,26 +7106,17 @@ export class GameEngine {
         ctx.fillText("🧱", 0, 2);
 
     } else if (e.type === EntityType.COIN) {
-        const img = imageCache[ASSETS.RSC_TOKEN];
-        const spin = Math.sin((this.frameCount + e.variant) * 0.16);
-        const spinWidth = Math.max(0.18, Math.abs(spin));
+        const frameIndex = Math.floor((this.frameCount + e.variant) / 5) % ASSETS.RSC_TOKEN_FLIP_FRAMES.length;
+        const img = imageCache[ASSETS.RSC_TOKEN_FLIP_FRAMES[frameIndex]];
         if (img && img.complete && img.naturalWidth > 0) {
             ctx.save();
-            ctx.scale(spinWidth, 1);
-            ctx.rotate((this.frameCount + e.variant) * 0.025);
-            ctx.shadowBlur = this.getGlowBlur(10 + (1 - spinWidth) * 8);
-            ctx.shadowColor = '#FFD700'; 
-            ctx.beginPath();
-            ctx.arc(0, 0, e.width/2, 0, Math.PI*2);
-            ctx.clip();
+            ctx.imageSmoothingEnabled = false;
+            ctx.shadowBlur = this.getGlowBlur(10);
+            ctx.shadowColor = '#FFD700';
             ctx.drawImage(img, -e.width/2, -e.height/2, e.width, e.height);
-            ctx.strokeStyle = '#FFD700';
-            ctx.lineWidth = 2;
-            ctx.stroke();
             ctx.restore();
         } else {
             ctx.save();
-            ctx.scale(spinWidth, 1);
             ctx.fillStyle = '#FFD700';
             ctx.beginPath();
             ctx.arc(0, 0, 8, 0, Math.PI * 2);
@@ -6972,7 +7187,15 @@ export class GameEngine {
         ctx.fillRect(-e.width / 2, -e.height / 2, e.width, e.height);
     } else if (e.type === EntityType.EFFECT) {
         const eff = e as VisualEffect;
-        if (eff.effectType === 'text') {
+        if (eff.effectType === 'sprite' && eff.spriteFrames?.length) {
+            const age = Math.max(0, eff.maxLife - eff.life);
+            const frameIndex = Math.min(eff.spriteFrames.length - 1, Math.floor(age / 6));
+            const image = loadImage(eff.spriteFrames[frameIndex]);
+            if (image.complete && image.naturalWidth > 0) {
+              ctx.globalAlpha = Math.min(1, eff.life / 8);
+              ctx.drawImage(image, -eff.width / 2, -eff.height / 2, eff.width, eff.height);
+            }
+        } else if (eff.effectType === 'text') {
             ctx.font = `bold ${eff.fontSize}px Orbitron`;
             ctx.textAlign = 'center';
             ctx.globalAlpha = eff.life / eff.maxLife;
@@ -7058,7 +7281,7 @@ export class GameEngine {
         ctx.save();
         ctx.globalAlpha = 1.0; 
         ctx.filter = "none";
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = e.isPlayerShot ? 'source-over' : 'lighter';
         const leanShot = e.isPlayerShot && this.shouldUseLeanEffects();
         const isIonShot = e.isPlayerShot && e.weaponKind === 'ion';
         const isNovaShot = e.isPlayerShot && e.weaponKind === 'nova';
@@ -7066,7 +7289,9 @@ export class GameEngine {
         const isBioLaserShot = e.isPlayerShot && e.weaponKind === 'bio-laser';
         const isEthShardShot = e.isPlayerShot && e.weaponKind === 'eth-shard';
         const isBtcHashShot = e.isPlayerShot && e.weaponKind === 'btc-hash';
-        ctx.shadowBlur = this.getGlowBlur(leanShot ? (isSingularityShot ? 12 : isNovaShot ? 10 : isIonShot ? 8 : isBioLaserShot ? 7 : isEthShardShot ? 8 : isBtcHashShot ? 8 : 5) : isSingularityShot ? 40 : isNovaShot ? 34 : isIonShot ? 26 : isBioLaserShot ? 24 : isEthShardShot ? 28 : isBtcHashShot ? 30 : e.isPlayerShot ? 18 : 12);
+        ctx.shadowBlur = e.isPlayerShot
+          ? 0
+          : this.getGlowBlur(leanShot ? 5 : 12);
         ctx.shadowColor = e.color || (e.isPlayerShot ? '#67e8f9' : '#fb7185');
 
         if (e.text) { 
@@ -7075,7 +7300,19 @@ export class GameEngine {
            ctx.textBaseline = 'middle';
            ctx.fillText(e.text, 0, 0);
         } else if (e.isPlayerShot) {
-          if (isBtcHashShot) {
+          const weaponFrames = getPlayerWeaponFrames(e.weaponKind, e.weaponVisualLevel);
+          const launchFrame = getPlayerWeaponLaunchFrameIndex(
+            this.frameCount - e.weaponVisualStartFrame,
+            weaponFrames.length
+          );
+          const weaponFrame = getReadyImage(weaponFrames[launchFrame]);
+          if (weaponFrame) {
+            const visualWidth = Math.max(34, e.width * 2.05);
+            const visualHeight = Math.max(48, e.height * 1.2);
+            ctx.imageSmoothingEnabled = false;
+            ctx.rotate(Math.atan2(e.vy, e.vx) + Math.PI / 2);
+            ctx.drawImage(weaponFrame, -visualWidth / 2, -visualHeight / 2, visualWidth, visualHeight);
+          } else if (isBtcHashShot) {
             const pulse = 0.84 + Math.sin((this.frameCount + e.variant) * 0.42) * 0.16;
             ctx.fillStyle = `rgba(245,158,11,${0.3 * pulse})`;
             ctx.beginPath();

@@ -16,13 +16,19 @@ const htmlSource = fs.readFileSync(
   'utf8'
 );
 
-test('home winner card uses the same proposal progress calculation as proposal rows', () => {
-  assert.match(
-    source,
-    /weeklyProposalPreview\s*\?\s*getProposalProgress\(weeklyProposalPreview\)\s*:\s*0/
-  );
-  assert.match(source, /\{weeklyFundingProgress\}% progress/);
-  assert.doesNotMatch(source, /\{weeklyFundingProgress\}% week/);
+test('home winner card uses only the proposal saved on the current weekly leader', () => {
+  assert.match(source, /resolveProposalSelection\(weeklyLeader, proposals\)/);
+  assert.doesNotMatch(source, /weeklyProposalPreview\s*=\s*sortedProposals\[0\]/);
+  assert.match(source, /weeklyProposalSelection\?\.liveProposal[\s\S]*getProposalFundingMetrics\(weeklyProposalSelection\.liveProposal\)/);
+  assert.match(source, /formatFundingPercent\(weeklyFunding\.progressPercent\)/);
+  assert.doesNotMatch(source, /getProposalProgress|weeklyFundingProgress/);
+});
+
+test('an open weekly pilot slot renders no proposal title, image, or progress', () => {
+  assert.match(source, /const weeklyLeader = activeWeeklyLeaderboard\[0\]/);
+  assert.match(source, /\{weeklyProposalSelection\?\.imageUrl \? \(/);
+  assert.match(source, /\{weeklyProposalSelection \? \([\s\S]*weeklyProposalSelection\.title/);
+  assert.match(source, /key=\{`\$\{weeklyProposalSelection\.id\}:\$\{weeklyProposalSelection\.imageUrl\}`\}/);
 });
 
 test('home winner image has no trophy overlay', () => {
@@ -96,6 +102,8 @@ test('client leaderboard filtering uses the same Sunday noon-Pacific boundary as
   assert.match(leaderboardServiceSource, /boundary\.startsAt\.getTime\(\)/);
   assert.match(leaderboardServiceSource, /boundary\.endsAt\.getTime\(\)/);
   assert.doesNotMatch(leaderboardServiceSource, /dayOffsetFromMonday/);
+  assert.match(source, /scoreTime >= weeklyStartTime && scoreTime < weeklyEndTime/);
+  assert.match(source, /\? activeWeeklyLeaderboard/);
 });
 
 test('Past Picks renders the complete framed winner archive without trophy thumbnails', () => {
@@ -110,5 +118,8 @@ test('Past Picks renders the complete framed winner archive without trophy thumb
   assert.match(archiveSource, /Final allocation/);
   assert.match(archiveSource, /winner\.allocationRsc \?\? weeklyAllocation\.allocationRsc/);
   assert.match(archiveSource, /Proposal selected/);
+  assert.match(archiveSource, /resolveProposalSelection\(winner, proposals\)/);
+  assert.match(archiveSource, /proposalSelection\?\.imageUrl/);
+  assert.match(archiveSource, /key=\{`\$\{proposalSelection\.id\}:\$\{proposalSelection\.imageUrl\}`\}/);
   assert.doesNotMatch(archiveSource, /name="trophy"/);
 });

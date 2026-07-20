@@ -10,6 +10,7 @@ create table if not exists public.scicon_leaderboard (
   proposal_title text,
   proposal_url text,
   proposal_author text,
+  proposal_image_url text,
   created_at timestamptz not null default now(),
   unique (name, score, wave, date)
 );
@@ -18,7 +19,8 @@ alter table public.scicon_leaderboard
   add column if not exists proposal_id text,
   add column if not exists proposal_title text,
   add column if not exists proposal_url text,
-  add column if not exists proposal_author text;
+  add column if not exists proposal_author text,
+  add column if not exists proposal_image_url text;
 
 create index if not exists scicon_leaderboard_score_idx
   on public.scicon_leaderboard (score desc, date desc);
@@ -51,6 +53,7 @@ create table if not exists public.scicon_monthly_winners (
   proposal_title text,
   proposal_url text,
   proposal_author text,
+  proposal_image_url text,
   allocation_rsc integer not null default 500 check (allocation_rsc > 0),
   archived_at timestamptz not null default now(),
   notification_sent_at timestamptz
@@ -61,6 +64,7 @@ alter table public.scicon_monthly_winners
   add column if not exists proposal_title text,
   add column if not exists proposal_url text,
   add column if not exists proposal_author text,
+  add column if not exists proposal_image_url text,
   add column if not exists allocation_rsc integer not null default 500,
   add column if not exists notification_sent_at timestamptz;
 
