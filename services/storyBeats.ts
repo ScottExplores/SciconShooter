@@ -27,7 +27,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_JEFFREY,
     accent: 'from-emerald-300 via-cyan-300 to-sky-400',
     title: 'Predatory Drift',
-    text: '.... Nice flying. Wave two is crawling with predatory journals and review traps. If you want a leaderboard run, upgrade early. Top pilots can help point the weekly RSC allocation toward ResearchHub proposals.'
+    text: '.... Nice flying. Predatory journals and review traps crowd this sector. Upgrade early for a leaderboard run. Weekly leaders can guide the RSC allocation to a ResearchHub proposal.'
   },
   {
     phase: 3,

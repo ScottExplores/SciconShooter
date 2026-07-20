@@ -255,7 +255,10 @@ const validateRecordCard = (recordCard, location, errors) => {
   allowedKeys(recordCard, ['copy', 'colors', 'showGrid', 'shipAssetKey', 'encounterAssetKey', 'art'], location, errors);
   if (requireObject(recordCard.copy, `${location}/copy`, errors)) {
     allowedKeys(recordCard.copy, ['title', 'subtitle', 'callsignLabel', 'scoreLabel', 'verifiedLabel', 'reviewLabel', 'metricLabels'], `${location}/copy`, errors);
-    ['title', 'subtitle', 'callsignLabel', 'scoreLabel', 'verifiedLabel', 'reviewLabel'].forEach((key) => requireString(recordCard.copy[key], `${location}/copy/${key}`, errors, 80));
+    ['title', 'subtitle', 'callsignLabel', 'scoreLabel', 'reviewLabel'].forEach((key) => requireString(recordCard.copy[key], `${location}/copy/${key}`, errors, 80));
+    if (typeof recordCard.copy.verifiedLabel !== 'string' || recordCard.copy.verifiedLabel.length > 80) {
+      errors.push(`${location}/copy/verifiedLabel must be a string of at most 80 characters`);
+    }
     if (requireObject(recordCard.copy.metricLabels, `${location}/copy/metricLabels`, errors)) {
       allowedKeys(recordCard.copy.metricLabels, ['wave', 'targets', 'coins', 'flight'], `${location}/copy/metricLabels`, errors);
       ['wave', 'targets', 'coins', 'flight'].forEach((key) => requireString(recordCard.copy.metricLabels[key], `${location}/copy/metricLabels/${key}`, errors, 40));

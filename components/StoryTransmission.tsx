@@ -81,8 +81,8 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
           onClick={handleAdvance}
           className="sci-funding-vault__transmission group"
         >
-          <div className="flex min-w-0 items-center gap-4 border-b border-cyan-200/20 pb-3">
-            <div className="relative h-[92px] w-[92px] shrink-0 sm:h-[104px] sm:w-[104px]">
+          <div className="flex min-w-0 items-center gap-2.5 border-b border-cyan-200/20 pb-2">
+            <div className="relative h-[76px] w-[76px] shrink-0">
               <div className={`absolute -inset-1 bg-gradient-to-br ${beat.accent} opacity-25 blur-lg ${!isComplete ? 'animate-pulse' : ''}`}></div>
               <div className="relative h-full w-full overflow-hidden border border-cyan-200/30 bg-blue-700/20 [clip-path:polygon(9px_0,100%_0,100%_86%,86%_100%,0_100%,0_9px)]">
                 <img
@@ -94,23 +94,23 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
               </div>
             </div>
             <div className="min-w-0">
-              <div className="arcade-font text-base font-black uppercase leading-tight tracking-[0.1em] text-white sm:text-lg">
+              <div className="arcade-font text-[15px] font-black uppercase leading-tight tracking-[0.1em] text-white">
                 {beat.speaker}
               </div>
-              <div className="mt-2 font-mono text-[10px] uppercase leading-relaxed tracking-[0.12em] text-yellow-200/85 sm:text-[11px]">
+              <div className="mt-1.5 font-mono text-[9px] uppercase leading-[1.3] tracking-[0.12em] text-yellow-200/85">
                 Wave {beat.phase}: {beat.title}
               </div>
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 items-center py-3">
-            <p className="overflow-hidden font-mono text-[15px] leading-[1.55] text-cyan-50 sm:text-base">
+          <div className="flex min-h-0 flex-1 items-start overflow-y-auto py-2 custom-scrollbar">
+            <p className="sci-funding-vault__copy max-w-full font-mono text-[12px] leading-[1.38] text-cyan-50">
               {beat.text.slice(0, visibleCount)}
               {!isComplete ? <span className="animate-pulse text-cyan-200">_</span> : null}
             </p>
           </div>
 
-          <div className="border-t border-cyan-200/20 pt-3 text-right font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-200/65">
+          <div className="border-t border-cyan-200/20 pt-2 text-right font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-200/65">
             {isComplete ? 'Tap to deploy' : 'Receiving transmission'}
           </div>
         </button>

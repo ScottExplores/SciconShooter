@@ -11,15 +11,25 @@ const startScreenSource = fs.readFileSync(path.join(root, 'components', 'StartSc
 const flowSource = fs.readFileSync(path.join(root, 'services', 'weeklyFundingFlow.ts'), 'utf8');
 const leaderboardSource = fs.readFileSync(path.join(root, 'services', 'leaderboardService.ts'), 'utf8');
 
-test('a new weekly leader enters a dedicated proposal step before the mission record', () => {
+test('a new weekly leader enters a dedicated proposal step before returning to results', () => {
   assert.match(appSource, /requiresWeeklyProposal/);
   assert.match(appSource, /setShowWeeklyProposalSelection\(true\)/);
   assert.match(appSource, /saveWeeklyLeaderProposal\(runReceipt, proposal\)/);
+  assert.match(appSource, /weeklyProposalReturnRef\.current = 'results'/);
+  assert.match(appSource, /setShowMissionRecordPreview\(weeklyProposalReturnRef\.current === 'record'\)/);
+  assert.match(appSource, /View \/ mint/);
+  assert.match(appSource, />RETRY MISSION</);
+  assert.match(appSource, /onHangar=\{openSquadHangar\}/);
   assert.match(pickerSource, /New weekly high score/);
   assert.match(pickerSource, /You&apos;re #1/);
   assert.match(pickerSource, /1\. Score saved/);
   assert.match(pickerSource, /2\. Choose research/);
   assert.match(pickerSource, /3\. Mint \+ share/);
+});
+
+test('the proposal picker stays above both defeat results and Mission Record preview', () => {
+  assert.match(pickerSource, /fixed inset-0 z-\[90\]/);
+  assert.match(previewSource, /fixed inset-0 z-\[80\]/);
 });
 
 test('proposal rows select in-app and require an explicit confirmation', () => {

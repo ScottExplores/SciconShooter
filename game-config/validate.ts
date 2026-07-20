@@ -119,9 +119,9 @@ const checkString = (
   value: unknown,
   path: string,
   issues: CampaignValidationIssue[],
-  options: { id?: boolean; max?: number; color?: boolean } = {}
+  options: { id?: boolean; max?: number; color?: boolean; allowEmpty?: boolean } = {}
 ) => {
-  if (typeof value !== 'string' || value.trim().length === 0) {
+  if (typeof value !== 'string' || (!options.allowEmpty && value.trim().length === 0)) {
     pushIssue(issues, path, 'required_string', 'A non-empty string is required');
     return false;
   }
@@ -240,9 +240,10 @@ const validateRecordCard = (value: unknown, path: string, issues: CampaignValida
   } else {
     const copy = value.copy;
     checkKeys(copy, RECORD_CARD_COPY_KEYS, `${path}/copy`, issues);
-    ['title', 'subtitle', 'callsignLabel', 'scoreLabel', 'verifiedLabel', 'reviewLabel'].forEach((key) => {
+    ['title', 'subtitle', 'callsignLabel', 'scoreLabel', 'reviewLabel'].forEach((key) => {
       checkString(copy[key], `${path}/copy/${key}`, issues, { max: 80 });
     });
+    checkString(copy.verifiedLabel, `${path}/copy/verifiedLabel`, issues, { max: 80, allowEmpty: true });
     if (!isRecord(copy.metricLabels)) {
       pushIssue(issues, `${path}/copy/metricLabels`, 'required_object', 'Metric labels are required');
     } else {

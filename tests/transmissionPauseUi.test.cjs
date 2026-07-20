@@ -22,7 +22,15 @@ test('story transmissions open a simple fitted shutter before typewriter playbac
   assert.match(vaultCss, /sci-vault-shutter-right/);
   assert.doesNotMatch(vault, /research-core|energy-ring|mechanical-seal|energy-beam|energy-glow/);
   assert.doesNotMatch(vaultCss, /rotate\(90deg\)/);
-  assert.match(story, /h-\[92px\] w-\[92px\]/);
+  assert.match(story, /h-\[76px\] w-\[76px\]/);
+  assert.match(story, /items-start overflow-y-auto/);
+  assert.match(story, /sci-funding-vault__copy max-w-full font-mono text-\[12px\] leading-\[1\.38\]/);
+  assert.match(vaultCss, /width: min\(94%, 390px, 76dvh\)/);
+  assert.match(vaultCss, /overflow-wrap: anywhere/);
+
+  const beats = fs.readFileSync(path.join(root, 'services', 'storyBeats.ts'), 'utf8');
+  assert.match(beats, /Nice flying\. Predatory journals and review traps crowd this sector\./);
+  assert.doesNotMatch(beats, /Top pilots can help point the weekly RSC allocation toward ResearchHub proposals/);
 });
 
 test('pause menu uses the generated game interface while preserving real setting controls', () => {

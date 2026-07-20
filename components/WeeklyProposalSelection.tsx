@@ -45,7 +45,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   const isSaving = selectionStatus === 'saving';
 
   return (
-    <div className="absolute inset-0 z-50 flex min-h-0 items-stretch justify-center overflow-hidden bg-[#020617]/96 p-3 backdrop-blur-xl sm:items-center sm:p-5">
+    <div className="fixed inset-0 z-[90] flex min-h-0 items-stretch justify-center overflow-hidden bg-[#020617]/96 p-3 backdrop-blur-xl sm:items-center sm:p-5">
       <div className="relative flex min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-[8px] border border-yellow-200/45 bg-[#030a19] shadow-[0_0_70px_rgba(250,204,21,0.16),0_28px_100px_rgba(0,0,0,0.76)]">
         <div className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(34,211,238,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.035)_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="relative overflow-hidden border-b border-yellow-200/20 px-4 py-4 text-center sm:px-6">

@@ -23,6 +23,15 @@ export interface MissionRecordCardProps {
   record: MissionRecordCardData;
   shipArt?: string;
   frameArt?: string;
+  encounterImages?: Array<{
+    image?: string;
+    path?: string;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    opacity?: number;
+  }>;
   presentation?: RecordCardPresentation;
 }
 
@@ -30,6 +39,7 @@ export function buildMissionRecordCardSvg({
   record,
   shipArt = ASSETS.PLAYER_SHIP,
   frameArt,
+  encounterImages,
   presentation
 }: MissionRecordCardProps) {
   return renderRecordCardSvg({
@@ -46,6 +56,7 @@ export function buildMissionRecordCardSvg({
       integrity: record.integrity ?? 'server-verified'
     },
     encounterImage: record.encounterArt,
+    encounterImages,
     shipImage: shipArt,
     frameImage: frameArt,
     presentation
@@ -63,9 +74,10 @@ export function MissionRecordCard({
   record,
   shipArt = ASSETS.PLAYER_SHIP,
   frameArt,
+  encounterImages,
   presentation
 }: MissionRecordCardProps) {
-  const svg = buildMissionRecordCardSvg({ record, shipArt, frameArt, presentation });
+  const svg = buildMissionRecordCardSvg({ record, shipArt, frameArt, encounterImages, presentation });
 
   return (
     <div

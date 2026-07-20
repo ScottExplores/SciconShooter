@@ -73,6 +73,15 @@ export interface RenderRecordCardSvgOptions {
   record: Partial<RecordCardRenderData>;
   shipImage?: string;
   encounterImage?: string;
+  encounterImages?: Array<{
+    image?: string;
+    path?: string;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    opacity?: number;
+  }>;
   frameImage?: string;
   presentation?: RecordCardPresentation;
 }
@@ -83,6 +92,14 @@ export function buildMissionRecordCardPath(runId: unknown, playerShipId?: unknow
 export function buildMissionRecordMetadataPath(runId: unknown, playerShipId?: unknown): string;
 export function formatRecordCardCompletedLabel(value: unknown): string;
 export function resolveRecordCardEncounterAssetKey(campaign: unknown, waveRef: unknown): string;
+export function resolveRecordCardEncounterArt(assetKey: unknown, fallbackPath?: string): Array<{
+  path: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity?: number;
+}>;
 export function escapeRecordCardXml(value: unknown): string;
 export function resolveRecordCardPresentation(presentation?: RecordCardPresentation): ResolvedRecordCardPresentation;
 export function renderRecordCardSvg(options?: RenderRecordCardSvgOptions): string;

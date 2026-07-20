@@ -23,7 +23,7 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
 
 test('tracked campaign contains four sector waves plus the Bastion Protocol endurance wave', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 11);
+  assert.equal(campaign.revision, 12);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 1);
@@ -40,6 +40,14 @@ test('tracked campaign contains four sector waves plus the Bastion Protocol endu
   assert.deepEqual(level.waves.map((wave) => wave.scoreMultiplier), [1, 2, 4, 8, 16]);
   assert.equal(level.startingDifficulty, 1);
   assert.deepEqual(level.waves.map((wave) => wave.difficultyMultiplier), [1, 1, 1, 1, 1]);
+});
+
+test('mission records omit the redundant verification line and the Paywall Siege mini-boss is visually larger', () => {
+  assert.equal(campaign.recordCard.copy.verifiedLabel, '');
+  const paywallMiniBoss = campaign.levels[0].waves[2].events.find((event) => event.id === 'paywall-siege-mini-boss');
+  assert.ok(paywallMiniBoss);
+  assert.equal(paywallMiniBoss.spriteStyle.scale, 1.15);
+  assert.equal(campaign.levels[0].waves[0].events.find((event) => event.id === 'open-orbit-mini-boss').spriteStyle, undefined);
 });
 
 test('the four sector waves expose editable spawns, mini-bosses, checkpoints, final bosses, and power-ups', () => {

@@ -47,6 +47,7 @@ interface SquadHangarProps {
 
 const UI_ROOT = '/game-art/generated/ui/scicon-simple-arcade-kit-v1';
 const HANGAR_STARFIELD = '/game-art/generated/backgrounds/scicon-sparse-pixel-starfield-v1/scicon-sparse-pixel-starfield-twinkle.gif';
+const MINI_COST_ICON = '/game-art/generated/rsc-coin-flip-v1/rsc-coin-pixel-front.png';
 const PLAYER_SHIP_ORDER: PlayerShipId[] = [...PLAYABLE_PLAYER_SHIP_IDS];
 const MINI_ANIMATION_SEQUENCE = [0, 1, 2, 1] as const;
 const PLAYER_SELECTION_FRAME_COUNT = Math.max(
@@ -200,6 +201,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const [activePosition, setActivePosition] = useState<HangarPosition>('main');
   const [mode, setMode] = useState<HangarMode>('catalog');
   const [selectedMiniId, setSelectedMiniId] = useState<MiniShipId | null>(null);
+  const [upgradeFeedback, setUpgradeFeedback] = useState<{ target: string; label: string; nonce: number } | null>(null);
   const playerSelectionFrame = useAnimationFrame(
     PLAYER_SELECTION_FRAME_COUNT,
     1000 / PLAYER_SHIP_SELECTION_FPS
@@ -245,6 +247,10 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
       return;
     }
     setActivePosition(position);
+  };
+
+  const showUpgradeFeedback = (target: string, label: string) => {
+    setUpgradeFeedback((current) => ({ target, label, nonce: (current?.nonce ?? 0) + 1 }));
   };
 
   const renderSquadMini = (slot: SquadSlotId) => {
@@ -316,11 +322,17 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const renderMiniCatalog = () => {
     if (activePosition === 'main') return null;
     return (
-      <div className="grid max-h-[24rem] grid-cols-4 gap-2 overflow-y-auto pr-1 custom-scrollbar sm:gap-3">
+      <div className="grid grid-cols-4 gap-2 pr-1 sm:max-h-[24rem] sm:gap-3 sm:overflow-y-auto custom-scrollbar">
         {MINI_SHIP_CATALOG.map((entry) => {
           const level = state.ownedMiniShips[entry.id] || 0;
           const owned = level > 0;
           const equippedHere = state.equipped[activePosition] === entry.id;
+          const atMax = level >= MINI_SHIP_MAX_LEVEL;
+          const nextCost = atMax ? 0 : owned ? getMiniShipUpgradeCost(entry.id, level) : entry.purchaseCost;
+          const costLabel = atMax ? 'MAX' : nextCost === 0 ? 'FREE' : nextCost.toLocaleString();
+          const actionLabel = atMax
+            ? `${entry.name}, level ${level} of ${MINI_SHIP_MAX_LEVEL}, maximum level`
+            : `${entry.name}, level ${level} of ${MINI_SHIP_MAX_LEVEL}, ${owned ? 'next upgrade' : 'unlock'} ${nextCost} coins`;
           return (
             <button
               key={entry.id}
@@ -337,14 +349,18 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 }
                 onEquipMini(activePosition, entry.id);
               }}
-              className={`relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 ${equippedHere ? 'border-yellow-200/75' : 'border-cyan-200/22'} ${owned ? '' : 'grayscale'}`}
+              aria-label={actionLabel}
+              className={`relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 ${equippedHere ? 'border-yellow-200/75' : 'border-cyan-200/22'}`}
             >
               {equippedHere ? <AnimatedSelector size="mini" color="gold" className="absolute inset-0 h-full w-full scale-[1.17]" /> : null}
               <span className="absolute left-1.5 top-1 text-[0.52rem] font-black uppercase text-white/85">{owned ? `${level}/${MINI_SHIP_MAX_LEVEL}` : '0/5'}</span>
+              <span className="pointer-events-none absolute right-1 top-1 z-30 flex min-h-4 items-center gap-0.5 border border-yellow-200/60 bg-slate-950/95 px-1 py-0.5 text-[0.55rem] font-black leading-none tabular-nums text-yellow-100 shadow-[0_0_8px_rgba(250,204,21,0.2)]" aria-hidden="true">
+                {!atMax ? <img src={MINI_COST_ICON} alt="" className="h-3.5 w-3.5 object-contain [image-rendering:pixelated]" /> : null}
+                <span>{costLabel}</span>
+              </span>
               <AnimatedMiniShip entry={entry} className={`relative z-10 mx-auto mt-4 h-[50%] w-[86%] ${owned ? '' : 'opacity-45'}`} />
               <span className={`relative z-10 mt-1 block truncate text-[0.48rem] font-black uppercase sm:text-[0.52rem] ${equippedHere ? 'text-yellow-200' : 'text-slate-300'}`}>{entry.name}</span>
               <div className="relative z-10 mt-1"><LevelPips level={level} max={MINI_SHIP_MAX_LEVEL} /></div>
-              {!owned ? <span className="relative z-10 mt-1 block truncate text-[0.48rem] font-black text-yellow-200">{entry.purchaseCost === 0 ? 'Claim' : entry.purchaseCost}</span> : null}
             </button>
           );
         })}
@@ -364,6 +380,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
       </header>
 
       <main className="relative z-10">
+        <p className="sr-only" aria-live="polite">{upgradeFeedback?.label ?? ''}</p>
         <section className="relative overflow-hidden border-b border-cyan-200/18 bg-[#03081c] px-3 pb-3 pt-3 sm:px-6 sm:pb-4">
           <div className="sci-hangar-starfield pointer-events-none absolute inset-0" aria-hidden="true">
             <div className="sci-hangar-starfield-track">
@@ -444,11 +461,19 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 const cost = getMainShipUpgradeCost(upgrade.id, level);
                 const atMax = level >= MAIN_SHIP_UPGRADE_MAX_LEVEL;
                 return (
-                  <article key={upgrade.id} className="border border-cyan-200/22 bg-slate-950/65 p-3">
+                  <article key={upgrade.id} className="relative overflow-hidden border border-cyan-200/22 bg-slate-950/65 p-3">
+                    {upgradeFeedback?.target === `main:${upgrade.id}` ? (
+                      <span key={upgradeFeedback.nonce} className="sci-hangar-upgrade-pulse" aria-hidden="true">
+                        {upgradeFeedback.label}
+                      </span>
+                    ) : null}
                     <h3 className="text-xs font-black uppercase text-white">{upgrade.name}</h3>
                     <p className="mt-1 min-h-10 text-[0.62rem] leading-relaxed text-slate-400">{upgrade.description}</p>
                     <div className="mt-2"><LevelPips level={level} max={MAIN_SHIP_UPGRADE_MAX_LEVEL} /></div>
-                    <button type="button" onClick={() => onUpgradeMainShip(upgrade.id)} disabled={atMax || state.coins < cost} className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600">
+                    <button type="button" onClick={() => {
+                      onUpgradeMainShip(upgrade.id);
+                      showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} level ${level + 1}`);
+                    }} disabled={atMax || state.coins < cost} className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600">
                       {atMax ? 'Max level' : `${cost} coins`}
                     </button>
                   </article>
@@ -456,7 +481,12 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
               })}
             </div>
           ) : activeMini ? (
-            <div className="mx-auto grid max-w-md grid-cols-[6rem_minmax(0,1fr)] items-center gap-4 border border-cyan-200/22 bg-slate-950/65 p-3">
+            <div className="relative mx-auto grid max-w-md grid-cols-[6rem_minmax(0,1fr)] items-center gap-4 overflow-hidden border border-cyan-200/22 bg-slate-950/65 p-3">
+              {upgradeFeedback?.target === `mini:${activeMini.id}` ? (
+                <span key={upgradeFeedback.nonce} className="sci-hangar-upgrade-pulse" aria-hidden="true">
+                  {upgradeFeedback.label}
+                </span>
+              ) : null}
               <AnimatedMiniShip entry={activeMini} className="h-24 w-24" />
               <div className="min-w-0">
                 <h3 className="truncate text-sm font-black uppercase text-white">{activeMini.name}</h3>
@@ -464,7 +494,10 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 <div className="mt-2"><LevelPips level={activeMiniLevel} max={MINI_SHIP_MAX_LEVEL} /></div>
                 <button
                   type="button"
-                  onClick={() => onUpgradeMini(activeMini.id)}
+                  onClick={() => {
+                    onUpgradeMini(activeMini.id);
+                    showUpgradeFeedback(`mini:${activeMini.id}`, `${activeMini.name} level ${activeMiniLevel + 1}`);
+                  }}
                   disabled={activeMiniLevel >= MINI_SHIP_MAX_LEVEL || state.coins < getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)}
                   className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
                 >

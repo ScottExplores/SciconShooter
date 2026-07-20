@@ -135,8 +135,8 @@
 .sci-gameover-window-deploy {
   position: relative;
   z-index: 3;
-  width: min(100%, 400px, calc(100vh - 230px));
-  aspect-ratio: 1;
+  width: min(100%, 400px, calc((100dvh - 190px) * 0.75));
+  aspect-ratio: 543 / 724;
   flex: none;
   opacity: 0;
   animation: sciGameOverWindowDeploy 620ms cubic-bezier(0.18, 0.88, 0.28, 1.1) 560ms forwards;
@@ -148,69 +148,9 @@
   animation: sciGameOverWindowHover 2.3s ease-in-out 1.3s infinite alternate;
 }
 
-.sci-gameover-window__art,
 .sci-gameover-window {
   position: absolute;
   inset: 0;
-}
-
-.sci-gameover-window__art {
-  pointer-events: none;
-}
-
-.sci-gameover-window__art img {
-  position: absolute;
-  display: block;
-  object-fit: contain;
-  pointer-events: none;
-  user-select: none;
-}
-
-.sci-gameover-window__glow {
-  left: 18%;
-  bottom: -7%;
-  width: 64%;
-  opacity: 0.35;
-  animation: sciGameOverGlow 1.8s ease-in-out infinite alternate;
-}
-
-.sci-gameover-window__thruster {
-  top: 24%;
-  z-index: -1;
-  width: 25%;
-  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.3));
-}
-
-.sci-gameover-window__thruster--left {
-  left: -10%;
-}
-
-.sci-gameover-window__thruster--right {
-  right: -10%;
-}
-
-.sci-gameover-window__flame {
-  position: absolute;
-  bottom: -5%;
-  z-index: -1;
-  width: 16%;
-  height: 27%;
-  background-image: url('/game-art/generated/ui/scicon-interface-pack-v1/animations/floating-window/parts/flame-long.png');
-  background-position: center top;
-  background-repeat: no-repeat;
-  background-size: contain;
-  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.58));
-  transform-origin: top center;
-  animation: sciGameOverFlame 240ms steps(2, end) infinite alternate;
-}
-
-.sci-gameover-window__flame--left {
-  left: 17%;
-}
-
-.sci-gameover-window__flame--right {
-  right: 17%;
-  animation-delay: 90ms;
 }
 
 .sci-gameover-window__frame {
@@ -241,7 +181,7 @@
 
 .sci-gameover-window__content {
   position: absolute;
-  inset: 13.5% 10.5% 12.5%;
+  inset: 11% 14% 10%;
   z-index: 3;
   min-width: 0;
   overflow-x: hidden;
@@ -360,16 +300,6 @@
   to { transform: translateY(2px); }
 }
 
-@keyframes sciGameOverGlow {
-  from { opacity: 0.24; transform: scale(0.96); }
-  to { opacity: 0.42; transform: scale(1.04); }
-}
-
-@keyframes sciGameOverFlame {
-  from { opacity: 0.72; transform: scaleY(0.76); }
-  to { opacity: 1; transform: scaleY(1); }
-}
-
 @keyframes sciGameOverRail {
   0% { opacity: 0; transform: translateY(0); }
   24% { opacity: 0.9; }
@@ -388,7 +318,7 @@
   }
 
   .sci-gameover-window-deploy {
-    width: min(72vh, 350px);
+    width: min(100%, 340px, calc((100dvh - 148px) * 0.75));
   }
 
   .sci-gameover-footer {
@@ -406,14 +336,11 @@
     font-size: clamp(22px, 8vw, 30px);
   }
 
-  .sci-gameover-window__content {
-    inset-inline: 9.5%;
-  }
 }
 
 @media (max-height: 760px) {
   .sci-gameover-window__content {
-    inset-block: 12.5% 11.5%;
+    inset-block: 10% 9%;
   }
 
   .sci-gameover-result-content {

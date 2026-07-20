@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const renderer = import('../shared/record-card/renderRecordCardSvg.mjs');
+const root = path.resolve(__dirname, '..');
 
 const record = {
   pilotName: 'ACE',
@@ -139,4 +142,49 @@ test('AUTO encounter art resolves from the same ordered campaign wave for every 
   assert.equal(resolveRecordCardEncounterAssetKey(campaign, 2), 'ENEMY_JOURNAL');
   assert.equal(resolveRecordCardEncounterAssetKey(campaign, 3), 'MINI_BOSS');
   assert.equal(resolveRecordCardEncounterAssetKey(null, campaign.levels[0].waves[1]), 'ENEMY_JOURNAL');
+});
+
+test('modern encounter art resolves to the same body and cannon rig used in gameplay', async () => {
+  const { renderRecordCardSvg, resolveRecordCardEncounterArt } = await renderer;
+  const expectedByAssetKey = {
+    PIXI_BOSS_OPEN_ORBIT_FRAMES: [
+      '/game-art/pixi/bosses/open-orbit/frame-1.png',
+      '/game-art/generated/boss-weapons/open-orbit-railgun-arm-left.png',
+      '/game-art/generated/boss-weapons/open-orbit-railgun-arm-right.png'
+    ],
+    PIXI_BOSS_CITATION_FRAMES: [
+      '/game-art/pixi/bosses/citation-storm/frame-1.png',
+      '/game-art/generated/boss-weapons/citation-storm-plasma-claw-left.png',
+      '/game-art/generated/boss-weapons/citation-storm-plasma-claw-right.png'
+    ],
+    PIXI_BOSS_PAYWALL_FRAMES: [
+      '/game-art/pixi/bosses/paywall-decimator/body/frame-1.png',
+      '/game-art/pixi/bosses/paywall-decimator/cannon-left.png',
+      '/game-art/pixi/bosses/paywall-decimator/cannon-right.png',
+      '/game-art/pixi/bosses/paywall-decimator/helmet.png'
+    ],
+    PIXI_BOSS_CROWNCLAW_FRAMES: [
+      '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png'
+    ],
+    PIXI_BOSS_OPEN_GALAXY_FRAMES: [
+      '/game-art/pixi/bosses/open-galaxy/frame-1.png',
+      '/game-art/generated/boss-weapons/open-galaxy-launch-cannon-left.png',
+      '/game-art/generated/boss-weapons/open-galaxy-launch-cannon-right.png'
+    ]
+  };
+
+  for (const [assetKey, expectedPaths] of Object.entries(expectedByAssetKey)) {
+    const layers = resolveRecordCardEncounterArt(assetKey, '/legacy.png');
+    assert.deepEqual(layers.map((layer) => layer.path), expectedPaths);
+    layers.forEach((layer) => {
+      assert.equal(fs.existsSync(path.join(root, 'public', layer.path.replace(/^\//, ''))), true, layer.path);
+    });
+
+    const svg = renderRecordCardSvg({
+      record,
+      encounterImages: layers.map((layer) => ({ ...layer, image: layer.path }))
+    });
+    layers.forEach((layer) => assert.ok(svg.includes(layer.path)));
+    assert.doesNotMatch(svg, /legacy\.png|SERVER VERIFIED/);
+  }
 });

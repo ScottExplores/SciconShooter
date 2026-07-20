@@ -7,8 +7,7 @@ interface GameOverPresentationProps {
 }
 
 const DEFEATED_ROOT = '/game-art/generated/ui/animations/defeated-banner/parts';
-const FLOATING_WINDOW_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/animations/floating-window/parts';
-const RESULT_FRAME = '/game-art/generated/ui/scicon-ui-system-v2/base/mission-results/game-over-result-frame.png';
+const RESULT_FRAME = '/game-art/generated/ui/scicon-game-over-panel-v1/scicon-game-over-panel-tall.png';
 
 const GameOverPresentation: React.FC<GameOverPresentationProps> = ({ children, footer }) => (
   <div className="sci-gameover-overlay">
@@ -28,14 +27,6 @@ const GameOverPresentation: React.FC<GameOverPresentationProps> = ({ children, f
 
       <section className="sci-gameover-window-deploy" aria-label="Mission result">
         <div className="sci-gameover-window-hover">
-          <div className="sci-gameover-window__art" aria-hidden="true">
-            <img className="sci-gameover-window__glow" src={`${FLOATING_WINDOW_ROOT}/energy-glow.png`} alt="" />
-            <img className="sci-gameover-window__thruster sci-gameover-window__thruster--left" src={`${FLOATING_WINDOW_ROOT}/thruster-left.png`} alt="" />
-            <img className="sci-gameover-window__thruster sci-gameover-window__thruster--right" src={`${FLOATING_WINDOW_ROOT}/thruster-right.png`} alt="" />
-            <span className="sci-gameover-window__flame sci-gameover-window__flame--left"></span>
-            <span className="sci-gameover-window__flame sci-gameover-window__flame--right"></span>
-          </div>
-
           <div className="sci-gameover-window">
             <img className="sci-gameover-window__frame" src={RESULT_FRAME} alt="" aria-hidden="true" />
             <div className="sci-gameover-window__rail" aria-hidden="true"></div>

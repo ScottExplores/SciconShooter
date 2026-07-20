@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 11,
+  "revision": 12,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
-  "updatedAt": "2026-07-18T12:00:00.000Z",
+  "updatedAt": "2026-07-20T12:00:00.000Z",
   "fps": 60,
   "recordCard": {
     "copy": {
@@ -11,7 +11,7 @@
       "subtitle": "SCICON SHOOTER",
       "callsignLabel": "CALLSIGN",
       "scoreLabel": "FINAL SCORE",
-      "verifiedLabel": "SERVER VERIFIED",
+      "verifiedLabel": "",
       "reviewLabel": "REVIEWED RUN",
       "metricLabels": {
         "wave": "WAVE",
@@ -1221,6 +1221,9 @@
               "bossId": "bottleneck-drone",
               "count": 2,
               "spriteKey": "MINI_BOSS",
+              "spriteStyle": {
+                "scale": 1.15
+              },
               "positionId": "center-top",
               "movementPatternId": "track-player",
               "warningSeconds": 1.5,

@@ -6,7 +6,7 @@ export const DEFAULT_RECORD_CARD_CONFIG: RecordCardConfig = {
     subtitle: 'SCICON SHOOTER',
     callsignLabel: 'CALLSIGN',
     scoreLabel: 'FINAL SCORE',
-    verifiedLabel: 'SERVER VERIFIED',
+    verifiedLabel: '',
     reviewLabel: 'REVIEWED RUN',
     metricLabels: { wave: 'WAVE', targets: 'TARGETS', coins: 'COINS', flight: 'FLIGHT' }
   },

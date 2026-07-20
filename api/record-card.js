@@ -103,25 +103,32 @@ module.exports = async (req, res) => {
     const {
       formatRecordCardCompletedLabel,
       renderRecordCardSvg,
+      resolveRecordCardEncounterArt,
       resolveRecordCardEncounterAssetKey
     } = await recordCardRenderer;
     const completed = formatRecordCardCompletedLabel(record.finishedAt);
     const automaticEncounterKey = resolveRecordCardEncounterAssetKey(gameCampaign, record.wave);
-    const automaticEncounterPath = CARD_ASSET_PATHS[automaticEncounterKey] || CARD_ASSET_PATHS.FINAL_BOSS;
-    const encounterPath = cardConfig.encounterAssetKey === 'AUTO'
-      ? automaticEncounterPath
-      : CARD_ASSET_PATHS[cardConfig.encounterAssetKey] || automaticEncounterPath;
+    const encounterAssetKey = cardConfig.encounterAssetKey === 'AUTO'
+      ? automaticEncounterKey
+      : cardConfig.encounterAssetKey || automaticEncounterKey;
+    const encounterFallbackPath = CARD_ASSET_PATHS[encounterAssetKey]
+      || CARD_ASSET_PATHS[automaticEncounterKey]
+      || CARD_ASSET_PATHS.FINAL_BOSS;
+    const encounterLayers = resolveRecordCardEncounterArt(encounterAssetKey, encounterFallbackPath);
     const shipAssetKey = PLAYER_SHIP_ASSET_KEYS[record.playerShipId] || cardConfig.shipAssetKey || 'PLAYER_SHIP';
     const shipPath = CARD_ASSET_PATHS[shipAssetKey] || CARD_ASSET_PATHS.PLAYER_SHIP;
-    const [bossImage, shipImage, frameImage] = await Promise.all([
-      embedImage(`${assetOrigin}${encounterPath}`),
+    const [encounterImages, shipImage, frameImage] = await Promise.all([
+      Promise.all(encounterLayers.map(async (layer) => ({
+        ...layer,
+        image: await embedImage(`${assetOrigin}${layer.path}`)
+      }))),
       embedImage(`${assetOrigin}${shipPath}`),
       embedImage(`${assetOrigin}${RECORD_CARD_FRAME_PATH}`)
     ]);
 
     const svg = renderRecordCardSvg({
       record: { ...record, completedLabel: completed },
-      encounterImage: bossImage,
+      encounterImages,
       shipImage,
       frameImage,
       presentation: cardConfig

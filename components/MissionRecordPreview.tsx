@@ -3,6 +3,7 @@ import type { AssetKey } from '../game-config/types';
 import {
   buildMissionRecordCardPath,
   formatRecordCardCompletedLabel,
+  resolveRecordCardEncounterArt,
   resolveRecordCardEncounterAssetKey
 } from '../shared/record-card/renderRecordCardSvg.mjs';
 import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
@@ -29,6 +30,7 @@ interface MissionRecordPreviewProps {
   weeklyFunding?: MissionRecordWeeklyFunding | null;
   onOpenWeeklyFunding?: () => void;
   onRetryRun?: () => void;
+  onHangar?: () => void;
   onMainMenu?: () => void;
   onClose: () => void;
 }
@@ -61,6 +63,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   weeklyFunding = null,
   onOpenWeeklyFunding,
   onRetryRun,
+  onHangar,
   onMainMenu,
   onClose
 }) => {
@@ -78,7 +81,9 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   const encounterAssetKey = recordCardConfig.encounterAssetKey === 'AUTO'
     ? resolveRecordCardEncounterAssetKey(DEFAULT_GAME_CAMPAIGN, receipt.metrics.wave) as AssetKey
     : recordCardConfig.encounterAssetKey;
-  const encounterArt = getPrimaryAssetPath(encounterAssetKey);
+  const encounterArtFallback = getPrimaryAssetPath(encounterAssetKey);
+  const encounterArtLayers = resolveRecordCardEncounterArt(encounterAssetKey, encounterArtFallback);
+  const encounterArt = encounterArtLayers[0]?.path || encounterArtFallback;
   const shipArt = PLAYER_SHIPS[playerShipId].assetUrl;
   const cardRecord = {
     pilotName,
@@ -109,6 +114,10 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
         sourceSvg: import.meta.env.DEV ? buildMissionRecordCardSvg({
           record: { ...cardRecord, encounterArt: toAbsoluteAssetUrl(encounterArt) },
           shipArt: toAbsoluteAssetUrl(shipArt),
+          encounterImages: encounterArtLayers.map((layer) => ({
+            ...layer,
+            image: toAbsoluteAssetUrl(layer.path)
+          })),
           frameArt: toAbsoluteAssetUrl('/game-art/record-card/mission-record-frame.png'),
           presentation: recordCardConfig
         }) : undefined,
@@ -145,7 +154,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
         <div className="relative p-3 sm:p-4">
           <div className="relative aspect-square overflow-hidden bg-[#020617]" aria-live="polite">
             <div className={`absolute inset-0 transition-opacity ${useCanonicalServerImage && cardImageLoaded && !cardImageFailed ? 'opacity-0' : 'opacity-100'}`}>
-              <MissionRecordCard record={cardRecord} shipArt={shipArt} presentation={recordCardConfig} />
+              <MissionRecordCard record={cardRecord} shipArt={shipArt} encounterImages={encounterArtLayers} presentation={recordCardConfig} />
             </div>
             {useCanonicalServerImage && !cardImageFailed ? (
               <img
@@ -275,8 +284,8 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
             </>
           ) : null}
 
-          {onRetryRun || onMainMenu ? (
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-cyan-100/15 pt-3">
+          {onRetryRun || onHangar || onMainMenu ? (
+            <div className="mt-3 grid gap-2 border-t border-cyan-100/15 pt-3">
               {onRetryRun ? (
                 <button
                   type="button"
@@ -286,7 +295,16 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
                   <img src="/game-art/generated/ui/scicon-ui-system-v2/base/mission-results/retry-button.png" alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-fill [image-rendering:pixelated] transition group-hover:brightness-125" />
                   <span className="relative z-10 drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">Retry run</span>
                 </button>
-              ) : <span />}
+              ) : null}
+              {onHangar ? (
+                <button
+                  type="button"
+                  onClick={onHangar}
+                  className="group relative min-h-12 overflow-hidden rounded-[7px] border border-cyan-100/30 bg-cyan-300/12 text-xs font-black uppercase tracking-[0.12em] text-cyan-50 transition hover:bg-cyan-300/20 active:scale-[0.98]"
+                >
+                  Hangar
+                </button>
+              ) : null}
               {onMainMenu ? (
                 <button
                   type="button"

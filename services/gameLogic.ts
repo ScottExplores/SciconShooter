@@ -42,6 +42,7 @@ import {
   type ShipAbilityKind
 } from './shipAbilityService';
 import type { PlayerShipId } from './playerShipService';
+import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
 import {
   emitSquadDomainEvent,
   type RuntimeSquadCompanion,
@@ -524,8 +525,6 @@ const BOSS_COMPONENT_DURABILITY: Readonly<Record<BossRigId, Readonly<Partial<Rec
 });
 const BOSS_CANNON_HEALTH_RATIO = 0.07;
 const BOSS_HELMET_HEALTH_RATIO = 0.18;
-export const OVERDRIVE_SPREAD_SIDE_ANGLE_DEGREES = 20;
-const OVERDRIVE_SPREAD_SIDE_ANGLE_RADIANS = OVERDRIVE_SPREAD_SIDE_ANGLE_DEGREES * (Math.PI / 180);
 export const BOSS_CANNON_SCALE = 1.6;
 export const CROWNCLAW_ARM_SCALE = 1.42;
 export const BOSS_CANNON_HITBOX_SCALE = 1.12;
@@ -3051,13 +3050,13 @@ export class GameEngine {
     const overdriveSpread = this.activePowerups.has(PowerupType.DOUBLE_SHOT)
       || this.activePowerups.has(PowerupType.TRIPLE_SHOT);
     if (overdriveSpread) {
-      [-1, 1].forEach((side, index) => {
+      ([-1, 1] as const).forEach((side, index) => {
         this.queuePlayerBullet({
           fireFrame: this.frameCount + index + 1,
           speed: weaponSpeed,
           offsetX: side * 4,
           yOffset: 4,
-          angleBias: side * OVERDRIVE_SPREAD_SIDE_ANGLE_RADIANS,
+          angleBias: sampleTripleShotSideAngleRadians(side, Math.random()),
           pitchOffset: side < 0 ? -0.01 : 0.03,
           weaponKind,
           playSound: !lean

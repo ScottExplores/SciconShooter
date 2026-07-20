@@ -1569,7 +1569,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
     </HudPanel>
   );
 
-  const MobileDashboardContent = () => {
+  const renderMobileDashboardContent = () => {
     if (dashboardTab === 'hangar' && walletAddress) {
       return (
         <SquadHangar
@@ -1602,7 +1602,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
     );
   };
 
-  const SelectedDashboard = () => {
+  const renderSelectedDashboard = () => {
     if (dashboardTab === 'hangar' && walletAddress) {
       return (
         <SquadHangar
@@ -1661,7 +1661,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </div>
           ) : (
             <div className="flex min-h-[calc(100svh-3rem)] flex-col gap-5">
-              <SelectedDashboard />
+              {renderSelectedDashboard()}
               <DashboardNav docked />
             </div>
           )}
@@ -1671,7 +1671,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           className="scicon-mobile-main flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden"
         >
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-px custom-scrollbar">
-            <MobileDashboardContent />
+            {renderMobileDashboardContent()}
           </div>
           <DashboardNav docked />
         </main>

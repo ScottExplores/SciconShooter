@@ -105,6 +105,11 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /const shipUpgrades = state\.shipUpgrades\[shipId\]/);
   assert.match(hangar, /const unlockCost = SQUAD_SLOT_UNLOCK_COST\[slot\]/);
   assert.match(hangar, /\{unlockCost\} coins/);
+  assert.match(hangar, /rsc-coin-flip-v1\/rsc-coin-pixel-front\.png/);
+  assert.match(hangar, /const costLabel = atMax \? 'MAX' : nextCost === 0 \? 'FREE'/);
+  assert.match(hangar, /aria-label=\{actionLabel\}/);
+  assert.match(hangar, /sci-hangar-upgrade-pulse/);
+  assert.doesNotMatch(hangar, /\$\{owned \? '' : 'grayscale'\}/);
 });
 
 test('the dashboard centers Home and exposes Hangar immediately to its right', () => {
@@ -149,11 +154,22 @@ test('companions use the real engine and Overdrive Spread stays on the main ship
 
   assert.match(engine, /this\.updateSquadCompanions\(\)/);
   assert.match(engine, /spawnSquadCompanionBullet/);
-  assert.match(engine, /OVERDRIVE_SPREAD_SIDE_ANGLE_DEGREES = 20/);
-  assert.match(engine, /angleBias: side \* OVERDRIVE_SPREAD_SIDE_ANGLE_RADIANS/);
+  assert.match(engine, /sampleTripleShotSideAngleRadians/);
+  assert.match(engine, /angleBias: sampleTripleShotSideAngleRadians\(side, Math\.random\(\)\)/);
   assert.match(engine, /OVERDRIVE SPREAD!/);
   assert.match(renderer, /engine\.getSquadCompanionVisuals\(\)/);
   assert.match(renderer, /companion\?\.frames\[companion\.frameIndex\]/);
+});
+
+test('Hangar render helpers preserve the active upgrade view across parent state updates', () => {
+  const startScreen = read('components', 'StartScreen.tsx');
+
+  assert.match(startScreen, /const renderMobileDashboardContent = \(\) =>/);
+  assert.match(startScreen, /const renderSelectedDashboard = \(\) =>/);
+  assert.match(startScreen, /\{renderMobileDashboardContent\(\)\}/);
+  assert.match(startScreen, /\{renderSelectedDashboard\(\)\}/);
+  assert.doesNotMatch(startScreen, /<MobileDashboardContent\b|const MobileDashboardContent|function MobileDashboardContent/);
+  assert.doesNotMatch(startScreen, /<SelectedDashboard\b|const SelectedDashboard|function SelectedDashboard/);
 });
 
 test('main ship upgrades remain isolated to the selected ship through the Hangar and game launch', () => {

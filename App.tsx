@@ -223,6 +223,7 @@ const App: React.FC = () => {
   const lastStoryWaveRef = useRef(0);
   const introStoryTimeoutRef = useRef<number | null>(null);
   const weeklyProposalTransitionRef = useRef<number | null>(null);
+  const weeklyProposalReturnRef = useRef<'results' | 'record'>('results');
   const gameStateRef = useRef<GameState>(GameState.MENU);
   const submittingScoreRef = useRef(false);
   const submittedScoreKeysRef = useRef<Set<string>>(new Set());
@@ -1142,6 +1143,7 @@ const App: React.FC = () => {
       if (confirmedSave) {
         setShowNameInput(false);
         if (requiresWeeklyProposal) {
+          weeklyProposalReturnRef.current = 'results';
           setWeeklyProposalSelectionStatus('idle');
           setWeeklyProposalSelectionMessage('');
           setShowMissionRecordPreview(false);
@@ -1274,7 +1276,7 @@ const App: React.FC = () => {
       weeklyProposalTransitionRef.current = window.setTimeout(() => {
         weeklyProposalTransitionRef.current = null;
         setShowWeeklyProposalSelection(false);
-        setShowMissionRecordPreview(true);
+        setShowMissionRecordPreview(weeklyProposalReturnRef.current === 'record');
       }, 650);
     } catch (error) {
       console.error('Weekly proposal selection failed:', error);
@@ -1301,6 +1303,7 @@ const App: React.FC = () => {
     }
 
     if (missionRecordWeeklyFunding.status === 'current-leader') {
+      weeklyProposalReturnRef.current = gameStateRef.current === GameState.GAMEOVER ? 'results' : 'record';
       setWeeklyProposalSelectionStatus('idle');
       setWeeklyProposalSelectionMessage('');
       setShowMissionRecordPreview(false);
@@ -1724,7 +1727,7 @@ const App: React.FC = () => {
                           }}
                           className="rounded-[7px] border border-cyan-100/35 bg-cyan-300/15 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-cyan-50 transition hover:bg-cyan-300/25"
                         >
-                          Preview
+                          View / mint
                         </button>
                       </div>
                     ) : null}
@@ -1733,10 +1736,10 @@ const App: React.FC = () => {
                         Global score saved
                       </p>
                     ) : null}
-                    <div className="grid grid-cols-3 gap-2">
-                      <button onClick={startGame} className="scicon-btn py-3 text-sm font-bold">RETRY</button>
-                      <button onClick={openSquadHangar} className="scicon-btn py-3 text-[10px] font-bold">HANGAR</button>
-                      <button onClick={() => setGameState(GameState.MENU)} className="scicon-btn scicon-btn-secondary py-3 text-xs font-bold text-gray-300">MAIN MENU</button>
+                    <div className="grid gap-2">
+                      <button onClick={startGame} className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold">RETRY MISSION</button>
+                      <button onClick={openSquadHangar} className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold">HANGAR</button>
+                      <button onClick={resetGame} className="scicon-btn scicon-btn-secondary min-h-11 w-full py-2.5 text-xs font-bold text-gray-300">MAIN MENU</button>
                     </div>
                   </div>
                 </>
@@ -1846,6 +1849,7 @@ const App: React.FC = () => {
             weeklyFunding={missionRecordWeeklyFunding}
             onOpenWeeklyFunding={openMissionRecordWeeklyFunding}
             onRetryRun={startGame}
+            onHangar={openSquadHangar}
             onMainMenu={() => {
               setShowMissionRecordPreview(false);
               resetGame();

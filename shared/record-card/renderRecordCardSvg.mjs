@@ -6,7 +6,7 @@ const XML_ENTITIES = Object.freeze({
   '"': '&quot;'
 });
 
-export const RECORD_CARD_RENDER_VERSION = '2026-07-14-2';
+export const RECORD_CARD_RENDER_VERSION = '2026-07-20-1';
 
 const buildShipQuery = (playerShipId) => (
   playerShipId ? `&ship=${encodeURIComponent(String(playerShipId))}` : ''
@@ -43,7 +43,7 @@ const DEFAULT_COPY = Object.freeze({
   subtitle: 'SCICON SHOOTER',
   callsignLabel: 'CALLSIGN',
   scoreLabel: 'FINAL SCORE',
-  verifiedLabel: 'SERVER VERIFIED',
+  verifiedLabel: '',
   reviewLabel: 'REVIEWED RUN',
   metricLabels: Object.freeze({
     wave: 'WAVE',
@@ -65,6 +65,41 @@ const DEFAULT_COLORS = Object.freeze({
 });
 
 const DEFAULT_FRAME_IMAGE = '/game-art/record-card/mission-record-frame.png';
+
+const RECORD_CARD_ENCOUNTER_ART = Object.freeze({
+  PIXI_BOSS_OPEN_ORBIT_FRAMES: Object.freeze([
+    Object.freeze({ path: '/game-art/pixi/bosses/open-orbit/frame-1.png', x: 0.25, y: 0.13, width: 0.5, height: 0.72 }),
+    Object.freeze({ path: '/game-art/generated/boss-weapons/open-orbit-railgun-arm-left.png', x: 0.01, y: 0.2, width: 0.36, height: 0.6 }),
+    Object.freeze({ path: '/game-art/generated/boss-weapons/open-orbit-railgun-arm-right.png', x: 0.63, y: 0.2, width: 0.36, height: 0.6 })
+  ]),
+  PIXI_BOSS_CITATION_FRAMES: Object.freeze([
+    Object.freeze({ path: '/game-art/pixi/bosses/citation-storm/frame-1.png', x: 0.25, y: 0.12, width: 0.5, height: 0.74 }),
+    Object.freeze({ path: '/game-art/generated/boss-weapons/citation-storm-plasma-claw-left.png', x: 0.01, y: 0.16, width: 0.37, height: 0.68 }),
+    Object.freeze({ path: '/game-art/generated/boss-weapons/citation-storm-plasma-claw-right.png', x: 0.62, y: 0.16, width: 0.37, height: 0.68 })
+  ]),
+  PIXI_BOSS_PAYWALL_FRAMES: Object.freeze([
+    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/body/frame-1.png', x: 0.16, y: 0.18, width: 0.68, height: 0.58 }),
+    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/cannon-left.png', x: 0.12, y: 0.52, width: 0.28, height: 0.32 }),
+    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/cannon-right.png', x: 0.6, y: 0.52, width: 0.28, height: 0.32 }),
+    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/helmet.png', x: 0.35, y: 0.13, width: 0.3, height: 0.3 })
+  ]),
+  PIXI_BOSS_CROWNCLAW_FRAMES: Object.freeze([
+    Object.freeze({ path: '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png', x: 0.03, y: 0.08, width: 0.94, height: 0.84 })
+  ]),
+  PIXI_BOSS_OPEN_GALAXY_FRAMES: Object.freeze([
+    Object.freeze({ path: '/game-art/pixi/bosses/open-galaxy/frame-1.png', x: 0.08, y: 0.08, width: 0.84, height: 0.84 }),
+    Object.freeze({ path: '/game-art/generated/boss-weapons/open-galaxy-launch-cannon-left.png', x: 0, y: 0.2, width: 0.34, height: 0.62 }),
+    Object.freeze({ path: '/game-art/generated/boss-weapons/open-galaxy-launch-cannon-right.png', x: 0.66, y: 0.2, width: 0.34, height: 0.62 })
+  ])
+});
+
+export const resolveRecordCardEncounterArt = (assetKey, fallbackPath = '') => {
+  const configured = RECORD_CARD_ENCOUNTER_ART[String(assetKey || '')];
+  if (configured) return configured.map((layer) => ({ ...layer }));
+  return fallbackPath
+    ? [{ path: String(fallbackPath), x: 0, y: 0, width: 1, height: 1 }]
+    : [];
+};
 
 const DEFAULT_ART_REGION = Object.freeze({
   x: 0,
@@ -213,6 +248,7 @@ export const renderRecordCardSvg = ({
   record = {},
   shipImage = '',
   encounterImage = '',
+  encounterImages = [],
   frameImage = DEFAULT_FRAME_IMAGE,
   presentation = {}
 } = {}) => {
@@ -232,8 +268,22 @@ export const renderRecordCardSvg = ({
   const integrityLabel = record.integrity === 'server-verified'
     ? copy.verifiedLabel
     : copy.reviewLabel;
+  const requestedEncounterLayers = Array.isArray(encounterImages) && encounterImages.length > 0
+    ? encounterImages
+    : encounterImage
+      ? [{ image: encounterImage, x: 0, y: 0, width: 1, height: 1 }]
+      : [];
   const encounterArt = art.encounter.visible
-    ? `<image href="${escapeRecordCardXml(encounterImage)}" x="${art.encounter.x}" y="${art.encounter.y}" width="${art.encounter.width}" height="${art.encounter.height}" opacity="${art.encounter.opacity}"${imageTransform(art.encounter)} style="image-rendering:pixelated"/>`
+    ? requestedEncounterLayers.map((layer) => {
+        const image = String(layer?.image || layer?.path || '');
+        if (!image) return '';
+        const x = art.encounter.x + finiteNumber(layer?.x, 0, -1, 2) * art.encounter.width;
+        const y = art.encounter.y + finiteNumber(layer?.y, 0, -1, 2) * art.encounter.height;
+        const width = finiteNumber(layer?.width, 1, 0.01, 3) * art.encounter.width;
+        const height = finiteNumber(layer?.height, 1, 0.01, 3) * art.encounter.height;
+        const opacity = finiteNumber(layer?.opacity, 1, 0, 1) * art.encounter.opacity;
+        return `<image href="${escapeRecordCardXml(image)}" x="${x}" y="${y}" width="${width}" height="${height}" opacity="${opacity}" style="image-rendering:pixelated"/>`;
+      }).join('')
     : '';
   const shipArt = art.ship.visible
     ? `<circle cx="420" cy="510" r="150" fill="#22d3ee" opacity=".08"/><ellipse cx="420" cy="648" rx="200" ry="40" fill="none" stroke="${colors.primary}" stroke-width="4" opacity=".6"/>
@@ -268,7 +318,7 @@ export const renderRecordCardSvg = ({
       ${shipArt}
       <text x="650" y="578" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="4">ENCOUNTER</text>
       <text x="650" y="628" fill="${colors.text}" font-family="Arial, sans-serif" font-size="${encounterFontSize}" font-weight="900">${escapeRecordCardXml(encounterLabel)}</text>
-      <text x="650" y="674" fill="${colors.success}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="3">${escapeRecordCardXml(integrityLabel)}</text>
+      ${integrityLabel ? `<text x="650" y="674" fill="${colors.success}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="3">${escapeRecordCardXml(integrityLabel)}</text>` : ''}
 
       <path d="M170 734H1030" stroke="${colors.primary}" stroke-opacity=".25" stroke-width="2"/>
       <text x="190" y="775" fill="${colors.muted}" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="4">${escapeRecordCardXml(copy.callsignLabel)}</text>
