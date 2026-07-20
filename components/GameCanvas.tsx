@@ -573,20 +573,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       }
 
-      const fallbackTouch = touches[0] || null;
-      if (fallbackTouch) {
-        activeTouchIdRef.current = fallbackTouch.identifier;
+      return null;
+    };
+
+    const includesTrackedTouch = (touches: TouchList) => {
+      if (activeTouchIdRef.current === null) return false;
+
+      for (let index = 0; index < touches.length; index += 1) {
+        if (touches[index].identifier === activeTouchIdRef.current) return true;
       }
 
-      return fallbackTouch;
+      return false;
     };
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (e.cancelable) e.preventDefault();
       if (!runningRef.current) return;
+      // The first contact on the canvas owns steering until it ends. Additional
+      // contacts remain available to the HUD in legacy touch-only WebViews.
+      if (activeTouchIdRef.current !== null) return;
       const touch = e.changedTouches[0] || e.touches[0];
       if (!touch) return;
 
+      if (e.cancelable) e.preventDefault();
       activeTouchIdRef.current = touch.identifier;
       updateTouchTarget(touch);
     };
@@ -602,10 +610,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const handlePointerDown = (e: PointerEvent) => {
       if (e.pointerType !== 'touch' && e.pointerType !== 'pen' && e.pointerType !== 'mouse') return;
-      if (e.cancelable) e.preventDefault();
       if (previewMode) canvas.focus();
       if (!runningRef.current) return;
+      // Never let a second pointer steal the steering capture. This leaves that
+      // pointer free to press bomb, ability, pause, and upgrade HUD controls.
+      if (activePointerIdRef.current !== null) return;
 
+      if (e.cancelable) e.preventDefault();
       activePointerIdRef.current = e.pointerId;
       try {
         canvas.setPointerCapture(e.pointerId);
@@ -624,7 +635,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     const handlePointerEnd = (e: PointerEvent) => {
-      if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
+      if (activePointerIdRef.current === null || e.pointerId !== activePointerIdRef.current) return;
 
       activePointerIdRef.current = null;
       try {
@@ -637,12 +648,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       engine.handleInput(runningRef.current ? keys : {}, null);
     };
     
-    const handleTouchEnd = () => {
+    const handleTouchEnd: EventListener = (event) => {
+      const e = event as TouchEvent;
+      // Ending a HUD tap must not release the separate steering finger.
+      if (!includesTrackedTouch(e.changedTouches)) return;
       activeTouchIdRef.current = null;
       engine.handleInput(runningRef.current ? keys : {}, null);
     };
 
-    const handleTouchCancel = () => {
+    const handleTouchCancel: EventListener = (event) => {
+      const e = event as TouchEvent;
+      if (!includesTrackedTouch(e.changedTouches)) return;
       activeTouchIdRef.current = null;
       engine.handleInput(runningRef.current ? keys : {}, null);
     };
@@ -670,15 +686,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     keyboardTarget.addEventListener('keydown', handleKeyDown as EventListener);
     keyboardTarget.addEventListener('keyup', handleKeyUp as EventListener);
-    canvas.addEventListener('pointerdown', handlePointerDown);
-    pointerTarget.addEventListener('pointermove', handlePointerMove as EventListener, { passive: false });
-    pointerTarget.addEventListener('pointerup', handlePointerEnd as EventListener);
-    pointerTarget.addEventListener('pointercancel', handlePointerEnd as EventListener);
-    canvas.addEventListener('lostpointercapture', handlePointerEnd);
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-    touchTarget.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false });
-    touchTarget.addEventListener('touchend', handleTouchEnd);
-    touchTarget.addEventListener('touchcancel', handleTouchCancel);
+    const supportsPointerEvents = typeof window.PointerEvent !== 'undefined';
+    if (supportsPointerEvents) {
+      canvas.addEventListener('pointerdown', handlePointerDown);
+      pointerTarget.addEventListener('pointermove', handlePointerMove as EventListener, { passive: false });
+      pointerTarget.addEventListener('pointerup', handlePointerEnd as EventListener);
+      pointerTarget.addEventListener('pointercancel', handlePointerEnd as EventListener);
+      canvas.addEventListener('lostpointercapture', handlePointerEnd);
+    } else {
+      // Touch Events are a fallback only. Registering both input models causes
+      // preventDefault on the steering stream to cancel a second finger's HUD tap.
+      canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+      touchTarget.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false });
+      touchTarget.addEventListener('touchend', handleTouchEnd);
+      touchTarget.addEventListener('touchcancel', handleTouchCancel);
+    }
     window.addEventListener('blur', handleWindowBlur);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -760,15 +782,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       resizeObserver?.disconnect();
       keyboardTarget.removeEventListener('keydown', handleKeyDown as EventListener);
       keyboardTarget.removeEventListener('keyup', handleKeyUp as EventListener);
-      canvas.removeEventListener('pointerdown', handlePointerDown);
-      pointerTarget.removeEventListener('pointermove', handlePointerMove as EventListener);
-      pointerTarget.removeEventListener('pointerup', handlePointerEnd as EventListener);
-      pointerTarget.removeEventListener('pointercancel', handlePointerEnd as EventListener);
-      canvas.removeEventListener('lostpointercapture', handlePointerEnd);
-      canvas.removeEventListener('touchstart', handleTouchStart);
-      touchTarget.removeEventListener('touchmove', handleTouchMove as EventListener);
-      touchTarget.removeEventListener('touchend', handleTouchEnd);
-      touchTarget.removeEventListener('touchcancel', handleTouchCancel);
+      if (supportsPointerEvents) {
+        canvas.removeEventListener('pointerdown', handlePointerDown);
+        pointerTarget.removeEventListener('pointermove', handlePointerMove as EventListener);
+        pointerTarget.removeEventListener('pointerup', handlePointerEnd as EventListener);
+        pointerTarget.removeEventListener('pointercancel', handlePointerEnd as EventListener);
+        canvas.removeEventListener('lostpointercapture', handlePointerEnd);
+      } else {
+        canvas.removeEventListener('touchstart', handleTouchStart);
+        touchTarget.removeEventListener('touchmove', handleTouchMove as EventListener);
+        touchTarget.removeEventListener('touchend', handleTouchEnd);
+        touchTarget.removeEventListener('touchcancel', handleTouchCancel);
+      }
       window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (audioEnabled) audioService.stopMusic();

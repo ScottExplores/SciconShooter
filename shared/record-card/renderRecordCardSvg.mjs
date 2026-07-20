@@ -6,7 +6,7 @@ const XML_ENTITIES = Object.freeze({
   '"': '&quot;'
 });
 
-export const RECORD_CARD_RENDER_VERSION = '2026-07-20-1';
+export const RECORD_CARD_RENDER_VERSION = '2026-07-20-2';
 
 const buildShipQuery = (playerShipId) => (
   playerShipId ? `&ship=${encodeURIComponent(String(playerShipId))}` : ''
@@ -119,10 +119,10 @@ const DEFAULT_ART_LAYOUT = Object.freeze({
   }),
   encounter: Object.freeze({
     ...DEFAULT_ART_REGION,
-    x: 805,
-    y: 365,
-    width: 210,
-    height: 210,
+    x: 755,
+    y: 330,
+    width: 273,
+    height: 273,
     opacity: 0.88
   })
 });

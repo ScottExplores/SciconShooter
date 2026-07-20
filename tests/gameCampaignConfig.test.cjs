@@ -23,7 +23,7 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
 
 test('tracked campaign contains four sector waves plus the Bastion Protocol endurance wave', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 12);
+  assert.equal(campaign.revision, 13);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 1);
@@ -40,14 +40,52 @@ test('tracked campaign contains four sector waves plus the Bastion Protocol endu
   assert.deepEqual(level.waves.map((wave) => wave.scoreMultiplier), [1, 2, 4, 8, 16]);
   assert.equal(level.startingDifficulty, 1);
   assert.deepEqual(level.waves.map((wave) => wave.difficultyMultiplier), [1, 1, 1, 1, 1]);
+  assert.ok(level.availablePowerupIds.includes('extra-life'));
 });
 
-test('mission records omit the redundant verification line and the Paywall Siege mini-boss is visually larger', () => {
+test('mission records enlarge the complete boss rig and the Paywall Siege mini-boss is visually larger', () => {
   assert.equal(campaign.recordCard.copy.verifiedLabel, '');
+  assert.deepEqual(campaign.recordCard.art.encounter, {
+    x: 755,
+    y: 330,
+    width: 273,
+    height: 273,
+    rotation: 0,
+    opacity: 0.88,
+    visible: true
+  });
+  assert.equal(campaign.recordCard.art.encounter.width / 210, 1.3);
+  assert.equal(campaign.recordCard.art.encounter.height / 210, 1.3);
   const paywallMiniBoss = campaign.levels[0].waves[2].events.find((event) => event.id === 'paywall-siege-mini-boss');
   assert.ok(paywallMiniBoss);
   assert.equal(paywallMiniBoss.spriteStyle.scale, 1.15);
   assert.equal(campaign.levels[0].waves[0].events.find((event) => event.id === 'open-orbit-mini-boss').spriteStyle, undefined);
+});
+
+test('the four sector bosses follow a clear difficulty curve after the calmer Review Sentinel', () => {
+  const finalBosses = campaign.levels[0].waves.slice(0, 4).map((wave) => (
+    wave.events.find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper')
+  ));
+  const bursts = finalBosses.map((boss) => boss.weapons.find((weapon) => weapon.id === 'gatekeeper-burst'));
+
+  assert.deepEqual(finalBosses.map((boss) => boss.health), [170, 300, 400, 640]);
+  assert.deepEqual(bursts.map((weapon) => weapon.attackIntervalSeconds), [0.883, 0.8, 0.65, 0.533]);
+  assert.deepEqual(bursts.map((weapon) => weapon.projectileSpeed), [6.55, 6.85, 7.65, 8.2]);
+  assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 4, 7, 7]);
+
+  for (let index = 1; index < finalBosses.length; index += 1) {
+    assert.ok(finalBosses[index].health > finalBosses[index - 1].health);
+    assert.ok(bursts[index].attackIntervalSeconds < bursts[index - 1].attackIntervalSeconds);
+    assert.ok(bursts[index].projectileSpeed > bursts[index - 1].projectileSpeed);
+    assert.ok(bursts[index].burstCount >= bursts[index - 1].burstCount);
+  }
+
+  const reviewSentinel = finalBosses[1];
+  assert.equal(reviewSentinel.movementPatternId, 'gatekeeper-cycle');
+  assert.equal(reviewSentinel.speed, 1.75);
+  assert.equal(reviewSentinel.shieldCount, 2);
+  assert.equal(reviewSentinel.sizeMultiplier, 0.88);
+  assert.ok(reviewSentinel.phases.every((phase) => phase.movementPatternId === 'gatekeeper-cycle'));
 });
 
 test('the four sector waves expose editable spawns, mini-bosses, checkpoints, final bosses, and power-ups', () => {

@@ -66,6 +66,10 @@ test('the Hangar is wallet gated while its dashboard entry remains mounted', () 
 
 test('the Hangar uses one position-driven squad bay and four-column fleet catalogs', () => {
   const hangar = read('components', 'SquadHangar.tsx');
+  const miniCatalog = hangar.slice(
+    hangar.indexOf('const renderMiniCatalog = () =>'),
+    hangar.indexOf('\n  return (', hangar.indexOf('const renderMiniCatalog = () =>'))
+  );
 
   assert.match(hangar, /type HangarPosition = 'main' \| SquadSlotId/);
   assert.match(hangar, /selectorFrames\('ship', 'lime'\)/);
@@ -75,8 +79,11 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /PLAYER_SHIP_ORDER: PlayerShipId\[\] = \[\.\.\.PLAYABLE_PLAYER_SHIP_IDS\]/);
   assert.match(hangar, /setMode\('upgrades'\)/);
   assert.match(hangar, /onUnlockSlot\(position\)/);
-  assert.match(hangar, /onPurchaseMini\(entry\.id\)/);
-  assert.match(hangar, /onEquipMini\(activePosition, entry\.id\)/);
+  assert.match(hangar, /onPurchaseMini\(activeMiniId\)/);
+  assert.match(hangar, /onEquipMini\(activePosition, activeMiniId\)/);
+  assert.match(miniCatalog, /onClick=\{\(\) => \{\s*setSelectedMiniId\(entry\.id\);\s*\}\}/);
+  assert.doesNotMatch(miniCatalog, /onPurchaseMini\(/);
+  assert.doesNotMatch(miniCatalog, /onEquipMini\(/);
   assert.doesNotMatch(hangar, /squadPositionWidth/);
   assert.match(hangar, /left-\[8%\][\s\S]*renderSquadMini\('left'\)/);
   assert.match(hangar, /right-\[8%\][\s\S]*renderSquadMini\('right'\)/);
@@ -110,6 +117,33 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /aria-label=\{actionLabel\}/);
   assert.match(hangar, /sci-hangar-upgrade-pulse/);
   assert.doesNotMatch(hangar, /\$\{owned \? '' : 'grayscale'\}/);
+  assert.match(miniCatalog, /<AnimatedMiniShip[^>]*\$\{owned \? '' : 'opacity-45 grayscale'\}/);
+  assert.doesNotMatch(miniCatalog, /<button[\s\S]{0,500}\$\{owned \? '' : '[^']*grayscale/);
+});
+
+test('mini ship selection keeps purchase and equip as explicit detail-strip actions', () => {
+  const hangar = read('components', 'SquadHangar.tsx');
+
+  assert.match(hangar, /const selectedHere = selectedMiniId === entry\.id/);
+  assert.match(hangar, /color=\{equippedHere \? 'gold' : 'lime'\}/);
+  assert.match(hangar, /onClick=\{\(\) => onPurchaseMini\(activeMiniId\)\}/);
+  assert.match(hangar, /<span>Unlock<\/span>/);
+  assert.match(hangar, /activeMini\.purchaseCost === 0 \? 'Free'/);
+  assert.match(hangar, /onClick=\{\(\) => onEquipMini\(activePosition, activeMiniId\)\}/);
+  assert.match(hangar, /activeMiniEquipped \? 'Equipped' : 'Equip'/);
+  assert.match(hangar, /Select a mini ship, then use Unlock, Equip, or Upgrade above/);
+});
+
+test('main ship upgrade cards show the matching existing gameplay sprites', () => {
+  const hangar = read('components', 'SquadHangar.tsx');
+  const spriteNames = ['rapid-fire.png', 'speed.png', 'extra-life.png'];
+
+  assert.match(hangar, /MAIN_UPGRADE_SPRITE: Readonly<Record<MainShipUpgradeId, string>>/);
+  assert.match(hangar, /src=\{MAIN_UPGRADE_SPRITE\[upgrade\.id\]\}/);
+  spriteNames.forEach((name) => {
+    assert.match(hangar, new RegExp(`/game-art/powerups/${name.replace('.', '\\.')}`));
+    assert.ok(fs.existsSync(path.join(root, 'public', 'game-art', 'powerups', name)));
+  });
 });
 
 test('the dashboard centers Home and exposes Hangar immediately to its right', () => {

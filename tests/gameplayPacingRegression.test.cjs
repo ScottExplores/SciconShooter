@@ -41,8 +41,10 @@ test('the first two Gatekeepers ramp their cadence without exceeding the configu
 
   assert.equal(firstBurstWeapon.burstCount, 3);
   assert.equal(firstBurstWeapon.attackIntervalSeconds, 0.883);
-  assert.equal(secondBurstWeapon.burstCount, 5);
-  assert.equal(secondBurstWeapon.attackIntervalSeconds, 0.767);
+  assert.equal(secondBurstWeapon.burstCount, 4);
+  assert.equal(secondBurstWeapon.attackIntervalSeconds, 0.8);
+  assert.ok(secondGatekeeper.health > firstGatekeeper.health);
+  assert.equal(secondGatekeeper.movementPatternId, 'gatekeeper-cycle');
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1\.45/);
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0\.35/);
   assert.match(engineSource, /WAVE_TWO_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1\.55/);

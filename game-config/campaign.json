@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 12,
+  "revision": 13,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
-  "updatedAt": "2026-07-20T12:00:00.000Z",
+  "updatedAt": "2026-07-20T20:23:16.581Z",
   "fps": 60,
   "recordCard": {
     "copy": {
@@ -44,10 +44,10 @@
         "visible": true
       },
       "encounter": {
-        "x": 805,
-        "y": 365,
-        "width": 210,
-        "height": 210,
+        "x": 755,
+        "y": 330,
+        "width": 273,
+        "height": 273,
         "rotation": 0,
         "opacity": 0.88,
         "visible": true
@@ -74,7 +74,8 @@
         "triple-shot",
         "magnet",
         "shield",
-        "research-beam"
+        "research-beam",
+        "extra-life"
       ],
       "scorecard": {
         "trigger": "mission-end",
@@ -990,28 +991,28 @@
               "bossId": "gatekeeper",
               "spriteKey": "PIXI_BOSS_CITATION_FRAMES",
               "positionId": "center-top",
-              "movementPatternId": "arena-roam",
+              "movementPatternId": "gatekeeper-cycle",
               "warningSeconds": 5,
-              "health": 430,
-              "speed": 2,
+              "health": 300,
+              "speed": 1.75,
               "damage": 1,
               "scoreReward": 2020,
               "powerupDropChance": 1,
-              "shieldCount": 5,
-              "sizeMultiplier": 0.78,
+              "shieldCount": 2,
+              "sizeMultiplier": 0.88,
               "weapons": [
                 {
                   "id": "gatekeeper-burst",
                   "weaponId": "burst-volley",
-                  "attackIntervalSeconds": 0.767,
+                  "attackIntervalSeconds": 0.8,
                   "damage": 1,
-                  "projectileSpeed": 7.1,
-                  "burstCount": 5
+                  "projectileSpeed": 6.85,
+                  "burstCount": 4
                 },
                 {
                   "id": "gatekeeper-beam",
                   "weaponId": "lane-beam",
-                  "attackIntervalSeconds": 0.367,
+                  "attackIntervalSeconds": 0.38,
                   "damage": 1,
                   "projectileSpeed": 0,
                   "burstCount": 2
@@ -1022,7 +1023,7 @@
                   "id": "gatekeeper-standard",
                   "label": "Burst and beam cycle",
                   "triggerHealthRatio": 1,
-                  "movementPatternId": "arena-roam",
+                  "movementPatternId": "gatekeeper-cycle",
                   "speedMultiplier": 1,
                   "weaponSettingIds": [
                     "gatekeeper-burst",
@@ -1033,7 +1034,7 @@
                   "id": "gatekeeper-low-health",
                   "label": "Low-health cycle",
                   "triggerHealthRatio": 0.35,
-                  "movementPatternId": "arena-roam",
+                  "movementPatternId": "gatekeeper-cycle",
                   "speedMultiplier": 1,
                   "weaponSettingIds": [
                     "gatekeeper-burst",

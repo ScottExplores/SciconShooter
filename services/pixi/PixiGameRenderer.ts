@@ -953,6 +953,52 @@ export class PixiGameRenderer {
       }
       return;
     }
+    if (playerShot && entity.squadAbilityKind) {
+      const speed = Math.max(1, Math.hypot(entity.vx, entity.vy));
+      const trailLength = clamp(speed * 3.8, 14, 42);
+      view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
+      view.trail.moveTo(0, entity.height * 0.18).lineTo(0, entity.height * 0.18 + trailLength)
+        .stroke({ color, width: Math.max(1.5, entity.width * 0.42), alpha: 0.34 });
+
+      if (entity.squadAbilityKind === 'homing-missile') {
+        view.body.moveTo(0, -entity.height * 0.56)
+          .lineTo(entity.width * 0.48, entity.height * 0.28)
+          .lineTo(0, entity.height * 0.12)
+          .lineTo(-entity.width * 0.48, entity.height * 0.28)
+          .closePath()
+          .fill(color)
+          .stroke({ color: '#ffffff', width: 1.2, alpha: 0.82 });
+      } else if (entity.squadAbilityKind === 'piercing-laser') {
+        view.aura.roundRect(-entity.width * 0.72, -entity.height * 0.58, entity.width * 1.44, entity.height * 1.16, entity.width)
+          .fill({ color, alpha: 0.22 });
+        view.body.roundRect(-Math.max(1.5, entity.width * 0.2), -entity.height * 0.54, Math.max(3, entity.width * 0.4), entity.height * 1.08, entity.width)
+          .fill('#ffffff');
+      } else if (entity.squadAbilityKind === 'coin-magnet') {
+        view.aura.circle(0, 0, entity.width * 0.92).stroke({ color: '#facc15', width: 1.5, alpha: 0.72 });
+        view.body.circle(0, 0, Math.max(2.5, entity.width * 0.38)).fill(color).stroke({ color: '#fef08a', width: 1, alpha: 0.9 });
+      } else if (entity.squadAbilityKind === 'heavy-cannon') {
+        view.aura.roundRect(-entity.width * 0.65, -entity.height * 0.58, entity.width * 1.3, entity.height * 1.16, entity.width * 0.45)
+          .fill({ color, alpha: 0.28 });
+        view.body.roundRect(-entity.width * 0.38, -entity.height * 0.5, entity.width * 0.76, entity.height, entity.width * 0.34)
+          .fill('#ffffff')
+          .stroke({ color, width: 1.4, alpha: 0.92 });
+      } else if (entity.squadAbilityKind === 'prism-fan' || entity.squadAbilityKind === 'nova-volley') {
+        view.body.moveTo(0, -entity.height * 0.54)
+          .lineTo(entity.width * 0.54, 0)
+          .lineTo(0, entity.height * 0.54)
+          .lineTo(-entity.width * 0.54, 0)
+          .closePath()
+          .fill('#ffffff')
+          .stroke({ color, width: 1.4, alpha: 0.96 });
+      } else {
+        view.aura.roundRect(-entity.width * 0.6, -entity.height * 0.56, entity.width * 1.2, entity.height * 1.12, entity.width)
+          .fill({ color, alpha: 0.2 });
+        view.body.roundRect(-Math.max(1.5, entity.width * 0.3), -entity.height * 0.5, Math.max(3, entity.width * 0.6), entity.height, entity.width)
+          .fill('#ffffff')
+          .stroke({ color, width: 1, alpha: 0.88 });
+      }
+      return;
+    }
     if (playerShot) {
       const frames = getPlayerWeaponFrames(entity.weaponKind, entity.weaponVisualLevel);
       const launchFrame = getPlayerWeaponLaunchFrameIndex(

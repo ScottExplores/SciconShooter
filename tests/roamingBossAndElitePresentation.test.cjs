@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 const campaign = JSON.parse(read('game-config/campaign.json'));
 
-test('Citation Storm mixes elite enemies into the normal wave and ends with a roaming boss', () => {
+test('Citation Storm mixes elite enemies into the normal wave and ends with a calmer tracking boss', () => {
   const wave = campaign.levels[0].waves.find((candidate) => candidate.id === 'citation-storm');
   assert.ok(wave);
 
@@ -20,9 +20,14 @@ test('Citation Storm mixes elite enemies into the normal wave and ends with a ro
   assert.ok(eliteEvent.enemies[0].sizeMultiplier > 1);
 
   const boss = wave.events.find((event) => event.id === 'citation-storm-gatekeeper');
-  assert.equal(boss.movementPatternId, 'arena-roam');
-  assert.ok(boss.sizeMultiplier < 1);
-  assert.ok(boss.phases.every((phase) => phase.movementPatternId === 'arena-roam'));
+  assert.equal(boss.movementPatternId, 'gatekeeper-cycle');
+  assert.equal(boss.sizeMultiplier, 0.88);
+  assert.equal(boss.shieldCount, 2);
+  assert.ok(boss.phases.every((phase) => phase.movementPatternId === 'gatekeeper-cycle'));
+
+  const bastion = campaign.levels[0].waves.find((candidate) => candidate.id === 'bastion-protocol');
+  const overseer = bastion.events.find((event) => event.id === 'bastion-protocol-gatekeeper');
+  assert.equal(overseer.movementPatternId, 'arena-roam');
 });
 
 test('the real engine owns roaming attacks, cross-beam danger, and elite firing', () => {

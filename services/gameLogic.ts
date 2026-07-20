@@ -45,6 +45,7 @@ import type { PlayerShipId } from './playerShipService';
 import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
 import {
   emitSquadDomainEvent,
+  type MiniShipAbilityKind,
   type RuntimeSquadCompanion,
   type RuntimeSquadLoadout,
   type SquadSlotId
@@ -128,9 +129,12 @@ export class Entity {
 
   // Missile Props
   isMissile: boolean = false;
+  homingSpeed?: number;
+  homingTurnRate?: number;
 
   // Projectile Ownership
   isPlayerShot: boolean = false;
+  squadAbilityKind?: MiniShipAbilityKind;
   variant: number = 0;
   formation?: EnemyFormationMode;
   formationIndex: number = 0;
@@ -466,6 +470,8 @@ const BASE_COIN_MAGNET_RADIUS = 100;
 const POWERUP_COIN_MAGNET_RADIUS = 420;
 const BOMB_DROP_CHANCE = 0.012;
 const ELITE_BOMB_DROP_CHANCE = 0.05;
+const EXTRA_LIFE_DROP_CHANCE = 0.004;
+const ELITE_EXTRA_LIFE_DROP_CHANCE = 0.014;
 const MINI_BOSS_BOMB_REWARD_CHANCE = 0.28;
 const BOMB_DAMAGE_BOSS = 14;
 const BOMB_DAMAGE_MINI_BOSS = 18;
@@ -741,6 +747,7 @@ type ActiveSquadCompanion = RuntimeSquadCompanion & {
   y: number;
   frameIndex: number;
   fireTimer: number;
+  shotSequence: number;
   entryProgress: number;
 };
 
@@ -967,6 +974,7 @@ export class GameEngine {
       y: 0,
       frameIndex: 0,
       fireTimer: Math.max(8, Math.floor(companion.fireIntervalFrames * (0.42 + index * 0.18))),
+      shotSequence: 0,
       entryProgress: 0
     }));
     this.startingLives = clamp(
@@ -2536,8 +2544,8 @@ export class GameEngine {
               
               // Homing steering
               const isMaxLevel = e.color === '#ff0055';
-              const speed = isMaxLevel ? 14 : 9; // Faster if max (was 12)
-              const turnRate = isMaxLevel ? 3.5 : 1.5; // Very aggressive if max (was 2.5), better base (was 1.2)
+              const speed = e.homingSpeed ?? (isMaxLevel ? 14 : 9);
+              const turnRate = e.homingTurnRate ?? (isMaxLevel ? 3.5 : 1.5);
 
               e.vx += Math.cos(angle) * turnRate;
               e.vy += Math.sin(angle) * turnRate;
@@ -2636,15 +2644,33 @@ export class GameEngine {
         const playerCenterY = this.player.y + this.player.height / 2;
         const coinCenterX = e.x + e.width / 2;
         const coinCenterY = e.y + e.height / 2;
-        const dx = playerCenterX - coinCenterX;
-        const dy = playerCenterY - coinCenterY;
+        const magnetCompanion = this.squadCompanions.find((companion) => (
+          companion.ability === 'coin-magnet' && companion.entryProgress >= 0.5
+        ));
+        const hasPowerupMagnet = this.activePowerups.has(PowerupType.MAGNET);
+        const companionRadius = magnetCompanion ? 150 + magnetCompanion.level * 38 : 0;
+        const companionDx = magnetCompanion ? magnetCompanion.x - coinCenterX : 0;
+        const companionDy = magnetCompanion ? magnetCompanion.y - coinCenterY : 0;
+        const companionDistance = Math.max(1, Math.hypot(companionDx, companionDy));
+        const useCompanionMagnet = !hasPowerupMagnet
+          && Boolean(magnetCompanion)
+          && companionDistance < companionRadius;
+        const dx = useCompanionMagnet ? companionDx : playerCenterX - coinCenterX;
+        const dy = useCompanionMagnet ? companionDy : playerCenterY - coinCenterY;
         const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-        const hasMagnet = this.activePowerups.has(PowerupType.MAGNET);
-        const radius = hasMagnet ? POWERUP_COIN_MAGNET_RADIUS : BASE_COIN_MAGNET_RADIUS;
+        const radius = hasPowerupMagnet
+          ? POWERUP_COIN_MAGNET_RADIUS
+          : useCompanionMagnet
+            ? companionRadius
+            : BASE_COIN_MAGNET_RADIUS;
 
         if (dist < radius) {
           const closeness = 1 - (dist / radius);
-          const pull = hasMagnet ? 0.14 + closeness * 0.11 : 0.035 + closeness * 0.05;
+          const pull = hasPowerupMagnet
+            ? 0.14 + closeness * 0.11
+            : useCompanionMagnet
+              ? 0.075 + closeness * (0.07 + (magnetCompanion?.level ?? 1) * 0.008)
+              : 0.035 + closeness * 0.05;
           e.x += dx * pull;
           e.y += dy * pull;
         }
@@ -2694,6 +2720,16 @@ export class GameEngine {
       height: size,
       alpha: this.playerDrawAlpha * companion.entryProgress
     }));
+  }
+
+  private isCoinCollectedBySquadMagnet(coin: Entity) {
+    const coinCenterX = coin.x + coin.width / 2;
+    const coinCenterY = coin.y + coin.height / 2;
+    return this.squadCompanions.some((companion) => {
+      if (companion.ability !== 'coin-magnet' || companion.entryProgress < 0.5) return false;
+      const pickupRadius = 24 + companion.level * 2;
+      return Math.hypot(companion.x - coinCenterX, companion.y - coinCenterY) <= pickupRadius;
+    });
   }
 
   private resetSquadCompanionPositions() {
@@ -2747,28 +2783,147 @@ export class GameEngine {
   private spawnSquadCompanionBullet(companion: ActiveSquadCompanion) {
     if (this.livePlayerShotCount + this.pendingPlayerShots.length >= this.getPlayerShotCap()) return;
 
-    const width = 7 + Math.min(3, companion.level - 1);
-    const projectile = new Entity(
-      EntityType.PROJECTILE,
-      companion.x - width / 2,
-      companion.y - (this.mobileProfile ? 24 : 28)
-    );
-    projectile.width = width;
-    projectile.height = 20 + Math.min(8, companion.level * 2);
-    projectile.vx = 0;
-    projectile.vy = -(9.2 + companion.level * 0.22);
-    projectile.color = companion.projectileColor;
-    projectile.isPlayerShot = true;
-    projectile.weaponKind = 'pulse';
-    projectile.weaponVisualLevel = 0;
-    projectile.weaponVisualStartFrame = this.frameCount;
-    projectile.damage = companion.projectileDamage;
-    this.entities.push(projectile);
-    this.livePlayerShotCount++;
+    switch (companion.ability) {
+      case 'spread-cycle': {
+        const angleSteps = [-1, 0, 1] as const;
+        const sideAngle = 25 * Math.PI / 180;
+        const angle = angleSteps[companion.shotSequence % angleSteps.length] * sideAngle;
+        companion.shotSequence++;
+        this.spawnSquadProjectile(companion, { angle });
+        break;
+      }
+      case 'piercing-laser':
+        this.spawnSquadProjectile(companion, {
+          damageScale: 0.9,
+          heightScale: 1.55,
+          pierceCount: 1 + Math.floor(companion.level / 2)
+        });
+        break;
+      case 'coin-magnet':
+        this.spawnSquadProjectile(companion, { damageScale: 0.72, widthScale: 1.15 });
+        break;
+      case 'twin-burst':
+        this.spawnSquadProjectile(companion, { angle: -0.025, offsetX: -6, damageScale: 0.72 });
+        this.spawnSquadProjectile(companion, { angle: 0.025, offsetX: 6, damageScale: 0.72 });
+        break;
+      case 'homing-missile':
+        this.spawnSquadProjectile(companion, {
+          missile: true,
+          damageScale: 1.75,
+          widthScale: 1.25,
+          heightScale: 1.12
+        });
+        break;
+      case 'targeting-laser':
+        this.spawnSquadProjectile(companion, {
+          angle: this.getSquadTargetAngle(companion),
+          damageScale: 1.08,
+          heightScale: 1.25
+        });
+        break;
+      case 'prism-fan':
+        [-12, 0, 12].forEach((degrees) => {
+          this.spawnSquadProjectile(companion, {
+            angle: degrees * (Math.PI / 180),
+            damageScale: 0.64
+          });
+        });
+        break;
+      case 'heavy-cannon':
+        this.spawnSquadProjectile(companion, {
+          damageScale: 2,
+          widthScale: 1.85,
+          heightScale: 1.35,
+          speedScale: 0.78,
+          pierceCount: companion.level >= 3 ? 1 : 0
+        });
+        break;
+      case 'nova-volley':
+        [-22, -11, 0, 11, 22].forEach((degrees) => {
+          this.spawnSquadProjectile(companion, {
+            angle: degrees * (Math.PI / 180),
+            damageScale: 0.46,
+            speedScale: 1.08
+          });
+        });
+        break;
+      case 'pulse-cannon':
+      default:
+        this.spawnSquadProjectile(companion);
+        break;
+    }
 
     if (!this.shouldUseLeanEffects()) {
       this.spawnBurst(companion.x, companion.y - 14, companion.projectileColor, 1, 0.8, 2);
     }
+  }
+
+  private getSquadTargetAngle(companion: ActiveSquadCompanion) {
+    let nearest: Entity | null = null;
+    let nearestDistanceSq = Number.POSITIVE_INFINITY;
+    for (const target of this.homingTargetsBuffer) {
+      if (target.markedForDeletion || !this.isEnemyTarget(target)) continue;
+      const targetX = target.x + target.width / 2;
+      const targetY = target.y + target.height / 2;
+      if (targetY > companion.y + 26) continue;
+      const dx = targetX - companion.x;
+      const dy = targetY - companion.y;
+      const distanceSq = dx * dx + dy * dy;
+      if (distanceSq < nearestDistanceSq) {
+        nearest = target;
+        nearestDistanceSq = distanceSq;
+      }
+    }
+    if (!nearest) return 0;
+    const dx = nearest.x + nearest.width / 2 - companion.x;
+    const upwardDistance = Math.max(36, companion.y - (nearest.y + nearest.height / 2));
+    return clamp(Math.atan2(dx, upwardDistance), -0.62, 0.62);
+  }
+
+  private spawnSquadProjectile(companion: ActiveSquadCompanion, options: {
+    angle?: number;
+    offsetX?: number;
+    damageScale?: number;
+    widthScale?: number;
+    heightScale?: number;
+    speedScale?: number;
+    pierceCount?: number;
+    missile?: boolean;
+  } = {}) {
+    if (this.livePlayerShotCount + this.pendingPlayerShots.length >= this.getPlayerShotCap()) return false;
+
+    const baseWidth = 7 + Math.min(3, companion.level - 1);
+    const baseHeight = 20 + Math.min(8, companion.level * 2);
+    const width = baseWidth * (options.widthScale ?? 1);
+    const height = baseHeight * (options.heightScale ?? 1);
+    const angle = options.angle ?? 0;
+    const speed = (9.2 + companion.level * 0.22) * (options.speedScale ?? 1);
+    const projectile = new Entity(
+      options.missile ? EntityType.MISSILE : EntityType.PROJECTILE,
+      companion.x - width / 2 + (options.offsetX ?? 0),
+      companion.y - (this.mobileProfile ? 24 : 28)
+    );
+    projectile.width = width;
+    projectile.height = height;
+    projectile.vx = Math.sin(angle) * speed;
+    projectile.vy = -Math.cos(angle) * speed;
+    projectile.color = companion.projectileColor;
+    projectile.isPlayerShot = true;
+    projectile.isMissile = Boolean(options.missile);
+    projectile.squadAbilityKind = companion.ability;
+    projectile.weaponKind = options.pierceCount ? 'ion' : 'pulse';
+    projectile.weaponVisualLevel = 0;
+    projectile.weaponVisualStartFrame = this.frameCount;
+    projectile.damage = companion.projectileDamage * (options.damageScale ?? 1);
+    projectile.pierceRemaining = Math.max(0, Math.floor(options.pierceCount ?? 0));
+    if (projectile.pierceRemaining > 0) projectile.hitTargetIds = new Set<string>();
+    if (options.missile) {
+      projectile.homingSpeed = 8.5 + companion.level * 0.8;
+      projectile.homingTurnRate = 0.9 + companion.level * 0.28;
+    }
+    this.entities.push(projectile);
+    this.livePlayerShotCount++;
+    return true;
   }
 
   isBioBeamFiring() {
@@ -3479,6 +3634,12 @@ export class GameEngine {
       : isElite ? 0.08 : 0;
     if (target.type !== EntityType.BOSS && powerupDropChance > 0 && Math.random() < powerupDropChance) {
       this.spawnPowerup(target.x, target.y);
+    }
+    if (target.type !== EntityType.BOSS && this.lives < GAME_CONFIG.MAX_LIVES) {
+      const extraLifeDropChance = isElite ? ELITE_EXTRA_LIFE_DROP_CHANCE : EXTRA_LIFE_DROP_CHANCE;
+      if (Math.random() < extraLifeDropChance) {
+        this.spawnPowerup(centerX - 18, centerY - 18, 'extra-life');
+      }
     }
     if (target.type !== EntityType.BOSS && !this.isBombResolving && (this.stats.bombs || 0) < MAX_BOMBS) {
       const dropChance = isElite ? ELITE_BOMB_DROP_CHANCE : BOMB_DROP_CHANCE;
@@ -6001,7 +6162,7 @@ export class GameEngine {
         this.activatePowerup(type);
       }
 
-      if (e.type === EntityType.COIN && intersectsPlayer(e)) {
+      if (e.type === EntityType.COIN && (intersectsPlayer(e) || this.isCoinCollectedBySquadMagnet(e))) {
         e.markedForDeletion = true;
         this.stats.coins++;
         this.stats.totalCoins++; 
@@ -6184,10 +6345,12 @@ export class GameEngine {
         }
 
         const dmg = shot.type === EntityType.MISSILE
-          ? (isBossTarget ? 8 : 5)
+          ? shot.squadAbilityKind
+            ? shot.damage * (isBossTarget ? 1.35 : 1)
+            : (isBossTarget ? 8 : 5)
           : shot.damage * (isBossTarget ? 1.35 : 1);
         if (!shot.isBeam) {
-          if ((shot.weaponKind === 'ion' || shot.weaponKind === 'nova' || shot.weaponKind === 'singularity' || shot.weaponKind === 'bio-laser' || shot.weaponKind === 'eth-shard' || shot.weaponKind === 'btc-hash') && shot.pierceRemaining > 0) {
+          if (shot.pierceRemaining > 0) {
             shot.hitTargetIds?.add(target.id);
             shot.pierceRemaining--;
           } else {

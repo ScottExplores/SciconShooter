@@ -25,7 +25,7 @@ export const DEFAULT_RECORD_CARD_CONFIG: RecordCardConfig = {
   encounterAssetKey: 'AUTO',
   art: {
     ship: { x: 290, y: 370, width: 260, height: 260, rotation: 0, opacity: 1, visible: true },
-    encounter: { x: 805, y: 365, width: 210, height: 210, rotation: 0, opacity: 0.88, visible: true }
+    encounter: { x: 755, y: 330, width: 273, height: 273, rotation: 0, opacity: 0.88, visible: true }
   }
 };
 

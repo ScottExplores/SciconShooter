@@ -130,6 +130,47 @@ test('shared record-card renderer applies safe presentation and art layout overr
   assert.doesNotMatch(svg, /<rect width="1200" height="1200" fill="url\(#grid\)"\/>/);
 });
 
+test('the default Mission Record boss rig is 30 percent larger and remains inside its art lane', async () => {
+  const {
+    DEFAULT_RECORD_CARD_PRESENTATION,
+    renderRecordCardSvg,
+    resolveRecordCardEncounterArt
+  } = await renderer;
+  const region = DEFAULT_RECORD_CARD_PRESENTATION.art.encounter;
+  const layers = resolveRecordCardEncounterArt('PIXI_BOSS_CITATION_FRAMES');
+
+  assert.deepEqual(region, {
+    x: 755,
+    y: 330,
+    width: 273,
+    height: 273,
+    rotation: 0,
+    opacity: 0.88,
+    visible: true
+  });
+  assert.equal(region.width / 210, 1.3);
+  assert.equal(region.height / 210, 1.3);
+
+  layers.forEach((layer) => {
+    const left = region.x + layer.x * region.width;
+    const top = region.y + layer.y * region.height;
+    const right = left + layer.width * region.width;
+    const bottom = top + layer.height * region.height;
+    assert.ok(left >= 170, `${layer.path} starts inside the encounter plate`);
+    assert.ok(right <= 1030, `${layer.path} ends inside the encounter plate`);
+    assert.ok(top >= 338, `${layer.path} starts below the plate header`);
+    assert.ok(bottom < 578, `${layer.path} stays clear of the encounter label`);
+  });
+
+  const svg = renderRecordCardSvg({
+    record,
+    encounterImages: layers.map((layer) => ({ ...layer, image: layer.path }))
+  });
+  assert.match(svg, /citation-storm\/frame-1\.png" x="823\.25" y="362\.76" width="136\.5" height="202\.02"/);
+  assert.match(svg, /citation-storm-plasma-claw-left\.png" x="757\.73" y="373\.68" width="101\.01" height="185\.64000000000001"/);
+  assert.match(svg, /citation-storm-plasma-claw-right\.png" x="924\.26" y="373\.68" width="101\.01" height="185\.64000000000001"/);
+});
+
 test('AUTO encounter art resolves from the same ordered campaign wave for every surface', async () => {
   const { resolveRecordCardEncounterAssetKey } = await renderer;
   const campaign = {

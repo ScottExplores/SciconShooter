@@ -30,6 +30,18 @@ export type MiniShipId =
   | 'ledger-hammer'
   | 'nebula-tern';
 
+export type MiniShipAbilityKind =
+  | 'pulse-cannon'
+  | 'spread-cycle'
+  | 'piercing-laser'
+  | 'coin-magnet'
+  | 'twin-burst'
+  | 'homing-missile'
+  | 'targeting-laser'
+  | 'prism-fan'
+  | 'heavy-cannon'
+  | 'nova-volley';
+
 export const FIRST_LEFT_WING_MINI_SHIP_ID: MiniShipId = 'citation-dart';
 
 export type SquadDomainEventName =
@@ -54,6 +66,7 @@ export interface MiniShipCatalogEntry {
   name: string;
   role: string;
   description: string;
+  ability: MiniShipAbilityKind;
   purchaseCost: number;
   maxLevel: number;
   fireIntervalFrames: number;
@@ -95,6 +108,7 @@ export interface RuntimeSquadCompanion {
   slot: SquadSlotId;
   id: MiniShipId;
   level: number;
+  ability: MiniShipAbilityKind;
   frames: [string, string, string];
   fireIntervalFrames: number;
   projectileDamage: number;
@@ -127,8 +141,9 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'citation-dart',
     name: 'Citation Dart',
-    role: 'Starter scout',
-    description: 'A nimble citation runner with a steady pulse cannon.',
+    role: 'Pulse gunner',
+    description: 'A steady pulse cannon whose fire rate climbs every level.',
+    ability: 'pulse-cannon',
     purchaseCost: 0,
     maxLevel: MINI_SHIP_MAX_LEVEL,
     fireIntervalFrames: 38,
@@ -139,9 +154,10 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'helix-wasp',
     name: 'Helix Wasp',
-    role: 'Rapid support',
-    description: 'Short firing cycles make it strong against light formations.',
-    purchaseCost: 80,
+    role: 'Angle repeater',
+    description: 'Repeats left 25°, center, then right 25° and cycles faster as it levels.',
+    ability: 'spread-cycle',
+    purchaseCost: 90,
     maxLevel: MINI_SHIP_MAX_LEVEL,
     fireIntervalFrames: 32,
     projectileDamage: 0.62,
@@ -151,9 +167,10 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'photon-manta',
     name: 'Photon Manta',
-    role: 'Energy support',
-    description: 'Slower photon bolts land with a heavier impact.',
-    purchaseCost: 120,
+    role: 'Piercing laser',
+    description: 'Fires a piercing photon lance that passes through more targets as it levels.',
+    ability: 'piercing-laser',
+    purchaseCost: 140,
     maxLevel: MINI_SHIP_MAX_LEVEL,
     fireIntervalFrames: 44,
     projectileDamage: 0.96,
@@ -163,9 +180,10 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'quorum-crab',
     name: 'Quorum Crab',
-    role: 'Armored wing',
-    description: 'A dependable heavy escort for sustained encounters.',
-    purchaseCost: 160,
+    role: 'Coin magnet',
+    description: 'Pulls nearby coins toward the squad while adding dependable cover fire.',
+    ability: 'coin-magnet',
+    purchaseCost: 200,
     maxLevel: MINI_SHIP_MAX_LEVEL,
     fireIntervalFrames: 48,
     projectileDamage: 1.08,
@@ -175,9 +193,10 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'axiom-orbiter',
     name: 'Axiom Orbiter',
-    role: 'Precision wing',
-    description: 'Measured shots reward pilots who hold a clean line.',
-    purchaseCost: 200,
+    role: 'Twin burst',
+    description: 'Fires paired precision bolts with a widening damage advantage at higher levels.',
+    ability: 'twin-burst',
+    purchaseCost: 260,
     maxLevel: MINI_SHIP_MAX_LEVEL,
     fireIntervalFrames: 40,
     projectileDamage: 1,
@@ -187,9 +206,10 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'archive-beetle',
     name: 'Archive Beetle',
-    role: 'Heavy archive',
-    description: 'A compact archival gunship with deliberate heavy pulses.',
-    purchaseCost: 250,
+    role: 'Homing missile',
+    description: 'Launches heat-seeking missiles that steer harder and hit faster as it levels.',
+    ability: 'homing-missile',
+    purchaseCost: 330,
     maxLevel: MINI_SHIP_MAX_LEVEL,
     fireIntervalFrames: 52,
     projectileDamage: 1.28,
@@ -199,9 +219,10 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'beacon-kite',
     name: 'Beacon Kite',
-    role: 'Signal support',
-    description: 'Fast signal bursts keep pressure on moving targets.',
-    purchaseCost: 300,
+    role: 'Targeting laser',
+    description: 'Tracks the nearest threat and leads it with accurate signal fire.',
+    ability: 'targeting-laser',
+    purchaseCost: 410,
     maxLevel: MINI_SHIP_MAX_LEVEL,
     fireIntervalFrames: 30,
     projectileDamage: 0.78,
@@ -211,9 +232,10 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'prism-skimmer',
     name: 'Prism Skimmer',
-    role: 'Prismatic wing',
-    description: 'A balanced late-week escort with bright prism fire.',
-    purchaseCost: 360,
+    role: 'Prism fan',
+    description: 'Projects a simultaneous three-ray fan for reliable formation control.',
+    ability: 'prism-fan',
+    purchaseCost: 500,
     maxLevel: MINI_SHIP_MAX_LEVEL,
     fireIntervalFrames: 36,
     projectileDamage: 1.05,
@@ -223,9 +245,10 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'ledger-hammer',
     name: 'Ledger Hammer',
-    role: 'Siege support',
-    description: 'Powerful ledger rounds trade speed for impact.',
-    purchaseCost: 430,
+    role: 'Siege cannon',
+    description: 'Powerful oversized rounds pierce armor and trade speed for impact.',
+    ability: 'heavy-cannon',
+    purchaseCost: 620,
     maxLevel: MINI_SHIP_MAX_LEVEL,
     fireIntervalFrames: 56,
     projectileDamage: 1.5,
@@ -235,9 +258,10 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
   {
     id: 'nebula-tern',
     name: 'Nebula Tern',
-    role: 'Elite support',
-    description: 'An elite research escort tuned for high-wave runs.',
-    purchaseCost: 520,
+    role: 'Nova volley',
+    description: 'An elite five-lane volley platform tuned for the hardest waves.',
+    ability: 'nova-volley',
+    purchaseCost: 760,
     maxLevel: MINI_SHIP_MAX_LEVEL,
     fireIntervalFrames: 34,
     projectileDamage: 1.32,
@@ -606,6 +630,7 @@ export const buildRuntimeSquadLoadout = (
       slot,
       id,
       level,
+      ability: entry.ability,
       frames: entry.frames,
       fireIntervalFrames: Math.max(18, entry.fireIntervalFrames - (level - 1) * 3),
       projectileDamage: entry.projectileDamage + (level - 1) * 0.16,

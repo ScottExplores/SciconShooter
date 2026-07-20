@@ -175,6 +175,49 @@ const compactHudAssets = {
 } as const;
 
 const pixelSpriteClass = 'pointer-events-none absolute select-none object-contain [image-rendering:pixelated]';
+const SYNTHETIC_TOUCH_CLICK_WINDOW_MS = 800;
+
+const useMultitouchAction = (onActivate?: () => void) => {
+  const suppressSyntheticClickUntilRef = useRef(0);
+
+  return {
+    onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+      // Non-primary touch pointers do not reliably synthesize click in iOS and
+      // embedded wallet browsers, so gameplay actions fire directly on press.
+      if ((event.pointerType !== 'touch' && event.pointerType !== 'pen') || !onActivate) return;
+      event.preventDefault();
+      suppressSyntheticClickUntilRef.current = Date.now() + SYNTHETIC_TOUCH_CLICK_WINDOW_MS;
+      onActivate();
+    },
+    onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+        suppressSyntheticClickUntilRef.current = Date.now() + SYNTHETIC_TOUCH_CLICK_WINDOW_MS;
+      }
+    },
+    onTouchStart: (event: React.TouchEvent<HTMLButtonElement>) => {
+      // Old WebViews without Pointer Events still need a direct secondary-touch
+      // activation path. Modern browsers take the pointer path above exactly once.
+      if (typeof window.PointerEvent !== 'undefined' || !onActivate) return;
+      event.preventDefault();
+      suppressSyntheticClickUntilRef.current = Date.now() + SYNTHETIC_TOUCH_CLICK_WINDOW_MS;
+      onActivate();
+    },
+    onTouchEnd: () => {
+      if (typeof window.PointerEvent === 'undefined') {
+        suppressSyntheticClickUntilRef.current = Date.now() + SYNTHETIC_TOUCH_CLICK_WINDOW_MS;
+      }
+    },
+    onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
+      const isSyntheticPointerClick = event.detail > 0
+        && Date.now() <= suppressSyntheticClickUntilRef.current;
+      if (isSyntheticPointerClick) {
+        suppressSyntheticClickUntilRef.current = 0;
+        return;
+      }
+      onActivate?.();
+    }
+  };
+};
 
 const UIOverlay: React.FC<UIOverlayProps> = ({
   stats,
@@ -220,6 +263,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const lifeCapacityRef = useRef(Math.max(1, stats.lives));
   lifeCapacityRef.current = Math.max(lifeCapacityRef.current, stats.lives);
   const remainingLifePct = Math.max(0, Math.min(100, (stats.lives / lifeCapacityRef.current) * 100));
+  const bombActionHandlers = useMultitouchAction(onUseBomb);
+  const shipAbilityActionHandlers = useMultitouchAction(onUseShipAbility);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-1.5 sm:p-3">
@@ -322,7 +367,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
       <div className="pointer-events-auto absolute left-3 top-[57%] z-20 flex -translate-y-1/2 flex-col gap-2 sm:left-5">
         <button
           type="button"
-          onClick={onUseBomb}
+          {...bombActionHandlers}
           disabled={!canUseBomb}
           className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
             canUseBomb
@@ -343,7 +388,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         {selectedShipId && onUseShipAbility ? (
           <button
             type="button"
-            onClick={onUseShipAbility}
+            {...shipAbilityActionHandlers}
             disabled={!abilityReady}
             className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center overflow-hidden rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
               abilityReady
