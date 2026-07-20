@@ -626,6 +626,16 @@ export class PixiGameRenderer {
         Object.values(reused.bossRig.partSprites).forEach((sprite) => {
           sprite.filters = null;
         });
+        reused.bossRig.crownClaw.body.filters = null;
+        Object.values(reused.bossRig.crownClaw.legs).forEach((sprite) => {
+          sprite.filters = null;
+        });
+        Object.values(reused.bossRig.crownClaw.guns).forEach((sprite) => {
+          sprite.filters = null;
+        });
+        Object.values(reused.bossRig.crownClaw.claws).forEach((sprite) => {
+          sprite.filters = null;
+        });
       }
       return reused;
     }
@@ -765,6 +775,16 @@ export class PixiGameRenderer {
       view.bossRig.crownClaw.root.filters = null;
       view.bossRig.crownClaw.root.visible = false;
       Object.values(view.bossRig.partSprites).forEach((sprite) => {
+        sprite.filters = null;
+      });
+      view.bossRig.crownClaw.body.filters = null;
+      Object.values(view.bossRig.crownClaw.legs).forEach((sprite) => {
+        sprite.filters = null;
+      });
+      Object.values(view.bossRig.crownClaw.guns).forEach((sprite) => {
+        sprite.filters = null;
+      });
+      Object.values(view.bossRig.crownClaw.claws).forEach((sprite) => {
         sprite.filters = null;
       });
     }
@@ -1451,13 +1471,24 @@ export class PixiGameRenderer {
   private drawFlash(view: EntityView, entity: Entity) {
     view.flash.clear();
     const filters = entity.flashFrames > 0 ? WHITE_HIT_FILTERS : null;
-    if (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS) {
+    if (entity.type === EntityType.BOSS) {
       view.sprite.filters = filters;
       view.body.filters = filters;
       if (view.bossRig) {
-        view.bossRig.parts.filters = filters;
-        view.bossRig.crownClaw.root.filters = filters;
+        // Hull feedback must never bleach the separately targetable cannons.
+        // Component sprites own their filters through component.flashFrames.
+        view.bossRig.parts.filters = null;
+        view.bossRig.crownClaw.root.filters = null;
+        view.bossRig.crownClaw.body.filters = filters;
+        Object.values(view.bossRig.crownClaw.legs).forEach((leg) => {
+          leg.filters = filters;
+        });
       }
+      return;
+    }
+    if (entity.type === EntityType.MINI_BOSS) {
+      view.sprite.filters = filters;
+      view.body.filters = filters;
       return;
     }
     if (entity.flashFrames <= 0) return;
@@ -1885,6 +1916,8 @@ export class PixiGameRenderer {
     const elapsed = engine.bossWarningDuration - engine.bossWarningFrame;
     const pulseWave = (Math.sin(elapsed * 0.24) + 1) * 0.5;
     const pulse = 0.58 + pulseWave * 0.42;
+    const sirenWave = (Math.cos((elapsed % 36) / 36 * Math.PI * 2) + 1) * 0.5;
+    const redFlashAlpha = 0.07 + sirenWave * 0.2;
     const mainBoss = engine.pendingBossType === 'gatekeeper';
     const title = mainBoss ? 'BOSS INCOMING' : 'THREAT INCOMING';
     const subtitle = mainBoss
@@ -1900,7 +1933,7 @@ export class PixiGameRenderer {
     const bannerScale = bannerBaseScale * (0.86 + easedDeploy * 0.14);
     const centerY = this.height * (this.height > this.width * 1.3 ? 0.39 : 0.43);
 
-    this.warningShade.clear().rect(0, 0, this.width, this.height).fill({ color: '#7f1d1d', alpha: pulse * 0.14 });
+    this.warningShade.clear().rect(0, 0, this.width, this.height).fill({ color: '#dc2626', alpha: redFlashAlpha });
     this.warningFrame.clear();
     this.warningFrame.rect(0, 0, this.width, 5).fill({ color: '#fb3847', alpha: pulse * 0.9 });
     this.warningFrame.rect(0, this.height - 5, this.width, 5).fill({ color: '#fb3847', alpha: pulse * 0.9 });

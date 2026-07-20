@@ -87,4 +87,7 @@ test('boss warnings use the registered Scicon alert art with live reusable label
   assert.match(renderer, /this\.warningText\.text = title/);
   assert.match(renderer, /BOSS INCOMING/);
   assert.match(renderer, /this\.warningCrystal\.position\.set/);
+  assert.match(renderer, /const sirenWave = \(Math\.cos\(\(elapsed % 36\) \/ 36 \* Math\.PI \* 2\) \+ 1\) \* 0\.5/);
+  assert.match(renderer, /const redFlashAlpha = 0\.07 \+ sirenWave \* 0\.2/);
+  assert.match(renderer, /fill\(\{ color: '#dc2626', alpha: redFlashAlpha \}\)/);
 });

@@ -73,11 +73,14 @@ test('main bosses use a siren alert before the transmission panel', () => {
 });
 
 test('white Citation Wraiths and standard red Paywall Interceptors use enlarged gameplay bounds', () => {
+  assert.match(engineSource, /REGULAR_ENEMY_SIZE_SCALE = 1\.1/);
   assert.match(engineSource, /PAYWALL_INTERCEPTOR_SCALE = 1\.1/);
   assert.match(engineSource, /SPIRAL_PAYWALL_INTERCEPTOR_SCALE = 1\.05/);
   assert.match(engineSource, /CITATION_WRAITH_SCALE = 1\.32/);
   assert.match(engineSource, /Math\.round\(44 \* PAYWALL_INTERCEPTOR_SCALE\)/);
   assert.match(engineSource, /Math\.round\(34 \* CITATION_WRAITH_SCALE\)/);
+  assert.match(engineSource, /effectiveSizeMultiplier = configuredSizeMultiplier \* REGULAR_ENEMY_SIZE_SCALE/);
+  assert.match(engineSource, /SPIRAL_PAYWALL_INTERCEPTOR_SCALE \* REGULAR_ENEMY_SIZE_SCALE/);
   assert.match(engineSource, /formation === 'spiral' && enemy\.type === EntityType\.ENEMY_DRONE/);
   assert.match(engineSource, /e\.formation === 'spiral' \? Math\.PI \/ 2 \+ e\.angle : 0/);
 });

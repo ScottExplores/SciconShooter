@@ -13,6 +13,7 @@ test('the weekly squad model is wallet-scoped, resettable, and data driven', () 
   assert.match(source, /SQUAD_PROFILE_VERSION = 3/);
   assert.match(source, /LEFT_SQUAD_SLOT_UNLOCK_COST = 50/);
   assert.match(source, /RIGHT_SQUAD_SLOT_UNLOCK_COST = 500/);
+  assert.match(source, /FIRST_LEFT_WING_MINI_SHIP_ID: MiniShipId = 'citation-dart'/);
   assert.match(source, /WEEKLY_STARTING_COINS = 0/);
   assert.match(source, /unlockedSlots: \{ left: false, right: false \}/);
   assert.match(source, /MINI_SHIP_CATALOG:[\s\S]*citation-dart[\s\S]*nebula-tern/);
@@ -28,6 +29,9 @@ test('the weekly squad model is wallet-scoped, resettable, and data driven', () 
   assert.match(source, /retiredWeeklyStorageKeys\(profileId\)\.forEach\(\(key\) => window\.localStorage\.removeItem\(key\)\)/);
   assert.match(source, /PERMANENT_SQUAD_PROFILE_VERSION = 1/);
   assert.match(source, /MINI_SHIP_UPGRADE_COST_CURVE = \[0, 100, 225, 400, 650\]/);
+  assert.match(source, /if \(slot === 'left'\) \{[\s\S]*?\[FIRST_LEFT_WING_MINI_SHIP_ID\]: next\.ownedMiniShips\[FIRST_LEFT_WING_MINI_SHIP_ID\] \|\| 1/);
+  assert.match(source, /next\.equipped = \{ \.\.\.next\.equipped, left: FIRST_LEFT_WING_MINI_SHIP_ID \}/);
+  assert.match(source, /mini_ship_awarded/);
   assert.doesNotMatch(source, /if \(!equipped\.left\) equipped\.left/);
 });
 

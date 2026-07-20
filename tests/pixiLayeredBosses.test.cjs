@@ -228,10 +228,18 @@ test('boss cannon and hull hits use geometry-matched collision and sprite-shaped
   assert.match(collisionFlow, /if \(!bossComponent && !this\.boxesIntersect\(shotBox, getBox\(target\)\)\) continue/);
   assert.match(renderer, /ColorMatrixFilter/);
   assert.match(renderer, /sprite\.filters = component\.flashFrames > 0 \? WHITE_HIT_FILTERS : null/);
-  assert.match(flashRenderer, /entity\.type === EntityType\.BOSS \|\| entity\.type === EntityType\.MINI_BOSS/);
+  assert.match(flashRenderer, /entity\.type === EntityType\.BOSS/);
+  assert.match(flashRenderer, /entity\.type === EntityType\.MINI_BOSS/);
   assert.match(flashRenderer, /view\.sprite\.filters = filters/);
-  assert.match(flashRenderer, /view\.bossRig\.parts\.filters = filters/);
-  assert.match(flashRenderer, /view\.bossRig\.crownClaw\.root\.filters = filters/);
+  assert.match(flashRenderer, /view\.bossRig\.parts\.filters = null/);
+  assert.match(flashRenderer, /view\.bossRig\.crownClaw\.root\.filters = null/);
+  assert.match(flashRenderer, /view\.bossRig\.crownClaw\.body\.filters = filters/);
+  assert.match(flashRenderer, /Object\.values\(view\.bossRig\.crownClaw\.legs\)/);
+  assert.doesNotMatch(flashRenderer, /view\.bossRig\.parts\.filters = filters/);
+  assert.doesNotMatch(flashRenderer, /view\.bossRig\.crownClaw\.root\.filters = filters/);
+  assert.match(engine, /flashDamageTarget\(entity: Entity/);
+  assert.match(engine, /entity\.type === EntityType\.BOSS \|\| entity\.type === EntityType\.MINI_BOSS[\s\S]*?this\.pulseDamageFlash\(entity\)/);
+  assert.match(collisionFlow, /target\.hp -= dmg;[\s\S]*?this\.flashDamageTarget\(target\)/);
 });
 
 test('boss shield escorts are large readable targets with low-wave durability', () => {

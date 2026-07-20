@@ -533,6 +533,7 @@ export const CROWNCLAW_ARM_HITBOX_SCALE = 1.12;
 const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1;
 const BOSS_DAMAGE_FLASH_FRAMES = 2;
 const BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES = 5;
+export const REGULAR_ENEMY_SIZE_SCALE = 1.1;
 const ENDLESS_CYCLE_DIFFICULTY_STEP = 0.12;
 const ENDLESS_CYCLE_DIFFICULTY_CAP = 0.84;
 type PendingBossStrike = {
@@ -2804,7 +2805,7 @@ export class GameEngine {
 
     if (!nearestTarget) return;
     if (nearestTarget.type === EntityType.BOSS && this.isBossShielded()) {
-      this.flashEntity(nearestTarget, 4);
+      this.pulseDamageFlash(nearestTarget);
       if (this.frameCount % 10 === 0) {
         this.spawnRingEffect(nearestTarget.x + nearestTarget.width / 2, nearestTarget.y + nearestTarget.height / 2, '#a7f3d0');
       }
@@ -2821,7 +2822,7 @@ export class GameEngine {
     else if (nearestTarget.type === EntityType.BOSS) this.damageBossHull(nearestTarget, laserDamage);
     else {
       nearestTarget.hp -= laserDamage;
-      this.flashEntity(nearestTarget, isBossTarget ? 7 : 5);
+      this.flashDamageTarget(nearestTarget);
     }
     const beamColor = level > 0 ? '#38bdf8' : '#65f59a';
     this.spawnBurst(
@@ -3135,7 +3136,7 @@ export class GameEngine {
       const target = targets[index];
       const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS || target.type === EntityType.ENEMY_INVADER;
       if (target.type === EntityType.BOSS && this.isBossShielded()) {
-        this.flashEntity(target, 8);
+        this.pulseDamageFlash(target);
         this.spawnRingEffect(target.x + target.width / 2, target.y + target.height / 2, '#a7f3d0');
         this.spawnFloatingText(target.x + target.width / 2, target.y + target.height * 0.22, 'SHIELDS UP', '#a7f3d0', 16);
         continue;
@@ -3148,8 +3149,10 @@ export class GameEngine {
             ? BOMB_DAMAGE_INVADER
             : 999;
       if (target.type === EntityType.BOSS) this.damageBossHull(target, bombDamage);
-      else target.hp -= bombDamage;
-      this.flashEntity(target, isBossTarget ? 10 : 6);
+      else {
+        target.hp -= bombDamage;
+        this.flashDamageTarget(target, 6);
+      }
       this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#fef08a', isBossTarget ? 8 : 5, 4.5, 4);
 
       if (target.hp <= 0) {
@@ -3315,7 +3318,7 @@ export class GameEngine {
       if ((dx * dx + dy * dy) > Math.max(radiusSq, effectiveRadius * effectiveRadius)) continue;
 
       if (target.type === EntityType.BOSS && this.isBossShielded()) {
-        this.flashEntity(target, 7);
+        this.pulseDamageFlash(target);
         continue;
       }
 
@@ -3327,8 +3330,10 @@ export class GameEngine {
             ? 22
             : 999;
       if (target.type === EntityType.BOSS) this.damageBossHull(target, damage);
-      else target.hp -= damage;
-      this.flashEntity(target, target.type === EntityType.BOSS ? 7 : 5);
+      else {
+        target.hp -= damage;
+        this.flashDamageTarget(target);
+      }
       this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#a7f3d0', 5, 3.6, 3);
       if (target.hp <= 0) this.handleEnemyDestroyed(target);
     }
@@ -3352,6 +3357,14 @@ export class GameEngine {
     if (this.frameCount - entity.lastDamageFlashFrame < BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES) return;
     entity.lastDamageFlashFrame = this.frameCount;
     this.flashEntity(entity, frames);
+  }
+
+  flashDamageTarget(entity: Entity, regularFrames: number = 5) {
+    if (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS) {
+      this.pulseDamageFlash(entity);
+      return;
+    }
+    this.flashEntity(entity, regularFrames);
   }
 
   pulseBossComponentFlash(component: BossComponentState, frames: number = BOSS_DAMAGE_FLASH_FRAMES) {
@@ -3554,7 +3567,7 @@ export class GameEngine {
 
       const isBossTarget = target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS || target.type === EntityType.ENEMY_INVADER;
       if (target.type === EntityType.BOSS && this.isBossShielded()) {
-        this.flashEntity(target, 4);
+        this.pulseDamageFlash(target);
         if (this.frameCount % 10 === 0) {
           this.spawnRingEffect(target.x + target.width / 2, target.y + target.height / 2, '#a7f3d0');
         }
@@ -3569,7 +3582,7 @@ export class GameEngine {
       else if (target.type === EntityType.BOSS) this.damageBossHull(target, beamDamage);
       else {
         target.hp -= beamDamage;
-        this.flashEntity(target, isBossTarget ? 5 : 4);
+        this.flashDamageTarget(target, 4);
       }
 
       if (this.frameCount % 8 === 0) {
@@ -3923,8 +3936,8 @@ export class GameEngine {
 
     const formation = this.resolveConfiguredFormationMode(patternId);
     if (formation === 'spiral' && enemy.type === EntityType.ENEMY_DRONE) {
-      enemy.width = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE);
-      enemy.height = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE);
+      enemy.width = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE * REGULAR_ENEMY_SIZE_SCALE);
+      enemy.height = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE * REGULAR_ENEMY_SIZE_SCALE);
     }
     const target = this.getConfiguredFormationTarget(event, index, count, enemy.width, enemy.height);
     const entryFrames = 52 + (index % 4) * 5 + (formation === 'spiral' ? 14 : 0);
@@ -4352,11 +4365,10 @@ export class GameEngine {
     if (Number.isFinite(overrides.powerupDropChance)) {
       e.powerupDropChance = clamp(overrides.powerupDropChance as number, 0, 1);
     }
-    const sizeMultiplier = clamp(Number(overrides.sizeMultiplier) || 1, 0.5, 2.5);
-    if (sizeMultiplier !== 1) {
-      e.width = Math.round(e.width * sizeMultiplier);
-      e.height = Math.round(e.height * sizeMultiplier);
-    }
+    const configuredSizeMultiplier = clamp(Number(overrides.sizeMultiplier) || 1, 0.5, 2.5);
+    const effectiveSizeMultiplier = configuredSizeMultiplier * REGULAR_ENEMY_SIZE_SCALE;
+    e.width = Math.round(e.width * effectiveSizeMultiplier);
+    e.height = Math.round(e.height * effectiveSizeMultiplier);
     e.eliteRank = overrides.rank;
     e.isElite = overrides.rank === 'elite';
     e.eliteAttackPattern = overrides.attackPatternId;
@@ -4848,7 +4860,7 @@ export class GameEngine {
       const effectiveRadius = BTC_HASH_BURST_RADIUS + Math.min(42, Math.max(target.width, target.height) * 0.22);
       if ((dx * dx + dy * dy) > effectiveRadius * effectiveRadius) continue;
       if (target.type === EntityType.BOSS && this.isBossShielded()) {
-        this.flashEntity(target, 7);
+        this.pulseDamageFlash(target);
         continue;
       }
 
@@ -4860,8 +4872,10 @@ export class GameEngine {
             ? 28
             : 999;
       if (target.type === EntityType.BOSS) this.damageBossHull(target, damage);
-      else target.hp -= damage;
-      this.flashEntity(target, target.type === EntityType.BOSS ? 7 : 5);
+      else {
+        target.hp -= damage;
+        this.flashDamageTarget(target);
+      }
       this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#fde047', 5, 3.4, 3);
       if (target.hp <= 0) this.handleEnemyDestroyed(target);
     }
@@ -6187,7 +6201,7 @@ export class GameEngine {
           this.damageBossHull(target, dmg);
         } else {
           target.hp -= dmg;
-          this.flashEntity(target, isBossTarget ? 7 : 5);
+          this.flashDamageTarget(target);
         }
         this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, shot.color || '#67e8f9', shot.type === EntityType.MISSILE ? 8 : 3, shot.type === EntityType.MISSILE ? 3.8 : 1.6, shot.type === EntityType.MISSILE ? 4 : 2.5);
         this.playSound('impact', isBossTarget ? 0.78 : 0.46, {

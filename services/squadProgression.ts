@@ -30,11 +30,14 @@ export type MiniShipId =
   | 'ledger-hammer'
   | 'nebula-tern';
 
+export const FIRST_LEFT_WING_MINI_SHIP_ID: MiniShipId = 'citation-dart';
+
 export type SquadDomainEventName =
   | 'wallet_profile_loaded'
   | 'weekly_state_reset'
   | 'coin_earned'
   | 'slot_unlocked'
+  | 'mini_ship_awarded'
   | 'mini_ship_purchased'
   | 'mini_ship_upgraded'
   | 'squad_updated'
@@ -475,6 +478,18 @@ export const unlockSquadSlot = (state: WeeklySquadState, slot: SquadSlotId): Wee
   if (state.coins < cost) return state;
   const next = spendCoins(state, cost);
   next.unlockedSlots = { ...next.unlockedSlots, [slot]: true };
+  if (slot === 'left') {
+    next.ownedMiniShips = {
+      ...next.ownedMiniShips,
+      [FIRST_LEFT_WING_MINI_SHIP_ID]: next.ownedMiniShips[FIRST_LEFT_WING_MINI_SHIP_ID] || 1
+    };
+    next.equipped = { ...next.equipped, left: FIRST_LEFT_WING_MINI_SHIP_ID };
+    emitSquadDomainEvent('mini_ship_awarded', {
+      profileId: state.profileId,
+      miniShipId: FIRST_LEFT_WING_MINI_SHIP_ID,
+      source: 'left-wing-unlock'
+    });
+  }
   emitSquadDomainEvent('slot_unlocked', { profileId: state.profileId, slot, cost });
   return next;
 };
