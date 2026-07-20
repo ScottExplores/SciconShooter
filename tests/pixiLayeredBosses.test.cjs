@@ -132,7 +132,7 @@ test('boss components use predictable health shares while reserving the helmet f
   assert.match(engine, /'citation-storm': Object\.freeze\(\{ 'left-cannon': 6, 'right-cannon': 6 \}\)/);
   assert.match(engine, /'paywall-siege': Object\.freeze\(\{ 'left-cannon': 7, 'right-cannon': 7, helmet: 7 \}\)/);
   assert.match(engine, /'crown-claw': Object\.freeze\(\{ 'left-cannon': 8, 'right-cannon': 8 \}\)/);
-  assert.match(engine, /const BOSS_CANNON_HEALTH_RATIO = 0\.15/);
+  assert.match(engine, /const BOSS_CANNON_HEALTH_RATIO = 0\.1/);
   assert.match(engine, /const BOSS_HELMET_HEALTH_RATIO = 0\.18/);
   assert.match(engine, /getBossComponentDurability\(boss: Entity, componentId: BossPartId\)/);
   assert.match(engine, /Math\.round\(Math\.max\(1, boss\.maxHp\) \* healthRatio\)/);
@@ -150,6 +150,21 @@ test('boss components use predictable health shares while reserving the helmet f
   assert.doesNotMatch(beforePaywall, /id: 'helmet'/);
   assert.match(afterPaywall, /PAYWALL_BOSS_COMPONENT_LAYOUT/);
   assert.doesNotMatch(crownClawFactory, /id: 'helmet'/);
+});
+
+test('protected Boss 3 center hits damage the helmet before reaching the hull', () => {
+  const engine = read('services/gameLogic.ts');
+  const componentHit = engine.slice(
+    engine.indexOf('getBossComponentHit(boss: Entity'),
+    engine.indexOf('updateBossDecayStage(boss: Entity')
+  );
+
+  assert.match(componentHit, /const directHit = candidates\[0\]\?\.component/);
+  assert.match(componentHit, /if \(directHit\) return directHit/);
+  assert.match(componentHit, /component\.id === 'helmet' && !component\.destroyed/);
+  assert.match(componentHit, /const crossesProtectedCoreLane = shotCenterX >= helmetBox\.x/);
+  assert.match(componentHit, /this\.boxesIntersect\(shotBox, bossBox\)/);
+  assert.match(componentHit, /return crossesProtectedCoreLane \? helmet : undefined/);
 });
 
 test('boss cannons use enlarged visuals with focused collision footprints', () => {

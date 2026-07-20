@@ -515,7 +515,7 @@ const BOSS_COMPONENT_DURABILITY: Readonly<Record<BossRigId, Readonly<Partial<Rec
   'paywall-siege': Object.freeze({ 'left-cannon': 7, 'right-cannon': 7, helmet: 7 }),
   'crown-claw': Object.freeze({ 'left-cannon': 8, 'right-cannon': 8 })
 });
-const BOSS_CANNON_HEALTH_RATIO = 0.15;
+const BOSS_CANNON_HEALTH_RATIO = 0.1;
 const BOSS_HELMET_HEALTH_RATIO = 0.18;
 export const BOSS_CANNON_SCALE = 1.6;
 export const CROWNCLAW_ARM_SCALE = 1.42;
@@ -4717,7 +4717,26 @@ export class GameEngine {
         || left.normalizedDistance - right.normalizedDistance
         || right.overlapArea - left.overlapArea
       ));
-    return candidates[0]?.component;
+    const directHit = candidates[0]?.component;
+    if (directHit) return directHit;
+
+    const helmet = (boss.bossComponents ?? []).find((component) => (
+      component.id === 'helmet' && !component.destroyed
+    ));
+    if (!helmet) return undefined;
+
+    // Route protected center-hull hits into Boss 3's helmet before the projectile is consumed.
+    const helmetBox = this.getBossComponentBox(boss, helmet);
+    const bossBox: CollisionBox = {
+      x: boss.x,
+      y: boss.y,
+      width: boss.width,
+      height: boss.height
+    };
+    const crossesProtectedCoreLane = shotCenterX >= helmetBox.x
+      && shotCenterX <= helmetBox.x + helmetBox.width
+      && this.boxesIntersect(shotBox, bossBox);
+    return crossesProtectedCoreLane ? helmet : undefined;
   }
 
   updateBossDecayStage(boss: Entity) {

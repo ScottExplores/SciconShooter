@@ -42,10 +42,10 @@ test('Pixi preloads and animates the charge and impact sprite sequences', () => 
   assert.match(renderer, /effect\.effectType === 'sprite'/);
 });
 
-test('boss cannon components use fifteen percent health and hull pressure increases attacks', () => {
+test('boss cannon components use ten percent health and hull pressure increases attacks', () => {
   const engine = read('services/gameLogic.ts');
 
-  assert.match(engine, /BOSS_CANNON_HEALTH_RATIO = 0\.15/);
+  assert.match(engine, /BOSS_CANNON_HEALTH_RATIO = 0\.1/);
   assert.match(engine, /Math\.round\(Math\.max\(1, boss\.maxHp\) \* healthRatio\)/);
   assert.match(engine, /hullPressureMultiplier/);
   assert.match(engine, /const pressure = 1 - healthRatio/);
