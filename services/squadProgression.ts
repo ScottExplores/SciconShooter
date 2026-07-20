@@ -1,13 +1,18 @@
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import { PLAYABLE_PLAYER_SHIP_IDS, type PlayerShipId } from './playerShipService';
 
-export const SQUAD_PROFILE_VERSION = 2;
-const LEGACY_SQUAD_PROFILE_VERSION = 1;
+export const SQUAD_PROFILE_VERSION = 3;
+const RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = [1, 2] as const;
 const PERMANENT_SQUAD_PROFILE_VERSION = 1;
 export const MAIN_SHIP_UPGRADE_MAX_LEVEL = 7;
 export const MINI_SHIP_MAX_LEVEL = 5;
+export const LEFT_SQUAD_SLOT_UNLOCK_COST = 50;
 export const RIGHT_SQUAD_SLOT_UNLOCK_COST = 500;
-export const WEEKLY_STARTING_COINS = 120;
+export const SQUAD_SLOT_UNLOCK_COST: Readonly<Record<SquadSlotId, number>> = Object.freeze({
+  left: LEFT_SQUAD_SLOT_UNLOCK_COST,
+  right: RIGHT_SQUAD_SLOT_UNLOCK_COST
+});
+export const WEEKLY_STARTING_COINS = 0;
 
 export type SquadSlotId = 'left' | 'right';
 export type MainShipUpgradeId = 'fireRate' | 'speed' | 'startingHearts';
@@ -272,7 +277,9 @@ export const MINI_SHIP_UPGRADE_COST_CURVE = [0, 100, 225, 400, 650] as const;
 
 const getProfileId = (walletAddress?: string | null) => walletAddress?.trim().toLowerCase() || 'guest';
 const weeklyStorageKey = (profileId: string) => `scicon_weekly_squad_v${SQUAD_PROFILE_VERSION}:${profileId}`;
-const legacyWeeklyStorageKey = (profileId: string) => `scicon_weekly_squad_v${LEGACY_SQUAD_PROFILE_VERSION}:${profileId}`;
+const retiredWeeklyStorageKeys = (profileId: string) => (
+  RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS.map((version) => `scicon_weekly_squad_v${version}:${profileId}`)
+);
 const permanentStorageKey = (profileId: string) => `scicon_permanent_squad_v${PERMANENT_SQUAD_PROFILE_VERSION}:${profileId}`;
 const nowIso = () => new Date().toISOString();
 const clampLevel = (value: unknown, max = MAIN_SHIP_UPGRADE_MAX_LEVEL) => (
@@ -312,7 +319,7 @@ export const createWeeklySquadState = (
   profileId: getProfileId(walletAddress),
   weekKey,
   coins: WEEKLY_STARTING_COINS,
-  unlockedSlots: { left: true, right: false },
+  unlockedSlots: { left: false, right: false },
   ownedMiniShips: {},
   equipped: { left: null, right: null },
   shipUpgrades: createMainShipUpgradesByShip(),
@@ -363,7 +370,7 @@ const sanitizeWeeklyState = (
     profileId: getProfileId(walletAddress),
     coins: Math.max(0, Math.floor(Number(value.coins) || 0)),
     unlockedSlots: {
-      left: true,
+      left: Boolean(value.unlockedSlots?.left),
       right: Boolean(value.unlockedSlots?.right)
     },
     ownedMiniShips: owned,
@@ -389,16 +396,13 @@ export const loadWeeklySquadState = (walletAddress?: string | null): WeeklySquad
   if (!walletAddress?.trim()) {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(weeklyStorageKey(profileId));
-      window.localStorage.removeItem(legacyWeeklyStorageKey(profileId));
+      retiredWeeklyStorageKeys(profileId).forEach((key) => window.localStorage.removeItem(key));
     }
     return state;
   }
 
   try {
-    const saved = typeof window !== 'undefined'
-      ? window.localStorage.getItem(weeklyStorageKey(profileId))
-        ?? window.localStorage.getItem(legacyWeeklyStorageKey(profileId))
-      : null;
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(weeklyStorageKey(profileId)) : null;
     if (saved) state = sanitizeWeeklyState(JSON.parse(saved) as StoredWeeklySquadState, walletAddress);
   } catch {
     state = createWeeklySquadState(walletAddress, currentWeek);
@@ -407,6 +411,10 @@ export const loadWeeklySquadState = (walletAddress?: string | null): WeeklySquad
   if (state.weekKey !== currentWeek) {
     state = createWeeklySquadState(walletAddress, currentWeek);
     emitSquadDomainEvent('weekly_state_reset', { profileId, weekKey: currentWeek });
+  }
+
+  if (typeof window !== 'undefined') {
+    retiredWeeklyStorageKeys(profileId).forEach((key) => window.localStorage.removeItem(key));
   }
 
   saveWeeklySquadState(state);
@@ -463,10 +471,11 @@ const spendCoins = (state: WeeklySquadState, cost: number) => ({
 
 export const unlockSquadSlot = (state: WeeklySquadState, slot: SquadSlotId): WeeklySquadState => {
   if (state.unlockedSlots[slot]) return state;
-  if (slot !== 'right' || state.coins < RIGHT_SQUAD_SLOT_UNLOCK_COST) return state;
-  const next = spendCoins(state, RIGHT_SQUAD_SLOT_UNLOCK_COST);
-  next.unlockedSlots = { ...next.unlockedSlots, right: true };
-  emitSquadDomainEvent('slot_unlocked', { profileId: state.profileId, slot, cost: RIGHT_SQUAD_SLOT_UNLOCK_COST });
+  const cost = SQUAD_SLOT_UNLOCK_COST[slot];
+  if (state.coins < cost) return state;
+  const next = spendCoins(state, cost);
+  next.unlockedSlots = { ...next.unlockedSlots, [slot]: true };
+  emitSquadDomainEvent('slot_unlocked', { profileId: state.profileId, slot, cost });
   return next;
 };
 

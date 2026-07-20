@@ -15,31 +15,51 @@ test('ResearchHub charge ability keeps its asset, cooldown, and blast contract',
   assert.match(source, /RESEARCH_CHARGE_BLAST_RADIUS = 124/);
 });
 
-test('ResearchHub charge is routed through the real engine and HUD', () => {
+test('every playable ship ability is routed through the real engine and shared HUD slot', () => {
+  const abilities = read('services/shipAbilityService.ts');
   const app = read('App.tsx');
   const canvas = read('components/GameCanvas.tsx');
   const hud = read('components/UIOverlay.tsx');
   const engine = read('services/gameLogic.ts');
 
+  for (const ability of ['research-charge', 'bio-genome-lance', 'eth-prism-volley', 'btc-hash-burst']) {
+    assert.match(abilities, new RegExp(ability));
+    assert.match(engine, new RegExp(ability));
+  }
   assert.match(app, /shipAbilityCommand/);
+  assert.match(app, /playerShipId: usableShipId/);
   assert.match(canvas, /engineRef\.current\.triggerShipAbility\(\)/);
-  assert.match(hud, /selectedShipId === 'researchhub'/);
+  assert.match(canvas, /playerShipId,/);
+  assert.match(hud, /selectedShipId && onUseShipAbility/);
+  assert.match(hud, /getShipAbilityDefinition\(selectedShipId \?\? 'researchhub'\)/);
   assert.match(hud, /conic-gradient\(from 0deg/);
   assert.match(engine, /triggerShipAbility\(\)/);
   assert.match(engine, /detonateResearchCharge\(/);
-  assert.match(engine, /shipAbilityKind === 'research-charge'/);
+  assert.match(engine, /detonateBitcoinHashBurst\(/);
 });
 
-test('Pixi preloads and animates the charge and impact sprite sequences', () => {
+test('Pixi preloads and animates all ship ability sprite sequences', () => {
+  const abilities = read('services/shipAbilityService.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const hud = read('components/UIOverlay.tsx');
 
-  assert.match(renderer, /RESEARCH_CHARGE_FRAME_URLS/);
+  assert.match(renderer, /SHIP_ABILITY_FRAME_URLS/);
   assert.match(renderer, /RESEARCH_IMPACT_FRAME_URLS/);
   assert.match(renderer, /entity\.projectileVisualKind === 'research-charge'/);
+  assert.match(renderer, /entity\.projectileVisualKind === 'bio-genome-lance'/);
+  assert.match(renderer, /entity\.projectileVisualKind === 'eth-prism-volley'/);
+  assert.match(renderer, /entity\.projectileVisualKind === 'btc-hash-burst'/);
   assert.match(renderer, /view\.root\.rotation = -Math\.PI \/ 2/);
-  assert.equal((hud.match(/-rotate-90 object-contain/g) || []).length, 2);
+  assert.match(hud, /abilityDefinition\.iconRotationDegrees/);
   assert.match(renderer, /effect\.effectType === 'sprite'/);
+
+  for (const ship of ['bio', 'eth', 'btc']) {
+    assert.match(abilities, new RegExp(`getGalleryAbilityFrames\\('${ship}'\\)`));
+    for (let frame = 1; frame <= 4; frame++) {
+      const icon = fs.readFileSync(path.join(root, 'public/game-art/generated/scicon-player-weapon-fx-v1', ship, 'level-7', `frame-${frame}.png`));
+      assert.equal(icon[25], 6, `${ship} ability frame ${frame} must retain an alpha channel`);
+    }
+  }
 });
 
 test('boss cannon components use seven percent health and hull pressure increases attacks', () => {

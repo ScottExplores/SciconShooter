@@ -11,6 +11,7 @@ import { getFlaskProgress } from '../services/flaskProgress';
 import { audioService } from '../services/audioService';
 import { PixiGameRenderer } from '../services/pixi/PixiGameRenderer';
 import type { RuntimeSquadLoadout } from '../services/squadProgression';
+import type { PlayerShipId } from '../services/playerShipService';
 
 export { preloadGameplayAssets } from '../services/gameLogic';
 
@@ -101,6 +102,7 @@ export interface GameCanvasProps {
   waveContinueCommand?: { nonce: number } | null;
   polishSettings: GamePolishSettings;
   playerShipUrl?: string;
+  playerShipId?: PlayerShipId;
   squadLoadout?: RuntimeSquadLoadout;
   campaign?: GameCampaign;
   levelId?: string;
@@ -132,6 +134,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   waveContinueCommand = null,
   polishSettings,
   playerShipUrl,
+  playerShipId = 'researchhub',
   squadLoadout,
   campaign,
   levelId,
@@ -414,6 +417,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         previewMode,
         audioEnabled,
         playerShipUrl,
+        playerShipId,
         squadLoadout,
         initialLevelId: levelId,
         initialWaveId: waveId,
@@ -788,7 +792,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [audioEnabled, campaign, playerShipUrl, previewMode, squadLoadout]);
+  }, [audioEnabled, campaign, playerShipId, playerShipUrl, previewMode, squadLoadout]);
 
   return (
     <div

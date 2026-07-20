@@ -20,7 +20,7 @@ import {
   MINI_SHIP_CATALOG,
   MINI_SHIP_MAX_LEVEL,
   preloadMiniShipTextures,
-  RIGHT_SQUAD_SLOT_UNLOCK_COST,
+  SQUAD_SLOT_UNLOCK_COST,
   type MainShipUpgradeId,
   type MiniShipCatalogEntry,
   type MiniShipId,
@@ -249,6 +249,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
 
   const renderSquadMini = (slot: SquadSlotId) => {
     const unlocked = state.unlockedSlots[slot];
+    const unlockCost = SQUAD_SLOT_UNLOCK_COST[slot];
     const miniId = state.equipped[slot];
     const entry = miniId ? MINI_SHIP_BY_ID[miniId] : null;
     const active = activePosition === slot;
@@ -258,7 +259,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         type="button"
         onClick={() => choosePosition(slot)}
         className="relative flex aspect-square w-[5.25rem] shrink-0 items-center justify-center sm:w-[6.25rem]"
-        aria-label={unlocked ? `${slot} wing${entry ? `, ${entry.name}` : ', empty'}` : `Unlock ${slot} wing for ${RIGHT_SQUAD_SLOT_UNLOCK_COST} coins`}
+        aria-label={unlocked ? `${slot} wing${entry ? `, ${entry.name}` : ', empty'}` : `Unlock ${slot} wing for ${unlockCost} coins`}
       >
         <span className="absolute inset-[13%]">
           {active ? <AnimatedSelector size="ship" color="lime" className="absolute inset-0 h-full w-full scale-[1.8]" /> : <span className="absolute inset-0 rotate-45 border border-cyan-300/35 bg-cyan-300/5" />}
@@ -266,7 +267,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         {!unlocked ? (
           <span className="relative z-10 flex min-h-14 min-w-16 flex-col items-center justify-center border border-slate-400/55 bg-slate-800/90 px-2 text-slate-200" aria-hidden="true">
             <span className="text-sm font-black">LOCK</span>
-            <span className="mt-0.5 whitespace-nowrap text-[0.5rem] font-black uppercase text-yellow-200">{RIGHT_SQUAD_SLOT_UNLOCK_COST} coins</span>
+            <span className="mt-0.5 whitespace-nowrap text-[0.5rem] font-black uppercase text-yellow-200">{unlockCost} coins</span>
           </span>
         ) : entry ? (
           <AnimatedMiniShip entry={entry} className="relative z-10 h-[62%] w-[62%] object-contain drop-shadow-[0_0_10px_rgba(103,232,249,0.6)]" />

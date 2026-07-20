@@ -1474,6 +1474,7 @@ const App: React.FC = () => {
               waveContinueCommand,
               polishSettings,
               playerShipUrl,
+              playerShipId: usableShipId,
               squadLoadout: activeRunSquadLoadoutRef.current,
               testMode: isOwnerTestRun,
               testWaveCommand,

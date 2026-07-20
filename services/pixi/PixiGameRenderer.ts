@@ -27,7 +27,7 @@ import {
   getPlayerWeaponFrames,
   getPlayerWeaponLaunchFrameIndex
 } from '../playerWeaponVisuals';
-import { RESEARCH_CHARGE_FRAME_URLS, RESEARCH_IMPACT_FRAME_URLS } from '../shipAbilityService';
+import { RESEARCH_IMPACT_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
 import { MINI_SHIP_CATALOG } from '../squadProgression';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
 import { PixiEnvironment } from './PixiEnvironment';
@@ -532,7 +532,7 @@ export class PixiGameRenderer {
       ...ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES,
       ...PLAYER_SHIP_STEERING_FRAME_URLS,
       ...PLAYER_WEAPON_FRAME_URLS,
-      ...RESEARCH_CHARGE_FRAME_URLS,
+      ...SHIP_ABILITY_FRAME_URLS,
       ...RESEARCH_IMPACT_FRAME_URLS,
       ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
       ...ASSETS.POWERUP_MAGNET_FRAMES,
@@ -859,13 +859,18 @@ export class PixiGameRenderer {
     view.trail.clear();
     view.aura.clear();
     view.sprite.visible = false;
+    view.root.rotation = 0;
     const playerShot = entity.isPlayerShot;
     const color = entity.color || (playerShot ? '#67e8f9' : '#fb7185');
     if (entity.projectileVisualKind && entity.spriteFrames?.length) {
-      const age = entity.projectileVisualKind === 'research-charge'
+      const isShipAbility = entity.projectileVisualKind === 'research-charge'
+        || entity.projectileVisualKind === 'bio-genome-lance'
+        || entity.projectileVisualKind === 'eth-prism-volley'
+        || entity.projectileVisualKind === 'btc-hash-burst';
+      const age = isShipAbility
         ? Math.max(0, engineFrame - entity.weaponVisualStartFrame)
         : Math.max(0, entity.maxLife - entity.life);
-      const frameDelay = entity.projectileVisualKind === 'boss-ray' || entity.projectileVisualKind === 'research-charge' ? 4 : 3;
+      const frameDelay = entity.projectileVisualKind === 'boss-ray' || isShipAbility ? 4 : 3;
       const textureKey = entity.spriteFrames[(Math.floor(age / frameDelay) + entity.variant) % entity.spriteFrames.length];
       this.setTexture(view, textureKey);
       view.sprite.tint = '#ffffff';
@@ -877,6 +882,20 @@ export class PixiGameRenderer {
         view.aura.circle(0, 0, entity.width * pulse).fill({ color: '#22d3ee', alpha: 0.14 });
         view.aura.circle(0, 0, entity.width * 0.56).stroke({ color: '#a7f3d0', width: 2, alpha: 0.72 });
         view.root.rotation = -Math.PI / 2;
+      } else if (entity.projectileVisualKind === 'bio-genome-lance') {
+        view.aura.roundRect(-entity.width * 0.62, -entity.height * 0.52, entity.width * 1.24, entity.height * 1.04, entity.width * 0.4)
+          .fill({ color: '#4ade80', alpha: 0.16 });
+        view.aura.roundRect(-entity.width * 0.32, -entity.height * 0.5, entity.width * 0.64, entity.height, entity.width * 0.28)
+          .stroke({ color: '#bbf7d0', width: 2, alpha: 0.78 });
+      } else if (entity.projectileVisualKind === 'eth-prism-volley') {
+        const pulse = 0.68 + Math.sin((engineFrame + entity.variant * 3) * 0.2) * 0.1;
+        view.aura.circle(0, 0, entity.width * pulse).fill({ color: '#8b5cf6', alpha: 0.18 });
+        view.aura.circle(0, 0, entity.width * 0.56).stroke({ color: '#ddd6fe', width: 1.5, alpha: 0.76 });
+        view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
+      } else if (entity.projectileVisualKind === 'btc-hash-burst') {
+        const pulse = 0.72 + Math.sin(engineFrame * 0.16) * 0.09;
+        view.aura.circle(0, 0, entity.width * pulse).fill({ color: '#facc15', alpha: 0.16 });
+        view.aura.circle(0, 0, entity.width * 0.58).stroke({ color: '#67e8f9', width: 2, alpha: 0.7 });
       } else if (entity.projectileVisualKind === 'boss-ray') {
         view.aura.roundRect(-entity.width * 0.7, -entity.height * 0.5, entity.width * 1.4, entity.height, entity.width * 0.38)
           .fill({ color: '#ff9d2e', alpha: 0.18 });

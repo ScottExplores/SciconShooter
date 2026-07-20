@@ -5,9 +5,7 @@ import { BASE_FLASK_CHARGE_MAX, getFlaskProgress } from '../services/flaskProgre
 import { DEFAULT_GAME_CAMPAIGN, getPrimaryAssetPath } from '../services/levelConfig';
 import type { PlayerShipId } from '../services/playerShipService';
 import {
-  RESEARCH_CHARGE_COOLDOWN_FRAMES,
-  RESEARCH_CHARGE_COOLDOWN_SECONDS,
-  RESEARCH_CHARGE_ICON_URL
+  getShipAbilityDefinition
 } from '../services/shipAbilityService';
 
 export interface UIOverlayProps {
@@ -213,11 +211,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const nextFlaskPct = flaskProgress.nextFlaskPct;
   const bombs = stats.bombs || 0;
   const canUseBomb = bombs > 0 && !bombLocked;
-  const abilityCooldownMax = stats.shipAbilityCooldownMax || RESEARCH_CHARGE_COOLDOWN_FRAMES;
+  const abilityDefinition = getShipAbilityDefinition(selectedShipId ?? 'researchhub');
+  const abilityCooldownMax = stats.shipAbilityCooldownMax || abilityDefinition.cooldownFrames;
   const abilityCooldown = Math.max(0, stats.shipAbilityCooldown || 0);
   const abilityReady = abilityCooldown <= 0 && !shipAbilityLocked;
   const abilityRevealDegrees = Math.round((1 - Math.min(1, abilityCooldown / abilityCooldownMax)) * 360);
-  const abilitySeconds = Math.max(1, Math.ceil((abilityCooldown / abilityCooldownMax) * RESEARCH_CHARGE_COOLDOWN_SECONDS));
+  const abilitySeconds = Math.max(1, Math.ceil((abilityCooldown / abilityCooldownMax) * abilityDefinition.cooldownSeconds));
   const lifeCapacityRef = useRef(Math.max(1, stats.lives));
   lifeCapacityRef.current = Math.max(lifeCapacityRef.current, stats.lives);
   const remainingLifePct = Math.max(0, Math.min(100, (stats.lives / lifeCapacityRef.current) * 100));
@@ -341,7 +340,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           <div className="absolute inset-1 rounded-[18px] bg-[radial-gradient(circle_at_50%_20%,rgba(250,204,21,0.2),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.1),rgba(0,0,0,0.42))]" />
           <BombSprite active={canUseBomb} src={bombIconSrc} />
         </button>
-        {selectedShipId === 'researchhub' && onUseShipAbility ? (
+        {selectedShipId && onUseShipAbility ? (
           <button
             type="button"
             onClick={onUseShipAbility}
@@ -351,20 +350,26 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 ? 'border-cyan-200/75 bg-slate-950/72 shadow-[0_0_34px_rgba(34,211,238,0.26)] hover:border-cyan-100 hover:brightness-110'
                 : 'border-slate-400/20 bg-slate-900/62'
             }`}
-            aria-label={abilityReady ? 'Launch ResearchHub charge' : `ResearchHub charge ready in ${abilitySeconds} seconds`}
-            title={abilityReady ? 'Research charge' : `${abilitySeconds}s recharge`}
+            aria-label={abilityReady ? abilityDefinition.actionLabel : `${abilityDefinition.name} ready in ${abilitySeconds} seconds`}
+            title={abilityReady ? abilityDefinition.name : `${abilitySeconds}s recharge`}
+            style={abilityReady ? { boxShadow: `0 0 34px ${abilityDefinition.glow}, 0 18px 44px rgba(0,0,0,0.38)` } : undefined}
           >
-            <div className="absolute inset-1 rounded-[18px] bg-[radial-gradient(circle_at_50%_35%,rgba(34,211,238,0.2),transparent_48%),linear-gradient(180deg,rgba(15,23,42,0.1),rgba(0,0,0,0.48))]" />
-            <img
-              src={RESEARCH_CHARGE_ICON_URL}
-              alt=""
-              className="absolute h-[78%] w-[78%] -rotate-90 object-contain opacity-30 grayscale [image-rendering:pixelated]"
+            <div
+              className="absolute inset-1 rounded-[18px]"
+              style={{ background: `radial-gradient(circle at 50% 35%, ${abilityDefinition.glow}, transparent 48%), linear-gradient(180deg, rgba(15,23,42,0.1), rgba(0,0,0,0.48))` }}
             />
             <img
-              src={RESEARCH_CHARGE_ICON_URL}
+              src={abilityDefinition.iconUrl}
               alt=""
-              className="absolute h-[78%] w-[78%] -rotate-90 object-contain [image-rendering:pixelated]"
+              className="absolute h-[78%] w-[78%] object-contain opacity-30 grayscale [image-rendering:pixelated]"
+              style={{ transform: `rotate(${abilityDefinition.iconRotationDegrees}deg)` }}
+            />
+            <img
+              src={abilityDefinition.iconUrl}
+              alt=""
+              className="absolute h-[78%] w-[78%] object-contain [image-rendering:pixelated]"
               style={{
+                transform: `rotate(${abilityDefinition.iconRotationDegrees}deg)`,
                 WebkitMaskImage: `conic-gradient(from 0deg, #000 0deg ${abilityRevealDegrees}deg, transparent ${abilityRevealDegrees}deg 360deg)`,
                 maskImage: `conic-gradient(from 0deg, #000 0deg ${abilityRevealDegrees}deg, transparent ${abilityRevealDegrees}deg 360deg)`
               }}

@@ -30,11 +30,18 @@ import {
   getPlayerWeaponLaunchFrameIndex
 } from './playerWeaponVisuals';
 import {
+  BIO_GENOME_LANCE_FRAME_URLS,
+  BTC_HASH_BURST_FRAME_URLS,
+  BTC_HASH_BURST_RADIUS,
+  ETH_PRISM_VOLLEY_FRAME_URLS,
   RESEARCH_CHARGE_BLAST_RADIUS,
-  RESEARCH_CHARGE_COOLDOWN_FRAMES,
   RESEARCH_CHARGE_FRAME_URLS,
-  RESEARCH_IMPACT_FRAME_URLS
+  RESEARCH_IMPACT_FRAME_URLS,
+  SHIP_ABILITY_FRAME_URLS,
+  getShipAbilityDefinition,
+  type ShipAbilityKind
 } from './shipAbilityService';
+import type { PlayerShipId } from './playerShipService';
 import {
   emitSquadDomainEvent,
   type RuntimeSquadCompanion,
@@ -63,7 +70,7 @@ export type BossComponentState = {
   flashFrames: number;
   lastDamageFlashFrame: number;
 };
-export type BossProjectileVisualKind = 'boss-ray' | 'boss-bolt' | 'crown-claw-left' | 'crown-claw-right' | 'research-charge';
+export type BossProjectileVisualKind = 'boss-ray' | 'boss-bolt' | 'crown-claw-left' | 'crown-claw-right' | ShipAbilityKind;
 type PendingPlayerShot = {
   fireFrame: number;
   speed: number;
@@ -111,7 +118,7 @@ export class Entity {
   bossComponents?: BossComponentState[];
   bossDecayStage: number = 0;
   projectileVisualKind?: BossProjectileVisualKind;
-  shipAbilityKind?: 'research-charge';
+  shipAbilityKind?: ShipAbilityKind;
   bossOwnerId?: string;
   bossComponentId?: BossPartId;
   clawOutboundFrames: number = 0;
@@ -360,7 +367,7 @@ const GAMEPLAY_ASSET_URLS = [
   ASSETS.RSC_TOKEN,
   ...ASSETS.RSC_TOKEN_FLIP_FRAMES,
   ...PLAYER_WEAPON_FRAME_URLS,
-  ...RESEARCH_CHARGE_FRAME_URLS,
+  ...SHIP_ABILITY_FRAME_URLS,
   ...RESEARCH_IMPACT_FRAME_URLS,
   ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
   ...ASSETS.POWERUP_MAGNET_FRAMES,
@@ -517,7 +524,7 @@ const BOSS_COMPONENT_DURABILITY: Readonly<Record<BossRigId, Readonly<Partial<Rec
 });
 const BOSS_CANNON_HEALTH_RATIO = 0.07;
 const BOSS_HELMET_HEALTH_RATIO = 0.18;
-export const OVERDRIVE_SPREAD_SIDE_ANGLE_DEGREES = 30;
+export const OVERDRIVE_SPREAD_SIDE_ANGLE_DEGREES = 20;
 const OVERDRIVE_SPREAD_SIDE_ANGLE_RADIANS = OVERDRIVE_SPREAD_SIDE_ANGLE_DEGREES * (Math.PI / 180);
 export const BOSS_CANNON_SCALE = 1.6;
 export const CROWNCLAW_ARM_SCALE = 1.42;
@@ -710,6 +717,7 @@ export interface GameEngineOptions {
   previewMode?: boolean;
   audioEnabled?: boolean;
   playerShipUrl?: string;
+  playerShipId?: PlayerShipId;
   initialLevelId?: string;
   initialWaveId?: string;
   testMode?: boolean;
@@ -917,6 +925,7 @@ export class GameEngine {
   campaign: GameCampaign;
   bombSpriteUrl: string = DEFAULT_BOMB_SPRITE_URL;
   playerShipUrl: string = ASSETS.PLAYER_SHIP;
+  playerShipId: PlayerShipId = 'researchhub';
   campaignWaves: CampaignWaveEntry[] = [];
   currentCampaignIndex: number = 0;
   previewMode: boolean = false;
@@ -938,7 +947,8 @@ export class GameEngine {
   constructor(stats: Stats, options: GameEngineOptions = {}) {
     this.stats = stats;
     this.stats.shipAbilityCooldown = Math.max(0, Number(this.stats.shipAbilityCooldown) || 0);
-    this.stats.shipAbilityCooldownMax = RESEARCH_CHARGE_COOLDOWN_FRAMES;
+    this.playerShipId = options.playerShipId ?? 'researchhub';
+    this.stats.shipAbilityCooldownMax = getShipAbilityDefinition(this.playerShipId).cooldownFrames;
     this.campaign = cloneGameCampaign(options.campaign ?? DEFAULT_GAME_CAMPAIGN);
     this.bombSpriteUrl = getPrimaryAssetPath(this.campaign.hudAssets.bombIconAssetKey);
     this.playerShipUrl = options.playerShipUrl || ASSETS.PLAYER_SHIP;
@@ -1762,7 +1772,7 @@ export class GameEngine {
     this.stats.bombCharge = this.testMode ? getChargeForStoredFlasks(40) : 0;
     this.stats.bombChargeMax = BASE_FLASK_CHARGE_MAX;
     this.stats.shipAbilityCooldown = 0;
-    this.stats.shipAbilityCooldownMax = RESEARCH_CHARGE_COOLDOWN_FRAMES;
+    this.stats.shipAbilityCooldownMax = getShipAbilityDefinition(this.playerShipId).cooldownFrames;
     this.stats.wave = this.wave;
     this.resetWaveProgress();
     const openingSector = this.getWaveSector();
@@ -2247,7 +2257,7 @@ export class GameEngine {
     if ((this.stats.shipAbilityCooldown || 0) > 0) {
       this.stats.shipAbilityCooldown = Math.max(0, this.stats.shipAbilityCooldown - 1);
     }
-    this.stats.shipAbilityCooldownMax = RESEARCH_CHARGE_COOLDOWN_FRAMES;
+    this.stats.shipAbilityCooldownMax = getShipAbilityDefinition(this.playerShipId).cooldownFrames;
     this.flushPendingPlayerShots();
     this.refreshLoadState();
     this.stats.lives = this.lives;
@@ -2604,6 +2614,8 @@ export class GameEngine {
           }
         } else if (e.shipAbilityKind === 'research-charge' && e.y < -e.height * 0.45) {
           this.detonateResearchCharge(e, e.x + e.width / 2, Math.max(54, e.height * 0.35));
+        } else if (e.shipAbilityKind === 'btc-hash-burst' && e.y < -e.height * 0.45) {
+          this.detonateBitcoinHashBurst(e, e.x + e.width / 2, Math.max(54, e.height * 0.35));
         } else if (e.y < -50 || e.y > this.height + 50) {
           e.markedForDeletion = true;
         }
@@ -3157,10 +3169,9 @@ export class GameEngine {
   }
 
   triggerShipAbility() {
-    const isResearchHubShip = this.playerShipUrl === ASSETS.PLAYER_SHIP;
+    const ability = getShipAbilityDefinition(this.playerShipId);
     if (
-      !isResearchHubShip
-      || (this.stats.shipAbilityCooldown || 0) > 0
+      (this.stats.shipAbilityCooldown || 0) > 0
       || !this.gameActive
       || this.introFlightFrames > 0
       || this.deathSequenceFrames > 0
@@ -3169,32 +3180,110 @@ export class GameEngine {
       return false;
     }
 
-    const projectile = new Entity(
-      EntityType.PROJECTILE,
-      this.player.x + this.player.width / 2 - 38,
-      this.player.y - 82
-    );
-    projectile.width = 76;
-    projectile.height = 92;
-    projectile.vx = 0;
-    projectile.vy = -7.2;
-    projectile.color = '#67e8f9';
-    projectile.isPlayerShot = true;
-    projectile.damage = 0;
-    projectile.shipAbilityKind = 'research-charge';
-    projectile.projectileVisualKind = 'research-charge';
-    projectile.spriteFrames = [...RESEARCH_CHARGE_FRAME_URLS];
-    projectile.weaponVisualStartFrame = this.frameCount;
-    this.entities.push(projectile);
+    if (this.playerShipId === 'bio') {
+      this.spawnShipAbilityProjectile({
+        kind: 'bio-genome-lance',
+        frames: BIO_GENOME_LANCE_FRAME_URLS,
+        width: 34,
+        height: 126,
+        speed: 10.5,
+        damage: 5.5,
+        color: '#86efac',
+        yOffset: -102,
+        weaponKind: 'bio-laser',
+        pierceRemaining: 12
+      });
+    } else if (this.playerShipId === 'eth') {
+      [-0.16, 0, 0.16].forEach((angleBias, index) => {
+        this.spawnShipAbilityProjectile({
+          kind: 'eth-prism-volley',
+          frames: ETH_PRISM_VOLLEY_FRAME_URLS,
+          width: 42,
+          height: 66,
+          speed: 9.2,
+          damage: 4.5,
+          color: '#c4b5fd',
+          offsetX: (index - 1) * 11,
+          yOffset: -54,
+          angleBias,
+          weaponKind: 'eth-shard',
+          pierceRemaining: 3,
+          variant: index
+        });
+      });
+    } else if (this.playerShipId === 'btc') {
+      this.spawnShipAbilityProjectile({
+        kind: 'btc-hash-burst',
+        frames: BTC_HASH_BURST_FRAME_URLS,
+        width: 72,
+        height: 96,
+        speed: 6.5,
+        damage: 0,
+        color: '#facc15',
+        yOffset: -78,
+        weaponKind: 'btc-hash'
+      });
+    } else {
+      this.spawnShipAbilityProjectile({
+        kind: 'research-charge',
+        frames: RESEARCH_CHARGE_FRAME_URLS,
+        width: 76,
+        height: 92,
+        speed: 7.2,
+        damage: 0,
+        color: '#67e8f9',
+        yOffset: -82,
+        weaponKind: 'pulse'
+      });
+    }
 
-    this.stats.shipAbilityCooldown = RESEARCH_CHARGE_COOLDOWN_FRAMES;
-    this.stats.shipAbilityCooldownMax = RESEARCH_CHARGE_COOLDOWN_FRAMES;
-    this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + 8, '#67e8f9');
-    this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 24, 'RESEARCH CHARGE', '#a7f3d0', 17);
-    this.spawnBurst(this.player.x + this.player.width / 2, this.player.y, '#67e8f9', 10, 4.2, 4);
-    this.addShake(2.5);
+    this.stats.shipAbilityCooldown = ability.cooldownFrames;
+    this.stats.shipAbilityCooldownMax = ability.cooldownFrames;
+    this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + 8, ability.color);
+    this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 24, ability.name.toUpperCase(), ability.color, 17);
+    this.spawnBurst(this.player.x + this.player.width / 2, this.player.y, ability.color, this.playerShipId === 'eth' ? 14 : 10, 4.2, 4);
+    this.addShake(this.playerShipId === 'btc' ? 4 : 2.5);
     this.playSound('powerup');
     return true;
+  }
+
+  spawnShipAbilityProjectile(config: {
+    kind: ShipAbilityKind;
+    frames: readonly string[];
+    width: number;
+    height: number;
+    speed: number;
+    damage: number;
+    color: string;
+    offsetX?: number;
+    yOffset?: number;
+    angleBias?: number;
+    weaponKind: PlayerWeaponKind;
+    pierceRemaining?: number;
+    variant?: number;
+  }) {
+    const projectile = new Entity(
+      EntityType.PROJECTILE,
+      this.player.x + this.player.width / 2 - config.width / 2 + (config.offsetX ?? 0),
+      this.player.y + (config.yOffset ?? 0)
+    );
+    const angle = config.angleBias ?? 0;
+    projectile.width = config.width;
+    projectile.height = config.height;
+    projectile.vx = Math.sin(angle) * config.speed;
+    projectile.vy = -Math.cos(angle) * config.speed;
+    projectile.color = config.color;
+    projectile.isPlayerShot = true;
+    projectile.damage = config.damage;
+    projectile.weaponKind = config.weaponKind;
+    projectile.shipAbilityKind = config.kind;
+    projectile.projectileVisualKind = config.kind;
+    projectile.spriteFrames = [...config.frames];
+    projectile.weaponVisualStartFrame = this.frameCount;
+    projectile.variant = config.variant ?? 0;
+    projectile.pierceRemaining = config.pierceRemaining ?? 0;
+    if (projectile.pierceRemaining > 0) projectile.hitTargetIds = new Set<string>();
+    this.entities.push(projectile);
   }
 
   detonateResearchCharge(projectile: Entity, centerX: number, centerY: number) {
@@ -4741,6 +4830,43 @@ export class GameEngine {
     return crossesProtectedCoreLane ? helmet : undefined;
   }
 
+  detonateBitcoinHashBurst(projectile: Entity, centerX: number, centerY: number) {
+    if (projectile.markedForDeletion) return;
+    projectile.markedForDeletion = true;
+    this.flashAlpha = Math.max(this.flashAlpha, 0.2);
+    this.addShake(5);
+    this.addHitStop(4);
+    this.spawnRingEffect(centerX, centerY, '#facc15');
+    this.spawnRingEffect(centerX, centerY, '#22d3ee');
+    this.spawnBurst(centerX, centerY, '#facc15', 20, 6, 5);
+    this.playSound('bomb', 0.62, { pitchJitter: 0.03, pitchOffset: -0.18 });
+
+    const targets = this.entities.filter((entity) => !entity.markedForDeletion && this.isEnemyTarget(entity));
+    for (const target of targets) {
+      const dx = target.x + target.width / 2 - centerX;
+      const dy = target.y + target.height / 2 - centerY;
+      const effectiveRadius = BTC_HASH_BURST_RADIUS + Math.min(42, Math.max(target.width, target.height) * 0.22);
+      if ((dx * dx + dy * dy) > effectiveRadius * effectiveRadius) continue;
+      if (target.type === EntityType.BOSS && this.isBossShielded()) {
+        this.flashEntity(target, 7);
+        continue;
+      }
+
+      const damage = target.type === EntityType.BOSS
+        ? 12
+        : target.type === EntityType.MINI_BOSS
+          ? 22
+          : target.type === EntityType.ENEMY_INVADER
+            ? 28
+            : 999;
+      if (target.type === EntityType.BOSS) this.damageBossHull(target, damage);
+      else target.hp -= damage;
+      this.flashEntity(target, target.type === EntityType.BOSS ? 7 : 5);
+      this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#fde047', 5, 3.4, 3);
+      if (target.hp <= 0) this.handleEnemyDestroyed(target);
+    }
+  }
+
   updateBossDecayStage(boss: Entity) {
     if (boss.type !== EntityType.BOSS) return;
     const healthRatio = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
@@ -6019,6 +6145,10 @@ export class GameEngine {
 
         if (shot.shipAbilityKind === 'research-charge') {
           this.detonateResearchCharge(shot, shot.x + shot.width / 2, shot.y + shot.height * 0.35);
+          break;
+        }
+        if (shot.shipAbilityKind === 'btc-hash-burst') {
+          this.detonateBitcoinHashBurst(shot, shot.x + shot.width / 2, shot.y + shot.height * 0.35);
           break;
         }
 
