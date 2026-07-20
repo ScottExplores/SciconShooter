@@ -233,7 +233,7 @@ const App: React.FC = () => {
   const finalizedRunGameIdRef = useRef<number | null>(null);
   const squadRunAppliedGameIdRef = useRef<number | null>(null);
   const activeRunSquadLoadoutRef = useRef<RuntimeSquadLoadout>(
-    buildRuntimeSquadLoadout(weeklySquadState)
+    buildRuntimeSquadLoadout(weeklySquadState, 'researchhub')
   );
   const walletActionNonceRef = useRef(0);
   const walletProfileAddressRef = useRef<string | null>(null);
@@ -337,7 +337,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const next = loadWeeklySquadState(activeWalletAddress);
     setWeeklySquadState(next);
-    activeRunSquadLoadoutRef.current = buildRuntimeSquadLoadout(next);
+    activeRunSquadLoadoutRef.current = buildRuntimeSquadLoadout(next, 'researchhub');
     preloadMiniShipTextures();
   }, [activeWalletAddress]);
 
@@ -358,8 +358,8 @@ const App: React.FC = () => {
   }, [updateWeeklySquadState]);
 
   const handleUpgradeMainShip = useCallback((id: MainShipUpgradeId) => {
-    updateWeeklySquadState((current) => upgradeMainShip(current, id));
-  }, [updateWeeklySquadState]);
+    updateWeeklySquadState((current) => upgradeMainShip(current, usableShipId, id));
+  }, [updateWeeklySquadState, usableShipId]);
   const beginRunSession = useCallback((testRun: boolean) => {
     if (runSessionPromiseRef.current) return;
 
@@ -643,7 +643,7 @@ const App: React.FC = () => {
 
   const startGame = () => {
     const startInTestMode = isOwnerWallet;
-    const squadLoadout = buildRuntimeSquadLoadout(weeklySquadState);
+    const squadLoadout = buildRuntimeSquadLoadout(weeklySquadState, usableShipId);
     const startingLives = Math.min(
       GAME_CONFIG.MAX_LIVES,
       3 + squadLoadout.upgrades.startingHearts

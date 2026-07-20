@@ -515,8 +515,10 @@ const BOSS_COMPONENT_DURABILITY: Readonly<Record<BossRigId, Readonly<Partial<Rec
   'paywall-siege': Object.freeze({ 'left-cannon': 7, 'right-cannon': 7, helmet: 7 }),
   'crown-claw': Object.freeze({ 'left-cannon': 8, 'right-cannon': 8 })
 });
-const BOSS_CANNON_HEALTH_RATIO = 0.1;
+const BOSS_CANNON_HEALTH_RATIO = 0.07;
 const BOSS_HELMET_HEALTH_RATIO = 0.18;
+export const OVERDRIVE_SPREAD_SIDE_ANGLE_DEGREES = 30;
+const OVERDRIVE_SPREAD_SIDE_ANGLE_RADIANS = OVERDRIVE_SPREAD_SIDE_ANGLE_DEGREES * (Math.PI / 180);
 export const BOSS_CANNON_SCALE = 1.6;
 export const CROWNCLAW_ARM_SCALE = 1.42;
 export const BOSS_CANNON_HITBOX_SCALE = 1.12;
@@ -3042,7 +3044,7 @@ export class GameEngine {
           speed: weaponSpeed,
           offsetX: side * 4,
           yOffset: 4,
-          angleBias: side * (Math.PI / 6),
+          angleBias: side * OVERDRIVE_SPREAD_SIDE_ANGLE_RADIANS,
           pitchOffset: side < 0 ? -0.01 : 0.03,
           weaponKind,
           playSound: !lean

@@ -10,6 +10,9 @@ test('the weekly squad model is wallet-scoped, resettable, and data driven', () 
   const source = read('services', 'squadProgression.ts');
 
   assert.match(source, /MAIN_SHIP_UPGRADE_MAX_LEVEL = 7/);
+  assert.match(source, /SQUAD_PROFILE_VERSION = 2/);
+  assert.match(source, /RIGHT_SQUAD_SLOT_UNLOCK_COST = 500/);
+  assert.match(source, /unlockedSlots: \{ left: true, right: false \}/);
   assert.match(source, /MINI_SHIP_CATALOG:[\s\S]*citation-dart[\s\S]*nebula-tern/);
   assert.match(source, /weeklyStorageKey = \(profileId: string\)/);
   assert.match(source, /state\.weekKey !== currentWeek/);
@@ -18,6 +21,9 @@ test('the weekly squad model is wallet-scoped, resettable, and data driven', () 
   assert.match(source, /fireIntervalFrames: Math\.max\(18/);
   assert.match(source, /ownedMiniShips: \{\}/);
   assert.match(source, /equipped: \{ left: null, right: null \}/);
+  assert.match(source, /shipUpgrades: createMainShipUpgradesByShip\(\)/);
+  assert.match(source, /shipUpgrades\.researchhub = sanitizeMainShipUpgradeLevels\(legacyUpgrades\)/);
+  assert.match(source, /MINI_SHIP_UPGRADE_COST_CURVE = \[0, 100, 225, 400, 650\]/);
   assert.doesNotMatch(source, /if \(!equipped\.left\) equipped\.left/);
 });
 
@@ -87,6 +93,9 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.doesNotMatch(hangar, /min-h-\[25rem\]/);
   assert.match(hangar, /rsc-coin-pixel\.png/);
   assert.match(hangar, /resources\/crystal\.png/);
+  assert.match(hangar, /const activeMainShipUpgrades = state\.shipUpgrades\[mainShipId\]/);
+  assert.match(hangar, /const shipUpgrades = state\.shipUpgrades\[shipId\]/);
+  assert.match(hangar, /\{RIGHT_SQUAD_SLOT_UNLOCK_COST\} coins/);
 });
 
 test('the dashboard centers Home and exposes Hangar immediately to its right', () => {
@@ -131,10 +140,23 @@ test('companions use the real engine and Overdrive Spread stays on the main ship
 
   assert.match(engine, /this\.updateSquadCompanions\(\)/);
   assert.match(engine, /spawnSquadCompanionBullet/);
-  assert.match(engine, /angleBias: side \* \(Math\.PI \/ 6\)/);
+  assert.match(engine, /OVERDRIVE_SPREAD_SIDE_ANGLE_DEGREES = 30/);
+  assert.match(engine, /angleBias: side \* OVERDRIVE_SPREAD_SIDE_ANGLE_RADIANS/);
   assert.match(engine, /OVERDRIVE SPREAD!/);
   assert.match(renderer, /engine\.getSquadCompanionVisuals\(\)/);
   assert.match(renderer, /companion\?\.frames\[companion\.frameIndex\]/);
+});
+
+test('main ship upgrades remain isolated to the selected ship through the Hangar and game launch', () => {
+  const squad = read('services', 'squadProgression.ts');
+  const app = read('App.tsx');
+
+  assert.match(squad, /export type MainShipUpgradesByShip = Record<PlayerShipId, MainShipUpgradeLevels>/);
+  assert.match(squad, /const currentUpgrades = state\.shipUpgrades\[shipId\]/);
+  assert.match(squad, /\[shipId\]: \{ \.\.\.currentUpgrades, \[id\]: level \+ 1 \}/);
+  assert.match(squad, /upgrades: \{ \.\.\.\(state\.shipUpgrades\[mainShipId\]/);
+  assert.match(app, /upgradeMainShip\(current, usableShipId, id\)/);
+  assert.match(app, /buildRuntimeSquadLoadout\(weeklySquadState, usableShipId\)/);
 });
 
 test('gameplay pickups use animated transparent PNG artwork instead of founder portraits', () => {

@@ -103,5 +103,6 @@ test('equipped mini-ships replace the old duplicate-player gun pods', () => {
   assert.match(runtimeSource, /private updateSquadCompanions\(\)/);
   assert.match(runtimeSource, /private spawnSquadCompanionBullet\(companion: ActiveSquadCompanion\)/);
   assert.match(runtimeSource, /return EMPTY_GUN_POD_OFFSETS/);
-  assert.match(runtimeSource, /angleBias: side \* \(Math\.PI \/ 6\)/);
+  assert.match(runtimeSource, /OVERDRIVE_SPREAD_SIDE_ANGLE_DEGREES = 30/);
+  assert.match(runtimeSource, /angleBias: side \* OVERDRIVE_SPREAD_SIDE_ANGLE_RADIANS/);
 });

@@ -132,7 +132,7 @@ test('boss components use predictable health shares while reserving the helmet f
   assert.match(engine, /'citation-storm': Object\.freeze\(\{ 'left-cannon': 6, 'right-cannon': 6 \}\)/);
   assert.match(engine, /'paywall-siege': Object\.freeze\(\{ 'left-cannon': 7, 'right-cannon': 7, helmet: 7 \}\)/);
   assert.match(engine, /'crown-claw': Object\.freeze\(\{ 'left-cannon': 8, 'right-cannon': 8 \}\)/);
-  assert.match(engine, /const BOSS_CANNON_HEALTH_RATIO = 0\.1/);
+  assert.match(engine, /const BOSS_CANNON_HEALTH_RATIO = 0\.07/);
   assert.match(engine, /const BOSS_HELMET_HEALTH_RATIO = 0\.18/);
   assert.match(engine, /getBossComponentDurability\(boss: Entity, componentId: BossPartId\)/);
   assert.match(engine, /Math\.round\(Math\.max\(1, boss\.maxHp\) \* healthRatio\)/);

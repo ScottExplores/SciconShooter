@@ -1,13 +1,18 @@
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
+import { PLAYABLE_PLAYER_SHIP_IDS, type PlayerShipId } from './playerShipService';
 
-export const SQUAD_PROFILE_VERSION = 1;
+export const SQUAD_PROFILE_VERSION = 2;
+const LEGACY_SQUAD_PROFILE_VERSION = 1;
+const PERMANENT_SQUAD_PROFILE_VERSION = 1;
 export const MAIN_SHIP_UPGRADE_MAX_LEVEL = 7;
 export const MINI_SHIP_MAX_LEVEL = 5;
-export const RIGHT_SQUAD_SLOT_UNLOCK_COST = 120;
+export const RIGHT_SQUAD_SLOT_UNLOCK_COST = 500;
 export const WEEKLY_STARTING_COINS = 120;
 
 export type SquadSlotId = 'left' | 'right';
 export type MainShipUpgradeId = 'fireRate' | 'speed' | 'startingHearts';
+export type MainShipUpgradeLevels = Record<MainShipUpgradeId, number>;
+export type MainShipUpgradesByShip = Record<PlayerShipId, MainShipUpgradeLevels>;
 export type MiniShipId =
   | 'citation-dart'
   | 'helix-wasp'
@@ -64,7 +69,7 @@ export interface WeeklySquadState {
   unlockedSlots: Record<SquadSlotId, boolean>;
   ownedMiniShips: Partial<Record<MiniShipId, number>>;
   equipped: Record<SquadSlotId, MiniShipId | null>;
-  upgrades: Record<MainShipUpgradeId, number>;
+  shipUpgrades: MainShipUpgradesByShip;
   weeklyStats: WeeklySquadStats;
   updatedAt: string;
 }
@@ -91,7 +96,8 @@ export interface RuntimeSquadCompanion {
 export interface RuntimeSquadLoadout {
   profileId: string;
   weekKey: string;
-  upgrades: Record<MainShipUpgradeId, number>;
+  mainShipId: PlayerShipId;
+  upgrades: MainShipUpgradeLevels;
   companions: RuntimeSquadCompanion[];
 }
 
@@ -262,13 +268,31 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
   }
 ];
 
+export const MINI_SHIP_UPGRADE_COST_CURVE = [0, 100, 225, 400, 650] as const;
+
 const getProfileId = (walletAddress?: string | null) => walletAddress?.trim().toLowerCase() || 'guest';
 const weeklyStorageKey = (profileId: string) => `scicon_weekly_squad_v${SQUAD_PROFILE_VERSION}:${profileId}`;
-const permanentStorageKey = (profileId: string) => `scicon_permanent_squad_v${SQUAD_PROFILE_VERSION}:${profileId}`;
+const legacyWeeklyStorageKey = (profileId: string) => `scicon_weekly_squad_v${LEGACY_SQUAD_PROFILE_VERSION}:${profileId}`;
+const permanentStorageKey = (profileId: string) => `scicon_permanent_squad_v${PERMANENT_SQUAD_PROFILE_VERSION}:${profileId}`;
 const nowIso = () => new Date().toISOString();
 const clampLevel = (value: unknown, max = MAIN_SHIP_UPGRADE_MAX_LEVEL) => (
   Math.max(0, Math.min(max, Math.floor(Number(value) || 0)))
 );
+const createMainShipUpgradeLevels = (): MainShipUpgradeLevels => ({
+  fireRate: 0,
+  speed: 0,
+  startingHearts: 0
+});
+export const createMainShipUpgradesByShip = (): MainShipUpgradesByShip => (
+  Object.fromEntries(PLAYABLE_PLAYER_SHIP_IDS.map((shipId) => [shipId, createMainShipUpgradeLevels()])) as MainShipUpgradesByShip
+);
+const sanitizeMainShipUpgradeLevels = (
+  value?: Partial<Record<MainShipUpgradeId, number>> | null
+): MainShipUpgradeLevels => ({
+  fireRate: clampLevel(value?.fireRate),
+  speed: clampLevel(value?.speed),
+  startingHearts: clampLevel(value?.startingHearts)
+});
 
 export const emitSquadDomainEvent = (
   type: SquadDomainEventName,
@@ -291,13 +315,13 @@ export const createWeeklySquadState = (
   unlockedSlots: { left: true, right: false },
   ownedMiniShips: {},
   equipped: { left: null, right: null },
-  upgrades: { fireRate: 0, speed: 0, startingHearts: 0 },
+  shipUpgrades: createMainShipUpgradesByShip(),
   weeklyStats: { runs: 0, score: 0, enemiesDefeated: 0, coinsEarned: 0 },
   updatedAt: nowIso()
 });
 
 export const createPermanentSquadState = (walletAddress?: string | null): PermanentSquadState => ({
-  version: SQUAD_PROFILE_VERSION,
+  version: PERMANENT_SQUAD_PROFILE_VERSION,
   profileId: getProfileId(walletAddress),
   mintedMiniShips: [],
   cosmetics: [],
@@ -305,11 +329,17 @@ export const createPermanentSquadState = (walletAddress?: string | null): Perman
   updatedAt: nowIso()
 });
 
+type StoredWeeklySquadState = Omit<Partial<WeeklySquadState>, 'shipUpgrades'> & {
+  shipUpgrades?: Partial<Record<PlayerShipId, Partial<Record<MainShipUpgradeId, number>>>>;
+  upgrades?: Partial<Record<MainShipUpgradeId, number>>;
+};
+
 const sanitizeWeeklyState = (
-  value: Partial<WeeklySquadState>,
+  value: StoredWeeklySquadState,
   walletAddress?: string | null
 ): WeeklySquadState => {
   const fallback = createWeeklySquadState(walletAddress);
+  const { upgrades: legacyUpgrades, ...currentValue } = value;
   const owned = { ...fallback.ownedMiniShips };
   Object.entries(value.ownedMiniShips || {}).forEach(([id, level]) => {
     if (id in MINI_SHIP_BY_ID) owned[id as MiniShipId] = Math.max(1, clampLevel(level, MINI_SHIP_MAX_LEVEL));
@@ -319,9 +349,16 @@ const sanitizeWeeklyState = (
     const id = value.equipped?.[slot];
     equipped[slot] = id && id in MINI_SHIP_BY_ID && owned[id] ? id : null;
   });
+  const shipUpgrades = createMainShipUpgradesByShip();
+  PLAYABLE_PLAYER_SHIP_IDS.forEach((shipId) => {
+    shipUpgrades[shipId] = sanitizeMainShipUpgradeLevels(value.shipUpgrades?.[shipId]);
+  });
+  if (!value.shipUpgrades && legacyUpgrades) {
+    shipUpgrades.researchhub = sanitizeMainShipUpgradeLevels(legacyUpgrades);
+  }
   return {
     ...fallback,
-    ...value,
+    ...currentValue,
     version: SQUAD_PROFILE_VERSION,
     profileId: getProfileId(walletAddress),
     coins: Math.max(0, Math.floor(Number(value.coins) || 0)),
@@ -331,11 +368,7 @@ const sanitizeWeeklyState = (
     },
     ownedMiniShips: owned,
     equipped,
-    upgrades: {
-      fireRate: clampLevel(value.upgrades?.fireRate),
-      speed: clampLevel(value.upgrades?.speed),
-      startingHearts: clampLevel(value.upgrades?.startingHearts)
-    },
+    shipUpgrades,
     weeklyStats: {
       runs: Math.max(0, Math.floor(Number(value.weeklyStats?.runs) || 0)),
       score: Math.max(0, Math.floor(Number(value.weeklyStats?.score) || 0)),
@@ -356,13 +389,17 @@ export const loadWeeklySquadState = (walletAddress?: string | null): WeeklySquad
   if (!walletAddress?.trim()) {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(weeklyStorageKey(profileId));
+      window.localStorage.removeItem(legacyWeeklyStorageKey(profileId));
     }
     return state;
   }
 
   try {
-    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(weeklyStorageKey(profileId)) : null;
-    if (saved) state = sanitizeWeeklyState(JSON.parse(saved) as Partial<WeeklySquadState>, walletAddress);
+    const saved = typeof window !== 'undefined'
+      ? window.localStorage.getItem(weeklyStorageKey(profileId))
+        ?? window.localStorage.getItem(legacyWeeklyStorageKey(profileId))
+      : null;
+    if (saved) state = sanitizeWeeklyState(JSON.parse(saved) as StoredWeeklySquadState, walletAddress);
   } catch {
     state = createWeeklySquadState(walletAddress, currentWeek);
   }
@@ -399,7 +436,7 @@ export const loadPermanentSquadState = (walletAddress?: string | null): Permanen
     return {
       ...fallback,
       ...parsed,
-      version: SQUAD_PROFILE_VERSION,
+      version: PERMANENT_SQUAD_PROFILE_VERSION,
       profileId: fallback.profileId,
       mintedMiniShips: (parsed.mintedMiniShips || []).filter((id): id is MiniShipId => id in MINI_SHIP_BY_ID),
       cosmetics: Array.isArray(parsed.cosmetics) ? parsed.cosmetics.filter((item): item is string => typeof item === 'string') : [],
@@ -444,7 +481,10 @@ export const purchaseMiniShip = (state: WeeklySquadState, id: MiniShipId): Weekl
 
 export const getMiniShipUpgradeCost = (id: MiniShipId, level: number) => {
   const entry = MINI_SHIP_BY_ID[id];
-  return Math.round(entry.purchaseCost * 0.45 + Math.max(1, level) * 55);
+  const currentLevel = Math.max(1, Math.min(MINI_SHIP_MAX_LEVEL - 1, Math.floor(level) || 1));
+  const curveCost = MINI_SHIP_UPGRADE_COST_CURVE[currentLevel];
+  const shipPremium = entry.purchaseCost * (0.35 + currentLevel * 0.1);
+  return Math.round(curveCost + shipPremium);
 };
 
 export const upgradeMiniShip = (state: WeeklySquadState, id: MiniShipId): WeeklySquadState => {
@@ -479,14 +519,22 @@ export const getMainShipUpgradeCost = (id: MainShipUpgradeId, level: number) => 
   MAIN_SHIP_UPGRADES.find((upgrade) => upgrade.id === id)?.costs[level] ?? Number.POSITIVE_INFINITY
 );
 
-export const upgradeMainShip = (state: WeeklySquadState, id: MainShipUpgradeId): WeeklySquadState => {
-  const level = state.upgrades[id];
+export const upgradeMainShip = (
+  state: WeeklySquadState,
+  shipId: PlayerShipId,
+  id: MainShipUpgradeId
+): WeeklySquadState => {
+  const currentUpgrades = state.shipUpgrades[shipId] ?? createMainShipUpgradeLevels();
+  const level = currentUpgrades[id];
   if (level >= MAIN_SHIP_UPGRADE_MAX_LEVEL) return state;
   const cost = getMainShipUpgradeCost(id, level);
   if (!Number.isFinite(cost) || state.coins < cost) return state;
   const next = spendCoins(state, cost);
-  next.upgrades = { ...next.upgrades, [id]: level + 1 };
-  emitSquadDomainEvent('ship_upgraded', { profileId: state.profileId, upgrade: id, level: level + 1, cost });
+  next.shipUpgrades = {
+    ...next.shipUpgrades,
+    [shipId]: { ...currentUpgrades, [id]: level + 1 }
+  };
+  emitSquadDomainEvent('ship_upgraded', { profileId: state.profileId, shipId, upgrade: id, level: level + 1, cost });
   return next;
 };
 
@@ -517,10 +565,14 @@ export const applySquadRunResult = (
   };
 };
 
-export const buildRuntimeSquadLoadout = (state: WeeklySquadState): RuntimeSquadLoadout => ({
+export const buildRuntimeSquadLoadout = (
+  state: WeeklySquadState,
+  mainShipId: PlayerShipId
+): RuntimeSquadLoadout => ({
   profileId: state.profileId,
   weekKey: state.weekKey,
-  upgrades: { ...state.upgrades },
+  mainShipId,
+  upgrades: { ...(state.shipUpgrades[mainShipId] ?? createMainShipUpgradeLevels()) },
   companions: (['left', 'right'] as SquadSlotId[]).flatMap((slot) => {
     const id = state.equipped[slot];
     if (!id || !state.unlockedSlots[slot]) return [];

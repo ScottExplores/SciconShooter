@@ -229,7 +229,8 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const activeMiniId = activePosition === 'main' ? null : (selectedMiniId || state.equipped[activePosition]);
   const activeMini = activeMiniId ? MINI_SHIP_BY_ID[activeMiniId] : null;
   const activeMiniLevel = activeMiniId ? state.ownedMiniShips[activeMiniId] || 0 : 0;
-  const totalUpgradeLevel = Object.values(state.upgrades).reduce((total, level) => total + level, 0);
+  const activeMainShipUpgrades = state.shipUpgrades[mainShipId];
+  const totalUpgradeLevel = Object.values(activeMainShipUpgrades).reduce((total, level) => total + level, 0);
   const miniPower = Object.values(state.ownedMiniShips).reduce((total, level) => total + (level || 0) * 75, 0);
   const power = 1000 + totalUpgradeLevel * 120 + miniPower;
   const tier = Math.min(3, Math.max(1, Math.floor(totalUpgradeLevel / MAIN_SHIP_UPGRADE_MAX_LEVEL) + 1));
@@ -263,7 +264,10 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           {active ? <AnimatedSelector size="ship" color="lime" className="absolute inset-0 h-full w-full scale-[1.8]" /> : <span className="absolute inset-0 rotate-45 border border-cyan-300/35 bg-cyan-300/5" />}
         </span>
         {!unlocked ? (
-          <span className="relative z-10 flex h-12 w-12 items-center justify-center border border-slate-400/55 bg-slate-800/90 text-lg text-slate-200" aria-hidden="true">LOCK</span>
+          <span className="relative z-10 flex min-h-14 min-w-16 flex-col items-center justify-center border border-slate-400/55 bg-slate-800/90 px-2 text-slate-200" aria-hidden="true">
+            <span className="text-sm font-black">LOCK</span>
+            <span className="mt-0.5 whitespace-nowrap text-[0.5rem] font-black uppercase text-yellow-200">{RIGHT_SQUAD_SLOT_UNLOCK_COST} coins</span>
+          </span>
         ) : entry ? (
           <AnimatedMiniShip entry={entry} className="relative z-10 h-[62%] w-[62%] object-contain drop-shadow-[0_0_10px_rgba(103,232,249,0.6)]" />
         ) : (
@@ -277,6 +281,9 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
     <div className="grid grid-cols-4 gap-2 sm:gap-3">
       {PLAYER_SHIP_ORDER.map((shipId) => {
         const ship = PLAYER_SHIPS[shipId];
+        const shipUpgrades = state.shipUpgrades[shipId];
+        const shipUpgradeLevel = Object.values(shipUpgrades).reduce((total, level) => total + level, 0);
+        const shipTier = Math.min(3, Math.max(1, Math.floor(shipUpgradeLevel / MAIN_SHIP_UPGRADE_MAX_LEVEL) + 1));
         const unlocked = isPlayerShipUnlocked(shipId, shipUnlocks);
         const selected = mainShipId === shipId;
         return (
@@ -294,11 +301,11 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             className={`relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 disabled:cursor-not-allowed ${selected ? 'border-yellow-200/70' : 'border-cyan-200/22'} ${unlocked ? '' : 'grayscale'}`}
           >
             {selected ? <AnimatedSelector size="ship" color="gold" className="absolute inset-0 h-full w-full scale-[1.17]" /> : null}
-            <span className="absolute left-1.5 top-1 text-[0.52rem] font-black uppercase text-white/85">L{state.upgrades.fireRate + 1}</span>
+            <span className="absolute left-1.5 top-1 text-[0.52rem] font-black uppercase text-white/85">L{shipUpgrades.fireRate + 1}</span>
             {!unlocked ? <span className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/66 text-[0.58rem] font-black uppercase text-slate-200">Locked</span> : null}
             <AnimatedPlayerShip shipId={shipId} frame={playerSelectionFrame} className="relative z-10 mx-auto mt-4 h-[52%] w-[86%] drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
             <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name.replace(/ ship$/i, '')}</span>
-            <div className="relative z-10 mt-1"><LevelPips level={Math.max(1, tier)} max={3} /></div>
+            <div className="relative z-10 mt-1"><LevelPips level={shipTier} max={3} /></div>
           </button>
         );
       })}
@@ -432,7 +439,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           ) : activePosition === 'main' ? (
             <div className="grid gap-2 sm:grid-cols-3">
               {MAIN_SHIP_UPGRADES.map((upgrade) => {
-                const level = state.upgrades[upgrade.id];
+                const level = activeMainShipUpgrades[upgrade.id];
                 const cost = getMainShipUpgradeCost(upgrade.id, level);
                 const atMax = level >= MAIN_SHIP_UPGRADE_MAX_LEVEL;
                 return (
