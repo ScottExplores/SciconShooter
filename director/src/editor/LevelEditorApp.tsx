@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GameEditorCanvas, type GameEditorSnapshot } from '../../../components/GameEditorCanvas';
 import { isAssetAllowedForRole } from '../../../game-config/catalog';
 import { normalizeGameCampaignRecordCard } from '../../../game-config/recordCard';
@@ -32,6 +32,8 @@ import {
   cloneWave,
   createBossEvent,
   createSpawnEvent,
+  createStarterLevel,
+  createStarterWave,
   moveLevel,
   moveWave,
   reorderWave,
@@ -160,6 +162,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
   const [editorSnapshot, setEditorSnapshot] = useState<GameEditorSnapshot | null>(null);
   const [draftContentHash, setDraftContentHash] = useState<string | null>(null);
   const [updatingReviewId, setUpdatingReviewId] = useState<string | null>(null);
+  const allowNavigationRef = useRef(false);
 
   const selectedLevel = campaign.value.levels.find((level) => level.id === selectedLevelId) ?? campaign.value.levels[0];
   const selectedWave = selectedLevel?.waves.find((wave) => wave.id === selectedWaveId) ?? selectedLevel?.waves[0];
@@ -173,15 +176,27 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     try {
       const raw = window.localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
-      const saved = JSON.parse(raw) as { baseContentHash?: string; campaign?: GameCampaignConfig };
+      const saved = JSON.parse(raw) as { baseContentHash?: string; campaign?: GameCampaignConfig; source?: string };
       if (saved.baseContentHash === initialState.contentHash && saved.campaign?.schemaVersion === 1) {
         campaign.set(normalizeGameCampaignRecordCard(cloneJson(saved.campaign)));
-        notify('Recovered your local level-editor draft');
+        notify('Recovered your local Mission Builder draft');
+      } else if (saved.source === 'combat-lab' && saved.campaign?.schemaVersion === 1) {
+        notify('This Combat Lab draft targets an older campaign revision. Send it again from Combat Lab to rebase it safely.', true);
       }
     } catch {
       window.localStorage.removeItem(DRAFT_KEY);
     }
   }, []);
+
+  useEffect(() => {
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      if (!campaign.isDirty || allowNavigationRef.current) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [campaign.isDirty]);
 
   useEffect(() => {
     let cancelled = false;
@@ -253,8 +268,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
 
   const handleAddLevel = () => {
     if (!selectedLevel) return;
-    const next = cloneLevel(selectedLevel, `New Level ${campaign.value.levels.length + 1}`);
-    next.order = campaign.value.levels.length + 1;
+    const next = createStarterLevel(selectedLevel, campaign.value.levels.length + 1);
     setCampaign({ ...campaign.value, levels: [...campaign.value.levels, next] });
     handleSelectLevelAfterChange(next);
   };
@@ -279,7 +293,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
 
   const handleRenameLevel = () => {
     if (!selectedLevel) return;
-    const name = window.prompt('Level name', selectedLevel.name)?.trim();
+    const name = window.prompt('Mission name', selectedLevel.name)?.trim();
     if (name) updateSelectedLevel((level) => ({ ...level, name }));
   };
 
@@ -293,8 +307,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
 
   const handleAddWave = () => {
     if (!selectedLevel || !selectedWave) return;
-    const next = cloneWave(selectedWave, `New Wave ${selectedLevel.waves.length + 1}`);
-    next.order = selectedLevel.waves.length + 1;
+    const next = createStarterWave(selectedWave, selectedLevel.waves.length + 1);
     updateSelectedLevel((level) => ({ ...level, waves: [...level.waves, next] }));
     setSelectedWaveId(next.id);
     setSelectedEventId(next.events[0]?.id ?? '');
@@ -412,7 +425,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     setBusy(true);
     setValidationErrors([]);
     try {
-      const result = await applyGameCampaign<GameCampaignConfig>(campaign.value, contentHash, 'Applied from the visual level editor');
+      const result = await applyGameCampaign<GameCampaignConfig>(campaign.value, contentHash, 'Applied from the visual Mission Builder');
       campaign.replace(normalizeGameCampaignRecordCard(cloneJson(result.campaign)));
       setContentHash(result.contentHash);
       setActiveVersionId(result.activeVersionId);
@@ -442,7 +455,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
   const rollback = async (versionId: string) => {
     setBusy(true);
     try {
-      const result = await rollbackGameCampaign<GameCampaignConfig>(versionId, contentHash, `Rollback from the visual level editor to ${versionId}`);
+      const result = await rollbackGameCampaign<GameCampaignConfig>(versionId, contentHash, `Rollback from the visual Mission Builder to ${versionId}`);
       campaign.replace(normalizeGameCampaignRecordCard(cloneJson(result.campaign)));
       setContentHash(result.contentHash);
       setActiveVersionId(result.activeVersionId);
@@ -614,7 +627,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
   };
 
   if (!selectedLevel || !selectedWave) {
-    return <div className="le-preview__error">The campaign requires at least one level and one wave.</div>;
+    return <div className="le-preview__error">The campaign requires at least one mission and one wave.</div>;
   }
 
   return (
@@ -622,11 +635,19 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
       <header className="le-topbar">
         <div className="le-brand">
           <span className="le-brand__mark"><DirectorMark /></span>
-          <strong>Scicon Level Editor</strong>
+          <strong>Scicon Mission Builder</strong>
           <span className="le-local"><i />Local only</span>
         </div>
         <nav className="le-topnav" aria-label="Director tools">
-          <a href="/level-editor" aria-current={surfaceMode === 'game' ? 'page' : undefined} onClick={(event) => { event.preventDefault(); selectSurface('game'); }}>Level editor</a>
+          <a href="/combat-lab" onClick={(event) => {
+            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
+            if (campaign.isDirty && !window.confirm('Discard the unsaved Mission Builder changes and open Combat Lab?')) {
+              event.preventDefault();
+              return;
+            }
+            allowNavigationRef.current = true;
+          }}>Combat Lab</a>
+          <a href="/level-editor" aria-current={surfaceMode === 'game' ? 'page' : undefined} onClick={(event) => { event.preventDefault(); selectSurface('game'); }}>Mission builder</a>
           <a href="/level-editor?surface=scorecard" aria-current={surfaceMode === 'card' ? 'page' : undefined} onClick={(event) => { event.preventDefault(); selectSurface('card'); }}>Scorecard</a>
           <a href="/level-editor?surface=review" aria-current={surfaceMode === 'review' ? 'page' : undefined} onClick={(event) => { event.preventDefault(); selectSurface('review'); }}>Review notes</a>
         </nav>
@@ -796,7 +817,7 @@ export default function LevelEditorApp() {
     return () => { cancelled = true; };
   }, []);
 
-  if (error) return <div className="le-shell"><div className="le-preview__error">Scicon Level Editor could not start: {error}</div></div>;
+  if (error) return <div className="le-shell"><div className="le-preview__error">Scicon Mission Builder could not start: {error}</div></div>;
   if (!state) return <div className="le-shell"><div className="le-preview__loading">Loading the real Scicon Shooter campaign…</div></div>;
   return <LevelEditorWorkspace initialState={state} />;
 }

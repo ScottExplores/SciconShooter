@@ -77,6 +77,8 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /selectorFrames\('ship', 'lime'\)/);
   assert.match(hangar, /selectorFrames\('mini', 'gold'\)/);
   assert.match(hangar, /trace-boxes\/label\/cyan/);
+  assert.match(hangar, /const TRACE_LABEL_FRAME_COUNT = 24/);
+  assert.match(hangar, /const TRACE_LABEL_FRAME_DELAY_MS = 45/);
   assert.match(hangar, /grid-cols-4/);
   assert.match(hangar, /PLAYER_SHIP_ORDER: PlayerShipId\[\] = \[\.\.\.PLAYABLE_PLAYER_SHIP_IDS\]/);
   assert.match(hangar, /setMode\('upgrades'\)/);

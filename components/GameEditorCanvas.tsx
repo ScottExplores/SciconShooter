@@ -2,8 +2,10 @@ import React, { useCallback, useState } from 'react';
 import type { GameCampaign } from '../game-config/types';
 import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress, spendStoredFlasks } from '../services/flaskProgress';
-import type { GameEditorSnapshot, GameRuntimeState } from '../services/gameLogic';
+import type { GameEditorSnapshot, GameEngineDebugSnapshot, GameRuntimeState } from '../services/gameLogic';
 import { getPrimaryAssetPath } from '../services/levelConfig';
+import { PLAYER_SHIPS, type PlayerShipId } from '../services/playerShipService';
+import type { RuntimeSquadLoadout } from '../services/squadProgression';
 import { FieldUpgradeType, PowerupType, type GamePolishSettings, type Stats } from '../types';
 import GameStage from './GameStage';
 
@@ -14,7 +16,16 @@ const EDITOR_POLISH_SETTINGS: GamePolishSettings = {
   highDensityParticles: true
 };
 
-const createPreviewStats = (): Stats => ({
+export interface GameEditorPreviewSettings {
+  playerShipId?: PlayerShipId;
+  squadLoadout?: RuntimeSquadLoadout;
+  gameSpeed?: number;
+  invinciblePlayer?: boolean;
+  startingLives?: number;
+  upgrades?: Partial<Stats['upgrades']>;
+}
+
+const createPreviewStats = (settings: GameEditorPreviewSettings = {}): Stats => ({
   score: 0,
   highScore: 0,
   wave: 1,
@@ -26,9 +37,13 @@ const createPreviewStats = (): Stats => ({
   bombChargeMax: BASE_FLASK_CHARGE_MAX,
   shipAbilityCooldown: 0,
   shipAbilityCooldownMax: 16 * 60,
-  lives: 3,
+  lives: Math.max(1, Math.min(GAME_CONFIG.MAX_LIVES, Math.floor(settings.startingLives ?? 3))),
   repairsCount: 0,
-  upgrades: { fireRate: 2, speed: 1, missile: 0 },
+  upgrades: {
+    fireRate: settings.upgrades?.fireRate ?? 2,
+    speed: settings.upgrades?.speed ?? 1,
+    missile: settings.upgrades?.missile ?? 0
+  },
   powerupUses: {
     [PowerupType.DOUBLE_SHOT]: 0,
     [PowerupType.TRIPLE_SHOT]: 0,
@@ -50,8 +65,11 @@ export interface GameEditorCanvasProps {
   playing: boolean;
   restartToken: number;
   onRuntimeState?: (state: GameRuntimeState) => void;
+  onDebugSnapshot?: (snapshot: GameEngineDebugSnapshot) => void;
   onEditorSnapshot?: (snapshot: GameEditorSnapshot) => void;
   onPlayingChange?: (playing: boolean) => void;
+  previewSettings?: GameEditorPreviewSettings;
+  previewViewport?: Readonly<{ width: number; height: number }>;
 }
 
 export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
@@ -61,11 +79,15 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
   playing,
   restartToken,
   onRuntimeState,
+  onDebugSnapshot,
   onEditorSnapshot,
-  onPlayingChange
+  onPlayingChange,
+  previewSettings = {},
+  previewViewport
 }) => {
-  const [stats, setStats] = useState<Stats>(createPreviewStats);
+  const [stats, setStats] = useState<Stats>(() => createPreviewStats(previewSettings));
   const [bombCommand, setBombCommand] = useState<{ nonce: number } | null>(null);
+  const [shipAbilityCommand, setShipAbilityCommand] = useState<{ nonce: number } | null>(null);
 
   const handlePreviewUpgrade = useCallback((type: FieldUpgradeType) => {
     setStats((previous) => {
@@ -106,9 +128,11 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
     stats.bombCharge || 0,
     stats.bombChargeMax || BASE_FLASK_CHARGE_MAX
   ).storedFlasks > 0;
+  const playerShipId = previewSettings.playerShipId ?? 'researchhub';
 
   return (
     <GameStage
+      className={previewViewport && previewViewport.width < 640 ? 'scicon-game-stage--compact-preview' : ''}
       canvas={{
         stats,
         onStatsChange: setStats,
@@ -118,11 +142,20 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
         levelId,
         waveId,
         previewMode: true,
+        previewInvincible: previewSettings.invinciblePlayer ?? true,
+        previewStartingLives: previewSettings.startingLives ?? GAME_CONFIG.PLAYER_LIVES,
+        previewViewport,
         audioEnabled: false,
         autoFire: true,
+        timeScale: previewSettings.gameSpeed ?? 1,
+        playerShipId,
+        playerShipUrl: PLAYER_SHIPS[playerShipId].assetUrl,
+        squadLoadout: previewSettings.squadLoadout,
         restartToken,
         bombCommand,
+        shipAbilityCommand,
         onRuntimeState,
+        onDebugSnapshot,
         onEditorSnapshot
       }}
       hud={{
@@ -132,6 +165,9 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
         paused: !playing,
         onPause: () => onPlayingChange?.(!playing),
         onUseBomb: () => setBombCommand({ nonce: Date.now() }),
+        selectedShipId: playerShipId,
+        onUseShipAbility: () => setShipAbilityCommand({ nonce: Date.now() }),
+        shipAbilityLocked: !playing,
         onUpgrade: handlePreviewUpgrade,
         bombIconSrc: getPrimaryAssetPath(campaign.hudAssets.bombIconAssetKey),
         bombLocked: false

@@ -108,7 +108,25 @@ export interface PermanentSquadState {
   mintedMiniShips: MiniShipId[];
   cosmetics: string[];
   weeklyArchive: string[];
+  dailyGifts: DailyGiftProgress;
+  lifetimeStats: PermanentLifetimeStats;
+  achievementTiers: Record<string, number>;
+  unlockedPlayerShips: PlayerShipId[];
   updatedAt: string;
+}
+
+export interface DailyGiftProgress {
+  currentDay: number;
+  lastClaimDate: string | null;
+}
+
+export interface PermanentLifetimeStats {
+  runs: number;
+  highestWave: number;
+  enemiesDefeated: number;
+  bossesDefeated: number;
+  coinsCollected: number;
+  bestScore: number;
 }
 
 export interface RuntimeSquadCompanion {
@@ -378,6 +396,17 @@ export const createPermanentSquadState = (walletAddress?: string | null): Perman
   mintedMiniShips: [],
   cosmetics: [],
   weeklyArchive: [],
+  dailyGifts: { currentDay: 0, lastClaimDate: null },
+  lifetimeStats: {
+    runs: 0,
+    highestWave: 0,
+    enemiesDefeated: 0,
+    bossesDefeated: 0,
+    coinsCollected: 0,
+    bestScore: 0
+  },
+  achievementTiers: {},
+  unlockedPlayerShips: [],
   updatedAt: nowIso()
 });
 
@@ -544,6 +573,7 @@ export const loadPermanentSquadState = (walletAddress?: string | null): Permanen
     const saved = window.localStorage.getItem(permanentStorageKey(fallback.profileId));
     if (!saved) return fallback;
     const parsed = JSON.parse(saved) as Partial<PermanentSquadState>;
+    const parsedStats = parsed.lifetimeStats;
     return {
       ...fallback,
       ...parsed,
@@ -551,7 +581,28 @@ export const loadPermanentSquadState = (walletAddress?: string | null): Permanen
       profileId: fallback.profileId,
       mintedMiniShips: (parsed.mintedMiniShips || []).filter((id): id is MiniShipId => id in MINI_SHIP_BY_ID),
       cosmetics: Array.isArray(parsed.cosmetics) ? parsed.cosmetics.filter((item): item is string => typeof item === 'string') : [],
-      weeklyArchive: Array.isArray(parsed.weeklyArchive) ? parsed.weeklyArchive.filter((item): item is string => typeof item === 'string') : []
+      weeklyArchive: Array.isArray(parsed.weeklyArchive) ? parsed.weeklyArchive.filter((item): item is string => typeof item === 'string') : [],
+      dailyGifts: {
+        currentDay: Math.max(0, Math.min(30, Math.floor(Number(parsed.dailyGifts?.currentDay) || 0))),
+        lastClaimDate: typeof parsed.dailyGifts?.lastClaimDate === 'string'
+          ? parsed.dailyGifts.lastClaimDate
+          : null
+      },
+      lifetimeStats: {
+        runs: Math.max(0, Math.floor(Number(parsedStats?.runs) || 0)),
+        highestWave: Math.max(0, Math.floor(Number(parsedStats?.highestWave) || 0)),
+        enemiesDefeated: Math.max(0, Math.floor(Number(parsedStats?.enemiesDefeated) || 0)),
+        bossesDefeated: Math.max(0, Math.floor(Number(parsedStats?.bossesDefeated) || 0)),
+        coinsCollected: Math.max(0, Math.floor(Number(parsedStats?.coinsCollected) || 0)),
+        bestScore: Math.max(0, Math.floor(Number(parsedStats?.bestScore) || 0))
+      },
+      achievementTiers: Object.fromEntries(
+        Object.entries(parsed.achievementTiers || {})
+          .filter(([, tier]) => Number.isFinite(Number(tier)))
+          .map(([id, tier]) => [id, Math.max(0, Math.floor(Number(tier)))])
+      ),
+      unlockedPlayerShips: (parsed.unlockedPlayerShips || [])
+        .filter((id): id is PlayerShipId => (PLAYABLE_PLAYER_SHIP_IDS as readonly PlayerShipId[]).includes(id as PlayerShipId))
     };
   } catch {
     return fallback;
@@ -683,6 +734,29 @@ export const applySquadRunResult = (
       runs: state.weeklyStats.runs + 1,
       score: Math.max(state.weeklyStats.score, Math.max(0, Math.floor(result.score || 0))),
       enemiesDefeated: state.weeklyStats.enemiesDefeated + Math.max(0, Math.floor(result.enemiesDefeated || 0)),
+      coinsEarned: state.weeklyStats.coinsEarned + earned
+    },
+    updatedAt: nowIso()
+  };
+};
+
+export const awardWeeklySquadCoins = (
+  state: WeeklySquadState,
+  amount: number,
+  source = 'reward'
+): WeeklySquadState => {
+  const earned = Math.max(0, Math.floor(Number(amount) || 0));
+  if (earned <= 0) return state;
+  emitSquadDomainEvent('coin_earned', {
+    profileId: state.profileId,
+    amount: earned,
+    source
+  });
+  return {
+    ...state,
+    coins: state.coins + earned,
+    weeklyStats: {
+      ...state.weeklyStats,
       coinsEarned: state.weeklyStats.coinsEarned + earned
     },
     updatedAt: nowIso()

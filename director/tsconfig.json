@@ -12,7 +12,8 @@
     "moduleDetection": "force",
     "baseUrl": ".",
     "paths": {
-      "@director/*": ["src/*"]
+      "@director/*": ["src/*"],
+      "@game/*": ["../*"]
     },
     "resolveJsonModule": true,
     "noEmit": true,

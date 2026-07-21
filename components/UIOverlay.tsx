@@ -268,7 +268,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const shipAbilityActionHandlers = useMultitouchAction(onUseShipAbility);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-1.5 sm:p-3">
+    <div className="scicon-hud-shell pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-1.5 sm:p-3">
       <div className="flex w-full items-start justify-between gap-2">
         <div
           className="sci-compact-status-hud pointer-events-auto h-[2.125rem] w-[10.75rem] shrink-0"
@@ -349,7 +349,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
               <button
                 type="button"
                 onClick={onToggleFreeze}
-                className={`flex h-9 w-9 items-center justify-center rounded-[8px] border shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition sm:h-10 sm:w-10 ${
+                className={`scicon-freeze-control flex h-9 w-9 items-center justify-center rounded-[8px] border shadow-[0_10px_28px_rgba(0,0,0,0.24)] transition sm:h-10 sm:w-10 ${
                   frozen
                     ? 'border-cyan-100/75 bg-cyan-300 text-slate-950 shadow-[0_0_22px_rgba(34,211,238,0.42)]'
                     : 'border-cyan-200/24 bg-slate-950/78 text-cyan-100 hover:bg-cyan-300/18'
@@ -365,7 +365,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         </div>
       </div>
 
-      <div className="pointer-events-auto absolute left-3 top-[57%] z-20 flex -translate-y-1/2 flex-col gap-2 sm:left-5">
+      <div className="scicon-left-actions pointer-events-auto absolute left-3 top-[57%] z-20 flex -translate-y-1/2 flex-col gap-2 sm:left-5">
         <button
           type="button"
           {...bombActionHandlers}
@@ -432,7 +432,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
       </div>
 
       {!stats.isBossActive && (
-        <div className="pointer-events-auto absolute right-3 top-1/2 z-20 hidden -translate-y-1/2 flex-col items-center min-[520px]:flex sm:right-4">
+        <div className="scicon-wave-progress pointer-events-auto absolute right-3 top-1/2 z-20 hidden -translate-y-1/2 flex-col items-center min-[520px]:flex sm:right-4">
           <div className="flex h-[240px] w-4 items-end overflow-hidden rounded-full border border-white/10 bg-slate-950/68 p-1 shadow-[0_12px_34px_rgba(0,0,0,0.32)] backdrop-blur-md">
             <div className="relative h-full w-full overflow-hidden rounded-full bg-black/45">
               <div
@@ -448,7 +448,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
 
       {fieldUpgradesEnabled ? (
         <div
-          className="pointer-events-auto absolute right-2 z-20 flex w-[4.375rem] flex-col gap-1.5 sm:right-4"
+          className="scicon-field-upgrades pointer-events-auto absolute right-2 z-20 flex w-[4.375rem] flex-col gap-1.5 sm:right-4"
           style={{ bottom: 'max(2.75rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))' }}
         >
           {fieldUpgradeOrder.map((type) => {

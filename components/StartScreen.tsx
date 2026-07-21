@@ -28,9 +28,12 @@ import {
   preloadPlayerShipSelectionFrames
 } from '../services/playerShipMotion';
 import SquadHangar from './SquadHangar';
+import RewardCenter from './RewardCenter';
+import type { AchievementId } from '../services/rewardProgression';
 import type {
   MainShipUpgradeId,
   MiniShipId,
+  PermanentSquadState,
   SquadSlotId,
   WeeklySquadState
 } from '../services/squadProgression';
@@ -68,6 +71,10 @@ interface StartScreenProps {
   testChampionWinner?: ArchivedWinner | null;
   onCloseTestChampionPreview?: () => void;
   weeklySquadState: WeeklySquadState;
+  permanentSquadState: PermanentSquadState;
+  onClaimDailyGift: () => void;
+  onClaimAchievement: (id: AchievementId) => void;
+  onRequestWalletConnect: () => void;
   founderSandbox?: boolean;
   onUnlockSquadSlot: (slot: SquadSlotId) => void;
   onPurchaseMiniShip: (id: MiniShipId) => void;
@@ -208,9 +215,7 @@ const PODIUM_ASSET_ROOT = '/game-art/generated/ui/scicon-ui-system-v2';
 const FIRST_PLACE_ANIMATION_ROOT = `${PODIUM_ASSET_ROOT}/animations/first-place-row-idle/parts`;
 
 const podiumRowAssets = {
-  first: `${PODIUM_ASSET_ROOT}/base/leaderboard-podium/first-place-row.png`,
-  second: `${PODIUM_ASSET_ROOT}/base/leaderboard-podium/second-place-row.png`,
-  third: `${PODIUM_ASSET_ROOT}/base/leaderboard-podium/third-place-row.png`
+  first: `${PODIUM_ASSET_ROOT}/base/leaderboard-podium/first-place-row.png`
 } as const;
 
 const hasViewableMissionRecord = (entry: LeaderboardEntry) => (
@@ -282,41 +287,6 @@ const FirstPlaceLivingRow = ({
           <small>{entry ? (entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`) : 'Be the first pilot on the board'}</small>
         </span>
         <span className="sci-first-place-row__score"><strong>{formatNumber(entry?.score)}</strong><small>Points</small></span>
-      </span>
-    </button>
-  );
-};
-
-const PodiumRunnerRow = ({
-  entry,
-  rank,
-  tone,
-  onOpen
-}: {
-  entry: LeaderboardEntry;
-  rank: 2 | 3;
-  tone: 'silver' | 'bronze';
-  onOpen: (entry: LeaderboardEntry) => void;
-}) => {
-  const recordAvailable = hasViewableMissionRecord(entry);
-  const asset = rank === 2 ? podiumRowAssets.second : podiumRowAssets.third;
-
-  return (
-    <button
-      type="button"
-      className={`sci-podium-runner sci-podium-runner--${tone}`}
-      onClick={() => recordAvailable && onOpen(entry)}
-      disabled={!recordAvailable}
-      aria-label={`${entry.name}, ${rank === 2 ? 'second' : 'third'} place with ${formatNumber(entry.score)} points`}
-    >
-      <img className="sci-podium-runner__base" src={asset} alt="" aria-hidden="true" />
-      <span className="sci-podium-runner__content">
-        <span className="sci-podium-runner__rank">{rank}</span>
-        <span className="sci-podium-runner__identity">
-          <strong>{entry.name}</strong>
-          <small>{entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`}</small>
-        </span>
-        <span className="sci-podium-runner__score">{formatNumber(entry.score)}</span>
       </span>
     </button>
   );
@@ -638,6 +608,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
   testChampionWinner = null,
   onCloseTestChampionPreview,
   weeklySquadState,
+  permanentSquadState,
+  onClaimDailyGift,
+  onClaimAchievement,
+  onRequestWalletConnect,
   founderSandbox = false,
   onUnlockSquadSlot,
   onPurchaseMiniShip,
@@ -662,6 +636,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [showFeedback, setShowFeedback] = useState(false);
   const [showTreasury, setShowTreasury] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
+  const [showRewardCenter, setShowRewardCenter] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isSending, setIsSending] = useState(false);
@@ -1286,9 +1261,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const TrophiesDashboard = () => {
     const showsLeaderboard = leaderboardView === 'weekly' || leaderboardView === 'allTime';
     const firstPlace = showsLeaderboard ? displayedLeaderboard[0] : undefined;
-    const secondPlace = showsLeaderboard ? displayedLeaderboard[1] : undefined;
-    const thirdPlace = showsLeaderboard ? displayedLeaderboard[2] : undefined;
-    const standardRanks = showsLeaderboard ? displayedLeaderboard.slice(3) : [];
+    const rankedEntries = showsLeaderboard ? displayedLeaderboard.slice(1) : [];
 
     return (
     <HudPanel>
@@ -1340,47 +1313,37 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </div>
         )}
 
-        {!isLoading && showsLeaderboard && visibleLeaderboard.length > 0 && (
-          <div className="space-y-2">
-            {secondPlace ? (
-              <PodiumRunnerRow entry={secondPlace} rank={2} tone="silver" onOpen={openLeaderboardRecord} />
-            ) : null}
-            {thirdPlace ? (
-              <PodiumRunnerRow entry={thirdPlace} rank={3} tone="bronze" onOpen={openLeaderboardRecord} />
-            ) : null}
-
-            {standardRanks.length > 0 ? (
-              <div className="sci-standard-rank-list max-h-[min(42vh,34rem)] space-y-2 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
-                {standardRanks.map((entry, index) => {
-                  const rank = index + 4;
-                  const recordAvailable = hasViewableMissionRecord(entry);
-                  return (
-                    <div
-                      key={`${entry.name}-${entry.score}-${rank}`}
-                      className="sci-leaderboard-row grid grid-cols-[auto_1fr_auto] items-center gap-3 p-3"
-                    >
-                      <div className="sci-leaderboard-rank">{rank}</div>
-                      <div className="min-w-0">
-                        {recordAvailable ? (
-                          <button
-                            type="button"
-                            onClick={() => openLeaderboardRecord(entry)}
-                            className="block w-full min-w-0 truncate text-left text-sm font-bold text-white underline decoration-cyan-300/0 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-300/80 focus-visible:text-cyan-100 focus-visible:decoration-cyan-300/80"
-                            aria-label={`View ${entry.name}'s Mission Record`}
-                          >
-                            {entry.name}
-                          </button>
-                        ) : (
-                          <p className="truncate text-sm font-bold text-white">{entry.name}</p>
-                        )}
-                        <p className="truncate text-xs text-slate-400">{entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`}</p>
-                      </div>
-                      <p className="font-black text-white">{formatNumber(entry.score)}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
+        {!isLoading && showsLeaderboard && rankedEntries.length > 0 && (
+          <div className="sci-standard-rank-list max-h-[min(42vh,34rem)] space-y-2 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
+            {rankedEntries.map((entry, index) => {
+              const rank = index + 2;
+              const recordAvailable = hasViewableMissionRecord(entry);
+              const podiumTone = rank === 2 ? 'silver' : rank === 3 ? 'bronze' : null;
+              return (
+                <div
+                  key={`${entry.name}-${entry.score}-${rank}`}
+                  className={`sci-leaderboard-row grid grid-cols-[auto_1fr_auto] items-center gap-3 p-3 ${podiumTone ? `sci-leaderboard-row--${podiumTone}` : ''}`}
+                >
+                  <div className={`sci-leaderboard-rank ${podiumTone ? `sci-leaderboard-rank--${podiumTone}` : ''}`}>{rank}</div>
+                  <div className="min-w-0">
+                    {recordAvailable ? (
+                      <button
+                        type="button"
+                        onClick={() => openLeaderboardRecord(entry)}
+                        className="block w-full min-w-0 truncate text-left text-sm font-bold text-white underline decoration-cyan-300/0 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-300/80 focus-visible:text-cyan-100 focus-visible:decoration-cyan-300/80"
+                        aria-label={`View ${entry.name}'s Mission Record`}
+                      >
+                        {entry.name}
+                      </button>
+                    ) : (
+                      <p className="truncate text-sm font-bold text-white">{entry.name}</p>
+                    )}
+                    <p className="truncate text-xs text-slate-400">{entry.proposalTitle ?? `Wave ${entry.wave ?? '-'}`}</p>
+                  </div>
+                  <p className="font-black text-white">{formatNumber(entry.score)}</p>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -1527,6 +1490,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <div className="sci-more-menu__grid" aria-label="Scicon Shooter menu">
           <MoreMenuTile
+            label="Daily Gifts"
+            icon={`${DASHBOARD_ICON_ROOT}/selected/weekly-calendar-selected.png`}
+            onClick={() => setShowRewardCenter(true)}
+          />
+          <MoreMenuTile
             label="ResearchHub"
             icon={`${MORE_MENU_ICON_ROOT}/research-proposals.png`}
             onClick={onOpenFund}
@@ -1652,6 +1620,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_86%_22%,rgba(16,185,129,0.16),transparent_26%),linear-gradient(180deg,rgba(2,6,23,0.58),rgba(2,6,23,0.96)_74%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
       </div>
+
+      {dashboardTab === 'home' ? (
+        <button
+          type="button"
+          className="sci-reward-edge-trigger"
+          onClick={() => setShowRewardCenter(true)}
+          aria-label="Open daily gifts"
+        >
+          <img src={`${DASHBOARD_ICON_ROOT}/selected/weekly-calendar-selected.png`} alt="" />
+          <span>Daily gift</span>
+        </button>
+      ) : null}
 
       <div className="scicon-start-shell mx-auto flex h-full min-h-0 w-full max-w-[1560px] flex-col gap-4 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
         <main className="hidden lg:block">
@@ -1867,6 +1847,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </section>
         </div>
       )}
+
+      <RewardCenter
+        open={showRewardCenter}
+        onClose={() => setShowRewardCenter(false)}
+        walletConnected={Boolean(walletAddress)}
+        permanentState={permanentSquadState}
+        onClaimDailyGift={onClaimDailyGift}
+        onClaimAchievement={onClaimAchievement}
+        onRequestConnect={onRequestWalletConnect}
+      />
     </div>
   );
 };

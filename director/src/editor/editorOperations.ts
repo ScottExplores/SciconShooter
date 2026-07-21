@@ -103,7 +103,7 @@ export const createSpawnEvent = (wave: WaveDefinition): SpawnEvent => {
   return {
     id: createEditorId('spawn'),
     kind: 'spawn',
-    label: 'New enemy phase',
+    label: 'New formation encounter',
     startSeconds,
     durationSeconds: Math.max(1, Math.min(12, wave.durationSeconds - startSeconds)),
     delayAfterSeconds: 0,
@@ -122,6 +122,50 @@ export const createSpawnEvent = (wave: WaveDefinition): SpawnEvent => {
       scoreValue: 100,
       powerupDropChance: 0.08
     }]
+  };
+};
+
+/**
+ * Creates a clean wave from the selected wave's presentation and tuning.
+ * Unlike duplicate, this intentionally starts with one formation encounter.
+ */
+export const createStarterWave = (source: WaveDefinition, order: number): WaveDefinition => {
+  const wave: WaveDefinition = {
+    ...cloneJson(source),
+    id: createEditorId('wave'),
+    name: `New Wave ${order}`,
+    order,
+    durationSeconds: Math.max(20, source.durationSeconds),
+    scoreMultiplier: Math.min(1_000_000, 2 ** Math.max(0, order - 1)),
+    events: []
+  };
+  const openingFormation = createSpawnEvent(wave);
+
+  return {
+    ...wave,
+    events: [{ ...openingFormation, label: 'Opening formation', startSeconds: 0 }]
+  };
+};
+
+/**
+ * Creates a clean mission while retaining safe campaign-level presentation
+ * choices such as the background, music, power-up pool, and scorecard style.
+ */
+export const createStarterLevel = (source: LevelDefinition, order: number): LevelDefinition => {
+  const sourceWave = source.waves[0];
+  if (!sourceWave) throw new Error('A mission template requires at least one wave');
+
+  return {
+    ...cloneJson(source),
+    id: createEditorId('level'),
+    name: `New Mission ${order}`,
+    description: 'A new mission with one starter wave and one formation encounter.',
+    order,
+    startingDifficulty: 1,
+    scoreTarget: 0,
+    durationSeconds: null,
+    loopWaves: false,
+    waves: [createStarterWave(sourceWave, 1)]
   };
 };
 

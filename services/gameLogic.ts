@@ -6,6 +6,9 @@ import type {
   AssetKey,
   AsteroidEvent,
   BossEvent,
+  BossHealthPhase,
+  BossRigId,
+  BossWeaponSetting,
   EnemyAttackPatternId,
   EnemyRank,
   GameCampaign,
@@ -59,6 +62,7 @@ import {
   type RuntimeSquadLoadout,
   type SquadSlotId
 } from './squadProgression';
+import { resolveBossPhaseConfig } from './bossPhaseConfig';
 
 // --- Helper Classes ---
 
@@ -66,7 +70,6 @@ type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'grid' | 'diamond' |
 type ConfiguredEnemyFormationMode = Exclude<EnemyFormationMode, 'orbit'>;
 type EnemyFormationState = 'entry' | 'hold' | 'dive' | 'return';
 type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard' | 'btc-hash';
-export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
 export type BossPartId = 'left-cannon' | 'right-cannon' | 'helmet';
 export type BossComponentState = {
   id: BossPartId;
@@ -180,12 +183,19 @@ export class Entity {
   contactDamage: number = 1;
   projectileDamage: number = 1;
   projectileSpeed?: number;
+  configuredBaseSpeed?: number;
   configuredSpeed?: number;
+  configuredDifficultyMultiplier: number = 1;
   attackIntervalFrames?: number;
   movementPattern?: string;
   phaseThresholds: number[] = [];
   weaponKinds: string[] = [];
   configuredBurstCount?: number;
+  bossPhaseSettings: BossHealthPhase[] = [];
+  bossWeaponSettings: BossWeaponSetting[] = [];
+  activeBossPhaseIndex: number = -1;
+  activeBossPhaseId?: string;
+  activeBossPhaseSpeedMultiplier: number = 1;
   isElite: boolean = false;
   eliteRank?: EnemyRank;
   eliteAttackPattern?: EnemyAttackPatternId;
@@ -733,6 +743,8 @@ type EnemyRuntimeOverrides = {
 export interface GameEngineOptions {
   campaign?: GameCampaign;
   previewMode?: boolean;
+  /** Preview ships are invulnerable by default; disable for damage/death testing. */
+  previewInvincible?: boolean;
   audioEnabled?: boolean;
   playerShipUrl?: string;
   playerShipId?: PlayerShipId;
@@ -795,6 +807,13 @@ export interface GameEditorEntitySnapshot {
   readonly type: EntityType;
   /** Normalized canvas bounds. Values may extend slightly outside 0..1 while entering. */
   readonly bounds: Readonly<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>;
+  /** Normalized simulation hitbox, independent from the visual sprite bounds. */
+  readonly collisionBounds: Readonly<{
     x: number;
     y: number;
     width: number;
@@ -949,6 +968,7 @@ export class GameEngine {
   campaignWaves: CampaignWaveEntry[] = [];
   currentCampaignIndex: number = 0;
   previewMode: boolean = false;
+  previewInvincible: boolean = true;
   audioEnabled: boolean = true;
   previewComplete: boolean = false;
   configuredEncounterIds: Set<string> = new Set();
@@ -997,6 +1017,7 @@ export class GameEngine {
     );
     const initialIndex = this.findCampaignWaveIndex(options.initialLevelId, options.initialWaveId);
     this.currentCampaignIndex = initialIndex >= 0 ? initialIndex : 0;
+    this.previewInvincible = options.previewInvincible ?? true;
     this.player = new Entity(EntityType.PLAYER, 0, 0);
     this.player.width = Math.round(128 * PLAYER_SHIP_SCALE);
     this.player.height = Math.round(128 * PLAYER_SHIP_SCALE);
@@ -1156,18 +1177,27 @@ export class GameEngine {
         && entity.y + entity.height >= 0
         && entity.y <= height
       ))
-      .map((entity) => Object.freeze({
-        id: entity.id,
-        sourceEventId: entity.sourceEventId as string,
-        sourceItemId: entity.sourceItemId ?? null,
-        type: entity.type,
-        bounds: Object.freeze({
-          x: entity.x / width,
-          y: entity.y / height,
-          width: entity.width / width,
-          height: entity.height / height
-        })
-      })));
+      .map((entity) => {
+        const collisionBox = this.getCollisionBox(entity);
+        return Object.freeze({
+          id: entity.id,
+          sourceEventId: entity.sourceEventId as string,
+          sourceItemId: entity.sourceItemId ?? null,
+          type: entity.type,
+          bounds: Object.freeze({
+            x: entity.x / width,
+            y: entity.y / height,
+            width: entity.width / width,
+            height: entity.height / height
+          }),
+          collisionBounds: Object.freeze({
+            x: collisionBox.x / width,
+            y: collisionBox.y / height,
+            width: collisionBox.width / width,
+            height: collisionBox.height / height
+          })
+        });
+      }));
 
     return Object.freeze({ viewport, entities });
   }
@@ -1194,6 +1224,10 @@ export class GameEngine {
       this.playerDrawScale = 1;
       this.setPlayerHomePosition();
     }
+  }
+
+  setPreviewInvincible(enabled: boolean) {
+    this.previewInvincible = Boolean(enabled);
   }
 
   jumpToCampaignWave(waveNumber: number) {
@@ -1305,11 +1339,12 @@ export class GameEngine {
     this.lastPlayerRamFrame = -999;
     this.gameActive = true;
     this.previewComplete = false;
-    this.lives = GAME_CONFIG.PLAYER_LIVES;
+    this.lives = this.startingLives;
     this.stats.lives = this.lives;
     this.stats.score = 0;
     this.stats.coins = 0;
     this.stats.enemiesDefeated = 0;
+    this.stats.shipAbilityCooldown = 0;
     this.resetWaveProgress();
     this.introFlightFrames = 0;
     this.waveDepartureFrames = 0;
@@ -4017,6 +4052,20 @@ export class GameEngine {
     entityWidth: number,
     entityHeight: number
   ) {
+    const authoredSlot = event.formationSlots?.[index];
+    if (
+      authoredSlot
+      && Number.isFinite(authoredSlot.x)
+      && Number.isFinite(authoredSlot.y)
+    ) {
+      const left = Math.max(entityWidth * 0.6, 24);
+      const right = Math.max(left, this.width - left);
+      return {
+        x: clamp((authoredSlot.x * this.width) - (entityWidth / 2), left - entityWidth / 2, right - entityWidth / 2),
+        y: clamp((authoredSlot.y * this.height) - (entityHeight / 2), 54, (this.height * 0.46) - (entityHeight / 2))
+      };
+    }
+
     const mode = this.resolveConfiguredFormationMode(event.patternId);
     const anchor = this.getConfiguredSpawnAnchor(event);
     const centerX = (anchor?.x ?? 0.5) * this.width;
@@ -4591,6 +4640,39 @@ export class GameEngine {
     return e;
   }
 
+  applyConfiguredBossPhase(boss: Entity) {
+    const resolved = resolveBossPhaseConfig(
+      boss.hp,
+      boss.maxHp,
+      boss.bossPhaseSettings,
+      boss.bossWeaponSettings
+    );
+    if (!resolved) return 0;
+    if (boss.activeBossPhaseIndex === resolved.phaseIndex) return resolved.phaseIndex + 1;
+
+    boss.activeBossPhaseIndex = resolved.phaseIndex;
+    boss.activeBossPhaseId = resolved.phaseId;
+    boss.activeBossPhaseSpeedMultiplier = Math.max(0.01, Number(resolved.speedMultiplier) || 1);
+    boss.movementPattern = resolved.movementPatternId;
+    const baseSpeed = boss.configuredBaseSpeed ?? boss.configuredSpeed ?? 2;
+    boss.configuredSpeed = baseSpeed * boss.activeBossPhaseSpeedMultiplier;
+
+    const activeWeapons = resolved.weaponSettings;
+    boss.weaponKinds = activeWeapons.map((setting) => String(setting.weaponId));
+    const primaryWeapon = activeWeapons[0];
+    if (primaryWeapon) {
+      const difficultyMultiplier = Math.max(0.01, boss.configuredDifficultyMultiplier || 1);
+      boss.projectileDamage = Math.max(0, Number(primaryWeapon.damage) * difficultyMultiplier);
+      boss.projectileSpeed = Math.max(0.1, Number(primaryWeapon.projectileSpeed) * difficultyMultiplier);
+      boss.attackIntervalFrames = Math.max(1, Math.round(
+        (Number(primaryWeapon.attackIntervalSeconds) * GAME_CONFIG.FPS) / difficultyMultiplier
+      ));
+      boss.configuredBurstCount = Math.max(1, Math.floor(Number(primaryWeapon.burstCount) || 1));
+    }
+
+    return resolved.phaseIndex + 1;
+  }
+
   spawnMiniBoss(_num: number, configured?: RuntimeBossEvent) {
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
     const requestedCount = configured ? Number(configured.count ?? 1) : _num;
@@ -4619,7 +4701,9 @@ export class GameEngine {
         ? Math.max(1, (Number(configured.health) || 1) * difficultyMultiplier)
         : this.wave === 1 ? 44 : 45 + (this.wave * 22);
       mb.maxHp = mb.hp;
-      mb.configuredSpeed = configured ? Math.max(0.1, (Number(configured.speed) || 2) * difficultyMultiplier) : 2;
+      mb.configuredBaseSpeed = configured ? Math.max(0.1, (Number(configured.speed) || 2) * difficultyMultiplier) : 2;
+      mb.configuredSpeed = mb.configuredBaseSpeed;
+      mb.configuredDifficultyMultiplier = difficultyMultiplier;
       mb.vy = mb.configuredSpeed;
       mb.color = '#fb7185';
       mb.variant = index * 31;
@@ -4627,21 +4711,18 @@ export class GameEngine {
       mb.encounterGroupSize = count;
       mb.attackTimer = index * 18;
       if (configured) {
-        const weapon = configured.weapons?.[0];
         mb.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.MINI_BOSS);
         if (configured.spriteStyle) mb.spriteStyle = { ...configured.spriteStyle };
         mb.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
-        mb.projectileDamage = Math.max(0, (Number(weapon?.damage ?? configured.damage) || 1) * difficultyMultiplier);
-        mb.projectileSpeed = Math.max(0.1, (Number(weapon?.projectileSpeed) || 5) * difficultyMultiplier);
-        mb.attackIntervalFrames = Math.max(1, Math.round(
-          ((Number(weapon?.attackIntervalSeconds) || 1) * GAME_CONFIG.FPS) / difficultyMultiplier
-        ));
-        mb.weaponKinds = configured.weapons.map((setting) => String(setting.weaponId));
-        mb.configuredBurstCount = Math.max(1, Math.floor(Number(weapon?.burstCount) || 1));
-        mb.movementPattern = configured.movementPatternId;
         mb.scoreReward = Math.max(0, Number(configured.scoreReward) || 0);
         mb.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
         mb.phaseThresholds = configured.phases.map((phase) => Number(phase.triggerHealthRatio)).filter(Number.isFinite);
+        mb.bossWeaponSettings = configured.weapons.map((setting) => ({ ...setting }));
+        mb.bossPhaseSettings = configured.phases.map((phase) => ({
+          ...phase,
+          weaponSettingIds: [...phase.weaponSettingIds]
+        }));
+        this.applyConfiguredBossPhase(mb);
         mb.sourceEventId = configured.id;
         mb.sourceItemId = configured.bossId;
         if (mb.spriteUrl) loadImage(mb.spriteUrl);
@@ -4824,22 +4905,46 @@ export class GameEngine {
 
   updateMiniBoss(boss: Entity) {
      boss.attackTimer++;
+     const configuredPhase = this.applyConfiguredBossPhase(boss);
+     const movementSpeedMultiplier = boss.activeBossPhaseSpeedMultiplier;
      const groupOffset = (boss.formationIndex - ((boss.encounterGroupSize - 1) / 2))
        * Math.min(boss.width * 0.72, Math.max(48, this.width * 0.18));
      const targetX = this.player.x + this.player.width/2 - boss.width/2 + groupOffset;
      const dx = targetX - boss.x;
-     if (boss.y > 0) boss.x += dx * (0.03 + (this.wave * 0.005));
+     const movementPattern = boss.movementPattern ?? 'track-player';
+     if (boss.y > 0 && (movementPattern === 'track-player' || movementPattern === 'gatekeeper-cycle')) {
+       boss.x += dx * (0.03 + (this.wave * 0.005)) * movementSpeedMultiplier;
+     }
 
      if (boss.y < 100) boss.vy = boss.configuredSpeed ?? 2;
      else {
         boss.vy = 0;
-        boss.x += Math.sin((boss.attackTimer * 0.05) + boss.formationIndex * Math.PI) * 3;
+        if (movementPattern === 'arena-roam') {
+          const roamTargetX = (this.width - boss.width) * (0.5 + Math.sin(boss.attackTimer * 0.017) * 0.38);
+          const roamTargetY = Math.max(92, this.height * (0.16 + Math.cos(boss.attackTimer * 0.013) * 0.055));
+          boss.x += (roamTargetX - boss.x) * 0.035 * movementSpeedMultiplier;
+          boss.y += (roamTargetY - boss.y) * 0.03 * movementSpeedMultiplier;
+        } else if (movementPattern === 'sine-drift') {
+          boss.x += Math.sin((boss.attackTimer * 0.05) + boss.formationIndex * Math.PI) * 3 * movementSpeedMultiplier;
+        } else if (movementPattern === 'wall-march') {
+          const marchTargetX = (this.width - boss.width) * (0.5 + Math.sin(boss.attackTimer * 0.012) * 0.46);
+          boss.x += (marchTargetX - boss.x) * 0.025 * movementSpeedMultiplier;
+        } else if (movementPattern === 'drift-down' || movementPattern === 'asteroid-drift') {
+          const holdY = Math.max(108, Math.min(this.height * 0.38, 260));
+          boss.y += (holdY - boss.y) * 0.018 * movementSpeedMultiplier;
+          if (movementPattern === 'asteroid-drift') {
+            boss.x += Math.sin((boss.attackTimer * 0.031) + boss.formationIndex) * 1.4 * movementSpeedMultiplier;
+          }
+        } else {
+          boss.x += Math.sin((boss.attackTimer * 0.05) + boss.formationIndex * Math.PI) * 3 * movementSpeedMultiplier;
+        }
      }
      
      boss.x = Math.max(0, Math.min(this.width - boss.width, boss.x));
      
      const healthRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
-     const activePhaseCount = boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length;
+     const activePhaseCount = configuredPhase
+       || boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length;
      const phaseCadenceMultiplier = Math.max(0.45, 1 - Math.max(0, activePhaseCount - 1) * 0.16);
      const baseShootRate = boss.attackIntervalFrames ?? (this.wave === 1 ? 72 : Math.max(30, 60 - (this.wave * 5)));
      const hullPressureMultiplier = 0.58 + clamp(healthRatio, 0, 1) * 0.42;
@@ -5167,29 +5272,28 @@ export class GameEngine {
     boss.variant = (this.stats.wave - 1) % 3;
     boss.color = '#990000';
     boss.text = "GATEKEEPER";
-    boss.configuredSpeed = configured ? Math.max(0.1, (Number(configured.speed) || 2) * difficultyMultiplier) : 2;
+    boss.configuredBaseSpeed = configured ? Math.max(0.1, (Number(configured.speed) || 2) * difficultyMultiplier) : 2;
+    boss.configuredSpeed = boss.configuredBaseSpeed;
+    boss.configuredDifficultyMultiplier = difficultyMultiplier;
     boss.vy = boss.configuredSpeed;
     if (configured) {
-      const weapon = configured.weapons?.[0];
       boss.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.BOSS);
       boss.spriteFrames = this.resolveSpriteFrames(configured.spriteKey);
       if (configured.spriteStyle) boss.spriteStyle = { ...configured.spriteStyle };
       boss.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
-      boss.projectileDamage = Math.max(0, (Number(weapon?.damage ?? configured.damage) || 1) * difficultyMultiplier);
-      boss.projectileSpeed = Math.max(0.1, (Number(weapon?.projectileSpeed) || 6.5) * difficultyMultiplier);
-      boss.attackIntervalFrames = Math.max(1, Math.round(
-        ((Number(weapon?.attackIntervalSeconds) || 1) * GAME_CONFIG.FPS) / difficultyMultiplier
-      ));
-      boss.weaponKinds = configured.weapons.map((setting) => String(setting.weaponId));
-      boss.configuredBurstCount = Math.max(1, Math.floor(Number(weapon?.burstCount) || 1));
-      boss.movementPattern = configured.movementPatternId;
       boss.scoreReward = Math.max(0, Number(configured.scoreReward) || 0);
       boss.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
       boss.phaseThresholds = configured.phases.map((healthPhase) => Number(healthPhase.triggerHealthRatio)).filter(Number.isFinite);
+      boss.bossWeaponSettings = configured.weapons.map((setting) => ({ ...setting }));
+      boss.bossPhaseSettings = configured.phases.map((healthPhase) => ({
+        ...healthPhase,
+        weaponSettingIds: [...healthPhase.weaponSettingIds]
+      }));
+      this.applyConfiguredBossPhase(boss);
       boss.completesWave = true;
       boss.sourceEventId = configured.id;
       boss.sourceItemId = configured.bossId;
-      boss.bossRigId = BOSS_RIG_BY_EVENT_ID[configured.id] ?? 'open-orbit';
+      boss.bossRigId = configured.rigId ?? BOSS_RIG_BY_EVENT_ID[configured.id] ?? 'open-orbit';
       if (boss.bossRigId === 'crown-claw') {
         const previousWidth = boss.width;
         boss.width = Math.min(this.width * 0.78, 280);
@@ -5506,8 +5610,8 @@ export class GameEngine {
       boss.vy = 0;
       if (!boss.isCharging && !activeRays) {
         const targetX = playerCenterX - boss.width / 2;
-        boss.x += (targetX - boss.x) * 0.012;
-        boss.x += Math.sin(boss.attackTimer * 0.028) * 2.4;
+        boss.x += (targetX - boss.x) * 0.012 * boss.activeBossPhaseSpeedMultiplier;
+        boss.x += Math.sin(boss.attackTimer * 0.028) * 2.4 * boss.activeBossPhaseSpeedMultiplier;
       }
     }
     boss.x = clamp(boss.x, 0, this.width - boss.width);
@@ -5519,30 +5623,33 @@ export class GameEngine {
     const coreEmitterOperational = boss.hp > 0;
     const coreExposed = Boolean(helmet?.destroyed);
     const allArmorDestroyed = (boss.bossComponents ?? []).every((component) => component.destroyed);
+    const hasConfiguredWeapons = boss.weaponKinds.length > 0;
+    const allowsBeam = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => kind.includes('beam'));
+    const allowsBurst = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => !kind.includes('beam'));
     const rayCycleLength = healthRatio <= 0.25 ? 232 : healthRatio <= 0.55 ? 274 : 318;
     const rayCycle = boss.attackTimer % rayCycleLength;
     const rayChargeStart = Math.round(rayCycleLength * (coreExposed ? 0.46 : 0.52));
     const rayChargeFrames = healthRatio <= 0.25 ? 32 : healthRatio <= 0.55 ? 40 : 48;
     const rayFireFrame = rayChargeStart + rayChargeFrames;
-    boss.isCharging = coreEmitterOperational
+    boss.isCharging = allowsBeam && coreEmitterOperational
       ? (rayCycle >= rayChargeStart && rayCycle < rayFireFrame) || activeRays
       : activeRays;
-    if (coreEmitterOperational && rayCycle === rayChargeStart) {
+    if (allowsBeam && coreEmitterOperational && rayCycle === rayChargeStart) {
       this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height * 0.82, 'CORE RAY CHARGING', '#fef08a', 16);
       this.playSound('boss_roar');
     }
-    if (coreEmitterOperational && rayCycle === rayFireFrame) {
+    if (allowsBeam && coreEmitterOperational && rayCycle === rayFireFrame) {
       this.spawnPaywallBossRay(boss, healthRatio <= 0.35 || coreExposed);
       boss.isCharging = true;
     }
 
     const boltInterval = Math.max(46, Math.round((allArmorDestroyed ? 54 : 76) * (0.72 + healthRatio * 0.28)));
-    if (!boss.isCharging && cannons.length > 0 && boss.attackTimer - boss.lastBurstAttackTimer >= boltInterval) {
+    if (allowsBurst && !boss.isCharging && cannons.length > 0 && boss.attackTimer - boss.lastBurstAttackTimer >= boltInterval) {
       const enraged = healthRatio <= 0.38;
       cannons.forEach((component) => this.spawnPaywallBossBoltVolley(boss, component, enraged));
       boss.lastBurstAttackTimer = boss.attackTimer;
     }
-    if (!boss.isCharging && cannons.length === 0) {
+    if (allowsBurst && !boss.isCharging && cannons.length === 0) {
       const coreInterval = healthRatio <= 0.25 ? 42 : healthRatio <= 0.55 ? 56 : 74;
       if (boss.attackTimer - boss.lastBurstAttackTimer >= coreInterval) {
         this.spawnBossCoreVolley(boss, 3);
@@ -5559,10 +5666,17 @@ export class GameEngine {
     } else {
       boss.vy = 0;
       const targetX = playerCenterX - boss.width / 2;
-      boss.x += (targetX - boss.x) * 0.009;
-      boss.x += Math.sin(boss.attackTimer * 0.026) * 1.8;
+      boss.x += (targetX - boss.x) * 0.009 * boss.activeBossPhaseSpeedMultiplier;
+      boss.x += Math.sin(boss.attackTimer * 0.026) * 1.8 * boss.activeBossPhaseSpeedMultiplier;
     }
     boss.x = clamp(boss.x, 0, this.width - boss.width);
+
+    const hasConfiguredWeapons = boss.weaponKinds.length > 0;
+    const allowsBurst = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => !kind.includes('beam'));
+    if (!allowsBurst) {
+      boss.isCharging = false;
+      return;
+    }
 
     const activeClaws = (boss.bossComponents ?? []).filter((component) => !component.destroyed);
     const attackInterval = Math.max(66, Math.round(126 * (0.52 + healthRatio * 0.48)));
@@ -5645,8 +5759,12 @@ export class GameEngine {
     const targetY = targetEntranceY
       + roamHeight * (0.43 + Math.cos(boss.attackTimer * 0.013) * 0.34);
     const pressure = 1 - clamp(healthRatio, 0, 1);
-    boss.x += (targetX - boss.x) * (0.035 + pressure * 0.018);
-    boss.y += (targetY - boss.y) * (0.028 + pressure * 0.012);
+    boss.x += (targetX - boss.x)
+      * (0.035 + pressure * 0.018)
+      * boss.activeBossPhaseSpeedMultiplier;
+    boss.y += (targetY - boss.y)
+      * (0.028 + pressure * 0.012)
+      * boss.activeBossPhaseSpeedMultiplier;
     boss.x = clamp(boss.x, 10, this.width - boss.width - 10);
     boss.y = clamp(boss.y, targetEntranceY, Math.max(targetEntranceY, this.height * 0.48 - boss.height));
 
@@ -5657,23 +5775,26 @@ export class GameEngine {
     const crossActive = this.entities.some((entity) => (
       entity.isBeam && entity.bossOwnerId === boss.id && !entity.markedForDeletion
     ));
-    if (attackCycle === telegraphFrame) {
+    const hasConfiguredWeapons = boss.weaponKinds.length > 0;
+    const allowsBeam = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => kind.includes('beam'));
+    const allowsBurst = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => !kind.includes('beam'));
+    if (allowsBeam && attackCycle === telegraphFrame) {
       boss.isCharging = true;
       this.spawnBossCrossBeamPair(boss, true);
       return;
     }
-    if (attackCycle === fireFrame) {
+    if (allowsBeam && attackCycle === fireFrame) {
       boss.isCharging = true;
       this.spawnBossCrossBeamPair(boss, false);
       return;
     }
 
-    boss.isCharging = crossActive || (attackCycle >= telegraphFrame && attackCycle <= fireFrame + 30);
+    boss.isCharging = crossActive || (allowsBeam && attackCycle >= telegraphFrame && attackCycle <= fireFrame + 30);
     if (boss.isCharging) return;
 
     const baseInterval = boss.attackIntervalFrames ?? 58;
     const fireInterval = Math.max(20, Math.round(baseInterval * (1 - pressure * 0.34)));
-    if (boss.attackTimer - boss.lastBurstAttackTimer >= fireInterval) {
+    if (allowsBurst && boss.attackTimer - boss.lastBurstAttackTimer >= fireInterval) {
       this.spawnBossBurst(boss, Math.max(2, phase));
       boss.lastBurstAttackTimer = boss.attackTimer;
     }
@@ -5782,7 +5903,17 @@ export class GameEngine {
 
   updateBoss(boss: Entity) {
     boss.attackTimer++;
+    const healthRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
+    const resolvedPhase = this.applyConfiguredBossPhase(boss);
+    const legacyConfiguredPhase = boss.phaseThresholds.length > 0
+      ? Math.max(1, boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length)
+      : 0;
+    const phase = resolvedPhase || legacyConfiguredPhase || Math.max(1, this.stats.wave);
     this.updateEscalationBossAttacks(boss);
+    if (boss.movementPattern === 'arena-roam') {
+      this.updateArenaRoamingBoss(boss, healthRatio, phase);
+      return;
+    }
     if (boss.bossRigId === 'paywall-siege') {
       this.updatePaywallLayeredBoss(boss);
       return;
@@ -5791,16 +5922,7 @@ export class GameEngine {
       this.updateCrownClawBoss(boss);
       return;
     }
-    const healthRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
-    const configuredPhase = boss.phaseThresholds.length > 0
-      ? Math.max(1, boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length)
-      : 0;
-    const phase = configuredPhase || Math.max(1, this.stats.wave);
-    if (boss.movementPattern === 'arena-roam') {
-      this.updateArenaRoamingBoss(boss, healthRatio, phase);
-      return;
-    }
-    const speedMult = 1 + (phase * 0.1);
+    const speedMult = (1 + (phase * 0.1)) * boss.activeBossPhaseSpeedMultiplier;
     const playerCenterX = this.player.x + this.player.width / 2;
     const playerNearEdge = playerCenterX < this.width * 0.18 || playerCenterX > this.width * 0.82;
     const hasActiveBeam = this.entities.some(e => e.isBeam && !e.markedForDeletion);
@@ -5863,8 +5985,10 @@ export class GameEngine {
         boss.isCharging = true;
         const laneCenterX = boss.beamLaneSign < 0 ? this.width * 0.3 : this.width * 0.7;
         const laneTargetX = laneCenterX - boss.width / 2;
-        boss.x += (laneTargetX - boss.x) * (0.038 + Math.min(0.02, phase * 0.003));
-        boss.x += Math.sin(boss.attackTimer * 0.24) * 1.2;
+        boss.x += (laneTargetX - boss.x)
+          * (0.038 + Math.min(0.02, phase * 0.003))
+          * boss.activeBossPhaseSpeedMultiplier;
+        boss.x += Math.sin(boss.attackTimer * 0.24) * 1.2 * boss.activeBossPhaseSpeedMultiplier;
         if (boss.attackTimer % 15 === 0) {
              const laneLabel = boss.beamLaneSign < 0 ? "LEFT" : "RIGHT";
              this.spawnFloatingText(boss.x + boss.width/2, boss.y, `${laneLabel} BEAM!`, "#ff0000");
@@ -6238,7 +6362,9 @@ export class GameEngine {
       
       // The Director is an inspection surface, so its preview ship must survive long
       // enough to observe a complete wave without changing production combat rules.
-      const isInvincible = this.previewMode || this.invincibleTimer > 0 || this.activePowerups.has(PowerupType.SHIELD);
+      const isInvincible = (this.previewMode && this.previewInvincible)
+        || this.invincibleTimer > 0
+        || this.activePowerups.has(PowerupType.SHIELD);
 
       if (hurtsPlayer && intersectsPlayer(e)) {
         if (isEnemy) {

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import {
   GameEngine,
+  type GameEngineDebugSnapshot,
   type GameEditorSnapshot,
   type GameRuntimeState,
   type WaveVictorySummary
@@ -110,12 +111,22 @@ export interface GameCanvasProps {
   previewMode?: boolean;
   audioEnabled?: boolean;
   autoFire?: boolean;
+  /** Preview-only simulation speed multiplier. The production game stays at 1x. */
+  timeScale?: number;
+  /** Allow preview tools to exercise real damage without changing production behavior. */
+  previewInvincible?: boolean;
+  /** Stable life count used when a preview runtime is reconstructed from an edited campaign. */
+  previewStartingLives?: number;
+  /** Fixed logical viewport used only by local preview tools. */
+  previewViewport?: Readonly<{ width: number; height: number }>;
   restartToken?: number;
   testMode?: boolean;
   testWaveCommand?: { nonce: number; wave: number } | null;
   testBossCommand?: { nonce: number; wave: number } | null;
   testFlaskCommand?: { nonce: number; charge: number } | null;
   onRuntimeState?: (state: GameRuntimeState) => void;
+  /** Low-frequency, read-only runtime telemetry for local development tools. */
+  onDebugSnapshot?: (snapshot: GameEngineDebugSnapshot) => void;
   /** Preview-only entity positions for direct manipulation in the local editor. */
   onEditorSnapshot?: (snapshot: GameEditorSnapshot) => void;
 }
@@ -142,14 +153,25 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   previewMode = false,
   audioEnabled = !previewMode,
   autoFire = false,
+  timeScale = 1,
+  previewInvincible = true,
+  previewStartingLives,
+  previewViewport,
   restartToken = 0,
   testMode = false,
   testWaveCommand = null,
   testBossCommand = null,
   testFlaskCommand = null,
   onRuntimeState,
+  onDebugSnapshot,
   onEditorSnapshot
 }) => {
+  const previewViewportWidth = previewMode && previewViewport
+    ? Math.max(1, Math.round(previewViewport.width))
+    : undefined;
+  const previewViewportHeight = previewMode && previewViewport
+    ? Math.max(1, Math.round(previewViewport.height))
+    : undefined;
   const hostRef = useRef<HTMLDivElement>(null);
   const pixiRendererRef = useRef<PixiGameRenderer | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
@@ -172,12 +194,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const keysRef = useRef<Record<string, boolean>>(autoFire ? { ' ': true } : {});
   const runningRef = useRef(running);
   const testModeRef = useRef(testMode);
+  const timeScaleRef = useRef(Math.max(0.25, Math.min(2, timeScale)));
+  const previewInvincibleRef = useRef(previewInvincible);
   const isTransmissionOpenRef = useRef(isTransmissionOpen);
   const onStatsChangeRef = useRef(onStatsChange);
   const onGameOverRef = useRef(onGameOver);
   const onContinueStartedRef = useRef(onContinueStarted);
   const onWaveVictoryRef = useRef(onWaveVictory);
   const onRuntimeStateRef = useRef(onRuntimeState);
+  const onDebugSnapshotRef = useRef(onDebugSnapshot);
   const onEditorSnapshotRef = useRef(onEditorSnapshot);
 
   useEffect(() => {
@@ -199,6 +224,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     onRuntimeStateRef.current = onRuntimeState;
   }, [onRuntimeState]);
+
+  useEffect(() => {
+    onDebugSnapshotRef.current = onDebugSnapshot;
+  }, [onDebugSnapshot]);
+
+  useEffect(() => {
+    timeScaleRef.current = Math.max(0.25, Math.min(2, timeScale));
+  }, [timeScale]);
+
+  useEffect(() => {
+    previewInvincibleRef.current = previewInvincible;
+    engineRef.current?.setPreviewInvincible(previewInvincible);
+  }, [previewInvincible]);
 
   useEffect(() => {
     onEditorSnapshotRef.current = onEditorSnapshot;
@@ -395,8 +433,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const setupRuntime = async () => {
       const initialRect = host.getBoundingClientRect();
-      const initialWidth = Math.max(1, Math.round(initialRect.width || 720));
-      const initialHeight = Math.max(1, Math.round(initialRect.height || 720));
+      const initialWidth = previewViewportWidth ?? Math.max(1, Math.round(initialRect.width || 720));
+      const initialHeight = previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
       const renderer = new PixiGameRenderer();
       pendingRenderer = renderer;
       await renderer.init(host, initialWidth, initialHeight);
@@ -412,9 +450,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         previewMode ? 'Live Scicon Shooter Pixi wave preview' : 'Scicon Shooter Pixi gameplay'
       );
 
-      const engine = new GameEngine(cloneStatsForReact(stats), {
+      const initialStats = cloneStatsForReact(stats);
+      if (previewMode && previewStartingLives !== undefined) {
+        initialStats.lives = previewStartingLives;
+      }
+
+      const engine = new GameEngine(initialStats, {
         campaign,
         previewMode,
+        previewInvincible: previewInvincibleRef.current,
         audioEnabled,
         playerShipUrl,
         playerShipId,
@@ -436,9 +480,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       let deathSequenceSafetyTimer: number | null = null;
 
     const refreshFrameBudget = () => {
-      const rect = canvas.getBoundingClientRect();
       const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
-      const mobileViewport = rect.width < 560 || (coarsePointer && rect.height > rect.width);
+      const mobileViewport = engine.width < 560 || (coarsePointer && engine.height > engine.width);
       mobileFrameBudget = mobileViewport;
       targetFPS = mobileViewport ? 50 : 60;
       frameInterval = 1000 / targetFPS;
@@ -474,8 +517,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     // Resize Handler
       const handleResize = () => {
         const rect = host.getBoundingClientRect();
-        const width = Math.max(1, Math.round(rect.width || 720));
-        const height = Math.max(1, Math.round(rect.height || 720));
+        const width = previewViewportWidth ?? Math.max(1, Math.round(rect.width || 720));
+        const height = previewViewportHeight ?? Math.max(1, Math.round(rect.height || 720));
         if (engine.width === width && engine.height === height) return;
         renderer.resize(width, height);
         refreshFrameBudget();
@@ -494,6 +537,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     lastStatsPublishTimeRef.current = 0;
     lastTimeRef.current = 0;
     onRuntimeStateRef.current?.(engine.getRuntimeState());
+    onDebugSnapshotRef.current?.(engine.getDebugSnapshot());
     onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
 
     const publishHudStats = (force = false, timestamp = performance.now()) => {
@@ -555,8 +599,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     
     const updateClientTarget = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
-      const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
-      const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
+      const displayWidth = Math.max(1, rect.width);
+      const displayHeight = Math.max(1, rect.height);
+      const x = Math.max(0, Math.min(engine.width, (clientX - rect.left) * (engine.width / displayWidth)));
+      const y = Math.max(0, Math.min(engine.height, (clientY - rect.top) * (engine.height / displayHeight)));
       engine.handleInput(keys, { x, y });
     };
 
@@ -722,7 +768,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       lastTimeRef.current = timestamp;
 
       if (runningRef.current && engine.gameActive) {
-        simulationAccumulator += elapsed;
+        simulationAccumulator += elapsed * timeScaleRef.current;
         let simulationSteps = 0;
 
         while (simulationAccumulator >= SIMULATION_STEP_MS && simulationSteps < MAX_SIMULATION_STEPS_PER_FRAME) {
@@ -764,6 +810,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       if (timestamp - lastRuntimeStatePublishTime >= RUNTIME_STATE_SYNC_INTERVAL_MS) {
         lastRuntimeStatePublishTime = timestamp;
         onRuntimeStateRef.current?.(engine.getRuntimeState());
+        onDebugSnapshotRef.current?.(engine.getDebugSnapshot());
         onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
       }
       
@@ -817,7 +864,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [audioEnabled, campaign, playerShipId, playerShipUrl, previewMode, squadLoadout]);
+  }, [audioEnabled, campaign, playerShipId, playerShipUrl, previewMode, previewStartingLives, previewViewportHeight, previewViewportWidth, squadLoadout]);
 
   return (
     <div

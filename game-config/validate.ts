@@ -55,8 +55,8 @@ const RECORD_CARD_REGION_KEYS = ['x', 'y', 'width', 'height', 'rotation', 'opaci
 const WAVE_KEYS = ['id', 'name', 'order', 'accent', 'backgroundId', 'difficultyMultiplier', 'durationSeconds', 'introSeconds', 'delayAfterSeconds', 'scoreMultiplier', 'threatCap', 'events'];
 const BASE_EVENT_KEYS = ['id', 'kind', 'label', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor'];
 const EVENT_KEYS: Record<string, string[]> = {
-  spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'enemies'],
-  boss: [...BASE_EVENT_KEYS, 'bossId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases'],
+  spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'formationSlots', 'enemies'],
+  boss: [...BASE_EVENT_KEYS, 'bossId', 'rigId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases'],
   'asteroid-belt': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'],
   powerup: [...BASE_EVENT_KEYS, 'positionId', 'spawnIntervalSeconds', 'powerupIds'],
   recovery: [...BASE_EVENT_KEYS, 'positionId', 'coinCount', 'powerupIds']
@@ -81,10 +81,12 @@ const SPAWN_ENEMY_KEYS = [
 const BOSS_WEAPON_KEYS = ['id', 'weaponId', 'attackIntervalSeconds', 'damage', 'projectileSpeed', 'burstCount'];
 const BOSS_PHASE_KEYS = ['id', 'label', 'triggerHealthRatio', 'movementPatternId', 'speedMultiplier', 'weaponSettingIds'];
 const SPAWN_ANCHOR_KEYS = ['x', 'y'];
+const FORMATION_SLOT_KEYS = ['x', 'y'];
 const SPRITE_STYLE_KEYS = ['scale', 'rotationDegrees', 'flipX', 'opacity', 'hueRotateDegrees', 'saturation', 'brightness', 'glowColor', 'glowBlur'];
 
 const SCORECARD_METRICS = new Set(['wave', 'targets', 'coins', 'flight']);
 const EVENT_KINDS = new Set(Object.keys(EVENT_KEYS));
+const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const ENEMY_RANKS = new Set(['standard', 'elite']);
 const ENEMY_ATTACK_PATTERNS = new Set(['aimed-burst']);
 const SAFE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -186,6 +188,43 @@ const validateSpawnAnchor = (value: unknown, path: string, issues: CampaignValid
   checkKeys(value, SPAWN_ANCHOR_KEYS, path, issues);
   checkNumber(value.x, `${path}/x`, issues, 0, 1);
   checkNumber(value.y, `${path}/y`, issues, 0, 1);
+};
+
+const validateFormationSlots = (
+  value: unknown,
+  path: string,
+  issues: CampaignValidationIssue[],
+  count: unknown,
+  patternId: unknown
+) => {
+  if (value === undefined) return;
+  if (!checkArray(value, path, issues)) return;
+  if (value.length < 2 || value.length > 48) {
+    pushIssue(issues, path, 'invalid_formation_size', 'Custom formations require between 2 and 48 slots');
+  }
+  if (typeof count === 'number' && Number.isInteger(count) && count !== value.length) {
+    pushIssue(issues, path, 'formation_count_mismatch', 'Custom formation slot count must match the spawn count');
+  }
+  if (patternId === 'single-random' || patternId === 'asteroid-lanes') {
+    pushIssue(issues, path, 'invalid_formation_choreography', 'Custom formations require a grouped formation choreography');
+  }
+
+  const positions = new Set<string>();
+  value.forEach((slot, index) => {
+    const slotPath = `${path}/${index}`;
+    if (!isRecord(slot)) {
+      pushIssue(issues, slotPath, 'required_object', 'Formation slots must be objects');
+      return;
+    }
+    checkKeys(slot, FORMATION_SLOT_KEYS, slotPath, issues);
+    const xValid = checkNumber(slot.x, `${slotPath}/x`, issues, 0.06, 0.94);
+    const yValid = checkNumber(slot.y, `${slotPath}/y`, issues, 0.08, 0.46);
+    if (xValid && yValid) {
+      const key = `${Number(slot.x).toFixed(4)}:${Number(slot.y).toFixed(4)}`;
+      if (positions.has(key)) pushIssue(issues, slotPath, 'duplicate_formation_slot', 'Formation slots must use unique positions');
+      positions.add(key);
+    }
+  });
 };
 
 const validateSpriteStyle = (value: unknown, path: string, issues: CampaignValidationIssue[]) => {
@@ -397,6 +436,14 @@ const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignVali
 
 const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValidationIssue[]) => {
   const bossKnown = checkCatalogRef(event.bossId, BOSS_CATALOG, `${path}/bossId`, issues);
+  if (event.rigId !== undefined) {
+    if (typeof event.rigId !== 'string' || !BOSS_RIG_IDS.has(event.rigId)) {
+      pushIssue(issues, `${path}/rigId`, 'unknown_reference', `Unknown boss rig: ${String(event.rigId)}`);
+    }
+    if (event.bossId !== 'gatekeeper') {
+      pushIssue(issues, `${path}/rigId`, 'unsupported_boss_rig', 'Layered boss rigs are supported only by gatekeepers');
+    }
+  }
   if (event.count !== undefined) {
     checkNumber(event.count, `${path}/count`, issues, 1, 4, true);
     if (!['bottleneck-drone', 'paywall-wall'].includes(String(event.bossId)) && Number(event.count) > 1) {
@@ -526,6 +573,7 @@ const validateEvent = (
     checkCatalogRef(candidate.patternId, SPAWN_PATTERN_CATALOG, `${path}/patternId`, issues);
     checkCatalogRef(candidate.positionId, SPAWN_POSITION_CATALOG, `${path}/positionId`, issues);
     checkNumber(candidate.spawnIntervalSeconds, `${path}/spawnIntervalSeconds`, issues, Number.EPSILON, 600);
+    validateFormationSlots(candidate.formationSlots, `${path}/formationSlots`, issues, candidate.count, candidate.patternId);
     validateSpawnEnemies(candidate.enemies, `${path}/enemies`, issues);
     if (
       typeof candidate.count === 'number'

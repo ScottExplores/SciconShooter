@@ -119,6 +119,7 @@ const makeCampaign = () => ({
               delayAfterSeconds: 0,
               blocksWaveClock: true,
               bossId: 'gatekeeper',
+              rigId: 'open-orbit',
               spriteKey: 'FINAL_BOSS',
               positionId: 'center-top',
               health: 235,
@@ -223,6 +224,28 @@ test('structural game campaign validation covers nested runtime tuning fields', 
   assert.ok(result.errors.some((error) => error.includes('/count')));
   assert.ok(result.errors.some((error) => error.includes('/weight')));
   assert.ok(result.errors.some((error) => error.includes('weaponSettingIds')));
+});
+
+test('boss rigs are optional, allowlisted, and limited to gatekeeper encounters', () => {
+  const legacy = makeCampaign();
+  delete legacy.levels[0].waves[0].events[1].rigId;
+  assert.deepEqual(validateGameCampaign(legacy), { valid: true, errors: [] });
+
+  const configured = makeCampaign();
+  configured.levels[0].waves[0].events[1].rigId = 'crown-claw';
+  assert.deepEqual(validateGameCampaign(configured), { valid: true, errors: [] });
+
+  const unknownRig = makeCampaign();
+  unknownRig.levels[0].waves[0].events[1].rigId = 'unregistered-rig';
+  const unknownResult = validateGameCampaign(unknownRig);
+  assert.equal(unknownResult.valid, false);
+  assert.ok(unknownResult.errors.some((error) => error.includes('/rigId')));
+
+  const unsupportedBoss = makeCampaign();
+  unsupportedBoss.levels[0].waves[0].events[1].bossId = 'bottleneck-drone';
+  const unsupportedResult = validateGameCampaign(unsupportedBoss);
+  assert.equal(unsupportedResult.valid, false);
+  assert.ok(unsupportedResult.errors.some((error) => error.includes('gatekeeper encounters only')));
 });
 
 test('spawn anchors are optional normalized points with no extra fields', () => {

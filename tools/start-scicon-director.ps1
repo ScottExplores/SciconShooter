@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-  [switch]$OpenBrowser
+  [switch]$OpenBrowser,
+  [ValidateSet('level-editor', 'combat-lab')]
+  [string]$Page = 'level-editor'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -8,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $directorRoot = Join-Path $repositoryRoot 'director'
 $healthUrl = 'http://127.0.0.1:5174/__director/health'
-$directorUrl = 'http://127.0.0.1:5174/level-editor'
+$directorUrl = "http://127.0.0.1:5174/$Page"
 $stateRoot = Join-Path $env:LOCALAPPDATA 'Scicon Director'
 $standardLog = Join-Path $stateRoot 'director.log'
 $errorLog = Join-Path $stateRoot 'director-error.log'

@@ -1228,69 +1228,6 @@
       .sci-first-place-row__score strong { font-size: clamp(0.85rem, 3.5vw, 1.55rem); line-height: 1; }
       .sci-first-place-row__score small { margin-top: 0.16rem; color: #fde68a; }
 
-      .sci-podium-runner {
-        position: relative;
-        display: block;
-        width: 94%;
-        aspect-ratio: 2.62 / 1;
-        margin-inline: auto;
-        overflow: hidden;
-        border: 0;
-        padding: 0;
-        background: transparent;
-        color: white;
-        text-align: left;
-      }
-
-      .sci-podium-runner:not(:disabled) { cursor: pointer; }
-      .sci-podium-runner:disabled { cursor: default; opacity: 1; }
-
-      .sci-podium-runner__base {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: fill;
-        filter: drop-shadow(0 7px 14px rgba(1, 9, 25, 0.48));
-      }
-
-      .sci-podium-runner__content {
-        position: absolute;
-        z-index: 1;
-        top: 32%;
-        right: 19%;
-        bottom: 25%;
-        left: 19%;
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        align-items: center;
-        gap: clamp(0.35rem, 1.5vw, 0.75rem);
-        min-width: 0;
-        text-shadow: 0 2px 7px rgba(0, 0, 0, 0.82);
-      }
-
-      .sci-podium-runner__rank {
-        display: grid;
-        width: clamp(1.8rem, 8vw, 3rem);
-        aspect-ratio: 1;
-        place-items: center;
-        border: 1px solid currentColor;
-        border-radius: 5px;
-        font-size: clamp(0.8rem, 3vw, 1.15rem);
-        font-weight: 950;
-      }
-
-      .sci-podium-runner--silver .sci-podium-runner__rank { color: #e2e8f0; background: rgba(226, 232, 240, 0.1); }
-      .sci-podium-runner--bronze .sci-podium-runner__rank { color: #fdba74; background: rgba(251, 146, 60, 0.1); }
-      .sci-podium-runner__identity { display: flex; min-width: 0; flex-direction: column; }
-
-      .sci-podium-runner__identity strong,
-      .sci-podium-runner__identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-      .sci-podium-runner__identity strong { font-size: clamp(0.72rem, 2.9vw, 1.12rem); font-weight: 950; text-transform: uppercase; }
-      .sci-podium-runner__identity small { margin-top: 0.15rem; color: #bae6fd; font-size: clamp(0.44rem, 1.55vw, 0.68rem); font-weight: 700; }
-      .sci-podium-runner__score { font-size: clamp(0.75rem, 3vw, 1.2rem); font-weight: 950; }
-
       @keyframes sci-first-place-turbine-spin { to { transform: rotate(360deg); } }
       @keyframes sci-first-place-crown-0 { 0%, 24.99% { opacity: 1; } 25%, 100% { opacity: 0; } }
       @keyframes sci-first-place-crown-1 { 0%, 24.99%, 50%, 100% { opacity: 0; } 25%, 49.99% { opacity: 1; } }

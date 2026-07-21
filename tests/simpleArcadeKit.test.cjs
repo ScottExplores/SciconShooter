@@ -106,6 +106,10 @@ test('Simple Arcade Kit contains the requested reusable asset families', () => {
   });
   assert.match(manifest.runtimeProtocol.waveText, /live text or BitmapFont/);
   assert.match(manifest.runtimeProtocol.projectiles, /frame 1 through frame 4/);
+
+  const smoothLabelTrace = manifest.assets.find((asset) => asset.id === 'trace-box-label-cyan');
+  assert.equal(smoothLabelTrace.frames.length, 24);
+  assert.equal(new Set(smoothLabelTrace.frameHashes).size, 24);
 });
 
 test('transparent-center overlays really leave their middles empty', () => {

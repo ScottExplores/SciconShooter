@@ -71,7 +71,7 @@ test('confirmed Mission Record scores cumulatively unlock ETH and BTC ships', ()
 test('project wallet bypasses every score-gated ship lock', () => {
   assert.match(shipServiceSource, /export interface PlayerShipUnlockOptions/);
   assert.match(shipServiceSource, /unlockAll\?: boolean/);
-  assert.match(appSource, /\[activeWalletAddress, isOwnerWallet, walletRecords\]/);
+  assert.match(appSource, /\[activeWalletAddress, isOwnerWallet, permanentSquadState\.unlockedPlayerShips, walletRecords\]/);
 });
 
 test('title screen keeps the updated BTC ship in the playable roster', () => {

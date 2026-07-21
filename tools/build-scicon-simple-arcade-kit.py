@@ -25,6 +25,18 @@ COLORS = {
     "silver": (166, 197, 220),
 }
 ANIMATION_DURATIONS = [110, 110, 110, 110, 110, 110, 110, 110]
+TRACE_BOX_PHASES = {
+    "label": 24,
+    "card": 8,
+    "wide": 8,
+    "tall": 8,
+}
+TRACE_BOX_FRAME_DURATIONS = {
+    "label": 45,
+    "card": 110,
+    "wide": 110,
+    "tall": 110,
+}
 
 assets: list[dict[str, object]] = []
 
@@ -248,10 +260,21 @@ def build_trace_boxes() -> None:
         outline = chamfer_outline(width, height, margin, max(8, margin))
         for color_name in ("cyan", "gold", "lime", "violet"):
             color = COLORS[color_name]
-            frames = [trace_frame((width, height), outline, color, phase) for phase in range(8)]
+            phase_count = TRACE_BOX_PHASES[size_name]
+            frames = [
+                trace_frame((width, height), outline, color, phase, phase_count)
+                for phase in range(phase_count)
+            ]
             asset_id = f"trace-box-{size_name}-{color_name}"
             directory = OUTPUT_DIR / "trace-boxes" / size_name / color_name
-            save_animation(directory, asset_id, frames, ANIMATION_DURATIONS, "trace-box", True)
+            save_animation(
+                directory,
+                asset_id,
+                frames,
+                [TRACE_BOX_FRAME_DURATIONS[size_name]] * phase_count,
+                "trace-box",
+                True,
+            )
             blank = Image.new("RGBA", (width, height), (0, 0, 0, 0))
             ImageDraw.Draw(blank).line(outline, fill=(*color, 210), width=max(3, min(width, height) // 32), joint="curve")
             save_static(directory / f"{asset_id}-blank.png", blank, f"{asset_id}-blank", "trace-box", True)

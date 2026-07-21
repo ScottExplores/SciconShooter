@@ -26,14 +26,16 @@ Scicon Shooter is a browser arcade game whose product loop, gameplay runtime, lo
 - `components/GameCanvas.tsx`: fixed-step scheduling, input, resize, adaptive performance, cleanup, and UI synchronization.
 - `components/GameStage.tsx`: shared canonical gameplay plus HUD.
 - `components/GameEditorCanvas.tsx` and `director/`: draft injection and local game-first authoring.
+- `director/src/combat-lab/`: source-backed content discovery, isolated real-runtime experiments,
+  local test presets, and validated promotion into a Level Editor draft.
 - `api/`, `supabase/`, and `contracts/`: receipts, leaderboard, competition state, records, and Base boundaries.
 - `tests/` and `director/tests/`: product contract and security coverage.
 
 ## Current verified baseline
 
-On July 16, 2026, the working tree passed root TypeScript checking, 150 root tests, 46 Director tests, and the production Vite build. The build also verified that no Director files or markers reached `dist`.
+On July 20, 2026, the working tree passed root TypeScript checking, lint, 283 root tests, 51 Director tests, and the production Vite build. The build also verified that no Director or Combat Lab files or markers reached `dist`.
 
-The build reported large-chunk warnings: the gameplay chunk was about 544 kB and the wallet chunk about 631 kB after minification. These are performance follow-ups, not release failures by themselves.
+The build reported large-chunk warnings: the gameplay chunk was 625.54 kB and the wallet chunk 631.55 kB after minification. These are performance follow-ups, not release failures by themselves.
 
 ## How this thread should learn
 
@@ -46,3 +48,17 @@ After each meaningful game change:
 5. Keep project-specific facts in this repository and generic workflow in the installed skill.
 
 The installed skill is `build-pixi-arcade-games` under the local Codex skills directory. Its audit script is read-only and can be run against this or another TypeScript game repository.
+
+## Combat iteration boundary
+
+The Combat Lab follows the same seam as the Level Editor instead of maintaining a
+preview simulator. It clones the validated campaign, narrows one real wave or event,
+and injects that clone into the canonical game stage. Boss phase resolution and rig
+selection therefore remain simulation behavior, while the Lab owns only selection,
+safe form controls, read-only telemetry, and local experiment persistence.
+
+Promotion is intentionally two-step. The Lab may generate a complete validated
+campaign draft with collision-safe remapped IDs, but only the Level Editor may apply
+that draft to `game-config/campaign.json`. The production build scanner rejects the
+Lab route, title, storage key, and output paths so development tooling cannot leak
+into the shipped bundle.

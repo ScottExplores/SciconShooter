@@ -687,6 +687,10 @@
   line-height: 1.5;
 }
 .le-validation ul { margin: 5px 0 0; padding-left: 15px; }
+.le-formation-note { display: grid; gap: 5px; margin: 0 0 11px; padding: 10px 12px; border-left: 2px solid var(--le-cyan); color: var(--le-muted); background: rgba(44, 204, 229, .06); font-size: 8px; line-height: 1.5; }
+.le-formation-note strong { color: #c7f7ff; font-size: 9px; }
+.le-formation-note span { display: block; }
+.le-formation-note .le-button { width: 100%; margin-top: 3px; }
 
 .le-history-scrim {
   position: fixed;

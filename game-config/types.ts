@@ -54,6 +54,7 @@ export type GeneratedAssetRole =
 
 export type EnemyId = 'drone' | 'swarm' | 'brick' | 'journal';
 export type BossId = 'bottleneck-drone' | 'paywall-wall' | 'gatekeeper';
+export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
 export type PowerupId = 'double-shot' | 'triple-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
 export type BackgroundId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'open-galaxy' | 'bastion-protocol';
 export type MusicId = 'procedural-main';
@@ -282,12 +283,27 @@ export interface SpawnEnemySetting {
   burstCount?: number;
 }
 
+/**
+ * A normalized center point in the upper combat area. Array order is the
+ * deterministic spawn and dive order used by the formation runtime.
+ */
+export interface FormationSlot {
+  x: number;
+  y: number;
+}
+
 export interface SpawnEvent extends BaseWaveEvent {
   kind: 'spawn';
   count: number;
   patternId: SpawnPatternId;
   positionId: SpawnPositionId;
   spawnIntervalSeconds: number;
+  /**
+   * Optional hand-authored formation geometry. When omitted, patternId keeps
+   * using its built-in layout. When present, count must equal slot count while
+   * patternId continues to control entry, hold, dive, and return choreography.
+   */
+  formationSlots?: FormationSlot[];
   enemies: SpawnEnemySetting[];
 }
 
@@ -316,6 +332,8 @@ export interface BossHealthPhase {
 export interface BossEvent extends BaseWaveEvent {
   kind: 'boss';
   bossId: BossId;
+  /** Optional layered renderer rig. Currently consumed by gatekeeper encounters. */
+  rigId?: BossRigId;
   /** Number of matching bosses spawned together, or rows for a configured paywall formation. */
   count?: number;
   spriteKey: AssetKey;

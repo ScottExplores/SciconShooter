@@ -64,6 +64,8 @@ const MINI_ANIMATION_SEQUENCE = [0, 1, 2, 1] as const;
 const PLAYER_SELECTION_FRAME_COUNT = Math.max(
   ...Object.values(PLAYER_SHIP_MOTION).map((motion) => motion.selectionIdleFrames.length)
 );
+const TRACE_LABEL_FRAME_COUNT = 24;
+const TRACE_LABEL_FRAME_DELAY_MS = 45;
 
 const formatMainUpgradeLevel = (id: MainShipUpgradeId, level: number) => (
   id === 'fireRate'
@@ -82,7 +84,7 @@ const selectorFrames = (size: 'ship' | 'mini', color: 'lime' | 'gold') => (
   ))
 );
 
-const traceFrames = Array.from({ length: 8 }, (_, index) => (
+const traceFrames = Array.from({ length: TRACE_LABEL_FRAME_COUNT }, (_, index) => (
   `${UI_ROOT}/trace-boxes/label/cyan/frames/trace-box-label-cyan-${String(index + 1).padStart(2, '0')}.png`
 ));
 
@@ -114,7 +116,7 @@ const AnimatedSelector = ({
 };
 
 const AnimatedTraceLabel = ({ children }: { children: React.ReactNode }) => {
-  const frame = useAnimationFrame(traceFrames.length, 135);
+  const frame = useAnimationFrame(traceFrames.length, TRACE_LABEL_FRAME_DELAY_MS);
   return (
     <div className="relative mx-auto h-14 w-full max-w-[24rem]">
       <img src={traceFrames[frame]} alt="" draggable={false} className="absolute inset-0 h-full w-full object-fill" />

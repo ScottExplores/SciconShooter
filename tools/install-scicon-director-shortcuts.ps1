@@ -62,6 +62,7 @@ function Install-DirectorShortcut {
 }
 
 $desktopShortcut = Join-Path $desktop 'Scicon Director.lnk'
+$combatLabShortcut = Join-Path $desktop 'Scicon Combat Lab.lnk'
 $startupShortcut = Join-Path $startup 'Scicon Director Auto Start.lnk'
 
 Install-DirectorShortcut `
@@ -70,12 +71,18 @@ Install-DirectorShortcut `
   -Description 'Start the local Scicon Director and open it in your browser.'
 
 Install-DirectorShortcut `
+  -Path $combatLabShortcut `
+  -ExtraArguments '-OpenBrowser -Page combat-lab' `
+  -Description 'Start the local Scicon Director and open the Combat Lab.'
+
+Install-DirectorShortcut `
   -Path $startupShortcut `
   -ExtraArguments '' `
   -Description 'Start the local Scicon Director after Windows sign-in.'
 
 [pscustomobject]@{
   DesktopShortcut = $desktopShortcut
+  CombatLabShortcut = $combatLabShortcut
   StartupShortcut = $startupShortcut
   StartsAfterSignIn = $true
   OpensBrowserAtSignIn = $false

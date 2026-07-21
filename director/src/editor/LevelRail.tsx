@@ -25,10 +25,10 @@ export function LevelRail({
   const selectedIndex = levels.findIndex((level) => level.id === selectedLevelId);
 
   return (
-    <aside className="le-levels" aria-label="Campaign levels">
+    <aside className="le-levels" aria-label="Campaign missions">
       <header className="le-panel-heading">
-        <h2>Levels</h2>
-        <button type="button" onClick={onAdd}><span aria-hidden="true">＋</span> New level</button>
+        <h2>Missions</h2>
+        <button type="button" title="Create a clean mission with one starter wave" onClick={onAdd}><span aria-hidden="true">＋</span> New mission</button>
       </header>
 
       <div className="le-level-list">
@@ -50,15 +50,18 @@ export function LevelRail({
         ))}
       </div>
 
-      <div className="le-level-tools" aria-label="Selected level actions">
-        <button className="le-icon-button" type="button" title="Rename level" aria-label="Rename selected level" disabled={selectedIndex < 0} onClick={onRename}><EditorIcon name="edit" /></button>
-        <button className="le-icon-button" type="button" title="Duplicate level" aria-label="Duplicate selected level" disabled={selectedIndex < 0} onClick={onDuplicate}><EditorIcon name="copy" /></button>
-        <button className="le-icon-button" type="button" title="Move level up" aria-label="Move selected level up" disabled={selectedIndex <= 0} onClick={() => onMove(-1)}><EditorIcon name="up" /></button>
-        <button className="le-icon-button" type="button" title="Move level down" aria-label="Move selected level down" disabled={selectedIndex < 0 || selectedIndex >= levels.length - 1} onClick={() => onMove(1)}><EditorIcon name="down" /></button>
-        <button className="le-icon-button le-button--danger" type="button" title="Delete level" aria-label="Delete selected level" disabled={levels.length <= 1 || selectedIndex < 0} onClick={onDelete}><EditorIcon name="delete" /></button>
+      <div className="le-level-tools" aria-label="Selected mission actions">
+        <button className="le-icon-button" type="button" title="Rename mission" aria-label="Rename selected mission" disabled={selectedIndex < 0} onClick={onRename}><EditorIcon name="edit" /></button>
+        <button className="le-icon-button" type="button" title="Duplicate mission" aria-label="Duplicate selected mission" disabled={selectedIndex < 0} onClick={onDuplicate}><EditorIcon name="copy" /></button>
+        <button className="le-icon-button" type="button" title="Move mission up" aria-label="Move selected mission up" disabled={selectedIndex <= 0} onClick={() => onMove(-1)}><EditorIcon name="up" /></button>
+        <button className="le-icon-button" type="button" title="Move mission down" aria-label="Move selected mission down" disabled={selectedIndex < 0 || selectedIndex >= levels.length - 1} onClick={() => onMove(1)}><EditorIcon name="down" /></button>
+        <button className="le-icon-button le-button--danger" type="button" title="Delete mission" aria-label="Delete selected mission" disabled={levels.length <= 1 || selectedIndex < 0} onClick={onDelete}><EditorIcon name="delete" /></button>
       </div>
 
-      <div className="le-local-note"><i aria-hidden="true" /><span>Applies only to the local game configuration until you approve a release.</span></div>
+      <div className="le-local-note">
+        <i aria-hidden="true" />
+        <span><strong>Campaign → Mission → Wave → Encounter</strong><br />A mission is one full run; its waves play in order. Changes stay local until you apply them.</span>
+      </div>
     </aside>
   );
 }

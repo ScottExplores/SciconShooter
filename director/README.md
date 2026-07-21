@@ -16,11 +16,88 @@ Then open `http://127.0.0.1:5174` in a browser. The server binds only to loopbac
 and uses a strict, separate port. Stop it with `Ctrl+C` in the terminal that started
 it.
 
-The game-first editor is at `http://127.0.0.1:5174/level-editor`. Its center stage
-is the real `GameStage`, not a mock dashboard. Select levels and waves on the left,
+The game-first **Mission Builder** is at `http://127.0.0.1:5174/level-editor`. Its center stage
+is the real `GameStage`, not a mock dashboard. Select missions and waves on the left,
 click gameplay groups in the game view, and edit their settings on the right. The
 same campaign, renderer, sprites, HUD, boss art, and scorecard presentation are used
 by the real game.
+
+## Combat Lab
+
+Open `http://127.0.0.1:5174/combat-lab` to iterate on combat before promoting an
+idea into a campaign wave. The Lab is a permanent, development-only route inside
+the loopback Director; it is not a second app, renderer, or production entrypoint.
+
+The Library is projected from the tracked campaign and the real enemy, formation,
+boss, movement, weapon, power-up, player-ship, mini-ship, effect, and asset catalogs.
+Selecting an item builds an isolated in-memory campaign and runs it through the
+shared `GameEditorCanvas` → `GameStage` → `GameCanvas` → `GameEngine` → Pixi path.
+Supported formations and pickups that are not authored in the current campaign get
+a validated synthetic test event, so they can still be evaluated without changing
+`campaign.json`.
+
+Use the stage controls to pause, restart, clear, change simulation speed, toggle
+player damage, and inspect visual or collision bounds. The inspector accepts live
+safe edits for encounters, formations, enemies, elite fire, bosses, weapons, health
+phases, asteroids, pickups, ships, mini-ships, and starting upgrades. Invalid edits
+are rejected by the campaign validator before they reach the preview.
+
+The **Preview screen** toolbar runs the same canonical stage at fixed logical sizes
+for a small phone, Pixel 8, iPhone 15, iPad mini, or desktop. Rotate swaps orientation;
+**Fit screen**, 50%, 75%, and 100% change only how large the preview is drawn in the
+workbench. The **How to use** card at the top keeps the beginner workflow and draft
+safety boundary available inside the tool.
+
+The stage-and-wave strip supports direct previous/next navigation and campaign-order
+sequences. Check **Sequence** on any set of waves, then choose **Run selected**. Event
+chips select an encounter for tuning without throwing away the rest of that wave;
+use the Library's Bosses or Boss Moves category when you want an isolated boss or
+phase test. The live HUD also exposes the selected main ship's real ability button.
+
+### Formation Workshop and mission structure
+
+Combat Lab uses one beginner-facing content hierarchy:
+
+`Campaign → Mission → Wave → Encounter → Formation`
+
+A **Mission** is a complete match/run. Its **Waves** play in order. Each wave contains
+scheduled **Encounters** such as enemy formations, bosses, hazards, and rewards.
+
+Choose **Formation Workshop** above the preview to create a fixed enemy layout without
+writing code. Start from Row, V, Grid wall, Diamond, Spiral, Pincer, Ring, or Curved
+chevron; then drag the numbered slots, move them with the arrow keys, mirror, rotate,
+widen, tighten, add, remove, or reverse their order. Slot coordinates are normalized,
+validated for the selected phone/desktop size, and consumed by the same runtime that
+plays the game. **Play formation** returns to the canonical Pixi preview.
+
+Mission Builder is not capped at five waves. **Add wave** starts with one clean
+formation encounter; **Duplicate wave** is the separate action that copies every
+encounter. **New mission** similarly starts with one clean wave. This keeps rapid
+experimentation safe while still allowing long missions and deliberate full copies.
+
+Experiments remain deliberately separated from production content:
+
+- **Save preset** stores a `test-preset` envelope under
+  `scicon-combat-lab-presets-v1` in this browser on this computer.
+- **Export JSON** downloads a validated full campaign experiment for review or diffing.
+- **Review draft in Mission Builder** remaps every inserted ID, validates a cloned full
+  campaign against the latest disk revision, and writes only Mission Builder's local
+  draft. The tracked campaign is unchanged until someone reviews the result and
+  explicitly chooses **Apply to game**.
+- Reset, duplicate, and delete affect only the current in-memory experiment or its
+  local presets. Wallet, weekly squad state, scores, and player progression are never
+  read or written.
+
+Combat Lab loads its source campaign when the page opens. After editing campaign or
+catalog files in this checkout, save any experiment you need and choose **Reload
+source** in the guide. Changes from another branch or worktree appear only after they
+are brought into this project folder. Sending a draft independently refetches the
+latest disk campaign before creating the validated promotion.
+
+Mission Builder's top navigation links back to the Combat Lab. For implementation and
+regression coverage, see `director/src/combat-lab`, `director/tests/combatLabDomain.test.mjs`,
+`director/tests/customFormationAuthoring.test.mjs`, `tests/combatLabBoundary.test.cjs`,
+and `tests/customFormationAuthoring.test.cjs`.
 
 ## Windows one-click access
 
@@ -34,6 +111,8 @@ It creates:
 
 - `Scicon Director` on the desktop. Double-clicking it starts the local server if
   necessary and opens the Director in the default browser.
+- `Scicon Combat Lab` on the desktop. Double-clicking it starts the same local
+  server if necessary and opens the gameplay experimentation workspace directly.
 - `Scicon Director Auto Start` in the current user's Windows Startup folder. It
   starts the server silently after Windows sign-in following a restart, but does
   not open a browser window automatically.

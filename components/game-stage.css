@@ -11,3 +11,26 @@
 .scicon-game-stage .arcade-font {
   font-family: Orbitron, Inter, ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Fixed-size local previews should respond to their simulated screen rather than
+   the desktop browser that contains the Director. Production remains media-query driven. */
+.scicon-game-stage--compact-preview .scicon-hud-shell {
+  padding: 0.375rem;
+}
+
+.scicon-game-stage--compact-preview .scicon-freeze-control {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.scicon-game-stage--compact-preview .scicon-left-actions {
+  left: 0.75rem;
+}
+
+.scicon-game-stage--compact-preview .scicon-wave-progress {
+  display: none;
+}
+
+.scicon-game-stage--compact-preview .scicon-field-upgrades {
+  right: 0.5rem;
+}

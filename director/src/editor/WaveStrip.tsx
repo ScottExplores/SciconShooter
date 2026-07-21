@@ -50,7 +50,7 @@ export function WaveStrip({
             >
               <span className="le-wave-card__number">{String(index + 1).padStart(2, '0')} · {Math.round(wave.durationSeconds)}s</span>
               <strong>{wave.name}</strong>
-              <span className="le-wave-card__events" aria-label={`${wave.events.length} timeline events`}>
+              <span className="le-wave-card__events" aria-label={`${wave.events.length} encounters`}>
                 {wave.events.slice(0, 8).map((item) => (
                   <i
                     key={item.id}
@@ -66,7 +66,7 @@ export function WaveStrip({
         <button className="le-wave-card le-add-wave" type="button" onClick={onAdd}>
           <b aria-hidden="true">＋</b>
           <strong>Add wave</strong>
-          <small>Uses current wave as a starting point</small>
+          <small>Starts with one formation encounter</small>
         </button>
 
         <div className="le-wave-actions" aria-label="Selected wave actions">

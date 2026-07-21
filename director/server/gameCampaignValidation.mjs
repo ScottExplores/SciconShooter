@@ -124,6 +124,7 @@ const refreshGeneratedAssetCatalog = () => {
 refreshGeneratedAssetCatalog();
 const ENEMY_IDS = new Set(['drone', 'swarm', 'brick', 'journal']);
 const BOSS_IDS = new Set(['bottleneck-drone', 'paywall-wall', 'gatekeeper']);
+const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const POWERUP_IDS = new Set(['double-shot', 'triple-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
 const BACKGROUND_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']);
 const MUSIC_IDS = new Set(['procedural-main']);
@@ -331,12 +332,37 @@ const validateSpawnEnemy = (enemy, location, errors) => {
   if (enemy.burstCount !== undefined) requireNumber(enemy.burstCount, `${location}/burstCount`, errors, { minimum: 1, maximum: 8, integer: true });
 };
 
+const validateFormationSlots = (slots, location, count, patternId, errors) => {
+  if (slots === undefined) return;
+  if (!Array.isArray(slots)) {
+    errors.push(`${location} must be an array`);
+    return;
+  }
+  if (slots.length < 2 || slots.length > 48) errors.push(`${location} must contain between 2 and 48 slots`);
+  if (Number.isInteger(count) && count !== slots.length) errors.push(`${location} length must match the spawn count`);
+  if (patternId === 'single-random' || patternId === 'asteroid-lanes') errors.push(`${location} requires a grouped formation choreography`);
+  const positions = new Set();
+  slots.forEach((slot, index) => {
+    const slotLocation = `${location}/${index}`;
+    if (!requireObject(slot, slotLocation, errors)) return;
+    allowedKeys(slot, ['x', 'y'], slotLocation, errors);
+    requireNumber(slot.x, `${slotLocation}/x`, errors, { minimum: 0.06, maximum: 0.94 });
+    requireNumber(slot.y, `${slotLocation}/y`, errors, { minimum: 0.08, maximum: 0.46 });
+    if (isFiniteNumber(slot.x) && isFiniteNumber(slot.y)) {
+      const key = `${slot.x.toFixed(4)}:${slot.y.toFixed(4)}`;
+      if (positions.has(key)) errors.push(`${slotLocation} duplicates another formation slot`);
+      positions.add(key);
+    }
+  });
+};
+
 const validateSpawnEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'enemies'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'formationSlots', 'enemies'], location, errors);
   requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 10000, integer: true });
   requireEnum(event.patternId, SPAWN_PATTERNS, `${location}/patternId`, errors);
   requireEnum(event.positionId, SPAWN_POSITIONS, `${location}/positionId`, errors);
   requireNumber(event.spawnIntervalSeconds, `${location}/spawnIntervalSeconds`, errors, { minimum: 0.01, maximum: 3600 });
+  validateFormationSlots(event.formationSlots, `${location}/formationSlots`, event.count, event.patternId, errors);
   if (!Array.isArray(event.enemies) || event.enemies.length === 0) {
     errors.push(`${location}/enemies must be a non-empty array`);
     return;
@@ -390,8 +416,12 @@ const validateBossPhase = (phase, location, weaponIds, previousRatio, errors) =>
 };
 
 const validateBossEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'rigId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases'], location, errors);
   requireEnum(event.bossId, BOSS_IDS, `${location}/bossId`, errors);
+  if (event.rigId !== undefined) {
+    requireEnum(event.rigId, BOSS_RIG_IDS, `${location}/rigId`, errors);
+    if (event.bossId !== 'gatekeeper') errors.push(`${location}/rigId supports gatekeeper encounters only`);
+  }
   if (event.count !== undefined) {
     requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 4, integer: true });
     if (!['bottleneck-drone', 'paywall-wall'].includes(event.bossId) && event.count > 1) {

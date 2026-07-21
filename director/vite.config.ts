@@ -22,7 +22,8 @@ export default defineConfig(({ command, mode }) => {
     publicDir: path.join(repositoryRoot, 'public'),
     resolve: {
       alias: {
-        '@director': path.join(directorRoot, 'src')
+        '@director': path.join(directorRoot, 'src'),
+        '@game': repositoryRoot
       },
       dedupe: ['react', 'react-dom']
     },

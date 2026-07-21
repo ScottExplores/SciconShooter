@@ -35,23 +35,34 @@ import {
   adjustFounderMainShipUpgrade,
   adjustFounderMiniShipLevel,
   applySquadRunResult,
+  awardWeeklySquadCoins,
   buildRuntimeSquadLoadout,
   createFounderSquadSandboxState,
   emitSquadDomainEvent,
   equipMiniShip,
+  loadPermanentSquadState,
   loadWeeklySquadState,
   preloadMiniShipTextures,
   purchaseMiniShip,
+  savePermanentSquadState,
   saveWeeklySquadState,
   unlockSquadSlot,
   upgradeMainShip,
   upgradeMiniShip,
   type MainShipUpgradeId,
   type MiniShipId,
+  type PermanentSquadState,
   type RuntimeSquadLoadout,
   type SquadSlotId,
   type WeeklySquadState
 } from './services/squadProgression';
+import {
+  claimAchievement as claimAchievementReward,
+  claimDailyGift as claimDailyGiftReward,
+  recordBossVictory,
+  recordLifetimeRun,
+  type AchievementId
+} from './services/rewardProgression';
 
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
 const loadGameStage = () => import('./components/GameStage');
@@ -178,6 +189,9 @@ const App: React.FC = () => {
   const [weeklySquadState, setWeeklySquadState] = useState<WeeklySquadState>(() => (
     loadWeeklySquadState(null)
   ));
+  const [permanentSquadState, setPermanentSquadState] = useState<PermanentSquadState>(() => (
+    loadPermanentSquadState(null)
+  ));
   const [fundingProposals, setFundingProposals] = useState<ResearchHubProposal[]>([]);
   const [proposalStatus, setProposalStatus] = useState<ProposalFeedStatus>('loading');
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
@@ -237,6 +251,8 @@ const App: React.FC = () => {
   const runReceiptPromiseRef = useRef<Promise<RunReceipt> | null>(null);
   const finalizedRunGameIdRef = useRef<number | null>(null);
   const squadRunAppliedGameIdRef = useRef<number | null>(null);
+  const permanentRunAppliedGameIdRef = useRef<number | null>(null);
+  const permanentBossAppliedKeysRef = useRef<Set<string>>(new Set());
   const activeRunSquadLoadoutRef = useRef<RuntimeSquadLoadout>(
     buildRuntimeSquadLoadout(weeklySquadState, 'researchhub')
   );
@@ -323,10 +339,14 @@ const App: React.FC = () => {
     weeklyLeaderboard: monthlyLeaderboard,
     archivedWinners
   }) : null, [archivedWinners, monthlyLeaderboard, previewPilotName, runReceipt]);
-  const shipUnlocks = useMemo(
-    () => getPlayerShipUnlocks(activeWalletAddress, walletRecords, { unlockAll: isOwnerWallet }),
-    [activeWalletAddress, isOwnerWallet, walletRecords]
-  );
+  const shipUnlocks = useMemo(() => {
+    const unlocks = getPlayerShipUnlocks(activeWalletAddress, walletRecords, { unlockAll: isOwnerWallet });
+    return {
+      ...unlocks,
+      eth: unlocks.eth || permanentSquadState.unlockedPlayerShips.includes('eth'),
+      btc: unlocks.btc || permanentSquadState.unlockedPlayerShips.includes('btc')
+    };
+  }, [activeWalletAddress, isOwnerWallet, permanentSquadState.unlockedPlayerShips, walletRecords]);
   const usableShipId = getUsablePlayerShip(selectedShipId, shipUnlocks);
   const playerShipUrl = PLAYER_SHIPS[usableShipId].assetUrl;
 
@@ -341,10 +361,21 @@ const App: React.FC = () => {
     });
   }, []);
 
+  const updatePermanentSquadState = useCallback((
+    update: (current: PermanentSquadState) => PermanentSquadState
+  ) => {
+    setPermanentSquadState((current) => {
+      const next = update(current);
+      if (next !== current) savePermanentSquadState(next);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     const loaded = loadWeeklySquadState(activeWalletAddress);
     const next = isOwnerWallet ? createFounderSquadSandboxState(loaded) : loaded;
     setWeeklySquadState(next);
+    setPermanentSquadState(loadPermanentSquadState(activeWalletAddress));
     activeRunSquadLoadoutRef.current = buildRuntimeSquadLoadout(next, 'researchhub');
     preloadMiniShipTextures();
   }, [activeWalletAddress, isOwnerWallet]);
@@ -678,6 +709,8 @@ const App: React.FC = () => {
     );
     activeRunSquadLoadoutRef.current = squadLoadout;
     squadRunAppliedGameIdRef.current = null;
+    permanentRunAppliedGameIdRef.current = null;
+    permanentBossAppliedKeysRef.current.clear();
     setMissionRecordPilotName(null);
     preloadGameplayComponents();
     audioService.init();
@@ -799,6 +832,13 @@ const App: React.FC = () => {
   };
 
   const showWaveVictory = (summary: WaveVictorySummary) => {
+    if (activeWalletAddress && !isFounderSandboxRun) {
+      const victoryKey = `${gameId}:${summary.id}`;
+      if (!permanentBossAppliedKeysRef.current.has(victoryKey)) {
+        permanentBossAppliedKeysRef.current.add(victoryKey);
+        updatePermanentSquadState(recordBossVictory);
+      }
+    }
     setOwnerFrameFrozen(false);
     setWaveVictorySummary(summary);
     setGameState(GameState.WAVE_COMPLETE);
@@ -924,6 +964,38 @@ const App: React.FC = () => {
     requestWalletRuntimeAction('connect');
   }, [activeWalletAddress, requestWalletRuntimeAction]);
 
+  const handleClaimDailyGift = useCallback(() => {
+    if (!activeWalletAddress) {
+      connectWallet();
+      return;
+    }
+
+    const result = claimDailyGiftReward(permanentSquadState);
+    if (!result) return;
+
+    setPermanentSquadState(result.state);
+    savePermanentSquadState(result.state);
+    updateWeeklySquadState((current) => (
+      awardWeeklySquadCoins(current, result.reward.coins, 'daily-gift')
+    ));
+  }, [activeWalletAddress, connectWallet, permanentSquadState, updateWeeklySquadState]);
+
+  const handleClaimAchievement = useCallback((id: AchievementId) => {
+    if (!activeWalletAddress) {
+      connectWallet();
+      return;
+    }
+
+    const result = claimAchievementReward(permanentSquadState, id);
+    if (!result) return;
+
+    setPermanentSquadState(result.state);
+    savePermanentSquadState(result.state);
+    updateWeeklySquadState((current) => (
+      awardWeeklySquadCoins(current, result.rewardCoins, `achievement:${id}`)
+    ));
+  }, [activeWalletAddress, connectWallet, permanentSquadState, updateWeeklySquadState]);
+
   const disconnectWallet = useCallback(() => {
     requestWalletRuntimeAction('disconnect');
   }, [requestWalletRuntimeAction]);
@@ -1045,6 +1117,15 @@ const App: React.FC = () => {
           coinsCollected: stats.coins
         }));
       }
+      if (activeWalletAddress && !isFounderSandboxRun && permanentRunAppliedGameIdRef.current !== gameId) {
+        permanentRunAppliedGameIdRef.current = gameId;
+        updatePermanentSquadState((current) => recordLifetimeRun(current, {
+          score: stats.score,
+          wave: stats.wave,
+          enemiesDefeated: stats.enemiesDefeated,
+          coinsCollected: stats.coins
+        }));
+      }
       const scoreKey = `${gameId}:${stats.score}:${stats.wave}`;
       if (submittedScoreKeysRef.current.has(scoreKey)) {
         setShowNameInput(false);
@@ -1061,7 +1142,7 @@ const App: React.FC = () => {
       setScoreSubmitError('');
       setShowNameInput(true);
     }
-  }, [activeWalletAddress, gameId, gameState, isFounderSandboxRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updateWeeklySquadState]);
+  }, [activeWalletAddress, gameId, gameState, isFounderSandboxRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
 
   const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
@@ -1571,6 +1652,10 @@ const App: React.FC = () => {
           shipUnlocks={shipUnlocks}
           onSelectShip={setSelectedShipId}
           weeklySquadState={weeklySquadState}
+          permanentSquadState={permanentSquadState}
+          onClaimDailyGift={handleClaimDailyGift}
+          onClaimAchievement={handleClaimAchievement}
+          onRequestWalletConnect={connectWallet}
           founderSandbox={isOwnerWallet}
           onUnlockSquadSlot={handleUnlockSquadSlot}
           onPurchaseMiniShip={handlePurchaseMiniShip}
@@ -1622,6 +1707,10 @@ const App: React.FC = () => {
             shipUnlocks={shipUnlocks}
             onSelectShip={setSelectedShipId}
             weeklySquadState={weeklySquadState}
+            permanentSquadState={permanentSquadState}
+            onClaimDailyGift={handleClaimDailyGift}
+            onClaimAchievement={handleClaimAchievement}
+            onRequestWalletConnect={connectWallet}
             founderSandbox={isOwnerWallet}
             onUnlockSquadSlot={handleUnlockSquadSlot}
             onPurchaseMiniShip={handlePurchaseMiniShip}

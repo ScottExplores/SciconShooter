@@ -11,7 +11,8 @@ import {
 import { ASSETS, GAME_CONFIG } from '../../constants';
 import { EntityType, PowerupType } from '../../types';
 import { BOSS_CANNON_SCALE, CROWNCLAW_ARM_SCALE, Entity, GameEngine, VisualEffect } from '../gameLogic';
-import type { BossComponentState, BossPartId, BossRigId } from '../gameLogic';
+import type { BossComponentState, BossPartId } from '../gameLogic';
+import type { BossRigId } from '../../game-config/types';
 import {
   PLAYER_SHIP_HARD_BANK_SWEEP_RATIO,
   PLAYER_SHIP_STEERING_FRAME_URLS,

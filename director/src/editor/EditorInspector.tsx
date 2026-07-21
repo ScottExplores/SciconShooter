@@ -7,6 +7,7 @@ import type {
   BossEvent,
   BossHealthPhase,
   BossId,
+  BossRigId,
   BossWeaponSetting,
   EnemyAttackPatternId,
   EnemyId,
@@ -72,6 +73,13 @@ const BOSSES: Array<{ id: BossId; label: string; spriteKey: AssetKey; movement: 
   spriteKey: boss.defaultSpriteKey,
   movement: boss.defaultMovementPatternId
 }));
+
+const BOSS_RIGS: Array<{ value: BossRigId; label: string }> = [
+  { value: 'open-orbit', label: 'Open Orbit railgun rig' },
+  { value: 'citation-storm', label: 'Citation Storm claw rig' },
+  { value: 'paywall-siege', label: 'Paywall Siege layered rig' },
+  { value: 'crown-claw', label: 'Open Galaxy Crownclaw rig' }
+];
 
 const toAssetOptions = (keys: readonly AssetKey[]) => [...new Set(keys)].map((value) => ({
   value,
@@ -154,7 +162,8 @@ function NumberField({
   min = 0,
   max,
   step = 1,
-  unit
+  unit,
+  disabled = false
 }: {
   label: string;
   value: number;
@@ -163,12 +172,13 @@ function NumberField({
   max?: number;
   step?: number;
   unit?: string;
+  disabled?: boolean;
 }) {
   return (
     <label className="le-field">
       <span>{label}</span>
       <span className="le-field__unit">
-        <input type="number" value={Number.isFinite(value) ? value : 0} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} />
+        <input type="number" value={Number.isFinite(value) ? value : 0} min={min} max={max} step={step} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} />
         {unit ? <small>{unit}</small> : null}
       </span>
     </label>
@@ -364,22 +374,29 @@ function WaveSettings({
       </div>
 
       <fieldset className="le-fieldset">
-        <legend>Enemy phase</legend>
+        <legend>Formation encounters</legend>
         <div className="le-event-select">
-          <select value={spawn?.id ?? ''} aria-label="Enemy phase" onChange={(event) => onSelectEvent(event.target.value)}>
+          <select value={spawn?.id ?? ''} aria-label="Formation encounter" onChange={(event) => onSelectEvent(event.target.value)}>
             {spawns.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
           </select>
-          <button className="le-icon-button" type="button" title="Add enemy phase" aria-label="Add enemy phase" onClick={() => onAddEvent('spawn')}><EditorIcon name="add" /></button>
+          <button className="le-icon-button" type="button" title="Add formation encounter" aria-label="Add formation encounter" onClick={() => onAddEvent('spawn')}><EditorIcon name="add" /></button>
         </div>
         {spawn && enemy ? (
           <>
             <EventTiming event={spawn} onChange={onUpdateEvent} />
+            {spawn.formationSlots ? (
+              <div className="le-formation-note">
+                <strong>Custom formation · {spawn.formationSlots.length} numbered slots</strong>
+                <span>The shape and slot count came from Combat Lab. You can still tune timing, enemies, and choreography here.</span>
+                <button className="le-button" type="button" onClick={() => updateSpawn({ formationSlots: undefined })}>Switch back to a built-in layout</button>
+              </div>
+            ) : null}
             <div className="le-field-row">
-              <NumberField label="Enemy count" value={spawn.count} onChange={(count) => updateSpawn({ count: Math.round(count) })} min={1} max={500} step={1} />
+              <NumberField label={spawn.formationSlots ? 'Enemy slots' : 'Enemy count'} value={spawn.count} onChange={(count) => updateSpawn({ count: Math.round(count) })} min={spawn.formationSlots ? 2 : 1} max={spawn.formationSlots ? 48 : 500} step={1} disabled={Boolean(spawn.formationSlots)} />
               <NumberField label="Spawn interval" value={spawn.spawnIntervalSeconds} onChange={(spawnIntervalSeconds) => updateSpawn({ spawnIntervalSeconds })} min={0.05} max={30} step={0.05} unit="s" />
             </div>
-            <SelectField label="Spawn pattern" value={spawn.patternId} options={PATTERNS} onChange={(patternId) => updateSpawn({ patternId })} />
-            <SelectField label="Spawn position" value={spawn.positionId} options={POSITIONS} onChange={(positionId) => updateSpawn({ positionId })} />
+            <SelectField label={spawn.formationSlots ? 'Entry & attack choreography' : 'Spawn pattern'} value={spawn.patternId} options={spawn.formationSlots ? PATTERNS.filter((pattern) => pattern.value !== 'single-random' && pattern.value !== 'asteroid-lanes') : PATTERNS} onChange={(patternId) => updateSpawn({ patternId })} />
+            {spawn.formationSlots ? null : <SelectField label="Spawn position" value={spawn.positionId} options={POSITIONS} onChange={(positionId) => updateSpawn({ positionId })} />}
 
             <div className="le-event-select">
               <select value={enemyIndex} aria-label="Enemy type row" onChange={(event) => setEnemyIndex(Number(event.target.value))}>
@@ -433,9 +450,9 @@ function WaveSettings({
               </>
             ) : null}
             <button className="le-button le-button--danger" type="button" disabled={spawn.enemies.length <= 1} onClick={removeEnemy}><EditorIcon name="delete" /> Remove enemy type</button>
-            <button className="le-button le-button--danger" type="button" disabled={spawns.length <= 1} onClick={() => onDeleteEvent(spawn.id)}><EditorIcon name="delete" /> Delete enemy phase</button>
+            <button className="le-button le-button--danger" type="button" disabled={spawns.length <= 1} onClick={() => onDeleteEvent(spawn.id)}><EditorIcon name="delete" /> Delete formation encounter</button>
           </>
-        ) : <p className="le-validation">Add an enemy phase to configure regular spawns.</p>}
+        ) : <p className="le-validation">Add a formation encounter to configure regular enemies.</p>}
       </fieldset>
     </>
   );
@@ -532,7 +549,13 @@ function BossSettings({
   const removeWeapon = () => {
     if (!boss || boss.weapons.length <= 1 || !weapon) return;
     const weapons = boss.weapons.filter((_item, index) => index !== weaponIndex);
-    const phases = boss.phases.map((phase) => ({ ...phase, weaponSettingIds: phase.weaponSettingIds.filter((id) => id !== weapon.id) }));
+    const phases = boss.phases.map((phase) => {
+      const weaponSettingIds = phase.weaponSettingIds.filter((id) => id !== weapon.id);
+      return {
+        ...phase,
+        weaponSettingIds: weaponSettingIds.length > 0 ? weaponSettingIds : [weapons[0].id]
+      };
+    });
     updateBoss({ weapons, phases });
     setWeaponIndex(Math.max(0, weaponIndex - 1));
   };
@@ -572,11 +595,15 @@ function BossSettings({
             const selected = BOSSES.find((item) => item.id === bossId)!;
             updateBoss({
               bossId,
+              rigId: bossId === 'gatekeeper' ? (boss.rigId ?? 'open-orbit') : undefined,
               count: bossId === 'bottleneck-drone' ? (boss.count ?? 1) : 1,
               spriteKey: selected.spriteKey,
               movementPatternId: selected.movement
             });
           }} />
+          {boss.bossId === 'gatekeeper' ? (
+            <SelectField label="Boss rig" value={boss.rigId ?? 'open-orbit'} options={BOSS_RIGS} onChange={(rigId) => updateBoss({ rigId })} />
+          ) : null}
           <AssetSelectField
             label="Boss sprite"
             value={boss.spriteKey}
@@ -640,6 +667,26 @@ function BossSettings({
                   <NumberField label="Starts below health" value={phase.triggerHealthRatio * 100} onChange={(value) => updatePhase(phase.id, { triggerHealthRatio: value / 100 })} min={1} max={100} step={1} unit="%" />
                   <SelectField label="Movement" value={phase.movementPatternId} options={MOVEMENTS} onChange={(movementPatternId) => updatePhase(phase.id, { movementPatternId })} />
                   <NumberField label="Speed multiplier" value={phase.speedMultiplier} onChange={(speedMultiplier) => updatePhase(phase.id, { speedMultiplier })} min={0.1} max={10} step={0.1} unit="×" />
+                  <div className="le-check-grid">
+                    {boss.weapons.map((setting) => {
+                      const selected = phase.weaponSettingIds.includes(setting.id);
+                      return (
+                        <label key={setting.id}>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={selected && phase.weaponSettingIds.length === 1}
+                            onChange={() => updatePhase(phase.id, {
+                              weaponSettingIds: selected
+                                ? phase.weaponSettingIds.filter((id) => id !== setting.id)
+                                : [...phase.weaponSettingIds, setting.id]
+                            })}
+                          />
+                          {WEAPONS.find((entry) => entry.value === setting.weaponId)?.label ?? setting.weaponId}
+                        </label>
+                      );
+                    })}
+                  </div>
                   <small>Phase {index + 1} uses {phase.weaponSettingIds.length} configured attack{phase.weaponSettingIds.length === 1 ? '' : 's'}.</small>
                 </article>
               ))}
@@ -667,8 +714,8 @@ function LevelSettings({
 
   return (
     <>
-      <div className="le-inspector-title"><p>Selected level</p><h2>{level.name}</h2></div>
-      <TextField label="Level name" value={level.name} onChange={(name) => onUpdateLevel({ name })} />
+      <div className="le-inspector-title"><p>Selected mission</p><h2>{level.name}</h2></div>
+      <TextField label="Mission name" value={level.name} onChange={(name) => onUpdateLevel({ name })} />
       <TextField label="Description" value={level.description} onChange={(description) => onUpdateLevel({ description })} multiline />
       <SelectField label="Background" value={level.backgroundId} options={BACKGROUNDS} onChange={(backgroundId) => onUpdateLevel({ backgroundId })} />
       <SelectField label="Music / sound preset" value={level.musicId} options={[{ value: 'procedural-main', label: 'Scicon procedural main' }]} onChange={(musicId) => onUpdateLevel({ musicId })} />
@@ -677,7 +724,7 @@ function LevelSettings({
         <NumberField label="Score target" value={level.scoreTarget} onChange={(scoreTarget) => onUpdateLevel({ scoreTarget: Math.round(scoreTarget) })} min={0} max={100000000} step={100} unit="pts" />
       </div>
       <label className="le-field">
-        <span>Level duration (blank = completion driven)</span>
+        <span>Mission duration (blank = completion driven)</span>
         <span className="le-field__unit">
           <input type="number" value={level.durationSeconds ?? ''} min={1} max={86400} step={1} onChange={(event) => onUpdateLevel({ durationSeconds: event.target.value === '' ? null : Number(event.target.value) })} />
           <small>s</small>
@@ -685,7 +732,7 @@ function LevelSettings({
       </label>
       <label className="le-check-row">
         <input type="checkbox" checked={level.loopWaves} onChange={(event) => onUpdateLevel({ loopWaves: event.target.checked })} />
-        <span>Loop this level's waves during an endless run</span>
+        <span>Loop this mission's waves during an endless run</span>
       </label>
 
       <fieldset className="le-fieldset">
@@ -713,8 +760,8 @@ function LevelSettings({
       </fieldset>
 
       <fieldset className="le-fieldset">
-        <legend>End-of-level scorecard</legend>
-        <SelectField label="Show scorecard" value={level.scorecard.trigger} options={[{ value: 'mission-end', label: 'When mission ends' }, { value: 'level-complete', label: 'When level completes' }]} onChange={(trigger) => onUpdateLevel({ scorecard: { ...level.scorecard, trigger } })} />
+        <legend>End-of-mission scorecard</legend>
+        <SelectField label="Show scorecard" value={level.scorecard.trigger} options={[{ value: 'mission-end', label: 'When the full run ends' }, { value: 'level-complete', label: 'When this mission completes' }]} onChange={(trigger) => onUpdateLevel({ scorecard: { ...level.scorecard, trigger } })} />
         <TextField label="Title" value={level.scorecard.title} onChange={(title) => onUpdateLevel({ scorecard: { ...level.scorecard, title } })} />
         <TextField label="Subtitle" value={level.scorecard.subtitle} onChange={(subtitle) => onUpdateLevel({ scorecard: { ...level.scorecard, subtitle } })} />
         <TextField label="Score label" value={level.scorecard.scoreLabel} onChange={(scoreLabel) => onUpdateLevel({ scorecard: { ...level.scorecard, scoreLabel } })} />
@@ -850,11 +897,12 @@ function CardSettings({ recordCard, onUpdateRecordCard }: Pick<EditorInspectorPr
 
 export function EditorInspector(props: EditorInspectorProps) {
   const selectedEvent = props.wave.events.find((event) => event.id === props.selectedEventId);
+  const tabLabels: Record<InspectorTab, string> = { wave: 'Wave', boss: 'Boss', level: 'Mission', card: 'Card' };
   return (
-    <aside className="le-inspector" aria-label="Level and wave settings">
+    <aside className="le-inspector" aria-label="Mission and wave settings">
       <nav className="le-inspector-tabs" aria-label="Settings categories">
         {(['wave', 'boss', 'level', 'card'] as const).map((tab) => (
-          <button key={tab} type="button" className={props.tab === tab ? 'is-selected' : ''} aria-current={props.tab === tab ? 'page' : undefined} onClick={() => props.onTabChange(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>
+          <button key={tab} type="button" className={props.tab === tab ? 'is-selected' : ''} aria-current={props.tab === tab ? 'page' : undefined} onClick={() => props.onTabChange(tab)}>{tabLabels[tab]}</button>
         ))}
       </nav>
       <div className="le-inspector-body">

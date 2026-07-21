@@ -29,7 +29,7 @@ export function EventTimeline({ events, selectedEventId, onSelect }: EventTimeli
           <EditorIcon name={item.kind === 'boss' ? 'boss' : item.kind === 'asteroid-belt' ? 'asteroid' : 'spawn'} />
           <span>
             <strong>{item.label}</strong>
-            <small>{formatTime(item.startSeconds)} · {item.kind === 'boss' ? 'Boss' : item.kind === 'asteroid-belt' ? 'Asteroid belt' : item.kind === 'spawn' ? 'Enemy phase' : item.kind}</small>
+            <small>{formatTime(item.startSeconds)} · {item.kind === 'boss' ? 'Boss' : item.kind === 'asteroid-belt' ? 'Asteroid belt' : item.kind === 'spawn' ? 'Formation' : item.kind}</small>
           </span>
         </button>
       ))}

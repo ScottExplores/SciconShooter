@@ -11,6 +11,7 @@ export type EditorIconName =
   | 'edit'
   | 'forward'
   | 'history'
+  | 'mirror'
   | 'pause'
   | 'play'
   | 'review'
@@ -37,6 +38,7 @@ export function EditorIcon({ name, ...props }: EditorIconProps) {
       {name === 'edit' ? <><path d="m4 20 4-1 11-11-3-3L5 16l-1 4Z" /><path d="m14 7 3 3" /></> : null}
       {name === 'forward' ? <><path d="m12 6 6 6-6 6" /><path d="M5 6v12" /></> : null}
       {name === 'history' ? <><path d="M4 5v5h5" /><path d="M5.5 10a7 7 0 1 1 .5 6" /></> : null}
+      {name === 'mirror' ? <><path d="M12 3v18" /><path d="m9 7-4 5 4 5M15 7l4 5-4 5" /></> : null}
       {name === 'pause' ? <><path d="M8 5v14M16 5v14" /></> : null}
       {name === 'play' ? <path d="m8 5 11 7-11 7V5Z" /> : null}
       {name === 'review' ? <><path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Z" /><circle cx="12" cy="10" r="2" /></> : null}
