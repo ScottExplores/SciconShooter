@@ -68,11 +68,14 @@ interface StartScreenProps {
   testChampionWinner?: ArchivedWinner | null;
   onCloseTestChampionPreview?: () => void;
   weeklySquadState: WeeklySquadState;
+  founderSandbox?: boolean;
   onUnlockSquadSlot: (slot: SquadSlotId) => void;
   onPurchaseMiniShip: (id: MiniShipId) => void;
   onUpgradeMiniShip: (id: MiniShipId) => void;
+  onDowngradeMiniShip: (id: MiniShipId) => void;
   onEquipMiniShip: (slot: SquadSlotId, id: MiniShipId | null) => void;
   onUpgradeMainShip: (id: MainShipUpgradeId) => void;
+  onDowngradeMainShip: (id: MainShipUpgradeId) => void;
 }
 
 type LeaderboardView = 'weekly' | 'allTime' | 'pastPicks' | 'records';
@@ -635,11 +638,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
   testChampionWinner = null,
   onCloseTestChampionPreview,
   weeklySquadState,
+  founderSandbox = false,
   onUnlockSquadSlot,
   onPurchaseMiniShip,
   onUpgradeMiniShip,
+  onDowngradeMiniShip,
   onEquipMiniShip,
-  onUpgradeMainShip
+  onUpgradeMainShip,
+  onDowngradeMainShip
 }) => {
   const [leaderboardView, setLeaderboardView] = useState<LeaderboardView>('weekly');
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>(() => {
@@ -1550,11 +1556,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
             icon={`${COMMUNICATION_ICON_ROOT}/notifications.png`}
             onClick={onOpenXProfile}
           />
-          <MoreMenuTile
-            label="Open Source"
-            icon={`${COMMUNICATION_ICON_ROOT}/server-switch.png`}
-            href="https://github.com/ScottExplores/SciconShooter"
-          />
         </div>
 
         <button type="button" onClick={() => setShowLegal(true)} className="sci-more-menu__legal">
@@ -1578,6 +1579,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           mainShipName={focusedShip.name}
           shipUnlocks={shipUnlocks}
           walletConnected={Boolean(walletAddress)}
+          founderSandbox={founderSandbox}
           onSelectMainShip={(shipId) => {
             setShipFocusId(shipId);
             onSelectShip(shipId);
@@ -1585,8 +1587,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
           onUnlockSlot={onUnlockSquadSlot}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
+          onDowngradeMini={onDowngradeMiniShip}
           onEquipMini={onEquipMiniShip}
           onUpgradeMainShip={onUpgradeMainShip}
+          onDowngradeMainShip={onDowngradeMainShip}
         />
       );
     }
@@ -1611,6 +1615,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           mainShipName={focusedShip.name}
           shipUnlocks={shipUnlocks}
           walletConnected={Boolean(walletAddress)}
+          founderSandbox={founderSandbox}
           onSelectMainShip={(shipId) => {
             setShipFocusId(shipId);
             onSelectShip(shipId);
@@ -1618,8 +1623,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
           onUnlockSlot={onUnlockSquadSlot}
           onPurchaseMini={onPurchaseMiniShip}
           onUpgradeMini={onUpgradeMiniShip}
+          onDowngradeMini={onDowngradeMiniShip}
           onEquipMini={onEquipMiniShip}
           onUpgradeMainShip={onUpgradeMainShip}
+          onDowngradeMainShip={onDowngradeMainShip}
         />
       );
     }

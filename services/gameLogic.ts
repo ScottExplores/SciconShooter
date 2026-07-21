@@ -184,6 +184,10 @@ export class Entity {
   /** Configuration provenance used by the local visual editor. */
   sourceEventId?: string;
   sourceItemId?: string;
+  wallLaneX?: number;
+  wallRowOffset?: number;
+  wallPass?: number;
+  wallSwayPhase?: number;
   
   constructor(type: EntityType, x: number, y: number) {
     this.id = Math.random().toString(36).substr(2, 9);
@@ -4654,6 +4658,10 @@ export class GameEngine {
             e.text = "🧱"; // UPDATED to Brick Emoji
             e.variant = (r * cols) + c;
             e.vx = 0;
+            e.wallLaneX = e.x;
+            e.wallRowOffset = r * (blockH + gap);
+            e.wallPass = 0;
+            e.wallSwayPhase = ((r * cols + c) / Math.max(1, segmentCount)) * Math.PI * 2;
             if (configured) {
               const weapon = configured.weapons?.[0];
               e.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.ENEMY_INVADER);
@@ -4743,36 +4751,26 @@ export class GameEngine {
   }
   
   updateWallBoss() {
-      const invaders = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER);
+      const invaders = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER && !e.markedForDeletion);
       if (invaders.length === 0) return;
-      
-      let minY = 10000;
-      invaders.forEach(inv => { if (inv.y < minY) minY = inv.y; });
 
-      const isEntering = minY < 50;
       const configuredVerticalSpeed = invaders.find((invader) => Number.isFinite(invader.configuredSpeed))?.configuredSpeed;
-      const verticalSpeed = isEntering
-        ? configuredVerticalSpeed ?? (this.wave === 1 ? 1.15 : 1.5 + (this.wave - 1))
-        : 0;
-      
-      let hitEdge = false;
-      invaders.forEach(inv => {
-          if (inv.x + inv.width > this.width - 10 && this.invaderDirection > 0) hitEdge = true;
-          if (inv.x < 10 && this.invaderDirection < 0) hitEdge = true;
-      });
-      
-      let moveX = this.invaderDirection * (this.wave === 1 ? 1.55 : 2 + (this.wave * 0.3));
-      let moveY = verticalSpeed;
+      const descentSpeed = configuredVerticalSpeed ?? (this.wave === 1 ? 1.15 : 1.5 + (this.wave - 1));
+      const swayAmplitude = Math.min(10, Math.max(4, this.width * 0.012));
 
-      if (hitEdge && !isEntering) {
-          this.invaderDirection *= -1;
-          moveX = 0; 
-          moveY += 15; 
-      }
-      
       invaders.forEach(inv => {
-          inv.x += moveX;
-          inv.y += moveY;
+          const laneX = inv.wallLaneX ?? inv.x;
+          const phase = inv.wallSwayPhase ?? inv.variant * 0.37;
+          inv.x = clamp(
+            laneX + Math.sin((this.frameCount * 0.018) + phase) * swayAmplitude,
+            8,
+            this.width - inv.width - 8
+          );
+          inv.y += descentSpeed;
+          if (inv.y > this.height + inv.height + 12) {
+            inv.wallPass = (inv.wallPass ?? 0) + 1;
+            inv.y = -inv.height - (inv.wallRowOffset ?? 0) - ((inv.wallPass % 2) * 18);
+          }
           if (inv.attackTimer > 0) inv.attackTimer--;
       });
       
@@ -5052,11 +5050,12 @@ export class GameEngine {
       return;
     }
     if (boss.bossRigId === 'paywall-siege') {
-      const armorStage = destroyedCount >= 3 ? 2 : destroyedCount > 0 ? 1 : 0;
-      const exposedCoreStage = destroyedCount >= 3
+      const helmetDestroyed = (boss.bossComponents ?? []).some(
+        (component) => component.id === 'helmet' && component.destroyed
+      );
+      boss.bossDecayStage = helmetDestroyed
         ? healthRatio <= 0.2 ? 4 : healthRatio <= 0.45 ? 3 : 2
-        : armorStage;
-      boss.bossDecayStage = exposedCoreStage;
+        : destroyedCount > 0 ? 1 : 0;
       return;
     }
     if (boss.bossRigId === 'crown-claw') {
@@ -7379,11 +7378,8 @@ export class GameEngine {
 
     } else if (e.type === EntityType.POWERUP) {
         const type = e.text as PowerupType;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#fff';
-        ctx.beginPath();
-        ctx.arc(0, 0, 18, 0, Math.PI * 2);
-        ctx.clip();
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#67e8f9';
         
         let frames: readonly string[] = ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES;
         if (type === PowerupType.MAGNET) frames = ASSETS.POWERUP_MAGNET_FRAMES;
@@ -7395,16 +7391,11 @@ export class GameEngine {
         
         const img = loadImage(imgUrl);
         if (img && img.complete && img.naturalWidth > 0) {
-            ctx.drawImage(img, -18, -18, 36, 36);
+            ctx.drawImage(img, -23, -23, 46, 46);
         } else {
             ctx.fillStyle = '#fff';
-            ctx.fillRect(-18, -18, 36, 36);
+            ctx.fillRect(-23, -23, 46, 46);
         }
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, 18, 0, Math.PI * 2);
-        ctx.stroke();
         ctx.shadowBlur = 0;
 
     } else if (e.type === EntityType.MINI_BOSS) {

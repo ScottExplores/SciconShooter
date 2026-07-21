@@ -45,7 +45,7 @@ test('guest runs never load or save Hangar profile data', () => {
   assert.match(squad, /state\.profileId === 'guest'/);
   assert.match(app, /if \(!walletAddress\) \{[\s\S]*totalCoins: 0/);
   assert.match(app, /walletProfileAddress === normalizedActiveWalletAddress[\s\S]*localStorage\.setItem\(getWalletProfileKey\(walletProfileAddress\)/);
-  assert.match(app, /if \(activeWalletAddress && !isOwnerTestRun/);
+  assert.match(app, /if \(activeWalletAddress && !isFounderSandboxRun/);
   assert.match(app, /saveScore\(name, score, wave, \{[\s\S]*walletAddress: activeWalletAddress/);
 });
 
@@ -81,7 +81,7 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /onUnlockSlot\(position\)/);
   assert.match(hangar, /onPurchaseMini\(activeMiniId\)/);
   assert.match(hangar, /onEquipMini\(activePosition, activeMiniId\)/);
-  assert.match(miniCatalog, /onClick=\{\(\) => \{\s*setSelectedMiniId\(entry\.id\);\s*\}\}/);
+  assert.match(miniCatalog, /if \(selectedHere\) \{\s*setMode\('upgrades'\);\s*return;\s*\}\s*setSelectedMiniId\(entry\.id\)/);
   assert.doesNotMatch(miniCatalog, /onPurchaseMini\(/);
   assert.doesNotMatch(miniCatalog, /onEquipMini\(/);
   assert.doesNotMatch(hangar, /squadPositionWidth/);
@@ -113,7 +113,7 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /const unlockCost = SQUAD_SLOT_UNLOCK_COST\[slot\]/);
   assert.match(hangar, /\{unlockCost\} coins/);
   assert.match(hangar, /rsc-coin-flip-v1\/rsc-coin-pixel-front\.png/);
-  assert.match(hangar, /const costLabel = atMax \? 'MAX' : nextCost === 0 \? 'FREE'/);
+  assert.match(hangar, /const costLabel = founderSandbox \? 'TEST' : atMax \? 'MAX' : nextCost === 0 \? 'FREE'/);
   assert.match(hangar, /aria-label=\{actionLabel\}/);
   assert.match(hangar, /sci-hangar-upgrade-pulse/);
   assert.doesNotMatch(hangar, /\$\{owned \? '' : 'grayscale'\}/);
@@ -121,17 +121,20 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.doesNotMatch(miniCatalog, /<button[\s\S]{0,500}\$\{owned \? '' : '[^']*grayscale/);
 });
 
-test('mini ship selection keeps purchase and equip as explicit detail-strip actions', () => {
+test('mini ship selection opens details on a second tap and supports unlocks there', () => {
   const hangar = read('components', 'SquadHangar.tsx');
 
   assert.match(hangar, /const selectedHere = selectedMiniId === entry\.id/);
   assert.match(hangar, /color=\{equippedHere \? 'gold' : 'lime'\}/);
+  assert.match(hangar, /if \(selectedHere\) \{\s*setMode\('upgrades'\);\s*return;\s*\}/);
+  assert.match(hangar, /if \(position === activePosition && mode === 'upgrades'\) \{\s*setMode\('catalog'\);\s*return;\s*\}/);
   assert.match(hangar, /onClick=\{\(\) => onPurchaseMini\(activeMiniId\)\}/);
   assert.match(hangar, /<span>Unlock<\/span>/);
   assert.match(hangar, /activeMini\.purchaseCost === 0 \? 'Free'/);
   assert.match(hangar, /onClick=\{\(\) => onEquipMini\(activePosition, activeMiniId\)\}/);
   assert.match(hangar, /activeMiniEquipped \? 'Equipped' : 'Equip'/);
-  assert.match(hangar, /Select a mini ship, then use Unlock, Equip, or Upgrade above/);
+  assert.match(hangar, /Tap the selected mini ship again to view details/);
+  assert.match(hangar, /activeMini\.purchaseCost === 0 \? 'Unlock free' : `Unlock \$\{activeMini\.purchaseCost\.toLocaleString\(\)\} coins`/);
 });
 
 test('main ship upgrade cards show the matching existing gameplay sprites', () => {

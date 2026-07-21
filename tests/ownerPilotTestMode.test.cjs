@@ -16,8 +16,26 @@ test('project wallet enables a sticky test run with real flask charge and no lea
   assert.match(appSource, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords, \{ unlockAll: isOwnerWallet \}\)/);
   assert.match(appSource, /beginRunSession\(isOwnerTestRun \|\| isOwnerWallet\)/);
   assert.match(appSource, /completedPhase === 1/);
-  assert.match(appSource, /if \(isOwnerTestRun\) \{[\s\S]*?finalizeCurrentRun\(\)/);
-  assert.match(appSource, /!isOwnerTestRun && stats\.score > stats\.highScore/);
+  assert.match(appSource, /const isFounderSandboxRun = isOwnerWallet \|\| isOwnerTestRun/);
+  assert.match(appSource, /if \(isFounderSandboxRun\) \{[\s\S]*?finalizeCurrentRun\(\)/);
+  assert.match(appSource, /!isFounderSandboxRun && stats\.score > stats\.highScore/);
+});
+
+test('founder Hangar sandbox unlocks the fleet, supports reversible upgrades, and never persists test levels', () => {
+  const squadSource = fs.readFileSync(path.join(root, 'services', 'squadProgression.ts'), 'utf8');
+  const hangarSource = fs.readFileSync(path.join(root, 'components', 'SquadHangar.tsx'), 'utf8');
+
+  assert.match(squadSource, /createFounderSquadSandboxState/);
+  assert.match(squadSource, /unlockedSlots: \{ left: true, right: true \}/);
+  assert.match(squadSource, /MINI_SHIP_CATALOG\.map\(\(entry\) => \[entry\.id, MINI_SHIP_MAX_LEVEL\]\)/);
+  assert.match(squadSource, /PLAYABLE_PLAYER_SHIP_IDS\.map\(\(shipId\) => \[shipId, \{/);
+  assert.match(squadSource, /adjustFounderMiniShipLevel/);
+  assert.match(squadSource, /adjustFounderMainShipUpgrade/);
+  assert.match(appSource, /adjustFounderMiniShipLevel\(current, id, -1\), false/);
+  assert.match(appSource, /adjustFounderMainShipUpgrade\(current, usableShipId, id, -1\), false/);
+  assert.match(hangarSource, /Founder test loadout - changes are temporary/);
+  assert.match(hangarSource, /onDowngradeMini\(activeMini\.id\)/);
+  assert.match(hangarSource, /onDowngradeMainShip\(upgrade\.id\)/);
 });
 
 test('engine test mode preserves lives and supports encounter-only wave jumps', () => {

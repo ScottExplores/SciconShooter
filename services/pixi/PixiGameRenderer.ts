@@ -1640,12 +1640,9 @@ export class PixiGameRenderer {
       view.root.scale.set(pulse);
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.045) * 0.12;
     } else if (entity.type === EntityType.POWERUP) {
-      const auraPulse = 0.08 + ((Math.sin((engine.frameCount + entity.variant) * 0.12) + 1) * 0.025);
-      view.root.scale.set(1);
-      view.root.rotation = 0;
+      view.root.scale.set(1.22);
+      view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.045) * 0.035;
       view.aura.clear();
-      view.aura.circle(0, 0, entity.width * 0.55).fill({ color: '#67e8f9', alpha: auraPulse });
-      view.aura.circle(0, 0, entity.width * 0.52).stroke({ color: '#ffffff', width: 2, alpha: 0.74 });
     }
 
     if (entity.isElite && isEnemyType(entity.type)) {

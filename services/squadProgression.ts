@@ -457,6 +457,63 @@ export const saveWeeklySquadState = (state: WeeklySquadState) => {
   }));
 };
 
+export const createFounderSquadSandboxState = (state: WeeklySquadState): WeeklySquadState => ({
+  ...state,
+  unlockedSlots: { left: true, right: true },
+  ownedMiniShips: Object.fromEntries(
+    MINI_SHIP_CATALOG.map((entry) => [entry.id, MINI_SHIP_MAX_LEVEL])
+  ) as Record<MiniShipId, number>,
+  shipUpgrades: Object.fromEntries(
+    PLAYABLE_PLAYER_SHIP_IDS.map((shipId) => [shipId, {
+      fireRate: MAIN_SHIP_UPGRADE_MAX_LEVEL,
+      speed: MAIN_SHIP_UPGRADE_MAX_LEVEL,
+      startingHearts: MAIN_SHIP_UPGRADE_MAX_LEVEL
+    }])
+  ) as MainShipUpgradesByShip,
+  updatedAt: nowIso()
+});
+
+export const adjustFounderMiniShipLevel = (
+  state: WeeklySquadState,
+  id: MiniShipId,
+  delta: number
+): WeeklySquadState => {
+  const currentLevel = Math.max(1, state.ownedMiniShips[id] || 1);
+  const nextLevel = Math.max(1, Math.min(
+    MINI_SHIP_MAX_LEVEL,
+    currentLevel + Math.trunc(delta)
+  ));
+  if (nextLevel === currentLevel) return state;
+  return {
+    ...state,
+    ownedMiniShips: { ...state.ownedMiniShips, [id]: nextLevel },
+    updatedAt: nowIso()
+  };
+};
+
+export const adjustFounderMainShipUpgrade = (
+  state: WeeklySquadState,
+  shipId: PlayerShipId,
+  id: MainShipUpgradeId,
+  delta: number
+): WeeklySquadState => {
+  const currentUpgrades = state.shipUpgrades[shipId] ?? createMainShipUpgradeLevels();
+  const currentLevel = currentUpgrades[id];
+  const nextLevel = Math.max(0, Math.min(
+    MAIN_SHIP_UPGRADE_MAX_LEVEL,
+    currentLevel + Math.trunc(delta)
+  ));
+  if (nextLevel === currentLevel) return state;
+  return {
+    ...state,
+    shipUpgrades: {
+      ...state.shipUpgrades,
+      [shipId]: { ...currentUpgrades, [id]: nextLevel }
+    },
+    updatedAt: nowIso()
+  };
+};
+
 export const loadPermanentSquadState = (walletAddress?: string | null): PermanentSquadState => {
   const fallback = createPermanentSquadState(walletAddress);
   if (typeof window === 'undefined') return fallback;

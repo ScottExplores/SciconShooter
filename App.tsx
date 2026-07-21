@@ -8,6 +8,7 @@ import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getMissionRecordWeeklyFunding } from './services/weeklyFundingFlow';
 import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
+import { hasSeenStoryBeatToday, markStoryBeatSeenToday } from './services/storyTransmissionSchedule';
 import { BASE_FLASK_CHARGE_MAX, getChargeForStoredFlasks, getFlaskProgress, spendStoredFlasks } from './services/flaskProgress';
 import type { WalletRuntimeAction } from './components/WalletRuntime';
 import {
@@ -31,8 +32,11 @@ import PauseMenu from './components/PauseMenu';
 import GameOverPresentation from './components/GameOverPresentation';
 import { WalletControl } from './components/WalletControl';
 import {
+  adjustFounderMainShipUpgrade,
+  adjustFounderMiniShipLevel,
   applySquadRunResult,
   buildRuntimeSquadLoadout,
+  createFounderSquadSandboxState,
   emitSquadDomainEvent,
   equipMiniShip,
   loadWeeklySquadState,
@@ -311,6 +315,7 @@ const App: React.FC = () => {
   const activeWalletAddress = wallet.address ?? null;
   const isOwnerWallet = activeWalletAddress?.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase();
   const isOwnerTestRun = activeRunMode === 'owner-test';
+  const isFounderSandboxRun = isOwnerWallet || isOwnerTestRun;
   const previewPilotName = missionRecordPilotName || playerNameInput || 'PILOT';
   const missionRecordWeeklyFunding = useMemo(() => runReceipt ? getMissionRecordWeeklyFunding({
     receipt: runReceipt,
@@ -326,41 +331,63 @@ const App: React.FC = () => {
   const playerShipUrl = PLAYER_SHIPS[usableShipId].assetUrl;
 
   const updateWeeklySquadState = useCallback((
-    update: (current: WeeklySquadState) => WeeklySquadState
+    update: (current: WeeklySquadState) => WeeklySquadState,
+    persist = true
   ) => {
     setWeeklySquadState((current) => {
       const next = update(current);
-      if (next !== current) saveWeeklySquadState(next);
+      if (persist && next !== current) saveWeeklySquadState(next);
       return next;
     });
   }, []);
 
   useEffect(() => {
-    const next = loadWeeklySquadState(activeWalletAddress);
+    const loaded = loadWeeklySquadState(activeWalletAddress);
+    const next = isOwnerWallet ? createFounderSquadSandboxState(loaded) : loaded;
     setWeeklySquadState(next);
     activeRunSquadLoadoutRef.current = buildRuntimeSquadLoadout(next, 'researchhub');
     preloadMiniShipTextures();
-  }, [activeWalletAddress]);
+  }, [activeWalletAddress, isOwnerWallet]);
 
   const handleUnlockSquadSlot = useCallback((slot: SquadSlotId) => {
+    if (isOwnerWallet) return;
     updateWeeklySquadState((current) => unlockSquadSlot(current, slot));
-  }, [updateWeeklySquadState]);
+  }, [isOwnerWallet, updateWeeklySquadState]);
 
   const handlePurchaseMiniShip = useCallback((id: MiniShipId) => {
+    if (isOwnerWallet) return;
     updateWeeklySquadState((current) => purchaseMiniShip(current, id));
-  }, [updateWeeklySquadState]);
+  }, [isOwnerWallet, updateWeeklySquadState]);
 
   const handleUpgradeMiniShip = useCallback((id: MiniShipId) => {
+    if (isOwnerWallet) {
+      updateWeeklySquadState((current) => adjustFounderMiniShipLevel(current, id, 1), false);
+      return;
+    }
     updateWeeklySquadState((current) => upgradeMiniShip(current, id));
-  }, [updateWeeklySquadState]);
+  }, [isOwnerWallet, updateWeeklySquadState]);
+
+  const handleDowngradeMiniShip = useCallback((id: MiniShipId) => {
+    if (!isOwnerWallet) return;
+    updateWeeklySquadState((current) => adjustFounderMiniShipLevel(current, id, -1), false);
+  }, [isOwnerWallet, updateWeeklySquadState]);
 
   const handleEquipMiniShip = useCallback((slot: SquadSlotId, id: MiniShipId | null) => {
-    updateWeeklySquadState((current) => equipMiniShip(current, slot, id));
-  }, [updateWeeklySquadState]);
+    updateWeeklySquadState((current) => equipMiniShip(current, slot, id), !isOwnerWallet);
+  }, [isOwnerWallet, updateWeeklySquadState]);
 
   const handleUpgradeMainShip = useCallback((id: MainShipUpgradeId) => {
+    if (isOwnerWallet) {
+      updateWeeklySquadState((current) => adjustFounderMainShipUpgrade(current, usableShipId, id, 1), false);
+      return;
+    }
     updateWeeklySquadState((current) => upgradeMainShip(current, usableShipId, id));
-  }, [updateWeeklySquadState, usableShipId]);
+  }, [isOwnerWallet, updateWeeklySquadState, usableShipId]);
+
+  const handleDowngradeMainShip = useCallback((id: MainShipUpgradeId) => {
+    if (!isOwnerWallet) return;
+    updateWeeklySquadState((current) => adjustFounderMainShipUpgrade(current, usableShipId, id, -1), false);
+  }, [isOwnerWallet, updateWeeklySquadState, usableShipId]);
   const beginRunSession = useCallback((testRun: boolean) => {
     if (runSessionPromiseRef.current) return;
 
@@ -730,7 +757,12 @@ const App: React.FC = () => {
       introStoryTimeoutRef.current = null;
       setIntroMissionLocked(false);
       if (gameStateRef.current === GameState.PLAYING) {
-        setActiveStoryBeat(getStoryBeatForPhase(1));
+        const introBeat = getStoryBeatForPhase(1);
+        if (introBeat && !hasSeenStoryBeatToday(introBeat)) {
+          setActiveStoryBeat(introBeat);
+        } else {
+          beginRunSession(startInTestMode || isOwnerWallet);
+        }
       }
     }, 2650);
   };
@@ -781,6 +813,9 @@ const App: React.FC = () => {
 
   const completeStoryTransmission = () => {
     const completedPhase = activeStoryBeat?.phase;
+    if (activeStoryBeat) {
+      markStoryBeatSeenToday(activeStoryBeat);
+    }
     if (completedPhase === 1) {
       beginRunSession(isOwnerTestRun || isOwnerWallet);
     }
@@ -955,7 +990,7 @@ const App: React.FC = () => {
     const nextBeat = getStoryBeatForPhase(stats.wave);
     lastStoryWaveRef.current = stats.wave;
 
-    if (nextBeat) {
+    if (nextBeat && !hasSeenStoryBeatToday(nextBeat)) {
       setActiveStoryBeat(nextBeat);
     }
   }, [activeStoryBeat, gameState, stats.wave]);
@@ -1002,7 +1037,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (gameState === GameState.GAMEOVER) {
-      if (activeWalletAddress && !isOwnerTestRun && squadRunAppliedGameIdRef.current !== gameId) {
+      if (activeWalletAddress && !isFounderSandboxRun && squadRunAppliedGameIdRef.current !== gameId) {
         squadRunAppliedGameIdRef.current = gameId;
         updateWeeklySquadState((current) => applySquadRunResult(current, {
           score: stats.score,
@@ -1016,7 +1051,7 @@ const App: React.FC = () => {
         return;
       }
 
-      if (!isOwnerTestRun && stats.score > stats.highScore) {
+      if (!isFounderSandboxRun && stats.score > stats.highScore) {
         if (!activeWalletAddress) {
           localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.score.toString());
         }
@@ -1026,7 +1061,7 @@ const App: React.FC = () => {
       setScoreSubmitError('');
       setShowNameInput(true);
     }
-  }, [activeWalletAddress, gameId, gameState, isOwnerTestRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updateWeeklySquadState]);
+  }, [activeWalletAddress, gameId, gameState, isFounderSandboxRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updateWeeklySquadState]);
 
   const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
@@ -1041,7 +1076,7 @@ const App: React.FC = () => {
     const scoreKey = `${gameId}:${score}:${wave}`;
     const submittedAt = new Date().toISOString();
 
-    if (isOwnerTestRun) {
+    if (isFounderSandboxRun) {
       let recordReady = false;
       try {
         const verifiedReceipt = await finalizeCurrentRun();
@@ -1398,7 +1433,7 @@ const App: React.FC = () => {
       ) : null}
     </div>
   );
-  const gameOverContinueControls = !isOwnerTestRun && !runReceipt && runReceiptStatus !== 'finalizing'
+  const gameOverContinueControls = !isFounderSandboxRun && !runReceipt && runReceiptStatus !== 'finalizing'
     ? continueRunControls
     : null;
   const resultEncounter = stats.wave <= 1
@@ -1536,11 +1571,14 @@ const App: React.FC = () => {
           shipUnlocks={shipUnlocks}
           onSelectShip={setSelectedShipId}
           weeklySquadState={weeklySquadState}
+          founderSandbox={isOwnerWallet}
           onUnlockSquadSlot={handleUnlockSquadSlot}
           onPurchaseMiniShip={handlePurchaseMiniShip}
           onUpgradeMiniShip={handleUpgradeMiniShip}
+          onDowngradeMiniShip={handleDowngradeMiniShip}
           onEquipMiniShip={handleEquipMiniShip}
           onUpgradeMainShip={handleUpgradeMainShip}
+          onDowngradeMainShip={handleDowngradeMainShip}
           isLoading={loadingLeaderboard}
           proposals={fundingProposals}
           proposalStatus={proposalStatus}
@@ -1584,11 +1622,14 @@ const App: React.FC = () => {
             shipUnlocks={shipUnlocks}
             onSelectShip={setSelectedShipId}
             weeklySquadState={weeklySquadState}
+            founderSandbox={isOwnerWallet}
             onUnlockSquadSlot={handleUnlockSquadSlot}
             onPurchaseMiniShip={handlePurchaseMiniShip}
             onUpgradeMiniShip={handleUpgradeMiniShip}
+            onDowngradeMiniShip={handleDowngradeMiniShip}
             onEquipMiniShip={handleEquipMiniShip}
             onUpgradeMainShip={handleUpgradeMainShip}
+            onDowngradeMainShip={handleDowngradeMainShip}
             isLoading={loadingLeaderboard}
             proposals={fundingProposals}
             proposalStatus={proposalStatus}
@@ -1706,7 +1747,7 @@ const App: React.FC = () => {
                       disabled={isSubmittingScore}
                       className="sci-gameover-skip-score justify-self-center px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400 transition hover:text-red-100 disabled:opacity-50"
                     >
-                      {isOwnerTestRun ? 'Exit test' : 'Skip score'}
+                      {isFounderSandboxRun ? 'Exit test' : 'Skip score'}
                     </button>
                   </form>
                 </>
@@ -1731,7 +1772,7 @@ const App: React.FC = () => {
                         </button>
                       </div>
                     ) : null}
-                    {scoreSaved && !isOwnerTestRun ? (
+                    {scoreSaved && !isFounderSandboxRun ? (
                       <p className="text-center text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100">
                         Global score saved
                       </p>

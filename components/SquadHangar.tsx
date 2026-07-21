@@ -37,12 +37,15 @@ interface SquadHangarProps {
   mainShipName: string;
   shipUnlocks: PlayerShipUnlocks;
   walletConnected: boolean;
+  founderSandbox?: boolean;
   onSelectMainShip: (id: PlayerShipId) => void;
   onUnlockSlot: (slot: SquadSlotId) => void;
   onPurchaseMini: (id: MiniShipId) => void;
   onUpgradeMini: (id: MiniShipId) => void;
+  onDowngradeMini: (id: MiniShipId) => void;
   onEquipMini: (slot: SquadSlotId, id: MiniShipId | null) => void;
   onUpgradeMainShip: (id: MainShipUpgradeId) => void;
+  onDowngradeMainShip: (id: MainShipUpgradeId) => void;
 }
 
 const UI_ROOT = '/game-art/generated/ui/scicon-simple-arcade-kit-v1';
@@ -196,12 +199,15 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   mainShipName,
   shipUnlocks,
   walletConnected,
+  founderSandbox = false,
   onSelectMainShip,
   onUnlockSlot,
   onPurchaseMini,
   onUpgradeMini,
+  onDowngradeMini,
   onEquipMini,
-  onUpgradeMainShip
+  onUpgradeMainShip,
+  onDowngradeMainShip
 }) => {
   const [activePosition, setActivePosition] = useState<HangarPosition>('main');
   const [mode, setMode] = useState<HangarMode>('catalog');
@@ -257,6 +263,10 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const choosePosition = (position: HangarPosition) => {
     if (position !== 'main' && !state.unlockedSlots[position]) {
       onUnlockSlot(position);
+      return;
+    }
+    if (position === activePosition && mode === 'upgrades') {
+      setMode('catalog');
       return;
     }
     setActivePosition(position);
@@ -343,7 +353,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           const selectedHere = selectedMiniId === entry.id;
           const atMax = level >= MINI_SHIP_MAX_LEVEL;
           const nextCost = atMax ? 0 : owned ? getMiniShipUpgradeCost(entry.id, level) : entry.purchaseCost;
-          const costLabel = atMax ? 'MAX' : nextCost === 0 ? 'FREE' : nextCost.toLocaleString();
+          const costLabel = founderSandbox ? 'TEST' : atMax ? 'MAX' : nextCost === 0 ? 'FREE' : nextCost.toLocaleString();
           const actionLabel = atMax
             ? `Select ${entry.name}, level ${level} of ${MINI_SHIP_MAX_LEVEL}, maximum level`
             : `Select ${entry.name}, level ${level} of ${MINI_SHIP_MAX_LEVEL}, ${owned ? 'next upgrade' : 'unlock'} costs ${nextCost} coins`;
@@ -352,6 +362,10 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
               key={entry.id}
               type="button"
               onClick={() => {
+                if (selectedHere) {
+                  setMode('upgrades');
+                  return;
+                }
                 setSelectedMiniId(entry.id);
               }}
               aria-label={actionLabel}
@@ -382,6 +396,11 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           <CurrencyRail icon="/game-art/tokens/rsc-coin-pixel.png" value={state.coins} label="Research coins" tone="gold" />
           <CurrencyRail icon="/game-art/generated/ui/scicon-interface-pack-v1/resources/crystal.png" value={0} label="Continue tokens" tone="blue" />
         </div>
+        {founderSandbox ? (
+          <p className="mt-2 border border-cyan-300/35 bg-cyan-300/10 px-2 py-1 text-center text-[0.55rem] font-black uppercase tracking-[0.12em] text-cyan-100">
+            Founder test loadout - changes are temporary
+          </p>
+        ) : null}
       </header>
 
       <main className="relative z-10">
@@ -496,7 +515,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
               <p className="mt-3 text-center text-[0.55rem] font-bold uppercase tracking-[0.1em] text-slate-500">
                 {activePosition === 'main'
                   ? 'Tap the selected ship again to open upgrades'
-                  : 'Select a mini ship, then use Unlock, Equip, or Upgrade above'}
+                  : 'Tap the selected mini ship again to view details'}
               </p>
             </>
           ) : activePosition === 'main' ? (
@@ -524,12 +543,44 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                       </div>
                     </div>
                     <div className="mt-2"><LevelPips level={level} max={MAIN_SHIP_UPGRADE_MAX_LEVEL} /></div>
-                    <button type="button" onClick={() => {
-                      onUpgradeMainShip(upgrade.id);
-                      showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} level ${level + 1}`);
-                    }} disabled={atMax || state.coins < cost} className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600">
-                      {atMax ? 'Max level' : `${cost} coins`}
-                    </button>
+                    {founderSandbox ? (
+                      <div className="mt-3 grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] gap-1.5">
+                        <button
+                          type="button"
+                          aria-label={`Reduce ${upgrade.name} to level ${Math.max(0, level - 1)}`}
+                          onClick={() => {
+                            onDowngradeMainShip(upgrade.id);
+                            showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} level ${Math.max(0, level - 1)}`);
+                          }}
+                          disabled={level <= 0}
+                          className="min-h-9 border border-cyan-200/35 bg-cyan-300/10 text-lg font-black text-cyan-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                        >
+                          -
+                        </button>
+                        <span className="flex min-h-9 items-center justify-center border border-cyan-200/20 bg-slate-950/70 px-1 text-[0.58rem] font-black uppercase text-cyan-100">
+                          Test level {level}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Increase ${upgrade.name} to level ${Math.min(MAIN_SHIP_UPGRADE_MAX_LEVEL, level + 1)}`}
+                          onClick={() => {
+                            onUpgradeMainShip(upgrade.id);
+                            showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} level ${Math.min(MAIN_SHIP_UPGRADE_MAX_LEVEL, level + 1)}`);
+                          }}
+                          disabled={atMax}
+                          className="min-h-9 border border-yellow-200/35 bg-yellow-300/12 text-lg font-black text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => {
+                        onUpgradeMainShip(upgrade.id);
+                        showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} level ${level + 1}`);
+                      }} disabled={atMax || state.coins < cost} className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600">
+                        {atMax ? 'Max level' : `${cost} coins`}
+                      </button>
+                    )}
                   </article>
                 );
               })}
@@ -546,17 +597,61 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 <h3 className="truncate text-sm font-black uppercase text-white">{activeMini.name}</h3>
                 <p className="mt-1 text-[0.65rem] text-slate-400">{activeMini.description}</p>
                 <div className="mt-2"><LevelPips level={activeMiniLevel} max={MINI_SHIP_MAX_LEVEL} /></div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onUpgradeMini(activeMini.id);
-                    showUpgradeFeedback(`mini:${activeMini.id}`, `${activeMini.name} level ${activeMiniLevel + 1}`);
-                  }}
-                  disabled={!activeMiniOwned || activeMiniLevel >= MINI_SHIP_MAX_LEVEL || state.coins < getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)}
-                  className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
-                >
-                  {activeMiniLevel >= MINI_SHIP_MAX_LEVEL ? 'Max level' : `Upgrade ${getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)} coins`}
-                </button>
+                {founderSandbox ? (
+                  <div className="mt-3 grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] gap-1.5">
+                    <button
+                      type="button"
+                      aria-label={`Reduce ${activeMini.name} to level ${Math.max(1, activeMiniLevel - 1)}`}
+                      onClick={() => {
+                        onDowngradeMini(activeMini.id);
+                        showUpgradeFeedback(`mini:${activeMini.id}`, `${activeMini.name} level ${Math.max(1, activeMiniLevel - 1)}`);
+                      }}
+                      disabled={activeMiniLevel <= 1}
+                      className="min-h-9 border border-cyan-200/35 bg-cyan-300/10 text-lg font-black text-cyan-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                    >
+                      -
+                    </button>
+                    <span className="flex min-h-9 items-center justify-center border border-cyan-200/20 bg-slate-950/70 px-1 text-[0.58rem] font-black uppercase text-cyan-100">
+                      Test level {activeMiniLevel}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Increase ${activeMini.name} to level ${Math.min(MINI_SHIP_MAX_LEVEL, activeMiniLevel + 1)}`}
+                      onClick={() => {
+                        onUpgradeMini(activeMini.id);
+                        showUpgradeFeedback(`mini:${activeMini.id}`, `${activeMini.name} level ${Math.min(MINI_SHIP_MAX_LEVEL, activeMiniLevel + 1)}`);
+                      }}
+                      disabled={activeMiniLevel >= MINI_SHIP_MAX_LEVEL}
+                      className="min-h-9 border border-yellow-200/35 bg-yellow-300/12 text-lg font-black text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : activeMiniOwned ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpgradeMini(activeMini.id);
+                      showUpgradeFeedback(`mini:${activeMini.id}`, `${activeMini.name} level ${activeMiniLevel + 1}`);
+                    }}
+                    disabled={!activeMiniOwned || activeMiniLevel >= MINI_SHIP_MAX_LEVEL || state.coins < getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)}
+                    className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                  >
+                    {activeMiniLevel >= MINI_SHIP_MAX_LEVEL ? 'Max level' : `Upgrade ${getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)} coins`}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onPurchaseMini(activeMini.id);
+                      showUpgradeFeedback(`mini:${activeMini.id}`, `${activeMini.name} unlocked`);
+                    }}
+                    disabled={state.coins < activeMini.purchaseCost}
+                    className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                  >
+                    {activeMini.purchaseCost === 0 ? 'Unlock free' : `Unlock ${activeMini.purchaseCost.toLocaleString()} coins`}
+                  </button>
+                )}
               </div>
             </div>
           ) : (
