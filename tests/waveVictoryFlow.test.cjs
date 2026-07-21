@@ -12,7 +12,7 @@ const engineSource = read('services/gameLogic.ts');
 const overlaySource = read('components/WaveVictoryOverlay.tsx');
 const typesSource = read('types.ts');
 
-test('a final boss clear pauses after the departure and waits for an explicit next-wave command', () => {
+test('a stage finale pauses after the departure and waits for an explicit next-stage command', () => {
   assert.match(engineSource, /export interface WaveVictorySummary/);
   assert.match(engineSource, /this\.waveVictorySummary = this\.buildWaveVictorySummary\(\)/);
   assert.match(engineSource, /this\.waveVictoryReady = true;\s*this\.gameActive = false;/);
@@ -20,12 +20,14 @@ test('a final boss clear pauses after the departure and waits for an explicit ne
   assert.match(engineSource, /if \(this\.previewMode\)\s*{\s*this\.startNextWave\(\);/);
 });
 
-test('wave records are calculated from per-wave baselines', () => {
+test('stage records are calculated from baselines preserved across internal waves', () => {
   assert.match(engineSource, /scoreEarned: Math\.max\(0, this\.stats\.score - this\.waveStartScore\)/);
   assert.match(engineSource, /enemiesDefeated: Math\.max\(0, this\.stats\.enemiesDefeated - this\.waveStartEnemiesDefeated\)/);
   assert.match(engineSource, /coinsCollected: Math\.max\(0, this\.stats\.totalCoins - this\.waveStartTotalCoins\)/);
   assert.match(engineSource, /elapsedSeconds: Math\.max\(0, Math\.round\(this\.waveFlightFrames \/ GAME_CONFIG\.FPS\)\)/);
   assert.match(engineSource, /this\.waveStartScore = this\.stats\.score/);
+  assert.match(engineSource, /resetWaveProgress\(resetStageSummary: boolean = true\)/);
+  assert.match(engineSource, /this\.resetWaveProgress\(stageBoundary\)/);
 });
 
 test('the production canvas reports victory once and accepts a deduplicated continue command', () => {
@@ -36,7 +38,7 @@ test('the production canvas reports victory once and accepts a deduplicated cont
   assert.match(canvasSource, /engine\.continueToNextWave\(\)/);
 });
 
-test('the app keeps the real game mounted behind a dedicated wave-complete state', () => {
+test('the app keeps the real game mounted behind the stage-complete overlay state', () => {
   assert.match(typesSource, /WAVE_COMPLETE = 'WAVE_COMPLETE'/);
   assert.match(appSource, /gameState === GameState\.WAVE_COMPLETE/);
   assert.match(appSource, /onWaveVictory: showWaveVictory/);
@@ -44,7 +46,7 @@ test('the app keeps the real game mounted behind a dedicated wave-complete state
   assert.match(appSource, /<WaveVictoryOverlay summary={waveVictorySummary} onContinue={continueAfterWaveVictory}/);
 });
 
-test('the victory overlay uses the layered Scicon reveal packs and shows the requested wave metrics', () => {
+test('the victory overlay uses the layered Scicon reveal packs and shows stage metrics', () => {
   assert.match(overlaySource, /weekly-champion-reveal\/parts/);
   assert.match(overlaySource, /mission-record-verification\/parts/);
   assert.match(overlaySource, /plaque-body\.png/);
@@ -54,4 +56,7 @@ test('the victory overlay uses the layered Scicon reveal packs and shows the req
   assert.match(overlaySource, />Coins</);
   assert.match(overlaySource, />Flight</);
   assert.match(overlaySource, /Continue/);
+  assert.match(overlaySource, /Stage \{summary\.stage\}/);
+  assert.match(overlaySource, /Stage \{summary\.nextStage\}/);
+  assert.doesNotMatch(overlaySource, /Wave \{summary\./);
 });

@@ -54,7 +54,7 @@ export const STORY_BEATS: StoryBeat[] = [
     portrait: ASSETS.FOUNDER_JEFFREY,
     accent: 'from-red-300 via-yellow-200 to-cyan-300',
     title: 'The Gatekeeper Core',
-    text: '.... Final wave. The bottleneck core is adapting to your signal. Expect swarms, bricks, and beam attacks together. Free the Galaxy from slow science. Fight for clarity.'
+    text: '.... Final stage. The bottleneck core is adapting to your signal. Expect swarms, bricks, and beam attacks together. Free the Galaxy from slow science. Fight for clarity.'
   }
 ];
 

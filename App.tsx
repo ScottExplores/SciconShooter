@@ -64,6 +64,7 @@ import {
   recordLifetimeRun,
   type AchievementId
 } from './services/rewardProgression';
+import { getStageName } from './services/stagePresentation';
 
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
 const loadGameStage = () => import('./components/GameStage');
@@ -1804,11 +1805,7 @@ const App: React.FC = () => {
   const gameOverContinueControls = !isFounderSandboxRun && !runReceipt && runReceiptStatus !== 'finalizing'
     ? continueRunControls
     : null;
-  const resultEncounter = stats.wave <= 1
-    ? 'Gatekeeper Sector'
-    : stats.wave === 2
-      ? 'Replication Rift'
-      : 'Deep Review Space';
+  const resultEncounter = getStageName(stats.wave);
   const testChampionWinner: ArchivedWinner = {
     periodKey: 'PILOT-TEST',
     periodLabel: 'Pilot Test Preview',
@@ -1831,7 +1828,7 @@ const App: React.FC = () => {
       </div>
 
       <div className="relative mt-2 grid grid-cols-3 divide-x divide-white/10 border-t border-cyan-100/15 pt-2 text-center">
-        <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Wave</span><strong className="text-sm text-cyan-100">{stats.wave}</strong></div>
+        <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Stage</span><strong className="text-sm text-cyan-100">{stats.wave}</strong></div>
         <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Targets</span><strong className="text-sm text-emerald-100">{stats.enemiesDefeated}</strong></div>
         <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Coins</span><strong className="text-sm text-yellow-200">{stats.coins}</strong></div>
       </div>
@@ -2052,11 +2049,11 @@ const App: React.FC = () => {
             <div className="text-left">
                   <div className="mb-3 border-b border-cyan-200/18 pb-2">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100">Founder Test Controls</p>
-                    <p className="mt-1 text-[9px] font-bold leading-relaxed text-slate-400">Jump sectors, refill upgrades, or preview the winner flow. This test run cannot enter the leaderboard.</p>
+                    <p className="mt-1 text-[9px] font-bold leading-relaxed text-slate-400">Jump stages, refill upgrades, or preview the winner flow. This test run cannot enter the leaderboard.</p>
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-cyan-200">Select wave</p>
+                      <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-cyan-200">Select stage</p>
                       <div className="grid grid-cols-5 overflow-hidden border border-cyan-200/30">
                         {[1, 2, 3, 4, 5].map((wave) => (
                           <button
@@ -2064,9 +2061,9 @@ const App: React.FC = () => {
                             type="button"
                             onClick={() => jumpOwnerTestWave(wave)}
                             className={`min-h-10 border-r border-cyan-200/20 px-2 text-[10px] font-black last:border-r-0 ${stats.wave === wave ? 'bg-cyan-300/25 text-white' : 'bg-slate-950/55 text-cyan-200'}`}
-                            aria-label={`Jump to wave ${wave}`}
+                            aria-label={`Jump to stage ${wave}`}
                           >
-                            W{wave}
+                            S{wave}
                           </button>
                         ))}
                       </div>
@@ -2074,9 +2071,9 @@ const App: React.FC = () => {
                         type="button"
                         onClick={jumpOwnerTestBoss}
                         className="mt-2 min-h-10 w-full border border-red-200/35 bg-red-300/12 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-red-50 transition hover:border-red-100/60 hover:bg-red-300/20"
-                        aria-label={`Jump to boss of wave ${stats.wave}`}
+                        aria-label={`Jump to boss of stage ${stats.wave}`}
                       >
-                        Jump to W{stats.wave} boss
+                        Jump to Stage {stats.wave} boss
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">

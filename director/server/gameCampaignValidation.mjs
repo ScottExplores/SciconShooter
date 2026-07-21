@@ -2,6 +2,7 @@ import { ValidationError } from './validation.mjs';
 import { readFileSync } from 'node:fs';
 export {
   migrateLegacyGameCampaign,
+  migrateLegacyStageWaveHierarchy,
   migrateLegacyWaveCompletionRule
 } from '../../game-config/legacyCampaignMigration.mjs';
 

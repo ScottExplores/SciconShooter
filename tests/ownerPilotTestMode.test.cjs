@@ -38,26 +38,32 @@ test('founder Hangar sandbox unlocks the fleet, supports reversible upgrades, an
   assert.match(hangarSource, /onDowngradeMainShip\(upgrade\.id\)/);
 });
 
-test('engine test mode preserves lives and supports encounter-only wave jumps', () => {
+test('engine test mode preserves lives and supports stage and authored-climax jumps', () => {
   assert.match(engineSource, /testMode\?: boolean/);
-  assert.match(engineSource, /jumpToCampaignWave\(waveNumber: number\)/);
-  assert.match(engineSource, /jumpToCampaignBoss\(waveNumber: number\)/);
+  assert.match(engineSource, /jumpToCampaignWave\(stageNumber: number\)/);
+  assert.match(engineSource, /jumpToCampaignBoss\(stageNumber: number\)/);
+  assert.match(engineSource, /getFirstCampaignWaveIndexForStage\(stageNumber\)/);
+  assert.match(engineSource, /getLastCampaignWaveIndexForCurrentStage\(\)/);
   assert.match(engineSource, /find\(\(event\) => this\.getEncounterWarningType\(event\) === 'gatekeeper'\)/);
-  assert.match(engineSource, /this\.queueConfiguredEncounter\(mainBoss\)/);
+  assert.match(engineSource, /const climax = mainBoss/);
+  assert.match(engineSource, /this\.queueConfiguredEncounter\(climax as RuntimeEncounterEvent\)/);
+  assert.doesNotMatch(engineSource, /if \(!mainBoss\)[\s\S]{0,180}startBossWarning\('gatekeeper'\)/);
   assert.match(engineSource, /this\.entities = \[\][\s\S]*?this\.resetWaveProgress\(\)/);
   assert.match(engineSource, /if \(!this\.testMode\) \{\s*this\.lives -= incomingDamage/);
   assert.match(canvasSource, /engine\.jumpToCampaignWave\(testWaveCommand\.wave\)/);
   assert.match(canvasSource, /engine\.jumpToCampaignBoss\(testBossCommand\.wave\)/);
 });
 
-test('owner controls provide a separate frame freeze and put wave tools in the normal pause menu', () => {
+test('owner controls provide a separate frame freeze and put stage tools in the normal pause menu', () => {
   assert.match(appSource, /running: gameState === GameState\.PLAYING && gameRuntimeReady && !ownerFrameFrozen/);
   assert.match(appSource, /showFreezeControl: isOwnerWallet && isOwnerTestRun/);
   assert.match(appSource, /onToggleFreeze: isOwnerWallet && isOwnerTestRun/);
   assert.match(appSource, /gameState === GameState\.PAUSED && !showTestChampionPreview/);
   assert.match(appSource, /Founder Test Controls/);
-  assert.match(appSource, /Select wave/);
-  assert.match(appSource, /Jump to W\{stats\.wave\} boss/);
+  assert.match(appSource, /Select stage/);
+  assert.match(appSource, /Jump to Stage \{stats\.wave\} boss/);
+  assert.match(appSource, /aria-label=\{`Jump to stage \$\{wave\}`\}/);
+  assert.doesNotMatch(appSource, /Select wave|Jump to W\{stats\.wave\} boss|aria-label=\{`Jump to wave/);
   assert.match(appSource, /Preview winner/);
   assert.match(appSource, /Finish test run/);
   assert.match(startScreenSource, /testChampionWinner\s*\?\s*setTestSelectedProposal\(proposal\)/);

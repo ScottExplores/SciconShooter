@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 16,
+  "revision": 17,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
-  "updatedAt": "2026-07-21T19:46:31.835Z",
+  "updatedAt": "2026-07-21T22:30:00.000Z",
   "fps": 60,
   "recordCard": {
     "copy": {
@@ -14,7 +14,7 @@
       "verifiedLabel": "",
       "reviewLabel": "REVIEWED RUN",
       "metricLabels": {
-        "wave": "WAVE",
+        "wave": "STAGE",
         "targets": "TARGETS",
         "coins": "COINS",
         "flight": "FLIGHT"
@@ -60,15 +60,15 @@
   "levels": [
     {
       "id": "operation-open-galaxy",
-      "name": "Research Frontier",
-      "description": "A five-wave research-sector run that alternates elite intercepts with milestone boss encounters.",
+      "name": "OPEN ORBIT",
+      "description": "Break through Open Orbit, its paywall checkpoint, and Gatekeeper Prime.",
       "order": 1,
       "backgroundId": "open-orbit",
       "musicId": "procedural-main",
       "startingDifficulty": 1,
       "scoreTarget": 0,
       "durationSeconds": null,
-      "loopWaves": true,
+      "loopWaves": false,
       "availablePowerupIds": [
         "double-shot",
         "triple-shot",
@@ -95,15 +95,15 @@
       "waves": [
         {
           "id": "open-orbit",
-          "name": "OPEN ORBIT",
+          "name": "ORBITAL APPROACH",
           "order": 1,
           "accent": "#67e8f9",
           "backgroundId": "open-orbit",
-          "completionRule": "boss-defeat",
+          "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
-          "durationSeconds": 60,
+          "durationSeconds": 20,
           "introSeconds": 2.5,
-          "delayAfterSeconds": 1.25,
+          "delayAfterSeconds": 0,
           "scoreMultiplier": 1,
           "threatCap": 34,
           "events": [
@@ -162,7 +162,7 @@
               "kind": "powerup",
               "label": "Ambient power-up signal",
               "startSeconds": 5.4,
-              "durationSeconds": 54.6,
+              "durationSeconds": 14.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "positionId": "random-top",
@@ -242,12 +242,28 @@
                   ]
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "open-orbit-checkpoint",
+          "name": "PAYWALL CHECKPOINT",
+          "order": 2,
+          "accent": "#67e8f9",
+          "backgroundId": "open-orbit",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 18,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 1,
+          "threatCap": 34,
+          "events": [
             {
               "id": "open-orbit-drifters-after-mini",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 21.8,
+              "startSeconds": 0,
               "durationSeconds": 2.7,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -272,7 +288,7 @@
               "id": "open-orbit-phase-2",
               "kind": "spawn",
               "label": "Phase 2 - Heavy formation",
-              "startSeconds": 24.6,
+              "startSeconds": 2.8,
               "durationSeconds": 15,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -297,7 +313,7 @@
               "id": "open-orbit-drifters-before-checkpoint",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 36,
+              "startSeconds": 14.2,
               "durationSeconds": 3,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -322,7 +338,7 @@
               "id": "open-orbit-paywall-wall",
               "kind": "boss",
               "label": "Paywall Wall",
-              "startSeconds": 39.6,
+              "startSeconds": 17.8,
               "durationSeconds": 18,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
@@ -359,12 +375,28 @@
                   ]
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "open-orbit-final",
+          "name": "GATEKEEPER PRIME",
+          "order": 3,
+          "accent": "#67e8f9",
+          "backgroundId": "open-orbit",
+          "completionRule": "boss-defeat",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 20,
+          "introSeconds": 0,
+          "delayAfterSeconds": 5,
+          "scoreMultiplier": 1,
+          "threatCap": 34,
+          "events": [
             {
               "id": "open-orbit-drifters-after-checkpoint",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 39.6,
+              "startSeconds": 0,
               "durationSeconds": 2.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -389,8 +421,8 @@
               "id": "open-orbit-phase-3",
               "kind": "spawn",
               "label": "Phase 3 - Final approach",
-              "startSeconds": 42.4,
-              "durationSeconds": 17.6,
+              "startSeconds": 2.8,
+              "durationSeconds": 17.2,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 14,
@@ -414,7 +446,7 @@
               "id": "open-orbit-drifters-before-gatekeeper",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 56.2,
+              "startSeconds": 16.6,
               "durationSeconds": 3,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -439,7 +471,7 @@
               "id": "open-orbit-gatekeeper",
               "kind": "boss",
               "label": "Gatekeeper Prime",
-              "startSeconds": 59.5,
+              "startSeconds": 19.9,
               "durationSeconds": 20,
               "delayAfterSeconds": 2.8,
               "blocksWaveClock": true,
@@ -499,18 +531,55 @@
               ]
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "id": "stage-citation-storm",
+      "name": "CITATION STORM",
+      "description": "Survive citation hunters and escape a massive dark-asteroid maelstrom.",
+      "order": 2,
+      "backgroundId": "citation-storm",
+      "musicId": "procedural-main",
+      "startingDifficulty": 1,
+      "scoreTarget": 0,
+      "durationSeconds": null,
+      "loopWaves": false,
+      "availablePowerupIds": [
+        "double-shot",
+        "triple-shot",
+        "max-shot",
+        "magnet",
+        "shield",
+        "research-beam",
+        "extra-life"
+      ],
+      "scorecard": {
+        "trigger": "mission-end",
+        "title": "Mission Record",
+        "subtitle": "Scicon Shooter",
+        "scoreLabel": "Final Score",
+        "metrics": [
+          "wave",
+          "targets",
+          "coins",
+          "flight"
+        ],
+        "showEncounterArt": true,
+        "encounterAssetKey": "FINAL_BOSS"
+      },
+      "waves": [
         {
           "id": "citation-storm",
-          "name": "CITATION STORM",
-          "order": 2,
+          "name": "HUNTER CELL",
+          "order": 1,
           "accent": "#c4b5fd",
           "backgroundId": "citation-storm",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
-          "durationSeconds": 60,
+          "durationSeconds": 20,
           "introSeconds": 1.967,
-          "delayAfterSeconds": 1.25,
+          "delayAfterSeconds": 0,
           "scoreMultiplier": 2,
           "threatCap": 37,
           "events": [
@@ -589,7 +658,7 @@
               "kind": "powerup",
               "label": "Ambient power-up signal",
               "startSeconds": 5.4,
-              "durationSeconds": 54.6,
+              "durationSeconds": 14.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "positionId": "random-top",
@@ -642,8 +711,8 @@
               "id": "citation-storm-elite-hunter-cell",
               "kind": "spawn",
               "label": "Citation hunter cell",
-              "startSeconds": 19.8,
-              "durationSeconds": 3.4,
+              "startSeconds": 19.6,
+              "durationSeconds": 0.4,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 3,
@@ -668,12 +737,28 @@
                   "burstCount": 3
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "citation-storm-pressure",
+          "name": "CITATION PRESSURE",
+          "order": 2,
+          "accent": "#c4b5fd",
+          "backgroundId": "citation-storm",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 15,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 2,
+          "threatCap": 37,
+          "events": [
             {
               "id": "citation-storm-drifters-after-mini",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 23.8,
+              "startSeconds": 0,
               "durationSeconds": 2.7,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -708,8 +793,8 @@
               "id": "citation-storm-phase-2",
               "kind": "spawn",
               "label": "Phase 2 - Citation pressure",
-              "startSeconds": 26.6,
-              "durationSeconds": 13,
+              "startSeconds": 2.8,
+              "durationSeconds": 12.2,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 16,
@@ -743,8 +828,8 @@
               "id": "citation-storm-drifters-before-checkpoint",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 36,
-              "durationSeconds": 3,
+              "startSeconds": 12.2,
+              "durationSeconds": 2.8,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 2,
@@ -773,33 +858,28 @@
                   "powerupDropChance": 0
                 }
               ]
-            },
-            {
-              "id": "citation-storm-asteroid-belt",
-              "kind": "asteroid-belt",
-              "label": "Asteroid Belt",
-              "startSeconds": 39.6,
-              "durationSeconds": 22,
-              "delayAfterSeconds": 0,
-              "blocksWaveClock": true,
-              "spriteKey": "ASTEROID_BELT_FRAMES",
-              "count": 18,
-              "density": 0.75,
-              "patternId": "asteroid-lanes",
-              "positionId": "lane-top",
-              "spawnIntervalSeconds": 0.18,
-              "warningSeconds": 1.5,
-              "health": 8,
-              "speed": 2.665,
-              "damage": 1,
-              "scoreValue": 40,
-              "powerupDropChance": 0.08
-            },
+            }
+          ]
+        },
+        {
+          "id": "citation-storm-maelstrom",
+          "name": "DARK ASTEROID STORM",
+          "order": 3,
+          "accent": "#c4b5fd",
+          "backgroundId": "citation-storm",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 21,
+          "introSeconds": 0,
+          "delayAfterSeconds": 1.5,
+          "scoreMultiplier": 2,
+          "threatCap": 37,
+          "events": [
             {
               "id": "citation-storm-drifters-after-checkpoint",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 39.6,
+              "startSeconds": 0,
               "durationSeconds": 2.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -834,7 +914,7 @@
               "id": "citation-storm-phase-3",
               "kind": "spawn",
               "label": "Phase 3 - Elite pressure",
-              "startSeconds": 42.4,
+              "startSeconds": 2.8,
               "durationSeconds": 17.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -869,7 +949,7 @@
               "id": "citation-storm-elite-reviewers",
               "kind": "spawn",
               "label": "Elite review drones",
-              "startSeconds": 47.5,
+              "startSeconds": 7.9,
               "durationSeconds": 7.2,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -900,7 +980,7 @@
               "id": "citation-storm-drifters-before-gatekeeper",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 56.2,
+              "startSeconds": 16.6,
               "durationSeconds": 3,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -930,20 +1010,85 @@
                   "powerupDropChance": 0
                 }
               ]
+            },
+            {
+              "id": "citation-storm-asteroid-belt",
+              "kind": "asteroid-belt",
+              "label": "Dark Asteroid Maelstrom",
+              "startSeconds": 21,
+              "durationSeconds": 28,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": true,
+              "spriteKey": "ASTEROID_BELT_FRAMES",
+              "count": 36,
+              "density": 1,
+              "patternId": "asteroid-lanes",
+              "positionId": "lane-top",
+              "spawnIntervalSeconds": 0.18,
+              "warningSeconds": 1.5,
+              "health": 10,
+              "speed": 3.05,
+              "damage": 1,
+              "scoreValue": 40,
+              "powerupDropChance": 0.08,
+              "spriteStyle": {
+                "saturation": 0.68,
+                "brightness": 0.56,
+                "hueRotateDegrees": 18,
+                "glowColor": "#334155",
+                "glowBlur": 3
+              }
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "id": "stage-paywall-siege",
+      "name": "PAYWALL SIEGE",
+      "description": "Breach the Paywall Siege and destroy the reinforced Paywall Core.",
+      "order": 3,
+      "backgroundId": "paywall-siege",
+      "musicId": "procedural-main",
+      "startingDifficulty": 1,
+      "scoreTarget": 0,
+      "durationSeconds": null,
+      "loopWaves": false,
+      "availablePowerupIds": [
+        "double-shot",
+        "triple-shot",
+        "max-shot",
+        "magnet",
+        "shield",
+        "research-beam",
+        "extra-life"
+      ],
+      "scorecard": {
+        "trigger": "mission-end",
+        "title": "Mission Record",
+        "subtitle": "Scicon Shooter",
+        "scoreLabel": "Final Score",
+        "metrics": [
+          "wave",
+          "targets",
+          "coins",
+          "flight"
+        ],
+        "showEncounterArt": true,
+        "encounterAssetKey": "FINAL_BOSS"
+      },
+      "waves": [
         {
           "id": "paywall-siege",
-          "name": "PAYWALL SIEGE",
-          "order": 3,
+          "name": "TWIN BOTTLENECK",
+          "order": 1,
           "accent": "#fde68a",
           "backgroundId": "paywall-siege",
-          "completionRule": "boss-defeat",
+          "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
-          "durationSeconds": 60,
+          "durationSeconds": 20,
           "introSeconds": 1.967,
-          "delayAfterSeconds": 1.25,
+          "delayAfterSeconds": 0,
           "scoreMultiplier": 4,
           "threatCap": 40,
           "events": [
@@ -1042,7 +1187,7 @@
               "kind": "powerup",
               "label": "Ambient power-up signal",
               "startSeconds": 5.4,
-              "durationSeconds": 54.6,
+              "durationSeconds": 14.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "positionId": "random-top",
@@ -1146,12 +1291,28 @@
                   ]
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "paywall-siege-checkpoint",
+          "name": "SIEGE CHECKPOINT",
+          "order": 2,
+          "accent": "#fde68a",
+          "backgroundId": "paywall-siege",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 18,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 4,
+          "threatCap": 40,
+          "events": [
             {
               "id": "paywall-siege-drifters-after-mini",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 21.8,
+              "startSeconds": 0,
               "durationSeconds": 2.7,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -1196,7 +1357,7 @@
               "id": "paywall-siege-phase-2",
               "kind": "spawn",
               "label": "Phase 2 - Pincer pressure",
-              "startSeconds": 24.6,
+              "startSeconds": 2.8,
               "durationSeconds": 15,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -1241,7 +1402,7 @@
               "id": "paywall-siege-drifters-before-checkpoint",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 36,
+              "startSeconds": 14.2,
               "durationSeconds": 3,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -1286,7 +1447,7 @@
               "id": "paywall-siege-paywall-wall",
               "kind": "boss",
               "label": "Paywall Wall",
-              "startSeconds": 39.6,
+              "startSeconds": 17.8,
               "durationSeconds": 20,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
@@ -1323,12 +1484,28 @@
                   ]
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "paywall-siege-core",
+          "name": "PAYWALL CORE",
+          "order": 3,
+          "accent": "#fde68a",
+          "backgroundId": "paywall-siege",
+          "completionRule": "boss-defeat",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 20,
+          "introSeconds": 0,
+          "delayAfterSeconds": 5,
+          "scoreMultiplier": 4,
+          "threatCap": 40,
+          "events": [
             {
               "id": "paywall-siege-drifters-after-checkpoint",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 39.6,
+              "startSeconds": 0,
               "durationSeconds": 2.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -1373,8 +1550,8 @@
               "id": "paywall-siege-phase-3",
               "kind": "spawn",
               "label": "Phase 3 - Full roster",
-              "startSeconds": 42.4,
-              "durationSeconds": 17.6,
+              "startSeconds": 2.8,
+              "durationSeconds": 17.2,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 18,
@@ -1418,7 +1595,7 @@
               "id": "paywall-siege-drifters-before-gatekeeper",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 56.2,
+              "startSeconds": 16.6,
               "durationSeconds": 3,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -1463,7 +1640,7 @@
               "id": "paywall-siege-gatekeeper",
               "kind": "boss",
               "label": "Paywall Core",
-              "startSeconds": 59.5,
+              "startSeconds": 19.9,
               "durationSeconds": 28,
               "delayAfterSeconds": 2.8,
               "blocksWaveClock": true,
@@ -1523,18 +1700,55 @@
               ]
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "id": "stage-open-galaxy",
+      "name": "OPEN GALAXY",
+      "description": "Cross the Open Galaxy and outlast its full frontier assault.",
+      "order": 4,
+      "backgroundId": "open-galaxy",
+      "musicId": "procedural-main",
+      "startingDifficulty": 1,
+      "scoreTarget": 0,
+      "durationSeconds": null,
+      "loopWaves": false,
+      "availablePowerupIds": [
+        "double-shot",
+        "triple-shot",
+        "max-shot",
+        "magnet",
+        "shield",
+        "research-beam",
+        "extra-life"
+      ],
+      "scorecard": {
+        "trigger": "mission-end",
+        "title": "Mission Record",
+        "subtitle": "Scicon Shooter",
+        "scoreLabel": "Final Score",
+        "metrics": [
+          "wave",
+          "targets",
+          "coins",
+          "flight"
+        ],
+        "showEncounterArt": true,
+        "encounterAssetKey": "FINAL_BOSS"
+      },
+      "waves": [
         {
           "id": "open-galaxy",
-          "name": "OPEN GALAXY",
-          "order": 4,
+          "name": "DATA HUNTERS",
+          "order": 1,
           "accent": "#6ee7b7",
           "backgroundId": "open-galaxy",
           "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
-          "durationSeconds": 60,
+          "durationSeconds": 20,
           "introSeconds": 1.967,
-          "delayAfterSeconds": 1.25,
+          "delayAfterSeconds": 0,
           "scoreMultiplier": 8,
           "threatCap": 43,
           "events": [
@@ -1653,7 +1867,7 @@
               "kind": "powerup",
               "label": "Ambient power-up signal",
               "startSeconds": 5.4,
-              "durationSeconds": 54.6,
+              "durationSeconds": 14.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "positionId": "random-top",
@@ -1726,8 +1940,8 @@
               "id": "open-galaxy-elite-data-hunters",
               "kind": "spawn",
               "label": "Rogue data hunters",
-              "startSeconds": 19.8,
-              "durationSeconds": 3.6,
+              "startSeconds": 19.6,
+              "durationSeconds": 0.4,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "count": 3,
@@ -1752,12 +1966,28 @@
                   "burstCount": 3
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "open-galaxy-ambush",
+          "name": "RIVER AMBUSH",
+          "order": 2,
+          "accent": "#6ee7b7",
+          "backgroundId": "open-galaxy",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 18,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 8,
+          "threatCap": 43,
+          "events": [
             {
               "id": "open-galaxy-drifters-after-mini",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 21.8,
+              "startSeconds": 0,
               "durationSeconds": 2.7,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -1812,7 +2042,7 @@
               "id": "open-galaxy-phase-2",
               "kind": "spawn",
               "label": "Phase 2 - Pincer pressure",
-              "startSeconds": 24.6,
+              "startSeconds": 2.8,
               "durationSeconds": 15,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -1867,7 +2097,7 @@
               "id": "open-galaxy-drifters-before-checkpoint",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 36,
+              "startSeconds": 14.2,
               "durationSeconds": 3,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -1922,7 +2152,7 @@
               "id": "open-galaxy-river-ambush",
               "kind": "spawn",
               "label": "River research ambush",
-              "startSeconds": 39.6,
+              "startSeconds": 17.8,
               "durationSeconds": 9,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
@@ -1952,12 +2182,28 @@
                   "powerupDropChance": 0.08
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "open-galaxy-onslaught",
+          "name": "FRONTIER ONSLAUGHT",
+          "order": 3,
+          "accent": "#6ee7b7",
+          "backgroundId": "open-galaxy",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 21.1,
+          "introSeconds": 0,
+          "delayAfterSeconds": 1.5,
+          "scoreMultiplier": 8,
+          "threatCap": 43,
+          "events": [
             {
               "id": "open-galaxy-drifters-after-checkpoint",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 39.6,
+              "startSeconds": 0,
               "durationSeconds": 2.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -2011,12 +2257,12 @@
             {
               "id": "open-galaxy-phase-3",
               "kind": "spawn",
-              "label": "Phase 3 - Full roster",
-              "startSeconds": 42.4,
+              "label": "Phase 3 - Massive frontier assault",
+              "startSeconds": 2.8,
               "durationSeconds": 17.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 22,
+              "count": 30,
               "patternId": "grid",
               "positionId": "formation-top",
               "spawnIntervalSeconds": 0.09,
@@ -2067,7 +2313,7 @@
               "id": "open-galaxy-drifters-before-gatekeeper",
               "kind": "spawn",
               "label": "Roaming interceptors",
-              "startSeconds": 56.2,
+              "startSeconds": 16.6,
               "durationSeconds": 3,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
@@ -2121,11 +2367,11 @@
             {
               "id": "open-galaxy-elite-frontier-pack",
               "kind": "spawn",
-              "label": "Frontier hunter pack",
-              "startSeconds": 59.5,
+              "label": "Frontier hunter climax",
+              "startSeconds": 21.1,
               "durationSeconds": 0.5,
               "delayAfterSeconds": 0,
-              "blocksWaveClock": false,
+              "blocksWaveClock": true,
               "count": 4,
               "patternId": "grid",
               "positionId": "formation-top",
@@ -2150,18 +2396,55 @@
               ]
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "id": "stage-bastion-protocol",
+      "name": "BASTION PROTOCOL",
+      "description": "Break five escalating bastion lines and defeat the Frontier Crownclaw.",
+      "order": 5,
+      "backgroundId": "bastion-protocol",
+      "musicId": "procedural-main",
+      "startingDifficulty": 1,
+      "scoreTarget": 0,
+      "durationSeconds": null,
+      "loopWaves": false,
+      "availablePowerupIds": [
+        "double-shot",
+        "triple-shot",
+        "max-shot",
+        "magnet",
+        "shield",
+        "research-beam",
+        "extra-life"
+      ],
+      "scorecard": {
+        "trigger": "mission-end",
+        "title": "Mission Record",
+        "subtitle": "Scicon Shooter",
+        "scoreLabel": "Final Score",
+        "metrics": [
+          "wave",
+          "targets",
+          "coins",
+          "flight"
+        ],
+        "showEncounterArt": true,
+        "encounterAssetKey": "FINAL_BOSS"
+      },
+      "waves": [
         {
           "id": "bastion-protocol",
-          "name": "BASTION PROTOCOL",
-          "order": 5,
+          "name": "BASTION VANGUARD",
+          "order": 1,
           "accent": "#f9a8d4",
           "backgroundId": "bastion-protocol",
-          "completionRule": "boss-defeat",
+          "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
-          "durationSeconds": 8,
+          "durationSeconds": 0.6,
           "introSeconds": 2.5,
-          "delayAfterSeconds": 1.5,
+          "delayAfterSeconds": 0,
           "scoreMultiplier": 16,
           "threatCap": 48,
           "events": [
@@ -2170,7 +2453,7 @@
               "kind": "powerup",
               "label": "Bastion support signal",
               "startSeconds": 0,
-              "durationSeconds": 8,
+              "durationSeconds": 0.6,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
               "positionId": "random-top",
@@ -2226,12 +2509,28 @@
                   ]
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "bastion-protocol-phalanx",
+          "name": "BASTION PHALANX",
+          "order": 2,
+          "accent": "#f9a8d4",
+          "backgroundId": "bastion-protocol",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 0.4,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 16,
+          "threatCap": 48,
+          "events": [
             {
               "id": "bastion-protocol-line-2",
               "kind": "boss",
               "label": "Bastion Phalanx",
-              "startSeconds": 2.2,
+              "startSeconds": 0,
               "durationSeconds": 24,
               "delayAfterSeconds": 0.4,
               "blocksWaveClock": true,
@@ -2269,12 +2568,28 @@
                   ]
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "bastion-protocol-lockdown",
+          "name": "BASTION LOCKDOWN",
+          "order": 3,
+          "accent": "#f9a8d4",
+          "backgroundId": "bastion-protocol",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 0.4,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 16,
+          "threatCap": 48,
+          "events": [
             {
               "id": "bastion-protocol-line-3",
               "kind": "boss",
               "label": "Bastion Lockdown",
-              "startSeconds": 4,
+              "startSeconds": 0,
               "durationSeconds": 28,
               "delayAfterSeconds": 0.4,
               "blocksWaveClock": true,
@@ -2312,12 +2627,28 @@
                   ]
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "bastion-protocol-core",
+          "name": "BASTION CORE",
+          "order": 4,
+          "accent": "#f9a8d4",
+          "backgroundId": "bastion-protocol",
+          "completionRule": "clear-after-duration",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 0.4,
+          "introSeconds": 0,
+          "delayAfterSeconds": 0,
+          "scoreMultiplier": 16,
+          "threatCap": 48,
+          "events": [
             {
               "id": "bastion-protocol-line-4",
               "kind": "boss",
               "label": "Bastion Core",
-              "startSeconds": 5.8,
+              "startSeconds": 0,
               "durationSeconds": 32,
               "delayAfterSeconds": 1.2,
               "blocksWaveClock": true,
@@ -2355,12 +2686,28 @@
                   ]
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "id": "bastion-protocol-crownclaw",
+          "name": "FRONTIER CROWNCLAW",
+          "order": 5,
+          "accent": "#f9a8d4",
+          "backgroundId": "bastion-protocol",
+          "completionRule": "boss-defeat",
+          "difficultyMultiplier": 1,
+          "durationSeconds": 0.4,
+          "introSeconds": 0,
+          "delayAfterSeconds": 5,
+          "scoreMultiplier": 16,
+          "threatCap": 48,
+          "events": [
             {
               "id": "bastion-protocol-gatekeeper",
               "kind": "boss",
               "label": "Frontier Crownclaw",
-              "startSeconds": 7.2,
+              "startSeconds": 0,
               "durationSeconds": 30,
               "delayAfterSeconds": 2.4,
               "blocksWaveClock": true,

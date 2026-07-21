@@ -103,7 +103,8 @@ test('record-card content stays on one inset plate inside the pixel border', asy
   assert.match(svg, /M150 190H1050L1070 210V1000L1050 1020H150L130 1000V210Z/);
   assert.match(svg, /<rect x="170" y="338" width="860" height="368"/);
   assert.match(svg, /<rect x="190" y="856" width="190" height="112"/);
-  assert.match(svg, /font-size="20" font-weight="700" letter-spacing="3">WAVE/);
+  assert.match(svg, /font-size="20" font-weight="700" letter-spacing="3">STAGE/);
+  assert.doesNotMatch(svg, /letter-spacing="3">WAVE/);
   assert.ok(svg.lastIndexOf('href="/frame.png"') > svg.lastIndexOf('SCICON V'));
 });
 
@@ -171,21 +172,24 @@ test('the default Mission Record boss rig is 30 percent larger and remains insid
   assert.match(svg, /citation-storm-plasma-claw-right\.png" x="924\.26" y="373\.68" width="101\.01" height="185\.64000000000001"/);
 });
 
-test('AUTO encounter art resolves from the same ordered campaign wave for every surface', async () => {
+test('AUTO encounter art resolves from ordered stages while explicit wave refs remain supported', async () => {
   const { resolveRecordCardEncounterAssetKey } = await renderer;
   const campaign = {
-    levels: [{ order: 1, waves: [
-      { id: 'one', order: 1, events: [{ kind: 'boss', spriteKey: 'MINI_BOSS' }] },
-      { id: 'two', order: 2, events: [
+    levels: [
+      { order: 1, waves: [
+        { id: 'one-opening', order: 1, events: [{ kind: 'spawn', enemies: [{ spriteKey: 'ENEMY_DRONE_FRAMES' }] }] },
+        { id: 'one', order: 2, events: [{ kind: 'boss', spriteKey: 'MINI_BOSS' }] }
+      ] },
+      { order: 2, waves: [{ id: 'two', order: 1, events: [
         { kind: 'spawn', enemies: [{ spriteKey: 'ENEMY_JOURNAL', rank: 'elite' }] },
         { kind: 'spawn', enemies: [{ spriteKey: 'ENEMY_DRONE_FRAMES' }] }
-      ] }
-    ] }]
+      ] } ] }
+    ]
   };
   assert.equal(resolveRecordCardEncounterAssetKey(campaign, 1), 'MINI_BOSS');
   assert.equal(resolveRecordCardEncounterAssetKey(campaign, 2), 'ENEMY_JOURNAL');
   assert.equal(resolveRecordCardEncounterAssetKey(campaign, 3), 'MINI_BOSS');
-  assert.equal(resolveRecordCardEncounterAssetKey(null, campaign.levels[0].waves[1]), 'ENEMY_JOURNAL');
+  assert.equal(resolveRecordCardEncounterAssetKey(null, campaign.levels[1].waves[0]), 'ENEMY_JOURNAL');
 });
 
 test('modern encounter art resolves to the same body and cannon rig used in gameplay', async () => {

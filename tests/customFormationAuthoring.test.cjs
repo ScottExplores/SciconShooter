@@ -8,6 +8,20 @@ const root = path.resolve(__dirname, '..');
 
 const readSource = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
 
+const findCampaignLevel = (campaign, levelId) => {
+  const level = campaign.levels.find((candidate) => candidate.id === levelId);
+  assert.ok(level, `campaign stage ${levelId} exists`);
+  return level;
+};
+
+const findCampaignWave = (campaign, waveId) => {
+  const wave = campaign.levels
+    .flatMap((level) => level.waves)
+    .find((candidate) => candidate.id === waveId);
+  assert.ok(wave, `campaign wave ${waveId} exists`);
+  return wave;
+};
+
 const loadTypeScriptModule = (...segments) => {
   const filePath = path.join(root, ...segments);
   const source = fs.readFileSync(filePath, 'utf8');
@@ -86,7 +100,7 @@ test('the shared engine consumes authored slots before falling back to built-in 
 test('clean wave authoring creates one valid opening formation beyond wave five', () => {
   const campaign = JSON.parse(readSource('game-config', 'campaign.json'));
   const operations = loadTypeScriptModule('director', 'src', 'editor', 'editorOperations.ts');
-  const sourceWave = campaign.levels[0].waves.at(-1);
+  const sourceWave = findCampaignWave(campaign, 'bastion-protocol-crownclaw');
   const originalSource = structuredClone(sourceWave);
   const nextOrder = sourceWave.order + 1;
   const starter = operations.createStarterWave(sourceWave, nextOrder);
@@ -111,7 +125,7 @@ test('clean wave authoring creates one valid opening formation beyond wave five'
 test('clean mission authoring retains presentation choices but resets gameplay goals', () => {
   const campaign = JSON.parse(readSource('game-config', 'campaign.json'));
   const operations = loadTypeScriptModule('director', 'src', 'editor', 'editorOperations.ts');
-  const source = campaign.levels[0];
+  const source = findCampaignLevel(campaign, 'operation-open-galaxy');
   const originalSource = structuredClone(source);
   const starter = operations.createStarterLevel(source, 2);
 

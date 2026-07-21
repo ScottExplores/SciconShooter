@@ -3,9 +3,18 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const getEncounter = (wave) => (
-  wave <= 1 ? 'Gatekeeper Sector' : wave === 2 ? 'Replication Rift' : 'Deep Review Space'
-);
+const STAGE_NAMES = Object.freeze([
+  'Open Orbit',
+  'Citation Storm',
+  'Paywall Siege',
+  'Open Galaxy',
+  'Bastion Protocol'
+]);
+
+const getEncounter = (stage) => {
+  const stageNumber = Math.max(1, Math.floor(toNumber(stage, 1)));
+  return STAGE_NAMES[(stageNumber - 1) % STAGE_NAMES.length];
+};
 
 const getPlayerShipId = (value) => (
   value === 'bio' || value === 'eth' || value === 'btc' ? value : 'researchhub'

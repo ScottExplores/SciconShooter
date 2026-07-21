@@ -6,12 +6,26 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
+const findCampaignLevel = (campaign, levelId) => {
+  const level = campaign.levels.find((candidate) => candidate.id === levelId);
+  assert.ok(level, `campaign stage ${levelId} exists`);
+  return level;
+};
+
+const findCampaignEvent = (level, eventId) => {
+  const event = level.waves
+    .flatMap((wave) => wave.events)
+    .find((candidate) => candidate.id === eventId);
+  assert.ok(event, `campaign event ${eventId} exists in ${level.id}`);
+  return event;
+};
+
 test('campaign follows a coherent space-to-planet-to-space environment route', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const environment = read('services/pixi/PixiEnvironment.ts');
 
   assert.deepEqual(
-    campaign.levels[0].waves.map((wave) => wave.backgroundId),
+    campaign.levels.map((level) => level.backgroundId),
     ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']
   );
   assert.match(environment, /orbital-departure/);
@@ -49,17 +63,22 @@ test('long round masters do not hard-wrap and props stay inside their terrain fa
 
 test('ground sectors use terrain aircraft and the river checkpoint is not an asteroid belt', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
-  const [, , desertWave, riverWave] = campaign.levels[0].waves;
+  const desertStage = findCampaignLevel(campaign, 'stage-paywall-siege');
+  const riverStage = findCampaignLevel(campaign, 'stage-open-galaxy');
 
-  for (const wave of [desertWave, riverWave]) {
-    const opening = wave.events.find((event) => event.id === `${wave.id}-opening-drifters`);
+  for (const [stage, openingEventId] of [
+    [desertStage, 'paywall-siege-opening-drifters'],
+    [riverStage, 'open-galaxy-opening-drifters']
+  ]) {
+    const opening = findCampaignEvent(stage, openingEventId);
     assert.ok(opening.enemies.every((enemy) => (
       enemy.spriteKey.startsWith('PIXI_JET_') || enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES'
     )));
   }
 
-  assert.equal(riverWave.events.some((event) => event.kind === 'asteroid-belt'), false);
-  const ambush = riverWave.events.find((event) => event.id === 'open-galaxy-river-ambush');
+  const riverEvents = riverStage.waves.flatMap((wave) => wave.events);
+  assert.equal(riverEvents.some((event) => event.kind === 'asteroid-belt'), false);
+  const ambush = findCampaignEvent(riverStage, 'open-galaxy-river-ambush');
   assert.equal(ambush.kind, 'spawn');
   assert.deepEqual(
     ambush.enemies.map((enemy) => enemy.spriteKey),

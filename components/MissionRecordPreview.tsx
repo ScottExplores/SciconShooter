@@ -12,6 +12,7 @@ import type { MissionRecordWeeklyFunding } from '../services/weeklyFundingFlow';
 import { trackEvent } from '../services/analyticsService';
 import { shareScoreCardImage } from '../services/scoreCardShareService';
 import { parsePlayerShipId, PLAYER_SHIPS } from '../services/playerShipService';
+import { getStageName } from '../services/stagePresentation';
 import { buildMissionRecordCardSvg, MissionRecordCard } from './MissionRecordCard';
 
 interface MissionRecordPreviewProps {
@@ -40,10 +41,6 @@ const formatFlightTime = (durationMs: number) => {
   const minutes = Math.floor(totalSeconds / 60);
   return `${minutes}:${String(totalSeconds % 60).padStart(2, '0')}`;
 };
-
-const getEncounter = (wave: number) => (
-  wave <= 1 ? 'Gatekeeper Sector' : wave === 2 ? 'Replication Rift' : 'Deep Review Space'
-);
 
 const toAbsoluteAssetUrl = (path: string) => new URL(path, window.location.origin).toString();
 
@@ -76,7 +73,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   const cardUrl = `${window.location.origin}${buildMissionRecordCardPath(receipt.runId, playerShipId)}`;
   const needsBaseAccount = !walletAddress;
   const weeklyChoiceRequired = Boolean(weeklyFunding && weeklyFunding.status !== 'selected');
-  const encounter = getEncounter(receipt.metrics.wave);
+  const encounter = getStageName(receipt.metrics.wave);
   const recordCardConfig = DEFAULT_GAME_CAMPAIGN.recordCard;
   const encounterAssetKey = recordCardConfig.encounterAssetKey === 'AUTO'
     ? resolveRecordCardEncounterAssetKey(DEFAULT_GAME_CAMPAIGN, receipt.metrics.wave) as AssetKey
@@ -106,7 +103,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   }, [cardUrl]);
 
   const shareRecord = async () => {
-    const text = `${pilotName} scored ${receipt.metrics.score.toLocaleString()} in Scicon Shooter and reached wave ${receipt.metrics.wave}. Play. Win the week. Choose what research gets funded.`;
+    const text = `${pilotName} scored ${receipt.metrics.score.toLocaleString()} in Scicon Shooter and reached Stage ${receipt.metrics.wave}. Play. Win the week. Choose what research gets funded.`;
     setShareStatus('Preparing score card image...');
     try {
       const method = await shareScoreCardImage({

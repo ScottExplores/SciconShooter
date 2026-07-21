@@ -95,7 +95,9 @@ test('server campaign validation rejects mismatched, unsafe, duplicate, and ungr
 
 test('campaign validation has no five-wave ceiling', async () => {
   const campaign = await loadCampaign();
-  const level = campaign.levels[0];
+  const level = campaign.levels.reduce((largest, candidate) => (
+    candidate.waves.length > largest.waves.length ? candidate : largest
+  ));
   const sourceSpawn = firstSpawn(campaign);
   const nextOrder = level.waves.length + 1;
 

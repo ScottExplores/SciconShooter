@@ -24,37 +24,42 @@ const loadWaveCompletion = () => {
   return module.exports;
 };
 
-test('the five-wave level alternates clear waves with milestone boss waves', () => {
-  const waves = campaign.levels[0].waves;
-  assert.equal(campaign.levels[0].name, 'Research Frontier');
-  assert.deepEqual(
-    waves.map((wave) => wave.completionRule),
-    ['boss-defeat', 'clear-after-duration', 'boss-defeat', 'clear-after-duration', 'boss-defeat']
-  );
+test('five stages own their internal waves and only stage finales may use boss-defeat', () => {
+  assert.deepEqual(campaign.levels.map((level) => level.name), [
+    'OPEN ORBIT', 'CITATION STORM', 'PAYWALL SIEGE', 'OPEN GALAXY', 'BASTION PROTOCOL'
+  ]);
+  assert.deepEqual(campaign.levels.map((level) => level.waves.length), [3, 3, 3, 3, 5]);
 
-  waves.forEach((wave) => {
-    const gatekeepers = wave.events.filter((event) => event.kind === 'boss' && event.bossId === 'gatekeeper');
-    assert.equal(gatekeepers.length, wave.completionRule === 'boss-defeat' ? 1 : 0, wave.id);
+  campaign.levels.forEach((level) => {
+    level.waves.forEach((wave, index) => {
+      const gatekeepers = wave.events.filter((event) => event.kind === 'boss' && event.bossId === 'gatekeeper');
+      assert.equal(gatekeepers.length, wave.completionRule === 'boss-defeat' ? 1 : 0, wave.id);
+      if (index < level.waves.length - 1) assert.equal(wave.completionRule, 'clear-after-duration');
+    });
   });
 });
 
-test('interstitial waves contain readable three- and four-enemy elite attack packs', () => {
-  const clearWaves = campaign.levels[0].waves.filter((wave) => wave.completionRule === 'clear-after-duration');
-  const packsByWave = clearWaves.map((wave) => wave.events.filter((event) => (
+test('bossless stages finish with authored asteroid and elite climaxes', () => {
+  const bosslessStages = [campaign.levels[1], campaign.levels[3]];
+  const packsByStage = bosslessStages.map((level) => level.waves.flatMap((wave) => wave.events).filter((event) => (
     event.kind === 'spawn' && event.enemies.every((enemy) => enemy.rank === 'elite')
   )));
 
-  assert.deepEqual(packsByWave.map((packs) => packs.map((pack) => pack.count)), [[3, 4], [3, 4]]);
-  packsByWave.flat().forEach((pack) => {
+  assert.deepEqual(packsByStage.map((packs) => packs.map((pack) => pack.count)), [[3, 4], [3, 4]]);
+  packsByStage.flat().forEach((pack) => {
     assert.notEqual(pack.patternId, 'single-random');
     assert.ok(pack.enemies.every((enemy) => enemy.attackPatternId === 'aimed-burst'));
     assert.ok(pack.enemies.every((enemy) => enemy.sizeMultiplier > 1));
   });
 
-  const earlyHealth = packsByWave[0].map((pack) => pack.enemies[0].health);
-  const lateHealth = packsByWave[1].map((pack) => pack.enemies[0].health);
+  const earlyHealth = packsByStage[0].map((pack) => pack.enemies[0].health);
+  const lateHealth = packsByStage[1].map((pack) => pack.enemies[0].health);
   assert.ok(Math.min(...lateHealth) > Math.max(...earlyHealth));
-  assert.ok(clearWaves[1].threatCap > clearWaves[0].threatCap);
+  const asteroidClimax = bosslessStages[0].waves.at(-1).events.at(-1);
+  assert.equal(asteroidClimax.id, 'citation-storm-asteroid-belt');
+  assert.equal(asteroidClimax.count, 36);
+  assert.equal(asteroidClimax.spriteStyle.brightness, 0.56);
+  assert.equal(bosslessStages[1].waves.at(-1).events.at(-1).id, 'open-galaxy-elite-frontier-pack');
 });
 
 test('clear-wave completion waits for the timer, schedules, warnings, and every hostile', () => {
@@ -115,4 +120,23 @@ test('spawn escalation targets are shared by spawning and clear-wave completion'
   assert.match(engine, /this\.completeClearWaveIfReady\(\)/);
   assert.match(engine, /scheduledSpawnsComplete: this\.getConfiguredSpawnsComplete\(\)/);
   assert.match(engine, /activeThreatCount: this\.getActiveThreatCount\(\)/);
+});
+
+test('internal waves advance immediately while stage finales own departure and records', () => {
+  const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  assert.match(engine, /if \(!this\.isCurrentWaveStageFinal\(\)\) \{[\s\S]*?this\.startNextWave\(\);/);
+  assert.match(engine, /const stageBoundary = [\s\S]*?previousEntry\.level\.id !== nextEntry\.level\.id/);
+  assert.match(engine, /this\.resetWaveProgress\(stageBoundary\)/);
+  assert.match(engine, /this\.introFlightDuration = stageBoundary/);
+  assert.match(engine, /this\.wave = this\.getStageNumberForCampaignIndex\(\)/);
+});
+
+test('Gatekeeper stages expose a five-second movable reward window before fixed takeoff', () => {
+  const bossStages = [campaign.levels[0], campaign.levels[2], campaign.levels[4]];
+  bossStages.forEach((level) => assert.equal(level.waves.at(-1).delayAfterSeconds, 5));
+  const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  assert.match(engine, /const STAGE_TAKEOFF_FRAMES = 120/);
+  assert.match(engine, /if \(this\.stageRewardCollectionFrames > 0\) \{[\s\S]*?this\.updateStageRewardCollection\(\)/);
+  assert.match(engine, /updateStageRewardCollection\(\) \{[\s\S]*?this\.updatePlayerMovement\(this\.getPlayerMovementSpeed\(\)\)/);
+  assert.match(engine, /this\.bankDepartingBossCoins\(\)/);
 });

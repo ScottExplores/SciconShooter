@@ -171,6 +171,14 @@ const WAVE_GLYPH_TEXTURE_URLS = Object.freeze({
   '/': `${WAVE_GLYPH_ROOT}/wave-glyph-slash-cyan.png`
 });
 
+const WAVE_INTRO_FRAGMENT_COUNT_COMPACT = 42;
+const WAVE_INTRO_FRAGMENT_COUNT_FULL = 60;
+const WAVE_INTRO_ENTER_MS = 760;
+const WAVE_INTRO_HOLD_UNTIL_MS = 1900;
+const WAVE_INTRO_EXIT_MS = 680;
+const WAVE_INTRO_DURATION_MS = WAVE_INTRO_HOLD_UNTIL_MS + WAVE_INTRO_EXIT_MS;
+const WAVE_INTRO_REDUCED_DURATION_MS = 1400;
+
 export const PIXI_WAVE_PRESENTATION_TEXTURE_URLS = Object.freeze([
   WAVE_TITLE_TEXTURE_URL,
   ...Object.values(WAVE_GLYPH_TEXTURE_URLS)
@@ -209,6 +217,7 @@ export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
   ...ASSETS.ENEMY_DRONE_FRAMES,
   ...ASSETS.ENEMY_SWARM_FRAMES,
   ...ASSETS.ENEMY_BRICK_FRAMES,
+  ...ASSETS.ASTEROID_BELT_FRAMES,
   ...ASSETS.ENEMY_JOURNAL_FRAMES,
   ...ASSETS.PAYWALL_BASTION_FRAMES,
   ...ASSETS.PIXI_JET_SCOUT_FRAMES,
@@ -344,7 +353,29 @@ const getPaywallBastionFrameIndex = (engine: GameEngine, entity: Entity) => {
   return Math.floor((engine.frameCount + entity.variant * 5) / 24) % 2;
 };
 
+const getStaticAsteroidTexture = (engine: GameEngine, entity: Entity) => {
+  const frames = entity.spriteFrames?.length
+    ? entity.spriteFrames
+    : ASSETS.ASTEROID_BELT_FRAMES;
+  const stageNumber = Math.max(1, Math.floor(Number(engine.stats.wave) || 1));
+  const darkerWindowStart = stageNumber >= 4
+    ? Math.max(0, frames.length - 2)
+    : stageNumber >= 3
+      ? Math.max(0, frames.length - 3)
+      : 0;
+  const stableVariant = Math.max(0, Math.floor(entity.variant) - 900);
+  const availableFrameCount = Math.max(1, frames.length - darkerWindowStart);
+  return frames[darkerWindowStart + (stableVariant % availableFrameCount)]
+    ?? frames[0]
+    ?? ASSETS.ASTEROID_BELT_FRAMES[0];
+};
+
 const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
+  // Asteroid sheets are a style library, not animation frames. Lock every
+  // rock to one texture so it reads as solid terrain instead of flickering.
+  if (entity.type === EntityType.ENEMY_BRICK && entity.variant >= 900) {
+    return getStaticAsteroidTexture(engine, entity);
+  }
   if (entity.spriteFrames?.length) {
     if (entity.type === EntityType.BOSS) {
       return entity.spriteFrames[clamp(entity.bossDecayStage, 0, entity.spriteFrames.length - 1)];
@@ -368,10 +399,7 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
     case EntityType.ENEMY_SWARM:
       return ASSETS.ENEMY_SWARM_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     case EntityType.ENEMY_BRICK: {
-      const frames = entity.variant >= 900 ? ASSETS.ASTEROID_BELT_FRAMES : ASSETS.ENEMY_BRICK_FRAMES;
-      return entity.variant >= 900
-        ? frames[entity.variant % frames.length]
-        : frames[getFormationMotionFrameIndex(engine, entity)];
+      return ASSETS.ENEMY_BRICK_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     }
     case EntityType.ENEMY_JOURNAL:
       return ASSETS.ENEMY_JOURNAL_FRAMES[getFormationMotionFrameIndex(engine, entity)];
@@ -437,9 +465,6 @@ export class PixiGameRenderer {
   private readonly waveTitle = new Sprite(Texture.WHITE);
   private readonly waveCounterGlyphs = Array.from({ length: 8 }, () => new Sprite(Texture.WHITE));
   private readonly waveNameText = createText(17, '#e0f2fe');
-  private readonly waveBadgeRoot = new Container();
-  private readonly waveBadgeFrame = new Graphics();
-  private readonly waveBadgeText = createText(10, '#e0f2fe');
   private readonly flashOverlay = new Graphics();
   private readonly scanlines = new Graphics();
   private readonly maxShotScreenGlow = new Graphics();
@@ -630,14 +655,9 @@ export class PixiGameRenderer {
       this.waveNameText
     );
 
-    this.waveBadgeRoot.eventMode = 'none';
-    this.waveBadgeText.anchor.set(0.5);
-    this.waveBadgeRoot.addChild(this.waveBadgeFrame, this.waveBadgeText);
-
     this.layers.overlay.addChild(
       this.maxShotScreenGlow,
       this.bossHealthRoot,
-      this.waveBadgeRoot,
       this.waveIntroRoot,
       this.warningShade,
       this.warningFrame,
@@ -742,22 +762,6 @@ export class PixiGameRenderer {
     if (this.waveNameText.width > localTextWidth) {
       this.waveNameText.scale.set(localTextWidth / this.waveNameText.width);
     }
-
-    this.positionWaveBadge();
-    this.waveBadgeFrame.clear()
-      .poly([-52, -13, 45, -13, 53, -5, 53, 10, 45, 14, -45, 14, -53, 6, -53, -7, -47, -13])
-      .fill({ color: '#020617', alpha: 0.72 })
-      .stroke({ color: '#22d3ee', width: 1, alpha: 0.72 });
-    this.waveBadgeFrame.rect(-39, 11, 78, 2).fill({ color: '#34d399', alpha: 0.72 });
-    this.waveBadgeText.position.set(0, 0);
-  }
-
-  private positionWaveBadge(bossVisible = this.bossHealthRoot.visible) {
-    // The compact React HUD reserves 172px on the left and 150px on the right.
-    // Below 464px there is no readable viewport-centered slot, so use a second HUD row.
-    const narrowTopHud = this.width < 464;
-    const badgeY = narrowTopHud ? (bossVisible ? 128 : 63) : 20;
-    this.waveBadgeRoot.position.set(this.width / 2, badgeY);
   }
 
   private setWaveCounterGlyphs(counter: string) {
@@ -776,18 +780,15 @@ export class PixiGameRenderer {
     this.lastWavePresentationRevision = state.wavePresentationRevision;
     this.lastWavePresentationKey = `${state.levelId}:${state.waveId}`;
     this.wavePresentationElapsedMs = 0;
-    this.waveLevelText.text = `LEVEL ${String(state.levelNumber).padStart(2, '0')} · ${state.levelName.toUpperCase()}`;
+    this.waveLevelText.text = `STAGE ${String(state.levelNumber).padStart(2, '0')} · ${state.levelName.toUpperCase()}`;
     this.waveNameText.text = state.waveName.toUpperCase();
     this.waveNameText.style.fill = state.waveAccent;
-    this.waveBadgeText.text = `WAVE ${state.waveNumber}/${state.waveTotal}`;
     this.setWaveCounterGlyphs(`${state.waveNumber}/${state.waveTotal}`);
     this.waveIntroRoot.visible = true;
-    this.waveBadgeRoot.visible = true;
   }
 
   private updateWavePresentation(engine: GameEngine, timestamp: number, deltaMs: number) {
     const state = engine.getRuntimeState();
-    this.positionWaveBadge(this.bossHealthRoot.visible);
     const presentationKey = `${state.levelId}:${state.waveId}`;
     if (
       state.wavePresentationRevision !== this.lastWavePresentationRevision
@@ -796,85 +797,130 @@ export class PixiGameRenderer {
       this.beginWavePresentation(state);
     }
 
-    const pulse = this.reducedMotion ? 1 : 0.82 + Math.sin(timestamp * 0.0032) * 0.12;
-    this.waveBadgeRoot.alpha = pulse;
-
-    const duration = this.reducedMotion ? 1100 : 2250;
+    const duration = this.reducedMotion ? WAVE_INTRO_REDUCED_DURATION_MS : WAVE_INTRO_DURATION_MS;
     if (!engine.cinematicPaused) {
       this.wavePresentationElapsedMs = Math.min(duration, this.wavePresentationElapsedMs + deltaMs);
     }
     const age = this.wavePresentationElapsedMs;
     if (age >= duration) {
       this.waveIntroRoot.visible = false;
+      this.waveIntroAura.clear();
       this.waveIntroPixels.clear();
       this.waveIntroSweep.clear();
       return;
     }
 
-    const enterDuration = this.reducedMotion ? 120 : 500;
-    const exitDuration = this.reducedMotion ? 180 : 360;
+    const enterDuration = this.reducedMotion ? 160 : WAVE_INTRO_ENTER_MS;
+    const exitStart = this.reducedMotion ? duration - 240 : WAVE_INTRO_HOLD_UNTIL_MS;
+    const exitDuration = this.reducedMotion ? 240 : WAVE_INTRO_EXIT_MS;
     const enter = clamp(age / enterDuration, 0, 1);
-    const exit = clamp((duration - age) / exitDuration, 0, 1);
-    const visibility = Math.min(enter, exit);
+    const dissolve = clamp((age - exitStart) / exitDuration, 0, 1);
+    const finalFade = 1 - clamp((dissolve - 0.86) / 0.14, 0, 1);
+    const visibility = this.reducedMotion
+      ? Math.min(enter, 1 - dissolve)
+      : Math.min(enter, finalFade);
     const easedEnter = 1 - Math.pow(1 - enter, 3);
     const baseY = this.height * (this.height > this.width * 1.25 ? 0.43 : 0.47);
-    const jitterX = this.reducedMotion || age > 620 ? 0 : Math.sin(age * 0.092) * (1 - enter) * 7;
+    const jitterX = this.reducedMotion || enter >= 1
+      ? 0
+      : Math.round(Math.sin(age * 0.095) * (1 - enter) * 7);
     this.waveIntroRoot.visible = true;
     this.waveIntroRoot.alpha = visibility;
-    this.waveIntroRoot.position.set(this.width / 2 + jitterX, baseY + (1 - easedEnter) * 18);
+    this.waveIntroRoot.position.set(this.width / 2 + jitterX, baseY + Math.round((1 - easedEnter) * 18));
 
     this.waveIntroAura.clear();
     const auraPulse = this.reducedMotion ? 1 : 0.76 + Math.sin(timestamp * 0.006) * 0.24;
+    const auraRetention = 1 - clamp(dissolve * 1.18, 0, 1);
     for (let band = 0; band < 5; band++) {
       const bandWidth = 150 + band * 54 + auraPulse * 12;
       const bandY = (band - 2) * 8;
       const color = band % 2 === 0 ? '#22d3ee' : '#4ade80';
       this.waveIntroAura.rect(-bandWidth / 2, bandY, bandWidth, 2).fill({
         color,
-        alpha: visibility * (0.13 - band * 0.014)
+        alpha: visibility * auraRetention * (0.13 - band * 0.014)
       });
     }
     this.waveIntroAura
       .poly([-250, 0, -176, -26, -112, -26, -84, -42])
-      .stroke({ color: '#22d3ee', width: 2, alpha: visibility * 0.38 });
+      .stroke({ color: '#22d3ee', width: 2, alpha: visibility * auraRetention * 0.38 });
     this.waveIntroAura
       .poly([250, 0, 176, 26, 112, 26, 84, 42])
-      .stroke({ color: '#4ade80', width: 2, alpha: visibility * 0.34 });
+      .stroke({ color: '#4ade80', width: 2, alpha: visibility * auraRetention * 0.34 });
 
     this.waveIntroPixels.clear();
     this.waveIntroPixels.visible = !this.reducedMotion;
     if (!this.reducedMotion) {
-      const fragmentCount = this.width < 520 ? 28 : 42;
+      const fragmentCount = this.width < 520
+        ? WAVE_INTRO_FRAGMENT_COUNT_COMPACT
+        : WAVE_INTRO_FRAGMENT_COUNT_FULL;
       for (let index = 0; index < fragmentCount; index++) {
-        const stagger = (index % 11) / 11;
-        const assembled = clamp((enter - stagger * 0.48) / 0.26, 0, 1);
-        const spread = 1 - assembled;
-        const x = Math.sin(index * 2.41) * (70 + (index % 7) * 29) * spread;
-        const y = Math.cos(index * 1.73) * (28 + (index % 5) * 17) * spread;
+        const column = (index * 7) % 17;
+        const row = (index * 11) % 7;
+        const normalizedX = column / 16;
+        const targetX = -240 + normalizedX * 480 + ((index % 3) - 1) * 2;
+        const targetY = -66 + (row / 6) * 132;
+        const stagger = (index % 13) / 13;
+        const localAssembly = clamp((enter - stagger * 0.32) / 0.46, 0, 1);
+        const assembledEase = 1 - Math.pow(1 - localAssembly, 3);
+        const assemblyTravel = 1 - assembledEase;
+        const localDissolve = clamp((dissolve - normalizedX * 0.46) / 0.54, 0, 1);
+        const entering = dissolve <= 0 && enter < 1;
+        const x = entering
+          ? targetX + Math.sin(index * 2.41) * (100 + (index % 7) * 21) * assemblyTravel
+          : targetX + localDissolve * localDissolve * (92 + (index % 9) * 13);
+        const y = entering
+          ? targetY + Math.cos(index * 1.73) * (44 + (index % 5) * 12) * assemblyTravel
+          : targetY + Math.sin(index * 1.37) * localDissolve * (24 + (index % 4) * 9);
         const size = 2 + (index % 3);
+        const alpha = entering
+          ? Math.sin(Math.PI * localAssembly) * 0.78
+          : Math.sin(Math.PI * localDissolve) * 0.88;
         this.waveIntroPixels.rect(x - size / 2, y - size / 2, size, size).fill({
           color: index % 3 === 0 ? '#4ade80' : '#67e8f9',
-          alpha: visibility * clamp(spread * 1.9, 0, 0.74)
+          alpha: visibility * alpha
         });
       }
     }
 
     this.waveIntroSweep.clear();
-    this.waveIntroSweep.visible = !this.reducedMotion;
-    if (!this.reducedMotion) {
-      const sweepX = -235 + ((age * 0.62) % 470);
-      this.waveIntroSweep.rect(sweepX, -49, 2, 98).fill({ color: '#ffffff', alpha: visibility * 0.28 });
-      this.waveIntroSweep.rect(sweepX - 9, -34, 1, 68).fill({ color: '#22d3ee', alpha: visibility * 0.2 });
+    const sweepActive = !this.reducedMotion && (enter < 1 || dissolve > 0);
+    this.waveIntroSweep.visible = sweepActive;
+    if (sweepActive) {
+      const sweepProgress = dissolve > 0 ? dissolve : enter;
+      const sweepX = -270 + sweepProgress * 540;
+      const sweepAlpha = Math.sin(Math.PI * sweepProgress) * visibility;
+      const trailDirection = dissolve > 0 ? 1 : -1;
+      this.waveIntroSweep.rect(sweepX, -72, 3, 144).fill({ color: '#ffffff', alpha: sweepAlpha * 0.52 });
+      this.waveIntroSweep.rect(sweepX - trailDirection * 11, -58, 2, 116).fill({
+        color: '#22d3ee',
+        alpha: sweepAlpha * 0.42
+      });
+      for (let streak = 0; streak < 5; streak++) {
+        const streakWidth = 34 + streak * 13;
+        const streakY = -48 + streak * 24;
+        this.waveIntroSweep.rect(
+          sweepX - trailDirection * streakWidth,
+          streakY,
+          streakWidth,
+          1 + (streak % 2)
+        ).fill({ color: streak % 2 === 0 ? '#67e8f9' : '#4ade80', alpha: sweepAlpha * 0.28 });
+      }
     }
 
-    const assembly = this.reducedMotion ? enter : clamp(age / 720, 0, 1);
-    this.waveLevelText.alpha = clamp((assembly - 0.04) / 0.24, 0, 1);
-    this.waveTitle.alpha = clamp((assembly - 0.1) / 0.22, 0, 1);
-    this.waveNameText.alpha = clamp((assembly - 0.48) / 0.28, 0, 1);
+    const assembly = this.reducedMotion ? enter : clamp(age / WAVE_INTRO_ENTER_MS, 0, 1);
+    const centerRetention = 1 - clamp((dissolve - 0.24) / 0.5, 0, 1);
+    const titleRetention = 1 - clamp((dissolve - 0.02) / 0.42, 0, 1);
+    this.waveLevelText.alpha = clamp((assembly - 0.04) / 0.24, 0, 1) * centerRetention;
+    this.waveTitle.alpha = clamp((assembly - 0.1) / 0.22, 0, 1) * titleRetention;
+    this.waveNameText.alpha = clamp((assembly - 0.48) / 0.28, 0, 1) * centerRetention;
     for (let index = 0; index < this.waveCounterGlyphs.length; index++) {
       const glyph = this.waveCounterGlyphs[index];
-      glyph.alpha = clamp((assembly - 0.24 - index * 0.055) / 0.2, 0, 1);
-      glyph.y = (1 - glyph.alpha) * (index % 2 === 0 ? -9 : 9);
+      const glyphAssembly = clamp((assembly - 0.24 - index * 0.055) / 0.2, 0, 1);
+      const glyphSweepPosition = clamp((glyph.x + 270) / 540, 0, 1);
+      const glyphRetention = 1 - clamp((dissolve - glyphSweepPosition * 0.5) / 0.5, 0, 1);
+      glyph.alpha = glyphAssembly * glyphRetention;
+      glyph.y = (1 - glyphAssembly) * (index % 2 === 0 ? -9 : 9)
+        + (1 - glyphRetention) * (index % 2 === 0 ? -5 : 5);
     }
   }
 
@@ -1950,7 +1996,11 @@ export class PixiGameRenderer {
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.08) * 0.14;
       view.root.scale.set(1 + Math.sin((engine.frameCount + entity.variant) * 0.12) * 0.04);
     } else if (entity.type === EntityType.ENEMY_BRICK) {
-      view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.03) * 0.2;
+      // Belt asteroids keep a stable silhouette; only the formation bulwark
+      // enemies use the hovering rotation animation.
+      if (entity.variant < 900) {
+        view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.03) * 0.2;
+      }
     } else if (entity.type === EntityType.ENEMY_JOURNAL || entity.type === EntityType.ENEMY_INVADER) {
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.05) * 0.09;
     } else if (entity.type === EntityType.COIN) {

@@ -27,20 +27,23 @@ test('Brian pauses the opening flight before its protected combat intro begins',
   );
 });
 
-test('formations stay visual and final bosses transition without a loot stall', () => {
+test('formations stay visual and stage bosses provide an intentional five-second loot window', () => {
   assert.doesNotMatch(engineSource, /LINE SWARM|V-SWARM|WAVE SWARM|PINCER!/);
   assert.doesNotMatch(engineSource, /bossCoinDrops|bossPowerupDrops|bossBombDrops/);
 
   const waves = campaign.levels.flatMap((level) => level.waves);
   assert.ok(waves.length > 0);
-  waves.forEach((wave) => {
-    assert.ok(wave.delayAfterSeconds <= 1.5);
-  });
+  const gatekeeperWaves = waves.filter((wave) => wave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'));
+  assert.equal(gatekeeperWaves.length, 3);
+  gatekeeperWaves.forEach((wave) => assert.equal(wave.delayAfterSeconds, 5));
+  waves.filter((wave) => !gatekeeperWaves.includes(wave)).forEach((wave) => assert.ok(wave.delayAfterSeconds <= 1.5));
+  assert.match(engineSource, /stageRewardCollectionFrames/);
+  assert.match(engineSource, /STAGE_TAKEOFF_FRAMES = 120/);
 });
 
 test('milestone Gatekeepers ramp their cadence without exceeding the configured maximum speed', () => {
-  const firstWave = campaign.levels[0].waves[0];
-  const thirdWave = campaign.levels[0].waves[2];
+  const firstWave = campaign.levels[0].waves.at(-1);
+  const thirdWave = campaign.levels[2].waves.at(-1);
   const firstGatekeeper = firstWave.events.find((event) => event.id === 'open-orbit-gatekeeper');
   const thirdGatekeeper = thirdWave.events.find((event) => event.id === 'paywall-siege-gatekeeper');
   const firstBurstWeapon = firstGatekeeper.weapons.find((weapon) => weapon.id === 'gatekeeper-burst');

@@ -24,7 +24,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({ summary, onCont
   <div className="wave-victory-overlay" role="dialog" aria-modal="true" aria-labelledby="wave-victory-title">
     <div className="wave-victory-backdrop" aria-hidden="true" />
     <div className="wave-victory-stage">
-      <section className="wave-record-shell" aria-label={`Wave ${summary.wave} mission record`}>
+      <section className="wave-record-shell" aria-label={`Stage ${summary.stage} mission record`}>
         <div className="wave-record-art" aria-hidden="true">
           <LayerImage className="wave-record-glow" src={`${RECORD_PARTS}/energy-glow.png`} />
           <LayerImage className="wave-record-body" src={`${RECORD_PARTS}/record-card-body.png`} />
@@ -39,16 +39,16 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({ summary, onCont
         <div className="wave-record-content">
           <div className="wave-record-heading">
             <span>Mission Record</span>
-            <strong>Wave {summary.wave}</strong>
+            <strong>Stage {summary.stage}</strong>
           </div>
 
           <div className="wave-record-sector">
-            <span>{summary.waveName}</span>
-            <small>{summary.sectorName}</small>
+            <span>{summary.stageName}</span>
+            <small>{summary.finalWaveName}</small>
           </div>
 
           <div className="wave-record-score">
-            <span>Wave Score</span>
+            <span>Stage Score</span>
             <strong>{summary.scoreEarned.toLocaleString()}</strong>
           </div>
 
@@ -91,13 +91,13 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({ summary, onCont
         </div>
         <div className="wave-victory-copy">
           <h1 id="wave-victory-title">Victory</h1>
-          <p>Wave {summary.wave} cleared</p>
+          <p>Stage {summary.stage} cleared</p>
         </div>
       </header>
 
       <button className="wave-victory-continue" type="button" onClick={onContinue}>
         <span>Continue</span>
-        <strong>Wave {summary.nextWave}</strong>
+        <strong>Stage {summary.nextStage}</strong>
       </button>
     </div>
   </div>

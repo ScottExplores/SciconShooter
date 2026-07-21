@@ -792,7 +792,7 @@
     padding: max(0.7rem, env(safe-area-inset-top)) 0.7rem max(0.7rem, env(safe-area-inset-bottom));
     background: rgb(1 7 20 / 0.84);
     backdrop-filter: blur(0.45rem);
-    animation: sci-reward-backdrop-enter 220ms ease-out both;
+    animation: sci-reward-backdrop-enter 540ms cubic-bezier(0.2, 0.68, 0.22, 1) both;
   }
 
   .sci-reward-center {
@@ -813,7 +813,8 @@
       0 1.2rem 4rem rgb(0 0 0 / 0.62),
       0 0 0 1px rgb(14 116 144 / 0.3),
       inset 0 0 2.2rem rgb(34 211 238 / 0.05);
-    animation: sci-reward-panel-enter 290ms cubic-bezier(0.18, 0.84, 0.24, 1) both;
+    transform-origin: right center;
+    animation: sci-reward-panel-enter 680ms cubic-bezier(0.2, 0.72, 0.18, 1) both;
   }
 
   .sci-reward-claim-celebration {
@@ -1506,16 +1507,30 @@
   }
 
   @keyframes sci-reward-backdrop-enter {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    0% {
+      opacity: 0;
+    }
+    72% {
+      opacity: 0.94;
+    }
+    100% {
+      opacity: 1;
+    }
   }
 
   @keyframes sci-reward-panel-enter {
-    from {
-      opacity: 0.35;
-      transform: translate3d(calc(100% + 1rem), 0, 0);
+    0% {
+      opacity: 0.18;
+      transform: translate3d(calc(100% + 1rem), 0, 0) scaleX(0.975);
     }
-    to {
+    70% {
+      opacity: 1;
+      transform: translate3d(-0.9rem, 0, 0) scaleX(1);
+    }
+    86% {
+      transform: translate3d(0.26rem, 0, 0) scaleX(1);
+    }
+    100% {
       opacity: 1;
       transform: translate3d(0, 0, 0);
     }

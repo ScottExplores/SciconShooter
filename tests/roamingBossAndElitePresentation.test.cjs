@@ -7,11 +7,26 @@ const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 const campaign = JSON.parse(read('game-config/campaign.json'));
 
-test('Citation Storm is a bossless clear wave built around compact elite hunter packs', () => {
-  const wave = campaign.levels[0].waves.find((candidate) => candidate.id === 'citation-storm');
-  assert.ok(wave);
+const findCampaignLevel = (levelId) => {
+  const level = campaign.levels.find((candidate) => candidate.id === levelId);
+  assert.ok(level, `campaign stage ${levelId} exists`);
+  return level;
+};
 
-  const eliteEvent = wave.events.find((event) => event.id === 'citation-storm-elite-reviewers');
+const findCampaignEvent = (eventId) => {
+  const event = campaign.levels
+    .flatMap((level) => level.waves)
+    .flatMap((wave) => wave.events)
+    .find((candidate) => candidate.id === eventId);
+  assert.ok(event, `campaign event ${eventId} exists`);
+  return event;
+};
+
+test('Citation Storm is a bossless stage built around compact elite hunter packs', () => {
+  const stage = findCampaignLevel('stage-citation-storm');
+  const events = stage.waves.flatMap((wave) => wave.events);
+
+  const eliteEvent = findCampaignEvent('citation-storm-elite-reviewers');
   assert.equal(eliteEvent.kind, 'spawn');
   assert.equal(eliteEvent.blocksWaveClock, false);
   assert.equal(eliteEvent.patternId, 'diamond');
@@ -20,11 +35,10 @@ test('Citation Storm is a bossless clear wave built around compact elite hunter 
   assert.equal(eliteEvent.enemies[0].attackPatternId, 'aimed-burst');
   assert.ok(eliteEvent.enemies[0].sizeMultiplier > 1);
 
-  assert.equal(wave.completionRule, 'clear-after-duration');
-  assert.equal(wave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'), false);
+  assert.ok(stage.waves.every((wave) => wave.completionRule === 'clear-after-duration'));
+  assert.equal(events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'), false);
 
-  const bastion = campaign.levels[0].waves.find((candidate) => candidate.id === 'bastion-protocol');
-  const overseer = bastion.events.find((event) => event.id === 'bastion-protocol-gatekeeper');
+  const overseer = findCampaignEvent('bastion-protocol-gatekeeper');
   assert.equal(overseer.movementPatternId, 'gatekeeper-cycle');
   assert.equal(overseer.rigId, 'crown-claw');
 });

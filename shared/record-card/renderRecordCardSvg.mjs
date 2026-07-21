@@ -6,7 +6,7 @@ const XML_ENTITIES = Object.freeze({
   '"': '&quot;'
 });
 
-export const RECORD_CARD_RENDER_VERSION = '2026-07-20-2';
+export const RECORD_CARD_RENDER_VERSION = '2026-07-21-stage-2';
 
 const buildShipQuery = (playerShipId) => (
   playerShipId ? `&ship=${encodeURIComponent(String(playerShipId))}` : ''
@@ -46,7 +46,7 @@ const DEFAULT_COPY = Object.freeze({
   verifiedLabel: '',
   reviewLabel: 'REVIEWED RUN',
   metricLabels: Object.freeze({
-    wave: 'WAVE',
+    wave: 'STAGE',
     targets: 'TARGETS',
     coins: 'COINS',
     flight: 'FLIGHT'
@@ -135,14 +135,15 @@ export const DEFAULT_RECORD_CARD_PRESENTATION = Object.freeze({
 });
 
 /**
- * Resolves AUTO encounter art from the same ordered campaign wave data used by
- * gameplay. Numeric runtime waves wrap through the configured wave sequence.
+ * Resolves AUTO encounter art from the same ordered campaign stage data used
+ * by gameplay. Numeric runtime values identify stages, while explicit wave IDs
+ * remain supported for Director previews and older links.
  */
 export const resolveRecordCardEncounterAssetKey = (campaign, waveRef) => {
-  const waves = (Array.isArray(campaign?.levels) ? campaign.levels : [])
+  const levels = (Array.isArray(campaign?.levels) ? campaign.levels : [])
     .slice()
-    .sort((left, right) => Number(left?.order) - Number(right?.order))
-    .flatMap((level) => (Array.isArray(level?.waves) ? level.waves : [])
+    .sort((left, right) => Number(left?.order) - Number(right?.order));
+  const waves = levels.flatMap((level) => (Array.isArray(level?.waves) ? level.waves : [])
       .slice()
       .sort((left, right) => Number(left?.order) - Number(right?.order)));
   let wave = waveRef && typeof waveRef === 'object' && Array.isArray(waveRef.events)
@@ -150,17 +151,24 @@ export const resolveRecordCardEncounterAssetKey = (campaign, waveRef) => {
     : typeof waveRef === 'string'
       ? waves.find((candidate) => candidate?.id === waveRef)
       : null;
-  if (!wave && waves.length > 0) {
-    const waveNumber = Math.max(1, Math.floor(Number(waveRef) || 1));
-    wave = waves[(waveNumber - 1) % waves.length];
+  if (!wave && levels.length > 0) {
+    const stageNumber = Math.max(1, Math.floor(Number(waveRef) || 1));
+    const level = levels[(stageNumber - 1) % levels.length];
+    const stageWaves = (Array.isArray(level?.waves) ? level.waves : [])
+      .slice()
+      .sort((left, right) => Number(left?.order) - Number(right?.order));
+    wave = stageWaves.slice().reverse().find((candidate) => (
+      candidate?.events?.some((event) => event?.kind === 'boss' && event?.bossId === 'gatekeeper')
+    )) ?? stageWaves.at(-1);
   }
   const events = (Array.isArray(wave?.events) ? wave.events : []).slice().reverse();
-  const event = events.find((candidate) => candidate?.kind === 'boss')
+  const event = events.find((candidate) => candidate?.kind === 'boss' && candidate?.bossId === 'gatekeeper')
+    ?? events.find((candidate) => candidate?.kind === 'asteroid-belt')
     ?? events.find((candidate) => (
       candidate?.kind === 'spawn'
       && candidate.enemies?.some((enemy) => enemy?.rank === 'elite')
     ))
-    ?? events.find((candidate) => candidate?.kind === 'asteroid-belt')
+    ?? events.find((candidate) => candidate?.kind === 'boss')
     ?? events.find((candidate) => candidate?.kind === 'spawn');
   if (event?.kind === 'boss' || event?.kind === 'asteroid-belt') return event.spriteKey || 'FINAL_BOSS';
   if (event?.kind === 'spawn') return event.enemies?.[0]?.spriteKey || 'FINAL_BOSS';

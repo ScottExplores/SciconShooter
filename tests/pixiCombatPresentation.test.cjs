@@ -6,6 +6,12 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
+const findCampaignLevel = (campaign, levelId) => {
+  const level = campaign.levels.find((candidate) => candidate.id === levelId);
+  assert.ok(level, `campaign stage ${levelId} exists`);
+  return level;
+};
+
 test('Pixi combat presentation uses checked-in sprite effects and escort ships', () => {
   const constants = read('constants.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
@@ -63,7 +69,7 @@ test('paywall formations share one integrity bar and later waves use terrain-pac
   assert.ok(laterAssetKeys.includes('PIXI_JET_HEAVY_FRAMES'));
 });
 
-test('Paywall Bastions use attack and real health decay frames while Wave 5 increases wall rows', () => {
+test('Paywall Bastions use attack and real health decay frames while Stage 5 increases wall rows', () => {
   const constants = read('constants.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const engine = read('services/gameLogic.ts');
@@ -80,8 +86,9 @@ test('Paywall Bastions use attack and real health decay frames while Wave 5 incr
   assert.match(engine, /Number\(configured\.count \?\? 2\)/);
   assert.match(engine, /e\.spriteFrames = this\.resolveSpriteFrames\(configured\.spriteKey\)/);
 
-  const bastionWave = campaign.levels[0].waves.find((wave) => wave.id === 'bastion-protocol');
-  const walls = bastionWave.events.filter(
+  const bastionStage = findCampaignLevel(campaign, 'stage-bastion-protocol');
+  const bastionEvents = bastionStage.waves.flatMap((wave) => wave.events);
+  const walls = bastionEvents.filter(
     (event) => event.kind === 'boss' && event.spriteKey === 'PAYWALL_BASTION_FRAMES',
   );
   assert.deepEqual(walls.map((event) => event.count), [1, 2, 3, 4]);

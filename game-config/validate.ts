@@ -22,6 +22,7 @@ import { migrateLegacyGameCampaign } from './legacyCampaignMigration.mjs';
 
 export {
   migrateLegacyGameCampaign,
+  migrateLegacyStageWaveHierarchy,
   migrateLegacyWaveCompletionRule
 } from './legacyCampaignMigration.mjs';
 

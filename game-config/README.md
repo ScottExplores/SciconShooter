@@ -1,20 +1,20 @@
 # Scicon Shooter campaign configuration
 
-`campaign.json` is the level and wave source of truth used by the real `GameEngine` and the local Scicon Level Editor.
+`campaign.json` is the stage and internal-wave source of truth used by the real `GameEngine` and the local Scicon Level Editor. The persisted key remains `levels` for compatibility, but each level is presented to players as a Stage.
 
 ## Shape
 
-- A campaign contains ordered `levels`.
+- A campaign contains ordered `levels`, which are the player-facing Stages.
 - The campaign-level `recordCard` presentation feeds the Director preview, in-game mission record, and NFT/share SVG renderer.
-- A level owns its background, music cue, difficulty, score target, available power-ups, scorecard presentation, and ordered `waves`.
-- A wave owns its active duration, intro/departure timing, threat cap, score multiplier, and ordered `events`.
+- A Stage owns its background, music cue, difficulty, score target, available power-ups, scorecard presentation, and ordered internal `waves`.
+- An internal wave owns its active duration, stage-boundary timing, threat cap, score multiplier, and ordered `events`.
 - Event kinds are `spawn`, `boss`, `asteroid-belt`, `powerup`, and `recovery`.
 - JSON stores constrained catalog IDs such as `ENEMY_JOURNAL_FRAMES` or `gatekeeper`; arbitrary asset paths and executable behavior are rejected.
 - Spawn events select a reusable formation grammar: row, V, sine, pincer, grid, diamond, or spiral. The runtime owns the shared enter, assemble, dive, and return behavior.
 - `hudAssets.bombIconAssetKey` selects the bomb control artwork used by the shared real-game HUD.
 - Optional normalized `spawnAnchor` points power visual placement, while bounded `spriteStyle` values change artwork without changing collision boxes.
 
-The checked-in revision reproduces the existing Open Orbit, Citation Storm, Paywall Siege, and Open Galaxy progression. Difficulty defaults to `1` because each event already contains the current wave's concrete combat values.
+The checked-in revision defines five Stages: Open Orbit, Citation Storm, Paywall Siege, Open Galaxy, and Bastion Protocol. Each Stage is split into tactical internal waves; only the final internal wave triggers the Stage completion/departure flow. Difficulty defaults to `1` because each event already contains its concrete combat values.
 
 ## Validation and runtime
 

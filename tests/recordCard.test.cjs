@@ -59,13 +59,13 @@ test('record card embeds encounter art and meaningful run values', async () => {
     assert.match(res.body, /MISSION RECORD/);
     assert.match(res.body, /ACE/);
     assert.match(res.body, /12,345/);
-    assert.match(res.body, /Replication Rift/);
+    assert.match(res.body, /Citation Storm/);
     assert.match(res.body, /JUL 10, 2026 - 12:00 PM UTC/);
     assert.match(res.body, /data:image\/png;base64,/);
     assert.match(res.body, /preserveAspectRatio="none" style="image-rendering:pixelated"/);
     assert.doesNotMatch(res.body, /SERVER VERIFIED/);
     assert.ok(fetchedUrls.some((url) => url.includes('/game-art/branding/bio-ship.png')));
-    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/enemies/citation-wraith.png')));
+    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/enemies/asteroid-1.png')));
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/generated/boss-weapons/citation-storm-plasma-claw-left.png')), false);
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/generated/boss-weapons/citation-storm-plasma-claw-right.png')), false);
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/bosses/final-boss-sentinel.png')), false);

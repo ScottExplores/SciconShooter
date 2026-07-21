@@ -44,6 +44,7 @@ test('achievements advance through permanent progressive tiers', () => {
   ];
 
   ids.forEach((id) => assert.match(rewards, new RegExp(`id: '${id}'`)));
+  assert.match(rewards, /description: 'Reach Stage \{target\}'/);
   assert.match(rewards, /targets: \[2, 4, 6, 10, 15\]/);
   assert.match(rewards, /targets: \[2, 5, 10, 25, 50\]/);
   assert.match(rewards, /targets: \[100, 500, 1500, 5000, 10000\]/);
@@ -124,6 +125,10 @@ test('the Reward Center routes pending rewards and celebrates only confirmed cla
   assert.match(styles, /@keyframes sci-reward-edge-claimable/);
   assert.match(styles, /@keyframes sci-reward-edge-achievement-nudge/);
   assert.match(styles, /@keyframes sci-reward-panel-enter/);
+  assert.match(styles, /animation: sci-reward-backdrop-enter 540ms cubic-bezier\(0\.2, 0\.68, 0\.22, 1\) both/);
+  assert.match(styles, /animation: sci-reward-panel-enter 680ms cubic-bezier\(0\.2, 0\.72, 0\.18, 1\) both/);
+  assert.match(styles, /70% \{[\s\S]*translate3d\(-0\.9rem, 0, 0\)[\s\S]*86% \{[\s\S]*translate3d\(0\.26rem, 0, 0\)/);
+  assert.match(styles, /\.sci-reward-backdrop,[\s\S]*\.sci-reward-center,[\s\S]*animation: none !important/);
   assert.match(styles, /@keyframes sci-reward-claim-confirm/);
   assert.match(styles, /@keyframes sci-dashboard-reward-breathe/);
   assert.match(styles, /\.sci-daily-grid/);

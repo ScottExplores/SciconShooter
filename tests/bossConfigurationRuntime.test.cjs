@@ -8,6 +8,15 @@ const { webcrypto } = require('node:crypto');
 
 const root = path.resolve(__dirname, '..');
 
+const findCampaignEvent = (campaign, eventId) => {
+  const event = campaign.levels
+    .flatMap((level) => level.waves)
+    .flatMap((wave) => wave.events)
+    .find((candidate) => candidate.id === eventId);
+  assert.ok(event, `campaign event ${eventId} exists`);
+  return event;
+};
+
 const loadTypeScriptModule = (relativePath) => {
   const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
   const compiled = ts.transpileModule(source, {
@@ -51,7 +60,7 @@ test('authored boss phases switch movement, speed, and active weapon numbers at 
 
 test('cloning a gatekeeper gives it a new event id while preserving its explicit rig and valid phase weapon references', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
-  const source = campaign.levels[0].waves[4].events.find((event) => event.id === 'bastion-protocol-gatekeeper');
+  const source = findCampaignEvent(campaign, 'bastion-protocol-gatekeeper');
   const { cloneWaveEvent } = loadTypeScriptModule('director/src/editor/editorOperations.ts');
   const clone = cloneWaveEvent(source);
 
@@ -67,7 +76,7 @@ test('cloning a gatekeeper gives it a new event id while preserving its explicit
 
 test('all authored gatekeepers carry stable rigs and runtime prefers them over the legacy event-id fallback', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
-  const rigs = Object.fromEntries(campaign.levels[0].waves.flatMap((wave) => wave.events)
+  const rigs = Object.fromEntries(campaign.levels.flatMap((level) => level.waves).flatMap((wave) => wave.events)
     .filter((event) => event.kind === 'boss' && event.bossId === 'gatekeeper')
     .map((event) => [event.id, event.rigId]));
   assert.deepEqual(rigs, {

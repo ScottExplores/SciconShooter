@@ -27,7 +27,7 @@ test('runtime exposes ordered level and within-level wave position from campaign
   assert.match(engine, /this\.cinematicPaused = cinematicPause;/);
 });
 
-test('canonical Pixi scene reuses bitmap wave glyphs for an animated intro and a persistent counter', () => {
+test('canonical Pixi scene presents a centered Stage and internal Wave transition without a HUD badge', () => {
   const renderer = read('services', 'pixi', 'PixiGameRenderer.ts');
 
   assert.match(renderer, /scicon-simple-arcade-kit-v1\/wave-glyphs\/cyan/);
@@ -35,11 +35,9 @@ test('canonical Pixi scene reuses bitmap wave glyphs for an animated intro and a
   assert.match(renderer, /wave-glyph-slash-cyan\.png/);
   assert.match(renderer, /\.\.\.PIXI_WAVE_PRESENTATION_TEXTURE_URLS/);
   assert.match(renderer, /private readonly waveCounterGlyphs = Array\.from\(\{ length: 8 \}/);
-  assert.match(renderer, /this\.waveBadgeText\.text = `WAVE \$\{state\.waveNumber\}\/\$\{state\.waveTotal\}`/);
-  assert.match(renderer, /const narrowTopHud = this\.width < 464;/);
-  assert.match(renderer, /const badgeY = narrowTopHud \? \(bossVisible \? 128 : 63\) : 20;/);
-  assert.match(renderer, /this\.positionWaveBadge\(this\.bossHealthRoot\.visible\);/);
-  assert.match(renderer, /LEVEL \$\{String\(state\.levelNumber\)\.padStart\(2, '0'\)\} · \$\{state\.levelName\.toUpperCase\(\)\}/);
+  assert.doesNotMatch(renderer, /waveBadge|positionWaveBadge/);
+  assert.match(renderer, /STAGE \$\{String\(state\.levelNumber\)\.padStart\(2, '0'\)\} · \$\{state\.levelName\.toUpperCase\(\)\}/);
+  assert.match(renderer, /this\.setWaveCounterGlyphs\(`\$\{state\.waveNumber\}\/\$\{state\.waveTotal\}`\)/);
   assert.match(renderer, /this\.waveNameText\.text = state\.waveName\.toUpperCase\(\)/);
   assert.match(renderer, /prefers-reduced-motion: reduce/);
   assert.match(renderer, /if \(!engine\.cinematicPaused\) \{\s*this\.wavePresentationElapsedMs =/);
@@ -50,6 +48,17 @@ test('canonical Pixi scene reuses bitmap wave glyphs for an animated intro and a
   assert.ok(updateStart >= 0 && updateEnd > updateStart);
   assert.doesNotMatch(update, /new (?:Container|Graphics|Sprite|Text)\b/);
   assert.doesNotMatch(update, /collision|hitbox|damage|hp\b/i);
+  assert.match(update, /const localAssembly = clamp/);
+  assert.match(update, /const localDissolve = clamp/);
+  assert.match(update, /const sweepX = -270 \+ sweepProgress \* 540/);
+  assert.match(update, /const trailDirection = dissolve > 0 \? 1 : -1/);
+  assert.match(update, /this\.waveIntroPixels\.visible = !this\.reducedMotion/);
+  assert.match(update, /const fragmentCount = this\.width < 520\s*\? WAVE_INTRO_FRAGMENT_COUNT_COMPACT\s*: WAVE_INTRO_FRAGMENT_COUNT_FULL/);
+
+  const compactCount = Number(renderer.match(/WAVE_INTRO_FRAGMENT_COUNT_COMPACT = (\d+)/)?.[1]);
+  const fullCount = Number(renderer.match(/WAVE_INTRO_FRAGMENT_COUNT_FULL = (\d+)/)?.[1]);
+  assert.ok(compactCount > 0 && compactCount <= 48);
+  assert.ok(fullCount >= compactCount && fullCount <= 64);
 });
 
 test('production and Director previews share the same wave presentation renderer', () => {

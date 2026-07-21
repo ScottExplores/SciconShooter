@@ -829,15 +829,15 @@ export interface GameRuntimeState {
 
 export interface WaveVictorySummary {
   id: string;
-  wave: number;
-  waveName: string;
-  sectorName: string;
+  stage: number;
+  stageName: string;
+  finalWaveName: string;
   scoreEarned: number;
   totalScore: number;
   enemiesDefeated: number;
   coinsCollected: number;
   elapsedSeconds: number;
-  nextWave: number;
+  nextStage: number;
 }
 
 export interface GameEditorEntitySnapshot {
@@ -915,6 +915,7 @@ const BOSS_SHIELD_ESCORT_MOBILE_SIZE = Object.freeze({ width: 48, height: 42 });
 const BOSS_SHIELD_ESCORT_DESKTOP_SIZE = Object.freeze({ width: 54, height: 48 });
 const getBossShieldEscortHp = (wave: number) => Math.min(8, Math.max(2, Math.round(wave)));
 const MAIN_BOSS_ALERT_FRAMES = 120;
+const STAGE_TAKEOFF_FRAMES = 120;
 const PLAYER_RAM_COOLDOWN_FRAMES = 14;
 
 export class GameEngine {
@@ -970,6 +971,10 @@ export class GameEngine {
   introFlightDuration: number = 150;
   waveDepartureFrames: number = 0;
   waveDepartureDuration: number = 168;
+  stageRewardCollectionFrames: number = 0;
+  stageRewardCollectionDuration: number = 0;
+  stageTakeoffStartX: number = 0;
+  stageTakeoffStartY: number = 0;
   wavePresentationRevision: number = 0;
   waveVictoryReady: boolean = false;
   waveVictorySummary: WaveVictorySummary | null = null;
@@ -1101,6 +1106,41 @@ export class GameEngine {
 
   getCurrentWaveDefinition() {
     return this.getCurrentCampaignEntry()?.wave ?? null;
+  }
+
+  isCurrentWaveStageFinal() {
+    const entry = this.getCurrentCampaignEntry();
+    return Boolean(entry && entry.waveIndex >= entry.level.waves.length - 1);
+  }
+
+  getStageNumberForCampaignIndex(campaignIndex: number = this.currentCampaignIndex) {
+    if (this.campaignWaves.length === 0) return Math.max(1, Math.floor(campaignIndex) + 1);
+    const safeIndex = Math.max(0, Math.floor(campaignIndex));
+    const normalizedIndex = safeIndex % this.campaignWaves.length;
+    const entry = this.campaignWaves[normalizedIndex];
+    const cycle = Math.floor(safeIndex / this.campaignWaves.length);
+    return (cycle * Math.max(1, this.campaign.levels.length)) + (entry?.levelIndex ?? 0) + 1;
+  }
+
+  getFirstCampaignWaveIndexForStage(stageNumber: number) {
+    if (this.campaignWaves.length === 0 || this.campaign.levels.length === 0) return -1;
+    const safeStageIndex = Math.max(0, Math.floor(stageNumber) - 1);
+    const levelCount = this.campaign.levels.length;
+    const cycle = Math.floor(safeStageIndex / levelCount);
+    const levelIndex = safeStageIndex % levelCount;
+    const flatIndex = this.campaignWaves.findIndex((entry) => entry.levelIndex === levelIndex && entry.waveIndex === 0);
+    return flatIndex < 0 ? -1 : cycle * this.campaignWaves.length + flatIndex;
+  }
+
+  getLastCampaignWaveIndexForCurrentStage() {
+    const current = this.getCurrentCampaignEntry();
+    if (!current || this.campaignWaves.length === 0) return -1;
+    const cycle = Math.floor(Math.max(0, this.currentCampaignIndex) / this.campaignWaves.length);
+    let flatIndex = -1;
+    this.campaignWaves.forEach((entry, index) => {
+      if (entry.level.id === current.level.id) flatIndex = index;
+    });
+    return flatIndex < 0 ? -1 : cycle * this.campaignWaves.length + flatIndex;
   }
 
   getCampaignCycle() {
@@ -1266,7 +1306,7 @@ export class GameEngine {
     const index = this.findCampaignWaveIndex(levelId, waveId);
     if (index < 0) return false;
     this.currentCampaignIndex = index;
-    this.wave = index + 1;
+    this.wave = this.getStageNumberForCampaignIndex(index);
     this.stats.wave = this.wave;
     this.restartPreview();
     return true;
@@ -1298,12 +1338,13 @@ export class GameEngine {
     this.previewInvincible = Boolean(enabled);
   }
 
-  jumpToCampaignWave(waveNumber: number) {
+  jumpToCampaignWave(stageNumber: number) {
     if (this.campaignWaves.length === 0) return false;
 
-    const targetIndex = Math.max(0, Math.floor(waveNumber) - 1);
+    const targetIndex = this.getFirstCampaignWaveIndexForStage(stageNumber);
+    if (targetIndex < 0) return false;
     this.currentCampaignIndex = targetIndex;
-    this.wave = targetIndex + 1;
+    this.wave = this.getStageNumberForCampaignIndex(targetIndex);
     this.stats.wave = this.wave;
     this.entities = [];
     this.pendingPlayerShots = [];
@@ -1338,20 +1379,28 @@ export class GameEngine {
     const entry = this.getCurrentCampaignEntry();
     return {
       id: `${this.wave}-${this.frameCount}-${this.stats.score}`,
-      wave: this.wave,
-      waveName: entry?.wave.name ?? `Wave ${this.wave}`,
-      sectorName: entry?.level.name ?? this.getWaveSector().name,
+      stage: this.wave,
+      stageName: entry?.level.name ?? this.getWaveSector().name,
+      finalWaveName: entry?.wave.name ?? 'FINAL WAVE',
       scoreEarned: Math.max(0, this.stats.score - this.waveStartScore),
       totalScore: Math.max(0, this.stats.score),
       enemiesDefeated: Math.max(0, this.stats.enemiesDefeated - this.waveStartEnemiesDefeated),
       coinsCollected: Math.max(0, this.stats.totalCoins - this.waveStartTotalCoins),
       elapsedSeconds: Math.max(0, Math.round(this.waveFlightFrames / GAME_CONFIG.FPS)),
-      nextWave: this.wave + 1
+      nextStage: this.wave + 1
     };
   }
 
-  jumpToCampaignBoss(waveNumber: number) {
-    if (!this.testMode || !this.jumpToCampaignWave(waveNumber)) return false;
+  jumpToCampaignBoss(stageNumber: number) {
+    if (!this.testMode || !this.jumpToCampaignWave(stageNumber)) return false;
+
+    const finalWaveIndex = this.getLastCampaignWaveIndexForCurrentStage();
+    if (finalWaveIndex < 0) return false;
+    this.currentCampaignIndex = finalWaveIndex;
+    this.wave = this.getStageNumberForCampaignIndex(finalWaveIndex);
+    this.stats.wave = this.wave;
+    this.resetWaveProgress();
+    this.beginWavePresentation();
 
     const bossEvents = this.getConfiguredEncounterEvents()
       .filter((event): event is RuntimeBossEvent => event.kind === 'boss');
@@ -1361,32 +1410,35 @@ export class GameEngine {
       .find((event) => this.getEncounterWarningType(event) === 'gatekeeper')
       ?? bossEvents[bossEvents.length - 1];
 
-    if (!mainBoss) {
-      this.waveProgressFrames = this.getConfiguredWaveDurationFrames();
-      this.stats.bossProgress = 1;
-      this.startBossWarning('gatekeeper');
-      return true;
-    }
+    const configuredEvents = this.getCurrentWaveDefinition()?.events ?? [];
+    const climax = mainBoss
+      ?? this.getConfiguredEncounterEvents().at(-1)
+      ?? configuredEvents.slice().reverse().find((event) => (
+        event.kind === 'spawn' && event.enemies.some((enemy) => enemy.rank === 'elite')
+      ))
+      ?? configuredEvents.at(-1);
+    if (!climax) return false;
 
-    const bossStartSeconds = Math.max(0, Number(mainBoss.startSeconds) || 0);
-    this.waveProgressFrames = Math.round(bossStartSeconds * GAME_CONFIG.FPS);
+    const climaxStartSeconds = Math.max(0, Number(climax.startSeconds) || 0);
+    this.waveProgressFrames = Math.round(climaxStartSeconds * GAME_CONFIG.FPS);
     this.stats.bossProgress = Math.min(1, this.waveProgressFrames / this.getConfiguredWaveDurationFrames());
 
-    const events = this.getCurrentWaveDefinition()?.events ?? [];
-    for (const event of events) {
-      if (Math.max(0, Number(event.startSeconds) || 0) > bossStartSeconds) continue;
+    for (const event of configuredEvents) {
+      if (Math.max(0, Number(event.startSeconds) || 0) > climaxStartSeconds) continue;
 
-      if (event.kind === 'spawn') {
+      if (event.kind === 'spawn' && event.id !== climax.id) {
         this.configuredSpawnCounts.set(event.id, Math.max(0, Math.floor(Number(event.count) || 0)));
         this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
       } else if (event.kind === 'powerup') {
         this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
-      } else if (event.id !== mainBoss.id) {
+      } else if (event.id !== climax.id && (event.kind === 'boss' || event.kind === 'asteroid-belt')) {
         this.configuredEncounterIds.add(event.id);
       }
     }
 
-    this.queueConfiguredEncounter(mainBoss);
+    if (climax.kind === 'boss' || climax.kind === 'asteroid-belt') {
+      this.queueConfiguredEncounter(climax as RuntimeEncounterEvent);
+    }
     return true;
   }
 
@@ -1749,22 +1801,15 @@ export class GameEngine {
 
     const age = this.waveDepartureDuration - this.waveDepartureFrames;
     const progress = clamp(age / this.waveDepartureDuration, 0, 1);
-    const hold = progress < 0.32;
-
-    if (hold) {
-      this.addShake(0.2);
-      this.spawnThrusterParticles(0.85);
-    } else {
-      const t = easeInOutCubic((progress - 0.32) / 0.68);
-      const centerX = this.width / 2 + Math.sin(t * Math.PI) * this.width * 0.08;
-      const startY = this.getPlayerHomePosition().y;
-      const endY = -this.player.height * 1.6;
-      this.player.x = centerX - this.player.width / 2;
-      this.player.y = startY + ((endY - startY) * t);
-      this.playerDrawScale = 1 + (0.48 * t);
-      this.playerTilt = Math.sin(t * Math.PI) * 0.18;
-      this.spawnThrusterParticles(2.15);
-    }
+    const t = easeInOutCubic(progress);
+    const targetX = this.width / 2 - this.player.width / 2;
+    const endY = -this.player.height * 1.6;
+    this.player.x = this.stageTakeoffStartX + ((targetX - this.stageTakeoffStartX) * t)
+      + Math.sin(t * Math.PI) * this.width * 0.08;
+    this.player.y = this.stageTakeoffStartY + ((endY - this.stageTakeoffStartY) * t);
+    this.playerDrawScale = 1 + (0.48 * t);
+    this.playerTilt = Math.sin(t * Math.PI) * 0.18;
+    this.spawnThrusterParticles(2.15);
 
     this.waveDepartureFrames--;
 
@@ -1886,7 +1931,7 @@ export class GameEngine {
     if (!this.previewMode) {
       this.currentCampaignIndex = 0;
     }
-    this.wave = this.currentCampaignIndex + 1;
+    this.wave = this.getStageNumberForCampaignIndex();
     this.stats.score = 0;
     this.stats.coins = 0;
     this.stats.totalCoins = 0;
@@ -1929,6 +1974,8 @@ export class GameEngine {
       : 150;
     this.introFlightFrames = this.previewMode ? 0 : this.introFlightDuration;
     this.waveDepartureFrames = 0;
+    this.stageRewardCollectionFrames = 0;
+    this.stageRewardCollectionDuration = 0;
     this.deathSequenceFrames = 0;
     this.deathSequenceStartedAtMs = 0;
     this.playerDrawScale = this.previewMode || this.introFlightFrames <= 0 ? 1 : 1.55;
@@ -1940,7 +1987,7 @@ export class GameEngine {
     this.playSound('launch');
   }
   
-  resetWaveProgress() {
+  resetWaveProgress(resetStageSummary: boolean = true) {
     this.stats.bossProgress = 0;
     this.stats.isBossActive = false;
     this.stats.bossHp = 0;
@@ -1963,12 +2010,32 @@ export class GameEngine {
     this.escalationWarningsShown.clear();
     this.pendingBossStrikes = [];
     this.pendingConfiguredEncounter = null;
+    this.stageRewardCollectionFrames = 0;
+    this.stageRewardCollectionDuration = 0;
     this.waveVictoryReady = false;
     this.waveVictorySummary = null;
-    this.waveStartScore = this.stats.score;
-    this.waveStartEnemiesDefeated = this.stats.enemiesDefeated;
-    this.waveStartTotalCoins = this.stats.totalCoins;
-    this.waveFlightFrames = 0;
+    if (resetStageSummary) {
+      this.waveStartScore = this.stats.score;
+      this.waveStartEnemiesDefeated = this.stats.enemiesDefeated;
+      this.waveStartTotalCoins = this.stats.totalCoins;
+      this.waveFlightFrames = 0;
+    }
+  }
+
+  getPlayerMovementSpeed() {
+    const speedLevel = Math.min(this.stats.upgrades.speed || 0, 6);
+    return GAME_CONFIG.BASE_PLAYER_SPEED
+      + (Math.min(speedLevel, 5) * 1.5)
+      + (speedLevel >= 6 ? 3 : 0);
+  }
+
+  updateStageRewardCollection() {
+    if (this.stageRewardCollectionFrames <= 0) return;
+    this.updatePlayerMovement(this.getPlayerMovementSpeed());
+    this.updateSquadCompanions();
+    this.spawnThrusterParticles(0.65);
+    this.stageRewardCollectionFrames--;
+    if (this.stageRewardCollectionFrames <= 0) this.beginStageTakeoff();
   }
 
   continueToNextWave() {
@@ -2006,15 +2073,37 @@ export class GameEngine {
     this.stats.bossProgress = 1;
     this.stats.isBossActive = false;
     this.waveTransitionPending = true;
-    this.waveVictorySummary = this.buildWaveVictorySummary();
-    this.spawnFloatingText(this.width / 2, this.height / 2, 'WAVE CLEAR!', '#67e8f9');
-    const configuredDelay = Number(this.getCurrentWaveDefinition()?.delayAfterSeconds);
-    this.waveDepartureDuration = Number.isFinite(configuredDelay) && configuredDelay >= 0
-      ? Math.max(1, Math.round(configuredDelay * GAME_CONFIG.FPS))
-      : 168;
-    this.waveDepartureFrames = this.waveDepartureDuration;
+    if (!this.isCurrentWaveStageFinal()) {
+      this.spawnFloatingText(this.width / 2, this.height / 2, 'WAVE CLEAR!', '#67e8f9');
+      this.playSound('wave');
+      this.startNextWave();
+      return true;
+    }
+
+    this.beginStageCompletion('STAGE COMPLETE!', '#67e8f9');
     this.playSound('wave');
     return true;
+  }
+
+  beginStageCompletion(label: string, color: string) {
+    this.waveTransitionPending = true;
+    this.waveVictorySummary = this.buildWaveVictorySummary();
+    this.spawnFloatingText(this.width / 2, this.height / 2, label, color);
+    const configuredDelaySeconds = Number(this.getCurrentWaveDefinition()?.delayAfterSeconds);
+    const collectionSeconds = Number.isFinite(configuredDelaySeconds) && configuredDelaySeconds >= 0
+      ? configuredDelaySeconds
+      : 0;
+    this.stageRewardCollectionDuration = Math.max(0, Math.round(collectionSeconds * GAME_CONFIG.FPS));
+    this.stageRewardCollectionFrames = this.stageRewardCollectionDuration;
+    if (this.stageRewardCollectionFrames <= 0) this.beginStageTakeoff();
+  }
+
+  beginStageTakeoff() {
+    this.stageRewardCollectionFrames = 0;
+    this.stageTakeoffStartX = this.player.x;
+    this.stageTakeoffStartY = this.player.y;
+    this.waveDepartureDuration = STAGE_TAKEOFF_FRAMES;
+    this.waveDepartureFrames = this.waveDepartureDuration;
   }
 
   getPlayerMovementBounds() {
@@ -2033,24 +2122,30 @@ export class GameEngine {
 
     if (this.previewMode) {
       this.waveDepartureFrames = 0;
+      this.stageRewardCollectionFrames = 0;
       this.previewComplete = true;
       this.gameActive = false;
       return;
     }
 
-    this.wave++;
-    this.stats.wave = this.wave;
+    const previousEntry = this.getCurrentCampaignEntry();
     if (this.campaignWaves.length > 0) {
       this.currentCampaignIndex += 1;
     }
-    this.resetWaveProgress();
+    const nextEntry = this.getCurrentCampaignEntry();
+    const stageBoundary = !previousEntry || !nextEntry || previousEntry.level.id !== nextEntry.level.id;
+    this.wave = this.getStageNumberForCampaignIndex();
+    this.stats.wave = this.wave;
+    this.resetWaveProgress(stageBoundary);
     this.gameActive = true;
     this.keepEntitiesForNextWave();
     this.beginWavePresentation();
     const configuredIntroSeconds = Number(this.getCurrentWaveDefinition()?.introSeconds);
-    this.introFlightDuration = Number.isFinite(configuredIntroSeconds) && configuredIntroSeconds >= 0
-      ? Math.max(0, Math.round(configuredIntroSeconds * GAME_CONFIG.FPS))
-      : 118;
+    this.introFlightDuration = stageBoundary
+      ? Number.isFinite(configuredIntroSeconds) && configuredIntroSeconds >= 0
+        ? Math.max(0, Math.round(configuredIntroSeconds * GAME_CONFIG.FPS))
+        : 118
+      : 0;
     this.introFlightFrames = this.introFlightDuration;
     this.playerDrawScale = this.introFlightFrames > 0 ? 1.46 : 1;
     this.playerDrawAlpha = this.introFlightFrames > 0 ? 0 : 1;
@@ -2424,6 +2519,13 @@ export class GameEngine {
       return;
     }
 
+    if (this.stageRewardCollectionFrames > 0) {
+      this.updateStageRewardCollection();
+      this.updatePassiveEntities();
+      this.bgY = (this.bgY + 1) % this.height;
+      return;
+    }
+
     if (this.waveDepartureFrames > 0) {
       this.updateWaveDeparture();
       this.updatePassiveEntities();
@@ -2566,11 +2668,7 @@ export class GameEngine {
         }
     }
 
-    const speedLevel = Math.min(this.stats.upgrades.speed || 0, 6);
-    const speed = GAME_CONFIG.BASE_PLAYER_SPEED
-      + (Math.min(speedLevel, 5) * 1.5)
-      + (speedLevel >= 6 ? 3 : 0);
-    this.updatePlayerMovement(speed);
+    this.updatePlayerMovement(this.getPlayerMovementSpeed());
     this.updateSquadCompanions();
 
     // Fire Rate has three seven-upgrade tiers. Cadence improves smoothly at
@@ -3905,14 +4003,14 @@ export class GameEngine {
       this.bossWarningFrame = 0;
       this.playSound('electricity');
 
-      this.waveVictorySummary = this.buildWaveVictorySummary();
-
-      this.spawnFloatingText(this.width / 2, this.height / 2, "WAVE COMPLETE!", "#00FF00");
-      const configuredDelay = Number(this.getCurrentWaveDefinition()?.delayAfterSeconds);
-      this.waveDepartureDuration = Number.isFinite(configuredDelay) && configuredDelay >= 0
-        ? Math.max(1, Math.round(configuredDelay * GAME_CONFIG.FPS))
-        : 168;
-      this.waveDepartureFrames = this.waveDepartureDuration;
+      if (this.isCurrentWaveStageFinal()) {
+        this.beginStageCompletion('STAGE COMPLETE!', '#00FF00');
+      } else {
+        // Authored internal Gatekeepers are allowed to advance a tactical wave,
+        // but never produce a stage record or ship departure.
+        this.spawnFloatingText(this.width / 2, this.height / 2, 'WAVE CLEAR!', '#67e8f9');
+        this.startNextWave();
+      }
     }
   }
 
@@ -7816,11 +7914,12 @@ export class GameEngine {
         }
 
     } else if (e.type === EntityType.ENEMY_BRICK) {
-        const fallbackFrames = e.variant >= 900 ? ASSETS.ASTEROID_BELT_FRAMES : ASSETS.ENEMY_BRICK_FRAMES;
+        const isAsteroid = e.variant >= 900;
+        const fallbackFrames = isAsteroid ? ASSETS.ASTEROID_BELT_FRAMES : ASSETS.ENEMY_BRICK_FRAMES;
         const frame = e.spriteFrames?.length
           ? e.spriteFrames[e.variant % e.spriteFrames.length]
           : e.spriteUrl || fallbackFrames[e.variant % fallbackFrames.length];
-        const rotation = Math.sin((this.frameCount + e.variant) * 0.03) * 0.2;
+        const rotation = isAsteroid ? 0 : Math.sin((this.frameCount + e.variant) * 0.03) * 0.2;
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {
             rotation,
             shadowColor: '#f59e0b',
