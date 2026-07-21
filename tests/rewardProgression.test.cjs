@@ -86,6 +86,9 @@ test('the Reward Center is reachable from Home and More and opens on Daily Gifts
   assert.match(center, /Day \{reward\.day\}/);
   assert.match(center, /Unlock \$\{ship\.name\}/);
   assert.match(styles, /\.sci-reward-edge-trigger/);
+  assert.match(styles, /bottom: calc\(max\(0\.5rem, env\(safe-area-inset-bottom\)\) \+ 13\.25rem\)/);
+  assert.match(styles, /animation: sci-reward-edge-hover 4\.2s ease-in-out infinite/);
+  assert.match(styles, /@keyframes sci-reward-edge-hover/);
   assert.match(styles, /@keyframes sci-reward-edge-claimable/);
   assert.match(styles, /\.sci-daily-grid/);
   assert.match(styles, /\.sci-achievement-card/);
