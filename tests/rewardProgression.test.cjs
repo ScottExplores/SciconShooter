@@ -15,7 +15,7 @@ test('daily gifts define a persistent 30-day calendar with ship milestones', () 
   const coins = coinList[1].match(/\d+/g).map(Number);
 
   assert.equal(coins.length, 30);
-  assert.ok(coins.every((amount) => amount > 0));
+  assert.deepEqual(coins, Array.from({ length: 30 }, (_, index) => (index + 1) * 10));
   assert.match(rewards, /day === 14 \? \{ shipId: 'eth' as const \}/);
   assert.match(rewards, /day === 30 \? \{ shipId: 'btc' as const \}/);
   assert.match(rewards, /daysSinceClaim === 1/);
@@ -45,6 +45,12 @@ test('achievements advance through permanent progressive tiers', () => {
   assert.match(rewards, /targets: \[2, 4, 6, 10, 15\]/);
   assert.match(rewards, /targets: \[2, 5, 10, 25, 50\]/);
   assert.match(rewards, /targets: \[100, 500, 1500, 5000, 10000\]/);
+  assert.match(rewards, /rewards: \[150, 300, 500, 800, 1400\]/);
+  assert.match(rewards, /rewards: \[200, 400, 700, 1200, 2000\]/);
+  assert.match(rewards, /rewards: \[150, 350, 600, 1100, 1800\]/);
+  assert.match(rewards, /rewards: \[100, 300, 600, 1000, 1700\]/);
+  assert.match(rewards, /rewards: \[150, 350, 650, 1100, 1800\]/);
+  assert.match(rewards, /rewards: \[200, 450, 800, 1400, 2400\]/);
   assert.match(rewards, /\[id\]: status\.claimedTiers \+ 1/);
   assert.match(rewards, /runs: state\.lifetimeStats\.runs \+ 1/);
   assert.match(rewards, /bossesDefeated: state\.lifetimeStats\.bossesDefeated \+ 1/);
@@ -70,7 +76,8 @@ test('the Reward Center is reachable from Home and More and opens on Daily Gifts
   const styles = read('styles', 'tailwind.input.css');
 
   assert.match(startScreen, /label="Daily Gifts"/);
-  assert.match(startScreen, /className="sci-reward-edge-trigger"/);
+  assert.match(startScreen, /dailyGiftStatus\.isAvailable \? ' sci-reward-edge-trigger--claimable' : ''/);
+  assert.match(startScreen, /getDailyGiftStatus\(permanentSquadState\)/);
   assert.match(startScreen, /<RewardCenter/);
   assert.match(center, /useState<RewardTab>\('daily'\)/);
   assert.match(center, /setTab\('daily'\)/);
@@ -79,7 +86,7 @@ test('the Reward Center is reachable from Home and More and opens on Daily Gifts
   assert.match(center, /Day \{reward\.day\}/);
   assert.match(center, /Unlock \$\{ship\.name\}/);
   assert.match(styles, /\.sci-reward-edge-trigger/);
-  assert.match(styles, /@keyframes sci-reward-edge-bounce/);
+  assert.match(styles, /@keyframes sci-reward-edge-claimable/);
   assert.match(styles, /\.sci-daily-grid/);
   assert.match(styles, /\.sci-achievement-card/);
 });

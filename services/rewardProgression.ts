@@ -48,9 +48,9 @@ export interface AchievementStatus {
 }
 
 const DAILY_COIN_REWARDS = [
-  20, 25, 30, 35, 40, 50, 75, 80, 90, 100,
-  110, 120, 130, 150, 160, 170, 180, 190, 200, 210,
-  220, 230, 240, 250, 260, 270, 280, 300, 350, 500
+  10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
+  110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
+  210, 220, 230, 240, 250, 260, 270, 280, 290, 300
 ] as const;
 
 export const DAILY_GIFT_REWARDS: readonly DailyGiftReward[] = DAILY_COIN_REWARDS.map((coins, index) => {
@@ -70,7 +70,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Reach wave {target}',
     metric: 'highestWave',
     targets: [2, 4, 6, 10, 15],
-    rewards: [75, 150, 250, 400, 700]
+    rewards: [150, 300, 500, 800, 1400]
   },
   {
     id: 'boss-breaker',
@@ -78,7 +78,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Defeat {target} bosses',
     metric: 'bossesDefeated',
     targets: [2, 5, 10, 25, 50],
-    rewards: [100, 200, 350, 600, 1000]
+    rewards: [200, 400, 700, 1200, 2000]
   },
   {
     id: 'research-hunter',
@@ -86,7 +86,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Defeat {target} enemies',
     metric: 'enemiesDefeated',
     targets: [100, 500, 1500, 5000, 10000],
-    rewards: [75, 175, 300, 550, 900]
+    rewards: [150, 350, 600, 1100, 1800]
   },
   {
     id: 'coin-collector',
@@ -94,7 +94,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Collect {target} research coins',
     metric: 'coinsCollected',
     targets: [100, 500, 1500, 5000, 10000],
-    rewards: [50, 150, 300, 500, 850]
+    rewards: [100, 300, 600, 1000, 1700]
   },
   {
     id: 'mission-veteran',
@@ -102,7 +102,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Complete {target} runs',
     metric: 'runs',
     targets: [3, 10, 25, 50, 100],
-    rewards: [75, 175, 325, 550, 900]
+    rewards: [150, 350, 650, 1100, 1800]
   },
   {
     id: 'ace-score',
@@ -110,7 +110,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Score {target} points in one run',
     metric: 'bestScore',
     targets: [1000, 5000, 10000, 25000, 50000],
-    rewards: [100, 225, 400, 700, 1200]
+    rewards: [200, 450, 800, 1400, 2400]
   }
 ];
 

@@ -29,7 +29,7 @@ import {
 } from '../services/playerShipMotion';
 import SquadHangar from './SquadHangar';
 import RewardCenter from './RewardCenter';
-import type { AchievementId } from '../services/rewardProgression';
+import { getDailyGiftStatus, type AchievementId } from '../services/rewardProgression';
 import type {
   MainShipUpgradeId,
   MiniShipId,
@@ -651,6 +651,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [selectedLeaderboardRecord, setSelectedLeaderboardRecord] = useState<LeaderboardEntry | null>(null);
   const [leaderboardRecordStatus, setLeaderboardRecordStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
+  const dailyGiftStatus = getDailyGiftStatus(permanentSquadState);
 
   useEffect(() => {
     const iconImages = dashboardTabs.flatMap((tab) => [tab.icon, tab.selectedIcon]);
@@ -1624,9 +1625,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
       {dashboardTab === 'home' ? (
         <button
           type="button"
-          className="sci-reward-edge-trigger"
+          className={`sci-reward-edge-trigger${dailyGiftStatus.isAvailable ? ' sci-reward-edge-trigger--claimable' : ''}`}
           onClick={() => setShowRewardCenter(true)}
-          aria-label="Open daily gifts"
+          aria-label={dailyGiftStatus.isAvailable ? 'Claim daily gift' : 'Open daily gifts'}
         >
           <img src={`${DASHBOARD_ICON_ROOT}/selected/weekly-calendar-selected.png`} alt="" />
           <span>Daily gift</span>

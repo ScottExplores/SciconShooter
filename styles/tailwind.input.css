@@ -647,15 +647,17 @@
 
   .sci-reward-edge-trigger {
     position: fixed;
-    right: -2.3rem;
-    top: 43%;
+    right: -1.75rem;
+    bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 6.35rem);
     z-index: 42;
     display: flex;
-    width: 6.7rem;
-    min-height: 4.2rem;
+    width: 4.8rem;
+    min-height: 7.4rem;
+    flex-direction: column;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.45rem 2.55rem 0.45rem 0.55rem;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.95rem 0.65rem 0.45rem;
     border: 1px solid rgb(250 204 21 / 0.72);
     border-right: 0;
     border-radius: 0.45rem 0 0 0.45rem;
@@ -666,11 +668,14 @@
     box-shadow: 0 0 1rem rgb(34 211 238 / 0.22), inset 0 0 0.65rem rgb(250 204 21 / 0.08);
     font-size: 0.56rem;
     font-weight: 950;
-    line-height: 0.68rem;
-    text-align: left;
+    line-height: 0.72rem;
+    text-align: center;
     text-transform: uppercase;
-    transition: right 180ms ease, filter 180ms ease, transform 180ms ease;
-    animation: sci-reward-edge-bounce 2.4s ease-in-out infinite;
+    transition: right 180ms ease, filter 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .sci-reward-edge-trigger--claimable {
+    animation: sci-reward-edge-claimable 1.75s ease-in-out infinite;
   }
 
   .sci-reward-edge-trigger:hover,
@@ -681,8 +686,8 @@
   }
 
   .sci-reward-edge-trigger img {
-    width: 2.6rem;
-    height: 2.6rem;
+    width: 2.85rem;
+    height: 2.85rem;
     flex: 0 0 auto;
     object-fit: contain;
     filter: drop-shadow(0 0 0.4rem rgb(250 204 21 / 0.48));
@@ -1270,9 +1275,21 @@
     }
   }
 
-  @keyframes sci-reward-edge-bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-0.35rem); }
+  @keyframes sci-reward-edge-claimable {
+    0%, 100% {
+      border-color: rgb(250 204 21 / 0.72);
+      box-shadow: 0 0 0.9rem rgb(34 211 238 / 0.2), inset 0 0 0.65rem rgb(250 204 21 / 0.08);
+    }
+    50% {
+      border-color: rgb(254 240 138 / 1);
+      box-shadow: 0 0 0.25rem rgb(254 240 138 / 0.95), 0 0 1.4rem rgb(250 204 21 / 0.7), inset 0 0 0.85rem rgb(250 204 21 / 0.24);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .sci-reward-edge-trigger {
+      bottom: 7.5rem;
+    }
   }
 
   @keyframes sci-wallet-connect-nudge {
