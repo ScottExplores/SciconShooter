@@ -1,6 +1,11 @@
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import { PLAYABLE_PLAYER_SHIP_IDS, type PlayerShipId } from './playerShipService';
 import {
+  getMiniShipDamageMultiplier,
+  getMiniShipFireIntervalFrames,
+  getMiniShipVolleySize
+} from './miniShipCombatProgression';
+import {
   FIRE_RATE_LEVELS_PER_TIER,
   FIRE_RATE_MAX_LEVEL,
   getFireRateTier,
@@ -138,6 +143,7 @@ export interface RuntimeSquadCompanion {
   fireIntervalFrames: number;
   projectileDamage: number;
   projectileColor: string;
+  volleySize: number;
 }
 
 export interface RuntimeSquadLoadout {
@@ -167,7 +173,7 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
     id: 'citation-dart',
     name: 'Citation Dart',
     role: 'Pulse gunner',
-    description: 'A steady pulse cannon whose fire rate climbs every level.',
+    description: 'A steady pulse cannon that gains twin and triple tight volleys as it levels.',
     ability: 'pulse-cannon',
     purchaseCost: 0,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -180,7 +186,7 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
     id: 'helix-wasp',
     name: 'Helix Wasp',
     role: 'Angle repeater',
-    description: 'Repeats left 25°, center, then right 25° and cycles faster as it levels.',
+    description: 'Repeats left 25°, center, then right 25° and adds paired repeaters as it levels.',
     ability: 'spread-cycle',
     purchaseCost: 90,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -193,7 +199,7 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
     id: 'photon-manta',
     name: 'Photon Manta',
     role: 'Piercing laser',
-    description: 'Fires a piercing photon lance that passes through more targets as it levels.',
+    description: 'Fires piercing photon lances that multiply and pass through more targets as it levels.',
     ability: 'piercing-laser',
     purchaseCost: 140,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -206,7 +212,7 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
     id: 'quorum-crab',
     name: 'Quorum Crab',
     role: 'Coin magnet',
-    description: 'Pulls nearby coins toward the squad while adding dependable cover fire.',
+    description: 'Expands its coin field every level and unlocks twin cover fire at level four.',
     ability: 'coin-magnet',
     purchaseCost: 200,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -219,7 +225,7 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
     id: 'axiom-orbiter',
     name: 'Axiom Orbiter',
     role: 'Twin burst',
-    description: 'Fires paired precision bolts with a widening damage advantage at higher levels.',
+    description: 'Builds from paired precision bolts into a four-round capstone burst.',
     ability: 'twin-burst',
     purchaseCost: 260,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -232,7 +238,7 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
     id: 'archive-beetle',
     name: 'Archive Beetle',
     role: 'Homing missile',
-    description: 'Launches heat-seeking missiles that steer harder and hit faster as it levels.',
+    description: 'Launches heat-seeking missiles, then unlocks a twin piercing salvo.',
     ability: 'homing-missile',
     purchaseCost: 330,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -245,7 +251,7 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
     id: 'beacon-kite',
     name: 'Beacon Kite',
     role: 'Targeting laser',
-    description: 'Tracks the nearest threat and leads it with accurate signal fire.',
+    description: 'Tracks the nearest threat and grows into a three-beam targeting array.',
     ability: 'targeting-laser',
     purchaseCost: 410,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -258,7 +264,7 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
     id: 'prism-skimmer',
     name: 'Prism Skimmer',
     role: 'Prism fan',
-    description: 'Projects a simultaneous three-ray fan for reliable formation control.',
+    description: 'Expands from a three-ray prism fan to seven formation-clearing rays.',
     ability: 'prism-fan',
     purchaseCost: 500,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -271,7 +277,7 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
     id: 'ledger-hammer',
     name: 'Ledger Hammer',
     role: 'Siege cannon',
-    description: 'Powerful oversized rounds pierce armor and trade speed for impact.',
+    description: 'Powerful oversized rounds gain armor pierce and a twin capstone shot.',
     ability: 'heavy-cannon',
     purchaseCost: 620,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -284,7 +290,7 @@ export const MINI_SHIP_CATALOG: readonly MiniShipCatalogEntry[] = [
     id: 'nebula-tern',
     name: 'Nebula Tern',
     role: 'Nova volley',
-    description: 'An elite five-lane volley platform tuned for the hardest waves.',
+    description: 'An elite volley platform that grows from five lanes to a nine-lane nova.',
     ability: 'nova-volley',
     purchaseCost: 760,
     maxLevel: MINI_SHIP_MAX_LEVEL,
@@ -782,9 +788,10 @@ export const buildRuntimeSquadLoadout = (
       level,
       ability: entry.ability,
       frames: entry.frames,
-      fireIntervalFrames: Math.max(18, entry.fireIntervalFrames - (level - 1) * 3),
-      projectileDamage: entry.projectileDamage + (level - 1) * 0.16,
-      projectileColor: entry.projectileColor
+      fireIntervalFrames: getMiniShipFireIntervalFrames(entry.fireIntervalFrames, level),
+      projectileDamage: entry.projectileDamage * getMiniShipDamageMultiplier(level),
+      projectileColor: entry.projectileColor,
+      volleySize: getMiniShipVolleySize(entry.ability, level)
     }];
   })
 });

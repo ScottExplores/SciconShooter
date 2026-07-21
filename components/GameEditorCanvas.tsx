@@ -47,6 +47,7 @@ const createPreviewStats = (settings: GameEditorPreviewSettings = {}): Stats => 
   powerupUses: {
     [PowerupType.DOUBLE_SHOT]: 0,
     [PowerupType.TRIPLE_SHOT]: 0,
+    [PowerupType.MAX_SHOT]: 0,
     [PowerupType.MAGNET]: 0,
     [PowerupType.SHIELD]: 0,
     [PowerupType.EXTRA_LIFE]: 0,

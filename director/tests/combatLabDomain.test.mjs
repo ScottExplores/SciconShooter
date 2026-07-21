@@ -64,7 +64,7 @@ test('content catalog discovers every real Combat Lab category without dangling 
   assert.equal(catalog.enemies.length, 4);
   assert.equal(catalog.mainShips.length, 4);
   assert.equal(catalog.miniShips.length, 10);
-  assert.equal(catalog.powerups.length, 6);
+  assert.equal(catalog.powerups.length, 7);
   assert.ok(catalog.bosses.length > 0);
   assert.ok(catalog.bossMoves.some((item) => item.kind === 'boss-weapon'));
   assert.ok(catalog.bossMoves.some((item) => item.kind === 'boss-phase'));

@@ -23,7 +23,8 @@ test('the weekly squad model is wallet-scoped, resettable, and data driven', () 
   assert.match(source, /state\.weekKey !== currentWeek/);
   assert.match(source, /weekly_state_reset/);
   assert.match(source, /buildRuntimeSquadLoadout/);
-  assert.match(source, /fireIntervalFrames: Math\.max\(18/);
+  assert.match(source, /fireIntervalFrames: getMiniShipFireIntervalFrames\(entry\.fireIntervalFrames, level\)/);
+  assert.match(source, /volleySize: getMiniShipVolleySize\(entry\.ability, level\)/);
   assert.match(source, /ownedMiniShips: \{\}/);
   assert.match(source, /equipped: \{ left: null, right: null \}/);
   assert.match(source, /shipUpgrades: createMainShipUpgradesByShip\(\)/);

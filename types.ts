@@ -32,6 +32,7 @@ export enum EntityType {
 export enum PowerupType {
   DOUBLE_SHOT = 'DOUBLE_SHOT', // Parallel fire
   TRIPLE_SHOT = 'TRIPLE_SHOT', // Angled spread (Brian)
+  MAX_SHOT = 'MAX_SHOT', // Eight-lane temporary overdrive
   MAGNET = 'MAGNET', // Coin Magnet (Patrick)
   SHIELD = 'SHIELD', // Invincibility (Jeffrey)
   EXTRA_LIFE = 'EXTRA_LIFE', // Extra Life (Arshia)

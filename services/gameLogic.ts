@@ -53,6 +53,7 @@ import {
   getFireRateTier,
   getFireRateTierProgress,
   getFireRateVolleySize,
+  getTightVolleyAngleOffsets,
   getTightVolleyOffsets
 } from './weaponTierProgression';
 import {
@@ -398,6 +399,7 @@ const GAMEPLAY_ASSET_URLS = [
   ...SHIP_ABILITY_FRAME_URLS,
   ...RESEARCH_IMPACT_FRAME_URLS,
   ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
+  ASSETS.POWERUP_MAX_SHOT,
   ...ASSETS.POWERUP_MAGNET_FRAMES,
   ...ASSETS.POWERUP_SHIELD_FRAMES,
   ...ASSETS.POWERUP_RESEARCH_BEAM_FRAMES,
@@ -459,6 +461,19 @@ const lerp = (current: number, target: number, amount: number) => current + ((ta
 const randomRange = (min: number, max: number) => min + Math.random() * (max - min);
 export const PLAYER_PRIMARY_SHOT_SPREAD_DEGREES = 5;
 const PLAYER_PRIMARY_SHOT_SPREAD_RADIANS = PLAYER_PRIMARY_SHOT_SPREAD_DEGREES * (Math.PI / 180);
+export const MAX_SHOT_PROJECTILE_COUNT = 8;
+export const MAX_SHOT_ANGLE_DEGREES = [-28, -20, -12, -4, 4, 12, 20, 28] as const;
+const MAX_SHOT_ANGLES_RADIANS = MAX_SHOT_ANGLE_DEGREES.map((degrees) => degrees * (Math.PI / 180));
+const COMPANION_SHOT_STEPS: Readonly<Record<number, readonly number[]>> = Object.freeze({
+  1: Object.freeze([0]),
+  2: Object.freeze([-0.5, 0.5]),
+  3: Object.freeze([-1, 0, 1]),
+  4: Object.freeze([-1.5, -0.5, 0.5, 1.5]),
+  5: Object.freeze([-2, -1, 0, 1, 2]),
+  7: Object.freeze([-3, -2, -1, 0, 1, 2, 3]),
+  9: Object.freeze([-4, -3, -2, -1, 0, 1, 2, 3, 4])
+});
+const getCompanionShotSteps = (volleySize: number) => COMPANION_SHOT_STEPS[volleySize] ?? COMPANION_SHOT_STEPS[1];
 const getRandomPrimaryShotAngle = () => (
   (Math.floor(Math.random() * 3) - 1) * PLAYER_PRIMARY_SHOT_SPREAD_RADIANS
 );
@@ -535,6 +550,8 @@ const DESKTOP_THREAT_CAP = 46;
 const MOBILE_PLAYER_SHOT_CAP = 28;
 const MOBILE_LEAN_PLAYER_SHOT_CAP = 20;
 const DESKTOP_PLAYER_SHOT_CAP = 28;
+const MOBILE_MAX_PLAYER_SHOT_CAP = 96;
+const DESKTOP_MAX_PLAYER_SHOT_CAP = 148;
 const PENDING_PLAYER_SHOT_CAP = 8;
 const COLLISION_COLUMN_WIDTH = 96;
 const EMPTY_GUN_POD_OFFSETS: number[] = [];
@@ -2837,73 +2854,106 @@ export class GameEngine {
   private spawnSquadCompanionBullet(companion: ActiveSquadCompanion) {
     if (this.livePlayerShotCount + this.pendingPlayerShots.length >= this.getPlayerShotCap()) return;
 
+    const shotSteps = getCompanionShotSteps(companion.volleySize);
     switch (companion.ability) {
       case 'spread-cycle': {
         const angleSteps = [-1, 0, 1] as const;
         const sideAngle = 25 * Math.PI / 180;
-        const angle = angleSteps[companion.shotSequence % angleSteps.length] * sideAngle;
+        const cycleAngle = angleSteps[companion.shotSequence % angleSteps.length] * sideAngle;
         companion.shotSequence++;
-        this.spawnSquadProjectile(companion, { angle });
+        shotSteps.forEach((step) => this.spawnSquadProjectile(companion, {
+          angle: cycleAngle + step * 0.018,
+          offsetX: step * 5,
+          damageScale: companion.volleySize > 1 ? 0.78 : 1
+        }));
         break;
       }
       case 'piercing-laser':
-        this.spawnSquadProjectile(companion, {
-          damageScale: 0.9,
+        shotSteps.forEach((step) => this.spawnSquadProjectile(companion, {
+          angle: step * 0.012,
+          offsetX: step * 8,
+          damageScale: companion.volleySize > 1 ? 0.7 : 0.9,
           heightScale: 1.55,
           pierceCount: 1 + Math.floor(companion.level / 2)
-        });
+        }));
         break;
       case 'coin-magnet':
-        this.spawnSquadProjectile(companion, { damageScale: 0.72, widthScale: 1.15 });
+        shotSteps.forEach((step) => this.spawnSquadProjectile(companion, {
+          angle: step * 0.016,
+          offsetX: step * 7,
+          damageScale: companion.volleySize > 1 ? 0.58 : 0.72,
+          widthScale: 1.15
+        }));
         break;
       case 'twin-burst':
-        this.spawnSquadProjectile(companion, { angle: -0.025, offsetX: -6, damageScale: 0.72 });
-        this.spawnSquadProjectile(companion, { angle: 0.025, offsetX: 6, damageScale: 0.72 });
+        shotSteps.forEach((step) => this.spawnSquadProjectile(companion, {
+          angle: step * 0.026,
+          offsetX: step * 12,
+          damageScale: companion.volleySize > 2 ? 0.58 : 0.72
+        }));
         break;
       case 'homing-missile':
-        this.spawnSquadProjectile(companion, {
+        shotSteps.forEach((step) => this.spawnSquadProjectile(companion, {
+          angle: step * 0.035,
+          offsetX: step * 15,
           missile: true,
-          damageScale: 1.75,
+          damageScale: companion.volleySize > 1 ? 1.18 : 1.75,
           widthScale: 1.25,
-          heightScale: 1.12
-        });
+          heightScale: 1.12,
+          pierceCount: companion.level >= 5 ? 1 : 0
+        }));
         break;
-      case 'targeting-laser':
-        this.spawnSquadProjectile(companion, {
-          angle: this.getSquadTargetAngle(companion),
-          damageScale: 1.08,
+      case 'targeting-laser': {
+        const targetAngle = this.getSquadTargetAngle(companion);
+        shotSteps.forEach((step) => this.spawnSquadProjectile(companion, {
+          angle: targetAngle + step * 0.018,
+          offsetX: step * 6,
+          damageScale: companion.volleySize > 1 ? 0.76 : 1.08,
           heightScale: 1.25
-        });
+        }));
         break;
-      case 'prism-fan':
-        [-12, 0, 12].forEach((degrees) => {
+      }
+      case 'prism-fan': {
+        const degreesPerStep = companion.volleySize >= 7 ? 6 : companion.volleySize >= 5 ? 8 : 12;
+        const damageScale = companion.volleySize >= 7 ? 0.44 : companion.volleySize >= 5 ? 0.52 : 0.64;
+        shotSteps.forEach((step) => {
           this.spawnSquadProjectile(companion, {
-            angle: degrees * (Math.PI / 180),
-            damageScale: 0.64
+            angle: step * degreesPerStep * (Math.PI / 180),
+            damageScale
           });
         });
         break;
+      }
       case 'heavy-cannon':
-        this.spawnSquadProjectile(companion, {
-          damageScale: 2,
+        shotSteps.forEach((step) => this.spawnSquadProjectile(companion, {
+          angle: step * 0.018,
+          offsetX: step * 14,
+          damageScale: companion.volleySize > 1 ? 1.4 : 2,
           widthScale: 1.85,
           heightScale: 1.35,
           speedScale: 0.78,
           pierceCount: companion.level >= 3 ? 1 : 0
-        });
+        }));
         break;
-      case 'nova-volley':
-        [-22, -11, 0, 11, 22].forEach((degrees) => {
+      case 'nova-volley': {
+        const degreesPerStep = companion.volleySize >= 9 ? 5.5 : companion.volleySize >= 7 ? 7.25 : 11;
+        const damageScale = companion.volleySize >= 9 ? 0.34 : companion.volleySize >= 7 ? 0.39 : 0.46;
+        shotSteps.forEach((step) => {
           this.spawnSquadProjectile(companion, {
-            angle: degrees * (Math.PI / 180),
-            damageScale: 0.46,
+            angle: step * degreesPerStep * (Math.PI / 180),
+            damageScale,
             speedScale: 1.08
           });
         });
         break;
+      }
       case 'pulse-cannon':
       default:
-        this.spawnSquadProjectile(companion);
+        shotSteps.forEach((step) => this.spawnSquadProjectile(companion, {
+          angle: step * 0.018,
+          offsetX: step * 6,
+          damageScale: companion.volleySize >= 3 ? 0.62 : companion.volleySize === 2 ? 0.78 : 1
+        }));
         break;
     }
 
@@ -3061,14 +3111,39 @@ export class GameEngine {
   getPlayerShotCap() {
     const hasSpread = this.activePowerups.has(PowerupType.DOUBLE_SHOT)
       || this.activePowerups.has(PowerupType.TRIPLE_SHOT);
-    const simultaneousShots = getFireRateVolleySize(this.stats.upgrades.fireRate || 0) * (hasSpread ? 3 : 1);
+    const hasMaxShot = this.activePowerups.has(PowerupType.MAX_SHOT);
+    const simultaneousShots = hasMaxShot
+      ? MAX_SHOT_PROJECTILE_COUNT
+      : getFireRateVolleySize(this.stats.upgrades.fireRate || 0) * (hasSpread ? 3 : 1);
+    const companionBurstSize = this.squadCompanions.reduce(
+      (sum, companion) => sum + Math.max(1, companion.volleySize),
+      0
+    );
     const baseCap = this.performanceMode || (this.mobileProfile && this.heavySceneLoad)
       ? MOBILE_LEAN_PLAYER_SHOT_CAP
       : this.mobileProfile
         ? MOBILE_PLAYER_SHOT_CAP
         : DESKTOP_PLAYER_SHOT_CAP;
     const extraShotAllowance = this.mobileProfile ? (this.heavySceneLoad ? 9 : 10) : 12;
-    return baseCap + (simultaneousShots - 1) * extraShotAllowance;
+    const companionAllowance = Math.min(
+      this.mobileProfile ? 24 : 36,
+      companionBurstSize * (this.mobileProfile ? 3 : 4)
+    );
+    const calculatedCap = baseCap
+      + (simultaneousShots - 1) * extraShotAllowance
+      + companionAllowance;
+    const completeBurstFloor = simultaneousShots + companionBurstSize + 6;
+    return Math.min(
+      this.mobileProfile ? MOBILE_MAX_PLAYER_SHOT_CAP : DESKTOP_MAX_PLAYER_SHOT_CAP,
+      Math.max(calculatedCap, completeBurstFloor)
+    );
+  }
+
+  hasPlayerShotCapacity(projectileCount: number = 1) {
+    if (!Number.isInteger(projectileCount) || projectileCount <= 0) return false;
+    return this.livePlayerShotCount
+      + this.pendingPlayerShots.length
+      + projectileCount <= this.getPlayerShotCap();
   }
 
   refreshLoadState() {
@@ -3122,7 +3197,7 @@ export class GameEngine {
     playSound: boolean = true,
     weaponKind: PlayerWeaponKind = 'pulse'
   ) {
-    if (this.livePlayerShotCount + this.pendingPlayerShots.length >= this.getPlayerShotCap()) {
+    if (!this.hasPlayerShotCapacity()) {
       return false;
     }
 
@@ -3231,7 +3306,7 @@ export class GameEngine {
 
   queuePlayerBullet(shot: PendingPlayerShot) {
     if (this.pendingPlayerShots.length >= PENDING_PLAYER_SHOT_CAP) return;
-    if (this.livePlayerShotCount + this.pendingPlayerShots.length >= this.getPlayerShotCap()) return;
+    if (!this.hasPlayerShotCapacity()) return;
     this.pendingPlayerShots.push(shot);
   }
 
@@ -3261,11 +3336,36 @@ export class GameEngine {
     this.playerVel.x += randomRange(-0.05, 0.05);
     const weaponKind: PlayerWeaponKind = 'pulse';
     const weaponSpeed = 10;
+    if (this.activePowerups.has(PowerupType.MAX_SHOT)) {
+      if (!this.hasPlayerShotCapacity(MAX_SHOT_PROJECTILE_COUNT)) return;
+      MAX_SHOT_ANGLES_RADIANS.forEach((angle, index) => {
+        const centeredIndex = index - ((MAX_SHOT_PROJECTILE_COUNT - 1) / 2);
+        this.spawnPlayerBullet(
+          weaponSpeed,
+          centeredIndex * 2.2,
+          Math.abs(centeredIndex) * 0.45,
+          angle,
+          -0.16 + index * 0.012,
+          index === 0,
+          weaponKind
+        );
+      });
+      return;
+    }
     const volleySize = getFireRateVolleySize(this.stats.upgrades.fireRate || 0);
     const volleyOffsets = getTightVolleyOffsets(volleySize);
+    const volleyAngleOffsets = getTightVolleyAngleOffsets(volleySize);
     const primaryAngle = getRandomPrimaryShotAngle();
     volleyOffsets.forEach((offsetX, index) => {
-      this.spawnPlayerBullet(weaponSpeed, offsetX, 0, primaryAngle, -0.04, index === 0, weaponKind);
+      this.spawnPlayerBullet(
+        weaponSpeed,
+        offsetX,
+        0,
+        primaryAngle + volleyAngleOffsets[index],
+        -0.04,
+        index === 0,
+        weaponKind
+      );
     });
 
     const overdriveSpread = this.activePowerups.has(PowerupType.DOUBLE_SHOT)
@@ -3273,13 +3373,13 @@ export class GameEngine {
     if (overdriveSpread) {
       ([-1, 1] as const).forEach((side, index) => {
         const sideAngle = sampleTripleShotSideAngleRadians(side, Math.random());
-        volleyOffsets.forEach((bundleOffset) => {
+        volleyOffsets.forEach((bundleOffset, bundleIndex) => {
           this.queuePlayerBullet({
             fireFrame: this.frameCount + index + 1,
             speed: weaponSpeed,
             offsetX: side * 4 + bundleOffset,
             yOffset: 4,
-            angleBias: sideAngle,
+            angleBias: sideAngle + volleyAngleOffsets[bundleIndex],
             pitchOffset: side < 0 ? -0.01 : 0.03,
             weaponKind,
             playSound: false
@@ -6009,6 +6109,7 @@ export class GameEngine {
     const powerupIdToType: Record<string, PowerupType> = {
       'double-shot': PowerupType.DOUBLE_SHOT,
       'triple-shot': PowerupType.TRIPLE_SHOT,
+      'max-shot': PowerupType.MAX_SHOT,
       magnet: PowerupType.MAGNET,
       shield: PowerupType.SHIELD,
       'research-beam': PowerupType.RESEARCH_BEAM,
@@ -6018,6 +6119,7 @@ export class GameEngine {
       [PowerupType.RESEARCH_BEAM, 0.08],
       [PowerupType.DOUBLE_SHOT, 0.36],
       [PowerupType.TRIPLE_SHOT, 0.34],
+      [PowerupType.MAX_SHOT, 0.055],
       [PowerupType.MAGNET, 0.12],
       [PowerupType.SHIELD, 0.1],
       [PowerupType.EXTRA_LIFE, 0.02]
@@ -6126,7 +6228,9 @@ export class GameEngine {
     if (type !== PowerupType.EXTRA_LIFE) {
       const currentDuration = this.activePowerups.get(type) || 0;
       const isFounderShot = type === PowerupType.DOUBLE_SHOT || type === PowerupType.TRIPLE_SHOT;
-      const duration = type === PowerupType.RESEARCH_BEAM
+      const duration = type === PowerupType.MAX_SHOT
+        ? GAME_CONFIG.MAX_SHOT_DURATION
+        : type === PowerupType.RESEARCH_BEAM
         ? GAME_CONFIG.RESEARCH_BEAM_DURATION
         : isFounderShot
           ? GAME_CONFIG.FOUNDER_SHOT_DURATION
@@ -6148,6 +6252,11 @@ export class GameEngine {
     } else if (type === PowerupType.TRIPLE_SHOT || type === PowerupType.DOUBLE_SHOT) {
       this.spawnFloatingText(cx, cy - 20, "OVERDRIVE SPREAD!", "#67e8f9");
       this.spawnRingEffect(cx, cy, "#67e8f9");
+    } else if (type === PowerupType.MAX_SHOT) {
+      this.spawnFloatingText(cx, cy - 20, "MAX SHOT!", "#22d3ee");
+      this.spawnRingEffect(cx, cy, "#67e8f9");
+      this.flashAlpha = Math.max(this.flashAlpha, 0.22);
+      this.addShake(1.4);
     } else if (type === PowerupType.RESEARCH_BEAM) {
       this.spawnFloatingText(cx, cy - 20, "RESEARCH BEAM!", "#a855f7");
       this.spawnRingEffect(cx, cy, "#a855f7");
@@ -7542,6 +7651,7 @@ export class GameEngine {
         if (type === PowerupType.SHIELD) frames = ASSETS.POWERUP_SHIELD_FRAMES;
         if (type === PowerupType.EXTRA_LIFE) frames = ['/game-art/powerups/extra-life.png'];
         if (type === PowerupType.RESEARCH_BEAM) frames = ASSETS.POWERUP_RESEARCH_BEAM_FRAMES;
+        if (type === PowerupType.MAX_SHOT) frames = [ASSETS.POWERUP_MAX_SHOT];
         const frameIndex = Math.floor((this.frameCount + e.variant) / 8) % frames.length;
         const imgUrl = frames[frameIndex];
         

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ASSETS } from '../constants';
 import { PLAYER_SHIPS } from '../services/playerShipService';
 import {
@@ -7,7 +7,8 @@ import {
   formatAchievementDescription,
   getAchievementStatus,
   getDailyGiftStatus,
-  type AchievementId
+  type AchievementId,
+  type DailyGiftReward
 } from '../services/rewardProgression';
 import type { PermanentSquadState } from '../services/squadProgression';
 
@@ -16,15 +17,23 @@ const ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achiev
 
 interface RewardCenterProps {
   open: boolean;
+  initialTab?: RewardTab;
   onClose: () => void;
   walletConnected: boolean;
   permanentState: PermanentSquadState;
-  onClaimDailyGift: () => void;
-  onClaimAchievement: (id: AchievementId) => void;
+  onClaimDailyGift: () => DailyGiftReward | null;
+  onClaimAchievement: (id: AchievementId) => number | null;
   onRequestConnect: () => void;
 }
 
-type RewardTab = 'daily' | 'achievements';
+export type RewardTab = 'daily' | 'achievements';
+
+interface ClaimNotice {
+  id: number;
+  title: string;
+  detail: string;
+  coins: number;
+}
 
 const clampProgress = (progress: number, target: number) => (
   target > 0 ? Math.max(0, Math.min(100, (progress / target) * 100)) : 0
@@ -32,6 +41,7 @@ const clampProgress = (progress: number, target: number) => (
 
 const RewardCenter: React.FC<RewardCenterProps> = ({
   open,
+  initialTab = 'daily',
   onClose,
   walletConnected,
   permanentState,
@@ -40,18 +50,38 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
   onRequestConnect
 }) => {
   const [tab, setTab] = useState<RewardTab>('daily');
-  const dailyStatus = useMemo(
-    () => getDailyGiftStatus(permanentState),
-    [permanentState]
-  );
+  const [claimNotice, setClaimNotice] = useState<ClaimNotice | null>(null);
+  const [pendingClaim, setPendingClaim] = useState<'daily' | AchievementId | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const claimInFlightRef = useRef(false);
+  const dailyStatus = getDailyGiftStatus(permanentState);
+  const dailyReward = DAILY_GIFT_REWARDS[dailyStatus.claimableDay - 1];
   const completedThrough = (
     dailyStatus.streakReset
     || (dailyStatus.isAvailable && dailyStatus.claimableDay === 1 && permanentState.dailyGifts.currentDay === 30)
   ) ? 0 : permanentState.dailyGifts.currentDay;
 
   useEffect(() => {
-    if (open) setTab('daily');
-  }, [open]);
+    if (!open) {
+      setClaimNotice(null);
+      return;
+    }
+    setTab(initialTab);
+    const frame = window.requestAnimationFrame(() => closeButtonRef.current?.focus({ preventScroll: true }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [initialTab, open]);
+
+  useEffect(() => {
+    if (!claimNotice) return undefined;
+    const timer = window.setTimeout(() => setClaimNotice(null), 2100);
+    return () => window.clearTimeout(timer);
+  }, [claimNotice]);
+
+  useEffect(() => {
+    if (!claimInFlightRef.current) return;
+    claimInFlightRef.current = false;
+    setPendingClaim(null);
+  }, [permanentState]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -62,17 +92,84 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, open]);
 
+  const handleClaimDailyGift = () => {
+    if (claimInFlightRef.current || !dailyStatus.isAvailable || !dailyReward) return;
+    claimInFlightRef.current = true;
+    setPendingClaim('daily');
+    let confirmedReward: DailyGiftReward | null = null;
+    try {
+      confirmedReward = onClaimDailyGift();
+    } catch {
+      confirmedReward = null;
+    }
+    if (!confirmedReward) {
+      claimInFlightRef.current = false;
+      setPendingClaim(null);
+      return;
+    }
+    const ship = confirmedReward.shipId ? PLAYER_SHIPS[confirmedReward.shipId] : null;
+    setClaimNotice({
+      id: Date.now(),
+      title: ship ? `${ship.name} unlocked` : 'Daily gift secured',
+      detail: ship ? 'Ship added to your Hangar' : 'Research coins added',
+      coins: confirmedReward.coins
+    });
+  };
+
+  const handleClaimAchievement = (id: AchievementId, title: string) => {
+    if (claimInFlightRef.current) return;
+    claimInFlightRef.current = true;
+    setPendingClaim(id);
+    let confirmedCoins: number | null = null;
+    try {
+      confirmedCoins = onClaimAchievement(id);
+    } catch {
+      confirmedCoins = null;
+    }
+    if (confirmedCoins === null) {
+      claimInFlightRef.current = false;
+      setPendingClaim(null);
+      return;
+    }
+    setClaimNotice({
+      id: Date.now(),
+      title: `${title} collected`,
+      detail: 'Achievement reward added',
+      coins: confirmedCoins
+    });
+  };
+
   if (!open) return null;
 
   return (
-    <div className="sci-reward-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="sci-reward-backdrop" role="presentation" onPointerDown={onClose}>
       <section
+        id="reward-center"
         className="sci-reward-center"
         role="dialog"
         aria-modal="true"
         aria-labelledby="reward-center-title"
-        onMouseDown={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
       >
+        {claimNotice ? (
+          <div
+            key={claimNotice.id}
+            className="sci-reward-claim-celebration"
+            role="status"
+            aria-live="assertive"
+          >
+            <span className="sci-reward-claim-celebration__burst" aria-hidden="true" />
+            <span className="sci-reward-claim-celebration__particles" aria-hidden="true">
+              <i /><i /><i /><i /><i /><i />
+            </span>
+            <img src={ASSETS.RSC_TOKEN} alt="" />
+            <div>
+              <strong>{claimNotice.title}</strong>
+              <span>{claimNotice.detail}</span>
+              <b>+{claimNotice.coins.toLocaleString()} coins</b>
+            </div>
+          </div>
+        ) : null}
         <header className="sci-reward-header">
           <div className="sci-reward-title-lockup">
             <img src={CALENDAR_ICON} alt="" />
@@ -81,7 +178,13 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
               <h2 id="reward-center-title">Reward Center</h2>
             </div>
           </div>
-          <button type="button" className="sci-reward-close" onClick={onClose} aria-label="Close reward center">
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="sci-reward-close"
+            onClick={onClose}
+            aria-label="Close reward center"
+          >
             &times;
           </button>
         </header>
@@ -164,10 +267,12 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
               <button
                 type="button"
                 className="sci-reward-primary"
-                disabled={!walletConnected || !dailyStatus.isAvailable}
-                onClick={onClaimDailyGift}
+                disabled={!walletConnected || !dailyStatus.isAvailable || pendingClaim !== null}
+                onClick={handleClaimDailyGift}
               >
-                {!walletConnected
+                {pendingClaim === 'daily'
+                  ? 'Securing reward...'
+                  : !walletConnected
                   ? 'Connect to claim'
                   : dailyStatus.claimedToday
                     ? 'Claimed today'
@@ -207,10 +312,19 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                         <span>{status.allClaimed ? 'Mastered' : `${Math.min(status.progress, status.target).toLocaleString()} / ${status.target.toLocaleString()}`}</span>
                         <button
                           type="button"
-                          disabled={!walletConnected || !status.complete}
-                          onClick={() => onClaimAchievement(definition.id)}
+                          disabled={!walletConnected || !status.complete || pendingClaim !== null}
+                          onClick={() => handleClaimAchievement(
+                            definition.id,
+                            definition.title
+                          )}
                         >
-                          {status.allClaimed ? 'Complete' : status.complete ? 'Collect' : 'In progress'}
+                          {pendingClaim === definition.id
+                            ? 'Securing...'
+                            : status.allClaimed
+                              ? 'Complete'
+                              : status.complete
+                                ? 'Collect'
+                                : 'In progress'}
                         </button>
                       </div>
                     </div>

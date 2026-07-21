@@ -32,3 +32,15 @@ export const getTightVolleyOffsets = (volleySize: number): readonly number[] => 
   if (volleySize === 2) return [-3.5, 3.5];
   return [0];
 };
+
+const degreesToRadians = (degrees: number) => degrees * (Math.PI / 180);
+
+/**
+ * Higher-tier rounds begin close together, then separate just enough to read
+ * as distinct projectiles instead of travelling in perfectly parallel rails.
+ */
+export const getTightVolleyAngleOffsets = (volleySize: number): readonly number[] => {
+  if (volleySize >= 3) return [degreesToRadians(-1.6), 0, degreesToRadians(1.6)];
+  if (volleySize === 2) return [degreesToRadians(-1.25), degreesToRadians(1.25)];
+  return [0];
+};

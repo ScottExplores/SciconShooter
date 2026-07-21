@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import StartScreen from './components/StartScreen';
+import MissionLoadingScreen, { type MissionLoadingPhase } from './components/MissionLoadingScreen';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, MintRecord, PowerupType, Stats, Upgrades, WalletSession } from './types';
 import { audioService } from './services/audioService';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from './constants';
@@ -73,21 +74,111 @@ const WaveVictoryOverlay = React.lazy(() => import('./components/WaveVictoryOver
 const GameStage = React.lazy(loadGameStage);
 const StoryTransmission = React.lazy(loadStoryTransmission);
 
-const preloadGameplayComponents = () => {
-  const gameStageModule = loadGameStage();
-  void Promise.all([
-    gameStageModule,
-    loadStoryTransmission()
-  ]).then(async ([gameplay]) => {
-    await gameplay.preloadGameplayAssets();
-  }).catch(() => {
-    // Gameplay still loads on demand if a background preload is interrupted.
+type GameplayPreloadPhase = Exclude<MissionLoadingPhase, 'error' | 'runtime-sync'>;
+type GameplayPreloadListener = (progress: number, phase: GameplayPreloadPhase) => void;
+
+const MISSION_LOADING_TIPS = [
+  'Break boss cannons first to remove their fire lanes before attacking the hull.',
+  'Coins fund weekly upgrades. Minted mission records remain part of your permanent collection.',
+  'Companion ships have distinct roles. Match their abilities to the bottleneck ahead.',
+  'A warm mission launch reuses decoded systems, so retries can deploy immediately.',
+  'Collect dropped research coins quickly, or bring a magnet companion to pull them in.',
+  'Save bombs for dense swarms or the moment a boss fills the screen with projectiles.'
+] as const;
+
+const getRandomMissionLoadingTip = () => (
+  MISSION_LOADING_TIPS[Math.floor(Math.random() * MISSION_LOADING_TIPS.length)]
+);
+
+let gameplayPreloadPromise: Promise<void> | null = null;
+let gameplayPreloadReady = false;
+let gameplayPreloadProgress = 0;
+let gameplayPreloadPhase: GameplayPreloadPhase = 'flight-systems';
+const gameplayPreloadListeners = new Set<GameplayPreloadListener>();
+
+const broadcastGameplayPreload = () => {
+  gameplayPreloadListeners.forEach((listener) => {
+    listener(gameplayPreloadProgress, gameplayPreloadPhase);
   });
+};
+
+const updateGameplayPreload = (progress: number, phase: GameplayPreloadPhase) => {
+  gameplayPreloadProgress = Math.max(gameplayPreloadProgress, Math.min(100, progress));
+  gameplayPreloadPhase = phase;
+  broadcastGameplayPreload();
+};
+
+const ensureGameplayPreload = () => {
+  if (gameplayPreloadReady) return Promise.resolve();
+  if (gameplayPreloadPromise) return gameplayPreloadPromise;
+
+  gameplayPreloadProgress = 0;
+  gameplayPreloadPhase = 'flight-systems';
+  broadcastGameplayPreload();
+
+  const gameStageModule = loadGameStage().then((gameplay) => {
+    updateGameplayPreload(gameplayPreloadProgress + 34, 'mission-interface');
+    return gameplay;
+  });
+  const storyTransmissionModule = loadStoryTransmission().then((storyTransmission) => {
+    updateGameplayPreload(
+      gameplayPreloadProgress + 12,
+      gameplayPreloadPhase === 'mission-art' || gameplayPreloadPhase === 'ready'
+        ? gameplayPreloadPhase
+        : 'mission-interface'
+    );
+    return storyTransmission;
+  });
+  const productionAssets = gameStageModule.then(async (gameplay) => {
+    updateGameplayPreload(gameplayPreloadProgress, 'mission-art');
+    await gameplay.preloadGameplayAssets();
+    updateGameplayPreload(gameplayPreloadProgress + 46, 'mission-art');
+  });
+
+  gameplayPreloadPromise = Promise.all([
+    gameStageModule,
+    storyTransmissionModule,
+    productionAssets
+  ]).then(() => {
+    updateGameplayPreload(92, 'mission-art');
+    gameplayPreloadReady = true;
+  }).catch((error: unknown) => {
+    gameplayPreloadPromise = null;
+    gameplayPreloadProgress = 0;
+    gameplayPreloadPhase = 'flight-systems';
+    throw error;
+  });
+
+  return gameplayPreloadPromise;
+};
+
+const preloadGameplayComponents = (listener?: GameplayPreloadListener) => {
+  if (listener) {
+    gameplayPreloadListeners.add(listener);
+    listener(gameplayPreloadProgress, gameplayPreloadPhase);
+  }
+
+  const preload = ensureGameplayPreload();
+  return listener
+    ? preload.finally(() => gameplayPreloadListeners.delete(listener))
+    : preload;
 };
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
 type ActiveRunMode = 'standard' | 'owner-test';
+type MissionLoadingState = {
+  progress: number;
+  phase: MissionLoadingPhase;
+  tip: string;
+};
+type PendingMissionRuntimeLaunch = {
+  launchNonce: number;
+  gameId: number;
+  startInTestMode: boolean;
+  tip: string;
+  squadLoadout: RuntimeSquadLoadout;
+};
 
 const OWNER_TEST_FLASK_COUNT = 40;
 const OWNER_TEST_FLASK_CHARGE = getChargeForStoredFlasks(OWNER_TEST_FLASK_COUNT);
@@ -168,6 +259,7 @@ const getInitialPolishSettings = (): GamePolishSettings => {
 const defaultPowerupUses: Record<PowerupType, number> = {
   [PowerupType.DOUBLE_SHOT]: 0,
   [PowerupType.TRIPLE_SHOT]: 0,
+  [PowerupType.MAX_SHOT]: 0,
   [PowerupType.MAGNET]: 0,
   [PowerupType.SHIELD]: 0,
   [PowerupType.EXTRA_LIFE]: 0,
@@ -177,6 +269,8 @@ const defaultPowerupUses: Record<PowerupType, number> = {
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [gameId, setGameId] = useState<number>(0);
+  const [gameRuntimeReady, setGameRuntimeReady] = useState(false);
+  const [missionLoading, setMissionLoading] = useState<MissionLoadingState | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [archivedWinners, setArchivedWinners] = useState<ArchivedWinner[]>([]);
@@ -239,6 +333,9 @@ const App: React.FC = () => {
     }
   });
   const lastStoryWaveRef = useRef(0);
+  const missionLaunchNonceRef = useRef(0);
+  const missionLaunchPendingRef = useRef(false);
+  const pendingMissionRuntimeRef = useRef<PendingMissionRuntimeLaunch | null>(null);
   const introStoryTimeoutRef = useRef<number | null>(null);
   const weeklyProposalTransitionRef = useRef<number | null>(null);
   const weeklyProposalReturnRef = useRef<'results' | 'record'>('results');
@@ -257,6 +354,7 @@ const App: React.FC = () => {
     buildRuntimeSquadLoadout(weeklySquadState, 'researchhub')
   );
   const walletActionNonceRef = useRef(0);
+  const rewardClaimInFlightRef = useRef(false);
   const walletProfileAddressRef = useRef<string | null>(null);
   const hasLoadedWalletProfileRef = useRef(walletRuntimeEnabled);
   const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
@@ -290,7 +388,14 @@ const App: React.FC = () => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
+  useEffect(() => {
+    rewardClaimInFlightRef.current = false;
+  }, [permanentSquadState]);
+
   useEffect(() => () => {
+    missionLaunchNonceRef.current += 1;
+    missionLaunchPendingRef.current = false;
+    pendingMissionRuntimeRef.current = null;
     clearIntroStoryTimeout();
     clearWeeklyProposalTransition();
   }, []);
@@ -302,7 +407,11 @@ const App: React.FC = () => {
   useEffect(() => {
     if (gameState !== GameState.MENU) return undefined;
 
-    return runAfterFirstPaint(preloadGameplayComponents, {
+    return runAfterFirstPaint(() => {
+      void preloadGameplayComponents().catch(() => {
+        // A foreground launch can retry a background preload interrupted by the network.
+      });
+    }, {
       delayMs: 280,
       timeoutMs: 1200
     });
@@ -700,8 +809,47 @@ const App: React.FC = () => {
     beginRunSession(true);
   }, [activeRunMode, beginRunSession, gameState, isOwnerWallet]);
 
-  const startGame = () => {
+  const startGame = async () => {
+    if (missionLaunchPendingRef.current) return;
+
+    const launchNonce = missionLaunchNonceRef.current + 1;
+    const shouldShowMissionLoading = !gameplayPreloadReady || missionLoading?.phase === 'error';
+    const loadingTip = missionLoading?.phase === 'error'
+      ? missionLoading.tip
+      : getRandomMissionLoadingTip();
+    missionLaunchNonceRef.current = launchNonce;
+    missionLaunchPendingRef.current = true;
+    audioService.init();
+
+    if (shouldShowMissionLoading) {
+      setMissionLoading({
+        progress: gameplayPreloadProgress,
+        phase: gameplayPreloadPhase,
+        tip: loadingTip
+      });
+    }
+
+    try {
+      await preloadGameplayComponents((progress, phase) => {
+        if (!shouldShowMissionLoading || missionLaunchNonceRef.current !== launchNonce) return;
+        setMissionLoading((current) => current ? { ...current, progress, phase } : current);
+      });
+    } catch {
+      if (missionLaunchNonceRef.current === launchNonce) {
+        missionLaunchPendingRef.current = false;
+        setMissionLoading((current) => ({
+          progress: current?.progress ?? 0,
+          phase: 'error',
+          tip: current?.tip ?? loadingTip
+        }));
+      }
+      return;
+    }
+
+    if (missionLaunchNonceRef.current !== launchNonce) return;
+
     const startInTestMode = isOwnerWallet;
+    const nextGameId = gameId + 1;
     const squadLoadout = buildRuntimeSquadLoadout(weeklySquadState, usableShipId);
     const startingLives = Math.min(
       GAME_CONFIG.MAX_LIVES,
@@ -712,8 +860,6 @@ const App: React.FC = () => {
     permanentRunAppliedGameIdRef.current = null;
     permanentBossAppliedKeysRef.current.clear();
     setMissionRecordPilotName(null);
-    preloadGameplayComponents();
-    audioService.init();
     clearIntroStoryTimeout();
     lastStoryWaveRef.current = 0;
     setActiveStoryBeat(null);
@@ -777,15 +923,46 @@ const App: React.FC = () => {
     runSessionPromiseRef.current = null;
     setRunReceiptStatus('idle');
     submittingScoreRef.current = false;
-    setGameId(prev => prev + 1);
+    pendingMissionRuntimeRef.current = {
+      launchNonce,
+      gameId: nextGameId,
+      startInTestMode,
+      tip: loadingTip,
+      squadLoadout
+    };
+    setGameRuntimeReady(false);
+    if (shouldShowMissionLoading) {
+      setMissionLoading({
+        progress: 96,
+        phase: 'runtime-sync',
+        tip: loadingTip
+      });
+    }
+    setGameId(nextGameId);
     lastStoryWaveRef.current = 1;
     setGameState(GameState.PLAYING);
+  };
+
+  const completeMissionRuntimeLaunch = (runtimeGameId: number) => {
+    const pendingLaunch = pendingMissionRuntimeRef.current;
+    if (
+      !pendingLaunch
+      || pendingLaunch.gameId !== runtimeGameId
+      || pendingLaunch.launchNonce !== missionLaunchNonceRef.current
+    ) return;
+
+    pendingMissionRuntimeRef.current = null;
+    missionLaunchPendingRef.current = false;
+    setGameRuntimeReady(true);
+    setMissionLoading(null);
     trackEvent('mission_started');
     emitSquadDomainEvent('run_started', {
-      profileId: squadLoadout.profileId,
-      weekKey: squadLoadout.weekKey,
-      companions: squadLoadout.companions.map((companion) => companion.id)
+      profileId: pendingLaunch.squadLoadout.profileId,
+      weekKey: pendingLaunch.squadLoadout.weekKey,
+      companions: pendingLaunch.squadLoadout.companions.map((companion) => companion.id)
     });
+
+    clearIntroStoryTimeout();
     introStoryTimeoutRef.current = window.setTimeout(() => {
       introStoryTimeoutRef.current = null;
       setIntroMissionLocked(false);
@@ -794,14 +971,40 @@ const App: React.FC = () => {
         if (introBeat && !hasSeenStoryBeatToday(introBeat)) {
           setActiveStoryBeat(introBeat);
         } else {
-          beginRunSession(startInTestMode || isOwnerWallet);
+          beginRunSession(pendingLaunch.startInTestMode || isOwnerWallet);
         }
       }
     }, 2650);
   };
 
-  const resetGame = () => {
+  const failMissionRuntimeLaunch = (runtimeGameId: number, error: unknown) => {
+    const pendingLaunch = pendingMissionRuntimeRef.current;
+    if (
+      !pendingLaunch
+      || pendingLaunch.gameId !== runtimeGameId
+      || pendingLaunch.launchNonce !== missionLaunchNonceRef.current
+    ) return;
+
+    void error;
+    pendingMissionRuntimeRef.current = null;
+    missionLaunchPendingRef.current = false;
     clearIntroStoryTimeout();
+    setGameRuntimeReady(false);
+    setIntroMissionLocked(true);
+    setMissionLoading({
+      progress: 96,
+      phase: 'error',
+      tip: pendingLaunch.tip
+    });
+  };
+
+  const resetGame = () => {
+    missionLaunchNonceRef.current += 1;
+    missionLaunchPendingRef.current = false;
+    pendingMissionRuntimeRef.current = null;
+    clearIntroStoryTimeout();
+    setGameRuntimeReady(false);
+    setMissionLoading(null);
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
     setShowTestChampionPreview(false);
@@ -817,6 +1020,10 @@ const App: React.FC = () => {
     runStartedAtRef.current = null;
     runSessionPromiseRef.current = null;
     setGameState(GameState.MENU);
+  };
+
+  const cancelMissionLoading = () => {
+    resetGame();
   };
 
   const openSquadHangar = () => {
@@ -964,37 +1171,117 @@ const App: React.FC = () => {
     requestWalletRuntimeAction('connect');
   }, [activeWalletAddress, requestWalletRuntimeAction]);
 
+  const persistRewardClaim = useCallback((
+    nextPermanentState: PermanentSquadState,
+    nextWeeklyState: WeeklySquadState
+  ) => {
+    const previousPermanentState = permanentSquadState;
+    const previousWeeklyState = weeklySquadState;
+    try {
+      savePermanentSquadState(nextPermanentState);
+      saveWeeklySquadState(nextWeeklyState);
+    } catch {
+      try {
+        savePermanentSquadState(previousPermanentState);
+      } catch {
+        // The original in-memory state remains authoritative when storage is unavailable.
+      }
+      try {
+        saveWeeklySquadState(previousWeeklyState);
+      } catch {
+        // Keep both React states unchanged so the player can retry after storage recovers.
+      }
+      return false;
+    }
+
+    setPermanentSquadState(nextPermanentState);
+    setWeeklySquadState(nextWeeklyState);
+    return true;
+  }, [permanentSquadState, weeklySquadState]);
+
   const handleClaimDailyGift = useCallback(() => {
     if (!activeWalletAddress) {
       connectWallet();
-      return;
+      return null;
     }
+    if (rewardClaimInFlightRef.current) return null;
+    const activeProfileId = activeWalletAddress.trim().toLowerCase();
+    if (
+      permanentSquadState.profileId !== activeProfileId
+      || weeklySquadState.profileId !== activeProfileId
+    ) return null;
 
-    const result = claimDailyGiftReward(permanentSquadState);
-    if (!result) return;
+    rewardClaimInFlightRef.current = true;
+    try {
+      const result = claimDailyGiftReward(permanentSquadState);
+      if (!result) {
+        rewardClaimInFlightRef.current = false;
+        return null;
+      }
 
-    setPermanentSquadState(result.state);
-    savePermanentSquadState(result.state);
-    updateWeeklySquadState((current) => (
-      awardWeeklySquadCoins(current, result.reward.coins, 'daily-gift')
-    ));
-  }, [activeWalletAddress, connectWallet, permanentSquadState, updateWeeklySquadState]);
+      const nextWeeklyState = awardWeeklySquadCoins(
+        weeklySquadState,
+        result.reward.coins,
+        'daily-gift'
+      );
+      if (!persistRewardClaim(result.state, nextWeeklyState)) {
+        rewardClaimInFlightRef.current = false;
+        return null;
+      }
+      return result.reward;
+    } catch {
+      rewardClaimInFlightRef.current = false;
+      return null;
+    }
+  }, [
+    activeWalletAddress,
+    connectWallet,
+    permanentSquadState,
+    persistRewardClaim,
+    weeklySquadState
+  ]);
 
   const handleClaimAchievement = useCallback((id: AchievementId) => {
     if (!activeWalletAddress) {
       connectWallet();
-      return;
+      return null;
     }
+    if (rewardClaimInFlightRef.current) return null;
+    const activeProfileId = activeWalletAddress.trim().toLowerCase();
+    if (
+      permanentSquadState.profileId !== activeProfileId
+      || weeklySquadState.profileId !== activeProfileId
+    ) return null;
 
-    const result = claimAchievementReward(permanentSquadState, id);
-    if (!result) return;
+    rewardClaimInFlightRef.current = true;
+    try {
+      const result = claimAchievementReward(permanentSquadState, id);
+      if (!result) {
+        rewardClaimInFlightRef.current = false;
+        return null;
+      }
 
-    setPermanentSquadState(result.state);
-    savePermanentSquadState(result.state);
-    updateWeeklySquadState((current) => (
-      awardWeeklySquadCoins(current, result.rewardCoins, `achievement:${id}`)
-    ));
-  }, [activeWalletAddress, connectWallet, permanentSquadState, updateWeeklySquadState]);
+      const nextWeeklyState = awardWeeklySquadCoins(
+        weeklySquadState,
+        result.rewardCoins,
+        `achievement:${id}`
+      );
+      if (!persistRewardClaim(result.state, nextWeeklyState)) {
+        rewardClaimInFlightRef.current = false;
+        return null;
+      }
+      return result.rewardCoins;
+    } catch {
+      rewardClaimInFlightRef.current = false;
+      return null;
+    }
+  }, [
+    activeWalletAddress,
+    connectWallet,
+    permanentSquadState,
+    persistRewardClaim,
+    weeklySquadState
+  ]);
 
   const disconnectWallet = useCallback(() => {
     requestWalletRuntimeAction('disconnect');
@@ -1572,6 +1859,16 @@ const App: React.FC = () => {
         </React.Suspense>
       ) : null}
 
+      {missionLoading ? (
+        <MissionLoadingScreen
+          progress={missionLoading.progress}
+          phase={missionLoading.phase}
+          tip={missionLoading.tip}
+          onRetry={() => { void startGame(); }}
+          onCancel={cancelMissionLoading}
+        />
+      ) : null}
+
       {(gameState === GameState.PLAYING || gameState === GameState.WAVE_COMPLETE || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
         <React.Suspense fallback={null}>
           <GameStage
@@ -1579,7 +1876,9 @@ const App: React.FC = () => {
             canvas={{
               stats,
               onStatsChange: setStats,
-              running: gameState === GameState.PLAYING && !ownerFrameFrozen,
+              running: gameState === GameState.PLAYING && gameRuntimeReady && !ownerFrameFrozen,
+              onReady: () => completeMissionRuntimeLaunch(gameId),
+              onInitializationError: (error) => failMissionRuntimeLaunch(gameId, error),
               onGameOver: () => {
                 setOwnerFrameFrozen(false);
                 setGameState(GameState.GAMEOVER);
@@ -1600,7 +1899,7 @@ const App: React.FC = () => {
               testBossCommand,
               testFlaskCommand
             }}
-            hud={gameState === GameState.PLAYING || (gameState === GameState.PAUSED && isOwnerWallet && isOwnerTestRun) ? {
+            hud={gameRuntimeReady && (gameState === GameState.PLAYING || (gameState === GameState.PAUSED && isOwnerWallet && isOwnerTestRun)) ? {
               showLabGlow,
               onDisableLabGlow: () => setShowLabGlow(false),
               isUpgradeReady: false,

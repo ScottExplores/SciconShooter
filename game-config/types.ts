@@ -55,7 +55,7 @@ export type GeneratedAssetRole =
 export type EnemyId = 'drone' | 'swarm' | 'brick' | 'journal';
 export type BossId = 'bottleneck-drone' | 'paywall-wall' | 'gatekeeper';
 export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
-export type PowerupId = 'double-shot' | 'triple-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
+export type PowerupId = 'double-shot' | 'triple-shot' | 'max-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
 export type BackgroundId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'open-galaxy' | 'bastion-protocol';
 export type MusicId = 'procedural-main';
 export type SpawnPatternId =
@@ -430,7 +430,7 @@ export interface BossCatalogEntry {
 export interface PowerupCatalogEntry {
   id: PowerupId;
   label: string;
-  runtimeType: 'DOUBLE_SHOT' | 'TRIPLE_SHOT' | 'MAGNET' | 'SHIELD' | 'RESEARCH_BEAM' | 'EXTRA_LIFE';
+  runtimeType: 'DOUBLE_SHOT' | 'TRIPLE_SHOT' | 'MAX_SHOT' | 'MAGNET' | 'SHIELD' | 'RESEARCH_BEAM' | 'EXTRA_LIFE';
   /** Current random drop weight; zero means supported but not randomly selected. */
   defaultWeight: number;
 }

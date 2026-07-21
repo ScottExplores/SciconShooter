@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 14,
+  "revision": 15,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
-  "updatedAt": "2026-07-21T05:49:55.818Z",
+  "updatedAt": "2026-07-21T19:46:31.835Z",
   "fps": 60,
   "recordCard": {
     "copy": {
@@ -72,6 +72,7 @@
       "availablePowerupIds": [
         "double-shot",
         "triple-shot",
+        "max-shot",
         "magnet",
         "shield",
         "research-beam",
@@ -168,6 +169,7 @@
               "powerupIds": [
                 "double-shot",
                 "triple-shot",
+                "max-shot",
                 "magnet",
                 "shield",
                 "research-beam"
@@ -593,6 +595,7 @@
               "powerupIds": [
                 "double-shot",
                 "triple-shot",
+                "max-shot",
                 "magnet",
                 "shield",
                 "research-beam"
@@ -1163,6 +1166,7 @@
               "powerupIds": [
                 "double-shot",
                 "triple-shot",
+                "max-shot",
                 "magnet",
                 "shield",
                 "research-beam"
@@ -1772,6 +1776,7 @@
               "powerupIds": [
                 "double-shot",
                 "triple-shot",
+                "max-shot",
                 "magnet",
                 "shield",
                 "research-beam"
@@ -2330,6 +2335,7 @@
               "powerupIds": [
                 "double-shot",
                 "triple-shot",
+                "max-shot",
                 "magnet",
                 "shield",
                 "research-beam"

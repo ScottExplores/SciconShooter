@@ -271,6 +271,16 @@ const BACKGROUND_PROFILES = {
   }
 } as const satisfies Record<string, EnvironmentProfile>;
 
+/** Exact environment texture set used by the five production campaign routes. */
+export const PIXI_ENVIRONMENT_TEXTURE_URLS = Object.freeze([
+  ...Object.values(BACKGROUND_PROFILES).flatMap((profile) => profile.layers.map((layer) => layer.url)),
+  ASSETS.GAME_BG_PLANET,
+  ASSETS.GAME_PARALLAX_BIG_PLANET,
+  ASSETS.GAME_PARALLAX_RING_PLANET,
+  ...Object.values(TERRAIN_PROP_ATLASES),
+  ...Object.values(GROUND_PROP_PERSPECTIVE_SHEETS)
+]);
+
 export class PixiEnvironment {
   private readonly parallaxLayers: ParallaxLayer[] = [];
   private readonly stars: StarPoint[] = [];
@@ -299,14 +309,7 @@ export class PixiEnvironment {
     this.height = Math.max(1, height);
     if (!this.built) this.build();
     this.resize(this.width, this.height);
-    await this.textures.preload([
-      ...Object.values(BACKGROUND_PROFILES).flatMap((profile) => profile.layers.map((layer) => layer.url)),
-      ASSETS.GAME_BG_PLANET,
-      ASSETS.GAME_PARALLAX_BIG_PLANET,
-      ASSETS.GAME_PARALLAX_RING_PLANET,
-      ...Object.values(TERRAIN_PROP_ATLASES),
-      ...Object.values(GROUND_PROP_PERSPECTIVE_SHEETS)
-    ]);
+    await this.textures.preload([...PIXI_ENVIRONMENT_TEXTURE_URLS]);
     this.buildTerrainProps();
     this.applyProfile(DEFAULT_BACKGROUND_ID, true);
   }

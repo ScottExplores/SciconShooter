@@ -15,7 +15,9 @@ test('daily gifts define a persistent 30-day calendar with ship milestones', () 
   const coins = coinList[1].match(/\d+/g).map(Number);
 
   assert.equal(coins.length, 30);
-  assert.deepEqual(coins, Array.from({ length: 30 }, (_, index) => (index + 1) * 10));
+  assert.deepEqual(coins.slice(0, 6), [50, 100, 200, 400, 800, 1000]);
+  assert.ok(coins.slice(5).every((coinsForDay) => coinsForDay === 1000));
+  assert.ok(coins.every((coinsForDay, index) => index === 0 || coinsForDay >= coins[index - 1]));
   assert.match(rewards, /day === 14 \? \{ shipId: 'eth' as const \}/);
   assert.match(rewards, /day === 30 \? \{ shipId: 'btc' as const \}/);
   assert.match(rewards, /daysSinceClaim === 1/);
@@ -52,37 +54,67 @@ test('achievements advance through permanent progressive tiers', () => {
   assert.match(rewards, /rewards: \[150, 350, 650, 1100, 1800\]/);
   assert.match(rewards, /rewards: \[200, 450, 800, 1400, 2400\]/);
   assert.match(rewards, /\[id\]: status\.claimedTiers \+ 1/);
+  assert.match(rewards, /getClaimableAchievementCount/);
   assert.match(rewards, /runs: state\.lifetimeStats\.runs \+ 1/);
   assert.match(rewards, /bossesDefeated: state\.lifetimeStats\.bossesDefeated \+ 1/);
   assert.match(squad, /achievementTiers: Record<string, number>/);
   assert.match(squad, /lifetimeStats: PermanentLifetimeStats/);
 });
 
-test('reward claims pay the current week without moving permanent progress into weekly storage', () => {
+test('reward claims persist atomically, guard double taps, and report confirmed rewards', () => {
   const app = read('App.tsx');
   const squad = read('services', 'squadProgression.ts');
 
   assert.match(app, /claimDailyGiftReward\(permanentSquadState\)/);
-  assert.match(app, /setPermanentSquadState\(result\.state\)/);
-  assert.match(app, /awardWeeklySquadCoins\(current, result\.reward\.coins, 'daily-gift'\)/);
+  assert.match(app, /rewardClaimInFlightRef\.current/);
+  assert.match(app, /if \(!activeWalletAddress\) \{[\s\S]*connectWallet\(\);[\s\S]*return null;/);
+  assert.match(app, /permanentSquadState\.profileId !== activeProfileId[\s\S]*weeklySquadState\.profileId !== activeProfileId/);
+  assert.match(app, /savePermanentSquadState\(nextPermanentState\)/);
+  assert.match(app, /saveWeeklySquadState\(nextWeeklyState\)/);
+  assert.match(app, /setPermanentSquadState\(nextPermanentState\)/);
+  assert.match(app, /setWeeklySquadState\(nextWeeklyState\)/);
+  assert.match(app, /awardWeeklySquadCoins\([\s\S]*weeklySquadState,[\s\S]*result\.reward\.coins,[\s\S]*'daily-gift'/);
+  assert.match(app, /return result\.reward;/);
   assert.match(app, /claimAchievementReward\(permanentSquadState, id\)/);
-  assert.match(app, /awardWeeklySquadCoins\(current, result\.rewardCoins, `achievement:\$\{id\}`\)/);
+  assert.match(app, /awardWeeklySquadCoins\([\s\S]*weeklySquadState,[\s\S]*result\.rewardCoins,[\s\S]*`achievement:\$\{id\}`/);
+  assert.match(app, /return result\.rewardCoins;/);
+  assert.match(app, /catch \{[\s\S]*rewardClaimInFlightRef\.current = false;[\s\S]*return null;/);
+  assert.match(app, /catch \{[\s\S]*savePermanentSquadState\(previousPermanentState\)[\s\S]*saveWeeklySquadState\(previousWeeklyState\)/);
   assert.match(squad, /weeklyStats: \{[\s\S]*coinsEarned: state\.weeklyStats\.coinsEarned \+ earned/);
 });
 
-test('the Reward Center is reachable from Home and More and opens on Daily Gifts', () => {
+test('the Reward Center routes pending rewards and celebrates only confirmed claims', () => {
   const startScreen = read('components', 'StartScreen.tsx');
   const center = read('components', 'RewardCenter.tsx');
   const styles = read('styles', 'tailwind.input.css');
 
-  assert.match(startScreen, /label="Daily Gifts"/);
-  assert.match(startScreen, /dailyGiftStatus\.isAvailable \? ' sci-reward-edge-trigger--claimable' : ''/);
-  assert.match(startScreen, /getDailyGiftStatus\(permanentSquadState\)/);
+  assert.match(startScreen, /\? 'Daily Gift'[\s\S]*\? 'Achievements'[\s\S]*: 'Reward Center'/);
+  assert.match(startScreen, /openRewardCenter\([\s\S]*\? 'achievements' : 'daily'/);
+  assert.match(startScreen, /sci-reward-edge-trigger--collapsed/);
+  assert.match(startScreen, /sci-reward-edge-trigger--achievement-ready/);
+  assert.match(startScreen, /scicon-reward-edge-v1\/reward-arrow\.png/);
+  assert.match(startScreen, /data-reward-ready=\{rewardAttention \? 'true' : 'false'\}/);
+  assert.match(startScreen, /getDailyGiftStatus\(permanentSquadState, new Date\(weeklyClock\)\)/);
+  assert.match(startScreen, /document\.addEventListener\('visibilitychange', handleVisibilityChange\)/);
+  assert.match(startScreen, /window\.addEventListener\('focus', handleResume\)/);
+  assert.match(startScreen, /const nextMidnight = new Date\(/);
+  assert.match(startScreen, /window\.clearTimeout\(midnightTimer\)/);
+  assert.match(startScreen, /document\.removeEventListener\('visibilitychange', handleVisibilityChange\)/);
+  assert.match(startScreen, /getClaimableAchievementCount\(permanentSquadState\)/);
   assert.match(startScreen, /<RewardCenter/);
+  assert.match(startScreen, /initialTab=\{rewardCenterInitialTab\}/);
   assert.match(center, /useState<RewardTab>\('daily'\)/);
-  assert.match(center, /setTab\('daily'\)/);
+  assert.match(center, /const dailyStatus = getDailyGiftStatus\(permanentState\);/);
+  assert.doesNotMatch(center, /useMemo\([\s\S]*getDailyGiftStatus\(permanentState\)/);
+  assert.match(center, /setTab\(initialTab\)/);
   assert.match(center, /DAILY_GIFT_REWARDS\.map/);
   assert.match(center, /ACHIEVEMENT_DEFINITIONS\.map/);
+  assert.match(center, /sci-reward-claim-celebration/);
+  assert.match(center, /\+\{claimNotice\.coins\.toLocaleString\(\)\} coins/);
+  assert.match(center, /confirmedReward = onClaimDailyGift\(\);[\s\S]*if \(!confirmedReward\)[\s\S]*setClaimNotice/);
+  assert.match(center, /confirmedCoins = onClaimAchievement\(id\);[\s\S]*if \(confirmedCoins === null\)[\s\S]*setClaimNotice/);
+  assert.match(center, /claimInFlightRef\.current/);
+  assert.match(center, /pendingClaim !== null/);
   assert.match(center, /Day \{reward\.day\}/);
   assert.match(center, /Unlock \$\{ship\.name\}/);
   assert.match(styles, /\.sci-reward-edge-trigger/);
@@ -90,6 +122,10 @@ test('the Reward Center is reachable from Home and More and opens on Daily Gifts
   assert.match(styles, /animation: sci-reward-edge-hover 4\.2s ease-in-out infinite/);
   assert.match(styles, /@keyframes sci-reward-edge-hover/);
   assert.match(styles, /@keyframes sci-reward-edge-claimable/);
+  assert.match(styles, /@keyframes sci-reward-edge-achievement-nudge/);
+  assert.match(styles, /@keyframes sci-reward-panel-enter/);
+  assert.match(styles, /@keyframes sci-reward-claim-confirm/);
+  assert.match(styles, /@keyframes sci-dashboard-reward-breathe/);
   assert.match(styles, /\.sci-daily-grid/);
   assert.match(styles, /\.sci-achievement-card/);
 });

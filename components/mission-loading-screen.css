@@ -1,0 +1,310 @@
+.sci-mission-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  isolation: isolate;
+  overflow: hidden;
+  background: #030718;
+  color: #f4fbff;
+  font-family: "Rajdhani", ui-sans-serif, system-ui, sans-serif;
+}
+
+.sci-mission-loader__backdrop {
+  position: absolute;
+  inset: -2%;
+  z-index: -3;
+  width: 104%;
+  height: 104%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  animation: sci-mission-loader-drift 12s ease-in-out infinite alternate;
+}
+
+.sci-mission-loader__nebula {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(22, 211, 255, 0.1), transparent 29%),
+    linear-gradient(180deg, rgba(1, 4, 17, 0.06), rgba(1, 4, 17, 0.16) 42%, rgba(1, 4, 17, 0.82));
+}
+
+.sci-mission-loader__scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0.12;
+  background: repeating-linear-gradient(180deg, transparent 0 3px, rgba(104, 231, 255, 0.18) 4px);
+  mix-blend-mode: screen;
+}
+
+.sci-mission-loader__content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-rows: minmax(15rem, 1fr) auto auto;
+  width: min(100%, 36rem);
+  height: 100%;
+  min-height: 30rem;
+  margin: 0 auto;
+  padding: max(2rem, 7vh) clamp(1.15rem, 5vw, 2.5rem) max(2rem, 5vh);
+}
+
+.sci-mission-loader__brand {
+  align-self: center;
+  text-align: center;
+  filter: drop-shadow(0 0 22px rgba(36, 216, 255, 0.28));
+}
+
+.sci-mission-loader__emblem {
+  display: block;
+  width: clamp(9rem, 44vw, 14rem);
+  max-height: 12rem;
+  margin: 0 auto -0.6rem;
+  object-fit: contain;
+  image-rendering: pixelated;
+  animation: sci-mission-emblem-hover 2.8s ease-in-out infinite;
+}
+
+.sci-mission-loader__eyebrow,
+.sci-mission-loader__tagline,
+.sci-mission-loader__hint {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.sci-mission-loader__eyebrow {
+  color: #77eaff;
+  font-size: clamp(0.58rem, 2.2vw, 0.72rem);
+  font-weight: 800;
+}
+
+.sci-mission-loader__brand h1 {
+  margin: 0.32rem 0 0;
+  color: #f7fdff;
+  font-family: "Orbitron", "Rajdhani", ui-sans-serif, sans-serif;
+  font-size: clamp(2.45rem, 11vw, 4rem);
+  font-weight: 1000;
+  line-height: 0.82;
+  letter-spacing: -0.025em;
+  text-shadow:
+    0 3px 0 #155385,
+    0 0 10px rgba(103, 232, 255, 0.85),
+    0 0 28px rgba(61, 81, 255, 0.48);
+}
+
+.sci-mission-loader__tagline {
+  margin-top: 0.75rem;
+  color: #d9f7ff;
+  font-size: clamp(0.56rem, 2.3vw, 0.72rem);
+  font-weight: 800;
+}
+
+.sci-mission-loader__tip {
+  position: relative;
+  margin-bottom: clamp(1rem, 3vh, 1.75rem);
+  border: 1px solid rgba(88, 225, 255, 0.32);
+  border-left: 3px solid #55e6ff;
+  background: linear-gradient(90deg, rgba(7, 28, 54, 0.9), rgba(7, 13, 35, 0.68));
+  padding: 0.8rem 0.95rem 0.82rem;
+  box-shadow: inset 0 0 22px rgba(38, 180, 255, 0.05), 0 14px 30px rgba(0, 0, 0, 0.24);
+  clip-path: polygon(0 0, calc(100% - 0.7rem) 0, 100% 0.7rem, 100% 100%, 0 100%);
+}
+
+.sci-mission-loader__tip span {
+  display: block;
+  margin-bottom: 0.24rem;
+  color: #fbd451;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.sci-mission-loader__tip p {
+  margin: 0;
+  color: #e8f6ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(0.72rem, 2.8vw, 0.85rem);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.sci-mission-loader__status {
+  align-self: end;
+}
+
+.sci-mission-loader__status-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.35rem;
+  color: #dbf8ff;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sci-mission-loader__status-line strong {
+  color: #6aeaff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+}
+
+.sci-mission-loader__progress {
+  position: relative;
+  height: clamp(3.1rem, 9vw, 4.25rem);
+  margin-top: 0.15rem;
+}
+
+.sci-mission-loader__progress > img {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.sci-mission-loader__progress-track {
+  position: absolute;
+  z-index: 2;
+  top: 38%;
+  right: 4.8%;
+  bottom: 35%;
+  left: 4.8%;
+  overflow: hidden;
+  background: rgba(0, 6, 17, 0.9);
+  clip-path: polygon(0.8rem 0, 100% 0, calc(100% - 0.8rem) 100%, 0 100%);
+}
+
+.sci-mission-loader__progress-fill {
+  height: 100%;
+  min-width: 0;
+  background: linear-gradient(90deg, #0877bb, #13dfff 72%, #d8ffff);
+  box-shadow: 0 0 10px #22dfff, 0 0 20px rgba(31, 184, 255, 0.64);
+  transition: width 180ms ease-out;
+}
+
+.sci-mission-loader__progress-sheen {
+  position: absolute;
+  top: 0;
+  width: 8%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  opacity: 0.75;
+  transition: left 180ms ease-out;
+}
+
+.sci-mission-loader__progress--error .sci-mission-loader__progress-fill {
+  background: linear-gradient(90deg, #7f1d1d, #f87171);
+  box-shadow: 0 0 12px rgba(248, 113, 113, 0.8);
+}
+
+.sci-mission-loader__hint {
+  color: rgba(188, 225, 237, 0.62);
+  text-align: center;
+  font-size: 0.5rem;
+  font-weight: 800;
+}
+
+.sci-mission-loader__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 1.2rem;
+}
+
+.sci-mission-loader__cancel {
+  border: 0;
+  border-left: 1px solid rgba(140, 219, 237, 0.25);
+  background: transparent;
+  padding: 0 0 0 0.65rem;
+  color: rgba(199, 230, 239, 0.58);
+  font: 800 0.5rem/1 "Rajdhani", ui-sans-serif, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sci-mission-loader__cancel:hover,
+.sci-mission-loader__cancel:focus-visible {
+  color: #e7fbff;
+}
+
+.sci-mission-loader__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+}
+
+.sci-mission-loader__actions button {
+  min-height: 2.7rem;
+  border: 1px solid rgba(92, 226, 255, 0.45);
+  background: rgba(6, 30, 55, 0.9);
+  color: #e8fbff;
+  font: 900 0.65rem/1 "Rajdhani", ui-sans-serif, sans-serif;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  clip-path: polygon(0.55rem 0, 100% 0, calc(100% - 0.55rem) 100%, 0 100%);
+}
+
+.sci-mission-loader__actions button:first-child {
+  border-color: rgba(246, 211, 81, 0.6);
+  background: rgba(83, 59, 7, 0.88);
+  color: #fff2ad;
+}
+
+@keyframes sci-mission-loader-drift {
+  from { transform: scale(1.02) translate3d(-0.5%, -0.35%, 0); }
+  to { transform: scale(1.055) translate3d(0.5%, 0.35%, 0); }
+}
+
+@keyframes sci-mission-emblem-hover {
+  0%, 100% { transform: translateY(0); filter: drop-shadow(0 0 8px rgba(64, 230, 255, 0.42)); }
+  50% { transform: translateY(-0.45rem); filter: drop-shadow(0 0 15px rgba(64, 230, 255, 0.7)); }
+}
+
+@media (max-height: 620px) {
+  .sci-mission-loader__content {
+    grid-template-rows: minmax(11rem, 1fr) auto auto;
+    padding-top: 1.1rem;
+    padding-bottom: 1rem;
+  }
+
+  .sci-mission-loader__emblem {
+    width: 7.75rem;
+    max-height: 7.75rem;
+  }
+
+  .sci-mission-loader__brand h1 {
+    font-size: 2.2rem;
+  }
+
+  .sci-mission-loader__tagline {
+    margin-top: 0.5rem;
+  }
+
+  .sci-mission-loader__tip {
+    margin-bottom: 0.55rem;
+    padding: 0.55rem 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sci-mission-loader__backdrop,
+  .sci-mission-loader__emblem {
+    animation: none;
+  }
+
+  .sci-mission-loader__progress-fill,
+  .sci-mission-loader__progress-sheen {
+    transition: none;
+  }
+}

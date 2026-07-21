@@ -1,6 +1,7 @@
 import 'pixi.js/unsafe-eval';
 import {
   Application,
+  Assets,
   ColorMatrixFilter,
   Container,
   Graphics,
@@ -31,7 +32,7 @@ import {
 import { RESEARCH_IMPACT_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
 import { MINI_SHIP_CATALOG } from '../squadProgression';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
-import { PixiEnvironment } from './PixiEnvironment';
+import { PIXI_ENVIRONMENT_TEXTURE_URLS, PixiEnvironment } from './PixiEnvironment';
 import { PixiTextureBank } from './PixiTextureBank';
 
 type SceneLayerName =
@@ -159,6 +160,8 @@ const getPowerupFrames = (powerup: PowerupType): readonly string[] => {
     case PowerupType.TRIPLE_SHOT:
     case PowerupType.DOUBLE_SHOT:
       return ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES;
+    case PowerupType.MAX_SHOT:
+      return [ASSETS.POWERUP_MAX_SHOT];
     case PowerupType.MAGNET:
       return ASSETS.POWERUP_MAGNET_FRAMES;
     case PowerupType.SHIELD:
@@ -170,6 +173,81 @@ const getPowerupFrames = (powerup: PowerupType): readonly string[] => {
     default:
       return ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES;
   }
+};
+
+/** The exact production texture set needed by the Pixi mission renderer. */
+export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
+  ASSETS.PIXI_BOSS_HEALTH_FRAME,
+  ASSETS.PIXI_BOSS_ALERT_FRAME,
+  ASSETS.PIXI_MINI_BOSS_ALERT_FRAME,
+  ASSETS.PIXI_BOSS_ALERT_RING,
+  ASSETS.PIXI_BOSS_ALERT_SCAN,
+  ASSETS.PIXI_BOSS_ALERT_CRYSTAL,
+  ...PIXI_ENVIRONMENT_TEXTURE_URLS,
+  ...ASSETS.ENEMY_DRONE_FRAMES,
+  ...ASSETS.ENEMY_SWARM_FRAMES,
+  ...ASSETS.ENEMY_BRICK_FRAMES,
+  ...ASSETS.ENEMY_JOURNAL_FRAMES,
+  ...ASSETS.PAYWALL_BASTION_FRAMES,
+  ...ASSETS.PIXI_JET_SCOUT_FRAMES,
+  ...ASSETS.PIXI_JET_INTERCEPTOR_FRAMES,
+  ...ASSETS.PIXI_JET_HEAVY_FRAMES,
+  ...ASSETS.PIXI_BOSS_OPEN_ORBIT_FRAMES,
+  ...ASSETS.PIXI_BOSS_CITATION_FRAMES,
+  ...ASSETS.PIXI_BOSS_PAYWALL_FRAMES,
+  ...ASSETS.PIXI_BOSS_OPEN_GALAXY_FRAMES,
+  ...ASSETS.PIXI_BOSS_CROWNCLAW_FRAMES,
+  ...Object.values(ASSETS.PIXI_BOSS_CROWNCLAW_LEGS),
+  ...ASSETS.PIXI_BOSS_PAYWALL_RAY_FRAMES,
+  ...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES,
+  ...ASSETS.PIXI_BOSS_THRUSTER_FRAMES,
+  ...ASSETS.PIXI_THRUSTER_FRAMES,
+  ...ASSETS.PIXI_EXPLOSION_FRAMES,
+  ...ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES,
+  ...PLAYER_SHIP_STEERING_FRAME_URLS,
+  ...PLAYER_WEAPON_FRAME_URLS,
+  ...SHIP_ABILITY_FRAME_URLS,
+  ...RESEARCH_IMPACT_FRAME_URLS,
+  ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
+  ASSETS.POWERUP_MAX_SHOT,
+  ASSETS.POWERUP_MAX_SHOT_AURA,
+  ...ASSETS.POWERUP_MAGNET_FRAMES,
+  ...ASSETS.POWERUP_SHIELD_FRAMES,
+  ...ASSETS.POWERUP_RESEARCH_BEAM_FRAMES,
+  ...MINI_SHIP_CATALOG.flatMap((miniShip) => miniShip.frames),
+  ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_LEFT,
+  ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_RIGHT,
+  ASSETS.PIXI_BOSS_CITATION_CLAW_LEFT,
+  ASSETS.PIXI_BOSS_CITATION_CLAW_RIGHT,
+  ASSETS.PIXI_BOSS_PAYWALL_CANNON_LEFT,
+  ASSETS.PIXI_BOSS_PAYWALL_CANNON_RIGHT,
+  ASSETS.PIXI_BOSS_PAYWALL_HELMET,
+  ASSETS.PIXI_BOSS_CROWNCLAW_CORE,
+  ASSETS.PIXI_BOSS_CROWNCLAW_GUN_LEFT,
+  ASSETS.PIXI_BOSS_CROWNCLAW_GUN_RIGHT,
+  ASSETS.PIXI_BOSS_CROWNCLAW_CLAW_LEFT,
+  ASSETS.PIXI_BOSS_CROWNCLAW_CLAW_RIGHT,
+  ASSETS.PIXI_BOSS_CROWNCLAW_ROCKET_LEFT,
+  ASSETS.PIXI_BOSS_CROWNCLAW_ROCKET_RIGHT,
+  ASSETS.MINI_BOSS,
+  ASSETS.FINAL_BOSS,
+  ASSETS.WALL_BOSS_SEGMENT,
+  ASSETS.RSC_TOKEN,
+  ...ASSETS.RSC_TOKEN_FLIP_FRAMES
+]);
+
+let pixiGameplayTexturePreload: Promise<void> | null = null;
+
+/** Warms Pixi's shared GPU texture cache; unused gallery art is never requested. */
+export const preloadPixiGameplayTextures = () => {
+  if (!pixiGameplayTexturePreload) {
+    const urls = [...new Set(PIXI_GAMEPLAY_TEXTURE_URLS.filter(Boolean))];
+    pixiGameplayTexturePreload = Promise.allSettled(urls.map(async (url) => {
+      const texture = await Assets.load<Texture>(url);
+      texture.source.scaleMode = 'nearest';
+    })).then(() => undefined);
+  }
+  return pixiGameplayTexturePreload;
 };
 
 const isEnemyType = (type: EntityType) => (
@@ -330,7 +408,9 @@ export class PixiGameRenderer {
   private readonly phaseText = createText(18, '#fef08a');
   private readonly flashOverlay = new Graphics();
   private readonly scanlines = new Graphics();
+  private readonly maxShotScreenGlow = new Graphics();
   private readonly effectPool = new ArcadeEffectPool(this.layers.effects);
+  private readonly maxShotAura = new Sprite(Texture.WHITE);
   private readonly playerThrusterRoot = new Container();
   private readonly playerThrusters = [new Sprite(Texture.WHITE), new Sprite(Texture.WHITE)] as const;
   private readonly gunPodRoot = new Container();
@@ -420,6 +500,11 @@ export class PixiGameRenderer {
       this.layers.foreground
     );
 
+    this.maxShotAura.eventMode = 'none';
+    this.maxShotAura.visible = false;
+    this.maxShotAura.anchor.set(0.5);
+    this.layers.player.addChild(this.maxShotAura);
+
     this.playerThrusterRoot.eventMode = 'none';
     this.playerThrusterRoot.visible = false;
     for (const thruster of this.playerThrusters) {
@@ -486,6 +571,7 @@ export class PixiGameRenderer {
     );
 
     this.layers.overlay.addChild(
+      this.maxShotScreenGlow,
       this.bossHealthRoot,
       this.warningShade,
       this.warningFrame,
@@ -499,67 +585,14 @@ export class PixiGameRenderer {
     this.warningFrame.visible = false;
     this.phaseText.visible = false;
     this.flashOverlay.visible = false;
+    this.maxShotScreenGlow.visible = false;
 
     await this.environment.init(this.width, this.height);
     if (this.destroyed) return;
     this.resize(this.width, this.height);
 
-    await this.textureBank.preload([
-      ASSETS.PIXI_BOSS_HEALTH_FRAME,
-      ASSETS.PIXI_BOSS_ALERT_FRAME,
-      ASSETS.PIXI_MINI_BOSS_ALERT_FRAME,
-      ASSETS.PIXI_BOSS_ALERT_RING,
-      ASSETS.PIXI_BOSS_ALERT_SCAN,
-      ASSETS.PIXI_BOSS_ALERT_CRYSTAL,
-      ...ASSETS.ENEMY_DRONE_FRAMES,
-      ...ASSETS.ENEMY_SWARM_FRAMES,
-      ...ASSETS.ENEMY_BRICK_FRAMES,
-      ...ASSETS.ENEMY_JOURNAL_FRAMES,
-      ...ASSETS.PAYWALL_BASTION_FRAMES,
-      ...ASSETS.PIXI_JET_SCOUT_FRAMES,
-      ...ASSETS.PIXI_JET_INTERCEPTOR_FRAMES,
-      ...ASSETS.PIXI_JET_HEAVY_FRAMES,
-      ...ASSETS.PIXI_BOSS_OPEN_ORBIT_FRAMES,
-      ...ASSETS.PIXI_BOSS_CITATION_FRAMES,
-      ...ASSETS.PIXI_BOSS_PAYWALL_FRAMES,
-      ...ASSETS.PIXI_BOSS_OPEN_GALAXY_FRAMES,
-      ...ASSETS.PIXI_BOSS_CROWNCLAW_FRAMES,
-      ...Object.values(ASSETS.PIXI_BOSS_CROWNCLAW_LEGS),
-      ...ASSETS.PIXI_BOSS_PAYWALL_RAY_FRAMES,
-      ...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES,
-      ...ASSETS.PIXI_BOSS_THRUSTER_FRAMES,
-      ...ASSETS.PIXI_THRUSTER_FRAMES,
-      ...ASSETS.PIXI_EXPLOSION_FRAMES,
-      ...ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES,
-      ...PLAYER_SHIP_STEERING_FRAME_URLS,
-      ...PLAYER_WEAPON_FRAME_URLS,
-      ...SHIP_ABILITY_FRAME_URLS,
-      ...RESEARCH_IMPACT_FRAME_URLS,
-      ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
-      ...ASSETS.POWERUP_MAGNET_FRAMES,
-      ...ASSETS.POWERUP_SHIELD_FRAMES,
-      ...ASSETS.POWERUP_RESEARCH_BEAM_FRAMES,
-      ...MINI_SHIP_CATALOG.flatMap((miniShip) => miniShip.frames),
-      ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_LEFT,
-      ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_RIGHT,
-      ASSETS.PIXI_BOSS_CITATION_CLAW_LEFT,
-      ASSETS.PIXI_BOSS_CITATION_CLAW_RIGHT,
-      ASSETS.PIXI_BOSS_PAYWALL_CANNON_LEFT,
-      ASSETS.PIXI_BOSS_PAYWALL_CANNON_RIGHT,
-      ASSETS.PIXI_BOSS_PAYWALL_HELMET,
-      ASSETS.PIXI_BOSS_CROWNCLAW_CORE,
-      ASSETS.PIXI_BOSS_CROWNCLAW_GUN_LEFT,
-      ASSETS.PIXI_BOSS_CROWNCLAW_GUN_RIGHT,
-      ASSETS.PIXI_BOSS_CROWNCLAW_CLAW_LEFT,
-      ASSETS.PIXI_BOSS_CROWNCLAW_CLAW_RIGHT,
-      ASSETS.PIXI_BOSS_CROWNCLAW_ROCKET_LEFT,
-      ASSETS.PIXI_BOSS_CROWNCLAW_ROCKET_RIGHT,
-      ASSETS.MINI_BOSS,
-      ASSETS.FINAL_BOSS,
-      ASSETS.WALL_BOSS_SEGMENT,
-      ASSETS.RSC_TOKEN,
-      ...ASSETS.RSC_TOKEN_FLIP_FRAMES
-    ]);
+    await this.textureBank.preload([...PIXI_GAMEPLAY_TEXTURE_URLS]);
+    this.maxShotAura.texture = this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA) ?? Texture.WHITE;
     this.bossHealthFrame.texture = this.textureBank.get(ASSETS.PIXI_BOSS_HEALTH_FRAME) ?? Texture.WHITE;
     this.warningBanner.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_FRAME) ?? Texture.WHITE;
     this.warningRing.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_RING) ?? Texture.WHITE;
@@ -1084,6 +1117,52 @@ export class PixiGameRenderer {
     const visualScale = engine.playerDrawScale * 0.95;
     view.root.scale.set(visualScale);
     view.root.alpha = engine.playerDrawAlpha;
+  }
+
+  private syncMaxShotPresentation(engine: GameEngine) {
+    const remaining = engine.activePowerups.get(PowerupType.MAX_SHOT) || 0;
+    const auraTexture = this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA);
+    const active = remaining > 0
+      && engine.lives > 0
+      && engine.playerDrawAlpha > 0.02
+      && Boolean(auraTexture);
+    this.maxShotAura.visible = active;
+    this.maxShotScreenGlow.visible = active;
+    if (!active || !auraTexture) return;
+
+    const pulseWave = (Math.sin(engine.frameCount * 0.13) + 1) * 0.5;
+    const fade = clamp(remaining / 36, 0, 1);
+    const playerCenterX = engine.player.x + engine.player.width / 2;
+    const playerCenterY = engine.player.y + engine.player.height / 2;
+    const auraSize = engine.player.width * (engine.mobileProfile ? 2.42 : 2.58);
+    const auraScale = (auraSize / Math.max(1, auraTexture.width)) * (0.96 + pulseWave * 0.07);
+    this.maxShotAura.texture = auraTexture;
+    this.maxShotAura.position.set(playerCenterX, playerCenterY + engine.player.height * 0.02);
+    this.maxShotAura.scale.set(auraScale);
+    this.maxShotAura.rotation = Math.sin(engine.frameCount * 0.035) * 0.025;
+    this.maxShotAura.alpha = (0.68 + pulseWave * 0.2) * engine.playerDrawAlpha * fade;
+
+    const glow = this.maxShotScreenGlow;
+    const outerAlpha = (0.28 + pulseWave * 0.16) * fade;
+    const cornerLength = Math.min(74, Math.max(38, this.width * 0.14));
+    const inset = engine.mobileProfile ? 5 : 7;
+    glow.clear();
+    glow.rect(0, 0, this.width, this.height).fill({ color: '#0284c7', alpha: 0.018 * fade });
+    glow.rect(2, 2, this.width - 4, this.height - 4)
+      .stroke({ color: '#22d3ee', width: 3, alpha: outerAlpha });
+    glow.rect(inset, inset, this.width - inset * 2, this.height - inset * 2)
+      .stroke({ color: '#67e8f9', width: 1.25, alpha: (0.4 + pulseWave * 0.18) * fade });
+    glow.rect(0, 0, this.width, 18).fill({ color: '#0ea5e9', alpha: (0.035 + pulseWave * 0.018) * fade });
+    glow.rect(0, this.height - 20, this.width, 20).fill({ color: '#2563eb', alpha: (0.05 + pulseWave * 0.022) * fade });
+
+    glow.moveTo(inset, inset + cornerLength).lineTo(inset, inset).lineTo(inset + cornerLength, inset)
+      .stroke({ color: '#a5f3fc', width: 3.5, alpha: (0.58 + pulseWave * 0.25) * fade });
+    glow.moveTo(this.width - inset - cornerLength, inset).lineTo(this.width - inset, inset).lineTo(this.width - inset, inset + cornerLength)
+      .stroke({ color: '#a5f3fc', width: 3.5, alpha: (0.58 + pulseWave * 0.25) * fade });
+    glow.moveTo(inset, this.height - inset - cornerLength).lineTo(inset, this.height - inset).lineTo(inset + cornerLength, this.height - inset)
+      .stroke({ color: '#38bdf8', width: 3.5, alpha: (0.52 + pulseWave * 0.22) * fade });
+    glow.moveTo(this.width - inset - cornerLength, this.height - inset).lineTo(this.width - inset, this.height - inset).lineTo(this.width - inset, this.height - inset - cornerLength)
+      .stroke({ color: '#38bdf8', width: 3.5, alpha: (0.52 + pulseWave * 0.22) * fade });
   }
 
   private updatePlayerSteeringPresentation(engine: GameEngine, deltaMs: number) {
@@ -1641,8 +1720,11 @@ export class PixiGameRenderer {
       view.root.scale.set(pulse);
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.045) * 0.12;
     } else if (entity.type === EntityType.POWERUP) {
+      const isMaxShot = entity.text === PowerupType.MAX_SHOT;
+      const maxShotPulse = 1 + Math.sin((engine.frameCount + entity.variant) * 0.16) * 0.055;
       view.root.scale.set(1.22);
-      view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.045) * 0.035;
+      if (isMaxShot) view.root.scale.set(1.4 * maxShotPulse);
+      view.root.rotation = isMaxShot ? 0 : Math.sin((engine.frameCount + entity.variant) * 0.045) * 0.035;
       view.aura.clear();
     }
 
@@ -2027,6 +2109,7 @@ export class PixiGameRenderer {
     this.camera.position.set(engine.shakeX, engine.shakeY);
     this.environment.update(engine);
     this.syncEntities(engine);
+    this.syncMaxShotPresentation(engine);
     this.syncPlayerAfterimages(engine);
     this.syncPlayerThrusters(engine);
     this.syncGunPods(engine);

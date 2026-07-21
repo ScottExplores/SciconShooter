@@ -52,9 +52,9 @@ test('runtime squad loadouts preserve ability identity and scale upgrades', () =
 
   assert.ok(loadoutStart >= 0, 'runtime squad loadout builder must exist');
   assert.match(loadoutSource, /ability:\s*entry\.ability/);
-  assert.match(loadoutSource, /fireIntervalFrames:[\s\S]*?level\s*-\s*1/);
-  assert.match(loadoutSource, /projectileDamage:[\s\S]*?level\s*-\s*1/);
-  assert.match(loadoutSource, /Math\.max\(/, 'upgraded cadence should retain a safe minimum interval');
+  assert.match(loadoutSource, /fireIntervalFrames:\s*getMiniShipFireIntervalFrames\(entry\.fireIntervalFrames, level\)/);
+  assert.match(loadoutSource, /projectileDamage:\s*entry\.projectileDamage \* getMiniShipDamageMultiplier\(level\)/);
+  assert.match(loadoutSource, /volleySize:\s*getMiniShipVolleySize\(entry\.ability, level\)/);
 });
 
 test('the game engine gives every catalog role a real combat branch', () => {

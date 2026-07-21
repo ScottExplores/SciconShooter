@@ -51,7 +51,7 @@ test('engine test mode preserves lives and supports encounter-only wave jumps', 
 });
 
 test('owner controls provide a separate frame freeze and put wave tools in the normal pause menu', () => {
-  assert.match(appSource, /running: gameState === GameState\.PLAYING && !ownerFrameFrozen/);
+  assert.match(appSource, /running: gameState === GameState\.PLAYING && gameRuntimeReady && !ownerFrameFrozen/);
   assert.match(appSource, /showFreezeControl: isOwnerWallet && isOwnerTestRun/);
   assert.match(appSource, /onToggleFreeze: isOwnerWallet && isOwnerTestRun/);
   assert.match(appSource, /gameState === GameState\.PAUSED && !showTestChampionPreview/);

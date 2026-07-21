@@ -23,6 +23,7 @@ const {
   getFireRateTier,
   getFireRateTierProgress,
   getFireRateVolleySize,
+  getTightVolleyAngleOffsets,
   getTightVolleyOffsets
 } = moduleBox.exports;
 
@@ -51,6 +52,19 @@ test('higher fire-rate tiers add tight parallel bullets and multiply every tripl
   assert.equal(getFireRateVolleySize(14) * 3, 9);
 });
 
+test('tier-two and tier-three bundles taper outward by only a few degrees', () => {
+  const radiansToDegrees = (radians) => radians * (180 / Math.PI);
+  assert.deepEqual(Array.from(getTightVolleyAngleOffsets(1)), [0]);
+  assert.deepEqual(
+    Array.from(getTightVolleyAngleOffsets(2)).map(radiansToDegrees),
+    [-1.25, 1.25]
+  );
+  const tierThreeAngles = Array.from(getTightVolleyAngleOffsets(3)).map(radiansToDegrees);
+  assert.ok(Math.abs(tierThreeAngles[0] + 1.6) < 1e-10);
+  assert.equal(tierThreeAngles[1], 0);
+  assert.ok(Math.abs(tierThreeAngles[2] - 1.6) < 1e-10);
+});
+
 test('all twenty-one upgrades improve cadence without exceeding the prior five-frame ceiling', () => {
   let previous = getFireRateIntervalFrames(0);
   assert.equal(previous, 15);
@@ -67,9 +81,11 @@ test('the engine emits each tight bundle in the center and in both triple-shot s
 
   assert.match(engine, /const volleySize = getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\)/);
   assert.match(engine, /const volleyOffsets = getTightVolleyOffsets\(volleySize\)/);
+  assert.match(engine, /const volleyAngleOffsets = getTightVolleyAngleOffsets\(volleySize\)/);
   assert.match(engine, /volleyOffsets\.forEach\(\(offsetX, index\) => \{[\s\S]*this\.spawnPlayerBullet/);
-  assert.match(engine, /\(\[-1, 1\] as const\)\.forEach[\s\S]*volleyOffsets\.forEach\(\(bundleOffset\)/);
+  assert.match(engine, /\(\[-1, 1\] as const\)\.forEach[\s\S]*volleyOffsets\.forEach\(\(bundleOffset, bundleIndex\)/);
   assert.match(engine, /offsetX: side \* 4 \+ bundleOffset/);
+  assert.match(engine, /angleBias: sideAngle \+ volleyAngleOffsets\[bundleIndex\]/);
 });
 
 test('bomb drops and pickups have no inventory ceiling', () => {

@@ -327,6 +327,7 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
 export const POWERUP_CATALOG: Record<PowerupId, PowerupCatalogEntry> = {
   'double-shot': { id: 'double-shot', label: 'Double Shot', runtimeType: 'DOUBLE_SHOT', defaultWeight: 0.36 },
   'triple-shot': { id: 'triple-shot', label: 'Triple Shot', runtimeType: 'TRIPLE_SHOT', defaultWeight: 0.34 },
+  'max-shot': { id: 'max-shot', label: 'Max Shot', runtimeType: 'MAX_SHOT', defaultWeight: 0.055 },
   magnet: { id: 'magnet', label: 'Magnet', runtimeType: 'MAGNET', defaultWeight: 0.12 },
   shield: { id: 'shield', label: 'Shield', runtimeType: 'SHIELD', defaultWeight: 0.1 },
   'research-beam': { id: 'research-beam', label: 'Research Beam', runtimeType: 'RESEARCH_BEAM', defaultWeight: 0.08 },

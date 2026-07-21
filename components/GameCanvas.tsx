@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import {
   GameEngine,
+  preloadGameplayAssets as preloadEngineGameplayAssets,
   type GameEngineDebugSnapshot,
   type GameEditorSnapshot,
   type GameRuntimeState,
@@ -10,11 +11,16 @@ import type { GameCampaign } from '../game-config/types';
 import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
 import { audioService } from '../services/audioService';
-import { PixiGameRenderer } from '../services/pixi/PixiGameRenderer';
+import { PixiGameRenderer, preloadPixiGameplayTextures } from '../services/pixi/PixiGameRenderer';
 import type { RuntimeSquadLoadout } from '../services/squadProgression';
 import type { PlayerShipId } from '../services/playerShipService';
 
-export { preloadGameplayAssets } from '../services/gameLogic';
+export const preloadGameplayAssets = async () => {
+  await Promise.all([
+    preloadEngineGameplayAssets(),
+    preloadPixiGameplayTextures()
+  ]);
+};
 
 const HUD_STATS_SYNC_INTERVAL_MS = 650;
 const RUNTIME_STATE_SYNC_INTERVAL_MS = 200;
@@ -94,6 +100,9 @@ export interface GameCanvasProps {
   onStatsChange: (stats: Stats) => void;
   running: boolean;
   onGameOver?: () => void;
+  /** Fires after Pixi, the simulation, listeners, and the first rendered frame are ready. */
+  onReady?: () => void;
+  onInitializationError?: (error: unknown) => void;
   onContinueStarted?: () => void;
   onWaveVictory?: (summary: WaveVictorySummary) => void;
   isTransmissionOpen?: boolean;
@@ -136,6 +145,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   onStatsChange,
   running,
   onGameOver,
+  onReady,
+  onInitializationError,
   onContinueStarted,
   onWaveVictory,
   isTransmissionOpen = false,
@@ -199,6 +210,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const isTransmissionOpenRef = useRef(isTransmissionOpen);
   const onStatsChangeRef = useRef(onStatsChange);
   const onGameOverRef = useRef(onGameOver);
+  const onReadyRef = useRef(onReady);
+  const onInitializationErrorRef = useRef(onInitializationError);
   const onContinueStartedRef = useRef(onContinueStarted);
   const onWaveVictoryRef = useRef(onWaveVictory);
   const onRuntimeStateRef = useRef(onRuntimeState);
@@ -212,6 +225,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     onGameOverRef.current = onGameOver;
   }, [onGameOver]);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
+
+  useEffect(() => {
+    onInitializationErrorRef.current = onInitializationError;
+  }, [onInitializationError]);
 
   useEffect(() => {
     onContinueStartedRef.current = onContinueStarted;
@@ -478,6 +499,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       let lastRenderTime = 0;
       let lastRuntimeStatePublishTime = 0;
       let deathSequenceSafetyTimer: number | null = null;
+      let readinessReported = false;
 
     const refreshFrameBudget = () => {
       const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
@@ -805,6 +827,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         updateAdaptivePerformanceMode(renderElapsed);
         publishHudStats(false, timestamp);
         renderer.sync(engine, timestamp);
+        if (!readinessReported) {
+          readinessReported = true;
+          onReadyRef.current?.();
+        }
       }
 
       if (timestamp - lastRuntimeStatePublishTime >= RUNTIME_STATE_SYNC_INTERVAL_MS) {
@@ -856,6 +882,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
       console.error('Failed to initialize the Pixi gameplay renderer.', error);
+      if (!disposed) onInitializationErrorRef.current?.(error);
     });
 
     return () => {

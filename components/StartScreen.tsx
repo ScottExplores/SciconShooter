@@ -28,8 +28,13 @@ import {
   preloadPlayerShipSelectionFrames
 } from '../services/playerShipMotion';
 import SquadHangar from './SquadHangar';
-import RewardCenter from './RewardCenter';
-import { getDailyGiftStatus, type AchievementId } from '../services/rewardProgression';
+import RewardCenter, { type RewardTab } from './RewardCenter';
+import {
+  getClaimableAchievementCount,
+  getDailyGiftStatus,
+  type AchievementId,
+  type DailyGiftReward
+} from '../services/rewardProgression';
 import type {
   MainShipUpgradeId,
   MiniShipId,
@@ -72,8 +77,8 @@ interface StartScreenProps {
   onCloseTestChampionPreview?: () => void;
   weeklySquadState: WeeklySquadState;
   permanentSquadState: PermanentSquadState;
-  onClaimDailyGift: () => void;
-  onClaimAchievement: (id: AchievementId) => void;
+  onClaimDailyGift: () => DailyGiftReward | null;
+  onClaimAchievement: (id: AchievementId) => number | null;
   onRequestWalletConnect: () => void;
   founderSandbox?: boolean;
   onUnlockSquadSlot: (slot: SquadSlotId) => void;
@@ -114,6 +119,8 @@ type IconName =
 const DASHBOARD_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1';
 const MORE_MENU_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1/normal';
 const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/icons/communication';
+const REWARD_EDGE_ARROW = '/game-art/generated/ui/scicon-reward-edge-v1/reward-arrow.png';
+const REWARD_ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
 
 const dashboardTabs: Array<{
   id: DashboardTab;
@@ -637,6 +644,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [showTreasury, setShowTreasury] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
   const [showRewardCenter, setShowRewardCenter] = useState(false);
+  const [rewardCenterInitialTab, setRewardCenterInitialTab] = useState<RewardTab>('daily');
   const [feedback, setFeedback] = useState('');
   const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isSending, setIsSending] = useState(false);
@@ -651,7 +659,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [selectedLeaderboardRecord, setSelectedLeaderboardRecord] = useState<LeaderboardEntry | null>(null);
   const [leaderboardRecordStatus, setLeaderboardRecordStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
-  const dailyGiftStatus = getDailyGiftStatus(permanentSquadState);
+  const dailyGiftStatus = getDailyGiftStatus(permanentSquadState, new Date(weeklyClock));
+  const claimableAchievementCount = useMemo(
+    () => getClaimableAchievementCount(permanentSquadState),
+    [permanentSquadState]
+  );
+  const hasRewardReady = dailyGiftStatus.isAvailable || claimableAchievementCount > 0;
+  const openRewardCenter = (initialTab: RewardTab = 'daily') => {
+    setRewardCenterInitialTab(initialTab);
+    setShowRewardCenter(true);
+  };
 
   useEffect(() => {
     const iconImages = dashboardTabs.flatMap((tab) => [tab.icon, tab.selectedIcon]);
@@ -689,8 +706,43 @@ const StartScreen: React.FC<StartScreenProps> = ({
   }, [requestedChampionWinner, testChampionWinner]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setWeeklyClock(Date.now()), 60_000);
-    return () => window.clearInterval(timer);
+    let midnightTimer: number | undefined;
+    const refreshClock = () => setWeeklyClock(Date.now());
+    const scheduleNextMidnight = (): void => {
+      if (midnightTimer !== undefined) window.clearTimeout(midnightTimer);
+      const now = new Date();
+      const nextMidnight = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        0,
+        0,
+        0,
+        40
+      );
+      midnightTimer = window.setTimeout(() => {
+        refreshClock();
+        scheduleNextMidnight();
+      }, Math.max(250, nextMidnight.getTime() - now.getTime()));
+    };
+    const handleResume = () => {
+      refreshClock();
+      scheduleNextMidnight();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') handleResume();
+    };
+
+    const minuteTimer = window.setInterval(refreshClock, 60_000);
+    window.addEventListener('focus', handleResume);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    scheduleNextMidnight();
+    return () => {
+      window.clearInterval(minuteTimer);
+      if (midnightTimer !== undefined) window.clearTimeout(midnightTimer);
+      window.removeEventListener('focus', handleResume);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -1121,9 +1173,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
         {dashboardTabs.map((tab) => {
           const active = dashboardTab === tab.id;
           const hangarLocked = tab.id === 'hangar' && !walletAddress;
+          const rewardAttention = tab.id === 'more' && hasRewardReady;
           const tabLabel = hangarLocked
             ? 'Hangar - Connect your wallet for ship upgrades'
-            : tab.label;
+            : rewardAttention
+              ? `More - ${dailyGiftStatus.isAvailable ? 'daily gift' : 'achievement'} ready`
+              : tab.label;
           return (
             <button
               key={tab.id}
@@ -1135,6 +1190,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               data-active={active ? 'true' : 'false'}
               data-locked={hangarLocked ? 'true' : 'false'}
               data-lock-nudged={hangarLocked && connectNudgeActive ? 'true' : 'false'}
+              data-reward-ready={rewardAttention ? 'true' : 'false'}
               onClick={tab.id === 'hangar' ? requestHangar : () => setDashboardTab(tab.id)}
               className={`sci-dashboard-nav-button group relative flex min-h-[4.8rem] flex-col items-center justify-end gap-0.5 border-r border-cyan-200/12 px-1 pb-1.5 text-center text-xs font-semibold last:border-r-0 ${
                 active
@@ -1159,6 +1215,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   <span className="sci-dashboard-nav-lock">
                     <Icon name="lock" className="h-4 w-4" strokeWidth={2.5} />
                   </span>
+                ) : null}
+                {rewardAttention ? (
+                  <span className="sci-dashboard-reward-ready" aria-hidden="true" />
                 ) : null}
               </span>
               <span className="sci-dashboard-nav-label">{tab.label}</span>
@@ -1491,9 +1550,17 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <div className="sci-more-menu__grid" aria-label="Scicon Shooter menu">
           <MoreMenuTile
-            label="Daily Gifts"
-            icon={`${DASHBOARD_ICON_ROOT}/selected/weekly-calendar-selected.png`}
-            onClick={() => setShowRewardCenter(true)}
+            label={dailyGiftStatus.isAvailable
+              ? 'Daily Gift'
+              : claimableAchievementCount > 0
+                ? 'Achievements'
+                : 'Reward Center'}
+            icon={claimableAchievementCount > 0 && !dailyGiftStatus.isAvailable
+              ? REWARD_ACHIEVEMENT_ICON
+              : `${DASHBOARD_ICON_ROOT}/selected/weekly-calendar-selected.png`}
+            onClick={() => openRewardCenter(
+              !dailyGiftStatus.isAvailable && claimableAchievementCount > 0 ? 'achievements' : 'daily'
+            )}
           />
           <MoreMenuTile
             label="ResearchHub"
@@ -1625,12 +1692,36 @@ const StartScreen: React.FC<StartScreenProps> = ({
       {dashboardTab === 'home' ? (
         <button
           type="button"
-          className={`sci-reward-edge-trigger${dailyGiftStatus.isAvailable ? ' sci-reward-edge-trigger--claimable' : ''}`}
-          onClick={() => setShowRewardCenter(true)}
-          aria-label={dailyGiftStatus.isAvailable ? 'Claim daily gift' : 'Open daily gifts'}
+          className={[
+            'sci-reward-edge-trigger',
+            dailyGiftStatus.isAvailable ? 'sci-reward-edge-trigger--claimable' : 'sci-reward-edge-trigger--collapsed',
+            !dailyGiftStatus.isAvailable && claimableAchievementCount > 0
+              ? 'sci-reward-edge-trigger--achievement-ready'
+              : ''
+          ].filter(Boolean).join(' ')}
+          onClick={() => openRewardCenter(
+            !dailyGiftStatus.isAvailable && claimableAchievementCount > 0 ? 'achievements' : 'daily'
+          )}
+          aria-label={dailyGiftStatus.isAvailable
+            ? 'Claim daily gift'
+            : claimableAchievementCount > 0
+              ? `${claimableAchievementCount} achievement ${claimableAchievementCount === 1 ? 'reward' : 'rewards'} ready`
+              : 'Open reward center'}
+          aria-controls="reward-center"
+          aria-expanded={showRewardCenter}
         >
-          <img src={`${DASHBOARD_ICON_ROOT}/selected/weekly-calendar-selected.png`} alt="" />
-          <span>Daily gift</span>
+          <img
+            src={dailyGiftStatus.isAvailable
+              ? `${DASHBOARD_ICON_ROOT}/selected/weekly-calendar-selected.png`
+              : REWARD_EDGE_ARROW}
+            alt=""
+          />
+          {dailyGiftStatus.isAvailable ? <span>Daily gift</span> : null}
+          {!dailyGiftStatus.isAvailable && claimableAchievementCount > 0 ? (
+            <span className="sci-reward-edge-trigger__count" aria-hidden="true">
+              {claimableAchievementCount > 9 ? '9+' : claimableAchievementCount}
+            </span>
+          ) : null}
         </button>
       ) : null}
 
@@ -1851,6 +1942,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
       <RewardCenter
         open={showRewardCenter}
+        initialTab={rewardCenterInitialTab}
         onClose={() => setShowRewardCenter(false)}
         walletConnected={Boolean(walletAddress)}
         permanentState={permanentSquadState}

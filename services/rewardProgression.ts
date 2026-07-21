@@ -48,9 +48,12 @@ export interface AchievementStatus {
 }
 
 const DAILY_COIN_REWARDS = [
-  10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
-  110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
-  210, 220, 230, 240, 250, 260, 270, 280, 290, 300
+  50, 100, 200, 400, 800,
+  1000, 1000, 1000, 1000, 1000,
+  1000, 1000, 1000, 1000, 1000,
+  1000, 1000, 1000, 1000, 1000,
+  1000, 1000, 1000, 1000, 1000,
+  1000, 1000, 1000, 1000, 1000
 ] as const;
 
 export const DAILY_GIFT_REWARDS: readonly DailyGiftReward[] = DAILY_COIN_REWARDS.map((coins, index) => {
@@ -249,6 +252,12 @@ export const getAchievementStatus = (
     allClaimed
   };
 };
+
+export const getClaimableAchievementCount = (state: PermanentSquadState) => (
+  ACHIEVEMENT_DEFINITIONS.reduce((count, definition) => (
+    count + (getAchievementStatus(state, definition.id)?.complete ? 1 : 0)
+  ), 0)
+);
 
 export const claimAchievement = (
   state: PermanentSquadState,

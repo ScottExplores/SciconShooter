@@ -52,6 +52,8 @@ export const ASSETS = {
     "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-05-rim-travel.png",
     "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/overdrive-spread/frames/overdrive-spread-06-settle.png"
   ],
+  POWERUP_MAX_SHOT: "/game-art/generated/powerups/scicon-max-shot-v1/max-shot-pickup.png",
+  POWERUP_MAX_SHOT_AURA: "/game-art/generated/powerups/scicon-max-shot-v1/max-shot-aura.png",
   POWERUP_MAGNET: "/game-art/powerups/magnet.png",
   POWERUP_MAGNET_FRAMES: [
     "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-01-rest.png",
@@ -316,6 +318,7 @@ export const GAME_CONFIG = {
   WAVE_DURATION_FRAMES: 3600, 
   POWERUP_DURATION: 720, // 12 seconds @ 60fps
   FOUNDER_SHOT_DURATION: 1440, // 24 seconds @ 60fps
+  MAX_SHOT_DURATION: 600, // 10 seconds @ 60fps
   RESEARCH_BEAM_DURATION: 600, // 10 seconds @ 60fps
   SHIELD_DURATION: 240, // Reduced from 300 (4 seconds)
   BOSS_SPAWN_FRAMES: 3000,
