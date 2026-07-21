@@ -64,6 +64,17 @@ import {
   type SquadSlotId
 } from './squadProgression';
 import { resolveBossPhaseConfig } from './bossPhaseConfig';
+import {
+  getCampaignSpawnTargetCount,
+  shouldCompleteClearWave,
+  shouldUseLegacyMilestoneEncounters
+} from './waveCompletion';
+import {
+  BOSS_COIN_BURST_FRAMES,
+  MAX_ACTIVE_BOSS_REWARD_COINS,
+  getBossCoinBurstCount,
+  getBossCoinBurstKinematics
+} from './bossCoinBurst';
 
 // --- Helper Classes ---
 
@@ -208,6 +219,12 @@ export class Entity {
   wallRowOffset?: number;
   wallPass?: number;
   wallSwayPhase?: number;
+  coinBurstFrames: number = 0;
+  coinGravity: number = 0;
+  coinBounceFloorY?: number;
+  coinBouncesRemaining: number = 0;
+  bossRewardWave?: number;
+  coinValueCredited: boolean = false;
   
   constructor(type: EntityType, x: number, y: number) {
     this.id = Math.random().toString(36).substr(2, 9);
@@ -795,8 +812,14 @@ type ActiveSquadCompanion = RuntimeSquadCompanion & {
 export interface GameRuntimeState {
   levelId: string;
   levelName: string;
+  levelNumber: number;
+  levelTotal: number;
   waveId: string;
   waveName: string;
+  waveAccent: string;
+  waveNumber: number;
+  waveTotal: number;
+  wavePresentationRevision: number;
   elapsedSeconds: number;
   durationSeconds: number;
   progress: number;
@@ -908,6 +931,7 @@ export class GameEngine {
   frameCount: number = 0;
   bgY: number = 0;
   gameActive: boolean = false;
+  cinematicPaused: boolean = false;
   lives: number = GAME_CONFIG.PLAYER_LIVES;
   invincibleTimer: number = 0;
   activePowerups: Map<PowerupType, number> = new Map();
@@ -946,6 +970,7 @@ export class GameEngine {
   introFlightDuration: number = 150;
   waveDepartureFrames: number = 0;
   waveDepartureDuration: number = 168;
+  wavePresentationRevision: number = 0;
   waveVictoryReady: boolean = false;
   waveVictorySummary: WaveVictorySummary | null = null;
   waveStartScore: number = 0;
@@ -1047,11 +1072,11 @@ export class GameEngine {
     const levels = Array.isArray(campaign.levels)
       ? campaign.levels.map((level, sourceIndex) => ({ level, sourceIndex })).sort((a, b) => a.level.order - b.level.order)
       : [];
-    levels.forEach(({ level, sourceIndex: levelIndex }) => {
+    levels.forEach(({ level }, levelIndex) => {
       const waves = Array.isArray(level.waves)
         ? level.waves.map((wave, sourceIndex) => ({ wave, sourceIndex })).sort((a, b) => a.wave.order - b.wave.order)
         : [];
-      waves.forEach(({ wave, sourceIndex: waveIndex }) => entries.push({ level, wave, levelIndex, waveIndex }));
+      waves.forEach(({ wave }, waveIndex) => entries.push({ level, wave, levelIndex, waveIndex }));
     });
     return entries;
   }
@@ -1104,6 +1129,16 @@ export class GameEngine {
     return Math.max(1, Math.round(this.getConfiguredWaveDurationSeconds() * GAME_CONFIG.FPS));
   }
 
+  getCurrentWaveCompletionRule(): WaveDefinition['completionRule'] {
+    return this.getCurrentWaveDefinition()?.completionRule === 'clear-after-duration'
+      ? 'clear-after-duration'
+      : 'boss-defeat';
+  }
+
+  beginWavePresentation() {
+    this.wavePresentationRevision++;
+  }
+
   getWaveElapsedSeconds() {
     return this.waveProgressFrames / GAME_CONFIG.FPS;
   }
@@ -1131,11 +1166,19 @@ export class GameEngine {
   getRuntimeState(): GameRuntimeState {
     const entry = this.getCurrentCampaignEntry();
     const durationSeconds = this.getConfiguredWaveDurationSeconds();
+    const levelTotal = Math.max(1, this.campaign.levels.length);
+    const waveTotal = Math.max(1, entry?.level.waves.length ?? 1);
     return {
       levelId: entry?.level.id ?? `level-${Math.max(1, this.wave)}`,
       levelName: entry?.level.name ?? this.getWaveSector().name,
+      levelNumber: Math.max(1, (entry?.levelIndex ?? 0) + 1),
+      levelTotal,
       waveId: entry?.wave.id ?? `wave-${Math.max(1, this.wave)}`,
       waveName: entry?.wave.name ?? `Wave ${Math.max(1, this.wave)}`,
+      waveAccent: entry?.wave.accent ?? this.getWaveSector().accent,
+      waveNumber: Math.max(1, (entry?.waveIndex ?? 0) + 1),
+      waveTotal,
+      wavePresentationRevision: this.wavePresentationRevision,
       elapsedSeconds: Math.min(durationSeconds, this.getWaveElapsedSeconds()),
       durationSeconds,
       progress: Math.min(1, Math.max(0, this.stats.bossProgress || 0)),
@@ -1243,6 +1286,14 @@ export class GameEngine {
     }
   }
 
+  getConfiguredSpawnTargetCount(event: RuntimeSpawnEvent) {
+    return getCampaignSpawnTargetCount({
+      count: event.count,
+      patternId: event.patternId,
+      campaignCycle: this.getCampaignCycle()
+    });
+  }
+
   setPreviewInvincible(enabled: boolean) {
     this.previewInvincible = Boolean(enabled);
   }
@@ -1272,16 +1323,7 @@ export class GameEngine {
     this.playerVel = { x: 0, y: 0 };
     this.setPlayerHomePosition();
     this.refreshLoadState();
-
-    const sector = this.getWaveSector();
-    const wave = this.getCurrentWaveDefinition();
-    this.spawnFloatingText(
-      this.width / 2,
-      this.height / 2,
-      wave ? `${wave.name} - ${sector.name}` : `WAVE ${this.wave} - ${sector.name}`,
-      sector.accent,
-      this.mobileProfile ? 20 : 26
-    );
+    this.beginWavePresentation();
     this.playSound('wave');
     return true;
   }
@@ -1375,6 +1417,7 @@ export class GameEngine {
     this.playerVel = { x: 0, y: 0 };
     this.setPlayerHomePosition();
     this.refreshLoadState();
+    this.beginWavePresentation();
   }
 
   getAnimatedFrame(frames: string[], entity: Entity, speed: number) {
@@ -1639,6 +1682,11 @@ export class GameEngine {
 
   updatePassiveEntities() {
     this.entities.forEach((entity) => {
+      if (entity.type === EntityType.COIN) {
+        this.updateCoinEntity(entity);
+        return;
+      }
+
       if (entity.type === EntityType.PARTICLE) {
         entity.x += entity.vx;
         entity.y += entity.vy;
@@ -1721,6 +1769,7 @@ export class GameEngine {
     this.waveDepartureFrames--;
 
     if (this.waveDepartureFrames <= 0) {
+      this.bankDepartingBossCoins();
       if (this.previewMode) {
         this.startNextWave();
         return;
@@ -1848,15 +1897,7 @@ export class GameEngine {
     this.stats.shipAbilityCooldownMax = getShipAbilityDefinition(this.playerShipId).cooldownFrames;
     this.stats.wave = this.wave;
     this.resetWaveProgress();
-    const openingSector = this.getWaveSector();
-    const openingWave = this.getCurrentWaveDefinition();
-    this.spawnFloatingText(
-      this.width / 2,
-      this.height / 2,
-      openingWave ? `${openingWave.name} - ${openingSector.name}` : `WAVE ${this.wave} - ${openingSector.name}`,
-      openingSector.accent,
-      this.mobileProfile ? 20 : 26
-    );
+    this.beginWavePresentation();
     this.bossRef = null;
     this.miniBossRef = null;
     this.activePowerups.clear();
@@ -1938,6 +1979,44 @@ export class GameEngine {
     return true;
   }
 
+  getConfiguredSpawnsComplete() {
+    return this.getConfiguredSpawnEvents().every((event) => (
+      (this.configuredSpawnCounts.get(event.id) || 0) >= this.getConfiguredSpawnTargetCount(event)
+    ));
+  }
+
+  getConfiguredEncountersComplete() {
+    return this.getConfiguredEncounterEvents().every((event) => this.configuredEncounterIds.has(event.id))
+      && this.pendingConfiguredEncounter === null;
+  }
+
+  completeClearWaveIfReady() {
+    const completionRule = this.getCurrentWaveCompletionRule();
+    if (!shouldCompleteClearWave({
+      completionRule,
+      elapsedFrames: this.waveProgressFrames,
+      durationFrames: this.getConfiguredWaveDurationFrames(),
+      scheduledSpawnsComplete: this.getConfiguredSpawnsComplete(),
+      scheduledEncountersComplete: this.getConfiguredEncountersComplete(),
+      activeThreatCount: this.getActiveThreatCount(),
+      warningActive: this.inBossWarningSequence,
+      transitionPending: this.waveTransitionPending
+    })) return false;
+
+    this.stats.bossProgress = 1;
+    this.stats.isBossActive = false;
+    this.waveTransitionPending = true;
+    this.waveVictorySummary = this.buildWaveVictorySummary();
+    this.spawnFloatingText(this.width / 2, this.height / 2, 'WAVE CLEAR!', '#67e8f9');
+    const configuredDelay = Number(this.getCurrentWaveDefinition()?.delayAfterSeconds);
+    this.waveDepartureDuration = Number.isFinite(configuredDelay) && configuredDelay >= 0
+      ? Math.max(1, Math.round(configuredDelay * GAME_CONFIG.FPS))
+      : 168;
+    this.waveDepartureFrames = this.waveDepartureDuration;
+    this.playSound('wave');
+    return true;
+  }
+
   getPlayerMovementBounds() {
     return {
       minX: -this.player.width / 2,
@@ -1967,15 +2046,7 @@ export class GameEngine {
     this.resetWaveProgress();
     this.gameActive = true;
     this.keepEntitiesForNextWave();
-    const sector = this.getWaveSector();
-    const nextWave = this.getCurrentWaveDefinition();
-    this.spawnFloatingText(
-      this.width / 2,
-      this.height / 2,
-      nextWave ? `${nextWave.name} - ${sector.name}` : `WAVE ${this.wave} - ${sector.name}`,
-      sector.accent,
-      this.mobileProfile ? 20 : 26
-    );
+    this.beginWavePresentation();
     const configuredIntroSeconds = Number(this.getCurrentWaveDefinition()?.introSeconds);
     this.introFlightDuration = Number.isFinite(configuredIntroSeconds) && configuredIntroSeconds >= 0
       ? Math.max(0, Math.round(configuredIntroSeconds * GAME_CONFIG.FPS))
@@ -2327,6 +2398,7 @@ export class GameEngine {
 
   update(cinematicPause: boolean = false) {
     if (!this.gameActive) return;
+    this.cinematicPaused = cinematicPause;
     this.frameCount++;
     if ((this.stats.shipAbilityCooldown || 0) > 0) {
       this.stats.shipAbilityCooldown = Math.max(0, this.stats.shipAbilityCooldown - 1);
@@ -2359,14 +2431,14 @@ export class GameEngine {
       return;
     }
 
-    if (this.introFlightFrames > 0) {
-      this.updateIntroFlight();
+    if (cinematicPause) {
       this.updatePassiveEntities();
       this.bgY = (this.bgY + 1) % this.height;
       return;
     }
 
-    if (cinematicPause) {
+    if (this.introFlightFrames > 0) {
+      this.updateIntroFlight();
       this.updatePassiveEntities();
       this.bgY = (this.bgY + 1) % this.height;
       return;
@@ -2429,12 +2501,18 @@ export class GameEngine {
         }
 
         const configuredEncounters = this.getConfiguredEncounterEvents();
+        const configuredEvents = this.getCurrentWaveDefinition()?.events;
+        const useLegacyMilestones = shouldUseLegacyMilestoneEncounters({
+          completionRule: this.getCurrentWaveCompletionRule(),
+          configuredEventCount: Array.isArray(configuredEvents) ? configuredEvents.length : 0,
+          configuredEncounterCount: configuredEncounters.length
+        });
         if (configuredEncounters.length > 0) {
           const dueEncounter = this.getDueConfiguredEncounter();
           if (dueEncounter && !this.inBossWarningSequence) {
             this.queueConfiguredEncounter(dueEncounter);
           }
-        } else {
+        } else if (useLegacyMilestones) {
           // Legacy milestone fallback for campaigns without event configuration.
           if (this.stats.bossProgress >= 0.33 && !this.spawnedMiniBoss1) {
                if (!this.inBossWarningSequence) {
@@ -2585,6 +2663,10 @@ export class GameEngine {
         this.updateCrownClawProjectile(e);
         if (e.markedForDeletion) return;
       }
+      if (e.type === EntityType.COIN) {
+        this.updateCoinEntity(e);
+        return;
+      }
       e.x += e.vx;
       e.y += e.vy;
       
@@ -2710,44 +2792,6 @@ export class GameEngine {
           if ((e as VisualEffect).life <= 0) e.markedForDeletion = true;
       }
       
-      if (e.type === EntityType.COIN) {
-        const playerCenterX = this.player.x + this.player.width / 2;
-        const playerCenterY = this.player.y + this.player.height / 2;
-        const coinCenterX = e.x + e.width / 2;
-        const coinCenterY = e.y + e.height / 2;
-        const magnetCompanion = this.squadCompanions.find((companion) => (
-          companion.ability === 'coin-magnet' && companion.entryProgress >= 0.5
-        ));
-        const hasPowerupMagnet = this.activePowerups.has(PowerupType.MAGNET);
-        const companionRadius = magnetCompanion ? 150 + magnetCompanion.level * 38 : 0;
-        const companionDx = magnetCompanion ? magnetCompanion.x - coinCenterX : 0;
-        const companionDy = magnetCompanion ? magnetCompanion.y - coinCenterY : 0;
-        const companionDistance = Math.max(1, Math.hypot(companionDx, companionDy));
-        const useCompanionMagnet = !hasPowerupMagnet
-          && Boolean(magnetCompanion)
-          && companionDistance < companionRadius;
-        const dx = useCompanionMagnet ? companionDx : playerCenterX - coinCenterX;
-        const dy = useCompanionMagnet ? companionDy : playerCenterY - coinCenterY;
-        const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-        const radius = hasPowerupMagnet
-          ? POWERUP_COIN_MAGNET_RADIUS
-          : useCompanionMagnet
-            ? companionRadius
-            : BASE_COIN_MAGNET_RADIUS;
-
-        if (dist < radius) {
-          const closeness = 1 - (dist / radius);
-          const pull = hasPowerupMagnet
-            ? 0.14 + closeness * 0.11
-            : useCompanionMagnet
-              ? 0.075 + closeness * (0.07 + (magnetCompanion?.level ?? 1) * 0.008)
-              : 0.035 + closeness * 0.05;
-          e.x += dx * pull;
-          e.y += dy * pull;
-        }
-        if (e.y > this.height) e.markedForDeletion = true;
-      }
-      
       if (e.type === EntityType.POWERUP) {
           e.y += Math.sin(this.frameCount * 0.05) * 0.5;
           if (e.y > this.height) e.markedForDeletion = true;
@@ -2770,6 +2814,7 @@ export class GameEngine {
     this.checkCollisions();
     this.applyResearchBeamDamage();
     this.compactEntities();
+    this.completeClearWaveIfReady();
     this.refreshLoadState();
     this.bgY = (this.bgY + 1) % this.height;
   }
@@ -3783,7 +3828,9 @@ export class GameEngine {
     const centerX = target.x + target.width / 2;
     const centerY = target.y + target.height / 2;
     if (points > 0) this.spawnFloatingText(centerX, centerY - 10, `+${points}`, '#67e8f9', 16);
-    if (target.type !== EntityType.BOSS) {
+    if (target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS) {
+      this.spawnBossCoinBurst(target);
+    } else {
       this.spawnCoin(target.x + target.width / 2, target.y + target.height / 2);
     }
     if (target.type === EntityType.ENEMY_SWARM && target.formation === 'orbit') {
@@ -4427,16 +4474,11 @@ export class GameEngine {
       const startSeconds = Math.max(0, Number(event.startSeconds) || 0);
       const durationSeconds = Math.max(0, Number(event.durationSeconds) || 0);
       const endSeconds = durationSeconds > 0 ? startSeconds + durationSeconds : Number.POSITIVE_INFINITY;
-      const baseCount = Math.max(0, Math.floor(Number(event.count) || 0));
-      const cycle = this.getCampaignCycle();
-      const formationEvent = !String(event.patternId || '').toLowerCase().includes('single')
-        && !String(event.patternId || '').toLowerCase().includes('random');
-      const countBonus = formationEvent
-        ? Math.min(Math.ceil(baseCount * 0.5), Math.ceil(baseCount * cycle * 0.1))
-        : Math.min(2, cycle);
-      const count = baseCount + countBonus;
+      const count = this.getConfiguredSpawnTargetCount(event);
       const spawned = this.configuredSpawnCounts.get(event.id) || 0;
-      if (elapsedSeconds < startSeconds || elapsedSeconds > endSeconds || spawned >= count) continue;
+      const finishingClearWave = this.getCurrentWaveCompletionRule() === 'clear-after-duration'
+        && elapsedSeconds >= this.getConfiguredWaveDurationSeconds();
+      if (elapsedSeconds < startSeconds || (!finishingClearWave && elapsedSeconds > endSeconds) || spawned >= count) continue;
       if (this.getActiveThreatCount() >= threatCap) break;
 
       const intervalFrames = Math.max(1, Math.round(
@@ -4447,6 +4489,9 @@ export class GameEngine {
 
       const enemySetting = this.pickConfiguredEnemy(event);
       if (!enemySetting) continue;
+      const cycle = this.getCampaignCycle();
+      const formationEvent = !String(event.patternId || '').toLowerCase().includes('single')
+        && !String(event.patternId || '').toLowerCase().includes('random');
       if (cycle > 0 && formationEvent && spawned === 0 && !this.escalationWarningsShown.has(event.id)) {
         this.escalationWarningsShown.add(event.id);
         const entersFromLeft = (event.id.length + cycle) % 2 === 0;
@@ -6175,6 +6220,179 @@ export class GameEngine {
     return c;
   }
 
+  spawnBossCoinBurst(target: Entity) {
+    const rewardKind = target.type === EntityType.BOSS
+      ? 'main-boss'
+      : target.type === EntityType.MINI_BOSS
+        ? 'mini-boss'
+        : null;
+    if (!rewardKind) return 0;
+
+    const rewardCount = getBossCoinBurstCount(rewardKind, this.stats.wave);
+    let activeCoinCount = 0;
+    for (let index = 0; index < this.entities.length; index++) {
+      const entity = this.entities[index];
+      if (!entity.markedForDeletion && entity.type === EntityType.COIN) activeCoinCount++;
+    }
+    const spawnCount = Math.min(rewardCount, Math.max(0, MAX_ACTIVE_BOSS_REWARD_COINS - activeCoinCount));
+    if (spawnCount <= 0) return 0;
+
+    const centerX = target.x + target.width / 2;
+    const centerY = target.y + target.height / 2;
+    const seed = Math.floor(Number(target.variant) || 0) + this.stats.wave * 17;
+    for (let index = 0; index < spawnCount; index++) {
+      const motion = getBossCoinBurstKinematics(index, spawnCount, this.stats.wave, seed);
+      const coin = this.spawnCoin(
+        centerX - 12 + motion.offsetX,
+        centerY - 12 + motion.offsetY
+      );
+      coin.vx = motion.vx;
+      coin.vy = motion.vy;
+      coin.variant = motion.variant;
+      coin.coinBurstFrames = BOSS_COIN_BURST_FRAMES + (index % 9);
+      coin.coinGravity = motion.gravity;
+      coin.coinBounceFloorY = Math.max(
+        centerY + 38,
+        Math.min(this.height - coin.height - 28, centerY + motion.floorOffset)
+      );
+      coin.coinBouncesRemaining = motion.bounces;
+      coin.bossRewardWave = this.wave;
+    }
+
+    return spawnCount;
+  }
+
+  private creditCoinValue(coin: Entity) {
+    if (coin.coinValueCredited) return false;
+
+    coin.coinValueCredited = true;
+    this.stats.coins++;
+    this.stats.totalCoins++;
+    this.stats.score += this.activePowerups.has(PowerupType.MAGNET) ? 2 : 1;
+    this.addFlaskChargeFromCoin();
+    return true;
+  }
+
+  private bankDepartingBossCoins() {
+    let credited = 0;
+    for (const coin of this.entities) {
+      if (
+        coin.markedForDeletion
+        || coin.type !== EntityType.COIN
+        || coin.bossRewardWave !== this.wave
+      ) continue;
+
+      if (this.creditCoinValue(coin)) credited++;
+    }
+
+    if (credited > 0 && this.waveVictorySummary) {
+      const stableSummaryId = this.waveVictorySummary.id;
+      this.waveVictorySummary = { ...this.buildWaveVictorySummary(), id: stableSummaryId };
+    }
+    return credited;
+  }
+
+  private settleBossCoinMotion(coin: Entity) {
+    coin.coinBurstFrames = 0;
+    coin.coinGravity = 0;
+    coin.coinBounceFloorY = undefined;
+    coin.coinBouncesRemaining = 0;
+    coin.vx = clamp(coin.vx * 0.16, -0.35, 0.35);
+    coin.vy = 1.72 + (Math.abs(coin.variant) % 5) * 0.08;
+  }
+
+  private updateCoinEntity(coin: Entity) {
+    if (coin.markedForDeletion) return;
+
+    coin.x += coin.vx;
+    coin.y += coin.vy;
+
+    if (coin.coinBurstFrames > 0) {
+      coin.coinBurstFrames--;
+      coin.vy += coin.coinGravity;
+      coin.vx *= 0.994;
+
+      const leftEdge = 6;
+      const rightEdge = Math.max(leftEdge, this.width - coin.width - 6);
+      if (coin.x < leftEdge) {
+        coin.x = leftEdge;
+        coin.vx = Math.abs(coin.vx) * 0.72;
+      } else if (coin.x > rightEdge) {
+        coin.x = rightEdge;
+        coin.vx = -Math.abs(coin.vx) * 0.72;
+      }
+
+      const floorY = coin.coinBounceFloorY;
+      if (Number.isFinite(floorY) && coin.y + coin.height >= (floorY as number) && coin.vy > 0) {
+        coin.y = (floorY as number) - coin.height;
+        if (coin.coinBouncesRemaining > 0) {
+          coin.vy = -Math.max(1.45, Math.abs(coin.vy) * 0.34);
+          coin.vx *= 0.76;
+          coin.coinBouncesRemaining--;
+          coin.coinBounceFloorY = Math.min(this.height - 28, (floorY as number) + 22);
+        } else {
+          this.settleBossCoinMotion(coin);
+        }
+      } else if (coin.coinBurstFrames <= 0) {
+        this.settleBossCoinMotion(coin);
+      }
+    }
+
+    const playerCenterX = this.player.x + this.player.width / 2;
+    const playerCenterY = this.player.y + this.player.height / 2;
+    const coinCenterX = coin.x + coin.width / 2;
+    const coinCenterY = coin.y + coin.height / 2;
+    const magnetCompanion = this.squadCompanions.find((companion) => (
+      companion.ability === 'coin-magnet' && companion.entryProgress >= 0.5
+    ));
+    const hasPowerupMagnet = this.activePowerups.has(PowerupType.MAGNET);
+    const companionRadius = magnetCompanion ? 150 + magnetCompanion.level * 38 : 0;
+    const companionDx = magnetCompanion ? magnetCompanion.x - coinCenterX : 0;
+    const companionDy = magnetCompanion ? magnetCompanion.y - coinCenterY : 0;
+    const companionDistance = Math.max(1, Math.hypot(companionDx, companionDy));
+    const useCompanionMagnet = !hasPowerupMagnet
+      && Boolean(magnetCompanion)
+      && companionDistance < companionRadius;
+    const dx = useCompanionMagnet ? companionDx : playerCenterX - coinCenterX;
+    const dy = useCompanionMagnet ? companionDy : playerCenterY - coinCenterY;
+    const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    const radius = hasPowerupMagnet
+      ? POWERUP_COIN_MAGNET_RADIUS
+      : useCompanionMagnet
+        ? companionRadius
+        : BASE_COIN_MAGNET_RADIUS;
+
+    if (dist < radius) {
+      const closeness = 1 - (dist / radius);
+      const pull = hasPowerupMagnet
+        ? 0.14 + closeness * 0.11
+        : useCompanionMagnet
+          ? 0.075 + closeness * (0.07 + (magnetCompanion?.level ?? 1) * 0.008)
+          : 0.035 + closeness * 0.05;
+      coin.x += dx * pull;
+      coin.y += dy * pull;
+    }
+
+    this.collectCoinIfReachedPlayer(coin);
+    if (!coin.markedForDeletion && coin.y > this.height) coin.markedForDeletion = true;
+  }
+
+  private collectCoinIfReachedPlayer(coin: Entity) {
+    const playerBox = this.getCollisionBox(this.player);
+    const coinBox = this.getCollisionBox(coin);
+    if (!this.boxesIntersect(playerBox, coinBox) && !this.isCoinCollectedBySquadMagnet(coin)) return false;
+
+    coin.markedForDeletion = true;
+    const credited = this.creditCoinValue(coin);
+    this.registerCoinPickup(coin.x + coin.width / 2, coin.y + coin.height / 2);
+
+    if (credited && this.waveTransitionPending && this.waveVictorySummary) {
+      const stableSummaryId = this.waveVictorySummary.id;
+      this.waveVictorySummary = { ...this.buildWaveVictorySummary(), id: stableSummaryId };
+    }
+    return true;
+  }
+
   spawnExplosion(x: number, y: number, color: string, intensity: number = 1) {
     if (intensity >= 1.2) {
       this.playSound('explode', intensity, {
@@ -6422,17 +6640,6 @@ export class GameEngine {
         this.kickPlayerSquash(0.06);
         this.addShake(0.65);
         this.activatePowerup(type);
-      }
-
-      if (e.type === EntityType.COIN && (intersectsPlayer(e) || this.isCoinCollectedBySquadMagnet(e))) {
-        e.markedForDeletion = true;
-        this.stats.coins++;
-        this.stats.totalCoins++; 
-        this.stats.score += (this.activePowerups.has(PowerupType.MAGNET) ? 2 : 1);
-        this.addFlaskChargeFromCoin();
-        this.registerCoinPickup(e.x + e.width / 2, e.y + e.height / 2);
-        
-        // REMOVED AUTOMATIC LIFE GAIN
       }
 
       if (e.type === EntityType.BOMB && intersectsPlayer(e)) {

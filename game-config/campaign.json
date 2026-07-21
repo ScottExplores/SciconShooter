@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 15,
+  "revision": 16,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
   "updatedAt": "2026-07-21T19:46:31.835Z",
@@ -60,8 +60,8 @@
   "levels": [
     {
       "id": "operation-open-galaxy",
-      "name": "Operation Open Galaxy",
-      "description": "The current Scicon Shooter mission, expressed as editable real-game waves.",
+      "name": "Research Frontier",
+      "description": "A five-wave research-sector run that alternates elite intercepts with milestone boss encounters.",
       "order": 1,
       "backgroundId": "open-orbit",
       "musicId": "procedural-main",
@@ -99,6 +99,7 @@
           "order": 1,
           "accent": "#67e8f9",
           "backgroundId": "open-orbit",
+          "completionRule": "boss-defeat",
           "difficultyMultiplier": 1,
           "durationSeconds": 60,
           "introSeconds": 2.5,
@@ -505,6 +506,7 @@
           "order": 2,
           "accent": "#c4b5fd",
           "backgroundId": "citation-storm",
+          "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
           "durationSeconds": 60,
           "introSeconds": 1.967,
@@ -637,88 +639,33 @@
               ]
             },
             {
-              "id": "citation-storm-mini-boss",
-              "kind": "boss",
-              "label": "Bottleneck Drone",
+              "id": "citation-storm-elite-hunter-cell",
+              "kind": "spawn",
+              "label": "Citation hunter cell",
               "startSeconds": 19.8,
-              "durationSeconds": 16,
-              "delayAfterSeconds": 2,
-              "blocksWaveClock": true,
-              "bossId": "bottleneck-drone",
-              "count": 1,
-              "spriteKey": "MINI_BOSS",
-              "positionId": "center-top",
-              "movementPatternId": "track-player",
-              "warningSeconds": 1.5,
-              "health": 89,
-              "speed": 2,
-              "damage": 1,
-              "scoreReward": 1020,
-              "powerupDropChance": 1,
-              "shieldCount": 0,
-              "weapons": [
+              "durationSeconds": 3.4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "diamond",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.15,
+              "enemies": [
                 {
-                  "id": "mini-aimed-shot",
-                  "weaponId": "aimed-shot",
-                  "attackIntervalSeconds": 0.833,
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 1,
+                  "health": 16,
+                  "speed": 2.2,
                   "damage": 1,
-                  "projectileSpeed": 6,
-                  "burstCount": 1
-                }
-              ],
-              "phases": [
-                {
-                  "id": "mini-standard",
-                  "label": "Tracking fire",
-                  "triggerHealthRatio": 1,
-                  "movementPatternId": "track-player",
-                  "speedMultiplier": 1,
-                  "weaponSettingIds": [
-                    "mini-aimed-shot"
-                  ]
-                }
-              ]
-            },
-            {
-              "id": "citation-storm-mini-boss-2",
-              "kind": "boss",
-              "label": "Bottleneck Drone II",
-              "startSeconds": 21.8,
-              "durationSeconds": 16,
-              "delayAfterSeconds": 2,
-              "blocksWaveClock": true,
-              "bossId": "bottleneck-drone",
-              "count": 1,
-              "spriteKey": "MINI_BOSS",
-              "positionId": "center-top",
-              "movementPatternId": "track-player",
-              "warningSeconds": 1.1,
-              "health": 89,
-              "speed": 2.15,
-              "damage": 1,
-              "scoreReward": 1020,
-              "powerupDropChance": 1,
-              "shieldCount": 0,
-              "weapons": [
-                {
-                  "id": "mini-aimed-shot-2",
-                  "weaponId": "aimed-shot",
-                  "attackIntervalSeconds": 0.8,
-                  "damage": 1,
-                  "projectileSpeed": 6.2,
-                  "burstCount": 1
-                }
-              ],
-              "phases": [
-                {
-                  "id": "mini-standard-2",
-                  "label": "Tracking fire II",
-                  "triggerHealthRatio": 1,
-                  "movementPatternId": "track-player",
-                  "speedMultiplier": 1,
-                  "weaponSettingIds": [
-                    "mini-aimed-shot-2"
-                  ]
+                  "scoreValue": 260,
+                  "powerupDropChance": 0.12,
+                  "rank": "elite",
+                  "sizeMultiplier": 1.3,
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 1.35,
+                  "projectileSpeed": 4.8,
+                  "burstCount": 3
                 }
               ]
             },
@@ -926,25 +873,25 @@
               "durationSeconds": 7.2,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,
-              "count": 3,
-              "patternId": "single-random",
-              "positionId": "random-top",
-              "spawnIntervalSeconds": 2.2,
+              "count": 4,
+              "patternId": "diamond",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.16,
               "enemies": [
                 {
                   "enemyId": "swarm",
                   "spriteKey": "ENEMY_SWARM_FRAMES",
                   "weight": 1,
-                  "health": 14,
-                  "speed": 1.65,
+                  "health": 19,
+                  "speed": 2.35,
                   "damage": 1,
-                  "scoreValue": 160,
-                  "powerupDropChance": 0.1,
+                  "scoreValue": 320,
+                  "powerupDropChance": 0.14,
                   "rank": "elite",
                   "sizeMultiplier": 1.35,
                   "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 1.45,
-                  "projectileSpeed": 4.8,
+                  "attackIntervalSeconds": 1.15,
+                  "projectileSpeed": 5.1,
                   "burstCount": 3
                 }
               ]
@@ -983,70 +930,6 @@
                   "powerupDropChance": 0
                 }
               ]
-            },
-            {
-              "id": "citation-storm-gatekeeper",
-              "kind": "boss",
-              "label": "Review Sentinel",
-              "startSeconds": 59.5,
-              "durationSeconds": 24,
-              "delayAfterSeconds": 2.8,
-              "blocksWaveClock": true,
-              "bossId": "gatekeeper",
-              "rigId": "citation-storm",
-              "spriteKey": "PIXI_BOSS_CITATION_FRAMES",
-              "positionId": "center-top",
-              "movementPatternId": "gatekeeper-cycle",
-              "warningSeconds": 5,
-              "health": 300,
-              "speed": 1.75,
-              "damage": 1,
-              "scoreReward": 2020,
-              "powerupDropChance": 1,
-              "shieldCount": 2,
-              "sizeMultiplier": 0.88,
-              "weapons": [
-                {
-                  "id": "gatekeeper-burst",
-                  "weaponId": "burst-volley",
-                  "attackIntervalSeconds": 0.8,
-                  "damage": 1,
-                  "projectileSpeed": 6.85,
-                  "burstCount": 4
-                },
-                {
-                  "id": "gatekeeper-beam",
-                  "weaponId": "lane-beam",
-                  "attackIntervalSeconds": 0.38,
-                  "damage": 1,
-                  "projectileSpeed": 0,
-                  "burstCount": 2
-                }
-              ],
-              "phases": [
-                {
-                  "id": "gatekeeper-standard",
-                  "label": "Burst and beam cycle",
-                  "triggerHealthRatio": 1,
-                  "movementPatternId": "gatekeeper-cycle",
-                  "speedMultiplier": 1,
-                  "weaponSettingIds": [
-                    "gatekeeper-burst",
-                    "gatekeeper-beam"
-                  ]
-                },
-                {
-                  "id": "gatekeeper-low-health",
-                  "label": "Low-health cycle",
-                  "triggerHealthRatio": 0.35,
-                  "movementPatternId": "gatekeeper-cycle",
-                  "speedMultiplier": 1,
-                  "weaponSettingIds": [
-                    "gatekeeper-burst",
-                    "gatekeeper-beam"
-                  ]
-                }
-              ]
             }
           ]
         },
@@ -1056,6 +939,7 @@
           "order": 3,
           "accent": "#fde68a",
           "backgroundId": "paywall-siege",
+          "completionRule": "boss-defeat",
           "difficultyMultiplier": 1,
           "durationSeconds": 60,
           "introSeconds": 1.967,
@@ -1646,6 +1530,7 @@
           "order": 4,
           "accent": "#6ee7b7",
           "backgroundId": "open-galaxy",
+          "completionRule": "clear-after-duration",
           "difficultyMultiplier": 1,
           "durationSeconds": 60,
           "introSeconds": 1.967,
@@ -1838,44 +1723,33 @@
               ]
             },
             {
-              "id": "open-galaxy-mini-boss",
-              "kind": "boss",
-              "label": "Bottleneck Drone",
+              "id": "open-galaxy-elite-data-hunters",
+              "kind": "spawn",
+              "label": "Rogue data hunters",
               "startSeconds": 19.8,
-              "durationSeconds": 20,
-              "delayAfterSeconds": 2,
-              "blocksWaveClock": true,
-              "bossId": "bottleneck-drone",
-              "spriteKey": "MINI_BOSS",
-              "positionId": "center-top",
-              "movementPatternId": "track-player",
-              "warningSeconds": 1.5,
-              "health": 133,
-              "speed": 2,
-              "damage": 1,
-              "scoreReward": 4080,
-              "powerupDropChance": 1,
-              "shieldCount": 0,
-              "weapons": [
+              "durationSeconds": 3.6,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "diamond",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.15,
+              "enemies": [
                 {
-                  "id": "mini-aimed-shot",
-                  "weaponId": "aimed-shot",
-                  "attackIntervalSeconds": 0.667,
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 1,
+                  "health": 24,
+                  "speed": 2.55,
                   "damage": 1,
-                  "projectileSpeed": 7,
-                  "burstCount": 1
-                }
-              ],
-              "phases": [
-                {
-                  "id": "mini-standard",
-                  "label": "Tracking fire",
-                  "triggerHealthRatio": 1,
-                  "movementPatternId": "track-player",
-                  "speedMultiplier": 1,
-                  "weaponSettingIds": [
-                    "mini-aimed-shot"
-                  ]
+                  "scoreValue": 520,
+                  "powerupDropChance": 0.16,
+                  "rank": "elite",
+                  "sizeMultiplier": 1.22,
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 1.05,
+                  "projectileSpeed": 5.4,
+                  "burstCount": 3
                 }
               ]
             },
@@ -2245,65 +2119,33 @@
               ]
             },
             {
-              "id": "open-galaxy-gatekeeper",
-              "kind": "boss",
-              "label": "Gatekeeper Prime",
+              "id": "open-galaxy-elite-frontier-pack",
+              "kind": "spawn",
+              "label": "Frontier hunter pack",
               "startSeconds": 59.5,
-              "durationSeconds": 30,
-              "delayAfterSeconds": 2.8,
-              "blocksWaveClock": true,
-              "bossId": "gatekeeper",
-              "rigId": "crown-claw",
-              "spriteKey": "PIXI_BOSS_CROWNCLAW_FRAMES",
-              "positionId": "center-top",
-              "movementPatternId": "gatekeeper-cycle",
-              "warningSeconds": 5,
-              "health": 640,
-              "speed": 2,
-              "damage": 1,
-              "scoreReward": 8080,
-              "powerupDropChance": 1,
-              "shieldCount": 0,
-              "weapons": [
+              "durationSeconds": 0.5,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 4,
+              "patternId": "grid",
+              "positionId": "formation-top",
+              "spawnIntervalSeconds": 0.12,
+              "enemies": [
                 {
-                  "id": "gatekeeper-burst",
-                  "weaponId": "burst-volley",
-                  "attackIntervalSeconds": 0.533,
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 1,
+                  "health": 28,
+                  "speed": 2.7,
                   "damage": 1,
-                  "projectileSpeed": 8.2,
-                  "burstCount": 7
-                },
-                {
-                  "id": "gatekeeper-beam",
-                  "weaponId": "lane-beam",
-                  "attackIntervalSeconds": 0.3,
-                  "damage": 1,
-                  "projectileSpeed": 0,
+                  "scoreValue": 700,
+                  "powerupDropChance": 0.18,
+                  "rank": "elite",
+                  "sizeMultiplier": 1.28,
+                  "attackPatternId": "aimed-burst",
+                  "attackIntervalSeconds": 0.9,
+                  "projectileSpeed": 5.9,
                   "burstCount": 4
-                }
-              ],
-              "phases": [
-                {
-                  "id": "gatekeeper-standard",
-                  "label": "Burst and beam cycle",
-                  "triggerHealthRatio": 1,
-                  "movementPatternId": "gatekeeper-cycle",
-                  "speedMultiplier": 1,
-                  "weaponSettingIds": [
-                    "gatekeeper-burst",
-                    "gatekeeper-beam"
-                  ]
-                },
-                {
-                  "id": "gatekeeper-low-health",
-                  "label": "Low-health cycle",
-                  "triggerHealthRatio": 0.35,
-                  "movementPatternId": "gatekeeper-cycle",
-                  "speedMultiplier": 1,
-                  "weaponSettingIds": [
-                    "gatekeeper-burst",
-                    "gatekeeper-beam"
-                  ]
                 }
               ]
             }
@@ -2315,6 +2157,7 @@
           "order": 5,
           "accent": "#f9a8d4",
           "backgroundId": "bastion-protocol",
+          "completionRule": "boss-defeat",
           "difficultyMultiplier": 1,
           "durationSeconds": 8,
           "introSeconds": 2.5,
@@ -2516,40 +2359,40 @@
             {
               "id": "bastion-protocol-gatekeeper",
               "kind": "boss",
-              "label": "Bastion Overseer",
+              "label": "Frontier Crownclaw",
               "startSeconds": 7.2,
               "durationSeconds": 30,
               "delayAfterSeconds": 2.4,
               "blocksWaveClock": true,
               "bossId": "gatekeeper",
-              "rigId": "citation-storm",
-              "spriteKey": "PIXI_BOSS_CITATION_FRAMES",
+              "rigId": "crown-claw",
+              "spriteKey": "PIXI_BOSS_CROWNCLAW_FRAMES",
               "positionId": "center-top",
-              "movementPatternId": "arena-roam",
+              "movementPatternId": "gatekeeper-cycle",
               "warningSeconds": 4,
-              "health": 580,
-              "speed": 1.8,
+              "health": 720,
+              "speed": 2.05,
               "damage": 1,
-              "scoreReward": 9200,
+              "scoreReward": 10000,
               "powerupDropChance": 1,
-              "shieldCount": 6,
-              "sizeMultiplier": 0.82,
+              "shieldCount": 0,
+              "sizeMultiplier": 0.9,
               "weapons": [
                 {
                   "id": "bastion-overseer-burst",
                   "weaponId": "burst-volley",
-                  "attackIntervalSeconds": 0.7,
+                  "attackIntervalSeconds": 0.55,
                   "damage": 1,
-                  "projectileSpeed": 7.4,
-                  "burstCount": 6
+                  "projectileSpeed": 8.4,
+                  "burstCount": 8
                 },
                 {
                   "id": "bastion-overseer-beam",
                   "weaponId": "lane-beam",
-                  "attackIntervalSeconds": 0.4,
+                  "attackIntervalSeconds": 0.32,
                   "damage": 1,
                   "projectileSpeed": 0,
-                  "burstCount": 2
+                  "burstCount": 4
                 }
               ],
               "phases": [
@@ -2557,7 +2400,7 @@
                   "id": "bastion-overseer-standard",
                   "label": "Bastion cross-link",
                   "triggerHealthRatio": 1,
-                  "movementPatternId": "arena-roam",
+                  "movementPatternId": "gatekeeper-cycle",
                   "speedMultiplier": 1,
                   "weaponSettingIds": [
                     "bastion-overseer-burst",
@@ -2568,8 +2411,8 @@
                   "id": "bastion-overseer-critical",
                   "label": "Critical cross-link",
                   "triggerHealthRatio": 0.34,
-                  "movementPatternId": "arena-roam",
-                  "speedMultiplier": 1.12,
+                  "movementPatternId": "gatekeeper-cycle",
+                  "speedMultiplier": 1.18,
                   "weaponSettingIds": [
                     "bastion-overseer-burst",
                     "bastion-overseer-beam"

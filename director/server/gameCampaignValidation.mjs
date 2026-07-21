@@ -1,5 +1,9 @@
 import { ValidationError } from './validation.mjs';
 import { readFileSync } from 'node:fs';
+export {
+  migrateLegacyGameCampaign,
+  migrateLegacyWaveCompletionRule
+} from '../../game-config/legacyCampaignMigration.mjs';
 
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
@@ -144,6 +148,7 @@ const MOVEMENT_PATTERNS = new Set(['drift-down', 'sine-drift', 'track-player', '
 const WEAPON_IDS = new Set(['aimed-shot', 'wall-bolt', 'burst-volley', 'lane-beam']);
 const ENEMY_RANKS = new Set(['standard', 'elite']);
 const ENEMY_ATTACK_PATTERNS = new Set(['aimed-burst']);
+const WAVE_COMPLETION_RULES = new Set(['boss-defeat', 'clear-after-duration']);
 const SCORECARD_METRICS = new Set(['wave', 'targets', 'coins', 'flight']);
 const EVENT_KINDS = new Set(['spawn', 'boss', 'asteroid-belt', 'powerup', 'recovery']);
 
@@ -514,12 +519,13 @@ const validateEvent = (event, location, waveDuration, availablePowerups, errors)
 
 const validateWave = (wave, location, availablePowerups, errors) => {
   if (!requireObject(wave, location, errors)) return;
-  allowedKeys(wave, ['id', 'name', 'order', 'accent', 'backgroundId', 'difficultyMultiplier', 'durationSeconds', 'introSeconds', 'delayAfterSeconds', 'scoreMultiplier', 'threatCap', 'events'], location, errors);
+  allowedKeys(wave, ['id', 'name', 'order', 'accent', 'backgroundId', 'completionRule', 'difficultyMultiplier', 'durationSeconds', 'introSeconds', 'delayAfterSeconds', 'scoreMultiplier', 'threatCap', 'events'], location, errors);
   requireId(wave.id, `${location}/id`, errors);
   requireString(wave.name, `${location}/name`, errors, 120);
   requireNumber(wave.order, `${location}/order`, errors, { minimum: 1, maximum: 10000, integer: true });
   if (typeof wave.accent !== 'string' || !HEX_COLOR_PATTERN.test(wave.accent)) errors.push(`${location}/accent must be a six-digit hex color`);
   requireEnum(wave.backgroundId, BACKGROUND_IDS, `${location}/backgroundId`, errors);
+  requireEnum(wave.completionRule, WAVE_COMPLETION_RULES, `${location}/completionRule`, errors);
   requireNumber(wave.difficultyMultiplier, `${location}/difficultyMultiplier`, errors, { minimum: 0.01, maximum: 1000 });
   requireNumber(wave.durationSeconds, `${location}/durationSeconds`, errors, { minimum: 0.01, maximum: 86400 });
   requireNumber(wave.introSeconds, `${location}/introSeconds`, errors, { minimum: 0, maximum: 3600 });
@@ -541,6 +547,13 @@ const validateWave = (wave, location, availablePowerups, errors) => {
     }
     if (isFiniteNumber(event?.startSeconds)) previousStart = event.startSeconds;
   });
+  const mainBossCount = wave.events.filter((event) => event?.kind === 'boss' && event?.bossId === 'gatekeeper').length;
+  if (wave.completionRule === 'boss-defeat' && mainBossCount === 0) {
+    errors.push(`${location}/completionRule boss-defeat requires a Gatekeeper event`);
+  }
+  if (wave.completionRule === 'clear-after-duration' && mainBossCount > 0) {
+    errors.push(`${location}/completionRule clear-after-duration cannot contain a Gatekeeper event`);
+  }
 };
 
 const validateLevel = (level, location, errors) => {

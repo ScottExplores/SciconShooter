@@ -3,6 +3,7 @@ import { GameEditorCanvas, type GameEditorSnapshot } from '../../../components/G
 import { isAssetAllowedForRole } from '../../../game-config/catalog';
 import { normalizeGameCampaignRecordCard } from '../../../game-config/recordCard';
 import type { GameCampaignConfig, LevelDefinition, WaveDefinition, WaveEvent } from '../../../game-config/types';
+import { parseGameCampaign } from '../../../game-config/validate';
 import {
   applyGameCampaign,
   createReview,
@@ -178,7 +179,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
       if (!raw) return;
       const saved = JSON.parse(raw) as { baseContentHash?: string; campaign?: GameCampaignConfig; source?: string };
       if (saved.baseContentHash === initialState.contentHash && saved.campaign?.schemaVersion === 1) {
-        campaign.set(normalizeGameCampaignRecordCard(cloneJson(saved.campaign)));
+        campaign.set(normalizeGameCampaignRecordCard(cloneJson(parseGameCampaign(saved.campaign))));
         notify('Recovered your local Mission Builder draft');
       } else if (saved.source === 'combat-lab' && saved.campaign?.schemaVersion === 1) {
         notify('This Combat Lab draft targets an older campaign revision. Send it again from Combat Lab to rebase it safely.', true);

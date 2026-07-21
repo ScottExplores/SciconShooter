@@ -23,13 +23,14 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
 
 test('tracked campaign contains four sector waves plus the Bastion Protocol endurance wave', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 15);
+  assert.equal(campaign.revision, 16);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 1);
 
   const level = campaign.levels[0];
   assert.equal(level.id, 'operation-open-galaxy');
+  assert.equal(level.name, 'Research Frontier');
   assert.equal(level.loopWaves, true);
   assert.equal(level.durationSeconds, null);
   assert.deepEqual(
@@ -62,41 +63,38 @@ test('mission records enlarge the complete boss rig and the Paywall Siege mini-b
   assert.equal(campaign.levels[0].waves[0].events.find((event) => event.id === 'open-orbit-mini-boss').spriteStyle, undefined);
 });
 
-test('the four sector bosses follow a clear difficulty curve after the calmer Review Sentinel', () => {
-  const finalBosses = campaign.levels[0].waves.slice(0, 4).map((wave) => (
-    wave.events.find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper')
-  ));
-  const bursts = finalBosses.map((boss) => boss.weapons.find((weapon) => weapon.id === 'gatekeeper-burst'));
+test('main bosses are reserved for milestone waves and follow a clear health curve', () => {
+  const finalBosses = campaign.levels[0].waves
+    .filter((wave) => wave.completionRule === 'boss-defeat')
+    .map((wave) => wave.events.find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'));
+  const bursts = finalBosses.map((boss) => boss.weapons.find((weapon) => weapon.id.endsWith('burst')));
 
-  assert.deepEqual(finalBosses.map((boss) => boss.health), [170, 300, 400, 640]);
-  assert.deepEqual(bursts.map((weapon) => weapon.attackIntervalSeconds), [0.883, 0.8, 0.65, 0.533]);
-  assert.deepEqual(bursts.map((weapon) => weapon.projectileSpeed), [6.55, 6.85, 7.65, 8.2]);
-  assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 4, 7, 7]);
+  assert.deepEqual(finalBosses.map((boss) => boss.health), [170, 400, 720]);
+  assert.deepEqual(finalBosses.map((boss) => boss.scoreReward), [1010, 4040, 10000]);
+  assert.deepEqual(bursts.map((weapon) => weapon.projectileSpeed), [6.55, 7.65, 8.4]);
+  assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 7, 8]);
 
   for (let index = 1; index < finalBosses.length; index += 1) {
     assert.ok(finalBosses[index].health > finalBosses[index - 1].health);
-    assert.ok(bursts[index].attackIntervalSeconds < bursts[index - 1].attackIntervalSeconds);
+    assert.ok(finalBosses[index].scoreReward > finalBosses[index - 1].scoreReward);
     assert.ok(bursts[index].projectileSpeed > bursts[index - 1].projectileSpeed);
     assert.ok(bursts[index].burstCount >= bursts[index - 1].burstCount);
   }
-
-  const reviewSentinel = finalBosses[1];
-  assert.equal(reviewSentinel.movementPatternId, 'gatekeeper-cycle');
-  assert.equal(reviewSentinel.speed, 1.75);
-  assert.equal(reviewSentinel.shieldCount, 2);
-  assert.equal(reviewSentinel.sizeMultiplier, 0.88);
-  assert.ok(reviewSentinel.phases.every((phase) => phase.movementPatternId === 'gatekeeper-cycle'));
 });
 
-test('the four sector waves expose editable spawns, mini-bosses, checkpoints, final bosses, and power-ups', () => {
+test('the four sector waves expose editable spawns, checkpoints, and alternating completion rules', () => {
   const waves = campaign.levels[0].waves.slice(0, 4);
 
   waves.forEach((wave, index) => {
     assert.equal(wave.durationSeconds, 60);
     assert.ok(wave.events.some((event) => event.kind === 'spawn'));
     assert.ok(wave.events.some((event) => event.kind === 'powerup'));
-    assert.ok(wave.events.some((event) => event.kind === 'boss' && event.bossId === 'bottleneck-drone'));
-    assert.ok(wave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'));
+    const isMilestone = index % 2 === 0;
+    assert.equal(wave.completionRule, isMilestone ? 'boss-defeat' : 'clear-after-duration');
+    assert.equal(
+      wave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'),
+      isMilestone
+    );
 
     const hasCheckpoint = index === 3
       ? wave.events.some((event) => event.id === 'open-galaxy-river-ambush' && event.kind === 'spawn')
@@ -129,8 +127,8 @@ test('Wave 5 is a finite escalating Paywall Bastion endurance encounter', () => 
   assert.ok(walls.every((event, index) => index === 0 || event.speed > walls[index - 1].speed));
   assert.ok(gatekeeper);
   assert.equal(gatekeeper.bossId, 'gatekeeper');
-  assert.equal(gatekeeper.movementPatternId, 'arena-roam');
-  assert.equal(gatekeeper.spriteKey, 'PIXI_BOSS_CITATION_FRAMES');
+  assert.equal(gatekeeper.movementPatternId, 'gatekeeper-cycle');
+  assert.equal(gatekeeper.spriteKey, 'PIXI_BOSS_CROWNCLAW_FRAMES');
   const starts = wave.events.map((event) => event.startSeconds);
   assert.deepEqual(starts, [...starts].sort((left, right) => left - right));
 });
@@ -144,21 +142,19 @@ test('browser campaign validation permits multiple Paywall Bastion rows', () => 
   assert.match(directorValidator, /'bastion-protocol'/);
 });
 
-test('later waves escalate Bottleneck Drones from a relay to a simultaneous pair', () => {
-  const [, citationStorm, paywallSiege] = campaign.levels[0].waves;
-  const citationBottlenecks = citationStorm.events.filter((event) => (
-    event.kind === 'boss' && event.bossId === 'bottleneck-drone'
+test('interstitial elite packs escalate from Citation Storm to Open Galaxy', () => {
+  const [, citationStorm, , openGalaxy] = campaign.levels[0].waves;
+  const elitePacks = (wave) => wave.events.filter((event) => (
+    event.kind === 'spawn' && event.enemies.every((enemy) => enemy.rank === 'elite')
   ));
-  const siegeBottlenecks = paywallSiege.events.filter((event) => (
-    event.kind === 'boss' && event.bossId === 'bottleneck-drone'
-  ));
+  const citationPacks = elitePacks(citationStorm);
+  const frontierPacks = elitePacks(openGalaxy);
 
-  assert.deepEqual(citationBottlenecks.map((event) => event.startSeconds), [19.8, 21.8]);
-  assert.deepEqual(citationBottlenecks.map((event) => event.count ?? 1), [1, 1]);
-  assert.equal(new Set(citationBottlenecks.map((event) => event.id)).size, 2);
-  assert.equal(siegeBottlenecks.length, 1);
-  assert.equal(siegeBottlenecks[0].count, 2);
-  assert.equal(siegeBottlenecks[0].label, 'Twin Bottleneck Drones');
+  assert.deepEqual(citationPacks.map((event) => event.count), [3, 4]);
+  assert.deepEqual(frontierPacks.map((event) => event.count), [3, 4]);
+  assert.ok(Math.min(...frontierPacks.map((event) => event.enemies[0].health))
+    > Math.max(...citationPacks.map((event) => event.enemies[0].health)));
+  assert.ok(frontierPacks.every((event) => event.enemies[0].attackIntervalSeconds <= 1.05));
 });
 
 test('ids are unique and boss health phases are strictly descending with valid weapon references', () => {
@@ -225,9 +221,9 @@ test('sector waves escalate through readable formation packs instead of slow sin
   ));
 
   assert.deepEqual(wavePatterns[0], ['v', 'grid', 'sine']);
-  assert.deepEqual(wavePatterns[1], ['spiral', 'grid', 'diamond']);
+  assert.deepEqual(wavePatterns[1], ['spiral', 'diamond', 'grid', 'diamond', 'diamond']);
   assert.deepEqual(wavePatterns[2], ['grid', 'pincer', 'diamond']);
-  assert.deepEqual(wavePatterns[3], ['spiral', 'pincer', 'grid']);
+  assert.deepEqual(wavePatterns[3], ['spiral', 'diamond', 'pincer', 'grid', 'grid']);
   spawnIntervals.flat().forEach((interval) => assert.ok(interval <= 0.18));
   assert.ok(Math.max(...spawnIntervals[3]) < Math.max(...spawnIntervals[0]));
 });

@@ -176,7 +176,10 @@ test('AUTO encounter art resolves from the same ordered campaign wave for every 
   const campaign = {
     levels: [{ order: 1, waves: [
       { id: 'one', order: 1, events: [{ kind: 'boss', spriteKey: 'MINI_BOSS' }] },
-      { id: 'two', order: 2, events: [{ kind: 'spawn', enemies: [{ spriteKey: 'ENEMY_JOURNAL' }] }] }
+      { id: 'two', order: 2, events: [
+        { kind: 'spawn', enemies: [{ spriteKey: 'ENEMY_JOURNAL', rank: 'elite' }] },
+        { kind: 'spawn', enemies: [{ spriteKey: 'ENEMY_DRONE_FRAMES' }] }
+      ] }
     ] }]
   };
   assert.equal(resolveRecordCardEncounterAssetKey(campaign, 1), 'MINI_BOSS');

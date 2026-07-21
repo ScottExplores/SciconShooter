@@ -154,14 +154,14 @@ export const resolveRecordCardEncounterAssetKey = (campaign, waveRef) => {
     const waveNumber = Math.max(1, Math.floor(Number(waveRef) || 1));
     wave = waves[(waveNumber - 1) % waves.length];
   }
-  const event = (Array.isArray(wave?.events) ? wave.events : [])
-    .slice()
-    .reverse()
-    .find((candidate) => (
-      candidate?.kind === 'boss'
-      || candidate?.kind === 'asteroid-belt'
-      || candidate?.kind === 'spawn'
-    ));
+  const events = (Array.isArray(wave?.events) ? wave.events : []).slice().reverse();
+  const event = events.find((candidate) => candidate?.kind === 'boss')
+    ?? events.find((candidate) => (
+      candidate?.kind === 'spawn'
+      && candidate.enemies?.some((enemy) => enemy?.rank === 'elite')
+    ))
+    ?? events.find((candidate) => candidate?.kind === 'asteroid-belt')
+    ?? events.find((candidate) => candidate?.kind === 'spawn');
   if (event?.kind === 'boss' || event?.kind === 'asteroid-belt') return event.spriteKey || 'FINAL_BOSS';
   if (event?.kind === 'spawn') return event.enemies?.[0]?.spriteKey || 'FINAL_BOSS';
   return 'FINAL_BOSS';

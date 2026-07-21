@@ -7,7 +7,7 @@ import test from 'node:test';
 import { ConfigRepository, contentHash } from '../server/configRepository.mjs';
 import { fileURLToPath } from 'node:url';
 import { GameCampaignRepository } from '../server/gameCampaignRepository.mjs';
-import { validateGameCampaign } from '../server/gameCampaignValidation.mjs';
+import { migrateLegacyGameCampaign, validateGameCampaign } from '../server/gameCampaignValidation.mjs';
 import { createDirectorRequestHandler } from '../server/localApi.mjs';
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -80,6 +80,7 @@ const makeCampaign = () => ({
           order: 1,
           accent: '#22d3ee',
           backgroundId: 'open-orbit',
+          completionRule: 'boss-defeat',
           difficultyMultiplier: 1,
           durationSeconds: 60,
           introSeconds: 2.5,
@@ -226,6 +227,48 @@ test('structural game campaign validation covers nested runtime tuning fields', 
   assert.ok(result.errors.some((error) => error.includes('weaponSettingIds')));
 });
 
+test('wave completion rules stay consistent with authored Gatekeeper milestones', () => {
+  const missingBoss = makeCampaign();
+  missingBoss.levels[0].waves[0].events = missingBoss.levels[0].waves[0].events.filter((event) => event.bossId !== 'gatekeeper');
+  const missingBossResult = validateGameCampaign(missingBoss);
+  assert.equal(missingBossResult.valid, false);
+  assert.ok(missingBossResult.errors.some((error) => error.includes('boss-defeat requires a Gatekeeper')));
+
+  const unexpectedBoss = makeCampaign();
+  unexpectedBoss.levels[0].waves[0].completionRule = 'clear-after-duration';
+  const unexpectedBossResult = validateGameCampaign(unexpectedBoss);
+  assert.equal(unexpectedBossResult.valid, false);
+  assert.ok(unexpectedBossResult.errors.some((error) => error.includes('cannot contain a Gatekeeper')));
+});
+
+test('legacy schema-v1 completion rules migrate by encounter shape without weakening strict validation', () => {
+  const bossLegacy = makeCampaign();
+  delete bossLegacy.levels[0].waves[0].completionRule;
+  const strictLegacyResult = validateGameCampaign(bossLegacy);
+  assert.equal(strictLegacyResult.valid, false);
+  assert.ok(strictLegacyResult.errors.some((error) => error.includes('/completionRule')));
+
+  const migratedBoss = migrateLegacyGameCampaign(bossLegacy);
+  assert.notEqual(migratedBoss, bossLegacy);
+  assert.equal(Object.hasOwn(bossLegacy.levels[0].waves[0], 'completionRule'), false);
+  assert.equal(migratedBoss.levels[0].waves[0].completionRule, 'boss-defeat');
+  assert.deepEqual(validateGameCampaign(migratedBoss), { valid: true, errors: [] });
+
+  const timedLegacy = makeCampaign();
+  timedLegacy.levels[0].waves[0].events = timedLegacy.levels[0].waves[0].events
+    .filter((event) => event.bossId !== 'gatekeeper');
+  delete timedLegacy.levels[0].waves[0].completionRule;
+  const migratedTimed = migrateLegacyGameCampaign(timedLegacy);
+  assert.equal(migratedTimed.levels[0].waves[0].completionRule, 'clear-after-duration');
+  assert.deepEqual(validateGameCampaign(migratedTimed), { valid: true, errors: [] });
+
+  const explicitlyInvalid = makeCampaign();
+  explicitlyInvalid.levels[0].waves[0].completionRule = 'legacy-auto';
+  const preserved = migrateLegacyGameCampaign(explicitlyInvalid);
+  assert.equal(preserved, explicitlyInvalid);
+  assert.equal(validateGameCampaign(preserved).valid, false);
+});
+
 test('boss rigs are optional, allowlisted, and limited to gatekeeper encounters', () => {
   const legacy = makeCampaign();
   delete legacy.levels[0].waves[0].events[1].rigId;
@@ -324,6 +367,21 @@ test('generated assets are accepted only for their registered game roles and raw
 test('the actual tracked game campaign passes the local server mirror validator', async () => {
   const campaign = JSON.parse(await readFile(path.join(trackedRepositoryRoot, 'game-config', 'campaign.json'), 'utf8'));
   assert.deepEqual(validateGameCampaign(campaign), { valid: true, errors: [] });
+});
+
+test('legacy tracked campaigns retain their stored hash while opening with inferred completion rules', async (t) => {
+  const { repository, repositoryRoot } = await makeRepository(t);
+  const legacyCampaign = makeCampaign();
+  delete legacyCampaign.levels[0].waves[0].completionRule;
+  const legacyHash = contentHash(legacyCampaign);
+  const campaignPath = path.join(repositoryRoot, 'game-config', 'campaign.json');
+  await writeFile(campaignPath, `${JSON.stringify(legacyCampaign, null, 2)}\n`, 'utf8');
+
+  const state = await repository.readCampaign();
+  assert.equal(state.contentHash, legacyHash, 'legacy draft base hashes must still match the stored campaign');
+  assert.equal(state.campaign.levels[0].waves[0].completionRule, 'boss-defeat');
+  const stored = JSON.parse(await readFile(campaignPath, 'utf8'));
+  assert.equal(Object.hasOwn(stored.levels[0].waves[0], 'completionRule'), false);
 });
 
 test('invalid apply leaves the tracked file, manifest, and version history unchanged', async (t) => {
@@ -452,6 +510,35 @@ test('rollback verifies a selected immutable version and records a new rollback 
   assert.equal(rolledBack.version.source, 'rollback');
   assert.equal(rolledBack.version.rollbackOf, baseline.id);
   assert.deepEqual((await repository.listVersions()).map((version) => version.revision), [3, 2, 1]);
+});
+
+test('legacy immutable campaign snapshots can be listed and rolled forward with inferred completion rules', async (t) => {
+  const { repository, dataRoot } = await makeRepository(t);
+  const current = await repository.readCampaign();
+  const legacyPayload = structuredClone(current.campaign);
+  delete legacyPayload.levels[0].waves[0].completionRule;
+  const legacyHash = contentHash(legacyPayload);
+  const legacyId = `game-campaign-20260711T120000000Z-${legacyHash.slice(7, 19)}-abcdef`;
+  const versionRoot = path.join(dataRoot, 'game-campaign', 'versions');
+  await mkdir(versionRoot, { recursive: true });
+  await writeFile(path.join(versionRoot, `${legacyId}.json`), `${JSON.stringify({
+    schemaVersion: 1,
+    kind: 'game-campaign',
+    id: legacyId,
+    revision: legacyPayload.revision,
+    parentId: null,
+    rollbackOf: null,
+    source: 'baseline',
+    createdAt: '2026-07-11T12:00:00.000Z',
+    changeNote: 'Legacy snapshot before completion rules',
+    contentHash: legacyHash,
+    payload: legacyPayload
+  }, null, 2)}\n`, 'utf8');
+
+  assert.ok((await repository.listVersions()).some((version) => version.id === legacyId));
+  const restored = await repository.rollback(legacyId, { expectedContentHash: current.contentHash });
+  assert.equal(restored.campaign.levels[0].waves[0].completionRule, 'boss-defeat');
+  assert.deepEqual(validateGameCampaign(restored.campaign), { valid: true, errors: [] });
 });
 
 test('legacy schema-v1 payloads retain current scorecard and HUD presentation when applied', async (t) => {

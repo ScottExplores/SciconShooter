@@ -9,7 +9,7 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 import { contentHash } from './configRepository.mjs';
-import { assertValidGameCampaign } from './gameCampaignValidation.mjs';
+import { assertValidGameCampaign, migrateLegacyGameCampaign } from './gameCampaignValidation.mjs';
 import { HttpError, resolveWithin } from './security.mjs';
 import { ValidationError } from './validation.mjs';
 
@@ -124,14 +124,15 @@ export class GameCampaignRepository {
   }
 
   async _readCampaignFile() {
-    const campaign = await readJson(this.campaignFile, { missing: null });
-    if (!campaign) {
+    const storedCampaign = await readJson(this.campaignFile, { missing: null });
+    if (!storedCampaign) {
       throw new HttpError(404, 'Tracked game campaign not found at game-config/campaign.json');
     }
+    const campaign = migrateLegacyGameCampaign(storedCampaign);
     assertValidGameCampaign(campaign, 'Tracked game campaign is invalid');
     if (!campaign.recordCard) campaign.recordCard = cloneJson(DEFAULT_RECORD_CARD);
     if (!campaign.hudAssets) campaign.hudAssets = cloneJson(DEFAULT_HUD_ASSETS);
-    return campaign;
+    return { campaign, storedContentHash: contentHash(storedCampaign) };
   }
 
   async _readManifest() {
@@ -150,11 +151,11 @@ export class GameCampaignRepository {
   }
 
   async _readDiskState() {
-    const [campaign, manifest] = await Promise.all([
+    const [stored, manifest] = await Promise.all([
       this._readCampaignFile(),
       this._readManifest()
     ]);
-    const hash = contentHash(campaign);
+    const { campaign, storedContentHash: hash } = stored;
     const manifestMatchesDisk = Boolean(manifest && manifest.contentHash === hash);
     if (manifestMatchesDisk) {
       const activeVersion = await this._readVersion(manifest.activeVersionId);
@@ -304,7 +305,8 @@ export class GameCampaignRepository {
       && typeof version.changeNote === 'string'
       && typeof version.contentHash === 'string';
     if (!structurallyValid) throw new Error(`Game campaign version is invalid: ${versionId}`);
-    assertValidGameCampaign(version.payload, `Game campaign version payload is invalid: ${versionId}`);
+    const migratedPayload = migrateLegacyGameCampaign(version.payload);
+    assertValidGameCampaign(migratedPayload, `Game campaign version payload is invalid: ${versionId}`);
     const expectedHash = contentHash(version.payload);
     if (version.contentHash !== expectedHash || !versionId.includes(expectedHash.slice(7, 19))) {
       throw new Error(`Game campaign version failed its content hash check: ${versionId}`);
@@ -453,7 +455,7 @@ export class GameCampaignRepository {
     await this.initialize();
     return this._withWriteLock(async () => {
       const target = await this._readVersion(versionId);
-      return this._applyUnlocked(target.payload, {
+      return this._applyUnlocked(migrateLegacyGameCampaign(target.payload), {
         expectedContentHash,
         changeNote,
         source: 'rollback',

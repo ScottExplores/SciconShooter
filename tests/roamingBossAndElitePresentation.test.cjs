@@ -7,27 +7,26 @@ const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 const campaign = JSON.parse(read('game-config/campaign.json'));
 
-test('Citation Storm mixes elite enemies into the normal wave and ends with a calmer tracking boss', () => {
+test('Citation Storm is a bossless clear wave built around compact elite hunter packs', () => {
   const wave = campaign.levels[0].waves.find((candidate) => candidate.id === 'citation-storm');
   assert.ok(wave);
 
   const eliteEvent = wave.events.find((event) => event.id === 'citation-storm-elite-reviewers');
   assert.equal(eliteEvent.kind, 'spawn');
   assert.equal(eliteEvent.blocksWaveClock, false);
-  assert.equal(eliteEvent.patternId, 'single-random');
+  assert.equal(eliteEvent.patternId, 'diamond');
+  assert.equal(eliteEvent.count, 4);
   assert.equal(eliteEvent.enemies[0].rank, 'elite');
   assert.equal(eliteEvent.enemies[0].attackPatternId, 'aimed-burst');
   assert.ok(eliteEvent.enemies[0].sizeMultiplier > 1);
 
-  const boss = wave.events.find((event) => event.id === 'citation-storm-gatekeeper');
-  assert.equal(boss.movementPatternId, 'gatekeeper-cycle');
-  assert.equal(boss.sizeMultiplier, 0.88);
-  assert.equal(boss.shieldCount, 2);
-  assert.ok(boss.phases.every((phase) => phase.movementPatternId === 'gatekeeper-cycle'));
+  assert.equal(wave.completionRule, 'clear-after-duration');
+  assert.equal(wave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'), false);
 
   const bastion = campaign.levels[0].waves.find((candidate) => candidate.id === 'bastion-protocol');
   const overseer = bastion.events.find((event) => event.id === 'bastion-protocol-gatekeeper');
-  assert.equal(overseer.movementPatternId, 'arena-roam');
+  assert.equal(overseer.movementPatternId, 'gatekeeper-cycle');
+  assert.equal(overseer.rigId, 'crown-claw');
 });
 
 test('the real engine owns roaming attacks, cross-beam danger, and elite firing', () => {

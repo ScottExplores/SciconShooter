@@ -17,7 +17,7 @@ export const STORY_BEATS: StoryBeat[] = [
     role: 'Clarity Relay',
     portrait: ASSETS.FOUNDER_BRIAN,
     accent: 'from-blue-400 via-cyan-300 to-emerald-300',
-    title: 'Operation Open Galaxy',
+    title: 'Research Frontier',
     text: '.... Pilot, Brian on the Clarity relay. Keep the lab charged, tune the ship mid-flight, and punch through the bottlenecks slowing open science.'
   },
   {

@@ -79,10 +79,10 @@ test('the game engine gives every catalog role a real combat branch', () => {
   assert.match(companionSource, /pierceRemaining[\s\S]*?companion\.level/);
   assert.match(companionSource, /homing-missile[\s\S]*?EntityType\.MISSILE/);
 
-  const coinStart = engineSource.indexOf('if (e.type === EntityType.COIN)');
-  const coinEnd = engineSource.indexOf('if (e.type === EntityType.POWERUP)', coinStart);
+  const coinStart = engineSource.indexOf('private updateCoinEntity(coin: Entity)');
+  const coinEnd = engineSource.indexOf('private collectCoinIfReachedPlayer', coinStart);
   const coinSource = engineSource.slice(coinStart, coinEnd);
-  assert.ok(coinStart >= 0 && coinEnd > coinStart, 'coin movement branch must exist');
+  assert.ok(coinStart >= 0 && coinEnd > coinStart, 'shared coin movement branch must exist');
   assert.match(coinSource, /coin-magnet|squad[^\n]*(?:magnet|Magnet)|magnet[^\n]*companion/i);
   assert.match(coinSource, /(?:magnetCompanion|companion)\?*\.level|MagnetLevel|magnetLevel/, 'magnet range or pull should improve with level');
 

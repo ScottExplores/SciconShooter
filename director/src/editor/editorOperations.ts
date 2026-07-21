@@ -135,6 +135,7 @@ export const createStarterWave = (source: WaveDefinition, order: number): WaveDe
     id: createEditorId('wave'),
     name: `New Wave ${order}`,
     order,
+    completionRule: 'clear-after-duration',
     durationSeconds: Math.max(20, source.durationSeconds),
     scoreMultiplier: Math.min(1_000_000, 2 ** Math.max(0, order - 1)),
     events: []

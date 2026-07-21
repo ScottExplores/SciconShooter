@@ -12,7 +12,7 @@ import {
 import { ASSETS, GAME_CONFIG } from '../../constants';
 import { EntityType, PowerupType } from '../../types';
 import { BOSS_CANNON_SCALE, CROWNCLAW_ARM_SCALE, Entity, GameEngine, VisualEffect } from '../gameLogic';
-import type { BossComponentState, BossPartId } from '../gameLogic';
+import type { BossComponentState, BossPartId, GameRuntimeState } from '../gameLogic';
 import type { BossRigId } from '../../game-config/types';
 import {
   PLAYER_SHIP_HARD_BANK_SWEEP_RATIO,
@@ -155,6 +155,27 @@ const createText = (size: number, color = '#ffffff', weight: 'normal' | 'bold' =
   }
 });
 
+const WAVE_GLYPH_ROOT = '/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan';
+const WAVE_TITLE_TEXTURE_URL = `${WAVE_GLYPH_ROOT}/wave-title-cyan.png`;
+const WAVE_GLYPH_TEXTURE_URLS = Object.freeze({
+  '0': `${WAVE_GLYPH_ROOT}/wave-glyph-0-cyan.png`,
+  '1': `${WAVE_GLYPH_ROOT}/wave-glyph-1-cyan.png`,
+  '2': `${WAVE_GLYPH_ROOT}/wave-glyph-2-cyan.png`,
+  '3': `${WAVE_GLYPH_ROOT}/wave-glyph-3-cyan.png`,
+  '4': `${WAVE_GLYPH_ROOT}/wave-glyph-4-cyan.png`,
+  '5': `${WAVE_GLYPH_ROOT}/wave-glyph-5-cyan.png`,
+  '6': `${WAVE_GLYPH_ROOT}/wave-glyph-6-cyan.png`,
+  '7': `${WAVE_GLYPH_ROOT}/wave-glyph-7-cyan.png`,
+  '8': `${WAVE_GLYPH_ROOT}/wave-glyph-8-cyan.png`,
+  '9': `${WAVE_GLYPH_ROOT}/wave-glyph-9-cyan.png`,
+  '/': `${WAVE_GLYPH_ROOT}/wave-glyph-slash-cyan.png`
+});
+
+export const PIXI_WAVE_PRESENTATION_TEXTURE_URLS = Object.freeze([
+  WAVE_TITLE_TEXTURE_URL,
+  ...Object.values(WAVE_GLYPH_TEXTURE_URLS)
+]);
+
 const getPowerupFrames = (powerup: PowerupType): readonly string[] => {
   switch (powerup) {
     case PowerupType.TRIPLE_SHOT:
@@ -177,6 +198,7 @@ const getPowerupFrames = (powerup: PowerupType): readonly string[] => {
 
 /** The exact production texture set needed by the Pixi mission renderer. */
 export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
+  ...PIXI_WAVE_PRESENTATION_TEXTURE_URLS,
   ASSETS.PIXI_BOSS_HEALTH_FRAME,
   ASSETS.PIXI_BOSS_ALERT_FRAME,
   ASSETS.PIXI_MINI_BOSS_ALERT_FRAME,
@@ -406,6 +428,18 @@ export class PixiGameRenderer {
   private readonly warningText = createText(34, '#fffbeb');
   private readonly warningSubtext = createText(15, '#fda4af');
   private readonly phaseText = createText(18, '#fef08a');
+  private readonly waveIntroRoot = new Container();
+  private readonly waveIntroAura = new Graphics();
+  private readonly waveIntroPixels = new Graphics();
+  private readonly waveIntroSweep = new Graphics();
+  private readonly waveLevelText = createText(13, '#a7f3d0');
+  private readonly waveCounterRoot = new Container();
+  private readonly waveTitle = new Sprite(Texture.WHITE);
+  private readonly waveCounterGlyphs = Array.from({ length: 8 }, () => new Sprite(Texture.WHITE));
+  private readonly waveNameText = createText(17, '#e0f2fe');
+  private readonly waveBadgeRoot = new Container();
+  private readonly waveBadgeFrame = new Graphics();
+  private readonly waveBadgeText = createText(10, '#e0f2fe');
   private readonly flashOverlay = new Graphics();
   private readonly scanlines = new Graphics();
   private readonly maxShotScreenGlow = new Graphics();
@@ -455,11 +489,17 @@ export class PixiGameRenderer {
   private lastShotFrame = -999;
   private lastBombFrame = -999;
   private bioBeamVisualStartFrame = -1;
+  private lastWavePresentationRevision = -1;
+  private lastWavePresentationKey = '';
+  private wavePresentationElapsedMs = 0;
+  private currentWaveCounter = '1/1';
+  private reducedMotion = false;
   private destroyed = false;
 
   async init(host: HTMLElement, width: number, height: number) {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
+    this.reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     const mobile = this.width < 620 || this.height > this.width * 1.25;
     const resolution = Math.min(window.devicePixelRatio || 1, mobile ? 1.35 : 1.75);
 
@@ -570,9 +610,35 @@ export class PixiGameRenderer {
       this.warningSubtext
     );
 
+    this.waveIntroRoot.eventMode = 'none';
+    this.waveIntroRoot.visible = false;
+    this.waveTitle.anchor.set(0.5);
+    this.waveCounterRoot.addChild(this.waveTitle);
+    for (const glyph of this.waveCounterGlyphs) {
+      glyph.anchor.set(0.5);
+      glyph.visible = false;
+      this.waveCounterRoot.addChild(glyph);
+    }
+    this.waveLevelText.anchor.set(0.5);
+    this.waveNameText.anchor.set(0.5);
+    this.waveIntroRoot.addChild(
+      this.waveIntroAura,
+      this.waveIntroPixels,
+      this.waveIntroSweep,
+      this.waveLevelText,
+      this.waveCounterRoot,
+      this.waveNameText
+    );
+
+    this.waveBadgeRoot.eventMode = 'none';
+    this.waveBadgeText.anchor.set(0.5);
+    this.waveBadgeRoot.addChild(this.waveBadgeFrame, this.waveBadgeText);
+
     this.layers.overlay.addChild(
       this.maxShotScreenGlow,
       this.bossHealthRoot,
+      this.waveBadgeRoot,
+      this.waveIntroRoot,
       this.warningShade,
       this.warningFrame,
       this.warningRoot,
@@ -592,6 +658,7 @@ export class PixiGameRenderer {
     this.resize(this.width, this.height);
 
     await this.textureBank.preload([...PIXI_GAMEPLAY_TEXTURE_URLS]);
+    this.waveTitle.texture = this.textureBank.get(WAVE_TITLE_TEXTURE_URL) ?? Texture.WHITE;
     this.maxShotAura.texture = this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA) ?? Texture.WHITE;
     this.bossHealthFrame.texture = this.textureBank.get(ASSETS.PIXI_BOSS_HEALTH_FRAME) ?? Texture.WHITE;
     this.warningBanner.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_FRAME) ?? Texture.WHITE;
@@ -625,6 +692,7 @@ export class PixiGameRenderer {
     this.flashOverlay.clear().rect(0, 0, this.width, this.height).fill({ color: '#f87171', alpha: 1 });
     this.environment.resize(this.width, this.height);
     this.drawScanlines();
+    this.layoutWavePresentation();
   }
 
   private drawScanlines() {
@@ -632,6 +700,181 @@ export class PixiGameRenderer {
     if (this.width < 340) return;
     for (let y = 0; y < this.height; y += 5) {
       this.scanlines.rect(0, y, this.width, 1).fill({ color: '#0ea5e9', alpha: 0.018 });
+    }
+  }
+
+  private layoutWavePresentation() {
+    const compact = this.width < 520;
+    const introScale = clamp(this.width / 430, 0.78, 1.2);
+    const titleWidth = compact ? 118 : 142;
+    const titleHeight = compact ? 37 : 44;
+    const glyphWidth = compact ? 28 : 33;
+    const glyphHeight = compact ? 35 : 42;
+    const gap = compact ? 7 : 10;
+    const counterLength = Math.max(1, Math.min(this.currentWaveCounter.length, this.waveCounterGlyphs.length));
+    const totalWidth = titleWidth + gap + counterLength * glyphWidth;
+
+    this.waveIntroRoot.scale.set(introScale);
+    this.waveIntroRoot.position.set(
+      this.width / 2,
+      this.height * (this.height > this.width * 1.25 ? 0.43 : 0.47)
+    );
+    this.waveLevelText.position.set(0, compact ? -55 : -64);
+    this.waveNameText.position.set(0, compact ? 53 : 62);
+    this.waveCounterRoot.position.set(0, 0);
+    this.waveTitle.width = titleWidth;
+    this.waveTitle.height = titleHeight;
+    this.waveTitle.position.set(-totalWidth / 2 + titleWidth / 2, 0);
+
+    for (let index = 0; index < this.waveCounterGlyphs.length; index++) {
+      const glyph = this.waveCounterGlyphs[index];
+      glyph.width = glyphWidth;
+      glyph.height = glyphHeight;
+      glyph.position.set(-totalWidth / 2 + titleWidth + gap + glyphWidth * (index + 0.5), 0);
+    }
+
+    this.waveLevelText.scale.set(1);
+    this.waveNameText.scale.set(1);
+    const localTextWidth = Math.min(330, this.width / introScale - 40);
+    if (this.waveLevelText.width > localTextWidth) {
+      this.waveLevelText.scale.set(localTextWidth / this.waveLevelText.width);
+    }
+    if (this.waveNameText.width > localTextWidth) {
+      this.waveNameText.scale.set(localTextWidth / this.waveNameText.width);
+    }
+
+    this.positionWaveBadge();
+    this.waveBadgeFrame.clear()
+      .poly([-52, -13, 45, -13, 53, -5, 53, 10, 45, 14, -45, 14, -53, 6, -53, -7, -47, -13])
+      .fill({ color: '#020617', alpha: 0.72 })
+      .stroke({ color: '#22d3ee', width: 1, alpha: 0.72 });
+    this.waveBadgeFrame.rect(-39, 11, 78, 2).fill({ color: '#34d399', alpha: 0.72 });
+    this.waveBadgeText.position.set(0, 0);
+  }
+
+  private positionWaveBadge(bossVisible = this.bossHealthRoot.visible) {
+    // The compact React HUD reserves 172px on the left and 150px on the right.
+    // Below 464px there is no readable viewport-centered slot, so use a second HUD row.
+    const narrowTopHud = this.width < 464;
+    const badgeY = narrowTopHud ? (bossVisible ? 128 : 63) : 20;
+    this.waveBadgeRoot.position.set(this.width / 2, badgeY);
+  }
+
+  private setWaveCounterGlyphs(counter: string) {
+    this.currentWaveCounter = counter.slice(0, this.waveCounterGlyphs.length);
+    for (let index = 0; index < this.waveCounterGlyphs.length; index++) {
+      const glyph = this.waveCounterGlyphs[index];
+      const character = this.currentWaveCounter[index] as keyof typeof WAVE_GLYPH_TEXTURE_URLS | undefined;
+      const textureUrl = character ? WAVE_GLYPH_TEXTURE_URLS[character] : undefined;
+      glyph.visible = Boolean(textureUrl);
+      if (textureUrl) glyph.texture = this.textureBank.get(textureUrl) ?? Texture.WHITE;
+    }
+    this.layoutWavePresentation();
+  }
+
+  private beginWavePresentation(state: GameRuntimeState) {
+    this.lastWavePresentationRevision = state.wavePresentationRevision;
+    this.lastWavePresentationKey = `${state.levelId}:${state.waveId}`;
+    this.wavePresentationElapsedMs = 0;
+    this.waveLevelText.text = `LEVEL ${String(state.levelNumber).padStart(2, '0')} · ${state.levelName.toUpperCase()}`;
+    this.waveNameText.text = state.waveName.toUpperCase();
+    this.waveNameText.style.fill = state.waveAccent;
+    this.waveBadgeText.text = `WAVE ${state.waveNumber}/${state.waveTotal}`;
+    this.setWaveCounterGlyphs(`${state.waveNumber}/${state.waveTotal}`);
+    this.waveIntroRoot.visible = true;
+    this.waveBadgeRoot.visible = true;
+  }
+
+  private updateWavePresentation(engine: GameEngine, timestamp: number, deltaMs: number) {
+    const state = engine.getRuntimeState();
+    this.positionWaveBadge(this.bossHealthRoot.visible);
+    const presentationKey = `${state.levelId}:${state.waveId}`;
+    if (
+      state.wavePresentationRevision !== this.lastWavePresentationRevision
+      || presentationKey !== this.lastWavePresentationKey
+    ) {
+      this.beginWavePresentation(state);
+    }
+
+    const pulse = this.reducedMotion ? 1 : 0.82 + Math.sin(timestamp * 0.0032) * 0.12;
+    this.waveBadgeRoot.alpha = pulse;
+
+    const duration = this.reducedMotion ? 1100 : 2250;
+    if (!engine.cinematicPaused) {
+      this.wavePresentationElapsedMs = Math.min(duration, this.wavePresentationElapsedMs + deltaMs);
+    }
+    const age = this.wavePresentationElapsedMs;
+    if (age >= duration) {
+      this.waveIntroRoot.visible = false;
+      this.waveIntroPixels.clear();
+      this.waveIntroSweep.clear();
+      return;
+    }
+
+    const enterDuration = this.reducedMotion ? 120 : 500;
+    const exitDuration = this.reducedMotion ? 180 : 360;
+    const enter = clamp(age / enterDuration, 0, 1);
+    const exit = clamp((duration - age) / exitDuration, 0, 1);
+    const visibility = Math.min(enter, exit);
+    const easedEnter = 1 - Math.pow(1 - enter, 3);
+    const baseY = this.height * (this.height > this.width * 1.25 ? 0.43 : 0.47);
+    const jitterX = this.reducedMotion || age > 620 ? 0 : Math.sin(age * 0.092) * (1 - enter) * 7;
+    this.waveIntroRoot.visible = true;
+    this.waveIntroRoot.alpha = visibility;
+    this.waveIntroRoot.position.set(this.width / 2 + jitterX, baseY + (1 - easedEnter) * 18);
+
+    this.waveIntroAura.clear();
+    const auraPulse = this.reducedMotion ? 1 : 0.76 + Math.sin(timestamp * 0.006) * 0.24;
+    for (let band = 0; band < 5; band++) {
+      const bandWidth = 150 + band * 54 + auraPulse * 12;
+      const bandY = (band - 2) * 8;
+      const color = band % 2 === 0 ? '#22d3ee' : '#4ade80';
+      this.waveIntroAura.rect(-bandWidth / 2, bandY, bandWidth, 2).fill({
+        color,
+        alpha: visibility * (0.13 - band * 0.014)
+      });
+    }
+    this.waveIntroAura
+      .poly([-250, 0, -176, -26, -112, -26, -84, -42])
+      .stroke({ color: '#22d3ee', width: 2, alpha: visibility * 0.38 });
+    this.waveIntroAura
+      .poly([250, 0, 176, 26, 112, 26, 84, 42])
+      .stroke({ color: '#4ade80', width: 2, alpha: visibility * 0.34 });
+
+    this.waveIntroPixels.clear();
+    this.waveIntroPixels.visible = !this.reducedMotion;
+    if (!this.reducedMotion) {
+      const fragmentCount = this.width < 520 ? 28 : 42;
+      for (let index = 0; index < fragmentCount; index++) {
+        const stagger = (index % 11) / 11;
+        const assembled = clamp((enter - stagger * 0.48) / 0.26, 0, 1);
+        const spread = 1 - assembled;
+        const x = Math.sin(index * 2.41) * (70 + (index % 7) * 29) * spread;
+        const y = Math.cos(index * 1.73) * (28 + (index % 5) * 17) * spread;
+        const size = 2 + (index % 3);
+        this.waveIntroPixels.rect(x - size / 2, y - size / 2, size, size).fill({
+          color: index % 3 === 0 ? '#4ade80' : '#67e8f9',
+          alpha: visibility * clamp(spread * 1.9, 0, 0.74)
+        });
+      }
+    }
+
+    this.waveIntroSweep.clear();
+    this.waveIntroSweep.visible = !this.reducedMotion;
+    if (!this.reducedMotion) {
+      const sweepX = -235 + ((age * 0.62) % 470);
+      this.waveIntroSweep.rect(sweepX, -49, 2, 98).fill({ color: '#ffffff', alpha: visibility * 0.28 });
+      this.waveIntroSweep.rect(sweepX - 9, -34, 1, 68).fill({ color: '#22d3ee', alpha: visibility * 0.2 });
+    }
+
+    const assembly = this.reducedMotion ? enter : clamp(age / 720, 0, 1);
+    this.waveLevelText.alpha = clamp((assembly - 0.04) / 0.24, 0, 1);
+    this.waveTitle.alpha = clamp((assembly - 0.1) / 0.22, 0, 1);
+    this.waveNameText.alpha = clamp((assembly - 0.48) / 0.28, 0, 1);
+    for (let index = 0; index < this.waveCounterGlyphs.length; index++) {
+      const glyph = this.waveCounterGlyphs[index];
+      glyph.alpha = clamp((assembly - 0.24 - index * 0.055) / 0.2, 0, 1);
+      glyph.y = (1 - glyph.alpha) * (index % 2 === 0 ? -9 : 9);
     }
   }
 
@@ -1711,10 +1954,19 @@ export class PixiGameRenderer {
     } else if (entity.type === EntityType.ENEMY_JOURNAL || entity.type === EntityType.ENEMY_INVADER) {
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.05) * 0.09;
     } else if (entity.type === EntityType.COIN) {
-      // The frame art supplies the 3D yaw flip. Keep the flask upright and
-      // never rotate the pickup clockwise or change its gameplay dimensions.
-      view.root.scale.set(1);
+      // The RSC frame art supplies the 3D yaw flip. A brief presentation-only
+      // pulse makes boss showers readable without changing pickup geometry.
       view.root.rotation = 0;
+      view.aura.clear();
+      const burstPulse = entity.coinBurstFrames > 0
+        ? 1.04 + Math.sin((engine.frameCount + entity.variant) * 0.2) * 0.08
+        : 1;
+      view.root.scale.set(burstPulse);
+      if (entity.coinBurstFrames > 0) {
+        const glowAlpha = 0.17 + Math.sin((engine.frameCount + entity.variant) * 0.16) * 0.07;
+        view.aura.circle(0, 0, entity.width * 0.66)
+          .fill({ color: '#facc15', alpha: glowAlpha });
+      }
     } else if (entity.type === EntityType.BOMB) {
       const pulse = 1 + Math.sin((engine.frameCount + entity.variant) * 0.18) * 0.08;
       view.root.scale.set(pulse);
@@ -2117,6 +2369,7 @@ export class PixiGameRenderer {
     this.syncResearchBeam(engine);
     this.syncWallHealth(engine);
     this.syncBossHealthHud(engine);
+    this.updateWavePresentation(engine, timestamp, deltaMs);
     this.updateWarnings(engine);
     this.updateBossPresentation(engine, deltaMs);
     this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile);

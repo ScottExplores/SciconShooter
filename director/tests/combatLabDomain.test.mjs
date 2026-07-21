@@ -40,7 +40,7 @@ const {
   duplicateCombatLabPreset,
   loadCombatLabPreset
 } = experimentModule;
-const { validateGameCampaign } = validationModule;
+const { parseGameCampaign, validateGameCampaign } = validationModule;
 
 const findEvent = (value, eventId) => {
   for (const level of value.levels) {
@@ -51,6 +51,23 @@ const findEvent = (value, eventId) => {
   }
   return undefined;
 };
+
+test('runtime campaign parsing restores only missing legacy completion rules', () => {
+  const legacy = structuredClone(campaign);
+  legacy.levels.forEach((level) => level.waves.forEach((wave) => { delete wave.completionRule; }));
+  assert.equal(validateGameCampaign(legacy).valid, false);
+
+  const parsed = parseGameCampaign(legacy);
+  parsed.levels.forEach((level) => level.waves.forEach((wave) => {
+    const hasGatekeeper = wave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper');
+    assert.equal(wave.completionRule, hasGatekeeper ? 'boss-defeat' : 'clear-after-duration');
+  }));
+  assert.equal(Object.hasOwn(legacy.levels[0].waves[0], 'completionRule'), false);
+
+  const invalid = structuredClone(campaign);
+  invalid.levels[0].waves[0].completionRule = 'legacy-auto';
+  assert.throws(() => parseGameCampaign(invalid), /Invalid game campaign/);
+});
 
 test('content catalog discovers every real Combat Lab category without dangling relationships', () => {
   const catalog = buildCombatLabCatalog(campaign);
@@ -250,6 +267,11 @@ test('preset envelopes clone safely and runtime loadouts use production progress
   const loaded = loadCombatLabPreset(JSON.stringify(preset), campaign);
   loaded.previewWave.name = 'Mutated loaded copy';
   assert.notEqual(loaded.previewWave.name, preset.previewWave.name);
+  const legacyPreset = structuredClone(preset);
+  delete legacyPreset.previewWave.completionRule;
+  const loadedLegacy = loadCombatLabPreset(legacyPreset, campaign);
+  assert.equal(loadedLegacy.previewWave.completionRule, preset.previewWave.completionRule);
+  assert.equal(Object.hasOwn(legacyPreset.previewWave, 'completionRule'), false);
   assert.throws(() => loadCombatLabPreset({
     ...preset,
     focus: { kind: 'unknown-focus' }

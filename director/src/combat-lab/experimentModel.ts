@@ -18,7 +18,7 @@ import type {
   WaveDefinition,
   WaveEvent
 } from '@game/game-config/types';
-import { assertValidGameCampaign } from '@game/game-config/validate';
+import { assertValidGameCampaign, migrateLegacyWaveCompletionRule } from '@game/game-config/validate';
 import {
   PLAYABLE_PLAYER_SHIP_IDS,
   type PlayerShipId
@@ -537,6 +537,9 @@ export const createFocusedPreviewCampaign = (
     eventId = focusedEvent.id;
     previewWave = {
       ...clone(located.wave),
+      completionRule: focusedEvent.kind === 'boss' && focusedEvent.bossId === 'gatekeeper'
+        ? 'boss-defeat'
+        : 'clear-after-duration',
       introSeconds: 0,
       delayAfterSeconds: 0,
       durationSeconds: Math.max(located.wave.durationSeconds, eventFitsWave(focusedEvent)),
@@ -857,6 +860,7 @@ export const loadCombatLabPreset = (
   const parsed = typeof value === 'string' ? JSON.parse(value) as unknown : value;
   assertPresetShape(parsed);
   const preset = clone(parsed);
+  preset.previewWave = migrateLegacyWaveCompletionRule(preset.previewWave);
   if (sourceCampaign) {
     if (preset.source.campaignId !== sourceCampaign.id) {
       throw new Error(`Combat Lab preset belongs to campaign ${preset.source.campaignId}, not ${sourceCampaign.id}`);

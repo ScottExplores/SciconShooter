@@ -51,7 +51,7 @@ test('authored boss phases switch movement, speed, and active weapon numbers at 
 
 test('cloning a gatekeeper gives it a new event id while preserving its explicit rig and valid phase weapon references', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
-  const source = campaign.levels[0].waves[3].events.find((event) => event.id === 'open-galaxy-gatekeeper');
+  const source = campaign.levels[0].waves[4].events.find((event) => event.id === 'bastion-protocol-gatekeeper');
   const { cloneWaveEvent } = loadTypeScriptModule('director/src/editor/editorOperations.ts');
   const clone = cloneWaveEvent(source);
 
@@ -72,10 +72,8 @@ test('all authored gatekeepers carry stable rigs and runtime prefers them over t
     .map((event) => [event.id, event.rigId]));
   assert.deepEqual(rigs, {
     'open-orbit-gatekeeper': 'open-orbit',
-    'citation-storm-gatekeeper': 'citation-storm',
     'paywall-siege-gatekeeper': 'paywall-siege',
-    'open-galaxy-gatekeeper': 'crown-claw',
-    'bastion-protocol-gatekeeper': 'citation-storm'
+    'bastion-protocol-gatekeeper': 'crown-claw'
   });
 
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');

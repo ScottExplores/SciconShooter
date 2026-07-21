@@ -8,16 +8,23 @@ const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 const engineSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
 
-test('the opening flight completes before Brian releases combat', () => {
+test('Brian pauses the opening flight before its protected combat intro begins', () => {
   assert.match(appSource, /isTransmissionOpen:\s*introMissionLocked\s*\|\|\s*Boolean\(activeStoryBeat\)/);
 
-  const introGate = engineSource.indexOf('if (this.introFlightFrames > 0)');
-  const transmissionGate = engineSource.indexOf('if (cinematicPause)', introGate);
+  const updateStart = engineSource.indexOf('update(cinematicPause: boolean = false)');
+  const transmissionGate = engineSource.indexOf('if (cinematicPause)', updateStart);
+  const introGate = engineSource.indexOf('if (this.introFlightFrames > 0)', transmissionGate);
   const enemySpawn = engineSource.indexOf('this.spawnEnemies()', transmissionGate);
 
-  assert.ok(introGate >= 0);
-  assert.ok(transmissionGate > introGate);
-  assert.ok(enemySpawn > transmissionGate);
+  assert.ok(updateStart >= 0);
+  assert.ok(transmissionGate > updateStart);
+  assert.ok(introGate > transmissionGate);
+  assert.ok(enemySpawn > introGate);
+  assert.match(
+    engineSource.slice(transmissionGate, introGate),
+    /if \(cinematicPause\)[\s\S]*?return;/,
+    'the cinematic must return before updateIntroFlight can consume its frame budget'
+  );
 });
 
 test('formations stay visual and final bosses transition without a loot stall', () => {
@@ -31,24 +38,22 @@ test('formations stay visual and final bosses transition without a loot stall', 
   });
 });
 
-test('the first two Gatekeepers ramp their cadence without exceeding the configured maximum speed', () => {
+test('milestone Gatekeepers ramp their cadence without exceeding the configured maximum speed', () => {
   const firstWave = campaign.levels[0].waves[0];
-  const secondWave = campaign.levels[0].waves[1];
+  const thirdWave = campaign.levels[0].waves[2];
   const firstGatekeeper = firstWave.events.find((event) => event.id === 'open-orbit-gatekeeper');
-  const secondGatekeeper = secondWave.events.find((event) => event.id === 'citation-storm-gatekeeper');
+  const thirdGatekeeper = thirdWave.events.find((event) => event.id === 'paywall-siege-gatekeeper');
   const firstBurstWeapon = firstGatekeeper.weapons.find((weapon) => weapon.id === 'gatekeeper-burst');
-  const secondBurstWeapon = secondGatekeeper.weapons.find((weapon) => weapon.id === 'gatekeeper-burst');
+  const thirdBurstWeapon = thirdGatekeeper.weapons.find((weapon) => weapon.id === 'gatekeeper-burst');
 
   assert.equal(firstBurstWeapon.burstCount, 3);
   assert.equal(firstBurstWeapon.attackIntervalSeconds, 0.883);
-  assert.equal(secondBurstWeapon.burstCount, 4);
-  assert.equal(secondBurstWeapon.attackIntervalSeconds, 0.8);
-  assert.ok(secondGatekeeper.health > firstGatekeeper.health);
-  assert.equal(secondGatekeeper.movementPatternId, 'gatekeeper-cycle');
+  assert.equal(thirdBurstWeapon.burstCount, 7);
+  assert.equal(thirdBurstWeapon.attackIntervalSeconds, 0.65);
+  assert.ok(thirdGatekeeper.health > firstGatekeeper.health);
+  assert.equal(thirdGatekeeper.movementPatternId, 'gatekeeper-cycle');
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1\.45/);
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0\.35/);
-  assert.match(engineSource, /WAVE_TWO_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1\.55/);
-  assert.match(engineSource, /WAVE_TWO_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0\.3/);
   assert.match(engineSource, /getGatekeeperBurstInterval\(baseFireRate, healthRatio, cadenceConfig\)/);
   assert.match(engineSource, /Math\.max\(baseInterval, Math\.round\(baseInterval \* intervalMultiplier\)\)/);
 });

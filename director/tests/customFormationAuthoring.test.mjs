@@ -105,6 +105,7 @@ test('campaign validation has no five-wave ceiling', async () => {
     order: nextOrder,
     accent: '#67e8f9',
     backgroundId: level.backgroundId,
+    completionRule: 'clear-after-duration',
     difficultyMultiplier: 2,
     durationSeconds: 30,
     introSeconds: 1,

@@ -199,6 +199,12 @@ export interface WaveDefinition {
   accent: string;
   backgroundId: BackgroundId;
   /**
+   * Boss milestones finish when their Gatekeeper is defeated. Interstitial
+   * combat waves finish only after their authored clock expires and every
+   * scheduled threat has been cleared.
+   */
+  completionRule: 'boss-defeat' | 'clear-after-duration';
+  /**
    * Optional runtime multiplier after explicit tuning. Apply to hostile health/speed/damage
    * and inversely to spawn intervals, but not score rewards. Current default: 1.
    */

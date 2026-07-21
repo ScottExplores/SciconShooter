@@ -11,9 +11,8 @@ test('campaign gatekeepers use five-state layered damage art', () => {
   const constants = read('constants.ts');
   const expected = new Map([
     ['open-orbit-gatekeeper', 'PIXI_BOSS_OPEN_ORBIT_FRAMES'],
-    ['citation-storm-gatekeeper', 'PIXI_BOSS_CITATION_FRAMES'],
     ['paywall-siege-gatekeeper', 'PIXI_BOSS_PAYWALL_FRAMES'],
-    ['open-galaxy-gatekeeper', 'PIXI_BOSS_CROWNCLAW_FRAMES']
+    ['bastion-protocol-gatekeeper', 'PIXI_BOSS_CROWNCLAW_FRAMES']
   ]);
   const bossEvents = campaign.levels.flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
@@ -290,7 +289,7 @@ test('Astral Crownclaw uses an animated six-leg rig with destructible claws', ()
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const crownEvent = campaign.levels.flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
-    .find((event) => event.id === 'open-galaxy-gatekeeper');
+    .find((event) => event.id === 'bastion-protocol-gatekeeper');
 
   assert.ok(crownEvent);
   assert.equal(crownEvent.spriteKey, 'PIXI_BOSS_CROWNCLAW_FRAMES');

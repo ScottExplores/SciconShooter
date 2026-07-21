@@ -18,6 +18,12 @@ import type {
   WaveDefinition,
   WaveEvent
 } from './types';
+import { migrateLegacyGameCampaign } from './legacyCampaignMigration.mjs';
+
+export {
+  migrateLegacyGameCampaign,
+  migrateLegacyWaveCompletionRule
+} from './legacyCampaignMigration.mjs';
 
 export interface CampaignValidationIssue {
   path: string;
@@ -52,7 +58,7 @@ const RECORD_CARD_METRIC_LABEL_KEYS = ['wave', 'targets', 'coins', 'flight'];
 const RECORD_CARD_COLOR_KEYS = ['background', 'panel', 'primary', 'secondary', 'success', 'warning', 'text', 'muted'];
 const RECORD_CARD_ART_KEYS = ['ship', 'encounter'];
 const RECORD_CARD_REGION_KEYS = ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'visible'];
-const WAVE_KEYS = ['id', 'name', 'order', 'accent', 'backgroundId', 'difficultyMultiplier', 'durationSeconds', 'introSeconds', 'delayAfterSeconds', 'scoreMultiplier', 'threatCap', 'events'];
+const WAVE_KEYS = ['id', 'name', 'order', 'accent', 'backgroundId', 'completionRule', 'difficultyMultiplier', 'durationSeconds', 'introSeconds', 'delayAfterSeconds', 'scoreMultiplier', 'threatCap', 'events'];
 const BASE_EVENT_KEYS = ['id', 'kind', 'label', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor'];
 const EVENT_KEYS: Record<string, string[]> = {
   spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'formationSlots', 'enemies'],
@@ -89,6 +95,7 @@ const EVENT_KINDS = new Set(Object.keys(EVENT_KEYS));
 const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const ENEMY_RANKS = new Set(['standard', 'elite']);
 const ENEMY_ATTACK_PATTERNS = new Set(['aimed-burst']);
+const WAVE_COMPLETION_RULES = new Set(['boss-defeat', 'clear-after-duration']);
 const SAFE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const EPSILON = 0.0001;
@@ -650,6 +657,14 @@ const validateWave = (
   }
   checkString(candidate.accent, `${path}/accent`, issues, { color: true });
   checkCatalogRef(candidate.backgroundId, BACKGROUND_CATALOG, `${path}/backgroundId`, issues);
+  if (typeof candidate.completionRule !== 'string' || !WAVE_COMPLETION_RULES.has(candidate.completionRule)) {
+    pushIssue(
+      issues,
+      `${path}/completionRule`,
+      'unknown_reference',
+      `Unknown wave completion rule: ${String(candidate.completionRule)}`
+    );
+  }
   checkNumber(candidate.difficultyMultiplier, `${path}/difficultyMultiplier`, issues, Number.EPSILON, 100);
   checkNumber(candidate.durationSeconds, `${path}/durationSeconds`, issues, Number.EPSILON, 3600);
   checkNumber(candidate.introSeconds, `${path}/introSeconds`, issues, 0, 600);
@@ -673,6 +688,16 @@ const validateWave = (
       }
       validateEvent(event, eventPath, issues, candidate, levelPowerups);
     });
+
+    const mainBossCount = candidate.events.filter((event) => (
+      isRecord(event) && event.kind === 'boss' && event.bossId === 'gatekeeper'
+    )).length;
+    if (candidate.completionRule === 'boss-defeat' && mainBossCount === 0) {
+      pushIssue(issues, `${path}/completionRule`, 'missing_main_boss', 'Boss-defeat waves require a Gatekeeper event');
+    }
+    if (candidate.completionRule === 'clear-after-duration' && mainBossCount > 0) {
+      pushIssue(issues, `${path}/completionRule`, 'unexpected_main_boss', 'Clear-after-duration waves cannot contain a Gatekeeper event');
+    }
   }
 };
 
@@ -771,8 +796,9 @@ export const assertValidGameCampaign: (value: unknown) => asserts value is GameC
 };
 
 export const parseGameCampaign = (value: unknown): GameCampaignConfig => {
-  assertValidGameCampaign(value);
-  return value;
+  const migrated = migrateLegacyGameCampaign(value);
+  assertValidGameCampaign(migrated);
+  return migrated;
 };
 
 /** Convenience types for editor/runtime call sites that narrow discriminated events. */

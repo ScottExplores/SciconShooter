@@ -365,6 +365,15 @@ function WaveSettings({
         <NumberField label="Duration" value={wave.durationSeconds} onChange={(durationSeconds) => onUpdateWave({ durationSeconds })} min={5} max={600} step={1} unit="s" />
         <NumberField label="Delay after wave" value={wave.delayAfterSeconds} onChange={(delayAfterSeconds) => onUpdateWave({ delayAfterSeconds })} min={0} max={60} step={0.25} unit="s" />
       </div>
+      <SelectField
+        label="Completion rule"
+        value={wave.completionRule}
+        options={[
+          { value: 'clear-after-duration', label: 'Clear threats after timer' },
+          { value: 'boss-defeat', label: 'Defeat Gatekeeper' }
+        ]}
+        onChange={(completionRule) => onUpdateWave({ completionRule })}
+      />
       <div className="le-field-row">
         <NumberField label="Starting difficulty" value={wave.difficultyMultiplier} onChange={(difficultyMultiplier) => onUpdateWave({ difficultyMultiplier })} min={0.1} max={10} step={0.05} unit="×" />
         <NumberField label="Score multiplier" value={wave.scoreMultiplier} onChange={(scoreMultiplier) => onUpdateWave({ scoreMultiplier })} min={0.1} max={1000} step={0.5} unit="×" />
