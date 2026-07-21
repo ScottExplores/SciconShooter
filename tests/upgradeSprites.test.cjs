@@ -27,7 +27,8 @@ test('the HUD uses enlarged sprite-only upgrade buttons with cost and appropriat
   assert.match(source, /type === 'speed' \? '-rotate-90'/);
   assert.match(source, /h-6 min-w-6.*text-xs font-black/);
   assert.match(source, /x\{flaskCost\}/);
-  assert.match(source, /isAtCap \? 'MAX' : `L\$\{displayedLevel\}`/);
+  assert.match(source, /const displayedLevelLabel = type === 'fireRate'/);
+  assert.match(source, /isAtCap \? 'MAX' : displayedLevelLabel/);
   assert.match(source, /\(isAtCap \|\| !isLifeUpgrade\)/);
   assert.match(source, /saturate-125 brightness-110/);
   assert.match(source, /grayscale opacity-35 brightness-50/);

@@ -12,7 +12,10 @@ import {
   preloadPlayerShipSelectionFrames
 } from '../services/playerShipMotion';
 import {
+  getMainShipFireRateTier,
+  getMainShipFireRateTierProgress,
   getMainShipUpgradeCost,
+  getMainShipUpgradeMaxLevel,
   getMiniShipUpgradeCost,
   MAIN_SHIP_UPGRADE_MAX_LEVEL,
   MAIN_SHIP_UPGRADES,
@@ -60,6 +63,12 @@ const PLAYER_SHIP_ORDER: PlayerShipId[] = [...PLAYABLE_PLAYER_SHIP_IDS];
 const MINI_ANIMATION_SEQUENCE = [0, 1, 2, 1] as const;
 const PLAYER_SELECTION_FRAME_COUNT = Math.max(
   ...Object.values(PLAYER_SHIP_MOTION).map((motion) => motion.selectionIdleFrames.length)
+);
+
+const formatMainUpgradeLevel = (id: MainShipUpgradeId, level: number) => (
+  id === 'fireRate'
+    ? `Tier ${getMainShipFireRateTier(level)} - ${getMainShipFireRateTierProgress(level)}/${MAIN_SHIP_UPGRADE_MAX_LEVEL}`
+    : `Level ${level}`
 );
 const SQUAD_CONNECTOR_POSITION: Record<HangarPosition, string> = {
   main: 'left-[9%] h-[48%] w-[23%] border-b-2 border-l-2 sm:left-[8%] sm:w-[19%]',
@@ -251,7 +260,8 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const totalUpgradeLevel = Object.values(activeMainShipUpgrades).reduce((total, level) => total + level, 0);
   const miniPower = Object.values(state.ownedMiniShips).reduce((total, level) => total + (level || 0) * 75, 0);
   const power = 1000 + totalUpgradeLevel * 120 + miniPower;
-  const tier = Math.min(3, Math.max(1, Math.floor(totalUpgradeLevel / MAIN_SHIP_UPGRADE_MAX_LEVEL) + 1));
+  const tier = getMainShipFireRateTier(activeMainShipUpgrades.fireRate);
+  const fireRateTierProgress = getMainShipFireRateTierProgress(activeMainShipUpgrades.fireRate);
   const activeTier = activePosition === 'main'
     ? tier
     : Math.min(3, Math.max(1, Math.ceil(activeMiniLevel / 2)));
@@ -312,8 +322,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
       {PLAYER_SHIP_ORDER.map((shipId) => {
         const ship = PLAYER_SHIPS[shipId];
         const shipUpgrades = state.shipUpgrades[shipId];
-        const shipUpgradeLevel = Object.values(shipUpgrades).reduce((total, level) => total + level, 0);
-        const shipTier = Math.min(3, Math.max(1, Math.floor(shipUpgradeLevel / MAIN_SHIP_UPGRADE_MAX_LEVEL) + 1));
+        const shipTier = getMainShipFireRateTier(shipUpgrades.fireRate);
         const unlocked = isPlayerShipUnlocked(shipId, shipUnlocks);
         const selected = mainShipId === shipId;
         return (
@@ -331,7 +340,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             className={`relative aspect-[0.78] min-w-0 overflow-hidden border bg-slate-950/72 p-1.5 transition hover:border-cyan-200/70 disabled:cursor-not-allowed ${selected ? 'border-yellow-200/70' : 'border-cyan-200/22'} ${unlocked ? '' : 'grayscale'}`}
           >
             {selected ? <AnimatedSelector size="ship" color="gold" className="absolute inset-0 h-full w-full scale-[1.17]" /> : null}
-            <span className="absolute left-1.5 top-1 text-[0.52rem] font-black uppercase text-white/85">L{shipUpgrades.fireRate + 1}</span>
+            <span className="absolute left-1.5 top-1 text-[0.52rem] font-black uppercase text-white/85">T{shipTier}</span>
             {!unlocked ? <span className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/66 text-[0.58rem] font-black uppercase text-slate-200">Locked</span> : null}
             <AnimatedPlayerShip shipId={shipId} frame={playerSelectionFrame} className="relative z-10 mx-auto mt-4 h-[52%] w-[86%] drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
             <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name.replace(/ ship$/i, '')}</span>
@@ -454,7 +463,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 sm:px-5">
             <div className="min-w-0">
               <p className="text-sm font-black uppercase text-white">Tier {activeTier}</p>
-              <div className="mt-1 max-w-[13rem]"><LevelPips level={activePosition === 'main' ? totalUpgradeLevel : activeMiniLevel} max={activePosition === 'main' ? MAIN_SHIP_UPGRADE_MAX_LEVEL * 3 : MINI_SHIP_MAX_LEVEL} /></div>
+              <div className="mt-1 max-w-[13rem]"><LevelPips level={activePosition === 'main' ? fireRateTierProgress : activeMiniLevel} max={activePosition === 'main' ? MAIN_SHIP_UPGRADE_MAX_LEVEL : MINI_SHIP_MAX_LEVEL} /></div>
               <p className="mt-1 text-[0.58rem] font-bold uppercase text-cyan-100/70">{walletConnected ? 'Wallet squad saved' : 'Connect to save squad'}</p>
             </div>
             {activePosition === 'main' ? (
@@ -522,8 +531,12 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             <div className="grid gap-2 sm:grid-cols-3">
               {MAIN_SHIP_UPGRADES.map((upgrade) => {
                 const level = activeMainShipUpgrades[upgrade.id];
+                const maxLevel = getMainShipUpgradeMaxLevel(upgrade.id);
                 const cost = getMainShipUpgradeCost(upgrade.id, level);
-                const atMax = level >= MAIN_SHIP_UPGRADE_MAX_LEVEL;
+                const atMax = level >= maxLevel;
+                const displayedProgress = upgrade.id === 'fireRate'
+                  ? getMainShipFireRateTierProgress(level)
+                  : level;
                 return (
                   <article key={upgrade.id} className="relative overflow-hidden border border-cyan-200/22 bg-slate-950/65 p-3">
                     {upgradeFeedback?.target === `main:${upgrade.id}` ? (
@@ -538,11 +551,13 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                         className="h-12 w-12 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(34,211,238,0.42)] [image-rendering:pixelated]"
                       />
                       <div className="min-w-0">
-                        <h3 className="text-xs font-black uppercase text-white">{upgrade.name}</h3>
+                        <h3 className="text-xs font-black uppercase text-white">
+                          {upgrade.name}{upgrade.id === 'fireRate' ? ` - Tier ${getMainShipFireRateTier(level)}` : ''}
+                        </h3>
                         <p className="mt-1 min-h-10 text-[0.62rem] leading-relaxed text-slate-400">{upgrade.description}</p>
                       </div>
                     </div>
-                    <div className="mt-2"><LevelPips level={level} max={MAIN_SHIP_UPGRADE_MAX_LEVEL} /></div>
+                    <div className="mt-2"><LevelPips level={displayedProgress} max={MAIN_SHIP_UPGRADE_MAX_LEVEL} /></div>
                     {founderSandbox ? (
                       <div className="mt-3 grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] gap-1.5">
                         <button
@@ -562,10 +577,10 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                         </span>
                         <button
                           type="button"
-                          aria-label={`Increase ${upgrade.name} to level ${Math.min(MAIN_SHIP_UPGRADE_MAX_LEVEL, level + 1)}`}
+                          aria-label={`Increase ${upgrade.name} to ${formatMainUpgradeLevel(upgrade.id, Math.min(maxLevel, level + 1))}`}
                           onClick={() => {
                             onUpgradeMainShip(upgrade.id);
-                            showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} level ${Math.min(MAIN_SHIP_UPGRADE_MAX_LEVEL, level + 1)}`);
+                            showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} ${formatMainUpgradeLevel(upgrade.id, Math.min(maxLevel, level + 1))}`);
                           }}
                           disabled={atMax}
                           className="min-h-9 border border-yellow-200/35 bg-yellow-300/12 text-lg font-black text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
@@ -576,7 +591,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                     ) : (
                       <button type="button" onClick={() => {
                         onUpgradeMainShip(upgrade.id);
-                        showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} level ${level + 1}`);
+                        showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} ${formatMainUpgradeLevel(upgrade.id, level + 1)}`);
                       }} disabled={atMax || state.coins < cost} className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600">
                         {atMax ? 'Max level' : `${cost} coins`}
                       </button>

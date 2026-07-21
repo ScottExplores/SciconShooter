@@ -93,8 +93,10 @@ test('player ship uses a five-percent smaller gameplay footprint', () => {
   assert.match(engineSource, /this\.player\.height = Math\.round\(128 \* PLAYER_SHIP_SCALE\)/);
 });
 
-test('all player ships share one primary weapon whose upgrade changes cadence only', () => {
-  assert.match(engineSource, /const fireRates = \[15, 12, 10, 8, 6, 5, 5, 5\]/);
+test('all player ships share one primary weapon with three tight fire-rate tiers', () => {
+  assert.match(engineSource, /const fireInterval = getFireRateIntervalFrames\(level\)/);
+  assert.match(engineSource, /const volleySize = getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\)/);
+  assert.match(engineSource, /const volleyOffsets = getTightVolleyOffsets\(volleySize\)/);
   assert.match(engineSource, /const weaponKind: PlayerWeaponKind = 'pulse'/);
   assert.match(engineSource, /const weaponSpeed = 10/);
   assert.match(engineSource, /b\.weaponVisualLevel = 0/);

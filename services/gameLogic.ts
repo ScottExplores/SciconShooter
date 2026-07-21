@@ -44,6 +44,15 @@ import {
 import type { PlayerShipId } from './playerShipService';
 import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
 import {
+  FIRE_RATE_LEVELS_PER_TIER,
+  FIRE_RATE_MAX_LEVEL,
+  getFireRateIntervalFrames,
+  getFireRateTier,
+  getFireRateTierProgress,
+  getFireRateVolleySize,
+  getTightVolleyOffsets
+} from './weaponTierProgression';
+import {
   emitSquadDomainEvent,
   type MiniShipAbilityKind,
   type RuntimeSquadCompanion,
@@ -469,7 +478,6 @@ const GAME_FEEL = {
   squashDamping: 0.72
 };
 
-const MAX_BOMBS = 5;
 const BASE_COIN_MAGNET_RADIUS = 100;
 const POWERUP_COIN_MAGNET_RADIUS = 420;
 const BOMB_DROP_CHANCE = 0.012;
@@ -929,6 +937,7 @@ export class GameEngine {
   liveThreatCount: number = 0;
   weaponVolley: number = 0;
   announcedFireRateLevel: number = 0;
+  playerFireCooldownFrames: number = 0;
   mobileProfile: boolean = false;
   polishSettings: GamePolishSettings = { ...DEFAULT_POLISH_SETTINGS };
   performanceMode: boolean = false;
@@ -1819,7 +1828,8 @@ export class GameEngine {
     this.bioBeamCanvasVisualStartFrame = -1;
     this.lastBombFrame = -999;
     this.weaponVolley = 0;
-    this.announcedFireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, 7);
+    this.playerFireCooldownFrames = 0;
+    this.announcedFireRateLevel = Math.min(this.stats.upgrades.fireRate || 0, FIRE_RATE_MAX_LEVEL);
     const configuredIntroSeconds = Number(this.getCurrentWaveDefinition()?.introSeconds);
     this.introFlightDuration = Number.isFinite(configuredIntroSeconds) && configuredIntroSeconds >= 0
       ? Math.max(0, Math.round(configuredIntroSeconds * GAME_CONFIG.FPS))
@@ -2433,19 +2443,17 @@ export class GameEngine {
     this.updatePlayerMovement(speed);
     this.updateSquadCompanions();
 
-    // FIRE RATE PROGRESSION: Spaced out for distinct feeling
-    // Level 0: 15 (4 shots/sec)
-    // Level 1: 12 (5 shots/sec)
-    // Level 2: 10 (6 shots/sec)
-    // Level 3: 8 (7.5 shots/sec)
-    // Level 4: 6 (10 shots/sec)
-    // Level 5-7: 5 (12 shots/sec); premium tiers add power without extra projectile load.
-    const fireRates = [15, 12, 10, 8, 6, 5, 5, 5];
-    const level = Math.min(this.stats.upgrades.fireRate, 7);
-    const fireInterval = fireRates[level] || 5;
+    // Fire Rate has three seven-upgrade tiers. Cadence improves smoothly at
+    // every level, while levels 7 and 14 unlock two- and three-shot bundles.
+    const level = Math.min(this.stats.upgrades.fireRate, FIRE_RATE_MAX_LEVEL);
+    const fireInterval = getFireRateIntervalFrames(level);
 
     if (level > this.announcedFireRateLevel) {
-      const weaponLabel = `RAPID FIRE L${level + 1}`;
+      const weaponTier = getFireRateTier(level);
+      const tierProgress = getFireRateTierProgress(level);
+      const weaponLabel = tierProgress === 0
+        ? `RAPID FIRE TIER ${weaponTier}`
+        : `RAPID T${weaponTier} - ${tierProgress}/${FIRE_RATE_LEVELS_PER_TIER}`;
       const weaponColor = '#67e8f9';
       this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 18, weaponLabel, weaponColor, this.mobileProfile ? 16 : 19);
       this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, weaponColor);
@@ -2453,8 +2461,15 @@ export class GameEngine {
       this.announcedFireRateLevel = level;
     }
     
-    if ((this.keys[' '] || this.touchPos || this.keys['Enter']) && this.frameCount % fireInterval === 0) {
-      this.fireBullet();
+    const primaryFireHeld = Boolean(this.keys[' '] || this.touchPos || this.keys['Enter']);
+    if (primaryFireHeld) {
+      if (this.playerFireCooldownFrames <= 0) {
+        this.fireBullet();
+        this.playerFireCooldownFrames += fireInterval;
+      }
+      this.playerFireCooldownFrames -= 1;
+    } else {
+      this.playerFireCooldownFrames = 0;
     }
 
     // Missile Logic
@@ -3009,8 +3024,16 @@ export class GameEngine {
   }
 
   getPlayerShotCap() {
-    if (this.performanceMode || (this.mobileProfile && this.heavySceneLoad)) return MOBILE_LEAN_PLAYER_SHOT_CAP;
-    return this.mobileProfile ? MOBILE_PLAYER_SHOT_CAP : DESKTOP_PLAYER_SHOT_CAP;
+    const hasSpread = this.activePowerups.has(PowerupType.DOUBLE_SHOT)
+      || this.activePowerups.has(PowerupType.TRIPLE_SHOT);
+    const simultaneousShots = getFireRateVolleySize(this.stats.upgrades.fireRate || 0) * (hasSpread ? 3 : 1);
+    const baseCap = this.performanceMode || (this.mobileProfile && this.heavySceneLoad)
+      ? MOBILE_LEAN_PLAYER_SHOT_CAP
+      : this.mobileProfile
+        ? MOBILE_PLAYER_SHOT_CAP
+        : DESKTOP_PLAYER_SHOT_CAP;
+    const extraShotAllowance = this.mobileProfile ? (this.heavySceneLoad ? 9 : 10) : 12;
+    return baseCap + (simultaneousShots - 1) * extraShotAllowance;
   }
 
   refreshLoadState() {
@@ -3203,22 +3226,29 @@ export class GameEngine {
     this.playerVel.x += randomRange(-0.05, 0.05);
     const weaponKind: PlayerWeaponKind = 'pulse';
     const weaponSpeed = 10;
-    this.spawnPlayerBullet(weaponSpeed, 0, 0, getRandomPrimaryShotAngle(), -0.04, true, weaponKind);
+    const volleySize = getFireRateVolleySize(this.stats.upgrades.fireRate || 0);
+    const volleyOffsets = getTightVolleyOffsets(volleySize);
+    const primaryAngle = getRandomPrimaryShotAngle();
+    volleyOffsets.forEach((offsetX, index) => {
+      this.spawnPlayerBullet(weaponSpeed, offsetX, 0, primaryAngle, -0.04, index === 0, weaponKind);
+    });
 
-    const lean = this.shouldUseLeanEffects();
     const overdriveSpread = this.activePowerups.has(PowerupType.DOUBLE_SHOT)
       || this.activePowerups.has(PowerupType.TRIPLE_SHOT);
     if (overdriveSpread) {
       ([-1, 1] as const).forEach((side, index) => {
-        this.queuePlayerBullet({
-          fireFrame: this.frameCount + index + 1,
-          speed: weaponSpeed,
-          offsetX: side * 4,
-          yOffset: 4,
-          angleBias: sampleTripleShotSideAngleRadians(side, Math.random()),
-          pitchOffset: side < 0 ? -0.01 : 0.03,
-          weaponKind,
-          playSound: !lean
+        const sideAngle = sampleTripleShotSideAngleRadians(side, Math.random());
+        volleyOffsets.forEach((bundleOffset) => {
+          this.queuePlayerBullet({
+            fireFrame: this.frameCount + index + 1,
+            speed: weaponSpeed,
+            offsetX: side * 4 + bundleOffset,
+            yOffset: 4,
+            angleBias: sideAngle,
+            pitchOffset: side < 0 ? -0.01 : 0.03,
+            weaponKind,
+            playSound: false
+          });
         });
       });
     }
@@ -3645,7 +3675,7 @@ export class GameEngine {
         this.spawnPowerup(centerX - 18, centerY - 18, 'extra-life');
       }
     }
-    if (target.type !== EntityType.BOSS && !this.isBombResolving && (this.stats.bombs || 0) < MAX_BOMBS) {
+    if (target.type !== EntityType.BOSS && !this.isBombResolving) {
       const dropChance = isElite ? ELITE_BOMB_DROP_CHANCE : BOMB_DROP_CHANCE;
       if (Math.random() < dropChance) {
         this.spawnBombDrop(centerX - 19, centerY - 19);
@@ -3667,7 +3697,7 @@ export class GameEngine {
           );
         }
       }
-      if ((this.stats.bombs || 0) < MAX_BOMBS && Math.random() < MINI_BOSS_BOMB_REWARD_CHANCE) {
+      if (Math.random() < MINI_BOSS_BOMB_REWARD_CHANCE) {
         this.spawnBombDrop(centerX - 19, centerY - 19);
       }
       const remainingMiniBosses = this.getActiveMiniBosses();
@@ -6174,7 +6204,7 @@ export class GameEngine {
 
       if (e.type === EntityType.BOMB && intersectsPlayer(e)) {
         e.markedForDeletion = true;
-        this.stats.bombs = Math.min(MAX_BOMBS, (this.stats.bombs || 0) + 1);
+        this.stats.bombs = Math.max(0, Math.floor(this.stats.bombs || 0)) + 1;
         this.spawnFloatingText(e.x + e.width / 2, e.y - 10, 'BOMB +1', '#facc15', 18);
         this.spawnRingEffect(e.x + e.width / 2, e.y + e.height / 2, '#facc15');
         this.spawnBurst(e.x + e.width / 2, e.y + e.height / 2, '#facc15', 9, 3.2, 4);

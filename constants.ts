@@ -1,4 +1,5 @@
 import type { FieldUpgradeType, Stats } from './types';
+import { FIRE_RATE_MAX_LEVEL } from './services/weaponTierProgression';
 
 // --- ASSET CONFIGURATION ---
 export const ASSETS = {
@@ -340,10 +341,10 @@ export const FIELD_UPGRADE_CONFIG: Record<FieldUpgradeType, {
   fireRate: {
     title: 'Rapid Fire',
     shortTitle: 'Rapid',
-    description: 'Fire the primary weapon more frequently',
+    description: 'Fire faster and unlock tightly grouped Tier 2 and Tier 3 volleys',
     baseCost: 8,
     costStep: 6,
-    maxLevel: 7
+    maxLevel: FIRE_RATE_MAX_LEVEL
   },
   speed: {
     title: 'Speed',
@@ -375,6 +376,7 @@ export const getFieldUpgradeCost = (stats: Stats, type: FieldUpgradeType) => {
 
 export const getFieldUpgradeFlaskCost = (stats: Stats, type: FieldUpgradeType) => {
   const level = getFieldUpgradeLevel(stats, type);
+  if (type === 'fireRate' && level >= 14) return 15;
   if (type === 'fireRate' && level >= 6) return 10;
   if (type === 'fireRate' && level >= 5) return 5;
   if (type === 'speed' && level >= 5) return 5;

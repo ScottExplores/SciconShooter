@@ -1,10 +1,17 @@
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import { PLAYABLE_PLAYER_SHIP_IDS, type PlayerShipId } from './playerShipService';
+import {
+  FIRE_RATE_LEVELS_PER_TIER,
+  FIRE_RATE_MAX_LEVEL,
+  getFireRateTier,
+  getFireRateTierProgress
+} from './weaponTierProgression';
 
 export const SQUAD_PROFILE_VERSION = 3;
 const RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = [1, 2] as const;
 const PERMANENT_SQUAD_PROFILE_VERSION = 1;
-export const MAIN_SHIP_UPGRADE_MAX_LEVEL = 7;
+export const MAIN_SHIP_UPGRADE_MAX_LEVEL = FIRE_RATE_LEVELS_PER_TIER;
+export const MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL;
 export const MINI_SHIP_MAX_LEVEL = 5;
 export const LEFT_SQUAD_SLOT_UNLOCK_COST = 50;
 export const RIGHT_SQUAD_SLOT_UNLOCK_COST = 500;
@@ -283,8 +290,12 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
   {
     id: 'fireRate',
     name: 'Fire Rate',
-    description: 'Shortens the main weapon firing cycle.',
-    costs: [40, 60, 90, 130, 180, 240, 320]
+    description: 'Shortens the firing cycle; every seven levels adds another tightly grouped shot.',
+    costs: [
+      40, 60, 90, 130, 180, 240, 320,
+      420, 540, 680, 840, 1020, 1220, 1440,
+      1700, 2000, 2350, 2750, 3200, 3700, 4250
+    ]
   },
   {
     id: 'speed',
@@ -323,10 +334,17 @@ export const createMainShipUpgradesByShip = (): MainShipUpgradesByShip => (
 const sanitizeMainShipUpgradeLevels = (
   value?: Partial<Record<MainShipUpgradeId, number>> | null
 ): MainShipUpgradeLevels => ({
-  fireRate: clampLevel(value?.fireRate),
+  fireRate: clampLevel(value?.fireRate, MAIN_SHIP_FIRE_RATE_MAX_LEVEL),
   speed: clampLevel(value?.speed),
   startingHearts: clampLevel(value?.startingHearts)
 });
+
+export const getMainShipUpgradeMaxLevel = (id: MainShipUpgradeId) => (
+  id === 'fireRate' ? MAIN_SHIP_FIRE_RATE_MAX_LEVEL : MAIN_SHIP_UPGRADE_MAX_LEVEL
+);
+
+export const getMainShipFireRateTier = (level: number) => getFireRateTier(level);
+export const getMainShipFireRateTierProgress = (level: number) => getFireRateTierProgress(level);
 
 export const emitSquadDomainEvent = (
   type: SquadDomainEventName,
@@ -465,7 +483,7 @@ export const createFounderSquadSandboxState = (state: WeeklySquadState): WeeklyS
   ) as Record<MiniShipId, number>,
   shipUpgrades: Object.fromEntries(
     PLAYABLE_PLAYER_SHIP_IDS.map((shipId) => [shipId, {
-      fireRate: MAIN_SHIP_UPGRADE_MAX_LEVEL,
+      fireRate: MAIN_SHIP_FIRE_RATE_MAX_LEVEL,
       speed: MAIN_SHIP_UPGRADE_MAX_LEVEL,
       startingHearts: MAIN_SHIP_UPGRADE_MAX_LEVEL
     }])
@@ -499,8 +517,9 @@ export const adjustFounderMainShipUpgrade = (
 ): WeeklySquadState => {
   const currentUpgrades = state.shipUpgrades[shipId] ?? createMainShipUpgradeLevels();
   const currentLevel = currentUpgrades[id];
+  const maxLevel = getMainShipUpgradeMaxLevel(id);
   const nextLevel = Math.max(0, Math.min(
-    MAIN_SHIP_UPGRADE_MAX_LEVEL,
+    maxLevel,
     currentLevel + Math.trunc(delta)
   ));
   if (nextLevel === currentLevel) return state;
@@ -631,7 +650,7 @@ export const upgradeMainShip = (
 ): WeeklySquadState => {
   const currentUpgrades = state.shipUpgrades[shipId] ?? createMainShipUpgradeLevels();
   const level = currentUpgrades[id];
-  if (level >= MAIN_SHIP_UPGRADE_MAX_LEVEL) return state;
+  if (level >= getMainShipUpgradeMaxLevel(id)) return state;
   const cost = getMainShipUpgradeCost(id, level);
   if (!Number.isFinite(cost) || state.coins < cost) return state;
   const next = spendCoins(state, cost);

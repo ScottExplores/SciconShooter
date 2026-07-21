@@ -9,7 +9,9 @@ const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf
 test('the weekly squad model is wallet-scoped, resettable, and data driven', () => {
   const source = read('services', 'squadProgression.ts');
 
-  assert.match(source, /MAIN_SHIP_UPGRADE_MAX_LEVEL = 7/);
+  assert.match(source, /MAIN_SHIP_UPGRADE_MAX_LEVEL = FIRE_RATE_LEVELS_PER_TIER/);
+  assert.match(source, /MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL/);
+  assert.match(source, /id === 'fireRate' \? MAIN_SHIP_FIRE_RATE_MAX_LEVEL : MAIN_SHIP_UPGRADE_MAX_LEVEL/);
   assert.match(source, /SQUAD_PROFILE_VERSION = 3/);
   assert.match(source, /LEFT_SQUAD_SLOT_UNLOCK_COST = 50/);
   assert.match(source, /RIGHT_SQUAD_SLOT_UNLOCK_COST = 500/);
@@ -143,6 +145,9 @@ test('main ship upgrade cards show the matching existing gameplay sprites', () =
 
   assert.match(hangar, /MAIN_UPGRADE_SPRITE: Readonly<Record<MainShipUpgradeId, string>>/);
   assert.match(hangar, /src=\{MAIN_UPGRADE_SPRITE\[upgrade\.id\]\}/);
+  assert.match(hangar, /getMainShipFireRateTier\(activeMainShipUpgrades\.fireRate\)/);
+  assert.match(hangar, /getMainShipFireRateTierProgress\(activeMainShipUpgrades\.fireRate\)/);
+  assert.match(hangar, /const maxLevel = getMainShipUpgradeMaxLevel\(upgrade\.id\)/);
   spriteNames.forEach((name) => {
     assert.match(hangar, new RegExp(`/game-art/powerups/${name.replace('.', '\\.')}`));
     assert.ok(fs.existsSync(path.join(root, 'public', 'game-art', 'powerups', name)));
@@ -192,7 +197,8 @@ test('companions use the real engine and Overdrive Spread stays on the main ship
   assert.match(engine, /this\.updateSquadCompanions\(\)/);
   assert.match(engine, /spawnSquadCompanionBullet/);
   assert.match(engine, /sampleTripleShotSideAngleRadians/);
-  assert.match(engine, /angleBias: sampleTripleShotSideAngleRadians\(side, Math\.random\(\)\)/);
+  assert.match(engine, /const sideAngle = sampleTripleShotSideAngleRadians\(side, Math\.random\(\)\)/);
+  assert.match(engine, /angleBias: sideAngle/);
   assert.match(engine, /OVERDRIVE SPREAD!/);
   assert.match(renderer, /engine\.getSquadCompanionVisuals\(\)/);
   assert.match(renderer, /companion\?\.frames\[companion\.frameIndex\]/);

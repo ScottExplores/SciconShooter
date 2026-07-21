@@ -7,6 +7,7 @@ import type { PlayerShipId } from '../services/playerShipService';
 import {
   getShipAbilityDefinition
 } from '../services/shipAbilityService';
+import { getFireRateTier, getFireRateTierProgress } from '../services/weaponTierProgression';
 
 export interface UIOverlayProps {
   stats: Stats;
@@ -376,7 +377,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           }`}
           aria-label="Use RSC bomb"
         >
-          {nextFlaskPct > 84 && bombs < 3 ? (
+          {nextFlaskPct > 84 ? (
             <span className="pointer-events-none absolute -inset-2 rounded-[28px] border border-yellow-200/35 bg-yellow-300/12 animate-ping" />
           ) : null}
           <span className="absolute -left-1.5 -top-1.5 z-10 flex h-6 min-w-6 items-center justify-center rounded-full border border-cyan-100/60 bg-slate-950 px-1 text-xs font-black text-cyan-100">
@@ -460,6 +461,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
           const canPick = flaskCount >= flaskCost && !isAtCap;
           const highlighted = canPick || isAtCap;
           const displayedLevel = Math.min(config.maxLevel, level + 1);
+          const displayedLevelLabel = type === 'fireRate'
+            ? `T${getFireRateTier(displayedLevel)}-${getFireRateTierProgress(displayedLevel)}`
+            : `L${displayedLevel}`;
           const accessibleLabel = isAtCap
             ? `${config.title} is at max level`
             : `Upgrade ${config.title} for ${flaskCost} flask${flaskCost === 1 ? '' : 's'}`;
@@ -500,7 +504,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                     ? 'h-8 min-w-8 border-yellow-100/85 bg-yellow-300 px-1 text-[8px] text-slate-950 shadow-[0_0_18px_rgba(250,204,21,0.5)]'
                     : 'h-6 min-w-6 border-cyan-100/55 bg-slate-950 px-1 text-xs text-cyan-100'
                 }`}>
-                  {isAtCap ? 'MAX' : `L${displayedLevel}`}
+                  {isAtCap ? 'MAX' : displayedLevelLabel}
                 </span>
               ) : null}
               <span className="relative flex h-full w-full items-center justify-center">
