@@ -42,17 +42,29 @@ test('pause menu uses the generated game interface while preserving real setting
 
   assert.match(app, /<PauseMenu/);
   assert.match(app, /onToggleAudio=\{toggleGameAudio\}/);
+  assert.match(app, /audioVolumeLevel=\{audioVolumeLevel\}/);
+  assert.match(app, /onAudioVolumeChange=\{setGameAudioVolume\}/);
   assert.match(app, /onTogglePolishSetting=\{togglePolishSetting\}/);
   assert.match(app, /founderControls=\{isOwnerWallet && isOwnerTestRun/);
 
   assert.match(pause, /aria-pressed=\{enabled\}/);
-  assert.match(pause, /toggle-\$\{enabled \? 'on' : 'off'\}\.png/);
+  assert.match(pause, /PixelActionButton/);
+  assert.match(pause, /tone="green"/);
+  assert.match(pause, /tone="neutral"/);
+  assert.match(pause, /sci-pause-setting__toggle-track/);
+  assert.match(pause, /type="range"/);
+  assert.match(pause, /min=\{0\}/);
+  assert.match(pause, /max=\{5\}/);
+  assert.match(pause, /step=\{1\}/);
+  assert.match(pause, /AUDIO_VOLUME_NOTCHES\.map/);
   assert.match(pause, /onTogglePolishSetting\('screenShake'\)/);
   assert.match(pause, /onTogglePolishSetting\('highDensityParticles'\)/);
 
-  assert.match(css, /pause-menu-frame\.png/);
-  assert.match(css, /resume-button\.png/);
-  assert.match(css, /quit-button\.png/);
-  assert.match(css, /audio-settings-row\.png/);
-  assert.match(css, /controls-settings-row\.png/);
+  assert.match(css, /\.sci-pause-shell::before/);
+  assert.match(css, /\.sci-pause-settings \{/);
+  assert.match(css, /\.sci-pause-setting__toggle-knob/);
+  assert.match(css, /\.sci-pause-volume__notches/);
+  assert.match(css, /grid-template-columns: repeat\(6, 1fr\)/);
+  assert.doesNotMatch(css, /pause-menu-frame\.png/);
+  assert.doesNotMatch(css, /resume-button\.png/);
 });

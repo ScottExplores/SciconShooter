@@ -49,6 +49,7 @@ test('mobile home lets its mission panel fill the available space above navigati
 });
 
 test('weekly leader uses the animated arcade frame treatment', () => {
+  assert.match(source, /<HudPanel className="sci-weekly-funding-shell sci-neon-frame-window">/);
   assert.match(source, /className="sci-weekly-frame" aria-hidden="true"/);
   assert.match(htmlSource, /\.sci-weekly-frame \{/);
   assert.match(htmlSource, /clip-path: polygon\(12px 0/);

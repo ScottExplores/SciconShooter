@@ -1,18 +1,22 @@
 import React from 'react';
 import type { GamePolishSettings } from '../types';
+import PixelActionButton from './PixelActionButton';
 import '../styles/pause-menu.css';
 
 interface PauseMenuProps {
   audioMuted: boolean;
+  audioVolumeLevel: number;
   polishSettings: GamePolishSettings;
   onResume: () => void;
   onQuit: () => void;
   onToggleAudio: () => void;
+  onAudioVolumeChange: (level: number) => void;
   onTogglePolishSetting: (key: keyof GamePolishSettings) => void;
   founderControls?: React.ReactNode;
 }
 
 const INTERFACE_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1';
+const AUDIO_VOLUME_NOTCHES = Array.from({ length: 6 }, (_, index) => index);
 
 interface PauseSettingRowProps {
   label: string;
@@ -30,21 +34,25 @@ const PauseSettingRow: React.FC<PauseSettingRowProps> = ({ label, enabled, onTog
     className={`sci-pause-setting sci-pause-setting--${kind}`}
   >
     <span className="sci-pause-setting__label">{label}</span>
-    <img
+    <span
       className={`sci-pause-setting__toggle ${enabled ? 'sci-pause-setting__toggle--on' : ''}`}
-      src={`${INTERFACE_ROOT}/controls/toggle-${enabled ? 'on' : 'off'}.png`}
-      alt=""
       aria-hidden="true"
-    />
+    >
+      <span className="sci-pause-setting__toggle-track" />
+      <span className="sci-pause-setting__toggle-knob" />
+      <span className="sci-pause-setting__toggle-copy">{enabled ? 'ON' : 'OFF'}</span>
+    </span>
   </button>
 );
 
 const PauseMenu: React.FC<PauseMenuProps> = ({
   audioMuted,
+  audioVolumeLevel,
   polishSettings,
   onResume,
   onQuit,
   onToggleAudio,
+  onAudioVolumeChange,
   onTogglePolishSetting,
   founderControls
 }) => (
@@ -63,15 +71,24 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
           </header>
 
           <div className="sci-pause-actions">
-            <button type="button" onClick={onResume} className="sci-pause-action sci-pause-action--resume">
+            <PixelActionButton
+              tone="green"
+              shine
+              onClick={onResume}
+              className="sci-pause-action sci-pause-action--resume"
+            >
               <span>Resume Mission</span>
-            </button>
-            <button type="button" onClick={onQuit} className="sci-pause-action sci-pause-action--quit">
+            </PixelActionButton>
+            <PixelActionButton
+              tone="neutral"
+              onClick={onQuit}
+              className="sci-pause-action sci-pause-action--quit"
+            >
               <span>Exit Run</span>
-            </button>
+            </PixelActionButton>
           </div>
 
-          <div className="sci-pause-settings" aria-label="Mission settings">
+          <div className="sci-pause-settings" role="group" aria-label="Mission settings">
             <div className="sci-pause-settings__title">
               <img src={`${INTERFACE_ROOT}/icons/system/settings.png`} alt="" aria-hidden="true" />
               <span>Mission Settings</span>
@@ -82,6 +99,35 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
               onToggle={onToggleAudio}
               kind="audio"
             />
+            <label className="sci-pause-volume" htmlFor="sci-pause-volume-level">
+              <span className="sci-pause-volume__header">
+                <span>Master volume</span>
+                <output htmlFor="sci-pause-volume-level" aria-live="polite">
+                  {audioVolumeLevel === 0 ? 'Muted' : `${audioVolumeLevel} / 5`}
+                </output>
+              </span>
+              <span className="sci-pause-volume__control">
+                <input
+                  id="sci-pause-volume-level"
+                  type="range"
+                  min={0}
+                  max={5}
+                  step={1}
+                  value={audioVolumeLevel}
+                  aria-label="Master volume level"
+                  onChange={(event) => onAudioVolumeChange(Number(event.currentTarget.value))}
+                />
+                <span className="sci-pause-volume__notches" aria-hidden="true">
+                  {AUDIO_VOLUME_NOTCHES.map((notch) => (
+                    <span
+                      key={notch}
+                      className="sci-pause-volume__notch"
+                      data-active={notch <= audioVolumeLevel ? 'true' : 'false'}
+                    />
+                  ))}
+                </span>
+              </span>
+            </label>
             <PauseSettingRow
               label="Screen shake"
               enabled={polishSettings.screenShake}

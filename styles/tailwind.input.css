@@ -2,52 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Home ship carousel: gesture preview plus bank-frame handoff between ships. */
+/* Home ship carousel: two authored bank-frame ships sharing one shallow orbit. */
 @keyframes sci-ship-carousel-next-in {
   0% {
-    opacity: 0;
-    transform: translate3d(118%, 2%, 0);
+    opacity: 0.08;
+    transform: translate3d(112%, -14%, 0) scale(0.78);
   }
-  24% { opacity: 1; }
+  46% {
+    opacity: 0.84;
+    transform: translate3d(49%, -9%, 0) scale(0.89);
+  }
   100% {
     opacity: 1;
-    transform: translate3d(0, -3%, 0);
+    transform: translate3d(0, -3%, 0) scale(1);
   }
 }
 
 @keyframes sci-ship-carousel-next-out {
   0% {
     opacity: 1;
-    transform: translate3d(0, -3%, 0);
+    transform: translate3d(0, -3%, 0) scale(1);
   }
-  72% { opacity: 0.92; }
+  46% {
+    opacity: 0.76;
+    transform: translate3d(-52%, -8%, 0) scale(0.88);
+  }
   100% {
-    opacity: 0;
-    transform: translate3d(-118%, 2%, 0);
+    opacity: 0.08;
+    transform: translate3d(-112%, -14%, 0) scale(0.78);
   }
 }
 
 @keyframes sci-ship-carousel-previous-in {
   0% {
-    opacity: 0;
-    transform: translate3d(-118%, 2%, 0);
+    opacity: 0.08;
+    transform: translate3d(-112%, -14%, 0) scale(0.78);
   }
-  24% { opacity: 1; }
+  46% {
+    opacity: 0.84;
+    transform: translate3d(-49%, -9%, 0) scale(0.89);
+  }
   100% {
     opacity: 1;
-    transform: translate3d(0, -3%, 0);
+    transform: translate3d(0, -3%, 0) scale(1);
   }
 }
 
 @keyframes sci-ship-carousel-previous-out {
   0% {
     opacity: 1;
-    transform: translate3d(0, -3%, 0);
+    transform: translate3d(0, -3%, 0) scale(1);
   }
-  72% { opacity: 0.92; }
+  46% {
+    opacity: 0.76;
+    transform: translate3d(52%, -8%, 0) scale(0.88);
+  }
   100% {
-    opacity: 0;
-    transform: translate3d(118%, 2%, 0);
+    opacity: 0.08;
+    transform: translate3d(112%, -14%, 0) scale(0.78);
   }
 }
 
@@ -55,6 +67,7 @@
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
+  outline: none;
 }
 
 .sci-ship-carousel-stage img {
@@ -62,15 +75,25 @@
   -webkit-user-drag: none;
 }
 
+.sci-ship-carousel-stage:focus-visible {
+  border-radius: 1rem;
+  box-shadow: inset 0 0 0 1px rgb(103 232 249 / 0.42);
+}
+
 .sci-ship-carousel-item--incoming,
 .sci-ship-carousel-item--outgoing {
-  animation-duration: 500ms;
+  animation-duration: 540ms;
   animation-fill-mode: both;
-  animation-timing-function: cubic-bezier(0.2, 0.76, 0.2, 1);
+  animation-timing-function: cubic-bezier(0.18, 0.74, 0.18, 1);
 }
 
 .sci-ship-carousel-item--outgoing {
   z-index: 3;
+  pointer-events: none;
+}
+
+.sci-ship-carousel-item--incoming {
+  z-index: 4;
   pointer-events: none;
 }
 
@@ -91,13 +114,42 @@
 }
 
 .sci-ship-carousel-stage--dragging .sci-ship-carousel-item--active {
-  transform: translate3d(var(--sci-ship-drag-x, 0), -3%, 0);
+  transform: translate3d(var(--sci-ship-drag-x, 0), -5%, 0) scale(0.96);
   transition: none;
 }
 
 .sci-ship-carousel-control:disabled {
   cursor: default;
   opacity: 0.58;
+}
+
+.sci-weekly-funding-shell {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 14% 0%, rgb(16 185 129 / 0.13), transparent 35%),
+    linear-gradient(180deg, rgb(4 20 39 / 0.92), rgb(2 8 23 / 0.9));
+}
+
+.sci-weekly-funding-shell::before,
+.sci-weekly-funding-shell::after {
+  position: absolute;
+  z-index: 20;
+  top: 0.38rem;
+  width: 2.75rem;
+  height: 0.18rem;
+  content: '';
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(110 231 183 / 0.88));
+  box-shadow: 0 0 0.55rem rgb(16 185 129 / 0.42);
+}
+
+.sci-weekly-funding-shell::before {
+  left: 0.8rem;
+}
+
+.sci-weekly-funding-shell::after {
+  right: 0.8rem;
+  background: linear-gradient(90deg, rgb(103 232 249 / 0.88), transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -110,7 +162,7 @@
   }
 
   .sci-ship-carousel-stage--dragging .sci-ship-carousel-item--active {
-    transform: translate3d(0, -3%, 0);
+    transform: translate3d(0, -3%, 0) scale(1);
   }
 }
 

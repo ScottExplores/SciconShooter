@@ -74,12 +74,13 @@ test('player motion catalog mirrors the four animated production PNG sets in the
 });
 
 test('ship selection loops preloaded PNG frames at 5 FPS and cleans up its timer', () => {
-  const selector = read('components/StartScreen.tsx');
+  const selector = read('components/ShipCarousel.tsx');
+  const startScreen = read('components/StartScreen.tsx');
   const motion = read('services/playerShipMotion.ts');
   const generator = read('tools/build-scicon-flight-motion-pack.py');
 
-  assert.match(selector, /const playerShipOrder: PlayerShipId\[\] = \[\.\.\.PLAYABLE_PLAYER_SHIP_IDS\]/);
-  assert.match(selector, /preloadPlayerShipSelectionFrames\(\)\.then/);
+  assert.match(startScreen, /const playerShipOrder: PlayerShipId\[\] = \[\.\.\.PLAYABLE_PLAYER_SHIP_IDS\]/);
+  assert.match(selector, /preloadPlayerShipCarouselFrames\(\)\.then/);
   assert.match(selector, /window\.setInterval/);
   assert.match(selector, /1000 \/ PLAYER_SHIP_SELECTION_FPS/);
   assert.match(selector, /frameIndex = \(frameIndex \+ 1\) % frames\.length/);
@@ -87,6 +88,8 @@ test('ship selection loops preloaded PNG frames at 5 FPS and cleans up its timer
   assert.match(selector, /data-selection-frame=/);
   assert.doesNotMatch(selector, /previewGif|\.gif/);
   assert.match(motion, /PLAYER_SHIP_SELECTION_FPS = 5/);
+  assert.match(motion, /PLAYER_SHIP_CAROUSEL_FRAME_URLS = \[[\s\S]*PLAYER_SHIP_STEERING_FRAME_URLS[\s\S]*PLAYER_SHIP_SELECTION_FRAME_URLS/);
+  assert.match(motion, /PLAYER_SHIP_CAROUSEL_FRAME_URLS\.map/);
   assert.match(motion, /btc-token-ship\/frames\/btc-token-ship-03-neutral\.png/);
   assert.match(motion, /btc-token-ship-selection-idle\/frames/);
   assert.doesNotMatch(generator, /booster_lock_y|resting_lower/);

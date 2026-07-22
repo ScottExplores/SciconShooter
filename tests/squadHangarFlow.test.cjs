@@ -181,11 +181,13 @@ test('the dashboard centers Home and exposes Hangar immediately to its right', (
 
 test('locked ship and Hangar locks replay their animation on click and hover', () => {
   const startScreen = read('components', 'StartScreen.tsx');
+  const carousel = read('components', 'ShipCarousel.tsx');
   const styles = read('styles', 'tailwind.input.css');
   const html = read('index.html');
 
   assert.match(startScreen, /setShipLockNudgeRevision\(\(revision\) => revision \+ 1\)/);
-  assert.match(startScreen, /onClick=\{\(\) => \{[\s\S]*suppressShipTapRef\.current[\s\S]*requestFocusedShip\(\)/);
+  assert.match(startScreen, /onActivateFocusedShip=\{requestFocusedShip\}/);
+  assert.match(carousel, /onClick=\{\(\) => \{[\s\S]*suppressTapRef\.current[\s\S]*onActivateFocusedShip\(\)/);
   assert.doesNotMatch(startScreen, /disabled=\{Boolean\(walletAddress\) && focusedShipLocked\}/);
   assert.match(startScreen, /data-lock-nudged=\{hangarLocked && connectNudgeActive/);
   assert.match(styles, /data-lock-nudged='true'[\s\S]*?sci-dashboard-nav-lock/);

@@ -702,6 +702,7 @@ const App: React.FC = () => {
   const [stats, setStats] = useState<Stats>(getInitialStats);
   const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
   const [audioMuted, setAudioMuted] = useState(() => audioService.isMuted());
+  const [audioVolumeLevel, setAudioVolumeLevel] = useState(() => audioService.getVolumeLevel());
 
   useEffect(() => {
     const statsToSave = {
@@ -1048,6 +1049,12 @@ const App: React.FC = () => {
 
   const toggleGameAudio = () => {
     setAudioMuted(audioService.toggleMute());
+    setAudioVolumeLevel(audioService.getVolumeLevel());
+  };
+
+  const setGameAudioVolume = (level: number) => {
+    setAudioVolumeLevel(audioService.setVolumeLevel(level));
+    setAudioMuted(audioService.isMuted());
   };
 
   const showWaveVictory = (summary: WaveVictorySummary) => {
@@ -2074,6 +2081,7 @@ const App: React.FC = () => {
       {gameState === GameState.PAUSED && !showTestChampionPreview && (
         <PauseMenu
           audioMuted={audioMuted}
+          audioVolumeLevel={audioVolumeLevel}
           polishSettings={polishSettings}
           onResume={() => {
             setOwnerFrameFrozen(false);
@@ -2081,6 +2089,7 @@ const App: React.FC = () => {
           }}
           onQuit={resetGame}
           onToggleAudio={toggleGameAudio}
+          onAudioVolumeChange={setGameAudioVolume}
           onTogglePolishSetting={togglePolishSetting}
           founderControls={isOwnerWallet && isOwnerTestRun ? (
             <div className="text-left">

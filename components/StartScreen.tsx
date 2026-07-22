@@ -23,15 +23,9 @@ import {
   type PlayerShipId,
   type PlayerShipUnlocks
 } from '../services/playerShipService';
-import {
-  PLAYER_SHIP_MOTION,
-  PLAYER_SHIP_SELECTION_FPS,
-  PLAYER_SHIP_STEERING_FRAME_URLS,
-  type PlayerSteeringState,
-  preloadPlayerShipSelectionFrames
-} from '../services/playerShipMotion';
 import SquadHangar from './SquadHangar';
 import PixelActionButton from './PixelActionButton';
+import ShipCarousel from './ShipCarousel';
 import RewardCenter, { type RewardTab } from './RewardCenter';
 import {
   getClaimableAchievementCount,
@@ -183,95 +177,6 @@ const dashboardTabs: Array<{
 ];
 
 const playerShipOrder: PlayerShipId[] = [...PLAYABLE_PLAYER_SHIP_IDS];
-
-type ShipCarouselDirection = -1 | 1;
-type ShipCarouselTransition = {
-  outgoingId: PlayerShipId;
-  incomingId: PlayerShipId;
-  direction: ShipCarouselDirection;
-  phase: 'hard' | 'bank';
-  revision: number;
-};
-type ShipSwipeGesture = {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  latestX: number;
-  latestY: number;
-  startedAt: number;
-  horizontal: boolean;
-};
-
-const SHIP_CAROUSEL_TRANSITION_MS = 500;
-const SHIP_CAROUSEL_BANK_PHASE_MS = 285;
-const SHIP_SWIPE_MIN_DISTANCE = 42;
-const SHIP_SWIPE_MIN_VELOCITY_DISTANCE = 28;
-const SHIP_SWIPE_MAX_VELOCITY_MS = 420;
-const SHIP_SWIPE_MAX_PREVIEW_PX = 72;
-
-const getShipCarouselSteeringState = (
-  direction: ShipCarouselDirection,
-  phase: 'hard' | 'bank' = 'hard'
-): PlayerSteeringState => {
-  if (direction === 1) return phase === 'hard' ? 'hard-left' : 'bank-left';
-  return phase === 'hard' ? 'hard-right' : 'bank-right';
-};
-
-const PlayerShipSelectionImage = ({
-  shipId,
-  className,
-  steeringState = null
-}: {
-  shipId: PlayerShipId;
-  className: string;
-  steeringState?: PlayerSteeringState | null;
-}) => {
-  const [activeFrame, setActiveFrame] = useState<{ shipId: PlayerShipId | null; index: number }>({
-    shipId: null,
-    index: -1
-  });
-
-  useEffect(() => {
-    let disposed = false;
-    let timer: number | undefined;
-    const frames = PLAYER_SHIP_MOTION[shipId].selectionIdleFrames;
-
-    setActiveFrame({ shipId: null, index: -1 });
-    preloadPlayerShipSelectionFrames().then(() => {
-      if (disposed) return;
-      let frameIndex = 0;
-      setActiveFrame({ shipId, index: frameIndex });
-      timer = window.setInterval(() => {
-        frameIndex = (frameIndex + 1) % frames.length;
-        setActiveFrame({ shipId, index: frameIndex });
-      }, 1000 / PLAYER_SHIP_SELECTION_FPS);
-    });
-
-    return () => {
-      disposed = true;
-      if (timer !== undefined) window.clearInterval(timer);
-    };
-  }, [shipId]);
-
-  const frameReady = activeFrame.shipId === shipId && activeFrame.index >= 0;
-  const src = steeringState
-    ? PLAYER_SHIP_MOTION[shipId].steeringFrames[steeringState]
-    : frameReady
-      ? PLAYER_SHIP_MOTION[shipId].selectionIdleFrames[activeFrame.index]
-      : PLAYER_SHIPS[shipId].assetUrl;
-
-  return (
-    <img
-      src={src}
-      alt=""
-      className={className}
-      draggable={false}
-      data-player-ship={shipId}
-      data-steering-state={steeringState ?? 'idle'}
-      data-selection-frame={frameReady ? activeFrame.index : 'preloading'}
-    />
-  );
-};
 
 const PODIUM_ASSET_ROOT = '/game-art/generated/ui/scicon-ui-system-v2';
 const FIRST_PLACE_ANIMATION_ROOT = `${PODIUM_ASSET_ROOT}/animations/first-place-row-idle/parts`;
@@ -710,20 +615,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [championClaimWinner, setChampionClaimWinner] = useState<ArchivedWinner | null>(null);
   const [testSelectedProposal, setTestSelectedProposal] = useState<ResearchHubProposal | null>(null);
   const [shipFocusId, setShipFocusId] = useState<PlayerShipId>(selectedShipId);
-  const [shipCycleRevision, setShipCycleRevision] = useState(0);
-  const [shipTransition, setShipTransition] = useState<ShipCarouselTransition | null>(null);
-  const [shipDragOffset, setShipDragOffset] = useState(0);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
-    () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-  );
   const [shipLockNudgeRevision, setShipLockNudgeRevision] = useState(0);
   const [connectNudgeActive, setConnectNudgeActive] = useState(false);
   const [weeklyClock, setWeeklyClock] = useState(() => Date.now());
   const [selectedLeaderboardRecord, setSelectedLeaderboardRecord] = useState<LeaderboardEntry | null>(null);
   const [leaderboardRecordStatus, setLeaderboardRecordStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const shipTransitionTimersRef = useRef<number[]>([]);
-  const shipSwipeGestureRef = useRef<ShipSwipeGesture | null>(null);
-  const suppressShipTapRef = useRef(false);
   const proposalReminderShownRef = useRef('');
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
   const weeklyProposalRunId = weeklyProposalRecovery?.record.receipt.runId ?? null;
@@ -850,27 +746,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
   }, [dashboardTab, weeklyClock, weeklyProposalNeedsAttention, weeklyProposalRunId]);
 
   useEffect(() => {
-    PLAYER_SHIP_STEERING_FRAME_URLS.forEach((source) => {
-      const image = new Image();
-      image.decoding = 'async';
-      image.src = source;
-    });
-  }, []);
-
-  useEffect(() => {
-    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    if (!query) return undefined;
-    const syncPreference = () => setPrefersReducedMotion(query.matches);
-    query.addEventListener?.('change', syncPreference);
-    return () => query.removeEventListener?.('change', syncPreference);
-  }, []);
-
-  useEffect(() => () => {
-    shipTransitionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    shipTransitionTimersRef.current = [];
-  }, []);
-
-  useEffect(() => {
     setShipFocusId(selectedShipId);
   }, [selectedShipId]);
 
@@ -889,132 +764,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
     setSelectedLeaderboardRecord(entry);
   };
 
-  const cycleShip = (direction: ShipCarouselDirection) => {
-    if (shipTransition) return;
-    const currentIndex = playerShipOrder.indexOf(shipFocusId);
-    const nextIndex = (currentIndex + direction + playerShipOrder.length) % playerShipOrder.length;
-    const nextShipId = playerShipOrder[nextIndex];
-    const nextRevision = shipCycleRevision + 1;
-
-    if (prefersReducedMotion) {
-      setShipFocusId(nextShipId);
-      setShipCycleRevision(nextRevision);
-      setShipDragOffset(0);
-      if (isPlayerShipUnlocked(nextShipId, shipUnlocks)) onSelectShip(nextShipId);
-      return;
-    }
-
-    shipTransitionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    shipTransitionTimersRef.current = [];
-    setShipTransition({
-      outgoingId: shipFocusId,
-      incomingId: nextShipId,
-      direction,
-      phase: 'hard',
-      revision: nextRevision
-    });
-    setShipFocusId(nextShipId);
-    setShipCycleRevision(nextRevision);
-    setShipDragOffset(0);
-
-    shipTransitionTimersRef.current.push(window.setTimeout(() => {
-      setShipTransition((current) => current?.revision === nextRevision
-        ? { ...current, phase: 'bank' }
-        : current);
-    }, SHIP_CAROUSEL_BANK_PHASE_MS));
-    shipTransitionTimersRef.current.push(window.setTimeout(() => {
-      setShipTransition((current) => current?.revision === nextRevision ? null : current);
-      shipTransitionTimersRef.current = [];
-    }, SHIP_CAROUSEL_TRANSITION_MS));
-
-    if (isPlayerShipUnlocked(nextShipId, shipUnlocks)) {
-      onSelectShip(nextShipId);
-    }
-  };
-
-  const handleShipPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary || shipTransition) return;
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-
-    suppressShipTapRef.current = false;
-    shipSwipeGestureRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      latestX: event.clientX,
-      latestY: event.clientY,
-      startedAt: performance.now(),
-      horizontal: false
-    };
-  };
-
-  const handleShipPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const gesture = shipSwipeGestureRef.current;
-    if (!gesture || gesture.pointerId !== event.pointerId) return;
-
-    gesture.latestX = event.clientX;
-    gesture.latestY = event.clientY;
-    const deltaX = gesture.latestX - gesture.startX;
-    const deltaY = gesture.latestY - gesture.startY;
-    if (!gesture.horizontal && Math.abs(deltaX) >= 8 && Math.abs(deltaX) > Math.abs(deltaY) * 1.15) {
-      gesture.horizontal = true;
-      event.currentTarget.setPointerCapture(event.pointerId);
-    }
-    if (!gesture.horizontal) return;
-
-    event.preventDefault();
-    setShipDragOffset(Math.max(-SHIP_SWIPE_MAX_PREVIEW_PX, Math.min(SHIP_SWIPE_MAX_PREVIEW_PX, deltaX)));
-  };
-
-  const finishShipPointerGesture = (
-    event: React.PointerEvent<HTMLDivElement>,
-    cancelled = false
-  ) => {
-    const gesture = shipSwipeGestureRef.current;
-    if (!gesture || gesture.pointerId !== event.pointerId) return;
-    shipSwipeGestureRef.current = null;
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    const deltaX = gesture.latestX - gesture.startX;
-    const elapsed = performance.now() - gesture.startedAt;
-    const isSwipe = !cancelled
-      && gesture.horizontal
-      && (Math.abs(deltaX) >= SHIP_SWIPE_MIN_DISTANCE
-        || (Math.abs(deltaX) >= SHIP_SWIPE_MIN_VELOCITY_DISTANCE && elapsed <= SHIP_SWIPE_MAX_VELOCITY_MS));
-
-    setShipDragOffset(0);
-    if (!isSwipe) return;
-
-    suppressShipTapRef.current = true;
-    cycleShip(deltaX < 0 ? 1 : -1);
-    window.setTimeout(() => {
-      suppressShipTapRef.current = false;
-    }, 0);
-  };
-
-  const handleShipCarouselKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    event.preventDefault();
-    cycleShip(event.key === 'ArrowLeft' ? -1 : 1);
-  };
   const focusedShip = PLAYER_SHIPS[shipFocusId];
   const focusedShipLocked = !isPlayerShipUnlocked(shipFocusId, shipUnlocks);
-  const shipTransitionDirectionClass = shipTransition?.direction === 1
-    ? 'sci-ship-carousel-item--next'
-    : 'sci-ship-carousel-item--previous';
-  const shipTransitionSteeringState = shipTransition
-    ? getShipCarouselSteeringState(shipTransition.direction, shipTransition.phase)
-    : null;
-  const shipDragSteeringState = prefersReducedMotion || shipDragOffset === 0
-    ? null
-    : getShipCarouselSteeringState(shipDragOffset < 0 ? 1 : -1);
-  const focusedShipUnlockScore = shipFocusId === 'btc'
+  const getShipUnlockScore = (shipId: PlayerShipId) => shipId === 'btc'
     ? BTC_SHIP_SCORE_THRESHOLD
     : ETH_SHIP_SCORE_THRESHOLD;
-  const focusedShipUnlockMessage = `Mint a ${focusedShipUnlockScore.toLocaleString()}+ score NFT to unlock this ship.`;
+  const getShipUnlockMessage = (shipId: PlayerShipId) => (
+    `Mint a ${getShipUnlockScore(shipId).toLocaleString()}+ score NFT to unlock this ship.`
+  );
 
   const requestHangar = () => {
     if (walletAddress) {
@@ -1229,93 +986,29 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div className="sci-ship-orbit" />
           <div className="absolute bottom-2 h-12 w-64 rounded-[50%] border border-cyan-300/24 bg-cyan-300/7 blur-sm" />
           <div className="absolute bottom-7 h-7 w-56 rounded-[50%] border border-emerald-300/28 bg-emerald-300/8" />
-          <div className={`sci-rh-ship sci-ship-carousel ${compact ? 'sci-rh-ship--compact sci-ship-carousel--compact' : ''}`}>
-            <button
-              type="button"
-              onClick={() => cycleShip(-1)}
-              disabled={Boolean(shipTransition)}
-              className="sci-ship-carousel-control sci-ship-carousel-control--left"
-              aria-label="Previous ship"
-            >
-              <Icon name="chevronLeft" className="h-6 w-6" strokeWidth={2.2} />
-            </button>
-
-            <div
-              className={`sci-ship-carousel-stage ${shipDragOffset !== 0 ? 'sci-ship-carousel-stage--dragging' : ''}`}
-              style={{ '--sci-ship-drag-x': `${shipDragOffset}px` } as React.CSSProperties}
-              role="group"
-              aria-live="polite"
-              aria-label="Ship selection. Swipe or use the arrow keys to change ships."
-              onPointerDown={handleShipPointerDown}
-              onPointerMove={handleShipPointerMove}
-              onPointerUp={(event) => finishShipPointerGesture(event)}
-              onPointerCancel={(event) => finishShipPointerGesture(event, true)}
-              onKeyDown={handleShipCarouselKeyDown}
-            >
-              {shipTransition ? (
-                <span
-                  key={`outgoing-${shipTransition.revision}-${shipTransition.outgoingId}`}
-                  className={`sci-ship-carousel-item sci-ship-carousel-item--outgoing ${shipTransitionDirectionClass}`}
-                  aria-hidden="true"
-                >
-                  <span className="sci-rh-ship-core sci-ship-carousel-core">
-                    <PlayerShipSelectionImage
-                      shipId={shipTransition.outgoingId}
-                      steeringState={shipTransitionSteeringState}
-                      className={shipTransition.outgoingId === 'researchhub' ? 'sci-ship-carousel-image--researchhub' : 'sci-ship-carousel-image--pixel'}
-                    />
-                  </span>
-                </span>
-              ) : null}
-              <button
-                type="button"
-                key={`${compact ? 'compact' : 'full'}-${shipCycleRevision}`}
-                className={`sci-ship-carousel-item sci-ship-carousel-item--active ${shipTransition ? `sci-ship-carousel-item--incoming ${shipTransitionDirectionClass}` : ''} ${focusedShipLocked ? 'sci-ship-carousel-item--locked' : ''}`}
-                onClick={() => {
-                  if (suppressShipTapRef.current) {
-                    suppressShipTapRef.current = false;
-                    return;
-                  }
-                  requestFocusedShip();
-                }}
-                aria-label={!walletAddress
-                  ? 'Connect your wallet for ship upgrades'
-                  : focusedShipLocked
-                    ? `${focusedShip.name} locked. ${focusedShipUnlockMessage}`
-                    : `Open ${focusedShip.name} Squad Hangar`}
-              >
-                <span className="sci-rh-ship-core sci-ship-carousel-core">
-                  <PlayerShipSelectionImage
-                    shipId={shipFocusId}
-                    steeringState={shipTransitionSteeringState ?? shipDragSteeringState}
-                    className={shipFocusId === 'researchhub' ? 'sci-ship-carousel-image--researchhub' : 'sci-ship-carousel-image--pixel'}
-                  />
-                </span>
-                {focusedShipLocked ? (
-                  <span
-                    key={`${shipFocusId}-${shipLockNudgeRevision}`}
-                    className={`sci-ship-carousel-lock ${shipLockNudgeRevision > 0 ? 'sci-ship-carousel-lock--nudged' : ''}`}
-                    aria-hidden="true"
-                  >
-                    <Icon name="lock" className="h-7 w-7" strokeWidth={2.2} />
-                  </span>
-                ) : null}
-              </button>
-              {focusedShipLocked ? (
-                <p className="sci-ship-carousel-status">{focusedShipUnlockMessage}</p>
-              ) : null}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => cycleShip(1)}
-              disabled={Boolean(shipTransition)}
-              className="sci-ship-carousel-control sci-ship-carousel-control--right"
-              aria-label="Next ship"
-            >
-              <Icon name="chevronRight" className="h-6 w-6" strokeWidth={2.2} />
-            </button>
-          </div>
+          <ShipCarousel
+            shipIds={playerShipOrder}
+            focusedShipId={shipFocusId}
+            compact={compact}
+            isShipLocked={(shipId) => !isPlayerShipUnlocked(shipId, shipUnlocks)}
+            getLockedMessage={getShipUnlockMessage}
+            getShipAriaLabel={(shipId) => {
+              const ship = PLAYER_SHIPS[shipId];
+              if (!walletAddress) return 'Connect your wallet for ship upgrades';
+              return isPlayerShipUnlocked(shipId, shipUnlocks)
+                ? `Open ${ship.name} Squad Hangar`
+                : `${ship.name} locked. ${getShipUnlockMessage(shipId)}`;
+            }}
+            onFocusShip={setShipFocusId}
+            onSettleShip={(shipId) => {
+              if (isPlayerShipUnlocked(shipId, shipUnlocks)) onSelectShip(shipId);
+            }}
+            onActivateFocusedShip={requestFocusedShip}
+            previousIcon={<Icon name="chevronLeft" className="h-6 w-6" strokeWidth={2.2} />}
+            nextIcon={<Icon name="chevronRight" className="h-6 w-6" strokeWidth={2.2} />}
+            lockIcon={<Icon name="lock" className="h-7 w-7" strokeWidth={2.2} />}
+            lockNudgeRevision={shipLockNudgeRevision}
+          />
         </div>
 
         <div className={`w-full max-w-xl ${compact ? 'space-y-2' : 'space-y-3'}`}>
@@ -1350,7 +1043,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 
   const WeeklyFundingCard = ({ compact = false }: { compact?: boolean } = {}) => (
-    <HudPanel>
+    <HudPanel className="sci-weekly-funding-shell sci-neon-frame-window">
       <div className={compact ? 'p-3' : 'p-4 md:p-5'}>
         <div className={`${compact ? 'mb-2 pb-2' : 'mb-3 pb-3'} grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14`}>
           <div>

@@ -6,6 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 const startScreenSource = fs.readFileSync(path.join(root, 'components', 'StartScreen.tsx'), 'utf8');
+const carouselSource = fs.readFileSync(path.join(root, 'components', 'ShipCarousel.tsx'), 'utf8');
 const runtimeSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 const shipServiceSource = fs.readFileSync(path.join(root, 'services', 'playerShipService.ts'), 'utf8');
 const mintRecordsSource = fs.readFileSync(path.join(root, 'api', 'mint-records.js'), 'utf8');
@@ -75,18 +76,18 @@ test('project wallet bypasses every score-gated ship lock', () => {
 });
 
 test('title screen keeps the updated BTC ship in the playable roster', () => {
-  assert.match(startScreenSource, /aria-label="Previous ship"/);
-  assert.match(startScreenSource, /aria-label="Next ship"/);
+  assert.match(carouselSource, /aria-label="Previous ship"/);
+  assert.match(carouselSource, /aria-label="Next ship"/);
   assert.match(startScreenSource, /PLAYER_SHIPS\[shipFocusId\]/);
-  assert.match(startScreenSource, /sci-ship-carousel-item--locked/);
-  assert.match(startScreenSource, /Mint a \$\{focusedShipUnlockScore\.toLocaleString\(\)\}\+ score NFT to unlock this ship/);
+  assert.match(carouselSource, /sci-ship-carousel-item--locked/);
+  assert.match(startScreenSource, /Mint a \$\{getShipUnlockScore\(shipId\)\.toLocaleString\(\)\}\+ score NFT to unlock this ship/);
   assert.match(startScreenSource, /\[\.\.\.PLAYABLE_PLAYER_SHIP_IDS\]/);
   assert.match(shipServiceSource, /PLAYABLE_PLAYER_SHIP_IDS = \['researchhub', 'bio', 'eth', 'btc'\]/);
-  assert.match(startScreenSource, /isPlayerShipUnlocked\(nextShipId, shipUnlocks\)/);
-  assert.match(startScreenSource, /shipFocusId === 'btc'/);
-  assert.doesNotMatch(startScreenSource, /sci-ship-carousel-item--behind-/);
-  assert.match(startScreenSource, /const nextRevision = shipCycleRevision \+ 1;[\s\S]*setShipCycleRevision\(nextRevision\)/);
-  assert.match(startScreenSource, /shipTransition \? `sci-ship-carousel-item--incoming/);
+  assert.match(startScreenSource, /onSettleShip=\{\(shipId\) => \{[\s\S]*isPlayerShipUnlocked\(shipId, shipUnlocks\)/);
+  assert.match(startScreenSource, /shipId === 'btc'/);
+  assert.doesNotMatch(carouselSource, /sci-ship-carousel-item--behind-/);
+  assert.match(carouselSource, /const nextRevision = revisionRef\.current \+ 1;[\s\S]*revisionRef\.current = nextRevision/);
+  assert.match(carouselSource, /transition \? `sci-ship-carousel-item--incoming/);
   assert.doesNotMatch(indexSource, /\.sci-ship-carousel-item--active \{[^}]*animation:/s);
 });
 

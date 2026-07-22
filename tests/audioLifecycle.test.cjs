@@ -21,7 +21,8 @@ const loadAudioService = () => {
   let oscillatorsCreated = 0;
 
   class FakeAudioParam {
-    setTargetAtTime() {}
+    targetValues = [];
+    setTargetAtTime(value) { this.targetValues.push(value); }
     setValueAtTime() {}
     linearRampToValueAtTime() {}
     exponentialRampToValueAtTime() {}
@@ -94,6 +95,7 @@ const loadAudioService = () => {
   return {
     audioService: context.module.exports.audioService,
     audioContext: context.module.exports.audioService.ctx,
+    masterGainParam: context.module.exports.audioService.masterGain.gain,
     document: context.document,
     listeners,
     intervals,
@@ -102,6 +104,35 @@ const loadAudioService = () => {
     }
   };
 };
+
+test('six-step volume scales the master gain and mute restores the last audible notch', () => {
+  const harness = loadAudioService();
+
+  assert.equal(harness.audioService.getVolumeLevel(), 5);
+  harness.audioService.setVolumeLevel(3);
+  assert.equal(harness.audioService.getVolumeLevel(), 3);
+  assert.ok(Math.abs(harness.masterGainParam.targetValues.at(-1) - 0.18) < 0.00001);
+
+  assert.equal(harness.audioService.toggleMute(), true);
+  assert.equal(harness.audioService.getVolumeLevel(), 0);
+  assert.equal(harness.masterGainParam.targetValues.at(-1), 0);
+
+  assert.equal(harness.audioService.toggleMute(), false);
+  assert.equal(harness.audioService.getVolumeLevel(), 3);
+  assert.ok(Math.abs(harness.masterGainParam.targetValues.at(-1) - 0.18) < 0.00001);
+});
+
+test('the zero volume notch mutes while choosing a nonzero notch resumes at that level', () => {
+  const harness = loadAudioService();
+
+  assert.equal(harness.audioService.setVolumeLevel(0), 0);
+  assert.equal(harness.audioService.isMuted(), true);
+  assert.equal(harness.masterGainParam.targetValues.at(-1), 0);
+
+  assert.equal(harness.audioService.setVolumeLevel(2), 2);
+  assert.equal(harness.audioService.isMuted(), false);
+  assert.ok(Math.abs(harness.masterGainParam.targetValues.at(-1) - 0.12) < 0.00001);
+});
 
 test('mission music opens with one launch cue and one progressive sequencer timer', () => {
   const harness = loadAudioService();

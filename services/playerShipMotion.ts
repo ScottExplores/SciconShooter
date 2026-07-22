@@ -105,6 +105,11 @@ export const PLAYER_SHIP_STEERING_FRAME_URLS = Object.values(PLAYER_SHIP_MOTION)
 export const PLAYER_SHIP_SELECTION_FRAME_URLS = Object.values(PLAYER_SHIP_MOTION)
   .flatMap((motion) => motion.selectionIdleFrames);
 
+export const PLAYER_SHIP_CAROUSEL_FRAME_URLS = [
+  ...PLAYER_SHIP_STEERING_FRAME_URLS,
+  ...PLAYER_SHIP_SELECTION_FRAME_URLS
+] as const;
+
 const playerShipIdByAssetUrl = new Map(
   Object.values(PLAYER_SHIPS).map((ship) => [ship.assetUrl, ship.id] as const)
 );
@@ -140,13 +145,13 @@ export const selectPlayerSteeringState = (
   return 'neutral';
 };
 
-let selectionFramePreload: Promise<void> | null = null;
+let carouselFramePreload: Promise<void> | null = null;
 
-export const preloadPlayerShipSelectionFrames = () => {
-  if (selectionFramePreload) return selectionFramePreload;
+export const preloadPlayerShipCarouselFrames = () => {
+  if (carouselFramePreload) return carouselFramePreload;
   if (typeof Image === 'undefined') return Promise.resolve();
 
-  selectionFramePreload = Promise.all(PLAYER_SHIP_SELECTION_FRAME_URLS.map((url) => (
+  carouselFramePreload = Promise.all(PLAYER_SHIP_CAROUSEL_FRAME_URLS.map((url) => (
     new Promise<void>((resolve) => {
       const image = new Image();
       const finish = () => {
@@ -161,5 +166,10 @@ export const preloadPlayerShipSelectionFrames = () => {
     })
   ))).then(() => undefined);
 
-  return selectionFramePreload;
+  return carouselFramePreload;
 };
+
+// Backward-compatible name for call sites that only need the idle loop. The
+// shared promise deliberately includes steering frames so a first swipe never
+// flashes an unloaded bank pose.
+export const preloadPlayerShipSelectionFrames = preloadPlayerShipCarouselFrames;

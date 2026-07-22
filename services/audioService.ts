@@ -25,6 +25,8 @@ const SAMPLE_PROFILES: Partial<Record<GameSoundType, SampleProfile>> = {
 const MISSION_BPM = 154;
 const MISSION_STEP_MS = (60_000 / MISSION_BPM) / 2;
 const SILENCE_GAIN = 0.0001;
+const MAX_MASTER_GAIN = 0.3;
+const MAX_VOLUME_LEVEL = 5;
 const MISSION_BASS_PATTERN = [
   73.42, 55, 73.42, 65.41,
   73.42, 87.31, 73.42, 77.78,
@@ -42,6 +44,8 @@ const MISSION_RISE_PATTERN = [146.83, 174.61, 196, 220, 261.63, 293.66, 349.23, 
 class AudioService {
   private ctx: AudioContext | null = null;
   private muted: boolean = false;
+  private volumeLevel: number = MAX_VOLUME_LEVEL;
+  private lastNonZeroVolumeLevel: number = MAX_VOLUME_LEVEL;
   private masterGain: GainNode | null = null;
   private musicTimer: number | null = null;
   private musicStep: number = 0;
@@ -63,6 +67,7 @@ class AudioService {
         this.ctx = new AudioContextClass();
         this.masterGain = this.ctx.createGain();
         this.masterGain.connect(this.ctx.destination);
+        this.applyMasterVolume();
         void this.preloadSamples();
       }
     } catch {
@@ -210,8 +215,16 @@ class AudioService {
 
     if (this.muted) return;
     void this.ctx?.resume().catch(() => undefined);
-    this.setMasterVolume(0.3);
+    this.applyMasterVolume();
     this.beginMusicTimer();
+  }
+
+  private getScaledMasterVolume() {
+    return MAX_MASTER_GAIN * (this.volumeLevel / MAX_VOLUME_LEVEL);
+  }
+
+  private applyMasterVolume() {
+    this.setMasterVolume(this.muted || !this.pageActive ? 0 : this.getScaledMasterVolume());
   }
 
   private setMasterVolume(volume: number) {
@@ -225,11 +238,19 @@ class AudioService {
     if (this.pageActive && !this.muted && this.ctx?.state === 'suspended') {
       void this.ctx.resume().catch(() => undefined);
     }
+    this.applyMasterVolume();
   }
 
   public toggleMute() {
-    this.muted = !this.muted;
-    this.setMasterVolume(this.muted || !this.pageActive ? 0 : 0.3);
+    if (this.muted) {
+      this.muted = false;
+      this.volumeLevel = this.lastNonZeroVolumeLevel;
+    } else {
+      if (this.volumeLevel > 0) this.lastNonZeroVolumeLevel = this.volumeLevel;
+      this.muted = true;
+    }
+
+    this.applyMasterVolume();
     if (this.muted) {
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
@@ -244,6 +265,38 @@ class AudioService {
 
   public isMuted() {
     return this.muted;
+  }
+
+  public getVolumeLevel() {
+    return this.muted ? 0 : this.volumeLevel;
+  }
+
+  public setVolumeLevel(level: number) {
+    const nextLevel = Math.max(0, Math.min(MAX_VOLUME_LEVEL, Math.round(level)));
+
+    if (nextLevel === 0) {
+      if (this.volumeLevel > 0) this.lastNonZeroVolumeLevel = this.volumeLevel;
+      this.muted = true;
+      this.applyMasterVolume();
+      this.clearMusicTimer();
+      this.stopActiveMusicNodes();
+      this.stopActiveSampleNodes();
+      this.stopActiveProceduralNodes();
+      return 0;
+    }
+
+    const wasMuted = this.muted;
+    this.volumeLevel = nextLevel;
+    this.lastNonZeroVolumeLevel = nextLevel;
+    this.muted = false;
+    this.applyMasterVolume();
+
+    if (this.pageActive && wasMuted) {
+      this.init();
+      this.beginMusicTimer();
+    }
+
+    return this.volumeLevel;
   }
 
   public startMusic() {
