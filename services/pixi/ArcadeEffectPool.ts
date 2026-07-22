@@ -1,4 +1,5 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { createSoftRadialLight, hideSoftRadialLight, showSoftRadialLight, type SoftRadialLight } from './SoftRadialLight';
 
 export type ArcadeEffectKind =
   | 'burst'
@@ -27,8 +28,7 @@ type PooledEffect = {
   active: boolean;
 };
 
-type PooledLight = {
-  graphic: Graphics;
+type PooledLight = SoftRadialLight & {
   age: number;
   duration: number;
   size: number;
@@ -52,12 +52,9 @@ export class ArcadeEffectPool {
 
   constructor(private readonly layer: Container) {
     for (let index = 0; index < MAX_POOLED_LIGHTS; index++) {
-      const graphic = new Graphics();
-      graphic.eventMode = 'none';
-      graphic.visible = false;
-      graphic.blendMode = 'add';
+      const visual = createSoftRadialLight();
       this.lights.push({
-        graphic,
+        ...visual,
         age: 0,
         duration: 1,
         size: 1,
@@ -65,7 +62,7 @@ export class ArcadeEffectPool {
         intensity: 0,
         active: false
       });
-      this.layer.addChild(graphic);
+      this.layer.addChild(visual.root);
     }
   }
 
@@ -94,7 +91,7 @@ export class ArcadeEffectPool {
     }
     for (let index = this.maxLights; index < this.lights.length; index++) {
       this.lights[index].active = false;
-      this.lights[index].graphic.visible = false;
+      hideSoftRadialLight(this.lights[index]);
     }
   }
 
@@ -182,9 +179,7 @@ export class ArcadeEffectPool {
     light.color = color;
     light.intensity = clamp(intensity, 0, 0.82);
     light.active = true;
-    light.graphic.visible = true;
-    light.graphic.position.set(x, y);
-    light.graphic.scale.set(1);
+    light.root.position.set(x, y);
     this.drawLight(light, 0);
   }
 
@@ -270,10 +265,16 @@ export class ArcadeEffectPool {
     const fade = 1 - progress;
     const radius = light.size * (0.58 + progress * 0.42);
     const alpha = light.intensity * fade * fade;
-    light.graphic.clear();
-    light.graphic.circle(0, 0, radius).fill({ color: light.color, alpha: alpha * 0.08 });
-    light.graphic.circle(0, 0, radius * 0.56).fill({ color: light.color, alpha: alpha * 0.13 });
-    light.graphic.circle(0, 0, radius * 0.22).fill({ color: '#ffffff', alpha: alpha * 0.2 });
+    showSoftRadialLight(
+      light,
+      light.root.x,
+      light.root.y,
+      radius,
+      radius * (0.82 + progress * 0.08),
+      light.color,
+      alpha,
+      0.5 * fade
+    );
   }
 
   private spawnSpriteExplosion(x: number, y: number, size: number, duration: number) {
@@ -401,7 +402,7 @@ export class ArcadeEffectPool {
       this.drawLight(light, progress);
       if (progress >= 1) {
         light.active = false;
-        light.graphic.visible = false;
+        hideSoftRadialLight(light);
       }
     }
   }
@@ -410,7 +411,7 @@ export class ArcadeEffectPool {
     this.effects.length = 0;
     for (let index = 0; index < this.lights.length; index++) {
       this.lights[index].active = false;
-      this.lights[index].graphic.visible = false;
+      hideSoftRadialLight(this.lights[index]);
     }
     this.lights.length = 0;
   }

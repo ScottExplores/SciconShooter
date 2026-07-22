@@ -8,13 +8,17 @@ const renderer = fs.readFileSync(
   path.join(root, 'services/pixi/PixiGameRenderer.ts'),
   'utf8'
 );
+const softLight = fs.readFileSync(
+  path.join(root, 'services/pixi/SoftRadialLight.ts'),
+  'utf8'
+);
 
 const sliceMethod = (start, end) => renderer.slice(
   renderer.indexOf(start),
   renderer.indexOf(end)
 );
 
-test('combat lights are fixed pooled display objects with one player muzzle halo', () => {
+test('combat lights are fixed pooled soft gradients with one player muzzle halo', () => {
   const lighting = sliceMethod(
     'private syncCombatLighting(engine: GameEngine)',
     'private syncDamageRecoil'
@@ -24,15 +28,24 @@ test('combat lights are fixed pooled display objects with one player muzzle halo
     'private syncGunPods'
   );
 
-  assert.match(renderer, /private readonly playerMuzzleLight = new Graphics\(\)/);
-  assert.match(renderer, /private readonly combatLightNodes = Array\.from\(\{ length: COMBAT_LIGHT_POOL_SIZE \}, \(\) => new Graphics\(\)\)/);
-  assert.match(renderer, /this\.playerMuzzleLight\.blendMode = 'add'/);
-  assert.match(renderer, /this\.combatScreenTint\.blendMode = 'add'/);
+  assert.match(renderer, /private readonly playerMuzzleLight = createSoftRadialLight\(\)/);
+  assert.match(renderer, /private readonly combatLightNodes = Array\.from\([\s\S]*?\(\) => createSoftRadialLight\(\)/);
+  assert.match(softLight, /halo\.blendMode = 'add'/);
+  assert.match(softLight, /reflection\.blendMode = 'add'/);
+  assert.match(softLight, /context\.createRadialGradient\(/);
+  assert.ok(
+    (softLight.match(/gradient\.addColorStop\(/g) || []).length >= 6,
+    'the shared texture has a smooth authored falloff'
+  );
+  assert.match(softLight, /const texture = getSoftRadialTexture\(\)/);
+  assert.match(softLight, /const reflection = new Sprite\(texture\)/);
   assert.match(lighting, /engine\.frameCount - engine\.lastShotFrame/);
-  assert.match(lighting, /this\.playerMuzzleLight\.visible = muzzleActive/);
+  assert.match(lighting, /showSoftRadialLight\([\s\S]*?this\.playerMuzzleLight/);
+  assert.match(renderer, /this\.layers\.foreground\.addChild\(this\.combatLightRoot\)/);
   assert.doesNotMatch(entitySync, /spawn\('muzzle'/);
   assert.doesNotMatch(lighting, /new (?:Sprite|Container|Graphics|ColorMatrixFilter)/);
   assert.doesNotMatch(lighting, /BlurFilter|blur/);
+  assert.doesNotMatch(softLight, /BlurFilter|\.circle\(|\.ellipse\(/);
 
   const syncStart = renderer.indexOf('sync(engine: GameEngine');
   const syncEnd = renderer.indexOf('\n  destroy()', syncStart);
@@ -49,16 +62,19 @@ test('combat lighting stays restrained under mobile, performance, and reduced-ef
     'private syncDamageRecoil'
   );
 
-  assert.match(renderer, /const COMBAT_SCREEN_TINT_ALPHA_CAP = 0\.08/);
   assert.match(lighting, /this\.reducedMotion/);
   assert.match(lighting, /engine\.performanceMode/);
   assert.match(lighting, /!engine\.polishSettings\.highDensityParticles/);
   assert.match(lighting, /engine\.mobileProfile \? 2 : 3/);
   assert.match(lighting, /engine\.mobileProfile \? 4 : COMBAT_LIGHT_POOL_SIZE/);
-  assert.match(lighting, /clamp\(screenAlpha, 0, tintCap\)/);
+  assert.match(lighting, /const projectileLightBudget = reducedEffects \? 0 : engine\.mobileProfile \? 1 : 2/);
+  assert.match(lighting, /let index = engine\.entities\.length - 1;/);
+  assert.match(lighting, /projectileLights < projectileLightBudget;[\s\S]*?index--/);
   assert.match(lighting, /entity\.isBeam/);
   assert.match(lighting, /entity\.isCharging/);
   assert.match(lighting, /Boolean\(entity\.shipAbilityKind\)/);
+  assert.doesNotMatch(renderer, /combatScreenTint|COMBAT_SCREEN_TINT/);
+  assert.doesNotMatch(lighting, /width = this\.width|height = this\.height/);
 });
 
 test('boss and mini-boss recoil follows damage timestamps without moving simulation geometry', () => {

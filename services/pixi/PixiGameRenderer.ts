@@ -38,6 +38,11 @@ import {
   type PixiEnvironmentWindow
 } from './PixiEnvironment';
 import { PixiTextureBank } from './PixiTextureBank';
+import {
+  createSoftRadialLight,
+  hideSoftRadialLight,
+  showSoftRadialLight
+} from './SoftRadialLight';
 
 type SceneLayerName =
   | 'background'
@@ -233,7 +238,6 @@ WHITE_HIT_FILTER.matrix = [
 const WHITE_HIT_FILTERS = [WHITE_HIT_FILTER];
 
 const COMBAT_LIGHT_POOL_SIZE = 8;
-const COMBAT_SCREEN_TINT_ALPHA_CAP = 0.08;
 const COMBAT_LIGHT_PLAYER_COLOR = 0x67e8f9;
 const COMBAT_LIGHT_SPECIAL_COLOR = 0xa7f3d0;
 const COMBAT_LIGHT_BOSS_COLOR = 0xfb7185;
@@ -626,9 +630,11 @@ export class PixiGameRenderer {
   private readonly scanlines = new Graphics();
   private readonly maxShotScreenGlow = new Graphics();
   private readonly combatLightRoot = new Container();
-  private readonly playerMuzzleLight = new Graphics();
-  private readonly combatLightNodes = Array.from({ length: COMBAT_LIGHT_POOL_SIZE }, () => new Graphics());
-  private readonly combatScreenTint = new Sprite(Texture.WHITE);
+  private readonly playerMuzzleLight = createSoftRadialLight();
+  private readonly combatLightNodes = Array.from(
+    { length: COMBAT_LIGHT_POOL_SIZE },
+    () => createSoftRadialLight()
+  );
   private readonly effectPool = new ArcadeEffectPool(this.layers.effects);
   private readonly maxShotAura = new Sprite(Texture.WHITE);
   private readonly stageLaunchStreak = new Graphics();
@@ -735,26 +741,13 @@ export class PixiGameRenderer {
 
     this.combatLightRoot.eventMode = 'none';
     this.combatLightRoot.visible = false;
-    this.playerMuzzleLight.eventMode = 'none';
-    this.playerMuzzleLight.visible = false;
-    this.playerMuzzleLight.blendMode = 'add';
-    this.playerMuzzleLight.circle(0, 0, 1).fill({ color: '#67e8f9', alpha: 0.2 });
-    this.playerMuzzleLight.circle(0, 0, 0.46).fill({ color: '#ffffff', alpha: 0.42 });
-    this.combatLightRoot.addChild(this.playerMuzzleLight);
+    this.combatLightRoot.addChild(this.playerMuzzleLight.root);
     for (const light of this.combatLightNodes) {
-      light.eventMode = 'none';
-      light.visible = false;
-      light.blendMode = 'add';
-      light.circle(0, 0, 1).fill({ color: '#ffffff', alpha: 0.12 });
-      light.circle(0, 0, 0.42).fill({ color: '#ffffff', alpha: 0.22 });
-      this.combatLightRoot.addChild(light);
+      this.combatLightRoot.addChild(light.root);
     }
+    // Foreground placement lets each local gradient subtly illuminate every
+    // world sprite beneath it while leaving HUD readability untouched.
     this.layers.foreground.addChild(this.combatLightRoot);
-
-    this.combatScreenTint.eventMode = 'none';
-    this.combatScreenTint.visible = false;
-    this.combatScreenTint.blendMode = 'add';
-    this.combatScreenTint.alpha = 0;
 
     this.stageLaunchStreak.eventMode = 'none';
     this.stageLaunchStreak.visible = false;
@@ -857,7 +850,6 @@ export class PixiGameRenderer {
     );
 
     this.layers.overlay.addChild(
-      this.combatScreenTint,
       this.maxShotScreenGlow,
       this.bossHealthRoot,
       this.waveIntroRoot,
@@ -873,7 +865,6 @@ export class PixiGameRenderer {
     this.warningFrame.visible = false;
     this.phaseText.visible = false;
     this.flashOverlay.visible = false;
-    this.combatScreenTint.visible = false;
     this.maxShotScreenGlow.visible = false;
 
     await this.environment.init(this.width, this.height, environmentWindow);
@@ -915,9 +906,6 @@ export class PixiGameRenderer {
     if (this.app.renderer) this.app.renderer.resize(this.width, this.height);
 
     this.flashOverlay.clear().rect(0, 0, this.width, this.height).fill({ color: '#f87171', alpha: 1 });
-    this.combatScreenTint.position.set(0, 0);
-    this.combatScreenTint.width = this.width;
-    this.combatScreenTint.height = this.height;
     this.environment.resize(this.width, this.height);
     this.drawScanlines();
     this.layoutWavePresentation();
@@ -2557,17 +2545,13 @@ export class PixiGameRenderer {
   ) {
     if (index < 0 || index >= this.combatLightNodes.length) return index;
     const light = this.combatLightNodes[index];
-    light.visible = true;
-    light.position.set(x, y);
-    light.scale.set(Math.max(1, radiusX), Math.max(1, radiusY));
-    light.tint = tint;
-    light.alpha = clamp(alpha, 0, 1);
+    showSoftRadialLight(light, x, y, radiusX, radiusY, tint, alpha);
     return index + 1;
   }
 
   private syncCombatLighting(engine: GameEngine) {
     for (let index = 0; index < this.combatLightNodes.length; index++) {
-      this.combatLightNodes[index].visible = false;
+      hideSoftRadialLight(this.combatLightNodes[index]);
     }
 
     const reducedEffects = this.reducedMotion
@@ -2579,26 +2563,24 @@ export class PixiGameRenderer {
     const lightLimit = reducedEffects
       ? engine.mobileProfile ? 2 : 3
       : engine.mobileProfile ? 4 : COMBAT_LIGHT_POOL_SIZE;
-    const tintCap = reducedEffects
-      ? 0.04
-      : engine.mobileProfile ? 0.055 : COMBAT_SCREEN_TINT_ALPHA_CAP;
     const shotAge = engine.frameCount - engine.lastShotFrame;
     const muzzleActive = engine.lives > 0 && shotAge >= 0 && shotAge <= 3;
-    let screenAlpha = 0;
-    let screenTint = COMBAT_LIGHT_PLAYER_COLOR;
     let lightCount = 0;
 
-    this.playerMuzzleLight.visible = muzzleActive;
+    hideSoftRadialLight(this.playerMuzzleLight);
     if (muzzleActive) {
       const fade = 1 - shotAge / 4;
       const radius = Math.max(18, engine.player.width * (0.62 + fade * 0.28));
-      this.playerMuzzleLight.position.set(
+      showSoftRadialLight(
+        this.playerMuzzleLight,
         engine.player.x + engine.player.width / 2,
-        engine.player.y + engine.player.height * 0.12
+        engine.player.y + engine.player.height * 0.12,
+        radius,
+        radius * 0.72,
+        COMBAT_LIGHT_PLAYER_COLOR,
+        fade * intensityScale * 0.82,
+        0.62
       );
-      this.playerMuzzleLight.scale.set(radius, radius * 0.72);
-      this.playerMuzzleLight.alpha = fade * intensityScale;
-      screenAlpha += 0.026 * fade * intensityScale;
     }
 
     const bioBeamActive = engine.isBioBeamFiring();
@@ -2611,9 +2593,8 @@ export class PixiGameRenderer {
         Math.max(24, engine.player.width * 0.72),
         Math.max(22, engine.player.height * 0.36),
         bioBeamActive ? COMBAT_LIGHT_SPECIAL_COLOR : COMBAT_LIGHT_PLAYER_COLOR,
-        0.58 * intensityScale
+        0.42 * intensityScale
       );
-      screenAlpha += 0.012 * intensityScale;
     }
 
     // Boss lights are admitted before projectile accents so mobile caps retain
@@ -2629,10 +2610,8 @@ export class PixiGameRenderer {
           Math.max(34, entity.width * 0.34),
           Math.max(30, entity.height * 0.22),
           COMBAT_LIGHT_BOSS_COLOR,
-          0.34 * intensityScale
+          0.28 * intensityScale
         );
-        screenAlpha += 0.006 * intensityScale;
-        screenTint = COMBAT_LIGHT_BOSS_COLOR;
       }
     }
 
@@ -2655,10 +2634,8 @@ export class PixiGameRenderer {
         radiusX,
         radiusY,
         liveBeam ? COMBAT_LIGHT_BEAM_COLOR : COMBAT_LIGHT_BOSS_COLOR,
-        (entity.isTelegraph ? 0.14 : liveBeam ? 0.38 : 0.26) * intensityScale
+        (entity.isTelegraph ? 0.09 : liveBeam ? 0.3 : 0.19) * intensityScale
       );
-      screenAlpha += (liveBeam ? 0.018 : entity.isTelegraph ? 0.003 : 0.007) * intensityScale;
-      screenTint = liveBeam ? COMBAT_LIGHT_BEAM_COLOR : COMBAT_LIGHT_BOSS_COLOR;
     }
 
     for (let index = 0; index < engine.entities.length && lightCount < lightLimit; index++) {
@@ -2678,15 +2655,44 @@ export class PixiGameRenderer {
         clamp(entity.width * 1.12, 16, 64),
         clamp(entity.height * 0.86, 16, 64),
         COMBAT_LIGHT_SPECIAL_COLOR,
-        0.3 * intensityScale
+        0.23 * intensityScale
       );
-      screenAlpha += 0.004 * intensityScale;
+    }
+
+    // A tiny budget of ordinary player projectiles receives local light on
+    // full-quality profiles. This suggests luminous ammunition without making
+    // fully upgraded fire rates allocate or illuminate every bullet.
+    const projectileLightBudget = reducedEffects ? 0 : engine.mobileProfile ? 1 : 2;
+    let projectileLights = 0;
+    for (
+      let index = engine.entities.length - 1;
+      index >= 0
+        && lightCount < lightLimit
+        && projectileLights < projectileLightBudget;
+      index--
+    ) {
+      const entity = engine.entities[index];
+      if (entity.markedForDeletion || !entity.isPlayerShot || entity.isBeam) continue;
+      if (
+        entity.shipAbilityKind
+        || entity.projectileVisualKind === 'research-charge'
+        || entity.projectileVisualKind === 'bio-genome-lance'
+        || entity.projectileVisualKind === 'eth-prism-volley'
+        || entity.projectileVisualKind === 'btc-hash-burst'
+      ) continue;
+      lightCount = this.configureCombatLight(
+        lightCount,
+        entity.x + entity.width / 2,
+        entity.y + entity.height / 2,
+        clamp(entity.width * 1.7, 10, 28),
+        clamp(entity.height * 1.15, 12, 34),
+        COMBAT_LIGHT_PLAYER_COLOR,
+        0.1 * intensityScale
+      );
+      projectileLights += 1;
     }
 
     this.combatLightRoot.visible = muzzleActive || lightCount > 0;
-    this.combatScreenTint.visible = screenAlpha > 0.001;
-    this.combatScreenTint.tint = screenTint;
-    this.combatScreenTint.alpha = clamp(screenAlpha, 0, tintCap);
   }
 
   private syncDamageRecoil(view: EntityView, entity: Entity, engine: GameEngine) {

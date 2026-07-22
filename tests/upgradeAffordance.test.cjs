@@ -15,7 +15,10 @@ test('pixel action buttons retain live labels over transparent generated present
   ];
 
   assert.match(component, /data-upgrade-ready=\{!disabled && ready \? 'true' : 'false'\}/);
-  assert.match(component, /data-shine=\{!disabled && shine \? 'true' : 'false'\}/);
+  assert.match(component, /data-shine=\{!disabled && \(shine \|\| ready\) \? 'true' : 'false'\}/);
+  assert.match(component, /sci-pixel-action__face[\s\S]*?sci-pixel-action__shine/);
+  assert.match(component, /sci-pixel-action__fixtures/);
+  assert.equal((component.match(/sci-pixel-action__fixture sci-pixel-action__fixture--/g) || []).length, 4);
   assert.match(component, /sci-pixel-action__content/);
   assert.match(component, /aria-hidden="true"/);
   assert.match(startScreen, /<PixelActionButton[\s\S]*?tone="green"[\s\S]*?ready[\s\S]*?shine[\s\S]*?min-h-\[4\.25rem\][\s\S]*?<span>Start Mission<\/span>/);
@@ -46,22 +49,21 @@ test('Hangar readiness follows exact affordability, ownership, equip, and max-le
   assert.ok((hangar.match(/disabled=\{!founderSandbox && state\.coins < activeMini\.purchaseCost\}/g) || []).length >= 2);
 });
 
-test('eligibility aura expands outside the layout, retains an interior glow, and respects reduced motion', () => {
+test('action lighting stays localized to fixtures and the clipped center face', () => {
   const styles = read('styles', 'tailwind.input.css');
-  const pulseStart = styles.indexOf('@keyframes sci-pixel-ready-pulse');
-  const pulseEnd = styles.indexOf('@keyframes sci-pixel-ready-interior');
-  const pulse = styles.slice(pulseStart, pulseEnd);
 
-  assert.match(pulse, /drop-shadow\(7px 0 0/);
-  assert.match(pulse, /color-mix\(in srgb, var\(--sci-pixel-edge\) 0%, transparent\)/);
-  assert.match(pulse, /drop-shadow\(2px 0 0/);
-  assert.doesNotMatch(pulse, /scale\(/);
-  assert.match(styles, /animation: sci-pixel-ready-pulse 1\.75s ease-out infinite/);
-  assert.match(styles, /\.sci-pixel-action\[data-upgrade-ready='true'\]::before \{\s*animation: sci-pixel-ready-interior 1\.75s ease-in-out infinite/);
+  assert.match(styles, /\.sci-pixel-action__face \{[\s\S]*?overflow: hidden;[\s\S]*?contain: paint;/);
+  assert.match(styles, /\.sci-pixel-action\[data-shine='true'\] \.sci-pixel-action__face \.sci-pixel-action__shine/);
+  assert.match(styles, /animation: sci-pixel-shine-sweep 4\.2s ease-in-out infinite/);
+  assert.match(styles, /\.sci-pixel-action\[data-upgrade-ready='true'\] \.sci-pixel-action__fixture \{\s*animation: sci-pixel-fixture-breathe 3\.2s ease-in-out infinite/);
+  assert.match(styles, /\.sci-pixel-action\[data-upgrade-ready='true'\] \.sci-pixel-action__face::before \{\s*animation: sci-pixel-ready-interior 2\.8s ease-in-out infinite/);
+  assert.match(styles, /data-tone='gold'[\s\S]*?sci-pixel-action__fixture--port[\s\S]*?display: none/);
+  assert.match(styles, /nth-child\(4\)[\s\S]*?animation-delay: -2\.4s/);
+  assert.doesNotMatch(styles, /\.sci-pixel-action\[data-upgrade-ready='true'\] \{\s*animation:/);
+  assert.doesNotMatch(styles, /\.sci-pixel-action:focus-visible \{[^}]*filter:/);
   assert.match(styles, /sci-upgrade-ready-frame-pulse 1\.75s ease-out infinite/);
-  assert.match(styles, /animation: sci-pixel-shine-sweep 3\.4s ease-in-out infinite/);
-  assert.match(styles, /skewX\(-22deg\)/);
-  assert.match(styles, /prefers-reduced-motion: reduce[\s\S]*?animation: none/);
+  assert.match(styles, /skewX\(-20deg\)/);
+  assert.match(styles, /prefers-reduced-motion: reduce[\s\S]*?sci-pixel-action__fixture[\s\S]*?animation: none/);
   assert.match(styles, /image-rendering: pixelated/);
   assert.match(styles, /--sci-pixel-mid: #facc15/);
   assert.match(styles, /--sci-pixel-mid: #10d99a/);

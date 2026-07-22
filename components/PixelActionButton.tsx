@@ -33,7 +33,7 @@ const PixelActionButton = React.forwardRef<HTMLButtonElement, PixelActionButtonP
     disabled={disabled}
     data-tone={tone}
     data-upgrade-ready={!disabled && ready ? 'true' : 'false'}
-    data-shine={!disabled && shine ? 'true' : 'false'}
+    data-shine={!disabled && (shine || ready) ? 'true' : 'false'}
     className={`sci-pixel-action ${className}`.trim()}
     {...props}
   >
@@ -47,7 +47,15 @@ const PixelActionButton = React.forwardRef<HTMLButtonElement, PixelActionButtonP
         aria-hidden="true"
       />
     ) : null}
-    <span className="sci-pixel-action__shine" aria-hidden="true" />
+    <span className="sci-pixel-action__face" aria-hidden="true">
+      <span className="sci-pixel-action__shine" />
+    </span>
+    <span className="sci-pixel-action__fixtures" aria-hidden="true">
+      <span className="sci-pixel-action__fixture sci-pixel-action__fixture--port" />
+      <span className="sci-pixel-action__fixture sci-pixel-action__fixture--starboard" />
+      <span className="sci-pixel-action__fixture sci-pixel-action__fixture--top" />
+      <span className="sci-pixel-action__fixture sci-pixel-action__fixture--bottom" />
+    </span>
     <span className="sci-pixel-action__content">{children}</span>
   </button>
 ));

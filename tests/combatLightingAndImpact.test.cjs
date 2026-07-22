@@ -10,6 +10,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'u
 
 const engineSource = read('services/gameLogic.ts');
 const poolSource = read('services/pixi/ArcadeEffectPool.ts');
+const softLightSource = read('services/pixi/SoftRadialLight.ts');
 
 const helperStart = engineSource.indexOf('export const getPrimaryImpactShakeCooldownFrames');
 const helperEnd = engineSource.indexOf('\nconst BASE_COIN_MAGNET_RADIUS', helperStart);
@@ -65,7 +66,9 @@ test('light pulses use a separate preallocated additive pool with mobile quality
   assert.match(poolSource, /const MAX_POOLED_LIGHTS = 12/);
   assert.match(poolSource, /private readonly lights: PooledLight\[\] = \[\]/);
   assert.match(poolSource, /for \(let index = 0; index < MAX_POOLED_LIGHTS; index\+\+\)/);
-  assert.match(poolSource, /graphic\.blendMode = 'add'/);
+  assert.match(poolSource, /const visual = createSoftRadialLight\(\)/);
+  assert.match(softLightSource, /halo\.blendMode = 'add'/);
+  assert.match(softLightSource, /reflection\.blendMode = 'add'/);
   assert.match(poolSource, /this\.maxLights = performanceMode\s*\? \(mobileProfile \? 3 : 6\)\s*:\s*\(mobileProfile \? 5 : MAX_POOLED_LIGHTS\)/);
   assert.match(poolSource, /spawnLightPulse\(/);
 
@@ -79,6 +82,21 @@ test('light pulses use a separate preallocated additive pool with mobile quality
   const updateEnd = poolSource.indexOf('\n  destroy()', updateStart);
   const update = poolSource.slice(updateStart, updateEnd);
   assert.doesNotMatch(update, /new (Graphics|Sprite|Container|Texture)/);
+});
+
+test('pooled light pulses animate transforms without rebuilding gradient geometry per frame', () => {
+  const drawStart = poolSource.indexOf('  private drawLight(');
+  const drawEnd = poolSource.indexOf('\n  private spawnSpriteExplosion(', drawStart);
+  const draw = poolSource.slice(drawStart, drawEnd);
+
+  assert.match(draw, /showSoftRadialLight\(/);
+  assert.match(draw, /radius \* \(0\.82 \+ progress \* 0\.08\)/);
+  assert.doesNotMatch(draw, /\.clear\(\)|\.circle\(|\.ellipse\(|new (Graphics|Sprite|Container|Texture)/);
+  assert.match(softLightSource, /let sharedSoftRadialTexture: Texture \| null = null/);
+  assert.match(softLightSource, /context\.createRadialGradient\(/);
+  assert.match(softLightSource, /sharedSoftRadialTexture = Texture\.from\(canvas\)/);
+  assert.match(softLightSource, /sharedSoftRadialTexture\.source\.scaleMode = 'linear'/);
+  assert.doesNotMatch(softLightSource, /BlurFilter|\.circle\(|\.ellipse\(/);
 });
 
 test('high-value effects emit bounded light while smoke and debris stay normally blended', () => {
@@ -105,6 +123,7 @@ test('adaptive quality retires and cannot reacquire pooled effects above the new
   assert.match(quality, /for \(let index = this\.maxEffects; index < this\.effects\.length; index\+\+\)/);
   assert.match(quality, /this\.effects\[index\]\.root\.visible = false/);
   assert.match(quality, /for \(let index = this\.maxLights; index < this\.lights\.length; index\+\+\)/);
+  assert.match(quality, /hideSoftRadialLight\(this\.lights\[index\]\)/);
 
   const acquireStart = poolSource.indexOf('  private acquire(kind: ArcadeEffectKind)');
   const acquireEnd = poolSource.indexOf('\n  private acquireLight()', acquireStart);
