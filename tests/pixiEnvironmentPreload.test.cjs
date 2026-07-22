@@ -95,15 +95,29 @@ test('wave overrides participate in the same current-and-next preload window', (
 });
 
 test('startup and per-profile URL sets exclude unrelated late-run atlases', () => {
-  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.length, 7);
-  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_SPACE_MASTER'));
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.length, 10);
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_BG_ION_CLOUD'));
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT'));
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'));
+  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'));
   assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_SPACE_PROPS'));
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_DESERT_MASTER'), false);
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_RUN_HELIX_REDLINE_PROPS'), false);
 
+  const openOrbitUrls = getEnvironmentProfileTextureUrls('open-orbit');
+  assert.ok(openOrbitUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'));
+  assert.equal(openOrbitUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'), false);
+
   const helixUrls = getEnvironmentProfileTextureUrls('helix-redline');
   assert.ok(helixUrls.includes('PIXI_SPACE_RUN_HELIX_REDLINE_PROPS'));
+  assert.ok(helixUrls.includes('PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT'));
+  assert.ok(helixUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'));
+  assert.ok(helixUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'));
   assert.equal(helixUrls.includes('PIXI_SPACE_RUN_SHATTERED_VOID_PROPS'), false);
+
+  const groundUrls = getEnvironmentProfileTextureUrls('paywall-siege');
+  assert.equal(groundUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'), false);
+  assert.equal(groundUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'), false);
 
   const windowUrls = getEnvironmentWindowTextureUrls({
     currentBackgroundId: 'helix-redline',
@@ -131,4 +145,6 @@ test('terrain props use one bounded reusable pool while route textures warm asyn
   assert.match(updateSource, /currentWaveId !== this\.campaignWaveId/);
   assert.doesNotMatch(updateSource, /new Sprite\(/);
   assert.doesNotMatch(updateSource, /new Texture\(/);
+  assert.match(environmentSource, /definition\.tilePoolSize \?\? PARALLAX_TILE_POOL_SIZE/);
+  assert.match(environmentSource, /layer\.activeTileCount/);
 });

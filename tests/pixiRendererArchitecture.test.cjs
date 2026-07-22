@@ -55,7 +55,9 @@ test('Pixi presentation keeps ordered gameplay layers and pooled effects', () =>
   assert.match(environment, /class PixiEnvironment/);
   assert.match(environment, /this\.parallaxLayers/);
   assert.match(environment, /const BACKGROUND_PROFILES/);
-  assert.match(environment, /PIXI_TERRAIN_SPACE_MASTER/);
+  assert.match(environment, /PIXI_SPACE_PARALLAX_BG_ION_CLOUD/);
+  assert.match(environment, /PIXI_SPACE_PARALLAX_DEBRIS_BASALT/);
+  assert.match(environment, /DEBRIS_OVERLAY_TILE_POOL_SIZE/);
   assert.match(environment, /private applyProfile/);
   assert.match(environment, /const baseBlurStrength = engine\.performanceMode \? 0 : layer\.softness/);
   assert.match(environment, /layer\.blurFilter\.strengthY = baseBlurStrength \+ takeoffBlurY/);

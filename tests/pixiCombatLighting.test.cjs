@@ -18,7 +18,7 @@ const sliceMethod = (start, end) => renderer.slice(
   renderer.indexOf(end)
 );
 
-test('combat lights are fixed pooled soft gradients with one player muzzle halo', () => {
+test('combat lights are fixed pooled soft gradients with no primary-fire halo', () => {
   const lighting = sliceMethod(
     'private syncCombatLighting(engine: GameEngine)',
     'private syncDamageRecoil'
@@ -28,7 +28,7 @@ test('combat lights are fixed pooled soft gradients with one player muzzle halo'
     'private syncGunPods'
   );
 
-  assert.match(renderer, /private readonly playerMuzzleLight = createSoftRadialLight\(\)/);
+  assert.doesNotMatch(renderer, /playerMuzzleLight/);
   assert.match(renderer, /private readonly combatLightNodes = Array\.from\([\s\S]*?\(\) => createSoftRadialLight\(\)/);
   assert.match(softLight, /halo\.blendMode = 'add'/);
   assert.match(softLight, /reflection\.blendMode = 'add'/);
@@ -39,8 +39,8 @@ test('combat lights are fixed pooled soft gradients with one player muzzle halo'
   );
   assert.match(softLight, /const texture = getSoftRadialTexture\(\)/);
   assert.match(softLight, /const reflection = new Sprite\(texture\)/);
-  assert.match(lighting, /engine\.frameCount - engine\.lastShotFrame/);
-  assert.match(lighting, /showSoftRadialLight\([\s\S]*?this\.playerMuzzleLight/);
+  assert.doesNotMatch(lighting, /engine\.lastShotFrame|muzzleActive|projectileLightBudget|projectileLights/);
+  assert.match(lighting, /Ordinary primary-fire shots deliberately receive no light/);
   assert.match(renderer, /this\.layers\.foreground\.addChild\(this\.combatLightRoot\)/);
   assert.doesNotMatch(entitySync, /spawn\('muzzle'/);
   assert.doesNotMatch(lighting, /new (?:Sprite|Container|Graphics|ColorMatrixFilter)/);
@@ -67,14 +67,32 @@ test('combat lighting stays restrained under mobile, performance, and reduced-ef
   assert.match(lighting, /!engine\.polishSettings\.highDensityParticles/);
   assert.match(lighting, /engine\.mobileProfile \? 2 : 3/);
   assert.match(lighting, /engine\.mobileProfile \? 4 : COMBAT_LIGHT_POOL_SIZE/);
-  assert.match(lighting, /const projectileLightBudget = reducedEffects \? 0 : engine\.mobileProfile \? 1 : 2/);
-  assert.match(lighting, /let index = engine\.entities\.length - 1;/);
-  assert.match(lighting, /projectileLights < projectileLightBudget;[\s\S]*?index--/);
+  assert.match(lighting, /const coinLightBudget = reducedEffects \? 1 : engine\.mobileProfile \? 2 : 3/);
+  assert.match(lighting, /coinLights < coinLightBudget/);
   assert.match(lighting, /entity\.isBeam/);
   assert.match(lighting, /entity\.isCharging/);
   assert.match(lighting, /Boolean\(entity\.shipAbilityKind\)/);
   assert.doesNotMatch(renderer, /combatScreenTint|COMBAT_SCREEN_TINT/);
   assert.doesNotMatch(lighting, /width = this\.width|height = this\.height/);
+});
+
+test('coins and Research Charge own restrained persistent lights without per-frame allocations', () => {
+  const lighting = sliceMethod(
+    'private syncCombatLighting(engine: GameEngine)',
+    'private syncDamageRecoil'
+  );
+
+  const researchIndex = lighting.indexOf("entity.projectileVisualKind === 'research-charge'");
+  const bossIndex = lighting.indexOf('entity.type === EntityType.BOSS && entity.isCharging');
+  assert.ok(researchIndex >= 0 && researchIndex < bossIndex, 'Research Charge is admitted before capped boss accents');
+  assert.match(lighting, /entity\.type === EntityType\.EFFECT[\s\S]*?RESEARCH_IMPACT_FRAME_URLS\[0\]/);
+  assert.match(lighting, /const slowPulse = 0\.94 \+ Math\.sin/);
+  assert.match(lighting, /COMBAT_LIGHT_SPECIAL_COLOR/);
+  assert.match(lighting, /entity\.type !== EntityType\.COIN/);
+  assert.match(lighting, /entity\.coinBurstFrames > 0/);
+  assert.match(lighting, /COMBAT_LIGHT_COIN_COLOR/);
+  assert.match(lighting, /this\.combatLightRoot\.visible = lightCount > 0/);
+  assert.doesNotMatch(lighting, /new (?:Sprite|Container|Graphics|ColorMatrixFilter)|\.map\(|\.filter\(|\.slice\(/);
 });
 
 test('boss and mini-boss recoil follows damage timestamps without moving simulation geometry', () => {

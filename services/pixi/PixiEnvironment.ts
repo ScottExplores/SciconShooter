@@ -20,6 +20,8 @@ type ParallaxLayer = {
   blurFilter: BlurFilter;
   filterActive: boolean;
   scrollDirection: 'up' | 'down';
+  coverViewport: boolean;
+  activeTileCount: number;
 };
 
 type ParallaxDefinition = {
@@ -33,6 +35,8 @@ type ParallaxDefinition = {
   startOffsetRatio?: number;
   softness?: number;
   scrollDirection?: 'up' | 'down';
+  coverViewport?: boolean;
+  tilePoolSize?: number;
 };
 
 type TerrainFamily = 'space' | 'desert' | 'river';
@@ -105,6 +109,7 @@ type ScienceGlyph = {
 const DEFAULT_BACKGROUND_ID = 'open-orbit';
 const TERRAIN_PROP_CELL_SIZE = 256;
 export const PARALLAX_TILE_POOL_SIZE = 8;
+export const DEBRIS_OVERLAY_TILE_POOL_SIZE = 2;
 export const GROUND_PROP_CONTACT_ANCHOR_Y = 238 / TERRAIN_PROP_CELL_SIZE;
 export const MOBILE_HYPERSPEED_STREAK_CAP = 24;
 export const DESKTOP_HYPERSPEED_STREAK_CAP = 38;
@@ -255,14 +260,14 @@ export const CAMPAIGN_ENVIRONMENT_ROUTE = [
 ] as const;
 
 export const SPACE_PARALLAX_DEPTH_SPEEDS = Object.freeze({
-  'open-orbit': Object.freeze([0.002, 0.008, 0.022, 0.075, 0.18]),
-  'citation-storm': Object.freeze([0.0022, 0.009, 0.026, 0.085, 0.205]),
-  'bastion-protocol': Object.freeze([0.0024, 0.01, 0.03, 0.095, 0.23]),
-  'helix-redline': Object.freeze([0.0021, 0.009, 0.024, 0.082, 0.2]),
-  'shattered-void': Object.freeze([0.0018, 0.0075, 0.021, 0.072, 0.175]),
-  'gravity-rift': Object.freeze([0.0023, 0.0095, 0.028, 0.09, 0.22]),
-  'ion-eclipse': Object.freeze([0.002, 0.0085, 0.025, 0.086, 0.21]),
-  'terminus-frontier': Object.freeze([0.0025, 0.0105, 0.032, 0.105, 0.25])
+  'open-orbit': Object.freeze([0.002, 0.008, 0.022, 0.052, 0.082, 0.13, 0.18]),
+  'citation-storm': Object.freeze([0.0022, 0.009, 0.026, 0.058, 0.09, 0.145, 0.205]),
+  'bastion-protocol': Object.freeze([0.0024, 0.01, 0.03, 0.064, 0.098, 0.16, 0.23]),
+  'helix-redline': Object.freeze([0.0021, 0.009, 0.024, 0.056, 0.086, 0.14, 0.2]),
+  'shattered-void': Object.freeze([0.0018, 0.0075, 0.021, 0.048, 0.076, 0.12, 0.175]),
+  'gravity-rift': Object.freeze([0.0023, 0.0095, 0.028, 0.061, 0.094, 0.15, 0.22]),
+  'ion-eclipse': Object.freeze([0.002, 0.0085, 0.025, 0.057, 0.09, 0.145, 0.21]),
+  'terminus-frontier': Object.freeze([0.0025, 0.0105, 0.032, 0.068, 0.105, 0.17, 0.25])
 } as const);
 
 type SpaceParallaxProfileId = keyof typeof SPACE_PARALLAX_DEPTH_SPEEDS;
@@ -270,16 +275,19 @@ type SpaceParallaxProfileId = keyof typeof SPACE_PARALLAX_DEPTH_SPEEDS;
 const createSpaceLayers = (
   profileId: SpaceParallaxProfileId,
   startOffsetRatio: number,
-  phaseOffset = 0
+  phaseOffset = 0,
+  backplateUrl = ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
+  debrisUrls: readonly string[] = [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
 ): readonly ParallaxDefinition[] => {
   const speeds = SPACE_PARALLAX_DEPTH_SPEEDS[profileId];
-  return [
+  const layers: ParallaxDefinition[] = [
     {
-      url: ASSETS.PIXI_TERRAIN_SPACE_MASTER,
+      url: backplateUrl,
       speed: speeds[0],
       alpha: 1,
       loop: false,
       startOffsetRatio,
+      coverViewport: true,
       scrollDirection: 'down'
     },
     {
@@ -304,23 +312,38 @@ const createSpaceLayers = (
     {
       url: ASSETS.GAME_BG_STARS,
       speed: speeds[3],
-      alpha: 0.1,
+      alpha: 0.075,
       widthScale: 1.06,
       xDrift: 1.2,
       phase: 2.2 + phaseOffset,
       softness: 0.2,
       scrollDirection: 'down'
     },
-    {
-      url: ASSETS.GAME_PARALLAX_STARS,
-      speed: speeds[4],
-      alpha: 0.17,
-      widthScale: 1.08,
-      xDrift: 2.2,
-      phase: 0.8 + phaseOffset,
-      scrollDirection: 'down'
-    }
   ];
+  debrisUrls.slice(0, 2).forEach((url, index) => {
+    layers.push({
+      url,
+      speed: speeds[4 + index],
+      alpha: index === 0 ? 0.5 : 0.34,
+      widthScale: index === 0 ? 1.04 : 1.1,
+      xDrift: index === 0 ? 1.6 : 2.4,
+      phase: 0.8 + phaseOffset + index * 1.9,
+      softness: index === 0 ? 0.14 : 0.26,
+      coverViewport: true,
+      tilePoolSize: DEBRIS_OVERLAY_TILE_POOL_SIZE,
+      scrollDirection: 'down'
+    });
+  });
+  layers.push({
+    url: ASSETS.GAME_PARALLAX_STARS,
+    speed: speeds[6],
+    alpha: 0.15,
+    widthScale: 1.08,
+    xDrift: 2.2,
+    phase: 5.4 + phaseOffset,
+    scrollDirection: 'down'
+  });
+  return layers;
 };
 
 const BACKGROUND_PROFILES = {
@@ -329,7 +352,13 @@ const BACKGROUND_PROFILES = {
     accent: '#67e8f9',
     family: 0,
     colorGradeAlpha: 0.085,
-    layers: createSpaceLayers('open-orbit', 0.02),
+    layers: createSpaceLayers(
+      'open-orbit',
+      0.02,
+      0,
+      ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
+      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
+    ),
     horizonAlpha: 0.11,
     planetTint: '#d8f7ff',
     starSpeedMultiplier: 0.55,
@@ -344,7 +373,13 @@ const BACKGROUND_PROFILES = {
     accent: '#c4b5fd',
     family: 1,
     colorGradeAlpha: 0.1,
-    layers: createSpaceLayers('citation-storm', 0.34, 0.8),
+    layers: createSpaceLayers(
+      'citation-storm',
+      0.34,
+      0.8,
+      ASSETS.PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT,
+      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
+    ),
     horizonAlpha: 0.13,
     planetTint: '#ddd6fe',
     starSpeedMultiplier: 0.72,
@@ -396,7 +431,13 @@ const BACKGROUND_PROFILES = {
     accent: '#f9a8d4',
     family: 1,
     colorGradeAlpha: 0.075,
-    layers: createSpaceLayers('bastion-protocol', 0.68, 1.6),
+    layers: createSpaceLayers(
+      'bastion-protocol',
+      0.68,
+      1.6,
+      ASSETS.PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA,
+      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
+    ),
     horizonAlpha: 0.14,
     planetTint: '#fbcfe8',
     starSpeedMultiplier: 0.78,
@@ -408,35 +449,60 @@ const BACKGROUND_PROFILES = {
   },
   'helix-redline': {
     tint: '#4c1d95', accent: '#f472b6', family: 1, colorGradeAlpha: 0.09,
-    layers: createSpaceLayers('helix-redline', 0.12, 2.2),
+    layers: createSpaceLayers(
+      'helix-redline', 0.12, 2.2,
+      ASSETS.PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT,
+      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
+    ),
     horizonAlpha: 0.14, planetTint: '#f0abfc', starSpeedMultiplier: 0.66,
     terrain: 'space', propSet: 'helix-redline', propAlpha: 0.92, propCount: 9, glyphAlpha: 0
   },
   'shattered-void': {
     tint: '#1e1b4b', accent: '#a5b4fc', family: 1, colorGradeAlpha: 0.1,
-    layers: createSpaceLayers('shattered-void', 0.25, 2.9),
+    layers: createSpaceLayers(
+      'shattered-void', 0.25, 2.9,
+      ASSETS.PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA,
+      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
+    ),
     horizonAlpha: 0.1, planetTint: '#c7d2fe', starSpeedMultiplier: 0.58,
     terrain: 'space', propSet: 'shattered-void', propAlpha: 0.88, propCount: 9, glyphAlpha: 0
   },
   'gravity-rift': {
     tint: '#134e4a', accent: '#5eead4', family: 0, colorGradeAlpha: 0.09,
-    layers: createSpaceLayers('gravity-rift', 0.39, 3.6),
+    layers: createSpaceLayers(
+      'gravity-rift', 0.39, 3.6,
+      ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
+      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
+    ),
     horizonAlpha: 0.16, planetTint: '#99f6e4', starSpeedMultiplier: 0.7,
     terrain: 'space', propSet: 'gravity-rift', propAlpha: 0.9, propCount: 9, glyphAlpha: 0
   },
   'ion-eclipse': {
     tint: '#1e3a8a', accent: '#67e8f9', family: 3, colorGradeAlpha: 0.1,
-    layers: createSpaceLayers('ion-eclipse', 0.52, 4.3),
+    layers: createSpaceLayers(
+      'ion-eclipse', 0.52, 4.3,
+      ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
+      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
+    ),
     horizonAlpha: 0.15, planetTint: '#bae6fd', starSpeedMultiplier: 0.68,
     terrain: 'space', propSet: 'ion-eclipse', propAlpha: 0.92, propCount: 9, glyphAlpha: 0
   },
   'terminus-frontier': {
     tint: '#78350f', accent: '#fbbf24', family: 2, colorGradeAlpha: 0.08,
-    layers: createSpaceLayers('terminus-frontier', 0.71, 5),
+    layers: createSpaceLayers(
+      'terminus-frontier', 0.71, 5,
+      ASSETS.PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA,
+      [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
+    ),
     horizonAlpha: 0.12, planetTint: '#fde68a', starSpeedMultiplier: 0.76,
     terrain: 'space', propSet: 'terminus-frontier', propAlpha: 0.94, propCount: 9, glyphAlpha: 0
   }
 } as const satisfies Record<string, EnvironmentProfile>;
+
+const ALL_BACKGROUND_PROFILES: readonly EnvironmentProfile[] = Object.values(BACKGROUND_PROFILES);
+export const MAX_PARALLAX_LAYER_POOL_SIZE = Math.max(
+  ...ALL_BACKGROUND_PROFILES.map((profile) => profile.layers.length)
+);
 
 export type PixiEnvironmentWindow = Readonly<{
   currentBackgroundId: string;
@@ -565,14 +631,22 @@ export class PixiEnvironment {
   private build() {
     this.built = true;
     this.backgroundLayer.addChild(this.backgroundFill);
-    const defaultLayers: readonly ParallaxDefinition[] = BACKGROUND_PROFILES[DEFAULT_BACKGROUND_ID].layers;
-    for (const definition of defaultLayers) {
+    for (let layerIndex = 0; layerIndex < MAX_PARALLAX_LAYER_POOL_SIZE; layerIndex++) {
+      const definition = ALL_BACKGROUND_PROFILES
+        .map((profile) => profile.layers[layerIndex])
+        .find((candidate): candidate is ParallaxDefinition => Boolean(candidate));
+      if (!definition) continue;
       const root = new Container();
       const blurFilter = new BlurFilter({ strength: definition.softness ?? 0, quality: 1, kernelSize: 5 });
       root.eventMode = 'none';
       root.filters = definition.softness ? [blurFilter] : null;
       const sprites: Sprite[] = [];
-      for (let tileIndex = 0; tileIndex < PARALLAX_TILE_POOL_SIZE; tileIndex++) {
+      const allocatedTileCount = Math.max(
+        ...ALL_BACKGROUND_PROFILES.map((profile) => (
+          profile.layers[layerIndex]?.tilePoolSize ?? PARALLAX_TILE_POOL_SIZE
+        ))
+      );
+      for (let tileIndex = 0; tileIndex < allocatedTileCount; tileIndex++) {
         const sprite = new Sprite(Texture.WHITE);
         sprite.alpha = definition.alpha;
         sprite.eventMode = 'none';
@@ -594,7 +668,9 @@ export class PixiEnvironment {
         softness: definition.softness ?? 0,
         blurFilter,
         filterActive: Boolean(definition.softness),
-        scrollDirection: definition.scrollDirection ?? 'down'
+        scrollDirection: definition.scrollDirection ?? 'down',
+        coverViewport: definition.coverViewport ?? false,
+        activeTileCount: Math.min(allocatedTileCount, definition.tilePoolSize ?? PARALLAX_TILE_POOL_SIZE)
       });
       this.backgroundLayer.addChild(root);
     }
@@ -839,10 +915,16 @@ export class PixiEnvironment {
       layer.filterActive = layer.softness > 0;
       layer.root.filters = layer.filterActive ? [layer.blurFilter] : null;
       layer.scrollDirection = definition.scrollDirection ?? 'down';
+      layer.coverViewport = definition.coverViewport ?? false;
+      layer.activeTileCount = Math.min(
+        layer.sprites.length,
+        definition.tilePoolSize ?? PARALLAX_TILE_POOL_SIZE
+      );
       layer.root.visible = true;
-      for (const sprite of layer.sprites) {
+      for (let tileIndex = 0; tileIndex < layer.sprites.length; tileIndex++) {
+        const sprite = layer.sprites[tileIndex];
         if (texture) sprite.texture = texture;
-        sprite.visible = Boolean(texture);
+        sprite.visible = Boolean(texture) && tileIndex < layer.activeTileCount;
         sprite.alpha = definition.alpha;
       }
       this.layoutParallaxLayer(layer);
@@ -887,8 +969,11 @@ export class PixiEnvironment {
     const texture = this.textures.get(layer.textureKey);
     const sourceWidth = Math.max(1, texture?.width || this.width);
     const sourceHeight = Math.max(1, texture?.height || this.height);
-    const scaledWidth = this.width * layer.widthScale;
-    layer.tileHeight = scaledWidth * (sourceHeight / sourceWidth);
+    const sourceAspect = sourceHeight / sourceWidth;
+    const scaledWidth = layer.coverViewport
+      ? Math.max(this.width * layer.widthScale, this.height / sourceAspect) * 1.04
+      : this.width * layer.widthScale;
+    layer.tileHeight = scaledWidth * sourceAspect;
     for (const sprite of layer.sprites) {
       sprite.width = scaledWidth;
       sprite.height = layer.tileHeight;
@@ -974,6 +1059,10 @@ export class PixiEnvironment {
         const scrollDistance = layer.tileHeight * layer.startOffsetRatio + motionFrame * layer.speed;
         for (let tileIndex = 0; tileIndex < layer.sprites.length; tileIndex++) {
           const sprite = layer.sprites[tileIndex];
+          if (tileIndex >= layer.activeTileCount) {
+            sprite.visible = false;
+            continue;
+          }
           const tileY = getLoopingParallaxTileY(
             tileIndex,
             scrollDistance,
@@ -988,7 +1077,7 @@ export class PixiEnvironment {
         const offset = getNonLoopingParallaxOffset(maxTravel, scrollDistance, layer.scrollDirection);
         for (let tileIndex = 0; tileIndex < layer.sprites.length; tileIndex++) {
           const sprite = layer.sprites[tileIndex];
-          sprite.visible = tileIndex === 0;
+          sprite.visible = tileIndex === 0 && tileIndex < layer.activeTileCount;
           if (tileIndex === 0) sprite.position.set(spriteX, offset);
         }
       }

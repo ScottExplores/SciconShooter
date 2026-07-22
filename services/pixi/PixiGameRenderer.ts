@@ -240,6 +240,7 @@ const WHITE_HIT_FILTERS = [WHITE_HIT_FILTER];
 const COMBAT_LIGHT_POOL_SIZE = 8;
 const COMBAT_LIGHT_PLAYER_COLOR = 0x67e8f9;
 const COMBAT_LIGHT_SPECIAL_COLOR = 0xa7f3d0;
+const COMBAT_LIGHT_COIN_COLOR = 0xfacc15;
 const COMBAT_LIGHT_BOSS_COLOR = 0xfb7185;
 const COMBAT_LIGHT_BEAM_COLOR = 0xf97316;
 const MINI_BOSS_RECOIL_PX = 3.5;
@@ -630,7 +631,6 @@ export class PixiGameRenderer {
   private readonly scanlines = new Graphics();
   private readonly maxShotScreenGlow = new Graphics();
   private readonly combatLightRoot = new Container();
-  private readonly playerMuzzleLight = createSoftRadialLight();
   private readonly combatLightNodes = Array.from(
     { length: COMBAT_LIGHT_POOL_SIZE },
     () => createSoftRadialLight()
@@ -741,7 +741,6 @@ export class PixiGameRenderer {
 
     this.combatLightRoot.eventMode = 'none';
     this.combatLightRoot.visible = false;
-    this.combatLightRoot.addChild(this.playerMuzzleLight.root);
     for (const light of this.combatLightNodes) {
       this.combatLightRoot.addChild(light.root);
     }
@@ -2563,23 +2562,36 @@ export class PixiGameRenderer {
     const lightLimit = reducedEffects
       ? engine.mobileProfile ? 2 : 3
       : engine.mobileProfile ? 4 : COMBAT_LIGHT_POOL_SIZE;
-    const shotAge = engine.frameCount - engine.lastShotFrame;
-    const muzzleActive = engine.lives > 0 && shotAge >= 0 && shotAge <= 3;
     let lightCount = 0;
 
-    hideSoftRadialLight(this.playerMuzzleLight);
-    if (muzzleActive) {
-      const fade = 1 - shotAge / 4;
-      const radius = Math.max(18, engine.player.width * (0.62 + fade * 0.28));
-      showSoftRadialLight(
-        this.playerMuzzleLight,
-        engine.player.x + engine.player.width / 2,
-        engine.player.y + engine.player.height * 0.12,
-        radius,
-        radius * 0.72,
-        COMBAT_LIGHT_PLAYER_COLOR,
-        fade * intensityScale * 0.82,
-        0.62
+    // Research Charge owns the first presentation slots so its slow-moving
+    // projectile and impact stay legible even when the combat-light cap is
+    // reduced. Ordinary primary-fire shots deliberately receive no light.
+    for (let index = 0; index < engine.entities.length && lightCount < lightLimit; index++) {
+      const entity = engine.entities[index];
+      if (entity.markedForDeletion) continue;
+      const researchProjectile = entity.isPlayerShot
+        && entity.projectileVisualKind === 'research-charge';
+      const researchImpact = entity.type === EntityType.EFFECT
+        && entity.spriteFrames?.[0] === RESEARCH_IMPACT_FRAME_URLS[0];
+      if (!researchProjectile && !researchImpact) continue;
+
+      const slowPulse = 0.94 + Math.sin((engine.frameCount + entity.variant * 7) * 0.045) * 0.06;
+      const impactProgress = researchImpact && entity.maxLife > 0
+        ? clamp(1 - entity.life / entity.maxLife, 0, 1)
+        : 0;
+      lightCount = this.configureCombatLight(
+        lightCount,
+        entity.x + entity.width / 2,
+        entity.y + entity.height / 2,
+        researchImpact
+          ? clamp(entity.width * (0.64 + impactProgress * 0.2), 48, 136)
+          : clamp(entity.width * 1.42, 34, 104),
+        researchImpact
+          ? clamp(entity.height * (0.64 + impactProgress * 0.2), 48, 136)
+          : clamp(entity.height * 1.08, 38, 112),
+        COMBAT_LIGHT_SPECIAL_COLOR,
+        (researchImpact ? 0.34 - impactProgress * 0.16 : 0.31 * slowPulse) * intensityScale
       );
     }
 
@@ -2638,12 +2650,49 @@ export class PixiGameRenderer {
       );
     }
 
+    // Coin light is a continuous, slow pulse instead of a pickup-frame flash.
+    // Boss-reward coins are admitted first so a large shower still reads as a
+    // warm luminous cluster without assigning one light to every coin.
+    const coinLightBudget = reducedEffects ? 1 : engine.mobileProfile ? 2 : 3;
+    let coinLights = 0;
+    for (let pass = 0; pass < 2 && lightCount < lightLimit && coinLights < coinLightBudget; pass++) {
+      for (
+        let index = 0;
+        index < engine.entities.length && lightCount < lightLimit && coinLights < coinLightBudget;
+        index++
+      ) {
+        const entity = engine.entities[index];
+        if (entity.markedForDeletion || entity.type !== EntityType.COIN) continue;
+        const bossRewardCoin = entity.coinBurstFrames > 0;
+        if ((pass === 0) !== bossRewardCoin) continue;
+        if (
+          entity.x + entity.width < 0
+          || entity.x > this.width
+          || entity.y + entity.height < 0
+          || entity.y > this.height
+        ) continue;
+
+        const slowPulse = 0.94 + Math.sin((engine.frameCount + entity.variant * 11) * 0.035) * 0.06;
+        const radius = clamp(Math.max(entity.width, entity.height) * (bossRewardCoin ? 1.28 : 1.12), 20, 42);
+        lightCount = this.configureCombatLight(
+          lightCount,
+          entity.x + entity.width / 2,
+          entity.y + entity.height / 2,
+          radius,
+          radius,
+          COMBAT_LIGHT_COIN_COLOR,
+          (bossRewardCoin ? 0.19 : 0.15) * slowPulse * intensityScale
+        );
+        coinLights += 1;
+      }
+    }
+
     for (let index = 0; index < engine.entities.length && lightCount < lightLimit; index++) {
       const entity = engine.entities[index];
       if (entity.markedForDeletion || !entity.isPlayerShot) continue;
+      if (entity.projectileVisualKind === 'research-charge') continue;
       const specialShot = Boolean(entity.shipAbilityKind)
         || entity.isBeam
-        || entity.projectileVisualKind === 'research-charge'
         || entity.projectileVisualKind === 'bio-genome-lance'
         || entity.projectileVisualKind === 'eth-prism-volley'
         || entity.projectileVisualKind === 'btc-hash-burst';
@@ -2659,40 +2708,7 @@ export class PixiGameRenderer {
       );
     }
 
-    // A tiny budget of ordinary player projectiles receives local light on
-    // full-quality profiles. This suggests luminous ammunition without making
-    // fully upgraded fire rates allocate or illuminate every bullet.
-    const projectileLightBudget = reducedEffects ? 0 : engine.mobileProfile ? 1 : 2;
-    let projectileLights = 0;
-    for (
-      let index = engine.entities.length - 1;
-      index >= 0
-        && lightCount < lightLimit
-        && projectileLights < projectileLightBudget;
-      index--
-    ) {
-      const entity = engine.entities[index];
-      if (entity.markedForDeletion || !entity.isPlayerShot || entity.isBeam) continue;
-      if (
-        entity.shipAbilityKind
-        || entity.projectileVisualKind === 'research-charge'
-        || entity.projectileVisualKind === 'bio-genome-lance'
-        || entity.projectileVisualKind === 'eth-prism-volley'
-        || entity.projectileVisualKind === 'btc-hash-burst'
-      ) continue;
-      lightCount = this.configureCombatLight(
-        lightCount,
-        entity.x + entity.width / 2,
-        entity.y + entity.height / 2,
-        clamp(entity.width * 1.7, 10, 28),
-        clamp(entity.height * 1.15, 12, 34),
-        COMBAT_LIGHT_PLAYER_COLOR,
-        0.1 * intensityScale
-      );
-      projectileLights += 1;
-    }
-
-    this.combatLightRoot.visible = muzzleActive || lightCount > 0;
+    this.combatLightRoot.visible = lightCount > 0;
   }
 
   private syncDamageRecoil(view: EntityView, entity: Entity, engine: GameEngine) {

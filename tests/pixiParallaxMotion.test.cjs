@@ -41,8 +41,10 @@ vm.runInNewContext(transpiled, {
 });
 
 const {
+  DEBRIS_OVERLAY_TILE_POOL_SIZE,
   DESKTOP_HYPERSPEED_STREAK_CAP,
   GROUND_PROP_CONTACT_ANCHOR_Y,
+  MAX_PARALLAX_LAYER_POOL_SIZE,
   MOBILE_HYPERSPEED_STREAK_CAP,
   PARALLAX_TILE_POOL_SIZE,
   SPACE_PROP_MOTION_BLUR_CAP,
@@ -90,7 +92,7 @@ test('non-looping ground masters clamp while traveling downward', () => {
   assert.equal(getNonLoopingParallaxOffset(200, 5_000, 'up'), -200);
 });
 
-test('all space profiles use a strict far-to-near speed progression', () => {
+test('all space profiles use a strict seven-step far-to-near speed progression', () => {
   assert.deepEqual(
     Object.keys(SPACE_PARALLAX_DEPTH_SPEEDS),
     [
@@ -105,7 +107,7 @@ test('all space profiles use a strict far-to-near speed progression', () => {
     ]
   );
   for (const [profileId, speeds] of Object.entries(SPACE_PARALLAX_DEPTH_SPEEDS)) {
-    assert.equal(speeds.length, 5, `${profileId} defines all five depth layers`);
+    assert.equal(speeds.length, 7, `${profileId} defines all seven depth steps`);
     for (let index = 1; index < speeds.length; index++) {
       assert.equal(
         speeds[index] > speeds[index - 1],
@@ -115,13 +117,38 @@ test('all space profiles use a strict far-to-near speed progression', () => {
     }
     assert.ok(speeds[0] <= 0.003, `${profileId} deep background remains extremely slow`);
     assert.ok(speeds[2] >= speeds[1] * 2, `${profileId} planets separate from the deep field`);
-    assert.ok(speeds[3] >= speeds[2] * 2.5, `${profileId} broad mid-field travel stays readable`);
-    assert.ok(speeds[4] >= speeds[3] * 2, `${profileId} foreground star/debris field is fastest`);
+    assert.ok(speeds[4] > speeds[3], `${profileId} coherent debris outruns the broad star field`);
+    assert.ok(speeds[5] > speeds[4], `${profileId} second debris depth remains distinct`);
+    assert.ok(speeds[6] > speeds[5], `${profileId} near star field remains fastest`);
   }
+});
+
+test('space debris sheets use two reusable full-viewport tiles and generated route variety', () => {
+  assert.equal(DEBRIS_OVERLAY_TILE_POOL_SIZE, 2);
+  assert.equal(MAX_PARALLAX_LAYER_POOL_SIZE, 7);
+  assert.match(environmentSource, /PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA/);
+  assert.match(environmentSource, /PIXI_SPACE_PARALLAX_BG_ION_CLOUD/);
+  assert.match(environmentSource, /PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT/);
+  assert.match(environmentSource, /PIXI_SPACE_PARALLAX_DEBRIS_BASALT/);
+  assert.match(environmentSource, /PIXI_SPACE_PARALLAX_DEBRIS_RUST/);
+  assert.match(environmentSource, /tilePoolSize: DEBRIS_OVERLAY_TILE_POOL_SIZE/);
+  assert.match(environmentSource, /coverViewport: true/);
+  assert.match(environmentSource, /tileIndex >= layer\.activeTileCount/);
+  assert.match(environmentSource, /Math\.max\(this\.width \* layer\.widthScale, this\.height \/ sourceAspect\) \* 1\.04/);
+
+  const mobileViewportHeight = 844;
+  const coveredTileHeight = mobileViewportHeight * 1.04;
+  const pair = Array.from(
+    { length: DEBRIS_OVERLAY_TILE_POOL_SIZE },
+    (_, index) => getLoopingParallaxTileY(index, 100, coveredTileHeight, 'down')
+  );
+  assert.ok(pair[0] <= 0, 'first debris sheet starts above the viewport');
+  assert.ok(pair[1] + coveredTileHeight >= mobileViewportHeight, 'the pooled pair covers a tall viewport');
 });
 
 test('ground anchors and hyperspeed effects stay within explicit performance budgets', () => {
   assert.equal(PARALLAX_TILE_POOL_SIZE, 8);
+  assert.equal(DEBRIS_OVERLAY_TILE_POOL_SIZE, 2);
   assert.equal(GROUND_PROP_CONTACT_ANCHOR_Y, 238 / 256);
   assert.equal(MOBILE_HYPERSPEED_STREAK_CAP, 24);
   assert.equal(DESKTOP_HYPERSPEED_STREAK_CAP, 38);
