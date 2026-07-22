@@ -126,51 +126,47 @@
 .sci-weekly-funding-shell {
   position: relative;
   isolation: isolate;
-  border-color: transparent;
+  border-style: solid;
+  border-width: 1.85rem 1.65rem 1.7rem;
+  border-image-source: url('/game-art/generated/ui/scicon-pixel-action-buttons-v1/start-mission-panel.png');
+  border-image-slice: 54 68 54 68 fill;
+  border-image-width: 1;
+  border-image-repeat: stretch;
   border-radius: 0;
-  background: transparent;
+  background: #020817;
   box-shadow: none;
+  filter:
+    drop-shadow(0 0.8rem 1.25rem rgb(0 0 0 / 0.52))
+    drop-shadow(0 0 0.55rem rgb(34 211 238 / 0.16));
+  image-rendering: pixelated;
 }
 
 .sci-weekly-funding-shell > .pointer-events-none {
   display: none;
 }
 
-.sci-weekly-funding-frame-sprite {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image: url('/game-art/generated/ui/scicon-neon-frame-v1/weekly-funding-frame-spritesheet.png');
-  background-repeat: no-repeat;
-  background-position: 0% 0%;
-  background-size: 300% 400%;
-  filter:
-    drop-shadow(0 0.85rem 1.35rem rgb(0 0 0 / 0.55))
-    drop-shadow(0 0 0.65rem rgb(34 211 238 / 0.16));
-  image-rendering: auto;
-  pointer-events: none;
-  animation: sci-weekly-funding-frame-pulse 4.8s steps(1, end) infinite;
-}
-
 .sci-weekly-funding-content {
   position: relative;
   z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0.3rem 0.25rem 0.4rem;
+  image-rendering: auto;
 }
 
-@keyframes sci-weekly-funding-frame-pulse {
-  0%, 7.99% { background-position: 0% 0%; }
-  8%, 15.99% { background-position: 50% 0%; }
-  16%, 23.99% { background-position: 100% 0%; }
-  24%, 31.99% { background-position: 0% 33.333%; }
-  32%, 39.99% { background-position: 50% 33.333%; }
-  40%, 47.99% { background-position: 100% 33.333%; }
-  48%, 55.99% { background-position: 0% 66.667%; }
-  56%, 63.99% { background-position: 50% 66.667%; }
-  64%, 71.99% { background-position: 100% 66.667%; }
-  72%, 79.99% { background-position: 0% 100%; }
-  80%, 87.99% { background-position: 50% 100%; }
-  88%, 99.99% { background-position: 100% 100%; }
-  100% { background-position: 0% 0%; }
+.sci-weekly-funding-content--compact {
+  padding: 0.18rem 0.12rem 0.28rem;
+}
+
+@media (min-width: 640px) {
+  .sci-weekly-funding-shell {
+    border-width: 2.1rem 2.35rem 2rem;
+  }
+
+  .sci-weekly-funding-content {
+    padding: 0.35rem 0.4rem 0.5rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -184,11 +180,6 @@
 
   .sci-ship-carousel-stage--dragging .sci-ship-carousel-item--active {
     transform: translate3d(0, -3%, 0) scale(1);
-  }
-
-  .sci-weekly-funding-frame-sprite {
-    animation: none;
-    background-position: 0% 0%;
   }
 }
 
@@ -825,7 +816,6 @@
 
   .sci-dashboard-nav-shell {
     --dashboard-icon-size: 3rem;
-    --dashboard-icon-active-size: 3.3rem;
   }
 
   .sci-dashboard-nav-button {
@@ -906,27 +896,16 @@
     width: calc(var(--dashboard-icon-size) * 1.2);
     height: var(--dashboard-icon-size);
     margin-bottom: 0.05rem;
-    transform-origin: 50% 72%;
-    transition:
-      width 210ms cubic-bezier(0.2, 0.9, 0.25, 1.22),
-      height 210ms cubic-bezier(0.2, 0.9, 0.25, 1.22),
-      transform 210ms cubic-bezier(0.2, 0.9, 0.25, 1.22),
-      filter 210ms ease;
-    will-change: transform;
+    overflow: hidden;
+    transition: filter 180ms ease;
   }
 
   .sci-dashboard-nav-button:hover .sci-dashboard-nav-icon,
   .sci-dashboard-nav-button:focus-visible .sci-dashboard-nav-icon {
-    width: calc(var(--dashboard-icon-size) * 1.2 * 1.1);
-    height: calc(var(--dashboard-icon-size) * 1.16);
-    transform: translateY(-0.3rem);
     filter: drop-shadow(0 0 0.55rem rgb(34 211 238 / 0.42));
   }
 
   .sci-dashboard-nav-button[data-active='true'] .sci-dashboard-nav-icon {
-    width: calc(var(--dashboard-icon-active-size) * 1.2);
-    height: var(--dashboard-icon-active-size);
-    transform: translateY(-0.42rem);
     filter:
       drop-shadow(0 0 0.48rem rgb(34 211 238 / 0.6))
       drop-shadow(0 0 0.72rem rgb(52 211 153 / 0.24));
@@ -936,10 +915,10 @@
     position: absolute;
     inset: 0;
     display: block;
-    background-image: url('/game-art/generated/ui/scicon-neon-frame-v1/dashboard-nav-icons-spritesheet.png');
+    background-image: url('/game-art/generated/ui/scicon-neon-frame-v1/dashboard-nav-icons-static.png');
     background-repeat: no-repeat;
     background-position: var(--dashboard-icon-column-x, 0%) 0%;
-    background-size: 500% 400%;
+    background-size: 500% 100%;
     image-rendering: auto;
   }
 
@@ -948,15 +927,6 @@
   .sci-dashboard-nav-button[data-icon-column='2'] { --dashboard-icon-column-x: 50%; }
   .sci-dashboard-nav-button[data-icon-column='3'] { --dashboard-icon-column-x: 75%; }
   .sci-dashboard-nav-button[data-icon-column='4'] { --dashboard-icon-column-x: 100%; }
-
-  .sci-dashboard-nav-button:hover .sci-dashboard-nav-icon-sprite,
-  .sci-dashboard-nav-button:focus-visible .sci-dashboard-nav-icon-sprite {
-    background-position: var(--dashboard-icon-column-x, 0%) 33.333%;
-  }
-
-  .sci-dashboard-nav-button[data-active='true'] .sci-dashboard-nav-icon-sprite {
-    animation: sci-dashboard-icon-live 3.4s steps(1, end) infinite;
-  }
 
   .sci-dashboard-nav-button[data-dashboard-tab='more'][data-reward-ready='true']::before {
     border-color: rgb(253 224 71 / 0.72);
@@ -970,22 +940,6 @@
     background: linear-gradient(155deg, rgb(161 98 7 / 0.18), rgb(8 145 178 / 0.1));
     opacity: 1;
     animation: sci-dashboard-reward-frame 1.9s ease-in-out infinite;
-  }
-
-  .sci-dashboard-nav-button[data-dashboard-tab='more'][data-reward-ready='true'] .sci-dashboard-nav-icon {
-    animation: sci-dashboard-reward-breathe 1.9s ease-in-out infinite;
-  }
-
-  .sci-dashboard-nav-button[data-dashboard-tab='trophies'][data-proposal-ready='true'] .sci-dashboard-nav-icon {
-    animation: sci-dashboard-reward-breathe 1.9s ease-in-out infinite;
-  }
-
-  .sci-dashboard-nav-button[data-dashboard-tab='more'][data-reward-ready='true'][data-active='true'] .sci-dashboard-nav-icon {
-    animation-name: sci-dashboard-reward-breathe-active;
-  }
-
-  .sci-dashboard-nav-button[data-dashboard-tab='trophies'][data-proposal-ready='true'][data-active='true'] .sci-dashboard-nav-icon {
-    animation-name: sci-dashboard-reward-breathe-active;
   }
 
   .sci-proposal-attention {
@@ -1009,8 +963,7 @@
   }
 
   .sci-dashboard-nav-button:active .sci-dashboard-nav-icon {
-    transform: translateY(-0.25rem) scale(0.92);
-    transition-duration: 80ms;
+    filter: brightness(0.9);
   }
 
   .sci-dashboard-nav-button[data-locked='true'] .sci-dashboard-nav-icon-sprite {
@@ -1052,7 +1005,6 @@
 
   .sci-dashboard-nav-button[data-active='true'] .sci-dashboard-nav-label {
     color: rgb(236 254 255);
-    transform: translateY(-0.08rem);
   }
 
   .sci-dashboard-nav-marker {
@@ -2492,15 +2444,6 @@
     }
   }
 
-  @keyframes sci-dashboard-icon-live {
-    0%, 23.99% { background-position: var(--dashboard-icon-column-x, 0%) 0%; }
-    24%, 47.99% { background-position: var(--dashboard-icon-column-x, 0%) 33.333%; }
-    48%, 67.99% { background-position: var(--dashboard-icon-column-x, 0%) 66.667%; }
-    68%, 83.99% { background-position: var(--dashboard-icon-column-x, 0%) 100%; }
-    84%, 99.99% { background-position: var(--dashboard-icon-column-x, 0%) 33.333%; }
-    100% { background-position: var(--dashboard-icon-column-x, 0%) 0%; }
-  }
-
   @keyframes sci-dashboard-active-frame {
     0%, 100% {
       border-color: rgb(103 232 249 / 0.58);
@@ -2523,28 +2466,6 @@
   @keyframes sci-dashboard-active-rail {
     0%, 100% { opacity: 0.6; transform: scaleX(0.58); }
     50% { opacity: 1; transform: scaleX(1); }
-  }
-
-  @keyframes sci-dashboard-reward-breathe {
-    0%, 100% {
-      filter: drop-shadow(0 0 0.28rem rgb(250 204 21 / 0.3));
-      transform: translateY(0) scale(1);
-    }
-    50% {
-      filter: drop-shadow(0 0 0.8rem rgb(250 204 21 / 0.82));
-      transform: translateY(-0.28rem) scale(1.09);
-    }
-  }
-
-  @keyframes sci-dashboard-reward-breathe-active {
-    0%, 100% {
-      filter: drop-shadow(0 0 0.52rem rgb(250 204 21 / 0.45));
-      transform: translateY(-0.62rem) scale(1);
-    }
-    50% {
-      filter: drop-shadow(0 0 0.92rem rgb(250 204 21 / 0.88));
-      transform: translateY(-0.72rem) scale(1.06);
-    }
   }
 
   @keyframes sci-dashboard-reward-dot {
@@ -2584,7 +2505,6 @@
   @media (max-height: 720px) {
     .sci-dashboard-nav-shell {
       --dashboard-icon-size: 2.65rem;
-      --dashboard-icon-active-size: 3.3rem;
       padding-top: 0.5rem;
     }
 
@@ -2639,13 +2559,8 @@
     }
 
     .sci-dashboard-nav-button[data-active='true']::before,
-    .sci-dashboard-nav-button[data-active='true']::after,
-    .sci-dashboard-nav-button[data-active='true'] .sci-dashboard-nav-icon-sprite {
+    .sci-dashboard-nav-button[data-active='true']::after {
       animation: none !important;
-    }
-
-    .sci-dashboard-nav-button[data-active='true'] .sci-dashboard-nav-icon-sprite {
-      background-position: var(--dashboard-icon-column-x, 0%) 66.667%;
     }
   }
 }

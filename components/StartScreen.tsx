@@ -119,8 +119,7 @@ type IconName =
 const DASHBOARD_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1';
 const MORE_MENU_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1/normal';
 const SCICON_NEON_FRAME_ROOT = '/game-art/generated/ui/scicon-neon-frame-v1';
-const WEEKLY_FUNDING_FRAME_SPRITESHEET = `${SCICON_NEON_FRAME_ROOT}/weekly-funding-frame-spritesheet.png`;
-const DASHBOARD_NAV_ICON_SPRITESHEET = `${SCICON_NEON_FRAME_ROOT}/dashboard-nav-icons-spritesheet.png`;
+const DASHBOARD_NAV_ICON_SPRITESHEET = `${SCICON_NEON_FRAME_ROOT}/dashboard-nav-icons-static.png`;
 const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/icons/communication';
 const REWARD_EDGE_ARROW = '/game-art/generated/ui/scicon-reward-edge-v1/reward-arrow.png';
 const REWARD_ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
@@ -639,7 +638,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   useEffect(() => {
-    [WEEKLY_FUNDING_FRAME_SPRITESHEET, DASHBOARD_NAV_ICON_SPRITESHEET].forEach((source) => {
+    [DASHBOARD_NAV_ICON_SPRITESHEET].forEach((source) => {
       const image = new Image();
       image.decoding = 'async';
       image.src = source;
@@ -1038,12 +1037,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
     </HudPanel>
   );
 
-  const WeeklyFundingCard = ({ compact = false }: { compact?: boolean } = {}) => (
+  const renderWeeklyFundingCard = ({ compact = false }: { compact?: boolean } = {}) => (
     <HudPanel className="sci-weekly-funding-shell">
-      <div className="sci-weekly-funding-frame-sprite" aria-hidden="true" />
-      <div className={`sci-weekly-funding-content ${compact ? 'p-4' : 'p-5 md:p-6'}`}>
-        <div className={`${compact ? 'mb-2 pb-2' : 'mb-3 pb-3'} grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14`}>
-          <div>
+      <div className={`sci-weekly-funding-content ${compact ? 'sci-weekly-funding-content--compact' : ''}`}>
+        <div className={`sci-weekly-funding-summary ${compact ? 'mb-2 pb-2' : 'mb-3 pb-3'} grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14`}>
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-black text-emerald-200">Weekly Funding</h2>
               <StatusPill tone="green">Live</StatusPill>
@@ -1614,7 +1612,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
     return (
       <div className="scicon-mobile-home flex min-h-full flex-col gap-2">
-        <WeeklyFundingCard compact />
+        {renderWeeklyFundingCard({ compact: true })}
         {renderHeroPanel({ compact: true, fill: true })}
       </div>
     );
@@ -1750,7 +1748,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               </div>
 
               <div className="space-y-5">
-                <WeeklyFundingCard />
+                {renderWeeklyFundingCard()}
               </div>
             </div>
           ) : (

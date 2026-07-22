@@ -130,7 +130,9 @@ test('the Reward Center routes pending rewards and celebrates only confirmed cla
   assert.match(styles, /70% \{[\s\S]*translate3d\(-0\.9rem, 0, 0\)[\s\S]*86% \{[\s\S]*translate3d\(0\.26rem, 0, 0\)/);
   assert.match(styles, /\.sci-reward-backdrop,[\s\S]*\.sci-reward-center,[\s\S]*animation: none !important/);
   assert.match(styles, /@keyframes sci-reward-claim-confirm/);
-  assert.match(styles, /@keyframes sci-dashboard-reward-breathe/);
+  assert.match(styles, /@keyframes sci-dashboard-reward-frame/);
+  assert.match(styles, /@keyframes sci-dashboard-reward-dot/);
+  assert.doesNotMatch(styles, /sci-dashboard-reward-breathe/);
   assert.match(styles, /\.sci-daily-grid/);
   assert.match(styles, /\.sci-achievement-card/);
 });

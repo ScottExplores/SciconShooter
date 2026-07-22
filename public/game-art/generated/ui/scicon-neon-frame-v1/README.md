@@ -1,28 +1,25 @@
 # Scicon Neon-Frame v1
 
-Production UI sprite sheets for the Home dashboard's Weekly Funding command card and primary navigation.
+Production UI registration for the Home dashboard's Weekly Funding command card and primary navigation.
 
 ## Visual system
 
 **Scicon Neon-Frame** is the project's shared UI language: chamfered midnight-navy arcade chrome, dark glass, cyan and emerald live-light rails, restrained research-gold hardware, and small localized illumination cycles. The Start Mission control is a **Neon-Frame Action Panel** within this system.
 
-## Sheets
+## Runtime assets
 
-- `weekly-funding-frame-spritesheet.png`
-  - 1536 x 1024 RGB
-  - 3 columns x 4 rows
-  - 12 frames, row-major
-  - 512 x 256 per frame
-  - Intended loop: 4800 ms
-- `dashboard-nav-icons-spritesheet.png`
-  - 1535 x 1024 RGBA
-  - 5 columns x 4 rows
-  - 307 x 256 per cell
+- `../scicon-pixel-action-buttons-v1/start-mission-panel.png`
+  - 896 x 256 RGBA
+  - The Weekly Funding and weekly high-score content use this exact approved Start Mission chrome as a CSS nine-slice.
+  - The border owns real layout space so live text, scores, and proposal art cannot escape the inner glass area.
+- `dashboard-nav-icons-static.png`
+  - 1280 x 256 RGBA
+  - 5 columns x 1 row
+  - 256 x 256 per cell
   - Columns: Proposals, Trophies, Home, Hangar, More
-  - Rows: idle, warm, peak, settle
-  - Intended active loop: 3400 ms
+  - One static, safely padded state. Selection illumination belongs to the tab frame, never the icon geometry.
 
-The dashboard sheet was generated on a flat chroma background, converted locally to alpha with the installed image-generation helper, then cropped by one transparent pixel so every grid cell is integral. The twelve Weekly frames were normalized to a shared registered bounding box after generation so the chrome never drifts while its lights pulse. Runtime labels, scores, wallet locks, notification dots, proposal details, and hit targets remain live UI and are not baked into the artwork.
+`dashboard-nav-icons-spritesheet.png` and `weekly-funding-frame-spritesheet.png` remain as generation studies only. The dashboard study crossed nominal cell boundaries, so `tools/build-static-neon-dashboard-icons.py` isolates its approved idle artwork and repacks it into registered cells. Runtime labels, scores, wallet locks, notification dots, proposal details, and hit targets remain live UI and are not baked into the artwork.
 
 ## Generation prompts
 

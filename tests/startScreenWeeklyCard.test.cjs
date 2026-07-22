@@ -52,7 +52,7 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(htmlSource, /max-height: 720px/);
 });
 
-test('weekly funding and high score share the animated Scicon Neon-Frame sprite', () => {
+test('weekly funding and high score share the exact Start Mission chrome with safe insets', () => {
   const framePath = path.join(
     __dirname,
     '..',
@@ -60,20 +60,22 @@ test('weekly funding and high score share the animated Scicon Neon-Frame sprite'
     'game-art',
     'generated',
     'ui',
-    'scicon-neon-frame-v1',
-    'weekly-funding-frame-spritesheet.png'
+    'scicon-pixel-action-buttons-v1',
+    'start-mission-panel.png'
   );
 
   assert.ok(fs.existsSync(framePath));
   assert.match(source, /<HudPanel className="sci-weekly-funding-shell">/);
-  assert.match(source, /className="sci-weekly-funding-frame-sprite" aria-hidden="true"/);
-  assert.doesNotMatch(source, /<HudPanel className="sci-weekly-funding-shell sci-neon-frame-window">/);
-  assert.doesNotMatch(source, /className="sci-weekly-frame"/);
-  assert.match(stylesSource, /weekly-funding-frame-spritesheet\.png/);
-  assert.match(stylesSource, /background-size: 300% 400%/);
-  assert.match(stylesSource, /animation: sci-weekly-funding-frame-pulse 4\.8s steps\(1, end\) infinite/);
-  assert.match(stylesSource, /prefers-reduced-motion: reduce[\s\S]*?sci-weekly-funding-frame-sprite[\s\S]*?animation: none/);
-  assert.match(stylesSource, /sci-weekly-funding-frame-sprite[\s\S]*?pointer-events: none/);
+  assert.match(source, /const renderWeeklyFundingCard =/);
+  assert.match(source, /sci-weekly-funding-summary/);
+  assert.match(source, /Weekly Funding[\s\S]*Weekly high score/);
+  assert.match(stylesSource, /scicon-pixel-action-buttons-v1\/start-mission-panel\.png/);
+  assert.match(stylesSource, /border-image-slice: 54 68 54 68 fill/);
+  assert.match(stylesSource, /border-image-repeat: stretch/);
+  assert.match(stylesSource, /sci-weekly-funding-content[\s\S]*?image-rendering: auto/);
+  assert.doesNotMatch(source, /sci-weekly-funding-frame-sprite/);
+  assert.doesNotMatch(stylesSource, /sci-weekly-funding-frame-sprite/);
+  assert.doesNotMatch(stylesSource, /weekly-funding-frame-spritesheet\.png/);
 });
 
 test('weekly and all-time Trophy Deck views retain and render up to 100 scores', () => {

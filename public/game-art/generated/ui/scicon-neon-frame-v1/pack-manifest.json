@@ -1,7 +1,7 @@
 {
   "id": "scicon-neon-frame-v1",
   "name": "Scicon Neon-Frame v1",
-  "version": 1,
+  "version": 2,
   "runtimeContract": {
     "liveTextOnly": true,
     "decorativeLayersIgnorePointerEvents": true,
@@ -9,24 +9,50 @@
   },
   "assets": {
     "weeklyFundingFrame": {
-      "path": "/game-art/generated/ui/scicon-neon-frame-v1/weekly-funding-frame-spritesheet.png",
-      "sheetSize": [1536, 1024],
-      "grid": [3, 4],
-      "frameSize": [512, 256],
-      "frameCount": 12,
-      "frameOrder": "row-major",
-      "loopDurationMs": 4800,
-      "sha256": "3be09159810e8c843b7cc55dd52f0f4c24cb4ee1ea5c1c3faaa6d6269bf12496"
+      "path": "/game-art/generated/ui/scicon-pixel-action-buttons-v1/start-mission-panel.png",
+      "sheetSize": [
+        896,
+        256
+      ],
+      "grid": [
+        1,
+        1
+      ],
+      "frameSize": [
+        896,
+        256
+      ],
+      "frameCount": 1,
+      "rows": [
+        "static"
+      ],
+      "sha256": "40577c4e9bd385c42b90d505af918471396df79999e22ce3717f1aa54c13ae62"
     },
     "dashboardNavIcons": {
-      "path": "/game-art/generated/ui/scicon-neon-frame-v1/dashboard-nav-icons-spritesheet.png",
-      "sheetSize": [1535, 1024],
-      "grid": [5, 4],
-      "frameSize": [307, 256],
-      "columns": ["proposals", "trophies", "home", "hangar", "more"],
-      "rows": ["idle", "warm", "peak", "settle"],
-      "activeLoopDurationMs": 3400,
-      "sha256": "c689830b062a1ffffcbf57677744ea03806278491a492e964e98f7f7b282638c"
+      "path": "/game-art/generated/ui/scicon-neon-frame-v1/dashboard-nav-icons-static.png",
+      "sheetSize": [
+        1280,
+        256
+      ],
+      "grid": [
+        5,
+        1
+      ],
+      "frameSize": [
+        256,
+        256
+      ],
+      "columns": [
+        "proposals",
+        "trophies",
+        "home",
+        "hangar",
+        "more"
+      ],
+      "rows": [
+        "static"
+      ],
+      "sha256": "1ebe31f9b84af766ee77e53283e97122eb5a919282eb286caa86375c2fad94ce"
     }
   }
 }
