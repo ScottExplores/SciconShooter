@@ -1,5 +1,6 @@
 const { fetchSupabaseJson, supabaseHeaders } = require('./supabase');
 const { reissueStoredRunReceipt } = require('./runReceipts');
+const { getCurrentWeekRange } = require('../../shared/weeklyCompetitionBoundary.js');
 
 const RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const LEADERBOARD_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
@@ -44,19 +45,36 @@ const handlePlayerRuns = async (req, res) => {
   try {
     const wallet = String(req.query?.wallet || '').trim().toLowerCase();
     if (!addressPattern.test(wallet)) return sendJson(res, 400, { error: 'Valid wallet is required' });
+    const { start, end } = getCurrentWeekRange();
 
-    const [leaderboardRows, claimedRows] = await Promise.all([
+    const [leaderboardRows, currentWeeklyLeaderRows, claimedRows] = await Promise.all([
       fetchSupabaseJson(
         `${LEADERBOARD_TABLE}?select=run_id,name,date&wallet_address=eq.${wallet}&run_id=not.is.null&order=date.desc&limit=10`,
+        { headers: supabaseHeaders() }
+      ),
+      fetchSupabaseJson(
+        `${LEADERBOARD_TABLE}?select=run_id,name,date,wallet_address,verified`
+        + `&date=gte.${encodeURIComponent(start.toISOString())}`
+        + `&date=lt.${encodeURIComponent(end.toISOString())}`
+        + '&run_id=not.is.null&order=score.desc,date.asc&limit=1',
         { headers: supabaseHeaders() }
       ),
       fetchReceiptRows(`wallet_address=eq.${wallet}&order=finished_at.desc&limit=${RECENT_RUN_LIMIT}`)
     ]);
 
-    const scoreRows = Array.isArray(leaderboardRows) ? leaderboardRows : [];
+    const weeklyLeader = Array.isArray(currentWeeklyLeaderRows) ? currentWeeklyLeaderRows[0] : null;
+    const walletOwnsWeeklyLeader = Boolean(
+      weeklyLeader?.verified === true
+      && String(weeklyLeader.wallet_address || '').toLowerCase() === wallet
+    );
+    const scoreRows = [
+      ...(Array.isArray(leaderboardRows) ? leaderboardRows : []),
+      ...(walletOwnsWeeklyLeader ? [weeklyLeader] : [])
+    ];
     const pilotByRunId = new Map(scoreRows.map((row) => [String(row.run_id), normalizePilotName(row.name)]));
     const linkedRunIds = [...new Set(scoreRows.map((row) => String(row.run_id || '')).filter(Boolean))];
     let linkedRows = [];
+    let weeklyLeaderReceiptRows = [];
 
     if (linkedRunIds.length > 0) {
       const runFilter = linkedRunIds.map(encodeURIComponent).join(',');
@@ -71,19 +89,44 @@ const handlePlayerRuns = async (req, res) => {
       linkedRows = await fetchReceiptRows(
         `run_id=in.(${runFilter})&wallet_address=eq.${wallet}&order=finished_at.desc&limit=10`
       );
+      if (walletOwnsWeeklyLeader) {
+        // The combined linked query may contain ten newer runs before the
+        // weekly winner. Fetch that exact receipt independently so My Records
+        // can always pin the editable high score at the top.
+        weeklyLeaderReceiptRows = await fetchReceiptRows(
+          `run_id=eq.${encodeURIComponent(String(weeklyLeader.run_id))}&wallet_address=eq.${wallet}&limit=1`
+        );
+      }
     }
 
     const rowsByRunId = new Map();
-    [...(Array.isArray(claimedRows) ? claimedRows : []), ...(Array.isArray(linkedRows) ? linkedRows : [])]
+    [
+      ...(Array.isArray(claimedRows) ? claimedRows : []),
+      ...(Array.isArray(linkedRows) ? linkedRows : []),
+      ...(Array.isArray(weeklyLeaderReceiptRows) ? weeklyLeaderReceiptRows : [])
+    ]
       .forEach((row) => {
         if (row?.run_id && String(row.wallet_address || '').toLowerCase() === wallet) {
           rowsByRunId.set(String(row.run_id), row);
         }
       });
 
-    const runs = [...rowsByRunId.values()]
-      .sort((left, right) => new Date(right.finished_at).getTime() - new Date(left.finished_at).getTime())
-      .slice(0, RECENT_RUN_LIMIT)
+    const sortedRows = [...rowsByRunId.values()]
+      .sort((left, right) => new Date(right.finished_at).getTime() - new Date(left.finished_at).getTime());
+    const weeklyLeaderRunId = walletOwnsWeeklyLeader ? String(weeklyLeader.run_id) : '';
+    const weeklyLeaderReceipt = weeklyLeaderRunId
+      ? sortedRows.find((row) => String(row.run_id) === weeklyLeaderRunId)
+      : null;
+    const selectedRows = weeklyLeaderReceipt
+      ? [
+          weeklyLeaderReceipt,
+          ...sortedRows
+            .filter((row) => String(row.run_id) !== weeklyLeaderRunId)
+            .slice(0, RECENT_RUN_LIMIT - 1)
+        ]
+      : sortedRows.slice(0, RECENT_RUN_LIMIT);
+
+    const runs = selectedRows
       .map((row) => ({
         pilotName: pilotByRunId.get(String(row.run_id)) || 'PILOT',
         receipt: reissueStoredRunReceipt(row)

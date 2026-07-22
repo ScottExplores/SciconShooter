@@ -260,14 +260,14 @@ export const CAMPAIGN_ENVIRONMENT_ROUTE = [
 ] as const;
 
 export const SPACE_PARALLAX_DEPTH_SPEEDS = Object.freeze({
-  'open-orbit': Object.freeze([0.002, 0.008, 0.022, 0.052, 0.082, 0.13, 0.18]),
-  'citation-storm': Object.freeze([0.0022, 0.009, 0.026, 0.058, 0.09, 0.145, 0.205]),
-  'bastion-protocol': Object.freeze([0.0024, 0.01, 0.03, 0.064, 0.098, 0.16, 0.23]),
-  'helix-redline': Object.freeze([0.0021, 0.009, 0.024, 0.056, 0.086, 0.14, 0.2]),
-  'shattered-void': Object.freeze([0.0018, 0.0075, 0.021, 0.048, 0.076, 0.12, 0.175]),
-  'gravity-rift': Object.freeze([0.0023, 0.0095, 0.028, 0.061, 0.094, 0.15, 0.22]),
-  'ion-eclipse': Object.freeze([0.002, 0.0085, 0.025, 0.057, 0.09, 0.145, 0.21]),
-  'terminus-frontier': Object.freeze([0.0025, 0.0105, 0.032, 0.068, 0.105, 0.17, 0.25])
+  'open-orbit': Object.freeze([0.002, 0.008, 0.032, 0.052, 0.105, 0.15, 0.2]),
+  'citation-storm': Object.freeze([0.0022, 0.009, 0.038, 0.058, 0.115, 0.17, 0.225]),
+  'bastion-protocol': Object.freeze([0.0024, 0.01, 0.043, 0.064, 0.125, 0.19, 0.25]),
+  'helix-redline': Object.freeze([0.0021, 0.009, 0.035, 0.056, 0.11, 0.165, 0.22]),
+  'shattered-void': Object.freeze([0.0018, 0.0075, 0.03, 0.048, 0.097, 0.145, 0.195]),
+  'gravity-rift': Object.freeze([0.0023, 0.0095, 0.04, 0.061, 0.12, 0.18, 0.24]),
+  'ion-eclipse': Object.freeze([0.002, 0.0085, 0.036, 0.057, 0.115, 0.17, 0.23]),
+  'terminus-frontier': Object.freeze([0.0025, 0.0105, 0.046, 0.068, 0.135, 0.2, 0.27])
 } as const);
 
 type SpaceParallaxProfileId = keyof typeof SPACE_PARALLAX_DEPTH_SPEEDS;
@@ -302,7 +302,7 @@ const createSpaceLayers = (
     {
       url: ASSETS.GAME_PARALLAX_FAR_PLANETS,
       speed: speeds[2],
-      alpha: 0.2,
+      alpha: 1,
       widthScale: 1.12,
       xDrift: 0.8,
       phase: 1.6 + phaseOffset,
@@ -324,7 +324,9 @@ const createSpaceLayers = (
     layers.push({
       url,
       speed: speeds[4 + index],
-      alpha: index === 0 ? 0.5 : 0.34,
+      // The source sheet already has a transparent background. Keep the rock
+      // artwork itself opaque; depth comes from speed, scale, and softness.
+      alpha: 1,
       widthScale: index === 0 ? 1.04 : 1.1,
       xDrift: index === 0 ? 1.6 : 2.4,
       phase: 0.8 + phaseOffset + index * 1.9,

@@ -4397,7 +4397,13 @@ export class GameEngine {
 
     this.stats.shipAbilityCooldown = ability.cooldownFrames;
     this.stats.shipAbilityCooldownMax = ability.cooldownFrames;
-    this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + 8, ability.color);
+    // Research Charge already receives a soft pooled light in the Pixi
+    // renderer. Keep its launch feedback particle-based so it never reads as
+    // a hard-edged lighting bubble; the other ability rings remain intentional
+    // gameplay silhouettes.
+    if (ability.id !== 'research-charge') {
+      this.spawnRingEffect(this.player.x + this.player.width / 2, this.player.y + 8, ability.color);
+    }
     this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y - 24, ability.name.toUpperCase(), ability.color, 17);
     this.spawnBurst(this.player.x + this.player.width / 2, this.player.y, ability.color, this.playerShipId === 'eth' ? 14 : 10, 4.2, 4);
     this.addShake(this.playerShipId === 'btc' ? 4 : 2.5);
@@ -4451,7 +4457,13 @@ export class GameEngine {
     const impact = new VisualEffect(centerX - 86, centerY - 86, 'sprite', '', '#ffffff');
     impact.width = 172;
     impact.height = 172;
-    impact.spriteFrames = [...RESEARCH_IMPACT_FRAME_URLS];
+    // The legacy middle frames contain opaque circular outlines. Retain the
+    // spark and dissipating particle frames while the renderer supplies the
+    // edge-free radial light and the projectile supplies its beam trail.
+    impact.spriteFrames = [
+      RESEARCH_IMPACT_FRAME_URLS[0],
+      RESEARCH_IMPACT_FRAME_URLS[1]
+    ];
     impact.life = 42;
     impact.maxLife = 42;
     this.entities.push(impact);
@@ -4459,7 +4471,6 @@ export class GameEngine {
     this.flashAlpha = Math.max(this.flashAlpha, 0.28);
     this.addShake(7);
     this.addHitStop(5);
-    this.spawnRingEffect(centerX, centerY, '#a7f3d0');
     this.spawnBurst(centerX, centerY, '#67e8f9', 24, 7, 5);
     this.playSound('bomb', 0.72, { pitchJitter: 0.04, pitchOffset: 0.12 });
 

@@ -6,6 +6,7 @@ export type MissionRecordFundingStatus = 'current-leader' | 'claimable' | 'selec
 export interface MissionRecordWeeklyFunding {
   status: MissionRecordFundingStatus;
   allocationRsc: number;
+  canEditProposal?: boolean;
   winner?: ArchivedWinner;
   proposalId?: string;
   proposalTitle?: string;
@@ -80,6 +81,7 @@ export const getMissionRecordWeeklyFunding = ({
       return {
         status: 'selected',
         allocationRsc: 100,
+        canEditProposal: true,
         proposalId: currentLeader.proposalId,
         proposalTitle: currentLeader.proposalTitle,
         proposalUrl: currentLeader.proposalUrl,

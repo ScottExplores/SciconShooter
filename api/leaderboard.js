@@ -2,8 +2,10 @@ const ALL_TIME_SCORE_LIMIT = 100;
 const WEEKLY_SCORE_LIMIT = 100;
 const SYNC_SCORE_LIMIT = ALL_TIME_SCORE_LIMIT + WEEKLY_SCORE_LIMIT;
 const SUPABASE_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
+const NONCES_TABLE = process.env.SUPABASE_WALLET_NONCES_TABLE || 'scicon_wallet_nonces';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
+const { verifyBaseMessage } = require('./_lib/baseSignatures');
 const crypto = require('crypto');
 const { checkRateLimit } = require('./_lib/rateLimit');
 const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
@@ -308,13 +310,129 @@ const hasSubmittedRun = async (runId) => {
   return Array.isArray(rows) && rows.length > 0;
 };
 
-const selectProposalForWeeklyLeader = async (receipt, proposalId) => {
+const receiptMatchesVerifiedLeader = (receipt, leader) => Boolean(
+  leader
+  && leader.verified === true
+  && receipt.integrity === 'server-verified'
+  && leader.runId === receipt.runId
+  && leader.score === receipt.metrics.score
+  && (leader.wave ?? 1) === receipt.metrics.wave
+);
+
+const getVerifiedWeeklyLeaderForReceipt = async (receipt) => {
   const currentScores = await readScores();
   const currentLeader = toLeaderboardPayload(currentScores).monthlyScores[0];
-
-  if (!currentLeader || currentLeader.runId !== receipt.runId) {
+  if (!receiptMatchesVerifiedLeader(receipt, currentLeader)) {
     throw Object.assign(new Error('This run is no longer the current weekly high score.'), { statusCode: 409 });
   }
+  return { currentLeader, currentScores };
+};
+
+const createProposalSelectionChallenge = async (receipt, proposalId, requestedAddress) => {
+  const normalizedProposalId = String(proposalId || '').trim();
+  if (!/^\d{1,20}$/.test(normalizedProposalId)) {
+    throw Object.assign(new Error('Invalid ResearchHub proposal ID.'), { statusCode: 400 });
+  }
+
+  const { currentLeader } = await getVerifiedWeeklyLeaderForReceipt(receipt);
+  const leaderWallet = normalizeAddress(currentLeader.walletAddress);
+  if (!leaderWallet) return { signatureRequired: false };
+
+  const wallet = normalizeAddress(requestedAddress);
+  if (!wallet || wallet !== leaderWallet) {
+    throw Object.assign(new Error('Connect the Base Account associated with this weekly-leading run.'), { statusCode: 403 });
+  }
+
+  const challengeId = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const message = buildProposalChallengeMessage({
+    receipt,
+    proposalId: normalizedProposalId,
+    wallet,
+    challengeId,
+    expiresAt
+  });
+  const response = await fetch(supabaseUrl(NONCES_TABLE), {
+    method: 'POST',
+    headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+    body: JSON.stringify({
+      challenge_id: challengeId,
+      run_id: receipt.runId,
+      wallet_address: wallet,
+      message,
+      expires_at: expiresAt
+    })
+  });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Wallet challenge save failed with ${response.status}: ${details}`);
+  }
+  return { signatureRequired: true, challengeId, message, expiresAt };
+};
+
+const requireWalletProposalAuthorization = async ({ leader, receipt, proposalId, authorization }) => {
+  const leaderWallet = normalizeAddress(leader.walletAddress);
+  if (!leaderWallet) return;
+
+  const wallet = normalizeAddress(authorization?.address);
+  const challengeId = sanitizeText(authorization?.challengeId, 80);
+  const signature = typeof authorization?.signature === 'string'
+    ? authorization.signature.trim()
+    : '';
+  if (!wallet || wallet !== leaderWallet || !challengeId || !signature) {
+    throw Object.assign(new Error('A Base Account signature is required to change this weekly proposal.'), { statusCode: 401 });
+  }
+
+  const challengeRows = await requestNonceRows(
+    `select=*&challenge_id=eq.${encodeURIComponent(challengeId)}&limit=1`
+  );
+  const challenge = Array.isArray(challengeRows) ? challengeRows[0] : null;
+  const expiresAt = challenge?.expires_at;
+  const expiresAtMs = new Date(expiresAt || 0).getTime();
+  const expectedMessage = expiresAt ? buildProposalChallengeMessage({
+    receipt,
+    proposalId: String(proposalId),
+    wallet,
+    challengeId,
+    expiresAt
+  }) : '';
+  if (
+    !challenge
+    || challenge.used_at
+    || challenge.wallet_address?.toLowerCase() !== wallet
+    || challenge.run_id !== receipt.runId
+    || !Number.isFinite(expiresAtMs)
+    || expiresAtMs <= Date.now()
+    || challenge.message !== expectedMessage
+  ) {
+    throw Object.assign(new Error('Weekly proposal challenge is invalid or expired.'), { statusCode: 410 });
+  }
+
+  const valid = await verifyBaseMessage({ address: wallet, message: challenge.message, signature });
+  if (!valid) {
+    throw Object.assign(new Error('Weekly proposal signature could not be verified.'), { statusCode: 401 });
+  }
+
+  const usedAt = new Date().toISOString();
+  const consumeResponse = await fetch(supabaseUrl(
+    `${NONCES_TABLE}?challenge_id=eq.${encodeURIComponent(challengeId)}&used_at=is.null`
+  ), {
+    method: 'PATCH',
+    headers: supabaseHeaders({ Prefer: 'return=representation' }),
+    body: JSON.stringify({ used_at: usedAt })
+  });
+  if (!consumeResponse.ok) {
+    const details = await consumeResponse.text();
+    throw new Error(`Wallet challenge consumption failed with ${consumeResponse.status}: ${details}`);
+  }
+  const consumedRows = await consumeResponse.json();
+  if (!Array.isArray(consumedRows) || consumedRows.length !== 1) {
+    throw Object.assign(new Error('Weekly proposal challenge was already used.'), { statusCode: 410 });
+  }
+};
+
+const selectProposalForWeeklyLeader = async (receipt, proposalId, authorization = {}) => {
+  const { currentLeader, currentScores } = await getVerifiedWeeklyLeaderForReceipt(receipt);
 
   if (currentLeader.proposalId) {
     if (currentLeader.proposalId === String(proposalId)) {
@@ -326,21 +444,45 @@ const selectProposalForWeeklyLeader = async (receipt, proposalId) => {
         imageUrl: currentLeader.proposalImageUrl
       } };
     }
-    throw Object.assign(new Error('A proposal has already been saved for this weekly-leading run.'), { statusCode: 409 });
   }
 
   const proposal = await findEligibleProposal(proposalId, {
     requiredOpenUntil: getCurrentWeekRange().end
   });
+
+  // Eligibility lookup is remote and can take long enough for the weekly lead
+  // to change. Re-check the server-owned leaderboard immediately before the
+  // write rather than trusting the leader snapshot from the start of the call.
+  const latestScores = await readScores();
+  const latestLeader = toLeaderboardPayload(latestScores).monthlyScores[0];
+  if (!receiptMatchesVerifiedLeader(receipt, latestLeader)) {
+    throw Object.assign(new Error('This run is no longer the current weekly high score.'), { statusCode: 409 });
+  }
+
+  await requireWalletProposalAuthorization({
+    leader: latestLeader,
+    receipt,
+    proposalId: proposal.id,
+    authorization
+  });
+
+  const previousProposal = {
+    proposal_id: latestLeader.proposalId || null,
+    proposal_title: latestLeader.proposalTitle || null,
+    proposal_url: latestLeader.proposalUrl || null,
+    proposal_author: latestLeader.proposalAuthor || null,
+    proposal_image_url: latestLeader.proposalImageUrl || null
+  };
   const selectionUrl = supabaseUrl(
-    `${SUPABASE_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}&verified=eq.true&proposal_id=is.null`
+    `${SUPABASE_TABLE}?run_id=eq.${encodeURIComponent(receipt.runId)}`
+    + `&verified=eq.true&score=eq.${receipt.metrics.score}&wave=eq.${receipt.metrics.wave}`
   );
   const proposalRow = {
     proposal_id: proposal.id,
     proposal_title: proposal.title,
     proposal_url: proposal.url,
     proposal_author: proposal.author,
-    ...(proposal.imageUrl ? { proposal_image_url: proposal.imageUrl } : {})
+    proposal_image_url: proposal.imageUrl || null
   };
   let response = await fetch(selectionUrl, {
     method: 'PATCH',
@@ -350,7 +492,7 @@ const selectProposalForWeeklyLeader = async (receipt, proposalId) => {
 
   if (!response.ok) {
     let details = await response.text();
-    if (proposal.imageUrl && isMissingProposalColumnError(new Error(details))) {
+    if (isMissingProposalColumnError(new Error(details))) {
       const { proposal_image_url: _proposalImageUrl, ...compatibleRow } = proposalRow;
       response = await fetch(selectionUrl, {
         method: 'PATCH',
@@ -368,8 +510,63 @@ const selectProposalForWeeklyLeader = async (receipt, proposalId) => {
   }
 
   const scores = await readScores();
-  return { ...toLeaderboardPayload(scores), selectedProposal: proposal };
+  const updatedPayload = toLeaderboardPayload(scores);
+  const updatedLeader = updatedPayload.monthlyScores[0];
+  if (!receiptMatchesVerifiedLeader(receipt, updatedLeader) || updatedLeader.proposalId !== proposal.id) {
+    // If a new score took first place during the PATCH, restore only the exact
+    // proposal value written by this request. This prevents leaving a stale
+    // former leader changed after the server denies the recovery attempt.
+    const rollbackUrl = `${selectionUrl}&proposal_id=eq.${encodeURIComponent(proposal.id)}`;
+    const rollbackResponse = await fetch(rollbackUrl, {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+      body: JSON.stringify(previousProposal)
+    }).catch(() => undefined);
+    if (rollbackResponse && !rollbackResponse.ok) {
+      const rollbackDetails = await rollbackResponse.text();
+      if (isMissingProposalColumnError(new Error(rollbackDetails))) {
+        const { proposal_image_url: _proposalImageUrl, ...compatiblePreviousProposal } = previousProposal;
+        await fetch(rollbackUrl, {
+          method: 'PATCH',
+          headers: supabaseHeaders({ Prefer: 'return=minimal' }),
+          body: JSON.stringify(compatiblePreviousProposal)
+        }).catch(() => undefined);
+      }
+    }
+    throw Object.assign(new Error('This run is no longer the current weekly high score.'), { statusCode: 409 });
+  }
+  return { ...updatedPayload, selectedProposal: proposal };
 };
+
+const normalizeAddress = (value) => {
+  const address = String(value || '').trim().toLowerCase();
+  return /^0x[a-f0-9]{40}$/.test(address) ? address : null;
+};
+
+const requestNonceRows = async (query) => {
+  const response = await fetch(supabaseUrl(`${NONCES_TABLE}?${query}`), {
+    headers: supabaseHeaders()
+  });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Wallet challenge lookup failed with ${response.status}: ${details}`);
+  }
+  return response.json();
+};
+
+const buildProposalChallengeMessage = ({ receipt, proposalId, wallet, challengeId, expiresAt }) => [
+  'Scicon Shooter weekly proposal selection',
+  '',
+  `Run: ${receipt.runId}`,
+  `Score: ${receipt.metrics.score}`,
+  `Wave: ${receipt.metrics.wave}`,
+  `Wallet: ${wallet}`,
+  `Proposal: ${proposalId}`,
+  `Challenge: ${challengeId}`,
+  `Expires: ${expiresAt}`,
+  '',
+  'Signing authorizes this proposal choice. It does not send funds or mint.'
+].join('\n');
 
 const readScores = async () => {
   if (hasSupabaseConfig()) {
@@ -414,9 +611,10 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       const body = parseBody(req.body);
       const action = sanitizeText(body.action, 40) || 'submit-score';
+      const isProposalAction = action === 'select-proposal' || action === 'select-proposal-challenge';
       const rate = checkRateLimit(req, {
-        scope: action === 'select-proposal' ? 'weekly-proposal-select' : 'leaderboard-submit',
-        limit: action === 'select-proposal' ? 10 : 20,
+        scope: isProposalAction ? 'weekly-proposal-select' : 'leaderboard-submit',
+        limit: 20,
         windowMs: 10 * 60 * 1000
       });
       if (!rate.allowed) return sendJson(res, 429, { error: 'Too many score submissions. Please wait before trying again.' });
@@ -431,8 +629,17 @@ module.exports = async (req, res) => {
         return sendJson(res, 403, { error: 'Pilot Test runs are not eligible for leaderboards.' });
       }
 
+      if (action === 'select-proposal-challenge') {
+        const challenge = await createProposalSelectionChallenge(receipt, body.proposalId, body.address);
+        return sendJson(res, 200, { challenge });
+      }
+
       if (action === 'select-proposal') {
-        const result = await selectProposalForWeeklyLeader(receipt, body.proposalId);
+        const result = await selectProposalForWeeklyLeader(receipt, body.proposalId, {
+          address: body.address,
+          challengeId: body.challengeId,
+          signature: body.signature
+        });
         return sendJson(res, 200, result);
       }
 

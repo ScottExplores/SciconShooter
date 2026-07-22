@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArchivedWinner, LeaderboardEntry, MintRecord } from '../types';
 import { ResearchHubProposal } from '../services/researchHubProposals';
 import {
@@ -9,6 +9,7 @@ import {
 } from '../services/proposalFunding';
 import { ASSETS, DONATION_CONFIG } from '../constants';
 import type { WalletRunRecord } from '../services/playerRunService';
+import type { WeeklyProposalRecovery } from '../services/weeklyProposalRecovery';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboardService';
 import { resolveProposalSelection } from '../services/weeklyProposalDisplay';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
@@ -25,6 +26,8 @@ import {
 import {
   PLAYER_SHIP_MOTION,
   PLAYER_SHIP_SELECTION_FPS,
+  PLAYER_SHIP_STEERING_FRAME_URLS,
+  type PlayerSteeringState,
   preloadPlayerShipSelectionFrames
 } from '../services/playerShipMotion';
 import SquadHangar from './SquadHangar';
@@ -54,6 +57,8 @@ interface StartScreenProps {
   walletRecords: MintRecord[];
   walletRuns: WalletRunRecord[];
   walletRunsLoading: boolean;
+  weeklyProposalRecovery?: WeeklyProposalRecovery | null;
+  onOpenWeeklyLeaderProposal?: (record: WalletRunRecord) => void;
   walletAddress?: string | null;
   selectedShipId: PlayerShipId;
   shipUnlocks: PlayerShipUnlocks;
@@ -122,6 +127,16 @@ const MORE_MENU_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1/no
 const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/icons/communication';
 const REWARD_EDGE_ARROW = '/game-art/generated/ui/scicon-reward-edge-v1/reward-arrow.png';
 const REWARD_ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
+const WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY = 'scicon.weekly-proposal-reminder';
+
+const getLocalDayStamp = (timestamp: number) => {
+  const date = new Date(timestamp);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0')
+  ].join('-');
+};
 
 const dashboardTabs: Array<{
   id: DashboardTab;
@@ -169,12 +184,47 @@ const dashboardTabs: Array<{
 
 const playerShipOrder: PlayerShipId[] = [...PLAYABLE_PLAYER_SHIP_IDS];
 
+type ShipCarouselDirection = -1 | 1;
+type ShipCarouselTransition = {
+  outgoingId: PlayerShipId;
+  incomingId: PlayerShipId;
+  direction: ShipCarouselDirection;
+  phase: 'hard' | 'bank';
+  revision: number;
+};
+type ShipSwipeGesture = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  latestX: number;
+  latestY: number;
+  startedAt: number;
+  horizontal: boolean;
+};
+
+const SHIP_CAROUSEL_TRANSITION_MS = 500;
+const SHIP_CAROUSEL_BANK_PHASE_MS = 285;
+const SHIP_SWIPE_MIN_DISTANCE = 42;
+const SHIP_SWIPE_MIN_VELOCITY_DISTANCE = 28;
+const SHIP_SWIPE_MAX_VELOCITY_MS = 420;
+const SHIP_SWIPE_MAX_PREVIEW_PX = 72;
+
+const getShipCarouselSteeringState = (
+  direction: ShipCarouselDirection,
+  phase: 'hard' | 'bank' = 'hard'
+): PlayerSteeringState => {
+  if (direction === 1) return phase === 'hard' ? 'hard-left' : 'bank-left';
+  return phase === 'hard' ? 'hard-right' : 'bank-right';
+};
+
 const PlayerShipSelectionImage = ({
   shipId,
-  className
+  className,
+  steeringState = null
 }: {
   shipId: PlayerShipId;
   className: string;
+  steeringState?: PlayerSteeringState | null;
 }) => {
   const [activeFrame, setActiveFrame] = useState<{ shipId: PlayerShipId | null; index: number }>({
     shipId: null,
@@ -204,16 +254,20 @@ const PlayerShipSelectionImage = ({
   }, [shipId]);
 
   const frameReady = activeFrame.shipId === shipId && activeFrame.index >= 0;
-  const src = frameReady
-    ? PLAYER_SHIP_MOTION[shipId].selectionIdleFrames[activeFrame.index]
-    : PLAYER_SHIPS[shipId].assetUrl;
+  const src = steeringState
+    ? PLAYER_SHIP_MOTION[shipId].steeringFrames[steeringState]
+    : frameReady
+      ? PLAYER_SHIP_MOTION[shipId].selectionIdleFrames[activeFrame.index]
+      : PLAYER_SHIPS[shipId].assetUrl;
 
   return (
     <img
       src={src}
       alt=""
       className={className}
+      draggable={false}
       data-player-ship={shipId}
+      data-steering-state={steeringState ?? 'idle'}
       data-selection-frame={frameReady ? activeFrame.index : 'preloading'}
     />
   );
@@ -593,6 +647,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   walletRecords,
   walletRuns,
   walletRunsLoading,
+  weeklyProposalRecovery = null,
+  onOpenWeeklyLeaderProposal,
   walletAddress,
   selectedShipId,
   shipUnlocks,
@@ -645,6 +701,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [showTreasury, setShowTreasury] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
   const [showRewardCenter, setShowRewardCenter] = useState(false);
+  const [showWeeklyProposalReminder, setShowWeeklyProposalReminder] = useState(false);
   const [rewardCenterInitialTab, setRewardCenterInitialTab] = useState<RewardTab>('daily');
   const [feedback, setFeedback] = useState('');
   const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -654,12 +711,23 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [testSelectedProposal, setTestSelectedProposal] = useState<ResearchHubProposal | null>(null);
   const [shipFocusId, setShipFocusId] = useState<PlayerShipId>(selectedShipId);
   const [shipCycleRevision, setShipCycleRevision] = useState(0);
+  const [shipTransition, setShipTransition] = useState<ShipCarouselTransition | null>(null);
+  const [shipDragOffset, setShipDragOffset] = useState(0);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+  );
   const [shipLockNudgeRevision, setShipLockNudgeRevision] = useState(0);
   const [connectNudgeActive, setConnectNudgeActive] = useState(false);
   const [weeklyClock, setWeeklyClock] = useState(() => Date.now());
   const [selectedLeaderboardRecord, setSelectedLeaderboardRecord] = useState<LeaderboardEntry | null>(null);
   const [leaderboardRecordStatus, setLeaderboardRecordStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const shipTransitionTimersRef = useRef<number[]>([]);
+  const shipSwipeGestureRef = useRef<ShipSwipeGesture | null>(null);
+  const suppressShipTapRef = useRef(false);
+  const proposalReminderShownRef = useRef('');
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
+  const weeklyProposalRunId = weeklyProposalRecovery?.record.receipt.runId ?? null;
+  const weeklyProposalNeedsAttention = Boolean(weeklyProposalRecovery?.needsProposal);
   const dailyGiftStatus = getDailyGiftStatus(permanentSquadState, new Date(weeklyClock));
   const claimableAchievementCount = useMemo(
     () => getClaimableAchievementCount(permanentSquadState),
@@ -669,6 +737,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const openRewardCenter = (initialTab: RewardTab = 'daily') => {
     setRewardCenterInitialTab(initialTab);
     setShowRewardCenter(true);
+  };
+
+  const openRecoverableWeeklyProposal = () => {
+    if (!weeklyProposalRecovery || !onOpenWeeklyLeaderProposal) return;
+    setShowWeeklyProposalReminder(false);
+    onOpenWeeklyLeaderProposal(weeklyProposalRecovery.record);
   };
 
   useEffect(() => {
@@ -747,6 +821,56 @@ const StartScreen: React.FC<StartScreenProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!weeklyProposalNeedsAttention || !weeklyProposalRunId || dashboardTab !== 'home') {
+      setShowWeeklyProposalReminder(false);
+      return;
+    }
+
+    const dayStamp = getLocalDayStamp(weeklyClock);
+    const reminderMarker = `${weeklyProposalRunId}:${dayStamp}`;
+    if (proposalReminderShownRef.current === reminderMarker) return;
+
+    const storageKey = `${WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY}:${weeklyProposalRunId}`;
+    let lastReminderDay = '';
+    try {
+      lastReminderDay = window.localStorage.getItem(storageKey) ?? '';
+    } catch {
+      // Private browsing can deny storage; the in-memory marker still limits
+      // the reminder to one presentation for this app session.
+    }
+    proposalReminderShownRef.current = reminderMarker;
+    if (lastReminderDay === dayStamp) return;
+
+    try {
+      window.localStorage.setItem(storageKey, dayStamp);
+    } catch {
+      // The reminder remains functional without persistent storage.
+    }
+    setShowWeeklyProposalReminder(true);
+  }, [dashboardTab, weeklyClock, weeklyProposalNeedsAttention, weeklyProposalRunId]);
+
+  useEffect(() => {
+    PLAYER_SHIP_STEERING_FRAME_URLS.forEach((source) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = source;
+    });
+  }, []);
+
+  useEffect(() => {
+    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (!query) return undefined;
+    const syncPreference = () => setPrefersReducedMotion(query.matches);
+    query.addEventListener?.('change', syncPreference);
+    return () => query.removeEventListener?.('change', syncPreference);
+  }, []);
+
+  useEffect(() => () => {
+    shipTransitionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    shipTransitionTimersRef.current = [];
+  }, []);
+
+  useEffect(() => {
     setShipFocusId(selectedShipId);
   }, [selectedShipId]);
 
@@ -765,19 +889,128 @@ const StartScreen: React.FC<StartScreenProps> = ({
     setSelectedLeaderboardRecord(entry);
   };
 
-  const cycleShip = (direction: -1 | 1) => {
+  const cycleShip = (direction: ShipCarouselDirection) => {
+    if (shipTransition) return;
     const currentIndex = playerShipOrder.indexOf(shipFocusId);
     const nextIndex = (currentIndex + direction + playerShipOrder.length) % playerShipOrder.length;
     const nextShipId = playerShipOrder[nextIndex];
+    const nextRevision = shipCycleRevision + 1;
+
+    if (prefersReducedMotion) {
+      setShipFocusId(nextShipId);
+      setShipCycleRevision(nextRevision);
+      setShipDragOffset(0);
+      if (isPlayerShipUnlocked(nextShipId, shipUnlocks)) onSelectShip(nextShipId);
+      return;
+    }
+
+    shipTransitionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    shipTransitionTimersRef.current = [];
+    setShipTransition({
+      outgoingId: shipFocusId,
+      incomingId: nextShipId,
+      direction,
+      phase: 'hard',
+      revision: nextRevision
+    });
     setShipFocusId(nextShipId);
-    setShipCycleRevision((revision) => revision + 1);
+    setShipCycleRevision(nextRevision);
+    setShipDragOffset(0);
+
+    shipTransitionTimersRef.current.push(window.setTimeout(() => {
+      setShipTransition((current) => current?.revision === nextRevision
+        ? { ...current, phase: 'bank' }
+        : current);
+    }, SHIP_CAROUSEL_BANK_PHASE_MS));
+    shipTransitionTimersRef.current.push(window.setTimeout(() => {
+      setShipTransition((current) => current?.revision === nextRevision ? null : current);
+      shipTransitionTimersRef.current = [];
+    }, SHIP_CAROUSEL_TRANSITION_MS));
 
     if (isPlayerShipUnlocked(nextShipId, shipUnlocks)) {
       onSelectShip(nextShipId);
     }
   };
+
+  const handleShipPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary || shipTransition) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    suppressShipTapRef.current = false;
+    shipSwipeGestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      latestX: event.clientX,
+      latestY: event.clientY,
+      startedAt: performance.now(),
+      horizontal: false
+    };
+  };
+
+  const handleShipPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const gesture = shipSwipeGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+
+    gesture.latestX = event.clientX;
+    gesture.latestY = event.clientY;
+    const deltaX = gesture.latestX - gesture.startX;
+    const deltaY = gesture.latestY - gesture.startY;
+    if (!gesture.horizontal && Math.abs(deltaX) >= 8 && Math.abs(deltaX) > Math.abs(deltaY) * 1.15) {
+      gesture.horizontal = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    if (!gesture.horizontal) return;
+
+    event.preventDefault();
+    setShipDragOffset(Math.max(-SHIP_SWIPE_MAX_PREVIEW_PX, Math.min(SHIP_SWIPE_MAX_PREVIEW_PX, deltaX)));
+  };
+
+  const finishShipPointerGesture = (
+    event: React.PointerEvent<HTMLDivElement>,
+    cancelled = false
+  ) => {
+    const gesture = shipSwipeGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    shipSwipeGestureRef.current = null;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    const deltaX = gesture.latestX - gesture.startX;
+    const elapsed = performance.now() - gesture.startedAt;
+    const isSwipe = !cancelled
+      && gesture.horizontal
+      && (Math.abs(deltaX) >= SHIP_SWIPE_MIN_DISTANCE
+        || (Math.abs(deltaX) >= SHIP_SWIPE_MIN_VELOCITY_DISTANCE && elapsed <= SHIP_SWIPE_MAX_VELOCITY_MS));
+
+    setShipDragOffset(0);
+    if (!isSwipe) return;
+
+    suppressShipTapRef.current = true;
+    cycleShip(deltaX < 0 ? 1 : -1);
+    window.setTimeout(() => {
+      suppressShipTapRef.current = false;
+    }, 0);
+  };
+
+  const handleShipCarouselKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    cycleShip(event.key === 'ArrowLeft' ? -1 : 1);
+  };
   const focusedShip = PLAYER_SHIPS[shipFocusId];
   const focusedShipLocked = !isPlayerShipUnlocked(shipFocusId, shipUnlocks);
+  const shipTransitionDirectionClass = shipTransition?.direction === 1
+    ? 'sci-ship-carousel-item--next'
+    : 'sci-ship-carousel-item--previous';
+  const shipTransitionSteeringState = shipTransition
+    ? getShipCarouselSteeringState(shipTransition.direction, shipTransition.phase)
+    : null;
+  const shipDragSteeringState = prefersReducedMotion || shipDragOffset === 0
+    ? null
+    : getShipCarouselSteeringState(shipDragOffset < 0 ? 1 : -1);
   const focusedShipUnlockScore = shipFocusId === 'btc'
     ? BTC_SHIP_SCORE_THRESHOLD
     : ETH_SHIP_SCORE_THRESHOLD;
@@ -1000,18 +1233,51 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <button
               type="button"
               onClick={() => cycleShip(-1)}
+              disabled={Boolean(shipTransition)}
               className="sci-ship-carousel-control sci-ship-carousel-control--left"
               aria-label="Previous ship"
             >
               <Icon name="chevronLeft" className="h-6 w-6" strokeWidth={2.2} />
             </button>
 
-            <div className="sci-ship-carousel-stage" aria-live="polite">
+            <div
+              className={`sci-ship-carousel-stage ${shipDragOffset !== 0 ? 'sci-ship-carousel-stage--dragging' : ''}`}
+              style={{ '--sci-ship-drag-x': `${shipDragOffset}px` } as React.CSSProperties}
+              role="group"
+              aria-live="polite"
+              aria-label="Ship selection. Swipe or use the arrow keys to change ships."
+              onPointerDown={handleShipPointerDown}
+              onPointerMove={handleShipPointerMove}
+              onPointerUp={(event) => finishShipPointerGesture(event)}
+              onPointerCancel={(event) => finishShipPointerGesture(event, true)}
+              onKeyDown={handleShipCarouselKeyDown}
+            >
+              {shipTransition ? (
+                <span
+                  key={`outgoing-${shipTransition.revision}-${shipTransition.outgoingId}`}
+                  className={`sci-ship-carousel-item sci-ship-carousel-item--outgoing ${shipTransitionDirectionClass}`}
+                  aria-hidden="true"
+                >
+                  <span className="sci-rh-ship-core sci-ship-carousel-core">
+                    <PlayerShipSelectionImage
+                      shipId={shipTransition.outgoingId}
+                      steeringState={shipTransitionSteeringState}
+                      className={shipTransition.outgoingId === 'researchhub' ? 'sci-ship-carousel-image--researchhub' : 'sci-ship-carousel-image--pixel'}
+                    />
+                  </span>
+                </span>
+              ) : null}
               <button
                 type="button"
                 key={`${compact ? 'compact' : 'full'}-${shipCycleRevision}`}
-                className={`sci-ship-carousel-item sci-ship-carousel-item--active ${shipCycleRevision > 0 ? 'sci-ship-carousel-item--cycling' : ''} ${focusedShipLocked ? 'sci-ship-carousel-item--locked' : ''}`}
-                onClick={requestFocusedShip}
+                className={`sci-ship-carousel-item sci-ship-carousel-item--active ${shipTransition ? `sci-ship-carousel-item--incoming ${shipTransitionDirectionClass}` : ''} ${focusedShipLocked ? 'sci-ship-carousel-item--locked' : ''}`}
+                onClick={() => {
+                  if (suppressShipTapRef.current) {
+                    suppressShipTapRef.current = false;
+                    return;
+                  }
+                  requestFocusedShip();
+                }}
                 aria-label={!walletAddress
                   ? 'Connect your wallet for ship upgrades'
                   : focusedShipLocked
@@ -1021,6 +1287,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <span className="sci-rh-ship-core sci-ship-carousel-core">
                   <PlayerShipSelectionImage
                     shipId={shipFocusId}
+                    steeringState={shipTransitionSteeringState ?? shipDragSteeringState}
                     className={shipFocusId === 'researchhub' ? 'sci-ship-carousel-image--researchhub' : 'sci-ship-carousel-image--pixel'}
                   />
                 </span>
@@ -1042,6 +1309,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <button
               type="button"
               onClick={() => cycleShip(1)}
+              disabled={Boolean(shipTransition)}
               className="sci-ship-carousel-control sci-ship-carousel-control--right"
               aria-label="Next ship"
             >
@@ -1179,8 +1447,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
           const active = dashboardTab === tab.id;
           const hangarLocked = tab.id === 'hangar' && !walletAddress;
           const rewardAttention = tab.id === 'more' && hasRewardReady;
+          const proposalAttention = tab.id === 'trophies' && weeklyProposalNeedsAttention;
           const tabLabel = hangarLocked
             ? 'Hangar - Connect your wallet for ship upgrades'
+            : proposalAttention
+              ? 'Trophies - weekly high score proposal needs your selection'
             : rewardAttention
               ? `More - ${dailyGiftStatus.isAvailable ? 'daily gift' : 'achievement'} ready`
               : tab.label;
@@ -1196,6 +1467,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               data-locked={hangarLocked ? 'true' : 'false'}
               data-lock-nudged={hangarLocked && connectNudgeActive ? 'true' : 'false'}
               data-reward-ready={rewardAttention ? 'true' : 'false'}
+              data-proposal-ready={proposalAttention ? 'true' : 'false'}
               onClick={tab.id === 'hangar' ? requestHangar : () => setDashboardTab(tab.id)}
               className={`sci-dashboard-nav-button group relative flex min-h-[4.8rem] flex-col items-center justify-end gap-0.5 border-r border-cyan-200/12 px-1 pb-1.5 text-center text-xs font-semibold last:border-r-0 ${
                 active
@@ -1221,7 +1493,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                     <Icon name="lock" className="h-4 w-4" strokeWidth={2.5} />
                   </span>
                 ) : null}
-                {rewardAttention ? (
+                {rewardAttention || proposalAttention ? (
                   <span className="sci-dashboard-reward-ready" aria-hidden="true" />
                 ) : null}
               </span>
@@ -1362,8 +1634,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <button
                 key={id}
                 type="button"
+                data-proposal-ready={id === 'records' && weeklyProposalNeedsAttention ? 'true' : 'false'}
                 onClick={() => setLeaderboardView(id as LeaderboardView)}
                 className={`min-w-0 rounded-[5px] px-1.5 py-2 text-[0.66rem] font-bold uppercase transition sm:px-3 sm:text-xs ${
+                  id === 'records' && weeklyProposalNeedsAttention ? 'sci-proposal-attention ' : ''
+                }${
                   leaderboardView === id ? 'bg-cyan-300/18 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -1504,12 +1779,25 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 && record.runId === run.receipt.runId
                 && record.status === 'confirmed'
               ));
+              const isEditableWeeklyLeader = weeklyProposalRunId === run.receipt.runId
+                && Boolean(onOpenWeeklyLeaderProposal);
+              const proposalMissing = isEditableWeeklyLeader && weeklyProposalNeedsAttention;
               return (
                 <button
                   key={run.receipt.runId}
                   type="button"
-                  onClick={() => onOpenWalletRun(run)}
-                  className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[8px] border border-cyan-300/15 bg-white/[0.035] p-3 text-left transition hover:border-cyan-200/40 hover:bg-cyan-300/8"
+                  data-proposal-ready={proposalMissing ? 'true' : 'false'}
+                  onClick={() => {
+                    if (isEditableWeeklyLeader && onOpenWeeklyLeaderProposal) {
+                      onOpenWeeklyLeaderProposal(run);
+                      return;
+                    }
+                    onOpenWalletRun(run);
+                  }}
+                  aria-label={isEditableWeeklyLeader
+                    ? `${weeklyProposalNeedsAttention ? 'Choose' : 'Change'} proposal for weekly high score ${formatNumber(run.receipt.metrics.score)}`
+                    : undefined}
+                  className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[8px] border border-cyan-300/15 bg-white/[0.035] p-3 text-left transition hover:border-cyan-200/40 hover:bg-cyan-300/8 ${proposalMissing ? 'sci-proposal-attention' : ''}`}
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-[8px] border border-cyan-200/25 bg-cyan-300/10 text-cyan-100">
                     <Icon name="rocket" className="h-5 w-5" />
@@ -1523,8 +1811,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
                       {formatNumber(run.receipt.metrics.score)} pts - Stage {run.receipt.metrics.wave}
                     </p>
                   </div>
-                  <span className={`text-[10px] font-black uppercase ${minted ? 'text-emerald-200' : 'text-cyan-200'}`}>
-                    {minted ? 'Minted' : 'View'}
+                  <span className={`text-right text-[10px] font-black uppercase ${proposalMissing ? 'text-yellow-200' : minted ? 'text-emerald-200' : 'text-cyan-200'}`}>
+                    {isEditableWeeklyLeader
+                      ? weeklyProposalNeedsAttention
+                        ? 'Choose proposal'
+                        : 'Change proposal'
+                      : minted
+                        ? 'Minted'
+                        : 'View'}
                   </span>
                 </button>
               );
@@ -1728,6 +2022,43 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </span>
           ) : null}
         </button>
+      ) : null}
+
+      {showWeeklyProposalReminder && weeklyProposalRecovery ? (
+        <div className="sci-weekly-proposal-reminder-backdrop" role="presentation">
+          <section
+            className="sci-weekly-proposal-reminder sci-neon-frame-window"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="weekly-proposal-reminder-title"
+            aria-describedby="weekly-proposal-reminder-description"
+          >
+            <p className="sci-weekly-proposal-reminder__eyebrow">Weekly high score alert</p>
+            <h2 id="weekly-proposal-reminder-title">Your research pick is waiting</h2>
+            <p id="weekly-proposal-reminder-description">
+              You are still the current #1 pilot with {formatNumber(weeklyProposalRecovery.leader.score)} points,
+              but no ResearchHub proposal is attached to this run yet. Choose one now so your weekly funding pick is ready.
+            </p>
+            <div className="sci-weekly-proposal-reminder__actions">
+              <button
+                type="button"
+                className="sci-weekly-proposal-reminder__later"
+                onClick={() => setShowWeeklyProposalReminder(false)}
+              >
+                Not now
+              </button>
+              <PixelActionButton
+                tone="gold"
+                ready
+                shine
+                className="sci-weekly-proposal-reminder__choose"
+                onClick={openRecoverableWeeklyProposal}
+              >
+                Choose proposal
+              </PixelActionButton>
+            </div>
+          </section>
+        </div>
       ) : null}
 
       <div className="scicon-start-shell mx-auto flex h-full min-h-0 w-full max-w-[1560px] flex-col gap-4 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">

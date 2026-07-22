@@ -243,6 +243,9 @@ const COMBAT_LIGHT_SPECIAL_COLOR = 0xa7f3d0;
 const COMBAT_LIGHT_COIN_COLOR = 0xfacc15;
 const COMBAT_LIGHT_BOSS_COLOR = 0xfb7185;
 const COMBAT_LIGHT_BEAM_COLOR = 0xf97316;
+const RESEARCH_CHARGE_TRAIL_SEGMENTS_DESKTOP = 5;
+const RESEARCH_CHARGE_TRAIL_SEGMENTS_MOBILE = 3;
+const RESEARCH_CHARGE_TRAIL_SEGMENTS_REDUCED = 2;
 const MINI_BOSS_RECOIL_PX = 3.5;
 const BOSS_HULL_RECOIL_PX = 5;
 const BOSS_COMPONENT_RECOIL_PX = 6;
@@ -1476,7 +1479,8 @@ export class PixiGameRenderer {
     view.hasFallbackBody = true;
   }
 
-  private drawProjectile(view: EntityView, entity: Entity, engineFrame: number) {
+  private drawProjectile(view: EntityView, entity: Entity, engine: GameEngine) {
+    const engineFrame = engine.frameCount;
     view.body.clear();
     view.trail.clear();
     view.aura.clear();
@@ -1507,9 +1511,34 @@ export class PixiGameRenderer {
       view.sprite.width = entity.width;
       view.sprite.height = entity.height;
       if (entity.projectileVisualKind === 'research-charge') {
-        const pulse = 0.78 + Math.sin(engineFrame * 0.18) * 0.12;
-        view.aura.circle(0, 0, entity.width * pulse).fill({ color: '#22d3ee', alpha: 0.14 });
-        view.aura.circle(0, 0, entity.width * 0.56).stroke({ color: '#a7f3d0', width: 2, alpha: 0.72 });
+        // The soft pooled light supplies the aura. Keeping the projectile
+        // graphics free of circles prevents a hard-edged "bubble" around the
+        // blast while these short additive streaks sell its forward motion.
+        const reducedTrail = this.reducedMotion
+          || engine.performanceMode
+          || !engine.polishSettings.highDensityParticles;
+        const trailSegmentCount = reducedTrail
+          ? RESEARCH_CHARGE_TRAIL_SEGMENTS_REDUCED
+          : engine.mobileProfile
+            ? RESEARCH_CHARGE_TRAIL_SEGMENTS_MOBILE
+            : RESEARCH_CHARGE_TRAIL_SEGMENTS_DESKTOP;
+        const trailFade = clamp(age / 7, 0, 1) * clamp(entity.life / 10, 0, 1);
+        view.trail.blendMode = 'add';
+        for (let segment = 0; segment < trailSegmentCount; segment++) {
+          const depth = (segment + 1) / trailSegmentCount;
+          const startX = -entity.width * (0.54 + segment * 0.3);
+          const segmentLength = entity.width * (0.17 + depth * 0.15);
+          const offsetY = Math.sin(engineFrame * 0.16 + entity.variant * 0.7 + segment * 1.9)
+            * entity.height * 0.055;
+          view.trail
+            .moveTo(startX, offsetY)
+            .lineTo(startX - segmentLength, offsetY)
+            .stroke({
+              color: segment % 2 === 0 ? '#a7f3d0' : '#67e8f9',
+              width: Math.max(1, entity.height * (0.07 - depth * 0.025)),
+              alpha: trailFade * (0.4 - depth * 0.24)
+            });
+        }
         view.root.rotation = -Math.PI / 2;
       } else if (entity.projectileVisualKind === 'bio-genome-lance') {
         view.aura.roundRect(-entity.width * 0.62, -entity.height * 0.52, entity.width * 1.24, entity.height * 1.04, entity.width * 0.4)
@@ -1700,17 +1729,12 @@ export class PixiGameRenderer {
     view.aura.clear();
 
     const shielded = engine.activePowerups.has(PowerupType.SHIELD) || engine.invincibleTimer > 60;
-    const magnetized = engine.activePowerups.has(PowerupType.MAGNET);
     const beam = engine.activePowerups.has(PowerupType.RESEARCH_BEAM);
     if (shielded) {
       const pulse = 1 + Math.sin(engine.frameCount * 0.1) * 0.04;
       view.aura.circle(0, 0, entity.width * 0.62 * pulse).fill({ color: '#34d399', alpha: 0.075 });
       view.aura.circle(0, 0, entity.width * 0.62 * pulse).stroke({ color: '#a7f3d0', width: 2.5, alpha: 0.82 });
       view.aura.circle(0, 0, entity.width * 0.72 * pulse).stroke({ color: '#22d3ee', width: 1, alpha: 0.35 });
-    }
-    if (magnetized) {
-      view.aura.circle(0, 0, entity.width * (0.72 + Math.sin(engine.frameCount * 0.08) * 0.04))
-        .stroke({ color: '#facc15', width: 2, alpha: 0.5 });
     }
     if (beam) {
       view.aura.circle(0, 0, entity.width * 0.68).stroke({ color: '#c084fc', width: 3, alpha: 0.72 });
@@ -2585,13 +2609,13 @@ export class PixiGameRenderer {
         entity.x + entity.width / 2,
         entity.y + entity.height / 2,
         researchImpact
-          ? clamp(entity.width * (0.64 + impactProgress * 0.2), 48, 136)
-          : clamp(entity.width * 1.42, 34, 104),
+          ? clamp(entity.width * (0.82 + impactProgress * 0.28), 64, 176)
+          : clamp(entity.width * 1.85, 52, 148),
         researchImpact
-          ? clamp(entity.height * (0.64 + impactProgress * 0.2), 48, 136)
-          : clamp(entity.height * 1.08, 38, 112),
+          ? clamp(entity.height * (0.82 + impactProgress * 0.28), 64, 176)
+          : clamp(entity.height * 1.5, 48, 156),
         COMBAT_LIGHT_SPECIAL_COLOR,
-        (researchImpact ? 0.34 - impactProgress * 0.16 : 0.31 * slowPulse) * intensityScale
+        (researchImpact ? 0.27 - impactProgress * 0.13 : 0.24 * slowPulse) * intensityScale
       );
     }
 
@@ -2606,6 +2630,22 @@ export class PixiGameRenderer {
         Math.max(22, engine.player.height * 0.36),
         bioBeamActive ? COMBAT_LIGHT_SPECIAL_COLOR : COMBAT_LIGHT_PLAYER_COLOR,
         0.42 * intensityScale
+      );
+    }
+
+    // Magnet feedback is illumination, not a collision boundary. A broad,
+    // low-alpha pooled gradient keeps it readable without the former yellow
+    // circle line around the ship.
+    if (engine.activePowerups.has(PowerupType.MAGNET) && lightCount < lightLimit) {
+      const magnetPulse = 0.94 + Math.sin(engine.frameCount * 0.045) * 0.06;
+      lightCount = this.configureCombatLight(
+        lightCount,
+        engine.player.x + engine.player.width / 2,
+        engine.player.y + engine.player.height / 2,
+        Math.max(48, engine.player.width * 1.45),
+        Math.max(42, engine.player.height * 1.05),
+        COMBAT_LIGHT_COIN_COLOR,
+        0.1 * magnetPulse * intensityScale
       );
     }
 
@@ -2673,7 +2713,7 @@ export class PixiGameRenderer {
         ) continue;
 
         const slowPulse = 0.94 + Math.sin((engine.frameCount + entity.variant * 11) * 0.035) * 0.06;
-        const radius = clamp(Math.max(entity.width, entity.height) * (bossRewardCoin ? 1.28 : 1.12), 20, 42);
+        const radius = clamp(Math.max(entity.width, entity.height) * (bossRewardCoin ? 2.4 : 2.1), 32, 68);
         lightCount = this.configureCombatLight(
           lightCount,
           entity.x + entity.width / 2,
@@ -2681,7 +2721,7 @@ export class PixiGameRenderer {
           radius,
           radius,
           COMBAT_LIGHT_COIN_COLOR,
-          (bossRewardCoin ? 0.19 : 0.15) * slowPulse * intensityScale
+          (bossRewardCoin ? 0.14 : 0.11) * slowPulse * intensityScale
         );
         coinLights += 1;
       }
@@ -2831,7 +2871,7 @@ export class PixiGameRenderer {
     view.sprite.tint = '#ffffff';
 
     if (entity.type === EntityType.PROJECTILE || entity.type === EntityType.MISSILE) {
-      this.drawProjectile(view, entity, engine.frameCount);
+      this.drawProjectile(view, entity, engine);
     } else if (entity.type === EntityType.EFFECT) {
       view.sprite.visible = false;
       view.body.clear();
@@ -2910,18 +2950,14 @@ export class PixiGameRenderer {
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.05) * 0.09;
     } else if (entity.type === EntityType.COIN) {
       // The RSC frame art supplies the 3D yaw flip. A brief presentation-only
-      // pulse makes boss showers readable without changing pickup geometry.
+      // scale pulse makes boss showers readable without changing pickup
+      // geometry. Its illumination comes only from the edge-free pooled light.
       view.root.rotation = 0;
       view.aura.clear();
       const burstPulse = entity.coinBurstFrames > 0
         ? 1.04 + Math.sin((engine.frameCount + entity.variant) * 0.2) * 0.08
         : 1;
       view.root.scale.set(burstPulse);
-      if (entity.coinBurstFrames > 0) {
-        const glowAlpha = 0.17 + Math.sin((engine.frameCount + entity.variant) * 0.16) * 0.07;
-        view.aura.circle(0, 0, entity.width * 0.66)
-          .fill({ color: '#facc15', alpha: glowAlpha });
-      }
     } else if (entity.type === EntityType.BOMB) {
       const pulse = 1 + Math.sin((engine.frameCount + entity.variant) * 0.18) * 0.08;
       view.root.scale.set(pulse);

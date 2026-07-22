@@ -34,3 +34,18 @@ test('claimable daily cards advertise pointer, focus, and reduced-motion states'
   assert.match(styles, /\.sci-daily-card:focus-visible \{[\s\S]*outline: 2px solid/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.sci-daily-card,[\s\S]*animation: none !important/);
 });
+
+test('daily gifts use the Scicon Neon-Frame theme and scale color by reward value', () => {
+  const center = read('components', 'RewardCenter.tsx');
+  const styles = read('styles', 'tailwind.input.css');
+
+  assert.match(center, /type DailyGiftTier = 'standard' \| 'boosted' \| 'premium' \| 'legendary'/);
+  assert.match(center, /if \(reward\.shipId\) return 'legendary'/);
+  assert.match(center, /if \(reward\.coins >= 1000\) return 'premium'/);
+  assert.match(center, /data-tier=\{giftTier\}/);
+  assert.match(center, /sci-reward-center sci-neon-frame-window/);
+  assert.match(center, /<PixelActionButton[\s\S]*className="sci-reward-primary"[\s\S]*tone="green"/);
+  assert.match(styles, /Scicon Neon-Frame/);
+  assert.match(styles, /\.sci-daily-card\[data-tier='premium'\][\s\S]*rgb\(217 70 239\)/);
+  assert.match(styles, /\.sci-daily-card\[data-tier='legendary'\][\s\S]*rgb\(250 204 21\)/);
+});

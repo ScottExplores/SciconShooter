@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Address } from 'viem';
 import StartScreen from './components/StartScreen';
 import MissionLoadingScreen, { type MissionLoadingPhase } from './components/MissionLoadingScreen';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, MintRecord, PowerupType, Stats, Upgrades, WalletSession } from './types';
@@ -21,6 +22,7 @@ import {
 import { trackEvent, trackInitialVisit } from './services/analyticsService';
 import { getWalletRecords } from './services/recordService';
 import { getWalletRuns, type WalletRunRecord } from './services/playerRunService';
+import { getWeeklyProposalRecovery } from './services/weeklyProposalRecovery';
 import {
   getUsablePlayerShip,
   getPlayerShipUnlocks,
@@ -451,6 +453,11 @@ const App: React.FC = () => {
     weeklyLeaderboard: monthlyLeaderboard,
     archivedWinners
   }) : null, [archivedWinners, monthlyLeaderboard, previewPilotName, runReceipt]);
+  const weeklyProposalRecovery = useMemo(() => getWeeklyProposalRecovery({
+    weeklyLeaderboard: monthlyLeaderboard,
+    walletRuns,
+    walletAddress: activeWalletAddress
+  }), [activeWalletAddress, monthlyLeaderboard, walletRuns]);
   const shipUnlocks = useMemo(() => {
     const unlocks = getPlayerShipUnlocks(activeWalletAddress, walletRecords, { unlockAll: isOwnerWallet });
     return {
@@ -1659,6 +1666,17 @@ const App: React.FC = () => {
     trackEvent('mint_preview_opened', { record_type: 'mission', source: 'wallet_run_history' });
   };
 
+  const openWeeklyLeaderProposal = (record: WalletRunRecord) => {
+    if (weeklyProposalRecovery?.record.receipt.runId !== record.receipt.runId) return;
+    setRunReceipt(record.receipt);
+    setMissionRecordPilotName(record.pilotName);
+    weeklyProposalReturnRef.current = 'record';
+    setWeeklyProposalSelectionStatus('idle');
+    setWeeklyProposalSelectionMessage('');
+    setShowMissionRecordPreview(false);
+    setShowWeeklyProposalSelection(true);
+  };
+
   const skipScoreSubmission = () => {
     submittingScoreRef.current = false;
     setIsSubmittingScore(false);
@@ -1676,7 +1694,13 @@ const App: React.FC = () => {
     setWeeklyProposalSelectionStatus('saving');
     setWeeklyProposalSelectionMessage('Saving your weekly funding choice...');
     try {
-      const updatedData = await saveWeeklyLeaderProposal(runReceipt, proposal);
+      const walletAuthorization = activeWalletAddress
+        ? {
+          address: activeWalletAddress as Address,
+          signMessage: (await import('./services/baseAccountWallet')).signBaseAccountMessage
+        }
+        : undefined;
+      const updatedData = await saveWeeklyLeaderProposal(runReceipt, proposal, walletAuthorization);
       if (updatedData.scores.length > 0) {
         setLeaderboard(updatedData.scores);
       }
@@ -1712,11 +1736,12 @@ const App: React.FC = () => {
 
   const openMissionRecordWeeklyFunding = () => {
     if (!missionRecordWeeklyFunding) return;
-    if (missionRecordWeeklyFunding.status === 'selected') {
+    if (missionRecordWeeklyFunding.status === 'selected' && !missionRecordWeeklyFunding.canEditProposal) {
       return;
     }
 
-    if (missionRecordWeeklyFunding.status === 'current-leader') {
+    if (missionRecordWeeklyFunding.status === 'current-leader'
+      || (missionRecordWeeklyFunding.status === 'selected' && missionRecordWeeklyFunding.canEditProposal)) {
       weeklyProposalReturnRef.current = gameStateRef.current === GameState.GAMEOVER ? 'results' : 'record';
       setWeeklyProposalSelectionStatus('idle');
       setWeeklyProposalSelectionMessage('');
@@ -1953,6 +1978,8 @@ const App: React.FC = () => {
           walletRecords={walletRecords}
           walletRuns={walletRuns}
           walletRunsLoading={walletRunsLoading}
+          weeklyProposalRecovery={weeklyProposalRecovery}
+          onOpenWeeklyLeaderProposal={openWeeklyLeaderProposal}
           walletAddress={activeWalletAddress}
           selectedShipId={usableShipId}
           shipUnlocks={shipUnlocks}
@@ -2254,7 +2281,7 @@ const App: React.FC = () => {
       {showWeeklyProposalSelection && runReceipt ? (
         <React.Suspense fallback={null}>
           <WeeklyProposalSelection
-            pilotName={playerNameInput || 'PILOT'}
+            pilotName={missionRecordPilotName || playerNameInput || 'PILOT'}
             score={runReceipt.metrics.score}
             proposals={fundingProposals}
             proposalStatus={proposalStatus}

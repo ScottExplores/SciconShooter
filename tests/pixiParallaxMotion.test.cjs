@@ -117,6 +117,7 @@ test('all space profiles use a strict seven-step far-to-near speed progression',
     }
     assert.ok(speeds[0] <= 0.003, `${profileId} deep background remains extremely slow`);
     assert.ok(speeds[2] >= speeds[1] * 2, `${profileId} planets separate from the deep field`);
+    assert.ok(speeds[2] >= 0.03, `${profileId} planets visibly travel against the deep field`);
     assert.ok(speeds[4] > speeds[3], `${profileId} coherent debris outruns the broad star field`);
     assert.ok(speeds[5] > speeds[4], `${profileId} second debris depth remains distinct`);
     assert.ok(speeds[6] > speeds[5], `${profileId} near star field remains fastest`);
@@ -133,6 +134,8 @@ test('space debris sheets use two reusable full-viewport tiles and generated rou
   assert.match(environmentSource, /PIXI_SPACE_PARALLAX_DEBRIS_RUST/);
   assert.match(environmentSource, /tilePoolSize: DEBRIS_OVERLAY_TILE_POOL_SIZE/);
   assert.match(environmentSource, /coverViewport: true/);
+  assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_FAR_PLANETS,[\s\S]{0,100}alpha: 1/);
+  assert.match(environmentSource, /url,[\s\S]{0,100}speed: speeds\[4 \+ index\],[\s\S]{0,240}alpha: 1/);
   assert.match(environmentSource, /tileIndex >= layer\.activeTileCount/);
   assert.match(environmentSource, /Math\.max\(this\.width \* layer\.widthScale, this\.height \/ sourceAspect\) \* 1\.04/);
 

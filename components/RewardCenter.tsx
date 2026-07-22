@@ -11,6 +11,7 @@ import {
   type DailyGiftReward
 } from '../services/rewardProgression';
 import type { PermanentSquadState } from '../services/squadProgression';
+import PixelActionButton from './PixelActionButton';
 
 const CALENDAR_ICON = '/game-art/generated/ui/scicon-dashboard-icons-v1/selected/weekly-calendar-selected.png';
 const ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
@@ -34,6 +35,15 @@ interface ClaimNotice {
   detail: string;
   coins: number;
 }
+
+type DailyGiftTier = 'standard' | 'boosted' | 'premium' | 'legendary';
+
+const getDailyGiftTier = (reward: DailyGiftReward): DailyGiftTier => {
+  if (reward.shipId) return 'legendary';
+  if (reward.coins >= 1000) return 'premium';
+  if (reward.coins >= 400) return 'boosted';
+  return 'standard';
+};
 
 const clampProgress = (progress: number, target: number) => (
   target > 0 ? Math.max(0, Math.min(100, (progress / target) * 100)) : 0
@@ -145,7 +155,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
     <div className="sci-reward-backdrop" role="presentation" onPointerDown={onClose}>
       <section
         id="reward-center"
-        className="sci-reward-center"
+        className="sci-reward-center sci-neon-frame-window"
         role="dialog"
         aria-modal="true"
         aria-labelledby="reward-center-title"
@@ -257,6 +267,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                             ? 'claimable'
                             : 'unavailable';
                   const isClaimable = cardState === 'claimable';
+                  const giftTier = getDailyGiftTier(reward);
                   const cardLabel = cardState === 'claimed'
                     ? `Day ${reward.day} claimed: ${rewardName}`
                     : cardState === 'claimable'
@@ -278,6 +289,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                         ship ? 'has-ship' : ''
                       ].filter(Boolean).join(' ')}
                       data-state={cardState}
+                      data-tier={giftTier}
                       disabled={!isClaimable}
                       aria-label={cardLabel}
                       aria-current={isToday ? 'step' : undefined}
@@ -295,9 +307,11 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                 })}
               </div>
 
-              <button
-                type="button"
+              <PixelActionButton
                 className="sci-reward-primary"
+                tone="green"
+                ready={walletConnected && dailyStatus.isAvailable && pendingClaim === null}
+                shine={walletConnected && dailyStatus.isAvailable && pendingClaim === null}
                 disabled={!walletConnected || !dailyStatus.isAvailable || pendingClaim !== null}
                 onClick={handleClaimDailyGift}
               >
@@ -308,7 +322,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                   : dailyStatus.claimedToday
                     ? 'Claimed today'
                     : `Claim Day ${dailyStatus.claimableDay}`}
-              </button>
+              </PixelActionButton>
             </div>
           ) : (
             <div className="sci-achievement-list">

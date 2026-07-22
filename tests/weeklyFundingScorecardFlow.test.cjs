@@ -14,7 +14,7 @@ const leaderboardSource = fs.readFileSync(path.join(root, 'services', 'leaderboa
 test('a new weekly leader enters a dedicated proposal step before returning to results', () => {
   assert.match(appSource, /requiresWeeklyProposal/);
   assert.match(appSource, /setShowWeeklyProposalSelection\(true\)/);
-  assert.match(appSource, /saveWeeklyLeaderProposal\(runReceipt, proposal\)/);
+  assert.match(appSource, /saveWeeklyLeaderProposal\(runReceipt, proposal, walletAuthorization\)/);
   assert.match(appSource, /weeklyProposalReturnRef\.current = 'results'/);
   assert.match(appSource, /setShowMissionRecordPreview\(weeklyProposalReturnRef\.current === 'record'\)/);
   assert.match(appSource, /View \/ mint/);

@@ -14,8 +14,11 @@ const getSoftRadialTexture = () => {
   if (sharedSoftRadialTexture) return sharedSoftRadialTexture;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
+  // A larger authored texture gives the long, low-alpha tail enough samples
+  // to disappear without revealing the sprite's rectangular boundary on a
+  // phone display. Every scene light shares this one GPU texture.
+  canvas.width = 256;
+  canvas.height = 256;
   const context = canvas.getContext('2d');
   if (!context) {
     sharedSoftRadialTexture = Texture.WHITE;
@@ -24,11 +27,13 @@ const getSoftRadialTexture = () => {
 
   const center = canvas.width / 2;
   const gradient = context.createRadialGradient(center, center, 0, center, center, center);
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.88)');
-  gradient.addColorStop(0.12, 'rgba(255, 255, 255, 0.62)');
-  gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.3)');
-  gradient.addColorStop(0.55, 'rgba(255, 255, 255, 0.11)');
-  gradient.addColorStop(0.78, 'rgba(255, 255, 255, 0.035)');
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.78)');
+  gradient.addColorStop(0.08, 'rgba(255, 255, 255, 0.68)');
+  gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.48)');
+  gradient.addColorStop(0.38, 'rgba(255, 255, 255, 0.25)');
+  gradient.addColorStop(0.58, 'rgba(255, 255, 255, 0.1)');
+  gradient.addColorStop(0.76, 'rgba(255, 255, 255, 0.032)');
+  gradient.addColorStop(0.9, 'rgba(255, 255, 255, 0.006)');
   gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
   context.fillStyle = gradient;
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -62,9 +67,9 @@ export const createSoftRadialLight = (): SoftRadialLight => {
   // creates radial or elliptical falloff without vector rings at phone size.
   halo.width = 2;
   halo.height = 2;
-  reflection.width = 0.86;
-  reflection.height = 0.31;
-  reflection.position.set(-0.08, -0.1);
+  reflection.width = 0.92;
+  reflection.height = 0.36;
+  reflection.position.set(-0.1, -0.12);
   reflection.tint = '#ffffff';
 
   root.addChild(halo, reflection);

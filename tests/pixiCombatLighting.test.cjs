@@ -34,9 +34,12 @@ test('combat lights are fixed pooled soft gradients with no primary-fire halo', 
   assert.match(softLight, /reflection\.blendMode = 'add'/);
   assert.match(softLight, /context\.createRadialGradient\(/);
   assert.ok(
-    (softLight.match(/gradient\.addColorStop\(/g) || []).length >= 6,
+    (softLight.match(/gradient\.addColorStop\(/g) || []).length >= 8,
     'the shared texture has a smooth authored falloff'
   );
+  assert.match(softLight, /canvas\.width = 256/);
+  assert.match(softLight, /gradient\.addColorStop\(0\.9, 'rgba\(255, 255, 255, 0\.006\)'\)/);
+  assert.match(softLight, /gradient\.addColorStop\(1, 'rgba\(255, 255, 255, 0\)'\)/);
   assert.match(softLight, /const texture = getSoftRadialTexture\(\)/);
   assert.match(softLight, /const reflection = new Sprite\(texture\)/);
   assert.doesNotMatch(lighting, /engine\.lastShotFrame|muzzleActive|projectileLightBudget|projectileLights/);
@@ -93,6 +96,53 @@ test('coins and Research Charge own restrained persistent lights without per-fra
   assert.match(lighting, /COMBAT_LIGHT_COIN_COLOR/);
   assert.match(lighting, /this\.combatLightRoot\.visible = lightCount > 0/);
   assert.doesNotMatch(lighting, /new (?:Sprite|Container|Graphics|ColorMatrixFilter)|\.map\(|\.filter\(|\.slice\(/);
+});
+
+test('Research Charge and coin art have no hard vector aura and the charge reuses a capped beam trail', () => {
+  const projectile = sliceMethod(
+    'private drawProjectile(view: EntityView, entity: Entity, engine: GameEngine)',
+    'private drawPlayerRig'
+  );
+  const researchStart = projectile.indexOf("if (entity.projectileVisualKind === 'research-charge')");
+  const researchEnd = projectile.indexOf("} else if (entity.projectileVisualKind === 'bio-genome-lance')", researchStart);
+  const research = projectile.slice(researchStart, researchEnd);
+  const coinStart = renderer.indexOf('} else if (entity.type === EntityType.COIN)');
+  const coinEnd = renderer.indexOf('} else if (entity.type === EntityType.BOMB)', coinStart);
+  const coin = renderer.slice(coinStart, coinEnd);
+  const playerRig = sliceMethod('private drawPlayerRig', 'private syncMaxShotPresentation');
+  const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  const triggerStart = engine.indexOf('  triggerShipAbility()');
+  const triggerEnd = engine.indexOf('\n  spawnShipAbilityProjectile(', triggerStart);
+  const trigger = engine.slice(triggerStart, triggerEnd);
+  const detonateStart = engine.indexOf('  detonateResearchCharge(');
+  const detonateEnd = engine.indexOf('\n  isEnemyTarget(', detonateStart);
+  const detonate = engine.slice(detonateStart, detonateEnd);
+
+  assert.doesNotMatch(research, /view\.aura\.(?:circle|ellipse|stroke)/);
+  assert.doesNotMatch(coin, /view\.aura\.(?:circle|ellipse)/);
+  assert.doesNotMatch(playerRig, /magnetized|#facc15/);
+  assert.match(trigger, /if \(ability\.id !== 'research-charge'\)/);
+  assert.doesNotMatch(detonate, /spawnRingEffect/);
+  assert.match(detonate, /RESEARCH_IMPACT_FRAME_URLS\[0\][\s\S]*RESEARCH_IMPACT_FRAME_URLS\[1\]/);
+  assert.doesNotMatch(detonate, /RESEARCH_IMPACT_FRAME_URLS\[[2-6]\]/);
+  assert.match(research, /RESEARCH_CHARGE_TRAIL_SEGMENTS_REDUCED/);
+  assert.match(research, /RESEARCH_CHARGE_TRAIL_SEGMENTS_MOBILE/);
+  assert.match(research, /RESEARCH_CHARGE_TRAIL_SEGMENTS_DESKTOP/);
+  assert.match(research, /view\.trail[\s\S]*?\.moveTo\([\s\S]*?\.lineTo\([\s\S]*?\.stroke\(/);
+  assert.match(research, /const trailFade = clamp\(age \/ 7, 0, 1\) \* clamp\(entity\.life \/ 10, 0, 1\)/);
+  assert.doesNotMatch(research, /new (?:Sprite|Container|Graphics)|\.push\(|\.map\(/);
+});
+
+test('magnet feedback uses the same soft gradient light rather than a vector circle', () => {
+  const lighting = sliceMethod(
+    'private syncCombatLighting(engine: GameEngine)',
+    'private syncDamageRecoil'
+  );
+
+  assert.match(lighting, /engine\.activePowerups\.has\(PowerupType\.MAGNET\)/);
+  assert.match(lighting, /COMBAT_LIGHT_COIN_COLOR/);
+  assert.match(lighting, /0\.1 \* magnetPulse \* intensityScale/);
+  assert.doesNotMatch(lighting, /\.circle\(|\.ellipse\(|\.stroke\(/);
 });
 
 test('boss and mini-boss recoil follows damage timestamps without moving simulation geometry', () => {

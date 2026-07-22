@@ -185,7 +185,7 @@ test('locked ship and Hangar locks replay their animation on click and hover', (
   const html = read('index.html');
 
   assert.match(startScreen, /setShipLockNudgeRevision\(\(revision\) => revision \+ 1\)/);
-  assert.match(startScreen, /onClick=\{requestFocusedShip\}/);
+  assert.match(startScreen, /onClick=\{\(\) => \{[\s\S]*suppressShipTapRef\.current[\s\S]*requestFocusedShip\(\)/);
   assert.doesNotMatch(startScreen, /disabled=\{Boolean\(walletAddress\) && focusedShipLocked\}/);
   assert.match(startScreen, /data-lock-nudged=\{hangarLocked && connectNudgeActive/);
   assert.match(styles, /data-lock-nudged='true'[\s\S]*?sci-dashboard-nav-lock/);

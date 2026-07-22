@@ -16,8 +16,10 @@ test('connected Trophy Deck shows five clickable runs instead of transaction lin
   assert.match(clientSource, /\/api\/player-runs\?wallet=/);
   assert.match(clientSource, /\.slice\(0, 5\)/);
   assert.match(screenSource, /walletRuns\.slice\(0, 5\)\.map/);
-  assert.match(screenSource, /onClick=\{\(\) => onOpenWalletRun\(run\)\}/);
-  assert.match(screenSource, /\{minted \? 'Minted' : 'View'\}/);
+  assert.match(screenSource, /weeklyProposalRunId === run\.receipt\.runId/);
+  assert.match(screenSource, /onOpenWeeklyLeaderProposal\(run\)/);
+  assert.match(screenSource, /onOpenWalletRun\(run\)/);
+  assert.match(screenSource, /\? 'Choose proposal'[\s\S]*: 'Change proposal'[\s\S]*\? 'Minted'[\s\S]*: 'View'/);
   assert.doesNotMatch(screenSource, /basescan\.org|transactionHash \?/);
   assert.match(appSource, /const openWalletRunRecord = \(record: WalletRunRecord\)/);
   assert.match(appSource, /setRunReceipt\(record\.receipt\)/);
@@ -168,6 +170,95 @@ test('recent run API reports schema drift instead of discarding the selected shi
     assert.equal(response.statusCode, 500);
     assert.equal(modernSelectAttempts, 1);
     assert.match(payload.error, /player_ship_id/);
+  } finally {
+    delete require.cache[handlerPath];
+    delete require.cache[runReceiptsPath];
+    if (originalSupabaseCache) require.cache[supabasePath] = originalSupabaseCache;
+    else delete require.cache[supabasePath];
+    if (originalSecret === undefined) delete process.env.RUN_RECEIPT_SECRET;
+    else process.env.RUN_RECEIPT_SECRET = originalSecret;
+  }
+});
+
+test('player run history pins the current verified weekly leader ahead of newer runs', async () => {
+  const wallet = '0x3333333333333333333333333333333333333333';
+  const leaderRunId = '33333333-3333-4333-8333-333333333333';
+  const supabasePath = require.resolve('../api/_lib/supabase');
+  const handlerPath = require.resolve('../api/_lib/playerRuns');
+  const runReceiptsPath = require.resolve('../api/_lib/runReceipts');
+  const originalSupabaseCache = require.cache[supabasePath];
+  const originalSecret = process.env.RUN_RECEIPT_SECRET;
+  process.env.RUN_RECEIPT_SECRET = 'weekly-leader-pinning-test-secret';
+
+  const storedRun = (runId, finishedAt, score) => ({
+    run_id: runId,
+    started_at: new Date(new Date(finishedAt).getTime() - 60_000).toISOString(),
+    finished_at: finishedAt,
+    duration_ms: 60_000,
+    score,
+    wave: 3,
+    enemies_defeated: 20,
+    coins_collected: 10,
+    player_ship_id: 'researchhub',
+    game_version: 'test',
+    integrity_status: 'server-verified',
+    anomaly_flags: [],
+    wallet_address: wallet
+  });
+  const leaderReceipt = storedRun(leaderRunId, '2026-07-20T10:00:00.000Z', 99999);
+  const recentReceipts = Array.from({ length: 5 }, (_, index) => storedRun(
+    `44444444-4444-4444-8444-44444444444${index}`,
+    `2026-07-22T1${index}:00:00.000Z`,
+    1000 + index
+  )).reverse();
+
+  require.cache[supabasePath] = {
+    id: supabasePath,
+    filename: supabasePath,
+    loaded: true,
+    exports: {
+      supabaseHeaders: (extra = {}) => extra,
+      fetchSupabaseJson: async (url, options = {}) => {
+        const value = String(url);
+        if (value.includes('scicon_leaderboard') && value.includes('order=score.desc')) {
+          return [{
+            run_id: leaderRunId,
+            name: 'CHAMPION',
+            date: leaderReceipt.finished_at,
+            wallet_address: wallet,
+            verified: true
+          }];
+        }
+        if (value.includes('scicon_leaderboard')) {
+          return [{ run_id: leaderRunId, name: 'CHAMPION', date: leaderReceipt.finished_at }];
+        }
+        if (options.method === 'PATCH') return [];
+        if (value.includes('run_id=in.')) return [leaderReceipt];
+        if (value.includes('wallet_address=eq.')) return recentReceipts;
+        throw new Error(`Unexpected query: ${value}`);
+      }
+    }
+  };
+  delete require.cache[handlerPath];
+  delete require.cache[runReceiptsPath];
+  const { handlePlayerRuns } = require('../api/_lib/playerRuns');
+  const response = {
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; },
+    end(body) { this.body = body; }
+  };
+
+  try {
+    await handlePlayerRuns({ method: 'GET', query: { wallet } }, response);
+    assert.equal(response.statusCode, 200);
+    const payload = JSON.parse(response.body);
+    assert.equal(payload.runs.length, 5);
+    assert.equal(payload.runs[0].receipt.runId, leaderRunId);
+    assert.equal(payload.runs[0].pilotName, 'CHAMPION');
+    assert.deepEqual(
+      payload.runs.slice(1).map((run) => run.receipt.runId),
+      recentReceipts.slice(0, 4).map((run) => run.run_id)
+    );
   } finally {
     delete require.cache[handlerPath];
     delete require.cache[runReceiptsPath];

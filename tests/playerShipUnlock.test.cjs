@@ -85,8 +85,8 @@ test('title screen keeps the updated BTC ship in the playable roster', () => {
   assert.match(startScreenSource, /isPlayerShipUnlocked\(nextShipId, shipUnlocks\)/);
   assert.match(startScreenSource, /shipFocusId === 'btc'/);
   assert.doesNotMatch(startScreenSource, /sci-ship-carousel-item--behind-/);
-  assert.match(startScreenSource, /setShipCycleRevision\(\(revision\) => revision \+ 1\)/);
-  assert.match(startScreenSource, /shipCycleRevision > 0 \? 'sci-ship-carousel-item--cycling'/);
+  assert.match(startScreenSource, /const nextRevision = shipCycleRevision \+ 1;[\s\S]*setShipCycleRevision\(nextRevision\)/);
+  assert.match(startScreenSource, /shipTransition \? `sci-ship-carousel-item--incoming/);
   assert.doesNotMatch(indexSource, /\.sci-ship-carousel-item--active \{[^}]*animation:/s);
 });
 
