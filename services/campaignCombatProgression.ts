@@ -1,8 +1,71 @@
 export const MAX_AUTHORED_CAMPAIGN_STAGES = 20;
 export const CAMPAIGN_STAGES_PER_COMBAT_TIER = 5;
-export const MAX_SHOT_VOLLEY_MULTIPLIER = 5;
-export const MAX_SHOT_PROJECTILE_CAP = 15;
-export const MAX_SHOT_SPREAD_DEGREES = 14;
+export const MAX_SHOT_VOLLEY_MULTIPLIER = 2;
+export const MAX_SHOT_PROJECTILE_CAP = 18;
+export const MAX_SHOT_BUNDLE_LIFETIME_FRAMES = 120;
+export const MAX_SHOT_SUSTAINED_VOLLEY_BUDGET = 24;
+
+export interface MaxShotCopyOffset {
+  readonly offsetX: number;
+  readonly angleOffset: number;
+}
+
+export type MaxShotVisualRound = MaxShotCopyOffset;
+
+const degreesToRadians = (degrees: number) => degrees * (Math.PI / 180);
+
+/**
+ * Max Shot doubles every round already present in the current weapon pattern.
+ * The pair is separated only enough to remain legible while preserving the
+ * center or triple-shot lane it belongs to.
+ */
+const MAX_SHOT_COPY_PATTERN: readonly MaxShotCopyOffset[] = Object.freeze([
+  Object.freeze({ offsetX: -1.75, angleOffset: degreesToRadians(-0.42) }),
+  Object.freeze({ offsetX: 1.75, angleOffset: degreesToRadians(0.42) })
+]);
+
+export const getMaxShotCopyPattern = () => MAX_SHOT_COPY_PATTERN;
+
+export const buildMaxShotBundleVisualPattern = (
+  baseOffsets: readonly number[],
+  baseAngleOffsets: readonly number[]
+): readonly MaxShotVisualRound[] => Object.freeze(baseOffsets.flatMap((offsetX, index) => (
+  MAX_SHOT_COPY_PATTERN.map((copy) => Object.freeze({
+    offsetX: offsetX + copy.offsetX,
+    angleOffset: (baseAngleOffsets[index] || 0) + copy.angleOffset
+  }))
+)));
+
+export const getMaxShotSimulationEntityCount = (hasSpread: boolean) => hasSpread ? 3 : 1;
+
+export const getMaxShotSustainedEntityFloor = (hasSpread: boolean) => (
+  getMaxShotSimulationEntityCount(hasSpread) * MAX_SHOT_SUSTAINED_VOLLEY_BUDGET
+);
+
+export const canAdmitMaxShotVolley = (
+  activePlayerShotEntities: number,
+  pendingPlayerShotEntities: number,
+  hasSpread: boolean,
+  entityCap: number
+) => (
+  Math.max(0, Math.floor(Number(activePlayerShotEntities) || 0))
+  + Math.max(0, Math.floor(Number(pendingPlayerShotEntities) || 0))
+  + getMaxShotSimulationEntityCount(hasSpread)
+  <= Math.max(0, Math.floor(Number(entityCap) || 0))
+);
+
+export const getMaxShotRoundsForTarget = (
+  representedRoundsRemaining: number,
+  targetHp: number,
+  damagePerRound: number,
+  bossTarget: boolean
+) => {
+  const remaining = Math.max(1, Math.floor(Number(representedRoundsRemaining) || 1));
+  if (bossTarget) return remaining;
+  const safeDamage = Math.max(0.001, Number(damagePerRound) || 1);
+  const roundsToDefeat = Math.max(1, Math.ceil(Math.max(1, Number(targetHp) || 1) / safeDamage));
+  return Math.min(remaining, roundsToDefeat);
+};
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -40,21 +103,6 @@ export const getMaxShotProjectileCount = (baseVolleyCount: number) => clamp(
   MAX_SHOT_VOLLEY_MULTIPLIER,
   MAX_SHOT_PROJECTILE_CAP
 );
-
-/** Evenly fills a tight cone while keeping one exact center shot for odd volleys. */
-export const getMaxShotAnglesRadians = (projectileCount: number) => {
-  const count = clamp(
-    Math.floor(Number(projectileCount) || MAX_SHOT_VOLLEY_MULTIPLIER),
-    1,
-    MAX_SHOT_PROJECTILE_CAP
-  );
-  if (count === 1) return [0];
-
-  const spreadRadians = MAX_SHOT_SPREAD_DEGREES * (Math.PI / 180);
-  return Array.from({ length: count }, (_, index) => (
-    -spreadRadians + ((spreadRadians * 2 * index) / (count - 1))
-  ));
-};
 
 export interface StageDepartureSignal {
   progress: number;

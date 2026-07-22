@@ -12,6 +12,8 @@ import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
 import { audioService } from '../services/audioService';
 import { PixiGameRenderer, preloadPixiGameplayTextures } from '../services/pixi/PixiGameRenderer';
+import { resolveCampaignEnvironmentWindow } from '../services/pixi/PixiEnvironment';
+import { DEFAULT_GAME_CAMPAIGN } from '../services/levelConfig';
 import type { RuntimeSquadLoadout } from '../services/squadProgression';
 import type { PlayerShipId } from '../services/playerShipService';
 
@@ -458,7 +460,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const initialHeight = previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
       const renderer = new PixiGameRenderer();
       pendingRenderer = renderer;
-      await renderer.init(host, initialWidth, initialHeight);
+      const initialEnvironmentWindow = resolveCampaignEnvironmentWindow(
+        campaign ?? DEFAULT_GAME_CAMPAIGN,
+        levelId,
+        waveId
+      );
+      await renderer.init(host, initialWidth, initialHeight, initialEnvironmentWindow);
       if (disposed) {
         renderer.destroy();
         return;

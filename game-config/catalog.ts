@@ -61,6 +61,11 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   GAME_PARALLAX_FAR_PLANETS: asset('GAME_PARALLAX_FAR_PLANETS', 'Far planets', ASSETS.GAME_PARALLAX_FAR_PLANETS, ['background']),
   GAME_PARALLAX_BIG_PLANET: asset('GAME_PARALLAX_BIG_PLANET', 'Big planet', ASSETS.GAME_PARALLAX_BIG_PLANET, ['background']),
   GAME_PARALLAX_RING_PLANET: asset('GAME_PARALLAX_RING_PLANET', 'Ring planet', ASSETS.GAME_PARALLAX_RING_PLANET, ['background']),
+  PIXI_SPACE_RUN_HELIX_REDLINE_PROPS: asset('PIXI_SPACE_RUN_HELIX_REDLINE_PROPS', 'Helix Redline landmarks', ASSETS.PIXI_SPACE_RUN_HELIX_REDLINE_PROPS, ['background']),
+  PIXI_SPACE_RUN_SHATTERED_VOID_PROPS: asset('PIXI_SPACE_RUN_SHATTERED_VOID_PROPS', 'Shattered Void landmarks', ASSETS.PIXI_SPACE_RUN_SHATTERED_VOID_PROPS, ['background']),
+  PIXI_SPACE_RUN_GRAVITY_RIFT_PROPS: asset('PIXI_SPACE_RUN_GRAVITY_RIFT_PROPS', 'Gravity Rift landmarks', ASSETS.PIXI_SPACE_RUN_GRAVITY_RIFT_PROPS, ['background']),
+  PIXI_SPACE_RUN_ION_ECLIPSE_PROPS: asset('PIXI_SPACE_RUN_ION_ECLIPSE_PROPS', 'Ion Eclipse landmarks', ASSETS.PIXI_SPACE_RUN_ION_ECLIPSE_PROPS, ['background']),
+  PIXI_SPACE_RUN_TERMINUS_FRONTIER_PROPS: asset('PIXI_SPACE_RUN_TERMINUS_FRONTIER_PROPS', 'Terminus Frontier landmarks', ASSETS.PIXI_SPACE_RUN_TERMINUS_FRONTIER_PROPS, ['background']),
   PIXI_JET_SCOUT_FRAMES: asset('PIXI_JET_SCOUT_FRAMES', 'Terrain jet scout', ASSETS.PIXI_JET_SCOUT_FRAMES, ['enemy']),
   PIXI_JET_INTERCEPTOR_FRAMES: asset('PIXI_JET_INTERCEPTOR_FRAMES', 'Terrain jet interceptor', ASSETS.PIXI_JET_INTERCEPTOR_FRAMES, ['enemy']),
   PIXI_JET_HEAVY_FRAMES: asset('PIXI_JET_HEAVY_FRAMES', 'Terrain heavy jet', ASSETS.PIXI_JET_HEAVY_FRAMES, ['enemy']),
@@ -371,7 +376,12 @@ export const BACKGROUND_CATALOG: Record<BackgroundId, BackgroundCatalogEntry> = 
   'citation-storm': { id: 'citation-storm', label: 'Citation Storm', layerAssetKeys: [...commonBackgroundLayers], tint: '#4f46e5' },
   'paywall-siege': { id: 'paywall-siege', label: 'Paywall Siege', layerAssetKeys: [...commonBackgroundLayers], tint: '#d97706' },
   'open-galaxy': { id: 'open-galaxy', label: 'Open Galaxy', layerAssetKeys: [...commonBackgroundLayers], tint: '#10b981' },
-  'bastion-protocol': { id: 'bastion-protocol', label: 'Bastion Protocol', layerAssetKeys: [...commonBackgroundLayers], tint: '#db2777' }
+  'bastion-protocol': { id: 'bastion-protocol', label: 'Bastion Protocol', layerAssetKeys: [...commonBackgroundLayers], tint: '#db2777' },
+  'helix-redline': { id: 'helix-redline', label: 'Helix Redline', layerAssetKeys: [...commonBackgroundLayers, 'PIXI_SPACE_RUN_HELIX_REDLINE_PROPS'], tint: '#7c3aed' },
+  'shattered-void': { id: 'shattered-void', label: 'Shattered Void', layerAssetKeys: [...commonBackgroundLayers, 'PIXI_SPACE_RUN_SHATTERED_VOID_PROPS'], tint: '#312e81' },
+  'gravity-rift': { id: 'gravity-rift', label: 'Gravity Rift', layerAssetKeys: [...commonBackgroundLayers, 'PIXI_SPACE_RUN_GRAVITY_RIFT_PROPS'], tint: '#0f766e' },
+  'ion-eclipse': { id: 'ion-eclipse', label: 'Ion Eclipse', layerAssetKeys: [...commonBackgroundLayers, 'PIXI_SPACE_RUN_ION_ECLIPSE_PROPS'], tint: '#2563eb' },
+  'terminus-frontier': { id: 'terminus-frontier', label: 'Terminus Frontier', layerAssetKeys: [...commonBackgroundLayers, 'PIXI_SPACE_RUN_TERMINUS_FRONTIER_PROPS'], tint: '#f59e0b' }
 };
 
 export const MUSIC_CATALOG: Record<MusicId, MusicCatalogEntry> = {

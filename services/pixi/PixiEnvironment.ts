@@ -1,11 +1,12 @@
 import { BlurFilter, Container, Graphics, Rectangle, Sprite, Texture } from 'pixi.js';
 import { ASSETS } from '../../constants';
-import { GameEngine } from '../gameLogic';
+import type { GameCampaign } from '../../game-config/types';
+import type { GameEngine } from '../gameLogic';
 import { PixiTextureBank } from './PixiTextureBank';
 
 type ParallaxLayer = {
   root: Container;
-  sprites: [Sprite, Sprite];
+  sprites: Sprite[];
   speed: number;
   alpha: number;
   textureKey: string;
@@ -17,6 +18,7 @@ type ParallaxLayer = {
   startOffsetRatio: number;
   softness: number;
   blurFilter: BlurFilter;
+  filterActive: boolean;
   scrollDirection: 'up' | 'down';
 };
 
@@ -34,6 +36,13 @@ type ParallaxDefinition = {
 };
 
 type TerrainFamily = 'space' | 'desert' | 'river';
+type SpaceRunBackgroundId =
+  | 'helix-redline'
+  | 'shattered-void'
+  | 'gravity-rift'
+  | 'ion-eclipse'
+  | 'terminus-frontier';
+type TerrainPropSet = TerrainFamily | SpaceRunBackgroundId;
 
 type TerrainProp = {
   root: Container;
@@ -42,6 +51,7 @@ type TerrainProp = {
   perspectiveTextures: [Texture, Texture, Texture] | null;
   perspectiveState: GroundPropPerspectiveState | -1;
   terrain: TerrainFamily;
+  propSet: TerrainPropSet;
   slot: number;
   baseX: number;
   baseY: number;
@@ -55,7 +65,7 @@ type TerrainProp = {
 
 type TerrainPropDefinition = Omit<
   TerrainProp,
-  'root' | 'sprite' | 'shadow' | 'perspectiveTextures' | 'perspectiveState' | 'terrain' | 'slot'
+  'root' | 'sprite' | 'shadow' | 'perspectiveTextures' | 'perspectiveState' | 'terrain' | 'propSet' | 'slot'
 > & { frame: number };
 
 type EnvironmentProfile = {
@@ -65,11 +75,10 @@ type EnvironmentProfile = {
   colorGradeAlpha: number;
   layers: readonly ParallaxDefinition[];
   horizonAlpha: number;
-  bigPlanetAlpha: number;
-  ringPlanetAlpha: number;
   planetTint: string;
   starSpeedMultiplier: number;
   terrain: TerrainFamily;
+  propSet: TerrainPropSet;
   propAlpha: number;
   propCount: number;
   glyphAlpha: number;
@@ -94,8 +103,39 @@ type ScienceGlyph = {
 };
 
 const DEFAULT_BACKGROUND_ID = 'open-orbit';
-const RING_PLANET_SPEED = 0.028;
 const TERRAIN_PROP_CELL_SIZE = 256;
+export const PARALLAX_TILE_POOL_SIZE = 8;
+export const GROUND_PROP_CONTACT_ANCHOR_Y = 238 / TERRAIN_PROP_CELL_SIZE;
+export const MOBILE_HYPERSPEED_STREAK_CAP = 24;
+export const DESKTOP_HYPERSPEED_STREAK_CAP = 38;
+export const TAKEOFF_WORLD_SPEED_MULTIPLIER = 30;
+
+const positiveModulo = (value: number, divisor: number) => (
+  divisor > 0 ? ((value % divisor) + divisor) % divisor : 0
+);
+
+export const getLoopingParallaxTileY = (
+  tileIndex: number,
+  scrollDistance: number,
+  tileHeight: number,
+  direction: 'up' | 'down'
+) => {
+  const safeTileHeight = Math.max(1, tileHeight);
+  const phase = positiveModulo(scrollDistance, safeTileHeight);
+  return direction === 'down'
+    ? phase - safeTileHeight + tileIndex * safeTileHeight
+    : -phase + tileIndex * safeTileHeight;
+};
+
+export const getNonLoopingParallaxOffset = (
+  maxTravel: number,
+  scrollDistance: number,
+  direction: 'up' | 'down'
+) => {
+  const safeMaxTravel = Math.max(0, maxTravel);
+  const travel = Math.min(safeMaxTravel, Math.max(0, scrollDistance));
+  return direction === 'down' ? -safeMaxTravel + travel : -travel;
+};
 
 export type GroundPropPerspectiveState = 0 | 1 | 2;
 
@@ -108,28 +148,53 @@ export const getGroundPropPerspectiveState = (
   return 1;
 };
 
-const TERRAIN_PROP_ATLASES: Record<TerrainFamily, string> = {
+const TERRAIN_PROP_ATLASES: Record<TerrainPropSet, string> = {
   space: ASSETS.PIXI_TERRAIN_SPACE_PROPS,
   desert: ASSETS.PIXI_TERRAIN_DESERT_PROPS,
-  river: ASSETS.PIXI_TERRAIN_RIVER_PROPS
+  river: ASSETS.PIXI_TERRAIN_RIVER_PROPS,
+  'helix-redline': ASSETS.PIXI_SPACE_RUN_HELIX_REDLINE_PROPS,
+  'shattered-void': ASSETS.PIXI_SPACE_RUN_SHATTERED_VOID_PROPS,
+  'gravity-rift': ASSETS.PIXI_SPACE_RUN_GRAVITY_RIFT_PROPS,
+  'ion-eclipse': ASSETS.PIXI_SPACE_RUN_ION_ECLIPSE_PROPS,
+  'terminus-frontier': ASSETS.PIXI_SPACE_RUN_TERMINUS_FRONTIER_PROPS
 };
+
+const getTerrainForPropSet = (propSet: TerrainPropSet): TerrainFamily => (
+  propSet === 'desert' || propSet === 'river' ? propSet : 'space'
+);
 
 const GROUND_PROP_PERSPECTIVE_SHEETS: Partial<Record<TerrainFamily, string>> = {
   desert: ASSETS.PIXI_TERRAIN_DESERT_PROP_PERSPECTIVES,
   river: ASSETS.PIXI_TERRAIN_RIVER_PROP_PERSPECTIVES
 };
 
-const TERRAIN_PROP_LAYOUTS: Record<TerrainFamily, readonly TerrainPropDefinition[]> = {
+const createSpaceRunLayout = (phaseOffset: number, mirrored = false): readonly TerrainPropDefinition[] => {
+  const leftEdge = mirrored ? 1.07 : 0.08;
+  const rightEdge = mirrored ? 0.08 : 1.07;
+  return [
+    { frame: 0, baseX: leftEdge, baseY: 0.04, speed: 0.006, sway: 1, phase: phaseOffset, widthRatio: 0.86, rotationSpeed: 0, alpha: 0.72 },
+    { frame: 1, baseX: rightEdge, baseY: 0.42, speed: 0.009, sway: 1.4, phase: phaseOffset + 0.8, widthRatio: 1, rotationSpeed: 0, alpha: 0.76 },
+    { frame: 2, baseX: mirrored ? 0.82 : 0.18, baseY: 0.7, speed: 0.018, sway: 2, phase: phaseOffset + 1.5, widthRatio: 0.26, rotationSpeed: 0, alpha: 0.58 },
+    { frame: 3, baseX: mirrored ? 0.92 : 0.08, baseY: 0.2, speed: 0.044, sway: 3, phase: phaseOffset + 2.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.82 },
+    { frame: 4, baseX: mirrored ? 0.1 : 0.9, baseY: 0.58, speed: 0.058, sway: 3.5, phase: phaseOffset + 2.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.84 },
+    { frame: 5, baseX: mirrored ? 0.86 : 0.14, baseY: 0.88, speed: 0.072, sway: 4, phase: phaseOffset + 3.6, widthRatio: 0.14, rotationSpeed: 0, alpha: 0.86 },
+    { frame: 6, baseX: mirrored ? 0.12 : 0.88, baseY: 0.34, speed: 0.086, sway: 4.5, phase: phaseOffset + 4.3, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.82 },
+    { frame: 7, baseX: mirrored ? 0.9 : 0.1, baseY: 0.76, speed: 0.1, sway: 5, phase: phaseOffset + 5, widthRatio: 0.13, rotationSpeed: 0, alpha: 0.88 },
+    { frame: 8, baseX: mirrored ? 0.16 : 0.84, baseY: 0.96, speed: 0.112, sway: 5.5, phase: phaseOffset + 5.7, widthRatio: 0.15, rotationSpeed: 0, alpha: 0.9 }
+  ];
+};
+
+const TERRAIN_PROP_LAYOUTS: Record<TerrainPropSet, readonly TerrainPropDefinition[]> = {
   space: [
-    { frame: 1, baseX: 0.08, baseY: 0.08, speed: 0.004, sway: 1, phase: 0.2, widthRatio: 0.58, rotationSpeed: 0, alpha: 0.76 },
-    { frame: 2, baseX: 0.9, baseY: 0.39, speed: 0.006, sway: 1.2, phase: 1.2, widthRatio: 0.72, rotationSpeed: 0, alpha: 0.82 },
-    { frame: 0, baseX: 0.12, baseY: 0.62, speed: 0.055, sway: 3, phase: 2.4, widthRatio: 0.2, rotationSpeed: 0.0006, alpha: 0.82 },
-    { frame: 3, baseX: 0.88, baseY: 0.76, speed: 0.07, sway: 4, phase: 3.2, widthRatio: 0.18, rotationSpeed: -0.0005, alpha: 0.84 },
-    { frame: 4, baseX: 0.1, baseY: 0.92, speed: 0.085, sway: 4, phase: 4.1, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.86 },
+    { frame: 1, baseX: 0.08, baseY: 0.05, speed: 0.006, sway: 1, phase: 0.2, widthRatio: 0.78, rotationSpeed: 0, alpha: 0.72 },
+    { frame: 2, baseX: 1.07, baseY: 0.4, speed: 0.009, sway: 1.4, phase: 1.2, widthRatio: 0.96, rotationSpeed: 0, alpha: 0.78 },
+    { frame: 6, baseX: 0.8, baseY: 0.55, speed: 0.025, sway: 3, phase: 0.8, widthRatio: 0.24, rotationSpeed: 0, alpha: 0.7 },
     { frame: 5, baseX: 0.9, baseY: 0.12, speed: 0.045, sway: 3, phase: 5.4, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.76 },
-    { frame: 6, baseX: 0.8, baseY: 0.55, speed: 0.025, sway: 3, phase: 0.8, widthRatio: 0.24, rotationSpeed: 0.00025, alpha: 0.7 },
-    { frame: 7, baseX: 0.22, baseY: 0.78, speed: 0.09, sway: 5, phase: 2.8, widthRatio: 0.17, rotationSpeed: -0.0006, alpha: 0.82 },
-    { frame: 8, baseX: 0.9, baseY: 0.94, speed: 0.06, sway: 3, phase: 4.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.84 }
+    { frame: 0, baseX: 0.12, baseY: 0.62, speed: 0.055, sway: 3, phase: 2.4, widthRatio: 0.2, rotationSpeed: 0, alpha: 0.82 },
+    { frame: 8, baseX: 0.9, baseY: 0.94, speed: 0.06, sway: 3, phase: 4.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.84 },
+    { frame: 3, baseX: 0.88, baseY: 0.76, speed: 0.07, sway: 4, phase: 3.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.84 },
+    { frame: 4, baseX: 0.1, baseY: 0.92, speed: 0.085, sway: 4, phase: 4.1, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.86 },
+    { frame: 7, baseX: 0.22, baseY: 0.78, speed: 0.09, sway: 5, phase: 2.8, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.82 }
   ],
   desert: [
     { frame: 0, baseX: 0.1, baseY: 0.06, speed: 0, sway: 0, phase: 0.3, widthRatio: 0.25, rotationSpeed: 0, alpha: 0.96 },
@@ -152,16 +217,110 @@ const TERRAIN_PROP_LAYOUTS: Record<TerrainFamily, readonly TerrainPropDefinition
     { frame: 6, baseX: 0.11, baseY: 0.84, speed: 0, sway: 0, phase: 0.8, widthRatio: 0.22, rotationSpeed: 0, alpha: 0.94 },
     { frame: 7, baseX: 0.9, baseY: 0.92, speed: 0, sway: 0, phase: 2.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.97 },
     { frame: 8, baseX: 0.09, baseY: 0.73, speed: 0, sway: 0, phase: 3.8, widthRatio: 0.22, rotationSpeed: 0, alpha: 0.95 }
-  ]
+  ],
+  'helix-redline': createSpaceRunLayout(0.35),
+  'shattered-void': createSpaceRunLayout(1.15, true),
+  'gravity-rift': createSpaceRunLayout(2.05),
+  'ion-eclipse': createSpaceRunLayout(2.95, true),
+  'terminus-frontier': createSpaceRunLayout(3.85)
 };
 
+/** One reusable prop object per visible atlas slot, regardless of campaign length. */
+export const TERRAIN_PROP_POOL_SIZE = Math.max(
+  ...Object.values(TERRAIN_PROP_LAYOUTS).map((layout) => layout.length)
+);
+
 export const CAMPAIGN_ENVIRONMENT_ROUTE = [
-  { wave: 1, backgroundId: 'open-orbit', terrain: 'space', storyBeat: 'orbital-departure' },
-  { wave: 2, backgroundId: 'citation-storm', terrain: 'space', storyBeat: 'deep-nebula' },
-  { wave: 3, backgroundId: 'paywall-siege', terrain: 'desert', storyBeat: 'planetary-descent' },
-  { wave: 4, backgroundId: 'open-galaxy', terrain: 'river', storyBeat: 'biosphere-expedition' },
-  { wave: 5, backgroundId: 'bastion-protocol', terrain: 'space', storyBeat: 'orbital-return' }
+  { stage: 1, backgroundId: 'open-orbit', terrain: 'space', storyBeat: 'orbital-departure' },
+  { stage: 2, backgroundId: 'citation-storm', terrain: 'space', storyBeat: 'deep-nebula' },
+  { stage: 3, backgroundId: 'paywall-siege', terrain: 'desert', storyBeat: 'planetary-descent' },
+  { stage: 4, backgroundId: 'open-galaxy', terrain: 'river', storyBeat: 'biosphere-expedition' },
+  { stage: 5, backgroundId: 'bastion-protocol', terrain: 'space', storyBeat: 'orbital-return' },
+  { stage: 6, backgroundId: 'helix-redline', terrain: 'space', storyBeat: 'helix-convergence' },
+  { stage: 7, backgroundId: 'helix-redline', terrain: 'space', storyBeat: 'redline-corridor' },
+  { stage: 8, backgroundId: 'shattered-void', terrain: 'space', storyBeat: 'dark-matter-run' },
+  { stage: 9, backgroundId: 'shattered-void', terrain: 'space', storyBeat: 'mirror-array' },
+  { stage: 10, backgroundId: 'shattered-void', terrain: 'space', storyBeat: 'null-sector' },
+  { stage: 11, backgroundId: 'shattered-void', terrain: 'space', storyBeat: 'shard-tempest' },
+  { stage: 12, backgroundId: 'gravity-rift', terrain: 'space', storyBeat: 'quantum-cage' },
+  { stage: 13, backgroundId: 'gravity-rift', terrain: 'space', storyBeat: 'gravity-well' },
+  { stage: 14, backgroundId: 'gravity-rift', terrain: 'space', storyBeat: 'event-horizon' },
+  { stage: 15, backgroundId: 'ion-eclipse', terrain: 'space', storyBeat: 'ion-citadel' },
+  { stage: 16, backgroundId: 'ion-eclipse', terrain: 'space', storyBeat: 'crimson-vector' },
+  { stage: 17, backgroundId: 'ion-eclipse', terrain: 'space', storyBeat: 'eclipse-swarm' },
+  { stage: 18, backgroundId: 'terminus-frontier', terrain: 'space', storyBeat: 'fracture-engine' },
+  { stage: 19, backgroundId: 'terminus-frontier', terrain: 'space', storyBeat: 'last-light-gauntlet' },
+  { stage: 20, backgroundId: 'terminus-frontier', terrain: 'space', storyBeat: 'terminus-ascendant' }
 ] as const;
+
+export const SPACE_PARALLAX_DEPTH_SPEEDS = Object.freeze({
+  'open-orbit': Object.freeze([0.002, 0.004, 0.008, 0.016, 0.032]),
+  'citation-storm': Object.freeze([0.0024, 0.0048, 0.0096, 0.0192, 0.0384]),
+  'bastion-protocol': Object.freeze([0.003, 0.006, 0.012, 0.024, 0.048]),
+  'helix-redline': Object.freeze([0.0026, 0.0052, 0.0104, 0.0208, 0.0416]),
+  'shattered-void': Object.freeze([0.0022, 0.0044, 0.0088, 0.0176, 0.0352]),
+  'gravity-rift': Object.freeze([0.0028, 0.0056, 0.0112, 0.0224, 0.0448]),
+  'ion-eclipse': Object.freeze([0.0025, 0.005, 0.01, 0.02, 0.04]),
+  'terminus-frontier': Object.freeze([0.0032, 0.0064, 0.0128, 0.0256, 0.0512])
+} as const);
+
+type SpaceParallaxProfileId = keyof typeof SPACE_PARALLAX_DEPTH_SPEEDS;
+
+const createSpaceLayers = (
+  profileId: SpaceParallaxProfileId,
+  startOffsetRatio: number,
+  phaseOffset = 0
+): readonly ParallaxDefinition[] => {
+  const speeds = SPACE_PARALLAX_DEPTH_SPEEDS[profileId];
+  return [
+    {
+      url: ASSETS.PIXI_TERRAIN_SPACE_MASTER,
+      speed: speeds[0],
+      alpha: 1,
+      loop: false,
+      startOffsetRatio,
+      scrollDirection: 'down'
+    },
+    {
+      url: ASSETS.GAME_PARALLAX_BACK,
+      speed: speeds[1],
+      alpha: 0.05,
+      widthScale: 1.04,
+      xDrift: 0.5,
+      phase: 4.1 + phaseOffset,
+      scrollDirection: 'down'
+    },
+    {
+      url: ASSETS.GAME_PARALLAX_FAR_PLANETS,
+      speed: speeds[2],
+      alpha: 0.2,
+      widthScale: 1.12,
+      xDrift: 0.8,
+      phase: 1.6 + phaseOffset,
+      softness: 0.55,
+      scrollDirection: 'down'
+    },
+    {
+      url: ASSETS.GAME_BG_STARS,
+      speed: speeds[3],
+      alpha: 0.1,
+      widthScale: 1.06,
+      xDrift: 1.2,
+      phase: 2.2 + phaseOffset,
+      softness: 0.2,
+      scrollDirection: 'down'
+    },
+    {
+      url: ASSETS.GAME_PARALLAX_STARS,
+      speed: speeds[4],
+      alpha: 0.17,
+      widthScale: 1.08,
+      xDrift: 2.2,
+      phase: 0.8 + phaseOffset,
+      scrollDirection: 'down'
+    }
+  ];
+};
 
 const BACKGROUND_PROFILES = {
   'open-orbit': {
@@ -169,19 +328,12 @@ const BACKGROUND_PROFILES = {
     accent: '#67e8f9',
     family: 0,
     colorGradeAlpha: 0.085,
-    layers: [
-      { url: ASSETS.PIXI_TERRAIN_SPACE_MASTER, speed: 0.004, alpha: 1, loop: false, startOffsetRatio: 0.02 },
-      { url: ASSETS.GAME_PARALLAX_BACK, speed: 0.003, alpha: 0.045, widthScale: 1.02, xDrift: 0.5, phase: 4.1 },
-      { url: ASSETS.GAME_PARALLAX_FAR_PLANETS, speed: 0.006, alpha: 0.28, widthScale: 1.12, xDrift: 0.8, phase: 1.6, softness: 0.8 },
-      { url: ASSETS.GAME_BG_STARS, speed: 0.012, alpha: 0.08, widthScale: 1.04, xDrift: 1, phase: 2.2 },
-      { url: ASSETS.GAME_PARALLAX_STARS, speed: 0.028, alpha: 0.14, widthScale: 1.08, xDrift: 2, phase: 0.8 }
-    ],
-    horizonAlpha: 0,
-    bigPlanetAlpha: 0,
-    ringPlanetAlpha: 0,
+    layers: createSpaceLayers('open-orbit', 0.02),
+    horizonAlpha: 0.11,
     planetTint: '#d8f7ff',
     starSpeedMultiplier: 0.55,
     terrain: 'space',
+    propSet: 'space',
     propAlpha: 0.72,
     propCount: 6,
     glyphAlpha: 0
@@ -191,19 +343,12 @@ const BACKGROUND_PROFILES = {
     accent: '#c4b5fd',
     family: 1,
     colorGradeAlpha: 0.1,
-    layers: [
-      { url: ASSETS.PIXI_TERRAIN_SPACE_MASTER, speed: 0.007, alpha: 1, loop: false, startOffsetRatio: 0.34 },
-      { url: ASSETS.GAME_PARALLAX_BACK, speed: 0.004, alpha: 0.07, widthScale: 1.04, xDrift: 0.8, phase: 4.7 },
-      { url: ASSETS.GAME_PARALLAX_FAR_PLANETS, speed: 0.009, alpha: 0.34, widthScale: 1.16, xDrift: 1.2, phase: 2.6, softness: 0.9 },
-      { url: ASSETS.GAME_BG_STARS, speed: 0.018, alpha: 0.12, widthScale: 1.06, xDrift: 2, phase: 3.1 },
-      { url: ASSETS.GAME_PARALLAX_STARS, speed: 0.04, alpha: 0.22, widthScale: 1.08, xDrift: 3.5, phase: 1.8 }
-    ],
-    horizonAlpha: 0,
-    bigPlanetAlpha: 0,
-    ringPlanetAlpha: 0,
+    layers: createSpaceLayers('citation-storm', 0.34, 0.8),
+    horizonAlpha: 0.13,
     planetTint: '#ddd6fe',
     starSpeedMultiplier: 0.72,
     terrain: 'space',
+    propSet: 'space',
     propAlpha: 0.86,
     propCount: 9,
     glyphAlpha: 0
@@ -215,15 +360,14 @@ const BACKGROUND_PROFILES = {
     colorGradeAlpha: 0.095,
     layers: [
       { url: ASSETS.PIXI_TERRAIN_DESERT_MASTER, speed: 0.36, alpha: 1, loop: false, startOffsetRatio: 0.02, scrollDirection: 'down' },
-      { url: ASSETS.PIXI_DESERT_CLOUDS, speed: 0.105, alpha: 0.18, widthScale: 1.06, xDrift: 2, phase: 1.4 },
-      { url: ASSETS.GAME_BG_STARS, speed: 0.015, alpha: 0.025, widthScale: 1.04, xDrift: 1, phase: 2.8 }
+      { url: ASSETS.PIXI_DESERT_CLOUDS, speed: 0.105, alpha: 0.18, widthScale: 1.06, xDrift: 2, phase: 1.4, scrollDirection: 'down' },
+      { url: ASSETS.GAME_BG_STARS, speed: 0.015, alpha: 0.025, widthScale: 1.04, xDrift: 1, phase: 2.8, scrollDirection: 'down' }
     ],
     horizonAlpha: 0,
-    bigPlanetAlpha: 0,
-    ringPlanetAlpha: 0,
     planetTint: '#fde68a',
     starSpeedMultiplier: 0.35,
     terrain: 'desert',
+    propSet: 'desert',
     propAlpha: 0.92,
     propCount: 9,
     glyphAlpha: 0
@@ -235,14 +379,13 @@ const BACKGROUND_PROFILES = {
     colorGradeAlpha: 0.085,
     layers: [
       { url: ASSETS.PIXI_TERRAIN_RIVER_MASTER, speed: 0.34, alpha: 1, loop: false, startOffsetRatio: 0.03, scrollDirection: 'down' },
-      { url: ASSETS.GAME_BG_STARS, speed: 0.012, alpha: 0.02, widthScale: 1.04, xDrift: 1, phase: 2.3 }
+      { url: ASSETS.GAME_BG_STARS, speed: 0.012, alpha: 0.02, widthScale: 1.04, xDrift: 1, phase: 2.3, scrollDirection: 'down' }
     ],
     horizonAlpha: 0,
-    bigPlanetAlpha: 0,
-    ringPlanetAlpha: 0,
     planetTint: '#bbf7d0',
     starSpeedMultiplier: 0.3,
     terrain: 'river',
+    propSet: 'river',
     propAlpha: 0.94,
     propCount: 9,
     glyphAlpha: 0
@@ -252,51 +395,146 @@ const BACKGROUND_PROFILES = {
     accent: '#f9a8d4',
     family: 1,
     colorGradeAlpha: 0.075,
-    layers: [
-      { url: ASSETS.PIXI_TERRAIN_SPACE_MASTER, speed: 0.01, alpha: 1, loop: false, startOffsetRatio: 0.68 },
-      { url: ASSETS.GAME_PARALLAX_BACK, speed: 0.005, alpha: 0.075, widthScale: 1.04, xDrift: 1, phase: 4.2 },
-      { url: ASSETS.GAME_PARALLAX_FAR_PLANETS, speed: 0.012, alpha: 0.32, widthScale: 1.18, xDrift: 1.5, phase: 3.4, softness: 0.85 },
-      { url: ASSETS.GAME_BG_STARS, speed: 0.025, alpha: 0.1, widthScale: 1.06, xDrift: 2, phase: 2.5 },
-      { url: ASSETS.GAME_PARALLAX_STARS, speed: 0.055, alpha: 0.2, widthScale: 1.1, xDrift: 4, phase: 0.9 }
-    ],
-    horizonAlpha: 0,
-    bigPlanetAlpha: 0,
-    ringPlanetAlpha: 0,
+    layers: createSpaceLayers('bastion-protocol', 0.68, 1.6),
+    horizonAlpha: 0.14,
     planetTint: '#fbcfe8',
     starSpeedMultiplier: 0.78,
     terrain: 'space',
+    propSet: 'space',
     propAlpha: 0.9,
     propCount: 9,
     glyphAlpha: 0
+  },
+  'helix-redline': {
+    tint: '#4c1d95', accent: '#f472b6', family: 1, colorGradeAlpha: 0.09,
+    layers: createSpaceLayers('helix-redline', 0.12, 2.2),
+    horizonAlpha: 0.14, planetTint: '#f0abfc', starSpeedMultiplier: 0.66,
+    terrain: 'space', propSet: 'helix-redline', propAlpha: 0.92, propCount: 9, glyphAlpha: 0
+  },
+  'shattered-void': {
+    tint: '#1e1b4b', accent: '#a5b4fc', family: 1, colorGradeAlpha: 0.1,
+    layers: createSpaceLayers('shattered-void', 0.25, 2.9),
+    horizonAlpha: 0.1, planetTint: '#c7d2fe', starSpeedMultiplier: 0.58,
+    terrain: 'space', propSet: 'shattered-void', propAlpha: 0.88, propCount: 9, glyphAlpha: 0
+  },
+  'gravity-rift': {
+    tint: '#134e4a', accent: '#5eead4', family: 0, colorGradeAlpha: 0.09,
+    layers: createSpaceLayers('gravity-rift', 0.39, 3.6),
+    horizonAlpha: 0.16, planetTint: '#99f6e4', starSpeedMultiplier: 0.7,
+    terrain: 'space', propSet: 'gravity-rift', propAlpha: 0.9, propCount: 9, glyphAlpha: 0
+  },
+  'ion-eclipse': {
+    tint: '#1e3a8a', accent: '#67e8f9', family: 3, colorGradeAlpha: 0.1,
+    layers: createSpaceLayers('ion-eclipse', 0.52, 4.3),
+    horizonAlpha: 0.15, planetTint: '#bae6fd', starSpeedMultiplier: 0.68,
+    terrain: 'space', propSet: 'ion-eclipse', propAlpha: 0.92, propCount: 9, glyphAlpha: 0
+  },
+  'terminus-frontier': {
+    tint: '#78350f', accent: '#fbbf24', family: 2, colorGradeAlpha: 0.08,
+    layers: createSpaceLayers('terminus-frontier', 0.71, 5),
+    horizonAlpha: 0.12, planetTint: '#fde68a', starSpeedMultiplier: 0.76,
+    terrain: 'space', propSet: 'terminus-frontier', propAlpha: 0.94, propCount: 9, glyphAlpha: 0
   }
 } as const satisfies Record<string, EnvironmentProfile>;
 
-/** Exact environment texture set used by the five production campaign routes. */
-export const PIXI_ENVIRONMENT_TEXTURE_URLS = Object.freeze([
-  ...Object.values(BACKGROUND_PROFILES).flatMap((profile) => profile.layers.map((layer) => layer.url)),
-  ASSETS.GAME_BG_PLANET,
-  ASSETS.GAME_PARALLAX_BIG_PLANET,
-  ASSETS.GAME_PARALLAX_RING_PLANET,
-  ...Object.values(TERRAIN_PROP_ATLASES),
-  ...Object.values(GROUND_PROP_PERSPECTIVE_SHEETS)
-]);
+export type PixiEnvironmentWindow = Readonly<{
+  currentBackgroundId: string;
+  nextBackgroundId: string | null;
+}>;
+
+const resolveBackgroundId = (backgroundId?: string | null) => (
+  backgroundId && backgroundId in BACKGROUND_PROFILES ? backgroundId : DEFAULT_BACKGROUND_ID
+);
+
+const getEntryBackgroundId = (
+  level: GameCampaign['levels'][number],
+  wave: GameCampaign['levels'][number]['waves'][number]
+) => resolveBackgroundId(wave.backgroundId ?? level.backgroundId);
+
+/**
+ * Resolves the active route plus the next distinct environment. Repeated stages
+ * intentionally share one preload window, giving the following route plenty of
+ * time to warm without decoding every late-campaign atlas at mission startup.
+ */
+export const resolveCampaignEnvironmentWindow = (
+  campaign: GameCampaign,
+  levelId?: string,
+  waveId?: string
+): PixiEnvironmentWindow => {
+  const entries = [...(campaign.levels ?? [])]
+    .sort((left, right) => left.order - right.order)
+    .flatMap((level) => [...(level.waves ?? [])]
+      .sort((left, right) => left.order - right.order)
+      .map((wave) => ({ level, wave })));
+  const requestedIndex = entries.findIndex(({ level, wave }) => (
+    (!levelId || level.id === levelId)
+    && (!waveId || wave.id === waveId)
+  ));
+  const currentIndex = requestedIndex >= 0 ? requestedIndex : 0;
+  const currentEntry = entries[currentIndex];
+  const currentBackgroundId = currentEntry
+    ? getEntryBackgroundId(currentEntry.level, currentEntry.wave)
+    : DEFAULT_BACKGROUND_ID;
+  const nextEntry = entries
+    .slice(currentIndex + 1)
+    .find(({ level, wave }) => getEntryBackgroundId(level, wave) !== currentBackgroundId);
+
+  return {
+    currentBackgroundId,
+    nextBackgroundId: nextEntry ? getEntryBackgroundId(nextEntry.level, nextEntry.wave) : null
+  };
+};
+
+/** Exact decoded texture set needed to present one environment profile. */
+export const getEnvironmentProfileTextureUrls = (backgroundId: string): readonly string[] => {
+  const resolvedId = resolveBackgroundId(backgroundId);
+  const profile = BACKGROUND_PROFILES[resolvedId as keyof typeof BACKGROUND_PROFILES];
+  const perspectiveSheet = GROUND_PROP_PERSPECTIVE_SHEETS[profile.terrain];
+  return Object.freeze([...new Set([
+    ...profile.layers.map((layer) => layer.url),
+    ...(profile.horizonAlpha > 0 ? [ASSETS.GAME_BG_PLANET] : []),
+    TERRAIN_PROP_ATLASES[profile.propSet],
+    ...(perspectiveSheet ? [perspectiveSheet] : [])
+  ].filter(Boolean))]);
+};
+
+export const getEnvironmentWindowTextureUrls = (
+  window: PixiEnvironmentWindow
+): readonly string[] => Object.freeze([...new Set([
+  ...getEnvironmentProfileTextureUrls(window.currentBackgroundId),
+  ...(window.nextBackgroundId ? getEnvironmentProfileTextureUrls(window.nextBackgroundId) : [])
+])]);
+
+const INITIAL_ENVIRONMENT_WINDOW: PixiEnvironmentWindow = Object.freeze({
+  currentBackgroundId: DEFAULT_BACKGROUND_ID,
+  nextBackgroundId: 'citation-storm'
+});
+
+/** Initial production route only; later environments are warmed on demand. */
+export const PIXI_ENVIRONMENT_TEXTURE_URLS = getEnvironmentWindowTextureUrls(INITIAL_ENVIRONMENT_WINDOW);
 
 export class PixiEnvironment {
   private readonly parallaxLayers: ParallaxLayer[] = [];
   private readonly stars: StarPoint[] = [];
   private readonly glyphs: ScienceGlyph[] = [];
   private readonly terrainProps: TerrainProp[] = [];
+  private readonly atlasFrameCache = new Map<string, readonly Texture[]>();
   private readonly backgroundFill = new Graphics();
   private readonly sectorTint = new Graphics();
   private readonly hyperspeedStreaks = new Graphics();
+  private readonly hyperspeedFrame = new Graphics();
   private readonly terrainPropLayer = new Container();
   private readonly horizon = new Sprite(Texture.WHITE);
-  private readonly bigPlanet = new Sprite(Texture.WHITE);
-  private readonly ringPlanet = new Sprite(Texture.WHITE);
   private width = 1;
   private height = 1;
   private built = false;
   private activeBackgroundId = '';
+  private activePropSet: TerrainPropSet | null = null;
+  private profileWindowKey = '';
+  private profileWindowPreload: Promise<void> = Promise.resolve();
+  private campaignLevelId = '';
+  private campaignWaveId = '';
+  private campaignProfileWindow: PixiEnvironmentWindow = INITIAL_ENVIRONMENT_WINDOW;
   private profileStartedAtFrame = 0;
   private environmentMotionFrame = 0;
   private lastEngineFrame = -1;
@@ -307,14 +545,18 @@ export class PixiEnvironment {
     private readonly textures: PixiTextureBank
   ) {}
 
-  async init(width: number, height: number) {
+  async init(
+    width: number,
+    height: number,
+    profileWindow: PixiEnvironmentWindow = INITIAL_ENVIRONMENT_WINDOW
+  ) {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
     if (!this.built) this.build();
     this.resize(this.width, this.height);
-    await this.textures.preload([...PIXI_ENVIRONMENT_TEXTURE_URLS]);
-    this.buildTerrainProps();
-    this.applyProfile(DEFAULT_BACKGROUND_ID, true);
+    await this.preloadProfileWindow(profileWindow);
+    this.applyProfile(profileWindow.currentBackgroundId, true);
+    this.resize(this.width, this.height);
   }
 
   private build() {
@@ -326,14 +568,17 @@ export class PixiEnvironment {
       const blurFilter = new BlurFilter({ strength: definition.softness ?? 0, quality: 1, kernelSize: 5 });
       root.eventMode = 'none';
       root.filters = definition.softness ? [blurFilter] : null;
-      const first = new Sprite(Texture.WHITE);
-      const second = new Sprite(Texture.WHITE);
-      first.alpha = definition.alpha;
-      second.alpha = definition.alpha;
-      root.addChild(first, second);
+      const sprites: Sprite[] = [];
+      for (let tileIndex = 0; tileIndex < PARALLAX_TILE_POOL_SIZE; tileIndex++) {
+        const sprite = new Sprite(Texture.WHITE);
+        sprite.alpha = definition.alpha;
+        sprite.eventMode = 'none';
+        sprites.push(sprite);
+        root.addChild(sprite);
+      }
       this.parallaxLayers.push({
         root,
-        sprites: [first, second],
+        sprites,
         speed: definition.speed,
         alpha: definition.alpha,
         textureKey: definition.url,
@@ -345,7 +590,8 @@ export class PixiEnvironment {
         startOffsetRatio: definition.startOffsetRatio ?? 0,
         softness: definition.softness ?? 0,
         blurFilter,
-        scrollDirection: definition.scrollDirection ?? 'up'
+        filterActive: Boolean(definition.softness),
+        scrollDirection: definition.scrollDirection ?? 'down'
       });
       this.backgroundLayer.addChild(root);
     }
@@ -376,7 +622,9 @@ export class PixiEnvironment {
     }
 
     this.terrainPropLayer.eventMode = 'none';
-    this.environmentLayer.addChild(this.horizon, this.bigPlanet, this.ringPlanet, this.terrainPropLayer);
+    this.terrainPropLayer.sortableChildren = true;
+    this.environmentLayer.addChild(this.horizon, this.terrainPropLayer);
+    this.buildTerrainPropPool();
     for (let index = 0; index < 18; index++) {
       const graphic = new Graphics();
       graphic.eventMode = 'none';
@@ -394,63 +642,123 @@ export class PixiEnvironment {
     }
     this.hyperspeedStreaks.eventMode = 'none';
     this.hyperspeedStreaks.visible = false;
-    this.environmentLayer.addChild(this.hyperspeedStreaks);
+    this.hyperspeedFrame.eventMode = 'none';
+    this.hyperspeedFrame.visible = false;
+    this.environmentLayer.addChild(this.hyperspeedStreaks, this.hyperspeedFrame);
   }
 
-  private buildTerrainProps() {
-    if (this.terrainProps.length > 0) return;
-    for (const terrain of Object.keys(TERRAIN_PROP_ATLASES) as TerrainFamily[]) {
-      const sheet = this.textures.get(TERRAIN_PROP_ATLASES[terrain]);
-      if (!sheet) continue;
-      const perspectiveSheetUrl = GROUND_PROP_PERSPECTIVE_SHEETS[terrain];
-      const perspectiveSheet = perspectiveSheetUrl ? this.textures.get(perspectiveSheetUrl) : null;
-
-      const propTextures = Array.from({ length: 9 }, (_, index) => new Texture({
-        source: sheet.source,
-        frame: new Rectangle(
-          (index % 3) * TERRAIN_PROP_CELL_SIZE,
-          Math.floor(index / 3) * TERRAIN_PROP_CELL_SIZE,
-          TERRAIN_PROP_CELL_SIZE,
-          TERRAIN_PROP_CELL_SIZE
-        ),
-        label: `${terrain}-terrain-prop-${index}`
-      }));
-      TERRAIN_PROP_LAYOUTS[terrain].forEach((definition, slot) => {
-        const root = new Container();
-        const shadow = new Graphics();
-        const perspectiveTextures = perspectiveSheet
-          ? ([0, 1, 2].map((column) => new Texture({
-              source: perspectiveSheet.source,
-              frame: new Rectangle(
-                column * TERRAIN_PROP_CELL_SIZE,
-                definition.frame * TERRAIN_PROP_CELL_SIZE,
-                TERRAIN_PROP_CELL_SIZE,
-                TERRAIN_PROP_CELL_SIZE
-              ),
-              label: `${terrain}-terrain-prop-${definition.frame}-perspective-${column}`
-            })) as [Texture, Texture, Texture])
-          : null;
-        const sprite = new Sprite(perspectiveTextures?.[0] ?? propTextures[definition.frame]);
-        sprite.anchor.set(0.5);
-        root.eventMode = 'none';
-        shadow.eventMode = 'none';
-        sprite.eventMode = 'none';
-        root.visible = false;
-        root.addChild(shadow, sprite);
-        this.terrainProps.push({
-          root,
-          sprite,
-          shadow,
-          perspectiveTextures,
-          perspectiveState: perspectiveTextures ? 0 : -1,
-          terrain,
-          slot,
-          ...definition
-        });
-        this.terrainPropLayer.addChild(root);
-      });
+  private getAtlasFrames(url: string, columns: number, rows: number): readonly Texture[] {
+    const cacheKey = `${url}:${columns}x${rows}`;
+    const cached = this.atlasFrameCache.get(cacheKey);
+    if (cached) return cached;
+    const sheet = this.textures.get(url);
+    if (!sheet) return [];
+    const frames: Texture[] = [];
+    for (let row = 0; row < rows; row++) {
+      for (let column = 0; column < columns; column++) {
+        const frameIndex = row * columns + column;
+        frames.push(new Texture({
+          source: sheet.source,
+          frame: new Rectangle(
+            column * TERRAIN_PROP_CELL_SIZE,
+            row * TERRAIN_PROP_CELL_SIZE,
+            TERRAIN_PROP_CELL_SIZE,
+            TERRAIN_PROP_CELL_SIZE
+          ),
+          label: `${cacheKey}:${frameIndex}`
+        }));
+      }
     }
+    this.atlasFrameCache.set(cacheKey, frames);
+    return frames;
+  }
+
+  private buildTerrainPropPool() {
+    if (this.terrainProps.length > 0) return;
+    const fallbackDefinition = TERRAIN_PROP_LAYOUTS.space[0];
+    for (let slot = 0; slot < TERRAIN_PROP_POOL_SIZE; slot++) {
+      const root = new Container();
+      const shadow = new Graphics();
+      const sprite = new Sprite(Texture.WHITE);
+      root.eventMode = 'none';
+      shadow.eventMode = 'none';
+      sprite.eventMode = 'none';
+      root.visible = false;
+      root.addChild(shadow, sprite);
+      this.terrainProps.push({
+        root,
+        sprite,
+        shadow,
+        perspectiveTextures: null,
+        perspectiveState: -1,
+        terrain: 'space',
+        propSet: 'space',
+        slot,
+        ...fallbackDefinition
+      });
+      this.terrainPropLayer.addChild(root);
+    }
+  }
+
+  private pruneAtlasFrameCache(keepUrls: readonly string[]) {
+    for (const [cacheKey, frames] of this.atlasFrameCache) {
+      if (keepUrls.some((url) => cacheKey.startsWith(`${url}:`))) continue;
+      frames.forEach((frame) => frame.destroy(false));
+      this.atlasFrameCache.delete(cacheKey);
+    }
+  }
+
+  private configureTerrainProps(propSet: TerrainPropSet) {
+    if (this.activePropSet === propSet) return true;
+    const terrain = getTerrainForPropSet(propSet);
+    const atlasUrl = TERRAIN_PROP_ATLASES[propSet];
+    const propTextures = this.getAtlasFrames(atlasUrl, 3, 3);
+    if (propTextures.length === 0) return false;
+    const perspectiveSheetUrl = GROUND_PROP_PERSPECTIVE_SHEETS[terrain];
+    const perspectiveFrames = perspectiveSheetUrl
+      ? this.getAtlasFrames(perspectiveSheetUrl, 3, 9)
+      : [];
+    const layout = TERRAIN_PROP_LAYOUTS[propSet];
+
+    this.terrainProps.forEach((prop, slot) => {
+      const definition = layout[slot];
+      const texture = definition ? propTextures[definition.frame] : null;
+      if (!definition || !texture) {
+        prop.root.visible = false;
+        return;
+      }
+      const perspectiveStart = definition.frame * 3;
+      const firstPerspective = perspectiveFrames[perspectiveStart];
+      const secondPerspective = perspectiveFrames[perspectiveStart + 1];
+      const thirdPerspective = perspectiveFrames[perspectiveStart + 2];
+      const perspectiveTextures = firstPerspective && secondPerspective && thirdPerspective
+        ? [firstPerspective, secondPerspective, thirdPerspective] as [Texture, Texture, Texture]
+        : null;
+
+      prop.terrain = terrain;
+      prop.propSet = propSet;
+      prop.slot = slot;
+      prop.baseX = definition.baseX;
+      prop.baseY = definition.baseY;
+      prop.speed = definition.speed;
+      prop.sway = definition.sway;
+      prop.phase = definition.phase;
+      prop.widthRatio = definition.widthRatio;
+      prop.rotationSpeed = definition.rotationSpeed;
+      prop.alpha = definition.alpha;
+      prop.perspectiveTextures = perspectiveTextures;
+      prop.perspectiveState = perspectiveTextures ? 0 : -1;
+      prop.sprite.texture = perspectiveTextures?.[0] ?? texture;
+      prop.sprite.anchor.set(0.5, terrain === 'space' ? 0.5 : GROUND_PROP_CONTACT_ANCHOR_Y);
+      prop.root.visible = false;
+      prop.root.rotation = 0;
+      prop.root.scale.set(1);
+    });
+
+    this.activePropSet = propSet;
+    this.pruneAtlasFrameCache([atlasUrl, ...(perspectiveSheetUrl ? [perspectiveSheetUrl] : [])]);
     this.layoutTerrainProps();
+    return true;
   }
 
   private drawGlyph(graphic: Graphics, family: number, color: string) {
@@ -475,10 +783,36 @@ export class PixiEnvironment {
     }
   }
 
+  private preloadProfileWindow(profileWindow: PixiEnvironmentWindow) {
+    const normalizedWindow: PixiEnvironmentWindow = {
+      currentBackgroundId: resolveBackgroundId(profileWindow.currentBackgroundId),
+      nextBackgroundId: profileWindow.nextBackgroundId
+        ? resolveBackgroundId(profileWindow.nextBackgroundId)
+        : null
+    };
+    const profileWindowKey = `${normalizedWindow.currentBackgroundId}:${normalizedWindow.nextBackgroundId ?? ''}`;
+    if (profileWindowKey === this.profileWindowKey) return this.profileWindowPreload;
+
+    this.profileWindowKey = profileWindowKey;
+    this.profileWindowPreload = this.textures
+      .preload([...getEnvironmentWindowTextureUrls(normalizedWindow)])
+      .then(() => undefined);
+    return this.profileWindowPreload;
+  }
+
+  private isProfileReady(backgroundId: string) {
+    return getEnvironmentProfileTextureUrls(backgroundId)
+      .every((url) => Boolean(this.textures.get(url)));
+  }
+
   private applyProfile(backgroundId: string, force = false) {
-    const resolvedId = backgroundId in BACKGROUND_PROFILES ? backgroundId : DEFAULT_BACKGROUND_ID;
+    const resolvedId = resolveBackgroundId(backgroundId);
     const profile = BACKGROUND_PROFILES[resolvedId as keyof typeof BACKGROUND_PROFILES];
     if (!force && this.activeBackgroundId === resolvedId) return profile;
+    if (!this.isProfileReady(resolvedId) || !this.configureTerrainProps(profile.propSet)) {
+      const fallbackId = resolveBackgroundId(this.activeBackgroundId);
+      return BACKGROUND_PROFILES[fallbackId as keyof typeof BACKGROUND_PROFILES];
+    }
 
     this.activeBackgroundId = resolvedId;
     for (let index = 0; index < this.parallaxLayers.length; index++) {
@@ -499,8 +833,9 @@ export class PixiEnvironment {
       layer.startOffsetRatio = definition.startOffsetRatio ?? 0;
       layer.softness = definition.softness ?? 0;
       layer.blurFilter.strength = layer.softness;
-      layer.root.filters = layer.softness > 0 ? [layer.blurFilter] : null;
-      layer.scrollDirection = definition.scrollDirection ?? 'up';
+      layer.filterActive = layer.softness > 0;
+      layer.root.filters = layer.filterActive ? [layer.blurFilter] : null;
+      layer.scrollDirection = definition.scrollDirection ?? 'down';
       layer.root.visible = true;
       for (const sprite of layer.sprites) {
         if (texture) sprite.texture = texture;
@@ -511,17 +846,9 @@ export class PixiEnvironment {
     }
 
     const horizon = this.textures.get(ASSETS.GAME_BG_PLANET);
-    const bigPlanet = this.textures.get(ASSETS.GAME_PARALLAX_BIG_PLANET);
-    const ringPlanet = this.textures.get(ASSETS.GAME_PARALLAX_RING_PLANET);
     if (horizon) this.horizon.texture = horizon;
-    if (bigPlanet) this.bigPlanet.texture = bigPlanet;
-    if (ringPlanet) this.ringPlanet.texture = ringPlanet;
     this.horizon.visible = profile.horizonAlpha > 0;
-    this.bigPlanet.visible = profile.bigPlanetAlpha > 0;
-    this.ringPlanet.visible = profile.ringPlanetAlpha > 0;
     this.horizon.tint = profile.planetTint;
-    this.bigPlanet.tint = profile.planetTint;
-    this.ringPlanet.tint = profile.planetTint;
     this.terrainPropLayer.visible = profile.propAlpha > 0;
     this.terrainPropLayer.alpha = profile.propAlpha;
     return profile;
@@ -535,21 +862,19 @@ export class PixiEnvironment {
     this.sectorTint.alpha = 0;
 
     this.horizon.anchor.set(0.5, 1);
-    this.horizon.position.set(this.width / 2, this.height + Math.max(80, this.height * 0.15));
-    this.horizon.width = this.width;
-    this.horizon.height = Math.max(240, this.height * 0.34);
+    this.horizon.width = this.width * 1.24;
+    this.horizon.height = this.horizon.width * (
+      Math.max(1, this.horizon.texture.height) / Math.max(1, this.horizon.texture.width)
+    );
+    this.horizon.position.set(this.width / 2, this.height + this.horizon.height * 0.72);
     this.horizon.alpha = 0.52;
 
-    this.bigPlanet.anchor.set(0.5);
-    this.bigPlanet.width = this.width < 620 ? 150 : 210;
-    this.bigPlanet.height = this.bigPlanet.width;
-    this.bigPlanet.position.set(this.width - this.bigPlanet.width * 0.5, 130);
-    this.bigPlanet.alpha = 0.52;
-
-    this.ringPlanet.anchor.set(0.5);
-    this.ringPlanet.width = this.width < 620 ? 72 : 110;
-    this.ringPlanet.height = this.ringPlanet.width * 1.8;
-    this.ringPlanet.alpha = 0.62;
+    this.hyperspeedFrame
+      .clear()
+      .rect(3, 3, Math.max(1, this.width - 6), Math.max(1, this.height - 6))
+      .stroke({ color: '#22d3ee', width: 7, alpha: 0.15 })
+      .rect(2, 2, Math.max(1, this.width - 4), Math.max(1, this.height - 4))
+      .stroke({ color: '#a5f3fc', width: 1.5, alpha: 0.82 });
 
     for (const layer of this.parallaxLayers) this.layoutParallaxLayer(layer);
     this.layoutTerrainProps();
@@ -559,10 +884,11 @@ export class PixiEnvironment {
     const texture = this.textures.get(layer.textureKey);
     const sourceWidth = Math.max(1, texture?.width || this.width);
     const sourceHeight = Math.max(1, texture?.height || this.height);
-    layer.tileHeight = Math.max(this.height * 0.52, this.width * (sourceHeight / sourceWidth));
+    const scaledWidth = this.width * layer.widthScale;
+    layer.tileHeight = scaledWidth * (sourceHeight / sourceWidth);
     for (const sprite of layer.sprites) {
-      sprite.width = this.width * layer.widthScale;
-      sprite.height = layer.tileHeight + 2;
+      sprite.width = scaledWidth;
+      sprite.height = layer.tileHeight;
       sprite.alpha = layer.alpha;
     }
   }
@@ -575,21 +901,34 @@ export class PixiEnvironment {
       prop.sprite.height = width * aspect;
       prop.shadow.clear();
       if (prop.terrain !== 'space') {
-        prop.shadow.ellipse(0, width * 0.23, width * 0.28, width * 0.085)
+        prop.shadow.ellipse(0, 0, width * 0.28, width * 0.085)
           .fill({ color: '#020617', alpha: 0.24 });
       }
     }
   }
 
   update(engine: GameEngine) {
-    const backgroundId = engine.getCurrentWaveDefinition()?.backgroundId ?? engine.getCurrentLevelDefinition()?.backgroundId ?? 'open-orbit';
-    const resolvedBackgroundId = backgroundId in BACKGROUND_PROFILES ? backgroundId : DEFAULT_BACKGROUND_ID;
-    const profileChanged = this.activeBackgroundId !== resolvedBackgroundId;
+    const currentLevel = engine.getCurrentLevelDefinition();
+    const currentWave = engine.getCurrentWaveDefinition();
+    const currentLevelId = currentLevel?.id ?? '';
+    const currentWaveId = currentWave?.id ?? '';
+    if (currentLevelId !== this.campaignLevelId || currentWaveId !== this.campaignWaveId) {
+      this.campaignLevelId = currentLevelId;
+      this.campaignWaveId = currentWaveId;
+      this.campaignProfileWindow = resolveCampaignEnvironmentWindow(
+        engine.campaign,
+        currentLevelId,
+        currentWaveId
+      );
+      void this.preloadProfileWindow(this.campaignProfileWindow);
+    }
+    const previousBackgroundId = this.activeBackgroundId;
+    const profile = this.applyProfile(this.campaignProfileWindow.currentBackgroundId);
+    const profileChanged = previousBackgroundId !== this.activeBackgroundId;
     if (profileChanged) {
       this.profileStartedAtFrame = engine.frameCount;
       this.environmentMotionFrame = 0;
     }
-    const profile = this.applyProfile(backgroundId);
     const localFrame = Math.max(0, engine.frameCount - this.profileStartedAtFrame);
     const runtime = engine.getRuntimeState();
     const rawFrameDelta = this.lastEngineFrame < 0 || engine.frameCount < this.lastEngineFrame
@@ -597,37 +936,53 @@ export class PixiEnvironment {
       : engine.frameCount - this.lastEngineFrame;
     const frameDelta = Math.max(0, Math.min(4, rawFrameDelta));
     this.lastEngineFrame = engine.frameCount;
+    const hyperspeedStrength = runtime.stageHyperspeedActive
+      ? Math.max(0, Math.min(1, runtime.stageHyperspeedStrength))
+      : 0;
     const departureSpeedBoost = runtime.stageHyperspeedActive
       ? Math.max(1, Math.min(6, runtime.stageDepartureSpeedBoost))
+        + hyperspeedStrength * TAKEOFF_WORLD_SPEED_MULTIPLIER
       : 1;
     if (!profileChanged) {
       this.environmentMotionFrame += frameDelta * departureSpeedBoost;
     }
     const motionFrame = this.environmentMotionFrame || localFrame;
-    const hyperspeedStrength = runtime.stageHyperspeedActive
-      ? Math.max(0, Math.min(1, runtime.stageHyperspeedStrength))
-      : 0;
-
     for (let index = 0; index < this.parallaxLayers.length; index++) {
       const layer = this.parallaxLayers[index];
       if (!layer.root.visible) continue;
-      const blurStrength = layer.softness + hyperspeedStrength * (0.55 + index * 0.42);
+      const takeoffBlur = index >= 3 ? hyperspeedStrength * (index === 4 ? 0.45 : 0.24) : 0;
+      const blurStrength = engine.performanceMode ? 0 : layer.softness + takeoffBlur;
       layer.blurFilter.strength = blurStrength;
-      layer.root.filters = blurStrength > 0.01 ? [layer.blurFilter] : null;
+      const shouldFilter = blurStrength > 0.01;
+      if (layer.filterActive !== shouldFilter) {
+        layer.root.filters = shouldFilter ? [layer.blurFilter] : null;
+        layer.filterActive = shouldFilter;
+      }
       const maxTravel = Math.max(0, layer.tileHeight - this.height);
-      const startingOffset = maxTravel * layer.startOffsetRatio;
-      const travel = Math.min(maxTravel, startingOffset + motionFrame * layer.speed);
-      const offset = layer.loop
-        ? -((motionFrame * layer.speed + startingOffset) % layer.tileHeight)
-        : layer.scrollDirection === 'down'
-          ? -maxTravel + travel
-          : -travel;
       const spriteX = (this.width - layer.sprites[0].width) / 2;
       layer.root.x = Math.sin(motionFrame * 0.0016 + layer.phase) * layer.xDrift;
-      layer.sprites[0].visible = true;
-      layer.sprites[0].position.set(spriteX, offset);
-      layer.sprites[1].visible = layer.loop;
-      if (layer.loop) layer.sprites[1].position.set(spriteX, offset + layer.tileHeight);
+      if (layer.loop) {
+        const scrollDistance = layer.tileHeight * layer.startOffsetRatio + motionFrame * layer.speed;
+        for (let tileIndex = 0; tileIndex < layer.sprites.length; tileIndex++) {
+          const sprite = layer.sprites[tileIndex];
+          const tileY = getLoopingParallaxTileY(
+            tileIndex,
+            scrollDistance,
+            layer.tileHeight,
+            layer.scrollDirection
+          );
+          sprite.visible = tileY < this.height + 2 && tileY + layer.tileHeight > -2;
+          sprite.position.set(spriteX, tileY);
+        }
+      } else {
+        const scrollDistance = maxTravel * layer.startOffsetRatio + motionFrame * layer.speed;
+        const offset = getNonLoopingParallaxOffset(maxTravel, scrollDistance, layer.scrollDirection);
+        for (let tileIndex = 0; tileIndex < layer.sprites.length; tileIndex++) {
+          const sprite = layer.sprites[tileIndex];
+          sprite.visible = tileIndex === 0;
+          if (tileIndex === 0) sprite.position.set(spriteX, offset);
+        }
+      }
     }
 
     for (let index = 0; index < this.stars.length; index++) {
@@ -643,7 +998,7 @@ export class PixiEnvironment {
     const playerCenterY = engine.player.y + engine.player.height / 2;
     const overheadBand = Math.max(32, engine.player.height * 0.42);
     for (const prop of this.terrainProps) {
-      const visible = prop.terrain === profile.terrain && prop.slot < profile.propCount;
+      const visible = prop.propSet === profile.propSet && prop.slot < profile.propCount;
       prop.root.visible = visible;
       if (!visible) continue;
       if (prop.terrain === 'space') {
@@ -653,6 +1008,7 @@ export class PixiEnvironment {
         prop.root.rotation = motionFrame * prop.rotationSpeed;
         prop.root.scale.set(1);
         prop.root.alpha = prop.alpha;
+        prop.root.zIndex = Math.round(prop.speed * 10_000);
         continue;
       }
 
@@ -674,24 +1030,16 @@ export class PixiEnvironment {
       prop.root.rotation = 0;
       prop.root.scale.set(perspectiveScale);
       prop.root.alpha = prop.alpha * (0.76 + screenDepth * 0.24);
+      prop.root.zIndex = Math.round(groundY * 10);
       prop.root.visible = groundY > -prop.sprite.height && groundY < this.height + prop.sprite.height;
     }
 
     this.sectorTint.tint = profile.tint;
     this.sectorTint.alpha = profile.colorGradeAlpha;
     this.horizon.alpha = profile.horizonAlpha;
-    this.bigPlanet.alpha = profile.bigPlanetAlpha;
-    this.ringPlanet.alpha = profile.ringPlanetAlpha;
-    this.bigPlanet.position.set(
-      this.width - this.bigPlanet.width * 0.5 + Math.sin(engine.frameCount * 0.0012) * 4,
-      130 + Math.sin(engine.frameCount * 0.0018) * 4
-    );
-    const ringTravel = this.width + this.ringPlanet.width * 2 + 160;
-    const ringOffset = (motionFrame * RING_PLANET_SPEED + ringTravel * 0.32) % ringTravel;
-    this.ringPlanet.position.set(
-      this.width + this.ringPlanet.width * 0.8 - ringOffset,
-      Math.max(150, this.height * 0.22) + Math.sin(engine.frameCount * 0.0015) * 5
-    );
+    this.horizon.y = this.height + this.horizon.height * 0.72
+      + hyperspeedStrength * this.height * 0.08
+      + Math.sin(motionFrame * 0.0014) * 2;
 
     for (let index = 0; index < this.glyphs.length; index++) {
       const glyph = this.glyphs[index];
@@ -706,8 +1054,15 @@ export class PixiEnvironment {
 
     this.hyperspeedStreaks.clear();
     this.hyperspeedStreaks.visible = hyperspeedStrength > 0.01;
+    this.hyperspeedFrame.visible = hyperspeedStrength > 0.01;
+    this.hyperspeedFrame.alpha = Math.min(0.78, hyperspeedStrength * 0.78);
     if (this.hyperspeedStreaks.visible) {
-      const streakCount = this.width < 620 ? 30 : 46;
+      const fullQualityStreakCap = this.width < 620
+        ? MOBILE_HYPERSPEED_STREAK_CAP
+        : DESKTOP_HYPERSPEED_STREAK_CAP;
+      const streakCount = engine.performanceMode
+        ? Math.max(16, Math.floor(fullQualityStreakCap * 0.66))
+        : fullQualityStreakCap;
       const centerX = this.width / 2;
       const phase = motionFrame * (3.4 + hyperspeedStrength * 6.6);
       for (let index = 0; index < streakCount; index++) {
@@ -731,11 +1086,21 @@ export class PixiEnvironment {
   }
 
   destroy() {
+    for (const frames of this.atlasFrameCache.values()) {
+      frames.forEach((frame) => frame.destroy(false));
+    }
     this.parallaxLayers.length = 0;
     this.stars.length = 0;
     this.glyphs.length = 0;
     this.terrainProps.length = 0;
+    this.atlasFrameCache.clear();
     this.activeBackgroundId = '';
+    this.activePropSet = null;
+    this.profileWindowKey = '';
+    this.profileWindowPreload = Promise.resolve();
+    this.campaignLevelId = '';
+    this.campaignWaveId = '';
+    this.campaignProfileWindow = INITIAL_ENVIRONMENT_WINDOW;
     this.profileStartedAtFrame = 0;
     this.environmentMotionFrame = 0;
     this.lastEngineFrame = -1;

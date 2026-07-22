@@ -54,7 +54,7 @@ test('boss coin burst trajectories are deterministic upward fans with gravity', 
   assert.ok(new Set(first.map((coin) => coin.offsetX.toFixed(3))).size > 40, 'the shower should not stack into one line');
 });
 
-test('gameplay keeps boss coins collectible during the scripted departure', () => {
+test('gameplay keeps boss coins collectible through rewards, then banks and clears them for takeoff', () => {
   const engine = read('services', 'gameLogic.ts');
   const renderer = read('services', 'pixi', 'PixiGameRenderer.ts');
   const passiveStart = engine.indexOf('updatePassiveEntities()');
@@ -66,9 +66,12 @@ test('gameplay keeps boss coins collectible during the scripted departure', () =
   const coinUpdateStart = engine.indexOf('private updateCoinEntity(coin: Entity)');
   const coinUpdateEnd = engine.indexOf('private collectCoinIfReachedPlayer', coinUpdateStart);
   const coinUpdateSource = engine.slice(coinUpdateStart, coinUpdateEnd);
-  const preserveStart = engine.indexOf('keepEntitiesForNextWave()');
-  const preserveEnd = engine.indexOf('getPlayerHomePosition()', preserveStart);
-  const preserveSource = engine.slice(preserveStart, preserveEnd);
+  const cleanupStart = engine.indexOf('private clearStageBoundaryDebris(');
+  const cleanupEnd = engine.indexOf('getPlayerHomePosition()', cleanupStart);
+  const cleanupSource = engine.slice(cleanupStart, cleanupEnd);
+  const takeoffStart = engine.indexOf('beginStageTakeoff()');
+  const takeoffEnd = engine.indexOf('getPlayerMovementBounds()', takeoffStart);
+  const takeoffSource = engine.slice(takeoffStart, takeoffEnd);
 
   assert.match(engine, /spawnBossCoinBurst\(target: Entity\)/);
   assert.match(engine, /target\.type === EntityType\.BOSS \|\| target\.type === EntityType\.MINI_BOSS[\s\S]{0,100}spawnBossCoinBurst\(target\)/);
@@ -88,11 +91,16 @@ test('gameplay keeps boss coins collectible during the scripted departure', () =
   assert.match(coinUpdateSource, /coin\.vy \+= coin\.coinGravity/);
   assert.match(engine, /coin\.bossRewardWave = this\.wave/);
   assert.match(engine, /bankDepartingBossCoins\(\)[\s\S]*?coin\.bossRewardWave !== this\.wave[\s\S]*?this\.creditCoinValue\(coin\)/);
-  assert.match(engine, /if \(this\.waveDepartureFrames <= 0\) \{\s*this\.bankDepartingBossCoins\(\);/);
+  assert.match(cleanupSource, /if \(autoBankBossCoins\) this\.bankDepartingBossCoins\(\)/);
+  assert.match(engine, /STAGE_BOUNDARY_CLEAR_ENTITY_TYPES = Object\.freeze\([\s\S]*?'COIN'/);
+  assert.match(cleanupSource, /shouldClearStageBoundaryEntityType\(entity\.type, preserveRewardWindow\)[\s\S]*?entity\.markedForDeletion = true/);
+  assert.match(engine, /beginStageCompletion\(label: string, color: string\) \{[\s\S]*?this\.clearStageBoundaryDebris\(false, true, false\)/);
+  assert.match(takeoffSource, /this\.clearStageBoundaryDebris\(true\)/);
+  assert.match(engine, /if \(this\.waveDepartureFrames <= 0\) \{\s*this\.clearStageBoundaryDebris\(false\)/);
   assert.match(engine, /creditCoinValue\(coin: Entity\)[\s\S]*?if \(coin\.coinValueCredited\) return false;[\s\S]*?this\.stats\.totalCoins\+\+/);
   assert.match(engine, /collectCoinIfReachedPlayer\(coin: Entity\)[\s\S]*?const credited = this\.creditCoinValue\(coin\)/);
   assert.match(engine, /waveTransitionPending && this\.waveVictorySummary[\s\S]{0,220}buildWaveVictorySummary\(\)/);
-  assert.match(preserveSource, /entity\.type === EntityType\.COIN/, 'uncollected shower coins should carry into the next wave');
+  assert.match(cleanupSource, /this\.compactEntities\(\)/, 'takeoff must not leave reward coins frozen offscreen');
   assert.match(renderer, /EntityType\.COIN[\s\S]{0,500}coinBurstFrames[\s\S]{0,300}#facc15/);
   assert.match(renderer, /RSC_TOKEN_FLIP_FRAMES/);
 });

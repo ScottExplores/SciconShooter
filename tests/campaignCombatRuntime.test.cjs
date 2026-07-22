@@ -67,53 +67,45 @@ test('campaign lookup and continuation never modulo Stage 20 back to Stage 1', (
   assert.match(engine, /campaignComplete: boolean/);
 });
 
-test('Max Shot emits five times the fire-rate volley inside one tight bounded cone', () => {
+test('Max Shot doubles the complete current weapon pattern without changing cadence', () => {
   const {
     MAX_SHOT_PROJECTILE_CAP,
     MAX_SHOT_VOLLEY_MULTIPLIER,
-    getMaxShotAnglesRadians,
+    getMaxShotCopyPattern,
     getMaxShotProjectileCount
   } = loadProgression();
 
-  assert.equal(MAX_SHOT_VOLLEY_MULTIPLIER, 5);
-  assert.equal(MAX_SHOT_PROJECTILE_CAP, 15);
-  assert.deepEqual([1, 2, 3, 99].map(getMaxShotProjectileCount), [5, 10, 15, 15]);
+  assert.equal(MAX_SHOT_VOLLEY_MULTIPLIER, 2);
+  assert.equal(MAX_SHOT_PROJECTILE_CAP, 18);
+  assert.deepEqual([1, 2, 3, 9, 99].map(getMaxShotProjectileCount), [2, 4, 6, 18, 18]);
+  assert.deepEqual([1, 2, 3].map((tierVolley) => getMaxShotProjectileCount(tierVolley * 3)), [6, 12, 18]);
 
-  const angles = getMaxShotAnglesRadians(15);
-  assert.equal(angles.length, 15);
-  assert.ok(Math.abs(angles[7]) < 1e-12, 'odd Max Shot volleys retain an exact center round');
-  assert.ok(Math.abs(angles[0] + angles.at(-1)) < 1e-12, 'the cone stays symmetric');
-  assert.ok(Math.abs(angles.at(-1) * 180 / Math.PI - 14) < 1e-9, 'the cone remains close together');
+  const copies = getMaxShotCopyPattern();
+  assert.equal(copies.length, 2);
+  assert.equal(copies[0].offsetX, -copies[1].offsetX);
+  assert.equal(copies[0].angleOffset, -copies[1].angleOffset);
+  assert.ok(Math.abs(copies[1].angleOffset * 180 / Math.PI) < 0.5, 'each copy stays inside its existing lane');
+  assert.match(engine, /const fireInterval = getFireRateIntervalFrames\(level\)/);
+  assert.doesNotMatch(engine, /fireInterval\s*[*/]=?\s*.*MAX_SHOT/);
 });
 
-test('stage-clear projectiles keep moving safely and departure exposes bounded hyperspeed', () => {
-  const { getStageDepartureSignal } = loadProgression();
-  const neutralSignal = { progress: 0, speedBoost: 1, hyperspeed: false, hyperspeedStrength: 0 };
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(getStageDepartureSignal(120, 120))),
-    neutralSignal
-  );
-  const mid = getStageDepartureSignal(60, 120);
-  assert.equal(mid.progress, 0.5);
-  assert.equal(mid.hyperspeed, true);
-  assert.ok(mid.speedBoost > 1 && mid.speedBoost <= 6);
-  const finalActiveFrame = getStageDepartureSignal(1, 120);
-  assert.equal(finalActiveFrame.hyperspeed, true);
-  assert.ok(finalActiveFrame.progress > 0.99 && finalActiveFrame.progress < 1);
-  assert.ok(finalActiveFrame.speedBoost > 5.9 && finalActiveFrame.speedBoost < 6);
-  assert.deepEqual(JSON.parse(JSON.stringify(getStageDepartureSignal(0, 120))), neutralSignal);
-  assert.deepEqual(JSON.parse(JSON.stringify(getStageDepartureSignal(-20, 120))), neutralSignal);
-
+test('stage-clear projectiles finish during rewards, then takeoff owns bounded hyperspeed', () => {
+  const departureStart = engine.indexOf('updateWaveDeparture()');
+  const departureEnd = engine.indexOf('startDeathSequence()', departureStart);
+  const departureSource = engine.slice(departureStart, departureEnd);
   assert.match(engine, /updateStageCompletionProjectiles\(\)/);
   assert.match(engine, /entity\.x \+= entity\.vx;\s*entity\.y \+= entity\.vy/);
   assert.match(engine, /updateStageRewardCollection\(\)[\s\S]*?this\.updateStageCompletionProjectiles\(\)/);
-  assert.match(engine, /updateWaveDeparture\(\)[\s\S]*?this\.updateStageCompletionProjectiles\(\)/);
+  assert.doesNotMatch(departureSource, /updateStageCompletionProjectiles\(\)/);
+  assert.match(departureSource, /this\.updateHyperspeedBackground\(1 \+ takeoff\.travel \* 5\)/);
+  assert.match(departureSource, /this\.clearStageBoundaryDebris\(false\)/);
   assert.match(engine, /stageHyperspeedActive/);
   assert.match(engine, /stageHyperspeedStrength/);
   assert.match(environment, /const departureSpeedBoost = runtime\.stageHyperspeedActive/);
   assert.match(environment, /this\.environmentMotionFrame \+= frameDelta \* departureSpeedBoost/);
-  assert.match(renderer, /const departureStrength = runtime\.stageHyperspeedActive/);
-  assert.match(renderer, /const departureBoost = 1 \+ departureStrength \* 1\.8/);
+  assert.match(renderer, /const takeoff = engine\.getStageTakeoffPresentation\(\)/);
+  assert.match(renderer, /const departureStrength = takeoffActive \? clamp\(takeoff\.thrustStrength, 0, 1\) : 0/);
+  assert.match(renderer, /STAGE_TAKEOFF_THRUSTER_VISUAL_CAP = 3\.2/);
 });
 
 test('later authored tiers add deterministic telegraphs, lane lasers, roaming, and safe-gap rings', () => {

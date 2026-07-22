@@ -55,7 +55,7 @@ test('paywall formations share one integrity bar and later waves use terrain-pac
   assert.match(renderer, /PAYWALL INTEGRITY/);
   assert.match(environment, /PIXI_TERRAIN_RIVER_MASTER/);
   assert.match(environment, /PIXI_TERRAIN_DESERT_MASTER/);
-  assert.match(environment, /prop\.terrain === profile\.terrain/);
+  assert.match(environment, /prop\.propSet === profile\.propSet/);
 
   const laterAssetKeys = campaign.levels
     .flatMap((level) => level.waves)

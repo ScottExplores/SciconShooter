@@ -23,7 +23,7 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
 
 test('tracked campaign contains twenty ordered stages with tactical internal waves', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 18);
+  assert.equal(campaign.revision, 19);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 20);

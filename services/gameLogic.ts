@@ -77,13 +77,24 @@ import {
 } from './bossCoinBurst';
 import {
   MAX_AUTHORED_CAMPAIGN_STAGES,
+  MAX_SHOT_BUNDLE_LIFETIME_FRAMES,
+  MAX_SHOT_PROJECTILE_CAP,
+  buildMaxShotBundleVisualPattern,
+  canAdmitMaxShotVolley,
   getAuthoredCampaignStageCount,
   getCampaignProgressionTier,
-  getMaxShotAnglesRadians,
   getMaxShotProjectileCount,
+  getMaxShotRoundsForTarget,
+  getMaxShotSimulationEntityCount,
+  getMaxShotSustainedEntityFloor,
   getNextAuthoredCampaignIndex,
-  getStageDepartureSignal
+  type MaxShotVisualRound
 } from './campaignCombatProgression';
+import {
+  isMaxShotShieldActive,
+  isTimedPowerupActive,
+  tickTimedPowerups
+} from './powerupRuntime';
 import {
   MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
   getGeneratedBossTechniqueCue,
@@ -121,6 +132,7 @@ type PendingPlayerShot = {
   pitchOffset: number;
   weaponKind: PlayerWeaponKind;
   playSound?: boolean;
+  maxShotVisualPattern?: readonly MaxShotVisualRound[];
 };
 
 export class Entity {
@@ -202,6 +214,11 @@ export class Entity {
   weaponVisualLevel: number = 0;
   /** Simulation-frame timestamp used only to play the launch art once. */
   weaponVisualStartFrame: number = 0;
+  /** One bounded simulation entity that renders and spends several Max Shot rounds. */
+  maxShotVisualPattern?: readonly MaxShotVisualRound[];
+  projectileUnitWidth?: number;
+  projectileUnitHeight?: number;
+  representedRoundsRemaining: number = 0;
   hitTargetIds?: Set<string>;
   spriteUrl?: string;
   spriteFrames?: string[];
@@ -496,7 +513,19 @@ const lerp = (current: number, target: number, amount: number) => current + ((ta
 const randomRange = (min: number, max: number) => min + Math.random() * (max - min);
 export const PLAYER_PRIMARY_SHOT_SPREAD_DEGREES = 5;
 const PLAYER_PRIMARY_SHOT_SPREAD_RADIANS = PLAYER_PRIMARY_SHOT_SPREAD_DEGREES * (Math.PI / 180);
-export const MAX_SHOT_PROJECTILE_COUNT = 15;
+export const MAX_SHOT_PROJECTILE_COUNT = MAX_SHOT_PROJECTILE_CAP;
+const MAX_SHOT_BUNDLE_VISUAL_PATTERNS = Object.freeze({
+  1: buildMaxShotBundleVisualPattern(getTightVolleyOffsets(1), getTightVolleyAngleOffsets(1)),
+  2: buildMaxShotBundleVisualPattern(getTightVolleyOffsets(2), getTightVolleyAngleOffsets(2)),
+  3: buildMaxShotBundleVisualPattern(getTightVolleyOffsets(3), getTightVolleyAngleOffsets(3))
+});
+const getMaxShotBundleVisualPattern = (volleySize: number) => (
+  volleySize >= 3
+    ? MAX_SHOT_BUNDLE_VISUAL_PATTERNS[3]
+    : volleySize === 2
+      ? MAX_SHOT_BUNDLE_VISUAL_PATTERNS[2]
+      : MAX_SHOT_BUNDLE_VISUAL_PATTERNS[1]
+);
 const COMPANION_SHOT_STEPS: Readonly<Record<number, readonly number[]>> = Object.freeze({
   1: Object.freeze([0]),
   2: Object.freeze([-0.5, 0.5]),
@@ -585,7 +614,7 @@ const MOBILE_LEAN_PLAYER_SHOT_CAP = 20;
 const DESKTOP_PLAYER_SHOT_CAP = 28;
 const MOBILE_MAX_PLAYER_SHOT_CAP = 96;
 const DESKTOP_MAX_PLAYER_SHOT_CAP = 148;
-const PENDING_PLAYER_SHOT_CAP = 8;
+const PENDING_PLAYER_SHOT_CAP = 24;
 const COLLISION_COLUMN_WIDTH = 96;
 const EMPTY_GUN_POD_OFFSETS: number[] = [];
 const BOSS_RIG_BY_EVENT_ID: Readonly<Record<string, BossRigId>> = Object.freeze({
@@ -814,6 +843,7 @@ export interface SquadCompanionVisual {
   width: number;
   height: number;
   alpha: number;
+  scale: number;
 }
 
 type ActiveSquadCompanion = RuntimeSquadCompanion & {
@@ -832,6 +862,31 @@ type PendingEnemyLaser = {
   damage: number;
   frames: number;
   warningFrames: number;
+};
+
+export type StageTakeoffPhase = 'idle' | 'hold' | 'lift' | 'launch';
+
+export interface StageTakeoffPresentation {
+  phase: StageTakeoffPhase;
+  progress: number;
+  phaseProgress: number;
+  travel: number;
+  thrustStrength: number;
+  scale: number;
+}
+
+export interface StageTakeoffPose {
+  x: number;
+  y: number;
+  scale: number;
+}
+
+type SquadCompanionFormationState = {
+  slot: 'left' | 'right';
+  x: number;
+  y: number;
+  frameIndex: number;
+  entryProgress: number;
 };
 
 export interface GameRuntimeState {
@@ -947,7 +1002,237 @@ const BOSS_SHIELD_ESCORT_MOBILE_SIZE = Object.freeze({ width: 48, height: 42 });
 const BOSS_SHIELD_ESCORT_DESKTOP_SIZE = Object.freeze({ width: 54, height: 48 });
 const getBossShieldEscortHp = (wave: number) => Math.min(8, Math.max(2, Math.round(wave)));
 const MAIN_BOSS_ALERT_FRAMES = 120;
-const STAGE_TAKEOFF_FRAMES = 120;
+export const STAGE_TAKEOFF_FRAMES = 132;
+export const STAGE_TAKEOFF_HOLD_FRAMES = 18;
+export const STAGE_TAKEOFF_LIFT_FRAMES = 24;
+export const STAGE_TAKEOFF_LAUNCH_FRAMES = 90;
+export const STAGE_TAKEOFF_TRAVEL_EXPONENT = 2.35;
+const STAGE_TAKEOFF_PARTICLE_CUTOFF_FRAMES = 10;
+const MOBILE_TAKEOFF_PARTICLE_CAP = 48;
+const DESKTOP_TAKEOFF_PARTICLE_CAP = 80;
+const MOBILE_TAKEOFF_PARTICLES_PER_FRAME = 2;
+const DESKTOP_TAKEOFF_PARTICLES_PER_FRAME = 4;
+export const STAGE_BOUNDARY_CLEAR_ENTITY_TYPES = Object.freeze([
+  'ENEMY_DRONE',
+  'ENEMY_JOURNAL',
+  'ENEMY_BRICK',
+  'ENEMY_SWARM',
+  'ENEMY_INVADER',
+  'BOSS',
+  'MINI_BOSS',
+  'PROJECTILE',
+  'MISSILE',
+  'PARTICLE',
+  'EFFECT',
+  'POWERUP',
+  'COIN',
+  'BOMB'
+] as const);
+
+export const shouldClearStageBoundaryEntityType = (
+  entityType: EntityType,
+  preserveRewardWindow: boolean = false
+) => (
+  !(
+    preserveRewardWindow
+    && (
+      entityType === 'COIN'
+      || entityType === 'PARTICLE'
+      || entityType === 'EFFECT'
+      || entityType === 'PROJECTILE'
+      || entityType === 'MISSILE'
+    )
+  )
+  && (STAGE_BOUNDARY_CLEAR_ENTITY_TYPES as readonly string[]).includes(entityType)
+);
+
+type StageCompletionProjectileMotion = {
+  markedForDeletion: boolean;
+  isBeam?: boolean;
+  life: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  width: number;
+  height: number;
+};
+
+/**
+ * Advances already-fired shots during the non-combat reward window. Collision
+ * resolution and fresh attacks stay disabled by the reward-phase update path;
+ * this helper only lets existing visuals finish and leave the viewport.
+ */
+export const advanceStageCompletionProjectile = (
+  entity: StageCompletionProjectileMotion,
+  viewportWidth: number,
+  viewportHeight: number
+) => {
+  if (entity.markedForDeletion) return;
+
+  if (entity.isBeam) {
+    entity.life--;
+    if (entity.life <= 0) entity.markedForDeletion = true;
+    return;
+  }
+
+  entity.x += entity.vx;
+  entity.y += entity.vy;
+  if (
+    entity.x < -entity.width - 80
+    || entity.x > viewportWidth + 80
+    || entity.y < -entity.height - 80
+    || entity.y > viewportHeight + 80
+  ) {
+    entity.markedForDeletion = true;
+  }
+};
+
+const getTakeoffPhaseProgress = (ageFrames: number, phaseStart: number, phaseFrames: number) => {
+  const denominator = Math.max(1, phaseFrames - 1);
+  return Math.max(0, Math.min(1, (ageFrames - phaseStart) / denominator));
+};
+
+export const getStageTakeoffPresentation = (
+  remainingFrames: number,
+  durationFrames: number = STAGE_TAKEOFF_FRAMES
+): StageTakeoffPresentation => {
+  const duration = Math.max(1, Math.floor(Number(durationFrames) || STAGE_TAKEOFF_FRAMES));
+  const remaining = Math.max(0, Math.min(duration, Math.floor(Number(remainingFrames) || 0)));
+  if (remaining <= 0) {
+    return {
+      phase: 'idle',
+      progress: 0,
+      phaseProgress: 0,
+      travel: 0,
+      thrustStrength: 0,
+      scale: 1
+    };
+  }
+
+  const age = duration - remaining;
+  const progress = Math.max(0, Math.min(1, age / Math.max(1, duration - 1)));
+  if (age < STAGE_TAKEOFF_HOLD_FRAMES) {
+    const phaseProgress = getTakeoffPhaseProgress(age, 0, STAGE_TAKEOFF_HOLD_FRAMES);
+    return {
+      phase: 'hold',
+      progress,
+      phaseProgress,
+      travel: 0,
+      thrustStrength: 0.28 + phaseProgress * 0.3,
+      scale: 1 - phaseProgress * 0.02
+    };
+  }
+
+  const liftStart = STAGE_TAKEOFF_HOLD_FRAMES;
+  if (age < liftStart + STAGE_TAKEOFF_LIFT_FRAMES) {
+    const phaseProgress = getTakeoffPhaseProgress(age, liftStart, STAGE_TAKEOFF_LIFT_FRAMES);
+    return {
+      phase: 'lift',
+      progress,
+      phaseProgress,
+      travel: 0,
+      thrustStrength: 0.58 + phaseProgress * 0.2,
+      scale: 0.98 + phaseProgress * 0.04
+    };
+  }
+
+  const launchStart = liftStart + STAGE_TAKEOFF_LIFT_FRAMES;
+  const phaseProgress = getTakeoffPhaseProgress(age, launchStart, STAGE_TAKEOFF_LAUNCH_FRAMES);
+  const travel = Math.pow(phaseProgress, STAGE_TAKEOFF_TRAVEL_EXPONENT);
+  return {
+    phase: 'launch',
+    progress,
+    phaseProgress,
+    travel,
+    thrustStrength: 0.78 + phaseProgress * 0.22,
+    scale: 1.02 - travel * 0.1
+  };
+};
+
+export const getStageTakeoffPose = (
+  presentation: StageTakeoffPresentation,
+  startX: number,
+  startY: number,
+  homeX: number,
+  homeY: number,
+  viewportHeight: number
+): StageTakeoffPose => {
+  const liftDistance = Math.max(1, viewportHeight * 0.04);
+  if (presentation.phase === 'hold') {
+    const inverse = 1 - Math.max(0, Math.min(1, presentation.phaseProgress));
+    const homeProgress = 1 - inverse * inverse * inverse;
+    return {
+      x: startX + (homeX - startX) * homeProgress,
+      y: startY + (homeY - startY) * homeProgress,
+      scale: presentation.scale
+    };
+  }
+
+  if (presentation.phase === 'lift') {
+    const phaseProgress = Math.max(0, Math.min(1, presentation.phaseProgress));
+    const liftProgress = phaseProgress < 0.5
+      ? 4 * phaseProgress * phaseProgress * phaseProgress
+      : 1 - Math.pow(-2 * phaseProgress + 2, 3) / 2;
+    return {
+      x: homeX,
+      y: homeY - liftDistance * liftProgress,
+      scale: presentation.scale
+    };
+  }
+
+  if (presentation.phase === 'launch') {
+    return {
+      x: homeX,
+      y: homeY - liftDistance,
+      scale: presentation.scale
+    };
+  }
+
+  return { x: homeX, y: homeY, scale: 1 };
+};
+
+export const getSquadCompanionFormationTarget = (
+  playerX: number,
+  playerY: number,
+  playerWidth: number,
+  playerHeight: number,
+  slot: 'left' | 'right',
+  index: number,
+  distanceScale: number = 1
+) => {
+  const centerX = playerX + playerWidth / 2;
+  const centerY = playerY + playerHeight / 2;
+  const formationDistance = Math.max(58, Math.min(82, playerWidth * 0.62));
+  const safeDistanceScale = Math.max(0, Math.min(1, distanceScale));
+  return {
+    x: centerX + (slot === 'left' ? -1 : 1) * formationDistance * safeDistanceScale,
+    y: centerY + playerHeight * (0.14 + index * 0.02)
+  };
+};
+
+export const resetSquadCompanionFormation = <T extends SquadCompanionFormationState>(
+  companions: T[],
+  playerX: number,
+  playerY: number,
+  playerWidth: number,
+  playerHeight: number
+) => {
+  companions.forEach((companion, index) => {
+    const target = getSquadCompanionFormationTarget(
+      playerX,
+      playerY,
+      playerWidth,
+      playerHeight,
+      companion.slot,
+      index
+    );
+    companion.x = target.x;
+    companion.y = target.y;
+    companion.frameIndex = 0;
+    companion.entryProgress = 0;
+  });
+};
 const PLAYER_RAM_COOLDOWN_FRAMES = 14;
 
 export class GameEngine {
@@ -1002,11 +1287,12 @@ export class GameEngine {
   introFlightFrames: number = 0;
   introFlightDuration: number = 150;
   waveDepartureFrames: number = 0;
-  waveDepartureDuration: number = 168;
+  waveDepartureDuration: number = STAGE_TAKEOFF_FRAMES;
   stageRewardCollectionFrames: number = 0;
   stageRewardCollectionDuration: number = 0;
   stageTakeoffStartX: number = 0;
   stageTakeoffStartY: number = 0;
+  stageTakeoffBoostCuePlayed: boolean = false;
   wavePresentationRevision: number = 0;
   waveVictoryReady: boolean = false;
   waveVictorySummary: WaveVictorySummary | null = null;
@@ -1242,12 +1528,17 @@ export class GameEngine {
     audioService.playSound(...args);
   }
 
+  getStageTakeoffPresentation() {
+    return getStageTakeoffPresentation(this.waveDepartureFrames, this.waveDepartureDuration);
+  }
+
   getRuntimeState(): GameRuntimeState {
     const entry = this.getCurrentCampaignEntry();
     const durationSeconds = this.getConfiguredWaveDurationSeconds();
     const levelTotal = Math.max(1, getAuthoredCampaignStageCount(this.campaign.levels.length));
     const waveTotal = Math.max(1, entry?.level.waves.length ?? 1);
-    const departure = getStageDepartureSignal(this.waveDepartureFrames, this.waveDepartureDuration);
+    const takeoff = this.getStageTakeoffPresentation();
+    const hyperspeedStrength = takeoff.phase === 'launch' ? takeoff.travel : 0;
     return {
       levelId: entry?.level.id ?? `level-${Math.max(1, this.wave)}`,
       levelName: entry?.level.name ?? this.getWaveSector().name,
@@ -1265,10 +1556,10 @@ export class GameEngine {
       bossActive: Boolean(this.stats.isBossActive),
       complete: this.previewComplete || this.campaignComplete,
       campaignComplete: this.campaignComplete,
-      stageDepartureProgress: departure.progress,
-      stageDepartureSpeedBoost: departure.speedBoost,
-      stageHyperspeedActive: departure.hyperspeed,
-      stageHyperspeedStrength: departure.hyperspeedStrength
+      stageDepartureProgress: takeoff.progress,
+      stageDepartureSpeedBoost: 1 + hyperspeedStrength * 5,
+      stageHyperspeedActive: hyperspeedStrength > 0,
+      stageHyperspeedStrength: hyperspeedStrength
     };
   }
 
@@ -1752,6 +2043,43 @@ export class GameEngine {
     entities.length = writeIndex;
   }
 
+  private clearStageBoundaryDebris(
+    autoBankBossCoins: boolean,
+    preserveRewardWindow: boolean = false,
+    compactImmediately: boolean = true
+  ) {
+    if (autoBankBossCoins) this.bankDepartingBossCoins();
+
+    for (const entity of this.entities) {
+      if (shouldClearStageBoundaryEntityType(entity.type, preserveRewardWindow)) {
+        for (const component of entity.bossComponents ?? []) {
+          component.hp = 0;
+          component.destroyed = true;
+          component.flashFrames = 0;
+        }
+        entity.markedForDeletion = true;
+      }
+    }
+
+    this.bossRef = null;
+    this.miniBossRef = null;
+    this.stats.isBossActive = false;
+    this.stats.bossHp = 0;
+    this.pendingPlayerShots.length = 0;
+    this.pendingBossStrikes = [];
+    this.pendingEnemyLasers = [];
+    this.pendingConfiguredEncounter = null;
+    this.pendingBossType = null;
+    this.inBossWarningSequence = false;
+    this.enemyTargetsBuffer.length = 0;
+    this.playerShotsBuffer.length = 0;
+    this.homingTargetsBuffer.length = 0;
+    this.collisionBoxes.clear();
+    this.playerAfterimages.length = 0;
+    if (compactImmediately) this.compactEntities();
+    this.refreshLoadState();
+  }
+
   getPlayerHomePosition() {
     return {
       x: this.width / 2 - this.player.width / 2,
@@ -1769,7 +2097,19 @@ export class GameEngine {
     const baseX = this.player.x + this.player.width / 2;
     const baseY = this.player.y + this.player.height * 0.82;
     const spread = this.player.width * 0.14;
-    const count = Math.max(1, Math.round(2 * strength * this.getParticleDensity()));
+    const takeoffActive = this.waveDepartureFrames > 0;
+    const particleCap = takeoffActive
+      ? Math.min(
+        this.getParticleCap(),
+        this.mobileProfile ? MOBILE_TAKEOFF_PARTICLE_CAP : DESKTOP_TAKEOFF_PARTICLE_CAP
+      )
+      : this.getParticleCap();
+    const available = Math.max(0, particleCap - this.liveParticleCount);
+    const requested = Math.max(1, Math.round(2 * strength * this.getParticleDensity()));
+    const perFrameCap = takeoffActive
+      ? (this.mobileProfile ? MOBILE_TAKEOFF_PARTICLES_PER_FRAME : DESKTOP_TAKEOFF_PARTICLES_PER_FRAME)
+      : requested;
+    const count = Math.min(requested, perFrameCap, available);
 
     for (let i = 0; i < count; i++) {
       const side = i % 2 === 0 ? -1 : 1;
@@ -1785,6 +2125,7 @@ export class GameEngine {
       particle.vy = Math.abs(particle.vy) + randomRange(2.4, 5.8) * strength;
       this.entities.push(particle);
     }
+    this.liveParticleCount += count;
   }
 
   updatePassiveEntities() {
@@ -1824,34 +2165,18 @@ export class GameEngine {
         || (entity.type !== EntityType.PROJECTILE && entity.type !== EntityType.MISSILE)
       ) continue;
 
-      if (entity.isBeam) {
-        entity.life--;
-        if (entity.life <= 0) entity.markedForDeletion = true;
-        continue;
-      }
-
       if (this.isCrownClawProjectile(entity)) {
         // Returning claws have no valid owner once the boss is gone.
         entity.markedForDeletion = true;
         continue;
       }
 
-      entity.x += entity.vx;
-      entity.y += entity.vy;
-      if (
-        entity.x < -entity.width - 80
-        || entity.x > this.width + 80
-        || entity.y < -entity.height - 80
-        || entity.y > this.height + 80
-      ) {
-        entity.markedForDeletion = true;
-      }
+      advanceStageCompletionProjectile(entity, this.width, this.height);
     }
   }
 
-  updateHyperspeedBackground() {
-    const departure = getStageDepartureSignal(this.waveDepartureFrames, this.waveDepartureDuration);
-    const extraSteps = Math.max(0, Math.floor(departure.speedBoost) - 1);
+  updateHyperspeedBackground(speedBoost: number) {
+    const extraSteps = Math.max(0, Math.floor(clamp(speedBoost, 1, 6)) - 1);
     for (let step = 0; step < extraSteps; step++) {
       this.stars.forEach((star) => star.update(this.width, this.height));
       this.bgEntities.forEach((background) => background.update(this.height));
@@ -1886,6 +2211,7 @@ export class GameEngine {
     }
 
     this.playerDrawAlpha = clamp(progress / 0.08, 0, 1);
+    this.updateIntroSquadCompanions();
     this.introFlightFrames--;
 
     if (this.introFlightFrames <= 0) {
@@ -1900,25 +2226,38 @@ export class GameEngine {
   updateWaveDeparture() {
     if (this.waveDepartureFrames <= 0) return;
 
-    const age = this.waveDepartureDuration - this.waveDepartureFrames;
-    const progress = clamp(age / this.waveDepartureDuration, 0, 1);
-    const t = easeInOutCubic(progress);
-    const departure = getStageDepartureSignal(this.waveDepartureFrames, this.waveDepartureDuration);
-    const targetX = this.width / 2 - this.player.width / 2;
-    const endY = -this.player.height * 1.6;
-    this.player.x = this.stageTakeoffStartX + ((targetX - this.stageTakeoffStartX) * t)
-      + Math.sin(t * Math.PI) * this.width * 0.08;
-    this.player.y = this.stageTakeoffStartY + ((endY - this.stageTakeoffStartY) * t);
-    this.playerDrawScale = 1 + (0.62 * t);
-    this.playerTilt = Math.sin(t * Math.PI) * 0.18;
-    this.spawnThrusterParticles(2.6 + departure.hyperspeedStrength * 3.9);
-    this.updateStageCompletionProjectiles();
-    this.updateHyperspeedBackground();
+    const takeoff = this.getStageTakeoffPresentation();
+    const home = this.getPlayerHomePosition();
+    const pose = getStageTakeoffPose(
+      takeoff,
+      this.stageTakeoffStartX,
+      this.stageTakeoffStartY,
+      home.x,
+      home.y,
+      this.height
+    );
+    this.player.x = pose.x;
+    this.player.y = pose.y;
+    this.playerDrawScale = pose.scale;
+    this.playerDrawAlpha = 1;
+    this.playerTilt = 0;
+    this.playerVel = { x: 0, y: 0 };
+    this.updateDepartureSquadCompanions(takeoff);
+
+    if (takeoff.phase === 'launch' && !this.stageTakeoffBoostCuePlayed) {
+      this.stageTakeoffBoostCuePlayed = true;
+      this.playSound('launch');
+    }
+
+    if (this.waveDepartureFrames > STAGE_TAKEOFF_PARTICLE_CUTOFF_FRAMES) {
+      this.spawnThrusterParticles(1.15 + takeoff.thrustStrength * 2.85);
+    }
+    this.updateHyperspeedBackground(1 + takeoff.travel * 5);
 
     this.waveDepartureFrames--;
 
     if (this.waveDepartureFrames <= 0) {
-      this.bankDepartingBossCoins();
+      this.clearStageBoundaryDebris(false);
       if (this.previewMode) {
         this.startNextWave();
         return;
@@ -1929,7 +2268,6 @@ export class GameEngine {
       this.waveVictoryReady = true;
       this.gameActive = false;
       this.campaignComplete = Boolean(this.waveVictorySummary?.campaignComplete);
-      this.playSound('powerup', 1.2, { pitchOffset: 0.12 });
     }
   }
 
@@ -2086,6 +2424,11 @@ export class GameEngine {
     this.deathSequenceStartedAtMs = 0;
     this.playerDrawScale = this.previewMode || this.introFlightFrames <= 0 ? 1 : 1.55;
     this.playerDrawAlpha = this.previewMode || this.introFlightFrames <= 0 ? 1 : 0;
+    if (this.introFlightFrames > 0) {
+      this.player.x = this.width / 2 - this.player.width / 2;
+      this.player.y = this.height + this.player.height * 0.75;
+      this.resetSquadCompanionPositions();
+    }
     this.sectorTint = 0;
     
     // START MUSIC
@@ -2119,6 +2462,7 @@ export class GameEngine {
     this.pendingConfiguredEncounter = null;
     this.stageRewardCollectionFrames = 0;
     this.stageRewardCollectionDuration = 0;
+    this.stageTakeoffBoostCuePlayed = false;
     this.waveVictoryReady = false;
     this.waveVictorySummary = null;
     if (resetStageSummary) {
@@ -2202,6 +2546,7 @@ export class GameEngine {
 
   beginStageCompletion(label: string, color: string) {
     this.waveTransitionPending = true;
+    this.clearStageBoundaryDebris(false, true, false);
     this.pendingBossStrikes = [];
     for (const pendingLaser of this.pendingEnemyLasers) {
       const telegraph = this.entities.find((entity) => entity.id === pendingLaser.telegraphId);
@@ -2221,6 +2566,12 @@ export class GameEngine {
 
   beginStageTakeoff() {
     this.stageRewardCollectionFrames = 0;
+    this.clearStageBoundaryDebris(true);
+    this.playerVel = { x: 0, y: 0 };
+    this.playerTilt = 0;
+    this.playerDrawScale = 1;
+    this.playerDrawAlpha = 1;
+    this.stageTakeoffBoostCuePlayed = false;
     this.stageTakeoffStartX = this.player.x;
     this.stageTakeoffStartY = this.player.y;
     this.waveDepartureDuration = STAGE_TAKEOFF_FRAMES;
@@ -2280,6 +2631,17 @@ export class GameEngine {
     this.introFlightFrames = this.introFlightDuration;
     this.playerDrawScale = this.introFlightFrames > 0 ? 1.46 : 1;
     this.playerDrawAlpha = this.introFlightFrames > 0 ? 0 : 1;
+    this.playerVel = { x: 0, y: 0 };
+    this.playerTilt = 0;
+    if (stageBoundary) {
+      if (this.introFlightFrames > 0) {
+        this.player.x = this.width / 2 - this.player.width / 2;
+        this.player.y = this.height + this.player.height * 0.75;
+      } else {
+        this.setPlayerHomePosition();
+      }
+      this.resetSquadCompanionPositions();
+    }
     this.sectorTint = (this.sectorTint + 1) % 3;
     this.playSound('wave');
   }
@@ -2653,6 +3015,8 @@ export class GameEngine {
     if (this.stageRewardCollectionFrames > 0) {
       this.updateStageRewardCollection();
       this.updatePassiveEntities();
+      this.compactEntities();
+      this.refreshLoadState();
       this.bgY = (this.bgY + 1) % this.height;
       return;
     }
@@ -2660,8 +3024,10 @@ export class GameEngine {
     if (this.waveDepartureFrames > 0) {
       this.updateWaveDeparture();
       this.updatePassiveEntities();
-      const departure = getStageDepartureSignal(this.waveDepartureFrames, this.waveDepartureDuration);
-      this.bgY = (this.bgY + Math.max(1, Math.round(departure.speedBoost))) % this.height;
+      this.compactEntities();
+      this.refreshLoadState();
+      const takeoff = this.getStageTakeoffPresentation();
+      this.bgY = (this.bgY + Math.max(1, Math.round(1 + takeoff.travel * 5))) % this.height;
       return;
     }
 
@@ -2801,6 +3167,11 @@ export class GameEngine {
         }
     }
 
+    // Count the pickup frame as the first active frame, then advance timers
+    // before this frame's fire/collision work so weapons, immunity, and the
+    // rendered aura all expire on the same fixed-step boundary.
+    tickTimedPowerups(this.activePowerups);
+
     this.updatePlayerMovement(this.getPlayerMovementSpeed());
     this.updateSquadCompanions();
 
@@ -2843,11 +3214,6 @@ export class GameEngine {
         }
     }
 
-    for (const [type, timer] of this.activePowerups) {
-        if (timer > 0) this.activePowerups.set(type, timer - 1);
-        else this.activePowerups.delete(type);
-    }
-    
     if (this.invincibleTimer > 0) this.invincibleTimer--;
 
     this.spawnConfiguredSupportEvents();
@@ -3001,6 +3367,13 @@ export class GameEngine {
       }
       
       if (e.type === EntityType.PROJECTILE) {
+        if (e.maxShotVisualPattern?.length) {
+          e.life--;
+          if (e.life <= 0) {
+            e.markedForDeletion = true;
+            return;
+          }
+        }
         if (this.isCrownClawProjectile(e)) {
           if (e.y < -80 || e.y > this.height + 80 || e.x < -80 || e.x > this.width + 80) {
             e.clawReturning = true;
@@ -3066,7 +3439,8 @@ export class GameEngine {
       y: companion.y,
       width: size,
       height: size,
-      alpha: this.playerDrawAlpha * companion.entryProgress
+      alpha: this.playerDrawAlpha * companion.entryProgress,
+      scale: this.waveDepartureFrames > 0 ? this.playerDrawScale : 1
     }));
   }
 
@@ -3081,15 +3455,31 @@ export class GameEngine {
   }
 
   private resetSquadCompanionPositions() {
-    const centerX = this.player.x + this.player.width / 2;
-    const centerY = this.player.y + this.player.height / 2;
-    const distance = clamp(this.player.width * 0.62, 58, 82);
+    resetSquadCompanionFormation(
+      this.squadCompanions,
+      this.player.x,
+      this.player.y,
+      this.player.width,
+      this.player.height
+    );
+  }
+
+  private updateIntroSquadCompanions() {
+    if (this.squadCompanions.length === 0) return;
+
     this.squadCompanions.forEach((companion, index) => {
-      const side = companion.slot === 'left' ? -1 : 1;
-      companion.x = centerX + side * distance;
-      companion.y = centerY + 18 + index * 2;
-      companion.frameIndex = 0;
-      companion.entryProgress = 0;
+      const target = getSquadCompanionFormationTarget(
+        this.player.x,
+        this.player.y,
+        this.player.width,
+        this.player.height,
+        companion.slot,
+        index
+      );
+      companion.entryProgress = Math.min(1, companion.entryProgress + 0.045);
+      companion.x += (target.x - companion.x) * 0.46;
+      companion.y += (target.y - companion.y) * 0.46;
+      companion.frameIndex = Math.floor(this.frameCount / 10 + index) % companion.frames.length;
     });
   }
 
@@ -3126,6 +3516,29 @@ export class GameEngine {
       if (companion.fireTimer > 0) return;
       this.spawnSquadCompanionBullet(companion);
       companion.fireTimer = companion.fireIntervalFrames;
+    });
+  }
+
+  private updateDepartureSquadCompanions(takeoff: StageTakeoffPresentation) {
+    if (this.squadCompanions.length === 0) return;
+
+    const distanceScale = 1 - takeoff.progress * 0.42;
+    const followStrength = 0.18 + takeoff.travel * 0.62;
+
+    this.squadCompanions.forEach((companion, index) => {
+      const target = getSquadCompanionFormationTarget(
+        this.player.x,
+        this.player.y,
+        this.player.width,
+        this.player.height,
+        companion.slot,
+        index,
+        distanceScale
+      );
+      companion.entryProgress = Math.min(1, companion.entryProgress + 0.045);
+      companion.x += (target.x - companion.x) * followStrength;
+      companion.y += (target.y - companion.y) * followStrength;
+      companion.frameIndex = Math.floor(this.frameCount / 8 + index) % companion.frames.length;
     });
   }
 
@@ -3386,13 +3799,23 @@ export class GameEngine {
     return count;
   }
 
+  isPowerupActive(type: PowerupType) {
+    return isTimedPowerupActive(this.activePowerups, type);
+  }
+
+  hasMaxShotShield() {
+    return isMaxShotShieldActive(this.activePowerups, PowerupType.MAX_SHOT);
+  }
+
   getPlayerShotCap() {
-    const hasSpread = this.activePowerups.has(PowerupType.DOUBLE_SHOT)
-      || this.activePowerups.has(PowerupType.TRIPLE_SHOT);
-    const hasMaxShot = this.activePowerups.has(PowerupType.MAX_SHOT);
+    const hasSpread = this.isPowerupActive(PowerupType.DOUBLE_SHOT)
+      || this.isPowerupActive(PowerupType.TRIPLE_SHOT);
+    const hasMaxShot = this.hasMaxShotShield();
+    const basePatternProjectileCount = getFireRateVolleySize(this.stats.upgrades.fireRate || 0)
+      * (hasSpread ? 3 : 1);
     const simultaneousShots = hasMaxShot
-      ? getMaxShotProjectileCount(getFireRateVolleySize(this.stats.upgrades.fireRate || 0))
-      : getFireRateVolleySize(this.stats.upgrades.fireRate || 0) * (hasSpread ? 3 : 1);
+      ? getMaxShotSimulationEntityCount(hasSpread)
+      : basePatternProjectileCount;
     const companionBurstSize = this.squadCompanions.reduce(
       (sum, companion) => sum + Math.max(1, companion.volleySize),
       0
@@ -3411,9 +3834,12 @@ export class GameEngine {
       + (simultaneousShots - 1) * extraShotAllowance
       + companionAllowance;
     const completeBurstFloor = simultaneousShots + companionBurstSize + 6;
+    const sustainedMaxShotFloor = hasMaxShot
+      ? getMaxShotSustainedEntityFloor(hasSpread) + companionAllowance
+      : 0;
     return Math.min(
       this.mobileProfile ? MOBILE_MAX_PLAYER_SHOT_CAP : DESKTOP_MAX_PLAYER_SHOT_CAP,
-      Math.max(calculatedCap, completeBurstFloor)
+      Math.max(calculatedCap, completeBurstFloor, sustainedMaxShotFloor)
     );
   }
 
@@ -3473,7 +3899,8 @@ export class GameEngine {
     angleBias: number = 0,
     pitchOffset: number = 0,
     playSound: boolean = true,
-    weaponKind: PlayerWeaponKind = 'pulse'
+    weaponKind: PlayerWeaponKind = 'pulse',
+    maxShotVisualPattern?: readonly MaxShotVisualRound[]
   ) {
     if (!this.hasPlayerShotCapacity()) {
       return false;
@@ -3517,9 +3944,19 @@ export class GameEngine {
             : weaponKind === 'plasma'
               ? 14
               : 10;
-    const b = new Entity(EntityType.PROJECTILE, this.player.x + this.player.width / 2 - bulletWidth / 2 + offsetX, this.player.y + this.player.height * 0.12 + yOffset);
+    const visualRoundCount = Math.max(1, maxShotVisualPattern?.length || 1);
+    const maxVisualOffset = maxShotVisualPattern?.reduce(
+      (largest, round) => Math.max(largest, Math.abs(round.offsetX)),
+      0
+    ) || 0;
+    const bundleWidth = bulletWidth + maxVisualOffset * 2;
+    const b = new Entity(
+      EntityType.PROJECTILE,
+      this.player.x + this.player.width / 2 - bundleWidth / 2 + offsetX,
+      this.player.y + this.player.height * 0.12 + yOffset
+    );
     const angle = angleBias;
-    b.width = bulletWidth;
+    b.width = bundleWidth;
     b.height = isBioLaser
       ? Math.round(34 + bioLaserLevel * 6)
       : isEthShard
@@ -3542,7 +3979,10 @@ export class GameEngine {
     b.weaponKind = weaponKind;
     b.weaponVisualLevel = 0;
     b.weaponVisualStartFrame = this.frameCount;
-    b.damage = isBioLaser
+    b.maxShotVisualPattern = maxShotVisualPattern;
+    b.projectileUnitWidth = bulletWidth;
+    b.projectileUnitHeight = b.height;
+    const baseDamage = isBioLaser
       ? 0.9 + bioLaserLevel * 0.55
       : isEthShard
         ? 1.15 + ethShardLevel * 0.48
@@ -3557,6 +3997,13 @@ export class GameEngine {
             : weaponKind === 'plasma'
               ? 1.3
               : 1;
+    b.damage = baseDamage;
+    if (maxShotVisualPattern?.length) {
+      b.life = MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
+      b.maxLife = MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
+      b.representedRoundsRemaining = visualRoundCount;
+      b.hitTargetIds = new Set<string>();
+    }
     if (weaponKind === 'ion' || isNova || isSingularity || (isBioLaser && bioLaserLevel >= 3) || (isEthShard && ethShardLevel >= 4) || (isBtcHash && btcHashLevel >= 3)) {
       b.pierceRemaining = isBioLaser
         ? Math.min(5, 1 + Math.floor((bioLaserLevel - 3) / 2))
@@ -3596,12 +4043,57 @@ export class GameEngine {
       if (shot.fireFrame > this.frameCount) continue;
 
       this.pendingPlayerShots.splice(index, 1);
-      this.spawnPlayerBullet(shot.speed, shot.offsetX, shot.yOffset, shot.angleBias, shot.pitchOffset, shot.playSound ?? true, shot.weaponKind);
+      this.spawnPlayerBullet(
+        shot.speed,
+        shot.offsetX,
+        shot.yOffset,
+        shot.angleBias,
+        shot.pitchOffset,
+        shot.playSound ?? true,
+        shot.weaponKind,
+        shot.maxShotVisualPattern
+      );
       index--;
     }
   }
 
   fireBullet() {
+    const weaponKind: PlayerWeaponKind = 'pulse';
+    const weaponSpeed = 10;
+    const volleySize = getFireRateVolleySize(this.stats.upgrades.fireRate || 0);
+    const volleyOffsets = getTightVolleyOffsets(volleySize);
+    const volleyAngleOffsets = getTightVolleyAngleOffsets(volleySize);
+    const overdriveSpread = this.isPowerupActive(PowerupType.DOUBLE_SHOT)
+      || this.isPowerupActive(PowerupType.TRIPLE_SHOT);
+    const maxShotActive = this.hasMaxShotShield();
+    const basePatternProjectileCount = volleySize * (overdriveSpread ? 3 : 1);
+    const visualProjectileCount = maxShotActive
+      ? getMaxShotProjectileCount(basePatternProjectileCount)
+      : basePatternProjectileCount;
+    const simulationEntityCount = maxShotActive
+      ? getMaxShotSimulationEntityCount(overdriveSpread)
+      : basePatternProjectileCount;
+    const queuedEntityCount = maxShotActive
+      ? (overdriveSpread ? 2 : 0)
+      : (overdriveSpread ? volleySize * 2 : 0);
+    const maxShotVisualPattern = maxShotActive
+      ? getMaxShotBundleVisualPattern(volleySize)
+      : undefined;
+
+    // Max Shot is an all-or-nothing doubling of the weapon pattern already in
+    // use. Each center/spread lane is one authoritative collision bundle whose
+    // pooled Pixi view presents all of its rounds, keeping sustained fire smooth.
+    if (maxShotActive && (
+      (maxShotVisualPattern?.length ?? 0) * simulationEntityCount !== visualProjectileCount
+      || this.pendingPlayerShots.length + queuedEntityCount > PENDING_PLAYER_SHOT_CAP
+      || !canAdmitMaxShotVolley(
+        this.livePlayerShotCount,
+        this.pendingPlayerShots.length,
+        overdriveSpread,
+        this.getPlayerShotCap()
+      )
+    )) return;
+
     if (this.frameCount - this.lastShotFrame > 3) {
       this.kickPlayerSquash(-0.035);
       this.spawnBurst(this.player.x + this.player.width / 2, this.player.y + this.player.height * 0.18, '#67e8f9', 2, 1.3, 3);
@@ -3612,44 +4104,52 @@ export class GameEngine {
 
     this.playerVel.y += 0.2;
     this.playerVel.x += randomRange(-0.05, 0.05);
-    const weaponKind: PlayerWeaponKind = 'pulse';
-    const weaponSpeed = 10;
-    const volleySize = getFireRateVolleySize(this.stats.upgrades.fireRate || 0);
-    if (this.activePowerups.has(PowerupType.MAX_SHOT)) {
-      const projectileCount = getMaxShotProjectileCount(volleySize);
-      if (!this.hasPlayerShotCapacity(projectileCount)) return;
-      const angles = getMaxShotAnglesRadians(projectileCount);
-      angles.forEach((angle, index) => {
-        const centeredIndex = index - ((projectileCount - 1) / 2);
-        this.spawnPlayerBullet(
-          weaponSpeed,
-          centeredIndex * 1.65,
-          Math.abs(centeredIndex) * 0.28,
-          angle,
-          -0.16 + index * 0.012,
-          index === Math.floor(projectileCount / 2),
-          weaponKind
-        );
-      });
+    const primaryAngle = getRandomPrimaryShotAngle();
+
+    if (maxShotActive && maxShotVisualPattern) {
+      this.spawnPlayerBullet(
+        weaponSpeed,
+        0,
+        0,
+        primaryAngle,
+        -0.04,
+        true,
+        weaponKind,
+        maxShotVisualPattern
+      );
+
+      if (overdriveSpread) {
+        ([-1, 1] as const).forEach((side, index) => {
+          this.queuePlayerBullet({
+            fireFrame: this.frameCount + index + 1,
+            speed: weaponSpeed,
+            offsetX: side * 4,
+            yOffset: 4,
+            angleBias: sampleTripleShotSideAngleRadians(side, Math.random()),
+            pitchOffset: side < 0 ? -0.01 : 0.03,
+            weaponKind,
+            playSound: false,
+            maxShotVisualPattern
+          });
+        });
+      }
       return;
     }
-    const volleyOffsets = getTightVolleyOffsets(volleySize);
-    const volleyAngleOffsets = getTightVolleyAngleOffsets(volleySize);
-    const primaryAngle = getRandomPrimaryShotAngle();
+
+    let playedVolleySound = false;
     volleyOffsets.forEach((offsetX, index) => {
-      this.spawnPlayerBullet(
+      const emitted = this.spawnPlayerBullet(
         weaponSpeed,
         offsetX,
         0,
         primaryAngle + volleyAngleOffsets[index],
         -0.04,
-        index === 0,
+        !playedVolleySound,
         weaponKind
       );
+      if (emitted) playedVolleySound = true;
     });
 
-    const overdriveSpread = this.activePowerups.has(PowerupType.DOUBLE_SHOT)
-      || this.activePowerups.has(PowerupType.TRIPLE_SHOT);
     if (overdriveSpread) {
       ([-1, 1] as const).forEach((side, index) => {
         const sideAngle = sampleTripleShotSideAngleRadians(side, Math.random());
@@ -7571,7 +8071,8 @@ export class GameEngine {
       // enough to observe a complete wave without changing production combat rules.
       const isInvincible = (this.previewMode && this.previewInvincible)
         || this.invincibleTimer > 0
-        || this.activePowerups.has(PowerupType.SHIELD);
+        || this.isPowerupActive(PowerupType.SHIELD)
+        || this.hasMaxShotShield();
 
       if (hurtsPlayer && intersectsPlayer(e)) {
         if (isEnemy) {
@@ -7593,7 +8094,7 @@ export class GameEngine {
            this.kickPlayerSquash(0.055);
            
            // Blocking hostile fire still consumes shield duration.
-           if (this.activePowerups.has(PowerupType.SHIELD)) {
+           if (this.isPowerupActive(PowerupType.SHIELD)) {
                const currentShieldTime = this.activePowerups.get(PowerupType.SHIELD) || 0;
                const penalty = 30;
                this.activePowerups.set(PowerupType.SHIELD, Math.max(0, currentShieldTime - penalty));
@@ -7706,13 +8207,28 @@ export class GameEngine {
           continue;
         }
 
-        const dmg = shot.type === EntityType.MISSILE
+        const representedRounds = shot.representedRoundsRemaining > 0
+          ? getMaxShotRoundsForTarget(
+            shot.representedRoundsRemaining,
+            target.hp,
+            shot.damage,
+            isBossTarget
+          )
+          : 1;
+        const dmg = (shot.type === EntityType.MISSILE
           ? shot.squadAbilityKind
             ? shot.damage * (isBossTarget ? 1.35 : 1)
             : (isBossTarget ? 8 : 5)
-          : shot.damage * (isBossTarget ? 1.35 : 1);
+          : shot.damage * (isBossTarget ? 1.35 : 1)) * representedRounds;
         if (!shot.isBeam) {
-          if (shot.pierceRemaining > 0) {
+          if (shot.representedRoundsRemaining > 0) {
+            shot.hitTargetIds?.add(target.id);
+            shot.representedRoundsRemaining = Math.max(
+              0,
+              shot.representedRoundsRemaining - representedRounds
+            );
+            if (shot.representedRoundsRemaining <= 0) shot.markedForDeletion = true;
+          } else if (shot.pierceRemaining > 0) {
             shot.hitTargetIds?.add(target.id);
             shot.pierceRemaining--;
           } else {
@@ -8990,11 +9506,30 @@ export class GameEngine {
           );
           const weaponFrame = getReadyImage(weaponFrames[launchFrame]);
           if (weaponFrame) {
-            const visualWidth = Math.max(34, e.width * 2.05);
-            const visualHeight = Math.max(48, e.height * 1.2);
+            const visualWidth = Math.max(34, (e.projectileUnitWidth || e.width) * 2.05);
+            const visualHeight = Math.max(48, (e.projectileUnitHeight || e.height) * 1.2);
             ctx.imageSmoothingEnabled = false;
             ctx.rotate(Math.atan2(e.vy, e.vx) + Math.PI / 2);
-            ctx.drawImage(weaponFrame, -visualWidth / 2, -visualHeight / 2, visualWidth, visualHeight);
+            if (e.maxShotVisualPattern?.length) {
+              const visualTravel = Math.min(
+                100,
+                Math.max(0, this.frameCount - e.weaponVisualStartFrame) * Math.max(1, Math.hypot(e.vx, e.vy))
+              );
+              const remainingVisualRounds = Math.min(
+                e.maxShotVisualPattern.length,
+                Math.max(0, e.representedRoundsRemaining)
+              );
+              for (let roundIndex = 0; roundIndex < remainingVisualRounds; roundIndex++) {
+                const round = e.maxShotVisualPattern[roundIndex];
+                ctx.save();
+                ctx.translate(round.offsetX + Math.sin(round.angleOffset) * visualTravel, 0);
+                ctx.rotate(round.angleOffset);
+                ctx.drawImage(weaponFrame, -visualWidth / 2, -visualHeight / 2, visualWidth, visualHeight);
+                ctx.restore();
+              }
+            } else {
+              ctx.drawImage(weaponFrame, -visualWidth / 2, -visualHeight / 2, visualWidth, visualHeight);
+            }
           } else if (isBtcHashShot) {
             const pulse = 0.84 + Math.sin((this.frameCount + e.variant) * 0.42) * 0.16;
             ctx.fillStyle = `rgba(245,158,11,${0.3 * pulse})`;

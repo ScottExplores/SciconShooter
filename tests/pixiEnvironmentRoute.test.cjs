@@ -28,15 +28,40 @@ test('campaign follows a coherent space-to-planet-to-space environment route', (
     campaign.levels.slice(0, 5).map((level) => level.backgroundId),
     ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']
   );
-  assert.ok(campaign.levels.slice(5).every((level) => (
-    ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol'].includes(level.backgroundId)
-  )));
-  assert.equal(campaign.levels.at(-1).backgroundId, 'open-orbit');
+  assert.deepEqual(
+    campaign.levels.slice(5).map((level) => level.backgroundId),
+    [
+      'helix-redline',
+      'helix-redline',
+      'shattered-void',
+      'shattered-void',
+      'shattered-void',
+      'shattered-void',
+      'gravity-rift',
+      'gravity-rift',
+      'gravity-rift',
+      'ion-eclipse',
+      'ion-eclipse',
+      'ion-eclipse',
+      'terminus-frontier',
+      'terminus-frontier',
+      'terminus-frontier'
+    ]
+  );
   assert.match(environment, /orbital-departure/);
   assert.match(environment, /deep-nebula/);
   assert.match(environment, /planetary-descent/);
   assert.match(environment, /biosphere-expedition/);
   assert.match(environment, /orbital-return/);
+  for (const backgroundId of [
+    'helix-redline',
+    'shattered-void',
+    'gravity-rift',
+    'ion-eclipse',
+    'terminus-frontier'
+  ]) {
+    assert.match(environment, new RegExp(`'${backgroundId}'`));
+  }
 });
 
 test('long round masters do not hard-wrap and props stay inside their terrain family', () => {
@@ -57,11 +82,11 @@ test('long round masters do not hard-wrap and props stay inside their terrain fa
   }
 
   assert.match(environment, /loop: false/);
-  assert.match(environment, /Math\.min\(maxTravel, startingOffset \+ motionFrame \* layer\.speed\)/);
-  assert.match(environment, /layer\.scrollDirection === 'down'/);
+  assert.match(environment, /getNonLoopingParallaxOffset\(maxTravel, scrollDistance, layer\.scrollDirection\)/);
+  assert.match(environment, /getLoopingParallaxTileY\(/);
   assert.match(environment, /PIXI_TERRAIN_DESERT_MASTER[^\n]+scrollDirection: 'down'/);
   assert.match(environment, /PIXI_TERRAIN_RIVER_MASTER[^\n]+scrollDirection: 'down'/);
-  assert.match(environment, /prop\.terrain === profile\.terrain/);
+  assert.match(environment, /prop\.propSet === profile\.propSet/);
   assert.match(environment, /TERRAIN_PROP_ATLASES/);
 });
 
@@ -103,15 +128,22 @@ test('ground props remain registered to terrain while space landmarks use slow d
   assert.match(environment, /prop\.sprite\.texture = prop\.perspectiveTextures\[perspectiveState\]/);
   assert.match(environment, /GROUND_PROP_PERSPECTIVE_SHEETS/);
   assert.match(environment, /if \(prop\.terrain === 'space'\)/);
-  assert.match(environment, /widthRatio: 0\.72/);
+  assert.match(environment, /widthRatio: 0\.78/);
+  assert.match(environment, /widthRatio: 1,/);
+  assert.match(environment, /rotationSpeed: 0/);
   assert.match(environment, /GAME_PARALLAX_FAR_PLANETS/);
-  assert.match(environment, /softness: 0\.8/);
+  assert.match(environment, /softness: 0\.55/);
   assert.match(environment, /new BlurFilter\(\{ strength: definition\.softness \?\? 0, quality: 1/);
-  assert.match(environment, /PIXI_TERRAIN_SPACE_MASTER, speed: 0\.004/);
-  assert.match(environment, /GAME_PARALLAX_STARS, speed: 0\.028/);
+  assert.match(environment, /SPACE_PARALLAX_DEPTH_SPEEDS/);
+  assert.match(environment, /scrollDirection: 'down'/);
   assert.match(environment, /runtime\.stageDepartureSpeedBoost/);
   assert.match(environment, /runtime\.stageHyperspeedStrength/);
   assert.match(environment, /hyperspeedStreaks/);
-  assert.match(environment, /layer\.softness \+ hyperspeedStrength/);
+  assert.match(environment, /engine\.performanceMode \? 0 : layer\.softness/);
+  assert.match(environment, /GROUND_PROP_CONTACT_ANCHOR_Y/);
+  assert.match(environment, /prop\.root\.zIndex = Math\.round\(groundY \* 10\)/);
+  assert.match(environment, /atlasFrameCache/);
   assert.doesNotMatch(environment, /prop\.sprite\.y = \(\(prop\.baseY \* propCycle\)/);
+  assert.doesNotMatch(environment, /GAME_PARALLAX_BIG_PLANET/);
+  assert.doesNotMatch(environment, /GAME_PARALLAX_RING_PLANET/);
 });

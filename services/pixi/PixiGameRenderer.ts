@@ -32,7 +32,11 @@ import {
 import { RESEARCH_IMPACT_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
 import { MINI_SHIP_CATALOG } from '../squadProgression';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
-import { PIXI_ENVIRONMENT_TEXTURE_URLS, PixiEnvironment } from './PixiEnvironment';
+import {
+  PIXI_ENVIRONMENT_TEXTURE_URLS,
+  PixiEnvironment,
+  type PixiEnvironmentWindow
+} from './PixiEnvironment';
 import { PixiTextureBank } from './PixiTextureBank';
 
 type SceneLayerName =
@@ -53,6 +57,7 @@ type EntityView = {
   trail: Graphics;
   aura: Graphics;
   sprite: Sprite;
+  projectileCopies?: Sprite[];
   body: Graphics;
   flash: Graphics;
   health: Graphics;
@@ -104,6 +109,7 @@ const PLAYER_THRUSTER_COLORS = [
   ['#ffffff', '#38bdf8'],
   ['#ffffff', '#facc15']
 ] as const;
+const STAGE_TAKEOFF_THRUSTER_VISUAL_CAP = 3.2;
 
 const CROWNCLAW_LEG_LAYOUT: Record<CrownClawLegId, {
   x: number;
@@ -204,7 +210,7 @@ const getPowerupFrames = (powerup: PowerupType): readonly string[] => {
   }
 };
 
-/** The exact production texture set needed by the Pixi mission renderer. */
+/** Startup texture set; later campaign environments and authored entities warm on demand. */
 export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
   ...PIXI_WAVE_PRESENTATION_TEXTURE_URLS,
   ASSETS.PIXI_BOSS_HEALTH_FRAME,
@@ -479,6 +485,7 @@ export class PixiGameRenderer {
   private readonly playerThrusterRoot = new Container();
   private readonly playerThrusters = [new Sprite(Texture.WHITE), new Sprite(Texture.WHITE)] as const;
   private readonly gunPodRoot = new Container();
+  private readonly gunPodThrusterSprites = [new Sprite(Texture.WHITE), new Sprite(Texture.WHITE)] as const;
   private readonly gunPodSprites = [new Sprite(Texture.WHITE), new Sprite(Texture.WHITE)] as const;
   private readonly bioBeamRoot = new Container();
   private readonly bioBeamAura = new Graphics();
@@ -527,7 +534,12 @@ export class PixiGameRenderer {
   private reducedMotion = false;
   private destroyed = false;
 
-  async init(host: HTMLElement, width: number, height: number) {
+  async init(
+    host: HTMLElement,
+    width: number,
+    height: number,
+    environmentWindow?: PixiEnvironmentWindow
+  ) {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
     this.reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -587,6 +599,12 @@ export class PixiGameRenderer {
 
     this.gunPodRoot.eventMode = 'none';
     this.gunPodRoot.visible = false;
+    for (const thruster of this.gunPodThrusterSprites) {
+      thruster.anchor.set(0.76, 0.5);
+      thruster.rotation = -Math.PI / 2;
+      thruster.visible = false;
+      this.gunPodRoot.addChild(thruster);
+    }
     for (const pod of this.gunPodSprites) {
       pod.anchor.set(0.5);
       this.gunPodRoot.addChild(pod);
@@ -679,7 +697,7 @@ export class PixiGameRenderer {
     this.flashOverlay.visible = false;
     this.maxShotScreenGlow.visible = false;
 
-    await this.environment.init(this.width, this.height);
+    await this.environment.init(this.width, this.height, environmentWindow);
     if (this.destroyed) return;
     this.resize(this.width, this.height);
 
@@ -940,6 +958,10 @@ export class PixiGameRenderer {
       reused.root.visible = true;
       reused.root.alpha = 1;
       reused.sprite.filters = null;
+      reused.projectileCopies?.forEach((sprite) => {
+        sprite.visible = false;
+        sprite.filters = null;
+      });
       reused.body.filters = null;
       reused.textureKey = null;
       reused.textureRequest++;
@@ -1161,6 +1183,24 @@ export class PixiGameRenderer {
     });
   }
 
+  private ensureProjectileCopySprites(view: EntityView, visualRoundCount: number) {
+    const requiredCopies = Math.max(0, visualRoundCount - 1);
+    const copies = view.projectileCopies ?? [];
+    view.projectileCopies = copies;
+    while (copies.length < requiredCopies) {
+      const sprite = new Sprite(Texture.WHITE);
+      sprite.anchor.set(0.5);
+      sprite.eventMode = 'none';
+      sprite.visible = false;
+      view.root.addChildAt(sprite, view.root.getChildIndex(view.body));
+      copies.push(sprite);
+    }
+    copies.forEach((sprite, index) => {
+      sprite.visible = index < requiredCopies;
+    });
+    return copies;
+  }
+
   private drawHealthBar(view: EntityView, entity: Entity) {
     view.health.clear();
     view.label.text = '';
@@ -1210,6 +1250,13 @@ export class PixiGameRenderer {
     view.trail.clear();
     view.aura.clear();
     view.sprite.visible = false;
+    view.sprite.position.set(0, 0);
+    view.sprite.rotation = 0;
+    view.projectileCopies?.forEach((sprite) => {
+      sprite.visible = false;
+      sprite.position.set(0, 0);
+      sprite.rotation = 0;
+    });
     view.root.rotation = 0;
     const playerShot = entity.isPlayerShot;
     const color = entity.color || (playerShot ? '#67e8f9' : '#fb7185');
@@ -1340,9 +1387,39 @@ export class PixiGameRenderer {
       this.setTexture(view, textureKey);
       view.sprite.tint = '#ffffff';
       view.sprite.alpha = 1;
-      view.sprite.width = Math.max(34, entity.width * 2.05);
-      view.sprite.height = Math.max(48, entity.height * 1.2);
+      const unitWidth = entity.projectileUnitWidth || entity.width;
+      const unitHeight = entity.projectileUnitHeight || entity.height;
+      const visualWidth = Math.max(34, unitWidth * 2.05);
+      const visualHeight = Math.max(48, unitHeight * 1.2);
+      view.sprite.width = visualWidth;
+      view.sprite.height = visualHeight;
       view.root.rotation = Math.atan2(entity.vy, entity.vx) + Math.PI / 2;
+      const visualPattern = entity.maxShotVisualPattern;
+      if (visualPattern?.length) {
+        const copies = this.ensureProjectileCopySprites(view, visualPattern.length);
+        const remainingVisualRounds = Math.min(
+          visualPattern.length,
+          Math.max(0, entity.representedRoundsRemaining)
+        );
+        const visualTravel = Math.min(
+          100,
+          Math.max(0, engineFrame - entity.weaponVisualStartFrame) * Math.max(1, Math.hypot(entity.vx, entity.vy))
+        );
+        visualPattern.forEach((round, index) => {
+          const sprite = index === 0 ? view.sprite : copies[index - 1];
+          sprite.texture = view.sprite.texture;
+          sprite.visible = index < remainingVisualRounds && view.sprite.visible;
+          sprite.tint = '#ffffff';
+          sprite.alpha = 1;
+          sprite.width = visualWidth;
+          sprite.height = visualHeight;
+          sprite.position.set(
+            round.offsetX + Math.sin(round.angleOffset) * visualTravel,
+            0
+          );
+          sprite.rotation = round.angleOffset;
+        });
+      }
       return;
     }
     const speed = Math.max(1, Math.hypot(entity.vx, entity.vy));
@@ -1421,13 +1498,17 @@ export class PixiGameRenderer {
     const auraFrameIndex = Math.floor(engine.frameCount / 4) % ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES.length;
     const auraTexture = this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES[auraFrameIndex])
       ?? this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA);
-    const active = remaining > 0
+    const active = engine.hasMaxShotShield()
       && engine.lives > 0
       && engine.playerDrawAlpha > 0.02
       && Boolean(auraTexture);
     this.maxShotAura.visible = active;
     this.maxShotScreenGlow.visible = active;
-    if (!active || !auraTexture) return;
+    if (!active || !auraTexture) {
+      this.maxShotAura.alpha = 0;
+      this.maxShotScreenGlow.clear();
+      return;
+    }
 
     const pulseWave = (Math.sin(engine.frameCount * 0.13) + 1) * 0.5;
     const fade = clamp(remaining / 36, 0, 1);
@@ -1482,6 +1563,15 @@ export class PixiGameRenderer {
       this.playerSteeringSweepOriginX = playerCenterX;
       this.playerSteeringSweepDirection = 0;
       this.playerSteeringShipUrl = engine.playerShipUrl;
+    }
+
+    if (engine.waveDepartureFrames > 0) {
+      this.playerSteeringVisual = 0;
+      this.playerSteeringState = 'neutral';
+      this.playerSteeringTextureKey = motion.steeringFrames.neutral;
+      this.playerSteeringSweepOriginX = playerCenterX;
+      this.playerSteeringSweepDirection = 0;
+      return;
     }
 
     const speedLevel = Math.min(engine.stats.upgrades.speed || 0, 6);
@@ -2165,26 +2255,64 @@ export class PixiGameRenderer {
 
     this.gunPodRoot.visible = true;
     this.gunPodRoot.alpha = 1;
+    const takeoff = engine.getStageTakeoffPresentation();
+    const takeoffActive = takeoff.phase !== 'idle';
+    const thrusterFrameCount = ASSETS.PIXI_THRUSTER_FRAMES.length;
+    const thrusterFrameDelay = Math.max(2, Math.round(6 - takeoff.thrustStrength * 4));
+    const thrusterTexture = takeoffActive
+      ? this.textureBank.get(
+        ASSETS.PIXI_THRUSTER_FRAMES[Math.floor(engine.frameCount / thrusterFrameDelay) % thrusterFrameCount]
+      )
+      : null;
+    const speedLevel = clamp(
+      Math.floor(engine.stats.upgrades.speed || 0),
+      0,
+      PLAYER_THRUSTER_COLORS.length - 1
+    );
+    const [, thrusterTint] = PLAYER_THRUSTER_COLORS[speedLevel];
     for (let index = 0; index < this.gunPodSprites.length; index++) {
       const pod = this.gunPodSprites[index];
+      const thruster = this.gunPodThrusterSprites[index];
       const companion = companions[index];
       const textureKey = companion?.frames[companion.frameIndex] ?? '';
       const texture = textureKey ? this.textureBank.get(textureKey) : null;
       pod.visible = Boolean(companion && texture);
-      if (!pod.visible || !texture || !companion) continue;
+      thruster.visible = Boolean(takeoffActive && companion && texture && thrusterTexture);
+      if (!pod.visible || !texture || !companion) {
+        thruster.visible = false;
+        continue;
+      }
       pod.texture = texture;
-      pod.width = companion.width;
-      pod.height = companion.height;
+      pod.width = companion.width * companion.scale;
+      pod.height = companion.height * companion.scale;
       pod.alpha = companion.alpha;
       pod.position.set(companion.x, companion.y);
       pod.rotation = Math.sin(engine.frameCount * 0.04 + index * Math.PI) * 0.028;
+
+      if (thruster.visible && thrusterTexture) {
+        const thrustScale = Math.min(1.6, 0.8 + takeoff.thrustStrength * 0.8);
+        thruster.texture = thrusterTexture;
+        thruster.tint = thrusterTint;
+        thruster.alpha = companion.alpha * 0.9;
+        thruster.rotation = -Math.PI / 2;
+        thruster.position.set(
+          companion.x,
+          companion.y + companion.height * companion.scale * 0.28
+        );
+        thruster.width = companion.height * companion.scale * 0.28 * thrustScale;
+        thruster.height = companion.width * companion.scale * 0.1;
+      }
     }
   }
 
   private syncPlayerThrusters(engine: GameEngine) {
     const frameCount = ASSETS.PIXI_THRUSTER_FRAMES.length;
     const speedLevel = clamp(Math.floor(engine.stats.upgrades.speed || 0), 0, PLAYER_THRUSTER_COLORS.length - 1);
-    const frameDelay = Math.max(2, 7 - speedLevel);
+    const takeoff = engine.getStageTakeoffPresentation();
+    const takeoffActive = takeoff.phase !== 'idle';
+    const frameDelay = takeoffActive
+      ? Math.max(2, Math.round(6 - takeoff.thrustStrength * 4))
+      : Math.max(2, 7 - speedLevel);
     const texture = this.textureBank.get(ASSETS.PIXI_THRUSTER_FRAMES[Math.floor(engine.frameCount / frameDelay) % frameCount]);
     const visible = Boolean(texture && engine.lives > 0 && engine.playerDrawAlpha > 0.02);
     this.playerThrusterRoot.visible = visible;
@@ -2192,15 +2320,15 @@ export class PixiGameRenderer {
 
     const [, edge] = PLAYER_THRUSTER_COLORS[speedLevel];
     const movement = Math.min(1, Math.hypot(engine.playerVel.x, engine.playerVel.y) / 7);
-    const runtime = engine.getRuntimeState();
-    const cinematic = engine.introFlightFrames > 0 || engine.waveDepartureFrames > 0;
-    const departureStrength = runtime.stageHyperspeedActive
-      ? clamp(runtime.stageHyperspeedStrength, 0, 1)
-      : 0;
-    const departureBoost = 1 + departureStrength * 1.8;
-    const sizeBoost = (1 + speedLevel * 0.115 + movement * 0.2)
+    const cinematic = engine.introFlightFrames > 0 || takeoffActive;
+    const departureStrength = takeoffActive ? clamp(takeoff.thrustStrength, 0, 1) : 0;
+    const departureBoost = takeoffActive ? 0.78 + departureStrength * 1.42 : 1;
+    const rawSizeBoost = (1 + speedLevel * 0.115 + movement * 0.2)
       * (cinematic ? 1.28 : 1)
       * departureBoost;
+    const sizeBoost = takeoffActive
+      ? Math.min(STAGE_TAKEOFF_THRUSTER_VISUAL_CAP, rawSizeBoost)
+      : rawSizeBoost;
     const centerX = engine.player.x + engine.player.width / 2;
     const centerY = engine.player.y + engine.player.height / 2;
     this.playerThrusterRoot.position.set(centerX, centerY);
@@ -2208,7 +2336,8 @@ export class PixiGameRenderer {
     this.playerThrusterRoot.scale.set(engine.playerDrawScale * 0.95);
     this.playerThrusterRoot.alpha = engine.playerDrawAlpha;
 
-    const hardBank = this.playerSteeringState === 'hard-left' || this.playerSteeringState === 'hard-right';
+    const hardBank = !takeoffActive
+      && (this.playerSteeringState === 'hard-left' || this.playerSteeringState === 'hard-right');
     for (let index = 0; index < this.playerThrusters.length; index++) {
       const thruster = this.playerThrusters[index];
       thruster.visible = !hardBank || index === 0;

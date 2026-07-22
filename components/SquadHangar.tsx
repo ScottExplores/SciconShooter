@@ -30,6 +30,7 @@ import {
   type SquadSlotId,
   type WeeklySquadState
 } from '../services/squadProgression';
+import PixelActionButton from './PixelActionButton';
 
 type HangarPosition = 'main' | SquadSlotId;
 type HangarMode = 'catalog' | 'upgrades';
@@ -267,6 +268,30 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
   const activeTier = activePosition === 'main'
     ? tier
     : Math.min(3, Math.max(1, Math.ceil(activeMiniLevel / 2)));
+  const canAffordMainUpgrade = (shipId: PlayerShipId, upgradeId: MainShipUpgradeId) => {
+    const shipUpgrades = state.shipUpgrades[shipId];
+    const level = shipUpgrades[upgradeId];
+    const maxLevel = getMainShipUpgradeMaxLevel(upgradeId);
+    const cost = getMainShipUpgradeCost(upgradeId, level);
+    return level < maxLevel && (founderSandbox || (Number.isFinite(cost) && state.coins >= cost));
+  };
+  const activeMainUpgradeReady = MAIN_SHIP_UPGRADES.some((upgrade) => (
+    canAffordMainUpgrade(mainShipId, upgrade.id)
+  ));
+  const activeMiniUpgradeCost = activeMini && activeMiniOwned && activeMiniLevel < MINI_SHIP_MAX_LEVEL
+    ? getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)
+    : Number.POSITIVE_INFINITY;
+  const activeMiniUpgradeReady = Boolean(
+    activeMini
+    && activeMiniOwned
+    && activeMiniLevel < MINI_SHIP_MAX_LEVEL
+    && (founderSandbox || state.coins >= activeMiniUpgradeCost)
+  );
+  const activeMiniUnlockReady = Boolean(
+    activeMini
+    && !activeMiniOwned
+    && (founderSandbox || state.coins >= activeMini.purchaseCost)
+  );
 
   const activeName = activePosition === 'main'
     ? mainShipName.replace(/ ship$/i, '')
@@ -294,12 +319,15 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
     const miniId = state.equipped[slot];
     const entry = miniId ? MINI_SHIP_BY_ID[miniId] : null;
     const active = activePosition === slot;
+    const slotUnlockReady = !unlocked && (founderSandbox || state.coins >= unlockCost);
 
     return (
       <button
         type="button"
         onClick={() => choosePosition(slot)}
-        className="relative flex aspect-square w-[5.25rem] shrink-0 items-center justify-center sm:w-[6.25rem]"
+        disabled={!unlocked && !slotUnlockReady}
+        data-upgrade-ready={slotUnlockReady ? 'true' : 'false'}
+        className="sci-upgrade-ready-frame relative flex aspect-square w-[5.25rem] shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-55 sm:w-[6.25rem]"
         aria-label={unlocked ? `${slot} wing${entry ? `, ${entry.name}` : ', empty'}` : `Unlock ${slot} wing for ${unlockCost} coins`}
       >
         <span className="absolute inset-[13%]">
@@ -469,41 +497,50 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
               <p className="mt-1 text-[0.58rem] font-bold uppercase text-cyan-100/70">{walletConnected ? 'Wallet squad saved' : 'Connect to save squad'}</p>
             </div>
             {activePosition === 'main' ? (
-              <button type="button" onClick={() => setMode('upgrades')} className="min-h-11 border border-yellow-100/60 bg-yellow-400 px-4 text-xs font-black uppercase text-slate-950 shadow-[inset_0_-4px_0_rgba(161,98,7,0.35)] transition hover:bg-yellow-300">
+              <PixelActionButton
+                onClick={() => setMode('upgrades')}
+                tone="gold"
+                ready={activeMainUpgradeReady}
+                className="min-h-11 min-w-[7rem] px-4 text-xs font-black uppercase"
+              >
                 Upgrade
-              </button>
+              </PixelActionButton>
             ) : activeMini && activeMiniId ? activeMiniOwned ? (
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
+                <PixelActionButton
                   onClick={() => onEquipMini(activePosition, activeMiniId)}
                   disabled={activeMiniEquipped}
+                  tone="cyan"
                   aria-label={activeMiniEquipped ? `${activeMini.name} is equipped` : `Equip ${activeMini.name}`}
-                  className="min-h-11 min-w-[5rem] border border-cyan-100/60 bg-cyan-400 px-3 text-[0.65rem] font-black uppercase text-slate-950 shadow-[inset_0_-4px_0_rgba(8,145,178,0.4)] transition hover:bg-cyan-300 disabled:border-cyan-200/25 disabled:bg-cyan-950/60 disabled:text-cyan-100/55"
+                  className="min-h-11 min-w-[5rem] px-3 text-[0.65rem] font-black uppercase"
                 >
                   {activeMiniEquipped ? 'Equipped' : 'Equip'}
-                </button>
-                <button
-                  type="button"
+                </PixelActionButton>
+                <PixelActionButton
                   onClick={() => setMode('upgrades')}
+                  tone="gold"
+                  ready={activeMiniUpgradeReady}
                   aria-label={`Open ${activeMini.name} upgrades`}
-                  className="min-h-11 min-w-[5rem] border border-yellow-100/60 bg-yellow-400 px-3 text-[0.65rem] font-black uppercase text-slate-950 shadow-[inset_0_-4px_0_rgba(161,98,7,0.35)] transition hover:bg-yellow-300"
+                  className="min-h-11 min-w-[5rem] px-3 text-[0.65rem] font-black uppercase"
                 >
                   Upgrade
-                </button>
+                </PixelActionButton>
               </div>
             ) : (
-              <button
-                type="button"
+              <PixelActionButton
                 onClick={() => onPurchaseMini(activeMiniId)}
-                disabled={state.coins < activeMini.purchaseCost}
+                disabled={!founderSandbox && state.coins < activeMini.purchaseCost}
+                tone="gold"
+                ready={activeMiniUnlockReady}
                 aria-label={activeMini.purchaseCost === 0 ? `Unlock ${activeMini.name} for free` : `Unlock ${activeMini.name} for ${activeMini.purchaseCost} coins`}
-                className="flex min-h-11 min-w-[7.5rem] items-center justify-center gap-1.5 border border-yellow-100/60 bg-yellow-400 px-3 text-[0.65rem] font-black uppercase text-slate-950 shadow-[inset_0_-4px_0_rgba(161,98,7,0.35)] transition hover:bg-yellow-300 disabled:border-slate-600 disabled:bg-slate-800 disabled:text-slate-500"
+                className="min-h-11 min-w-[7.5rem] px-3 text-[0.65rem] font-black uppercase"
               >
-                <span>Unlock</span>
-                {activeMini.purchaseCost > 0 ? <img src={MINI_COST_ICON} alt="" className="h-5 w-5 object-contain [image-rendering:pixelated]" /> : null}
-                <span>{activeMini.purchaseCost === 0 ? 'Free' : activeMini.purchaseCost.toLocaleString()}</span>
-              </button>
+                <span className="flex items-center justify-center gap-1.5">
+                  <span>Unlock</span>
+                  {activeMini.purchaseCost > 0 ? <img src={MINI_COST_ICON} alt="" className="h-5 w-5 object-contain [image-rendering:pixelated]" /> : null}
+                  <span>{activeMini.purchaseCost === 0 ? 'Free' : activeMini.purchaseCost.toLocaleString()}</span>
+                </span>
+              </PixelActionButton>
             ) : (
               <span className="text-[0.6rem] font-black uppercase text-slate-500">Select a mini ship</span>
             )}
@@ -577,26 +614,33 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                         <span className="flex min-h-9 items-center justify-center border border-cyan-200/20 bg-slate-950/70 px-1 text-[0.58rem] font-black uppercase text-cyan-100">
                           Test level {level}
                         </span>
-                        <button
-                          type="button"
+                        <PixelActionButton
                           aria-label={`Increase ${upgrade.name} to ${formatMainUpgradeLevel(upgrade.id, Math.min(maxLevel, level + 1))}`}
                           onClick={() => {
                             onUpgradeMainShip(upgrade.id);
                             showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} ${formatMainUpgradeLevel(upgrade.id, Math.min(maxLevel, level + 1))}`);
                           }}
                           disabled={atMax}
-                          className="min-h-9 border border-yellow-200/35 bg-yellow-300/12 text-lg font-black text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                          tone="gold"
+                          ready={!atMax}
+                          className="min-h-9 text-lg font-black"
                         >
                           +
-                        </button>
+                        </PixelActionButton>
                       </div>
                     ) : (
-                      <button type="button" onClick={() => {
-                        onUpgradeMainShip(upgrade.id);
-                        showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} ${formatMainUpgradeLevel(upgrade.id, level + 1)}`);
-                      }} disabled={atMax || state.coins < cost} className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600">
+                      <PixelActionButton
+                        onClick={() => {
+                          onUpgradeMainShip(upgrade.id);
+                          showUpgradeFeedback(`main:${upgrade.id}`, `${upgrade.name} ${formatMainUpgradeLevel(upgrade.id, level + 1)}`);
+                        }}
+                        disabled={atMax || state.coins < cost}
+                        tone="gold"
+                        ready={!atMax && state.coins >= cost}
+                        className="mt-3 min-h-9 w-full px-2 text-[0.58rem] font-black uppercase"
+                      >
                         {atMax ? 'Max level' : `${cost} coins`}
-                      </button>
+                      </PixelActionButton>
                     )}
                   </article>
                 );
@@ -631,43 +675,46 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                     <span className="flex min-h-9 items-center justify-center border border-cyan-200/20 bg-slate-950/70 px-1 text-[0.58rem] font-black uppercase text-cyan-100">
                       Test level {activeMiniLevel}
                     </span>
-                    <button
-                      type="button"
+                    <PixelActionButton
                       aria-label={`Increase ${activeMini.name} to level ${Math.min(MINI_SHIP_MAX_LEVEL, activeMiniLevel + 1)}`}
                       onClick={() => {
                         onUpgradeMini(activeMini.id);
                         showUpgradeFeedback(`mini:${activeMini.id}`, `${activeMini.name} level ${Math.min(MINI_SHIP_MAX_LEVEL, activeMiniLevel + 1)}`);
                       }}
                       disabled={activeMiniLevel >= MINI_SHIP_MAX_LEVEL}
-                      className="min-h-9 border border-yellow-200/35 bg-yellow-300/12 text-lg font-black text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                      tone="gold"
+                      ready={activeMiniLevel < MINI_SHIP_MAX_LEVEL}
+                      className="min-h-9 text-lg font-black"
                     >
                       +
-                    </button>
+                    </PixelActionButton>
                   </div>
                 ) : activeMiniOwned ? (
-                  <button
-                    type="button"
+                  <PixelActionButton
                     onClick={() => {
                       onUpgradeMini(activeMini.id);
                       showUpgradeFeedback(`mini:${activeMini.id}`, `${activeMini.name} level ${activeMiniLevel + 1}`);
                     }}
                     disabled={!activeMiniOwned || activeMiniLevel >= MINI_SHIP_MAX_LEVEL || state.coins < getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)}
-                    className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                    tone="gold"
+                    ready={activeMiniUpgradeReady}
+                    className="mt-3 min-h-9 w-full px-2 text-[0.58rem] font-black uppercase"
                   >
                     {activeMiniLevel >= MINI_SHIP_MAX_LEVEL ? 'Max level' : `Upgrade ${getMiniShipUpgradeCost(activeMini.id, activeMiniLevel)} coins`}
-                  </button>
+                  </PixelActionButton>
                 ) : (
-                  <button
-                    type="button"
+                  <PixelActionButton
                     onClick={() => {
                       onPurchaseMini(activeMini.id);
                       showUpgradeFeedback(`mini:${activeMini.id}`, `${activeMini.name} unlocked`);
                     }}
-                    disabled={state.coins < activeMini.purchaseCost}
-                    className="mt-3 min-h-9 w-full border border-yellow-200/35 bg-yellow-300/12 px-2 text-[0.58rem] font-black uppercase text-yellow-100 disabled:border-slate-700 disabled:bg-slate-900 disabled:text-slate-600"
+                    disabled={!founderSandbox && state.coins < activeMini.purchaseCost}
+                    tone="gold"
+                    ready={activeMiniUnlockReady}
+                    className="mt-3 min-h-9 w-full px-2 text-[0.58rem] font-black uppercase"
                   >
                     {activeMini.purchaseCost === 0 ? 'Unlock free' : `Unlock ${activeMini.purchaseCost.toLocaleString()} coins`}
-                  </button>
+                  </PixelActionButton>
                 )}
               </div>
             </div>

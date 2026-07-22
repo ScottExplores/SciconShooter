@@ -42,7 +42,7 @@ test('formations stay visual and stage bosses provide an intentional five-second
     level.waves.slice(0, -1).forEach((wave) => assert.ok(wave.delayAfterSeconds <= 1.5));
   });
   assert.match(engineSource, /stageRewardCollectionFrames/);
-  assert.match(engineSource, /STAGE_TAKEOFF_FRAMES = 120/);
+  assert.match(engineSource, /STAGE_TAKEOFF_FRAMES = 132/);
 });
 
 test('milestone Gatekeepers ramp their cadence without exceeding the configured maximum speed', () => {

@@ -137,8 +137,11 @@ test('Gatekeeper stages expose a five-second movable reward window before fixed 
   const bossStages = [campaign.levels[0], campaign.levels[2], campaign.levels[4]];
   bossStages.forEach((level) => assert.equal(level.waves.at(-1).delayAfterSeconds, 5));
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
-  assert.match(engine, /const STAGE_TAKEOFF_FRAMES = 120/);
+  assert.match(engine, /STAGE_TAKEOFF_FRAMES = 132/);
+  assert.match(engine, /STAGE_TAKEOFF_HOLD_FRAMES = 18/);
+  assert.match(engine, /STAGE_TAKEOFF_LIFT_FRAMES = 24/);
+  assert.match(engine, /STAGE_TAKEOFF_LAUNCH_FRAMES = 90/);
   assert.match(engine, /if \(this\.stageRewardCollectionFrames > 0\) \{[\s\S]*?this\.updateStageRewardCollection\(\)/);
   assert.match(engine, /updateStageRewardCollection\(\) \{[\s\S]*?this\.updatePlayerMovement\(this\.getPlayerMovementSpeed\(\)\)/);
-  assert.match(engine, /this\.bankDepartingBossCoins\(\)/);
+  assert.match(engine, /beginStageTakeoff\(\) \{[\s\S]*?this\.clearStageBoundaryDebris\(true\)/);
 });

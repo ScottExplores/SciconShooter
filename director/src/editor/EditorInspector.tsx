@@ -141,7 +141,13 @@ const BACKGROUNDS: Array<{ value: BackgroundId; label: string }> = [
   { value: 'open-orbit', label: 'Open Orbit' },
   { value: 'citation-storm', label: 'Citation Storm' },
   { value: 'paywall-siege', label: 'Paywall Siege' },
-  { value: 'open-galaxy', label: 'Open Galaxy' }
+  { value: 'open-galaxy', label: 'Open Galaxy' },
+  { value: 'bastion-protocol', label: 'Bastion Protocol' },
+  { value: 'helix-redline', label: 'Helix Redline' },
+  { value: 'shattered-void', label: 'Shattered Void' },
+  { value: 'gravity-rift', label: 'Gravity Rift' },
+  { value: 'ion-eclipse', label: 'Ion Eclipse' },
+  { value: 'terminus-frontier', label: 'Terminus Frontier' }
 ];
 
 const POWERUPS: Array<{ id: PowerupId; label: string }> = [

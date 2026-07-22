@@ -110,7 +110,8 @@ test('Pixi preloads steering textures and swaps frames only for the player prese
   assert.match(renderer, /engine\.width - engine\.player\.width/);
   assert.match(renderer, /Math\.max\(0, signedSweep\) \/ playableWidth\s*>= PLAYER_SHIP_HARD_BANK_SWEEP_RATIO/);
   assert.match(renderer, /selectPlayerSteeringState\(this\.playerSteeringVisual, hardBankEligible\)/);
-  assert.match(renderer, /this\.playerSteeringState === 'hard-left' \|\| this\.playerSteeringState === 'hard-right'/);
+  assert.match(renderer, /engine\.waveDepartureFrames > 0[\s\S]*?this\.playerSteeringState = 'neutral'/);
+  assert.match(renderer, /const hardBank = !takeoffActive[\s\S]*?this\.playerSteeringState === 'hard-left'/);
   assert.match(renderer, /thruster\.visible = !hardBank \|\| index === 0/);
   assert.match(renderer, /hardBank \? 0 : \(index === 0 \? -1 : 1\)/);
   assert.match(renderer, /sprite\.rotation = 0/);

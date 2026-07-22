@@ -45,6 +45,9 @@ const BUILT_IN_ASSET_KEYS = [
   'PLAYER_SHIP', 'RSC_TOKEN', 'REAL_RSC_ICON', 'GAME_BG_BACK', 'GAME_BG_STARS',
   'GAME_BG_PLANET', 'GAME_PARALLAX_BACK', 'GAME_PARALLAX_STARS',
   'GAME_PARALLAX_FAR_PLANETS', 'GAME_PARALLAX_BIG_PLANET', 'GAME_PARALLAX_RING_PLANET',
+  'PIXI_SPACE_RUN_HELIX_REDLINE_PROPS', 'PIXI_SPACE_RUN_SHATTERED_VOID_PROPS',
+  'PIXI_SPACE_RUN_GRAVITY_RIFT_PROPS', 'PIXI_SPACE_RUN_ION_ECLIPSE_PROPS',
+  'PIXI_SPACE_RUN_TERMINUS_FRONTIER_PROPS',
   'ENEMY_DRONE_FRAMES', 'LEGACY_ENEMY_DRONE_FRAMES', 'ENEMY_SWARM_FRAMES', 'LEGACY_ENEMY_SWARM_FRAMES',
   'ENEMY_BRICK_FRAMES', 'ASTEROID_BELT_FRAMES', 'ENEMY_JOURNAL', 'ENEMY_JOURNAL_FRAMES',
   'PIXI_JET_SCOUT_FRAMES', 'PIXI_JET_INTERCEPTOR_FRAMES', 'PIXI_JET_HEAVY_FRAMES',
@@ -170,7 +173,18 @@ const ENEMY_IDS = new Set(['drone', 'swarm', 'brick', 'journal']);
 const BOSS_IDS = new Set(['bottleneck-drone', 'paywall-wall', 'gatekeeper']);
 const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const POWERUP_IDS = new Set(['double-shot', 'triple-shot', 'max-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
-const BACKGROUND_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']);
+const BACKGROUND_IDS = new Set([
+  'open-orbit',
+  'citation-storm',
+  'paywall-siege',
+  'open-galaxy',
+  'bastion-protocol',
+  'helix-redline',
+  'shattered-void',
+  'gravity-rift',
+  'ion-eclipse',
+  'terminus-frontier'
+]);
 const MUSIC_IDS = new Set(['procedural-main']);
 const SPAWN_PATTERNS = new Set([
   'single-random',

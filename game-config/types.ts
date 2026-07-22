@@ -14,6 +14,11 @@ export type BuiltInAssetKey =
   | 'GAME_PARALLAX_FAR_PLANETS'
   | 'GAME_PARALLAX_BIG_PLANET'
   | 'GAME_PARALLAX_RING_PLANET'
+  | 'PIXI_SPACE_RUN_HELIX_REDLINE_PROPS'
+  | 'PIXI_SPACE_RUN_SHATTERED_VOID_PROPS'
+  | 'PIXI_SPACE_RUN_GRAVITY_RIFT_PROPS'
+  | 'PIXI_SPACE_RUN_ION_ECLIPSE_PROPS'
+  | 'PIXI_SPACE_RUN_TERMINUS_FRONTIER_PROPS'
   | 'PIXI_JET_SCOUT_FRAMES'
   | 'PIXI_JET_INTERCEPTOR_FRAMES'
   | 'PIXI_JET_HEAVY_FRAMES'
@@ -77,7 +82,17 @@ export type EnemyId = 'drone' | 'swarm' | 'brick' | 'journal';
 export type BossId = 'bottleneck-drone' | 'paywall-wall' | 'gatekeeper';
 export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
 export type PowerupId = 'double-shot' | 'triple-shot' | 'max-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
-export type BackgroundId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'open-galaxy' | 'bastion-protocol';
+export type BackgroundId =
+  | 'open-orbit'
+  | 'citation-storm'
+  | 'paywall-siege'
+  | 'open-galaxy'
+  | 'bastion-protocol'
+  | 'helix-redline'
+  | 'shattered-void'
+  | 'gravity-rift'
+  | 'ion-eclipse'
+  | 'terminus-frontier';
 export type MusicId = 'procedural-main';
 export type SpawnPatternId =
   | 'single-random'

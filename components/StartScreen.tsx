@@ -28,6 +28,7 @@ import {
   preloadPlayerShipSelectionFrames
 } from '../services/playerShipMotion';
 import SquadHangar from './SquadHangar';
+import PixelActionButton from './PixelActionButton';
 import RewardCenter, { type RewardTab } from './RewardCenter';
 import {
   getClaimableAchievementCount,
@@ -1060,16 +1061,19 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ) : null}
             </div>
           ) : null}
-          <button
-            type="button"
+          <PixelActionButton
             onClick={onStart}
-            className={`sci-start-button group mx-auto flex w-full max-w-[25rem] items-center justify-center gap-3 font-black uppercase text-white ${compact ? 'px-5 py-2 text-base' : 'px-7 py-4 text-xl md:text-2xl'}`}
+            tone="green"
+            shine
+            className={`sci-start-button group mx-auto w-full max-w-[25rem] font-black uppercase ${compact ? 'px-5 py-2 text-base' : 'px-7 py-4 text-xl md:text-2xl'}`}
           >
-            <span className={`flex items-center justify-center rounded-full bg-white/95 text-emerald-700 shadow-[0_0_16px_rgba(255,255,255,0.45)] transition group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-9 w-9'}`}>
-              <Icon name="play" className="h-5 w-5 translate-x-0.5" />
+            <span className="flex items-center justify-center gap-3">
+              <span className={`sci-start-button__play flex items-center justify-center text-emerald-950 transition group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-9 w-9'}`}>
+                <Icon name="play" className="h-5 w-5 translate-x-0.5" />
+              </span>
+              <span>Start Mission</span>
             </span>
-            Start Mission
-          </button>
+          </PixelActionButton>
           {!compact ? <p className="text-sm font-bold text-emerald-200">Complete. Earn. Fund.</p> : null}
         </div>
       </div>
