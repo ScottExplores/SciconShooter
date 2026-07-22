@@ -9,7 +9,7 @@ import { PLAYER_SHIPS, type PlayerShipId } from '../services/playerShipService';
 
 export type ShipCarouselDirection = -1 | 1;
 
-type ShipCarouselFramePhase = 'edge' | 'bank' | 'center';
+type ShipCarouselFramePhase = 'edge' | 'bank' | 'crossing' | 'settle';
 
 type ShipCarouselTransition = {
   outgoingId: PlayerShipId;
@@ -30,8 +30,10 @@ type ShipSwipeGesture = {
 };
 
 export const SHIP_CAROUSEL_TRANSITION_MS = 540;
-export const SHIP_CAROUSEL_BANK_PHASE_MS = 150;
-export const SHIP_CAROUSEL_SETTLE_PHASE_MS = 370;
+export const SHIP_CAROUSEL_BANK_PHASE_MS = 130;
+export const SHIP_CAROUSEL_CROSSING_PHASE_MS = 285;
+export const SHIP_CAROUSEL_SETTLE_PHASE_MS = 475;
+export const SHIP_CAROUSEL_MAX_QUEUED_STEPS = 8;
 
 const SHIP_SWIPE_MIN_DISTANCE = 42;
 const SHIP_SWIPE_MIN_VELOCITY_DISTANCE = 28;
@@ -45,11 +47,13 @@ export const getShipCarouselFramePair = (
   if (direction === 1) {
     if (phase === 'edge') return { outgoing: 'neutral', incoming: 'hard-right' };
     if (phase === 'bank') return { outgoing: 'bank-left', incoming: 'bank-right' };
+    if (phase === 'crossing') return { outgoing: 'hard-left', incoming: 'hard-right' };
     return { outgoing: 'hard-left', incoming: 'neutral' };
   }
 
   if (phase === 'edge') return { outgoing: 'neutral', incoming: 'hard-left' };
   if (phase === 'bank') return { outgoing: 'bank-right', incoming: 'bank-left' };
+  if (phase === 'crossing') return { outgoing: 'hard-right', incoming: 'hard-left' };
   return { outgoing: 'hard-right', incoming: 'neutral' };
 };
 
@@ -160,6 +164,9 @@ const ShipCarousel: React.FC<ShipCarouselProps> = ({
     () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
   );
   const revisionRef = useRef(0);
+  const transitionRef = useRef<ShipCarouselTransition | null>(null);
+  const focusedShipIdRef = useRef(focusedShipId);
+  const queuedDirectionsRef = useRef<ShipCarouselDirection[]>([]);
   const transitionTimersRef = useRef<number[]>([]);
   const swipeGestureRef = useRef<ShipSwipeGesture | null>(null);
   const suppressTapRef = useRef(false);
@@ -173,6 +180,10 @@ const ShipCarousel: React.FC<ShipCarouselProps> = ({
   }, []);
 
   useEffect(() => {
+    focusedShipIdRef.current = focusedShipId;
+  }, [focusedShipId]);
+
+  useEffect(() => {
     const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     if (!query) return undefined;
     const syncPreference = () => setPrefersReducedMotion(query.matches);
@@ -183,11 +194,15 @@ const ShipCarousel: React.FC<ShipCarouselProps> = ({
   useEffect(() => () => {
     transitionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     transitionTimersRef.current = [];
+    queuedDirectionsRef.current = [];
+    transitionRef.current = null;
   }, []);
 
-  const cycleShip = (direction: ShipCarouselDirection) => {
-    if (transition || !framesReady || shipIds.length < 2) return;
-    const nextShipId = getLoopedShipId(shipIds, focusedShipId, direction);
+  const startShipTransition = (
+    outgoingId: PlayerShipId,
+    direction: ShipCarouselDirection
+  ) => {
+    const nextShipId = getLoopedShipId(shipIds, outgoingId, direction);
     const nextRevision = revisionRef.current + 1;
     revisionRef.current = nextRevision;
 
@@ -196,18 +211,24 @@ const ShipCarousel: React.FC<ShipCarouselProps> = ({
     setDragOffset(0);
 
     if (prefersReducedMotion) {
+      focusedShipIdRef.current = nextShipId;
       onFocusShip(nextShipId);
       onSettleShip(nextShipId);
+      const queuedDirection = queuedDirectionsRef.current.shift();
+      if (queuedDirection !== undefined) startShipTransition(nextShipId, queuedDirection);
       return;
     }
 
-    setTransition({
-      outgoingId: focusedShipId,
+    const nextTransition: ShipCarouselTransition = {
+      outgoingId,
       incomingId: nextShipId,
       direction,
       framePhase: 'edge',
       revision: nextRevision
-    });
+    };
+    transitionRef.current = nextTransition;
+    focusedShipIdRef.current = nextShipId;
+    setTransition(nextTransition);
     onFocusShip(nextShipId);
 
     transitionTimersRef.current.push(window.setTimeout(() => {
@@ -217,18 +238,43 @@ const ShipCarousel: React.FC<ShipCarouselProps> = ({
     }, SHIP_CAROUSEL_BANK_PHASE_MS));
     transitionTimersRef.current.push(window.setTimeout(() => {
       setTransition((current) => current?.revision === nextRevision
-        ? { ...current, framePhase: 'center' }
+        ? { ...current, framePhase: 'crossing' }
+        : current);
+    }, SHIP_CAROUSEL_CROSSING_PHASE_MS));
+    transitionTimersRef.current.push(window.setTimeout(() => {
+      setTransition((current) => current?.revision === nextRevision
+        ? { ...current, framePhase: 'settle' }
         : current);
     }, SHIP_CAROUSEL_SETTLE_PHASE_MS));
     transitionTimersRef.current.push(window.setTimeout(() => {
-      setTransition((current) => current?.revision === nextRevision ? null : current);
-      transitionTimersRef.current = [];
+      if (transitionRef.current?.revision !== nextRevision) return;
       onSettleShip(nextShipId);
+
+      const queuedDirection = queuedDirectionsRef.current.shift();
+      if (queuedDirection !== undefined) {
+        startShipTransition(nextShipId, queuedDirection);
+        return;
+      }
+
+      transitionRef.current = null;
+      transitionTimersRef.current = [];
+      setTransition(null);
     }, SHIP_CAROUSEL_TRANSITION_MS));
   };
 
+  const cycleShip = (direction: ShipCarouselDirection) => {
+    if (!framesReady || shipIds.length < 2) return;
+    if (transitionRef.current) {
+      if (queuedDirectionsRef.current.length < SHIP_CAROUSEL_MAX_QUEUED_STEPS) {
+        queuedDirectionsRef.current.push(direction);
+      }
+      return;
+    }
+    startShipTransition(focusedShipIdRef.current, direction);
+  };
+
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary || transition || !framesReady) return;
+    if (!event.isPrimary || !framesReady) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
 
     suppressTapRef.current = false;
@@ -258,7 +304,9 @@ const ShipCarousel: React.FC<ShipCarouselProps> = ({
     if (!gesture.horizontal) return;
 
     event.preventDefault();
-    setDragOffset(Math.max(-SHIP_SWIPE_MAX_PREVIEW_PX, Math.min(SHIP_SWIPE_MAX_PREVIEW_PX, deltaX)));
+    if (!transitionRef.current) {
+      setDragOffset(Math.max(-SHIP_SWIPE_MAX_PREVIEW_PX, Math.min(SHIP_SWIPE_MAX_PREVIEW_PX, deltaX)));
+    }
   };
 
   const finishPointerGesture = (
@@ -310,7 +358,7 @@ const ShipCarousel: React.FC<ShipCarouselProps> = ({
       <button
         type="button"
         onClick={() => cycleShip(-1)}
-        disabled={Boolean(transition) || !framesReady}
+        disabled={!framesReady}
         className="sci-ship-carousel-control sci-ship-carousel-control--left"
         aria-label="Previous ship"
       >
@@ -323,6 +371,7 @@ const ShipCarousel: React.FC<ShipCarouselProps> = ({
         role="group"
         tabIndex={0}
         aria-live="polite"
+        aria-busy={Boolean(transition)}
         aria-label="Ship selection. Swipe or use the arrow keys to change ships."
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -386,7 +435,7 @@ const ShipCarousel: React.FC<ShipCarouselProps> = ({
       <button
         type="button"
         onClick={() => cycleShip(1)}
-        disabled={Boolean(transition) || !framesReady}
+        disabled={!framesReady}
         className="sci-ship-carousel-control sci-ship-carousel-control--right"
         aria-label="Next ship"
       >

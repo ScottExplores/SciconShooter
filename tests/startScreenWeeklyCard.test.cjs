@@ -15,6 +15,10 @@ const htmlSource = fs.readFileSync(
   path.join(__dirname, '..', 'index.html'),
   'utf8'
 );
+const stylesSource = fs.readFileSync(
+  path.join(__dirname, '..', 'styles', 'tailwind.input.css'),
+  'utf8'
+);
 
 test('home winner card uses only the proposal saved on the current weekly leader', () => {
   assert.match(source, /resolveProposalSelection\(weeklyLeader, proposals\)/);
@@ -40,7 +44,7 @@ test('home winner image has no trophy overlay', () => {
 
 test('mobile home lets its mission panel fill the available space above navigation', () => {
   assert.match(source, /className="scicon-mobile-home flex min-h-full flex-col gap-2"/);
-  assert.match(source, /<HeroPanel compact fill\s*\/>/);
+  assert.match(source, /renderHeroPanel\(\{ compact: true, fill: true \}\)/);
   assert.match(source, /fill \? 'flex-1' : ''/);
   assert.match(source, /sci-hero-content--compact/);
   assert.match(htmlSource, /#root \.scicon-mobile-home[\s\S]*grid-template-rows: auto minmax\(17\.5rem, 1fr\)/);
@@ -48,12 +52,28 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(htmlSource, /max-height: 720px/);
 });
 
-test('weekly leader uses the animated arcade frame treatment', () => {
-  assert.match(source, /<HudPanel className="sci-weekly-funding-shell sci-neon-frame-window">/);
-  assert.match(source, /className="sci-weekly-frame" aria-hidden="true"/);
-  assert.match(htmlSource, /\.sci-weekly-frame \{/);
-  assert.match(htmlSource, /clip-path: polygon\(12px 0/);
-  assert.match(htmlSource, /\.sci-weekly-frame::before/);
+test('weekly funding and high score share the animated Scicon Neon-Frame sprite', () => {
+  const framePath = path.join(
+    __dirname,
+    '..',
+    'public',
+    'game-art',
+    'generated',
+    'ui',
+    'scicon-neon-frame-v1',
+    'weekly-funding-frame-spritesheet.png'
+  );
+
+  assert.ok(fs.existsSync(framePath));
+  assert.match(source, /<HudPanel className="sci-weekly-funding-shell">/);
+  assert.match(source, /className="sci-weekly-funding-frame-sprite" aria-hidden="true"/);
+  assert.doesNotMatch(source, /<HudPanel className="sci-weekly-funding-shell sci-neon-frame-window">/);
+  assert.doesNotMatch(source, /className="sci-weekly-frame"/);
+  assert.match(stylesSource, /weekly-funding-frame-spritesheet\.png/);
+  assert.match(stylesSource, /background-size: 300% 400%/);
+  assert.match(stylesSource, /animation: sci-weekly-funding-frame-pulse 4\.8s steps\(1, end\) infinite/);
+  assert.match(stylesSource, /prefers-reduced-motion: reduce[\s\S]*?sci-weekly-funding-frame-sprite[\s\S]*?animation: none/);
+  assert.match(stylesSource, /sci-weekly-funding-frame-sprite[\s\S]*?pointer-events: none/);
 });
 
 test('weekly and all-time Trophy Deck views retain and render up to 100 scores', () => {

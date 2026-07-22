@@ -34,9 +34,11 @@ test('arrow, keyboard, and swipe navigation share opposite authored bank-frame s
   assert.match(carouselSource, /event\.key === 'ArrowLeft' \? -1 : 1/);
   assert.match(carouselSource, /phase === 'edge'\) return \{ outgoing: 'neutral', incoming: 'hard-right' \}/);
   assert.match(carouselSource, /phase === 'bank'\) return \{ outgoing: 'bank-left', incoming: 'bank-right' \}/);
+  assert.match(carouselSource, /phase === 'crossing'\) return \{ outgoing: 'hard-left', incoming: 'hard-right' \}/);
   assert.match(carouselSource, /return \{ outgoing: 'hard-left', incoming: 'neutral' \}/);
   assert.match(carouselSource, /phase === 'edge'\) return \{ outgoing: 'neutral', incoming: 'hard-left' \}/);
   assert.match(carouselSource, /phase === 'bank'\) return \{ outgoing: 'bank-right', incoming: 'bank-left' \}/);
+  assert.match(carouselSource, /phase === 'crossing'\) return \{ outgoing: 'hard-right', incoming: 'hard-left' \}/);
   assert.match(carouselSource, /return \{ outgoing: 'hard-right', incoming: 'neutral' \}/);
   assert.match(carouselSource, /PLAYER_SHIP_MOTION\[shipId\]\.steeringFrames\[steeringState\]/);
   assert.match(carouselSource, /sci-ship-carousel-item--outgoing/);
@@ -47,13 +49,21 @@ test('arrow, keyboard, and swipe navigation share opposite authored bank-frame s
   assert.match(styleSource, /@keyframes sci-ship-carousel-previous-out/);
 });
 
-test('carousel loops, locks input in flight, and preserves locked-ship and reduced-motion behavior', () => {
+test('carousel loops, queues repeated input in flight, and preserves locked-ship and reduced-motion behavior', () => {
   assert.match(carouselSource, /\(currentIndex \+ direction \+ shipIds\.length\) % shipIds\.length/);
-  assert.match(carouselSource, /if \(transition \|\| !framesReady \|\| shipIds\.length < 2\) return/);
+  assert.match(carouselSource, /SHIP_CAROUSEL_MAX_QUEUED_STEPS = 8/);
+  assert.match(carouselSource, /queuedDirectionsRef\.current\.push\(direction\)/);
+  assert.match(carouselSource, /const queuedDirection = queuedDirectionsRef\.current\.shift\(\)/);
+  assert.match(carouselSource, /startShipTransition\(nextShipId, queuedDirection\)/);
+  assert.match(carouselSource, /disabled=\{!framesReady\}/);
+  assert.doesNotMatch(carouselSource, /disabled=\{Boolean\(transition\) \|\| !framesReady\}/);
   assert.match(startScreenSource, /onSettleShip=\{\(shipId\) => \{[\s\S]*isPlayerShipUnlocked\(shipId, shipUnlocks\)/);
+  assert.match(startScreenSource, /renderHeroPanel\(\{ compact: true, fill: true \}\)/);
+  assert.doesNotMatch(startScreenSource, /<HeroPanel/);
   assert.match(carouselSource, /prefersReducedMotion/);
   assert.match(carouselSource, /window\.matchMedia\?\.\('\(prefers-reduced-motion: reduce\)'\)/);
   assert.match(carouselSource, /SHIP_CAROUSEL_TRANSITION_MS = 540/);
+  assert.match(carouselSource, /SHIP_CAROUSEL_SETTLE_PHASE_MS = 475/);
   assert.doesNotMatch(carouselSource, /rotate\(/);
   assert.match(styleSource, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.sci-ship-carousel-item--outgoing[\s\S]*display: none/);
 });

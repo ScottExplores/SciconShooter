@@ -172,11 +172,18 @@ test('the dashboard centers Home and exposes Hangar immediately to its right', (
   assert.ok(homeIndex < hangarIndex);
   assert.ok(hangarIndex < moreIndex);
   assert.match(startScreen, /grid-cols-5/);
-  assert.match(startScreen, /normal\/multiplayer-network\.png/);
-  assert.match(startScreen, /selected\/multiplayer-network-selected\.png/);
-  assert.match(startScreen, /selected\/missions-selected\.png/);
-  assert.match(styles, /data-dashboard-tab='home'[\s\S]*?dashboard-icon-size\) \* 1\.2/);
-  assert.match(styles, /data-dashboard-tab='hangar'[\s\S]*?dashboard-icon-size\) \* 1\.368/);
+  assert.match(startScreen, /dashboard-nav-icons-spritesheet\.png/);
+  assert.match(startScreen, /id: 'proposals'[\s\S]*?spriteColumn: 0/);
+  assert.match(startScreen, /id: 'trophies'[\s\S]*?spriteColumn: 1/);
+  assert.match(startScreen, /id: 'home'[\s\S]*?spriteColumn: 2/);
+  assert.match(startScreen, /id: 'hangar'[\s\S]*?spriteColumn: 3/);
+  assert.match(startScreen, /id: 'more'[\s\S]*?spriteColumn: 4/);
+  assert.match(startScreen, /className="sci-dashboard-nav-icon-sprite"/);
+  assert.match(styles, /dashboard-nav-icons-spritesheet\.png/);
+  assert.match(styles, /background-size: 500% 400%/);
+  assert.match(styles, /animation: sci-dashboard-icon-live 3\.4s steps\(1, end\) infinite/);
+  assert.doesNotMatch(styles, /data-dashboard-tab='home'\][^{]*sci-dashboard-nav-icon/);
+  assert.doesNotMatch(styles, /data-dashboard-tab='hangar'\][^{]*sci-dashboard-nav-icon/);
 });
 
 test('locked ship and Hangar locks replay their animation on click and hover', () => {

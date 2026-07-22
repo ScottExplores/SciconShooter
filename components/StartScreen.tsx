@@ -118,6 +118,9 @@ type IconName =
 
 const DASHBOARD_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1';
 const MORE_MENU_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1/normal';
+const SCICON_NEON_FRAME_ROOT = '/game-art/generated/ui/scicon-neon-frame-v1';
+const WEEKLY_FUNDING_FRAME_SPRITESHEET = `${SCICON_NEON_FRAME_ROOT}/weekly-funding-frame-spritesheet.png`;
+const DASHBOARD_NAV_ICON_SPRITESHEET = `${SCICON_NEON_FRAME_ROOT}/dashboard-nav-icons-spritesheet.png`;
 const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/icons/communication';
 const REWARD_EDGE_ARROW = '/game-art/generated/ui/scicon-reward-edge-v1/reward-arrow.png';
 const REWARD_ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
@@ -136,43 +139,37 @@ const dashboardTabs: Array<{
   id: DashboardTab;
   label: string;
   hint: string;
-  icon: string;
-  selectedIcon: string;
+  spriteColumn: 0 | 1 | 2 | 3 | 4;
 }> = [
   {
     id: 'proposals',
     label: 'Proposals',
     hint: 'Live',
-    icon: `${DASHBOARD_ICON_ROOT}/normal/proposals.png`,
-    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/proposals-selected.png`
+    spriteColumn: 0
   },
   {
     id: 'trophies',
     label: 'Trophies',
     hint: 'Rank',
-    icon: `${DASHBOARD_ICON_ROOT}/normal/trophies-leaderboard.png`,
-    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/trophies-leaderboard-selected.png`
+    spriteColumn: 1
   },
   {
     id: 'home',
     label: 'Home',
     hint: 'Mission',
-    icon: `${DASHBOARD_ICON_ROOT}/selected/missions-selected.png`,
-    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/missions-selected.png`
+    spriteColumn: 2
   },
   {
     id: 'hangar',
     label: 'Hangar',
     hint: 'Squad',
-    icon: `${DASHBOARD_ICON_ROOT}/normal/multiplayer-network.png`,
-    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/multiplayer-network-selected.png`
+    spriteColumn: 3
   },
   {
     id: 'more',
     label: 'More',
     hint: 'About',
-    icon: `${DASHBOARD_ICON_ROOT}/normal/more.png`,
-    selectedIcon: `${DASHBOARD_ICON_ROOT}/selected/more-selected.png`
+    spriteColumn: 4
   }
 ];
 
@@ -642,8 +639,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   useEffect(() => {
-    const iconImages = dashboardTabs.flatMap((tab) => [tab.icon, tab.selectedIcon]);
-    iconImages.forEach((source) => {
+    [WEEKLY_FUNDING_FRAME_SPRITESHEET, DASHBOARD_NAV_ICON_SPRITESHEET].forEach((source) => {
       const image = new Image();
       image.decoding = 'async';
       image.src = source;
@@ -954,7 +950,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
     );
   };
 
-  const HeroPanel = ({ compact = false, fill = false }: { compact?: boolean; fill?: boolean }) => (
+  const renderHeroPanel = ({ compact = false, fill = false }: { compact?: boolean; fill?: boolean } = {}) => (
     <HudPanel className={compact ? `sci-mobile-hero min-h-[17.5rem] ${fill ? 'flex-1' : ''}` : 'min-h-[34rem] xl:min-h-[40rem]'}>
       <div className="absolute inset-0">
         <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-68" />
@@ -1043,8 +1039,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 
   const WeeklyFundingCard = ({ compact = false }: { compact?: boolean } = {}) => (
-    <HudPanel className="sci-weekly-funding-shell sci-neon-frame-window">
-      <div className={compact ? 'p-3' : 'p-4 md:p-5'}>
+    <HudPanel className="sci-weekly-funding-shell">
+      <div className="sci-weekly-funding-frame-sprite" aria-hidden="true" />
+      <div className={`sci-weekly-funding-content ${compact ? 'p-4' : 'p-5 md:p-6'}`}>
         <div className={`${compact ? 'mb-2 pb-2' : 'mb-3 pb-3'} grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-cyan-200/14`}>
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1071,7 +1068,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
             className={`sci-weekly-winner-card group relative w-full overflow-hidden rounded-[8px] border border-emerald-300/24 bg-slate-950/50 text-left transition hover:border-emerald-200/65 hover:bg-emerald-300/10 ${compact ? 'p-2' : 'p-3'}`}
           >
             <div className="sci-weekly-scan" />
-            <div className="sci-weekly-frame" aria-hidden="true" />
             <div
               className={`relative z-10 grid gap-3 ${compact ? '' : 'grid-cols-[5.25rem_minmax(0,1fr)]'}`}
               {...(compact ? { style: { gridTemplateColumns: '4rem minmax(0,1fr)' } } : {})}
@@ -1161,26 +1157,16 @@ const StartScreen: React.FC<StartScreenProps> = ({
               data-lock-nudged={hangarLocked && connectNudgeActive ? 'true' : 'false'}
               data-reward-ready={rewardAttention ? 'true' : 'false'}
               data-proposal-ready={proposalAttention ? 'true' : 'false'}
+              data-icon-column={tab.spriteColumn}
               onClick={tab.id === 'hangar' ? requestHangar : () => setDashboardTab(tab.id)}
               className={`sci-dashboard-nav-button group relative flex min-h-[4.8rem] flex-col items-center justify-end gap-0.5 border-r border-cyan-200/12 px-1 pb-1.5 text-center text-xs font-semibold last:border-r-0 ${
                 active
-                  ? 'bg-gradient-to-br from-emerald-400/28 to-cyan-400/12 text-white shadow-[inset_0_0_26px_rgba(52,211,153,0.24)]'
+                  ? 'text-white'
                   : 'text-slate-300 hover:bg-cyan-300/8 hover:text-white'
               }`}
             >
               <span className="sci-dashboard-nav-icon" aria-hidden="true">
-                <img
-                  src={tab.icon}
-                  alt=""
-                  draggable={false}
-                  className="sci-dashboard-nav-icon-image sci-dashboard-nav-icon-normal"
-                />
-                <img
-                  src={tab.selectedIcon}
-                  alt=""
-                  draggable={false}
-                  className="sci-dashboard-nav-icon-image sci-dashboard-nav-icon-selected"
-                />
+                <span className="sci-dashboard-nav-icon-sprite" />
                 {hangarLocked ? (
                   <span className="sci-dashboard-nav-lock">
                     <Icon name="lock" className="h-4 w-4" strokeWidth={2.5} />
@@ -1629,7 +1615,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
     return (
       <div className="scicon-mobile-home flex min-h-full flex-col gap-2">
         <WeeklyFundingCard compact />
-        <HeroPanel compact fill />
+        {renderHeroPanel({ compact: true, fill: true })}
       </div>
     );
   };
@@ -1759,7 +1745,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           {dashboardTab === 'home' ? (
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.14fr)_minmax(25rem,0.86fr)]">
               <div className="space-y-5">
-                <HeroPanel />
+                {renderHeroPanel()}
                 <DashboardNav />
               </div>
 
