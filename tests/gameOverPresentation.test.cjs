@@ -16,11 +16,13 @@ test('game over uses the animated defeat banner and a tall gray-red mission fram
   assert.match(component, /scicon-game-over-panel-v1\/scicon-game-over-panel-tall\.png/);
   assert.match(component, /footer\?: React\.ReactNode/);
   assert.match(component, /sci-gameover-footer/);
-  assert.match(component, />Defeated</);
+  assert.match(component, /campaignComplete \? 'Complete' : 'Defeated'/);
+  assert.match(component, /campaignComplete \? 'Campaign complete' : 'Mission defeated'/);
   assert.match(styles, /sciDefeatedBannerDrop/);
   assert.match(styles, /sciGameOverWindowDeploy/);
   assert.match(styles, /aspect-ratio: 543 \/ 724/);
   assert.match(styles, /calc\(\(100dvh - 190px\) \* 0\.75\)/);
+  assert.match(styles, /sci-gameover-overlay--complete/);
   assert.doesNotMatch(component, /\.gif/);
 
   const framePath = path.join(root, 'public', 'game-art', 'generated', 'ui', 'scicon-game-over-panel-v1', 'scicon-game-over-panel-tall.png');
@@ -35,7 +37,7 @@ test('the canonical game-over flow keeps all existing actions inside the new pre
   const styles = fs.readFileSync(path.join(root, 'components', 'game-over-presentation.css'), 'utf8');
 
   assert.match(app, /gameState === GameState\.GAMEOVER/);
-  assert.match(app, /<GameOverPresentation footer=\{gameOverContinueControls\}>/);
+  assert.match(app, /<GameOverPresentation footer=\{gameOverContinueControls\} campaignComplete=\{campaignCompletedRun\}>/);
   assert.match(app, /handleContinueWithRsc/);
   assert.match(app, /onSubmit=\{submitScore\}/);
   assert.match(app, /onClick=\{skipScoreSubmission\}/);

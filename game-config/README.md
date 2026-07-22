@@ -14,7 +14,9 @@
 - `hudAssets.bombIconAssetKey` selects the bomb control artwork used by the shared real-game HUD.
 - Optional normalized `spawnAnchor` points power visual placement, while bounded `spriteStyle` values change artwork without changing collision boxes.
 
-The checked-in revision defines five Stages: Open Orbit, Citation Storm, Paywall Siege, Open Galaxy, and Bastion Protocol. Each Stage is split into tactical internal waves; only the final internal wave triggers the Stage completion/departure flow. Difficulty defaults to `1` because each event already contains its concrete combat values.
+The checked-in revision defines a finite twenty-Stage campaign. Stages 1–5 retain Open Orbit, Citation Storm, Paywall Siege, Open Galaxy, and Bastion Protocol; Stages 6–20 continue into authored helix, redline, asteroid, swarm, roaming-boss, and final Terminus encounters instead of recycling Stage 1. Each Stage is split into tactical internal waves, and only the final internal wave triggers the Stage completion/departure flow.
+
+Later Stages deliberately mix boss finales with bossless survival climaxes. Blocking asteroid deluges, elite mass assaults, multi-row bastions, and increasingly mobile Gatekeepers all use the same validated event grammar as the opening campaign. Stage 6 is the first canonical encounter for the violet Citation Storm boss art, while Stage 20 is the authored endpoint and hardest checked-in encounter.
 
 ## Validation and runtime
 

@@ -54,6 +54,10 @@ export const ASSETS = {
   ],
   POWERUP_MAX_SHOT: "/game-art/generated/powerups/scicon-max-shot-v1/max-shot-pickup.png",
   POWERUP_MAX_SHOT_AURA: "/game-art/generated/powerups/scicon-max-shot-v1/max-shot-aura.png",
+  POWERUP_MAX_SHOT_AURA_FRAMES: Array.from(
+    { length: 8 },
+    (_, index) => `/game-art/generated/scicon-stage20-expansion-v1/powerups/max-shot-aura/frames/max-shot-aura-${String(index + 1).padStart(2, '0')}.png`
+  ),
   POWERUP_MAGNET: "/game-art/powerups/magnet.png",
   POWERUP_MAGNET_FRAMES: [
     "/game-art/generated/powerups/scicon-powerup-idle-pack-v1/magnet/frames/magnet-01-rest.png",
@@ -185,6 +189,26 @@ export const ASSETS = {
     { length: 6 },
     (_, index) => `/game-art/generated/bosses/astral-crownclaw/animations/decay/frames/astral-crownclaw-decay-frame-0${index + 1}.png`
   ),
+  CAMPAIGN_BOSS_ECLIPSE_ENGINE: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/eclipse-engine.png",
+  CAMPAIGN_BOSS_HAMMERHEAD_SIEGE: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/hammerhead-siege.png",
+  CAMPAIGN_BOSS_HELIX_LEVIATHAN: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/helix-leviathan.png",
+  CAMPAIGN_BOSS_ORBIT_GYROSCOPE: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/orbit-gyroscope.png",
+  CAMPAIGN_BOSS_PRISM_MOTH: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/prism-moth.png",
+  CAMPAIGN_BOSS_RAIL_SERPENT: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/rail-serpent.png",
+  CAMPAIGN_BOSS_SINGULARITY_CRAB: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/singularity-crab.png",
+  CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/tribunal-dreadnought.png",
+  CAMPAIGN_ENEMY_BULLET_RING_EMITTER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/bullet-ring-emitter.png",
+  CAMPAIGN_ENEMY_CRESCENT_MINELAYER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/crescent-minelayer.png",
+  CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dark-asteroid-sentinel.png",
+  CAMPAIGN_ENEMY_DNA_CONDUCTOR: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dna-conductor.png",
+  CAMPAIGN_ENEMY_LASER_HUNTER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/laser-hunter.png",
+  CAMPAIGN_ENEMY_LASER_STALKER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/laser-stalker.png",
+  CAMPAIGN_ENEMY_ORBIT_DISC: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/orbit-disc.png",
+  CAMPAIGN_ENEMY_PRISM_ARTILLERY: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/prism-artillery.png",
+  CAMPAIGN_ENEMY_RING_SENTINEL: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/ring-sentinel.png",
+  CAMPAIGN_ENEMY_SHIELD_RAMMER: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/shield-rammer.png",
+  CAMPAIGN_ENEMY_WALL_SNIPER_LEFT: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-left.png",
+  CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT: "/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-right.png",
   PIXI_BOSS_CROWNCLAW_CORE: "/game-art/generated/bosses/astral-crownclaw/rig/astral-crownclaw-core-chassis.png",
   PIXI_BOSS_CROWNCLAW_LEGS: {
     frontLeft: "/game-art/generated/bosses/astral-crownclaw/rig/legs/astral-crownclaw-leg-front-left.png",

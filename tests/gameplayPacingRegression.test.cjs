@@ -34,9 +34,13 @@ test('formations stay visual and stage bosses provide an intentional five-second
   const waves = campaign.levels.flatMap((level) => level.waves);
   assert.ok(waves.length > 0);
   const gatekeeperWaves = waves.filter((wave) => wave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'));
-  assert.equal(gatekeeperWaves.length, 3);
+  assert.equal(gatekeeperWaves.length, 13);
   gatekeeperWaves.forEach((wave) => assert.equal(wave.delayAfterSeconds, 5));
-  waves.filter((wave) => !gatekeeperWaves.includes(wave)).forEach((wave) => assert.ok(wave.delayAfterSeconds <= 1.5));
+  campaign.levels.forEach((level) => {
+    const finalWave = level.waves.at(-1);
+    assert.ok(finalWave.delayAfterSeconds >= 0 && finalWave.delayAfterSeconds <= 5);
+    level.waves.slice(0, -1).forEach((wave) => assert.ok(wave.delayAfterSeconds <= 1.5));
+  });
   assert.match(engineSource, /stageRewardCollectionFrames/);
   assert.match(engineSource, /STAGE_TAKEOFF_FRAMES = 120/);
 });

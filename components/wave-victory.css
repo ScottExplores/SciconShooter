@@ -395,6 +395,11 @@
   text-shadow: 0 0 12px rgba(250, 204, 21, 0.42), 2px 2px 0 #052e3c;
 }
 
+.wave-victory-copy h1.wave-victory-title-complete {
+  font-size: clamp(19px, 5.7vw, 24px);
+  white-space: nowrap;
+}
+
 .wave-victory-copy p {
   margin: 7px 0 0;
   color: #dffeff;

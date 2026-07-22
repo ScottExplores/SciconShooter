@@ -44,9 +44,13 @@ test('preserves the BTC ship identity for collectible rendering', () => {
   assert.equal(record.playerShipId, 'btc');
 });
 
-test('maps receipt stage numbers through the five authored stage names', () => {
+test('maps receipt stage numbers through all 20 authored stage names without wrapping', () => {
   assert.equal(getRecordPresentation({ wave: 3 }).encounter, 'Paywall Siege');
   assert.equal(getRecordPresentation({ wave: 4 }).encounter, 'Open Galaxy');
   assert.equal(getRecordPresentation({ wave: 5 }).encounter, 'Bastion Protocol');
-  assert.equal(getRecordPresentation({ wave: 6 }).encounter, 'Open Orbit');
+  assert.equal(getRecordPresentation({ wave: 6 }).encounter, 'Helix Convergence');
+  assert.equal(getRecordPresentation({ wave: 10 }).encounter, 'Null Sector');
+  assert.equal(getRecordPresentation({ wave: 15 }).encounter, 'Ion Citadel');
+  assert.equal(getRecordPresentation({ wave: 20 }).encounter, 'Terminus Ascendant');
+  assert.equal(getRecordPresentation({ wave: 21 }).encounter, 'Terminus Ascendant');
 });

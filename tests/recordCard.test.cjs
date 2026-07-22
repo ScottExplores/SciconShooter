@@ -77,3 +77,71 @@ test('record card embeds encounter art and meaningful run values', async () => {
     global.fetch = originalFetch;
   }
 });
+
+test('later-stage record cards embed their authored campaign art without the legacy boss fallback', async () => {
+  const runId = '66666666-7777-4888-8999-000000000000';
+  const expectedStages = new Map([
+    [7, '/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/rail-serpent.png'],
+    [8, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dark-asteroid-sentinel.png'],
+    [9, '/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/prism-moth.png'],
+    [20, '/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/tribunal-dreadnought.png']
+  ]);
+  const originalFetch = global.fetch;
+  let activeStage = 7;
+  let fetchedAssetUrls = [];
+
+  global.fetch = async (url) => {
+    const value = String(url);
+    if (value.includes('scicon_run_receipts')) {
+      return jsonResponse([{
+        game_version: '2.1.0',
+        integrity_status: 'server-verified',
+        finished_at: '2026-07-21T12:00:00.000Z',
+        duration_ms: 180000,
+        score: activeStage * 1000,
+        wave: activeStage,
+        enemies_defeated: activeStage * 10,
+        coins_collected: activeStage
+      }]);
+    }
+    if (value.includes('scicon_leaderboard')) {
+      return jsonResponse([{ name: 'ACE', score: activeStage * 1000, wave: activeStage }]);
+    }
+    if (value.includes('/game-art/')) {
+      fetchedAssetUrls.push(value);
+      return {
+        ok: true,
+        headers: { get: () => 'image/png' },
+        async arrayBuffer() { return Uint8Array.from([137, 80, 78, 71]).buffer; }
+      };
+    }
+    throw new Error(`Unexpected request: ${value}`);
+  };
+
+  try {
+    for (const [stage, expectedPath] of expectedStages) {
+      activeStage = stage;
+      fetchedAssetUrls = [];
+      const res = {
+        headers: {},
+        setHeader(name, value) { this.headers[name] = value; },
+        end(body) { this.body = body; }
+      };
+
+      await recordCardHandler({ method: 'GET', query: { runId } }, res);
+
+      assert.equal(res.statusCode, 200, `Stage ${stage} response`);
+      assert.ok(
+        fetchedAssetUrls.some((url) => url.endsWith(expectedPath)),
+        `Stage ${stage} should embed ${expectedPath}`
+      );
+      assert.equal(
+        fetchedAssetUrls.some((url) => url.endsWith('/game-art/bosses/final-boss-sentinel.png')),
+        false,
+        `Stage ${stage} must not use the legacy fallback`
+      );
+    }
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

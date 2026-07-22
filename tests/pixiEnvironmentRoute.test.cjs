@@ -25,9 +25,13 @@ test('campaign follows a coherent space-to-planet-to-space environment route', (
   const environment = read('services/pixi/PixiEnvironment.ts');
 
   assert.deepEqual(
-    campaign.levels.map((level) => level.backgroundId),
+    campaign.levels.slice(0, 5).map((level) => level.backgroundId),
     ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']
   );
+  assert.ok(campaign.levels.slice(5).every((level) => (
+    ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol'].includes(level.backgroundId)
+  )));
+  assert.equal(campaign.levels.at(-1).backgroundId, 'open-orbit');
   assert.match(environment, /orbital-departure/);
   assert.match(environment, /deep-nebula/);
   assert.match(environment, /planetary-descent/);
@@ -53,7 +57,7 @@ test('long round masters do not hard-wrap and props stay inside their terrain fa
   }
 
   assert.match(environment, /loop: false/);
-  assert.match(environment, /Math\.min\(maxTravel, startingOffset \+ localFrame \* layer\.speed\)/);
+  assert.match(environment, /Math\.min\(maxTravel, startingOffset \+ motionFrame \* layer\.speed\)/);
   assert.match(environment, /layer\.scrollDirection === 'down'/);
   assert.match(environment, /PIXI_TERRAIN_DESERT_MASTER[^\n]+scrollDirection: 'down'/);
   assert.match(environment, /PIXI_TERRAIN_RIVER_MASTER[^\n]+scrollDirection: 'down'/);
@@ -105,5 +109,9 @@ test('ground props remain registered to terrain while space landmarks use slow d
   assert.match(environment, /new BlurFilter\(\{ strength: definition\.softness \?\? 0, quality: 1/);
   assert.match(environment, /PIXI_TERRAIN_SPACE_MASTER, speed: 0\.004/);
   assert.match(environment, /GAME_PARALLAX_STARS, speed: 0\.028/);
+  assert.match(environment, /runtime\.stageDepartureSpeedBoost/);
+  assert.match(environment, /runtime\.stageHyperspeedStrength/);
+  assert.match(environment, /hyperspeedStreaks/);
+  assert.match(environment, /layer\.softness \+ hyperspeedStrength/);
   assert.doesNotMatch(environment, /prop\.sprite\.y = \(\(prop\.baseY \* propCycle\)/);
 });

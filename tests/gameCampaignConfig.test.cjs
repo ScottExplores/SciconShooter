@@ -21,27 +21,69 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
   return { keys, strings };
 };
 
-test('tracked campaign contains five ordered stages with tactical internal waves', () => {
+test('tracked campaign contains twenty ordered stages with tactical internal waves', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 17);
+  assert.equal(campaign.revision, 18);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
-  assert.equal(campaign.levels.length, 5);
+  assert.equal(campaign.levels.length, 20);
+  const firstFive = campaign.levels.slice(0, 5);
   assert.deepEqual(
-    campaign.levels.map((level) => level.name),
+    firstFive.map((level) => level.name),
     ['OPEN ORBIT', 'CITATION STORM', 'PAYWALL SIEGE', 'OPEN GALAXY', 'BASTION PROTOCOL']
   );
-  assert.deepEqual(campaign.levels.map((level) => level.order), [1, 2, 3, 4, 5]);
-  assert.deepEqual(campaign.levels.map((level) => level.waves.length), [3, 3, 3, 3, 5]);
-  assert.deepEqual(campaign.levels.map((level) => level.waves[0].scoreMultiplier), [1, 2, 4, 8, 16]);
+  assert.deepEqual(campaign.levels.map((level) => level.order), Array.from({ length: 20 }, (_, index) => index + 1));
+  assert.deepEqual(firstFive.map((level) => level.waves.length), [3, 3, 3, 3, 5]);
+  assert.deepEqual(firstFive.map((level) => level.waves[0].scoreMultiplier), [1, 2, 4, 8, 16]);
   campaign.levels.forEach((level) => {
     assert.equal(level.loopWaves, false);
     assert.equal(level.durationSeconds, null);
-    assert.equal(level.startingDifficulty, 1);
     assert.ok(level.availablePowerupIds.includes('extra-life'));
     assert.deepEqual(level.waves.map((wave) => wave.order), level.waves.map((_, index) => index + 1));
-    assert.ok(level.waves.every((wave) => wave.difficultyMultiplier === 1));
     assert.ok(level.waves.every((wave) => wave.scoreMultiplier === level.waves[0].scoreMultiplier));
+  });
+  firstFive.forEach((level) => {
+    assert.equal(level.startingDifficulty, 1);
+    assert.ok(level.waves.every((wave) => wave.difficultyMultiplier === 1));
+  });
+  assert.ok(campaign.levels.slice(5).every((level) => level.waves.length === 3));
+});
+
+test('Stages 6 through 20 form a non-recycling authored campaign with varied climaxes', () => {
+  const extendedStages = campaign.levels.slice(5);
+  const stageSix = campaign.levels[5];
+  const stageTwenty = campaign.levels[19];
+  const finalWave = (stage) => stage.waves.at(-1);
+  const gatekeeper = (stage) => finalWave(stage).events.find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper');
+  const bosslessOrders = extendedStages.filter((stage) => !gatekeeper(stage)).map((stage) => stage.order);
+
+  assert.equal(stageSix.id, 'stage-helix-convergence');
+  assert.equal(stageTwenty.id, 'stage-terminus-ascendant');
+  assert.equal(stageTwenty.order, 20);
+  assert.deepEqual(bosslessOrders, [8, 11, 14, 17, 19]);
+  assert.ok(extendedStages.every((stage) => stage.loopWaves === false));
+  assert.ok(extendedStages.every((stage) => finalWave(stage).delayAfterSeconds === 5));
+
+  const purpleBoss = gatekeeper(stageSix);
+  assert.ok(purpleBoss);
+  assert.equal(purpleBoss.rigId, 'citation-storm');
+  assert.equal(purpleBoss.spriteKey, 'PIXI_BOSS_CITATION_FRAMES');
+  assert.equal(purpleBoss.label, 'Violet Arbiter');
+
+  assert.ok(campaign.levels[7].waves.at(-1).events.some((event) => event.kind === 'asteroid-belt'));
+  assert.ok(campaign.levels[13].waves.at(-1).events.some((event) => event.kind === 'spawn' && event.blocksWaveClock));
+  assert.ok(campaign.levels[18].waves.at(-1).events.some((event) => event.kind === 'boss' && event.bossId === 'paywall-wall'));
+
+  const terminus = gatekeeper(stageTwenty);
+  assert.ok(terminus.health > purpleBoss.health);
+  assert.ok(terminus.scoreReward > purpleBoss.scoreReward);
+  assert.ok(stageTwenty.startingDifficulty > stageSix.startingDifficulty);
+  assert.ok(finalWave(stageTwenty).difficultyMultiplier > finalWave(stageSix).difficultyMultiplier);
+  assert.ok(finalWave(stageTwenty).threatCap > finalWave(stageSix).threatCap);
+
+  const scoreMultipliers = campaign.levels.map((stage) => stage.waves[0].scoreMultiplier);
+  scoreMultipliers.slice(1).forEach((multiplier, index) => {
+    assert.ok(multiplier > scoreMultipliers[index], `Stage ${index + 2} should reward more than Stage ${index + 1}`);
   });
 });
 
@@ -71,10 +113,10 @@ test('main bosses are reserved for stage finales and follow a clear health curve
     .map((wave) => wave.events.find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'));
   const bursts = finalBosses.map((boss) => boss.weapons.find((weapon) => weapon.id.endsWith('burst')));
 
-  assert.deepEqual(finalBosses.map((boss) => boss.health), [170, 400, 720]);
-  assert.deepEqual(finalBosses.map((boss) => boss.scoreReward), [1010, 4040, 10000]);
-  assert.deepEqual(bursts.map((weapon) => weapon.projectileSpeed), [6.55, 7.65, 8.4]);
-  assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 7, 8]);
+  assert.deepEqual(finalBosses.slice(0, 3).map((boss) => boss.health), [170, 400, 720]);
+  assert.deepEqual(finalBosses.slice(0, 3).map((boss) => boss.scoreReward), [1010, 4040, 10000]);
+  assert.deepEqual(bursts.slice(0, 3).map((weapon) => weapon.projectileSpeed), [6.55, 7.65, 8.4]);
+  assert.deepEqual(bursts.slice(0, 3).map((weapon) => weapon.burstCount), [3, 7, 8]);
 
   for (let index = 1; index < finalBosses.length; index += 1) {
     assert.ok(finalBosses[index].health > finalBosses[index - 1].health);
@@ -293,7 +335,7 @@ test('enemy families unlock progressively across stages', () => {
   assert.deepEqual(stageEnemyIds(stages[3]), ['drone', 'swarm', 'brick', 'journal']);
 });
 
-test('every predatory journal spawn uses the animated frame catalog', () => {
+test('predatory journal spawns use the original animation or registered campaign variants', () => {
   const journalSettings = campaign.levels.flatMap((level) => (
     level.waves.flatMap((wave) => (
       wave.events
@@ -303,10 +345,17 @@ test('every predatory journal spawn uses the animated frame catalog', () => {
   ));
 
   assert.ok(journalSettings.length > 0);
-  journalSettings.forEach((enemy) => assert.equal(enemy.spriteKey, 'ENEMY_JOURNAL_FRAMES'));
+  const allowedJournalSprites = new Set([
+    'ENEMY_JOURNAL_FRAMES',
+    'CAMPAIGN_ENEMY_ORBIT_DISC',
+    'CAMPAIGN_ENEMY_LASER_HUNTER',
+    'CAMPAIGN_ENEMY_SHIELD_RAMMER',
+    'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
+  ]);
+  journalSettings.forEach((enemy) => assert.equal(allowedJournalSprites.has(enemy.spriteKey), true));
 });
 
-test('asteroid art is reserved for asteroid-belt encounters', () => {
+test('asteroid belts use registered belt art while legacy belt frames stay out of formations', () => {
   const events = campaign.levels.flatMap((level) => level.waves.flatMap((wave) => wave.events));
   const asteroidEvents = events.filter((event) => event.kind === 'asteroid-belt');
   const formationEnemies = events
@@ -314,7 +363,8 @@ test('asteroid art is reserved for asteroid-belt encounters', () => {
     .flatMap((event) => event.enemies);
 
   assert.ok(asteroidEvents.length > 0);
-  asteroidEvents.forEach((event) => assert.equal(event.spriteKey, 'ASTEROID_BELT_FRAMES'));
+  const asteroidSprites = new Set(['ASTEROID_BELT_FRAMES', 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL']);
+  asteroidEvents.forEach((event) => assert.equal(asteroidSprites.has(event.spriteKey), true));
   formationEnemies.forEach((enemy) => assert.notEqual(enemy.spriteKey, 'ASTEROID_BELT_FRAMES'));
 });
 
@@ -346,7 +396,7 @@ test('legacy hierarchy migration preserves custom events and existing combat tun
       ...campaign.levels[0],
       id: 'operation-open-galaxy',
       name: 'Research Frontier',
-      waves: campaign.levels.map((stage, index) => ({
+      waves: campaign.levels.slice(0, 5).map((stage, index) => ({
         ...stage.waves[0],
         id: legacyWaveIds[index],
         name: stage.name,

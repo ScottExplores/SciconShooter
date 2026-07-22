@@ -75,6 +75,21 @@ import {
   getBossCoinBurstCount,
   getBossCoinBurstKinematics
 } from './bossCoinBurst';
+import {
+  MAX_AUTHORED_CAMPAIGN_STAGES,
+  getAuthoredCampaignStageCount,
+  getCampaignProgressionTier,
+  getMaxShotAnglesRadians,
+  getMaxShotProjectileCount,
+  getNextAuthoredCampaignIndex,
+  getStageDepartureSignal
+} from './campaignCombatProgression';
+import {
+  MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
+  getGeneratedBossTechniqueCue,
+  resolveGeneratedBossArchetype,
+  type GeneratedBossArchetype
+} from './generatedBossArchetypes';
 
 // --- Helper Classes ---
 
@@ -137,9 +152,11 @@ export class Entity {
   isBeam: boolean = false; 
   beamAxis: 'vertical' | 'horizontal' = 'vertical';
   beamFromCenter: boolean = false;
+  isDetachedBeam: boolean = false;
   isTelegraph: boolean = false;
   beamAnchorOffsetX: number | null = null;
   beamLaneSign: number = 0;
+  bossAttackArchetype?: GeneratedBossArchetype;
   bossRigId?: BossRigId;
   bossComponents?: BossComponentState[];
   bossDecayStage: number = 0;
@@ -211,6 +228,7 @@ export class Entity {
   isElite: boolean = false;
   eliteRank?: EnemyRank;
   eliteAttackPattern?: EnemyAttackPatternId;
+  eliteAttackSequence: number = 0;
   completesWave: boolean = false;
   /** Configuration provenance used by the local visual editor. */
   sourceEventId?: string;
@@ -478,9 +496,7 @@ const lerp = (current: number, target: number, amount: number) => current + ((ta
 const randomRange = (min: number, max: number) => min + Math.random() * (max - min);
 export const PLAYER_PRIMARY_SHOT_SPREAD_DEGREES = 5;
 const PLAYER_PRIMARY_SHOT_SPREAD_RADIANS = PLAYER_PRIMARY_SHOT_SPREAD_DEGREES * (Math.PI / 180);
-export const MAX_SHOT_PROJECTILE_COUNT = 8;
-export const MAX_SHOT_ANGLE_DEGREES = [-28, -20, -12, -4, 4, 12, 20, 28] as const;
-const MAX_SHOT_ANGLES_RADIANS = MAX_SHOT_ANGLE_DEGREES.map((degrees) => degrees * (Math.PI / 180));
+export const MAX_SHOT_PROJECTILE_COUNT = 15;
 const COMPANION_SHOT_STEPS: Readonly<Record<number, readonly number[]>> = Object.freeze({
   1: Object.freeze([0]),
   2: Object.freeze([-0.5, 0.5]),
@@ -595,8 +611,8 @@ const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1;
 const BOSS_DAMAGE_FLASH_FRAMES = 2;
 const BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES = 5;
 export const REGULAR_ENEMY_SIZE_SCALE = 1.1;
-const ENDLESS_CYCLE_DIFFICULTY_STEP = 0.12;
-const ENDLESS_CYCLE_DIFFICULTY_CAP = 0.84;
+const AUTHORED_TIER_DIFFICULTY_STEP = 0.04;
+const AUTHORED_TIER_DIFFICULTY_CAP = 0.12;
 type PendingBossStrike = {
   bossId: string;
   x: number;
@@ -808,6 +824,15 @@ type ActiveSquadCompanion = RuntimeSquadCompanion & {
   shotSequence: number;
   entryProgress: number;
 };
+type PendingEnemyLaser = {
+  sourceId: string;
+  telegraphId: string;
+  axis: 'vertical' | 'horizontal';
+  coordinate: number;
+  damage: number;
+  frames: number;
+  warningFrames: number;
+};
 
 export interface GameRuntimeState {
   levelId: string;
@@ -825,6 +850,11 @@ export interface GameRuntimeState {
   progress: number;
   bossActive: boolean;
   complete: boolean;
+  campaignComplete: boolean;
+  stageDepartureProgress: number;
+  stageDepartureSpeedBoost: number;
+  stageHyperspeedActive: boolean;
+  stageHyperspeedStrength: number;
 }
 
 export interface WaveVictorySummary {
@@ -838,6 +868,8 @@ export interface WaveVictorySummary {
   coinsCollected: number;
   elapsedSeconds: number;
   nextStage: number;
+  hasNextStage: boolean;
+  campaignComplete: boolean;
 }
 
 export interface GameEditorEntitySnapshot {
@@ -1023,10 +1055,12 @@ export class GameEngine {
   configuredSpawnFrames: Map<string, number> = new Map();
   escalationWarningsShown: Set<string> = new Set();
   pendingBossStrikes: PendingBossStrike[] = [];
+  pendingEnemyLasers: PendingEnemyLaser[] = [];
   pendingConfiguredEncounter: RuntimeEncounterEvent | null = null;
   initialLevelId?: string;
   initialWaveId?: string;
   testMode: boolean = false;
+  campaignComplete: boolean = false;
   private readonly squadLoadout: RuntimeSquadLoadout | null;
   private readonly squadCompanions: ActiveSquadCompanion[];
   private readonly startingLives: number;
@@ -1075,7 +1109,10 @@ export class GameEngine {
   buildCampaignWaveEntries(campaign: GameCampaign): CampaignWaveEntry[] {
     const entries: CampaignWaveEntry[] = [];
     const levels = Array.isArray(campaign.levels)
-      ? campaign.levels.map((level, sourceIndex) => ({ level, sourceIndex })).sort((a, b) => a.level.order - b.level.order)
+      ? campaign.levels
+        .map((level, sourceIndex) => ({ level, sourceIndex }))
+        .sort((a, b) => a.level.order - b.level.order)
+        .slice(0, MAX_AUTHORED_CAMPAIGN_STAGES)
       : [];
     levels.forEach(({ level }, levelIndex) => {
       const waves = Array.isArray(level.waves)
@@ -1096,7 +1133,8 @@ export class GameEngine {
 
   getCurrentCampaignEntry() {
     if (this.campaignWaves.length === 0) return null;
-    const index = ((this.currentCampaignIndex % this.campaignWaves.length) + this.campaignWaves.length) % this.campaignWaves.length;
+    const index = Math.floor(this.currentCampaignIndex);
+    if (index < 0 || index >= this.campaignWaves.length) return null;
     return this.campaignWaves[index] ?? null;
   }
 
@@ -1115,47 +1153,48 @@ export class GameEngine {
 
   getStageNumberForCampaignIndex(campaignIndex: number = this.currentCampaignIndex) {
     if (this.campaignWaves.length === 0) return Math.max(1, Math.floor(campaignIndex) + 1);
-    const safeIndex = Math.max(0, Math.floor(campaignIndex));
-    const normalizedIndex = safeIndex % this.campaignWaves.length;
-    const entry = this.campaignWaves[normalizedIndex];
-    const cycle = Math.floor(safeIndex / this.campaignWaves.length);
-    return (cycle * Math.max(1, this.campaign.levels.length)) + (entry?.levelIndex ?? 0) + 1;
+    const safeIndex = clamp(Math.floor(campaignIndex), 0, this.campaignWaves.length - 1);
+    const entry = this.campaignWaves[safeIndex];
+    return clamp(
+      (entry?.levelIndex ?? 0) + 1,
+      1,
+      Math.max(1, getAuthoredCampaignStageCount(this.campaign.levels.length))
+    );
   }
 
   getFirstCampaignWaveIndexForStage(stageNumber: number) {
     if (this.campaignWaves.length === 0 || this.campaign.levels.length === 0) return -1;
-    const safeStageIndex = Math.max(0, Math.floor(stageNumber) - 1);
-    const levelCount = this.campaign.levels.length;
-    const cycle = Math.floor(safeStageIndex / levelCount);
-    const levelIndex = safeStageIndex % levelCount;
+    const levelCount = getAuthoredCampaignStageCount(this.campaign.levels.length);
+    const requestedStage = Math.floor(Number(stageNumber) || 0);
+    if (requestedStage < 1 || requestedStage > levelCount) return -1;
+    const levelIndex = requestedStage - 1;
     const flatIndex = this.campaignWaves.findIndex((entry) => entry.levelIndex === levelIndex && entry.waveIndex === 0);
-    return flatIndex < 0 ? -1 : cycle * this.campaignWaves.length + flatIndex;
+    return flatIndex;
   }
 
   getLastCampaignWaveIndexForCurrentStage() {
     const current = this.getCurrentCampaignEntry();
     if (!current || this.campaignWaves.length === 0) return -1;
-    const cycle = Math.floor(Math.max(0, this.currentCampaignIndex) / this.campaignWaves.length);
     let flatIndex = -1;
     this.campaignWaves.forEach((entry, index) => {
       if (entry.level.id === current.level.id) flatIndex = index;
     });
-    return flatIndex < 0 ? -1 : cycle * this.campaignWaves.length + flatIndex;
+    return flatIndex;
   }
 
+  /** @deprecated Historical name retained for compatibility; this is a five-Stage difficulty band inside the finite 20-Stage campaign, never a loop. */
   getCampaignCycle() {
-    if (this.campaignWaves.length === 0) return 0;
-    return Math.floor(Math.max(0, this.currentCampaignIndex) / this.campaignWaves.length);
+    return getCampaignProgressionTier(this.getStageNumberForCampaignIndex());
   }
 
   getCurrentDifficultyMultiplier() {
     const entry = this.getCurrentCampaignEntry();
     const authoredDifficulty = entry ? getDifficultyMultiplier(entry.level, entry.wave) : 1;
-    const cycleDifficulty = 1 + Math.min(
-      ENDLESS_CYCLE_DIFFICULTY_CAP,
-      this.getCampaignCycle() * ENDLESS_CYCLE_DIFFICULTY_STEP
+    const tierDifficulty = 1 + Math.min(
+      AUTHORED_TIER_DIFFICULTY_CAP,
+      this.getCampaignCycle() * AUTHORED_TIER_DIFFICULTY_STEP
     );
-    return authoredDifficulty * cycleDifficulty;
+    return authoredDifficulty * tierDifficulty;
   }
 
   getConfiguredWaveDurationSeconds() {
@@ -1206,8 +1245,9 @@ export class GameEngine {
   getRuntimeState(): GameRuntimeState {
     const entry = this.getCurrentCampaignEntry();
     const durationSeconds = this.getConfiguredWaveDurationSeconds();
-    const levelTotal = Math.max(1, this.campaign.levels.length);
+    const levelTotal = Math.max(1, getAuthoredCampaignStageCount(this.campaign.levels.length));
     const waveTotal = Math.max(1, entry?.level.waves.length ?? 1);
+    const departure = getStageDepartureSignal(this.waveDepartureFrames, this.waveDepartureDuration);
     return {
       levelId: entry?.level.id ?? `level-${Math.max(1, this.wave)}`,
       levelName: entry?.level.name ?? this.getWaveSector().name,
@@ -1223,7 +1263,12 @@ export class GameEngine {
       durationSeconds,
       progress: Math.min(1, Math.max(0, this.stats.bossProgress || 0)),
       bossActive: Boolean(this.stats.isBossActive),
-      complete: this.previewComplete
+      complete: this.previewComplete || this.campaignComplete,
+      campaignComplete: this.campaignComplete,
+      stageDepartureProgress: departure.progress,
+      stageDepartureSpeedBoost: departure.speedBoost,
+      stageHyperspeedActive: departure.hyperspeed,
+      stageHyperspeedStrength: departure.hyperspeedStrength
     };
   }
 
@@ -1349,9 +1394,11 @@ export class GameEngine {
     this.entities = [];
     this.pendingPlayerShots = [];
     this.pendingBossStrikes = [];
+    this.pendingEnemyLasers = [];
     this.activePowerups.clear();
     this.gameActive = true;
     this.previewComplete = false;
+    this.campaignComplete = false;
     this.resetWaveProgress();
     this.introFlightFrames = 0;
     this.waveDepartureFrames = 0;
@@ -1377,6 +1424,11 @@ export class GameEngine {
 
   buildWaveVictorySummary(): WaveVictorySummary {
     const entry = this.getCurrentCampaignEntry();
+    const hasNextStage = getNextAuthoredCampaignIndex(
+      this.currentCampaignIndex,
+      this.campaignWaves.length
+    ) !== null;
+    const finalStage = Math.max(1, getAuthoredCampaignStageCount(this.campaign.levels.length));
     return {
       id: `${this.wave}-${this.frameCount}-${this.stats.score}`,
       stage: this.wave,
@@ -1387,7 +1439,9 @@ export class GameEngine {
       enemiesDefeated: Math.max(0, this.stats.enemiesDefeated - this.waveStartEnemiesDefeated),
       coinsCollected: Math.max(0, this.stats.totalCoins - this.waveStartTotalCoins),
       elapsedSeconds: Math.max(0, Math.round(this.waveFlightFrames / GAME_CONFIG.FPS)),
-      nextStage: this.wave + 1
+      nextStage: hasNextStage ? Math.min(finalStage, this.wave + 1) : finalStage,
+      hasNextStage,
+      campaignComplete: !hasNextStage
     };
   }
 
@@ -1450,6 +1504,7 @@ export class GameEngine {
     this.lastPlayerRamFrame = -999;
     this.gameActive = true;
     this.previewComplete = false;
+    this.campaignComplete = false;
     this.lives = this.startingLives;
     this.stats.lives = this.lives;
     this.stats.score = 0;
@@ -1757,6 +1812,52 @@ export class GameEngine {
     this.compactEntities();
   }
 
+  /**
+   * Stage-clear time is non-combat, but it is still live simulation time. Let
+   * every already-fired shot finish its travel (and beams finish their life)
+   * without applying collision damage or spawning fresh attacks.
+   */
+  updateStageCompletionProjectiles() {
+    for (const entity of this.entities) {
+      if (
+        entity.markedForDeletion
+        || (entity.type !== EntityType.PROJECTILE && entity.type !== EntityType.MISSILE)
+      ) continue;
+
+      if (entity.isBeam) {
+        entity.life--;
+        if (entity.life <= 0) entity.markedForDeletion = true;
+        continue;
+      }
+
+      if (this.isCrownClawProjectile(entity)) {
+        // Returning claws have no valid owner once the boss is gone.
+        entity.markedForDeletion = true;
+        continue;
+      }
+
+      entity.x += entity.vx;
+      entity.y += entity.vy;
+      if (
+        entity.x < -entity.width - 80
+        || entity.x > this.width + 80
+        || entity.y < -entity.height - 80
+        || entity.y > this.height + 80
+      ) {
+        entity.markedForDeletion = true;
+      }
+    }
+  }
+
+  updateHyperspeedBackground() {
+    const departure = getStageDepartureSignal(this.waveDepartureFrames, this.waveDepartureDuration);
+    const extraSteps = Math.max(0, Math.floor(departure.speedBoost) - 1);
+    for (let step = 0; step < extraSteps; step++) {
+      this.stars.forEach((star) => star.update(this.width, this.height));
+      this.bgEntities.forEach((background) => background.update(this.height));
+    }
+  }
+
   updateIntroFlight() {
     if (this.introFlightFrames <= 0) return;
 
@@ -1802,14 +1903,17 @@ export class GameEngine {
     const age = this.waveDepartureDuration - this.waveDepartureFrames;
     const progress = clamp(age / this.waveDepartureDuration, 0, 1);
     const t = easeInOutCubic(progress);
+    const departure = getStageDepartureSignal(this.waveDepartureFrames, this.waveDepartureDuration);
     const targetX = this.width / 2 - this.player.width / 2;
     const endY = -this.player.height * 1.6;
     this.player.x = this.stageTakeoffStartX + ((targetX - this.stageTakeoffStartX) * t)
       + Math.sin(t * Math.PI) * this.width * 0.08;
     this.player.y = this.stageTakeoffStartY + ((endY - this.stageTakeoffStartY) * t);
-    this.playerDrawScale = 1 + (0.48 * t);
+    this.playerDrawScale = 1 + (0.62 * t);
     this.playerTilt = Math.sin(t * Math.PI) * 0.18;
-    this.spawnThrusterParticles(2.15);
+    this.spawnThrusterParticles(2.6 + departure.hyperspeedStrength * 3.9);
+    this.updateStageCompletionProjectiles();
+    this.updateHyperspeedBackground();
 
     this.waveDepartureFrames--;
 
@@ -1824,6 +1928,7 @@ export class GameEngine {
       this.playerVel = { x: 0, y: 0 };
       this.waveVictoryReady = true;
       this.gameActive = false;
+      this.campaignComplete = Boolean(this.waveVictorySummary?.campaignComplete);
       this.playSound('powerup', 1.2, { pitchOffset: 0.12 });
     }
   }
@@ -1884,6 +1989,7 @@ export class GameEngine {
 
   continueRun(lives: number = GAME_CONFIG.PLAYER_LIVES) {
     this.gameActive = true;
+    this.campaignComplete = false;
     if (this.audioEnabled) audioService.startMusic();
     this.deathSequenceFrames = 0;
     this.deathSequenceStartedAtMs = 0;
@@ -2009,6 +2115,7 @@ export class GameEngine {
     this.configuredSpawnFrames.clear();
     this.escalationWarningsShown.clear();
     this.pendingBossStrikes = [];
+    this.pendingEnemyLasers = [];
     this.pendingConfiguredEncounter = null;
     this.stageRewardCollectionFrames = 0;
     this.stageRewardCollectionDuration = 0;
@@ -2033,6 +2140,7 @@ export class GameEngine {
     if (this.stageRewardCollectionFrames <= 0) return;
     this.updatePlayerMovement(this.getPlayerMovementSpeed());
     this.updateSquadCompanions();
+    this.updateStageCompletionProjectiles();
     this.spawnThrusterParticles(0.65);
     this.stageRewardCollectionFrames--;
     if (this.stageRewardCollectionFrames <= 0) this.beginStageTakeoff();
@@ -2040,6 +2148,13 @@ export class GameEngine {
 
   continueToNextWave() {
     if (!this.waveVictoryReady || !this.waveTransitionPending) return false;
+    if (
+      this.waveVictorySummary?.campaignComplete
+      || getNextAuthoredCampaignIndex(this.currentCampaignIndex, this.campaignWaves.length) === null
+    ) {
+      this.campaignComplete = true;
+      return false;
+    }
 
     this.waveVictoryReady = false;
     this.startNextWave();
@@ -2087,6 +2202,12 @@ export class GameEngine {
 
   beginStageCompletion(label: string, color: string) {
     this.waveTransitionPending = true;
+    this.pendingBossStrikes = [];
+    for (const pendingLaser of this.pendingEnemyLasers) {
+      const telegraph = this.entities.find((entity) => entity.id === pendingLaser.telegraphId);
+      if (telegraph) telegraph.markedForDeletion = true;
+    }
+    this.pendingEnemyLasers = [];
     this.waveVictorySummary = this.buildWaveVictorySummary();
     this.spawnFloatingText(this.width / 2, this.height / 2, label, color);
     const configuredDelaySeconds = Number(this.getCurrentWaveDefinition()?.delayAfterSeconds);
@@ -2129,15 +2250,25 @@ export class GameEngine {
     }
 
     const previousEntry = this.getCurrentCampaignEntry();
-    if (this.campaignWaves.length > 0) {
-      this.currentCampaignIndex += 1;
+    const nextCampaignIndex = getNextAuthoredCampaignIndex(
+      this.currentCampaignIndex,
+      this.campaignWaves.length
+    );
+    if (nextCampaignIndex === null) {
+      this.campaignComplete = true;
+      this.waveVictoryReady = true;
+      this.gameActive = false;
+      return;
     }
+    this.currentCampaignIndex = nextCampaignIndex;
     const nextEntry = this.getCurrentCampaignEntry();
     const stageBoundary = !previousEntry || !nextEntry || previousEntry.level.id !== nextEntry.level.id;
     this.wave = this.getStageNumberForCampaignIndex();
     this.stats.wave = this.wave;
     this.resetWaveProgress(stageBoundary);
+    this.campaignComplete = false;
     this.gameActive = true;
+    this.campaignComplete = false;
     this.keepEntitiesForNextWave();
     this.beginWavePresentation();
     const configuredIntroSeconds = Number(this.getCurrentWaveDefinition()?.introSeconds);
@@ -2529,7 +2660,8 @@ export class GameEngine {
     if (this.waveDepartureFrames > 0) {
       this.updateWaveDeparture();
       this.updatePassiveEntities();
-      this.bgY = (this.bgY + 1) % this.height;
+      const departure = getStageDepartureSignal(this.waveDepartureFrames, this.waveDepartureDuration);
+      this.bgY = (this.bgY + Math.max(1, Math.round(departure.speedBoost))) % this.height;
       return;
     }
 
@@ -2548,6 +2680,7 @@ export class GameEngine {
 
     this.waveFlightFrames++;
     this.updatePendingBossStrikes();
+    this.updatePendingEnemyLasers();
     
     let invaderCount = 0;
     let asteroidBeltCount = 0;
@@ -2725,6 +2858,7 @@ export class GameEngine {
       if (e.isBeam) {
           e.life--;
           if (e.life <= 0) e.markedForDeletion = true;
+          if (e.isDetachedBeam) return;
           const beamOwner = e.bossOwnerId
             ? this.entities.find((candidate) => candidate.id === e.bossOwnerId && !candidate.markedForDeletion)
             : this.bossRef;
@@ -2970,6 +3104,7 @@ export class GameEngine {
       && this.lives > 0
       && this.introFlightFrames <= 0
       && this.deathSequenceFrames <= 0
+      && this.stageRewardCollectionFrames <= 0
       && this.waveDepartureFrames <= 0
       && !this.inBossWarningSequence;
 
@@ -3256,7 +3391,7 @@ export class GameEngine {
       || this.activePowerups.has(PowerupType.TRIPLE_SHOT);
     const hasMaxShot = this.activePowerups.has(PowerupType.MAX_SHOT);
     const simultaneousShots = hasMaxShot
-      ? MAX_SHOT_PROJECTILE_COUNT
+      ? getMaxShotProjectileCount(getFireRateVolleySize(this.stats.upgrades.fireRate || 0))
       : getFireRateVolleySize(this.stats.upgrades.fireRate || 0) * (hasSpread ? 3 : 1);
     const companionBurstSize = this.squadCompanions.reduce(
       (sum, companion) => sum + Math.max(1, companion.volleySize),
@@ -3479,23 +3614,25 @@ export class GameEngine {
     this.playerVel.x += randomRange(-0.05, 0.05);
     const weaponKind: PlayerWeaponKind = 'pulse';
     const weaponSpeed = 10;
+    const volleySize = getFireRateVolleySize(this.stats.upgrades.fireRate || 0);
     if (this.activePowerups.has(PowerupType.MAX_SHOT)) {
-      if (!this.hasPlayerShotCapacity(MAX_SHOT_PROJECTILE_COUNT)) return;
-      MAX_SHOT_ANGLES_RADIANS.forEach((angle, index) => {
-        const centeredIndex = index - ((MAX_SHOT_PROJECTILE_COUNT - 1) / 2);
+      const projectileCount = getMaxShotProjectileCount(volleySize);
+      if (!this.hasPlayerShotCapacity(projectileCount)) return;
+      const angles = getMaxShotAnglesRadians(projectileCount);
+      angles.forEach((angle, index) => {
+        const centeredIndex = index - ((projectileCount - 1) / 2);
         this.spawnPlayerBullet(
           weaponSpeed,
-          centeredIndex * 2.2,
-          Math.abs(centeredIndex) * 0.45,
+          centeredIndex * 1.65,
+          Math.abs(centeredIndex) * 0.28,
           angle,
           -0.16 + index * 0.012,
-          index === 0,
+          index === Math.floor(projectileCount / 2),
           weaponKind
         );
       });
       return;
     }
-    const volleySize = getFireRateVolleySize(this.stats.upgrades.fireRate || 0);
     const volleyOffsets = getTightVolleyOffsets(volleySize);
     const volleyAngleOffsets = getTightVolleyAngleOffsets(volleySize);
     const primaryAngle = getRandomPrimaryShotAngle();
@@ -4127,6 +4264,179 @@ export class GameEngine {
     this.entities.push(shot);
   }
 
+  spawnEnemyLaneLaser(
+    sourceId: string,
+    axis: 'vertical' | 'horizontal',
+    coordinate: number,
+    damage: number,
+    telegraph: boolean,
+    lifetimeFrames: number
+  ) {
+    const thickness = telegraph ? 6 : (this.mobileProfile ? 15 : 18);
+    const beam = new Entity(
+      EntityType.PROJECTILE,
+      axis === 'vertical' ? coordinate - thickness / 2 : 0,
+      axis === 'horizontal' ? coordinate - thickness / 2 : 0
+    );
+    beam.isBeam = true;
+    beam.isDetachedBeam = true;
+    beam.isTelegraph = telegraph;
+    beam.beamAxis = axis;
+    beam.bossOwnerId = sourceId;
+    beam.width = axis === 'vertical' ? thickness : this.width;
+    beam.height = axis === 'horizontal' ? thickness : this.height;
+    beam.life = lifetimeFrames;
+    beam.maxLife = lifetimeFrames;
+    beam.color = telegraph ? '#ef4444' : '#fb7185';
+    beam.damage = telegraph ? 0 : Math.max(1, Math.round(damage));
+    this.entities.push(beam);
+    return beam;
+  }
+
+  queueEliteLaneLaser(source: Entity) {
+    if (this.pendingEnemyLasers.some((laser) => laser.sourceId === source.id)) return false;
+    const activeLaneBeams = this.entities.reduce((count, entity) => (
+      count + Number(!entity.markedForDeletion && entity.isDetachedBeam)
+    ), 0);
+    if (this.pendingEnemyLasers.length + activeLaneBeams >= 3) return false;
+
+    const sourceCenterX = source.x + source.width / 2;
+    const sourceNearSide = sourceCenterX < this.width * 0.28 || sourceCenterX > this.width * 0.72;
+    const axis = sourceNearSide ? 'horizontal' : 'vertical';
+    const coordinate = axis === 'horizontal'
+      ? clamp(this.player.y + this.player.height / 2, 38, this.height - 38)
+      : clamp(this.player.x + this.player.width / 2, 28, this.width - 28);
+    const warningFrames = 48;
+    const telegraph = this.spawnEnemyLaneLaser(
+      source.id,
+      axis,
+      coordinate,
+      0,
+      true,
+      warningFrames + 4
+    );
+    this.pendingEnemyLasers.push({
+      sourceId: source.id,
+      telegraphId: telegraph.id,
+      axis,
+      coordinate,
+      damage: Math.max(1, Number(source.projectileDamage) || 1),
+      frames: warningFrames,
+      warningFrames
+    });
+    this.spawnFloatingText(
+      axis === 'vertical' ? coordinate : sourceCenterX,
+      axis === 'horizontal' ? coordinate - 20 : Math.max(72, source.y + source.height),
+      'LASER LOCK',
+      '#f87171',
+      14
+    );
+    this.playSound('siren', 0.64);
+    return true;
+  }
+
+  updatePendingEnemyLasers() {
+    if (this.pendingEnemyLasers.length === 0) return;
+    const activeSourceIds = new Set(this.entities
+      .filter((entity) => !entity.markedForDeletion && entity.isElite)
+      .map((entity) => entity.id));
+
+    for (const pending of this.pendingEnemyLasers) {
+      const telegraph = this.entities.find((entity) => entity.id === pending.telegraphId);
+      if (!activeSourceIds.has(pending.sourceId)) {
+        if (telegraph) telegraph.markedForDeletion = true;
+        pending.frames = 0;
+        continue;
+      }
+
+      pending.frames--;
+      if (pending.frames > 0 && pending.frames % 12 === 0) {
+        const x = pending.axis === 'vertical' ? pending.coordinate : this.width / 2;
+        const y = pending.axis === 'horizontal' ? pending.coordinate : this.height * 0.56;
+        this.spawnRingEffect(x, y, '#ef4444');
+      }
+      if (pending.frames !== 0) continue;
+
+      if (telegraph) telegraph.markedForDeletion = true;
+      this.spawnEnemyLaneLaser(
+        pending.sourceId,
+        pending.axis,
+        pending.coordinate,
+        pending.damage,
+        false,
+        24
+      );
+      this.playSound('electricity');
+      this.playSound('boss_shoot', 1.06, { pitchJitter: 0.04, pitchOffset: -0.12 });
+      this.addShake(1.6);
+    }
+
+    this.pendingEnemyLasers = this.pendingEnemyLasers.filter((pending) => pending.frames > 0);
+  }
+
+  getCampaignEnemyArchetype(source: Entity) {
+    const sprite = source.spriteUrl ?? '';
+    if (!sprite.includes('/scicon-stage20-expansion-v1/enemies/')) return '';
+    return sprite.split('/').at(-1)?.replace(/\.png$/i, '') ?? '';
+  }
+
+  spawnEliteRingBurst(source: Entity, availableShots: number) {
+    const projectileCount = Math.min(12, Math.max(0, availableShots));
+    if (projectileCount < 6) return 0;
+    const sourceX = source.x + source.width / 2;
+    const sourceY = source.y + source.height / 2;
+    const playerAngle = Math.atan2(
+      this.player.y + this.player.height / 2 - sourceY,
+      this.player.x + this.player.width / 2 - sourceX
+    );
+    const speed = source.projectileSpeed ?? 3.7;
+    let emitted = 0;
+    for (let index = 0; index < projectileCount; index++) {
+      const angle = -Math.PI / 2 + (index / projectileCount) * Math.PI * 2;
+      const gapDistance = Math.abs(Math.atan2(
+        Math.sin(angle - playerAngle),
+        Math.cos(angle - playerAngle)
+      ));
+      // Always leave a readable safe opening in the ring facing the player.
+      if (gapDistance < 0.42) continue;
+      const shot = new Entity(EntityType.PROJECTILE, sourceX - 6, sourceY - 6);
+      shot.width = 12;
+      shot.height = 12;
+      shot.vx = Math.cos(angle) * speed;
+      shot.vy = Math.sin(angle) * speed;
+      shot.color = '#fb7185';
+      shot.isPlayerShot = false;
+      shot.damage = Math.max(1, Number(source.projectileDamage) || 1);
+      shot.sourceEventId = source.sourceEventId;
+      this.entities.push(shot);
+      emitted++;
+    }
+    this.spawnFloatingText(sourceX, sourceY + source.height * 0.7, 'RING BURST', '#fda4af', 13);
+    return emitted;
+  }
+
+  spawnEliteMineFan(source: Entity, availableShots: number) {
+    const count = Math.min(3, Math.max(0, availableShots));
+    if (count <= 0) return 0;
+    const sourceX = source.x + source.width / 2;
+    const sourceY = source.y + source.height * 0.68;
+    for (let index = 0; index < count; index++) {
+      const offset = index - ((count - 1) / 2);
+      const mine = new Entity(EntityType.PROJECTILE, sourceX - 10, sourceY);
+      mine.width = 20;
+      mine.height = 20;
+      mine.vx = offset * 1.05;
+      mine.vy = 2.15 + Math.abs(offset) * 0.2;
+      mine.color = '#f59e0b';
+      mine.isPlayerShot = false;
+      mine.damage = Math.max(1, Number(source.projectileDamage) || 1);
+      mine.sourceEventId = source.sourceEventId;
+      this.entities.push(mine);
+    }
+    this.spawnFloatingText(sourceX, sourceY + 28, 'MINE FAN', '#fde68a', 13);
+    return count;
+  }
+
   updateEliteEnemyFire() {
     let activeEnemyShots = this.entities.reduce((count, entity) => (
       count + (!entity.markedForDeletion && entity.type === EntityType.PROJECTILE && !entity.isPlayerShot ? 1 : 0)
@@ -4146,6 +4456,40 @@ export class GameEngine {
       const interval = Math.max(18, source.attackIntervalFrames ?? 92);
       if (source.attackTimer < interval || activeEnemyShots >= shotCap) continue;
       source.attackTimer = 0;
+      source.eliteAttackSequence++;
+
+      const progressionTier = this.getCampaignCycle();
+      const archetype = this.getCampaignEnemyArchetype(source);
+      if (
+        (archetype === 'ring-sentinel' || archetype === 'bullet-ring-emitter' || archetype === 'dna-conductor')
+        && source.eliteAttackSequence % 2 === 1
+      ) {
+        const emitted = this.spawnEliteRingBurst(source, shotCap - activeEnemyShots);
+        if (emitted > 0) {
+          activeEnemyShots += emitted;
+          this.playSound('boss_shoot', 1.02, { pitchJitter: 0.04, pitchOffset: -0.08 });
+          this.flashEntity(source, 3);
+          continue;
+        }
+      }
+      if (archetype === 'crescent-minelayer' && source.eliteAttackSequence % 2 === 1) {
+        const emitted = this.spawnEliteMineFan(source, shotCap - activeEnemyShots);
+        if (emitted > 0) {
+          activeEnemyShots += emitted;
+          this.playSound('boss_shoot', 0.92, { pitchJitter: 0.05, pitchOffset: -0.18 });
+          this.flashEntity(source, 3);
+          continue;
+        }
+      }
+      const laserCadence = Math.max(2, 5 - progressionTier);
+      if (
+        progressionTier >= 1
+        && (archetype === 'laser-hunter' || archetype === 'laser-stalker' || archetype.includes('wall-sniper') || source.eliteAttackSequence % 2 === 0)
+        && source.eliteAttackSequence % laserCadence === 0
+        && this.queueEliteLaneLaser(source)
+      ) {
+        continue;
+      }
 
       const sourceX = source.x + source.width / 2;
       const sourceY = source.y + source.height * 0.72;
@@ -4320,8 +4664,44 @@ export class GameEngine {
     const mobile = this.width < 520;
     let targetCenterX = centerX;
     let targetCenterY = topY;
+    const spriteKeys = event.enemies.map((enemy) => String(enemy.spriteKey || ''));
+    const usesDnaFleet = spriteKeys.includes('CAMPAIGN_ENEMY_DNA_CONDUCTOR');
+    const usesRingFleet = spriteKeys.some((key) => (
+      key === 'CAMPAIGN_ENEMY_RING_SENTINEL'
+      || key === 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
+    ));
 
-    if (mode === 'grid') {
+    if (usesDnaFleet) {
+      const sCurve = event.id.includes('null-sector') || event.id.includes('event-horizon');
+      if (sCurve) {
+        const progress = index / Math.max(1, count - 1);
+        targetCenterX = centerX + Math.sin((progress * Math.PI * 2) - Math.PI / 2)
+          * Math.min(this.width * 0.28, mobile ? 112 : 172);
+        targetCenterY = topY + progress * Math.min(this.height * 0.25, mobile ? 210 : 250);
+      } else {
+        const pair = Math.floor(index / 2);
+        const pairCount = Math.max(1, Math.ceil(count / 2));
+        const strand = index % 2 === 0 ? -1 : 1;
+        const angle = pair * 0.84 + (strand > 0 ? Math.PI : 0);
+        targetCenterX = centerX + Math.cos(angle) * Math.min(this.width * 0.24, mobile ? 96 : 152);
+        targetCenterY = topY + (pair / Math.max(1, pairCount - 1))
+          * Math.min(this.height * 0.25, mobile ? 210 : 250);
+      }
+    } else if (usesRingFleet) {
+      const ringSize = Math.min(12, count);
+      const ring = Math.floor(index / ringSize);
+      const localIndex = index % ringSize;
+      const localCount = Math.min(ringSize, count - ring * ringSize);
+      const angle = (localIndex / Math.max(1, localCount)) * Math.PI * 2 - Math.PI / 2;
+      const radiusX = Math.min(this.width * (0.21 + ring * 0.075), mobile ? 108 + ring * 28 : 158 + ring * 34);
+      const radiusY = mobile ? 42 + ring * 24 : 52 + ring * 28;
+      targetCenterX = centerX + Math.cos(angle) * radiusX;
+      targetCenterY = topY + 62 + ring * (mobile ? 76 : 90) + Math.sin(angle) * radiusY;
+    }
+
+    if (usesDnaFleet || usesRingFleet) {
+      // Bespoke campaign fleets above intentionally bypass the generic shapes.
+    } else if (mode === 'grid') {
       const columns = Math.min(mobile ? 5 : 8, Math.max(3, Math.ceil(Math.sqrt(count * 1.45))));
       const row = Math.floor(index / columns);
       const column = index % columns;
@@ -4439,6 +4819,7 @@ export class GameEngine {
       spiral: 82
     };
     const diveCadence = formation === 'grid' ? 18 : formation === 'row' ? 20 : formation === 'v' ? 16 : 12;
+    const sideSentry = Boolean(enemy.spriteUrl?.includes('/wall-sniper-'));
 
     enemy.formation = formation;
     enemy.formationIndex = index;
@@ -4451,7 +4832,10 @@ export class GameEngine {
     enemy.formationStartY = enemy.y;
     enemy.formationStateFrame = this.frameCount;
     enemy.formationEntryFrames = entryFrames;
-    enemy.formationDiveFrame = this.frameCount + entryFrames + holdFramesByMode[formation] + (index % 6) * diveCadence;
+    enemy.formationDiveFrame = this.frameCount
+      + entryFrames
+      + (sideSentry ? GAME_CONFIG.FPS * 12 : holdFramesByMode[formation])
+      + (index % 6) * diveCadence;
     enemy.formationBaseSpeed = Math.max(2.2, Math.abs(enemy.vy));
     enemy.formationCycle = 0;
     enemy.encounterGroupSize = count;
@@ -5520,6 +5904,7 @@ export class GameEngine {
     boss.configuredDifficultyMultiplier = difficultyMultiplier;
     boss.vy = boss.configuredSpeed;
     if (configured) {
+      boss.bossAttackArchetype = resolveGeneratedBossArchetype(configured.spriteKey) ?? undefined;
       boss.spriteUrl = this.resolveSpriteUrl(configured.spriteKey, EntityType.BOSS);
       boss.spriteFrames = this.resolveSpriteFrames(configured.spriteKey);
       if (configured.spriteStyle) boss.spriteStyle = { ...configured.spriteStyle };
@@ -5536,8 +5921,10 @@ export class GameEngine {
       boss.completesWave = true;
       boss.sourceEventId = configured.id;
       boss.sourceItemId = configured.bossId;
+      boss.text = configured.label?.trim().toUpperCase() || boss.text;
       boss.bossRigId = configured.rigId ?? BOSS_RIG_BY_EVENT_ID[configured.id] ?? 'open-orbit';
-      if (boss.bossRigId === 'crown-claw') {
+      const usesGeneratedCampaignBossArt = boss.spriteUrl?.includes('/scicon-stage20-expansion-v1/bosses/');
+      if (boss.bossRigId === 'crown-claw' && !usesGeneratedCampaignBossArt) {
         const previousWidth = boss.width;
         boss.width = Math.min(this.width * 0.78, 280);
         boss.height = boss.width * (704 / 1024);
@@ -5951,7 +6338,7 @@ export class GameEngine {
 
     const thickness = telegraph ? 9 : 20;
     const lifetime = telegraph ? 34 : 26;
-    const color = telegraph ? '#7dd3fc' : '#22d3ee';
+    const color = telegraph ? '#ef4444' : '#22d3ee';
     const createBeam = (axis: 'vertical' | 'horizontal') => {
       const beam = new Entity(
         EntityType.PROJECTILE,
@@ -5975,13 +6362,407 @@ export class GameEngine {
     createBeam('vertical');
     createBeam('horizontal');
     if (telegraph) {
-      this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height + 8, 'CROSS-LINK CHARGING', '#bae6fd', 15);
+      this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height + 8, 'CROSS-LINK CHARGING', '#fca5a5', 15);
     } else {
       this.playSound('electricity');
       this.playSound('boss_shoot', 1.18, { pitchJitter: 0.03, pitchOffset: 0.08 });
       this.addShake(2.6);
       this.addHitStop(3);
     }
+  }
+
+  getGeneratedBossWeaponOrigins(boss: Entity) {
+    const cannonComponents = (boss.bossComponents ?? []).filter((component) => (
+      component.id === 'left-cannon' || component.id === 'right-cannon'
+    ));
+    const activeCannons = cannonComponents.filter((component) => !component.destroyed);
+    if (activeCannons.length > 0) {
+      return activeCannons.map((component) => {
+        const box = this.getBossComponentBox(boss, component);
+        return {
+          x: box.x + box.width / 2,
+          y: box.y + box.height * 0.72,
+          strength: 1
+        };
+      });
+    }
+    return [{
+      x: boss.x + boss.width / 2,
+      y: boss.y + boss.height * 0.64,
+      strength: cannonComponents.length > 0 ? 0.46 : 1
+    }];
+  }
+
+  spawnGeneratedBossProjectile(
+    boss: Entity,
+    x: number,
+    y: number,
+    angle: number,
+    speed: number,
+    color: string,
+    size: number,
+    variant: number
+  ) {
+    const projectile = new Entity(EntityType.PROJECTILE, x - size / 2, y - size / 2);
+    projectile.vx = Math.cos(angle) * speed;
+    projectile.vy = Math.sin(angle) * speed;
+    projectile.width = size;
+    projectile.height = size;
+    projectile.color = color;
+    projectile.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+    projectile.variant = variant;
+    this.entities.push(projectile);
+  }
+
+  getSweepingRailCoordinate(sequence: number) {
+    const laneCount = this.mobileProfile ? 4 : 5;
+    const sweepLength = Math.max(1, (laneCount - 1) * 2);
+    const sweepIndex = ((sequence % sweepLength) + sweepLength) % sweepLength;
+    const laneIndex = sweepIndex < laneCount
+      ? sweepIndex
+      : sweepLength - sweepIndex;
+    const margin = this.mobileProfile ? 22 : 34;
+    return margin + ((this.width - margin * 2) * laneIndex) / Math.max(1, laneCount - 1);
+  }
+
+  spawnBossRailSweep(boss: Entity, sequence: number, telegraph: boolean) {
+    if (!telegraph) {
+      for (const entity of this.entities) {
+        if (entity.isTelegraph && entity.bossOwnerId === boss.id) entity.markedForDeletion = true;
+      }
+    }
+    const coordinate = this.getSweepingRailCoordinate(sequence);
+    const beam = this.spawnEnemyLaneLaser(
+      boss.id,
+      'vertical',
+      coordinate,
+      Math.max(1, Number(boss.projectileDamage) || 1),
+      telegraph,
+      telegraph ? 38 : 30
+    );
+    beam.color = telegraph ? '#ff3b30' : '#ff1744';
+    if (telegraph) {
+      this.spawnFloatingText(coordinate, Math.max(88, boss.y + boss.height), 'RAIL SWEEP', '#fca5a5', 15);
+      this.playSound('siren', 0.62);
+      return;
+    }
+    this.playSound('electricity');
+    this.playSound('boss_shoot', 1.28, { pitchJitter: 0.02, pitchOffset: -0.16 });
+    this.addShake(2.8);
+    this.addHitStop(3);
+  }
+
+  spawnBossSafeGapRing(
+    boss: Entity,
+    sequence: number,
+    phase: number,
+    darkPulse: boolean
+  ) {
+    const originX = boss.x + boss.width / 2;
+    const originY = boss.y + boss.height * 0.62;
+    const requestedCount = (this.mobileProfile ? 14 : 18) + phase * 2;
+    const shotCount = Math.min(MAX_GENERATED_BOSS_PROJECTILES_PER_CUE, requestedCount);
+    const gapAngle = sequence * (darkPulse ? 0.47 : 0.68) + phase * 0.11;
+    const gapHalfWidth = darkPulse ? 0.29 : 0.36;
+    const speed = Math.min(7.2, Math.max(3.8, Number(boss.projectileSpeed) || 5.2) * 0.72);
+
+    for (let index = 0; index < shotCount; index++) {
+      const angle = (Math.PI * 2 * index) / shotCount;
+      const firstGapDistance = Math.abs(Math.atan2(
+        Math.sin(angle - gapAngle),
+        Math.cos(angle - gapAngle)
+      ));
+      const oppositeGapDistance = Math.abs(Math.atan2(
+        Math.sin(angle - gapAngle - Math.PI),
+        Math.cos(angle - gapAngle - Math.PI)
+      ));
+      if (firstGapDistance < gapHalfWidth || (darkPulse && oppositeGapDistance < gapHalfWidth)) continue;
+      const color = darkPulse
+        ? (index % 2 === 0 ? '#7c3aed' : '#c026d3')
+        : (index % 2 === 0 ? '#22d3ee' : '#c084fc');
+      this.spawnGeneratedBossProjectile(
+        boss,
+        originX,
+        originY,
+        angle,
+        speed,
+        color,
+        darkPulse ? 14 : 12,
+        index
+      );
+    }
+
+    this.spawnRingEffect(originX, originY, darkPulse ? '#7c3aed' : '#67e8f9');
+    this.spawnFloatingText(
+      originX,
+      boss.y + boss.height + 8,
+      darkPulse ? 'ECLIPSE PULSE' : 'PRISM GAP ROTATING',
+      darkPulse ? '#d8b4fe' : '#a5f3fc',
+      15
+    );
+    this.playSound('boss_shoot', darkPulse ? 0.84 : 1.16, {
+      pitchJitter: 0.03,
+      pitchOffset: darkPulse ? -0.22 : 0.08
+    });
+  }
+
+  spawnBossInwardCollapse(boss: Entity, sequence: number, phase: number) {
+    const targetX = clamp(
+      this.player.x + this.player.width / 2 + Math.sin(sequence * 1.7) * this.width * 0.04,
+      42,
+      this.width - 42
+    );
+    const targetY = clamp(this.player.y + this.player.height / 2, this.height * 0.38, this.height - 72);
+    const requestedCount = (this.mobileProfile ? 10 : 14) + phase * 2;
+    const shotCount = Math.min(20, requestedCount);
+    const radiusX = Math.max(90, this.width * 0.43);
+    const radiusY = Math.max(150, Math.min(this.height * 0.36, 310));
+    const speed = Math.min(7.4, Math.max(4.2, Number(boss.projectileSpeed) || 5.8) * 0.76);
+
+    for (let index = 0; index < shotCount; index++) {
+      const angle = (Math.PI * 2 * index) / shotCount + sequence * 0.19;
+      const originX = clamp(targetX + Math.cos(angle) * radiusX, 10, this.width - 10);
+      const originY = clamp(targetY + Math.sin(angle) * radiusY, 12, this.height - 12);
+      const inwardAngle = Math.atan2(targetY - originY, targetX - originX);
+      this.spawnGeneratedBossProjectile(
+        boss,
+        originX,
+        originY,
+        inwardAngle,
+        speed,
+        index % 2 === 0 ? '#8b5cf6' : '#4338ca',
+        13,
+        index
+      );
+    }
+
+    this.spawnRingEffect(targetX, targetY, '#8b5cf6');
+    this.spawnFloatingText(targetX, targetY - 28, 'GRAVITY COLLAPSE', '#c4b5fd', 15);
+    this.playSound('boss_roar', 0.82);
+  }
+
+  spawnBossRotatingCross(boss: Entity, sequence: number, phase: number) {
+    const originX = boss.x + boss.width / 2;
+    const originY = boss.y + boss.height * 0.62;
+    const baseAngle = sequence * (Math.PI / 10);
+    const layers = phase >= 2 ? 2 : 1;
+    const baseSpeed = Math.min(8, Math.max(4.8, Number(boss.projectileSpeed) || 6.2) * 0.82);
+    let variant = 0;
+    for (let layer = 0; layer < layers; layer++) {
+      for (let arm = 0; arm < 4; arm++) {
+        const angle = baseAngle + arm * (Math.PI / 2);
+        this.spawnGeneratedBossProjectile(
+          boss,
+          originX,
+          originY,
+          angle,
+          baseSpeed * (1 + layer * 0.22),
+          layer === 0 ? '#22d3ee' : '#f0abfc',
+          layer === 0 ? 14 : 11,
+          variant++
+        );
+      }
+    }
+    this.spawnRingEffect(originX, originY, '#22d3ee');
+    this.spawnFloatingText(originX, boss.y + boss.height + 8, 'ORBIT CROSS', '#a5f3fc', 15);
+    this.playSound('electricity', 0.92);
+  }
+
+  spawnBossHelixVolley(boss: Entity, sequence: number, phase: number, leftHanded: boolean) {
+    const origins = this.getGeneratedBossWeaponOrigins(boss);
+    const strength = Math.max(...origins.map((origin) => origin.strength));
+    const pairCount = Math.max(2, Math.round((2 + phase) * strength));
+    const speed = Math.min(9, Math.max(5.2, Number(boss.projectileSpeed) || 6.8) * 0.86);
+    const hand = leftHanded ? -1 : 1;
+    const phaseDrift = ((sequence % 5) - 2) * 0.045 * hand;
+    let variant = 0;
+
+    for (let pair = 0; pair < pairCount; pair++) {
+      const spread = 0.08 + pair * 0.075;
+      for (const direction of [-1, 1]) {
+        const origin = origins[variant % origins.length];
+        const angle = Math.PI / 2 + phaseDrift + direction * spread * hand;
+        this.spawnGeneratedBossProjectile(
+          boss,
+          origin.x,
+          origin.y,
+          angle,
+          speed * (1 + pair * 0.035),
+          direction === hand ? '#22d3ee' : '#ec4899',
+          pair === 0 ? 14 : 11,
+          variant++
+        );
+      }
+    }
+    this.spawnFloatingText(
+      boss.x + boss.width / 2,
+      boss.y + boss.height + 8,
+      leftHanded ? 'HELIX LEFT' : 'HELIX RIGHT',
+      '#f0abfc',
+      15
+    );
+    this.playSound('boss_shoot', leftHanded ? 0.96 : 1.08, { pitchJitter: 0.02 });
+  }
+
+  spawnBossSideBarrage(boss: Entity, phase: number, side: 'port' | 'starboard') {
+    const componentId: BossPartId = side === 'port' ? 'left-cannon' : 'right-cannon';
+    const cannonComponents = (boss.bossComponents ?? []).filter((component) => (
+      component.id === 'left-cannon' || component.id === 'right-cannon'
+    ));
+    const component = cannonComponents.find((candidate) => candidate.id === componentId);
+    if (component?.destroyed) {
+      this.spawnFloatingText(
+        boss.x + boss.width / 2,
+        boss.y + boss.height + 8,
+        `${side.toUpperCase()} DISABLED`,
+        '#94a3b8',
+        14
+      );
+      return;
+    }
+
+    const box = component ? this.getBossComponentBox(boss, component) : null;
+    const originX = box
+      ? box.x + box.width / 2
+      : boss.x + boss.width * (side === 'port' ? 0.2 : 0.8);
+    const originY = box ? box.y + box.height * 0.72 : boss.y + boss.height * 0.64;
+    const playerX = this.player.x + this.player.width / 2;
+    const playerY = this.player.y + this.player.height / 2;
+    const baseAngle = Math.atan2(playerY - originY, playerX - originX);
+    const shotCount = Math.min(8, 4 + phase);
+    const speed = Math.min(9.4, Math.max(5.4, Number(boss.projectileSpeed) || 7) * 0.9);
+    for (let index = 0; index < shotCount; index++) {
+      const offset = index - (shotCount - 1) / 2;
+      this.spawnGeneratedBossProjectile(
+        boss,
+        originX,
+        originY,
+        baseAngle + offset * 0.115,
+        speed * (1 + Math.abs(offset) * 0.018),
+        side === 'port' ? '#fb7185' : '#f97316',
+        14,
+        index
+      );
+    }
+    this.spawnFloatingText(
+      originX,
+      originY + 24,
+      `${side.toUpperCase()} BARRAGE`,
+      side === 'port' ? '#fda4af' : '#fdba74',
+      15
+    );
+    this.playSound('boss_shoot', side === 'port' ? 0.92 : 1.06, { pitchJitter: 0.05 });
+  }
+
+  updateGeneratedBossMovement(
+    boss: Entity,
+    archetype: GeneratedBossArchetype,
+    healthRatio: number
+  ) {
+    const targetEntranceY = Math.max(64, Math.min(this.height * 0.12, 106));
+    if (boss.y < targetEntranceY) {
+      boss.y += Math.max(1.4, boss.configuredSpeed ?? 2);
+      boss.x += ((this.width - boss.width) / 2 - boss.x) * 0.06;
+      return false;
+    }
+
+    boss.vx = 0;
+    boss.vy = 0;
+    const pressure = 1 - clamp(healthRatio, 0, 1);
+    const centerX = (this.width - boss.width) / 2;
+    const horizontalRadius = Math.max(22, Math.min(this.width * 0.31, (this.width - boss.width - 24) / 2));
+    const verticalRadius = Math.max(18, Math.min(58, this.height * 0.07));
+    const t = boss.attackTimer;
+    let targetX = centerX;
+    let targetY = targetEntranceY + verticalRadius * 0.42;
+
+    if (archetype === 'rail-serpent') {
+      targetX += Math.sin(t * 0.014) * horizontalRadius;
+      targetY += Math.sin(t * 0.028) * verticalRadius * 0.28;
+    } else if (archetype === 'prism-moth') {
+      targetX += Math.sin(t * 0.018) * horizontalRadius * 0.86;
+      targetY += Math.sin(t * 0.036) * verticalRadius * 0.72;
+    } else if (archetype === 'singularity-crab') {
+      targetX += Math.sin(t * 0.009) * horizontalRadius * 0.38;
+      targetY += Math.cos(t * 0.012) * verticalRadius * 0.34;
+    } else if (archetype === 'orbit-gyroscope') {
+      targetX += Math.cos(t * 0.021) * horizontalRadius * 0.82;
+      targetY += Math.sin(t * 0.021) * verticalRadius;
+    } else if (archetype === 'helix-leviathan') {
+      targetX += Math.sin(t * 0.017) * horizontalRadius * 0.68;
+      targetY += Math.sin(t * 0.034) * verticalRadius * 0.88;
+    } else if (archetype === 'hammerhead-siege') {
+      targetX += Math.sin(t * 0.012) * horizontalRadius;
+      targetY += Math.cos(t * 0.018) * verticalRadius * 0.22;
+    } else if (archetype === 'eclipse-engine') {
+      targetX += Math.sin(t * 0.008) * horizontalRadius * 0.52;
+      targetY += Math.cos(t * 0.015) * verticalRadius * 0.55;
+    } else {
+      targetX += Math.sin(t * 0.014) * horizontalRadius * 0.9;
+      targetY += Math.sin(t * 0.023) * verticalRadius * 0.76;
+    }
+
+    const followRate = (0.028 + pressure * 0.012) * boss.activeBossPhaseSpeedMultiplier;
+    boss.x += (targetX - boss.x) * followRate;
+    boss.y += (targetY - boss.y) * followRate;
+    boss.x = clamp(boss.x, 10, Math.max(10, this.width - boss.width - 10));
+    boss.y = clamp(
+      boss.y,
+      targetEntranceY,
+      Math.max(targetEntranceY, Math.min(this.height * 0.43 - boss.height, targetEntranceY + verticalRadius * 2))
+    );
+    return true;
+  }
+
+  updateGeneratedBossArchetype(
+    boss: Entity,
+    archetype: GeneratedBossArchetype,
+    healthRatio: number,
+    phase: number
+  ) {
+    if (!this.updateGeneratedBossMovement(boss, archetype, healthRatio)) {
+      boss.isCharging = false;
+      return;
+    }
+
+    const cue = getGeneratedBossTechniqueCue(archetype, boss.attackTimer, phase);
+    const hasActiveBeam = this.entities.some((entity) => (
+      entity.isBeam && entity.bossOwnerId === boss.id && !entity.markedForDeletion
+    ));
+    boss.isCharging = hasActiveBeam;
+    if (!cue) return;
+
+    if (cue.technique === 'rail-telegraph') {
+      boss.isCharging = true;
+      this.spawnBossRailSweep(boss, cue.sequence, true);
+      return;
+    }
+    if (cue.technique === 'rail-fire') {
+      boss.isCharging = true;
+      this.spawnBossRailSweep(boss, cue.sequence, false);
+      return;
+    }
+    if (cue.technique === 'prism-gap-ring') {
+      this.spawnBossSafeGapRing(boss, cue.sequence, phase, false);
+      return;
+    }
+    if (cue.technique === 'singularity-collapse') {
+      this.spawnBossInwardCollapse(boss, cue.sequence, phase);
+      return;
+    }
+    if (cue.technique === 'orbit-cross') {
+      this.spawnBossRotatingCross(boss, cue.sequence, phase);
+      return;
+    }
+    if (cue.technique === 'helix-left' || cue.technique === 'helix-right') {
+      this.spawnBossHelixVolley(boss, cue.sequence, phase, cue.technique === 'helix-left');
+      return;
+    }
+    if (cue.technique === 'hammerhead-port' || cue.technique === 'hammerhead-starboard') {
+      this.spawnBossSideBarrage(boss, phase, cue.technique === 'hammerhead-port' ? 'port' : 'starboard');
+      return;
+    }
+    this.spawnBossSafeGapRing(boss, cue.sequence, phase, true);
   }
 
   updateArenaRoamingBoss(boss: Entity, healthRatio: number, phase: number) {
@@ -5994,8 +6775,12 @@ export class GameEngine {
 
     boss.vx = 0;
     boss.vy = 0;
+    const progressionTier = this.getCampaignCycle();
     const roamWidth = Math.max(24, this.width - boss.width - 24);
-    const roamHeight = Math.max(42, Math.min(this.height * 0.34, 280) - targetEntranceY);
+    const roamHeight = Math.max(
+      42,
+      Math.min(this.height * (0.34 + progressionTier * 0.055), 420) - targetEntranceY
+    );
     const targetX = 12
       + roamWidth * (0.5 + Math.sin(boss.attackTimer * 0.017) * 0.37)
       + Math.sin(boss.attackTimer * 0.006) * Math.min(26, this.width * 0.05);
@@ -6009,7 +6794,11 @@ export class GameEngine {
       * (0.028 + pressure * 0.012)
       * boss.activeBossPhaseSpeedMultiplier;
     boss.x = clamp(boss.x, 10, this.width - boss.width - 10);
-    boss.y = clamp(boss.y, targetEntranceY, Math.max(targetEntranceY, this.height * 0.48 - boss.height));
+    boss.y = clamp(
+      boss.y,
+      targetEntranceY,
+      Math.max(targetEntranceY, this.height * (0.48 + progressionTier * 0.045) - boss.height)
+    );
 
     const cycleLength = Math.max(250, 318 - Math.round(pressure * 44));
     const attackCycle = boss.attackTimer % cycleLength;
@@ -6052,7 +6841,7 @@ export class GameEngine {
       this.player.x + this.player.width / 2 - originX
     );
     const shotCount = Math.min(28, 16 + cycle * 2);
-    const gapHalfWidth = Math.max(0.34, 0.62 - cycle * 0.035);
+    const gapHalfWidth = Math.max(0.22, 0.38 - cycle * 0.04);
     const speed = Math.min(6.2, 3.3 + cycle * 0.3);
 
     for (let index = 0; index < shotCount; index++) {
@@ -6152,6 +6941,10 @@ export class GameEngine {
       ? Math.max(1, boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length)
       : 0;
     const phase = resolvedPhase || legacyConfiguredPhase || Math.max(1, this.stats.wave);
+    if (boss.bossAttackArchetype) {
+      this.updateGeneratedBossArchetype(boss, boss.bossAttackArchetype, healthRatio, phase);
+      return;
+    }
     this.updateEscalationBossAttacks(boss);
     if (boss.movementPattern === 'arena-roam') {
       this.updateArenaRoamingBoss(boss, healthRatio, phase);

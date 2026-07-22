@@ -24,11 +24,13 @@ const loadWaveCompletion = () => {
   return module.exports;
 };
 
-test('five stages own their internal waves and only stage finales may use boss-defeat', () => {
-  assert.deepEqual(campaign.levels.map((level) => level.name), [
+test('twenty stages own their internal waves and only stage finales may use boss-defeat', () => {
+  assert.equal(campaign.levels.length, 20);
+  assert.deepEqual(campaign.levels.slice(0, 5).map((level) => level.name), [
     'OPEN ORBIT', 'CITATION STORM', 'PAYWALL SIEGE', 'OPEN GALAXY', 'BASTION PROTOCOL'
   ]);
-  assert.deepEqual(campaign.levels.map((level) => level.waves.length), [3, 3, 3, 3, 5]);
+  assert.deepEqual(campaign.levels.slice(0, 5).map((level) => level.waves.length), [3, 3, 3, 3, 5]);
+  assert.ok(campaign.levels.slice(5).every((level) => level.waves.length === 3));
 
   campaign.levels.forEach((level) => {
     level.waves.forEach((wave, index) => {

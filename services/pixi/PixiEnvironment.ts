@@ -288,6 +288,7 @@ export class PixiEnvironment {
   private readonly terrainProps: TerrainProp[] = [];
   private readonly backgroundFill = new Graphics();
   private readonly sectorTint = new Graphics();
+  private readonly hyperspeedStreaks = new Graphics();
   private readonly terrainPropLayer = new Container();
   private readonly horizon = new Sprite(Texture.WHITE);
   private readonly bigPlanet = new Sprite(Texture.WHITE);
@@ -297,6 +298,8 @@ export class PixiEnvironment {
   private built = false;
   private activeBackgroundId = '';
   private profileStartedAtFrame = 0;
+  private environmentMotionFrame = 0;
+  private lastEngineFrame = -1;
 
   constructor(
     private readonly backgroundLayer: Container,
@@ -389,6 +392,9 @@ export class PixiEnvironment {
       });
       this.environmentLayer.addChild(graphic);
     }
+    this.hyperspeedStreaks.eventMode = 'none';
+    this.hyperspeedStreaks.visible = false;
+    this.environmentLayer.addChild(this.hyperspeedStreaks);
   }
 
   private buildTerrainProps() {
@@ -578,23 +584,46 @@ export class PixiEnvironment {
   update(engine: GameEngine) {
     const backgroundId = engine.getCurrentWaveDefinition()?.backgroundId ?? engine.getCurrentLevelDefinition()?.backgroundId ?? 'open-orbit';
     const resolvedBackgroundId = backgroundId in BACKGROUND_PROFILES ? backgroundId : DEFAULT_BACKGROUND_ID;
-    if (this.activeBackgroundId !== resolvedBackgroundId) this.profileStartedAtFrame = engine.frameCount;
+    const profileChanged = this.activeBackgroundId !== resolvedBackgroundId;
+    if (profileChanged) {
+      this.profileStartedAtFrame = engine.frameCount;
+      this.environmentMotionFrame = 0;
+    }
     const profile = this.applyProfile(backgroundId);
     const localFrame = Math.max(0, engine.frameCount - this.profileStartedAtFrame);
+    const runtime = engine.getRuntimeState();
+    const rawFrameDelta = this.lastEngineFrame < 0 || engine.frameCount < this.lastEngineFrame
+      ? 1
+      : engine.frameCount - this.lastEngineFrame;
+    const frameDelta = Math.max(0, Math.min(4, rawFrameDelta));
+    this.lastEngineFrame = engine.frameCount;
+    const departureSpeedBoost = runtime.stageHyperspeedActive
+      ? Math.max(1, Math.min(6, runtime.stageDepartureSpeedBoost))
+      : 1;
+    if (!profileChanged) {
+      this.environmentMotionFrame += frameDelta * departureSpeedBoost;
+    }
+    const motionFrame = this.environmentMotionFrame || localFrame;
+    const hyperspeedStrength = runtime.stageHyperspeedActive
+      ? Math.max(0, Math.min(1, runtime.stageHyperspeedStrength))
+      : 0;
 
     for (let index = 0; index < this.parallaxLayers.length; index++) {
       const layer = this.parallaxLayers[index];
       if (!layer.root.visible) continue;
+      const blurStrength = layer.softness + hyperspeedStrength * (0.55 + index * 0.42);
+      layer.blurFilter.strength = blurStrength;
+      layer.root.filters = blurStrength > 0.01 ? [layer.blurFilter] : null;
       const maxTravel = Math.max(0, layer.tileHeight - this.height);
       const startingOffset = maxTravel * layer.startOffsetRatio;
-      const travel = Math.min(maxTravel, startingOffset + localFrame * layer.speed);
+      const travel = Math.min(maxTravel, startingOffset + motionFrame * layer.speed);
       const offset = layer.loop
-        ? -((localFrame * layer.speed + startingOffset) % layer.tileHeight)
+        ? -((motionFrame * layer.speed + startingOffset) % layer.tileHeight)
         : layer.scrollDirection === 'down'
           ? -maxTravel + travel
           : -travel;
       const spriteX = (this.width - layer.sprites[0].width) / 2;
-      layer.root.x = Math.sin(localFrame * 0.0016 + layer.phase) * layer.xDrift;
+      layer.root.x = Math.sin(motionFrame * 0.0016 + layer.phase) * layer.xDrift;
       layer.sprites[0].visible = true;
       layer.sprites[0].position.set(spriteX, offset);
       layer.sprites[1].visible = layer.loop;
@@ -605,8 +634,8 @@ export class PixiEnvironment {
       const star = this.stars[index];
       star.sprite.visible = true;
       star.sprite.x = star.baseX * this.width;
-      star.sprite.y = ((star.baseY * this.height) + engine.frameCount * star.speed * profile.starSpeedMultiplier) % this.height;
-      star.sprite.alpha = Math.max(0.12, Math.min(0.82, star.baseAlpha + Math.sin(engine.frameCount * 0.012 + star.phase) * 0.08));
+      star.sprite.y = ((star.baseY * this.height) + motionFrame * star.speed * profile.starSpeedMultiplier) % this.height;
+      star.sprite.alpha = Math.max(0.12, Math.min(0.82, star.baseAlpha + Math.sin(motionFrame * 0.012 + star.phase) * 0.08));
     }
 
     const terrainLayer = this.parallaxLayers[0];
@@ -619,9 +648,9 @@ export class PixiEnvironment {
       if (!visible) continue;
       if (prop.terrain === 'space') {
         const propCycle = this.height + Math.max(360, prop.sprite.height * 2);
-        prop.root.x = prop.baseX * this.width + Math.sin(localFrame * 0.0016 + prop.phase) * prop.sway;
-        prop.root.y = ((prop.baseY * propCycle) + localFrame * prop.speed) % propCycle - prop.sprite.height;
-        prop.root.rotation = localFrame * prop.rotationSpeed;
+        prop.root.x = prop.baseX * this.width + Math.sin(motionFrame * 0.0016 + prop.phase) * prop.sway;
+        prop.root.y = ((prop.baseY * propCycle) + motionFrame * prop.speed) % propCycle - prop.sprite.height;
+        prop.root.rotation = motionFrame * prop.rotationSpeed;
         prop.root.scale.set(1);
         prop.root.alpha = prop.alpha;
         continue;
@@ -658,7 +687,7 @@ export class PixiEnvironment {
       130 + Math.sin(engine.frameCount * 0.0018) * 4
     );
     const ringTravel = this.width + this.ringPlanet.width * 2 + 160;
-    const ringOffset = (engine.frameCount * RING_PLANET_SPEED + ringTravel * 0.32) % ringTravel;
+    const ringOffset = (motionFrame * RING_PLANET_SPEED + ringTravel * 0.32) % ringTravel;
     this.ringPlanet.position.set(
       this.width + this.ringPlanet.width * 0.8 - ringOffset,
       Math.max(150, this.height * 0.22) + Math.sin(engine.frameCount * 0.0015) * 5
@@ -668,11 +697,36 @@ export class PixiEnvironment {
       const glyph = this.glyphs[index];
       const visibleForSector = profile.glyphAlpha > 0 && (glyph.family === profile.family || index % 7 === 0);
       glyph.graphic.visible = visibleForSector;
-      glyph.graphic.x = glyph.baseX * this.width + Math.sin(engine.frameCount * 0.0025 + glyph.phase) * 12;
-      glyph.graphic.y = ((glyph.baseY * this.height) + engine.frameCount * glyph.speed) % (this.height + 60) - 30;
-      glyph.graphic.rotation = Math.sin(engine.frameCount * 0.0018 + glyph.phase) * 0.12;
-      glyph.graphic.alpha = profile.glyphAlpha + Math.sin(engine.frameCount * 0.005 + glyph.phase) * 0.01;
+      glyph.graphic.x = glyph.baseX * this.width + Math.sin(motionFrame * 0.0025 + glyph.phase) * 12;
+      glyph.graphic.y = ((glyph.baseY * this.height) + motionFrame * glyph.speed) % (this.height + 60) - 30;
+      glyph.graphic.rotation = Math.sin(motionFrame * 0.0018 + glyph.phase) * 0.12;
+      glyph.graphic.alpha = profile.glyphAlpha + Math.sin(motionFrame * 0.005 + glyph.phase) * 0.01;
       glyph.graphic.tint = profile.accent;
+    }
+
+    this.hyperspeedStreaks.clear();
+    this.hyperspeedStreaks.visible = hyperspeedStrength > 0.01;
+    if (this.hyperspeedStreaks.visible) {
+      const streakCount = this.width < 620 ? 30 : 46;
+      const centerX = this.width / 2;
+      const phase = motionFrame * (3.4 + hyperspeedStrength * 6.6);
+      for (let index = 0; index < streakCount; index++) {
+        const seed = (index * 47 + 19) % 101;
+        const normalizedX = ((index * 67 + 13) % 997) / 997;
+        const x = normalizedX * this.width;
+        const y = ((seed / 101 * (this.height + 180) + phase) % (this.height + 180)) - 90;
+        const outward = (x - centerX) / Math.max(1, centerX);
+        const length = (18 + (index % 7) * 7) * (0.55 + hyperspeedStrength * 1.65);
+        const alpha = (0.12 + (index % 5) * 0.035) * hyperspeedStrength;
+        this.hyperspeedStreaks
+          .moveTo(x - outward * length * 0.16, y - length)
+          .lineTo(x + outward * length * 0.22, y)
+          .stroke({
+            color: index % 6 === 0 ? '#ffffff' : index % 3 === 0 ? '#a5f3fc' : '#38bdf8',
+            width: 0.8 + hyperspeedStrength * 1.7,
+            alpha
+          });
+      }
     }
   }
 
@@ -683,5 +737,7 @@ export class PixiEnvironment {
     this.terrainProps.length = 0;
     this.activeBackgroundId = '';
     this.profileStartedAtFrame = 0;
+    this.environmentMotionFrame = 0;
+    this.lastEngineFrame = -1;
   }
 }

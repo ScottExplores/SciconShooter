@@ -347,6 +347,25 @@ test('sprite validation permits catalog swaps only within gameplay categories', 
   assert.ok(spriteErrors.some((error) => error.includes('/events/2/spriteKey')));
 });
 
+test('Stage 20 expansion art preserves enemy, mini-boss, boss, and scorecard role boundaries', () => {
+  const valid = makeCampaign();
+  valid.levels[0].waves[0].events[0].enemies[0].spriteKey = 'CAMPAIGN_ENEMY_DNA_CONDUCTOR';
+  valid.levels[0].waves[0].events[1].spriteKey = 'CAMPAIGN_ENEMY_LASER_HUNTER';
+  valid.levels[0].scorecard.encounterAssetKey = 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT';
+  valid.recordCard.encounterAssetKey = 'CAMPAIGN_BOSS_ECLIPSE_ENGINE';
+  assert.deepEqual(validateGameCampaign(valid), { valid: true, errors: [] });
+
+  const invalid = makeCampaign();
+  invalid.levels[0].waves[0].events[0].enemies[0].spriteKey = 'CAMPAIGN_BOSS_RAIL_SERPENT';
+  invalid.levels[0].waves[0].events[1].spriteKey = 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER';
+  invalid.levels[0].scorecard.encounterAssetKey = 'POWERUP_MAX_SHOT_AURA_FRAMES';
+  const result = validateGameCampaign(invalid);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes('/enemies/0/spriteKey has unsupported value')));
+  assert.ok(result.errors.some((error) => error.includes('/events/1/spriteKey has unsupported value')));
+  assert.ok(result.errors.some((error) => error.includes('/scorecard/encounterAssetKey has unsupported value')));
+});
+
 test('generated assets are accepted only for their registered game roles and raw paths stay forbidden', () => {
   const validHud = makeCampaign();
   assert.deepEqual(validateGameCampaign(validHud), { valid: true, errors: [] });

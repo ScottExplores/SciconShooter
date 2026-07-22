@@ -65,6 +65,7 @@ import {
   type AchievementId
 } from './services/rewardProgression';
 import { getStageName } from './services/stagePresentation';
+import { MAX_AUTHORED_CAMPAIGN_STAGES } from './services/campaignCombatProgression';
 
 const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
 const loadGameStage = () => import('./components/GameStage');
@@ -319,6 +320,7 @@ const App: React.FC = () => {
   const [continueCommand, setContinueCommand] = useState<{ nonce: number; lives: number } | null>(null);
   const [waveContinueCommand, setWaveContinueCommand] = useState<{ nonce: number } | null>(null);
   const [waveVictorySummary, setWaveVictorySummary] = useState<WaveVictorySummary | null>(null);
+  const [campaignCompletedRun, setCampaignCompletedRun] = useState(false);
   const [activeRunMode, setActiveRunMode] = useState<ActiveRunMode>('standard');
   const [testWaveCommand, setTestWaveCommand] = useState<{ nonce: number; wave: number } | null>(null);
   const [testBossCommand, setTestBossCommand] = useState<{ nonce: number; wave: number } | null>(null);
@@ -897,6 +899,7 @@ const App: React.FC = () => {
     setContinueCommand(null);
     setWaveContinueCommand(null);
     setWaveVictorySummary(null);
+    setCampaignCompletedRun(false);
     setTestWaveCommand(null);
     setTestBossCommand(null);
     setTestFlaskCommand(null);
@@ -1010,6 +1013,7 @@ const App: React.FC = () => {
     setIntroMissionLocked(false);
     setShowTestChampionPreview(false);
     setWaveVictorySummary(null);
+    setCampaignCompletedRun(false);
     setWaveContinueCommand(null);
     setShowWeeklyProposalSelection(false);
     setWeeklyProposalSelectionStatus('idle');
@@ -1054,6 +1058,12 @@ const App: React.FC = () => {
 
   const continueAfterWaveVictory = () => {
     if (!waveVictorySummary) return;
+    if (waveVictorySummary.campaignComplete || !waveVictorySummary.hasNextStage) {
+      setCampaignCompletedRun(true);
+      setWaveVictorySummary(null);
+      setGameState(GameState.GAMEOVER);
+      return;
+    }
     setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
     setWaveVictorySummary(null);
     setGameState(GameState.PLAYING);
@@ -1119,7 +1129,7 @@ const App: React.FC = () => {
 
   const jumpOwnerTestWave = (wave: number) => {
     if (!isOwnerWallet || !isOwnerTestRun) return;
-    const safeWave = Math.max(1, Math.min(5, Math.floor(wave)));
+    const safeWave = Math.max(1, Math.min(MAX_AUTHORED_CAMPAIGN_STAGES, Math.floor(wave)));
     clearIntroStoryTimeout();
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
@@ -1129,7 +1139,7 @@ const App: React.FC = () => {
 
   const jumpOwnerTestBoss = () => {
     if (!isOwnerWallet || !isOwnerTestRun) return;
-    const safeWave = Math.max(1, Math.min(5, Math.floor(stats.wave || 1)));
+    const safeWave = Math.max(1, Math.min(MAX_AUTHORED_CAMPAIGN_STAGES, Math.floor(stats.wave || 1)));
     clearIntroStoryTimeout();
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
@@ -1802,7 +1812,7 @@ const App: React.FC = () => {
       ) : null}
     </div>
   );
-  const gameOverContinueControls = !isFounderSandboxRun && !runReceipt && runReceiptStatus !== 'finalizing'
+  const gameOverContinueControls = !campaignCompletedRun && !isFounderSandboxRun && !runReceipt && runReceiptStatus !== 'finalizing'
     ? continueRunControls
     : null;
   const resultEncounter = getStageName(stats.wave);
@@ -1823,7 +1833,7 @@ const App: React.FC = () => {
       <div className="pointer-events-none absolute left-1/2 top-0 h-3 w-14 -translate-x-1/2 bg-yellow-300 shadow-[0_0_16px_rgba(250,204,21,0.55)] [clip-path:polygon(12%_0,88%_0,100%_50%,88%_100%,12%_100%,0_50%)]" />
       <div className="relative">
         <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-cyan-200">Stage {stats.wave} - {resultEncounter}</p>
-        <h2 className="arcade-font mt-1 text-xl font-black uppercase tracking-widest text-cyan-100">Mission Record</h2>
+        <h2 className="arcade-font mt-1 text-xl font-black uppercase tracking-widest text-cyan-100">{campaignCompletedRun ? 'Campaign Record' : 'Mission Record'}</h2>
         <p className="mt-1 text-3xl font-black text-white">{stats.score.toLocaleString()}</p>
       </div>
 
@@ -2055,7 +2065,7 @@ const App: React.FC = () => {
                     <div>
                       <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-cyan-200">Select stage</p>
                       <div className="grid grid-cols-5 overflow-hidden border border-cyan-200/30">
-                        {[1, 2, 3, 4, 5].map((wave) => (
+                        {Array.from({ length: MAX_AUTHORED_CAMPAIGN_STAGES }, (_, index) => index + 1).map((wave) => (
                           <button
                             key={wave}
                             type="button"
@@ -2094,7 +2104,7 @@ const App: React.FC = () => {
       )}
 
       {gameState === GameState.GAMEOVER && (
-        <GameOverPresentation footer={gameOverContinueControls}>
+        <GameOverPresentation footer={gameOverContinueControls} campaignComplete={campaignCompletedRun}>
             <div className="sci-gameover-result-content relative z-10 grid gap-2 p-1 text-center">
               {missionResultBanner}
 

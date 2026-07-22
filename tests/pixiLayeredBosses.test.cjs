@@ -356,14 +356,15 @@ test('boss wound stages use the checked-in gallery explosion sequence', () => {
   }
 });
 
-test('later campaign cycles keep bosses and add telegraphed escalation patterns', () => {
+test('later authored Stage tiers keep bosses and add telegraphed escalation patterns', () => {
   const engine = read('services/gameLogic.ts');
 
-  assert.match(engine, /this\.currentCampaignIndex \+= 1/);
-  assert.doesNotMatch(engine, /currentCampaignIndex = \(this\.currentCampaignIndex \+ 1\) %/);
+  assert.match(engine, /const nextCampaignIndex = getNextAuthoredCampaignIndex/);
+  assert.match(engine, /if \(nextCampaignIndex === null\)/);
+  assert.doesNotMatch(engine, /currentCampaignIndex = .*%/);
   assert.match(engine, /spawnBossGapRing\(boss: Entity\)/);
   assert.match(engine, /queueBossTargetStrike\(boss: Entity\)/);
   assert.match(engine, /MISSILE LOCK/);
   assert.match(engine, /SIDE ENTRY/);
-  assert.match(engine, /ENDLESS_CYCLE_DIFFICULTY_CAP/);
+  assert.match(engine, /AUTHORED_TIER_DIFFICULTY_CAP/);
 });

@@ -8,12 +8,27 @@ const STAGE_NAMES = Object.freeze([
   'Citation Storm',
   'Paywall Siege',
   'Open Galaxy',
-  'Bastion Protocol'
+  'Bastion Protocol',
+  'Helix Convergence',
+  'Redline Corridor',
+  'Dark Matter Run',
+  'Mirror Array',
+  'Null Sector',
+  'Shard Tempest',
+  'Quantum Cage',
+  'Gravity Well',
+  'Event Horizon',
+  'Ion Citadel',
+  'Crimson Vector',
+  'Eclipse Swarm',
+  'Fracture Engine',
+  'Last Light Gauntlet',
+  'Terminus Ascendant'
 ]);
 
 const getEncounter = (stage) => {
   const stageNumber = Math.max(1, Math.floor(toNumber(stage, 1)));
-  return STAGE_NAMES[(stageNumber - 1) % STAGE_NAMES.length];
+  return STAGE_NAMES[Math.min(stageNumber, STAGE_NAMES.length) - 1];
 };
 
 const getPlayerShipId = (value) => (

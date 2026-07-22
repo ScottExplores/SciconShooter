@@ -79,10 +79,19 @@ test('all authored gatekeepers carry stable rigs and runtime prefers them over t
   const rigs = Object.fromEntries(campaign.levels.flatMap((level) => level.waves).flatMap((wave) => wave.events)
     .filter((event) => event.kind === 'boss' && event.bossId === 'gatekeeper')
     .map((event) => [event.id, event.rigId]));
-  assert.deepEqual(rigs, {
+  assert.deepEqual({
+    'open-orbit-gatekeeper': rigs['open-orbit-gatekeeper'],
+    'paywall-siege-gatekeeper': rigs['paywall-siege-gatekeeper'],
+    'bastion-protocol-gatekeeper': rigs['bastion-protocol-gatekeeper']
+  }, {
     'open-orbit-gatekeeper': 'open-orbit',
     'paywall-siege-gatekeeper': 'paywall-siege',
     'bastion-protocol-gatekeeper': 'crown-claw'
+  });
+  assert.equal(rigs['helix-convergence-final-boss'], 'citation-storm');
+  assert.ok(Object.keys(rigs).length > 3);
+  Object.values(rigs).forEach((rigId) => {
+    assert.ok(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw'].includes(rigId));
   });
 
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');

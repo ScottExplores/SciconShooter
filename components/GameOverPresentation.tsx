@@ -4,17 +4,18 @@ import './game-over-presentation.css';
 interface GameOverPresentationProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
+  campaignComplete?: boolean;
 }
 
 const DEFEATED_ROOT = '/game-art/generated/ui/animations/defeated-banner/parts';
 const RESULT_FRAME = '/game-art/generated/ui/scicon-game-over-panel-v1/scicon-game-over-panel-tall.png';
 
-const GameOverPresentation: React.FC<GameOverPresentationProps> = ({ children, footer }) => (
-  <div className="sci-gameover-overlay">
+const GameOverPresentation: React.FC<GameOverPresentationProps> = ({ children, footer, campaignComplete = false }) => (
+  <div className={`sci-gameover-overlay${campaignComplete ? ' sci-gameover-overlay--complete' : ''}`}>
     <div className="sci-gameover-backdrop" aria-hidden="true"></div>
 
-    <main className="sci-gameover-stage" aria-label="Mission defeated">
-      <div className="sci-defeated-banner" role="status" aria-live="assertive" aria-label="Mission defeated">
+    <main className="sci-gameover-stage" aria-label={campaignComplete ? 'Campaign complete' : 'Mission defeated'}>
+      <div className="sci-defeated-banner" role="status" aria-live="assertive" aria-label={campaignComplete ? 'Campaign complete' : 'Mission defeated'}>
         <img className="sci-defeated-banner__plaque" src={`${DEFEATED_ROOT}/scicon-defeated-plaque.png`} alt="" />
         <img className="sci-defeated-banner__wing sci-defeated-banner__wing--left" src={`${DEFEATED_ROOT}/scicon-defeated-wing-left.png`} alt="" />
         <img className="sci-defeated-banner__wing sci-defeated-banner__wing--right" src={`${DEFEATED_ROOT}/scicon-defeated-wing-right.png`} alt="" />
@@ -22,7 +23,7 @@ const GameOverPresentation: React.FC<GameOverPresentationProps> = ({ children, f
         <img className="sci-defeated-banner__rotor sci-defeated-banner__rotor--right" src={`${DEFEATED_ROOT}/scicon-defeated-warning-rotor.png`} alt="" />
         <img className="sci-defeated-banner__scan sci-defeated-banner__scan--top" src={`${DEFEATED_ROOT}/scicon-defeated-light-scan.png`} alt="" />
         <img className="sci-defeated-banner__scan sci-defeated-banner__scan--bottom" src={`${DEFEATED_ROOT}/scicon-defeated-light-scan.png`} alt="" />
-        <strong>Defeated</strong>
+        <strong>{campaignComplete ? 'Complete' : 'Defeated'}</strong>
       </div>
 
       <section className="sci-gameover-window-deploy" aria-label="Mission result">

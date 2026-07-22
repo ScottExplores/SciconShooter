@@ -242,6 +242,7 @@ export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
   ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
   ASSETS.POWERUP_MAX_SHOT,
   ASSETS.POWERUP_MAX_SHOT_AURA,
+  ...ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES,
   ...ASSETS.POWERUP_MAGNET_FRAMES,
   ...ASSETS.POWERUP_SHIELD_FRAMES,
   ...ASSETS.POWERUP_RESEARCH_BEAM_FRAMES,
@@ -425,6 +426,11 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
       return null;
   }
 };
+
+const usesGeneratedCampaignBossArt = (entity: Entity) => (
+  entity.type === EntityType.BOSS
+  && Boolean(entity.spriteUrl?.includes('/scicon-stage20-expansion-v1/bosses/'))
+);
 
 export class PixiGameRenderer {
   readonly app = new Application();
@@ -679,7 +685,9 @@ export class PixiGameRenderer {
 
     await this.textureBank.preload([...PIXI_GAMEPLAY_TEXTURE_URLS]);
     this.waveTitle.texture = this.textureBank.get(WAVE_TITLE_TEXTURE_URL) ?? Texture.WHITE;
-    this.maxShotAura.texture = this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA) ?? Texture.WHITE;
+    this.maxShotAura.texture = this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES[0])
+      ?? this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA)
+      ?? Texture.WHITE;
     this.bossHealthFrame.texture = this.textureBank.get(ASSETS.PIXI_BOSS_HEALTH_FRAME) ?? Texture.WHITE;
     this.warningBanner.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_FRAME) ?? Texture.WHITE;
     this.warningRing.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_RING) ?? Texture.WHITE;
@@ -1410,7 +1418,9 @@ export class PixiGameRenderer {
 
   private syncMaxShotPresentation(engine: GameEngine) {
     const remaining = engine.activePowerups.get(PowerupType.MAX_SHOT) || 0;
-    const auraTexture = this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA);
+    const auraFrameIndex = Math.floor(engine.frameCount / 4) % ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES.length;
+    const auraTexture = this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES[auraFrameIndex])
+      ?? this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA);
     const active = remaining > 0
       && engine.lives > 0
       && engine.playerDrawAlpha > 0.02
@@ -1639,6 +1649,51 @@ export class PixiGameRenderer {
     rig.componentHealth.y = bob;
     rig.componentHealth.clear();
     rig.crownClaw.root.visible = false;
+    if (usesGeneratedCampaignBossArt(entity)) {
+      rig.parts.visible = false;
+      rig.thrust.visible = false;
+      Object.values(rig.partSprites).forEach((sprite) => {
+        sprite.visible = false;
+        sprite.filters = null;
+      });
+
+      const previousState = this.seenBossComponents.get(entity.id);
+      const nextState: Partial<Record<BossPartId, boolean>> = {};
+      for (const component of components) {
+        nextState[component.id] = component.destroyed;
+        const visualScale = this.getBossComponentVisualScale(entity, component);
+        if (!component.destroyed) {
+          this.drawBossComponentHealthBar(rig.componentHealth, entity, component, visualScale);
+          if (component.flashFrames > 0) {
+            const width = entity.width * component.widthRatio * visualScale;
+            const height = entity.height * component.heightRatio * visualScale;
+            const x = (component.centerXRatio - 0.5) * entity.width;
+            const y = (component.centerYRatio - 0.5) * entity.height;
+            const alpha = clamp(component.flashFrames / 9, 0.18, 0.7);
+            rig.componentHealth
+              .ellipse(x, y, width * 0.48, height * 0.46)
+              .fill({ color: '#ffffff', alpha });
+          }
+        }
+        if (previousState && !previousState[component.id] && component.destroyed) {
+          const explosionX = entity.x + entity.width * component.centerXRatio;
+          const explosionY = entity.y + entity.height * component.centerYRatio + bob;
+          this.effectPool.spawnBossExplosion(
+            explosionX,
+            explosionY,
+            Math.max(58, entity.width * component.widthRatio * visualScale * 1.35),
+            1.35
+          );
+          this.phaseText.text = component.id === 'helmet'
+            ? 'CORE EXPOSED'
+            : `${component.label} DESTROYED`;
+          this.phaseText.style.fill = component.id === 'helmet' ? '#fef08a' : '#fb923c';
+          this.phaseTextUntilFrame = engine.frameCount + 88;
+        }
+      }
+      this.seenBossComponents.set(entity.id, nextState);
+      return;
+    }
     if (entity.bossRigId === 'crown-claw') {
       rig.parts.visible = false;
       rig.thrust.visible = false;
@@ -2137,8 +2192,15 @@ export class PixiGameRenderer {
 
     const [, edge] = PLAYER_THRUSTER_COLORS[speedLevel];
     const movement = Math.min(1, Math.hypot(engine.playerVel.x, engine.playerVel.y) / 7);
+    const runtime = engine.getRuntimeState();
     const cinematic = engine.introFlightFrames > 0 || engine.waveDepartureFrames > 0;
-    const sizeBoost = (1 + speedLevel * 0.115 + movement * 0.2) * (cinematic ? 1.28 : 1);
+    const departureStrength = runtime.stageHyperspeedActive
+      ? clamp(runtime.stageHyperspeedStrength, 0, 1)
+      : 0;
+    const departureBoost = 1 + departureStrength * 1.8;
+    const sizeBoost = (1 + speedLevel * 0.115 + movement * 0.2)
+      * (cinematic ? 1.28 : 1)
+      * departureBoost;
     const centerX = engine.player.x + engine.player.width / 2;
     const centerY = engine.player.y + engine.player.height / 2;
     this.playerThrusterRoot.position.set(centerX, centerY);
@@ -2158,7 +2220,9 @@ export class PixiGameRenderer {
         engine.player.height * (hardBank ? 0.34 : 0.3)
       );
       thruster.width = engine.player.height * 0.31 * sizeBoost;
-      thruster.height = engine.player.width * (0.12 + speedLevel * 0.005);
+      thruster.height = engine.player.width
+        * (0.12 + speedLevel * 0.005)
+        * (1 + departureStrength * 0.34);
     }
   }
 
@@ -2241,7 +2305,10 @@ export class PixiGameRenderer {
     const frameHeight = frameWidth * (143 / 737);
     const progress = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
     const eventId = boss.sourceEventId ?? '';
-    const name = eventId.includes('citation')
+    const configuredName = boss.text?.trim();
+    const name = configuredName && configuredName !== 'GATEKEEPER'
+      ? configuredName
+      : eventId.includes('citation')
       ? 'REVIEW SENTINEL'
       : boss.bossRigId === 'crown-claw'
         ? 'ASTRAL CROWNCLAW'
@@ -2348,8 +2415,11 @@ export class PixiGameRenderer {
     const redFlashAlpha = 0.07 + sirenWave * 0.2;
     const mainBoss = engine.pendingBossType === 'gatekeeper';
     const title = mainBoss ? 'BOSS INCOMING' : 'THREAT INCOMING';
+    const configuredBossLabel = engine.pendingConfiguredEncounter?.kind === 'boss'
+      ? engine.pendingConfiguredEncounter.label.toUpperCase()
+      : null;
     const subtitle = mainBoss
-      ? 'GATEKEEPER SENTINEL'
+      ? configuredBossLabel ?? 'GATEKEEPER SENTINEL'
       : engine.pendingBossType === 'wall'
         ? 'PAYWALL BASTION'
         : 'BOTTLENECK HARVESTER';

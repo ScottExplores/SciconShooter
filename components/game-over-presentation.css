@@ -21,6 +21,21 @@
   animation: sciGameOverBackdropIn 360ms ease-out both;
 }
 
+.sci-gameover-overlay--complete .sci-gameover-backdrop {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(34, 211, 238, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.68), rgba(1, 8, 24, 0.96));
+}
+
+.sci-gameover-overlay--complete .sci-defeated-banner img {
+  filter: hue-rotate(168deg) saturate(1.2) brightness(1.12);
+}
+
+.sci-gameover-overlay--complete .sci-defeated-banner strong {
+  color: #fef08a;
+  text-shadow: 2px 2px 0 #042f2e, 0 0 18px rgba(34, 211, 238, 0.72);
+}
+
 .sci-gameover-stage {
   position: relative;
   display: flex;

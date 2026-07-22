@@ -30,10 +30,31 @@ test('top-level run progress is presented as Stage without renaming compatibilit
   assert.match(missionRecord, /getStageName\(receipt\.metrics\.wave\)/);
   assert.doesNotMatch(missionRecord, /reached wave \$\{receipt\.metrics\.wave\}/);
   assert.match(app, /getStageName\(stats\.wave\)/);
-  for (const stageName of ['Open Orbit', 'Citation Storm', 'Paywall Siege', 'Open Galaxy', 'Bastion Protocol']) {
+  for (const stageName of [
+    'Open Orbit',
+    'Citation Storm',
+    'Paywall Siege',
+    'Open Galaxy',
+    'Bastion Protocol',
+    'Helix Convergence',
+    'Redline Corridor',
+    'Dark Matter Run',
+    'Mirror Array',
+    'Null Sector',
+    'Shard Tempest',
+    'Quantum Cage',
+    'Gravity Well',
+    'Event Horizon',
+    'Ion Citadel',
+    'Crimson Vector',
+    'Eclipse Swarm',
+    'Fracture Engine',
+    'Last Light Gauntlet',
+    'Terminus Ascendant'
+  ]) {
     assert.match(stagePresentation, new RegExp(`'${stageName}'`));
   }
-  assert.match(stagePresentation, /STAGE_NAMES\[\(stage - 1\) % STAGE_NAMES\.length\]/);
+  assert.match(stagePresentation, /STAGE_NAMES\[Math\.min\(stage, STAGE_NAMES\.length\) - 1\]/);
   assert.doesNotMatch(app, /Gatekeeper Sector|Replication Rift|Deep Review Space/);
   assert.doesNotMatch(missionRecord, /Gatekeeper Sector|Replication Rift|Deep Review Space/);
 
@@ -49,7 +70,7 @@ test('top-level run progress is presented as Stage without renaming compatibilit
   assert.match(recordRenderer, /record\.wave/);
 });
 
-test('stage names follow the same five-stage loop used by campaign progression', async () => {
+test('stage names cover all authored stages without wrapping after stage five', async () => {
   const source = read('services', 'stagePresentation.ts');
   const executable = source
     .replace(/export const /g, 'const ')
@@ -60,6 +81,9 @@ test('stage names follow the same five-stage loop used by campaign progression',
 
   assert.equal(getStageName(1), 'Open Orbit');
   assert.equal(getStageName(5), 'Bastion Protocol');
-  assert.equal(getStageName(6), 'Open Orbit');
-  assert.equal(getStageName(10), 'Bastion Protocol');
+  assert.equal(getStageName(6), 'Helix Convergence');
+  assert.equal(getStageName(10), 'Null Sector');
+  assert.equal(getStageName(15), 'Ion Citadel');
+  assert.equal(getStageName(20), 'Terminus Ascendant');
+  assert.equal(getStageName(21), 'Terminus Ascendant');
 });
