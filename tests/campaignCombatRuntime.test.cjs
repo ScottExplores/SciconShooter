@@ -97,7 +97,7 @@ test('stage-clear projectiles finish during rewards, then takeoff owns bounded h
   assert.match(engine, /entity\.x \+= entity\.vx;\s*entity\.y \+= entity\.vy/);
   assert.match(engine, /updateStageRewardCollection\(\)[\s\S]*?this\.updateStageCompletionProjectiles\(\)/);
   assert.doesNotMatch(departureSource, /updateStageCompletionProjectiles\(\)/);
-  assert.match(departureSource, /this\.updateHyperspeedBackground\(1 \+ takeoff\.travel \* 5\)/);
+  assert.match(departureSource, /this\.updateHyperspeedBackground\(1 \+ takeoff\.travel \* 8\)/);
   assert.match(departureSource, /this\.clearStageBoundaryDebris\(false\)/);
   assert.match(engine, /stageHyperspeedActive/);
   assert.match(engine, /stageHyperspeedStrength/);
@@ -105,7 +105,7 @@ test('stage-clear projectiles finish during rewards, then takeoff owns bounded h
   assert.match(environment, /this\.environmentMotionFrame \+= frameDelta \* departureSpeedBoost/);
   assert.match(renderer, /const takeoff = engine\.getStageTakeoffPresentation\(\)/);
   assert.match(renderer, /const departureStrength = takeoffActive \? clamp\(takeoff\.thrustStrength, 0, 1\) : 0/);
-  assert.match(renderer, /STAGE_TAKEOFF_THRUSTER_VISUAL_CAP = 3\.2/);
+  assert.match(renderer, /STAGE_TAKEOFF_THRUSTER_VISUAL_CAP = 6\.4/);
 });
 
 test('later authored tiers add deterministic telegraphs, lane lasers, roaming, and safe-gap rings', () => {
@@ -116,7 +116,7 @@ test('later authored tiers add deterministic telegraphs, lane lasers, roaming, a
   assert.match(engine, /source\.eliteAttackSequence % laserCadence === 0/);
   assert.match(engine, /spawnBossGapRing\(boss: Entity\)/);
   assert.match(engine, /distanceFromGap < gapHalfWidth/);
-  assert.match(engine, /queueBossTargetStrike\(boss: Entity\)/);
+  assert.match(engine, /queueBossTargetStrike\(boss: Entity, warningFrames = 54\)/);
   assert.match(engine, /boss\.movementPattern === 'arena-roam'/);
   assert.match(engine, /spawnBossCrossBeamPair\(boss, true\)/);
 });

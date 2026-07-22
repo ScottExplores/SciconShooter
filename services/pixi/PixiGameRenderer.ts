@@ -12,7 +12,7 @@ import {
 import { ASSETS, GAME_CONFIG } from '../../constants';
 import { EntityType, PowerupType } from '../../types';
 import { BOSS_CANNON_SCALE, CROWNCLAW_ARM_SCALE, Entity, GameEngine, VisualEffect } from '../gameLogic';
-import type { BossComponentState, BossPartId, GameRuntimeState } from '../gameLogic';
+import type { BossComponentState, BossPartId, GameRuntimeState, StageTakeoffPresentation } from '../gameLogic';
 import type { BossRigId } from '../../game-config/types';
 import {
   PLAYER_SHIP_HARD_BANK_SWEEP_RATIO,
@@ -66,6 +66,11 @@ type EntityView = {
   textureRequest: number;
   lastHp: number;
   lastFlashFrames: number;
+  lastDamageFlashFrame: number;
+  lastComponentDamageFrames: Record<BossPartId, number>;
+  damageRecoilFrame: number;
+  damageRecoilDirection: number;
+  damageRecoilStrength: number;
   lastMarkedForDeletion: boolean;
   hasFallbackBody: boolean;
   bossRig?: BossRigView;
@@ -79,6 +84,7 @@ type BossRigView = {
   thrusterSprites: readonly [Sprite, Sprite];
   componentHealth: Graphics;
   crownClaw: CrownClawRigView;
+  articulated: ArticulatedBossRigView;
 };
 
 type CrownClawLegId = keyof typeof ASSETS.PIXI_BOSS_CROWNCLAW_LEGS;
@@ -89,6 +95,59 @@ type CrownClawRigView = {
   legs: Record<CrownClawLegId, Sprite>;
   guns: Record<'left' | 'right', Sprite>;
   claws: Record<'left' | 'right', Sprite>;
+};
+
+const RAIL_SERPENT_RIG_PART_IDS = [
+  'tail',
+  'bodyLower',
+  'bodyUpper',
+  'leftCannon',
+  'rightCannon',
+  'leftRib',
+  'rightRib',
+  'leftShoulder',
+  'rightShoulder',
+  'energyCore',
+  'head'
+] as const;
+type RailSerpentRigPartId = (typeof RAIL_SERPENT_RIG_PART_IDS)[number];
+
+const PRISM_MOTH_RIG_PART_IDS = [
+  'leftUpperWing',
+  'rightUpperWing',
+  'leftMidWing',
+  'rightMidWing',
+  'leftLowerInnerWing',
+  'rightLowerInnerWing',
+  'leftLowerOuterWing',
+  'rightLowerOuterWing',
+  'tail',
+  'leftWeaponPod',
+  'rightWeaponPod',
+  'core',
+  'prismCore',
+  'crest'
+] as const;
+type PrismMothRigPartId = (typeof PRISM_MOTH_RIG_PART_IDS)[number];
+const PRISM_MOTH_WING_PART_IDS = [
+  'leftUpperWing',
+  'rightUpperWing',
+  'leftMidWing',
+  'rightMidWing',
+  'leftLowerInnerWing',
+  'rightLowerInnerWing',
+  'leftLowerOuterWing',
+  'rightLowerOuterWing'
+] as const satisfies readonly PrismMothRigPartId[];
+
+type ArticulatedPartRigView<PartId extends string> = {
+  root: Container;
+  parts: Record<PartId, Sprite>;
+};
+
+type ArticulatedBossRigView = {
+  railSerpent: ArticulatedPartRigView<RailSerpentRigPartId>;
+  prismMoth: ArticulatedPartRigView<PrismMothRigPartId>;
 };
 
 type BossSnapshot = {
@@ -109,7 +168,7 @@ const PLAYER_THRUSTER_COLORS = [
   ['#ffffff', '#38bdf8'],
   ['#ffffff', '#facc15']
 ] as const;
-const STAGE_TAKEOFF_THRUSTER_VISUAL_CAP = 3.2;
+const STAGE_TAKEOFF_THRUSTER_VISUAL_CAP = 6.4;
 
 const CROWNCLAW_LEG_LAYOUT: Record<CrownClawLegId, {
   x: number;
@@ -132,6 +191,38 @@ const CROWNCLAW_WEAPON_LAYOUT = {
   right: { x: 226, y: 34, pivotX: 92, pivotY: 67 }
 } as const;
 
+const RAIL_SERPENT_DESIGN_SIZE = Object.freeze({ width: 384, height: 512 });
+const RAIL_SERPENT_RIG_LAYOUT = Object.freeze({
+  head: { x: 0, y: -116, anchorX: 0.5, anchorY: 0.5 },
+  bodyUpper: { x: 0, y: -34, anchorX: 0.5, anchorY: 0.5 },
+  bodyLower: { x: 0, y: 76, anchorX: 0.5, anchorY: 0.5 },
+  tail: { x: 0, y: 132, anchorX: 0.5, anchorY: 0.5 },
+  energyCore: { x: 0, y: -8, anchorX: 0.5, anchorY: 0.5 },
+  leftShoulder: { x: -76, y: -82, anchorX: 0.72, anchorY: 0.48 },
+  rightShoulder: { x: 76, y: -82, anchorX: 0.28, anchorY: 0.48 },
+  leftRib: { x: -63, y: 10, anchorX: 0.76, anchorY: 0.42 },
+  rightRib: { x: 63, y: 10, anchorX: 0.24, anchorY: 0.42 },
+  leftCannon: { x: -119, y: -82, anchorX: 0.5, anchorY: 0.22 },
+  rightCannon: { x: 119, y: -82, anchorX: 0.5, anchorY: 0.22 }
+} as const satisfies Record<RailSerpentRigPartId, {
+  x: number;
+  y: number;
+  anchorX: number;
+  anchorY: number;
+}>);
+
+const PRISM_MOTH_DESIGN_SIZE = Object.freeze({ width: 512, height: 512 });
+const PRISM_MOTH_RIG_LAYOUT = Object.freeze({
+  leftUpperWing: { x: -43, y: -70, anchorX: 0.84, anchorY: 0.72, side: -1, phase: 0 },
+  rightUpperWing: { x: 43, y: -70, anchorX: 0.16, anchorY: 0.72, side: 1, phase: Math.PI },
+  leftMidWing: { x: -58, y: -8, anchorX: 0.82, anchorY: 0.24, side: -1, phase: Math.PI * 0.32 },
+  rightMidWing: { x: 58, y: -8, anchorX: 0.18, anchorY: 0.24, side: 1, phase: Math.PI * 1.32 },
+  leftLowerInnerWing: { x: -45, y: 5, anchorX: 0.8, anchorY: 0.18, side: -1, phase: Math.PI * 0.58 },
+  rightLowerInnerWing: { x: 45, y: 5, anchorX: 0.2, anchorY: 0.18, side: 1, phase: Math.PI * 1.58 },
+  leftLowerOuterWing: { x: -70, y: 48, anchorX: 0.84, anchorY: 0.13, side: -1, phase: Math.PI * 1.08 },
+  rightLowerOuterWing: { x: 70, y: 48, anchorX: 0.16, anchorY: 0.13, side: 1, phase: Math.PI * 0.08 }
+} as const);
+
 const WHITE_HIT_FILTER = new ColorMatrixFilter();
 WHITE_HIT_FILTER.matrix = [
   0, 0, 0, 0, 1,
@@ -140,6 +231,17 @@ WHITE_HIT_FILTER.matrix = [
   0, 0, 0, 1, 0
 ];
 const WHITE_HIT_FILTERS = [WHITE_HIT_FILTER];
+
+const COMBAT_LIGHT_POOL_SIZE = 8;
+const COMBAT_SCREEN_TINT_ALPHA_CAP = 0.08;
+const COMBAT_LIGHT_PLAYER_COLOR = 0x67e8f9;
+const COMBAT_LIGHT_SPECIAL_COLOR = 0xa7f3d0;
+const COMBAT_LIGHT_BOSS_COLOR = 0xfb7185;
+const COMBAT_LIGHT_BEAM_COLOR = 0xf97316;
+const MINI_BOSS_RECOIL_PX = 3.5;
+const BOSS_HULL_RECOIL_PX = 5;
+const BOSS_COMPONENT_RECOIL_PX = 6;
+const DAMAGE_RECOIL_DURATION_FRAMES = 16;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -160,6 +262,48 @@ const createText = (size: number, color = '#ffffff', weight: 'normal' | 'bold' =
     letterSpacing: 1
   }
 });
+
+const createRailSerpentRigView = (): ArticulatedPartRigView<RailSerpentRigPartId> => {
+  const root = new Container();
+  const parts = {} as Record<RailSerpentRigPartId, Sprite>;
+  root.eventMode = 'none';
+  root.visible = false;
+  for (const partId of RAIL_SERPENT_RIG_PART_IDS) {
+    const sprite = new Sprite(Texture.WHITE);
+    const layout = RAIL_SERPENT_RIG_LAYOUT[partId];
+    sprite.anchor.set(layout.anchorX, layout.anchorY);
+    sprite.eventMode = 'none';
+    sprite.visible = false;
+    parts[partId] = sprite;
+    root.addChild(sprite);
+  }
+  return { root, parts };
+};
+
+const createPrismMothRigView = (): ArticulatedPartRigView<PrismMothRigPartId> => {
+  const root = new Container();
+  const parts = {} as Record<PrismMothRigPartId, Sprite>;
+  root.eventMode = 'none';
+  root.visible = false;
+  for (const partId of PRISM_MOTH_RIG_PART_IDS) {
+    const sprite = new Sprite(Texture.WHITE);
+    const wingLayout = PRISM_MOTH_RIG_LAYOUT[partId as keyof typeof PRISM_MOTH_RIG_LAYOUT];
+    sprite.anchor.set(wingLayout?.anchorX ?? 0.5, wingLayout?.anchorY ?? 0.5);
+    sprite.eventMode = 'none';
+    sprite.visible = false;
+    parts[partId] = sprite;
+    root.addChild(sprite);
+  }
+  return { root, parts };
+};
+
+const RAIL_SERPENT_RIG_TEXTURE_URLS = Object.freeze(
+  RAIL_SERPENT_RIG_PART_IDS.map((partId) => ASSETS.PIXI_BOSS_RAIL_SERPENT_RIG[partId])
+);
+const PRISM_MOTH_RIG_TEXTURE_URLS = Object.freeze(
+  PRISM_MOTH_RIG_PART_IDS.map((partId) => ASSETS.PIXI_BOSS_PRISM_MOTH_RIG[partId])
+);
+type ArticulatedBossArchetype = 'rail-serpent' | 'prism-moth';
 
 const WAVE_GLYPH_ROOT = '/game-art/generated/ui/scicon-simple-arcade-kit-v1/wave-glyphs/cyan';
 const WAVE_TITLE_TEXTURE_URL = `${WAVE_GLYPH_ROOT}/wave-title-cyan.png`;
@@ -442,6 +586,7 @@ export class PixiGameRenderer {
   readonly app = new Application();
 
   private readonly textureBank = new PixiTextureBank();
+  private readonly articulatedBossRigLoads = new Map<ArticulatedBossArchetype, Promise<unknown>>();
   private readonly layers: Record<SceneLayerName, Container> = {
     background: createLayer(),
     environment: createLayer(),
@@ -480,8 +625,13 @@ export class PixiGameRenderer {
   private readonly flashOverlay = new Graphics();
   private readonly scanlines = new Graphics();
   private readonly maxShotScreenGlow = new Graphics();
+  private readonly combatLightRoot = new Container();
+  private readonly playerMuzzleLight = new Graphics();
+  private readonly combatLightNodes = Array.from({ length: COMBAT_LIGHT_POOL_SIZE }, () => new Graphics());
+  private readonly combatScreenTint = new Sprite(Texture.WHITE);
   private readonly effectPool = new ArcadeEffectPool(this.layers.effects);
   private readonly maxShotAura = new Sprite(Texture.WHITE);
+  private readonly stageLaunchStreak = new Graphics();
   private readonly playerThrusterRoot = new Container();
   private readonly playerThrusters = [new Sprite(Texture.WHITE), new Sprite(Texture.WHITE)] as const;
   private readonly gunPodRoot = new Container();
@@ -583,6 +733,33 @@ export class PixiGameRenderer {
       this.layers.foreground
     );
 
+    this.combatLightRoot.eventMode = 'none';
+    this.combatLightRoot.visible = false;
+    this.playerMuzzleLight.eventMode = 'none';
+    this.playerMuzzleLight.visible = false;
+    this.playerMuzzleLight.blendMode = 'add';
+    this.playerMuzzleLight.circle(0, 0, 1).fill({ color: '#67e8f9', alpha: 0.2 });
+    this.playerMuzzleLight.circle(0, 0, 0.46).fill({ color: '#ffffff', alpha: 0.42 });
+    this.combatLightRoot.addChild(this.playerMuzzleLight);
+    for (const light of this.combatLightNodes) {
+      light.eventMode = 'none';
+      light.visible = false;
+      light.blendMode = 'add';
+      light.circle(0, 0, 1).fill({ color: '#ffffff', alpha: 0.12 });
+      light.circle(0, 0, 0.42).fill({ color: '#ffffff', alpha: 0.22 });
+      this.combatLightRoot.addChild(light);
+    }
+    this.layers.foreground.addChild(this.combatLightRoot);
+
+    this.combatScreenTint.eventMode = 'none';
+    this.combatScreenTint.visible = false;
+    this.combatScreenTint.blendMode = 'add';
+    this.combatScreenTint.alpha = 0;
+
+    this.stageLaunchStreak.eventMode = 'none';
+    this.stageLaunchStreak.visible = false;
+    this.layers.player.addChild(this.stageLaunchStreak);
+
     this.maxShotAura.eventMode = 'none';
     this.maxShotAura.visible = false;
     this.maxShotAura.anchor.set(0.5);
@@ -680,6 +857,7 @@ export class PixiGameRenderer {
     );
 
     this.layers.overlay.addChild(
+      this.combatScreenTint,
       this.maxShotScreenGlow,
       this.bossHealthRoot,
       this.waveIntroRoot,
@@ -695,6 +873,7 @@ export class PixiGameRenderer {
     this.warningFrame.visible = false;
     this.phaseText.visible = false;
     this.flashOverlay.visible = false;
+    this.combatScreenTint.visible = false;
     this.maxShotScreenGlow.visible = false;
 
     await this.environment.init(this.width, this.height, environmentWindow);
@@ -736,6 +915,9 @@ export class PixiGameRenderer {
     if (this.app.renderer) this.app.renderer.resize(this.width, this.height);
 
     this.flashOverlay.clear().rect(0, 0, this.width, this.height).fill({ color: '#f87171', alpha: 1 });
+    this.combatScreenTint.position.set(0, 0);
+    this.combatScreenTint.width = this.width;
+    this.combatScreenTint.height = this.height;
     this.environment.resize(this.width, this.height);
     this.drawScanlines();
     this.layoutWavePresentation();
@@ -950,6 +1132,49 @@ export class PixiGameRenderer {
     }
   }
 
+  private resetArticulatedBossRig(rig: ArticulatedBossRigView) {
+    rig.railSerpent.root.visible = false;
+    rig.railSerpent.root.position.set(0, 0);
+    rig.railSerpent.root.rotation = 0;
+    rig.railSerpent.root.scale.set(1);
+    for (const partId of RAIL_SERPENT_RIG_PART_IDS) {
+      const sprite = rig.railSerpent.parts[partId];
+      sprite.visible = false;
+      sprite.filters = null;
+      sprite.position.set(0, 0);
+      sprite.rotation = 0;
+      sprite.scale.set(1);
+      sprite.alpha = 1;
+    }
+
+    rig.prismMoth.root.visible = false;
+    rig.prismMoth.root.position.set(0, 0);
+    rig.prismMoth.root.rotation = 0;
+    rig.prismMoth.root.scale.set(1);
+    for (const partId of PRISM_MOTH_RIG_PART_IDS) {
+      const sprite = rig.prismMoth.parts[partId];
+      sprite.visible = false;
+      sprite.filters = null;
+      sprite.position.set(0, 0);
+      sprite.rotation = 0;
+      sprite.scale.set(1);
+      sprite.alpha = 1;
+    }
+  }
+
+  private resetDamagePresentationTracking(view: EntityView, entity: Entity) {
+    view.lastDamageFlashFrame = entity.lastDamageFlashFrame;
+    view.lastComponentDamageFrames['left-cannon'] = -999;
+    view.lastComponentDamageFrames['right-cannon'] = -999;
+    view.lastComponentDamageFrames.helmet = -999;
+    for (const component of entity.bossComponents ?? []) {
+      view.lastComponentDamageFrames[component.id] = component.lastDamageFlashFrame;
+    }
+    view.damageRecoilFrame = -999;
+    view.damageRecoilDirection = 0;
+    view.damageRecoilStrength = 0;
+  }
+
   private createEntityView(entity: Entity) {
     const pool = this.recycledViews.get(entity.type);
     const reused = pool?.pop();
@@ -967,6 +1192,7 @@ export class PixiGameRenderer {
       reused.textureRequest++;
       reused.lastHp = entity.hp;
       reused.lastFlashFrames = 0;
+      this.resetDamagePresentationTracking(reused, entity);
       reused.lastMarkedForDeletion = false;
       reused.hasFallbackBody = false;
       if (reused.bossRig) {
@@ -976,6 +1202,7 @@ export class PixiGameRenderer {
         reused.bossRig.componentHealth.clear();
         reused.bossRig.crownClaw.root.filters = null;
         reused.bossRig.crownClaw.root.visible = false;
+        this.resetArticulatedBossRig(reused.bossRig.articulated);
         Object.values(reused.bossRig.partSprites).forEach((sprite) => {
           sprite.filters = null;
         });
@@ -1022,6 +1249,10 @@ export class PixiGameRenderer {
       const crownClaws = {
         left: new Sprite(Texture.WHITE),
         right: new Sprite(Texture.WHITE)
+      };
+      const articulated: ArticulatedBossRigView = {
+        railSerpent: createRailSerpentRigView(),
+        prismMoth: createPrismMothRigView()
       };
       leftCannon.anchor.set(0.5);
       rightCannon.anchor.set(0.5);
@@ -1070,7 +1301,8 @@ export class PixiGameRenderer {
           legs: crownLegs,
           guns: crownGuns,
           claws: crownClaws
-        }
+        },
+        articulated
       } satisfies BossRigView;
     })() : undefined;
     sprite.anchor.set(0.5);
@@ -1078,6 +1310,7 @@ export class PixiGameRenderer {
     root.addChild(trail, aura);
     if (bossRig) root.addChild(bossRig.thrust);
     if (bossRig) root.addChild(bossRig.crownClaw.root);
+    if (bossRig) root.addChild(bossRig.articulated.railSerpent.root, bossRig.articulated.prismMoth.root);
     root.addChild(sprite);
     if (bossRig) root.addChild(bossRig.parts, bossRig.componentHealth);
     root.addChild(body, flash, health, label);
@@ -1097,11 +1330,21 @@ export class PixiGameRenderer {
       textureRequest: 0,
       lastHp: entity.hp,
       lastFlashFrames: 0,
+      lastDamageFlashFrame: entity.lastDamageFlashFrame,
+      lastComponentDamageFrames: {
+        'left-cannon': -999,
+        'right-cannon': -999,
+        helmet: -999
+      },
+      damageRecoilFrame: -999,
+      damageRecoilDirection: 0,
+      damageRecoilStrength: 0,
       lastMarkedForDeletion: false,
       hasFallbackBody: false,
       bossRig,
       seenFrame: this.renderFrame
     };
+    this.resetDamagePresentationTracking(view, entity);
     this.layers[getEntityLayer(entity.type)].addChild(root);
     return view;
   }
@@ -1127,6 +1370,7 @@ export class PixiGameRenderer {
       view.bossRig.componentHealth.clear();
       view.bossRig.crownClaw.root.filters = null;
       view.bossRig.crownClaw.root.visible = false;
+      this.resetArticulatedBossRig(view.bossRig.articulated);
       Object.values(view.bossRig.partSprites).forEach((sprite) => {
         sprite.filters = null;
       });
@@ -1614,6 +1858,280 @@ export class PixiGameRenderer {
     this.playerSteeringTextureKey = motion.steeringFrames[state];
   }
 
+  private ensureArticulatedBossRigLoad(archetype: ArticulatedBossArchetype) {
+    if (this.articulatedBossRigLoads.has(archetype)) return;
+    const urls = archetype === 'rail-serpent'
+      ? RAIL_SERPENT_RIG_TEXTURE_URLS
+      : PRISM_MOTH_RIG_TEXTURE_URLS;
+    this.articulatedBossRigLoads.set(archetype, this.textureBank.preload(Array.from(urls)));
+  }
+
+  private bindRailSerpentRigTextures(rig: ArticulatedPartRigView<RailSerpentRigPartId>) {
+    let ready = true;
+    for (const partId of RAIL_SERPENT_RIG_PART_IDS) {
+      const texture = this.textureBank.get(ASSETS.PIXI_BOSS_RAIL_SERPENT_RIG[partId]);
+      if (!texture) {
+        ready = false;
+        continue;
+      }
+      rig.parts[partId].texture = texture;
+    }
+    return ready;
+  }
+
+  private bindPrismMothRigTextures(rig: ArticulatedPartRigView<PrismMothRigPartId>) {
+    let ready = true;
+    for (const partId of PRISM_MOTH_RIG_PART_IDS) {
+      const texture = this.textureBank.get(ASSETS.PIXI_BOSS_PRISM_MOTH_RIG[partId]);
+      if (!texture) {
+        ready = false;
+        continue;
+      }
+      rig.parts[partId].texture = texture;
+    }
+    return ready;
+  }
+
+  private drawRailSerpentRig(view: EntityView, entity: Entity, engine: GameEngine) {
+    const bossRig = view.bossRig;
+    if (!bossRig) return false;
+    const rig = bossRig.articulated.railSerpent;
+    this.ensureArticulatedBossRigLoad('rail-serpent');
+    if (!this.bindRailSerpentRigTextures(rig)) {
+      rig.root.visible = false;
+      return false;
+    }
+
+    let leftCannon: BossComponentState | undefined;
+    let rightCannon: BossComponentState | undefined;
+    let helmet: BossComponentState | undefined;
+    for (const component of entity.bossComponents ?? []) {
+      if (component.id === 'left-cannon') leftCannon = component;
+      else if (component.id === 'right-cannon') rightCannon = component;
+      else if (component.id === 'helmet') helmet = component;
+    }
+
+    let liveBeam = false;
+    let telegraphBeam = false;
+    for (const candidate of engine.entities) {
+      if (
+        candidate.bossOwnerId !== entity.id
+        || !candidate.isBeam
+        || candidate.markedForDeletion
+      ) continue;
+      if (candidate.isTelegraph) telegraphBeam = true;
+      else liveBeam = true;
+    }
+
+    const healthPressure = 1 - clamp(entity.hp / Math.max(1, entity.maxHp), 0, 1);
+    const motionScale = this.reducedMotion ? 0.34 : 1;
+    const chainTime = engine.frameCount * (0.036 + healthPressure * 0.012);
+    const headWave = Math.sin(chainTime) * (4.5 + healthPressure * 2.4) * motionScale;
+    const upperWave = Math.sin(chainTime - 0.62) * (6.2 + healthPressure * 2.8) * motionScale;
+    const lowerWave = Math.sin(chainTime - 1.18) * (8.2 + healthPressure * 3.4) * motionScale;
+    const tailWave = Math.sin(chainTime - 1.82) * (10.5 + healthPressure * 4) * motionScale;
+    const chargePulse = telegraphBeam || entity.isCharging
+      ? Math.sin(engine.frameCount * 0.31) * 2.6 * motionScale
+      : Math.sin(engine.frameCount * 0.055) * 1.1 * motionScale;
+    const recoil = liveBeam ? 7 * motionScale : 0;
+    const hullFilters = entity.flashFrames > 0 ? WHITE_HIT_FILTERS : null;
+    const helmetFilters = (helmet?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : hullFilters;
+    const leftFilters = (leftCannon?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : null;
+    const rightFilters = (rightCannon?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : null;
+
+    rig.root.visible = true;
+    rig.root.position.set(0, Math.sin(engine.frameCount * 0.04) * 5);
+    rig.root.rotation = Math.sin(chainTime * 0.72) * 0.012 * motionScale;
+    rig.root.scale.set(
+      entity.width / RAIL_SERPENT_DESIGN_SIZE.width,
+      entity.height / RAIL_SERPENT_DESIGN_SIZE.height
+    );
+
+    const head = rig.parts.head;
+    head.visible = true;
+    head.position.set(RAIL_SERPENT_RIG_LAYOUT.head.x + headWave, RAIL_SERPENT_RIG_LAYOUT.head.y);
+    head.rotation = headWave * 0.0035;
+    head.filters = helmetFilters;
+
+    const bodyUpper = rig.parts.bodyUpper;
+    bodyUpper.visible = true;
+    bodyUpper.position.set(RAIL_SERPENT_RIG_LAYOUT.bodyUpper.x + upperWave, RAIL_SERPENT_RIG_LAYOUT.bodyUpper.y);
+    bodyUpper.rotation = upperWave * 0.0038;
+    bodyUpper.filters = hullFilters;
+
+    const bodyLower = rig.parts.bodyLower;
+    bodyLower.visible = true;
+    bodyLower.position.set(RAIL_SERPENT_RIG_LAYOUT.bodyLower.x + lowerWave, RAIL_SERPENT_RIG_LAYOUT.bodyLower.y);
+    bodyLower.rotation = lowerWave * 0.0041;
+    bodyLower.filters = hullFilters;
+
+    const tail = rig.parts.tail;
+    tail.visible = true;
+    tail.position.set(RAIL_SERPENT_RIG_LAYOUT.tail.x + tailWave, RAIL_SERPENT_RIG_LAYOUT.tail.y);
+    tail.rotation = tailWave * 0.0048;
+    tail.filters = hullFilters;
+
+    const energyCore = rig.parts.energyCore;
+    energyCore.visible = true;
+    energyCore.position.set(RAIL_SERPENT_RIG_LAYOUT.energyCore.x + upperWave * 0.56, RAIL_SERPENT_RIG_LAYOUT.energyCore.y);
+    energyCore.scale.set(0.96 + Math.sin(engine.frameCount * 0.12) * 0.035);
+    energyCore.alpha = 0.9 + Math.sin(engine.frameCount * 0.12) * 0.08;
+    energyCore.filters = helmetFilters;
+
+    for (const side of ['left', 'right'] as const) {
+      const direction = side === 'left' ? -1 : 1;
+      const shoulder = rig.parts[side === 'left' ? 'leftShoulder' : 'rightShoulder'];
+      const shoulderLayout = RAIL_SERPENT_RIG_LAYOUT[side === 'left' ? 'leftShoulder' : 'rightShoulder'];
+      shoulder.visible = true;
+      shoulder.position.set(shoulderLayout.x + upperWave * 0.72, shoulderLayout.y + chargePulse * 0.28);
+      shoulder.rotation = direction * (0.018 + upperWave * 0.0022);
+      shoulder.filters = hullFilters;
+
+      const rib = rig.parts[side === 'left' ? 'leftRib' : 'rightRib'];
+      const ribLayout = RAIL_SERPENT_RIG_LAYOUT[side === 'left' ? 'leftRib' : 'rightRib'];
+      rib.visible = true;
+      rib.position.set(ribLayout.x + lowerWave * 0.78, ribLayout.y);
+      rib.rotation = direction * (0.014 + lowerWave * 0.0024);
+      rib.filters = hullFilters;
+
+      const component = side === 'left' ? leftCannon : rightCannon;
+      const cannon = rig.parts[side === 'left' ? 'leftCannon' : 'rightCannon'];
+      const cannonLayout = RAIL_SERPENT_RIG_LAYOUT[side === 'left' ? 'leftCannon' : 'rightCannon'];
+      cannon.visible = !component?.destroyed;
+      cannon.position.set(
+        cannonLayout.x + headWave * 0.46,
+        cannonLayout.y + chargePulse - recoil
+      );
+      cannon.rotation = direction * (0.022 + Math.sin(engine.frameCount * 0.065 + (side === 'left' ? 0 : Math.PI)) * 0.014)
+        + direction * recoil * 0.0018;
+      cannon.filters = side === 'left' ? leftFilters : rightFilters;
+    }
+
+    if (telegraphBeam || liveBeam) {
+      const glowAlpha = liveBeam ? 0.3 : 0.16 + Math.sin(engine.frameCount * 0.31) * 0.06;
+      const glowY = entity.height * 0.22;
+      view.aura.circle(-entity.width * 0.31, glowY, entity.width * 0.075)
+        .fill({ color: liveBeam ? '#ffffff' : '#fb7185', alpha: glowAlpha });
+      view.aura.circle(entity.width * 0.31, glowY, entity.width * 0.075)
+        .fill({ color: liveBeam ? '#ffffff' : '#fb7185', alpha: glowAlpha });
+    }
+    return true;
+  }
+
+  private drawPrismMothRig(view: EntityView, entity: Entity, engine: GameEngine) {
+    const bossRig = view.bossRig;
+    if (!bossRig) return false;
+    const rig = bossRig.articulated.prismMoth;
+    this.ensureArticulatedBossRigLoad('prism-moth');
+    if (!this.bindPrismMothRigTextures(rig)) {
+      rig.root.visible = false;
+      return false;
+    }
+
+    let leftEmitter: BossComponentState | undefined;
+    let rightEmitter: BossComponentState | undefined;
+    for (const component of entity.bossComponents ?? []) {
+      if (component.id === 'left-cannon') leftEmitter = component;
+      else if (component.id === 'right-cannon') rightEmitter = component;
+    }
+
+    const healthPressure = 1 - clamp(entity.hp / Math.max(1, entity.maxHp), 0, 1);
+    const chargeEnergy = entity.isCharging ? 1 : 0;
+    const motionScale = this.reducedMotion ? 0.34 : 1;
+    const flapTime = engine.frameCount * (0.075 + healthPressure * 0.025 + chargeEnergy * 0.018);
+    const breath = Math.sin(engine.frameCount * (0.041 + healthPressure * 0.008)) * motionScale;
+    const hullFilters = entity.flashFrames > 0 ? WHITE_HIT_FILTERS : null;
+    const leftFilters = (leftEmitter?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : null;
+    const rightFilters = (rightEmitter?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : null;
+    const baseScaleX = entity.width / PRISM_MOTH_DESIGN_SIZE.width;
+    const baseScaleY = entity.height / PRISM_MOTH_DESIGN_SIZE.height;
+
+    rig.root.visible = true;
+    rig.root.position.set(0, Math.sin(engine.frameCount * 0.04) * 5 + breath * 1.8);
+    rig.root.rotation = Math.sin(engine.frameCount * 0.018) * 0.018 * motionScale;
+    rig.root.scale.set(baseScaleX * (1 + breath * 0.012), baseScaleY * (1 - breath * 0.008));
+
+    for (const partId of PRISM_MOTH_WING_PART_IDS) {
+      const wing = rig.parts[partId];
+      const layout = PRISM_MOTH_RIG_LAYOUT[partId];
+      const flap = Math.sin(flapTime + layout.phase);
+      const sweep = (0.045 + healthPressure * 0.026 + chargeEnergy * 0.018) * motionScale;
+      const fold = Math.abs(flap) * (0.1 + healthPressure * 0.035) * motionScale;
+      wing.visible = true;
+      wing.position.set(
+        layout.x + layout.side * Math.abs(flap) * 3.2 * motionScale,
+        layout.y + flap * (3.4 + healthPressure * 1.8) * motionScale
+      );
+      wing.rotation = layout.side * (0.026 + flap * sweep);
+      wing.scale.set(1 + Math.abs(flap) * 0.018 * motionScale, 1 - fold);
+      wing.filters = hullFilters;
+    }
+
+    const tail = rig.parts.tail;
+    tail.visible = true;
+    tail.position.set(0, 122 + breath * 2.4);
+    tail.rotation = -breath * 0.012;
+    tail.filters = hullFilters;
+
+    for (const side of ['left', 'right'] as const) {
+      const direction = side === 'left' ? -1 : 1;
+      const pod = rig.parts[side === 'left' ? 'leftWeaponPod' : 'rightWeaponPod'];
+      const component = side === 'left' ? leftEmitter : rightEmitter;
+      const podCenterXRatio = component?.centerXRatio ?? (side === 'left' ? 0.17 : 0.83);
+      const podCenterYRatio = component?.centerYRatio ?? 0.45;
+      const podX = (podCenterXRatio - 0.5) * PRISM_MOTH_DESIGN_SIZE.width;
+      const podY = (podCenterYRatio - 0.5) * PRISM_MOTH_DESIGN_SIZE.height;
+      pod.visible = !component?.destroyed;
+      pod.position.set(
+        podX + direction * chargeEnergy * 3 * motionScale,
+        podY + breath * 1.2
+      );
+      pod.rotation = direction * (0.018 + Math.sin(flapTime + (side === 'left' ? 0 : Math.PI)) * 0.02 * motionScale);
+      pod.filters = side === 'left' ? leftFilters : rightFilters;
+    }
+
+    const core = rig.parts.core;
+    core.visible = true;
+    core.position.set(0, 4 + breath * 1.6);
+    core.filters = hullFilters;
+
+    const prismCore = rig.parts.prismCore;
+    prismCore.visible = true;
+    prismCore.position.set(0, 10 + breath * 1.2);
+    prismCore.scale.set(0.88 + (Math.sin(engine.frameCount * 0.115) + 1) * 0.035 + chargeEnergy * 0.04);
+    prismCore.alpha = 0.84 + (Math.sin(engine.frameCount * 0.115) + 1) * 0.07;
+    prismCore.filters = hullFilters;
+
+    const crest = rig.parts.crest;
+    crest.visible = true;
+    crest.position.set(0, -101 + breath * 1.3);
+    crest.rotation = breath * 0.006;
+    crest.filters = hullFilters;
+
+    if (chargeEnergy > 0) {
+      const pulse = 0.18 + (Math.sin(engine.frameCount * 0.22) + 1) * 0.055;
+      view.aura.ellipse(0, -entity.height * 0.05, entity.width * 0.38, entity.height * 0.34)
+        .fill({ color: '#67e8f9', alpha: pulse });
+      view.aura.ellipse(0, -entity.height * 0.05, entity.width * 0.48, entity.height * 0.43)
+        .stroke({ color: '#c4b5fd', width: 2, alpha: pulse * 1.8 });
+    }
+    return true;
+  }
+
+  private drawArticulatedGeneratedBoss(view: EntityView, entity: Entity, engine: GameEngine) {
+    const bossRig = view.bossRig;
+    if (!bossRig) return false;
+    bossRig.articulated.railSerpent.root.visible = false;
+    bossRig.articulated.prismMoth.root.visible = false;
+    if (entity.bossAttackArchetype === 'rail-serpent') {
+      return this.drawRailSerpentRig(view, entity, engine);
+    }
+    if (entity.bossAttackArchetype === 'prism-moth') {
+      return this.drawPrismMothRig(view, entity, engine);
+    }
+    return false;
+  }
+
   private getBossComponentVisualScale(entity: Entity, component: BossComponentState) {
     const isCannon = component.id === 'left-cannon' || component.id === 'right-cannon';
     if (!isCannon) return 1;
@@ -2028,6 +2546,222 @@ export class PixiGameRenderer {
     }
   }
 
+  private configureCombatLight(
+    index: number,
+    x: number,
+    y: number,
+    radiusX: number,
+    radiusY: number,
+    tint: number,
+    alpha: number
+  ) {
+    if (index < 0 || index >= this.combatLightNodes.length) return index;
+    const light = this.combatLightNodes[index];
+    light.visible = true;
+    light.position.set(x, y);
+    light.scale.set(Math.max(1, radiusX), Math.max(1, radiusY));
+    light.tint = tint;
+    light.alpha = clamp(alpha, 0, 1);
+    return index + 1;
+  }
+
+  private syncCombatLighting(engine: GameEngine) {
+    for (let index = 0; index < this.combatLightNodes.length; index++) {
+      this.combatLightNodes[index].visible = false;
+    }
+
+    const reducedEffects = this.reducedMotion
+      || engine.performanceMode
+      || !engine.polishSettings.highDensityParticles;
+    const intensityScale = reducedEffects
+      ? engine.mobileProfile ? 0.42 : 0.56
+      : engine.mobileProfile ? 0.72 : 1;
+    const lightLimit = reducedEffects
+      ? engine.mobileProfile ? 2 : 3
+      : engine.mobileProfile ? 4 : COMBAT_LIGHT_POOL_SIZE;
+    const tintCap = reducedEffects
+      ? 0.04
+      : engine.mobileProfile ? 0.055 : COMBAT_SCREEN_TINT_ALPHA_CAP;
+    const shotAge = engine.frameCount - engine.lastShotFrame;
+    const muzzleActive = engine.lives > 0 && shotAge >= 0 && shotAge <= 3;
+    let screenAlpha = 0;
+    let screenTint = COMBAT_LIGHT_PLAYER_COLOR;
+    let lightCount = 0;
+
+    this.playerMuzzleLight.visible = muzzleActive;
+    if (muzzleActive) {
+      const fade = 1 - shotAge / 4;
+      const radius = Math.max(18, engine.player.width * (0.62 + fade * 0.28));
+      this.playerMuzzleLight.position.set(
+        engine.player.x + engine.player.width / 2,
+        engine.player.y + engine.player.height * 0.12
+      );
+      this.playerMuzzleLight.scale.set(radius, radius * 0.72);
+      this.playerMuzzleLight.alpha = fade * intensityScale;
+      screenAlpha += 0.026 * fade * intensityScale;
+    }
+
+    const bioBeamActive = engine.isBioBeamFiring();
+    const researchBeamActive = (engine.activePowerups.get(PowerupType.RESEARCH_BEAM) ?? 0) > 0;
+    if ((bioBeamActive || researchBeamActive) && lightCount < lightLimit) {
+      lightCount = this.configureCombatLight(
+        lightCount,
+        engine.player.x + engine.player.width / 2,
+        engine.player.y + engine.player.height * 0.08,
+        Math.max(24, engine.player.width * 0.72),
+        Math.max(22, engine.player.height * 0.36),
+        bioBeamActive ? COMBAT_LIGHT_SPECIAL_COLOR : COMBAT_LIGHT_PLAYER_COLOR,
+        0.58 * intensityScale
+      );
+      screenAlpha += 0.012 * intensityScale;
+    }
+
+    // Boss lights are admitted before projectile accents so mobile caps retain
+    // the attack telegraph that matters most for dodging.
+    for (let index = 0; index < engine.entities.length && lightCount < lightLimit; index++) {
+      const entity = engine.entities[index];
+      if (entity.markedForDeletion) continue;
+      if (entity.type === EntityType.BOSS && entity.isCharging) {
+        lightCount = this.configureCombatLight(
+          lightCount,
+          entity.x + entity.width / 2,
+          entity.y + entity.height * 0.42,
+          Math.max(34, entity.width * 0.34),
+          Math.max(30, entity.height * 0.22),
+          COMBAT_LIGHT_BOSS_COLOR,
+          0.34 * intensityScale
+        );
+        screenAlpha += 0.006 * intensityScale;
+        screenTint = COMBAT_LIGHT_BOSS_COLOR;
+      }
+    }
+
+    for (let index = 0; index < engine.entities.length && lightCount < lightLimit; index++) {
+      const entity = engine.entities[index];
+      if (entity.markedForDeletion || entity.isPlayerShot) continue;
+      const bossWeapon = entity.isBeam || Boolean(entity.bossOwnerId) || entity.projectileVisualKind === 'boss-ray';
+      if (!bossWeapon) continue;
+      const liveBeam = entity.isBeam && !entity.isTelegraph;
+      const radiusX = entity.isBeam
+        ? clamp(entity.width * 0.54, 12, this.width * 0.55)
+        : clamp(entity.width * 1.15, 16, 72);
+      const radiusY = entity.isBeam
+        ? clamp(entity.height * 0.54, 12, this.height * 0.55)
+        : clamp(entity.height * 1.15, 16, 72);
+      lightCount = this.configureCombatLight(
+        lightCount,
+        entity.x + entity.width / 2,
+        entity.y + entity.height / 2,
+        radiusX,
+        radiusY,
+        liveBeam ? COMBAT_LIGHT_BEAM_COLOR : COMBAT_LIGHT_BOSS_COLOR,
+        (entity.isTelegraph ? 0.14 : liveBeam ? 0.38 : 0.26) * intensityScale
+      );
+      screenAlpha += (liveBeam ? 0.018 : entity.isTelegraph ? 0.003 : 0.007) * intensityScale;
+      screenTint = liveBeam ? COMBAT_LIGHT_BEAM_COLOR : COMBAT_LIGHT_BOSS_COLOR;
+    }
+
+    for (let index = 0; index < engine.entities.length && lightCount < lightLimit; index++) {
+      const entity = engine.entities[index];
+      if (entity.markedForDeletion || !entity.isPlayerShot) continue;
+      const specialShot = Boolean(entity.shipAbilityKind)
+        || entity.isBeam
+        || entity.projectileVisualKind === 'research-charge'
+        || entity.projectileVisualKind === 'bio-genome-lance'
+        || entity.projectileVisualKind === 'eth-prism-volley'
+        || entity.projectileVisualKind === 'btc-hash-burst';
+      if (!specialShot) continue;
+      lightCount = this.configureCombatLight(
+        lightCount,
+        entity.x + entity.width / 2,
+        entity.y + entity.height / 2,
+        clamp(entity.width * 1.12, 16, 64),
+        clamp(entity.height * 0.86, 16, 64),
+        COMBAT_LIGHT_SPECIAL_COLOR,
+        0.3 * intensityScale
+      );
+      screenAlpha += 0.004 * intensityScale;
+    }
+
+    this.combatLightRoot.visible = muzzleActive || lightCount > 0;
+    this.combatScreenTint.visible = screenAlpha > 0.001;
+    this.combatScreenTint.tint = screenTint;
+    this.combatScreenTint.alpha = clamp(screenAlpha, 0, tintCap);
+  }
+
+  private syncDamageRecoil(view: EntityView, entity: Entity, engine: GameEngine) {
+    if (entity.type !== EntityType.BOSS && entity.type !== EntityType.MINI_BOSS) return;
+
+    let newestDamageFrame = -999;
+    let impactXRatio = 0.5;
+    let impactYRatio = 0.5;
+    let componentImpact = false;
+    if (entity.lastDamageFlashFrame > view.lastDamageFlashFrame) {
+      newestDamageFrame = entity.lastDamageFlashFrame;
+    }
+    view.lastDamageFlashFrame = entity.lastDamageFlashFrame;
+
+    const bossComponents = entity.bossComponents;
+    if (bossComponents) {
+      for (let index = 0; index < bossComponents.length; index++) {
+        const component = bossComponents[index];
+        if (component.lastDamageFlashFrame > view.lastComponentDamageFrames[component.id]) {
+          if (component.lastDamageFlashFrame >= newestDamageFrame) {
+            newestDamageFrame = component.lastDamageFlashFrame;
+            impactXRatio = component.centerXRatio;
+            impactYRatio = component.centerYRatio;
+            componentImpact = true;
+          }
+        }
+        view.lastComponentDamageFrames[component.id] = component.lastDamageFlashFrame;
+      }
+    }
+
+    if (newestDamageFrame > -900 && newestDamageFrame >= view.damageRecoilFrame) {
+      const reducedEffects = this.reducedMotion
+        || engine.performanceMode
+        || !engine.polishSettings.highDensityParticles;
+      const recoilScale = reducedEffects ? engine.mobileProfile ? 0.5 : 0.68 : engine.mobileProfile ? 0.8 : 1;
+      view.damageRecoilFrame = newestDamageFrame;
+      view.damageRecoilDirection = impactXRatio < 0.46
+        ? 1
+        : impactXRatio > 0.54
+          ? -1
+          : newestDamageFrame % 2 === 0 ? 1 : -1;
+      view.damageRecoilStrength = (
+        entity.type === EntityType.MINI_BOSS
+          ? MINI_BOSS_RECOIL_PX
+          : componentImpact ? BOSS_COMPONENT_RECOIL_PX : BOSS_HULL_RECOIL_PX
+      ) * recoilScale;
+
+      const impactX = entity.x + entity.width * impactXRatio;
+      const impactY = entity.y + entity.height * impactYRatio;
+      const sparkSize = Math.max(2.5, Math.min(7, entity.width * (componentImpact ? 0.035 : 0.026)));
+      this.effectPool.spawn(
+        'spark',
+        impactX,
+        impactY,
+        sparkSize,
+        componentImpact ? '#fef08a' : '#67e8f9',
+        reducedEffects ? 150 : 230
+      );
+      if (!reducedEffects) {
+        this.effectPool.spawnImpact(
+          impactX,
+          impactY,
+          Math.max(12, Math.min(28, entity.width * (componentImpact ? 0.18 : 0.14)))
+        );
+      }
+    }
+
+    const recoilAge = engine.frameCount - view.damageRecoilFrame;
+    if (recoilAge < 0 || recoilAge >= DAMAGE_RECOIL_DURATION_FRAMES) return;
+    const damping = Math.exp(-recoilAge * 0.24);
+    const oscillation = Math.cos(recoilAge * 1.12);
+    view.root.position.x += view.damageRecoilDirection * view.damageRecoilStrength * damping * oscillation;
+    view.root.position.y += view.damageRecoilStrength * 0.24 * damping * Math.sin(recoilAge * 1.34);
+  }
+
   private drawFlash(view: EntityView, entity: Entity) {
     view.flash.clear();
     const filters = entity.flashFrames > 0 ? WHITE_HIT_FILTERS : null;
@@ -2130,6 +2864,10 @@ export class PixiGameRenderer {
       view.sprite.y = Math.sin(engine.frameCount * 0.04) * 5;
       this.drawBossComponents(view, entity, engine);
       this.drawBossRig(view, entity, engine);
+      const articulatedBossReady = this.drawArticulatedGeneratedBoss(view, entity, engine);
+      if (entity.bossAttackArchetype === 'rail-serpent' || entity.bossAttackArchetype === 'prism-moth') {
+        view.sprite.visible = !articulatedBossReady;
+      }
     } else if (entity.type === EntityType.MINI_BOSS) {
       view.sprite.y = Math.sin(engine.frameCount * 0.08) * 4;
       view.root.rotation = Math.sin(engine.frameCount * 0.025) * 0.035;
@@ -2175,6 +2913,8 @@ export class PixiGameRenderer {
       view.aura.clear();
     }
 
+    this.syncDamageRecoil(view, entity, engine);
+
     if (entity.isElite && isEnemyType(entity.type)) {
       const pulse = 0.74 + Math.sin((engine.frameCount + entity.variant) * 0.09) * 0.16;
       view.aura.ellipse(0, 0, entity.width * 0.58, entity.height * 0.52)
@@ -2191,7 +2931,11 @@ export class PixiGameRenderer {
       this.drawFlash(view, entity);
     }
 
-    if (entity.flashFrames > view.lastFlashFrames + 2) {
+    if (
+      entity.type !== EntityType.BOSS
+      && entity.type !== EntityType.MINI_BOSS
+      && entity.flashFrames > view.lastFlashFrames + 2
+    ) {
       this.effectPool.spawnImpact(
         entity.x + entity.width / 2,
         entity.y + entity.height / 2,
@@ -2214,9 +2958,6 @@ export class PixiGameRenderer {
         this.views.set(entity.id, view);
         if (isEnemyType(entity.type) && entity.y > -entity.height * 2) {
           this.effectPool.spawn('ring', entity.x + entity.width / 2, entity.y + entity.height / 2, Math.max(22, entity.width * 0.55), entity.type === EntityType.BOSS ? '#fef08a' : '#67e8f9', 300);
-        }
-        if ((entity.type === EntityType.PROJECTILE || entity.type === EntityType.MISSILE) && entity.isPlayerShot) {
-          this.effectPool.spawn('muzzle', entity.x + entity.width / 2, entity.y + entity.height / 2, Math.max(10, entity.width * 1.4), entity.color || '#67e8f9', 120);
         }
       }
       this.updateEntityView(view, entity, engine);
@@ -2290,7 +3031,7 @@ export class PixiGameRenderer {
       pod.rotation = Math.sin(engine.frameCount * 0.04 + index * Math.PI) * 0.028;
 
       if (thruster.visible && thrusterTexture) {
-        const thrustScale = Math.min(1.6, 0.8 + takeoff.thrustStrength * 0.8);
+        const thrustScale = Math.min(3.4, 0.8 + takeoff.thrustStrength * 0.8 + takeoff.travel * 1.8);
         thruster.texture = thrusterTexture;
         thruster.tint = thrusterTint;
         thruster.alpha = companion.alpha * 0.9;
@@ -2305,11 +3046,41 @@ export class PixiGameRenderer {
     }
   }
 
+  private syncStageLaunchStreak(engine: GameEngine, takeoff: StageTakeoffPresentation) {
+    this.stageLaunchStreak.clear();
+    const streakStrength = takeoff.phase === 'launch'
+      ? clamp((takeoff.travel - 0.18) / 0.82, 0, 1)
+      : 0;
+    this.stageLaunchStreak.visible = streakStrength > 0.01 && engine.lives > 0;
+    if (!this.stageLaunchStreak.visible) return;
+
+    const centerX = engine.player.x + engine.player.width / 2;
+    const centerY = engine.player.y + engine.player.height / 2;
+    const tailStartY = centerY + engine.player.height * 0.24;
+    const tailLength = Math.min(
+      this.height * 0.92,
+      engine.player.height * (1.3 + streakStrength * 8.2)
+    );
+    const tailEndY = tailStartY + tailLength;
+    const pulse = 0.92 + Math.sin(engine.frameCount * 0.48) * 0.08;
+    this.stageLaunchStreak
+      .moveTo(centerX, tailStartY)
+      .lineTo(centerX, tailEndY)
+      .stroke({ color: '#0ea5e9', width: 22 + streakStrength * 14, alpha: 0.08 * streakStrength * pulse })
+      .moveTo(centerX, tailStartY)
+      .lineTo(centerX, tailEndY)
+      .stroke({ color: '#38bdf8', width: 7 + streakStrength * 5, alpha: 0.42 * streakStrength * pulse })
+      .moveTo(centerX, tailStartY)
+      .lineTo(centerX, tailEndY)
+      .stroke({ color: '#e0f2fe', width: 1.5 + streakStrength * 1.8, alpha: 0.94 * streakStrength });
+  }
+
   private syncPlayerThrusters(engine: GameEngine) {
     const frameCount = ASSETS.PIXI_THRUSTER_FRAMES.length;
     const speedLevel = clamp(Math.floor(engine.stats.upgrades.speed || 0), 0, PLAYER_THRUSTER_COLORS.length - 1);
     const takeoff = engine.getStageTakeoffPresentation();
     const takeoffActive = takeoff.phase !== 'idle';
+    this.syncStageLaunchStreak(engine, takeoff);
     const frameDelay = takeoffActive
       ? Math.max(2, Math.round(6 - takeoff.thrustStrength * 4))
       : Math.max(2, 7 - speedLevel);
@@ -2318,11 +3089,14 @@ export class PixiGameRenderer {
     this.playerThrusterRoot.visible = visible;
     if (!visible || !texture) return;
 
-    const [, edge] = PLAYER_THRUSTER_COLORS[speedLevel];
+    const [, configuredEdge] = PLAYER_THRUSTER_COLORS[speedLevel];
+    const edge = takeoff.phase === 'launch' ? '#38bdf8' : configuredEdge;
     const movement = Math.min(1, Math.hypot(engine.playerVel.x, engine.playerVel.y) / 7);
     const cinematic = engine.introFlightFrames > 0 || takeoffActive;
     const departureStrength = takeoffActive ? clamp(takeoff.thrustStrength, 0, 1) : 0;
-    const departureBoost = takeoffActive ? 0.78 + departureStrength * 1.42 : 1;
+    const departureBoost = takeoffActive
+      ? 0.9 + departureStrength * 0.8 + takeoff.travel * 4.2
+      : 1;
     const rawSizeBoost = (1 + speedLevel * 0.115 + movement * 0.2)
       * (cinematic ? 1.28 : 1)
       * departureBoost;
@@ -2609,6 +3383,7 @@ export class PixiGameRenderer {
     this.updatePlayerSteeringPresentation(engine, deltaMs);
     this.camera.position.set(engine.shakeX, engine.shakeY);
     this.environment.update(engine);
+    this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile);
     this.syncEntities(engine);
     this.syncMaxShotPresentation(engine);
     this.syncPlayerAfterimages(engine);
@@ -2616,12 +3391,12 @@ export class PixiGameRenderer {
     this.syncGunPods(engine);
     this.syncBioPrimaryBeam(engine);
     this.syncResearchBeam(engine);
+    this.syncCombatLighting(engine);
     this.syncWallHealth(engine);
     this.syncBossHealthHud(engine);
     this.updateWavePresentation(engine, timestamp, deltaMs);
     this.updateWarnings(engine);
     this.updateBossPresentation(engine, deltaMs);
-    this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile);
     this.effectPool.update(deltaMs);
 
     if (engine.lastShotFrame !== this.lastShotFrame) this.lastShotFrame = engine.lastShotFrame;
@@ -2644,6 +3419,7 @@ export class PixiGameRenderer {
     this.effectPool.destroy();
     this.environment.destroy();
     this.textureBank.destroy();
+    this.articulatedBossRigLoads.clear();
     this.views.clear();
     this.recycledViews.clear();
     this.seenBossPhase.clear();

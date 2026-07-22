@@ -45,6 +45,7 @@ const {
   GROUND_PROP_CONTACT_ANCHOR_Y,
   MOBILE_HYPERSPEED_STREAK_CAP,
   PARALLAX_TILE_POOL_SIZE,
+  SPACE_PROP_MOTION_BLUR_CAP,
   SPACE_PARALLAX_DEPTH_SPEEDS,
   TAKEOFF_WORLD_SPEED_MULTIPLIER,
   getLoopingParallaxTileY,
@@ -112,6 +113,10 @@ test('all space profiles use a strict far-to-near speed progression', () => {
         `${profileId} depth ${index} is faster than depth ${index - 1}`
       );
     }
+    assert.ok(speeds[0] <= 0.003, `${profileId} deep background remains extremely slow`);
+    assert.ok(speeds[2] >= speeds[1] * 2, `${profileId} planets separate from the deep field`);
+    assert.ok(speeds[3] >= speeds[2] * 2.5, `${profileId} broad mid-field travel stays readable`);
+    assert.ok(speeds[4] >= speeds[3] * 2, `${profileId} foreground star/debris field is fastest`);
   }
 });
 
@@ -120,7 +125,8 @@ test('ground anchors and hyperspeed effects stay within explicit performance bud
   assert.equal(GROUND_PROP_CONTACT_ANCHOR_Y, 238 / 256);
   assert.equal(MOBILE_HYPERSPEED_STREAK_CAP, 24);
   assert.equal(DESKTOP_HYPERSPEED_STREAK_CAP, 38);
-  assert.equal(TAKEOFF_WORLD_SPEED_MULTIPLIER, 30);
+  assert.equal(TAKEOFF_WORLD_SPEED_MULTIPLIER, 48);
+  assert.equal(SPACE_PROP_MOTION_BLUR_CAP, 5.4);
 
   const updateSource = environmentSource.slice(
     environmentSource.indexOf('  update(engine: GameEngine)'),
@@ -128,7 +134,11 @@ test('ground anchors and hyperspeed effects stay within explicit performance bud
   );
   assert.doesNotMatch(updateSource, /new Sprite\(/);
   assert.doesNotMatch(updateSource, /new Texture\(/);
-  assert.match(updateSource, /engine\.performanceMode \? 0 : layer\.softness/);
-  assert.match(updateSource, /hyperspeedStrength \* TAKEOFF_WORLD_SPEED_MULTIPLIER/);
+  assert.match(updateSource, /profile\.terrain === 'space' \? hyperspeedStrength : 0/);
+  assert.match(updateSource, /profile\.terrain === 'space' \? TAKEOFF_WORLD_SPEED_MULTIPLIER : 30/);
+  assert.match(updateSource, /this\.spacePropMotionBlur\.strengthY = propMotionBlurStrength/);
+  assert.match(updateSource, /layer\.blurFilter\.strengthY = baseBlurStrength \+ takeoffBlurY/);
   assert.match(updateSource, /this\.hyperspeedFrame\.alpha/);
+  assert.match(environmentSource, /PIXI_TERRAIN_DESERT_MASTER, speed: 0\.36/);
+  assert.match(environmentSource, /PIXI_TERRAIN_RIVER_MASTER, speed: 0\.34/);
 });

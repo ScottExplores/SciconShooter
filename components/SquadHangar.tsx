@@ -330,7 +330,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
         className="sci-upgrade-ready-frame relative flex aspect-square w-[5.25rem] shrink-0 items-center justify-center disabled:cursor-not-allowed disabled:opacity-55 sm:w-[6.25rem]"
         aria-label={unlocked ? `${slot} wing${entry ? `, ${entry.name}` : ', empty'}` : `Unlock ${slot} wing for ${unlockCost} coins`}
       >
-        <span className="absolute inset-[13%]">
+        <span className={`absolute inset-[13%] ${active ? 'sci-hangar-active-light' : ''}`}>
           {active ? <AnimatedSelector size="ship" color="lime" className="absolute inset-0 h-full w-full scale-[1.8]" /> : <span className="absolute inset-0 rotate-45 border border-cyan-300/35 bg-cyan-300/5" />}
         </span>
         {!unlocked ? (
@@ -470,7 +470,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                 className="relative flex aspect-square w-[9.5rem] shrink-0 items-center justify-center sm:w-[12rem]"
                 aria-label={`${mainShipName}, main squad ship`}
               >
-                <span className="absolute inset-[14%]">
+                <span className={`absolute inset-[14%] ${activePosition === 'main' ? 'sci-hangar-active-light' : ''}`}>
                   {activePosition === 'main' ? <AnimatedSelector size="ship" color="lime" className="absolute inset-0 h-full w-full scale-[1.8]" /> : <span className="absolute inset-0 rotate-45 border border-cyan-300/35 bg-cyan-300/5" />}
                 </span>
                 <AnimatedPlayerShip shipId={mainShipId} frame={playerSelectionFrame} className="relative z-10 h-[58%] w-[58%] drop-shadow-[0_0_16px_rgba(34,211,238,0.6)]" />

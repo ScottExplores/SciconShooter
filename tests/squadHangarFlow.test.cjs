@@ -97,6 +97,7 @@ test('the Hangar uses one position-driven squad bay and four-column fleet catalo
   assert.match(hangar, /absolute inset-\[13%\][\s\S]*active \? <AnimatedSelector size="ship" color="lime"/);
   assert.match(hangar, /absolute inset-\[14%\][\s\S]*activePosition === 'main' \? <AnimatedSelector size="ship" color="lime"/);
   assert.ok((hangar.match(/AnimatedSelector size="ship" color="lime" className="absolute inset-0 h-full w-full scale-\[1\.8\]"/g) || []).length >= 2);
+  assert.ok((hangar.match(/sci-hangar-active-light/g) || []).length >= 2);
   assert.match(hangar, /SQUAD_CONNECTOR_POSITION: Record<HangarPosition, string>/);
   assert.match(hangar, /main: 'left-\[9%\] h-\[48%\][^']*border-l-2/);
   assert.match(hangar, /left: 'left-\[9%\] h-\[72%\][^']*border-l-2/);

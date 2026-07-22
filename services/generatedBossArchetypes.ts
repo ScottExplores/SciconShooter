@@ -18,23 +18,58 @@ export type GeneratedBossArchetype = (
 export type GeneratedBossTechnique =
   | 'rail-telegraph'
   | 'rail-fire'
+  | 'rail-tail-telegraph'
+  | 'rail-tail-volley'
+  | 'prism-telegraph'
   | 'prism-gap-ring'
+  | 'singularity-telegraph'
   | 'singularity-collapse'
+  | 'orbit-telegraph'
   | 'orbit-cross'
+  | 'helix-left-telegraph'
+  | 'helix-right-telegraph'
   | 'helix-left'
   | 'helix-right'
+  | 'hammerhead-port-telegraph'
+  | 'hammerhead-starboard-telegraph'
   | 'hammerhead-port'
   | 'hammerhead-starboard'
+  | 'eclipse-telegraph'
   | 'eclipse-dark-pulse';
+
+export type GeneratedBossCueStage = 'warning' | 'fire';
 
 export interface GeneratedBossTechniqueCue {
   readonly technique: GeneratedBossTechnique;
+  readonly stage: GeneratedBossCueStage;
   readonly sequence: number;
   readonly cycleFrame: number;
   readonly cycleLength: number;
+  /** Frames between this warning and its paired fire cue. */
+  readonly warningFrames: number;
+  /** Minimum quiet frames after firing before another warning may begin. */
+  readonly recoveryFrames: number;
 }
 
 export const MAX_GENERATED_BOSS_PROJECTILES_PER_CUE = 24;
+export const MIN_GENERATED_BOSS_WARNING_FRAMES = 24;
+export const MIN_GENERATED_BOSS_RECOVERY_FRAMES = 32;
+
+export const GENERATED_BOSS_FIRE_TELEGRAPH: Readonly<Partial<Record<
+  GeneratedBossTechnique,
+  GeneratedBossTechnique
+>>> = Object.freeze({
+  'rail-fire': 'rail-telegraph',
+  'rail-tail-volley': 'rail-tail-telegraph',
+  'prism-gap-ring': 'prism-telegraph',
+  'singularity-collapse': 'singularity-telegraph',
+  'orbit-cross': 'orbit-telegraph',
+  'helix-left': 'helix-left-telegraph',
+  'helix-right': 'helix-right-telegraph',
+  'hammerhead-port': 'hammerhead-port-telegraph',
+  'hammerhead-starboard': 'hammerhead-starboard-telegraph',
+  'eclipse-dark-pulse': 'eclipse-telegraph'
+});
 
 export const resolveGeneratedBossArchetype = (
   spriteKey?: AssetKey
@@ -50,10 +85,79 @@ const positiveModulo = (value: number, divisor: number) => (
 
 const buildCue = (
   technique: GeneratedBossTechnique,
+  stage: GeneratedBossCueStage,
   sequence: number,
   cycleFrame: number,
-  cycleLength: number
-): GeneratedBossTechniqueCue => ({ technique, sequence, cycleFrame, cycleLength });
+  cycleLength: number,
+  warningFrames: number,
+  recoveryFrames: number
+): GeneratedBossTechniqueCue => ({
+  technique,
+  stage,
+  sequence,
+  cycleFrame,
+  cycleLength,
+  warningFrames,
+  recoveryFrames
+});
+
+const buildWarningCue = (
+  technique: GeneratedBossTechnique,
+  sequence: number,
+  cycleFrame: number,
+  cycleLength: number,
+  warningFrames: number
+) => buildCue(technique, 'warning', sequence, cycleFrame, cycleLength, warningFrames, 0);
+
+const buildFireCue = (
+  technique: GeneratedBossTechnique,
+  sequence: number,
+  cycleFrame: number,
+  cycleLength: number,
+  warningFrames: number,
+  recoveryFrames: number
+) => buildCue(
+  technique,
+  'fire',
+  sequence,
+  cycleFrame,
+  cycleLength,
+  warningFrames,
+  recoveryFrames
+);
+
+const buildPairedTechniqueCue = (
+  warningTechnique: GeneratedBossTechnique,
+  fireTechnique: GeneratedBossTechnique,
+  sequence: number,
+  cycleFrame: number,
+  cycleLength: number,
+  warningFrame: number,
+  fireFrame: number,
+  recoveryFrames: number
+): GeneratedBossTechniqueCue | null => {
+  const warningFrames = fireFrame - warningFrame;
+  if (cycleFrame === warningFrame) {
+    return buildWarningCue(
+      warningTechnique,
+      sequence,
+      cycleFrame,
+      cycleLength,
+      warningFrames
+    );
+  }
+  if (cycleFrame === fireFrame) {
+    return buildFireCue(
+      fireTechnique,
+      sequence,
+      cycleFrame,
+      cycleLength,
+      warningFrames,
+      recoveryFrames
+    );
+  }
+  return null;
+};
 
 /**
  * Returns the single authored attack cue for this simulation frame. All timing
@@ -69,69 +173,138 @@ export const getGeneratedBossTechniqueCue = (
   const safePhase = Math.max(1, Math.min(3, Math.floor(Number(phase) || 1)));
 
   if (archetype === 'rail-serpent') {
-    const cycleLength = 204 - (safePhase - 1) * 16;
+    const cycleLength = [196, 184, 172][safePhase - 1];
     const cycleFrame = positiveModulo(safeTimer, cycleLength);
     const sequence = Math.floor(safeTimer / cycleLength);
-    if (cycleFrame === 86) return buildCue('rail-telegraph', sequence, cycleFrame, cycleLength);
-    if (cycleFrame === 118) return buildCue('rail-fire', sequence, cycleFrame, cycleLength);
+    const warningFrame = [78, 72, 66][safePhase - 1];
+    const fireFrame = [112, 106, 100][safePhase - 1];
+    const railCue = buildPairedTechniqueCue(
+      'rail-telegraph',
+      'rail-fire',
+      sequence,
+      cycleFrame,
+      cycleLength,
+      warningFrame,
+      fireFrame,
+      42
+    );
+    if (railCue) return railCue;
+
+    // The later phases add a slow tail fan after the rail lane has cleared.
+    // It never overlaps the primary rail warning or the next cycle's warning.
+    if (safePhase >= 2) {
+      const tailWarningFrame = safePhase === 2 ? 148 : 142;
+      const tailFireFrame = safePhase === 2 ? 172 : 166;
+      return buildPairedTechniqueCue(
+        'rail-tail-telegraph',
+        'rail-tail-volley',
+        sequence,
+        cycleFrame,
+        cycleLength,
+        tailWarningFrame,
+        tailFireFrame,
+        38
+      );
+    }
     return null;
   }
 
   if (archetype === 'prism-moth') {
-    const cycleLength = 150 - (safePhase - 1) * 10;
+    const cycleLength = [150, 136, 124][safePhase - 1];
     const cycleFrame = positiveModulo(safeTimer, cycleLength);
     const sequence = Math.floor(safeTimer / cycleLength);
-    return cycleFrame === 72
-      ? buildCue('prism-gap-ring', sequence, cycleFrame, cycleLength)
-      : null;
+    return buildPairedTechniqueCue(
+      'prism-telegraph',
+      'prism-gap-ring',
+      sequence,
+      cycleFrame,
+      cycleLength,
+      42,
+      72,
+      40
+    );
   }
 
   if (archetype === 'singularity-crab') {
-    const cycleLength = 176 - (safePhase - 1) * 12;
+    const cycleLength = [176, 160, 146][safePhase - 1];
     const cycleFrame = positiveModulo(safeTimer, cycleLength);
     const sequence = Math.floor(safeTimer / cycleLength);
-    return cycleFrame === 82
-      ? buildCue('singularity-collapse', sequence, cycleFrame, cycleLength)
-      : null;
+    return buildPairedTechniqueCue(
+      'singularity-telegraph',
+      'singularity-collapse',
+      sequence,
+      cycleFrame,
+      cycleLength,
+      48,
+      82,
+      42
+    );
   }
 
   if (archetype === 'orbit-gyroscope') {
-    const cycleLength = 116 - (safePhase - 1) * 8;
+    const cycleLength = [116, 104, 94][safePhase - 1];
     const cycleFrame = positiveModulo(safeTimer, cycleLength);
     const sequence = Math.floor(safeTimer / cycleLength);
-    return cycleFrame === 48
-      ? buildCue('orbit-cross', sequence, cycleFrame, cycleLength)
-      : null;
+    return buildPairedTechniqueCue(
+      'orbit-telegraph',
+      'orbit-cross',
+      sequence,
+      cycleFrame,
+      cycleLength,
+      22,
+      48,
+      34
+    );
   }
 
   if (archetype === 'helix-leviathan') {
-    const cycleLength = 94 - (safePhase - 1) * 8;
+    const cycleLength = [96, 84, 74][safePhase - 1];
     const cycleFrame = positiveModulo(safeTimer, cycleLength);
     const sequence = Math.floor(safeTimer / cycleLength);
-    if (cycleFrame !== 44) return null;
-    return buildCue(sequence % 2 === 0 ? 'helix-left' : 'helix-right', sequence, cycleFrame, cycleLength);
+    const leftHanded = sequence % 2 === 0;
+    return buildPairedTechniqueCue(
+      leftHanded ? 'helix-left-telegraph' : 'helix-right-telegraph',
+      leftHanded ? 'helix-left' : 'helix-right',
+      sequence,
+      cycleFrame,
+      cycleLength,
+      20,
+      44,
+      32
+    );
   }
 
   if (archetype === 'hammerhead-siege') {
-    const cycleLength = 128 - (safePhase - 1) * 8;
+    const cycleLength = [132, 116, 104][safePhase - 1];
     const cycleFrame = positiveModulo(safeTimer, cycleLength);
     const sequence = Math.floor(safeTimer / cycleLength);
-    if (cycleFrame !== 52) return null;
-    return buildCue(
-      sequence % 2 === 0 ? 'hammerhead-port' : 'hammerhead-starboard',
+    const portSide = sequence % 2 === 0;
+    return buildPairedTechniqueCue(
+      portSide ? 'hammerhead-port-telegraph' : 'hammerhead-starboard-telegraph',
+      portSide ? 'hammerhead-port' : 'hammerhead-starboard',
       sequence,
       cycleFrame,
-      cycleLength
+      cycleLength,
+      24,
+      52,
+      36
     );
   }
 
   if (archetype === 'eclipse-engine') {
-    const cycleLength = 164 - (safePhase - 1) * 12;
+    const cycleLength = [164, 148, 132][safePhase - 1];
     const cycleFrame = positiveModulo(safeTimer, cycleLength);
     const sequence = Math.floor(safeTimer / cycleLength);
-    return cycleFrame === 76
-      ? buildCue('eclipse-dark-pulse', sequence, cycleFrame, cycleLength)
-      : null;
+    return buildPairedTechniqueCue(
+      'eclipse-telegraph',
+      'eclipse-dark-pulse',
+      sequence,
+      cycleFrame,
+      cycleLength,
+      44,
+      76,
+      40
+    );
   }
 
   // The Tribunal deliberately changes vocabulary by health phase. Its final
@@ -141,20 +314,30 @@ export const getGeneratedBossTechniqueCue = (
   const cycleFrame = positiveModulo(safeTimer, cycleLength);
   const sequence = Math.floor(safeTimer / cycleLength);
   if (safePhase === 1) {
-    if (cycleFrame === 78) return buildCue('rail-telegraph', sequence, cycleFrame, cycleLength);
-    if (cycleFrame === 110) return buildCue('rail-fire', sequence, cycleFrame, cycleLength);
-    return null;
-  }
-  if (safePhase === 2) {
-    if (cycleFrame !== 66) return null;
-    return buildCue(
-      sequence % 2 === 0 ? 'prism-gap-ring' : 'orbit-cross',
+    return buildPairedTechniqueCue(
+      'rail-telegraph',
+      'rail-fire',
       sequence,
       cycleFrame,
-      cycleLength
+      cycleLength,
+      78,
+      110,
+      42
     );
   }
-  if (cycleFrame !== 54) return null;
+  if (safePhase === 2) {
+    const prismAttack = sequence % 2 === 0;
+    return buildPairedTechniqueCue(
+      prismAttack ? 'prism-telegraph' : 'orbit-telegraph',
+      prismAttack ? 'prism-gap-ring' : 'orbit-cross',
+      sequence,
+      cycleFrame,
+      cycleLength,
+      34,
+      66,
+      40
+    );
+  }
   const finalTechniques: readonly GeneratedBossTechnique[] = [
     'helix-left',
     'hammerhead-port',
@@ -163,10 +346,17 @@ export const getGeneratedBossTechniqueCue = (
     'helix-right',
     'hammerhead-starboard'
   ];
-  return buildCue(
-    finalTechniques[positiveModulo(sequence, finalTechniques.length)],
+  const fireTechnique = finalTechniques[positiveModulo(sequence, finalTechniques.length)];
+  const warningTechnique = GENERATED_BOSS_FIRE_TELEGRAPH[fireTechnique];
+  if (!warningTechnique) return null;
+  return buildPairedTechniqueCue(
+    warningTechnique,
+    fireTechnique,
     sequence,
     cycleFrame,
-    cycleLength
+    cycleLength,
+    22,
+    54,
+    40
   );
 };

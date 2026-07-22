@@ -363,7 +363,7 @@ test('later authored Stage tiers keep bosses and add telegraphed escalation patt
   assert.match(engine, /if \(nextCampaignIndex === null\)/);
   assert.doesNotMatch(engine, /currentCampaignIndex = .*%/);
   assert.match(engine, /spawnBossGapRing\(boss: Entity\)/);
-  assert.match(engine, /queueBossTargetStrike\(boss: Entity\)/);
+  assert.match(engine, /queueBossTargetStrike\(boss: Entity, warningFrames = 54\)/);
   assert.match(engine, /MISSILE LOCK/);
   assert.match(engine, /SIDE ENTRY/);
   assert.match(engine, /AUTHORED_TIER_DIFFICULTY_CAP/);

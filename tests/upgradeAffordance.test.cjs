@@ -18,7 +18,7 @@ test('pixel action buttons retain live labels over transparent generated present
   assert.match(component, /data-shine=\{!disabled && shine \? 'true' : 'false'\}/);
   assert.match(component, /sci-pixel-action__content/);
   assert.match(component, /aria-hidden="true"/);
-  assert.match(startScreen, /<PixelActionButton[\s\S]*?tone="green"[\s\S]*?shine[\s\S]*?<span>Start Mission<\/span>/);
+  assert.match(startScreen, /<PixelActionButton[\s\S]*?tone="green"[\s\S]*?ready[\s\S]*?shine[\s\S]*?min-h-\[4\.25rem\][\s\S]*?<span>Start Mission<\/span>/);
 
   assets.forEach((name) => {
     const assetPath = path.join(root, 'public', 'game-art', 'generated', 'ui', 'scicon-pixel-action-buttons-v1', name);
@@ -46,18 +46,24 @@ test('Hangar readiness follows exact affordability, ownership, equip, and max-le
   assert.ok((hangar.match(/disabled=\{!founderSandbox && state\.coins < activeMini\.purchaseCost\}/g) || []).length >= 2);
 });
 
-test('eligibility pulse is blocky, does not resize layout, and respects reduced motion', () => {
+test('eligibility aura expands outside the layout, retains an interior glow, and respects reduced motion', () => {
   const styles = read('styles', 'tailwind.input.css');
   const pulseStart = styles.indexOf('@keyframes sci-pixel-ready-pulse');
-  const pulseEnd = styles.indexOf('@keyframes sci-pixel-shine-sweep');
+  const pulseEnd = styles.indexOf('@keyframes sci-pixel-ready-interior');
   const pulse = styles.slice(pulseStart, pulseEnd);
 
-  assert.match(pulse, /brightness\(1\.15\)/);
+  assert.match(pulse, /drop-shadow\(7px 0 0/);
+  assert.match(pulse, /color-mix\(in srgb, var\(--sci-pixel-edge\) 0%, transparent\)/);
   assert.match(pulse, /drop-shadow\(2px 0 0/);
   assert.doesNotMatch(pulse, /scale\(/);
-  assert.match(styles, /animation: sci-pixel-ready-pulse 1\.05s linear infinite/);
+  assert.match(styles, /animation: sci-pixel-ready-pulse 1\.75s ease-out infinite/);
+  assert.match(styles, /\.sci-pixel-action\[data-upgrade-ready='true'\]::before \{\s*animation: sci-pixel-ready-interior 1\.75s ease-in-out infinite/);
+  assert.match(styles, /sci-upgrade-ready-frame-pulse 1\.75s ease-out infinite/);
   assert.match(styles, /animation: sci-pixel-shine-sweep 3\.4s ease-in-out infinite/);
   assert.match(styles, /skewX\(-22deg\)/);
   assert.match(styles, /prefers-reduced-motion: reduce[\s\S]*?animation: none/);
   assert.match(styles, /image-rendering: pixelated/);
+  assert.match(styles, /--sci-pixel-mid: #facc15/);
+  assert.match(styles, /--sci-pixel-mid: #10d99a/);
+  assert.match(styles, /--sci-pixel-rail: #22d3ee/);
 });

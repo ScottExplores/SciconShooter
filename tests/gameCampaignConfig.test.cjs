@@ -106,7 +106,7 @@ test('mission records enlarge the complete boss rig and the Paywall Siege mini-b
   assert.equal(campaign.levels[0].waves[0].events.find((event) => event.id === 'open-orbit-mini-boss').spriteStyle, undefined);
 });
 
-test('main bosses are reserved for stage finales and follow a clear health curve', () => {
+test('main bosses follow a clear health curve with an explicit Stage 6 pressure reset', () => {
   const finalBosses = campaign.levels
     .flatMap((level) => level.waves)
     .filter((wave) => wave.completionRule === 'boss-defeat')
@@ -121,8 +121,19 @@ test('main bosses are reserved for stage finales and follow a clear health curve
   for (let index = 1; index < finalBosses.length; index += 1) {
     assert.ok(finalBosses[index].health > finalBosses[index - 1].health);
     assert.ok(finalBosses[index].scoreReward > finalBosses[index - 1].scoreReward);
-    assert.ok(bursts[index].projectileSpeed > bursts[index - 1].projectileSpeed);
-    assert.ok(bursts[index].burstCount >= bursts[index - 1].burstCount);
+    if (finalBosses[index].id === 'helix-convergence-final-boss') {
+      assert.deepEqual(
+        {
+          attackIntervalSeconds: bursts[index].attackIntervalSeconds,
+          projectileSpeed: bursts[index].projectileSpeed,
+          burstCount: bursts[index].burstCount
+        },
+        { attackIntervalSeconds: 1.05, projectileSpeed: 7.8, burstCount: 7 }
+      );
+    } else {
+      assert.ok(bursts[index].projectileSpeed > bursts[index - 1].projectileSpeed);
+      assert.ok(bursts[index].burstCount >= bursts[index - 1].burstCount);
+    }
   }
 });
 

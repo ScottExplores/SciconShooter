@@ -43,7 +43,7 @@ test('canonical Pixi scene presents a centered Stage and internal Wave transitio
   assert.match(renderer, /if \(!engine\.cinematicPaused\) \{\s*this\.wavePresentationElapsedMs =/);
 
   const updateStart = renderer.indexOf('  private updateWavePresentation(');
-  const updateEnd = renderer.indexOf('\n  private createEntityView(', updateStart);
+  const updateEnd = renderer.indexOf('\n  private resetArticulatedBossRig(', updateStart);
   const update = renderer.slice(updateStart, updateEnd);
   assert.ok(updateStart >= 0 && updateEnd > updateStart);
   assert.doesNotMatch(update, /new (?:Container|Graphics|Sprite|Text)\b/);

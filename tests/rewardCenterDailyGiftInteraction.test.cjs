@@ -1,0 +1,36 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.resolve(__dirname, '..');
+const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
+
+test('the current daily gift card is the claim control and other cards stay inert', () => {
+  const center = read('components', 'RewardCenter.tsx');
+
+  assert.match(center, /const cardState = isClaimed[\s\S]*\? 'claimed'[\s\S]*\? 'locked'[\s\S]*\? 'pending'[\s\S]*\? 'connect-required'[\s\S]*\? 'claimable'[\s\S]*: 'unavailable'/);
+  assert.match(center, /const isClaimable = cardState === 'claimable';/);
+  assert.match(center, /<button[\s\S]*key=\{reward\.day\}[\s\S]*type="button"[\s\S]*data-state=\{cardState\}[\s\S]*disabled=\{!isClaimable\}[\s\S]*aria-label=\{cardLabel\}[\s\S]*onClick=\{handleClaimDailyGift\}/);
+  assert.match(center, /`Claim Day \$\{reward\.day\}: \$\{rewardName\}`/);
+  assert.match(center, /`Day \$\{reward\.day\} claimed: \$\{rewardName\}`/);
+});
+
+test('daily gift card taps share the existing guarded atomic claim path', () => {
+  const center = read('components', 'RewardCenter.tsx');
+  const app = read('App.tsx');
+
+  assert.match(center, /if \(claimInFlightRef\.current \|\| !dailyStatus\.isAvailable \|\| !dailyReward\) return;/);
+  assert.match(center, /claimInFlightRef\.current = true;[\s\S]*confirmedReward = onClaimDailyGift\(\);/);
+  assert.match(app, /if \(rewardClaimInFlightRef\.current\) return null;/);
+  assert.match(app, /savePermanentSquadState\(nextPermanentState\);[\s\S]*saveWeeklySquadState\(nextWeeklyState\);/);
+});
+
+test('claimable daily cards advertise pointer, focus, and reduced-motion states', () => {
+  const styles = read('styles', 'tailwind.input.css');
+
+  assert.match(styles, /\.sci-daily-card:disabled \{[\s\S]*cursor: default;/);
+  assert.match(styles, /\.sci-daily-card\.is-claimable \{[\s\S]*cursor: pointer;[\s\S]*touch-action: manipulation;[\s\S]*animation: sci-daily-gift-ready/);
+  assert.match(styles, /\.sci-daily-card:focus-visible \{[\s\S]*outline: 2px solid/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.sci-daily-card,[\s\S]*animation: none !important/);
+});

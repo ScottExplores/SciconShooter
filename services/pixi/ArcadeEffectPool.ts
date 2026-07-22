@@ -27,16 +27,47 @@ type PooledEffect = {
   active: boolean;
 };
 
+type PooledLight = {
+  graphic: Graphics;
+  age: number;
+  duration: number;
+  size: number;
+  color: string;
+  intensity: number;
+  active: boolean;
+};
+
+const MAX_POOLED_LIGHTS = 12;
+
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 /** A bounded presentation-only pool. It never owns gameplay entities. */
 export class ArcadeEffectPool {
   private readonly effects: PooledEffect[] = [];
+  private readonly lights: PooledLight[] = [];
   private explosionTextures: Texture[] = [];
   private bossExplosionTextures: Texture[] = [];
   private maxEffects = 150;
+  private maxLights = MAX_POOLED_LIGHTS;
 
-  constructor(private readonly layer: Container) {}
+  constructor(private readonly layer: Container) {
+    for (let index = 0; index < MAX_POOLED_LIGHTS; index++) {
+      const graphic = new Graphics();
+      graphic.eventMode = 'none';
+      graphic.visible = false;
+      graphic.blendMode = 'add';
+      this.lights.push({
+        graphic,
+        age: 0,
+        duration: 1,
+        size: 1,
+        color: '#ffffff',
+        intensity: 0,
+        active: false
+      });
+      this.layer.addChild(graphic);
+    }
+  }
 
   setExplosionTextures(textures: Texture[]) {
     this.explosionTextures = textures.filter((texture) => texture !== Texture.EMPTY);
@@ -50,12 +81,41 @@ export class ArcadeEffectPool {
     this.maxEffects = performanceMode
       ? (mobileProfile ? 54 : 84)
       : (mobileProfile ? 104 : 170);
+    this.maxLights = performanceMode
+      ? (mobileProfile ? 3 : 6)
+      : (mobileProfile ? 5 : MAX_POOLED_LIGHTS);
+
+    // Adaptive quality can step down after a busy scene has already expanded
+    // the pool. Retire the overflow immediately so the new cap is real rather
+    // than merely limiting future allocations.
+    for (let index = this.maxEffects; index < this.effects.length; index++) {
+      this.effects[index].active = false;
+      this.effects[index].root.visible = false;
+    }
+    for (let index = this.maxLights; index < this.lights.length; index++) {
+      this.lights[index].active = false;
+      this.lights[index].graphic.visible = false;
+    }
+  }
+
+  private usesAdditiveBlend(kind: ArcadeEffectKind) {
+    return kind !== 'smoke' && kind !== 'debris' && kind !== 'sprite-debris';
   }
 
   private acquire(kind: ArcadeEffectKind) {
-    let effect = this.effects.find((candidate) => !candidate.active);
-    if (!effect && this.effects.length >= this.maxEffects) {
-      effect = this.effects.reduce((oldest, candidate) => candidate.age > oldest.age ? candidate : oldest);
+    const reusableCount = Math.min(this.effects.length, this.maxEffects);
+    let effect: PooledEffect | undefined;
+    let oldest: PooledEffect | undefined;
+    for (let index = 0; index < reusableCount; index++) {
+      const candidate = this.effects[index];
+      if (!candidate.active) {
+        effect = candidate;
+        break;
+      }
+      if (!oldest || candidate.age > oldest.age) oldest = candidate;
+    }
+    if (!effect && reusableCount >= this.maxEffects) {
+      effect = oldest;
     }
     if (!effect) {
       const root = new Container();
@@ -88,10 +148,44 @@ export class ArcadeEffectPool {
     effect.root.scale.set(1);
     effect.root.rotation = 0;
     effect.graphic.clear();
+    effect.graphic.blendMode = this.usesAdditiveBlend(kind) ? 'add' : 'normal';
     effect.sprite.visible = false;
     effect.sprite.texture = Texture.WHITE;
     effect.sprite.tint = '#ffffff';
+    effect.sprite.blendMode = 'normal';
     return effect;
+  }
+
+  private acquireLight() {
+    let oldest: PooledLight | null = null;
+    for (let index = 0; index < this.maxLights; index++) {
+      const light = this.lights[index];
+      if (!light.active) return light;
+      if (!oldest || light.age > oldest.age) oldest = light;
+    }
+    return oldest;
+  }
+
+  spawnLightPulse(
+    x: number,
+    y: number,
+    size: number,
+    color: string,
+    intensity = 0.35,
+    duration = 180
+  ) {
+    const light = this.acquireLight();
+    if (!light) return;
+    light.age = 0;
+    light.duration = Math.max(1, duration);
+    light.size = Math.max(1, size);
+    light.color = color;
+    light.intensity = clamp(intensity, 0, 0.82);
+    light.active = true;
+    light.graphic.visible = true;
+    light.graphic.position.set(x, y);
+    light.graphic.scale.set(1);
+    this.drawLight(light, 0);
   }
 
   spawn(kind: ArcadeEffectKind, x: number, y: number, size: number, color: string, duration = 360) {
@@ -110,6 +204,7 @@ export class ArcadeEffectPool {
   }
 
   spawnExplosion(x: number, y: number, size: number, color = '#67e8f9', intensity = 1) {
+    this.spawnLightPulse(x, y, Math.min(260, size * 1.35), color, 0.32 + Math.min(0.28, intensity * 0.12), 240);
     this.spawnSpriteExplosion(x, y, size, 360);
     this.spawn('shockwave', x, y, size * 1.5, color, 520);
     this.spawn('burst', x, y, size, color, 420);
@@ -132,6 +227,7 @@ export class ArcadeEffectPool {
   }
 
   spawnBossExplosion(x: number, y: number, size: number, intensity = 1) {
+    this.spawnLightPulse(x, y, Math.min(320, size * 1.45), '#fef08a', 0.48 + Math.min(0.3, intensity * 0.1), 300);
     this.spawnBossSpriteExplosion(x, y, size, 420);
     this.spawn('shockwave', x, y, size * 1.35, '#fef08a', 480);
     const sparks = Math.max(4, Math.round(6 * intensity));
@@ -143,6 +239,7 @@ export class ArcadeEffectPool {
   }
 
   spawnEnemyExplosion(x: number, y: number, size: number, color = '#67e8f9') {
+    this.spawnLightPulse(x, y, Math.min(140, size * 1.15), color, 0.26, 160);
     this.spawnBossSpriteExplosion(x, y, size, 260);
     this.spawn('ring', x, y, size * 0.62, color, 220);
     for (let index = 0; index < 2; index++) {
@@ -164,8 +261,19 @@ export class ArcadeEffectPool {
     effect.spin = direction * (0.055 + Math.random() * 0.035);
   }
 
-  spawnImpact(x: number, y: number, size: number) {
+  spawnImpact(x: number, y: number, size: number, color = '#67e8f9') {
+    this.spawnLightPulse(x, y, Math.min(92, size * 1.6), color, 0.18, 105);
     this.spawnSpriteExplosion(x, y, size, 160);
+  }
+
+  private drawLight(light: PooledLight, progress: number) {
+    const fade = 1 - progress;
+    const radius = light.size * (0.58 + progress * 0.42);
+    const alpha = light.intensity * fade * fade;
+    light.graphic.clear();
+    light.graphic.circle(0, 0, radius).fill({ color: light.color, alpha: alpha * 0.08 });
+    light.graphic.circle(0, 0, radius * 0.56).fill({ color: light.color, alpha: alpha * 0.13 });
+    light.graphic.circle(0, 0, radius * 0.22).fill({ color: '#ffffff', alpha: alpha * 0.2 });
   }
 
   private spawnSpriteExplosion(x: number, y: number, size: number, duration: number) {
@@ -284,9 +392,26 @@ export class ArcadeEffectPool {
         effect.root.visible = false;
       }
     }
+
+    for (let index = 0; index < this.lights.length; index++) {
+      const light = this.lights[index];
+      if (!light.active) continue;
+      light.age += deltaMs;
+      const progress = clamp(light.age / light.duration, 0, 1);
+      this.drawLight(light, progress);
+      if (progress >= 1) {
+        light.active = false;
+        light.graphic.visible = false;
+      }
+    }
   }
 
   destroy() {
     this.effects.length = 0;
+    for (let index = 0; index < this.lights.length; index++) {
+      this.lights[index].active = false;
+      this.lights[index].graphic.visible = false;
+    }
+    this.lights.length = 0;
   }
 }

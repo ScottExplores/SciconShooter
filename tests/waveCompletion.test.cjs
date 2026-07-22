@@ -133,14 +133,14 @@ test('internal waves advance immediately while stage finales own departure and r
   assert.match(engine, /this\.wave = this\.getStageNumberForCampaignIndex\(\)/);
 });
 
-test('Gatekeeper stages expose a five-second movable reward window before fixed takeoff', () => {
+test('Gatekeeper stages expose a five-second movable reward window before the full takeoff cinematic', () => {
   const bossStages = [campaign.levels[0], campaign.levels[2], campaign.levels[4]];
   bossStages.forEach((level) => assert.equal(level.waves.at(-1).delayAfterSeconds, 5));
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
-  assert.match(engine, /STAGE_TAKEOFF_FRAMES = 132/);
-  assert.match(engine, /STAGE_TAKEOFF_HOLD_FRAMES = 18/);
-  assert.match(engine, /STAGE_TAKEOFF_LIFT_FRAMES = 24/);
-  assert.match(engine, /STAGE_TAKEOFF_LAUNCH_FRAMES = 90/);
+  assert.match(engine, /STAGE_TAKEOFF_FRAMES = 180/);
+  assert.match(engine, /STAGE_TAKEOFF_HOLD_FRAMES = 24/);
+  assert.match(engine, /STAGE_TAKEOFF_LIFT_FRAMES = 30/);
+  assert.match(engine, /STAGE_TAKEOFF_LAUNCH_FRAMES = 126/);
   assert.match(engine, /if \(this\.stageRewardCollectionFrames > 0\) \{[\s\S]*?this\.updateStageRewardCollection\(\)/);
   assert.match(engine, /updateStageRewardCollection\(\) \{[\s\S]*?this\.updatePlayerMovement\(this\.getPlayerMovementSpeed\(\)\)/);
   assert.match(engine, /beginStageTakeoff\(\) \{[\s\S]*?this\.clearStageBoundaryDebris\(true\)/);

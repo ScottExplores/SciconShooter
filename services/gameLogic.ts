@@ -99,7 +99,8 @@ import {
   MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
   getGeneratedBossTechniqueCue,
   resolveGeneratedBossArchetype,
-  type GeneratedBossArchetype
+  type GeneratedBossArchetype,
+  type GeneratedBossTechniqueCue
 } from './generatedBossArchetypes';
 
 // --- Helper Classes ---
@@ -169,6 +170,10 @@ export class Entity {
   beamAnchorOffsetX: number | null = null;
   beamLaneSign: number = 0;
   bossAttackArchetype?: GeneratedBossArchetype;
+  generatedBossChargeUntilTimer: number = -1;
+  generatedBossTargetX: number | null = null;
+  generatedBossTargetY: number | null = null;
+  generatedBossTargetSequence: number = -1;
   bossRigId?: BossRigId;
   bossComponents?: BossComponentState[];
   bossDecayStage: number = 0;
@@ -503,6 +508,17 @@ export const preloadGameplayAssets = async () => {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
+export const getBossInwardCollapseTarget = (
+  playerCenterX: number,
+  playerCenterY: number,
+  sequence: number,
+  width: number,
+  height: number
+) => ({
+  x: clamp(playerCenterX + Math.sin(sequence * 1.7) * width * 0.04, 42, width - 42),
+  y: clamp(playerCenterY, height * 0.38, height - 72)
+});
+
 const moveToward = (current: number, target: number, maxDelta: number) => {
   if (Math.abs(target - current) <= maxDelta) return target;
   return current + Math.sign(target - current) * maxDelta;
@@ -564,6 +580,14 @@ const GAME_FEEL = {
   squashSpring: 0.2,
   squashDamping: 0.72
 };
+
+export const getPrimaryImpactShakeCooldownFrames = (mobileProfile: boolean) => (
+  mobileProfile ? 6 : 4
+);
+
+export const getPrimaryImpactShakeStrength = (leanEffects: boolean, mainBoss: boolean) => (
+  leanEffects ? 0.12 : mainBoss ? 0.28 : 0.2
+);
 
 const BASE_COIN_MAGNET_RADIUS = 100;
 const POWERUP_COIN_MAGNET_RADIUS = 420;
@@ -1002,11 +1026,12 @@ const BOSS_SHIELD_ESCORT_MOBILE_SIZE = Object.freeze({ width: 48, height: 42 });
 const BOSS_SHIELD_ESCORT_DESKTOP_SIZE = Object.freeze({ width: 54, height: 48 });
 const getBossShieldEscortHp = (wave: number) => Math.min(8, Math.max(2, Math.round(wave)));
 const MAIN_BOSS_ALERT_FRAMES = 120;
-export const STAGE_TAKEOFF_FRAMES = 132;
-export const STAGE_TAKEOFF_HOLD_FRAMES = 18;
-export const STAGE_TAKEOFF_LIFT_FRAMES = 24;
-export const STAGE_TAKEOFF_LAUNCH_FRAMES = 90;
-export const STAGE_TAKEOFF_TRAVEL_EXPONENT = 2.35;
+export const STAGE_TAKEOFF_FRAMES = 180;
+export const STAGE_TAKEOFF_HOLD_FRAMES = 24;
+export const STAGE_TAKEOFF_LIFT_FRAMES = 30;
+export const STAGE_TAKEOFF_LAUNCH_FRAMES = 126;
+export const STAGE_TAKEOFF_TRAVEL_EXPONENT = 1.75;
+export const STAGE_TAKEOFF_EXIT_START = 0.42;
 const STAGE_TAKEOFF_PARTICLE_CUTOFF_FRAMES = 10;
 const MOBILE_TAKEOFF_PARTICLE_CAP = 48;
 const DESKTOP_TAKEOFF_PARTICLE_CAP = 80;
@@ -1182,9 +1207,14 @@ export const getStageTakeoffPose = (
   }
 
   if (presentation.phase === 'launch') {
+    const exitProgress = Math.max(
+      0,
+      Math.min(1, (presentation.phaseProgress - STAGE_TAKEOFF_EXIT_START) / (1 - STAGE_TAKEOFF_EXIT_START))
+    );
+    const exitDistance = viewportHeight * 1.16;
     return {
       x: homeX,
-      y: homeY - liftDistance,
+      y: homeY - liftDistance - exitDistance * exitProgress * exitProgress,
       scale: presentation.scale
     };
   }
@@ -1281,6 +1311,7 @@ export class GameEngine {
   coinCombo: number = 0;
   coinComboTimer: number = 0;
   lastShotFrame: number = -999;
+  lastPrimaryImpactShakeFrame: number = -999;
   bioBeamCanvasVisualStartFrame: number = -1;
   lastBombFrame: number = -999;
   lastPlayerRamFrame: number = -999;
@@ -1557,7 +1588,7 @@ export class GameEngine {
       complete: this.previewComplete || this.campaignComplete,
       campaignComplete: this.campaignComplete,
       stageDepartureProgress: takeoff.progress,
-      stageDepartureSpeedBoost: 1 + hyperspeedStrength * 5,
+      stageDepartureSpeedBoost: 1 + hyperspeedStrength * 8,
       stageHyperspeedActive: hyperspeedStrength > 0,
       stageHyperspeedStrength: hyperspeedStrength
     };
@@ -2252,7 +2283,7 @@ export class GameEngine {
     if (this.waveDepartureFrames > STAGE_TAKEOFF_PARTICLE_CUTOFF_FRAMES) {
       this.spawnThrusterParticles(1.15 + takeoff.thrustStrength * 2.85);
     }
-    this.updateHyperspeedBackground(1 + takeoff.travel * 5);
+    this.updateHyperspeedBackground(1 + takeoff.travel * 8);
 
     this.waveDepartureFrames--;
 
@@ -2407,6 +2438,7 @@ export class GameEngine {
     this.coinCombo = 0;
     this.coinComboTimer = 0;
     this.lastShotFrame = -999;
+    this.lastPrimaryImpactShakeFrame = -999;
     this.bioBeamCanvasVisualStartFrame = -1;
     this.lastBombFrame = -999;
     this.weaponVolley = 0;
@@ -2766,6 +2798,26 @@ export class GameEngine {
     this.shakeStrength = Math.max(this.shakeStrength, amount);
   }
 
+  registerPrimaryWeaponImpact(target: Entity, shot: Entity) {
+    if (
+      !this.polishSettings.screenShake
+      || !shot.isPlayerShot
+      || shot.type !== EntityType.PROJECTILE
+      || shot.weaponKind !== 'pulse'
+      || shot.isBeam
+      || shot.shipAbilityKind
+      || shot.squadAbilityKind
+      || (target.type !== EntityType.BOSS && target.type !== EntityType.MINI_BOSS && !target.isElite)
+    ) {
+      return;
+    }
+
+    const cooldownFrames = getPrimaryImpactShakeCooldownFrames(this.mobileProfile);
+    if (this.frameCount - this.lastPrimaryImpactShakeFrame < cooldownFrames) return;
+    this.lastPrimaryImpactShakeFrame = this.frameCount;
+    this.addShake(getPrimaryImpactShakeStrength(this.shouldUseLeanEffects(), target.type === EntityType.BOSS));
+  }
+
   addHitStop(frames: number) {
     this.hitStopFrames = Math.max(this.hitStopFrames, frames);
   }
@@ -3027,7 +3079,7 @@ export class GameEngine {
       this.compactEntities();
       this.refreshLoadState();
       const takeoff = this.getStageTakeoffPresentation();
-      this.bgY = (this.bgY + Math.max(1, Math.round(1 + takeoff.travel * 5))) % this.height;
+      this.bgY = (this.bgY + Math.max(1, Math.round(1 + takeoff.travel * 8))) % this.height;
       return;
     }
 
@@ -5777,12 +5829,23 @@ export class GameEngine {
     if (!resolved) return 0;
     if (boss.activeBossPhaseIndex === resolved.phaseIndex) return resolved.phaseIndex + 1;
 
+    const transitionedBetweenActivePhases = boss.activeBossPhaseIndex >= 0;
     boss.activeBossPhaseIndex = resolved.phaseIndex;
     boss.activeBossPhaseId = resolved.phaseId;
     boss.activeBossPhaseSpeedMultiplier = Math.max(0.01, Number(resolved.speedMultiplier) || 1);
     boss.movementPattern = resolved.movementPatternId;
     const baseSpeed = boss.configuredBaseSpeed ?? boss.configuredSpeed ?? 2;
     boss.configuredSpeed = baseSpeed * boss.activeBossPhaseSpeedMultiplier;
+    if (boss.bossAttackArchetype && transitionedBetweenActivePhases) {
+      // A new generated-boss phase always starts at the beginning of its
+      // authored cue cycle so a damaging technique can never skip its warning.
+      boss.attackTimer = 0;
+      boss.generatedBossChargeUntilTimer = -1;
+      boss.generatedBossTargetX = null;
+      boss.generatedBossTargetY = null;
+      boss.generatedBossTargetSequence = -1;
+      boss.isCharging = false;
+    }
 
     const activeWeapons = resolved.weaponSettings;
     boss.weaponKinds = activeWeapons.map((setting) => String(setting.weaponId));
@@ -6837,7 +6900,10 @@ export class GameEngine {
     }
 
     const thickness = telegraph ? 9 : 20;
-    const lifetime = telegraph ? 34 : 26;
+    // Keep the harmless lane visible through the longest authored warning gap
+    // (Violet Arbiter uses 42 frames) so players never lose the dodge guide
+    // immediately before the damaging cross appears.
+    const lifetime = telegraph ? 46 : 26;
     const color = telegraph ? '#ef4444' : '#22d3ee';
     const createBeam = (axis: 'vertical' | 'horizontal') => {
       const beam = new Entity(
@@ -6952,6 +7018,86 @@ export class GameEngine {
     this.addHitStop(3);
   }
 
+  spawnGeneratedBossTechniqueWarning(boss: Entity, cue: GeneratedBossTechniqueCue) {
+    const bossCenterX = boss.x + boss.width / 2;
+    const bossCenterY = boss.y + boss.height * 0.56;
+    const playerCenterX = this.player.x + this.player.width / 2;
+    const playerCenterY = this.player.y + this.player.height / 2;
+    const singularityTarget = cue.technique === 'singularity-telegraph'
+      ? getBossInwardCollapseTarget(playerCenterX, playerCenterY, cue.sequence, this.width, this.height)
+      : null;
+    if (singularityTarget) {
+      boss.generatedBossTargetX = singularityTarget.x;
+      boss.generatedBossTargetY = singularityTarget.y;
+      boss.generatedBossTargetSequence = cue.sequence;
+    }
+    const warning = (() => {
+      switch (cue.technique) {
+        case 'rail-tail-telegraph':
+          return { x: bossCenterX, y: boss.y + boss.height * 0.84, color: '#fb7185', label: 'TAIL FAN CHARGING' };
+        case 'prism-telegraph':
+          return { x: bossCenterX, y: bossCenterY, color: '#67e8f9', label: 'PRISM GAP FORMING' };
+        case 'singularity-telegraph':
+          return {
+            x: singularityTarget?.x ?? playerCenterX,
+            y: singularityTarget?.y ?? playerCenterY,
+            color: '#c084fc',
+            label: 'GRAVITY WELL MARKED'
+          };
+        case 'orbit-telegraph':
+          return { x: bossCenterX, y: bossCenterY, color: '#38bdf8', label: 'ORBIT CROSS CHARGING' };
+        case 'helix-left-telegraph':
+          return { x: boss.x + boss.width * 0.28, y: bossCenterY, color: '#f0abfc', label: 'LEFT HELIX COILING' };
+        case 'helix-right-telegraph':
+          return { x: boss.x + boss.width * 0.72, y: bossCenterY, color: '#f0abfc', label: 'RIGHT HELIX COILING' };
+        case 'hammerhead-port-telegraph':
+          return { x: boss.x + boss.width * 0.2, y: bossCenterY, color: '#fb7185', label: 'PORT BATTERY CHARGING' };
+        case 'hammerhead-starboard-telegraph':
+          return { x: boss.x + boss.width * 0.8, y: bossCenterY, color: '#fdba74', label: 'STARBOARD BATTERY CHARGING' };
+        case 'eclipse-telegraph':
+          return { x: bossCenterX, y: bossCenterY, color: '#a855f7', label: 'ECLIPSE APERTURE OPENING' };
+        default:
+          return null;
+      }
+    })();
+    if (!warning) return;
+
+    boss.generatedBossChargeUntilTimer = Math.max(
+      boss.generatedBossChargeUntilTimer,
+      boss.attackTimer + Math.max(1, cue.warningFrames)
+    );
+    boss.isCharging = true;
+    this.spawnRingEffect(warning.x, warning.y, warning.color);
+    this.spawnFloatingText(warning.x, warning.y + 28, warning.label, warning.color, 14);
+    this.playSound('siren', 0.42, { pitchJitter: 0.02, pitchOffset: -0.08 });
+  }
+
+  spawnBossTailFan(boss: Entity, sequence: number) {
+    const originX = boss.x + boss.width / 2;
+    const originY = boss.y + boss.height * 0.84;
+    const playerX = this.player.x + this.player.width / 2;
+    const playerY = this.player.y + this.player.height / 2;
+    const baseAngle = Math.atan2(playerY - originY, playerX - originX) + Math.sin(sequence * 1.37) * 0.035;
+    const shotCount = 5;
+    const speed = Math.min(6.1, Math.max(3.8, Number(boss.projectileSpeed) || 5.2) * 0.68);
+    for (let index = 0; index < shotCount; index++) {
+      const offset = index - (shotCount - 1) / 2;
+      this.spawnGeneratedBossProjectile(
+        boss,
+        originX,
+        originY,
+        baseAngle + offset * 0.15,
+        speed * (1 - Math.abs(offset) * 0.025),
+        index % 2 === 0 ? '#fb7185' : '#f97316',
+        12,
+        index
+      );
+    }
+    this.spawnRingEffect(originX, originY, '#fb7185');
+    this.spawnFloatingText(originX, originY + 24, 'TAIL FAN', '#fda4af', 14);
+    this.playSound('boss_shoot', 0.9, { pitchJitter: 0.04, pitchOffset: -0.12 });
+  }
+
   spawnBossSafeGapRing(
     boss: Entity,
     sequence: number,
@@ -7007,12 +7153,21 @@ export class GameEngine {
   }
 
   spawnBossInwardCollapse(boss: Entity, sequence: number, phase: number) {
-    const targetX = clamp(
-      this.player.x + this.player.width / 2 + Math.sin(sequence * 1.7) * this.width * 0.04,
-      42,
-      this.width - 42
+    const fallbackTarget = getBossInwardCollapseTarget(
+      this.player.x + this.player.width / 2,
+      this.player.y + this.player.height / 2,
+      sequence,
+      this.width,
+      this.height
     );
-    const targetY = clamp(this.player.y + this.player.height / 2, this.height * 0.38, this.height - 72);
+    const hasLockedTarget = boss.generatedBossTargetSequence === sequence
+      && Number.isFinite(boss.generatedBossTargetX)
+      && Number.isFinite(boss.generatedBossTargetY);
+    const targetX = hasLockedTarget ? Number(boss.generatedBossTargetX) : fallbackTarget.x;
+    const targetY = hasLockedTarget ? Number(boss.generatedBossTargetY) : fallbackTarget.y;
+    boss.generatedBossTargetX = null;
+    boss.generatedBossTargetY = null;
+    boss.generatedBossTargetSequence = -1;
     const requestedCount = (this.mobileProfile ? 10 : 14) + phase * 2;
     const shotCount = Math.min(20, requestedCount);
     const radiusX = Math.max(90, this.width * 0.43);
@@ -7229,17 +7384,27 @@ export class GameEngine {
     const hasActiveBeam = this.entities.some((entity) => (
       entity.isBeam && entity.bossOwnerId === boss.id && !entity.markedForDeletion
     ));
-    boss.isCharging = hasActiveBeam;
+    boss.isCharging = hasActiveBeam || boss.attackTimer < boss.generatedBossChargeUntilTimer;
     if (!cue) return;
 
     if (cue.technique === 'rail-telegraph') {
+      boss.generatedBossChargeUntilTimer = boss.attackTimer + Math.max(1, cue.warningFrames);
       boss.isCharging = true;
       this.spawnBossRailSweep(boss, cue.sequence, true);
       return;
     }
+    if (cue.stage === 'warning') {
+      this.spawnGeneratedBossTechniqueWarning(boss, cue);
+      return;
+    }
+    boss.generatedBossChargeUntilTimer = -1;
     if (cue.technique === 'rail-fire') {
       boss.isCharging = true;
       this.spawnBossRailSweep(boss, cue.sequence, false);
+      return;
+    }
+    if (cue.technique === 'rail-tail-volley') {
+      this.spawnBossTailFan(boss, cue.sequence);
       return;
     }
     if (cue.technique === 'prism-gap-ring') {
@@ -7262,7 +7427,9 @@ export class GameEngine {
       this.spawnBossSideBarrage(boss, phase, cue.technique === 'hammerhead-port' ? 'port' : 'starboard');
       return;
     }
-    this.spawnBossSafeGapRing(boss, cue.sequence, phase, true);
+    if (cue.technique === 'eclipse-dark-pulse') {
+      this.spawnBossSafeGapRing(boss, cue.sequence, phase, true);
+    }
   }
 
   updateArenaRoamingBoss(boss: Entity, healthRatio: number, phase: number) {
@@ -7300,9 +7467,12 @@ export class GameEngine {
       Math.max(targetEntranceY, this.height * (0.48 + progressionTier * 0.045) - boss.height)
     );
 
-    const cycleLength = Math.max(250, 318 - Math.round(pressure * 44));
+    const isVioletArbiter = boss.sourceEventId === 'helix-convergence-final-boss';
+    const cycleLength = isVioletArbiter
+      ? Math.max(330, 354 - Math.round(pressure * 24))
+      : Math.max(250, 318 - Math.round(pressure * 44));
     const attackCycle = boss.attackTimer % cycleLength;
-    const telegraphFrame = cycleLength - 70;
+    const telegraphFrame = cycleLength - (isVioletArbiter ? 76 : 70);
     const fireFrame = cycleLength - 34;
     const crossActive = this.entities.some((entity) => (
       entity.isBeam && entity.bossOwnerId === boss.id && !entity.markedForDeletion
@@ -7366,10 +7536,9 @@ export class GameEngine {
     this.playSound('boss_shoot', 1.08, { pitchJitter: 0.05, pitchOffset: -0.08 });
   }
 
-  queueBossTargetStrike(boss: Entity) {
+  queueBossTargetStrike(boss: Entity, warningFrames = 54) {
     const targetX = clamp(this.player.x + this.player.width / 2, 34, this.width - 34);
     const targetY = clamp(this.player.y + this.player.height / 2, 90, this.height - 54);
-    const warningFrames = 54;
     this.pendingBossStrikes.push({
       bossId: boss.id,
       x: targetX,
@@ -7384,12 +7553,13 @@ export class GameEngine {
 
   updatePendingBossStrikes() {
     if (this.pendingBossStrikes.length === 0) return;
-    const activeBossIds = new Set(this.entities
+    const activeBosses = new Map(this.entities
       .filter((entity) => entity.type === EntityType.BOSS && !entity.markedForDeletion)
-      .map((entity) => entity.id));
+      .map((entity) => [entity.id, entity] as const));
 
     for (const strike of this.pendingBossStrikes) {
-      if (!activeBossIds.has(strike.bossId)) {
+      const owner = activeBosses.get(strike.bossId);
+      if (!owner) {
         strike.frames = 0;
         continue;
       }
@@ -7398,6 +7568,16 @@ export class GameEngine {
         this.spawnRingEffect(strike.x, strike.y, '#ef4444');
       }
       if (strike.frames !== 0) continue;
+
+      const ownerHasActiveBeam = this.entities.some((entity) => (
+        entity.isBeam && entity.bossOwnerId === owner.id && !entity.markedForDeletion
+      ));
+      if (owner.isCharging || ownerHasActiveBeam) {
+        // Resolve on the first quiet frame instead of stacking a missile impact
+        // on top of an already-telegraphed beam pattern.
+        strike.frames = 1;
+        continue;
+      }
 
       const cycle = this.getCampaignCycle();
       const missileCount = Math.min(3, 1 + Math.floor(cycle / 2));
@@ -7422,14 +7602,15 @@ export class GameEngine {
   updateEscalationBossAttacks(boss: Entity) {
     const cycle = this.getCampaignCycle();
     if (cycle < 1 || boss.y < 48 || boss.isCharging) return;
-    const ringInterval = Math.max(250, 390 - cycle * 22);
-    const strikeInterval = Math.max(300, 470 - cycle * 24);
+    const isVioletArbiter = boss.sourceEventId === 'helix-convergence-final-boss';
+    const ringInterval = isVioletArbiter ? 420 : Math.max(250, 390 - cycle * 22);
+    const strikeInterval = isVioletArbiter ? 510 : Math.max(300, 470 - cycle * 24);
     if (boss.attackTimer > 90 && boss.attackTimer % ringInterval === 0) {
       this.spawnBossGapRing(boss);
       return;
     }
     if (boss.attackTimer > 120 && boss.attackTimer % strikeInterval === Math.floor(strikeInterval * 0.48)) {
-      this.queueBossTargetStrike(boss);
+      this.queueBossTargetStrike(boss, isVioletArbiter ? 60 : 54);
     }
   }
 
@@ -8195,6 +8376,7 @@ export class GameEngine {
         if (bossShielded) {
           if (!shot.isBeam) shot.markedForDeletion = true;
           this.pulseDamageFlash(target);
+          this.registerPrimaryWeaponImpact(target, shot);
           if (this.frameCount % 5 === 0) {
             this.spawnRingEffect(shot.x + shot.width / 2, shot.y + shot.height / 2, '#a7f3d0');
             this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, '#a7f3d0', shot.type === EntityType.MISSILE ? 6 : 3, 2.2, 3);
@@ -8243,6 +8425,7 @@ export class GameEngine {
           target.hp -= dmg;
           this.flashDamageTarget(target);
         }
+        this.registerPrimaryWeaponImpact(target, shot);
         this.spawnBurst(shot.x + shot.width / 2, shot.y + shot.height / 2, shot.color || '#67e8f9', shot.type === EntityType.MISSILE ? 8 : 3, shot.type === EntityType.MISSILE ? 3.8 : 1.6, shot.type === EntityType.MISSILE ? 4 : 2.5);
         this.playSound('impact', isBossTarget ? 0.78 : 0.46, {
           pitchJitter: 0.18,

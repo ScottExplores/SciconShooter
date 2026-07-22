@@ -242,15 +242,46 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                   const isClaimed = reward.day <= completedThrough;
                   const isToday = reward.day === dailyStatus.claimableDay;
                   const ship = reward.shipId ? PLAYER_SHIPS[reward.shipId] : null;
+                  const rewardName = ship
+                    ? `${ship.name} ship and ${reward.coins.toLocaleString()} coins`
+                    : `${reward.coins.toLocaleString()} coins`;
+                  const cardState = isClaimed
+                    ? 'claimed'
+                    : !isToday
+                      ? 'locked'
+                      : pendingClaim !== null
+                        ? 'pending'
+                        : !walletConnected
+                          ? 'connect-required'
+                          : dailyStatus.isAvailable
+                            ? 'claimable'
+                            : 'unavailable';
+                  const isClaimable = cardState === 'claimable';
+                  const cardLabel = cardState === 'claimed'
+                    ? `Day ${reward.day} claimed: ${rewardName}`
+                    : cardState === 'claimable'
+                      ? `Claim Day ${reward.day}: ${rewardName}`
+                      : cardState === 'pending'
+                        ? `Securing Day ${reward.day}: ${rewardName}`
+                        : cardState === 'connect-required'
+                          ? `Day ${reward.day}: connect to claim ${rewardName}`
+                          : `Day ${reward.day} locked: ${rewardName}`;
                   return (
-                    <article
+                    <button
                       key={reward.day}
+                      type="button"
                       className={[
                         'sci-daily-card',
                         isClaimed ? 'is-claimed' : '',
                         isToday ? 'is-today' : '',
+                        isClaimable ? 'is-claimable' : '',
                         ship ? 'has-ship' : ''
                       ].filter(Boolean).join(' ')}
+                      data-state={cardState}
+                      disabled={!isClaimable}
+                      aria-label={cardLabel}
+                      aria-current={isToday ? 'step' : undefined}
+                      onClick={handleClaimDailyGift}
                     >
                       <span className="sci-daily-day">Day {reward.day}</span>
                       <div className="sci-daily-art">
@@ -259,7 +290,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                       <strong>{ship ? `Unlock ${ship.name}` : `${reward.coins} coins`}</strong>
                       {ship && <small>+ {reward.coins} coins</small>}
                       {isClaimed && <span className="sci-daily-check" aria-label="Claimed">&#10003;</span>}
-                    </article>
+                    </button>
                   );
                 })}
               </div>

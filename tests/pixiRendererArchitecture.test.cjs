@@ -51,13 +51,15 @@ test('Pixi presentation keeps ordered gameplay layers and pooled effects', () =>
   assert.match(renderer, /new PixiEnvironment/);
   assert.match(renderer, /new PixiTextureBank/);
   assert.match(effects, /class ArcadeEffectPool/);
-  assert.match(effects, /this\.effects\.length >= this\.maxEffects/);
+  assert.match(effects, /reusableCount >= this\.maxEffects/);
   assert.match(environment, /class PixiEnvironment/);
   assert.match(environment, /this\.parallaxLayers/);
   assert.match(environment, /const BACKGROUND_PROFILES/);
   assert.match(environment, /PIXI_TERRAIN_SPACE_MASTER/);
   assert.match(environment, /private applyProfile/);
-  assert.match(environment, /const blurStrength = engine\.performanceMode \? 0 : layer\.softness/);
+  assert.match(environment, /const baseBlurStrength = engine\.performanceMode \? 0 : layer\.softness/);
+  assert.match(environment, /layer\.blurFilter\.strengthY = baseBlurStrength \+ takeoffBlurY/);
+  assert.match(environment, /this\.terrainPropLayer\.filters = shouldBlurSpaceProps \? \[this\.spacePropMotionBlur\] : null/);
   assert.doesNotMatch(environment, /layer\.root\.visible = !\(lowQuality/);
   assert.match(textures, /class PixiTextureBank/);
   assert.match(renderer, /private readonly recycledViews = new Map/);

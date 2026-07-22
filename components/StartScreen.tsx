@@ -1064,8 +1064,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <PixelActionButton
             onClick={onStart}
             tone="green"
+            ready
             shine
-            className={`sci-start-button group mx-auto w-full max-w-[25rem] font-black uppercase ${compact ? 'px-5 py-2 text-base' : 'px-7 py-4 text-xl md:text-2xl'}`}
+            className={`sci-start-button group mx-auto w-full max-w-[26rem] font-black uppercase ${compact ? 'min-h-[4.25rem] px-6 py-3 text-lg' : 'min-h-[5rem] px-8 py-4 text-xl md:text-2xl'}`}
           >
             <span className="flex items-center justify-center gap-3">
               <span className={`sci-start-button__play flex items-center justify-center text-emerald-950 transition group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-9 w-9'}`}>

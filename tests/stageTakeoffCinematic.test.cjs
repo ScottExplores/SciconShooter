@@ -27,32 +27,34 @@ const loadTakeoffPresentation = () => {
   return moduleBox.exports;
 };
 
-test('takeoff is exactly 18 hold, 24 lift, and 90 accelerating world-launch frames', () => {
+test('takeoff provides a three-second hold, lift, and accelerating world-launch cinematic', () => {
   const {
     STAGE_TAKEOFF_FRAMES,
     STAGE_TAKEOFF_HOLD_FRAMES,
     STAGE_TAKEOFF_LIFT_FRAMES,
     STAGE_TAKEOFF_LAUNCH_FRAMES,
     STAGE_TAKEOFF_TRAVEL_EXPONENT,
+    STAGE_TAKEOFF_EXIT_START,
     getStageTakeoffPresentation
   } = loadTakeoffPresentation();
 
-  assert.equal(STAGE_TAKEOFF_FRAMES, 132);
-  assert.equal(STAGE_TAKEOFF_HOLD_FRAMES, 18);
-  assert.equal(STAGE_TAKEOFF_LIFT_FRAMES, 24);
-  assert.equal(STAGE_TAKEOFF_LAUNCH_FRAMES, 90);
-  assert.equal(STAGE_TAKEOFF_TRAVEL_EXPONENT, 2.35);
+  assert.equal(STAGE_TAKEOFF_FRAMES, 180);
+  assert.equal(STAGE_TAKEOFF_HOLD_FRAMES, 24);
+  assert.equal(STAGE_TAKEOFF_LIFT_FRAMES, 30);
+  assert.equal(STAGE_TAKEOFF_LAUNCH_FRAMES, 126);
+  assert.equal(STAGE_TAKEOFF_TRAVEL_EXPONENT, 1.75);
+  assert.equal(STAGE_TAKEOFF_EXIT_START, 0.42);
 
   assert.deepEqual(
-    [132, 115, 114, 91, 90, 1, 0].map((remaining) => getStageTakeoffPresentation(remaining).phase),
+    [180, 157, 156, 127, 126, 1, 0].map((remaining) => getStageTakeoffPresentation(remaining).phase),
     ['hold', 'hold', 'lift', 'lift', 'launch', 'launch', 'idle']
   );
 
-  const holdStart = getStageTakeoffPresentation(132);
-  const holdEnd = getStageTakeoffPresentation(115);
-  const liftStart = getStageTakeoffPresentation(114);
-  const liftEnd = getStageTakeoffPresentation(91);
-  const launchStart = getStageTakeoffPresentation(90);
+  const holdStart = getStageTakeoffPresentation(180);
+  const holdEnd = getStageTakeoffPresentation(157);
+  const liftStart = getStageTakeoffPresentation(156);
+  const liftEnd = getStageTakeoffPresentation(127);
+  const launchStart = getStageTakeoffPresentation(126);
   const launchEnd = getStageTakeoffPresentation(1);
   assert.equal(holdStart.scale, 1);
   assert.equal(holdEnd.scale, 0.98);
@@ -63,20 +65,20 @@ test('takeoff is exactly 18 hold, 24 lift, and 90 accelerating world-launch fram
   assert.equal(launchStart.travel, 0);
   assert.equal(launchEnd.travel, 1);
 
-  const launchTravelAt = (phaseAge) => getStageTakeoffPresentation(90 - phaseAge).travel;
-  const samples = [0, 22, 44, 66, 89].map(launchTravelAt);
+  const launchTravelAt = (phaseAge) => getStageTakeoffPresentation(126 - phaseAge).travel;
+  const samples = [0, 31, 62, 93, 125].map(launchTravelAt);
   const deltas = samples.slice(1).map((value, index) => value - samples[index]);
   assert.ok(deltas.every((delta, index) => index === 0 || delta > deltas[index - 1]));
 });
 
-test('an arbitrary reward-window position returns home, lifts four percent, then stays anchored', () => {
+test('an arbitrary reward-window position returns home, builds speed, then exits above the viewport', () => {
   const { getStageTakeoffPose, getStageTakeoffPresentation } = loadTakeoffPresentation();
   const start = { x: 27, y: 318 };
   const home = { x: 154, y: 724 };
   const viewportHeight = 900;
 
   const holdStart = getStageTakeoffPose(
-    getStageTakeoffPresentation(132),
+    getStageTakeoffPresentation(180),
     start.x,
     start.y,
     home.x,
@@ -84,7 +86,7 @@ test('an arbitrary reward-window position returns home, lifts four percent, then
     viewportHeight
   );
   const holdEnd = getStageTakeoffPose(
-    getStageTakeoffPresentation(115),
+    getStageTakeoffPresentation(157),
     start.x,
     start.y,
     home.x,
@@ -92,7 +94,7 @@ test('an arbitrary reward-window position returns home, lifts four percent, then
     viewportHeight
   );
   const liftStart = getStageTakeoffPose(
-    getStageTakeoffPresentation(114),
+    getStageTakeoffPresentation(156),
     start.x,
     start.y,
     home.x,
@@ -100,7 +102,7 @@ test('an arbitrary reward-window position returns home, lifts four percent, then
     viewportHeight
   );
   const liftEnd = getStageTakeoffPose(
-    getStageTakeoffPresentation(91),
+    getStageTakeoffPresentation(127),
     start.x,
     start.y,
     home.x,
@@ -108,7 +110,7 @@ test('an arbitrary reward-window position returns home, lifts four percent, then
     viewportHeight
   );
   const launchStart = getStageTakeoffPose(
-    getStageTakeoffPresentation(90),
+    getStageTakeoffPresentation(126),
     start.x,
     start.y,
     home.x,
@@ -131,8 +133,26 @@ test('an arbitrary reward-window position returns home, lifts four percent, then
   assert.equal(liftEnd.y, home.y - viewportHeight * 0.04);
   assert.equal(launchStart.x, home.x);
   assert.equal(launchStart.y, liftEnd.y);
+  const launchBuild = getStageTakeoffPose(
+    getStageTakeoffPresentation(74),
+    start.x,
+    start.y,
+    home.x,
+    home.y,
+    viewportHeight
+  );
+  assert.equal(launchBuild.y, liftEnd.y, 'the world accelerates before the ship commits to its exit');
+  const launchY = [126, 100, 74, 50, 25, 1].map((remaining) => getStageTakeoffPose(
+    getStageTakeoffPresentation(remaining),
+    start.x,
+    start.y,
+    home.x,
+    home.y,
+    viewportHeight
+  ).y);
+  assert.ok(launchY.every((value, index) => index === 0 || value <= launchY[index - 1]));
   assert.equal(launchEnd.x, home.x);
-  assert.equal(launchEnd.y, liftEnd.y, 'the world accelerates while the formation remains anchored');
+  assert.ok(launchEnd.y < -viewportHeight * 0.25, 'the ship visibly clears the top of the viewport');
   assert.ok(launchEnd.scale >= 0.9 && launchEnd.scale <= 1.02);
 });
 
@@ -304,7 +324,7 @@ test('companion formation resets deterministically and reforms with the next-sta
   assert.match(engine, /updateIntroFlight\(\)[\s\S]*?this\.updateIntroSquadCompanions\(\)/);
 });
 
-test('engine takeoff uses the anchored pose and cleans combat debris at the reward boundary', () => {
+test('engine takeoff uses the deterministic exit pose and cleans combat debris at the reward boundary', () => {
   const departureStart = engine.indexOf('updateWaveDeparture()');
   const departureEnd = engine.indexOf('startDeathSequence()', departureStart);
   const departure = engine.slice(departureStart, departureEnd);
@@ -332,13 +352,17 @@ test('engine takeoff uses the anchored pose and cleans combat debris at the rewa
   assert.match(engine, /DESKTOP_TAKEOFF_PARTICLES_PER_FRAME = 4/);
 });
 
-test('Pixi forces neutral flight, dual bounded thrusters, and scaled companion departure', () => {
+test('Pixi forces neutral flight, extended blue thrusters, and a pooled launch streak', () => {
   assert.match(renderer, /engine\.waveDepartureFrames > 0[\s\S]*?this\.playerSteeringState = 'neutral'[\s\S]*?motion\.steeringFrames\.neutral/);
-  assert.match(renderer, /STAGE_TAKEOFF_THRUSTER_VISUAL_CAP = 3\.2/);
+  assert.match(renderer, /STAGE_TAKEOFF_THRUSTER_VISUAL_CAP = 6\.4/);
   assert.match(renderer, /const takeoff = engine\.getStageTakeoffPresentation\(\)/);
   assert.match(renderer, /const hardBank = !takeoffActive/);
   assert.match(renderer, /thruster\.visible = !hardBank \|\| index === 0/);
   assert.match(renderer, /Math\.min\(STAGE_TAKEOFF_THRUSTER_VISUAL_CAP, rawSizeBoost\)/);
+  assert.match(renderer, /private readonly stageLaunchStreak = new Graphics\(\)/);
+  assert.match(renderer, /private syncStageLaunchStreak\(engine: GameEngine, takeoff: StageTakeoffPresentation\)/);
+  assert.match(renderer, /const edge = takeoff\.phase === 'launch' \? '#38bdf8' : configuredEdge/);
+  assert.match(renderer, /takeoff\.travel \* 4\.2/);
   assert.match(renderer, /pod\.width = companion\.width \* companion\.scale/);
   assert.match(renderer, /pod\.height = companion\.height \* companion\.scale/);
   assert.match(renderer, /gunPodThrusterSprites = \[new Sprite\(Texture\.WHITE\), new Sprite\(Texture\.WHITE\)\]/);
@@ -348,5 +372,10 @@ test('Pixi forces neutral flight, dual bounded thrusters, and scaled companion d
   );
   assert.match(syncGunPods, /thruster\.visible = Boolean\(takeoffActive/);
   assert.doesNotMatch(syncGunPods, /new Sprite|new Container/);
+  const syncLaunchStreak = renderer.slice(
+    renderer.indexOf('private syncStageLaunchStreak(engine: GameEngine, takeoff: StageTakeoffPresentation)'),
+    renderer.indexOf('private syncPlayerThrusters(engine: GameEngine)')
+  );
+  assert.doesNotMatch(syncLaunchStreak, /new Graphics|new Sprite|new Container/);
   assert.match(engine, /scale: this\.waveDepartureFrames > 0 \? this\.playerDrawScale : 1/);
 });

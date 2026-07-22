@@ -3240,7 +3240,7 @@
               "movementPatternId": "gatekeeper-cycle",
               "warningSeconds": 3.4,
               "health": 820,
-              "speed": 2.15,
+              "speed": 2.05,
               "damage": 1,
               "scoreReward": 11500,
               "powerupDropChance": 1,
@@ -3250,10 +3250,10 @@
                 {
                   "id": "helix-convergence-radial-burst",
                   "weaponId": "burst-volley",
-                  "attackIntervalSeconds": 0.9,
+                  "attackIntervalSeconds": 1.05,
                   "damage": 1,
-                  "projectileSpeed": 8.65,
-                  "burstCount": 8
+                  "projectileSpeed": 7.8,
+                  "burstCount": 7
                 },
                 {
                   "id": "helix-convergence-charged-lanes",
@@ -3278,9 +3278,9 @@
                 {
                   "id": "helix-convergence-phase-crossfire",
                   "label": "Charged crossfire",
-                  "triggerHealthRatio": 0.62,
+                  "triggerHealthRatio": 0.6,
                   "movementPatternId": "arena-roam",
-                  "speedMultiplier": 1.12,
+                  "speedMultiplier": 1.08,
                   "weaponSettingIds": [
                     "helix-convergence-radial-burst",
                     "helix-convergence-charged-lanes"
@@ -3289,9 +3289,9 @@
                 {
                   "id": "helix-convergence-phase-collapse",
                   "label": "Collapse pattern",
-                  "triggerHealthRatio": 0.27,
+                  "triggerHealthRatio": 0.24,
                   "movementPatternId": "arena-roam",
-                  "speedMultiplier": 1.28,
+                  "speedMultiplier": 1.18,
                   "weaponSettingIds": [
                     "helix-convergence-radial-burst",
                     "helix-convergence-charged-lanes"

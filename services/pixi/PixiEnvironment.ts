@@ -108,7 +108,8 @@ export const PARALLAX_TILE_POOL_SIZE = 8;
 export const GROUND_PROP_CONTACT_ANCHOR_Y = 238 / TERRAIN_PROP_CELL_SIZE;
 export const MOBILE_HYPERSPEED_STREAK_CAP = 24;
 export const DESKTOP_HYPERSPEED_STREAK_CAP = 38;
-export const TAKEOFF_WORLD_SPEED_MULTIPLIER = 30;
+export const TAKEOFF_WORLD_SPEED_MULTIPLIER = 48;
+export const SPACE_PROP_MOTION_BLUR_CAP = 5.4;
 
 const positiveModulo = (value: number, divisor: number) => (
   divisor > 0 ? ((value % divisor) + divisor) % divisor : 0
@@ -172,29 +173,29 @@ const createSpaceRunLayout = (phaseOffset: number, mirrored = false): readonly T
   const leftEdge = mirrored ? 1.07 : 0.08;
   const rightEdge = mirrored ? 0.08 : 1.07;
   return [
-    { frame: 0, baseX: leftEdge, baseY: 0.04, speed: 0.006, sway: 1, phase: phaseOffset, widthRatio: 0.86, rotationSpeed: 0, alpha: 0.72 },
-    { frame: 1, baseX: rightEdge, baseY: 0.42, speed: 0.009, sway: 1.4, phase: phaseOffset + 0.8, widthRatio: 1, rotationSpeed: 0, alpha: 0.76 },
-    { frame: 2, baseX: mirrored ? 0.82 : 0.18, baseY: 0.7, speed: 0.018, sway: 2, phase: phaseOffset + 1.5, widthRatio: 0.26, rotationSpeed: 0, alpha: 0.58 },
-    { frame: 3, baseX: mirrored ? 0.92 : 0.08, baseY: 0.2, speed: 0.044, sway: 3, phase: phaseOffset + 2.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.82 },
-    { frame: 4, baseX: mirrored ? 0.1 : 0.9, baseY: 0.58, speed: 0.058, sway: 3.5, phase: phaseOffset + 2.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.84 },
-    { frame: 5, baseX: mirrored ? 0.86 : 0.14, baseY: 0.88, speed: 0.072, sway: 4, phase: phaseOffset + 3.6, widthRatio: 0.14, rotationSpeed: 0, alpha: 0.86 },
-    { frame: 6, baseX: mirrored ? 0.12 : 0.88, baseY: 0.34, speed: 0.086, sway: 4.5, phase: phaseOffset + 4.3, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.82 },
-    { frame: 7, baseX: mirrored ? 0.9 : 0.1, baseY: 0.76, speed: 0.1, sway: 5, phase: phaseOffset + 5, widthRatio: 0.13, rotationSpeed: 0, alpha: 0.88 },
-    { frame: 8, baseX: mirrored ? 0.16 : 0.84, baseY: 0.96, speed: 0.112, sway: 5.5, phase: phaseOffset + 5.7, widthRatio: 0.15, rotationSpeed: 0, alpha: 0.9 }
+    { frame: 0, baseX: leftEdge, baseY: 0.04, speed: 0.007, sway: 1, phase: phaseOffset, widthRatio: 0.86, rotationSpeed: 0, alpha: 0.72 },
+    { frame: 1, baseX: rightEdge, baseY: 0.42, speed: 0.012, sway: 1.4, phase: phaseOffset + 0.8, widthRatio: 1, rotationSpeed: 0, alpha: 0.76 },
+    { frame: 2, baseX: mirrored ? 0.82 : 0.18, baseY: 0.7, speed: 0.055, sway: 2, phase: phaseOffset + 1.5, widthRatio: 0.26, rotationSpeed: 0, alpha: 0.58 },
+    { frame: 3, baseX: mirrored ? 0.92 : 0.08, baseY: 0.2, speed: 0.12, sway: 3, phase: phaseOffset + 2.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.82 },
+    { frame: 4, baseX: mirrored ? 0.1 : 0.9, baseY: 0.58, speed: 0.16, sway: 3.5, phase: phaseOffset + 2.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.84 },
+    { frame: 5, baseX: mirrored ? 0.86 : 0.14, baseY: 0.88, speed: 0.22, sway: 4, phase: phaseOffset + 3.6, widthRatio: 0.14, rotationSpeed: 0, alpha: 0.86 },
+    { frame: 6, baseX: mirrored ? 0.12 : 0.88, baseY: 0.34, speed: 0.27, sway: 4.5, phase: phaseOffset + 4.3, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.82 },
+    { frame: 7, baseX: mirrored ? 0.9 : 0.1, baseY: 0.76, speed: 0.32, sway: 5, phase: phaseOffset + 5, widthRatio: 0.13, rotationSpeed: 0, alpha: 0.88 },
+    { frame: 8, baseX: mirrored ? 0.16 : 0.84, baseY: 0.96, speed: 0.38, sway: 5.5, phase: phaseOffset + 5.7, widthRatio: 0.15, rotationSpeed: 0, alpha: 0.9 }
   ];
 };
 
 const TERRAIN_PROP_LAYOUTS: Record<TerrainPropSet, readonly TerrainPropDefinition[]> = {
   space: [
-    { frame: 1, baseX: 0.08, baseY: 0.05, speed: 0.006, sway: 1, phase: 0.2, widthRatio: 0.78, rotationSpeed: 0, alpha: 0.72 },
-    { frame: 2, baseX: 1.07, baseY: 0.4, speed: 0.009, sway: 1.4, phase: 1.2, widthRatio: 0.96, rotationSpeed: 0, alpha: 0.78 },
-    { frame: 6, baseX: 0.8, baseY: 0.55, speed: 0.025, sway: 3, phase: 0.8, widthRatio: 0.24, rotationSpeed: 0, alpha: 0.7 },
-    { frame: 5, baseX: 0.9, baseY: 0.12, speed: 0.045, sway: 3, phase: 5.4, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.76 },
-    { frame: 0, baseX: 0.12, baseY: 0.62, speed: 0.055, sway: 3, phase: 2.4, widthRatio: 0.2, rotationSpeed: 0, alpha: 0.82 },
-    { frame: 8, baseX: 0.9, baseY: 0.94, speed: 0.06, sway: 3, phase: 4.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.84 },
-    { frame: 3, baseX: 0.88, baseY: 0.76, speed: 0.07, sway: 4, phase: 3.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.84 },
-    { frame: 4, baseX: 0.1, baseY: 0.92, speed: 0.085, sway: 4, phase: 4.1, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.86 },
-    { frame: 7, baseX: 0.22, baseY: 0.78, speed: 0.09, sway: 5, phase: 2.8, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.82 }
+    { frame: 1, baseX: 0.08, baseY: 0.05, speed: 0.007, sway: 1, phase: 0.2, widthRatio: 0.78, rotationSpeed: 0, alpha: 0.72 },
+    { frame: 2, baseX: 1.07, baseY: 0.4, speed: 0.012, sway: 1.4, phase: 1.2, widthRatio: 0.96, rotationSpeed: 0, alpha: 0.78 },
+    { frame: 6, baseX: 0.8, baseY: 0.55, speed: 0.06, sway: 3, phase: 0.8, widthRatio: 0.24, rotationSpeed: 0, alpha: 0.7 },
+    { frame: 5, baseX: 0.9, baseY: 0.12, speed: 0.12, sway: 3, phase: 5.4, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.76 },
+    { frame: 0, baseX: 0.12, baseY: 0.62, speed: 0.16, sway: 3, phase: 2.4, widthRatio: 0.2, rotationSpeed: 0, alpha: 0.82 },
+    { frame: 8, baseX: 0.9, baseY: 0.94, speed: 0.21, sway: 3, phase: 4.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.84 },
+    { frame: 3, baseX: 0.88, baseY: 0.76, speed: 0.26, sway: 4, phase: 3.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.84 },
+    { frame: 4, baseX: 0.1, baseY: 0.92, speed: 0.32, sway: 4, phase: 4.1, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.86 },
+    { frame: 7, baseX: 0.22, baseY: 0.78, speed: 0.38, sway: 5, phase: 2.8, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.82 }
   ],
   desert: [
     { frame: 0, baseX: 0.1, baseY: 0.06, speed: 0, sway: 0, phase: 0.3, widthRatio: 0.25, rotationSpeed: 0, alpha: 0.96 },
@@ -254,14 +255,14 @@ export const CAMPAIGN_ENVIRONMENT_ROUTE = [
 ] as const;
 
 export const SPACE_PARALLAX_DEPTH_SPEEDS = Object.freeze({
-  'open-orbit': Object.freeze([0.002, 0.004, 0.008, 0.016, 0.032]),
-  'citation-storm': Object.freeze([0.0024, 0.0048, 0.0096, 0.0192, 0.0384]),
-  'bastion-protocol': Object.freeze([0.003, 0.006, 0.012, 0.024, 0.048]),
-  'helix-redline': Object.freeze([0.0026, 0.0052, 0.0104, 0.0208, 0.0416]),
-  'shattered-void': Object.freeze([0.0022, 0.0044, 0.0088, 0.0176, 0.0352]),
-  'gravity-rift': Object.freeze([0.0028, 0.0056, 0.0112, 0.0224, 0.0448]),
-  'ion-eclipse': Object.freeze([0.0025, 0.005, 0.01, 0.02, 0.04]),
-  'terminus-frontier': Object.freeze([0.0032, 0.0064, 0.0128, 0.0256, 0.0512])
+  'open-orbit': Object.freeze([0.002, 0.008, 0.022, 0.075, 0.18]),
+  'citation-storm': Object.freeze([0.0022, 0.009, 0.026, 0.085, 0.205]),
+  'bastion-protocol': Object.freeze([0.0024, 0.01, 0.03, 0.095, 0.23]),
+  'helix-redline': Object.freeze([0.0021, 0.009, 0.024, 0.082, 0.2]),
+  'shattered-void': Object.freeze([0.0018, 0.0075, 0.021, 0.072, 0.175]),
+  'gravity-rift': Object.freeze([0.0023, 0.0095, 0.028, 0.09, 0.22]),
+  'ion-eclipse': Object.freeze([0.002, 0.0085, 0.025, 0.086, 0.21]),
+  'terminus-frontier': Object.freeze([0.0025, 0.0105, 0.032, 0.105, 0.25])
 } as const);
 
 type SpaceParallaxProfileId = keyof typeof SPACE_PARALLAX_DEPTH_SPEEDS;
@@ -524,6 +525,7 @@ export class PixiEnvironment {
   private readonly hyperspeedStreaks = new Graphics();
   private readonly hyperspeedFrame = new Graphics();
   private readonly terrainPropLayer = new Container();
+  private readonly spacePropMotionBlur = new BlurFilter({ strengthX: 0, strengthY: 0, quality: 1, kernelSize: 5 });
   private readonly horizon = new Sprite(Texture.WHITE);
   private width = 1;
   private height = 1;
@@ -538,6 +540,7 @@ export class PixiEnvironment {
   private profileStartedAtFrame = 0;
   private environmentMotionFrame = 0;
   private lastEngineFrame = -1;
+  private spacePropBlurActive = false;
 
   constructor(
     private readonly backgroundLayer: Container,
@@ -939,9 +942,10 @@ export class PixiEnvironment {
     const hyperspeedStrength = runtime.stageHyperspeedActive
       ? Math.max(0, Math.min(1, runtime.stageHyperspeedStrength))
       : 0;
+    const spaceHyperspeedStrength = profile.terrain === 'space' ? hyperspeedStrength : 0;
     const departureSpeedBoost = runtime.stageHyperspeedActive
       ? Math.max(1, Math.min(6, runtime.stageDepartureSpeedBoost))
-        + hyperspeedStrength * TAKEOFF_WORLD_SPEED_MULTIPLIER
+        + hyperspeedStrength * (profile.terrain === 'space' ? TAKEOFF_WORLD_SPEED_MULTIPLIER : 30)
       : 1;
     if (!profileChanged) {
       this.environmentMotionFrame += frameDelta * departureSpeedBoost;
@@ -950,10 +954,15 @@ export class PixiEnvironment {
     for (let index = 0; index < this.parallaxLayers.length; index++) {
       const layer = this.parallaxLayers[index];
       if (!layer.root.visible) continue;
-      const takeoffBlur = index >= 3 ? hyperspeedStrength * (index === 4 ? 0.45 : 0.24) : 0;
-      const blurStrength = engine.performanceMode ? 0 : layer.softness + takeoffBlur;
-      layer.blurFilter.strength = blurStrength;
-      const shouldFilter = blurStrength > 0.01;
+      const depthRatio = index / Math.max(1, this.parallaxLayers.length - 1);
+      const baseBlurStrength = engine.performanceMode ? 0 : layer.softness;
+      const takeoffBlurX = engine.performanceMode ? 0 : spaceHyperspeedStrength * 0.14;
+      const takeoffBlurY = engine.performanceMode
+        ? 0
+        : spaceHyperspeedStrength * (0.7 + depthRatio * 5.6);
+      layer.blurFilter.strengthX = baseBlurStrength + takeoffBlurX;
+      layer.blurFilter.strengthY = baseBlurStrength + takeoffBlurY;
+      const shouldFilter = layer.blurFilter.strengthY > 0.01;
       if (layer.filterActive !== shouldFilter) {
         layer.root.filters = shouldFilter ? [layer.blurFilter] : null;
         layer.filterActive = shouldFilter;
@@ -1082,6 +1091,17 @@ export class PixiEnvironment {
             alpha
           });
       }
+    }
+
+    const propMotionBlurStrength = engine.performanceMode
+      ? 0
+      : spaceHyperspeedStrength * SPACE_PROP_MOTION_BLUR_CAP;
+    this.spacePropMotionBlur.strengthX = Math.min(0.18, propMotionBlurStrength * 0.035);
+    this.spacePropMotionBlur.strengthY = propMotionBlurStrength;
+    const shouldBlurSpaceProps = propMotionBlurStrength > 0.01;
+    if (this.spacePropBlurActive !== shouldBlurSpaceProps) {
+      this.terrainPropLayer.filters = shouldBlurSpaceProps ? [this.spacePropMotionBlur] : null;
+      this.spacePropBlurActive = shouldBlurSpaceProps;
     }
   }
 
