@@ -40,7 +40,8 @@ const MISSION_BPM = 154;
 const MISSION_STEP_MS = (60_000 / MISSION_BPM) / 2;
 const SILENCE_GAIN = 0.0001;
 const MAX_MASTER_GAIN = 0.3;
-const MAX_MUSIC_ELEMENT_VOLUME = 0.42;
+const MUSIC_BUS_GAIN = 0.38;
+const MAX_MUSIC_ELEMENT_VOLUME = 0.14;
 const MAX_VOLUME_LEVEL = 5;
 const MUSIC_TRACK_STORAGE_KEY = 'scicon-shooter:mission-music-track:v1';
 const MISSION_BASS_PATTERN = [
@@ -63,9 +64,11 @@ class AudioService {
   private volumeLevel: number = MAX_VOLUME_LEVEL;
   private lastNonZeroVolumeLevel: number = MAX_VOLUME_LEVEL;
   private masterGain: GainNode | null = null;
+  private musicGain: GainNode | null = null;
   private musicTimer: number | null = null;
   private musicStep: number = 0;
   private musicRequested: boolean = false;
+  private musicPaused: boolean = false;
   private musicLaunchPending: boolean = false;
   private selectedMusicTrackId: MissionMusicTrackId = 'scicon-flight';
   private musicPlayer: HTMLAudioElement | null = null;
@@ -86,6 +89,9 @@ class AudioService {
       if (AudioContextClass) {
         this.ctx = new AudioContextClass();
         this.masterGain = this.ctx.createGain();
+        this.musicGain = this.ctx.createGain();
+        this.musicGain.gain.setValueAtTime(MUSIC_BUS_GAIN, this.ctx.currentTime);
+        this.musicGain.connect(this.masterGain);
         this.masterGain.connect(this.ctx.destination);
         this.applyMasterVolume();
         void this.preloadSamples();
@@ -211,7 +217,7 @@ class AudioService {
   }
 
   private beginSelectedMusic() {
-    if (!this.musicRequested || this.muted || !this.pageActive) return;
+    if (!this.musicRequested || this.musicPaused || this.muted || !this.pageActive) return;
     const selectedTrack = this.getSelectedMusicTrack();
 
     if (!selectedTrack.src) {
@@ -399,11 +405,27 @@ class AudioService {
       this.musicLaunchPending = true;
     }
     this.musicRequested = true;
+    this.musicPaused = false;
+    this.beginSelectedMusic();
+  }
+
+  public pauseMusic() {
+    if (!this.musicRequested || this.musicPaused) return;
+    this.musicPaused = true;
+    this.clearMusicTimer();
+    this.stopActiveMusicNodes();
+    this.pauseMusicPlayer();
+  }
+
+  public resumeMusic() {
+    if (!this.musicRequested || !this.musicPaused) return;
+    this.musicPaused = false;
     this.beginSelectedMusic();
   }
 
   public stopMusic() {
     this.musicRequested = false;
+    this.musicPaused = false;
     this.musicStep = 0;
     this.musicLaunchPending = false;
     this.clearMusicTimer();
@@ -436,6 +458,16 @@ class AudioService {
     return trackId;
   }
 
+  public advanceMusicTrack(steps: number = 1) {
+    const currentIndex = Math.max(
+      0,
+      MISSION_MUSIC_TRACKS.findIndex((track) => track.id === this.selectedMusicTrackId)
+    );
+    const normalizedSteps = Math.max(0, Math.floor(steps));
+    const nextIndex = (currentIndex + normalizedSteps) % MISSION_MUSIC_TRACKS.length;
+    return this.setMusicTrack(MISSION_MUSIC_TRACKS[nextIndex].id);
+  }
+
   private scheduleMusicTone(
     frequency: number,
     type: OscillatorType,
@@ -445,7 +477,7 @@ class AudioService {
     endFrequency: number = frequency,
     attack: number = 0.004
   ) {
-    if (!this.ctx || !this.masterGain) return;
+    if (!this.ctx || !this.musicGain) return;
 
     const oscillator = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
@@ -462,7 +494,7 @@ class AudioService {
     gain.gain.exponentialRampToValueAtTime(SILENCE_GAIN, stopTime);
 
     oscillator.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.musicGain);
     oscillator.onended = () => this.activeMusicNodes.delete(oscillator);
     this.activeMusicNodes.add(oscillator);
     oscillator.start(startTime);
@@ -510,7 +542,7 @@ class AudioService {
   }
 
   private playMissionLaunchCue() {
-    if (!this.ctx || !this.masterGain) return;
+    if (!this.ctx || !this.musicGain) return;
     const startTime = this.ctx.currentTime + 0.015;
     [110, 146.83, 196, 293.66].forEach((note, index) => {
       this.scheduleMusicTone(note, 'triangle', startTime + (index * 0.085), 0.22, 0.024, note * 1.9, 0.008);
@@ -523,6 +555,7 @@ class AudioService {
       || this.musicTimer !== null
       || !this.musicRequested
       || this.muted
+      || this.musicPaused
       || !this.pageActive
       || this.getSelectedMusicTrack().src
     ) return;

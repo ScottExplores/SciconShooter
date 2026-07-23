@@ -365,6 +365,7 @@ const App: React.FC = () => {
   const rewardClaimInFlightRef = useRef(false);
   const walletProfileAddressRef = useRef<string | null>(null);
   const hasLoadedWalletProfileRef = useRef(walletRuntimeEnabled);
+  const lastMusicRotationGroupRef = useRef(0);
   const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
   const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
   const [showMissionRecordPreview, setShowMissionRecordPreview] = useState(false);
@@ -710,6 +711,28 @@ const App: React.FC = () => {
   const [musicTrackId, setMusicTrackId] = useState<MissionMusicTrackId>(() => audioService.getMusicTrackId());
 
   useEffect(() => {
+    if (gameState === GameState.PAUSED) {
+      audioService.pauseMusic();
+      return;
+    }
+    if (gameState === GameState.PLAYING) {
+      audioService.resumeMusic();
+    }
+  }, [gameState]);
+
+  useEffect(() => {
+    if (gameState !== GameState.PLAYING && gameState !== GameState.PAUSED) return;
+
+    const mission = Math.max(1, Math.floor(stats.wave));
+    const rotationGroup = Math.floor((mission - 1) / 2);
+    if (rotationGroup <= lastMusicRotationGroupRef.current) return;
+
+    const advances = rotationGroup - lastMusicRotationGroupRef.current;
+    lastMusicRotationGroupRef.current = rotationGroup;
+    setMusicTrackId(audioService.advanceMusicTrack(advances));
+  }, [gameState, stats.wave]);
+
+  useEffect(() => {
     const statsToSave = {
       highScore: stats.highScore,
       totalCoins: stats.totalCoins,
@@ -878,6 +901,7 @@ const App: React.FC = () => {
     setMissionRecordPilotName(null);
     clearIntroStoryTimeout();
     lastStoryWaveRef.current = 0;
+    lastMusicRotationGroupRef.current = 0;
     setActiveStoryBeat(null);
     setStats(prev => ({
       ...prev,

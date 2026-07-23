@@ -24,8 +24,9 @@ const loadAudioService = () => {
 
   class FakeAudioParam {
     targetValues = [];
+    setValues = [];
     setTargetAtTime(value) { this.targetValues.push(value); }
-    setValueAtTime() {}
+    setValueAtTime(value) { this.setValues.push(value); }
     linearRampToValueAtTime() {}
     exponentialRampToValueAtTime() {}
   }
@@ -129,6 +130,7 @@ const loadAudioService = () => {
     audioService: context.module.exports.audioService,
     audioContext: context.module.exports.audioService.ctx,
     masterGainParam: context.module.exports.audioService.masterGain.gain,
+    musicGainParam: context.module.exports.audioService.musicGain.gain,
     document: context.document,
     listeners,
     intervals,
@@ -171,6 +173,7 @@ test('the zero volume notch mutes while choosing a nonzero notch resumes at that
 
 test('mission music opens with one launch cue and one progressive sequencer timer', () => {
   const harness = loadAudioService();
+  assert.equal(harness.musicGainParam.setValues.at(-1), 0.38);
   harness.audioService.startMusic();
 
   assert.equal(harness.intervals.size, 1);
@@ -201,10 +204,51 @@ test('mission music can switch to a supplied song and keeps master audio control
   assert.equal(harness.storedValues.get('scicon-shooter:mission-music-track:v1'), 'acid-clatter');
 
   harness.audioService.setVolumeLevel(2);
-  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.168) < 0.00001);
+  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.056) < 0.00001);
   harness.audioService.toggleMute();
   assert.equal(harness.musicPlayers[0].paused, true);
   assert.equal(harness.musicPlayers[0].volume, 0);
+});
+
+test('pausing a mission pauses its song in place and resumes from the same position', async () => {
+  const harness = loadAudioService();
+  harness.audioService.setMusicTrack('pressure');
+  harness.audioService.startMusic();
+  await Promise.resolve();
+
+  const player = harness.musicPlayers[0];
+  player.currentTime = 18.5;
+  assert.equal(player.playCalls, 1);
+
+  harness.audioService.pauseMusic();
+  assert.equal(player.paused, true);
+  assert.equal(player.currentTime, 18.5);
+
+  harness.audioService.resumeMusic();
+  await Promise.resolve();
+  assert.equal(player.playCalls, 2);
+  assert.equal(player.currentTime, 18.5);
+});
+
+test('the procedural mix also stops its timer while paused and resumes without a new launch', () => {
+  const harness = loadAudioService();
+  harness.audioService.startMusic();
+  assert.equal(harness.intervals.size, 1);
+  const launchOscillators = harness.oscillatorsCreated;
+
+  harness.audioService.pauseMusic();
+  assert.equal(harness.intervals.size, 0);
+  harness.audioService.resumeMusic();
+  assert.equal(harness.intervals.size, 1);
+  assert.ok(harness.oscillatorsCreated > launchOscillators);
+});
+
+test('playlist advancement wraps across the four mission tracks', () => {
+  const harness = loadAudioService();
+  assert.equal(harness.audioService.getMusicTrackId(), 'scicon-flight');
+  assert.equal(harness.audioService.advanceMusicTrack(), 'acid-clatter');
+  assert.equal(harness.audioService.advanceMusicTrack(2), 'exellent');
+  assert.equal(harness.audioService.advanceMusicTrack(), 'scicon-flight');
 });
 
 test('switching back to the original mix resumes the procedural sequencer', () => {
@@ -253,4 +297,12 @@ test('pagehide silences the app and stopped music does not restart on pageshow',
 test('the game canvas stops shared music when its engine unmounts', () => {
   const source = fs.readFileSync(path.join(root, 'components', 'GameCanvas.tsx'), 'utf8');
   assert.match(source, /if \(audioEnabled\) audioService\.stopMusic\(\)/);
+});
+
+test('the app pauses shared music and advances the playlist every two missions', () => {
+  const source = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
+  assert.match(source, /gameState === GameState\.PAUSED[\s\S]*audioService\.pauseMusic\(\)/);
+  assert.match(source, /gameState === GameState\.PLAYING[\s\S]*audioService\.resumeMusic\(\)/);
+  assert.match(source, /Math\.floor\(\(mission - 1\) \/ 2\)/);
+  assert.match(source, /audioService\.advanceMusicTrack\(advances\)/);
 });
