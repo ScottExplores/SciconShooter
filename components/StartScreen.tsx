@@ -1029,7 +1029,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const renderHeroPanel = ({ compact = false, fill = false }: { compact?: boolean; fill?: boolean } = {}) => (
     <HudPanel className={compact ? `sci-home-hero-surface sci-home-hero-surface--compact sci-mobile-hero min-h-[17.5rem] ${fill ? 'flex-1' : ''}` : 'sci-home-hero-surface min-h-[34rem] xl:min-h-[40rem]'}>
       <div className="sci-hero-backdrop absolute inset-0">
-        <img src={ASSETS.MENU_HERO} alt="" className="sci-hero-backdrop__image h-full w-full object-cover opacity-68" />
+        <img src={ASSETS.HOME_SPARSE_STARFIELD_BASE} alt="" className="sci-hero-backdrop__image h-full w-full object-cover" />
         <img
           src={ASSETS.GAME_PARALLAX_BIG_PLANET}
           alt=""
@@ -1855,7 +1855,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </button>
       ) : null}
       <div className="scicon-home-backdrop absolute inset-0 z-0" aria-hidden="true">
-        <img src={ASSETS.MENU_HERO} alt="" className="scicon-home-backdrop__image absolute inset-0 h-full w-full object-cover opacity-60" />
+        <img src={ASSETS.HOME_SPARSE_STARFIELD_BASE} alt="" className="scicon-home-backdrop__image absolute inset-0 h-full w-full object-cover" />
         <div className="scicon-home-backdrop__nebula scicon-home-backdrop__nebula--a" />
         <div className="scicon-home-backdrop__nebula scicon-home-backdrop__nebula--b" />
         <div className="scicon-home-backdrop__stars" />

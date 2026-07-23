@@ -65,13 +65,15 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(source, /scicon-home-backdrop__nebula--a/);
   assert.match(source, /scicon-home-backdrop__nebula--b/);
   assert.match(source, /ASSETS\.HOME_SPARSE_STARFIELD/);
+  assert.match(source, /ASSETS\.HOME_SPARSE_STARFIELD_BASE/);
   assert.match(source, /ASSETS\.HOME_ASTEROID_FIELD/);
   assert.match(source, /ASSETS\.GAME_PARALLAX_BIG_PLANET/);
   assert.match(source, /ASSETS\.GAME_PARALLAX_RING_PLANET/);
   assert.match(source, /scicon-home-backdrop__stars/);
   assert.match(source, /scicon-home-backdrop__pixel-fade/);
   assert.match(source, /sci-home-hero-surface--compact/);
-  assert.match(source, /ASSETS\.MENU_HERO[\s\S]*sci-hero-backdrop__image/);
+  assert.doesNotMatch(source, /<img src=\{ASSETS\.MENU_HERO\}/);
+  assert.doesNotMatch(stylesSource, /url\(['"]\/game-art\/backgrounds\/menu-hero\.png['"]\)/);
   assert.match(htmlSource, /#root \.scicon-mobile-home[\s\S]*grid-template-rows: auto minmax\(17\.5rem, 1fr\)/);
   assert.match(htmlSource, /#root \.sci-hero-content--compact[\s\S]*grid-template-rows: auto minmax\(6rem, 1fr\) auto/);
   assert.match(htmlSource, /max-height: 720px/);
@@ -88,6 +90,8 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(stylesSource, /@keyframes sci-home-sparse-flight/);
   assert.match(stylesSource, /@keyframes sci-home-asteroid-flight/);
   assert.match(stylesSource, /@keyframes sci-home-planet-drift-red/);
+  assert.match(stylesSource, /\.scicon-home-backdrop__planet \{[\s\S]*?z-index: 1/);
+  assert.match(stylesSource, /\.scicon-home-backdrop__asteroids \{[\s\S]*?z-index: 3/);
   assert.match(stylesSource, /@keyframes sci-home-pixel-drift/);
   assert.match(stylesSource, /\.sci-dashboard-nav-button\[data-active='true'\] \.sci-dashboard-nav-icon \{[\s\S]*?translate3d\(0, -0\.68rem, 0\) scale\(1\.46\)/);
   assert.match(stylesSource, /\.sci-dashboard-nav-shell \{[\s\S]*?z-index: 30/);

@@ -338,11 +338,12 @@
 }
 
 .scicon-home-backdrop__image {
-  opacity: 0.78 !important;
-  filter: saturate(1.32) contrast(1.08) brightness(1.04);
+  opacity: 0.92 !important;
+  filter: saturate(1.02) contrast(1.08) brightness(0.78);
   image-rendering: pixelated;
-  transform: scale(1.16);
-  transform-origin: 48% 34%;
+  object-position: center 36%;
+  transform: scale(1.04);
+  transform-origin: 50% 38%;
   will-change: transform, opacity;
 }
 
@@ -350,13 +351,12 @@
   position: absolute;
   inset: -18%;
   background:
-    url('/game-art/backgrounds/menu-hero.png') -14% 42% / 76% auto no-repeat,
-    radial-gradient(ellipse at 24% 31%, rgb(34 211 238 / 0.28), transparent 30%),
-    radial-gradient(ellipse at 72% 24%, rgb(16 185 129 / 0.18), transparent 25%),
-    radial-gradient(ellipse at 57% 72%, rgb(124 58 237 / 0.2), transparent 34%);
-  filter: saturate(1.42) contrast(1.08);
+    radial-gradient(ellipse at 24% 31%, rgb(14 116 144 / 0.13), transparent 30%),
+    radial-gradient(ellipse at 72% 24%, rgb(5 150 105 / 0.08), transparent 25%),
+    radial-gradient(ellipse at 57% 72%, rgb(76 29 149 / 0.1), transparent 34%);
+  filter: saturate(1.08);
   mix-blend-mode: screen;
-  opacity: 0.26;
+  opacity: 0.18;
   transform-origin: center;
   will-change: transform, opacity;
 }
@@ -364,10 +364,9 @@
 .scicon-home-backdrop__nebula--b {
   inset: -24%;
   background:
-    url('/game-art/backgrounds/menu-hero.png') 118% 24% / 72% auto no-repeat,
-    radial-gradient(ellipse at 78% 63%, rgb(34 211 238 / 0.23), transparent 28%),
-    radial-gradient(ellipse at 32% 58%, rgb(16 185 129 / 0.17), transparent 27%),
-    radial-gradient(ellipse at 62% 14%, rgb(99 102 241 / 0.2), transparent 31%);
+    radial-gradient(ellipse at 78% 63%, rgb(8 145 178 / 0.11), transparent 28%),
+    radial-gradient(ellipse at 32% 58%, rgb(5 150 105 / 0.07), transparent 27%),
+    radial-gradient(ellipse at 62% 14%, rgb(67 56 202 / 0.09), transparent 31%);
 }
 
 .scicon-home-backdrop__stars {
@@ -530,8 +529,8 @@
 }
 
 @keyframes sci-home-backdrop-breathe {
-  0%, 100% { transform: scale(1.16) translate3d(0, 0, 0); opacity: 0.72; }
-  50% { transform: scale(1.23) translate3d(-1.2%, 0.8%, 0); opacity: 0.84; }
+  0%, 100% { transform: scale(1.04) translate3d(0, 0, 0); opacity: 0.84; }
+  50% { transform: scale(1.08) translate3d(-0.5%, 0.65%, 0); opacity: 0.94; }
 }
 
 @keyframes sci-home-nebula-drift-a {
@@ -581,10 +580,12 @@
 }
 
 .sci-hero-backdrop__image {
-  filter: saturate(1.42) contrast(1.12) brightness(1.06);
+  opacity: 0.9;
+  filter: saturate(1.02) contrast(1.08) brightness(0.76);
   image-rendering: pixelated;
-  transform: scale(1.18);
-  transform-origin: center 44%;
+  object-position: center 36%;
+  transform: scale(1.04);
+  transform-origin: center 40%;
   will-change: transform, opacity;
 }
 
@@ -655,8 +656,8 @@
 }
 
 @keyframes sci-hero-backdrop-drift {
-  0%, 100% { opacity: 0.5; transform: scale(1.18) translate3d(-1%, 0, 0); }
-  50% { opacity: 0.68; transform: scale(1.28) translate3d(1.6%, -1%, 0); }
+  0%, 100% { opacity: 0.82; transform: scale(1.04) translate3d(-0.35%, 0, 0); }
+  50% { opacity: 0.94; transform: scale(1.08) translate3d(0.55%, 0.7%, 0); }
 }
 
 @keyframes sci-hero-stars-drift {
@@ -724,8 +725,8 @@
   }
 
   #root .sci-home-hero-surface--compact .sci-hero-backdrop__image {
-    opacity: 0.56;
-    animation: sci-hero-backdrop-drift 18s ease-in-out infinite;
+    opacity: 0.9;
+    animation: sci-hero-backdrop-drift 42s ease-in-out infinite;
   }
 
   #root .sci-home-hero-surface--compact .sci-hero-backdrop__glow {
