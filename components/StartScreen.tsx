@@ -1562,7 +1562,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         )}
 
         {!isLoading && leaderboardView === 'records' && (
-          <div className="space-y-3">
+          <div className="max-h-[min(58vh,43rem)] space-y-2 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
             {!walletAddress ? (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
                 <p>Connect a Base Account to view your five most recent runs.</p>
@@ -1578,6 +1578,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <p className="mt-1 text-xs text-slate-400">Finish a mission and submit your score. Your latest five runs will appear here.</p>
               </div>
             ) : walletRuns.slice(0, 5).map((run) => {
+              const runShip = PLAYER_SHIPS[run.receipt.metrics.playerShipId];
               const minted = walletRecords.some((record) => (
                 record.recordType === 'mission'
                 && record.runId === run.receipt.runId
@@ -1601,21 +1602,28 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   aria-label={isEditableWeeklyLeader
                     ? `${weeklyProposalNeedsAttention ? 'Choose' : 'Change'} proposal for weekly high score ${formatNumber(run.receipt.metrics.score)}`
                     : undefined}
-                  className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[8px] border border-cyan-300/15 bg-white/[0.035] p-3 text-left transition hover:border-cyan-200/40 hover:bg-cyan-300/8 ${proposalMissing ? 'sci-proposal-attention' : ''}`}
+                  className={`group relative grid w-full grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-[8px] border border-cyan-300/18 bg-[linear-gradient(135deg,rgba(8,47,73,0.36),rgba(15,23,42,0.72)_48%,rgba(2,6,23,0.82))] px-3 py-2.5 text-left shadow-[inset_0_0_1.25rem_rgba(34,211,238,0.035)] transition hover:border-cyan-200/45 hover:bg-cyan-300/8 ${proposalMissing ? 'sci-proposal-attention' : ''}`}
                 >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[8px] border border-cyan-200/25 bg-cyan-300/10 text-cyan-100">
-                    <Icon name="rocket" className="h-5 w-5" />
+                  <div className="relative flex h-[3.25rem] w-[3.25rem] items-center justify-center overflow-hidden rounded-[7px] border border-cyan-200/25 bg-[radial-gradient(circle,rgba(34,211,238,0.16),rgba(2,6,23,0.82)_68%)]">
+                    <span className="absolute inset-x-2 bottom-1 h-px bg-gradient-to-r from-transparent via-cyan-200/45 to-transparent" aria-hidden="true" />
+                    <img
+                      src={runShip.assetUrl}
+                      alt={`${runShip.name} used for this mission`}
+                      className="relative h-[2.8rem] w-[2.8rem] object-contain [image-rendering:pixelated] drop-shadow-[0_0_7px_rgba(34,211,238,0.38)] transition-transform duration-200 group-hover:scale-105"
+                    />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex min-w-0 items-baseline gap-2">
                       <p className="truncate text-sm font-black text-white">{run.pilotName}</p>
-                      <span className="shrink-0 text-[9px] font-black uppercase text-slate-500">{formatRunDate(run.receipt.finishedAt)}</span>
+                      <span className="shrink-0 text-[8px] font-black uppercase tracking-wide text-slate-500">{formatRunDate(run.receipt.finishedAt)}</span>
                     </div>
-                    <p className="truncate text-xs text-slate-300">
-                      {formatNumber(run.receipt.metrics.score)} pts - Mission {run.receipt.metrics.wave}
+                    <p className="mt-0.5 truncate text-xs font-bold text-cyan-50">
+                      {formatNumber(run.receipt.metrics.score)} pts
+                      <span className="px-1.5 text-cyan-300/35">/</span>
+                      <span className="font-medium text-slate-300">Mission {run.receipt.metrics.wave}</span>
                     </p>
                   </div>
-                  <span className={`text-right text-[10px] font-black uppercase ${proposalMissing ? 'text-yellow-200' : minted ? 'text-emerald-200' : 'text-cyan-200'}`}>
+                  <span className={`max-w-[5.25rem] text-right text-[9px] font-black uppercase leading-tight tracking-wide ${proposalMissing ? 'text-yellow-200' : minted ? 'text-emerald-200' : 'text-cyan-200'}`}>
                     {isEditableWeeklyLeader
                       ? weeklyProposalNeedsAttention
                         ? 'Choose proposal'

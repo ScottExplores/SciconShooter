@@ -16,6 +16,9 @@ test('connected Trophy Deck shows five clickable runs instead of transaction lin
   assert.match(clientSource, /\/api\/player-runs\?wallet=/);
   assert.match(clientSource, /\.slice\(0, 5\)/);
   assert.match(screenSource, /walletRuns\.slice\(0, 5\)\.map/);
+  assert.match(screenSource, /const runShip = PLAYER_SHIPS\[run\.receipt\.metrics\.playerShipId\]/);
+  assert.match(screenSource, /src=\{runShip\.assetUrl\}/);
+  assert.match(screenSource, /alt=\{`\$\{runShip\.name\} used for this mission`\}/);
   assert.match(screenSource, /weeklyProposalRunId === run\.receipt\.runId/);
   assert.match(screenSource, /onOpenWeeklyLeaderProposal\(run\)/);
   assert.match(screenSource, /onOpenWalletRun\(run\)/);
