@@ -44,7 +44,7 @@ test('primary impact shake is preference-aware, rate-limited, and never adds hit
   const method = engineSource.slice(methodStart, methodEnd);
 
   assert.match(method, /!this\.polishSettings\.screenShake/);
-  assert.match(method, /shot\.weaponKind !== 'pulse'/);
+  assert.match(method, /shot\.weaponKind !== 'pulse' && shot\.weaponKind !== 'bio-primary'/);
   assert.match(method, /shot\.shipAbilityKind/);
   assert.match(method, /shot\.squadAbilityKind/);
   assert.match(method, /target\.type !== EntityType\.BOSS/);

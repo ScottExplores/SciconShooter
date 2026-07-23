@@ -109,6 +109,7 @@ type ScienceGlyph = {
 const DEFAULT_BACKGROUND_ID = 'open-orbit';
 const TERRAIN_PROP_CELL_SIZE = 256;
 export const PARALLAX_TILE_POOL_SIZE = 8;
+export const DEEP_SPACE_BACKPLATE_TILE_POOL_SIZE = 2;
 export const DEBRIS_OVERLAY_TILE_POOL_SIZE = 2;
 export const GROUND_PROP_CONTACT_ANCHOR_Y = 238 / TERRAIN_PROP_CELL_SIZE;
 export const MOBILE_HYPERSPEED_STREAK_CAP = 24;
@@ -178,29 +179,29 @@ const createSpaceRunLayout = (phaseOffset: number, mirrored = false): readonly T
   const leftEdge = mirrored ? 1.07 : 0.08;
   const rightEdge = mirrored ? 0.08 : 1.07;
   return [
-    { frame: 0, baseX: leftEdge, baseY: 0.04, speed: 0.007, sway: 1, phase: phaseOffset, widthRatio: 0.86, rotationSpeed: 0, alpha: 0.72 },
-    { frame: 1, baseX: rightEdge, baseY: 0.42, speed: 0.012, sway: 1.4, phase: phaseOffset + 0.8, widthRatio: 1, rotationSpeed: 0, alpha: 0.76 },
-    { frame: 2, baseX: mirrored ? 0.82 : 0.18, baseY: 0.7, speed: 0.055, sway: 2, phase: phaseOffset + 1.5, widthRatio: 0.26, rotationSpeed: 0, alpha: 0.58 },
-    { frame: 3, baseX: mirrored ? 0.92 : 0.08, baseY: 0.2, speed: 0.12, sway: 3, phase: phaseOffset + 2.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.82 },
-    { frame: 4, baseX: mirrored ? 0.1 : 0.9, baseY: 0.58, speed: 0.16, sway: 3.5, phase: phaseOffset + 2.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.84 },
-    { frame: 5, baseX: mirrored ? 0.86 : 0.14, baseY: 0.88, speed: 0.22, sway: 4, phase: phaseOffset + 3.6, widthRatio: 0.14, rotationSpeed: 0, alpha: 0.86 },
-    { frame: 6, baseX: mirrored ? 0.12 : 0.88, baseY: 0.34, speed: 0.27, sway: 4.5, phase: phaseOffset + 4.3, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.82 },
-    { frame: 7, baseX: mirrored ? 0.9 : 0.1, baseY: 0.76, speed: 0.32, sway: 5, phase: phaseOffset + 5, widthRatio: 0.13, rotationSpeed: 0, alpha: 0.88 },
-    { frame: 8, baseX: mirrored ? 0.16 : 0.84, baseY: 0.96, speed: 0.38, sway: 5.5, phase: phaseOffset + 5.7, widthRatio: 0.15, rotationSpeed: 0, alpha: 0.9 }
+    { frame: 0, baseX: leftEdge, baseY: 0.04, speed: 0.04, sway: 1, phase: phaseOffset, widthRatio: 0.86, rotationSpeed: 0, alpha: 1 },
+    { frame: 1, baseX: rightEdge, baseY: 0.42, speed: 0.065, sway: 1.4, phase: phaseOffset + 0.8, widthRatio: 1, rotationSpeed: 0, alpha: 1 },
+    { frame: 2, baseX: mirrored ? 0.82 : 0.18, baseY: 0.7, speed: 0.14, sway: 2, phase: phaseOffset + 1.5, widthRatio: 0.26, rotationSpeed: 0, alpha: 1 },
+    { frame: 3, baseX: mirrored ? 0.92 : 0.08, baseY: 0.2, speed: 0.27, sway: 3, phase: phaseOffset + 2.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 1 },
+    { frame: 4, baseX: mirrored ? 0.1 : 0.9, baseY: 0.58, speed: 0.36, sway: 3.5, phase: phaseOffset + 2.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 1 },
+    { frame: 5, baseX: mirrored ? 0.86 : 0.14, baseY: 0.88, speed: 0.48, sway: 4, phase: phaseOffset + 3.6, widthRatio: 0.14, rotationSpeed: 0, alpha: 1 },
+    { frame: 6, baseX: mirrored ? 0.12 : 0.88, baseY: 0.34, speed: 0.6, sway: 4.5, phase: phaseOffset + 4.3, widthRatio: 0.17, rotationSpeed: 0, alpha: 1 },
+    { frame: 7, baseX: mirrored ? 0.9 : 0.1, baseY: 0.76, speed: 0.72, sway: 5, phase: phaseOffset + 5, widthRatio: 0.13, rotationSpeed: 0, alpha: 1 },
+    { frame: 8, baseX: mirrored ? 0.16 : 0.84, baseY: 0.96, speed: 0.84, sway: 5.5, phase: phaseOffset + 5.7, widthRatio: 0.15, rotationSpeed: 0, alpha: 1 }
   ];
 };
 
 const TERRAIN_PROP_LAYOUTS: Record<TerrainPropSet, readonly TerrainPropDefinition[]> = {
   space: [
-    { frame: 1, baseX: 0.08, baseY: 0.05, speed: 0.007, sway: 1, phase: 0.2, widthRatio: 0.78, rotationSpeed: 0, alpha: 0.72 },
-    { frame: 2, baseX: 1.07, baseY: 0.4, speed: 0.012, sway: 1.4, phase: 1.2, widthRatio: 0.96, rotationSpeed: 0, alpha: 0.78 },
-    { frame: 6, baseX: 0.8, baseY: 0.55, speed: 0.06, sway: 3, phase: 0.8, widthRatio: 0.24, rotationSpeed: 0, alpha: 0.7 },
-    { frame: 5, baseX: 0.9, baseY: 0.12, speed: 0.12, sway: 3, phase: 5.4, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.76 },
-    { frame: 0, baseX: 0.12, baseY: 0.62, speed: 0.16, sway: 3, phase: 2.4, widthRatio: 0.2, rotationSpeed: 0, alpha: 0.82 },
-    { frame: 8, baseX: 0.9, baseY: 0.94, speed: 0.21, sway: 3, phase: 4.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 0.84 },
-    { frame: 3, baseX: 0.88, baseY: 0.76, speed: 0.26, sway: 4, phase: 3.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 0.84 },
-    { frame: 4, baseX: 0.1, baseY: 0.92, speed: 0.32, sway: 4, phase: 4.1, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.86 },
-    { frame: 7, baseX: 0.22, baseY: 0.78, speed: 0.38, sway: 5, phase: 2.8, widthRatio: 0.17, rotationSpeed: 0, alpha: 0.82 }
+    { frame: 1, baseX: 0.08, baseY: 0.05, speed: 0.04, sway: 1, phase: 0.2, widthRatio: 0.78, rotationSpeed: 0, alpha: 1 },
+    { frame: 2, baseX: 1.07, baseY: 0.4, speed: 0.065, sway: 1.4, phase: 1.2, widthRatio: 0.96, rotationSpeed: 0, alpha: 1 },
+    { frame: 6, baseX: 0.8, baseY: 0.55, speed: 0.15, sway: 3, phase: 0.8, widthRatio: 0.24, rotationSpeed: 0, alpha: 1 },
+    { frame: 5, baseX: 0.9, baseY: 0.12, speed: 0.27, sway: 3, phase: 5.4, widthRatio: 0.18, rotationSpeed: 0, alpha: 1 },
+    { frame: 0, baseX: 0.12, baseY: 0.62, speed: 0.36, sway: 3, phase: 2.4, widthRatio: 0.2, rotationSpeed: 0, alpha: 1 },
+    { frame: 8, baseX: 0.9, baseY: 0.94, speed: 0.47, sway: 3, phase: 4.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 1 },
+    { frame: 3, baseX: 0.88, baseY: 0.76, speed: 0.58, sway: 4, phase: 3.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 1 },
+    { frame: 4, baseX: 0.1, baseY: 0.92, speed: 0.7, sway: 4, phase: 4.1, widthRatio: 0.17, rotationSpeed: 0, alpha: 1 },
+    { frame: 7, baseX: 0.22, baseY: 0.78, speed: 0.82, sway: 5, phase: 2.8, widthRatio: 0.17, rotationSpeed: 0, alpha: 1 }
   ],
   desert: [
     { frame: 0, baseX: 0.1, baseY: 0.06, speed: 0, sway: 0, phase: 0.3, widthRatio: 0.25, rotationSpeed: 0, alpha: 0.96 },
@@ -260,17 +261,28 @@ export const CAMPAIGN_ENVIRONMENT_ROUTE = [
 ] as const;
 
 export const SPACE_PARALLAX_DEPTH_SPEEDS = Object.freeze({
-  'open-orbit': Object.freeze([0.002, 0.008, 0.032, 0.052, 0.105, 0.15, 0.2]),
-  'citation-storm': Object.freeze([0.0022, 0.009, 0.038, 0.058, 0.115, 0.17, 0.225]),
-  'bastion-protocol': Object.freeze([0.0024, 0.01, 0.043, 0.064, 0.125, 0.19, 0.25]),
-  'helix-redline': Object.freeze([0.0021, 0.009, 0.035, 0.056, 0.11, 0.165, 0.22]),
-  'shattered-void': Object.freeze([0.0018, 0.0075, 0.03, 0.048, 0.097, 0.145, 0.195]),
-  'gravity-rift': Object.freeze([0.0023, 0.0095, 0.04, 0.061, 0.12, 0.18, 0.24]),
-  'ion-eclipse': Object.freeze([0.002, 0.0085, 0.036, 0.057, 0.115, 0.17, 0.23]),
-  'terminus-frontier': Object.freeze([0.0025, 0.0105, 0.046, 0.068, 0.135, 0.2, 0.27])
+  'open-orbit': Object.freeze([0.012, 0.03, 0.08, 0.16, 0.36, 0.52, 0.68]),
+  'citation-storm': Object.freeze([0.013, 0.034, 0.095, 0.179, 0.394, 0.59, 0.765]),
+  'bastion-protocol': Object.freeze([0.014, 0.037, 0.107, 0.197, 0.429, 0.659, 0.85]),
+  'helix-redline': Object.freeze([0.013, 0.034, 0.088, 0.172, 0.377, 0.573, 0.748]),
+  'shattered-void': Object.freeze([0.011, 0.028, 0.075, 0.148, 0.333, 0.503, 0.663]),
+  'gravity-rift': Object.freeze([0.014, 0.036, 0.1, 0.188, 0.412, 0.625, 0.816]),
+  'ion-eclipse': Object.freeze([0.012, 0.032, 0.09, 0.176, 0.394, 0.59, 0.782]),
+  'terminus-frontier': Object.freeze([0.015, 0.039, 0.115, 0.209, 0.463, 0.694, 0.918])
 } as const);
 
 type SpaceParallaxProfileId = keyof typeof SPACE_PARALLAX_DEPTH_SPEEDS;
+
+export const SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS = Object.freeze({
+  'open-orbit': 4,
+  'citation-storm': 4.5,
+  'bastion-protocol': 5,
+  'helix-redline': 4.4,
+  'shattered-void': 3.9,
+  'gravity-rift': 4.8,
+  'ion-eclipse': 4.6,
+  'terminus-frontier': 5.4
+} as const satisfies Record<SpaceParallaxProfileId, number>);
 
 const createSpaceLayers = (
   profileId: SpaceParallaxProfileId,
@@ -285,7 +297,11 @@ const createSpaceLayers = (
       url: backplateUrl,
       speed: speeds[0],
       alpha: 1,
-      loop: false,
+      // The portrait master has only a few pixels of overscan on tall phones.
+      // Reuse a two-sprite strip so the slowest depth keeps drifting for long
+      // boss fights instead of clamping after that overscan is exhausted.
+      loop: true,
+      tilePoolSize: DEEP_SPACE_BACKPLATE_TILE_POOL_SIZE,
       startOffsetRatio,
       coverViewport: true,
       scrollDirection: 'down'
@@ -293,7 +309,7 @@ const createSpaceLayers = (
     {
       url: ASSETS.GAME_PARALLAX_BACK,
       speed: speeds[1],
-      alpha: 0.05,
+      alpha: 0.1,
       widthScale: 1.04,
       xDrift: 0.5,
       phase: 4.1 + phaseOffset,
@@ -312,7 +328,7 @@ const createSpaceLayers = (
     {
       url: ASSETS.GAME_BG_STARS,
       speed: speeds[3],
-      alpha: 0.075,
+      alpha: 0.12,
       widthScale: 1.06,
       xDrift: 1.2,
       phase: 2.2 + phaseOffset,
@@ -339,7 +355,7 @@ const createSpaceLayers = (
   layers.push({
     url: ASSETS.GAME_PARALLAX_STARS,
     speed: speeds[6],
-    alpha: 0.15,
+    alpha: 0.22,
     widthScale: 1.08,
     xDrift: 2.2,
     phase: 5.4 + phaseOffset,
@@ -363,10 +379,10 @@ const BACKGROUND_PROFILES = {
     ),
     horizonAlpha: 0.11,
     planetTint: '#d8f7ff',
-    starSpeedMultiplier: 0.55,
+    starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['open-orbit'],
     terrain: 'space',
     propSet: 'space',
-    propAlpha: 0.72,
+    propAlpha: 1,
     propCount: 6,
     glyphAlpha: 0
   },
@@ -384,10 +400,10 @@ const BACKGROUND_PROFILES = {
     ),
     horizonAlpha: 0.13,
     planetTint: '#ddd6fe',
-    starSpeedMultiplier: 0.72,
+    starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['citation-storm'],
     terrain: 'space',
     propSet: 'space',
-    propAlpha: 0.86,
+    propAlpha: 1,
     propCount: 9,
     glyphAlpha: 0
   },
@@ -397,13 +413,13 @@ const BACKGROUND_PROFILES = {
     family: 2,
     colorGradeAlpha: 0.095,
     layers: [
-      { url: ASSETS.PIXI_TERRAIN_DESERT_MASTER, speed: 0.36, alpha: 1, loop: false, startOffsetRatio: 0.02, scrollDirection: 'down' },
-      { url: ASSETS.PIXI_DESERT_CLOUDS, speed: 0.105, alpha: 0.18, widthScale: 1.06, xDrift: 2, phase: 1.4, scrollDirection: 'down' },
-      { url: ASSETS.GAME_BG_STARS, speed: 0.015, alpha: 0.025, widthScale: 1.04, xDrift: 1, phase: 2.8, scrollDirection: 'down' }
+      { url: ASSETS.PIXI_TERRAIN_DESERT_MASTER, speed: 0.4, alpha: 1, loop: false, startOffsetRatio: 0.02, scrollDirection: 'down' },
+      { url: ASSETS.PIXI_DESERT_CLOUDS, speed: 0.118, alpha: 0.18, widthScale: 1.06, xDrift: 2, phase: 1.4, scrollDirection: 'down' },
+      { url: ASSETS.GAME_BG_STARS, speed: 0.017, alpha: 0.025, widthScale: 1.04, xDrift: 1, phase: 2.8, scrollDirection: 'down' }
     ],
     horizonAlpha: 0,
     planetTint: '#fde68a',
-    starSpeedMultiplier: 0.35,
+    starSpeedMultiplier: 0.39,
     terrain: 'desert',
     propSet: 'desert',
     propAlpha: 0.92,
@@ -416,12 +432,12 @@ const BACKGROUND_PROFILES = {
     family: 3,
     colorGradeAlpha: 0.085,
     layers: [
-      { url: ASSETS.PIXI_TERRAIN_RIVER_MASTER, speed: 0.34, alpha: 1, loop: false, startOffsetRatio: 0.03, scrollDirection: 'down' },
-      { url: ASSETS.GAME_BG_STARS, speed: 0.012, alpha: 0.02, widthScale: 1.04, xDrift: 1, phase: 2.3, scrollDirection: 'down' }
+      { url: ASSETS.PIXI_TERRAIN_RIVER_MASTER, speed: 0.38, alpha: 1, loop: false, startOffsetRatio: 0.03, scrollDirection: 'down' },
+      { url: ASSETS.GAME_BG_STARS, speed: 0.0135, alpha: 0.02, widthScale: 1.04, xDrift: 1, phase: 2.3, scrollDirection: 'down' }
     ],
     horizonAlpha: 0,
     planetTint: '#bbf7d0',
-    starSpeedMultiplier: 0.3,
+    starSpeedMultiplier: 0.34,
     terrain: 'river',
     propSet: 'river',
     propAlpha: 0.94,
@@ -442,10 +458,10 @@ const BACKGROUND_PROFILES = {
     ),
     horizonAlpha: 0.14,
     planetTint: '#fbcfe8',
-    starSpeedMultiplier: 0.78,
+    starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['bastion-protocol'],
     terrain: 'space',
     propSet: 'space',
-    propAlpha: 0.9,
+    propAlpha: 1,
     propCount: 9,
     glyphAlpha: 0
   },
@@ -456,8 +472,8 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
-    horizonAlpha: 0.14, planetTint: '#f0abfc', starSpeedMultiplier: 0.66,
-    terrain: 'space', propSet: 'helix-redline', propAlpha: 0.92, propCount: 9, glyphAlpha: 0
+    horizonAlpha: 0.14, planetTint: '#f0abfc', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['helix-redline'],
+    terrain: 'space', propSet: 'helix-redline', propAlpha: 1, propCount: 9, glyphAlpha: 0
   },
   'shattered-void': {
     tint: '#1e1b4b', accent: '#a5b4fc', family: 1, colorGradeAlpha: 0.1,
@@ -466,8 +482,8 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
-    horizonAlpha: 0.1, planetTint: '#c7d2fe', starSpeedMultiplier: 0.58,
-    terrain: 'space', propSet: 'shattered-void', propAlpha: 0.88, propCount: 9, glyphAlpha: 0
+    horizonAlpha: 0.1, planetTint: '#c7d2fe', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['shattered-void'],
+    terrain: 'space', propSet: 'shattered-void', propAlpha: 1, propCount: 9, glyphAlpha: 0
   },
   'gravity-rift': {
     tint: '#134e4a', accent: '#5eead4', family: 0, colorGradeAlpha: 0.09,
@@ -476,8 +492,8 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
     ),
-    horizonAlpha: 0.16, planetTint: '#99f6e4', starSpeedMultiplier: 0.7,
-    terrain: 'space', propSet: 'gravity-rift', propAlpha: 0.9, propCount: 9, glyphAlpha: 0
+    horizonAlpha: 0.16, planetTint: '#99f6e4', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['gravity-rift'],
+    terrain: 'space', propSet: 'gravity-rift', propAlpha: 1, propCount: 9, glyphAlpha: 0
   },
   'ion-eclipse': {
     tint: '#1e3a8a', accent: '#67e8f9', family: 3, colorGradeAlpha: 0.1,
@@ -486,8 +502,8 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
     ),
-    horizonAlpha: 0.15, planetTint: '#bae6fd', starSpeedMultiplier: 0.68,
-    terrain: 'space', propSet: 'ion-eclipse', propAlpha: 0.92, propCount: 9, glyphAlpha: 0
+    horizonAlpha: 0.15, planetTint: '#bae6fd', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['ion-eclipse'],
+    terrain: 'space', propSet: 'ion-eclipse', propAlpha: 1, propCount: 9, glyphAlpha: 0
   },
   'terminus-frontier': {
     tint: '#78350f', accent: '#fbbf24', family: 2, colorGradeAlpha: 0.08,
@@ -496,8 +512,8 @@ const BACKGROUND_PROFILES = {
       ASSETS.PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA,
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
-    horizonAlpha: 0.12, planetTint: '#fde68a', starSpeedMultiplier: 0.76,
-    terrain: 'space', propSet: 'terminus-frontier', propAlpha: 0.94, propCount: 9, glyphAlpha: 0
+    horizonAlpha: 0.12, planetTint: '#fde68a', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['terminus-frontier'],
+    terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1, propCount: 9, glyphAlpha: 0
   }
 } as const satisfies Record<string, EnvironmentProfile>;
 

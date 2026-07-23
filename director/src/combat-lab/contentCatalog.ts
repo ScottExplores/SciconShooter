@@ -175,7 +175,7 @@ const CATEGORY_LABELS: Record<CombatLabCategoryId, string> = {
   enemies: 'Enemies',
   bosses: 'Bosses',
   'boss-moves': 'Boss Moves',
-  'stages-waves': 'Stages & Waves',
+  'stages-waves': 'Missions & Waves',
   'main-ships': 'Main Ships',
   'mini-ships': 'Mini-Ships',
   weapons: 'Weapons',
@@ -436,7 +436,7 @@ const createBossItems = (
     imagePaths: imagePathsForAsset(event.spriteKey),
     facts: [
       { label: 'Boss family', value: catalog.label, source: 'catalog' },
-      { label: 'Stage / wave', value: `${level.name} / ${wave.name}`, source: 'campaign' },
+      { label: 'Mission / wave', value: `${level.name} / ${wave.name}`, source: 'campaign' },
       { label: 'Health', value: event.health, source: 'campaign' },
       { label: 'Speed', value: event.speed, source: 'campaign' },
       { label: 'Contact damage', value: event.damage, source: 'campaign' },
@@ -761,7 +761,7 @@ const createPowerupItems = (
     facts: [
       { label: 'Runtime type', value: powerup.runtimeType, source: 'catalog' },
       { label: 'Configured-event weight', value: powerup.defaultWeight, source: 'catalog' },
-      { label: 'Available in stages', value: availableLevels.length, source: 'campaign' },
+      { label: 'Available in missions', value: availableLevels.length, source: 'campaign' },
       { label: 'Scheduled event uses', value: scheduled.length, source: 'campaign' }
     ],
     sourceRefs: [

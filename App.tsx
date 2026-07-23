@@ -1864,13 +1864,13 @@ const App: React.FC = () => {
       <div className="pointer-events-none absolute right-0 top-5 h-12 w-24 translate-x-10 skew-x-[24deg] border-y border-l border-yellow-200/35 bg-yellow-300/10" />
       <div className="pointer-events-none absolute left-1/2 top-0 h-3 w-14 -translate-x-1/2 bg-yellow-300 shadow-[0_0_16px_rgba(250,204,21,0.55)] [clip-path:polygon(12%_0,88%_0,100%_50%,88%_100%,12%_100%,0_50%)]" />
       <div className="relative">
-        <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-cyan-200">Stage {stats.wave} - {resultEncounter}</p>
+        <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-cyan-200">Mission {stats.wave} - {resultEncounter}</p>
         <h2 className="arcade-font mt-1 text-xl font-black uppercase tracking-widest text-cyan-100">{campaignCompletedRun ? 'Campaign Record' : 'Mission Record'}</h2>
         <p className="mt-1 text-3xl font-black text-white">{stats.score.toLocaleString()}</p>
       </div>
 
       <div className="relative mt-2 grid grid-cols-3 divide-x divide-white/10 border-t border-cyan-100/15 pt-2 text-center">
-        <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Stage</span><strong className="text-sm text-cyan-100">{stats.wave}</strong></div>
+        <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Mission</span><strong className="text-sm text-cyan-100">{stats.wave}</strong></div>
         <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Targets</span><strong className="text-sm text-emerald-100">{stats.enemiesDefeated}</strong></div>
         <div><span className="block text-[8px] font-black uppercase tracking-wider text-slate-500">Coins</span><strong className="text-sm text-yellow-200">{stats.coins}</strong></div>
       </div>
@@ -2095,11 +2095,11 @@ const App: React.FC = () => {
             <div className="text-left">
                   <div className="mb-3 border-b border-cyan-200/18 pb-2">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100">Founder Test Controls</p>
-                    <p className="mt-1 text-[9px] font-bold leading-relaxed text-slate-400">Jump stages, refill upgrades, or preview the winner flow. This test run cannot enter the leaderboard.</p>
+                    <p className="mt-1 text-[9px] font-bold leading-relaxed text-slate-400">Jump missions, refill upgrades, or preview the winner flow. This test run cannot enter the leaderboard.</p>
                   </div>
                   <div className="space-y-3">
                     <div>
-                      <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-cyan-200">Select stage</p>
+                      <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-cyan-200">Select mission</p>
                       <div className="grid grid-cols-5 overflow-hidden border border-cyan-200/30">
                         {Array.from({ length: MAX_AUTHORED_CAMPAIGN_STAGES }, (_, index) => index + 1).map((wave) => (
                           <button
@@ -2107,9 +2107,9 @@ const App: React.FC = () => {
                             type="button"
                             onClick={() => jumpOwnerTestWave(wave)}
                             className={`min-h-10 border-r border-cyan-200/20 px-2 text-[10px] font-black last:border-r-0 ${stats.wave === wave ? 'bg-cyan-300/25 text-white' : 'bg-slate-950/55 text-cyan-200'}`}
-                            aria-label={`Jump to stage ${wave}`}
+                            aria-label={`Jump to mission ${wave}`}
                           >
-                            S{wave}
+                            M{wave}
                           </button>
                         ))}
                       </div>
@@ -2117,9 +2117,9 @@ const App: React.FC = () => {
                         type="button"
                         onClick={jumpOwnerTestBoss}
                         className="mt-2 min-h-10 w-full border border-red-200/35 bg-red-300/12 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-red-50 transition hover:border-red-100/60 hover:bg-red-300/20"
-                        aria-label={`Jump to boss of stage ${stats.wave}`}
+                        aria-label={`Jump to boss of mission ${stats.wave}`}
                       >
-                        Jump to Stage {stats.wave} boss
+                        Jump to Mission {stats.wave} boss
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">

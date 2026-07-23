@@ -123,19 +123,24 @@ test('every player ship has eight monotonic four-frame launch animations', () =>
   assert.equal(frameCount, 128);
 });
 
-test('every player ship uses the Research level-zero launch animation at every upgrade level', () => {
+test('BIO uses its green level-zero launch family while the other ships keep Research level zero', () => {
   const visuals = fs.readFileSync(path.join(root, 'services', 'playerWeaponVisuals.ts'), 'utf8');
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
   const pixi = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
 
   assert.equal((visuals.match(/frame-[1234]\.png/g) || []).length, 128);
   assert.match(visuals, /UNIVERSAL_PLAYER_WEAPON_FRAMES = research\[0\]/);
-  assert.match(visuals, /PLAYER_WEAPON_FRAME_URLS = \[\.\.\.UNIVERSAL_PLAYER_WEAPON_FRAMES\]/);
+  assert.match(visuals, /BIO_PRIMARY_PLAYER_WEAPON_FRAMES = bio\[0\]/);
+  assert.match(visuals, /PLAYER_WEAPON_FRAME_URLS = \[[\s\S]*\.\.\.UNIVERSAL_PLAYER_WEAPON_FRAMES,[\s\S]*\.\.\.BIO_PRIMARY_PLAYER_WEAPON_FRAMES/);
+  assert.match(visuals, /if \(weaponKind === 'bio-primary'\) return BIO_PRIMARY_PLAYER_WEAPON_FRAMES/);
   assert.match(visuals, /return UNIVERSAL_PLAYER_WEAPON_FRAMES/);
   assert.match(engine, /weaponVisualLevel: number = 0/);
   assert.match(engine, /weaponVisualStartFrame: number = 0/);
   assert.match(engine, /b\.weaponVisualLevel = 0/);
   assert.match(engine, /const weaponKind: PlayerWeaponKind = 'pulse'/);
+  assert.match(engine, /this\.playerShipId === 'bio'[\s\S]*getBioPrimaryShotPlan/);
+  assert.match(engine, /'bio-primary'/);
+  assert.match(engine, /BIO_PRIMARY_DAMAGE_PER_ROUND/);
   assert.match(engine, /const weaponSpeed = 10/);
   assert.match(engine, /PLAYER_PRIMARY_SHOT_SPREAD_DEGREES = 5/);
   assert.match(engine, /Math\.floor\(Math\.random\(\) \* 3\) - 1/);
@@ -153,11 +158,12 @@ test('every player ship uses the Research level-zero launch animation at every u
   assert.match(engine, /this\.frameCount - e\.weaponVisualStartFrame/);
 });
 
-test('ship-specific primary beams stay disabled while the universal weapon is active', () => {
+test('the old continuous BIO beam stays disabled while the bounded green primary is active', () => {
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
   const pixi = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
   assert.match(engine, /isBioBeamFiring\(\) \{\s*return false;\s*\}/);
   assert.doesNotMatch(engine, /if \(bioLaserEquipped\)/);
+  assert.match(engine, /getBioPrimaryShotPlan/);
   assert.match(pixi, /bioBeamEmitter = new Sprite\(Texture\.WHITE\)/);
   assert.match(pixi, /const active = engine\.isBioBeamFiring\(\)/);
 });

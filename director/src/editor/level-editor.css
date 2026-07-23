@@ -509,6 +509,20 @@
   overflow-x: auto;
   background: #030c17;
 }
+.le-wave-strip-heading {
+  display: flex;
+  min-width: max-content;
+  align-items: baseline;
+  gap: 7px;
+  padding: 0 1px 8px;
+  color: var(--le-muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.le-wave-strip-heading strong { color: var(--le-cyan); font-size: 9px; font-weight: 650; }
+.le-wave-strip-heading small { color: #7593a7; font-size: 7px; letter-spacing: .04em; }
 .le-wave-list { display: flex; min-width: max-content; align-items: stretch; gap: 7px; }
 .le-wave-card {
   position: relative;

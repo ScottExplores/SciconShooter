@@ -1,22 +1,22 @@
 # Scicon Shooter campaign configuration
 
-`campaign.json` is the stage and internal-wave source of truth used by the real `GameEngine` and the local Scicon Level Editor. The persisted key remains `levels` for compatibility, but each level is presented to players as a Stage.
+`campaign.json` is the mission and internal-wave source of truth used by the real `GameEngine` and the local Scicon Director. Persisted `levels` keys and historical `stage-*` IDs remain compatibility identifiers; each level is presented to players and editors as a Mission.
 
 ## Shape
 
-- A campaign contains ordered `levels`, which are the player-facing Stages.
+- A campaign contains ordered `levels`, which are the player-facing Missions. Keep the `levels` property and existing `stage-*` IDs unchanged for compatibility.
 - The campaign-level `recordCard` presentation feeds the Director preview, in-game mission record, and NFT/share SVG renderer.
-- A Stage owns its background, music cue, difficulty, score target, available power-ups, scorecard presentation, and ordered internal `waves`.
-- An internal wave owns its active duration, stage-boundary timing, threat cap, score multiplier, and ordered `events`.
+- A Mission owns its background, music cue, difficulty, score target, available power-ups, scorecard presentation, and ordered internal `waves`.
+- An internal wave owns its active duration, mission-boundary timing, threat cap, score multiplier, and ordered `events`.
 - Event kinds are `spawn`, `boss`, `asteroid-belt`, `powerup`, and `recovery`.
 - JSON stores constrained catalog IDs such as `ENEMY_JOURNAL_FRAMES` or `gatekeeper`; arbitrary asset paths and executable behavior are rejected.
 - Spawn events select a reusable formation grammar: row, V, sine, pincer, grid, diamond, or spiral. The runtime owns the shared enter, assemble, dive, and return behavior.
 - `hudAssets.bombIconAssetKey` selects the bomb control artwork used by the shared real-game HUD.
 - Optional normalized `spawnAnchor` points power visual placement, while bounded `spriteStyle` values change artwork without changing collision boxes.
 
-The checked-in revision defines a finite twenty-Stage campaign. Stages 1–5 retain Open Orbit, Citation Storm, Paywall Siege, Open Galaxy, and Bastion Protocol; Stages 6–20 continue into authored helix, redline, asteroid, swarm, roaming-boss, and final Terminus encounters instead of recycling Stage 1. Each Stage is split into tactical internal waves, and only the final internal wave triggers the Stage completion/departure flow.
+The checked-in revision defines a finite twenty-Mission campaign. Missions 1–5 retain Open Orbit, Citation Storm, Paywall Siege, Open Galaxy, and Bastion Protocol; Missions 6–20 continue into authored helix, redline, asteroid, swarm, roaming-boss, and final Terminus encounters instead of recycling Mission 1. Each Mission is split into tactical internal waves, and only the final internal wave triggers the Mission completion/departure flow.
 
-Later Stages deliberately mix boss finales with bossless survival climaxes. Blocking asteroid deluges, elite mass assaults, multi-row bastions, and increasingly mobile Gatekeepers all use the same validated event grammar as the opening campaign. Stage 6 is the first canonical encounter for the violet Citation Storm boss art, while Stage 20 is the authored endpoint and hardest checked-in encounter.
+Later Missions deliberately mix boss finales with bossless survival climaxes. Blocking asteroid deluges, elite mass assaults, multi-row bastions, and increasingly mobile Gatekeepers all use the same validated event grammar as the opening campaign. Mission 6 is the first canonical encounter for the violet Citation Storm boss art, while Mission 20 is the authored endpoint and hardest checked-in encounter.
 
 ## Validation and runtime
 

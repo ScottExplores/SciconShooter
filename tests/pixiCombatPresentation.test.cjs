@@ -35,13 +35,16 @@ test('Pixi combat presentation uses checked-in sprite effects and escort ships',
   assert.match(effects, /setExplosionTextures/);
 });
 
-test('all ships share the projectile primary while the old BIO beam stays dormant', () => {
+test('BIO uses bounded green primary projectiles while its old continuous beam stays dormant', () => {
   const engine = read('services/gameLogic.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
 
   assert.match(engine, /isBioBeamFiring\(\) \{\s*return false;\s*\}/);
   assert.match(engine, /const weaponKind: PlayerWeaponKind = 'pulse'/);
+  assert.match(engine, /this\.playerShipId === 'bio'[\s\S]*getBioPrimaryShotPlan/);
+  assert.match(engine, /weaponKind: 'bio-primary'/);
   assert.doesNotMatch(engine, /if \(bioLaserEquipped\)/);
+  assert.match(renderer, /getPlayerWeaponFrames\(entity\.weaponKind, entity\.weaponVisualLevel\)/);
   assert.match(renderer, /engine\.isBioBeamFiring\(\)/);
 });
 

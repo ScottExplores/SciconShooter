@@ -44,7 +44,7 @@ test('achievements advance through permanent progressive tiers', () => {
   ];
 
   ids.forEach((id) => assert.match(rewards, new RegExp(`id: '${id}'`)));
-  assert.match(rewards, /description: 'Reach Stage \{target\}'/);
+  assert.match(rewards, /description: 'Reach Mission \{target\}'/);
   assert.match(rewards, /targets: \[2, 4, 6, 10, 15\]/);
   assert.match(rewards, /targets: \[2, 5, 10, 25, 50\]/);
   assert.match(rewards, /targets: \[100, 500, 1500, 5000, 10000\]/);

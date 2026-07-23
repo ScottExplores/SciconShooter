@@ -6,7 +6,7 @@ const XML_ENTITIES = Object.freeze({
   '"': '&quot;'
 });
 
-export const RECORD_CARD_RENDER_VERSION = '2026-07-21-stage-2';
+export const RECORD_CARD_RENDER_VERSION = '2026-07-22-mission-1';
 
 const buildShipQuery = (playerShipId) => (
   playerShipId ? `&ship=${encodeURIComponent(String(playerShipId))}` : ''
@@ -46,7 +46,7 @@ const DEFAULT_COPY = Object.freeze({
   verifiedLabel: '',
   reviewLabel: 'REVIEWED RUN',
   metricLabels: Object.freeze({
-    wave: 'STAGE',
+    wave: 'MISSION',
     targets: 'TARGETS',
     coins: 'COINS',
     flight: 'FLIGHT'

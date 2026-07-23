@@ -70,7 +70,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
   {
     id: 'sector-pioneer',
     title: 'Sector Pioneer',
-    description: 'Reach Stage {target}',
+    description: 'Reach Mission {target}',
     metric: 'highestWave',
     targets: [2, 4, 6, 10, 15],
     rewards: [150, 300, 500, 800, 1400]

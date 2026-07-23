@@ -27,7 +27,7 @@ test('runtime exposes ordered level and within-level wave position from campaign
   assert.match(engine, /this\.cinematicPaused = cinematicPause;/);
 });
 
-test('canonical Pixi scene presents a centered Stage and internal Wave transition without a HUD badge', () => {
+test('canonical Pixi scene presents a centered Mission and internal Wave transition without a HUD badge', () => {
   const renderer = read('services', 'pixi', 'PixiGameRenderer.ts');
 
   assert.match(renderer, /scicon-simple-arcade-kit-v1\/wave-glyphs\/cyan/);
@@ -36,7 +36,7 @@ test('canonical Pixi scene presents a centered Stage and internal Wave transitio
   assert.match(renderer, /\.\.\.PIXI_WAVE_PRESENTATION_TEXTURE_URLS/);
   assert.match(renderer, /private readonly waveCounterGlyphs = Array\.from\(\{ length: 8 \}/);
   assert.doesNotMatch(renderer, /waveBadge|positionWaveBadge/);
-  assert.match(renderer, /STAGE \$\{String\(state\.levelNumber\)\.padStart\(2, '0'\)\} · \$\{state\.levelName\.toUpperCase\(\)\}/);
+  assert.match(renderer, /MISSION \$\{String\(state\.levelNumber\)\.padStart\(2, '0'\)\} · \$\{state\.levelName\.toUpperCase\(\)\}/);
   assert.match(renderer, /this\.setWaveCounterGlyphs\(`\$\{state\.waveNumber\}\/\$\{state\.waveTotal\}`\)/);
   assert.match(renderer, /this\.waveNameText\.text = state\.waveName\.toUpperCase\(\)/);
   assert.match(renderer, /prefers-reduced-motion: reduce/);

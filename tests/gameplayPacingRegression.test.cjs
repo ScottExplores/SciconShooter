@@ -105,11 +105,14 @@ test('player ship uses a five-percent smaller gameplay footprint', () => {
   assert.match(engineSource, /this\.player\.height = Math\.round\(128 \* PLAYER_SHIP_SCALE\)/);
 });
 
-test('all player ships share one primary weapon with three tight fire-rate tiers', () => {
+test('Research keeps tight fire-rate tiers while BIO swaps to equal-damage straight twin rails', () => {
   assert.match(engineSource, /const fireInterval = getFireRateIntervalFrames\(level\)/);
   assert.match(engineSource, /const volleySize = getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\)/);
   assert.match(engineSource, /const volleyOffsets = getTightVolleyOffsets\(volleySize\)/);
   assert.match(engineSource, /const weaponKind: PlayerWeaponKind = 'pulse'/);
+  assert.match(engineSource, /this\.playerShipId === 'bio'[\s\S]*getBioPrimaryShotPlan/);
+  assert.match(engineSource, /hasPlayerShotCapacity\(bioPrimaryPlan\.simulationEntityCount\)/);
+  assert.match(engineSource, /'bio-primary'/);
   assert.match(engineSource, /const weaponSpeed = 10/);
   assert.match(engineSource, /b\.weaponVisualLevel = 0/);
   assert.doesNotMatch(engineSource, /if \(bioLaserEquipped\)/);

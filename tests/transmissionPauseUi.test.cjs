@@ -14,7 +14,8 @@ test('story transmissions open a simple fitted shutter before typewriter playbac
   assert.match(story, /if \(!vaultUnsealed \|\| isComplete\) return/);
   assert.match(story, /<FundingVaultUnseal open=\{vaultUnsealed\}>/);
   assert.match(story, /sci-funding-vault__transmission/);
-  assert.match(story, /Stage \{beat\.phase\}: \{beat\.title\}/);
+  assert.match(story, /Mission \{beat\.phase\}: \{beat\.title\}/);
+  assert.doesNotMatch(story, /Stage \{beat\.phase\}: \{beat\.title\}/);
   assert.doesNotMatch(story, /Wave \{beat\.phase\}: \{beat\.title\}/);
   assert.match(vault, /sci-funding-vault--portrait/);
   assert.match(vault, /sci-funding-vault__content/);

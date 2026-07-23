@@ -50,7 +50,7 @@ test('the app keeps the real game mounted behind the stage-complete overlay stat
   assert.match(appSource, /campaignComplete={campaignCompletedRun}/);
 });
 
-test('the victory overlay uses the layered Scicon reveal packs and shows stage metrics', () => {
+test('the victory overlay uses the layered Scicon reveal packs and shows mission metrics', () => {
   assert.match(overlaySource, /weekly-champion-reveal\/parts/);
   assert.match(overlaySource, /mission-record-verification\/parts/);
   assert.match(overlaySource, /plaque-body\.png/);
@@ -60,11 +60,12 @@ test('the victory overlay uses the layered Scicon reveal packs and shows stage m
   assert.match(overlaySource, />Coins</);
   assert.match(overlaySource, />Flight</);
   assert.match(overlaySource, /Continue/);
-  assert.match(overlaySource, /Stage \{summary\.stage\}/);
-  assert.match(overlaySource, /`Stage \$\{summary\.nextStage\}`/);
+  assert.match(overlaySource, /Mission \{summary\.stage\}/);
+  assert.match(overlaySource, /`Mission \$\{summary\.nextStage\}`/);
   assert.match(overlaySource, /summary\.campaignComplete \|\| !summary\.hasNextStage/);
   assert.match(overlaySource, /Campaign Complete/);
-  assert.match(overlaySource, /All 20 stages cleared/);
+  assert.match(overlaySource, /All 20 missions cleared/);
   assert.match(overlaySource, /Mission Results/);
+  assert.doesNotMatch(overlaySource, /Stage \{summary\.|All 20 stages cleared/);
   assert.doesNotMatch(overlaySource, /Wave \{summary\./);
 });

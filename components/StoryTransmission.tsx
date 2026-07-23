@@ -98,7 +98,7 @@ const StoryTransmission: React.FC<StoryTransmissionProps> = ({ beat, onComplete 
                 {beat.speaker}
               </div>
               <div className="mt-1.5 font-mono text-[9px] uppercase leading-[1.3] tracking-[0.12em] text-yellow-200/85">
-                Stage {beat.phase}: {beat.title}
+                Mission {beat.phase}: {beat.title}
               </div>
             </div>
           </div>

@@ -3,6 +3,8 @@ import type { WaveDefinition } from '../../../game-config/types';
 import { EditorIcon } from './EditorIcon';
 
 interface WaveStripProps {
+  missionName: string;
+  missionOrder: number;
   waves: WaveDefinition[];
   selectedWaveId: string;
   onSelect: (waveId: string) => void;
@@ -14,6 +16,8 @@ interface WaveStripProps {
 }
 
 export function WaveStrip({
+  missionName,
+  missionOrder,
   waves,
   selectedWaveId,
   onSelect,
@@ -25,9 +29,15 @@ export function WaveStrip({
 }: WaveStripProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const selectedIndex = waves.findIndex((wave) => wave.id === selectedWaveId);
+  const missionLabel = `Mission ${String(missionOrder).padStart(2, '0')} · ${missionName}`;
 
   return (
-    <section className="le-waves" aria-label="Wave order">
+    <section className="le-waves" aria-label={`Waves in ${missionLabel}`}>
+      <header className="le-wave-strip-heading">
+        <span>Waves in</span>
+        <strong>{missionLabel}</strong>
+        <small>{waves.length} wave{waves.length === 1 ? '' : 's'}</small>
+      </header>
       <div className="le-wave-list">
         {waves.map((wave, index) => (
           <div

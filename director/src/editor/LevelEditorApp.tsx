@@ -678,8 +678,10 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
           <header className="le-preview-heading">
             <div>
               <h1>{surfaceMode === 'game'
-                ? `Previewing Wave ${selectedWave.order} · ${selectedWave.name}`
-                : surfaceMode === 'review' ? `Reviewing Wave ${selectedWave.order} · ${selectedWave.name}` : 'Mission / NFT Record Card'}</h1>
+                ? `Previewing Mission ${selectedLevel.order} · ${selectedLevel.name} / Wave ${selectedWave.order} · ${selectedWave.name}`
+                : surfaceMode === 'review'
+                  ? `Reviewing Mission ${selectedLevel.order} · ${selectedLevel.name} / Wave ${selectedWave.order} · ${selectedWave.name}`
+                  : `Mission ${selectedLevel.order} · ${selectedLevel.name} / Wave ${selectedWave.order} Record Card`}</h1>
               <p>{surfaceMode === 'game'
                 ? previewLabel
                 : surfaceMode === 'review' ? 'Frozen actual-game frame · click to pin a change request' : 'One shared production renderer · local sample data'}</p>
@@ -759,6 +761,8 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
               </div>
             )}
             <WaveStrip
+              missionName={selectedLevel.name}
+              missionOrder={selectedLevel.order}
               waves={selectedLevel.waves}
               selectedWaveId={selectedWave.id}
               onSelect={handleSelectWave}

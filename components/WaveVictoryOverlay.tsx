@@ -27,7 +27,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({ summary, onCont
     <div className="wave-victory-overlay" role="dialog" aria-modal="true" aria-labelledby="wave-victory-title">
       <div className="wave-victory-backdrop" aria-hidden="true" />
       <div className="wave-victory-stage">
-        <section className="wave-record-shell" aria-label={`Stage ${summary.stage} mission record`}>
+        <section className="wave-record-shell" aria-label={`Mission ${summary.stage} record`}>
           <div className="wave-record-art" aria-hidden="true">
             <LayerImage className="wave-record-glow" src={`${RECORD_PARTS}/energy-glow.png`} />
             <LayerImage className="wave-record-body" src={`${RECORD_PARTS}/record-card-body.png`} />
@@ -42,7 +42,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({ summary, onCont
           <div className="wave-record-content">
             <div className="wave-record-heading">
               <span>Mission Record</span>
-              <strong>Stage {summary.stage}</strong>
+              <strong>Mission {summary.stage}</strong>
             </div>
 
             <div className="wave-record-sector">
@@ -51,7 +51,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({ summary, onCont
             </div>
 
             <div className="wave-record-score">
-              <span>Stage Score</span>
+              <span>Mission Score</span>
               <strong>{summary.scoreEarned.toLocaleString()}</strong>
             </div>
 
@@ -99,13 +99,13 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({ summary, onCont
             >
               {campaignComplete ? 'Campaign Complete' : 'Victory'}
             </h1>
-            <p>{campaignComplete ? 'All 20 stages cleared' : `Stage ${summary.stage} cleared`}</p>
+            <p>{campaignComplete ? 'All 20 missions cleared' : `Mission ${summary.stage} cleared`}</p>
           </div>
         </header>
 
         <button className="wave-victory-continue" type="button" onClick={onContinue}>
           <span>{campaignComplete ? 'Open' : 'Continue'}</span>
-          <strong>{campaignComplete ? 'Mission Results' : `Stage ${summary.nextStage}`}</strong>
+          <strong>{campaignComplete ? 'Mission Results' : `Mission ${summary.nextStage}`}</strong>
         </button>
       </div>
     </div>

@@ -978,7 +978,7 @@ export class PixiGameRenderer {
     this.lastWavePresentationRevision = state.wavePresentationRevision;
     this.lastWavePresentationKey = `${state.levelId}:${state.waveId}`;
     this.wavePresentationElapsedMs = 0;
-    this.waveLevelText.text = `STAGE ${String(state.levelNumber).padStart(2, '0')} · ${state.levelName.toUpperCase()}`;
+    this.waveLevelText.text = `MISSION ${String(state.levelNumber).padStart(2, '0')} · ${state.levelName.toUpperCase()}`;
     this.waveNameText.text = state.waveName.toUpperCase();
     this.waveNameText.style.fill = state.waveAccent;
     this.setWaveCounterGlyphs(`${state.waveNumber}/${state.waveTotal}`);
@@ -1657,25 +1657,28 @@ export class PixiGameRenderer {
       const visualPattern = entity.maxShotVisualPattern;
       if (visualPattern?.length) {
         const copies = this.ensureProjectileCopySprites(view, visualPattern.length);
+        const bundleAge = Math.max(0, engineFrame - entity.weaponVisualStartFrame);
+        const projectileSpeed = Math.max(1, Math.hypot(entity.vx, entity.vy));
         const remainingVisualRounds = Math.min(
           visualPattern.length,
           Math.max(0, entity.representedRoundsRemaining)
         );
-        const visualTravel = Math.min(
-          100,
-          Math.max(0, engineFrame - entity.weaponVisualStartFrame) * Math.max(1, Math.hypot(entity.vx, entity.vy))
-        );
         visualPattern.forEach((round, index) => {
           const sprite = index === 0 ? view.sprite : copies[index - 1];
+          const launchDelayFrames = Math.max(0, round.launchDelayFrames || 0);
+          const roundAge = Math.max(0, bundleAge - launchDelayFrames);
+          const visualTravel = Math.min(100, roundAge * projectileSpeed);
           sprite.texture = view.sprite.texture;
-          sprite.visible = index < remainingVisualRounds && view.sprite.visible;
+          sprite.visible = index < remainingVisualRounds
+            && bundleAge >= launchDelayFrames
+            && view.sprite.visible;
           sprite.tint = '#ffffff';
           sprite.alpha = 1;
           sprite.width = visualWidth;
           sprite.height = visualHeight;
           sprite.position.set(
             round.offsetX + Math.sin(round.angleOffset) * visualTravel,
-            0
+            launchDelayFrames * projectileSpeed
           );
           sprite.rotation = round.angleOffset;
         });

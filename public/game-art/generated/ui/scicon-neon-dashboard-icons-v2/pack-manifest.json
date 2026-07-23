@@ -1,0 +1,33 @@
+{
+  "id": "scicon-neon-dashboard-icons-v2",
+  "version": 1,
+  "source": "built-in image generation plus local chroma-key removal",
+  "assets": {
+    "dashboardNavIcons": {
+      "path": "/game-art/generated/ui/scicon-neon-dashboard-icons-v2/dashboard-nav-icons-static.png",
+      "sheetSize": [
+        1280,
+        256
+      ],
+      "grid": [
+        5,
+        1
+      ],
+      "frameSize": [
+        256,
+        256
+      ],
+      "columns": [
+        "proposals",
+        "trophies",
+        "home",
+        "hangar",
+        "more"
+      ],
+      "rows": [
+        "static"
+      ],
+      "sha256": "2d797ebf5d25203eacce74c751c7966dfdf21bbd58d9ac88ec02b40cc3739dc5"
+    }
+  }
+}

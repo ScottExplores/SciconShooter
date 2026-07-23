@@ -133,7 +133,7 @@ export interface GameCampaignConfig {
   recordCard: RecordCardConfig;
   /** Shared HUD art selected by the Director and rendered by the real game. */
   hudAssets: HudAssetsConfig;
-  /** Ordered player-facing stages. At least one stage is required. */
+  /** Ordered player-facing Missions. `levels` remains the compatibility/config key; at least one Mission is required. */
   levels: LevelDefinition[];
 }
 
@@ -195,7 +195,7 @@ export interface RecordCardConfig {
 }
 
 export interface LevelDefinition {
-  /** A player-facing Stage; `level` remains the compatibility/config key. */
+  /** A player-facing Mission. `LevelDefinition`, `levels`, and historical `stage-*` IDs remain compatibility identifiers. */
   id: string;
   name: string;
   description: string;
@@ -211,7 +211,7 @@ export interface LevelDefinition {
   scoreTarget: number;
   /** Null preserves today's completion-driven mission with no hard time limit. */
   durationSeconds: number | null;
-  /** True repeats this stage's internal waves before advancing the campaign. */
+  /** True repeats this Mission's internal waves before advancing the campaign. */
   loopWaves: boolean;
   availablePowerupIds: PowerupId[];
   scorecard: LevelScorecardSettings;
@@ -230,7 +230,7 @@ export interface LevelScorecardSettings {
 }
 
 export interface WaveDefinition {
-  /** A tactical wave inside its owning player-facing Stage. */
+  /** A tactical wave inside its owning player-facing Mission. */
   id: string;
   name: string;
   order: number;
@@ -249,9 +249,9 @@ export interface WaveDefinition {
   difficultyMultiplier: number;
   /** Active-combat clock. Current default: 60 seconds (3600 frames). */
   durationSeconds: number;
-  /** Launch cinematic before the active clock; normally used only at a stage boundary. */
+  /** Launch cinematic before the active clock; normally used only at a Mission boundary. */
   introSeconds: number;
-  /** Collectible-loot window after the stage-final encounter; Gatekeepers use 5 seconds. */
+  /** Collectible-loot window after the Mission-final encounter; Gatekeepers use 5 seconds. */
   delayAfterSeconds: number;
   /** Current score formula is 2^(wave order - 1). */
   scoreMultiplier: number;

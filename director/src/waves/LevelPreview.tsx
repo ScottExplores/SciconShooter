@@ -141,7 +141,7 @@ export const LevelPreview = memo(function LevelPreview({
   const playerVisible = currentSegment.type !== 'launch' || localProgress > 0.15;
 
   return (
-    <section className="wd-preview" aria-label="Interactive level preview">
+    <section className="wd-preview" aria-label="Interactive mission preview">
       <div className="wd-preview__label">
         <span>Preview: {wave.name} / {currentSegment.label}</span>
         <span>{Math.round(localProgress * 100)}%</span>

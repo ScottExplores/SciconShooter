@@ -172,6 +172,7 @@ test('the dashboard centers Home and exposes Hangar immediately to its right', (
   assert.ok(homeIndex < hangarIndex);
   assert.ok(hangarIndex < moreIndex);
   assert.match(startScreen, /grid-cols-5/);
+  assert.match(startScreen, /scicon-neon-dashboard-icons-v2/);
   assert.match(startScreen, /dashboard-nav-icons-static\.png/);
   assert.match(startScreen, /id: 'proposals'[\s\S]*?spriteColumn: 0/);
   assert.match(startScreen, /id: 'trophies'[\s\S]*?spriteColumn: 1/);
@@ -179,7 +180,8 @@ test('the dashboard centers Home and exposes Hangar immediately to its right', (
   assert.match(startScreen, /id: 'hangar'[\s\S]*?spriteColumn: 3/);
   assert.match(startScreen, /id: 'more'[\s\S]*?spriteColumn: 4/);
   assert.match(startScreen, /className="sci-dashboard-nav-icon-sprite"/);
-  assert.match(styles, /dashboard-nav-icons-static\.png/);
+  assert.match(styles, /scicon-neon-dashboard-icons-v2\/dashboard-nav-icons-static\.png/);
+  assert.match(styles, /\.sci-dashboard-nav-icon\s*\{[\s\S]*?width:\s*var\(--dashboard-icon-size\);[\s\S]*?height:\s*var\(--dashboard-icon-size\);/);
   assert.match(styles, /background-size: 500% 100%/);
   assert.match(styles, /background-position: var\(--dashboard-icon-column-x, 0%\) 0%/);
   assert.doesNotMatch(styles, /sci-dashboard-icon-live/);

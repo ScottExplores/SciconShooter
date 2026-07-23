@@ -48,10 +48,15 @@ const btc = [
 
 export const PLAYER_WEAPON_VISUALS = { research, bio, eth, btc } as const;
 
-/** The four cells from research/level-0/sprite-sheet.png, shared by every player ship. */
+/** Default four-frame launch family retained by Research, ETH, and BTC. */
 export const UNIVERSAL_PLAYER_WEAPON_FRAMES = research[0];
+/** BIO's half-strength twin rails use the checked-in green launch family. */
+export const BIO_PRIMARY_PLAYER_WEAPON_FRAMES = bio[0];
 
-export const PLAYER_WEAPON_FRAME_URLS = [...UNIVERSAL_PLAYER_WEAPON_FRAMES];
+export const PLAYER_WEAPON_FRAME_URLS = [
+  ...UNIVERSAL_PLAYER_WEAPON_FRAMES,
+  ...BIO_PRIMARY_PLAYER_WEAPON_FRAMES
+];
 
 export const PLAYER_WEAPON_LAUNCH_TICKS_PER_FRAME = 2;
 
@@ -62,6 +67,7 @@ export const getPlayerWeaponLaunchFrameIndex = (ageFrames: number, frameCount: n
 };
 
 export const getPlayerWeaponVisualFamily = (weaponKind: string): PlayerWeaponVisualFamily => {
+  if (weaponKind === 'bio-primary') return 'bio';
   if (weaponKind === 'bio-laser') return 'bio';
   if (weaponKind === 'eth-shard') return 'eth';
   if (weaponKind === 'btc-hash') return 'btc';
@@ -69,7 +75,7 @@ export const getPlayerWeaponVisualFamily = (weaponKind: string): PlayerWeaponVis
 };
 
 export const getPlayerWeaponFrames = (weaponKind: string, level: number): readonly string[] => {
-  void weaponKind;
   void level;
+  if (weaponKind === 'bio-primary') return BIO_PRIMARY_PLAYER_WEAPON_FRAMES;
   return UNIVERSAL_PLAYER_WEAPON_FRAMES;
 };

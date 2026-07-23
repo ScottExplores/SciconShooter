@@ -6,30 +6,41 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
 
-test('top-level run progress is presented as Stage without renaming compatibility fields', () => {
+test('top-level run progress is presented as Mission without renaming compatibility fields', () => {
   const app = read('App.tsx');
   const startScreen = read('components', 'StartScreen.tsx');
   const missionRecord = read('components', 'MissionRecordPreview.tsx');
+  const gameCanvas = read('components', 'GameCanvas.tsx');
+  const victoryOverlay = read('components', 'WaveVictoryOverlay.tsx');
+  const storyTransmission = read('components', 'StoryTransmission.tsx');
   const stagePresentation = read('services', 'stagePresentation.ts');
+  const engine = read('services', 'gameLogic.ts');
+  const pixiRenderer = read('services', 'pixi', 'PixiGameRenderer.ts');
+  const rewards = read('services', 'rewardProgression.ts');
   const storyBeats = read('services', 'storyBeats.ts');
   const recordRenderer = read('shared', 'record-card', 'renderRecordCardSvg.mjs');
   const recordDefaults = read('game-config', 'recordCard.ts');
   const campaign = JSON.parse(read('game-config', 'campaign.json'));
 
-  assert.match(app, />Stage<\/span><strong[^>]*>\{stats\.wave\}/);
-  assert.match(app, /Select stage/);
-  assert.match(app, />\s*S\{wave\}\s*</);
+  assert.match(app, />Mission<\/span><strong[^>]*>\{stats\.wave\}/);
+  assert.match(app, /Select mission/);
+  assert.match(app, />\s*M\{wave\}\s*</);
+  assert.doesNotMatch(app, />Stage<\/span>|Select stage|Jump to Stage \{stats\.wave\} boss/);
   assert.doesNotMatch(app, />Wave<\/span>|Select wave|Jump to W\{stats\.wave\} boss/);
 
-  assert.match(startScreen, /`Stage \$\{entry\.wave \?\? '-'\}`/);
-  assert.match(startScreen, /Stage \{winner\.wave \|\| 1\}/);
-  assert.match(startScreen, /pts - Stage \{run\.receipt\.metrics\.wave\}/);
+  assert.match(startScreen, /`Mission \$\{entry\.wave \?\? '-'\}`/);
+  assert.match(startScreen, /Mission \{winner\.wave \|\| 1\}/);
+  assert.match(startScreen, /pts - Mission \{run\.receipt\.metrics\.wave\}/);
+  assert.doesNotMatch(startScreen, /`Stage \$\{entry\.wave|\/> Stage \{winner\.wave|pts - Stage/);
   assert.doesNotMatch(startScreen, /`Wave \$\{entry\.wave|\/> Wave \{winner\.wave|pts - Wave/);
 
-  assert.match(missionRecord, /reached Stage \$\{receipt\.metrics\.wave\}/);
+  assert.match(missionRecord, /reached Mission \$\{receipt\.metrics\.wave\}/);
   assert.match(missionRecord, /getStageName\(receipt\.metrics\.wave\)/);
+  assert.doesNotMatch(missionRecord, /reached Stage \$\{receipt\.metrics\.wave\}/);
   assert.doesNotMatch(missionRecord, /reached wave \$\{receipt\.metrics\.wave\}/);
   assert.match(app, /getStageName\(stats\.wave\)/);
+  assert.match(gameCanvas, /'Scicon Shooter mission'/);
+  assert.doesNotMatch(gameCanvas, /'Scicon Shooter game stage'/);
   for (const stageName of [
     'Open Orbit',
     'Citation Storm',
@@ -58,12 +69,21 @@ test('top-level run progress is presented as Stage without renaming compatibilit
   assert.doesNotMatch(app, /Gatekeeper Sector|Replication Rift|Deep Review Space/);
   assert.doesNotMatch(missionRecord, /Gatekeeper Sector|Replication Rift|Deep Review Space/);
 
-  assert.match(storyBeats, /Final stage\./);
+  assert.match(victoryOverlay, /Mission \{summary\.stage\}/);
+  assert.match(victoryOverlay, /All 20 missions cleared/);
+  assert.doesNotMatch(victoryOverlay, /All 20 stages cleared|>Stage \{summary\.stage\}</);
+  assert.match(storyTransmission, /Mission \{beat\.phase\}: \{beat\.title\}/);
+  assert.doesNotMatch(storyTransmission, /Stage \{beat\.phase\}: \{beat\.title\}/);
+  assert.match(rewards, /description: 'Reach Mission \{target\}'/);
+  assert.match(engine, /beginStageCompletion\('MISSION COMPLETE!'/);
+  assert.match(pixiRenderer, /MISSION \$\{String\(state\.levelNumber\)\.padStart\(2, '0'\)\}/);
+  assert.match(storyBeats, /Final mission\./);
+  assert.doesNotMatch(storyBeats, /Final stage\./);
   assert.doesNotMatch(storyBeats, /Final wave\./);
-  assert.match(recordRenderer, /wave: 'STAGE'/);
-  assert.match(recordRenderer, /RECORD_CARD_RENDER_VERSION = '2026-07-21-stage-2'/);
-  assert.match(recordDefaults, /wave: 'STAGE'/);
-  assert.equal(campaign.recordCard.copy.metricLabels.wave, 'STAGE');
+  assert.match(recordRenderer, /wave: 'MISSION'/);
+  assert.match(recordRenderer, /RECORD_CARD_RENDER_VERSION = '2026-07-22-mission-1'/);
+  assert.match(recordDefaults, /wave: 'MISSION'/);
+  assert.equal(campaign.recordCard.copy.metricLabels.wave, 'MISSION');
 
   assert.match(app, /stats\.wave/);
   assert.match(missionRecord, /receipt\.metrics\.wave/);

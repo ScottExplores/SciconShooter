@@ -8,7 +8,7 @@ export const DEFAULT_RECORD_CARD_CONFIG: RecordCardConfig = {
     scoreLabel: 'FINAL SCORE',
     verifiedLabel: '',
     reviewLabel: 'REVIEWED RUN',
-    metricLabels: { wave: 'STAGE', targets: 'TARGETS', coins: 'COINS', flight: 'FLIGHT' }
+    metricLabels: { wave: 'MISSION', targets: 'TARGETS', coins: 'COINS', flight: 'FLIGHT' }
   },
   colors: {
     background: '#020617',

@@ -150,7 +150,7 @@ const replaceWave = (
 const getFirstPreview = (campaign: GameCampaignConfig): CombatLabPreviewResult => {
   const level = [...campaign.levels].sort((left, right) => left.order - right.order)[0];
   const wave = level && [...level.waves].sort((left, right) => left.order - right.order)[0];
-  if (!level || !wave) throw new Error('Combat Lab requires at least one stage and wave');
+  if (!level || !wave) throw new Error('Combat Lab requires at least one mission and wave');
   return createFocusedPreviewCampaign(campaign, { kind: 'wave', levelId: level.id, waveId: wave.id });
 };
 
@@ -835,7 +835,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
           insertAfterWaveId: preview.waveId
         });
       const existingDraft = window.localStorage.getItem(LEVEL_EDITOR_DRAFT_KEY);
-      if (existingDraft && !window.confirm('Replace the existing local Level Editor draft with this Combat Lab promotion? The applied game will not change.')) return;
+      if (existingDraft && !window.confirm('Replace the existing local Mission Builder draft with this Combat Lab promotion? The applied game will not change.')) return;
       window.localStorage.setItem(LEVEL_EDITOR_DRAFT_KEY, JSON.stringify({
         baseContentHash: latestState.contentHash,
         campaign: result.campaign,
@@ -845,7 +845,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
       allowNavigationRef.current = true;
       window.location.assign('/level-editor?from=combat-lab');
     } catch (error) {
-      notify(error instanceof Error ? error.message : 'Could not prepare Level Editor draft', true);
+      notify(error instanceof Error ? error.message : 'Could not prepare Mission Builder draft', true);
     }
   };
 

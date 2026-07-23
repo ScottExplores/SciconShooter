@@ -8,6 +8,8 @@ export const MAX_SHOT_SUSTAINED_VOLLEY_BUDGET = 24;
 export interface MaxShotCopyOffset {
   readonly offsetX: number;
   readonly angleOffset: number;
+  /** Optional presentation-only delay for rounds represented by one bundle. */
+  readonly launchDelayFrames?: number;
 }
 
 export type MaxShotVisualRound = MaxShotCopyOffset;
@@ -38,8 +40,12 @@ export const buildMaxShotBundleVisualPattern = (
 
 export const getMaxShotSimulationEntityCount = (hasSpread: boolean) => hasSpread ? 3 : 1;
 
-export const getMaxShotSustainedEntityFloor = (hasSpread: boolean) => (
-  getMaxShotSimulationEntityCount(hasSpread) * MAX_SHOT_SUSTAINED_VOLLEY_BUDGET
+export const getMaxShotSustainedEntityFloor = (
+  hasSpread: boolean,
+  simulationEntityCount: number = getMaxShotSimulationEntityCount(hasSpread)
+) => (
+  Math.max(1, Math.floor(Number(simulationEntityCount) || 1))
+  * MAX_SHOT_SUSTAINED_VOLLEY_BUDGET
 );
 
 export const canAdmitMaxShotVolley = (

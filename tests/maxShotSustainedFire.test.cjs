@@ -17,6 +17,28 @@ vm.runInNewContext(`(function(exports, require, module) { ${compiled} })(module.
 });
 
 const progression = moduleBox.exports;
+const weaponTierSource = fs.readFileSync(path.join(root, 'services', 'weaponTierProgression.ts'), 'utf8');
+const weaponTierCompiled = ts.transpileModule(weaponTierSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
+}).outputText;
+const weaponTierBox = { exports: {} };
+vm.runInNewContext(
+  `(function(exports, require, module) { ${weaponTierCompiled} })(module.exports, require, module);`,
+  { module: weaponTierBox, require }
+);
+const bioPrimarySource = fs.readFileSync(path.join(root, 'services', 'bioPrimaryWeapon.ts'), 'utf8');
+const bioPrimaryCompiled = ts.transpileModule(bioPrimarySource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
+}).outputText;
+const bioPrimaryBox = { exports: {} };
+vm.runInNewContext(
+  `(function(exports, require, module) { ${bioPrimaryCompiled} })(module.exports, require, module);`,
+  {
+    module: bioPrimaryBox,
+    require: (request) => request === './weaponTierProgression' ? weaponTierBox.exports : require(request)
+  }
+);
+const bioPrimary = bioPrimaryBox.exports;
 const engineSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 const rendererSource = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
 
@@ -53,6 +75,54 @@ test('Tier-3 spread Max Shot sustains every cadence slot inside its bounded enti
   assert.equal(peakEntities, 72);
   assert.equal(progression.canAdmitMaxShotVolley(69, 0, true, entityCap), true);
   assert.equal(progression.canAdmitMaxShotVolley(70, 0, true, entityCap), false);
+});
+
+test('BIO normal and spread+Max sustain Tier-3 cadence with two reserved rail bundles', () => {
+  const cadenceFrames = 5;
+  const lifetime = progression.MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
+  const scenarios = [
+    { label: 'normal', spreadActive: false, maxShotActive: false, expectedDamage: 3 },
+    { label: 'spread+Max', spreadActive: true, maxShotActive: true, expectedDamage: 18 }
+  ];
+
+  for (const scenario of scenarios) {
+    const plan = bioPrimary.getBioPrimaryShotPlan(
+      21,
+      scenario.spreadActive,
+      scenario.maxShotActive
+    );
+    const entityCap = progression.getMaxShotSustainedEntityFloor(
+      scenario.spreadActive,
+      plan.simulationEntityCount
+    ) + plan.queuedEntityCount;
+    const activeExpiryFrames = [];
+    let admittedVolleys = 0;
+    let peakReservations = 0;
+
+    for (let frame = 0; frame < 600; frame += 1) {
+      for (let index = activeExpiryFrames.length - 1; index >= 0; index -= 1) {
+        if (activeExpiryFrames[index] <= frame) activeExpiryFrames.splice(index, 1);
+      }
+      if (frame % cadenceFrames === 0) {
+        assert.ok(
+          activeExpiryFrames.length + plan.simulationEntityCount <= entityCap,
+          `${scenario.label} volley at frame ${frame} should not be cap-throttled`
+        );
+        plan.shots.forEach((shot) => {
+          activeExpiryFrames.push(frame + shot.fireDelayFrames + lifetime);
+        });
+        admittedVolleys += 1;
+      }
+      peakReservations = Math.max(peakReservations, activeExpiryFrames.length);
+    }
+
+    assert.equal(plan.simulationEntityCount, 2);
+    assert.equal(plan.queuedEntityCount, 1);
+    assert.equal(plan.totalDamage, scenario.expectedDamage);
+    assert.equal(entityCap, 49);
+    assert.equal(peakReservations, 49);
+    assert.equal(admittedVolleys, 120);
+  }
 });
 
 test('one pooled lane bundle presents exactly twice every tiered spread pattern', () => {

@@ -46,6 +46,7 @@ import {
 } from './shipAbilityService';
 import type { PlayerShipId } from './playerShipService';
 import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
+import { BIO_PRIMARY_DAMAGE_PER_ROUND, getBioPrimaryShotPlan } from './bioPrimaryWeapon';
 import {
   FIRE_RATE_LEVELS_PER_TIER,
   FIRE_RATE_MAX_LEVEL,
@@ -108,7 +109,7 @@ import {
 type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'grid' | 'diamond' | 'spiral' | 'orbit';
 type ConfiguredEnemyFormationMode = Exclude<EnemyFormationMode, 'orbit'>;
 type EnemyFormationState = 'entry' | 'hold' | 'dive' | 'return';
-type PlayerWeaponKind = 'pulse' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard' | 'btc-hash';
+type PlayerWeaponKind = 'pulse' | 'bio-primary' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard' | 'btc-hash';
 export type BossPartId = 'left-cannon' | 'right-cannon' | 'helmet';
 export type BossComponentState = {
   id: BossPartId;
@@ -132,6 +133,7 @@ type PendingPlayerShot = {
   angleBias: number;
   pitchOffset: number;
   weaponKind: PlayerWeaponKind;
+  damageOverride?: number;
   playSound?: boolean;
   maxShotVisualPattern?: readonly MaxShotVisualRound[];
 };
@@ -2571,7 +2573,7 @@ export class GameEngine {
       return true;
     }
 
-    this.beginStageCompletion('STAGE COMPLETE!', '#67e8f9');
+    this.beginStageCompletion('MISSION COMPLETE!', '#67e8f9');
     this.playSound('wave');
     return true;
   }
@@ -2803,7 +2805,7 @@ export class GameEngine {
       !this.polishSettings.screenShake
       || !shot.isPlayerShot
       || shot.type !== EntityType.PROJECTILE
-      || shot.weaponKind !== 'pulse'
+      || (shot.weaponKind !== 'pulse' && shot.weaponKind !== 'bio-primary')
       || shot.isBeam
       || shot.shipAbilityKind
       || shot.squadAbilityKind
@@ -3863,11 +3865,16 @@ export class GameEngine {
     const hasSpread = this.isPowerupActive(PowerupType.DOUBLE_SHOT)
       || this.isPowerupActive(PowerupType.TRIPLE_SHOT);
     const hasMaxShot = this.hasMaxShotShield();
-    const basePatternProjectileCount = getFireRateVolleySize(this.stats.upgrades.fireRate || 0)
+    const fireRateLevel = this.stats.upgrades.fireRate || 0;
+    const bioPrimaryPlan = this.playerShipId === 'bio'
+      ? getBioPrimaryShotPlan(fireRateLevel, hasSpread, hasMaxShot)
+      : null;
+    const basePatternProjectileCount = getFireRateVolleySize(fireRateLevel)
       * (hasSpread ? 3 : 1);
-    const simultaneousShots = hasMaxShot
-      ? getMaxShotSimulationEntityCount(hasSpread)
-      : basePatternProjectileCount;
+    const simultaneousShots = bioPrimaryPlan?.simulationEntityCount
+      ?? (hasMaxShot
+        ? getMaxShotSimulationEntityCount(hasSpread)
+        : basePatternProjectileCount);
     const companionBurstSize = this.squadCompanions.reduce(
       (sum, companion) => sum + Math.max(1, companion.volleySize),
       0
@@ -3886,12 +3893,17 @@ export class GameEngine {
       + (simultaneousShots - 1) * extraShotAllowance
       + companionAllowance;
     const completeBurstFloor = simultaneousShots + companionBurstSize + 6;
-    const sustainedMaxShotFloor = hasMaxShot
-      ? getMaxShotSustainedEntityFloor(hasSpread) + companionAllowance
-      : 0;
+    const sustainedBundledShotFloor = bioPrimaryPlan
+      ? getMaxShotSustainedEntityFloor(
+          hasSpread,
+          bioPrimaryPlan.simulationEntityCount
+        ) + bioPrimaryPlan.queuedEntityCount + companionAllowance
+      : hasMaxShot
+        ? getMaxShotSustainedEntityFloor(hasSpread) + companionAllowance
+        : 0;
     return Math.min(
       this.mobileProfile ? MOBILE_MAX_PLAYER_SHOT_CAP : DESKTOP_MAX_PLAYER_SHOT_CAP,
-      Math.max(calculatedCap, completeBurstFloor, sustainedMaxShotFloor)
+      Math.max(calculatedCap, completeBurstFloor, sustainedBundledShotFloor)
     );
   }
 
@@ -3952,12 +3964,14 @@ export class GameEngine {
     pitchOffset: number = 0,
     playSound: boolean = true,
     weaponKind: PlayerWeaponKind = 'pulse',
-    maxShotVisualPattern?: readonly MaxShotVisualRound[]
+    maxShotVisualPattern?: readonly MaxShotVisualRound[],
+    damageOverride?: number
   ) {
     if (!this.hasPlayerShotCapacity()) {
       return false;
     }
 
+    const isBioPrimary = weaponKind === 'bio-primary';
     const isBioLaser = weaponKind === 'bio-laser';
     const isEthShard = weaponKind === 'eth-shard';
     const isBtcHash = weaponKind === 'btc-hash';
@@ -3966,7 +3980,9 @@ export class GameEngine {
     const bioLaserLevel = isBioLaser ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
     const ethShardLevel = isEthShard ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
     const btcHashLevel = isBtcHash ? Math.min(this.stats.upgrades.fireRate || 0, 7) : 0;
-    const bulletColor = isBioLaser
+    const bulletColor = isBioPrimary
+      ? '#b7ff68'
+      : isBioLaser
       ? '#b7ff68'
       : isEthShard
         ? '#a78bfa'
@@ -3981,7 +3997,9 @@ export class GameEngine {
             : weaponKind === 'plasma'
               ? '#22d3ee'
               : '#6c63ff';
-    const bulletWidth = isBioLaser
+    const bulletWidth = isBioPrimary
+      ? 9
+      : isBioLaser
       ? Math.round(5 + bioLaserLevel * 2.3)
       : isEthShard
         ? Math.round(13 + ethShardLevel * 2.1)
@@ -4009,7 +4027,9 @@ export class GameEngine {
     );
     const angle = angleBias;
     b.width = bundleWidth;
-    b.height = isBioLaser
+    b.height = isBioPrimary
+      ? 28
+      : isBioLaser
       ? Math.round(34 + bioLaserLevel * 6)
       : isEthShard
         ? Math.round(30 + ethShardLevel * 4.5)
@@ -4034,7 +4054,9 @@ export class GameEngine {
     b.maxShotVisualPattern = maxShotVisualPattern;
     b.projectileUnitWidth = bulletWidth;
     b.projectileUnitHeight = b.height;
-    const baseDamage = isBioLaser
+    const baseDamage = isBioPrimary
+      ? BIO_PRIMARY_DAMAGE_PER_ROUND
+      : isBioLaser
       ? 0.9 + bioLaserLevel * 0.55
       : isEthShard
         ? 1.15 + ethShardLevel * 0.48
@@ -4049,7 +4071,7 @@ export class GameEngine {
             : weaponKind === 'plasma'
               ? 1.3
               : 1;
-    b.damage = baseDamage;
+    b.damage = Number.isFinite(damageOverride) ? Math.max(0, Number(damageOverride)) : baseDamage;
     if (maxShotVisualPattern?.length) {
       b.life = MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
       b.maxLife = MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
@@ -4103,7 +4125,8 @@ export class GameEngine {
         shot.pitchOffset,
         shot.playSound ?? true,
         shot.weaponKind,
-        shot.maxShotVisualPattern
+        shot.maxShotVisualPattern,
+        shot.damageOverride
       );
       index--;
     }
@@ -4118,6 +4141,9 @@ export class GameEngine {
     const overdriveSpread = this.isPowerupActive(PowerupType.DOUBLE_SHOT)
       || this.isPowerupActive(PowerupType.TRIPLE_SHOT);
     const maxShotActive = this.hasMaxShotShield();
+    const bioPrimaryPlan = this.playerShipId === 'bio'
+      ? getBioPrimaryShotPlan(this.stats.upgrades.fireRate || 0, overdriveSpread, maxShotActive)
+      : null;
     const basePatternProjectileCount = volleySize * (overdriveSpread ? 3 : 1);
     const visualProjectileCount = maxShotActive
       ? getMaxShotProjectileCount(basePatternProjectileCount)
@@ -4135,7 +4161,7 @@ export class GameEngine {
     // Max Shot is an all-or-nothing doubling of the weapon pattern already in
     // use. Each center/spread lane is one authoritative collision bundle whose
     // pooled Pixi view presents all of its rounds, keeping sustained fire smooth.
-    if (maxShotActive && (
+    if (!bioPrimaryPlan && maxShotActive && (
       (maxShotVisualPattern?.length ?? 0) * simulationEntityCount !== visualProjectileCount
       || this.pendingPlayerShots.length + queuedEntityCount > PENDING_PLAYER_SHOT_CAP
       || !canAdmitMaxShotVolley(
@@ -4145,10 +4171,21 @@ export class GameEngine {
         this.getPlayerShotCap()
       )
     )) return;
+    if (bioPrimaryPlan && (
+      this.pendingPlayerShots.length + bioPrimaryPlan.queuedEntityCount > PENDING_PLAYER_SHOT_CAP
+      || !this.hasPlayerShotCapacity(bioPrimaryPlan.simulationEntityCount)
+    )) return;
 
     if (this.frameCount - this.lastShotFrame > 3) {
       this.kickPlayerSquash(-0.035);
-      this.spawnBurst(this.player.x + this.player.width / 2, this.player.y + this.player.height * 0.18, '#67e8f9', 2, 1.3, 3);
+      this.spawnBurst(
+        this.player.x + this.player.width / 2,
+        this.player.y + this.player.height * 0.18,
+        bioPrimaryPlan ? '#b7ff68' : '#67e8f9',
+        2,
+        1.3,
+        3
+      );
       this.addShake(0.08);
     }
     this.lastShotFrame = this.frameCount;
@@ -4156,6 +4193,40 @@ export class GameEngine {
 
     this.playerVel.y += 0.2;
     this.playerVel.x += randomRange(-0.05, 0.05);
+
+    if (bioPrimaryPlan) {
+      bioPrimaryPlan.shots.forEach((shot, index) => {
+        if (shot.fireDelayFrames === 0) {
+          this.spawnPlayerBullet(
+            weaponSpeed,
+            shot.offsetX,
+            0,
+            shot.angleBias,
+            -0.12,
+            index === 0,
+            'bio-primary',
+            shot.visualPattern,
+            shot.damagePerRound
+          );
+          return;
+        }
+
+        this.queuePlayerBullet({
+          fireFrame: this.frameCount + shot.fireDelayFrames,
+          speed: weaponSpeed,
+          offsetX: shot.offsetX,
+          yOffset: 0,
+          angleBias: shot.angleBias,
+          pitchOffset: -0.12,
+          weaponKind: 'bio-primary',
+          damageOverride: shot.damagePerRound,
+          playSound: false,
+          maxShotVisualPattern: shot.visualPattern
+        });
+      });
+      return;
+    }
+
     const primaryAngle = getRandomPrimaryShotAngle();
 
     if (maxShotActive && maxShotVisualPattern) {
@@ -4704,7 +4775,7 @@ export class GameEngine {
       this.playSound('electricity');
 
       if (this.isCurrentWaveStageFinal()) {
-        this.beginStageCompletion('STAGE COMPLETE!', '#00FF00');
+        this.beginStageCompletion('MISSION COMPLETE!', '#00FF00');
       } else {
         // Authored internal Gatekeepers are allowed to advance a tactical wave,
         // but never produce a stage record or ship departure.
@@ -9705,18 +9776,23 @@ export class GameEngine {
             ctx.imageSmoothingEnabled = false;
             ctx.rotate(Math.atan2(e.vy, e.vx) + Math.PI / 2);
             if (e.maxShotVisualPattern?.length) {
-              const visualTravel = Math.min(
-                100,
-                Math.max(0, this.frameCount - e.weaponVisualStartFrame) * Math.max(1, Math.hypot(e.vx, e.vy))
-              );
+              const bundleAge = Math.max(0, this.frameCount - e.weaponVisualStartFrame);
+              const projectileSpeed = Math.max(1, Math.hypot(e.vx, e.vy));
               const remainingVisualRounds = Math.min(
                 e.maxShotVisualPattern.length,
                 Math.max(0, e.representedRoundsRemaining)
               );
               for (let roundIndex = 0; roundIndex < remainingVisualRounds; roundIndex++) {
                 const round = e.maxShotVisualPattern[roundIndex];
+                const launchDelayFrames = Math.max(0, round.launchDelayFrames || 0);
+                if (bundleAge < launchDelayFrames) continue;
+                const roundAge = Math.max(0, bundleAge - launchDelayFrames);
+                const visualTravel = Math.min(100, roundAge * projectileSpeed);
                 ctx.save();
-                ctx.translate(round.offsetX + Math.sin(round.angleOffset) * visualTravel, 0);
+                ctx.translate(
+                  round.offsetX + Math.sin(round.angleOffset) * visualTravel,
+                  launchDelayFrames * projectileSpeed
+                );
                 ctx.rotate(round.angleOffset);
                 ctx.drawImage(weaponFrame, -visualWidth / 2, -visualHeight / 2, visualWidth, visualHeight);
                 ctx.restore();

@@ -904,7 +904,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     <div
       ref={hostRef}
       tabIndex={previewMode ? 0 : undefined}
-      aria-label={previewMode ? 'Live Scicon Shooter wave preview' : 'Scicon Shooter game stage'}
+      aria-label={previewMode ? 'Live Scicon Shooter wave preview' : 'Scicon Shooter mission'}
       className="absolute left-0 top-0 z-0 block h-full w-full overflow-hidden"
       style={{ touchAction: 'none', outline: 'none', background: '#020617' }}
     />

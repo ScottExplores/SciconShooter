@@ -201,7 +201,7 @@ export const ReviewBoard = ({ reviews, versions, status, onCreate, onUpdate }: R
                 </div>
                 {review.context?.source === 'level-editor' ? (
                   <div className="request-context">
-                    <span>Live level preview</span>
+                    <span>Live mission preview</span>
                     <strong>{review.context.levelName} / {review.context.waveName}{review.context.eventLabel ? ` / ${review.context.eventLabel}` : ''}</strong>
                     <small>r{review.context.campaignRevision} · {review.context.elapsedSeconds.toFixed(1)}s{review.context.draft ? ` · draft ${review.context.draftContentHash?.slice(7, 15) ?? ''}` : ''}</small>
                   </div>

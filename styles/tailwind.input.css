@@ -914,7 +914,7 @@
     position: relative;
     z-index: 1;
     display: block;
-    width: calc(var(--dashboard-icon-size) * 1.2);
+    width: var(--dashboard-icon-size);
     height: var(--dashboard-icon-size);
     margin-bottom: 0.05rem;
     overflow: hidden;
@@ -936,7 +936,7 @@
     position: absolute;
     inset: 0;
     display: block;
-    background-image: url('/game-art/generated/ui/scicon-neon-frame-v1/dashboard-nav-icons-static.png');
+    background-image: url('/game-art/generated/ui/scicon-neon-dashboard-icons-v2/dashboard-nav-icons-static.png');
     background-repeat: no-repeat;
     background-position: var(--dashboard-icon-column-x, 0%) 0%;
     background-size: 500% 100%;

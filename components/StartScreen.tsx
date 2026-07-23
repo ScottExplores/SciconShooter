@@ -118,8 +118,8 @@ type IconName =
 
 const DASHBOARD_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1';
 const MORE_MENU_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1/normal';
-const SCICON_NEON_FRAME_ROOT = '/game-art/generated/ui/scicon-neon-frame-v1';
-const DASHBOARD_NAV_ICON_SPRITESHEET = `${SCICON_NEON_FRAME_ROOT}/dashboard-nav-icons-static.png`;
+const SCICON_NEON_DASHBOARD_ICON_ROOT = '/game-art/generated/ui/scicon-neon-dashboard-icons-v2';
+const DASHBOARD_NAV_ICON_SPRITESHEET = `${SCICON_NEON_DASHBOARD_ICON_ROOT}/dashboard-nav-icons-static.png`;
 const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/icons/communication';
 const REWARD_EDGE_ARROW = '/game-art/generated/ui/scicon-reward-edge-v1/reward-arrow.png';
 const REWARD_ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
@@ -247,7 +247,7 @@ const FirstPlaceLivingRow = ({
         <span className="sci-first-place-row__rank"><strong>1</strong><small>Champion</small></span>
         <span className="sci-first-place-row__identity">
           <strong>{entry?.name ?? 'First place open'}</strong>
-          <small>{entry ? (entry.proposalTitle ?? `Stage ${entry.wave ?? '-'}`) : 'Be the first pilot on the board'}</small>
+          <small>{entry ? (entry.proposalTitle ?? `Mission ${entry.wave ?? '-'}`) : 'Be the first pilot on the board'}</small>
         </span>
         <span className="sci-first-place-row__score"><strong>{formatNumber(entry?.score)}</strong><small>Points</small></span>
       </span>
@@ -1355,7 +1355,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                     ) : (
                       <p className="truncate text-sm font-bold text-white">{entry.name}</p>
                     )}
-                    <p className="truncate text-xs text-slate-400">{entry.proposalTitle ?? `Stage ${entry.wave ?? '-'}`}</p>
+                    <p className="truncate text-xs text-slate-400">{entry.proposalTitle ?? `Mission ${entry.wave ?? '-'}`}</p>
                   </div>
                   <p className="font-black text-white">{formatNumber(entry.score)}</p>
                 </div>
@@ -1400,7 +1400,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                       <div className="min-w-0">
                         <p className="text-[0.62rem] font-bold uppercase tracking-wide text-slate-400">Winner</p>
                         <p className="mt-0.5 truncate text-lg font-black text-white">{winner.winnerName}</p>
-                        <p className="mt-1 text-xs font-bold text-cyan-100">{formatNumber(winner.score)} pts <span className="text-slate-500">/</span> Stage {winner.wave || 1}</p>
+                        <p className="mt-1 text-xs font-bold text-cyan-100">{formatNumber(winner.score)} pts <span className="text-slate-500">/</span> Mission {winner.wave || 1}</p>
                       </div>
                       <div className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 border-l-2 border-emerald-300/35 pl-3">
                         <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[6px] border border-cyan-200/20 bg-cyan-300/[0.06]">
@@ -1485,7 +1485,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                       <span className="shrink-0 text-[9px] font-black uppercase text-slate-500">{formatRunDate(run.receipt.finishedAt)}</span>
                     </div>
                     <p className="truncate text-xs text-slate-300">
-                      {formatNumber(run.receipt.metrics.score)} pts - Stage {run.receipt.metrics.wave}
+                      {formatNumber(run.receipt.metrics.score)} pts - Mission {run.receipt.metrics.wave}
                     </p>
                   </div>
                   <span className={`text-right text-[10px] font-black uppercase ${proposalMissing ? 'text-yellow-200' : minted ? 'text-emerald-200' : 'text-cyan-200'}`}>

@@ -103,7 +103,7 @@ test('record-card content stays on one inset plate inside the pixel border', asy
   assert.match(svg, /M150 190H1050L1070 210V1000L1050 1020H150L130 1000V210Z/);
   assert.match(svg, /<rect x="170" y="338" width="860" height="368"/);
   assert.match(svg, /<rect x="190" y="856" width="190" height="112"/);
-  assert.match(svg, /font-size="20" font-weight="700" letter-spacing="3">STAGE/);
+  assert.match(svg, /font-size="20" font-weight="700" letter-spacing="3">MISSION/);
   assert.doesNotMatch(svg, /letter-spacing="3">WAVE/);
   assert.ok(svg.lastIndexOf('href="/frame.png"') > svg.lastIndexOf('SCICON V'));
 });

@@ -103,7 +103,7 @@ const MissionRecordPreview: React.FC<MissionRecordPreviewProps> = ({
   }, [cardUrl]);
 
   const shareRecord = async () => {
-    const text = `${pilotName} scored ${receipt.metrics.score.toLocaleString()} in Scicon Shooter and reached Stage ${receipt.metrics.wave}. Play. Win the week. Choose what research gets funded.`;
+    const text = `${pilotName} scored ${receipt.metrics.score.toLocaleString()} in Scicon Shooter and reached Mission ${receipt.metrics.wave}. Play. Win the week. Choose what research gets funded.`;
     setShareStatus('Preparing score card image...');
     try {
       const method = await shareScoreCardImage({

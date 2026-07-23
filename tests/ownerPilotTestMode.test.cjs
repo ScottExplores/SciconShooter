@@ -54,15 +54,16 @@ test('engine test mode preserves lives and supports stage and authored-climax ju
   assert.match(canvasSource, /engine\.jumpToCampaignBoss\(testBossCommand\.wave\)/);
 });
 
-test('owner controls provide a separate frame freeze and put stage tools in the normal pause menu', () => {
+test('owner controls provide a separate frame freeze and put mission tools in the normal pause menu', () => {
   assert.match(appSource, /running: gameState === GameState\.PLAYING && gameRuntimeReady && !ownerFrameFrozen/);
   assert.match(appSource, /showFreezeControl: isOwnerWallet && isOwnerTestRun/);
   assert.match(appSource, /onToggleFreeze: isOwnerWallet && isOwnerTestRun/);
   assert.match(appSource, /gameState === GameState\.PAUSED && !showTestChampionPreview/);
   assert.match(appSource, /Founder Test Controls/);
-  assert.match(appSource, /Select stage/);
-  assert.match(appSource, /Jump to Stage \{stats\.wave\} boss/);
-  assert.match(appSource, /aria-label=\{`Jump to stage \$\{wave\}`\}/);
+  assert.match(appSource, /Select mission/);
+  assert.match(appSource, /Jump to Mission \{stats\.wave\} boss/);
+  assert.match(appSource, /aria-label=\{`Jump to mission \$\{wave\}`\}/);
+  assert.doesNotMatch(appSource, /Select stage|Jump to Stage \{stats\.wave\} boss|aria-label=\{`Jump to stage/);
   assert.doesNotMatch(appSource, /Select wave|Jump to W\{stats\.wave\} boss|aria-label=\{`Jump to wave/);
   assert.match(appSource, /Preview winner/);
   assert.match(appSource, /Finish test run/);

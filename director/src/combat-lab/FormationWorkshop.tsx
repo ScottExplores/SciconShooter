@@ -80,7 +80,7 @@ export function FormationTemplateRail({
       </div>
       <div className="cl-formation-library__note">
         <strong>No coding required</strong>
-        <span>Templates are copied into this encounter, so changing one never alters another stage by surprise.</span>
+        <span>Templates are copied into this encounter, so changing one never alters another mission by surprise.</span>
       </div>
     </div>
   );
