@@ -65,6 +65,7 @@
 
 .sci-ship-carousel-stage {
   touch-action: pan-y;
+  pointer-events: auto;
   user-select: none;
   -webkit-user-select: none;
   outline: none;
@@ -113,9 +114,28 @@
   animation-name: sci-ship-carousel-previous-out;
 }
 
-.sci-ship-carousel-stage--dragging .sci-ship-carousel-item--active {
-  transform: translate3d(var(--sci-ship-drag-x, 0), -5%, 0) scale(0.96);
+.sci-ship-carousel-item--scrubbing {
+  z-index: 3;
+  pointer-events: none;
+  opacity: var(--sci-ship-drag-opacity, 1);
+  transform: translate3d(
+    var(--sci-ship-drag-x, 0),
+    var(--sci-ship-drag-y, -3%),
+    0
+  ) scale(var(--sci-ship-drag-scale, 1));
+  animation: none;
   transition: none;
+}
+
+.sci-ship-carousel-item--scrub-active {
+  z-index: 5;
+}
+
+.sci-ship-carousel-stage--snapping .sci-ship-carousel-item--scrubbing {
+  transition:
+    transform 210ms cubic-bezier(0.2, 0.82, 0.2, 1),
+    opacity 210ms ease,
+    filter 210ms ease;
 }
 
 .sci-ship-carousel-control:disabled {
@@ -178,8 +198,9 @@
     display: none;
   }
 
-  .sci-ship-carousel-stage--dragging .sci-ship-carousel-item--active {
+  .sci-ship-carousel-item--scrubbing {
     transform: translate3d(0, -3%, 0) scale(1);
+    transition: none;
   }
 }
 
