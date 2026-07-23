@@ -69,6 +69,10 @@ test('player motion catalog mirrors the four animated production PNG sets in the
   assert.match(motion, /'bank-left': `\$\{packPath\}\/researchhub\/frames\/researchhub-04-bank-right\.png`/);
   assert.match(motion, /'bank-right': `\$\{packPath\}\/researchhub\/frames\/researchhub-02-bank-left\.png`/);
   assert.match(motion, /'hard-right': `\$\{packPath\}\/researchhub\/frames\/researchhub-01-hard-left\.png`/);
+  assert.match(motion, /'hard-left': `\$\{packPath\}\/btc-token-ship\/frames\/btc-token-ship-01-hard-left\.png`/);
+  assert.match(motion, /'bank-left': `\$\{packPath\}\/btc-token-ship\/frames\/btc-token-ship-04-bank-right\.png`/);
+  assert.match(motion, /'bank-right': `\$\{packPath\}\/btc-token-ship\/frames\/btc-token-ship-02-bank-left\.png`/);
+  assert.match(motion, /'hard-right': `\$\{packPath\}\/btc-token-ship\/frames\/btc-token-ship-05-hard-right\.png`/);
   assert.doesNotMatch(motion, /\/enemies\//);
   assert.doesNotMatch(motion, /previewGif|\.gif/);
 });

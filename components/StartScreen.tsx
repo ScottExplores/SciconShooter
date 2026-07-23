@@ -1029,9 +1029,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const renderHeroPanel = ({ compact = false, fill = false }: { compact?: boolean; fill?: boolean } = {}) => (
     <HudPanel className={compact ? `sci-home-hero-surface sci-home-hero-surface--compact sci-mobile-hero min-h-[17.5rem] ${fill ? 'flex-1' : ''}` : 'sci-home-hero-surface min-h-[34rem] xl:min-h-[40rem]'}>
       <div className="sci-hero-backdrop absolute inset-0">
-        {!compact ? <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-68" /> : null}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(34,211,238,0.2),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.18),rgba(2,6,23,0.88)_76%,rgba(2,6,23,0.96))]" />
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,rgba(4,120,87,0.09))]" />
+        <img src={ASSETS.MENU_HERO} alt="" className="sci-hero-backdrop__image h-full w-full object-cover opacity-68" />
+        <div className="sci-hero-backdrop__glow absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(34,211,238,0.2),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.18),rgba(2,6,23,0.88)_76%,rgba(2,6,23,0.96))]" />
+        <div className="sci-hero-backdrop__starwash absolute inset-0" />
+        <div className="sci-hero-backdrop__floor absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,rgba(4,120,87,0.09))]" />
       </div>
 
       <div className={`sci-hero-content relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'sci-hero-content--compact gap-1 py-2' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
@@ -1835,6 +1836,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <img src={ASSETS.MENU_HERO} alt="" className="scicon-home-backdrop__image absolute inset-0 h-full w-full object-cover opacity-60" />
         <div className="scicon-home-backdrop__nebula scicon-home-backdrop__nebula--a" />
         <div className="scicon-home-backdrop__nebula scicon-home-backdrop__nebula--b" />
+        <div className="scicon-home-backdrop__stars" />
         <div className="scicon-home-backdrop__veil absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_86%_22%,rgba(16,185,129,0.16),transparent_26%),linear-gradient(180deg,rgba(2,6,23,0.44),rgba(2,6,23,0.9)_74%)]" />
         <div className="scicon-home-backdrop__grid absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
         <div className="scicon-home-backdrop__pixel-fade" />

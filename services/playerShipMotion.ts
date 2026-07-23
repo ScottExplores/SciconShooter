@@ -83,9 +83,12 @@ export const PLAYER_SHIP_MOTION: Readonly<Record<PlayerShipId, PlayerShipMotion>
   btc: {
     steeringFrames: {
       'hard-left': `${packPath}/btc-token-ship/frames/btc-token-ship-01-hard-left.png`,
-      'bank-left': `${packPath}/btc-token-ship/frames/btc-token-ship-02-bank-left.png`,
+      // The two authored mild-bank labels are visually mirrored, while the
+      // hard-bank labels are correct. Swap only the mild frames so the Home
+      // carousel and the shared gameplay renderer both lean outward.
+      'bank-left': `${packPath}/btc-token-ship/frames/btc-token-ship-04-bank-right.png`,
       neutral: `${packPath}/btc-token-ship/frames/btc-token-ship-03-neutral.png`,
-      'bank-right': `${packPath}/btc-token-ship/frames/btc-token-ship-04-bank-right.png`,
+      'bank-right': `${packPath}/btc-token-ship/frames/btc-token-ship-02-bank-left.png`,
       'hard-right': `${packPath}/btc-token-ship/frames/btc-token-ship-05-hard-right.png`
     },
     selectionIdleFrames: [

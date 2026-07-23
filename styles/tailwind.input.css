@@ -201,7 +201,16 @@
   width: 100%;
   min-width: 0;
   padding: 0.3rem 0.25rem 0.4rem;
+  background:
+    radial-gradient(ellipse at 16% 32%, rgb(34 211 238 / 0.2), transparent 43%),
+    radial-gradient(ellipse at 84% 58%, rgb(52 211 153 / 0.15), transparent 45%),
+    linear-gradient(145deg, rgb(4 31 61 / 0.76), rgb(2 12 34 / 0.7) 58%, rgb(5 46 54 / 0.62));
+  background-size: 130% 130%, 135% 135%, 100% 100%;
+  box-shadow:
+    inset 0 0 1.2rem rgb(34 211 238 / 0.08),
+    inset 0 -0.8rem 1.4rem rgb(16 185 129 / 0.06);
   image-rendering: auto;
+  animation: sci-weekly-interior-breathe 10s ease-in-out infinite;
 }
 
 .sci-weekly-funding-content--compact {
@@ -215,6 +224,12 @@
 
 .sci-weekly-winner-card {
   min-height: 7.5rem;
+  background:
+    radial-gradient(ellipse at 18% 24%, rgb(34 211 238 / 0.13), transparent 45%),
+    linear-gradient(135deg, rgb(3 25 53 / 0.74), rgb(3 35 52 / 0.66) 62%, rgb(5 59 50 / 0.4));
+  box-shadow:
+    inset 0 0 1rem rgb(34 211 238 / 0.08),
+    0 0 0.8rem rgb(16 185 129 / 0.05);
 }
 
 .sci-weekly-winner-card--compact {
@@ -315,34 +330,68 @@
 
 .scicon-home-backdrop {
   overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgb(4 47 78 / 0.72), transparent 68%),
+    #020817;
+  contain: paint;
   pointer-events: none;
 }
 
 .scicon-home-backdrop__image {
-  transform: scale(1.055);
+  opacity: 0.78 !important;
+  filter: saturate(1.32) contrast(1.08) brightness(1.04);
+  image-rendering: pixelated;
+  transform: scale(1.16);
   transform-origin: 48% 34%;
+  will-change: transform, opacity;
 }
 
 .scicon-home-backdrop__nebula {
   position: absolute;
-  inset: -28%;
+  inset: -18%;
   background:
-    radial-gradient(ellipse at 24% 31%, rgb(34 211 238 / 0.2), transparent 28%),
-    radial-gradient(ellipse at 72% 24%, rgb(16 185 129 / 0.13), transparent 23%),
-    radial-gradient(ellipse at 57% 72%, rgb(124 58 237 / 0.16), transparent 31%),
-    radial-gradient(ellipse at 18% 82%, rgb(8 145 178 / 0.14), transparent 25%);
+    url('/game-art/backgrounds/menu-hero.png') -14% 42% / 76% auto no-repeat,
+    radial-gradient(ellipse at 24% 31%, rgb(34 211 238 / 0.28), transparent 30%),
+    radial-gradient(ellipse at 72% 24%, rgb(16 185 129 / 0.18), transparent 25%),
+    radial-gradient(ellipse at 57% 72%, rgb(124 58 237 / 0.2), transparent 34%);
+  filter: saturate(1.42) contrast(1.08);
   mix-blend-mode: screen;
-  opacity: 0;
+  opacity: 0.26;
   transform-origin: center;
   will-change: transform, opacity;
 }
 
 .scicon-home-backdrop__nebula--b {
-  inset: -34%;
+  inset: -24%;
   background:
-    radial-gradient(ellipse at 78% 63%, rgb(34 211 238 / 0.17), transparent 26%),
-    radial-gradient(ellipse at 32% 58%, rgb(16 185 129 / 0.12), transparent 24%),
-    radial-gradient(ellipse at 62% 14%, rgb(99 102 241 / 0.14), transparent 28%);
+    url('/game-art/backgrounds/menu-hero.png') 118% 24% / 72% auto no-repeat,
+    radial-gradient(ellipse at 78% 63%, rgb(34 211 238 / 0.23), transparent 28%),
+    radial-gradient(ellipse at 32% 58%, rgb(16 185 129 / 0.17), transparent 27%),
+    radial-gradient(ellipse at 62% 14%, rgb(99 102 241 / 0.2), transparent 31%);
+}
+
+.scicon-home-backdrop__stars {
+  position: absolute;
+  inset: -4%;
+  background-image:
+    radial-gradient(circle, rgb(207 250 254 / 0.78) 0 1px, transparent 1.4px),
+    radial-gradient(circle, rgb(110 231 183 / 0.52) 0 1px, transparent 1.4px),
+    radial-gradient(circle, rgb(196 181 253 / 0.48) 0 1px, transparent 1.5px);
+  background-position: 0 0, 21px 37px, 51px 13px;
+  background-size: 73px 89px, 113px 127px, 151px 173px;
+  mix-blend-mode: screen;
+  opacity: 0.42;
+  will-change: background-position, opacity;
+}
+
+.scicon-home-backdrop__veil {
+  background:
+    radial-gradient(ellipse at 50% 40%, transparent 0 31%, rgb(2 6 23 / 0.08) 58%, rgb(2 6 23 / 0.5) 100%),
+    linear-gradient(180deg, rgb(2 6 23 / 0.12), rgb(2 6 23 / 0.42) 72%, rgb(2 6 23 / 0.78));
+}
+
+.scicon-home-backdrop__grid {
+  opacity: 0.52;
 }
 
 .scicon-home-backdrop__pixel-fade {
@@ -369,7 +418,11 @@
 }
 
 .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__nebula--b {
-  animation: sci-home-nebula-drift-b 35s ease-in-out -11s infinite;
+  animation: sci-home-nebula-drift-b 31s ease-in-out -10s infinite;
+}
+
+.scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__stars {
+  animation: sci-home-stars-drift 18s linear infinite;
 }
 
 .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__pixel-fade {
@@ -387,24 +440,143 @@
   52% { opacity: 0.72; }
 }
 
+@keyframes sci-weekly-interior-breathe {
+  0%, 100% {
+    background-position: 0% 0%, 100% 100%, 0 0;
+    filter: saturate(1);
+  }
+  50% {
+    background-position: 12% 8%, 88% 92%, 0 0;
+    filter: saturate(1.18);
+  }
+}
+
 @keyframes sci-home-backdrop-breathe {
-  0%, 100% { transform: scale(1.055) translate3d(0, 0, 0); opacity: 0.57; }
-  50% { transform: scale(1.11) translate3d(-1.4%, 1%, 0); opacity: 0.65; }
+  0%, 100% { transform: scale(1.16) translate3d(0, 0, 0); opacity: 0.72; }
+  50% { transform: scale(1.23) translate3d(-1.2%, 0.8%, 0); opacity: 0.84; }
 }
 
 @keyframes sci-home-nebula-drift-a {
-  0%, 100% { opacity: 0.16; transform: rotate(0deg) translate3d(-1%, 0, 0) scale(1); }
-  50% { opacity: 0.48; transform: rotate(180deg) translate3d(2%, -1.5%, 0) scale(1.08); }
+  0%, 100% { opacity: 0.25; transform: rotate(-2deg) translate3d(-1.5%, 0, 0) scale(1.02); }
+  50% { opacity: 0.58; transform: rotate(3deg) translate3d(2.5%, -1.4%, 0) scale(1.1); }
 }
 
 @keyframes sci-home-nebula-drift-b {
-  0%, 100% { opacity: 0.12; transform: rotate(360deg) translate3d(1%, 0, 0) scale(1.05); }
-  50% { opacity: 0.38; transform: rotate(180deg) translate3d(-2%, 1%, 0) scale(0.98); }
+  0%, 100% { opacity: 0.18; transform: rotate(2deg) translate3d(1.5%, 0, 0) scale(1.06); }
+  50% { opacity: 0.48; transform: rotate(-3deg) translate3d(-2.5%, 1.2%, 0) scale(0.99); }
+}
+
+@keyframes sci-home-stars-drift {
+  from { background-position: 0 0, 21px 37px, 51px 13px; opacity: 0.32; }
+  50% { opacity: 0.5; }
+  to { background-position: 73px 89px, 134px 164px, 202px 186px; opacity: 0.32; }
 }
 
 @keyframes sci-home-pixel-drift {
   from { background-position: 0 0, 0 0, 0 0; }
   to { background-position: 0 0, 30px 16px, -24px 24px; }
+}
+
+.sci-hero-backdrop {
+  overflow: hidden;
+  background: rgb(2 8 23 / 0.12);
+}
+
+.sci-hero-backdrop__image {
+  filter: saturate(1.42) contrast(1.12) brightness(1.06);
+  image-rendering: pixelated;
+  transform: scale(1.18);
+  transform-origin: center 44%;
+  will-change: transform, opacity;
+}
+
+.sci-hero-backdrop__glow {
+  background:
+    radial-gradient(ellipse at 50% 43%, rgb(34 211 238 / 0.2), transparent 28%),
+    radial-gradient(ellipse at 50% 72%, rgb(52 211 153 / 0.13), transparent 34%),
+    linear-gradient(180deg, rgb(2 6 23 / 0.08), rgb(2 6 23 / 0.42) 72%, rgb(2 6 23 / 0.66));
+}
+
+.sci-hero-backdrop__starwash {
+  background-image:
+    radial-gradient(circle, rgb(207 250 254 / 0.62) 0 1px, transparent 1.35px),
+    radial-gradient(circle, rgb(110 231 183 / 0.44) 0 1px, transparent 1.35px);
+  background-position: 8px 12px, 39px 51px;
+  background-size: 79px 97px, 131px 149px;
+  mix-blend-mode: screen;
+  opacity: 0.34;
+  animation: sci-hero-stars-drift 14s linear infinite;
+}
+
+.sci-hero-backdrop__floor {
+  background:
+    radial-gradient(ellipse at 50% 100%, rgb(34 211 238 / 0.2), transparent 57%),
+    linear-gradient(180deg, transparent, rgb(5 150 105 / 0.08));
+  animation: sci-hero-floor-breathe 7.5s ease-in-out infinite;
+}
+
+.sci-ship-orbit {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  width: min(84%, 24rem);
+  height: 76%;
+  z-index: 0;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 18deg, transparent 0 12%, rgb(34 211 238 / 0.2) 18%, transparent 26% 54%, rgb(52 211 153 / 0.16) 62%, transparent 72%),
+    radial-gradient(ellipse at center, rgb(34 211 238 / 0.13), transparent 56%);
+  filter: blur(0.6px);
+  opacity: 0.64;
+  pointer-events: none;
+  transform: translateX(-50%) perspective(440px) rotateX(64deg);
+  animation: sci-ship-orbit-breathe 6.8s ease-in-out infinite;
+}
+
+.sci-ship-orbit::before,
+.sci-ship-orbit::after {
+  position: absolute;
+  border: 1px solid rgb(103 232 249 / 0.24);
+  border-radius: 50%;
+  content: '';
+}
+
+.sci-ship-orbit::before {
+  inset: 12% 6%;
+  box-shadow:
+    0 0 0.85rem rgb(34 211 238 / 0.16),
+    inset 0 0 0.85rem rgb(52 211 153 / 0.08);
+}
+
+.sci-ship-orbit::after {
+  inset: 26% 17%;
+  border-color: rgb(110 231 183 / 0.22);
+}
+
+@keyframes sci-hero-backdrop-drift {
+  0%, 100% { opacity: 0.5; transform: scale(1.18) translate3d(-1%, 0, 0); }
+  50% { opacity: 0.68; transform: scale(1.28) translate3d(1.6%, -1%, 0); }
+}
+
+@keyframes sci-hero-stars-drift {
+  from { background-position: 8px 12px, 39px 51px; }
+  to { background-position: 87px 109px, 170px 200px; }
+}
+
+@keyframes sci-hero-floor-breathe {
+  0%, 100% { opacity: 0.58; transform: scaleX(0.96); }
+  50% { opacity: 1; transform: scaleX(1.04); }
+}
+
+@keyframes sci-ship-orbit-breathe {
+  0%, 100% {
+    opacity: 0.48;
+    transform: translateX(-50%) perspective(440px) rotateX(64deg) rotateZ(-2deg) scale(0.96);
+  }
+  50% {
+    opacity: 0.76;
+    transform: translateX(-50%) perspective(440px) rotateX(64deg) rotateZ(2deg) scale(1.04);
+  }
 }
 
 @media (max-width: 1023.98px) {
@@ -414,15 +586,26 @@
   }
 
   #root .scicon-start-screen[data-dashboard-tab='home'] .scicon-mobile-scroll {
+    overflow-x: clip;
     padding-right: 0;
+    scrollbar-width: none;
+  }
+
+  #root .scicon-start-screen[data-dashboard-tab='home'] .scicon-mobile-scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   #root .scicon-start-screen[data-dashboard-tab='home'] .scicon-mobile-home {
+    width: 100%;
+    max-width: 100%;
     gap: 0;
+    overflow: clip;
   }
 
   #root .sci-home-hero-surface--compact {
-    overflow: visible;
+    overflow: clip;
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -435,42 +618,64 @@
   }
 
   #root .sci-home-hero-surface--compact .sci-hero-backdrop {
-    inset: -0.75rem 0 -0.25rem;
-    mask-image: linear-gradient(to bottom, transparent, black 12%, black 82%, transparent);
+    inset: 0;
+    mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.38), black 6%, black 90%, transparent 100%);
+  }
+
+  #root .sci-home-hero-surface--compact .sci-hero-backdrop__image {
+    opacity: 0.56;
+    animation: sci-hero-backdrop-drift 18s ease-in-out infinite;
+  }
+
+  #root .sci-home-hero-surface--compact .sci-hero-backdrop__glow {
+    animation: sci-hero-floor-breathe 8.5s ease-in-out -2s infinite;
   }
 
   #root .sci-hero-content--compact {
     gap: 0;
-    padding: 0 0.18rem 0.15rem;
+    padding: 0.58rem 0.45rem 0.18rem;
   }
 
   #root .sci-hero-brand--compact {
     position: relative;
     z-index: 4;
     width: 100%;
-    margin-top: -0.62rem;
+    min-width: 0;
+    margin-top: 0;
   }
 
   #root .sci-hero-brand--compact > div:first-child {
-    transform: scaleX(1.12);
+    max-width: calc(100% - 2rem);
+    transform: scaleX(1.04);
   }
 
   #root .scicon-hero-title--compact {
     display: grid;
-    width: calc(100% + 2.5rem);
-    margin-inline: -1.25rem;
-    color: #f8fdff;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+    color: #e8fbff;
+    background: linear-gradient(180deg, #ffffff 0%, #e6fbff 25%, #8cecff 55%, #d8fbff 69%, #38bdf8 71%, #075985 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
     font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
-    font-size: clamp(2.4rem, 11.8vw, 3.3rem);
+    font-size: clamp(2rem, 10.2vw, 2.8rem);
     font-weight: 950;
-    letter-spacing: -0.075em;
-    line-height: 0.74;
+    letter-spacing: -0.065em;
+    line-height: 0.78;
     text-transform: uppercase;
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 1px rgb(207 250 254 / 0.82);
     text-shadow:
-      0 0 0.28rem rgb(207 250 254 / 0.9),
-      0 0 0.9rem rgb(34 211 238 / 0.58),
-      0.16rem 0.14rem 0 rgb(8 47 73 / 0.85);
-    transform: scaleX(1.075);
+      0 1px 0 rgb(186 230 253 / 0.94),
+      0 2px 0 rgb(14 116 144 / 0.92),
+      0 3px 0 rgb(8 87 122 / 0.9),
+      0 5px 0 rgb(4 47 73 / 0.88),
+      0 0 0.38rem rgb(207 250 254 / 0.82),
+      0 0 1rem rgb(34 211 238 / 0.62);
+    filter: drop-shadow(0 0.32rem 0.18rem rgb(2 6 23 / 0.72));
+    transform: perspective(360px) rotateX(4deg) scaleX(1.025);
+    transform-origin: center bottom;
   }
 
   #root .scicon-hero-title--compact span {
@@ -480,7 +685,7 @@
   #root .sci-hero-ship-stage--compact {
     flex: 1 1 auto;
     min-height: 8.8rem;
-    margin-top: -0.3rem;
+    margin-top: 0.08rem;
   }
 
   #root .sci-home-hero-surface--compact .sci-start-button {
@@ -489,7 +694,7 @@
   }
 
   #root .scicon-start-screen[data-dashboard-tab='home'] .sci-dashboard-nav-shell {
-    padding-top: 0.25rem;
+    padding-top: 0.75rem;
   }
 }
 
@@ -524,8 +729,15 @@
 
   .sci-weekly-funding-shell::before,
   .sci-weekly-funding-shell::after,
+  .sci-weekly-funding-content,
   .scicon-home-backdrop__image,
   .scicon-home-backdrop__nebula,
+  .scicon-home-backdrop__stars,
+  .sci-hero-backdrop__image,
+  .sci-hero-backdrop__starwash,
+  .sci-hero-backdrop__glow,
+  .sci-hero-backdrop__floor,
+  .sci-ship-orbit,
   .scicon-home-backdrop__pixel-fade {
     animation: none !important;
   }
@@ -1168,13 +1380,23 @@
 
   .sci-dashboard-nav-shell {
     --dashboard-icon-size: 3rem;
+    overflow: visible;
+  }
+
+  .sci-dashboard-nav {
+    overflow: visible;
   }
 
   .sci-dashboard-nav-button {
     isolation: isolate;
+    overflow: visible;
     transition:
       box-shadow 180ms ease,
       color 180ms ease;
+  }
+
+  .sci-dashboard-nav-button[data-active='true'] {
+    z-index: 6;
   }
 
   .sci-dashboard-nav-button::before,
@@ -1249,7 +1471,11 @@
     height: var(--dashboard-icon-size);
     margin-bottom: 0.05rem;
     overflow: hidden;
-    transition: filter 180ms ease;
+    transform: translate3d(0, 0, 0) scale(1);
+    transform-origin: 50% 100%;
+    transition:
+      filter 180ms ease,
+      transform 240ms cubic-bezier(0.18, 0.82, 0.22, 1);
   }
 
   .sci-dashboard-nav-button:hover .sci-dashboard-nav-icon,
@@ -1258,9 +1484,11 @@
   }
 
   .sci-dashboard-nav-button[data-active='true'] .sci-dashboard-nav-icon {
+    z-index: 6;
     filter:
       drop-shadow(0 0 0.48rem rgb(34 211 238 / 0.6))
       drop-shadow(0 0 0.72rem rgb(52 211 153 / 0.24));
+    transform: translate3d(0, -0.68rem, 0) scale(1.46);
   }
 
   .sci-dashboard-nav-icon-sprite {

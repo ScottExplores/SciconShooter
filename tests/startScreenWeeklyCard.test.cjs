@@ -64,18 +64,26 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(source, /data-dashboard-tab=\{dashboardTab\}/);
   assert.match(source, /scicon-home-backdrop__nebula--a/);
   assert.match(source, /scicon-home-backdrop__nebula--b/);
+  assert.match(source, /scicon-home-backdrop__stars/);
   assert.match(source, /scicon-home-backdrop__pixel-fade/);
   assert.match(source, /sci-home-hero-surface--compact/);
-  assert.match(source, /\{!compact \? <img src=\{ASSETS\.MENU_HERO\}/);
+  assert.match(source, /ASSETS\.MENU_HERO[\s\S]*sci-hero-backdrop__image/);
   assert.match(htmlSource, /#root \.scicon-mobile-home[\s\S]*grid-template-rows: auto minmax\(17\.5rem, 1fr\)/);
   assert.match(htmlSource, /#root \.sci-hero-content--compact[\s\S]*grid-template-rows: auto minmax\(6rem, 1fr\) auto/);
   assert.match(htmlSource, /max-height: 720px/);
   assert.match(stylesSource, /data-dashboard-tab='home'[\s\S]*\.scicon-start-shell \{[\s\S]*padding-inline: 0/);
-  assert.match(stylesSource, /data-dashboard-tab='home'[\s\S]*\.scicon-mobile-home \{[\s\S]*gap: 0/);
+  assert.match(stylesSource, /data-dashboard-tab='home'[\s\S]*\.scicon-mobile-scroll \{[\s\S]*overflow-x: clip/);
+  assert.match(stylesSource, /data-dashboard-tab='home'[\s\S]*\.scicon-mobile-home \{[\s\S]*max-width: 100%[\s\S]*overflow: clip/);
   assert.match(stylesSource, /\.sci-home-hero-surface--compact \{[\s\S]*border: 0/);
+  assert.match(stylesSource, /\.scicon-hero-title--compact \{[\s\S]*width: 100%[\s\S]*margin-inline: 0[\s\S]*perspective\(360px\)/);
+  assert.match(stylesSource, /@keyframes sci-hero-backdrop-drift/);
+  assert.match(stylesSource, /@keyframes sci-ship-orbit-breathe/);
   assert.match(stylesSource, /@keyframes sci-home-nebula-drift-a/);
   assert.match(stylesSource, /@keyframes sci-home-nebula-drift-b/);
+  assert.match(stylesSource, /@keyframes sci-home-stars-drift/);
   assert.match(stylesSource, /@keyframes sci-home-pixel-drift/);
+  assert.match(stylesSource, /\.sci-dashboard-nav-button\[data-active='true'\] \.sci-dashboard-nav-icon \{[\s\S]*?translate3d\(0, -0\.68rem, 0\) scale\(1\.46\)/);
+  assert.match(stylesSource, /\.sci-dashboard-nav \{[\s\S]*?overflow: visible/);
 });
 
 test('compact weekly carousel preserves its pager while fitting short Base app viewports', () => {
@@ -112,6 +120,7 @@ test('weekly funding and high score share the exact Start Mission chrome with sa
   assert.match(stylesSource, /\.sci-weekly-funding-shell::before/);
   assert.match(stylesSource, /@keyframes sci-weekly-fixture-pulse-a/);
   assert.match(stylesSource, /@keyframes sci-weekly-fixture-pulse-b/);
+  assert.match(stylesSource, /@keyframes sci-weekly-interior-breathe/);
   assert.match(stylesSource, /sci-weekly-funding-content[\s\S]*?image-rendering: auto/);
   assert.doesNotMatch(source, /sci-weekly-funding-frame-sprite/);
   assert.doesNotMatch(stylesSource, /sci-weekly-funding-frame-sprite/);
