@@ -5,20 +5,22 @@ const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
 
-test('mission launch waits for one cached production readiness pipeline', () => {
+test('app startup owns one cached production readiness pipeline', () => {
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 
   assert.match(app, /let gameplayPreloadPromise: Promise<void> \| null = null/);
   assert.match(app, /if \(gameplayPreloadReady\) return Promise\.resolve\(\)/);
   assert.match(app, /if \(gameplayPreloadPromise\) return gameplayPreloadPromise/);
   assert.match(app, /await gameplay\.preloadGameplayAssets\(\)/);
-  assert.match(app, /await preloadGameplayComponents\(\(progress, phase\) =>/);
-  assert.match(app, /const shouldShowMissionLoading = !gameplayPreloadReady \|\| missionLoading\?\.phase === 'error'/);
-  assert.match(app, /void preloadGameplayComponents\(\)\.catch/);
+  assert.match(app, /const beginStartupPreload = useCallback/);
+  assert.match(app, /void preloadGameplayComponents\(\(progress, phase\) =>/);
+  assert.match(app, /context="startup"/);
+  assert.match(app, /if \(missionLaunchPendingRef\.current \|\| !gameplayPreloadReady\) return/);
+  assert.doesNotMatch(app, /const shouldShowMissionLoading/);
   assert.doesNotMatch(app, /setTimeout\([^)]*gameplayPreloadProgress/);
 });
 
-test('mission launch remains locked until the first successful Pixi synchronization', () => {
+test('mission launch locks simulation until Pixi synchronizes without showing a second loader', () => {
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const component = fs.readFileSync(path.join(root, 'components', 'MissionLoadingScreen.tsx'), 'utf8');
   const startIndex = app.indexOf('const startGame = async');
@@ -30,10 +32,10 @@ test('mission launch remains locked until the first successful Pixi synchronizat
   const failureFlow = app.slice(failureIndex, resetIndex);
 
   assert.ok(startIndex >= 0 && readyIndex > startIndex && failureIndex > readyIndex);
-  assert.match(startFlow, /phase: 'runtime-sync'/);
   assert.match(startFlow, /pendingMissionRuntimeRef\.current = \{/);
   assert.match(startFlow, /setGameRuntimeReady\(false\)/);
   assert.match(startFlow, /setGameId\(nextGameId\)/);
+  assert.doesNotMatch(startFlow, /phase: 'runtime-sync'/);
   assert.doesNotMatch(startFlow, /window\.setTimeout/);
   assert.match(readyFlow, /setGameRuntimeReady\(true\)/);
   assert.match(readyFlow, /window\.setTimeout/);
@@ -44,8 +46,8 @@ test('mission launch remains locked until the first successful Pixi synchronizat
   assert.match(app, /onReady: \(\) => completeMissionRuntimeLaunch\(gameId\)/);
   assert.match(app, /onInitializationError: \(error\) => failMissionRuntimeLaunch\(gameId, error\)/);
   assert.match(app, /hud=\{gameRuntimeReady &&/);
-  assert.match(component, /'runtime-sync'/);
-  assert.match(component, /Synchronizing flight renderer/);
+  assert.match(component, /context\?: 'startup' \| 'mission'/);
+  assert.match(component, /Loading Scicon Shooter/);
 });
 
 test('loading presentation uses generated Scicon art and an accessible real progress bar', () => {
@@ -58,7 +60,7 @@ test('loading presentation uses generated Scicon art and an accessible real prog
   assert.match(component, /scicon-mission-loading-v1\/loading-bar-frame\.png/);
   assert.match(component, /role="progressbar"/);
   assert.match(component, /aria-valuenow=\{safeProgress\}/);
-  assert.match(component, /Only mission-ready systems are being staged/);
+  assert.match(component, /Loading only the systems needed for play/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(document, /rel="preload" href="\/game-art\/generated\/ui\/scicon-mission-loading-v1\/loading-emblem\.png" as="image" fetchpriority="high"/);
   assert.match(document, /rel="preload" href="\/game-art\/generated\/ui\/scicon-mission-loading-v1\/loading-background\.png" as="image" fetchpriority="high"/);

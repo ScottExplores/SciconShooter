@@ -7,7 +7,7 @@ const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
 
-const loadAudioService = () => {
+const loadAudioService = (initialStoredValues = {}) => {
   const source = fs.readFileSync(path.join(root, 'services', 'audioService.ts'), 'utf8');
   const compiled = ts.transpileModule(source, {
     compilerOptions: {
@@ -20,7 +20,7 @@ const loadAudioService = () => {
   let nextIntervalId = 1;
   let oscillatorsCreated = 0;
   const musicPlayers = [];
-  const storedValues = new Map();
+  const storedValues = new Map(Object.entries(initialStoredValues));
 
   class FakeAudioParam {
     targetValues = [];
@@ -147,11 +147,11 @@ test('six-step sound-effects volume stays independent while global mute gates bo
   const harness = loadAudioService();
 
   assert.equal(harness.audioService.getSfxVolumeLevel(), 5);
-  assert.equal(harness.audioService.getMusicVolumeLevel(), 2);
+  assert.equal(harness.audioService.getMusicVolumeLevel(), 5);
   harness.audioService.setSfxVolumeLevel(3);
   assert.equal(harness.audioService.getSfxVolumeLevel(), 3);
   assert.ok(Math.abs(harness.sfxGainParam.targetValues.at(-1) - 0.18) < 0.00001);
-  assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.02) < 0.00001);
+  assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.014) < 0.00001);
 
   assert.equal(harness.audioService.toggleMute(), true);
   assert.equal(harness.audioService.getSfxVolumeLevel(), 3);
@@ -180,7 +180,7 @@ test('music and sound-effects zero notches mute only their own buses', () => {
 
 test('mission music opens with one launch cue and one progressive sequencer timer', () => {
   const harness = loadAudioService();
-  assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.02) < 0.00001);
+  assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.014) < 0.00001);
   harness.audioService.startMusic();
 
   assert.equal(harness.intervals.size, 1);
@@ -211,12 +211,35 @@ test('mission music can switch to a supplied song and uses its independent low-v
   assert.equal(harness.storedValues.get('scicon-shooter:mission-music-track:v1'), 'acid-clatter');
 
   harness.audioService.setSfxVolumeLevel(2);
-  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.02) < 0.00001);
+  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.014) < 0.00001);
   harness.audioService.setMusicVolumeLevel(1);
-  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.01) < 0.00001);
+  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.0028) < 0.00001);
   harness.audioService.toggleMute();
   assert.equal(harness.musicPlayers[0].paused, true);
   assert.equal(harness.musicPlayers[0].volume, 0);
+});
+
+test('the old notch-two default migrates to the quieter five-notch ceiling', () => {
+  const harness = loadAudioService({
+    'scicon-shooter:music-volume:v1': '2'
+  });
+
+  assert.equal(harness.audioService.getMusicVolumeLevel(), 5);
+  assert.equal(harness.storedValues.get('scicon-shooter:music-volume:v2'), '5');
+  assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.014) < 0.00001);
+});
+
+test('explicit legacy mute and custom music levels remain respected', () => {
+  const mutedHarness = loadAudioService({
+    'scicon-shooter:music-volume:v1': '0'
+  });
+  const customHarness = loadAudioService({
+    'scicon-shooter:music-volume:v1': '3'
+  });
+
+  assert.equal(mutedHarness.audioService.getMusicVolumeLevel(), 0);
+  assert.equal(customHarness.audioService.getMusicVolumeLevel(), 3);
+  assert.ok(Math.abs(customHarness.musicGainParam.targetValues.at(-1) - 0.0084) < 0.00001);
 });
 
 test('pausing a mission pauses its song in place and resumes from the same position', async () => {

@@ -40,13 +40,16 @@ const MISSION_BPM = 154;
 const MISSION_STEP_MS = (60_000 / MISSION_BPM) / 2;
 const SILENCE_GAIN = 0.0001;
 const MAX_SFX_GAIN = 0.3;
-const MAX_PROCEDURAL_MUSIC_GAIN = 0.05;
-const MAX_MUSIC_ELEMENT_VOLUME = 0.05;
+// The former default was notch 2 at a 0.05 ceiling (0.02 output). The new
+// 5/5 ceiling is deliberately 30% quieter than that audible default.
+const MAX_PROCEDURAL_MUSIC_GAIN = 0.014;
+const MAX_MUSIC_ELEMENT_VOLUME = 0.014;
 const MAX_VOLUME_LEVEL = 5;
-const DEFAULT_MUSIC_VOLUME_LEVEL = 2;
+const DEFAULT_MUSIC_VOLUME_LEVEL = MAX_VOLUME_LEVEL;
 const MUSIC_TRACK_STORAGE_KEY = 'scicon-shooter:mission-music-track:v1';
 const SFX_VOLUME_STORAGE_KEY = 'scicon-shooter:sfx-volume:v1';
-const MUSIC_VOLUME_STORAGE_KEY = 'scicon-shooter:music-volume:v1';
+const LEGACY_MUSIC_VOLUME_STORAGE_KEY = 'scicon-shooter:music-volume:v1';
+const MUSIC_VOLUME_STORAGE_KEY = 'scicon-shooter:music-volume:v2';
 const MISSION_BASS_PATTERN = [
   73.42, 55, 73.42, 65.41,
   73.42, 87.31, 73.42, 77.78,
@@ -87,10 +90,7 @@ class AudioService {
   constructor() {
     this.selectedMusicTrackId = this.readStoredMusicTrack();
     this.sfxVolumeLevel = this.readStoredVolumeLevel(SFX_VOLUME_STORAGE_KEY, MAX_VOLUME_LEVEL);
-    this.musicVolumeLevel = this.readStoredVolumeLevel(
-      MUSIC_VOLUME_STORAGE_KEY,
-      DEFAULT_MUSIC_VOLUME_LEVEL
-    );
+    this.musicVolumeLevel = this.readInitialMusicVolumeLevel();
 
     try {
       // Initialize on first user interaction
@@ -200,6 +200,27 @@ class AudioService {
       // Embedded browsers can restrict local storage.
     }
     return fallback;
+  }
+
+  private readInitialMusicVolumeLevel() {
+    try {
+      const storedValue = window.localStorage?.getItem(MUSIC_VOLUME_STORAGE_KEY);
+      if (storedValue !== null && storedValue !== undefined && storedValue !== '') {
+        return this.readStoredVolumeLevel(MUSIC_VOLUME_STORAGE_KEY, DEFAULT_MUSIC_VOLUME_LEVEL);
+      }
+
+      const legacyLevel = this.readStoredVolumeLevel(
+        LEGACY_MUSIC_VOLUME_STORAGE_KEY,
+        DEFAULT_MUSIC_VOLUME_LEVEL
+      );
+      // Notch 2 was the old default. Move those players to the quieter 5/5
+      // ceiling while preserving explicit mute and other custom notch choices.
+      const migratedLevel = legacyLevel === 2 ? DEFAULT_MUSIC_VOLUME_LEVEL : legacyLevel;
+      this.storeVolumeLevel(MUSIC_VOLUME_STORAGE_KEY, migratedLevel);
+      return migratedLevel;
+    } catch {
+      return DEFAULT_MUSIC_VOLUME_LEVEL;
+    }
   }
 
   private storeVolumeLevel(storageKey: string, level: number) {

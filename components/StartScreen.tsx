@@ -1618,9 +1618,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                       <span className="shrink-0 text-[8px] font-black uppercase tracking-wide text-slate-500">{formatRunDate(run.receipt.finishedAt)}</span>
                     </div>
                     <p className="mt-0.5 truncate text-xs font-bold text-cyan-50">
-                      {formatNumber(run.receipt.metrics.score)} pts
-                      <span className="px-1.5 text-cyan-300/35">/</span>
-                      <span className="font-medium text-slate-300">Mission {run.receipt.metrics.wave}</span>
+                      {formatNumber(run.receipt.metrics.score)} pts - Mission {run.receipt.metrics.wave}
                     </p>
                   </div>
                   <span className={`max-w-[5.25rem] text-right text-[9px] font-black uppercase leading-tight tracking-wide ${proposalMissing ? 'text-yellow-200' : minted ? 'text-emerald-200' : 'text-cyan-200'}`}>

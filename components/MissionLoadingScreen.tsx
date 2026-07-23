@@ -13,6 +13,7 @@ export interface MissionLoadingScreenProps {
   progress: number;
   phase: MissionLoadingPhase;
   tip: string;
+  context?: 'startup' | 'mission';
   onRetry?: () => void;
   onCancel?: () => void;
 }
@@ -34,16 +35,18 @@ const MissionLoadingScreen: React.FC<MissionLoadingScreenProps> = ({
   progress,
   phase,
   tip,
+  context = 'mission',
   onRetry,
   onCancel
 }) => {
   const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
   const hasError = phase === 'error';
+  const isStartup = context === 'startup';
 
   return (
     <section
       className="sci-mission-loader"
-      aria-label="Preparing mission"
+      aria-label={isStartup ? 'Loading Scicon Shooter' : 'Preparing mission'}
       aria-live="polite"
       aria-busy={!hasError && safeProgress < 100}
     >
@@ -60,7 +63,7 @@ const MissionLoadingScreen: React.FC<MissionLoadingScreenProps> = ({
         </header>
 
         <aside className="sci-mission-loader__tip">
-          <span>Mission tip</span>
+          <span>{isStartup ? 'Pilot tip' : 'Mission tip'}</span>
           <p>{tip}</p>
         </aside>
 
@@ -92,7 +95,11 @@ const MissionLoadingScreen: React.FC<MissionLoadingScreenProps> = ({
             </div>
           ) : (
             <div className="sci-mission-loader__footer">
-              <p className="sci-mission-loader__hint">Only mission-ready systems are being staged.</p>
+              <p className="sci-mission-loader__hint">
+                {isStartup
+                  ? 'Loading only the systems needed for play. Later missions reuse this cache.'
+                  : 'Only mission-ready systems are being staged.'}
+              </p>
               {onCancel ? (
                 <button className="sci-mission-loader__cancel" type="button" onClick={onCancel}>
                   Cancel launch
