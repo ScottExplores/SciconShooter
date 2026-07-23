@@ -35,3 +35,24 @@ test('the client feed filters against the shared weekly boundary and explains th
   assert.match(leaderboardApiSource, /requiredOpenUntil: getCurrentWeekRange\(\)\.end/);
   assert.match(weeklyClaimSource, /findCurrentWeekEligibleProposal/);
 });
+
+test('the client feed requests and returns exact referenced proposals without changing the eligible-list wrapper', () => {
+  assert.match(proposalServiceSource, /export interface ResearchHubProposalFeedResult/);
+  assert.match(proposalServiceSource, /eligibleProposals: ResearchHubProposal\[\]/);
+  assert.match(proposalServiceSource, /referencedProposals: ResearchHubProposal\[\]/);
+  assert.match(proposalServiceSource, /includeProposalIds=\$\{requestedProposalIds\.join\(','\)\}/);
+  assert.match(proposalServiceSource, /normalizeProposalEntries\(payload\?\.referencedProposals\)/);
+  assert.match(proposalServiceSource, /requestedProposalIds[\s\S]*referencedById\.get\(proposalId\)/);
+  assert.match(
+    proposalServiceSource,
+    /getResearchHubFundingProposals[\s\S]*getResearchHubProposalFeed\(\{ requiredOpenUntil \}\)[\s\S]*return eligibleProposals/
+  );
+});
+
+test('a stalled proposal request times out so gameplay preloading can continue', () => {
+  assert.match(proposalServiceSource, /const PROPOSAL_REQUEST_TIMEOUT_MS = 12_000/);
+  assert.match(proposalServiceSource, /const controller = new AbortController\(\)/);
+  assert.match(proposalServiceSource, /globalThis\.setTimeout\(\(\) => controller\.abort\(\), PROPOSAL_REQUEST_TIMEOUT_MS\)/);
+  assert.match(proposalServiceSource, /signal: controller\.signal/);
+  assert.match(proposalServiceSource, /Proposal feed timed out\./);
+});

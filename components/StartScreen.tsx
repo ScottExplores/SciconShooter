@@ -13,11 +13,11 @@ import type { WeeklyProposalRecovery } from '../services/weeklyProposalRecovery'
 import {
   isWeeklyProposalReminderDue,
   parseWeeklyProposalReminderTimestamp,
-  serializeWeeklyProposalReminderTimestamp,
-  WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY
+  serializeWeeklyProposalReminderTimestamp
 } from '../services/weeklyProposalReminder';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboardService';
 import { resolveProposalSelection } from '../services/weeklyProposalDisplay';
+import { isProposalExplicitlyCompleted } from '../services/weeklyProposalLifecycle';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
 import { buildMissionRecordCardPath } from '../shared/record-card/renderRecordCardSvg.mjs';
 import {
@@ -65,6 +65,7 @@ interface StartScreenProps {
   onSelectShip: (shipId: PlayerShipId) => void;
   isLoading: boolean;
   proposals: ResearchHubProposal[];
+  proposalReferences?: ResearchHubProposal[];
   proposalStatus: ProposalFeedStatus;
   onOpenReferral: () => void;
   onOpenFund: () => void;
@@ -552,6 +553,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onSelectShip,
   isLoading,
   proposals,
+  proposalReferences = [],
   proposalStatus,
   onOpenReferral,
   onOpenFund,
@@ -620,6 +622,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
   const weeklyProposalRunId = weeklyProposalRecovery?.record.receipt.runId ?? null;
   const weeklyProposalNeedsAttention = Boolean(weeklyProposalRecovery?.needsProposal);
+  const weeklyProposalAttentionReason = weeklyProposalRecovery?.attentionReason ?? null;
+  const weeklyProposalReminderKey = weeklyProposalRecovery?.reminderStorageKey ?? null;
   const dailyGiftStatus = getDailyGiftStatus(permanentSquadState, new Date(weeklyClock));
   const claimableAchievementCount = useMemo(
     () => getClaimableAchievementCount(permanentSquadState),
@@ -712,34 +716,35 @@ const StartScreen: React.FC<StartScreenProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!weeklyProposalNeedsAttention || !weeklyProposalRunId || dashboardTab !== 'home') {
+    if (!weeklyProposalNeedsAttention || !weeklyProposalReminderKey || dashboardTab !== 'home') {
       setShowWeeklyProposalReminder(false);
       return;
     }
 
-    const storageKey = `${WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY}:${weeklyProposalRunId}`;
     let persistedReminderAt: number | null = null;
     try {
-      persistedReminderAt = parseWeeklyProposalReminderTimestamp(window.localStorage.getItem(storageKey));
+      persistedReminderAt = parseWeeklyProposalReminderTimestamp(
+        window.localStorage.getItem(weeklyProposalReminderKey)
+      );
     } catch {
       // Private browsing can deny storage; the in-memory timestamp still
       // enforces the four-hour window for this app session.
     }
-    const sessionReminderAt = proposalReminderShownRef.current.get(weeklyProposalRunId) ?? null;
+    const sessionReminderAt = proposalReminderShownRef.current.get(weeklyProposalReminderKey) ?? null;
     const lastReminderAt = Math.max(persistedReminderAt ?? 0, sessionReminderAt ?? 0) || null;
     if (!isWeeklyProposalReminderDue(weeklyClock, lastReminderAt)) return;
 
-    proposalReminderShownRef.current.set(weeklyProposalRunId, weeklyClock);
+    proposalReminderShownRef.current.set(weeklyProposalReminderKey, weeklyClock);
     try {
       window.localStorage.setItem(
-        storageKey,
+        weeklyProposalReminderKey,
         serializeWeeklyProposalReminderTimestamp(weeklyClock)
       );
     } catch {
       // The reminder remains functional without persistent storage.
     }
     setShowWeeklyProposalReminder(true);
-  }, [dashboardTab, weeklyClock, weeklyProposalNeedsAttention, weeklyProposalRunId]);
+  }, [dashboardTab, weeklyClock, weeklyProposalNeedsAttention, weeklyProposalReminderKey]);
 
   useEffect(() => {
     if (!showWeeklyProposalReminder) return undefined;
@@ -873,13 +878,22 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   const weeklyLeaderName = leaderboardName(weeklyLeader);
   const weeklyLeaderScore = leaderboardScore(weeklyLeader);
+  const proposalReferencePool = useMemo(() => {
+    const references = new Map<string, ResearchHubProposal>();
+    proposals.forEach((proposal) => references.set(proposal.id, proposal));
+    proposalReferences.forEach((proposal) => references.set(proposal.id, proposal));
+    return Array.from(references.values());
+  }, [proposalReferences, proposals]);
   const weeklyProposalSelection = useMemo(
-    () => resolveProposalSelection(weeklyLeader, proposals),
-    [proposals, weeklyLeader]
+    () => resolveProposalSelection(weeklyLeader, proposalReferencePool),
+    [proposalReferencePool, weeklyLeader]
   );
   const weeklyFunding = weeklyProposalSelection?.liveProposal
     ? getProposalFundingMetrics(weeklyProposalSelection.liveProposal)
     : null;
+  const weeklyProposalCompleted = weeklyProposalSelection?.liveProposal
+    ? isProposalExplicitlyCompleted(weeklyProposalSelection.liveProposal)
+    : false;
   const weeklyProposalSelectionId = weeklyProposalSelection?.id ?? null;
 
   useEffect(() => {
@@ -962,7 +976,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-[6px] border border-cyan-300/30 bg-cyan-300/10 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.14)]">
             {proposal.imageUrl ? (
-              <img src={proposal.imageUrl} alt="" className="h-full w-full rounded-[6px] object-cover" />
+              <img
+                src={proposal.imageUrl}
+                alt=""
+                className="h-full w-full rounded-[6px] object-cover"
+                loading={index < 6 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
             ) : (
               <Icon name="flask" className="h-5 w-5" />
             )}
@@ -1195,6 +1215,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
                         src={weeklyProposalSelection.imageUrl}
                         alt=""
                         className="absolute inset-0 h-full w-full object-cover"
+                        loading="eager"
+                        decoding="async"
                         onError={(event) => { event.currentTarget.style.display = 'none'; }}
                       />
                     ) : (
@@ -1206,7 +1228,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   <span className="min-w-0 self-center">
                     <span className="flex items-center justify-between gap-2">
                       <span className="text-[0.6rem] font-black uppercase text-yellow-200">Selected research proposal</span>
-                      {weeklyFunding?.progressPercent !== null && weeklyFunding?.progressPercent !== undefined ? (
+                      {weeklyProposalCompleted ? (
+                        <span className="shrink-0 text-[0.58rem] font-black uppercase text-yellow-200">
+                          Goal reached
+                        </span>
+                      ) : weeklyFunding?.progressPercent !== null && weeklyFunding?.progressPercent !== undefined ? (
                         <span className="shrink-0 text-[0.58rem] font-black uppercase text-emerald-200">
                           {formatFundingPercent(weeklyFunding.progressPercent)} funded
                         </span>
@@ -1500,7 +1526,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         {!isLoading && leaderboardView === 'pastPicks' && (
           <div className="max-h-[min(62vh,48rem)] space-y-3 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
             {sortedPastPicks.map((winner) => {
-              const proposalSelection = resolveProposalSelection(winner, proposals);
+              const proposalSelection = resolveProposalSelection(winner, proposalReferencePool);
               return (
                 <button
                   key={`${winner.periodKey}-${winner.winnerName}`}
@@ -1586,12 +1612,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ));
               const isEditableWeeklyLeader = weeklyProposalRunId === run.receipt.runId
                 && Boolean(onOpenWeeklyLeaderProposal);
-              const proposalMissing = isEditableWeeklyLeader && weeklyProposalNeedsAttention;
+              const proposalNeedsAttention = isEditableWeeklyLeader && weeklyProposalNeedsAttention;
+              const proposalReplacementRequired = proposalNeedsAttention
+                && weeklyProposalAttentionReason === 'completed';
               return (
                 <button
                   key={run.receipt.runId}
                   type="button"
-                  data-proposal-ready={proposalMissing ? 'true' : 'false'}
+                  data-proposal-ready={proposalNeedsAttention ? 'true' : 'false'}
                   onClick={() => {
                     if (isEditableWeeklyLeader && onOpenWeeklyLeaderProposal) {
                       onOpenWeeklyLeaderProposal(run);
@@ -1600,9 +1628,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
                     onOpenWalletRun(run);
                   }}
                   aria-label={isEditableWeeklyLeader
-                    ? `${weeklyProposalNeedsAttention ? 'Choose' : 'Change'} proposal for weekly high score ${formatNumber(run.receipt.metrics.score)}`
+                    ? `${
+                      proposalReplacementRequired
+                        ? 'Choose a replacement'
+                        : weeklyProposalNeedsAttention
+                          ? 'Choose'
+                          : 'Change'
+                    } proposal for weekly high score ${formatNumber(run.receipt.metrics.score)}`
                     : undefined}
-                  className={`group relative grid w-full grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-[8px] border border-cyan-300/18 bg-[linear-gradient(135deg,rgba(8,47,73,0.36),rgba(15,23,42,0.72)_48%,rgba(2,6,23,0.82))] px-3 py-2.5 text-left shadow-[inset_0_0_1.25rem_rgba(34,211,238,0.035)] transition hover:border-cyan-200/45 hover:bg-cyan-300/8 ${proposalMissing ? 'sci-proposal-attention' : ''}`}
+                  className={`group relative grid w-full grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden rounded-[8px] border border-cyan-300/18 bg-[linear-gradient(135deg,rgba(8,47,73,0.36),rgba(15,23,42,0.72)_48%,rgba(2,6,23,0.82))] px-3 py-2.5 text-left shadow-[inset_0_0_1.25rem_rgba(34,211,238,0.035)] transition hover:border-cyan-200/45 hover:bg-cyan-300/8 ${proposalNeedsAttention ? 'sci-proposal-attention' : ''}`}
                 >
                   <div className="relative flex h-[3.25rem] w-[3.25rem] items-center justify-center overflow-hidden rounded-[7px] border border-cyan-200/25 bg-[radial-gradient(circle,rgba(34,211,238,0.16),rgba(2,6,23,0.82)_68%)]">
                     <span className="absolute inset-x-2 bottom-1 h-px bg-gradient-to-r from-transparent via-cyan-200/45 to-transparent" aria-hidden="true" />
@@ -1621,10 +1655,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
                       {formatNumber(run.receipt.metrics.score)} pts - Mission {run.receipt.metrics.wave}
                     </p>
                   </div>
-                  <span className={`max-w-[5.25rem] text-right text-[9px] font-black uppercase leading-tight tracking-wide ${proposalMissing ? 'text-yellow-200' : minted ? 'text-emerald-200' : 'text-cyan-200'}`}>
+                  <span className={`max-w-[5.25rem] text-right text-[9px] font-black uppercase leading-tight tracking-wide ${proposalNeedsAttention ? 'text-yellow-200' : minted ? 'text-emerald-200' : 'text-cyan-200'}`}>
                     {isEditableWeeklyLeader
-                      ? weeklyProposalNeedsAttention
-                        ? 'Choose proposal'
+                      ? proposalReplacementRequired
+                        ? 'Choose new pick'
+                        : weeklyProposalNeedsAttention
+                          ? 'Choose proposal'
                         : 'Change proposal'
                       : minted
                         ? 'Minted'
@@ -1846,10 +1882,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
             onKeyDown={handleWeeklyProposalReminderKeyDown}
           >
             <p className="sci-weekly-proposal-reminder__eyebrow">Weekly high score alert</p>
-            <h2 id="weekly-proposal-reminder-title">Your research pick is waiting</h2>
+            <h2 id="weekly-proposal-reminder-title">
+              {weeklyProposalAttentionReason === 'completed'
+                ? 'Your research pick reached its goal'
+                : 'Your research pick is waiting'}
+            </h2>
             <p id="weekly-proposal-reminder-description">
-              You are still the current #1 pilot with {formatNumber(weeklyProposalRecovery.leader.score)} points,
-              but no ResearchHub proposal is attached to this run yet. Choose one now so your weekly funding pick is ready.
+              {weeklyProposalAttentionReason === 'completed'
+                ? `Your selected proposal was fully funded before the weekly cutoff. You are still the current #1 pilot with ${formatNumber(weeklyProposalRecovery.leader.score)} points, so choose another open proposal for this week's allocation.`
+                : `You are still the current #1 pilot with ${formatNumber(weeklyProposalRecovery.leader.score)} points, but no ResearchHub proposal is attached to this run yet. Choose one now so your weekly funding pick is ready.`}
             </p>
             <div className="sci-weekly-proposal-reminder__actions">
               <button
@@ -1867,7 +1908,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 className="sci-weekly-proposal-reminder__choose"
                 onClick={openRecoverableWeeklyProposal}
               >
-                Choose proposal
+                {weeklyProposalAttentionReason === 'completed'
+                  ? 'Choose new proposal'
+                  : 'Choose proposal'}
               </PixelActionButton>
             </div>
           </section>

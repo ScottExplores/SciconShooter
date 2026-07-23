@@ -46,6 +46,13 @@ const sanitizeUrl = (value) => {
   return url && /^https?:\/\//i.test(url) ? url : undefined;
 };
 
+const receiptFinishedInCurrentCompetitionWeek = (receipt, now = new Date()) => {
+  const finishedAt = new Date(receipt?.finishedAt);
+  if (!Number.isFinite(finishedAt.getTime())) return false;
+  const { start, end } = getCurrentWeekRange(now);
+  return finishedAt.getTime() >= start.getTime() && finishedAt.getTime() < end.getTime();
+};
+
 const isMissingProposalColumnError = (error) => (
   /proposal_|schema cache|column/i.test(error?.message || '')
 );
@@ -668,6 +675,13 @@ module.exports = async (req, res) => {
         return sendJson(res, 400, { error: 'Unknown leaderboard action.' });
       }
 
+      if (!receiptFinishedInCurrentCompetitionWeek(receipt)) {
+        return sendJson(res, 409, {
+          error: 'This run belongs to a weekly competition that has already closed.',
+          code: 'WEEKLY_SCORE_CUTOFF_PASSED'
+        });
+      }
+
       const name = sanitizeText(body.name, 15)?.toUpperCase();
       if (!name) {
         return sendJson(res, 400, { error: 'Pilot name is required' });
@@ -691,6 +705,16 @@ module.exports = async (req, res) => {
       if (await hasSubmittedRun(entry.runId)) {
         const scores = await readScores();
         return sendJson(res, 200, { ...toLeaderboardPayload(scores), alreadySubmitted: true });
+      }
+
+      // The replay check touches storage and may cross the weekly boundary on
+      // a slow connection. Re-check immediately before starting the insert so
+      // a request accepted just before cutoff cannot open a post-cutoff write.
+      if (!receiptFinishedInCurrentCompetitionWeek(receipt)) {
+        return sendJson(res, 409, {
+          error: 'This run belongs to a weekly competition that has already closed.',
+          code: 'WEEKLY_SCORE_CUTOFF_PASSED'
+        });
       }
 
       const scores = await writeScores([entry]);

@@ -11,7 +11,10 @@ import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEY
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT, getLeaderboardData, saveScore, saveWeeklyLeaderProposal } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
 import { getMissionRecordWeeklyFunding } from './services/weeklyFundingFlow';
-import { getResearchHubFundingProposals, ResearchHubProposal } from './services/researchHubProposals';
+import {
+  getResearchHubProposalFeed,
+  ResearchHubProposal
+} from './services/researchHubProposals';
 import { getStoryBeatForPhase, StoryBeat } from './services/storyBeats';
 import { hasSeenStoryBeatToday, markStoryBeatSeenToday } from './services/storyTransmissionSchedule';
 import { BASE_FLASK_CHARGE_MAX, getChargeForStoredFlasks, getFlaskProgress, spendStoredFlasks } from './services/flaskProgress';
@@ -26,6 +29,7 @@ import { trackEvent, trackInitialVisit } from './services/analyticsService';
 import { getWalletRecords } from './services/recordService';
 import { getWalletRuns, type WalletRunRecord } from './services/playerRunService';
 import { getWeeklyProposalRecovery } from './services/weeklyProposalRecovery';
+import { getWeeklyProposalLifecycle } from './services/weeklyProposalLifecycle';
 import {
   getUsablePlayerShip,
   getPlayerShipUnlocks,
@@ -195,6 +199,7 @@ const OWNER_TEST_FLASK_COUNT = 40;
 const DEPLOYMENT_UPDATE_CHECK_MS = 60_000;
 const INITIAL_DEPLOYMENT_UPDATE_CHECK_MS = 12_000;
 const OWNER_TEST_FLASK_CHARGE = getChargeForStoredFlasks(OWNER_TEST_FLASK_COUNT);
+const BACKGROUND_LEADERBOARD_REFRESH_MS = 60_000;
 const PROPOSAL_REFRESH_MS = 5 * 60 * 1000;
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
@@ -283,11 +288,6 @@ const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [gameId, setGameId] = useState<number>(0);
   const [gameRuntimeReady, setGameRuntimeReady] = useState(false);
-  const [startupLoading, setStartupLoading] = useState<MissionLoadingState>(() => ({
-    progress: gameplayPreloadProgress,
-    phase: gameplayPreloadPhase,
-    tip: getRandomMissionLoadingTip()
-  }));
   const [missionLoading, setMissionLoading] = useState<MissionLoadingState | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [monthlyLeaderboard, setMonthlyLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -305,10 +305,11 @@ const App: React.FC = () => {
     loadPermanentSquadState(null)
   ));
   const [fundingProposals, setFundingProposals] = useState<ResearchHubProposal[]>([]);
+  const [proposalReferences, setProposalReferences] = useState<ResearchHubProposal[]>([]);
   const [proposalStatus, setProposalStatus] = useState<ProposalFeedStatus>('loading');
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
   const [showNameInput, setShowNameInput] = useState<boolean>(false);
-  const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(false);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(true);
   const [isSubmittingScore, setIsSubmittingScore] = useState<boolean>(false);
   const [scoreSaved, setScoreSaved] = useState<boolean>(false);
   const [scoreSubmitError, setScoreSubmitError] = useState<string>('');
@@ -374,7 +375,8 @@ const App: React.FC = () => {
   );
   const walletActionNonceRef = useRef(0);
   const rewardClaimInFlightRef = useRef(false);
-  const startupPreloadAttemptRef = useRef(0);
+  const proposalRefreshNonceRef = useRef(0);
+  const weeklyLeaderProposalIdRef = useRef<string | null>(null);
   const pendingDeploymentEntryRef = useRef<string | null>(null);
   const walletProfileAddressRef = useRef<string | null>(null);
   const hasLoadedWalletProfileRef = useRef(walletRuntimeEnabled);
@@ -427,37 +429,22 @@ const App: React.FC = () => {
     trackInitialVisit();
   }, []);
 
-  const beginStartupPreload = useCallback(() => {
-    const attempt = startupPreloadAttemptRef.current + 1;
-    const tip = getRandomMissionLoadingTip();
-    startupPreloadAttemptRef.current = attempt;
-    setStartupLoading({
-      progress: gameplayPreloadProgress,
-      phase: gameplayPreloadPhase,
-      tip
-    });
-
-    void preloadGameplayComponents((progress, phase) => {
-      if (startupPreloadAttemptRef.current !== attempt) return;
-      setStartupLoading((current) => current ? { ...current, progress, phase } : current);
-    }).then(() => {
-      if (startupPreloadAttemptRef.current === attempt) setStartupLoading(null);
-    }).catch(() => {
-      if (startupPreloadAttemptRef.current !== attempt) return;
-      setStartupLoading({
-        progress: gameplayPreloadProgress,
-        phase: 'error',
-        tip
-      });
-    });
-  }, []);
-
   useEffect(() => {
-    beginStartupPreload();
-    return () => {
-      startupPreloadAttemptRef.current += 1;
-    };
-  }, [beginStartupPreload]);
+    if (proposalStatus === 'loading' || gameplayPreloadReady || gameplayPreloadPromise) {
+      return undefined;
+    }
+
+    // Proposal data and its first images get network priority on slower phones.
+    // Mission modules and textures warm only after that feed settles and the
+    // browser has idle time. A pilot who launches first joins the same preload
+    // promise and sees the existing progress presentation.
+    return runAfterFirstPaint(() => {
+      void preloadGameplayComponents().catch(() => undefined);
+    }, {
+      delayMs: 1_200,
+      timeoutMs: 5_000
+    });
+  }, [proposalStatus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -542,11 +529,18 @@ const App: React.FC = () => {
     weeklyLeaderboard: monthlyLeaderboard,
     archivedWinners
   }) : null, [archivedWinners, monthlyLeaderboard, previewPilotName, runReceipt]);
+  const weeklyLeaderProposalId = monthlyLeaderboard[0]?.proposalId?.trim() || null;
+  weeklyLeaderProposalIdRef.current = weeklyLeaderProposalId;
+  const weeklyProposalLifecycle = useMemo(() => getWeeklyProposalLifecycle({
+    selectedProposalId: weeklyLeaderProposalId,
+    referencedProposals: proposalReferences
+  }), [proposalReferences, weeklyLeaderProposalId]);
   const weeklyProposalRecovery = useMemo(() => getWeeklyProposalRecovery({
     weeklyLeaderboard: monthlyLeaderboard,
     walletRuns,
-    walletAddress: activeWalletAddress
-  }), [activeWalletAddress, monthlyLeaderboard, walletRuns]);
+    walletAddress: activeWalletAddress,
+    proposalLifecycle: weeklyProposalLifecycle
+  }), [activeWalletAddress, monthlyLeaderboard, walletRuns, weeklyProposalLifecycle]);
   const shipUnlocks = useMemo(() => {
     const unlocks = getPlayerShipUnlocks(activeWalletAddress, walletRecords, { unlockAll: isOwnerWallet });
     return {
@@ -678,10 +672,14 @@ const App: React.FC = () => {
   useEffect(() => {
     let active = true;
     let cancelDeferredFetch: (() => void) | null = null;
+    let leaderboardRefreshId: number | null = null;
+    let scoreFetchInFlight = false;
 
-    const fetchScores = async () => {
+    const fetchScores = async (background = false) => {
+      if (!active || scoreFetchInFlight) return;
+      scoreFetchInFlight = true;
       const alreadyHasData = leaderboard.length > 0;
-      if (!alreadyHasData) {
+      if (!background && !alreadyHasData) {
         setLoadingLeaderboard(true);
       }
 
@@ -695,7 +693,8 @@ const App: React.FC = () => {
       } catch (error) {
         console.error("Failed to fetch leaderboard", error);
       } finally {
-        if (active && !alreadyHasData) {
+        scoreFetchInFlight = false;
+        if (active && !background && !alreadyHasData) {
           setLoadingLeaderboard(false);
         }
       }
@@ -710,6 +709,12 @@ const App: React.FC = () => {
     const fetchDashboardData = () => {
       void Promise.all([fetchScores(), fetchArchivedWinners()]);
     };
+    const refreshScoresInBackground = () => {
+      if (!document.hidden) void fetchScores(true);
+    };
+    const handleDashboardVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshScoresInBackground();
+    };
 
     if (gameState === GameState.GAMEOVER) {
       fetchDashboardData();
@@ -718,39 +723,84 @@ const App: React.FC = () => {
         delayMs: leaderboard.length > 0 ? 900 : 450,
         timeoutMs: 2200
       });
+      leaderboardRefreshId = window.setInterval(
+        refreshScoresInBackground,
+        BACKGROUND_LEADERBOARD_REFRESH_MS
+      );
+      window.addEventListener('focus', refreshScoresInBackground);
+      document.addEventListener('visibilitychange', handleDashboardVisibilityChange);
     }
 
     return () => {
       active = false;
       cancelDeferredFetch?.();
+      if (leaderboardRefreshId !== null) {
+        window.clearInterval(leaderboardRefreshId);
+      }
+      window.removeEventListener('focus', refreshScoresInBackground);
+      document.removeEventListener('visibilitychange', handleDashboardVisibilityChange);
     };
   }, [gameState, leaderboard.length]);
 
   const refreshFundingProposals = useCallback(async (background = false) => {
+    const refreshNonce = proposalRefreshNonceRef.current + 1;
+    const requestedProposalId = weeklyLeaderProposalId;
+    proposalRefreshNonceRef.current = refreshNonce;
+    const isCurrentRefresh = () => (
+      proposalRefreshNonceRef.current === refreshNonce
+      && weeklyLeaderProposalIdRef.current === requestedProposalId
+    );
+
     if (!background) setProposalStatus('loading');
     try {
-      const nextProposals = await getResearchHubFundingProposals();
-      setFundingProposals(nextProposals);
-      setProposalStatus(nextProposals.length > 0 ? 'ready' : 'empty');
+      const feed = await getResearchHubProposalFeed({
+        includeProposalIds: requestedProposalId ? [requestedProposalId] : []
+      });
+      if (!isCurrentRefresh()) return;
+      setFundingProposals(feed.eligibleProposals);
+      setProposalReferences(feed.referencedProposals);
+      setProposalStatus(feed.eligibleProposals.length > 0 ? 'ready' : 'empty');
     } catch (error) {
+      if (!isCurrentRefresh()) return;
       console.error('ResearchHub proposal feed failed:', error);
-      if (!background) {
+
+      // A referenced completed proposal uses ResearchHub's CLOSED feed, which
+      // may fail independently of the normal OPEN feed. Keep proposal browsing
+      // available without guessing the selected proposal's status.
+      if (requestedProposalId) {
+        try {
+          const openFeed = await getResearchHubProposalFeed();
+          if (!isCurrentRefresh()) return;
+          setFundingProposals(openFeed.eligibleProposals);
+          setProposalReferences([]);
+          setProposalStatus(openFeed.eligibleProposals.length > 0 ? 'ready' : 'empty');
+          return;
+        } catch (openFeedError) {
+          if (!isCurrentRefresh()) return;
+          console.error('ResearchHub open proposal fallback failed:', openFeedError);
+        }
+      }
+
+      if (!background && isCurrentRefresh()) {
         setFundingProposals([]);
+        setProposalReferences([]);
         setProposalStatus('error');
       }
     }
-  }, []);
+  }, [weeklyLeaderProposalId]);
 
   useEffect(() => {
     const cancelDeferredFetch = runAfterFirstPaint(() => {
       void refreshFundingProposals();
     }, {
-      delayMs: 950,
+      // Prefer the exact leader proposal when scores respond promptly, but do
+      // not let a stalled leaderboard strand proposals or gameplay preloading.
+      delayMs: loadingLeaderboard ? 2_000 : 150,
       timeoutMs: 3200
     });
 
     return cancelDeferredFetch;
-  }, [refreshFundingProposals]);
+  }, [loadingLeaderboard, refreshFundingProposals]);
 
   useEffect(() => {
     if (gameState !== GameState.MENU) return undefined;
@@ -934,19 +984,37 @@ const App: React.FC = () => {
   }, [activeRunMode, beginRunSession, gameState, isOwnerWallet]);
 
   const startGame = async () => {
-    if (missionLaunchPendingRef.current || !gameplayPreloadReady) return;
+    if (missionLaunchPendingRef.current) return;
 
     const launchNonce = missionLaunchNonceRef.current + 1;
+    const shouldShowMissionLoading = !gameplayPreloadReady;
     const loadingTip = missionLoading?.phase === 'error'
       ? missionLoading.tip
       : getRandomMissionLoadingTip();
     missionLaunchNonceRef.current = launchNonce;
     missionLaunchPendingRef.current = true;
     audioService.init();
-    setMissionLoading(null);
+    if (shouldShowMissionLoading) {
+      setMissionLoading({
+        progress: gameplayPreloadProgress,
+        phase: gameplayPreloadPhase,
+        tip: loadingTip
+      });
+    } else {
+      setMissionLoading(null);
+    }
 
     try {
-      await preloadGameplayComponents();
+      await preloadGameplayComponents(shouldShowMissionLoading
+        ? (progress, phase) => {
+            if (missionLaunchNonceRef.current !== launchNonce) return;
+            setMissionLoading({
+              progress,
+              phase,
+              tip: loadingTip
+            });
+          }
+        : undefined);
     } catch {
       if (missionLaunchNonceRef.current === launchNonce) {
         missionLaunchPendingRef.current = false;
@@ -2010,15 +2078,7 @@ const App: React.FC = () => {
         </React.Suspense>
       ) : null}
 
-      {startupLoading ? (
-        <MissionLoadingScreen
-          context="startup"
-          progress={startupLoading.progress}
-          phase={startupLoading.phase}
-          tip={startupLoading.tip}
-          onRetry={beginStartupPreload}
-        />
-      ) : missionLoading ? (
+      {missionLoading ? (
         <MissionLoadingScreen
           progress={missionLoading.progress}
           phase={missionLoading.phase}
@@ -2126,6 +2186,7 @@ const App: React.FC = () => {
           onDowngradeMainShip={handleDowngradeMainShip}
           isLoading={loadingLeaderboard}
           proposals={fundingProposals}
+          proposalReferences={proposalReferences}
           proposalStatus={proposalStatus}
           onOpenReferral={openReferral}
           onOpenFund={openResearchHubFund}
@@ -2181,6 +2242,7 @@ const App: React.FC = () => {
             onDowngradeMainShip={handleDowngradeMainShip}
             isLoading={loadingLeaderboard}
             proposals={fundingProposals}
+            proposalReferences={proposalReferences}
             proposalStatus={proposalStatus}
             onOpenReferral={openReferral}
             onOpenFund={openResearchHubFund}

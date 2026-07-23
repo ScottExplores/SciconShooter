@@ -1,10 +1,17 @@
 import type { LeaderboardEntry } from '../types';
 import type { WalletRunRecord } from './playerRunService';
+import type { WeeklyProposalLifecycle } from './weeklyProposalLifecycle';
+import {
+  getWeeklyProposalReminderStorageKey,
+  type WeeklyProposalReminderReason
+} from './weeklyProposalReminder';
 
 export interface WeeklyProposalRecovery {
   leader: LeaderboardEntry;
   record: WalletRunRecord;
   needsProposal: boolean;
+  attentionReason: WeeklyProposalReminderReason | null;
+  reminderStorageKey: string | null;
   canEditProposal: true;
 }
 
@@ -12,6 +19,7 @@ interface WeeklyProposalRecoveryInput {
   weeklyLeaderboard: LeaderboardEntry[];
   walletRuns: WalletRunRecord[];
   walletAddress?: string | null;
+  proposalLifecycle?: WeeklyProposalLifecycle | null;
 }
 
 const addressesMatch = (left?: string | null, right?: string | null) => (
@@ -26,7 +34,8 @@ const addressesMatch = (left?: string | null, right?: string | null) => (
 export const getWeeklyProposalRecovery = ({
   weeklyLeaderboard,
   walletRuns,
-  walletAddress
+  walletAddress,
+  proposalLifecycle
 }: WeeklyProposalRecoveryInput): WeeklyProposalRecovery | null => {
   const leader = weeklyLeaderboard[0];
   if (!leader?.runId || leader.verified !== true) return null;
@@ -42,10 +51,29 @@ export const getWeeklyProposalRecovery = ({
   ));
   if (!record) return null;
 
+  const selectedProposalId = leader.proposalId?.trim();
+  const lifecycleMatchesSelection = Boolean(
+    selectedProposalId
+    && proposalLifecycle?.proposalId === selectedProposalId
+  );
+  const attentionReason: WeeklyProposalReminderReason | null = !selectedProposalId
+    ? 'missing'
+    : lifecycleMatchesSelection && proposalLifecycle?.state === 'replacement-required'
+      && proposalLifecycle.reason === 'completed'
+      ? 'completed'
+      : null;
+  const reminderStorageKey = getWeeklyProposalReminderStorageKey({
+    runId: leader.runId,
+    reason: attentionReason,
+    proposalId: attentionReason === 'completed' ? selectedProposalId : null
+  });
+
   return {
     leader,
     record,
-    needsProposal: !leader.proposalId,
+    needsProposal: attentionReason !== null,
+    attentionReason,
+    reminderStorageKey,
     canEditProposal: true
   };
 };

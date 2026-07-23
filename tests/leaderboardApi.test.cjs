@@ -7,6 +7,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
 
 const { signPayload } = require('../api/_lib/runReceipts');
 const leaderboardHandler = require('../api/leaderboard');
+const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
 
 const makeReceipt = (runId = crypto.randomUUID(), overrides = {}) => signPayload({
   type: 'run-receipt',
@@ -66,6 +67,42 @@ test('leaderboard derives score and wave from the signed receipt', async () => {
     assert.equal(res.body.scores[0].runId, runId);
     assert.equal(writeRequest.url.includes('on_conflict'), false);
     assert.equal(writeRequest.options.headers.Prefer, 'return=minimal');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('leaderboard rejects an unexpired receipt after its weekly score cutoff without touching storage', async () => {
+  const runId = crypto.randomUUID();
+  const { start } = getCurrentWeekRange(new Date());
+  const finishedAt = start.getTime() - 1;
+  const originalFetch = global.fetch;
+  let fetchCalled = false;
+  global.fetch = async () => {
+    fetchCalled = true;
+    return jsonResponse([]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        name: 'late pilot',
+        receiptToken: makeReceipt(runId, {
+          startedAt: finishedAt - 60_000,
+          finishedAt,
+          expiresAt: Date.now() + 60_000
+        })
+      },
+      headers: {},
+      socket: { remoteAddress: '127.0.0.1' }
+    }, res);
+
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, 'WEEKLY_SCORE_CUTOFF_PASSED');
+    assert.match(res.body.error, /weekly competition.*closed/i);
+    assert.equal(fetchCalled, false);
   } finally {
     global.fetch = originalFetch;
   }

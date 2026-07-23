@@ -5,22 +5,25 @@ const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
 
-test('app startup owns one cached production readiness pipeline', () => {
+test('app defers one cached production readiness pipeline until proposal data settles and the browser is idle', () => {
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 
   assert.match(app, /let gameplayPreloadPromise: Promise<void> \| null = null/);
   assert.match(app, /if \(gameplayPreloadReady\) return Promise\.resolve\(\)/);
   assert.match(app, /if \(gameplayPreloadPromise\) return gameplayPreloadPromise/);
   assert.match(app, /await gameplay\.preloadGameplayAssets\(\)/);
-  assert.match(app, /const beginStartupPreload = useCallback/);
-  assert.match(app, /void preloadGameplayComponents\(\(progress, phase\) =>/);
-  assert.match(app, /context="startup"/);
-  assert.match(app, /if \(missionLaunchPendingRef\.current \|\| !gameplayPreloadReady\) return/);
-  assert.doesNotMatch(app, /const shouldShowMissionLoading/);
+  assert.match(app, /if \(proposalStatus === 'loading' \|\| gameplayPreloadReady \|\| gameplayPreloadPromise\)/);
+  assert.match(app, /return runAfterFirstPaint\(\(\) => \{\s*void preloadGameplayComponents\(\)\.catch\(\(\) => undefined\)/);
+  assert.match(app, /delayMs: 1_200,[\s\S]*timeoutMs: 5_000/);
+  assert.match(app, /void preloadGameplayComponents\(\)\.catch\(\(\) => undefined\)/);
+  assert.doesNotMatch(app, /startupLoading|beginStartupPreload|context="startup"/);
+  assert.match(app, /if \(missionLaunchPendingRef\.current\) return/);
+  assert.doesNotMatch(app, /missionLaunchPendingRef\.current \|\| !gameplayPreloadReady/);
+  assert.match(app, /const shouldShowMissionLoading = !gameplayPreloadReady/);
   assert.doesNotMatch(app, /setTimeout\([^)]*gameplayPreloadProgress/);
 });
 
-test('mission launch locks simulation until Pixi synchronizes without showing a second loader', () => {
+test('mission launch joins a pending preload with progress, then locks simulation until Pixi synchronizes', () => {
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const component = fs.readFileSync(path.join(root, 'components', 'MissionLoadingScreen.tsx'), 'utf8');
   const startIndex = app.indexOf('const startGame = async');
@@ -32,6 +35,9 @@ test('mission launch locks simulation until Pixi synchronizes without showing a 
   const failureFlow = app.slice(failureIndex, resetIndex);
 
   assert.ok(startIndex >= 0 && readyIndex > startIndex && failureIndex > readyIndex);
+  assert.match(startFlow, /if \(shouldShowMissionLoading\) \{[\s\S]*setMissionLoading\(\{/);
+  assert.match(startFlow, /await preloadGameplayComponents\(shouldShowMissionLoading[\s\S]*\(progress, phase\) =>/);
+  assert.match(startFlow, /setMissionLoading\(\{[\s\S]*progress,[\s\S]*phase,[\s\S]*tip: loadingTip/);
   assert.match(startFlow, /pendingMissionRuntimeRef\.current = \{/);
   assert.match(startFlow, /setGameRuntimeReady\(false\)/);
   assert.match(startFlow, /setGameId\(nextGameId\)/);

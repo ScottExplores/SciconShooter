@@ -1,7 +1,40 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
 
-const { getWeeklyProposalRecovery } = require('../services/weeklyProposalRecovery.ts');
+const root = path.resolve(__dirname, '..');
+const loadTypeScriptService = (relativePath, dependencyMap) => {
+  const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020
+    }
+  }).outputText;
+  const serviceModule = { exports: {} };
+  vm.runInNewContext(compiled, {
+    module: serviceModule,
+    exports: serviceModule.exports,
+    require: (specifier) => {
+      if (Object.hasOwn(dependencyMap, specifier)) return dependencyMap[specifier];
+      throw new Error(`Unexpected ${relativePath} dependency: ${specifier}`);
+    }
+  });
+  return serviceModule.exports;
+};
+const proposalFunding = require('../services/proposalFunding.ts');
+const weeklyProposalReminder = require('../services/weeklyProposalReminder.ts');
+const { getWeeklyProposalLifecycle } = loadTypeScriptService(
+  'services/weeklyProposalLifecycle.ts',
+  { './proposalFunding': proposalFunding }
+);
+const { getWeeklyProposalRecovery } = loadTypeScriptService(
+  'services/weeklyProposalRecovery.ts',
+  { './weeklyProposalReminder': weeklyProposalReminder }
+);
 const { getMissionRecordWeeklyFunding } = require('../services/weeklyFundingFlow.ts');
 
 const wallet = '0x1111111111111111111111111111111111111111';
@@ -46,6 +79,11 @@ test('recovery identifies the exact wallet-bound verified weekly leader run', ()
 
   assert.equal(result?.record, record);
   assert.equal(result?.needsProposal, true);
+  assert.equal(result?.attentionReason, 'missing');
+  assert.equal(
+    result?.reminderStorageKey,
+    'scicon.weekly-proposal-reminder:verified-leading-run:missing'
+  );
   assert.equal(result?.canEditProposal, true);
 });
 
@@ -57,7 +95,79 @@ test('recovery remains editable when the current leader already selected a propo
   });
 
   assert.equal(result?.needsProposal, false);
+  assert.equal(result?.attentionReason, null);
+  assert.equal(result?.reminderStorageKey, null);
   assert.equal(result?.canEditProposal, true);
+});
+
+test('recovery requests a replacement only when the exact current leader proposal explicitly completed', () => {
+  const selected = leader({ proposalId: '321', proposalTitle: 'Original pick' });
+  const proposalLifecycle = getWeeklyProposalLifecycle({
+    selectedProposalId: selected.proposalId,
+    referencedProposals: [{
+      id: '321',
+      title: 'Original pick',
+      author: 'Researcher',
+      backers: 5,
+      votes: 8,
+      comments: 2,
+      goalCurrency: 'USD',
+      requestedUsd: 1000,
+      raisedUsd: 1000,
+      status: 'FUNDED',
+      url: 'https://www.researchhub.com/post/321/original-pick'
+    }]
+  });
+  const result = getWeeklyProposalRecovery({
+    weeklyLeaderboard: [selected],
+    walletRuns: [{ pilotName: 'PILOT', receipt: receipt() }],
+    walletAddress: wallet,
+    proposalLifecycle
+  });
+
+  assert.equal(result?.needsProposal, true);
+  assert.equal(result?.attentionReason, 'completed');
+  assert.equal(
+    result?.reminderStorageKey,
+    'scicon.weekly-proposal-reminder:verified-leading-run:completed:321'
+  );
+});
+
+test('recovery never treats an absent or mismatched referenced proposal as completed', () => {
+  const selected = leader({ proposalId: '321', proposalTitle: 'Original pick' });
+  const unknownLifecycle = getWeeklyProposalLifecycle({
+    selectedProposalId: selected.proposalId,
+    referencedProposals: []
+  });
+  const mismatchedLifecycle = getWeeklyProposalLifecycle({
+    selectedProposalId: '999',
+    referencedProposals: [{
+      id: '999',
+      title: 'Other completed proposal',
+      author: 'Researcher',
+      backers: 5,
+      votes: 8,
+      comments: 2,
+      goalCurrency: 'USD',
+      requestedUsd: 1000,
+      raisedUsd: 1000,
+      url: 'https://www.researchhub.com/post/999/other'
+    }]
+  });
+  const base = {
+    weeklyLeaderboard: [selected],
+    walletRuns: [{ pilotName: 'PILOT', receipt: receipt() }],
+    walletAddress: wallet
+  };
+
+  assert.equal(getWeeklyProposalRecovery({
+    ...base,
+    proposalLifecycle: unknownLifecycle
+  })?.attentionReason, null);
+  assert.equal(getWeeklyProposalRecovery({
+    ...base,
+    proposalLifecycle: mismatchedLifecycle
+  })?.attentionReason, null);
 });
 
 test('recovery rejects mismatched wallet, run, metrics, and verification state', () => {

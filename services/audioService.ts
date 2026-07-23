@@ -40,6 +40,10 @@ const MISSION_BPM = 154;
 const MISSION_STEP_MS = (60_000 / MISSION_BPM) / 2;
 const SILENCE_GAIN = 0.0001;
 const MAX_SFX_GAIN = 0.3;
+// Player fire is intentionally shorter than the other combat cues, but it
+// still needs enough level to survive small phone speakers and the shared SFX
+// bus. The old 0.045 peak was effectively inaudible beside impacts and music.
+const PLAYER_SHOT_GAIN = 0.12;
 // The former default was notch 2 at a 0.05 ceiling (0.02 output). The new
 // 5/5 ceiling is deliberately 30% quieter than that audible default.
 const MAX_PROCEDURAL_MUSIC_GAIN = 0.014;
@@ -811,7 +815,7 @@ class AudioService {
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(520 * pitch, t);
         osc.frequency.exponentialRampToValueAtTime(170 * pitch, t + 0.075);
-        gain.gain.setValueAtTime(0.045, t);
+        gain.gain.setValueAtTime(PLAYER_SHOT_GAIN, t);
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.075);
         osc.start(t);
         osc.stop(t + 0.08);

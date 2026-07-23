@@ -98,9 +98,6 @@ const localApiRoutes = () => ({
       return leaderboardHandler(req, res);
     });
     mount('/api/researchhub-proposals', async (req, res) => {
-      if (req.method === 'GET') {
-        return proxyPublicApi('/api/researchhub-proposals', req, res);
-      }
       return researchHubProposalsHandler(req, res);
     });
     mount('/api/run-receipts', async (req, res) => {

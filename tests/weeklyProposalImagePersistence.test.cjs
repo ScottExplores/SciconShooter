@@ -20,7 +20,7 @@ test('the server snapshots the validated proposal image with the weekly-leading 
 });
 
 test('finalization and late claims carry the same image into the winner archive', () => {
-  assert.match(competitionSource, /proposal_image_url:\s*winner\.proposal_image_url/);
+  assert.match(competitionSource, /proposal_image_url:\s*proposal\.imageUrl/);
   assert.match(claimSource, /proposal_image_url:\s*proposal\.imageUrl/);
   assert.match(archiveSource, /proposalImageUrl:\s*safeUrl\(winner\.proposal_image_url\)/);
 });

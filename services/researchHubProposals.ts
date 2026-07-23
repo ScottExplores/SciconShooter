@@ -4,6 +4,7 @@ import { getProposalFundingMetrics } from './proposalFunding';
 
 const RESEARCHHUB_FUND_URL = 'https://www.researchhub.com/fund';
 const PROPOSAL_FEED_PATH = '/api/researchhub-proposals';
+const PROPOSAL_REQUEST_TIMEOUT_MS = 12_000;
 
 type RawRecord = Record<string, any>;
 
@@ -25,6 +26,21 @@ export interface ResearchHubProposal {
   status?: string;
   endDate?: string;
   url: string;
+}
+
+export interface ResearchHubProposalFeedOptions {
+  requiredOpenUntil?: Date | string | number;
+  includeProposalIds?: readonly string[];
+}
+
+export interface ResearchHubProposalFeedResult {
+  eligibleProposals: ResearchHubProposal[];
+  /**
+   * Exact requested proposal snapshots, including proposals that are no
+   * longer eligible. A requested ID missing from this array has unknown
+   * status; callers must never infer that it completed from absence.
+   */
+  referencedProposals: ResearchHubProposal[];
 }
 
 const isRecord = (value: unknown): value is RawRecord => (
@@ -162,17 +178,59 @@ export const formatUsd = (value?: number) => {
   return `$${Math.round(value).toLocaleString()}`;
 };
 
-export const getResearchHubFundingProposals = async (
-  requiredOpenUntil: Date | string | number = getWeeklyBoundaryMeta().endsAt
-): Promise<ResearchHubProposal[]> => {
-  let response = await fetch(PROPOSAL_FEED_PATH, {
-    headers: { Accept: 'application/json' }
+const normalizeIncludedProposalIds = (proposalIds: readonly string[] = []) => {
+  const uniqueIds: string[] = [];
+  const seen = new Set<string>();
+
+  proposalIds.forEach((value) => {
+    const proposalId = String(value).trim();
+    if (!/^\d{1,20}$/.test(proposalId) || seen.has(proposalId) || uniqueIds.length >= 10) return;
+    seen.add(proposalId);
+    uniqueIds.push(proposalId);
   });
 
-  if (!response.ok && import.meta.env.DEV) {
-    response = await fetch('/dev-researchhub-proposals.json', {
-      headers: { Accept: 'application/json' }
+  return uniqueIds;
+};
+
+const normalizeProposalEntries = (entries: unknown): ResearchHubProposal[] => (
+  Array.isArray(entries)
+    ? entries
+      .filter(isRecord)
+      .map(normalizeProposal)
+      .filter((proposal): proposal is ResearchHubProposal => Boolean(proposal))
+    : []
+);
+
+const fetchProposalResponse = async (url: string): Promise<Response> => {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), PROPOSAL_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal
     });
+  } catch (error) {
+    if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') {
+      throw new Error('Proposal feed timed out.');
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
+};
+
+export const getResearchHubProposalFeed = async ({
+  requiredOpenUntil = getWeeklyBoundaryMeta().endsAt,
+  includeProposalIds = []
+}: ResearchHubProposalFeedOptions = {}): Promise<ResearchHubProposalFeedResult> => {
+  const requestedProposalIds = normalizeIncludedProposalIds(includeProposalIds);
+  const proposalFeedUrl = requestedProposalIds.length
+    ? `${PROPOSAL_FEED_PATH}?includeProposalIds=${requestedProposalIds.join(',')}`
+    : PROPOSAL_FEED_PATH;
+  let response = await fetchProposalResponse(proposalFeedUrl);
+
+  if (!response.ok && import.meta.env.DEV) {
+    response = await fetchProposalResponse('/dev-researchhub-proposals.json');
   }
 
   if (!response.ok) {
@@ -185,10 +243,32 @@ export const getResearchHubFundingProposals = async (
     : Array.isArray(payload?.proposals)
       ? payload.proposals
       : [];
+  const proposals = normalizeProposalEntries(results);
+  const referencedResults = normalizeProposalEntries(payload?.referencedProposals);
+  const referencedById = new Map<string, ResearchHubProposal>();
 
-  return results
-    .filter(isRecord)
-    .map(normalizeProposal)
-    .filter((proposal): proposal is ResearchHubProposal => Boolean(proposal))
-    .filter((proposal) => isWeeklyProposalEligible(proposal, requiredOpenUntil));
+  [...proposals, ...referencedResults].forEach((proposal) => {
+    if (requestedProposalIds.includes(proposal.id)) {
+      referencedById.set(proposal.id, proposal);
+    }
+  });
+
+  return {
+    eligibleProposals: proposals.filter((proposal) => (
+      isWeeklyProposalEligible(proposal, requiredOpenUntil)
+    )),
+    referencedProposals: requestedProposalIds
+      .map((proposalId) => referencedById.get(proposalId))
+      .filter((proposal): proposal is ResearchHubProposal => Boolean(proposal))
+  };
+};
+
+/**
+ * Backward-compatible eligible-list wrapper used by existing callers.
+ */
+export const getResearchHubFundingProposals = async (
+  requiredOpenUntil: Date | string | number = getWeeklyBoundaryMeta().endsAt
+): Promise<ResearchHubProposal[]> => {
+  const { eligibleProposals } = await getResearchHubProposalFeed({ requiredOpenUntil });
+  return eligibleProposals;
 };

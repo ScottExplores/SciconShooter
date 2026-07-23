@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 
-test('legacy combat samples are checked in while player fire uses the softer synthesized beam', () => {
+test('legacy combat samples are checked in while player fire uses an audible synthesized beam', () => {
   const expectedSamples = [
     'player-shot.wav',
     'boss-shot.wav',
@@ -26,9 +26,10 @@ test('legacy combat samples are checked in while player fire uses the softer syn
   assert.match(audioSource, /private playSample\(/);
   assert.match(audioSource, /stopActiveSampleNodes/);
   assert.doesNotMatch(audioSource, /shoot: \{ sample: 'player-shot'/);
+  assert.match(audioSource, /const PLAYER_SHOT_GAIN = 0\.12/);
   assert.match(audioSource, /case 'shoot':\s*osc\.type = 'triangle'/);
   assert.match(audioSource, /osc\.frequency\.setValueAtTime\(520 \* pitch, t\)/);
-  assert.match(audioSource, /gain\.gain\.setValueAtTime\(0\.045, t\)/);
+  assert.match(audioSource, /gain\.gain\.setValueAtTime\(PLAYER_SHOT_GAIN, t\)/);
 });
 
 test('combat events distinguish player fire, boss fire, impacts, and destruction', () => {

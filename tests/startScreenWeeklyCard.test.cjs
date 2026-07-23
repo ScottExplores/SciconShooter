@@ -21,10 +21,13 @@ const stylesSource = fs.readFileSync(
 );
 
 test('home winner card uses only the proposal saved on the current weekly leader', () => {
-  assert.match(source, /resolveProposalSelection\(weeklyLeader, proposals\)/);
+  assert.match(source, /proposalReferences\.forEach\(\(proposal\) => references\.set\(proposal\.id, proposal\)\)/);
+  assert.match(source, /resolveProposalSelection\(weeklyLeader, proposalReferencePool\)/);
   assert.doesNotMatch(source, /weeklyProposalPreview\s*=\s*sortedProposals\[0\]/);
   assert.match(source, /weeklyProposalSelection\?\.liveProposal[\s\S]*getProposalFundingMetrics\(weeklyProposalSelection\.liveProposal\)/);
   assert.match(source, /formatFundingPercent\(weeklyFunding\.progressPercent\)/);
+  assert.match(source, /isProposalExplicitlyCompleted\(weeklyProposalSelection\.liveProposal\)/);
+  assert.match(source, /weeklyProposalCompleted[\s\S]*Goal reached/);
   assert.doesNotMatch(source, /getProposalProgress|weeklyFundingProgress/);
 });
 
@@ -61,6 +64,17 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(htmlSource, /#root \.scicon-mobile-home[\s\S]*grid-template-rows: auto minmax\(17\.5rem, 1fr\)/);
   assert.match(htmlSource, /#root \.sci-hero-content--compact[\s\S]*grid-template-rows: auto minmax\(6rem, 1fr\) auto/);
   assert.match(htmlSource, /max-height: 720px/);
+});
+
+test('compact weekly carousel preserves its pager while fitting short Base app viewports', () => {
+  assert.match(source, /sci-weekly-winner-card--compact/);
+  assert.match(source, /sci-weekly-winner-card__pager/);
+  assert.match(source, /aria-label="Show weekly leader"/);
+  assert.match(source, /aria-label="Show selected proposal"/);
+  assert.match(stylesSource, /\.sci-weekly-winner-card--compact \{[\s\S]*?min-height: 5rem;/);
+  assert.match(stylesSource, /\.sci-weekly-funding-content--compact \.sci-weekly-funding-summary \{[\s\S]*?padding-bottom: 0\.375rem;/);
+  assert.match(stylesSource, /\.sci-weekly-winner-card--compact \.sci-weekly-winner-card__slide \{[\s\S]*?padding-bottom: 0\.5rem;/);
+  assert.match(stylesSource, /\.sci-weekly-winner-card--compact \.sci-weekly-proposal-title \{[\s\S]*?-webkit-line-clamp: 1;/);
 });
 
 test('weekly funding and high score share the exact Start Mission chrome with safe insets', () => {
@@ -154,7 +168,7 @@ test('Past Picks renders the complete framed winner archive without trophy thumb
   assert.match(archiveSource, /Final allocation/);
   assert.match(archiveSource, /winner\.allocationRsc \?\? weeklyAllocation\.allocationRsc/);
   assert.match(archiveSource, /Proposal selected/);
-  assert.match(archiveSource, /resolveProposalSelection\(winner, proposals\)/);
+  assert.match(archiveSource, /resolveProposalSelection\(winner, proposalReferencePool\)/);
   assert.match(archiveSource, /proposalSelection\?\.imageUrl/);
   assert.match(archiveSource, /key=\{`\$\{proposalSelection\.id\}:\$\{proposalSelection\.imageUrl\}`\}/);
   assert.doesNotMatch(archiveSource, /name="trophy"/);
