@@ -2,6 +2,20 @@
 type GameSoundType = 'shoot' | 'boss_shoot' | 'impact' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb';
 type SampleKey = 'player-shot' | 'boss-shot' | 'hit' | 'explosion';
 
+export type MissionMusicTrackId = 'scicon-flight' | 'acid-clatter' | 'pressure' | 'exellent';
+
+export const MISSION_MUSIC_TRACKS: ReadonlyArray<{
+  id: MissionMusicTrackId;
+  title: string;
+  artist: string;
+  src: string | null;
+}> = [
+  { id: 'scicon-flight', title: 'Scicon Flight Mix', artist: 'Scicon Shooter', src: null },
+  { id: 'acid-clatter', title: 'ACID CLATTER', artist: 'Phonk Killer', src: '/audio/music/acid-clatter.mp3' },
+  { id: 'pressure', title: 'PRESSURE', artist: 'Mission Track', src: '/audio/music/pressure.mp3' },
+  { id: 'exellent', title: 'Exellent', artist: 'Mission Track', src: '/audio/music/exellent.mp3' }
+];
+
 type SampleProfile = {
   sample: SampleKey;
   volume: number;
@@ -26,7 +40,9 @@ const MISSION_BPM = 154;
 const MISSION_STEP_MS = (60_000 / MISSION_BPM) / 2;
 const SILENCE_GAIN = 0.0001;
 const MAX_MASTER_GAIN = 0.3;
+const MAX_MUSIC_ELEMENT_VOLUME = 0.42;
 const MAX_VOLUME_LEVEL = 5;
+const MUSIC_TRACK_STORAGE_KEY = 'scicon-shooter:mission-music-track:v1';
 const MISSION_BASS_PATTERN = [
   73.42, 55, 73.42, 65.41,
   73.42, 87.31, 73.42, 77.78,
@@ -51,6 +67,8 @@ class AudioService {
   private musicStep: number = 0;
   private musicRequested: boolean = false;
   private musicLaunchPending: boolean = false;
+  private selectedMusicTrackId: MissionMusicTrackId = 'scicon-flight';
+  private musicPlayer: HTMLAudioElement | null = null;
   private activeMusicNodes = new Set<OscillatorNode>();
   private activeProceduralNodes = new Set<OscillatorNode>();
   private activeSampleNodes = new Set<AudioBufferSourceNode>();
@@ -60,6 +78,8 @@ class AudioService {
   private lastSoundTime: Partial<Record<GameSoundType, number>> = {};
 
   constructor() {
+    this.selectedMusicTrackId = this.readStoredMusicTrack();
+
     try {
       // Initialize on first user interaction
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -140,6 +160,75 @@ class AudioService {
     this.activeProceduralNodes.clear();
   }
 
+  private readStoredMusicTrack(): MissionMusicTrackId {
+    try {
+      const storedTrack = window.localStorage?.getItem(MUSIC_TRACK_STORAGE_KEY);
+      if (MISSION_MUSIC_TRACKS.some((track) => track.id === storedTrack)) {
+        return storedTrack as MissionMusicTrackId;
+      }
+    } catch {
+      // Storage can be unavailable in embedded or privacy-restricted browsers.
+    }
+    return 'scicon-flight';
+  }
+
+  private getSelectedMusicTrack() {
+    return MISSION_MUSIC_TRACKS.find((track) => track.id === this.selectedMusicTrackId)
+      || MISSION_MUSIC_TRACKS[0];
+  }
+
+  private applyMusicPlayerVolume() {
+    if (!this.musicPlayer) return;
+    this.musicPlayer.volume = this.muted || !this.pageActive
+      ? 0
+      : MAX_MUSIC_ELEMENT_VOLUME * (this.volumeLevel / MAX_VOLUME_LEVEL);
+  }
+
+  private pauseMusicPlayer(reset: boolean = false) {
+    if (!this.musicPlayer) return;
+    this.musicPlayer.pause();
+    if (reset) {
+      try {
+        this.musicPlayer.currentTime = 0;
+      } catch {
+        // Some browsers reject seeking before media metadata is available.
+      }
+    }
+  }
+
+  private ensureMusicPlayer(src: string) {
+    const absoluteSrc = new URL(src, window.location.href).href;
+    if (this.musicPlayer?.src === absoluteSrc) return this.musicPlayer;
+
+    this.pauseMusicPlayer(true);
+    const player = new Audio(src);
+    player.loop = true;
+    player.preload = 'auto';
+    player.setAttribute('playsinline', '');
+    this.musicPlayer = player;
+    this.applyMusicPlayerVolume();
+    return player;
+  }
+
+  private beginSelectedMusic() {
+    if (!this.musicRequested || this.muted || !this.pageActive) return;
+    const selectedTrack = this.getSelectedMusicTrack();
+
+    if (!selectedTrack.src) {
+      this.pauseMusicPlayer();
+      this.beginMusicTimer();
+      return;
+    }
+
+    this.clearMusicTimer();
+    this.stopActiveMusicNodes();
+    const player = this.ensureMusicPlayer(selectedTrack.src);
+    this.applyMusicPlayerVolume();
+    void player.play().catch(() => {
+      // A future user interaction or lifecycle resume can retry playback.
+    });
+  }
+
   private preloadSamples() {
     if (
       !this.ctx
@@ -207,6 +296,7 @@ class AudioService {
     if (!active) {
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
+      this.pauseMusicPlayer();
       this.stopActiveSampleNodes();
       this.stopActiveProceduralNodes();
       void this.ctx?.suspend().catch(() => undefined);
@@ -216,7 +306,8 @@ class AudioService {
     if (this.muted) return;
     void this.ctx?.resume().catch(() => undefined);
     this.applyMasterVolume();
-    this.beginMusicTimer();
+    this.applyMusicPlayerVolume();
+    this.beginSelectedMusic();
   }
 
   private getScaledMasterVolume() {
@@ -225,6 +316,7 @@ class AudioService {
 
   private applyMasterVolume() {
     this.setMasterVolume(this.muted || !this.pageActive ? 0 : this.getScaledMasterVolume());
+    this.applyMusicPlayerVolume();
   }
 
   private setMasterVolume(volume: number) {
@@ -254,11 +346,12 @@ class AudioService {
     if (this.muted) {
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
+      this.pauseMusicPlayer();
       this.stopActiveSampleNodes();
       this.stopActiveProceduralNodes();
     } else if (this.pageActive) {
       this.init();
-      this.beginMusicTimer();
+      this.beginSelectedMusic();
     }
     return this.muted;
   }
@@ -280,6 +373,7 @@ class AudioService {
       this.applyMasterVolume();
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
+      this.pauseMusicPlayer();
       this.stopActiveSampleNodes();
       this.stopActiveProceduralNodes();
       return 0;
@@ -293,7 +387,7 @@ class AudioService {
 
     if (this.pageActive && wasMuted) {
       this.init();
-      this.beginMusicTimer();
+      this.beginSelectedMusic();
     }
 
     return this.volumeLevel;
@@ -305,7 +399,7 @@ class AudioService {
       this.musicLaunchPending = true;
     }
     this.musicRequested = true;
-    this.beginMusicTimer();
+    this.beginSelectedMusic();
   }
 
   public stopMusic() {
@@ -314,6 +408,32 @@ class AudioService {
     this.musicLaunchPending = false;
     this.clearMusicTimer();
     this.stopActiveMusicNodes();
+    this.pauseMusicPlayer(true);
+  }
+
+  public getMusicTrackId() {
+    return this.selectedMusicTrackId;
+  }
+
+  public setMusicTrack(trackId: MissionMusicTrackId) {
+    if (!MISSION_MUSIC_TRACKS.some((track) => track.id === trackId)) {
+      return this.selectedMusicTrackId;
+    }
+    if (trackId === this.selectedMusicTrackId) return trackId;
+
+    this.clearMusicTimer();
+    this.stopActiveMusicNodes();
+    this.pauseMusicPlayer(true);
+    this.selectedMusicTrackId = trackId;
+    this.musicStep = 0;
+    this.musicLaunchPending = trackId === 'scicon-flight';
+    try {
+      window.localStorage?.setItem(MUSIC_TRACK_STORAGE_KEY, trackId);
+    } catch {
+      // The selection still applies for this session when storage is unavailable.
+    }
+    this.beginSelectedMusic();
+    return trackId;
   }
 
   private scheduleMusicTone(
@@ -398,7 +518,14 @@ class AudioService {
   }
 
   private beginMusicTimer() {
-    if (!this.ctx || this.musicTimer !== null || !this.musicRequested || this.muted || !this.pageActive) return;
+    if (
+      !this.ctx
+      || this.musicTimer !== null
+      || !this.musicRequested
+      || this.muted
+      || !this.pageActive
+      || this.getSelectedMusicTrack().src
+    ) return;
 
     if (this.musicLaunchPending) {
       this.musicLaunchPending = false;

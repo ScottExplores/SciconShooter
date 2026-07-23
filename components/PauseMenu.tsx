@@ -1,16 +1,22 @@
 import React from 'react';
 import type { GamePolishSettings } from '../types';
+import {
+  MISSION_MUSIC_TRACKS,
+  type MissionMusicTrackId
+} from '../services/audioService';
 import PixelActionButton from './PixelActionButton';
 import '../styles/pause-menu.css';
 
 interface PauseMenuProps {
   audioMuted: boolean;
   audioVolumeLevel: number;
+  musicTrackId: MissionMusicTrackId;
   polishSettings: GamePolishSettings;
   onResume: () => void;
   onQuit: () => void;
   onToggleAudio: () => void;
   onAudioVolumeChange: (level: number) => void;
+  onMusicTrackChange: (trackId: MissionMusicTrackId) => void;
   onTogglePolishSetting: (key: keyof GamePolishSettings) => void;
   founderControls?: React.ReactNode;
 }
@@ -48,14 +54,31 @@ const PauseSettingRow: React.FC<PauseSettingRowProps> = ({ label, enabled, onTog
 const PauseMenu: React.FC<PauseMenuProps> = ({
   audioMuted,
   audioVolumeLevel,
+  musicTrackId,
   polishSettings,
   onResume,
   onQuit,
   onToggleAudio,
   onAudioVolumeChange,
+  onMusicTrackChange,
   onTogglePolishSetting,
   founderControls
-}) => (
+}) => {
+  const selectedTrackIndex = Math.max(
+    0,
+    MISSION_MUSIC_TRACKS.findIndex((track) => track.id === musicTrackId)
+  );
+  const selectedTrack = MISSION_MUSIC_TRACKS[selectedTrackIndex];
+  const selectAdjacentTrack = (direction: -1 | 1) => {
+    const nextIndex = (
+      selectedTrackIndex
+      + direction
+      + MISSION_MUSIC_TRACKS.length
+    ) % MISSION_MUSIC_TRACKS.length;
+    onMusicTrackChange(MISSION_MUSIC_TRACKS[nextIndex].id);
+  };
+
+  return (
   <div className="sci-pause-overlay">
     <div className="sci-pause-overlay__grid" aria-hidden="true"></div>
     <div className="sci-pause-scroll custom-scrollbar">
@@ -99,6 +122,32 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
               onToggle={onToggleAudio}
               kind="audio"
             />
+            <div className="sci-pause-music" role="group" aria-label="Mission music">
+              <span className="sci-pause-music__label">Mission music</span>
+              <div className="sci-pause-music__switcher">
+                <button
+                  type="button"
+                  onClick={() => selectAdjacentTrack(-1)}
+                  aria-label="Previous mission music track"
+                >
+                  <span aria-hidden="true">‹</span>
+                </button>
+                <output aria-live="polite">
+                  <strong>{selectedTrack.title}</strong>
+                  <span>{selectedTrack.artist}</span>
+                </output>
+                <button
+                  type="button"
+                  onClick={() => selectAdjacentTrack(1)}
+                  aria-label="Next mission music track"
+                >
+                  <span aria-hidden="true">›</span>
+                </button>
+              </div>
+              <span className="sci-pause-music__position" aria-hidden="true">
+                {selectedTrackIndex + 1} / {MISSION_MUSIC_TRACKS.length}
+              </span>
+            </div>
             <label className="sci-pause-volume" htmlFor="sci-pause-volume-level">
               <span className="sci-pause-volume__header">
                 <span>Master volume</span>
@@ -149,6 +198,7 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
       ) : null}
     </div>
   </div>
-);
+  );
+};
 
 export default PauseMenu;

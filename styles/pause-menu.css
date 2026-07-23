@@ -265,7 +265,8 @@
 }
 
 .sci-pause-setting:focus-visible,
-.sci-pause-volume input:focus-visible {
+.sci-pause-volume input:focus-visible,
+.sci-pause-music button:focus-visible {
   outline: 2px solid #cffafe;
   outline-offset: 2px;
 }
@@ -343,6 +344,106 @@
   right: auto;
   left: 0.35rem;
   color: #a7f3d0;
+}
+
+.sci-pause-music {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.34rem 0.5rem;
+  padding: 0.48rem 0.55rem 0.54rem;
+  border: 1px solid rgba(103, 232, 249, 0.34);
+  background:
+    linear-gradient(135deg, rgba(34, 211, 238, 0.13), transparent 42%),
+    rgba(2, 10, 25, 0.8);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+
+.sci-pause-music__label,
+.sci-pause-music__position {
+  color: #bae6fd;
+  font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.48rem;
+  font-weight: 850;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.sci-pause-music__position {
+  color: #67e8f9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.sci-pause-music__switcher {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+  min-height: 2.45rem;
+  overflow: hidden;
+  border: 2px solid #020817;
+  background: #020817;
+  box-shadow:
+    inset 0 0 0 1px rgba(103, 232, 249, 0.36),
+    0 0 10px rgba(34, 211, 238, 0.08);
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+}
+
+.sci-pause-music button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background:
+    linear-gradient(180deg, rgba(34, 211, 238, 0.32), rgba(8, 47, 73, 0.82));
+  color: #cffafe;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
+  transition: filter 140ms ease, background 140ms ease;
+}
+
+.sci-pause-music button:hover {
+  background:
+    linear-gradient(180deg, rgba(52, 211, 153, 0.48), rgba(6, 78, 59, 0.9));
+  filter: brightness(1.14);
+}
+
+.sci-pause-music output {
+  display: grid;
+  place-content: center;
+  min-width: 0;
+  padding: 0.26rem 0.4rem;
+  background:
+    linear-gradient(90deg, rgba(6, 182, 212, 0.11), transparent 28% 72%, rgba(16, 185, 129, 0.1)),
+    linear-gradient(180deg, #0c243d, #061226);
+  text-align: center;
+}
+
+.sci-pause-music output strong,
+.sci-pause-music output span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sci-pause-music output strong {
+  color: #e0f2fe;
+  font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.53rem;
+  font-weight: 900;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.sci-pause-music output span {
+  margin-top: 0.12rem;
+  color: #5eead4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.4rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 
 .sci-pause-volume {

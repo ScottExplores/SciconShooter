@@ -3,7 +3,10 @@ import type { Address } from 'viem';
 import StartScreen from './components/StartScreen';
 import MissionLoadingScreen, { type MissionLoadingPhase } from './components/MissionLoadingScreen';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, MintRecord, PowerupType, Stats, Upgrades, WalletSession } from './types';
-import { audioService } from './services/audioService';
+import {
+  audioService,
+  type MissionMusicTrackId
+} from './services/audioService';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from './constants';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT, getLeaderboardData, saveScore, saveWeeklyLeaderProposal } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
@@ -704,6 +707,7 @@ const App: React.FC = () => {
   const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
   const [audioMuted, setAudioMuted] = useState(() => audioService.isMuted());
   const [audioVolumeLevel, setAudioVolumeLevel] = useState(() => audioService.getVolumeLevel());
+  const [musicTrackId, setMusicTrackId] = useState<MissionMusicTrackId>(() => audioService.getMusicTrackId());
 
   useEffect(() => {
     const statsToSave = {
@@ -1058,6 +1062,10 @@ const App: React.FC = () => {
   const setGameAudioVolume = (level: number) => {
     setAudioVolumeLevel(audioService.setVolumeLevel(level));
     setAudioMuted(audioService.isMuted());
+  };
+
+  const changeMissionMusic = (trackId: MissionMusicTrackId) => {
+    setMusicTrackId(audioService.setMusicTrack(trackId));
   };
 
   const showWaveVictory = (summary: WaveVictorySummary) => {
@@ -2089,6 +2097,7 @@ const App: React.FC = () => {
         <PauseMenu
           audioMuted={audioMuted}
           audioVolumeLevel={audioVolumeLevel}
+          musicTrackId={musicTrackId}
           polishSettings={polishSettings}
           onResume={() => {
             setOwnerFrameFrozen(false);
@@ -2097,6 +2106,7 @@ const App: React.FC = () => {
           onQuit={resetGame}
           onToggleAudio={toggleGameAudio}
           onAudioVolumeChange={setGameAudioVolume}
+          onMusicTrackChange={changeMissionMusic}
           onTogglePolishSetting={togglePolishSetting}
           founderControls={isOwnerWallet && isOwnerTestRun ? (
             <div className="text-left">

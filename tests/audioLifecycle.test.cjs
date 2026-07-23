@@ -19,6 +19,8 @@ const loadAudioService = () => {
   const intervals = new Map();
   let nextIntervalId = 1;
   let oscillatorsCreated = 0;
+  const musicPlayers = [];
+  const storedValues = new Map();
 
   class FakeAudioParam {
     targetValues = [];
@@ -66,11 +68,37 @@ const loadAudioService = () => {
     }
   }
 
+  class FakeAudio {
+    constructor(src) {
+      this.src = new URL(src, 'http://localhost/').href;
+      this.currentTime = 0;
+      this.loop = false;
+      this.preload = 'none';
+      this.volume = 1;
+      this.paused = true;
+      this.playCalls = 0;
+      this.pauseCalls = 0;
+      musicPlayers.push(this);
+    }
+    setAttribute() {}
+    play() {
+      this.paused = false;
+      this.playCalls += 1;
+      return Promise.resolve();
+    }
+    pause() {
+      this.paused = true;
+      this.pauseCalls += 1;
+    }
+  }
+
   const addListener = (type, listener) => listeners.set(type, listener);
   const context = {
     module: { exports: {} },
     exports: {},
     console,
+    Audio: FakeAudio,
+    URL,
     performance: { now: () => 1000 },
     document: {
       hidden: false,
@@ -78,6 +106,11 @@ const loadAudioService = () => {
     },
     window: {
       AudioContext: FakeAudioContext,
+      location: { href: 'http://localhost/' },
+      localStorage: {
+        getItem: (key) => storedValues.get(key) || null,
+        setItem: (key, value) => storedValues.set(key, value)
+      },
       addEventListener: addListener,
       setInterval(callback) {
         const id = nextIntervalId++;
@@ -99,6 +132,8 @@ const loadAudioService = () => {
     document: context.document,
     listeners,
     intervals,
+    musicPlayers,
+    storedValues,
     get oscillatorsCreated() {
       return oscillatorsCreated;
     }
@@ -149,6 +184,39 @@ test('mission music opens with one launch cue and one progressive sequencer time
   const pulse = [...harness.intervals.values()][0];
   pulse();
   assert.ok(harness.oscillatorsCreated > afterFirstStart);
+});
+
+test('mission music can switch to a supplied song and keeps master audio controls', async () => {
+  const harness = loadAudioService();
+  harness.audioService.startMusic();
+  assert.equal(harness.intervals.size, 1);
+
+  assert.equal(harness.audioService.setMusicTrack('acid-clatter'), 'acid-clatter');
+  await Promise.resolve();
+  assert.equal(harness.intervals.size, 0);
+  assert.equal(harness.musicPlayers.length, 1);
+  assert.match(harness.musicPlayers[0].src, /\/audio\/music\/acid-clatter\.mp3$/);
+  assert.equal(harness.musicPlayers[0].loop, true);
+  assert.equal(harness.musicPlayers[0].playCalls, 1);
+  assert.equal(harness.storedValues.get('scicon-shooter:mission-music-track:v1'), 'acid-clatter');
+
+  harness.audioService.setVolumeLevel(2);
+  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.168) < 0.00001);
+  harness.audioService.toggleMute();
+  assert.equal(harness.musicPlayers[0].paused, true);
+  assert.equal(harness.musicPlayers[0].volume, 0);
+});
+
+test('switching back to the original mix resumes the procedural sequencer', () => {
+  const harness = loadAudioService();
+  harness.audioService.setMusicTrack('pressure');
+  harness.audioService.startMusic();
+  assert.equal(harness.musicPlayers.length, 1);
+  assert.equal(harness.intervals.size, 0);
+
+  harness.audioService.setMusicTrack('scicon-flight');
+  assert.equal(harness.musicPlayers[0].paused, true);
+  assert.equal(harness.intervals.size, 1);
 });
 
 test('backgrounding clears music and suspends Web Audio until the page is visible again', async () => {
