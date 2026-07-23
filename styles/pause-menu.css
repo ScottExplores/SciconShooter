@@ -154,6 +154,60 @@
   text-shadow: 0 0 14px rgba(34, 211, 238, 0.45);
 }
 
+.sci-pause-mission-position {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.48rem;
+  min-height: 2.35rem;
+  overflow: hidden;
+  border: 1px solid rgba(103, 232, 249, 0.34);
+  padding: 0.42rem 0.58rem;
+  background:
+    linear-gradient(90deg, rgba(34, 211, 238, 0.13), transparent 34%, rgba(52, 211, 153, 0.1)),
+    rgba(2, 12, 29, 0.88);
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px);
+  box-shadow: inset 0 0 1rem rgba(34, 211, 238, 0.07);
+}
+
+.sci-pause-mission-position::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: #34d399;
+  box-shadow: 0 0 0.6rem rgba(52, 211, 153, 0.78);
+  content: '';
+}
+
+.sci-pause-mission-position span,
+.sci-pause-mission-position strong {
+  min-width: 0;
+  font-family: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.52rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.sci-pause-mission-position__mission {
+  color: #67e8f9;
+}
+
+.sci-pause-mission-position strong {
+  overflow: hidden;
+  color: #f8fafc;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sci-pause-mission-position__wave {
+  color: #a7f3d0;
+  white-space: nowrap;
+}
+
 .sci-pause-actions {
   display: grid;
   grid-template-columns: 1fr 0.7fr;
@@ -606,6 +660,16 @@
     padding-inline: 0.42rem;
     font-size: 0.54rem;
     letter-spacing: 0.045em;
+  }
+
+  .sci-pause-mission-position {
+    gap: 0.36rem;
+    padding-inline: 0.48rem;
+  }
+
+  .sci-pause-mission-position span,
+  .sci-pause-mission-position strong {
+    font-size: 0.48rem;
   }
 
   .sci-pause-settings {

@@ -1027,15 +1027,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   const renderHeroPanel = ({ compact = false, fill = false }: { compact?: boolean; fill?: boolean } = {}) => (
-    <HudPanel className={compact ? `sci-mobile-hero min-h-[17.5rem] ${fill ? 'flex-1' : ''}` : 'min-h-[34rem] xl:min-h-[40rem]'}>
-      <div className="absolute inset-0">
-        <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-68" />
+    <HudPanel className={compact ? `sci-home-hero-surface sci-home-hero-surface--compact sci-mobile-hero min-h-[17.5rem] ${fill ? 'flex-1' : ''}` : 'sci-home-hero-surface min-h-[34rem] xl:min-h-[40rem]'}>
+      <div className="sci-hero-backdrop absolute inset-0">
+        {!compact ? <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-68" /> : null}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(34,211,238,0.2),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.18),rgba(2,6,23,0.88)_76%,rgba(2,6,23,0.96))]" />
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,rgba(4,120,87,0.09))]" />
       </div>
 
       <div className={`sci-hero-content relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'sci-hero-content--compact gap-1 py-2' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
-        <div className={`sci-hero-brand flex flex-col items-center text-center ${compact ? 'space-y-1' : 'space-y-3'}`}>
+        <div className={`sci-hero-brand flex flex-col items-center text-center ${compact ? 'sci-hero-brand--compact space-y-1' : 'space-y-3'}`}>
           <div className="mx-auto flex w-fit items-center gap-3 text-yellow-200/90">
             <span className="h-px w-14 bg-gradient-to-r from-transparent to-yellow-200/80" />
             <span className="h-2 w-16 skew-x-[-28deg] bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.45)]" />
@@ -1818,7 +1818,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   return (
-    <div className="scicon-start-screen relative h-full min-h-0 overflow-hidden bg-slate-950 text-white">
+    <div
+      className="scicon-start-screen relative h-full min-h-0 overflow-hidden bg-slate-950 text-white"
+      data-dashboard-tab={dashboardTab}
+    >
       {testChampionWinner && onCloseTestChampionPreview ? (
         <button
           type="button"
@@ -1828,10 +1831,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
           Return to frozen run
         </button>
       ) : null}
-      <div className="fixed inset-0 -z-10">
-        <img src={ASSETS.MENU_HERO} alt="" className="h-full w-full object-cover opacity-55" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_86%_22%,rgba(16,185,129,0.16),transparent_26%),linear-gradient(180deg,rgba(2,6,23,0.58),rgba(2,6,23,0.96)_74%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
+      <div className="scicon-home-backdrop absolute inset-0 z-0" aria-hidden="true">
+        <img src={ASSETS.MENU_HERO} alt="" className="scicon-home-backdrop__image absolute inset-0 h-full w-full object-cover opacity-60" />
+        <div className="scicon-home-backdrop__nebula scicon-home-backdrop__nebula--a" />
+        <div className="scicon-home-backdrop__nebula scicon-home-backdrop__nebula--b" />
+        <div className="scicon-home-backdrop__veil absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(34,211,238,0.18),transparent_30%),radial-gradient(circle_at_86%_22%,rgba(16,185,129,0.16),transparent_26%),linear-gradient(180deg,rgba(2,6,23,0.44),rgba(2,6,23,0.9)_74%)]" />
+        <div className="scicon-home-backdrop__grid absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
+        <div className="scicon-home-backdrop__pixel-fade" />
       </div>
 
       {dashboardTab === 'home' ? (
@@ -1917,7 +1923,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       ) : null}
 
-      <div className="scicon-start-shell mx-auto flex h-full min-h-0 w-full max-w-[1560px] flex-col gap-4 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
+      <div className="scicon-start-shell relative z-10 mx-auto flex h-full min-h-0 w-full max-w-[1560px] flex-col gap-4 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
         <main className="hidden lg:block">
           {dashboardTab === 'home' ? (
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.14fr)_minmax(25rem,0.86fr)]">
@@ -1941,7 +1947,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <main
           className="scicon-mobile-main flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden"
         >
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-px custom-scrollbar">
+          <div className="scicon-mobile-scroll min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-px custom-scrollbar">
             {renderMobileDashboardContent()}
           </div>
           <DashboardNav docked />

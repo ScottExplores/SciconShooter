@@ -45,6 +45,10 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(app, /onToggleAudio=\{toggleGameAudio\}/);
   assert.match(app, /sfxVolumeLevel=\{sfxVolumeLevel\}/);
   assert.match(app, /musicVolumeLevel=\{musicVolumeLevel\}/);
+  assert.match(app, /onRuntimeState: handleRuntimeState/);
+  assert.match(app, /missionNumber=\{pauseMissionPosition\?\.levelNumber/);
+  assert.match(app, /waveNumber=\{pauseMissionPosition\?\.waveNumber/);
+  assert.match(app, /waveTotal=\{pauseMissionPosition\?\.waveTotal/);
   assert.match(app, /onSfxVolumeChange=\{setGameSfxVolume\}/);
   assert.match(app, /onMusicVolumeChange=\{setGameMusicVolume\}/);
   assert.match(app, /onTogglePolishSetting=\{togglePolishSetting\}/);
@@ -62,6 +66,9 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(pause, /AUDIO_VOLUME_NOTCHES\.map/);
   assert.match(pause, /label="Music volume"/);
   assert.match(pause, /label="Sound effects"/);
+  assert.match(pause, /Mission \{String\(missionNumber\)\.padStart\(2, '0'\)\}/);
+  assert.match(pause, /Wave \{waveNumber\}\/\{waveTotal\}/);
+  assert.match(pause, /sci-pause-mission-position/);
   assert.match(pause, /onTogglePolishSetting\('screenShake'\)/);
   assert.match(pause, /onTogglePolishSetting\('highDensityParticles'\)/);
 
@@ -69,6 +76,8 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(css, /\.sci-pause-settings \{/);
   assert.match(css, /\.sci-pause-setting__toggle-knob/);
   assert.match(css, /\.sci-pause-volume__notches/);
+  assert.match(css, /\.sci-pause-mission-position \{/);
+  assert.match(css, /\.sci-pause-mission-position__wave \{/);
   assert.match(css, /grid-template-columns: repeat\(6, 1fr\)/);
   assert.doesNotMatch(css, /pause-menu-frame\.png/);
   assert.doesNotMatch(css, /resume-button\.png/);

@@ -61,9 +61,21 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(source, /renderHeroPanel\(\{ compact: true, fill: true \}\)/);
   assert.match(source, /fill \? 'flex-1' : ''/);
   assert.match(source, /sci-hero-content--compact/);
+  assert.match(source, /data-dashboard-tab=\{dashboardTab\}/);
+  assert.match(source, /scicon-home-backdrop__nebula--a/);
+  assert.match(source, /scicon-home-backdrop__nebula--b/);
+  assert.match(source, /scicon-home-backdrop__pixel-fade/);
+  assert.match(source, /sci-home-hero-surface--compact/);
+  assert.match(source, /\{!compact \? <img src=\{ASSETS\.MENU_HERO\}/);
   assert.match(htmlSource, /#root \.scicon-mobile-home[\s\S]*grid-template-rows: auto minmax\(17\.5rem, 1fr\)/);
   assert.match(htmlSource, /#root \.sci-hero-content--compact[\s\S]*grid-template-rows: auto minmax\(6rem, 1fr\) auto/);
   assert.match(htmlSource, /max-height: 720px/);
+  assert.match(stylesSource, /data-dashboard-tab='home'[\s\S]*\.scicon-start-shell \{[\s\S]*padding-inline: 0/);
+  assert.match(stylesSource, /data-dashboard-tab='home'[\s\S]*\.scicon-mobile-home \{[\s\S]*gap: 0/);
+  assert.match(stylesSource, /\.sci-home-hero-surface--compact \{[\s\S]*border: 0/);
+  assert.match(stylesSource, /@keyframes sci-home-nebula-drift-a/);
+  assert.match(stylesSource, /@keyframes sci-home-nebula-drift-b/);
+  assert.match(stylesSource, /@keyframes sci-home-pixel-drift/);
 });
 
 test('compact weekly carousel preserves its pager while fitting short Base app viewports', () => {
@@ -97,10 +109,15 @@ test('weekly funding and high score share the exact Start Mission chrome with sa
   assert.match(stylesSource, /scicon-pixel-action-buttons-v1\/start-mission-panel\.png/);
   assert.match(stylesSource, /border-image-slice: 54 68 54 68 fill/);
   assert.match(stylesSource, /border-image-repeat: stretch/);
+  assert.match(stylesSource, /\.sci-weekly-funding-shell::before/);
+  assert.match(stylesSource, /@keyframes sci-weekly-fixture-pulse-a/);
+  assert.match(stylesSource, /@keyframes sci-weekly-fixture-pulse-b/);
   assert.match(stylesSource, /sci-weekly-funding-content[\s\S]*?image-rendering: auto/);
   assert.doesNotMatch(source, /sci-weekly-funding-frame-sprite/);
   assert.doesNotMatch(stylesSource, /sci-weekly-funding-frame-sprite/);
   assert.doesNotMatch(stylesSource, /weekly-funding-frame-spritesheet\.png/);
+  assert.match(stylesSource, /prefers-reduced-motion: reduce[\s\S]*sci-weekly-funding-shell::before/);
+  assert.match(stylesSource, /prefers-reduced-motion: reduce[\s\S]*scicon-home-backdrop__nebula/);
 });
 
 test('weekly and all-time Trophy Deck views retain and render up to 100 scores', () => {

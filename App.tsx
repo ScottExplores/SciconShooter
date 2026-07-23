@@ -37,7 +37,7 @@ import {
   PLAYER_SHIPS,
   type PlayerShipId
 } from './services/playerShipService';
-import type { WaveVictorySummary } from './services/gameLogic';
+import type { GameRuntimeState, WaveVictorySummary } from './services/gameLogic';
 import PauseMenu from './components/PauseMenu';
 import GameOverPresentation from './components/GameOverPresentation';
 import { WalletControl } from './components/WalletControl';
@@ -187,6 +187,10 @@ type MissionLoadingState = {
   phase: MissionLoadingPhase;
   tip: string;
 };
+type PauseMissionPosition = Pick<
+  GameRuntimeState,
+  'levelNumber' | 'levelName' | 'waveNumber' | 'waveTotal'
+>;
 type PendingMissionRuntimeLaunch = {
   launchNonce: number;
   gameId: number;
@@ -839,6 +843,7 @@ const App: React.FC = () => {
   };
 
   const [stats, setStats] = useState<Stats>(getInitialStats);
+  const [pauseMissionPosition, setPauseMissionPosition] = useState<PauseMissionPosition | null>(null);
   const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
   const [audioMuted, setAudioMuted] = useState(() => audioService.isMuted());
   const [sfxVolumeLevel, setSfxVolumeLevel] = useState(() => audioService.getSfxVolumeLevel());
@@ -866,6 +871,24 @@ const App: React.FC = () => {
     lastMusicRotationGroupRef.current = rotationGroup;
     setMusicTrackId(audioService.advanceMusicTrack(advances));
   }, [gameState, stats.wave]);
+
+  const handleRuntimeState = useCallback((runtime: GameRuntimeState) => {
+    const nextPosition: PauseMissionPosition = {
+      levelNumber: runtime.levelNumber,
+      levelName: runtime.levelName,
+      waveNumber: runtime.waveNumber,
+      waveTotal: runtime.waveTotal
+    };
+    setPauseMissionPosition((current) => (
+      current
+      && current.levelNumber === nextPosition.levelNumber
+      && current.levelName === nextPosition.levelName
+      && current.waveNumber === nextPosition.waveNumber
+      && current.waveTotal === nextPosition.waveTotal
+        ? current
+        : nextPosition
+    ));
+  }, []);
 
   useEffect(() => {
     const statsToSave = {
@@ -1045,6 +1068,7 @@ const App: React.FC = () => {
     lastStoryWaveRef.current = 0;
     lastMusicRotationGroupRef.current = 0;
     setActiveStoryBeat(null);
+    setPauseMissionPosition(null);
     setStats(prev => ({
       ...prev,
       score: 0,
@@ -1182,6 +1206,7 @@ const App: React.FC = () => {
     clearIntroStoryTimeout();
     setGameRuntimeReady(false);
     setMissionLoading(null);
+    setPauseMissionPosition(null);
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
     setShowTestChampionPreview(false);
@@ -2095,6 +2120,7 @@ const App: React.FC = () => {
             canvas={{
               stats,
               onStatsChange: setStats,
+              onRuntimeState: handleRuntimeState,
               running: gameState === GameState.PLAYING && gameRuntimeReady && !ownerFrameFrozen,
               onReady: () => completeMissionRuntimeLaunch(gameId),
               onInitializationError: (error) => failMissionRuntimeLaunch(gameId, error),
@@ -2263,6 +2289,10 @@ const App: React.FC = () => {
       {gameState === GameState.PAUSED && !showTestChampionPreview && (
         <PauseMenu
           audioMuted={audioMuted}
+          missionNumber={pauseMissionPosition?.levelNumber ?? Math.max(1, Math.floor(stats.wave))}
+          missionName={pauseMissionPosition?.levelName ?? getStageName(Math.max(1, Math.floor(stats.wave)))}
+          waveNumber={pauseMissionPosition?.waveNumber ?? 1}
+          waveTotal={pauseMissionPosition?.waveTotal ?? 1}
           sfxVolumeLevel={sfxVolumeLevel}
           musicVolumeLevel={musicVolumeLevel}
           musicTrackId={musicTrackId}

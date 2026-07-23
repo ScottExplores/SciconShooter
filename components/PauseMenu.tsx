@@ -9,6 +9,10 @@ import '../styles/pause-menu.css';
 
 interface PauseMenuProps {
   audioMuted: boolean;
+  missionNumber: number;
+  missionName: string;
+  waveNumber: number;
+  waveTotal: number;
   sfxVolumeLevel: number;
   musicVolumeLevel: number;
   musicTrackId: MissionMusicTrackId;
@@ -99,6 +103,10 @@ const PauseSettingRow: React.FC<PauseSettingRowProps> = ({ label, enabled, onTog
 
 const PauseMenu: React.FC<PauseMenuProps> = ({
   audioMuted,
+  missionNumber,
+  missionName,
+  waveNumber,
+  waveTotal,
   sfxVolumeLevel,
   musicVolumeLevel,
   musicTrackId,
@@ -140,6 +148,19 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
               <h2 id="mission-pause-title">Mission Paused</h2>
             </div>
           </header>
+
+          <div
+            className="sci-pause-mission-position"
+            aria-label={`Mission ${missionNumber}, ${missionName}, wave ${waveNumber} of ${waveTotal}`}
+          >
+            <span className="sci-pause-mission-position__mission">
+              Mission {String(missionNumber).padStart(2, '0')}
+            </span>
+            <strong>{missionName}</strong>
+            <span className="sci-pause-mission-position__wave">
+              Wave {waveNumber}/{waveTotal}
+            </span>
+          </div>
 
           <div className="sci-pause-actions">
             <PixelActionButton
