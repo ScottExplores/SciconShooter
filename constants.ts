@@ -95,6 +95,8 @@ export const ASSETS = {
   GAME_PARALLAX_FAR_PLANETS: "/game-art/backgrounds/parallax-far-planets.png",
   GAME_PARALLAX_BIG_PLANET: "/game-art/backgrounds/parallax-big-planet.png",
   GAME_PARALLAX_RING_PLANET: "/game-art/backgrounds/parallax-ring-planet.png",
+  HOME_SPARSE_STARFIELD: "/game-art/generated/backgrounds/scicon-sparse-pixel-starfield-v1/scicon-sparse-pixel-starfield-twinkle.gif",
+  HOME_ASTEROID_FIELD: "/game-art/generated/scicon-space-parallax-pack-v2/overlays/asteroid-field-basalt.png",
   PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA: "/game-art/generated/scicon-space-parallax-pack-v2/backgrounds/obsidian-nebula.png",
   PIXI_SPACE_PARALLAX_BG_ION_CLOUD: "/game-art/generated/scicon-space-parallax-pack-v2/backgrounds/ion-cloud.png",
   PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT: "/game-art/generated/scicon-space-parallax-pack-v2/backgrounds/violet-rift.png",

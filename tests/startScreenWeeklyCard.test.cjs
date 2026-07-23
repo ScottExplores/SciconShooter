@@ -64,6 +64,10 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(source, /data-dashboard-tab=\{dashboardTab\}/);
   assert.match(source, /scicon-home-backdrop__nebula--a/);
   assert.match(source, /scicon-home-backdrop__nebula--b/);
+  assert.match(source, /ASSETS\.HOME_SPARSE_STARFIELD/);
+  assert.match(source, /ASSETS\.HOME_ASTEROID_FIELD/);
+  assert.match(source, /ASSETS\.GAME_PARALLAX_BIG_PLANET/);
+  assert.match(source, /ASSETS\.GAME_PARALLAX_RING_PLANET/);
   assert.match(source, /scicon-home-backdrop__stars/);
   assert.match(source, /scicon-home-backdrop__pixel-fade/);
   assert.match(source, /sci-home-hero-surface--compact/);
@@ -81,8 +85,12 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(stylesSource, /@keyframes sci-home-nebula-drift-a/);
   assert.match(stylesSource, /@keyframes sci-home-nebula-drift-b/);
   assert.match(stylesSource, /@keyframes sci-home-stars-drift/);
+  assert.match(stylesSource, /@keyframes sci-home-sparse-flight/);
+  assert.match(stylesSource, /@keyframes sci-home-asteroid-flight/);
+  assert.match(stylesSource, /@keyframes sci-home-planet-drift-red/);
   assert.match(stylesSource, /@keyframes sci-home-pixel-drift/);
   assert.match(stylesSource, /\.sci-dashboard-nav-button\[data-active='true'\] \.sci-dashboard-nav-icon \{[\s\S]*?translate3d\(0, -0\.68rem, 0\) scale\(1\.46\)/);
+  assert.match(stylesSource, /\.sci-dashboard-nav-shell \{[\s\S]*?z-index: 30/);
   assert.match(stylesSource, /\.sci-dashboard-nav \{[\s\S]*?overflow: visible/);
 });
 

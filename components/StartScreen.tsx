@@ -1030,6 +1030,28 @@ const StartScreen: React.FC<StartScreenProps> = ({
     <HudPanel className={compact ? `sci-home-hero-surface sci-home-hero-surface--compact sci-mobile-hero min-h-[17.5rem] ${fill ? 'flex-1' : ''}` : 'sci-home-hero-surface min-h-[34rem] xl:min-h-[40rem]'}>
       <div className="sci-hero-backdrop absolute inset-0">
         <img src={ASSETS.MENU_HERO} alt="" className="sci-hero-backdrop__image h-full w-full object-cover opacity-68" />
+        <img
+          src={ASSETS.GAME_PARALLAX_BIG_PLANET}
+          alt=""
+          className="scicon-home-backdrop__planet scicon-home-backdrop__planet--red"
+        />
+        <img
+          src={ASSETS.GAME_PARALLAX_RING_PLANET}
+          alt=""
+          className="scicon-home-backdrop__planet scicon-home-backdrop__planet--ring"
+        />
+        <div className="scicon-home-backdrop__sparse-field">
+          <div className="scicon-home-backdrop__sparse-track">
+            <img src={ASSETS.HOME_SPARSE_STARFIELD} alt="" />
+            <img src={ASSETS.HOME_SPARSE_STARFIELD} alt="" />
+          </div>
+        </div>
+        <div className="scicon-home-backdrop__asteroids">
+          <div className="scicon-home-backdrop__asteroid-track">
+            <img src={ASSETS.HOME_ASTEROID_FIELD} alt="" />
+            <img src={ASSETS.HOME_ASTEROID_FIELD} alt="" />
+          </div>
+        </div>
         <div className="sci-hero-backdrop__glow absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(34,211,238,0.2),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.18),rgba(2,6,23,0.88)_76%,rgba(2,6,23,0.96))]" />
         <div className="sci-hero-backdrop__starwash absolute inset-0" />
         <div className="sci-hero-backdrop__floor absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,rgba(4,120,87,0.09))]" />
