@@ -668,12 +668,13 @@ test('a wallet-backed weekly leader cannot mutate its proposal without a wallet 
   }
 });
 
-test('a wallet-backed leader can sign a run-and-proposal-bound challenge only once', async () => {
+test('a wallet-backed leader accepts PostgREST-normalized challenge timestamps only once', async () => {
   const { privateKeyToAccount } = await import('viem/accounts');
   const account = privateKeyToAccount('0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
   const runId = crypto.randomUUID();
   const originalFetch = global.fetch;
   let nonceRow;
+  let nonceConsumeUrl = '';
   let selected = false;
   let proposalPatchCount = 0;
   const leaderboardRow = () => ({
@@ -695,11 +696,15 @@ test('a wallet-backed leader can sign a run-and-proposal-bound challenge only on
         return jsonResponse(null, 204);
       }
       if (options.method === 'PATCH') {
+        nonceConsumeUrl = value;
         if (nonceRow?.used_at) return jsonResponse([]);
         nonceRow = { ...nonceRow, ...JSON.parse(options.body) };
         return jsonResponse([nonceRow]);
       }
-      return jsonResponse(nonceRow ? [nonceRow] : []);
+      return jsonResponse(nonceRow ? [{
+        ...nonceRow,
+        expires_at: nonceRow.expires_at.replace(/Z$/, '+00:00')
+      }] : []);
     }
     if (value.includes('backend.prod.researchhub.com')) {
       return jsonResponse({ results: [{
@@ -751,7 +756,34 @@ test('a wallet-backed leader can sign a run-and-proposal-bound challenge only on
     assert.equal(selectResponse.statusCode, 200);
     assert.equal(selectResponse.body.monthlyScores[0].proposalId, '321');
     assert.ok(nonceRow.used_at);
+    assert.match(nonceConsumeUrl, /used_at=is\.null&expires_at=gt\./);
     assert.equal(proposalPatchCount, 1);
+
+    const unchangedChallengeResponse = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        action: 'select-proposal-challenge', proposalId: '321',
+        receiptToken, address: account.address
+      },
+      headers: {}, socket: { remoteAddress: '127.0.0.32' }
+    }, unchangedChallengeResponse);
+    const unchangedChallenge = unchangedChallengeResponse.body.challenge;
+    const unchangedSignature = await account.signMessage({ message: unchangedChallenge.message });
+    const unchangedResponse = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        action: 'select-proposal', proposalId: '321', receiptToken,
+        address: account.address,
+        challengeId: unchangedChallenge.challengeId,
+        signature: unchangedSignature
+      },
+      headers: {}, socket: { remoteAddress: '127.0.0.32' }
+    }, unchangedResponse);
+    assert.equal(unchangedResponse.statusCode, 200);
+    assert.ok(nonceRow.used_at, 'same-proposal authorization consumes its nonce');
+    assert.equal(proposalPatchCount, 1, 'same proposal does not rewrite the leaderboard row');
 
     selected = false;
     const replayResponse = makeResponse();
@@ -759,12 +791,15 @@ test('a wallet-backed leader can sign a run-and-proposal-bound challenge only on
       method: 'POST',
       body: {
         action: 'select-proposal', proposalId: '321', receiptToken,
-        address: account.address, challengeId: challenge.challengeId, signature
+        address: account.address,
+        challengeId: unchangedChallenge.challengeId,
+        signature: unchangedSignature
       },
       headers: {}, socket: { remoteAddress: '127.0.0.32' }
     }, replayResponse);
     assert.equal(replayResponse.statusCode, 410);
     assert.match(replayResponse.body.error, /invalid or expired/i);
+    assert.equal(replayResponse.body.code, 'WEEKLY_PROPOSAL_CHALLENGE_STALE');
     assert.equal(proposalPatchCount, 1);
   } finally {
     global.fetch = originalFetch;

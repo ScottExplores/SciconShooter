@@ -33,7 +33,7 @@ test('the proposal picker stays above both defeat results and Mission Record pre
 });
 
 test('proposal rows select in-app and require an explicit confirmation', () => {
-  assert.match(pickerSource, /onClick=\{\(\) => setSelectedProposal\(proposal\)\}/);
+  assert.match(pickerSource, /setSelectedProposalId\(proposal\.id\)/);
   assert.match(pickerSource, /Confirm \$\{allocationRsc\} RSC proposal/);
   assert.doesNotMatch(pickerSource, /window\.open|onOpenProposal|proposal\.url\)/);
   assert.match(leaderboardSource, /action: 'select-proposal'/);

@@ -3,6 +3,7 @@ import type { ResearchHubProposal } from './researchHubProposals';
 import type { RunReceipt } from './runReceiptService';
 import type { Address, Hex } from 'viem';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
+import { selectWeeklyProposalWithFreshChallenge } from './weeklyProposalAuthorization';
 
 const API_URL = (import.meta.env.VITE_LEADERBOARD_API_URL as string | undefined)?.trim() || '/api/leaderboard';
 export const ALL_TIME_SCORE_LIMIT = 100;
@@ -215,6 +216,7 @@ export const saveWeeklyLeaderProposal = async (
   const postProposalAction = async (payload: Record<string, unknown>) => {
     const response = await fetch(API_URL, {
       method: 'POST',
+      cache: 'no-store',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
@@ -227,35 +229,19 @@ export const saveWeeklyLeaderProposal = async (
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || data.details || `Proposal selection failed with ${response.status}`);
+      const error = new Error(data.error || data.details || `Proposal selection failed with ${response.status}`);
+      Object.assign(error, {
+        status: response.status,
+        code: typeof data.code === 'string' ? data.code : undefined
+      });
+      throw error;
     }
     return data;
   };
 
-  let signaturePayload: Record<string, unknown> = {};
-  if (walletAuthorization) {
-    const challengeData = await postProposalAction({
-      action: 'select-proposal-challenge',
-      address: walletAuthorization.address
-    });
-    const challenge = challengeData.challenge;
-    if (challenge?.signatureRequired) {
-      if (!challenge.challengeId || !challenge.message) {
-        throw new Error('The weekly proposal signature challenge was incomplete.');
-      }
-      const signature = await walletAuthorization.signMessage(walletAuthorization.address, challenge.message);
-      signaturePayload = {
-        address: walletAuthorization.address,
-        challengeId: challenge.challengeId,
-        signature
-      };
-    }
-  }
-
-  const data = await postProposalAction({
-    action: 'select-proposal',
-    ...signaturePayload
-  });
+  const data = walletAuthorization
+    ? await selectWeeklyProposalWithFreshChallenge(walletAuthorization, postProposalAction)
+    : await postProposalAction({ action: 'select-proposal' });
 
   const scores = Array.isArray(data.scores) ? dedupeAndSort(data.scores, ALL_TIME_SCORE_LIMIT) : [];
   const monthlyScores = Array.isArray(data.monthlyScores)

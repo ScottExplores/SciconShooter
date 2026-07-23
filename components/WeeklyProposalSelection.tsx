@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ResearchHubProposal } from '../services/researchHubProposals';
 import { sortProposalsByFunding } from '../services/proposalFunding';
 
@@ -13,9 +13,12 @@ interface WeeklyProposalSelectionProps {
   proposalStatus: ProposalFeedStatus;
   selectionStatus: ProposalSelectionStatus;
   selectionMessage?: string;
+  initialProposalId?: string | null;
+  dismissible?: boolean;
   onConfirm: (proposal: ResearchHubProposal) => void;
+  onProposalChange?: () => void;
   onRetry: () => void;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
@@ -26,13 +29,22 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   proposalStatus,
   selectionStatus,
   selectionMessage = '',
+  initialProposalId = null,
+  dismissible = true,
   onConfirm,
+  onProposalChange,
   onRetry,
   onClose
 }) => {
   const [query, setQuery] = useState('');
-  const [selectedProposal, setSelectedProposal] = useState<ResearchHubProposal | null>(null);
+  const [selectedProposalId, setSelectedProposalId] = useState(() => initialProposalId?.trim() ?? '');
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const sortedProposals = useMemo(() => sortProposalsByFunding(proposals), [proposals]);
+  const selectedProposal = useMemo(
+    () => sortedProposals.find((proposal) => proposal.id === selectedProposalId) ?? null,
+    [selectedProposalId, sortedProposals]
+  );
   const filteredProposals = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return sortedProposals;
@@ -44,35 +56,85 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
   }, [query, sortedProposals]);
   const isSaving = selectionStatus === 'saving';
 
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    searchInputRef.current?.focus();
+    return () => previousFocus?.focus();
+  }, []);
+
+  const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      if (dismissible && onClose && !isSaving) {
+        event.preventDefault();
+        onClose();
+      }
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    ) ?? []).filter((element) => element.getAttribute('aria-hidden') !== 'true');
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[90] flex min-h-0 items-stretch justify-center overflow-hidden bg-[#020617]/96 p-3 backdrop-blur-xl sm:items-center sm:p-5">
-      <div className="relative flex min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-[8px] border border-yellow-200/45 bg-[#030a19] shadow-[0_0_70px_rgba(250,204,21,0.16),0_28px_100px_rgba(0,0,0,0.76)]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="weekly-proposal-selection-title"
+        aria-describedby="weekly-proposal-selection-description"
+        tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
+        className="relative flex min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-[8px] border border-yellow-200/45 bg-[#030a19] shadow-[0_0_70px_rgba(250,204,21,0.16),0_28px_100px_rgba(0,0,0,0.76)]"
+      >
         <div className="pointer-events-none absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(34,211,238,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.035)_1px,transparent_1px)] [background-size:18px_18px]" />
         <div className="relative overflow-hidden border-b border-yellow-200/20 px-4 py-4 text-center sm:px-6">
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-64 -translate-x-1/2 -translate-y-1/2 bg-yellow-300/10 blur-xl" />
           <p className="relative animate-pulse font-mono text-[10px] font-black uppercase tracking-[0.28em] text-yellow-200 drop-shadow-[0_0_12px_currentColor]">
             New weekly high score
           </p>
-          <h2 className="arcade-font relative mt-2 text-2xl font-black uppercase tracking-wider text-white sm:text-3xl">
+          <h2 id="weekly-proposal-selection-title" className="arcade-font relative mt-2 text-2xl font-black uppercase tracking-wider text-white sm:text-3xl">
             You&apos;re #1, {pilotName || 'Pilot'}
           </h2>
           <p className="relative mt-1 font-mono text-lg font-black text-cyan-100">
             {score.toLocaleString()} points
           </p>
-          <p className="relative mx-auto mt-2 max-w-sm text-[11px] font-semibold leading-relaxed text-slate-300">
+          <p id="weekly-proposal-selection-description" className="relative mx-auto mt-2 max-w-sm text-[11px] font-semibold leading-relaxed text-slate-300">
             Choose the ResearchHub proposal that receives the {allocationRsc} RSC allocation if your score remains first at the weekly cutoff.
           </p>
           <p className="relative mx-auto mt-1 max-w-sm font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-cyan-200/70">
             Only proposals open past Sunday&apos;s noon-Pacific cutoff are eligible.
           </p>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Choose weekly proposal later"
-            className="absolute right-3 top-3 h-8 w-8 rounded-[5px] border border-white/15 bg-black/35 text-base font-bold text-slate-300 transition hover:border-white/35 hover:text-white"
-          >
-            x
-          </button>
+          {dismissible && onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSaving}
+              aria-label="Choose weekly proposal later"
+              className="absolute right-3 top-3 h-8 w-8 rounded-[5px] border border-white/15 bg-black/35 text-base font-bold text-slate-300 transition hover:border-white/35 hover:text-white disabled:cursor-wait disabled:opacity-45"
+            >
+              x
+            </button>
+          ) : null}
         </div>
 
         <div className="relative grid grid-cols-3 border-b border-cyan-200/15 bg-cyan-300/[0.03] text-center font-mono text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">
@@ -84,6 +146,7 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
         <div className="relative flex min-h-0 flex-1 flex-col p-3 sm:p-4">
           <label className="sr-only" htmlFor="weekly-proposal-search">Search eligible proposals</label>
           <input
+            ref={searchInputRef}
             id="weekly-proposal-search"
             type="search"
             value={query}
@@ -123,7 +186,11 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                       key={proposal.id}
                       type="button"
                       disabled={isSaving || selectionStatus === 'confirmed'}
-                      onClick={() => setSelectedProposal(proposal)}
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setSelectedProposalId(proposal.id);
+                        onProposalChange?.();
+                      }}
                       className={`grid w-full grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 rounded-[6px] border p-2 text-left transition ${selected
                         ? 'border-yellow-200/70 bg-yellow-300/15 shadow-[0_0_18px_rgba(250,204,21,0.18)]'
                         : 'border-cyan-200/15 bg-cyan-300/[0.04] hover:border-cyan-200/40 hover:bg-cyan-300/10'}`}
@@ -154,9 +221,22 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
 
           <div className="mt-3 border-t border-cyan-200/15 pt-3">
             {selectionMessage ? (
-              <p className={`mb-2 text-center text-[10px] font-bold ${selectionStatus === 'error' ? 'text-red-200' : 'text-emerald-200'}`} aria-live="polite">
-                {selectionMessage}
-              </p>
+              <div
+                className={`mb-2 rounded-[6px] border px-3 py-2 text-center text-[10px] font-bold ${
+                  selectionStatus === 'error'
+                    ? 'border-red-200/30 bg-red-400/10 text-red-100'
+                    : 'border-emerald-200/20 bg-emerald-300/5 text-emerald-200'
+                }`}
+                role={selectionStatus === 'error' ? 'alert' : 'status'}
+                aria-live="polite"
+              >
+                <p>{selectionMessage}</p>
+                {selectionStatus === 'error' && selectedProposal ? (
+                  <p className="mt-1 text-[9px] font-semibold text-slate-300">
+                    Your proposal is still selected. Tap retry below.
+                  </p>
+                ) : null}
+              </div>
             ) : null}
             <button
               type="button"
@@ -168,6 +248,8 @@ const WeeklyProposalSelection: React.FC<WeeklyProposalSelectionProps> = ({
                 ? 'Proposal saved'
                 : isSaving
                   ? 'Saving weekly pick...'
+                  : selectionStatus === 'error' && selectedProposal
+                    ? 'Retry saving proposal'
                   : selectedProposal
                     ? `Confirm ${allocationRsc} RSC proposal`
                     : 'Select a proposal'}

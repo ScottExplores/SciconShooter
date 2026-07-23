@@ -3,6 +3,7 @@ const WEEKLY_SCORE_LIMIT = 100;
 const SYNC_SCORE_LIMIT = ALL_TIME_SCORE_LIMIT + WEEKLY_SCORE_LIMIT;
 const SUPABASE_TABLE = process.env.SUPABASE_LEADERBOARD_TABLE || 'scicon_leaderboard';
 const NONCES_TABLE = process.env.SUPABASE_WALLET_NONCES_TABLE || 'scicon_wallet_nonces';
+const WEEKLY_PROPOSAL_CHALLENGE_STALE_CODE = 'WEEKLY_PROPOSAL_CHALLENGE_STALE';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
@@ -389,12 +390,18 @@ const requireWalletProposalAuthorization = async ({ leader, receipt, proposalId,
   const challenge = Array.isArray(challengeRows) ? challengeRows[0] : null;
   const expiresAt = challenge?.expires_at;
   const expiresAtMs = new Date(expiresAt || 0).getTime();
-  const expectedMessage = expiresAt ? buildProposalChallengeMessage({
+  // Postgres normalizes timestamptz strings (for example, `...Z` may come
+  // back as `...+00:00`). Rebuild the signed message with a canonical instant
+  // so a semantically identical database timestamp does not invalidate it.
+  const canonicalExpiresAt = Number.isFinite(expiresAtMs)
+    ? new Date(expiresAtMs).toISOString()
+    : '';
+  const expectedMessage = canonicalExpiresAt ? buildProposalChallengeMessage({
     receipt,
     proposalId: String(proposalId),
     wallet,
     challengeId,
-    expiresAt
+    expiresAt: canonicalExpiresAt
   }) : '';
   if (
     !challenge
@@ -405,7 +412,10 @@ const requireWalletProposalAuthorization = async ({ leader, receipt, proposalId,
     || expiresAtMs <= Date.now()
     || challenge.message !== expectedMessage
   ) {
-    throw Object.assign(new Error('Weekly proposal challenge is invalid or expired.'), { statusCode: 410 });
+    throw Object.assign(new Error('Weekly proposal challenge is invalid or expired.'), {
+      statusCode: 410,
+      code: WEEKLY_PROPOSAL_CHALLENGE_STALE_CODE
+    });
   }
 
   const valid = await verifyBaseMessage({ address: wallet, message: challenge.message, signature });
@@ -415,7 +425,8 @@ const requireWalletProposalAuthorization = async ({ leader, receipt, proposalId,
 
   const usedAt = new Date().toISOString();
   const consumeResponse = await fetch(supabaseUrl(
-    `${NONCES_TABLE}?challenge_id=eq.${encodeURIComponent(challengeId)}&used_at=is.null`
+    `${NONCES_TABLE}?challenge_id=eq.${encodeURIComponent(challengeId)}`
+    + `&used_at=is.null&expires_at=gt.${encodeURIComponent(usedAt)}`
   ), {
     method: 'PATCH',
     headers: supabaseHeaders({ Prefer: 'return=representation' }),
@@ -427,23 +438,33 @@ const requireWalletProposalAuthorization = async ({ leader, receipt, proposalId,
   }
   const consumedRows = await consumeResponse.json();
   if (!Array.isArray(consumedRows) || consumedRows.length !== 1) {
-    throw Object.assign(new Error('Weekly proposal challenge was already used.'), { statusCode: 410 });
+    throw Object.assign(new Error('Weekly proposal challenge was already used or expired.'), {
+      statusCode: 410,
+      code: WEEKLY_PROPOSAL_CHALLENGE_STALE_CODE
+    });
   }
 };
 
 const selectProposalForWeeklyLeader = async (receipt, proposalId, authorization = {}) => {
   const { currentLeader, currentScores } = await getVerifiedWeeklyLeaderForReceipt(receipt);
 
-  if (currentLeader.proposalId) {
-    if (currentLeader.proposalId === String(proposalId)) {
-      return { ...toLeaderboardPayload(currentScores), selectedProposal: {
-        id: currentLeader.proposalId,
-        title: currentLeader.proposalTitle,
-        url: currentLeader.proposalUrl,
-        author: currentLeader.proposalAuthor,
-        imageUrl: currentLeader.proposalImageUrl
-      } };
-    }
+  if (currentLeader.proposalId === String(proposalId)) {
+    // A signed request must still consume its one-time challenge even when the
+    // chosen proposal is unchanged. Otherwise that valid signature could be
+    // replayed after a later edit to restore this proposal.
+    await requireWalletProposalAuthorization({
+      leader: currentLeader,
+      receipt,
+      proposalId: currentLeader.proposalId,
+      authorization
+    });
+    return { ...toLeaderboardPayload(currentScores), selectedProposal: {
+      id: currentLeader.proposalId,
+      title: currentLeader.proposalTitle,
+      url: currentLeader.proposalUrl,
+      author: currentLeader.proposalAuthor,
+      imageUrl: currentLeader.proposalImageUrl
+    } };
   }
 
   const proposal = await findEligibleProposal(proposalId, {
@@ -682,7 +703,8 @@ module.exports = async (req, res) => {
     const status = Number.isInteger(error?.statusCode) ? error.statusCode : 500;
     return sendJson(res, status, {
       error: status === 500 ? 'Leaderboard storage is not configured' : error.message,
-      details: error.message
+      details: error.message,
+      ...(error?.code ? { code: error.code } : {})
     });
   }
 };

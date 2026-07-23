@@ -6,13 +6,16 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
 
-test('Home presents the missing-proposal reminder at most once per local day', () => {
+test('Home presents the missing-proposal reminder at most once every four hours', () => {
   const startScreen = read('components', 'StartScreen.tsx');
+  const reminder = read('services', 'weeklyProposalReminder.ts');
 
-  assert.match(startScreen, /WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY = 'scicon\.weekly-proposal-reminder'/);
-  assert.match(startScreen, /const getLocalDayStamp = \(timestamp: number\)/);
+  assert.match(reminder, /WEEKLY_PROPOSAL_REMINDER_INTERVAL_MS = 4 \* 60 \* 60 \* 1000/);
+  assert.match(reminder, /WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY = 'scicon\.weekly-proposal-reminder'/);
+  assert.match(startScreen, /parseWeeklyProposalReminderTimestamp/);
+  assert.match(startScreen, /isWeeklyProposalReminderDue\(weeklyClock, lastReminderAt\)/);
   assert.match(startScreen, /window\.localStorage\.getItem\(storageKey\)/);
-  assert.match(startScreen, /window\.localStorage\.setItem\(storageKey, dayStamp\)/);
+  assert.match(startScreen, /serializeWeeklyProposalReminderTimestamp\(weeklyClock\)/);
   assert.match(startScreen, /weeklyProposalNeedsAttention[\s\S]*dashboardTab !== 'home'/);
   assert.match(startScreen, /showWeeklyProposalReminder && weeklyProposalRecovery/);
   assert.match(startScreen, />\s*Not now\s*<\/button>/);
@@ -41,4 +44,33 @@ test('App supplies only its verified recovery record to the chooser', () => {
   assert.match(app, /onOpenWeeklyLeaderProposal=\{openWeeklyLeaderProposal\}/);
   assert.match(app, /weeklyProposalRecovery\?\.record\.receipt\.runId !== record\.receipt\.runId/);
   assert.match(app, /pilotName=\{missionRecordPilotName \|\| playerNameInput \|\| 'PILOT'\}/);
+});
+
+test('the mandatory post-score chooser cannot be dismissed while recovery openings can close', () => {
+  const app = read('App.tsx');
+  const picker = read('components', 'WeeklyProposalSelection.tsx');
+
+  assert.match(app, /requiresWeeklyProposal[\s\S]*setWeeklyProposalSelectionMode\('required'\)/);
+  assert.match(app, /openWeeklyLeaderProposal[\s\S]*setWeeklyProposalSelectionMode\('recovery'\)/);
+  assert.match(app, /dismissible=\{weeklyProposalSelectionMode === 'recovery'\}/);
+  assert.match(picker, /\{dismissible && onClose \? \(/);
+  assert.match(picker, /aria-label="Choose weekly proposal later"/);
+  assert.match(picker, /role="dialog"/);
+  assert.match(picker, /aria-modal="true"/);
+  assert.match(picker, /onKeyDown=\{handleDialogKeyDown\}/);
+  assert.match(picker, /disabled=\{isSaving\}/);
+  assert.match(picker, /aria-pressed=\{selected\}/);
+  assert.match(app, /weeklyProposalReturnRef\.current === 'record'[\s\S]*setShowMissionRecordPreview\(true\)/);
+});
+
+test('a selected recovery proposal survives a failed save and exposes a clear retry', () => {
+  const app = read('App.tsx');
+  const picker = read('components', 'WeeklyProposalSelection.tsx');
+
+  assert.match(app, /initialProposalId=\{monthlyLeaderboard\.find\(\(entry\) => entry\.runId === runReceipt\.runId\)\?\.proposalId \?\? null\}/);
+  assert.match(picker, /const \[selectedProposalId, setSelectedProposalId\]/);
+  assert.match(picker, /sortedProposals\.find\(\(proposal\) => proposal\.id === selectedProposalId\)/);
+  assert.match(picker, /Your proposal is still selected\. Tap retry below\./);
+  assert.match(picker, /Retry saving proposal/);
+  assert.match(app, /onProposalChange=\{\(\) => \{[\s\S]*setWeeklyProposalSelectionStatus\('idle'\)[\s\S]*setWeeklyProposalSelectionMessage\(''\)/);
 });

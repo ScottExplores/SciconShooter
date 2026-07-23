@@ -10,6 +10,12 @@ import {
 import { ASSETS, DONATION_CONFIG } from '../constants';
 import type { WalletRunRecord } from '../services/playerRunService';
 import type { WeeklyProposalRecovery } from '../services/weeklyProposalRecovery';
+import {
+  isWeeklyProposalReminderDue,
+  parseWeeklyProposalReminderTimestamp,
+  serializeWeeklyProposalReminderTimestamp,
+  WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY
+} from '../services/weeklyProposalReminder';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT } from '../services/leaderboardService';
 import { resolveProposalSelection } from '../services/weeklyProposalDisplay';
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
@@ -123,16 +129,6 @@ const DASHBOARD_NAV_ICON_SPRITESHEET = `${SCICON_NEON_DASHBOARD_ICON_ROOT}/dashb
 const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/icons/communication';
 const REWARD_EDGE_ARROW = '/game-art/generated/ui/scicon-reward-edge-v1/reward-arrow.png';
 const REWARD_ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
-const WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY = 'scicon.weekly-proposal-reminder';
-
-const getLocalDayStamp = (timestamp: number) => {
-  const date = new Date(timestamp);
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0')
-  ].join('-');
-};
 
 const dashboardTabs: Array<{
   id: DashboardTab;
@@ -616,7 +612,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [weeklyClock, setWeeklyClock] = useState(() => Date.now());
   const [selectedLeaderboardRecord, setSelectedLeaderboardRecord] = useState<LeaderboardEntry | null>(null);
   const [leaderboardRecordStatus, setLeaderboardRecordStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const proposalReminderShownRef = useRef('');
+  const [weeklyWinnerSlide, setWeeklyWinnerSlide] = useState<'pilot' | 'proposal'>('pilot');
+  const [weeklyWinnerAutoPaused, setWeeklyWinnerAutoPaused] = useState(false);
+  const proposalReminderShownRef = useRef(new Map<string, number>());
+  const weeklyProposalReminderRef = useRef<HTMLElement>(null);
+  const weeklyProposalReminderPrimaryRef = useRef<HTMLButtonElement>(null);
   const treasuryAddress = DONATION_CONFIG.RECIPIENT_ADDRESS;
   const weeklyProposalRunId = weeklyProposalRecovery?.record.receipt.runId ?? null;
   const weeklyProposalNeedsAttention = Boolean(weeklyProposalRecovery?.needsProposal);
@@ -717,28 +717,72 @@ const StartScreen: React.FC<StartScreenProps> = ({
       return;
     }
 
-    const dayStamp = getLocalDayStamp(weeklyClock);
-    const reminderMarker = `${weeklyProposalRunId}:${dayStamp}`;
-    if (proposalReminderShownRef.current === reminderMarker) return;
-
     const storageKey = `${WEEKLY_PROPOSAL_REMINDER_STORAGE_KEY}:${weeklyProposalRunId}`;
-    let lastReminderDay = '';
+    let persistedReminderAt: number | null = null;
     try {
-      lastReminderDay = window.localStorage.getItem(storageKey) ?? '';
+      persistedReminderAt = parseWeeklyProposalReminderTimestamp(window.localStorage.getItem(storageKey));
     } catch {
-      // Private browsing can deny storage; the in-memory marker still limits
-      // the reminder to one presentation for this app session.
+      // Private browsing can deny storage; the in-memory timestamp still
+      // enforces the four-hour window for this app session.
     }
-    proposalReminderShownRef.current = reminderMarker;
-    if (lastReminderDay === dayStamp) return;
+    const sessionReminderAt = proposalReminderShownRef.current.get(weeklyProposalRunId) ?? null;
+    const lastReminderAt = Math.max(persistedReminderAt ?? 0, sessionReminderAt ?? 0) || null;
+    if (!isWeeklyProposalReminderDue(weeklyClock, lastReminderAt)) return;
 
+    proposalReminderShownRef.current.set(weeklyProposalRunId, weeklyClock);
     try {
-      window.localStorage.setItem(storageKey, dayStamp);
+      window.localStorage.setItem(
+        storageKey,
+        serializeWeeklyProposalReminderTimestamp(weeklyClock)
+      );
     } catch {
       // The reminder remains functional without persistent storage.
     }
     setShowWeeklyProposalReminder(true);
   }, [dashboardTab, weeklyClock, weeklyProposalNeedsAttention, weeklyProposalRunId]);
+
+  useEffect(() => {
+    if (!showWeeklyProposalReminder) return undefined;
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = window.requestAnimationFrame(() => {
+      weeklyProposalReminderPrimaryRef.current?.focus();
+    });
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      if (
+        previousFocus
+        && document.body.contains(previousFocus)
+        && !document.querySelector('[aria-labelledby="weekly-proposal-selection-title"]')
+      ) {
+        previousFocus.focus();
+      }
+    };
+  }, [showWeeklyProposalReminder]);
+
+  const handleWeeklyProposalReminderKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setShowWeeklyProposalReminder(false);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    const focusable = Array.from(weeklyProposalReminderRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    ) ?? []);
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   useEffect(() => {
     setShipFocusId(selectedShipId);
@@ -836,6 +880,19 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const weeklyFunding = weeklyProposalSelection?.liveProposal
     ? getProposalFundingMetrics(weeklyProposalSelection.liveProposal)
     : null;
+  const weeklyProposalSelectionId = weeklyProposalSelection?.id ?? null;
+
+  useEffect(() => {
+    setWeeklyWinnerSlide('pilot');
+    if (!weeklyProposalSelectionId || weeklyWinnerAutoPaused) return undefined;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+
+    const timer = window.setInterval(() => {
+      setWeeklyWinnerSlide((current) => current === 'pilot' ? 'proposal' : 'pilot');
+    }, 5_800);
+    return () => window.clearInterval(timer);
+  }, [weeklyProposalSelectionId, weeklyWinnerAutoPaused]);
+
   const copyTextWithFallback = async (text: string) => {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
@@ -1059,68 +1116,138 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </div>
         </div>
 
-        <div>
-          <button
-            type="button"
-            onClick={() => setDashboardTab('proposals')}
-            className={`sci-weekly-winner-card group relative w-full overflow-hidden rounded-[8px] border border-emerald-300/24 bg-slate-950/50 text-left transition hover:border-emerald-200/65 hover:bg-emerald-300/10 ${compact ? 'p-2' : 'p-3'}`}
+        <div
+          className={`sci-weekly-winner-card group relative w-full overflow-hidden rounded-[8px] border border-emerald-300/24 bg-slate-950/50 text-left transition hover:border-emerald-200/65 hover:bg-emerald-300/10 ${compact ? 'sci-weekly-winner-card--compact' : ''}`}
+          role="region"
+          aria-roledescription="carousel"
+          aria-label={weeklyProposalSelection ? 'Weekly leader and selected research proposal' : 'Weekly leader'}
+          onMouseEnter={() => setWeeklyWinnerAutoPaused(true)}
+          onMouseLeave={() => setWeeklyWinnerAutoPaused(false)}
+          onFocusCapture={() => setWeeklyWinnerAutoPaused(true)}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setWeeklyWinnerAutoPaused(false);
+            }
+          }}
+        >
+          <div className="sci-weekly-scan" />
+          <div
+            className="sci-weekly-winner-card__track"
+            data-has-proposal={weeklyProposalSelection ? 'true' : 'false'}
+            data-active-slide={weeklyProposalSelection ? weeklyWinnerSlide : 'pilot'}
           >
-            <div className="sci-weekly-scan" />
-            <div
-              className={`relative z-10 grid gap-3 ${compact ? '' : 'grid-cols-[5.25rem_minmax(0,1fr)]'}`}
-              {...(compact ? { style: { gridTemplateColumns: '4rem minmax(0,1fr)' } } : {})}
+            <button
+              type="button"
+              className={`sci-weekly-winner-card__slide ${compact ? 'p-2' : 'p-3'}`}
+              onClick={() => setDashboardTab('trophies')}
+              tabIndex={weeklyWinnerSlide === 'pilot' || !weeklyProposalSelection ? 0 : -1}
+              aria-hidden={weeklyWinnerSlide === 'proposal' && Boolean(weeklyProposalSelection)}
+              aria-label={`${weeklyLeaderName}, weekly high score ${formatNumber(weeklyLeaderScore)}. Open Trophy Deck.`}
             >
-              <div className="sci-weekly-project-image relative flex aspect-square items-center justify-center overflow-hidden rounded-[8px] border border-cyan-200/25 bg-cyan-300/10">
-                <img src={ASSETS.PLAYER_SHIP} alt="" className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.7)]" />
-                {weeklyProposalSelection?.imageUrl ? (
-                  <img
-                    key={`${weeklyProposalSelection.id}:${weeklyProposalSelection.imageUrl}`}
-                    src={weeklyProposalSelection.imageUrl}
-                    alt={`${weeklyProposalSelection.title} proposal preview`}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    onError={(event) => { event.currentTarget.style.display = 'none'; }}
-                  />
-                ) : null}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-cyan-200/10" />
-              </div>
+              <span
+                className={`relative z-10 grid gap-3 ${compact ? '' : 'grid-cols-[5.25rem_minmax(0,1fr)]'}`}
+                {...(compact ? { style: { gridTemplateColumns: '4rem minmax(0,1fr)' } } : {})}
+              >
+                <span className="sci-weekly-project-image relative flex aspect-square items-center justify-center overflow-hidden rounded-[8px] border border-cyan-200/25 bg-cyan-300/10">
+                  <img src={ASSETS.PLAYER_SHIP} alt="" className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(34,211,238,0.7)]" />
+                  <span className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-cyan-200/10" />
+                </span>
 
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="sci-weekly-live-dot" />
-                  <p className="text-[0.62rem] font-black uppercase text-emerald-200">Weekly high score</p>
-                </div>
-                <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-black text-white">{weeklyLeaderName}</p>
-                    <p className="text-[0.66rem] font-bold uppercase text-slate-400">Current #1 pilot</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xl font-black text-cyan-100">{formatNumber(weeklyLeaderScore)}</p>
-                    <p className="text-[0.58rem] font-bold uppercase text-cyan-200/70">Score</p>
-                  </div>
-                </div>
-                {weeklyProposalSelection ? (
-                  <div className={`${compact ? 'mt-2 px-2 py-1.5' : 'mt-3 px-2.5 py-2'} rounded-[6px] border border-cyan-200/10 bg-cyan-300/[0.06]`}>
-                    <p className="truncate text-sm font-bold text-white">{weeklyProposalSelection.title}</p>
-                    <div className="mt-1 flex items-center justify-between gap-2 text-[0.62rem] font-bold uppercase text-slate-400">
-                      <span className="truncate">{weeklyProposalSelection.author ?? 'ResearchHub researcher'}</span>
+                <span className="min-w-0 self-center">
+                  <span className="flex items-center gap-2">
+                    <span className="sci-weekly-live-dot" />
+                    <span className="text-[0.62rem] font-black uppercase text-emerald-200">Weekly high score</span>
+                  </span>
+                  <span className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                    <span className="min-w-0">
+                      <span className="block truncate text-base font-black text-white">{weeklyLeaderName}</span>
+                      <span className="block text-[0.66rem] font-bold uppercase text-slate-400">Current #1 pilot</span>
+                    </span>
+                    <span className="text-right">
+                      <span className="block text-xl font-black text-cyan-100">{formatNumber(weeklyLeaderScore)}</span>
+                      <span className="block text-[0.58rem] font-bold uppercase text-cyan-200/70">Score</span>
+                    </span>
+                  </span>
+                </span>
+              </span>
+            </button>
+
+            {weeklyProposalSelection ? (
+              <button
+                type="button"
+                className={`sci-weekly-winner-card__slide ${compact ? 'p-2' : 'p-3'}`}
+                onClick={() => {
+                  if (weeklyProposalSelection.url) onOpenProposal(weeklyProposalSelection.url);
+                  else setDashboardTab('proposals');
+                }}
+                tabIndex={weeklyWinnerSlide === 'proposal' ? 0 : -1}
+                aria-hidden={weeklyWinnerSlide !== 'proposal'}
+                aria-label={`${weeklyProposalSelection.title}, selected weekly research proposal.`}
+              >
+                <span
+                  className={`relative z-10 grid gap-3 ${compact ? '' : 'grid-cols-[5.25rem_minmax(0,1fr)]'}`}
+                  {...(compact ? { style: { gridTemplateColumns: '4rem minmax(0,1fr)' } } : {})}
+                >
+                  <span className="sci-weekly-project-image relative flex aspect-square items-center justify-center overflow-hidden rounded-[8px] border border-cyan-200/25 bg-cyan-300/10">
+                    {weeklyProposalSelection.imageUrl ? (
+                      <img
+                        key={`${weeklyProposalSelection.id}:${weeklyProposalSelection.imageUrl}`}
+                        src={weeklyProposalSelection.imageUrl}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover"
+                        onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <Icon name="flask" className="h-9 w-9 text-emerald-200" strokeWidth={1.6} />
+                    )}
+                    <span className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-cyan-200/10" />
+                  </span>
+
+                  <span className="min-w-0 self-center">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[0.6rem] font-black uppercase text-yellow-200">Selected research proposal</span>
                       {weeklyFunding?.progressPercent !== null && weeklyFunding?.progressPercent !== undefined ? (
-                        <span className="shrink-0 text-emerald-200">{formatFundingPercent(weeklyFunding.progressPercent)} funded</span>
+                        <span className="shrink-0 text-[0.58rem] font-black uppercase text-emerald-200">
+                          {formatFundingPercent(weeklyFunding.progressPercent)} funded
+                        </span>
                       ) : null}
-                    </div>
+                    </span>
+                    <span className="sci-weekly-proposal-title mt-1 block text-sm font-black leading-tight text-white">
+                      {weeklyProposalSelection.title}
+                    </span>
+                    <span className="mt-1 block truncate text-[0.62rem] font-bold uppercase text-slate-400">
+                      {weeklyProposalSelection.author ?? 'ResearchHub researcher'}
+                    </span>
                     {weeklyProposalSelection.liveProposal ? (
-                      <div className={`${compact ? 'mt-1' : 'mt-2'} h-1.5 overflow-hidden rounded-full bg-slate-800`}>
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-blue-400 shadow-[0_0_12px_rgba(45,212,191,0.55)]"
+                      <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-800">
+                        <span
+                          className="block h-full rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-blue-400 shadow-[0_0_12px_rgba(45,212,191,0.55)]"
                           style={{ width: `${weeklyFunding?.barPercent ?? 0}%` }}
                         />
-                      </div>
+                      </span>
                     ) : null}
-                  </div>
-                ) : null}
-              </div>
+                  </span>
+                </span>
+              </button>
+            ) : null}
+          </div>
+
+          {weeklyProposalSelection ? (
+            <div className="sci-weekly-winner-card__pager" role="group" aria-label="Weekly funding card slides">
+              <button
+                type="button"
+                aria-label="Show weekly leader"
+                aria-pressed={weeklyWinnerSlide === 'pilot'}
+                onClick={() => setWeeklyWinnerSlide('pilot')}
+              />
+              <button
+                type="button"
+                aria-label="Show selected proposal"
+                aria-pressed={weeklyWinnerSlide === 'proposal'}
+                onClick={() => setWeeklyWinnerSlide('proposal')}
+              />
             </div>
-          </button>
+          ) : null}
         </div>
 
       </div>
@@ -1704,11 +1831,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
       {showWeeklyProposalReminder && weeklyProposalRecovery ? (
         <div className="sci-weekly-proposal-reminder-backdrop" role="presentation">
           <section
+            ref={weeklyProposalReminderRef}
             className="sci-weekly-proposal-reminder sci-neon-frame-window"
             role="dialog"
             aria-modal="true"
             aria-labelledby="weekly-proposal-reminder-title"
             aria-describedby="weekly-proposal-reminder-description"
+            onKeyDown={handleWeeklyProposalReminderKeyDown}
           >
             <p className="sci-weekly-proposal-reminder__eyebrow">Weekly high score alert</p>
             <h2 id="weekly-proposal-reminder-title">Your research pick is waiting</h2>
@@ -1725,6 +1854,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 Not now
               </button>
               <PixelActionButton
+                ref={weeklyProposalReminderPrimaryRef}
                 tone="gold"
                 ready
                 shine

@@ -30,16 +30,27 @@ test('home winner card uses only the proposal saved on the current weekly leader
 
 test('an open weekly pilot slot renders no proposal title, image, or progress', () => {
   assert.match(source, /const weeklyLeader = activeWeeklyLeaderboard\[0\]/);
-  assert.match(source, /\{weeklyProposalSelection\?\.imageUrl \? \(/);
-  assert.match(source, /\{weeklyProposalSelection \? \([\s\S]*weeklyProposalSelection\.title/);
+  assert.match(source, /\{weeklyProposalSelection \? \([\s\S]*weeklyProposalSelection\.imageUrl[\s\S]*weeklyProposalSelection\.title/);
   assert.match(source, /key=\{`\$\{weeklyProposalSelection\.id\}:\$\{weeklyProposalSelection\.imageUrl\}`\}/);
 });
 
 test('home winner image has no trophy overlay', () => {
   const imageStart = source.indexOf('sci-weekly-project-image');
-  const imageEnd = source.indexOf('<div className="min-w-0">', imageStart);
+  const imageEnd = source.indexOf('<span className="min-w-0 self-center">', imageStart);
   assert.ok(imageStart >= 0 && imageEnd > imageStart);
   assert.doesNotMatch(source.slice(imageStart, imageEnd), /name="trophy"/);
+});
+
+test('home winner card slides between the pilot score and the exact selected proposal', () => {
+  assert.match(source, /useState<'pilot' \| 'proposal'>\('pilot'\)/);
+  assert.match(source, /setInterval\([\s\S]*5_800/);
+  assert.match(source, /prefers-reduced-motion: reduce/);
+  assert.match(source, /data-active-slide=\{weeklyProposalSelection \? weeklyWinnerSlide : 'pilot'\}/);
+  assert.match(source, /aria-label="Show weekly leader"/);
+  assert.match(source, /aria-label="Show selected proposal"/);
+  assert.match(source, /weeklyProposalSelection\.imageUrl[\s\S]*weeklyProposalSelection\.title/);
+  assert.match(stylesSource, /sci-weekly-winner-card__track\[data-active-slide='proposal'\][\s\S]*translate3d\(-50%, 0, 0\)/);
+  assert.match(stylesSource, /transition: transform 520ms cubic-bezier/);
 });
 
 test('mobile home lets its mission panel fill the available space above navigation', () => {

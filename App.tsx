@@ -369,6 +369,7 @@ const App: React.FC = () => {
   const [showWeeklyProposalSelection, setShowWeeklyProposalSelection] = useState(false);
   const [weeklyProposalSelectionStatus, setWeeklyProposalSelectionStatus] = useState<ProposalSelectionStatus>('idle');
   const [weeklyProposalSelectionMessage, setWeeklyProposalSelectionMessage] = useState('');
+  const [weeklyProposalSelectionMode, setWeeklyProposalSelectionMode] = useState<'required' | 'recovery'>('recovery');
   const [scorecardChampionWinner, setScorecardChampionWinner] = useState<ArchivedWinner | null>(null);
   const [championClaimStatus, setChampionClaimStatus] = useState<'idle' | 'connecting' | 'signing' | 'confirmed' | 'error'>('idle');
   const [championClaimMessage, setChampionClaimMessage] = useState('');
@@ -924,6 +925,7 @@ const App: React.FC = () => {
     setShowWeeklyProposalSelection(false);
     setWeeklyProposalSelectionStatus('idle');
     setWeeklyProposalSelectionMessage('');
+    setWeeklyProposalSelectionMode('recovery');
     clearWeeklyProposalTransition();
     setScorecardChampionWinner(null);
     setMissionMintStatus('idle');
@@ -1026,6 +1028,7 @@ const App: React.FC = () => {
     setShowWeeklyProposalSelection(false);
     setWeeklyProposalSelectionStatus('idle');
     setWeeklyProposalSelectionMessage('');
+    setWeeklyProposalSelectionMode('recovery');
     clearWeeklyProposalTransition();
     setScorecardChampionWinner(null);
     setActiveRunMode('standard');
@@ -1574,6 +1577,7 @@ const App: React.FC = () => {
           weeklyProposalReturnRef.current = 'results';
           setWeeklyProposalSelectionStatus('idle');
           setWeeklyProposalSelectionMessage('');
+          setWeeklyProposalSelectionMode('required');
           setShowMissionRecordPreview(false);
           setShowWeeklyProposalSelection(true);
         } else {
@@ -1680,6 +1684,7 @@ const App: React.FC = () => {
     weeklyProposalReturnRef.current = 'record';
     setWeeklyProposalSelectionStatus('idle');
     setWeeklyProposalSelectionMessage('');
+    setWeeklyProposalSelectionMode('recovery');
     setShowMissionRecordPreview(false);
     setShowWeeklyProposalSelection(true);
   };
@@ -1737,8 +1742,9 @@ const App: React.FC = () => {
     setShowWeeklyProposalSelection(false);
     setWeeklyProposalSelectionStatus('idle');
     setWeeklyProposalSelectionMessage('');
-    setActiveRunMode('standard');
-    setGameState(GameState.MENU);
+    if (weeklyProposalReturnRef.current === 'record') {
+      setShowMissionRecordPreview(true);
+    }
   };
 
   const openMissionRecordWeeklyFunding = () => {
@@ -1752,6 +1758,7 @@ const App: React.FC = () => {
       weeklyProposalReturnRef.current = gameStateRef.current === GameState.GAMEOVER ? 'results' : 'record';
       setWeeklyProposalSelectionStatus('idle');
       setWeeklyProposalSelectionMessage('');
+      setWeeklyProposalSelectionMode('recovery');
       setShowMissionRecordPreview(false);
       setShowWeeklyProposalSelection(true);
       return;
@@ -2296,7 +2303,14 @@ const App: React.FC = () => {
             proposalStatus={proposalStatus}
             selectionStatus={weeklyProposalSelectionStatus}
             selectionMessage={weeklyProposalSelectionMessage}
+            initialProposalId={monthlyLeaderboard.find((entry) => entry.runId === runReceipt.runId)?.proposalId ?? null}
+            dismissible={weeklyProposalSelectionMode === 'recovery'}
             onConfirm={(proposal) => void confirmWeeklyLeaderProposal(proposal)}
+            onProposalChange={() => {
+              if (weeklyProposalSelectionStatus !== 'error') return;
+              setWeeklyProposalSelectionStatus('idle');
+              setWeeklyProposalSelectionMessage('');
+            }}
             onRetry={() => void refreshFundingProposals()}
             onClose={closeWeeklyProposalSelection}
           />
