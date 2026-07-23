@@ -1,13 +1,16 @@
 import { getFireRateVolleySize, getTightVolleyOffsets } from './weaponTierProgression';
+import { sampleTripleShotSideAngleRadians } from './playerShotSpread';
 
 export const BIO_PRIMARY_DAMAGE_PER_ROUND = 0.5;
 export const BIO_PRIMARY_RAIL_OFFSET_PX = 10;
 export const BIO_PRIMARY_RAIL_STAGGER_FRAMES = 1;
 export const BIO_PRIMARY_REPEAT_STAGGER_FRAMES = 2;
-export const BIO_PRIMARY_PATTERN_RADIUS_PX = 16;
+export const BIO_PRIMARY_PATTERN_RADIUS_PX = 20;
 
 const BIO_PRIMARY_TIER_OFFSET_SCALE = 0.5;
 const BIO_PRIMARY_MAX_SHOT_COPY_OFFSETS = [-1.25, 1.25] as const;
+const BIO_PRIMARY_SIDE_LANE_OFFSET_PX = 4;
+const BIO_PRIMARY_SIDE_LANE_STAGGER_FRAMES = 1;
 
 export interface BioPrimaryVisualRound {
   readonly offsetX: number;
@@ -18,7 +21,7 @@ export interface BioPrimaryVisualRound {
 export interface BioPrimaryPlannedShot {
   readonly fireDelayFrames: number;
   readonly offsetX: number;
-  readonly angleBias: 0;
+  readonly angleBias: number;
   readonly damagePerRound: number;
   readonly representedRoundCount: number;
   readonly visualPattern: readonly BioPrimaryVisualRound[];
@@ -36,7 +39,6 @@ export interface BioPrimaryShotPlan {
 
 const buildBioPrimaryVisualPattern = (
   volleySize: number,
-  repeatCount: number,
   maxShotActive: boolean
 ): readonly BioPrimaryVisualRound[] => {
   const tierOffsets = getTightVolleyOffsets(volleySize).map(
@@ -44,43 +46,61 @@ const buildBioPrimaryVisualPattern = (
   );
   const maxShotOffsets = maxShotActive ? BIO_PRIMARY_MAX_SHOT_COPY_OFFSETS : [0] as const;
 
-  return Object.freeze(Array.from({ length: repeatCount }, (_, repeatIndex) => (
-    tierOffsets.flatMap((tierOffset) => (
-      maxShotOffsets.map((maxShotOffset) => Object.freeze({
-        offsetX: tierOffset + maxShotOffset,
-        angleOffset: 0 as const,
-        launchDelayFrames: repeatIndex * BIO_PRIMARY_REPEAT_STAGGER_FRAMES
-      }))
-    ))
-  )).flat());
+  return Object.freeze(tierOffsets.flatMap((tierOffset, tierIndex) => (
+    maxShotOffsets.map((maxShotOffset) => Object.freeze({
+      offsetX: tierOffset + maxShotOffset,
+      angleOffset: 0 as const,
+      launchDelayFrames: tierIndex * BIO_PRIMARY_REPEAT_STAGGER_FRAMES
+    }))
+  )));
 };
 
 /**
  * BIO trades one full-strength center round for two half-strength straight
- * rails. Fire-rate tiers, spread, and Max Shot add represented copies inside
- * each rail bundle. Presentation-only launch delays keep every repeat visibly
- * staggered while the simulation remains bounded at two authoritative rails,
- * preserving both the exact Research-ship damage total and mobile cadence.
+ * rails. A spread power-up creates three authoritative lanes at the same
+ * 15-20 degree angles as the standard triple shot, and every lane retains the
+ * paired BIO rails. Fire-rate tiers and Max Shot remain bundled inside each
+ * rail so the full angled pattern has correct collision paths without creating
+ * a separate simulation entity for every visual round.
  */
 export const getBioPrimaryShotPlan = (
   fireRateLevel: number,
   spreadActive: boolean,
-  maxShotActive: boolean
+  maxShotActive: boolean,
+  leftAngleRandomUnit: number = 0.5,
+  rightAngleRandomUnit: number = 0.5
 ): BioPrimaryShotPlan => {
   const volleySize = getFireRateVolleySize(fireRateLevel);
   const repeatCount = spreadActive ? 3 : 1;
-  const visualPattern = buildBioPrimaryVisualPattern(volleySize, repeatCount, maxShotActive);
+  const visualPattern = buildBioPrimaryVisualPattern(volleySize, maxShotActive);
   const shots: BioPrimaryPlannedShot[] = [];
+  const lanes = spreadActive
+    ? [
+        { side: 0 as const, angle: 0, delay: 0 },
+        {
+          side: -1 as const,
+          angle: sampleTripleShotSideAngleRadians(-1, leftAngleRandomUnit),
+          delay: BIO_PRIMARY_SIDE_LANE_STAGGER_FRAMES
+        },
+        {
+          side: 1 as const,
+          angle: sampleTripleShotSideAngleRadians(1, rightAngleRandomUnit),
+          delay: BIO_PRIMARY_SIDE_LANE_STAGGER_FRAMES * 2
+        }
+      ]
+    : [{ side: 0 as const, angle: 0, delay: 0 }];
 
-  ([-1, 1] as const).forEach((rail, railIndex) => {
-    shots.push(Object.freeze({
-      fireDelayFrames: railIndex * BIO_PRIMARY_RAIL_STAGGER_FRAMES,
-      offsetX: rail * BIO_PRIMARY_RAIL_OFFSET_PX,
-      angleBias: 0 as const,
-      damagePerRound: BIO_PRIMARY_DAMAGE_PER_ROUND,
-      representedRoundCount: visualPattern.length,
-      visualPattern
-    }));
+  lanes.forEach((lane) => {
+    ([-1, 1] as const).forEach((rail, railIndex) => {
+      shots.push(Object.freeze({
+        fireDelayFrames: lane.delay + railIndex * BIO_PRIMARY_RAIL_STAGGER_FRAMES,
+        offsetX: lane.side * BIO_PRIMARY_SIDE_LANE_OFFSET_PX + rail * BIO_PRIMARY_RAIL_OFFSET_PX,
+        angleBias: lane.angle,
+        damagePerRound: BIO_PRIMARY_DAMAGE_PER_ROUND,
+        representedRoundCount: visualPattern.length,
+        visualPattern
+      }));
+    });
   });
 
   const logicalRoundCount = shots.reduce(
@@ -93,7 +113,7 @@ export const getBioPrimaryShotPlan = (
     repeatCount,
     logicalRoundCount,
     simulationEntityCount: shots.length,
-    queuedEntityCount: Math.max(0, shots.length - 1),
+    queuedEntityCount: shots.filter((shot) => shot.fireDelayFrames > 0).length,
     totalDamage: logicalRoundCount * BIO_PRIMARY_DAMAGE_PER_ROUND,
     shots: Object.freeze(shots)
   });

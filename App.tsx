@@ -707,7 +707,8 @@ const App: React.FC = () => {
   const [stats, setStats] = useState<Stats>(getInitialStats);
   const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
   const [audioMuted, setAudioMuted] = useState(() => audioService.isMuted());
-  const [audioVolumeLevel, setAudioVolumeLevel] = useState(() => audioService.getVolumeLevel());
+  const [sfxVolumeLevel, setSfxVolumeLevel] = useState(() => audioService.getSfxVolumeLevel());
+  const [musicVolumeLevel, setMusicVolumeLevel] = useState(() => audioService.getMusicVolumeLevel());
   const [musicTrackId, setMusicTrackId] = useState<MissionMusicTrackId>(() => audioService.getMusicTrackId());
 
   useEffect(() => {
@@ -1080,11 +1081,17 @@ const App: React.FC = () => {
 
   const toggleGameAudio = () => {
     setAudioMuted(audioService.toggleMute());
-    setAudioVolumeLevel(audioService.getVolumeLevel());
+    setSfxVolumeLevel(audioService.getSfxVolumeLevel());
+    setMusicVolumeLevel(audioService.getMusicVolumeLevel());
   };
 
-  const setGameAudioVolume = (level: number) => {
-    setAudioVolumeLevel(audioService.setVolumeLevel(level));
+  const setGameSfxVolume = (level: number) => {
+    setSfxVolumeLevel(audioService.setSfxVolumeLevel(level));
+    setAudioMuted(audioService.isMuted());
+  };
+
+  const setGameMusicVolume = (level: number) => {
+    setMusicVolumeLevel(audioService.setMusicVolumeLevel(level));
     setAudioMuted(audioService.isMuted());
   };
 
@@ -2120,7 +2127,8 @@ const App: React.FC = () => {
       {gameState === GameState.PAUSED && !showTestChampionPreview && (
         <PauseMenu
           audioMuted={audioMuted}
-          audioVolumeLevel={audioVolumeLevel}
+          sfxVolumeLevel={sfxVolumeLevel}
+          musicVolumeLevel={musicVolumeLevel}
           musicTrackId={musicTrackId}
           polishSettings={polishSettings}
           onResume={() => {
@@ -2129,7 +2137,8 @@ const App: React.FC = () => {
           }}
           onQuit={resetGame}
           onToggleAudio={toggleGameAudio}
-          onAudioVolumeChange={setGameAudioVolume}
+          onSfxVolumeChange={setGameSfxVolume}
+          onMusicVolumeChange={setGameMusicVolume}
           onMusicTrackChange={changeMissionMusic}
           onTogglePolishSetting={togglePolishSetting}
           founderControls={isOwnerWallet && isOwnerTestRun ? (

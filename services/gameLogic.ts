@@ -4142,7 +4142,13 @@ export class GameEngine {
       || this.isPowerupActive(PowerupType.TRIPLE_SHOT);
     const maxShotActive = this.hasMaxShotShield();
     const bioPrimaryPlan = this.playerShipId === 'bio'
-      ? getBioPrimaryShotPlan(this.stats.upgrades.fireRate || 0, overdriveSpread, maxShotActive)
+      ? getBioPrimaryShotPlan(
+          this.stats.upgrades.fireRate || 0,
+          overdriveSpread,
+          maxShotActive,
+          Math.random(),
+          Math.random()
+        )
       : null;
     const basePatternProjectileCount = volleySize * (overdriveSpread ? 3 : 1);
     const visualProjectileCount = maxShotActive

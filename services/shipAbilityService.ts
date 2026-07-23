@@ -16,11 +16,16 @@ export const RESEARCH_CHARGE_COOLDOWN_SECONDS = 16;
 export const RESEARCH_CHARGE_BLAST_RADIUS = 124;
 
 const PLAYER_WEAPON_FX_ROOT = '/game-art/generated/scicon-player-weapon-fx-v1';
-const getGalleryAbilityFrames = (ship: 'bio' | 'eth' | 'btc') => (
-  Array.from({ length: 4 }, (_, index) => `${PLAYER_WEAPON_FX_ROOT}/${ship}/level-7/frame-${index + 1}.png`)
+const getGalleryAbilityFrames = (
+  ship: 'bio' | 'eth' | 'btc',
+  level: number = 7
+) => (
+  Array.from({ length: 4 }, (_, index) => `${PLAYER_WEAPON_FX_ROOT}/${ship}/level-${level}/frame-${index + 1}.png`)
 );
 
-export const BIO_GENOME_LANCE_FRAME_URLS = getGalleryAbilityFrames('bio');
+// Level 5 is the gallery's clean cyan/green blaster animation. It reads as a
+// fast BIO energy weapon without the heavier DNA-ring silhouette used at 7.
+export const BIO_GENOME_LANCE_FRAME_URLS = getGalleryAbilityFrames('bio', 5);
 export const ETH_PRISM_VOLLEY_FRAME_URLS = getGalleryAbilityFrames('eth');
 export const BTC_HASH_BURST_FRAME_URLS = getGalleryAbilityFrames('btc');
 export const BTC_HASH_BURST_RADIUS = 96;

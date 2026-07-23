@@ -130,6 +130,7 @@ const loadAudioService = () => {
     audioService: context.module.exports.audioService,
     audioContext: context.module.exports.audioService.ctx,
     masterGainParam: context.module.exports.audioService.masterGain.gain,
+    sfxGainParam: context.module.exports.audioService.sfxGain.gain,
     musicGainParam: context.module.exports.audioService.musicGain.gain,
     document: context.document,
     listeners,
@@ -142,38 +143,44 @@ const loadAudioService = () => {
   };
 };
 
-test('six-step volume scales the master gain and mute restores the last audible notch', () => {
+test('six-step sound-effects volume stays independent while global mute gates both buses', () => {
   const harness = loadAudioService();
 
-  assert.equal(harness.audioService.getVolumeLevel(), 5);
-  harness.audioService.setVolumeLevel(3);
-  assert.equal(harness.audioService.getVolumeLevel(), 3);
-  assert.ok(Math.abs(harness.masterGainParam.targetValues.at(-1) - 0.18) < 0.00001);
+  assert.equal(harness.audioService.getSfxVolumeLevel(), 5);
+  assert.equal(harness.audioService.getMusicVolumeLevel(), 2);
+  harness.audioService.setSfxVolumeLevel(3);
+  assert.equal(harness.audioService.getSfxVolumeLevel(), 3);
+  assert.ok(Math.abs(harness.sfxGainParam.targetValues.at(-1) - 0.18) < 0.00001);
+  assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.02) < 0.00001);
 
   assert.equal(harness.audioService.toggleMute(), true);
-  assert.equal(harness.audioService.getVolumeLevel(), 0);
+  assert.equal(harness.audioService.getSfxVolumeLevel(), 3);
   assert.equal(harness.masterGainParam.targetValues.at(-1), 0);
 
   assert.equal(harness.audioService.toggleMute(), false);
-  assert.equal(harness.audioService.getVolumeLevel(), 3);
-  assert.ok(Math.abs(harness.masterGainParam.targetValues.at(-1) - 0.18) < 0.00001);
+  assert.equal(harness.audioService.getSfxVolumeLevel(), 3);
+  assert.equal(harness.masterGainParam.targetValues.at(-1), 1);
+  assert.ok(Math.abs(harness.sfxGainParam.targetValues.at(-1) - 0.18) < 0.00001);
 });
 
-test('the zero volume notch mutes while choosing a nonzero notch resumes at that level', () => {
+test('music and sound-effects zero notches mute only their own buses', () => {
   const harness = loadAudioService();
 
-  assert.equal(harness.audioService.setVolumeLevel(0), 0);
-  assert.equal(harness.audioService.isMuted(), true);
-  assert.equal(harness.masterGainParam.targetValues.at(-1), 0);
-
-  assert.equal(harness.audioService.setVolumeLevel(2), 2);
+  assert.equal(harness.audioService.setSfxVolumeLevel(0), 0);
   assert.equal(harness.audioService.isMuted(), false);
-  assert.ok(Math.abs(harness.masterGainParam.targetValues.at(-1) - 0.12) < 0.00001);
+  assert.equal(harness.sfxGainParam.targetValues.at(-1), 0);
+  assert.ok(harness.musicGainParam.targetValues.at(-1) > 0);
+
+  assert.equal(harness.audioService.setMusicVolumeLevel(0), 0);
+  assert.equal(harness.musicGainParam.targetValues.at(-1), 0);
+  assert.equal(harness.audioService.setSfxVolumeLevel(2), 2);
+  assert.equal(harness.audioService.isMuted(), false);
+  assert.ok(Math.abs(harness.sfxGainParam.targetValues.at(-1) - 0.12) < 0.00001);
 });
 
 test('mission music opens with one launch cue and one progressive sequencer timer', () => {
   const harness = loadAudioService();
-  assert.equal(harness.musicGainParam.setValues.at(-1), 0.38);
+  assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.02) < 0.00001);
   harness.audioService.startMusic();
 
   assert.equal(harness.intervals.size, 1);
@@ -189,7 +196,7 @@ test('mission music opens with one launch cue and one progressive sequencer time
   assert.ok(harness.oscillatorsCreated > afterFirstStart);
 });
 
-test('mission music can switch to a supplied song and keeps master audio controls', async () => {
+test('mission music can switch to a supplied song and uses its independent low-volume bus', async () => {
   const harness = loadAudioService();
   harness.audioService.startMusic();
   assert.equal(harness.intervals.size, 1);
@@ -203,8 +210,10 @@ test('mission music can switch to a supplied song and keeps master audio control
   assert.equal(harness.musicPlayers[0].playCalls, 1);
   assert.equal(harness.storedValues.get('scicon-shooter:mission-music-track:v1'), 'acid-clatter');
 
-  harness.audioService.setVolumeLevel(2);
-  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.056) < 0.00001);
+  harness.audioService.setSfxVolumeLevel(2);
+  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.02) < 0.00001);
+  harness.audioService.setMusicVolumeLevel(1);
+  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.01) < 0.00001);
   harness.audioService.toggleMute();
   assert.equal(harness.musicPlayers[0].paused, true);
   assert.equal(harness.musicPlayers[0].volume, 0);

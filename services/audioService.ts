@@ -39,11 +39,14 @@ const SAMPLE_PROFILES: Partial<Record<GameSoundType, SampleProfile>> = {
 const MISSION_BPM = 154;
 const MISSION_STEP_MS = (60_000 / MISSION_BPM) / 2;
 const SILENCE_GAIN = 0.0001;
-const MAX_MASTER_GAIN = 0.3;
-const MUSIC_BUS_GAIN = 0.38;
-const MAX_MUSIC_ELEMENT_VOLUME = 0.14;
+const MAX_SFX_GAIN = 0.3;
+const MAX_PROCEDURAL_MUSIC_GAIN = 0.05;
+const MAX_MUSIC_ELEMENT_VOLUME = 0.05;
 const MAX_VOLUME_LEVEL = 5;
+const DEFAULT_MUSIC_VOLUME_LEVEL = 2;
 const MUSIC_TRACK_STORAGE_KEY = 'scicon-shooter:mission-music-track:v1';
+const SFX_VOLUME_STORAGE_KEY = 'scicon-shooter:sfx-volume:v1';
+const MUSIC_VOLUME_STORAGE_KEY = 'scicon-shooter:music-volume:v1';
 const MISSION_BASS_PATTERN = [
   73.42, 55, 73.42, 65.41,
   73.42, 87.31, 73.42, 77.78,
@@ -61,9 +64,10 @@ const MISSION_RISE_PATTERN = [146.83, 174.61, 196, 220, 261.63, 293.66, 349.23, 
 class AudioService {
   private ctx: AudioContext | null = null;
   private muted: boolean = false;
-  private volumeLevel: number = MAX_VOLUME_LEVEL;
-  private lastNonZeroVolumeLevel: number = MAX_VOLUME_LEVEL;
+  private sfxVolumeLevel: number = MAX_VOLUME_LEVEL;
+  private musicVolumeLevel: number = DEFAULT_MUSIC_VOLUME_LEVEL;
   private masterGain: GainNode | null = null;
+  private sfxGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
   private musicTimer: number | null = null;
   private musicStep: number = 0;
@@ -82,6 +86,11 @@ class AudioService {
 
   constructor() {
     this.selectedMusicTrackId = this.readStoredMusicTrack();
+    this.sfxVolumeLevel = this.readStoredVolumeLevel(SFX_VOLUME_STORAGE_KEY, MAX_VOLUME_LEVEL);
+    this.musicVolumeLevel = this.readStoredVolumeLevel(
+      MUSIC_VOLUME_STORAGE_KEY,
+      DEFAULT_MUSIC_VOLUME_LEVEL
+    );
 
     try {
       // Initialize on first user interaction
@@ -89,11 +98,12 @@ class AudioService {
       if (AudioContextClass) {
         this.ctx = new AudioContextClass();
         this.masterGain = this.ctx.createGain();
+        this.sfxGain = this.ctx.createGain();
         this.musicGain = this.ctx.createGain();
-        this.musicGain.gain.setValueAtTime(MUSIC_BUS_GAIN, this.ctx.currentTime);
+        this.sfxGain.connect(this.masterGain);
         this.musicGain.connect(this.masterGain);
         this.masterGain.connect(this.ctx.destination);
-        this.applyMasterVolume();
+        this.applyAudioLevels();
         void this.preloadSamples();
       }
     } catch {
@@ -178,6 +188,28 @@ class AudioService {
     return 'scicon-flight';
   }
 
+  private readStoredVolumeLevel(storageKey: string, fallback: number) {
+    try {
+      const storedValue = window.localStorage?.getItem(storageKey);
+      if (storedValue === null || storedValue === undefined || storedValue === '') return fallback;
+      const storedLevel = Number(storedValue);
+      if (Number.isFinite(storedLevel)) {
+        return Math.max(0, Math.min(MAX_VOLUME_LEVEL, Math.round(storedLevel)));
+      }
+    } catch {
+      // Embedded browsers can restrict local storage.
+    }
+    return fallback;
+  }
+
+  private storeVolumeLevel(storageKey: string, level: number) {
+    try {
+      window.localStorage?.setItem(storageKey, String(level));
+    } catch {
+      // The level still applies for this session when storage is unavailable.
+    }
+  }
+
   private getSelectedMusicTrack() {
     return MISSION_MUSIC_TRACKS.find((track) => track.id === this.selectedMusicTrackId)
       || MISSION_MUSIC_TRACKS[0];
@@ -185,9 +217,9 @@ class AudioService {
 
   private applyMusicPlayerVolume() {
     if (!this.musicPlayer) return;
-    this.musicPlayer.volume = this.muted || !this.pageActive
+    this.musicPlayer.volume = this.muted || !this.pageActive || this.musicVolumeLevel === 0
       ? 0
-      : MAX_MUSIC_ELEMENT_VOLUME * (this.volumeLevel / MAX_VOLUME_LEVEL);
+      : MAX_MUSIC_ELEMENT_VOLUME * (this.musicVolumeLevel / MAX_VOLUME_LEVEL);
   }
 
   private pauseMusicPlayer(reset: boolean = false) {
@@ -217,7 +249,13 @@ class AudioService {
   }
 
   private beginSelectedMusic() {
-    if (!this.musicRequested || this.musicPaused || this.muted || !this.pageActive) return;
+    if (
+      !this.musicRequested
+      || this.musicPaused
+      || this.muted
+      || !this.pageActive
+      || this.musicVolumeLevel === 0
+    ) return;
     const selectedTrack = this.getSelectedMusicTrack();
 
     if (!selectedTrack.src) {
@@ -261,7 +299,7 @@ class AudioService {
   }
 
   private playSample(type: GameSoundType, intensity: number, pitch: number) {
-    if (!this.ctx || !this.masterGain) return false;
+    if (!this.ctx || !this.sfxGain || this.sfxVolumeLevel === 0) return false;
     const profile = SAMPLE_PROFILES[type];
     if (!profile) return false;
     const buffer = this.sampleBuffers[profile.sample];
@@ -287,7 +325,7 @@ class AudioService {
     gain.gain.setValueAtTime(volume, fadeStart);
     gain.gain.exponentialRampToValueAtTime(SILENCE_GAIN, now + duration);
     source.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.sfxGain);
     source.onended = () => this.activeSampleNodes.delete(source);
     this.activeSampleNodes.add(source);
     source.start(now);
@@ -311,24 +349,31 @@ class AudioService {
 
     if (this.muted) return;
     void this.ctx?.resume().catch(() => undefined);
-    this.applyMasterVolume();
+    this.applyAudioLevels();
     this.applyMusicPlayerVolume();
     this.beginSelectedMusic();
   }
 
-  private getScaledMasterVolume() {
-    return MAX_MASTER_GAIN * (this.volumeLevel / MAX_VOLUME_LEVEL);
+  private getScaledSfxVolume() {
+    return MAX_SFX_GAIN * (this.sfxVolumeLevel / MAX_VOLUME_LEVEL);
   }
 
-  private applyMasterVolume() {
-    this.setMasterVolume(this.muted || !this.pageActive ? 0 : this.getScaledMasterVolume());
+  private getScaledMusicVolume() {
+    return MAX_PROCEDURAL_MUSIC_GAIN * (this.musicVolumeLevel / MAX_VOLUME_LEVEL);
+  }
+
+  private applyAudioLevels() {
+    const active = !this.muted && this.pageActive;
+    this.setGainVolume(this.masterGain, active ? 1 : 0);
+    this.setGainVolume(this.sfxGain, this.getScaledSfxVolume());
+    this.setGainVolume(this.musicGain, this.getScaledMusicVolume());
     this.applyMusicPlayerVolume();
   }
 
-  private setMasterVolume(volume: number) {
-    if (!this.masterGain) return;
+  private setGainVolume(gainNode: GainNode | null, volume: number) {
+    if (!gainNode) return;
     const t = this.ctx?.currentTime || 0;
-    this.masterGain.gain.setTargetAtTime(volume, t, 0.08);
+    gainNode.gain.setTargetAtTime(volume, t, 0.08);
   }
 
   public init() {
@@ -336,19 +381,13 @@ class AudioService {
     if (this.pageActive && !this.muted && this.ctx?.state === 'suspended') {
       void this.ctx.resume().catch(() => undefined);
     }
-    this.applyMasterVolume();
+    this.applyAudioLevels();
   }
 
   public toggleMute() {
-    if (this.muted) {
-      this.muted = false;
-      this.volumeLevel = this.lastNonZeroVolumeLevel;
-    } else {
-      if (this.volumeLevel > 0) this.lastNonZeroVolumeLevel = this.volumeLevel;
-      this.muted = true;
-    }
+    this.muted = !this.muted;
 
-    this.applyMasterVolume();
+    this.applyAudioLevels();
     if (this.muted) {
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
@@ -367,36 +406,50 @@ class AudioService {
   }
 
   public getVolumeLevel() {
-    return this.muted ? 0 : this.volumeLevel;
+    return this.sfxVolumeLevel;
   }
 
   public setVolumeLevel(level: number) {
-    const nextLevel = Math.max(0, Math.min(MAX_VOLUME_LEVEL, Math.round(level)));
+    return this.setSfxVolumeLevel(level);
+  }
 
+  public getSfxVolumeLevel() {
+    return this.sfxVolumeLevel;
+  }
+
+  public setSfxVolumeLevel(level: number) {
+    const nextLevel = Math.max(0, Math.min(MAX_VOLUME_LEVEL, Math.round(level)));
+    this.sfxVolumeLevel = nextLevel;
+    this.storeVolumeLevel(SFX_VOLUME_STORAGE_KEY, nextLevel);
+    if (nextLevel > 0) this.muted = false;
+    this.applyAudioLevels();
     if (nextLevel === 0) {
-      if (this.volumeLevel > 0) this.lastNonZeroVolumeLevel = this.volumeLevel;
-      this.muted = true;
-      this.applyMasterVolume();
+      this.stopActiveSampleNodes();
+      this.stopActiveProceduralNodes();
+    }
+    return this.sfxVolumeLevel;
+  }
+
+  public getMusicVolumeLevel() {
+    return this.musicVolumeLevel;
+  }
+
+  public setMusicVolumeLevel(level: number) {
+    const nextLevel = Math.max(0, Math.min(MAX_VOLUME_LEVEL, Math.round(level)));
+    const wasSilent = this.musicVolumeLevel === 0;
+    this.musicVolumeLevel = nextLevel;
+    this.storeVolumeLevel(MUSIC_VOLUME_STORAGE_KEY, nextLevel);
+    if (nextLevel > 0) this.muted = false;
+    this.applyAudioLevels();
+    if (nextLevel === 0) {
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
       this.pauseMusicPlayer();
-      this.stopActiveSampleNodes();
-      this.stopActiveProceduralNodes();
-      return 0;
-    }
-
-    const wasMuted = this.muted;
-    this.volumeLevel = nextLevel;
-    this.lastNonZeroVolumeLevel = nextLevel;
-    this.muted = false;
-    this.applyMasterVolume();
-
-    if (this.pageActive && wasMuted) {
+    } else if (wasSilent && this.pageActive) {
       this.init();
       this.beginSelectedMusic();
     }
-
-    return this.volumeLevel;
+    return this.musicVolumeLevel;
   }
 
   public startMusic() {
@@ -557,6 +610,7 @@ class AudioService {
       || this.muted
       || this.musicPaused
       || !this.pageActive
+      || this.musicVolumeLevel === 0
       || this.getSelectedMusicTrack().src
     ) return;
 
@@ -566,7 +620,13 @@ class AudioService {
     }
 
     const pulse = () => {
-      if (!this.ctx || this.muted || !this.masterGain || !this.pageActive) return;
+      if (
+        !this.ctx
+        || this.muted
+        || !this.musicGain
+        || !this.pageActive
+        || this.musicVolumeLevel === 0
+      ) return;
 
       const startTime = this.ctx.currentTime + 0.01;
       const cycleStep = this.musicStep % 128;
@@ -606,7 +666,7 @@ class AudioService {
   }
 
   public playDialogBlip() {
-    if (!this.ctx || this.muted || !this.pageActive) return;
+    if (!this.ctx || this.muted || !this.pageActive || this.sfxVolumeLevel === 0) return;
 
     const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -618,13 +678,13 @@ class AudioService {
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
 
     osc.connect(gain);
-    gain.connect(this.masterGain!);
+    gain.connect(this.sfxGain!);
     osc.start(t);
     osc.stop(t + 0.045);
   }
 
   private playBossWarningSiren(startTime: number) {
-    if (!this.ctx || !this.masterGain) return;
+    if (!this.ctx || !this.sfxGain || this.sfxVolumeLevel === 0) return;
 
     const bus = this.ctx.createGain();
     const lowAlarm = this.ctx.createOscillator();
@@ -653,7 +713,7 @@ class AudioService {
 
     lowAlarm.connect(bus);
     highAlarm.connect(bus);
-    bus.connect(this.masterGain);
+    bus.connect(this.sfxGain);
     for (const oscillator of [lowAlarm, highAlarm]) {
       oscillator.onended = () => this.activeProceduralNodes.delete(oscillator);
       this.activeProceduralNodes.add(oscillator);
@@ -668,7 +728,7 @@ class AudioService {
     intensity: number = 1,
     options: { pitchJitter?: number; pitchOffset?: number } = {}
   ) {
-    if (!this.ctx || this.muted || !this.pageActive) return;
+    if (!this.ctx || this.muted || !this.pageActive || this.sfxVolumeLevel === 0) return;
 
     const minSpacingMs: Partial<Record<GameSoundType, number>> = {
       shoot: 28,
@@ -708,7 +768,7 @@ class AudioService {
     this.activeProceduralNodes.add(osc);
 
     osc.connect(gain);
-    gain.connect(this.masterGain!);
+    gain.connect(this.sfxGain!);
 
     switch (type) {
       case 'electricity':

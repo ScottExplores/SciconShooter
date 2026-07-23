@@ -22,8 +22,10 @@ const compileModule = (relativePath, dependencies = {}) => {
 };
 
 const progression = compileModule('services/weaponTierProgression.ts');
+const playerShotSpread = compileModule('services/playerShotSpread.ts');
 const bioPrimary = compileModule('services/bioPrimaryWeapon.ts', {
-  './weaponTierProgression': progression
+  './weaponTierProgression': progression,
+  './playerShotSpread': playerShotSpread
 });
 
 const {
@@ -63,21 +65,25 @@ test('BIO tiers preserve exact Research damage with bounded rail entities', () =
   }
 });
 
-test('BIO spread repeats straight rail pairs over time instead of adding angled lanes', () => {
-  const plan = getBioPrimaryShotPlan(14, true, false);
+test('BIO triple shot creates three angled lanes while retaining two rails per lane', () => {
+  const plan = getBioPrimaryShotPlan(14, true, false, 0, 1);
 
   assert.equal(plan.repeatCount, 3);
   assert.equal(plan.logicalRoundCount, 18);
   assert.equal(plan.totalDamage, 9, 'Tier 3 BIO spread matches nine full-strength Research rounds');
-  assert.equal(plan.simulationEntityCount, 2, 'repeated rounds stay bundled in two rail entities');
-  assert.equal(plan.queuedEntityCount, 1);
-  assert.deepEqual(Array.from(plan.shots, (shot) => shot.fireDelayFrames), [0, 1]);
-  assert.ok(plan.shots.every((shot) => shot.angleBias === 0));
+  assert.equal(plan.simulationEntityCount, 6, 'three lanes each retain the paired BIO rails');
+  assert.equal(plan.queuedEntityCount, 5);
+  assert.deepEqual(Array.from(plan.shots, (shot) => shot.fireDelayFrames), [0, 1, 1, 2, 2, 3]);
+  assert.ok(plan.shots.slice(0, 2).every((shot) => shot.angleBias === 0));
+  assert.ok(plan.shots.slice(2, 4).every((shot) => shot.angleBias < 0));
+  assert.ok(plan.shots.slice(4).every((shot) => shot.angleBias > 0));
+  assert.ok(Math.abs(plan.shots[2].angleBias * (180 / Math.PI) + 15) < 0.00001);
+  assert.ok(Math.abs(plan.shots[4].angleBias * (180 / Math.PI) - 20) < 0.00001);
   assert.ok(plan.shots.every((shot) => shot.visualPattern.every((round) => round.angleOffset === 0)));
   assert.deepEqual(
     Array.from(plan.shots[0].visualPattern, (round) => round.launchDelayFrames),
-    [0, 0, 0, 2, 2, 2, 4, 4, 4],
-    'spread repeats remain visibly staggered inside each straight rail'
+    [0, 2, 4],
+    'tier rounds remain visibly staggered inside each angled rail'
   );
 });
 

@@ -180,28 +180,17 @@ const createSpaceRunLayout = (phaseOffset: number, mirrored = false): readonly T
   const rightEdge = mirrored ? 0.08 : 1.07;
   return [
     { frame: 0, baseX: leftEdge, baseY: 0.04, speed: 0.04, sway: 1, phase: phaseOffset, widthRatio: 0.86, rotationSpeed: 0, alpha: 1 },
-    { frame: 1, baseX: rightEdge, baseY: 0.42, speed: 0.065, sway: 1.4, phase: phaseOffset + 0.8, widthRatio: 1, rotationSpeed: 0, alpha: 1 },
-    { frame: 2, baseX: mirrored ? 0.82 : 0.18, baseY: 0.7, speed: 0.14, sway: 2, phase: phaseOffset + 1.5, widthRatio: 0.26, rotationSpeed: 0, alpha: 1 },
-    { frame: 3, baseX: mirrored ? 0.92 : 0.08, baseY: 0.2, speed: 0.27, sway: 3, phase: phaseOffset + 2.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 1 },
-    { frame: 4, baseX: mirrored ? 0.1 : 0.9, baseY: 0.58, speed: 0.36, sway: 3.5, phase: phaseOffset + 2.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 1 },
-    { frame: 5, baseX: mirrored ? 0.86 : 0.14, baseY: 0.88, speed: 0.48, sway: 4, phase: phaseOffset + 3.6, widthRatio: 0.14, rotationSpeed: 0, alpha: 1 },
-    { frame: 6, baseX: mirrored ? 0.12 : 0.88, baseY: 0.34, speed: 0.6, sway: 4.5, phase: phaseOffset + 4.3, widthRatio: 0.17, rotationSpeed: 0, alpha: 1 },
-    { frame: 7, baseX: mirrored ? 0.9 : 0.1, baseY: 0.76, speed: 0.72, sway: 5, phase: phaseOffset + 5, widthRatio: 0.13, rotationSpeed: 0, alpha: 1 },
-    { frame: 8, baseX: mirrored ? 0.16 : 0.84, baseY: 0.96, speed: 0.84, sway: 5.5, phase: phaseOffset + 5.7, widthRatio: 0.15, rotationSpeed: 0, alpha: 1 }
+    { frame: 1, baseX: rightEdge, baseY: 0.42, speed: 0.065, sway: 1.4, phase: phaseOffset + 0.8, widthRatio: 1, rotationSpeed: 0, alpha: 1 }
   ];
 };
 
 const TERRAIN_PROP_LAYOUTS: Record<TerrainPropSet, readonly TerrainPropDefinition[]> = {
   space: [
+    // Keep only the two large, slow planets. The individual asteroids and
+    // satellite props fought the cohesive transparent debris overlay and could
+    // cross in front of Saturn. The planet plane now stays far, clean, and slow.
     { frame: 1, baseX: 0.08, baseY: 0.05, speed: 0.04, sway: 1, phase: 0.2, widthRatio: 0.78, rotationSpeed: 0, alpha: 1 },
-    { frame: 2, baseX: 1.07, baseY: 0.4, speed: 0.065, sway: 1.4, phase: 1.2, widthRatio: 0.96, rotationSpeed: 0, alpha: 1 },
-    { frame: 6, baseX: 0.8, baseY: 0.55, speed: 0.15, sway: 3, phase: 0.8, widthRatio: 0.24, rotationSpeed: 0, alpha: 1 },
-    { frame: 5, baseX: 0.9, baseY: 0.12, speed: 0.27, sway: 3, phase: 5.4, widthRatio: 0.18, rotationSpeed: 0, alpha: 1 },
-    { frame: 0, baseX: 0.12, baseY: 0.62, speed: 0.36, sway: 3, phase: 2.4, widthRatio: 0.2, rotationSpeed: 0, alpha: 1 },
-    { frame: 8, baseX: 0.9, baseY: 0.94, speed: 0.47, sway: 3, phase: 4.9, widthRatio: 0.16, rotationSpeed: 0, alpha: 1 },
-    { frame: 3, baseX: 0.88, baseY: 0.76, speed: 0.58, sway: 4, phase: 3.2, widthRatio: 0.18, rotationSpeed: 0, alpha: 1 },
-    { frame: 4, baseX: 0.1, baseY: 0.92, speed: 0.7, sway: 4, phase: 4.1, widthRatio: 0.17, rotationSpeed: 0, alpha: 1 },
-    { frame: 7, baseX: 0.22, baseY: 0.78, speed: 0.82, sway: 5, phase: 2.8, widthRatio: 0.17, rotationSpeed: 0, alpha: 1 }
+    { frame: 2, baseX: 1.07, baseY: 0.4, speed: 0.065, sway: 1.4, phase: 1.2, widthRatio: 0.96, rotationSpeed: 0, alpha: 1 }
   ],
   desert: [
     { frame: 0, baseX: 0.1, baseY: 0.06, speed: 0, sway: 0, phase: 0.3, widthRatio: 0.25, rotationSpeed: 0, alpha: 0.96 },
@@ -289,7 +278,7 @@ const createSpaceLayers = (
   startOffsetRatio: number,
   phaseOffset = 0,
   backplateUrl = ASSETS.PIXI_SPACE_PARALLAX_BG_ION_CLOUD,
-  debrisUrls: readonly string[] = [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
+  _legacyDebrisUrls: readonly string[] = []
 ): readonly ParallaxDefinition[] => {
   const speeds = SPACE_PARALLAX_DEPTH_SPEEDS[profileId];
   const layers: ParallaxDefinition[] = [
@@ -336,22 +325,10 @@ const createSpaceLayers = (
       scrollDirection: 'down'
     },
   ];
-  debrisUrls.slice(0, 2).forEach((url, index) => {
-    layers.push({
-      url,
-      speed: speeds[4 + index],
-      // The source sheet already has a transparent background. Keep the rock
-      // artwork itself opaque; depth comes from speed, scale, and softness.
-      alpha: 1,
-      widthScale: index === 0 ? 1.04 : 1.1,
-      xDrift: index === 0 ? 1.6 : 2.4,
-      phase: 0.8 + phaseOffset + index * 1.9,
-      softness: index === 0 ? 0.14 : 0.26,
-      coverViewport: true,
-      tilePoolSize: DEBRIS_OVERLAY_TILE_POOL_SIZE,
-      scrollDirection: 'down'
-    });
-  });
+  // The earlier asteroid overlays read as dozens of unrelated loose props and
+  // crossed the large planet silhouettes. Live space missions now use the
+  // cleaner planet, star, and nebula planes. The generated sheets remain
+  // registered for backwards-compatible campaign data without entering view.
   layers.push({
     url: ASSETS.GAME_PARALLAX_STARS,
     speed: speeds[6],
@@ -383,7 +360,7 @@ const BACKGROUND_PROFILES = {
     terrain: 'space',
     propSet: 'space',
     propAlpha: 1,
-    propCount: 6,
+    propCount: 2,
     glyphAlpha: 0
   },
   'citation-storm': {
@@ -404,7 +381,7 @@ const BACKGROUND_PROFILES = {
     terrain: 'space',
     propSet: 'space',
     propAlpha: 1,
-    propCount: 9,
+    propCount: 2,
     glyphAlpha: 0
   },
   'paywall-siege': {
@@ -462,7 +439,7 @@ const BACKGROUND_PROFILES = {
     terrain: 'space',
     propSet: 'space',
     propAlpha: 1,
-    propCount: 9,
+    propCount: 2,
     glyphAlpha: 0
   },
   'helix-redline': {
@@ -473,7 +450,7 @@ const BACKGROUND_PROFILES = {
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
     horizonAlpha: 0.14, planetTint: '#f0abfc', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['helix-redline'],
-    terrain: 'space', propSet: 'helix-redline', propAlpha: 1, propCount: 9, glyphAlpha: 0
+    terrain: 'space', propSet: 'helix-redline', propAlpha: 1, propCount: 2, glyphAlpha: 0
   },
   'shattered-void': {
     tint: '#1e1b4b', accent: '#a5b4fc', family: 1, colorGradeAlpha: 0.1,
@@ -483,7 +460,7 @@ const BACKGROUND_PROFILES = {
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
     horizonAlpha: 0.1, planetTint: '#c7d2fe', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['shattered-void'],
-    terrain: 'space', propSet: 'shattered-void', propAlpha: 1, propCount: 9, glyphAlpha: 0
+    terrain: 'space', propSet: 'shattered-void', propAlpha: 1, propCount: 2, glyphAlpha: 0
   },
   'gravity-rift': {
     tint: '#134e4a', accent: '#5eead4', family: 0, colorGradeAlpha: 0.09,
@@ -493,7 +470,7 @@ const BACKGROUND_PROFILES = {
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
     ),
     horizonAlpha: 0.16, planetTint: '#99f6e4', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['gravity-rift'],
-    terrain: 'space', propSet: 'gravity-rift', propAlpha: 1, propCount: 9, glyphAlpha: 0
+    terrain: 'space', propSet: 'gravity-rift', propAlpha: 1, propCount: 2, glyphAlpha: 0
   },
   'ion-eclipse': {
     tint: '#1e3a8a', accent: '#67e8f9', family: 3, colorGradeAlpha: 0.1,
@@ -503,7 +480,7 @@ const BACKGROUND_PROFILES = {
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST]
     ),
     horizonAlpha: 0.15, planetTint: '#bae6fd', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['ion-eclipse'],
-    terrain: 'space', propSet: 'ion-eclipse', propAlpha: 1, propCount: 9, glyphAlpha: 0
+    terrain: 'space', propSet: 'ion-eclipse', propAlpha: 1, propCount: 2, glyphAlpha: 0
   },
   'terminus-frontier': {
     tint: '#78350f', accent: '#fbbf24', family: 2, colorGradeAlpha: 0.08,
@@ -513,7 +490,7 @@ const BACKGROUND_PROFILES = {
       [ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_RUST, ASSETS.PIXI_SPACE_PARALLAX_DEBRIS_BASALT]
     ),
     horizonAlpha: 0.12, planetTint: '#fde68a', starSpeedMultiplier: SPACE_DYNAMIC_STAR_SPEED_MULTIPLIERS['terminus-frontier'],
-    terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1, propCount: 9, glyphAlpha: 0
+    terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1, propCount: 2, glyphAlpha: 0
   }
 } as const satisfies Record<string, EnvironmentProfile>;
 

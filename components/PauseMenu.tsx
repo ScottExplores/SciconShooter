@@ -9,13 +9,15 @@ import '../styles/pause-menu.css';
 
 interface PauseMenuProps {
   audioMuted: boolean;
-  audioVolumeLevel: number;
+  sfxVolumeLevel: number;
+  musicVolumeLevel: number;
   musicTrackId: MissionMusicTrackId;
   polishSettings: GamePolishSettings;
   onResume: () => void;
   onQuit: () => void;
   onToggleAudio: () => void;
-  onAudioVolumeChange: (level: number) => void;
+  onSfxVolumeChange: (level: number) => void;
+  onMusicVolumeChange: (level: number) => void;
   onMusicTrackChange: (trackId: MissionMusicTrackId) => void;
   onTogglePolishSetting: (key: keyof GamePolishSettings) => void;
   founderControls?: React.ReactNode;
@@ -23,6 +25,50 @@ interface PauseMenuProps {
 
 const INTERFACE_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1';
 const AUDIO_VOLUME_NOTCHES = Array.from({ length: 6 }, (_, index) => index);
+
+interface PauseVolumeSliderProps {
+  id: string;
+  label: string;
+  level: number;
+  onChange: (level: number) => void;
+}
+
+const PauseVolumeSlider: React.FC<PauseVolumeSliderProps> = ({
+  id,
+  label,
+  level,
+  onChange
+}) => (
+  <label className="sci-pause-volume" htmlFor={id}>
+    <span className="sci-pause-volume__header">
+      <span>{label}</span>
+      <output htmlFor={id} aria-live="polite">
+        {level === 0 ? 'Muted' : `${level} / 5`}
+      </output>
+    </span>
+    <span className="sci-pause-volume__control">
+      <input
+        id={id}
+        type="range"
+        min={0}
+        max={5}
+        step={1}
+        value={level}
+        aria-label={`${label} level`}
+        onChange={(event) => onChange(Number(event.currentTarget.value))}
+      />
+      <span className="sci-pause-volume__notches" aria-hidden="true">
+        {AUDIO_VOLUME_NOTCHES.map((notch) => (
+          <span
+            key={notch}
+            className="sci-pause-volume__notch"
+            data-active={notch <= level ? 'true' : 'false'}
+          />
+        ))}
+      </span>
+    </span>
+  </label>
+);
 
 interface PauseSettingRowProps {
   label: string;
@@ -53,13 +99,15 @@ const PauseSettingRow: React.FC<PauseSettingRowProps> = ({ label, enabled, onTog
 
 const PauseMenu: React.FC<PauseMenuProps> = ({
   audioMuted,
-  audioVolumeLevel,
+  sfxVolumeLevel,
+  musicVolumeLevel,
   musicTrackId,
   polishSettings,
   onResume,
   onQuit,
   onToggleAudio,
-  onAudioVolumeChange,
+  onSfxVolumeChange,
+  onMusicVolumeChange,
   onMusicTrackChange,
   onTogglePolishSetting,
   founderControls
@@ -148,35 +196,18 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
                 {selectedTrackIndex + 1} / {MISSION_MUSIC_TRACKS.length}
               </span>
             </div>
-            <label className="sci-pause-volume" htmlFor="sci-pause-volume-level">
-              <span className="sci-pause-volume__header">
-                <span>Master volume</span>
-                <output htmlFor="sci-pause-volume-level" aria-live="polite">
-                  {audioVolumeLevel === 0 ? 'Muted' : `${audioVolumeLevel} / 5`}
-                </output>
-              </span>
-              <span className="sci-pause-volume__control">
-                <input
-                  id="sci-pause-volume-level"
-                  type="range"
-                  min={0}
-                  max={5}
-                  step={1}
-                  value={audioVolumeLevel}
-                  aria-label="Master volume level"
-                  onChange={(event) => onAudioVolumeChange(Number(event.currentTarget.value))}
-                />
-                <span className="sci-pause-volume__notches" aria-hidden="true">
-                  {AUDIO_VOLUME_NOTCHES.map((notch) => (
-                    <span
-                      key={notch}
-                      className="sci-pause-volume__notch"
-                      data-active={notch <= audioVolumeLevel ? 'true' : 'false'}
-                    />
-                  ))}
-                </span>
-              </span>
-            </label>
+            <PauseVolumeSlider
+              id="sci-pause-music-volume-level"
+              label="Music volume"
+              level={musicVolumeLevel}
+              onChange={onMusicVolumeChange}
+            />
+            <PauseVolumeSlider
+              id="sci-pause-sfx-volume-level"
+              label="Sound effects"
+              level={sfxVolumeLevel}
+              onChange={onSfxVolumeChange}
+            />
             <PauseSettingRow
               label="Screen shake"
               enabled={polishSettings.screenShake}

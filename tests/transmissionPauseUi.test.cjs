@@ -43,8 +43,10 @@ test('pause menu uses the generated game interface while preserving real setting
 
   assert.match(app, /<PauseMenu/);
   assert.match(app, /onToggleAudio=\{toggleGameAudio\}/);
-  assert.match(app, /audioVolumeLevel=\{audioVolumeLevel\}/);
-  assert.match(app, /onAudioVolumeChange=\{setGameAudioVolume\}/);
+  assert.match(app, /sfxVolumeLevel=\{sfxVolumeLevel\}/);
+  assert.match(app, /musicVolumeLevel=\{musicVolumeLevel\}/);
+  assert.match(app, /onSfxVolumeChange=\{setGameSfxVolume\}/);
+  assert.match(app, /onMusicVolumeChange=\{setGameMusicVolume\}/);
   assert.match(app, /onTogglePolishSetting=\{togglePolishSetting\}/);
   assert.match(app, /founderControls=\{isOwnerWallet && isOwnerTestRun/);
 
@@ -58,6 +60,8 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(pause, /max=\{5\}/);
   assert.match(pause, /step=\{1\}/);
   assert.match(pause, /AUDIO_VOLUME_NOTCHES\.map/);
+  assert.match(pause, /label="Music volume"/);
+  assert.match(pause, /label="Sound effects"/);
   assert.match(pause, /onTogglePolishSetting\('screenShake'\)/);
   assert.match(pause, /onTogglePolishSetting\('highDensityParticles'\)/);
 

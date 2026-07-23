@@ -53,10 +53,15 @@ test('Pixi preloads and animates all ship ability sprite sequences', () => {
   assert.match(hud, /abilityDefinition\.iconRotationDegrees/);
   assert.match(renderer, /effect\.effectType === 'sprite'/);
 
+  const abilityLevels = { bio: 5, eth: 7, btc: 7 };
   for (const ship of ['bio', 'eth', 'btc']) {
-    assert.match(abilities, new RegExp(`getGalleryAbilityFrames\\('${ship}'\\)`));
+    const level = abilityLevels[ship];
+    const callPattern = ship === 'bio'
+      ? /getGalleryAbilityFrames\('bio', 5\)/
+      : new RegExp(`getGalleryAbilityFrames\\('${ship}'\\)`);
+    assert.match(abilities, callPattern);
     for (let frame = 1; frame <= 4; frame++) {
-      const icon = fs.readFileSync(path.join(root, 'public/game-art/generated/scicon-player-weapon-fx-v1', ship, 'level-7', `frame-${frame}.png`));
+      const icon = fs.readFileSync(path.join(root, 'public/game-art/generated/scicon-player-weapon-fx-v1', ship, `level-${level}`, `frame-${frame}.png`));
       assert.equal(icon[25], 6, `${ship} ability frame ${frame} must retain an alpha channel`);
     }
   }

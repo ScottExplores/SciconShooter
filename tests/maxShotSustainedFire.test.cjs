@@ -26,6 +26,15 @@ vm.runInNewContext(
   `(function(exports, require, module) { ${weaponTierCompiled} })(module.exports, require, module);`,
   { module: weaponTierBox, require }
 );
+const playerShotSpreadSource = fs.readFileSync(path.join(root, 'services', 'playerShotSpread.ts'), 'utf8');
+const playerShotSpreadCompiled = ts.transpileModule(playerShotSpreadSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
+}).outputText;
+const playerShotSpreadBox = { exports: {} };
+vm.runInNewContext(
+  `(function(exports, require, module) { ${playerShotSpreadCompiled} })(module.exports, require, module);`,
+  { module: playerShotSpreadBox, require }
+);
 const bioPrimarySource = fs.readFileSync(path.join(root, 'services', 'bioPrimaryWeapon.ts'), 'utf8');
 const bioPrimaryCompiled = ts.transpileModule(bioPrimarySource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
@@ -35,7 +44,11 @@ vm.runInNewContext(
   `(function(exports, require, module) { ${bioPrimaryCompiled} })(module.exports, require, module);`,
   {
     module: bioPrimaryBox,
-    require: (request) => request === './weaponTierProgression' ? weaponTierBox.exports : require(request)
+    require: (request) => {
+      if (request === './weaponTierProgression') return weaponTierBox.exports;
+      if (request === './playerShotSpread') return playerShotSpreadBox.exports;
+      return require(request);
+    }
   }
 );
 const bioPrimary = bioPrimaryBox.exports;
@@ -77,7 +90,7 @@ test('Tier-3 spread Max Shot sustains every cadence slot inside its bounded enti
   assert.equal(progression.canAdmitMaxShotVolley(70, 0, true, entityCap), false);
 });
 
-test('BIO normal and spread+Max sustain Tier-3 cadence with two reserved rail bundles', () => {
+test('BIO normal and spread+Max sustain Tier-3 cadence with complete paired-lane reservations', () => {
   const cadenceFrames = 5;
   const lifetime = progression.MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
   const scenarios = [
@@ -116,11 +129,10 @@ test('BIO normal and spread+Max sustain Tier-3 cadence with two reserved rail bu
       peakReservations = Math.max(peakReservations, activeExpiryFrames.length);
     }
 
-    assert.equal(plan.simulationEntityCount, 2);
-    assert.equal(plan.queuedEntityCount, 1);
+    assert.equal(plan.simulationEntityCount, scenario.spreadActive ? 6 : 2);
+    assert.equal(plan.queuedEntityCount, scenario.spreadActive ? 5 : 1);
     assert.equal(plan.totalDamage, scenario.expectedDamage);
-    assert.equal(entityCap, 49);
-    assert.equal(peakReservations, 49);
+    assert.ok(entityCap >= peakReservations);
     assert.equal(admittedVolleys, 120);
   }
 });

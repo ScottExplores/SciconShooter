@@ -95,24 +95,24 @@ test('wave overrides participate in the same current-and-next preload window', (
 });
 
 test('startup and per-profile URL sets exclude unrelated late-run atlases', () => {
-  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.length, 10);
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.length, 8);
   assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_BG_ION_CLOUD'));
   assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT'));
-  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'));
-  assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'));
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'), false);
+  assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'), false);
   assert.ok(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_SPACE_PROPS'));
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_TERRAIN_DESERT_MASTER'), false);
   assert.equal(PIXI_ENVIRONMENT_TEXTURE_URLS.includes('PIXI_SPACE_RUN_HELIX_REDLINE_PROPS'), false);
 
   const openOrbitUrls = getEnvironmentProfileTextureUrls('open-orbit');
-  assert.ok(openOrbitUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'));
+  assert.equal(openOrbitUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'), false);
   assert.equal(openOrbitUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'), false);
 
   const helixUrls = getEnvironmentProfileTextureUrls('helix-redline');
   assert.ok(helixUrls.includes('PIXI_SPACE_RUN_HELIX_REDLINE_PROPS'));
   assert.ok(helixUrls.includes('PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT'));
-  assert.ok(helixUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'));
-  assert.ok(helixUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'));
+  assert.equal(helixUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_BASALT'), false);
+  assert.equal(helixUrls.includes('PIXI_SPACE_PARALLAX_DEBRIS_RUST'), false);
   assert.equal(helixUrls.includes('PIXI_SPACE_RUN_SHATTERED_VOID_PROPS'), false);
 
   const groundUrls = getEnvironmentProfileTextureUrls('paywall-siege');

@@ -133,32 +133,23 @@ test('all space profiles use a fast seven-step far-to-near speed progression', (
   }
 });
 
-test('space debris sheets use two reusable full-viewport tiles and generated route variety', () => {
+test('space routes keep generated nebula variety while excluding the mismatched loose-rock overlays', () => {
   assert.equal(DEBRIS_OVERLAY_TILE_POOL_SIZE, 2);
-  assert.equal(MAX_PARALLAX_LAYER_POOL_SIZE, 7);
+  assert.equal(MAX_PARALLAX_LAYER_POOL_SIZE, 5);
   assert.match(environmentSource, /PIXI_SPACE_PARALLAX_BG_OBSIDIAN_NEBULA/);
   assert.match(environmentSource, /PIXI_SPACE_PARALLAX_BG_ION_CLOUD/);
   assert.match(environmentSource, /PIXI_SPACE_PARALLAX_BG_VIOLET_RIFT/);
   assert.match(environmentSource, /PIXI_SPACE_PARALLAX_DEBRIS_BASALT/);
   assert.match(environmentSource, /PIXI_SPACE_PARALLAX_DEBRIS_RUST/);
-  assert.match(environmentSource, /tilePoolSize: DEBRIS_OVERLAY_TILE_POOL_SIZE/);
+  assert.match(environmentSource, /_legacyDebrisUrls/);
+  assert.doesNotMatch(environmentSource, /speed: speeds\[4 \+ index\]/);
   assert.match(environmentSource, /coverViewport: true/);
   assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_FAR_PLANETS,[\s\S]{0,100}alpha: 1/);
-  assert.match(environmentSource, /url,[\s\S]{0,100}speed: speeds\[4 \+ index\],[\s\S]{0,240}alpha: 1/);
   assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_BACK,[\s\S]{0,100}alpha: 0\.1/);
   assert.match(environmentSource, /url: ASSETS\.GAME_BG_STARS,[\s\S]{0,100}alpha: 0\.12/);
   assert.match(environmentSource, /url: ASSETS\.GAME_PARALLAX_STARS,[\s\S]{0,100}alpha: 0\.22/);
   assert.match(environmentSource, /tileIndex >= layer\.activeTileCount/);
   assert.match(environmentSource, /Math\.max\(this\.width \* layer\.widthScale, this\.height \/ sourceAspect\) \* 1\.04/);
-
-  const mobileViewportHeight = 844;
-  const coveredTileHeight = mobileViewportHeight * 1.04;
-  const pair = Array.from(
-    { length: DEBRIS_OVERLAY_TILE_POOL_SIZE },
-    (_, index) => getLoopingParallaxTileY(index, 100, coveredTileHeight, 'down')
-  );
-  assert.ok(pair[0] <= 0, 'first debris sheet starts above the viewport');
-  assert.ok(pair[1] + coveredTileHeight >= mobileViewportHeight, 'the pooled pair covers a tall viewport');
 });
 
 test('deep space backplates keep moving throughout a long mission instead of clamping to their overscan', () => {
@@ -201,21 +192,22 @@ test('deep space backplates keep moving throughout a long mission instead of cla
   assert.ok(pair[1] + tileHeight >= viewportHeight, 'the pooled pair still covers the viewport');
 });
 
-test('space landmarks stay opaque while their small near props move faster than large planets', () => {
+test('space landmark pools keep only two opaque slow planets above the star and nebula planes', () => {
   const defaultSpaceStart = environmentSource.indexOf('  space: [');
   const defaultSpaceEnd = environmentSource.indexOf('\n  desert: [', defaultSpaceStart);
   const defaultSpaceProps = environmentSource.slice(defaultSpaceStart, defaultSpaceEnd);
   const defaultSpeeds = [...defaultSpaceProps.matchAll(/speed: ([0-9.]+)/g)].map((match) => Number(match[1]));
 
-  assert.deepEqual(defaultSpeeds, [0.04, 0.065, 0.15, 0.27, 0.36, 0.47, 0.58, 0.7, 0.82]);
-  assert.equal((defaultSpaceProps.match(/alpha: 1/g) ?? []).length, 9);
-  assert.ok(defaultSpeeds[0] < defaultSpeeds[2], 'large left planet remains behind middle landmarks');
-  assert.ok(defaultSpeeds[1] < defaultSpeeds.at(-1), 'large right planet remains behind near landmarks');
+  assert.deepEqual(defaultSpeeds, [0.04, 0.065]);
+  assert.equal((defaultSpaceProps.match(/alpha: 1/g) ?? []).length, 2);
+  assert.match(defaultSpaceProps, /frame: 1/);
+  assert.match(defaultSpaceProps, /frame: 2/);
+  assert.doesNotMatch(defaultSpaceProps, /rotationSpeed: [^0]/);
 
   const runStart = environmentSource.indexOf('const createSpaceRunLayout');
   const runEnd = environmentSource.indexOf('\nconst TERRAIN_PROP_LAYOUTS', runStart);
   const runProps = environmentSource.slice(runStart, runEnd);
-  assert.equal((runProps.match(/alpha: 1/g) ?? []).length, 9);
+  assert.equal((runProps.match(/alpha: 1/g) ?? []).length, 2);
   assert.match(environmentSource, /terrain: 'space', propSet: 'terminus-frontier', propAlpha: 1/);
 });
 
