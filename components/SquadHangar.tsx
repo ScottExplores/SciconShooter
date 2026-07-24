@@ -494,7 +494,11 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             <div className="min-w-0">
               <p className="text-sm font-black uppercase text-white">Tier {activeTier}</p>
               <div className="mt-1 max-w-[13rem]"><LevelPips level={activePosition === 'main' ? fireRateTierProgress : activeMiniLevel} max={activePosition === 'main' ? MAIN_SHIP_UPGRADE_MAX_LEVEL : MINI_SHIP_MAX_LEVEL} /></div>
-              <p className="mt-1 text-[0.58rem] font-bold uppercase text-cyan-100/70">{walletConnected ? 'Wallet squad saved' : 'Connect to save squad'}</p>
+              <p className="mt-1 text-[0.58rem] font-bold uppercase text-cyan-100/70">
+                {walletConnected
+                  ? 'Saved on this device · onchain items linked'
+                  : 'Saved on this device · connect for minted/onchain items'}
+              </p>
             </div>
             {activePosition === 'main' ? (
               <PixelActionButton

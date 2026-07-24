@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
 
-test('the weekly squad model is wallet-scoped, resettable, and data driven', () => {
+test('the weekly squad model is Pilot-scoped, resettable, and data driven', () => {
   const source = read('services', 'squadProgression.ts');
 
   assert.match(source, /MAIN_SHIP_UPGRADE_MAX_LEVEL = FIRE_RATE_LEVELS_PER_TIER/);
@@ -38,31 +38,38 @@ test('the weekly squad model is wallet-scoped, resettable, and data driven', () 
   assert.doesNotMatch(source, /if \(!equipped\.left\) equipped\.left/);
 });
 
-test('guest runs never load or save Hangar profile data', () => {
+test('guest runs load and save device Pilot Hangar progress while score submission keeps wallet metadata optional', () => {
   const squad = read('services', 'squadProgression.ts');
   const app = read('App.tsx');
 
-  assert.match(squad, /if \(!walletAddress\?\.trim\(\)\)/);
-  assert.match(squad, /removeItem\(weeklyStorageKey\(profileId\)\)/);
-  assert.match(squad, /removeItem\(permanentStorageKey\(fallback\.profileId\)\)/);
-  assert.match(squad, /state\.profileId === 'guest'/);
-  assert.match(app, /if \(!walletAddress\) \{[\s\S]*totalCoins: 0/);
-  assert.match(app, /walletProfileAddress === normalizedActiveWalletAddress[\s\S]*localStorage\.setItem\(getWalletProfileKey\(walletProfileAddress\)/);
-  assert.match(app, /if \(activeWalletAddress && !isFounderSandboxRun/);
+  assert.match(squad, /const normalizeProfileId = \(profileId\?: string \| null\)/);
+  assert.match(squad, /loadWeeklySquadState = \(requestedProfileId\?: string \| null\)/);
+  assert.match(squad, /loadPermanentSquadState = \(requestedProfileId\?: string \| null\)/);
+  assert.match(squad, /window\.localStorage\.setItem\(weeklyStorageKey\(state\.profileId\)/);
+  assert.match(squad, /window\.localStorage\.setItem\(permanentStorageKey\(state\.profileId\)/);
+  assert.doesNotMatch(squad, /state\.profileId === 'guest'/);
+  assert.match(app, /const \[pilotProfile\] = useState\(initializeLocalPilotProfile\)/);
+  assert.match(app, /loadWeeklySquadState\(pilotProfile\.id\)/);
+  assert.match(app, /loadPermanentSquadState\(pilotProfile\.id\)/);
+  assert.match(app, /savePilotStats\(pilotProfile\.id/);
+  assert.match(app, /if \(!isFounderSandboxRun && squadRunAppliedGameIdRef\.current !== gameId\)/);
+  assert.match(app, /if \(!isFounderSandboxRun && permanentRunAppliedGameIdRef\.current !== gameId\)/);
   assert.match(app, /saveScore\(name, score, wave, \{[\s\S]*walletAddress: activeWalletAddress/);
 });
 
-test('the Hangar is wallet gated while its dashboard entry remains mounted', () => {
+test('the Hangar is available to device Pilots while minted ship locks remain visible', () => {
   const startScreen = read('components', 'StartScreen.tsx');
   const app = read('App.tsx');
 
-  assert.match(startScreen, /const requestHangar = \(\) =>/);
-  assert.match(startScreen, /if \(walletAddress\) \{[\s\S]*setDashboardTab\('hangar'\)/);
-  assert.match(startScreen, /Connect your wallet for ship upgrades/);
-  assert.match(startScreen, /data-locked=\{hangarLocked/);
-  assert.match(startScreen, /dashboardTab === 'hangar'/);
+  assert.match(startScreen, /const requestHangar = \(\) => setDashboardTab\('hangar'\)/);
+  assert.match(startScreen, /requested === 'hangar'/);
+  assert.doesNotMatch(startScreen, /hangarLocked/);
+  assert.doesNotMatch(startScreen, /Connect your wallet for ship upgrades/);
+  assert.match(startScreen, /if \(dashboardTab === 'hangar'\) \{/);
   assert.match(startScreen, /<SquadHangar/);
   assert.match(startScreen, /<DashboardNav docked \/>/);
+  assert.match(startScreen, /getShipUnlockMessage/);
+  assert.match(startScreen, /isPlayerShipUnlocked\(shipId, shipUnlocks\)/);
   assert.match(app, /url\.searchParams\.set\('view', 'hangar'\)/);
   assert.match(app, />HANGAR<\/button>/);
 });
@@ -191,19 +198,16 @@ test('the dashboard centers Home and exposes Hangar immediately to its right', (
   assert.doesNotMatch(styles, /data-dashboard-tab='hangar'\][^{]*sci-dashboard-nav-icon/);
 });
 
-test('locked ship and Hangar locks replay their animation on click and hover', () => {
+test('minted ship locks replay their animation without re-locking the guest Hangar', () => {
   const startScreen = read('components', 'StartScreen.tsx');
   const carousel = read('components', 'ShipCarousel.tsx');
-  const styles = read('styles', 'tailwind.input.css');
   const html = read('index.html');
 
   assert.match(startScreen, /setShipLockNudgeRevision\(\(revision\) => revision \+ 1\)/);
   assert.match(startScreen, /onActivateFocusedShip=\{requestFocusedShip\}/);
   assert.match(carousel, /onClick=\{\(\) => \{[\s\S]*suppressTapRef\.current[\s\S]*onActivateFocusedShip\(\)/);
   assert.doesNotMatch(startScreen, /disabled=\{Boolean\(walletAddress\) && focusedShipLocked\}/);
-  assert.match(startScreen, /data-lock-nudged=\{hangarLocked && connectNudgeActive/);
-  assert.match(styles, /data-lock-nudged='true'[\s\S]*?sci-dashboard-nav-lock/);
-  assert.match(styles, /@keyframes sci-dashboard-lock-rattle/);
+  assert.doesNotMatch(startScreen, /hangarLocked|data-lock-nudged|sci-dashboard-nav-lock/);
   assert.match(html, /sci-ship-carousel-lock--nudged/);
   assert.match(html, /@keyframes sci-ship-lock-rattle/);
 });

@@ -588,8 +588,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>(() => {
     if (testChampionWinner || requestedChampionWinner) return 'proposals';
     const requested = new URLSearchParams(window.location.search).get('view');
-    if (requested === 'hangar') return walletAddress ? 'hangar' : 'home';
-    return requested === 'proposals'
+    return requested === 'hangar'
+      || requested === 'proposals'
       || requested === 'trophies'
       || requested === 'more'
       ? requested
@@ -610,7 +610,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [testSelectedProposal, setTestSelectedProposal] = useState<ResearchHubProposal | null>(null);
   const [shipFocusId, setShipFocusId] = useState<PlayerShipId>(selectedShipId);
   const [shipLockNudgeRevision, setShipLockNudgeRevision] = useState(0);
-  const [connectNudgeActive, setConnectNudgeActive] = useState(false);
   const [weeklyClock, setWeeklyClock] = useState(() => Date.now());
   const [selectedLeaderboardRecord, setSelectedLeaderboardRecord] = useState<LeaderboardEntry | null>(null);
   const [leaderboardRecordStatus, setLeaderboardRecordStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -656,16 +655,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
     else url.searchParams.set('view', dashboardTab);
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }, [dashboardTab, testChampionWinner]);
-
-  useEffect(() => {
-    if (!walletAddress && dashboardTab === 'hangar') setDashboardTab('home');
-  }, [dashboardTab, walletAddress]);
-
-  useEffect(() => {
-    if (!connectNudgeActive) return undefined;
-    const timer = window.setTimeout(() => setConnectNudgeActive(false), 1800);
-    return () => window.clearTimeout(timer);
-  }, [connectNudgeActive]);
 
   useEffect(() => {
     const requestedWinner = testChampionWinner || requestedChampionWinner;
@@ -817,20 +806,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
     `Mint a ${getShipUnlockScore(shipId).toLocaleString()}+ score NFT to unlock this ship.`
   );
 
-  const requestHangar = () => {
-    if (walletAddress) {
-      setDashboardTab('hangar');
-      return;
-    }
-
-    setConnectNudgeActive(false);
-    window.requestAnimationFrame(() => setConnectNudgeActive(true));
-  };
+  const requestHangar = () => setDashboardTab('hangar');
 
   const requestFocusedShip = () => {
     if (focusedShipLocked) {
       setShipLockNudgeRevision((revision) => revision + 1);
-      if (!walletAddress) requestHangar();
+      requestHangar();
       return;
     }
 
@@ -1092,7 +1073,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
             getLockedMessage={getShipUnlockMessage}
             getShipAriaLabel={(shipId) => {
               const ship = PLAYER_SHIPS[shipId];
-              if (!walletAddress) return 'Connect your wallet for ship upgrades';
               return isPlayerShipUnlocked(shipId, shipUnlocks)
                 ? `Open ${ship.name} Squad Hangar`
                 : `${ship.name} locked. ${getShipUnlockMessage(shipId)}`;
@@ -1111,13 +1091,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <div className={`w-full max-w-xl ${compact ? 'space-y-2' : 'space-y-3'}`}>
           {walletControl ? (
-            <div className={`relative flex justify-center ${connectNudgeActive ? 'sci-wallet-connect-nudge' : ''}`}>
+            <div className="relative flex justify-center">
               {walletControl}
-              {!walletAddress && connectNudgeActive ? (
-                <span className="sci-wallet-connect-hint" role="status">
-                  Connect your wallet for ship upgrades
-                </span>
-              ) : null}
             </div>
           ) : null}
           <PixelActionButton
@@ -1311,13 +1286,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
       <div className="sci-dashboard-nav grid grid-cols-5 overflow-visible rounded-[8px] border border-cyan-300/24 bg-slate-950/92 shadow-[0_0_28px_rgba(8,145,178,0.18)] backdrop-blur-xl">
         {dashboardTabs.map((tab) => {
           const active = dashboardTab === tab.id;
-          const hangarLocked = tab.id === 'hangar' && !walletAddress;
           const rewardAttention = tab.id === 'more' && hasRewardReady;
           const proposalAttention = tab.id === 'trophies' && weeklyProposalNeedsAttention;
-          const tabLabel = hangarLocked
-            ? 'Hangar - Connect your wallet for ship upgrades'
-            : proposalAttention
-              ? 'Trophies - weekly high score proposal needs your selection'
+          const tabLabel = proposalAttention
+            ? 'Trophies - weekly high score proposal needs your selection'
             : rewardAttention
               ? `More - ${dailyGiftStatus.isAvailable ? 'daily gift' : 'achievement'} ready`
               : tab.label;
@@ -1327,15 +1299,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
               type="button"
               aria-label={tabLabel}
               aria-current={active ? 'page' : undefined}
-              title={hangarLocked ? 'Connect your wallet for ship upgrades' : undefined}
               data-dashboard-tab={tab.id}
               data-active={active ? 'true' : 'false'}
-              data-locked={hangarLocked ? 'true' : 'false'}
-              data-lock-nudged={hangarLocked && connectNudgeActive ? 'true' : 'false'}
               data-reward-ready={rewardAttention ? 'true' : 'false'}
               data-proposal-ready={proposalAttention ? 'true' : 'false'}
               data-icon-column={tab.spriteColumn}
-              onClick={tab.id === 'hangar' ? requestHangar : () => setDashboardTab(tab.id)}
+              onClick={() => setDashboardTab(tab.id)}
               className={`sci-dashboard-nav-button group relative flex min-h-[4.8rem] flex-col items-center justify-end gap-0.5 border-r border-cyan-200/12 px-1 pb-1.5 text-center text-xs font-semibold last:border-r-0 ${
                 active
                   ? 'text-white'
@@ -1344,25 +1313,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
             >
               <span className="sci-dashboard-nav-icon" aria-hidden="true">
                 <span className="sci-dashboard-nav-icon-sprite" />
-                {hangarLocked ? (
-                  <span className="sci-dashboard-nav-lock">
-                    <Icon name="lock" className="h-4 w-4" strokeWidth={2.5} />
-                  </span>
-                ) : null}
                 {rewardAttention || proposalAttention ? (
                   <span className="sci-dashboard-reward-ready" aria-hidden="true" />
                 ) : null}
               </span>
               <span className="sci-dashboard-nav-label">{tab.label}</span>
               <span className={`sci-dashboard-nav-marker ${active ? 'is-active' : ''}`} aria-hidden="true" />
-              {hangarLocked ? (
-                <span
-                  className={`sci-dashboard-nav-tooltip ${connectNudgeActive ? 'is-visible' : ''}`}
-                  role="tooltip"
-                >
-                  Connect your wallet for ship upgrades
-                </span>
-              ) : null}
             </button>
           );
         })}
@@ -1714,8 +1670,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
             {` ${weeklyAllocation.allocationRsc} RSC`} funding allocation.
           </p>
           <p>
-            Guests can play and submit scores. A Base Account unlocks the Hangar, wallet actions, and
-            onchain Mission Records.
+            Guests can play, upgrade their squad, and save Pilot progress on this device. Connect a
+            Base Account for minted items, wallet actions, and onchain Mission Records.
           </p>
         </header>
 
@@ -1778,7 +1734,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 
   const renderMobileDashboardContent = () => {
-    if (dashboardTab === 'hangar' && walletAddress) {
+    if (dashboardTab === 'hangar') {
       return (
         <SquadHangar
           state={weeklySquadState}
@@ -1814,7 +1770,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   };
 
   const renderSelectedDashboard = () => {
-    if (dashboardTab === 'hangar' && walletAddress) {
+    if (dashboardTab === 'hangar') {
       return (
         <SquadHangar
           state={weeklySquadState}

@@ -73,6 +73,12 @@ import {
   recordLifetimeRun,
   type AchievementId
 } from './services/rewardProgression';
+import {
+  initializeLocalPilotProfile,
+  migrateLegacyWalletIntoPilot,
+  readPilotStats,
+  savePilotStats
+} from './services/pilotProfileService';
 import { getStageName } from './services/stagePresentation';
 import { MAX_AUTHORED_CAMPAIGN_STAGES } from './services/campaignCombatProgression';
 import {
@@ -299,19 +305,22 @@ const App: React.FC = () => {
   const [walletRecords, setWalletRecords] = useState<MintRecord[]>([]);
   const [walletRuns, setWalletRuns] = useState<WalletRunRecord[]>([]);
   const [walletRunsLoading, setWalletRunsLoading] = useState(false);
+  const [pilotProfile] = useState(initializeLocalPilotProfile);
   const [selectedShipId, setSelectedShipId] = useState<PlayerShipId>(() => (
     parsePlayerShipId(localStorage.getItem(STORAGE_KEYS.SELECTED_SHIP))
   ));
   const [weeklySquadState, setWeeklySquadState] = useState<WeeklySquadState>(() => (
-    loadWeeklySquadState(null)
+    loadWeeklySquadState(pilotProfile.id)
   ));
   const [permanentSquadState, setPermanentSquadState] = useState<PermanentSquadState>(() => (
-    loadPermanentSquadState(null)
+    loadPermanentSquadState(pilotProfile.id)
   ));
   const [fundingProposals, setFundingProposals] = useState<ResearchHubProposal[]>([]);
   const [proposalReferences, setProposalReferences] = useState<ResearchHubProposal[]>([]);
   const [proposalStatus, setProposalStatus] = useState<ProposalFeedStatus>('loading');
-  const [playerNameInput, setPlayerNameInput] = useState<string>('');
+  const [playerNameInput, setPlayerNameInput] = useState<string>(() => (
+    readPilotStats(pilotProfile.id).playerName
+  ));
   const [showNameInput, setShowNameInput] = useState<boolean>(false);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(true);
   const [isSubmittingScore, setIsSubmittingScore] = useState<boolean>(false);
@@ -382,8 +391,6 @@ const App: React.FC = () => {
   const proposalRefreshNonceRef = useRef(0);
   const weeklyLeaderProposalIdRef = useRef<string | null>(null);
   const pendingDeploymentEntryRef = useRef<string | null>(null);
-  const walletProfileAddressRef = useRef<string | null>(null);
-  const hasLoadedWalletProfileRef = useRef(walletRuntimeEnabled);
   const lastMusicRotationGroupRef = useRef(0);
   const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
   const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
@@ -578,13 +585,13 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const loaded = loadWeeklySquadState(activeWalletAddress);
+    const loaded = loadWeeklySquadState(pilotProfile.id);
     const next = isOwnerWallet ? createFounderSquadSandboxState(loaded) : loaded;
     setWeeklySquadState(next);
-    setPermanentSquadState(loadPermanentSquadState(activeWalletAddress));
+    setPermanentSquadState(loadPermanentSquadState(pilotProfile.id));
     activeRunSquadLoadoutRef.current = buildRuntimeSquadLoadout(next, 'researchhub');
     preloadMiniShipTextures();
-  }, [activeWalletAddress, isOwnerWallet]);
+  }, [isOwnerWallet, pilotProfile.id]);
 
   const handleUnlockSquadSlot = useCallback((slot: SquadSlotId) => {
     if (isOwnerWallet) return;
@@ -642,36 +649,6 @@ const App: React.FC = () => {
   const isContinuePaymentBusy = continuePaymentStatus === 'switching_network'
     || continuePaymentStatus === 'processing'
     || continuePaymentStatus === 'confirming';
-
-  const getWalletProfileKey = (walletAddress?: string | null) => (
-    walletAddress ? `${STORAGE_KEYS.PLAYER_STATS}:${walletAddress.toLowerCase()}` : STORAGE_KEYS.PLAYER_STATS
-  );
-
-  const readSavedStats = (walletAddress?: string | null) => {
-    if (!walletAddress) {
-      return {
-        highScore: parseInt(localStorage.getItem(STORAGE_KEYS.HIGH_SCORE) || '0'),
-        totalCoins: 0,
-        playerName: ''
-      };
-    }
-
-    const savedStats = localStorage.getItem(getWalletProfileKey(walletAddress));
-
-    if (savedStats) {
-      try {
-        return JSON.parse(savedStats);
-      } catch (e) {
-        console.error("Failed to parse saved stats", e);
-      }
-    }
-
-    return {
-      highScore: 0,
-      totalCoins: 0,
-      playerName: ''
-    };
-  };
 
   useEffect(() => {
     let active = true;
@@ -817,7 +794,7 @@ const App: React.FC = () => {
   }, [gameState, refreshFundingProposals]);
 
   const getInitialStats = (): Stats => {
-    const parsed = readSavedStats(activeWalletAddress);
+    const parsed = readPilotStats(pilotProfile.id);
 
     return {
       score: 0,
@@ -891,32 +868,12 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const statsToSave = {
+    savePilotStats(pilotProfile.id, {
       highScore: stats.highScore,
       totalCoins: stats.totalCoins,
       playerName: playerNameInput
-    };
-    const walletProfileAddress = walletProfileAddressRef.current;
-    const normalizedActiveWalletAddress = activeWalletAddress?.toLowerCase() || null;
-    if (walletProfileAddress && walletProfileAddress === normalizedActiveWalletAddress) {
-      localStorage.setItem(getWalletProfileKey(walletProfileAddress), JSON.stringify(statsToSave));
-    } else if (!walletProfileAddress && !normalizedActiveWalletAddress) {
-      localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.highScore.toString());
-    }
-  }, [activeWalletAddress, playerNameInput, stats.highScore, stats.totalCoins]);
-
-  useEffect(() => {
-    if (activeWalletAddress) return;
-
-    walletProfileAddressRef.current = null;
-    if (gameState !== GameState.MENU) return;
-
-    setStats((current) => ({
-      ...current,
-      highScore: parseInt(localStorage.getItem(STORAGE_KEYS.HIGH_SCORE) || '0'),
-      totalCoins: 0
-    }));
-  }, [activeWalletAddress, gameState]);
+    });
+  }, [pilotProfile.id, playerNameInput, stats.highScore, stats.totalCoins]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.POLISH_SETTINGS, JSON.stringify(polishSettings));
@@ -945,31 +902,25 @@ const App: React.FC = () => {
     trackEvent('wallet_connected');
 
     localStorage.setItem(STORAGE_KEYS.WALLET_ADDRESS, activeWalletAddress);
-    const savedStats = readSavedStats(activeWalletAddress);
-    const shouldMergeLocalProgress = !hasLoadedWalletProfileRef.current;
-    walletProfileAddressRef.current = activeWalletAddress.toLowerCase();
-    hasLoadedWalletProfileRef.current = true;
-    const nextWalletProfile = {
-      highScore: shouldMergeLocalProgress
-        ? Math.max(stats.highScore, savedStats.highScore || 0)
-        : savedStats.highScore || 0,
-      totalCoins: shouldMergeLocalProgress
-        ? Math.max(stats.totalCoins, savedStats.totalCoins || 0)
-        : savedStats.totalCoins || 0,
-      playerName: shouldMergeLocalProgress
-        ? playerNameInput || savedStats.playerName || ''
-        : savedStats.playerName || ''
-    };
-    localStorage.setItem(
-      getWalletProfileKey(activeWalletAddress),
-      JSON.stringify(nextWalletProfile)
+    const migration = migrateLegacyWalletIntoPilot(
+      pilotProfile.id,
+      activeWalletAddress
     );
-    setStats(prev => ({
-      ...prev,
-      highScore: nextWalletProfile.highScore,
-      totalCoins: nextWalletProfile.totalCoins
-    }));
-    setPlayerNameInput(nextWalletProfile.playerName);
+    if (migration.migrated) {
+      const importedWeeklyState = loadWeeklySquadState(pilotProfile.id);
+      const nextWeeklyState = isOwnerWallet
+        ? createFounderSquadSandboxState(importedWeeklyState)
+        : importedWeeklyState;
+      const importedStats = readPilotStats(pilotProfile.id);
+      setWeeklySquadState(nextWeeklyState);
+      setPermanentSquadState(loadPermanentSquadState(pilotProfile.id));
+      setStats((current) => ({
+        ...current,
+        highScore: importedStats.highScore,
+        totalCoins: importedStats.totalCoins
+      }));
+      setPlayerNameInput((current) => current || importedStats.playerName);
+    }
 
     setWalletRunsLoading(true);
     void Promise.all([
@@ -986,7 +937,7 @@ const App: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeWalletAddress]);
+  }, [activeWalletAddress, isOwnerWallet, pilotProfile.id]);
 
   useEffect(() => {
     if (!isOwnerWallet || activeRunMode === 'owner-test') return;
@@ -1259,7 +1210,7 @@ const App: React.FC = () => {
   };
 
   const showWaveVictory = (summary: WaveVictorySummary) => {
-    if (activeWalletAddress && !isFounderSandboxRun) {
+    if (!isFounderSandboxRun) {
       const victoryKey = `${gameId}:${summary.id}`;
       if (!permanentBossAppliedKeysRef.current.has(victoryKey)) {
         permanentBossAppliedKeysRef.current.add(victoryKey);
@@ -1426,15 +1377,11 @@ const App: React.FC = () => {
   }, [permanentSquadState, weeklySquadState]);
 
   const handleClaimDailyGift = useCallback(() => {
-    if (!activeWalletAddress) {
-      connectWallet();
-      return null;
-    }
+    if (isOwnerWallet) return null;
     if (rewardClaimInFlightRef.current) return null;
-    const activeProfileId = activeWalletAddress.trim().toLowerCase();
     if (
-      permanentSquadState.profileId !== activeProfileId
-      || weeklySquadState.profileId !== activeProfileId
+      permanentSquadState.profileId !== pilotProfile.id
+      || weeklySquadState.profileId !== pilotProfile.id
     ) return null;
 
     rewardClaimInFlightRef.current = true;
@@ -1460,23 +1407,19 @@ const App: React.FC = () => {
       return null;
     }
   }, [
-    activeWalletAddress,
-    connectWallet,
+    isOwnerWallet,
     permanentSquadState,
+    pilotProfile.id,
     persistRewardClaim,
     weeklySquadState
   ]);
 
   const handleClaimAchievement = useCallback((id: AchievementId) => {
-    if (!activeWalletAddress) {
-      connectWallet();
-      return null;
-    }
+    if (isOwnerWallet) return null;
     if (rewardClaimInFlightRef.current) return null;
-    const activeProfileId = activeWalletAddress.trim().toLowerCase();
     if (
-      permanentSquadState.profileId !== activeProfileId
-      || weeklySquadState.profileId !== activeProfileId
+      permanentSquadState.profileId !== pilotProfile.id
+      || weeklySquadState.profileId !== pilotProfile.id
     ) return null;
 
     rewardClaimInFlightRef.current = true;
@@ -1502,9 +1445,9 @@ const App: React.FC = () => {
       return null;
     }
   }, [
-    activeWalletAddress,
-    connectWallet,
+    isOwnerWallet,
     permanentSquadState,
+    pilotProfile.id,
     persistRewardClaim,
     weeklySquadState
   ]);
@@ -1622,7 +1565,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (gameState === GameState.GAMEOVER) {
-      if (activeWalletAddress && !isFounderSandboxRun && squadRunAppliedGameIdRef.current !== gameId) {
+      if (!isFounderSandboxRun && squadRunAppliedGameIdRef.current !== gameId) {
         squadRunAppliedGameIdRef.current = gameId;
         updateWeeklySquadState((current) => applySquadRunResult(current, {
           score: stats.score,
@@ -1630,7 +1573,7 @@ const App: React.FC = () => {
           coinsCollected: stats.coins
         }));
       }
-      if (activeWalletAddress && !isFounderSandboxRun && permanentRunAppliedGameIdRef.current !== gameId) {
+      if (!isFounderSandboxRun && permanentRunAppliedGameIdRef.current !== gameId) {
         permanentRunAppliedGameIdRef.current = gameId;
         updatePermanentSquadState((current) => recordLifetimeRun(current, {
           score: stats.score,
@@ -1646,16 +1589,13 @@ const App: React.FC = () => {
       }
 
       if (!isFounderSandboxRun && stats.score > stats.highScore) {
-        if (!activeWalletAddress) {
-          localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, stats.score.toString());
-        }
         setStats(s => ({ ...s, highScore: s.score }));
       }
 
       setScoreSubmitError('');
       setShowNameInput(true);
     }
-  }, [activeWalletAddress, gameId, gameState, isFounderSandboxRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
+  }, [gameId, gameState, isFounderSandboxRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
 
   const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;

@@ -57,7 +57,7 @@ export type MiniShipAbilityKind =
 export const FIRST_LEFT_WING_MINI_SHIP_ID: MiniShipId = 'citation-dart';
 
 export type SquadDomainEventName =
-  | 'wallet_profile_loaded'
+  | 'pilot_profile_loaded'
   | 'weekly_state_reset'
   | 'coin_earned'
   | 'slot_unlocked'
@@ -337,7 +337,7 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
 
 export const MINI_SHIP_UPGRADE_COST_CURVE = [0, 100, 225, 400, 650] as const;
 
-const getProfileId = (walletAddress?: string | null) => walletAddress?.trim().toLowerCase() || 'guest';
+const normalizeProfileId = (profileId?: string | null) => profileId?.trim().toLowerCase() || 'guest';
 const weeklyStorageKey = (profileId: string) => `scicon_weekly_squad_v${SQUAD_PROFILE_VERSION}:${profileId}`;
 const retiredWeeklyStorageKeys = (profileId: string) => (
   RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS.map((version) => `scicon_weekly_squad_v${version}:${profileId}`)
@@ -381,11 +381,11 @@ export const emitSquadDomainEvent = (
 };
 
 export const createWeeklySquadState = (
-  walletAddress?: string | null,
+  profileId?: string | null,
   weekKey = getWeeklyBoundaryMeta(new Date()).weekKey
 ): WeeklySquadState => ({
   version: SQUAD_PROFILE_VERSION,
-  profileId: getProfileId(walletAddress),
+  profileId: normalizeProfileId(profileId),
   weekKey,
   coins: WEEKLY_STARTING_COINS,
   unlockedSlots: { left: false, right: false },
@@ -396,9 +396,9 @@ export const createWeeklySquadState = (
   updatedAt: nowIso()
 });
 
-export const createPermanentSquadState = (walletAddress?: string | null): PermanentSquadState => ({
+export const createPermanentSquadState = (profileId?: string | null): PermanentSquadState => ({
   version: PERMANENT_SQUAD_PROFILE_VERSION,
-  profileId: getProfileId(walletAddress),
+  profileId: normalizeProfileId(profileId),
   mintedMiniShips: [],
   cosmetics: [],
   weeklyArchive: [],
@@ -423,9 +423,9 @@ type StoredWeeklySquadState = Omit<Partial<WeeklySquadState>, 'shipUpgrades'> & 
 
 const sanitizeWeeklyState = (
   value: StoredWeeklySquadState,
-  walletAddress?: string | null
+  profileId?: string | null
 ): WeeklySquadState => {
-  const fallback = createWeeklySquadState(walletAddress);
+  const fallback = createWeeklySquadState(profileId);
   const { upgrades: legacyUpgrades, ...currentValue } = value;
   const owned = { ...fallback.ownedMiniShips };
   Object.entries(value.ownedMiniShips || {}).forEach(([id, level]) => {
@@ -447,7 +447,7 @@ const sanitizeWeeklyState = (
     ...fallback,
     ...currentValue,
     version: SQUAD_PROFILE_VERSION,
-    profileId: getProfileId(walletAddress),
+    profileId: normalizeProfileId(profileId),
     coins: Math.max(0, Math.floor(Number(value.coins) || 0)),
     unlockedSlots: {
       left: Boolean(value.unlockedSlots?.left),
@@ -466,30 +466,20 @@ const sanitizeWeeklyState = (
   };
 };
 
-export const loadWeeklySquadState = (walletAddress?: string | null): WeeklySquadState => {
-  const profileId = getProfileId(walletAddress);
+export const loadWeeklySquadState = (requestedProfileId?: string | null): WeeklySquadState => {
+  const profileId = normalizeProfileId(requestedProfileId);
   const currentWeek = getWeeklyBoundaryMeta(new Date()).weekKey;
-  let state = createWeeklySquadState(walletAddress, currentWeek);
-
-  // Guests receive a clean runtime squad. Hangar inventory belongs to a
-  // connected wallet and must not leak in from an old shared-browser save.
-  if (!walletAddress?.trim()) {
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(weeklyStorageKey(profileId));
-      retiredWeeklyStorageKeys(profileId).forEach((key) => window.localStorage.removeItem(key));
-    }
-    return state;
-  }
+  let state = createWeeklySquadState(profileId, currentWeek);
 
   try {
     const saved = typeof window !== 'undefined' ? window.localStorage.getItem(weeklyStorageKey(profileId)) : null;
-    if (saved) state = sanitizeWeeklyState(JSON.parse(saved) as StoredWeeklySquadState, walletAddress);
+    if (saved) state = sanitizeWeeklyState(JSON.parse(saved) as StoredWeeklySquadState, profileId);
   } catch {
-    state = createWeeklySquadState(walletAddress, currentWeek);
+    state = createWeeklySquadState(profileId, currentWeek);
   }
 
   if (state.weekKey !== currentWeek) {
-    state = createWeeklySquadState(walletAddress, currentWeek);
+    state = createWeeklySquadState(profileId, currentWeek);
     emitSquadDomainEvent('weekly_state_reset', { profileId, weekKey: currentWeek });
   }
 
@@ -498,12 +488,12 @@ export const loadWeeklySquadState = (walletAddress?: string | null): WeeklySquad
   }
 
   saveWeeklySquadState(state);
-  emitSquadDomainEvent('wallet_profile_loaded', { profileId, weekKey: state.weekKey });
+  emitSquadDomainEvent('pilot_profile_loaded', { profileId, weekKey: state.weekKey });
   return state;
 };
 
 export const saveWeeklySquadState = (state: WeeklySquadState) => {
-  if (typeof window === 'undefined' || state.profileId === 'guest') return;
+  if (typeof window === 'undefined') return;
   window.localStorage.setItem(weeklyStorageKey(state.profileId), JSON.stringify({
     ...state,
     updatedAt: nowIso()
@@ -568,13 +558,9 @@ export const adjustFounderMainShipUpgrade = (
   };
 };
 
-export const loadPermanentSquadState = (walletAddress?: string | null): PermanentSquadState => {
-  const fallback = createPermanentSquadState(walletAddress);
+export const loadPermanentSquadState = (requestedProfileId?: string | null): PermanentSquadState => {
+  const fallback = createPermanentSquadState(requestedProfileId);
   if (typeof window === 'undefined') return fallback;
-  if (!walletAddress?.trim()) {
-    window.localStorage.removeItem(permanentStorageKey(fallback.profileId));
-    return fallback;
-  }
   try {
     const saved = window.localStorage.getItem(permanentStorageKey(fallback.profileId));
     if (!saved) return fallback;
@@ -616,11 +602,218 @@ export const loadPermanentSquadState = (walletAddress?: string | null): Permanen
 };
 
 export const savePermanentSquadState = (state: PermanentSquadState) => {
-  if (typeof window === 'undefined' || state.profileId === 'guest') return;
+  if (typeof window === 'undefined') return;
   window.localStorage.setItem(permanentStorageKey(state.profileId), JSON.stringify({
     ...state,
     updatedAt: nowIso()
   }));
+};
+
+export interface SquadProfileMigrationResult {
+  weekly: boolean;
+  permanent: boolean;
+  sourceFound: boolean;
+  success: boolean;
+}
+
+const verifyStoredProfile = (key: string, profileId: string) => {
+  if (typeof window === 'undefined') return false;
+  const stored = window.localStorage.getItem(key);
+  if (!stored) return false;
+  try {
+    return normalizeProfileId(JSON.parse(stored)?.profileId) === profileId;
+  } catch {
+    return false;
+  }
+};
+
+const mergeWeeklySquadProfiles = (
+  target: WeeklySquadState,
+  source: WeeklySquadState
+): WeeklySquadState => {
+  const ownedMiniShips = { ...target.ownedMiniShips };
+  Object.entries(source.ownedMiniShips).forEach(([id, level]) => {
+    const miniShipId = id as MiniShipId;
+    ownedMiniShips[miniShipId] = Math.max(
+      Number(ownedMiniShips[miniShipId]) || 0,
+      Number(level) || 0
+    );
+  });
+
+  const shipUpgrades = Object.fromEntries(
+    PLAYABLE_PLAYER_SHIP_IDS.map((shipId) => {
+      const targetUpgrades = target.shipUpgrades[shipId] ?? createMainShipUpgradeLevels();
+      const sourceUpgrades = source.shipUpgrades[shipId] ?? createMainShipUpgradeLevels();
+      return [shipId, {
+        fireRate: Math.max(targetUpgrades.fireRate, sourceUpgrades.fireRate),
+        speed: Math.max(targetUpgrades.speed, sourceUpgrades.speed),
+        startingHearts: Math.max(targetUpgrades.startingHearts, sourceUpgrades.startingHearts)
+      }];
+    })
+  ) as MainShipUpgradesByShip;
+
+  const unlockedSlots = {
+    left: target.unlockedSlots.left || source.unlockedSlots.left,
+    right: target.unlockedSlots.right || source.unlockedSlots.right
+  };
+  const equipped = { ...target.equipped };
+  (['left', 'right'] as const).forEach((slot) => {
+    if (
+      !equipped[slot]
+      && unlockedSlots[slot]
+      && source.equipped[slot]
+      && ownedMiniShips[source.equipped[slot] as MiniShipId]
+    ) {
+      equipped[slot] = source.equipped[slot];
+    }
+  });
+
+  return {
+    ...target,
+    coins: Math.max(target.coins, source.coins),
+    unlockedSlots,
+    ownedMiniShips,
+    equipped,
+    shipUpgrades,
+    weeklyStats: {
+      runs: Math.max(target.weeklyStats.runs, source.weeklyStats.runs),
+      score: Math.max(target.weeklyStats.score, source.weeklyStats.score),
+      enemiesDefeated: Math.max(
+        target.weeklyStats.enemiesDefeated,
+        source.weeklyStats.enemiesDefeated
+      ),
+      coinsEarned: Math.max(
+        target.weeklyStats.coinsEarned,
+        source.weeklyStats.coinsEarned
+      )
+    },
+    updatedAt: nowIso()
+  };
+};
+
+const mergePermanentSquadProfiles = (
+  target: PermanentSquadState,
+  source: PermanentSquadState
+): PermanentSquadState => {
+  const achievementIds = new Set([
+    ...Object.keys(target.achievementTiers),
+    ...Object.keys(source.achievementTiers)
+  ]);
+  const lastClaimDate = [target.dailyGifts.lastClaimDate, source.dailyGifts.lastClaimDate]
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1) ?? null;
+
+  return {
+    ...target,
+    // Minted ownership always follows the currently connected wallet. It is
+    // deliberately excluded from the device Pilot import.
+    mintedMiniShips: target.mintedMiniShips,
+    cosmetics: Array.from(new Set([...target.cosmetics, ...source.cosmetics])),
+    weeklyArchive: Array.from(new Set([...target.weeklyArchive, ...source.weeklyArchive])),
+    dailyGifts: {
+      currentDay: Math.max(target.dailyGifts.currentDay, source.dailyGifts.currentDay),
+      lastClaimDate
+    },
+    lifetimeStats: {
+      runs: Math.max(target.lifetimeStats.runs, source.lifetimeStats.runs),
+      highestWave: Math.max(target.lifetimeStats.highestWave, source.lifetimeStats.highestWave),
+      enemiesDefeated: Math.max(
+        target.lifetimeStats.enemiesDefeated,
+        source.lifetimeStats.enemiesDefeated
+      ),
+      bossesDefeated: Math.max(
+        target.lifetimeStats.bossesDefeated,
+        source.lifetimeStats.bossesDefeated
+      ),
+      coinsCollected: Math.max(
+        target.lifetimeStats.coinsCollected,
+        source.lifetimeStats.coinsCollected
+      ),
+      bestScore: Math.max(target.lifetimeStats.bestScore, source.lifetimeStats.bestScore)
+    },
+    achievementTiers: Object.fromEntries(
+      Array.from(achievementIds).map((id) => [
+        id,
+        Math.max(target.achievementTiers[id] || 0, source.achievementTiers[id] || 0)
+      ])
+    ),
+    unlockedPlayerShips: Array.from(new Set([
+      ...target.unlockedPlayerShips,
+      ...source.unlockedPlayerShips
+    ])),
+    updatedAt: nowIso()
+  };
+};
+
+export const migrateLegacySquadProfile = (
+  sourceProfileId?: string | null,
+  targetProfileId?: string | null
+): SquadProfileMigrationResult => {
+  const sourceId = normalizeProfileId(sourceProfileId);
+  const targetId = normalizeProfileId(targetProfileId);
+  const result: SquadProfileMigrationResult = {
+    weekly: false,
+    permanent: false,
+    sourceFound: false,
+    success: true
+  };
+  if (
+    typeof window === 'undefined'
+    || sourceId === 'guest'
+    || targetId === 'guest'
+    || sourceId === targetId
+  ) return result;
+
+  const targetWeeklyKey = weeklyStorageKey(targetId);
+  const sourceWeekly = [
+    weeklyStorageKey(sourceId),
+    ...retiredWeeklyStorageKeys(sourceId)
+  ].map((key) => window.localStorage.getItem(key)).find(Boolean);
+  if (sourceWeekly) {
+    result.sourceFound = true;
+    try {
+      const sourceState = sanitizeWeeklyState(
+        JSON.parse(sourceWeekly) as StoredWeeklySquadState,
+        sourceId
+      );
+      const targetState = loadWeeklySquadState(targetId);
+      if (sourceState.weekKey === targetState.weekKey) {
+        saveWeeklySquadState(mergeWeeklySquadProfiles(targetState, sourceState));
+        if (!verifyStoredProfile(targetWeeklyKey, targetId)) {
+          result.success = false;
+        } else {
+          result.weekly = true;
+        }
+      }
+    } catch {
+      result.success = false;
+    }
+  }
+
+  const targetPermanentKey = permanentStorageKey(targetId);
+  const sourcePermanentKey = permanentStorageKey(sourceId);
+  const sourcePermanentRaw = window.localStorage.getItem(sourcePermanentKey);
+  if (sourcePermanentRaw) {
+    result.sourceFound = true;
+    try {
+      JSON.parse(sourcePermanentRaw);
+      const sourcePermanent = loadPermanentSquadState(sourceId);
+      const targetPermanent = loadPermanentSquadState(targetId);
+      savePermanentSquadState(
+        mergePermanentSquadProfiles(targetPermanent, sourcePermanent)
+      );
+      if (!verifyStoredProfile(targetPermanentKey, targetId)) {
+        result.success = false;
+      } else {
+        result.permanent = true;
+      }
+    } catch {
+      result.success = false;
+    }
+  }
+
+  return result;
 };
 
 const spendCoins = (state: WeeklySquadState, cost: number) => ({
