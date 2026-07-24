@@ -51,7 +51,10 @@ test('guest runs load and save device Pilot Hangar progress while score submissi
   assert.match(app, /const \[pilotProfile\] = useState\(initializeLocalPilotProfile\)/);
   assert.match(app, /loadWeeklySquadState\(pilotProfile\.id\)/);
   assert.match(app, /loadPermanentSquadState\(pilotProfile\.id\)/);
-  assert.match(app, /savePilotStats\(pilotProfile\.id/);
+  assert.match(app, /hydrateActiveProfile\(\{\s*profileId: pilotProfile\.id\s*\}\)/);
+  assert.match(app, /savePilotStats\(activeProfileId/);
+  assert.match(app, /getWalletProfileId\(normalizedAddress\)/);
+  assert.match(app, /saveAuthenticatedWalletProfile\(\{/);
   assert.match(app, /if \(!isFounderSandboxRun && squadRunAppliedGameIdRef\.current !== gameId\)/);
   assert.match(app, /if \(!isFounderSandboxRun && permanentRunAppliedGameIdRef\.current !== gameId\)/);
   assert.match(app, /saveScore\(name, score, wave, \{[\s\S]*walletAddress: activeWalletAddress/);

@@ -52,6 +52,7 @@ import {
   equipMiniShip,
   loadPermanentSquadState,
   loadWeeklySquadState,
+  migrateLegacySquadProfile,
   preloadMiniShipTextures,
   purchaseMiniShip,
   savePermanentSquadState,
@@ -75,10 +76,26 @@ import {
 } from './services/rewardProgression';
 import {
   initializeLocalPilotProfile,
-  migrateLegacyWalletIntoPilot,
   readPilotStats,
   savePilotStats
 } from './services/pilotProfileService';
+import {
+  cacheWalletProfile,
+  flushDirtyWalletProfile,
+  getSelectedShipStorageKey,
+  getWalletProfileId,
+  loadAuthenticatedWalletProfile,
+  logoutWalletProfileSession,
+  readCachedWalletProfile,
+  saveAuthenticatedWalletProfile,
+  WalletProfileRequestError,
+  type WalletProfileSnapshot
+} from './services/walletProfileService';
+import {
+  markWalletProfileDirty,
+  readWalletProfileDirty,
+  walletProfileSnapshotsEqual
+} from './services/walletProfileDirtyStore';
 import { getStageName } from './services/stagePresentation';
 import { MAX_AUTHORED_CAMPAIGN_STAGES } from './services/campaignCombatProgression';
 import {
@@ -306,8 +323,12 @@ const App: React.FC = () => {
   const [walletRuns, setWalletRuns] = useState<WalletRunRecord[]>([]);
   const [walletRunsLoading, setWalletRunsLoading] = useState(false);
   const [pilotProfile] = useState(initializeLocalPilotProfile);
+  const [activeProfileId, setActiveProfileId] = useState(pilotProfile.id);
   const [selectedShipId, setSelectedShipId] = useState<PlayerShipId>(() => (
-    parsePlayerShipId(localStorage.getItem(STORAGE_KEYS.SELECTED_SHIP))
+    parsePlayerShipId(
+      localStorage.getItem(getSelectedShipStorageKey(pilotProfile.id))
+      || localStorage.getItem(STORAGE_KEYS.SELECTED_SHIP)
+    )
   ));
   const [weeklySquadState, setWeeklySquadState] = useState<WeeklySquadState>(() => (
     loadWeeklySquadState(pilotProfile.id)
@@ -328,6 +349,9 @@ const App: React.FC = () => {
   const [scoreSubmitError, setScoreSubmitError] = useState<string>('');
   const [showLabGlow, setShowLabGlow] = useState<boolean>(true);
   const [walletError, setWalletError] = useState<string>('');
+  const [walletProfileStatus, setWalletProfileStatus] = useState<
+    'guest' | 'authenticating' | 'ready' | 'syncing' | 'error'
+  >('guest');
   const [walletRuntimeEnabled, setWalletRuntimeEnabled] = useState(() => (
     Boolean(localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS))
   ));
@@ -387,6 +411,15 @@ const App: React.FC = () => {
     buildRuntimeSquadLoadout(weeklySquadState, 'researchhub')
   );
   const walletActionNonceRef = useRef(0);
+  const profileTransitionNonceRef = useRef(0);
+  const walletProfileRevisionRef = useRef(0);
+  const walletProfileAddressRef = useRef<string | null>(null);
+  const walletProfileSessionAddressRef = useRef<string | null>(null);
+  const walletProfileHydratingRef = useRef(false);
+  const walletProfileSyncedSnapshotRef = useRef<WalletProfileSnapshot | null>(null);
+  const walletProfileLocalBaselineRef = useRef<WalletProfileSnapshot | null>(null);
+  const walletProfileSaveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const walletProfileSessionChainRef = useRef<Promise<void>>(Promise.resolve());
   const rewardClaimInFlightRef = useRef(false);
   const proposalRefreshNonceRef = useRef(0);
   const weeklyLeaderProposalIdRef = useRef<string | null>(null);
@@ -583,15 +616,6 @@ const App: React.FC = () => {
       return next;
     });
   }, []);
-
-  useEffect(() => {
-    const loaded = loadWeeklySquadState(pilotProfile.id);
-    const next = isOwnerWallet ? createFounderSquadSandboxState(loaded) : loaded;
-    setWeeklySquadState(next);
-    setPermanentSquadState(loadPermanentSquadState(pilotProfile.id));
-    activeRunSquadLoadoutRef.current = buildRuntimeSquadLoadout(next, 'researchhub');
-    preloadMiniShipTextures();
-  }, [isOwnerWallet, pilotProfile.id]);
 
   const handleUnlockSquadSlot = useCallback((slot: SquadSlotId) => {
     if (isOwnerWallet) return;
@@ -794,7 +818,7 @@ const App: React.FC = () => {
   }, [gameState, refreshFundingProposals]);
 
   const getInitialStats = (): Stats => {
-    const parsed = readPilotStats(pilotProfile.id);
+    const parsed = readPilotStats(activeProfileId);
 
     return {
       score: 0,
@@ -868,20 +892,23 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    savePilotStats(pilotProfile.id, {
+    savePilotStats(activeProfileId, {
       highScore: stats.highScore,
       totalCoins: stats.totalCoins,
       playerName: playerNameInput
     });
-  }, [pilotProfile.id, playerNameInput, stats.highScore, stats.totalCoins]);
+  }, [activeProfileId, playerNameInput, stats.highScore, stats.totalCoins]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.POLISH_SETTINGS, JSON.stringify(polishSettings));
   }, [polishSettings]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.SELECTED_SHIP, selectedShipId);
-  }, [selectedShipId]);
+    localStorage.setItem(
+      getSelectedShipStorageKey(activeProfileId),
+      selectedShipId
+    );
+  }, [activeProfileId, selectedShipId]);
 
   const togglePolishSetting = (key: keyof GamePolishSettings) => {
     setPolishSettings(prev => ({
@@ -889,6 +916,242 @@ const App: React.FC = () => {
       [key]: !prev[key]
     }));
   };
+
+  const hydrateActiveProfile = useCallback(({
+    profileId,
+    snapshot,
+    founderSandbox = false
+  }: {
+    profileId: string;
+    snapshot?: WalletProfileSnapshot;
+    founderSandbox?: boolean;
+  }) => {
+    walletProfileHydratingRef.current = true;
+
+    if (snapshot) {
+      saveWeeklySquadState({
+        ...snapshot.weeklyState,
+        profileId
+      });
+      savePermanentSquadState({
+        ...snapshot.permanentState,
+        profileId,
+        // Minted ownership is always derived from wallet records/onchain data.
+        mintedMiniShips: []
+      });
+      savePilotStats(profileId, snapshot.stats);
+      localStorage.setItem(
+        getSelectedShipStorageKey(profileId),
+        snapshot.selectedShipId
+      );
+    }
+
+    const storedWeekly = loadWeeklySquadState(profileId);
+    const nextWeekly = founderSandbox
+      ? createFounderSquadSandboxState(storedWeekly)
+      : storedWeekly;
+    const nextPermanent = loadPermanentSquadState(profileId);
+    const nextStats = readPilotStats(profileId);
+    const nextShip = parsePlayerShipId(
+      localStorage.getItem(getSelectedShipStorageKey(profileId))
+    );
+
+    setActiveProfileId(profileId);
+    setWeeklySquadState(nextWeekly);
+    setPermanentSquadState(nextPermanent);
+    setPlayerNameInput(nextStats.playerName);
+    setSelectedShipId(nextShip);
+    setStats((current) => ({
+      ...current,
+      highScore: nextStats.highScore,
+      totalCoins: nextStats.totalCoins
+    }));
+    activeRunSquadLoadoutRef.current = buildRuntimeSquadLoadout(
+      nextWeekly,
+      nextShip
+    );
+    window.queueMicrotask(() => {
+      walletProfileHydratingRef.current = false;
+    });
+    return {
+      stats: nextStats,
+      weeklyState: nextWeekly,
+      permanentState: {
+        ...nextPermanent,
+        mintedMiniShips: []
+      },
+      selectedShipId: nextShip
+    } satisfies WalletProfileSnapshot;
+  }, []);
+
+  const createWalletSeedSnapshot = useCallback((
+    walletAddress: string,
+    walletProfileId: string
+  ): WalletProfileSnapshot => {
+    const normalizedAddress = walletAddress.toLowerCase();
+
+    // Only import saves that already belong to this exact verified wallet.
+    migrateLegacySquadProfile(normalizedAddress, walletProfileId);
+    if (pilotProfile.migratedFromWallet === normalizedAddress) {
+      migrateLegacySquadProfile(pilotProfile.id, walletProfileId);
+      const pilotStats = readPilotStats(pilotProfile.id);
+      const walletStats = readPilotStats(walletProfileId);
+      savePilotStats(walletProfileId, {
+        highScore: Math.max(walletStats.highScore, pilotStats.highScore),
+        totalCoins: Math.max(walletStats.totalCoins, pilotStats.totalCoins),
+        playerName: walletStats.playerName || pilotStats.playerName
+      });
+    } else {
+      const legacyStats = readPilotStats(normalizedAddress);
+      const walletStats = readPilotStats(walletProfileId);
+      savePilotStats(walletProfileId, {
+        highScore: Math.max(walletStats.highScore, legacyStats.highScore),
+        totalCoins: Math.max(walletStats.totalCoins, legacyStats.totalCoins),
+        playerName: walletStats.playerName || legacyStats.playerName
+      });
+    }
+
+    const selectedShip = pilotProfile.migratedFromWallet === normalizedAddress
+      ? parsePlayerShipId(localStorage.getItem(STORAGE_KEYS.SELECTED_SHIP))
+      : parsePlayerShipId(
+        localStorage.getItem(getSelectedShipStorageKey(walletProfileId))
+      );
+    localStorage.setItem(
+      getSelectedShipStorageKey(walletProfileId),
+      selectedShip
+    );
+
+    return {
+      stats: readPilotStats(walletProfileId),
+      weeklyState: loadWeeklySquadState(walletProfileId),
+      permanentState: {
+        ...loadPermanentSquadState(walletProfileId),
+        mintedMiniShips: []
+      },
+      selectedShipId: selectedShip
+    };
+  }, [pilotProfile.id, pilotProfile.migratedFromWallet]);
+
+  useEffect(() => {
+    const transitionNonce = profileTransitionNonceRef.current + 1;
+    profileTransitionNonceRef.current = transitionNonce;
+    let cancelled = false;
+    const isCurrent = () => (
+      !cancelled
+      && profileTransitionNonceRef.current === transitionNonce
+    );
+    const normalizedAddress = activeWalletAddress?.toLowerCase() ?? null;
+
+    walletProfileAddressRef.current = normalizedAddress;
+    walletProfileRevisionRef.current = 0;
+    walletProfileSyncedSnapshotRef.current = null;
+    walletProfileLocalBaselineRef.current = null;
+
+    if (!normalizedAddress) {
+      setWalletProfileStatus('guest');
+      walletProfileLocalBaselineRef.current = hydrateActiveProfile({
+        profileId: pilotProfile.id
+      });
+    } else {
+      const walletProfileId = getWalletProfileId(normalizedAddress);
+      setWalletProfileStatus('authenticating');
+      setWalletError('');
+      localStorage.setItem(STORAGE_KEYS.WALLET_ADDRESS, normalizedAddress);
+      const dirty = readWalletProfileDirty(normalizedAddress);
+      const cached = readCachedWalletProfile(normalizedAddress);
+      walletProfileRevisionRef.current = dirty?.expectedRevision
+        ?? cached?.revision
+        ?? 0;
+      walletProfileSyncedSnapshotRef.current = dirty?.baseSnapshot
+        ?? cached?.snapshot
+        ?? null;
+      walletProfileLocalBaselineRef.current = hydrateActiveProfile({
+        profileId: walletProfileId,
+        snapshot: dirty?.snapshot ?? cached?.snapshot,
+        founderSandbox: isOwnerWallet
+      });
+    }
+    preloadMiniShipTextures();
+
+    walletProfileSessionChainRef.current = walletProfileSessionChainRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const sessionWalletAddress = walletProfileSessionAddressRef.current;
+        if (
+          sessionWalletAddress
+          && sessionWalletAddress !== normalizedAddress
+        ) {
+          try {
+            await flushDirtyWalletProfile(sessionWalletAddress);
+          } catch (error) {
+            // The address-scoped dirty record remains queued for its next login.
+            console.warn('Previous wallet profile flush remains queued', error);
+          }
+        }
+        if (!isCurrent()) return;
+
+        if (!normalizedAddress) {
+          if (sessionWalletAddress) {
+            await logoutWalletProfileSession(sessionWalletAddress);
+            if (walletProfileSessionAddressRef.current === sessionWalletAddress) {
+              walletProfileSessionAddressRef.current = null;
+            }
+          }
+          return;
+        }
+
+        const walletProfileId = getWalletProfileId(normalizedAddress);
+        let profile = await loadAuthenticatedWalletProfile(
+          activeWalletAddress as Address
+        );
+        walletProfileSessionAddressRef.current = normalizedAddress;
+        if (!isCurrent()) return;
+
+        const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
+        if (!isCurrent()) return;
+        if (flushedProfile) profile = flushedProfile;
+        if (!profile) {
+          const seed = createWalletSeedSnapshot(
+            normalizedAddress,
+            walletProfileId
+          );
+          profile = await saveAuthenticatedWalletProfile({
+            walletAddress: normalizedAddress,
+            expectedRevision: 0,
+            snapshot: seed
+          });
+        }
+        if (!isCurrent()) return;
+        cacheWalletProfile(profile);
+        walletProfileRevisionRef.current = profile.revision;
+        walletProfileSyncedSnapshotRef.current = profile.snapshot;
+        walletProfileLocalBaselineRef.current = hydrateActiveProfile({
+          profileId: walletProfileId,
+          snapshot: profile.snapshot,
+          founderSandbox: isOwnerWallet
+        });
+        setWalletProfileStatus('ready');
+      })
+      .catch((error) => {
+        if (!isCurrent()) return;
+        console.error('Wallet profile authentication failed', error);
+        setWalletProfileStatus('error');
+        setWalletError(
+          /rejected|denied|cancelled|canceled/i.test(error?.message || '')
+            ? 'Profile authorization was cancelled. This wallet is using its device-only save until you reconnect.'
+            : error?.message || 'This wallet profile could not sync. Its device-only save remains separate.'
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeWalletAddress,
+    createWalletSeedSnapshot,
+    hydrateActiveProfile,
+    isOwnerWallet,
+    pilotProfile.id
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -902,25 +1165,6 @@ const App: React.FC = () => {
     trackEvent('wallet_connected');
 
     localStorage.setItem(STORAGE_KEYS.WALLET_ADDRESS, activeWalletAddress);
-    const migration = migrateLegacyWalletIntoPilot(
-      pilotProfile.id,
-      activeWalletAddress
-    );
-    if (migration.migrated) {
-      const importedWeeklyState = loadWeeklySquadState(pilotProfile.id);
-      const nextWeeklyState = isOwnerWallet
-        ? createFounderSquadSandboxState(importedWeeklyState)
-        : importedWeeklyState;
-      const importedStats = readPilotStats(pilotProfile.id);
-      setWeeklySquadState(nextWeeklyState);
-      setPermanentSquadState(loadPermanentSquadState(pilotProfile.id));
-      setStats((current) => ({
-        ...current,
-        highScore: importedStats.highScore,
-        totalCoins: importedStats.totalCoins
-      }));
-      setPlayerNameInput((current) => current || importedStats.playerName);
-    }
 
     setWalletRunsLoading(true);
     void Promise.all([
@@ -937,7 +1181,125 @@ const App: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeWalletAddress, isOwnerWallet, pilotProfile.id]);
+  }, [activeWalletAddress]);
+
+  useEffect(() => {
+    if (
+      !activeWalletAddress
+      || walletProfileHydratingRef.current
+      || isOwnerWallet
+    ) return undefined;
+
+    const normalizedAddress = activeWalletAddress.toLowerCase();
+    const expectedProfileId = getWalletProfileId(normalizedAddress);
+    if (
+      activeProfileId !== expectedProfileId
+      || weeklySquadState.profileId !== expectedProfileId
+      || permanentSquadState.profileId !== expectedProfileId
+    ) return undefined;
+
+    const snapshot: WalletProfileSnapshot = {
+      stats: {
+        highScore: stats.highScore,
+        totalCoins: stats.totalCoins,
+        playerName: playerNameInput
+      },
+      weeklyState: weeklySquadState,
+      permanentState: {
+        ...permanentSquadState,
+        mintedMiniShips: []
+      },
+      selectedShipId
+    };
+    const currentDirty = readWalletProfileDirty(normalizedAddress);
+    const comparisonSnapshot = currentDirty?.snapshot
+      ?? walletProfileSyncedSnapshotRef.current
+      ?? walletProfileLocalBaselineRef.current;
+    if (
+      comparisonSnapshot
+      && walletProfileSnapshotsEqual(snapshot, comparisonSnapshot)
+    ) return undefined;
+
+    markWalletProfileDirty({
+      address: normalizedAddress,
+      expectedRevision: walletProfileRevisionRef.current,
+      baseSnapshot: walletProfileSyncedSnapshotRef.current,
+      snapshot
+    });
+    if (walletProfileStatus !== 'ready') return undefined;
+
+    const saveTimer = window.setTimeout(() => {
+      walletProfileSaveChainRef.current = walletProfileSaveChainRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          if (walletProfileAddressRef.current !== normalizedAddress) return;
+          try {
+            const saved = await flushDirtyWalletProfile(normalizedAddress);
+            if (!saved) return;
+            if (walletProfileAddressRef.current !== normalizedAddress) return;
+            walletProfileRevisionRef.current = saved.revision;
+            walletProfileSyncedSnapshotRef.current = saved.snapshot;
+            cacheWalletProfile(saved);
+          } catch (error) {
+            if (walletProfileAddressRef.current !== normalizedAddress) return;
+            console.error('Wallet profile sync failed', error);
+            setWalletProfileStatus('error');
+            setWalletError(
+              error instanceof WalletProfileRequestError
+                && error.code === 'profile_conflict'
+                ? 'This wallet changed on both devices. This device save is preserved and was not overwritten.'
+                : error instanceof WalletProfileRequestError && error.status === 409
+                ? 'This profile changed on another device. Reconnect this wallet to load its newest save.'
+                : 'Your wallet profile is saved on this device, but cloud sync needs to reconnect.'
+            );
+          }
+        });
+    }, 650);
+
+    return () => window.clearTimeout(saveTimer);
+  }, [
+    activeProfileId,
+    activeWalletAddress,
+    isOwnerWallet,
+    permanentSquadState,
+    playerNameInput,
+    selectedShipId,
+    stats.highScore,
+    stats.totalCoins,
+    walletProfileStatus,
+    weeklySquadState
+  ]);
+
+  useEffect(() => {
+    const flushCurrentWallet = () => {
+      const address = walletProfileAddressRef.current;
+      if (!address) return;
+      void flushDirtyWalletProfile(address, {
+        keepalive: true,
+        maxAttempts: 1
+      })
+        .then((saved) => {
+          if (!saved || walletProfileAddressRef.current !== address) return;
+          walletProfileRevisionRef.current = saved.revision;
+          walletProfileSyncedSnapshotRef.current = saved.snapshot;
+          cacheWalletProfile(saved);
+        })
+        .catch(() => {
+          // The address-scoped local record survives when the browser cannot
+          // complete a keepalive request during page shutdown.
+        });
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushCurrentWallet();
+    };
+
+    window.addEventListener('pagehide', flushCurrentWallet);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', flushCurrentWallet);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOwnerWallet || activeRunMode === 'owner-test') return;
@@ -1380,8 +1742,8 @@ const App: React.FC = () => {
     if (isOwnerWallet) return null;
     if (rewardClaimInFlightRef.current) return null;
     if (
-      permanentSquadState.profileId !== pilotProfile.id
-      || weeklySquadState.profileId !== pilotProfile.id
+      permanentSquadState.profileId !== activeProfileId
+      || weeklySquadState.profileId !== activeProfileId
     ) return null;
 
     rewardClaimInFlightRef.current = true;
@@ -1409,7 +1771,7 @@ const App: React.FC = () => {
   }, [
     isOwnerWallet,
     permanentSquadState,
-    pilotProfile.id,
+    activeProfileId,
     persistRewardClaim,
     weeklySquadState
   ]);
@@ -1418,8 +1780,8 @@ const App: React.FC = () => {
     if (isOwnerWallet) return null;
     if (rewardClaimInFlightRef.current) return null;
     if (
-      permanentSquadState.profileId !== pilotProfile.id
-      || weeklySquadState.profileId !== pilotProfile.id
+      permanentSquadState.profileId !== activeProfileId
+      || weeklySquadState.profileId !== activeProfileId
     ) return null;
 
     rewardClaimInFlightRef.current = true;
@@ -1447,7 +1809,7 @@ const App: React.FC = () => {
   }, [
     isOwnerWallet,
     permanentSquadState,
-    pilotProfile.id,
+    activeProfileId,
     persistRewardClaim,
     weeklySquadState
   ]);

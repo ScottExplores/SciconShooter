@@ -74,6 +74,7 @@ Server-only variables:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `RUN_RECEIPT_SECRET`
+- `WALLET_PROFILE_AUTH_SECRET` (32+ random characters; signs wallet profile sessions)
 - `CRON_SECRET`
 - `ADMIN_SECRET` (optional manual competition finalization)
 - `WEEKLY_CHAMPION_WEBHOOK_URL` (optional)
