@@ -12,6 +12,7 @@ test('the connected wallet menu exposes switch and disconnect actions without cl
 
   assert.match(control, /Choose Base Account/);
   assert.match(control, /Disconnect wallet/);
+  assert.match(control, /Connect for onchain features/);
   assert.doesNotMatch(control, />\s*Sign out\s*</);
   assert.match(control, /bottom-full/);
   assert.match(control, /role="menu"/);
@@ -47,21 +48,23 @@ test('returning sessions restore automatically and provider disconnect events cl
   assert.match(runtime, /localStorage\.removeItem\(STORAGE_KEYS\.WALLET_ADDRESS\)/);
 });
 
-test('switching wallets refreshes wallet-owned records without swapping Pilot stats or progression', () => {
+test('switching wallets loads a distinct authenticated cloud profile', () => {
   const app = read('App.tsx');
+  const profiles = read('services', 'walletProfileService.ts');
 
   assert.match(app, /const \[pilotProfile\] = useState\(initializeLocalPilotProfile\)/);
-  assert.match(app, /readPilotStats\(pilotProfile\.id\)/);
-  assert.match(app, /savePilotStats\(pilotProfile\.id/);
-  assert.match(app, /loadWeeklySquadState\(pilotProfile\.id\)/);
-  assert.match(app, /loadPermanentSquadState\(pilotProfile\.id\)/);
+  assert.match(app, /const walletProfileId = getWalletProfileId\(normalizedAddress\)/);
+  assert.match(app, /walletProfileAddressRef\.current = normalizedAddress/);
+  assert.match(app, /loadAuthenticatedWalletProfile\(\s*activeWalletAddress as Address\s*\)/);
+  assert.match(app, /walletProfileAddressRef\.current !== normalizedAddress/);
+  assert.match(app, /hydrateActiveProfile\(\{[\s\S]*?profileId: pilotProfile\.id[\s\S]*?\}\)/);
   assert.match(app, /localStorage\.setItem\(STORAGE_KEYS\.WALLET_ADDRESS, activeWalletAddress\)/);
   assert.match(app, /getWalletRecords\(activeWalletAddress\)/);
   assert.match(app, /getWalletRuns\(activeWalletAddress\)/);
   assert.match(app, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords/);
-  assert.doesNotMatch(app, /walletProfileAddressRef|hasLoadedWalletProfileRef|shouldMergeLocalProgress/);
-  assert.doesNotMatch(app, /readPilotStats\(activeWalletAddress|savePilotStats\(activeWalletAddress/);
-  assert.doesNotMatch(app, /loadWeeklySquadState\(activeWalletAddress|loadPermanentSquadState\(activeWalletAddress/);
+  assert.match(profiles, /readCachedWalletProfile/);
+  assert.match(profiles, /authenticateWalletProfile/);
+  assert.match(profiles, /saveAuthenticatedWalletProfile/);
 });
 
 test('mission record minting offers in-context wallet switching and disconnect', () => {

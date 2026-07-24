@@ -19,28 +19,23 @@ test('a stable device Pilot ID is stored and reused', () => {
   assert.match(pilot, /storageMode: 'device'/);
 });
 
-test('Pilot migration waits for real wallet data, retries safely, and never deletes source data', () => {
+test('legacy wallet data can only seed that same verified wallet profile', () => {
   const app = read('App.tsx');
-  const pilot = read('services', 'pilotProfileService.ts');
   const squad = read('services', 'squadProgression.ts');
-  const initialize = pilot.slice(pilot.indexOf('export const initializeLocalPilotProfile'));
+  const walletProfiles = read('services', 'walletProfileService.ts');
   const squadMigration = squad.slice(
     squad.indexOf('export const migrateLegacySquadProfile'),
     squad.indexOf('\nconst spendCoins', squad.indexOf('export const migrateLegacySquadProfile'))
   );
 
-  assert.match(pilot, /const completedMigration = readMigrationRecord\(id\)/);
-  assert.match(pilot, /if \(completedMigration\) \{[\s\S]*migratedFromWallet: completedMigration\.migratedFromWallet/);
-  assert.match(pilot, /export const migrateLegacyWalletIntoPilot/);
-  assert.match(pilot, /if \(!sourceFound \|\| !success\) \{[\s\S]*completed: false/);
-  assert.match(pilot, /const completionSaved = safeSet\([\s\S]*STORAGE_KEYS\.PILOT_PROFILE_MIGRATION/);
-  assert.match(pilot, /verifiedRecord\?\.migratedFromWallet === normalizedWalletAddress/);
-  assert.match(app, /migrateLegacyWalletIntoPilot\([\s\S]*pilotProfile\.id,[\s\S]*activeWalletAddress/);
-  assert.doesNotMatch(initialize, /WALLET_ADDRESS|migrateLegacyWalletIntoPilot/);
+  assert.match(walletProfiles, /getWalletProfileId = \(address: string\)/);
+  assert.match(walletProfiles, /`wallet:\$\{normalizeWalletAddress\(address\)\}`/);
+  assert.match(app, /migrateLegacySquadProfile\(normalizedAddress, walletProfileId\)/);
+  assert.match(app, /pilotProfile\.migratedFromWallet === normalizedAddress/);
+  assert.doesNotMatch(app, /migrateLegacyWalletIntoPilot/);
   assert.match(squadMigration, /sourceFound: false,[\s\S]*success: true/);
   assert.match(squadMigration, /verifyStoredProfile\(targetWeeklyKey, targetId\)/);
   assert.match(squadMigration, /verifyStoredProfile\(targetPermanentKey, targetId\)/);
-  assert.doesNotMatch(pilot, /removeItem\(/);
   assert.doesNotMatch(squadMigration, /removeItem\(/);
 });
 
@@ -53,20 +48,22 @@ test('Pilot stats use a Pilot-keyed storage record', () => {
   assert.match(pilot, /savePilotStats = \([\s\S]*pilotProfileId: string[\s\S]*const statsKey = getPilotStatsStorageKey\(pilotProfileId\)[\s\S]*safeSet\(statsKey, JSON\.stringify\(sanitized\)\)/);
 });
 
-test('App loads and saves squad and stats by pilotProfile.id rather than wallet address', () => {
+test('App separates guest-local and authenticated wallet-cloud profiles', () => {
   const app = read('App.tsx');
+  const walletProfiles = read('services', 'walletProfileService.ts');
 
   assert.match(app, /const \[pilotProfile\] = useState\(initializeLocalPilotProfile\)/);
+  assert.match(app, /const \[activeProfileId, setActiveProfileId\] = useState\(pilotProfile\.id\)/);
   assert.match(app, /loadWeeklySquadState\(pilotProfile\.id\)/);
   assert.match(app, /loadPermanentSquadState\(pilotProfile\.id\)/);
   assert.match(app, /readPilotStats\(pilotProfile\.id\)/);
-  assert.match(app, /savePilotStats\(pilotProfile\.id/);
-  assert.match(app, /setPlayerNameInput\] = useState<string>\(\(\) => \([\s\S]*readPilotStats\(pilotProfile\.id\)\.playerName/);
-  assert.match(app, /\[isOwnerWallet, pilotProfile\.id\]/);
-  assert.doesNotMatch(app, /loadWeeklySquadState\(activeWalletAddress/);
-  assert.doesNotMatch(app, /loadPermanentSquadState\(activeWalletAddress/);
-  assert.doesNotMatch(app, /readPilotStats\(activeWalletAddress/);
-  assert.doesNotMatch(app, /savePilotStats\(activeWalletAddress/);
+  assert.match(app, /const walletProfileId = getWalletProfileId\(normalizedAddress\)/);
+  assert.match(app, /loadAuthenticatedWalletProfile\(\s*activeWalletAddress as Address\s*\)/);
+  assert.match(app, /saveAuthenticatedWalletProfile\(\{/);
+  assert.match(app, /hydrateActiveProfile\(\{\s*profileId: pilotProfile\.id\s*\}\)/);
+  assert.match(app, /savePilotStats\(activeProfileId/);
+  assert.match(walletProfiles, /credentials: 'same-origin'/);
+  assert.match(walletProfiles, /signBaseAccountMessage\(address, challenge\.message\)/);
 });
 
 test('all non-founder runs accrue Pilot weekly and permanent progress', () => {
