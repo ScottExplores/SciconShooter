@@ -132,13 +132,26 @@ test('weekly funding and high score share the exact Start Mission chrome with sa
   assert.match(stylesSource, /\.sci-weekly-funding-shell::before/);
   assert.match(stylesSource, /@keyframes sci-weekly-fixture-pulse-a/);
   assert.match(stylesSource, /@keyframes sci-weekly-fixture-pulse-b/);
-  assert.match(stylesSource, /@keyframes sci-weekly-interior-breathe/);
+  assert.doesNotMatch(stylesSource, /@keyframes sci-weekly-interior-breathe/);
+  assert.match(stylesSource, /\.sci-weekly-funding-content \{[\s\S]*?animation: none/);
+  assert.match(stylesSource, /\.sci-weekly-funding-shell::before,[\s\S]*?inset: -1\.45rem -1\.3rem -1\.32rem/);
+  assert.match(stylesSource, /\.sci-weekly-funding-shell \{[\s\S]*?filter: none[\s\S]*?backdrop-filter: none/);
   assert.match(stylesSource, /sci-weekly-funding-content[\s\S]*?image-rendering: auto/);
   assert.doesNotMatch(source, /sci-weekly-funding-frame-sprite/);
   assert.doesNotMatch(stylesSource, /sci-weekly-funding-frame-sprite/);
   assert.doesNotMatch(stylesSource, /weekly-funding-frame-spritesheet\.png/);
   assert.match(stylesSource, /prefers-reduced-motion: reduce[\s\S]*sci-weekly-funding-shell::before/);
   assert.match(stylesSource, /prefers-reduced-motion: reduce[\s\S]*scicon-home-backdrop__nebula/);
+});
+
+test('Home keeps only transform-based parallax moving while large lighting surfaces stay stable', () => {
+  assert.match(stylesSource, /data-dashboard-tab='home'[\s\S]*\.scicon-home-backdrop__image \{[\s\S]*?animation: none/);
+  assert.match(stylesSource, /data-dashboard-tab='home'[\s\S]*\.scicon-home-backdrop__nebula--a \{[\s\S]*?display: none[\s\S]*?animation: none/);
+  assert.match(stylesSource, /\.sci-home-hero-surface--compact \.sci-hero-backdrop__image \{[\s\S]*?animation: none/);
+  assert.match(stylesSource, /\.sci-ship-orbit \{[\s\S]*?animation: none/);
+  assert.match(stylesSource, /\.scicon-home-backdrop__sparse-track \{[\s\S]*?sci-home-sparse-flight/);
+  assert.match(stylesSource, /\.scicon-home-backdrop__asteroid-track \{[\s\S]*?sci-home-asteroid-flight/);
+  assert.match(htmlSource, /\.sci-rh-ship--compact \{[\s\S]*?width: min\(60vw, 266px\)[\s\S]*?height: 146px/);
 });
 
 test('weekly and all-time Trophy Deck views retain and render up to 100 scores', () => {

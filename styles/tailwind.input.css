@@ -146,6 +146,7 @@
 .sci-weekly-funding-shell {
   position: relative;
   isolation: isolate;
+  contain: paint;
   border-style: solid;
   border-width: 1.85rem 1.65rem 1.7rem;
   border-image-source: url('/game-art/generated/ui/scicon-pixel-action-buttons-v1/start-mission-panel.png');
@@ -154,39 +155,46 @@
   border-image-repeat: stretch;
   border-radius: 0;
   background: #020817;
-  box-shadow: none;
-  filter:
-    drop-shadow(0 0.8rem 1.25rem rgb(0 0 0 / 0.52))
-    drop-shadow(0 0 0.55rem rgb(34 211 238 / 0.16));
+  box-shadow:
+    0 0.8rem 1.25rem rgb(0 0 0 / 0.46),
+    0 0 0.55rem rgb(34 211 238 / 0.12);
+  filter: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   image-rendering: pixelated;
 }
 
 .sci-weekly-funding-shell::before,
 .sci-weekly-funding-shell::after {
   position: absolute;
-  inset: 0;
+  inset: -1.45rem -1.3rem -1.32rem;
   z-index: 4;
   content: '';
   pointer-events: none;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .sci-weekly-funding-shell::before {
   background:
-    radial-gradient(circle at 4.5% 23%, rgb(110 231 183 / 0.92) 0 1px, rgb(52 211 153 / 0.42) 2px, transparent 7px),
-    radial-gradient(circle at 95.5% 23%, rgb(110 231 183 / 0.92) 0 1px, rgb(52 211 153 / 0.42) 2px, transparent 7px),
-    radial-gradient(circle at 4.5% 72%, rgb(103 232 249 / 0.72) 0 1px, rgb(16 185 129 / 0.3) 2px, transparent 7px),
-    radial-gradient(circle at 95.5% 72%, rgb(103 232 249 / 0.72) 0 1px, rgb(16 185 129 / 0.3) 2px, transparent 7px);
-  opacity: 0.36;
+    linear-gradient(90deg, #34d399, #d1fae5) 49% 0.42rem / 2px 2px no-repeat,
+    linear-gradient(90deg, #6ee7b7, #ecfdf5) 50% 0.42rem / 2px 2px no-repeat,
+    linear-gradient(90deg, #34d399, #d1fae5) 51% 0.42rem / 2px 2px no-repeat,
+    linear-gradient(180deg, transparent, #6ee7b7 25%, #34d399 70%, transparent) 1.9% 54% / 2px 2.6rem no-repeat,
+    linear-gradient(180deg, transparent, #6ee7b7 25%, #34d399 70%, transparent) 98.1% 54% / 2px 2.6rem no-repeat,
+    linear-gradient(90deg, transparent, #67e8f9 22%, #34d399 72%, transparent) 13% 95% / 2.8rem 2px no-repeat,
+    linear-gradient(270deg, transparent, #67e8f9 22%, #34d399 72%, transparent) 87% 95% / 2.8rem 2px no-repeat;
+  opacity: 0.72;
   animation: sci-weekly-fixture-pulse-a 4.8s ease-in-out infinite;
 }
 
 .sci-weekly-funding-shell::after {
   background:
-    radial-gradient(circle at 21% 4.5%, rgb(167 243 208 / 0.88) 0 1px, rgb(52 211 153 / 0.34) 2px, transparent 6px),
-    radial-gradient(circle at 79% 4.5%, rgb(167 243 208 / 0.88) 0 1px, rgb(52 211 153 / 0.34) 2px, transparent 6px),
-    radial-gradient(circle at 34% 95.5%, rgb(103 232 249 / 0.78) 0 1px, rgb(16 185 129 / 0.3) 2px, transparent 6px),
-    radial-gradient(circle at 66% 95.5%, rgb(103 232 249 / 0.78) 0 1px, rgb(16 185 129 / 0.3) 2px, transparent 6px);
-  opacity: 0.24;
+    radial-gradient(circle at 1.7% 68%, #ecfdf5 0 1px, #34d399 2px, transparent 5px),
+    radial-gradient(circle at 98.3% 68%, #ecfdf5 0 1px, #34d399 2px, transparent 5px),
+    radial-gradient(circle at 13% 95%, #cffafe 0 1px, #10b981 2px, transparent 4px),
+    radial-gradient(circle at 87% 95%, #cffafe 0 1px, #10b981 2px, transparent 4px);
+  opacity: 0.68;
   animation: sci-weekly-fixture-pulse-b 6.2s ease-in-out -2.1s infinite;
 }
 
@@ -210,7 +218,7 @@
     inset 0 0 1.2rem rgb(34 211 238 / 0.08),
     inset 0 -0.8rem 1.4rem rgb(16 185 129 / 0.06);
   image-rendering: auto;
-  animation: sci-weekly-interior-breathe 10s ease-in-out infinite;
+  animation: none;
 }
 
 .sci-weekly-funding-content--compact {
@@ -230,6 +238,25 @@
   box-shadow:
     inset 0 0 1rem rgb(34 211 238 / 0.08),
     0 0 0.8rem rgb(16 185 129 / 0.05);
+}
+
+.sci-weekly-winner-card::before,
+.sci-weekly-project-image::before {
+  animation: none;
+  transform: none;
+}
+
+.sci-weekly-winner-card::before {
+  opacity: 0.2;
+}
+
+.sci-weekly-project-image::before {
+  opacity: 0.62;
+}
+
+.sci-weekly-scan {
+  display: none;
+  animation: none;
 }
 
 .sci-weekly-winner-card--compact {
@@ -344,7 +371,7 @@
   object-position: center 36%;
   transform: scale(1.04);
   transform-origin: 50% 38%;
-  will-change: transform, opacity;
+  will-change: auto;
 }
 
 .scicon-home-backdrop__nebula {
@@ -358,7 +385,7 @@
   mix-blend-mode: screen;
   opacity: 0.18;
   transform-origin: center;
-  will-change: transform, opacity;
+  will-change: auto;
 }
 
 .scicon-home-backdrop__nebula--b {
@@ -380,7 +407,7 @@
   background-size: 73px 89px, 113px 127px, 151px 173px;
   mix-blend-mode: screen;
   opacity: 0.42;
-  will-change: background-position, opacity;
+  will-change: auto;
 }
 
 .scicon-home-backdrop__sparse-field,
@@ -407,6 +434,8 @@
   height: 200%;
   grid-template-rows: repeat(2, minmax(0, 1fr));
   will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .scicon-home-backdrop__sparse-track {
@@ -487,45 +516,36 @@
 }
 
 .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__image {
-  animation: sci-home-backdrop-breathe 22s ease-in-out infinite;
+  animation: none;
 }
 
 .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__nebula--a {
-  animation: sci-home-nebula-drift-a 28s ease-in-out infinite;
+  display: none;
+  animation: none;
 }
 
 .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__nebula--b {
-  animation: sci-home-nebula-drift-b 31s ease-in-out -10s infinite;
+  display: none;
+  animation: none;
 }
 
 .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__stars {
-  animation: sci-home-stars-drift 18s linear infinite;
+  animation: none;
 }
 
 .scicon-start-screen[data-dashboard-tab='home'] .scicon-home-backdrop__pixel-fade {
-  animation: sci-home-pixel-drift 12s linear infinite;
+  animation: none;
 }
 
 @keyframes sci-weekly-fixture-pulse-a {
-  0%, 100% { opacity: 0.22; }
-  46% { opacity: 0.92; }
-  62% { opacity: 0.44; }
+  0%, 100% { opacity: 0.58; }
+  46% { opacity: 1; }
+  62% { opacity: 0.76; }
 }
 
 @keyframes sci-weekly-fixture-pulse-b {
-  0%, 100% { opacity: 0.16; }
-  52% { opacity: 0.72; }
-}
-
-@keyframes sci-weekly-interior-breathe {
-  0%, 100% {
-    background-position: 0% 0%, 100% 100%, 0 0;
-    filter: saturate(1);
-  }
-  50% {
-    background-position: 12% 8%, 88% 92%, 0 0;
-    filter: saturate(1.18);
-  }
+  0%, 100% { opacity: 0.5; }
+  52% { opacity: 0.94; }
 }
 
 @keyframes sci-home-backdrop-breathe {
@@ -577,6 +597,8 @@
 .sci-hero-backdrop {
   overflow: hidden;
   background: rgb(2 8 23 / 0.12);
+  contain: paint;
+  isolation: isolate;
 }
 
 .sci-hero-backdrop__image {
@@ -586,7 +608,7 @@
   object-position: center 36%;
   transform: scale(1.04);
   transform-origin: center 40%;
-  will-change: transform, opacity;
+  will-change: auto;
 }
 
 .sci-hero-backdrop__glow {
@@ -606,7 +628,7 @@
   background-size: 79px 97px, 131px 149px;
   mix-blend-mode: screen;
   opacity: 0.34;
-  animation: sci-hero-stars-drift 14s linear infinite;
+  animation: none;
 }
 
 .sci-hero-backdrop__floor {
@@ -614,7 +636,7 @@
   background:
     radial-gradient(ellipse at 50% 100%, rgb(34 211 238 / 0.2), transparent 57%),
     linear-gradient(180deg, transparent, rgb(5 150 105 / 0.08));
-  animation: sci-hero-floor-breathe 7.5s ease-in-out infinite;
+  animation: none;
 }
 
 .sci-ship-orbit {
@@ -632,7 +654,19 @@
   opacity: 0.64;
   pointer-events: none;
   transform: translateX(-50%) perspective(440px) rotateX(64deg);
-  animation: sci-ship-orbit-breathe 6.8s ease-in-out infinite;
+  animation: none;
+}
+
+.sci-rh-ship::before {
+  opacity: 0.76;
+  animation: none;
+  transform: translateX(-50%) perspective(420px) rotateX(64deg) scale(1);
+}
+
+.sci-rh-ship::after {
+  opacity: 0.72;
+  animation: none;
+  transform: translateX(-50%) perspective(420px) rotateX(64deg) scale(1);
 }
 
 .sci-ship-orbit::before,
@@ -726,11 +760,11 @@
 
   #root .sci-home-hero-surface--compact .sci-hero-backdrop__image {
     opacity: 0.9;
-    animation: sci-hero-backdrop-drift 42s ease-in-out infinite;
+    animation: none;
   }
 
   #root .sci-home-hero-surface--compact .sci-hero-backdrop__glow {
-    animation: sci-hero-floor-breathe 8.5s ease-in-out -2s infinite;
+    animation: none;
   }
 
   #root .sci-hero-content--compact {
@@ -787,7 +821,7 @@
   #root .sci-hero-ship-stage--compact {
     flex: 1 1 auto;
     min-height: 8.8rem;
-    margin-top: 0.08rem;
+    margin-top: 0.12rem;
   }
 
   #root .sci-home-hero-surface--compact .sci-start-button {

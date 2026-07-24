@@ -898,6 +898,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
   useEffect(() => {
     setWeeklyWinnerSlide('pilot');
+  }, [weeklyProposalSelectionId]);
+
+  useEffect(() => {
     if (!weeklyProposalSelectionId || weeklyWinnerAutoPaused) return undefined;
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
 

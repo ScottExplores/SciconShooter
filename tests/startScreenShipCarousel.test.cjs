@@ -148,11 +148,11 @@ test('arrow, keyboard, and swipe navigation share opposite authored bank-frame s
   assert.match(carouselSource, /event\.key === 'ArrowLeft' \? -1 : 1/);
   assert.match(carouselSource, /phase === 'edge'\) return \{ outgoing: 'neutral', incoming: 'hard-right' \}/);
   assert.match(carouselSource, /phase === 'bank'\) return \{ outgoing: 'bank-left', incoming: 'bank-right' \}/);
-  assert.match(carouselSource, /phase === 'crossing'\) return \{ outgoing: 'hard-left', incoming: 'hard-right' \}/);
+  assert.match(carouselSource, /phase === 'crossing'\) return \{ outgoing: 'hard-left', incoming: 'bank-right' \}/);
   assert.match(carouselSource, /return \{ outgoing: 'hard-left', incoming: 'neutral' \}/);
   assert.match(carouselSource, /phase === 'edge'\) return \{ outgoing: 'neutral', incoming: 'hard-left' \}/);
   assert.match(carouselSource, /phase === 'bank'\) return \{ outgoing: 'bank-right', incoming: 'bank-left' \}/);
-  assert.match(carouselSource, /phase === 'crossing'\) return \{ outgoing: 'hard-right', incoming: 'hard-left' \}/);
+  assert.match(carouselSource, /phase === 'crossing'\) return \{ outgoing: 'hard-right', incoming: 'bank-left' \}/);
   assert.match(carouselSource, /return \{ outgoing: 'hard-right', incoming: 'neutral' \}/);
   assert.match(carouselSource, /PLAYER_SHIP_MOTION\[shipId\]\.steeringFrames\[steeringState\]/);
   assert.match(carouselSource, /sci-ship-carousel-item--outgoing/);
@@ -161,6 +161,8 @@ test('arrow, keyboard, and swipe navigation share opposite authored bank-frame s
   assert.match(styleSource, /@keyframes sci-ship-carousel-next-out/);
   assert.match(styleSource, /@keyframes sci-ship-carousel-previous-in/);
   assert.match(styleSource, /@keyframes sci-ship-carousel-previous-out/);
+  assert.match(carouselSource, /PLAYER_SHIP_MOTION\[shipId\]\.selectionIdleFrames\[0\]/);
+  assert.doesNotMatch(carouselSource, /PLAYER_SHIPS\[shipId\]\.assetUrl/);
 });
 
 test('carousel loops, queues repeated input in flight, and preserves locked-ship and reduced-motion behavior', () => {

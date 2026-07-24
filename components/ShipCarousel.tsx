@@ -11,7 +11,7 @@ import {
   resolveHeldCarouselDrag,
   resolveReleasedCarouselDrag
 } from '../services/shipCarouselDrag';
-import { PLAYER_SHIPS, type PlayerShipId } from '../services/playerShipService';
+import { type PlayerShipId } from '../services/playerShipService';
 
 export type ShipCarouselDirection = -1 | 1;
 
@@ -52,13 +52,13 @@ export const getShipCarouselFramePair = (
   if (direction === 1) {
     if (phase === 'edge') return { outgoing: 'neutral', incoming: 'hard-right' };
     if (phase === 'bank') return { outgoing: 'bank-left', incoming: 'bank-right' };
-    if (phase === 'crossing') return { outgoing: 'hard-left', incoming: 'hard-right' };
+    if (phase === 'crossing') return { outgoing: 'hard-left', incoming: 'bank-right' };
     return { outgoing: 'hard-left', incoming: 'neutral' };
   }
 
   if (phase === 'edge') return { outgoing: 'neutral', incoming: 'hard-left' };
   if (phase === 'bank') return { outgoing: 'bank-right', incoming: 'bank-left' };
-  if (phase === 'crossing') return { outgoing: 'hard-right', incoming: 'hard-left' };
+  if (phase === 'crossing') return { outgoing: 'hard-right', incoming: 'bank-left' };
   return { outgoing: 'hard-right', incoming: 'neutral' };
 };
 
@@ -80,17 +80,21 @@ const PlayerShipSelectionImage = ({
   className: string;
   steeringState?: PlayerSteeringState | null;
 }) => {
-  const [activeFrame, setActiveFrame] = useState<{ shipId: PlayerShipId | null; index: number }>({
-    shipId: null,
-    index: -1
-  });
+  const [activeFrame, setActiveFrame] = useState<{ shipId: PlayerShipId; index: number }>(() => ({
+    shipId,
+    index: 0
+  }));
 
   useEffect(() => {
     let disposed = false;
     let timer: number | undefined;
     const frames = PLAYER_SHIP_MOTION[shipId].selectionIdleFrames;
 
-    setActiveFrame({ shipId: null, index: -1 });
+    setActiveFrame({ shipId, index: 0 });
+    if (steeringState) {
+      return () => { disposed = true; };
+    }
+
     preloadPlayerShipCarouselFrames().then(() => {
       if (disposed) return;
       let frameIndex = 0;
@@ -105,14 +109,14 @@ const PlayerShipSelectionImage = ({
       disposed = true;
       if (timer !== undefined) window.clearInterval(timer);
     };
-  }, [shipId]);
+  }, [shipId, steeringState]);
 
   const frameReady = activeFrame.shipId === shipId && activeFrame.index >= 0;
   const src = steeringState
     ? PLAYER_SHIP_MOTION[shipId].steeringFrames[steeringState]
     : frameReady
       ? PLAYER_SHIP_MOTION[shipId].selectionIdleFrames[activeFrame.index]
-      : PLAYER_SHIPS[shipId].assetUrl;
+      : PLAYER_SHIP_MOTION[shipId].selectionIdleFrames[0];
 
   return (
     <img
