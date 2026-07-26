@@ -2784,13 +2784,8 @@ export class PixiGameRenderer {
     }
     const age = Math.max(0, engineFrame - entity.weaponVisualStartFrame);
     const frameHold = Math.max(1, Math.floor(animation.frameHoldFrames));
-    const frameIndex = visualKind === 'boss-helios-mine'
-      ? entity.heliosMineStage === 'armed'
-        ? animation.frameIds.length - 1
-        : Math.min(
-            Math.max(0, animation.frameIds.length - 2),
-            Math.floor(age / frameHold)
-          )
+    const frameIndex = entity.projectileAnimationMode === 'hold-last'
+      ? animation.frameIds.length - 1
       : (
           Math.floor(age / frameHold)
           + Math.abs(Math.floor(entity.variant))
@@ -2962,16 +2957,16 @@ export class PixiGameRenderer {
         || entity.projectileVisualKind === 'bio-genome-lance'
         || entity.projectileVisualKind === 'eth-prism-volley'
         || entity.projectileVisualKind === 'btc-hash-burst';
-      const isHeliosExplosion = entity.projectileVisualKind === 'boss-helios-explosion';
-      const age = isShipAbility || isHeliosExplosion
+      const isOneShotAnimation = entity.spriteFramePlaybackMode === 'once';
+      const age = isShipAbility || isOneShotAnimation
         ? Math.max(0, engineFrame - entity.weaponVisualStartFrame)
         : Math.max(0, entity.maxLife - entity.life);
-      const frameDelay = isHeliosExplosion
-        ? 6
-        : entity.projectileVisualKind === 'boss-ray' || isShipAbility
-          ? 4
-          : 3;
-      const textureIndex = isHeliosExplosion
+      const frameDelay = Math.max(
+        1,
+        entity.spriteFrameHoldFrames
+          ?? (entity.projectileVisualKind === 'boss-ray' || isShipAbility ? 4 : 3)
+      );
+      const textureIndex = isOneShotAnimation
         ? Math.min(entity.spriteFrames.length - 1, Math.floor(age / frameDelay))
         : (Math.floor(age / frameDelay) + entity.variant) % entity.spriteFrames.length;
       const textureKey = entity.spriteFrames[textureIndex];
@@ -3024,10 +3019,10 @@ export class PixiGameRenderer {
         const pulse = 0.72 + Math.sin(engineFrame * 0.16) * 0.09;
         view.aura.circle(0, 0, entity.width * pulse).fill({ color: '#facc15', alpha: 0.16 });
         view.aura.circle(0, 0, entity.width * 0.58).stroke({ color: '#67e8f9', width: 2, alpha: 0.7 });
-      } else if (isHeliosExplosion) {
+      } else if (isOneShotAnimation) {
         // Explosion pixels are the complete warning and damage surface. Do not
         // add a translucent circle or velocity rotation around the authored art.
-        view.root.rotation = 0;
+        view.root.rotation = entity.spriteFrameFixedRotationRadians ?? 0;
       } else if (entity.projectileVisualKind === 'boss-ray') {
         view.aura.roundRect(-entity.width * 0.7, -entity.height * 0.5, entity.width * 1.4, entity.height, entity.width * 0.38)
           .fill({ color: '#ff9d2e', alpha: 0.18 });

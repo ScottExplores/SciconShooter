@@ -55,15 +55,25 @@ test('Helios gatling tracers keep their native +X art axis and rotate exactly on
   );
 });
 
-test('Helios mines expose a distinct armed frame and a readable seven-frame explosion', () => {
+test('Helios mines use generic renderer playback controls for arming and explosion frames', () => {
   assert.match(
     pixiRenderer,
-    /visualKind === 'boss-helios-mine'[\s\S]*?entity\.heliosMineStage === 'armed'[\s\S]*?animation\.frameIds\.length - 1/,
-    'the armed mine must hold its dedicated final modular frame'
+    /entity\.projectileAnimationMode === 'hold-last'[\s\S]*?animation\.frameIds\.length - 1/,
+    'the generic modular playback contract must hold its dedicated final frame'
+  );
+  assert.match(
+    gameLogic,
+    /mine\.projectileAnimationMode = sample\.stage === 'armed' \? 'hold-last' : 'cycle'/,
+    'gameplay must expose the armed lifecycle through the generic playback contract'
+  );
+  assert.match(
+    gameLogic,
+    /mine\.spriteFramePlaybackMode = 'once';[\s\S]*?mine\.spriteFrameHoldFrames = 6;/,
+    'gameplay must configure the readable explosion pacing without a boss-specific renderer branch'
   );
   assert.match(
     pixiRenderer,
-    /const isHeliosExplosion = entity\.projectileVisualKind === 'boss-helios-explosion';[\s\S]*?const frameDelay = isHeliosExplosion\s*\? 6/,
-    'the Helios explosion must pace its seven frames across the readable active lifecycle'
+    /const isOneShotAnimation = entity\.spriteFramePlaybackMode === 'once';[\s\S]*?entity\.spriteFrameHoldFrames/,
+    'Pixi must consume the generic one-shot sprite-sheet controls'
   );
 });

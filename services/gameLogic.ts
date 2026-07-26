@@ -455,6 +455,12 @@ export class Entity {
   bossComponents?: BossComponentState[];
   bossDecayStage: number = 0;
   projectileVisualKind?: BossProjectileVisualKind;
+  /** Generic modular-projectile playback hint consumed by the renderer. */
+  projectileAnimationMode: 'cycle' | 'hold-last' = 'cycle';
+  /** Generic sprite-sheet playback controls; gameplay owns the lifecycle. */
+  spriteFramePlaybackMode: 'loop' | 'once' = 'loop';
+  spriteFrameHoldFrames?: number;
+  spriteFrameFixedRotationRadians?: number;
   bossPodSide?: 'left' | 'right';
   shipAbilityKind?: ShipAbilityKind;
   bossOwnerId?: string;
@@ -10568,6 +10574,7 @@ export class GameEngine {
         armY: targetCenterY
       };
       mine.heliosMineStage = 'deploying';
+      mine.projectileAnimationMode = 'cycle';
       if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-helios-mine')) {
         mine.projectileVisualKind = 'boss-helios-mine';
       }
@@ -10666,11 +10673,15 @@ export class GameEngine {
       mine.spriteFrames = [...ASSETS.PIXI_EXPLOSION_FRAMES];
       mine.weaponVisualStartFrame = this.frameCount;
       mine.variant = 0;
+      mine.spriteFramePlaybackMode = 'once';
+      mine.spriteFrameHoldFrames = 6;
+      mine.spriteFrameFixedRotationRadians = 0;
       mine.heliosMineStage = 'exploding';
       this.playSound('explode', 0.56, { pitchJitter: 0.03, pitchOffset: -0.14 });
       this.addShake(0.8);
     } else {
       mine.heliosMineStage = sample.stage;
+      mine.projectileAnimationMode = sample.stage === 'armed' ? 'hold-last' : 'cycle';
     }
     if (sample.stage === 'deploying') {
       // Position is simulation-owned above so deployment always clears the
