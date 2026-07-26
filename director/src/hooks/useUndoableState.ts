@@ -91,6 +91,8 @@ export const useUndoableState = <T,>(initialValue: T) => {
     commit: useCallback(() => dispatch({ type: 'commit' }), []),
     canUndo: state.past.length > 0,
     canRedo: state.future.length > 0,
+    undoValue: state.past.at(-1),
+    redoValue: state.future[0],
     isDirty: !Object.is(state.present, state.baseline)
   };
 };

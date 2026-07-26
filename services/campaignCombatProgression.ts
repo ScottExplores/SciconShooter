@@ -1,5 +1,10 @@
+/**
+ * Compatibility count used by older presentation surfaces. It is not a
+ * runtime content cap; GameEngine addresses every validated campaign level.
+ */
 export const MAX_AUTHORED_CAMPAIGN_STAGES = 20;
 export const CAMPAIGN_STAGES_PER_COMBAT_TIER = 5;
+export const MAX_LEGACY_CAMPAIGN_DIFFICULTY_TIER = 3;
 export const MAX_SHOT_VOLLEY_MULTIPLIER = 2;
 export const MAX_SHOT_PROJECTILE_CAP = 18;
 export const MAX_SHOT_BUNDLE_LIFETIME_FRAMES = 120;
@@ -76,22 +81,20 @@ export const getMaxShotRoundsForTarget = (
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 /**
- * Stages are finite authored content. This is deliberately not an endless-cycle
- * counter: Stages 1-5 are tier 0 and Stages 16-20 are the final tier 3.
+ * Compatibility difficulty bands saturate at the shipped fourth band. Mission
+ * count is data-driven and is deliberately not constrained by this resolver.
  */
 export const getCampaignProgressionTier = (stageNumber: number) => {
-  const stage = clamp(
-    Math.floor(Number(stageNumber) || 1),
-    1,
-    MAX_AUTHORED_CAMPAIGN_STAGES
+  const stage = Math.max(1, Math.floor(Number(stageNumber) || 1));
+  return Math.min(
+    MAX_LEGACY_CAMPAIGN_DIFFICULTY_TIER,
+    Math.floor((stage - 1) / CAMPAIGN_STAGES_PER_COMBAT_TIER)
   );
-  return Math.floor((stage - 1) / CAMPAIGN_STAGES_PER_COMBAT_TIER);
 };
 
-export const getAuthoredCampaignStageCount = (configuredLevelCount: number) => clamp(
+export const getAuthoredCampaignStageCount = (configuredLevelCount: number) => Math.max(
   Math.floor(Number(configuredLevelCount) || 0),
-  0,
-  MAX_AUTHORED_CAMPAIGN_STAGES
+  0
 );
 
 export const getNextAuthoredCampaignIndex = (

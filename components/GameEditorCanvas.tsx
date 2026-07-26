@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type { GameCampaign } from '../game-config/types';
 import { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from '../constants';
 import { BASE_FLASK_CHARGE_MAX, getFlaskProgress, spendStoredFlasks } from '../services/flaskProgress';
@@ -6,6 +6,14 @@ import type { GameEditorSnapshot, GameEngineDebugSnapshot, GameRuntimeState } fr
 import { getPrimaryAssetPath } from '../services/levelConfig';
 import { PLAYER_SHIPS, type PlayerShipId } from '../services/playerShipService';
 import type { RuntimeSquadLoadout } from '../services/squadProgression';
+import type { GameplayRandomSeed } from '../services/gameplay/random';
+import type { GameplayTelemetrySnapshot } from '../services/gameplay/telemetry';
+import type {
+  PreviewCommand,
+  PreviewCommandResult,
+  PreviewSnapshot
+} from '../services/gameplay/previewSession';
+import type { PreviewBossArtwork } from '../services/pixi/PixiGameRenderer';
 import { FieldUpgradeType, PowerupType, type GamePolishSettings, type Stats } from '../types';
 import GameStage from './GameStage';
 
@@ -15,14 +23,18 @@ const EDITOR_POLISH_SETTINGS: GamePolishSettings = {
   screenShake: true,
   highDensityParticles: true
 };
+const DEFAULT_EDITOR_PREVIEW_SEED = 'scicon-director-preview';
 
 export interface GameEditorPreviewSettings {
   playerShipId?: PlayerShipId;
   squadLoadout?: RuntimeSquadLoadout;
   gameSpeed?: number;
   invinciblePlayer?: boolean;
+  unlimitedBombs?: boolean;
+  shipAbilityNoCooldown?: boolean;
   startingLives?: number;
   upgrades?: Partial<Stats['upgrades']>;
+  seed?: GameplayRandomSeed;
 }
 
 const createPreviewStats = (settings: GameEditorPreviewSettings = {}): Stats => ({
@@ -68,9 +80,21 @@ export interface GameEditorCanvasProps {
   onRuntimeState?: (state: GameRuntimeState) => void;
   onDebugSnapshot?: (snapshot: GameEngineDebugSnapshot) => void;
   onEditorSnapshot?: (snapshot: GameEditorSnapshot) => void;
+  onTelemetrySnapshot?: (snapshot: GameplayTelemetrySnapshot) => void;
   onPlayingChange?: (playing: boolean) => void;
+  previewCommand?: PreviewCommand | null;
+  onPreviewCommandResult?: (result: PreviewCommandResult) => void;
+  onPreviewSnapshot?: (snapshot: PreviewSnapshot) => void;
   previewSettings?: GameEditorPreviewSettings;
   previewViewport?: Readonly<{ width: number; height: number }>;
+  previewBossArtwork?: PreviewBossArtwork;
+  /** Preview sound effects are opt-in; production audio defaults are unchanged. */
+  audioEnabled?: boolean;
+  /** Mission music stays off unless an authoring surface explicitly requests it. */
+  musicEnabled?: boolean;
+  fieldUpgradesEnabled?: boolean;
+  onReady?: () => void;
+  onInitializationError?: (error: unknown) => void;
 }
 
 export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
@@ -82,13 +106,51 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
   onRuntimeState,
   onDebugSnapshot,
   onEditorSnapshot,
+  onTelemetrySnapshot,
   onPlayingChange,
+  previewCommand = null,
+  onPreviewCommandResult,
+  onPreviewSnapshot,
   previewSettings = {},
-  previewViewport
+  previewViewport,
+  previewBossArtwork,
+  audioEnabled = false,
+  musicEnabled = false,
+  fieldUpgradesEnabled = true,
+  onReady,
+  onInitializationError
 }) => {
   const [stats, setStats] = useState<Stats>(() => createPreviewStats(previewSettings));
   const [bombCommand, setBombCommand] = useState<{ nonce: number } | null>(null);
   const [shipAbilityCommand, setShipAbilityCommand] = useState<{ nonce: number } | null>(null);
+
+  useEffect(() => {
+    const fireRate = previewSettings.upgrades?.fireRate ?? 2;
+    const speed = previewSettings.upgrades?.speed ?? 1;
+    const missile = previewSettings.upgrades?.missile ?? 0;
+    setStats((previous) => {
+      if (
+        previous.upgrades.fireRate === fireRate
+        && previous.upgrades.speed === speed
+        && previous.upgrades.missile === missile
+      ) {
+        return previous;
+      }
+      return {
+        ...previous,
+        upgrades: {
+          ...previous.upgrades,
+          fireRate,
+          speed,
+          missile
+        }
+      };
+    });
+  }, [
+    previewSettings.upgrades?.fireRate,
+    previewSettings.upgrades?.missile,
+    previewSettings.upgrades?.speed
+  ]);
 
   const handlePreviewUpgrade = useCallback((type: FieldUpgradeType) => {
     setStats((previous) => {
@@ -144,9 +206,18 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
         waveId,
         previewMode: true,
         previewInvincible: previewSettings.invinciblePlayer ?? true,
+        previewUnlimitedBombs: previewSettings.unlimitedBombs ?? false,
+        previewShipAbilityNoCooldown: previewSettings.shipAbilityNoCooldown ?? false,
         previewStartingLives: previewSettings.startingLives ?? GAME_CONFIG.PLAYER_LIVES,
         previewViewport,
-        audioEnabled: false,
+        previewBossArtwork,
+        previewSeed: previewSettings.seed ?? DEFAULT_EDITOR_PREVIEW_SEED,
+        previewCommand,
+        onPreviewPlayingChange: onPlayingChange,
+        onPreviewCommandResult,
+        onPreviewSnapshot,
+        audioEnabled,
+        musicEnabled,
         autoFire: true,
         timeScale: previewSettings.gameSpeed ?? 1,
         playerShipId,
@@ -157,7 +228,10 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
         shipAbilityCommand,
         onRuntimeState,
         onDebugSnapshot,
-        onEditorSnapshot
+        onEditorSnapshot,
+        onTelemetrySnapshot,
+        onReady,
+        onInitializationError
       }}
       hud={{
         showLabGlow: false,
@@ -170,8 +244,10 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
         onUseShipAbility: () => setShipAbilityCommand({ nonce: Date.now() }),
         shipAbilityLocked: !playing,
         onUpgrade: handlePreviewUpgrade,
+        fieldUpgradesEnabled,
         bombIconSrc: getPrimaryAssetPath(campaign.hudAssets.bombIconAssetKey),
-        bombLocked: false
+        bombLocked: false,
+        unlimitedBombs: previewSettings.unlimitedBombs ?? false
       }}
     />
   );

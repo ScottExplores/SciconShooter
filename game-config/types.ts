@@ -113,6 +113,7 @@ export type MovementPatternId =
   | 'asteroid-drift'
   | 'gatekeeper-cycle'
   | 'arena-roam';
+export type MovementPathId = 'sweep-bank-reentry';
 export type WeaponId = 'aimed-shot' | 'wall-bolt' | 'burst-volley' | 'lane-beam';
 export type ScorecardMetricId = 'wave' | 'targets' | 'coins' | 'flight';
 export type EnemyRank = 'standard' | 'elite';
@@ -373,11 +374,206 @@ export interface BossHealthPhase {
   weaponSettingIds: string[];
 }
 
+export interface BossRevivalConfig {
+  /** References the first phase of the awakened health bar. */
+  phaseId: string;
+  /** Time spent visibly powerless at zero health. */
+  shutdownSeconds: number;
+  /** Time spent restoring health and growing into the awakened form. */
+  rebootSeconds: number;
+  /** Fraction of max health restored when the awakened form becomes active. */
+  restoreHealthRatio: number;
+  /** Uniform simulation and presentation scale applied to the awakened form. */
+  awakenedSizeMultiplier: number;
+}
+
+export type BossTimelineTrackKind =
+  | 'movement'
+  | 'attack'
+  | 'laser'
+  | 'summon'
+  | 'defense'
+  | 'presentation';
+
+export type BossTimelineTrigger = 'time' | 'phase-enter' | 'death';
+
+export type BossTimelinePrimitiveId =
+  | 'telegraph'
+  | 'aimed-burst'
+  | 'gap-ring'
+  | 'rotor-hazard-sentence'
+  | 'radial-beam-array'
+  | 'corner-ambush-beam'
+  | 'corner-ambush-ram'
+  | 'paired-cannon-burst'
+  | 'articulated-melee-sweep'
+  | 'reactor-aperture-pattern'
+  | 'tracking-pincer-dive'
+  | 'cross-beam'
+  | 'rail-sweep'
+  | 'tail-fan'
+  | 'inward-collapse'
+  | 'rotating-cross'
+  | 'helix-volley'
+  | 'side-barrage'
+  | 'pod-volley'
+  | 'weave-wall'
+  | 'summon-formation'
+  | 'set-shield'
+  | 'set-weak-point'
+  | 'set-movement'
+  | 'follow-path'
+  | 'effect-cue'
+  | 'camera-cue';
+
+export type BossTimelineTelegraphStyle = 'warning' | 'lane' | 'target' | 'ring' | 'spokes';
+
+/**
+ * A small, allowlisted presentation vocabulary. Mechanics opt into a motion
+ * explicitly so renderers never have to infer limb poses from primitive names.
+ */
+export type BossTimelineMotionCue =
+  | 'rotor-volley'
+  | 'radial-beam'
+  | 'heavy-cannon'
+  | 'gatling-barrage'
+    | 'paired-crossfire'
+    | 'claw-sweep'
+    | 'reactor-pattern'
+    | 'reactor-fan'
+    | 'reactor-mines'
+    | 'pincer-dive';
+
+/**
+ * Explicit rotation policy for authored radial beam arrays. Seeded random
+ * choices are resolved by the deterministic gameplay runtime so a replay's
+ * warning, boss pose, and damaging beams always agree.
+ */
+export type BossTimelineRotationDirection =
+  | 'clockwise'
+  | 'counterclockwise'
+  | 'seeded-random';
+
+/**
+ * High-level attack vocabulary used by the Boss Factory. Timeline clips stay
+ * the executable primitives; an attack sentence explains how several clips
+ * form one learnable player-facing movement puzzle.
+ */
+export type BossAttackSentenceRole = 'core' | 'signature';
+
+export type BossAttackSkillTest =
+  | 'rhythm-dodge'
+  | 'lane-routing'
+  | 'gap-tracking'
+  | 'route-combination';
+
+export type BossAttackSafeRouteRule =
+  | 'opposite-side-dodge'
+  | 'shifting-channel'
+  | 'rotating-gap'
+  | 'channel-to-quadrant';
+
+export type BossAttackSocketRole = 'port' | 'starboard' | 'core';
+
+/**
+ * One bounded, declarative action on a boss timeline. The runtime accepts only
+ * the primitive IDs above; arbitrary code and untyped parameter bags are never
+ * part of campaign content.
+ */
+export interface BossTimelineClip {
+  id: string;
+  label: string;
+  track: BossTimelineTrackKind;
+  primitiveId: BossTimelinePrimitiveId;
+  trigger: BossTimelineTrigger;
+  /** Used by time-based clips on the active phase clock. */
+  startSeconds: number;
+  /** Presentation window and editor width; damaging actions still fire once. */
+  durationSeconds: number;
+  /** Omit to run in every phase; otherwise references a phase on this boss. */
+  phaseId?: string;
+  /** Required for damaging attack, laser, and summon primitives. */
+  telegraphClipId?: string;
+  /** Bounded repetition inside one loop. Default: one execution. */
+  repeat?: {
+    count: number;
+    intervalSeconds: number;
+  };
+  /** Safe primitive parameters. Unsupported fields are rejected by validation. */
+  parameters?: {
+    sequence?: number;
+    projectileCount?: number;
+    /** Cadence for sustained rotor hazards. Bounded to 0.5-2 seconds. */
+    pulseIntervalSeconds?: number;
+    warningSeconds?: number;
+    shieldCount?: number;
+    summonCount?: number;
+    enemyId?: EnemyId;
+    formationPatternId?: SpawnPatternId;
+    movementPatternId?: MovementPatternId;
+    movementPathId?: MovementPathId;
+    speedMultiplier?: number;
+    componentId?: 'left-cannon' | 'right-cannon' | 'helmet';
+    enabled?: boolean;
+    side?: 'port' | 'starboard';
+    handedness?: 'left' | 'right';
+    telegraphStyle?: BossTimelineTelegraphStyle;
+    motionCue?: BossTimelineMotionCue;
+    rotationDirection?: BossTimelineRotationDirection;
+    color?: string;
+    strength?: number;
+  };
+}
+
+/**
+ * One complete boss attack composed from ordered damaging timeline clips.
+ * Descriptive fields are bounded authoring metadata, never executable text.
+ */
+export interface BossAttackSentenceVariant {
+  phaseId: string;
+  /** Ordered damaging clip references for this phase's learned-rule remix. */
+  beatClipIds: string[];
+  /** Final presentation clip that visibly settles or staggers the boss. */
+  recoveryClipId: string;
+}
+
+export interface BossAttackSentence {
+  id: string;
+  label: string;
+  role: BossAttackSentenceRole;
+  skillTest: BossAttackSkillTest;
+  recognitionCue: string;
+  solution: string;
+  safeRouteRule: BossAttackSafeRouteRule;
+  sourceSocketRoles: BossAttackSocketRole[];
+  /** Exactly one variation per boss phase; later phases remix the same learned rule. */
+  variants: BossAttackSentenceVariant[];
+}
+
+export interface BossTimelineConfig {
+  /** Timeline duration for the active phase. */
+  durationSeconds: number;
+  /** When true, time-based clips repeat after durationSeconds. */
+  loop: boolean;
+  clips: BossTimelineClip[];
+  /**
+   * Optional Boss Factory contract. When present it contains exactly three
+   * core attack identities and one signature identity across every boss phase.
+   */
+  attacks?: BossAttackSentence[];
+}
+
 export interface BossEvent extends BaseWaveEvent {
   kind: 'boss';
   bossId: BossId;
   /** Optional layered renderer rig. Currently consumed by gatekeeper encounters. */
   rigId?: BossRigId;
+  /**
+   * Existing bosses default to their legacy rig components. Authored bosses
+   * may deliberately use one ordinary hull hit region without inventing
+   * cannons, armor plates, or weak points that are not part of their design.
+   */
+  componentMode?: 'legacy-rig' | 'hull-only';
   /** Number of matching bosses spawned together, or rows for a configured paywall formation. */
   count?: number;
   spriteKey: AssetKey;
@@ -396,6 +592,13 @@ export interface BossEvent extends BaseWaveEvent {
   sizeMultiplier?: number;
   weapons: BossWeaponSetting[];
   phases: BossHealthPhase[];
+  /** Optional one-use, deterministic transition into a later authored phase. */
+  revival?: BossRevivalConfig;
+  /**
+   * Optional visual-authoring timeline. Existing bosses omit it and retain
+   * their compatibility behavior until they are deliberately migrated.
+   */
+  timeline?: BossTimelineConfig;
 }
 
 export interface AsteroidEvent extends BaseWaveEvent {

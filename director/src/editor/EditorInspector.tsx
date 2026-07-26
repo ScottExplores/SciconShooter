@@ -35,6 +35,7 @@ import {
 } from '../../../game-config/catalog';
 import { DEFAULT_RECORD_CARD_CONFIG } from '../../../game-config/recordCard';
 import { EditorIcon } from './EditorIcon';
+import { BossTimelineEditor } from './BossTimelineEditor';
 import {
   SPRITE_ASSET_DRAG_MIME,
   SpriteWorkshop,
@@ -595,6 +596,23 @@ function BossSettings({
     updateBoss({ phases: [...boss.phases, phase] });
   };
 
+  const removePhase = (phaseId: string) => {
+    if (!boss || boss.phases.length <= 1) return;
+    const phases = boss.phases.filter((phase) => phase.id !== phaseId);
+    const fallbackPhaseId = phases[0]?.id;
+    updateBoss({
+      phases,
+      timeline: boss.timeline ? {
+        ...boss.timeline,
+        clips: boss.timeline.clips.map((clip) => (
+          clip.phaseId === phaseId
+            ? { ...clip, phaseId: fallbackPhaseId }
+            : clip
+        ))
+      } : undefined
+    });
+  };
+
   return (
     <>
       <div className="le-inspector-title"><p>Boss renderer</p><h2>{boss?.label ?? 'No boss selected'}</h2></div>
@@ -678,7 +696,7 @@ function BossSettings({
             <div className="le-phase-list">
               {boss.phases.map((phase, index) => (
                 <article className="le-phase-card" key={phase.id}>
-                  <header><strong>{phase.label}</strong><button type="button" disabled={boss.phases.length <= 1} onClick={() => updateBoss({ phases: boss.phases.filter((item) => item.id !== phase.id) })}>Remove</button></header>
+                  <header><strong>{phase.label}</strong><button type="button" disabled={boss.phases.length <= 1} onClick={() => removePhase(phase.id)}>Remove</button></header>
                   <TextField label="Phase name" value={phase.label} onChange={(label) => updatePhase(phase.id, { label })} />
                   <NumberField label="Starts below health" value={phase.triggerHealthRatio * 100} onChange={(value) => updatePhase(phase.id, { triggerHealthRatio: value / 100 })} min={1} max={100} step={1} unit="%" />
                   <SelectField label="Movement" value={phase.movementPatternId} options={MOVEMENTS} onChange={(movementPatternId) => updatePhase(phase.id, { movementPatternId })} />
@@ -710,6 +728,8 @@ function BossSettings({
             <button className="le-button" type="button" onClick={addPhase}><EditorIcon name="add" /> Add low-health phase</button>
           </fieldset>
 
+          <BossTimelineEditor boss={boss} onChange={onUpdateEvent} />
+
           <button className="le-button le-button--danger" type="button" disabled={bosses.length <= 1} onClick={() => onDeleteEvent(boss.id)}><EditorIcon name="delete" /> Delete boss encounter</button>
         </>
       ) : <p className="le-validation">Add a boss encounter to preview and configure a real boss.</p>}
@@ -739,17 +759,11 @@ function LevelSettings({
         <NumberField label="Starting difficulty" value={level.startingDifficulty} onChange={(startingDifficulty) => onUpdateLevel({ startingDifficulty })} min={0.1} max={10} step={0.05} unit="×" />
         <NumberField label="Score target" value={level.scoreTarget} onChange={(scoreTarget) => onUpdateLevel({ scoreTarget: Math.round(scoreTarget) })} min={0} max={100000000} step={100} unit="pts" />
       </div>
-      <label className="le-field">
-        <span>Mission duration (blank = completion driven)</span>
-        <span className="le-field__unit">
-          <input type="number" value={level.durationSeconds ?? ''} min={1} max={86400} step={1} onChange={(event) => onUpdateLevel({ durationSeconds: event.target.value === '' ? null : Number(event.target.value) })} />
-          <small>s</small>
-        </span>
-      </label>
-      <label className="le-check-row">
-        <input type="checkbox" checked={level.loopWaves} onChange={(event) => onUpdateLevel({ loopWaves: event.target.checked })} />
-        <span>Loop this mission's waves during an endless run</span>
-      </label>
+      <p className="le-reserved-field-note">
+        Mission completion is currently driven by its ordered wave rules. Reserved
+        mission-duration and loop fields are preserved in data but stay hidden until
+        their runtime semantics have dedicated behavior tests.
+      </p>
 
       <fieldset className="le-fieldset">
         <legend>Available power-ups</legend>

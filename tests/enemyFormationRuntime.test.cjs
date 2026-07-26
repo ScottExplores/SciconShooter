@@ -13,7 +13,8 @@ const rendererSource = fs.readFileSync(path.join(root, 'services', 'pixi', 'Pixi
 test('configured squads enter, hold formation, dive, and return', () => {
   assert.match(runtimeSource, /type EnemyFormationState = 'entry' \| 'hold' \| 'dive' \| 'return'/);
   assert.match(runtimeSource, /getConfiguredFormationTarget\(/);
-  assert.match(runtimeSource, /configureEnemyFormation\(enemy, event, spawned, count\)/);
+  assert.match(runtimeSource, /spawnConfiguredEnemyFromEvent\(event, spawned, count, difficultyMultiplier\)/);
+  assert.match(runtimeSource, /configureEnemyFormation\(enemy, event, spawnIndex, targetCount\)/);
   assert.match(runtimeSource, /updateConfiguredEnemyFormation\(e\)/);
   assert.match(runtimeSource, /enemy\.formationState = 'hold'/);
   assert.match(runtimeSource, /enemy\.formationState = 'dive'/);

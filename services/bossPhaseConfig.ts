@@ -13,6 +13,11 @@ export interface ResolvedBossPhaseConfig {
   readonly weaponSettings: readonly BossWeaponSetting[];
 }
 
+export interface BossPhaseResolutionBounds {
+  minimumPhaseIndex?: number;
+  maximumPhaseIndex?: number;
+}
+
 /**
  * Resolves the latest authored phase whose descending health threshold has
  * been crossed. Campaign validation guarantees a full-health first phase and
@@ -22,7 +27,8 @@ export const resolveBossPhaseConfig = (
   health: number,
   maxHealth: number,
   phases: readonly BossHealthPhase[],
-  weapons: readonly BossWeaponSetting[]
+  weapons: readonly BossWeaponSetting[],
+  bounds: BossPhaseResolutionBounds = {}
 ): ResolvedBossPhaseConfig | null => {
   if (phases.length === 0) return null;
 
@@ -34,6 +40,22 @@ export const resolveBossPhaseConfig = (
   for (let index = 0; index < phases.length; index += 1) {
     if (healthRatio <= phases[index].triggerHealthRatio) phaseIndex = index;
   }
+
+  const requestedMinimumPhaseIndex = Number.isFinite(bounds.minimumPhaseIndex)
+    ? Math.floor(bounds.minimumPhaseIndex as number)
+    : 0;
+  const requestedMaximumPhaseIndex = Number.isFinite(bounds.maximumPhaseIndex)
+    ? Math.floor(bounds.maximumPhaseIndex as number)
+    : phases.length - 1;
+  const minimumPhaseIndex = Math.max(
+    0,
+    Math.min(phases.length - 1, requestedMinimumPhaseIndex)
+  );
+  const maximumPhaseIndex = Math.max(
+    minimumPhaseIndex,
+    Math.min(phases.length - 1, requestedMaximumPhaseIndex)
+  );
+  phaseIndex = Math.max(minimumPhaseIndex, Math.min(maximumPhaseIndex, phaseIndex));
 
   const phase = phases[phaseIndex];
   const weaponsById = new Map(weapons.map((weapon) => [weapon.id, weapon]));

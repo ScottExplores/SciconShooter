@@ -143,8 +143,8 @@ test('BIO uses its green level-zero launch family while the other ships keep Res
   assert.match(engine, /BIO_PRIMARY_DAMAGE_PER_ROUND/);
   assert.match(engine, /const weaponSpeed = 10/);
   assert.match(engine, /PLAYER_PRIMARY_SHOT_SPREAD_DEGREES = 5/);
-  assert.match(engine, /Math\.floor\(Math\.random\(\) \* 3\) - 1/);
-  assert.match(engine, /getRandomPrimaryShotAngle\(\)/);
+  assert.match(engine, /Math\.floor\(sample \* 3\) - 1/);
+  assert.match(engine, /getRandomPrimaryShotAngle\(this\.nextGameplayRandom\(\)\)/);
   assert.doesNotMatch(engine, /const angle = randomRange\(-0\.035, 0\.035\)/);
   assert.match(engine, /\.\.\.PLAYER_WEAPON_FRAME_URLS/);
   assert.match(pixi, /\.\.\.PLAYER_WEAPON_FRAME_URLS/);

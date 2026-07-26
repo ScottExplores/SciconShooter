@@ -68,8 +68,9 @@ test('production and Director previews share the same wave presentation renderer
 
   assert.match(stage, /<GameCanvas \{\.\.\.canvas\} \/>/);
   assert.match(editor, /<GameStage/);
-  assert.match(canvas, /new PixiGameRenderer\(\)/);
-  assert.doesNotMatch(editor, /new PixiGameRenderer\(\)/);
+  assert.match(canvas, /new PixiGameRenderer\(\{\s*previewBossArtwork:/);
+  assert.equal((canvas.match(/new PixiGameRenderer\(/g) || []).length, 1);
+  assert.doesNotMatch(editor, /new PixiGameRenderer\(/);
 });
 
 test('story transmission uses the same enclosing level identity', () => {

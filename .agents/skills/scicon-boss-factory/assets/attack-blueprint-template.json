@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-attack-to-sprite-map",
+  "bossId": "replace-me",
+  "fixedSeed": "replace-me-benchmark",
+  "requiredCaptureStages": [
+    "preparation",
+    "telegraph",
+    "first-beat",
+    "peak-danger",
+    "recovery"
+  ],
+  "normalGameplayPresentation": {
+    "attackNamesVisible": false,
+    "internalStateTextVisible": false,
+    "aimingOrPredictionLinesVisible": false,
+    "debugGuidesVisible": false,
+    "debugTogglesDefaultOn": false
+  },
+  "routeProof": {
+    "requiredViewports": ["mobile", "desktop"],
+    "geometryUncertaintyPx": 3,
+    "minimumReplayedClearancePxAfterUncertainty": 6
+  },
+  "attacks": [
+    {
+      "id": "core-a",
+      "kind": "core",
+      "playerSkill": "recognize and follow a moving opening",
+      "movingParts": ["replace-part"],
+      "spriteAnimations": ["replace-animation"],
+      "sockets": ["replace-socket"],
+      "recognitionCue": "replace-cue",
+      "telegraph": "visible anatomy and sprite preparation tied to the future damaging origin",
+      "boundedVariation": "two seeded, clearly readable directions",
+      "movementRule": "replace-rule",
+      "beats": [
+        "preparation",
+        "locked-telegraph",
+        "first-beat",
+        "connected-follow-up",
+        "peak-danger",
+        "recoil",
+        "recovery",
+        "neutral"
+      ],
+      "recoil": "replace-physical-reaction",
+      "recovery": "replace-vulnerability-and-return",
+      "capturePaths": {
+        "preparation": "evidence/attacks/core-a/preparation.png",
+        "telegraph": "evidence/attacks/core-a/telegraph.png",
+        "firstBeat": "evidence/attacks/core-a/first-beat.png",
+        "peakDanger": "evidence/attacks/core-a/peak-danger.png",
+        "recovery": "evidence/attacks/core-a/recovery.png"
+      }
+    },
+    {
+      "id": "core-b",
+      "kind": "core",
+      "playerSkill": "replace-me",
+      "movingParts": ["replace-part"],
+      "spriteAnimations": ["replace-animation"],
+      "sockets": ["replace-socket"],
+      "recognitionCue": "replace-me",
+      "telegraph": "replace-visible-telegraph",
+      "boundedVariation": "replace-me",
+      "movementRule": "replace-me",
+      "beats": [
+        "preparation",
+        "locked-telegraph",
+        "first-beat",
+        "connected-follow-up",
+        "peak-danger",
+        "recoil",
+        "recovery",
+        "neutral"
+      ],
+      "recoil": "replace-physical-reaction",
+      "recovery": "replace-vulnerability-and-return",
+      "capturePaths": {
+        "preparation": "evidence/attacks/core-b/preparation.png",
+        "telegraph": "evidence/attacks/core-b/telegraph.png",
+        "firstBeat": "evidence/attacks/core-b/first-beat.png",
+        "peakDanger": "evidence/attacks/core-b/peak-danger.png",
+        "recovery": "evidence/attacks/core-b/recovery.png"
+      }
+    },
+    {
+      "id": "core-c",
+      "kind": "core",
+      "playerSkill": "replace-me",
+      "movingParts": ["replace-part"],
+      "spriteAnimations": ["replace-animation"],
+      "sockets": ["replace-socket"],
+      "recognitionCue": "replace-me",
+      "telegraph": "replace-visible-telegraph",
+      "boundedVariation": "replace-me",
+      "movementRule": "replace-me",
+      "beats": [
+        "preparation",
+        "locked-telegraph",
+        "first-beat",
+        "connected-follow-up",
+        "peak-danger",
+        "recoil",
+        "recovery",
+        "neutral"
+      ],
+      "recoil": "replace-physical-reaction",
+      "recovery": "replace-vulnerability-and-return",
+      "capturePaths": {
+        "preparation": "evidence/attacks/core-c/preparation.png",
+        "telegraph": "evidence/attacks/core-c/telegraph.png",
+        "firstBeat": "evidence/attacks/core-c/first-beat.png",
+        "peakDanger": "evidence/attacks/core-c/peak-danger.png",
+        "recovery": "evidence/attacks/core-c/recovery.png"
+      }
+    },
+    {
+      "id": "signature",
+      "kind": "signature",
+      "playerSkill": "solve a multi-stage route using learned rules",
+      "movingParts": ["replace-multiple-parts"],
+      "spriteAnimations": ["replace-unique-pixel-frame-sequence"],
+      "sockets": ["replace-socket"],
+      "recognitionCue": "unique full-body pose and pixel-frame sequence",
+      "telegraph": "anatomy, movement, sprite animation, effects, and supported sound hooks without a prediction line",
+      "boundedVariation": "seeded direction or lane only",
+      "movementRule": "replace-me",
+      "beats": [
+        "preparation",
+        "signature-anticipation",
+        "locked-telegraph",
+        "first-beat",
+        "establish-puzzle",
+        "rotate-or-reverse",
+        "peak-danger",
+        "recoil",
+        "vulnerability",
+        "neutral"
+      ],
+      "recoil": "replace-multi-part-physical-reaction",
+      "recovery": "replace-visible-vulnerability-and-return",
+      "capturePaths": {
+        "preparation": "evidence/attacks/signature/preparation.png",
+        "telegraph": "evidence/attacks/signature/telegraph.png",
+        "firstBeat": "evidence/attacks/signature/first-beat.png",
+        "peakDanger": "evidence/attacks/signature/peak-danger.png",
+        "recovery": "evidence/attacks/signature/recovery.png"
+      }
+    }
+  ],
+  "phaseTwo": {
+    "visibleTransformation": "replace-me",
+    "spriteFrames": ["replace-phase-two-frame"],
+    "behaviorChange": "replace-anatomy-movement-coordination-or-exposure-change",
+    "remixedRules": ["core-a", "core-b", "signature"],
+    "numericOnlyChangeForbidden": true
+  }
+}

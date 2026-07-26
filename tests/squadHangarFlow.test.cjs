@@ -38,14 +38,15 @@ test('the weekly squad model is wallet-scoped, resettable, and data driven', () 
   assert.doesNotMatch(source, /if \(!equipped\.left\) equipped\.left/);
 });
 
-test('guest runs never load or save Hangar profile data', () => {
+test('guest Hangar upgrades remain temporary while permanent archive progress persists locally', () => {
   const squad = read('services', 'squadProgression.ts');
   const app = read('App.tsx');
 
   assert.match(squad, /if \(!walletAddress\?\.trim\(\)\)/);
   assert.match(squad, /removeItem\(weeklyStorageKey\(profileId\)\)/);
-  assert.match(squad, /removeItem\(permanentStorageKey\(fallback\.profileId\)\)/);
   assert.match(squad, /state\.profileId === 'guest'/);
+  assert.match(squad, /getItem\(permanentStorageKey\(fallback\.profileId\)\)/);
+  assert.match(squad, /setItem\(permanentStorageKey\(state\.profileId\)/);
   assert.match(app, /if \(!walletAddress\) \{[\s\S]*totalCoins: 0/);
   assert.match(app, /walletProfileAddress === normalizedActiveWalletAddress[\s\S]*localStorage\.setItem\(getWalletProfileKey\(walletProfileAddress\)/);
   assert.match(app, /if \(activeWalletAddress && !isFounderSandboxRun/);
@@ -215,7 +216,8 @@ test('companions use the real engine and Overdrive Spread stays on the main ship
   assert.match(engine, /this\.updateSquadCompanions\(\)/);
   assert.match(engine, /spawnSquadCompanionBullet/);
   assert.match(engine, /sampleTripleShotSideAngleRadians/);
-  assert.match(engine, /const sideAngle = sampleTripleShotSideAngleRadians\(side, Math\.random\(\)\)/);
+  assert.match(engine, /const sideAngle = sampleTripleShotSideAngleRadians\(side, this\.nextGameplayRandom\(\)\)/);
+  assert.doesNotMatch(engine, /sampleTripleShotSideAngleRadians\(side, Math\.random\(\)\)/);
   assert.match(engine, /angleBias: sideAngle/);
   assert.match(engine, /OVERDRIVE SPREAD!/);
   assert.match(renderer, /engine\.getSquadCompanionVisuals\(\)/);

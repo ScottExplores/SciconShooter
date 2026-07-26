@@ -81,20 +81,35 @@ test('shared schema and both validators recognize the same optional formation sl
   });
 });
 
-test('the shared engine consumes authored slots before falling back to built-in formations', () => {
-  const runtime = readSource('services', 'gameLogic.ts');
-  const start = runtime.indexOf('  getConfiguredFormationTarget(\n');
-  const end = runtime.indexOf('  getConfiguredSpawnPoint(', start);
-  const targetFunction = runtime.slice(start, end);
-
-  assert.ok(start >= 0 && end > start, 'configured formation target function remains available');
-  assert.match(targetFunction, /const authoredSlot = event\.formationSlots\?\.\[index\]/);
-  assert.match(targetFunction, /authoredSlot\.x \* this\.width/);
-  assert.match(targetFunction, /authoredSlot\.y \* this\.height/);
-  assert.ok(
-    targetFunction.indexOf('const authoredSlot') < targetFunction.indexOf('resolveConfiguredFormationMode'),
-    'authored coordinates take precedence over the legacy pattern layout'
+test('the shared formation runtime resolves authored slots before built-in geometry', () => {
+  const runtime = loadTypeScriptModule(
+    'services',
+    'gameplay',
+    'formations',
+    'FormationRuntime.ts'
   );
+  const shared = {
+    event: {
+      id: 'custom-slot-proof',
+      patternId: 'grid',
+      formationSlots: [{ x: 0.5, y: 0.2 }],
+      enemySpriteKeys: []
+    },
+    index: 0,
+    count: 1,
+    entityWidth: 44,
+    entityHeight: 44,
+    viewport: { width: 390, height: 844 }
+  };
+
+  const authored = runtime.resolveConfiguredFormationTarget(shared);
+  const builtIn = runtime.resolveConfiguredFormationTarget({
+    ...shared,
+    event: { ...shared.event, formationSlots: undefined }
+  });
+
+  assert.deepEqual(authored, { x: 173, y: 146.8 });
+  assert.notDeepEqual(authored, builtIn);
 });
 
 test('clean wave authoring creates one valid opening formation beyond wave five', () => {

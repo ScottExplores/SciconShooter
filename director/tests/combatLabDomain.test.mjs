@@ -13,7 +13,10 @@ const server = await createServer({
   root: repositoryRoot,
   configFile: false,
   resolve: {
-    alias: { '@game': repositoryRoot }
+    alias: {
+      '@game': repositoryRoot,
+      '@director': path.join(repositoryRoot, 'director', 'src')
+    }
   },
   server: { middlewareMode: true },
   appType: 'custom'
@@ -87,6 +90,19 @@ test('content catalog discovers every real Combat Lab category without dangling 
   assert.ok(catalog.bossMoves.some((item) => item.kind === 'boss-phase'));
   assert.ok(catalog.effectsAssets.some((item) => item.kind === 'asset'));
   assert.ok(catalog.effectsAssets.some((item) => item.kind === 'effect'));
+  const sandboxBossArt = catalog.effectsAssets.filter((item) => (
+    item.id.startsWith('prototype-asset:')
+  ));
+  assert.equal(sandboxBossArt.length, 22);
+  assert.ok(sandboxBossArt.every((item) => (
+    item.production === false
+    && item.imagePaths.length === 1
+    && item.sourceRefs[0]?.symbol === 'PROTOTYPE_ASSET_DEFINITIONS'
+  )));
+  assert.ok(sandboxBossArt.some((item) => (
+    item.id === 'prototype-asset:nullwake-revenant:factory-atlas-v3'
+  )));
+  assert.ok(sandboxBossArt.some((item) => item.id === 'prototype-asset:sandbox-boss-vfx:sheet'));
 
   for (const item of catalog.allItems) {
     assert.ok(item.sourceRefs.length > 0, `${item.id} should identify its production source`);

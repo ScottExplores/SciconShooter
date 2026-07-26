@@ -7,21 +7,28 @@ import type {
   AsteroidEvent,
   BossEvent,
   BossHealthPhase,
+  BossRevivalConfig,
   BossRigId,
+  BossTimelineConfig,
+  BossTimelineMotionCue,
   BossWeaponSetting,
   EnemyAttackPatternId,
   EnemyRank,
   GameCampaign,
   LevelDefinition,
+  MovementPathId,
+  PowerupEvent,
+  RecoveryEvent,
   SpriteStyle,
   SpawnEvent,
+  WaveEvent,
   WaveDefinition
 } from '../game-config/types';
 import {
   DEFAULT_GAME_CAMPAIGN,
   cloneGameCampaign,
   getAssetPaths,
-  getDifficultyMultiplier,
+  getEnemy,
   getPowerup,
   getPrimaryAssetPath
 } from './levelConfig';
@@ -66,6 +73,19 @@ import {
 } from './squadProgression';
 import { resolveBossPhaseConfig } from './bossPhaseConfig';
 import {
+  advanceBossRevivalRuntime,
+  createBossRevivalRuntimeState,
+  createCompletedBossRevivalRuntimeState,
+  getBossRevivalPhaseBounds,
+  getBossRevivalTargetPhaseIndex,
+  type BossRevivalRuntimeState,
+  type BossRevivalStage
+} from './gameplay/bosses/BossRevivalRuntime';
+import {
+  resolveBossPreviewArtworkDimensions,
+  type BossPreviewArtworkDesignSize
+} from './gameplay/bosses/BossPreviewArtworkGeometry';
+import {
   getCampaignSpawnTargetCount,
   shouldCompleteClearWave,
   shouldUseLegacyMilestoneEncounters
@@ -77,7 +97,6 @@ import {
   getBossCoinBurstKinematics
 } from './bossCoinBurst';
 import {
-  MAX_AUTHORED_CAMPAIGN_STAGES,
   MAX_SHOT_BUNDLE_LIFETIME_FRAMES,
   MAX_SHOT_PROJECTILE_CAP,
   buildMaxShotBundleVisualPattern,
@@ -97,17 +116,156 @@ import {
   tickTimedPowerups
 } from './powerupRuntime';
 import {
+  createGameplayRandom,
+  type GameplayRandom,
+  type GameplayRandomSeed
+} from './gameplay/random';
+import type {
+  GameplayTelemetrySessionEndReason,
+  GameplayTelemetrySink
+} from './gameplay/telemetry';
+import { resolveCampaignDifficulty } from './gameplay/difficulty';
+import {
+  getFormationGroupSeed as calculateFormationGroupSeed,
+  resolveConfiguredFormationMode as resolveFormationMode,
+  resolveConfiguredFormationSpawnPoint,
+  resolveConfiguredFormationTarget,
+  resolveFormationEntryPlan,
+  type ConfiguredFormationMode
+} from './gameplay/formations';
+import {
   MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
   getGeneratedBossTechniqueCue,
+  getGeneratedBossPreviewAttackStart,
+  getGeneratedBossPreviewAttackWindow,
   resolveGeneratedBossArchetype,
   type GeneratedBossArchetype,
   type GeneratedBossTechniqueCue
 } from './generatedBossArchetypes';
+import {
+  getBossTimelineAttackWindow,
+  getBossTimelineActiveAttackAtFrame,
+  getBossTimelineDurationFrames,
+  getBossTimelineCuesAtFrame,
+  getBossTimelineTriggeredCues,
+  resolveBossTimelineAttackVariant,
+  type BossTimelineCue
+} from './gameplay/bosses/BossTimelineRuntime';
+import {
+  buildBossWeaveWallSlots,
+  resolveBossGapRoute,
+  resolveBossGapRouteDirection,
+  resolveBossPatternSequence,
+  resolveBossPodSide,
+  resolveBossWeaveWallLayout,
+  type BossGapRouteDirectionPolicy
+} from './gameplay/bosses/BossPatternRuntime';
+import {
+  resolveHeliosClampPlan,
+  resolveHeliosCornerClampPlacement,
+  resolveHeliosCrossfireAngle,
+  resolveHeliosCrossfireSides,
+  resolveHeliosMineFormation,
+  HELIOS_MINE_DEPLOY_FRAMES,
+  sampleHeliosCornerClamp,
+  sampleHeliosCrossfirePulse,
+  sampleHeliosMineLifecycle,
+  sampleHeliosReactorFanShot,
+  sampleHeliosTrackingPincer,
+  type HeliosClawSide,
+  type HeliosMineStage
+} from './gameplay/bosses/HeliosClawcarrierRuntime';
+import {
+  createBossActionPresentationState,
+  type BossActionPresentationStage,
+  type BossActionPresentationState
+} from './gameplay/bosses/BossActionPresentationRuntime';
+import {
+  captureBossAttackOriginLock,
+  clearBossAttackOriginLocks,
+  consumeBossAttackOriginLock,
+  type BossAttackOriginLock,
+  type BossAttackOriginPoint
+} from './gameplay/bosses/BossAttackOriginLockRuntime';
+import {
+  ROTATING_EMITTER_FRAME_STEP_RADIANS,
+  ROTATING_EMITTER_FULL_TURN_RADIANS,
+  resolveRotatingEmitterDirection,
+  resolveRotatingEmitterRadialBeamGeometry,
+  sampleRotatingEmitterRelayPositions,
+  sampleRotatingEmitterPulseState,
+  sampleRotatingEmitterSocketPositionsForBounds
+} from './gameplay/bosses/RotatingEmitterCoreRuntime';
+import {
+  CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS,
+  CORNER_AMBUSH_BEAM_MIN_LIVE_SECONDS,
+  resolveCornerAmbushBeamLock,
+  rotatedBeamRectangleIntersectsBox,
+  type CornerAmbushBeamLock
+} from './gameplay/bosses/CornerAmbushBeamRuntime';
+import {
+  CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS,
+  CORNER_AMBUSH_RAM_MIN_LIVE_SECONDS,
+  resolveCornerAmbushRamLock,
+  sampleCornerAmbushRamProgress,
+  type CornerAmbushRamLock
+} from './gameplay/bosses/CornerAmbushRamRuntime';
+import { resolveBossRotationSequence } from './gameplay/bosses/BossRotationDirectionRuntime';
+import {
+  getBossHullImpactStrength,
+  isBossHullImpactSignificant
+} from './gameplay/bosses/BossImpactFeedbackRuntime';
+import {
+  resolveBossPixelProjectileVisualKind,
+  type BossModularProjectileVisualKind
+} from './gameplay/bosses/BossProjectilePresentationRuntime';
+import { isDamagingBossTimelinePrimitive } from '../game-config/bossTimeline';
+import {
+  isMovementPathId,
+  sampleNormalizedMovementPath
+} from '../game-config/movementPaths';
+import {
+  applyBossComponentDamage,
+  isBossComponentTargetable,
+  isBossHullProtectedByComponents,
+  setBossComponentExposure
+} from './gameplay/bosses/BossComponentRuntime';
+import {
+  intersectsBossCollisionMask,
+  type BossCollisionMask
+} from './gameplay/bosses/BossCollisionMask';
+import {
+  BOSS_SIGNIFICANT_REACTION_FRAMES,
+  sampleBossWeaponSockets,
+  type BossWeaponSocketPoseInput,
+  type BossWeaponSocketPoseSampler,
+  type BossWeaponSocketProfile,
+  type BossWeaponSocketRole
+} from './gameplay/bosses/BossWeaponSocketRuntime';
+import {
+  getBossComponentCollisionMask,
+  getCampaignBossCollisionMask
+} from './gameplay/bosses/generatedBossCollisionMasks';
+import {
+  clampPreviewBossHealthRatio,
+  clampPreviewFastForwardFrames,
+  clampPreviewSeekFrame,
+  rescalePreviewHealthBudget,
+  resolvePreviewAttackLoopFrame,
+  resolvePreviewSafeRegionGuide,
+  type PreviewPlaybackSnapshot,
+  type PreviewSnapshot
+} from './gameplay/previewSession';
+
+export type {
+  BossActionPresentationStage,
+  BossActionPresentationState
+} from './gameplay/bosses/BossActionPresentationRuntime';
 
 // --- Helper Classes ---
 
-type EnemyFormationMode = 'row' | 'v' | 'sine' | 'pincer' | 'grid' | 'diamond' | 'spiral' | 'orbit';
-type ConfiguredEnemyFormationMode = Exclude<EnemyFormationMode, 'orbit'>;
+type EnemyFormationMode = ConfiguredFormationMode | 'orbit';
+type ConfiguredEnemyFormationMode = ConfiguredFormationMode;
 type EnemyFormationState = 'entry' | 'hold' | 'dive' | 'return';
 type PlayerWeaponKind = 'pulse' | 'bio-primary' | 'plasma' | 'ion' | 'nova' | 'singularity' | 'bio-laser' | 'eth-shard' | 'btc-hash';
 export type BossPartId = 'left-cannon' | 'right-cannon' | 'helmet';
@@ -121,10 +279,72 @@ export type BossComponentState = {
   widthRatio: number;
   heightRatio: number;
   destroyed: boolean;
+  exposed: boolean;
   flashFrames: number;
   lastDamageFlashFrame: number;
 };
-export type BossProjectileVisualKind = 'boss-ray' | 'boss-bolt' | 'crown-claw-left' | 'crown-claw-right' | ShipAbilityKind;
+export type BossCornerAmbushBeamState = {
+  actionClipId: string;
+  holdUntilFrame: number;
+  lock: CornerAmbushBeamLock;
+};
+export type BossCornerAmbushRamState = {
+  actionClipId: string;
+  stage: 'warning' | 'charge';
+  startFrame: number;
+  endFrame: number;
+  lock: CornerAmbushRamLock;
+};
+export type BossTrackingPincerState = {
+  actionClipId: string;
+  anchorX: number;
+  anchorY: number;
+  riseX: number;
+  riseY: number;
+  targetX: number;
+  targetY: number;
+};
+export type BossHeliosCornerClampState = {
+  actionClipId: string;
+  executionIndex: number;
+  activeSide?: HeliosClawSide;
+  fallbackToCrossfire: boolean;
+  anchorX: number;
+  anchorY: number;
+  cornerX: number;
+  cornerY: number;
+  lockedX: number;
+};
+export type HeliosMineRuntimeState = {
+  spawnFrame: number;
+  triggerAgeFrame: number;
+  hitPlayer: boolean;
+  deployStartX: number;
+  deployStartY: number;
+  armX: number;
+  armY: number;
+};
+type BossGatlingAttackLock = {
+  actionClipId: string;
+  executionIndex: number;
+  targetX: number;
+  targetY: number;
+  portOrigins: readonly BossAttackOriginPoint[];
+  starboardOrigins: readonly BossAttackOriginPoint[];
+};
+export type BossProjectileVisualKind =
+  | 'boss-ray'
+  | 'boss-bolt'
+  | 'boss-pod'
+  | 'boss-eye-comet'
+  | 'boss-pixel-pink'
+  | 'boss-pixel-gold'
+  | 'boss-pixel-prism'
+  | 'crown-claw-left'
+  | 'crown-claw-right'
+  | 'boss-helios-explosion'
+  | BossModularProjectileVisualKind
+  | ShipAbilityKind;
 type PendingPlayerShot = {
   fireFrame: number;
   speed: number;
@@ -149,13 +369,13 @@ export class Entity {
   vy: number;
   markedForDeletion: boolean = false;
   color: string;
-  
+
   // Specific props
   hp: number = 1;
   maxHp: number = 1;
-  text?: string; 
+  text?: string;
   angle: number = 0;
-  
+
   // Lifecycle props
   life: number = 0;
   maxLife: number = 0;
@@ -164,28 +384,86 @@ export class Entity {
   attackTimer: number = 0;
   lastBurstAttackTimer: number = 0;
   isCharging: boolean = false;
-  isBeam: boolean = false; 
+  isBeam: boolean = false;
   beamAxis: 'vertical' | 'horizontal' = 'vertical';
+  /** Optional screen-space angle for authored rotating ray beams. */
+  beamAngleRadians: number | null = null;
+  beamRadialRay: boolean = false;
+  beamRadialOutwardLength: number = 0;
+  beamRotorAxisIndex: number = -1;
+  beamRotorSequence: number = 0;
+  beamSweepStartFrame: number = -1;
+  beamSweepDurationFrames: number = 0;
+  isCornerAmbushBeam: boolean = false;
   beamFromCenter: boolean = false;
   isDetachedBeam: boolean = false;
   isTelegraph: boolean = false;
+  isBossGapGuide: boolean = false;
+  isBossSideBarrageGuide: boolean = false;
   beamAnchorOffsetX: number | null = null;
+  beamOriginX: number | null = null;
+  beamOriginY: number | null = null;
+  beamTargetX: number | null = null;
+  beamTargetY: number | null = null;
   beamLaneSign: number = 0;
   bossAttackArchetype?: GeneratedBossArchetype;
+  bossTimeline?: BossTimelineConfig;
+  bossTimelinePhaseId?: string;
+  bossTimelineLastPhaseId?: string;
+  bossActionPresentation?: BossActionPresentationState;
+  bossRevival?: BossRevivalConfig;
+  bossRevivalRuntime?: BossRevivalRuntimeState;
+  bossRevivalStage?: BossRevivalStage;
+  bossRevivalProgress: number = 0;
+  bossRevivalConsumed: boolean = false;
+  bossRevivalBaseWidth: number = 0;
+  bossRevivalBaseHeight: number = 0;
+  bossMovementPathId?: MovementPathId;
+  bossMovementPathStartFrame: number = -1;
+  bossMovementPathDurationFrames: number = 0;
+  bossCornerAmbushBeamState?: BossCornerAmbushBeamState;
+  bossCornerAmbushRamState?: BossCornerAmbushRamState;
+  bossTrackingPincerState?: BossTrackingPincerState;
+  bossHeliosCornerClampState?: BossHeliosCornerClampState;
+  /** Pixi presentation only. Collision remains the entity's axis-aligned box. */
+  bossPresentationBankRadians: number = 0;
+  /** Continuous simulation-owned rotor pose shared by art, warnings, and hits. */
+  bossRotorAngleRadians: number = 0;
+  bossRotorDirection: -1 | 1 = -1;
+  bossRotorInitialized: boolean = false;
+  /** Whole-rig recoil is reserved for large hull impacts and part breaks. */
+  bossSignificantImpactFrame: number = -999;
+  bossSignificantImpactXRatio: number = 0.5;
+  bossSignificantImpactYRatio: number = 0.5;
+  bossSignificantImpactStrength: number = 0;
+  bossSignificantImpactIsComponent: boolean = false;
   generatedBossChargeUntilTimer: number = -1;
   generatedBossTargetX: number | null = null;
   generatedBossTargetY: number | null = null;
   generatedBossTargetSequence: number = -1;
+  bossTimelineTargetClipId?: string;
+  bossTimelineTargetExecutionIndex: number = -1;
+  bossTimelineTargetX: number | null = null;
+  bossTimelineTargetY: number | null = null;
+  /** Warning-owned socket snapshots keyed by action clip and repeat execution. */
+  bossAttackOriginLocks: readonly BossAttackOriginLock[] = [];
+  /** Exact warning-owned rotary muzzle geometry used for every gatling pulse. */
+  bossGatlingAttackLock?: BossGatlingAttackLock;
+  bossCrossBeamOriginX: number | null = null;
+  bossCrossBeamOriginY: number | null = null;
   bossRigId?: BossRigId;
   bossComponents?: BossComponentState[];
   bossDecayStage: number = 0;
   projectileVisualKind?: BossProjectileVisualKind;
+  bossPodSide?: 'left' | 'right';
   shipAbilityKind?: ShipAbilityKind;
   bossOwnerId?: string;
   bossComponentId?: BossPartId;
   clawOutboundFrames: number = 0;
   clawReturning: boolean = false;
   clawHasHitPlayer: boolean = false;
+  heliosMineState?: HeliosMineRuntimeState;
+  heliosMineStage?: HeliosMineStage;
 
   // Missile Props
   isMissile: boolean = false;
@@ -267,9 +545,11 @@ export class Entity {
   coinBouncesRemaining: number = 0;
   bossRewardWave?: number;
   coinValueCredited: boolean = false;
-  
-  constructor(type: EntityType, x: number, y: number) {
-    this.id = Math.random().toString(36).substr(2, 9);
+
+  constructor(type: EntityType, x: number, y: number, idSample: number = Math.random()) {
+    this.id = Math.floor(
+      Math.max(0, Math.min(0.999999999999, idSample)) * 0x1_0000_0000
+    ).toString(36).padStart(9, '0');
     this.type = type;
     this.x = x;
     this.y = y;
@@ -306,7 +586,7 @@ export class VisualEffect extends Entity {
     this.fontSize = fontSize;
     this.life = 60;
     this.maxLife = 60;
-    
+
     if (type === 'text') {
         this.vy = -0.5;
         this.life = 120;
@@ -376,13 +656,13 @@ class BackgroundEntity {
     this.type = Math.random() > 0.3 ? 'planet' : 'nebula';
     this.x = Math.random() * width;
     this.y = Math.random() * height;
-    
+
     if (this.type === 'planet') {
       this.size = 50 + Math.random() * 100;
-      this.speed = 0.2 + Math.random() * 0.3; 
+      this.speed = 0.2 + Math.random() * 0.3;
       const hues = [240, 260, 280, 200];
       const hue = hues[Math.floor(Math.random() * hues.length)];
-      this.color = `hsl(${hue}, 40%, 20%)`; 
+      this.color = `hsl(${hue}, 40%, 20%)`;
     } else {
       this.size = 200 + Math.random() * 300;
       this.speed = 0.1;
@@ -400,18 +680,18 @@ class BackgroundEntity {
 
   draw(ctx: CanvasRenderingContext2D) {
     ctx.save();
-    ctx.globalAlpha = 0.2; 
+    ctx.globalAlpha = 0.2;
 
     if (this.type === 'planet') {
       const gradient = ctx.createRadialGradient(this.x, this.y, this.size * 0.2, this.x, this.y, this.size);
       gradient.addColorStop(0, this.color);
       gradient.addColorStop(1, 'rgba(0,0,0,0)');
-      
+
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
       ctx.fill();
-      
+
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.beginPath();
       ctx.arc(this.x - this.size*0.3, this.y - this.size*0.3, this.size, 0, Math.PI * 2);
@@ -554,8 +834,8 @@ const COMPANION_SHOT_STEPS: Readonly<Record<number, readonly number[]>> = Object
   9: Object.freeze([-4, -3, -2, -1, 0, 1, 2, 3, 4])
 });
 const getCompanionShotSteps = (volleySize: number) => COMPANION_SHOT_STEPS[volleySize] ?? COMPANION_SHOT_STEPS[1];
-const getRandomPrimaryShotAngle = () => (
-  (Math.floor(Math.random() * 3) - 1) * PLAYER_PRIMARY_SHOT_SPREAD_RADIANS
+const getRandomPrimaryShotAngle = (sample: number) => (
+  (Math.floor(sample * 3) - 1) * PLAYER_PRIMARY_SHOT_SPREAD_RADIANS
 );
 
 const easeOutCubic = (value: number) => 1 - Math.pow(1 - clamp(value, 0, 1), 3);
@@ -666,8 +946,6 @@ const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1;
 const BOSS_DAMAGE_FLASH_FRAMES = 2;
 const BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES = 5;
 export const REGULAR_ENEMY_SIZE_SCALE = 1.1;
-const AUTHORED_TIER_DIFFICULTY_STEP = 0.04;
-const AUTHORED_TIER_DIFFICULTY_CAP = 0.12;
 type PendingBossStrike = {
   bossId: string;
   x: number;
@@ -676,7 +954,7 @@ type PendingBossStrike = {
   warningFrames: number;
 };
 const CROWNCLAW_STRIKE_MAX_LIFE = 132;
-const PAYWALL_BOSS_COMPONENT_LAYOUT: ReadonlyArray<Omit<BossComponentState, 'hp' | 'maxHp' | 'destroyed' | 'flashFrames' | 'lastDamageFlashFrame'>> = Object.freeze([
+const PAYWALL_BOSS_COMPONENT_LAYOUT: ReadonlyArray<Omit<BossComponentState, 'hp' | 'maxHp' | 'destroyed' | 'exposed' | 'flashFrames' | 'lastDamageFlashFrame'>> = Object.freeze([
   {
     id: 'left-cannon',
     label: 'LEFT CANNON',
@@ -850,12 +1128,42 @@ export interface GameEngineOptions {
   previewMode?: boolean;
   /** Preview ships are invulnerable by default; disable for damage/death testing. */
   previewInvincible?: boolean;
+  /** Preview-only resource override. Production bombs always use their real inventory. */
+  previewUnlimitedBombs?: boolean;
+  /** Preview-only resource override. Production ship abilities keep their real cooldown. */
+  previewShipAbilityNoCooldown?: boolean;
   audioEnabled?: boolean;
   playerShipUrl?: string;
   playerShipId?: PlayerShipId;
   initialLevelId?: string;
   initialWaveId?: string;
   testMode?: boolean;
+  squadLoadout?: RuntimeSquadLoadout;
+  /** Fixed seed used by preview and deterministic tests. Production omits this. */
+  randomSeed?: GameplayRandomSeed;
+  /** Optional injectable source for focused simulation tests. */
+  gameplayRandom?: GameplayRandom;
+  /** Optional bounded local sink. No product or network analytics are emitted. */
+  telemetrySink?: GameplayTelemetrySink;
+  /** Preview-only alpha silhouette bound to the exact selected boss event. */
+  previewBossCollisionMask?: BossCollisionMask;
+  previewBossCollisionEventId?: string;
+  /** Registered modular-art bounds used to prevent preview-only sprite distortion. */
+  previewBossArtworkDesignSize?: BossPreviewArtworkDesignSize;
+  /** Preview-only normalized anatomy points bound to the selected boss event. */
+  previewBossWeaponSockets?: BossWeaponSocketProfile;
+  /** Preview-only posed anatomy sampler shared with the modular Pixi rig. */
+  previewBossWeaponSocketPoseSampler?: BossWeaponSocketPoseSampler;
+  /** Keeps simulation socket poses aligned with the renderer accessibility pose. */
+  previewBossReducedMotion?: boolean;
+  previewBossWeaponSocketEventId?: string;
+  /** Preview-only semantic projectile roles supplied by the selected artwork. */
+  previewBossProjectileVisualKinds?: readonly BossModularProjectileVisualKind[];
+}
+
+export interface PreviewPlayerLoadoutUpdate {
+  playerShipId: PlayerShipId;
+  playerShipUrl?: string;
   squadLoadout?: RuntimeSquadLoadout;
 }
 
@@ -888,6 +1196,8 @@ type PendingEnemyLaser = {
   damage: number;
   frames: number;
   warningFrames: number;
+  /** Preview-triggered boss lanes remain valid without marking the boss elite. */
+  requireEliteSource: boolean;
 };
 
 export type StageTakeoffPhase = 'idle' | 'hold' | 'lift' | 'launch';
@@ -940,6 +1250,7 @@ export interface GameRuntimeState {
 
 export interface WaveVictorySummary {
   id: string;
+  bossEncounterId: string | null;
   stage: number;
   stageName: string;
   finalWaveName: string;
@@ -1266,6 +1577,15 @@ export const resetSquadCompanionFormation = <T extends SquadCompanionFormationSt
   });
 };
 const PLAYER_RAM_COOLDOWN_FRAMES = 14;
+const PREVIEW_PLAYER_HIT_FEEDBACK_COOLDOWN_FRAMES = 18;
+
+interface PreviewBossAttackLoopState {
+  readonly eventId: string;
+  readonly attackId: string;
+  readonly phaseId: string;
+  readonly startFrame: number;
+  readonly endFrame: number;
+}
 
 export class GameEngine {
   width: number = 0;
@@ -1317,6 +1637,7 @@ export class GameEngine {
   bioBeamCanvasVisualStartFrame: number = -1;
   lastBombFrame: number = -999;
   lastPlayerRamFrame: number = -999;
+  lastPreviewPlayerHitFeedbackFrame: number = -999;
   introFlightFrames: number = 0;
   introFlightDuration: number = 150;
   waveDepartureFrames: number = 0;
@@ -1367,6 +1688,8 @@ export class GameEngine {
   currentCampaignIndex: number = 0;
   previewMode: boolean = false;
   previewInvincible: boolean = true;
+  previewUnlimitedBombs: boolean = false;
+  previewShipAbilityNoCooldown: boolean = false;
   audioEnabled: boolean = true;
   previewComplete: boolean = false;
   configuredEncounterIds: Set<string> = new Set();
@@ -1380,12 +1703,31 @@ export class GameEngine {
   initialWaveId?: string;
   testMode: boolean = false;
   campaignComplete: boolean = false;
-  private readonly squadLoadout: RuntimeSquadLoadout | null;
+  private gameplayRandom: GameplayRandom;
+  private gameplayRandomSeed: number;
+  private readonly telemetrySink?: GameplayTelemetrySink;
+  private telemetrySessionActive: boolean = false;
+  private telemetryWaveKey: string | null = null;
+  private readonly telemetryCompletedWaveKeys: Set<string> = new Set();
+  private readonly telemetryBossPhaseByEntityId: Map<string, number> = new Map();
+  private squadLoadout: RuntimeSquadLoadout | null;
   private readonly squadCompanions: ActiveSquadCompanion[];
   private readonly startingLives: number;
-  
+  private readonly previewBossCollisionMask?: BossCollisionMask;
+  private readonly previewBossCollisionEventId?: string;
+  private readonly previewBossArtworkDesignSize?: BossPreviewArtworkDesignSize;
+  private readonly previewBossWeaponSockets?: BossWeaponSocketProfile;
+  private readonly previewBossWeaponSocketPoseSampler?: BossWeaponSocketPoseSampler;
+  private readonly previewBossReducedMotion: boolean;
+  private readonly previewBossWeaponSocketEventId?: string;
+  private readonly previewBossProjectileVisualKinds: ReadonlySet<BossModularProjectileVisualKind>;
+  private previewBossAttackLoop: PreviewBossAttackLoopState | null = null;
+
   constructor(stats: Stats, options: GameEngineOptions = {}) {
     this.stats = stats;
+    this.gameplayRandom = options.gameplayRandom ?? createGameplayRandom(options.randomSeed);
+    this.gameplayRandomSeed = this.gameplayRandom.seed;
+    this.telemetrySink = options.telemetrySink;
     this.stats.shipAbilityCooldown = Math.max(0, Number(this.stats.shipAbilityCooldown) || 0);
     this.playerShipId = options.playerShipId ?? 'researchhub';
     this.stats.shipAbilityCooldownMax = getShipAbilityDefinition(this.playerShipId).cooldownFrames;
@@ -1396,6 +1738,36 @@ export class GameEngine {
     loadImage(this.playerShipUrl);
     this.campaignWaves = this.buildCampaignWaveEntries(this.campaign);
     this.previewMode = options.previewMode ?? false;
+    this.previewBossCollisionMask = this.previewMode
+      ? options.previewBossCollisionMask
+      : undefined;
+    this.previewBossCollisionEventId = this.previewMode
+      ? options.previewBossCollisionEventId
+      : undefined;
+    this.previewBossArtworkDesignSize = this.previewMode
+      && options.previewBossArtworkDesignSize
+      ? Object.freeze({
+          width: options.previewBossArtworkDesignSize.width,
+          height: options.previewBossArtworkDesignSize.height
+        })
+      : undefined;
+    this.previewBossWeaponSockets = this.previewMode
+      ? options.previewBossWeaponSockets
+      : undefined;
+    this.previewBossWeaponSocketPoseSampler = this.previewMode
+      ? options.previewBossWeaponSocketPoseSampler
+      : undefined;
+    this.previewBossReducedMotion = this.previewMode
+      && Boolean(options.previewBossReducedMotion);
+    this.previewBossWeaponSocketEventId = this.previewMode
+      ? options.previewBossWeaponSocketEventId
+      : undefined;
+    this.previewBossProjectileVisualKinds = new Set(
+      this.previewMode ? options.previewBossProjectileVisualKinds ?? [] : []
+    );
+    this.previewUnlimitedBombs = this.previewMode && Boolean(options.previewUnlimitedBombs);
+    this.previewShipAbilityNoCooldown =
+      this.previewMode && Boolean(options.previewShipAbilityNoCooldown);
     this.audioEnabled = options.audioEnabled ?? !this.previewMode;
     this.initialLevelId = options.initialLevelId;
     this.initialWaveId = options.initialWaveId;
@@ -1418,11 +1790,145 @@ export class GameEngine {
     const initialIndex = this.findCampaignWaveIndex(options.initialLevelId, options.initialWaveId);
     this.currentCampaignIndex = initialIndex >= 0 ? initialIndex : 0;
     this.previewInvincible = options.previewInvincible ?? true;
-    this.player = new Entity(EntityType.PLAYER, 0, 0);
+    this.player = new Entity(EntityType.PLAYER, 0, 0, 0.5);
     this.player.width = Math.round(128 * PLAYER_SHIP_SCALE);
     this.player.height = Math.round(128 * PLAYER_SHIP_SCALE);
-    
+
     GAMEPLAY_ASSET_URLS.forEach(loadImage);
+  }
+
+  private createEntity(type: EntityType, x: number, y: number) {
+    return new Entity(type, x, y, this.gameplayRandom.next());
+  }
+
+  private nextGameplayRandom() {
+    return this.gameplayRandom.next();
+  }
+
+  private gameplayRandomRange(min: number, max: number) {
+    return this.gameplayRandom.range(min, max);
+  }
+
+  getGameplayRandomSeed() {
+    return this.gameplayRandom.seed;
+  }
+
+  setGameplayRandomSeed(seed: GameplayRandomSeed) {
+    this.gameplayRandom = createGameplayRandom(seed);
+    this.gameplayRandomSeed = this.gameplayRandom.seed;
+    return this.gameplayRandom.seed;
+  }
+
+  private getTelemetryContext() {
+    const entry = this.getCurrentCampaignEntry();
+    return {
+      frame: this.frameCount,
+      elapsedSeconds: this.getWaveElapsedSeconds(),
+      levelId: entry?.level.id ?? `level-${Math.max(1, this.wave)}`,
+      waveId: entry?.wave.id ?? `wave-${Math.max(1, this.wave)}`
+    };
+  }
+
+  private startTelemetrySession() {
+    if (!this.telemetrySink) return;
+    if (this.telemetrySessionActive) this.stopTelemetrySession('restart');
+    this.telemetrySessionActive = true;
+    this.telemetryWaveKey = null;
+    this.telemetryCompletedWaveKeys.clear();
+    this.telemetryBossPhaseByEntityId.clear();
+    this.telemetrySink.record({
+      ...this.getTelemetryContext(),
+      type: 'session-start',
+      seed: this.gameplayRandom.seed,
+      viewportWidth: Math.max(1, this.width),
+      viewportHeight: Math.max(1, this.height)
+    });
+  }
+
+  stopTelemetrySession(reason: GameplayTelemetrySessionEndReason = 'disposed') {
+    if (!this.telemetrySink || !this.telemetrySessionActive) return;
+    this.telemetrySink.record({
+      ...this.getTelemetryContext(),
+      type: 'session-end',
+      reason
+    });
+    this.telemetrySessionActive = false;
+  }
+
+  private recordWaveStart() {
+    if (!this.telemetrySink || !this.telemetrySessionActive) return;
+    const entry = this.getCurrentCampaignEntry();
+    const context = this.getTelemetryContext();
+    const waveKey = `${context.levelId}:${context.waveId}`;
+    if (this.telemetryWaveKey === waveKey) return;
+    this.telemetryWaveKey = waveKey;
+    this.telemetrySink.record({
+      ...context,
+      type: 'wave-start',
+      levelNumber: Math.max(1, (entry?.levelIndex ?? 0) + 1),
+      waveNumber: Math.max(1, (entry?.waveIndex ?? 0) + 1)
+    });
+  }
+
+  private recordWaveCompletion() {
+    if (!this.telemetrySink || !this.telemetrySessionActive) return;
+    const context = this.getTelemetryContext();
+    const waveKey = `${context.levelId}:${context.waveId}`;
+    if (this.telemetryCompletedWaveKeys.has(waveKey)) return;
+    this.telemetryCompletedWaveKeys.add(waveKey);
+    this.telemetrySink.record({
+      ...context,
+      type: 'completion',
+      scope: 'wave',
+      score: Math.max(0, this.stats.score)
+    });
+  }
+
+  private recordCompletion(scope: 'mission' | 'campaign' | 'preview') {
+    if (!this.telemetrySink || !this.telemetrySessionActive) return;
+    this.telemetrySink.record({
+      ...this.getTelemetryContext(),
+      type: 'completion',
+      scope,
+      score: Math.max(0, this.stats.score)
+    });
+  }
+
+  private recordEntityDamage(
+    target: Entity,
+    previousHealth: number,
+    sourceKind: 'player' | 'enemy' | 'environment' = 'player',
+    targetKind: string = target.type,
+    fatalOverride?: boolean
+  ) {
+    if (!this.telemetrySink || !this.telemetrySessionActive) return;
+    const remainingHealth = Math.max(0, Number(target.hp) || 0);
+    const amount = Math.max(0, (Number(previousHealth) || 0) - remainingHealth);
+    if (amount <= 0) return;
+    this.telemetrySink.record({
+      ...this.getTelemetryContext(),
+      type: 'entity-damage',
+      targetId: target.id,
+      targetKind,
+      sourceKind,
+      amount,
+      remainingHealth,
+      fatal: fatalOverride ?? (remainingHealth <= 0)
+    });
+  }
+
+  private recordPlayerDamage(amount: number) {
+    if (!this.telemetrySink || !this.telemetrySessionActive || amount <= 0) return;
+    this.telemetrySink.record({
+      ...this.getTelemetryContext(),
+      type: 'entity-damage',
+      targetId: this.player.id,
+      targetKind: 'player',
+      sourceKind: 'enemy',
+      amount,
+      remainingHealth: Math.max(0, this.lives),
+      fatal: this.lives <= 0
+    });
   }
 
   buildCampaignWaveEntries(campaign: GameCampaign): CampaignWaveEntry[] {
@@ -1431,7 +1937,6 @@ export class GameEngine {
       ? campaign.levels
         .map((level, sourceIndex) => ({ level, sourceIndex }))
         .sort((a, b) => a.level.order - b.level.order)
-        .slice(0, MAX_AUTHORED_CAMPAIGN_STAGES)
       : [];
     levels.forEach(({ level }, levelIndex) => {
       const waves = Array.isArray(level.waves)
@@ -1501,19 +2006,18 @@ export class GameEngine {
     return flatIndex;
   }
 
-  /** @deprecated Historical name retained for compatibility; this is a five-Stage difficulty band inside the finite 20-Stage campaign, never a loop. */
+  /** @deprecated Historical name retained for compatibility; this is a bounded five-Mission difficulty band, never a content loop. */
   getCampaignCycle() {
     return getCampaignProgressionTier(this.getStageNumberForCampaignIndex());
   }
 
   getCurrentDifficultyMultiplier() {
     const entry = this.getCurrentCampaignEntry();
-    const authoredDifficulty = entry ? getDifficultyMultiplier(entry.level, entry.wave) : 1;
-    const tierDifficulty = 1 + Math.min(
-      AUTHORED_TIER_DIFFICULTY_CAP,
-      this.getCampaignCycle() * AUTHORED_TIER_DIFFICULTY_STEP
-    );
-    return authoredDifficulty * tierDifficulty;
+    return resolveCampaignDifficulty({
+      startingDifficulty: entry?.level.startingDifficulty ?? 1,
+      waveDifficultyMultiplier: entry?.wave.difficultyMultiplier ?? 1,
+      progressionTier: this.getCampaignCycle()
+    });
   }
 
   getConfiguredWaveDurationSeconds() {
@@ -1535,6 +2039,7 @@ export class GameEngine {
 
   beginWavePresentation() {
     this.wavePresentationRevision++;
+    this.recordWaveStart();
   }
 
   getWaveElapsedSeconds() {
@@ -1633,6 +2138,94 @@ export class GameEngine {
     });
   }
 
+  getPreviewSnapshot(
+    playback: PreviewPlaybackSnapshot = {
+      playing: this.gameActive,
+      timeScale: 1,
+      invincible: this.previewInvincible
+    }
+  ): Readonly<PreviewSnapshot> {
+    const runtime = this.getRuntimeState();
+    const activeBoss = [this.bossRef, this.miniBossRef]
+      .find((candidate): candidate is Entity => Boolean(
+        candidate && !candidate.markedForDeletion && candidate.hp > 0
+      ))
+      ?? this.entities.find((entity) => (
+        !entity.markedForDeletion
+        && entity.hp > 0
+        && (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS)
+      ))
+      ?? null;
+    const activeEventIds = Object.freeze(Array.from(new Set(
+      this.entities
+        .filter((entity) => !entity.markedForDeletion && Boolean(entity.sourceEventId))
+        .map((entity) => entity.sourceEventId as string)
+    )).sort());
+    const activeBossAttack = activeBoss?.bossTimeline
+      ? getBossTimelineActiveAttackAtFrame(
+          activeBoss.bossTimeline,
+          activeBoss.attackTimer,
+          activeBoss.bossTimelinePhaseId ?? activeBoss.activeBossPhaseId,
+          GAME_CONFIG.FPS
+        )
+      : null;
+    const activePrimitiveId = activeBoss?.bossActionPresentation?.primitiveId ?? null;
+    const boss = activeBoss
+      ? Object.freeze({
+        eventId: activeBoss.sourceEventId ?? null,
+        bossId: activeBoss.sourceItemId ?? null,
+        phaseId: activeBoss.bossTimelinePhaseId ?? activeBoss.activeBossPhaseId ?? null,
+        phaseIndex: Math.max(0, activeBoss.activeBossPhaseIndex),
+        health: Math.max(0, activeBoss.hp),
+        maxHealth: Math.max(1, activeBoss.maxHp),
+        healthRatio: clamp(activeBoss.hp / Math.max(1, activeBoss.maxHp), 0, 1),
+        components: Object.freeze((activeBoss.bossComponents ?? []).map((component) => (
+          Object.freeze({
+            id: component.id,
+            label: component.label,
+            health: Math.max(0, component.hp),
+            maxHealth: Math.max(1, component.maxHp),
+            healthRatio: clamp(component.hp / Math.max(1, component.maxHp), 0, 1),
+            destroyed: component.destroyed,
+            exposed: component.exposed
+          })
+        ))),
+        activeAttack: activeBossAttack
+          ? Object.freeze({
+              id: activeBossAttack.attack.id,
+              label: activeBossAttack.attack.label,
+              role: activeBossAttack.attack.role,
+              stage: activeBossAttack.stage,
+              beatIndex: activeBossAttack.beatIndex,
+              beatCount: activeBossAttack.beatCount,
+              clipId: activeBossAttack.activeClip.id
+            })
+          : null,
+        activePrimitiveId,
+        safeRegionGuide: resolvePreviewSafeRegionGuide(activePrimitiveId)
+      })
+      : null;
+
+    return Object.freeze({
+      playing: Boolean(playback.playing),
+      timeScale: clamp(Number(playback.timeScale) || 1, 0.25, 2),
+      invincible: Boolean(playback.invincible),
+      seed: this.gameplayRandomSeed,
+      frame: this.frameCount,
+      levelId: runtime.levelId,
+      waveId: runtime.waveId,
+      waveProgressFrames: this.waveProgressFrames,
+      elapsedSeconds: runtime.elapsedSeconds,
+      durationSeconds: runtime.durationSeconds,
+      entityCount: this.entities.reduce(
+        (count, entity) => count + Number(!entity.markedForDeletion),
+        0
+      ),
+      activeEventIds,
+      boss
+    });
+  }
+
   getEditorSnapshot(): Readonly<GameEditorSnapshot> {
     const width = Math.max(1, this.width);
     const height = Math.max(1, this.height);
@@ -1681,6 +2274,603 @@ export class GameEngine {
     return true;
   }
 
+  private canUsePreviewControl() {
+    return this.previewMode || this.testMode;
+  }
+
+  private getCurrentWaveEvent(eventId: string): WaveEvent | null {
+    if (!eventId || eventId.length > 160) return null;
+    return this.getCurrentWaveDefinition()?.events.find((event) => event.id === eventId) ?? null;
+  }
+
+  private clearPreviewEventRuntime(eventId: string) {
+    const removedEntityIds = new Set<string>();
+    for (const entity of this.entities) {
+      if (entity.sourceEventId !== eventId) continue;
+      removedEntityIds.add(entity.id);
+      entity.markedForDeletion = true;
+    }
+    for (const entity of this.entities) {
+      if (entity.bossOwnerId && removedEntityIds.has(entity.bossOwnerId)) {
+        entity.markedForDeletion = true;
+      }
+    }
+    if (this.bossRef?.sourceEventId === eventId) this.bossRef = null;
+    if (this.miniBossRef?.sourceEventId === eventId) this.miniBossRef = null;
+    if (this.pendingConfiguredEncounter?.id === eventId) {
+      this.pendingConfiguredEncounter = null;
+      this.pendingBossType = null;
+      this.inBossWarningSequence = false;
+      this.bossWarningFrame = 0;
+      this.bossWarningDuration = 0;
+    }
+    this.pendingBossStrikes = this.pendingBossStrikes.filter(
+      (strike) => !removedEntityIds.has(strike.bossId)
+    );
+    this.pendingEnemyLasers = this.pendingEnemyLasers.filter(
+      (laser) => !removedEntityIds.has(laser.sourceId)
+    );
+    this.configuredEncounterIds.delete(eventId);
+    this.configuredSpawnCounts.delete(eventId);
+    this.configuredSpawnFrames.delete(eventId);
+    this.compactEntities();
+  }
+
+  private pickPreviewPowerupId(event: PowerupEvent | RecoveryEvent) {
+    const powerupIds = Array.isArray(event.powerupIds) ? event.powerupIds : [];
+    if (powerupIds.length === 0) return null;
+    const totalWeight = powerupIds.reduce(
+      (sum, id) => sum + Math.max(0, getPowerup(id).defaultWeight),
+      0
+    );
+    if (totalWeight <= 0) return powerupIds[0] ?? null;
+    let roll = this.nextGameplayRandom() * totalWeight;
+    for (const id of powerupIds) {
+      roll -= Math.max(0, getPowerup(id).defaultWeight);
+      if (roll <= 0) return id;
+    }
+    return powerupIds.at(-1) ?? null;
+  }
+
+  /**
+   * Spawns one complete named event from the active authored wave. The
+   * operation is deliberately unavailable to production gameplay.
+   */
+  spawnPreviewEventNow(eventId: string) {
+    if (!this.canUsePreviewControl()) return false;
+    const event = this.getCurrentWaveEvent(eventId);
+    if (!event) return false;
+    if (this.previewBossAttackLoop?.eventId === event.id) {
+      this.previewBossAttackLoop = null;
+    }
+
+    this.clearPreviewEventRuntime(event.id);
+    this.gameActive = true;
+    this.previewComplete = false;
+    this.campaignComplete = false;
+
+    if (event.kind === 'spawn') {
+      const targetCount = this.getConfiguredSpawnTargetCount(event);
+      const threatCap = Math.max(
+        1,
+        Number(this.getCurrentWaveDefinition()?.threatCap) || this.getThreatCap()
+      );
+      const available = Math.max(0, threatCap - this.getActiveThreatCount());
+      const spawnCount = Math.min(targetCount, available);
+      const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
+      let spawned = 0;
+      for (let index = 0; index < spawnCount; index += 1) {
+        if (this.spawnConfiguredEnemyFromEvent(event, index, targetCount, difficultyMultiplier)) {
+          spawned++;
+        }
+      }
+      this.refreshLoadState();
+      return spawned > 0;
+    }
+
+    if (event.kind === 'boss' || event.kind === 'asteroid-belt') {
+      this.configuredEncounterIds.add(event.id);
+      this.spawnConfiguredEncounter(event);
+      this.refreshLoadState();
+      return this.entities.some((entity) => (
+        !entity.markedForDeletion && entity.sourceEventId === event.id
+      ));
+    }
+
+    if (event.kind === 'powerup') {
+      const powerupId = this.pickPreviewPowerupId(event);
+      if (!powerupId) return false;
+      const anchor = this.getConfiguredSpawnAnchor(event);
+      const powerup = this.spawnPowerup(
+        anchor ? (anchor.x * this.width) - 18 : this.nextGameplayRandom() * Math.max(1, this.width - 40),
+        anchor ? (anchor.y * this.height) - 18 : -40,
+        powerupId
+      );
+      powerup.sourceEventId = event.id;
+      powerup.sourceItemId = powerupId;
+      this.configuredSpawnCounts.set(event.id, 1);
+      this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
+      this.refreshLoadState();
+      return true;
+    }
+
+    if (event.kind === 'recovery') {
+      const anchor = this.getConfiguredSpawnAnchor(event);
+      const coinCount = Math.max(0, Math.min(48, Math.floor(Number(event.coinCount) || 0)));
+      for (let index = 0; index < coinCount; index += 1) {
+        const coin = this.spawnCoin(
+          this.width * ((index + 1) / Math.max(2, coinCount + 1))
+            + (anchor ? (anchor.x * this.width) - (this.width / 2) : 0),
+          -30 - index * 22 + (anchor ? (anchor.y * this.height) + 30 : 0)
+        );
+        coin.sourceEventId = event.id;
+        coin.sourceItemId = 'coin';
+      }
+      for (const [index, powerupId] of event.powerupIds.entries()) {
+        const powerup = this.spawnPowerup(
+          anchor
+            ? (anchor.x * this.width) - 18 + ((index - ((event.powerupIds.length - 1) / 2)) * 44)
+            : this.nextGameplayRandom() * Math.max(1, this.width - 40),
+          anchor ? (anchor.y * this.height) - 18 : -50,
+          powerupId
+        );
+        powerup.sourceEventId = event.id;
+        powerup.sourceItemId = powerupId;
+      }
+      this.configuredEncounterIds.add(event.id);
+      this.refreshLoadState();
+      return coinCount > 0 || event.powerupIds.length > 0;
+    }
+
+    return false;
+  }
+
+  /**
+   * Reconstructs or repositions an authored boss directly at one of its
+   * configured health phases for deterministic local iteration.
+   */
+  jumpToAuthoredBossPhase(phaseId: string, eventId?: string) {
+    if (!this.canUsePreviewControl() || !phaseId || phaseId.length > 160) return false;
+    const bossEvents = (this.getCurrentWaveDefinition()?.events ?? [])
+      .filter((event): event is BossEvent => event.kind === 'boss');
+    const event = bossEvents.find((candidate) => (
+      (!eventId || candidate.id === eventId)
+      && candidate.phases.some((phase) => phase.id === phaseId)
+    ));
+    if (!event) return false;
+    this.previewBossAttackLoop = null;
+
+    let bosses = this.entities.filter((entity) => (
+      !entity.markedForDeletion
+      && entity.sourceEventId === event.id
+      && (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS)
+    ));
+    if (bosses.length === 0) {
+      if (!this.spawnPreviewEventNow(event.id)) return false;
+      bosses = this.entities.filter((entity) => (
+        !entity.markedForDeletion
+        && entity.sourceEventId === event.id
+        && (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS)
+      ));
+    }
+    const authoredPhaseIndex = event.phases.findIndex((phase) => phase.id === phaseId);
+    const authoredPhase = event.phases[authoredPhaseIndex];
+    if (!authoredPhase || bosses.length === 0) return false;
+    const revivalPhaseIndex = getBossRevivalTargetPhaseIndex(event.revival, event.phases);
+
+    this.pendingBossStrikes = [];
+    this.pendingEnemyLasers = [];
+    for (const entity of this.entities) {
+      if (entity.type === EntityType.PROJECTILE && !entity.isPlayerShot) {
+        entity.markedForDeletion = true;
+      }
+    }
+    this.clearBossShieldRing();
+    this.compactEntities();
+
+    for (const boss of bosses) {
+      let targetHealthRatio = clamp(authoredPhase.triggerHealthRatio, 0.0001, 1);
+      if (boss.type === EntityType.BOSS && event.revival && revivalPhaseIndex > 0) {
+        boss.bossRevival = { ...event.revival };
+        boss.bossRevivalBaseWidth ||= boss.width;
+        boss.bossRevivalBaseHeight ||= boss.height;
+        const centerX = boss.x + boss.width / 2;
+        const centerY = boss.y + boss.height / 2;
+        if (authoredPhaseIndex >= revivalPhaseIndex) {
+          const completedState = createCompletedBossRevivalRuntimeState(
+            event.revival,
+            event.phases,
+            boss.bossRevivalBaseWidth,
+            boss.bossRevivalBaseHeight,
+            this.width,
+            GAME_CONFIG.FPS
+          );
+          if (completedState) {
+            boss.bossRevivalRuntime = completedState;
+            boss.bossRevivalStage = 'complete';
+            boss.bossRevivalProgress = 1;
+            boss.bossRevivalConsumed = true;
+            boss.width = completedState.targetWidth;
+            boss.height = completedState.targetHeight;
+            if (authoredPhaseIndex === revivalPhaseIndex) {
+              targetHealthRatio = clamp(event.revival.restoreHealthRatio, 0.0001, 1);
+            }
+          }
+        } else {
+          boss.bossRevivalRuntime = undefined;
+          boss.bossRevivalStage = 'armed';
+          boss.bossRevivalProgress = 0;
+          boss.bossRevivalConsumed = false;
+          boss.width = boss.bossRevivalBaseWidth;
+          boss.height = boss.bossRevivalBaseHeight;
+        }
+        boss.x = centerX - boss.width / 2;
+        boss.y = centerY - boss.height / 2;
+      }
+      boss.hp = Math.max(0.01, boss.maxHp * targetHealthRatio);
+      boss.activeBossPhaseIndex = -1;
+      boss.activeBossPhaseId = undefined;
+      boss.bossTimelinePhaseId = undefined;
+      boss.bossTimelineLastPhaseId = undefined;
+      boss.attackTimer = 0;
+      boss.lastBurstAttackTimer = 0;
+      boss.generatedBossChargeUntilTimer = -1;
+      boss.isCharging = false;
+      this.clearBossTimelineActionLocks(boss);
+      if (boss.type === EntityType.BOSS) {
+        boss.x = clamp((this.width - boss.width) / 2, 10, Math.max(10, this.width - boss.width - 10));
+        boss.y = Math.max(72, Math.min(this.height * 0.13, 116));
+      } else {
+        boss.y = Math.max(64, Math.min(this.height * 0.12, 104));
+      }
+      this.applyConfiguredBossPhase(boss);
+    }
+    this.refreshLoadState();
+    return bosses.every((boss) => boss.activeBossPhaseId === phaseId);
+  }
+
+  private applyPreviewBossAttackLoop(boss: Entity) {
+    const loop = this.previewBossAttackLoop;
+    if (
+      !loop
+      || boss.sourceEventId !== loop.eventId
+      || boss.activeBossPhaseId !== loop.phaseId
+    ) return;
+    const loopFrame = resolvePreviewAttackLoopFrame(
+      boss.attackTimer,
+      loop.startFrame,
+      loop.endFrame
+    );
+    if (loopFrame === boss.attackTimer) return;
+
+    this.pendingBossStrikes = this.pendingBossStrikes.filter(
+      (strike) => strike.bossId !== boss.id
+    );
+    this.pendingEnemyLasers = this.pendingEnemyLasers.filter(
+      (laser) => laser.sourceId !== boss.id
+    );
+    for (const entity of this.entities) {
+      if (entity === boss || entity.isPlayerShot) continue;
+      if (
+        entity.bossOwnerId === boss.id
+        || (
+          entity.sourceEventId === loop.eventId
+          && entity.type !== EntityType.BOSS
+          && entity.type !== EntityType.MINI_BOSS
+        )
+      ) {
+        entity.markedForDeletion = true;
+      }
+    }
+    this.removeBossCornerAmbushBeams(boss);
+    boss.bossMovementPathId = undefined;
+    boss.bossMovementPathStartFrame = -1;
+    boss.bossMovementPathDurationFrames = 0;
+    boss.bossPresentationBankRadians = 0;
+    boss.generatedBossChargeUntilTimer = -1;
+    boss.generatedBossTargetX = null;
+    boss.generatedBossTargetY = null;
+    boss.generatedBossTargetSequence = -1;
+    this.clearBossTimelineActionLocks(boss);
+    boss.bossCornerAmbushBeamState = undefined;
+    boss.bossCornerAmbushRamState = undefined;
+    boss.bossTrackingPincerState = undefined;
+    boss.bossHeliosCornerClampState = undefined;
+    boss.bossActionPresentation = undefined;
+    boss.isCharging = false;
+    boss.attackTimer = loopFrame;
+  }
+
+  /**
+   * Starts one exact Boss Sandbox attack through its production scheduler.
+   * Timeline bosses begin at the linked warning frame; compatibility bosses
+   * use their registered deterministic technique or configured weapon.
+   */
+  triggerAuthoredBossAttack(
+    attackId: string,
+    eventId?: string,
+    requestedPhaseId?: string,
+    loop = false
+  ) {
+    if (!this.canUsePreviewControl() || !attackId || attackId.length > 200) return false;
+    const bossEvents = (this.getCurrentWaveDefinition()?.events ?? [])
+      .filter((event): event is BossEvent => event.kind === 'boss');
+    const event = bossEvents.find((candidate) => (
+      !eventId || candidate.id === eventId
+    ));
+    if (!event) return false;
+
+    const authoredAttack = event.timeline
+      ? resolveBossTimelineAttackVariant(
+          event.timeline,
+          attackId,
+          requestedPhaseId ?? event.phases[0]?.id
+        )
+      : null;
+    const timelineClip = event.timeline?.clips.find((clip) => (
+      clip.id === attackId
+      && clip.trigger === 'time'
+      && isDamagingBossTimelinePrimitive(clip.primitiveId)
+    ));
+    if (event.timeline && (authoredAttack || timelineClip)) {
+      const phaseId = authoredAttack?.variant.phaseId
+        ?? timelineClip?.phaseId
+        ?? event.phases[0]?.id;
+      if (
+        !phaseId
+        || !this.jumpToAuthoredBossPhase(phaseId, event.id)
+      ) return false;
+      const attackWindow = getBossTimelineAttackWindow(
+        event.timeline,
+        authoredAttack?.attack.id ?? timelineClip?.id ?? attackId,
+        phaseId,
+        GAME_CONFIG.FPS
+      );
+      if (!attackWindow) return false;
+      const bosses = this.entities.filter((entity) => (
+        !entity.markedForDeletion
+        && entity.sourceEventId === event.id
+        && (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS)
+      ));
+      for (const boss of bosses) {
+        // updateBoss increments before cue lookup, hence the deliberate -1.
+        boss.attackTimer = Math.max(0, attackWindow.startFrame - 1);
+        boss.bossTimelineLastPhaseId = undefined;
+      }
+      if (bosses.length === 0) return false;
+      this.previewBossAttackLoop = loop ? {
+        eventId: event.id,
+        attackId: authoredAttack?.attack.id ?? timelineClip?.id ?? attackId,
+        phaseId,
+        startFrame: attackWindow.startFrame,
+        endFrame: attackWindow.endFrame
+      } : null;
+      return true;
+    }
+
+    const archetype = resolveGeneratedBossArchetype(event.spriteKey);
+    const generatedStart = archetype
+      ? getGeneratedBossPreviewAttackStart(archetype, attackId)
+      : null;
+    const generatedWindow = archetype
+      ? getGeneratedBossPreviewAttackWindow(archetype, attackId)
+      : null;
+    if (archetype && generatedStart && generatedWindow) {
+      const phaseId = event.phases[generatedStart.phase - 1]?.id;
+      if (
+        !phaseId
+        || !this.jumpToAuthoredBossPhase(phaseId, event.id)
+      ) return false;
+      const bosses = this.entities.filter((entity) => (
+        !entity.markedForDeletion
+        && entity.sourceEventId === event.id
+        && entity.type === EntityType.BOSS
+        && entity.bossAttackArchetype === archetype
+      ));
+      for (const boss of bosses) {
+        boss.attackTimer = Math.max(0, generatedStart.startFrame - 1);
+      }
+      if (bosses.length === 0) return false;
+      this.previewBossAttackLoop = loop ? {
+        eventId: event.id,
+        attackId,
+        phaseId,
+        startFrame: generatedWindow.startFrame,
+        endFrame: generatedWindow.endFrame
+      } : null;
+      return true;
+    }
+
+    const weapon = event.weapons.find((setting) => setting.id === attackId);
+    if (!weapon) return false;
+    if (loop) return false;
+    const authoredPhaseIndex = Math.max(
+      0,
+      event.phases.findIndex((phase) => phase.weaponSettingIds.includes(weapon.id))
+    );
+    const phaseId = event.phases[authoredPhaseIndex]?.id;
+    const phaseReady = Boolean(
+      phaseId && this.jumpToAuthoredBossPhase(phaseId, event.id)
+    );
+    if (!phaseReady && !this.spawnPreviewEventNow(event.id)) return false;
+
+    this.pendingBossStrikes = [];
+    this.pendingEnemyLasers = [];
+    for (const entity of this.entities) {
+      if (entity.type === EntityType.PROJECTILE && !entity.isPlayerShot) {
+        entity.markedForDeletion = true;
+      }
+    }
+    this.compactEntities();
+
+    const sources = this.entities.filter((entity) => (
+      !entity.markedForDeletion
+      && entity.sourceEventId === event.id
+      && (
+        entity.type === EntityType.BOSS
+        || entity.type === EntityType.MINI_BOSS
+        || entity.type === EntityType.ENEMY_INVADER
+      )
+    ));
+    if (sources.length === 0) return false;
+
+    for (const source of sources) {
+      source.weaponKinds = [String(weapon.weaponId)];
+      source.projectileDamage = Math.max(0, Number(weapon.damage) || 0);
+      source.projectileSpeed = Math.max(0.1, Number(weapon.projectileSpeed) || 1);
+      source.configuredBurstCount = Math.max(
+        1,
+        Math.floor(Number(weapon.burstCount) || 1)
+      );
+    }
+    this.previewBossAttackLoop = null;
+
+    if (String(weapon.weaponId).includes('beam')) {
+      return this.queuePreviewBossLaneLaser(sources[0]);
+    }
+    for (const source of sources) {
+      this.spawnBossBurst(
+        source,
+        authoredPhaseIndex + 1,
+        Math.max(1, Math.floor(Number(weapon.burstCount) || 1))
+      );
+    }
+    return true;
+  }
+
+  fastForwardPreviewFrames(frameCount: number) {
+    if (!this.canUsePreviewControl()) return false;
+    const frames = clampPreviewFastForwardFrames(frameCount);
+    if (frames <= 0) return false;
+    for (let index = 0; index < frames && this.gameActive; index += 1) {
+      this.update(false);
+    }
+    return true;
+  }
+
+  stepPreviewFrame() {
+    if (!this.canUsePreviewControl() || !this.gameActive) return false;
+    this.update(false);
+    return true;
+  }
+
+  private getPreviewBossTarget(eventId?: string) {
+    return [this.bossRef, this.miniBossRef]
+      .find((candidate): candidate is Entity => Boolean(
+        candidate
+        && !candidate.markedForDeletion
+        && candidate.hp > 0
+        && (!eventId || candidate.sourceEventId === eventId)
+      ))
+      ?? this.entities.find((entity) => (
+        !entity.markedForDeletion
+        && entity.hp > 0
+        && (!eventId || entity.sourceEventId === eventId)
+        && (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS)
+      ));
+  }
+
+  setPreviewBossHealthRatio(healthRatio: number, eventId?: string) {
+    if (
+      !this.canUsePreviewControl()
+      || (eventId !== undefined && (!eventId || eventId.length > 160))
+    ) return false;
+    const boss = this.getPreviewBossTarget(eventId);
+    if (!boss) return false;
+
+    boss.hp = Math.max(
+      1,
+      Math.round(Math.max(1, boss.maxHp) * clampPreviewBossHealthRatio(healthRatio))
+    );
+    if (boss === this.bossRef || boss === this.miniBossRef) {
+      this.stats.bossHp = boss.hp;
+      this.stats.bossMaxHp = Math.max(1, boss.maxHp);
+    }
+    return true;
+  }
+
+  /**
+   * Rebudget the active sandbox boss without restarting, changing phase, or
+   * mutating its authored event. Components retain their relative durability.
+   */
+  setPreviewBossMaxHealth(maxHealth: number, eventId?: string) {
+    if (
+      !this.canUsePreviewControl()
+      || !Number.isFinite(maxHealth)
+      || (eventId !== undefined && (!eventId || eventId.length > 160))
+    ) return false;
+    const boss = this.getPreviewBossTarget(eventId);
+    if (!boss) return false;
+
+    const previousMaxHealth = Math.max(1, boss.maxHp);
+    const nextBossHealth = rescalePreviewHealthBudget(
+      boss.hp,
+      previousMaxHealth,
+      maxHealth
+    );
+    boss.hp = nextBossHealth.health;
+    boss.maxHp = nextBossHealth.maxHealth;
+
+    for (const component of boss.bossComponents ?? []) {
+      const scaledComponentMax = Math.max(
+        1,
+        Math.round(component.maxHp * (boss.maxHp / previousMaxHealth))
+      );
+      const nextComponentHealth = rescalePreviewHealthBudget(
+        component.hp,
+        component.maxHp,
+        scaledComponentMax,
+        !component.destroyed
+      );
+      component.hp = nextComponentHealth.health;
+      component.maxHp = nextComponentHealth.maxHealth;
+    }
+
+    if (boss === this.bossRef || boss === this.miniBossRef) {
+      this.stats.bossHp = boss.hp;
+      this.stats.bossMaxHp = boss.maxHp;
+    }
+    return true;
+  }
+
+  /** Adjust one destructible part for this preview session only. */
+  setPreviewBossComponentMaxHealth(
+    componentId: string,
+    maxHealth: number,
+    eventId?: string
+  ) {
+    if (
+      !this.canUsePreviewControl()
+      || !componentId
+      || componentId.length > 80
+      || !Number.isFinite(maxHealth)
+      || (eventId !== undefined && (!eventId || eventId.length > 160))
+    ) return false;
+    const boss = this.getPreviewBossTarget(eventId);
+    const component = boss?.bossComponents?.find((candidate) => candidate.id === componentId);
+    if (!component) return false;
+
+    const nextComponentHealth = rescalePreviewHealthBudget(
+      component.hp,
+      component.maxHp,
+      maxHealth,
+      !component.destroyed
+    );
+    component.hp = nextComponentHealth.health;
+    component.maxHp = nextComponentHealth.maxHealth;
+    return true;
+  }
+
+  seekPreviewToFrame(targetFrame: number) {
+    if (!this.canUsePreviewControl()) return false;
+    const frame = clampPreviewSeekFrame(targetFrame);
+    this.restartPreview();
+    for (let index = 0; index < frame && this.gameActive; index += 1) {
+      this.update(false);
+    }
+    return true;
+  }
+
   setTestMode(enabled: boolean) {
     this.testMode = Boolean(enabled);
     if (this.testMode && this.lives <= 0) {
@@ -1707,11 +2897,72 @@ export class GameEngine {
     this.previewInvincible = Boolean(enabled);
   }
 
+  /**
+   * Hot-swaps preview-only player equipment without reconstructing the fight.
+   * Boss state, active entities/projectiles, RNG, score, player position, and
+   * the current simulation frame deliberately remain untouched.
+   */
+  applyPreviewLoadout(update: PreviewPlayerLoadoutUpdate) {
+    if (!this.canUsePreviewControl()) return false;
+
+    this.playerShipId = update.playerShipId;
+    this.playerShipUrl = update.playerShipUrl || ASSETS.PLAYER_SHIP;
+    loadImage(this.playerShipUrl);
+    this.stats.shipAbilityCooldownMax =
+      getShipAbilityDefinition(this.playerShipId).cooldownFrames;
+    this.stats.shipAbilityCooldown = this.previewShipAbilityNoCooldown
+      ? 0
+      : Math.min(
+        Math.max(0, this.stats.shipAbilityCooldown),
+        this.stats.shipAbilityCooldownMax
+      );
+
+    const nextLoadout = update.squadLoadout ?? null;
+    const previousCompanions = new Map(
+      this.squadCompanions.map((companion) => [
+        `${companion.slot}:${companion.id}`,
+        companion
+      ])
+    );
+    const nextCompanions = (nextLoadout?.companions ?? []).map((companion, index) => {
+      companion.frames.forEach(loadImage);
+      const previous = previousCompanions.get(`${companion.slot}:${companion.id}`);
+      const target = getSquadCompanionFormationTarget(
+        this.player.x,
+        this.player.y,
+        this.player.width,
+        this.player.height,
+        companion.slot,
+        index
+      );
+      return {
+        ...companion,
+        x: previous?.x ?? target.x,
+        y: previous?.y ?? target.y,
+        frameIndex: previous?.frameIndex ?? 0,
+        fireTimer: previous
+          ? Math.min(previous.fireTimer, companion.fireIntervalFrames)
+          : Math.max(8, Math.floor(companion.fireIntervalFrames * (0.42 + index * 0.18))),
+        shotSequence: previous?.shotSequence ?? 0,
+        entryProgress: previous?.entryProgress ?? 0
+      };
+    });
+
+    this.squadLoadout = nextLoadout;
+    this.squadCompanions.splice(
+      0,
+      this.squadCompanions.length,
+      ...nextCompanions
+    );
+    return true;
+  }
+
   jumpToCampaignWave(stageNumber: number) {
     if (this.campaignWaves.length === 0) return false;
 
     const targetIndex = this.getFirstCampaignWaveIndexForStage(stageNumber);
     if (targetIndex < 0) return false;
+    if (this.previewMode) this.gameplayRandom = createGameplayRandom(this.gameplayRandomSeed);
     this.currentCampaignIndex = targetIndex;
     this.wave = this.getStageNumberForCampaignIndex(targetIndex);
     this.stats.wave = this.wave;
@@ -1748,6 +2999,9 @@ export class GameEngine {
 
   buildWaveVictorySummary(): WaveVictorySummary {
     const entry = this.getCurrentCampaignEntry();
+    const defeatedMainBoss = entry?.wave.events.find((event) => (
+      event.kind === 'boss' && event.bossId === 'gatekeeper'
+    ));
     const hasNextStage = getNextAuthoredCampaignIndex(
       this.currentCampaignIndex,
       this.campaignWaves.length
@@ -1755,6 +3009,7 @@ export class GameEngine {
     const finalStage = Math.max(1, getAuthoredCampaignStageCount(this.campaign.levels.length));
     return {
       id: `${this.wave}-${this.frameCount}-${this.stats.score}`,
+      bossEncounterId: defeatedMainBoss?.id ?? null,
       stage: this.wave,
       stageName: entry?.level.name ?? this.getWaveSector().name,
       finalWaveName: entry?.wave.name ?? 'FINAL WAVE',
@@ -1770,7 +3025,7 @@ export class GameEngine {
   }
 
   jumpToCampaignBoss(stageNumber: number) {
-    if (!this.testMode || !this.jumpToCampaignWave(stageNumber)) return false;
+    if ((!this.testMode && !this.previewMode) || !this.jumpToCampaignWave(stageNumber)) return false;
 
     const finalWaveIndex = this.getLastCampaignWaveIndexForCurrentStage();
     if (finalWaveIndex < 0) return false;
@@ -1821,11 +3076,17 @@ export class GameEngine {
   }
 
   restartPreview() {
+    this.previewBossAttackLoop = null;
+    this.gameplayRandom = createGameplayRandom(this.gameplayRandomSeed);
+    this.entities
+      .filter((entity) => entity.type === EntityType.BOSS)
+      .forEach((boss) => this.clearBossTimelineActionLocks(boss));
     this.entities = [];
     this.pendingPlayerShots = [];
     this.activePowerups.clear();
     this.frameCount = 0;
     this.lastPlayerRamFrame = -999;
+    this.lastPreviewPlayerHitFeedbackFrame = -999;
     this.gameActive = true;
     this.previewComplete = false;
     this.campaignComplete = false;
@@ -1836,12 +3097,14 @@ export class GameEngine {
     this.stats.enemiesDefeated = 0;
     this.stats.shipAbilityCooldown = 0;
     this.resetWaveProgress();
+    this.startTelemetrySession();
     this.introFlightFrames = 0;
     this.waveDepartureFrames = 0;
     this.deathSequenceFrames = 0;
     this.deathSequenceStartedAtMs = 0;
     this.invincibleTimer = 180;
     this.lastPlayerRamFrame = -999;
+    this.lastPreviewPlayerHitFeedbackFrame = -999;
     this.playerDrawScale = 1;
     this.playerDrawAlpha = 1;
     this.playerTilt = 0;
@@ -2088,6 +3351,7 @@ export class GameEngine {
         for (const component of entity.bossComponents ?? []) {
           component.hp = 0;
           component.destroyed = true;
+          component.exposed = false;
           component.flashFrames = 0;
         }
         entity.markedForDeletion = true;
@@ -2307,6 +3571,13 @@ export class GameEngine {
   startDeathSequence() {
     if (this.deathSequenceFrames > 0 || !this.gameActive) return;
 
+    if (this.telemetrySink && this.telemetrySessionActive) {
+      this.telemetrySink.record({
+        ...this.getTelemetryContext(),
+        type: 'player-death',
+        livesRemaining: Math.max(0, this.lives)
+      });
+    }
     this.deathSequenceFrames = this.deathSequenceDuration;
     this.deathSequenceStartedAtMs = Date.now();
     this.invincibleTimer = 999;
@@ -2370,6 +3641,7 @@ export class GameEngine {
     this.stats.lives = lives;
     this.invincibleTimer = 180;
     this.lastPlayerRamFrame = -999;
+    this.lastPreviewPlayerHitFeedbackFrame = -999;
     this.setPlayerHomePosition();
     this.playerVel = { x: 0, y: 0 };
     this.playerTilt = 0;
@@ -2418,13 +3690,15 @@ export class GameEngine {
     this.stats.shipAbilityCooldown = 0;
     this.stats.shipAbilityCooldownMax = getShipAbilityDefinition(this.playerShipId).cooldownFrames;
     this.stats.wave = this.wave;
+    this.frameCount = 0;
     this.resetWaveProgress();
+    this.startTelemetrySession();
     this.beginWavePresentation();
     this.bossRef = null;
     this.miniBossRef = null;
     this.activePowerups.clear();
-    this.frameCount = 0;
     this.lastPlayerRamFrame = -999;
+    this.lastPreviewPlayerHitFeedbackFrame = -999;
     this.missileTimer = 0;
     this.playerVel = { x: 0, y: 0 };
     this.playerTilt = 0;
@@ -2464,13 +3738,14 @@ export class GameEngine {
       this.resetSquadCompanionPositions();
     }
     this.sectorTint = 0;
-    
+
     // START MUSIC
     if (this.audioEnabled) audioService.startMusic();
     this.playSound('launch');
   }
-  
+
   resetWaveProgress(resetStageSummary: boolean = true) {
+    this.previewBossAttackLoop = null;
     this.stats.bossProgress = 0;
     this.stats.isBossActive = false;
     this.stats.bossHp = 0;
@@ -2588,6 +3863,9 @@ export class GameEngine {
     }
     this.pendingEnemyLasers = [];
     this.waveVictorySummary = this.buildWaveVictorySummary();
+    this.recordWaveCompletion();
+    this.recordCompletion('mission');
+    if (this.waveVictorySummary.campaignComplete) this.recordCompletion('campaign');
     this.spawnFloatingText(this.width / 2, this.height / 2, label, color);
     const configuredDelaySeconds = Number(this.getCurrentWaveDefinition()?.delayAfterSeconds);
     const collectionSeconds = Number.isFinite(configuredDelaySeconds) && configuredDelaySeconds >= 0
@@ -2626,11 +3904,14 @@ export class GameEngine {
       return;
     }
 
+    this.recordWaveCompletion();
     if (this.previewMode) {
       this.waveDepartureFrames = 0;
       this.stageRewardCollectionFrames = 0;
       this.previewComplete = true;
       this.gameActive = false;
+      this.recordCompletion('preview');
+      this.stopTelemetrySession('complete');
       return;
     }
 
@@ -2643,6 +3924,8 @@ export class GameEngine {
       this.campaignComplete = true;
       this.waveVictoryReady = true;
       this.gameActive = false;
+      this.recordCompletion('campaign');
+      this.stopTelemetrySession('complete');
       return;
     }
     this.currentCampaignIndex = nextCampaignIndex;
@@ -2684,6 +3967,20 @@ export class GameEngine {
     this.width = width;
     this.height = height;
     this.refreshRenderProfile();
+    for (const boss of this.entities) {
+      if (
+        !boss.bossCornerAmbushBeamState
+        && !boss.bossCornerAmbushRamState
+        && !boss.bossTrackingPincerState
+        && !boss.bossHeliosCornerClampState
+      ) continue;
+      boss.bossCornerAmbushBeamState = undefined;
+      boss.bossCornerAmbushRamState = undefined;
+      boss.bossTrackingPincerState = undefined;
+      boss.bossHeliosCornerClampState = undefined;
+      boss.isCharging = false;
+      this.removeBossCornerAmbushBeams(boss);
+    }
     this.entities.forEach(e => {
         if (e.type === EntityType.PLAYER) {
             const bounds = this.getPlayerMovementBounds();
@@ -3101,7 +4398,7 @@ export class GameEngine {
     this.waveFlightFrames++;
     this.updatePendingBossStrikes();
     this.updatePendingEnemyLasers();
-    
+
     let invaderCount = 0;
     let asteroidBeltCount = 0;
     for (const entity of this.entities) {
@@ -3115,7 +4412,7 @@ export class GameEngine {
     const activeMiniBosses = this.getActiveMiniBosses();
     this.miniBossRef = activeMiniBosses[0] ?? null;
     const isBossAlive = !!this.bossRef || activeMiniBosses.length > 0 || invaderCount > 0 || asteroidBeltCount > 0;
-    
+
     if (isBossAlive) {
         this.stats.isBossActive = true;
         let hp = 0;
@@ -3140,7 +4437,7 @@ export class GameEngine {
             hp = asteroidBeltCount;
             maxHp = this.asteroidBeltMaxCount || asteroidBeltCount;
         }
-        
+
         this.stats.bossHp = hp;
         this.stats.bossMaxHp = maxHp;
         if (invaderCount > 0) this.updateWallBoss();
@@ -3186,7 +4483,7 @@ export class GameEngine {
           }
         }
     }
-    
+
     if (this.inBossWarningSequence) {
         const warningAge = this.bossWarningDuration - this.bossWarningFrame;
         const mainBossAlertFrames = Math.min(MAIN_BOSS_ALERT_FRAMES, Math.max(1, this.bossWarningDuration - 60));
@@ -3246,7 +4543,7 @@ export class GameEngine {
       this.playSound('powerup', 1, { pitchOffset: level * 0.04 });
       this.announcedFireRateLevel = level;
     }
-    
+
     const primaryFireHeld = Boolean(this.keys[' '] || this.touchPos || this.keys['Enter']);
     if (primaryFireHeld) {
       if (this.playerFireCooldownFrames <= 0) {
@@ -3283,6 +4580,10 @@ export class GameEngine {
             ? this.entities.find((candidate) => candidate.id === e.bossOwnerId && !candidate.markedForDeletion)
             : this.bossRef;
           if (beamOwner) {
+              if (e.beamRadialRay) {
+                this.positionBossRadialBeam(e, beamOwner);
+                return;
+              }
               if (e.beamAxis === 'horizontal') {
                 e.x = 0;
                 e.y = clamp(beamOwner.y + beamOwner.height / 2 - e.height / 2, 0, this.height - e.height);
@@ -3319,15 +4620,17 @@ export class GameEngine {
         this.updateCoinEntity(e);
         return;
       }
-      e.x += e.vx;
-      e.y += e.vy;
-      
+      if (!e.heliosMineState) {
+        e.x += e.vx;
+        e.y += e.vy;
+      }
+
       if (e.type === EntityType.MISSILE) {
           // Homing Logic
           // Find nearest enemy
           let nearest: Entity | null = null;
           let minDistSq = 1000 * 1000;
-          
+
           for (let targetIndex = 0; targetIndex < this.homingTargetsBuffer.length; targetIndex++) {
               const target = this.homingTargetsBuffer[targetIndex];
               if (!target.markedForDeletion && this.isEnemyTarget(target)) {
@@ -3340,13 +4643,13 @@ export class GameEngine {
                   }
               }
           }
-          
+
           if (nearest) {
               const target = nearest as Entity;
               const dx = (target.x + target.width/2) - (e.x + e.width/2);
               const dy = (target.y + target.height/2) - (e.y + e.height/2);
               const angle = Math.atan2(dy, dx);
-              
+
               // Homing steering
               const isMaxLevel = e.color === '#ff0055';
               const speed = e.homingSpeed ?? (isMaxLevel ? 14 : 9);
@@ -3354,7 +4657,7 @@ export class GameEngine {
 
               e.vx += Math.cos(angle) * turnRate;
               e.vy += Math.sin(angle) * turnRate;
-              
+
               // Normalize velocity
               const vel = Math.sqrt(e.vx*e.vx + e.vy*e.vy);
               if (vel > speed) {
@@ -3362,13 +4665,13 @@ export class GameEngine {
                   e.vy = (e.vy/vel) * speed;
               }
           }
-          
+
           // Spawn trail - Use missile color
           if (this.frameCount % (this.shouldUseLeanEffects() ? 8 : 4) === 0 && this.liveParticleCount < this.getParticleCap()) {
               this.entities.push(new Particle(e.x + e.width/2, e.y + e.height, e.color, 1));
               this.liveParticleCount++;
           }
-          
+
           if (e.y < -50 || e.y > this.height + 50 || e.x < -50 || e.x > this.width + 50) e.markedForDeletion = true;
       }
 
@@ -3419,8 +4722,12 @@ export class GameEngine {
         }
         if (!formationHandled && e.y > this.height) e.markedForDeletion = true;
       }
-      
+
       if (e.type === EntityType.PROJECTILE) {
+        if (e.heliosMineState) {
+          this.updateHeliosMineEntity(e);
+          if (e.markedForDeletion) return;
+        }
         if (e.maxShotVisualPattern?.length) {
           e.life--;
           if (e.life <= 0) {
@@ -3436,7 +4743,7 @@ export class GameEngine {
           this.detonateResearchCharge(e, e.x + e.width / 2, Math.max(54, e.height * 0.35));
         } else if (e.shipAbilityKind === 'btc-hash-burst' && e.y < -e.height * 0.45) {
           this.detonateBitcoinHashBurst(e, e.x + e.width / 2, Math.max(54, e.height * 0.35));
-        } else if (e.y < -50 || e.y > this.height + 50) {
+        } else if (!e.heliosMineState && (e.y < -50 || e.y > this.height + 50)) {
           e.markedForDeletion = true;
         }
       }
@@ -3445,12 +4752,12 @@ export class GameEngine {
         (e as Particle).life--;
         if ((e as Particle).life <= 0) e.markedForDeletion = true;
       }
-      
+
       if (e.type === EntityType.EFFECT) {
           (e as VisualEffect).life--;
           if ((e as VisualEffect).life <= 0) e.markedForDeletion = true;
       }
-      
+
       if (e.type === EntityType.POWERUP) {
           e.y += Math.sin(this.frameCount * 0.05) * 0.5;
           if (e.y > this.height) e.markedForDeletion = true;
@@ -3747,7 +5054,7 @@ export class GameEngine {
     const height = baseHeight * (options.heightScale ?? 1);
     const angle = options.angle ?? 0;
     const speed = (9.2 + companion.level * 0.22) * (options.speedScale ?? 1);
-    const projectile = new Entity(
+    const projectile = this.createEntity(
       options.missile ? EntityType.MISSILE : EntityType.PROJECTILE,
       companion.x - width / 2 + (options.offsetX ?? 0),
       companion.y - (this.mobileProfile ? 24 : 28)
@@ -3796,10 +5103,16 @@ export class GameEngine {
       const componentHit = target.type === EntityType.BOSS
         ? this.getBossComponentHit(target, beamBox)
         : undefined;
-      const intersects = Boolean(componentHit) || !(box.x > beamBox.x + beamBox.width
-        || box.x + box.width < beamBox.x
-        || box.y > beamBox.y + beamBox.height
-        || box.y + box.height < beamBox.y);
+      const bossLikeTarget =
+        target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS;
+      const intersects = Boolean(componentHit) || (
+        bossLikeTarget
+          ? this.bossSilhouetteIntersectsBox(target, beamBox)
+          : !(box.x > beamBox.x + beamBox.width
+            || box.x + box.width < beamBox.x
+            || box.y > beamBox.y + beamBox.height
+            || box.y + box.height < beamBox.y)
+      );
       if (!intersects) continue;
       if (!nearestTarget || target.y + target.height > nearestTarget.y + nearestTarget.height) {
         nearestTarget = target;
@@ -3824,7 +5137,9 @@ export class GameEngine {
     if (componentHit) this.damageBossComponent(nearestTarget, componentHit, laserDamage);
     else if (nearestTarget.type === EntityType.BOSS) this.damageBossHull(nearestTarget, laserDamage);
     else {
+      const previousHealth = nearestTarget.hp;
       nearestTarget.hp -= laserDamage;
+      this.recordEntityDamage(nearestTarget, previousHealth);
       this.flashDamageTarget(nearestTarget);
     }
     const beamColor = level > 0 ? '#38bdf8' : '#65f59a';
@@ -4020,7 +5335,7 @@ export class GameEngine {
       0
     ) || 0;
     const bundleWidth = bulletWidth + maxVisualOffset * 2;
-    const b = new Entity(
+    const b = this.createEntity(
       EntityType.PROJECTILE,
       this.player.x + this.player.width / 2 - bundleWidth / 2 + offsetX,
       this.player.y + this.player.height * 0.12 + yOffset
@@ -4146,8 +5461,8 @@ export class GameEngine {
           this.stats.upgrades.fireRate || 0,
           overdriveSpread,
           maxShotActive,
-          Math.random(),
-          Math.random()
+          this.nextGameplayRandom(),
+          this.nextGameplayRandom()
         )
       : null;
     const basePatternProjectileCount = volleySize * (overdriveSpread ? 3 : 1);
@@ -4198,7 +5513,7 @@ export class GameEngine {
     this.weaponVolley++;
 
     this.playerVel.y += 0.2;
-    this.playerVel.x += randomRange(-0.05, 0.05);
+    this.playerVel.x += this.gameplayRandomRange(-0.05, 0.05);
 
     if (bioPrimaryPlan) {
       bioPrimaryPlan.shots.forEach((shot, index) => {
@@ -4233,7 +5548,7 @@ export class GameEngine {
       return;
     }
 
-    const primaryAngle = getRandomPrimaryShotAngle();
+    const primaryAngle = getRandomPrimaryShotAngle(this.nextGameplayRandom());
 
     if (maxShotActive && maxShotVisualPattern) {
       this.spawnPlayerBullet(
@@ -4254,7 +5569,7 @@ export class GameEngine {
             speed: weaponSpeed,
             offsetX: side * 4,
             yOffset: 4,
-            angleBias: sampleTripleShotSideAngleRadians(side, Math.random()),
+            angleBias: sampleTripleShotSideAngleRadians(side, this.nextGameplayRandom()),
             pitchOffset: side < 0 ? -0.01 : 0.03,
             weaponKind,
             playSound: false,
@@ -4281,7 +5596,7 @@ export class GameEngine {
 
     if (overdriveSpread) {
       ([-1, 1] as const).forEach((side, index) => {
-        const sideAngle = sampleTripleShotSideAngleRadians(side, Math.random());
+        const sideAngle = sampleTripleShotSideAngleRadians(side, this.nextGameplayRandom());
         volleyOffsets.forEach((bundleOffset, bundleIndex) => {
           this.queuePlayerBullet({
             fireFrame: this.frameCount + index + 1,
@@ -4297,22 +5612,22 @@ export class GameEngine {
       });
     }
   }
-  
+
   fireMissile() {
       // Check if max level (5)
       const isMaxLevel = this.stats.upgrades.missile >= 5;
       this.kickPlayerSquash(-0.075);
       this.addShake(isMaxLevel ? 0.7 : 0.38);
-      
-      const m = new Entity(EntityType.MISSILE, this.player.x + this.player.width/2 - 5, this.player.y);
+
+      const m = this.createEntity(EntityType.MISSILE, this.player.x + this.player.width/2 - 5, this.player.y);
       m.width = 10;
       m.height = 20;
       m.isMissile = true;
       m.vy = -4; // Initial velocity up
-      
+
       // Max level is Neon Pink/Red, Standard is Cyan
-      m.color = isMaxLevel ? '#ff0055' : '#00ffff'; 
-      
+      m.color = isMaxLevel ? '#ff0055' : '#00ffff';
+
       m.isPlayerShot = true; // Mark as player shot
       this.entities.push(m);
       this.livePlayerShotCount++;
@@ -4338,12 +5653,20 @@ export class GameEngine {
   }
 
   triggerBomb() {
-    if ((this.stats.bombs || 0) <= 0 || !this.gameActive || this.introFlightFrames > 0 || this.deathSequenceFrames > 0 || this.waveDepartureFrames > 0) {
+    if (
+      (!this.previewUnlimitedBombs && (this.stats.bombs || 0) <= 0)
+      || !this.gameActive
+      || this.introFlightFrames > 0
+      || this.deathSequenceFrames > 0
+      || this.waveDepartureFrames > 0
+    ) {
       return false;
     }
 
     this.lastBombFrame = this.frameCount;
-    this.stats.bombs = Math.max(0, (this.stats.bombs || 0) - 1);
+    if (!this.previewUnlimitedBombs) {
+      this.stats.bombs = Math.max(0, (this.stats.bombs || 0) - 1);
+    }
     const cx = this.player.x + this.player.width / 2;
     const cy = this.player.y + this.player.height / 2;
     this.flashAlpha = Math.max(this.flashAlpha, 0.36);
@@ -4382,7 +5705,9 @@ export class GameEngine {
             : 999;
       if (target.type === EntityType.BOSS) this.damageBossHull(target, bombDamage);
       else {
+        const previousHealth = target.hp;
         target.hp -= bombDamage;
+        this.recordEntityDamage(target, previousHealth);
         this.flashDamageTarget(target, 6);
       }
       this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#fef08a', isBossTarget ? 8 : 5, 4.5, 4);
@@ -4472,7 +5797,9 @@ export class GameEngine {
       });
     }
 
-    this.stats.shipAbilityCooldown = ability.cooldownFrames;
+    this.stats.shipAbilityCooldown = this.previewShipAbilityNoCooldown
+      ? 0
+      : ability.cooldownFrames;
     this.stats.shipAbilityCooldownMax = ability.cooldownFrames;
     // Research Charge already receives a soft pooled light in the Pixi
     // renderer. Keep its launch feedback particle-based so it never reads as
@@ -4503,7 +5830,7 @@ export class GameEngine {
     pierceRemaining?: number;
     variant?: number;
   }) {
-    const projectile = new Entity(
+    const projectile = this.createEntity(
       EntityType.PROJECTILE,
       this.player.x + this.player.width / 2 - config.width / 2 + (config.offsetX ?? 0),
       this.player.y + (config.yOffset ?? 0)
@@ -4574,7 +5901,9 @@ export class GameEngine {
             : 999;
       if (target.type === EntityType.BOSS) this.damageBossHull(target, damage);
       else {
+        const previousHealth = target.hp;
         target.hp -= damage;
+        this.recordEntityDamage(target, previousHealth);
         this.flashDamageTarget(target);
       }
       this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#a7f3d0', 5, 3.6, 3);
@@ -4582,7 +5911,129 @@ export class GameEngine {
     }
   }
 
+  isBossCombatInteractive(entity: Entity) {
+    return entity.type !== EntityType.BOSS
+      || (entity.bossRevivalStage !== 'shutdown' && entity.bossRevivalStage !== 'rebooting');
+  }
+
+  canBeginBossRevival(boss: Entity) {
+    return boss.type === EntityType.BOSS
+      && Boolean(boss.bossRevival)
+      && !boss.bossRevivalConsumed
+      && getBossRevivalTargetPhaseIndex(
+        boss.bossRevival,
+        boss.bossPhaseSettings
+      ) > 0;
+  }
+
+  private clearBossRevivalHazards(boss: Entity) {
+    this.pendingBossStrikes = this.pendingBossStrikes.filter((strike) => strike.bossId !== boss.id);
+    const removedTelegraphIds = new Set<string>();
+    this.pendingEnemyLasers = this.pendingEnemyLasers.filter((laser) => {
+      if (laser.sourceId !== boss.id) return true;
+      removedTelegraphIds.add(laser.telegraphId);
+      return false;
+    });
+    for (const entity of this.entities) {
+      if (
+        entity.bossOwnerId === boss.id
+        || removedTelegraphIds.has(entity.id)
+        || entity.shieldHostId === boss.id
+      ) {
+        entity.markedForDeletion = true;
+      }
+    }
+    boss.bossCornerAmbushBeamState = undefined;
+    boss.bossCornerAmbushRamState = undefined;
+    boss.bossTrackingPincerState = undefined;
+    boss.bossHeliosCornerClampState = undefined;
+    this.clearBossTimelineActionLocks(boss);
+    this.removeBossCornerAmbushBeams(boss);
+    this.clearBossShieldRing();
+  }
+
+  private beginBossRevival(boss: Entity) {
+    const config = boss.bossRevival;
+    if (!config || !this.canBeginBossRevival(boss)) return false;
+    const state = createBossRevivalRuntimeState(
+      config,
+      boss.bossPhaseSettings,
+      boss.bossRevivalBaseWidth || boss.width,
+      boss.bossRevivalBaseHeight || boss.height,
+      this.width
+    );
+    if (!state) return false;
+
+    boss.hp = 0;
+    boss.vx = 0;
+    boss.vy = 0;
+    boss.bossRevivalRuntime = state;
+    boss.bossRevivalStage = state.stage;
+    boss.bossRevivalProgress = 0;
+    boss.bossRevivalConsumed = true;
+    boss.attackTimer = 0;
+    boss.lastBurstAttackTimer = 0;
+    boss.bossActionPresentation = undefined;
+    boss.bossMovementPathId = undefined;
+    boss.bossMovementPathStartFrame = -1;
+    boss.bossMovementPathDurationFrames = 0;
+    boss.generatedBossChargeUntilTimer = -1;
+    boss.isCharging = false;
+    boss.isBeam = false;
+    this.clearBossRevivalHazards(boss);
+    this.updateBossDecayStage(boss);
+    return true;
+  }
+
+  private updateBossRevival(boss: Entity) {
+    const config = boss.bossRevival;
+    const state = boss.bossRevivalRuntime;
+    if (!config || !state || state.stage === 'complete') return false;
+
+    const centerX = boss.x + boss.width / 2;
+    const centerY = boss.y + boss.height / 2;
+    const frame = advanceBossRevivalRuntime(state, config, boss.maxHp, GAME_CONFIG.FPS);
+    boss.bossRevivalRuntime = frame.state;
+    // The final shutdown simulation frame promotes the internal state so the
+    // next tick can begin rebooting, but its rendered pose must still reach a
+    // fully limp shutdown before the ignition animation starts.
+    boss.bossRevivalStage = state.stage === 'shutdown'
+      ? 'shutdown'
+      : frame.state.stage;
+    boss.bossRevivalProgress = frame.progress;
+    boss.hp = frame.health;
+    boss.width = frame.width;
+    boss.height = frame.height;
+    boss.x = clamp(
+      centerX - boss.width / 2,
+      0,
+      Math.max(0, this.width - boss.width)
+    );
+    boss.y = clamp(
+      centerY - boss.height / 2,
+      0,
+      Math.max(0, this.height - boss.height)
+    );
+    boss.vx = 0;
+    boss.vy = 0;
+    boss.attackTimer = 0;
+    boss.lastBurstAttackTimer = 0;
+    boss.isCharging = false;
+    boss.bossActionPresentation = undefined;
+    this.updateBossDecayStage(boss);
+
+    if (frame.completedNow) {
+      boss.activeBossPhaseIndex = -1;
+      boss.activeBossPhaseId = undefined;
+      boss.bossTimelinePhaseId = undefined;
+      boss.bossTimelineLastPhaseId = undefined;
+      this.applyConfiguredBossPhase(boss);
+    }
+    return true;
+  }
+
   isEnemyTarget(entity: Entity) {
+    if (!this.isBossCombatInteractive(entity)) return false;
     return entity.type === EntityType.ENEMY_DRONE
       || entity.type === EntityType.ENEMY_BRICK
       || entity.type === EntityType.ENEMY_JOURNAL
@@ -4614,6 +6065,20 @@ export class GameEngine {
     if (this.frameCount - component.lastDamageFlashFrame < BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES) return;
     component.lastDamageFlashFrame = this.frameCount;
     component.flashFrames = Math.max(component.flashFrames, frames);
+  }
+
+  queueBossSignificantImpact(
+    boss: Entity,
+    xRatio: number,
+    yRatio: number,
+    strength: number,
+    componentImpact: boolean
+  ) {
+    boss.bossSignificantImpactFrame = this.frameCount;
+    boss.bossSignificantImpactXRatio = clamp(xRatio, 0, 1);
+    boss.bossSignificantImpactYRatio = clamp(yRatio, 0, 1);
+    boss.bossSignificantImpactStrength = clamp(strength, 0.2, 2);
+    boss.bossSignificantImpactIsComponent = componentImpact;
   }
 
   getBossShieldCount() {
@@ -4650,7 +6115,7 @@ export class GameEngine {
       : BOSS_SHIELD_ESCORT_DESKTOP_SIZE;
 
     for (let i = 0; i < count; i++) {
-      const shield = new Entity(EntityType.ENEMY_SWARM, boss.x + boss.width / 2, boss.y + boss.height / 2);
+      const shield = this.createEntity(EntityType.ENEMY_SWARM, boss.x + boss.width / 2, boss.y + boss.height / 2);
       shield.width = escortSize.width;
       shield.height = escortSize.height;
       shield.hp = hp;
@@ -4671,7 +6136,26 @@ export class GameEngine {
 
   handleEnemyDestroyed(target: Entity) {
     if (target.markedForDeletion) return;
+    if (target.type === EntityType.BOSS) {
+      if (!this.isBossCombatInteractive(target)) return;
+      if (this.beginBossRevival(target)) return;
+    }
 
+    if (target.type === EntityType.BOSS && target.bossTimeline) {
+      const phase = Math.max(1, target.activeBossPhaseIndex + 1);
+      getBossTimelineTriggeredCues(
+        target.bossTimeline,
+        'death',
+        target.bossTimelinePhaseId ?? target.activeBossPhaseId
+      ).forEach((cue) => this.dispatchBossTimelineCue(target, cue, phase, 'death'));
+    }
+    if (target.type === EntityType.BOSS) {
+      target.bossCornerAmbushBeamState = undefined;
+      target.bossCornerAmbushRamState = undefined;
+      target.bossTrackingPincerState = undefined;
+      target.bossHeliosCornerClampState = undefined;
+      this.removeBossCornerAmbushBeams(target);
+    }
     target.markedForDeletion = true;
     const destructionIntensity = target.type === EntityType.BOSS
       ? 2.2
@@ -4723,18 +6207,18 @@ export class GameEngine {
     const powerupDropChance = Number.isFinite(configuredPowerupDropChance)
       ? clamp(configuredPowerupDropChance, 0, 1)
       : isElite ? 0.08 : 0;
-    if (target.type !== EntityType.BOSS && powerupDropChance > 0 && Math.random() < powerupDropChance) {
+    if (target.type !== EntityType.BOSS && powerupDropChance > 0 && this.gameplayRandom.chance(powerupDropChance)) {
       this.spawnPowerup(target.x, target.y);
     }
     if (target.type !== EntityType.BOSS && this.lives < GAME_CONFIG.MAX_LIVES) {
       const extraLifeDropChance = isElite ? ELITE_EXTRA_LIFE_DROP_CHANCE : EXTRA_LIFE_DROP_CHANCE;
-      if (Math.random() < extraLifeDropChance) {
+      if (this.gameplayRandom.chance(extraLifeDropChance)) {
         this.spawnPowerup(centerX - 18, centerY - 18, 'extra-life');
       }
     }
     if (target.type !== EntityType.BOSS && !this.isBombResolving) {
       const dropChance = isElite ? ELITE_BOMB_DROP_CHANCE : BOMB_DROP_CHANCE;
-      if (Math.random() < dropChance) {
+      if (this.gameplayRandom.chance(dropChance)) {
         this.spawnBombDrop(centerX - 19, centerY - 19);
       }
     }
@@ -4750,11 +6234,11 @@ export class GameEngine {
         for (let i = 0; i < miniBossPowerupDrops; i++) {
           this.spawnPowerup(
             target.x + (target.width * ((i + 1) / (miniBossPowerupDrops + 1))),
-            target.y + Math.random() * target.height
+            target.y + this.nextGameplayRandom() * target.height
           );
         }
       }
-      if (Math.random() < MINI_BOSS_BOMB_REWARD_CHANCE) {
+      if (this.gameplayRandom.chance(MINI_BOSS_BOMB_REWARD_CHANCE)) {
         this.spawnBombDrop(centerX - 19, centerY - 19);
       }
       const remainingMiniBosses = this.getActiveMiniBosses();
@@ -4807,10 +6291,16 @@ export class GameEngine {
       const componentHit = target.type === EntityType.BOSS
         ? this.getBossComponentHit(target, beamBox)
         : undefined;
-      return Boolean(componentHit) || !(box.x > beamBox.x + beamBox.width
-        || box.x + box.width < beamBox.x
-        || box.y > beamBox.y + beamBox.height
-        || box.y + box.height < beamBox.y);
+      const bossLikeTarget =
+        target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS;
+      return Boolean(componentHit) || (
+        bossLikeTarget
+          ? this.bossSilhouetteIntersectsBox(target, beamBox)
+          : !(box.x > beamBox.x + beamBox.width
+            || box.x + box.width < beamBox.x
+            || box.y > beamBox.y + beamBox.height
+            || box.y + box.height < beamBox.y)
+      );
     };
 
     this.entities.forEach((target) => {
@@ -4832,7 +6322,9 @@ export class GameEngine {
       if (componentHit) this.damageBossComponent(target, componentHit, beamDamage);
       else if (target.type === EntityType.BOSS) this.damageBossHull(target, beamDamage);
       else {
+        const previousHealth = target.hp;
         target.hp -= beamDamage;
+        this.recordEntityDamage(target, previousHealth);
         this.flashDamageTarget(target, 4);
       }
 
@@ -4893,7 +6385,7 @@ export class GameEngine {
     const dy = targetY - sourceY;
     const length = Math.max(1, Math.hypot(dx, dy));
     const speed = Math.min(7.2, 4.5 + this.wave * 0.42);
-    const shot = new Entity(EntityType.PROJECTILE, sourceX - 5, sourceY);
+    const shot = this.createEntity(EntityType.PROJECTILE, sourceX - 5, sourceY);
     shot.width = this.wave >= 4 ? 12 : 10;
     shot.height = this.wave >= 4 ? 12 : 10;
     shot.vx = (dx / length) * speed;
@@ -4913,7 +6405,7 @@ export class GameEngine {
     lifetimeFrames: number
   ) {
     const thickness = telegraph ? 6 : (this.mobileProfile ? 15 : 18);
-    const beam = new Entity(
+    const beam = this.createEntity(
       EntityType.PROJECTILE,
       axis === 'vertical' ? coordinate - thickness / 2 : 0,
       axis === 'horizontal' ? coordinate - thickness / 2 : 0
@@ -4962,7 +6454,8 @@ export class GameEngine {
       coordinate,
       damage: Math.max(1, Number(source.projectileDamage) || 1),
       frames: warningFrames,
-      warningFrames
+      warningFrames,
+      requireEliteSource: true
     });
     this.spawnFloatingText(
       axis === 'vertical' ? coordinate : sourceCenterX,
@@ -4975,15 +6468,53 @@ export class GameEngine {
     return true;
   }
 
+  queuePreviewBossLaneLaser(source: Entity) {
+    const coordinate = clamp(
+      this.player.x + this.player.width / 2,
+      28,
+      this.width - 28
+    );
+    const warningFrames = 48;
+    const telegraph = this.spawnEnemyLaneLaser(
+      source.id,
+      'vertical',
+      coordinate,
+      0,
+      true,
+      warningFrames + 4
+    );
+    this.pendingEnemyLasers.push({
+      sourceId: source.id,
+      telegraphId: telegraph.id,
+      axis: 'vertical',
+      coordinate,
+      damage: Math.max(1, Number(source.projectileDamage) || 1),
+      frames: warningFrames,
+      warningFrames,
+      requireEliteSource: false
+    });
+    source.isCharging = true;
+    this.spawnFloatingText(
+      coordinate,
+      Math.max(72, source.y + source.height),
+      'LASER LOCK',
+      '#f87171',
+      14
+    );
+    this.playSound('siren', 0.64);
+    return true;
+  }
+
   updatePendingEnemyLasers() {
     if (this.pendingEnemyLasers.length === 0) return;
-    const activeSourceIds = new Set(this.entities
-      .filter((entity) => !entity.markedForDeletion && entity.isElite)
-      .map((entity) => entity.id));
+    const activeSources = new Map(this.entities
+      .filter((entity) => !entity.markedForDeletion)
+      .map((entity) => [entity.id, entity] as const));
 
     for (const pending of this.pendingEnemyLasers) {
       const telegraph = this.entities.find((entity) => entity.id === pending.telegraphId);
-      if (!activeSourceIds.has(pending.sourceId)) {
+      const source = activeSources.get(pending.sourceId);
+      if (!source || (pending.requireEliteSource && !source.isElite)) {
         if (telegraph) telegraph.markedForDeletion = true;
         pending.frames = 0;
         continue;
@@ -4998,6 +6529,7 @@ export class GameEngine {
       if (pending.frames !== 0) continue;
 
       if (telegraph) telegraph.markedForDeletion = true;
+      source.isCharging = false;
       this.spawnEnemyLaneLaser(
         pending.sourceId,
         pending.axis,
@@ -5039,7 +6571,7 @@ export class GameEngine {
       ));
       // Always leave a readable safe opening in the ring facing the player.
       if (gapDistance < 0.42) continue;
-      const shot = new Entity(EntityType.PROJECTILE, sourceX - 6, sourceY - 6);
+      const shot = this.createEntity(EntityType.PROJECTILE, sourceX - 6, sourceY - 6);
       shot.width = 12;
       shot.height = 12;
       shot.vx = Math.cos(angle) * speed;
@@ -5062,7 +6594,7 @@ export class GameEngine {
     const sourceY = source.y + source.height * 0.68;
     for (let index = 0; index < count; index++) {
       const offset = index - ((count - 1) / 2);
-      const mine = new Entity(EntityType.PROJECTILE, sourceX - 10, sourceY);
+      const mine = this.createEntity(EntityType.PROJECTILE, sourceX - 10, sourceY);
       mine.width = 20;
       mine.height = 20;
       mine.vx = offset * 1.05;
@@ -5143,7 +6675,7 @@ export class GameEngine {
       for (let index = 0; index < burstCount && activeEnemyShots < shotCap; index++) {
         const centeredIndex = index - ((burstCount - 1) / 2);
         const angle = baseAngle + centeredIndex * spread;
-        const shot = new Entity(EntityType.PROJECTILE, sourceX - 7, sourceY);
+        const shot = this.createEntity(EntityType.PROJECTILE, sourceX - 7, sourceY);
         shot.width = 14;
         shot.height = 20;
         shot.vx = Math.cos(angle) * speed;
@@ -5224,7 +6756,7 @@ export class GameEngine {
     if (enemies.length === 0) return null;
     const totalWeight = enemies.reduce((sum, enemy) => sum + Math.max(0, Number(enemy.weight) || 0), 0);
     if (totalWeight <= 0) return enemies[0];
-    let roll = Math.random() * totalWeight;
+    let roll = this.nextGameplayRandom() * totalWeight;
     for (const enemy of enemies) {
       roll -= Math.max(0, Number(enemy.weight) || 0);
       if (roll <= 0) return enemy;
@@ -5256,22 +6788,11 @@ export class GameEngine {
   }
 
   getFormationGroupSeed(eventId: string) {
-    let hash = 0;
-    for (let index = 0; index < eventId.length; index++) {
-      hash = ((hash << 5) - hash + eventId.charCodeAt(index)) | 0;
-    }
-    return Math.abs(hash % 10000);
+    return calculateFormationGroupSeed(eventId);
   }
 
   resolveConfiguredFormationMode(patternId?: string): ConfiguredEnemyFormationMode {
-    const pattern = String(patternId || 'row').toLowerCase();
-    if (pattern.includes('grid') || pattern.includes('wall')) return 'grid';
-    if (pattern.includes('diamond')) return 'diamond';
-    if (pattern.includes('spiral')) return 'spiral';
-    if (pattern.includes('pincer')) return 'pincer';
-    if (pattern.includes('sine') || pattern.includes('wave')) return 'sine';
-    if (pattern.includes('v')) return 'v';
-    return 'row';
+    return resolveFormationMode(patternId);
   }
 
   getConfiguredFormationTarget(
@@ -5281,161 +6802,37 @@ export class GameEngine {
     entityWidth: number,
     entityHeight: number
   ) {
-    const authoredSlot = event.formationSlots?.[index];
-    if (
-      authoredSlot
-      && Number.isFinite(authoredSlot.x)
-      && Number.isFinite(authoredSlot.y)
-    ) {
-      const left = Math.max(entityWidth * 0.6, 24);
-      const right = Math.max(left, this.width - left);
-      return {
-        x: clamp((authoredSlot.x * this.width) - (entityWidth / 2), left - entityWidth / 2, right - entityWidth / 2),
-        y: clamp((authoredSlot.y * this.height) - (entityHeight / 2), 54, (this.height * 0.46) - (entityHeight / 2))
-      };
-    }
-
-    const mode = this.resolveConfiguredFormationMode(event.patternId);
-    const anchor = this.getConfiguredSpawnAnchor(event);
-    const centerX = (anchor?.x ?? 0.5) * this.width;
-    const topY = (anchor?.y ?? 0.16) * this.height;
-    const left = Math.max(entityWidth * 0.6, 24);
-    const right = Math.max(left, this.width - left);
-    const mobile = this.width < 520;
-    let targetCenterX = centerX;
-    let targetCenterY = topY;
-    const spriteKeys = event.enemies.map((enemy) => String(enemy.spriteKey || ''));
-    const usesDnaFleet = spriteKeys.includes('CAMPAIGN_ENEMY_DNA_CONDUCTOR');
-    const usesRingFleet = spriteKeys.some((key) => (
-      key === 'CAMPAIGN_ENEMY_RING_SENTINEL'
-      || key === 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
-    ));
-
-    if (usesDnaFleet) {
-      const sCurve = event.id.includes('null-sector') || event.id.includes('event-horizon');
-      if (sCurve) {
-        const progress = index / Math.max(1, count - 1);
-        targetCenterX = centerX + Math.sin((progress * Math.PI * 2) - Math.PI / 2)
-          * Math.min(this.width * 0.28, mobile ? 112 : 172);
-        targetCenterY = topY + progress * Math.min(this.height * 0.25, mobile ? 210 : 250);
-      } else {
-        const pair = Math.floor(index / 2);
-        const pairCount = Math.max(1, Math.ceil(count / 2));
-        const strand = index % 2 === 0 ? -1 : 1;
-        const angle = pair * 0.84 + (strand > 0 ? Math.PI : 0);
-        targetCenterX = centerX + Math.cos(angle) * Math.min(this.width * 0.24, mobile ? 96 : 152);
-        targetCenterY = topY + (pair / Math.max(1, pairCount - 1))
-          * Math.min(this.height * 0.25, mobile ? 210 : 250);
-      }
-    } else if (usesRingFleet) {
-      const ringSize = Math.min(12, count);
-      const ring = Math.floor(index / ringSize);
-      const localIndex = index % ringSize;
-      const localCount = Math.min(ringSize, count - ring * ringSize);
-      const angle = (localIndex / Math.max(1, localCount)) * Math.PI * 2 - Math.PI / 2;
-      const radiusX = Math.min(this.width * (0.21 + ring * 0.075), mobile ? 108 + ring * 28 : 158 + ring * 34);
-      const radiusY = mobile ? 42 + ring * 24 : 52 + ring * 28;
-      targetCenterX = centerX + Math.cos(angle) * radiusX;
-      targetCenterY = topY + 62 + ring * (mobile ? 76 : 90) + Math.sin(angle) * radiusY;
-    }
-
-    if (usesDnaFleet || usesRingFleet) {
-      // Bespoke campaign fleets above intentionally bypass the generic shapes.
-    } else if (mode === 'grid') {
-      const columns = Math.min(mobile ? 5 : 8, Math.max(3, Math.ceil(Math.sqrt(count * 1.45))));
-      const row = Math.floor(index / columns);
-      const column = index % columns;
-      const rowCount = Math.min(columns, count - row * columns);
-      const gapX = Math.min(mobile ? 58 : 70, (this.width - left * 2) / Math.max(1, columns - 1));
-      targetCenterX = centerX + (column - (rowCount - 1) / 2) * gapX;
-      targetCenterY = topY + row * (mobile ? 48 : 56);
-    } else if (mode === 'v') {
-      const squadSize = Math.min(7, count);
-      const squad = Math.floor(index / squadSize);
-      const localIndex = index % squadSize;
-      const localCount = Math.min(squadSize, count - squad * squadSize);
-      const offset = localIndex - (localCount - 1) / 2;
-      const gapX = Math.min(mobile ? 48 : 58, (this.width - left * 2) / Math.max(1, localCount - 1));
-      targetCenterX = centerX + offset * gapX;
-      targetCenterY = topY + squad * (mobile ? 70 : 78) + Math.abs(offset) * (mobile ? 17 : 20);
-    } else if (mode === 'diamond') {
-      const squadSize = Math.min(8, count);
-      const squad = Math.floor(index / squadSize);
-      const localIndex = index % squadSize;
-      const localCount = Math.min(squadSize, count - squad * squadSize);
-      const angle = (localIndex / Math.max(1, localCount)) * Math.PI * 2 - Math.PI / 2;
-      const denominator = Math.max(0.001, Math.abs(Math.cos(angle)) + Math.abs(Math.sin(angle)));
-      const diamondX = Math.cos(angle) / denominator;
-      const diamondY = Math.sin(angle) / denominator;
-      targetCenterX = centerX + diamondX * Math.min(this.width * 0.24, mobile ? 88 : 132);
-      targetCenterY = topY + 38 + squad * (mobile ? 92 : 108) + diamondY * (mobile ? 44 : 52);
-    } else if (mode === 'spiral') {
-      const ringSize = Math.min(10, count);
-      const ring = Math.floor(index / ringSize);
-      const localIndex = index % ringSize;
-      const localCount = Math.min(ringSize, count - ring * ringSize);
-      const angle = (localIndex / Math.max(1, localCount)) * Math.PI * 2 - Math.PI / 2;
-      targetCenterX = centerX + Math.cos(angle) * Math.min(this.width * (0.2 + ring * 0.08), mobile ? 104 : 158);
-      targetCenterY = topY + 54 + ring * (mobile ? 82 : 96) + Math.sin(angle) * (mobile ? 40 : 52);
-    } else if (mode === 'pincer') {
-      const row = Math.floor(index / 2);
-      targetCenterX = centerX + (index % 2 === 0 ? -1 : 1) * Math.min(this.width * 0.24, mobile ? 92 : 138);
-      targetCenterY = topY + row * (mobile ? 40 : 46);
-    } else {
-      const columns = Math.min(mode === 'sine' ? (mobile ? 6 : 9) : (mobile ? 6 : 10), count);
-      const row = Math.floor(index / columns);
-      const column = index % columns;
-      const rowCount = Math.min(columns, count - row * columns);
-      const gapX = Math.min(mobile ? 54 : 66, (this.width - left * 2) / Math.max(1, columns - 1));
-      targetCenterX = centerX + (column - (rowCount - 1) / 2) * gapX;
-      targetCenterY = topY + row * (mobile ? 54 : 62) + (mode === 'sine' ? Math.sin(column * 1.25) * 24 : 0);
-    }
-
-    return {
-      x: clamp(targetCenterX - entityWidth / 2, left - entityWidth / 2, right - entityWidth / 2),
-      y: clamp(targetCenterY - entityHeight / 2, 54, this.height * 0.42)
-    };
+    return resolveConfiguredFormationTarget({
+      event: {
+        id: event.id,
+        patternId: event.patternId,
+        positionId: event.positionId,
+        spawnAnchor: event.spawnAnchor,
+        formationSlots: event.formationSlots,
+        enemySpriteKeys: event.enemies.map((enemy) => String(enemy.spriteKey || ''))
+      },
+      index,
+      count,
+      entityWidth,
+      entityHeight,
+      viewport: { width: this.width, height: this.height }
+    });
   }
 
   getConfiguredSpawnPoint(event: RuntimeSpawnEvent, index: number, count: number) {
-    const positionId = String(event.positionId || 'top-random').toLowerCase();
-    const patternId = String(event.patternId || 'row').toLowerCase();
-    let x = Math.random() * Math.max(1, this.width - 56);
-    let y = -60;
-
-    if (positionId.includes('left')) x = this.width * 0.2;
-    else if (positionId.includes('right')) x = this.width * 0.8;
-    else if (positionId.includes('center')) x = this.width * 0.5;
-
-    const anchor = this.getConfiguredSpawnAnchor(event);
-    if (patternId.includes('single') || patternId.includes('random')) {
-      return anchor
-        ? { x: anchor.x * this.width, y: anchor.y * this.height }
-        : { x, y };
-    }
-
-    const mode = this.resolveConfiguredFormationMode(patternId);
-    const side = (index + this.getFormationGroupSeed(event.id)) % 2 === 0 ? -1 : 1;
-    const pair = Math.floor(index / 2);
-    if (mode === 'pincer') {
-      x = side < 0 ? -72 : this.width + 72;
-      y = Math.max(24, this.height * 0.08) + pair * 22;
-    } else if (mode === 'spiral') {
-      const angle = index * 0.92;
-      x = this.width / 2 + Math.cos(angle) * Math.min(this.width * 0.42, 190);
-      y = -96 - pair * 18;
-    } else if (mode === 'sine') {
-      x = 24 + (index / Math.max(1, count - 1)) * Math.max(1, this.width - 72);
-      y = -80 - (Math.sin(index * 1.35) + 1) * 30;
-    } else {
-      x = side < 0 ? -78 - (index % 3) * 18 : this.width + 78 + (index % 3) * 18;
-      y = -104 - pair * 14;
-    }
-
-    return {
-      x,
-      y
-    };
+    return resolveConfiguredFormationSpawnPoint({
+      event: {
+        id: event.id,
+        patternId: event.patternId,
+        positionId: event.positionId,
+        spawnAnchor: event.spawnAnchor,
+        formationSlots: event.formationSlots
+      },
+      index,
+      count,
+      viewport: { width: this.width, height: this.height },
+      randomSample: this.nextGameplayRandom()
+    });
   }
 
   configureEnemyFormation(enemy: Entity, event: RuntimeSpawnEvent, index: number, count: number) {
@@ -5448,37 +6845,35 @@ export class GameEngine {
       enemy.height = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE * REGULAR_ENEMY_SIZE_SCALE);
     }
     const target = this.getConfiguredFormationTarget(event, index, count, enemy.width, enemy.height);
-    const entryFrames = 52 + (index % 4) * 5 + (formation === 'spiral' ? 14 : 0);
-    const holdFramesByMode: Record<ConfiguredEnemyFormationMode, number> = {
-      row: 116,
-      v: 106,
-      sine: 72,
-      pincer: 64,
-      grid: 136,
-      diamond: 96,
-      spiral: 82
-    };
-    const diveCadence = formation === 'grid' ? 18 : formation === 'row' ? 20 : formation === 'v' ? 16 : 12;
     const sideSentry = Boolean(enemy.spriteUrl?.includes('/wall-sniper-'));
+    const plan = resolveFormationEntryPlan({
+      eventId: event.id,
+      patternId,
+      index,
+      count,
+      currentFrame: this.frameCount,
+      waveProgressFrames: this.waveProgressFrames,
+      baseVerticalSpeed: enemy.vy,
+      sideSentry,
+      framesPerSecond: GAME_CONFIG.FPS,
+      target
+    });
 
-    enemy.formation = formation;
-    enemy.formationIndex = index;
-    enemy.formationSeed = this.waveProgressFrames + index * 19;
-    enemy.formationGroupSeed = this.getFormationGroupSeed(event.id);
+    enemy.formation = plan.mode;
+    enemy.formationIndex = plan.index;
+    enemy.formationSeed = plan.seed;
+    enemy.formationGroupSeed = plan.groupSeed;
     enemy.formationState = 'entry';
-    enemy.formationTargetX = target.x;
-    enemy.formationTargetY = target.y;
+    enemy.formationTargetX = plan.target.x;
+    enemy.formationTargetY = plan.target.y;
     enemy.formationStartX = enemy.x;
     enemy.formationStartY = enemy.y;
     enemy.formationStateFrame = this.frameCount;
-    enemy.formationEntryFrames = entryFrames;
-    enemy.formationDiveFrame = this.frameCount
-      + entryFrames
-      + (sideSentry ? GAME_CONFIG.FPS * 12 : holdFramesByMode[formation])
-      + (index % 6) * diveCadence;
-    enemy.formationBaseSpeed = Math.max(2.2, Math.abs(enemy.vy));
+    enemy.formationEntryFrames = plan.entryFrames;
+    enemy.formationDiveFrame = plan.diveFrame;
+    enemy.formationBaseSpeed = plan.baseSpeed;
     enemy.formationCycle = 0;
-    enemy.encounterGroupSize = count;
+    enemy.encounterGroupSize = plan.groupSize;
     enemy.vx = 0;
     enemy.vy = 0;
   }
@@ -5585,6 +6980,46 @@ export class GameEngine {
     return true;
   }
 
+  spawnConfiguredEnemyFromEvent(
+    event: RuntimeSpawnEvent,
+    spawnIndex: number,
+    targetCount: number,
+    difficultyMultiplier: number = this.getCurrentDifficultyMultiplier()
+  ) {
+    const enemySetting = this.pickConfiguredEnemy(event);
+    if (!enemySetting) return false;
+    const enemyType = this.resolveConfiguredEnemyType(enemySetting.enemyId);
+    const point = this.getConfiguredSpawnPoint(event, spawnIndex, targetCount);
+    const enemy = this.createEnemy(enemyType, point.x, point.y, {
+      speed: Number(enemySetting.speed) * difficultyMultiplier,
+      health: Number(enemySetting.health) * difficultyMultiplier,
+      contactDamage: Number(enemySetting.damage) * difficultyMultiplier,
+      projectileDamage: Number(enemySetting.damage) * difficultyMultiplier,
+      scoreValue: Number(enemySetting.scoreValue),
+      powerupDropChance: Number(enemySetting.powerupDropChance),
+      spriteUrl: this.resolveSpriteUrl(enemySetting.spriteKey, enemyType),
+      spriteFrames: this.resolveSpriteFrames(enemySetting.spriteKey),
+      spriteStyle: enemySetting.spriteStyle,
+      rank: enemySetting.rank,
+      sizeMultiplier: enemySetting.sizeMultiplier,
+      attackPatternId: enemySetting.attackPatternId,
+      attackIntervalSeconds: enemySetting.attackIntervalSeconds,
+      projectileSpeed: enemySetting.projectileSpeed,
+      burstCount: enemySetting.burstCount
+    });
+    const patternId = String(event.patternId || '').toLowerCase();
+    if (this.getConfiguredSpawnAnchor(event) && (patternId.includes('single') || patternId.includes('random'))) {
+      enemy.x -= enemy.width / 2;
+      enemy.y -= enemy.height / 2;
+    }
+    enemy.sourceEventId = event.id;
+    enemy.sourceItemId = enemySetting.enemyId;
+    this.configureEnemyFormation(enemy, event, spawnIndex, targetCount);
+    this.configuredSpawnCounts.set(event.id, spawnIndex + 1);
+    this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
+    return true;
+  }
+
   spawnConfiguredEnemies() {
     const events = this.getConfiguredSpawnEvents();
     if (events.length === 0) return false;
@@ -5609,8 +7044,6 @@ export class GameEngine {
       const previousFrame = this.configuredSpawnFrames.get(event.id);
       if (previousFrame !== undefined && this.waveProgressFrames - previousFrame < intervalFrames) continue;
 
-      const enemySetting = this.pickConfiguredEnemy(event);
-      if (!enemySetting) continue;
       const cycle = this.getCampaignCycle();
       const formationEvent = !String(event.patternId || '').toLowerCase().includes('single')
         && !String(event.patternId || '').toLowerCase().includes('random');
@@ -5621,35 +7054,7 @@ export class GameEngine {
         this.spawnFloatingText(warningX, this.height * 0.22, 'SIDE ENTRY', '#fb7185', 15);
         this.spawnRingEffect(warningX, this.height * 0.22, '#fb7185');
       }
-      const enemyType = this.resolveConfiguredEnemyType(enemySetting.enemyId);
-      const point = this.getConfiguredSpawnPoint(event, spawned, count);
-      const enemy = this.createEnemy(enemyType, point.x, point.y, {
-        speed: Number(enemySetting.speed) * difficultyMultiplier,
-        health: Number(enemySetting.health) * difficultyMultiplier,
-        contactDamage: Number(enemySetting.damage) * difficultyMultiplier,
-        projectileDamage: Number(enemySetting.damage) * difficultyMultiplier,
-        scoreValue: Number(enemySetting.scoreValue),
-        powerupDropChance: Number(enemySetting.powerupDropChance),
-        spriteUrl: this.resolveSpriteUrl(enemySetting.spriteKey, enemyType),
-        spriteFrames: this.resolveSpriteFrames(enemySetting.spriteKey),
-        spriteStyle: enemySetting.spriteStyle,
-        rank: enemySetting.rank,
-        sizeMultiplier: enemySetting.sizeMultiplier,
-        attackPatternId: enemySetting.attackPatternId,
-        attackIntervalSeconds: enemySetting.attackIntervalSeconds,
-        projectileSpeed: enemySetting.projectileSpeed,
-        burstCount: enemySetting.burstCount
-      });
-      const patternId = String(event.patternId || '').toLowerCase();
-      if (this.getConfiguredSpawnAnchor(event) && (patternId.includes('single') || patternId.includes('random'))) {
-        enemy.x -= enemy.width / 2;
-        enemy.y -= enemy.height / 2;
-      }
-      enemy.sourceEventId = event.id;
-      enemy.sourceItemId = enemySetting.enemyId;
-      this.configureEnemyFormation(enemy, event, spawned, count);
-      this.configuredSpawnCounts.set(event.id, spawned + 1);
-      this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
+      this.spawnConfiguredEnemyFromEvent(event, spawned, count, difficultyMultiplier);
     }
 
     return true;
@@ -5673,7 +7078,7 @@ export class GameEngine {
         const totalWeight = powerupIds.reduce((sum, id) => sum + Math.max(0, getPowerup(id).defaultWeight), 0);
         let powerupId = powerupIds[0];
         if (totalWeight > 0) {
-          let roll = Math.random() * totalWeight;
+          let roll = this.nextGameplayRandom() * totalWeight;
           for (const id of powerupIds) {
             roll -= Math.max(0, getPowerup(id).defaultWeight);
             if (roll <= 0) {
@@ -5684,7 +7089,7 @@ export class GameEngine {
         }
         const anchor = this.getConfiguredSpawnAnchor(event);
         const powerup = this.spawnPowerup(
-          anchor ? (anchor.x * this.width) - 18 : Math.random() * Math.max(1, this.width - 40),
+          anchor ? (anchor.x * this.width) - 18 : this.nextGameplayRandom() * Math.max(1, this.width - 40),
           anchor ? (anchor.y * this.height) - 18 : -40,
           powerupId
         );
@@ -5710,7 +7115,7 @@ export class GameEngine {
           const powerup = this.spawnPowerup(
             anchor
               ? (anchor.x * this.width) - 18 + ((index - ((powerupIds.length - 1) / 2)) * 44)
-              : Math.random() * Math.max(1, this.width - 40),
+              : this.nextGameplayRandom() * Math.max(1, this.width - 40),
             anchor ? (anchor.y * this.height) - 18 : -50,
             powerupId
           );
@@ -5732,7 +7137,7 @@ export class GameEngine {
 
     // Make rarer: 1800 -> 2400
     if (this.frameCount % 2400 === 0) {
-        this.spawnPowerup(Math.random() * (this.width - 40), -40);
+        this.spawnPowerup(this.nextGameplayRandom() * (this.width - 40), -40);
     }
 
     const formationRate = Math.max(132, 330 - this.wave * 34);
@@ -5743,10 +7148,10 @@ export class GameEngine {
     const currentRate = Math.max(30, GAME_CONFIG.BASE_SPAWN_RATE + 12 - ((this.wave - 1) * 10));
 
     if (this.frameCount % currentRate === 0) {
-      const typeRoll = Math.random();
-      const x = Math.random() * (this.width - 40);
+      const typeRoll = this.nextGameplayRandom();
+      const x = this.nextGameplayRandom() * (this.width - 40);
       let enemyType = EntityType.ENEMY_DRONE;
-      
+
       if (this.wave === 1) {
         if (this.stats.bossProgress < 0.3) {
           if (typeRoll > 0.88) enemyType = EntityType.ENEMY_SWARM;
@@ -5787,7 +7192,7 @@ export class GameEngine {
     const gap = isMobile ? 42 : 54;
     const centerX = this.width / 2;
     const startX = centerX - ((count - 1) * gap) / 2;
-    const seed = Math.random() * 1000;
+    const seed = this.nextGameplayRandom() * 1000;
     const eliteAllowed = this.wave > 1 || this.stats.bossProgress > 0.42;
     const centerIndex = Math.floor(count / 2);
 
@@ -5827,25 +7232,25 @@ export class GameEngine {
   }
 
   createEnemy(type: EntityType, x: number, y: number, overrides: EnemyRuntimeOverrides = {}) {
-    const e = new Entity(type, x, y);
+    const e = this.createEntity(type, x, y);
     const hpMult = this.wave === 1 ? 1 : 1 + (this.wave * 0.34);
     const speedBoost = this.wave === 1 ? 1 : 1 + (this.wave * 0.11);
-    e.variant = Math.floor(Math.random() * 100);
-    
+    e.variant = this.gameplayRandom.integer(0, 100);
+
     if (type === EntityType.ENEMY_DRONE) {
-      e.vy = 2.5 * speedBoost; 
+      e.vy = 2.5 * speedBoost;
       e.hp = 2 * hpMult;
       e.width = Math.round(44 * PAYWALL_INTERCEPTOR_SCALE);
       e.height = Math.round(44 * PAYWALL_INTERCEPTOR_SCALE);
-      e.color = '#7dd3fc'; 
+      e.color = '#7dd3fc';
       e.spriteFrames = [...ASSETS.ENEMY_DRONE_FRAMES];
-      e.text = "🔒"; 
+      e.text = "🔒";
     } else if (type === EntityType.ENEMY_JOURNAL) {
-      e.vy = 4.4 * speedBoost; 
-      e.vx = Math.sin((this.frameCount + e.variant) * 0.2) * 4; 
+      e.vy = 4.4 * speedBoost;
+      e.vx = Math.sin((this.frameCount + e.variant) * 0.2) * 4;
       e.hp = 3 * hpMult;
-      e.color = '#fb7185'; 
-      e.text = "📕"; 
+      e.color = '#fb7185';
+      e.text = "📕";
       e.width = 56;
       e.height = 66;
       e.spriteFrames = [...ASSETS.ENEMY_JOURNAL_FRAMES];
@@ -5854,7 +7259,7 @@ export class GameEngine {
       e.hp = 8 * hpMult;
       e.width = 54;
       e.height = 54;
-      e.color = '#f59e0b'; 
+      e.color = '#f59e0b';
       e.spriteFrames = [...ASSETS.ENEMY_BRICK_FRAMES];
       e.text = "📰";
     } else if (type === EntityType.ENEMY_SWARM) {
@@ -5862,10 +7267,10 @@ export class GameEngine {
       e.hp = 1 * hpMult;
       e.width = Math.round(34 * CITATION_WRAITH_SCALE);
       e.height = Math.round(28 * CITATION_WRAITH_SCALE);
-      e.color = '#34d399'; 
+      e.color = '#34d399';
       e.spriteFrames = [...ASSETS.ENEMY_SWARM_FRAMES];
       e.text = "🪰";
-    } 
+    }
 
     if (Number.isFinite(overrides.speed)) e.vy = overrides.speed as number;
     if (Number.isFinite(overrides.health)) e.hp = Math.max(0.1, overrides.health as number);
@@ -5912,7 +7317,12 @@ export class GameEngine {
       boss.hp,
       boss.maxHp,
       boss.bossPhaseSettings,
-      boss.bossWeaponSettings
+      boss.bossWeaponSettings,
+      getBossRevivalPhaseBounds(
+        boss.bossRevival,
+        boss.bossPhaseSettings,
+        boss.bossRevivalConsumed
+      )
     );
     if (!resolved) return 0;
     if (boss.activeBossPhaseIndex === resolved.phaseIndex) return resolved.phaseIndex + 1;
@@ -5920,19 +7330,46 @@ export class GameEngine {
     const transitionedBetweenActivePhases = boss.activeBossPhaseIndex >= 0;
     boss.activeBossPhaseIndex = resolved.phaseIndex;
     boss.activeBossPhaseId = resolved.phaseId;
+    boss.bossTimelinePhaseId = resolved.phaseId;
     boss.activeBossPhaseSpeedMultiplier = Math.max(0.01, Number(resolved.speedMultiplier) || 1);
+    if (
+      this.telemetrySink
+      && this.telemetrySessionActive
+      && this.telemetryBossPhaseByEntityId.get(boss.id) !== resolved.phaseIndex
+    ) {
+      this.telemetryBossPhaseByEntityId.set(boss.id, resolved.phaseIndex);
+      this.telemetrySink.record({
+        ...this.getTelemetryContext(),
+        type: 'boss-phase',
+        bossId: boss.sourceItemId ?? boss.id,
+        phaseId: resolved.phaseId,
+        phaseIndex: resolved.phaseIndex,
+        healthRatio: clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1)
+      });
+    }
     boss.movementPattern = resolved.movementPatternId;
     const baseSpeed = boss.configuredBaseSpeed ?? boss.configuredSpeed ?? 2;
     boss.configuredSpeed = baseSpeed * boss.activeBossPhaseSpeedMultiplier;
-    if (boss.bossAttackArchetype && transitionedBetweenActivePhases) {
-      // A new generated-boss phase always starts at the beginning of its
-      // authored cue cycle so a damaging technique can never skip its warning.
+    if ((boss.bossAttackArchetype || boss.bossTimeline) && transitionedBetweenActivePhases) {
+      // A new authored boss phase starts at the beginning of its cue cycle so
+      // a damaging technique can never skip its warning.
       boss.attackTimer = 0;
+      boss.bossMovementPathId = undefined;
+      boss.bossMovementPathStartFrame = -1;
+      boss.bossMovementPathDurationFrames = 0;
+      boss.bossPresentationBankRadians = 0;
       boss.generatedBossChargeUntilTimer = -1;
       boss.generatedBossTargetX = null;
       boss.generatedBossTargetY = null;
       boss.generatedBossTargetSequence = -1;
+      this.clearBossTimelineActionLocks(boss);
+      boss.bossCornerAmbushBeamState = undefined;
+      boss.bossCornerAmbushRamState = undefined;
+      boss.bossTrackingPincerState = undefined;
+      boss.bossHeliosCornerClampState = undefined;
+      this.removeBossCornerAmbushBeams(boss);
       boss.isCharging = false;
+      boss.bossActionPresentation = undefined;
     }
 
     const activeWeapons = resolved.weaponSettings;
@@ -5968,7 +7405,7 @@ export class GameEngine {
     const spawned: Entity[] = [];
 
     for (let index = 0; index < count; index++) {
-      const mb = new Entity(
+      const mb = this.createEntity(
         EntityType.MINI_BOSS,
         startX + index * (bossWidth + gap),
         startY
@@ -6014,7 +7451,7 @@ export class GameEngine {
       this.spawnFloatingText(this.width / 2, Math.max(92, this.height * 0.16), 'TWIN BOTTLENECKS!', '#fef08a', this.mobileProfile ? 18 : 22);
     }
   }
-  
+
   spawnWallBoss(configured?: RuntimeBossEvent) {
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
     const isMobile = this.width < 600;
@@ -6032,18 +7469,18 @@ export class GameEngine {
     );
     const startX = anchoredPosition?.x ?? (this.width - ((blockW+gap)*cols))/2;
     const startY = anchoredPosition?.y ?? -200;
-    
+
     const segmentCount = rows * cols;
     for (let r=0; r<rows; r++) {
         for (let c=0; c<cols; c++) {
-            const e = new Entity(EntityType.ENEMY_INVADER, startX + c*(blockW+gap), startY + r*(blockH+gap));
+            const e = this.createEntity(EntityType.ENEMY_INVADER, startX + c*(blockW+gap), startY + r*(blockH+gap));
             e.width = blockW;
             e.height = blockH;
             e.hp = configured
               ? Math.max(1, Math.ceil(((Number(configured.health) || segmentCount) * difficultyMultiplier) / segmentCount))
               : this.wave === 1 ? 5 : Math.round(5 + (this.wave * 3.1));
             e.maxHp = e.hp;
-            e.color = '#fb7185'; 
+            e.color = '#fb7185';
             e.text = "🧱"; // UPDATED to Brick Emoji
             e.variant = (r * cols) + c;
             e.vx = 0;
@@ -6078,7 +7515,7 @@ export class GameEngine {
             this.entities.push(e);
         }
     }
-    this.invaderDirection = 1; 
+    this.invaderDirection = 1;
   }
 
   spawnAsteroidBelt(configured?: RuntimeAsteroidEvent) {
@@ -6097,11 +7534,11 @@ export class GameEngine {
 
     for (let i = 0; i < count; i++) {
       const lane = i % lanes;
-      const jitter = (Math.random() - 0.5) * laneWidth * 0.5;
-      const size = 42 + Math.random() * 28 + (this.wave * 2);
+      const jitter = (this.nextGameplayRandom() - 0.5) * laneWidth * 0.5;
+      const size = 42 + this.nextGameplayRandom() * 28 + (this.wave * 2);
       const defaultX = Math.max(8, Math.min(this.width - size - 8, (lane * laneWidth) + (laneWidth / 2) - (size / 2) + jitter));
-      const defaultY = -140 - (Math.floor(i / lanes) * 72) - (Math.random() * 45);
-      const asteroid = new Entity(
+      const defaultY = -140 - (Math.floor(i / lanes) * 72) - (this.nextGameplayRandom() * 45);
+      const asteroid = this.createEntity(
         EntityType.ENEMY_BRICK,
         defaultX + anchorOffsetX,
         defaultY + anchorOffsetY
@@ -6110,9 +7547,9 @@ export class GameEngine {
       asteroid.width = size;
       asteroid.height = size;
       asteroid.vy = configured
-        ? Math.max(0.1, (Number(configured.speed) || 1.8) * difficultyMultiplier) + (Math.random() * 0.18)
-        : 1.8 + (this.wave * 0.32) + (Math.random() * 0.45);
-      asteroid.vx = (Math.random() - 0.5) * (0.45 + (this.wave * 0.08));
+        ? Math.max(0.1, (Number(configured.speed) || 1.8) * difficultyMultiplier) + (this.nextGameplayRandom() * 0.18)
+        : 1.8 + (this.wave * 0.32) + (this.nextGameplayRandom() * 0.45);
+      asteroid.vx = (this.nextGameplayRandom() - 0.5) * (0.45 + (this.wave * 0.08));
       asteroid.hp = configured
         ? Math.max(1, (Number(configured.health) || 1) * difficultyMultiplier)
         : Math.round(4 + (this.wave * 1.9));
@@ -6138,7 +7575,7 @@ export class GameEngine {
 
     this.spawnFloatingText(this.width / 2, this.height * 0.24, 'ASTEROID BELT', '#fbbf24');
   }
-  
+
   updateWallBoss() {
       const invaders = this.entities.filter(e => e.type === EntityType.ENEMY_INVADER && !e.markedForDeletion);
       if (invaders.length === 0) return;
@@ -6162,12 +7599,12 @@ export class GameEngine {
           }
           if (inv.attackTimer > 0) inv.attackTimer--;
       });
-      
+
       const configuredAttackInterval = invaders.find((invader) => Number.isFinite(invader.attackIntervalFrames))?.attackIntervalFrames;
       const shootRate = configuredAttackInterval ?? (this.wave === 1 ? 42 : Math.max(8, 20 - this.wave));
-      if (this.frameCount % shootRate === 0) { 
-          const shooter = invaders[Math.floor(Math.random() * invaders.length)];
-          const b = new Entity(EntityType.PROJECTILE, shooter.x + shooter.width/2, shooter.y + shooter.height);
+      if (this.frameCount % shootRate === 0) {
+          const shooter = invaders[this.gameplayRandom.integer(0, invaders.length)];
+          const b = this.createEntity(EntityType.PROJECTILE, shooter.x + shooter.width/2, shooter.y + shooter.height);
           b.vx = 0;
           b.vy = shooter.projectileSpeed ?? (this.wave === 1 ? 5.4 : 7 + (this.wave * 0.5));
           b.width = this.wave === 1 ? 12 : 14;
@@ -6217,9 +7654,9 @@ export class GameEngine {
           boss.x += Math.sin((boss.attackTimer * 0.05) + boss.formationIndex * Math.PI) * 3 * movementSpeedMultiplier;
         }
      }
-     
+
      boss.x = Math.max(0, Math.min(this.width - boss.width, boss.x));
-     
+
      const healthRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
      const activePhaseCount = configuredPhase
        || boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length;
@@ -6231,7 +7668,7 @@ export class GameEngine {
         const burstCount = Math.max(1, boss.configuredBurstCount ?? 1);
         for (let index = 0; index < burstCount; index++) {
           const offset = index - ((burstCount - 1) / 2);
-          const b = new Entity(EntityType.PROJECTILE, boss.x + boss.width/2, boss.y + boss.height);
+          const b = this.createEntity(EntityType.PROJECTILE, boss.x + boss.width/2, boss.y + boss.height);
           b.vx = offset * 0.85;
           b.vy = boss.projectileSpeed ?? (5 + (this.wave * 0.5));
           b.width = 16;
@@ -6284,6 +7721,7 @@ export class GameEngine {
           hp: maxHp,
           maxHp,
           destroyed: false,
+          exposed: true,
           flashFrames: 0,
           lastDamageFlashFrame: -999
         } satisfies BossComponentState;
@@ -6304,6 +7742,7 @@ export class GameEngine {
           hp: maxHp,
           maxHp,
           destroyed: false,
+          exposed: true,
           flashFrames: 0,
           lastDamageFlashFrame: -999
         } satisfies BossComponentState;
@@ -6335,6 +7774,7 @@ export class GameEngine {
           hp: maxHp,
           maxHp,
           destroyed: false,
+          exposed: true,
           flashFrames: 0,
           lastDamageFlashFrame: -999
         } satisfies BossComponentState;
@@ -6359,13 +7799,165 @@ export class GameEngine {
     };
   }
 
+  getBossComponentVisualBox(
+    boss: Entity,
+    component: BossComponentState
+  ): CollisionBox {
+    const isCannon =
+      component.id === 'left-cannon' || component.id === 'right-cannon';
+    const visualScale = isCannon
+      ? boss.bossRigId === 'crown-claw'
+        ? CROWNCLAW_ARM_SCALE
+        : BOSS_CANNON_SCALE
+      : 1;
+    const width = Math.max(18, boss.width * component.widthRatio * visualScale);
+    const height = Math.max(18, boss.height * component.heightRatio * visualScale);
+    return {
+      x: boss.x + boss.width * component.centerXRatio - width / 2,
+      y: boss.y + boss.height * component.centerYRatio - height / 2,
+      width,
+      height
+    };
+  }
+
+  getBossCollisionMask(boss: Entity): BossCollisionMask | undefined {
+    if (
+      this.previewBossCollisionMask
+      && boss.sourceEventId === this.previewBossCollisionEventId
+    ) {
+      return this.previewBossCollisionMask;
+    }
+    return getCampaignBossCollisionMask(boss.spriteUrl);
+  }
+
+  bossSilhouetteIntersectsBox(boss: Entity, box: CollisionBox) {
+    const mask = this.getBossCollisionMask(boss);
+    if (!mask) return this.boxesIntersect(box, this.getCollisionBox(boss));
+    return intersectsBossCollisionMask(
+      mask,
+      {
+        x: boss.x,
+        y: boss.y,
+        width: boss.width,
+        height: boss.height
+      },
+      box,
+      boss.bossPresentationBankRadians
+    );
+  }
+
+  private isHeliosClawOperational(boss: Entity, side: HeliosClawSide) {
+    const componentId: BossPartId = side === 'port' ? 'left-cannon' : 'right-cannon';
+    const component = boss.bossComponents?.find((item) => item.id === componentId);
+    return !component || !component.destroyed;
+  }
+
+  private isHeliosMeleeDamageActive(boss: Entity) {
+    const action = boss.bossActionPresentation;
+    if (!action || action.stage !== 'fire') return false;
+    const durationFrames = Math.max(1, action.endFrame - action.startFrame);
+    const progress = clamp(
+      (boss.attackTimer - action.startFrame) / durationFrames,
+      0,
+      1
+    );
+    if (action.primitiveId === 'articulated-melee-sweep') {
+      const clampState = boss.bossHeliosCornerClampState;
+      if (!clampState?.activeSide || clampState.fallbackToCrossfire) return false;
+      return sampleHeliosCornerClamp({
+        stage: 'fire',
+        progress,
+        side: clampState.activeSide
+      }).damageActive;
+    }
+    if (action.primitiveId === 'tracking-pincer-dive') {
+      return sampleHeliosTrackingPincer({
+        sequence: action.sequence,
+        progress
+      }).damageActive;
+    }
+    return false;
+  }
+
+  private bossMeleeClawsIntersectBox(boss: Entity, box: CollisionBox) {
+    if (!this.isHeliosMeleeDamageActive(boss)) return false;
+    const action = boss.bossActionPresentation;
+    const requestedSides: readonly HeliosClawSide[] = action?.primitiveId === 'articulated-melee-sweep'
+      ? boss.bossHeliosCornerClampState?.activeSide
+        ? [boss.bossHeliosCornerClampState.activeSide]
+        : []
+      : ['port', 'starboard'];
+    const operationalSides = requestedSides.filter((side) => (
+      this.isHeliosClawOperational(boss, side)
+    ));
+    const tips = this.getPreviewBossWeaponOrigins(boss, operationalSides);
+    const radius = Math.max(9, Math.min(boss.width, boss.height) * 0.095);
+    return tips.some((tip) => this.boxesIntersect(box, {
+      x: tip.x - radius,
+      y: tip.y - radius,
+      width: radius * 2,
+      height: radius * 2
+    }));
+  }
+
+  bossComponentSilhouetteIntersectsBox(
+    boss: Entity,
+    component: BossComponentState,
+    box: CollisionBox
+  ) {
+    const componentBox = this.getBossComponentVisualBox(boss, component);
+    if (!this.boxesIntersect(box, componentBox)) return false;
+
+    const isPreviewArtwork = Boolean(
+      this.previewBossCollisionMask
+      && boss.sourceEventId === this.previewBossCollisionEventId
+    );
+    const componentMask = isPreviewArtwork
+      ? undefined
+      : getBossComponentCollisionMask(boss.bossRigId, component.id);
+    if (componentMask) {
+      return intersectsBossCollisionMask(
+        componentMask,
+        componentBox,
+        box,
+        boss.bossPresentationBankRadians
+      );
+    }
+
+    // Sandbox atlases share one content-hash-bound assembled mask. Clip that
+    // real silhouette by the typed component region instead of accepting the
+    // old transparent component rectangle.
+    return this.bossSilhouetteIntersectsBox(boss, box);
+  }
+
+  getBossDamageBounds(boss: Entity): CollisionBox {
+    let minimumX = boss.x;
+    let minimumY = boss.y;
+    let maximumX = boss.x + boss.width;
+    let maximumY = boss.y + boss.height;
+    for (const component of boss.bossComponents ?? []) {
+      if (!isBossComponentTargetable(component)) continue;
+      const box = this.getBossComponentVisualBox(boss, component);
+      minimumX = Math.min(minimumX, box.x);
+      minimumY = Math.min(minimumY, box.y);
+      maximumX = Math.max(maximumX, box.x + box.width);
+      maximumY = Math.max(maximumY, box.y + box.height);
+    }
+    return {
+      x: minimumX,
+      y: minimumY,
+      width: maximumX - minimumX,
+      height: maximumY - minimumY
+    };
+  }
+
   getBossComponentHit(boss: Entity, shotBox: CollisionBox) {
     const shotCenterX = shotBox.x + shotBox.width / 2;
     const shotCenterY = shotBox.y + shotBox.height / 2;
     const candidates = (boss.bossComponents ?? [])
-      .filter((component) => !component.destroyed)
+      .filter(isBossComponentTargetable)
       .map((component) => {
-        const box = this.getBossComponentBox(boss, component);
+        const box = this.getBossComponentVisualBox(boss, component);
         const overlapWidth = Math.max(0, Math.min(shotBox.x + shotBox.width, box.x + box.width) - Math.max(shotBox.x, box.x));
         const overlapHeight = Math.max(0, Math.min(shotBox.y + shotBox.height, box.y + box.height) - Math.max(shotBox.y, box.y));
         const containsShotCenter = shotCenterX >= box.x
@@ -6382,35 +7974,21 @@ export class GameEngine {
           component,
           overlapArea: overlapWidth * overlapHeight,
           containsShotCenter,
-          normalizedDistance
+          normalizedDistance,
+          visibleHit: this.bossComponentSilhouetteIntersectsBox(
+            boss,
+            component,
+            shotBox
+          )
         };
       })
-      .filter((candidate) => candidate.overlapArea > 0)
+      .filter((candidate) => candidate.visibleHit)
       .sort((left, right) => (
         Number(right.containsShotCenter) - Number(left.containsShotCenter)
         || left.normalizedDistance - right.normalizedDistance
         || right.overlapArea - left.overlapArea
       ));
-    const directHit = candidates[0]?.component;
-    if (directHit) return directHit;
-
-    const helmet = (boss.bossComponents ?? []).find((component) => (
-      component.id === 'helmet' && !component.destroyed
-    ));
-    if (!helmet) return undefined;
-
-    // Route protected center-hull hits into Boss 3's helmet before the projectile is consumed.
-    const helmetBox = this.getBossComponentBox(boss, helmet);
-    const bossBox: CollisionBox = {
-      x: boss.x,
-      y: boss.y,
-      width: boss.width,
-      height: boss.height
-    };
-    const crossesProtectedCoreLane = shotCenterX >= helmetBox.x
-      && shotCenterX <= helmetBox.x + helmetBox.width
-      && this.boxesIntersect(shotBox, bossBox);
-    return crossesProtectedCoreLane ? helmet : undefined;
+    return candidates[0]?.component;
   }
 
   detonateBitcoinHashBurst(projectile: Entity, centerX: number, centerY: number) {
@@ -6444,7 +8022,9 @@ export class GameEngine {
             : 999;
       if (target.type === EntityType.BOSS) this.damageBossHull(target, damage);
       else {
+        const previousHealth = target.hp;
         target.hp -= damage;
+        this.recordEntityDamage(target, previousHealth);
         this.flashDamageTarget(target);
       }
       this.spawnBurst(target.x + target.width / 2, target.y + target.height / 2, '#fde047', 5, 3.4, 3);
@@ -6482,15 +8062,36 @@ export class GameEngine {
   }
 
   damageBossComponent(boss: Entity, component: BossComponentState, damage: number) {
-    if (component.destroyed) return;
+    const damageResult = applyBossComponentDamage(
+      component,
+      damage,
+      BOSS_COMPONENT_WEAK_POINT_MULTIPLIER
+    );
+    if (!damageResult.applied) return;
     this.pulseBossComponentFlash(component);
-    component.hp -= Math.max(0, damage) * BOSS_COMPONENT_WEAK_POINT_MULTIPLIER;
+    if (this.telemetrySink && this.telemetrySessionActive) {
+      this.telemetrySink.record({
+        ...this.getTelemetryContext(),
+        type: 'entity-damage',
+        targetId: `${boss.id}:${component.id}`,
+        targetKind: `boss-component:${component.id}`,
+        sourceKind: 'player',
+        amount: Math.max(0, damageResult.previousHealth - damageResult.remainingHealth),
+        remainingHealth: damageResult.remainingHealth,
+        fatal: damageResult.destroyedNow
+      });
+    }
     const box = this.getBossComponentBox(boss, component);
     const impactX = box.x + box.width / 2;
     const impactY = box.y + box.height / 2;
-    if (component.hp <= 0) {
-      component.hp = 0;
-      component.destroyed = true;
+    if (damageResult.destroyedNow) {
+      this.queueBossSignificantImpact(
+        boss,
+        component.centerXRatio,
+        component.centerYRatio,
+        component.id === 'helmet' ? 1.35 : 1.1,
+        true
+      );
       const label = component.id === 'helmet'
         ? 'CORE EXPOSED'
         : boss.bossRigId === 'crown-claw'
@@ -6514,28 +8115,60 @@ export class GameEngine {
   }
 
   isBossHullProtected(boss: Entity) {
-    return (boss.bossComponents ?? []).some((component) => (
-      component.id === 'helmet' && !component.destroyed
-    ));
+    return isBossHullProtectedByComponents(boss.bossComponents ?? []);
   }
 
   damageBossHull(boss: Entity, damage: number) {
+    if (!this.isBossCombatInteractive(boss)) return;
     if (this.isBossHullProtected(boss)) {
       this.pulseDamageFlash(boss);
       return;
     }
+    const previousHealth = boss.hp;
     boss.hp -= damage;
+    const firstDepletionWillRevive = boss.hp <= 0 && this.canBeginBossRevival(boss);
+    this.recordEntityDamage(
+      boss,
+      previousHealth,
+      'player',
+      boss.type,
+      firstDepletionWillRevive ? false : undefined
+    );
     this.pulseDamageFlash(boss);
+    const appliedDamage = Math.max(0, previousHealth - boss.hp);
+    if (isBossHullImpactSignificant(appliedDamage, boss.maxHp)) {
+      this.queueBossSignificantImpact(
+        boss,
+        0.5,
+        0.56,
+        getBossHullImpactStrength(appliedDamage, boss.maxHp),
+        false
+      );
+    }
     this.updateBossDecayStage(boss);
   }
 
   spawnBoss(configured?: RuntimeBossEvent) {
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
-    const sizeMultiplier = clamp(Number(configured?.sizeMultiplier) || 1, 0.5, 1.5);
-    const bossWidth = Math.round(220 * sizeMultiplier);
-    const bossHeight = Math.round(200 * sizeMultiplier);
+    const sizeMultiplier = clamp(Number(configured?.sizeMultiplier) || 1, 0.5, 2.5);
+    const configuredBossWidth = Math.round(220 * sizeMultiplier);
+    const previewArtworkDimensions = resolveBossPreviewArtworkDimensions({
+      configuredWidth: configuredBossWidth,
+      configuredHeight: Math.round(200 * sizeMultiplier),
+      sourceEventId: configured?.id,
+      selectedEventId: this.previewBossCollisionEventId,
+      designSize: this.previewBossArtworkDesignSize
+    });
+    const configuredBossHeight = previewArtworkDimensions.height;
+    const usesOversizedEncounterFraming = sizeMultiplier > 1.5;
+    const bossWidth = usesOversizedEncounterFraming
+      ? Math.min(configuredBossWidth, Math.round(this.width * 0.82))
+      : configuredBossWidth;
+    const bossHeight = usesOversizedEncounterFraming
+      ? Math.round(bossWidth * (configuredBossHeight / configuredBossWidth))
+      : configuredBossHeight;
     const anchoredPosition = this.getAnchoredTopLeft(configured, bossWidth, bossHeight);
-    const boss = new Entity(
+    const boss = this.createEntity(
       EntityType.BOSS,
       anchoredPosition?.x ?? this.width / 2 - bossWidth / 2,
       anchoredPosition?.y ?? -bossHeight
@@ -6568,6 +8201,18 @@ export class GameEngine {
         ...healthPhase,
         weaponSettingIds: [...healthPhase.weaponSettingIds]
       }));
+      boss.bossRevival = configured.revival ? { ...configured.revival } : undefined;
+      boss.bossRevivalStage = boss.bossRevival ? 'armed' : undefined;
+      boss.bossRevivalProgress = 0;
+      boss.bossRevivalConsumed = false;
+      boss.bossTimeline = configured.timeline ? {
+        ...configured.timeline,
+        clips: configured.timeline.clips.map((clip) => ({
+          ...clip,
+          ...(clip.repeat ? { repeat: { ...clip.repeat } } : {}),
+          ...(clip.parameters ? { parameters: { ...clip.parameters } } : {})
+        }))
+      } : undefined;
       this.applyConfiguredBossPhase(boss);
       boss.completesWave = true;
       boss.sourceEventId = configured.id;
@@ -6575,13 +8220,21 @@ export class GameEngine {
       boss.text = configured.label?.trim().toUpperCase() || boss.text;
       boss.bossRigId = configured.rigId ?? BOSS_RIG_BY_EVENT_ID[configured.id] ?? 'open-orbit';
       const usesGeneratedCampaignBossArt = boss.spriteUrl?.includes('/scicon-stage20-expansion-v1/bosses/');
-      if (boss.bossRigId === 'crown-claw' && !usesGeneratedCampaignBossArt) {
+      if (
+        boss.bossRigId === 'crown-claw'
+        && !usesGeneratedCampaignBossArt
+        && !this.previewBossArtworkDesignSize
+      ) {
         const previousWidth = boss.width;
         boss.width = Math.min(this.width * 0.78, 280);
         boss.height = boss.width * (704 / 1024);
         boss.x -= (boss.width - previousWidth) / 2;
       }
-      boss.bossComponents = this.createBossComponents(boss);
+      boss.bossComponents = configured.componentMode === 'hull-only'
+        ? []
+        : this.createBossComponents(boss);
+      boss.bossRevivalBaseWidth = boss.width;
+      boss.bossRevivalBaseHeight = boss.height;
       if (boss.spriteUrl) loadImage(boss.spriteUrl);
       boss.spriteFrames?.forEach(loadImage);
     }
@@ -6602,10 +8255,12 @@ export class GameEngine {
     return 4;
   }
 
-  spawnBossBurst(boss: Entity, phase: number) {
+  spawnBossBurst(boss: Entity, phase: number, projectileCount?: number) {
     const px = this.player.x + this.player.width / 2;
     const py = this.player.y + this.player.height / 2;
-    const configuredShotCount = boss.configuredBurstCount ?? (phase <= 1 ? 3 : phase === 2 ? 5 : 7);
+    const configuredShotCount = projectileCount
+      ?? boss.configuredBurstCount
+      ?? (phase <= 1 ? 3 : phase === 2 ? 5 : 7);
     const cannonComponents = (boss.bossComponents ?? []).filter((component) => (
       component.id === 'left-cannon' || component.id === 'right-cannon'
     ));
@@ -6616,7 +8271,11 @@ export class GameEngine {
     }
     const activeCannonCount = activeCannons.length;
     const cannonStrength = cannonComponents.length > 0 ? activeCannonCount / cannonComponents.length : 1;
-    const shotCount = Math.max(3, Math.round(configuredShotCount * (0.35 + cannonStrength * 0.65)));
+    const minimumShotCount = projectileCount === undefined ? 3 : 1;
+    const shotCount = Math.min(
+      24,
+      Math.max(minimumShotCount, Math.round(configuredShotCount * (0.35 + cannonStrength * 0.65)))
+    );
     const spread = phase <= 1 ? 0.2 : phase === 2 ? 0.18 : 0.16;
     const speed = boss.projectileSpeed ?? Math.min(10.5, 6 + phase * 0.55);
     const origins = activeCannons.length > 0
@@ -6630,7 +8289,7 @@ export class GameEngine {
       const origin = origins[i % origins.length];
       const angle = Math.atan2(py - origin.y, px - origin.x);
       const offset = i - ((shotCount - 1) / 2);
-      const b = new Entity(EntityType.PROJECTILE, origin.x, origin.y);
+      const b = this.createEntity(EntityType.PROJECTILE, origin.x, origin.y);
       b.vx = Math.cos(angle + (offset * spread)) * speed;
       b.vy = Math.sin(angle + (offset * spread)) * speed;
       b.width = 15;
@@ -6638,6 +8297,7 @@ export class GameEngine {
       b.color = phase >= 3 ? '#ff7a18' : '#ff0000';
       b.damage = Math.max(1, Number(boss.projectileDamage) || 1);
       b.text = "";
+      b.bossOwnerId = boss.id;
       this.entities.push(b);
     }
 
@@ -6645,13 +8305,14 @@ export class GameEngine {
       [-0.32, 0.32].forEach(offset => {
         const cx = boss.x + boss.width / 2;
         const cy = boss.y + boss.height - 20;
-        const b = new Entity(EntityType.PROJECTILE, cx + boss.width * offset, cy - 8);
+        const b = this.createEntity(EntityType.PROJECTILE, cx + boss.width * offset, cy - 8);
         b.vx = offset * 2.2;
         b.vy = speed * 0.95;
         b.width = 13;
         b.height = 18;
         b.color = '#f97316';
         b.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+        b.bossOwnerId = boss.id;
         this.entities.push(b);
       });
     }
@@ -6715,7 +8376,7 @@ export class GameEngine {
     for (let index = 0; index < shotCount; index++) {
       const offset = index - ((shotCount - 1) / 2);
       const angle = baseAngle + profile.angleDrift + offset * profile.spread;
-      const projectile = new Entity(EntityType.PROJECTILE, originX - 8, originY - 8);
+      const projectile = this.createEntity(EntityType.PROJECTILE, originX - 8, originY - 8);
       projectile.vx = Math.cos(angle) * speed;
       projectile.vy = Math.sin(angle) * speed;
       projectile.width = tier >= 2 ? 17 : 15;
@@ -6723,6 +8384,7 @@ export class GameEngine {
       projectile.color = profile.color;
       projectile.damage = Math.max(1, Number(boss.projectileDamage) || 1);
       projectile.variant = index + tier * 10;
+      projectile.bossOwnerId = boss.id;
       if (rigId === 'paywall-siege') {
         projectile.projectileVisualKind = 'boss-bolt';
         projectile.spriteFrames = [...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES];
@@ -6740,7 +8402,7 @@ export class GameEngine {
     const beamWidth = Math.min(112, 76 + (phase * 7));
     const bossCenterX = boss.x + boss.width / 2;
     const beamCenterX = Math.max(beamWidth / 2, Math.min(this.width - beamWidth / 2, bossCenterX));
-    const beam = new Entity(EntityType.PROJECTILE, beamCenterX - beamWidth / 2, boss.y + boss.height - 20);
+    const beam = this.createEntity(EntityType.PROJECTILE, beamCenterX - beamWidth / 2, boss.y + boss.height - 20);
     beam.isBeam = true;
     beam.width = beamWidth;
     beam.height = this.height;
@@ -6749,6 +8411,7 @@ export class GameEngine {
     beam.color = phase >= 3 ? '#ff7a18' : '#ff0000';
     beam.damage = Math.max(1, Number(boss.projectileDamage) || 1);
     beam.beamAnchorOffsetX = boss.width / 2 - beamWidth / 2;
+    beam.bossOwnerId = boss.id;
     beam.variant = pulseIndex;
     this.entities.push(beam);
 
@@ -6759,7 +8422,7 @@ export class GameEngine {
   spawnPaywallBossRay(boss: Entity, enraged: boolean) {
     const beamWidth = Math.max(42, Math.min(enraged ? 68 : 58, boss.width * (enraged ? 0.26 : 0.22)));
     const anchorOffsetX = boss.width * 0.5 - beamWidth / 2;
-    const beam = new Entity(EntityType.PROJECTILE, boss.x + anchorOffsetX, boss.y + boss.height * 0.68);
+    const beam = this.createEntity(EntityType.PROJECTILE, boss.x + anchorOffsetX, boss.y + boss.height * 0.68);
     beam.isBeam = true;
     beam.projectileVisualKind = 'boss-ray';
     beam.spriteFrames = [...ASSETS.PIXI_BOSS_PAYWALL_RAY_FRAMES];
@@ -6770,6 +8433,7 @@ export class GameEngine {
     beam.color = '#ff9d2e';
     beam.damage = Math.max(1, Number(boss.projectileDamage) || 1);
     beam.beamAnchorOffsetX = anchorOffsetX;
+    beam.bossOwnerId = boss.id;
     beam.variant = enraged ? 1 : 0;
     this.entities.push(beam);
     this.playSound('boss_shoot', enraged ? 1.45 : 1.2, { pitchJitter: 0.04, pitchOffset: -0.2 });
@@ -6788,7 +8452,7 @@ export class GameEngine {
     const speed = (boss.projectileSpeed ?? 7.65) * (enraged ? 1.08 : 0.96);
     for (let index = 0; index < shotCount; index++) {
       const offset = index - ((shotCount - 1) / 2);
-      const bolt = new Entity(EntityType.PROJECTILE, cx - 9, cy - 9);
+      const bolt = this.createEntity(EntityType.PROJECTILE, cx - 9, cy - 9);
       bolt.projectileVisualKind = 'boss-bolt';
       bolt.spriteFrames = [...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES];
       bolt.vx = Math.cos(centerAngle + offset * spread) * speed;
@@ -6797,6 +8461,7 @@ export class GameEngine {
       bolt.height = enraged ? 19 : 17;
       bolt.color = enraged ? '#fef08a' : '#ff9d2e';
       bolt.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+      bolt.bossOwnerId = boss.id;
       bolt.variant = index + (component.id === 'right-cannon' ? 10 : 0);
       this.entities.push(bolt);
     }
@@ -6814,7 +8479,7 @@ export class GameEngine {
     const playerCenterY = this.player.y + this.player.height / 2;
     const angle = Math.atan2(playerCenterY - cy, playerCenterX - cx);
     const speed = (boss.projectileSpeed ?? 8.2) * (enraged ? 1.08 : 0.9);
-    const claw = new Entity(EntityType.PROJECTILE, cx - 34, cy - 40);
+    const claw = this.createEntity(EntityType.PROJECTILE, cx - 34, cy - 40);
     const isLeft = component.id === 'left-cannon';
     claw.projectileVisualKind = isLeft ? 'crown-claw-left' : 'crown-claw-right';
     claw.spriteFrames = [isLeft ? ASSETS.PIXI_BOSS_CROWNCLAW_ROCKET_LEFT : ASSETS.PIXI_BOSS_CROWNCLAW_ROCKET_RIGHT];
@@ -6978,7 +8643,146 @@ export class GameEngine {
     boss.isCharging = false;
   }
 
-  spawnBossCrossBeamPair(boss: Entity, telegraph: boolean) {
+  private getPreviewBossWeaponOrigins(
+    boss: Entity,
+    roles?: readonly BossWeaponSocketRole[]
+  ) {
+    if (
+      (!this.previewBossWeaponSockets && !this.previewBossWeaponSocketPoseSampler)
+      || boss.sourceEventId !== this.previewBossWeaponSocketEventId
+    ) {
+      return [];
+    }
+    const profile = this.previewBossWeaponSocketPoseSampler
+      ? this.previewBossWeaponSocketPoseSampler(
+          this.getPreviewBossWeaponSocketPoseInput(boss)
+        )
+      : this.previewBossWeaponSockets;
+    const allowedRoles = roles ? new Set(roles) : undefined;
+    return sampleBossWeaponSockets({
+      profile,
+      x: boss.x,
+      y: boss.y,
+      width: boss.width,
+      height: boss.height
+    })
+      .filter((socket) => !allowedRoles || allowedRoles.has(socket.role))
+      .map((socket) => ({
+        x: socket.x,
+        y: socket.y,
+        strength: 1
+      }));
+  }
+
+  private getPreviewBossWeaponSocketPoseInput(
+    boss: Entity
+  ): BossWeaponSocketPoseInput {
+    const actionSource = boss.bossActionPresentation;
+    const actionDuration = actionSource
+      ? Math.max(1, actionSource.endFrame - actionSource.startFrame)
+      : 1;
+    const actionProgress = actionSource
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            (boss.attackTimer - actionSource.startFrame) / actionDuration
+          )
+        )
+      : undefined;
+    const action = actionSource
+      ? {
+          primitiveId: actionSource.primitiveId,
+          stage: actionSource.stage,
+          progress: actionProgress,
+          side: actionSource.side ?? actionSource.handedness,
+          sequence: actionSource.sequence,
+          motionCue: actionSource.motionCue,
+          elapsedFrames: Math.max(0, boss.attackTimer - actionSource.startFrame),
+          framesPerSecond: GAME_CONFIG.FPS,
+          projectileCount: actionSource.projectileCount
+        }
+      : undefined;
+    const targetEntranceY = Math.max(72, Math.min(this.height * 0.13, 116));
+    const entranceProgress = clamp(
+      (boss.y + boss.height) / Math.max(1, targetEntranceY + boss.height),
+      0,
+      1
+    );
+    const reactionAge = this.frameCount - boss.bossSignificantImpactFrame;
+    const reaction = reactionAge >= 0 && reactionAge < BOSS_SIGNIFICANT_REACTION_FRAMES
+      ? {
+          kind: boss.bossSignificantImpactIsComponent ? 'stagger' as const : 'impact' as const,
+          progress: reactionAge / Math.max(1, BOSS_SIGNIFICANT_REACTION_FRAMES - 1),
+          direction: boss.bossSignificantImpactXRatio < 0.5 ? 1 as const : -1 as const,
+          strength: boss.bossSignificantImpactStrength
+        }
+      : undefined;
+    return {
+      frameCount: this.frameCount,
+      reducedMotion: this.previewBossReducedMotion,
+      healthRatio: boss.hp / Math.max(1, boss.maxHp),
+      phaseIndex: Math.max(1, boss.activeBossPhaseIndex + 1),
+      entranceProgress,
+      damageStage: boss.bossDecayStage,
+      phaseProgress: action?.stage === 'phase-enter' ? action.progress : undefined,
+      revivalStage: boss.bossRevivalStage,
+      revivalProgress: boss.bossRevivalProgress,
+      revived: boss.bossRevivalConsumed,
+      reaction,
+      action
+    };
+  }
+
+  private getBossActionDisplayLabel(boss: Entity, fallback: string) {
+    const authoredLabel = boss.bossActionPresentation?.label?.trim();
+    return (authoredLabel || fallback).toUpperCase();
+  }
+
+  private clearBossTimelineActionLocks(boss: Entity) {
+    boss.bossAttackOriginLocks = clearBossAttackOriginLocks();
+    boss.bossGatlingAttackLock = undefined;
+    boss.bossTimelineTargetClipId = undefined;
+    boss.bossTimelineTargetExecutionIndex = -1;
+    boss.bossTimelineTargetX = null;
+    boss.bossTimelineTargetY = null;
+    boss.bossCrossBeamOriginX = null;
+    boss.bossCrossBeamOriginY = null;
+  }
+
+  private captureBossTimelineActionOrigins(
+    boss: Entity,
+    clipId: string,
+    executionIndex: number,
+    origins: readonly BossAttackOriginPoint[]
+  ) {
+    boss.bossAttackOriginLocks = captureBossAttackOriginLock(
+      boss.bossAttackOriginLocks,
+      clipId,
+      executionIndex,
+      origins
+    );
+  }
+
+  private consumeBossTimelineActionOrigins(
+    boss: Entity,
+    clipId: string,
+    executionIndex: number
+  ) {
+    const consumed = consumeBossAttackOriginLock(
+      boss.bossAttackOriginLocks,
+      clipId,
+      executionIndex
+    );
+    boss.bossAttackOriginLocks = consumed.remaining;
+    return consumed.lock?.origins;
+  }
+
+  spawnBossCrossBeamPair(
+    boss: Entity,
+    telegraph: boolean,
+    authoredLifetimeFrames?: number
+  ) {
     if (!telegraph) {
       for (const entity of this.entities) {
         if (entity.isBeam && entity.isTelegraph && entity.bossOwnerId === boss.id) {
@@ -6988,20 +8792,35 @@ export class GameEngine {
     }
 
     const thickness = telegraph ? 9 : 20;
-    // Keep the harmless lane visible through the longest authored warning gap
-    // (Violet Arbiter uses 42 frames) so players never lose the dodge guide
-    // immediately before the damaging cross appears.
-    const lifetime = telegraph ? 46 : 26;
+    // The warning must last through the exact authored lead. A fixed 46-frame
+    // guide left a blind interval on longer benchmark attacks.
+    const lifetime = telegraph
+      ? Math.max(1, Math.floor(authoredLifetimeFrames ?? 46))
+      : 26;
     const color = telegraph ? '#ef4444' : '#22d3ee';
+    const coreOrigin = this.getPreviewBossWeaponOrigins(boss, ['core'])[0];
+    const currentOriginX = coreOrigin?.x ?? boss.x + boss.width / 2;
+    const currentOriginY = coreOrigin?.y ?? boss.y + boss.height / 2;
+    if (telegraph) {
+      boss.bossCrossBeamOriginX = currentOriginX;
+      boss.bossCrossBeamOriginY = currentOriginY;
+    }
+    const originX = !telegraph && Number.isFinite(boss.bossCrossBeamOriginX)
+      ? Number(boss.bossCrossBeamOriginX)
+      : currentOriginX;
+    const originY = !telegraph && Number.isFinite(boss.bossCrossBeamOriginY)
+      ? Number(boss.bossCrossBeamOriginY)
+      : currentOriginY;
     const createBeam = (axis: 'vertical' | 'horizontal') => {
-      const beam = new Entity(
+      const beam = this.createEntity(
         EntityType.PROJECTILE,
-        axis === 'vertical' ? boss.x + boss.width / 2 - thickness / 2 : 0,
-        axis === 'horizontal' ? boss.y + boss.height / 2 - thickness / 2 : 0
+        axis === 'vertical' ? originX - thickness / 2 : 0,
+        axis === 'horizontal' ? originY - thickness / 2 : 0
       );
       beam.isBeam = true;
+      beam.isDetachedBeam = true;
       beam.beamAxis = axis;
-      beam.beamFromCenter = true;
+      beam.beamFromCenter = false;
       beam.isTelegraph = telegraph;
       beam.bossOwnerId = boss.id;
       beam.width = axis === 'vertical' ? thickness : this.width;
@@ -7015,8 +8834,18 @@ export class GameEngine {
 
     createBeam('vertical');
     createBeam('horizontal');
+    if (!telegraph) {
+      boss.bossCrossBeamOriginX = null;
+      boss.bossCrossBeamOriginY = null;
+    }
     if (telegraph) {
-      this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height + 8, 'CROSS-LINK CHARGING', '#fca5a5', 15);
+      this.spawnFloatingText(
+        originX,
+        boss.y + boss.height + 8,
+        `${this.getBossActionDisplayLabel(boss, 'Cross-link')} CHARGING`,
+        '#fca5a5',
+        15
+      );
     } else {
       this.playSound('electricity');
       this.playSound('boss_shoot', 1.18, { pitchJitter: 0.03, pitchOffset: 0.08 });
@@ -7040,6 +8869,8 @@ export class GameEngine {
         };
       });
     }
+    const authoredOrigins = this.getPreviewBossWeaponOrigins(boss, ['port', 'starboard']);
+    if (authoredOrigins.length > 0) return authoredOrigins;
     return [{
       x: boss.x + boss.width / 2,
       y: boss.y + boss.height * 0.64,
@@ -7057,7 +8888,7 @@ export class GameEngine {
     size: number,
     variant: number
   ) {
-    const projectile = new Entity(EntityType.PROJECTILE, x - size / 2, y - size / 2);
+    const projectile = this.createEntity(EntityType.PROJECTILE, x - size / 2, y - size / 2);
     projectile.vx = Math.cos(angle) * speed;
     projectile.vy = Math.sin(angle) * speed;
     projectile.width = size;
@@ -7065,7 +8896,124 @@ export class GameEngine {
     projectile.color = color;
     projectile.damage = Math.max(1, Number(boss.projectileDamage) || 1);
     projectile.variant = variant;
+    projectile.bossOwnerId = boss.id;
+    projectile.projectileVisualKind = resolveBossPixelProjectileVisualKind(color);
+    projectile.weaponVisualStartFrame = this.frameCount;
     this.entities.push(projectile);
+    return projectile;
+  }
+
+  showBossWeaveWallSafeChannel(boss: Entity, sequence: number, warningFrames: number) {
+    const layout = resolveBossWeaveWallLayout(this.width, this.mobileProfile, sequence);
+    const coreOrigin = this.getPreviewBossWeaponOrigins(boss, ['core'])[0];
+    const projectorX = coreOrigin?.x ?? boss.x + boss.width / 2;
+    const projectorY = coreOrigin?.y ?? boss.y + boss.height * 0.62;
+    this.spawnRingEffect(projectorX, projectorY, '#67e8f9');
+    for (const coordinate of [layout.safeGapLeftX, layout.safeGapRightX]) {
+      const boundary = this.spawnEnemyLaneLaser(
+        boss.id,
+        'vertical',
+        coordinate,
+        0,
+        true,
+        warningFrames
+      );
+      boundary.color = '#67e8f9';
+    }
+    this.spawnFloatingText(
+      layout.safeGapCenterX,
+      Math.max(78, boss.y + boss.height),
+      'SAFE CHANNEL',
+      '#67e8f9',
+      this.mobileProfile ? 13 : 17
+    );
+    this.playSound('siren', 0.62);
+  }
+
+  spawnBossPodVolley(boss: Entity, sequence: number, projectileCount?: number) {
+    const requestedCount = Number(projectileCount);
+    const count = Math.max(
+      1,
+      Math.min(
+        MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
+        Math.round(
+          Number.isFinite(requestedCount)
+            ? requestedCount
+            : (this.mobileProfile ? 4 : 6)
+        )
+      )
+    );
+    const origins = this.getGeneratedBossWeaponOrigins(boss);
+    const playerX = this.player.x + this.player.width / 2;
+    const playerY = this.player.y + this.player.height / 2;
+    const size = this.mobileProfile ? 28 : 36;
+    const speed = Math.min(
+      this.mobileProfile ? 4.8 : 5.4,
+      Math.max(3.5, (Number(boss.projectileSpeed) || 6.6) * 0.68)
+    );
+    const sequenceBias = ((sequence % 5) - 2) * 0.035;
+
+    for (let index = 0; index < count; index += 1) {
+      const origin = origins[index % origins.length];
+      const baseAngle = Math.atan2(playerY - origin.y, playerX - origin.x);
+      const spreadRatio = count <= 1 ? 0 : (index / (count - 1)) - 0.5;
+      const projectile = this.spawnGeneratedBossProjectile(
+        boss,
+        origin.x,
+        origin.y,
+        baseAngle + sequenceBias + spreadRatio * 0.86,
+        speed,
+        index % 2 === 0 ? '#ff9d2e' : '#67e8f9',
+        size,
+        sequence * 100 + index
+      );
+      projectile.projectileVisualKind = 'boss-pod';
+      projectile.bossPodSide = resolveBossPodSide(sequence, index);
+      projectile.spriteFrames = [...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES];
+    }
+    this.playSound('boss_shoot', 0.82, { pitchJitter: 0.03, pitchOffset: -0.18 });
+  }
+
+  spawnBossWeaveWall(boss: Entity, sequence: number, projectileCount?: number) {
+    for (const entity of this.entities) {
+      if (entity.isTelegraph && entity.bossOwnerId === boss.id) {
+        entity.markedForDeletion = true;
+      }
+    }
+    const layout = resolveBossWeaveWallLayout(this.width, this.mobileProfile, sequence);
+    const defaultCount = (layout.laneCount - 2) * (this.mobileProfile ? 2 : 3);
+    const slots = buildBossWeaveWallSlots(
+      layout,
+      projectileCount ?? defaultCount,
+      sequence
+    );
+    const rowSpacing = this.mobileProfile ? 38 : 52;
+    const originY = Math.max(18, boss.y + boss.height * 0.62);
+    const coreOrigin = this.getPreviewBossWeaponOrigins(boss, ['core'])[0];
+    this.spawnRingEffect(
+      coreOrigin?.x ?? boss.x + boss.width / 2,
+      coreOrigin?.y ?? originY,
+      '#67e8f9'
+    );
+    const size = Math.max(12, Math.min(this.mobileProfile ? 20 : 24, layout.laneWidth * 0.46));
+    const speed = Math.min(
+      this.mobileProfile ? 5.1 : 5.8,
+      Math.max(3.8, (Number(boss.projectileSpeed) || 6.8) * 0.72)
+    );
+
+    for (const slot of slots) {
+      this.spawnGeneratedBossProjectile(
+        boss,
+        slot.x,
+        originY - slot.rowIndex * rowSpacing,
+        Math.PI / 2,
+        speed,
+        (slot.rowIndex + slot.laneIndex) % 2 === 0 ? '#fb7185' : '#fbbf24',
+        size,
+        slot.variant
+      );
+    }
+    this.playSound('boss_shoot', 0.94, { pitchJitter: 0.02, pitchOffset: -0.08 });
   }
 
   getSweepingRailCoordinate(sequence: number) {
@@ -7160,13 +9108,13 @@ export class GameEngine {
     this.playSound('siren', 0.42, { pitchJitter: 0.02, pitchOffset: -0.08 });
   }
 
-  spawnBossTailFan(boss: Entity, sequence: number) {
+  spawnBossTailFan(boss: Entity, sequence: number, projectileCount?: number) {
     const originX = boss.x + boss.width / 2;
     const originY = boss.y + boss.height * 0.84;
     const playerX = this.player.x + this.player.width / 2;
     const playerY = this.player.y + this.player.height / 2;
     const baseAngle = Math.atan2(playerY - originY, playerX - originX) + Math.sin(sequence * 1.37) * 0.035;
-    const shotCount = 5;
+    const shotCount = Math.max(1, Math.min(24, Math.round(projectileCount ?? 5)));
     const speed = Math.min(6.1, Math.max(3.8, Number(boss.projectileSpeed) || 5.2) * 0.68);
     for (let index = 0; index < shotCount; index++) {
       const offset = index - (shotCount - 1) / 2;
@@ -7190,14 +9138,29 @@ export class GameEngine {
     boss: Entity,
     sequence: number,
     phase: number,
-    darkPulse: boolean
+    darkPulse: boolean,
+    projectileCount?: number,
+    directionPolicy?: BossGapRouteDirectionPolicy,
+    lockedOrigin?: BossAttackOriginPoint
   ) {
-    const originX = boss.x + boss.width / 2;
-    const originY = boss.y + boss.height * 0.62;
-    const requestedCount = (this.mobileProfile ? 14 : 18) + phase * 2;
+    const coreOrigin = this.getPreviewBossWeaponOrigins(boss, ['core'])[0];
+    const originX = lockedOrigin?.x ?? coreOrigin?.x ?? boss.x + boss.width / 2;
+    const originY = lockedOrigin?.y ?? coreOrigin?.y ?? boss.y + boss.height * 0.62;
+    const requestedCount = projectileCount ?? ((this.mobileProfile ? 14 : 18) + phase * 2);
     const shotCount = Math.min(MAX_GENERATED_BOSS_PROJECTILES_PER_CUE, requestedCount);
-    const gapAngle = sequence * (darkPulse ? 0.47 : 0.68) + phase * 0.11;
-    const gapHalfWidth = darkPulse ? 0.29 : 0.36;
+    const direction = resolveBossGapRouteDirection(directionPolicy, sequence);
+    const route = resolveBossGapRoute({
+      arenaWidth: this.width,
+      arenaHeight: this.height,
+      originX,
+      originY,
+      sequence,
+      direction
+    });
+    const gapAngle = darkPulse
+      ? sequence * 0.47 + phase * 0.11
+      : route.angleRadians;
+    const gapHalfWidth = darkPulse ? 0.29 : this.mobileProfile ? 0.5 : 0.42;
     const speed = Math.min(7.2, Math.max(3.8, Number(boss.projectileSpeed) || 5.2) * 0.72);
 
     for (let index = 0; index < shotCount; index++) {
@@ -7214,7 +9177,7 @@ export class GameEngine {
       const color = darkPulse
         ? (index % 2 === 0 ? '#7c3aed' : '#c026d3')
         : (index % 2 === 0 ? '#22d3ee' : '#c084fc');
-      this.spawnGeneratedBossProjectile(
+      const projectile = this.spawnGeneratedBossProjectile(
         boss,
         originX,
         originY,
@@ -7224,23 +9187,44 @@ export class GameEngine {
         darkPulse ? 14 : 12,
         index
       );
+      if (
+        !darkPulse
+        && this.supportsPreviewBossProjectileVisualKind(boss, 'boss-reactor-pellet')
+      ) {
+        projectile.projectileVisualKind = 'boss-reactor-pellet';
+      }
+    }
+
+    if (!darkPulse) {
+      for (const entity of this.entities) {
+        if (entity.isBossGapGuide && entity.bossOwnerId === boss.id) {
+          entity.markedForDeletion = true;
+        }
+      }
     }
 
     this.spawnRingEffect(originX, originY, darkPulse ? '#7c3aed' : '#67e8f9');
-    this.spawnFloatingText(
-      originX,
-      boss.y + boss.height + 8,
-      darkPulse ? 'ECLIPSE PULSE' : 'PRISM GAP ROTATING',
-      darkPulse ? '#d8b4fe' : '#a5f3fc',
-      15
-    );
+    const suppressAuthoredHeliosLabel = this.isSelectedPreviewBoss(boss)
+      && boss.bossActionPresentation?.primitiveId === 'reactor-aperture-pattern';
+    if (!suppressAuthoredHeliosLabel) {
+      this.spawnFloatingText(
+        originX,
+        boss.y + boss.height + 8,
+        this.getBossActionDisplayLabel(
+          boss,
+          darkPulse ? 'Eclipse pulse' : 'Prism safe gap'
+        ),
+        darkPulse ? '#d8b4fe' : '#a5f3fc',
+        15
+      );
+    }
     this.playSound('boss_shoot', darkPulse ? 0.84 : 1.16, {
       pitchJitter: 0.03,
       pitchOffset: darkPulse ? -0.22 : 0.08
     });
   }
 
-  spawnBossInwardCollapse(boss: Entity, sequence: number, phase: number) {
+  spawnBossInwardCollapse(boss: Entity, sequence: number, phase: number, projectileCount?: number) {
     const fallbackTarget = getBossInwardCollapseTarget(
       this.player.x + this.player.width / 2,
       this.player.y + this.player.height / 2,
@@ -7256,7 +9240,7 @@ export class GameEngine {
     boss.generatedBossTargetX = null;
     boss.generatedBossTargetY = null;
     boss.generatedBossTargetSequence = -1;
-    const requestedCount = (this.mobileProfile ? 10 : 14) + phase * 2;
+    const requestedCount = projectileCount ?? ((this.mobileProfile ? 10 : 14) + phase * 2);
     const shotCount = Math.min(20, requestedCount);
     const radiusX = Math.max(90, this.width * 0.43);
     const radiusY = Math.max(150, Math.min(this.height * 0.36, 310));
@@ -7280,19 +9264,32 @@ export class GameEngine {
     }
 
     this.spawnRingEffect(targetX, targetY, '#8b5cf6');
-    this.spawnFloatingText(targetX, targetY - 28, 'GRAVITY COLLAPSE', '#c4b5fd', 15);
+    this.spawnFloatingText(
+      targetX,
+      targetY - 28,
+      this.getBossActionDisplayLabel(boss, 'Gravity collapse'),
+      '#c4b5fd',
+      15
+    );
     this.playSound('boss_roar', 0.82);
   }
 
-  spawnBossRotatingCross(boss: Entity, sequence: number, phase: number) {
-    const originX = boss.x + boss.width / 2;
-    const originY = boss.y + boss.height * 0.62;
+  spawnBossRotatingCross(boss: Entity, sequence: number, phase: number, projectileCount?: number) {
+    const coreOrigin = this.getPreviewBossWeaponOrigins(boss, ['core'])[0];
+    const originX = coreOrigin?.x ?? boss.x + boss.width / 2;
+    const originY = coreOrigin?.y ?? boss.y + boss.height * 0.62;
     const baseAngle = sequence * (Math.PI / 10);
-    const layers = phase >= 2 ? 2 : 1;
+    const layers = projectileCount === undefined
+      ? (phase >= 2 ? 2 : 1)
+      : Math.max(1, Math.min(6, Math.ceil(projectileCount / 4)));
+    const maximumProjectiles = projectileCount === undefined
+      ? layers * 4
+      : Math.max(1, Math.min(24, Math.round(projectileCount)));
     const baseSpeed = Math.min(8, Math.max(4.8, Number(boss.projectileSpeed) || 6.2) * 0.82);
     let variant = 0;
     for (let layer = 0; layer < layers; layer++) {
       for (let arm = 0; arm < 4; arm++) {
+        if (variant >= maximumProjectiles) break;
         const angle = baseAngle + arm * (Math.PI / 2);
         this.spawnGeneratedBossProjectile(
           boss,
@@ -7307,14 +9304,36 @@ export class GameEngine {
       }
     }
     this.spawnRingEffect(originX, originY, '#22d3ee');
-    this.spawnFloatingText(originX, boss.y + boss.height + 8, 'ORBIT CROSS', '#a5f3fc', 15);
+    this.spawnFloatingText(
+      originX,
+      boss.y + boss.height + 8,
+      this.getBossActionDisplayLabel(boss, 'Orbit cross'),
+      '#a5f3fc',
+      15
+    );
     this.playSound('electricity', 0.92);
   }
 
-  spawnBossHelixVolley(boss: Entity, sequence: number, phase: number, leftHanded: boolean) {
+  spawnBossHelixVolley(
+    boss: Entity,
+    sequence: number,
+    phase: number,
+    leftHanded: boolean,
+    projectileCount?: number
+  ) {
     const origins = this.getGeneratedBossWeaponOrigins(boss);
     const strength = Math.max(...origins.map((origin) => origin.strength));
-    const pairCount = Math.max(2, Math.round((2 + phase) * strength));
+    const defaultProjectileCount = Math.max(
+      4,
+      Math.min(MAX_GENERATED_BOSS_PROJECTILES_PER_CUE, Math.round((4 + phase * 2) * strength))
+    );
+    const maximumProjectiles = projectileCount === undefined
+      ? defaultProjectileCount
+      : Math.max(
+        1,
+        Math.min(MAX_GENERATED_BOSS_PROJECTILES_PER_CUE, Math.round(projectileCount))
+      );
+    const pairCount = Math.max(1, Math.ceil(maximumProjectiles / 2));
     const speed = Math.min(9, Math.max(5.2, Number(boss.projectileSpeed) || 6.8) * 0.86);
     const hand = leftHanded ? -1 : 1;
     const phaseDrift = ((sequence % 5) - 2) * 0.045 * hand;
@@ -7323,6 +9342,7 @@ export class GameEngine {
     for (let pair = 0; pair < pairCount; pair++) {
       const spread = 0.08 + pair * 0.075;
       for (const direction of [-1, 1]) {
+        if (variant >= maximumProjectiles) break;
         const origin = origins[variant % origins.length];
         const angle = Math.PI / 2 + phaseDrift + direction * spread * hand;
         this.spawnGeneratedBossProjectile(
@@ -7340,61 +9360,204 @@ export class GameEngine {
     this.spawnFloatingText(
       boss.x + boss.width / 2,
       boss.y + boss.height + 8,
-      leftHanded ? 'HELIX LEFT' : 'HELIX RIGHT',
+      this.getBossActionDisplayLabel(
+        boss,
+        leftHanded ? 'Helix left' : 'Helix right'
+      ),
       '#f0abfc',
       15
     );
     this.playSound('boss_shoot', leftHanded ? 0.96 : 1.08, { pitchJitter: 0.02 });
   }
 
-  spawnBossSideBarrage(boss: Entity, phase: number, side: 'port' | 'starboard') {
+  private getBossSideBarrageOrigins(
+    boss: Entity,
+    side: 'port' | 'starboard'
+  ) {
     const componentId: BossPartId = side === 'port' ? 'left-cannon' : 'right-cannon';
     const cannonComponents = (boss.bossComponents ?? []).filter((component) => (
       component.id === 'left-cannon' || component.id === 'right-cannon'
     ));
-    const component = cannonComponents.find((candidate) => candidate.id === componentId);
-    if (component?.destroyed) {
+    const allCannonsDestroyed = cannonComponents.length > 0
+      && cannonComponents.every((component) => component.destroyed);
+    const requestedComponent = cannonComponents.find((candidate) => candidate.id === componentId);
+    const independentRotary = boss.bossActionPresentation?.motionCue === 'gatling-barrage';
+    const component = independentRotary
+      ? undefined
+      : requestedComponent?.destroyed
+        ? cannonComponents.find((candidate) => !candidate.destroyed)
+        : requestedComponent;
+    const resolvedSide = independentRotary
+      ? side
+      : component?.id === 'left-cannon'
+        ? 'port'
+        : component?.id === 'right-cannon'
+          ? 'starboard'
+          : side;
+    const authoredOrigins = this.getPreviewBossWeaponOrigins(boss, [resolvedSide]);
+    const box = component ? this.getBossComponentBox(boss, component) : null;
+    const origins = authoredOrigins.length > 0
+      ? authoredOrigins
+      : box
+      ? [{ x: box.x + box.width / 2, y: box.y + box.height * 0.72, strength: 1 }]
+      : [{
+          x: boss.x + boss.width * (resolvedSide === 'port' ? 0.2 : 0.8),
+          y: boss.y + boss.height * 0.64,
+          strength: 1
+        }];
+    return { allCannonsDestroyed, resolvedSide, origins };
+  }
+
+  private supportsPreviewBossProjectileVisualKind(
+    boss: Entity,
+    kind: BossModularProjectileVisualKind
+  ) {
+    return (
+      this.previewMode
+      && boss.sourceEventId === this.previewBossWeaponSocketEventId
+      && this.previewBossProjectileVisualKinds.has(kind)
+    );
+  }
+
+  spawnBossSideBarrage(
+    boss: Entity,
+    phase: number,
+    side: 'port' | 'starboard',
+    projectileCount?: number,
+    motionCue?: BossTimelineMotionCue,
+    lockedTarget?: { x: number; y: number },
+    lockedOrigins?: readonly BossAttackOriginPoint[]
+  ) {
+    const liveOriginState = this.getBossSideBarrageOrigins(boss, side);
+    const {
+      allCannonsDestroyed,
+      resolvedSide,
+      origins
+    } = lockedOrigins && lockedOrigins.length > 0
+      ? {
+          allCannonsDestroyed: false,
+          resolvedSide: side,
+          origins: lockedOrigins
+        }
+      : liveOriginState;
+    if (allCannonsDestroyed || motionCue === 'gatling-barrage') {
+      if (boss.bossActionPresentation) {
+        boss.bossActionPresentation.motionCue = 'gatling-barrage';
+      }
+      return;
+    }
+    const playerX = lockedTarget?.x ?? this.player.x + this.player.width / 2;
+    const playerY = lockedTarget?.y ?? this.player.y + this.player.height / 2;
+    for (const entity of this.entities) {
+      if (entity.isBossSideBarrageGuide && entity.bossOwnerId === boss.id) {
+        entity.markedForDeletion = true;
+      }
+    }
+    const requestedShots = projectileCount ?? Math.min(8, 4 + phase);
+    const heavyCannon = motionCue === 'heavy-cannon';
+    const shotCount = heavyCannon
+      ? Math.max(2, Math.min(5, Math.ceil(requestedShots / 2)))
+      : Math.max(1, Math.min(24, Math.round(requestedShots)));
+    const speed = heavyCannon
+      ? Math.min(6.4, Math.max(4.2, Number(boss.projectileSpeed) || 5.2) * 0.68)
+      : Math.min(9.4, Math.max(5.4, Number(boss.projectileSpeed) || 7) * 0.9);
+    for (let index = 0; index < shotCount; index++) {
+      const origin = origins[index % origins.length];
+      const offset = index - (shotCount - 1) / 2;
+      const baseAngle = Math.atan2(playerY - origin.y, playerX - origin.x);
+      const projectile = this.spawnGeneratedBossProjectile(
+        boss,
+        origin.x,
+        origin.y,
+        baseAngle + offset * (heavyCannon ? 0.16 : 0.115),
+        speed * (1 + Math.abs(offset) * 0.018),
+        resolvedSide === 'port' ? '#fb7185' : '#facc15',
+        heavyCannon ? 24 : 14,
+        index
+      );
+      if (
+        heavyCannon
+        && this.supportsPreviewBossProjectileVisualKind(boss, 'boss-heavy-shell')
+      ) {
+        projectile.projectileVisualKind = 'boss-heavy-shell';
+      }
+    }
+
+    const labelOrigin = origins[Math.floor((origins.length - 1) / 2)];
+    this.spawnFloatingText(
+      labelOrigin.x,
+      labelOrigin.y + 24,
+      this.getBossActionDisplayLabel(
+        boss,
+        heavyCannon
+          ? `${resolvedSide} heavy cannon`
+          : `${resolvedSide} barrage`
+      ),
+      resolvedSide === 'port' ? '#fda4af' : '#fde68a',
+      15
+    );
+    this.playSound(
+      heavyCannon ? 'boss_cannon' : 'boss_shoot',
+      heavyCannon ? 1.15 : resolvedSide === 'port' ? 0.92 : 1.06,
+      { pitchJitter: heavyCannon ? 0.025 : 0.05, pitchOffset: heavyCannon ? -0.12 : 0 }
+    );
+  }
+
+  private spawnBossGatlingPulse(
+    boss: Entity,
+    action: BossActionPresentationState
+  ) {
+    const lock = boss.bossGatlingAttackLock;
+    if (
+      !lock
+      || lock.actionClipId !== action.actionClipId
+      || lock.executionIndex !== action.executionIndex
+    ) {
+      return;
+    }
+    const elapsedFrames = boss.attackTimer - action.startFrame;
+    const intervalFrames = this.mobileProfile ? 7 : 5;
+    if (elapsedFrames < 0 || elapsedFrames % intervalFrames !== 0) return;
+    const pulseIndex = Math.floor(elapsedFrames / intervalFrames);
+    const pulseCount = Math.max(4, Math.min(10, Math.floor(action.projectileCount ?? 7)));
+    if (pulseIndex >= pulseCount) return;
+
+    const leftSide = pulseIndex % 2 === 0;
+    const sideOrigins = leftSide ? lock.portOrigins : lock.starboardOrigins;
+    if (sideOrigins.length === 0) return;
+    const origin = sideOrigins[pulseIndex % sideOrigins.length];
+    const originX = origin.x;
+    const originY = origin.y;
+    const targetX = lock.targetX;
+    const targetY = lock.targetY;
+    const baseAngle = Math.atan2(targetY - originY, targetX - originX);
+    const deterministicKick = ((pulseIndex % 5) - 2) * 0.018;
+    const projectile = this.spawnGeneratedBossProjectile(
+      boss,
+      originX,
+      originY,
+      baseAngle + deterministicKick,
+      Math.min(10.2, Math.max(7.4, Number(boss.projectileSpeed) || 8.4)),
+      pulseIndex % 3 === 0 ? '#fb7185' : '#facc15',
+      9,
+      pulseIndex
+    );
+    if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-gatling-tracer')) {
+      projectile.projectileVisualKind = 'boss-gatling-tracer';
+    }
+    if (pulseIndex === 0) {
       this.spawnFloatingText(
         boss.x + boss.width / 2,
         boss.y + boss.height + 8,
-        `${side.toUpperCase()} DISABLED`,
-        '#94a3b8',
-        14
-      );
-      return;
-    }
-
-    const box = component ? this.getBossComponentBox(boss, component) : null;
-    const originX = box
-      ? box.x + box.width / 2
-      : boss.x + boss.width * (side === 'port' ? 0.2 : 0.8);
-    const originY = box ? box.y + box.height * 0.72 : boss.y + boss.height * 0.64;
-    const playerX = this.player.x + this.player.width / 2;
-    const playerY = this.player.y + this.player.height / 2;
-    const baseAngle = Math.atan2(playerY - originY, playerX - originX);
-    const shotCount = Math.min(8, 4 + phase);
-    const speed = Math.min(9.4, Math.max(5.4, Number(boss.projectileSpeed) || 7) * 0.9);
-    for (let index = 0; index < shotCount; index++) {
-      const offset = index - (shotCount - 1) / 2;
-      this.spawnGeneratedBossProjectile(
-        boss,
-        originX,
-        originY,
-        baseAngle + offset * 0.115,
-        speed * (1 + Math.abs(offset) * 0.018),
-        side === 'port' ? '#fb7185' : '#f97316',
-        14,
-        index
+        'INNER GATLINGS',
+        '#fde68a',
+        15
       );
     }
-    this.spawnFloatingText(
-      originX,
-      originY + 24,
-      `${side.toUpperCase()} BARRAGE`,
-      side === 'port' ? '#fda4af' : '#fdba74',
-      15
-    );
-    this.playSound('boss_shoot', side === 'port' ? 0.92 : 1.06, { pitchJitter: 0.05 });
+    this.playSound('boss_machinegun', 0.52, {
+      pitchJitter: 0.035,
+      pitchOffset: leftSide ? -0.04 : 0.04
+    });
   }
 
   updateGeneratedBossMovement(
@@ -7610,13 +9773,14 @@ export class GameEngine {
       ));
       if (distanceFromGap < gapHalfWidth) continue;
 
-      const projectile = new Entity(EntityType.PROJECTILE, originX - 6, originY - 6);
+      const projectile = this.createEntity(EntityType.PROJECTILE, originX - 6, originY - 6);
       projectile.vx = Math.cos(angle) * speed;
       projectile.vy = Math.sin(angle) * speed;
       projectile.width = 12;
       projectile.height = 12;
       projectile.color = '#fb7185';
       projectile.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+      projectile.bossOwnerId = boss.id;
       this.entities.push(projectile);
     }
 
@@ -7671,13 +9835,14 @@ export class GameEngine {
       const missileCount = Math.min(3, 1 + Math.floor(cycle / 2));
       for (let index = 0; index < missileCount; index++) {
         const offset = (index - (missileCount - 1) / 2) * 22;
-        const missile = new Entity(EntityType.PROJECTILE, strike.x + offset - 8, -34 - index * 18);
+        const missile = this.createEntity(EntityType.PROJECTILE, strike.x + offset - 8, -34 - index * 18);
         missile.vx = 0;
         missile.vy = Math.min(10, 6.4 + cycle * 0.35);
         missile.width = 16;
         missile.height = 30;
         missile.color = '#f97316';
         missile.damage = 1;
+        missile.bossOwnerId = owner.id;
         this.entities.push(missile);
       }
       this.spawnRingEffect(strike.x, strike.y, '#facc15');
@@ -7685,6 +9850,1688 @@ export class GameEngine {
     }
 
     this.pendingBossStrikes = this.pendingBossStrikes.filter((strike) => strike.frames > 0);
+  }
+
+  private resolveBossTimelineActionSequence(
+    boss: Entity,
+    cue: BossTimelineCue,
+    sourceClip: BossTimelineCue['clip']
+  ) {
+    const baseSequence = Math.max(
+      0,
+      Math.floor(sourceClip.parameters?.sequence ?? cue.executionIndex)
+    );
+    if (sourceClip.primitiveId !== 'radial-beam-array') return baseSequence;
+    const durationFrames = boss.bossTimeline
+      ? getBossTimelineDurationFrames(boss.bossTimeline, GAME_CONFIG.FPS)
+      : 1;
+    const loopIndex = Math.floor(Math.max(0, boss.attackTimer) / Math.max(1, durationFrames));
+    return resolveBossRotationSequence({
+      sequence: baseSequence,
+      rotationDirection: sourceClip.parameters?.rotationDirection,
+      seedKey: [
+        this.gameplayRandomSeed,
+        boss.sourceEventId ?? boss.id,
+        boss.bossTimelinePhaseId ?? boss.activeBossPhaseId ?? 'unphased',
+        loopIndex,
+        sourceClip.id
+      ].join(':')
+    });
+  }
+
+  private updateBossLiveRotor(boss: Entity) {
+    const usesLiveRotor = boss.bossTimeline?.clips.some((clip) => (
+      clip.parameters?.motionCue === 'rotor-volley'
+      || clip.parameters?.motionCue === 'radial-beam'
+    ));
+    if (!usesLiveRotor) return;
+    if (!boss.bossRotorInitialized) {
+      boss.bossRotorInitialized = true;
+      boss.bossRotorAngleRadians = 0;
+      boss.bossRotorDirection = resolveRotatingEmitterDirection(
+        Math.max(0, boss.activeBossPhaseIndex)
+      );
+    }
+    const nextAngle = boss.bossRotorAngleRadians
+      + ROTATING_EMITTER_FRAME_STEP_RADIANS * boss.bossRotorDirection;
+    boss.bossRotorAngleRadians = (
+      nextAngle % ROTATING_EMITTER_FULL_TURN_RADIANS
+      + ROTATING_EMITTER_FULL_TURN_RADIANS
+    ) % ROTATING_EMITTER_FULL_TURN_RADIANS;
+  }
+
+  setBossActionPresentation(
+    boss: Entity,
+    cue: BossTimelineCue,
+    stage: BossActionPresentationStage,
+    sourceClip: BossTimelineCue['clip'] = cue.clip
+  ) {
+    const presentation = createBossActionPresentationState({
+      cueClip: cue.clip,
+      sourceClip,
+      stage,
+      attackFrame: boss.attackTimer,
+      executionIndex: cue.executionIndex,
+      framesPerSecond: GAME_CONFIG.FPS
+    });
+    if (sourceClip.primitiveId === 'radial-beam-array') {
+      presentation.sequence = this.resolveBossTimelineActionSequence(boss, cue, sourceClip);
+    }
+    if (
+      sourceClip.primitiveId === 'radial-beam-array'
+      || sourceClip.primitiveId === 'rotor-hazard-sentence'
+    ) {
+      boss.bossRotorDirection = resolveRotatingEmitterDirection(presentation.sequence);
+    }
+    boss.bossActionPresentation = presentation;
+  }
+
+  private removeBossCornerAmbushBeams(boss: Entity, telegraphsOnly: boolean = false) {
+    for (const entity of this.entities) {
+      if (
+        entity.isCornerAmbushBeam
+        && entity.bossOwnerId === boss.id
+        && (!telegraphsOnly || entity.isTelegraph)
+      ) {
+        entity.markedForDeletion = true;
+      }
+    }
+  }
+
+  private spawnBossCornerAmbushBeamEntity(
+    boss: Entity,
+    lock: CornerAmbushBeamLock,
+    telegraph: boolean,
+    lifetimeFrames: number
+  ) {
+    const thickness = telegraph
+      ? this.mobileProfile ? 4 : 5
+      : this.mobileProfile ? 18 : 24;
+    const beam = this.createEntity(
+      EntityType.PROJECTILE,
+      lock.beamCenterX - lock.beamLength / 2,
+      lock.beamCenterY - thickness / 2
+    );
+    beam.isBeam = true;
+    beam.isDetachedBeam = true;
+    beam.isTelegraph = telegraph;
+    beam.isCornerAmbushBeam = true;
+    beam.bossOwnerId = boss.id;
+    beam.beamAngleRadians = lock.angleRadians;
+    beam.beamOriginX = lock.originX;
+    beam.beamOriginY = lock.originY;
+    beam.beamTargetX = lock.targetX;
+    beam.beamTargetY = lock.targetY;
+    beam.width = lock.beamLength;
+    beam.height = thickness;
+    beam.life = Math.max(1, Math.floor(lifetimeFrames));
+    beam.maxLife = beam.life;
+    beam.color = telegraph ? '#ef4444' : '#dc2626';
+    beam.damage = telegraph ? 0 : Math.max(1, Number(boss.projectileDamage) || 1);
+    this.entities.push(beam);
+    return beam;
+  }
+
+  private beginBossCornerAmbushBeamWarning(
+    boss: Entity,
+    cue: BossTimelineCue,
+    linkedAction: BossTimelineCue['clip']
+  ) {
+    const sequence = Math.max(
+      0,
+      Math.floor(linkedAction.parameters?.sequence ?? cue.executionIndex)
+    );
+    const lock = resolveCornerAmbushBeamLock({
+      sequence,
+      arenaWidth: this.width,
+      arenaHeight: this.height,
+      bossWidth: boss.width,
+      bossHeight: boss.height,
+      playerCenterX: this.player.x + this.player.width / 2,
+      playerCenterY: this.player.y + this.player.height / 2,
+      mobileProfile: this.mobileProfile
+    });
+    const warningLeadSeconds = Math.max(
+      0,
+      linkedAction.startSeconds - cue.clip.startSeconds
+    );
+    const warningFrames = Math.max(
+      1,
+      Math.round(warningLeadSeconds * GAME_CONFIG.FPS)
+    );
+    const liveSeconds = clamp(
+      linkedAction.durationSeconds,
+      CORNER_AMBUSH_BEAM_MIN_LIVE_SECONDS,
+      CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS
+    );
+    const liveFrames = Math.max(1, Math.round(liveSeconds * GAME_CONFIG.FPS));
+
+    this.removeBossCornerAmbushBeams(boss);
+    boss.bossCornerAmbushBeamState = {
+      actionClipId: linkedAction.id,
+      holdUntilFrame: boss.attackTimer + warningFrames + liveFrames,
+      lock
+    };
+    boss.x = lock.bossX;
+    boss.y = lock.bossY;
+    boss.vx = 0;
+    boss.vy = 0;
+    boss.isCharging = true;
+    this.spawnBossCornerAmbushBeamEntity(boss, lock, true, warningFrames);
+    this.playSound('siren', 0.72);
+  }
+
+  private fireBossCornerAmbushBeam(boss: Entity, cue: BossTimelineCue) {
+    const state = boss.bossCornerAmbushBeamState;
+    if (!state || state.actionClipId !== cue.clip.id) {
+      // A damaging lane is never reconstructed from the player's current
+      // position. If its exact warning lock is unavailable, fail safely.
+      return;
+    }
+
+    const liveSeconds = clamp(
+      cue.clip.durationSeconds,
+      CORNER_AMBUSH_BEAM_MIN_LIVE_SECONDS,
+      CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS
+    );
+    const liveFrames = Math.max(1, Math.round(liveSeconds * GAME_CONFIG.FPS));
+    state.holdUntilFrame = Math.max(state.holdUntilFrame, boss.attackTimer + liveFrames);
+    boss.x = state.lock.bossX;
+    boss.y = state.lock.bossY;
+    boss.vx = 0;
+    boss.vy = 0;
+    boss.isCharging = false;
+    this.removeBossCornerAmbushBeams(boss, true);
+    this.spawnBossCornerAmbushBeamEntity(boss, state.lock, false, liveFrames);
+    this.playSound('electricity');
+    this.playSound('boss_shoot', 1.2, { pitchJitter: 0.02, pitchOffset: -0.08 });
+    this.addShake(this.mobileProfile ? 2.4 : 3.2);
+    this.addHitStop(4);
+  }
+
+  private beginBossCornerAmbushRamWarning(
+    boss: Entity,
+    cue: BossTimelineCue,
+    linkedAction: BossTimelineCue['clip']
+  ) {
+    const sequence = Math.max(
+      0,
+      Math.floor(linkedAction.parameters?.sequence ?? cue.executionIndex)
+    );
+    const lock = resolveCornerAmbushRamLock({
+      sequence,
+      arenaWidth: this.width,
+      arenaHeight: this.height,
+      bossWidth: boss.width,
+      bossHeight: boss.height,
+      playerCenterX: this.player.x + this.player.width / 2,
+      playerCenterY: this.player.y + this.player.height / 2,
+      mobileProfile: this.mobileProfile
+    });
+    const warningFrames = Math.max(
+      1,
+      Math.round(
+        Math.max(0, linkedAction.startSeconds - cue.clip.startSeconds)
+        * GAME_CONFIG.FPS
+      )
+    );
+    boss.bossCornerAmbushBeamState = undefined;
+    this.removeBossCornerAmbushBeams(boss);
+    boss.bossCornerAmbushRamState = {
+      actionClipId: linkedAction.id,
+      stage: 'warning',
+      startFrame: boss.attackTimer,
+      endFrame: boss.attackTimer + warningFrames,
+      lock
+    };
+    boss.x = lock.startX;
+    boss.y = lock.startY;
+    boss.vx = 0;
+    boss.vy = 0;
+    boss.isCharging = true;
+    boss.bossPresentationBankRadians = lock.angleRadians - Math.PI / 2;
+    this.spawnRingEffect(lock.targetX, lock.targetY, '#ef4444');
+    this.playSound('siren', 0.78);
+  }
+
+  private fireBossCornerAmbushRam(boss: Entity, cue: BossTimelineCue) {
+    const state = boss.bossCornerAmbushRamState;
+    if (!state || state.actionClipId !== cue.clip.id) {
+      // Never reconstruct a damaging body lane from the player's new position.
+      return;
+    }
+    const liveSeconds = clamp(
+      cue.clip.durationSeconds,
+      CORNER_AMBUSH_RAM_MIN_LIVE_SECONDS,
+      CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS
+    );
+    state.stage = 'charge';
+    state.startFrame = boss.attackTimer;
+    state.endFrame = boss.attackTimer + Math.max(
+      1,
+      Math.round(liveSeconds * GAME_CONFIG.FPS)
+    );
+    boss.isCharging = false;
+    this.playSound('boss_shoot', 1.24, { pitchJitter: 0.02, pitchOffset: -0.18 });
+    this.addShake(this.mobileProfile ? 2.8 : 3.8);
+    this.addHitStop(3);
+  }
+
+  private showBossGapRingSafeRoute(
+    boss: Entity,
+    cue: BossTimelineCue,
+    linkedAction: BossTimelineCue['clip']
+  ) {
+    const sequence = resolveBossPatternSequence(
+      linkedAction.parameters?.sequence,
+      cue.executionIndex
+    );
+    const coreOrigin = this.getPreviewBossWeaponOrigins(boss, ['core'])[0];
+    const originX = coreOrigin?.x ?? boss.x + boss.width / 2;
+    const originY = coreOrigin?.y ?? boss.y + boss.height * 0.62;
+    this.captureBossTimelineActionOrigins(
+      boss,
+      linkedAction.id,
+      cue.executionIndex,
+      [{ x: originX, y: originY }]
+    );
+    const direction = resolveBossGapRouteDirection(
+      linkedAction.parameters?.rotationDirection,
+      sequence
+    );
+    const route = resolveBossGapRoute({
+      arenaWidth: this.width,
+      arenaHeight: this.height,
+      originX,
+      originY,
+      sequence,
+      direction
+    });
+    const warningLeadSeconds = Math.max(
+      cue.clip.durationSeconds,
+      Number(cue.clip.parameters?.warningSeconds) || 0,
+      linkedAction.startSeconds - cue.clip.startSeconds
+    );
+    const lifetimeFrames = Math.max(
+      1,
+      Math.round(warningLeadSeconds * GAME_CONFIG.FPS)
+    );
+    const beamLength = Math.max(1, Math.hypot(route.x - originX, route.y - originY));
+    const beamThickness = this.mobileProfile ? 4 : 5;
+    const centerX = (originX + route.x) / 2;
+    const centerY = (originY + route.y) / 2;
+    const guide = this.createEntity(
+      EntityType.PROJECTILE,
+      centerX - beamLength / 2,
+      centerY - beamThickness / 2
+    );
+    guide.isBeam = true;
+    guide.isDetachedBeam = true;
+    guide.isTelegraph = true;
+    guide.isBossGapGuide = true;
+    guide.bossOwnerId = boss.id;
+    guide.beamAngleRadians = route.angleRadians;
+    guide.beamOriginX = originX;
+    guide.beamOriginY = originY;
+    guide.beamTargetX = route.x;
+    guide.beamTargetY = route.y;
+    guide.width = beamLength;
+    guide.height = beamThickness;
+    guide.life = lifetimeFrames;
+    guide.maxLife = lifetimeFrames;
+    guide.color = cue.clip.parameters?.color ?? '#67e8f9';
+    guide.damage = 0;
+    this.entities.push(guide);
+    this.spawnRingEffect(route.x, route.y, guide.color);
+    this.spawnFloatingText(
+      route.x,
+      route.y - 24,
+      'SAFE GAP',
+      guide.color,
+      this.mobileProfile ? 13 : 16
+    );
+    boss.isCharging = true;
+    this.playSound('siren', 0.62);
+  }
+
+  private beginBossSideBarrageWarning(
+    boss: Entity,
+    cue: BossTimelineCue,
+    linkedAction: BossTimelineCue['clip']
+  ) {
+    const side = linkedAction.parameters?.side ?? 'port';
+    const initialState = this.getBossSideBarrageOrigins(boss, side);
+    const gatlingBarrage = (
+      initialState.allCannonsDestroyed
+      || linkedAction.parameters?.motionCue === 'gatling-barrage'
+      || boss.bossActionPresentation?.motionCue === 'gatling-barrage'
+    );
+    if (gatlingBarrage && boss.bossActionPresentation) {
+      boss.bossActionPresentation.motionCue = 'gatling-barrage';
+    }
+    const portState = gatlingBarrage
+      ? this.getBossSideBarrageOrigins(boss, 'port')
+      : undefined;
+    const starboardState = gatlingBarrage
+      ? this.getBossSideBarrageOrigins(boss, 'starboard')
+      : undefined;
+    const resolvedSide = initialState.resolvedSide;
+    const origins = gatlingBarrage
+      ? [
+          ...(portState?.origins ?? []),
+          ...(starboardState?.origins ?? [])
+        ]
+      : initialState.origins;
+    const targetX = this.player.x + this.player.width / 2;
+    const targetY = this.player.y + this.player.height / 2;
+    if (gatlingBarrage) {
+      boss.bossGatlingAttackLock = {
+        actionClipId: linkedAction.id,
+        executionIndex: cue.executionIndex,
+        targetX,
+        targetY,
+        portOrigins: portState?.origins ?? [],
+        starboardOrigins: starboardState?.origins ?? []
+      };
+    } else {
+      boss.bossGatlingAttackLock = undefined;
+      this.captureBossTimelineActionOrigins(
+        boss,
+        linkedAction.id,
+        cue.executionIndex,
+        origins
+      );
+    }
+    boss.bossTimelineTargetClipId = linkedAction.id;
+    boss.bossTimelineTargetExecutionIndex = cue.executionIndex;
+    boss.bossTimelineTargetX = targetX;
+    boss.bossTimelineTargetY = targetY;
+    const warningLeadSeconds = Math.max(
+      cue.clip.durationSeconds,
+      Number(cue.clip.parameters?.warningSeconds) || 0,
+      linkedAction.startSeconds - cue.clip.startSeconds
+    );
+    const warningFrames = Math.max(
+      1,
+      Math.round(warningLeadSeconds * GAME_CONFIG.FPS)
+    );
+    origins.forEach((origin, originIndex) => {
+      const color = gatlingBarrage
+        ? originIndex < (portState?.origins.length ?? 0) ? '#fb7185' : '#facc15'
+        : resolvedSide === 'port' ? '#fb7185' : '#facc15';
+      const length = Math.max(1, Math.hypot(targetX - origin.x, targetY - origin.y));
+      const thickness = this.mobileProfile ? 3 : 4;
+      const guide = this.createEntity(
+        EntityType.PROJECTILE,
+        (origin.x + targetX) / 2 - length / 2,
+        (origin.y + targetY) / 2 - thickness / 2
+      );
+      guide.isBeam = true;
+      guide.isDetachedBeam = true;
+      guide.isTelegraph = true;
+      guide.isBossSideBarrageGuide = true;
+      guide.bossOwnerId = boss.id;
+      guide.beamAngleRadians = Math.atan2(targetY - origin.y, targetX - origin.x);
+      guide.beamOriginX = origin.x;
+      guide.beamOriginY = origin.y;
+      guide.beamTargetX = targetX;
+      guide.beamTargetY = targetY;
+      guide.width = length;
+      guide.height = thickness;
+      guide.life = warningFrames;
+      guide.maxLife = warningFrames;
+      guide.color = color;
+      guide.damage = 0;
+      this.entities.push(guide);
+    });
+    this.spawnRingEffect(targetX, targetY, gatlingBarrage ? '#fde68a' : (
+      resolvedSide === 'port' ? '#fb7185' : '#facc15'
+    ));
+    boss.isCharging = true;
+    this.playSound('siren', 0.58);
+  }
+
+  private isSelectedPreviewBoss(boss: Entity) {
+    return this.previewMode && boss.sourceEventId === this.previewBossWeaponSocketEventId;
+  }
+
+  private showHeliosAnatomyTelegraph(
+    boss: Entity,
+    cue: BossTimelineCue,
+    linkedAction: BossTimelineCue['clip']
+  ) {
+    const sequence = resolveBossPatternSequence(
+      linkedAction.parameters?.sequence,
+      cue.executionIndex
+    );
+    boss.isCharging = true;
+    if (linkedAction.primitiveId === 'tracking-pincer-dive' && sequence % 4 === 0) {
+      const riseY = Math.max(10, boss.y - boss.height * 0.24);
+      boss.bossTrackingPincerState = {
+        actionClipId: linkedAction.id,
+        anchorX: boss.x,
+        anchorY: boss.y,
+        riseX: boss.x,
+        riseY,
+        targetX: boss.x,
+        targetY: boss.y
+      };
+      this.playSound('boss_roar', 0.68, { pitchJitter: 0.015, pitchOffset: -0.12 });
+      return;
+    }
+    if (linkedAction.primitiveId === 'articulated-melee-sweep') {
+      const requestedSide = linkedAction.parameters?.side
+        ?? (sequence % 2 === 0 ? 'port' : 'starboard');
+      const plan = resolveHeliosClampPlan({
+        requestedSide,
+        portOperational: this.isHeliosClawOperational(boss, 'port'),
+        starboardOperational: this.isHeliosClawOperational(boss, 'starboard')
+      });
+      if (plan.skipped) {
+        boss.bossHeliosCornerClampState = undefined;
+        boss.isCharging = false;
+        return;
+      }
+      const activeSide = plan.activeSide;
+      const placement = resolveHeliosCornerClampPlacement({
+        side: activeSide ?? 'port',
+        viewportWidth: this.width,
+        viewportHeight: this.height,
+        bossWidth: boss.width,
+        bossHeight: boss.height,
+        mobileProfile: this.mobileProfile
+      });
+      boss.bossHeliosCornerClampState = {
+        actionClipId: linkedAction.id,
+        executionIndex: cue.executionIndex,
+        activeSide,
+        fallbackToCrossfire: plan.fallbackToCrossfire,
+        anchorX: boss.x,
+        anchorY: boss.y,
+        cornerX: placement.cornerX,
+        cornerY: placement.cornerY,
+        lockedX: placement.cornerX
+      };
+      if (plan.fallbackToCrossfire && boss.bossActionPresentation) {
+        boss.bossActionPresentation.motionCue = 'paired-crossfire';
+        boss.bossActionPresentation.projectileCount = 4;
+      }
+      this.playSound(
+        plan.fallbackToCrossfire ? 'boss_machinegun' : 'boss_roar',
+        plan.fallbackToCrossfire ? 0.42 : 0.58,
+        { pitchJitter: 0.01, pitchOffset: plan.fallbackToCrossfire ? -0.18 : -0.1 }
+      );
+      return;
+    }
+    if (linkedAction.primitiveId === 'paired-cannon-burst') {
+      boss.bossTimelineTargetClipId = linkedAction.id;
+      boss.bossTimelineTargetExecutionIndex = cue.executionIndex;
+      // Helios teaches a fixed port/starboard rhythm rather than silently
+      // re-aiming each burst at a moving player. The animated cannon stance
+      // identifies the threatened half; no trajectory guide is required.
+      boss.bossTimelineTargetX = this.width / 2;
+      boss.bossTimelineTargetY = this.height * 0.82;
+      this.playSound('boss_machinegun', 0.38, { pitchJitter: 0.01, pitchOffset: -0.24 });
+      return;
+    }
+    if (linkedAction.primitiveId === 'reactor-aperture-pattern') {
+      const core = this.getPreviewBossWeaponOrigins(boss, ['core'])[0];
+      if (core) {
+        this.spawnBurst(core.x, core.y, '#f59e0b', 7, 2.2, 3);
+      }
+      boss.bossTimelineTargetClipId = linkedAction.id;
+      boss.bossTimelineTargetExecutionIndex = cue.executionIndex;
+      boss.bossTimelineTargetX = this.player.x + this.player.width / 2;
+      boss.bossTimelineTargetY = this.player.y + this.player.height / 2;
+      this.playSound('electricity', 0.44, { pitchJitter: 0.015, pitchOffset: -0.2 });
+      return;
+    }
+    this.playSound('siren', 0.42, { pitchJitter: 0.015, pitchOffset: -0.18 });
+  }
+
+  private spawnHeliosCrossfirePulse(
+    boss: Entity,
+    phase: number,
+    action: BossActionPresentationState
+  ) {
+    const fallbackToCrossfire = Boolean(
+      boss.bossHeliosCornerClampState?.fallbackToCrossfire
+      && action.primitiveId === 'articulated-melee-sweep'
+    );
+    const sides = resolveHeliosCrossfireSides(
+      fallbackToCrossfire ? undefined : action.side
+    );
+    const requested = Math.max(3, Math.min(9, Math.round(action.projectileCount ?? 4)));
+    const elapsedFrames = Math.max(0, boss.attackTimer - action.startFrame);
+    const pulse = sampleHeliosCrossfirePulse({
+      elapsedFrames,
+      roundsPerSide: requested,
+      sides,
+      intervalFrames: phase >= 3 ? 3 : 4
+    });
+    if (!pulse?.firing) return;
+    const speed = Math.min(
+      this.mobileProfile ? 6 : 6.7,
+      Math.max(4.5, (Number(boss.projectileSpeed) || 6.2) * 0.76)
+    );
+    const origin = this.getPreviewBossWeaponOrigins(boss, [pulse.side])[0] ?? {
+      x: boss.x + boss.width * (pulse.side === 'port' ? 0.4 : 0.6),
+      y: boss.y + boss.height * 0.78,
+      strength: 1
+    };
+    const centeredIndex = pulse.sideShotIndex - (requested - 1) / 2;
+    const angle = resolveHeliosCrossfireAngle(pulse.side, sides.length > 1)
+      + centeredIndex * 0.045;
+    const projectile = this.spawnGeneratedBossProjectile(
+      boss,
+      origin.x,
+      origin.y,
+      angle,
+      speed * (1 + Math.abs(centeredIndex) * 0.012),
+      pulse.side === 'port' ? '#f97316' : '#fbbf24',
+      this.mobileProfile ? 10 : 12,
+      action.sequence * 100 + pulse.shotIndex
+    );
+    if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-gatling-tracer')) {
+      projectile.projectileVisualKind = 'boss-gatling-tracer';
+    }
+    this.spawnBurst(origin.x, origin.y, '#f59e0b', 3, 1.8, 2);
+    this.playSound('boss_machinegun', sides.length > 1 ? 0.58 : 0.5, {
+      pitchJitter: 0.018,
+      pitchOffset: (phase >= 3 ? 0.08 : -0.02) + pulse.shotIndex * 0.004
+    });
+    this.addShake(sides.length > 1 ? 0.75 : 0.5);
+  }
+
+  private spawnHeliosReactorPulse(
+    boss: Entity,
+    phase: number,
+    action: BossActionPresentationState
+  ) {
+    const core = this.getPreviewBossWeaponOrigins(boss, ['core'])[0] ?? {
+      x: boss.x + boss.width / 2,
+      y: boss.y + boss.height * 0.58,
+      strength: 1
+    };
+    const elapsedFrames = Math.max(0, boss.attackTimer - action.startFrame);
+    if (action.motionCue === 'reactor-mines') {
+      const formation = resolveHeliosMineFormation({
+        sequence: action.sequence,
+        count: action.projectileCount ?? 3
+      });
+      const slot = formation.find((candidate) => elapsedFrames === 2 + candidate.delayFrames);
+      if (!slot) return;
+      const mineSize = this.mobileProfile ? 24 : 30;
+      const mine = this.spawnGeneratedBossProjectile(
+        boss,
+        core.x,
+        core.y,
+        slot.angleRadians,
+        0,
+        '#f59e0b',
+        mineSize,
+        action.sequence * 10 + slot.index
+      );
+      mine.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+      const horizontalTravel = this.mobileProfile ? 190 : 250;
+      const targetCenterX = clamp(
+        core.x + Math.sin(slot.angleRadians - Math.PI / 2) * horizontalTravel,
+        mineSize / 2 + 12,
+        this.width - mineSize / 2 - 12
+      );
+      const targetCenterY = clamp(
+        Math.max(
+          core.y + 112,
+          boss.y + boss.height + (this.mobileProfile ? 64 : 76)
+        ),
+        core.y + 96,
+        Math.max(core.y + 96, this.height - (this.mobileProfile ? 180 : 150))
+      );
+      mine.heliosMineState = {
+        spawnFrame: this.frameCount,
+        triggerAgeFrame: -1,
+        hitPlayer: false,
+        deployStartX: core.x,
+        deployStartY: core.y,
+        armX: targetCenterX,
+        armY: targetCenterY
+      };
+      mine.heliosMineStage = 'deploying';
+      if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-helios-mine')) {
+        mine.projectileVisualKind = 'boss-helios-mine';
+      }
+      this.playSound('boss_shoot', 0.38, {
+        pitchJitter: 0.012,
+        pitchOffset: -0.22 + slot.index * 0.04
+      });
+      return;
+    }
+    const hasLockedTarget = boss.bossTimelineTargetClipId === action.actionClipId
+      && boss.bossTimelineTargetExecutionIndex === action.executionIndex
+      && Number.isFinite(boss.bossTimelineTargetX)
+      && Number.isFinite(boss.bossTimelineTargetY);
+    const targetAngle = hasLockedTarget
+      ? Math.atan2(
+          Number(boss.bossTimelineTargetY) - core.y,
+          Number(boss.bossTimelineTargetX) - core.x
+        )
+      : Math.PI / 2;
+    const fanShot = sampleHeliosReactorFanShot({
+      elapsedFrames,
+      sequence: action.sequence,
+      projectileCount: action.projectileCount ?? 7,
+      targetAngleRadians: targetAngle,
+      intervalFrames: phase >= 3 ? 4 : 5
+    });
+    if (!fanShot?.firing) return;
+    const projectile = this.spawnGeneratedBossProjectile(
+      boss,
+      core.x,
+      core.y,
+      fanShot.angleRadians,
+      Math.min(this.mobileProfile ? 5.4 : 6.1, 4.5 + phase * 0.28),
+      '#f59e0b',
+      this.mobileProfile ? 11 : 13,
+      action.sequence * 100 + fanShot.shotIndex
+    );
+    if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-reactor-pellet')) {
+      projectile.projectileVisualKind = 'boss-reactor-pellet';
+    }
+    this.spawnBurst(core.x, core.y, '#f59e0b', 2, 1.3, 2);
+    this.playSound('boss_shoot', 0.44, {
+      pitchJitter: 0.015,
+      pitchOffset: -0.12 + fanShot.shotIndex * 0.012
+    });
+  }
+
+  private sampleHeliosMineEntity(mine: Entity) {
+    const state = mine.heliosMineState;
+    if (!state) return undefined;
+    const mineCenterX = mine.x + mine.width / 2;
+    const mineCenterY = mine.y + mine.height / 2;
+    const playerCenterX = this.player.x + this.player.width / 2;
+    const playerCenterY = this.player.y + this.player.height / 2;
+    return sampleHeliosMineLifecycle({
+      ageFrames: Math.max(0, this.frameCount - state.spawnFrame),
+      triggerFrame: state.triggerAgeFrame,
+      distanceToPlayer: Math.hypot(
+        playerCenterX - mineCenterX,
+        playerCenterY - mineCenterY
+      )
+    });
+  }
+
+  private updateHeliosMineEntity(mine: Entity) {
+    const state = mine.heliosMineState;
+    if (!state) return;
+    const ageFrames = Math.max(0, this.frameCount - state.spawnFrame);
+    if (state.triggerAgeFrame < 0) {
+      const deployProgress = clamp(ageFrames / HELIOS_MINE_DEPLOY_FRAMES, 0, 1);
+      const easedProgress = 1 - Math.pow(1 - deployProgress, 3);
+      const previousCenterX = mine.x + mine.width / 2;
+      const previousCenterY = mine.y + mine.height / 2;
+      const centerX = state.deployStartX + (state.armX - state.deployStartX) * easedProgress;
+      const centerY = state.deployStartY + (state.armY - state.deployStartY) * easedProgress;
+      mine.x = centerX - mine.width / 2;
+      mine.y = centerY - mine.height / 2;
+      mine.vx = centerX - previousCenterX;
+      mine.vy = centerY - previousCenterY;
+    }
+    let sample = this.sampleHeliosMineEntity(mine);
+    if (!sample) return;
+    if (sample.shouldTrigger && state.triggerAgeFrame < 0) {
+      state.triggerAgeFrame = ageFrames;
+      sample = this.sampleHeliosMineEntity(mine) ?? sample;
+      const centerX = mine.x + mine.width / 2;
+      const centerY = mine.y + mine.height / 2;
+      const explosionSize = this.mobileProfile ? 74 : 92;
+      mine.x = centerX - explosionSize / 2;
+      mine.y = centerY - explosionSize / 2;
+      mine.width = explosionSize;
+      mine.height = explosionSize;
+      mine.vx = 0;
+      mine.vy = 0;
+      mine.projectileVisualKind = 'boss-helios-explosion';
+      mine.spriteFrames = [...ASSETS.PIXI_EXPLOSION_FRAMES];
+      mine.weaponVisualStartFrame = this.frameCount;
+      mine.variant = 0;
+      mine.heliosMineStage = 'exploding';
+      this.playSound('explode', 0.56, { pitchJitter: 0.03, pitchOffset: -0.14 });
+      this.addShake(0.8);
+    } else {
+      mine.heliosMineStage = sample.stage;
+    }
+    if (sample.stage === 'deploying') {
+      // Position is simulation-owned above so deployment always clears the
+      // carrier silhouette before arming, independent of boss scale.
+    } else if (sample.stage === 'armed') {
+      mine.vx = 0;
+      mine.vy = 0;
+    }
+    mine.x = clamp(mine.x, 4, Math.max(4, this.width - mine.width - 4));
+    mine.y = clamp(mine.y, 48, Math.max(48, this.height - mine.height - 18));
+    if (sample.shouldCleanup) mine.markedForDeletion = true;
+  }
+
+  private isHeliosMineDamageActive(mine: Entity) {
+    const sample = this.sampleHeliosMineEntity(mine);
+    return Boolean(sample?.damageActive && !mine.heliosMineState?.hitPlayer);
+  }
+
+  showBossTimelineTelegraph(boss: Entity, cue: BossTimelineCue) {
+    const parameters = cue.clip.parameters;
+    const style = parameters?.telegraphStyle ?? 'warning';
+    const linkedAction = boss.bossTimeline?.clips.find((clip) => (
+      clip.telegraphClipId === cue.clip.id
+    ));
+    this.setBossActionPresentation(
+      boss,
+      cue,
+      'warning',
+      linkedAction ?? cue.clip
+    );
+    if (
+      linkedAction
+      && (
+        this.isSelectedPreviewBoss(boss)
+        // Helios' registered anatomy primitives identify their own warning
+        // through the moving rig. Keep that presentation clean even while a
+        // preview session is being rebuilt and its artwork event binding has
+        // not settled yet (for example, immediately after Vite HMR).
+        || boss.bossRigId === 'crown-claw'
+      )
+      && (
+        linkedAction.primitiveId === 'paired-cannon-burst'
+        || linkedAction.primitiveId === 'articulated-melee-sweep'
+        || linkedAction.primitiveId === 'reactor-aperture-pattern'
+        || linkedAction.primitiveId === 'tracking-pincer-dive'
+      )
+    ) {
+      this.showHeliosAnatomyTelegraph(boss, cue, linkedAction);
+      return;
+    }
+    if (linkedAction?.primitiveId === 'gap-ring') {
+      this.showBossGapRingSafeRoute(boss, cue, linkedAction);
+      return;
+    }
+    if (linkedAction?.primitiveId === 'side-barrage') {
+      const cannons = (boss.bossComponents ?? []).filter((component) => (
+        component.id === 'left-cannon' || component.id === 'right-cannon'
+      ));
+      if (
+        cannons.length > 0
+        && cannons.every((component) => component.destroyed)
+        && boss.bossActionPresentation
+      ) {
+        boss.bossActionPresentation.motionCue = 'gatling-barrage';
+      }
+      this.beginBossSideBarrageWarning(boss, cue, linkedAction);
+      return;
+    }
+    if (style === 'lane' && linkedAction?.primitiveId === 'cross-beam') {
+      boss.isCharging = true;
+      const warningFrames = Math.max(
+        1,
+        Math.round(Math.max(
+          cue.clip.durationSeconds,
+          Number(cue.clip.parameters?.warningSeconds) || 0,
+          linkedAction.startSeconds - cue.clip.startSeconds
+        ) * GAME_CONFIG.FPS)
+      );
+      this.spawnBossCrossBeamPair(boss, true, warningFrames);
+      this.playSound('siren', 0.68);
+      return;
+    }
+    if (style === 'lane' && linkedAction?.primitiveId === 'rail-sweep') {
+      boss.isCharging = true;
+      this.spawnBossRailSweep(
+        boss,
+        Math.max(0, Math.floor(linkedAction.parameters?.sequence ?? cue.executionIndex)),
+        true
+      );
+      return;
+    }
+    if (style === 'lane' && linkedAction?.primitiveId === 'weave-wall') {
+      boss.isCharging = true;
+      const sequence = resolveBossPatternSequence(
+        linkedAction.parameters?.sequence,
+        cue.executionIndex
+      );
+      const warningFrames = Math.max(
+        1,
+        Math.round(
+          Math.max(
+            cue.clip.durationSeconds,
+            Number(parameters?.warningSeconds) || 0
+          ) * GAME_CONFIG.FPS
+        )
+      );
+      this.showBossWeaveWallSafeChannel(boss, sequence, warningFrames);
+      return;
+    }
+    if (style === 'spokes' && linkedAction?.primitiveId === 'radial-beam-array') {
+      const sequence = boss.bossActionPresentation?.sequence
+        ?? this.resolveBossTimelineActionSequence(boss, cue, linkedAction);
+      this.spawnBossRadialBeamArray(
+        boss,
+        true,
+        sequence,
+        cue.clip.durationSeconds
+      );
+      return;
+    }
+    if (style === 'target') {
+      if (linkedAction?.primitiveId === 'corner-ambush-beam') {
+        this.beginBossCornerAmbushBeamWarning(boss, cue, linkedAction);
+        return;
+      }
+      if (linkedAction?.primitiveId === 'corner-ambush-ram') {
+        this.beginBossCornerAmbushRamWarning(boss, cue, linkedAction);
+        return;
+      }
+    }
+    const color = parameters?.color ?? (
+      style === 'lane' ? '#fb7185'
+        : style === 'target' ? '#facc15'
+          : style === 'ring' ? '#c4b5fd'
+            : '#f87171'
+    );
+    const targetX = style === 'target'
+      ? this.player.x + this.player.width / 2
+      : boss.x + boss.width / 2;
+    const targetY = style === 'target'
+      ? this.player.y + this.player.height / 2
+      : boss.y + boss.height * 0.62;
+    this.spawnRingEffect(targetX, targetY, color);
+    this.spawnFloatingText(
+      targetX,
+      targetY - 28,
+      cue.clip.label.trim().toUpperCase() || 'WARNING',
+      color,
+      this.mobileProfile ? 14 : 18
+    );
+    this.playSound('siren', 0.68);
+  }
+
+  spawnBossTimelineSummons(boss: Entity, cue: BossTimelineCue) {
+    const parameters = cue.clip.parameters;
+    const requestedCount = Math.max(1, Math.min(12, Math.floor(parameters?.summonCount ?? 4)));
+    const available = Math.max(0, this.getThreatCap() - this.getActiveThreatCount());
+    const count = Math.min(requestedCount, available);
+    if (count <= 0) return;
+    const enemyDefinition = getEnemy(parameters?.enemyId ?? 'drone');
+    const patternId = parameters?.formationPatternId ?? 'v';
+    const difficulty = this.getCurrentDifficultyMultiplier();
+    const event: RuntimeSpawnEvent = {
+      id: `${boss.sourceEventId ?? boss.id}-${cue.clip.id}`,
+      label: cue.clip.label,
+      kind: 'spawn',
+      startSeconds: 0,
+      durationSeconds: 1,
+      delayAfterSeconds: 0,
+      blocksWaveClock: false,
+      count,
+      patternId,
+      positionId: 'formation-top',
+      spawnIntervalSeconds: 0.08,
+      enemies: [{
+        enemyId: enemyDefinition.id,
+        spriteKey: enemyDefinition.defaultSpriteKey,
+        weight: 1,
+        health: enemyDefinition.baseHealth,
+        speed: enemyDefinition.baseSpeed,
+        damage: enemyDefinition.baseDamage,
+        scoreValue: enemyDefinition.baseScoreValue,
+        powerupDropChance: enemyDefinition.basePowerupDropChance
+      }]
+    };
+    const enemyType = this.resolveConfiguredEnemyType(enemyDefinition.id);
+    for (let index = 0; index < count; index += 1) {
+      const point = this.getConfiguredSpawnPoint(event, index, count);
+      const enemy = this.createEnemy(enemyType, point.x, point.y, {
+        speed: enemyDefinition.baseSpeed * difficulty,
+        health: enemyDefinition.baseHealth * difficulty,
+        contactDamage: enemyDefinition.baseDamage * difficulty,
+        scoreValue: enemyDefinition.baseScoreValue,
+        powerupDropChance: enemyDefinition.basePowerupDropChance,
+        spriteUrl: this.resolveSpriteUrl(enemyDefinition.defaultSpriteKey, enemyType),
+        spriteFrames: this.resolveSpriteFrames(enemyDefinition.defaultSpriteKey)
+      });
+      enemy.sourceEventId = boss.sourceEventId;
+      enemy.sourceItemId = enemyDefinition.id;
+      this.configureEnemyFormation(enemy, event, index, count);
+    }
+    this.spawnFloatingText(
+      boss.x + boss.width / 2,
+      boss.y + boss.height,
+      'REINFORCEMENTS',
+      '#fbbf24',
+      this.mobileProfile ? 14 : 18
+    );
+  }
+
+  dispatchBossTimelineCue(
+    boss: Entity,
+    cue: BossTimelineCue,
+    phase: number,
+    triggeredStage?: 'phase-enter' | 'death'
+  ) {
+    const parameters = cue.clip.parameters;
+    const sequence = resolveBossPatternSequence(
+      parameters?.sequence,
+      cue.executionIndex
+    );
+    if (triggeredStage) {
+      this.setBossActionPresentation(boss, cue, triggeredStage);
+    } else if (
+      cue.clip.primitiveId !== 'telegraph'
+      && isDamagingBossTimelinePrimitive(cue.clip.primitiveId)
+    ) {
+      this.setBossActionPresentation(boss, cue, 'fire');
+    }
+    switch (cue.clip.primitiveId) {
+      case 'telegraph':
+        this.showBossTimelineTelegraph(boss, cue);
+        return;
+      case 'aimed-burst':
+        this.spawnBossBurst(boss, phase, parameters?.projectileCount);
+        boss.lastBurstAttackTimer = boss.attackTimer;
+        return;
+      case 'gap-ring': {
+        boss.isCharging = false;
+        const lockedOrigins = this.consumeBossTimelineActionOrigins(
+          boss,
+          cue.clip.id,
+          cue.executionIndex
+        );
+        this.spawnBossSafeGapRing(
+          boss,
+          sequence,
+          phase,
+          false,
+          parameters?.projectileCount,
+          parameters?.rotationDirection,
+          lockedOrigins?.[0]
+        );
+        return;
+      }
+      case 'rotor-hazard-sentence':
+        boss.isCharging = false;
+        return;
+      case 'radial-beam-array':
+        this.spawnBossRadialBeamArray(
+          boss,
+          false,
+          boss.bossActionPresentation?.sequence ?? sequence,
+          cue.clip.durationSeconds
+        );
+        return;
+      case 'corner-ambush-beam':
+        this.fireBossCornerAmbushBeam(boss, cue);
+        return;
+      case 'corner-ambush-ram':
+        this.fireBossCornerAmbushRam(boss, cue);
+        return;
+      case 'paired-cannon-burst':
+        boss.isCharging = false;
+        return;
+      case 'articulated-melee-sweep':
+        boss.isCharging = false;
+        if (
+          boss.bossHeliosCornerClampState?.actionClipId === cue.clip.id
+          && boss.bossActionPresentation
+        ) {
+          if (boss.bossHeliosCornerClampState.activeSide) {
+            boss.bossActionPresentation.side = boss.bossHeliosCornerClampState.activeSide;
+          }
+          if (boss.bossHeliosCornerClampState.fallbackToCrossfire) {
+            boss.bossActionPresentation.motionCue = 'paired-crossfire';
+            boss.bossActionPresentation.projectileCount = 4;
+          }
+        }
+        return;
+      case 'reactor-aperture-pattern':
+        boss.isCharging = false;
+        return;
+      case 'tracking-pincer-dive':
+        boss.isCharging = false;
+        return;
+      case 'cross-beam':
+        this.spawnBossCrossBeamPair(boss, false);
+        return;
+      case 'rail-sweep':
+        this.spawnBossRailSweep(boss, sequence, false);
+        return;
+      case 'tail-fan':
+        this.spawnBossTailFan(boss, sequence, parameters?.projectileCount);
+        return;
+      case 'inward-collapse':
+        this.spawnBossInwardCollapse(boss, sequence, phase, parameters?.projectileCount);
+        return;
+      case 'rotating-cross':
+        this.spawnBossRotatingCross(boss, sequence, phase, parameters?.projectileCount);
+        return;
+      case 'helix-volley':
+        this.spawnBossHelixVolley(
+          boss,
+          sequence,
+          phase,
+          parameters?.handedness !== 'right',
+          parameters?.projectileCount
+        );
+        return;
+      case 'side-barrage':
+        {
+          const lockedTarget = boss.bossTimelineTargetClipId === cue.clip.id
+            && boss.bossTimelineTargetExecutionIndex === cue.executionIndex
+            && Number.isFinite(boss.bossTimelineTargetX)
+            && Number.isFinite(boss.bossTimelineTargetY)
+            ? {
+                x: Number(boss.bossTimelineTargetX),
+                y: Number(boss.bossTimelineTargetY)
+              }
+            : undefined;
+          const gatlingBarrage = (
+            parameters?.motionCue === 'gatling-barrage'
+            || boss.bossActionPresentation?.motionCue === 'gatling-barrage'
+            || boss.bossGatlingAttackLock?.actionClipId === cue.clip.id
+          );
+          const lockedOrigins = gatlingBarrage
+            ? undefined
+            : this.consumeBossTimelineActionOrigins(
+                boss,
+                cue.clip.id,
+                cue.executionIndex
+              );
+          this.spawnBossSideBarrage(
+            boss,
+            phase,
+            parameters?.side ?? 'port',
+            parameters?.projectileCount,
+            gatlingBarrage ? 'gatling-barrage' : parameters?.motionCue,
+            lockedTarget,
+            lockedOrigins
+          );
+          boss.bossTimelineTargetClipId = undefined;
+          boss.bossTimelineTargetExecutionIndex = -1;
+          boss.bossTimelineTargetX = null;
+          boss.bossTimelineTargetY = null;
+        }
+        return;
+      case 'pod-volley':
+        boss.isCharging = false;
+        this.spawnBossPodVolley(
+          boss,
+          resolveBossPatternSequence(parameters?.sequence, cue.executionIndex),
+          parameters?.projectileCount
+        );
+        return;
+      case 'weave-wall':
+        boss.isCharging = false;
+        this.spawnBossWeaveWall(
+          boss,
+          resolveBossPatternSequence(parameters?.sequence, cue.executionIndex),
+          parameters?.projectileCount
+        );
+        return;
+      case 'summon-formation':
+        this.spawnBossTimelineSummons(boss, cue);
+        return;
+      case 'set-shield': {
+        this.clearBossShieldRing();
+        if (parameters?.enabled !== false && (parameters?.shieldCount ?? 0) > 0) {
+          this.spawnBossShieldRing(boss, phase, parameters?.shieldCount);
+        }
+        return;
+      }
+      case 'set-weak-point': {
+        const component = boss.bossComponents?.find((item) => item.id === parameters?.componentId);
+        if (!component) return;
+        const enabled = parameters?.enabled !== false;
+        const exposed = setBossComponentExposure(component, enabled);
+        if (component.destroyed) return;
+        this.spawnFloatingText(
+          boss.x + boss.width * component.centerXRatio,
+          boss.y + boss.height * component.centerYRatio,
+          `${component.label} ${exposed ? 'EXPOSED' : 'SEALED'}`,
+          exposed ? '#facc15' : '#94a3b8',
+          this.mobileProfile ? 12 : 15
+        );
+        return;
+      }
+      case 'set-movement':
+        if (parameters?.movementPatternId) boss.movementPattern = parameters.movementPatternId;
+        if (Number.isFinite(parameters?.speedMultiplier)) {
+          boss.activeBossPhaseSpeedMultiplier = clamp(Number(parameters?.speedMultiplier), 0.1, 8);
+        }
+        return;
+      case 'follow-path':
+        if (!isMovementPathId(parameters?.movementPathId)) return;
+        boss.bossMovementPathId = parameters.movementPathId;
+        boss.bossMovementPathStartFrame = boss.attackTimer;
+        boss.bossMovementPathDurationFrames = Math.max(
+          1,
+          Math.round(cue.clip.durationSeconds * GAME_CONFIG.FPS)
+        );
+        return;
+      case 'effect-cue':
+        {
+          const activePhaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
+          const recoveryVariant = boss.bossTimeline?.attacks
+            ?.flatMap((attack) => attack.variants.map((variant) => ({ attack, variant })))
+            .find(({ variant }) => (
+              variant.phaseId === activePhaseId
+              && variant.recoveryClipId === cue.clip.id
+            ));
+          const sourceClipId = recoveryVariant?.variant.beatClipIds.at(-1);
+          const sourceClip = sourceClipId
+            ? boss.bossTimeline?.clips.find((clip) => clip.id === sourceClipId)
+            : undefined;
+          if (sourceClip) {
+            this.setBossActionPresentation(boss, cue, 'recovery', sourceClip);
+          }
+          boss.isCharging = false;
+        }
+        this.spawnRingEffect(
+          boss.x + boss.width / 2,
+          boss.y + boss.height / 2,
+          parameters?.color ?? '#67e8f9'
+        );
+        return;
+      case 'camera-cue':
+        this.addShake(clamp(Number(parameters?.strength) || 2.5, 0, 10));
+        return;
+      default:
+        return;
+    }
+  }
+
+  private positionBossRadialBeam(beam: Entity, boss: Entity) {
+    if (!beam.beamRadialRay || beam.beamRotorAxisIndex < 0) return;
+    const centerX = boss.x + boss.width / 2;
+    const centerY = boss.y + boss.height / 2;
+    const rotorAngle = boss.bossRotorInitialized
+      ? boss.bossRotorAngleRadians
+      : 0;
+    const relays = sampleRotatingEmitterRelayPositions({
+      centerX,
+      centerY,
+      radiusX: boss.width * (186.68 / 420),
+      radiusY: boss.height * (186.68 / 420),
+      rotorAngleRadians: rotorAngle
+    });
+    const relay = relays[beam.beamRotorAxisIndex % relays.length];
+    const geometry = resolveRotatingEmitterRadialBeamGeometry({
+      centerX,
+      centerY,
+      relay,
+      outwardLength: beam.beamRadialOutwardLength
+    });
+    beam.beamAngleRadians = geometry.angleRadians;
+    beam.beamOriginX = geometry.relayX;
+    beam.beamOriginY = geometry.relayY;
+    beam.beamTargetX = geometry.endX;
+    beam.beamTargetY = geometry.endY;
+    beam.width = geometry.length;
+    beam.x = geometry.centerX - geometry.length / 2;
+    beam.y = geometry.centerY - beam.height / 2;
+  }
+
+  spawnBossRadialBeamArray(
+    boss: Entity,
+    telegraph: boolean,
+    sequence: number,
+    durationSeconds: number
+  ) {
+    if (!telegraph) {
+      for (const entity of this.entities) {
+        if (
+          entity.isBeam
+          && entity.isTelegraph
+          && entity.beamRadialRay
+          && entity.bossOwnerId === boss.id
+        ) {
+          entity.markedForDeletion = true;
+        }
+      }
+    }
+
+    const length = Math.hypot(this.width, this.height) * 1.18;
+    const thickness = telegraph
+      ? this.mobileProfile ? 4 : 5
+      : this.mobileProfile ? 18 : 24;
+    const lifetime = Math.max(1, Math.round(durationSeconds * GAME_CONFIG.FPS));
+    for (let axisIndex = 0; axisIndex < 4; axisIndex += 1) {
+      const beam = this.createEntity(EntityType.PROJECTILE, 0, 0);
+      beam.isBeam = true;
+      beam.isDetachedBeam = false;
+      beam.isTelegraph = telegraph;
+      beam.beamRadialRay = true;
+      beam.beamRotorAxisIndex = axisIndex;
+      beam.beamRotorSequence = Math.max(0, Math.floor(sequence));
+      beam.beamSweepStartFrame = boss.attackTimer;
+      beam.beamSweepDurationFrames = lifetime;
+      beam.bossOwnerId = boss.id;
+      beam.beamRadialOutwardLength = length;
+      beam.width = length;
+      beam.height = thickness;
+      beam.life = lifetime;
+      beam.maxLife = lifetime;
+      beam.color = telegraph ? '#fb7185' : '#f43f5e';
+      beam.damage = telegraph ? 0 : Math.max(1, Number(boss.projectileDamage) || 1);
+      this.positionBossRadialBeam(beam, boss);
+      this.entities.push(beam);
+    }
+
+    if (telegraph) {
+      boss.isCharging = true;
+      this.playSound('siren', 0.7);
+    } else {
+      boss.isCharging = false;
+      this.playSound('electricity');
+      this.playSound('boss_shoot', 1.22, { pitchJitter: 0.02, pitchOffset: 0.12 });
+      this.addShake(3.2);
+      this.addHitStop(4);
+    }
+  }
+
+  private spawnBossRotorHazardPulse(
+    boss: Entity,
+    action: BossActionPresentationState
+  ) {
+    const elapsedFrames = boss.attackTimer - action.startFrame;
+    const pulse = sampleRotatingEmitterPulseState({
+      elapsedFrames,
+      pulseIntervalSeconds: action.pulseIntervalSeconds,
+      projectileCount: action.projectileCount,
+      framesPerSecond: GAME_CONFIG.FPS
+    });
+    if (!pulse.shouldEmit) return;
+
+    const sockets = sampleRotatingEmitterSocketPositionsForBounds({
+      centerX: boss.x + boss.width / 2,
+      centerY: boss.y + boss.height / 2,
+      width: boss.width,
+      height: boss.height,
+      rotorAngleRadians: boss.bossRotorAngleRadians
+    });
+    for (const socketIndex of pulse.activeSocketIndices) {
+      const socket = sockets[socketIndex];
+      const pellet = this.createEntity(
+        EntityType.PROJECTILE,
+        socket.x - 6,
+        socket.y - 6
+      );
+      const speed = this.mobileProfile ? 2.75 : 3.15;
+      pellet.vx = Math.cos(socket.angleRadians) * speed;
+      pellet.vy = Math.sin(socket.angleRadians) * speed;
+      pellet.width = 12;
+      pellet.height = 12;
+      pellet.color = '#ff3bd4';
+      pellet.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+      pellet.bossOwnerId = boss.id;
+      pellet.projectileVisualKind = 'boss-pixel-pink';
+      pellet.weaponVisualStartFrame = this.frameCount;
+      pellet.variant = pulse.pulseIndex * 8 + socket.index;
+      this.entities.push(pellet);
+    }
+
+    // The heavier eye sprites arrive on an authored four-pulse cadence and
+    // fall through fixed lane pairs. They are slower than the rotor pellets,
+    // creating a layered dodge puzzle without increasing the global speed.
+    if (pulse.pulseIndex % 2 === 1) {
+      const lanePairs = [
+        [0.28, 0.62],
+        [0.42, 0.74],
+        [0.22, 0.53],
+        [0.36, 0.68]
+      ] as const;
+      const lanes = lanePairs[Math.floor(pulse.pulseIndex / 2) % lanePairs.length];
+      lanes.forEach((laneRatio, laneIndex) => {
+        const comet = this.createEntity(
+          EntityType.PROJECTILE,
+          boss.x + boss.width * laneRatio - 18,
+          boss.y + boss.height * 0.28 - laneIndex * 16
+        );
+        comet.vx = (laneRatio - 0.5) * 0.7;
+        comet.vy = this.mobileProfile ? 2.35 : 2.65;
+        comet.width = 36;
+        comet.height = 44;
+        const dropKinds = [
+          'boss-pixel-pink',
+          'boss-pixel-gold',
+          'boss-pixel-prism'
+        ] as const;
+        const dropKind = dropKinds[(pulse.pulseIndex + laneIndex) % dropKinds.length];
+        comet.color = dropKind === 'boss-pixel-pink'
+          ? '#ff3bd4'
+          : dropKind === 'boss-pixel-gold'
+            ? '#facc15'
+            : '#67e8f9';
+        comet.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+        comet.projectileVisualKind = dropKind;
+        comet.bossPodSide = laneIndex === 0 ? 'left' : 'right';
+        comet.bossOwnerId = boss.id;
+        comet.weaponVisualStartFrame = this.frameCount;
+        comet.variant = pulse.pulseIndex + laneIndex;
+        this.entities.push(comet);
+      });
+    }
+
+    this.playSound('boss_shoot', 0.62, {
+      pitchJitter: 0.025,
+      pitchOffset: pulse.pulseIndex % 2 === 0 ? -0.16 : -0.08
+    });
+  }
+
+  updateConfiguredBossTimeline(boss: Entity, phase: number) {
+    const timeline = boss.bossTimeline;
+    if (!timeline) return false;
+    const targetEntranceY = Math.max(72, Math.min(this.height * 0.13, 116));
+    const isPerformingSettledHeliosMovement = Boolean(
+      (
+        boss.bossTrackingPincerState
+        && boss.bossActionPresentation?.primitiveId === 'tracking-pincer-dive'
+      )
+      || (
+        boss.bossHeliosCornerClampState
+        && boss.bossActionPresentation?.primitiveId === 'articulated-melee-sweep'
+      )
+    );
+    if (boss.y < targetEntranceY && !isPerformingSettledHeliosMovement) {
+      // The authored phase clock begins only after the silhouette has settled
+      // into its combat anchor. This preserves a real read window and prevents
+      // off-screen attacks when a deliberately slow boss enters. An already
+      // settled Helios is allowed to rise above that anchor during its authored
+      // pincer sequence without accidentally restarting the whole timeline.
+      boss.attackTimer = 0;
+      boss.bossActionPresentation = undefined;
+      return true;
+    }
+    if (
+      boss.bossActionPresentation
+      && boss.attackTimer >= boss.bossActionPresentation.endFrame
+    ) {
+      boss.bossActionPresentation = undefined;
+    }
+    const timelineDurationFrames = getBossTimelineDurationFrames(timeline, GAME_CONFIG.FPS);
+    if (
+      timeline.loop
+      && boss.attackTimer > 0
+      && boss.attackTimer % timelineDurationFrames === 0
+    ) {
+      this.clearBossTimelineActionLocks(boss);
+    }
+    const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
+    if (phaseId !== boss.bossTimelineLastPhaseId) {
+      boss.bossTimelineLastPhaseId = phaseId;
+      getBossTimelineTriggeredCues(timeline, 'phase-enter', phaseId)
+        .forEach((cue) => this.dispatchBossTimelineCue(boss, cue, phase, 'phase-enter'));
+    }
+    getBossTimelineCuesAtFrame(timeline, boss.attackTimer, phaseId, GAME_CONFIG.FPS)
+      .forEach((cue) => this.dispatchBossTimelineCue(boss, cue, phase));
+    if (
+      boss.bossActionPresentation?.primitiveId === 'rotor-hazard-sentence'
+      && boss.bossActionPresentation.stage === 'fire'
+    ) {
+      this.spawnBossRotorHazardPulse(boss, boss.bossActionPresentation);
+    }
+    if (
+      boss.bossActionPresentation?.motionCue === 'gatling-barrage'
+      && boss.bossActionPresentation.stage === 'fire'
+    ) {
+      this.spawnBossGatlingPulse(boss, boss.bossActionPresentation);
+    }
+    const heliosAction = boss.bossActionPresentation;
+    if (
+      heliosAction?.stage === 'fire'
+      && (
+        heliosAction.primitiveId === 'paired-cannon-burst'
+        || (
+          heliosAction.primitiveId === 'articulated-melee-sweep'
+          && boss.bossHeliosCornerClampState?.fallbackToCrossfire
+        )
+      )
+    ) {
+      this.spawnHeliosCrossfirePulse(boss, phase, heliosAction);
+    }
+    if (
+      heliosAction?.stage === 'fire'
+      && heliosAction.primitiveId === 'reactor-aperture-pattern'
+    ) {
+      this.spawnHeliosReactorPulse(boss, phase, heliosAction);
+    }
+    return true;
+  }
+
+  updateTimelineBossMovement(boss: Entity, healthRatio: number) {
+    const targetEntranceY = Math.max(72, Math.min(this.height * 0.13, 116));
+    const speed = Math.max(0.1, boss.configuredSpeed ?? 2) * boss.activeBossPhaseSpeedMultiplier;
+    const entranceSpeed = Math.max(2.2, speed);
+    const clampAction = boss.bossActionPresentation?.primitiveId === 'articulated-melee-sweep'
+      ? boss.bossActionPresentation
+      : undefined;
+    const clampState = boss.bossHeliosCornerClampState;
+    if (clampState) {
+      const previousX = boss.x;
+      const previousY = boss.y;
+      if (!clampAction || clampAction.actionClipId !== clampState.actionClipId) {
+        boss.x = clampState.anchorX;
+        boss.y = clampState.anchorY;
+        boss.vx = boss.x - previousX;
+        boss.vy = boss.y - previousY;
+        boss.bossHeliosCornerClampState = undefined;
+        return;
+      }
+      if (clampState.fallbackToCrossfire) {
+        boss.x += (clampState.anchorX - boss.x) * 0.24;
+        boss.y += (clampState.anchorY - boss.y) * 0.24;
+        boss.vx = boss.x - previousX;
+        boss.vy = boss.y - previousY;
+        boss.bossPresentationBankRadians = 0;
+        return;
+      }
+      const durationFrames = Math.max(1, clampAction.endFrame - clampAction.startFrame);
+      const actionProgress = clamp(
+        (boss.attackTimer - clampAction.startFrame) / durationFrames,
+        0,
+        1
+      );
+      const activeSide = clampState.activeSide ?? 'port';
+      const sample = sampleHeliosCornerClamp({
+        stage: clampAction.stage === 'warning' ? 'warning' : 'fire',
+        progress: actionProgress,
+        side: activeSide
+      });
+      if (clampAction.stage === 'warning') {
+        if (sample.trackingActive) {
+          const playerCenterX = this.player.x + this.player.width / 2;
+          const placement = resolveHeliosCornerClampPlacement({
+            side: activeSide,
+            viewportWidth: this.width,
+            viewportHeight: this.height,
+            bossWidth: boss.width,
+            bossHeight: boss.height,
+            mobileProfile: this.mobileProfile
+          });
+          clampState.lockedX = clamp(
+            clampState.cornerX + (playerCenterX - this.width / 2) * 0.18,
+            placement.trackingMinX,
+            placement.trackingMaxX
+          );
+        }
+        boss.x = clampState.anchorX
+          + (clampState.lockedX - clampState.anchorX) * sample.movementProgress;
+        boss.y = clampState.anchorY
+          + (clampState.cornerY - clampState.anchorY) * sample.movementProgress;
+      } else {
+        boss.x = clampState.lockedX
+          + (clampState.anchorX - clampState.lockedX) * sample.returnProgress;
+        boss.y = clampState.cornerY
+          + (clampState.anchorY - clampState.cornerY) * sample.returnProgress;
+      }
+      boss.vx = boss.x - previousX;
+      boss.vy = boss.y - previousY;
+      boss.bossPresentationBankRadians = 0;
+      return;
+    }
+    const pincerAction = boss.bossActionPresentation?.primitiveId === 'tracking-pincer-dive'
+      ? boss.bossActionPresentation
+      : undefined;
+    const pincerState = boss.bossTrackingPincerState;
+    if (pincerAction && pincerState) {
+      const durationFrames = Math.max(1, pincerAction.endFrame - pincerAction.startFrame);
+      const actionProgress = clamp(
+        (boss.attackTimer - pincerAction.startFrame) / durationFrames,
+        0,
+        1
+      );
+      if (pincerAction.stage !== 'fire') {
+        boss.vx = 0;
+        boss.vy = 0;
+        return;
+      }
+      const sample = sampleHeliosTrackingPincer({
+        sequence: pincerAction.sequence,
+        progress: actionProgress
+      });
+      const previousX = boss.x;
+      const previousY = boss.y;
+      if (sample.stage === 'rise-open') {
+        boss.x = pincerState.anchorX
+          + (pincerState.riseX - pincerState.anchorX) * sample.progress;
+        boss.y = pincerState.anchorY
+          + (pincerState.riseY - pincerState.anchorY) * sample.progress;
+      } else if (sample.stage === 'track-lock') {
+        if (sample.trackingActive) {
+          const playerCenterX = this.player.x + this.player.width / 2;
+          const playerCenterY = this.player.y + this.player.height / 2;
+          pincerState.targetX = clamp(
+            playerCenterX - boss.width / 2,
+            6,
+            Math.max(6, this.width - boss.width - 6)
+          );
+          pincerState.targetY = clamp(
+            playerCenterY - boss.height * 0.44,
+            this.height * 0.3,
+            Math.max(this.height * 0.3, this.height - boss.height * 0.72)
+          );
+          boss.x += (pincerState.targetX - boss.x) * 0.16;
+          boss.y += (pincerState.riseY - boss.y) * 0.24;
+          pincerState.riseX = boss.x;
+          pincerState.riseY = boss.y;
+        }
+      } else if (sample.stage === 'dive-close') {
+        boss.x = pincerState.riseX
+          + (pincerState.targetX - pincerState.riseX) * sample.diveProgress;
+        boss.y = pincerState.riseY
+          + (pincerState.targetY - pincerState.riseY) * sample.diveProgress;
+      } else {
+        boss.x = pincerState.targetX
+          + (pincerState.anchorX - pincerState.targetX) * sample.returnProgress;
+        boss.y = pincerState.targetY
+          + (pincerState.anchorY - pincerState.targetY) * sample.returnProgress;
+        if (actionProgress >= 0.99) boss.bossTrackingPincerState = undefined;
+      }
+      boss.vx = boss.x - previousX;
+      boss.vy = boss.y - previousY;
+      boss.bossPresentationBankRadians = 0;
+      return;
+    }
+    const cornerRam = boss.bossCornerAmbushRamState;
+    if (cornerRam) {
+      const lock = cornerRam.lock;
+      if (cornerRam.stage === 'warning') {
+        boss.x = lock.startX;
+        boss.y = lock.startY;
+        boss.vx = 0;
+        boss.vy = 0;
+        boss.bossPresentationBankRadians = lock.angleRadians - Math.PI / 2;
+        return;
+      }
+      const durationFrames = Math.max(1, cornerRam.endFrame - cornerRam.startFrame);
+      const rawProgress = clamp(
+        (boss.attackTimer - cornerRam.startFrame) / durationFrames,
+        0,
+        1
+      );
+      const progress = sampleCornerAmbushRamProgress(rawProgress);
+      const previousX = boss.x;
+      const previousY = boss.y;
+      boss.x = lock.startX + (lock.exitX - lock.startX) * progress;
+      boss.y = lock.startY + (lock.exitY - lock.startY) * progress;
+      boss.vx = boss.x - previousX;
+      boss.vy = boss.y - previousY;
+      boss.bossPresentationBankRadians = lock.angleRadians - Math.PI / 2;
+      if (rawProgress < 1) return;
+      boss.bossCornerAmbushRamState = undefined;
+      boss.bossPresentationBankRadians = 0;
+    }
+    const cornerAmbush = boss.bossCornerAmbushBeamState;
+    if (cornerAmbush && boss.attackTimer <= cornerAmbush.holdUntilFrame) {
+      boss.x = cornerAmbush.lock.bossX;
+      boss.y = cornerAmbush.lock.bossY;
+      boss.vx = 0;
+      boss.vy = 0;
+      boss.bossPresentationBankRadians += (0 - boss.bossPresentationBankRadians) * 0.24;
+      return;
+    }
+    if (cornerAmbush) boss.bossCornerAmbushBeamState = undefined;
+    if (boss.bossMovementPathId) {
+      const elapsedFrames = boss.attackTimer - boss.bossMovementPathStartFrame;
+      const durationFrames = Math.max(1, boss.bossMovementPathDurationFrames);
+      if (elapsedFrames >= 0 && elapsedFrames <= durationFrames) {
+        const sample = sampleNormalizedMovementPath(
+          boss.bossMovementPathId,
+          elapsedFrames / durationFrames
+        );
+        boss.x = sample.centerXRatio * this.width - boss.width / 2;
+        boss.y = sample.centerYRatio * this.height - boss.height / 2;
+        boss.vx = 0;
+        boss.vy = 0;
+        boss.bossPresentationBankRadians = sample.bankRadians;
+        return;
+      }
+      boss.bossMovementPathId = undefined;
+      boss.bossMovementPathStartFrame = -1;
+      boss.bossMovementPathDurationFrames = 0;
+    }
+    boss.bossPresentationBankRadians += (0 - boss.bossPresentationBankRadians) * 0.18;
+    if (boss.y < targetEntranceY) {
+      boss.y = Math.min(targetEntranceY, boss.y + entranceSpeed);
+      boss.x += ((this.width - boss.width) / 2 - boss.x) * 0.06;
+      return;
+    }
+    boss.vx = 0;
+    boss.vy = 0;
+    const pattern = boss.movementPattern ?? 'track-player';
+    if (pattern === 'arena-roam' || pattern === 'gatekeeper-cycle') {
+      const pressure = 1 - clamp(healthRatio, 0, 1);
+      const roamWidth = Math.max(24, this.width - boss.width - 24);
+      const targetX = 12 + roamWidth * (0.5 + Math.sin(boss.attackTimer * 0.017) * 0.37);
+      const targetY = targetEntranceY + Math.min(this.height * 0.3, 280)
+        * (0.43 + Math.cos(boss.attackTimer * 0.013) * 0.34);
+      boss.x += (targetX - boss.x) * (0.03 + pressure * 0.016) * boss.activeBossPhaseSpeedMultiplier;
+      boss.y += (targetY - boss.y) * (0.026 + pressure * 0.01) * boss.activeBossPhaseSpeedMultiplier;
+    } else if (pattern === 'sine-drift') {
+      const driftWidth = Math.max(20, this.width - boss.width - 24);
+      const targetX = 12 + driftWidth * (
+        0.5 + Math.sin(boss.attackTimer * 0.018) * 0.38
+      );
+      const targetY = targetEntranceY
+        + Math.min(70, this.height * 0.09)
+        * (0.5 + Math.sin(boss.attackTimer * 0.012 + Math.PI * 0.25) * 0.5);
+      const followRate = 0.022 + Math.min(0.018, speed * 0.004);
+      boss.x += (targetX - boss.x) * followRate;
+      boss.y += (targetY - boss.y) * followRate;
+    } else if (pattern === 'wall-march') {
+      boss.x += Math.cos(boss.attackTimer * 0.018) * speed;
+    } else {
+      const targetX = this.player.x + this.player.width / 2 - boss.width / 2;
+      boss.x += (targetX - boss.x) * 0.018 * boss.activeBossPhaseSpeedMultiplier;
+    }
+    boss.x = clamp(boss.x, 10, Math.max(10, this.width - boss.width - 10));
+    boss.y = clamp(boss.y, targetEntranceY, Math.max(targetEntranceY, this.height * 0.48 - boss.height));
   }
 
   updateEscalationBossAttacks(boss: Entity) {
@@ -7703,13 +11550,20 @@ export class GameEngine {
   }
 
   updateBoss(boss: Entity) {
+    if (this.updateBossRevival(boss)) return;
     boss.attackTimer++;
+    this.applyPreviewBossAttackLoop(boss);
     const healthRatio = boss.maxHp > 0 ? boss.hp / boss.maxHp : 1;
     const resolvedPhase = this.applyConfiguredBossPhase(boss);
+    this.updateBossLiveRotor(boss);
     const legacyConfiguredPhase = boss.phaseThresholds.length > 0
       ? Math.max(1, boss.phaseThresholds.filter((threshold) => healthRatio <= threshold).length)
       : 0;
     const phase = resolvedPhase || legacyConfiguredPhase || Math.max(1, this.stats.wave);
+    if (this.updateConfiguredBossTimeline(boss, phase)) {
+      this.updateTimelineBossMovement(boss, healthRatio);
+      return;
+    }
     if (boss.bossAttackArchetype) {
       this.updateGeneratedBossArchetype(boss, boss.bossAttackArchetype, healthRatio, phase);
       return;
@@ -7746,7 +11600,7 @@ export class GameEngine {
           boss.x += hoverOffset;
       }
     }
-    
+
     boss.x = Math.max(0, Math.min(this.width - boss.width, boss.x));
     const hullPressure = 1 - clamp(healthRatio, 0, 1);
     const pressureCadence = 1 - hullPressure * 0.34;
@@ -7761,7 +11615,7 @@ export class GameEngine {
     ));
     const allowsBeam = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => kind.includes('beam'));
     const allowsBurst = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => !kind.includes('beam'));
-    
+
     if (attackCycle < burstEnd || !allowsBeam) {
         boss.isCharging = false;
         const baseFireRate = boss.attackIntervalFrames ?? Math.max(20, 60 - (phase * 7));
@@ -7784,7 +11638,7 @@ export class GameEngine {
         }
     } else if (attackCycle >= burstEnd && attackCycle < chargeEnd) {
         if (attackCycle === burstEnd || boss.beamLaneSign === 0) {
-          boss.beamLaneSign = Math.random() < 0.5 ? -1 : 1;
+          boss.beamLaneSign = this.gameplayRandom.chance(0.5) ? -1 : 1;
         }
 
         boss.isCharging = true;
@@ -7835,7 +11689,7 @@ export class GameEngine {
       : Array.from(weights.keys()).filter((type) => type !== PowerupType.EXTRA_LIFE);
     const candidates = allowed.length > 0 ? allowed : [PowerupType.DOUBLE_SHOT];
     const totalWeight = candidates.reduce((sum, candidate) => sum + (weights.get(candidate) || 0.01), 0);
-    let roll = Math.random() * totalWeight;
+    let roll = this.nextGameplayRandom() * totalWeight;
     let type = forcedPowerupId && powerupIdToType[forcedPowerupId]
       ? powerupIdToType[forcedPowerupId]
       : candidates[0];
@@ -7849,33 +11703,33 @@ export class GameEngine {
       }
     }
 
-    const p = new Entity(EntityType.POWERUP, x, y);
-    p.text = type; 
+    const p = this.createEntity(EntityType.POWERUP, x, y);
+    p.text = type;
     p.width = 36;
     p.height = 36;
     p.vy = 2.0;
-    p.variant = Math.floor(Math.random() * 1000);
+    p.variant = this.gameplayRandom.integer(0, 1000);
     this.entities.push(p);
     return p;
   }
 
   spawnBombDrop(x: number, y: number) {
-    const b = new Entity(EntityType.BOMB, x, y);
+    const b = this.createEntity(EntityType.BOMB, x, y);
     b.width = 38;
     b.height = 38;
     b.vy = 1.7;
-    b.vx = randomRange(-0.35, 0.35);
-    b.variant = Math.floor(Math.random() * 1000);
+    b.vx = this.gameplayRandomRange(-0.35, 0.35);
+    b.variant = this.gameplayRandom.integer(0, 1000);
     this.entities.push(b);
   }
 
   spawnCoin(x: number, y: number) {
-    const c = new Entity(EntityType.COIN, x, y);
-    c.width = 24; 
+    const c = this.createEntity(EntityType.COIN, x, y);
+    c.width = 24;
     c.height = 24;
     c.vy = 2.0;
-    c.vx = randomRange(-0.25, 0.25);
-    c.variant = Math.floor(Math.random() * 1000);
+    c.vx = this.gameplayRandomRange(-0.25, 0.25);
+    c.variant = this.gameplayRandom.integer(0, 1000);
     this.entities.push(c);
     return c;
   }
@@ -8235,9 +12089,13 @@ export class GameEngine {
       enemy.vy -= normalY * 1.2;
     }
 
+    let appliedDamage = 0;
     if (!protectedFromDamage) {
       const incomingDamage = Math.max(1, Math.round(Number(enemy.contactDamage) || 1));
-      if (!this.testMode) this.lives -= incomingDamage;
+      if (!this.testMode) {
+        this.lives -= incomingDamage;
+        appliedDamage = incomingDamage;
+      }
       this.invincibleTimer = 60;
     } else if (this.activePowerups.has(PowerupType.SHIELD)) {
       const shieldPenalty = bossContact ? 150 : 30;
@@ -8246,6 +12104,7 @@ export class GameEngine {
     }
 
     this.stats.lives = this.lives;
+    this.recordPlayerDamage(appliedDamage);
     const contactX = (playerCenterX + enemyCenterX) / 2;
     const contactY = (playerCenterY + enemyCenterY) / 2;
     const contactColor = protectedFromDamage ? '#67e8f9' : '#fb7185';
@@ -8264,6 +12123,48 @@ export class GameEngine {
     if (!this.testMode && this.lives <= 0) this.startDeathSequence();
   }
 
+  private registerPlayerProjectileHitFeedback(source: Entity, previewSafeHit: boolean) {
+    if (previewSafeHit) {
+      if (
+        this.frameCount - this.lastPreviewPlayerHitFeedbackFrame
+        < PREVIEW_PLAYER_HIT_FEEDBACK_COOLDOWN_FRAMES
+      ) {
+        return;
+      }
+      this.lastPreviewPlayerHitFeedbackFrame = this.frameCount;
+    }
+
+    this.playSound('hit');
+    this.spawnExplosion(this.player.x, this.player.y, '#ffffff');
+    this.spawnFloatingText(
+      this.player.x + this.player.width / 2,
+      this.player.y + 8,
+      'HIT!',
+      '#fb7185',
+      22
+    );
+    this.flashAlpha = Math.max(this.flashAlpha, 0.48);
+    this.addShake(7);
+    this.addHitStop(10);
+    this.kickPlayerSquash(0.22);
+    const shove = this.player.x + this.player.width / 2 < source.x + source.width / 2
+      ? -4.5
+      : 4.5;
+    this.playerVel.x += shove;
+    this.playerVel.y += 2.4;
+  }
+
+  private rotatedBeamIntersectsBox(beam: Entity, box: CollisionBox) {
+    if (beam.beamAngleRadians === null) return false;
+    return rotatedBeamRectangleIntersectsBox({
+      x: beam.x,
+      y: beam.y,
+      width: beam.width,
+      height: beam.height,
+      angleRadians: beam.beamAngleRadians
+    }, box);
+  }
+
   checkCollisions() {
     const collisionBoxes = this.collisionBoxes;
     collisionBoxes.clear();
@@ -8275,7 +12176,26 @@ export class GameEngine {
       }
       return box;
     };
-    const intersectsPlayer = (entity: Entity) => this.boxesIntersect(getBox(this.player), getBox(entity));
+    const intersectsPlayer = (entity: Entity) => {
+      const playerBox = getBox(this.player);
+      if (
+        entity.type === EntityType.BOSS
+        && this.isSelectedPreviewBoss(entity)
+        && (
+          entity.bossActionPresentation?.primitiveId === 'articulated-melee-sweep'
+          || entity.bossActionPresentation?.primitiveId === 'tracking-pincer-dive'
+        )
+      ) {
+        return this.bossMeleeClawsIntersectBox(entity, playerBox);
+      }
+      if (entity.type === EntityType.BOSS && this.getBossCollisionMask(entity)) {
+        return this.bossSilhouetteIntersectsBox(entity, playerBox);
+      }
+      if (entity.isBeam && entity.beamAngleRadians !== null) {
+        return this.rotatedBeamIntersectsBox(entity, playerBox);
+      }
+      return this.boxesIntersect(playerBox, getBox(entity));
+    };
     const enemyTargets = this.enemyTargetsBuffer;
     const playerShots = this.playerShotsBuffer;
     enemyTargets.length = 0;
@@ -8318,7 +12238,9 @@ export class GameEngine {
 
       // 1. Enemies always hurt
       if (isEnemy) {
-          hurtsPlayer = true;
+          hurtsPlayer = e.type !== EntityType.BOSS
+            || !e.bossCornerAmbushRamState
+            || e.bossCornerAmbushRamState.stage === 'charge';
       }
 
       // 2. Projectiles hurt ONLY if they are NOT player shots
@@ -8328,16 +12250,22 @@ export class GameEngine {
               hurtsPlayer = !e.isTelegraph;
           }
           // If it's NOT a player shot, it hurts
-          else if (!e.isPlayerShot && !e.clawReturning && !e.clawHasHitPlayer) {
+          else if (
+            !e.isPlayerShot
+            && !e.clawReturning
+            && !e.clawHasHitPlayer
+            && (!e.heliosMineState || this.isHeliosMineDamageActive(e))
+          ) {
                // EXTRA FAILSAFE: If it's Cyan or Purple, assume it's player ammo (glitch protection)
                if (e.color !== '#00FFFF' && e.color !== '#00ffff' && e.color !== '#6c63ff') {
                    hurtsPlayer = true;
                }
           }
       }
-      
+
       // The Director is an inspection surface, so its preview ship must survive long
       // enough to observe a complete wave without changing production combat rules.
+      const isPreviewInvincible = this.previewMode && this.previewInvincible;
       const isInvincible = (this.previewMode && this.previewInvincible)
         || this.invincibleTimer > 0
         || this.isPowerupActive(PowerupType.SHIELD)
@@ -8354,20 +12282,29 @@ export class GameEngine {
              if (this.isCrownClawProjectile(e)) {
                e.clawReturning = true;
                e.clawHasHitPlayer = true;
-             } else {
-               e.markedForDeletion = true;
-             }
-           }
-           this.spawnBurst(e.x + e.width / 2, e.y + e.height / 2, '#00C851', 7, 4, 4);
-           this.addShake(1.1);
-           this.kickPlayerSquash(0.055);
-           
+              } else if (e.heliosMineState) {
+                e.heliosMineState.hitPlayer = true;
+              } else {
+                e.markedForDeletion = true;
+              }
+            }
+            if (isPreviewInvincible) {
+              // Safe preview keeps the full production hit reaction while suppressing
+              // only damage/death. The cooldown prevents sustained beams from shaking
+              // the camera every simulation frame.
+              this.registerPlayerProjectileHitFeedback(e, true);
+            } else {
+              this.spawnBurst(e.x + e.width / 2, e.y + e.height / 2, '#00C851', 7, 4, 4);
+              this.addShake(1.1);
+              this.kickPlayerSquash(0.055);
+            }
+
            // Blocking hostile fire still consumes shield duration.
            if (this.isPowerupActive(PowerupType.SHIELD)) {
                const currentShieldTime = this.activePowerups.get(PowerupType.SHIELD) || 0;
                const penalty = 30;
                this.activePowerups.set(PowerupType.SHIELD, Math.max(0, currentShieldTime - penalty));
-               
+
                // Also reduce base Invincible timer if active (e.g. from pickup)
                if (this.invincibleTimer > 0) {
                    this.invincibleTimer = Math.max(0, this.invincibleTimer - penalty);
@@ -8380,24 +12317,18 @@ export class GameEngine {
             : Math.max(1, Math.round(Number(e.contactDamage) || 1));
           if (!this.testMode) {
             this.lives -= incomingDamage;
-          }
-          this.stats.lives = this.lives;
-          this.invincibleTimer = 60; 
-          this.playSound('hit');
-          this.spawnExplosion(this.player.x, this.player.y, '#ffffff');
-          this.spawnFloatingText(this.player.x + this.player.width / 2, this.player.y + 8, 'HIT!', '#fb7185', 22);
-          this.flashAlpha = Math.max(this.flashAlpha, 0.48);
-          this.addShake(7);
-          this.addHitStop(10);
-          this.kickPlayerSquash(0.22);
-          const shove = this.player.x + this.player.width / 2 < e.x + e.width / 2 ? -4.5 : 4.5;
-          this.playerVel.x += shove;
-          this.playerVel.y += 2.4;
-          // Only delete bullet if it isn't a beam
+            this.recordPlayerDamage(incomingDamage);
+           }
+           this.stats.lives = this.lives;
+           this.invincibleTimer = 60;
+           this.registerPlayerProjectileHitFeedback(e, false);
+           // Only delete bullet if it isn't a beam
            if (e.type === EntityType.PROJECTILE && !e.isBeam) {
              if (this.isCrownClawProjectile(e)) {
                e.clawReturning = true;
                e.clawHasHitPlayer = true;
+             } else if (e.heliosMineState) {
+               e.heliosMineState.hitPlayer = true;
              } else {
                e.markedForDeletion = true;
              }
@@ -8416,7 +12347,9 @@ export class GameEngine {
 
     for (let index = 0; index < enemyTargets.length; index++) {
       const target = enemyTargets[index];
-      const targetBox = getBox(target);
+      const targetBox = target.type === EntityType.BOSS
+        ? this.getBossDamageBounds(target)
+        : getBox(target);
       const projectilePadding = target.type === EntityType.BOSS ? 64 : 28;
       const startColumn = clamp(Math.floor((targetBox.x - projectilePadding) / COLLISION_COLUMN_WIDTH), 0, collisionColumnCount - 1);
       const endColumn = clamp(Math.floor((targetBox.x + targetBox.width + projectilePadding) / COLLISION_COLUMN_WIDTH), 0, collisionColumnCount - 1);
@@ -8447,7 +12380,18 @@ export class GameEngine {
         )) {
           continue;
         }
-        if (!bossComponent && !this.boxesIntersect(shotBox, getBox(target))) continue;
+        const bossLikeTarget =
+          target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS;
+        if (
+          !bossComponent
+          && (
+            bossLikeTarget
+              ? !this.bossSilhouetteIntersectsBox(target, shotBox)
+              : !this.boxesIntersect(shotBox, getBox(target))
+          )
+        ) {
+          continue;
+        }
 
         if (shot.shipAbilityKind === 'research-charge') {
           this.detonateResearchCharge(shot, shot.x + shot.width / 2, shot.y + shot.height * 0.35);
@@ -8505,12 +12449,14 @@ export class GameEngine {
             shot.markedForDeletion = true;
           }
         }
+        const previousTargetHealth = target.hp;
         if (bossComponent) {
           this.damageBossComponent(target, bossComponent, dmg);
         } else if (target.type === EntityType.BOSS) {
           this.damageBossHull(target, dmg);
         } else {
           target.hp -= dmg;
+          this.recordEntityDamage(target, previousTargetHealth);
           this.flashDamageTarget(target);
         }
         this.registerPrimaryWeaponImpact(target, shot);
@@ -8811,7 +12757,7 @@ export class GameEngine {
     for (let index = 0; index < backgroundSpriteLimit; index++) {
       this.bgEntities[index].draw(ctx);
     }
-    
+
     ctx.save();
     ctx.globalAlpha = 1.0;
     ctx.filter = "none";
@@ -8821,7 +12767,7 @@ export class GameEngine {
     this.drawResearchBeam(ctx);
     this.drawGunPods(ctx);
     if (this.lives > 0 || this.deathSequenceFrames > 0) this.drawEntity(ctx, this.player);
-    
+
     const invaders = this.invaderDrawBuffer;
     invaders.length = 0;
     for (const entity of this.entities) {
@@ -8836,35 +12782,35 @@ export class GameEngine {
             if (inv.x + inv.width > maxX) maxX = inv.x + inv.width;
             if (inv.y < minY) minY = inv.y;
         }
-        
+
         if (minY < Infinity) {
             const centerX = (minX + maxX) / 2;
             const topY = minY;
-            
+
             ctx.save();
             ctx.font = 'bold 16px Orbitron';
             ctx.fillStyle = '#ff4444';
             ctx.textAlign = 'center';
             ctx.fillText("PAYWALL", centerX, topY - 35);
-            
+
             const barWidth = 100;
             const barHeight = 8;
             const barY = topY - 20;
-            
+
             ctx.fillStyle = 'rgba(0,0,0,0.9)';
             ctx.fillRect(centerX - barWidth/2, barY, barWidth, barHeight);
             ctx.strokeStyle = 'rgba(255,255,255,0.8)';
             ctx.lineWidth = 1;
             ctx.strokeRect(centerX - barWidth/2, barY, barWidth, barHeight);
-            
+
             const pct = Math.max(0, this.stats.bossHp / this.stats.bossMaxHp);
-            
+
             ctx.fillStyle = pct > 0.5 ? '#00FF00' : '#FF0000';
             ctx.fillRect(centerX - barWidth/2 + 1, barY + 1, (barWidth-2) * pct, barHeight - 2);
             ctx.restore();
         }
     }
-    
+
     ctx.restore();
     ctx.restore();
 
@@ -8914,7 +12860,8 @@ export class GameEngine {
   }
 
   drawHitFlash(ctx: CanvasRenderingContext2D, e: Entity) {
-      if (e.flashFrames <= 0) return;
+    if (e.type === EntityType.BOSS || e.type === EntityType.MINI_BOSS) return;
+    if (e.flashFrames <= 0) return;
 
       const alpha = Math.min(0.52, e.flashFrames / 12);
       const flashSprite = this.getHitFlashSprite(e);
@@ -8989,7 +12936,7 @@ export class GameEngine {
 
     return null;
   }
-  
+
   drawMiniBoss(ctx: CanvasRenderingContext2D, e: Entity) {
       this.drawHealthBar(ctx, e, 12);
       ctx.globalAlpha = 1.0;
@@ -9086,7 +13033,7 @@ export class GameEngine {
       ctx.save();
       const barWidth = e.width;
       const barHeight = height;
-      const yOffset = -e.height/2 - 20; 
+      const yOffset = -e.height/2 - 20;
       ctx.fillStyle = 'rgba(0,0,0,0.9)';
       ctx.fillRect(-barWidth/2, yOffset, barWidth, barHeight);
       ctx.strokeStyle = 'rgba(255,255,255,0.8)';
@@ -9097,7 +13044,7 @@ export class GameEngine {
       ctx.fillRect(-barWidth/2 + 1, yOffset + 1, (barWidth-2) * pct, barHeight - 2);
       ctx.restore();
   }
-  
+
   drawLaser(ctx: CanvasRenderingContext2D, e: Entity) {
       const flicker = Math.random() * 10;
       const glowColor = e.color || '#ff0000';
@@ -9364,7 +13311,7 @@ export class GameEngine {
     ctx.save();
     ctx.translate(e.x + e.width / 2, e.y + e.height / 2);
     ctx.globalAlpha = 1.0;
-    
+
     if (e.type === EntityType.PLAYER) {
        const img = imageCache[this.playerShipUrl];
        const squash = clamp(this.playerSquash, -0.24, 0.24);
@@ -9403,7 +13350,7 @@ export class GameEngine {
 
        if (this.activePowerups.has(PowerupType.MAGNET)) {
            const pulse = Math.sin(this.frameCount * 0.1) * 5;
-           ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)'; 
+           ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
            ctx.lineWidth = 2;
            ctx.beginPath();
            ctx.arc(0, 0, e.width/2 + 10 + pulse, 0, Math.PI * 2);
@@ -9418,7 +13365,7 @@ export class GameEngine {
          ctx.rotate(this.frameCount * 0.05);
          ctx.strokeStyle = '#00C851';
          ctx.lineWidth = 3;
-         ctx.setLineDash([15, 10]); 
+         ctx.setLineDash([15, 10]);
          ctx.beginPath();
          ctx.arc(0, 0, e.width/2 + 15, 0, Math.PI * 2);
          ctx.stroke();
@@ -9531,7 +13478,7 @@ export class GameEngine {
         const type = e.text as PowerupType;
         ctx.shadowBlur = 12;
         ctx.shadowColor = '#67e8f9';
-        
+
         let frames: readonly string[] = ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES;
         if (type === PowerupType.MAGNET) frames = ASSETS.POWERUP_MAGNET_FRAMES;
         if (type === PowerupType.SHIELD) frames = ASSETS.POWERUP_SHIELD_FRAMES;
@@ -9540,7 +13487,7 @@ export class GameEngine {
         if (type === PowerupType.MAX_SHOT) frames = [ASSETS.POWERUP_MAX_SHOT];
         const frameIndex = Math.floor((this.frameCount + e.variant) / 8) % frames.length;
         const imgUrl = frames[frameIndex];
-        
+
         const img = loadImage(imgUrl);
         if (img && img.complete && img.naturalWidth > 0) {
             ctx.drawImage(img, -23, -23, 46, 46);
@@ -9569,7 +13516,7 @@ export class GameEngine {
         }
         // DRAW AS BRICK EMOJI
         // INCREASE FONT SIZE FOR BIGGER BRICKS
-        ctx.font = `${e.height}px Arial`; 
+        ctx.font = `${e.height}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#B22222'; // fallback color if text fails
@@ -9674,7 +13621,7 @@ export class GameEngine {
                 const jitterX = (Math.random() - 0.5) * 4;
                 const jitterY = (Math.random() - 0.5) * 4;
                 ctx.shadowBlur = this.getGlowBlur(20);
-                ctx.shadowColor = '#00FFFF'; 
+                ctx.shadowColor = '#00FFFF';
                 ctx.fillStyle = this.frameCount % 10 < 5 ? '#FFF' : '#00FFFF';
                 ctx.fillText(eff.text || "", jitterX, jitterY);
                 if (Math.random() > 0.7) {
@@ -9715,7 +13662,7 @@ export class GameEngine {
     } else if (e.type === EntityType.MISSILE) {
         // Draw Missile
         const isMaxLevel = e.color === '#ff0055';
-        
+
         ctx.save();
         if (isMaxLevel) {
              // COOL EFFECT: Pulsing aura
@@ -9728,28 +13675,28 @@ export class GameEngine {
              ctx.shadowBlur = this.getGlowBlur(10);
              ctx.shadowColor = '#00ffff';
         }
-        
+
         ctx.rotate(Math.atan2(e.vy, e.vx) + Math.PI/2);
-        
+
         ctx.beginPath();
         ctx.moveTo(0, -10);
         ctx.lineTo(5, 5);
         ctx.lineTo(-5, 5);
         ctx.closePath();
         ctx.fill();
-        
+
         // Engine glow
         ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.arc(0, 5, isMaxLevel ? 4 : 2, 0, Math.PI*2);
         ctx.fill();
-        
+
         ctx.shadowBlur = 0;
         ctx.restore();
 
     } else if (e.type === EntityType.PROJECTILE) {
         ctx.save();
-        ctx.globalAlpha = 1.0; 
+        ctx.globalAlpha = 1.0;
         ctx.filter = "none";
         ctx.globalCompositeOperation = e.isPlayerShot ? 'source-over' : 'lighter';
         const leanShot = e.isPlayerShot && this.shouldUseLeanEffects();
@@ -9764,7 +13711,7 @@ export class GameEngine {
           : this.getGlowBlur(leanShot ? 5 : 12);
         ctx.shadowColor = e.color || (e.isPlayerShot ? '#67e8f9' : '#fb7185');
 
-        if (e.text) { 
+        if (e.text) {
            ctx.font = '24px serif';
            ctx.textAlign = 'center';
            ctx.textBaseline = 'middle';
@@ -9999,9 +13946,9 @@ export class GameEngine {
         }
         ctx.restore();
     } else {
-        ctx.fillStyle = e.color; 
+        ctx.fillStyle = e.color;
         if (e.text) {
-          ctx.font = '24px Arial'; 
+          ctx.font = '24px Arial';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(e.text, 0, 0);
@@ -10013,7 +13960,7 @@ export class GameEngine {
     if (this.isEnemyTarget(e)) {
       this.drawHitFlash(ctx, e);
     }
-    
+
     ctx.restore();
   }
 }

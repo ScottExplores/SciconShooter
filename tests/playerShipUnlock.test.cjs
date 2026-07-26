@@ -105,6 +105,6 @@ test('equipped mini-ships replace the old duplicate-player gun pods', () => {
   assert.match(runtimeSource, /private spawnSquadCompanionBullet\(companion: ActiveSquadCompanion\)/);
   assert.match(runtimeSource, /return EMPTY_GUN_POD_OFFSETS/);
   assert.match(runtimeSource, /sampleTripleShotSideAngleRadians/);
-  assert.match(runtimeSource, /const sideAngle = sampleTripleShotSideAngleRadians\(side, Math\.random\(\)\)/);
+  assert.match(runtimeSource, /const sideAngle = sampleTripleShotSideAngleRadians\(side, this\.nextGameplayRandom\(\)\)/);
   assert.match(runtimeSource, /angleBias: sideAngle/);
 });

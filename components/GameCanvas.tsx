@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   GameEngine,
   preloadGameplayAssets as preloadEngineGameplayAssets,
@@ -11,11 +11,28 @@ import type { GameCampaign } from '../game-config/types';
 import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
 import { audioService } from '../services/audioService';
-import { PixiGameRenderer, preloadPixiGameplayTextures } from '../services/pixi/PixiGameRenderer';
+import {
+  PixiGameRenderer,
+  preloadPixiGameplayTextures,
+  type PreviewBossArtwork
+} from '../services/pixi/PixiGameRenderer';
 import { resolveCampaignEnvironmentWindow } from '../services/pixi/PixiEnvironment';
 import { DEFAULT_GAME_CAMPAIGN } from '../services/levelConfig';
 import type { RuntimeSquadLoadout } from '../services/squadProgression';
 import type { PlayerShipId } from '../services/playerShipService';
+import {
+  clampPreviewTimeScale,
+  type PreviewCommand,
+  type PreviewCommandResult,
+  type PreviewSnapshot
+} from '../services/gameplay/previewSession';
+import type { GameplayRandomSeed } from '../services/gameplay/random';
+import {
+  createBoundedGameplayTelemetrySink,
+  type GameplayTelemetrySnapshot
+} from '../services/gameplay/telemetry';
+import { createModularBossWeaponSocketPoseSampler } from '../services/pixi/boss-rigs/ModularBossWeaponSocketRuntime';
+import type { BossModularProjectileVisualKind } from '../services/gameplay/bosses/BossProjectilePresentationRuntime';
 
 export const preloadGameplayAssets = async () => {
   await Promise.all([
@@ -26,6 +43,7 @@ export const preloadGameplayAssets = async () => {
 
 const HUD_STATS_SYNC_INTERVAL_MS = 650;
 const RUNTIME_STATE_SYNC_INTERVAL_MS = 200;
+const TELEMETRY_SYNC_INTERVAL_MS = 500;
 const SIMULATION_STEP_MS = 1000 / 60;
 const MAX_SIMULATION_STEPS_PER_FRAME = 4;
 
@@ -121,15 +139,29 @@ export interface GameCanvasProps {
   waveId?: string;
   previewMode?: boolean;
   audioEnabled?: boolean;
+  /** Allows preview tools to enable sound effects without starting mission music. */
+  musicEnabled?: boolean;
   autoFire?: boolean;
   /** Preview-only simulation speed multiplier. The production game stays at 1x. */
   timeScale?: number;
   /** Allow preview tools to exercise real damage without changing production behavior. */
   previewInvincible?: boolean;
+  /** Preview-only infinite bomb inventory. */
+  previewUnlimitedBombs?: boolean;
+  /** Preview-only immediate reuse of the selected ship ability. */
+  previewShipAbilityNoCooldown?: boolean;
   /** Stable life count used when a preview runtime is reconstructed from an edited campaign. */
   previewStartingLives?: number;
   /** Fixed logical viewport used only by local preview tools. */
   previewViewport?: Readonly<{ width: number; height: number }>;
+  /** Optional presentation-only boss art for one exact preview event. */
+  previewBossArtwork?: PreviewBossArtwork;
+  /** Stable deterministic seed used only when explicitly supplied by preview/test tools. */
+  previewSeed?: GameplayRandomSeed;
+  /** Unified idempotent command channel for local preview tools. */
+  previewCommand?: PreviewCommand | null;
+  onPreviewPlayingChange?: (playing: boolean) => void;
+  onPreviewCommandResult?: (result: PreviewCommandResult) => void;
   restartToken?: number;
   testMode?: boolean;
   testWaveCommand?: { nonce: number; wave: number } | null;
@@ -140,6 +172,10 @@ export interface GameCanvasProps {
   onDebugSnapshot?: (snapshot: GameEngineDebugSnapshot) => void;
   /** Preview-only entity positions for direct manipulation in the local editor. */
   onEditorSnapshot?: (snapshot: GameEditorSnapshot) => void;
+  /** Bounded, low-frequency local simulation telemetry. Ignored outside preview mode. */
+  onTelemetrySnapshot?: (snapshot: GameplayTelemetrySnapshot) => void;
+  /** Compact preview state published on the existing low-frequency runtime cadence. */
+  onPreviewSnapshot?: (snapshot: PreviewSnapshot) => void;
 }
 
 const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -165,11 +201,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   waveId,
   previewMode = false,
   audioEnabled = !previewMode,
+  musicEnabled = audioEnabled,
   autoFire = false,
   timeScale = 1,
   previewInvincible = true,
+  previewUnlimitedBombs = false,
+  previewShipAbilityNoCooldown = false,
   previewStartingLives,
   previewViewport,
+  previewBossArtwork,
+  previewSeed,
+  previewCommand = null,
+  onPreviewPlayingChange,
+  onPreviewCommandResult,
   restartToken = 0,
   testMode = false,
   testWaveCommand = null,
@@ -177,7 +221,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   testFlaskCommand = null,
   onRuntimeState,
   onDebugSnapshot,
-  onEditorSnapshot
+  onEditorSnapshot,
+  onTelemetrySnapshot,
+  onPreviewSnapshot
 }) => {
   const previewViewportWidth = previewMode && previewViewport
     ? Math.max(1, Math.round(previewViewport.width))
@@ -185,6 +231,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const previewViewportHeight = previewMode && previewViewport
     ? Math.max(1, Math.round(previewViewport.height))
     : undefined;
+  const setupPlayerShipIdDependency = previewMode ? null : playerShipId;
+  const setupPlayerShipUrlDependency = previewMode ? null : playerShipUrl;
+  const setupSquadLoadoutDependency = previewMode ? null : squadLoadout;
   const hostRef = useRef<HTMLDivElement>(null);
   const pixiRendererRef = useRef<PixiGameRenderer | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
@@ -198,6 +247,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const handledTestWaveNonceRef = useRef<number | null>(null);
   const handledTestBossNonceRef = useRef<number | null>(null);
   const handledTestFlaskNonceRef = useRef<number | null>(null);
+  const handledPreviewCommandNonceRef = useRef<number | null>(null);
+  const previewCommandRef = useRef<PreviewCommand | null>(previewCommand);
   const activeTouchIdRef = useRef<number | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const lastPublishedStatsRef = useRef<Stats | null>(null);
@@ -207,7 +258,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const keysRef = useRef<Record<string, boolean>>(autoFire ? { ' ': true } : {});
   const runningRef = useRef(running);
   const testModeRef = useRef(testMode);
-  const timeScaleRef = useRef(Math.max(0.25, Math.min(2, timeScale)));
+  const timeScaleRef = useRef(clampPreviewTimeScale(timeScale));
   const previewInvincibleRef = useRef(previewInvincible);
   const isTransmissionOpenRef = useRef(isTransmissionOpen);
   const onStatsChangeRef = useRef(onStatsChange);
@@ -219,6 +270,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const onRuntimeStateRef = useRef(onRuntimeState);
   const onDebugSnapshotRef = useRef(onDebugSnapshot);
   const onEditorSnapshotRef = useRef(onEditorSnapshot);
+  const onTelemetrySnapshotRef = useRef(onTelemetrySnapshot);
+  const onPreviewSnapshotRef = useRef(onPreviewSnapshot);
+  const onPreviewPlayingChangeRef = useRef(onPreviewPlayingChange);
+  const onPreviewCommandResultRef = useRef(onPreviewCommandResult);
+  const runtimeLoadoutRef = useRef({
+    playerShipId,
+    playerShipUrl,
+    squadLoadout
+  });
+  runtimeLoadoutRef.current = {
+    playerShipId,
+    playerShipUrl,
+    squadLoadout
+  };
 
   useEffect(() => {
     onStatsChangeRef.current = onStatsChange;
@@ -253,7 +318,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [onDebugSnapshot]);
 
   useEffect(() => {
-    timeScaleRef.current = Math.max(0.25, Math.min(2, timeScale));
+    timeScaleRef.current = clampPreviewTimeScale(timeScale);
   }, [timeScale]);
 
   useEffect(() => {
@@ -264,6 +329,181 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     onEditorSnapshotRef.current = onEditorSnapshot;
   }, [onEditorSnapshot]);
+
+  useEffect(() => {
+    onTelemetrySnapshotRef.current = onTelemetrySnapshot;
+  }, [onTelemetrySnapshot]);
+
+  useEffect(() => {
+    onPreviewSnapshotRef.current = onPreviewSnapshot;
+  }, [onPreviewSnapshot]);
+
+  useEffect(() => {
+    onPreviewPlayingChangeRef.current = onPreviewPlayingChange;
+  }, [onPreviewPlayingChange]);
+
+  useEffect(() => {
+    onPreviewCommandResultRef.current = onPreviewCommandResult;
+  }, [onPreviewCommandResult]);
+
+  const publishPreviewEngineState = useCallback((engine: GameEngine) => {
+    const statsSnapshot = cloneStatsForReact(engine.stats);
+    lastPublishedStatsRef.current = statsSnapshot;
+    onStatsChangeRef.current(statsSnapshot);
+    onRuntimeStateRef.current?.(engine.getRuntimeState());
+    onDebugSnapshotRef.current?.(engine.getDebugSnapshot());
+    onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
+    const previewSnapshot = engine.getPreviewSnapshot({
+      playing: runningRef.current,
+      timeScale: timeScaleRef.current,
+      invincible: previewInvincibleRef.current
+    });
+    onPreviewSnapshotRef.current?.(previewSnapshot);
+    return previewSnapshot;
+  }, []);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!previewMode || !engine) return;
+    if (!engine.applyPreviewLoadout({
+      playerShipId,
+      playerShipUrl,
+      squadLoadout
+    })) return;
+    publishPreviewEngineState(engine);
+  }, [
+    playerShipId,
+    playerShipUrl,
+    previewMode,
+    publishPreviewEngineState,
+    squadLoadout
+  ]);
+
+  const applyPreviewCommand = useCallback(async (
+    engine: GameEngine,
+    command: PreviewCommand
+  ) => {
+    if (handledPreviewCommandNonceRef.current === command.nonce) return;
+    handledPreviewCommandNonceRef.current = command.nonce;
+    let handled = true;
+    let capture: PreviewCommandResult['capture'];
+
+    switch (command.type) {
+      case 'play':
+        runningRef.current = true;
+        gameOverSentRef.current = false;
+        if (autoFire) keysRef.current[' '] = true;
+        engine.handleInput(keysRef.current, null);
+        onPreviewPlayingChangeRef.current?.(true);
+        break;
+      case 'pause':
+        runningRef.current = false;
+        engine.handleInput({}, null);
+        onPreviewPlayingChangeRef.current?.(false);
+        break;
+      case 'restart':
+        engine.restartPreview();
+        engine.handleInput(runningRef.current ? keysRef.current : {}, null);
+        break;
+      case 'set-time-scale':
+        timeScaleRef.current = clampPreviewTimeScale(command.timeScale);
+        break;
+      case 'set-invincibility':
+        previewInvincibleRef.current = command.enabled;
+        engine.setPreviewInvincible(command.enabled);
+        break;
+      case 'set-seed':
+        engine.setGameplayRandomSeed(command.seed);
+        engine.restartPreview();
+        engine.handleInput(runningRef.current ? keysRef.current : {}, null);
+        break;
+      case 'step-frame':
+        handled = !runningRef.current && engine.stepPreviewFrame();
+        break;
+      case 'set-boss-health':
+        handled = engine.setPreviewBossHealthRatio(
+          command.healthRatio,
+          command.eventId
+        );
+        break;
+      case 'set-boss-max-health':
+        handled = engine.setPreviewBossMaxHealth(
+          command.maxHealth,
+          command.eventId
+        );
+        break;
+      case 'set-boss-component-max-health':
+        handled = engine.setPreviewBossComponentMaxHealth(
+          command.componentId,
+          command.maxHealth,
+          command.eventId
+        );
+        break;
+      case 'set-debug-overlays':
+        handled = pixiRendererRef.current?.setPreviewDebugOverlays(command.overlays) ?? false;
+        break;
+      case 'set-boss-reference-comparison':
+        handled = pixiRendererRef.current?.setPreviewBossReferenceComparison(
+          command.comparison
+        ) ?? false;
+        break;
+      case 'capture-frame': {
+        const dataUrl = await pixiRendererRef.current?.capturePngDataUrl();
+        handled = Boolean(dataUrl);
+        capture = dataUrl
+          ? { mimeType: 'image/png', dataUrl }
+          : undefined;
+        break;
+      }
+      case 'load-target':
+        handled = engine.loadPreviewWave(command.levelId, command.waveId);
+        break;
+      case 'jump-to-stage':
+        handled = engine.jumpToCampaignWave(Math.max(1, Math.floor(command.stage)));
+        break;
+      case 'jump-to-boss':
+        handled = engine.jumpToCampaignBoss(Math.max(1, Math.floor(command.stage)));
+        break;
+      case 'spawn-event-now':
+        handled = engine.spawnPreviewEventNow(command.eventId);
+        break;
+      case 'jump-to-boss-phase':
+        handled = engine.jumpToAuthoredBossPhase(command.phaseId, command.eventId);
+        break;
+      case 'trigger-boss-attack':
+        handled = engine.triggerAuthoredBossAttack(
+          command.attackId,
+          command.eventId,
+          command.phaseId,
+          command.loop ?? false
+        );
+        break;
+      case 'seek-to-frame':
+        handled = engine.seekPreviewToFrame(command.frame);
+        break;
+      case 'fast-forward':
+        handled = engine.fastForwardPreviewFrames(command.frames);
+        break;
+    }
+
+    const snapshot = handled ? publishPreviewEngineState(engine) : undefined;
+    onPreviewCommandResultRef.current?.({
+      nonce: command.nonce,
+      type: command.type,
+      handled,
+      snapshot,
+      capture
+    });
+  }, [autoFire, publishPreviewEngineState]);
+
+  const applyPreviewCommandRef = useRef(applyPreviewCommand);
+  applyPreviewCommandRef.current = applyPreviewCommand;
+
+  useEffect(() => {
+    previewCommandRef.current = previewCommand;
+    if (!previewMode || !previewCommand || !engineRef.current) return;
+    void applyPreviewCommand(engineRef.current, previewCommand);
+  }, [applyPreviewCommand, previewCommand, previewMode]);
 
   useEffect(() => {
     runningRef.current = running;
@@ -429,6 +669,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     onStatsChangeRef.current(statsSnapshot);
     onRuntimeStateRef.current?.(engine.getRuntimeState());
     onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
+    onPreviewSnapshotRef.current?.(engine.getPreviewSnapshot({
+      playing: runningRef.current,
+      timeScale: timeScaleRef.current,
+      invincible: previewInvincibleRef.current
+    }));
   }, [autoFire, levelId, previewMode, waveId]);
 
   useEffect(() => {
@@ -445,6 +690,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     onStatsChangeRef.current(statsSnapshot);
     onRuntimeStateRef.current?.(engine.getRuntimeState());
     onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
+    onPreviewSnapshotRef.current?.(engine.getPreviewSnapshot({
+      playing: runningRef.current,
+      timeScale: timeScaleRef.current,
+      invincible: previewInvincibleRef.current
+    }));
   }, [autoFire, previewMode, restartToken]);
 
   useEffect(() => {
@@ -458,7 +708,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const initialRect = host.getBoundingClientRect();
       const initialWidth = previewViewportWidth ?? Math.max(1, Math.round(initialRect.width || 720));
       const initialHeight = previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
-      const renderer = new PixiGameRenderer();
+      const renderer = new PixiGameRenderer({
+        previewBossArtwork: previewMode ? previewBossArtwork : undefined
+      });
       pendingRenderer = renderer;
       const initialEnvironmentWindow = resolveCampaignEnvironmentWindow(
         campaign ?? DEFAULT_GAME_CAMPAIGN,
@@ -483,17 +735,62 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         initialStats.lives = previewStartingLives;
       }
 
+      const telemetrySink = previewMode
+        ? createBoundedGameplayTelemetrySink({ maxEvents: 1024 })
+        : undefined;
+      if (audioEnabled) {
+        audioService.setMusicPlaybackEnabled(musicEnabled);
+      }
+      const initialLoadout = runtimeLoadoutRef.current;
+      const previewBossReducedMotion = previewMode
+        && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
+      const previewBossWeaponSocketPoseSampler = (
+        previewMode
+        && previewBossArtwork?.modularRig
+        && previewBossArtwork.sampleModularPose
+      )
+        ? createModularBossWeaponSocketPoseSampler(
+            previewBossArtwork.modularRig,
+            previewBossArtwork.sampleModularPose
+          )
+        : undefined;
       const engine = new GameEngine(initialStats, {
         campaign,
         previewMode,
         previewInvincible: previewInvincibleRef.current,
+        previewUnlimitedBombs,
+        previewShipAbilityNoCooldown,
         audioEnabled,
-        playerShipUrl,
-        playerShipId,
-        squadLoadout,
+        playerShipUrl: initialLoadout.playerShipUrl,
+        playerShipId: initialLoadout.playerShipId,
+        squadLoadout: initialLoadout.squadLoadout,
         initialLevelId: levelId,
         initialWaveId: waveId,
-        testMode: testModeRef.current
+        testMode: testModeRef.current,
+        randomSeed: previewMode ? previewSeed : undefined,
+        previewBossCollisionEventId: previewMode
+          ? previewBossArtwork?.eventId
+          : undefined,
+        previewBossCollisionMask: previewMode
+          ? previewBossArtwork?.collisionMask
+          : undefined,
+        previewBossArtworkDesignSize: previewMode
+          ? previewBossArtwork?.modularRig?.manifest.designSize
+          : undefined,
+        previewBossWeaponSockets: previewMode
+          ? previewBossArtwork?.weaponSockets
+          : undefined,
+        previewBossWeaponSocketPoseSampler,
+        previewBossReducedMotion,
+        previewBossWeaponSocketEventId: previewMode
+          ? previewBossArtwork?.eventId
+          : undefined,
+        previewBossProjectileVisualKinds: previewMode && previewBossArtwork?.projectileAnimations
+          ? Object.keys(
+              previewBossArtwork.projectileAnimations
+            ) as BossModularProjectileVisualKind[]
+          : undefined,
+        telemetrySink
       });
       engine.polishSettings = polishSettings;
       engineRef.current = engine;
@@ -505,6 +802,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       let simulationAccumulator = 0;
       let lastRenderTime = 0;
       let lastRuntimeStatePublishTime = 0;
+      let lastTelemetryPublishTime = 0;
       let deathSequenceSafetyTimer: number | null = null;
       let readinessReported = false;
 
@@ -568,6 +866,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     onRuntimeStateRef.current?.(engine.getRuntimeState());
     onDebugSnapshotRef.current?.(engine.getDebugSnapshot());
     onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
+    if (previewMode) {
+      onPreviewSnapshotRef.current?.(engine.getPreviewSnapshot({
+        playing: runningRef.current,
+        timeScale: timeScaleRef.current,
+        invincible: previewInvincibleRef.current
+      }));
+    }
+    if (previewMode && telemetrySink) {
+      onTelemetrySnapshotRef.current?.(telemetrySink.getSnapshot());
+    }
+    if (previewMode && previewCommandRef.current) {
+      void applyPreviewCommandRef.current(engine, previewCommandRef.current);
+    }
 
     const publishHudStats = (force = false, timestamp = performance.now()) => {
       const elapsedMs = timestamp - lastStatsPublishTimeRef.current;
@@ -845,6 +1156,21 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         onRuntimeStateRef.current?.(engine.getRuntimeState());
         onDebugSnapshotRef.current?.(engine.getDebugSnapshot());
         onEditorSnapshotRef.current?.(engine.getEditorSnapshot());
+        if (previewMode) {
+          onPreviewSnapshotRef.current?.(engine.getPreviewSnapshot({
+            playing: runningRef.current,
+            timeScale: timeScaleRef.current,
+            invincible: previewInvincibleRef.current
+          }));
+        }
+      }
+      if (
+        previewMode
+        && telemetrySink
+        && timestamp - lastTelemetryPublishTime >= TELEMETRY_SYNC_INTERVAL_MS
+      ) {
+        lastTelemetryPublishTime = timestamp;
+        onTelemetrySnapshotRef.current?.(telemetrySink.getSnapshot());
       }
       
       requestRef.current = requestAnimationFrame(animate);
@@ -854,6 +1180,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
 
     disposeRuntime = () => {
       // Cleanup: Stop loop and remove listeners
+      engine.stopTelemetrySession('disposed');
+      if (previewMode && telemetrySink) {
+        onTelemetrySnapshotRef.current?.(telemetrySink.getSnapshot());
+      }
       if (engineRef.current) engineRef.current.gameActive = false;
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
       if (deathSequenceSafetyTimer !== null) window.clearTimeout(deathSequenceSafetyTimer);
@@ -877,6 +1207,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (audioEnabled) audioService.stopMusic();
+      if (audioEnabled && !musicEnabled) audioService.setMusicPlaybackEnabled(true);
       if (engineRef.current === engine) engineRef.current = null;
       if (pixiRendererRef.current === renderer) pixiRendererRef.current = null;
       renderer.destroy();
@@ -886,10 +1217,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     void setupRuntime().catch((error) => {
+      if (disposed) return;
       pendingRenderer?.destroy();
       pendingRenderer = null;
       console.error('Failed to initialize the Pixi gameplay renderer.', error);
-      if (!disposed) onInitializationErrorRef.current?.(error);
+      onInitializationErrorRef.current?.(error);
     });
 
     return () => {
@@ -898,7 +1230,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [audioEnabled, campaign, playerShipId, playerShipUrl, previewMode, previewStartingLives, previewViewportHeight, previewViewportWidth, squadLoadout]);
+  }, [audioEnabled, campaign, musicEnabled, previewBossArtwork, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
 
   return (
     <div

@@ -27,6 +27,8 @@ export interface UIOverlayProps {
   onUpgrade: (type: FieldUpgradeType) => void;
   bombIconSrc?: string;
   bombLocked?: boolean;
+  /** Shows an infinite count and keeps the preview bomb action enabled. */
+  unlimitedBombs?: boolean;
 }
 
 type HudIconName = 'play' | 'pause' | 'freeze' | 'lab' | 'ship' | 'heart' | 'bomb' | 'flask' | 'bolt' | 'plus';
@@ -236,7 +238,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   fieldUpgradesEnabled = true,
   onUpgrade,
   bombIconSrc = getPrimaryAssetPath(DEFAULT_GAME_CAMPAIGN.hudAssets.bombIconAssetKey),
-  bombLocked = false
+  bombLocked = false,
+  unlimitedBombs = false
 }) => {
   useEffect(() => {
     if (!showLabGlow) return;
@@ -254,7 +257,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const flaskCount = flaskProgress.storedFlasks;
   const nextFlaskPct = flaskProgress.nextFlaskPct;
   const bombs = stats.bombs || 0;
-  const canUseBomb = bombs > 0 && !bombLocked;
+  const canUseBomb = (unlimitedBombs || bombs > 0) && !bombLocked;
   const abilityDefinition = getShipAbilityDefinition(selectedShipId ?? 'researchhub');
   const abilityCooldownMax = stats.shipAbilityCooldownMax || abilityDefinition.cooldownFrames;
   const abilityCooldown = Math.max(0, stats.shipAbilityCooldown || 0);
@@ -381,7 +384,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             <span className="pointer-events-none absolute -inset-2 rounded-[28px] border border-yellow-200/35 bg-yellow-300/12 animate-ping" />
           ) : null}
           <span className="absolute -left-1.5 -top-1.5 z-10 flex h-6 min-w-6 items-center justify-center rounded-full border border-cyan-100/60 bg-slate-950 px-1 text-xs font-black text-cyan-100">
-            {bombs}
+            {unlimitedBombs ? '∞' : bombs}
           </span>
           <div className="absolute inset-1 rounded-[18px] bg-[radial-gradient(circle_at_50%_20%,rgba(250,204,21,0.2),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.1),rgba(0,0,0,0.42))]" />
           <BombSprite active={canUseBomb} src={bombIconSrc} />

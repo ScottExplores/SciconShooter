@@ -1,0 +1,309 @@
+{
+  "schemaVersion": 2,
+  "bossId": "helios-clawcarrier",
+  "status": "sandbox-only-factory-ready",
+  "fixedSeed": "helios-v2-safe-route-proof",
+  "authoritative": {
+    "rigKind": "modular-hierarchy-v1",
+    "designSize": {
+      "width": 460,
+      "height": 330
+    },
+    "neutralSha256": "a4797077b4da9c1569d861cb11273383913f5a71dbb05ddadbac53e80c93d8d0",
+    "atlasSha256": "47e8fd0f33c6e6a53589567327f7325c73e1a7d70f964025023b71a820c405ea",
+    "parts": [
+      "root",
+      "claw.port.mount",
+      "claw.port",
+      "claw.starboard.mount",
+      "claw.starboard",
+      "mandible.port",
+      "mandible.starboard",
+      "body",
+      "leg.outer-port",
+      "leg.inner-port",
+      "leg.inner-starboard",
+      "leg.outer-starboard",
+      "reactor",
+      "weapons.mount",
+      "rotary.port",
+      "rotary.starboard",
+      "muzzle.port",
+      "muzzle.starboard"
+    ],
+    "spriteFrames": [
+      "body.closed",
+      "body.open",
+      "body.damaged",
+      "claw.port.shell",
+      "claw.port.attack",
+      "claw.starboard.shell",
+      "claw.starboard.attack",
+      "mandible.port",
+      "mandible.starboard",
+      "leg.outer-port",
+      "leg.inner-port",
+      "leg.inner-starboard",
+      "leg.outer-starboard",
+      "reactor.closed",
+      "reactor.open",
+      "rotary.port.0-3",
+      "rotary.starboard.0-3",
+      "muzzle.flash.2"
+    ],
+    "sockets": [
+      {
+        "id": "heavy-muzzle-port",
+        "kind": "projectile-muzzle",
+        "owner": "rotary.port"
+      },
+      {
+        "id": "heavy-muzzle-starboard",
+        "kind": "projectile-muzzle",
+        "owner": "rotary.starboard"
+      },
+      {
+        "id": "rotary-muzzle-port",
+        "kind": "projectile-muzzle",
+        "owner": "rotary.port"
+      },
+      {
+        "id": "rotary-muzzle-starboard",
+        "kind": "projectile-muzzle",
+        "owner": "rotary.starboard"
+      },
+      {
+        "id": "reactor-core",
+        "kind": "core-origin",
+        "owner": "body"
+      },
+      {
+        "id": "claw-joint-port",
+        "kind": "melee-root",
+        "owner": "claw.port.mount"
+      },
+      {
+        "id": "claw-joint-starboard",
+        "kind": "melee-root",
+        "owner": "claw.starboard.mount"
+      },
+      {
+        "id": "claw-tip-port",
+        "kind": "melee-root",
+        "owner": "claw.port"
+      },
+      {
+        "id": "claw-tip-starboard",
+        "kind": "melee-root",
+        "owner": "claw.starboard"
+      }
+    ],
+    "projectileSprites": [
+      "boss-heavy-shell",
+      "boss-gatling-tracer",
+      "boss-reactor-pellet",
+      "boss-helios-mine"
+    ],
+    "noGameplayTextOrGuides": true,
+    "forbiddenGameplayEntities": [
+      "isBossGapGuide",
+      "isBossSideBarrageGuide",
+      "text effect"
+    ],
+    "reviewOverlayHasGameplayAuthority": false
+  },
+  "phases": [
+    {
+      "id": "sandbox-clawcarrier-siege-calibration",
+      "label": "Siege Calibration",
+      "triggerHealthRatio": 1,
+      "speedMultiplier": 0.72,
+      "firstCannonSide": "port",
+      "firstSweepSide": "port",
+      "reactorDirection": "clockwise",
+      "reactorSequences": [0, 1, 2, 3],
+      "crushSequence": 0,
+      "visibleTransformation": "Closed body, concealed reactor, narrow neutral claws, and a slow dormant rotary tick."
+    },
+    {
+      "id": "sandbox-clawcarrier-armor-shear",
+      "label": "Armor Shear",
+      "triggerHealthRatio": 0.67,
+      "speedMultiplier": 0.75,
+      "firstCannonSide": "starboard",
+      "firstSweepSide": "starboard",
+      "reactorDirection": "counterclockwise",
+      "reactorSequences": [5, 4, 3, 2],
+      "crushSequence": 4,
+      "visibleTransformation": "The body opens, the reactor remains visible, both claws spread and roll outward, the four stabilizer legs brace, and the rotary housings remain active."
+    },
+    {
+      "id": "sandbox-clawcarrier-reactor-overdrive",
+      "label": "Reactor Overdrive",
+      "triggerHealthRatio": 0.32,
+      "speedMultiplier": 0.78,
+      "firstCannonSide": "port",
+      "firstSweepSide": "starboard",
+      "reactorDirection": "clockwise",
+      "reactorSequences": [2, 4, 1, 3],
+      "crushSequence": 8,
+      "visibleTransformation": "Damaged body persists, the port claw droops while starboard braces, the stabilizer legs tuck asymmetrically, and the exposed reactor reverses its ambient rotation."
+    }
+  ],
+  "attacks": [
+    {
+      "id": "twin-rotary-crossfire",
+      "label": "Twin Rotary Crossfire",
+      "kind": "core",
+      "primitiveId": "paired-cannon-burst",
+      "playerSkill": "rhythm-dodge",
+      "anatomy": ["rotary.port", "rotary.starboard", "muzzle.port", "muzzle.starboard"],
+      "sockets": ["rotary-muzzle-port", "rotary-muzzle-starboard"],
+      "recognitionCue": "One four-frame rotary spins and braces first, the opposite housing answers, then both commit together.",
+      "safeRule": "Clear the first short burst, cross behind the delayed answer, then hold the center opening through the coordinated volley.",
+      "beats": [
+        "three sequential first-side shots from the live muzzle",
+        "three sequential opposite-side answers from the live muzzle",
+        "four alternating shots per rotary around the coordinated center corridor",
+        "recoil and spin-down",
+        "recovery"
+      ],
+      "boundedVariation": "The phase selects the first side and cadence; every round samples the current mounted muzzle transform and synchronizes one starburst flash, barrel frame, and recoil pulse."
+    },
+    {
+      "id": "claw-sweep-pincer",
+      "label": "Claw Sweep Pincer",
+      "kind": "core",
+      "primitiveId": "articulated-melee-sweep",
+      "playerSkill": "lane-routing",
+      "anatomy": ["claw.port.mount", "claw.port", "mandible.port", "claw.starboard.mount", "claw.starboard", "mandible.starboard"],
+      "sockets": ["claw-joint-port", "claw-tip-port", "claw-joint-starboard", "claw-tip-starboard"],
+      "recognitionCue": "Helios travels to one lower corner with its connected claw open, tracks briefly, visibly locks, closes, releases, and answers from the opposite corner.",
+      "safeRule": "Cross away during travel, leave the tracked corner before lock, and pass outside the closing claw tip.",
+      "beats": [
+        "first-side move-open-track-lock-close-release",
+        "opposite-side move-open-track-lock-close-release",
+        "recovery or rotary fallback when both claws are destroyed"
+      ],
+      "boundedVariation": "The phase selects the first side; a destroyed requested claw skips only its own beat while the surviving claw performs its single valid corner attempt, both destroyed skip the clamp and select rotary fallback, and damage exists only during visible closure at the surviving live tip."
+    },
+    {
+      "id": "reactor-maze",
+      "label": "Reactor Maze",
+      "kind": "core",
+      "primitiveId": "reactor-aperture-pattern",
+      "playerSkill": "gap-tracking",
+      "anatomy": ["body", "reactor"],
+      "sockets": ["reactor-core"],
+      "recognitionCue": "The body braces and reactor opens before drawing a bounded downward fan one projectile at a time; a separate beat deploys visible mines that arm before they can detonate.",
+      "safeRule": "Cross between staggered fan lanes, then route around armed mines before their proximity explosions enter active frames.",
+      "beats": [
+        "sequential downward fan beat 1",
+        "reversed or center-out downward fan beat 2",
+        "bounded three-mine deploy and arm formation",
+        "final sequential downward fan beat",
+        "vent and recovery"
+      ],
+      "boundedVariation": "Every fan remains inside the 8-through-4-o'clock envelope, the fixed sequence chooses order and mine lane formation, every emission samples reactor-core, and mine damage exists only in visible explosion frames."
+    },
+    {
+      "id": "clawcarrier-crush",
+      "label": "Clawcarrier Crush",
+      "kind": "signature",
+      "primitiveId": "tracking-pincer-dive",
+      "playerSkill": "route-combination",
+      "anatomy": ["root", "claw.port.mount", "claw.port", "mandible.port", "claw.starboard.mount", "claw.starboard", "mandible.starboard"],
+      "sockets": ["claw-tip-port", "claw-tip-starboard"],
+      "recognitionCue": "The carrier rises, opens both claws, follows briefly, freezes its target, dives, then closes.",
+      "safeRule": "Bait the tracking stage, leave the locked area before the dive, and remain outside the visibly closing claw tips until release.",
+      "beats": [
+        "rise-open",
+        "track-lock",
+        "dive-close",
+        "hold-release-return"
+      ],
+      "repeat": {
+        "count": 4,
+        "intervalSeconds": 0.9
+      },
+      "boundedVariation": "The phase selects a deterministic sequence offset; unrestricted tracking and random target changes are forbidden."
+    }
+  ],
+  "destruction": {
+    "durationFrames": 90,
+    "fragments": [
+      "claw.port",
+      "claw.starboard",
+      "rotary.port",
+      "rotary.starboard",
+      "mandible.port",
+      "mandible.starboard",
+      "reactor",
+      "body",
+      "leg.outer-port",
+      "leg.outer-starboard"
+    ]
+  },
+  "proof": {
+    "safeRouteCases": 24,
+    "viewports": ["390x844", "1280x720"],
+    "minimumRequiredClearancePixels": 6,
+    "geometryUncertaintyPixels": 3,
+    "warningAndFireOriginsMustMatch": true,
+    "witnessHashesMustReplay": true
+  },
+  "visualProof": {
+    "artifactDirectory": "director-data/prototype-assets/helios-clawcarrier-v2/review",
+    "requiredArtifacts": [
+      "neutral-mobile-clean.png",
+      "neutral-desktop-clean.png",
+      "neutral-reference-under.png",
+      "neutral-reference-over.png",
+      "neutral-reference-landmarks.png",
+      "twin-rotary-crossfire-preparation.png",
+      "twin-rotary-crossfire-anticipation.png",
+      "twin-rotary-crossfire-telegraph.png",
+      "twin-rotary-crossfire-first-beat.png",
+      "twin-rotary-crossfire-peak-danger.png",
+      "twin-rotary-crossfire-recovery.png",
+      "claw-sweep-pincer-preparation.png",
+      "claw-sweep-pincer-anticipation.png",
+      "claw-sweep-pincer-telegraph.png",
+      "claw-sweep-pincer-first-beat.png",
+      "claw-sweep-pincer-peak-danger.png",
+      "claw-sweep-pincer-recovery.png",
+      "reactor-maze-preparation.png",
+      "reactor-maze-anticipation.png",
+      "reactor-maze-telegraph.png",
+      "reactor-maze-first-beat.png",
+      "reactor-maze-peak-danger.png",
+      "reactor-maze-recovery.png",
+      "clawcarrier-crush-preparation.png",
+      "clawcarrier-crush-rise.png",
+      "clawcarrier-crush-lock.png",
+      "clawcarrier-crush-first-beat.png",
+      "clawcarrier-crush-dive.png",
+      "clawcarrier-crush-peak-danger.png",
+      "clawcarrier-crush-recovery.png",
+      "armor-shear-transition.png",
+      "reactor-overdrive-damage.png",
+      "stagger-heavy-hit.png",
+      "destruction-peak.png",
+      "socket-overlay-crossfire.png",
+      "socket-overlay-reactor.png",
+      "claw-hit-regions.png",
+      "helios-clawcarrier-v2-key-pose-contact-sheet.png",
+      "visual-verification-result.md"
+    ],
+    "gates": [
+      "clean mobile and desktop captures show one connected, aspect-preserved 460x330 rig",
+      "every projectile visibly leaves its owning rotary or reactor anatomy",
+      "melee damage remains attached to the visible moving claw tips",
+      "anticipation, recovery, phase transformation, persistent damage, and destruction read without gameplay text or generic guides",
+      "structural art is opaque and nearest-neighbor with no chopped frames, transient white textures, detached parts, or non-uniform breathing distortion",
+      "review overlays are absent from clean gameplay captures",
+      "spawn, reset, replay, loop, phase jump, and death clean up all transient state"
+    ],
+    "status": "pending-helios-refinement-runtime-review"
+  }
+}

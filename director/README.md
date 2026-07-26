@@ -16,15 +16,47 @@ Then open `http://127.0.0.1:5174` in a browser. The server binds only to loopbac
 and uses a strict, separate port. Stop it with `Ctrl+C` in the terminal that started
 it.
 
-The game-first **Mission Builder** is at `http://127.0.0.1:5174/level-editor`. Its center stage
-is the real `GameStage`, not a mock dashboard. Select missions and waves on the left,
-click gameplay groups in the game view, and edit their settings on the right. The
-same campaign, renderer, sprites, HUD, boss art, and scorecard presentation are used
-by the real game.
+The root route opens the **SciCon Developer Hub**, a shared local shell for every
+authoring and testing surface. Stable routes are registered in
+`director/src/app/authoringRegistry.ts`:
+
+| Route | Current surface |
+| --- | --- |
+| `/missions` | Mission Builder |
+| `/waves` | Mission Builder with the editable, time-scaled wave timeline |
+| `/bosses` | Boss Library, typed track editor, and canonical boss preview |
+| `/formations` | Combat Lab and Formation Workshop |
+| `/sandbox` | Combat Lab |
+| `/loadouts` | Combat Lab |
+| `/assets` | Combat Lab |
+| `/analytics` | Local playtest metrics, comparison, and export |
+| `/reviews` | Mission Builder review surface |
+| `/studio` | Read-only legacy migration reference |
+
+The old `/level-editor` and `/combat-lab` URLs remain compatibility aliases for
+`/missions` and `/sandbox`. All routes retain the same loopback-only status and
+production exclusion boundary.
+
+The game-first **Mission Builder** is at `http://127.0.0.1:5174/missions`. Its center
+stage is the real `GameStage`, not a mock dashboard. Select missions and waves on the
+left, click gameplay groups in the game view, and edit their settings on the right.
+The same campaign, renderer, sprites, HUD, boss art, and scorecard presentation are
+used by the real game.
+
+The **Wave** route adds a time-scaled, multi-lane encounter timeline. Clips remain
+ordinary validated campaign events: dragging or using the keyboard changes their
+authored start time, then the existing workspace autosave and canonical preview
+consume the same change.
+
+The **Boss** route adds synchronized movement, attack, laser, summon, defense, and
+presentation tracks. Bosses are composed from an allowlisted primitive registry;
+the editor does not accept scripts or arbitrary JSON. Damaging clips require linked
+warnings, and validation bounds repeats, simultaneous entities, references, and
+projectile budgets before a draft reaches the game preview.
 
 ## Combat Lab
 
-Open `http://127.0.0.1:5174/combat-lab` to iterate on combat before promoting an
+Open `http://127.0.0.1:5174/sandbox` to iterate on combat before promoting an
 idea into a campaign wave. The Lab is a permanent, development-only route inside
 the loopback Director; it is not a second app, renderer, or production entrypoint.
 
@@ -37,7 +69,9 @@ a validated synthetic test event, so they can still be evaluated without changin
 `campaign.json`.
 
 Use the stage controls to pause, restart, clear, change simulation speed, toggle
-player damage, and inspect visual or collision bounds. The inspector accepts live
+player damage, spawn the selected encounter immediately, jump to a selected boss
+phase, advance five deterministic seconds, and inspect visual or collision bounds.
+The inspector accepts live
 safe edits for encounters, formations, enemies, elite fire, bosses, weapons, health
 phases, asteroids, pickups, ships, mini-ships, and starting upgrades. Invalid edits
 are rejected by the campaign validator before they reach the preview.
@@ -158,6 +192,8 @@ is configured.
 - `director-data/versions` contains immutable, hash-checked configuration envelopes.
 - `director-data/reviews/index.json` stores version-linked visual change requests.
 - `director-data/workspace` stores ignored drafts while the Director is running.
+- `director-data/playtest-sessions` stores ignored, bounded canonical-preview
+  telemetry for the Hub Analytics route.
 
 Publish and rollback only create local configuration revisions. Real-run loading is
 fixed-origin, GET-only, and sanitized. The Director has no production database write,
@@ -176,6 +212,11 @@ wave into the shared canvas for immediate preview. The public game keeps the val
 tracked campaign as its default. Wallet, leaderboard, score submission, minting, and
 other production integrations remain outside `GameStage` and are never imported into
 the Director.
+
+Combat Lab uses an explicit deterministic seed and can save its current bounded
+telemetry snapshot to the local Analytics tool. Analytics compares saved sessions
+and exports a selected session as JSON or CSV without contacting an external
+analytics endpoint.
 
 See [server/README.md](server/README.md) for API and safety details and
 [design/design-spec.md](design/design-spec.md) for the interface model.

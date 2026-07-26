@@ -113,7 +113,10 @@ test('Rail Serpent flexes a delayed body chain and keeps its cannons independent
   assert.match(railDraw, /candidate\.isTelegraph/);
   assert.match(railDraw, /const recoil = liveBeam \? 7 \* motionScale : 0/);
   assert.match(railDraw, /cannon\.visible = !component\?\.destroyed/);
+  assert.match(railDraw, /const leftFilters = null/);
+  assert.match(railDraw, /const rightFilters = null/);
   assert.match(railDraw, /cannon\.filters = side === 'left' \? leftFilters : rightFilters/);
+  assert.doesNotMatch(railDraw, /WHITE_HIT_FILTERS/);
   assert.doesNotMatch(railDraw, /Math\.random/);
 });
 
@@ -132,7 +135,10 @@ test('Prism Moth wings flap independently while the core breathes with health an
   assert.match(mothDraw, /wing\.scale\.set/);
   assert.match(mothDraw, /prismCore\.scale\.set/);
   assert.match(mothDraw, /pod\.visible = !component\?\.destroyed/);
+  assert.match(mothDraw, /const leftFilters = null/);
+  assert.match(mothDraw, /const rightFilters = null/);
   assert.match(mothDraw, /pod\.filters = side === 'left' \? leftFilters : rightFilters/);
+  assert.doesNotMatch(mothDraw, /WHITE_HIT_FILTERS/);
   assert.doesNotMatch(mothDraw, /Math\.random/);
 });
 

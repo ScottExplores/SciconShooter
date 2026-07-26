@@ -1,0 +1,4 @@
+interface:
+  display_name: "SciCon Boss Factory"
+  short_description: "Build and prove polished modular pixel bosses"
+  default_prompt: "Use $scicon-boss-factory to create or rebuild one polished modular pixel-art boss and prove it in the Boss Sandbox."

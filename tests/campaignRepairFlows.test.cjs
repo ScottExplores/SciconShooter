@@ -44,10 +44,13 @@ test('the More menu no longer advertises the source repository', () => {
 });
 
 test('upgrade drops render as larger unframed sprites in Pixi and canvas', () => {
-  const pixi = read('services', 'pixi', 'PixiGameRenderer.ts');
-  const engine = read('services', 'gameLogic.ts');
+  const pixi = read('services', 'pixi', 'PixiGameRenderer.ts').replace(/\r\n/g, '\n');
+  const engine = read('services', 'gameLogic.ts').replace(/\r\n/g, '\n');
   const pixiStart = pixi.lastIndexOf('} else if (entity.type === EntityType.POWERUP)');
-  const pixiPowerup = pixi.slice(pixiStart, pixi.indexOf('\n    }\n\n    if (entity.isElite', pixiStart));
+  const pixiPowerup = pixi.slice(
+    pixiStart,
+    pixi.indexOf('\n\n    this.syncDamageRecoil', pixiStart)
+  );
   const canvasStart = engine.lastIndexOf('} else if (e.type === EntityType.POWERUP)');
   const canvasPowerup = engine.slice(canvasStart, engine.indexOf('} else if (e.type === EntityType.MINI_BOSS)', canvasStart));
 

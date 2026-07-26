@@ -15,10 +15,21 @@ export const createEditorId = (prefix: string) => (
 
 const cloneBossEvent = (event: BossEvent): BossEvent => {
   const weaponIdMap = new Map<string, string>();
+  const phaseIdMap = new Map<string, string>();
+  const timelineClipIdMap = new Map<string, string>();
   const weapons = event.weapons.map((weapon) => {
     const nextId = createEditorId('weapon');
     weaponIdMap.set(weapon.id, nextId);
     return { ...cloneJson(weapon), id: nextId };
+  });
+  event.phases.forEach((phase) => {
+    phaseIdMap.set(phase.id, createEditorId('phase'));
+  });
+  const timelineAttackIds = new Set(event.timeline?.attacks?.map((attack) => attack.id) ?? []);
+  event.timeline?.clips.forEach((clip) => {
+    let nextId = createEditorId('boss-clip');
+    while (timelineAttackIds.has(nextId)) nextId = createEditorId('boss-clip');
+    timelineClipIdMap.set(clip.id, nextId);
   });
   return {
     ...cloneJson(event),
@@ -26,9 +37,35 @@ const cloneBossEvent = (event: BossEvent): BossEvent => {
     weapons,
     phases: event.phases.map((phase) => ({
       ...cloneJson(phase),
-      id: createEditorId('phase'),
+      id: phaseIdMap.get(phase.id)!,
       weaponSettingIds: phase.weaponSettingIds.map((id) => weaponIdMap.get(id)).filter((id): id is string => Boolean(id))
-    }))
+    })),
+    revival: event.revival ? {
+      ...cloneJson(event.revival),
+      phaseId: phaseIdMap.get(event.revival.phaseId)!
+    } : undefined,
+    timeline: event.timeline ? {
+      ...cloneJson(event.timeline),
+      clips: event.timeline.clips.map((clip) => ({
+        ...cloneJson(clip),
+        id: timelineClipIdMap.get(clip.id)!,
+        phaseId: clip.phaseId ? phaseIdMap.get(clip.phaseId) : undefined,
+        telegraphClipId: clip.telegraphClipId
+          ? timelineClipIdMap.get(clip.telegraphClipId)
+          : undefined
+      })),
+      ...(event.timeline.attacks ? {
+        attacks: event.timeline.attacks.map((attack) => ({
+          ...cloneJson(attack),
+          variants: attack.variants.map((variant) => ({
+            ...cloneJson(variant),
+            phaseId: phaseIdMap.get(variant.phaseId)!,
+            beatClipIds: variant.beatClipIds.map((clipId) => timelineClipIdMap.get(clipId)!),
+            recoveryClipId: timelineClipIdMap.get(variant.recoveryClipId)!
+          }))
+        }))
+      } : {})
+    } : undefined
   };
 };
 

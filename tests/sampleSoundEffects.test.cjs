@@ -26,6 +26,10 @@ test('legacy combat samples are checked in while player fire uses an audible syn
   assert.match(audioSource, /private playSample\(/);
   assert.match(audioSource, /stopActiveSampleNodes/);
   assert.doesNotMatch(audioSource, /shoot: \{ sample: 'player-shot'/);
+  assert.match(audioSource, /boss_cannon: \{ sample: 'boss-shot'/);
+  assert.match(audioSource, /boss_machinegun: \{ sample: 'player-shot'/);
+  assert.match(audioSource, /boss_cannon:\s*160/);
+  assert.match(audioSource, /boss_machinegun:\s*42/);
   assert.match(audioSource, /const PLAYER_SHOT_GAIN = 0\.12/);
   assert.match(audioSource, /case 'shoot':\s*osc\.type = 'triangle'/);
   assert.match(audioSource, /osc\.frequency\.setValueAtTime\(520 \* pitch, t\)/);
@@ -38,4 +42,26 @@ test('combat events distinguish player fire, boss fire, impacts, and destruction
   assert.match(engineSource, /this\.playSound\('impact'/);
   assert.match(engineSource, /if \(intensity >= 1\.2\) \{\s*this\.playSound\('explode'/);
   assert.match(engineSource, /spawnExplosion\(target\.x, target\.y, target\.color, destructionIntensity\)/);
+});
+
+test('the hosted boss runner enables only sound effects and unlocks audio on a user gesture', () => {
+  const runnerSource = fs.readFileSync(
+    path.join(root, 'director', 'remote', 'RemoteBossRunnerApp.tsx'),
+    'utf8'
+  );
+  const editorSource = fs.readFileSync(
+    path.join(root, 'components', 'GameEditorCanvas.tsx'),
+    'utf8'
+  );
+  const canvasSource = fs.readFileSync(
+    path.join(root, 'components', 'GameCanvas.tsx'),
+    'utf8'
+  );
+
+  assert.match(runnerSource, /audioService\.init\(\)/);
+  assert.match(runnerSource, /addEventListener\('pointerdown', initializeAudio, true\)/);
+  assert.match(runnerSource, /audioEnabled\s+musicEnabled=\{false\}/);
+  assert.match(editorSource, /audioEnabled = false/);
+  assert.match(editorSource, /musicEnabled = false/);
+  assert.match(canvasSource, /audioService\.setMusicPlaybackEnabled\(musicEnabled\)/);
 });

@@ -51,6 +51,19 @@ export interface GeneratedBossTechniqueCue {
   readonly recoveryFrames: number;
 }
 
+export interface GeneratedBossPreviewAttack {
+  readonly id: string;
+  readonly phase: 1 | 2 | 3;
+  readonly sequence: number;
+  readonly fireTechnique: GeneratedBossTechnique;
+}
+
+export interface GeneratedBossPreviewAttackWindow {
+  readonly phase: 1 | 2 | 3;
+  readonly startFrame: number;
+  readonly endFrame: number;
+}
+
 export const MAX_GENERATED_BOSS_PROJECTILES_PER_CUE = 24;
 export const MIN_GENERATED_BOSS_WARNING_FRAMES = 24;
 export const MIN_GENERATED_BOSS_RECOVERY_FRAMES = 32;
@@ -78,6 +91,68 @@ export const resolveGeneratedBossArchetype = (
   return (GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY as Partial<Record<AssetKey, GeneratedBossArchetype>>)[spriteKey]
     ?? null;
 };
+
+const previewAttack = (
+  archetype: GeneratedBossArchetype,
+  fireTechnique: GeneratedBossTechnique,
+  phase: 1 | 2 | 3,
+  sequence: number
+): GeneratedBossPreviewAttack => Object.freeze({
+  id: `generated:${archetype}:${fireTechnique}:${phase}:${sequence}`,
+  phase,
+  sequence,
+  fireTechnique
+});
+
+/**
+ * Every distinct attack sentence used by the compatibility bosses. The Boss
+ * Sandbox numbers these for the player; these internal names remain available
+ * only for deterministic runtime dispatch and diagnostics.
+ */
+export const GENERATED_BOSS_PREVIEW_ATTACKS: Readonly<Record<
+  GeneratedBossArchetype,
+  readonly GeneratedBossPreviewAttack[]
+>> = Object.freeze({
+  'rail-serpent': Object.freeze([
+    previewAttack('rail-serpent', 'rail-fire', 1, 0),
+    previewAttack('rail-serpent', 'rail-tail-volley', 2, 0)
+  ]),
+  'prism-moth': Object.freeze([
+    previewAttack('prism-moth', 'prism-gap-ring', 1, 0)
+  ]),
+  'singularity-crab': Object.freeze([
+    previewAttack('singularity-crab', 'singularity-collapse', 1, 0)
+  ]),
+  'orbit-gyroscope': Object.freeze([
+    previewAttack('orbit-gyroscope', 'orbit-cross', 1, 0)
+  ]),
+  'helix-leviathan': Object.freeze([
+    previewAttack('helix-leviathan', 'helix-left', 1, 0),
+    previewAttack('helix-leviathan', 'helix-right', 1, 1)
+  ]),
+  'hammerhead-siege': Object.freeze([
+    previewAttack('hammerhead-siege', 'hammerhead-port', 1, 0),
+    previewAttack('hammerhead-siege', 'hammerhead-starboard', 1, 1)
+  ]),
+  'eclipse-engine': Object.freeze([
+    previewAttack('eclipse-engine', 'eclipse-dark-pulse', 1, 0)
+  ]),
+  'tribunal-dreadnought': Object.freeze([
+    previewAttack('tribunal-dreadnought', 'rail-fire', 1, 0),
+    previewAttack('tribunal-dreadnought', 'prism-gap-ring', 2, 0),
+    previewAttack('tribunal-dreadnought', 'orbit-cross', 2, 1),
+    previewAttack('tribunal-dreadnought', 'helix-left', 3, 0),
+    previewAttack('tribunal-dreadnought', 'hammerhead-port', 3, 1),
+    previewAttack('tribunal-dreadnought', 'eclipse-dark-pulse', 3, 2),
+    previewAttack('tribunal-dreadnought', 'singularity-collapse', 3, 3),
+    previewAttack('tribunal-dreadnought', 'helix-right', 3, 4),
+    previewAttack('tribunal-dreadnought', 'hammerhead-starboard', 3, 5)
+  ])
+});
+
+export const getGeneratedBossPreviewAttacks = (
+  archetype: GeneratedBossArchetype
+): readonly GeneratedBossPreviewAttack[] => GENERATED_BOSS_PREVIEW_ATTACKS[archetype];
 
 const positiveModulo = (value: number, divisor: number) => (
   ((value % divisor) + divisor) % divisor
@@ -359,4 +434,42 @@ export const getGeneratedBossTechniqueCue = (
     54,
     40
   );
+};
+
+export const getGeneratedBossPreviewAttackWindow = (
+  archetype: GeneratedBossArchetype,
+  attackId: string
+): Readonly<GeneratedBossPreviewAttackWindow> | null => {
+  const attack = GENERATED_BOSS_PREVIEW_ATTACKS[archetype]
+    .find((candidate) => candidate.id === attackId);
+  if (!attack) return null;
+
+  // All generated compatibility cycles are shorter than 200 frames. Eight
+  // cycles cover the longest sequence selection while keeping this authoring
+  // lookup strictly bounded and independent from ambient runtime state.
+  for (let frame = 0; frame <= 1_600; frame += 1) {
+    const cue = getGeneratedBossTechniqueCue(archetype, frame, attack.phase);
+    if (
+      cue?.stage === 'fire'
+      && cue.technique === attack.fireTechnique
+      && cue.sequence === attack.sequence
+    ) {
+      return Object.freeze({
+        phase: attack.phase,
+        startFrame: Math.max(0, frame - cue.warningFrames),
+        endFrame: frame + Math.max(1, cue.recoveryFrames)
+      });
+    }
+  }
+  return null;
+};
+
+export const getGeneratedBossPreviewAttackStart = (
+  archetype: GeneratedBossArchetype,
+  attackId: string
+): Readonly<{ phase: 1 | 2 | 3; startFrame: number }> | null => {
+  const window = getGeneratedBossPreviewAttackWindow(archetype, attackId);
+  return window
+    ? Object.freeze({ phase: window.phase, startFrame: window.startFrame })
+    : null;
 };

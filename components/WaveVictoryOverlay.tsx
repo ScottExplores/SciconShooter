@@ -8,6 +8,7 @@ const RECORD_PARTS = '/game-art/generated/ui/scicon-ui-system-v2/animations/miss
 interface WaveVictoryOverlayProps {
   summary: WaveVictorySummary;
   onContinue: () => void;
+  bossArchiveReplay?: boolean;
 }
 
 const formatFlightTime = (elapsedSeconds: number) => {
@@ -20,7 +21,11 @@ const LayerImage: React.FC<{ className: string; src: string }> = ({ className, s
   <img className={className} src={src} alt="" aria-hidden="true" draggable={false} />
 );
 
-const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({ summary, onContinue }) => {
+const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
+  summary,
+  onContinue,
+  bossArchiveReplay = false
+}) => {
   const campaignComplete = summary.campaignComplete || !summary.hasNextStage;
 
   return (
@@ -77,7 +82,11 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({ summary, onCont
 
             <div className="wave-record-status">
               <span className="wave-record-status-light" aria-hidden="true" />
-              {campaignComplete ? 'Campaign data secured' : 'Mission data locked'}
+              {bossArchiveReplay
+                ? 'Archive challenge cleared'
+                : campaignComplete
+                  ? 'Campaign data secured'
+                  : 'Mission data locked'}
             </div>
           </div>
         </section>
@@ -97,15 +106,19 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({ summary, onCont
               id="wave-victory-title"
               className={campaignComplete ? 'wave-victory-title-complete' : undefined}
             >
-              {campaignComplete ? 'Campaign Complete' : 'Victory'}
+              {bossArchiveReplay ? 'Boss Defeated' : campaignComplete ? 'Campaign Complete' : 'Victory'}
             </h1>
-            <p>{campaignComplete ? 'All 20 missions cleared' : `Mission ${summary.stage} cleared`}</p>
+            <p>{bossArchiveReplay
+              ? 'Practice encounter cleared'
+              : campaignComplete
+                ? 'All 20 missions cleared'
+                : `Mission ${summary.stage} cleared`}</p>
           </div>
         </header>
 
         <button className="wave-victory-continue" type="button" onClick={onContinue}>
-          <span>{campaignComplete ? 'Open' : 'Continue'}</span>
-          <strong>{campaignComplete ? 'Mission Results' : `Mission ${summary.nextStage}`}</strong>
+          <span>{bossArchiveReplay ? 'Return to' : campaignComplete ? 'Open' : 'Continue'}</span>
+          <strong>{bossArchiveReplay ? 'Boss Archive' : campaignComplete ? 'Mission Results' : `Mission ${summary.nextStage}`}</strong>
         </button>
       </div>
     </div>

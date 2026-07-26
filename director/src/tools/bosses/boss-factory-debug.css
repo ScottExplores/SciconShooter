@@ -1,0 +1,134 @@
+.boss-factory-debug {
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 8px;
+  background: rgba(2, 13, 24, 0.76);
+  color: #dff7ff;
+}
+
+.boss-factory-debug > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 9px;
+  cursor: pointer;
+  list-style-position: inside;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.boss-factory-debug > summary small {
+  color: #72a2b5;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.boss-factory-debug__body {
+  display: grid;
+  gap: 8px;
+  padding: 0 8px 9px;
+}
+
+.boss-factory-debug fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  border-radius: 6px;
+}
+
+.boss-factory-debug legend {
+  padding: 0 4px;
+  color: #77bfd5;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.boss-factory-debug__button-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 5px;
+}
+
+.boss-factory-debug button {
+  min-height: 29px;
+  padding: 4px 6px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 5px;
+  background: rgba(5, 27, 43, 0.88);
+  color: #e7faff;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.boss-factory-debug button.is-active,
+.boss-factory-debug button[aria-pressed='true'] {
+  border-color: #22d3ee;
+  background: rgba(8, 145, 178, 0.25);
+  color: #a5f3fc;
+}
+
+.boss-factory-debug button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.boss-factory-debug__toggles {
+  display: grid;
+  gap: 5px;
+}
+
+.boss-factory-debug__toggles label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #b8d7e1;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.boss-factory-debug__toggles input {
+  margin: 0;
+  accent-color: #22d3ee;
+}
+
+.boss-factory-debug__guide-status {
+  margin: 6px 0 0;
+  color: #86efac;
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.boss-factory-debug__range {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  margin: 7px 0;
+  color: #b8d7e1;
+  font-size: 9px;
+}
+
+.boss-factory-debug__range input {
+  min-width: 0;
+  width: 100%;
+  accent-color: #22d3ee;
+}
+
+.boss-factory-debug__range output {
+  min-width: 28px;
+  color: #a5f3fc;
+  text-align: right;
+}
+
+.boss-factory-debug__capture {
+  width: 100%;
+}

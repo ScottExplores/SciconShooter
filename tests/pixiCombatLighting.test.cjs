@@ -145,7 +145,7 @@ test('magnet feedback uses the same soft gradient light rather than a vector cir
   assert.doesNotMatch(lighting, /\.circle\(|\.ellipse\(|\.stroke\(/);
 });
 
-test('boss and mini-boss recoil follows damage timestamps without moving simulation geometry', () => {
+test('whole-boss recoil follows significant impacts without moving simulation geometry', () => {
   const recoil = sliceMethod(
     'private syncDamageRecoil',
     'private drawFlash'
@@ -155,10 +155,12 @@ test('boss and mini-boss recoil follows damage timestamps without moving simulat
     'private syncEntities'
   );
 
-  assert.match(recoil, /entity\.lastDamageFlashFrame > view\.lastDamageFlashFrame/);
-  assert.match(recoil, /component\.lastDamageFlashFrame > view\.lastComponentDamageFrames\[component\.id\]/);
-  assert.match(recoil, /impactXRatio = component\.centerXRatio/);
-  assert.match(recoil, /impactYRatio = component\.centerYRatio/);
+  assert.match(recoil, /entity\.bossSignificantImpactFrame/);
+  assert.match(recoil, /entity\.bossSignificantImpactXRatio/);
+  assert.match(recoil, /entity\.bossSignificantImpactYRatio/);
+  assert.match(recoil, /entity\.bossSignificantImpactStrength/);
+  assert.doesNotMatch(recoil, /entity\.lastDamageFlashFrame > view\.lastDamageFlashFrame/);
+  assert.doesNotMatch(recoil, /component\.lastDamageFlashFrame > view\.lastComponentDamageFrames\[component\.id\]/);
   assert.match(recoil, /MINI_BOSS_RECOIL_PX/);
   assert.match(recoil, /BOSS_COMPONENT_RECOIL_PX/);
   assert.match(recoil, /Math\.exp\(-recoilAge \* 0\.24\)/);
@@ -171,7 +173,7 @@ test('boss and mini-boss recoil follows damage timestamps without moving simulat
   assert.doesNotMatch(recoil, /new (?:Sprite|Container|Graphics|ColorMatrixFilter)|\?\? \[\]/);
 });
 
-test('timestamp recoil does not merge hull and component flash filters', () => {
+test('boss recoil remains significant-impact feedback without white silhouette filters', () => {
   const rail = sliceMethod(
     'private drawRailSerpentRig',
     'private drawPrismMothRig'
@@ -180,9 +182,22 @@ test('timestamp recoil does not merge hull and component flash filters', () => {
     'private drawPrismMothRig',
     'private drawArticulatedGeneratedBoss'
   );
+  const bossFlash = sliceMethod(
+    'private drawFlash',
+    'private updateEntityView'
+  );
 
-  assert.match(rail, /const hullFilters = entity\.flashFrames > 0 \? WHITE_HIT_FILTERS : null/);
+  assert.doesNotMatch(rail, /WHITE_HIT_FILTERS/);
+  assert.doesNotMatch(moth, /WHITE_HIT_FILTERS/);
+  assert.match(rail, /const leftFilters = null/);
+  assert.match(rail, /const rightFilters = null/);
   assert.match(rail, /cannon\.filters = side === 'left' \? leftFilters : rightFilters/);
+  assert.match(moth, /const leftFilters = null/);
+  assert.match(moth, /const rightFilters = null/);
   assert.match(moth, /pod\.filters = side === 'left' \? leftFilters : rightFilters/);
-  assert.match(renderer, /Hull feedback must never bleach the separately targetable cannons/);
+  assert.doesNotMatch(bossFlash, /WHITE_HIT_FILTERS/);
+  assert.match(bossFlash, /entity\.type === EntityType\.BOSS/);
+  assert.match(bossFlash, /entity\.type === EntityType\.MINI_BOSS/);
+  assert.match(bossFlash, /view\.sprite\.filters = null/);
+  assert.match(bossFlash, /view\.body\.filters = null/);
 });

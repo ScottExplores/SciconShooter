@@ -602,6 +602,7 @@ export class PixiEnvironment {
   private environmentMotionFrame = 0;
   private lastEngineFrame = -1;
   private spacePropBlurActive = false;
+  private destroyed = false;
 
   constructor(
     private readonly backgroundLayer: Container,
@@ -614,11 +615,13 @@ export class PixiEnvironment {
     height: number,
     profileWindow: PixiEnvironmentWindow = INITIAL_ENVIRONMENT_WINDOW
   ) {
+    if (this.destroyed) return;
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
     if (!this.built) this.build();
     this.resize(this.width, this.height);
     await this.preloadProfileWindow(profileWindow);
+    if (this.destroyed) return;
     this.applyProfile(profileWindow.currentBackgroundId, true);
     this.resize(this.width, this.height);
   }
@@ -1190,6 +1193,8 @@ export class PixiEnvironment {
   }
 
   destroy() {
+    if (this.destroyed) return;
+    this.destroyed = true;
     for (const frames of this.atlasFrameCache.values()) {
       frames.forEach((frame) => frame.destroy(false));
     }

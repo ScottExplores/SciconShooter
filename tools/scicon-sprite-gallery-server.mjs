@@ -18,6 +18,13 @@ const DEFAULT_GALLERY_PATH = path.join(
   "Scicon Space Sprite Gallery.html",
 );
 const DEFAULT_PROJECT_ART_ROOT = path.join(PROJECT_ROOT, "public", "game-art");
+const DEFAULT_PROJECT_PROTOTYPE_ART_ROOT = path.join(PROJECT_ROOT, "director-data", "prototype-assets");
+const DEFAULT_PROJECT_SOURCE_ART_ROOT = path.join(PROJECT_ROOT, "tools");
+const DEFAULT_PROJECT_ARCHIVE_ART_ROOT = path.join(PROJECT_ROOT, "archive");
+const DEFAULT_PROJECT_APP_ART_ROOT = path.join(PROJECT_ROOT, "public");
+const DEFAULT_PROJECT_MARKETING_ART_ROOT = path.join(PROJECT_ROOT, "marketing");
+const DEFAULT_PROJECT_DOCUMENTATION_ART_ROOT = path.join(PROJECT_ROOT, "docs");
+const DEFAULT_PROJECT_DESIGN_CONCEPT_ART_ROOT = path.join(PROJECT_ROOT, "director", "design", "concepts");
 const DEFAULT_PROJECT_AUDIO_ROOT = path.join(PROJECT_ROOT, "public", "audio");
 const DEFAULT_LEGACY_ROOT = path.join(
   process.env.USERPROFILE || "C:\\Users\\scott",
@@ -25,7 +32,7 @@ const DEFAULT_LEGACY_ROOT = path.join(
   "Legacy Collection",
   "Legacy Collection",
 );
-const ALLOWED_EXTENSIONS = new Set([".png", ".gif", ".jpg", ".jpeg", ".webp", ".svg", ".bmp"]);
+const ALLOWED_EXTENSIONS = new Set([".png", ".gif", ".jpg", ".jpeg", ".webp", ".svg", ".bmp", ".avif"]);
 const MAX_BODY_BYTES = 32 * 1024;
 
 const mimeTypes = new Map([
@@ -36,6 +43,7 @@ const mimeTypes = new Map([
   [".webp", "image/webp"],
   [".svg", "image/svg+xml; charset=utf-8"],
   [".bmp", "image/bmp"],
+  [".avif", "image/avif"],
   [".wav", "audio/wav"],
   [".mp3", "audio/mpeg"],
   [".ogg", "audio/ogg"],
@@ -133,14 +141,35 @@ export function createGalleryServer(options = {}) {
   const port = options.port === undefined ? DEFAULT_PORT : Number(options.port);
   const galleryPath = path.resolve(options.galleryPath || DEFAULT_GALLERY_PATH);
   const projectArtRoot = path.resolve(options.projectArtRoot || DEFAULT_PROJECT_ART_ROOT);
+  const projectPrototypeArtRoot = path.resolve(options.projectPrototypeArtRoot || DEFAULT_PROJECT_PROTOTYPE_ART_ROOT);
+  const projectSourceArtRoot = path.resolve(options.projectSourceArtRoot || DEFAULT_PROJECT_SOURCE_ART_ROOT);
+  const projectArchiveArtRoot = path.resolve(options.projectArchiveArtRoot || DEFAULT_PROJECT_ARCHIVE_ART_ROOT);
+  const projectAppArtRoot = path.resolve(options.projectAppArtRoot || DEFAULT_PROJECT_APP_ART_ROOT);
+  const projectMarketingArtRoot = path.resolve(options.projectMarketingArtRoot || DEFAULT_PROJECT_MARKETING_ART_ROOT);
+  const projectDocumentationArtRoot = path.resolve(options.projectDocumentationArtRoot || DEFAULT_PROJECT_DOCUMENTATION_ART_ROOT);
+  const projectDesignConceptArtRoot = path.resolve(
+    options.projectDesignConceptArtRoot || DEFAULT_PROJECT_DESIGN_CONCEPT_ART_ROOT,
+  );
   const projectAudioRoot = path.resolve(options.projectAudioRoot || DEFAULT_PROJECT_AUDIO_ROOT);
   const legacyRoot = path.resolve(options.legacyRoot || DEFAULT_LEGACY_ROOT);
   const deleteFile = options.deleteFile || recycleFile;
 
-  const allowedRoots = [projectArtRoot, projectAudioRoot, legacyRoot];
+  const readableRoots = [
+    projectArtRoot,
+    projectPrototypeArtRoot,
+    projectSourceArtRoot,
+    projectArchiveArtRoot,
+    projectAppArtRoot,
+    projectMarketingArtRoot,
+    projectDocumentationArtRoot,
+    projectDesignConceptArtRoot,
+    projectAudioRoot,
+    legacyRoot,
+  ];
+  const deletableAssetRoots = [projectArtRoot, legacyRoot];
   const isAllowedCatalogPath = (candidate) =>
     ALLOWED_EXTENSIONS.has(path.extname(candidate).toLocaleLowerCase("en-US")) &&
-    allowedRoots.some((root) => isPathInside(root, candidate));
+    deletableAssetRoots.some((root) => isPathInside(root, candidate));
 
   const server = http.createServer(async (request, response) => {
     try {
@@ -170,7 +199,7 @@ export function createGalleryServer(options = {}) {
           ...assets.map((item) => item.audioPreviewAbsolutePath).filter(Boolean),
           ...sounds.map((item) => item.absolutePath),
         ].map(normalizeCase));
-        const isInsideAllowedRoot = allowedRoots.some((root) => isPathInside(root, candidate));
+        const isInsideAllowedRoot = readableRoots.some((root) => isPathInside(root, candidate));
         if (!isInsideAllowedRoot || !mimeTypes.has(path.extname(candidate).toLocaleLowerCase("en-US")) || !catalogPaths.has(normalizeCase(candidate))) {
           sendText(response, 403, "This file is not an allowed gallery asset.");
           return;
@@ -235,7 +264,22 @@ export function createGalleryServer(options = {}) {
     }
   });
 
-  return { server, host, port, galleryPath, projectArtRoot, projectAudioRoot, legacyRoot };
+  return {
+    server,
+    host,
+    port,
+    galleryPath,
+    projectArtRoot,
+    projectPrototypeArtRoot,
+    projectSourceArtRoot,
+    projectArchiveArtRoot,
+    projectAppArtRoot,
+    projectMarketingArtRoot,
+    projectDocumentationArtRoot,
+    projectDesignConceptArtRoot,
+    projectAudioRoot,
+    legacyRoot,
+  };
 }
 
 function parseArguments(argv) {
@@ -245,6 +289,13 @@ function parseArguments(argv) {
     if (argument === "--port") parsed.port = Number(argv[++index]);
     else if (argument === "--gallery") parsed.galleryPath = argv[++index];
     else if (argument === "--project-art") parsed.projectArtRoot = argv[++index];
+    else if (argument === "--project-prototype-art") parsed.projectPrototypeArtRoot = argv[++index];
+    else if (argument === "--project-source-art") parsed.projectSourceArtRoot = argv[++index];
+    else if (argument === "--project-archive-art") parsed.projectArchiveArtRoot = argv[++index];
+    else if (argument === "--project-app-art") parsed.projectAppArtRoot = argv[++index];
+    else if (argument === "--project-marketing-art") parsed.projectMarketingArtRoot = argv[++index];
+    else if (argument === "--project-documentation-art") parsed.projectDocumentationArtRoot = argv[++index];
+    else if (argument === "--project-design-concept-art") parsed.projectDesignConceptArtRoot = argv[++index];
     else if (argument === "--legacy-root") parsed.legacyRoot = argv[++index];
   }
   return parsed;

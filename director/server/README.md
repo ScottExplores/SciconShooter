@@ -249,6 +249,92 @@ revision/timestamp and creates a new snapshot whose `source` is `rollback` and w
 `rollbackOf` references the selected version. Success is `201` with the same shape as
 the apply response.
 
+## Versioned active workspace API
+
+The active resource workspace is stored only under
+`director-data/workspace/game-campaign`. It starts from the validated tracked
+`game-config/campaign.json`, autosaves a composed draft with an atomic recovery
+journal, and never writes the tracked campaign until the explicit apply route is
+called.
+
+Every workspace mutation requires:
+
+```json
+{
+  "expectedBaseContentHash": "sha256:...",
+  "expectedDraftRevision": 4,
+  "idempotencyKey": "caller-generated-stable-key"
+}
+```
+
+The base hash detects tracked-file changes, the monotonically increasing draft
+revision detects stale tabs, and the idempotency key makes an exact retry return the
+original result without applying the mutation twice. Resource edits retain their
+base resource hash, so rebase rejects an overlapping external edit instead of
+silently overwriting it.
+
+### `GET /__director/api/v1/workspace`
+
+Creates or reads the active workspace. The response includes `baseContentHash`,
+`draftRevision`, `draftContentHash`, `hasChanges`, `stale`, changed resource
+references, and the validated composed `draftCampaign`.
+
+### Resource routes
+
+- `GET|PUT /__director/api/v1/workspace/levels/:levelId`
+- `GET|PUT /__director/api/v1/workspace/missions/:levelId` (terminology alias)
+- `GET|PUT /__director/api/v1/workspace/levels/:levelId/waves/:waveId`
+- `GET|PUT /__director/api/v1/workspace/levels/:levelId/waves/:waveId/boss-events/:eventId`
+
+`PUT` accepts `{ "resource": {}, ...mutationPreconditions }`. Route IDs and payload
+IDs must match. Boss-event payloads must retain `kind: "boss"`. Each resource is
+size-bounded, composed into the full draft, and checked by the authoritative game
+campaign validator before it is autosaved. Existing IDs are replaced; a new stable
+ID is appended and must still satisfy all campaign ordering and reference rules.
+
+### `POST /__director/api/v1/workspace/rebase`
+
+Replays the ordered local resource edits onto the latest tracked campaign. If a
+parent resource disappeared or the composed result is invalid, rebase fails without
+changing the saved workspace.
+
+### `POST /__director/api/v1/workspace/reset`
+
+Discards all resource edits and adopts the latest validated tracked campaign while
+continuing the workspace draft-revision sequence.
+
+### `POST /__director/api/v1/workspace/apply`
+
+Validates the complete composed draft again, requires a non-stale base and at least
+one edit, then delegates to `GameCampaignRepository.applyCampaign`. The existing
+immutable baseline/version/manifest workflow remains authoritative. After success,
+the workspace adopts the applied campaign as its new base and clears its edit list.
+A durable apply-intent journal lets startup finish an interrupted version/campaign/
+manifest promotion and restore the original idempotent response. If the tracked
+campaign diverged from both the old base and intended candidate, recovery archives
+the intent for inspection and leaves the newer disk content untouched.
+
+## Local playtest sessions
+
+The canonical preview can save bounded gameplay telemetry beneath the ignored
+`director-data/playtest-sessions` directory. This is development evidence, not
+product analytics: no event is uploaded, forwarded to `/api/events`, joined to a
+wallet, or written to a production service.
+
+- `GET /__director/api/v1/playtest-sessions` lists summaries and derived metrics
+  without returning retained events.
+- `POST /__director/api/v1/playtest-sessions` validates and saves one session.
+- `GET /__director/api/v1/playtest-sessions/:sessionId` returns one complete local
+  session for inspection or export.
+- `DELETE /__director/api/v1/playtest-sessions/:sessionId` deletes one local
+  session.
+
+Mutation routes retain the normal loopback, same-origin, JSON content-type, and
+`X-Scicon-Director: local` requirements. A session is capped at 1,024 retained
+events and 512 KiB, and storage is capped at 100 sessions. The server recomputes
+DPS, boss damage, elapsed/survival time, deaths, phase transitions, wave
+completions, and completion state from the bounded runtime snapshot.
+
 ## Validation and storage
 
 JSON Schemas live in `director/schemas`. Additional cross-field checks enforce

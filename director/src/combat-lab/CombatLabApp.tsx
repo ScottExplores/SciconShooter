@@ -8,6 +8,11 @@ import { GAME_CONFIG } from '@game/constants';
 import type { GameCampaignConfig, SpawnEvent, WaveDefinition, WaveEvent } from '@game/game-config/types';
 import { validateGameCampaign } from '@game/game-config/validate';
 import type { GameEngineDebugSnapshot, GameRuntimeState } from '@game/services/gameLogic';
+import type {
+  PreviewCommand,
+  PreviewCommandResult
+} from '@game/services/gameplay/previewSession';
+import type { GameplayTelemetrySnapshot } from '@game/services/gameplay/telemetry';
 import { PLAYABLE_PLAYER_SHIP_IDS, PLAYER_SHIPS, type PlayerShipId } from '@game/services/playerShipService';
 import {
   MAIN_SHIP_UPGRADE_MAX_LEVEL,
@@ -18,9 +23,11 @@ import {
   type SquadSlotId
 } from '@game/services/squadProgression';
 import { fetchGameCampaign, type GameCampaignDiskState } from '@director/api/directorClient';
+import { savePlaytestSession } from '@director/api/playtestSessions';
 import { EditorIcon } from '@director/editor/EditorIcon';
 import { CombatLabInspector } from './CombatLabInspector';
 import { CombatLabLibrary } from './CombatLabLibrary';
+import { SandboxBossPrototypePicker } from './SandboxBossPrototypePicker';
 import {
   FormationDesignBoard,
   FormationTemplateRail,
@@ -32,6 +39,7 @@ import {
   type CombatLabCatalogItem,
   type CombatLabCategoryId
 } from './contentCatalog';
+import { calculateCombatLabDps } from './combatLabTelemetry';
 import {
   buildCombatLabRuntimeSquadLoadout,
   cloneCombatLabCampaign,
@@ -46,6 +54,12 @@ import {
   type CombatLabPresetEnvelope,
   type CombatLabPreviewResult
 } from './experimentModel';
+import {
+  buildSandboxBossPrototypePreview,
+  SANDBOX_BOSS_PROTOTYPE_BY_ID,
+  type SandboxBossPrototypeId,
+  type SandboxBossPrototypeProvenance
+} from './sandboxBossPrototypes';
 import './combat-lab.css';
 
 const PRESET_STORAGE_KEY = 'scicon-combat-lab-presets-v1';
@@ -61,6 +75,14 @@ type PromotionMode = 'event' | 'wave';
 type AuthoringMode = 'playtest' | 'formation';
 type PreviewScaleMode = 'fit' | '50' | '75' | '100';
 type PreviewDeviceId = 'small-phone' | 'pixel-8' | 'iphone-15' | 'ipad-mini' | 'desktop';
+
+export const resolveCombatLabHubCategory = (pathname: string): CombatLabCategoryId => {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  if (normalized === '/formations') return 'formations';
+  if (normalized === '/loadouts') return 'main-ships';
+  if (normalized === '/assets') return 'effects-assets';
+  return 'stages-waves';
+};
 
 interface PreviewDevicePreset {
   id: PreviewDeviceId;
@@ -265,8 +287,8 @@ function ShipSetup({
   };
 
   return (
-    <section className="cl-ship-setup">
-      <header><strong>Player test loadout</strong><span>No unlocks or save data used</span></header>
+    <details className="cl-ship-setup">
+      <summary><strong>Player test loadout</strong><span>No unlocks or save data used</span></summary>
       <div className="cl-ship-grid">
         <label><span>Main ship</span><select value={loadout.mainShipId} onChange={(input) => onChange({ ...loadout, mainShipId: input.target.value as PlayerShipId })}>{PLAYABLE_PLAYER_SHIP_IDS.map((id) => <option value={id} key={id}>{PLAYER_SHIPS[id].name}</option>)}</select></label>
         <label><span>Starting hearts</span><input type="number" min={GAME_CONFIG.PLAYER_LIVES} max={MAX_STARTING_HEARTS} value={GAME_CONFIG.PLAYER_LIVES + (loadout.upgrades?.startingHearts ?? 0)} onChange={(input) => onChange({ ...loadout, upgrades: { ...loadout.upgrades, startingHearts: Math.max(0, Number(input.target.value) - GAME_CONFIG.PLAYER_LIVES) } })} /></label>
@@ -287,7 +309,7 @@ function ShipSetup({
         <label><span>Fire-rate level</span><input type="number" min={0} max={MAIN_SHIP_FIRE_RATE_MAX_LEVEL} value={loadout.upgrades?.fireRate ?? 0} onChange={(input) => onChange({ ...loadout, upgrades: { ...loadout.upgrades, fireRate: Number(input.target.value) } })} /></label>
         <label><span>Speed level</span><input type="number" min={0} max={MAIN_SHIP_UPGRADE_MAX_LEVEL} value={loadout.upgrades?.speed ?? 0} onChange={(input) => onChange({ ...loadout, upgrades: { ...loadout.upgrades, speed: Number(input.target.value) } })} /></label>
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -295,12 +317,20 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
   const sourceCampaign = useMemo(() => cloneCombatLabCampaign(initialState.campaign), [initialState.campaign]);
   const catalog = useMemo(() => buildCombatLabCatalog(sourceCampaign), [sourceCampaign]);
   const initialPreview = useMemo(() => getFirstPreview(sourceCampaign), [sourceCampaign]);
+  const initialHubCategory = useMemo(
+    () => resolveCombatLabHubCategory(window.location.pathname),
+    []
+  );
+  const sandboxPrototypeSurface = useMemo(() => {
+    const normalized = window.location.pathname.replace(/\/+$/, '') || '/';
+    return normalized === '/sandbox' || normalized === '/combat-lab';
+  }, []);
   const [preview, setPreview] = useState<CombatLabPreviewResult>(initialPreview);
   const [baselinePreview, setBaselinePreview] = useState<CombatLabPreviewResult>(initialPreview);
   const [selectedEventId, setSelectedEventId] = useState(initialPreview.previewWave.events[0]?.id ?? null);
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(`wave:${initialPreview.waveId}`);
-  const [selectedCategory, setSelectedCategory] = useState<CombatLabCategoryId>('stages-waves');
+  const [selectedCategory, setSelectedCategory] = useState<CombatLabCategoryId>(initialHubCategory);
   const [search, setSearch] = useState('');
   const [playing, setPlaying] = useState(true);
   const [restartToken, setRestartToken] = useState(0);
@@ -317,6 +347,12 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
   const [runtimeState, setRuntimeState] = useState<GameRuntimeState | null>(null);
   const [debugSnapshot, setDebugSnapshot] = useState<GameEngineDebugSnapshot | null>(null);
   const [editorSnapshot, setEditorSnapshot] = useState<GameEditorSnapshot | null>(null);
+  const [telemetrySnapshot, setTelemetrySnapshot] = useState<GameplayTelemetrySnapshot | null>(null);
+  const [previewSeed, setPreviewSeed] = useState('scicon-lab-baseline');
+  const [seedDraft, setSeedDraft] = useState('scicon-lab-baseline');
+  const [previewCommand, setPreviewCommand] = useState<PreviewCommand | null>(null);
+  const [savingSession, setSavingSession] = useState(false);
+  const [activeSandboxPrototype, setActiveSandboxPrototype] = useState<SandboxBossPrototypeProvenance | null>(null);
   const [loadout, setLoadout] = useState<CombatLabLoadoutSelection>(() => cloneLoadout(DEFAULT_LOADOUT));
   const [baselineLoadout, setBaselineLoadout] = useState<CombatLabLoadoutSelection>(() => cloneLoadout(DEFAULT_LOADOUT));
   const [presets, setPresets] = useState<CombatLabPresetEnvelope[]>(() => readStoredPresets(sourceCampaign));
@@ -325,7 +361,9 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
   const [deletePresetArmed, setDeletePresetArmed] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>('tune');
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(
+    initialHubCategory === 'stages-waves' ? 'tune' : 'library'
+  );
   const [promotionMode, setPromotionMode] = useState<PromotionMode>('event');
   const [authoringMode, setAuthoringMode] = useState<AuthoringMode>('playtest');
   const [guideOpen, setGuideOpen] = useState(true);
@@ -335,8 +373,13 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
   const [previewHostSize, setPreviewHostSize] = useState({ width: 0, height: 0 });
   const allowNavigationRef = useRef(false);
   const previewHostRef = useRef<HTMLDivElement>(null);
+  const previewCommandNonceRef = useRef(0);
+  const hubRouteInitializedRef = useRef(false);
 
   const selectedItem = selectedItemId ? catalog.byId[selectedItemId] : undefined;
+  const activeSandboxDescriptor = activeSandboxPrototype
+    ? SANDBOX_BOSS_PROTOTYPE_BY_ID[activeSandboxPrototype.prototypeId]
+    : null;
   const selectedEvent = preview.previewWave.events.find((event) => event.id === selectedEventId)
     ?? preview.previewWave.events[0]
     ?? null;
@@ -374,13 +417,14 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
     squadLoadout: runtimeSquadLoadout,
     gameSpeed,
     invinciblePlayer: invincible,
+    seed: previewSeed,
     startingLives: Math.min(GAME_CONFIG.MAX_LIVES, GAME_CONFIG.PLAYER_LIVES + (runtimeSquadLoadout?.upgrades.startingHearts ?? 0)),
     upgrades: {
       fireRate: runtimeSquadLoadout?.upgrades.fireRate ?? 2,
       speed: runtimeSquadLoadout?.upgrades.speed ?? 1,
       missile: 0
     }
-  }), [gameSpeed, invincible, loadout, runtimeSquadLoadout]);
+  }), [gameSpeed, invincible, loadout, previewSeed, runtimeSquadLoadout]);
   const canvasKey = useMemo(() => JSON.stringify({
     mainShipId: loadout.mainShipId,
     upgrades: loadout.upgrades,
@@ -392,10 +436,167 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
     window.setTimeout(() => setNotice((current) => current?.message === message ? null : current), error ? 6000 : 3200);
   }, []);
 
+  const setPreviewPlaying = useCallback((nextPlaying: boolean) => {
+    previewCommandNonceRef.current += 1;
+    setPreviewCommand({
+      nonce: previewCommandNonceRef.current,
+      type: nextPlaying ? 'play' : 'pause'
+    });
+    setPlaying(nextPlaying);
+  }, []);
+
+  const updateGameSpeed = useCallback((nextSpeed: number) => {
+    previewCommandNonceRef.current += 1;
+    setPreviewCommand({
+      nonce: previewCommandNonceRef.current,
+      type: 'set-time-scale',
+      timeScale: nextSpeed
+    });
+    setGameSpeed(nextSpeed);
+  }, []);
+
+  const updateInvincibility = useCallback((enabled: boolean) => {
+    previewCommandNonceRef.current += 1;
+    setPreviewCommand({
+      nonce: previewCommandNonceRef.current,
+      type: 'set-invincibility',
+      enabled
+    });
+    setInvincible(enabled);
+  }, []);
+
+  const applyPreviewSeed = useCallback(() => {
+    const seed = seedDraft.trim();
+    if (!seed) {
+      notify('A deterministic preview seed is required', true);
+      return;
+    }
+    previewCommandNonceRef.current += 1;
+    setPreviewCommand({
+      nonce: previewCommandNonceRef.current,
+      type: 'set-seed',
+      seed
+    });
+    setTelemetrySnapshot(null);
+    setCleared(false);
+    setPlaying(true);
+    notify(`Preview restarted with seed “${seed}”`);
+  }, [notify, seedDraft]);
+
+  const spawnSelectedEventNow = useCallback(() => {
+    if (!selectedEvent) {
+      notify('Select an encounter before spawning it', true);
+      return;
+    }
+    previewCommandNonceRef.current += 1;
+    setPreviewCommand({
+      nonce: previewCommandNonceRef.current,
+      type: 'spawn-event-now',
+      eventId: selectedEvent.id
+    });
+    setCleared(false);
+    setPlaying(true);
+  }, [notify, selectedEvent]);
+
+  const jumpToSelectedBossPhase = useCallback(() => {
+    if (selectedEvent?.kind !== 'boss' || !selectedPhaseId) {
+      notify('Select a boss phase before jumping to it', true);
+      return;
+    }
+    previewCommandNonceRef.current += 1;
+    setPreviewCommand({
+      nonce: previewCommandNonceRef.current,
+      type: 'jump-to-boss-phase',
+      eventId: selectedEvent.id,
+      phaseId: selectedPhaseId
+    });
+    setCleared(false);
+    setPlaying(true);
+  }, [notify, selectedEvent, selectedPhaseId]);
+
+  const fastForwardFiveSeconds = useCallback(() => {
+    previewCommandNonceRef.current += 1;
+    setPreviewCommand({
+      nonce: previewCommandNonceRef.current,
+      type: 'fast-forward',
+      frames: GAME_CONFIG.FPS * 5
+    });
+    setCleared(false);
+  }, []);
+
+  const handlePreviewCommandResult = useCallback((result: PreviewCommandResult) => {
+    if (!previewCommand || previewCommand.nonce !== result.nonce) return;
+    if (result.handled && previewCommand.type === 'set-seed') {
+      setPreviewSeed(String(previewCommand.seed));
+    }
+    if (!result.handled) {
+      notify(`Preview command could not run: ${previewCommand.type}`, true);
+    }
+    setPreviewCommand(null);
+  }, [notify, previewCommand]);
+
+  const saveCurrentPlaytest = useCallback(async () => {
+    if (!telemetrySnapshot || telemetrySnapshot.aggregate.recordedEventCount === 0) {
+      notify('Run the preview before saving a playtest session', true);
+      return;
+    }
+    setSavingSession(true);
+    try {
+      const response = await savePlaytestSession({
+        name: presetName.trim() || preview.previewWave.name,
+        campaignHash: initialState.contentHash,
+        seed: previewSeed,
+        target: {
+          levelId: preview.levelId,
+          waveId: preview.waveId,
+          ...(selectedEvent?.id ? { eventId: selectedEvent.id } : {})
+        },
+        viewport: previewDimensions,
+        loadoutLabel: [
+          PLAYER_SHIPS[loadout.mainShipId].name,
+          `fire ${loadout.upgrades?.fireRate ?? 0}`,
+          `speed ${loadout.upgrades?.speed ?? 0}`,
+          `${loadout.companions?.length ?? 0} mini`
+        ].join(' · '),
+        ...(activeSandboxPrototype ? {
+          notes: [
+            `Sandbox-only prototype ${activeSandboxPrototype.prototypeId}.`,
+            `Prototype ${activeSandboxPrototype.prototypeHash}.`,
+            `Preview ${activeSandboxPrototype.previewHash}.`,
+            'No campaign or workspace content was written.'
+          ].join(' ')
+        } : dirty ? { notes: 'Saved from an unapplied local Combat Lab experiment.' } : {}),
+        snapshot: telemetrySnapshot
+      });
+      notify(`Saved “${response.session.name}” to local Analytics`);
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : 'Could not save the local playtest session', true);
+    } finally {
+      setSavingSession(false);
+    }
+  }, [
+    activeSandboxPrototype,
+    dirty,
+    initialState.contentHash,
+    loadout,
+    notify,
+    presetName,
+    preview.levelId,
+    preview.previewWave.name,
+    preview.waveId,
+    previewDimensions,
+    previewSeed,
+    selectedEvent?.id,
+    telemetrySnapshot
+  ]);
+
   const replaceSelection = useCallback((
     next: CombatLabPreviewResult,
     itemId: string | null = null,
-    options: { preserveSequence?: boolean } = {}
+    options: {
+      preserveSequence?: boolean;
+      sandboxPrototype?: SandboxBossPrototypeProvenance;
+    } = {}
   ) => {
     setPreview(next);
     setBaselinePreview(cloneCombatLabCampaign(next));
@@ -408,9 +609,11 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
     setEditorSnapshot(null);
     setDebugSnapshot(null);
     setRuntimeState(null);
+    setTelemetrySnapshot(null);
     setRestartToken((value) => value + 1);
     setDirty(false);
     setActivePresetId('');
+    setActiveSandboxPrototype(options.sandboxPrototype ?? null);
     if (!options.preserveSequence) {
       setSequenceActive(false);
       setSequenceIndex(0);
@@ -418,6 +621,23 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
   }, []);
 
   const canDiscard = useCallback(() => !dirty || window.confirm('Discard the unsaved Combat Lab experiment and open another test?'), [dirty]);
+
+  const selectSandboxBossPrototype = useCallback((prototypeId: SandboxBossPrototypeId) => {
+    if (!canDiscard()) return;
+    const descriptor = SANDBOX_BOSS_PROTOTYPE_BY_ID[prototypeId];
+    try {
+      const next = buildSandboxBossPrototypePreview(sourceCampaign, prototypeId);
+      replaceSelection(next, null, { sandboxPrototype: next.sandboxPrototype });
+      setBaselineLoadout(cloneLoadout(loadout));
+      setPresetName(descriptor.label);
+      setSelectedCategory('bosses');
+      setAuthoringMode('playtest');
+      setMobilePanel('tune');
+      notify(`${descriptor.label} loaded as an editable Sandbox-only run from a frozen definition`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not load the Sandbox boss prototype', true);
+    }
+  }, [canDiscard, loadout, notify, replaceSelection, sourceCampaign]);
 
   useEffect(() => {
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
@@ -516,6 +736,17 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
       notify(error instanceof Error ? error.message : 'Could not focus this content', true);
     }
   }, [canDiscard, loadout, notify, replaceSelection, sequenceLevelId, sourceCampaign]);
+
+  useEffect(() => {
+    if (hubRouteInitializedRef.current) return;
+    hubRouteInitializedRef.current = true;
+    setSelectedCategory(initialHubCategory);
+    if (initialHubCategory !== 'formations') return;
+    const formation = catalog.formations.find((item) => (
+      item.target.levelId && item.target.waveId && item.target.eventId
+    ));
+    if (formation) selectItem(formation);
+  }, [catalog.formations, initialHubCategory, selectItem]);
 
   const selectWave = (levelId: string, waveId: string) => {
     const item = catalog.byId[`wave:${waveId}`];
@@ -659,6 +890,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
     setRuntimeState(null);
     setDebugSnapshot(null);
     setEditorSnapshot(null);
+    setTelemetrySnapshot(null);
     notify('Experiment reset to its catalog values');
   };
 
@@ -667,6 +899,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
     setPlaying(true);
     setRestartToken((value) => value + 1);
     setEditorSnapshot(null);
+    setTelemetrySnapshot(null);
   };
 
   const openFormationWorkshop = () => {
@@ -708,6 +941,10 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
   };
 
   const savePreset = () => {
+    if (activeSandboxPrototype) {
+      notify('Sandbox boss fixtures are immutable and cannot be saved as promotable presets', true);
+      return;
+    }
     const proposed = (authoringMode === 'formation' ? selectedSpawnEvent?.label.trim() : presetName.trim())
       || selectedItem?.name
       || selectedEvent?.label
@@ -751,6 +988,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
       setSelectedPhaseId(preset.focus.kind === 'boss-phase' ? preset.focus.phaseId : null);
       setSelectedItemId(null);
       setActivePresetId(preset.id);
+      setActiveSandboxPrototype(null);
       setDeletePresetArmed(false);
       setSequenceActive(false);
       setSequenceIndex(0);
@@ -801,6 +1039,10 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
   };
 
   const exportCampaign = () => {
+    if (activeSandboxPrototype) {
+      notify('Sandbox boss fixtures cannot be exported as campaign JSON', true);
+      return;
+    }
     const validation = validateGameCampaign(preview.campaign);
     if (!validation.valid) {
       notify(`Export blocked: ${validation.issues[0].path} ${validation.issues[0].message}`, true);
@@ -817,6 +1059,10 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
   };
 
   const promoteToLevelEditor = async () => {
+    if (activeSandboxPrototype) {
+      notify('Sandbox boss fixtures cannot be promoted or applied to the Mission Builder workspace', true);
+      return;
+    }
     try {
       const latestState = await fetchGameCampaign<GameCampaignConfig>();
       const event = selectedEvent ?? preview.previewWave.events[0];
@@ -866,7 +1112,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
         <div className="cl-topbar__actions">
           <button className="cl-button cl-button--help" type="button" aria-label="How to use" aria-expanded={guideOpen} aria-controls="combat-lab-guide" onClick={() => setGuideOpen((open) => !open)}><EditorIcon name="review" /><span>How to use</span></button>
           <button className="cl-button cl-button--quiet" type="button" onClick={resetSelection}><EditorIcon name="undo" /><span>Reset</span></button>
-          <button className="cl-button cl-button--quiet" type="button" onClick={exportCampaign}><EditorIcon name="save" /><span>Export JSON</span></button>
+          <button className="cl-button cl-button--quiet" type="button" disabled={Boolean(activeSandboxPrototype)} onClick={exportCampaign}><EditorIcon name="save" /><span>Export JSON</span></button>
           <a className="cl-button cl-button--cyan" href="/level-editor" aria-label="Open Mission Builder" onClick={guardNavigation}><EditorIcon name="forward" /><span>Mission Builder</span></a>
           <a className="cl-button cl-button--icon" href="/studio" aria-label="Open legacy Director" onClick={guardNavigation}>D</a>
         </div>
@@ -899,8 +1145,19 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
               <button type="button" className={authoringMode === 'formation' ? 'is-selected' : ''} aria-pressed={authoringMode === 'formation'} onClick={openFormationWorkshop}><EditorIcon name="edit" /> Formation Workshop</button>
               <a href="/level-editor" onClick={guardNavigation}><EditorIcon name="review" /> Mission Builder</a>
             </nav>
-            <div className="cl-stage-heading__status"><span className={`cl-unsaved${dirty ? '' : ' is-saved'}`}>{dirty ? 'Unsaved experiment' : 'Catalog baseline'}</span></div>
+            <div className="cl-stage-heading__status">
+              <span className={`cl-unsaved${dirty || activeSandboxPrototype ? '' : ' is-saved'}`}>
+                {activeSandboxPrototype ? 'Sandbox prototype' : dirty ? 'Unsaved experiment' : 'Catalog baseline'}
+              </span>
+            </div>
           </header>
+
+          {sandboxPrototypeSurface ? (
+            <SandboxBossPrototypePicker
+              activePrototypeId={activeSandboxPrototype?.prototypeId ?? null}
+              onSelect={selectSandboxBossPrototype}
+            />
+          ) : null}
 
           <div className="cl-device-toolbar" aria-label="Preview screen controls">
             <div className="cl-device-toolbar__group">
@@ -935,7 +1192,7 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
                   style={{ width: `${previewDimensions.width}px`, height: `${previewDimensions.height}px`, transform: `scale(${previewScale})` }}
                 >
                   <GameEditorCanvas
-                    key={canvasKey}
+                    key={`${canvasKey}:${restartToken}`}
                     campaign={preview.campaign}
                     levelId={preview.levelId}
                     waveId={preview.waveId}
@@ -943,10 +1200,13 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
                     restartToken={restartToken}
                     previewSettings={previewSettings}
                     previewViewport={previewDimensions}
+                    previewCommand={previewCommand}
+                    onPreviewCommandResult={handlePreviewCommandResult}
                     onPlayingChange={setPlaying}
                     onRuntimeState={setRuntimeState}
                     onDebugSnapshot={setDebugSnapshot}
                     onEditorSnapshot={setEditorSnapshot}
+                    onTelemetrySnapshot={setTelemetrySnapshot}
                   />
                   {cleared ? <div className="cl-preview-cleared">Wave cleared</div> : null}
                   {(showBounds || showNames) && editorSnapshot ? (
@@ -972,14 +1232,30 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
           )}
 
           {authoringMode === 'playtest' ? <div className="cl-preview-controls">
-            <button className="cl-button cl-button--cyan" type="button" aria-label={playing && !cleared ? 'Pause preview' : 'Play preview'} onClick={() => { setCleared(false); setPlaying((value) => !value); }}><EditorIcon name={playing && !cleared ? 'pause' : 'play'} /><span>{playing && !cleared ? 'Pause' : 'Play'}</span></button>
+            <button className="cl-button cl-button--cyan" type="button" aria-label={playing && !cleared ? 'Pause preview' : 'Play preview'} onClick={() => { setCleared(false); setPreviewPlaying(!(playing && !cleared)); }}><EditorIcon name={playing && !cleared ? 'pause' : 'play'} /><span>{playing && !cleared ? 'Pause' : 'Play'}</span></button>
             <button className="cl-button" type="button" aria-label="Restart preview" onClick={restart}><EditorIcon name="restart" /><span>Restart</span></button>
-            <button className="cl-button" type="button" aria-label="Clear preview" onClick={() => { setSequenceActive(false); setSequenceIndex(0); setCleared(true); setPlaying(false); setRestartToken((value) => value + 1); setEditorSnapshot(null); setDebugSnapshot(null); }}><EditorIcon name="delete" /><span>Clear</span></button>
-            <select className="cl-speed-select" aria-label="Simulation speed" value={gameSpeed} onChange={(input) => setGameSpeed(Number(input.target.value))}><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={1.5}>1.5×</option><option value={2}>2×</option></select>
-            <Toggle label="Invincible" pressed={invincible} onChange={setInvincible} />
+            <button className="cl-button" type="button" aria-label="Clear preview" onClick={() => { setSequenceActive(false); setSequenceIndex(0); setCleared(true); setPlaying(false); setRestartToken((value) => value + 1); setEditorSnapshot(null); setDebugSnapshot(null); setTelemetrySnapshot(null); }}><EditorIcon name="delete" /><span>Clear</span></button>
+            <button className="cl-button" type="button" disabled={!selectedEvent} onClick={spawnSelectedEventNow}><EditorIcon name="play" /><span>Spawn now</span></button>
+            <button className="cl-button" type="button" onClick={fastForwardFiveSeconds}><span>+5 seconds</span></button>
+            {selectedEvent?.kind === 'boss' ? (
+              <button className="cl-button" type="button" disabled={!selectedPhaseId} onClick={jumpToSelectedBossPhase}><EditorIcon name="boss" /><span>Jump phase</span></button>
+            ) : null}
+            <select className="cl-speed-select" aria-label="Simulation speed" value={gameSpeed} onChange={(input) => updateGameSpeed(Number(input.target.value))}><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={1.5}>1.5×</option><option value={2}>2×</option></select>
+            <Toggle label="Invincible" pressed={invincible} onChange={updateInvincibility} />
             <Toggle label="Bounds" pressed={showBounds} onChange={setShowBounds} />
             <Toggle label="Collision" pressed={useCollisionBounds} onChange={(value) => { setUseCollisionBounds(value); if (value) setShowBounds(true); }} />
             <Toggle label="Names" pressed={showNames} onChange={setShowNames} />
+            <label className="cl-seed-control">
+              <span>Seed</span>
+              <input
+                value={seedDraft}
+                maxLength={128}
+                onChange={(input) => setSeedDraft(input.target.value)}
+                onKeyDown={(event) => { if (event.key === 'Enter') applyPreviewSeed(); }}
+                aria-label="Deterministic preview seed"
+              />
+              <button type="button" onClick={applyPreviewSeed}>Apply</button>
+            </label>
           </div> : null}
 
           <nav className="cl-mobile-tabs" aria-label="Combat Lab mobile panels">
@@ -1013,6 +1289,16 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
             <div><span>Wave clock</span><strong>{runtimeState ? `${runtimeState.elapsedSeconds.toFixed(1)} / ${runtimeState.durationSeconds.toFixed(0)}s` : 'Starting…'}</strong></div>
             <div><span>Live threats</span><strong>{hostileCount}</strong></div>
             <div><span>Difficulty</span><strong>{debugSnapshot ? `${debugSnapshot.difficultyMultiplier.toFixed(2)}×` : '—'}</strong></div>
+            <div><span>DPS</span><strong>{calculateCombatLabDps(telemetrySnapshot).toFixed(1)}</strong></div>
+            <div><span>Damage dealt / taken</span><strong>{telemetrySnapshot ? `${Math.round(telemetrySnapshot.aggregate.damageDealt)} / ${Math.round(telemetrySnapshot.aggregate.damageTaken)}` : '0 / 0'}</strong></div>
+            <div><span>Deaths / boss phases</span><strong>{telemetrySnapshot ? `${telemetrySnapshot.aggregate.playerDeaths} / ${telemetrySnapshot.aggregate.bossPhaseTransitions}` : '0 / 0'}</strong></div>
+            <div className="cl-telemetry__save">
+              <span>{telemetrySnapshot?.aggregate.recordedEventCount ?? 0} bounded events</span>
+              <button type="button" disabled={savingSession} onClick={() => void saveCurrentPlaytest()}>
+                {savingSession ? 'Saving…' : 'Save session'}
+              </button>
+              <a href="/analytics">Analytics</a>
+            </div>
           </div>
         </section>
 
@@ -1029,8 +1315,8 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
             />
           ) : <>
             <header className="cl-panel-heading"><div><p>Safe live edits</p><strong>Tuning inspector</strong></div><span>{selectedEvent ? selectedEvent.kind : 'No event'}</span></header>
-            <ShipSetup loadout={loadout} onChange={updateLoadout} />
             <div className="cl-inspector-scroll">
+              <ShipSetup loadout={loadout} onChange={updateLoadout} />
               <CombatLabInspector
                 event={selectedEvent}
                 selectedPhaseId={selectedPhaseId}
@@ -1039,6 +1325,21 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
                 onReset={resetSelection}
                 onReplay={restart}
               />
+              {activeSandboxPrototype && activeSandboxDescriptor ? (
+                <section className="cl-sandbox-provenance" role="note">
+                  <header>
+                    <strong>Sandbox-only provenance</strong>
+                    <span>Frozen definition</span>
+                  </header>
+                  <p>{activeSandboxDescriptor.description}</p>
+                  <ul>
+                    {activeSandboxDescriptor.designIntent.map((intent) => <li key={intent}>{intent}</li>)}
+                  </ul>
+                  <code>{activeSandboxPrototype.prototypeHash}</code>
+                  <code>{activeSandboxPrototype.previewHash}</code>
+                  <small>This run is editable in memory and resets to its frozen definition. Preset save, campaign export, Mission Builder promotion, and workspace apply are disabled.</small>
+                </section>
+              ) : null}
               {selectedItem ? (
                 <details className="cl-source-card">
                   <summary>Source-backed metadata</summary>
@@ -1048,17 +1349,29 @@ function Workspace({ initialState }: { initialState: GameCampaignDiskState<GameC
               ) : null}
             </div>
             <footer className="cl-inspector-footer">
-              <input className="cl-preset-name" value={presetName} maxLength={80} onChange={(input) => setPresetName(input.target.value)} aria-label="Preset name" placeholder="Name this experiment" />
-              <select className="cl-preset-select" value={activePresetId} onChange={(input) => loadPreset(input.target.value)} aria-label="Saved Combat Lab presets"><option value="">{presets.length ? `${presets.length} local presets…` : 'No local presets yet'}</option>{presets.map((preset) => <option value={preset.id} key={preset.id}>{preset.name}</option>)}</select>
-              <div className="cl-inspector-footer__row">
-                <button className="cl-button" type="button" onClick={savePreset}><EditorIcon name="save" /> Save preset</button>
-                <button className="cl-button" type="button" onClick={duplicatePreset}><EditorIcon name="copy" /> Duplicate</button>
-                <button className="cl-button" type="button" onClick={deletePreset} disabled={!activePresetId}><EditorIcon name="delete" /> {deletePresetArmed ? 'Confirm delete' : 'Delete'}</button>
-                <button className="cl-button" type="button" onClick={exportCampaign}><EditorIcon name="save" /> Export JSON</button>
-              </div>
-              <select className="cl-preset-select" value={promotionMode} onChange={(input) => setPromotionMode(input.target.value as PromotionMode)} aria-label="Promotion mode"><option value="event">Add selected encounter to this wave</option><option value="wave">Add experiment as a new wave</option></select>
-              <p className="cl-promotion-note"><strong>Draft only:</strong> the normal game stays unchanged until you review it and choose <b>Apply to game</b> in Mission Builder.</p>
-              <button className="cl-button cl-button--amber" type="button" onClick={promoteToLevelEditor}><EditorIcon name="forward" /> Review draft in Mission Builder</button>
+              {activeSandboxPrototype ? (
+                <div className="cl-sandbox-footer-lock" role="note">
+                  <div>
+                    <strong>Sandbox-only run</strong>
+                    <span>Save, export, and promotion stay locked. Reset restores the frozen definition.</span>
+                  </div>
+                  <button className="cl-button" type="button" onClick={resetSelection}><EditorIcon name="undo" /> Reset</button>
+                </div>
+              ) : (
+                <>
+                  <input className="cl-preset-name" value={presetName} maxLength={80} onChange={(input) => setPresetName(input.target.value)} aria-label="Preset name" placeholder="Name this experiment" />
+                  <select className="cl-preset-select" value={activePresetId} onChange={(input) => loadPreset(input.target.value)} aria-label="Saved Combat Lab presets"><option value="">{presets.length ? `${presets.length} local presets…` : 'No local presets yet'}</option>{presets.map((preset) => <option value={preset.id} key={preset.id}>{preset.name}</option>)}</select>
+                  <div className="cl-inspector-footer__row">
+                    <button className="cl-button" type="button" onClick={savePreset}><EditorIcon name="save" /> Save preset</button>
+                    <button className="cl-button" type="button" onClick={duplicatePreset}><EditorIcon name="copy" /> Duplicate</button>
+                    <button className="cl-button" type="button" onClick={deletePreset} disabled={!activePresetId}><EditorIcon name="delete" /> {deletePresetArmed ? 'Confirm delete' : 'Delete'}</button>
+                    <button className="cl-button" type="button" onClick={exportCampaign}><EditorIcon name="save" /> Export JSON</button>
+                  </div>
+                  <select className="cl-preset-select" value={promotionMode} onChange={(input) => setPromotionMode(input.target.value as PromotionMode)} aria-label="Promotion mode"><option value="event">Add selected encounter to this wave</option><option value="wave">Add experiment as a new wave</option></select>
+                  <p className="cl-promotion-note"><strong>Draft only:</strong> the normal game stays unchanged until you review it and choose <b>Apply to game</b> in Mission Builder.</p>
+                  <button className="cl-button cl-button--amber" type="button" onClick={promoteToLevelEditor}><EditorIcon name="forward" /> Review draft in Mission Builder</button>
+                </>
+              )}
             </footer>
           </>}
         </aside>

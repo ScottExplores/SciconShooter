@@ -37,6 +37,13 @@ import {
   MINI_SHIP_CATALOG,
   type MiniShipId
 } from '@game/services/squadProgression';
+import {
+  SANDBOX_BOSS_ARTWORK_REGISTRATIONS,
+  type SandboxBossArtworkRegistration
+} from '../tools/bosses/bossSandboxModel';
+import {
+  SANDBOX_BOSS_PROTOTYPE_BY_ID
+} from './sandboxBossPrototypes';
 
 export const COMBAT_LAB_CATEGORY_IDS = [
   'formations',
@@ -778,6 +785,102 @@ const createPowerupItems = (
   };
 });
 
+const createSandboxPrototypeAssetItems = (): CombatLabCatalogItem[] => {
+  const registrations = Object.values(SANDBOX_BOSS_ARTWORK_REGISTRATIONS)
+    .filter((registration): registration is SandboxBossArtworkRegistration => (
+      Boolean(registration)
+    ));
+  const items = registrations.flatMap((registration): CombatLabCatalogItem[] => {
+    const prototype = SANDBOX_BOSS_PROTOTYPE_BY_ID[registration.prototypeId];
+    const bossLabel = prototype?.label ?? registration.prototypeId;
+    const primaryAssetUrls = new Set([
+      registration.assembled.url,
+      registration.sheet.url
+    ]);
+    const primaryItems = ([
+      ['assembled', 'Assembled sprite', registration.assembled],
+      ['sheet', 'Modular sprite sheet', registration.sheet]
+    ] as const).map(([variant, variantLabel, asset]): CombatLabCatalogItem => ({
+      id: `prototype-asset:${registration.prototypeId}:${variant}`,
+      category: 'effects-assets',
+      kind: 'asset',
+      name: `${bossLabel} · ${variantLabel}`,
+      description: `${variantLabel} generated for the sandbox-only ${bossLabel} test boss. It remains local authoring art and is not a production campaign asset.`,
+      imagePaths: [asset.url],
+      facts: [
+        { label: 'Boss', value: bossLabel, source: 'catalog' },
+        { label: 'Variant', value: variantLabel, source: 'catalog' },
+        { label: 'Dimensions', value: `${asset.width}×${asset.height}`, source: 'catalog' },
+        { label: 'Generated', value: true, source: 'catalog' }
+      ],
+      sourceRefs: [{
+        path: 'director/server/prototypeAssetCatalog.mjs',
+        symbol: 'PROTOTYPE_ASSET_DEFINITIONS',
+        catalogId: `${registration.prototypeId}:${variant}`
+      }],
+      relatedIds: [],
+      target: {},
+      production: false
+    }));
+    const supplementalAtlasItems = (registration.modularRig?.atlases ?? [])
+      .filter((asset) => !primaryAssetUrls.has(asset.url))
+      .map((asset, index): CombatLabCatalogItem => {
+        const variant = asset.url.match(/\/([^/]+)\.png$/)?.[1]
+          ?? `supplemental-atlas-${index + 1}`;
+        return {
+          id: `prototype-asset:${registration.prototypeId}:${variant}`,
+          category: 'effects-assets',
+          kind: 'asset',
+          name: `${bossLabel} · Supplemental animation atlas`,
+          description: `Generated supplemental animation frames used by the sandbox-only ${bossLabel} modular rig. They remain local authoring art and are not a production campaign asset.`,
+          imagePaths: [asset.url],
+          facts: [
+            { label: 'Boss', value: bossLabel, source: 'catalog' },
+            { label: 'Variant', value: variant, source: 'catalog' },
+            { label: 'Dimensions', value: `${asset.width}×${asset.height}`, source: 'catalog' },
+            { label: 'Generated', value: true, source: 'catalog' }
+          ],
+          sourceRefs: [{
+            path: 'director/server/prototypeAssetCatalog.mjs',
+            symbol: 'PROTOTYPE_ASSET_DEFINITIONS',
+            catalogId: `${registration.prototypeId}:${variant}`
+          }],
+          relatedIds: [],
+          target: {},
+          production: false
+        };
+      });
+    return [...primaryItems, ...supplementalAtlasItems];
+  });
+
+  const sharedVfx = registrations.find((registration) => registration.vfxAtlas)?.vfxAtlas;
+  if (sharedVfx) {
+    items.push({
+      id: 'prototype-asset:sandbox-boss-vfx:sheet',
+      category: 'effects-assets',
+      kind: 'asset',
+      name: 'Sandbox boss projectile and laser VFX sheet',
+      description: 'Shared generated pixel-art atlas for boss projectiles, laser warnings, live beams, impacts, pods, and animated hazard sprites.',
+      imagePaths: [sharedVfx.url],
+      facts: [
+        { label: 'Variant', value: 'VFX sprite sheet', source: 'catalog' },
+        { label: 'Dimensions', value: `${sharedVfx.width}×${sharedVfx.height}`, source: 'catalog' },
+        { label: 'Frames', value: Object.keys(sharedVfx.frames).length, source: 'catalog' },
+        { label: 'Generated', value: true, source: 'catalog' }
+      ],
+      sourceRefs: [{
+        path: 'director/server/prototypeAssetCatalog.mjs',
+        symbol: 'PROTOTYPE_ASSET_DEFINITIONS',
+        catalogId: 'sandbox-boss-vfx:sheet'
+      }],
+      relatedIds: [],
+      target: {},
+      production: false
+    });
+  }
+  return items;
+};
+
 const createEffectsAssetsItems = (
   campaign: GameCampaignConfig,
   contexts: readonly EventContext[]
@@ -821,7 +924,7 @@ const createEffectsAssetsItems = (
       production: refs.length > 0
     };
   });
-  return [...effects, ...assets];
+  return [...createSandboxPrototypeAssetItems(), ...effects, ...assets];
 };
 
 /**

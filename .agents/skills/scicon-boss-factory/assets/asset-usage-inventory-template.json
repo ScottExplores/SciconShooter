@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-asset-usage-inventory",
+  "bossId": "replace-me",
+  "allowedStatuses": [
+    "used-neutral",
+    "used-animation",
+    "used-attack",
+    "used-phase-two",
+    "used-damage",
+    "used-death",
+    "retained-future-alternate",
+    "archived-redundant-or-inconsistent"
+  ],
+  "assets": [
+    {
+      "id": "replace-frame-id",
+      "path": "replace-relative-path",
+      "sha256": "replace-me",
+      "kind": "structural-sprite",
+      "status": "used-neutral",
+      "owners": ["replace-part-or-attack"],
+      "decision": "replace-explicit-reason",
+      "structuralAlphaBinary": true,
+      "registrationGroup": "replace-group-or-null"
+    }
+  ],
+  "audit": {
+    "allAcceptedExportsListed": false,
+    "magentaAndGuidePixelsRemoved": false,
+    "transparentEdgesClean": false,
+    "alternateFramesEqualCanvasAndRegistered": false,
+    "textureSmoothingDisabled": false,
+    "structuralScalingUniform": false,
+    "silentUnusedAssetCount": 0
+  }
+}

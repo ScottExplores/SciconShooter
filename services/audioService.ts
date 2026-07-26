@@ -1,5 +1,5 @@
 
-type GameSoundType = 'shoot' | 'boss_shoot' | 'impact' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb';
+type GameSoundType = 'shoot' | 'boss_shoot' | 'boss_cannon' | 'boss_machinegun' | 'impact' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb';
 type SampleKey = 'player-shot' | 'boss-shot' | 'hit' | 'explosion';
 
 export type MissionMusicTrackId = 'scicon-flight' | 'acid-clatter' | 'pressure' | 'exellent';
@@ -31,6 +31,8 @@ const SAMPLE_URLS: Record<SampleKey, string> = {
 
 const SAMPLE_PROFILES: Partial<Record<GameSoundType, SampleProfile>> = {
   boss_shoot: { sample: 'boss-shot', volume: 0.24, maxDuration: 0.38 },
+  boss_cannon: { sample: 'boss-shot', volume: 0.3, maxDuration: 0.48 },
+  boss_machinegun: { sample: 'player-shot', volume: 0.14, maxDuration: 0.14 },
   impact: { sample: 'hit', volume: 0.075, maxDuration: 0.16 },
   hit: { sample: 'hit', volume: 0.23, maxDuration: 0.42 },
   explode: { sample: 'explosion', volume: 0.2, maxDuration: 0.82 }
@@ -80,6 +82,7 @@ class AudioService {
   private musicStep: number = 0;
   private musicRequested: boolean = false;
   private musicPaused: boolean = false;
+  private musicPlaybackEnabled: boolean = true;
   private musicLaunchPending: boolean = false;
   private selectedMusicTrackId: MissionMusicTrackId = 'scicon-flight';
   private musicPlayer: HTMLAudioElement | null = null;
@@ -275,7 +278,8 @@ class AudioService {
 
   private beginSelectedMusic() {
     if (
-      !this.musicRequested
+      !this.musicPlaybackEnabled
+      || !this.musicRequested
       || this.musicPaused
       || this.muted
       || !this.pageActive
@@ -478,6 +482,7 @@ class AudioService {
   }
 
   public startMusic() {
+    if (!this.musicPlaybackEnabled) return;
     if (!this.musicRequested) {
       this.musicStep = 0;
       this.musicLaunchPending = true;
@@ -509,6 +514,16 @@ class AudioService {
     this.clearMusicTimer();
     this.stopActiveMusicNodes();
     this.pauseMusicPlayer(true);
+  }
+
+  public setMusicPlaybackEnabled(enabled: boolean) {
+    if (this.musicPlaybackEnabled === enabled) return;
+    this.musicPlaybackEnabled = enabled;
+    if (!enabled) this.stopMusic();
+  }
+
+  public isMusicPlaybackEnabled() {
+    return this.musicPlaybackEnabled;
   }
 
   public getMusicTrackId() {
@@ -758,6 +773,8 @@ class AudioService {
     const minSpacingMs: Partial<Record<GameSoundType, number>> = {
       shoot: 28,
       boss_shoot: 95,
+      boss_cannon: 160,
+      boss_machinegun: 42,
       impact: 58,
       coin: 24,
       explode: 72,
@@ -829,6 +846,30 @@ class AudioService {
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.24);
         osc.start(t);
         osc.stop(t + 0.25);
+        break;
+
+      case 'boss_cannon':
+        // The checked-in boss-shot sample is preferred. This short fallback is
+        // only used while that sample is unavailable or still decoding.
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220 * pitch, t);
+        osc.frequency.exponentialRampToValueAtTime(42 * pitch, t + 0.32);
+        gain.gain.setValueAtTime(0.24, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.34);
+        osc.start(t);
+        osc.stop(t + 0.35);
+        break;
+
+      case 'boss_machinegun':
+        // The checked-in player-shot sample is preferred for the tighter
+        // mechanical report; this fallback avoids a silent first preload.
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(760 * pitch, t);
+        osc.frequency.exponentialRampToValueAtTime(190 * pitch, t + 0.065);
+        gain.gain.setValueAtTime(0.1, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.075);
+        osc.start(t);
+        osc.stop(t + 0.08);
         break;
 
       case 'impact':

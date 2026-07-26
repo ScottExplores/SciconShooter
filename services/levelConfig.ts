@@ -13,6 +13,7 @@ import {
 } from '../game-config/catalog';
 import { parseGameCampaign } from '../game-config/validate';
 import { normalizeGameCampaignRecordCard } from '../game-config/recordCard';
+import { resolveAuthoredDifficulty } from './gameplay/difficulty';
 import type {
   AssetKey,
   BackgroundId,
@@ -85,7 +86,10 @@ export const findWaveEvent = getWaveEventById;
 export const getDifficultyMultiplier = (
   level: LevelDefinition,
   wave: WaveDefinition
-): number => Math.max(0.01, level.startingDifficulty * wave.difficultyMultiplier);
+): number => resolveAuthoredDifficulty({
+  startingDifficulty: level.startingDifficulty,
+  waveDifficultyMultiplier: wave.difficultyMultiplier
+});
 
 export const getAsset = (id: AssetKey) => ASSET_CATALOG[id];
 export const getAssetPaths = (id: AssetKey): readonly string[] => getAsset(id).paths;

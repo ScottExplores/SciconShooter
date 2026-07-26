@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "paths": {
+      "@director/*": ["director/src/*"],
+      "@game/*": ["*"]
+    },
+    "types": ["node", "vite/client", "react", "react-dom"],
+    "resolveJsonModule": true,
+    "strict": true
+  },
+  "include": [
+    "./*.ts",
+    "./*.tsx"
+  ],
+  "exclude": [
+    "../../node_modules",
+    "../node_modules"
+  ]
+}

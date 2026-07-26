@@ -28,10 +28,24 @@ test('the shared canvas accepts draft campaign data without changing production 
   assert.match(canvas, /campaign\?: GameCampaign/);
   assert.match(canvas, /previewMode\?: boolean/);
   assert.match(canvas, /audioEnabled = !previewMode/);
+  assert.match(canvas, /musicEnabled = audioEnabled/);
   assert.match(canvas, /const initialStats = cloneStatsForReact\(stats\)/);
   assert.match(canvas, /new GameEngine\(initialStats,/);
   assert.match(gameLogic, /const isInvincible = \(this\.previewMode && this\.previewInvincible\)/);
   assert.match(directorEntry, /\.\.\/\.\.\/styles\/tailwind\.generated\.css/);
+});
+
+test('the shared editor can hide field upgrades and react to sandbox ship tuning', () => {
+  const source = fs.readFileSync(path.join(root, 'components', 'GameEditorCanvas.tsx'), 'utf8');
+  assert.match(source, /fieldUpgradesEnabled\?: boolean/);
+  assert.match(source, /fieldUpgradesEnabled = true/);
+  assert.match(source, /fieldUpgradesEnabled,/);
+  assert.match(source, /audioEnabled = false/);
+  assert.match(source, /musicEnabled = false/);
+  assert.match(source, /audioEnabled,\s*musicEnabled,/);
+  assert.match(source, /previewSettings\.upgrades\?\.fireRate/);
+  assert.match(source, /previewSettings\.upgrades\?\.speed/);
+  assert.match(source, /setStats\(\(previous\)/);
 });
 
 test('the shared editor preview exposes the selected ship ability through the canonical stage', () => {

@@ -11,6 +11,10 @@ import {
   getFireRateTier,
   getFireRateTierProgress
 } from './weaponTierProgression';
+import {
+  inferLegacyBossArchiveEventIds,
+  normalizeBossArchiveEventIds
+} from './bossArchive';
 
 export const SQUAD_PROFILE_VERSION = 3;
 const RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = [1, 2] as const;
@@ -117,7 +121,13 @@ export interface PermanentSquadState {
   lifetimeStats: PermanentLifetimeStats;
   achievementTiers: Record<string, number>;
   unlockedPlayerShips: PlayerShipId[];
+  bossArchive: BossArchiveProgress;
   updatedAt: string;
+}
+
+export interface BossArchiveProgress {
+  unlockedEventIds: string[];
+  seenEventIds: string[];
 }
 
 export interface DailyGiftProgress {
@@ -413,8 +423,20 @@ export const createPermanentSquadState = (walletAddress?: string | null): Perman
   },
   achievementTiers: {},
   unlockedPlayerShips: [],
+  bossArchive: {
+    unlockedEventIds: [],
+    seenEventIds: []
+  },
   updatedAt: nowIso()
 });
+
+type StoredPermanentSquadState = Omit<Partial<PermanentSquadState>, 'bossArchive'> & {
+  bossArchive?: Partial<BossArchiveProgress> & {
+    unlockedEncounterIds?: unknown;
+    viewedEncounterIds?: unknown;
+    viewedEventIds?: unknown;
+  };
+};
 
 type StoredWeeklySquadState = Omit<Partial<WeeklySquadState>, 'shipUpgrades'> & {
   shipUpgrades?: Partial<Record<PlayerShipId, Partial<Record<MainShipUpgradeId, number>>>>;
@@ -571,15 +593,30 @@ export const adjustFounderMainShipUpgrade = (
 export const loadPermanentSquadState = (walletAddress?: string | null): PermanentSquadState => {
   const fallback = createPermanentSquadState(walletAddress);
   if (typeof window === 'undefined') return fallback;
-  if (!walletAddress?.trim()) {
-    window.localStorage.removeItem(permanentStorageKey(fallback.profileId));
-    return fallback;
-  }
   try {
     const saved = window.localStorage.getItem(permanentStorageKey(fallback.profileId));
     if (!saved) return fallback;
-    const parsed = JSON.parse(saved) as Partial<PermanentSquadState>;
+    const parsed = JSON.parse(saved) as StoredPermanentSquadState;
     const parsedStats = parsed.lifetimeStats;
+    const hasStoredBossArchive = Boolean(
+      parsed.bossArchive
+      && typeof parsed.bossArchive === 'object'
+      && !Array.isArray(parsed.bossArchive)
+    );
+    const unlockedEventIds = normalizeBossArchiveEventIds(
+      hasStoredBossArchive
+        ? parsed.bossArchive?.unlockedEventIds ?? parsed.bossArchive?.unlockedEncounterIds
+        : inferLegacyBossArchiveEventIds({
+            highestWave: parsedStats?.highestWave,
+            bossesDefeated: parsedStats?.bossesDefeated
+          })
+    );
+    const unlockedEventIdSet = new Set(unlockedEventIds);
+    const seenEventIds = normalizeBossArchiveEventIds(
+      parsed.bossArchive?.seenEventIds
+        ?? parsed.bossArchive?.viewedEventIds
+        ?? parsed.bossArchive?.viewedEncounterIds
+    ).filter((eventId) => unlockedEventIdSet.has(eventId));
     return {
       ...fallback,
       ...parsed,
@@ -608,7 +645,11 @@ export const loadPermanentSquadState = (walletAddress?: string | null): Permanen
           .map(([id, tier]) => [id, Math.max(0, Math.floor(Number(tier)))])
       ),
       unlockedPlayerShips: (parsed.unlockedPlayerShips || [])
-        .filter((id): id is PlayerShipId => (PLAYABLE_PLAYER_SHIP_IDS as readonly PlayerShipId[]).includes(id as PlayerShipId))
+        .filter((id): id is PlayerShipId => (PLAYABLE_PLAYER_SHIP_IDS as readonly PlayerShipId[]).includes(id as PlayerShipId)),
+      bossArchive: {
+        unlockedEventIds,
+        seenEventIds
+      }
     };
   } catch {
     return fallback;
@@ -616,7 +657,7 @@ export const loadPermanentSquadState = (walletAddress?: string | null): Permanen
 };
 
 export const savePermanentSquadState = (state: PermanentSquadState) => {
-  if (typeof window === 'undefined' || state.profileId === 'guest') return;
+  if (typeof window === 'undefined') return;
   window.localStorage.setItem(permanentStorageKey(state.profileId), JSON.stringify({
     ...state,
     updatedAt: nowIso()

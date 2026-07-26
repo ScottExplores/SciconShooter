@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "artifactType": "boss-rig-pivot-manifest",
+  "bossId": "replace-me",
+  "canonicalReference": {
+    "path": "evidence/canonical-reference.png",
+    "sha256": "replace-me",
+    "width": 0,
+    "height": 0,
+    "neutralLandmarks": []
+  },
+  "coordinateSystem": {
+    "canvas": { "width": 0, "height": 0 },
+    "xAxis": "right",
+    "yAxis": "down",
+    "rotationUnit": "radians",
+    "rootNeutral": { "x": 0, "y": 0 }
+  },
+  "sourceIntegrity": {},
+  "rootPartId": "body.shell",
+  "atlases": [],
+  "parts": [
+    {
+      "id": "body.shell",
+      "role": "primary-hull",
+      "atlasId": "primary",
+      "neutralFrameId": "body-neutral",
+      "parentId": null,
+      "authoringAnchor": { "x": 0.5, "y": 0.5 },
+      "atlasRegistrationAnchor": { "x": 0.5, "y": 0.5 },
+      "neutralTransform": { "x": 0, "y": 0, "rotationRadians": 0, "scaleX": 1, "scaleY": 1 },
+      "layer": 0,
+      "neutralVisible": true,
+      "structuralScaleMustRemainUniform": true
+    }
+  ],
+  "articulationJoints": [
+    {
+      "id": "replace-joint",
+      "parentId": "body.shell",
+      "role": "replace-role",
+      "neutralTransform": { "x": 0, "y": 0, "rotationRadians": 0, "scaleX": 1, "scaleY": 1 },
+      "drivenParts": [],
+      "validatedMotionRangeRadians": { "minimum": 0, "maximum": 0 },
+      "requiredOverlapPx": 0
+    }
+  ],
+  "sockets": [
+    {
+      "id": "core.muzzle",
+      "role": "projectile-origin",
+      "partId": "body.shell",
+      "local": { "x": 0.5, "y": 0.82 },
+      "forwardRadians": 1.5707963267948966
+    }
+  ],
+  "animations": [],
+  "collisionParts": ["body.shell"],
+  "layerOrderBackToFront": ["body.shell"],
+  "referenceComparison": {
+    "sameCenter": true,
+    "sameOverallHeight": true,
+    "adjustableOpacity": true,
+    "requiredLandmarkIds": []
+  },
+  "destruction": { "durationFrames": 72, "fragments": [] }
+}

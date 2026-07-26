@@ -32,7 +32,12 @@ import {
 import SquadHangar from './SquadHangar';
 import PixelActionButton from './PixelActionButton';
 import ShipCarousel from './ShipCarousel';
+import BossArchive from './BossArchive';
 import RewardCenter, { type RewardTab } from './RewardCenter';
+import {
+  getUnlockedBossArchiveEntries,
+  type BossArchiveEntry
+} from '../services/bossArchive';
 import {
   getClaimableAchievementCount,
   getDailyGiftStatus,
@@ -87,6 +92,8 @@ interface StartScreenProps {
   onClaimDailyGift: () => DailyGiftReward | null;
   onClaimAchievement: (id: AchievementId) => number | null;
   onRequestWalletConnect: () => void;
+  onBossArchiveViewed?: () => void;
+  onStartBossFight?: (entry: BossArchiveEntry) => void;
   founderSandbox?: boolean;
   onUnlockSquadSlot: (slot: SquadSlotId) => void;
   onPurchaseMiniShip: (id: MiniShipId) => void;
@@ -575,6 +582,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onClaimDailyGift,
   onClaimAchievement,
   onRequestWalletConnect,
+  onBossArchiveViewed,
+  onStartBossFight,
   founderSandbox = false,
   onUnlockSquadSlot,
   onPurchaseMiniShip,
@@ -600,6 +609,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [showTreasury, setShowTreasury] = useState(false);
   const [showLegal, setShowLegal] = useState(false);
   const [showRewardCenter, setShowRewardCenter] = useState(false);
+  const [showBossArchive, setShowBossArchive] = useState(() => (
+    new URLSearchParams(window.location.search).get('view') === 'bosses'
+  ));
+  const [bossArchiveOpenedNewIds, setBossArchiveOpenedNewIds] = useState<string[]>([]);
   const [showWeeklyProposalReminder, setShowWeeklyProposalReminder] = useState(false);
   const [rewardCenterInitialTab, setRewardCenterInitialTab] = useState<RewardTab>('daily');
   const [feedback, setFeedback] = useState('');
@@ -630,6 +643,27 @@ const StartScreen: React.FC<StartScreenProps> = ({
     [permanentSquadState]
   );
   const hasRewardReady = dailyGiftStatus.isAvailable || claimableAchievementCount > 0;
+  const unlockedBossArchiveEntries = useMemo(() => (
+    getUnlockedBossArchiveEntries(permanentSquadState.bossArchive.unlockedEventIds)
+  ), [permanentSquadState.bossArchive.unlockedEventIds]);
+  const newBossArchiveEventIds = useMemo(() => {
+    const seen = new Set(permanentSquadState.bossArchive.seenEventIds);
+    return unlockedBossArchiveEntries
+      .map((entry) => entry.eventId)
+      .filter((eventId) => !seen.has(eventId));
+  }, [permanentSquadState.bossArchive.seenEventIds, unlockedBossArchiveEntries]);
+  const canOpenBossArchive = unlockedBossArchiveEntries.length > 0 && Boolean(onStartBossFight);
+
+  const openBossArchive = () => {
+    if (!canOpenBossArchive) return;
+    setBossArchiveOpenedNewIds(newBossArchiveEventIds);
+    setShowBossArchive(true);
+  };
+
+  const closeBossArchive = () => {
+    setShowBossArchive(false);
+    setBossArchiveOpenedNewIds([]);
+  };
   const openRewardCenter = (initialTab: RewardTab = 'daily') => {
     setRewardCenterInitialTab(initialTab);
     setShowRewardCenter(true);
@@ -652,10 +686,29 @@ const StartScreen: React.FC<StartScreenProps> = ({
   useEffect(() => {
     if (testChampionWinner) return;
     const url = new URL(window.location.href);
-    if (dashboardTab === 'home') url.searchParams.delete('view');
+    if (showBossArchive && canOpenBossArchive) url.searchParams.set('view', 'bosses');
+    else if (dashboardTab === 'home') url.searchParams.delete('view');
     else url.searchParams.set('view', dashboardTab);
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-  }, [dashboardTab, testChampionWinner]);
+  }, [canOpenBossArchive, dashboardTab, showBossArchive, testChampionWinner]);
+
+  useEffect(() => {
+    if (!showBossArchive) return;
+    if (!canOpenBossArchive) {
+      setShowBossArchive(false);
+      return;
+    }
+    if (bossArchiveOpenedNewIds.length === 0 && newBossArchiveEventIds.length > 0) {
+      setBossArchiveOpenedNewIds(newBossArchiveEventIds);
+    }
+    onBossArchiveViewed?.();
+  }, [
+    bossArchiveOpenedNewIds.length,
+    canOpenBossArchive,
+    newBossArchiveEventIds,
+    onBossArchiveViewed,
+    showBossArchive
+  ]);
 
   useEffect(() => {
     if (!walletAddress && dashboardTab === 'hangar') setDashboardTab('home');
@@ -1110,8 +1163,39 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
 
         <div className={`w-full max-w-xl ${compact ? 'space-y-2' : 'space-y-3'}`}>
-          {walletControl ? (
-            <div className={`relative flex justify-center ${connectNudgeActive ? 'sci-wallet-connect-nudge' : ''}`}>
+          {walletControl || canOpenBossArchive ? (
+            <div className={`relative flex items-center justify-center gap-2 ${connectNudgeActive ? 'sci-wallet-connect-nudge' : ''}`}>
+              {canOpenBossArchive ? (
+                <button
+                  type="button"
+                  onClick={openBossArchive}
+                  className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden border bg-slate-950/90 transition hover:-translate-y-0.5 hover:border-cyan-100 ${newBossArchiveEventIds.length > 0
+                    ? 'border-yellow-200 shadow-[0_0_10px_rgba(250,204,21,0.85),0_0_26px_rgba(239,68,68,0.42)]'
+                    : 'border-cyan-200/45 shadow-[0_0_18px_rgba(34,211,238,0.18)]'} [clip-path:polygon(8px_0,calc(100%_-_8px)_0,100%_8px,100%_calc(100%_-_8px),calc(100%_-_8px)_100%,8px_100%,0_calc(100%_-_8px),0_8px)]`}
+                  aria-label={newBossArchiveEventIds.length > 0
+                    ? `Open Boss Archive. ${newBossArchiveEventIds.length} new ${newBossArchiveEventIds.length === 1 ? 'boss' : 'bosses'} unlocked.`
+                    : 'Open Boss Archive'}
+                  title="Boss Archive"
+                >
+                  {newBossArchiveEventIds.length > 0 ? (
+                    <img
+                      src="/game-art/generated/ui/animations/boss-alert-banners-v1/effects/warning-ring-red.png"
+                      alt=""
+                      className="absolute inset-0 h-full w-full animate-pulse object-contain opacity-80 [image-rendering:pixelated]"
+                    />
+                  ) : null}
+                  <img
+                    src="/game-art/bosses/final-boss-sentinel.png"
+                    alt=""
+                    className="relative z-10 h-10 w-10 object-contain drop-shadow-[0_0_8px_rgba(248,113,113,0.72)] [image-rendering:pixelated] transition group-hover:scale-105"
+                  />
+                  {newBossArchiveEventIds.length > 0 ? (
+                    <span className="absolute right-0.5 top-0.5 z-20 flex h-4 min-w-4 items-center justify-center rounded-full border border-yellow-100 bg-red-500 px-1 text-[8px] font-black text-white shadow-[0_0_8px_rgba(250,204,21,0.8)]">
+                      {newBossArchiveEventIds.length > 9 ? '9+' : newBossArchiveEventIds.length}
+                    </span>
+                  ) : null}
+                </button>
+              ) : null}
               {walletControl}
               {!walletAddress && connectNudgeActive ? (
                 <span className="sci-wallet-connect-hint" role="status">
@@ -1948,6 +2032,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </div>
           </section>
         </div>
+      ) : null}
+
+      {showBossArchive && canOpenBossArchive && onStartBossFight ? (
+        <BossArchive
+          entries={unlockedBossArchiveEntries}
+          newEncounterIds={bossArchiveOpenedNewIds}
+          onClose={closeBossArchive}
+          onChallenge={onStartBossFight}
+        />
       ) : null}
 
       <div className="scicon-start-shell relative z-10 mx-auto flex h-full min-h-0 w-full max-w-[1560px] flex-col gap-4 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">

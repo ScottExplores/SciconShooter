@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "kind": "scicon-game-content-package",
+  "status": "inactive-foundation",
+  "authority": "game-config/campaign.json",
+  "sourceCampaign": {
+    "path": "game-config/campaign.json",
+    "schemaVersion": 1
+  },
+  "resources": {
+    "missions": "missions",
+    "waves": "waves",
+    "bosses": "bosses"
+  },
+  "compiler": "game-config/compiler/index.mjs"
+}

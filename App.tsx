@@ -69,12 +69,18 @@ import {
 import {
   claimAchievement as claimAchievementReward,
   claimDailyGift as claimDailyGiftReward,
+  markBossArchiveViewed,
   recordBossVictory,
   recordLifetimeRun,
   type AchievementId
 } from './services/rewardProgression';
 import { getStageName } from './services/stagePresentation';
-import { MAX_AUTHORED_CAMPAIGN_STAGES } from './services/campaignCombatProgression';
+import { DEFAULT_GAME_CAMPAIGN } from './services/levelConfig';
+import {
+  buildBossReplayCampaign,
+  getBossArchiveEntry,
+  type BossArchiveEntry
+} from './services/bossArchive';
 import {
   checkForDeploymentUpdate,
   reloadForDeploymentUpdate
@@ -100,6 +106,8 @@ const MISSION_LOADING_TIPS = [
   'Collect dropped research coins quickly, or bring a magnet companion to pull them in.',
   'Save bombs for dense swarms or the moment a boss fills the screen with projectiles.'
 ] as const;
+
+const AUTHORED_CAMPAIGN_STAGE_COUNT = Math.max(1, DEFAULT_GAME_CAMPAIGN.levels.length);
 
 const getRandomMissionLoadingTip = () => (
   MISSION_LOADING_TIPS[Math.floor(Math.random() * MISSION_LOADING_TIPS.length)]
@@ -181,7 +189,7 @@ const preloadGameplayComponents = (listener?: GameplayPreloadListener) => {
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
-type ActiveRunMode = 'standard' | 'owner-test';
+type ActiveRunMode = 'standard' | 'owner-test' | 'boss-archive';
 type MissionLoadingState = {
   progress: number;
   phase: MissionLoadingPhase;
@@ -197,6 +205,7 @@ type PendingMissionRuntimeLaunch = {
   startInTestMode: boolean;
   tip: string;
   squadLoadout: RuntimeSquadLoadout;
+  runMode: ActiveRunMode;
 };
 
 const OWNER_TEST_FLASK_COUNT = 40;
@@ -343,6 +352,7 @@ const App: React.FC = () => {
   const [waveVictorySummary, setWaveVictorySummary] = useState<WaveVictorySummary | null>(null);
   const [campaignCompletedRun, setCampaignCompletedRun] = useState(false);
   const [activeRunMode, setActiveRunMode] = useState<ActiveRunMode>('standard');
+  const [activeBossEncounterId, setActiveBossEncounterId] = useState<string | null>(null);
   const [testWaveCommand, setTestWaveCommand] = useState<{ nonce: number; wave: number } | null>(null);
   const [testBossCommand, setTestBossCommand] = useState<{ nonce: number; wave: number } | null>(null);
   const [testFlaskCommand, setTestFlaskCommand] = useState<{ nonce: number; charge: number } | null>(null);
@@ -525,7 +535,15 @@ const App: React.FC = () => {
   const activeWalletAddress = wallet.address ?? null;
   const isOwnerWallet = activeWalletAddress?.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase();
   const isOwnerTestRun = activeRunMode === 'owner-test';
+  const isBossArchiveRun = activeRunMode === 'boss-archive';
   const isFounderSandboxRun = isOwnerWallet || isOwnerTestRun;
+  const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun;
+  const activeBossReplay = useMemo(() => (
+    activeBossEncounterId ? getBossArchiveEntry(activeBossEncounterId) : null
+  ), [activeBossEncounterId]);
+  const activeBossReplayCampaign = useMemo(() => (
+    activeBossEncounterId ? buildBossReplayCampaign(activeBossEncounterId) ?? undefined : undefined
+  ), [activeBossEncounterId]);
   const previewPilotName = missionRecordPilotName || playerNameInput || 'PILOT';
   const missionRecordWeeklyFunding = useMemo(() => runReceipt ? getMissionRecordWeeklyFunding({
     receipt: runReceipt,
@@ -576,6 +594,10 @@ const App: React.FC = () => {
       return next;
     });
   }, []);
+
+  const handleBossArchiveViewed = useCallback(() => {
+    updatePermanentSquadState(markBossArchiveViewed);
+  }, [updatePermanentSquadState]);
 
   useEffect(() => {
     const loaded = loadWeeklySquadState(activeWalletAddress);
@@ -989,7 +1011,7 @@ const App: React.FC = () => {
   }, [activeWalletAddress]);
 
   useEffect(() => {
-    if (!isOwnerWallet || activeRunMode === 'owner-test') return;
+    if (!isOwnerWallet || activeRunMode === 'owner-test' || activeRunMode === 'boss-archive') return;
     if (gameState !== GameState.PLAYING && gameState !== GameState.PAUSED) return;
 
     setActiveRunMode('owner-test');
@@ -1006,8 +1028,25 @@ const App: React.FC = () => {
     beginRunSession(true);
   }, [activeRunMode, beginRunSession, gameState, isOwnerWallet]);
 
-  const startGame = async () => {
+  const launchGame = async (bossEncounterId: string | null = null) => {
     if (missionLaunchPendingRef.current) return;
+
+    const requestedBossReplay = bossEncounterId ? getBossArchiveEntry(bossEncounterId) : null;
+    if (
+      bossEncounterId
+      && (
+        !requestedBossReplay
+        || !permanentSquadState.bossArchive.unlockedEventIds.includes(requestedBossReplay.eventId)
+      )
+    ) return;
+
+    const runMode: ActiveRunMode = requestedBossReplay
+      ? 'boss-archive'
+      : isOwnerWallet
+        ? 'owner-test'
+        : 'standard';
+    setActiveRunMode(runMode);
+    setActiveBossEncounterId(requestedBossReplay?.eventId ?? null);
 
     const launchNonce = missionLaunchNonceRef.current + 1;
     const shouldShowMissionLoading = !gameplayPreloadReady;
@@ -1052,7 +1091,7 @@ const App: React.FC = () => {
 
     if (missionLaunchNonceRef.current !== launchNonce) return;
 
-    const startInTestMode = isOwnerWallet;
+    const startInTestMode = runMode === 'owner-test';
     const nextGameId = gameId + 1;
     const squadLoadout = buildRuntimeSquadLoadout(weeklySquadState, usableShipId);
     const startingLives = Math.min(
@@ -1072,7 +1111,7 @@ const App: React.FC = () => {
     setStats(prev => ({
       ...prev,
       score: 0,
-      wave: 1,
+      wave: requestedBossReplay?.missionNumber ?? 1,
       coins: 0,
       enemiesDefeated: 0,
       bombs: 2,
@@ -1106,7 +1145,6 @@ const App: React.FC = () => {
     setTestWaveCommand(null);
     setTestBossCommand(null);
     setTestFlaskCommand(null);
-    setActiveRunMode(startInTestMode ? 'owner-test' : 'standard');
     setShowTestChampionPreview(false);
     setOwnerFrameFrozen(false);
     setIntroMissionLocked(true);
@@ -1136,12 +1174,19 @@ const App: React.FC = () => {
       gameId: nextGameId,
       startInTestMode,
       tip: loadingTip,
-      squadLoadout
+      squadLoadout,
+      runMode
     };
     setGameRuntimeReady(false);
     setGameId(nextGameId);
-    lastStoryWaveRef.current = 1;
+    lastStoryWaveRef.current = requestedBossReplay?.missionNumber ?? 1;
     setGameState(GameState.PLAYING);
+  };
+
+  const startGame = () => launchGame(null);
+
+  const startBossArchiveFight = (entry: BossArchiveEntry) => {
+    void launchGame(entry.eventId);
   };
 
   const completeMissionRuntimeLaunch = (runtimeGameId: number) => {
@@ -1156,6 +1201,10 @@ const App: React.FC = () => {
     missionLaunchPendingRef.current = false;
     setGameRuntimeReady(true);
     setMissionLoading(null);
+    if (pendingLaunch.runMode === 'boss-archive') {
+      setIntroMissionLocked(false);
+      return;
+    }
     trackEvent('mission_started');
     emitSquadDomainEvent('run_started', {
       profileId: pendingLaunch.squadLoadout.profileId,
@@ -1220,10 +1269,25 @@ const App: React.FC = () => {
     clearWeeklyProposalTransition();
     setScorecardChampionWinner(null);
     setActiveRunMode('standard');
+    setActiveBossEncounterId(null);
     setOwnerFrameFrozen(false);
     runStartedAtRef.current = null;
     runSessionPromiseRef.current = null;
     setGameState(GameState.MENU);
+  };
+
+  const returnToBossArchive = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', 'bosses');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    resetGame();
+  };
+
+  const returnToMainMenu = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('view');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    resetGame();
   };
 
   const cancelMissionLoading = () => {
@@ -1259,11 +1323,11 @@ const App: React.FC = () => {
   };
 
   const showWaveVictory = (summary: WaveVictorySummary) => {
-    if (activeWalletAddress && !isFounderSandboxRun) {
+    if (!isNonCompetitiveRun && summary.bossEncounterId) {
       const victoryKey = `${gameId}:${summary.id}`;
       if (!permanentBossAppliedKeysRef.current.has(victoryKey)) {
         permanentBossAppliedKeysRef.current.add(victoryKey);
-        updatePermanentSquadState(recordBossVictory);
+        updatePermanentSquadState((current) => recordBossVictory(current, summary.bossEncounterId as string));
       }
     }
     setOwnerFrameFrozen(false);
@@ -1273,6 +1337,10 @@ const App: React.FC = () => {
 
   const continueAfterWaveVictory = () => {
     if (!waveVictorySummary) return;
+    if (isBossArchiveRun) {
+      returnToBossArchive();
+      return;
+    }
     if (waveVictorySummary.campaignComplete || !waveVictorySummary.hasNextStage) {
       setCampaignCompletedRun(true);
       setWaveVictorySummary(null);
@@ -1344,7 +1412,7 @@ const App: React.FC = () => {
 
   const jumpOwnerTestWave = (wave: number) => {
     if (!isOwnerWallet || !isOwnerTestRun) return;
-    const safeWave = Math.max(1, Math.min(MAX_AUTHORED_CAMPAIGN_STAGES, Math.floor(wave)));
+    const safeWave = Math.max(1, Math.min(AUTHORED_CAMPAIGN_STAGE_COUNT, Math.floor(wave)));
     clearIntroStoryTimeout();
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
@@ -1354,7 +1422,7 @@ const App: React.FC = () => {
 
   const jumpOwnerTestBoss = () => {
     if (!isOwnerWallet || !isOwnerTestRun) return;
-    const safeWave = Math.max(1, Math.min(MAX_AUTHORED_CAMPAIGN_STAGES, Math.floor(stats.wave || 1)));
+    const safeWave = Math.max(1, Math.min(AUTHORED_CAMPAIGN_STAGE_COUNT, Math.floor(stats.wave || 1)));
     clearIntroStoryTimeout();
     setActiveStoryBeat(null);
     setIntroMissionLocked(false);
@@ -1581,6 +1649,7 @@ const App: React.FC = () => {
   }, [activeStoryBeat, gameState, stats.wave]);
 
   const finalizeCurrentRun = async (): Promise<RunReceipt | null> => {
+    if (isBossArchiveRun) return null;
     if (runReceipt) return runReceipt;
     if (runReceiptPromiseRef.current) return runReceiptPromiseRef.current;
     if (finalizedRunGameIdRef.current === gameId) return null;
@@ -1622,6 +1691,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (gameState === GameState.GAMEOVER) {
+      if (isBossArchiveRun) {
+        setShowNameInput(false);
+        setScoreSubmitError('');
+        return;
+      }
       if (activeWalletAddress && !isFounderSandboxRun && squadRunAppliedGameIdRef.current !== gameId) {
         squadRunAppliedGameIdRef.current = gameId;
         updateWeeklySquadState((current) => applySquadRunResult(current, {
@@ -1655,7 +1729,7 @@ const App: React.FC = () => {
       setScoreSubmitError('');
       setShowNameInput(true);
     }
-  }, [activeWalletAddress, gameId, gameState, isFounderSandboxRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
+  }, [activeWalletAddress, gameId, gameState, isBossArchiveRun, isFounderSandboxRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
 
   const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
@@ -2049,7 +2123,7 @@ const App: React.FC = () => {
       ) : null}
     </div>
   );
-  const gameOverContinueControls = !campaignCompletedRun && !isFounderSandboxRun && !runReceipt && runReceiptStatus !== 'finalizing'
+  const gameOverContinueControls = !campaignCompletedRun && !isNonCompetitiveRun && !runReceipt && runReceiptStatus !== 'finalizing'
     ? continueRunControls
     : null;
   const resultEncounter = getStageName(stats.wave);
@@ -2108,7 +2182,7 @@ const App: React.FC = () => {
           progress={missionLoading.progress}
           phase={missionLoading.phase}
           tip={missionLoading.tip}
-          onRetry={() => { void startGame(); }}
+          onRetry={() => { void launchGame(activeBossEncounterId); }}
           onCancel={cancelMissionLoading}
         />
       ) : null}
@@ -2139,6 +2213,9 @@ const App: React.FC = () => {
               playerShipUrl,
               playerShipId: usableShipId,
               squadLoadout: activeRunSquadLoadoutRef.current,
+              campaign: activeBossReplayCampaign,
+              levelId: activeBossReplay?.missionId,
+              waveId: activeBossReplay?.waveId,
               testMode: isOwnerTestRun,
               testWaveCommand,
               testBossCommand,
@@ -2178,7 +2255,11 @@ const App: React.FC = () => {
 
       {gameState === GameState.WAVE_COMPLETE && waveVictorySummary ? (
         <React.Suspense fallback={null}>
-          <WaveVictoryOverlay summary={waveVictorySummary} onContinue={continueAfterWaveVictory} />
+          <WaveVictoryOverlay
+            summary={waveVictorySummary}
+            onContinue={continueAfterWaveVictory}
+            bossArchiveReplay={isBossArchiveRun}
+          />
         </React.Suspense>
       ) : null}
 
@@ -2202,6 +2283,8 @@ const App: React.FC = () => {
           onClaimDailyGift={handleClaimDailyGift}
           onClaimAchievement={handleClaimAchievement}
           onRequestWalletConnect={connectWallet}
+          onBossArchiveViewed={handleBossArchiveViewed}
+          onStartBossFight={startBossArchiveFight}
           founderSandbox={isOwnerWallet}
           onUnlockSquadSlot={handleUnlockSquadSlot}
           onPurchaseMiniShip={handlePurchaseMiniShip}
@@ -2301,7 +2384,7 @@ const App: React.FC = () => {
             setOwnerFrameFrozen(false);
             setGameState(GameState.PLAYING);
           }}
-          onQuit={resetGame}
+          onQuit={isBossArchiveRun ? returnToBossArchive : resetGame}
           onToggleAudio={toggleGameAudio}
           onSfxVolumeChange={setGameSfxVolume}
           onMusicVolumeChange={setGameMusicVolume}
@@ -2317,7 +2400,7 @@ const App: React.FC = () => {
                     <div>
                       <p className="mb-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-cyan-200">Select mission</p>
                       <div className="grid grid-cols-5 overflow-hidden border border-cyan-200/30">
-                        {Array.from({ length: MAX_AUTHORED_CAMPAIGN_STAGES }, (_, index) => index + 1).map((wave) => (
+                        {Array.from({ length: AUTHORED_CAMPAIGN_STAGE_COUNT }, (_, index) => index + 1).map((wave) => (
                           <button
                             key={wave}
                             type="button"
@@ -2357,6 +2440,50 @@ const App: React.FC = () => {
 
       {gameState === GameState.GAMEOVER && (
         <GameOverPresentation footer={gameOverContinueControls} campaignComplete={campaignCompletedRun}>
+          {isBossArchiveRun ? (
+            <div className="sci-gameover-result-content relative z-10 grid gap-3 p-2 text-center">
+              <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-red-200">
+                Boss Archive / Practice Run
+              </p>
+              <h2 className="arcade-font text-2xl font-black uppercase tracking-widest text-white">
+                Challenge Failed
+              </h2>
+              {activeBossReplay ? (
+                <div className="mx-auto grid w-full max-w-xs grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 border border-cyan-200/25 bg-cyan-300/8 p-3 text-left">
+                  <img
+                    src={activeBossReplay.artUrl}
+                    alt=""
+                    className="h-[4.5rem] w-[4.5rem] object-contain [image-rendering:pixelated]"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black uppercase text-cyan-50">{activeBossReplay.label}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                      Mission {activeBossReplay.missionNumber} / {activeBossReplay.missionName}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+              <p className="text-xs font-semibold text-slate-300">
+                Practice fights never spend coins or affect the weekly leaderboard.
+              </p>
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  onClick={() => activeBossReplay && startBossArchiveFight(activeBossReplay)}
+                  disabled={!activeBossReplay}
+                  className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold disabled:opacity-50"
+                >
+                  RETRY BOSS
+                </button>
+                <button type="button" onClick={returnToBossArchive} className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold">
+                  BOSS ARCHIVE
+                </button>
+                <button type="button" onClick={returnToMainMenu} className="scicon-btn scicon-btn-secondary min-h-11 w-full py-2.5 text-xs font-bold text-gray-300">
+                  MAIN MENU
+                </button>
+              </div>
+            </div>
+          ) : (
             <div className="sci-gameover-result-content relative z-10 grid gap-2 p-1 text-center">
               {missionResultBanner}
 
@@ -2433,6 +2560,7 @@ const App: React.FC = () => {
                 </>
               )}
             </div>
+          )}
         </GameOverPresentation>
       )}
 

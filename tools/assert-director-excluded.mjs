@@ -10,13 +10,36 @@ if (!fs.existsSync(indexPath)) {
 }
 
 const forbiddenPathFragments = ['director', 'director-data', '__director', 'combat-lab'];
+const forbiddenPrototypeAssetBasenames = [
+  'meridian-harrower-assembled',
+  'meridian-harrower-modular-sheet',
+  'helios-clawcarrier-assembled',
+  'helios-clawcarrier-modular-sheet',
+  'aurora-storm-engine-assembled',
+  'aurora-storm-engine-modular-sheet',
+  'umbra-needlewing-assembled',
+  'umbra-needlewing-modular-sheet',
+  'cinderjaw-siege-beetle-assembled',
+  'cinderjaw-siege-beetle-modular-sheet',
+  'vesperglass-mothmother-assembled',
+  'vesperglass-mothmother-modular-sheet',
+  'twin-halo-wardens-assembled',
+  'twin-halo-wardens-modular-sheet',
+  'riftcoil-wyrm-assembled',
+  'riftcoil-wyrm-modular-sheet',
+  'gloamforge-mantis-neutral',
+  'gloamforge-mantis-atlas',
+  'gloamforge-mantis',
+  'aurora-boss-vfx-sheet-v1'
+];
 const forbiddenText = [
   'Scicon Director',
   '/__director',
   'director-data/workspace',
   'Scicon Combat Lab',
   '/combat-lab',
-  'scicon-combat-lab-presets-v1'
+  'scicon-combat-lab-presets-v1',
+  ...forbiddenPrototypeAssetBasenames
 ];
 const textExtensions = new Set(['.html', '.js', '.css', '.json', '.map', '.txt', '.svg']);
 const violations = [];
@@ -29,6 +52,9 @@ const visit = (directory) => {
 
     if (forbiddenPathFragments.some((fragment) => lowerRelative.includes(fragment))) {
       violations.push(`forbidden output path: ${relative}`);
+    }
+    if (forbiddenPrototypeAssetBasenames.some((basename) => lowerRelative.includes(basename))) {
+      violations.push(`forbidden prototype asset output: ${relative}`);
     }
 
     if (entry.isDirectory()) {

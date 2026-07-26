@@ -13,7 +13,8 @@ test('canonical gameplay renders through one manually-driven Pixi scene', () => 
 
   assert.match(packageJson.dependencies['pixi.js'], /^\^8\./);
   assert.match(renderer, /import 'pixi\.js\/unsafe-eval'/);
-  assert.match(canvas, /new PixiGameRenderer\(\)/);
+  assert.match(canvas, /new PixiGameRenderer\(\{\s*previewBossArtwork:/);
+  assert.equal((canvas.match(/new PixiGameRenderer\(/g) || []).length, 1);
   assert.match(canvas, /renderer\.sync\(engine, timestamp\)/);
   assert.doesNotMatch(canvas, /getContext\(['"]2d['"]\)/);
   assert.doesNotMatch(canvas, /engine\.draw\(/);

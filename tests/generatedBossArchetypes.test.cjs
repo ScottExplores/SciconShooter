@@ -94,6 +94,62 @@ test('each generated boss has a deterministic and materially distinct cue schedu
   assert.doesNotMatch(archetypeSource, /Math\.random/);
 });
 
+test('every generated preview attack resolves to its matching warning frame', () => {
+  const {
+    GENERATED_BOSS_FIRE_TELEGRAPH,
+    GENERATED_BOSS_PREVIEW_ATTACKS,
+    getGeneratedBossPreviewAttackStart,
+    getGeneratedBossPreviewAttackWindow,
+    getGeneratedBossTechniqueCue
+  } = loadArchetypes();
+  let attackCount = 0;
+
+  for (const [archetype, attacks] of Object.entries(GENERATED_BOSS_PREVIEW_ATTACKS)) {
+    for (const attack of attacks) {
+      attackCount += 1;
+      const start = getGeneratedBossPreviewAttackStart(archetype, attack.id);
+      const window = getGeneratedBossPreviewAttackWindow(archetype, attack.id);
+      assert.ok(start, `${attack.id} needs a bounded preview lookup`);
+      assert.ok(window, `${attack.id} needs a bounded replay window`);
+      assert.equal(start.phase, attack.phase);
+      assert.equal(window.phase, attack.phase);
+      assert.equal(window.startFrame, start.startFrame);
+
+      const warning = getGeneratedBossTechniqueCue(
+        archetype,
+        start.startFrame,
+        start.phase
+      );
+      assert.ok(warning, `${attack.id} must start on a real warning cue`);
+      assert.equal(warning.stage, 'warning');
+      assert.equal(warning.sequence, attack.sequence);
+      assert.equal(
+        warning.technique,
+        GENERATED_BOSS_FIRE_TELEGRAPH[attack.fireTechnique]
+      );
+
+      const fireFrame = start.startFrame + warning.warningFrames;
+      const fire = getGeneratedBossTechniqueCue(archetype, fireFrame, start.phase);
+      assert.ok(fire, `${attack.id} must reach its paired fire cue`);
+      assert.equal(fire.stage, 'fire');
+      assert.equal(fire.sequence, attack.sequence);
+      assert.equal(fire.technique, attack.fireTechnique);
+      assert.equal(window.endFrame, fireFrame + fire.recoveryFrames);
+      assert.ok(window.endFrame > fireFrame);
+    }
+  }
+
+  assert.equal(attackCount, 19);
+  assert.equal(
+    getGeneratedBossPreviewAttackStart('rail-serpent', 'generated:missing'),
+    null
+  );
+  assert.equal(
+    getGeneratedBossPreviewAttackWindow('rail-serpent', 'generated:missing'),
+    null
+  );
+});
+
 test('Tribunal Dreadnought changes vocabulary by phase and rotates its final mix', () => {
   const { getGeneratedBossTechniqueCue } = loadArchetypes();
   const technique = (frame, phase) => (
@@ -138,9 +194,14 @@ test('runtime routes generated archetypes before generic arena roaming and bound
     'authored archetypes bypass the shared escalation and arena-roam layers'
   );
   assert.match(engineSource, /Math\.min\(MAX_GENERATED_BOSS_PROJECTILES_PER_CUE, requestedCount\)/);
-  assert.match(engineSource, /const requestedCount = \(this\.mobileProfile \? 14 : 18\) \+ phase \* 2/);
-  assert.match(engineSource, /component\?\.destroyed/);
-  assert.match(engineSource, /PORT DISABLED|\$\{side\.toUpperCase\(\)\} DISABLED/);
+  assert.match(
+    engineSource,
+    /const requestedCount = projectileCount \?\? \(\(this\.mobileProfile \? 14 : 18\) \+ phase \* 2\)/
+  );
+  assert.match(engineSource, /requestedComponent\?\.destroyed/);
+  assert.match(engineSource, /allCannonsDestroyed/);
+  assert.match(engineSource, /motionCue === 'gatling-barrage'/);
+  assert.match(engineSource, /this\.spawnBossGatlingPulse/);
 });
 
 test('runtime presents every generated warning without damage and resets phase timing', () => {

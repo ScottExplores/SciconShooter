@@ -3,6 +3,10 @@ import type {
   PermanentSquadState
 } from './squadProgression';
 import type { PlayerShipId } from './playerShipService';
+import {
+  getNewBossArchiveCount,
+  normalizeBossArchiveEventIds
+} from './bossArchive';
 
 export interface DailyGiftReward {
   day: number;
@@ -221,14 +225,64 @@ export const recordLifetimeRun = (
   updatedAt: new Date().toISOString()
 });
 
-export const recordBossVictory = (state: PermanentSquadState): PermanentSquadState => ({
-  ...state,
-  lifetimeStats: {
-    ...state.lifetimeStats,
-    bossesDefeated: state.lifetimeStats.bossesDefeated + 1
-  },
-  updatedAt: new Date().toISOString()
-});
+export const recordBossVictory = (
+  state: PermanentSquadState,
+  encounterId: string
+): PermanentSquadState => {
+  const [normalizedEncounterId] = normalizeBossArchiveEventIds([encounterId]);
+  if (!normalizedEncounterId) return state;
+  return {
+    ...state,
+    bossArchive: {
+      ...state.bossArchive,
+      unlockedEventIds: normalizeBossArchiveEventIds([
+        ...state.bossArchive.unlockedEventIds,
+        normalizedEncounterId
+      ])
+    },
+    lifetimeStats: {
+      ...state.lifetimeStats,
+      bossesDefeated: state.lifetimeStats.bossesDefeated + 1
+    },
+    updatedAt: new Date().toISOString()
+  };
+};
+
+export const markBossArchiveViewed = (state: PermanentSquadState): PermanentSquadState => {
+  const unlockedEventIds = normalizeBossArchiveEventIds(
+    state.bossArchive.unlockedEventIds
+  );
+  const unlockedEventIdSet = new Set(unlockedEventIds);
+  const seenEventIds = normalizeBossArchiveEventIds(
+    state.bossArchive.seenEventIds
+  ).filter((eventId) => unlockedEventIdSet.has(eventId));
+  const newBossCount = getNewBossArchiveCount(
+    unlockedEventIds,
+    seenEventIds
+  );
+  const archiveAlreadyNormalized = unlockedEventIds.length === state.bossArchive.unlockedEventIds.length
+    && unlockedEventIds.every((eventId, index) => (
+      eventId === state.bossArchive.unlockedEventIds[index]
+    ))
+    && seenEventIds.length === state.bossArchive.seenEventIds.length
+    && seenEventIds.every((eventId, index) => (
+      eventId === state.bossArchive.seenEventIds[index]
+    ));
+  if (newBossCount === 0 && archiveAlreadyNormalized) {
+    return state;
+  }
+  return {
+    ...state,
+    bossArchive: {
+      unlockedEventIds,
+      seenEventIds: normalizeBossArchiveEventIds([
+        ...seenEventIds,
+        ...unlockedEventIds
+      ])
+    },
+    updatedAt: new Date().toISOString()
+  };
+};
 
 export const getAchievementStatus = (
   state: PermanentSquadState,

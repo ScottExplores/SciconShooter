@@ -13,6 +13,8 @@ dist-ssr
 director-data/workspace/
 director-data/generated-assets/
 director-data/game-campaign/
+director-data/playtest-sessions/
+director-data/prototype-assets/
 .qa-chrome*/
 .codex-remote-attachments/
 contracts/out/
@@ -33,4 +35,5 @@ __pycache__/
 *.sln
 *.sw?
 Legacy Collection/
+/sites/
 .vercel

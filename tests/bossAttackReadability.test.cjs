@@ -51,6 +51,31 @@ const loadCollapseTargetHelper = () => {
   return module.exports.getBossInwardCollapseTarget;
 };
 
+const loadCrossBeamLifetimeHelper = () => {
+  const methodStart = engineSource.indexOf('spawnBossCrossBeamPair(');
+  const lifetimeStart = engineSource.indexOf('const lifetime = telegraph', methodStart);
+  const lifetimeEnd = engineSource.indexOf(';', lifetimeStart) + 1;
+  assert.ok(
+    methodStart >= 0 && lifetimeStart > methodStart && lifetimeEnd > lifetimeStart,
+    'cross-beam lifetime contract is extractable'
+  );
+  const compiled = ts.transpileModule(
+    `export const resolveCrossBeamLifetime = (telegraph, authoredLifetimeFrames) => {
+      ${engineSource.slice(lifetimeStart, lifetimeEnd)}
+      return lifetime;
+    };`,
+    {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+    }
+  ).outputText;
+  const module = { exports: {} };
+  vm.runInNewContext(
+    `(function(exports, require, module) { ${compiled} })(module.exports, require, module);`,
+    { module, require, Math, Number }
+  );
+  return module.exports.resolveCrossBeamLifetime;
+};
+
 test('Stage 6 Violet Arbiter keeps its health budget while reducing stacked pressure', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const stage = campaign.levels.find((level) => level.order === 6);
@@ -91,7 +116,26 @@ test('Stage 6 Violet Arbiter keeps its health budget while reducing stacked pres
   assert.match(engineSource, /isVioletArbiter \? 60 : 54/);
   assert.match(engineSource, /Math\.max\(330, 354 - Math\.round\(pressure \* 24\)\)/);
   assert.match(engineSource, /cycleLength - \(isVioletArbiter \? 76 : 70\)/);
-  assert.match(engineSource, /const lifetime = telegraph \? 46 : 26/);
+
+  const resolveCrossBeamLifetime = loadCrossBeamLifetimeHelper();
+  assert.equal(resolveCrossBeamLifetime(true), 46);
+  assert.equal(resolveCrossBeamLifetime(true, 91.8), 91);
+  assert.equal(resolveCrossBeamLifetime(true, 0), 1);
+  assert.equal(resolveCrossBeamLifetime(false, 91.8), 26);
+
+  const warningBranchStart = engineSource.indexOf(
+    "if (style === 'lane' && linkedAction?.primitiveId === 'cross-beam')"
+  );
+  const warningBranchEnd = engineSource.indexOf(
+    "if (style === 'lane' && linkedAction?.primitiveId === 'rail-sweep')",
+    warningBranchStart
+  );
+  assert.ok(
+    warningBranchStart >= 0 && warningBranchEnd > warningBranchStart,
+    'cross-beam warning branch is extractable'
+  );
+  const warningBranch = engineSource.slice(warningBranchStart, warningBranchEnd);
+  assert.match(warningBranch, /spawnBossCrossBeamPair\(boss, true, warningFrames\)/);
 });
 
 test('every generated heavy attack is preceded by its paired warning and followed by recovery', () => {

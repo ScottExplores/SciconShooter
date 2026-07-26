@@ -39,6 +39,55 @@ export interface GameCampaignMutationResult<T = unknown> {
   version: GameCampaignVersionSummary & { payload: T; schemaVersion: 1; kind: 'game-campaign' };
 }
 
+export type WorkspaceResourceKind = 'level' | 'wave' | 'boss-event';
+
+export type WorkspaceResourceReference =
+  | { kind: 'level'; levelId: string }
+  | { kind: 'wave'; levelId: string; waveId: string }
+  | { kind: 'boss-event'; levelId: string; waveId: string; eventId: string };
+
+export interface GameCampaignWorkspaceSummary {
+  schemaVersion: 1;
+  baseContentHash: string;
+  draftRevision: number;
+  draftContentHash: string;
+  updatedAt: string;
+  hasChanges: boolean;
+  stale: boolean;
+  changedResources: WorkspaceResourceReference[];
+}
+
+export interface GameCampaignWorkspaceState<TCampaign = unknown>
+  extends GameCampaignWorkspaceSummary {
+  draftCampaign: TCampaign;
+}
+
+export interface WorkspaceMutationPreconditions {
+  expectedBaseContentHash: string;
+  expectedDraftRevision: number;
+  idempotencyKey: string;
+}
+
+export interface WorkspaceResourceResult<TResource = unknown> {
+  ok: true;
+  message?: string;
+  workspace: GameCampaignWorkspaceSummary;
+  resource: TResource;
+}
+
+export interface WorkspaceApplyResult {
+  ok: true;
+  message: string;
+  workspace: GameCampaignWorkspaceSummary;
+  applied: {
+    contentHash: string;
+    activeVersionId: string;
+    revision: number;
+    updatedAt: string;
+    version: GameCampaignVersionSummary;
+  };
+}
+
 export type GeneratedAssetRole = 'enemy' | 'boss' | 'asteroid' | 'hud' | 'player' | 'background' | 'scorecard';
 
 export interface GeneratedAssetEntry {
@@ -75,7 +124,7 @@ const readJson = async <T,>(response: Response): Promise<T> => {
   return payload as T;
 };
 
-const mutation = async <T,>(path: string, method: 'POST' | 'PATCH' | 'DELETE', body: unknown): Promise<T> => {
+const mutation = async <T,>(path: string, method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', body: unknown): Promise<T> => {
   const response = await fetch(`${API_ROOT}${path}`, {
     method,
     headers: {
@@ -175,6 +224,67 @@ export const rollbackGameCampaign = async <T = unknown>(
   expectedContentHash,
   ...(changeNote ? { changeNote } : {})
 });
+
+export const fetchGameCampaignWorkspace = async <TCampaign = unknown>() => readJson<{
+  ok: true;
+  workspace: GameCampaignWorkspaceState<TCampaign>;
+}>(
+  await fetch(`${API_ROOT}/api/v1/workspace`, {
+    headers: { Accept: 'application/json' },
+    credentials: 'same-origin'
+  })
+);
+
+const workspaceResourcePath = (reference: WorkspaceResourceReference) => {
+  const levelPath = `/api/v1/workspace/levels/${encodeURIComponent(reference.levelId)}`;
+  if (reference.kind === 'level') return levelPath;
+  const wavePath = `${levelPath}/waves/${encodeURIComponent(reference.waveId)}`;
+  if (reference.kind === 'wave') return wavePath;
+  return `${wavePath}/boss-events/${encodeURIComponent(reference.eventId)}`;
+};
+
+export const fetchWorkspaceResource = async <TResource = unknown>(
+  reference: WorkspaceResourceReference
+) => readJson<WorkspaceResourceResult<TResource>>(
+  await fetch(`${API_ROOT}${workspaceResourcePath(reference)}`, {
+    headers: { Accept: 'application/json' },
+    credentials: 'same-origin'
+  })
+);
+
+export const updateWorkspaceResource = async <TResource>(
+  reference: WorkspaceResourceReference,
+  resource: TResource,
+  preconditions: WorkspaceMutationPreconditions
+) => mutation<WorkspaceResourceResult<TResource>>(
+  workspaceResourcePath(reference),
+  'PUT',
+  { resource, ...preconditions }
+);
+
+export const applyGameCampaignWorkspace = async (
+  preconditions: WorkspaceMutationPreconditions,
+  changeNote?: string
+) => mutation<WorkspaceApplyResult>('/api/v1/workspace/apply', 'POST', {
+  ...preconditions,
+  ...(changeNote ? { changeNote } : {})
+});
+
+export const resetGameCampaignWorkspace = async (
+  preconditions: WorkspaceMutationPreconditions
+) => mutation<{
+  ok: true;
+  message: string;
+  workspace: GameCampaignWorkspaceSummary;
+}>('/api/v1/workspace/reset', 'POST', preconditions);
+
+export const rebaseGameCampaignWorkspace = async (
+  preconditions: WorkspaceMutationPreconditions
+) => mutation<{
+  ok: true;
+  message: string;
+  workspace: GameCampaignWorkspaceSummary;
+}>('/api/v1/workspace/rebase', 'POST', preconditions);
 
 export const fetchGeneratedAssets = async () => readJson<GeneratedAssetLibrary>(
   await fetch(`${API_ROOT}/api/generated-assets`, {

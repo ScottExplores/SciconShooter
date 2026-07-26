@@ -11,6 +11,11 @@ import {
   WEAPON_CATALOG,
   isAssetAllowedForRole
 } from './catalog';
+import {
+  BOSS_TIMELINE_PRIMITIVES,
+  isDamagingBossTimelinePrimitive
+} from './bossTimeline';
+import { MOVEMENT_PATH_CATALOG } from './movementPaths';
 import type {
   BossEvent,
   GameCampaignConfig,
@@ -63,7 +68,7 @@ const WAVE_KEYS = ['id', 'name', 'order', 'accent', 'backgroundId', 'completionR
 const BASE_EVENT_KEYS = ['id', 'kind', 'label', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor'];
 const EVENT_KEYS: Record<string, string[]> = {
   spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'formationSlots', 'enemies'],
-  boss: [...BASE_EVENT_KEYS, 'bossId', 'rigId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases'],
+  boss: [...BASE_EVENT_KEYS, 'bossId', 'rigId', 'componentMode', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases', 'revival', 'timeline'],
   'asteroid-belt': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'],
   powerup: [...BASE_EVENT_KEYS, 'positionId', 'spawnIntervalSeconds', 'powerupIds'],
   recovery: [...BASE_EVENT_KEYS, 'positionId', 'coinCount', 'powerupIds']
@@ -87,6 +92,44 @@ const SPAWN_ENEMY_KEYS = [
 ];
 const BOSS_WEAPON_KEYS = ['id', 'weaponId', 'attackIntervalSeconds', 'damage', 'projectileSpeed', 'burstCount'];
 const BOSS_PHASE_KEYS = ['id', 'label', 'triggerHealthRatio', 'movementPatternId', 'speedMultiplier', 'weaponSettingIds'];
+const BOSS_REVIVAL_KEYS = ['phaseId', 'shutdownSeconds', 'rebootSeconds', 'restoreHealthRatio', 'awakenedSizeMultiplier'];
+const BOSS_TIMELINE_KEYS = ['durationSeconds', 'loop', 'clips', 'attacks'];
+const BOSS_TIMELINE_CLIP_KEYS = ['id', 'label', 'track', 'primitiveId', 'trigger', 'startSeconds', 'durationSeconds', 'phaseId', 'telegraphClipId', 'repeat', 'parameters'];
+const BOSS_TIMELINE_REPEAT_KEYS = ['count', 'intervalSeconds'];
+const BOSS_ATTACK_SENTENCE_KEYS = [
+  'id',
+  'label',
+  'role',
+  'skillTest',
+  'recognitionCue',
+  'solution',
+  'safeRouteRule',
+  'sourceSocketRoles',
+  'variants'
+];
+const BOSS_ATTACK_SENTENCE_VARIANT_KEYS = ['phaseId', 'beatClipIds', 'recoveryClipId'];
+const BOSS_TIMELINE_PARAMETER_KEYS = [
+  'sequence',
+  'projectileCount',
+  'pulseIntervalSeconds',
+  'warningSeconds',
+  'shieldCount',
+  'summonCount',
+  'enemyId',
+  'formationPatternId',
+  'movementPatternId',
+  'movementPathId',
+  'speedMultiplier',
+  'componentId',
+  'enabled',
+  'side',
+  'handedness',
+  'telegraphStyle',
+  'motionCue',
+  'rotationDirection',
+  'color',
+  'strength'
+];
 const SPAWN_ANCHOR_KEYS = ['x', 'y'];
 const FORMATION_SLOT_KEYS = ['x', 'y'];
 const SPRITE_STYLE_KEYS = ['scale', 'rotationDegrees', 'flipX', 'opacity', 'hueRotateDegrees', 'saturation', 'brightness', 'glowColor', 'glowBlur'];
@@ -97,9 +140,59 @@ const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', '
 const ENEMY_RANKS = new Set(['standard', 'elite']);
 const ENEMY_ATTACK_PATTERNS = new Set(['aimed-burst']);
 const WAVE_COMPLETION_RULES = new Set(['boss-defeat', 'clear-after-duration']);
+const BOSS_TIMELINE_TRACKS = new Set(['movement', 'attack', 'laser', 'summon', 'defense', 'presentation']);
+const BOSS_TIMELINE_TRIGGERS = new Set(['time', 'phase-enter', 'death']);
+const BOSS_TIMELINE_TELEGRAPH_STYLES = new Set(['warning', 'lane', 'target', 'ring', 'spokes']);
+const BOSS_TIMELINE_MOTION_CUES = new Set([
+  'rotor-volley',
+  'radial-beam',
+  'heavy-cannon',
+  'gatling-barrage',
+  'paired-crossfire',
+  'claw-sweep',
+  'reactor-pattern',
+  'reactor-fan',
+  'reactor-mines',
+  'pincer-dive'
+]);
+const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
+  'clockwise',
+  'counterclockwise',
+  'seeded-random'
+]);
+const BOSS_ATTACK_SENTENCE_ROLES = new Set(['core', 'signature']);
+const BOSS_ATTACK_SKILL_TESTS = new Set([
+  'rhythm-dodge',
+  'lane-routing',
+  'gap-tracking',
+  'route-combination'
+]);
+const BOSS_ATTACK_SAFE_ROUTE_RULES = new Set([
+  'opposite-side-dodge',
+  'shifting-channel',
+  'rotating-gap',
+  'channel-to-quadrant'
+]);
+const BOSS_ATTACK_SOCKET_ROLES = new Set(['port', 'starboard', 'core']);
+const BOSS_COMPONENT_MODES = new Set(['legacy-rig', 'hull-only']);
+const BOSS_COMPONENT_IDS = new Set(['left-cannon', 'right-cannon', 'helmet']);
+const BOSS_TIMELINE_SIDES = new Set(['port', 'starboard']);
+const BOSS_TIMELINE_HANDEDNESS = new Set(['left', 'right']);
 const SAFE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const EPSILON = 0.0001;
+const BOSS_TIMELINE_FPS = 60;
+const BOSS_TIMELINE_MAX_CUES_PER_FRAME = 8;
+const CORNER_AMBUSH_BEAM_MIN_WARNING_SECONDS = 0.8;
+const CORNER_AMBUSH_BEAM_MAX_WARNING_SECONDS = 2.5;
+const CORNER_AMBUSH_BEAM_MIN_LIVE_SECONDS = 0.3;
+const CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS = 1.25;
+const CORNER_AMBUSH_RAM_MIN_LIVE_SECONDS = 0.45;
+const CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS = 1.4;
+const toBossTimelineFrame = (seconds: number) => Math.max(
+  1,
+  Math.round(Math.max(0, seconds) * BOSS_TIMELINE_FPS)
+);
 
 const isRecord = (value: unknown): value is UnknownRecord => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -442,6 +535,906 @@ const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignVali
   }
 };
 
+const validateBossTimeline = (
+  value: unknown,
+  path: string,
+  issues: CampaignValidationIssue[],
+  phaseIds: ReadonlySet<string>
+) => {
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    pushIssue(issues, path, 'required_object', 'Boss timeline must be an object');
+    return;
+  }
+
+  checkKeys(value, BOSS_TIMELINE_KEYS, path, issues);
+  checkNumber(value.durationSeconds, `${path}/durationSeconds`, issues, 0.1, 180);
+  checkBoolean(value.loop, `${path}/loop`, issues);
+  if (!checkArray(value.clips, `${path}/clips`, issues)) return;
+  const timelineClips = value.clips;
+  if (timelineClips.length > 128) {
+    pushIssue(issues, `${path}/clips`, 'too_many_items', 'Boss timelines support at most 128 clips');
+  }
+
+  const clipIds = new Set<string>();
+  const clipsById = new Map<string, UnknownRecord>();
+  timelineClips.forEach((candidate, index) => {
+    const itemPath = `${path}/clips/${index}`;
+    if (!isRecord(candidate)) {
+      pushIssue(issues, itemPath, 'required_object', 'Boss timeline clips must be objects');
+      return;
+    }
+    checkKeys(candidate, BOSS_TIMELINE_CLIP_KEYS, itemPath, issues);
+    if (checkString(candidate.id, `${itemPath}/id`, issues, { id: true })) {
+      if (clipIds.has(candidate.id as string)) {
+        pushIssue(issues, `${itemPath}/id`, 'duplicate_id', `Duplicate boss timeline clip id: ${candidate.id}`);
+      }
+      clipIds.add(candidate.id as string);
+      clipsById.set(candidate.id as string, candidate);
+    }
+    checkString(candidate.label, `${itemPath}/label`, issues, { max: 100 });
+
+    const trackKnown = typeof candidate.track === 'string' && BOSS_TIMELINE_TRACKS.has(candidate.track);
+    if (!trackKnown) {
+      pushIssue(issues, `${itemPath}/track`, 'unsupported_value', `Unsupported boss timeline track: ${String(candidate.track)}`);
+    }
+    const primitiveKnown = typeof candidate.primitiveId === 'string'
+      && Object.prototype.hasOwnProperty.call(BOSS_TIMELINE_PRIMITIVES, candidate.primitiveId);
+    if (!primitiveKnown) {
+      pushIssue(issues, `${itemPath}/primitiveId`, 'unsupported_value', `Unsupported boss timeline primitive: ${String(candidate.primitiveId)}`);
+    } else if (
+      trackKnown
+      && BOSS_TIMELINE_PRIMITIVES[candidate.primitiveId as keyof typeof BOSS_TIMELINE_PRIMITIVES].track !== candidate.track
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/track`,
+        'invalid_primitive_track',
+        `${candidate.primitiveId} belongs on the ${BOSS_TIMELINE_PRIMITIVES[candidate.primitiveId as keyof typeof BOSS_TIMELINE_PRIMITIVES].track} track`
+      );
+    }
+
+    if (typeof candidate.trigger !== 'string' || !BOSS_TIMELINE_TRIGGERS.has(candidate.trigger)) {
+      pushIssue(issues, `${itemPath}/trigger`, 'unsupported_value', `Unsupported boss timeline trigger: ${String(candidate.trigger)}`);
+    }
+    checkNumber(candidate.startSeconds, `${itemPath}/startSeconds`, issues, 0, 180);
+    checkNumber(candidate.durationSeconds, `${itemPath}/durationSeconds`, issues, 0.01, 60);
+    if (
+      typeof value.durationSeconds === 'number'
+      && typeof candidate.startSeconds === 'number'
+      && candidate.startSeconds > value.durationSeconds
+    ) {
+      pushIssue(issues, `${itemPath}/startSeconds`, 'invalid_timing', 'Timeline clip must start inside the timeline duration');
+    }
+    if (candidate.phaseId !== undefined && (typeof candidate.phaseId !== 'string' || !phaseIds.has(candidate.phaseId))) {
+      pushIssue(issues, `${itemPath}/phaseId`, 'unknown_reference', `Unknown boss phase: ${String(candidate.phaseId)}`);
+    }
+    if (candidate.telegraphClipId !== undefined) {
+      checkString(candidate.telegraphClipId, `${itemPath}/telegraphClipId`, issues, { id: true });
+    }
+
+    if (candidate.repeat !== undefined) {
+      if (!isRecord(candidate.repeat)) {
+        pushIssue(issues, `${itemPath}/repeat`, 'required_object', 'Boss timeline repeat must be an object');
+      } else {
+        checkKeys(candidate.repeat, BOSS_TIMELINE_REPEAT_KEYS, `${itemPath}/repeat`, issues);
+        checkNumber(candidate.repeat.count, `${itemPath}/repeat/count`, issues, 1, 8, true);
+        checkNumber(candidate.repeat.intervalSeconds, `${itemPath}/repeat/intervalSeconds`, issues, 0.05, 30);
+        if (
+          primitiveKnown
+          && !BOSS_TIMELINE_PRIMITIVES[candidate.primitiveId as keyof typeof BOSS_TIMELINE_PRIMITIVES].supportsRepeat
+        ) {
+          pushIssue(issues, `${itemPath}/repeat`, 'unsupported_repeat', `${candidate.primitiveId} cannot be repeated inside one clip`);
+        }
+        if (candidate.trigger !== 'time') {
+          pushIssue(
+            issues,
+            `${itemPath}/repeat`,
+            'unsupported_trigger_repeat',
+            'Only time-based boss timeline clips can repeat'
+          );
+        }
+        if (
+          candidate.trigger === 'time'
+          && typeof candidate.startSeconds === 'number'
+          && Number.isFinite(candidate.startSeconds)
+          && typeof candidate.repeat.count === 'number'
+          && Number.isFinite(candidate.repeat.count)
+          && typeof candidate.repeat.intervalSeconds === 'number'
+          && Number.isFinite(candidate.repeat.intervalSeconds)
+          && typeof value.durationSeconds === 'number'
+          && Number.isFinite(value.durationSeconds)
+        ) {
+          const repeatCount = Math.max(1, Math.min(8, Math.floor(candidate.repeat.count)));
+          const finalExecutionSeconds = candidate.startSeconds
+            + ((repeatCount - 1) * candidate.repeat.intervalSeconds);
+          const finalExecutionFrame = toBossTimelineFrame(finalExecutionSeconds);
+          const durationFrame = toBossTimelineFrame(value.durationSeconds);
+          const outsideTimeline = value.loop === true
+            ? finalExecutionFrame >= durationFrame
+            : finalExecutionSeconds > value.durationSeconds + EPSILON;
+          if (outsideTimeline) {
+            pushIssue(
+              issues,
+              `${itemPath}/repeat`,
+              'repeat_outside_timeline',
+              'Every repeated execution must remain inside the boss timeline'
+            );
+          }
+        }
+      }
+    }
+    if (
+      candidate.trigger === 'time'
+      && value.loop === true
+      && typeof candidate.startSeconds === 'number'
+      && Number.isFinite(candidate.startSeconds)
+      && typeof value.durationSeconds === 'number'
+      && Number.isFinite(value.durationSeconds)
+      && toBossTimelineFrame(candidate.startSeconds) >= toBossTimelineFrame(value.durationSeconds)
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/startSeconds`,
+        'unreachable_loop_cue',
+        'Looping timeline clips must execute before the loop endpoint'
+      );
+    }
+
+    if (candidate.parameters !== undefined) {
+      if (!isRecord(candidate.parameters)) {
+        pushIssue(issues, `${itemPath}/parameters`, 'required_object', 'Boss timeline parameters must be an object');
+      } else {
+        const parameters = candidate.parameters;
+        const parameterPath = `${itemPath}/parameters`;
+        checkKeys(parameters, BOSS_TIMELINE_PARAMETER_KEYS, parameterPath, issues);
+        if (primitiveKnown) {
+          const primitive = BOSS_TIMELINE_PRIMITIVES[
+            candidate.primitiveId as keyof typeof BOSS_TIMELINE_PRIMITIVES
+          ];
+          Object.keys(parameters).forEach((parameterKey) => {
+            if (primitive.parameterKeys.some((allowedKey) => allowedKey === parameterKey)) return;
+            pushIssue(
+              issues,
+              `${parameterPath}/${parameterKey}`,
+              'unsupported_primitive_parameter',
+              `${parameterKey} is not supported by ${candidate.primitiveId}`
+            );
+          });
+        }
+        if (parameters.sequence !== undefined) checkNumber(parameters.sequence, `${parameterPath}/sequence`, issues, 0, 100000, true);
+        if (parameters.projectileCount !== undefined) checkNumber(parameters.projectileCount, `${parameterPath}/projectileCount`, issues, 1, 24, true);
+        if (parameters.pulseIntervalSeconds !== undefined) checkNumber(parameters.pulseIntervalSeconds, `${parameterPath}/pulseIntervalSeconds`, issues, 0.5, 2);
+        if (parameters.warningSeconds !== undefined) checkNumber(parameters.warningSeconds, `${parameterPath}/warningSeconds`, issues, 0.1, 10);
+        if (parameters.shieldCount !== undefined) checkNumber(parameters.shieldCount, `${parameterPath}/shieldCount`, issues, 0, 12, true);
+        if (parameters.summonCount !== undefined) checkNumber(parameters.summonCount, `${parameterPath}/summonCount`, issues, 1, 12, true);
+        if (parameters.enemyId !== undefined) checkCatalogRef(parameters.enemyId, ENEMY_CATALOG, `${parameterPath}/enemyId`, issues);
+        if (parameters.formationPatternId !== undefined) checkCatalogRef(parameters.formationPatternId, SPAWN_PATTERN_CATALOG, `${parameterPath}/formationPatternId`, issues);
+        if (parameters.movementPatternId !== undefined) checkCatalogRef(parameters.movementPatternId, MOVEMENT_PATTERN_CATALOG, `${parameterPath}/movementPatternId`, issues);
+        if (parameters.movementPathId !== undefined) checkCatalogRef(parameters.movementPathId, MOVEMENT_PATH_CATALOG, `${parameterPath}/movementPathId`, issues);
+        if (parameters.speedMultiplier !== undefined) checkNumber(parameters.speedMultiplier, `${parameterPath}/speedMultiplier`, issues, 0.1, 8);
+        if (parameters.componentId !== undefined && (typeof parameters.componentId !== 'string' || !BOSS_COMPONENT_IDS.has(parameters.componentId))) {
+          pushIssue(issues, `${parameterPath}/componentId`, 'unsupported_value', `Unsupported boss component: ${String(parameters.componentId)}`);
+        }
+        if (parameters.enabled !== undefined) checkBoolean(parameters.enabled, `${parameterPath}/enabled`, issues);
+        if (parameters.side !== undefined && (typeof parameters.side !== 'string' || !BOSS_TIMELINE_SIDES.has(parameters.side))) {
+          pushIssue(issues, `${parameterPath}/side`, 'unsupported_value', `Unsupported boss side: ${String(parameters.side)}`);
+        }
+        if (parameters.handedness !== undefined && (typeof parameters.handedness !== 'string' || !BOSS_TIMELINE_HANDEDNESS.has(parameters.handedness))) {
+          pushIssue(issues, `${parameterPath}/handedness`, 'unsupported_value', `Unsupported helix handedness: ${String(parameters.handedness)}`);
+        }
+        if (parameters.telegraphStyle !== undefined && (typeof parameters.telegraphStyle !== 'string' || !BOSS_TIMELINE_TELEGRAPH_STYLES.has(parameters.telegraphStyle))) {
+          pushIssue(issues, `${parameterPath}/telegraphStyle`, 'unsupported_value', `Unsupported telegraph style: ${String(parameters.telegraphStyle)}`);
+        }
+        if (parameters.motionCue !== undefined && (typeof parameters.motionCue !== 'string' || !BOSS_TIMELINE_MOTION_CUES.has(parameters.motionCue))) {
+          pushIssue(issues, `${parameterPath}/motionCue`, 'unsupported_value', `Unsupported boss motion cue: ${String(parameters.motionCue)}`);
+        }
+        if (parameters.rotationDirection !== undefined && (typeof parameters.rotationDirection !== 'string' || !BOSS_TIMELINE_ROTATION_DIRECTIONS.has(parameters.rotationDirection))) {
+          pushIssue(issues, `${parameterPath}/rotationDirection`, 'unsupported_value', `Unsupported boss rotation direction: ${String(parameters.rotationDirection)}`);
+        }
+        if (parameters.color !== undefined && (typeof parameters.color !== 'string' || !HEX_COLOR.test(parameters.color))) {
+          pushIssue(issues, `${parameterPath}/color`, 'invalid_color', 'Boss timeline color must be a six-digit hexadecimal color');
+        }
+        if (parameters.strength !== undefined) checkNumber(parameters.strength, `${parameterPath}/strength`, issues, 0, 10);
+      }
+    }
+    if (candidate.primitiveId === 'follow-path') {
+      if (candidate.trigger !== 'time') {
+        pushIssue(
+          issues,
+          `${itemPath}/trigger`,
+          'unsupported_path_trigger',
+          'Movement paths must use the deterministic phase clock'
+        );
+      }
+      if (!isRecord(candidate.parameters) || candidate.parameters.movementPathId === undefined) {
+        pushIssue(
+          issues,
+          `${itemPath}/parameters/movementPathId`,
+          'required_reference',
+          'Follow-path clips require an allowlisted movement path'
+        );
+      }
+      if (
+        typeof value.durationSeconds === 'number'
+        && typeof candidate.startSeconds === 'number'
+        && typeof candidate.durationSeconds === 'number'
+        && candidate.startSeconds + candidate.durationSeconds > value.durationSeconds + EPSILON
+      ) {
+        pushIssue(
+          issues,
+          `${itemPath}/durationSeconds`,
+          'invalid_path_timing',
+          'Movement paths must finish before the timeline endpoint'
+        );
+      }
+    }
+    if (
+      candidate.primitiveId === 'corner-ambush-beam'
+      && (
+        typeof candidate.durationSeconds !== 'number'
+        || candidate.durationSeconds < CORNER_AMBUSH_BEAM_MIN_LIVE_SECONDS
+        || candidate.durationSeconds > CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS
+      )
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/durationSeconds`,
+        'invalid_corner_ambush_duration',
+        `Corner ambush beams must remain live for ${CORNER_AMBUSH_BEAM_MIN_LIVE_SECONDS}-${CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS} seconds`
+      );
+    }
+    if (
+      candidate.primitiveId === 'corner-ambush-ram'
+      && (
+        typeof candidate.durationSeconds !== 'number'
+        || candidate.durationSeconds < CORNER_AMBUSH_RAM_MIN_LIVE_SECONDS
+        || candidate.durationSeconds > CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS
+      )
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/durationSeconds`,
+        'invalid_corner_ambush_ram_duration',
+        `Corner ambush rams must remain live for ${CORNER_AMBUSH_RAM_MIN_LIVE_SECONDS}-${CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS} seconds`
+      );
+    }
+    if (
+      (
+        candidate.primitiveId === 'corner-ambush-beam'
+        || candidate.primitiveId === 'corner-ambush-ram'
+      )
+      && typeof value.durationSeconds === 'number'
+      && typeof candidate.startSeconds === 'number'
+      && typeof candidate.durationSeconds === 'number'
+      && candidate.startSeconds + candidate.durationSeconds > value.durationSeconds + EPSILON
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/durationSeconds`,
+        'corner_ambush_outside_timeline',
+        'Corner ambush actions must finish before the timeline endpoint'
+      );
+    }
+  });
+
+  timelineClips.forEach((candidate, index) => {
+    if (!isRecord(candidate) || typeof candidate.primitiveId !== 'string') return;
+    if (!Object.prototype.hasOwnProperty.call(BOSS_TIMELINE_PRIMITIVES, candidate.primitiveId)) return;
+    if (!isDamagingBossTimelinePrimitive(candidate.primitiveId as keyof typeof BOSS_TIMELINE_PRIMITIVES)) return;
+    const itemPath = `${path}/clips/${index}`;
+    if (candidate.trigger !== 'time') {
+      pushIssue(
+        issues,
+        `${itemPath}/trigger`,
+        'unsafe_damage_trigger',
+        'Damaging boss timeline clips must use the time trigger so their warning can occur first'
+      );
+    }
+    const telegraphId = candidate.telegraphClipId;
+    const telegraph = typeof telegraphId === 'string' ? clipsById.get(telegraphId) : undefined;
+    if (!telegraph || telegraph.primitiveId !== 'telegraph') {
+      pushIssue(issues, `${itemPath}/telegraphClipId`, 'missing_telegraph', 'Damaging boss timeline clips must reference a telegraph clip');
+      return;
+    }
+    if (telegraph.trigger !== 'time') {
+      pushIssue(
+        issues,
+        `${itemPath}/telegraphClipId`,
+        'invalid_telegraph_trigger',
+        'A damaging action must reference a time-based telegraph'
+      );
+    }
+    if (
+      typeof telegraph.phaseId === 'string'
+      && telegraph.phaseId !== candidate.phaseId
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/telegraphClipId`,
+        'invalid_telegraph_phase',
+        'A phase-specific telegraph must belong to the same phase as its damaging action'
+      );
+    }
+    if (
+      (
+        candidate.primitiveId === 'cross-beam'
+        || candidate.primitiveId === 'rail-sweep'
+        || candidate.primitiveId === 'weave-wall'
+      )
+      && (
+        !isRecord(telegraph.parameters)
+        || telegraph.parameters.telegraphStyle !== 'lane'
+      )
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/telegraphClipId`,
+        candidate.primitiveId === 'weave-wall'
+          ? 'invalid_safe_channel_telegraph'
+          : 'invalid_laser_telegraph',
+        candidate.primitiveId === 'weave-wall'
+          ? 'Weave walls require a lane telegraph so the deterministic safe channel is visible'
+          : 'Laser primitives require a lane telegraph so the damaging path is visible'
+      );
+    }
+    if (
+      candidate.primitiveId === 'radial-beam-array'
+      && (
+        !isRecord(telegraph.parameters)
+        || telegraph.parameters.telegraphStyle !== 'spokes'
+      )
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/telegraphClipId`,
+        'invalid_radial_beam_telegraph',
+        'Radial beam arrays require a spoke telegraph on the exact damaging geometry'
+      );
+    }
+    if (
+      (
+        candidate.primitiveId === 'corner-ambush-beam'
+        || candidate.primitiveId === 'corner-ambush-ram'
+      )
+      && (
+        !isRecord(telegraph.parameters)
+        || telegraph.parameters.telegraphStyle !== 'target'
+      )
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/telegraphClipId`,
+        'invalid_corner_ambush_telegraph',
+        'Corner ambush actions require a target telegraph that locks their exact damaging geometry'
+      );
+    }
+    if (
+      (
+        candidate.primitiveId === 'corner-ambush-beam'
+        || candidate.primitiveId === 'corner-ambush-ram'
+      )
+      && isRecord(telegraph.repeat)
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/telegraphClipId`,
+        'unsupported_corner_ambush_repeat',
+        'Corner ambush warnings cannot repeat inside one clip'
+      );
+    }
+    if (
+      (
+        candidate.primitiveId === 'corner-ambush-beam'
+        || candidate.primitiveId === 'corner-ambush-ram'
+      )
+      && timelineClips.filter((clip) => (
+        isRecord(clip) && clip.telegraphClipId === telegraphId
+      )).length !== 1
+    ) {
+      pushIssue(
+        issues,
+        `${itemPath}/telegraphClipId`,
+        'ambiguous_corner_ambush_telegraph',
+        'A corner ambush action requires one dedicated target telegraph'
+      );
+    }
+    if (
+      candidate.trigger === 'time'
+      && telegraph.trigger === 'time'
+      && typeof candidate.startSeconds === 'number'
+      && typeof telegraph.startSeconds === 'number'
+      && telegraph.startSeconds >= candidate.startSeconds
+    ) {
+      pushIssue(issues, `${itemPath}/telegraphClipId`, 'invalid_telegraph_order', 'Telegraph clips must begin before their damaging action');
+    } else if (
+      candidate.trigger === 'time'
+      && telegraph.trigger === 'time'
+      && typeof candidate.startSeconds === 'number'
+      && typeof telegraph.startSeconds === 'number'
+    ) {
+      const warningLeadSeconds = candidate.startSeconds - telegraph.startSeconds;
+      if (warningLeadSeconds < 0.1) {
+        pushIssue(
+          issues,
+          `${itemPath}/telegraphClipId`,
+          'insufficient_telegraph_lead',
+          'Damaging actions require at least 0.1 seconds of warning lead'
+        );
+      }
+      const declaredWarningSeconds = isRecord(telegraph.parameters)
+        && typeof telegraph.parameters.warningSeconds === 'number'
+        ? telegraph.parameters.warningSeconds
+        : undefined;
+      if (
+        declaredWarningSeconds !== undefined
+        && warningLeadSeconds + EPSILON < declaredWarningSeconds
+      ) {
+        pushIssue(
+          issues,
+          `${itemPath}/telegraphClipId`,
+          'incomplete_telegraph_lead',
+          'The damaging action begins before its declared warning lead completes'
+        );
+      }
+      if (
+        (
+          candidate.primitiveId === 'corner-ambush-beam'
+          || candidate.primitiveId === 'corner-ambush-ram'
+        )
+        && (
+          warningLeadSeconds < CORNER_AMBUSH_BEAM_MIN_WARNING_SECONDS
+          || warningLeadSeconds > CORNER_AMBUSH_BEAM_MAX_WARNING_SECONDS
+        )
+      ) {
+        pushIssue(
+          issues,
+          `${itemPath}/telegraphClipId`,
+          'invalid_corner_ambush_warning',
+          `Corner ambush actions require ${CORNER_AMBUSH_BEAM_MIN_WARNING_SECONDS}-${CORNER_AMBUSH_BEAM_MAX_WARNING_SECONDS} seconds of warning`
+        );
+      }
+      if (
+        (
+          candidate.primitiveId === 'corner-ambush-beam'
+          || candidate.primitiveId === 'corner-ambush-ram'
+        )
+        && (
+          declaredWarningSeconds === undefined
+          || declaredWarningSeconds < CORNER_AMBUSH_BEAM_MIN_WARNING_SECONDS
+          || declaredWarningSeconds > CORNER_AMBUSH_BEAM_MAX_WARNING_SECONDS
+        )
+      ) {
+        pushIssue(
+          issues,
+          `${itemPath}/telegraphClipId`,
+          'invalid_corner_ambush_warning_declaration',
+          `Corner ambush target telegraphs must declare ${CORNER_AMBUSH_BEAM_MIN_WARNING_SECONDS}-${CORNER_AMBUSH_BEAM_MAX_WARNING_SECONDS} warningSeconds`
+        );
+      }
+    }
+
+    const attackRepeatCount = isRecord(candidate.repeat)
+      && typeof candidate.repeat.count === 'number'
+      && Number.isFinite(candidate.repeat.count)
+      ? Math.max(1, Math.min(8, Math.floor(candidate.repeat.count)))
+      : 1;
+    if (attackRepeatCount > 1) {
+      const telegraphRepeatCount = isRecord(telegraph.repeat)
+        && typeof telegraph.repeat.count === 'number'
+        && Number.isFinite(telegraph.repeat.count)
+        ? Math.max(1, Math.min(8, Math.floor(telegraph.repeat.count)))
+        : 1;
+      const attackInterval = isRecord(candidate.repeat)
+        && typeof candidate.repeat.intervalSeconds === 'number'
+        ? candidate.repeat.intervalSeconds
+        : undefined;
+      const telegraphInterval = isRecord(telegraph.repeat)
+        && typeof telegraph.repeat.intervalSeconds === 'number'
+        ? telegraph.repeat.intervalSeconds
+        : undefined;
+      if (telegraphRepeatCount < attackRepeatCount) {
+        pushIssue(
+          issues,
+          `${itemPath}/telegraphClipId`,
+          'missing_repeated_telegraph',
+          'Every repeated damaging execution must have a corresponding repeated telegraph'
+        );
+      }
+      if (
+        attackInterval !== undefined
+        && (telegraphInterval === undefined || Math.abs(attackInterval - telegraphInterval) > EPSILON)
+      ) {
+        pushIssue(
+          issues,
+          `${itemPath}/telegraphClipId`,
+          'mismatched_telegraph_repeat',
+          'A repeated telegraph must use the same interval as its damaging action'
+        );
+      }
+    }
+  });
+
+  if (value.attacks !== undefined) {
+    const attacksPath = `${path}/attacks`;
+    if (checkArray(value.attacks, attacksPath, issues)) {
+      if (value.attacks.length !== 4) {
+        pushIssue(
+          issues,
+          attacksPath,
+          'invalid_attack_roster',
+          'Boss Factory timelines require exactly three core attacks and one signature attack'
+        );
+      }
+      const attackIds = new Set<string>();
+      const usedBeatReferences = new Set<string>();
+      const usedRecoveryReferences = new Set<string>();
+      let coreAttackCount = 0;
+      let signatureAttackCount = 0;
+      const windowsByPhase = new Map<string, Array<{
+        startSeconds: number;
+        endSeconds: number;
+        path: string;
+      }>>();
+      value.attacks.forEach((candidate, attackIndex) => {
+        const attackPath = `${attacksPath}/${attackIndex}`;
+        if (!isRecord(candidate)) {
+          pushIssue(issues, attackPath, 'required_object', 'Boss attack sentences must be objects');
+          return;
+        }
+        checkKeys(candidate, BOSS_ATTACK_SENTENCE_KEYS, attackPath, issues);
+        if (checkString(candidate.id, `${attackPath}/id`, issues, { id: true })) {
+          const attackId = candidate.id as string;
+          if (attackIds.has(attackId)) {
+            pushIssue(issues, `${attackPath}/id`, 'duplicate_id', `Duplicate boss attack sentence id: ${attackId}`);
+          }
+          if (clipIds.has(attackId)) {
+            pushIssue(issues, `${attackPath}/id`, 'duplicate_id', 'Attack sentence IDs cannot collide with timeline clip IDs');
+          }
+          attackIds.add(attackId);
+        }
+        checkString(candidate.label, `${attackPath}/label`, issues, { max: 100 });
+        if (typeof candidate.role !== 'string' || !BOSS_ATTACK_SENTENCE_ROLES.has(candidate.role)) {
+          pushIssue(issues, `${attackPath}/role`, 'unsupported_value', `Unsupported boss attack role: ${String(candidate.role)}`);
+        } else if (candidate.role === 'core') {
+          coreAttackCount += 1;
+        } else {
+          signatureAttackCount += 1;
+        }
+        if (typeof candidate.skillTest !== 'string' || !BOSS_ATTACK_SKILL_TESTS.has(candidate.skillTest)) {
+          pushIssue(issues, `${attackPath}/skillTest`, 'unsupported_value', `Unsupported boss attack skill test: ${String(candidate.skillTest)}`);
+        }
+        checkString(candidate.recognitionCue, `${attackPath}/recognitionCue`, issues, { max: 160 });
+        checkString(candidate.solution, `${attackPath}/solution`, issues, { max: 200 });
+        if (
+          typeof candidate.safeRouteRule !== 'string'
+          || !BOSS_ATTACK_SAFE_ROUTE_RULES.has(candidate.safeRouteRule)
+        ) {
+          pushIssue(
+            issues,
+            `${attackPath}/safeRouteRule`,
+            'unsupported_value',
+            `Unsupported boss attack safe-route rule: ${String(candidate.safeRouteRule)}`
+          );
+        }
+        if (checkArray(candidate.sourceSocketRoles, `${attackPath}/sourceSocketRoles`, issues)) {
+          if (candidate.sourceSocketRoles.length > 3) {
+            pushIssue(issues, `${attackPath}/sourceSocketRoles`, 'too_many_items', 'Attack sentences support at most three socket roles');
+          }
+          const sourceRoles = new Set<string>();
+          candidate.sourceSocketRoles.forEach((role, roleIndex) => {
+            const rolePath = `${attackPath}/sourceSocketRoles/${roleIndex}`;
+            if (typeof role !== 'string' || !BOSS_ATTACK_SOCKET_ROLES.has(role)) {
+              pushIssue(issues, rolePath, 'unsupported_value', `Unsupported boss attack socket role: ${String(role)}`);
+              return;
+            }
+            if (sourceRoles.has(role)) {
+              pushIssue(issues, rolePath, 'duplicate_value', `Duplicate boss attack socket role: ${role}`);
+            }
+            sourceRoles.add(role);
+          });
+        }
+        if (!checkArray(candidate.variants, `${attackPath}/variants`, issues)) return;
+        const variantPhases = new Set<string>();
+        candidate.variants.forEach((variant, variantIndex) => {
+          const variantPath = `${attackPath}/variants/${variantIndex}`;
+          if (!isRecord(variant)) {
+            pushIssue(issues, variantPath, 'required_object', 'Boss attack variants must be objects');
+            return;
+          }
+          checkKeys(variant, BOSS_ATTACK_SENTENCE_VARIANT_KEYS, variantPath, issues);
+          const phaseId = typeof variant.phaseId === 'string' ? variant.phaseId : '';
+          if (!phaseIds.has(phaseId)) {
+            pushIssue(issues, `${variantPath}/phaseId`, 'unknown_reference', `Unknown boss phase: ${String(variant.phaseId)}`);
+          }
+          if (variantPhases.has(phaseId)) {
+            pushIssue(issues, `${variantPath}/phaseId`, 'duplicate_value', `Attack sentence has duplicate phase variant: ${phaseId}`);
+          }
+          variantPhases.add(phaseId);
+          let firstWarningStart = Number.POSITIVE_INFINITY;
+          let finalBeatEnd = Number.NEGATIVE_INFINITY;
+          let previousBeatStart = Number.NEGATIVE_INFINITY;
+          let expandedBeatCount = 0;
+          if (checkArray(variant.beatClipIds, `${variantPath}/beatClipIds`, issues)) {
+            if (variant.beatClipIds.length > 8) {
+              pushIssue(issues, `${variantPath}/beatClipIds`, 'too_many_items', 'Attack variants support at most eight clip references');
+            }
+            const localBeatIds = new Set<string>();
+            variant.beatClipIds.forEach((clipId, beatIndex) => {
+              const beatPath = `${variantPath}/beatClipIds/${beatIndex}`;
+              if (!checkString(clipId, beatPath, issues, { id: true })) return;
+              const beatId = clipId as string;
+              if (localBeatIds.has(beatId)) {
+                pushIssue(issues, beatPath, 'duplicate_value', `Duplicate attack beat clip: ${beatId}`);
+              }
+              localBeatIds.add(beatId);
+              const beat = clipsById.get(beatId);
+              if (!beat) {
+                pushIssue(issues, beatPath, 'unknown_reference', `Unknown boss timeline clip: ${beatId}`);
+                return;
+              }
+              if (
+                typeof beat.primitiveId !== 'string'
+                || !Object.prototype.hasOwnProperty.call(BOSS_TIMELINE_PRIMITIVES, beat.primitiveId)
+                || !isDamagingBossTimelinePrimitive(beat.primitiveId as keyof typeof BOSS_TIMELINE_PRIMITIVES)
+                || beat.trigger !== 'time'
+              ) {
+                pushIssue(issues, beatPath, 'invalid_reference', 'Attack beats must reference damaging time-based clips');
+              }
+              if (beat.phaseId !== phaseId) {
+                pushIssue(issues, beatPath, 'invalid_reference', 'Attack beats must belong to the variant phase');
+              }
+              const startSeconds = typeof beat.startSeconds === 'number' ? beat.startSeconds : 0;
+              if (startSeconds <= previousBeatStart) {
+                pushIssue(issues, beatPath, 'invalid_timing', 'Attack beat clips must be strictly chronological');
+              }
+              previousBeatStart = startSeconds;
+              const repeatCount = isRecord(beat.repeat) && typeof beat.repeat.count === 'number'
+                ? Math.max(1, Math.min(8, Math.floor(beat.repeat.count)))
+                : 1;
+              const repeatInterval = isRecord(beat.repeat) && typeof beat.repeat.intervalSeconds === 'number'
+                ? beat.repeat.intervalSeconds
+                : 0;
+              expandedBeatCount += repeatCount;
+              finalBeatEnd = Math.max(
+                finalBeatEnd,
+                startSeconds + (repeatCount - 1) * repeatInterval
+                  + (typeof beat.durationSeconds === 'number' ? beat.durationSeconds : 0)
+              );
+              const warning = typeof beat.telegraphClipId === 'string'
+                ? clipsById.get(beat.telegraphClipId)
+                : undefined;
+              if (warning && typeof warning.startSeconds === 'number') {
+                firstWarningStart = Math.min(firstWarningStart, warning.startSeconds);
+              }
+              const ownershipKey = `${phaseId}:${beatId}`;
+              if (usedBeatReferences.has(ownershipKey)) {
+                pushIssue(issues, beatPath, 'duplicate_reference', 'A damaging clip can belong to only one attack variant in a phase');
+              }
+              usedBeatReferences.add(ownershipKey);
+            });
+          }
+          const requiredBeats = candidate.role === 'signature' ? 4 : 2;
+          if (expandedBeatCount < requiredBeats) {
+            pushIssue(
+              issues,
+              `${variantPath}/beatClipIds`,
+              'too_few_items',
+              `${candidate.role === 'signature' ? 'Signature' : 'Core'} attacks require at least ${requiredBeats} connected beats`
+            );
+          }
+          if (!checkString(variant.recoveryClipId, `${variantPath}/recoveryClipId`, issues, { id: true })) return;
+          const recovery = clipsById.get(variant.recoveryClipId as string);
+          if (!recovery) {
+            pushIssue(issues, `${variantPath}/recoveryClipId`, 'unknown_reference', `Unknown boss timeline clip: ${String(variant.recoveryClipId)}`);
+            return;
+          }
+          if (recovery.primitiveId !== 'effect-cue' || recovery.trigger !== 'time') {
+            pushIssue(issues, `${variantPath}/recoveryClipId`, 'invalid_reference', 'Attack recovery must reference a time-based effect cue');
+          }
+          if (recovery.phaseId !== phaseId) {
+            pushIssue(issues, `${variantPath}/recoveryClipId`, 'invalid_reference', 'Attack recovery must belong to the variant phase');
+          }
+          const recoveryOwnershipKey = `${phaseId}:${String(variant.recoveryClipId)}`;
+          if (usedRecoveryReferences.has(recoveryOwnershipKey)) {
+            pushIssue(
+              issues,
+              `${variantPath}/recoveryClipId`,
+              'duplicate_reference',
+              'An attack recovery clip can belong to only one attack variant in a phase'
+            );
+          }
+          usedRecoveryReferences.add(recoveryOwnershipKey);
+          const recoveryStart = typeof recovery.startSeconds === 'number' ? recovery.startSeconds : 0;
+          if (Number.isFinite(finalBeatEnd) && recoveryStart + EPSILON < finalBeatEnd) {
+            pushIssue(issues, `${variantPath}/recoveryClipId`, 'invalid_timing', 'Attack recovery must start after the final repeated beat');
+          }
+          if (Number.isFinite(firstWarningStart)) {
+            const phaseWindows = windowsByPhase.get(phaseId) ?? [];
+            phaseWindows.push({
+              startSeconds: firstWarningStart,
+              endSeconds: recoveryStart + (
+                typeof recovery.durationSeconds === 'number' ? recovery.durationSeconds : 0
+              ),
+              path: variantPath
+            });
+            windowsByPhase.set(phaseId, phaseWindows);
+          }
+        });
+        if (
+          variantPhases.size !== phaseIds.size
+          || [...phaseIds].some((phaseId) => !variantPhases.has(phaseId))
+        ) {
+          pushIssue(
+            issues,
+            `${attackPath}/variants`,
+            'missing_phase_variant',
+            'Every Boss Factory attack requires exactly one variant for every boss phase'
+          );
+        }
+      });
+      if (coreAttackCount !== 3 || signatureAttackCount !== 1) {
+        pushIssue(
+          issues,
+          attacksPath,
+          'invalid_attack_roster',
+          'Boss Factory timelines require exactly three core attacks and one signature attack'
+        );
+      }
+      timelineClips.forEach((clip, clipIndex) => {
+        if (
+          !isRecord(clip)
+          || typeof clip.primitiveId !== 'string'
+          || !Object.prototype.hasOwnProperty.call(BOSS_TIMELINE_PRIMITIVES, clip.primitiveId)
+          || !isDamagingBossTimelinePrimitive(clip.primitiveId as keyof typeof BOSS_TIMELINE_PRIMITIVES)
+          || clip.trigger !== 'time'
+        ) return;
+        const phaseId = typeof clip.phaseId === 'string' ? clip.phaseId : '';
+        if (typeof clip.id !== 'string' || usedBeatReferences.has(`${phaseId}:${clip.id}`)) return;
+        pushIssue(
+          issues,
+          `${path}/clips/${clipIndex}/id`,
+          'unowned_attack_beat',
+          'Every damaging clip in a Boss Factory timeline must belong to exactly one attack variant'
+        );
+      });
+      windowsByPhase.forEach((windows) => {
+        windows.sort((left, right) => left.startSeconds - right.startSeconds);
+        for (let index = 1; index < windows.length; index += 1) {
+          if (windows[index].startSeconds + EPSILON < windows[index - 1].endSeconds) {
+            pushIssue(
+              issues,
+              windows[index].path,
+              'overlapping_attack_sentence',
+              'Boss attack sentence windows cannot overlap within one phase'
+            );
+          }
+        }
+      });
+    }
+  }
+
+  const phaseContexts = phaseIds.size > 0 ? [...phaseIds] : [undefined];
+  const entityCost = (clip: UnknownRecord) => {
+    const parameters = isRecord(clip.parameters) ? clip.parameters : {};
+    if (clip.primitiveId === 'cross-beam') return 2;
+    if (clip.primitiveId === 'rail-sweep') return 1;
+    if (clip.primitiveId === 'radial-beam-array') return 4;
+    if (clip.primitiveId === 'corner-ambush-beam') return 1;
+    if (clip.primitiveId === 'corner-ambush-ram') return 1;
+    if (clip.primitiveId === 'rotor-hazard-sentence') {
+      const pulseIntervalSeconds = typeof parameters.pulseIntervalSeconds === 'number'
+        ? parameters.pulseIntervalSeconds
+        : 1;
+      const pulses = Math.max(
+        1,
+        Math.ceil((Number(clip.durationSeconds) || 1) / pulseIntervalSeconds)
+      );
+      const pelletCount = typeof parameters.projectileCount === 'number'
+        ? parameters.projectileCount
+        : 6;
+      return pulses * pelletCount + Math.floor(pulses / 2) * 2;
+    }
+    if (clip.primitiveId === 'summon-formation') {
+      return typeof parameters.summonCount === 'number' ? parameters.summonCount : 4;
+    }
+    const defaults: Record<string, number> = {
+      'aimed-burst': 24,
+      'gap-ring': 24,
+      'tail-fan': 5,
+      'inward-collapse': 20,
+      'rotating-cross': 8,
+      'helix-volley': 24,
+      'side-barrage': 8,
+      'pod-volley': 6,
+      'weave-wall': 24
+    };
+    return typeof parameters.projectileCount === 'number'
+      ? parameters.projectileCount
+      : (defaults[String(clip.primitiveId)] ?? 0);
+  };
+  phaseContexts.forEach((phaseId) => {
+    const frameBudgets = new Map<number, number>();
+    const frameCueCounts = new Map<number, number>();
+    let loopBudget = 0;
+    timelineClips.forEach((candidate) => {
+      if (
+        !isRecord(candidate)
+        || candidate.trigger !== 'time'
+        || (candidate.phaseId !== undefined && candidate.phaseId !== phaseId)
+      ) return;
+      const repeatCount = isRecord(candidate.repeat) && typeof candidate.repeat.count === 'number'
+        ? Math.max(1, Math.min(8, Math.floor(candidate.repeat.count)))
+        : 1;
+      const intervalSeconds = isRecord(candidate.repeat) && typeof candidate.repeat.intervalSeconds === 'number'
+        ? candidate.repeat.intervalSeconds
+        : 0;
+      const startSeconds = typeof candidate.startSeconds === 'number' ? candidate.startSeconds : 0;
+      const damaging = typeof candidate.primitiveId === 'string'
+        && Object.prototype.hasOwnProperty.call(BOSS_TIMELINE_PRIMITIVES, candidate.primitiveId)
+        && isDamagingBossTimelinePrimitive(candidate.primitiveId as keyof typeof BOSS_TIMELINE_PRIMITIVES);
+      const cost = damaging ? Math.max(0, entityCost(candidate)) : 0;
+      if (damaging) loopBudget += cost * repeatCount;
+      for (let repeatIndex = 0; repeatIndex < repeatCount; repeatIndex += 1) {
+        const executionFrame = toBossTimelineFrame(
+          startSeconds + repeatIndex * intervalSeconds
+        );
+        frameCueCounts.set(
+          executionFrame,
+          (frameCueCounts.get(executionFrame) ?? 0) + 1
+        );
+        if (damaging) {
+          frameBudgets.set(
+            executionFrame,
+            (frameBudgets.get(executionFrame) ?? 0) + cost
+          );
+        }
+      }
+    });
+    const phaseLabel = phaseId ?? 'all phases';
+    if (loopBudget > 512) {
+      pushIssue(
+        issues,
+        `${path}/clips`,
+        'timeline_entity_budget',
+        `Boss timeline exceeds the 512-entity loop budget in ${phaseLabel}`
+      );
+    }
+    for (const [executionFrame, cueCount] of frameCueCounts) {
+      if (cueCount <= BOSS_TIMELINE_MAX_CUES_PER_FRAME) continue;
+      pushIssue(
+        issues,
+        `${path}/clips`,
+        'simultaneous_cue_budget',
+        `Boss timeline schedules ${cueCount} cues on simulation frame ${executionFrame} in ${phaseLabel}; the limit is ${BOSS_TIMELINE_MAX_CUES_PER_FRAME}`
+      );
+    }
+    for (const [executionFrame, budget] of frameBudgets) {
+      if (budget <= 64) continue;
+      pushIssue(
+        issues,
+        `${path}/clips`,
+        'simultaneous_entity_budget',
+        `Boss timeline requests ${budget} damaging entities on simulation frame ${executionFrame} in ${phaseLabel}; the limit is 64`
+      );
+    }
+    for (const trigger of ['phase-enter', 'death'] as const) {
+      const cueCount = timelineClips.filter((candidate) => (
+        isRecord(candidate)
+        && candidate.trigger === trigger
+        && (candidate.phaseId === undefined || candidate.phaseId === phaseId)
+      )).length;
+      if (cueCount <= BOSS_TIMELINE_MAX_CUES_PER_FRAME) continue;
+      pushIssue(
+        issues,
+        `${path}/clips`,
+        'triggered_cue_budget',
+        `Boss timeline schedules ${cueCount} ${trigger} cues in ${phaseLabel}; the limit is ${BOSS_TIMELINE_MAX_CUES_PER_FRAME}`
+      );
+    }
+  });
+};
+
 const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValidationIssue[]) => {
   const bossKnown = checkCatalogRef(event.bossId, BOSS_CATALOG, `${path}/bossId`, issues);
   if (event.rigId !== undefined) {
@@ -451,6 +1444,17 @@ const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValida
     if (event.bossId !== 'gatekeeper') {
       pushIssue(issues, `${path}/rigId`, 'unsupported_boss_rig', 'Layered boss rigs are supported only by gatekeepers');
     }
+  }
+  if (event.componentMode !== undefined && (
+    typeof event.componentMode !== 'string'
+    || !BOSS_COMPONENT_MODES.has(event.componentMode)
+  )) {
+    pushIssue(
+      issues,
+      `${path}/componentMode`,
+      'unsupported_value',
+      `Unsupported boss component mode: ${String(event.componentMode)}`
+    );
   }
   if (event.count !== undefined) {
     checkNumber(event.count, `${path}/count`, issues, 1, 4, true);
@@ -471,7 +1475,7 @@ const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValida
   checkNumber(event.scoreReward, `${path}/scoreReward`, issues, 0, 100000000);
   checkNumber(event.powerupDropChance, `${path}/powerupDropChance`, issues, 0, 1);
   checkNumber(event.shieldCount, `${path}/shieldCount`, issues, 0, 100, true);
-  if (event.sizeMultiplier !== undefined) checkNumber(event.sizeMultiplier, `${path}/sizeMultiplier`, issues, 0.5, 1.5);
+  if (event.sizeMultiplier !== undefined) checkNumber(event.sizeMultiplier, `${path}/sizeMultiplier`, issues, 0.5, 2.5);
   if (typeof event.warningSeconds === 'number' && typeof event.durationSeconds === 'number' && event.warningSeconds > event.durationSeconds) {
     pushIssue(issues, `${path}/warningSeconds`, 'invalid_timing', 'Warning cannot exceed the event duration');
   }
@@ -540,6 +1544,47 @@ const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValida
       }
     });
   }
+  if (event.revival !== undefined) {
+    const revivalPath = `${path}/revival`;
+    if (!isRecord(event.revival)) {
+      pushIssue(issues, revivalPath, 'required_object', 'Boss revival must be an object');
+    } else {
+      checkKeys(event.revival, BOSS_REVIVAL_KEYS, revivalPath, issues);
+      const phaseIdKnown = checkString(
+        event.revival.phaseId,
+        `${revivalPath}/phaseId`,
+        issues,
+        { id: true }
+      );
+      checkNumber(event.revival.shutdownSeconds, `${revivalPath}/shutdownSeconds`, issues, 0.1, 10);
+      checkNumber(event.revival.rebootSeconds, `${revivalPath}/rebootSeconds`, issues, 0.1, 10);
+      checkNumber(event.revival.restoreHealthRatio, `${revivalPath}/restoreHealthRatio`, issues, Number.EPSILON, 1);
+      checkNumber(event.revival.awakenedSizeMultiplier, `${revivalPath}/awakenedSizeMultiplier`, issues, 1, 1.5);
+      if (phaseIdKnown) {
+        const phaseId = event.revival.phaseId as string;
+        if (!phaseIds.has(phaseId)) {
+          pushIssue(
+            issues,
+            `${revivalPath}/phaseId`,
+            'unknown_reference',
+            `Unknown boss revival phase: ${phaseId}`
+          );
+        }
+        const firstPhase = Array.isArray(event.phases) && isRecord(event.phases[0])
+          ? event.phases[0].id
+          : undefined;
+        if (phaseId === firstPhase) {
+          pushIssue(
+            issues,
+            `${revivalPath}/phaseId`,
+            'invalid_revival_phase',
+            'Boss revival must target a phase after the opening phase'
+          );
+        }
+      }
+    }
+  }
+  validateBossTimeline(event.timeline, `${path}/timeline`, issues, phaseIds);
 };
 
 const validateEvent = (

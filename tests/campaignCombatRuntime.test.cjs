@@ -26,7 +26,7 @@ const loadProgression = () => {
   return module.exports;
 };
 
-test('the authored campaign has four finite combat tiers and a hard Stage 20 ceiling', () => {
+test('campaign length is data-driven while legacy difficulty tiers remain bounded', () => {
   const {
     MAX_AUTHORED_CAMPAIGN_STAGES,
     getAuthoredCampaignStageCount,
@@ -34,17 +34,19 @@ test('the authored campaign has four finite combat tiers and a hard Stage 20 cei
     getNextAuthoredCampaignIndex
   } = loadProgression();
 
-  assert.equal(MAX_AUTHORED_CAMPAIGN_STAGES, 20);
+  assert.equal(MAX_AUTHORED_CAMPAIGN_STAGES, 20, 'legacy presentation count stays compatible');
   assert.equal(getAuthoredCampaignStageCount(5), 5);
   assert.equal(getAuthoredCampaignStageCount(20), 20);
-  assert.equal(getAuthoredCampaignStageCount(999), 20);
+  assert.equal(getAuthoredCampaignStageCount(21), 21);
+  assert.equal(getAuthoredCampaignStageCount(999), 999);
   assert.deepEqual(
-    [1, 5, 6, 10, 11, 15, 16, 20, 21].map(getCampaignProgressionTier),
-    [0, 0, 1, 1, 2, 2, 3, 3, 3]
+    [1, 5, 6, 10, 11, 15, 16, 20, 21, 999].map(getCampaignProgressionTier),
+    [0, 0, 1, 1, 2, 2, 3, 3, 3, 3]
   );
   assert.equal(getNextAuthoredCampaignIndex(0, 20), 1);
   assert.equal(getNextAuthoredCampaignIndex(18, 20), 19);
   assert.equal(getNextAuthoredCampaignIndex(19, 20), null);
+  assert.doesNotMatch(engine, /\.slice\(0, MAX_AUTHORED_CAMPAIGN_STAGES\)/);
 });
 
 test('campaign lookup and continuation never modulo Stage 20 back to Stage 1', () => {
@@ -128,10 +130,5 @@ test('generated campaign enemies have readable specialist attacks and side sentr
   assert.match(engine, /spawnEliteMineFan\(source: Entity, availableShots: number\)/);
   assert.match(engine, /archetype === 'laser-hunter'/);
   assert.match(engine, /enemy\.spriteUrl\?\.includes\('\/wall-sniper-'\)/);
-  assert.match(engine, /sideSentry \? GAME_CONFIG\.FPS \* 12/);
-  assert.match(engine, /usesDnaFleet/);
-  assert.match(engine, /const sCurve = event\.id\.includes\('null-sector'\)/);
-  assert.match(engine, /const strand = index % 2 === 0 \? -1 : 1/);
-  assert.match(engine, /usesRingFleet/);
-  assert.match(engine, /const ringSize = Math\.min\(12, count\)/);
+  assert.match(engine, /resolveFormationEntryPlan\(/);
 });

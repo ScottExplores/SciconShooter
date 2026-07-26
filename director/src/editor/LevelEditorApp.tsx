@@ -6,18 +6,23 @@ import type { GameCampaignConfig, LevelDefinition, WaveDefinition, WaveEvent } f
 import { parseGameCampaign } from '../../../game-config/validate';
 import {
   applyGameCampaign,
+  applyGameCampaignWorkspace,
   createReview,
   fetchGameCampaign,
+  fetchGameCampaignWorkspace,
   fetchGameCampaignVersions,
   fetchReviews,
-  revertGameCampaignEdits,
+  rebaseGameCampaignWorkspace,
+  resetGameCampaignWorkspace,
   rollbackGameCampaign,
   updateReview,
   type GameCampaignDiskState,
+  type GameCampaignWorkspaceState,
   type GameCampaignVersionSummary
 } from '@director/api/directorClient';
 import type { ReviewRequest } from '@director/domain/types';
 import { useUndoableState } from '@director/hooks/useUndoableState';
+import { useWorkspaceAutosave } from '@director/hooks/useWorkspaceAutosave';
 import { EditorIcon } from './EditorIcon';
 import { EditorInspector, type InspectorTab } from './EditorInspector';
 import { EventTimeline } from './EventTimeline';
@@ -41,6 +46,14 @@ import {
   sortWaveEvents,
   updateLevelInCampaign
 } from './editorOperations';
+import {
+  bossWorkspaceSave,
+  initialWorkspaceEditorSelection,
+  levelWorkspaceSave,
+  planBrowserDraftRecovery,
+  waveWorkspaceSave,
+  type WorkspaceSaveRequest
+} from './workspaceDraftModel';
 import './level-editor.css';
 
 const DRAFT_KEY = 'scicon-director-game-campaign-draft-v1';
@@ -72,6 +85,10 @@ type PreviewRuntimeState = {
 
 type Notice = { message: string; error?: boolean } | null;
 type EditorSurface = 'game' | 'card' | 'review';
+type LevelEditorInitialState = {
+  disk: GameCampaignDiskState<GameCampaignConfig>;
+  workspace: GameCampaignWorkspaceState<GameCampaignConfig>;
+};
 
 const readEditorSurface = (): EditorSurface => {
   const surface = new URLSearchParams(window.location.search).get('surface');
@@ -86,6 +103,11 @@ const formatDate = (value: string) => {
     ? date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     : 'Local revision';
 };
+
+const initialEditorSelection = (
+  campaign: GameCampaignConfig,
+  initialSurface: EditorSurface
+) => initialWorkspaceEditorSelection(campaign, window.location.pathname, initialSurface);
 
 function DirectorMark() {
   return (
@@ -139,15 +161,18 @@ function HistoryDrawer({
   );
 }
 
-function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDiskState<GameCampaignConfig> }) {
+function LevelEditorWorkspace({ initialState }: { initialState: LevelEditorInitialState }) {
   const initialSurface = readEditorSurface();
-  const campaign = useUndoableState<GameCampaignConfig>(normalizeGameCampaignRecordCard(cloneJson(initialState.campaign)));
-  const [contentHash, setContentHash] = useState(initialState.contentHash);
-  const [activeVersionId, setActiveVersionId] = useState(initialState.activeVersionId);
-  const [selectedLevelId, setSelectedLevelId] = useState(initialState.campaign.levels[0]?.id ?? '');
-  const [selectedWaveId, setSelectedWaveId] = useState(initialState.campaign.levels[0]?.waves[0]?.id ?? '');
-  const [selectedEventId, setSelectedEventId] = useState(initialState.campaign.levels[0]?.waves[0]?.events[0]?.id ?? '');
-  const [inspectorTab, setInspectorTab] = useState<InspectorTab>(initialSurface === 'card' ? 'card' : 'wave');
+  const firstSelection = initialEditorSelection(initialState.workspace.draftCampaign, initialSurface);
+  const campaign = useUndoableState<GameCampaignConfig>(
+    normalizeGameCampaignRecordCard(cloneJson(initialState.workspace.draftCampaign))
+  );
+  const [contentHash, setContentHash] = useState(initialState.workspace.baseContentHash);
+  const [activeVersionId, setActiveVersionId] = useState(initialState.disk.activeVersionId);
+  const [selectedLevelId, setSelectedLevelId] = useState(firstSelection.levelId);
+  const [selectedWaveId, setSelectedWaveId] = useState(firstSelection.waveId);
+  const [selectedEventId, setSelectedEventId] = useState(firstSelection.eventId);
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>(firstSelection.inspectorTab);
   const [playing, setPlaying] = useState(initialSurface === 'game');
   const [restartToken, setRestartToken] = useState(0);
   const [runtimeState, setRuntimeState] = useState<PreviewRuntimeState | null>(null);
@@ -163,6 +188,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
   const [editorSnapshot, setEditorSnapshot] = useState<GameEditorSnapshot | null>(null);
   const [draftContentHash, setDraftContentHash] = useState<string | null>(null);
   const [updatingReviewId, setUpdatingReviewId] = useState<string | null>(null);
+  const [requiresFullCampaignApply, setRequiresFullCampaignApply] = useState(false);
   const allowNavigationRef = useRef(false);
 
   const selectedLevel = campaign.value.levels.find((level) => level.id === selectedLevelId) ?? campaign.value.levels[0];
@@ -173,31 +199,103 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     window.setTimeout(() => setNotice((current) => current?.message === message ? null : current), error ? 6500 : 3600);
   }, []);
 
+  const workspace = useWorkspaceAutosave(
+    initialState.workspace,
+    useCallback((error: Error) => {
+      notify(`Workspace autosave paused: ${error.message}`, true);
+    }, [notify])
+  );
+  const hasDraftChanges = workspace.summary.hasChanges
+    || workspace.pendingCount > 0
+    || campaign.isDirty
+    || requiresFullCampaignApply;
+  const hasUnsavedLocalChanges = workspace.pendingCount > 0
+    || workspace.status === 'saving'
+    || workspace.status === 'error'
+    || requiresFullCampaignApply;
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
-      const saved = JSON.parse(raw) as { baseContentHash?: string; campaign?: GameCampaignConfig; source?: string };
-      if (saved.baseContentHash === initialState.contentHash && saved.campaign?.schemaVersion === 1) {
-        campaign.set(normalizeGameCampaignRecordCard(cloneJson(parseGameCampaign(saved.campaign))));
-        notify('Recovered your local Mission Builder draft');
-      } else if (saved.source === 'combat-lab' && saved.campaign?.schemaVersion === 1) {
-        notify('This Combat Lab draft targets an older campaign revision. Send it again from Combat Lab to rebase it safely.', true);
+      const saved = JSON.parse(raw) as {
+        baseContentHash?: string;
+        campaign?: GameCampaignConfig;
+        savedAt?: string;
+        source?: string;
+      };
+      if (saved.baseContentHash !== initialState.workspace.baseContentHash) {
+        if (saved.source === 'combat-lab' && saved.campaign?.schemaVersion === 1) {
+          notify('This Combat Lab draft targets an older campaign revision. Send it again from Combat Lab to rebase it safely.', true);
+        }
+        return;
       }
+      if (saved.source === 'combat-lab' && initialState.workspace.hasChanges) {
+        notify('The server workspace already has changes. Apply or revert them before importing the waiting Combat Lab draft.', true);
+        return;
+      }
+
+      const savedAt = Date.parse(saved.savedAt ?? '');
+      const workspaceUpdatedAt = Date.parse(initialState.workspace.updatedAt);
+      const recoveryIsNewer = saved.source === 'combat-lab'
+        || (Number.isFinite(savedAt) && savedAt > workspaceUpdatedAt);
+      if (!recoveryIsNewer || saved.campaign?.schemaVersion !== 1) return;
+
+      const recovered = normalizeGameCampaignRecordCard(cloneJson(parseGameCampaign(saved.campaign)));
+      const plan = planBrowserDraftRecovery(initialState.workspace.draftCampaign, recovered);
+      if (!plan.changed) {
+        window.localStorage.removeItem(DRAFT_KEY);
+        return;
+      }
+
+      campaign.set(recovered);
+      for (const request of plan.resources) workspace.enqueue(request);
+      setRequiresFullCampaignApply(plan.requiresFullCampaignApply);
+      notify(saved.source === 'combat-lab'
+        ? 'Imported the Combat Lab draft into the local Director workspace'
+        : 'Recovered newer unsaved Mission Builder changes from this browser');
     } catch {
       window.localStorage.removeItem(DRAFT_KEY);
     }
   }, []);
 
   useEffect(() => {
+    if (!campaign.isDirty && !requiresFullCampaignApply && workspace.pendingCount === 0) return;
+    try {
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        baseContentHash: workspace.summary.baseContentHash,
+        campaign: campaign.value,
+        savedAt: new Date().toISOString(),
+        source: 'level-editor',
+        recoveryOnly: true
+      }));
+    } catch {
+      // Server autosave remains authoritative when browser recovery storage is unavailable.
+    }
+  }, [
+    campaign.isDirty,
+    campaign.value,
+    requiresFullCampaignApply,
+    workspace.pendingCount,
+    workspace.summary.baseContentHash,
+    workspace.summary.updatedAt
+  ]);
+
+  useEffect(() => {
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
-      if (!campaign.isDirty || allowNavigationRef.current) return;
+      if (!hasUnsavedLocalChanges || allowNavigationRef.current) return;
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', warnBeforeLeaving);
     return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
-  }, [campaign.isDirty]);
+  }, [hasUnsavedLocalChanges]);
+
+  useEffect(() => {
+    if (workspace.summary.stale) {
+      notify('The tracked campaign changed. Save draft will rebase this workspace; Revert will discard it.', true);
+    }
+  }, [notify, workspace.summary.stale]);
 
   useEffect(() => {
     let cancelled = false;
@@ -211,7 +309,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
 
   useEffect(() => {
     let cancelled = false;
-    if (!campaign.isDirty) {
+    if (!hasDraftChanges) {
       setDraftContentHash(null);
       return () => { cancelled = true; };
     }
@@ -220,7 +318,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
       .then((hash) => { if (!cancelled) setDraftContentHash(hash); })
       .catch(() => { if (!cancelled) notify('Could not fingerprint the current draft for annotations', true); });
     return () => { cancelled = true; };
-  }, [campaign.isDirty, campaign.value, notify]);
+  }, [campaign.value, hasDraftChanges, notify]);
 
   useEffect(() => {
     if (!selectedLevel) return;
@@ -238,22 +336,37 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     }
   }, [selectedEventId, selectedWave]);
 
-  const setCampaign = (next: GameCampaignConfig) => {
+  const setCampaign = (
+    next: GameCampaignConfig,
+    saves: readonly WorkspaceSaveRequest[] = [],
+    fullCampaignFallback = false
+  ) => {
     campaign.set(next);
     setValidationErrors([]);
+    for (const save of saves) workspace.enqueue(save);
+    if (fullCampaignFallback) setRequiresFullCampaignApply(true);
   };
 
   const updateSelectedLevel = (update: (level: LevelDefinition) => LevelDefinition) => {
     if (!selectedLevel) return;
-    setCampaign(updateLevelInCampaign(campaign.value, selectedLevel.id, update));
+    const nextLevel = update(selectedLevel);
+    setCampaign(
+      updateLevelInCampaign(campaign.value, selectedLevel.id, () => nextLevel),
+      [levelWorkspaceSave(nextLevel)]
+    );
   };
 
   const updateSelectedWave = (update: (wave: WaveDefinition) => WaveDefinition) => {
-    if (!selectedWave) return;
-    updateSelectedLevel((level) => ({
-      ...level,
-      waves: level.waves.map((wave) => wave.id === selectedWave.id ? update(wave) : wave)
-    }));
+    if (!selectedLevel || !selectedWave) return;
+    const nextWave = update(selectedWave);
+    const nextLevel = {
+      ...selectedLevel,
+      waves: selectedLevel.waves.map((wave) => wave.id === selectedWave.id ? nextWave : wave)
+    };
+    setCampaign(
+      updateLevelInCampaign(campaign.value, selectedLevel.id, () => nextLevel),
+      [waveWorkspaceSave(selectedLevel.id, nextWave)]
+    );
   };
 
   const handleSelectLevel = (levelId: string) => {
@@ -270,7 +383,10 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
   const handleAddLevel = () => {
     if (!selectedLevel) return;
     const next = createStarterLevel(selectedLevel, campaign.value.levels.length + 1);
-    setCampaign({ ...campaign.value, levels: [...campaign.value.levels, next] });
+    setCampaign(
+      { ...campaign.value, levels: [...campaign.value.levels, next] },
+      [levelWorkspaceSave(next)]
+    );
     handleSelectLevelAfterChange(next);
   };
 
@@ -288,7 +404,10 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     if (!selectedLevel) return;
     const next = cloneLevel(selectedLevel);
     next.order = campaign.value.levels.length + 1;
-    setCampaign({ ...campaign.value, levels: [...campaign.value.levels, next] });
+    setCampaign(
+      { ...campaign.value, levels: [...campaign.value.levels, next] },
+      [levelWorkspaceSave(next)]
+    );
     handleSelectLevelAfterChange(next);
   };
 
@@ -302,7 +421,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     if (!selectedLevel || campaign.value.levels.length <= 1) return;
     if (!window.confirm(`Delete “${selectedLevel.name}”? Version history can restore it after an apply.`)) return;
     const levels = campaign.value.levels.filter((level) => level.id !== selectedLevel.id).map((level, index) => ({ ...level, order: index + 1 }));
-    setCampaign({ ...campaign.value, levels });
+    setCampaign({ ...campaign.value, levels }, [], true);
     handleSelectLevelAfterChange(levels[0]);
   };
 
@@ -342,6 +461,13 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     updateSelectedLevel((level) => moveWave(level, selectedWave.id, direction));
   };
 
+  const handleMoveLevel = (direction: -1 | 1) => {
+    if (!selectedLevel) return;
+    const next = moveLevel(campaign.value, selectedLevel.id, direction);
+    // Mission order swaps require an atomic multi-resource mutation in schema v2.
+    setCampaign(next, [], true);
+  };
+
   const handleSelectWave = (waveId: string) => {
     const wave = selectedLevel?.waves.find((item) => item.id === waveId);
     setSelectedWaveId(waveId);
@@ -371,10 +497,24 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
   };
 
   const handleUpdateEvent = (nextEvent: WaveEvent) => {
-    updateSelectedWave((wave) => ({
-      ...wave,
-      events: sortWaveEvents(wave.events.map((event) => event.id === nextEvent.id ? nextEvent : event))
-    }));
+    if (!selectedLevel || !selectedWave) return;
+    const nextWave = {
+      ...selectedWave,
+      events: sortWaveEvents(selectedWave.events.map((event) => (
+        event.id === nextEvent.id ? nextEvent : event
+      )))
+    };
+    const nextLevel = {
+      ...selectedLevel,
+      waves: selectedLevel.waves.map((wave) => wave.id === selectedWave.id ? nextWave : wave)
+    };
+    const save = nextEvent.kind === 'boss'
+      ? bossWorkspaceSave(selectedLevel.id, selectedWave.id, nextEvent)
+      : waveWorkspaceSave(selectedLevel.id, nextWave);
+    setCampaign(
+      updateLevelInCampaign(campaign.value, selectedLevel.id, () => nextLevel),
+      [save]
+    );
   };
 
   const handleAddEvent = (kind: 'spawn' | 'boss') => {
@@ -399,22 +539,81 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     else if (event) setInspectorTab('wave');
   };
 
-  const saveDraft = () => {
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ baseContentHash: contentHash, campaign: campaign.value, savedAt: new Date().toISOString() }));
-    notify('Draft saved in this browser on this computer');
+  const adoptWorkspaceCampaign = (
+    nextWorkspace: GameCampaignWorkspaceState<GameCampaignConfig>,
+    diskState?: GameCampaignDiskState<GameCampaignConfig>
+  ) => {
+    const nextCampaign = normalizeGameCampaignRecordCard(
+      cloneJson(parseGameCampaign(nextWorkspace.draftCampaign))
+    );
+    workspace.replaceSummary(nextWorkspace);
+    campaign.replace(nextCampaign);
+    setContentHash(nextWorkspace.baseContentHash);
+    if (diskState) setActiveVersionId(diskState.activeVersionId);
+    setRequiresFullCampaignApply(false);
+
+    const currentLevel = nextCampaign.levels.find((level) => level.id === selectedLevelId);
+    const currentWave = currentLevel?.waves.find((wave) => wave.id === selectedWaveId);
+    const currentEvent = currentWave?.events.find((event) => event.id === selectedEventId);
+    if (currentLevel && currentWave && currentEvent) return;
+
+    const selection = initialEditorSelection(nextCampaign, surfaceMode);
+    setSelectedLevelId(selection.levelId);
+    setSelectedWaveId(selection.waveId);
+    setSelectedEventId(selection.eventId);
+    setInspectorTab(selection.inspectorTab);
+    setRestartToken((value) => value + 1);
+  };
+
+  const reloadWorkspaceCampaign = async () => {
+    const [workspaceResult, diskState] = await Promise.all([
+      fetchGameCampaignWorkspace<GameCampaignConfig>(),
+      fetchGameCampaign<GameCampaignConfig>()
+    ]);
+    adoptWorkspaceCampaign(workspaceResult.workspace, diskState);
+    return workspaceResult.workspace;
+  };
+
+  const saveDraft = async () => {
+    setValidationErrors([]);
+    try {
+      let rebased = false;
+      if (workspace.summary.stale) {
+        if (requiresFullCampaignApply) {
+          throw new Error('Global, mission-order, or mission-delete edits cannot be auto-rebased; Revert or Apply them before the tracked campaign changes again');
+        }
+        const result = await rebaseGameCampaignWorkspace(
+          workspace.mutationPreconditions('rebase-before-save')
+        );
+        workspace.replaceSummary(result.workspace);
+        setContentHash(result.workspace.baseContentHash);
+        rebased = true;
+      }
+      await workspace.flush();
+      if (rebased) await reloadWorkspaceCampaign();
+      if (!requiresFullCampaignApply) window.localStorage.removeItem(DRAFT_KEY);
+      notify(requiresFullCampaignApply
+        ? 'Supported resources are saved. Schema-v1 global, order, or delete edits remain in browser recovery until Apply to game.'
+        : 'Draft saved in the local Director workspace');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not save the workspace draft';
+      setValidationErrors([message]);
+      notify(message, true);
+    }
   };
 
   const revert = async () => {
     setBusy(true);
     setValidationErrors([]);
     try {
-      const state = await revertGameCampaignEdits<GameCampaignConfig>();
-      campaign.replace(normalizeGameCampaignRecordCard(cloneJson(state.campaign)));
-      setContentHash(state.contentHash);
-      setActiveVersionId(state.activeVersionId);
+      await workspace.discardPending();
+      const result = await resetGameCampaignWorkspace(
+        workspace.mutationPreconditions('revert-workspace')
+      );
+      workspace.replaceSummary(result.workspace);
+      await reloadWorkspaceCampaign();
       window.localStorage.removeItem(DRAFT_KEY);
-      handleSelectLevelAfterChange(state.campaign.levels[0]);
-      notify('Reverted to the campaign currently used by the game');
+      notify('Reverted the workspace to the campaign currently used by the game');
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Could not revert the campaign', true);
     } finally {
@@ -426,12 +625,47 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     setBusy(true);
     setValidationErrors([]);
     try {
-      const result = await applyGameCampaign<GameCampaignConfig>(campaign.value, contentHash, 'Applied from the visual Mission Builder');
-      campaign.replace(normalizeGameCampaignRecordCard(cloneJson(result.campaign)));
-      setContentHash(result.contentHash);
-      setActiveVersionId(result.activeVersionId);
+      if (workspace.summary.stale) {
+        if (requiresFullCampaignApply) {
+          throw new Error('This schema-v1 full-campaign edit cannot be auto-rebased safely. Revert it or restore the tracked base before applying.');
+        }
+        const rebased = await rebaseGameCampaignWorkspace(
+          workspace.mutationPreconditions('rebase-before-apply')
+        );
+        workspace.replaceSummary(rebased.workspace);
+        setContentHash(rebased.workspace.baseContentHash);
+      }
+      await workspace.flush();
+
+      let appliedRevision: number;
+      if (requiresFullCampaignApply) {
+        const resetPreconditions = workspace.mutationPreconditions('adopt-full-campaign-apply');
+        const result = await applyGameCampaign<GameCampaignConfig>(
+          campaign.value,
+          resetPreconditions.expectedBaseContentHash,
+          'Applied from the visual Mission Builder with schema-v1 global edits'
+        );
+        const reset = await resetGameCampaignWorkspace(resetPreconditions);
+        workspace.replaceSummary(reset.workspace);
+        campaign.replace(normalizeGameCampaignRecordCard(cloneJson(result.campaign)));
+        setContentHash(result.contentHash);
+        setActiveVersionId(result.activeVersionId);
+        appliedRevision = result.campaign.revision;
+      } else {
+        const result = await applyGameCampaignWorkspace(
+          workspace.mutationPreconditions('apply-workspace'),
+          'Applied from the visual Mission Builder workspace'
+        );
+        workspace.replaceSummary(result.workspace);
+        setContentHash(result.applied.contentHash);
+        setActiveVersionId(result.applied.activeVersionId);
+        appliedRevision = result.applied.revision;
+        await reloadWorkspaceCampaign();
+      }
+
+      setRequiresFullCampaignApply(false);
       window.localStorage.removeItem(DRAFT_KEY);
-      notify(`Revision ${result.campaign.revision} is now used by the local game`);
+      notify(`Revision ${appliedRevision} is now used by the local game`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Campaign could not be applied';
       const errorList = message.split(/\n|; /).filter(Boolean);
@@ -456,13 +690,34 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
   const rollback = async (versionId: string) => {
     setBusy(true);
     try {
-      const result = await rollbackGameCampaign<GameCampaignConfig>(versionId, contentHash, `Rollback from the visual Mission Builder to ${versionId}`);
+      await workspace.discardPending();
+      if (workspace.summary.stale) {
+        const current = await resetGameCampaignWorkspace(
+          workspace.mutationPreconditions('reset-stale-before-rollback')
+        );
+        workspace.replaceSummary(current.workspace);
+        setContentHash(current.workspace.baseContentHash);
+      }
+      const resetPreconditions = workspace.mutationPreconditions('adopt-rollback');
+      const result = await rollbackGameCampaign<GameCampaignConfig>(
+        versionId,
+        resetPreconditions.expectedBaseContentHash,
+        `Rollback from the visual Mission Builder to ${versionId}`
+      );
+      const reset = await resetGameCampaignWorkspace(resetPreconditions);
+      workspace.replaceSummary(reset.workspace);
       campaign.replace(normalizeGameCampaignRecordCard(cloneJson(result.campaign)));
       setContentHash(result.contentHash);
       setActiveVersionId(result.activeVersionId);
+      setRequiresFullCampaignApply(false);
       setHistoryOpen(false);
       window.localStorage.removeItem(DRAFT_KEY);
-      handleSelectLevelAfterChange(result.campaign.levels[0]);
+      const selection = initialEditorSelection(result.campaign, surfaceMode);
+      setSelectedLevelId(selection.levelId);
+      setSelectedWaveId(selection.waveId);
+      setSelectedEventId(selection.eventId);
+      setInspectorTab(selection.inspectorTab);
+      setRestartToken((value) => value + 1);
       notify(`Rollback created revision ${result.campaign.revision}`);
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Rollback failed', true);
@@ -487,7 +742,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
 
   const appliedReviewConfigVersion = activeVersionId
     ?? `game-campaign-disk-r${campaign.value.revision}-${contentHash.slice(7, 19)}`;
-  const reviewConfigVersion = campaign.isDirty
+  const reviewConfigVersion = hasDraftChanges
     ? draftContentHash
       ? `game-campaign-draft-r${campaign.value.revision}-${draftContentHash.slice(7, 19)}`
       : null
@@ -577,7 +832,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     if (!selectedLevel || !selectedWave) return;
     try {
       const event = runtimeEvent;
-      const isDraft = campaign.isDirty;
+      const isDraft = hasDraftChanges;
       const currentDraftHash = isDraft ? await hashDraftCampaign(campaign.value) : null;
       const configVersion = currentDraftHash
         ? `game-campaign-draft-r${campaign.value.revision}-${currentDraftHash.slice(7, 19)}`
@@ -631,18 +886,50 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
     return <div className="le-preview__error">The campaign requires at least one mission and one wave.</div>;
   }
 
+  const handleUndo = () => {
+    const next = campaign.undoValue;
+    if (!next) return;
+    const plan = planBrowserDraftRecovery(campaign.value, next);
+    campaign.undo();
+    for (const request of plan.resources) workspace.enqueue(request);
+    if (plan.requiresFullCampaignApply) setRequiresFullCampaignApply(true);
+    setValidationErrors([]);
+  };
+
+  const workspaceStatusLabel = workspace.status === 'error'
+    ? 'Autosave error'
+    : workspace.status === 'stale'
+      ? 'Rebase needed'
+      : workspace.status === 'saving'
+        ? `Saving ${Math.max(1, workspace.pendingCount)}…`
+        : workspace.status === 'unsaved'
+          ? `${workspace.pendingCount} unsaved`
+          : requiresFullCampaignApply
+            ? 'Local recovery only'
+            : workspace.summary.hasChanges
+              ? `Draft saved · r${workspace.summary.draftRevision}`
+              : 'Workspace clean';
+  const canApply = requiresFullCampaignApply
+    || workspace.pendingCount > 0
+    || workspace.summary.hasChanges;
+
   return (
     <div className="le-shell">
       <header className="le-topbar">
         <div className="le-brand">
           <span className="le-brand__mark"><DirectorMark /></span>
           <strong>Scicon Mission Builder</strong>
-          <span className="le-local"><i />Local only</span>
+          <span
+            className="le-local"
+            role="status"
+            aria-live="polite"
+            title={workspace.error ?? 'Server-backed local Director workspace'}
+          ><i />Local only · {workspaceStatusLabel}</span>
         </div>
         <nav className="le-topnav" aria-label="Director tools">
           <a href="/combat-lab" onClick={(event) => {
             if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
-            if (campaign.isDirty && !window.confirm('Discard the unsaved Mission Builder changes and open Combat Lab?')) {
+            if (hasUnsavedLocalChanges && !window.confirm('Leave before the Mission Builder workspace finishes saving? Browser recovery will remain available.')) {
               event.preventDefault();
               return;
             }
@@ -653,12 +940,12 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
           <a href="/level-editor?surface=review" aria-current={surfaceMode === 'review' ? 'page' : undefined} onClick={(event) => { event.preventDefault(); selectSurface('review'); }}>Review notes</a>
         </nav>
         <div className="le-top-actions">
-          <button className="le-button le-button--quiet" type="button" disabled={!campaign.canUndo || busy} onClick={campaign.undo}><EditorIcon name="undo" /><span>Undo</span></button>
+          <button className="le-button le-button--quiet" type="button" disabled={!campaign.canUndo || busy} onClick={handleUndo}><EditorIcon name="undo" /><span>Undo</span></button>
           <button className="le-button le-button--quiet" type="button" disabled={busy} onClick={() => void revert()}><EditorIcon name="restart" /><span>Revert</span></button>
-          <button className="le-button le-button--quiet" type="button" disabled={busy} onClick={saveDraft}><EditorIcon name="save" /><span>Save draft</span></button>
+          <button className="le-button le-button--quiet" type="button" disabled={busy} onClick={() => void saveDraft()}><EditorIcon name="save" /><span>Save draft</span></button>
           <button className="le-button le-button--quiet" type="button" disabled={busy} onClick={() => void openHistory()}><EditorIcon name="history" /><span>History</span></button>
           <span className="le-separator" />
-          <button className="le-button le-button--primary" type="button" disabled={busy || !campaign.isDirty} onClick={() => void apply()}>{busy ? 'Working…' : 'Apply to game'} <EditorIcon name="play" /></button>
+          <button className="le-button le-button--primary" type="button" disabled={busy || !canApply} onClick={() => void apply()}>{busy ? 'Working…' : 'Apply to game'} <EditorIcon name="play" /></button>
         </div>
       </header>
 
@@ -671,7 +958,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
           onDuplicate={handleDuplicateLevel}
           onRename={handleRenameLevel}
           onDelete={handleDeleteLevel}
-          onMove={(direction) => setCampaign(moveLevel(campaign.value, selectedLevel.id, direction))}
+          onMove={handleMoveLevel}
         />
 
         <main className="le-stage-column">
@@ -717,7 +1004,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
               enabled={surfaceMode === 'review' || annotationMode}
               reviews={previewReviews}
               contextLabel={`${selectedLevel.name} · ${selectedWave.name}${runtimeEvent ? ` · ${runtimeEvent.label}` : ''}`}
-              disabled={busy || (campaign.isDirty && !draftContentHash)}
+              disabled={busy || (hasDraftChanges && !draftContentHash)}
               onCreate={createPreviewReview}
             />
             <div className="le-preview__badge">{surfaceMode === 'review' ? 'ACTUAL GAME REVIEW SURFACE' : 'ACTUAL GAME SURFACE'} · {selectedWave.name}</div>
@@ -727,13 +1014,24 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
               <RecordCardEditorSurface
                 config={campaign.value.recordCard}
                 wave={selectedWave}
-                onChange={(recordCard) => setCampaign({ ...campaign.value, recordCard })}
+                onChange={(recordCard) => setCampaign({ ...campaign.value, recordCard }, [], true)}
               />
               <div className="le-preview__badge">ACTUAL SHARED RECORD SVG</div>
             </section>
           )}
           {surfaceMode !== 'card'
-            ? <EventTimeline events={selectedWave.events} selectedEventId={selectedEventId} onSelect={(event) => handleSelectEvent(event.id)} />
+            ? (
+              <EventTimeline
+                events={selectedWave.events}
+                waveDurationSeconds={selectedWave.durationSeconds}
+                selectedEventId={selectedEventId}
+                onSelect={(event) => handleSelectEvent(event.id)}
+                onChangeStartSeconds={(event, startSeconds) => handleUpdateEvent({
+                  ...event,
+                  startSeconds
+                })}
+              />
+            )
             : <div className="le-card-mode-strip">Drag ship or encounter art directly on the card. Edit copy, color, size, and coordinates at right.</div>}
           <div>
             {surfaceMode === 'game' ? (
@@ -743,7 +1041,7 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
               <button className={`le-button${!playing && !annotationMode && !placementMode ? ' is-active' : ''}`} type="button" onClick={() => { setAnnotationMode(false); setPlacementMode(false); setPlaying(false); }}><EditorIcon name="pause" /> Pause</button>
               <button className="le-button" type="button" onClick={() => setRestartToken((value) => value + 1)}><EditorIcon name="restart" /> Restart</button>
               <button className={`le-button${placementMode ? ' is-active' : ''}`} type="button" aria-pressed={placementMode} onClick={() => setPlacing(!placementMode)}><EditorIcon name="edit" /> {placementMode ? 'Done' : 'Place'}</button>
-              <button className={`le-button${annotationMode ? ' is-active' : ''}`} type="button" disabled={busy || (campaign.isDirty && !draftContentHash)} aria-pressed={annotationMode} onClick={() => setAnnotating(!annotationMode)}><EditorIcon name="review" /> {annotationMode ? 'Done' : 'Annotate'}</button>
+              <button className={`le-button${annotationMode ? ' is-active' : ''}`} type="button" disabled={busy || (hasDraftChanges && !draftContentHash)} aria-pressed={annotationMode} onClick={() => setAnnotating(!annotationMode)}><EditorIcon name="review" /> {annotationMode ? 'Done' : 'Annotate'}</button>
               <button className="le-button" type="button" disabled={selectedWave.order >= selectedLevel.waves.length} onClick={() => selectAdjacentWave(1)}>Next <EditorIcon name="forward" /></button>
             </div>
             ) : surfaceMode === 'review' ? (
@@ -793,8 +1091,8 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
           tab={inspectorTab}
           onTabChange={setInspectorTab}
           onSelectEvent={handleSelectEvent}
-          onUpdateRecordCard={(recordCard) => setCampaign({ ...campaign.value, recordCard })}
-          onUpdateHudAssets={(hudAssets) => setCampaign({ ...campaign.value, hudAssets })}
+          onUpdateRecordCard={(recordCard) => setCampaign({ ...campaign.value, recordCard }, [], true)}
+          onUpdateHudAssets={(hudAssets) => setCampaign({ ...campaign.value, hudAssets }, [], true)}
           onUpdateLevel={handleUpdateLevel}
           onUpdateWave={handleUpdateWave}
           onUpdateEvent={handleUpdateEvent}
@@ -811,18 +1109,23 @@ function LevelEditorWorkspace({ initialState }: { initialState: GameCampaignDisk
 }
 
 export default function LevelEditorApp() {
-  const [state, setState] = useState<GameCampaignDiskState<GameCampaignConfig> | null>(null);
+  const [state, setState] = useState<LevelEditorInitialState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void fetchGameCampaign<GameCampaignConfig>()
-      .then((result) => { if (!cancelled) setState(result); })
+    void Promise.all([
+      fetchGameCampaign<GameCampaignConfig>(),
+      fetchGameCampaignWorkspace<GameCampaignConfig>()
+    ])
+      .then(([disk, workspaceResult]) => {
+        if (!cancelled) setState({ disk, workspace: workspaceResult.workspace });
+      })
       .catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : 'Could not open the game campaign'); });
     return () => { cancelled = true; };
   }, []);
 
   if (error) return <div className="le-shell"><div className="le-preview__error">Scicon Mission Builder could not start: {error}</div></div>;
-  if (!state) return <div className="le-shell"><div className="le-preview__loading">Loading the real Scicon Shooter campaign…</div></div>;
+  if (!state) return <div className="le-shell"><div className="le-preview__loading">Opening the server-backed Director workspace…</div></div>;
   return <LevelEditorWorkspace initialState={state} />;
 }

@@ -56,11 +56,65 @@ test('authored boss phases switch movement, speed, and active weapon numbers at 
   assert.equal(critical.movementPatternId, 'arena-roam');
   assert.equal(critical.speedMultiplier, 1.6);
   assert.deepEqual(structuredClone(critical.weaponSettings), [weapons[1]]);
+
+  const firstBarFloor = resolveBossPhaseConfig(
+    0,
+    100,
+    phases,
+    weapons,
+    { maximumPhaseIndex: 0 }
+  );
+  assert.equal(firstBarFloor.phaseId, 'opening');
+  assert.equal(firstBarFloor.healthRatio, 0);
+
+  const awakenedBarFloor = resolveBossPhaseConfig(
+    100,
+    100,
+    phases,
+    weapons,
+    { minimumPhaseIndex: 1 }
+  );
+  assert.equal(awakenedBarFloor.phaseId, 'critical');
+  assert.equal(awakenedBarFloor.healthRatio, 1);
 });
 
-test('cloning a gatekeeper gives it a new event id while preserving its explicit rig and valid phase weapon references', () => {
+test('cloning a gatekeeper remaps nested weapons, phases, timeline clips, and timeline references', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
-  const source = findCampaignEvent(campaign, 'bastion-protocol-gatekeeper');
+  const source = structuredClone(findCampaignEvent(campaign, 'bastion-protocol-gatekeeper'));
+  source.timeline = {
+    durationSeconds: 4,
+    loop: true,
+    clips: [
+      {
+        id: 'clone-warning',
+        label: 'Clone warning',
+        track: 'presentation',
+        primitiveId: 'telegraph',
+        trigger: 'time',
+        startSeconds: 0.25,
+        durationSeconds: 0.5,
+        phaseId: source.phases[0].id
+      },
+      {
+        id: 'clone-burst',
+        label: 'Clone burst',
+        track: 'attack',
+        primitiveId: 'aimed-burst',
+        trigger: 'time',
+        startSeconds: 0.75,
+        durationSeconds: 0.1,
+        phaseId: source.phases[0].id,
+        telegraphClipId: 'clone-warning'
+      }
+    ]
+  };
+  source.revival = {
+    phaseId: source.phases[1].id,
+    shutdownSeconds: 2.2,
+    rebootSeconds: 2.6,
+    restoreHealthRatio: 1,
+    awakenedSizeMultiplier: 1.25
+  };
   const { cloneWaveEvent } = loadTypeScriptModule('director/src/editor/editorOperations.ts');
   const clone = cloneWaveEvent(source);
 
@@ -72,6 +126,18 @@ test('cloning a gatekeeper gives it a new event id while preserving its explicit
   clone.phases.forEach((phase) => {
     phase.weaponSettingIds.forEach((weaponId) => assert.equal(clonedWeaponIds.has(weaponId), true));
   });
+  assert.ok(clone.timeline);
+  assert.notDeepEqual(clone.timeline.clips.map((clip) => clip.id), source.timeline.clips.map((clip) => clip.id));
+  const clonedPhaseIds = new Set(clone.phases.map((phase) => phase.id));
+  const clonedTimelineIds = new Set(clone.timeline.clips.map((clip) => clip.id));
+  clone.timeline.clips.forEach((clip) => {
+    if (clip.phaseId) assert.equal(clonedPhaseIds.has(clip.phaseId), true);
+    if (clip.telegraphClipId) assert.equal(clonedTimelineIds.has(clip.telegraphClipId), true);
+  });
+  assert.ok(clone.revival);
+  assert.equal(clonedPhaseIds.has(clone.revival.phaseId), true);
+  assert.notEqual(clone.revival.phaseId, source.revival.phaseId);
+  assert.equal(clone.revival.phaseId, clone.phases[1].id);
 });
 
 test('all authored gatekeepers carry stable rigs and runtime prefers them over the legacy event-id fallback', () => {

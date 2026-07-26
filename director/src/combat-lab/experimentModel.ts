@@ -585,12 +585,15 @@ const remapBossInternals = (
     ...clone(weapon),
     id: weaponIdMap[weapon.id]
   }));
-  const phases: BossHealthPhase[] = event.phases.map((phase) => {
+  const phaseIdMap = Object.fromEntries(event.phases.map((phase) => {
     const id = allocate(phase.id);
     idMap[phase.id] = id;
+    return [phase.id, id];
+  }));
+  const phases: BossHealthPhase[] = event.phases.map((phase) => {
     return {
       ...clone(phase),
-      id,
+      id: phaseIdMap[phase.id],
       weaponSettingIds: phase.weaponSettingIds.map((weaponId) => {
         const mapped = weaponIdMap[weaponId];
         if (!mapped) throw new Error(`Boss phase ${phase.id} references unknown weapon setting ${weaponId}`);
@@ -598,7 +601,40 @@ const remapBossInternals = (
       })
     };
   });
-  return { ...clone(event), weapons, phases };
+  const timelineAttackIds = new Set(event.timeline?.attacks?.map((attack) => attack.id) ?? []);
+  const timelineClipIdMap = Object.fromEntries((event.timeline?.clips ?? []).map((clip) => {
+    let id = allocate(clip.id);
+    while (timelineAttackIds.has(id)) id = allocate(`${clip.id}-clip`);
+    idMap[clip.id] = id;
+    return [clip.id, id];
+  }));
+  const timeline = event.timeline ? {
+    ...clone(event.timeline),
+    clips: event.timeline.clips.map((clip) => ({
+      ...clone(clip),
+      id: timelineClipIdMap[clip.id],
+      phaseId: clip.phaseId ? phaseIdMap[clip.phaseId] : undefined,
+      telegraphClipId: clip.telegraphClipId
+        ? timelineClipIdMap[clip.telegraphClipId]
+      : undefined
+    })),
+    ...(event.timeline.attacks ? {
+      attacks: event.timeline.attacks.map((attack) => ({
+        ...clone(attack),
+        variants: attack.variants.map((variant) => ({
+          ...clone(variant),
+          phaseId: phaseIdMap[variant.phaseId],
+          beatClipIds: variant.beatClipIds.map((clipId) => timelineClipIdMap[clipId]),
+          recoveryClipId: timelineClipIdMap[variant.recoveryClipId]
+        }))
+      }))
+    } : {})
+  } : undefined;
+  const revival = event.revival ? {
+    ...clone(event.revival),
+    phaseId: phaseIdMap[event.revival.phaseId]
+  } : undefined;
+  return { ...clone(event), weapons, phases, revival, timeline };
 };
 
 const remapEvent = (

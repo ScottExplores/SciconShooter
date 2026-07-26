@@ -9,6 +9,13 @@ export {
 const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const EPSILON = 1e-6;
+const BOSS_TIMELINE_EPSILON = 0.0001;
+const BOSS_TIMELINE_FPS = 60;
+const BOSS_TIMELINE_MAX_CUES_PER_FRAME = 8;
+const toBossTimelineFrame = (seconds) => Math.max(
+  1,
+  Math.round(Math.max(0, seconds) * BOSS_TIMELINE_FPS)
+);
 
 const CAMPAIGN_BOSS_ASSET_KEYS = [
   'CAMPAIGN_BOSS_ECLIPSE_ENGINE',
@@ -199,12 +206,97 @@ const SPAWN_PATTERNS = new Set([
 ]);
 const SPAWN_POSITIONS = new Set(['random-top', 'formation-top', 'center-top', 'lane-top']);
 const MOVEMENT_PATTERNS = new Set(['drift-down', 'sine-drift', 'track-player', 'wall-march', 'asteroid-drift', 'gatekeeper-cycle', 'arena-roam']);
+const MOVEMENT_PATH_IDS = new Set(['sweep-bank-reentry']);
 const WEAPON_IDS = new Set(['aimed-shot', 'wall-bolt', 'burst-volley', 'lane-beam']);
 const ENEMY_RANKS = new Set(['standard', 'elite']);
 const ENEMY_ATTACK_PATTERNS = new Set(['aimed-burst']);
 const WAVE_COMPLETION_RULES = new Set(['boss-defeat', 'clear-after-duration']);
 const SCORECARD_METRICS = new Set(['wave', 'targets', 'coins', 'flight']);
 const EVENT_KINDS = new Set(['spawn', 'boss', 'asteroid-belt', 'powerup', 'recovery']);
+const BOSS_TIMELINE_TRIGGERS = new Set(['time', 'phase-enter', 'death']);
+const BOSS_TIMELINE_TELEGRAPH_STYLES = new Set(['warning', 'lane', 'target', 'ring', 'spokes']);
+const BOSS_TIMELINE_MOTION_CUES = new Set([
+  'rotor-volley',
+  'radial-beam',
+  'heavy-cannon',
+  'gatling-barrage',
+  'paired-crossfire',
+  'claw-sweep',
+  'reactor-pattern',
+  'reactor-fan',
+  'reactor-mines',
+  'pincer-dive'
+]);
+const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
+  'clockwise',
+  'counterclockwise',
+  'seeded-random'
+]);
+const BOSS_ATTACK_SENTENCE_ROLES = new Set(['core', 'signature']);
+const BOSS_ATTACK_SKILL_TESTS = new Set([
+  'rhythm-dodge',
+  'lane-routing',
+  'gap-tracking',
+  'route-combination'
+]);
+const BOSS_ATTACK_SAFE_ROUTE_RULES = new Set([
+  'opposite-side-dodge',
+  'shifting-channel',
+  'rotating-gap',
+  'channel-to-quadrant'
+]);
+const BOSS_ATTACK_SOCKET_ROLES = new Set(['port', 'starboard', 'core']);
+const BOSS_ATTACK_SENTENCE_KEYS = [
+  'id',
+  'label',
+  'role',
+  'skillTest',
+  'recognitionCue',
+  'solution',
+  'safeRouteRule',
+  'sourceSocketRoles',
+  'variants'
+];
+const BOSS_ATTACK_SENTENCE_VARIANT_KEYS = ['phaseId', 'beatClipIds', 'recoveryClipId'];
+const CORNER_AMBUSH_BEAM_MIN_WARNING_SECONDS = 0.8;
+const CORNER_AMBUSH_BEAM_MAX_WARNING_SECONDS = 2.5;
+const CORNER_AMBUSH_BEAM_MIN_LIVE_SECONDS = 0.3;
+const CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS = 1.25;
+const CORNER_AMBUSH_RAM_MIN_LIVE_SECONDS = 0.45;
+const CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS = 1.4;
+const BOSS_COMPONENT_MODES = new Set(['legacy-rig', 'hull-only']);
+const BOSS_TIMELINE_COMPONENT_IDS = new Set(['left-cannon', 'right-cannon', 'helmet']);
+const BOSS_TIMELINE_SIDES = new Set(['port', 'starboard']);
+const BOSS_TIMELINE_HANDEDNESS = new Set(['left', 'right']);
+const BOSS_TIMELINE_PRIMITIVES = new Map([
+  ['telegraph', { track: 'presentation', damaging: false, supportsRepeat: true, parameterKeys: ['warningSeconds', 'telegraphStyle', 'color'] }],
+  ['aimed-burst', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount'] }],
+  ['gap-ring', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence', 'rotationDirection'] }],
+  ['rotor-hazard-sentence', { track: 'attack', damaging: true, supportsRepeat: false, parameterKeys: ['projectileCount', 'sequence', 'pulseIntervalSeconds', 'motionCue'] }],
+  ['radial-beam-array', { track: 'laser', damaging: true, supportsRepeat: false, parameterKeys: ['sequence', 'motionCue', 'rotationDirection'] }],
+  ['corner-ambush-beam', { track: 'laser', damaging: true, supportsRepeat: false, parameterKeys: ['sequence'] }],
+  ['corner-ambush-ram', { track: 'movement', damaging: true, supportsRepeat: false, parameterKeys: ['sequence'] }],
+  ['paired-cannon-burst', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'side', 'sequence', 'motionCue'] }],
+  ['articulated-melee-sweep', { track: 'attack', damaging: true, supportsRepeat: false, parameterKeys: ['side', 'sequence', 'motionCue'] }],
+  ['reactor-aperture-pattern', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence', 'rotationDirection', 'motionCue'] }],
+  ['tracking-pincer-dive', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['sequence', 'motionCue'] }],
+  ['cross-beam', { track: 'laser', damaging: true, supportsRepeat: true, parameterKeys: [] }],
+  ['rail-sweep', { track: 'laser', damaging: true, supportsRepeat: true, parameterKeys: ['sequence'] }],
+  ['tail-fan', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence'] }],
+  ['inward-collapse', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence'] }],
+  ['rotating-cross', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence'] }],
+  ['helix-volley', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence', 'handedness'] }],
+  ['side-barrage', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'side', 'motionCue'] }],
+  ['pod-volley', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence'] }],
+  ['weave-wall', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence'] }],
+  ['summon-formation', { track: 'summon', damaging: true, supportsRepeat: false, parameterKeys: ['summonCount', 'enemyId', 'formationPatternId'] }],
+  ['set-shield', { track: 'defense', damaging: false, supportsRepeat: false, parameterKeys: ['shieldCount', 'enabled'] }],
+  ['set-weak-point', { track: 'defense', damaging: false, supportsRepeat: false, parameterKeys: ['componentId', 'enabled'] }],
+  ['set-movement', { track: 'movement', damaging: false, supportsRepeat: false, parameterKeys: ['movementPatternId', 'speedMultiplier'] }],
+  ['follow-path', { track: 'movement', damaging: false, supportsRepeat: false, parameterKeys: ['movementPathId'] }],
+  ['effect-cue', { track: 'presentation', damaging: false, supportsRepeat: false, parameterKeys: ['color'] }],
+  ['camera-cue', { track: 'presentation', damaging: false, supportsRepeat: false, parameterKeys: ['strength'] }]
+]);
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const isFiniteNumber = (value) => typeof value === 'number' && Number.isFinite(value);
@@ -474,12 +566,682 @@ const validateBossPhase = (phase, location, weaponIds, previousRatio, errors) =>
   return phase.triggerHealthRatio;
 };
 
+const validateBossTimeline = (timeline, location, phaseIds, errors) => {
+  if (timeline === undefined) return;
+  if (!requireObject(timeline, location, errors)) return;
+  allowedKeys(timeline, ['durationSeconds', 'loop', 'clips', 'attacks'], location, errors);
+  requireNumber(timeline.durationSeconds, `${location}/durationSeconds`, errors, { minimum: 0.1, maximum: 180 });
+  if (typeof timeline.loop !== 'boolean') errors.push(`${location}/loop must be a boolean`);
+  if (!Array.isArray(timeline.clips)) {
+    errors.push(`${location}/clips must be an array`);
+    return;
+  }
+  if (timeline.clips.length > 128) errors.push(`${location}/clips must contain at most 128 items`);
+
+  const clipIds = new Set();
+  const clipsById = new Map();
+  timeline.clips.forEach((clip, index) => {
+    const clipLocation = `${location}/clips/${index}`;
+    if (!requireObject(clip, clipLocation, errors)) return;
+    allowedKeys(clip, [
+      'id',
+      'label',
+      'track',
+      'primitiveId',
+      'trigger',
+      'startSeconds',
+      'durationSeconds',
+      'phaseId',
+      'telegraphClipId',
+      'repeat',
+      'parameters'
+    ], clipLocation, errors);
+    requireId(clip.id, `${clipLocation}/id`, errors);
+    if (clipIds.has(clip.id)) errors.push(`${location}/clips contains duplicate id: ${String(clip.id)}`);
+    if (typeof clip.id === 'string') {
+      clipIds.add(clip.id);
+      clipsById.set(clip.id, clip);
+    }
+    requireString(clip.label, `${clipLocation}/label`, errors, 100);
+
+    const primitive = BOSS_TIMELINE_PRIMITIVES.get(clip.primitiveId);
+    if (!primitive) {
+      errors.push(`${clipLocation}/primitiveId has unsupported value: ${String(clip.primitiveId)}`);
+    } else if (clip.track !== primitive.track) {
+      errors.push(`${clipLocation}/track must be ${primitive.track} for ${clip.primitiveId}`);
+    }
+    requireEnum(clip.trigger, BOSS_TIMELINE_TRIGGERS, `${clipLocation}/trigger`, errors);
+    requireNumber(clip.startSeconds, `${clipLocation}/startSeconds`, errors, { minimum: 0, maximum: 180 });
+    requireNumber(clip.durationSeconds, `${clipLocation}/durationSeconds`, errors, { minimum: 0.01, maximum: 60 });
+    if (
+      isFiniteNumber(timeline.durationSeconds)
+      && isFiniteNumber(clip.startSeconds)
+      && clip.startSeconds > timeline.durationSeconds
+    ) {
+      errors.push(`${clipLocation}/startSeconds must be inside the timeline duration`);
+    }
+    if (clip.phaseId !== undefined && !phaseIds.has(clip.phaseId)) {
+      errors.push(`${clipLocation}/phaseId references unknown boss phase: ${String(clip.phaseId)}`);
+    }
+    if (clip.telegraphClipId !== undefined) requireId(clip.telegraphClipId, `${clipLocation}/telegraphClipId`, errors);
+
+    if (clip.repeat !== undefined) {
+      const repeatLocation = `${clipLocation}/repeat`;
+      if (requireObject(clip.repeat, repeatLocation, errors)) {
+        allowedKeys(clip.repeat, ['count', 'intervalSeconds'], repeatLocation, errors);
+        requireNumber(clip.repeat.count, `${repeatLocation}/count`, errors, { minimum: 1, maximum: 8, integer: true });
+        requireNumber(clip.repeat.intervalSeconds, `${repeatLocation}/intervalSeconds`, errors, { minimum: 0.05, maximum: 30 });
+        if (primitive && !primitive.supportsRepeat) {
+          errors.push(`${repeatLocation} is not supported by ${clip.primitiveId}`);
+        }
+        if (clip.trigger !== 'time') {
+          errors.push(`${repeatLocation} is supported only by time-based clips`);
+        }
+        if (
+          clip.trigger === 'time'
+          && isFiniteNumber(clip.startSeconds)
+          && isFiniteNumber(clip.repeat.count)
+          && isFiniteNumber(clip.repeat.intervalSeconds)
+          && isFiniteNumber(timeline.durationSeconds)
+        ) {
+          const repeatCount = Math.max(1, Math.min(8, Math.floor(clip.repeat.count)));
+          const finalExecutionSeconds = clip.startSeconds
+            + ((repeatCount - 1) * clip.repeat.intervalSeconds);
+          const finalExecutionFrame = toBossTimelineFrame(finalExecutionSeconds);
+          const durationFrame = toBossTimelineFrame(timeline.durationSeconds);
+          const outsideTimeline = timeline.loop === true
+            ? finalExecutionFrame >= durationFrame
+            : finalExecutionSeconds > timeline.durationSeconds + BOSS_TIMELINE_EPSILON;
+          if (outsideTimeline) {
+            errors.push(`${repeatLocation} must keep every execution inside the boss timeline`);
+          }
+        }
+      }
+    }
+    if (
+      clip.trigger === 'time'
+      && timeline.loop === true
+      && isFiniteNumber(clip.startSeconds)
+      && isFiniteNumber(timeline.durationSeconds)
+      && toBossTimelineFrame(clip.startSeconds) >= toBossTimelineFrame(timeline.durationSeconds)
+    ) {
+      errors.push(`${clipLocation}/startSeconds must execute before the loop endpoint`);
+    }
+
+    if (clip.parameters !== undefined) {
+      const parameterLocation = `${clipLocation}/parameters`;
+      if (requireObject(clip.parameters, parameterLocation, errors)) {
+        const parameters = clip.parameters;
+        allowedKeys(parameters, [
+          'sequence',
+          'projectileCount',
+          'pulseIntervalSeconds',
+          'warningSeconds',
+          'shieldCount',
+          'summonCount',
+          'enemyId',
+          'formationPatternId',
+          'movementPatternId',
+          'movementPathId',
+          'speedMultiplier',
+          'componentId',
+          'enabled',
+          'side',
+          'handedness',
+          'telegraphStyle',
+          'motionCue',
+          'rotationDirection',
+          'color',
+          'strength'
+        ], parameterLocation, errors);
+        if (primitive) {
+          Object.keys(parameters).forEach((parameterKey) => {
+            if (primitive.parameterKeys.includes(parameterKey)) return;
+            errors.push(`${parameterLocation}/${parameterKey} is not supported by ${clip.primitiveId}`);
+          });
+        }
+        if (parameters.sequence !== undefined) requireNumber(parameters.sequence, `${parameterLocation}/sequence`, errors, { minimum: 0, maximum: 100000, integer: true });
+        if (parameters.projectileCount !== undefined) requireNumber(parameters.projectileCount, `${parameterLocation}/projectileCount`, errors, { minimum: 1, maximum: 24, integer: true });
+        if (parameters.pulseIntervalSeconds !== undefined) requireNumber(parameters.pulseIntervalSeconds, `${parameterLocation}/pulseIntervalSeconds`, errors, { minimum: 0.5, maximum: 2 });
+        if (parameters.warningSeconds !== undefined) requireNumber(parameters.warningSeconds, `${parameterLocation}/warningSeconds`, errors, { minimum: 0.1, maximum: 10 });
+        if (parameters.shieldCount !== undefined) requireNumber(parameters.shieldCount, `${parameterLocation}/shieldCount`, errors, { minimum: 0, maximum: 12, integer: true });
+        if (parameters.summonCount !== undefined) requireNumber(parameters.summonCount, `${parameterLocation}/summonCount`, errors, { minimum: 1, maximum: 12, integer: true });
+        if (parameters.enemyId !== undefined) requireEnum(parameters.enemyId, ENEMY_IDS, `${parameterLocation}/enemyId`, errors);
+        if (parameters.formationPatternId !== undefined) requireEnum(parameters.formationPatternId, SPAWN_PATTERNS, `${parameterLocation}/formationPatternId`, errors);
+        if (parameters.movementPatternId !== undefined) requireEnum(parameters.movementPatternId, MOVEMENT_PATTERNS, `${parameterLocation}/movementPatternId`, errors);
+        if (parameters.movementPathId !== undefined) requireEnum(parameters.movementPathId, MOVEMENT_PATH_IDS, `${parameterLocation}/movementPathId`, errors);
+        if (parameters.speedMultiplier !== undefined) requireNumber(parameters.speedMultiplier, `${parameterLocation}/speedMultiplier`, errors, { minimum: 0.1, maximum: 8 });
+        if (parameters.componentId !== undefined) requireEnum(parameters.componentId, BOSS_TIMELINE_COMPONENT_IDS, `${parameterLocation}/componentId`, errors);
+        if (parameters.enabled !== undefined && typeof parameters.enabled !== 'boolean') errors.push(`${parameterLocation}/enabled must be a boolean`);
+        if (parameters.side !== undefined) requireEnum(parameters.side, BOSS_TIMELINE_SIDES, `${parameterLocation}/side`, errors);
+        if (parameters.handedness !== undefined) requireEnum(parameters.handedness, BOSS_TIMELINE_HANDEDNESS, `${parameterLocation}/handedness`, errors);
+        if (parameters.telegraphStyle !== undefined) requireEnum(parameters.telegraphStyle, BOSS_TIMELINE_TELEGRAPH_STYLES, `${parameterLocation}/telegraphStyle`, errors);
+        if (parameters.motionCue !== undefined) requireEnum(parameters.motionCue, BOSS_TIMELINE_MOTION_CUES, `${parameterLocation}/motionCue`, errors);
+        if (parameters.rotationDirection !== undefined) requireEnum(parameters.rotationDirection, BOSS_TIMELINE_ROTATION_DIRECTIONS, `${parameterLocation}/rotationDirection`, errors);
+        if (parameters.color !== undefined && (typeof parameters.color !== 'string' || !HEX_COLOR_PATTERN.test(parameters.color))) {
+          errors.push(`${parameterLocation}/color must be a six-digit hex color`);
+        }
+        if (parameters.strength !== undefined) requireNumber(parameters.strength, `${parameterLocation}/strength`, errors, { minimum: 0, maximum: 10 });
+      }
+    }
+    if (clip.primitiveId === 'follow-path') {
+      if (clip.trigger !== 'time') {
+        errors.push(`${clipLocation}/trigger must use the deterministic phase clock for follow-path`);
+      }
+      if (!isPlainObject(clip.parameters) || clip.parameters.movementPathId === undefined) {
+        errors.push(`${clipLocation}/parameters/movementPathId is required for follow-path`);
+      }
+      if (
+        isFiniteNumber(timeline.durationSeconds)
+        && isFiniteNumber(clip.startSeconds)
+        && isFiniteNumber(clip.durationSeconds)
+        && clip.startSeconds + clip.durationSeconds > timeline.durationSeconds + EPSILON
+      ) {
+        errors.push(`${clipLocation}/durationSeconds must finish before the timeline endpoint`);
+      }
+    }
+    if (
+      clip.primitiveId === 'corner-ambush-beam'
+      && (
+        !isFiniteNumber(clip.durationSeconds)
+        || clip.durationSeconds < CORNER_AMBUSH_BEAM_MIN_LIVE_SECONDS
+        || clip.durationSeconds > CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS
+      )
+    ) {
+      errors.push(
+        `${clipLocation}/durationSeconds must keep a corner ambush beam live for `
+        + `${CORNER_AMBUSH_BEAM_MIN_LIVE_SECONDS}-${CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS} seconds`
+      );
+    }
+    if (
+      clip.primitiveId === 'corner-ambush-ram'
+      && (
+        !isFiniteNumber(clip.durationSeconds)
+        || clip.durationSeconds < CORNER_AMBUSH_RAM_MIN_LIVE_SECONDS
+        || clip.durationSeconds > CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS
+      )
+    ) {
+      errors.push(
+        `${clipLocation}/durationSeconds must keep a corner ambush ram live for `
+        + `${CORNER_AMBUSH_RAM_MIN_LIVE_SECONDS}-${CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS} seconds`
+      );
+    }
+    if (
+      (
+        clip.primitiveId === 'corner-ambush-beam'
+        || clip.primitiveId === 'corner-ambush-ram'
+      )
+      && isFiniteNumber(timeline.durationSeconds)
+      && isFiniteNumber(clip.startSeconds)
+      && isFiniteNumber(clip.durationSeconds)
+      && clip.startSeconds + clip.durationSeconds > timeline.durationSeconds + EPSILON
+    ) {
+      errors.push(`${clipLocation}/durationSeconds must finish a corner ambush action before the timeline endpoint`);
+    }
+  });
+
+  timeline.clips.forEach((clip, index) => {
+    const primitive = isPlainObject(clip)
+      ? BOSS_TIMELINE_PRIMITIVES.get(clip.primitiveId)
+      : undefined;
+    if (!primitive?.damaging) return;
+    const clipLocation = `${location}/clips/${index}`;
+    if (clip.trigger !== 'time') {
+      errors.push(`${clipLocation}/trigger must be time for a damaging action`);
+    }
+    const telegraph = clipsById.get(clip.telegraphClipId);
+    if (!telegraph || telegraph.primitiveId !== 'telegraph') {
+      errors.push(`${clipLocation}/telegraphClipId must reference a telegraph clip`);
+      return;
+    }
+    if (telegraph.trigger !== 'time') {
+      errors.push(`${clipLocation}/telegraphClipId must reference a time-based telegraph`);
+    }
+    if (typeof telegraph.phaseId === 'string' && telegraph.phaseId !== clip.phaseId) {
+      errors.push(`${clipLocation}/telegraphClipId must reference a telegraph in the same boss phase`);
+    }
+    if (
+      (
+        clip.primitiveId === 'cross-beam'
+        || clip.primitiveId === 'rail-sweep'
+        || clip.primitiveId === 'weave-wall'
+      )
+      && (!isPlainObject(telegraph.parameters) || telegraph.parameters.telegraphStyle !== 'lane')
+    ) {
+      errors.push(
+        `${clipLocation}/telegraphClipId must reference a lane telegraph for ${
+          clip.primitiveId === 'weave-wall' ? 'the deterministic safe channel' : 'a laser primitive'
+        }`
+      );
+    }
+    if (
+      clip.primitiveId === 'radial-beam-array'
+      && (!isPlainObject(telegraph.parameters) || telegraph.parameters.telegraphStyle !== 'spokes')
+    ) {
+      errors.push(`${clipLocation}/telegraphClipId must reference a spoke telegraph on the damaging geometry`);
+    }
+    if (
+      (
+        clip.primitiveId === 'corner-ambush-beam'
+        || clip.primitiveId === 'corner-ambush-ram'
+      )
+      && (!isPlainObject(telegraph.parameters) || telegraph.parameters.telegraphStyle !== 'target')
+    ) {
+      errors.push(`${clipLocation}/telegraphClipId must reference a target telegraph that locks the exact damaging geometry`);
+    }
+    if (
+      (
+        clip.primitiveId === 'corner-ambush-beam'
+        || clip.primitiveId === 'corner-ambush-ram'
+      )
+      && isPlainObject(telegraph.repeat)
+    ) {
+      errors.push(`${clipLocation}/telegraphClipId cannot repeat a corner ambush beam warning inside one clip`);
+    }
+    if (
+      (
+        clip.primitiveId === 'corner-ambush-beam'
+        || clip.primitiveId === 'corner-ambush-ram'
+      )
+      && timeline.clips.filter((candidate) => (
+        isPlainObject(candidate) && candidate.telegraphClipId === clip.telegraphClipId
+      )).length !== 1
+    ) {
+      errors.push(`${clipLocation}/telegraphClipId must be dedicated to one corner ambush beam`);
+    }
+    if (
+      clip.trigger === 'time'
+      && telegraph.trigger === 'time'
+      && isFiniteNumber(clip.startSeconds)
+      && isFiniteNumber(telegraph.startSeconds)
+      && telegraph.startSeconds >= clip.startSeconds
+    ) {
+      errors.push(`${clipLocation}/telegraphClipId must begin before the damaging action`);
+    } else if (
+      clip.trigger === 'time'
+      && telegraph.trigger === 'time'
+      && isFiniteNumber(clip.startSeconds)
+      && isFiniteNumber(telegraph.startSeconds)
+    ) {
+      const warningLeadSeconds = clip.startSeconds - telegraph.startSeconds;
+      if (warningLeadSeconds < 0.1) {
+        errors.push(`${clipLocation}/telegraphClipId must provide at least 0.1 seconds of warning lead`);
+      }
+      const declaredWarningSeconds = isPlainObject(telegraph.parameters)
+        && isFiniteNumber(telegraph.parameters.warningSeconds)
+        ? telegraph.parameters.warningSeconds
+        : undefined;
+      if (
+        declaredWarningSeconds !== undefined
+        && warningLeadSeconds + BOSS_TIMELINE_EPSILON < declaredWarningSeconds
+      ) {
+        errors.push(`${clipLocation}/telegraphClipId warning lead is shorter than its declared warningSeconds`);
+      }
+      if (
+        (
+          clip.primitiveId === 'corner-ambush-beam'
+          || clip.primitiveId === 'corner-ambush-ram'
+        )
+        && (
+          warningLeadSeconds < CORNER_AMBUSH_BEAM_MIN_WARNING_SECONDS
+          || warningLeadSeconds > CORNER_AMBUSH_BEAM_MAX_WARNING_SECONDS
+        )
+      ) {
+        errors.push(
+          `${clipLocation}/telegraphClipId must provide `
+          + `${CORNER_AMBUSH_BEAM_MIN_WARNING_SECONDS}-${CORNER_AMBUSH_BEAM_MAX_WARNING_SECONDS} seconds of warning`
+        );
+      }
+      if (
+        (
+          clip.primitiveId === 'corner-ambush-beam'
+          || clip.primitiveId === 'corner-ambush-ram'
+        )
+        && (
+          declaredWarningSeconds === undefined
+          || declaredWarningSeconds < CORNER_AMBUSH_BEAM_MIN_WARNING_SECONDS
+          || declaredWarningSeconds > CORNER_AMBUSH_BEAM_MAX_WARNING_SECONDS
+        )
+      ) {
+        errors.push(
+          `${clipLocation}/telegraphClipId target telegraph must declare `
+          + `${CORNER_AMBUSH_BEAM_MIN_WARNING_SECONDS}-${CORNER_AMBUSH_BEAM_MAX_WARNING_SECONDS} warningSeconds`
+        );
+      }
+    }
+
+    const attackRepeatCount = isPlainObject(clip.repeat)
+      && isFiniteNumber(clip.repeat.count)
+      ? Math.max(1, Math.min(8, Math.floor(clip.repeat.count)))
+      : 1;
+    if (attackRepeatCount > 1) {
+      const telegraphRepeatCount = isPlainObject(telegraph.repeat)
+        && isFiniteNumber(telegraph.repeat.count)
+        ? Math.max(1, Math.min(8, Math.floor(telegraph.repeat.count)))
+        : 1;
+      const attackInterval = isPlainObject(clip.repeat)
+        && isFiniteNumber(clip.repeat.intervalSeconds)
+        ? clip.repeat.intervalSeconds
+        : undefined;
+      const telegraphInterval = isPlainObject(telegraph.repeat)
+        && isFiniteNumber(telegraph.repeat.intervalSeconds)
+        ? telegraph.repeat.intervalSeconds
+        : undefined;
+      if (telegraphRepeatCount < attackRepeatCount) {
+        errors.push(`${clipLocation}/telegraphClipId must repeat before every damaging execution`);
+      }
+      if (
+        attackInterval !== undefined
+        && (
+          telegraphInterval === undefined
+          || Math.abs(attackInterval - telegraphInterval) > BOSS_TIMELINE_EPSILON
+        )
+      ) {
+        errors.push(`${clipLocation}/telegraphClipId must use the same repeat interval as the damaging action`);
+      }
+    }
+  });
+
+  if (timeline.attacks !== undefined) {
+    const attacksLocation = `${location}/attacks`;
+    if (!Array.isArray(timeline.attacks) || timeline.attacks.length === 0) {
+      errors.push(`${attacksLocation} must be a non-empty array`);
+    } else {
+      if (timeline.attacks.length !== 4) {
+        errors.push(`${attacksLocation} must contain exactly three core attacks and one signature attack`);
+      }
+      const attackIds = new Set();
+      const usedBeatReferences = new Set();
+      const usedRecoveryReferences = new Set();
+      let coreAttackCount = 0;
+      let signatureAttackCount = 0;
+      const windowsByPhase = new Map();
+      timeline.attacks.forEach((attack, attackIndex) => {
+        const attackLocation = `${attacksLocation}/${attackIndex}`;
+        if (!requireObject(attack, attackLocation, errors)) return;
+        allowedKeys(attack, BOSS_ATTACK_SENTENCE_KEYS, attackLocation, errors);
+        requireId(attack.id, `${attackLocation}/id`, errors);
+        if (attackIds.has(attack.id)) errors.push(`${attacksLocation} contains duplicate id: ${String(attack.id)}`);
+        if (clipIds.has(attack.id)) errors.push(`${attackLocation}/id cannot collide with a timeline clip id`);
+        if (typeof attack.id === 'string') attackIds.add(attack.id);
+        requireString(attack.label, `${attackLocation}/label`, errors, 100);
+        requireEnum(attack.role, BOSS_ATTACK_SENTENCE_ROLES, `${attackLocation}/role`, errors);
+        if (attack.role === 'core') coreAttackCount += 1;
+        if (attack.role === 'signature') signatureAttackCount += 1;
+        requireEnum(attack.skillTest, BOSS_ATTACK_SKILL_TESTS, `${attackLocation}/skillTest`, errors);
+        requireString(attack.recognitionCue, `${attackLocation}/recognitionCue`, errors, 160);
+        requireString(attack.solution, `${attackLocation}/solution`, errors, 200);
+        requireEnum(attack.safeRouteRule, BOSS_ATTACK_SAFE_ROUTE_RULES, `${attackLocation}/safeRouteRule`, errors);
+        if (!Array.isArray(attack.sourceSocketRoles) || attack.sourceSocketRoles.length === 0) {
+          errors.push(`${attackLocation}/sourceSocketRoles must be a non-empty array`);
+        } else {
+          if (attack.sourceSocketRoles.length > 3) {
+            errors.push(`${attackLocation}/sourceSocketRoles must contain at most 3 items`);
+          }
+          const sourceRoles = new Set();
+          attack.sourceSocketRoles.forEach((role, roleIndex) => {
+            requireEnum(role, BOSS_ATTACK_SOCKET_ROLES, `${attackLocation}/sourceSocketRoles/${roleIndex}`, errors);
+            if (sourceRoles.has(role)) {
+              errors.push(`${attackLocation}/sourceSocketRoles contains duplicate value: ${String(role)}`);
+            }
+            sourceRoles.add(role);
+          });
+        }
+        if (!Array.isArray(attack.variants) || attack.variants.length === 0) {
+          errors.push(`${attackLocation}/variants must be a non-empty array`);
+          return;
+        }
+        const variantPhases = new Set();
+        attack.variants.forEach((variant, variantIndex) => {
+          const variantLocation = `${attackLocation}/variants/${variantIndex}`;
+          if (!requireObject(variant, variantLocation, errors)) return;
+          allowedKeys(variant, BOSS_ATTACK_SENTENCE_VARIANT_KEYS, variantLocation, errors);
+          requireId(variant.phaseId, `${variantLocation}/phaseId`, errors);
+          const phaseId = typeof variant.phaseId === 'string' ? variant.phaseId : '';
+          if (!phaseIds.has(phaseId)) {
+            errors.push(`${variantLocation}/phaseId references unknown boss phase: ${String(variant.phaseId)}`);
+          }
+          if (variantPhases.has(phaseId)) {
+            errors.push(`${variantLocation}/phaseId duplicates attack phase variant: ${phaseId}`);
+          }
+          variantPhases.add(phaseId);
+          let firstWarningStart = Number.POSITIVE_INFINITY;
+          let finalBeatEnd = Number.NEGATIVE_INFINITY;
+          let previousBeatStart = Number.NEGATIVE_INFINITY;
+          let expandedBeatCount = 0;
+          if (!Array.isArray(variant.beatClipIds) || variant.beatClipIds.length === 0) {
+            errors.push(`${variantLocation}/beatClipIds must be a non-empty array`);
+          } else {
+            if (variant.beatClipIds.length > 8) {
+              errors.push(`${variantLocation}/beatClipIds must contain at most 8 items`);
+            }
+            const localBeatIds = new Set();
+            variant.beatClipIds.forEach((clipId, beatIndex) => {
+              const beatLocation = `${variantLocation}/beatClipIds/${beatIndex}`;
+              requireId(clipId, beatLocation, errors);
+              if (localBeatIds.has(clipId)) {
+                errors.push(`${variantLocation}/beatClipIds contains duplicate value: ${String(clipId)}`);
+              }
+              localBeatIds.add(clipId);
+              const beat = clipsById.get(clipId);
+              if (!beat) {
+                errors.push(`${beatLocation} references unknown timeline clip: ${String(clipId)}`);
+                return;
+              }
+              const primitive = BOSS_TIMELINE_PRIMITIVES.get(beat.primitiveId);
+              if (!primitive?.damaging || beat.trigger !== 'time') {
+                errors.push(`${beatLocation} must reference a damaging time-based clip`);
+              }
+              if (beat.phaseId !== phaseId) {
+                errors.push(`${beatLocation} must reference a clip in phase ${phaseId}`);
+              }
+              const startSeconds = isFiniteNumber(beat.startSeconds) ? beat.startSeconds : 0;
+              if (startSeconds <= previousBeatStart) {
+                errors.push(`${beatLocation} must be strictly chronological`);
+              }
+              previousBeatStart = startSeconds;
+              const repeatCount = isPlainObject(beat.repeat) && isFiniteNumber(beat.repeat.count)
+                ? Math.max(1, Math.min(8, Math.floor(beat.repeat.count)))
+                : 1;
+              const repeatInterval = isPlainObject(beat.repeat) && isFiniteNumber(beat.repeat.intervalSeconds)
+                ? beat.repeat.intervalSeconds
+                : 0;
+              expandedBeatCount += repeatCount;
+              finalBeatEnd = Math.max(
+                finalBeatEnd,
+                startSeconds + (repeatCount - 1) * repeatInterval
+                  + (isFiniteNumber(beat.durationSeconds) ? beat.durationSeconds : 0)
+              );
+              const warning = typeof beat.telegraphClipId === 'string'
+                ? clipsById.get(beat.telegraphClipId)
+                : undefined;
+              if (warning && isFiniteNumber(warning.startSeconds)) {
+                firstWarningStart = Math.min(firstWarningStart, warning.startSeconds);
+              }
+              const ownershipKey = `${phaseId}:${String(clipId)}`;
+              if (usedBeatReferences.has(ownershipKey)) {
+                errors.push(`${beatLocation} is already owned by another attack variant in this phase`);
+              }
+              usedBeatReferences.add(ownershipKey);
+            });
+          }
+          const requiredBeats = attack.role === 'signature' ? 4 : 2;
+          if (expandedBeatCount < requiredBeats) {
+            errors.push(`${variantLocation}/beatClipIds must expand to at least ${requiredBeats} connected beats`);
+          }
+          requireId(variant.recoveryClipId, `${variantLocation}/recoveryClipId`, errors);
+          const recovery = clipsById.get(variant.recoveryClipId);
+          if (!recovery) {
+            errors.push(`${variantLocation}/recoveryClipId references unknown timeline clip: ${String(variant.recoveryClipId)}`);
+            return;
+          }
+          if (recovery.primitiveId !== 'effect-cue' || recovery.trigger !== 'time') {
+            errors.push(`${variantLocation}/recoveryClipId must reference a time-based effect-cue`);
+          }
+          if (recovery.phaseId !== phaseId) {
+            errors.push(`${variantLocation}/recoveryClipId must reference a clip in phase ${phaseId}`);
+          }
+          const recoveryOwnershipKey = `${phaseId}:${String(variant.recoveryClipId)}`;
+          if (usedRecoveryReferences.has(recoveryOwnershipKey)) {
+            errors.push(`${variantLocation}/recoveryClipId is already owned by another attack variant in this phase`);
+          }
+          usedRecoveryReferences.add(recoveryOwnershipKey);
+          const recoveryStart = isFiniteNumber(recovery.startSeconds) ? recovery.startSeconds : 0;
+          if (Number.isFinite(finalBeatEnd) && recoveryStart + BOSS_TIMELINE_EPSILON < finalBeatEnd) {
+            errors.push(`${variantLocation}/recoveryClipId must start after the final repeated beat`);
+          }
+          if (Number.isFinite(firstWarningStart)) {
+            const phaseWindows = windowsByPhase.get(phaseId) ?? [];
+            phaseWindows.push({
+              startSeconds: firstWarningStart,
+              endSeconds: recoveryStart + (isFiniteNumber(recovery.durationSeconds) ? recovery.durationSeconds : 0),
+              location: variantLocation
+            });
+            windowsByPhase.set(phaseId, phaseWindows);
+          }
+        });
+        if (
+          variantPhases.size !== phaseIds.size
+          || [...phaseIds].some((phaseId) => !variantPhases.has(phaseId))
+        ) {
+          errors.push(`${attackLocation}/variants must contain exactly one variant for every boss phase`);
+        }
+      });
+      if (coreAttackCount !== 3 || signatureAttackCount !== 1) {
+        errors.push(`${attacksLocation} must contain exactly three core attacks and one signature attack`);
+      }
+      timeline.clips.forEach((clip, clipIndex) => {
+        if (!isPlainObject(clip) || clip.trigger !== 'time') return;
+        const primitive = BOSS_TIMELINE_PRIMITIVES.get(clip.primitiveId);
+        if (!primitive?.damaging) return;
+        const phaseId = typeof clip.phaseId === 'string' ? clip.phaseId : '';
+        if (typeof clip.id === 'string' && usedBeatReferences.has(`${phaseId}:${clip.id}`)) return;
+        errors.push(`${location}/clips/${clipIndex}/id must belong to exactly one Boss Factory attack variant`);
+      });
+      windowsByPhase.forEach((windows) => {
+        windows.sort((left, right) => left.startSeconds - right.startSeconds);
+        for (let index = 1; index < windows.length; index += 1) {
+          if (windows[index].startSeconds + BOSS_TIMELINE_EPSILON < windows[index - 1].endSeconds) {
+            errors.push(`${windows[index].location} overlaps another attack sentence in the same phase`);
+          }
+        }
+      });
+    }
+  }
+
+  const phaseContexts = phaseIds.size > 0 ? [...phaseIds] : [undefined];
+  const entityCost = (clip) => {
+    const parameters = isPlainObject(clip.parameters) ? clip.parameters : {};
+    if (clip.primitiveId === 'cross-beam') return 2;
+    if (clip.primitiveId === 'rail-sweep') return 1;
+    if (clip.primitiveId === 'radial-beam-array') return 4;
+    if (clip.primitiveId === 'corner-ambush-beam') return 1;
+    if (clip.primitiveId === 'corner-ambush-ram') return 1;
+    if (clip.primitiveId === 'rotor-hazard-sentence') {
+      const pulseIntervalSeconds = isFiniteNumber(parameters.pulseIntervalSeconds)
+        ? parameters.pulseIntervalSeconds
+        : 1;
+      const pulses = Math.max(
+        1,
+        Math.ceil((Number(clip.durationSeconds) || 1) / pulseIntervalSeconds)
+      );
+      const pelletCount = isFiniteNumber(parameters.projectileCount)
+        ? parameters.projectileCount
+        : 6;
+      return pulses * pelletCount + Math.floor(pulses / 2) * 2;
+    }
+    if (clip.primitiveId === 'summon-formation') {
+      return isFiniteNumber(parameters.summonCount) ? parameters.summonCount : 4;
+    }
+    const defaults = {
+      'aimed-burst': 24,
+      'gap-ring': 24,
+      'tail-fan': 5,
+      'inward-collapse': 20,
+      'rotating-cross': 8,
+      'helix-volley': 24,
+      'side-barrage': 8,
+      'pod-volley': 6,
+      'weave-wall': 24
+    };
+    return isFiniteNumber(parameters.projectileCount)
+      ? parameters.projectileCount
+      : (defaults[clip.primitiveId] ?? 0);
+  };
+  phaseContexts.forEach((phaseId) => {
+    const frameBudgets = new Map();
+    const frameCueCounts = new Map();
+    let loopBudget = 0;
+    timeline.clips.forEach((clip) => {
+      const primitive = isPlainObject(clip)
+        ? BOSS_TIMELINE_PRIMITIVES.get(clip.primitiveId)
+        : undefined;
+      if (
+        !primitive
+        || clip.trigger !== 'time'
+        || (clip.phaseId !== undefined && clip.phaseId !== phaseId)
+      ) return;
+      const repeatCount = isPlainObject(clip.repeat) && isFiniteNumber(clip.repeat.count)
+        ? Math.max(1, Math.min(8, Math.floor(clip.repeat.count)))
+        : 1;
+      const intervalSeconds = isPlainObject(clip.repeat) && isFiniteNumber(clip.repeat.intervalSeconds)
+        ? clip.repeat.intervalSeconds
+        : 0;
+      const startSeconds = isFiniteNumber(clip.startSeconds) ? clip.startSeconds : 0;
+      const cost = primitive.damaging ? Math.max(0, entityCost(clip)) : 0;
+      if (primitive.damaging) loopBudget += cost * repeatCount;
+      for (let repeatIndex = 0; repeatIndex < repeatCount; repeatIndex += 1) {
+        const executionFrame = toBossTimelineFrame(
+          startSeconds + repeatIndex * intervalSeconds
+        );
+        frameCueCounts.set(
+          executionFrame,
+          (frameCueCounts.get(executionFrame) ?? 0) + 1
+        );
+        if (primitive.damaging) {
+          frameBudgets.set(
+            executionFrame,
+            (frameBudgets.get(executionFrame) ?? 0) + cost
+          );
+        }
+      }
+    });
+    const phaseLabel = phaseId ?? 'all phases';
+    if (loopBudget > 512) {
+      errors.push(`${location}/clips exceeds the 512-entity loop budget in ${phaseLabel}`);
+    }
+    for (const [executionFrame, cueCount] of frameCueCounts) {
+      if (cueCount > BOSS_TIMELINE_MAX_CUES_PER_FRAME) {
+        errors.push(`${location}/clips schedules ${cueCount} cues on simulation frame ${executionFrame} in ${phaseLabel}; the limit is ${BOSS_TIMELINE_MAX_CUES_PER_FRAME}`);
+      }
+    }
+    for (const [executionFrame, budget] of frameBudgets) {
+      if (budget > 64) {
+        errors.push(`${location}/clips requests ${budget} damaging entities on simulation frame ${executionFrame} in ${phaseLabel}; the limit is 64`);
+      }
+    }
+    for (const trigger of ['phase-enter', 'death']) {
+      const cueCount = timeline.clips.filter((clip) => (
+        isPlainObject(clip)
+        && clip.trigger === trigger
+        && (clip.phaseId === undefined || clip.phaseId === phaseId)
+      )).length;
+      if (cueCount > BOSS_TIMELINE_MAX_CUES_PER_FRAME) {
+        errors.push(`${location}/clips schedules ${cueCount} ${trigger} cues in ${phaseLabel}; the limit is ${BOSS_TIMELINE_MAX_CUES_PER_FRAME}`);
+      }
+    }
+  });
+};
+
 const validateBossEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'rigId', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'rigId', 'componentMode', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases', 'revival', 'timeline'], location, errors);
   requireEnum(event.bossId, BOSS_IDS, `${location}/bossId`, errors);
   if (event.rigId !== undefined) {
     requireEnum(event.rigId, BOSS_RIG_IDS, `${location}/rigId`, errors);
     if (event.bossId !== 'gatekeeper') errors.push(`${location}/rigId supports gatekeeper encounters only`);
+  }
+  if (event.componentMode !== undefined) {
+    requireEnum(event.componentMode, BOSS_COMPONENT_MODES, `${location}/componentMode`, errors);
   }
   if (event.count !== undefined) {
     requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 4, integer: true });
@@ -498,7 +1260,7 @@ const validateBossEvent = (event, location, errors) => {
   requireNumber(event.scoreReward, `${location}/scoreReward`, errors, { minimum: 0, maximum: 100000000 });
   requireNumber(event.powerupDropChance, `${location}/powerupDropChance`, errors, { minimum: 0, maximum: 1 });
   requireNumber(event.shieldCount, `${location}/shieldCount`, errors, { minimum: 0, maximum: 1000, integer: true });
-  if (event.sizeMultiplier !== undefined) requireNumber(event.sizeMultiplier, `${location}/sizeMultiplier`, errors, { minimum: 0.5, maximum: 1.5 });
+  if (event.sizeMultiplier !== undefined) requireNumber(event.sizeMultiplier, `${location}/sizeMultiplier`, errors, { minimum: 0.5, maximum: 2.5 });
 
   if (!Array.isArray(event.weapons) || event.weapons.length === 0) {
     errors.push(`${location}/weapons must be a non-empty array`);
@@ -521,6 +1283,30 @@ const validateBossEvent = (event, location, errors) => {
   if (isFiniteNumber(event.phases[0]?.triggerHealthRatio) && Math.abs(event.phases[0].triggerHealthRatio - 1) > EPSILON) {
     errors.push(`${location}/phases/0/triggerHealthRatio must be 1`);
   }
+  if (event.revival !== undefined) {
+    const revivalLocation = `${location}/revival`;
+    if (requireObject(event.revival, revivalLocation, errors)) {
+      allowedKeys(event.revival, ['phaseId', 'shutdownSeconds', 'rebootSeconds', 'restoreHealthRatio', 'awakenedSizeMultiplier'], revivalLocation, errors);
+      requireId(event.revival.phaseId, `${revivalLocation}/phaseId`, errors);
+      requireNumber(event.revival.shutdownSeconds, `${revivalLocation}/shutdownSeconds`, errors, { minimum: 0.1, maximum: 10 });
+      requireNumber(event.revival.rebootSeconds, `${revivalLocation}/rebootSeconds`, errors, { minimum: 0.1, maximum: 10 });
+      requireNumber(event.revival.restoreHealthRatio, `${revivalLocation}/restoreHealthRatio`, errors, { minimum: Number.EPSILON, maximum: 1 });
+      requireNumber(event.revival.awakenedSizeMultiplier, `${revivalLocation}/awakenedSizeMultiplier`, errors, { minimum: 1, maximum: 1.5 });
+      const phaseIds = new Set(event.phases.map((phase) => phase?.id).filter((id) => typeof id === 'string'));
+      if (typeof event.revival.phaseId === 'string' && !phaseIds.has(event.revival.phaseId)) {
+        errors.push(`${revivalLocation}/phaseId references unknown boss phase: ${event.revival.phaseId}`);
+      }
+      if (event.revival.phaseId === event.phases[0]?.id) {
+        errors.push(`${revivalLocation}/phaseId must reference a phase after the opening phase`);
+      }
+    }
+  }
+  validateBossTimeline(
+    event.timeline,
+    `${location}/timeline`,
+    new Set(event.phases.map((phase) => phase?.id).filter((id) => typeof id === 'string')),
+    errors
+  );
 };
 
 const validateAsteroidEvent = (event, location, errors) => {

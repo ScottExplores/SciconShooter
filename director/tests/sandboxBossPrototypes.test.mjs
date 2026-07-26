@@ -1,0 +1,906 @@
+import assert from 'node:assert/strict';
+import { readFile, stat } from 'node:fs/promises';
+import path from 'node:path';
+import test, { after } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { createServer } from 'vite';
+import { validateGameCampaign as validateServerCampaign } from '../server/gameCampaignValidation.mjs';
+
+const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+const repositoryRoot = path.resolve(testDirectory, '..', '..');
+const campaignPath = path.join(repositoryRoot, 'game-config', 'campaign.json');
+const campaignBytesBefore = await readFile(campaignPath);
+const campaignStatBefore = await stat(campaignPath);
+const campaign = JSON.parse(campaignBytesBefore.toString('utf8'));
+const sourceSnapshot = structuredClone(campaign);
+const vite = await createServer({
+  root: repositoryRoot,
+  configFile: false,
+  resolve: {
+    alias: { '@game': repositoryRoot }
+  },
+  server: { middlewareMode: true },
+  appType: 'custom'
+});
+after(async () => vite.close());
+
+const { validateGameCampaign: validateBrowserCampaign } = await vite.ssrLoadModule(
+  '/game-config/validate.ts'
+);
+const {
+  SANDBOX_BOSS_PROTOTYPES,
+  buildSandboxBossPrototypePreview
+} = await vite.ssrLoadModule(
+  '/director/src/combat-lab/sandboxBossPrototypes.ts'
+);
+const { calculateCombatLabDps } = await vite.ssrLoadModule(
+  '/director/src/combat-lab/combatLabTelemetry.ts'
+);
+
+const getPrototypeBoss = (prototypeId) => {
+  const preview = buildSandboxBossPrototypePreview(campaign, prototypeId);
+  const boss = preview.previewWave.events.find((event) => event.kind === 'boss');
+  assert.ok(boss, `${prototypeId} must focus one boss`);
+  return { boss, preview };
+};
+
+test('all Sandbox boss descriptors build deterministic, valid, immutable-provenance previews', () => {
+  assert.equal(SANDBOX_BOSS_PROTOTYPES.length, 13);
+  assert.equal(Object.isFrozen(SANDBOX_BOSS_PROTOTYPES), true);
+
+  const prototypeHashes = new Set();
+  const previewHashes = new Set();
+  for (const descriptor of SANDBOX_BOSS_PROTOTYPES) {
+    assert.equal(Object.isFrozen(descriptor), true);
+    assert.equal(descriptor.sandboxOnly, true);
+    assert.match(descriptor.prototypeHash, /^sandbox-fnv1a64:[0-9a-f]{16}$/);
+
+    const first = descriptor.buildPreview(campaign);
+    const repeated = descriptor.buildPreview(campaign);
+    assert.deepEqual(first, repeated);
+    assert.equal(first.sandboxPrototype.source, 'director-sandbox-prototype');
+    assert.equal(first.sandboxPrototype.sandboxOnly, true);
+    assert.equal(first.sandboxPrototype.promotionAllowed, false);
+    assert.equal(first.sandboxPrototype.prototypeId, descriptor.id);
+    assert.equal(first.sandboxPrototype.prototypeHash, descriptor.prototypeHash);
+    assert.match(first.sandboxPrototype.previewHash, /^sandbox-fnv1a64:[0-9a-f]{16}$/);
+    assert.equal(first.focus.kind, 'boss');
+    assert.equal(first.previewWave.completionRule, 'boss-defeat');
+    assert.equal(first.previewWave.events.length, 1);
+
+    const browserResult = validateBrowserCampaign(first.campaign);
+    const serverResult = validateServerCampaign(first.campaign);
+    assert.equal(
+      browserResult.valid,
+      true,
+      browserResult.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n')
+    );
+    assert.equal(serverResult.valid, true, serverResult.errors.join('\n'));
+
+    prototypeHashes.add(descriptor.prototypeHash);
+    previewHashes.add(first.sandboxPrototype.previewHash);
+  }
+
+  assert.equal(prototypeHashes.size, 13);
+  assert.equal(previewHashes.size, 13);
+  assert.deepEqual(campaign, sourceSnapshot, 'pure builders must not mutate their source campaign');
+});
+
+test('Redline Re-entry uses the allowlisted sweep, bank, and re-entry path', () => {
+  const { boss } = getPrototypeBoss('sweep-bank-reentry');
+  const pathClips = boss.timeline.clips.filter((clip) => clip.primitiveId === 'follow-path');
+
+  assert.equal(pathClips.length, boss.phases.length);
+  pathClips.forEach((clip) => {
+    assert.equal(clip.track, 'movement');
+    assert.equal(clip.trigger, 'time');
+    assert.equal(clip.parameters.movementPathId, 'sweep-bank-reentry');
+    assert.ok(clip.durationSeconds > 0);
+  });
+});
+
+test('Prism Moth uses its sprite archetype and warned brick formations', () => {
+  const descriptor = SANDBOX_BOSS_PROTOTYPES.find((entry) => entry.id === 'prism-moth-brood');
+  const { boss } = getPrototypeBoss('prism-moth-brood');
+  const clipsById = new Map(boss.timeline.clips.map((clip) => [clip.id, clip]));
+  const summons = boss.timeline.clips.filter((clip) => clip.primitiveId === 'summon-formation');
+
+  assert.ok(descriptor);
+  assert.equal(descriptor.description.includes('sprite-archetype'), true);
+  assert.equal(descriptor.description.includes('open-orbit rig'), false);
+  assert.equal(boss.spriteKey, 'CAMPAIGN_BOSS_PRISM_MOTH');
+  assert.equal(boss.rigId, 'open-orbit');
+  assert.equal(summons.length, 3);
+  summons.forEach((summon) => {
+    assert.equal(summon.parameters.enemyId, 'brick');
+    assert.ok(summon.telegraphClipId);
+    const warning = clipsById.get(summon.telegraphClipId);
+    assert.equal(warning?.primitiveId, 'telegraph');
+    assert.ok(warning.startSeconds < summon.startSeconds);
+  });
+});
+
+test('Tribunal Laser Core seals every component before phased exposure', () => {
+  const { boss } = getPrototypeBoss('weak-point-laser-core');
+  const shellPhaseId = boss.phases[0].id;
+  const exposurePhaseId = boss.phases[1].id;
+  const ragePhaseId = boss.phases[2].id;
+  const weakPointClips = boss.timeline.clips.filter((clip) => clip.primitiveId === 'set-weak-point');
+  const sealedComponents = new Set(
+    weakPointClips
+      .filter((clip) => clip.phaseId === shellPhaseId && clip.parameters.enabled === false)
+      .map((clip) => clip.parameters.componentId)
+  );
+  const damagingLasers = boss.timeline.clips.filter((clip) => (
+    clip.primitiveId === 'cross-beam' || clip.primitiveId === 'rail-sweep'
+  ));
+
+  assert.deepEqual(
+    [...sealedComponents].sort(),
+    ['helmet', 'left-cannon', 'right-cannon']
+  );
+  assert.ok(weakPointClips.some((clip) => (
+    clip.phaseId === exposurePhaseId
+    && clip.parameters.componentId === 'left-cannon'
+    && clip.parameters.enabled === true
+  )));
+  assert.ok(weakPointClips.some((clip) => (
+    clip.phaseId === exposurePhaseId
+    && clip.parameters.componentId === 'right-cannon'
+    && clip.parameters.enabled === true
+  )));
+  assert.ok(weakPointClips.some((clip) => (
+    clip.phaseId === ragePhaseId
+    && clip.parameters.componentId === 'helmet'
+    && clip.parameters.enabled === true
+  )));
+  damagingLasers.forEach((clip) => assert.ok(clip.telegraphClipId));
+});
+
+test('Meridian Harrower is a long-form animated puzzle fixture with warned attacks', () => {
+  const descriptor = SANDBOX_BOSS_PROTOTYPES.find((entry) => entry.id === 'meridian-harrower');
+  const { boss } = getPrototypeBoss('meridian-harrower');
+  const damaging = boss.timeline.clips.filter((clip) => (
+    clip.primitiveId === 'side-barrage'
+    || clip.primitiveId === 'gap-ring'
+    || clip.primitiveId === 'pod-volley'
+    || clip.primitiveId === 'weave-wall'
+    || clip.primitiveId === 'summon-formation'
+    || clip.primitiveId === 'rail-sweep'
+    || clip.primitiveId === 'rotating-cross'
+    || clip.primitiveId === 'cross-beam'
+    || clip.primitiveId === 'inward-collapse'
+  ));
+
+  assert.ok(descriptor);
+  assert.equal(boss.spriteKey, 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT');
+  assert.equal(boss.rigId, 'paywall-siege');
+  assert.equal(boss.health, 2_600);
+  assert.equal(boss.sizeMultiplier, 1.45);
+  assert.deepEqual(
+    boss.phases.map((phase) => phase.label),
+    ['Arm cipher', 'Orbit key', 'Open aperture']
+  );
+  assert.deepEqual(
+    boss.phases.map((phase) => phase.speedMultiplier),
+    [0.9, 0.95, 1],
+    'phase challenge changes through attack composition rather than timer inflation'
+  );
+  assert.ok(boss.timeline.clips.some((clip) => clip.primitiveId === 'follow-path'));
+  assert.ok(boss.timeline.clips.some((clip) => clip.primitiveId === 'pod-volley'));
+  assert.ok(boss.timeline.clips.some((clip) => clip.primitiveId === 'weave-wall'));
+  assert.ok(boss.timeline.clips.some((clip) => (
+    clip.primitiveId === 'tail-fan'
+    && clip.phaseId === boss.phases[2].id
+  )));
+  assert.deepEqual(
+    new Set(
+      boss.timeline.clips
+        .filter((clip) => clip.primitiveId === 'side-barrage')
+        .map((clip) => clip.parameters.side)
+    ),
+    new Set(['port', 'starboard'])
+  );
+  boss.timeline.clips
+    .filter((clip) => (
+      clip.primitiveId === 'pod-volley'
+      || clip.primitiveId === 'weave-wall'
+      || clip.primitiveId === 'tail-fan'
+    ))
+    .forEach((clip) => assert.ok(clip.durationSeconds >= 1));
+  assert.ok(boss.timeline.clips.some((clip) => (
+    clip.primitiveId === 'set-weak-point'
+    && clip.parameters.componentId === 'helmet'
+    && clip.parameters.enabled === true
+  )));
+  damaging.forEach((clip) => assert.ok(clip.telegraphClipId, `${clip.id} needs a warning`));
+});
+
+test('Helios Clawcarrier compiles three learned weapons and one signature route per phase', () => {
+  const descriptor = SANDBOX_BOSS_PROTOTYPES.find((entry) => entry.id === 'helios-clawcarrier');
+  const { boss } = getPrototypeBoss('helios-clawcarrier');
+  const damaging = boss.timeline.clips.filter((clip) => (
+    clip.primitiveId === 'paired-cannon-burst'
+    || clip.primitiveId === 'articulated-melee-sweep'
+    || clip.primitiveId === 'reactor-aperture-pattern'
+    || clip.primitiveId === 'tracking-pincer-dive'
+  ));
+
+  assert.ok(descriptor);
+  assert.equal(boss.rigId, 'crown-claw');
+  assert.equal(boss.health, 3_200);
+  assert.equal(boss.shieldCount, 0);
+  assert.equal(boss.speed, 1.35);
+  assert.equal(boss.sizeMultiplier, 1.35);
+  assert.deepEqual(
+    boss.phases.map((phase) => phase.label),
+    ['Siege Calibration', 'Armor Shear', 'Reactor Overdrive']
+  );
+  assert.deepEqual(
+    boss.phases.map((phase) => phase.speedMultiplier),
+    [0.72, 0.75, 0.78],
+    'the encounter must remix authored routes instead of sharply accelerating'
+  );
+  assert.equal(boss.timeline.loop, true);
+  assert.equal(boss.timeline.durationSeconds, 23.5);
+  assert.equal(damaging.length, 30);
+  assert.deepEqual(
+    boss.timeline.attacks.map((attack) => [attack.id, attack.role]),
+    [
+      ['twin-rotary-crossfire', 'core'],
+      ['claw-sweep-pincer', 'core'],
+      ['reactor-maze', 'core'],
+      ['clawcarrier-crush', 'signature']
+    ]
+  );
+  const clipsById = new Map(boss.timeline.clips.map((clip) => [clip.id, clip]));
+  const crossfireAttack = boss.timeline.attacks.find(
+    (attack) => attack.id === 'twin-rotary-crossfire'
+  );
+  assert.ok(crossfireAttack);
+  crossfireAttack.variants.forEach((variant) => {
+    const beats = variant.beatClipIds.map((clipId) => clipsById.get(clipId));
+    assert.ok(beats.every(Boolean), `${variant.phaseId} crossfire clips must resolve`);
+    assert.deepEqual(
+      beats.map((beat) => beat.parameters.projectileCount),
+      [3, 3, 4],
+      `${variant.phaseId} must retain two short rotary answers and four rounds per twin cannon`
+    );
+    const warningStarts = beats.map((beat) => clipsById.get(beat.telegraphClipId).startSeconds);
+    assert.deepEqual(
+      warningStarts.map((start) => Number((start - warningStarts[0]).toFixed(6))),
+      [0, 1.7, 3.4],
+      `${variant.phaseId} must separate all three crossfire commitments`
+    );
+  });
+  boss.phases.forEach((phase) => {
+    assert.deepEqual(
+      boss.timeline.attacks.map((attack) => {
+        const variant = attack.variants.find((candidate) => candidate.phaseId === phase.id);
+        const firstBeat = clipsById.get(variant.beatClipIds[0]);
+        return clipsById.get(firstBeat.telegraphClipId).startSeconds;
+      }),
+      [0.2, 6, 11.7, 18.2],
+      `${phase.id} must retain the retimed four-sentence cadence`
+    );
+  });
+  boss.timeline.attacks.forEach((attack) => {
+    assert.equal(attack.variants.length, 3, `${attack.id} needs one remix per phase`);
+    assert.deepEqual(
+      attack.variants.map((variant) => variant.phaseId),
+      boss.phases.map((phase) => phase.id)
+    );
+    attack.variants.forEach((variant) => {
+      const expandedBeatCount = variant.beatClipIds.reduce((count, clipId) => {
+        const clip = boss.timeline.clips.find((candidate) => candidate.id === clipId);
+        return count + (clip?.repeat?.count ?? 1);
+      }, 0);
+      assert.ok(
+        expandedBeatCount >= (attack.role === 'signature' ? 4 : 2),
+        `${attack.id} must remain a connected multi-beat sentence`
+      );
+      const recovery = boss.timeline.clips.find((clip) => clip.id === variant.recoveryClipId);
+      assert.equal(recovery?.primitiveId, 'effect-cue');
+      assert.ok(recovery?.durationSeconds >= 0.8, `${attack.id} needs a visible recovery`);
+    });
+  });
+  assert.deepEqual(
+    damaging.filter((clip) => clip.phaseId === boss.phases[0].id)
+      .map((clip) => [clip.primitiveId, clip.parameters?.motionCue ?? null]),
+    [
+      ['paired-cannon-burst', 'paired-crossfire'],
+      ['paired-cannon-burst', 'paired-crossfire'],
+      ['paired-cannon-burst', 'paired-crossfire'],
+      ['articulated-melee-sweep', 'claw-sweep'],
+      ['articulated-melee-sweep', 'claw-sweep'],
+      ['reactor-aperture-pattern', 'reactor-fan'],
+      ['reactor-aperture-pattern', 'reactor-fan'],
+      ['reactor-aperture-pattern', 'reactor-mines'],
+      ['reactor-aperture-pattern', 'reactor-fan'],
+      ['tracking-pincer-dive', 'pincer-dive']
+    ]
+  );
+  assert.deepEqual(
+    boss.timeline.attacks.find((attack) => attack.id === 'reactor-maze').sourceSocketRoles,
+    ['core']
+  );
+  assert.deepEqual(
+    boss.timeline.attacks.find((attack) => attack.id === 'clawcarrier-crush').sourceSocketRoles,
+    ['port', 'starboard']
+  );
+  assert.equal(
+    boss.timeline.clips.some((clip) => clip.primitiveId === 'follow-path'),
+    false,
+    'the wide modular silhouette must stay inside the mobile combat bounds'
+  );
+  assert.equal(
+    boss.timeline.clips.some((clip) => (
+      clip.primitiveId === 'set-shield' || clip.primitiveId === 'set-weak-point'
+    )),
+    false,
+    'Helios must not retain the old helmet/shield phase softlock'
+  );
+  damaging.forEach((clip) => {
+    const warning = boss.timeline.clips.find((candidate) => candidate.id === clip.telegraphClipId);
+    assert.ok(warning, `${clip.id} needs a linked warning`);
+    assert.ok(clip.label, `${clip.id} needs a bespoke attack label`);
+    assert.ok(clip.startSeconds > warning.startSeconds, `${clip.id} must follow its warning`);
+  });
+});
+
+test('Aurora Oculus reverses rotors deterministically and staggers dense one-gap rings', () => {
+  const descriptor = SANDBOX_BOSS_PROTOTYPES.find((entry) => entry.id === 'aurora-storm-engine');
+  const { boss } = getPrototypeBoss('aurora-storm-engine');
+  const primitives = new Set(boss.timeline.clips.map((clip) => clip.primitiveId));
+  const damaging = boss.timeline.clips.filter((clip) => (
+    clip.primitiveId === 'rotor-hazard-sentence'
+    || clip.primitiveId === 'gap-ring'
+    || clip.primitiveId === 'radial-beam-array'
+  ));
+
+  assert.ok(descriptor);
+  assert.equal(boss.health, 6_800);
+  assert.equal(boss.shieldCount, 0);
+  assert.equal(boss.componentMode, 'hull-only');
+  assert.deepEqual(
+    boss.phases.map((phase) => phase.label),
+    ['Survey orbit', 'Reverse overdrive']
+  );
+  assert.deepEqual(
+    boss.phases.map((phase) => phase.movementPatternId),
+    ['arena-roam', 'sine-drift']
+  );
+  assert.deepEqual(boss.phases.map((phase) => phase.speedMultiplier), [0.95, 1.05]);
+  for (const primitive of ['rotor-hazard-sentence', 'gap-ring', 'radial-beam-array']) {
+    assert.equal(primitives.has(primitive), true, `missing ${primitive}`);
+  }
+  const rotors = boss.timeline.clips.filter(
+    (clip) => clip.primitiveId === 'rotor-hazard-sentence'
+  );
+  const beams = boss.timeline.clips.filter(
+    (clip) => clip.primitiveId === 'radial-beam-array'
+  );
+  assert.equal(boss.timeline.durationSeconds, 36);
+  assert.equal(boss.timeline.loop, true);
+  assert.deepEqual(rotors.map((clip) => clip.parameters.sequence), [0, 1, 2, 3]);
+  assert.deepEqual(
+    rotors.map((clip) => clip.parameters.pulseIntervalSeconds),
+    [0.9, 0.85, 0.75, 0.65]
+  );
+  assert.deepEqual(rotors.map((clip) => clip.startSeconds), [1.4, 17.8, 1.4, 17.8]);
+  assert.ok(rotors.every((clip) => clip.durationSeconds === 5.4));
+  assert.ok(rotors.every((clip) => clip.parameters.motionCue === 'rotor-volley'));
+  for (const phase of boss.phases) {
+    const phaseRotors = rotors.filter((clip) => clip.phaseId === phase.id);
+    assert.deepEqual(
+      phaseRotors.map((clip) => clip.parameters.sequence % 2),
+      [0, 1],
+      `${phase.id} must reverse from counter-clockwise to clockwise`
+    );
+    assert.ok(
+      phaseRotors[1].startSeconds - phaseRotors[0].startSeconds >= 16,
+      `${phase.id} must leave enough time to read each direction`
+    );
+  }
+  assert.deepEqual(beams.map((clip) => clip.parameters.sequence), [0, 1, 2, 3]);
+  assert.ok(beams.every((clip) => clip.parameters.motionCue === 'radial-beam'));
+  assert.ok(beams.every((clip) => clip.parameters.rotationDirection === 'seeded-random'));
+  assert.ok(beams.every((clip) => clip.durationSeconds === 2));
+  const gapRings = boss.timeline.clips.filter((clip) => clip.primitiveId === 'gap-ring');
+  assert.equal(gapRings.length, 4);
+  assert.deepEqual(gapRings.map((clip) => clip.parameters.projectileCount), [14, 14, 16, 16]);
+  assert.deepEqual(
+    gapRings.map((clip) => clip.repeat),
+    [
+      { count: 3, intervalSeconds: 0.85 },
+      { count: 3, intervalSeconds: 0.8 },
+      { count: 3, intervalSeconds: 0.75 },
+      { count: 3, intervalSeconds: 0.7 }
+    ]
+  );
+  gapRings.forEach((ring) => {
+    const ringWarning = boss.timeline.clips.find((clip) => clip.id === ring.telegraphClipId);
+    assert.equal(ringWarning.parameters.telegraphStyle, 'ring');
+    assert.deepEqual(ringWarning.repeat, ring.repeat);
+    assert.ok(ring.startSeconds - ringWarning.startSeconds >= 0.8);
+    assert.ok(ring.parameters.projectileCount <= 16, 'each mobile pulse must remain bounded');
+    assert.ok(
+      ring.parameters.projectileCount * ring.repeat.count <= 48,
+      'the three-pulse cluster must stay inside the authored density budget'
+    );
+  });
+  beams.forEach((beam) => {
+    const beamWarning = boss.timeline.clips.find((clip) => clip.id === beam.telegraphClipId);
+    assert.equal(beamWarning.parameters.telegraphStyle, 'spokes');
+    assert.ok(beam.startSeconds - beamWarning.startSeconds >= 0.8);
+  });
+  damaging.forEach((clip) => assert.ok(clip.telegraphClipId, `${clip.id} needs a warning`));
+});
+
+test('Nullwake Revenant authors one full-health false defeat and a distinct enlarged second form', () => {
+  const descriptor = SANDBOX_BOSS_PROTOTYPES.find((entry) => entry.id === 'nullwake-revenant');
+  const { boss } = getPrototypeBoss('nullwake-revenant');
+  const damagingPrimitives = new Set([
+    'gap-ring',
+    'inward-collapse',
+    'rotating-cross',
+    'helix-volley',
+    'side-barrage',
+    'pod-volley',
+    'weave-wall',
+    'cross-beam'
+  ]);
+  const damaging = boss.timeline.clips.filter((clip) => damagingPrimitives.has(clip.primitiveId));
+
+  assert.ok(descriptor);
+  assert.equal(descriptor.sandboxOnly, true);
+  assert.equal(boss.health, 4_200);
+  assert.equal(boss.componentMode, 'hull-only');
+  assert.equal(boss.sizeMultiplier, 1.32);
+  assert.deepEqual(boss.revival, {
+    phaseId: 'sandbox-nullwake-backplane-crown',
+    shutdownSeconds: 2.2,
+    rebootSeconds: 2.6,
+    restoreHealthRatio: 1,
+    awakenedSizeMultiplier: 1.22
+  });
+  assert.deepEqual(
+    boss.phases.map((phase) => phase.label),
+    ['Borrowed Charge', 'Backplane Crown', 'Terminal Overclock']
+  );
+  assert.deepEqual(
+    boss.phases.map((phase) => phase.movementPatternId),
+    ['arena-roam', 'sine-drift', 'arena-roam']
+  );
+  assert.ok(
+    boss.phases[1].triggerHealthRatio > boss.phases[2].triggerHealthRatio,
+    'the full-health reboot phase must retain its own later low-health phase'
+  );
+  assert.equal(boss.timeline.loop, true);
+  assert.equal(boss.timeline.durationSeconds, 24.7);
+  assert.equal(damaging.length, 45);
+  assert.deepEqual(
+    boss.timeline.attacks.map((attack) => [attack.id, attack.role]),
+    [
+      ['claw-corridor', 'core'],
+      ['dead-signal-gates', 'core'],
+      ['memory-lattice', 'core'],
+      ['revenant-maze', 'signature']
+    ]
+  );
+  boss.timeline.attacks.forEach((attack) => {
+    assert.equal(attack.variants.length, 3, `${attack.id} needs one learned-rule remix per phase`);
+    assert.deepEqual(
+      attack.variants.map((variant) => variant.phaseId),
+      boss.phases.map((phase) => phase.id)
+    );
+    attack.variants.forEach((variant) => {
+      assert.ok(
+        variant.beatClipIds.length >= (attack.role === 'signature' ? 4 : 2),
+        `${attack.id} must remain a connected multi-beat sentence`
+      );
+      const recovery = boss.timeline.clips.find((clip) => clip.id === variant.recoveryClipId);
+      assert.equal(recovery?.primitiveId, 'effect-cue');
+      assert.equal(recovery?.phaseId, variant.phaseId);
+    });
+  });
+  assert.deepEqual(
+    damaging.filter((clip) => clip.phaseId === 'sandbox-nullwake-borrowed-charge')
+      .map((clip) => clip.primitiveId),
+    [
+      'side-barrage', 'side-barrage', 'side-barrage',
+      'gap-ring', 'gap-ring', 'gap-ring',
+      'weave-wall', 'weave-wall', 'weave-wall',
+      'weave-wall', 'gap-ring', 'cross-beam', 'side-barrage', 'gap-ring', 'weave-wall'
+    ]
+  );
+  const gateAttack = boss.timeline.attacks.find((attack) => attack.id === 'dead-signal-gates');
+  assert.deepEqual(
+    gateAttack.variants.map((variant) => variant.beatClipIds.map((clipId) => {
+      const clip = boss.timeline.clips.find((candidate) => candidate.id === clipId);
+      return [clip.parameters.sequence, clip.parameters.rotationDirection];
+    })),
+    [
+      [[0, 'clockwise'], [1, 'clockwise'], [2, 'clockwise']],
+      [[0, 'counterclockwise'], [1, 'counterclockwise'], [2, 'counterclockwise']],
+      [[1, 'clockwise'], [2, 'clockwise'], [1, 'clockwise']]
+    ]
+  );
+  assert.equal(damaging.some((clip) => clip.repeat), false);
+  damaging.forEach((clip) => {
+    const warning = boss.timeline.clips.find((candidate) => candidate.id === clip.telegraphClipId);
+    assert.ok(warning, `${clip.id} needs a linked warning`);
+    assert.ok(clip.label, `${clip.id} needs a bespoke attack label`);
+    assert.ok(clip.startSeconds > warning.startSeconds, `${clip.id} must follow its warning`);
+  });
+  assert.equal(
+    boss.timeline.clips.some((clip) => clip.primitiveId === 'follow-path'),
+    false,
+    'the enlarged backplane form must remain inside mobile combat bounds'
+  );
+});
+
+const newPrototypeContracts = Object.freeze([
+  Object.freeze({
+    id: 'umbra-needlewing',
+    phases: ['Wing Survey', 'Blackout Hunt', 'Broken Compass']
+  }),
+  Object.freeze({
+    id: 'cinderjaw-siege-beetle',
+    phases: ['Siege Stance', 'Claw Battery', 'Stripped Reactor']
+  }),
+  Object.freeze({
+    id: 'vesperglass-mothmother',
+    phases: ['Wingbeat Measure', 'Brood Lattice', 'Prismatic Molt']
+  }),
+  Object.freeze({
+    id: 'twin-halo-wardens',
+    phases: ['Call and Answer', 'Orbit Exchange', 'Conjunction']
+  }),
+  Object.freeze({
+    id: 'riftcoil-wyrm',
+    phases: ['Fang Measure', 'Tail Cipher', 'Coil Cage']
+  })
+]);
+
+const damagingPrototypePrimitives = new Set([
+  'aimed-burst',
+  'gap-ring',
+  'rotor-hazard-sentence',
+  'radial-beam-array',
+  'corner-ambush-beam',
+  'corner-ambush-ram',
+  'cross-beam',
+  'rail-sweep',
+  'tail-fan',
+  'inward-collapse',
+  'rotating-cross',
+  'helix-volley',
+  'side-barrage',
+  'pod-volley',
+  'weave-wall',
+  'summon-formation'
+]);
+
+test('five new design-board bosses use three fair phases and serial 90-second attack sentences', () => {
+  for (const contract of newPrototypeContracts) {
+    const { boss } = getPrototypeBoss(contract.id);
+    assert.deepEqual(boss.phases.map((phase) => phase.label), contract.phases);
+    assert.equal(boss.timeline.durationSeconds, 90);
+    assert.equal(boss.timeline.loop, true);
+    assert.ok(
+      Math.max(...boss.phases.map((phase) => phase.speedMultiplier))
+      - Math.min(...boss.phases.map((phase) => phase.speedMultiplier))
+      <= 0.061,
+      `${contract.id} must escalate through geometry instead of blanket speed`
+    );
+
+    for (const phase of boss.phases) {
+      const clips = boss.timeline.clips.filter((clip) => clip.phaseId === phase.id);
+      const byId = new Map(clips.map((clip) => [clip.id, clip]));
+      const attacks = clips
+        .filter((clip) => damagingPrototypePrimitives.has(clip.primitiveId))
+        .sort((left, right) => left.startSeconds - right.startSeconds);
+      assert.equal(attacks.length, 7, `${contract.id}/${phase.id} needs seven readable sentences`);
+
+      for (let index = 0; index < attacks.length; index += 1) {
+        const attack = attacks[index];
+        const warning = byId.get(attack.telegraphClipId);
+        const recovery = byId.get(`${attack.id}-recovery`);
+        assert.equal(warning?.primitiveId, 'telegraph', `${attack.id} needs one warning`);
+        assert.ok(
+          attack.startSeconds - warning.startSeconds >= 0.8,
+          `${attack.id} needs a mobile-readable warning`
+        );
+        assert.equal(recovery?.primitiveId, 'effect-cue', `${attack.id} needs recovery`);
+        assert.ok(
+          recovery.startSeconds >= attack.startSeconds + attack.durationSeconds,
+          `${attack.id} recovery must follow commitment`
+        );
+        assert.ok(recovery.durationSeconds >= 1.8, `${attack.id} recovery is too short`);
+        if (attack.parameters?.projectileCount !== undefined) {
+          assert.ok(
+            attack.parameters.projectileCount <= 18,
+            `${attack.id} exceeds the mobile projectile sentence budget`
+          );
+        }
+        const nextAttack = attacks[index + 1];
+        if (nextAttack) {
+          const nextWarning = byId.get(nextAttack.telegraphClipId);
+          assert.ok(
+            nextWarning.startSeconds
+            >= recovery.startSeconds + recovery.durationSeconds,
+            `${attack.id} must recover before ${nextAttack.id} warns`
+          );
+        }
+      }
+    }
+  }
+});
+
+test('Umbra Needlewing alone owns the fair corner-ambush blackout vocabulary', () => {
+  const { boss: umbra } = getPrototypeBoss('umbra-needlewing');
+  const corners = umbra.timeline.clips.filter(
+    (clip) => clip.primitiveId === 'corner-ambush-beam'
+  );
+  assert.ok(corners.length >= 6);
+  assert.deepEqual(new Set(corners.map((clip) => clip.parameters.sequence % 2)), new Set([0, 1]));
+  corners.forEach((corner) => {
+    const warning = umbra.timeline.clips.find((clip) => clip.id === corner.telegraphClipId);
+    assert.equal(warning.parameters.telegraphStyle, 'target');
+    assert.ok(corner.startSeconds - warning.startSeconds >= 0.8);
+    assert.ok(corner.durationSeconds >= 0.3 && corner.durationSeconds <= 1.25);
+  });
+  const rams = umbra.timeline.clips.filter(
+    (clip) => clip.primitiveId === 'corner-ambush-ram'
+  );
+  assert.equal(rams.length, 2);
+  assert.deepEqual(new Set(rams.map((clip) => clip.parameters.sequence % 2)), new Set([0, 1]));
+  rams.forEach((ram) => {
+    const warning = umbra.timeline.clips.find((clip) => clip.id === ram.telegraphClipId);
+    assert.equal(warning.parameters.telegraphStyle, 'target');
+    assert.ok(ram.startSeconds - warning.startSeconds >= 0.8);
+    assert.ok(ram.durationSeconds >= 0.45 && ram.durationSeconds <= 1.4);
+  });
+  for (const descriptor of SANDBOX_BOSS_PROTOTYPES) {
+    if (descriptor.id === 'umbra-needlewing') continue;
+    const { boss } = getPrototypeBoss(descriptor.id);
+    assert.equal(
+      boss.timeline.clips.some((clip) => (
+        clip.primitiveId === 'corner-ambush-beam'
+        || clip.primitiveId === 'corner-ambush-ram'
+      )),
+      false,
+      `${descriptor.id} must not borrow Umbra's signature corner beam`
+    );
+  }
+});
+
+test('Cinderjaw sources cannons, pod mines, core rings, and gatling fallback coherently', () => {
+  const { boss } = getPrototypeBoss('cinderjaw-siege-beetle');
+  const finalPhaseId = boss.phases[2].id;
+  const earlierSides = boss.timeline.clips.filter((clip) => (
+    clip.primitiveId === 'side-barrage' && clip.phaseId !== finalPhaseId
+  ));
+  const fallbackSides = boss.timeline.clips.filter((clip) => (
+    clip.primitiveId === 'side-barrage' && clip.phaseId === finalPhaseId
+  ));
+  assert.deepEqual(
+    new Set(earlierSides.map((clip) => clip.parameters.motionCue)),
+    new Set(['heavy-cannon'])
+  );
+  assert.deepEqual(
+    new Set(fallbackSides.map((clip) => clip.parameters.motionCue)),
+    new Set(['gatling-barrage'])
+  );
+  assert.deepEqual(
+    new Set(earlierSides.map((clip) => clip.parameters.side)),
+    new Set(['port', 'starboard'])
+  );
+  assert.ok(boss.timeline.clips.some((clip) => clip.primitiveId === 'pod-volley'));
+  assert.ok(boss.timeline.clips.some((clip) => clip.primitiveId === 'gap-ring'));
+});
+
+test('Gloamforge Mantis uses anatomy-owned sentences and a two-phase cleaver transformation', () => {
+  const descriptor = SANDBOX_BOSS_PROTOTYPES.find((entry) => entry.id === 'gloamforge-mantis');
+  const { boss } = getPrototypeBoss('gloamforge-mantis');
+  const attacks = boss.timeline.clips.filter(
+    (clip) => damagingPrototypePrimitives.has(clip.primitiveId)
+  );
+
+  assert.ok(descriptor);
+  assert.equal(boss.id, 'sandbox-gloamforge-mantis');
+  assert.equal(boss.health, 5_600);
+  assert.equal(boss.speed, 0.7);
+  assert.equal(
+    boss.componentMode,
+    undefined,
+    'the two visible forge-bore sockets retain bounded component hitboxes and projectile origins'
+  );
+  assert.deepEqual(
+    boss.phases.map((phase) => ({
+      label: phase.label,
+      triggerHealthRatio: phase.triggerHealthRatio,
+      speedMultiplier: phase.speedMultiplier
+    })),
+    [
+      { label: 'Crucible Measure', triggerHealthRatio: 1, speedMultiplier: 0.8 },
+      { label: 'Cleaver Unfurl', triggerHealthRatio: 0.34, speedMultiplier: 0.8 }
+    ],
+    'phase two must change silhouette and weapon grammar without a blanket speed jump'
+  );
+  assert.ok(
+    descriptor.designIntent.some((intent) => intent.includes('forearm cannon socket')),
+    'the fight contract must name the cannon origin'
+  );
+  assert.ok(
+    descriptor.designIntent.some((intent) => (
+      intent.includes('chest crucible') && intent.includes('slag pods')
+    )),
+    'the fight contract must name the crucible and slag-pod origins'
+  );
+  assert.ok(
+    descriptor.designIntent.some((intent) => (
+      intent.includes('armor petals open') && intent.includes('plasma cleaver unfolds')
+    )),
+    'phase two must declare a silhouette change'
+  );
+
+  const openingSides = boss.timeline.clips.filter((clip) => (
+    clip.phaseId === boss.phases[0].id && clip.primitiveId === 'side-barrage'
+  ));
+  assert.deepEqual(
+    openingSides.map((clip) => clip.parameters.side),
+    ['port', 'starboard', 'port', 'starboard']
+  );
+  assert.ok(openingSides.every((clip) => clip.parameters.motionCue === 'heavy-cannon'));
+
+  const rings = boss.timeline.clips.filter((clip) => clip.primitiveId === 'gap-ring');
+  assert.deepEqual(rings.map((clip) => clip.parameters.projectileCount), [16, 20]);
+  for (const phase of boss.phases) {
+    const phasePrimitives = new Set(
+      attacks.filter((clip) => clip.phaseId === phase.id).map((clip) => clip.primitiveId)
+    );
+    assert.equal(phasePrimitives.has('pod-volley'), true);
+    assert.equal(phasePrimitives.has('weave-wall'), true);
+  }
+  const phaseTwoPrimitives = new Set(
+    attacks
+      .filter((clip) => clip.phaseId === boss.phases[1].id)
+      .map((clip) => clip.primitiveId)
+  );
+  for (const primitive of ['rail-sweep', 'cross-beam', 'tail-fan']) {
+    assert.equal(phaseTwoPrimitives.has(primitive), true, `phase two is missing ${primitive}`);
+  }
+
+  assert.equal(attacks.length, 14);
+  attacks.forEach((attack) => {
+    const warning = boss.timeline.clips.find((clip) => clip.id === attack.telegraphClipId);
+    const recovery = boss.timeline.clips.find((clip) => clip.id === `${attack.id}-recovery`);
+    assert.equal(warning?.primitiveId, 'telegraph', `${attack.id} needs a linked warning`);
+    assert.ok(attack.startSeconds > warning.startSeconds, `${attack.id} must follow its warning`);
+    assert.equal(recovery?.primitiveId, 'effect-cue', `${attack.id} needs a recovery`);
+    assert.ok(
+      recovery.startSeconds >= attack.startSeconds + attack.durationSeconds,
+      `${attack.id} recovery must follow the attack`
+    );
+  });
+});
+
+test('Vesperglass assigns wings, cocoons, tail, and core geometry distinct attack verbs', () => {
+  const { boss } = getPrototypeBoss('vesperglass-mothmother');
+  const primitives = new Set(boss.timeline.clips.map((clip) => clip.primitiveId));
+  for (const primitive of [
+    'side-barrage',
+    'pod-volley',
+    'tail-fan',
+    'gap-ring',
+    'helix-volley',
+    'rotating-cross'
+  ]) {
+    assert.equal(primitives.has(primitive), true, `Vesperglass is missing ${primitive}`);
+  }
+  assert.deepEqual(
+    new Set(
+      boss.timeline.clips
+        .filter((clip) => clip.primitiveId === 'side-barrage')
+        .map((clip) => clip.parameters.side)
+    ),
+    new Set(['port', 'starboard'])
+  );
+});
+
+test('Twin Halo alternates owned sides and commits cross beams to exact lane warnings', () => {
+  const { boss } = getPrototypeBoss('twin-halo-wardens');
+  const sides = boss.timeline.clips.filter((clip) => clip.primitiveId === 'side-barrage');
+  const crosses = boss.timeline.clips.filter((clip) => clip.primitiveId === 'cross-beam');
+  assert.deepEqual(new Set(sides.map((clip) => clip.parameters.side)), new Set(['port', 'starboard']));
+  assert.ok(boss.timeline.clips.some((clip) => clip.primitiveId === 'pod-volley'));
+  assert.ok(boss.timeline.clips.some((clip) => clip.primitiveId === 'gap-ring'));
+  assert.ok(crosses.length >= 6);
+  crosses.forEach((cross) => {
+    const warning = boss.timeline.clips.find((clip) => clip.id === cross.telegraphClipId);
+    assert.equal(warning.parameters.telegraphStyle, 'lane');
+  });
+});
+
+test('Riftcoil keeps mirrored fang helixes and orders each final cross before its aligned tail', () => {
+  const { boss } = getPrototypeBoss('riftcoil-wyrm');
+  const helixes = boss.timeline.clips.filter((clip) => clip.primitiveId === 'helix-volley');
+  assert.deepEqual(
+    new Set(helixes.map((clip) => clip.parameters.handedness)),
+    new Set(['left', 'right'])
+  );
+  const finalPhaseId = boss.phases[2].id;
+  const finalAttacks = boss.timeline.clips
+    .filter((clip) => (
+      clip.phaseId === finalPhaseId && damagingPrototypePrimitives.has(clip.primitiveId)
+    ))
+    .sort((left, right) => left.startSeconds - right.startSeconds);
+  const crossIndexes = finalAttacks.flatMap((clip, index) => (
+    clip.primitiveId === 'rotating-cross' ? [index] : []
+  ));
+  assert.equal(crossIndexes.length, 3);
+  crossIndexes.forEach((index) => {
+    assert.equal(finalAttacks[index + 1]?.primitiveId, 'tail-fan');
+    assert.equal(
+      finalAttacks[index + 1]?.parameters.sequence,
+      finalAttacks[index].parameters.sequence
+    );
+  });
+});
+
+test('Sandbox prototype loading cannot write campaign or workspace content', async () => {
+  for (const descriptor of SANDBOX_BOSS_PROTOTYPES) descriptor.buildPreview(campaign);
+
+  const campaignBytesAfter = await readFile(campaignPath);
+  const campaignStatAfter = await stat(campaignPath);
+  assert.deepEqual(campaignBytesAfter, campaignBytesBefore);
+  assert.equal(campaignStatAfter.mtimeMs, campaignStatBefore.mtimeMs);
+
+  const builderSource = await readFile(
+    path.join(repositoryRoot, 'director', 'src', 'combat-lab', 'sandboxBossPrototypes.ts'),
+    'utf8'
+  );
+  assert.doesNotMatch(
+    builderSource,
+    /\b(?:fetchGameCampaign|saveGameCampaign|localStorage|writeFile|gameCampaignWorkspaceRepository)\b/
+  );
+});
+
+test('boss-only telemetry derives DPS from the simulation frame clock', () => {
+  assert.equal(calculateCombatLabDps(null), 0);
+  assert.equal(calculateCombatLabDps({
+    aggregate: {
+      latestFrame: 0,
+      damageDealt: 900
+    }
+  }), 0);
+  assert.equal(calculateCombatLabDps({
+    aggregate: {
+      latestFrame: 120,
+      damageDealt: 600
+    }
+  }), 300);
+});
+
+test('Sandbox UI retains the canonical preview and blocks persistence or promotion while selected', async () => {
+  const appSource = await readFile(
+    path.join(repositoryRoot, 'director', 'src', 'combat-lab', 'CombatLabApp.tsx'),
+    'utf8'
+  );
+  const pickerSource = await readFile(
+    path.join(repositoryRoot, 'director', 'src', 'combat-lab', 'SandboxBossPrototypePicker.tsx'),
+    'utf8'
+  );
+
+  assert.match(appSource, /<GameEditorCanvas/);
+  assert.match(appSource, /buildSandboxBossPrototypePreview\(sourceCampaign, prototypeId\)/);
+  assert.match(appSource, /if \(activeSandboxPrototype\)[\s\S]*cannot be saved as promotable presets/);
+  assert.match(appSource, /if \(activeSandboxPrototype\)[\s\S]*cannot be exported as campaign JSON/);
+  assert.match(appSource, /if \(activeSandboxPrototype\)[\s\S]*cannot be promoted or applied/);
+  assert.match(appSource, /disabled=\{Boolean\(activeSandboxPrototype\)\}/);
+  assert.match(appSource, /calculateCombatLabDps\(telemetrySnapshot\)/);
+  assert.match(pickerSource, /data-sandbox-only="true"/);
+  assert.match(pickerSource, /aria-pressed=\{activePrototypeId === prototype\.id\}/);
+});

@@ -2,9 +2,9 @@ import 'pixi.js/unsafe-eval';
 import {
   Application,
   Assets,
-  ColorMatrixFilter,
   Container,
   Graphics,
+  Rectangle,
   Sprite,
   Text,
   Texture
@@ -43,6 +43,100 @@ import {
   hideSoftRadialLight,
   showSoftRadialLight
 } from './SoftRadialLight';
+import {
+  sampleSegmentedCrescentPose,
+  type SegmentedCrescentActionPresentation
+} from './boss-rigs/SegmentedCrescentPose';
+import {
+  sampleArticulatedPincerPose,
+  type ArticulatedPincerActionPresentation
+} from './boss-rigs/ArticulatedPincerPose';
+import {
+  sampleTransformingOrbiterPose,
+  type TransformingOrbiterActionPresentation
+} from './boss-rigs/TransformingOrbiterPose';
+import {
+  sampleRotatingEmitterCorePose,
+  type RotatingEmitterCoreActionPresentation
+} from './boss-rigs/RotatingEmitterCorePose';
+import { sampleAssembledBossMotion } from './boss-rigs/AssembledBossMotion';
+import { sampleAssembledBossAccentPose } from './boss-rigs/AssembledBossAccentPose';
+import { sampleWingbeatHoverPose } from './boss-rigs/WingbeatHoverPose';
+import {
+  ROTATING_EMITTER_CORE_DESIGN_SIZE as ROTATING_EMITTER_CORE_AUTHORED_SIZE,
+  sampleRotatingEmitterRelayPositions,
+  sampleRotatingEmitterSocketPositionsForBounds
+} from '../gameplay/bosses/RotatingEmitterCoreRuntime';
+import {
+  BOSS_SIGNIFICANT_REACTION_FRAMES,
+  sampleBossWeaponSockets
+} from '../gameplay/bosses/BossWeaponSocketRuntime';
+import {
+  ARTICULATED_PINCER_PART_IDS,
+  ROTATING_EMITTER_CORE_PART_IDS,
+  SEGMENTED_CRESCENT_PART_IDS,
+  TRANSFORMING_ORBITER_PART_IDS,
+  getPreviewBossProjectilePartIds,
+  getPreviewBossRigPartIds,
+  type ArticulatedPincerPartId,
+  type PreviewBossAssembledMotionProfile,
+  type PreviewBossArtwork,
+  type PreviewBossProjectileAnimation,
+  type PreviewBossProjectileAnimationProfile,
+  type PreviewBossRigKind,
+  type PreviewBossRigPartId,
+  type RotatingEmitterCorePartId,
+  type SegmentedCrescentPartId,
+  type TransformingOrbiterPartId
+} from './boss-rigs/PreviewBossRigContracts';
+import {
+  PREVIEW_BOSS_VFX_FRAME_IDS,
+  type PreviewBossVfxFrameId
+} from './boss-rigs/PreviewBossVfxContracts';
+import {
+  resolveModularBossRigHierarchy,
+  type ModularBossRigAtlas,
+  type ModularBossDestructionFragment,
+  type ModularBossDestructionSequence,
+  type ModularBossRigRegistration,
+  type ResolvedModularBossRigHierarchy
+} from './boss-rigs/ModularHierarchyRig';
+import { sampleModularBossDestructionFragment } from './boss-rigs/ModularBossDestructionRuntime';
+import {
+  resolvePreviewBossReferenceComparisonLayout
+} from './boss-rigs/PreviewBossReferenceComparison';
+import {
+  DEFAULT_PREVIEW_BOSS_REFERENCE_COMPARISON,
+  DEFAULT_PREVIEW_DEBUG_OVERLAYS,
+  normalizePreviewBossReferenceComparison,
+  normalizePreviewDebugOverlays,
+  resolvePreviewSafeRegionGuide,
+  type PreviewBossReferenceComparisonState,
+  type PreviewDebugOverlayState
+} from '../gameplay/previewSession';
+import {
+  resolveBossGapRoute,
+  resolveBossGapRouteDirection,
+  resolveBossWeaveWallLayout
+} from '../gameplay/bosses/BossPatternRuntime';
+
+export type {
+  ArticulatedPincerPartId,
+  PreviewBossArtwork,
+  PreviewBossAtlasPartId,
+  PreviewBossProjectileAnimation,
+  PreviewBossProjectileAnimationProfile,
+  PreviewBossRigKind,
+  PreviewBossRigPartId,
+  RotatingEmitterCorePartId,
+  SegmentedCrescentPartId,
+  TransformingOrbiterPartId
+} from './boss-rigs/PreviewBossRigContracts';
+export type {
+  PreviewBossVfxAtlas,
+  PreviewBossVfxFrame,
+  PreviewBossVfxFrameId
+} from './boss-rigs/PreviewBossVfxContracts';
 
 type SceneLayerName =
   | 'background'
@@ -90,6 +184,8 @@ type BossRigView = {
   componentHealth: Graphics;
   crownClaw: CrownClawRigView;
   articulated: ArticulatedBossRigView;
+  previewAtlas?: PreviewBossAtlasRigView;
+  modularPreview?: ModularPreviewBossRigView;
 };
 
 type CrownClawLegId = keyof typeof ASSETS.PIXI_BOSS_CROWNCLAW_LEGS;
@@ -155,6 +251,29 @@ type ArticulatedBossRigView = {
   prismMoth: ArticulatedPartRigView<PrismMothRigPartId>;
 };
 
+type PreviewBossAtlasRigView =
+  | ({
+      kind: 'segmented-crescent-v1';
+    } & ArticulatedPartRigView<SegmentedCrescentPartId>)
+  | ({
+      kind: 'articulated-pincer-v1';
+    } & ArticulatedPartRigView<ArticulatedPincerPartId>)
+  | ({
+      kind: 'transforming-orbiter-v1';
+    } & ArticulatedPartRigView<TransformingOrbiterPartId>)
+  | ({
+      kind: 'rotating-emitter-core-v1';
+    } & ArticulatedPartRigView<RotatingEmitterCorePartId>);
+
+type ModularPreviewBossRigView = {
+  root: Container;
+  partSprites: Readonly<Record<string, Sprite>>;
+  referenceComparison?: {
+    sprite: Sprite;
+    landmarks: Graphics;
+  };
+};
+
 type BossSnapshot = {
   id: string;
   x: number;
@@ -162,6 +281,45 @@ type BossSnapshot = {
   width: number;
   height: number;
   textureKey: string;
+  rotation: number;
+  modularDestruction?: ModularBossDestructionSnapshot;
+};
+
+type ModularBossDestructionFragmentSnapshot = {
+  authored: ModularBossDestructionFragment;
+  frameId: string;
+  anchorX: number;
+  anchorY: number;
+  x: number;
+  y: number;
+  rotation: number;
+  scaleX: number;
+  scaleY: number;
+};
+
+type ModularBossDestructionSnapshot = {
+  entityId: string;
+  sequence: ModularBossDestructionSequence;
+  designScaleX: number;
+  designScaleY: number;
+  fragments: readonly ModularBossDestructionFragmentSnapshot[];
+};
+
+type ModularBossDebugSnapshot = {
+  entityId: string;
+  centerX: number;
+  centerY: number;
+  width: number;
+  height: number;
+  rotation: number;
+  designScaleX: number;
+  designScaleY: number;
+  hierarchy: ResolvedModularBossRigHierarchy;
+};
+
+type ModularBossDeathFragmentView = {
+  sprite: Sprite;
+  snapshot: ModularBossDestructionFragmentSnapshot;
 };
 
 const PLAYER_THRUSTER_COLORS = [
@@ -228,15 +386,6 @@ const PRISM_MOTH_RIG_LAYOUT = Object.freeze({
   rightLowerOuterWing: { x: 70, y: 48, anchorX: 0.16, anchorY: 0.13, side: 1, phase: Math.PI * 0.08 }
 } as const);
 
-const WHITE_HIT_FILTER = new ColorMatrixFilter();
-WHITE_HIT_FILTER.matrix = [
-  0, 0, 0, 0, 1,
-  0, 0, 0, 0, 1,
-  0, 0, 0, 0, 1,
-  0, 0, 0, 1, 0
-];
-const WHITE_HIT_FILTERS = [WHITE_HIT_FILTER];
-
 const COMBAT_LIGHT_POOL_SIZE = 8;
 const COMBAT_LIGHT_PLAYER_COLOR = 0x67e8f9;
 const COMBAT_LIGHT_SPECIAL_COLOR = 0xa7f3d0;
@@ -249,9 +398,16 @@ const RESEARCH_CHARGE_TRAIL_SEGMENTS_REDUCED = 2;
 const MINI_BOSS_RECOIL_PX = 3.5;
 const BOSS_HULL_RECOIL_PX = 5;
 const BOSS_COMPONENT_RECOIL_PX = 6;
-const DAMAGE_RECOIL_DURATION_FRAMES = 16;
+const DAMAGE_RECOIL_DURATION_FRAMES = BOSS_SIGNIFICANT_REACTION_FRAMES;
+const CORNER_AMBUSH_BEAM_PRIMITIVE_ID = 'corner-ambush-beam';
+const CORNER_AMBUSH_RAM_PRIMITIVE_ID = 'corner-ambush-ram';
+const CORNER_AMBUSH_DIM_ALPHA = 0.9;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const smoothstep = (value: number) => {
+  const progress = clamp(value, 0, 1);
+  return progress * progress * (3 - 2 * progress);
+};
 
 const createLayer = () => {
   const layer = new Container();
@@ -303,6 +459,413 @@ const createPrismMothRigView = (): ArticulatedPartRigView<PrismMothRigPartId> =>
     root.addChild(sprite);
   }
   return { root, parts };
+};
+
+const SEGMENTED_CRESCENT_DESIGN_SIZE = Object.freeze({ width: 606, height: 606 });
+const SEGMENTED_CRESCENT_LAYOUT = Object.freeze({
+  coreBody: { x: 0, y: -24, anchorX: 0.5, anchorY: 0.5 },
+  coreClosed: { x: 0, y: -18, anchorX: 0.5, anchorY: 0.5 },
+  coreOpen: { x: 0, y: -18, anchorX: 0.5, anchorY: 0.5 },
+  leftBase: { x: -93, y: -41, anchorX: 0.72, anchorY: 0.66 },
+  rightBase: { x: 93, y: -41, anchorX: 0.28, anchorY: 0.66 },
+  leftMidB: { x: -143, y: -116, anchorX: 0.78, anchorY: 0.73 },
+  rightMidB: { x: 143, y: -116, anchorX: 0.22, anchorY: 0.73 },
+  leftMidA: { x: -180, y: -174, anchorX: 0.8, anchorY: 0.76 },
+  rightMidA: { x: 180, y: -174, anchorX: 0.2, anchorY: 0.76 },
+  leftOuter: { x: -219, y: -224, anchorX: 0.8, anchorY: 0.78 },
+  rightOuter: { x: 219, y: -224, anchorX: 0.2, anchorY: 0.78 },
+  leftPod: { x: -157, y: 74, anchorX: 0.5, anchorY: 0.5 },
+  rightPod: { x: 157, y: 74, anchorX: 0.5, anchorY: 0.5 },
+  ring: { x: 0, y: -10, anchorX: 0.5, anchorY: 0.5 },
+  tailA: { x: 0, y: 81, anchorX: 0.5, anchorY: 0.08 },
+  tailB: { x: 0, y: 81, anchorX: 0.5, anchorY: 0.08 },
+  tailC: { x: 0, y: 81, anchorX: 0.5, anchorY: 0.08 }
+} as const satisfies Record<SegmentedCrescentPartId, {
+  x: number;
+  y: number;
+  anchorX: number;
+  anchorY: number;
+}>);
+
+const SEGMENTED_CRESCENT_LAYER_ORDER = [
+  'ring',
+  'tailA',
+  'tailB',
+  'tailC',
+  'leftOuter',
+  'rightOuter',
+  'leftMidA',
+  'rightMidA',
+  'leftMidB',
+  'rightMidB',
+  'leftBase',
+  'rightBase',
+  'coreBody',
+  'coreClosed',
+  'coreOpen',
+  'leftPod',
+  'rightPod'
+] as const satisfies readonly SegmentedCrescentPartId[];
+
+const ARTICULATED_PINCER_DESIGN_SIZE = Object.freeze({ width: 720, height: 620 });
+const ARTICULATED_PINCER_LAYOUT = Object.freeze({
+  bodyClosed: { x: 0, y: -36, anchorX: 0.5, anchorY: 0.5 },
+  bodyOpen: { x: 0, y: -36, anchorX: 0.5, anchorY: 0.5 },
+  leftClaw: { x: -194, y: -4, anchorX: 0.68, anchorY: 0.46 },
+  rightClaw: { x: 194, y: -4, anchorX: 0.32, anchorY: 0.46 },
+  leftMandible: { x: -104, y: 36, anchorX: 0.68, anchorY: 0.36 },
+  rightMandible: { x: 104, y: 36, anchorX: 0.32, anchorY: 0.36 },
+  legOuterLeft: { x: -160, y: 88, anchorX: 0.58, anchorY: 0.18 },
+  legInnerLeft: { x: -82, y: 102, anchorX: 0.58, anchorY: 0.18 },
+  legInnerRight: { x: 82, y: 102, anchorX: 0.42, anchorY: 0.18 },
+  legOuterRight: { x: 160, y: 88, anchorX: 0.42, anchorY: 0.18 },
+  gatlingLeft: { x: -66, y: 112, anchorX: 0.5, anchorY: 0.18 },
+  gatlingRight: { x: 66, y: 112, anchorX: 0.5, anchorY: 0.18 },
+  mineLeft: { x: -117, y: 122, anchorX: 0.5, anchorY: 0.5 },
+  mineRight: { x: 117, y: 122, anchorX: 0.5, anchorY: 0.5 },
+  shieldLeft: { x: -149, y: -74, anchorX: 0.65, anchorY: 0.5 },
+  shieldRight: { x: 149, y: -74, anchorX: 0.35, anchorY: 0.5 },
+  shockBlade: { x: 0, y: 130, anchorX: 0.5, anchorY: 0.2 },
+  flameSmall: { x: 0, y: -168, anchorX: 0.5, anchorY: 0.82 },
+  flameMedium: { x: 0, y: -168, anchorX: 0.5, anchorY: 0.82 },
+  flameLarge: { x: 0, y: -168, anchorX: 0.5, anchorY: 0.82 }
+} as const satisfies Record<ArticulatedPincerPartId, {
+  x: number;
+  y: number;
+  anchorX: number;
+  anchorY: number;
+}>);
+
+const ARTICULATED_PINCER_LAYER_ORDER = [
+  'flameSmall',
+  'flameMedium',
+  'flameLarge',
+  'legOuterLeft',
+  'legInnerLeft',
+  'legInnerRight',
+  'legOuterRight',
+  'shieldLeft',
+  'shieldRight',
+  'bodyClosed',
+  'bodyOpen',
+  'leftMandible',
+  'rightMandible',
+  'gatlingLeft',
+  'gatlingRight',
+  'mineLeft',
+  'mineRight',
+  'leftClaw',
+  'rightClaw',
+  'shockBlade'
+] as const satisfies readonly ArticulatedPincerPartId[];
+
+const TRANSFORMING_ORBITER_DESIGN_SIZE = Object.freeze({ width: 560, height: 560 });
+const TRANSFORMING_ORBITER_LAYOUT = Object.freeze({
+  coreClosed: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  coreOpen: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  leftWing: { x: -114, y: 0, anchorX: 0.78, anchorY: 0.5 },
+  rightWing: { x: 114, y: 0, anchorX: 0.22, anchorY: 0.5 },
+  leftEmitter: { x: -151, y: 4, anchorX: 0.72, anchorY: 0.5 },
+  rightEmitter: { x: 151, y: 4, anchorX: 0.28, anchorY: 0.5 },
+  finTop: { x: 0, y: -124, anchorX: 0.5, anchorY: 0.8 },
+  finRight: { x: 124, y: 0, anchorX: 0.2, anchorY: 0.5 },
+  finBottom: { x: 0, y: 124, anchorX: 0.5, anchorY: 0.2 },
+  finLeft: { x: -124, y: 0, anchorX: 0.8, anchorY: 0.5 },
+  nodeA: { x: 0, y: -132, anchorX: 0.5, anchorY: 0.5 },
+  nodeB: { x: 132, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  nodeC: { x: 0, y: 132, anchorX: 0.5, anchorY: 0.5 },
+  nodeD: { x: -132, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  haloSmall: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  haloMedium: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  haloLarge: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  haloXL: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  perimeterRing: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  laserHub: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  pulseSmall: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  pulseMedium: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  pulseLarge: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 }
+} as const satisfies Record<TransformingOrbiterPartId, {
+  x: number;
+  y: number;
+  anchorX: number;
+  anchorY: number;
+}>);
+
+const TRANSFORMING_ORBITER_LAYER_ORDER = [
+  'perimeterRing',
+  'haloSmall',
+  'haloMedium',
+  'haloLarge',
+  'haloXL',
+  'leftWing',
+  'rightWing',
+  'finTop',
+  'finRight',
+  'finBottom',
+  'finLeft',
+  'leftEmitter',
+  'rightEmitter',
+  'coreClosed',
+  'coreOpen',
+  'nodeA',
+  'nodeB',
+  'nodeC',
+  'nodeD',
+  'laserHub',
+  'pulseSmall',
+  'pulseMedium',
+  'pulseLarge'
+] as const satisfies readonly TransformingOrbiterPartId[];
+
+const TRANSFORMING_ORBITER_FIN_IDS = [
+  'finTop',
+  'finRight',
+  'finBottom',
+  'finLeft'
+] as const satisfies readonly TransformingOrbiterPartId[];
+const TRANSFORMING_ORBITER_NODE_IDS = [
+  'nodeA',
+  'nodeB',
+  'nodeC',
+  'nodeD'
+] as const satisfies readonly TransformingOrbiterPartId[];
+const TRANSFORMING_ORBITER_HALO_IDS = [
+  'haloSmall',
+  'haloMedium',
+  'haloLarge',
+  'haloXL'
+] as const satisfies readonly TransformingOrbiterPartId[];
+const TRANSFORMING_ORBITER_PULSE_IDS = [
+  'pulseSmall',
+  'pulseMedium',
+  'pulseLarge'
+] as const satisfies readonly TransformingOrbiterPartId[];
+
+const ASSEMBLED_BOSS_ACCENT_LAYOUTS = Object.freeze({
+  'wingbeat-hover': Object.freeze({
+    designWidth: 363,
+    designHeight: 257,
+    coreY: 2,
+    emitterX: 78,
+    emitterY: 12,
+    emitterScale: 0.34
+  }),
+  'paired-resonance': Object.freeze({
+    designWidth: 322,
+    designHeight: 219,
+    coreY: 0,
+    emitterX: 80,
+    emitterY: 0,
+    emitterScale: 0.3
+  }),
+  'revival-shell': Object.freeze({
+    designWidth: 370,
+    designHeight: 311,
+    coreY: 0,
+    emitterX: 94,
+    emitterY: 22,
+    emitterScale: 0.34
+  })
+} as const satisfies Record<PreviewBossAssembledMotionProfile, {
+  designWidth: number;
+  designHeight: number;
+  coreY: number;
+  emitterX: number;
+  emitterY: number;
+  emitterScale: number;
+}>);
+
+// The source sheet contains generous isolation padding. This tighter authored
+// canvas lets the mechanical silhouette own the encounter without changing
+// gameplay collision geometry or stretching individual atlas parts.
+const ROTATING_EMITTER_CORE_DESIGN_SIZE = Object.freeze({
+  width: ROTATING_EMITTER_CORE_AUTHORED_SIZE,
+  height: ROTATING_EMITTER_CORE_AUTHORED_SIZE
+});
+const ROTATING_EMITTER_CORE_LAYOUT = Object.freeze({
+  chassisClosed: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  chassisOpen: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  perimeterRing: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  rotorHub: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  arm0: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.82 },
+  arm1: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.82 },
+  arm2: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.82 },
+  arm3: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.82 },
+  arm4: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.82 },
+  arm5: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.82 },
+  arm6: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.82 },
+  arm7: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.82 },
+  muzzle0: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  muzzle1: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  muzzle2: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  muzzle3: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  muzzle4: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  muzzle5: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  muzzle6: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  muzzle7: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  relayNorthWest: { x: -132, y: -132, anchorX: 0.5, anchorY: 0.5 },
+  relayNorthEast: { x: 132, y: -132, anchorX: 0.5, anchorY: 0.5 },
+  relaySouthEast: { x: 132, y: 132, anchorX: 0.5, anchorY: 0.5 },
+  relaySouthWest: { x: -132, y: 132, anchorX: 0.5, anchorY: 0.5 },
+  portal0: { x: -116, y: -154, anchorX: 0.5, anchorY: 0.5 },
+  portal1: { x: -38, y: -180, anchorX: 0.5, anchorY: 0.5 },
+  portal2: { x: 38, y: -180, anchorX: 0.5, anchorY: 0.5 },
+  portal3: { x: 116, y: -154, anchorX: 0.5, anchorY: 0.5 },
+  pulseSmall: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  pulseMedium: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  pulseLarge: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  eyeCometLeft: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 },
+  eyeCometRight: { x: 0, y: 0, anchorX: 0.5, anchorY: 0.5 }
+} as const satisfies Record<RotatingEmitterCorePartId, {
+  x: number;
+  y: number;
+  anchorX: number;
+  anchorY: number;
+}>);
+
+const ROTATING_EMITTER_CORE_LAYER_ORDER = [
+  'perimeterRing',
+  'portal0',
+  'portal1',
+  'portal2',
+  'portal3',
+  'chassisClosed',
+  'chassisOpen',
+  'rotorHub',
+  'arm0',
+  'arm1',
+  'arm2',
+  'arm3',
+  'arm4',
+  'arm5',
+  'arm6',
+  'arm7',
+  'muzzle0',
+  'muzzle1',
+  'muzzle2',
+  'muzzle3',
+  'muzzle4',
+  'muzzle5',
+  'muzzle6',
+  'muzzle7',
+  'relayNorthWest',
+  'relayNorthEast',
+  'relaySouthEast',
+  'relaySouthWest',
+  'pulseSmall',
+  'pulseMedium',
+  'pulseLarge',
+  'eyeCometLeft',
+  'eyeCometRight'
+] as const satisfies readonly RotatingEmitterCorePartId[];
+
+type PreviewBossPartLayout = Readonly<{
+  x: number;
+  y: number;
+  anchorX: number;
+  anchorY: number;
+}>;
+
+const createTypedPreviewBossAtlasRigView = <
+  Kind extends PreviewBossRigKind,
+  PartId extends PreviewBossRigPartId
+>(
+  kind: Kind,
+  partIds: readonly PartId[],
+  layout: Readonly<Record<PartId, PreviewBossPartLayout>>,
+  layerOrder: readonly PartId[]
+) => {
+  const root = new Container();
+  const parts = {} as Record<PartId, Sprite>;
+  root.eventMode = 'none';
+  root.visible = false;
+  for (const partId of partIds) {
+    const sprite = new Sprite(Texture.WHITE);
+    const partLayout = layout[partId];
+    sprite.anchor.set(partLayout.anchorX, partLayout.anchorY);
+    sprite.eventMode = 'none';
+    sprite.visible = false;
+    parts[partId] = sprite;
+  }
+  for (const partId of layerOrder) root.addChild(parts[partId]);
+  return { kind, root, parts };
+};
+
+const createPreviewBossAtlasRigView = (
+  kind: PreviewBossRigKind
+): PreviewBossAtlasRigView => {
+  switch (kind) {
+    case 'segmented-crescent-v1':
+      return createTypedPreviewBossAtlasRigView(
+        kind,
+        SEGMENTED_CRESCENT_PART_IDS,
+        SEGMENTED_CRESCENT_LAYOUT,
+        SEGMENTED_CRESCENT_LAYER_ORDER
+      );
+    case 'articulated-pincer-v1':
+      return createTypedPreviewBossAtlasRigView(
+        kind,
+        ARTICULATED_PINCER_PART_IDS,
+        ARTICULATED_PINCER_LAYOUT,
+        ARTICULATED_PINCER_LAYER_ORDER
+      );
+    case 'transforming-orbiter-v1':
+      return createTypedPreviewBossAtlasRigView(
+        kind,
+        TRANSFORMING_ORBITER_PART_IDS,
+        TRANSFORMING_ORBITER_LAYOUT,
+        TRANSFORMING_ORBITER_LAYER_ORDER
+      );
+    case 'rotating-emitter-core-v1':
+      return createTypedPreviewBossAtlasRigView(
+        kind,
+        ROTATING_EMITTER_CORE_PART_IDS,
+        ROTATING_EMITTER_CORE_LAYOUT,
+        ROTATING_EMITTER_CORE_LAYER_ORDER
+      );
+  }
+};
+
+const getPreviewBossRigParts = (
+  rig: PreviewBossAtlasRigView
+): Partial<Record<PreviewBossRigPartId, Sprite>> => (
+  rig.parts as Partial<Record<PreviewBossRigPartId, Sprite>>
+);
+
+const createModularPreviewBossRigView = (
+  registration: ModularBossRigRegistration,
+  referenceComparisonEnabled: boolean
+): ModularPreviewBossRigView => {
+  const root = new Container();
+  const partSprites: Record<string, Sprite> = Object.create(null) as Record<string, Sprite>;
+  const referenceComparison = referenceComparisonEnabled
+    ? {
+        sprite: new Sprite(Texture.WHITE),
+        landmarks: new Graphics()
+      }
+    : undefined;
+  root.eventMode = 'none';
+  root.visible = false;
+  if (referenceComparison) {
+    referenceComparison.sprite.anchor.set(0.5);
+    referenceComparison.sprite.eventMode = 'none';
+    referenceComparison.sprite.visible = false;
+    referenceComparison.landmarks.eventMode = 'none';
+    referenceComparison.landmarks.visible = false;
+    root.addChild(referenceComparison.sprite);
+  }
+  for (const partId of registration.renderPartIds) {
+    const part = registration.partById[partId];
+    if (part.frameId === null) continue;
+    const sprite = new Sprite(Texture.WHITE);
+    sprite.eventMode = 'none';
+    sprite.visible = false;
+    if (part.anchor) sprite.anchor.set(part.anchor.x, part.anchor.y);
+    partSprites[partId] = sprite;
+    root.addChild(sprite);
+  }
+  if (referenceComparison) root.addChild(referenceComparison.landmarks);
+  return { root, partSprites, referenceComparison };
 };
 
 const RAIL_SERPENT_RIG_TEXTURE_URLS = Object.freeze(
@@ -585,10 +1148,18 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
   }
 };
 
-const usesGeneratedCampaignBossArt = (entity: Entity) => (
+const usesStandaloneBossArt = (entity: Entity, previewArtwork = false) => (
   entity.type === EntityType.BOSS
-  && Boolean(entity.spriteUrl?.includes('/scicon-stage20-expansion-v1/bosses/'))
+  && Boolean(
+    previewArtwork
+    ||
+    entity.spriteUrl?.includes('/scicon-stage20-expansion-v1/bosses/')
+  )
 );
+
+export interface PixiGameRendererOptions {
+  readonly previewBossArtwork?: PreviewBossArtwork;
+}
 
 export class PixiGameRenderer {
   readonly app = new Application();
@@ -608,6 +1179,9 @@ export class PixiGameRenderer {
   };
   private readonly camera = createLayer();
   private readonly world = createLayer();
+  private readonly cornerAmbushShade = new Graphics();
+  private readonly cornerAmbushGuide = new Graphics();
+  private readonly previewDebugOverlay = new Graphics();
   private readonly views = new Map<string, EntityView>();
   private readonly recycledViews = new Map<EntityType, EntityView[]>();
   private readonly environment = new PixiEnvironment(this.layers.background, this.layers.environment, this.textureBank);
@@ -662,8 +1236,12 @@ export class PixiGameRenderer {
   private readonly seenBossComponents = new Map<string, Partial<Record<BossPartId, boolean>>>();
   private readonly bossDeathRoot = new Container();
   private readonly bossDeathSprite = new Sprite(Texture.WHITE);
+  private readonly bossDeathFragments = new Container();
   private readonly bossDeathCore = new Graphics();
   private readonly bossDeathText = createText(24, '#a7f3d0');
+  private modularBossDestructionSnapshot: ModularBossDestructionSnapshot | null = null;
+  private modularBossDebugSnapshot: ModularBossDebugSnapshot | null = null;
+  private bossDeathFragmentViews: ModularBossDeathFragmentView[] = [];
   private lastBossSnapshot: BossSnapshot | null = null;
   private bossDeathAge = -1;
   private bossDeathStage = -1;
@@ -692,6 +1270,244 @@ export class PixiGameRenderer {
   private currentWaveCounter = '1/1';
   private reducedMotion = false;
   private destroyed = false;
+  private readonly previewBossArtwork?: PreviewBossArtwork;
+  private previewBossArtworkReady = false;
+  private readonly previewBossAtlasTextures = new Map<PreviewBossRigPartId, Texture>();
+  private previewBossAtlasReady = false;
+  private readonly modularPreviewBossTextures = new Map<string, Texture>();
+  private modularPreviewBossReady = false;
+  private readonly previewBossVfxTextures = new Map<PreviewBossVfxFrameId, Texture>();
+  private previewBossVfxReady = false;
+  private previewBossRuntimeEntityId: string | null = null;
+  private cornerAmbushBossId: string | null = null;
+  private previewDebugOverlays: PreviewDebugOverlayState = DEFAULT_PREVIEW_DEBUG_OVERLAYS;
+  private previewBossReferenceComparison: PreviewBossReferenceComparisonState =
+    DEFAULT_PREVIEW_BOSS_REFERENCE_COMPARISON;
+
+  constructor(options: PixiGameRendererOptions = {}) {
+    this.previewBossArtwork = options.previewBossArtwork;
+  }
+
+  private isPreviewBossEntity(entity: Entity) {
+    if (
+      entity.type !== EntityType.BOSS
+      || !entity.sourceEventId
+      || entity.sourceEventId !== this.previewBossArtwork?.eventId
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  private getPreviewBossArtwork(entity: Entity): PreviewBossArtwork | undefined {
+    if (
+      (!this.previewBossArtworkReady && !this.modularPreviewBossReady)
+      || !this.isPreviewBossEntity(entity)
+    ) {
+      return undefined;
+    }
+    return this.previewBossArtwork;
+  }
+
+  private getPreviewBossAtlas(entity: Entity) {
+    if (!this.previewBossAtlasReady || !this.isPreviewBossEntity(entity)) return undefined;
+    return this.previewBossArtwork?.articulatedAtlas;
+  }
+
+  private getPreviewBossAtlasTexture(partId: PreviewBossRigPartId) {
+    return this.previewBossAtlasReady ? this.previewBossAtlasTextures.get(partId) : undefined;
+  }
+
+  private destroyPreviewBossAtlasTextures() {
+    for (const texture of this.previewBossAtlasTextures.values()) texture.destroy(false);
+    this.previewBossAtlasTextures.clear();
+    this.previewBossAtlasReady = false;
+  }
+
+  private getModularPreviewBossTexture(frameId: string) {
+    return this.modularPreviewBossReady
+      ? this.modularPreviewBossTextures.get(frameId)
+      : undefined;
+  }
+
+  private destroyModularPreviewBossTextures() {
+    for (const texture of this.modularPreviewBossTextures.values()) texture.destroy(false);
+    this.modularPreviewBossTextures.clear();
+    this.modularPreviewBossReady = false;
+  }
+
+  private getPreviewBossVfxTexture(frameId: PreviewBossVfxFrameId) {
+    return this.previewBossVfxReady ? this.previewBossVfxTextures.get(frameId) : undefined;
+  }
+
+  private destroyPreviewBossVfxTextures() {
+    for (const texture of this.previewBossVfxTextures.values()) texture.destroy(false);
+    this.previewBossVfxTextures.clear();
+    this.previewBossVfxReady = false;
+  }
+
+  private createPreviewBossVfxTextures(sheet: Texture) {
+    const atlas = this.previewBossArtwork?.vfxAtlas;
+    if (!atlas) return false;
+    if (
+      !Number.isFinite(atlas.width)
+      || !Number.isFinite(atlas.height)
+      || atlas.width <= 0
+      || atlas.height <= 0
+      || sheet.width < atlas.width
+      || sheet.height < atlas.height
+    ) {
+      return false;
+    }
+    const created = new Map<PreviewBossVfxFrameId, Texture>();
+    try {
+      for (const frameId of PREVIEW_BOSS_VFX_FRAME_IDS) {
+        const frame = atlas.frames[frameId];
+        if (
+          !frame
+          || !Number.isFinite(frame.x)
+          || !Number.isFinite(frame.y)
+          || !Number.isFinite(frame.width)
+          || !Number.isFinite(frame.height)
+          || frame.x < 0
+          || frame.y < 0
+          || frame.width <= 0
+          || frame.height <= 0
+          || frame.x + frame.width > atlas.width
+          || frame.y + frame.height > atlas.height
+        ) {
+          throw new Error(`Invalid preview boss VFX frame: ${frameId}`);
+        }
+        created.set(frameId, new Texture({
+          source: sheet.source,
+          frame: new Rectangle(frame.x, frame.y, frame.width, frame.height),
+          label: `${atlas.contentHash}:${frameId}`
+        }));
+      }
+    } catch {
+      for (const texture of created.values()) texture.destroy(false);
+      return false;
+    }
+    this.destroyPreviewBossVfxTextures();
+    for (const [frameId, texture] of created) {
+      this.previewBossVfxTextures.set(frameId, texture);
+    }
+    this.previewBossVfxReady = true;
+    return true;
+  }
+
+  private createPreviewBossAtlasTextures(sheet: Texture) {
+    const atlas = this.previewBossArtwork?.articulatedAtlas;
+    if (!atlas) return false;
+    if (
+      !Number.isFinite(atlas.width)
+      || !Number.isFinite(atlas.height)
+      || atlas.width <= 0
+      || atlas.height <= 0
+      || sheet.width < atlas.width
+      || sheet.height < atlas.height
+    ) {
+      return false;
+    }
+    const created = new Map<PreviewBossRigPartId, Texture>();
+    try {
+      for (const partId of getPreviewBossRigPartIds(atlas.kind)) {
+        const frame = (atlas.frames as Partial<Record<PreviewBossRigPartId, {
+          readonly x: number;
+          readonly y: number;
+          readonly width: number;
+          readonly height: number;
+        }>>)[partId];
+        if (
+          !frame
+          || !Number.isFinite(frame.x)
+          || !Number.isFinite(frame.y)
+          || !Number.isFinite(frame.width)
+          || !Number.isFinite(frame.height)
+          || frame.x < 0
+          || frame.y < 0
+          || frame.width <= 0
+          || frame.height <= 0
+          || frame.x + frame.width > atlas.width
+          || frame.y + frame.height > atlas.height
+        ) {
+          throw new Error(`Invalid preview boss atlas frame: ${partId}`);
+        }
+        created.set(partId, new Texture({
+          source: sheet.source,
+          frame: new Rectangle(frame.x, frame.y, frame.width, frame.height),
+          label: `${atlas.contentHash}:${partId}`
+        }));
+      }
+    } catch {
+      for (const texture of created.values()) texture.destroy(false);
+      return false;
+    }
+    this.destroyPreviewBossAtlasTextures();
+    for (const [partId, texture] of created) {
+      this.previewBossAtlasTextures.set(partId, texture);
+    }
+    this.previewBossAtlasReady = true;
+    return true;
+  }
+
+  private createModularPreviewBossTextures(
+    loadedAtlases: readonly Readonly<{
+      atlas: ModularBossRigAtlas;
+      sheet: Texture;
+    }>[]
+  ) {
+    const registration = this.previewBossArtwork?.modularRig;
+    if (!registration || loadedAtlases.length !== registration.atlases.length) return false;
+    const created = new Map<string, Texture>();
+    try {
+      for (let atlasIndex = 0; atlasIndex < loadedAtlases.length; atlasIndex += 1) {
+        const { atlas, sheet } = loadedAtlases[atlasIndex];
+        if (
+          atlas !== registration.atlases[atlasIndex]
+          || !Number.isFinite(atlas.width)
+          || !Number.isFinite(atlas.height)
+          || atlas.width <= 0
+          || atlas.height <= 0
+          || sheet.width < atlas.width
+          || sheet.height < atlas.height
+        ) {
+          throw new Error(`Invalid modular preview boss atlas: ${atlasIndex}`);
+        }
+        for (const [frameId, frame] of Object.entries(atlas.frames)) {
+          if (
+            created.has(frameId)
+            || !Number.isFinite(frame.x)
+            || !Number.isFinite(frame.y)
+            || !Number.isFinite(frame.width)
+            || !Number.isFinite(frame.height)
+            || frame.x < 0
+            || frame.y < 0
+            || frame.width <= 0
+            || frame.height <= 0
+            || frame.x + frame.width > atlas.width
+            || frame.y + frame.height > atlas.height
+          ) {
+            throw new Error(`Invalid modular preview boss atlas frame: ${frameId}`);
+          }
+          created.set(frameId, new Texture({
+            source: sheet.source,
+            frame: new Rectangle(frame.x, frame.y, frame.width, frame.height),
+            label: `${atlas.contentHash}:${frameId}`
+          }));
+        }
+      }
+    } catch {
+      for (const texture of created.values()) texture.destroy(false);
+      return false;
+    }
+    this.destroyModularPreviewBossTextures();
+    for (const [frameId, texture] of created) {
+      this.modularPreviewBossTextures.set(frameId, texture);
+    }
+    this.modularPreviewBossReady = true;
+    return true;
+  }
 
   async init(
     host: HTMLElement,
@@ -723,6 +1539,54 @@ export class PixiGameRenderer {
       return;
     }
     this.app.stop();
+    if (this.previewBossArtwork) {
+      void this.textureBank.load(this.previewBossArtwork.url)
+        .then(() => {
+          if (!this.destroyed) this.previewBossArtworkReady = true;
+        })
+        .catch(() => {
+          this.previewBossArtworkReady = false;
+        });
+      const atlas = this.previewBossArtwork.articulatedAtlas;
+      if (atlas) {
+        void this.textureBank.load(atlas.url)
+          .then((sheet) => {
+            if (!this.destroyed) this.createPreviewBossAtlasTextures(sheet);
+          })
+          .catch(() => {
+            this.destroyPreviewBossAtlasTextures();
+          });
+      }
+      const modularRig = this.previewBossArtwork.modularRig;
+      if (modularRig) {
+        void Promise.all(modularRig.atlases.map(async (atlas) => ({
+          atlas,
+          sheet: await this.textureBank.load(atlas.url)
+        })))
+          .then((loadedAtlases) => {
+            if (!this.destroyed) this.createModularPreviewBossTextures(loadedAtlases);
+          })
+          .catch(() => {
+            this.destroyModularPreviewBossTextures();
+          });
+      }
+      const referenceComparison = this.previewBossArtwork.modularReferenceComparison;
+      if (referenceComparison) {
+        // Review-only texture. It is never assigned to an entity sprite and
+        // cannot participate in collision, sockets, or authored attacks.
+        void this.textureBank.load(referenceComparison.url).catch(() => undefined);
+      }
+      const vfxAtlas = this.previewBossArtwork.vfxAtlas;
+      if (vfxAtlas) {
+        void this.textureBank.load(vfxAtlas.url)
+          .then((sheet) => {
+            if (!this.destroyed) this.createPreviewBossVfxTextures(sheet);
+          })
+          .catch(() => {
+            this.destroyPreviewBossVfxTextures();
+          });
+      }
+    }
     this.app.canvas.className = 'absolute left-0 top-0 z-0 block h-full w-full';
     this.app.canvas.style.touchAction = 'none';
     this.app.canvas.style.outline = 'none';
@@ -730,7 +1594,16 @@ export class PixiGameRenderer {
     host.replaceChildren(this.app.canvas);
 
     this.app.stage.eventMode = 'none';
-    this.app.stage.addChild(this.layers.background, this.camera, this.layers.overlay);
+    // The cinematic layer lives above the entire camera/world but below the
+    // Pixi HUD. GameStage's React HUD is a separate z-10 sibling, so hearts,
+    // score, pause, bombs, and ship actions also remain bright and interactive.
+    this.app.stage.addChild(
+      this.layers.background,
+      this.camera,
+      this.cornerAmbushShade,
+      this.cornerAmbushGuide,
+      this.layers.overlay
+    );
     this.camera.addChild(this.world);
     this.world.addChild(
       this.layers.environment,
@@ -741,6 +1614,14 @@ export class PixiGameRenderer {
       this.layers.effects,
       this.layers.foreground
     );
+
+    this.cornerAmbushShade.eventMode = 'none';
+    this.cornerAmbushShade.visible = false;
+    this.cornerAmbushGuide.eventMode = 'none';
+    this.cornerAmbushGuide.visible = false;
+    this.cornerAmbushGuide.blendMode = 'add';
+    this.previewDebugOverlay.eventMode = 'none';
+    this.previewDebugOverlay.visible = false;
 
     this.combatLightRoot.eventMode = 'none';
     this.combatLightRoot.visible = false;
@@ -810,8 +1691,14 @@ export class PixiGameRenderer {
     this.bossDeathSprite.anchor.set(0.5);
     this.bossDeathText.anchor.set(0.5);
     this.bossDeathRoot.eventMode = 'none';
+    this.bossDeathFragments.eventMode = 'none';
     this.bossDeathRoot.visible = false;
-    this.bossDeathRoot.addChild(this.bossDeathSprite, this.bossDeathCore, this.bossDeathText);
+    this.bossDeathRoot.addChild(
+      this.bossDeathSprite,
+      this.bossDeathFragments,
+      this.bossDeathCore,
+      this.bossDeathText
+    );
     this.layers.foreground.addChild(this.bossDeathRoot);
 
     this.warningRoot.eventMode = 'none';
@@ -860,7 +1747,8 @@ export class PixiGameRenderer {
       this.warningRoot,
       this.phaseText,
       this.flashOverlay,
-      this.scanlines
+      this.scanlines,
+      this.previewDebugOverlay
     );
 
     this.warningShade.visible = false;
@@ -911,6 +1799,317 @@ export class PixiGameRenderer {
     this.environment.resize(this.width, this.height);
     this.drawScanlines();
     this.layoutWavePresentation();
+  }
+
+  setPreviewDebugOverlays(overlays: PreviewDebugOverlayState) {
+    if (this.destroyed) return false;
+    this.previewDebugOverlays = normalizePreviewDebugOverlays(overlays);
+    if (!Object.values(this.previewDebugOverlays).some(Boolean)) {
+      this.previewDebugOverlay.clear();
+      this.previewDebugOverlay.visible = false;
+    }
+    return true;
+  }
+
+  setPreviewBossReferenceComparison(comparison: PreviewBossReferenceComparisonState) {
+    if (this.destroyed || !this.previewBossArtwork?.modularReferenceComparison) return false;
+    this.previewBossReferenceComparison = normalizePreviewBossReferenceComparison(comparison);
+    return true;
+  }
+
+  async capturePngDataUrl(): Promise<string | null> {
+    if (!this.initialized || this.destroyed || !this.app.renderer) return null;
+    try {
+      this.app.renderer.render(this.app.stage);
+      const dataUrl = await this.app.renderer.extract.base64({
+        target: this.app.stage,
+        format: 'png'
+      });
+      return dataUrl.startsWith('data:image/png') ? dataUrl : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private transformModularDebugPoint(
+    snapshot: ModularBossDebugSnapshot,
+    x: number,
+    y: number
+  ) {
+    const offsetX = x * snapshot.designScaleX;
+    const offsetY = y * snapshot.designScaleY;
+    const cosine = Math.cos(snapshot.rotation);
+    const sine = Math.sin(snapshot.rotation);
+    return {
+      x: snapshot.centerX + offsetX * cosine - offsetY * sine,
+      y: snapshot.centerY + offsetX * sine + offsetY * cosine
+    };
+  }
+
+  private drawPreviewDebugPolygon(
+    points: readonly { x: number; y: number }[],
+    color: number,
+    fillAlpha = 0
+  ) {
+    if (points.length < 3) return;
+    this.previewDebugOverlay.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length; index += 1) {
+      this.previewDebugOverlay.lineTo(points[index].x, points[index].y);
+    }
+    this.previewDebugOverlay.closePath();
+    if (fillAlpha > 0) {
+      this.previewDebugOverlay.fill({ color, alpha: fillAlpha });
+    }
+    this.previewDebugOverlay.stroke({ color, width: 1.2, alpha: 0.9 });
+  }
+
+  private drawPreviewModularDiagnostics(snapshot: ModularBossDebugSnapshot) {
+    const overlays = this.previewDebugOverlays;
+    if (overlays.modularPartBounds) {
+      for (const part of snapshot.hierarchy.parts) {
+        if (!part.visible || !part.frame || !part.anchor) continue;
+        const left = -part.anchor.x * part.frame.width;
+        const top = -part.anchor.y * part.frame.height;
+        const corners = [
+          { x: left, y: top },
+          { x: left + part.frame.width, y: top },
+          { x: left + part.frame.width, y: top + part.frame.height },
+          { x: left, y: top + part.frame.height }
+        ].map((point) => this.transformModularDebugPoint(
+          snapshot,
+          part.worldTransform.a * point.x + part.worldTransform.c * point.y
+            + part.worldTransform.tx,
+          part.worldTransform.b * point.x + part.worldTransform.d * point.y
+            + part.worldTransform.ty
+        ));
+        this.drawPreviewDebugPolygon(corners, 0xf472b6, 0.035);
+      }
+    }
+
+    if (overlays.modularPivots) {
+      for (const part of snapshot.hierarchy.parts) {
+        const pivot = this.transformModularDebugPoint(
+          snapshot,
+          part.worldTransform.tx,
+          part.worldTransform.ty
+        );
+        if (part.parentId) {
+          const parent = snapshot.hierarchy.partById[part.parentId];
+          if (parent) {
+            const parentPivot = this.transformModularDebugPoint(
+              snapshot,
+              parent.worldTransform.tx,
+              parent.worldTransform.ty
+            );
+            this.previewDebugOverlay
+              .moveTo(parentPivot.x, parentPivot.y)
+              .lineTo(pivot.x, pivot.y)
+              .stroke({ color: 0x22d3ee, width: 1, alpha: 0.72 });
+          }
+        }
+        this.previewDebugOverlay
+          .circle(pivot.x, pivot.y, 3.5)
+          .fill({ color: 0x22d3ee, alpha: 0.82 })
+          .stroke({ color: 0xffffff, width: 1, alpha: 0.95 });
+      }
+    }
+
+    if (overlays.weaponSockets) {
+      for (const socket of snapshot.hierarchy.sockets) {
+        const point = this.transformModularDebugPoint(
+          snapshot,
+          socket.worldX,
+          socket.worldY
+        );
+        const color = socket.role === 'core-origin' ? 0xfacc15 : 0xa7f3d0;
+        this.previewDebugOverlay
+          .moveTo(point.x - 6, point.y)
+          .lineTo(point.x + 6, point.y)
+          .moveTo(point.x, point.y - 6)
+          .lineTo(point.x, point.y + 6)
+          .stroke({ color, width: 2, alpha: 0.95 });
+        this.previewDebugOverlay
+          .circle(point.x, point.y, 7)
+          .stroke({ color, width: 1, alpha: 0.82 });
+      }
+    }
+  }
+
+  private drawPreviewBossCollision(engine: GameEngine, boss: Entity) {
+    const mask = engine.getBossCollisionMask(boss);
+    const centerX = boss.x + boss.width / 2;
+    const centerY = boss.y + boss.height / 2;
+    const rotation = boss.bossPresentationBankRadians;
+    const transform = (localX: number, localY: number) => ({
+      x: centerX + localX * Math.cos(rotation) - localY * Math.sin(rotation),
+      y: centerY + localX * Math.sin(rotation) + localY * Math.cos(rotation)
+    });
+    this.drawPreviewDebugPolygon([
+      transform(-boss.width / 2, -boss.height / 2),
+      transform(boss.width / 2, -boss.height / 2),
+      transform(boss.width / 2, boss.height / 2),
+      transform(-boss.width / 2, boss.height / 2)
+    ], 0xfbbf24, 0.025);
+
+    if (mask) {
+      const wordsPerRow = Math.ceil(mask.width / 32);
+      const occupied = (column: number, row: number) => {
+        const word = mask.rowWords[row * wordsPerRow + Math.floor(column / 32)] ?? 0;
+        return (word & (1 << (column % 32))) !== 0;
+      };
+      const cellWidth = boss.width / Math.max(1, mask.width);
+      const cellHeight = boss.height / Math.max(1, mask.height);
+      for (let row = 0; row < mask.height; row += 1) {
+        let runStart = -1;
+        for (let column = 0; column <= mask.width; column += 1) {
+          if (column < mask.width && occupied(column, row)) {
+            if (runStart < 0) runStart = column;
+            continue;
+          }
+          if (runStart < 0) continue;
+          const left = runStart * cellWidth - boss.width / 2;
+          const right = column * cellWidth - boss.width / 2;
+          const top = row * cellHeight - boss.height / 2;
+          const bottom = top + cellHeight;
+          this.drawPreviewDebugPolygon([
+            transform(left, top),
+            transform(right, top),
+            transform(right, bottom),
+            transform(left, bottom)
+          ], 0xfde047, 0.085);
+          runStart = -1;
+        }
+      }
+    }
+
+    for (const component of boss.bossComponents ?? []) {
+      if (component.destroyed) continue;
+      const box = engine.getBossComponentBox(boss, component);
+      this.previewDebugOverlay
+        .rect(box.x, box.y, box.width, box.height)
+        .fill({ color: 0xfb7185, alpha: 0.045 })
+        .stroke({ color: 0xfb7185, width: 1.5, alpha: 0.92 });
+    }
+  }
+
+  private getPreviewBossCoreOrigin(boss: Entity) {
+    const snapshot = this.modularBossDebugSnapshot;
+    const core = snapshot?.entityId === boss.id
+      ? snapshot.hierarchy.sockets.find((socket) => socket.role === 'core-origin')
+      : undefined;
+    return core && snapshot
+      ? this.transformModularDebugPoint(snapshot, core.worldX, core.worldY)
+      : {
+          x: boss.x + boss.width / 2,
+          y: boss.y + boss.height * 0.62
+        };
+  }
+
+  private drawPreviewSafeRegionGuide(engine: GameEngine, boss: Entity) {
+    const action = boss.bossActionPresentation;
+    const guide = resolvePreviewSafeRegionGuide(action?.primitiveId);
+    if (!action || !guide) return;
+    const color = 0x34d399;
+    const origin = this.getPreviewBossCoreOrigin(boss);
+
+    if (guide === 'gap') {
+      const route = resolveBossGapRoute({
+        arenaWidth: engine.width,
+        arenaHeight: engine.height,
+        originX: origin.x,
+        originY: origin.y,
+        sequence: action.sequence,
+        direction: resolveBossGapRouteDirection(
+          action.rotationDirection,
+          action.sequence
+        )
+      });
+      this.previewDebugOverlay
+        .moveTo(origin.x, origin.y)
+        .lineTo(route.x, route.y)
+        .stroke({ color, width: 3, alpha: 0.82 });
+      this.previewDebugOverlay
+        .circle(route.x, route.y, Math.max(18, engine.width * 0.055))
+        .fill({ color, alpha: 0.08 })
+        .stroke({ color, width: 3, alpha: 0.95 });
+      return;
+    }
+
+    if (guide === 'weave') {
+      const layout = resolveBossWeaveWallLayout(
+        engine.width,
+        engine.mobileProfile,
+        action.sequence
+      );
+      this.previewDebugOverlay
+        .rect(
+          layout.safeGapLeftX,
+          Math.max(0, boss.y + boss.height * 0.55),
+          layout.safeGapRightX - layout.safeGapLeftX,
+          engine.height
+        )
+        .fill({ color, alpha: 0.08 })
+        .stroke({ color, width: 2, alpha: 0.9 });
+      return;
+    }
+
+    if (guide === 'side') {
+      const safeOnLeft = action.side === 'starboard';
+      const safeWidth = engine.width * 0.28;
+      this.previewDebugOverlay
+        .rect(
+          safeOnLeft ? 0 : engine.width - safeWidth,
+          Math.max(0, boss.y + boss.height * 0.45),
+          safeWidth,
+          engine.height
+        )
+        .fill({ color, alpha: 0.08 })
+        .stroke({ color, width: 2, alpha: 0.9 });
+      return;
+    }
+
+    const laneHalfWidth = Math.max(15, Math.min(engine.width, engine.height) * 0.035);
+    const quadrants = [
+      [0, 0, origin.x - laneHalfWidth, origin.y - laneHalfWidth],
+      [origin.x + laneHalfWidth, 0, engine.width, origin.y - laneHalfWidth],
+      [0, origin.y + laneHalfWidth, origin.x - laneHalfWidth, engine.height],
+      [origin.x + laneHalfWidth, origin.y + laneHalfWidth, engine.width, engine.height]
+    ] as const;
+    for (const [left, top, right, bottom] of quadrants) {
+      if (right <= left || bottom <= top) continue;
+      this.previewDebugOverlay
+        .rect(left, top, right - left, bottom - top)
+        .fill({ color, alpha: 0.055 })
+        .stroke({ color, width: 1.4, alpha: 0.65 });
+    }
+  }
+
+  private syncPreviewDebugOverlay(engine: GameEngine) {
+    const enabled = Object.values(this.previewDebugOverlays).some(Boolean);
+    this.previewDebugOverlay.clear();
+    this.previewDebugOverlay.visible = false;
+    if (!enabled) return;
+    const boss = [engine.bossRef, engine.miniBossRef]
+      .find((candidate): candidate is Entity => Boolean(
+        candidate && !candidate.markedForDeletion && candidate.hp > 0
+      ))
+      ?? engine.entities.find((entity) => (
+        !entity.markedForDeletion
+        && entity.hp > 0
+        && (entity.type === EntityType.BOSS || entity.type === EntityType.MINI_BOSS)
+      ));
+    if (!boss) return;
+
+    this.previewDebugOverlay.position.set(engine.shakeX, engine.shakeY);
+    const modular = this.modularBossDebugSnapshot;
+    if (modular?.entityId === boss.id) this.drawPreviewModularDiagnostics(modular);
+    if (this.previewDebugOverlays.bossCollision) {
+      this.drawPreviewBossCollision(engine, boss);
+    }
+    if (this.previewDebugOverlays.safeRegions) {
+      this.drawPreviewSafeRegionGuide(engine, boss);
+    }
+    this.previewDebugOverlay.visible = true;
   }
 
   private drawScanlines() {
@@ -1152,6 +2351,57 @@ export class PixiGameRenderer {
     }
   }
 
+  private resetPreviewBossAtlasRig(rig: PreviewBossAtlasRigView | undefined) {
+    if (!rig) return;
+    rig.root.visible = false;
+    rig.root.position.set(0, 0);
+    rig.root.rotation = 0;
+    rig.root.scale.set(1);
+    rig.root.filters = null;
+    const parts = getPreviewBossRigParts(rig);
+    for (const partId of getPreviewBossRigPartIds(rig.kind)) {
+      const sprite = parts[partId];
+      if (!sprite) continue;
+      sprite.visible = false;
+      sprite.filters = null;
+      sprite.position.set(0, 0);
+      sprite.rotation = 0;
+      sprite.scale.set(1);
+      sprite.alpha = 1;
+      sprite.texture = Texture.WHITE;
+    }
+  }
+
+  private resetModularPreviewBossRig(rig: ModularPreviewBossRigView | undefined) {
+    if (!rig) return;
+    rig.root.visible = false;
+    rig.root.position.set(0, 0);
+    rig.root.pivot.set(0, 0);
+    rig.root.rotation = 0;
+    rig.root.scale.set(1);
+    rig.root.filters = null;
+    if (rig.referenceComparison) {
+      rig.referenceComparison.sprite.visible = false;
+      rig.referenceComparison.sprite.alpha = 1;
+      rig.referenceComparison.sprite.position.set(0, 0);
+      rig.referenceComparison.sprite.rotation = 0;
+      rig.referenceComparison.sprite.scale.set(1);
+      rig.referenceComparison.sprite.texture = Texture.WHITE;
+      rig.referenceComparison.landmarks.clear();
+      rig.referenceComparison.landmarks.visible = false;
+    }
+    for (const sprite of Object.values(rig.partSprites)) {
+      sprite.visible = false;
+      sprite.filters = null;
+      sprite.position.set(0, 0);
+      sprite.rotation = 0;
+      sprite.scale.set(1);
+      sprite.alpha = 1;
+      sprite.tint = '#ffffff';
+      sprite.texture = Texture.WHITE;
+    }
+  }
+
   private resetDamagePresentationTracking(view: EntityView, entity: Entity) {
     view.lastDamageFlashFrame = entity.lastDamageFlashFrame;
     view.lastComponentDamageFrames['left-cannon'] = -999;
@@ -1193,6 +2443,8 @@ export class PixiGameRenderer {
         reused.bossRig.crownClaw.root.filters = null;
         reused.bossRig.crownClaw.root.visible = false;
         this.resetArticulatedBossRig(reused.bossRig.articulated);
+        this.resetPreviewBossAtlasRig(reused.bossRig.previewAtlas);
+        this.resetModularPreviewBossRig(reused.bossRig.modularPreview);
         Object.values(reused.bossRig.partSprites).forEach((sprite) => {
           sprite.filters = null;
         });
@@ -1244,6 +2496,16 @@ export class PixiGameRenderer {
         railSerpent: createRailSerpentRigView(),
         prismMoth: createPrismMothRigView()
       };
+      const previewAtlasKind = this.previewBossArtwork?.articulatedAtlas?.kind;
+      const previewAtlas = previewAtlasKind
+        ? createPreviewBossAtlasRigView(previewAtlasKind)
+        : undefined;
+      const modularPreview = this.previewBossArtwork?.modularRig
+        ? createModularPreviewBossRigView(
+            this.previewBossArtwork.modularRig,
+            Boolean(this.previewBossArtwork.modularReferenceComparison)
+          )
+        : undefined;
       leftCannon.anchor.set(0.5);
       rightCannon.anchor.set(0.5);
       helmet.anchor.set(0.5);
@@ -1292,7 +2554,9 @@ export class PixiGameRenderer {
           guns: crownGuns,
           claws: crownClaws
         },
-        articulated
+        articulated,
+        previewAtlas,
+        modularPreview
       } satisfies BossRigView;
     })() : undefined;
     sprite.anchor.set(0.5);
@@ -1301,6 +2565,8 @@ export class PixiGameRenderer {
     if (bossRig) root.addChild(bossRig.thrust);
     if (bossRig) root.addChild(bossRig.crownClaw.root);
     if (bossRig) root.addChild(bossRig.articulated.railSerpent.root, bossRig.articulated.prismMoth.root);
+    if (bossRig?.previewAtlas) root.addChild(bossRig.previewAtlas.root);
+    if (bossRig?.modularPreview) root.addChild(bossRig.modularPreview.root);
     root.addChild(sprite);
     if (bossRig) root.addChild(bossRig.parts, bossRig.componentHealth);
     root.addChild(body, flash, health, label);
@@ -1361,6 +2627,8 @@ export class PixiGameRenderer {
       view.bossRig.crownClaw.root.filters = null;
       view.bossRig.crownClaw.root.visible = false;
       this.resetArticulatedBossRig(view.bossRig.articulated);
+      this.resetPreviewBossAtlasRig(view.bossRig.previewAtlas);
+      this.resetModularPreviewBossRig(view.bossRig.modularPreview);
       Object.values(view.bossRig.partSprites).forEach((sprite) => {
         sprite.filters = null;
       });
@@ -1479,6 +2747,130 @@ export class PixiGameRenderer {
     view.hasFallbackBody = true;
   }
 
+  private getPreviewBossModularProjectileTexture(entity: Entity, engineFrame: number) {
+    if (
+      !this.modularPreviewBossReady
+      || !entity.bossOwnerId
+      || entity.bossOwnerId !== this.previewBossRuntimeEntityId
+      || entity.isBeam
+    ) {
+      return undefined;
+    }
+    const projectileAnimations = this.previewBossArtwork?.projectileAnimations;
+    const modularRig = this.previewBossArtwork?.modularRig;
+    const visualKind = String(entity.projectileVisualKind ?? '');
+    if (!projectileAnimations || !modularRig) return undefined;
+    const animation = Object.prototype.hasOwnProperty.call(projectileAnimations, visualKind)
+      ? projectileAnimations[visualKind as keyof typeof projectileAnimations]
+      : undefined;
+    if (
+      !animation
+      || !Array.isArray(animation.frameIds)
+      || animation.frameIds.length === 0
+      || !Number.isFinite(animation.frameHoldFrames)
+      || animation.frameHoldFrames < 1
+      || !Number.isFinite(animation.minimumVisualHeight)
+      || animation.minimumVisualHeight < 1
+      || !Number.isFinite(animation.entityHeightScale)
+      || animation.entityHeightScale <= 0
+      || !Number.isFinite(animation.orientationOffsetRadians)
+      || !animation.frameIds.every((frameId) => (
+        typeof frameId === 'string'
+        && Boolean(modularRig.frameById[frameId])
+        && Boolean(this.getModularPreviewBossTexture(frameId))
+      ))
+    ) {
+      return undefined;
+    }
+    const age = Math.max(0, engineFrame - entity.weaponVisualStartFrame);
+    const frameHold = Math.max(1, Math.floor(animation.frameHoldFrames));
+    const frameIndex = visualKind === 'boss-helios-mine'
+      ? entity.heliosMineStage === 'armed'
+        ? animation.frameIds.length - 1
+        : Math.min(
+            Math.max(0, animation.frameIds.length - 2),
+            Math.floor(age / frameHold)
+          )
+      : (
+          Math.floor(age / frameHold)
+          + Math.abs(Math.floor(entity.variant))
+        ) % animation.frameIds.length;
+    const frameId = animation.frameIds[frameIndex];
+    const frame = modularRig.frameById[frameId];
+    const texture = this.getModularPreviewBossTexture(frameId);
+    return texture && frame ? { texture, frame, animation } : undefined;
+  }
+
+  private getPreviewBossPodTexture(entity: Entity) {
+    if (
+      String(entity.projectileVisualKind ?? '') !== 'boss-pod'
+      && String(entity.projectileVisualKind ?? '') !== 'boss-eye-comet'
+    ) {
+      return undefined;
+    }
+    if (
+      !entity.bossOwnerId
+      || entity.bossOwnerId !== this.previewBossRuntimeEntityId
+    ) {
+      return undefined;
+    }
+    const modularRig = this.previewBossArtwork?.modularRig;
+    if (modularRig && this.modularPreviewBossReady) {
+      const podSide = entity.bossPodSide;
+      const partId = podSide === 'right'
+        ? 'pod.starboard'
+        : podSide === 'left'
+          ? 'pod.port'
+          : Math.abs(Math.floor(entity.variant)) % 2 === 0
+            ? 'pod.port'
+            : 'pod.starboard';
+      const part = modularRig.partById[partId];
+      const frameId = part?.frameId;
+      const frame = frameId ? modularRig.frameById[frameId] : undefined;
+      const texture = frameId ? this.getModularPreviewBossTexture(frameId) : undefined;
+      if (texture && frame) return { texture, frame };
+    }
+    if (!this.previewBossAtlasReady) return undefined;
+    const atlas = this.previewBossArtwork?.articulatedAtlas;
+    if (!atlas) return undefined;
+    const podSide = entity.bossPodSide;
+    const [leftPartId, rightPartId] = getPreviewBossProjectilePartIds(atlas.kind);
+    const partId = podSide === 'right'
+      ? rightPartId
+      : podSide === 'left'
+        ? leftPartId
+        : Math.abs(Math.floor(entity.variant)) % 2 === 0
+          ? leftPartId
+          : rightPartId;
+    const texture = this.getPreviewBossAtlasTexture(partId);
+    const frame = atlas.frames[partId as keyof typeof atlas.frames];
+    return texture && frame ? { texture, frame } : undefined;
+  }
+
+  private getPreviewBossProjectileVfxTexture(entity: Entity, engineFrame: number) {
+    if (
+      !this.previewBossVfxReady
+      || !entity.bossOwnerId
+      || entity.bossOwnerId !== this.previewBossRuntimeEntityId
+      || entity.isBeam
+    ) {
+      return undefined;
+    }
+    const prefix = entity.projectileVisualKind === 'boss-pixel-pink'
+      ? 'pinkDrop'
+      : entity.projectileVisualKind === 'boss-pixel-gold'
+        ? 'goldDrop'
+        : entity.projectileVisualKind === 'boss-pixel-prism'
+          ? 'prismDrop'
+          : null;
+    if (!prefix) return undefined;
+    const age = Math.max(0, engineFrame - entity.weaponVisualStartFrame);
+    const frameIndex = (Math.floor(age / 4) + Math.abs(Math.floor(entity.variant))) % 4;
+    const frameId = `${prefix}${frameIndex}` as PreviewBossVfxFrameId;
+    const texture = this.getPreviewBossVfxTexture(frameId);
+    return texture ? { texture, frameId } : undefined;
+  }
+
   private drawProjectile(view: EntityView, entity: Entity, engine: GameEngine) {
     const engineFrame = engine.frameCount;
     view.body.clear();
@@ -1495,16 +2887,94 @@ export class PixiGameRenderer {
     view.root.rotation = 0;
     const playerShot = entity.isPlayerShot;
     const color = entity.color || (playerShot ? '#67e8f9' : '#fb7185');
+    const modularProjectile = this.getPreviewBossModularProjectileTexture(entity, engineFrame);
+    if (modularProjectile) {
+      if (view.textureKey !== null) {
+        view.textureKey = null;
+        view.textureRequest++;
+      }
+      const visualHeight = Math.max(
+        modularProjectile.animation.minimumVisualHeight,
+        Math.max(entity.width, entity.height) * modularProjectile.animation.entityHeightScale
+      );
+      view.sprite.texture = modularProjectile.texture;
+      view.sprite.visible = true;
+      view.sprite.tint = '#ffffff';
+      view.sprite.alpha = 1;
+      view.sprite.height = visualHeight;
+      view.sprite.width = visualHeight * (
+        modularProjectile.frame.width / Math.max(1, modularProjectile.frame.height)
+      );
+      view.root.rotation = Math.atan2(entity.vy, entity.vx)
+        + modularProjectile.animation.orientationOffsetRadians;
+      return;
+    }
+    const previewBossProjectileVfx = this.getPreviewBossProjectileVfxTexture(entity, engineFrame);
+    if (previewBossProjectileVfx) {
+      if (view.textureKey !== null) {
+        view.textureKey = null;
+        view.textureRequest++;
+      }
+      const visualHeight = entity.projectileVisualKind === 'boss-pixel-pink'
+        ? Math.max(26, entity.height * 2.25)
+        : Math.max(30, entity.height * 1.55);
+      view.sprite.texture = previewBossProjectileVfx.texture;
+      view.sprite.visible = true;
+      view.sprite.tint = '#ffffff';
+      view.sprite.alpha = 1;
+      view.sprite.height = visualHeight;
+      view.sprite.width = visualHeight * (
+        previewBossProjectileVfx.texture.width
+        / Math.max(1, previewBossProjectileVfx.texture.height)
+      );
+      view.root.rotation = Math.atan2(entity.vy, entity.vx) - Math.PI / 2;
+      return;
+    }
+    const previewBossPod = this.getPreviewBossPodTexture(entity);
+    if (previewBossPod) {
+      const aspectRatio = previewBossPod.frame.width
+        / Math.max(1, previewBossPod.frame.height);
+      const eyeComet = entity.projectileVisualKind === 'boss-eye-comet';
+      const visualHeight = eyeComet
+        ? Math.max(42, Math.max(entity.width, entity.height) * 1.55)
+        : Math.max(34, Math.max(entity.width, entity.height) * 2.1);
+      if (view.textureKey !== null) {
+        view.textureKey = null;
+        view.textureRequest++;
+      }
+      view.sprite.texture = previewBossPod.texture;
+      view.sprite.visible = true;
+      view.sprite.tint = '#ffffff';
+      view.sprite.alpha = 1;
+      view.sprite.height = visualHeight;
+      view.sprite.width = visualHeight * aspectRatio;
+      view.root.rotation = Math.atan2(entity.vy, entity.vx) - Math.PI / 2;
+      if (eyeComet) {
+        view.aura.ellipse(0, visualHeight * 0.12, view.sprite.width * 0.78, visualHeight * 0.64)
+          .fill({ color: '#f43f5e', alpha: 0.18 });
+        view.trail.moveTo(0, -visualHeight * 0.08).lineTo(0, -visualHeight * 0.72)
+          .stroke({ color: '#c026d3', width: Math.max(3, view.sprite.width * 0.18), alpha: 0.44 });
+      }
+      return;
+    }
     if (entity.projectileVisualKind && entity.spriteFrames?.length) {
       const isShipAbility = entity.projectileVisualKind === 'research-charge'
         || entity.projectileVisualKind === 'bio-genome-lance'
         || entity.projectileVisualKind === 'eth-prism-volley'
         || entity.projectileVisualKind === 'btc-hash-burst';
-      const age = isShipAbility
+      const isHeliosExplosion = entity.projectileVisualKind === 'boss-helios-explosion';
+      const age = isShipAbility || isHeliosExplosion
         ? Math.max(0, engineFrame - entity.weaponVisualStartFrame)
         : Math.max(0, entity.maxLife - entity.life);
-      const frameDelay = entity.projectileVisualKind === 'boss-ray' || isShipAbility ? 4 : 3;
-      const textureKey = entity.spriteFrames[(Math.floor(age / frameDelay) + entity.variant) % entity.spriteFrames.length];
+      const frameDelay = isHeliosExplosion
+        ? 6
+        : entity.projectileVisualKind === 'boss-ray' || isShipAbility
+          ? 4
+          : 3;
+      const textureIndex = isHeliosExplosion
+        ? Math.min(entity.spriteFrames.length - 1, Math.floor(age / frameDelay))
+        : (Math.floor(age / frameDelay) + entity.variant) % entity.spriteFrames.length;
+      const textureKey = entity.spriteFrames[textureIndex];
       this.setTexture(view, textureKey);
       view.sprite.tint = '#ffffff';
       view.sprite.alpha = 1;
@@ -1554,6 +3024,10 @@ export class PixiGameRenderer {
         const pulse = 0.72 + Math.sin(engineFrame * 0.16) * 0.09;
         view.aura.circle(0, 0, entity.width * pulse).fill({ color: '#facc15', alpha: 0.16 });
         view.aura.circle(0, 0, entity.width * 0.58).stroke({ color: '#67e8f9', width: 2, alpha: 0.7 });
+      } else if (isHeliosExplosion) {
+        // Explosion pixels are the complete warning and damage surface. Do not
+        // add a translucent circle or velocity rotation around the authored art.
+        view.root.rotation = 0;
       } else if (entity.projectileVisualKind === 'boss-ray') {
         view.aura.roundRect(-entity.width * 0.7, -entity.height * 0.5, entity.width * 1.4, entity.height, entity.width * 0.38)
           .fill({ color: '#ff9d2e', alpha: 0.18 });
@@ -1573,6 +3047,11 @@ export class PixiGameRenderer {
     if (entity.isBeam) {
       const width = entity.width;
       const height = entity.height;
+      const cornerAmbushBeam = entity.isCornerAmbushBeam
+        && entity.bossOwnerId === this.cornerAmbushBossId;
+      if (entity.beamAngleRadians !== null) {
+        view.root.rotation = entity.beamAngleRadians;
+      }
       const radius = Math.min(10, Math.min(width, height) * 0.45);
       if (entity.isTelegraph) {
         view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
@@ -1581,13 +3060,56 @@ export class PixiGameRenderer {
           .stroke({ color, width: Math.max(1.5, Math.min(width, height) * 0.22), alpha: 0.82 });
       } else {
         view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
-          .fill({ color, alpha: 0.28 });
-        const coreWidth = entity.beamAxis === 'horizontal' ? width : Math.max(3, width * 0.34);
-        const coreHeight = entity.beamAxis === 'horizontal' ? Math.max(3, height * 0.34) : height;
+          .fill({ color, alpha: cornerAmbushBeam ? 0.44 : 0.28 });
+        const beamTexture = entity.bossOwnerId === this.previewBossRuntimeEntityId
+          ? this.getPreviewBossVfxTexture('beamLive')
+          : undefined;
+        const impactTexture = entity.bossOwnerId === this.previewBossRuntimeEntityId
+          ? this.getPreviewBossVfxTexture('beamImpact')
+          : undefined;
+        if (beamTexture) {
+          if (view.textureKey !== null) {
+            view.textureKey = null;
+            view.textureRequest++;
+          }
+          view.sprite.texture = beamTexture;
+          view.sprite.visible = true;
+          view.sprite.tint = '#ffffff';
+          view.sprite.alpha = cornerAmbushBeam
+            ? 0.96 + Math.sin(engineFrame * 0.42) * 0.04
+            : 0.82 + Math.sin(engineFrame * 0.42) * 0.12;
+          view.sprite.width = Math.max(8, height * 1.45);
+          view.sprite.height = width;
+          view.sprite.rotation = Math.PI / 2;
+          if (impactTexture) {
+            const impacts = this.ensureProjectileCopySprites(view, 3);
+            impacts.forEach((impact, index) => {
+              impact.texture = impactTexture;
+              impact.visible = true;
+              impact.tint = '#ffffff';
+              impact.alpha = 0.72 + Math.sin(engineFrame * 0.36 + index) * 0.14;
+              impact.width = Math.max(38, height * 2.6);
+              impact.height = impact.width;
+              impact.position.set(index === 0 ? -width / 2 : width / 2, 0);
+              impact.rotation = -view.root.rotation;
+            });
+          }
+        }
+        const angled = entity.beamAngleRadians !== null;
+        const coreWidth = angled || entity.beamAxis === 'horizontal'
+          ? width
+          : Math.max(3, width * 0.34);
+        const coreHeight = angled || entity.beamAxis === 'horizontal'
+          ? Math.max(3, height * 0.34)
+          : height;
         view.body.roundRect(-coreWidth / 2, -coreHeight / 2, coreWidth, coreHeight, Math.min(6, radius))
-          .fill({ color: '#ffffff', alpha: 0.96 });
+          .fill({ color: '#ffffff', alpha: cornerAmbushBeam ? 1 : 0.96 });
         view.body.roundRect(-width / 2, -height / 2, width, height, radius)
-          .stroke({ color, width: Math.max(1, Math.min(width, height) * 0.12), alpha: 0.78 });
+          .stroke({
+            color,
+            width: Math.max(1, Math.min(width, height) * 0.12),
+            alpha: cornerAmbushBeam ? 0.96 : 0.78
+          });
       }
       return;
     }
@@ -1948,10 +3470,10 @@ export class PixiGameRenderer {
       ? Math.sin(engine.frameCount * 0.31) * 2.6 * motionScale
       : Math.sin(engine.frameCount * 0.055) * 1.1 * motionScale;
     const recoil = liveBeam ? 7 * motionScale : 0;
-    const hullFilters = entity.flashFrames > 0 ? WHITE_HIT_FILTERS : null;
-    const helmetFilters = (helmet?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : hullFilters;
-    const leftFilters = (leftCannon?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : null;
-    const rightFilters = (rightCannon?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : null;
+    const hullFilters = null;
+    const helmetFilters = null;
+    const leftFilters = null;
+    const rightFilters = null;
 
     rig.root.visible = true;
     rig.root.position.set(0, Math.sin(engine.frameCount * 0.04) * 5);
@@ -2054,9 +3576,9 @@ export class PixiGameRenderer {
     const motionScale = this.reducedMotion ? 0.34 : 1;
     const flapTime = engine.frameCount * (0.075 + healthPressure * 0.025 + chargeEnergy * 0.018);
     const breath = Math.sin(engine.frameCount * (0.041 + healthPressure * 0.008)) * motionScale;
-    const hullFilters = entity.flashFrames > 0 ? WHITE_HIT_FILTERS : null;
-    const leftFilters = (leftEmitter?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : null;
-    const rightFilters = (rightEmitter?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : null;
+    const hullFilters = null;
+    const leftFilters = null;
+    const rightFilters = null;
     const baseScaleX = entity.width / PRISM_MOTH_DESIGN_SIZE.width;
     const baseScaleY = entity.height / PRISM_MOTH_DESIGN_SIZE.height;
 
@@ -2146,6 +3668,1236 @@ export class PixiGameRenderer {
     return false;
   }
 
+  private bindPreviewBossAtlasRigTextures(rig: PreviewBossAtlasRigView) {
+    const atlas = this.previewBossArtwork?.articulatedAtlas;
+    if (!atlas || atlas.kind !== rig.kind) return false;
+    const parts = getPreviewBossRigParts(rig);
+    for (const partId of getPreviewBossRigPartIds(rig.kind)) {
+      const texture = this.getPreviewBossAtlasTexture(partId);
+      const sprite = parts[partId];
+      if (!texture || !sprite) return false;
+      sprite.texture = texture;
+    }
+    return true;
+  }
+
+  private getPreviewBossActionPresentation(entity: Entity) {
+    const actionSource = entity.bossActionPresentation;
+    const actionDuration = actionSource
+      ? Math.max(1, actionSource.endFrame - actionSource.startFrame)
+      : 1;
+    const actionFrameProgress = actionSource
+        ? clamp((entity.attackTimer - actionSource.startFrame) / actionDuration, 0, 1)
+        : undefined;
+    const action = actionSource ? {
+      primitiveId: actionSource.primitiveId,
+      stage: actionSource.stage,
+      progress: actionFrameProgress,
+      side: actionSource.side ?? actionSource.handedness,
+      sequence: actionSource.sequence,
+      motionCue: actionSource.motionCue,
+      elapsedFrames: Math.max(0, entity.attackTimer - actionSource.startFrame),
+      framesPerSecond: GAME_CONFIG.FPS,
+      projectileCount: actionSource.projectileCount,
+      pulseIntervalSeconds: actionSource.pulseIntervalSeconds
+    } : undefined;
+    return action;
+  }
+
+  private getPreviewBossPoseReaction(entity: Entity, engine: GameEngine) {
+    const age = engine.frameCount - entity.bossSignificantImpactFrame;
+    if (age < 0 || age >= DAMAGE_RECOIL_DURATION_FRAMES) return undefined;
+    return {
+      kind: entity.bossSignificantImpactIsComponent ? 'stagger' as const : 'impact' as const,
+      progress: age / Math.max(1, DAMAGE_RECOIL_DURATION_FRAMES - 1),
+      direction: entity.bossSignificantImpactXRatio < 0.5 ? 1 as const : -1 as const,
+      strength: entity.bossSignificantImpactStrength
+    };
+  }
+
+  private drawSegmentedCrescentPreviewBossAtlas(
+    rig: Extract<PreviewBossAtlasRigView, { kind: 'segmented-crescent-v1' }>,
+    entity: Entity,
+    engine: GameEngine
+  ) {
+    const action: SegmentedCrescentActionPresentation | undefined =
+      this.getPreviewBossActionPresentation(entity);
+    const pose = sampleSegmentedCrescentPose({
+      frameCount: engine.frameCount,
+      reducedMotion: this.reducedMotion,
+      healthRatio: entity.hp / Math.max(1, entity.maxHp),
+      bankRadians: entity.bossPresentationBankRadians,
+      charging: entity.isCharging,
+      action
+    });
+
+    const parts = rig.parts;
+    const components = entity.bossComponents ?? [];
+    const leftComponent = components.find((component) => component.id === 'left-cannon');
+    const rightComponent = components.find((component) => component.id === 'right-cannon');
+    const helmet = components.find((component) => component.id === 'helmet');
+    const leftAlive = !leftComponent?.destroyed;
+    const rightAlive = !rightComponent?.destroyed;
+    const coreExposed = Boolean(helmet?.exposed || helmet?.destroyed);
+    // Sustained automatic fire otherwise bleaches this small, detailed atlas
+    // almost continuously. Impact sparks and articulated recoil retain feedback
+    // while the generated pixel art remains readable.
+    const hullFilters = null;
+    const leftFilters = null;
+    const rightFilters = null;
+    const coreFilters = null;
+
+    rig.root.visible = true;
+    rig.root.position.set(0, pose.bodyBob);
+    rig.root.rotation = 0;
+    rig.root.scale.set(
+      entity.width / SEGMENTED_CRESCENT_DESIGN_SIZE.width,
+      entity.height / SEGMENTED_CRESCENT_DESIGN_SIZE.height
+    );
+
+    for (const partId of SEGMENTED_CRESCENT_PART_IDS) {
+      const sprite = parts[partId];
+      const layout = SEGMENTED_CRESCENT_LAYOUT[partId];
+      sprite.visible = true;
+      sprite.position.set(layout.x, layout.y);
+      sprite.rotation = 0;
+      sprite.scale.set(1);
+      sprite.alpha = 1;
+      sprite.filters = hullFilters;
+    }
+
+    const armExtension = 34;
+    parts.leftBase.visible = leftAlive;
+    parts.leftMidB.visible = leftAlive;
+    parts.leftMidA.visible = leftAlive;
+    parts.leftOuter.visible = leftAlive;
+    parts.leftPod.visible = leftAlive;
+    parts.leftBase.filters = leftFilters;
+    parts.leftMidB.filters = leftFilters;
+    parts.leftMidA.filters = leftFilters;
+    parts.leftOuter.filters = leftFilters;
+    parts.leftPod.filters = leftFilters;
+    parts.leftBase.position.x -= pose.leftArmSpread * armExtension * 0.25;
+    parts.leftMidB.position.x -= pose.leftArmSpread * armExtension * 0.5;
+    parts.leftMidA.position.x -= pose.leftArmSpread * armExtension * 0.75;
+    parts.leftOuter.position.x -= pose.leftArmSpread * armExtension;
+    parts.leftBase.rotation = -0.07 - pose.leftArmSpread * 0.46;
+    parts.leftMidB.rotation = -0.12 - pose.leftArmSpread * 0.7 - pose.leftArmCurl * 0.36;
+    parts.leftMidA.rotation = -0.16 - pose.leftArmSpread * 0.92 - pose.leftArmCurl * 0.5;
+    parts.leftOuter.rotation = -0.2 - pose.leftArmSpread * 1.16 - pose.leftArmCurl * 0.62;
+    parts.leftPod.position.y += pose.leftPodRecoil * 13;
+    parts.leftPod.position.x -= pose.leftPodRecoil * 4;
+    parts.leftPod.rotation = -0.04 - pose.podAim * 0.22;
+
+    parts.rightBase.visible = rightAlive;
+    parts.rightMidB.visible = rightAlive;
+    parts.rightMidA.visible = rightAlive;
+    parts.rightOuter.visible = rightAlive;
+    parts.rightPod.visible = rightAlive;
+    parts.rightBase.filters = rightFilters;
+    parts.rightMidB.filters = rightFilters;
+    parts.rightMidA.filters = rightFilters;
+    parts.rightOuter.filters = rightFilters;
+    parts.rightPod.filters = rightFilters;
+    parts.rightBase.position.x += pose.rightArmSpread * armExtension * 0.25;
+    parts.rightMidB.position.x += pose.rightArmSpread * armExtension * 0.5;
+    parts.rightMidA.position.x += pose.rightArmSpread * armExtension * 0.75;
+    parts.rightOuter.position.x += pose.rightArmSpread * armExtension;
+    parts.rightBase.rotation = 0.07 + pose.rightArmSpread * 0.46;
+    parts.rightMidB.rotation = 0.12 + pose.rightArmSpread * 0.7 + pose.rightArmCurl * 0.36;
+    parts.rightMidA.rotation = 0.16 + pose.rightArmSpread * 0.92 + pose.rightArmCurl * 0.5;
+    parts.rightOuter.rotation = 0.2 + pose.rightArmSpread * 1.16 + pose.rightArmCurl * 0.62;
+    parts.rightPod.position.y += pose.rightPodRecoil * 13;
+    parts.rightPod.position.x += pose.rightPodRecoil * 4;
+    parts.rightPod.rotation = 0.04 + pose.podAim * 0.22;
+
+    const leftPodInFlight = engine.entities.some((candidate) => (
+      !candidate.markedForDeletion
+      && candidate.bossOwnerId === entity.id
+      && candidate.projectileVisualKind === 'boss-pod'
+      && candidate.bossPodSide === 'left'
+    ));
+    const rightPodInFlight = engine.entities.some((candidate) => (
+      !candidate.markedForDeletion
+      && candidate.bossOwnerId === entity.id
+      && candidate.projectileVisualKind === 'boss-pod'
+      && candidate.bossPodSide === 'right'
+    ));
+    parts.leftPod.visible = parts.leftPod.visible && !leftPodInFlight;
+    parts.rightPod.visible = parts.rightPod.visible && !rightPodInFlight;
+
+    parts.coreBody.scale.set(pose.bodyScaleX, pose.bodyScaleY);
+    parts.coreBody.filters = hullFilters;
+    parts.coreClosed.visible = !coreExposed;
+    parts.coreOpen.visible = coreExposed;
+    parts.coreClosed.scale.set(pose.coreScale);
+    parts.coreOpen.scale.set(pose.coreScale);
+    parts.coreClosed.filters = coreFilters;
+    parts.coreOpen.filters = coreFilters;
+    if (helmet?.destroyed) parts.coreOpen.alpha = 0.72;
+
+    const tailIds = ['tailA', 'tailB', 'tailC'] as const;
+    tailIds.forEach((partId, index) => {
+      const sprite = parts[partId];
+      sprite.visible = index === pose.tailFrame;
+      sprite.position.x += Math.sin(pose.tailSway) * 12;
+      sprite.rotation = pose.tailSway;
+      sprite.filters = hullFilters;
+    });
+
+    parts.ring.visible = pose.ringAlpha > 0.01;
+    parts.ring.alpha = pose.ringAlpha;
+    parts.ring.rotation = pose.ringRotation;
+    parts.ring.scale.set(pose.ringScale);
+    parts.ring.filters = null;
+    return true;
+  }
+
+  private drawArticulatedPincerPreviewBossAtlas(
+    rig: Extract<PreviewBossAtlasRigView, { kind: 'articulated-pincer-v1' }>,
+    entity: Entity,
+    engine: GameEngine
+  ) {
+    const parts = rig.parts;
+    const components = entity.bossComponents ?? [];
+    const leftComponent = components.find((component) => component.id === 'left-cannon');
+    const rightComponent = components.find((component) => component.id === 'right-cannon');
+    const helmet = components.find((component) => component.id === 'helmet');
+    const leftAlive = !leftComponent?.destroyed;
+    const rightAlive = !rightComponent?.destroyed;
+    const coreExposed = Boolean(helmet?.exposed || helmet?.destroyed);
+    const healthRatio = entity.hp / Math.max(1, entity.maxHp);
+    const shieldActive = engine.entities.some((candidate) => (
+      !candidate.markedForDeletion && candidate.shieldHostId === entity.id
+    ));
+    const action: ArticulatedPincerActionPresentation | undefined =
+      this.getPreviewBossActionPresentation(entity);
+    const pose = sampleArticulatedPincerPose({
+      frameCount: engine.frameCount,
+      reducedMotion: this.reducedMotion,
+      healthRatio,
+      bankRadians: entity.bossPresentationBankRadians,
+      charging: entity.isCharging,
+      coreExposed,
+      finalPhase: healthRatio <= 0.34,
+      shieldActive,
+      action
+    });
+    // Preserve the twenty-part pixel rig under sustained sandbox fire. The
+    // recoil, core heartbeat, and local impact effects carry hit feedback.
+    const hullFilters = null;
+    const leftFilters = null;
+    const rightFilters = null;
+    const coreFilters = null;
+
+    rig.root.visible = true;
+    rig.root.position.set(pose.scuttleX, pose.bodyBob);
+    rig.root.rotation = pose.bodyRoll;
+    rig.root.scale.set(
+      entity.width / ARTICULATED_PINCER_DESIGN_SIZE.width,
+      entity.height / ARTICULATED_PINCER_DESIGN_SIZE.height
+    );
+
+    for (const partId of ARTICULATED_PINCER_PART_IDS) {
+      const sprite = parts[partId];
+      const layout = ARTICULATED_PINCER_LAYOUT[partId];
+      sprite.visible = true;
+      sprite.position.set(layout.x, layout.y);
+      sprite.rotation = 0;
+      sprite.scale.set(1);
+      sprite.alpha = 1;
+      sprite.filters = hullFilters;
+    }
+
+    parts.bodyClosed.alpha = 1 - pose.bodyOpenAmount;
+    parts.bodyClosed.visible = parts.bodyClosed.alpha > 0.01;
+    parts.bodyOpen.alpha = pose.bodyOpenAmount;
+    parts.bodyOpen.visible = parts.bodyOpen.alpha > 0.01;
+    parts.bodyOpen.scale.set(pose.coreHeartbeatScale);
+    parts.bodyClosed.filters = coreFilters;
+    parts.bodyOpen.filters = coreFilters;
+    if (helmet?.destroyed) parts.bodyOpen.alpha *= 0.76;
+
+    parts.leftClaw.visible = leftAlive;
+    parts.leftMandible.visible = leftAlive;
+    // The protected inner gatlings become the fallback weapon after the
+    // destructible outer cannon/claw assemblies break away.
+    parts.gatlingLeft.visible = true;
+    parts.mineLeft.visible = leftAlive;
+    parts.shieldLeft.visible = leftAlive && shieldActive;
+    parts.leftClaw.filters = leftFilters;
+    parts.leftMandible.filters = leftFilters;
+    parts.gatlingLeft.filters = leftFilters;
+    parts.mineLeft.filters = leftFilters;
+    parts.shieldLeft.filters = leftFilters;
+    parts.leftClaw.rotation = -0.08 - pose.leftClawOpen * 0.34;
+    parts.leftClaw.position.x -= pose.leftClawOpen * 22;
+    parts.leftClaw.position.y -= pose.leftClawRaise * 16;
+    parts.leftMandible.rotation = -0.04 - pose.leftClawOpen * 0.18;
+    parts.leftMandible.position.y -= pose.leftClawRaise * 10;
+    parts.gatlingLeft.position.y -= pose.leftWeaponRecoil * 15;
+    parts.gatlingLeft.rotation = Math.sin(engine.frameCount * 0.7) * 0.018 * pose.leftWeaponRecoil;
+
+    parts.rightClaw.visible = rightAlive;
+    parts.rightMandible.visible = rightAlive;
+    parts.gatlingRight.visible = true;
+    parts.mineRight.visible = rightAlive;
+    parts.shieldRight.visible = rightAlive && shieldActive;
+    parts.rightClaw.filters = rightFilters;
+    parts.rightMandible.filters = rightFilters;
+    parts.gatlingRight.filters = rightFilters;
+    parts.mineRight.filters = rightFilters;
+    parts.shieldRight.filters = rightFilters;
+    parts.rightClaw.rotation = 0.08 + pose.rightClawOpen * 0.34;
+    parts.rightClaw.position.x += pose.rightClawOpen * 22;
+    parts.rightClaw.position.y -= pose.rightClawRaise * 16;
+    parts.rightMandible.rotation = 0.04 + pose.rightClawOpen * 0.18;
+    parts.rightMandible.position.y -= pose.rightClawRaise * 10;
+    parts.gatlingRight.position.y -= pose.rightWeaponRecoil * 15;
+    parts.gatlingRight.rotation = -Math.sin(engine.frameCount * 0.7) * 0.018 * pose.rightWeaponRecoil;
+
+    parts.legOuterLeft.rotation = pose.legOuterLeftRotation;
+    parts.legInnerLeft.rotation = pose.legInnerLeftRotation;
+    parts.legInnerRight.rotation = pose.legInnerRightRotation;
+    parts.legOuterRight.rotation = pose.legOuterRightRotation;
+
+    const leftMineInFlight = engine.entities.some((candidate) => (
+      !candidate.markedForDeletion
+      && candidate.bossOwnerId === entity.id
+      && candidate.projectileVisualKind === 'boss-pod'
+      && candidate.bossPodSide === 'left'
+    ));
+    const rightMineInFlight = engine.entities.some((candidate) => (
+      !candidate.markedForDeletion
+      && candidate.bossOwnerId === entity.id
+      && candidate.projectileVisualKind === 'boss-pod'
+      && candidate.bossPodSide === 'right'
+    ));
+    parts.mineLeft.visible = parts.mineLeft.visible && !leftMineInFlight;
+    parts.mineRight.visible = parts.mineRight.visible && !rightMineInFlight;
+    parts.mineLeft.position.y += pose.leftMineDetach * 30;
+    parts.mineRight.position.y += pose.rightMineDetach * 30;
+    parts.mineLeft.alpha = 1 - pose.leftMineDetach * 0.75;
+    parts.mineRight.alpha = 1 - pose.rightMineDetach * 0.75;
+
+    for (const [shield, direction] of [
+      [parts.shieldLeft, -1],
+      [parts.shieldRight, 1]
+    ] as const) {
+      shield.position.x += direction * (1 - pose.shieldDeploy) * 20;
+      shield.rotation = direction * pose.shieldDeploy * 0.16;
+      shield.scale.set(0.72 + pose.shieldDeploy * 0.28);
+      shield.alpha = 0.45 + pose.shieldDeploy * 0.55;
+    }
+
+    parts.shockBlade.visible = pose.shockBladeAlpha > 0.01;
+    parts.shockBlade.alpha = pose.shockBladeAlpha;
+    parts.shockBlade.rotation = pose.shockBladeRotation;
+    parts.shockBlade.scale.set(pose.shockBladeScale);
+    parts.shockBlade.filters = null;
+
+    const flameIds = ['flameSmall', 'flameMedium', 'flameLarge'] as const;
+    flameIds.forEach((partId, index) => {
+      const sprite = parts[partId];
+      sprite.visible = index === pose.flameFrame;
+      sprite.scale.set(pose.flameScale);
+      sprite.filters = null;
+    });
+    return true;
+  }
+
+  private drawTransformingOrbiterPreviewBossAtlas(
+    rig: Extract<PreviewBossAtlasRigView, { kind: 'transforming-orbiter-v1' }>,
+    entity: Entity,
+    engine: GameEngine
+  ) {
+    const parts = rig.parts;
+    const components = entity.bossComponents ?? [];
+    const leftComponent = components.find((component) => component.id === 'left-cannon');
+    const rightComponent = components.find((component) => component.id === 'right-cannon');
+    const helmet = components.find((component) => component.id === 'helmet');
+    const leftAlive = !leftComponent?.destroyed;
+    const rightAlive = !rightComponent?.destroyed;
+    const coreExposed = Boolean(helmet?.exposed || helmet?.destroyed);
+    const healthRatio = entity.hp / Math.max(1, entity.maxHp);
+    const action: TransformingOrbiterActionPresentation | undefined =
+      this.getPreviewBossActionPresentation(entity);
+    const pose = sampleTransformingOrbiterPose({
+      frameCount: engine.frameCount,
+      reducedMotion: this.reducedMotion,
+      healthRatio,
+      bankRadians: entity.bossPresentationBankRadians,
+      charging: entity.isCharging,
+      coreExposed,
+      finalPhase: healthRatio <= 0.34,
+      revivalStage: entity.bossRevivalStage,
+      revivalProgress: entity.bossRevivalProgress,
+      revived: entity.bossRevivalConsumed,
+      action
+    });
+    // Primary fire creates local impact sparks. Hull and component sprites
+    // remain opaque and unfiltered; destruction and significant-hit recoil
+    // provide the larger feedback moments.
+    const hullFilters = null;
+    const leftFilters = null;
+    const rightFilters = null;
+    const coreFilters = null;
+
+    rig.root.visible = true;
+    rig.root.position.set(0, pose.bodyBob);
+    rig.root.rotation = pose.bodyRotation;
+    rig.root.scale.set(
+      entity.width / TRANSFORMING_ORBITER_DESIGN_SIZE.width,
+      entity.height / TRANSFORMING_ORBITER_DESIGN_SIZE.height
+    );
+    for (const partId of TRANSFORMING_ORBITER_PART_IDS) {
+      const sprite = parts[partId];
+      const layout = TRANSFORMING_ORBITER_LAYOUT[partId];
+      sprite.visible = true;
+      sprite.anchor.set(layout.anchorX, layout.anchorY);
+      sprite.position.set(layout.x, layout.y);
+      sprite.rotation = 0;
+      sprite.scale.set(1);
+      sprite.alpha = 1;
+      sprite.filters = hullFilters;
+    }
+
+    if (pose.revivalControlled) {
+      // The mechanical shells are physical pixel parts, so the restart swaps
+      // them at full opacity instead of cross-fading translucent hulls.
+      const revivalCoreOpen = pose.coreOpenAmount >= 0.5;
+      parts.coreClosed.visible = !revivalCoreOpen;
+      parts.coreClosed.alpha = 1;
+      parts.coreOpen.visible = revivalCoreOpen;
+      parts.coreOpen.alpha = 1;
+    } else {
+      parts.coreClosed.alpha = 1 - pose.coreOpenAmount;
+      parts.coreClosed.visible = parts.coreClosed.alpha > 0.01;
+      parts.coreOpen.alpha = pose.coreOpenAmount;
+      parts.coreOpen.visible = parts.coreOpen.alpha > 0.01;
+    }
+    parts.coreClosed.filters = coreFilters;
+    parts.coreOpen.filters = coreFilters;
+    if (helmet?.destroyed && !pose.revivalControlled) parts.coreOpen.alpha *= 0.76;
+
+    parts.leftWing.visible = leftAlive;
+    parts.leftEmitter.visible = leftAlive;
+    parts.leftWing.filters = leftFilters;
+    parts.leftEmitter.filters = leftFilters;
+    parts.leftWing.position.x -= pose.deployment * 30;
+    parts.leftWing.rotation = -pose.wingAngle;
+    parts.leftEmitter.position.x -= pose.deployment * 26;
+    parts.leftEmitter.position.x += pose.leftEmitterRecoil * 16;
+
+    parts.rightWing.visible = rightAlive;
+    parts.rightEmitter.visible = rightAlive;
+    parts.rightWing.filters = rightFilters;
+    parts.rightEmitter.filters = rightFilters;
+    parts.rightWing.position.x += pose.deployment * 30;
+    parts.rightWing.rotation = pose.wingAngle;
+    parts.rightEmitter.position.x += pose.deployment * 26;
+    parts.rightEmitter.position.x -= pose.rightEmitterRecoil * 16;
+
+    TRANSFORMING_ORBITER_FIN_IDS.forEach((partId, index) => {
+      const sprite = parts[partId];
+      const layout = TRANSFORMING_ORBITER_LAYOUT[partId];
+      const segmentDeployment = pose.revivalControlled
+        ? clamp(pose.rearDeployment * 4 - index * 0.72, 0, 1)
+        : 1;
+      sprite.visible = !pose.revivalControlled || segmentDeployment > 0.01;
+      sprite.alpha = 1;
+      sprite.scale.set(0.42 + segmentDeployment * 0.58);
+      sprite.rotation = (index - 1.5) * 0.12 * (1 - segmentDeployment);
+      if (partId === 'finTop') {
+        sprite.position.set(0, (layout.y - pose.finExtension) * segmentDeployment);
+      } else if (partId === 'finRight') {
+        sprite.position.set((layout.x + pose.finExtension) * segmentDeployment, 0);
+      } else if (partId === 'finBottom') {
+        sprite.position.set(0, (layout.y + pose.finExtension) * segmentDeployment);
+      } else {
+        sprite.position.set((layout.x - pose.finExtension) * segmentDeployment, 0);
+      }
+      sprite.filters = null;
+    });
+
+    TRANSFORMING_ORBITER_NODE_IDS.forEach((partId, index) => {
+      const angle = pose.nodeOrbitAngle + index * Math.PI * 0.5;
+      const sprite = parts[partId];
+      const segmentDeployment = pose.revivalControlled
+        ? clamp(pose.rearDeployment * 4 - index * 0.72, 0, 1)
+        : 1;
+      sprite.visible = !pose.revivalControlled || segmentDeployment > 0.01;
+      sprite.alpha = 1;
+      sprite.position.set(
+        Math.cos(angle) * pose.nodeOrbitRadius * segmentDeployment,
+        Math.sin(angle) * pose.nodeOrbitRadius * segmentDeployment
+      );
+      sprite.rotation = -rig.root.rotation;
+      sprite.scale.set(0.42 + segmentDeployment * 0.58);
+      sprite.filters = null;
+    });
+
+    TRANSFORMING_ORBITER_HALO_IDS.forEach((partId, index) => {
+      const sprite = parts[partId];
+      sprite.visible = index === pose.haloFrame && pose.haloAlpha > 0.01;
+      sprite.alpha = pose.haloAlpha;
+      sprite.scale.set(pose.haloScale);
+      sprite.rotation = -rig.root.rotation;
+      sprite.filters = null;
+    });
+
+    parts.perimeterRing.visible = pose.perimeterAlpha > 0.01;
+    parts.perimeterRing.alpha = pose.perimeterAlpha;
+    parts.perimeterRing.rotation = pose.perimeterRotation;
+    parts.perimeterRing.scale.set(pose.perimeterScale);
+    parts.perimeterRing.filters = null;
+
+    parts.laserHub.visible = pose.laserHubAlpha > 0.01;
+    parts.laserHub.alpha = pose.laserHubAlpha;
+    parts.laserHub.rotation = pose.laserHubRotation;
+    parts.laserHub.filters = null;
+
+    TRANSFORMING_ORBITER_PULSE_IDS.forEach((partId, index) => {
+      const sprite = parts[partId];
+      sprite.visible = index === pose.pulseFrame && pose.pulseAlpha > 0.01;
+      sprite.alpha = pose.pulseAlpha;
+      sprite.scale.set(pose.pulseScale);
+      sprite.rotation = -rig.root.rotation;
+      sprite.filters = null;
+    });
+    return true;
+  }
+
+  private drawRotatingEmitterCorePreviewBossAtlas(
+    rig: Extract<PreviewBossAtlasRigView, { kind: 'rotating-emitter-core-v1' }>,
+    entity: Entity
+  ) {
+    const action: RotatingEmitterCoreActionPresentation | undefined =
+      this.getPreviewBossActionPresentation(entity);
+    const pose = sampleRotatingEmitterCorePose({
+      attackFrame: entity.attackTimer,
+      reducedMotion: this.reducedMotion,
+      rotorAngleRadians: entity.bossRotorInitialized
+        ? entity.bossRotorAngleRadians
+        : undefined,
+      baseSequence: Math.max(0, entity.activeBossPhaseIndex),
+      action
+    });
+    const parts = rig.parts;
+
+    rig.root.visible = true;
+    // Gameplay and artwork share a fixed core origin. The central chassis
+    // settles inside that rig instead of offsetting every muzzle and relay
+    // away from its simulation-owned projectile/beam origin.
+    rig.root.position.set(0, 0);
+    rig.root.rotation = 0;
+    rig.root.scale.set(
+      entity.width / ROTATING_EMITTER_CORE_DESIGN_SIZE.width,
+      entity.height / ROTATING_EMITTER_CORE_DESIGN_SIZE.height
+    );
+    for (const partId of ROTATING_EMITTER_CORE_PART_IDS) {
+      const sprite = parts[partId];
+      const layout = ROTATING_EMITTER_CORE_LAYOUT[partId];
+      sprite.visible = false;
+      sprite.position.set(layout.x, layout.y);
+      sprite.rotation = 0;
+      sprite.scale.set(1);
+      sprite.alpha = 1;
+      // This oversized study rig remains readable under sustained automatic
+      // fire. Local impact sparks, recoil, and the authored core pulse provide
+      // hit feedback without bleaching every moving limb at once.
+      sprite.filters = null;
+    }
+
+    parts.perimeterRing.visible = true;
+    parts.perimeterRing.scale.set(0.96 * pose.chassisScale);
+    parts.perimeterRing.alpha = 1;
+    parts.chassisClosed.visible = false;
+    parts.chassisOpen.visible = true;
+    parts.chassisOpen.position.y = pose.chassisOffsetY;
+    parts.chassisOpen.scale.set(1.18 * pose.chassisScale);
+
+    parts.rotorHub.visible = true;
+    parts.rotorHub.rotation = pose.rotorAngle;
+    parts.rotorHub.scale.set(0.62 * pose.rotorScale);
+    parts.rotorHub.alpha = 1;
+    parts.rotorHub.filters = null;
+
+    const muzzleSockets = sampleRotatingEmitterSocketPositionsForBounds({
+      centerX: 0,
+      centerY: 0,
+      width: ROTATING_EMITTER_CORE_DESIGN_SIZE.width,
+      height: ROTATING_EMITTER_CORE_DESIGN_SIZE.height,
+      rotorAngleRadians: pose.rotorAngle
+    });
+    for (let index = 0; index < muzzleSockets.length; index += 1) {
+      const socket = muzzleSockets[index];
+      const arm = parts[`arm${index}` as RotatingEmitterCorePartId];
+      const muzzle = parts[`muzzle${index}` as RotatingEmitterCorePartId];
+      const active = (pose.activeMuzzleMask & (1 << index)) !== 0;
+      const muzzleEnergy = active ? pose.muzzleEnergy : 0;
+      arm.visible = true;
+      arm.position.set(
+        Math.cos(socket.orbitAngleRadians) * 78,
+        Math.sin(socket.orbitAngleRadians) * 78
+      );
+      arm.rotation = socket.angleRadians + Math.PI * 0.5;
+      arm.scale.set(0.4 + muzzleEnergy * 0.08);
+      arm.alpha = 1;
+      muzzle.visible = true;
+      muzzle.position.set(socket.localX, socket.localY);
+      muzzle.rotation = socket.angleRadians + Math.PI * 0.5;
+      muzzle.scale.set(0.52 + muzzleEnergy * 0.18);
+      muzzle.alpha = 1;
+      muzzle.tint = '#ffffff';
+      const muzzleVfxFrameId = active && muzzleEnergy > 0.02
+        ? action?.stage === 'warning'
+          ? 'orbCharge'
+          : 'orbMuzzle'
+        : null;
+      const muzzleVfxTexture = muzzleVfxFrameId
+        ? this.getPreviewBossVfxTexture(muzzleVfxFrameId)
+        : undefined;
+      if (muzzleVfxTexture) muzzle.texture = muzzleVfxTexture;
+      muzzle.filters = null;
+    }
+
+    const relayIds = [
+      'relayNorthWest',
+      'relayNorthEast',
+      'relaySouthEast',
+      'relaySouthWest'
+    ] as const;
+    const relayPositions = sampleRotatingEmitterRelayPositions({
+      centerX: 0,
+      centerY: 0,
+      radiusX: 186.68,
+      radiusY: 186.68,
+      rotorAngleRadians: pose.rotorAngle
+    });
+    relayIds.forEach((partId, index) => {
+      const relay = parts[partId];
+      const relayPosition = relayPositions[index];
+      relay.visible = true;
+      relay.position.set(relayPosition.x, relayPosition.y);
+      relay.scale.set(0.54 + pose.relayEnergy * 0.16);
+      relay.alpha = 1;
+      relay.rotation = relayPosition.angleRadians + Math.PI * 0.5;
+      const vfxFrameId = pose.beamEnergy > 0.01
+        ? 'orbMuzzle'
+        : pose.guideAlpha > 0.01
+          ? 'orbCharge'
+          : null;
+      const vfxTexture = vfxFrameId ? this.getPreviewBossVfxTexture(vfxFrameId) : undefined;
+      if (vfxTexture) relay.texture = vfxTexture;
+      relay.filters = null;
+    });
+
+    const portalIds = ['portal0', 'portal1', 'portal2', 'portal3'] as const;
+    portalIds.forEach((partId, index) => {
+      const portal = parts[partId];
+      const layout = ROTATING_EMITTER_CORE_LAYOUT[partId];
+      portal.visible = pose.portalAlpha > 0.01;
+      portal.position.set(
+        layout.x + pose.portalShift * (index % 2 === 0 ? -7 : 7),
+        layout.y + Math.abs(pose.portalShift) * 3
+      );
+      portal.rotation = -pose.rotorAngle * 0.28 + index * 0.36;
+      portal.scale.set(0.38 + pose.portalAlpha * 0.18);
+      portal.alpha = pose.portalAlpha;
+      portal.filters = null;
+    });
+
+    const pulseIds = ['pulseSmall', 'pulseMedium', 'pulseLarge'] as const;
+    pulseIds.forEach((partId, index) => {
+      const pulse = parts[partId];
+      pulse.visible = index === pose.pulseFrame && pose.pulseAlpha > 0.01;
+      pulse.scale.set(pose.pulseScale);
+      pulse.alpha = pose.pulseAlpha;
+      pulse.filters = null;
+    });
+    return true;
+  }
+
+  private drawPreviewBossAtlas(view: EntityView, entity: Entity, engine: GameEngine) {
+    const rig = view.bossRig?.previewAtlas;
+    if (!rig) return false;
+    rig.root.visible = false;
+    if (this.previewBossArtwork?.renderMode === 'assembled') {
+      if (
+        this.previewBossArtwork.assembledMotionProfile === 'wingbeat-hover'
+        && rig.kind === 'transforming-orbiter-v1'
+        && this.drawWingbeatHoverPreviewBossAtlas(view, rig, entity, engine)
+      ) {
+        return true;
+      }
+      this.drawAssembledPreviewBossAccents(view, rig, entity, engine);
+      return false;
+    }
+    const atlas = this.getPreviewBossAtlas(entity);
+    if (
+      !atlas
+      || atlas.kind !== rig.kind
+      || !this.bindPreviewBossAtlasRigTextures(rig)
+    ) {
+      return false;
+    }
+    switch (rig.kind) {
+      case 'segmented-crescent-v1':
+        return this.drawSegmentedCrescentPreviewBossAtlas(rig, entity, engine);
+      case 'articulated-pincer-v1':
+        return this.drawArticulatedPincerPreviewBossAtlas(rig, entity, engine);
+      case 'transforming-orbiter-v1':
+        return this.drawTransformingOrbiterPreviewBossAtlas(rig, entity, engine);
+      case 'rotating-emitter-core-v1':
+        return this.drawRotatingEmitterCorePreviewBossAtlas(rig, entity);
+    }
+  }
+
+  private drawModularReferenceComparison(
+    rigView: ModularPreviewBossRigView,
+    registration: ModularBossRigRegistration,
+    hierarchy: ResolvedModularBossRigHierarchy
+  ) {
+    const referenceView = rigView.referenceComparison;
+    const descriptor = this.previewBossArtwork?.modularReferenceComparison;
+    const state = this.previewBossReferenceComparison;
+    if (!referenceView || !descriptor || !state.enabled) {
+      if (referenceView) {
+        referenceView.sprite.visible = false;
+        referenceView.landmarks.clear();
+        referenceView.landmarks.visible = false;
+      }
+      return;
+    }
+
+    const texture = this.textureBank.get(descriptor.url);
+    const layout = resolvePreviewBossReferenceComparisonLayout(
+      descriptor,
+      registration.manifest.designSize
+    );
+    if (!texture || !layout) {
+      referenceView.sprite.visible = false;
+      referenceView.landmarks.clear();
+      referenceView.landmarks.visible = false;
+      return;
+    }
+
+    referenceView.sprite.texture = texture;
+    referenceView.sprite.visible = true;
+    referenceView.sprite.position.set(layout.centerX, layout.centerY);
+    referenceView.sprite.rotation = 0;
+    referenceView.sprite.width = layout.width;
+    referenceView.sprite.height = layout.height;
+    referenceView.sprite.alpha = state.opacity;
+    referenceView.sprite.tint = '#ffffff';
+    const referenceIndex = state.layer === 'under'
+      ? 0
+      : Math.max(0, rigView.root.children.length - 2);
+    rigView.root.setChildIndex(referenceView.sprite, referenceIndex);
+    rigView.root.setChildIndex(
+      referenceView.landmarks,
+      rigView.root.children.length - 1
+    );
+
+    referenceView.landmarks.clear();
+    referenceView.landmarks.visible = state.landmarks;
+    if (!state.landmarks) return;
+    for (const landmark of layout.landmarks) {
+      const socket = landmark.rigSocketId
+        ? hierarchy.socketById[landmark.rigSocketId]
+        : undefined;
+      const rigX = socket?.worldX ?? landmark.rigX;
+      const rigY = socket?.worldY ?? landmark.rigY;
+      if (!Number.isFinite(rigX) || !Number.isFinite(rigY)) continue;
+      referenceView.landmarks
+        .moveTo(landmark.referenceX, landmark.referenceY)
+        .lineTo(rigX as number, rigY as number)
+        .stroke({ color: '#f8fafc', width: 1.4, alpha: 0.68 });
+      referenceView.landmarks
+        .circle(landmark.referenceX, landmark.referenceY, 5)
+        .stroke({ color: '#22d3ee', width: 2, alpha: 0.95 });
+      referenceView.landmarks
+        .rect((rigX as number) - 4, (rigY as number) - 4, 8, 8)
+        .stroke({ color: '#f59e0b', width: 2, alpha: 0.95 });
+    }
+  }
+
+  private drawModularPreviewBoss(view: EntityView, entity: Entity, engine: GameEngine) {
+    const rigView = view.bossRig?.modularPreview;
+    const artwork = this.previewBossArtwork;
+    const registration = artwork?.modularRig;
+    const samplePose = artwork?.sampleModularPose;
+    if (!rigView) return false;
+    rigView.root.visible = false;
+    if (
+      !this.modularPreviewBossReady
+      || !this.isPreviewBossEntity(entity)
+      || !registration
+      || !samplePose
+    ) {
+      return false;
+    }
+
+    const action = this.getPreviewBossActionPresentation(entity);
+    const targetEntranceY = Math.max(72, Math.min(engine.height * 0.13, 116));
+    const entranceProgress = clamp(
+      (entity.y + entity.height) / Math.max(1, targetEntranceY + entity.height),
+      0,
+      1
+    );
+    const partOverrides = samplePose({
+      frameCount: engine.frameCount,
+      reducedMotion: this.reducedMotion,
+      healthRatio: entity.hp / Math.max(1, entity.maxHp),
+      phaseIndex: Math.max(1, entity.activeBossPhaseIndex + 1),
+      entranceProgress,
+      damageStage: entity.bossDecayStage,
+      phaseProgress: action?.stage === 'phase-enter' ? action.progress : undefined,
+      revivalStage: entity.bossRevivalStage,
+      revivalProgress: entity.bossRevivalProgress,
+      revived: entity.bossRevivalConsumed,
+      reaction: this.getPreviewBossPoseReaction(entity, engine),
+      action
+    });
+    const hierarchy = resolveModularBossRigHierarchy(registration, partOverrides);
+    const designSize = registration.manifest.designSize;
+    this.modularBossDebugSnapshot = Object.freeze({
+      entityId: entity.id,
+      centerX: entity.x + entity.width / 2,
+      centerY: entity.y + entity.height / 2,
+      width: entity.width,
+      height: entity.height,
+      rotation: entity.bossPresentationBankRadians,
+      designScaleX: entity.width / Math.max(1, designSize.width),
+      designScaleY: entity.height / Math.max(1, designSize.height),
+      hierarchy
+    });
+    const destruction = registration.manifest.destruction;
+    if (destruction) {
+      const fragments = destruction.fragments.flatMap((authored) => {
+        const part = hierarchy.partById[authored.partId];
+        if (!part?.frameId || !part.anchor) return [];
+        const scaleX = Math.max(0.0001, Math.hypot(part.worldTransform.a, part.worldTransform.b));
+        const determinant = (
+          part.worldTransform.a * part.worldTransform.d
+          - part.worldTransform.b * part.worldTransform.c
+        );
+        return [Object.freeze({
+          authored,
+          frameId: part.frameId,
+          anchorX: part.anchor.x,
+          anchorY: part.anchor.y,
+          x: part.worldTransform.tx,
+          y: part.worldTransform.ty,
+          rotation: Math.atan2(part.worldTransform.b, part.worldTransform.a),
+          scaleX,
+          scaleY: determinant / scaleX
+        })];
+      });
+      this.modularBossDestructionSnapshot = fragments.length > 0
+        ? Object.freeze({
+            entityId: entity.id,
+            sequence: destruction,
+            designScaleX: entity.width / Math.max(1, designSize.width),
+            designScaleY: entity.height / Math.max(1, designSize.height),
+            fragments: Object.freeze(fragments)
+          })
+        : null;
+    } else if (this.modularBossDestructionSnapshot?.entityId === entity.id) {
+      this.modularBossDestructionSnapshot = null;
+    }
+    const componentById = new Map(
+      (entity.bossComponents ?? []).map((component) => [component.id, component])
+    );
+    const portCannon = componentById.get('left-cannon');
+    const starboardCannon = componentById.get('right-cannon');
+
+    rigView.root.visible = true;
+    rigView.root.position.set(0, 0);
+    rigView.root.pivot.set(0, 0);
+    rigView.root.rotation = 0;
+    rigView.root.scale.set(
+      entity.width / Math.max(1, designSize.width),
+      entity.height / Math.max(1, designSize.height)
+    );
+    rigView.root.alpha = 1;
+    rigView.root.filters = null;
+    this.drawModularReferenceComparison(rigView, registration, hierarchy);
+
+    for (const part of hierarchy.parts) {
+      const sprite = rigView.partSprites[part.id];
+      if (!sprite) continue;
+      const sideBreakableRole = (
+        part.role === 'arm'
+        || part.role === 'armor'
+        || part.role === 'pod'
+      );
+      const portComponentPart = (
+        part.id === 'cannon.port'
+        || part.id === 'muzzle.port'
+        || (sideBreakableRole && part.id.includes('.port'))
+      );
+      const starboardComponentPart = (
+        part.id === 'cannon.starboard'
+        || part.id === 'muzzle.starboard'
+        || (sideBreakableRole && part.id.includes('.starboard'))
+      );
+      const destroyedByComponent = (
+        portComponentPart
+        && Boolean(portCannon?.destroyed)
+      ) || (
+        starboardComponentPart
+        && Boolean(starboardCannon?.destroyed)
+      );
+      const texture = part.frameId
+        ? this.getModularPreviewBossTexture(part.frameId)
+        : undefined;
+      sprite.visible = Boolean(
+        part.visible
+        && part.frame
+        && part.anchor
+        && texture
+        && !destroyedByComponent
+      );
+      if (!sprite.visible || !part.anchor || !texture) {
+        sprite.filters = null;
+        continue;
+      }
+      sprite.texture = texture;
+      sprite.anchor.set(part.anchor.x, part.anchor.y);
+      sprite.position.set(part.worldTransform.tx, part.worldTransform.ty);
+      const scaleX = Math.max(
+        0.0001,
+        Math.hypot(part.worldTransform.a, part.worldTransform.b)
+      );
+      const determinant = (
+        part.worldTransform.a * part.worldTransform.d
+        - part.worldTransform.b * part.worldTransform.c
+      );
+      sprite.rotation = Math.atan2(part.worldTransform.b, part.worldTransform.a);
+      sprite.scale.set(scaleX, determinant / scaleX);
+      sprite.alpha = part.alpha;
+      sprite.tint = '#ffffff';
+      sprite.filters = null;
+    }
+    return true;
+  }
+
+  private drawWingbeatHoverPreviewBossAtlas(
+    view: EntityView,
+    rig: Extract<PreviewBossAtlasRigView, { kind: 'transforming-orbiter-v1' }>,
+    entity: Entity,
+    engine: GameEngine
+  ) {
+    const atlas = this.getPreviewBossAtlas(entity);
+    if (
+      !atlas
+      || atlas.kind !== rig.kind
+      || !this.bindPreviewBossAtlasRigTextures(rig)
+    ) {
+      return false;
+    }
+
+    const action = this.getPreviewBossActionPresentation(entity);
+    const pose = sampleWingbeatHoverPose({
+      frameCount: engine.frameCount,
+      reducedMotion: this.reducedMotion,
+      healthRatio: entity.hp / Math.max(1, entity.maxHp),
+      charging: entity.isCharging,
+      primitiveId: action?.primitiveId,
+      stage: action?.stage,
+      progress: action?.progress,
+      side: action?.side
+    });
+    const parts = rig.parts;
+    const accentPose = sampleAssembledBossAccentPose({
+      profile: 'wingbeat-hover',
+      frameCount: engine.frameCount,
+      reducedMotion: this.reducedMotion,
+      charging: entity.isCharging,
+      healthRatio: entity.hp / Math.max(1, entity.maxHp),
+      revivalStage: entity.bossRevivalStage,
+      revivalProgress: entity.bossRevivalProgress
+    });
+
+    rig.root.visible = true;
+    rig.root.position.set(view.sprite.x, view.sprite.y);
+    rig.root.rotation = view.sprite.rotation;
+    rig.root.scale.set(entity.width / 363, entity.height / 257);
+    for (const partId of TRANSFORMING_ORBITER_PART_IDS) {
+      const sprite = parts[partId];
+      sprite.visible = false;
+      sprite.anchor.set(0.5);
+      sprite.position.set(0);
+      sprite.rotation = 0;
+      sprite.scale.set(1);
+      sprite.alpha = 1;
+      sprite.filters = null;
+    }
+
+    const leftWing = parts.leftWing;
+    leftWing.visible = true;
+    leftWing.anchor.set(0.84, 0.58);
+    leftWing.position.set(pose.leftWingX, pose.leftWingY);
+    leftWing.rotation = pose.leftWingRotation;
+    leftWing.scale.set(0.92, 0.92 * pose.leftWingScaleY);
+
+    const rightWing = parts.rightWing;
+    rightWing.visible = true;
+    rightWing.anchor.set(0.16, 0.58);
+    rightWing.position.set(pose.rightWingX, pose.rightWingY);
+    rightWing.rotation = pose.rightWingRotation;
+    rightWing.scale.set(0.92, 0.92 * pose.rightWingScaleY);
+
+    const core = pose.coreOpen ? parts.coreOpen : parts.coreClosed;
+    core.visible = true;
+    core.position.set(0, 3);
+    core.scale.set(
+      0.98 * pose.bodyScaleX,
+      0.98 * pose.bodyScaleY
+    );
+
+    TRANSFORMING_ORBITER_NODE_IDS.forEach((partId, index) => {
+      const angle = accentPose.orbitAngle + index * Math.PI * 0.5;
+      const node = parts[partId];
+      node.visible = accentPose.nodeAlpha > 0.01;
+      node.position.set(
+        Math.cos(angle) * accentPose.orbitRadiusX * 0.78,
+        Math.sin(angle) * accentPose.orbitRadiusY * 0.68
+      );
+      node.rotation = -rig.root.rotation;
+      node.scale.set(accentPose.nodeScale * 0.82);
+      node.alpha = 1;
+    });
+
+    TRANSFORMING_ORBITER_HALO_IDS.forEach((partId, index) => {
+      const halo = parts[partId];
+      halo.visible = index === accentPose.haloFrame && accentPose.haloAlpha > 0.01;
+      halo.rotation = -accentPose.orbitAngle * 0.38;
+      halo.scale.set(accentPose.haloScale * 0.82);
+      halo.alpha = accentPose.haloAlpha;
+    });
+
+    TRANSFORMING_ORBITER_PULSE_IDS.forEach((partId, index) => {
+      const pulse = parts[partId];
+      pulse.visible = index === accentPose.pulseFrame && accentPose.pulseAlpha > 0.01;
+      pulse.scale.set(accentPose.pulseScale * 0.78);
+      pulse.alpha = accentPose.pulseAlpha;
+    });
+
+    if (pose.ramFold > 0.01) {
+      const streakAlpha = 0.16 + pose.ramFold * 0.22;
+      view.aura
+        .ellipse(0, entity.height * 0.18, entity.width * 0.22, entity.height * 0.38)
+        .stroke({ color: '#ef4444', width: 3, alpha: streakAlpha });
+    }
+    return true;
+  }
+
+  private drawAssembledPreviewBossAccents(
+    view: EntityView,
+    rig: PreviewBossAtlasRigView,
+    entity: Entity,
+    engine: GameEngine
+  ) {
+    const artwork = this.getPreviewBossArtwork(entity);
+    if (
+      rig.kind !== 'transforming-orbiter-v1'
+      || artwork?.renderMode !== 'assembled'
+      || !artwork.assembledMotionProfile
+    ) {
+      return;
+    }
+    const atlas = this.getPreviewBossAtlas(entity);
+    if (
+      !atlas
+      || atlas.kind !== rig.kind
+      || !this.bindPreviewBossAtlasRigTextures(rig)
+    ) {
+      return;
+    }
+
+    const profile = artwork.assembledMotionProfile;
+    const layout = ASSEMBLED_BOSS_ACCENT_LAYOUTS[profile];
+    const healthRatio = entity.hp / Math.max(1, entity.maxHp);
+    const action = this.getPreviewBossActionPresentation(entity);
+    const pose = sampleAssembledBossAccentPose({
+      profile,
+      frameCount: engine.frameCount,
+      reducedMotion: this.reducedMotion,
+      charging: entity.isCharging,
+      healthRatio,
+      revivalStage: entity.bossRevivalStage,
+      revivalProgress: entity.bossRevivalProgress,
+      action
+    });
+    const motion = sampleAssembledBossMotion({
+      profile,
+      frameCount: engine.frameCount,
+      reducedMotion: this.reducedMotion,
+      charging: entity.isCharging,
+      revivalStage: entity.bossRevivalStage,
+      revivalProgress: entity.bossRevivalProgress,
+      action
+    });
+    const authoredSockets = profile === 'revival-shell'
+      ? sampleBossWeaponSockets({
+          profile: artwork.weaponSockets,
+          x: -layout.designWidth / 2,
+          y: -layout.designHeight / 2,
+          width: layout.designWidth,
+          height: layout.designHeight
+        })
+      : [];
+    const authoredLimbSockets = authoredSockets.filter((socket) => socket.role !== 'core');
+    const authoredCoreSocket = authoredSockets.find((socket) => socket.role === 'core');
+    const usesAuthoredSocketLayout = authoredLimbSockets.length >= TRANSFORMING_ORBITER_NODE_IDS.length;
+    const coreX = authoredCoreSocket?.x ?? 0;
+    const coreY = authoredCoreSocket?.y ?? layout.coreY;
+    const actionOwnsAllNodes = action?.stage === 'warning' || action?.stage === 'fire'
+      ? action.primitiveId === 'pod-volley' || action.primitiveId === 'helix-volley'
+      : false;
+    const parts = rig.parts;
+
+    rig.root.visible = true;
+    rig.root.position.set(view.sprite.x, view.sprite.y);
+    rig.root.rotation = view.sprite.rotation;
+    rig.root.scale.set(
+      entity.width / layout.designWidth * motion.scaleX,
+      entity.height / layout.designHeight * motion.scaleY
+    );
+    for (const partId of TRANSFORMING_ORBITER_PART_IDS) {
+      const sprite = parts[partId];
+      sprite.visible = false;
+      sprite.anchor.set(0.5);
+      sprite.position.set(0);
+      sprite.rotation = 0;
+      sprite.scale.set(1);
+      sprite.alpha = 1;
+      sprite.filters = null;
+    }
+
+    TRANSFORMING_ORBITER_NODE_IDS.forEach((partId, index) => {
+      const node = parts[partId];
+      const authoredSocket = usesAuthoredSocketLayout
+        ? authoredLimbSockets[index]
+        : undefined;
+      const deploymentThreshold = (index + 1) / TRANSFORMING_ORBITER_NODE_IDS.length;
+      node.visible = pose.nodeAlpha > 0.01 && (
+        !authoredSocket || pose.nodeDeployment >= deploymentThreshold
+      );
+      if (authoredSocket) {
+        const sideActive = action?.primitiveId === 'side-barrage'
+          && action.side === authoredSocket.role
+          && (action.stage === 'warning' || action.stage === 'fire');
+        const weaponPulse = sideActive || actionOwnsAllNodes ? 0.22 : 0;
+        node.position.set(authoredSocket.x, authoredSocket.y);
+        node.rotation = (
+          pose.orbitAngle * (index % 2 === 0 ? 1 : -1)
+          + (authoredSocket.role === 'port' ? -0.18 : 0.18)
+        );
+        node.scale.set(pose.nodeScale * (1 + weaponPulse));
+      } else {
+        const angle = pose.orbitAngle + index * Math.PI * 0.5;
+        node.position.set(
+          Math.cos(angle) * pose.orbitRadiusX,
+          Math.sin(angle) * pose.orbitRadiusY
+        );
+        node.rotation = -rig.root.rotation;
+        node.scale.set(pose.nodeScale);
+      }
+      node.alpha = pose.nodeAlpha;
+    });
+
+    TRANSFORMING_ORBITER_HALO_IDS.forEach((partId, index) => {
+      const halo = parts[partId];
+      halo.visible = index === pose.haloFrame && pose.haloAlpha > 0.01;
+      halo.position.set(coreX, coreY);
+      halo.rotation = -pose.orbitAngle * 0.38;
+      halo.scale.set(pose.haloScale);
+      halo.alpha = pose.haloAlpha;
+    });
+
+    TRANSFORMING_ORBITER_PULSE_IDS.forEach((partId, index) => {
+      const pulse = parts[partId];
+      pulse.visible = index === pose.pulseFrame && pose.pulseAlpha > 0.01;
+      pulse.position.set(coreX, coreY);
+      pulse.scale.set(pose.pulseScale);
+      pulse.alpha = pose.pulseAlpha;
+    });
+
+    const core = parts[pose.corePart];
+    core.visible = pose.coreAlpha > 0.01;
+    core.position.set(coreX, coreY);
+    core.scale.set(pose.coreScale);
+    core.alpha = pose.coreAlpha;
+
+    parts.perimeterRing.visible = pose.perimeterAlpha > 0.01;
+    parts.perimeterRing.position.set(coreX, coreY);
+    parts.perimeterRing.rotation = pose.perimeterRotation;
+    parts.perimeterRing.scale.set(pose.perimeterScale);
+    parts.perimeterRing.alpha = pose.perimeterAlpha;
+
+    parts.leftEmitter.visible = !usesAuthoredSocketLayout && pose.leftEmitterAlpha > 0.01;
+    parts.leftEmitter.position.set(
+      -layout.emitterX - pose.leftEmitterRecoil,
+      layout.emitterY
+    );
+    parts.leftEmitter.rotation = -pose.leftEmitterRecoil * 0.008;
+    parts.leftEmitter.scale.set(layout.emitterScale);
+    parts.leftEmitter.alpha = pose.leftEmitterAlpha;
+
+    parts.rightEmitter.visible = !usesAuthoredSocketLayout && pose.rightEmitterAlpha > 0.01;
+    parts.rightEmitter.position.set(
+      layout.emitterX + pose.rightEmitterRecoil,
+      layout.emitterY
+    );
+    parts.rightEmitter.rotation = pose.rightEmitterRecoil * 0.008;
+    parts.rightEmitter.scale.set(layout.emitterScale);
+    parts.rightEmitter.alpha = pose.rightEmitterAlpha;
+
+    parts.laserHub.visible = pose.laserHubAlpha > 0.01;
+    parts.laserHub.position.set(coreX, coreY);
+    parts.laserHub.rotation = pose.laserHubRotation;
+    parts.laserHub.scale.set(pose.laserHubScale);
+    parts.laserHub.alpha = pose.laserHubAlpha;
+  }
+
+  private drawAssembledPreviewBossMotion(
+    view: EntityView,
+    entity: Entity,
+    engine: GameEngine
+  ) {
+    const artwork = this.getPreviewBossArtwork(entity);
+    if (
+      artwork?.renderMode !== 'assembled'
+      || !artwork.assembledMotionProfile
+      || !view.sprite.visible
+    ) {
+      return false;
+    }
+    const motion = sampleAssembledBossMotion({
+      profile: artwork.assembledMotionProfile,
+      frameCount: engine.frameCount,
+      reducedMotion: this.reducedMotion,
+      charging: entity.isCharging,
+      revivalStage: entity.bossRevivalStage,
+      revivalProgress: entity.bossRevivalProgress,
+      action: this.getPreviewBossActionPresentation(entity)
+    });
+    view.sprite.y += motion.offsetY;
+    view.sprite.rotation += motion.rotation;
+    view.sprite.scale.x *= motion.scaleX;
+    view.sprite.scale.y *= motion.scaleY;
+    // Physical hull artwork stays fully opaque. Attack warnings and damage
+    // feedback are rendered by dedicated pooled effects instead of fading the
+    // boss into disconnected-looking translucent pieces.
+    view.sprite.alpha = 1;
+    view.sprite.filters = null;
+    return true;
+  }
+
   private getBossComponentVisualScale(entity: Entity, component: BossComponentState) {
     const isCannon = component.id === 'left-cannon' || component.id === 'right-cannon';
     if (!isCannon) return 1;
@@ -2169,10 +4921,17 @@ export class PixiGameRenderer {
       ? progress > 0.45 ? '#fef08a' : '#fb7185'
       : progress > 0.55 ? '#67e8f9' : progress > 0.25 ? '#facc15' : '#fb7185';
 
-    graphics.roundRect(x, y, width, 5, 2.5).fill({ color: '#020617', alpha: 0.94 });
+    graphics.roundRect(x, y, width, 5, 2.5).fill({
+      color: '#020617',
+      alpha: component.exposed ? 0.94 : 0.58
+    });
     graphics.roundRect(x + 1, y + 1, Math.max(0, (width - 2) * progress), 3, 1.5)
-      .fill({ color: fill, alpha: 0.96 });
-    graphics.roundRect(x, y, width, 5, 2.5).stroke({ color: '#dbeafe', width: 0.75, alpha: 0.72 });
+      .fill({ color: component.exposed ? fill : '#475569', alpha: component.exposed ? 0.96 : 0.62 });
+    graphics.roundRect(x, y, width, 5, 2.5).stroke({
+      color: component.exposed ? '#fef08a' : '#64748b',
+      width: component.exposed ? 1 : 0.75,
+      alpha: component.exposed ? 0.82 : 0.46
+    });
   }
 
   private drawCrownClawComponents(view: EntityView, entity: Entity, engine: GameEngine) {
@@ -2222,9 +4981,8 @@ export class PixiGameRenderer {
       ));
       crown.guns[side].visible = Boolean(active && gunTexture);
       crown.claws[side].visible = Boolean(active && clawTexture && !strikeInFlight);
-      const componentFilters = (component?.flashFrames ?? 0) > 0 ? WHITE_HIT_FILTERS : null;
-      crown.guns[side].filters = componentFilters;
-      crown.claws[side].filters = componentFilters;
+      crown.guns[side].filters = null;
+      crown.claws[side].filters = null;
       if (gunTexture) crown.guns[side].texture = gunTexture;
       if (clawTexture) crown.claws[side].texture = clawTexture;
 
@@ -2238,7 +4996,14 @@ export class PixiGameRenderer {
       crown.guns[side].scale.set(CROWNCLAW_ARM_SCALE);
       crown.claws[side].scale.set(CROWNCLAW_ARM_SCALE);
 
-      if (component) this.drawBossComponentHealthBar(rig.componentHealth, entity, component, CROWNCLAW_ARM_SCALE);
+      if (component) {
+        this.drawBossComponentHealthBar(
+          rig.componentHealth,
+          entity,
+          component,
+          CROWNCLAW_ARM_SCALE
+        );
+      }
 
       if (component && previousState && !previousState[componentId] && destroyed) {
         const explosionX = entity.x + entity.width * component.centerXRatio;
@@ -2271,7 +5036,10 @@ export class PixiGameRenderer {
     rig.componentHealth.y = bob;
     rig.componentHealth.clear();
     rig.crownClaw.root.visible = false;
-    if (usesGeneratedCampaignBossArt(entity)) {
+    if (usesStandaloneBossArt(
+      entity,
+      Boolean(this.getPreviewBossArtwork(entity) || this.getPreviewBossAtlas(entity))
+    )) {
       rig.parts.visible = false;
       rig.thrust.visible = false;
       Object.values(rig.partSprites).forEach((sprite) => {
@@ -2281,21 +5049,17 @@ export class PixiGameRenderer {
 
       const previousState = this.seenBossComponents.get(entity.id);
       const nextState: Partial<Record<BossPartId, boolean>> = {};
+      const showInlineComponentState = !this.isPreviewBossEntity(entity);
       for (const component of components) {
         nextState[component.id] = component.destroyed;
         const visualScale = this.getBossComponentVisualScale(entity, component);
-        if (!component.destroyed) {
-          this.drawBossComponentHealthBar(rig.componentHealth, entity, component, visualScale);
-          if (component.flashFrames > 0) {
-            const width = entity.width * component.widthRatio * visualScale;
-            const height = entity.height * component.heightRatio * visualScale;
-            const x = (component.centerXRatio - 0.5) * entity.width;
-            const y = (component.centerYRatio - 0.5) * entity.height;
-            const alpha = clamp(component.flashFrames / 9, 0.18, 0.7);
-            rig.componentHealth
-              .ellipse(x, y, width * 0.48, height * 0.46)
-              .fill({ color: '#ffffff', alpha });
-          }
+        if (!component.destroyed && showInlineComponentState) {
+          this.drawBossComponentHealthBar(
+            rig.componentHealth,
+            entity,
+            component,
+            visualScale
+          );
         }
         if (previousState && !previousState[component.id] && component.destroyed) {
           const explosionX = entity.x + entity.width * component.centerXRatio;
@@ -2306,11 +5070,13 @@ export class PixiGameRenderer {
             Math.max(58, entity.width * component.widthRatio * visualScale * 1.35),
             1.35
           );
-          this.phaseText.text = component.id === 'helmet'
-            ? 'CORE EXPOSED'
-            : `${component.label} DESTROYED`;
-          this.phaseText.style.fill = component.id === 'helmet' ? '#fef08a' : '#fb923c';
-          this.phaseTextUntilFrame = engine.frameCount + 88;
+          if (showInlineComponentState) {
+            this.phaseText.text = component.id === 'helmet'
+              ? 'CORE EXPOSED'
+              : `${component.label} DESTROYED`;
+            this.phaseText.style.fill = component.id === 'helmet' ? '#fef08a' : '#fb923c';
+            this.phaseTextUntilFrame = engine.frameCount + 88;
+          }
         }
       }
       this.seenBossComponents.set(entity.id, nextState);
@@ -2352,7 +5118,7 @@ export class PixiGameRenderer {
     const nextState: Partial<Record<BossPartId, boolean>> = {};
     for (const component of components) {
       const sprite = rig.partSprites[component.id];
-      sprite.filters = component.flashFrames > 0 ? WHITE_HIT_FILTERS : null;
+      sprite.filters = null;
       const textureKey = partTextures[component.id];
       const texture = textureKey ? this.textureBank.get(textureKey) : undefined;
       const visualScale = this.getBossComponentVisualScale(entity, component);
@@ -2390,7 +5156,12 @@ export class PixiGameRenderer {
       );
       sprite.width = entity.width * component.widthRatio * visualScale;
       sprite.height = entity.height * component.heightRatio * visualScale;
-      this.drawBossComponentHealthBar(rig.componentHealth, entity, component, visualScale);
+      this.drawBossComponentHealthBar(
+        rig.componentHealth,
+        entity,
+        component,
+        visualScale
+      );
       const movementScale = entity.bossRigId === 'citation-storm' ? 1.45 : 1;
       sprite.rotation = component.id === 'left-cannon'
         ? -0.04 + Math.sin(engine.frameCount * 0.05) * 0.025 * movementScale
@@ -2444,17 +5215,19 @@ export class PixiGameRenderer {
           decayStage >= 4 ? 1.8 : 1.1
         );
       }
-      this.phaseText.text = decayStage >= 5
-        ? 'CRITICAL CORE FAILURE'
-        : decayStage >= 4
-          ? 'CORE CASING RUPTURED'
-        : decayStage >= 3
-          ? 'HULL BREACH'
-          : decayStage >= 2
-            ? 'CORE ARMOR BREACHED'
-            : 'ARMOR FRACTURE';
-      this.phaseText.style.fill = phaseColor;
-      this.phaseTextUntilFrame = engine.frameCount + 96;
+      if (!this.isPreviewBossEntity(entity)) {
+        this.phaseText.text = decayStage >= 5
+          ? 'CRITICAL CORE FAILURE'
+          : decayStage >= 4
+            ? 'CORE CASING RUPTURED'
+          : decayStage >= 3
+            ? 'HULL BREACH'
+            : decayStage >= 2
+              ? 'CORE ARMOR BREACHED'
+              : 'ARMOR FRACTURE';
+        this.phaseText.style.fill = phaseColor;
+        this.phaseTextUntilFrame = engine.frameCount + 96;
+      }
     }
     this.seenBossPhase.set(entity.id, decayStage);
     if (progress < 0.52 && engine.frameCount % (engine.performanceMode ? 48 : 30) === 0) {
@@ -2463,23 +5236,62 @@ export class PixiGameRenderer {
     }
   }
 
+  private clearBossDeathFragments() {
+    for (const view of this.bossDeathFragmentViews) {
+      view.sprite.removeFromParent();
+      view.sprite.destroy({ texture: false, textureSource: false });
+    }
+    this.bossDeathFragmentViews = [];
+  }
+
+  private configureBossDeathFragments(snapshot: BossSnapshot) {
+    this.clearBossDeathFragments();
+    const destruction = snapshot.modularDestruction;
+    if (!destruction) return false;
+    for (const fragment of destruction.fragments) {
+      const texture = this.getModularPreviewBossTexture(fragment.frameId);
+      if (!texture) continue;
+      const sprite = new Sprite(texture);
+      sprite.anchor.set(fragment.anchorX, fragment.anchorY);
+      sprite.position.set(
+        fragment.x * destruction.designScaleX,
+        fragment.y * destruction.designScaleY
+      );
+      sprite.rotation = fragment.rotation;
+      sprite.scale.set(
+        fragment.scaleX * destruction.designScaleX,
+        fragment.scaleY * destruction.designScaleY
+      );
+      sprite.alpha = 1;
+      sprite.visible = fragment.authored.delayFrames === 0;
+      sprite.tint = '#ffffff';
+      this.bossDeathFragments.addChild(sprite);
+      this.bossDeathFragmentViews.push({ sprite, snapshot: fragment });
+    }
+    return this.bossDeathFragmentViews.length > 0;
+  }
+
   private startBossDeath(snapshot: BossSnapshot) {
     this.bossDeathHandled = true;
     this.bossDeathAge = 0;
     this.bossDeathStage = -1;
     this.bossDeathRoot.visible = true;
     this.bossDeathRoot.position.set(snapshot.x + snapshot.width / 2, snapshot.y + snapshot.height / 2);
+    this.bossDeathRoot.rotation = snapshot.rotation;
     this.bossDeathRoot.scale.set(1);
     this.bossDeathSprite.width = snapshot.width;
     this.bossDeathSprite.height = snapshot.height;
     this.bossDeathSprite.alpha = 1;
     this.bossDeathSprite.tint = '#ffffff';
+    const usesModularFragments = this.configureBossDeathFragments(snapshot);
+    this.bossDeathSprite.visible = !usesModularFragments;
     this.bossDeathCore.clear();
     this.bossDeathText.visible = false;
     this.bossDeathText.text = 'SECTOR CLEARED';
     this.bossDeathText.position.set(0, snapshot.height * 0.7);
 
     const request = ++this.bossDeathTextureRequest;
+    if (usesModularFragments) return;
     const cached = this.textureBank.get(snapshot.textureKey);
     if (cached) {
       this.bossDeathSprite.texture = cached;
@@ -2500,11 +5312,16 @@ export class PixiGameRenderer {
         y: boss.y,
         width: boss.width,
         height: boss.height,
-        textureKey: getDefaultEntityTexture(engine, boss) || ASSETS.FINAL_BOSS
+        textureKey: getDefaultEntityTexture(engine, boss) || ASSETS.FINAL_BOSS,
+        rotation: boss.bossPresentationBankRadians,
+        modularDestruction: this.modularBossDestructionSnapshot?.entityId === boss.id
+          ? this.modularBossDestructionSnapshot
+          : undefined
       };
       this.bossDeathHandled = false;
       this.bossDeathAge = -1;
       this.bossDeathRoot.visible = false;
+      this.clearBossDeathFragments();
     } else if (engine.mainBossDefeated && engine.waveTransitionPending && this.lastBossSnapshot && !this.bossDeathHandled) {
       this.startBossDeath(this.lastBossSnapshot);
     } else if (!engine.mainBossDefeated && this.bossDeathAge < 0) {
@@ -2524,12 +5341,33 @@ export class PixiGameRenderer {
     const snapshot = this.lastBossSnapshot;
     const previousAge = this.bossDeathAge;
     this.bossDeathAge += deltaMs;
-    const progress = clamp(this.bossDeathAge / 1320, 0, 1);
+    const deathDurationMs = snapshot.modularDestruction
+      ? snapshot.modularDestruction.sequence.durationFrames * (1000 / 60)
+      : 1320;
+    const progress = clamp(this.bossDeathAge / deathDurationMs, 0, 1);
     this.bossDeathRoot.x = snapshot.x + snapshot.width / 2 + Math.sin(this.bossDeathAge * 0.12) * (1 - progress) * 8;
-    this.bossDeathRoot.rotation = Math.sin(this.bossDeathAge * 0.045) * 0.08 * (1 - progress);
-    this.bossDeathRoot.scale.set(1 + progress * 0.22);
+    this.bossDeathRoot.rotation = snapshot.rotation + Math.sin(this.bossDeathAge * 0.045) * 0.08 * (1 - progress);
+    this.bossDeathRoot.scale.set(snapshot.modularDestruction ? 1 : 1 + progress * 0.22);
     this.bossDeathSprite.alpha = clamp(1 - Math.max(0, progress - 0.62) / 0.38, 0, 1);
     this.bossDeathSprite.tint = Math.floor(this.bossDeathAge / 70) % 2 === 0 ? '#ffffff' : '#fb7185';
+
+    if (snapshot.modularDestruction) {
+      const elapsedFrames = this.bossDeathAge * 60 / 1000;
+      this.bossDeathFragmentViews.forEach((view) => {
+        const pose = sampleModularBossDestructionFragment(
+          snapshot.modularDestruction!.sequence,
+          view.snapshot.authored,
+          elapsedFrames
+        );
+        view.sprite.visible = pose.visible;
+        view.sprite.position.set(
+          (view.snapshot.x + pose.xOffset) * snapshot.modularDestruction!.designScaleX,
+          (view.snapshot.y + pose.yOffset) * snapshot.modularDestruction!.designScaleY
+        );
+        view.sprite.rotation = view.snapshot.rotation + pose.rotationOffset;
+        view.sprite.alpha = pose.alpha;
+      });
+    }
 
     this.bossDeathCore.clear();
     const corePulse = 1 + Math.sin(this.bossDeathAge * 0.035) * 0.18;
@@ -2556,6 +5394,7 @@ export class PixiGameRenderer {
     if (progress >= 1) {
       this.bossDeathRoot.visible = false;
       this.bossDeathAge = -1;
+      this.clearBossDeathFragments();
       this.lastBossSnapshot = null;
     }
   }
@@ -2757,47 +5596,38 @@ export class PixiGameRenderer {
   private syncDamageRecoil(view: EntityView, entity: Entity, engine: GameEngine) {
     if (entity.type !== EntityType.BOSS && entity.type !== EntityType.MINI_BOSS) return;
 
-    let newestDamageFrame = -999;
-    let impactXRatio = 0.5;
-    let impactYRatio = 0.5;
-    let componentImpact = false;
-    if (entity.lastDamageFlashFrame > view.lastDamageFlashFrame) {
-      newestDamageFrame = entity.lastDamageFlashFrame;
-    }
+    // Ordinary bullets keep their local flash/impact feedback without
+    // restarting a whole-silhouette flinch. Only a large hull hit or a
+    // destroyed component advances this simulation-owned timestamp.
     view.lastDamageFlashFrame = entity.lastDamageFlashFrame;
-
     const bossComponents = entity.bossComponents;
     if (bossComponents) {
-      for (let index = 0; index < bossComponents.length; index++) {
+      for (let index = 0; index < bossComponents.length; index += 1) {
         const component = bossComponents[index];
-        if (component.lastDamageFlashFrame > view.lastComponentDamageFrames[component.id]) {
-          if (component.lastDamageFlashFrame >= newestDamageFrame) {
-            newestDamageFrame = component.lastDamageFlashFrame;
-            impactXRatio = component.centerXRatio;
-            impactYRatio = component.centerYRatio;
-            componentImpact = true;
-          }
-        }
         view.lastComponentDamageFrames[component.id] = component.lastDamageFlashFrame;
       }
     }
 
-    if (newestDamageFrame > -900 && newestDamageFrame >= view.damageRecoilFrame) {
+    const newestImpactFrame = entity.bossSignificantImpactFrame;
+    if (newestImpactFrame > view.damageRecoilFrame) {
+      const impactXRatio = entity.bossSignificantImpactXRatio;
+      const impactYRatio = entity.bossSignificantImpactYRatio;
+      const componentImpact = entity.bossSignificantImpactIsComponent;
       const reducedEffects = this.reducedMotion
         || engine.performanceMode
         || !engine.polishSettings.highDensityParticles;
       const recoilScale = reducedEffects ? engine.mobileProfile ? 0.5 : 0.68 : engine.mobileProfile ? 0.8 : 1;
-      view.damageRecoilFrame = newestDamageFrame;
+      view.damageRecoilFrame = newestImpactFrame;
       view.damageRecoilDirection = impactXRatio < 0.46
         ? 1
         : impactXRatio > 0.54
           ? -1
-          : newestDamageFrame % 2 === 0 ? 1 : -1;
+          : newestImpactFrame % 2 === 0 ? 1 : -1;
       view.damageRecoilStrength = (
         entity.type === EntityType.MINI_BOSS
           ? MINI_BOSS_RECOIL_PX
           : componentImpact ? BOSS_COMPONENT_RECOIL_PX : BOSS_HULL_RECOIL_PX
-      ) * recoilScale;
+      ) * recoilScale * entity.bossSignificantImpactStrength;
 
       const impactX = entity.x + entity.width * impactXRatio;
       const impactY = entity.y + entity.height * impactYRatio;
@@ -2829,25 +5659,22 @@ export class PixiGameRenderer {
 
   private drawFlash(view: EntityView, entity: Entity) {
     view.flash.clear();
-    const filters = entity.flashFrames > 0 ? WHITE_HIT_FILTERS : null;
     if (entity.type === EntityType.BOSS) {
-      view.sprite.filters = filters;
-      view.body.filters = filters;
+      view.sprite.filters = null;
+      view.body.filters = null;
       if (view.bossRig) {
-        // Hull feedback must never bleach the separately targetable cannons.
-        // Component sprites own their filters through component.flashFrames.
         view.bossRig.parts.filters = null;
         view.bossRig.crownClaw.root.filters = null;
-        view.bossRig.crownClaw.body.filters = filters;
+        view.bossRig.crownClaw.body.filters = null;
         Object.values(view.bossRig.crownClaw.legs).forEach((leg) => {
-          leg.filters = filters;
+          leg.filters = null;
         });
       }
       return;
     }
     if (entity.type === EntityType.MINI_BOSS) {
-      view.sprite.filters = filters;
-      view.body.filters = filters;
+      view.sprite.filters = null;
+      view.body.filters = null;
       return;
     }
     if (entity.flashFrames <= 0) return;
@@ -2905,9 +5732,10 @@ export class PixiGameRenderer {
         alpha: clamp(entity.life / Math.max(1, entity.maxLife), 0, 1)
       });
     } else {
-      const textureKey = entity.type === EntityType.PLAYER
+      const textureKey = this.getPreviewBossArtwork(entity)?.url
+        ?? (entity.type === EntityType.PLAYER
         ? this.playerSteeringTextureKey ?? engine.playerShipUrl
-        : getDefaultEntityTexture(engine, entity);
+        : getDefaultEntityTexture(engine, entity));
       this.setTexture(view, textureKey);
       const styleScale = entity.spriteStyle?.scale ?? 1;
       view.sprite.width = entity.width * styleScale;
@@ -2920,6 +5748,9 @@ export class PixiGameRenderer {
     if (entity.type === EntityType.PLAYER) {
       this.drawPlayerRig(view, entity, engine);
     } else if (entity.type === EntityType.BOSS) {
+      // Authored path banking is presentation-only. Debug bounds and gameplay
+      // collision continue to use the unrotated entity x/y/width/height AABB.
+      view.root.rotation = entity.bossPresentationBankRadians;
       const bossComponents = entity.bossComponents ?? [];
       const leftDestroyed = bossComponents.find((component) => component.id === 'left-cannon')?.destroyed ?? false;
       const rightDestroyed = bossComponents.find((component) => component.id === 'right-cannon')?.destroyed ?? false;
@@ -2930,8 +5761,17 @@ export class PixiGameRenderer {
       this.drawBossComponents(view, entity, engine);
       this.drawBossRig(view, entity, engine);
       const articulatedBossReady = this.drawArticulatedGeneratedBoss(view, entity, engine);
+      this.drawAssembledPreviewBossMotion(view, entity, engine);
+      const previewAtlasReady = this.drawPreviewBossAtlas(view, entity, engine);
+      const modularPreviewReady = this.drawModularPreviewBoss(view, entity, engine);
       if (entity.bossAttackArchetype === 'rail-serpent' || entity.bossAttackArchetype === 'prism-moth') {
         view.sprite.visible = !articulatedBossReady;
+      }
+      if (this.isPreviewBossEntity(entity) && this.previewBossArtwork?.articulatedAtlas) {
+        view.sprite.visible = !previewAtlasReady;
+      }
+      if (this.isPreviewBossEntity(entity) && this.previewBossArtwork?.modularRig) {
+        view.sprite.visible = !modularPreviewReady;
       }
     } else if (entity.type === EntityType.MINI_BOSS) {
       view.sprite.y = Math.sin(engine.frameCount * 0.08) * 4;
@@ -3011,6 +5851,14 @@ export class PixiGameRenderer {
 
   private syncEntities(engine: GameEngine) {
     const entities = engine.entities;
+    this.previewBossRuntimeEntityId = (
+      this.previewBossArtworkReady
+      || this.previewBossAtlasReady
+      || this.modularPreviewBossReady
+      || this.previewBossVfxReady
+    )
+      ? entities.find((entity) => this.isPreviewBossEntity(entity))?.id ?? null
+      : null;
     for (const entity of entities) {
       if (entity.markedForDeletion) continue;
       let view = this.views.get(entity.id);
@@ -3365,6 +6213,262 @@ export class PixiGameRenderer {
     view.body.rect(centerX - width * 0.08, 0, width * 0.16, endY).fill({ color: '#ffffff', alpha: 0.95 });
   }
 
+  private syncCornerAmbushPresentation(engine: GameEngine) {
+    let boss: Entity | null = null;
+    for (const candidate of engine.entities) {
+      const presentation = candidate.bossActionPresentation;
+      if (
+        candidate.type === EntityType.BOSS
+        && !candidate.markedForDeletion
+        && presentation
+        && (
+          String(presentation.primitiveId) === CORNER_AMBUSH_BEAM_PRIMITIVE_ID
+          || String(presentation.primitiveId) === CORNER_AMBUSH_RAM_PRIMITIVE_ID
+        )
+        && (presentation.stage === 'warning' || presentation.stage === 'fire')
+      ) {
+        boss = candidate;
+        break;
+      }
+    }
+
+    this.cornerAmbushBossId = boss?.id ?? null;
+    this.cornerAmbushShade.clear();
+    this.cornerAmbushGuide.clear();
+    this.cornerAmbushShade.visible = Boolean(boss);
+    this.cornerAmbushGuide.visible = false;
+    if (!boss) return;
+
+    const presentation = boss.bossActionPresentation;
+    if (!presentation) return;
+    const isRam = String(presentation.primitiveId) === CORNER_AMBUSH_RAM_PRIMITIVE_ID;
+    const warning = presentation.stage === 'warning';
+    const actionDuration = Math.max(1, presentation.endFrame - presentation.startFrame);
+    const actionProgress = clamp(
+      (boss.attackTimer - presentation.startFrame) / actionDuration,
+      0,
+      1
+    );
+    const dimProgress = warning ? smoothstep(actionProgress / 0.22) : 1;
+    const bossReveal = warning
+      ? smoothstep((actionProgress - 0.22) / 0.18)
+      : 1;
+    const shakeX = engine.shakeX;
+    const shakeY = engine.shakeY;
+    const overscan = Math.max(this.width, this.height) * 2;
+
+    // Overscanning keeps spotlight holes completely enclosed by the shade even
+    // when a corner entrance or camera shake places their centers near an edge.
+    this.cornerAmbushShade
+      .rect(
+        -overscan,
+        -overscan,
+        this.width + overscan * 2,
+        this.height + overscan * 2
+      )
+      .fill({
+        color: '#020205',
+        alpha: (isRam ? 0.98 : CORNER_AMBUSH_DIM_ALPHA) * dimProgress
+      });
+
+    const playerCenterX = engine.player.x + engine.player.width / 2 + shakeX;
+    const playerCenterY = engine.player.y + engine.player.height / 2 + shakeY;
+    this.cornerAmbushShade
+      .ellipse(
+        playerCenterX,
+        playerCenterY,
+        Math.max(40, engine.player.width * 1.18),
+        Math.max(46, engine.player.height * 1.12)
+      )
+      .cut();
+
+    if (bossReveal > 0.01) {
+      const revealScale = 0.18 + bossReveal * 0.82;
+      this.cornerAmbushShade
+        .ellipse(
+          boss.x + boss.width / 2 + shakeX,
+          boss.y + boss.height / 2 + shakeY,
+          Math.max(54, boss.width * 0.64) * revealScale,
+          Math.max(54, boss.height * 0.64) * revealScale
+        )
+        .cut();
+    }
+
+    if (isRam) {
+      const ram = boss.bossCornerAmbushRamState;
+      if (!ram) return;
+      const lock = ram.lock;
+      const startX = lock.startX + boss.width / 2 + shakeX;
+      const startY = lock.startY + boss.height / 2 + shakeY;
+      const targetX = lock.targetX + shakeX;
+      const targetY = lock.targetY + shakeY;
+      const guidePulse = 0.7 + Math.sin(engine.frameCount * 0.34) * 0.24;
+      this.cornerAmbushGuide.visible = true;
+      if (warning) {
+        this.cornerAmbushGuide
+          .moveTo(startX, startY)
+          .lineTo(targetX, targetY)
+          .stroke({ color: '#ef233c', width: 2.5, alpha: guidePulse });
+        this.cornerAmbushGuide
+          .circle(targetX, targetY, 22 + guidePulse * 5)
+          .stroke({ color: '#ff4d5d', width: 2, alpha: guidePulse });
+        this.cornerAmbushGuide
+          .circle(targetX, targetY, 7)
+          .fill({ color: '#ef233c', alpha: 0.3 + guidePulse * 0.25 });
+      } else {
+        const speed = Math.hypot(boss.vx, boss.vy);
+        const tailLength = clamp(speed * 5, 38, 170);
+        const directionX = Math.cos(lock.angleRadians);
+        const directionY = Math.sin(lock.angleRadians);
+        const centerX = boss.x + boss.width / 2 + shakeX;
+        const centerY = boss.y + boss.height / 2 + shakeY;
+        this.cornerAmbushGuide
+          .moveTo(centerX, centerY)
+          .lineTo(
+            centerX - directionX * tailLength,
+            centerY - directionY * tailLength
+          )
+          .stroke({ color: '#ff3348', width: 5, alpha: guidePulse * 0.7 });
+      }
+      return;
+    }
+
+    let beam: Entity | null = null;
+    let fallbackBeam: Entity | null = null;
+    for (const candidate of engine.entities) {
+      if (
+        candidate.markedForDeletion
+        || !candidate.isBeam
+        || !candidate.isCornerAmbushBeam
+        || candidate.bossOwnerId !== boss.id
+      ) {
+        continue;
+      }
+      fallbackBeam ??= candidate;
+      if (candidate.isTelegraph === warning) {
+        beam = candidate;
+        break;
+      }
+    }
+    beam ??= fallbackBeam;
+    if (!beam) return;
+
+    const angled = beam.beamAngleRadians !== null;
+    const horizontal = !angled && beam.beamAxis === 'horizontal';
+    const beamAngle = angled
+      ? Number(beam.beamAngleRadians)
+      : horizontal
+        ? 0
+        : Math.PI / 2;
+    const beamLength = angled || horizontal ? beam.width : beam.height;
+    const beamThickness = angled || horizontal ? beam.height : beam.width;
+    const beamCenterX = beam.x + beam.width / 2 + shakeX;
+    const beamCenterY = beam.y + beam.height / 2 + shakeY;
+    const tangentX = Math.cos(beamAngle);
+    const tangentY = Math.sin(beamAngle);
+    const normalX = -tangentY;
+    const normalY = tangentX;
+    const halfLength = beamLength / 2;
+    const startX = beamCenterX - tangentX * halfLength;
+    const startY = beamCenterY - tangentY * halfLength;
+    const endX = beamCenterX + tangentX * halfLength;
+    const endY = beamCenterY + tangentY * halfLength;
+
+    if (!warning) {
+      // Reveal the real pooled beam sprite and exact collision-aligned core
+      // instead of painting a presentation-only replacement above the shade.
+      const revealHalfWidth = Math.max(7, beamThickness * 0.92);
+      this.cornerAmbushShade
+        .moveTo(startX + normalX * revealHalfWidth, startY + normalY * revealHalfWidth)
+        .lineTo(endX + normalX * revealHalfWidth, endY + normalY * revealHalfWidth)
+        .lineTo(endX - normalX * revealHalfWidth, endY - normalY * revealHalfWidth)
+        .lineTo(startX - normalX * revealHalfWidth, startY - normalY * revealHalfWidth)
+        .closePath()
+        .cut();
+    }
+
+    this.cornerAmbushGuide.visible = true;
+    if (warning) {
+      const telegraphProgress = Math.max(
+        actionProgress,
+        1 - clamp(beam.life / Math.max(1, beam.maxLife), 0, 1)
+      );
+      const converge = smoothstep(telegraphProgress);
+      const guidePulse = 0.84 + Math.sin(engine.frameCount * 0.32) * 0.14;
+      this.cornerAmbushGuide
+        .moveTo(startX, startY)
+        .lineTo(endX, endY)
+        .stroke({
+          color: '#ef233c',
+          width: Math.max(1.5, beamThickness * 0.24),
+          alpha: guidePulse
+        });
+
+      const railOffset = Math.max(4, beamThickness * 0.78);
+      const dashHalfLength = clamp(beamLength * 0.018, 4, 13);
+      for (let pairIndex = 0; pairIndex < 3; pairIndex += 1) {
+        const initialDistance = beamLength * (0.43 - pairIndex * 0.105);
+        const distance = initialDistance * (1 - converge * 0.78);
+        const railAlpha = 0.44 + converge * 0.42 - pairIndex * 0.06;
+        for (let direction = -1; direction <= 1; direction += 2) {
+          const railCenterX = beamCenterX + tangentX * distance * direction;
+          const railCenterY = beamCenterY + tangentY * distance * direction;
+          for (let side = -1; side <= 1; side += 2) {
+            const laneX = railCenterX + normalX * railOffset * side;
+            const laneY = railCenterY + normalY * railOffset * side;
+            this.cornerAmbushGuide
+              .moveTo(
+                laneX - tangentX * dashHalfLength,
+                laneY - tangentY * dashHalfLength
+              )
+              .lineTo(
+                laneX + tangentX * dashHalfLength,
+                laneY + tangentY * dashHalfLength
+              )
+              .stroke({
+                color: '#ff4d5d',
+                width: 2,
+                alpha: railAlpha
+              });
+          }
+          this.cornerAmbushGuide
+            .moveTo(
+              railCenterX - normalX * railOffset,
+              railCenterY - normalY * railOffset
+            )
+            .lineTo(
+              railCenterX + normalX * railOffset,
+              railCenterY + normalY * railOffset
+            )
+            .stroke({
+              color: '#ef233c',
+              width: 1,
+              alpha: railAlpha * 0.7
+            });
+        }
+      }
+    } else {
+      const edgeOffset = Math.max(3, beamThickness * 0.54);
+      const livePulse = 0.76 + Math.sin(engine.frameCount * 0.4) * 0.18;
+      for (let side = -1; side <= 1; side += 2) {
+        this.cornerAmbushGuide
+          .moveTo(
+            startX + normalX * edgeOffset * side,
+            startY + normalY * edgeOffset * side
+          )
+          .lineTo(
+            endX + normalX * edgeOffset * side,
+            endY + normalY * edgeOffset * side
+          )
+          .stroke({
+            color: '#ff3348',
+            width: Math.max(1.5, beamThickness * 0.1),
+            alpha: livePulse
+          });
+      }
+    }
+  }
+
   private updateWarnings(engine: GameEngine) {
     const active = engine.inBossWarningSequence;
     this.warningShade.visible = active;
@@ -3445,7 +6549,10 @@ export class PixiGameRenderer {
     this.camera.position.set(engine.shakeX, engine.shakeY);
     this.environment.update(engine);
     this.effectPool.setQuality(engine.performanceMode, engine.mobileProfile);
+    this.syncCornerAmbushPresentation(engine);
+    this.modularBossDebugSnapshot = null;
     this.syncEntities(engine);
+    this.syncPreviewDebugOverlay(engine);
     this.syncMaxShotPresentation(engine);
     this.syncPlayerAfterimages(engine);
     this.syncPlayerThrusters(engine);
@@ -3479,8 +6586,17 @@ export class PixiGameRenderer {
     this.initialized = false;
     this.effectPool.destroy();
     this.environment.destroy();
+    this.destroyPreviewBossAtlasTextures();
+    this.destroyModularPreviewBossTextures();
+    this.destroyPreviewBossVfxTextures();
+    this.clearBossDeathFragments();
+    this.modularBossDestructionSnapshot = null;
+    this.modularBossDebugSnapshot = null;
+    this.previewDebugOverlay.clear();
     this.textureBank.destroy();
     this.articulatedBossRigLoads.clear();
+    this.previewBossRuntimeEntityId = null;
+    this.cornerAmbushBossId = null;
     this.views.clear();
     this.recycledViews.clear();
     this.seenBossPhase.clear();

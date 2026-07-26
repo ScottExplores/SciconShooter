@@ -178,6 +178,21 @@ test('music and sound-effects zero notches mute only their own buses', () => {
   assert.ok(Math.abs(harness.sfxGainParam.targetValues.at(-1) - 0.12) < 0.00001);
 });
 
+test('preview sound effects can suppress music without changing the production default', () => {
+  const harness = loadAudioService();
+
+  assert.equal(harness.audioService.isMusicPlaybackEnabled(), true);
+  harness.audioService.setMusicPlaybackEnabled(false);
+  harness.audioService.startMusic();
+  assert.equal(harness.audioService.isMusicPlaybackEnabled(), false);
+  assert.equal(harness.intervals.size, 0);
+  assert.equal(harness.musicPlayers.length, 0);
+
+  harness.audioService.setMusicPlaybackEnabled(true);
+  harness.audioService.startMusic();
+  assert.equal(harness.intervals.size, 1);
+});
+
 test('mission music opens with one launch cue and one progressive sequencer timer', () => {
   const harness = loadAudioService();
   assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.014) < 0.00001);

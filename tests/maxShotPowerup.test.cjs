@@ -61,8 +61,8 @@ test('Max Shot reserves room for the doubled tier-and-spread pattern before emit
     /spawnPlayerBullet\(/,
     'no Max Shot projectile may emit before the complete-volley capacity check'
   );
-  assert.match(fireBullet, /maxShotVisualPattern\n\s*\);/);
-  assert.match(fireBullet, /maxShotVisualPattern\n\s*\}\);/);
+  assert.match(fireBullet, /maxShotVisualPattern\r?\n\s*\);/);
+  assert.match(fireBullet, /maxShotVisualPattern\r?\n\s*\}\);/);
 });
 
 test('Max Shot presentation reuses one aura sprite and one bounded screen-edge graphic', () => {

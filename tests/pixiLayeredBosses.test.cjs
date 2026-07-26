@@ -53,6 +53,7 @@ test('configured gatekeepers start before the Director wave boundary', () => {
 
 test('Paywall Decimator parts independently control bolt cannons and the core ray', () => {
   const engine = read('services/gameLogic.ts');
+  const componentRuntime = read('services/gameplay/bosses/BossComponentRuntime.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
 
   assert.match(engine, /type BossPartId = 'left-cannon' \| 'right-cannon' \| 'helmet'/);
@@ -64,7 +65,7 @@ test('Paywall Decimator parts independently control bolt cannons and the core ra
   assert.match(engine, /'CORE RAY CHARGING'/);
   assert.match(engine, /const coreEmitterOperational = boss\.hp > 0/);
   assert.match(engine, /isBossHullProtected\(boss: Entity\)/);
-  assert.match(engine, /component\.id === 'helmet' && !component\.destroyed/);
+  assert.match(componentRuntime, /component\.id === 'helmet' && !component\.destroyed/);
   assert.match(engine, /projectileVisualKind = 'boss-ray'/);
   assert.match(engine, /projectileVisualKind = 'boss-bolt'/);
   assert.match(renderer, /drawBossComponents\(view: EntityView, entity: Entity/);
@@ -122,6 +123,7 @@ test('the first two gatekeepers use optional detachable weapon weak points', () 
 
 test('boss components use predictable health shares while reserving the helmet for Boss 3', () => {
   const engine = read('services/gameLogic.ts');
+  const componentRuntime = read('services/gameplay/bosses/BossComponentRuntime.ts');
   const componentFactory = engine.slice(
     engine.indexOf('createBossComponents(boss: Entity)'),
     engine.indexOf('getBossComponentBox(boss: Entity')
@@ -138,7 +140,8 @@ test('boss components use predictable health shares while reserving the helmet f
   assert.doesNotMatch(engine, /durability \* 0\.8/);
   assert.match(componentFactory, /this\.getBossComponentDurability\(boss, layout\.id\)/);
   assert.match(engine, /const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1/);
-  assert.match(engine, /component\.hp -= Math\.max\(0, damage\) \* BOSS_COMPONENT_WEAK_POINT_MULTIPLIER/);
+  assert.match(engine, /applyBossComponentDamage\([\s\S]*?BOSS_COMPONENT_WEAK_POINT_MULTIPLIER/);
+  assert.match(componentRuntime, /component\.hp = Math\.max\(0, previousHealth - normalizedDamage \* normalizedMultiplier\)/);
   assert.match(componentFactory, /widthRatio: 0\.38/);
   assert.match(componentFactory, /widthRatio: 0\.34/);
   assert.match(engine, /const PAYWALL_BOSS_COMPONENT_LAYOUT/);
@@ -151,23 +154,23 @@ test('boss components use predictable health shares while reserving the helmet f
   assert.doesNotMatch(crownClawFactory, /id: 'helmet'/);
 });
 
-test('protected Boss 3 center hits damage the helmet before reaching the hull', () => {
+test('protected Boss 3 helmet only receives hits on its visible component pixels', () => {
   const engine = read('services/gameLogic.ts');
   const componentHit = engine.slice(
     engine.indexOf('getBossComponentHit(boss: Entity'),
     engine.indexOf('updateBossDecayStage(boss: Entity')
   );
 
-  assert.match(componentHit, /const directHit = candidates\[0\]\?\.component/);
-  assert.match(componentHit, /if \(directHit\) return directHit/);
-  assert.match(componentHit, /component\.id === 'helmet' && !component\.destroyed/);
-  assert.match(componentHit, /const crossesProtectedCoreLane = shotCenterX >= helmetBox\.x/);
-  assert.match(componentHit, /this\.boxesIntersect\(shotBox, bossBox\)/);
-  assert.match(componentHit, /return crossesProtectedCoreLane \? helmet : undefined/);
+  assert.match(componentHit, /\.filter\(isBossComponentTargetable\)/);
+  assert.match(componentHit, /visibleHit: this\.bossComponentSilhouetteIntersectsBox\(/);
+  assert.match(componentHit, /\.filter\(\(candidate\) => candidate\.visibleHit\)/);
+  assert.match(componentHit, /return candidates\[0\]\?\.component/);
+  assert.doesNotMatch(componentHit, /crossesProtectedCoreLane|helmetBox|bossBox/);
 });
 
 test('boss cannons use enlarged visuals with focused collision footprints', () => {
   const engine = read('services/gameLogic.ts');
+  const componentRuntime = read('services/gameplay/bosses/BossComponentRuntime.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const componentHitbox = engine.slice(
     engine.indexOf('getBossComponentBox(boss: Entity'),
@@ -192,53 +195,61 @@ test('boss cannons use enlarged visuals with focused collision footprints', () =
     engine.indexOf('isBossHullProtected(boss: Entity)'),
     engine.indexOf('spawnBoss(configured?: RuntimeBossEvent')
   );
-  assert.match(hullProtection, /component\.id === 'helmet' && !component\.destroyed/);
-  assert.doesNotMatch(hullProtection, /left-cannon|right-cannon/);
+  assert.match(hullProtection, /isBossHullProtectedByComponents\(boss\.bossComponents \?\? \[\]\)/);
+  assert.match(componentRuntime, /component\.id === 'helmet' && !component\.destroyed/);
+  assert.doesNotMatch(componentRuntime, /left-cannon|right-cannon/);
 });
 
-test('boss cannon and hull hits use geometry-matched collision and sprite-shaped flashes', () => {
+test('boss hits use silhouette collision without routine whole-sprite flashing', () => {
   const engine = read('services/gameLogic.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const collisionFlow = engine.slice(
     engine.indexOf('const bossShieldedNow = this.isBossShielded()'),
     engine.indexOf('getBossWarningComms(_type: BossWarningType)')
   );
-  const componentDamage = engine.slice(
-    engine.indexOf('damageBossComponent(boss: Entity'),
-    engine.indexOf('isBossHullProtected(boss: Entity)')
-  );
-  const hullDamage = engine.slice(
-    engine.indexOf('damageBossHull(boss: Entity'),
-    engine.indexOf('spawnBoss(configured?: RuntimeBossEvent')
-  );
   const flashRenderer = renderer.slice(
     renderer.indexOf('private drawFlash(view: EntityView'),
     renderer.indexOf('private updateEntityView(view: EntityView')
+  );
+  const bossFlashBranch = flashRenderer.slice(
+    flashRenderer.indexOf('if (entity.type === EntityType.BOSS)'),
+    flashRenderer.indexOf('if (entity.type === EntityType.MINI_BOSS)')
+  );
+  const miniBossFlashBranch = flashRenderer.slice(
+    flashRenderer.indexOf('if (entity.type === EntityType.MINI_BOSS)'),
+    flashRenderer.indexOf('if (entity.flashFrames <= 0)')
   );
 
   assert.match(engine, /flashFrames: number;/);
   assert.match(engine, /lastDamageFlashFrame: number;/);
   assert.match(engine, /if \(component\.flashFrames > 0\) component\.flashFrames--/);
-  assert.match(componentDamage, /this\.pulseBossComponentFlash\(component\)/);
-  assert.match(hullDamage, /this\.pulseDamageFlash\(boss\)/);
-  assert.match(engine, /const BOSS_DAMAGE_FLASH_COOLDOWN_FRAMES = 5/);
   assert.match(collisionFlow, /const bossComponent = target\.type === EntityType\.BOSS[\s\S]*?getBossComponentHit\(target, shotBox\)/);
-  assert.match(collisionFlow, /if \(!bossComponent && \([\s\S]*?shotBox\.x > target\.x \+ target\.width \+ padding/);
-  assert.match(collisionFlow, /if \(!bossComponent && !this\.boxesIntersect\(shotBox, getBox\(target\)\)\) continue/);
-  assert.match(renderer, /ColorMatrixFilter/);
-  assert.match(renderer, /sprite\.filters = component\.flashFrames > 0 \? WHITE_HIT_FILTERS : null/);
   assert.match(flashRenderer, /entity\.type === EntityType\.BOSS/);
   assert.match(flashRenderer, /entity\.type === EntityType\.MINI_BOSS/);
-  assert.match(flashRenderer, /view\.sprite\.filters = filters/);
+  assert.match(flashRenderer, /view\.sprite\.filters = null/);
+  assert.match(flashRenderer, /view\.body\.filters = null/);
   assert.match(flashRenderer, /view\.bossRig\.parts\.filters = null/);
   assert.match(flashRenderer, /view\.bossRig\.crownClaw\.root\.filters = null/);
-  assert.match(flashRenderer, /view\.bossRig\.crownClaw\.body\.filters = filters/);
-  assert.match(flashRenderer, /Object\.values\(view\.bossRig\.crownClaw\.legs\)/);
-  assert.doesNotMatch(flashRenderer, /view\.bossRig\.parts\.filters = filters/);
-  assert.doesNotMatch(flashRenderer, /view\.bossRig\.crownClaw\.root\.filters = filters/);
-  assert.match(engine, /flashDamageTarget\(entity: Entity/);
-  assert.match(engine, /entity\.type === EntityType\.BOSS \|\| entity\.type === EntityType\.MINI_BOSS[\s\S]*?this\.pulseDamageFlash\(entity\)/);
-  assert.match(collisionFlow, /target\.hp -= dmg;[\s\S]*?this\.flashDamageTarget\(target\)/);
+  assert.doesNotMatch(bossFlashBranch, /WHITE_HIT_FILTERS|fill\(\{ color: '#ffffff'/);
+  assert.doesNotMatch(miniBossFlashBranch, /WHITE_HIT_FILTERS|fill\(\{ color: '#ffffff'/);
+  assert.match(engine, /queueBossSignificantImpact/);
+  assert.match(renderer, /spawnBossExplosion/);
+});
+
+test('legacy Canvas also skips routine boss and mini-boss silhouette flashes', () => {
+  const engine = read('services/gameLogic.ts');
+  const drawHitFlash = engine.slice(
+    engine.indexOf('drawHitFlash(ctx: CanvasRenderingContext2D, e: Entity)'),
+    engine.indexOf('getHitFlashSprite(e: Entity)')
+  );
+
+  assert.match(
+    drawHitFlash,
+    /e\.type === EntityType\.BOSS[\s\S]*?e\.type === EntityType\.MINI_BOSS[\s\S]*?return/,
+    'the retained legacy renderer must not draw a white replacement silhouette over bosses'
+  );
+  assert.match(drawHitFlash, /e\.flashFrames <= 0/);
+  assert.match(drawHitFlash, /this\.getHitFlashSprite\(e\)/);
 });
 
 test('boss shield escorts are large readable targets with low-wave durability', () => {
@@ -366,5 +377,5 @@ test('later authored Stage tiers keep bosses and add telegraphed escalation patt
   assert.match(engine, /queueBossTargetStrike\(boss: Entity, warningFrames = 54\)/);
   assert.match(engine, /MISSILE LOCK/);
   assert.match(engine, /SIDE ENTRY/);
-  assert.match(engine, /AUTHORED_TIER_DIFFICULTY_CAP/);
+  assert.match(engine, /resolveCampaignDifficulty/);
 });

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ConfigRepository } from './configRepository.mjs';
 import {
@@ -5,10 +7,16 @@ import {
   normalizeGeneratedAssetRequest
 } from './generatedAssetRepository.mjs';
 import { GameCampaignRepository } from './gameCampaignRepository.mjs';
+import { GameCampaignWorkspaceRepository } from './gameCampaignWorkspaceRepository.mjs';
+import { GameplayTelemetryRepository } from './gameplayTelemetryRepository.mjs';
 import {
   DIRECTOR_IMAGE_MODEL,
   OpenAIImageGenerationClient
 } from './imageGenerationClient.mjs';
+import {
+  createLocalPrototypeAssetCatalog,
+  PROTOTYPE_ASSET_DEFINITIONS
+} from './prototypeAssetCatalog.mjs';
 import { RealRunReader } from './realRunReader.mjs';
 import {
   assertLoopbackRequest,
@@ -44,6 +52,20 @@ const requiredCampaign = (body) => {
   return body.campaign;
 };
 
+const requiredResource = (body) => {
+  if (!Object.hasOwn(body, 'resource')) {
+    throw new ValidationError('Missing workspace resource', ['resource is required']);
+  }
+  return body.resource;
+};
+
+const workspaceMutationOptions = (body) => ({
+  expectedBaseContentHash: body.expectedBaseContentHash,
+  expectedDraftRevision: body.expectedDraftRevision,
+  idempotencyKey: body.idempotencyKey,
+  ...(body.changeNote !== undefined ? { changeNote: body.changeNote } : {})
+});
+
 const normalizedPathname = (requestUrl) => {
   const url = new URL(requestUrl || '/', 'http://director.local');
   if (url.pathname === DIRECTOR_API_PREFIX) return '/';
@@ -57,10 +79,50 @@ export const createDirectorRequestHandler = ({
   repository,
   realRunReader,
   gameCampaignRepository = null,
+  gameCampaignWorkspaceRepository = null,
+  gameplayTelemetryRepository = null,
   generatedAssetRepository = null,
-  imageGenerationClient = null
+  imageGenerationClient = null,
+  prototypeAssets = [],
+  meridianHarrowerArtworkPath = null,
+  meridianHarrowerSheetPath = null
 }) => {
   if (!repository || !realRunReader) throw new Error('Director API requires a repository and real-run reader');
+
+  const prototypeAssetByRoute = new Map(
+    PROTOTYPE_ASSET_DEFINITIONS.map((definition) => [
+      definition.route,
+      { ...definition, filePath: null }
+    ])
+  );
+  for (const prototypeAsset of prototypeAssets) {
+    const expected = prototypeAssetByRoute.get(prototypeAsset.route);
+    if (!expected || prototypeAsset.sha256 !== expected.sha256) {
+      throw new Error('Director API received an unknown prototype asset registration');
+    }
+    prototypeAssetByRoute.set(prototypeAsset.route, {
+      ...expected,
+      filePath: prototypeAsset.filePath
+    });
+  }
+  if (meridianHarrowerArtworkPath) {
+    const definition = PROTOTYPE_ASSET_DEFINITIONS.find((candidate) => (
+      candidate.prototypeId === 'meridian-harrower' && candidate.variant === 'assembled'
+    ));
+    prototypeAssetByRoute.set(definition.route, {
+      ...definition,
+      filePath: meridianHarrowerArtworkPath
+    });
+  }
+  if (meridianHarrowerSheetPath) {
+    const definition = PROTOTYPE_ASSET_DEFINITIONS.find((candidate) => (
+      candidate.prototypeId === 'meridian-harrower' && candidate.variant === 'sheet'
+    ));
+    prototypeAssetByRoute.set(definition.route, {
+      ...definition,
+      filePath: meridianHarrowerSheetPath
+    });
+  }
 
   return async (request, response) => {
     try {
@@ -80,6 +142,48 @@ export const createDirectorRequestHandler = ({
 
       if (method === 'GET' && pathname === '/bootstrap') {
         return sendJson(response, 200, await repository.bootstrap());
+      }
+
+      const prototypeAsset = prototypeAssetByRoute.get(pathname);
+      if (method === 'GET' && prototypeAsset) {
+        if (!prototypeAsset.filePath) {
+          throw new HttpError(404, `${prototypeAsset.label} is not installed locally`);
+        }
+        let png;
+        try {
+          png = await readFile(prototypeAsset.filePath);
+        } catch (error) {
+          if (error?.code === 'ENOENT') {
+            throw new HttpError(404, `${prototypeAsset.label} is not installed locally`);
+          }
+          throw error;
+        }
+        if (png.length > prototypeAsset.maxBytes) {
+          throw new HttpError(422, `${prototypeAsset.label} exceeds its local size budget`);
+        }
+        const pngSignature = png.subarray(0, 8).toString('hex');
+        const width = png.length >= 24 ? png.readUInt32BE(16) : 0;
+        const height = png.length >= 24 ? png.readUInt32BE(20) : 0;
+        const sha256 = createHash('sha256').update(png).digest('hex');
+        if (
+          pngSignature !== '89504e470d0a1a0a'
+          || width !== prototypeAsset.width
+          || height !== prototypeAsset.height
+          || sha256 !== prototypeAsset.sha256
+        ) {
+          throw new HttpError(
+            422,
+            `${prototypeAsset.label} failed integrity validation`
+          );
+        }
+        response.statusCode = 200;
+        response.setHeader('Content-Type', 'image/png');
+        response.setHeader('Content-Length', String(png.length));
+        response.setHeader('Cache-Control', 'no-store');
+        response.setHeader('X-Content-Type-Options', 'nosniff');
+        response.setHeader('Referrer-Policy', 'no-referrer');
+        response.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+        return response.end(png);
       }
 
       if (pathname.startsWith('/api/generated-assets') && !generatedAssetRepository) {
@@ -122,8 +226,171 @@ export const createDirectorRequestHandler = ({
         });
       }
 
+      if (pathname.startsWith('/api/v1/playtest-sessions') && !gameplayTelemetryRepository) {
+        throw new HttpError(503, 'Local playtest session storage is unavailable');
+      }
+
+      if (method === 'GET' && pathname === '/api/v1/playtest-sessions') {
+        return sendJson(response, 200, {
+          ok: true,
+          localOnly: true,
+          sessions: await gameplayTelemetryRepository.listSessions()
+        });
+      }
+
+      if (method === 'POST' && pathname === '/api/v1/playtest-sessions') {
+        const body = await readJsonBody(request, { limit: 512 * 1024 });
+        if (!Object.hasOwn(body, 'session')) {
+          throw new ValidationError('Missing playtest session', ['session is required']);
+        }
+        return sendJson(response, 201, {
+          ok: true,
+          localOnly: true,
+          message: 'Saved the bounded playtest session to local Director storage',
+          session: await gameplayTelemetryRepository.createSession(body.session)
+        });
+      }
+
+      let playtestSessionMatch = /^\/api\/v1\/playtest-sessions\/([^/]+)$/.exec(pathname);
+      if (playtestSessionMatch) {
+        const sessionId = decodePathSegment(playtestSessionMatch[1]);
+        if (method === 'GET') {
+          return sendJson(response, 200, {
+            ok: true,
+            localOnly: true,
+            session: await gameplayTelemetryRepository.readSession(sessionId)
+          });
+        }
+        if (method === 'DELETE') {
+          await readJsonBody(request, { limit: 1024 });
+          return sendJson(response, 200, {
+            ok: true,
+            localOnly: true,
+            message: 'Deleted the local playtest session',
+            deleted: await gameplayTelemetryRepository.deleteSession(sessionId)
+          });
+        }
+      }
+
       if (pathname.startsWith('/api/game-campaign') && !gameCampaignRepository) {
         throw new HttpError(503, 'Game campaign file integration is unavailable');
+      }
+
+      if (pathname.startsWith('/api/v1/workspace') && !gameCampaignWorkspaceRepository) {
+        throw new HttpError(503, 'Game campaign workspace is unavailable');
+      }
+
+      if (method === 'GET' && pathname === '/api/v1/workspace') {
+        return sendJson(response, 200, {
+          ok: true,
+          workspace: await gameCampaignWorkspaceRepository.readWorkspace()
+        });
+      }
+
+      let workspaceMatch = /^\/api\/v1\/workspace\/levels\/([^/]+)\/waves\/([^/]+)\/boss-events\/([^/]+)$/.exec(pathname);
+      if (workspaceMatch) {
+        const identifiers = {
+          levelId: decodePathSegment(workspaceMatch[1]),
+          waveId: decodePathSegment(workspaceMatch[2]),
+          eventId: decodePathSegment(workspaceMatch[3])
+        };
+        if (method === 'GET') {
+          return sendJson(response, 200, {
+            ok: true,
+            ...(await gameCampaignWorkspaceRepository.readResource('boss-event', identifiers))
+          });
+        }
+        if (method === 'PUT') {
+          const body = await readJsonBody(request);
+          return sendJson(response, 200, {
+            ok: true,
+            message: 'Boss event autosaved to the local Director workspace',
+            ...(await gameCampaignWorkspaceRepository.updateResource(
+              'boss-event',
+              identifiers,
+              requiredResource(body),
+              workspaceMutationOptions(body)
+            ))
+          });
+        }
+      }
+
+      workspaceMatch = /^\/api\/v1\/workspace\/levels\/([^/]+)\/waves\/([^/]+)$/.exec(pathname);
+      if (workspaceMatch) {
+        const identifiers = {
+          levelId: decodePathSegment(workspaceMatch[1]),
+          waveId: decodePathSegment(workspaceMatch[2])
+        };
+        if (method === 'GET') {
+          return sendJson(response, 200, {
+            ok: true,
+            ...(await gameCampaignWorkspaceRepository.readResource('wave', identifiers))
+          });
+        }
+        if (method === 'PUT') {
+          const body = await readJsonBody(request);
+          return sendJson(response, 200, {
+            ok: true,
+            message: 'Wave autosaved to the local Director workspace',
+            ...(await gameCampaignWorkspaceRepository.updateResource(
+              'wave',
+              identifiers,
+              requiredResource(body),
+              workspaceMutationOptions(body)
+            ))
+          });
+        }
+      }
+
+      workspaceMatch = /^\/api\/v1\/workspace\/(levels|missions)\/([^/]+)$/.exec(pathname);
+      if (workspaceMatch) {
+        const identifiers = { levelId: decodePathSegment(workspaceMatch[2]) };
+        if (method === 'GET') {
+          return sendJson(response, 200, {
+            ok: true,
+            ...(await gameCampaignWorkspaceRepository.readResource('level', identifiers))
+          });
+        }
+        if (method === 'PUT') {
+          const body = await readJsonBody(request);
+          return sendJson(response, 200, {
+            ok: true,
+            message: 'Mission autosaved to the local Director workspace',
+            ...(await gameCampaignWorkspaceRepository.updateResource(
+              'level',
+              identifiers,
+              requiredResource(body),
+              workspaceMutationOptions(body)
+            ))
+          });
+        }
+      }
+
+      if (method === 'POST' && pathname === '/api/v1/workspace/apply') {
+        const body = await readJsonBody(request, { limit: 16 * 1024 });
+        return sendJson(response, 201, {
+          ok: true,
+          message: 'Applied the validated Director workspace to game-config/campaign.json',
+          ...(await gameCampaignWorkspaceRepository.apply(workspaceMutationOptions(body)))
+        });
+      }
+
+      if (method === 'POST' && pathname === '/api/v1/workspace/reset') {
+        const body = await readJsonBody(request, { limit: 16 * 1024 });
+        return sendJson(response, 200, {
+          ok: true,
+          message: 'Cleared workspace edits and reset to the tracked campaign',
+          ...(await gameCampaignWorkspaceRepository.reset(workspaceMutationOptions(body)))
+        });
+      }
+
+      if (method === 'POST' && pathname === '/api/v1/workspace/rebase') {
+        const body = await readJsonBody(request, { limit: 16 * 1024 });
+        return sendJson(response, 200, {
+          ok: true,
+          message: 'Rebased workspace edits onto the tracked campaign',
+          ...(await gameCampaignWorkspaceRepository.rebase(workspaceMutationOptions(body)))
+        });
       }
 
       if (method === 'GET' && pathname === '/api/game-campaign') {
@@ -314,6 +581,15 @@ export const createDirectorApiPlugin = ({
     repositoryRoot: resolvedRepositoryRoot,
     dataRoot
   });
+  const gameCampaignWorkspaceRepository = new GameCampaignWorkspaceRepository({
+    repositoryRoot: resolvedRepositoryRoot,
+    dataRoot,
+    gameCampaignRepository
+  });
+  const gameplayTelemetryRepository = new GameplayTelemetryRepository({
+    repositoryRoot: resolvedRepositoryRoot,
+    dataRoot
+  });
   const repository = new ConfigRepository({
     repositoryRoot: resolvedRepositoryRoot,
     dataRoot,
@@ -326,8 +602,11 @@ export const createDirectorApiPlugin = ({
     repository,
     realRunReader: new RealRunReader(),
     gameCampaignRepository,
+    gameCampaignWorkspaceRepository,
+    gameplayTelemetryRepository,
     generatedAssetRepository,
-    imageGenerationClient
+    imageGenerationClient,
+    prototypeAssets: createLocalPrototypeAssetCatalog(dataRoot)
   });
 
   return {

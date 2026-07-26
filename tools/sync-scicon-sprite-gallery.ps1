@@ -3,6 +3,13 @@ param(
   [string]$GalleryPath = (Join-Path $env:USERPROFILE 'Downloads\Legacy Collection\Scicon Space Sprite Gallery.html'),
   [string]$LegacySourceRoot = (Join-Path $env:USERPROFILE 'Downloads\Legacy Collection\Legacy Collection'),
   [string]$ProjectArtRoot = '',
+  [string]$ProjectPrototypeArtRoot = '',
+  [string]$ProjectSourceArtRoot = '',
+  [string]$ProjectArchiveArtRoot = '',
+  [string]$ProjectAppArtRoot = '',
+  [string]$ProjectMarketingArtRoot = '',
+  [string]$ProjectDocumentationArtRoot = '',
+  [string]$ProjectDesignConceptArtRoot = '',
   [string]$ProjectAudioRoot = '',
   [switch]$Open
 )
@@ -14,11 +21,32 @@ $projectRoot = Split-Path -Parent $scriptRoot
 if ([string]::IsNullOrWhiteSpace($ProjectArtRoot)) {
   $ProjectArtRoot = Join-Path $projectRoot 'public\game-art'
 }
+if ([string]::IsNullOrWhiteSpace($ProjectPrototypeArtRoot)) {
+  $ProjectPrototypeArtRoot = Join-Path $projectRoot 'director-data\prototype-assets'
+}
+if ([string]::IsNullOrWhiteSpace($ProjectSourceArtRoot)) {
+  $ProjectSourceArtRoot = Join-Path $projectRoot 'tools'
+}
+if ([string]::IsNullOrWhiteSpace($ProjectArchiveArtRoot)) {
+  $ProjectArchiveArtRoot = Join-Path $projectRoot 'archive'
+}
+if ([string]::IsNullOrWhiteSpace($ProjectAppArtRoot)) {
+  $ProjectAppArtRoot = Join-Path $projectRoot 'public'
+}
+if ([string]::IsNullOrWhiteSpace($ProjectMarketingArtRoot)) {
+  $ProjectMarketingArtRoot = Join-Path $projectRoot 'marketing'
+}
+if ([string]::IsNullOrWhiteSpace($ProjectDocumentationArtRoot)) {
+  $ProjectDocumentationArtRoot = Join-Path $projectRoot 'docs'
+}
+if ([string]::IsNullOrWhiteSpace($ProjectDesignConceptArtRoot)) {
+  $ProjectDesignConceptArtRoot = Join-Path $projectRoot 'director\design\concepts'
+}
 if ([string]::IsNullOrWhiteSpace($ProjectAudioRoot)) {
   $ProjectAudioRoot = Join-Path $projectRoot 'public\audio'
 }
 
-$imageExtensions = @('.png', '.gif', '.jpg', '.jpeg', '.webp', '.svg', '.bmp')
+$imageExtensions = @('.png', '.gif', '.jpg', '.jpeg', '.webp', '.svg', '.bmp', '.avif')
 $audioExtensions = @('.wav', '.mp3', '.ogg', '.m4a', '.flac')
 $galleryRoot = Split-Path -Parent $GalleryPath
 
@@ -56,17 +84,26 @@ function Get-DirectoryLabel([string]$Prefix, [string]$RelativePath) {
 function Get-ProjectCategory([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
   if ($normalized -match '(^|/)animations/' -or $normalized.EndsWith('.gif')) { return 'Scicon - Animations' }
-  if ($normalized -match '(^|/)bosses/') { return 'Scicon - Bosses & Mini-Bosses' }
+  if ($normalized -match '(^|/)(bosses|boss-weapons?)/') { return 'Scicon - Bosses & Mini-Bosses' }
   if ($normalized -match '(^|/)enemies/') { return 'Scicon - Enemies' }
   if ($normalized -match '(^|/)ships/' -or $normalized -match '^branding/') { return 'Scicon - Player & Escort Ships' }
-  if ($normalized -match '(^|/)backgrounds/') { return 'Scicon - Backgrounds' }
-  if ($normalized -match '(^|/)effects/') { return 'Scicon - Combat FX' }
-  if ($normalized -match '^powerups/' -or $normalized -match '^tokens/') { return 'Scicon - Powerups, Tokens & Props' }
+  if ($normalized -match '(^|/)backgrounds/' -or ($normalized -match 'parallax' -and $normalized -match '(^|/)overlays/')) { return 'Scicon - Backgrounds' }
+  if ($normalized -match '(^|/)(effects|weapon-fx|projectiles?)/' -or $normalized -match 'scicon-player-weapon-fx') { return 'Scicon - Combat FX' }
+  if ($normalized -match '(^|/)(powerups|tokens)/' -or $normalized -match '(^|/)rsc-coin(?:-|/)') { return 'Scicon - Powerups, Tokens & Props' }
+  if ($normalized -match 'biohazard-bomb') { return 'Scicon - UI & Menus' }
   if ($normalized -match '^generated/ui/') { return 'Scicon - UI & Menus' }
   if ($normalized -match '^generated/') { return 'Scicon - Generated Art' }
   if ($normalized -match '^record-card/') { return 'Scicon - Record Card Art' }
   if ($normalized -match '^founders/') { return 'Scicon - Founder Portraits' }
   return 'Scicon - Other Game Art'
+}
+
+function Get-PrototypeCategory() {
+  return 'Scicon - Test Bosses & Prototypes'
+}
+
+function Get-ScopedProjectCategory([string]$Scope) {
+  return "Scicon - $Scope"
 }
 
 function Get-LegacyCategory([string]$RelativePath) {
@@ -106,22 +143,37 @@ function Get-LegacyLibrary([string]$RelativePath) {
   return 'extras'
 }
 
+function Test-SpriteSheetAsset([string]$RelativePath) {
+  $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  return $normalized -match 'sprite.?sheets?|sprite.?atlas|(^|/)[^/]*(sheet|atlas)[^/]*\.(png|jpg|jpeg|webp|bmp|svg|avif)$'
+}
+
+function Get-SimpleSemanticCategory([string]$RelativePath) {
+  $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+
+  if ($normalized -match 'scicon-simple-arcade-kit-v1/(?:projectiles|effects)/') { return 'Props & Effects' }
+  if ($normalized -match 'scicon-player-weapon-fx' -or $normalized -match 'biohazard-bomb') {
+    return $(if ($normalized -match 'biohazard-bomb') { 'UI & Menus' } else { 'Props & Effects' })
+  }
+  if ($normalized -match '(^|/)(ui|menus?|hud|dashboard|interface|buttons?|icons?)(/|$)' -or $normalized -match '^generated/ui/') { return 'UI & Menus' }
+  if ($normalized -match 'background|backdrop|terrain|parallax|environment|tilemap|tile.?set|starfield|skybox|(^|/)overlays/') { return 'Backgrounds' }
+  if ($normalized -match '(^|/)(ships?|spacecraft|fighters?|rockets?|jets?|vehicles?)(/|$)' -or $normalized -match 'player.?ship|escort.?ship|token.?ship') { return 'Ships' }
+  if ($normalized -match 'boss|mini.?boss') { return 'Bosses' }
+  if ($normalized -match '(^|/)(enemies|enemy|creatures?|monsters?)(/|$)' -or $normalized -match 'mini-squadron') { return 'Enemies' }
+  if ($normalized -match 'power.?up|pickup|collectible|items?|tokens?|coins?|gems?|crystals?|flasks?|rewards?') { return 'Items & Power-Ups' }
+  if ($normalized -match 'effects?|explosion|projectile|laser|bullet|missile|weapon|thrust|smoke|impact|muzzle|beam|props?|objects?|decoration|vfx') { return 'Props & Effects' }
+  if ($normalized -match 'characters?|player|humans?|soldiers?|heroes?|portraits?|founders?|robots?|knights?|warriors?') { return 'Characters' }
+  return 'Other'
+}
+
 function Get-SimpleAssetCategory([string]$RelativePath, [string]$Extension) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
   $extensionLower = $Extension.ToLowerInvariant()
 
   if ($extensionLower -eq '.gif') { return 'All GIFs' }
   if ($normalized -match 'scicon-simple-arcade-kit-v1') { return 'Simple Arcade Kit' }
-  if ($normalized -match 'sprite.?sheet|spritesheets|sprite.?atlas|(^|/)[^/]*sheet[^/]*\.(png|jpg|jpeg|webp|bmp|svg)$') { return 'Sprite Sheets' }
-  if ($normalized -match '(^|/)(ui|menus?|hud|dashboard|interface|buttons?|icons?)(/|$)' -or $normalized -match '^generated/ui/') { return 'UI & Menus' }
-  if ($normalized -match 'background|backdrop|terrain|parallax|environment|tilemap|tile.?set|starfield|skybox') { return 'Backgrounds' }
-  if ($normalized -match '(^|/)(ships?|spacecraft|fighters?|rockets?|jets?|vehicles?)(/|$)' -or $normalized -match 'player.?ship|escort.?ship|token.?ship') { return 'Ships' }
-  if ($normalized -match 'boss|mini.?boss') { return 'Bosses' }
-  if ($normalized -match '(^|/)(enemies|enemy|creatures?|monsters?)(/|$)') { return 'Enemies' }
-  if ($normalized -match 'power.?up|pickup|collectible|items?|tokens?|coins?|gems?|crystals?|flasks?|rewards?') { return 'Items & Power-Ups' }
-  if ($normalized -match 'effects?|explosion|projectile|laser|bullet|missile|weapon|thrust|smoke|impact|muzzle|beam|props?|objects?|decoration') { return 'Props & Effects' }
-  if ($normalized -match 'characters?|player|humans?|soldiers?|heroes?|portraits?|founders?|robots?|knights?|warriors?') { return 'Characters' }
-  return 'Other'
+  if (Test-SpriteSheetAsset $RelativePath) { return 'Sprite Sheets' }
+  return Get-SimpleSemanticCategory $RelativePath
 }
 
 function Get-SimpleAssetCategories([string]$RelativePath, [string]$Extension) {
@@ -129,11 +181,80 @@ function Get-SimpleAssetCategories([string]$RelativePath, [string]$Extension) {
   $categories = New-Object System.Collections.Generic.List[string]
   $primary = Get-SimpleAssetCategory $RelativePath $Extension
   $categories.Add($primary)
+  if ($Extension.ToLowerInvariant() -eq '.gif' -and -not $categories.Contains('All GIFs')) {
+    $categories.Add('All GIFs')
+  }
   if ($normalized -match 'scicon-simple-arcade-kit-v1' -and -not $categories.Contains('Simple Arcade Kit')) {
     $categories.Add('Simple Arcade Kit')
   }
-  if ($normalized -match 'sprite.?sheet|spritesheets|sprite.?atlas|(^|/)[^/]*sheet[^/]*\.(png|jpg|jpeg|webp|bmp|svg)$' -and -not $categories.Contains('Sprite Sheets')) {
+  if ((Test-SpriteSheetAsset $RelativePath) -and -not $categories.Contains('Sprite Sheets')) {
     $categories.Add('Sprite Sheets')
+  }
+  $semantic = Get-SimpleSemanticCategory $RelativePath
+  if (-not $categories.Contains($semantic)) {
+    $categories.Add($semantic)
+  }
+  return [string[]]$categories.ToArray()
+}
+
+function Get-ProjectRuntimeGalleryCategories([string]$RelativePath, [string]$Extension) {
+  $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  $categories = New-Object System.Collections.Generic.List[string]
+  foreach ($candidate in (Get-SimpleAssetCategories $RelativePath $Extension)) {
+    $categories.Add($candidate)
+  }
+
+  # Helios mines use the game's seven-frame Pixi explosion at runtime. Keep
+  # these shared frames discoverable beside the rest of the Helios package in
+  # Test Bosses & Prototypes without copying them into a second asset root.
+  if ($normalized -match '^pixi/effects/explosion/frame-[1-7]\.png$' -and
+      -not $categories.Contains('Test Bosses & Prototypes')) {
+    $categories.Add('Test Bosses & Prototypes')
+  }
+
+  return [string[]]$categories.ToArray()
+}
+
+function Get-PrototypeSimpleCategories([string]$RelativePath, [string]$Extension) {
+  $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  $categories = New-Object System.Collections.Generic.List[string]
+  $categories.Add('Test Bosses & Prototypes')
+  if ($Extension.ToLowerInvariant() -eq '.gif') {
+    $categories.Add('All GIFs')
+  }
+  if (Test-SpriteSheetAsset $RelativePath) {
+    $categories.Add('Sprite Sheets')
+  }
+  $categories.Add('Bosses')
+  if ($normalized -match 'vfx|effects?|projectile|laser|beam') {
+    $categories.Add('Props & Effects')
+  }
+  if ($normalized -match 'chroma|source') {
+    $categories.Add('Source Art')
+  }
+  return [string[]]$categories.ToArray()
+}
+
+function Get-ScopedSimpleCategories(
+  [string]$Primary,
+  [string]$RelativePath,
+  [string]$Extension,
+  [bool]$IncludeAssetCategories,
+  [string[]]$AdditionalCategories = @()
+) {
+  $categories = New-Object System.Collections.Generic.List[string]
+  $categories.Add($Primary)
+  if ($IncludeAssetCategories) {
+    foreach ($candidate in (Get-SimpleAssetCategories $RelativePath $Extension)) {
+      if (-not $categories.Contains($candidate)) {
+        $categories.Add($candidate)
+      }
+    }
+  }
+  foreach ($candidate in $AdditionalCategories) {
+    if (-not $categories.Contains($candidate)) {
+      $categories.Add($candidate)
+    }
   }
   return [string[]]$categories.ToArray()
 }
@@ -152,9 +273,17 @@ function Get-FilesByExtension([string]$Root, [string[]]$Extensions) {
   )
 }
 
+function Get-RootFilesByExtension([string]$Root, [string[]]$Extensions) {
+  if (-not (Test-Path -LiteralPath $Root -PathType Container)) { return @() }
+  return @(
+    Get-ChildItem -LiteralPath $Root -File |
+      Where-Object { $Extensions -contains $_.Extension.ToLowerInvariant() }
+  )
+}
+
 function Get-AssetUsageIndex([string]$SourceRoot, [string]$ArtRoot) {
   $usageIndex = @{}
-  $sourceExtensions = @('.ts', '.tsx', '.js', '.jsx', '.css', '.scss')
+  $sourceExtensions = @('.ts', '.tsx', '.js', '.jsx', '.css', '.scss', '.json')
   $excludedDirectories = '\\(node_modules|public|tools|docs|archive|tmp|dist|build|coverage|\.git|\.codex-remote-attachments)\\'
   $directAssetPattern = '(?<path>/game-art/[A-Za-z0-9_./\- ]+\.(?:png|gif|jpg|jpeg|webp|svg|bmp))'
   $prefixPattern = '(?m)\b(?:const|let|var)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*[''"](?<path>/game-art/[^''"]+)[''"]'
@@ -203,6 +332,58 @@ function Get-AssetUsageIndex([string]$SourceRoot, [string]$ArtRoot) {
     }
   }
 
+  # Some runtime arrays are generated from bounded templates. Keep these
+  # patterns explicit so the gallery marks every real frame without treating
+  # unrelated colors, levels, previews, or sprite sheets as in-game assets.
+  $dynamicUsageRules = @(
+    [pscustomobject]@{
+      Pattern = '^generated/scicon-stage20-expansion-v1/powerups/max-shot-aura/frames/max-shot-aura-\d{2}\.png$'
+      Location = 'constants.ts:59'
+    },
+    [pscustomobject]@{
+      Pattern = '^generated/ui/scicon-simple-arcade-kit-v1/trace-boxes/label/cyan/frames/trace-box-label-cyan-\d{2}\.png$'
+      Location = 'components/SquadHangar.tsx:89'
+    },
+    [pscustomobject]@{
+      Pattern = '^generated/ui/scicon-simple-arcade-kit-v1/selectors/diamond/(?:ship|mini)/(?:lime|gold)/frames/diamond-selector-(?:ship|mini)-(?:lime|gold)-\d{2}\.png$'
+      Location = 'components/SquadHangar.tsx:84'
+    },
+    [pscustomobject]@{
+      Pattern = '^generated/ships/scicon-mini-squadron-pack-v1/[^/]+/frames/[^/]+-\d{2}-(?:neutral|flex-in|flex-out)\.png$'
+      Location = 'services/squadProgression.ts:166'
+    },
+    [pscustomobject]@{
+      Pattern = '^generated/ui/scicon-ui-system-v2/animations/first-place-row-idle/parts/first-place-crown-diamond-\d+\.png$'
+      Location = 'components/StartScreen.tsx:225'
+    },
+    [pscustomobject]@{
+      Pattern = '^generated/bosses/astral-crownclaw/animations/decay/frames/astral-crownclaw-decay-frame-\d+\.png$'
+      Location = 'constants.ts:203'
+    },
+    [pscustomobject]@{
+      Pattern = '^pixi/bosses/paywall-decimator/rays/frame-\d+\.png$'
+      Location = 'constants.ts:271'
+    },
+    [pscustomobject]@{
+      Pattern = '^legacy/weapon-fx/research-(?:charge|impact)/(?:charged|hits-5-)\d+\.png$'
+      Location = 'services/shipAbilityService.ts:3'
+    }
+  )
+  $artRelativeFiles = @(
+    Get-ChildItem -LiteralPath $ArtRoot -Recurse -File |
+      Where-Object { $_.Extension.ToLowerInvariant() -in @('.png', '.gif', '.jpg', '.jpeg', '.webp', '.svg', '.bmp', '.avif') } |
+      ForEach-Object { Get-PathWithin $ArtRoot $_.FullName }
+  )
+  foreach ($rule in $dynamicUsageRules) {
+    foreach ($assetRelative in ($artRelativeFiles | Where-Object { $_ -match $rule.Pattern })) {
+      $assetKey = $assetRelative.ToLowerInvariant()
+      if (-not $usageIndex.ContainsKey($assetKey)) {
+        $usageIndex[$assetKey] = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+      }
+      [void]$usageIndex[$assetKey].Add($rule.Location)
+    }
+  }
+
   return $usageIndex
 }
 
@@ -215,6 +396,19 @@ if (-not (Test-Path -LiteralPath $GalleryPath -PathType Leaf)) {
 
 $legacyImageFiles = Get-FilesByExtension $LegacySourceRoot $imageExtensions
 $projectImageFiles = Get-FilesByExtension $ProjectArtRoot $imageExtensions
+$prototypeImageFiles = Get-FilesByExtension $ProjectPrototypeArtRoot $imageExtensions |
+  Where-Object {
+    # Windows PowerShell 5.1 does not expose Path.GetRelativePath. Reuse the
+    # gallery's confined-path helper so refreshes work in either host.
+    $prototypeRelative = Get-PathWithin $ProjectPrototypeArtRoot $_.FullName
+    -not ($prototypeRelative -match '(^|[\\/])review([\\/]|$)')
+  }
+$sourceArtImageFiles = Get-FilesByExtension $ProjectSourceArtRoot $imageExtensions
+$archiveArtImageFiles = Get-FilesByExtension $ProjectArchiveArtRoot $imageExtensions
+$appArtImageFiles = Get-RootFilesByExtension $ProjectAppArtRoot $imageExtensions
+$marketingArtImageFiles = Get-FilesByExtension $ProjectMarketingArtRoot $imageExtensions
+$documentationArtImageFiles = Get-FilesByExtension $ProjectDocumentationArtRoot $imageExtensions
+$designConceptArtImageFiles = Get-FilesByExtension $ProjectDesignConceptArtRoot $imageExtensions
 $legacyAudioFiles = Get-FilesByExtension $LegacySourceRoot $audioExtensions
 $projectAudioFiles = Get-FilesByExtension $ProjectAudioRoot $audioExtensions
 $assetUsageIndex = Get-AssetUsageIndex $projectRoot $ProjectArtRoot
@@ -222,6 +416,13 @@ $assetUsageIndex = Get-AssetUsageIndex $projectRoot $ProjectArtRoot
 $categoryOrder = @(
   'Scicon - Animations',
   'Scicon - Bosses & Mini-Bosses',
+  'Scicon - Test Bosses & Prototypes',
+  'Scicon - Source Art',
+  'Scicon - App & Product Art',
+  'Scicon - Marketing',
+  'Scicon - Documentation & References',
+  'Scicon - Director Design Concepts',
+  'Scicon - Archived & Superseded',
   'Scicon - Enemies',
   'Scicon - Player & Escort Ships',
   'Scicon - Combat FX',
@@ -252,12 +453,19 @@ $simpleCategoryOrder = @(
   'Simple Arcade Kit',
   'Ships',
   'Bosses',
+  'Test Bosses & Prototypes',
   'Enemies',
   'UI & Menus',
   'Backgrounds',
   'Props & Effects',
   'Items & Power-Ups',
   'Characters',
+  'Source Art',
+  'App & Product Art',
+  'Marketing',
+  'Documentation & References',
+  'Design Concepts',
+  'Archived & Superseded',
   'Other'
 )
 $simpleCategoryRank = @{}
@@ -285,7 +493,7 @@ foreach ($file in $projectImageFiles) {
   $assets.Add([pscustomobject][ordered]@{
     category = Get-ProjectCategory $relative
     simpleCategory = Get-SimpleAssetCategory $relative $file.Extension
-    simpleCategories = [string[]]@(Get-SimpleAssetCategories $relative $file.Extension)
+    simpleCategories = [string[]]@(Get-ProjectRuntimeGalleryCategories $relative $file.Extension)
     library = 'space'
     source = 'Scicon project'
     pack = Get-DirectoryLabel 'Scicon Shooter\public\game-art' $relative
@@ -300,6 +508,93 @@ foreach ($file in $projectImageFiles) {
     usageLocations = [string[]]$usageLocations
   })
 }
+
+foreach ($file in $prototypeImageFiles) {
+  $relative = Get-PathWithin $ProjectPrototypeArtRoot $file.FullName
+  $assets.Add([pscustomobject][ordered]@{
+    category = Get-PrototypeCategory
+    simpleCategory = 'Test Bosses & Prototypes'
+    simpleCategories = [string[]]@(Get-PrototypeSimpleCategories $relative $file.Extension)
+    library = 'space'
+    source = 'Scicon test prototype'
+    pack = Get-DirectoryLabel 'Scicon Shooter\director-data\prototype-assets' $relative
+    name = $file.Name
+    path = Get-RelativeFileUrl $galleryRoot $file.FullName
+    absolutePath = $file.FullName
+    kind = $file.Extension.TrimStart('.').ToUpperInvariant()
+    bytes = [int64]$file.Length
+    inGame = $false
+    usageLocations = @()
+    deleteProtected = $true
+    protectionReason = 'Used by the Director Boss Sandbox'
+  })
+}
+
+function Add-ScopedProjectAssets(
+  [object]$AssetList,
+  [object[]]$Files,
+  [string]$Root,
+  [string]$DetailedCategory,
+  [string]$SimpleCategory,
+  [string]$Source,
+  [string]$PackPrefix,
+  [string]$ProtectionReason,
+  [bool]$IncludeAssetCategories,
+  [string[]]$AdditionalCategories = @()
+) {
+  foreach ($file in $Files) {
+    $relative = Get-PathWithin $Root $file.FullName
+    $AssetList.Add([pscustomobject][ordered]@{
+      category = $DetailedCategory
+      simpleCategory = $SimpleCategory
+      simpleCategories = [string[]]@(
+        Get-ScopedSimpleCategories $SimpleCategory $relative $file.Extension $IncludeAssetCategories $AdditionalCategories
+      )
+      library = 'space'
+      source = $Source
+      pack = Get-DirectoryLabel $PackPrefix $relative
+      name = $file.Name
+      path = Get-RelativeFileUrl $galleryRoot $file.FullName
+      absolutePath = $file.FullName
+      kind = $file.Extension.TrimStart('.').ToUpperInvariant()
+      bytes = [int64]$file.Length
+      inGame = $false
+      usageLocations = @()
+      deleteProtected = $true
+      protectionReason = $ProtectionReason
+    })
+  }
+}
+
+Add-ScopedProjectAssets `
+  $assets $sourceArtImageFiles $ProjectSourceArtRoot `
+  (Get-ScopedProjectCategory 'Source Art') 'Source Art' 'Scicon source art' `
+  'Scicon Shooter\tools' 'Builder source art' $true
+
+Add-ScopedProjectAssets `
+  $assets $archiveArtImageFiles $ProjectArchiveArtRoot `
+  (Get-ScopedProjectCategory 'Archived & Superseded') 'Archived & Superseded' 'Scicon archive' `
+  'Scicon Shooter\archive' 'Archived project reference' $true @('UI & Menus')
+
+Add-ScopedProjectAssets `
+  $assets $appArtImageFiles $ProjectAppArtRoot `
+  (Get-ScopedProjectCategory 'App & Product Art') 'App & Product Art' 'Scicon app art' `
+  'Scicon Shooter\public' 'Used by the app shell or product listing' $false @('UI & Menus')
+
+Add-ScopedProjectAssets `
+  $assets $marketingArtImageFiles $ProjectMarketingArtRoot `
+  (Get-ScopedProjectCategory 'Marketing') 'Marketing' 'Scicon marketing' `
+  'Scicon Shooter\marketing' 'Published project creative' $false
+
+Add-ScopedProjectAssets `
+  $assets $documentationArtImageFiles $ProjectDocumentationArtRoot `
+  (Get-ScopedProjectCategory 'Documentation & References') 'Documentation & References' 'Scicon documentation' `
+  'Scicon Shooter\docs' 'Documentation and design reference' $false
+
+Add-ScopedProjectAssets `
+  $assets $designConceptArtImageFiles $ProjectDesignConceptArtRoot `
+  (Get-ScopedProjectCategory 'Director Design Concepts') 'Design Concepts' 'Scicon Director design' `
+  'Scicon Shooter\director\design\concepts' 'Director design reference' $false
 
 foreach ($file in $legacyImageFiles) {
   $relative = Get-PathWithin $LegacySourceRoot $file.FullName
@@ -472,6 +767,8 @@ $copyPathCss = @'
   .asset-selector { position:absolute; top:7px; right:7px; z-index:3; display:grid; place-items:center; width:28px; height:28px; border:1px solid #507086; border-radius:6px; background:rgba(6,13,19,.9); box-shadow:0 2px 8px rgba(0,0,0,.55); cursor:pointer; }
   .asset-selector:hover { border-color:var(--cyan); background:#102b3b; }
   .asset-selector input { width:17px; height:17px; min-height:0; padding:0; margin:0; accent-color:#24caff; cursor:pointer; }
+  .asset-selector:has(input:disabled) { opacity:.45; cursor:not-allowed; }
+  .asset-selector input:disabled { cursor:not-allowed; }
   .asset-selector:has(input:focus-visible) { outline:2px solid var(--mint); outline-offset:2px; }
   .meta-actions { display:flex; align-items:flex-end; justify-content:space-between; gap:7px; margin-top:4px; }
   .meta-tags { min-width:0; }
@@ -484,6 +781,7 @@ $copyPathCss = @'
   .delete-asset:hover { background:#541a24; border-color:#ff5268; color:#ffd6db; }
   .delete-asset:focus-visible { outline:2px solid #ff6a7c; outline-offset:2px; }
   .delete-asset:disabled { opacity:.55; cursor:wait; }
+  .delete-asset.protected:disabled { border-color:#4d6472; background:#17232b; color:#9fb4c1; opacity:1; cursor:not-allowed; }
   .selection-toolbar { display:flex; align-items:center; justify-content:flex-end; gap:7px; margin-top:9px; padding:7px; border:1px solid #31556b; border-radius:7px; background:#0b151e; }
   .selection-toolbar[hidden] { display:none; }
   .selection-toolbar strong { margin-right:auto; color:var(--cyan); font-size:12px; }
@@ -583,7 +881,7 @@ const assetUrl = value => {
 };
 const humanBytes = value => value < 1024 ? `${value} B` : `${(value / 1024).toFixed(1)} KB`;
 const transparentPixel = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-const simpleCategoryOrder = ['All GIFs', 'Sprite Sheets', 'Simple Arcade Kit', 'Ships', 'Bosses', 'Enemies', 'UI & Menus', 'Backgrounds', 'Props & Effects', 'Items & Power-Ups', 'Characters', 'Other'];
+const simpleCategoryOrder = ['All GIFs', 'Sprite Sheets', 'Simple Arcade Kit', 'Ships', 'Bosses', 'Test Bosses & Prototypes', 'Enemies', 'UI & Menus', 'Backgrounds', 'Props & Effects', 'Items & Power-Ups', 'Characters', 'Source Art', 'App & Product Art', 'Marketing', 'Documentation & References', 'Design Concepts', 'Archived & Superseded', 'Other'];
 async function copyItemPath(item, button) {
   const value = item.absolutePath;
   const original = button.textContent;
@@ -680,7 +978,7 @@ async function deleteGalleryItem(item, button) {
 }
 function updateSelectionToolbar() {
   for (const value of [...selectedAssetPaths]) {
-    if (!assets.some(item => item.absolutePath === value)) selectedAssetPaths.delete(value);
+    if (!assets.some(item => item.absolutePath === value && !item.deleteProtected)) selectedAssetPaths.delete(value);
   }
   selectionToolbar.hidden = selectedAssetPaths.size === 0;
   selectionCount.textContent = `${selectedAssetPaths.size} selected`;
@@ -821,7 +1119,9 @@ function render() {
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.checked = selectedAssetPaths.has(item.absolutePath);
+      checkbox.disabled = item.deleteProtected === true;
       checkbox.setAttribute('aria-label', `Select ${item.name}`);
+      if (item.deleteProtected) selector.title = `${item.name} is protected: ${item.protectionReason || 'project reference asset'}`;
       checkbox.addEventListener('change', () => {
         if (checkbox.checked) selectedAssetPaths.add(item.absolutePath);
         else selectedAssetPaths.delete(item.absolutePath);
@@ -858,11 +1158,13 @@ function render() {
       copyButton.addEventListener('click', () => void copyItemPath(item, copyButton));
       const deleteButton = document.createElement('button');
       deleteButton.type = 'button';
-      deleteButton.className = 'delete-asset';
-      deleteButton.textContent = 'Delete';
+      deleteButton.className = item.deleteProtected ? 'delete-asset protected' : 'delete-asset';
+      deleteButton.disabled = item.deleteProtected === true;
+      deleteButton.textContent = item.deleteProtected ? 'Protected' : 'Delete';
       deleteButton.title = item.inGame ? `Delete ${item.name} (used in game — confirmation required)` : `Delete ${item.name}`;
-      deleteButton.setAttribute('aria-label', `Delete ${item.name}`);
-      deleteButton.addEventListener('click', () => void deleteGalleryItem(item, deleteButton));
+      if (item.deleteProtected) deleteButton.title = `${item.name} is protected: ${item.protectionReason || 'project reference asset'}`;
+      deleteButton.setAttribute('aria-label', item.deleteProtected ? `${item.name} is protected from deletion` : `Delete ${item.name}`);
+      if (!item.deleteProtected) deleteButton.addEventListener('click', () => void deleteGalleryItem(item, deleteButton));
       const controls = document.createElement('div');
       controls.className = 'meta-controls';
       controls.append(copyButton, deleteButton);
@@ -900,7 +1202,9 @@ inGameToggle.addEventListener('click', () => {
   render();
 });
 selectVisibleButton.addEventListener('click', () => {
-  for (const absolutePath of renderedAssetPaths) selectedAssetPaths.add(absolutePath);
+  for (const absolutePath of renderedAssetPaths) {
+    if (!assets.find(item => item.absolutePath === absolutePath)?.deleteProtected) selectedAssetPaths.add(absolutePath);
+  }
   render();
 });
 clearSelectionButton.addEventListener('click', () => {
@@ -960,8 +1264,25 @@ $result = [pscustomobject][ordered]@{
   totalImages = $sortedAssets.Count
   spaceImages = @($sortedAssets | Where-Object library -eq 'space').Count
   legacyExtraImages = @($sortedAssets | Where-Object library -eq 'extras').Count
-  sciconImages = $projectImageFiles.Count
-  animationImages = @($sortedAssets | Where-Object { $_.source -eq 'Scicon project' -and ($_.kind -eq 'GIF' -or $_.path -match '(^|/)(animations|previews)(/|$)') }).Count
+  sciconImages = (
+    $projectImageFiles.Count +
+    $prototypeImageFiles.Count +
+    $sourceArtImageFiles.Count +
+    $archiveArtImageFiles.Count +
+    $appArtImageFiles.Count +
+    $marketingArtImageFiles.Count +
+    $documentationArtImageFiles.Count +
+    $designConceptArtImageFiles.Count
+  )
+  gameArtImages = $projectImageFiles.Count
+  testPrototypeImages = $prototypeImageFiles.Count
+  sourceArtImages = $sourceArtImageFiles.Count
+  archivedImages = $archiveArtImageFiles.Count
+  appProductImages = $appArtImageFiles.Count
+  marketingImages = $marketingArtImageFiles.Count
+  documentationImages = $documentationArtImageFiles.Count
+  designConceptImages = $designConceptArtImageFiles.Count
+  animationImages = @($sortedAssets | Where-Object { $_.source -like 'Scicon*' -and ($_.kind -eq 'GIF' -or $_.path -match '(^|/)(animations|previews)(/|$)') }).Count
   legacyImages = $legacyImageFiles.Count
   totalSounds = $sortedSounds.Count
   sciconSounds = $projectAudioFiles.Count

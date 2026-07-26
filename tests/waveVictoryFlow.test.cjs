@@ -43,10 +43,10 @@ test('the app keeps the real game mounted behind the stage-complete overlay stat
   assert.match(appSource, /gameState === GameState\.WAVE_COMPLETE/);
   assert.match(appSource, /onWaveVictory: showWaveVictory/);
   assert.match(appSource, /waveContinueCommand/);
-  assert.match(appSource, /<WaveVictoryOverlay summary={waveVictorySummary} onContinue={continueAfterWaveVictory}/);
+  assert.match(appSource, /<WaveVictoryOverlay[\s\S]{0,220}summary={waveVictorySummary}[\s\S]{0,220}onContinue={continueAfterWaveVictory}/);
   assert.match(appSource, /waveVictorySummary\.campaignComplete \|\| !waveVictorySummary\.hasNextStage/);
   assert.match(appSource, /setCampaignCompletedRun\(true\);[\s\S]*?setGameState\(GameState\.GAMEOVER\);\s*return;/);
-  assert.match(appSource, /!campaignCompletedRun && !isFounderSandboxRun/);
+  assert.match(appSource, /!campaignCompletedRun && !isNonCompetitiveRun/);
   assert.match(appSource, /campaignComplete={campaignCompletedRun}/);
 });
 
