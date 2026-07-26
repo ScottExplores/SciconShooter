@@ -456,7 +456,7 @@ export class Entity {
   bossDecayStage: number = 0;
   projectileVisualKind?: BossProjectileVisualKind;
   /** Generic modular-projectile playback hint consumed by the renderer. */
-  projectileAnimationMode: 'cycle' | 'hold-last' = 'cycle';
+  projectileAnimationMode: 'cycle' | 'play-once-before-last' | 'hold-last' = 'cycle';
   /** Generic sprite-sheet playback controls; gameplay owns the lifecycle. */
   spriteFramePlaybackMode: 'loop' | 'once' = 'loop';
   spriteFrameHoldFrames?: number;
@@ -10574,7 +10574,7 @@ export class GameEngine {
         armY: targetCenterY
       };
       mine.heliosMineStage = 'deploying';
-      mine.projectileAnimationMode = 'cycle';
+      mine.projectileAnimationMode = 'play-once-before-last';
       if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-helios-mine')) {
         mine.projectileVisualKind = 'boss-helios-mine';
       }
@@ -10681,7 +10681,11 @@ export class GameEngine {
       this.addShake(0.8);
     } else {
       mine.heliosMineStage = sample.stage;
-      mine.projectileAnimationMode = sample.stage === 'armed' ? 'hold-last' : 'cycle';
+      mine.projectileAnimationMode = sample.stage === 'armed'
+        ? 'hold-last'
+        : sample.stage === 'deploying'
+          ? 'play-once-before-last'
+          : 'cycle';
     }
     if (sample.stage === 'deploying') {
       // Position is simulation-owned above so deployment always clears the

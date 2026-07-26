@@ -58,12 +58,17 @@ test('Helios gatling tracers keep their native +X art axis and rotate exactly on
 test('Helios mines use generic renderer playback controls for arming and explosion frames', () => {
   assert.match(
     pixiRenderer,
+    /entity\.projectileAnimationMode === 'play-once-before-last'[\s\S]*?animation\.frameIds\.length - 2[\s\S]*?Math\.floor\(age \/ frameHold\)/,
+    'deploying modular projectiles must reserve their final authored frame without looping'
+  );
+  assert.match(
+    pixiRenderer,
     /entity\.projectileAnimationMode === 'hold-last'[\s\S]*?animation\.frameIds\.length - 1/,
     'the generic modular playback contract must hold its dedicated final frame'
   );
   assert.match(
     gameLogic,
-    /mine\.projectileAnimationMode = sample\.stage === 'armed' \? 'hold-last' : 'cycle'/,
+    /mine\.projectileAnimationMode = sample\.stage === 'armed'[\s\S]*?\? 'hold-last'[\s\S]*?: sample\.stage === 'deploying'[\s\S]*?\? 'play-once-before-last'/,
     'gameplay must expose the armed lifecycle through the generic playback contract'
   );
   assert.match(
@@ -75,5 +80,10 @@ test('Helios mines use generic renderer playback controls for arming and explosi
     pixiRenderer,
     /const isOneShotAnimation = entity\.spriteFramePlaybackMode === 'once';[\s\S]*?entity\.spriteFrameHoldFrames/,
     'Pixi must consume the generic one-shot sprite-sheet controls'
+  );
+  assert.match(
+    pixiRenderer,
+    /entity\.spriteFrameFixedRotationRadians !== undefined[\s\S]*?view\.root\.rotation = entity\.spriteFrameFixedRotationRadians/,
+    'one-shot playback and fixed orientation must remain independent generic controls'
   );
 });

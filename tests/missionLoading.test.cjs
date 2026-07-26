@@ -26,7 +26,7 @@ test('app defers one cached production readiness pipeline until proposal data se
 test('mission launch joins a pending preload with progress, then locks simulation until Pixi synchronizes', () => {
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const component = fs.readFileSync(path.join(root, 'components', 'MissionLoadingScreen.tsx'), 'utf8');
-  const startIndex = app.indexOf('const startGame = async');
+  const startIndex = app.indexOf('const launchGame = async');
   const readyIndex = app.indexOf('const completeMissionRuntimeLaunch');
   const failureIndex = app.indexOf('const failMissionRuntimeLaunch');
   const resetIndex = app.indexOf('const resetGame');

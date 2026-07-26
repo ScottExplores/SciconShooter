@@ -2786,6 +2786,11 @@ export class PixiGameRenderer {
     const frameHold = Math.max(1, Math.floor(animation.frameHoldFrames));
     const frameIndex = entity.projectileAnimationMode === 'hold-last'
       ? animation.frameIds.length - 1
+      : entity.projectileAnimationMode === 'play-once-before-last'
+        ? Math.min(
+            Math.max(0, animation.frameIds.length - 2),
+            Math.floor(age / frameHold)
+          )
       : (
           Math.floor(age / frameHold)
           + Math.abs(Math.floor(entity.variant))
@@ -3019,10 +3024,10 @@ export class PixiGameRenderer {
         const pulse = 0.72 + Math.sin(engineFrame * 0.16) * 0.09;
         view.aura.circle(0, 0, entity.width * pulse).fill({ color: '#facc15', alpha: 0.16 });
         view.aura.circle(0, 0, entity.width * 0.58).stroke({ color: '#67e8f9', width: 2, alpha: 0.7 });
-      } else if (isOneShotAnimation) {
+      } else if (entity.spriteFrameFixedRotationRadians !== undefined) {
         // Explosion pixels are the complete warning and damage surface. Do not
         // add a translucent circle or velocity rotation around the authored art.
-        view.root.rotation = entity.spriteFrameFixedRotationRadians ?? 0;
+        view.root.rotation = entity.spriteFrameFixedRotationRadians;
       } else if (entity.projectileVisualKind === 'boss-ray') {
         view.aura.roundRect(-entity.width * 0.7, -entity.height * 0.5, entity.width * 1.4, entity.height, entity.width * 0.38)
           .fill({ color: '#ff9d2e', alpha: 0.18 });
