@@ -355,6 +355,8 @@ export const DONATION_CONFIG = {
 export const STORAGE_KEYS = {
   PLAYER_STATS: "rh_player_stats",
   HIGH_SCORE: "rh_highscore",
+  PILOT_PROFILE_ID: "scicon_pilot_profile_id",
+  PILOT_PROFILE_MIGRATION: "scicon_pilot_profile_migration_v1",
   WALLET_ADDRESS: "scicon_wallet_address",
   WALLET_PROFILES: "scicon_wallet_profiles",
   DONATED_WALLETS: "scicon_donated_wallets",

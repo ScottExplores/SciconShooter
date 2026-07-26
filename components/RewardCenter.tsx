@@ -53,11 +53,9 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
   open,
   initialTab = 'daily',
   onClose,
-  walletConnected,
   permanentState,
   onClaimDailyGift,
-  onClaimAchievement,
-  onRequestConnect
+  onClaimAchievement
 }) => {
   const [tab, setTab] = useState<RewardTab>('daily');
   const [claimNotice, setClaimNotice] = useState<ClaimNotice | null>(null);
@@ -220,15 +218,12 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
           </button>
         </div>
 
-        {!walletConnected && (
-          <div className="sci-reward-connect-notice">
-            <div>
-              <strong>Connect to save rewards</strong>
-              <span>Daily streaks and achievements belong to your Base profile.</span>
-            </div>
-            <button type="button" onClick={onRequestConnect}>Connect</button>
+        <div className="sci-reward-connect-notice">
+          <div>
+            <strong>Pilot rewards save on this device</strong>
+            <span>Connect a wallet only for minted and onchain items.</span>
           </div>
-        )}
+        </div>
 
         <div className="sci-reward-scroll">
           {tab === 'daily' ? (
@@ -261,11 +256,9 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                       ? 'locked'
                       : pendingClaim !== null
                         ? 'pending'
-                        : !walletConnected
-                          ? 'connect-required'
-                          : dailyStatus.isAvailable
-                            ? 'claimable'
-                            : 'unavailable';
+                        : dailyStatus.isAvailable
+                          ? 'claimable'
+                          : 'unavailable';
                   const isClaimable = cardState === 'claimable';
                   const giftTier = getDailyGiftTier(reward);
                   const cardLabel = cardState === 'claimed'
@@ -274,9 +267,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                       ? `Claim Day ${reward.day}: ${rewardName}`
                       : cardState === 'pending'
                         ? `Securing Day ${reward.day}: ${rewardName}`
-                        : cardState === 'connect-required'
-                          ? `Day ${reward.day}: connect to claim ${rewardName}`
-                          : `Day ${reward.day} locked: ${rewardName}`;
+                        : `Day ${reward.day} locked: ${rewardName}`;
                   return (
                     <button
                       key={reward.day}
@@ -310,15 +301,13 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
               <PixelActionButton
                 className="sci-reward-primary"
                 tone="green"
-                ready={walletConnected && dailyStatus.isAvailable && pendingClaim === null}
-                shine={walletConnected && dailyStatus.isAvailable && pendingClaim === null}
-                disabled={!walletConnected || !dailyStatus.isAvailable || pendingClaim !== null}
+                ready={dailyStatus.isAvailable && pendingClaim === null}
+                shine={dailyStatus.isAvailable && pendingClaim === null}
+                disabled={!dailyStatus.isAvailable || pendingClaim !== null}
                 onClick={handleClaimDailyGift}
               >
                 {pendingClaim === 'daily'
                   ? 'Securing reward...'
-                  : !walletConnected
-                  ? 'Connect to claim'
                   : dailyStatus.claimedToday
                     ? 'Claimed today'
                     : `Claim Day ${dailyStatus.claimableDay}`}
@@ -357,7 +346,7 @@ const RewardCenter: React.FC<RewardCenterProps> = ({
                         <span>{status.allClaimed ? 'Mastered' : `${Math.min(status.progress, status.target).toLocaleString()} / ${status.target.toLocaleString()}`}</span>
                         <button
                           type="button"
-                          disabled={!walletConnected || !status.complete || pendingClaim !== null}
+                          disabled={!status.complete || pendingClaim !== null}
                           onClick={() => handleClaimAchievement(
                             definition.id,
                             definition.title

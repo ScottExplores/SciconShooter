@@ -68,7 +68,12 @@ test('reward claims persist atomically, guard double taps, and report confirmed 
 
   assert.match(app, /claimDailyGiftReward\(permanentSquadState\)/);
   assert.match(app, /rewardClaimInFlightRef\.current/);
-  assert.match(app, /if \(!activeWalletAddress\) \{[\s\S]*connectWallet\(\);[\s\S]*return null;/);
+  assert.equal(
+    (app.match(/if \(isOwnerWallet\) return null;/g) || []).length,
+    2,
+    'founder sandbox daily and achievement claims must not persist into the device Pilot'
+  );
+  assert.doesNotMatch(app, /if \(!activeWalletAddress\) \{[\s\S]*connectWallet\(\);[\s\S]*return null;/);
   assert.match(app, /permanentSquadState\.profileId !== activeProfileId[\s\S]*weeklySquadState\.profileId !== activeProfileId/);
   assert.match(app, /savePermanentSquadState\(nextPermanentState\)/);
   assert.match(app, /saveWeeklySquadState\(nextWeeklyState\)/);

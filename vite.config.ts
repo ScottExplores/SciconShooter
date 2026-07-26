@@ -12,6 +12,7 @@ const runClaimsHandler = require('./api/run-claims.js');
 const weeklyClaimHandler = require('./api/weekly-claim.js');
 const mintAuthorizationHandler = require('./api/mint-authorization.js');
 const mintRecordsHandler = require('./api/mint-records.js');
+const walletProfileHandler = require('./api/_lib/walletProfileRoute.js');
 const { handlePlayerRuns } = require('./api/_lib/playerRuns.js');
 const recordMetadataHandler = require('./api/record-metadata.js');
 const recordCardHandler = require('./api/record-card.js');
@@ -55,6 +56,7 @@ const proxyPublicApi = async (path: string, req: any, res: any) => {
       Accept: String(req.headers?.accept || 'application/json')
     };
     if (req.headers?.authorization) headers.Authorization = String(req.headers.authorization);
+    if (req.headers?.cookie) headers.Cookie = String(req.headers.cookie);
     const hasBody = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && req.body !== undefined;
     if (hasBody) headers['Content-Type'] = 'application/json';
     const upstream = await fetch(`${PUBLIC_API_ORIGIN}${path}${query}`, {
@@ -70,6 +72,12 @@ const proxyPublicApi = async (path: string, req: any, res: any) => {
     res.statusCode = upstream.status;
     res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/json');
     res.setHeader('Cache-Control', upstream.headers.get('cache-control') || 'no-store');
+    const setCookie = upstream.headers.get('set-cookie');
+    if (setCookie) {
+      // The remote API marks profile cookies Secure. The local Vite relay is
+      // HTTP-only, so remove that attribute only on this development response.
+      res.setHeader('Set-Cookie', setCookie.replace(/;\s*Secure/gi, ''));
+    }
     res.end(body);
   } catch (error) {
     res.statusCode = 502;
@@ -127,6 +135,10 @@ const localApiRoutes = () => ({
     mount('/api/mint-records', async (req, res) => {
       if (useRemotePersistence) return proxyPublicApi('/api/mint-records', req, res);
       return mintRecordsHandler(req, res);
+    });
+    mount('/api/wallet-profile', async (req, res) => {
+      if (useRemotePersistence) return proxyPublicApi('/api/wallet-profile', req, res);
+      return walletProfileHandler(req, res);
     });
     mount('/api/player-runs', async (req, res) => {
       if (useRemotePersistence) return proxyPublicApi('/api/player-runs', req, res);

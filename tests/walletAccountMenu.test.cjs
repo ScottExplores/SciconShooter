@@ -12,6 +12,7 @@ test('the connected wallet menu exposes switch and disconnect actions without cl
 
   assert.match(control, /Choose Base Account/);
   assert.match(control, /Disconnect wallet/);
+  assert.match(control, /Connect for onchain features/);
   assert.doesNotMatch(control, />\s*Sign out\s*</);
   assert.match(control, /bottom-full/);
   assert.match(control, /role="menu"/);
@@ -47,20 +48,23 @@ test('returning sessions restore automatically and provider disconnect events cl
   assert.match(runtime, /localStorage\.removeItem\(STORAGE_KEYS\.WALLET_ADDRESS\)/);
 });
 
-test('switching wallets loads the next wallet profile without saving the previous wallet into it', () => {
+test('switching wallets loads a distinct authenticated cloud profile', () => {
   const app = read('App.tsx');
+  const profiles = read('services', 'walletProfileService.ts');
 
-  assert.match(app, /const walletProfileAddressRef = useRef<string \| null>\(null\)/);
-  assert.match(app, /const hasLoadedWalletProfileRef = useRef\(walletRuntimeEnabled\)/);
-  assert.match(app, /const walletProfileAddress = walletProfileAddressRef\.current/);
-  assert.match(app, /walletProfileAddress === normalizedActiveWalletAddress/);
-  assert.match(app, /getWalletProfileKey\(walletProfileAddress\)/);
-  assert.match(app, /walletProfileAddressRef\.current = activeWalletAddress\.toLowerCase\(\)/);
-  assert.match(app, /shouldMergeLocalProgress[\s\S]*: savedStats\.totalCoins \|\| 0/);
-  assert.match(app, /getWalletProfileKey\(activeWalletAddress\),\s*JSON\.stringify\(nextWalletProfile\)/);
-  assert.match(app, /const savedStats = localStorage\.getItem\(getWalletProfileKey\(walletAddress\)\)[\s\S]*return \{\s*highScore: 0/);
-  assert.match(app, /if \(activeWalletAddress\) return;\s*walletProfileAddressRef\.current = null;\s*if \(gameState !== GameState\.MENU\) return/);
-  assert.match(app, /if \(!activeWalletAddress\) \{\s*localStorage\.setItem\(STORAGE_KEYS\.HIGH_SCORE, stats\.score\.toString\(\)\)/);
+  assert.match(app, /const \[pilotProfile\] = useState\(initializeLocalPilotProfile\)/);
+  assert.match(app, /const walletProfileId = getWalletProfileId\(normalizedAddress\)/);
+  assert.match(app, /walletProfileAddressRef\.current = normalizedAddress/);
+  assert.match(app, /loadAuthenticatedWalletProfile\(\s*activeWalletAddress as Address\s*\)/);
+  assert.match(app, /walletProfileAddressRef\.current !== normalizedAddress/);
+  assert.match(app, /hydrateActiveProfile\(\{[\s\S]*?profileId: pilotProfile\.id[\s\S]*?\}\)/);
+  assert.match(app, /localStorage\.setItem\(STORAGE_KEYS\.WALLET_ADDRESS, activeWalletAddress\)/);
+  assert.match(app, /getWalletRecords\(activeWalletAddress\)/);
+  assert.match(app, /getWalletRuns\(activeWalletAddress\)/);
+  assert.match(app, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords/);
+  assert.match(profiles, /readCachedWalletProfile/);
+  assert.match(profiles, /authenticateWalletProfile/);
+  assert.match(profiles, /saveAuthenticatedWalletProfile/);
 });
 
 test('mission record minting offers in-context wallet switching and disconnect', () => {

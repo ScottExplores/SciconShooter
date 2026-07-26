@@ -9,11 +9,24 @@ const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf
 test('the current daily gift card is the claim control and other cards stay inert', () => {
   const center = read('components', 'RewardCenter.tsx');
 
-  assert.match(center, /const cardState = isClaimed[\s\S]*\? 'claimed'[\s\S]*\? 'locked'[\s\S]*\? 'pending'[\s\S]*\? 'connect-required'[\s\S]*\? 'claimable'[\s\S]*: 'unavailable'/);
+  assert.match(center, /const cardState = isClaimed[\s\S]*\? 'claimed'[\s\S]*\? 'locked'[\s\S]*\? 'pending'[\s\S]*\? 'claimable'[\s\S]*: 'unavailable'/);
+  assert.doesNotMatch(center, /connect-required/);
   assert.match(center, /const isClaimable = cardState === 'claimable';/);
   assert.match(center, /<button[\s\S]*key=\{reward\.day\}[\s\S]*type="button"[\s\S]*data-state=\{cardState\}[\s\S]*disabled=\{!isClaimable\}[\s\S]*aria-label=\{cardLabel\}[\s\S]*onClick=\{handleClaimDailyGift\}/);
   assert.match(center, /`Claim Day \$\{reward\.day\}: \$\{rewardName\}`/);
   assert.match(center, /`Day \$\{reward\.day\} claimed: \$\{rewardName\}`/);
+});
+
+test('device Pilots can collect daily and achievement rewards without a wallet gate', () => {
+  const center = read('components', 'RewardCenter.tsx');
+
+  assert.match(center, /Pilot rewards save on this device/);
+  assert.match(center, /Connect a wallet only for minted and onchain items/);
+  assert.match(center, /ready=\{dailyStatus\.isAvailable && pendingClaim === null\}/);
+  assert.match(center, /disabled=\{!dailyStatus\.isAvailable \|\| pendingClaim !== null\}/);
+  assert.match(center, /disabled=\{!status\.complete \|\| pendingClaim !== null\}/);
+  assert.doesNotMatch(center, /disabled=\{!walletConnected/);
+  assert.doesNotMatch(center, /Connect to claim/);
 });
 
 test('daily gift card taps share the existing guarded atomic claim path', () => {
