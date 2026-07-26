@@ -50,7 +50,7 @@ import gloamforgeRigSource from '../../../../director-data/prototype-assets/gloa
 import heliosAtlasSource from '../../../../director-data/prototype-assets/helios-clawcarrier-v2/helios-clawcarrier-v2-atlas.json';
 import heliosRigSource from '../../../../director-data/prototype-assets/helios-clawcarrier-v2/helios-clawcarrier-v2.rig.json';
 
-export const BOSS_SANDBOX_VERSION = 'V 0.15' as const;
+export const BOSS_SANDBOX_VERSION = 'V 0.16' as const;
 
 export const getBossSandboxPerformingAttackId = (
   activeAttack: PreviewBossAttackSnapshot | null | undefined

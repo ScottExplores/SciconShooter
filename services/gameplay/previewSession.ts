@@ -77,6 +77,20 @@ export type PreviewCommand =
     readonly eventId?: string;
   })
   | (PreviewCommandBase & {
+    readonly type: 'set-boss-hull-invincibility';
+    /** Fight-local health lock. Restarting the preview clears it. */
+    readonly enabled: boolean;
+    readonly eventId?: string;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'set-boss-component-invincibility';
+    /** Exact live component ID. The UI remains generic over component labels. */
+    readonly componentId: string;
+    /** Fight-local health lock. Restarting the preview clears it. */
+    readonly enabled: boolean;
+    readonly eventId?: string;
+  })
+  | (PreviewCommandBase & {
     readonly type: 'set-debug-overlays';
     readonly overlays: PreviewDebugOverlayState;
   })
@@ -140,6 +154,7 @@ export interface PreviewBossSnapshot {
   readonly health: number;
   readonly maxHealth: number;
   readonly healthRatio: number;
+  readonly invincible: boolean;
   readonly components: readonly PreviewBossComponentSnapshot[];
   readonly activeAttack: PreviewBossAttackSnapshot | null;
   readonly activePrimitiveId: BossTimelinePrimitiveId | null;
@@ -152,6 +167,7 @@ export interface PreviewBossComponentSnapshot {
   readonly health: number;
   readonly maxHealth: number;
   readonly healthRatio: number;
+  readonly invincible: boolean;
   readonly destroyed: boolean;
   readonly exposed: boolean;
 }

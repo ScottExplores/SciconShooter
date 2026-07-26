@@ -88,7 +88,7 @@ test('every new Boss Sandbox session starts from the neutral ship baseline', () 
   );
 });
 
-test('desktop and hosted sandboxes share live preview-only boss health tuning', () => {
+test('desktop and hosted sandboxes share live preview-only boss health tuning and locks', () => {
   const panel = read(
     'director',
     'src',
@@ -109,6 +109,11 @@ test('desktop and hosted sandboxes share live preview-only boss health tuning', 
   assert.match(panel, /This fight only · resets on restart/);
   assert.match(panel, /Health - test balancing/);
   assert.match(panel, /boss\.components\.map/);
+  assert.match(panel, /role="switch"/);
+  assert.match(panel, /aria-checked=\{invincible\}/);
+  assert.match(panel, /aria-label=\{`\$\{label\} health invincibility`\}/);
+  assert.match(panel, /onBossInvincibilityChange/);
+  assert.match(panel, /onComponentInvincibilityChange\(component\.id, enabled\)/);
   assert.match(panel, /Current test HP/);
   assert.match(panel, /Test max HP/);
   assert.match(panel, /current health/);
@@ -119,8 +124,14 @@ test('desktop and hosted sandboxes share live preview-only boss health tuning', 
   assert.match(hosted, /onBossHealthRatioChange=\{changeBossHealth\}/);
   assert.match(local, /type: 'set-boss-max-health'/);
   assert.match(local, /type: 'set-boss-component-max-health'/);
+  assert.match(local, /type: 'set-boss-hull-invincibility'/);
+  assert.match(local, /type: 'set-boss-component-invincibility'/);
   assert.match(hosted, /type: 'set-boss-max-health'/);
   assert.match(hosted, /type: 'set-boss-component-max-health'/);
+  assert.match(hosted, /type: 'set-boss-hull-invincibility'/);
+  assert.match(hosted, /type: 'set-boss-component-invincibility'/);
+  assert.match(local, /onBossInvincibilityChange=\{changeBossHullInvincibility\}/);
+  assert.match(hosted, /onBossInvincibilityChange=\{changeBossHullInvincibility\}/);
   assert.doesNotMatch(panel, /fetch\(|localStorage|save|apply-workspace/);
 });
 
@@ -141,7 +152,7 @@ test('desktop and hosted Boss Sandbox shells display one shared version label', 
   );
   const hosted = read('director', 'remote', 'RemoteBossRunnerApp.tsx');
 
-  assert.match(model, /BOSS_SANDBOX_VERSION = 'V 0\.15'/);
+  assert.match(model, /BOSS_SANDBOX_VERSION = 'V 0\.16'/);
   assert.match(local, /boss-sandbox__version/);
   assert.match(local, /\{BOSS_SANDBOX_VERSION\}/);
   assert.match(hosted, /remote-runner__version/);

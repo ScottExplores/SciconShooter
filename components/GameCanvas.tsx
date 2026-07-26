@@ -439,6 +439,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           command.eventId
         );
         break;
+      case 'set-boss-hull-invincibility':
+        handled = engine.setPreviewBossHullInvincibility(
+          command.enabled,
+          command.eventId
+        );
+        break;
+      case 'set-boss-component-invincibility':
+        handled = engine.setPreviewBossComponentInvincibility(
+          command.componentId,
+          command.enabled,
+          command.eventId
+        );
+        break;
       case 'set-debug-overlays':
         handled = pixiRendererRef.current?.setPreviewDebugOverlays(command.overlays) ?? false;
         break;

@@ -98,6 +98,10 @@ test('the canonical canvas routes typed preview commands through the real engine
   assert.match(contract, /type: 'set-boss-health'/);
   assert.match(contract, /type: 'set-boss-max-health'/);
   assert.match(contract, /type: 'set-boss-component-max-health'/);
+  assert.match(contract, /type: 'set-boss-hull-invincibility'/);
+  assert.match(contract, /type: 'set-boss-component-invincibility'/);
+  assert.match(contract, /export interface PreviewBossSnapshot[\s\S]*readonly invincible: boolean/);
+  assert.match(contract, /export interface PreviewBossComponentSnapshot[\s\S]*readonly invincible: boolean/);
   assert.match(contract, /readonly components: readonly PreviewBossComponentSnapshot\[\]/);
   assert.match(contract, /type: 'set-debug-overlays'/);
   assert.match(contract, /type: 'capture-frame'/);
@@ -115,6 +119,8 @@ test('the canonical canvas routes typed preview commands through the real engine
   assert.match(canvas, /engine\.setPreviewBossHealthRatio\(/);
   assert.match(canvas, /engine\.setPreviewBossMaxHealth\(/);
   assert.match(canvas, /engine\.setPreviewBossComponentMaxHealth\(/);
+  assert.match(canvas, /engine\.setPreviewBossHullInvincibility\(/);
+  assert.match(canvas, /engine\.setPreviewBossComponentInvincibility\(/);
   assert.match(canvas, /pixiRendererRef\.current\?\.setPreviewDebugOverlays/);
   assert.match(canvas, /pixiRendererRef\.current\?\.capturePngDataUrl\(\)/);
   assert.match(canvas, /onPreviewSnapshot\?: \(snapshot: PreviewSnapshot\) => void/);
@@ -131,8 +137,14 @@ test('the canonical canvas routes typed preview commands through the real engine
   assert.match(engine, /setPreviewBossHealthRatio\(healthRatio: number, eventId\?: string\)/);
   assert.match(engine, /setPreviewBossMaxHealth\(maxHealth: number, eventId\?: string\)/);
   assert.match(engine, /setPreviewBossComponentMaxHealth\([\s\S]*componentId: string,[\s\S]*maxHealth: number,[\s\S]*eventId\?: string/);
+  assert.match(engine, /setPreviewBossHullInvincibility\(enabled: boolean, eventId\?: string\)/);
+  assert.match(engine, /setPreviewBossComponentInvincibility\([\s\S]*componentId: string,[\s\S]*enabled: boolean,[\s\S]*eventId\?: string/);
+  assert.match(engine, /private readonly previewInvincibleBossHulls = new WeakSet<Entity>\(\)/);
+  assert.match(engine, /private readonly previewInvincibleBossComponents = new WeakSet<BossComponentState>\(\)/);
   assert.match(engine, /clampPreviewBossHealthRatio\(healthRatio\)/);
   assert.match(engine, /components: Object\.freeze\(\(activeBoss\.bossComponents \?\? \[\]\)\.map/);
+  assert.match(engine, /invincible: this\.previewInvincibleBossHulls\.has\(activeBoss\)/);
+  assert.match(engine, /invincible: this\.previewInvincibleBossComponents\.has\(component\)/);
   assert.match(engine, /rescalePreviewHealthBudget\([\s\S]*boss\.hp,[\s\S]*previousMaxHealth,[\s\S]*maxHealth/);
   assert.match(engine, /safeRegionGuide: resolvePreviewSafeRegionGuide\(activePrimitiveId\)/);
 });

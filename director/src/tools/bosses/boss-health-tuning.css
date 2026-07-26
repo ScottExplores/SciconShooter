@@ -42,12 +42,18 @@
 
 .boss-health-tuning__row > header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
 }
 
-.boss-health-tuning__row > header strong {
+.boss-health-tuning__identity {
+  display: grid;
+  min-width: 0;
+  gap: 0.16rem;
+}
+
+.boss-health-tuning__identity strong {
   min-width: 0;
   overflow: hidden;
   color: #e0f2fe;
@@ -56,7 +62,7 @@
   white-space: nowrap;
 }
 
-.boss-health-tuning__row > header span {
+.boss-health-tuning__status {
   flex: none;
   color: #67e8f9;
   font-size: 0.5rem;
@@ -65,12 +71,88 @@
   text-transform: uppercase;
 }
 
-.boss-health-tuning__row[data-status='destroyed'] > header span {
+.boss-health-tuning__row[data-status='destroyed'] .boss-health-tuning__status {
   color: #fb7185;
 }
 
-.boss-health-tuning__row[data-status='protected'] > header span {
+.boss-health-tuning__row[data-status='protected'] .boss-health-tuning__status {
   color: #fbbf24;
+}
+
+.boss-health-tuning__invincibility {
+  display: inline-flex;
+  flex: none;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.42rem;
+  border: 1px solid rgb(103 232 249 / 18%);
+  border-radius: 999px;
+  outline: none;
+  background: rgb(2 12 22 / 72%);
+  color: #64748b;
+  cursor: pointer;
+}
+
+.boss-health-tuning__invincibility-label {
+  font-size: 0.48rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.boss-health-tuning__switch-track {
+  position: relative;
+  display: block;
+  width: 1.78rem;
+  height: 1rem;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 999px;
+  background: #0f2232;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.boss-health-tuning__switch-knob {
+  position: absolute;
+  top: 0.12rem;
+  left: 0.12rem;
+  width: 0.66rem;
+  height: 0.66rem;
+  border-radius: 50%;
+  background: #64748b;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 55%);
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.boss-health-tuning__invincibility[aria-checked='true'] {
+  border-color: rgb(250 204 21 / 55%);
+  background: rgb(113 63 18 / 30%);
+  color: #fde047;
+}
+
+.boss-health-tuning__invincibility[aria-checked='true'] .boss-health-tuning__switch-track {
+  border-color: #facc15;
+  background: rgb(202 138 4 / 55%);
+}
+
+.boss-health-tuning__invincibility[aria-checked='true'] .boss-health-tuning__switch-knob {
+  background: #fef9c3;
+  transform: translateX(0.76rem);
+}
+
+.boss-health-tuning__invincibility:focus-visible {
+  border-color: #67e8f9;
+  box-shadow: 0 0 0 2px rgb(34 211 238 / 18%);
+}
+
+.boss-health-tuning__invincibility:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.boss-health-tuning__row[data-invincible='true'] {
+  border-color: rgb(250 204 21 / 34%);
+  box-shadow: inset 0 0 0 1px rgb(250 204 21 / 5%);
 }
 
 .boss-health-tuning__row > output {
@@ -106,7 +188,7 @@
 }
 
 .boss-health-tuning__row input,
-.boss-health-tuning__row button {
+.boss-health-tuning__row form button {
   min-width: 0;
   min-height: 2rem;
   border: 1px solid rgb(103 232 249 / 22%);
@@ -128,7 +210,7 @@
   box-shadow: 0 0 0 2px rgb(34 211 238 / 10%);
 }
 
-.boss-health-tuning__row button {
+.boss-health-tuning__row form button {
   padding: 0.3rem;
   background: rgb(8 145 178 / 18%);
   color: #cffafe;

@@ -1722,6 +1722,12 @@ export class GameEngine {
   private readonly previewBossWeaponSocketEventId?: string;
   private readonly previewBossProjectileVisualKinds: ReadonlySet<BossModularProjectileVisualKind>;
   private previewBossAttackLoop: PreviewBossAttackLoopState | null = null;
+  /**
+   * Fight-local Boss Sandbox health locks. Object identity deliberately makes
+   * every restart/new spawn begin unlocked without touching authored content.
+   */
+  private readonly previewInvincibleBossHulls = new WeakSet<Entity>();
+  private readonly previewInvincibleBossComponents = new WeakSet<BossComponentState>();
 
   constructor(stats: Stats, options: GameEngineOptions = {}) {
     this.stats = stats;
@@ -2179,6 +2185,7 @@ export class GameEngine {
         health: Math.max(0, activeBoss.hp),
         maxHealth: Math.max(1, activeBoss.maxHp),
         healthRatio: clamp(activeBoss.hp / Math.max(1, activeBoss.maxHp), 0, 1),
+        invincible: this.previewInvincibleBossHulls.has(activeBoss),
         components: Object.freeze((activeBoss.bossComponents ?? []).map((component) => (
           Object.freeze({
             id: component.id,
@@ -2186,6 +2193,7 @@ export class GameEngine {
             health: Math.max(0, component.hp),
             maxHealth: Math.max(1, component.maxHp),
             healthRatio: clamp(component.hp / Math.max(1, component.maxHp), 0, 1),
+            invincible: this.previewInvincibleBossComponents.has(component),
             destroyed: component.destroyed,
             exposed: component.exposed
           })
@@ -2859,6 +2867,49 @@ export class GameEngine {
     component.hp = nextComponentHealth.health;
     component.maxHp = nextComponentHealth.maxHealth;
     return true;
+  }
+
+  /** Lock or unlock incoming combat damage for the live preview boss hull. */
+  setPreviewBossHullInvincibility(enabled: boolean, eventId?: string) {
+    if (
+      !this.previewMode
+      || (eventId !== undefined && (!eventId || eventId.length > 160))
+    ) return false;
+    const boss = this.getPreviewBossTarget(eventId);
+    if (!boss) return false;
+
+    if (enabled) this.previewInvincibleBossHulls.add(boss);
+    else this.previewInvincibleBossHulls.delete(boss);
+    return true;
+  }
+
+  /** Lock or unlock one live destructible component without restarting. */
+  setPreviewBossComponentInvincibility(
+    componentId: string,
+    enabled: boolean,
+    eventId?: string
+  ) {
+    if (
+      !this.previewMode
+      || !componentId
+      || componentId.length > 80
+      || (eventId !== undefined && (!eventId || eventId.length > 160))
+    ) return false;
+    const boss = this.getPreviewBossTarget(eventId);
+    const component = boss?.bossComponents?.find((candidate) => candidate.id === componentId);
+    if (!component || component.destroyed) return false;
+
+    if (enabled) this.previewInvincibleBossComponents.add(component);
+    else this.previewInvincibleBossComponents.delete(component);
+    return true;
+  }
+
+  private isPreviewBossHullInvincible(boss: Entity) {
+    return this.previewMode && this.previewInvincibleBossHulls.has(boss);
+  }
+
+  private isPreviewBossComponentInvincible(component: BossComponentState) {
+    return this.previewMode && this.previewInvincibleBossComponents.has(component);
   }
 
   seekPreviewToFrame(targetFrame: number) {
@@ -5135,7 +5186,7 @@ export class GameEngine {
       ? this.getBossComponentHit(nearestTarget, beamBox)
       : undefined;
     if (componentHit) this.damageBossComponent(nearestTarget, componentHit, laserDamage);
-    else if (nearestTarget.type === EntityType.BOSS) this.damageBossHull(nearestTarget, laserDamage);
+    else if (isBossTarget) this.damageBossHull(nearestTarget, laserDamage);
     else {
       const previousHealth = nearestTarget.hp;
       nearestTarget.hp -= laserDamage;
@@ -5703,7 +5754,9 @@ export class GameEngine {
           : target.type === EntityType.ENEMY_INVADER
             ? BOMB_DAMAGE_INVADER
             : 999;
-      if (target.type === EntityType.BOSS) this.damageBossHull(target, bombDamage);
+      if (target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS) {
+        this.damageBossHull(target, bombDamage);
+      }
       else {
         const previousHealth = target.hp;
         target.hp -= bombDamage;
@@ -5899,7 +5952,9 @@ export class GameEngine {
           : target.type === EntityType.ENEMY_INVADER
             ? 22
             : 999;
-      if (target.type === EntityType.BOSS) this.damageBossHull(target, damage);
+      if (target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS) {
+        this.damageBossHull(target, damage);
+      }
       else {
         const previousHealth = target.hp;
         target.hp -= damage;
@@ -6320,7 +6375,9 @@ export class GameEngine {
         ? this.getBossComponentHit(target, beamBox)
         : undefined;
       if (componentHit) this.damageBossComponent(target, componentHit, beamDamage);
-      else if (target.type === EntityType.BOSS) this.damageBossHull(target, beamDamage);
+      else if (target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS) {
+        this.damageBossHull(target, beamDamage);
+      }
       else {
         const previousHealth = target.hp;
         target.hp -= beamDamage;
@@ -8020,7 +8077,9 @@ export class GameEngine {
           : target.type === EntityType.ENEMY_INVADER
             ? 28
             : 999;
-      if (target.type === EntityType.BOSS) this.damageBossHull(target, damage);
+      if (target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS) {
+        this.damageBossHull(target, damage);
+      }
       else {
         const previousHealth = target.hp;
         target.hp -= damage;
@@ -8062,6 +8121,10 @@ export class GameEngine {
   }
 
   damageBossComponent(boss: Entity, component: BossComponentState, damage: number) {
+    if (this.isPreviewBossComponentInvincible(component)) {
+      this.pulseBossComponentFlash(component);
+      return;
+    }
     const damageResult = applyBossComponentDamage(
       component,
       damage,
@@ -8119,8 +8182,13 @@ export class GameEngine {
   }
 
   damageBossHull(boss: Entity, damage: number) {
+    if (boss.type !== EntityType.BOSS && boss.type !== EntityType.MINI_BOSS) return;
     if (!this.isBossCombatInteractive(boss)) return;
-    if (this.isBossHullProtected(boss)) {
+    if (boss.type === EntityType.BOSS && this.isBossHullProtected(boss)) {
+      this.pulseDamageFlash(boss);
+      return;
+    }
+    if (this.isPreviewBossHullInvincible(boss)) {
       this.pulseDamageFlash(boss);
       return;
     }
@@ -8136,7 +8204,10 @@ export class GameEngine {
     );
     this.pulseDamageFlash(boss);
     const appliedDamage = Math.max(0, previousHealth - boss.hp);
-    if (isBossHullImpactSignificant(appliedDamage, boss.maxHp)) {
+    if (
+      boss.type === EntityType.BOSS
+      && isBossHullImpactSignificant(appliedDamage, boss.maxHp)
+    ) {
       this.queueBossSignificantImpact(
         boss,
         0.5,
@@ -12452,7 +12523,7 @@ export class GameEngine {
         const previousTargetHealth = target.hp;
         if (bossComponent) {
           this.damageBossComponent(target, bossComponent, dmg);
-        } else if (target.type === EntityType.BOSS) {
+        } else if (isBossTarget) {
           this.damageBossHull(target, dmg);
         } else {
           target.hp -= dmg;

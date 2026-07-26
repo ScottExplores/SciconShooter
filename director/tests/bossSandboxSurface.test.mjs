@@ -192,6 +192,9 @@ test('desktop Boss Sandbox gives the permanent mobile game the full-height cente
   assert.doesNotMatch(play, /Boss attacks|Ship loadout|boss-sandbox__viewbar/);
   assert.match(loadout, /aria-label="Ship loadout"/);
   assert.match(loadout, /PLAYABLE_PLAYER_SHIP_IDS\.map/);
+  assert.match(loadout, /<BossHealthTuningPanel/);
+  assert.match(loadout, /onBossInvincibilityChange=\{changeBossHullInvincibility\}/);
+  assert.match(loadout, /onComponentInvincibilityChange=\{changeBossComponentInvincibility\}/);
 
   assert.match(
     styles,

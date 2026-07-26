@@ -12,6 +12,8 @@ interface BossHealthTuningPanelProps {
   onBossHealthRatioChange: (healthRatio: number) => void;
   onBossMaxHealthChange: (maxHealth: number) => void;
   onComponentMaxHealthChange: (componentId: string, maxHealth: number) => void;
+  onBossInvincibilityChange: (enabled: boolean) => void;
+  onComponentInvincibilityChange: (componentId: string, enabled: boolean) => void;
 }
 
 interface HealthBudgetRowProps {
@@ -19,10 +21,12 @@ interface HealthBudgetRowProps {
   label: string;
   health: number;
   maxHealth: number;
+  invincible: boolean;
   status: 'Hull' | 'Active' | 'Protected' | 'Destroyed';
   currentHealthEditable?: boolean;
   onCurrentHealthCommit?: (health: number) => void;
   onCommit: (maxHealth: number) => void;
+  onInvincibilityChange: (enabled: boolean) => void;
 }
 
 const formatHealth = (value: number) => Math.max(0, Math.round(value)).toLocaleString();
@@ -32,10 +36,12 @@ function HealthBudgetRow({
   label,
   health,
   maxHealth,
+  invincible,
   status,
   currentHealthEditable = false,
   onCurrentHealthCommit,
-  onCommit
+  onCommit,
+  onInvincibilityChange
 }: HealthBudgetRowProps) {
   const [draft, setDraft] = useState(String(Math.round(maxHealth)));
   const [currentDraft, setCurrentDraft] = useState(String(Math.round(health)));
@@ -84,10 +90,30 @@ function HealthBudgetRow({
   };
 
   return (
-    <article className="boss-health-tuning__row" data-status={status.toLowerCase()}>
+    <article
+      className="boss-health-tuning__row"
+      data-invincible={invincible ? 'true' : 'false'}
+      data-status={status.toLowerCase()}
+    >
       <header>
-        <strong>{label}</strong>
-        <span>{status}</span>
+        <div className="boss-health-tuning__identity">
+          <strong>{label}</strong>
+          <span className="boss-health-tuning__status">{status}</span>
+        </div>
+        <button
+          className="boss-health-tuning__invincibility"
+          type="button"
+          role="switch"
+          aria-checked={invincible}
+          aria-label={`${label} health invincibility`}
+          disabled={status === 'Destroyed'}
+          onClick={() => onInvincibilityChange(!invincible)}
+        >
+          <span className="boss-health-tuning__invincibility-label">Invincible</span>
+          <span className="boss-health-tuning__switch-track" aria-hidden="true">
+            <span className="boss-health-tuning__switch-knob" />
+          </span>
+        </button>
       </header>
       <output aria-label={`${label} current health`}>
         {formatHealth(health)} <span>/ {formatHealth(maxHealth)} HP</span>
@@ -140,7 +166,9 @@ export function BossHealthTuningPanel({
   boss,
   onBossHealthRatioChange,
   onBossMaxHealthChange,
-  onComponentMaxHealthChange
+  onComponentMaxHealthChange,
+  onBossInvincibilityChange,
+  onComponentInvincibilityChange
 }: BossHealthTuningPanelProps) {
   return (
     <section className="boss-health-tuning" aria-label="Boss test health">
@@ -157,12 +185,14 @@ export function BossHealthTuningPanel({
             label="Boss hull"
             health={boss.health}
             maxHealth={boss.maxHealth}
+            invincible={boss.invincible}
             status="Hull"
             currentHealthEditable
             onCurrentHealthCommit={(health) => (
               onBossHealthRatioChange(health / Math.max(1, boss.maxHealth))
             )}
             onCommit={onBossMaxHealthChange}
+            onInvincibilityChange={onBossInvincibilityChange}
           />
           {boss.components.map((component) => (
             <HealthBudgetRow
@@ -171,6 +201,7 @@ export function BossHealthTuningPanel({
               label={component.label}
               health={component.health}
               maxHealth={component.maxHealth}
+              invincible={component.invincible}
               status={component.destroyed
                 ? 'Destroyed'
                 : component.exposed
@@ -178,6 +209,9 @@ export function BossHealthTuningPanel({
                   : 'Protected'}
               onCommit={(maxHealth) => (
                 onComponentMaxHealthChange(component.id, maxHealth)
+              )}
+              onInvincibilityChange={(enabled) => (
+                onComponentInvincibilityChange(component.id, enabled)
               )}
             />
           ))}

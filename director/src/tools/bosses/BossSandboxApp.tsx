@@ -441,6 +441,26 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     setNotice(`Part test health set to ${maxHealth.toLocaleString()} HP without restarting`);
   }, [eventId, sendCommand]);
 
+  const changeBossHullInvincibility = useCallback((enabled: boolean) => {
+    if (!eventId) return;
+    sendCommand({ type: 'set-boss-hull-invincibility', eventId, enabled });
+    setNotice(`Boss hull invincibility ${enabled ? 'on' : 'off'} for this fight`);
+  }, [eventId, sendCommand]);
+
+  const changeBossComponentInvincibility = useCallback((
+    componentId: string,
+    enabled: boolean
+  ) => {
+    if (!eventId) return;
+    sendCommand({
+      type: 'set-boss-component-invincibility',
+      eventId,
+      componentId,
+      enabled
+    });
+    setNotice(`Boss part invincibility ${enabled ? 'on' : 'off'} for this fight`);
+  }, [eventId, sendCommand]);
+
   const jumpToPhase = useCallback((phaseId: string) => {
     if (!eventId) return;
     setSelectedPhaseId(phaseId);
@@ -947,6 +967,8 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
             onBossHealthRatioChange={changeBossHealth}
             onBossMaxHealthChange={changeBossMaxHealth}
             onComponentMaxHealthChange={changeBossComponentMaxHealth}
+            onBossInvincibilityChange={changeBossHullInvincibility}
+            onComponentInvincibilityChange={changeBossComponentInvincibility}
           />
           <p className="boss-sandbox__notice" role="status">{notice}</p>
         </aside>
