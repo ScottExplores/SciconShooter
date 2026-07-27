@@ -43,7 +43,10 @@ import {
   getUnlockedBossArchiveEntries,
   type BossArchiveEntry
 } from '../services/bossArchive';
-import type { BossArchiveDailyChargeStatus } from '../services/bossArchiveProgression';
+import {
+  getBossArchiveUnclaimedMasteryCount,
+  type BossArchiveDailyChargeStatus
+} from '../services/bossArchiveProgression';
 import {
   getClaimableAchievementCount,
   getDailyGiftStatus,
@@ -697,6 +700,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
       .map((entry) => entry.eventId)
       .filter((eventId) => !seen.has(eventId));
   }, [earnedBossArchiveEntries, permanentSquadState.bossArchive.seenEventIds]);
+  const bossArchiveNotificationCount = newBossArchiveEventIds.length
+    + getBossArchiveUnclaimedMasteryCount(permanentSquadState.bossArchive);
   const canOpenBossArchive = Boolean(onStartBossFight) && (
     availableBossArchiveEntries.length > 0 || bossArchiveDevelopmentAccess
   );
@@ -1208,37 +1213,22 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   type="button"
                   onClick={openBossArchive}
                   data-boss-archive-trigger="true"
-                  className={`group relative col-start-1 row-start-1 flex aspect-square w-full shrink-0 items-center justify-self-start overflow-hidden border bg-[linear-gradient(155deg,rgba(8,47,73,0.96),rgba(2,6,23,0.98)_72%)] shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_18px_rgba(34,211,238,0.12)] transition hover:-translate-y-0.5 hover:border-cyan-100 hover:shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_20px_rgba(34,211,238,0.2),0_0_18px_rgba(34,211,238,0.22)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100 ${newBossArchiveEventIds.length > 0
-                    ? 'border-yellow-200 shadow-[0_0_10px_rgba(250,204,21,0.85),0_0_26px_rgba(239,68,68,0.42)]'
-                    : 'border-cyan-200/55'} [clip-path:polygon(8px_0,calc(100%_-_8px)_0,100%_8px,100%_calc(100%_-_8px),calc(100%_-_8px)_100%,8px_100%,0_calc(100%_-_8px),0_8px)]`}
-                  aria-label={newBossArchiveEventIds.length > 0
-                    ? `Open Boss Archive. ${newBossArchiveEventIds.length} new ${newBossArchiveEventIds.length === 1 ? 'boss' : 'bosses'} unlocked.`
+                  data-attention={bossArchiveNotificationCount > 0 ? 'true' : 'false'}
+                  className="sci-home-command-icon sci-home-command-icon--boss group col-start-1 row-start-1 justify-self-start"
+                  aria-label={bossArchiveNotificationCount > 0
+                    ? `Open Boss Archive. ${bossArchiveNotificationCount} new ${bossArchiveNotificationCount === 1 ? 'item' : 'items'}.`
                     : 'Open Boss Archive'}
                   title="Boss Archive"
                 >
-                  <span className="absolute inset-[3px] border border-cyan-300/18 bg-[radial-gradient(circle_at_50%_35%,rgba(239,68,68,0.2),rgba(8,47,73,0.34)_48%,rgba(2,6,23,0.62)_78%)] [clip-path:polygon(6px_0,calc(100%_-_6px)_0,100%_6px,100%_calc(100%_-_6px),calc(100%_-_6px)_100%,6px_100%,0_calc(100%_-_6px),0_6px)]" aria-hidden="true" />
-                  <span className="absolute inset-x-1 top-0 h-px bg-gradient-to-r from-transparent via-cyan-100/90 to-transparent shadow-[0_0_8px_rgba(34,211,238,0.72)]" aria-hidden="true" />
-                  <span className="relative z-10 mb-2 block h-[82%] w-[82%]" aria-hidden="true">
-                    <img
-                      src="/game-art/generated/ui/animations/boss-alert-banners-v1/effects/warning-ring-red.png"
-                      alt=""
-                      className={`absolute inset-0 h-full w-full object-contain [image-rendering:pixelated] ${
-                        newBossArchiveEventIds.length > 0 ? 'animate-pulse opacity-80' : 'opacity-35'
-                      }`}
-                    />
-                    <img
-                      src="/game-art/bosses/final-boss-sentinel.png"
-                      alt=""
-                      className="absolute inset-[2%] z-10 h-[96%] w-[96%] object-contain drop-shadow-[0_0_8px_rgba(248,113,113,0.72)] [image-rendering:pixelated] transition group-hover:scale-105"
-                    />
-                  </span>
-                  <span className="absolute inset-x-1 bottom-1 z-10 text-center font-mono text-[6px] font-black uppercase tracking-[0.11em] text-cyan-100/85">
-                    Bosses
-                  </span>
-                  <span className="absolute inset-x-2 bottom-0 z-10 h-px bg-gradient-to-r from-transparent via-emerald-300 to-transparent shadow-[0_0_6px_rgba(52,211,153,0.72)]" aria-hidden="true" />
-                  {newBossArchiveEventIds.length > 0 ? (
-                    <span className="absolute right-0.5 top-0.5 z-20 flex h-4 min-w-4 items-center justify-center rounded-full border border-yellow-100 bg-red-500 px-1 text-[8px] font-black text-white shadow-[0_0_8px_rgba(250,204,21,0.8)]">
-                      {newBossArchiveEventIds.length > 9 ? '9+' : newBossArchiveEventIds.length}
+                  <img
+                    src="/game-art/bosses/final-boss-sentinel.png"
+                    alt=""
+                    className="sci-home-command-icon__art sci-home-command-icon__art--boss"
+                    aria-hidden="true"
+                  />
+                  {bossArchiveNotificationCount > 0 ? (
+                    <span className="sci-home-command-icon__badge" aria-hidden="true">
+                      {bossArchiveNotificationCount > 9 ? '9+' : bossArchiveNotificationCount}
                     </span>
                   ) : null}
                 </button>
@@ -1254,24 +1244,21 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   type="button"
                   onClick={onOpenCampaignMap}
                   data-campaign-map-trigger="true"
-                  className={`group relative col-start-2 row-start-1 flex aspect-square w-full shrink-0 items-center justify-self-start overflow-hidden border bg-[linear-gradient(155deg,rgba(8,47,73,0.96),rgba(2,6,23,0.98)_72%)] shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_18px_rgba(34,211,238,0.12)] transition hover:-translate-y-0.5 hover:border-emerald-100 hover:shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_20px_rgba(52,211,153,0.22),0_0_18px_rgba(34,211,238,0.22)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100 md:col-start-3 md:justify-self-end [clip-path:polygon(8px_0,calc(100%_-_8px)_0,100%_8px,100%_calc(100%_-_8px),calc(100%_-_8px)_100%,8px_100%,0_calc(100%_-_8px),0_8px)] ${campaignNotificationCount > 0
-                    ? 'border-yellow-200 shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_18px_rgba(250,204,21,0.16),0_0_14px_rgba(250,204,21,0.5)]'
-                    : 'border-cyan-200/55'}`}
+                  data-attention={campaignNotificationCount > 0 ? 'true' : 'false'}
+                  className="sci-home-command-icon sci-home-command-icon--map group col-start-2 row-start-1 justify-self-start md:col-start-3 md:justify-self-end"
                   aria-label={campaignNotificationCount > 0
                     ? `Open Campaign Map. ${campaignNotificationCount} new campaign updates.`
                     : 'Open Campaign Map'}
                   title="Campaign Map"
                 >
-                  <span className="absolute inset-[3px] border border-cyan-300/18 bg-[radial-gradient(circle_at_50%_35%,rgba(52,211,153,0.2),rgba(8,47,73,0.34)_48%,rgba(2,6,23,0.62)_78%)] [clip-path:polygon(6px_0,calc(100%_-_6px)_0,100%_6px,100%_calc(100%_-_6px),calc(100%_-_6px)_100%,6px_100%,0_calc(100%_-_6px),0_6px)]" aria-hidden="true" />
                   <img
                     src="/game-art/generated/ui/scicon-interface-pack-v1/buttons/navigation/map.png"
                     alt=""
-                    className="relative z-10 mb-2 h-[76%] w-[76%] object-contain drop-shadow-[0_0_8px_rgba(52,211,153,0.58)] [image-rendering:pixelated] transition group-hover:scale-105"
+                    className="sci-home-command-icon__art sci-home-command-icon__art--map"
+                    aria-hidden="true"
                   />
-                  <span className="absolute inset-x-1 bottom-1 z-10 text-center font-mono text-[6px] font-black uppercase tracking-[0.11em] text-cyan-100/85">Map</span>
-                  <span className="absolute inset-x-2 bottom-0 z-10 h-px bg-gradient-to-r from-transparent via-emerald-300 to-transparent shadow-[0_0_6px_rgba(52,211,153,0.72)]" aria-hidden="true" />
                   {campaignNotificationCount > 0 ? (
-                    <span aria-hidden="true" className="absolute right-0.5 top-0.5 z-20 flex h-4 min-w-4 items-center justify-center rounded-full border border-yellow-100 bg-amber-400 px-1 text-[8px] font-black text-slate-950 shadow-[0_0_8px_rgba(250,204,21,0.8)]">
+                    <span aria-hidden="true" className="sci-home-command-icon__badge">
                       {campaignNotificationCount > 9 ? '9+' : campaignNotificationCount}
                     </span>
                   ) : null}

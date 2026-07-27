@@ -56,6 +56,21 @@ test('the app keeps the real game mounted behind the stage-complete overlay stat
   assert.match(appSource, /campaignComplete={campaignCompletedRun}/);
 });
 
+test('internal Campaign waves settle and auto-continue without opening the ending overlay', () => {
+  const handlerStart = appSource.indexOf('const showWaveVictory = async');
+  const handlerEnd = appSource.indexOf('const continueAfterWaveVictory', handlerStart);
+  const handlerSource = appSource.slice(handlerStart, handlerEnd);
+  const internalWaveGuard = handlerSource.indexOf('if (!summary.stageComplete)');
+  const presentEnding = handlerSource.indexOf('setWaveVictorySummary(summary)');
+
+  assert.ok(handlerStart >= 0 && handlerEnd > handlerStart);
+  assert.match(
+    handlerSource,
+    /if \(isCampaignRun\) \{[\s\S]*?handleCampaignProgress\(summary\);[\s\S]*?finalizeCampaignCollectedCoins\(summary\);[\s\S]*?if \(!summary\.stageComplete\) \{[\s\S]*?setWaveContinueCommand\(current => \(\{ nonce: \(current\?\.nonce \?\? 0\) \+ 1 \}\)\);[\s\S]*?return;/
+  );
+  assert.ok(internalWaveGuard >= 0 && internalWaveGuard < presentEnding);
+});
+
 test('Campaign result settlement uses attempt-scoped IDs and a stable final collected-coin receipt', () => {
   assert.match(appSource, /const campaignAttemptIdRef = useRef\(''\)/);
   assert.match(appSource, /campaignAttemptIdRef\.current = campaignRequest[\s\S]*?globalThis\.crypto\?\.randomUUID\?\.\(\)/);

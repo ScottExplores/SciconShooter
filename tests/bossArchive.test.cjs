@@ -322,7 +322,11 @@ test('production integration unlocks only authored boss victories and keeps repl
   assert.match(startScreen, /grid-cols-\[clamp\(3\.25rem,14vw,3\.6rem\)_minmax\(0,1fr\)_clamp\(3\.25rem,14vw,3\.6rem\)\]/);
   assert.match(startScreen, /data-boss-archive-trigger="true"/);
   assert.match(startScreen, /data-boss-archive-wallet-slot="true"/);
-  assert.match(startScreen, />\s*Bosses\s*<\/span>/);
+  assert.match(startScreen, /getBossArchiveUnclaimedMasteryCount\(permanentSquadState\.bossArchive\)/);
+  assert.match(startScreen, /data-attention=\{bossArchiveNotificationCount > 0 \? 'true' : 'false'\}/);
+  assert.match(startScreen, /sci-home-command-icon__art--boss/);
+  assert.doesNotMatch(startScreen, /boss-alert-banners-v1\/effects\/warning-ring-red\.png/);
+  assert.doesNotMatch(startScreen, />\s*Bosses\s*<\/span>/);
   assert.match(
     app,
     /!requestedBossReplay[\s\S]*?!isOwnerWallet[\s\S]*?!permanentSquadState\.bossArchive\.unlockedEventIds\.includes\(requestedBossReplay\.eventId\)/

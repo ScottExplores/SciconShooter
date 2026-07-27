@@ -2324,6 +2324,10 @@ const App: React.FC = () => {
     if (isCampaignRun) {
       handleCampaignProgress(summary);
       finalizeCampaignCollectedCoins(summary);
+      if (!summary.stageComplete) {
+        setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
+        return;
+      }
     }
     if (!isNonCompetitiveRun && summary.bossEncounterId) {
       const victoryKey = `${gameId}:${summary.id}`;

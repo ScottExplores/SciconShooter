@@ -8,6 +8,8 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'u
 
 const mapSource = read('components/CampaignMap.tsx');
 const mapStyles = read('components/campaign-map.css');
+const startScreenSource = read('components/StartScreen.tsx');
+const homeStyles = read('styles/tailwind.input.css');
 
 test('Campaign Map reveals configured boss and environment details without generic substitutions', () => {
   assert.match(mapSource, /selectedMission\.bossName \?\? 'Boss encounter'/);
@@ -32,6 +34,16 @@ test('Campaign Map offers a one-tap return after manual route exploration', () =
   assert.match(mapSource, /onScroll=\{refreshCurrentMissionDistance\}/);
   assert.match(mapSource, /selectedMission\.id !== progress\.recommendedMissionId \|\| routeAwayFromCurrent/);
   assert.match(mapSource, /requestAnimationFrame\(\(\) => centerMissionNode\(progress\.recommendedMissionId\)\)/);
+});
+
+test('Home map and boss commands use icon-only buttons with shared new-item attention', () => {
+  assert.match(startScreenSource, /data-campaign-map-trigger="true"[\s\S]*?data-attention=\{campaignNotificationCount > 0 \? 'true' : 'false'\}/);
+  assert.match(startScreenSource, /sci-home-command-icon__art--map/);
+  assert.doesNotMatch(startScreenSource, />\s*Map\s*<\/span>/);
+  assert.match(homeStyles, /\.sci-home-command-icon \{[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/);
+  assert.match(homeStyles, /\.sci-home-command-icon\[data-attention='true'\] \.sci-home-command-icon__art \{[\s\S]*?sci-home-command-attention-art/);
+  assert.match(homeStyles, /drop-shadow\(0 0 0\.72rem rgb\(250 204 21 \/ 0\.96\)\)/);
+  assert.match(homeStyles, /prefers-reduced-motion: reduce[\s\S]*?\.sci-home-command-icon\[data-attention='true'\] \.sci-home-command-icon__art[\s\S]*?animation: none !important/);
 });
 
 test('Campaign developer controls expose Wave, Mission, and full-map result previews', () => {

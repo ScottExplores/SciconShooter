@@ -2022,7 +2022,7 @@
   .sci-reward-edge-trigger {
     position: fixed;
     right: -1.75rem;
-    bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 13.25rem);
+    bottom: calc(max(0.5rem, env(safe-area-inset-bottom)) + 20rem);
     z-index: 42;
     display: flex;
     width: 4.8rem;
@@ -2048,6 +2048,100 @@
     transition: right 180ms ease, filter 180ms ease, transform 180ms ease, box-shadow 180ms ease;
     animation: sci-reward-edge-hover 4.2s ease-in-out infinite;
     touch-action: manipulation;
+  }
+
+  .sci-home-command-icon {
+    --sci-home-command-glow: 34 211 238;
+    position: relative;
+    display: grid;
+    width: 100%;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    aspect-ratio: 1;
+    place-items: center;
+    overflow: visible;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    touch-action: manipulation;
+    transition: filter 180ms ease, transform 180ms ease;
+  }
+
+  .sci-home-command-icon--boss {
+    --sci-home-command-glow: 248 113 113;
+  }
+
+  .sci-home-command-icon--map {
+    --sci-home-command-glow: 52 211 153;
+  }
+
+  .sci-home-command-icon::before {
+    position: absolute;
+    z-index: 0;
+    inset: 8%;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgb(250 204 21 / 0.5), rgb(250 204 21 / 0.16) 42%, transparent 72%);
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.86);
+  }
+
+  .sci-home-command-icon:hover {
+    filter: brightness(1.12);
+    transform: translateY(-0.125rem);
+  }
+
+  .sci-home-command-icon:focus-visible {
+    border-radius: 0.65rem;
+    outline: 2px solid rgb(254 249 195 / 0.94);
+    outline-offset: 0.18rem;
+  }
+
+  .sci-home-command-icon__art {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 0 0.45rem rgb(var(--sci-home-command-glow) / 0.58));
+    transform: translateZ(0);
+    transform-origin: 50% 50%;
+  }
+
+  .sci-home-command-icon__art--boss {
+    width: 96%;
+    height: 96%;
+  }
+
+  .sci-home-command-icon[data-attention='true']::before {
+    animation: sci-home-command-attention-aura 1.75s ease-in-out infinite;
+  }
+
+  .sci-home-command-icon[data-attention='true'] .sci-home-command-icon__art {
+    animation: sci-home-command-attention-art 1.75s ease-in-out infinite;
+  }
+
+  .sci-home-command-icon__badge {
+    position: absolute;
+    z-index: 3;
+    top: -0.12rem;
+    right: -0.18rem;
+    display: grid;
+    min-width: 1rem;
+    height: 1rem;
+    place-items: center;
+    padding-inline: 0.16rem;
+    border-radius: 9999px;
+    color: rgb(15 23 42);
+    background: rgb(250 204 21);
+    box-shadow: 0 0 0.7rem rgb(250 204 21 / 0.92);
+    font-size: 0.5rem;
+    font-weight: 950;
+    line-height: 1;
   }
 
   .sci-reward-edge-trigger--claimable {
@@ -3195,6 +3289,27 @@
     50% { opacity: 1; transform: scale(1.18); }
   }
 
+  @keyframes sci-home-command-attention-aura {
+    0%, 100% { opacity: 0.48; transform: scale(0.86); }
+    50% { opacity: 1; transform: scale(1.12); }
+  }
+
+  @keyframes sci-home-command-attention-art {
+    0%, 100% {
+      filter:
+        drop-shadow(0 0 0.42rem rgb(var(--sci-home-command-glow) / 0.62))
+        drop-shadow(0 0 0.22rem rgb(250 204 21 / 0.56));
+      transform: translateZ(0) scale(1);
+    }
+    50% {
+      filter:
+        brightness(1.2)
+        drop-shadow(0 0 0.62rem rgb(var(--sci-home-command-glow) / 0.76))
+        drop-shadow(0 0 0.72rem rgb(250 204 21 / 0.96));
+      transform: translateZ(0) scale(1.07);
+    }
+  }
+
   @keyframes sci-proposal-attention {
     0%, 100% {
       box-shadow: inset 0 0 0.65rem rgb(250 204 21 / 0.08), 0 0 0.2rem rgb(250 204 21 / 0.12);
@@ -3276,7 +3391,9 @@
     .sci-dashboard-nav-button[data-proposal-ready='true']::before,
     .sci-dashboard-nav-button[data-proposal-ready='true'] .sci-dashboard-nav-icon,
     .sci-proposal-attention,
-    .sci-dashboard-reward-ready {
+    .sci-dashboard-reward-ready,
+    .sci-home-command-icon[data-attention='true']::before,
+    .sci-home-command-icon[data-attention='true'] .sci-home-command-icon__art {
       animation: none !important;
     }
 
