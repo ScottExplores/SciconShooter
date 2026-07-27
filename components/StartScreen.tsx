@@ -1148,31 +1148,47 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
         <div className={`w-full max-w-xl ${compact ? 'space-y-2' : 'space-y-3'}`}>
           {walletControl || canOpenBossArchive ? (
-            <div className="relative flex items-center justify-center gap-2">
+            <div
+              data-boss-archive-command-row={canOpenBossArchive ? 'true' : 'false'}
+              className={`relative grid min-h-12 w-full items-center gap-2 ${
+                canOpenBossArchive
+                  ? 'grid-cols-[clamp(3.25rem,14vw,3.6rem)_minmax(0,1fr)_clamp(3.25rem,14vw,3.6rem)]'
+                  : 'grid-cols-[minmax(0,1fr)]'
+              }`}
+            >
               {canOpenBossArchive ? (
                 <button
                   type="button"
                   onClick={openBossArchive}
-                  className={`group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden border bg-slate-950/90 transition hover:-translate-y-0.5 hover:border-cyan-100 ${newBossArchiveEventIds.length > 0
+                  data-boss-archive-trigger="true"
+                  className={`group relative col-start-1 flex aspect-square w-full shrink-0 items-center justify-self-start overflow-hidden border bg-[linear-gradient(155deg,rgba(8,47,73,0.96),rgba(2,6,23,0.98)_72%)] shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_18px_rgba(34,211,238,0.12)] transition hover:-translate-y-0.5 hover:border-cyan-100 hover:shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_20px_rgba(34,211,238,0.2),0_0_18px_rgba(34,211,238,0.22)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100 ${newBossArchiveEventIds.length > 0
                     ? 'border-yellow-200 shadow-[0_0_10px_rgba(250,204,21,0.85),0_0_26px_rgba(239,68,68,0.42)]'
-                    : 'border-cyan-200/45 shadow-[0_0_18px_rgba(34,211,238,0.18)]'} [clip-path:polygon(8px_0,calc(100%_-_8px)_0,100%_8px,100%_calc(100%_-_8px),calc(100%_-_8px)_100%,8px_100%,0_calc(100%_-_8px),0_8px)]`}
+                    : 'border-cyan-200/55'} [clip-path:polygon(8px_0,calc(100%_-_8px)_0,100%_8px,100%_calc(100%_-_8px),calc(100%_-_8px)_100%,8px_100%,0_calc(100%_-_8px),0_8px)]`}
                   aria-label={newBossArchiveEventIds.length > 0
                     ? `Open Boss Archive. ${newBossArchiveEventIds.length} new ${newBossArchiveEventIds.length === 1 ? 'boss' : 'bosses'} unlocked.`
                     : 'Open Boss Archive'}
                   title="Boss Archive"
                 >
-                  {newBossArchiveEventIds.length > 0 ? (
+                  <span className="absolute inset-[3px] border border-cyan-300/18 bg-[radial-gradient(circle_at_50%_35%,rgba(239,68,68,0.2),rgba(8,47,73,0.34)_48%,rgba(2,6,23,0.62)_78%)] [clip-path:polygon(6px_0,calc(100%_-_6px)_0,100%_6px,100%_calc(100%_-_6px),calc(100%_-_6px)_100%,6px_100%,0_calc(100%_-_6px),0_6px)]" aria-hidden="true" />
+                  <span className="absolute inset-x-1 top-0 h-px bg-gradient-to-r from-transparent via-cyan-100/90 to-transparent shadow-[0_0_8px_rgba(34,211,238,0.72)]" aria-hidden="true" />
+                  <span className="relative z-10 mb-2 block h-[82%] w-[82%]" aria-hidden="true">
                     <img
                       src="/game-art/generated/ui/animations/boss-alert-banners-v1/effects/warning-ring-red.png"
                       alt=""
-                      className="absolute inset-0 h-full w-full animate-pulse object-contain opacity-80 [image-rendering:pixelated]"
+                      className={`absolute inset-0 h-full w-full object-contain [image-rendering:pixelated] ${
+                        newBossArchiveEventIds.length > 0 ? 'animate-pulse opacity-80' : 'opacity-35'
+                      }`}
                     />
-                  ) : null}
-                  <img
-                    src="/game-art/bosses/final-boss-sentinel.png"
-                    alt=""
-                    className="relative z-10 h-10 w-10 object-contain drop-shadow-[0_0_8px_rgba(248,113,113,0.72)] [image-rendering:pixelated] transition group-hover:scale-105"
-                  />
+                    <img
+                      src="/game-art/bosses/final-boss-sentinel.png"
+                      alt=""
+                      className="absolute inset-[2%] z-10 h-[96%] w-[96%] object-contain drop-shadow-[0_0_8px_rgba(248,113,113,0.72)] [image-rendering:pixelated] transition group-hover:scale-105"
+                    />
+                  </span>
+                  <span className="absolute inset-x-1 bottom-1 z-10 text-center font-mono text-[6px] font-black uppercase tracking-[0.11em] text-cyan-100/85">
+                    Bosses
+                  </span>
+                  <span className="absolute inset-x-2 bottom-0 z-10 h-px bg-gradient-to-r from-transparent via-emerald-300 to-transparent shadow-[0_0_6px_rgba(52,211,153,0.72)]" aria-hidden="true" />
                   {newBossArchiveEventIds.length > 0 ? (
                     <span className="absolute right-0.5 top-0.5 z-20 flex h-4 min-w-4 items-center justify-center rounded-full border border-yellow-100 bg-red-500 px-1 text-[8px] font-black text-white shadow-[0_0_8px_rgba(250,204,21,0.8)]">
                       {newBossArchiveEventIds.length > 9 ? '9+' : newBossArchiveEventIds.length}
@@ -1180,7 +1196,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   ) : null}
                 </button>
               ) : null}
-              {walletControl}
+              <div
+                data-boss-archive-wallet-slot="true"
+                className={`${canOpenBossArchive ? 'col-start-2' : 'col-start-1'} flex min-w-0 justify-center`}
+              >
+                {walletControl}
+              </div>
+              {canOpenBossArchive ? (
+                <span className="col-start-3" aria-hidden="true" />
+              ) : null}
             </div>
           ) : null}
           <PixelActionButton

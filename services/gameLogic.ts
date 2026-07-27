@@ -3734,9 +3734,13 @@ export class GameEngine {
     this.gameActive = true;
     this.lives = this.startingLives;
     this.stats.lives = this.lives;
-    if (!this.previewMode) {
-      this.currentCampaignIndex = 0;
-    }
+    const requestedInitialCampaignIndex = this.findCampaignWaveIndex(
+      this.initialLevelId,
+      this.initialWaveId
+    );
+    this.currentCampaignIndex = requestedInitialCampaignIndex >= 0
+      ? requestedInitialCampaignIndex
+      : 0;
     this.wave = this.getStageNumberForCampaignIndex();
     this.stats.score = 0;
     this.stats.coins = 0;
