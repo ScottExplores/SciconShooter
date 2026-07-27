@@ -3,7 +3,7 @@
 ## Authority and scope
 
 - Sandbox ID: `helios-clawcarrier`
-- Status: Sandbox-only Helios refinement under the active one-boss lock. Gate 1 remains locked to the accepted art; Gates 2-5 are reopened until the mounted-weapon, attack, route, and runtime-capture evidence below passes.
+- Status: Sandbox-only V0.20 refinement accepted. Gate 1 remains locked to the accepted art; Gates 2-5 pass for the mandatory-interior channel, deterministic route proof, live mobile/desktop review, shared Runner build, and owner-only Sites release.
 - Canonical execution path: `GameStage -> GameCanvas -> GameEngine -> PixiGameRenderer`
 - Authoritative gameplay visual: the registered `modular-hierarchy-v1` rig, not the concept board, legacy `articulated-pincer-v1` presenter, assembled fallback, or review overlay
 - Authoritative attack source: the compiled looping timeline with exactly three core attacks and one signature attack, each with a variant for all three phases. The retired claw-sweep Attack 2 is not part of the active rotation.
@@ -153,4 +153,4 @@ Store ignored review evidence under `director-data/prototype-assets/helios-clawc
 - Anticipation, damage, recovery, Armor Shear transformation, Reactor Overdrive asymmetry, and destruction are recognizable without attack text or generic guides.
 - Structural art is opaque and nearest-neighbor; no chopped frames, transient white texture, detached parts, or non-uniform breathing distortion appear.
 - Review overlays never appear in the corresponding clean gameplay captures.
-- Gates 2-5 remain pending until this artifact set is regenerated and inspected in the actual mobile and desktop Boss Sandbox. Helios remains Sandbox-only and the one-boss lock stays active.
+- Gates 2-5 are accepted for V0.20 after the actual local mobile review, deterministic runtime proof, shared Runner build, and live private Runner review. Helios remains Sandbox-only; this acceptance does not place it in a campaign Mission.

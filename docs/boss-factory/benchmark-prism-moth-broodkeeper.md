@@ -3,7 +3,8 @@
 > **Benchmark status:** Factory-ready inside the canonical Boss Sandbox and a
 > current co-benchmark with Nullwake Revenant. Prism proves the reusable
 > workflow for living appendages, visible summon lifecycle, deterministic
-> formation puzzles, and anatomy-aware fallbacks. It remains Sandbox-only.
+> formation puzzles, and permanent animated anatomy with hull-only durability.
+> It remains Sandbox-only.
 
 ## Identity
 
@@ -76,7 +77,7 @@ brood release follow the anatomy that visibly performs it.
 | `wing-tip-right` | right wing tip | right swoop trail |
 | `brood-release-left` | left brood pod | cocoon and brood release |
 | `brood-release-right` | right brood pod | cocoon and brood release |
-| `prism-core` | body/core | final pulse and no-wing fallback |
+| `prism-core` | body/core | final pulse and signature escape |
 
 ## Lifecycle and living motion
 
@@ -87,7 +88,7 @@ brood release follow the anatomy that visibly performs it.
 | Anticipation / recoil | The corresponding wing folds or opens, pods cradle the abdomen, and the core charge follows the authored sentence. |
 | Ordinary hit | Feedback remains local: a small crystal/core response without a whole-body flinch. |
 | Stagger | Lift fails, the body drops, and the core becomes visibly exposed before a registered recovery. |
-| Persistent damage | Cracked/asymmetric wing and core presentation communicates accumulated damage. |
+| Persistent damage | Cracked wing and core presentation communicates accumulated damage without detaching the permanent wings. |
 | Phase transition | Four-stage Prism Metamorphosis closes the wings, gathers the brood, brightens and fractures the core shell, then reopens with altered posture and exposure. |
 | Destruction | Critical state, structural fracture, wing break, core overload, and final clear form a deterministic five-stage death. |
 
@@ -95,10 +96,10 @@ brood release follow the anatomy that visibly performs it.
 
 | Role | Sentence | Anatomy and cue | Connected beats | Player rule and fallback |
 |---|---|---|---|---|
-| Core 1 | **Prism Wingbeat Weave** (`wingbeat-weave`) | The firing wing folds and lights while the core pulses and body drifts. Feathers leave the live `wing-edge-*` socket. | Left/right/left/right/both wingbeats, with a seeded reversible alternative and sequential feathers rather than one instantaneous ring. | Move away from the lit wing and follow the final opening. A destroyed wing is removed from the sequence; no-wing state selects a core/brood fallback with no hidden wing emission. |
-| Core 2 | **Brood Procession** (`brood-procession`) | Wings cradle the abdomen; live brood pods deploy cocoons that visibly arm, crack, and hatch. | One or two bounded procession waves select from six deterministic formation templates. Phase two reverses the second wave. | Read cocoon order and follow the opening carried by the formation. Missing pods fall back to surviving pod or core release; action cancel and owner loss clean up all owned artifacts. |
-| Core 3 | **Lunar Prism Swoop** (`lunar-prism-swoop`) | Wings fold, the entering edge glints, and the entire visible boss commits to two or three curved passes. Trails leave the matching live `wing-tip-*` socket. | Alternating edge entry, curved midpoint, opposite return, then recovery; phase two adds a third pass and final cocoon. | Stay below the visible curve, then switch sides. One surviving wing supplies its own trail; loss of both wings disables swoop and selects brood/core fallback. |
-| Signature | **Kaleidoscope Brood** (`kaleidoscope-brood`) | Wings cocoon around the charging core, reopen widest, and illuminate in order while visible cocoons hatch. | Cocoon charge, full core charge, first wing command, second corridor command, and final core escape pulse. | Follow the continuous moving corridor indicated by the active wing/brood sequence. Phase two changes corridor direction once. The exact choreography remains Prism-specific. |
+| Core 1 | **Prism Wingbeat Weave** (`wingbeat-weave`) | The firing wing folds and lights while the core pulses and body drifts. Feathers leave the live `wing-edge-*` socket. | Left/right/left/right/both wingbeats. Each beat emits seven feathers sequentially, for 35 readable projectiles across the complete sentence, with a seeded reversible starting side. | Move away from the lit wing and follow the final opening. Both permanent wings remain available for the full fight. |
+| Core 2 | **Brood Procession** (`brood-procession`) | Wings cradle the abdomen; live brood pods deploy cocoons that visibly arm, crack, hatch, and fly. | One or two bounded procession waves select from six deterministic formation templates, then bend toward the player lane captured for the command. Each armed/hatching/flying brood target has 2 HP. | Read cocoon order, shoot openings into the brood, and follow the remaining gap. Destroying brood awards no score, coins, drops, or other farmable reward; action cancel and owner loss clean up all owned artifacts. |
+| Core 3 | **Lunar Prism Swoop** (`lunar-prism-swoop`) | Wings fold, the entering edge glints, and the entire visible boss commits to two or three curved passes. Trails leave the matching live `wing-tip-*` socket. | Two passes in phase one and three below 50% health. The four-frame trail cadence creates 28/42 trail projectiles while alternating edge entry and curved returns remain readable. | Stay below the visible curve, then switch sides. Permanent live wing tips own every trail for the full fight. |
+| Signature | **Kaleidoscope Brood** (`kaleidoscope-brood`) | Wings cocoon around the charging core, reopen widest, and illuminate in order while visible cocoons hatch. | Cocoon charge, full core charge, first wing command, second corridor command, and final core escape pulse. Below 50% health, fixed-seed uses cycle through crosscut, reverse-crosscut, diamond, and reverse-diamond route families. | Follow the continuous moving corridor indicated by the active wing/brood sequence. The four low-health routes change the path rather than merely increasing speed or damage. The exact choreography remains Prism-specific. |
 
 Every damaging stage has a visible warning relationship, distinct anatomy,
 bounded execution, physical reaction, cleanup, and recovery. Normal gameplay
@@ -112,10 +113,14 @@ not invisible collision primitives:
 
 1. a cocoon visibly deploys from a live brood socket;
 2. it progresses through `closed -> armed -> cracked -> hatched`;
-3. the resulting broodling uses the four-frame flutter animation;
-4. damaging collision exists only while the visible broodling is active;
-5. it visibly exits or is destroyed, then the runtime removes it;
-6. owner loss or attack reconstruction removes all owned artifacts.
+3. the armed cocoon, hatching form, and flying broodling are 2-HP player-shot
+   targets;
+4. the resulting broodling uses the four-frame flutter animation and advances
+   toward the player lane locked for that command;
+5. damaging collision exists only while the visible broodling is active;
+6. destroying one grants no score, coins, drops, or other farmable reward;
+7. it visibly exits or is destroyed, then the runtime removes it;
+8. owner loss or attack reconstruction removes all owned artifacts.
 
 The retained formation templates are `mirrored-arcs`,
 `alternating-diagonals`, `v-opening`, `split-corridor`, `staggered-wave`, and
@@ -125,21 +130,32 @@ at six brood nodes, a sentence at two waves, and the owner at ten broodlings.
 
 ## Prism Metamorphosis remix
 
-The health threshold is 0.48. Phase two does more than increase numbers:
+The health threshold is 0.50. Phase two does more than increase numbers:
 
 - the boss pauses and performs the accepted four-stage transformation;
 - wing posture, core exposure, body movement, and brood command presentation
   visibly change;
-- Wingbeat Weave adds a delayed brood echo;
-- Brood Procession reverses its second wave;
-- Lunar Prism Swoop alternates its entry edge and leaves a final cocoon;
-- Kaleidoscope Brood changes its corridor direction once.
+- Wingbeat Weave retains its 35-projectile sequential rhythm;
+- Brood Procession retains bounded formations while steering them toward the
+  player lane locked for the command;
+- Lunar Prism Swoop adds a third pass, increasing its four-frame trail cadence
+  from 28 to 42 projectiles;
+- Kaleidoscope Brood selects one of four deterministic low-health route
+  families: crosscut, reverse-crosscut, diamond, or reverse-diamond.
 
-The base Sandbox health is 1,150. Each wing component is approximately 22% of
-the hull, or 253 HP at the default. Component-health and invincibility controls
-are preview tools only; they do not change this authored starting contract.
+The base Sandbox health is 1,150 and is the boss's only damage pool. Prism uses
+`hull-only` component mode: its wings, pods, crest, and other visible anatomy
+remain attached, animated, and operational until the hull reaches zero. The
+Sandbox therefore exposes only boss-hull health for this fight; there are no
+separate wing-health or wing-invincibility values.
 
 ## Deterministic route evidence
+
+The V0.21 behavior suite additionally fixes and replays all four sub-50%
+Kaleidoscope route families and all six Brood Procession templates across
+mobile and desktop bounds. The table below is the retained runtime-v0.19
+content-addressed baseline; its hashes remain historical because the V0.21
+projectile density, pursuit, and route-family changes alter the compiled fight.
 
 The compiled preview is content-addressed by SHA-256
 `3c581d57b56447c9fa845754b2e3b80666413e5d45f0492536415b8eb0b0e560`.
@@ -161,7 +177,7 @@ also samples all six templates at 81 progress steps on both viewports, and the
 signature suite checks continuous beat-to-beat route movement rather than
 isolated safe snapshots.
 
-## Accepted runtime-v0.19 visual evidence
+## Historical runtime-v0.19 visual evidence
 
 All paths below are relative to
 `director-data/prototype-assets/prism-moth-broodkeeper/review/runtime-v0.19/`.
@@ -178,10 +194,11 @@ They are real canonical-runtime captures with debug presentation disabled.
 | Damage / stagger | `pose-persistent-damage.png`, `pose-stagger-01.png`, `pose-stagger-02.png`, `pose-stagger-03-recovery.png` |
 | Destruction | `pose-death-00-critical.png` through `pose-death-04-clear.png` |
 
-Together with the neutral/reference comparison, these named captures provide
-the accepted neutral, open/folded motion range, live attack range, phase-two,
-damage, stagger, and death review record. Capture files remain ignored local
-Factory evidence and are not production assets.
+Together with the neutral/reference comparison, these named captures preserve
+the accepted art, neutral, open/folded motion range, phase, stagger, and death
+baseline. They predate the V0.21 density, targetability, and four-route remix;
+they must not be cited as visual proof of those new beats. Capture files remain
+ignored local Factory evidence and are not production assets.
 
 ## Automated evidence surfaces
 
@@ -189,10 +206,10 @@ Factory evidence and are not production assets.
 |---|---|
 | Source hashes, deterministic extraction, atlas, binary alpha, rig, reference comparison | `director/tests/prismMothFactoryAssets.test.mjs`, `director/tests/bossPrototypeAssets.test.mjs` |
 | Connected hierarchy, poses, handed wings, registered lifecycle frames | `tests/prismMothModularPose.test.cjs`, `tests/prismMothModularRenderer.test.cjs`, `tests/modularHierarchyRig.test.cjs` |
-| Bounded parameters, six templates, visible lifecycle, route continuity, phase remixes, wing fallbacks | `tests/prismMothBroodkeeperRuntime.test.cjs` |
-| Live GameEngine socket origins, sequential wingbeats, summon cleanup, phone/desktop swoops, clean presentation | `director/tests/prismMothRuntimeIntegration.test.mjs` |
-| Test-only prototype, two phases, three core attacks and signature | `director/tests/sandboxBossPrototypes.test.mjs` |
-| Bounded tuning controls | `director/tests/prismMothAttackTuning.test.mjs` |
+| Six templates, 2-HP brood targetability, player-directed pursuit, visible lifecycle, four deterministic sub-50% route families, and permanent-anatomy helpers | `tests/prismMothBroodkeeperRuntime.test.cjs` |
+| Hull-only health, 35 sequential Wingbeat feathers, reward-free brood destruction, 28/42 Swoop trails, mobile/desktop integration, and clean presentation | `director/tests/prismMothRuntimeIntegration.test.mjs` |
+| Test-only prototype, 50% transition, permanent wings, three core attacks, and signature | `director/tests/sandboxBossPrototypes.test.mjs` |
+| Bounded tuning controls and default 7-feather/4-frame cadence parity | `director/tests/prismMothAttackTuning.test.mjs` |
 
 ## Constraints and disposition
 
@@ -201,10 +218,11 @@ Factory evidence and are not production assets.
   change to those inputs requires a fresh deterministic proof and visual pass.
 - The source package and runtime-v0.19 captures are ignored local Boss Factory
   evidence. Production `Prism Warden` campaign content remains unchanged.
-- The reusable lessons are visible summon lifecycle, anatomy-owned attacks,
-  deterministic bounded formations, readable continuous openings, and explicit
-  destroyed-anatomy fallbacks. Prism's brood sequence, wing order, and
-  Kaleidoscope choreography are not generic defaults for future bosses.
+- The reusable lessons are visible destructible summon lifecycle,
+  anatomy-owned attacks, permanent animated anatomy with hull-only durability,
+  deterministic bounded pursuit formations, and readable route-family
+  variation. Prism's brood sequence, wing order, and Kaleidoscope choreography
+  are not generic defaults for future bosses.
 - Factory-ready status does not authorize campaign placement, public release,
   or private Runner publication.
 

@@ -91,9 +91,26 @@ test('Prism tuning defaults are deeply frozen, mobile-bounded, and grouped into 
       assert.ok(defaults[field] <= specification.maximum, `${attackId}.${field} default is too large`);
     }
   }
+  assert.equal(DEFAULT_PRISM_MOTH_ATTACK_TUNING.attack1.featherCount, 7);
+  assert.equal(DEFAULT_PRISM_MOTH_ATTACK_TUNING.attack3.trailCadenceFrames, 4);
   assert.ok(DEFAULT_PRISM_MOTH_ATTACK_TUNING.attack1.safeLaneWidthRatio >= 0.3);
   assert.ok(DEFAULT_PRISM_MOTH_ATTACK_TUNING.attack2.routeWidthRatio >= 0.3);
   assert.ok(DEFAULT_PRISM_MOTH_ATTACK_TUNING.attack4.corridorWidthRatio >= 0.26);
+});
+
+test('Prism defaults preserve the low-health third swoop and denser projectile cadence', () => {
+  const tuned = applyPrismMothAttackTuningToTimeline(
+    sourceTimeline,
+    DEFAULT_PRISM_MOTH_ATTACK_TUNING
+  );
+  const wingbeats = findActions(tuned, 'prism-wingbeat-weave');
+  const swoops = findActions(tuned, 'prism-lunar-swoop');
+  assert.ok(wingbeats.every((clip) => clip.parameters.projectileCount === 7));
+  assert.deepEqual(
+    swoops.map((clip) => clip.repeat.count),
+    [2, 3]
+  );
+  assert.ok(swoops.every((clip) => clip.parameters.shotIntervalFrames === 4));
 });
 
 test('Prism tuning normalization clamps numbers, snaps steps, and rejects unknown enum values', () => {
@@ -121,7 +138,7 @@ test('Prism tuning normalization clamps numbers, snaps steps, and rejects unknow
       speedMultiplier: 0,
       curveDepthRatio: 1,
       edgeTelegraphFrames: 1,
-      featherTrailFrames: 999,
+      trailCadenceFrames: 999,
       recoveryFrames: 42.4
     },
     attack4: {
@@ -153,7 +170,7 @@ test('Prism tuning normalization clamps numbers, snaps steps, and rejects unknow
   assert.equal(normalized.attack3.speedMultiplier, 0.8);
   assert.equal(normalized.attack3.curveDepthRatio, 0.34);
   assert.equal(normalized.attack3.edgeTelegraphFrames, 36);
-  assert.equal(normalized.attack3.featherTrailFrames, 72);
+  assert.equal(normalized.attack3.trailCadenceFrames, 8);
   assert.equal(normalized.attack3.recoveryFrames, 42);
   assert.equal(normalized.attack4.nodeCount, 4);
   assert.equal(normalized.attack4.activationOrder, 'outer-to-inner');
@@ -193,7 +210,7 @@ test('Prism tuning panel exposes every requested control under exactly four name
     'Swoop speed multiplier',
     'Curve depth',
     'Edge telegraph',
-    'Feather trail',
+    'Trail cadence',
     'Recovery',
     'Activation order',
     'Formation rotation',
@@ -234,7 +251,7 @@ test('Prism tuning applies all four groups without mutating the compiled source 
       speedMultiplier: 1.2,
       curveDepthRatio: 0.32,
       edgeTelegraphFrames: 42,
-      featherTrailFrames: 24,
+      trailCadenceFrames: 6,
       recoveryFrames: 54
     },
     attack4: {
@@ -275,6 +292,7 @@ test('Prism tuning applies all four groups without mutating the compiled source 
   for (const action of findActions(tuned, 'prism-lunar-swoop')) {
     assert.equal(action.repeat.count, 3);
     assert.equal(action.parameters.projectileCount, 3);
+    assert.equal(action.parameters.shotIntervalFrames, 6);
     assert.equal(action.parameters.sweepRangeRatio, 0.32);
     assert.equal(action.parameters.sweepPasses, 3);
     const warning = warningFor(tuned, action);
@@ -348,7 +366,7 @@ test('aggressive mobile-safe Prism tuning remains a valid full campaign preview'
       speedMultiplier: 0.8,
       curveDepthRatio: 0.34,
       edgeTelegraphFrames: 54,
-      featherTrailFrames: 72,
+      trailCadenceFrames: 3,
       recoveryFrames: 60
     },
     attack4: {

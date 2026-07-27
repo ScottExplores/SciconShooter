@@ -115,7 +115,9 @@ test('Prism Moth compiles exactly four anatomy-owned attacks and a real metamorp
   assert.match(descriptor.description, /Kaleidoscope corridor/i);
   assert.equal(boss.spriteKey, 'CAMPAIGN_BOSS_PRISM_MOTH');
   assert.equal(boss.rigId, 'open-orbit');
+  assert.equal(boss.componentMode, 'hull-only');
   assert.equal(boss.phases.length, 2);
+  assert.equal(boss.phases[1].triggerHealthRatio, 0.5);
   assert.deepEqual(
     boss.phases.map((phase) => phase.label),
     ['Crystal Nursery', 'Prism Metamorphosis']
@@ -185,7 +187,9 @@ test('Prism Moth compiles exactly four anatomy-owned attacks and a real metamorp
     && clip.primitiveId === 'prism-lunar-swoop'
   ));
   assert.deepEqual(phaseOneWingbeat.repeat, { count: 5, intervalSeconds: 0.72 });
+  assert.equal(phaseOneWingbeat.parameters.projectileCount, 7);
   assert.deepEqual(phaseTwoSwoop.repeat, { count: 3, intervalSeconds: 1.7 });
+  assert.equal(phaseTwoSwoop.parameters.shotIntervalFrames, 4);
 
   boss.timeline.clips
     .filter((clip) => damagingPrimitives.has(clip.primitiveId))

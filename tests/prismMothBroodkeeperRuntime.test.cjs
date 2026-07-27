@@ -48,6 +48,7 @@ const {
   PRISM_MOTH_PROJECTILE_KIND_IDS,
   PRISM_MOTH_RUNTIME_SOCKET_IDS,
   PRISM_MOTH_RUNTIME_LIMITS,
+  PRISM_MOTH_SIGNATURE_ROUTE_IDS,
   evaluatePrismMothFormationRouteSafety,
   resolvePrismBroodProcessionParameters,
   resolvePrismKaleidoscopeBroodParameters,
@@ -428,6 +429,50 @@ test('every retained brood path preserves the constructive center route on mobil
   }
 });
 
+test('Brood Procession locks a bounded player lane and bends every safe formation toward it', () => {
+  for (const arena of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 720 }
+  ]) {
+    for (const pursuitTargetRatio of [0.2, 0.5, 0.8]) {
+      for (let sequence = 0; sequence < PRISM_MOTH_FORMATION_TEMPLATE_IDS.length; sequence += 1) {
+        const baseline = resolvePrismMothBroodFormation({
+          sequence,
+          nodeCount: 5,
+          routeWidthRatio: 0.3
+        });
+        const targeted = resolvePrismMothBroodFormation({
+          sequence,
+          nodeCount: 5,
+          routeWidthRatio: 0.3,
+          pursuitTargetRatio
+        });
+        assert.equal(targeted.pursuitTargetRatio, pursuitTargetRatio);
+        assert.ok(
+          Math.abs(targeted.corridorEndRatio - pursuitTargetRatio)
+            <= Math.abs(baseline.corridorEndRatio - pursuitTargetRatio)
+        );
+        for (let step = 0; step <= 80; step += 1) {
+          const progress = step / 80;
+          const safety = evaluatePrismMothFormationRouteSafety({
+            formation: targeted,
+            progress,
+            arenaWidth: arena.width,
+            arenaHeight: arena.height,
+            playerRadiusPx: 12,
+            broodRadiusPx: 10
+          });
+          assert.equal(
+            safety.routeSafe,
+            true,
+            `${targeted.templateId} pursuit ${pursuitTargetRatio} lost its route at ${arena.width}x${arena.height}, t=${progress}`
+          );
+        }
+      }
+    }
+  }
+});
+
 test('brood paths are smooth and lifecycle damage exists only during visible flight', () => {
   const formation = resolvePrismMothBroodFormation({ sequence: 2, nodeCount: 4 });
   const slot = formation.slots[1];
@@ -469,6 +514,10 @@ test('brood paths are smooth and lifecycle damage exists only during visible fli
   lifecycle.forEach((sample) => {
     assert.equal(sample.damageActive, sample.stage === 'flying');
     assert.equal(sample.collisionActive, sample.stage === 'flying');
+    assert.equal(
+      sample.targetable,
+      ['cocoon-armed', 'hatching', 'flying'].includes(sample.stage)
+    );
     assert.equal(sample.shouldCleanup, sample.stage === 'expired');
   });
   assert.deepEqual(lifecycle.map(({ visualFrameId }) => visualFrameId), [
@@ -621,6 +670,78 @@ test('Kaleidoscope Brood builds one continuous ordered corridor and filters dest
     alternateActivation.map(({ wingSection, formationTemplateId }) => ({ wingSection, formationTemplateId })),
     'the bounded activation-order control must materially change the signature sequence'
   );
+});
+
+test('sub-50% Kaleidoscope Brood deterministically selects four distinct safe routes', () => {
+  assert.deepEqual(Array.from(PRISM_MOTH_SIGNATURE_ROUTE_IDS), [
+    'nursery-alternating',
+    'metamorphosis-crosscut',
+    'metamorphosis-reverse-crosscut',
+    'metamorphosis-diamond',
+    'metamorphosis-reverse-diamond'
+  ]);
+  const expectedTargets = new Map([
+    ['metamorphosis-crosscut', [0.3, 0.48, 0.7, 0.44, 0.5]],
+    ['metamorphosis-reverse-crosscut', [0.7, 0.52, 0.3, 0.56, 0.5]],
+    ['metamorphosis-diamond', [0.42, 0.7, 0.34, 0.62, 0.5]],
+    ['metamorphosis-reverse-diamond', [0.58, 0.3, 0.66, 0.38, 0.5]]
+  ]);
+  const routes = new Map();
+  const parameters = resolvePrismKaleidoscopeBroodParameters({
+    patternBeats: 5,
+    corridorWidthRatio: 0.26
+  });
+  for (let useIndex = 0; useIndex < 4; useIndex += 1) {
+    const beats = resolvePrismMothSignatureSequence({
+      seedKey: 'low-health-route-families',
+      sequence: 7,
+      useIndex,
+      phaseIndex: 2,
+      parameters,
+      wings: { port: true, starboard: true }
+    });
+    const routeId = beats[0].routeId;
+    assert.ok(beats.every((beat) => beat.routeId === routeId));
+    assert.deepEqual(
+      beats.map(({ corridorEndRatio }) => corridorEndRatio),
+      expectedTargets.get(routeId)
+    );
+    beats.forEach((beat, index) => {
+      assert.ok(beat.corridorEndRatio >= 0.3 && beat.corridorEndRatio <= 0.7);
+      if (index > 0) {
+        assert.equal(beat.corridorStartRatio, beats[index - 1].corridorEndRatio);
+      }
+      for (const arenaWidth of [390, 1280]) {
+        for (let step = 0; step <= 40; step += 1) {
+          const sample = samplePrismMothSignatureCorridor({
+            beat,
+            progress: step / 40,
+            arenaWidth,
+            playerRadiusPx: 12
+          });
+          assert.equal(sample.routeSafe, true);
+        }
+      }
+    });
+    assert.deepEqual(toPlain(resolvePrismMothSignatureSequence({
+      seedKey: 'low-health-route-families',
+      sequence: 7,
+      useIndex,
+      phaseIndex: 2,
+      parameters,
+      wings: { port: true, starboard: true }
+    })), toPlain(beats));
+    routes.set(routeId, beats.map(({ corridorEndRatio }) => corridorEndRatio));
+  }
+  assert.equal(routes.size, 4);
+
+  const nursery = resolvePrismMothSignatureSequence({
+    seedKey: 'low-health-route-families',
+    phaseIndex: 1,
+    parameters,
+    wings: { port: true, starboard: true }
+  });
+  assert.ok(nursery.every((beat) => beat.routeId === 'nursery-alternating'));
 });
 
 test('signature corridor exceeds replay clearance on canonical mobile and desktop widths', () => {

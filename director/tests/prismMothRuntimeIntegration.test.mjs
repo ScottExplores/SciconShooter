@@ -55,6 +55,12 @@ after(async () => vite.close());
 const { buildSandboxBossPrototypePreview } = await vite.ssrLoadModule(
   '/director/src/combat-lab/sandboxBossPrototypes.ts'
 );
+const {
+  DEFAULT_PRISM_MOTH_ATTACK_TUNING,
+  applyPrismMothAttackTuningToTimeline
+} = await vite.ssrLoadModule(
+  '/director/src/tools/bosses/prismMothAttackTuning.ts'
+);
 const { createSandboxOnlyBossArtwork } = await vite.ssrLoadModule(
   '/director/src/tools/bosses/bossSandboxModel.ts'
 );
@@ -63,7 +69,43 @@ const { createModularBossWeaponSocketPoseSampler } = await vite.ssrLoadModule(
 );
 const { GameEngine } = await vite.ssrLoadModule('/services/gameLogic.ts');
 
-const preview = buildSandboxBossPrototypePreview(campaign, 'prism-moth-brood');
+const sourcePreview = buildSandboxBossPrototypePreview(campaign, 'prism-moth-brood');
+const sourceBoss = sourcePreview.previewWave.events.find((event) => (
+  event.kind === 'boss' && event.id === sourcePreview.eventId
+));
+assert.ok(sourceBoss?.timeline, 'Prism preview must expose its authored timeline');
+const tunedTimeline = applyPrismMothAttackTuningToTimeline(
+  sourceBoss.timeline,
+  DEFAULT_PRISM_MOTH_ATTACK_TUNING
+);
+const tuneEvents = (events) => events.map((event) => (
+  event.kind === 'boss' && event.id === sourcePreview.eventId
+    ? { ...event, timeline: tunedTimeline }
+    : event
+));
+const previewWave = {
+  ...sourcePreview.previewWave,
+  events: tuneEvents(sourcePreview.previewWave.events)
+};
+const preview = {
+  ...sourcePreview,
+  previewWave,
+  campaign: {
+    ...sourcePreview.campaign,
+    levels: sourcePreview.campaign.levels.map((level) => (
+      level.id !== sourcePreview.levelId
+        ? level
+        : {
+            ...level,
+            waves: level.waves.map((wave) => (
+              wave.id === sourcePreview.waveId
+                ? { ...wave, events: tuneEvents(wave.events) }
+                : wave
+            ))
+          }
+    ))
+  }
+};
 const artwork = createSandboxOnlyBossArtwork(preview);
 assert.equal(preview.eventId, 'sandbox-prism-moth-brood');
 assert.ok(artwork.modularRig, 'Prism must use its registered modular rig in preview');
@@ -118,8 +160,12 @@ const createHarness = (
   return { engine, width, height };
 };
 
-const settleAndStart = (harness, attackId) => {
-  const { engine, height } = harness;
+const settleAndStart = (
+  harness,
+  attackId,
+  { phaseId, playerXRatio } = {}
+) => {
+  const { engine, width, height } = harness;
   assert.equal(engine.triggerAuthoredBossAttack(attackId, preview.eventId), true);
   const boss = engine.bossRef;
   assert.ok(boss, 'the canonical preview must spawn Prism Moth');
@@ -128,8 +174,24 @@ const settleAndStart = (harness, attackId) => {
     engine.update();
   }
   assert.ok(boss.y >= combatAnchorY, 'Prism Moth must settle before an isolated attack');
+  if (phaseId) {
+    assert.equal(engine.jumpToAuthoredBossPhase(phaseId, preview.eventId), true);
+  }
+  if (Number.isFinite(playerXRatio)) {
+    engine.player.x = Math.max(
+      0,
+      Math.min(
+        width - engine.player.width,
+        width * playerXRatio - engine.player.width / 2
+      )
+    );
+  }
   assert.equal(
-    engine.triggerAuthoredBossAttack(attackId, preview.eventId, boss.activeBossPhaseId),
+    engine.triggerAuthoredBossAttack(
+      attackId,
+      preview.eventId,
+      phaseId ?? boss.activeBossPhaseId
+    ),
     true
   );
   boss.y = Math.max(boss.y, combatAnchorY);
@@ -156,14 +218,7 @@ test('live Prism Wingbeat Weave fires sequential feathers from both posed wings'
   const harness = createHarness('prism-wingbeat-live-engine');
   const { engine } = harness;
   const boss = settleAndStart(harness, 'wingbeat-weave');
-  assert.deepEqual(
-    boss.bossComponents.map(({ label }) => label),
-    ['LEFT WING', 'RIGHT WING']
-  );
-  assert.ok(
-    boss.bossComponents.every((component) => component.maxHp >= boss.maxHp * 0.2),
-    'each wing must survive long enough to teach more than one authored beat'
-  );
+  assert.deepEqual(boss.bossComponents, [], 'Prism owns one hull health pool');
 
   const emittingSides = new Set();
   let featherCount = 0;
@@ -194,39 +249,30 @@ test('live Prism Wingbeat Weave fires sequential feathers from both posed wings'
     assertNoGameplayGuides(engine);
   }
 
-  assert.equal(featherCount, 25, 'five authored wingbeats must each release five feathers');
+  assert.equal(featherCount, 35, 'five authored wingbeats must each release seven feathers');
   assert.deepEqual([...emittingSides].sort(), ['port', 'starboard']);
-  assert.ok(
-    boss.bossComponents.every((component) => !component.destroyed),
-    'baseline fire rate must not remove both wings during the teaching attack'
-  );
 });
 
-test('destroying a Prism wing communicates through anatomy and VFX without playfield text', () => {
-  const harness = createHarness('prism-wing-destruction-presentation');
+test('Prism wings remain permanent animated anatomy while visible pixels damage its hull', () => {
+  const harness = createHarness('prism-permanent-wing-anatomy');
   const { engine } = harness;
   const boss = settleAndStart(harness, 'wingbeat-weave');
-  const leftWing = boss.bossComponents.find((component) => component.id === 'left-cannon');
-  assert.ok(leftWing);
+  const startingHealth = boss.hp;
+  assert.deepEqual(boss.bossComponents, []);
+  assert.ok(engine.getPreviewBossWeaponOrigins(boss, ['port']).length > 0);
+  assert.ok(engine.getPreviewBossWeaponOrigins(boss, ['starboard']).length > 0);
 
-  engine.damageBossComponent(boss, leftWing, leftWing.maxHp * 2);
+  engine.damageBossHull(boss, 5);
 
-  assert.equal(leftWing.destroyed, true);
-  assert.equal(boss.bossSignificantImpactIsComponent, true);
-  assert.equal(
-    engine.entities.some((entity) => (
-      typeof entity.text === 'string'
-      && /wing|disabled|destroyed|severed/i.test(entity.text)
-    )),
-    false,
-    'wing destruction must read from the missing anatomy and crystal burst, not text'
-  );
+  assert.ok(boss.hp < startingHealth);
+  assert.equal(boss.bossSignificantImpactIsComponent, false);
+  assert.deepEqual(boss.bossComponents, []);
 });
 
-const collectBroodTrace = (seed) => {
+const collectBroodTrace = (seed, { playerXRatio = 0.5 } = {}) => {
   const harness = createHarness(seed);
   const { engine } = harness;
-  settleAndStart(harness, 'brood-procession');
+  settleAndStart(harness, 'brood-procession', { playerXRatio });
   const visualKinds = new Set();
   const trace = [];
   let damageFrames = 0;
@@ -250,6 +296,7 @@ const collectBroodTrace = (seed) => {
         visualKind: entity.projectileVisualKind,
         x: Number(entity.x.toFixed(3)),
         y: Number(entity.y.toFixed(3)),
+        targetable: entity.prismMothArtifactState.targetable,
         damageActive: entity.prismMothArtifactState.damageActive
       })));
     }
@@ -291,61 +338,162 @@ test('live Brood Procession deterministically deploys, hatches, flies, and clean
   );
 });
 
-test('live Lunar Prism Swoop performs two visible damage passes on phone and desktop', () => {
-  for (const viewport of [
-    { width: 390, height: 844 },
-    { width: 1280, height: 720 }
-  ]) {
-    const harness = createHarness(`prism-swoop-${viewport.width}`, viewport);
-    const { engine, width, height } = harness;
-    const boss = settleAndStart(harness, 'lunar-prism-swoop');
-    const activeEntryCenters = [];
-    const activeXs = [];
-    let activeSegments = 0;
-    let wasActive = false;
-    for (let frame = 0; frame < 340; frame += 1) {
-      engine.update();
-      const active = boss.bossPrismMothBodyDamageActive;
-      if (active && !wasActive) {
-        activeSegments += 1;
-        activeEntryCenters.push(boss.x + boss.width / 2);
-      }
-      if (active) {
-        activeXs.push(boss.x);
-        assert.ok(boss.x >= 0 && boss.x + boss.width <= width);
-        assert.ok(boss.y >= 0 && boss.y + boss.height <= height - 72);
-      }
-      wasActive = active;
-      assertNoGameplayGuides(engine);
+test('Brood Procession locks onto the player lane and its animated spawns can be destroyed', () => {
+  const leftHarness = createHarness('prism-brood-player-lock-left');
+  const rightHarness = createHarness('prism-brood-player-lock-right');
+  const leftBoss = settleAndStart(leftHarness, 'brood-procession', { playerXRatio: 0.2 });
+  const rightBoss = settleAndStart(rightHarness, 'brood-procession', { playerXRatio: 0.8 });
+  const findFormation = (harness, boss) => {
+    for (let frame = 0; frame < 12; frame += 1) {
+      const formation = boss.bossPrismMothActionStates.find((state) => (
+        state.resolvedActionId === 'brood-procession'
+      ))?.formation;
+      if (formation) return formation;
+      harness.engine.update();
     }
+    return null;
+  };
+  const leftFormation = findFormation(leftHarness, leftBoss);
+  const rightFormation = findFormation(rightHarness, rightBoss);
+  assert.ok(leftFormation);
+  assert.ok(rightFormation);
+  assert.equal(leftFormation.pursuitTargetRatio, 0.2);
+  assert.equal(rightFormation.pursuitTargetRatio, 0.8);
+  assert.ok(
+    rightFormation.corridorEndRatio - leftFormation.corridorEndRatio >= 0.35,
+    'the locked formation route must visibly bend toward the chosen player lane'
+  );
+
+  const { engine } = leftHarness;
+  let target = null;
+  for (let frame = 0; frame < 180 && !target; frame += 1) {
+    engine.update();
+    target = engine.entities.find((entity) => (
+      entity.prismMothArtifactState?.kind === 'brood'
+      && entity.prismMothArtifactState.destructible
+      && entity.prismMothArtifactState.targetable
+    )) ?? null;
+  }
+  assert.ok(target, 'an armed cocoon or visible broodling must become targetable');
+  assert.equal(target.hp, 2);
+  assert.equal(target.maxHp, 2);
+  assert.equal(engine.isEnemyTarget(target), true);
+  const before = {
+    score: engine.stats.score,
+    coins: engine.stats.coins,
+    enemiesDefeated: engine.stats.enemiesDefeated
+  };
+
+  const hitTarget = (damage) => {
     assert.equal(
-      activeSegments,
-      2,
-      `${width}x${height} must show both authored passes: ${JSON.stringify({
-        attackTimer: boss.attackTimer,
-        y: boss.y,
-        states: boss.bossPrismMothActionStates.map((state) => ({
-          resolvedActionId: state.resolvedActionId,
-          warningStartFrame: state.warningStartFrame,
-          scheduledFireFrame: state.scheduledFireFrame,
-          fireStartFrame: state.fireStartFrame,
-          fireEndFrame: state.fireEndFrame,
-          executionIndex: state.executionIndex,
-          hasSwoopPass: Boolean(state.swoopPass)
-        }))
-      })}`
+      engine.spawnPlayerBullet(0, 0, 0, 0, 0, false, 'pulse', undefined, damage),
+      true
     );
-    assert.ok(activeXs.length > 0);
-    assert.ok(
-      Math.max(...activeXs) - Math.min(...activeXs) >= (width - boss.width) * 0.72,
-      `${width}x${height} swoops must visibly cross the playfield`
-    );
-    assert.notEqual(
-      activeEntryCenters[0] < width / 2,
-      activeEntryCenters[1] < width / 2,
-      'the second pass must enter from the opposite edge'
-    );
-    assert.equal(boss.bossPrismMothBodyDamageActive, false);
+    const shot = [...engine.entities].reverse().find((entity) => entity.isPlayerShot);
+    assert.ok(shot);
+    shot.x = target.x + target.width / 2 - shot.width / 2;
+    shot.y = target.y + target.height / 2 - shot.height / 2;
+    engine.checkCollisions();
+  };
+
+  hitTarget(1);
+  assert.equal(target.hp, 1);
+  assert.equal(target.markedForDeletion, false);
+  hitTarget(1);
+  assert.equal(target.markedForDeletion, true);
+  assert.deepEqual({
+    score: engine.stats.score,
+    coins: engine.stats.coins,
+    enemiesDefeated: engine.stats.enemiesDefeated
+  }, before, 'destroying a boss-owned broodling must not create a farmable reward');
+});
+
+test('live Lunar Prism Swoop preserves denser two/three-pass trails on phone and desktop', () => {
+  for (const scenario of [
+    {
+      phaseId: 'sandbox-moth-crystal-nursery',
+      expectedPasses: 2,
+      expectedTrails: 28
+    },
+    {
+      phaseId: 'sandbox-moth-prism-metamorphosis',
+      expectedPasses: 3,
+      expectedTrails: 42
+    }
+  ]) {
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 1280, height: 720 }
+    ]) {
+      const harness = createHarness(
+        `prism-swoop-${scenario.phaseId}-${viewport.width}`,
+        viewport
+      );
+      const { engine, width, height } = harness;
+      const boss = settleAndStart(harness, 'lunar-prism-swoop', {
+        phaseId: scenario.phaseId
+      });
+      const activeEntryCenters = [];
+      const activeXs = [];
+      let activeSegments = 0;
+      let trailCount = 0;
+      let wasActive = false;
+      for (let frame = 0; frame < 440; frame += 1) {
+        const priorIds = new Set(engine.entities.map(({ id }) => id));
+        engine.update();
+        trailCount += engine.entities.filter((entity) => (
+          !priorIds.has(entity.id)
+          && entity.prismMothArtifactState?.kind === 'swoop-trail'
+        )).length;
+        const active = boss.bossPrismMothBodyDamageActive;
+        if (active && !wasActive) {
+          activeSegments += 1;
+          activeEntryCenters.push(boss.x + boss.width / 2);
+        }
+        if (active) {
+          activeXs.push(boss.x);
+          assert.ok(boss.x >= 0 && boss.x + boss.width <= width);
+          assert.ok(boss.y >= 0 && boss.y + boss.height <= height - 72);
+        }
+        wasActive = active;
+        assertNoGameplayGuides(engine);
+      }
+      assert.equal(
+        activeSegments,
+        scenario.expectedPasses,
+        `${width}x${height} must show every authored pass: ${JSON.stringify({
+          attackTimer: boss.attackTimer,
+          y: boss.y,
+          states: boss.bossPrismMothActionStates.map((state) => ({
+            resolvedActionId: state.resolvedActionId,
+            warningStartFrame: state.warningStartFrame,
+            scheduledFireFrame: state.scheduledFireFrame,
+            fireStartFrame: state.fireStartFrame,
+            fireEndFrame: state.fireEndFrame,
+            executionIndex: state.executionIndex,
+            hasSwoopPass: Boolean(state.swoopPass)
+          }))
+        })}`
+      );
+      assert.equal(
+        trailCount,
+        scenario.expectedTrails,
+        `${width}x${height} ${scenario.phaseId} must retain its four-frame feather cadence`
+      );
+      assert.ok(activeXs.length > 0);
+      assert.ok(
+        Math.max(...activeXs) - Math.min(...activeXs) >= (width - boss.width) * 0.72,
+        `${width}x${height} swoops must visibly cross the playfield`
+      );
+      for (let index = 1; index < activeEntryCenters.length; index += 1) {
+        assert.notEqual(
+          activeEntryCenters[index - 1] < width / 2,
+          activeEntryCenters[index] < width / 2,
+          'each pass must enter from the opposite edge'
+        );
+      }
+      assert.equal(boss.bossPrismMothBodyDamageActive, false);
+    }
   }
 });
 

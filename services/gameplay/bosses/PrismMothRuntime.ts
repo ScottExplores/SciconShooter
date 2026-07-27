@@ -616,6 +616,8 @@ export interface PrismMothBroodFormation {
   readonly corridorStartRatio: number;
   readonly corridorMiddleRatio: number;
   readonly corridorEndRatio: number;
+  /** Player position captured when the warning begins; never live-homes per frame. */
+  readonly pursuitTargetRatio?: number;
   readonly routeWidthRatio: number;
   readonly slots: readonly PrismMothBroodFormationSlot[];
 }
@@ -673,7 +675,8 @@ export const resolvePrismMothBroodFormation = ({
   hatchDelayFrames = 22,
   routeWidthRatio = 0.3,
   waveIndex = 0,
-  phaseIndex = 1
+  phaseIndex = 1,
+  pursuitTargetRatio
 }: {
   sequence: number;
   nodeCount: number;
@@ -681,6 +684,7 @@ export const resolvePrismMothBroodFormation = ({
   routeWidthRatio?: number;
   waveIndex?: number;
   phaseIndex?: number;
+  pursuitTargetRatio?: number;
 }): PrismMothBroodFormation => {
   const templateId = resolvePrismMothFormationTemplateId(sequence);
   const template = FORMATION_TEMPLATES[templateId];
@@ -692,10 +696,19 @@ export const resolvePrismMothBroodFormation = ({
   const startRatio = reversed
     ? transformRatio(template.corridorEndRatio)
     : template.corridorStartRatio;
-  const middleRatio = transformRatio(template.corridorMiddleRatio);
-  const endRatio = reversed
+  const templateMiddleRatio = transformRatio(template.corridorMiddleRatio);
+  const templateEndRatio = reversed
     ? transformRatio(template.corridorStartRatio)
     : template.corridorEndRatio;
+  const boundedPursuitTargetRatio = Number.isFinite(pursuitTargetRatio)
+    ? clamp(Number(pursuitTargetRatio), 0.2, 0.8)
+    : undefined;
+  const middleRatio = boundedPursuitTargetRatio === undefined
+    ? templateMiddleRatio
+    : lerp(templateMiddleRatio, boundedPursuitTargetRatio, 0.36);
+  const endRatio = boundedPursuitTargetRatio === undefined
+    ? templateEndRatio
+    : lerp(templateEndRatio, boundedPursuitTargetRatio, 0.78);
   const slots = template.slots.slice(0, count).map((source, index) => {
     const startOffsetRatio = reversed ? -source.endOffsetRatio : source.startOffsetRatio;
     const middleOffsetRatio = reversed ? -source.middleOffsetRatio : source.middleOffsetRatio;
@@ -721,6 +734,9 @@ export const resolvePrismMothBroodFormation = ({
     corridorStartRatio: startRatio,
     corridorMiddleRatio: middleRatio,
     corridorEndRatio: endRatio,
+    ...(boundedPursuitTargetRatio === undefined
+      ? {}
+      : { pursuitTargetRatio: boundedPursuitTargetRatio }),
     routeWidthRatio: clamp(
       finiteOr(routeWidthRatio, 0.3),
       PRISM_MOTH_MIN_CORRIDOR_WIDTH_RATIO,
@@ -944,6 +960,7 @@ export interface PrismMothBroodLifecycleSample {
   readonly stage: PrismMothBroodStage;
   readonly frameIndex: number;
   readonly visualFrameId: PrismMothBroodVisualFrameId | null;
+  readonly targetable: boolean;
   readonly collisionActive: boolean;
   readonly damageActive: boolean;
   readonly shouldCleanup: boolean;
@@ -981,6 +998,7 @@ export const samplePrismMothBroodLifecycle = ({
       stage: 'cocoon-deploying',
       frameIndex: Math.min(2, Math.floor(age / Math.max(1, deploy / 3))),
       visualFrameId: PRISM_MOTH_COCOON_FRAME_IDS[0],
+      targetable: false,
       collisionActive: false,
       damageActive: false,
       shouldCleanup: false
@@ -991,6 +1009,7 @@ export const samplePrismMothBroodLifecycle = ({
       stage: 'cocoon-armed',
       frameIndex: 3,
       visualFrameId: PRISM_MOTH_COCOON_FRAME_IDS[1],
+      targetable: true,
       collisionActive: false,
       damageActive: false,
       shouldCleanup: false
@@ -1003,6 +1022,7 @@ export const samplePrismMothBroodLifecycle = ({
       stage: 'hatching',
       frameIndex: 4 + Math.min(3, Math.floor(hatchAge / Math.max(1, hatch / 4))),
       visualFrameId: PRISM_MOTH_COCOON_FRAME_IDS[hatchFrameIndex],
+      targetable: true,
       collisionActive: false,
       damageActive: false,
       shouldCleanup: false
@@ -1014,6 +1034,7 @@ export const samplePrismMothBroodLifecycle = ({
       stage: 'flying',
       frameIndex: 8 + flutterFrameIndex,
       visualFrameId: PRISM_MOTH_BROODLING_FRAME_IDS[flutterFrameIndex],
+      targetable: true,
       collisionActive: true,
       damageActive: true,
       shouldCleanup: false
@@ -1025,6 +1046,7 @@ export const samplePrismMothBroodLifecycle = ({
       stage: 'exiting',
       frameIndex: 12 + Math.min(2, Math.floor((age - exitingAt) / Math.max(1, exit / 3))),
       visualFrameId: PRISM_MOTH_BROODLING_FRAME_IDS[exitFrameIndex],
+      targetable: false,
       collisionActive: false,
       damageActive: false,
       shouldCleanup: false
@@ -1034,6 +1056,7 @@ export const samplePrismMothBroodLifecycle = ({
     stage: 'expired',
     frameIndex: 15,
     visualFrameId: null,
+    targetable: false,
     collisionActive: false,
     damageActive: false,
     shouldCleanup: true
@@ -1203,8 +1226,21 @@ export type PrismMothWingSection =
   | 'starboard-lower'
   | 'core';
 
+export const PRISM_MOTH_SIGNATURE_ROUTE_IDS = Object.freeze([
+  'nursery-alternating',
+  'metamorphosis-crosscut',
+  'metamorphosis-reverse-crosscut',
+  'metamorphosis-diamond',
+  'metamorphosis-reverse-diamond'
+] as const);
+
+export type PrismMothSignatureRouteId = (
+  typeof PRISM_MOTH_SIGNATURE_ROUTE_IDS
+)[number];
+
 export interface PrismMothSignatureBeat {
   readonly index: number;
+  readonly routeId: PrismMothSignatureRouteId;
   readonly source: PrismMothWingSide | 'core';
   readonly wingSection: PrismMothWingSection;
   readonly formationTemplateId: PrismMothFormationTemplateId;
@@ -1216,12 +1252,43 @@ export interface PrismMothSignatureBeat {
   readonly finalEscapeBeat: boolean;
 }
 
-const signatureOffsetPattern = (
-  phaseIndex: number,
+const PRISM_MOTH_LOW_HEALTH_SIGNATURE_ROUTES = Object.freeze([
+  Object.freeze({
+    id: 'metamorphosis-crosscut' as const,
+    targets: Object.freeze([0.3, 0.48, 0.7, 0.44])
+  }),
+  Object.freeze({
+    id: 'metamorphosis-reverse-crosscut' as const,
+    targets: Object.freeze([0.7, 0.52, 0.3, 0.56])
+  }),
+  Object.freeze({
+    id: 'metamorphosis-diamond' as const,
+    targets: Object.freeze([0.42, 0.7, 0.34, 0.62])
+  }),
+  Object.freeze({
+    id: 'metamorphosis-reverse-diamond' as const,
+    targets: Object.freeze([0.58, 0.3, 0.66, 0.38])
+  })
+] as const);
+
+const resolvePrismMothSignatureRoute = (
+  phaseIndex: 1 | 2,
+  branch: number,
   firstDirection: -1 | 1
-) => (phaseIndex >= 2
-  ? [0.17, 0.02, -0.17, -0.04].map((offset) => 0.5 + offset * firstDirection)
-  : [0.14, -0.14, 0.12, -0.12].map((offset) => 0.5 + offset * firstDirection));
+) => {
+  if (phaseIndex >= 2) {
+    return PRISM_MOTH_LOW_HEALTH_SIGNATURE_ROUTES[
+      positiveModulo(branch, PRISM_MOTH_LOW_HEALTH_SIGNATURE_ROUTES.length)
+    ];
+  }
+  return Object.freeze({
+    id: 'nursery-alternating' as const,
+    targets: Object.freeze(
+      [0.14, -0.14, 0.12, -0.12]
+        .map((offset) => 0.5 + offset * firstDirection)
+    )
+  });
+};
 
 export const resolvePrismMothSignatureSequence = ({
   seedKey,
@@ -1249,7 +1316,17 @@ export const resolvePrismMothSignatureSequence = ({
   });
   const firstSide: PrismMothWingSide = branch % 2 === 0 ? 'port' : 'starboard';
   const firstDirection = (branch % 2 === 0 ? -1 : 1) as -1 | 1;
-  const targets = signatureOffsetPattern(phase, firstDirection);
+  const seededRouteOffset = resolvePrismMothSeedBranch({
+    seedKey: `${seedKey}:signature-route`,
+    sequence: Math.floor(finiteOr(sequence, 0)) + resolvedParameters.activationSequence,
+    useIndex: 0,
+    branchCount: PRISM_MOTH_LOW_HEALTH_SIGNATURE_ROUTES.length
+  });
+  const route = resolvePrismMothSignatureRoute(
+    phase,
+    seededRouteOffset + Math.floor(finiteOr(useIndex, 0)),
+    firstDirection
+  );
   const baseRotation = resolvedParameters.rotationDirection;
   const rotationFlipIndex = Math.ceil(count / 2);
   const available = [
@@ -1268,7 +1345,7 @@ export const resolvePrismMothSignatureSequence = ({
         : available[0];
     const corridorEndRatio = finalEscapeBeat
       ? 0.5
-      : clamp(targets[index % targets.length], 0.32, 0.68);
+      : clamp(route.targets[index % route.targets.length], 0.3, 0.7);
     const rotationDirection = phase >= 2 && index >= rotationFlipIndex
       ? baseRotation === 'clockwise' ? 'counterclockwise' : 'clockwise'
       : baseRotation;
@@ -1282,6 +1359,7 @@ export const resolvePrismMothSignatureSequence = ({
     );
     const beat = Object.freeze({
       index,
+      routeId: route.id,
       source,
       wingSection,
       formationTemplateId: resolvePrismMothFormationTemplateId(branch + index),

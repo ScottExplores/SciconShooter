@@ -204,7 +204,10 @@ test('engine intercepts first depletion before true death and disables combat du
   const deathStart = source.indexOf('handleEnemyDestroyed(target: Entity)');
   const deathEnd = source.indexOf('\n  applyResearchBeamDamage()', deathStart);
   const deathPath = source.slice(deathStart, deathEnd);
-  const interception = deathPath.indexOf('this.beginBossRevival(target)');
+  const bossBranchStart = deathPath.indexOf('if (target.type === EntityType.BOSS)');
+  assert.ok(bossBranchStart >= 0);
+  const bossDeathPath = deathPath.slice(bossBranchStart);
+  const interception = bossDeathPath.indexOf('this.beginBossRevival(target)');
   assert.ok(interception >= 0);
   for (const irreversibleAction of [
     "getBossTimelineTriggeredCues(",
@@ -215,7 +218,7 @@ test('engine intercepts first depletion before true death and disables combat du
     'this.waveTransitionPending = true'
   ]) {
     assert.ok(
-      interception < deathPath.indexOf(irreversibleAction),
+      interception < bossDeathPath.indexOf(irreversibleAction),
       `${irreversibleAction} occurs only after revival interception`
     );
   }

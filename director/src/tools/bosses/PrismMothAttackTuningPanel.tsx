@@ -264,11 +264,11 @@ export function PrismMothAttackTuningPanel({
         />
         <NumericControl
           id="prism-attack3-trail"
-          label="Feather trail (frames)"
-          value={value.attack3.featherTrailFrames}
-          range={PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.featherTrailFrames}
+          label="Trail cadence (frames)"
+          value={value.attack3.trailCadenceFrames}
+          range={PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.trailCadenceFrames}
           disabled={disabled}
-          onChange={(featherTrailFrames) => emitAttack3({ featherTrailFrames })}
+          onChange={(trailCadenceFrames) => emitAttack3({ trailCadenceFrames })}
         />
         <NumericControl
           id="prism-attack3-recovery"

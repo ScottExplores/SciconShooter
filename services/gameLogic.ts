@@ -429,6 +429,8 @@ type PrismMothOwnedArtifactRuntimeState = {
   sourceActionId: string;
   sourceActionEndFrame: number;
   sourcePhaseId: string;
+  destructible?: boolean;
+  targetable?: boolean;
   collisionActive: boolean;
   damageActive: boolean;
   spawnFrame: number;
@@ -6325,13 +6327,23 @@ export class GameEngine {
 
   isEnemyTarget(entity: Entity) {
     if (!this.isBossCombatInteractive(entity)) return false;
-    return entity.type === EntityType.ENEMY_DRONE
+    return this.isDestructiblePrismMothBrood(entity)
+      || entity.type === EntityType.ENEMY_DRONE
       || entity.type === EntityType.ENEMY_BRICK
       || entity.type === EntityType.ENEMY_JOURNAL
       || entity.type === EntityType.ENEMY_SWARM
       || entity.type === EntityType.BOSS
       || entity.type === EntityType.MINI_BOSS
       || entity.type === EntityType.ENEMY_INVADER;
+  }
+
+  private isDestructiblePrismMothBrood(entity: Entity) {
+    const artifact = entity.prismMothArtifactState;
+    return entity.type === EntityType.PROJECTILE
+      && artifact?.kind === 'brood'
+      && artifact.destructible === true
+      && artifact.targetable === true
+      && entity.hp > 0;
   }
 
   flashEntity(entity: Entity, frames: number = 8) {
@@ -6427,6 +6439,28 @@ export class GameEngine {
 
   handleEnemyDestroyed(target: Entity) {
     if (target.markedForDeletion) return;
+    if (
+      target.type === EntityType.PROJECTILE
+      && target.prismMothArtifactState?.kind === 'brood'
+      && target.prismMothArtifactState.destructible
+    ) {
+      target.prismMothArtifactState.targetable = false;
+      target.prismMothArtifactState.collisionActive = false;
+      target.prismMothArtifactState.damageActive = false;
+      target.markedForDeletion = true;
+      const centerX = target.x + target.width / 2;
+      const centerY = target.y + target.height / 2;
+      this.spawnExplosion(target.x, target.y, '#c084fc', 0.66);
+      this.spawnRingEffect(centerX, centerY, '#67e8f9');
+      this.spawnBurst(centerX, centerY, '#f0abfc', 9, 3.4, 3);
+      this.addHitStop(2);
+      this.addShake(0.8);
+      this.playSound('impact', 0.54, {
+        pitchJitter: 0.08,
+        pitchOffset: 0.16
+      });
+      return;
+    }
     if (target.type === EntityType.BOSS) {
       if (!this.isBossCombatInteractive(target)) return;
       if (this.beginBossRevival(target)) return;
@@ -10966,7 +11000,14 @@ export class GameEngine {
           hatchDelayFrames: parameters.hatchDelayFrames,
           routeWidthRatio: parameters.routeWidthRatio,
           waveIndex,
-          phaseIndex
+          phaseIndex,
+          pursuitTargetRatio: requestedActionId === 'brood-procession'
+            ? clamp(
+                (this.player.x + this.player.width / 2) / Math.max(1, this.width),
+                0.2,
+                0.8
+              )
+            : undefined
         }),
         parameters.formationSpacingRatio
       );
@@ -11002,6 +11043,10 @@ export class GameEngine {
         wings
       });
       state.swoopPass = passes[cue.executionIndex % Math.max(1, passes.length)];
+      state.trailIntervalFrames = Math.max(
+        3,
+        Math.min(18, requestedFeatherInterval)
+      );
     } else if (requestedActionId === 'kaleidoscope-brood') {
       const beatIndex = this.getPrismMothSignatureBeatIndex(sourceClip.id);
       const baseSequence = Math.max(
@@ -11211,7 +11256,14 @@ export class GameEngine {
           hatchDelayFrames: parameters.hatchDelayFrames,
           routeWidthRatio: parameters.routeWidthRatio,
           waveIndex: cue.executionIndex % 2,
-          phaseIndex: state.phaseIndex
+          phaseIndex: state.phaseIndex,
+          pursuitTargetRatio: state.requestedActionId === 'brood-procession'
+            ? clamp(
+                (this.player.x + this.player.width / 2) / Math.max(1, this.width),
+                0.2,
+                0.8
+              )
+            : undefined
         }),
         parameters.formationSpacingRatio
       );
@@ -11313,11 +11365,20 @@ export class GameEngine {
     node.projectileAnimationMode = 'play-once-before-last';
     node.weaponVisualStartFrame = this.frameCount;
     node.variant = state.loopIndex * 1000 + state.executionIndex * 100 + slot.index;
+    const destructible = state.requestedActionId === 'brood-procession';
+    if (destructible) {
+      node.hp = 2;
+      node.maxHp = 2;
+      node.scoreValue = 0;
+      node.powerupDropChance = 0;
+    }
     node.prismMothArtifactState = {
       kind: 'brood',
       sourceActionId: state.sourceActionId,
       sourceActionEndFrame: state.sourceActionEndFrame,
       sourcePhaseId: state.phaseId,
+      destructible,
+      targetable: false,
       collisionActive: false,
       damageActive: false,
       spawnFrame: this.frameCount,
@@ -11649,6 +11710,12 @@ export class GameEngine {
     });
     state.collisionActive = authority.collisionActive;
     state.damageActive = authority.damageActive;
+    state.targetable = Boolean(
+      state.destructible
+      && lifecycle.targetable
+      && ownerAlive
+      && sourceActionActive
+    );
     if (authority.shouldCleanup) {
       entity.markedForDeletion = true;
       return true;
@@ -14194,7 +14261,9 @@ export class GameEngine {
 
       // 1. Enemies always hurt
       if (isEnemy) {
-          hurtsPlayer = e.type === EntityType.BOSS && this.isSandboxPrismMoth(e)
+          hurtsPlayer = this.isDestructiblePrismMothBrood(e)
+            ? Boolean(e.prismMothArtifactState?.damageActive)
+            : e.type === EntityType.BOSS && this.isSandboxPrismMoth(e)
             ? e.bossPrismMothBodyDamageActive
             : e.type !== EntityType.BOSS
               || !e.bossCornerAmbushRamState

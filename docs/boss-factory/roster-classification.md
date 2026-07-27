@@ -38,15 +38,15 @@ the Factory instead of extending the current representation.
 
 ## Current roster
 
-Nullwake Revenant and Prism Moth Broodkeeper are the current Factory-ready
-Sandbox co-benchmarks under the strict contract above. Nullwake remains the
+Nullwake Revenant, Prism Moth Broodkeeper, and Helios Clawcarrier are the current
+Factory-ready Sandbox benchmarks under the strict contract above. Nullwake remains the
 reference for revival, moving-socket combat sentences, and deterministic maze
-proof. Prism is the reference for living appendage animation, visible summon
-lifecycle, bounded formation puzzles, and anatomy-specific fallbacks. Helios
-Clawcarrier retains its accepted heavy modular art and rig identity, but its
-active refinement reopens Gates 2-5 and keeps its own one-boss lock until the
-mounted weapons, revised attack roles, deterministic safety proof, and
-mobile/desktop captures pass. Every other current boss remains
+proof. Prism is the reference for permanent living-appendage animation,
+hull-only durability, destructible summon lifecycle, and bounded formation
+puzzles. Helios is
+the reference for heavy modular anatomy, rigid mounted weapons, part health,
+and a mandatory-interior moving corridor whose mobile exterior camps are
+explicitly rejected. Every other current boss remains
 Factory-compatible or Legacy until it independently passes the same gates.
 
 | Boss | Classification | Evidence | Disposition |
@@ -54,7 +54,7 @@ Factory-compatible or Legacy until it independently passes the same gates.
 | Nullwake Revenant | **Factory-ready; Sandbox benchmark** | Exact five-sprite 370x311 reassembly; content-addressed 32-color binary-alpha V3 atlas; one connected 16-node hierarchy; four moving limb muzzles plus one moving core socket consumed by the live simulation and exact warning-origin locks; registered entrance, idle, anticipation/recoil, large-hit, stagger, persistent-damage, false-death/reboot, and 72-frame five-fragment destruction states; exactly three core sentences plus one signature in all three phases; and 24 pinned deterministic route witnesses. Every mobile/desktop witness retains at least 6 px clearance after 3 px uncertainty inflation, with a measured minimum of 7.136829 px. | Use as the Boss Factory workflow/template benchmark. Keep it Sandbox-only. Its aspect-preserved 290x244 gameplay display and 370x311 source are an explicit large-boss exception, not the native-size target for future bosses. Re-run the pinned evidence whenever timeline, socket, collision, viewport, or art geometry changes. |
 | Gloamforge Mantis | Factory-compatible | Full 22-part `modular-hierarchy-v1` registration, 29 atlas frames, six fixed-frame animations, eight authored sockets, deterministic pose sampling, phase-two attachments, cannon frames, pods, exhaust, and muzzle effects. Its current timeline is still the legacy serial clip model and its 720x620 art package exceeds the intended native scale. | Retain the component-first source package and foundry identity. It is the next-best migration candidate after Nullwake. |
 | Meridian Harrower | Factory-compatible | Registered 17-frame `segmented-crescent-v1` atlas and a specialized articulated presenter, but no generic hierarchy, modular pose sampler, or anatomy-owned socket profile. | Retain the crescent/aperture concept and useful safe-channel ideas; re-rig through the Factory. |
-| Helios Clawcarrier | **Factory-compatible; Sandbox-only refinement lock** | Gate 1 remains locked to the unchanged 460x330 `modular-hierarchy-v1` art package, 40 consumed runtime frames, connected hull/claw/reactor/rotary hierarchy, nine anatomy-owned sockets, four registered pixel-projectile families, and 90-frame destruction identity. Gates 2-5 are reopened for rigid hull-mounted rotaries, the central 180-degree tracer-forward correction, Rapid Machine-Gun Bursts, the Helios-specific Moving Machine-Gun Channel signature, Reactor Maze with bounded deterministic X/Y mine templates, and unchanged Clawcarrier Crush. The prior 24 route witnesses and V0.14 captures describe the retired attack set and are historical only. | Hold the Helios one-boss lock. Keep its art, silhouette, hierarchy, and physical Attack 4; retire `claw-sweep-pincer` from the active rotation without archiving claw art. Restore Factory-ready status only after refreshed rig/motion evidence, all mobile/desktop continuous-route and mine-template proofs, five clean captures per attack, lifecycle evidence, full local gates, and same-source private Runner test/build pass. Do not publish unless separately requested. |
+| Helios Clawcarrier | **Factory-ready; Sandbox benchmark** | Locked 460x330 `modular-hierarchy-v1` art package; 40 consumed runtime frames; connected hull/claw/reactor/rotary hierarchy; nine anatomy-owned sockets; four registered pixel-projectile families; significant-hit, phase, damage, recovery, and 90-frame destruction states; three core attacks plus the Moving Machine-Gun Channel signature in every phase. V0.20 adds simultaneous two-frame live-socket rails around a 160 px opening, two-pass gutter-to-gutter traversal, deterministic alternating starting edges, a six-pixel route proof, an inside-the-rails portrait-mobile witness, and explicit rejection of both stationary exterior camps. Root/Director typechecks, 238/238 Director tests, the 861-module/26-asset/18-test Runner build, and owner-only Sites version 24 pass. | Use as the benchmark for heavy modular anatomy, rigid mounted weapons, preview part-health controls, and mandatory-interior moving-corridor design. Keep it Sandbox-only. Re-run the route and exterior-camp proofs whenever viewport, socket, cadence, projectile, collision, or movement geometry changes. |
 | Aurora Storm Engine | Factory-compatible | Registered 33-frame `rotating-emitter-core-v1` atlas and a strong shared-angle rotor/beam runtime, but it remains a specialized presenter rather than a general Factory hierarchy. | Extract the deterministic rotor, reversible direction, gap-ring, and radial-beam lessons. Preserve the eye-boss identity as reference. |
 | Cinderjaw Siege Beetle | Factory-compatible | Registered 20-frame `articulated-pincer-v1` atlas with cannon and pod vocabulary, but no generic hierarchy or hierarchy-resolved gameplay sockets. | Preserve the siege-cannon-to-gatling phase idea; regenerate/re-rig cohesive parts before further tuning. |
 | Vesperglass Mothmother | Factory-compatible | Registered 17-frame `segmented-crescent-v1` atlas, but no Factory hierarchy, pose sampler, or socket contract. | Preserve the wing-call, cocoon, and tail-route ideas; rebuild the current art and rig. |
@@ -62,7 +62,7 @@ Factory-compatible or Legacy until it independently passes the same gates.
 | Umbra Needlewing | Legacy | An atlas is registered, but runtime deliberately uses `renderMode: 'assembled'` with `wingbeat-hover`. The parts sheet is not the authoritative gameplay assembly and there is no modular rig or socket profile. | Keep the blackout corner-hunter concept and exact warned ambush. Discard the current rig implementation when rebuilt. |
 | Twin Halo Wardens | Legacy | An atlas is registered, but runtime deliberately uses the flattened `assembled` mode with `paired-resonance`; there is no shared hierarchy or anatomy-owned socket profile. | Keep the call-and-answer identity and conjunction puzzle. Rebuild the paired bodies as one validated hierarchy. |
 | Sweep / Bank / Re-entry | Legacy | No fixed Sandbox artwork registration; it uses the campaign placeholder rig and timeline prototype only. | Extract the movement/re-entry lesson, then archive the prototype. |
-| Prism Moth Broodkeeper | **Factory-ready; Sandbox co-benchmark** | Locked 384x384 canonical reference; deterministic 2048x2048, 24-frame, binary-alpha, 96-color atlas; one connected 17-node hierarchy with 16 visible structural parts and seven anatomy-owned sockets; purposeful wing, pod, core, entrance, idle, phase, damage, stagger, and five-stage death motion; exactly three core sentences plus Kaleidoscope Brood; visible cocoon and broodling lifecycle; explicit one-wing and no-wing fallbacks; six bounded formation templates; and fixed-seed mobile/desktop route witnesses. All eight critical viewport/attack witnesses retain at least 6 px clearance after 3 px uncertainty, with a measured minimum of 35.7 px. | Use as the co-benchmark for living appendages, visible summons, deterministic formations, and anatomy-owned fallback design. Keep it Sandbox-only. Its exact brood choreography remains Prism-specific and must not become a generic default attack. Re-run the evidence whenever timeline, formation, socket, collision, viewport, or art geometry changes. |
+| Prism Moth Broodkeeper | **Factory-ready; Sandbox co-benchmark with V0.21 behavior amendment** | Locked 384x384 canonical reference; deterministic 2048x2048, 24-frame, binary-alpha, 96-color atlas; one connected 17-node hierarchy with 16 visible structural parts and seven anatomy-owned sockets; purposeful wing, pod, core, entrance, idle, phase, damage, stagger, and five-stage death motion; hull-only 1,150 HP with permanent animated wings; 35 sequential Attack 1 feathers; 2-HP, reward-free, player-directed Attack 2 brood; 28/42 Attack 3 trails at four-frame cadence; and four deterministic Attack 4 route families below 50%. The retained runtime-v0.19 route witnesses remain the historical art/safety baseline and the V0.21 runtime tests cover the new behavior branches. | Use as the co-benchmark for permanent living appendages, destructible visible summons, deterministic player-directed formations, and non-numeric low-health route remixes. Keep it Sandbox-only. Its exact brood choreography remains Prism-specific and must not become a generic default attack. Refresh content-addressed route and visual evidence whenever timeline, formation, socket, collision, viewport, or art geometry changes. |
 | Tribunal Laser Core | Legacy | No fixed Sandbox artwork registration; it demonstrates shields, beams, and weak points on a campaign rig. | Extract the exact-lane and weak-point logic, then archive the prototype representation. |
 
 ## Nullwake benchmark gates
@@ -110,19 +110,23 @@ summary:
   24 registered frames, binary structural alpha, and a 96-color opaque palette.
 - **Rig and sockets:** all 17 hierarchy nodes reach one root, 16 are visible,
   and seven sockets remain attached to the corresponding live wings, brood
-  pods, and prism core. Destroyed wings remove their own emitters and select
-  explicit surviving-wing or core/brood fallbacks.
+  pods, and prism core. The fight uses hull-only durability, so both wings stay
+  attached, animated, and operational until the 1,150-HP hull is defeated.
 - **Lifecycle:** the accepted runtime-v0.19 evidence covers entrance, restrained
   idle breathing and wing motion, attack poses, Prism Metamorphosis, persistent
   damage, three-stage stagger/recovery, and five-stage deterministic death.
 - **Attack contract:** Prism Wingbeat Weave, Brood Procession, and Lunar Prism
   Swoop are the three core sentences. Kaleidoscope Brood is the signature. Each
   visibly uses Prism anatomy, has a distinct player decision, and ends in an
-  authored recovery.
+  authored recovery. V0.21 fixes Wingbeat at 35 sequential feathers, Swoop at
+  two/three passes with 28/42 trails on a four-frame cadence, and Kaleidoscope
+  at four deterministic route families below 50% health.
 - **Summons and formations:** cocoons visibly deploy, arm, crack, and hatch;
-  broodlings visibly flutter while active and clean up on owner/action loss.
-  Six bounded templates preserve a readable opening and are covered by the
-  deterministic formation suite.
+  armed/hatching/flying brood are 2-HP player-shot targets, move toward the
+  player lane locked for their command, grant no farmable reward, visibly
+  flutter while active, and clean up on owner/action loss. Six bounded
+  templates preserve a readable opening and are covered by the deterministic
+  formation suite.
 - **Safety and determinism:** fixed seed `scicon-simple-boss-sandbox` proves all
   four attacks on mobile 390x844 and desktop 1280x720. The eight witnesses
   replay with pinned hashes and remain above the 6 px floor after 3 px geometry

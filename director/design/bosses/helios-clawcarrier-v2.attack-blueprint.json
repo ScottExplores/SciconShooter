@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "bossId": "helios-clawcarrier",
-  "status": "sandbox-only-v018-release-gates-passed",
+  "status": "sandbox-only-v020-release-gates-passed",
   "fixedSeed": "helios-v2-safe-route-proof",
   "authoritative": {
     "rigKind": "modular-hierarchy-v1",
@@ -405,6 +405,8 @@
       "every projectile visibly leaves its owning rotary or reactor anatomy",
       "gatling tracers point along actual downward and diagonal velocity without flipping",
       "the moving machine-gun channel retains one continuous mobile and desktop route with at least 6px replayed clearance after uncertainty",
+      "every established portrait-mobile channel witness remains between the reconstructed simultaneous rails while stationary camps at both exterior gutters are threatened",
+      "the connected portrait-mobile rig reaches both structural gutters and reverses for a second pass without clipping",
       "every retained mine template visibly varies X and Y and passes combined reactor route proof",
       "melee damage remains attached to the visible moving claw tips",
       "anticipation, recovery, phase transformation, persistent damage, and destruction read without gameplay text or generic guides",
@@ -412,6 +414,6 @@
       "review overlays are absent from clean gameplay captures",
       "spawn, reset, replay, loop, phase jump, and death clean up all transient state"
     ],
-    "status": "v018-release-gates-passed"
+    "status": "v020-release-gates-passed"
   }
 }

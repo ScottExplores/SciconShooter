@@ -183,6 +183,7 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
       'sequence',
       'motionCue',
       'projectileCount',
+      'shotIntervalFrames',
       'projectileSpeedScale',
       'sweepRangeRatio',
       'sweepPasses'

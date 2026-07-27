@@ -69,7 +69,8 @@ export interface PrismMothAttack3Tuning {
   readonly speedMultiplier: number;
   readonly curveDepthRatio: number;
   readonly edgeTelegraphFrames: number;
-  readonly featherTrailFrames: number;
+  /** Simulation frames between successive visible feather-trail projectiles. */
+  readonly trailCadenceFrames: number;
   readonly recoveryFrames: number;
 }
 
@@ -128,7 +129,7 @@ const range = (
 export const PRISM_MOTH_ATTACK_TUNING_RANGES = Object.freeze({
   attack1: Object.freeze({
     wingbeatCadenceFrames: range(24, 30, 1, 30),
-    featherCount: range(3, 7, 1, 5),
+    featherCount: range(3, 7, 1, 7),
     featherSpacingRadians: range(0.04, 0.12, 0.01, 0.11),
     fanAngleRadians: range(0.32, 0.72, 0.01, 0.56),
     safeLaneWidthRatio: range(0.3, 0.46, 0.01, 0.32),
@@ -148,7 +149,7 @@ export const PRISM_MOTH_ATTACK_TUNING_RANGES = Object.freeze({
     speedMultiplier: range(0.8, 1.3, 0.05, 1),
     curveDepthRatio: range(0.16, 0.34, 0.01, 0.26),
     edgeTelegraphFrames: range(36, 54, 1, 48),
-    featherTrailFrames: range(18, 72, 1, 48),
+    trailCadenceFrames: range(3, 8, 1, 4),
     recoveryFrames: range(36, 60, 1, 60)
   }),
   attack4: Object.freeze({
@@ -184,7 +185,7 @@ export const DEFAULT_PRISM_MOTH_ATTACK_TUNING: Readonly<PrismMothAttackTuning> =
     speedMultiplier: PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.speedMultiplier.defaultValue,
     curveDepthRatio: PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.curveDepthRatio.defaultValue,
     edgeTelegraphFrames: PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.edgeTelegraphFrames.defaultValue,
-    featherTrailFrames: PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.featherTrailFrames.defaultValue,
+    trailCadenceFrames: PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.trailCadenceFrames.defaultValue,
     recoveryFrames: PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.recoveryFrames.defaultValue
   }),
   attack4: Object.freeze({
@@ -309,9 +310,9 @@ export const normalizePrismMothAttackTuning = (
         attack3.edgeTelegraphFrames,
         PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.edgeTelegraphFrames
       ),
-      featherTrailFrames: normalizeNumber(
-        attack3.featherTrailFrames,
-        PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.featherTrailFrames
+      trailCadenceFrames: normalizeNumber(
+        attack3.trailCadenceFrames,
+        PRISM_MOTH_ATTACK_TUNING_RANGES.attack3.trailCadenceFrames
       ),
       recoveryFrames: normalizeNumber(
         attack3.recoveryFrames,
@@ -607,28 +608,28 @@ export const applyPrismMothAttackTuningToTimeline = (
 
     if (clip.primitiveId === 'prism-lunar-swoop') {
       const baselineFrames = phaseIndex > 0 ? 81 : 89;
+      const swoopCount = Math.max(
+        phaseIndex > 0 ? 3 : 2,
+        tuning.attack3.swoopCount
+      );
       clip.durationSeconds = secondsFromFrames(baselineFrames) / tuning.attack3.speedMultiplier;
       clip.repeat = {
-        count: tuning.attack3.swoopCount,
+        count: swoopCount,
         intervalSeconds: clip.repeat?.intervalSeconds ?? 1.7
       };
       clip.parameters = {
         ...parameters,
-        projectileCount: tuning.attack3.swoopCount,
+        projectileCount: swoopCount,
         projectileSpeedScale: clampTimelineNumber(
           tuning.attack3.speedMultiplier * (phaseIndex > 0 ? 1.06 : 1),
           0.5,
           2
         ),
         sweepRangeRatio: tuning.attack3.curveDepthRatio,
-        sweepPasses: tuning.attack3.swoopCount,
+        sweepPasses: swoopCount,
         ...(supportsParameter('prism-lunar-swoop', 'shotIntervalFrames')
           ? {
-              shotIntervalFrames: clampTimelineNumber(
-                Math.round(96 / tuning.attack3.featherTrailFrames),
-                2,
-                12
-              )
+              shotIntervalFrames: tuning.attack3.trailCadenceFrames
             }
           : {})
       };

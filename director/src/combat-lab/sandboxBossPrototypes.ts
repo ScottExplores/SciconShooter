@@ -550,7 +550,7 @@ const buildPrismMothPhase = (
               intervalSeconds: phaseTwo ? 0.64 : 0.72
             },
             parameters: {
-              projectileCount: phaseTwo ? 6 : 5,
+              projectileCount: 7,
               sequence: route.baseSequence,
               motionCue: 'prism-wingbeat',
               shotIntervalFrames: phaseTwo ? 10 : 12,
@@ -628,6 +628,7 @@ const buildPrismMothPhase = (
               projectileCount: phaseTwo ? 3 : 2,
               sequence: route.baseSequence + 2,
               motionCue: 'prism-swoop',
+              shotIntervalFrames: 4,
               projectileSpeedScale: phaseTwo ? 1.06 : 1,
               sweepRangeRatio: phaseTwo ? 0.29 : 0.26,
               sweepPasses: phaseTwo ? 3 : 2
@@ -2896,6 +2897,7 @@ const definitions = deepFreeze([
       id: 'sandbox-prism-moth-brood',
       label: 'Prism Moth Broodkeeper',
       rigId: 'open-orbit',
+      componentMode: 'hull-only',
       spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH',
       health: 1_150,
       shieldCount: 0,
@@ -2912,7 +2914,7 @@ const definitions = deepFreeze([
         {
           id: mothMetamorphosis,
           label: 'Prism Metamorphosis',
-          triggerHealthRatio: 0.48,
+          triggerHealthRatio: 0.5,
           movementPatternId: 'gatekeeper-cycle',
           speedMultiplier: 1.04,
           weaponSettingIds: ['sandbox-prism-moth-brood-burst', 'sandbox-prism-moth-brood-beam']

@@ -328,7 +328,7 @@ const BOSS_TIMELINE_PRIMITIVES = new Map([
     track: 'movement',
     damaging: true,
     supportsRepeat: true,
-    parameterKeys: ['sequence', 'motionCue', 'projectileCount', 'projectileSpeedScale', 'sweepRangeRatio', 'sweepPasses']
+    parameterKeys: ['sequence', 'motionCue', 'projectileCount', 'shotIntervalFrames', 'projectileSpeedScale', 'sweepRangeRatio', 'sweepPasses']
   }],
   ['prism-kaleidoscope-brood', {
     track: 'summon',
