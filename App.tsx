@@ -123,7 +123,7 @@ type GameplayPreloadListener = (progress: number, phase: GameplayPreloadPhase) =
 
 const MISSION_LOADING_TIPS = [
   'Break boss cannons first to remove their fire lanes before attacking the hull.',
-  'Coins fund weekly upgrades. Minted mission records remain part of your permanent collection.',
+  'Coins fund permanent Hangar upgrades. Weekly competition totals still restart each Sunday.',
   'Companion ships have distinct roles. Match their abilities to the bottleneck ahead.',
   'A warm mission launch reuses decoded systems, so retries can deploy immediately.',
   'Collect dropped research coins quickly, or bring a magnet companion to pull them in.',

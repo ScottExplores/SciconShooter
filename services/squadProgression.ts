@@ -326,26 +326,26 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
     name: 'Fire Rate',
     description: 'Shortens the firing cycle; every seven levels adds another tightly grouped shot.',
     costs: [
-      40, 60, 90, 130, 180, 240, 320,
-      420, 540, 680, 840, 1020, 1220, 1440,
-      1700, 2000, 2350, 2750, 3200, 3700, 4250
+      60, 90, 130, 190, 270, 360, 480,
+      630, 810, 1020, 1260, 1530, 1830, 2190,
+      2600, 3050, 3550, 4100, 4700, 5350, 6050
     ]
   },
   {
     id: 'speed',
     name: 'Movement Speed',
     description: 'Improves horizontal response and maximum movement.',
-    costs: [35, 55, 80, 120, 170, 230, 300]
+    costs: [55, 85, 130, 200, 300, 440, 625]
   },
   {
     id: 'startingHearts',
     name: 'Starting Hearts',
-    description: 'Adds one starting heart for every weekly level.',
-    costs: [60, 90, 130, 180, 240, 310, 390]
+    description: 'Permanently adds one starting heart for every Hangar level.',
+    costs: [90, 140, 210, 310, 450, 630, 850]
   }
 ];
 
-export const MINI_SHIP_UPGRADE_COST_CURVE = [0, 100, 225, 400, 650] as const;
+export const MINI_SHIP_UPGRADE_COST_CURVE = [0, 160, 360, 650, 1050] as const;
 
 const normalizeProfileId = (profileId?: string | null) => profileId?.trim().toLowerCase() || 'guest';
 const weeklyStorageKey = (profileId: string) => `scicon_weekly_squad_v${SQUAD_PROFILE_VERSION}:${profileId}`;
@@ -361,6 +361,13 @@ const createMainShipUpgradeLevels = (): MainShipUpgradeLevels => ({
   fireRate: 0,
   speed: 0,
   startingHearts: 0
+});
+
+const createWeeklySquadStats = (): WeeklySquadStats => ({
+  runs: 0,
+  score: 0,
+  enemiesDefeated: 0,
+  coinsEarned: 0
 });
 export const createMainShipUpgradesByShip = (): MainShipUpgradesByShip => (
   Object.fromEntries(PLAYABLE_PLAYER_SHIP_IDS.map((shipId) => [shipId, createMainShipUpgradeLevels()])) as MainShipUpgradesByShip
@@ -402,7 +409,25 @@ export const createWeeklySquadState = (
   ownedMiniShips: {},
   equipped: { left: null, right: null },
   shipUpgrades: createMainShipUpgradesByShip(),
-  weeklyStats: { runs: 0, score: 0, enemiesDefeated: 0, coinsEarned: 0 },
+  weeklyStats: createWeeklySquadStats(),
+  updatedAt: nowIso()
+});
+
+/**
+ * Starts a new competition week without erasing earned Hangar progression.
+ * Coins and weekly run statistics remain seasonal; slot unlocks, mini ships,
+ * equipment, and main-ship upgrades are durable Pilot-profile progression.
+ */
+export const rollWeeklySquadStateForward = (
+  state: WeeklySquadState,
+  weekKey = getWeeklyBoundaryMeta(new Date()).weekKey
+): WeeklySquadState => ({
+  ...state,
+  version: SQUAD_PROFILE_VERSION,
+  profileId: normalizeProfileId(state.profileId),
+  weekKey,
+  coins: WEEKLY_STARTING_COINS,
+  weeklyStats: createWeeklySquadStats(),
   updatedAt: nowIso()
 });
 
@@ -501,7 +526,7 @@ export const loadWeeklySquadState = (requestedProfileId?: string | null): Weekly
   }
 
   if (state.weekKey !== currentWeek) {
-    state = createWeeklySquadState(profileId, currentWeek);
+    state = rollWeeklySquadStateForward(state, currentWeek);
     emitSquadDomainEvent('weekly_state_reset', { profileId, weekKey: currentWeek });
   }
 
@@ -836,13 +861,14 @@ export const migrateLegacySquadProfile = (
         sourceId
       );
       const targetState = loadWeeklySquadState(targetId);
-      if (sourceState.weekKey === targetState.weekKey) {
-        saveWeeklySquadState(mergeWeeklySquadProfiles(targetState, sourceState));
-        if (!verifyStoredProfile(targetWeeklyKey, targetId)) {
-          result.success = false;
-        } else {
-          result.weekly = true;
-        }
+      const sourceForCurrentWeek = sourceState.weekKey === targetState.weekKey
+        ? sourceState
+        : rollWeeklySquadStateForward(sourceState, targetState.weekKey);
+      saveWeeklySquadState(mergeWeeklySquadProfiles(targetState, sourceForCurrentWeek));
+      if (!verifyStoredProfile(targetWeeklyKey, targetId)) {
+        result.success = false;
+      } else {
+        result.weekly = true;
       }
     } catch {
       result.success = false;
@@ -915,7 +941,7 @@ export const getMiniShipUpgradeCost = (id: MiniShipId, level: number) => {
   const entry = MINI_SHIP_BY_ID[id];
   const currentLevel = Math.max(1, Math.min(MINI_SHIP_MAX_LEVEL - 1, Math.floor(level) || 1));
   const curveCost = MINI_SHIP_UPGRADE_COST_CURVE[currentLevel];
-  const shipPremium = entry.purchaseCost * (0.35 + currentLevel * 0.1);
+  const shipPremium = entry.purchaseCost * (0.55 + currentLevel * 0.15);
   return Math.round(curveCost + shipPremium);
 };
 

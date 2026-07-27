@@ -96,7 +96,7 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
   assert.equal(sanitized.selectedShipId, 'bio');
 });
 
-test('a stale client weekly state is reset at the current Sunday-noon Pacific boundary', () => {
+test('a stale weekly snapshot resets competition totals while preserving Hangar and Boss Archive progress', () => {
   const now = Date.UTC(2026, 6, 23, 19);
   const expected = createWeeklyState(PROFILE_ID, now);
   const sanitized = sanitizeWalletSnapshot({
@@ -104,13 +104,45 @@ test('a stale client weekly state is reset at the current Sunday-noon Pacific bo
       ...expected,
       weekKey: '2026-07-12',
       coins: 999999,
-      unlockedSlots: { left: true, right: true }
+      unlockedSlots: { left: true, right: true },
+      ownedMiniShips: { 'citation-dart': 4, 'photon-manta': 3 },
+      equipped: { left: 'citation-dart', right: 'photon-manta' },
+      shipUpgrades: {
+        ...expected.shipUpgrades,
+        researchhub: { fireRate: 12, speed: 5, startingHearts: 3 },
+        bio: { fireRate: 7, speed: 2, startingHearts: 1 }
+      },
+      weeklyStats: { runs: 8, score: 123456, enemiesDefeated: 900, coinsEarned: 999999 }
+    },
+    permanentState: {
+      bossArchive: {
+        unlockedEventIds: ['open-orbit-gatekeeper', 'paywall-siege-gatekeeper'],
+        seenEventIds: ['open-orbit-gatekeeper']
+      }
     }
   }, WALLET, now);
 
   assert.equal(sanitized.weeklyState.weekKey, expected.weekKey);
   assert.equal(sanitized.weeklyState.coins, 0);
-  assert.deepEqual(sanitized.weeklyState.unlockedSlots, { left: false, right: false });
+  assert.deepEqual(sanitized.weeklyState.weeklyStats, expected.weeklyStats);
+  assert.deepEqual(sanitized.weeklyState.unlockedSlots, { left: true, right: true });
+  assert.deepEqual(sanitized.weeklyState.ownedMiniShips, {
+    'citation-dart': 4,
+    'photon-manta': 3
+  });
+  assert.deepEqual(sanitized.weeklyState.equipped, {
+    left: 'citation-dart',
+    right: 'photon-manta'
+  });
+  assert.deepEqual(sanitized.weeklyState.shipUpgrades.researchhub, {
+    fireRate: 12,
+    speed: 5,
+    startingHearts: 3
+  });
+  assert.deepEqual(sanitized.permanentState.bossArchive, {
+    unlockedEventIds: ['open-orbit-gatekeeper', 'paywall-siege-gatekeeper'],
+    seenEventIds: ['open-orbit-gatekeeper']
+  });
 });
 
 test('legacy cloud snapshots infer Boss Archive unlocks before writing canonical arrays', () => {

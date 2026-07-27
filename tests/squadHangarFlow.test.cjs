@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
 
-test('the weekly squad model is Pilot-scoped, resettable, and data driven', () => {
+test('weekly competition rollover preserves permanent Hangar progression and resets only seasonal totals', () => {
   const source = read('services', 'squadProgression.ts');
 
   assert.match(source, /MAIN_SHIP_UPGRADE_MAX_LEVEL = FIRE_RATE_LEVELS_PER_TIER/);
@@ -21,6 +21,15 @@ test('the weekly squad model is Pilot-scoped, resettable, and data driven', () =
   assert.match(source, /MINI_SHIP_CATALOG:[\s\S]*citation-dart[\s\S]*nebula-tern/);
   assert.match(source, /weeklyStorageKey = \(profileId: string\)/);
   assert.match(source, /state\.weekKey !== currentWeek/);
+  assert.match(source, /rollWeeklySquadStateForward\(state, currentWeek\)/);
+  assert.match(
+    source,
+    /rollWeeklySquadStateForward = \([\s\S]*?\.\.\.state,[\s\S]*?weekKey,[\s\S]*?coins: WEEKLY_STARTING_COINS,[\s\S]*?weeklyStats: createWeeklySquadStats\(\)/
+  );
+  assert.match(
+    source,
+    /sourceForCurrentWeek = sourceState\.weekKey === targetState\.weekKey[\s\S]*?rollWeeklySquadStateForward\(sourceState, targetState\.weekKey\)/
+  );
   assert.match(source, /weekly_state_reset/);
   assert.match(source, /buildRuntimeSquadLoadout/);
   assert.match(source, /fireIntervalFrames: getMiniShipFireIntervalFrames\(entry\.fireIntervalFrames, level\)/);
@@ -31,7 +40,11 @@ test('the weekly squad model is Pilot-scoped, resettable, and data driven', () =
   assert.match(source, /RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = \[1, 2\]/);
   assert.match(source, /retiredWeeklyStorageKeys\(profileId\)\.forEach\(\(key\) => window\.localStorage\.removeItem\(key\)\)/);
   assert.match(source, /PERMANENT_SQUAD_PROFILE_VERSION = 1/);
-  assert.match(source, /MINI_SHIP_UPGRADE_COST_CURVE = \[0, 100, 225, 400, 650\]/);
+  assert.match(source, /MINI_SHIP_UPGRADE_COST_CURVE = \[0, 160, 360, 650, 1050\]/);
+  assert.match(source, /entry\.purchaseCost \* \(0\.55 \+ currentLevel \* 0\.15\)/);
+  assert.match(source, /60, 90, 130, 190, 270, 360, 480,[\s\S]*?2600, 3050, 3550, 4100, 4700, 5350, 6050/);
+  assert.match(source, /costs: \[55, 85, 130, 200, 300, 440, 625\]/);
+  assert.match(source, /costs: \[90, 140, 210, 310, 450, 630, 850\]/);
   assert.match(source, /if \(slot === 'left'\) \{[\s\S]*?\[FIRST_LEFT_WING_MINI_SHIP_ID\]: next\.ownedMiniShips\[FIRST_LEFT_WING_MINI_SHIP_ID\] \|\| 1/);
   assert.match(source, /next\.equipped = \{ \.\.\.next\.equipped, left: FIRST_LEFT_WING_MINI_SHIP_ID \}/);
   assert.match(source, /mini_ship_awarded/);
@@ -50,6 +63,7 @@ test('guest runs save device Pilot Hangar and Boss Archive progress while wallet
   assert.doesNotMatch(squad, /state\.profileId === 'guest'/);
   assert.match(squad, /bossArchive: \{\s*unlockedEventIds: \[\],\s*seenEventIds: \[\]/);
   assert.match(squad, /normalizeBossArchiveEventIds/);
+  assert.match(app, /Coins fund permanent Hangar upgrades/);
   assert.match(app, /const \[pilotProfile\] = useState\(initializeLocalPilotProfile\)/);
   assert.match(app, /loadWeeklySquadState\(pilotProfile\.id\)/);
   assert.match(app, /loadPermanentSquadState\(pilotProfile\.id\)/);

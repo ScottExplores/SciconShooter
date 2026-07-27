@@ -149,7 +149,7 @@ const createWeeklyState = (profileId, now) => ({
 const sanitizeWeeklyState = (rawValue, profileId, now) => {
   const value = asObject(rawValue);
   const fallback = createWeeklyState(profileId, now);
-  if (value.weekKey !== fallback.weekKey) return fallback;
+  const isCurrentWeek = value.weekKey === fallback.weekKey;
 
   const ownedMiniShips = {};
   Object.entries(asObject(value.ownedMiniShips)).forEach(([id, level]) => {
@@ -173,7 +173,9 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
   const weeklyStats = asObject(value.weeklyStats);
   return {
     ...fallback,
-    coins: integer(value.coins, 0, 1_000_000_000),
+    // Competition currency and run totals restart each week. Hangar ownership,
+    // equipment, and upgrade levels remain durable across that boundary.
+    coins: isCurrentWeek ? integer(value.coins, 0, 1_000_000_000) : 0,
     unlockedSlots: {
       left: Boolean(asObject(value.unlockedSlots).left),
       right: Boolean(asObject(value.unlockedSlots).right)
@@ -181,12 +183,14 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
     ownedMiniShips,
     equipped,
     shipUpgrades,
-    weeklyStats: {
-      runs: integer(weeklyStats.runs, 0, 1_000_000),
-      score: integer(weeklyStats.score, 0, 1_000_000_000),
-      enemiesDefeated: integer(weeklyStats.enemiesDefeated, 0, 1_000_000_000),
-      coinsEarned: integer(weeklyStats.coinsEarned, 0, 1_000_000_000)
-    },
+    weeklyStats: isCurrentWeek
+      ? {
+          runs: integer(weeklyStats.runs, 0, 1_000_000),
+          score: integer(weeklyStats.score, 0, 1_000_000_000),
+          enemiesDefeated: integer(weeklyStats.enemiesDefeated, 0, 1_000_000_000),
+          coinsEarned: integer(weeklyStats.coinsEarned, 0, 1_000_000_000)
+        }
+      : fallback.weeklyStats,
     updatedAt: isoNow(now)
   };
 };
