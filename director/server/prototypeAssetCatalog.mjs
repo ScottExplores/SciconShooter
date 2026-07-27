@@ -67,6 +67,33 @@ export const PROTOTYPE_ASSET_DEFINITIONS = Object.freeze([
     label: 'Helios Clawcarrier V2 canonical neutral comparison reference'
   }),
   asset({
+    prototypeId: 'prism-moth-broodkeeper',
+    variant: 'assembled',
+    fileName: 'prism-moth-broodkeeper/prism-moth-broodkeeper-neutral.png',
+    sha256: 'cd0381398cbfb5003822f126192dc0d18af3fe874eff11defec9d57202109f39',
+    width: 512,
+    height: 512,
+    label: 'Prism Moth Broodkeeper modular neutral preview'
+  }),
+  asset({
+    prototypeId: 'prism-moth-broodkeeper',
+    variant: 'sheet',
+    fileName: 'prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.png',
+    sha256: '5ef8ca7e395c94b3777d4f85808b5701f8bc952d96a335438e8353dcc82b6292',
+    width: 2048,
+    height: 2048,
+    label: 'Prism Moth Broodkeeper modular and brood lifecycle atlas'
+  }),
+  asset({
+    prototypeId: 'prism-moth-broodkeeper',
+    variant: 'reference',
+    fileName: 'prism-moth-broodkeeper/source/prism-moth-canonical-reference.png',
+    sha256: 'b006c73ab1b027d5dce5ac2dc5cf841a2b2e30a202da264b91c00f8f93b77ade',
+    width: 384,
+    height: 384,
+    label: 'Prism Moth Broodkeeper canonical neutral comparison reference'
+  }),
+  asset({
     prototypeId: 'aurora-storm-engine',
     variant: 'assembled',
     fileName: 'aurora-storm-engine-assembled.png',

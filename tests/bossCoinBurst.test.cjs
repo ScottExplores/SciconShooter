@@ -99,7 +99,9 @@ test('gameplay keeps boss coins collectible through rewards, then banks and clea
   assert.match(engine, /if \(this\.waveDepartureFrames <= 0\) \{\s*this\.clearStageBoundaryDebris\(false\)/);
   assert.match(engine, /creditCoinValue\(coin: Entity\)[\s\S]*?if \(coin\.coinValueCredited\) return false;[\s\S]*?this\.stats\.totalCoins\+\+/);
   assert.match(engine, /collectCoinIfReachedPlayer\(coin: Entity\)[\s\S]*?const credited = this\.creditCoinValue\(coin\)/);
-  assert.match(engine, /waveTransitionPending && this\.waveVictorySummary[\s\S]{0,220}buildWaveVictorySummary\(\)/);
+  assert.match(engine, /if \(credited && this\.waveTransitionPending\) this\.refreshWaveVictorySummaryMetrics\(\)/);
+  assert.match(engine, /refreshWaveVictorySummaryMetrics\(\)[\s\S]{0,320}buildWaveVictorySummary\(\)/);
+  assert.match(takeoffSource, /this\.refreshWaveVictorySummaryMetrics\(\)/);
   assert.match(cleanupSource, /this\.compactEntities\(\)/, 'takeoff must not leave reward coins frozen offscreen');
   assert.match(renderer, /EntityType\.COIN[\s\S]{0,500}coinBurstFrames/);
   assert.match(renderer, /COMBAT_LIGHT_COIN_COLOR = 0xfacc15/);

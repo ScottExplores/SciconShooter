@@ -15,6 +15,21 @@ import {
   inferLegacyBossArchiveEventIds,
   normalizeBossArchiveEventIds
 } from './bossArchive';
+import {
+  createBossArchiveProgress,
+  mergeBossArchiveProgress,
+  sanitizeBossArchiveProgress,
+  type BossArchiveProgress
+} from './bossArchiveProgression';
+export type { BossArchiveProgress } from './bossArchiveProgression';
+import {
+  createCampaignProgress,
+  mergeCampaignProgress,
+  sanitizeCampaignProgress,
+  type CampaignProgress,
+  type CampaignRewardGrant
+} from './campaignProgression';
+export type { CampaignProgress } from './campaignProgression';
 
 export const SQUAD_PROFILE_VERSION = 3;
 const RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = [1, 2] as const;
@@ -107,6 +122,8 @@ export interface WeeklySquadState {
   ownedMiniShips: Partial<Record<MiniShipId, number>>;
   equipped: Record<SquadSlotId, MiniShipId | null>;
   shipUpgrades: MainShipUpgradesByShip;
+  /** Durable idempotency receipts for Campaign bonuses; intentionally survive weekly coin rollover. */
+  creditedCampaignRewardIds: string[];
   weeklyStats: WeeklySquadStats;
   updatedAt: string;
 }
@@ -122,12 +139,8 @@ export interface PermanentSquadState {
   achievementTiers: Record<string, number>;
   unlockedPlayerShips: PlayerShipId[];
   bossArchive: BossArchiveProgress;
+  campaignProgress: CampaignProgress;
   updatedAt: string;
-}
-
-export interface BossArchiveProgress {
-  unlockedEventIds: string[];
-  seenEventIds: string[];
 }
 
 export interface DailyGiftProgress {
@@ -353,6 +366,8 @@ const retiredWeeklyStorageKeys = (profileId: string) => (
   RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS.map((version) => `scicon_weekly_squad_v${version}:${profileId}`)
 );
 const permanentStorageKey = (profileId: string) => `scicon_permanent_squad_v${PERMANENT_SQUAD_PROFILE_VERSION}:${profileId}`;
+const CAMPAIGN_SETTLEMENT_JOURNAL_VERSION = 1;
+const campaignSettlementJournalKey = (profileId: string) => `scicon_campaign_settlement_v${CAMPAIGN_SETTLEMENT_JOURNAL_VERSION}:${profileId}`;
 const nowIso = () => new Date().toISOString();
 const clampLevel = (value: unknown, max = MAIN_SHIP_UPGRADE_MAX_LEVEL) => (
   Math.max(0, Math.min(max, Math.floor(Number(value) || 0)))
@@ -409,6 +424,7 @@ export const createWeeklySquadState = (
   ownedMiniShips: {},
   equipped: { left: null, right: null },
   shipUpgrades: createMainShipUpgradesByShip(),
+  creditedCampaignRewardIds: [],
   weeklyStats: createWeeklySquadStats(),
   updatedAt: nowIso()
 });
@@ -448,10 +464,8 @@ export const createPermanentSquadState = (profileId?: string | null): PermanentS
   },
   achievementTiers: {},
   unlockedPlayerShips: [],
-  bossArchive: {
-    unlockedEventIds: [],
-    seenEventIds: []
-  },
+  bossArchive: createBossArchiveProgress(),
+  campaignProgress: createCampaignProgress(),
   updatedAt: nowIso()
 });
 
@@ -503,6 +517,10 @@ const sanitizeWeeklyState = (
     ownedMiniShips: owned,
     equipped,
     shipUpgrades,
+    creditedCampaignRewardIds: Array.from(new Set(
+      (Array.isArray(value.creditedCampaignRewardIds) ? value.creditedCampaignRewardIds : [])
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    )).slice(-1024),
     weeklyStats: {
       runs: Math.max(0, Math.floor(Number(value.weeklyStats?.runs) || 0)),
       score: Math.max(0, Math.floor(Number(value.weeklyStats?.score) || 0)),
@@ -513,8 +531,69 @@ const sanitizeWeeklyState = (
   };
 };
 
+interface CampaignSettlementJournalRecord {
+  version: typeof CAMPAIGN_SETTLEMENT_JOURNAL_VERSION;
+  profileId: string;
+  resultId: string;
+  weeklyState: WeeklySquadState;
+  permanentState: PermanentSquadState;
+  createdAt: string;
+}
+
+const writeStoredSquadPair = (
+  weeklyState: WeeklySquadState,
+  permanentState: PermanentSquadState
+) => {
+  if (typeof window === 'undefined') return;
+  const savedAt = nowIso();
+  window.localStorage.setItem(weeklyStorageKey(weeklyState.profileId), JSON.stringify({
+    ...weeklyState,
+    updatedAt: savedAt
+  }));
+  window.localStorage.setItem(permanentStorageKey(permanentState.profileId), JSON.stringify({
+    ...permanentState,
+    updatedAt: savedAt
+  }));
+};
+
+/** Replays an interrupted two-key Campaign commit before either state is read. */
+export const recoverPendingCampaignSquadSettlement = (requestedProfileId?: string | null) => {
+  if (typeof window === 'undefined') return false;
+  const profileId = normalizeProfileId(requestedProfileId);
+  const key = campaignSettlementJournalKey(profileId);
+  const saved = window.localStorage.getItem(key);
+  if (!saved) return false;
+  try {
+    const record = JSON.parse(saved) as Partial<CampaignSettlementJournalRecord>;
+    if (
+      record.version !== CAMPAIGN_SETTLEMENT_JOURNAL_VERSION
+      || normalizeProfileId(record.profileId) !== profileId
+      || !record.weeklyState
+      || !record.permanentState
+      || normalizeProfileId(record.weeklyState.profileId) !== profileId
+      || normalizeProfileId(record.permanentState.profileId) !== profileId
+    ) {
+      window.localStorage.removeItem(key);
+      return false;
+    }
+    writeStoredSquadPair(record.weeklyState, record.permanentState);
+    window.localStorage.removeItem(key);
+    return true;
+  } catch {
+    // Keep a valid interrupted record for a later retry. Malformed JSON cannot
+    // be recovered and is removed to avoid retrying forever.
+    try {
+      JSON.parse(saved);
+    } catch {
+      window.localStorage.removeItem(key);
+    }
+    return false;
+  }
+};
+
 export const loadWeeklySquadState = (requestedProfileId?: string | null): WeeklySquadState => {
   const profileId = normalizeProfileId(requestedProfileId);
+  recoverPendingCampaignSquadSettlement(profileId);
   const currentWeek = getWeeklyBoundaryMeta(new Date()).weekKey;
   let state = createWeeklySquadState(profileId, currentWeek);
 
@@ -608,6 +687,7 @@ export const adjustFounderMainShipUpgrade = (
 export const loadPermanentSquadState = (requestedProfileId?: string | null): PermanentSquadState => {
   const fallback = createPermanentSquadState(requestedProfileId);
   if (typeof window === 'undefined') return fallback;
+  recoverPendingCampaignSquadSettlement(fallback.profileId);
   try {
     const saved = window.localStorage.getItem(permanentStorageKey(fallback.profileId));
     if (!saved) return fallback;
@@ -661,10 +741,13 @@ export const loadPermanentSquadState = (requestedProfileId?: string | null): Per
       ),
       unlockedPlayerShips: (parsed.unlockedPlayerShips || [])
         .filter((id): id is PlayerShipId => (PLAYABLE_PLAYER_SHIP_IDS as readonly PlayerShipId[]).includes(id as PlayerShipId)),
-      bossArchive: {
+      bossArchive: sanitizeBossArchiveProgress(parsed.bossArchive, {
         unlockedEventIds,
         seenEventIds
-      }
+      }),
+      campaignProgress: sanitizeCampaignProgress(parsed.campaignProgress, {
+        legacyHighestMission: parsedStats?.highestWave
+      })
     };
   } catch {
     return fallback;
@@ -677,6 +760,38 @@ export const savePermanentSquadState = (state: PermanentSquadState) => {
     ...state,
     updatedAt: nowIso()
   }));
+};
+
+/**
+ * Crash-consistent Campaign commit across the existing weekly/permanent keys.
+ * The journal is the commit point; load paths replay it until both mirrors land.
+ */
+export const commitCampaignSquadSettlement = ({
+  resultId,
+  weeklyState,
+  permanentState
+}: {
+  resultId: string;
+  weeklyState: WeeklySquadState;
+  permanentState: PermanentSquadState;
+}) => {
+  if (typeof window === 'undefined') return;
+  const profileId = normalizeProfileId(weeklyState.profileId);
+  if (normalizeProfileId(permanentState.profileId) !== profileId) {
+    throw new Error('Campaign settlement states must belong to the same Pilot profile.');
+  }
+  const key = campaignSettlementJournalKey(profileId);
+  const record: CampaignSettlementJournalRecord = {
+    version: CAMPAIGN_SETTLEMENT_JOURNAL_VERSION,
+    profileId,
+    resultId,
+    weeklyState,
+    permanentState,
+    createdAt: nowIso()
+  };
+  window.localStorage.setItem(key, JSON.stringify(record));
+  writeStoredSquadPair(weeklyState, permanentState);
+  window.localStorage.removeItem(key);
 };
 
 export interface SquadProfileMigrationResult {
@@ -745,6 +860,10 @@ const mergeWeeklySquadProfiles = (
     ownedMiniShips,
     equipped,
     shipUpgrades,
+    creditedCampaignRewardIds: Array.from(new Set([
+      ...target.creditedCampaignRewardIds,
+      ...source.creditedCampaignRewardIds
+    ])).slice(-1024),
     weeklyStats: {
       runs: Math.max(target.weeklyStats.runs, source.weeklyStats.runs),
       score: Math.max(target.weeklyStats.score, source.weeklyStats.score),
@@ -773,15 +892,14 @@ const mergePermanentSquadProfiles = (
     .filter((value): value is string => Boolean(value))
     .sort()
     .at(-1) ?? null;
-  const unlockedBossEventIds = normalizeBossArchiveEventIds([
-    ...target.bossArchive.unlockedEventIds,
-    ...source.bossArchive.unlockedEventIds
-  ]);
-  const unlockedBossEventIdSet = new Set(unlockedBossEventIds);
-  const seenBossEventIds = normalizeBossArchiveEventIds([
-    ...target.bossArchive.seenEventIds,
-    ...source.bossArchive.seenEventIds
-  ]).filter((eventId) => unlockedBossEventIdSet.has(eventId));
+  const bossArchive = mergeBossArchiveProgress(
+    target.bossArchive,
+    source.bossArchive
+  );
+  const campaignProgress = mergeCampaignProgress(
+    target.campaignProgress,
+    source.campaignProgress
+  );
 
   return {
     ...target,
@@ -821,10 +939,8 @@ const mergePermanentSquadProfiles = (
       ...target.unlockedPlayerShips,
       ...source.unlockedPlayerShips
     ])),
-    bossArchive: {
-      unlockedEventIds: unlockedBossEventIds,
-      seenEventIds: seenBossEventIds
-    },
+    bossArchive,
+    campaignProgress,
     updatedAt: nowIso()
   };
 };
@@ -1043,6 +1159,55 @@ export const awardWeeklySquadCoins = (
       coinsEarned: state.weeklyStats.coinsEarned + earned
     },
     updatedAt: nowIso()
+  };
+};
+
+export interface CampaignRewardCreditResult {
+  state: WeeklySquadState;
+  creditedAmount: number;
+  creditedRewardIds: string[];
+}
+
+/**
+ * Credits Campaign grants exactly once for this Pilot profile. The receipt IDs
+ * survive weekly rollover so a refresh between the weekly and permanent writes
+ * can be reconciled without paying the same result again.
+ */
+export const creditCampaignRewardGrants = (
+  state: WeeklySquadState,
+  grants: readonly CampaignRewardGrant[]
+): CampaignRewardCreditResult => {
+  const credited = new Set(state.creditedCampaignRewardIds);
+  const accepted = grants.filter((grant) => {
+    if (!grant.id || grant.amount <= 0 || credited.has(grant.id)) return false;
+    credited.add(grant.id);
+    return true;
+  });
+  const creditedAmount = accepted.reduce((total, grant) => (
+    total + Math.max(0, Math.floor(Number(grant.amount) || 0))
+  ), 0);
+  if (accepted.length === 0) {
+    return { state, creditedAmount: 0, creditedRewardIds: [] };
+  }
+  emitSquadDomainEvent('coin_earned', {
+    profileId: state.profileId,
+    amount: creditedAmount,
+    source: 'campaign',
+    rewardIds: accepted.map((grant) => grant.id)
+  });
+  return {
+    state: {
+      ...state,
+      coins: state.coins + creditedAmount,
+      creditedCampaignRewardIds: Array.from(credited).slice(-1024),
+      weeklyStats: {
+        ...state.weeklyStats,
+        coinsEarned: state.weeklyStats.coinsEarned + creditedAmount
+      },
+      updatedAt: nowIso()
+    },
+    creditedAmount,
+    creditedRewardIds: accepted.map((grant) => grant.id)
   };
 };
 

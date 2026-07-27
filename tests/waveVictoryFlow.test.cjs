@@ -21,21 +21,27 @@ test('a stage finale pauses after the departure and waits for an explicit next-s
 });
 
 test('stage records are calculated from baselines preserved across internal waves', () => {
-  assert.match(engineSource, /scoreEarned: Math\.max\(0, this\.stats\.score - this\.waveStartScore\)/);
-  assert.match(engineSource, /enemiesDefeated: Math\.max\(0, this\.stats\.enemiesDefeated - this\.waveStartEnemiesDefeated\)/);
-  assert.match(engineSource, /coinsCollected: Math\.max\(0, this\.stats\.totalCoins - this\.waveStartTotalCoins\)/);
-  assert.match(engineSource, /elapsedSeconds: Math\.max\(0, Math\.round\(this\.waveFlightFrames \/ GAME_CONFIG\.FPS\)\)/);
+  assert.match(engineSource, /const scoreStart = stageComplete \? this\.waveStartScore : this\.tacticalWaveStartScore/);
+  assert.match(engineSource, /const enemyStart = stageComplete \? this\.waveStartEnemiesDefeated : this\.tacticalWaveStartEnemiesDefeated/);
+  assert.match(engineSource, /const coinStart = stageComplete \? this\.waveStartTotalCoins : this\.tacticalWaveStartTotalCoins/);
+  assert.match(engineSource, /const flightFrames = stageComplete \? this\.waveFlightFrames : this\.tacticalWaveFlightFrames/);
+  assert.match(engineSource, /waveCoinsCollected: Math\.max\(0, this\.stats\.totalCoins - this\.tacticalWaveStartTotalCoins\)/);
   assert.match(engineSource, /this\.waveStartScore = this\.stats\.score/);
-  assert.match(engineSource, /resetWaveProgress\(resetStageSummary: boolean = true\)/);
-  assert.match(engineSource, /this\.resetWaveProgress\(stageBoundary\)/);
+  assert.match(engineSource, /this\.tacticalWaveStartScore = this\.stats\.score/);
+  assert.match(engineSource, /if \(resetStageSummary\) \{[\s\S]*?this\.waveStartScore = this\.stats\.score/);
 });
 
-test('the production canvas reports victory once and accepts a deduplicated continue command', () => {
+test('the production canvas pauses internal results only for Campaign modes', () => {
   assert.match(canvasSource, /onWaveVictory\?: \(summary: WaveVictorySummary\) => void/);
+  assert.match(canvasSource, /pauseAtInternalWaveResults\?: boolean/);
+  assert.match(canvasSource, /pauseAtInternalWaveResults = false/);
+  assert.match(canvasSource, /new GameEngine\(initialStats, \{[\s\S]*?pauseAtInternalWaveResults,/);
   assert.match(canvasSource, /lastWaveVictoryIdRef\.current !== waveVictory\.id/);
   assert.match(canvasSource, /onWaveVictoryRef\.current\?\.\(waveVictory\)/);
   assert.match(canvasSource, /handledWaveContinueNonceRef\.current === waveContinueCommand\.nonce/);
   assert.match(canvasSource, /engine\.continueToNextWave\(\)/);
+  assert.match(appSource, /pauseAtInternalWaveResults: isCampaignRun/);
+  assert.match(appSource, /const isCampaignRun = activeRunMode === 'campaign' \|\| activeRunMode === 'campaign-replay'/);
 });
 
 test('the app keeps the real game mounted behind the stage-complete overlay state', () => {
@@ -48,6 +54,14 @@ test('the app keeps the real game mounted behind the stage-complete overlay stat
   assert.match(appSource, /setCampaignCompletedRun\(true\);[\s\S]*?setGameState\(GameState\.GAMEOVER\);\s*return;/);
   assert.match(appSource, /!campaignCompletedRun && !isNonCompetitiveRun/);
   assert.match(appSource, /campaignComplete={campaignCompletedRun}/);
+});
+
+test('Campaign result settlement uses attempt-scoped IDs and a stable final collected-coin receipt', () => {
+  assert.match(appSource, /const campaignAttemptIdRef = useRef\(''\)/);
+  assert.match(appSource, /campaignAttemptIdRef\.current = campaignRequest[\s\S]*?globalThis\.crypto\?\.randomUUID\?\.\(\)/);
+  assert.match(appSource, /const finalizeCampaignCollectedCoins = useCallback\(\(summary: WaveVictorySummary\) => \{/);
+  assert.match(appSource, /id: `campaign:\$\{resultId\}:collected`/);
+  assert.match(appSource, /const showWaveVictory = async \(summary: WaveVictorySummary\) => \{[\s\S]*?handleCampaignProgress\(summary\);[\s\S]*?finalizeCampaignCollectedCoins\(summary\);/);
 });
 
 test('the victory overlay uses the layered Scicon reveal packs and shows mission metrics', () => {
@@ -65,7 +79,8 @@ test('the victory overlay uses the layered Scicon reveal packs and shows mission
   assert.match(overlaySource, /summary\.campaignComplete \|\| !summary\.hasNextStage/);
   assert.match(overlaySource, /Campaign Complete/);
   assert.match(overlaySource, /All 20 missions cleared/);
-  assert.match(overlaySource, /Mission Results/);
+  assert.match(overlaySource, /Campaign Map/);
+  assert.match(overlaySource, /Wave Complete/);
+  assert.match(overlaySource, /campaignSettlement/);
   assert.doesNotMatch(overlaySource, /Stage \{summary\.|All 20 stages cleared/);
-  assert.doesNotMatch(overlaySource, /Wave \{summary\./);
 });

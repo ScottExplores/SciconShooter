@@ -26,6 +26,11 @@ export interface BossActionPresentationState {
   sequence: number;
   projectileCount?: number;
   pulseIntervalSeconds?: number;
+  shotIntervalFrames?: number;
+  projectileSpeedScale?: number;
+  channelWidthPixels?: number;
+  sweepRangeRatio?: number;
+  sweepPasses?: number;
   motionCue?: BossTimelineMotionCue;
   side?: 'port' | 'starboard';
   handedness?: 'left' | 'right';
@@ -79,11 +84,29 @@ export const createBossActionPresentationState = ({
       || sourceClip.primitiveId === 'side-barrage'
       || sourceClip.primitiveId === 'paired-cannon-burst'
       || sourceClip.primitiveId === 'reactor-aperture-pattern'
+      || sourceClip.primitiveId === 'prism-wingbeat-weave'
+      || sourceClip.primitiveId === 'prism-brood-procession'
+      || sourceClip.primitiveId === 'prism-lunar-swoop'
+      || sourceClip.primitiveId === 'prism-kaleidoscope-brood'
       ? {
           projectileCount: sourceClip.parameters?.projectileCount,
           ...(sourceClip.primitiveId === 'rotor-hazard-sentence'
+            || sourceClip.primitiveId === 'prism-kaleidoscope-brood'
             ? {
                 pulseIntervalSeconds: sourceClip.parameters?.pulseIntervalSeconds
+              }
+            : {}),
+          ...(sourceClip.primitiveId === 'paired-cannon-burst'
+            || sourceClip.primitiveId === 'prism-wingbeat-weave'
+            || sourceClip.primitiveId === 'prism-brood-procession'
+            || sourceClip.primitiveId === 'prism-lunar-swoop'
+            || sourceClip.primitiveId === 'prism-kaleidoscope-brood'
+            ? {
+                shotIntervalFrames: sourceClip.parameters?.shotIntervalFrames,
+                projectileSpeedScale: sourceClip.parameters?.projectileSpeedScale,
+                channelWidthPixels: sourceClip.parameters?.channelWidthPixels,
+                sweepRangeRatio: sourceClip.parameters?.sweepRangeRatio,
+                sweepPasses: sourceClip.parameters?.sweepPasses
               }
             : {})
         }

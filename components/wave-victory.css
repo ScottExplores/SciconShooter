@@ -25,12 +25,14 @@
 
 .wave-victory-stage {
   position: relative;
+  box-sizing: border-box;
   width: min(100%, 390px);
   height: min(760px, calc(100dvh - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom))));
   min-height: 560px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-bottom: 72px;
   animation: waveVictoryStageIn 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -38,7 +40,7 @@
   position: relative;
   width: min(90vw, 330px);
   aspect-ratio: 343 / 583;
-  margin-top: 54px;
+  margin-top: 48px;
   filter: drop-shadow(0 24px 38px rgba(0, 0, 0, 0.64));
   animation: waveRecordDeploy 680ms cubic-bezier(0.18, 0.88, 0.28, 1.12) 140ms both;
 }
@@ -124,7 +126,7 @@
 
 .wave-record-content {
   position: absolute;
-  inset: 14% 12% 11%;
+  inset: 14% 12% 10%;
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -151,7 +153,7 @@
 .wave-record-sector small,
 .wave-record-score span,
 .wave-record-stats span,
-.wave-record-total span,
+.wave-record-result-grid span,
 .wave-record-status {
   letter-spacing: 0.1em;
 }
@@ -199,8 +201,8 @@
 .wave-record-score {
   display: grid;
   place-content: center;
-  min-height: 112px;
-  padding-top: 8px;
+  min-height: 82px;
+  padding-top: 4px;
 }
 
 .wave-record-score span {
@@ -220,7 +222,7 @@
 
 .wave-record-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
   min-height: 68px;
   border-block: 1px solid rgba(103, 245, 255, 0.24);
@@ -242,7 +244,7 @@
 }
 
 .wave-record-stats span,
-.wave-record-total span {
+.wave-record-result-grid span {
   color: #94a3b8;
   font-size: 9px;
   font-weight: 900;
@@ -250,33 +252,164 @@
   text-transform: uppercase;
 }
 
-.wave-record-total span {
+.wave-record-result-grid span {
   color: #b7e9ff;
-  font-size: 10px;
+  font-size: 8px;
 }
 
 .wave-record-stats strong {
   color: #b7ffe0;
   font-family: 'Orbitron', 'Rajdhani', sans-serif;
-  font-size: clamp(22px, 7vw, 28px);
+  font-size: clamp(17px, 5.2vw, 21px);
   line-height: 1;
 }
 
-.wave-record-total {
+.wave-record-result-grid {
   display: grid;
-  place-items: center;
-  gap: 4px;
-  padding: 11px 2px 7px;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  min-height: 50px;
+  border-bottom: 1px solid rgba(103, 245, 255, 0.17);
+  padding: 6px 2px;
   text-align: center;
   text-transform: uppercase;
 }
 
-.wave-record-total strong {
+.wave-record-result-grid.has-campaign-reward {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wave-record-result-grid > div {
+  display: grid;
+  place-content: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.wave-record-result-grid.has-campaign-reward > div:first-child {
+  border-right: 1px solid rgba(103, 245, 255, 0.17);
+}
+
+.wave-record-result-grid strong {
   color: white;
   font-family: 'Orbitron', 'Rajdhani', sans-serif;
-  font-size: clamp(26px, 8vw, 32px);
+  font-size: clamp(19px, 5.8vw, 24px);
   line-height: 1;
   text-shadow: 0 0 14px rgba(103, 245, 255, 0.24);
+}
+
+.wave-record-result-grid .wave-record-coins-awarded strong {
+  color: var(--wave-gold);
+  text-shadow: 0 0 12px rgba(255, 229, 95, 0.32);
+}
+
+.wave-record-campaign-details {
+  display: grid;
+  gap: 5px;
+  padding-top: 6px;
+}
+
+.wave-record-rewards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-height: 30px;
+  overflow: hidden;
+}
+
+.wave-record-reward-chip,
+.wave-record-reward-more {
+  max-width: 48%;
+  overflow: hidden;
+  border: 1px solid rgba(103, 245, 255, 0.2);
+  background: rgba(3, 22, 41, 0.72);
+  padding: 3px 5px;
+  color: #a5f3fc;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.wave-record-reward-chip b {
+  color: #fff3a6;
+  font-family: 'Orbitron', 'Rajdhani', sans-serif;
+}
+
+.wave-record-reward-chip.is-first-clear,
+.wave-record-reward-chip.is-boss,
+.wave-record-reward-chip.is-star,
+.wave-record-reward-chip.is-unlock,
+.wave-record-reward-chip.is-boss-unlock {
+  border-color: rgba(255, 229, 95, 0.38);
+  color: #fff3a6;
+}
+
+.wave-record-reward-chip.is-unlock,
+.wave-record-reward-chip.is-boss-unlock {
+  border-color: rgba(127, 255, 200, 0.4);
+  color: var(--wave-mint);
+}
+
+.wave-record-reward-chip.is-saved {
+  max-width: 100%;
+  color: #94a3b8;
+}
+
+.wave-record-reward-more {
+  border-color: transparent;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.wave-record-stars {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 23px;
+  border-top: 1px solid rgba(103, 245, 255, 0.12);
+  padding-top: 4px;
+  color: #93c5fd;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wave-record-stars > div {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.wave-record-stars > strong {
+  color: var(--wave-gold);
+  font-size: 7px;
+  white-space: nowrap;
+}
+
+.wave-record-star {
+  color: rgba(148, 163, 184, 0.28);
+  font-family: system-ui, sans-serif;
+  font-size: 17px;
+  font-style: normal;
+  line-height: 1;
+  text-shadow: none;
+}
+
+.wave-record-star.is-earned {
+  color: var(--wave-gold);
+  text-shadow: 0 0 8px rgba(255, 229, 95, 0.5);
+}
+
+.wave-record-star.is-new {
+  animation: waveRecordNewStar 900ms cubic-bezier(0.2, 0.9, 0.3, 1.25) 1.2s both;
 }
 
 .wave-record-status {
@@ -284,6 +417,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-height: 17px;
   margin-top: auto;
   color: var(--wave-mint);
   font-size: 8px;
@@ -388,10 +522,11 @@
   margin: 0;
   color: var(--wave-gold);
   font-family: 'Orbitron', 'Rajdhani', sans-serif;
-  font-size: clamp(25px, 7.8vw, 33px);
+  font-size: clamp(19px, 5.8vw, 26px);
   font-weight: 900;
   letter-spacing: 0.045em;
   line-height: 0.94;
+  white-space: nowrap;
   text-shadow: 0 0 12px rgba(250, 204, 21, 0.42), 2px 2px 0 #052e3c;
 }
 
@@ -409,37 +544,64 @@
   letter-spacing: 0.14em;
 }
 
-.wave-victory-continue {
+.wave-victory-actions {
   position: absolute;
   left: 50%;
   bottom: 1.5%;
   z-index: 12;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  width: min(86vw, 316px);
+  transform: translateX(-50%);
+}
+
+.wave-victory-continue,
+.wave-victory-secondary {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  width: min(78vw, 286px);
-  min-height: 48px;
-  transform: translateX(-50%);
+  gap: 7px;
+  min-width: 0;
+  min-height: 39px;
   border: 1px solid rgba(151, 255, 215, 0.72);
-  background: linear-gradient(135deg, rgba(6, 78, 59, 0.95), rgba(8, 145, 178, 0.9));
   clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px);
   color: white;
-  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.82), 0 0 28px rgba(45, 212, 191, 0.28);
   cursor: pointer;
   opacity: 0;
   animation: waveVictoryButtonIn 440ms cubic-bezier(0.2, 0.9, 0.3, 1.15) 1.25s forwards;
 }
 
+.wave-victory-continue {
+  grid-column: 1 / -1;
+  min-height: 48px;
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.95), rgba(8, 145, 178, 0.9));
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.82), 0 0 28px rgba(45, 212, 191, 0.28);
+}
+
+.wave-victory-secondary {
+  border-color: rgba(103, 245, 255, 0.42);
+  background: linear-gradient(145deg, rgba(9, 31, 56, 0.96), rgba(10, 51, 75, 0.94));
+  box-shadow: 0 0 0 2px rgba(2, 8, 23, 0.78), 0 0 16px rgba(14, 165, 233, 0.12);
+}
+
+.wave-victory-secondary:nth-child(2):last-child {
+  grid-column: 1 / -1;
+}
+
 .wave-victory-continue:hover,
-.wave-victory-continue:focus-visible {
+.wave-victory-continue:focus-visible,
+.wave-victory-secondary:hover,
+.wave-victory-secondary:focus-visible {
   background: linear-gradient(135deg, rgba(5, 150, 105, 0.98), rgba(8, 145, 178, 0.98));
   outline: 2px solid rgba(255, 229, 95, 0.75);
   outline-offset: 3px;
 }
 
 .wave-victory-continue span,
-.wave-victory-continue strong {
+.wave-victory-continue strong,
+.wave-victory-secondary span,
+.wave-victory-secondary strong {
   font-family: 'Orbitron', 'Rajdhani', sans-serif;
   text-transform: uppercase;
 }
@@ -455,6 +617,19 @@
   padding-left: 10px;
   color: #fff3a6;
   font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.wave-victory-secondary span {
+  color: #9ddff5;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.wave-victory-secondary strong {
+  color: white;
+  font-size: 11px;
   letter-spacing: 0.08em;
 }
 
@@ -513,6 +688,12 @@
   50% { opacity: 0.45; }
 }
 
+@keyframes waveRecordNewStar {
+  0% { opacity: 0; transform: translateY(7px) scale(0.2) rotate(-22deg); }
+  55% { opacity: 1; transform: translateY(-2px) scale(1.35) rotate(8deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+
 @keyframes waveVictoryWingLeft {
   from { opacity: 0; transform: translateX(-70px) rotate(-8deg); }
   to { opacity: 1; transform: translateX(0) rotate(0); }
@@ -556,8 +737,8 @@
 }
 
 @keyframes waveVictoryButtonIn {
-  from { opacity: 0; transform: translate(-50%, 18px) scale(0.96); }
-  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @media (max-height: 670px) {
@@ -580,6 +761,56 @@
 
   .wave-victory-continue {
     min-height: 42px;
+  }
+}
+
+@media (max-height: 610px) {
+  .wave-victory-stage {
+    padding-bottom: 82px;
+  }
+
+  .wave-record-shell {
+    width: min(68vw, 246px);
+    margin-top: 38px;
+  }
+
+  .wave-record-sector {
+    min-height: 32px;
+    margin-top: 5px;
+  }
+
+  .wave-record-score {
+    min-height: 58px;
+  }
+
+  .wave-record-stats {
+    min-height: 52px;
+    padding: 6px 0;
+  }
+
+  .wave-record-result-grid {
+    min-height: 40px;
+    padding: 4px 2px;
+  }
+
+  .wave-record-rewards {
+    min-height: 22px;
+  }
+
+  .wave-record-stars {
+    min-height: 18px;
+  }
+
+  .wave-record-star {
+    font-size: 14px;
+  }
+
+  .wave-victory-actions {
+    gap: 5px;
+  }
+
+  .wave-victory-secondary {
+    min-height: 33px;
   }
 }
 

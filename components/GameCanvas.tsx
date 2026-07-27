@@ -124,6 +124,8 @@ export interface GameCanvasProps {
   onReady?: () => void;
   onInitializationError?: (error: unknown) => void;
   onContinueStarted?: () => void;
+  /** Fires at the logical Wave clear boundary, before an optional Mission takeoff cinematic. */
+  onCampaignProgress?: (summary: WaveVictorySummary) => void;
   onWaveVictory?: (summary: WaveVictorySummary) => void;
   isTransmissionOpen?: boolean;
   bombCommand?: { nonce: number } | null;
@@ -135,6 +137,8 @@ export interface GameCanvasProps {
   playerShipId?: PlayerShipId;
   squadLoadout?: RuntimeSquadLoadout;
   campaign?: GameCampaign;
+  /** Pause at internal Wave results for checkpointed Campaign and Campaign Replay runs. */
+  pauseAtInternalWaveResults?: boolean;
   levelId?: string;
   waveId?: string;
   previewMode?: boolean;
@@ -156,6 +160,8 @@ export interface GameCanvasProps {
   previewViewport?: Readonly<{ width: number; height: number }>;
   /** Optional presentation-only boss art for one exact preview event. */
   previewBossArtwork?: PreviewBossArtwork;
+  /** Stable deterministic seed for an authored production replay, such as a Boss Archive run. */
+  randomSeed?: GameplayRandomSeed;
   /** Stable deterministic seed used only when explicitly supplied by preview/test tools. */
   previewSeed?: GameplayRandomSeed;
   /** Unified idempotent command channel for local preview tools. */
@@ -186,6 +192,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   onReady,
   onInitializationError,
   onContinueStarted,
+  onCampaignProgress,
   onWaveVictory,
   isTransmissionOpen = false,
   bombCommand = null,
@@ -197,6 +204,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   playerShipId = 'researchhub',
   squadLoadout,
   campaign,
+  pauseAtInternalWaveResults = false,
   levelId,
   waveId,
   previewMode = false,
@@ -210,6 +218,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   previewStartingLives,
   previewViewport,
   previewBossArtwork,
+  randomSeed,
   previewSeed,
   previewCommand = null,
   onPreviewPlayingChange,
@@ -254,6 +263,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const lastPublishedStatsRef = useRef<Stats | null>(null);
   const lastStatsPublishTimeRef = useRef<number>(0);
   const gameOverSentRef = useRef(false);
+  const lastCampaignCompletionIdRef = useRef<string | null>(null);
   const lastWaveVictoryIdRef = useRef<string | null>(null);
   const keysRef = useRef<Record<string, boolean>>(autoFire ? { ' ': true } : {});
   const runningRef = useRef(running);
@@ -266,6 +276,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const onReadyRef = useRef(onReady);
   const onInitializationErrorRef = useRef(onInitializationError);
   const onContinueStartedRef = useRef(onContinueStarted);
+  const onCampaignProgressRef = useRef(onCampaignProgress);
   const onWaveVictoryRef = useRef(onWaveVictory);
   const onRuntimeStateRef = useRef(onRuntimeState);
   const onDebugSnapshotRef = useRef(onDebugSnapshot);
@@ -304,6 +315,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     onContinueStartedRef.current = onContinueStarted;
   }, [onContinueStarted]);
+
+  useEffect(() => {
+    onCampaignProgressRef.current = onCampaignProgress;
+  }, [onCampaignProgress]);
 
   useEffect(() => {
     onWaveVictoryRef.current = onWaveVictory;
@@ -769,6 +784,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         : undefined;
       const engine = new GameEngine(initialStats, {
         campaign,
+        pauseAtInternalWaveResults,
         previewMode,
         previewInvincible: previewInvincibleRef.current,
         previewUnlimitedBombs,
@@ -780,7 +796,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         initialLevelId: levelId,
         initialWaveId: waveId,
         testMode: testModeRef.current,
-        randomSeed: previewMode ? previewSeed : undefined,
+        randomSeed: previewMode ? previewSeed : randomSeed,
         previewBossCollisionEventId: previewMode
           ? previewBossArtwork?.eventId
           : undefined,
@@ -873,6 +889,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (autoFire) keysRef.current[' '] = true;
     engine.handleInput(runningRef.current ? keysRef.current : {}, null);
     lastPublishedStatsRef.current = null;
+    lastCampaignCompletionIdRef.current = null;
     lastWaveVictoryIdRef.current = null;
     lastStatsPublishTimeRef.current = 0;
     lastTimeRef.current = 0;
@@ -917,6 +934,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       gameOverSentRef.current = true;
       runningRef.current = false;
       publishHudStats(true, timestamp);
+      onRuntimeStateRef.current?.(engine.getRuntimeState());
       onGameOverRef.current?.();
     };
 
@@ -1145,6 +1163,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         dispatchGameOver(timestamp);
       }
 
+      const campaignCompletion = previewMode ? null : engine.getCampaignCompletionSummary();
+      if (campaignCompletion && lastCampaignCompletionIdRef.current !== campaignCompletion.id) {
+        lastCampaignCompletionIdRef.current = campaignCompletion.id;
+        onCampaignProgressRef.current?.(campaignCompletion);
+      }
+
       const waveVictory = previewMode ? null : engine.getWaveVictorySummary();
       if (waveVictory && lastWaveVictoryIdRef.current !== waveVictory.id) {
         lastWaveVictoryIdRef.current = waveVictory.id;
@@ -1243,7 +1267,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [audioEnabled, campaign, musicEnabled, previewBossArtwork, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
+  }, [audioEnabled, campaign, musicEnabled, pauseAtInternalWaveResults, previewBossArtwork, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
 
   return (
     <div

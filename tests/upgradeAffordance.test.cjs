@@ -21,7 +21,7 @@ test('pixel action buttons retain live labels over transparent generated present
   assert.equal((component.match(/sci-pixel-action__fixture sci-pixel-action__fixture--/g) || []).length, 4);
   assert.match(component, /sci-pixel-action__content/);
   assert.match(component, /aria-hidden="true"/);
-  assert.match(startScreen, /<PixelActionButton[\s\S]*?tone="green"[\s\S]*?ready[\s\S]*?shine[\s\S]*?min-h-\[4\.25rem\][\s\S]*?<span>Start Mission<\/span>/);
+  assert.match(startScreen, /<PixelActionButton[\s\S]*?tone="green"[\s\S]*?ready[\s\S]*?shine[\s\S]*?min-h-\[4\.25rem\][\s\S]*?<span>\{campaignCheckpoint\.action\}<\/span>/);
 
   assets.forEach((name) => {
     const assetPath = path.join(root, 'public', 'game-art', 'generated', 'ui', 'scicon-pixel-action-buttons-v1', name);

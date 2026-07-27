@@ -59,6 +59,7 @@ test('wallet profile session cookies use the required browser protections', () =
   assert.match(headers['Set-Cookie'], /Secure/);
   assert.match(headers['Set-Cookie'], /SameSite=Lax/);
   assert.match(headers['Set-Cookie'], /Path=\/api\/wallet-profile/);
+  assert.match(headers['Set-Cookie'], /Max-Age=2592000/);
 
   clearWalletProfileSessionCookie(res);
   assert.match(headers['Set-Cookie'], /Max-Age=0/);

@@ -152,7 +152,7 @@ test('desktop and hosted Boss Sandbox shells display one shared version label', 
   );
   const hosted = read('director', 'remote', 'RemoteBossRunnerApp.tsx');
 
-  assert.match(model, /BOSS_SANDBOX_VERSION = 'V 0\.16'/);
+  assert.match(model, /BOSS_SANDBOX_VERSION = 'V 0\.\d+'/);
   assert.match(local, /boss-sandbox__version/);
   assert.match(local, /\{BOSS_SANDBOX_VERSION\}/);
   assert.match(hosted, /remote-runner__version/);

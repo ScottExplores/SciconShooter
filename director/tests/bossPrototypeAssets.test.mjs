@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createServer, request as httpRequest } from 'node:http';
 import path from 'node:path';
 import test from 'node:test';
@@ -81,6 +81,75 @@ test('Gloamforge Mantis catalog pins its neutral preview and modular atlas', () 
   assert.ok(definitions.every(({ maxBytes }) => maxBytes > 1_940_930));
 });
 
+test('Prism Moth catalog pins its neutral, modular atlas, and canonical reference', () => {
+  const definitions = PROTOTYPE_ASSET_DEFINITIONS
+    .filter((asset) => asset.prototypeId === 'prism-moth-broodkeeper')
+    .map(({ variant, fileName, sha256, width, height, maxBytes, route }) => ({
+      variant,
+      fileName,
+      sha256,
+      width,
+      height,
+      maxBytes,
+      route
+    }));
+
+  assert.deepEqual(definitions, [
+    {
+      variant: 'assembled',
+      fileName: 'prism-moth-broodkeeper/prism-moth-broodkeeper-neutral.png',
+      sha256: 'cd0381398cbfb5003822f126192dc0d18af3fe874eff11defec9d57202109f39',
+      width: 512,
+      height: 512,
+      maxBytes: 2_500_000,
+      route: '/api/v1/prototype-assets/prism-moth-broodkeeper/cd0381398cbfb5003822f126192dc0d18af3fe874eff11defec9d57202109f39/assembled.png'
+    },
+    {
+      variant: 'sheet',
+      fileName: 'prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.png',
+      sha256: '5ef8ca7e395c94b3777d4f85808b5701f8bc952d96a335438e8353dcc82b6292',
+      width: 2048,
+      height: 2048,
+      maxBytes: 2_500_000,
+      route: '/api/v1/prototype-assets/prism-moth-broodkeeper/5ef8ca7e395c94b3777d4f85808b5701f8bc952d96a335438e8353dcc82b6292/sheet.png'
+    },
+    {
+      variant: 'reference',
+      fileName: 'prism-moth-broodkeeper/source/prism-moth-canonical-reference.png',
+      sha256: 'b006c73ab1b027d5dce5ac2dc5cf841a2b2e30a202da264b91c00f8f93b77ade',
+      width: 384,
+      height: 384,
+      maxBytes: 2_500_000,
+      route: '/api/v1/prototype-assets/prism-moth-broodkeeper/b006c73ab1b027d5dce5ac2dc5cf841a2b2e30a202da264b91c00f8f93b77ade/reference.png'
+    }
+  ]);
+});
+
+test('Prism Moth generated collision mask is bound to the assembled-neutral hash', () => {
+  const generatedSource = readFileSync(
+    path.join(
+      repositoryRoot,
+      'director',
+      'src',
+      'tools',
+      'bosses',
+      'generatedSandboxBossCollisionMasks.ts'
+    ),
+    'utf8'
+  );
+  const entry = generatedSource.match(
+    /"prism-moth-brood": Object\.freeze\(\{ contentHash: "([a-f0-9]{64})", mask: Object\.freeze\(\{ width: (\d+), height: (\d+), rowWords: Object\.freeze\(\[([^\]]+)\]\) \}\) \}\)/
+  );
+  assert.ok(entry, 'Prism Moth generated collision-mask entry is missing.');
+  const rowWords = entry[4].split(',').map((value) => Number(value.trim()));
+  assert.equal(entry[1], 'cd0381398cbfb5003822f126192dc0d18af3fe874eff11defec9d57202109f39');
+  assert.equal(Number(entry[2]), 64);
+  assert.equal(Number(entry[3]), 64);
+  assert.equal(rowWords.length, 128);
+  assert.ok(rowWords.some((value) => value !== 0));
+  assert.ok(rowWords.every((value) => Number.isInteger(value) && value >= 0 && value <= 0xffffffff));
+});
+
 test('Nullwake catalog pins its supplemental factory animation atlas', () => {
   const factoryAtlas = PROTOTYPE_ASSET_DEFINITIONS.find((asset) => (
     asset.prototypeId === 'nullwake-revenant'
@@ -109,7 +178,7 @@ test('fixed content-addressed prototype routes serve only hash-verified PNG asse
     prototypeAssets: localPrototypeAssets
   });
 
-  assert.equal(PROTOTYPE_ASSET_DEFINITIONS.length, 23);
+  assert.equal(PROTOTYPE_ASSET_DEFINITIONS.length, 26);
   for (const asset of PROTOTYPE_ASSET_DEFINITIONS) {
     const response = await requestBuffer(port, `/__director${asset.route}`);
     assert.equal(response.status, 200);

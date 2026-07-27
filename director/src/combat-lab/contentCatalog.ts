@@ -795,7 +795,10 @@ const createSandboxPrototypeAssetItems = (): CombatLabCatalogItem[] => {
     const bossLabel = prototype?.label ?? registration.prototypeId;
     const primaryAssetUrls = new Set([
       registration.assembled.url,
-      registration.sheet.url
+      registration.sheet.url,
+      ...(registration.modularReferenceComparison
+        ? [registration.modularReferenceComparison.url]
+        : [])
     ]);
     const primaryItems = ([
       ['assembled', 'Assembled sprite', registration.assembled],
@@ -822,6 +825,34 @@ const createSandboxPrototypeAssetItems = (): CombatLabCatalogItem[] => {
       target: {},
       production: false
     }));
+    const referenceItems = registration.modularReferenceComparison
+      ? [{
+          id: `prototype-asset:${registration.prototypeId}:reference`,
+          category: 'effects-assets' as const,
+          kind: 'asset' as const,
+          name: `${bossLabel} Â· Canonical reference`,
+          description: `Pinned canonical comparison artwork used to prove the sandbox-only ${bossLabel} modular rig remains cohesive and correctly registered.`,
+          imagePaths: [registration.modularReferenceComparison.url],
+          facts: [
+            { label: 'Boss', value: bossLabel, source: 'catalog' as const },
+            { label: 'Variant', value: 'Canonical rig reference', source: 'catalog' as const },
+            {
+              label: 'Dimensions',
+              value: `${registration.modularReferenceComparison.width}Ã—${registration.modularReferenceComparison.height}`,
+              source: 'catalog' as const
+            },
+            { label: 'Generated', value: false, source: 'catalog' as const }
+          ],
+          sourceRefs: [{
+            path: 'director/server/prototypeAssetCatalog.mjs',
+            symbol: 'PROTOTYPE_ASSET_DEFINITIONS',
+            catalogId: `${registration.prototypeId}:reference`
+          }],
+          relatedIds: [],
+          target: {},
+          production: false
+        } satisfies CombatLabCatalogItem]
+      : [];
     const supplementalAtlasItems = (registration.modularRig?.atlases ?? [])
       .filter((asset) => !primaryAssetUrls.has(asset.url))
       .map((asset, index): CombatLabCatalogItem => {
@@ -850,7 +881,7 @@ const createSandboxPrototypeAssetItems = (): CombatLabCatalogItem[] => {
           production: false
         };
       });
-    return [...primaryItems, ...supplementalAtlasItems];
+    return [...primaryItems, ...referenceItems, ...supplementalAtlasItems];
   });
 
   const sharedVfx = registrations.find((registration) => registration.vfxAtlas)?.vfxAtlas;

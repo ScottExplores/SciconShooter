@@ -195,6 +195,55 @@ export interface RecordCardConfig {
   };
 }
 
+export type CampaignMasteryObjectiveKind =
+  | 'complete'
+  | 'damage-at-most'
+  | 'coins-at-least'
+  | 'score-at-least'
+  | 'time-at-most';
+
+/** A single, persistent one-time mastery star authored for one Mission. */
+export interface CampaignMasteryObjectiveDefinition {
+  /** Stable, Mission-scoped receipt ID such as `stage-open-galaxy:complete`. */
+  id: string;
+  label: string;
+  kind: CampaignMasteryObjectiveKind;
+  target: number;
+  rewardCoins: number;
+}
+
+/** Coin values shared by runtime settlement and Campaign Map presentation. */
+export interface CampaignMissionRewardDefinition {
+  waveClearCoins: number;
+  missionClearCoins: number;
+  firstClearCoins: number;
+  bossFirstClearCoins: number;
+  replayMultiplier: number;
+}
+
+/** Normalized portrait-map coordinates; generated zigzag positions remain the compatibility fallback. */
+export interface CampaignMapPositionDefinition {
+  x: number;
+  y: number;
+}
+
+/**
+ * Optional authored Campaign-map and reward metadata. Older campaign packages
+ * may omit this block and retain the deterministic compatibility defaults.
+ */
+export interface CampaignMissionProgressionDefinition {
+  reward: CampaignMissionRewardDefinition;
+  /** Exactly three independently evaluated, persistent mastery stars. */
+  masteryObjectives: [
+    CampaignMasteryObjectiveDefinition,
+    CampaignMasteryObjectiveDefinition,
+    CampaignMasteryObjectiveDefinition
+  ];
+  mapPosition?: CampaignMapPositionDefinition;
+  /** Null marks the authored end of the route; omission follows Mission order. */
+  nextMissionId?: string | null;
+}
+
 export interface LevelDefinition {
   /** A player-facing Mission. `LevelDefinition`, `levels`, and historical `stage-*` IDs remain compatibility identifiers. */
   id: string;
@@ -216,6 +265,8 @@ export interface LevelDefinition {
   loopWaves: boolean;
   availablePowerupIds: PowerupId[];
   scorecard: LevelScorecardSettings;
+  /** Optional authored Campaign rewards, mastery objectives, and map route metadata. */
+  campaignProgression?: CampaignMissionProgressionDefinition;
   waves: WaveDefinition[];
 }
 
@@ -409,6 +460,10 @@ export type BossTimelinePrimitiveId =
   | 'articulated-melee-sweep'
   | 'reactor-aperture-pattern'
   | 'tracking-pincer-dive'
+  | 'prism-wingbeat-weave'
+  | 'prism-brood-procession'
+  | 'prism-lunar-swoop'
+  | 'prism-kaleidoscope-brood'
   | 'cross-beam'
   | 'rail-sweep'
   | 'tail-fan'
@@ -437,12 +492,22 @@ export type BossTimelineMotionCue =
   | 'radial-beam'
   | 'heavy-cannon'
   | 'gatling-barrage'
-    | 'paired-crossfire'
-    | 'claw-sweep'
-    | 'reactor-pattern'
-    | 'reactor-fan'
-    | 'reactor-mines'
-    | 'pincer-dive';
+  | 'paired-crossfire'
+  | 'machinegun-channel'
+  | 'claw-sweep'
+  | 'reactor-pattern'
+  | 'reactor-fan'
+  | 'reactor-mines'
+  | 'pincer-dive'
+  | 'prism-wingbeat-weave'
+  | 'prism-brood-procession'
+  | 'prism-lunar-swoop'
+  | 'prism-kaleidoscope-brood'
+  | 'prism-wingbeat'
+  | 'prism-brood-deploy'
+  | 'prism-swoop'
+  | 'prism-kaleidoscope'
+  | 'prism-metamorphosis';
 
 /**
  * Explicit rotation policy for authored radial beam arrays. Seeded random
@@ -505,6 +570,16 @@ export interface BossTimelineClip {
     projectileCount?: number;
     /** Cadence for sustained rotor hazards. Bounded to 0.5-2 seconds. */
     pulseIntervalSeconds?: number;
+    /** Simulation-frame cadence for tightly synchronized projectile streams. */
+    shotIntervalFrames?: number;
+    /** Bounded multiplier applied to the primitive's registered projectile speed. */
+    projectileSpeedScale?: number;
+    /** Safe opening between a paired stream's inner projectile boundaries. */
+    channelWidthPixels?: number;
+    /** Horizontal sweep extent as a fraction of the playable viewport width. */
+    sweepRangeRatio?: number;
+    /** Number of predictable horizontal passes made during one firing window. */
+    sweepPasses?: number;
     warningSeconds?: number;
     shieldCount?: number;
     summonCount?: number;

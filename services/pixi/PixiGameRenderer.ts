@@ -240,6 +240,7 @@ const PRISM_MOTH_WING_PART_IDS = [
   'leftLowerOuterWing',
   'rightLowerOuterWing'
 ] as const satisfies readonly PrismMothRigPartId[];
+const PRISM_MOTH_MODULAR_RIG_ID = 'prism-moth-broodkeeper';
 
 type ArticulatedPartRigView<PartId extends string> = {
   root: Container;
@@ -859,6 +860,7 @@ const createModularPreviewBossRigView = (
     if (part.frameId === null) continue;
     const sprite = new Sprite(Texture.WHITE);
     sprite.eventMode = 'none';
+    sprite.roundPixels = registration.manifest.id === PRISM_MOTH_MODULAR_RIG_ID;
     sprite.visible = false;
     if (part.anchor) sprite.anchor.set(part.anchor.x, part.anchor.y);
     partSprites[partId] = sprite;
@@ -1297,6 +1299,17 @@ export class PixiGameRenderer {
       return false;
     }
     return true;
+  }
+
+  private isPrismMothModularPreview(
+    entity: Entity,
+    registration = this.previewBossArtwork?.modularRig
+  ) {
+    return Boolean(
+      entity.bossAttackArchetype === 'prism-moth'
+      && this.isPreviewBossEntity(entity)
+      && registration?.manifest.id === PRISM_MOTH_MODULAR_RIG_ID
+    );
   }
 
   private getPreviewBossArtwork(entity: Entity): PreviewBossArtwork | undefined {
@@ -3659,6 +3672,10 @@ export class PixiGameRenderer {
     if (!bossRig) return false;
     bossRig.articulated.railSerpent.root.visible = false;
     bossRig.articulated.prismMoth.root.visible = false;
+    // A sandbox-owned Prism modular package is the sole structural presenter.
+    // Keep the production campaign's legacy Prism rig available everywhere
+    // else, but never draw it underneath the modular preview assembly.
+    if (this.isPrismMothModularPreview(entity)) return false;
     if (entity.bossAttackArchetype === 'rail-serpent') {
       return this.drawRailSerpentRig(view, entity, engine);
     }
@@ -3698,8 +3715,14 @@ export class PixiGameRenderer {
       motionCue: actionSource.motionCue,
       elapsedFrames: Math.max(0, entity.attackTimer - actionSource.startFrame),
       framesPerSecond: GAME_CONFIG.FPS,
+      durationFrames: actionDuration,
       projectileCount: actionSource.projectileCount,
-      pulseIntervalSeconds: actionSource.pulseIntervalSeconds
+      pulseIntervalSeconds: actionSource.pulseIntervalSeconds,
+      shotIntervalFrames: actionSource.shotIntervalFrames,
+      projectileSpeedScale: actionSource.projectileSpeedScale,
+      channelWidthPixels: actionSource.channelWidthPixels,
+      sweepRangeRatio: actionSource.sweepRangeRatio,
+      sweepPasses: actionSource.sweepPasses
     } : undefined;
     return action;
   }
@@ -4440,6 +4463,10 @@ export class PixiGameRenderer {
     }
 
     const action = this.getPreviewBossActionPresentation(entity);
+    const prismMothModularPreview = this.isPrismMothModularPreview(
+      entity,
+      registration
+    );
     const targetEntranceY = Math.max(72, Math.min(engine.height * 0.13, 116));
     const entranceProgress = clamp(
       (entity.y + entity.height) / Math.max(1, targetEntranceY + entity.height),
@@ -4462,6 +4489,11 @@ export class PixiGameRenderer {
     });
     const hierarchy = resolveModularBossRigHierarchy(registration, partOverrides);
     const designSize = registration.manifest.designSize;
+    const authoredScaleX = entity.width / Math.max(1, designSize.width);
+    const authoredScaleY = entity.height / Math.max(1, designSize.height);
+    const prismUniformScale = Math.min(authoredScaleX, authoredScaleY);
+    const designScaleX = prismMothModularPreview ? prismUniformScale : authoredScaleX;
+    const designScaleY = prismMothModularPreview ? prismUniformScale : authoredScaleY;
     this.modularBossDebugSnapshot = Object.freeze({
       entityId: entity.id,
       centerX: entity.x + entity.width / 2,
@@ -4469,8 +4501,8 @@ export class PixiGameRenderer {
       width: entity.width,
       height: entity.height,
       rotation: entity.bossPresentationBankRadians,
-      designScaleX: entity.width / Math.max(1, designSize.width),
-      designScaleY: entity.height / Math.max(1, designSize.height),
+      designScaleX,
+      designScaleY,
       hierarchy
     });
     const destruction = registration.manifest.destruction;
@@ -4483,6 +4515,10 @@ export class PixiGameRenderer {
           part.worldTransform.a * part.worldTransform.d
           - part.worldTransform.b * part.worldTransform.c
         );
+        const authoredScaleY = determinant / scaleX;
+        const fragmentScaleY = prismMothModularPreview
+          ? Math.sign(authoredScaleY || 1) * scaleX
+          : authoredScaleY;
         return [Object.freeze({
           authored,
           frameId: part.frameId,
@@ -4492,15 +4528,15 @@ export class PixiGameRenderer {
           y: part.worldTransform.ty,
           rotation: Math.atan2(part.worldTransform.b, part.worldTransform.a),
           scaleX,
-          scaleY: determinant / scaleX
+          scaleY: fragmentScaleY
         })];
       });
       this.modularBossDestructionSnapshot = fragments.length > 0
         ? Object.freeze({
             entityId: entity.id,
             sequence: destruction,
-            designScaleX: entity.width / Math.max(1, designSize.width),
-            designScaleY: entity.height / Math.max(1, designSize.height),
+            designScaleX,
+            designScaleY,
             fragments: Object.freeze(fragments)
           })
         : null;
@@ -4517,10 +4553,7 @@ export class PixiGameRenderer {
     rigView.root.position.set(0, 0);
     rigView.root.pivot.set(0, 0);
     rigView.root.rotation = 0;
-    rigView.root.scale.set(
-      entity.width / Math.max(1, designSize.width),
-      entity.height / Math.max(1, designSize.height)
-    );
+    rigView.root.scale.set(designScaleX, designScaleY);
     rigView.root.alpha = 1;
     rigView.root.filters = null;
     this.drawModularReferenceComparison(rigView, registration, hierarchy);
@@ -4543,11 +4576,17 @@ export class PixiGameRenderer {
         || part.id === 'muzzle.starboard'
         || (sideBreakableRole && part.id.includes('.starboard'))
       );
+      const leftComponentPart = prismMothModularPreview
+        && sideBreakableRole
+        && part.id.includes('.left');
+      const rightComponentPart = prismMothModularPreview
+        && sideBreakableRole
+        && part.id.includes('.right');
       const destroyedByComponent = (
-        portComponentPart
+        (portComponentPart || leftComponentPart)
         && Boolean(portCannon?.destroyed)
       ) || (
-        starboardComponentPart
+        (starboardComponentPart || rightComponentPart)
         && Boolean(starboardCannon?.destroyed)
       );
       const texture = part.frameId
@@ -4575,8 +4614,12 @@ export class PixiGameRenderer {
         part.worldTransform.a * part.worldTransform.d
         - part.worldTransform.b * part.worldTransform.c
       );
+      const authoredPartScaleY = determinant / scaleX;
+      const partScaleY = prismMothModularPreview
+        ? Math.sign(authoredPartScaleY || 1) * scaleX
+        : authoredPartScaleY;
       sprite.rotation = Math.atan2(part.worldTransform.b, part.worldTransform.a);
-      sprite.scale.set(scaleX, determinant / scaleX);
+      sprite.scale.set(scaleX, partScaleY);
       sprite.alpha = part.alpha;
       sprite.tint = '#ffffff';
       sprite.filters = null;

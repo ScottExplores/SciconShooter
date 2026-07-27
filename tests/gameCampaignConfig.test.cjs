@@ -23,7 +23,7 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
 
 test('tracked campaign contains twenty ordered stages with tactical internal waves', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 19);
+  assert.equal(campaign.revision, 20);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 20);
@@ -47,6 +47,53 @@ test('tracked campaign contains twenty ordered stages with tactical internal wav
     assert.ok(level.waves.every((wave) => wave.difficultyMultiplier === 1));
   });
   assert.ok(campaign.levels.slice(5).every((level) => level.waves.length === 3));
+});
+
+test('all twenty Missions author Campaign rewards, three mastery stars, and a normalized map route', () => {
+  const objectiveIds = new Set();
+  const expectedX = [0.5, 0.27, 0.7, 0.38, 0.62];
+
+  campaign.levels.forEach((level, index) => {
+    const number = index + 1;
+    const progression = level.campaignProgression;
+    const hasGatekeeper = level.waves.some((wave) => wave.events.some((event) => (
+      event.kind === 'boss' && event.bossId === 'gatekeeper'
+    )));
+
+    assert.ok(progression, `${level.id} should author Campaign progression metadata`);
+    assert.deepEqual(progression.reward, {
+      waveClearCoins: 5 + Math.ceil(number / 2),
+      missionClearCoins: 16 + (number * 3),
+      firstClearCoins: 24 + (number * 4),
+      bossFirstClearCoins: hasGatekeeper ? 18 + (number * 2) : 0,
+      replayMultiplier: 0.35
+    });
+    assert.equal(progression.masteryObjectives.length, 3);
+    assert.equal(progression.masteryObjectives.filter((objective) => objective.kind === 'complete').length, 1);
+    progression.masteryObjectives.forEach((objective) => {
+      assert.match(objective.id, new RegExp(`^${level.id}:`));
+      assert.equal(objectiveIds.has(objective.id), false, `duplicate mastery receipt ${objective.id}`);
+      objectiveIds.add(objective.id);
+      assert.ok(objective.rewardCoins >= 0);
+    });
+    assert.equal(progression.mapPosition.x, expectedX[index % expectedX.length]);
+    assert.ok(progression.mapPosition.y >= 0 && progression.mapPosition.y <= 1);
+    assert.equal(progression.nextMissionId, campaign.levels[index + 1]?.id ?? null);
+  });
+
+  assert.equal(objectiveIds.size, 60);
+  assert.equal(campaign.levels[0].campaignProgression.mapPosition.y, 0);
+  assert.equal(campaign.levels.at(-1).campaignProgression.mapPosition.y, 1);
+});
+
+test('browser validation owns the authored Campaign progression contract', () => {
+  const validator = fs.readFileSync(path.join(root, 'game-config', 'validate.ts'), 'utf8');
+
+  assert.match(validator, /CAMPAIGN_PROGRESSION_KEYS/);
+  assert.match(validator, /Campaign Missions require exactly three mastery objectives/);
+  assert.match(validator, /Campaign Missions require exactly one completion mastery objective/);
+  assert.match(validator, /Unknown next Campaign Mission/);
+  assert.match(validator, /validateCampaignProgression\(candidate\.campaignProgression/);
 });
 
 test('Stages 6 through 20 form a non-recycling authored campaign with varied climaxes', () => {

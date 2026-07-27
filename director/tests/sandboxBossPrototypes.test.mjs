@@ -99,24 +99,100 @@ test('Redline Re-entry uses the allowlisted sweep, bank, and re-entry path', () 
   });
 });
 
-test('Prism Moth uses its sprite archetype and warned brick formations', () => {
+test('Prism Moth compiles exactly four anatomy-owned attacks and a real metamorphosis', () => {
   const descriptor = SANDBOX_BOSS_PROTOTYPES.find((entry) => entry.id === 'prism-moth-brood');
   const { boss } = getPrototypeBoss('prism-moth-brood');
   const clipsById = new Map(boss.timeline.clips.map((clip) => [clip.id, clip]));
-  const summons = boss.timeline.clips.filter((clip) => clip.primitiveId === 'summon-formation');
+  const damagingPrimitives = new Set([
+    'prism-wingbeat-weave',
+    'prism-brood-procession',
+    'prism-lunar-swoop',
+    'prism-kaleidoscope-brood'
+  ]);
 
   assert.ok(descriptor);
-  assert.equal(descriptor.description.includes('sprite-archetype'), true);
-  assert.equal(descriptor.description.includes('open-orbit rig'), false);
+  assert.match(descriptor.description, /crystalline moth/i);
+  assert.match(descriptor.description, /Kaleidoscope corridor/i);
   assert.equal(boss.spriteKey, 'CAMPAIGN_BOSS_PRISM_MOTH');
   assert.equal(boss.rigId, 'open-orbit');
-  assert.equal(summons.length, 3);
-  summons.forEach((summon) => {
-    assert.equal(summon.parameters.enemyId, 'brick');
-    assert.ok(summon.telegraphClipId);
-    const warning = clipsById.get(summon.telegraphClipId);
-    assert.equal(warning?.primitiveId, 'telegraph');
-    assert.ok(warning.startSeconds < summon.startSeconds);
+  assert.equal(boss.phases.length, 2);
+  assert.deepEqual(
+    boss.phases.map((phase) => phase.label),
+    ['Crystal Nursery', 'Prism Metamorphosis']
+  );
+  assert.deepEqual(
+    boss.timeline.attacks.map((attack) => [attack.id, attack.role]),
+    [
+      ['wingbeat-weave', 'core'],
+      ['brood-procession', 'core'],
+      ['lunar-prism-swoop', 'core'],
+      ['kaleidoscope-brood', 'signature']
+    ]
+  );
+  assert.equal(
+    boss.timeline.clips.some((clip) => (
+      clip.primitiveId === 'summon-formation'
+      || clip.primitiveId === 'set-weak-point'
+      || clip.parameters?.enemyId === 'brick'
+    )),
+    false,
+    'Prism must not retain generic brick summons or debug weak-point cues'
+  );
+  const metamorphosisClip = boss.timeline.clips.find((clip) => (
+      clip.primitiveId === 'effect-cue'
+      && clip.phaseId === boss.phases[1].id
+      && clip.parameters?.motionCue === 'prism-metamorphosis'
+      && clip.durationSeconds >= 2
+  ));
+  assert.ok(metamorphosisClip, 'phase two requires a visible metamorphosis sequence');
+  const firstPhaseTwoTimedCue = Math.min(
+    ...boss.timeline.clips
+      .filter((clip) => (
+        clip.phaseId === boss.phases[1].id
+        && clip.trigger === 'time'
+      ))
+      .map((clip) => clip.startSeconds)
+  );
+  assert.ok(
+    firstPhaseTwoTimedCue >= metamorphosisClip.durationSeconds,
+    'phase two must finish the full metamorphosis before any attack warning can replace it'
+  );
+
+  for (const attack of boss.timeline.attacks) {
+    assert.deepEqual(
+      attack.variants.map((variant) => variant.phaseId),
+      boss.phases.map((phase) => phase.id),
+      `${attack.id} must remix the learned rule in both phases`
+    );
+    for (const variant of attack.variants) {
+      variant.beatClipIds.forEach((clipId) => {
+        const clip = clipsById.get(clipId);
+        assert.ok(clip, `${clipId} must resolve`);
+        assert.equal(damagingPrimitives.has(clip.primitiveId), true);
+        assert.ok(clip.telegraphClipId);
+        assert.equal(clipsById.get(clip.telegraphClipId)?.primitiveId, 'telegraph');
+        assert.ok(clip.parameters?.motionCue?.startsWith('prism-'));
+      });
+    }
+  }
+
+  const phaseOneWingbeat = boss.timeline.clips.find((clip) => (
+    clip.phaseId === boss.phases[0].id
+    && clip.primitiveId === 'prism-wingbeat-weave'
+  ));
+  const phaseTwoSwoop = boss.timeline.clips.find((clip) => (
+    clip.phaseId === boss.phases[1].id
+    && clip.primitiveId === 'prism-lunar-swoop'
+  ));
+  assert.deepEqual(phaseOneWingbeat.repeat, { count: 5, intervalSeconds: 0.72 });
+  assert.deepEqual(phaseTwoSwoop.repeat, { count: 3, intervalSeconds: 1.7 });
+
+  boss.timeline.clips
+    .filter((clip) => damagingPrimitives.has(clip.primitiveId))
+    .forEach((clip) => {
+      assert.ok((clip.parameters?.shotIntervalFrames ?? 12) <= 12);
+      assert.ok((clip.parameters?.sweepPasses ?? 3) <= 3);
+      assert.ok((clip.parameters?.channelWidthPixels ?? 122) >= 122);
   });
 });
 
@@ -242,15 +318,15 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
     'the encounter must remix authored routes instead of sharply accelerating'
   );
   assert.equal(boss.timeline.loop, true);
-  assert.equal(boss.timeline.durationSeconds, 23.5);
-  assert.equal(damaging.length, 30);
+  assert.equal(boss.timeline.durationSeconds, 24.9);
+  assert.equal(damaging.length, 27);
   assert.deepEqual(
     boss.timeline.attacks.map((attack) => [attack.id, attack.role]),
     [
       ['twin-rotary-crossfire', 'core'],
-      ['claw-sweep-pincer', 'core'],
+      ['machinegun-channel', 'signature'],
       ['reactor-maze', 'core'],
-      ['clawcarrier-crush', 'signature']
+      ['clawcarrier-crush', 'core']
     ]
   );
   const clipsById = new Map(boss.timeline.clips.map((clip) => [clip.id, clip]));
@@ -261,15 +337,22 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
   crossfireAttack.variants.forEach((variant) => {
     const beats = variant.beatClipIds.map((clipId) => clipsById.get(clipId));
     assert.ok(beats.every(Boolean), `${variant.phaseId} crossfire clips must resolve`);
+    const phaseIndex = boss.phases.findIndex((phase) => phase.id === variant.phaseId);
+    const expectedBurstCount = phaseIndex >= 2 ? 6 : 5;
+    assert.deepEqual(beats.map((beat) => beat.parameters.projectileCount), [
+      expectedBurstCount,
+      expectedBurstCount,
+      expectedBurstCount + 1
+    ]);
     assert.deepEqual(
-      beats.map((beat) => beat.parameters.projectileCount),
-      [3, 3, 4],
-      `${variant.phaseId} must retain two short rotary answers and four rounds per twin cannon`
+      beats.map((beat) => beat.parameters.shotIntervalFrames),
+      [phaseIndex >= 2 ? 2 : 3, phaseIndex >= 2 ? 2 : 3, phaseIndex >= 2 ? 2 : 3],
+      `${variant.phaseId} must use rapid sequential machine-gun cadence`
     );
     const warningStarts = beats.map((beat) => clipsById.get(beat.telegraphClipId).startSeconds);
     assert.deepEqual(
       warningStarts.map((start) => Number((start - warningStarts[0]).toFixed(6))),
-      [0, 1.7, 3.4],
+      [0, 1.05, 2.1],
       `${variant.phaseId} must separate all three crossfire commitments`
     );
   });
@@ -280,7 +363,7 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
         const firstBeat = clipsById.get(variant.beatClipIds[0]);
         return clipsById.get(firstBeat.telegraphClipId).startSeconds;
       }),
-      [0.2, 6, 11.7, 18.2],
+      [0.2, 15.15, 4.6, 10.65],
       `${phase.id} must retain the retimed four-sentence cadence`
     );
   });
@@ -311,14 +394,39 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
       ['paired-cannon-burst', 'paired-crossfire'],
       ['paired-cannon-burst', 'paired-crossfire'],
       ['paired-cannon-burst', 'paired-crossfire'],
-      ['articulated-melee-sweep', 'claw-sweep'],
-      ['articulated-melee-sweep', 'claw-sweep'],
+      ['paired-cannon-burst', 'machinegun-channel'],
       ['reactor-aperture-pattern', 'reactor-fan'],
       ['reactor-aperture-pattern', 'reactor-fan'],
       ['reactor-aperture-pattern', 'reactor-mines'],
       ['reactor-aperture-pattern', 'reactor-fan'],
       ['tracking-pincer-dive', 'pincer-dive']
     ]
+  );
+  const channel = boss.timeline.clips.find((clip) => (
+    clip.primitiveId === 'paired-cannon-burst'
+    && clip.parameters?.motionCue === 'machinegun-channel'
+    && clip.phaseId === boss.phases[0].id
+  ));
+  assert.ok(channel);
+  assert.deepEqual(channel.repeat, { count: 4, intervalSeconds: 1.7 });
+  assert.equal(channel.durationSeconds, 1.7);
+  assert.equal(channel.parameters.channelWidthPixels, 160);
+  assert.equal(channel.parameters.sweepPasses, 2);
+  assert.deepEqual(
+    boss.phases.map((phase) => {
+      const variant = boss.timeline.attacks
+        .find((attack) => attack.id === 'machinegun-channel')
+        .variants.find((candidate) => candidate.phaseId === phase.id);
+      const clip = clipsById.get(variant.beatClipIds[0]);
+      return [clip.parameters.sweepRangeRatio, clip.parameters.sweepPasses];
+    }),
+    [[0.36, 2], [0.42, 2], [0.46, 2]],
+    'every phase must complete an edge-to-edge sweep and one readable reversal'
+  );
+  assert.equal(
+    boss.timeline.clips.some((clip) => clip.primitiveId === 'articulated-melee-sweep'),
+    false,
+    'the retired claw-based Attack 2 must not remain in Helios active rotation'
   );
   assert.deepEqual(
     boss.timeline.attacks.find((attack) => attack.id === 'reactor-maze').sourceSocketRoles,

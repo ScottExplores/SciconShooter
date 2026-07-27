@@ -17,6 +17,10 @@ const {
   saveWalletProfile
 } = require('./walletProfiles');
 const { checkRateLimit } = require('./rateLimit');
+const {
+  createBossArchiveChallengeRun,
+  settleBossArchiveChallengeRun
+} = require('./bossArchiveChallenges');
 
 const MAX_REQUEST_BODY_BYTES = MAX_SNAPSHOT_BYTES + 32 * 1024;
 
@@ -89,7 +93,11 @@ module.exports = async (req, res) => {
     const body = parseBody(req.body);
     const rateLimit = checkRateLimit(req, {
       scope: `wallet-profile:${String(body.action || 'unknown')}`,
-      limit: body.action === 'save' ? 180 : 30,
+      limit: body.action === 'save'
+        ? 180
+        : body.action === 'settle-boss-challenge'
+          ? 20
+          : 30,
       windowMs: body.action === 'save' ? 60_000 : 10 * 60_000
     });
     if (!rateLimit.allowed) {
@@ -104,6 +112,32 @@ module.exports = async (req, res) => {
     }
     if (body.action === 'authenticate') {
       return sendJson(res, 200, await authenticate(body, req, res));
+    }
+    if (body.action === 'start-boss-challenge') {
+      const session = readWalletProfileSession(req);
+      const run = await createBossArchiveChallengeRun({
+        address: session.walletAddress,
+        eventId: body.eventId,
+        variantId: body.variantId
+      });
+      return sendJson(res, 200, {
+        walletAddress: session.walletAddress,
+        run
+      });
+    }
+    if (body.action === 'settle-boss-challenge') {
+      const session = readWalletProfileSession(req);
+      const result = await settleBossArchiveChallengeRun({
+        address: session.walletAddress,
+        runToken: body.runToken,
+        victory: body.victory,
+        clearTimeMs: body.clearTimeMs,
+        damageTaken: body.damageTaken
+      });
+      return sendJson(res, 200, {
+        walletAddress: session.walletAddress,
+        ...result
+      });
     }
     if (body.action === 'save') {
       const session = readWalletProfileSession(req);
@@ -137,6 +171,7 @@ module.exports = async (req, res) => {
   } catch (error) {
     console.error('Wallet profile API error:', error);
     const payload = { error: error.message || 'Wallet profile request failed' };
+    if (typeof error.code === 'string' && error.code) payload.code = error.code;
     if (Number.isSafeInteger(error.currentRevision)) payload.currentRevision = error.currentRevision;
     if (error.currentProfile !== undefined) payload.profile = error.currentProfile;
     return sendJson(res, error.statusCode || 500, payload);

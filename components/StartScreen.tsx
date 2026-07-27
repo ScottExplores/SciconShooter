@@ -32,13 +32,18 @@ import {
 import SquadHangar from './SquadHangar';
 import PixelActionButton from './PixelActionButton';
 import ShipCarousel from './ShipCarousel';
-import BossArchive from './BossArchive';
+import BossArchive, {
+  type BossArchiveDeveloperControls,
+  type BossArchiveFightRequest,
+  type BossArchiveResult
+} from './BossArchive';
 import RewardCenter, { type RewardTab } from './RewardCenter';
 import {
   BOSS_ARCHIVE_CATALOG,
   getUnlockedBossArchiveEntries,
   type BossArchiveEntry
 } from '../services/bossArchive';
+import type { BossArchiveDailyChargeStatus } from '../services/bossArchiveProgression';
 import {
   getClaimableAchievementCount,
   getDailyGiftStatus,
@@ -57,6 +62,16 @@ type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
 interface StartScreenProps {
   onStart: () => void;
+  onStartWeeklyRun?: () => void;
+  onOpenCampaignMap?: () => void;
+  campaignNotificationCount?: number;
+  campaignCheckpoint?: {
+    action: 'Start Mission' | 'Continue Mission' | 'Next Mission' | 'Replay Final Mission';
+    missionNumber: number;
+    missionName: string;
+    waveNumber: number;
+    waveTotal: number;
+  };
   allTimeLeaderboard: LeaderboardEntry[];
   monthlyLeaderboard: LeaderboardEntry[];
   archivedWinners: ArchivedWinner[];
@@ -93,8 +108,14 @@ interface StartScreenProps {
   onClaimDailyGift: () => DailyGiftReward | null;
   onClaimAchievement: (id: AchievementId) => number | null;
   onRequestWalletConnect: () => void;
-  onBossArchiveViewed?: () => void;
-  onStartBossFight?: (entry: BossArchiveEntry) => void;
+  onBossArchiveViewed?: (eventId: string) => void;
+  onBossArchiveSelection?: (eventId: string) => void;
+  onStartBossFight?: (entry: BossArchiveEntry, request: BossArchiveFightRequest) => void;
+  onClaimBossArchiveMastery?: (eventId: string, objectiveId: string) => void;
+  bossArchiveDailyChargeStatus?: BossArchiveDailyChargeStatus;
+  bossArchiveResult?: BossArchiveResult | null;
+  onDismissBossArchiveResult?: () => void;
+  bossArchiveDeveloperControls?: BossArchiveDeveloperControls | null;
   founderSandbox?: boolean;
   onUnlockSquadSlot: (slot: SquadSlotId) => void;
   onPurchaseMiniShip: (id: MiniShipId) => void;
@@ -547,6 +568,16 @@ const MoreMenuTile: React.FC<{
 
 const StartScreen: React.FC<StartScreenProps> = ({
   onStart,
+  onStartWeeklyRun,
+  onOpenCampaignMap,
+  campaignNotificationCount = 0,
+  campaignCheckpoint = {
+    action: 'Start Mission',
+    missionNumber: 1,
+    missionName: 'Open Orbit',
+    waveNumber: 1,
+    waveTotal: 3
+  },
   allTimeLeaderboard,
   monthlyLeaderboard,
   archivedWinners,
@@ -584,7 +615,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onClaimAchievement,
   onRequestWalletConnect,
   onBossArchiveViewed,
+  onBossArchiveSelection,
   onStartBossFight,
+  onClaimBossArchiveMastery,
+  bossArchiveDailyChargeStatus,
+  bossArchiveResult = null,
+  onDismissBossArchiveResult,
+  bossArchiveDeveloperControls = null,
   founderSandbox = false,
   onUnlockSquadSlot,
   onPurchaseMiniShip,
@@ -614,6 +651,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
     new URLSearchParams(window.location.search).get('view') === 'bosses'
   ));
   const [bossArchiveOpenedNewIds, setBossArchiveOpenedNewIds] = useState<string[]>([]);
+  const [bossArchiveDevUnlockAll, setBossArchiveDevUnlockAll] = useState(false);
+  const [bossArchiveDevShowLocked, setBossArchiveDevShowLocked] = useState(true);
   const [showWeeklyProposalReminder, setShowWeeklyProposalReminder] = useState(false);
   const [rewardCenterInitialTab, setRewardCenterInitialTab] = useState<RewardTab>('daily');
   const [feedback, setFeedback] = useState('');
@@ -646,7 +685,10 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const earnedBossArchiveEntries = useMemo(() => (
     getUnlockedBossArchiveEntries(permanentSquadState.bossArchive.unlockedEventIds)
   ), [permanentSquadState.bossArchive.unlockedEventIds]);
-  const availableBossArchiveEntries = founderSandbox
+  const bossArchiveDevelopmentAccess = Boolean(
+    founderSandbox || bossArchiveDeveloperControls?.enabled
+  );
+  const availableBossArchiveEntries = bossArchiveDevelopmentAccess && bossArchiveDevUnlockAll
     ? BOSS_ARCHIVE_CATALOG
     : earnedBossArchiveEntries;
   const newBossArchiveEventIds = useMemo(() => {
@@ -655,7 +697,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
       .map((entry) => entry.eventId)
       .filter((eventId) => !seen.has(eventId));
   }, [earnedBossArchiveEntries, permanentSquadState.bossArchive.seenEventIds]);
-  const canOpenBossArchive = availableBossArchiveEntries.length > 0 && Boolean(onStartBossFight);
+  const canOpenBossArchive = Boolean(onStartBossFight) && (
+    availableBossArchiveEntries.length > 0 || bossArchiveDevelopmentAccess
+  );
 
   const openBossArchive = () => {
     if (!canOpenBossArchive) return;
@@ -701,15 +745,21 @@ const StartScreen: React.FC<StartScreenProps> = ({
       setShowBossArchive(false);
       return;
     }
-    if (bossArchiveOpenedNewIds.length === 0 && newBossArchiveEventIds.length > 0) {
-      setBossArchiveOpenedNewIds(newBossArchiveEventIds);
+    if (newBossArchiveEventIds.length > 0) {
+      setBossArchiveOpenedNewIds((current) => {
+        const merged = new Set(current);
+        let changed = false;
+        newBossArchiveEventIds.forEach((eventId) => {
+          if (merged.has(eventId)) return;
+          merged.add(eventId);
+          changed = true;
+        });
+        return changed ? Array.from(merged) : current;
+      });
     }
-    onBossArchiveViewed?.();
   }, [
-    bossArchiveOpenedNewIds.length,
     canOpenBossArchive,
     newBossArchiveEventIds,
-    onBossArchiveViewed,
     showBossArchive
   ]);
 
@@ -1147,21 +1197,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
 
         <div className={`w-full max-w-xl ${compact ? 'space-y-2' : 'space-y-3'}`}>
-          {walletControl || canOpenBossArchive ? (
+          {walletControl || canOpenBossArchive || onOpenCampaignMap ? (
             <div
               data-boss-archive-command-row={canOpenBossArchive ? 'true' : 'false'}
-              className={`relative grid min-h-12 w-full items-center gap-2 ${
-                canOpenBossArchive
-                  ? 'grid-cols-[clamp(3.25rem,14vw,3.6rem)_minmax(0,1fr)_clamp(3.25rem,14vw,3.6rem)]'
-                  : 'grid-cols-[minmax(0,1fr)]'
-              }`}
+              data-campaign-map-command-row={onOpenCampaignMap ? 'true' : 'false'}
+              className="relative grid min-h-12 w-full grid-cols-[clamp(3.25rem,14vw,3.6rem)_clamp(3.25rem,14vw,3.6rem)_minmax(0,1fr)] items-center gap-2 pr-14 md:grid-cols-[clamp(3.25rem,14vw,3.6rem)_minmax(0,1fr)_clamp(3.25rem,14vw,3.6rem)] md:pr-0"
             >
               {canOpenBossArchive ? (
                 <button
                   type="button"
                   onClick={openBossArchive}
                   data-boss-archive-trigger="true"
-                  className={`group relative col-start-1 flex aspect-square w-full shrink-0 items-center justify-self-start overflow-hidden border bg-[linear-gradient(155deg,rgba(8,47,73,0.96),rgba(2,6,23,0.98)_72%)] shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_18px_rgba(34,211,238,0.12)] transition hover:-translate-y-0.5 hover:border-cyan-100 hover:shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_20px_rgba(34,211,238,0.2),0_0_18px_rgba(34,211,238,0.22)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100 ${newBossArchiveEventIds.length > 0
+                  className={`group relative col-start-1 row-start-1 flex aspect-square w-full shrink-0 items-center justify-self-start overflow-hidden border bg-[linear-gradient(155deg,rgba(8,47,73,0.96),rgba(2,6,23,0.98)_72%)] shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_18px_rgba(34,211,238,0.12)] transition hover:-translate-y-0.5 hover:border-cyan-100 hover:shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_20px_rgba(34,211,238,0.2),0_0_18px_rgba(34,211,238,0.22)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100 ${newBossArchiveEventIds.length > 0
                     ? 'border-yellow-200 shadow-[0_0_10px_rgba(250,204,21,0.85),0_0_26px_rgba(239,68,68,0.42)]'
                     : 'border-cyan-200/55'} [clip-path:polygon(8px_0,calc(100%_-_8px)_0,100%_8px,100%_calc(100%_-_8px),calc(100%_-_8px)_100%,8px_100%,0_calc(100%_-_8px),0_8px)]`}
                   aria-label={newBossArchiveEventIds.length > 0
@@ -1198,15 +1245,49 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ) : null}
               <div
                 data-boss-archive-wallet-slot="true"
-                className={`${canOpenBossArchive ? 'col-start-2' : 'col-start-1'} flex min-w-0 justify-center`}
+                className="col-start-3 row-start-1 flex min-w-0 justify-center md:col-start-2"
               >
                 {walletControl}
               </div>
-              {canOpenBossArchive ? (
-                <span className="col-start-3" aria-hidden="true" />
-              ) : null}
+              {onOpenCampaignMap ? (
+                <button
+                  type="button"
+                  onClick={onOpenCampaignMap}
+                  data-campaign-map-trigger="true"
+                  className={`group relative col-start-2 row-start-1 flex aspect-square w-full shrink-0 items-center justify-self-start overflow-hidden border bg-[linear-gradient(155deg,rgba(8,47,73,0.96),rgba(2,6,23,0.98)_72%)] shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_18px_rgba(34,211,238,0.12)] transition hover:-translate-y-0.5 hover:border-emerald-100 hover:shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_20px_rgba(52,211,153,0.22),0_0_18px_rgba(34,211,238,0.22)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-100 md:col-start-3 md:justify-self-end [clip-path:polygon(8px_0,calc(100%_-_8px)_0,100%_8px,100%_calc(100%_-_8px),calc(100%_-_8px)_100%,8px_100%,0_calc(100%_-_8px),0_8px)] ${campaignNotificationCount > 0
+                    ? 'border-yellow-200 shadow-[inset_0_0_0_2px_rgba(8,47,73,0.72),inset_0_0_18px_rgba(250,204,21,0.16),0_0_14px_rgba(250,204,21,0.5)]'
+                    : 'border-cyan-200/55'}`}
+                  aria-label={campaignNotificationCount > 0
+                    ? `Open Campaign Map. ${campaignNotificationCount} new campaign updates.`
+                    : 'Open Campaign Map'}
+                  title="Campaign Map"
+                >
+                  <span className="absolute inset-[3px] border border-cyan-300/18 bg-[radial-gradient(circle_at_50%_35%,rgba(52,211,153,0.2),rgba(8,47,73,0.34)_48%,rgba(2,6,23,0.62)_78%)] [clip-path:polygon(6px_0,calc(100%_-_6px)_0,100%_6px,100%_calc(100%_-_6px),calc(100%_-_6px)_100%,6px_100%,0_calc(100%_-_6px),0_6px)]" aria-hidden="true" />
+                  <img
+                    src="/game-art/generated/ui/scicon-interface-pack-v1/buttons/navigation/map.png"
+                    alt=""
+                    className="relative z-10 mb-2 h-[76%] w-[76%] object-contain drop-shadow-[0_0_8px_rgba(52,211,153,0.58)] [image-rendering:pixelated] transition group-hover:scale-105"
+                  />
+                  <span className="absolute inset-x-1 bottom-1 z-10 text-center font-mono text-[6px] font-black uppercase tracking-[0.11em] text-cyan-100/85">Map</span>
+                  <span className="absolute inset-x-2 bottom-0 z-10 h-px bg-gradient-to-r from-transparent via-emerald-300 to-transparent shadow-[0_0_6px_rgba(52,211,153,0.72)]" aria-hidden="true" />
+                  {campaignNotificationCount > 0 ? (
+                    <span aria-hidden="true" className="absolute right-0.5 top-0.5 z-20 flex h-4 min-w-4 items-center justify-center rounded-full border border-yellow-100 bg-amber-400 px-1 text-[8px] font-black text-slate-950 shadow-[0_0_8px_rgba(250,204,21,0.8)]">
+                      {campaignNotificationCount > 9 ? '9+' : campaignNotificationCount}
+                    </span>
+                  ) : null}
+                </button>
+              ) : <span className="col-start-3" aria-hidden="true" />}
             </div>
           ) : null}
+          <div
+            className="flex w-full items-center justify-between gap-3 border-x border-cyan-300/18 bg-slate-950/58 px-3 py-1.5 font-mono uppercase"
+            aria-label={`${campaignCheckpoint.action}. Mission ${campaignCheckpoint.missionNumber}, Wave ${campaignCheckpoint.waveNumber} of ${campaignCheckpoint.waveTotal}, ${campaignCheckpoint.missionName}.`}
+          >
+            <span className="text-[0.58rem] font-black tracking-[0.16em] text-emerald-300">{campaignCheckpoint.action}</span>
+            <span aria-hidden="true" className="truncate text-right text-[0.62rem] font-bold tracking-[0.08em] text-cyan-100">
+              M{String(campaignCheckpoint.missionNumber).padStart(2, '0')} / W{campaignCheckpoint.waveNumber}/{campaignCheckpoint.waveTotal} / {campaignCheckpoint.missionName}
+            </span>
+          </div>
           <PixelActionButton
             onClick={onStart}
             tone="green"
@@ -1218,9 +1299,18 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <span className={`sci-start-button__play flex items-center justify-center text-emerald-950 transition group-hover:scale-105 ${compact ? 'h-8 w-8' : 'h-9 w-9'}`}>
                 <Icon name="play" className="h-5 w-5 translate-x-0.5" />
               </span>
-              <span>Start Mission</span>
+              <span>{campaignCheckpoint.action}</span>
             </span>
           </PixelActionButton>
+          {onStartWeeklyRun ? (
+            <button
+              type="button"
+              onClick={onStartWeeklyRun}
+              className="min-h-11 px-3 font-mono text-[0.6rem] font-black uppercase tracking-[0.13em] text-cyan-200 underline decoration-cyan-400/45 underline-offset-4 hover:text-cyan-50"
+            >
+              Weekly score run / starts at Mission 1
+            </button>
+          ) : null}
           {!compact ? <p className="text-sm font-bold text-emerald-200">Complete. Earn. Fund.</p> : null}
         </div>
       </div>
@@ -2021,9 +2111,33 @@ const StartScreen: React.FC<StartScreenProps> = ({
       {showBossArchive && canOpenBossArchive && onStartBossFight ? (
         <BossArchive
           entries={availableBossArchiveEntries}
+          catalogEntries={bossArchiveDevelopmentAccess ? BOSS_ARCHIVE_CATALOG : undefined}
+          revealLockedEntries={bossArchiveDevelopmentAccess && bossArchiveDevShowLocked}
           newEncounterIds={bossArchiveOpenedNewIds}
           onClose={closeBossArchive}
-          onChallenge={onStartBossFight}
+          onChallenge={(entry) => onStartBossFight(entry, {
+            mode: 'practice',
+            variantId: 'standard'
+          })}
+          onLaunch={onStartBossFight}
+          onSelectionChange={onBossArchiveSelection}
+          onNewEncounterViewed={onBossArchiveViewed}
+          onClaimMastery={onClaimBossArchiveMastery}
+          selectedEncounterId={permanentSquadState.bossArchive.lastSelectedEventId}
+          progress={permanentSquadState.bossArchive}
+          dailyChargeStatus={bossArchiveDailyChargeStatus}
+          result={bossArchiveResult}
+          onDismissResult={onDismissBossArchiveResult}
+          developerControls={bossArchiveDeveloperControls ? {
+            ...bossArchiveDeveloperControls,
+            showLockedEntries: bossArchiveDevShowLocked,
+            onShowLockedEntriesChange: setBossArchiveDevShowLocked,
+            onUnlockAll: () => setBossArchiveDevUnlockAll(true),
+            onResetProgress: () => {
+              setBossArchiveDevUnlockAll(false);
+              bossArchiveDeveloperControls.onResetProgress?.();
+            }
+          } : null}
         />
       ) : null}
 

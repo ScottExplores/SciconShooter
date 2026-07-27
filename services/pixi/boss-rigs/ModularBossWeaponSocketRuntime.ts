@@ -16,6 +16,8 @@ const resolveSocketRole = (
   if (role === 'core-origin') return 'core';
   if (id.includes('starboard')) return 'starboard';
   if (id.includes('port')) return 'port';
+  if (/(?:^|[.-])right(?:$|[.-])/.test(id)) return 'starboard';
+  if (/(?:^|[.-])left(?:$|[.-])/.test(id)) return 'port';
   return null;
 };
 
@@ -26,6 +28,18 @@ const socketMatchesAction = (
 ) => {
   if (!action) return true;
   if (action.primitiveId === 'reactor-aperture-pattern') return role === 'core';
+  if (action.primitiveId === 'prism-wingbeat-weave') {
+    return id.startsWith('wing-edge-') || id.startsWith('wing-tip-');
+  }
+  if (action.primitiveId === 'prism-brood-procession') {
+    return id.startsWith('brood-release-') || id === 'prism-core';
+  }
+  if (action.primitiveId === 'prism-lunar-swoop') {
+    return id.startsWith('wing-tip-');
+  }
+  if (action.primitiveId === 'prism-kaleidoscope-brood') {
+    return id.startsWith('brood-release-') || id === 'prism-core';
+  }
   if (role === 'core') return true;
   if (action.primitiveId === 'paired-cannon-burst') return id.startsWith('rotary-muzzle-');
   if (

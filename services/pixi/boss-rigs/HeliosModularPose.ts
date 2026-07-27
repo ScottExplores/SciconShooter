@@ -1,7 +1,9 @@
 import {
+  HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE,
   resolveHeliosCrossfireSides,
   sampleHeliosCornerClamp,
   sampleHeliosCrossfirePulse,
+  sampleHeliosMachineGunChannelPulse,
   sampleHeliosTrackingPincer
 } from '../../gameplay/bosses/HeliosClawcarrierRuntime';
 import type {
@@ -72,7 +74,9 @@ export interface HeliosActionPresentation {
   readonly motionCue?: string | null;
   readonly elapsedFrames?: number | null;
   readonly framesPerSecond?: number | null;
+  readonly durationFrames?: number | null;
   readonly projectileCount?: number | null;
+  readonly shotIntervalFrames?: number | null;
 }
 
 export interface HeliosModularPoseInput {
@@ -141,6 +145,22 @@ export const validateHeliosRigCompatibility = (
       }));
     }
   });
+  const expectedParents = Object.freeze({
+    'weapons.mount': 'body',
+    'rotary.port': 'weapons.mount',
+    'rotary.starboard': 'weapons.mount',
+    'muzzle.port': 'rotary.port',
+    'muzzle.starboard': 'rotary.starboard'
+  } as const);
+  Object.entries(expectedParents).forEach(([partId, parentId]) => {
+    const part = registration.partById[partId];
+    if (part && part.parentId !== parentId) {
+      issues.push(Object.freeze({
+        path: `/parts/${partId}/parentId`,
+        message: `${partId} must remain parented to ${parentId}.`
+      }));
+    }
+  });
   const expectedSockets = Object.freeze({
     'heavy-muzzle-port': Object.freeze({ partId: 'rotary.port', role: 'projectile-muzzle' }),
     'heavy-muzzle-starboard': Object.freeze({ partId: 'rotary.starboard', role: 'projectile-muzzle' }),
@@ -192,6 +212,9 @@ export const sampleHeliosModularPose = (
   const energy = actionEnvelope(stage, progress);
   const isCrossfire = primitiveId === 'paired-cannon-burst'
     || String(action?.motionCue ?? '') === 'paired-crossfire';
+  const isMachineGunChannel = (
+    String(action?.motionCue ?? '') === HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE
+  );
   const isSweep = primitiveId === 'articulated-melee-sweep';
   const isReactor = primitiveId === 'reactor-aperture-pattern';
   const isCrush = primitiveId === 'tracking-pincer-dive';
@@ -247,30 +270,41 @@ export const sampleHeliosModularPose = (
         : recovery
           ? energy * 0.65
           : 0
-    : phaseTwo ? 0.16 : 0;
+    : 0;
   const spinHold = rotarySpinEnergy > 0.78 ? 2 : rotarySpinEnergy > 0.12 ? 5 : 18;
-  const rotaryIndex = Math.floor(frame / spinHold + sequence) % 4;
+  const rotaryIndex = rotarySpinEnergy > 0
+    ? Math.floor(frame / spinHold + sequence) % 4
+    : 0;
   const portRotaryFrameId = HELIOS_ROTARY_PORT_FRAME_IDS[rotaryIndex];
-  const starboardRotaryFrameId = HELIOS_ROTARY_STARBOARD_FRAME_IDS[(rotaryIndex + 2) % 4];
+  const starboardRotaryFrameId = rotarySpinEnergy > 0
+    ? HELIOS_ROTARY_STARBOARD_FRAME_IDS[(rotaryIndex + 2) % 4]
+    : HELIOS_ROTARY_STARBOARD_FRAME_IDS[0];
   const muzzleFrameId = HELIOS_MUZZLE_FRAME_IDS[0];
   const crossfireSides = resolveHeliosCrossfireSides(
     action?.side === 'port' || action?.side === 'starboard' ? action.side : undefined
   );
   const crossfirePulse = isCrossfire && stage === 'fire'
-    ? sampleHeliosCrossfirePulse({
-        elapsedFrames: finiteOr(action?.elapsedFrames, 0),
-        roundsPerSide: finiteOr(action?.projectileCount, 4),
-        sides: crossfireSides,
-        intervalFrames: phaseIndex >= 3 ? 3 : 4
-      })
+    ? isMachineGunChannel
+      ? sampleHeliosMachineGunChannelPulse({
+          elapsedFrames: finiteOr(action?.elapsedFrames, 0),
+          durationFrames: finiteOr(action?.durationFrames, 1),
+          sequence,
+          intervalFrames: finiteOr(action?.shotIntervalFrames, phaseIndex >= 3 ? 2 : 3)
+        })
+      : sampleHeliosCrossfirePulse({
+          elapsedFrames: finiteOr(action?.elapsedFrames, 0),
+          roundsPerSide: finiteOr(action?.projectileCount, 4),
+          sides: crossfireSides,
+          intervalFrames: finiteOr(action?.shotIntervalFrames, phaseIndex >= 3 ? 2 : 3)
+        })
     : undefined;
   const portMuzzleVisible = Boolean(
     crossfirePulse?.flashEnergy
-    && crossfirePulse.side === 'port'
+    && (isMachineGunChannel || crossfirePulse.side === 'port')
   );
   const starboardMuzzleVisible = Boolean(
     crossfirePulse?.flashEnergy
-    && crossfirePulse.side === 'starboard'
+    && (isMachineGunChannel || crossfirePulse.side === 'starboard')
   );
   const recoil = crossfirePulse?.recoilEnergy ?? 0;
   const reactorCharge = isReactor ? (stage === 'warning' ? energy : 1 - progress * 0.2) : 0;
@@ -350,19 +384,14 @@ export const sampleHeliosModularPose = (
       scaleXMultiplier: 0.92 + reactorCharge * 0.18,
       scaleYMultiplier: 0.92 + reactorCharge * 0.18
     }),
-    'weapons.mount': freezeOverride({
-      yOffset: -breath * 0.7,
-      rotationOffset: secondary * 0.0025
-    }),
+    'weapons.mount': freezeOverride({}),
     'rotary.port': freezeOverride({
       frameId: portRotaryFrameId,
-      yOffset: portMuzzleVisible ? -recoil * 8 : 0,
-      rotationOffset: phaseThree ? -0.025 : 0
+      yOffset: portMuzzleVisible ? -recoil * 8 : 0
     }),
     'rotary.starboard': freezeOverride({
       frameId: starboardRotaryFrameId,
-      yOffset: starboardMuzzleVisible ? -recoil * 8 : 0,
-      rotationOffset: phaseThree ? 0.04 : 0
+      yOffset: starboardMuzzleVisible ? -recoil * 8 : 0
     }),
     'muzzle.port': freezeOverride({
       frameId: muzzleFrameId,

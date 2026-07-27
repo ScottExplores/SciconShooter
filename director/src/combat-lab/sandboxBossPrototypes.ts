@@ -111,6 +111,10 @@ const primitiveTracks: Record<BossTimelinePrimitiveId, BossTimelineClip['track']
   'articulated-melee-sweep': 'attack',
   'reactor-aperture-pattern': 'attack',
   'tracking-pincer-dive': 'attack',
+  'prism-wingbeat-weave': 'attack',
+  'prism-brood-procession': 'summon',
+  'prism-lunar-swoop': 'movement',
+  'prism-kaleidoscope-brood': 'summon',
   'cross-beam': 'laser',
   'rail-sweep': 'laser',
   'tail-fan': 'attack',
@@ -141,6 +145,10 @@ const primitiveLabels: Record<BossTimelinePrimitiveId, string> = {
   'articulated-melee-sweep': 'Articulated melee sweep',
   'reactor-aperture-pattern': 'Reactor aperture pattern',
   'tracking-pincer-dive': 'Tracking pincer dive',
+  'prism-wingbeat-weave': 'Prism wingbeat weave',
+  'prism-brood-procession': 'Brood procession',
+  'prism-lunar-swoop': 'Lunar prism swoop',
+  'prism-kaleidoscope-brood': 'Kaleidoscope brood',
   'cross-beam': 'Cross beam',
   'rail-sweep': 'Rail sweep',
   'tail-fan': 'Tail fan',
@@ -494,143 +502,266 @@ const sweepTimeline: BossTimelineConfig = {
   ]
 };
 
-const mothOpening = 'sandbox-moth-opening';
-const mothBrood = 'sandbox-moth-brood';
-const mothRage = 'sandbox-moth-rage';
-const mothTimeline: BossTimelineConfig = {
-  durationSeconds: 14,
+const mothNursery = 'sandbox-moth-crystal-nursery';
+const mothMetamorphosis = 'sandbox-moth-prism-metamorphosis';
+const PRISM_METAMORPHOSIS_DURATION_SECONDS = 2.4;
+
+interface PrismMothPhaseRoute {
+  readonly phaseId: string;
+  readonly phaseIndex: 1 | 2;
+  readonly color: string;
+  readonly cameraStrength: number;
+  readonly baseSequence: number;
+}
+
+const buildPrismMothPhase = (
+  route: PrismMothPhaseRoute
+): BossAttackPhaseBlueprint => {
+  const phaseTwo = route.phaseIndex === 2;
+  return {
+    phaseId: route.phaseId,
+    color: route.color,
+    cameraStrength: route.cameraStrength,
+    attacks: [
+      {
+        id: 'wingbeat-weave',
+        label: 'Prism Wingbeat Weave',
+        phaseId: route.phaseId,
+        role: 'core',
+        skillTest: 'rhythm-dodge',
+        recognitionCue: 'One wing folds and illuminates before a left-right crystal-feather rhythm ends in a coordinated opening.',
+        solution: 'Move away from each lit wing, then settle into the final central lane when both wings open.',
+        safeRouteRule: 'opposite-side-dodge',
+        sourceSocketRoles: ['port', 'starboard'],
+        startSeconds: phaseTwo ? PRISM_METAMORPHOSIS_DURATION_SECONDS : 1,
+        recoverySeconds: 0.95,
+        color: route.color,
+        beats: [
+          {
+            id: 'ordered-wingbeats',
+            label: 'Ordered crystal wingbeats',
+            primitiveId: 'prism-wingbeat-weave',
+            offsetSeconds: 0,
+            telegraphStyle: 'warning',
+            leadSeconds: 0.58,
+            actionDurationSeconds: 0.36,
+            repeat: {
+              count: 5,
+              intervalSeconds: phaseTwo ? 0.64 : 0.72
+            },
+            parameters: {
+              projectileCount: phaseTwo ? 6 : 5,
+              sequence: route.baseSequence,
+              motionCue: 'prism-wingbeat',
+              shotIntervalFrames: phaseTwo ? 10 : 12,
+              projectileSpeedScale: phaseTwo ? 1.04 : 0.96,
+              channelWidthPixels: 122,
+              sweepRangeRatio: phaseTwo ? 0.62 : 0.56,
+              sweepPasses: 3
+            }
+          }
+        ]
+      },
+      {
+        id: 'brood-procession',
+        label: 'Brood Procession',
+        phaseId: route.phaseId,
+        role: 'core',
+        skillTest: 'gap-tracking',
+        recognitionCue: 'The wings cradle the abdomen while paired brood pods descend, illuminate, crack, and hatch in sequence.',
+        solution: 'Read the cocoon order and follow the opening carried by the coordinated moth formation.',
+        safeRouteRule: 'shifting-channel',
+        sourceSocketRoles: ['port', 'starboard', 'core'],
+        startSeconds: phaseTwo ? 6.9 : 6.8,
+        recoverySeconds: 1.05,
+        color: route.color,
+        beats: [
+          {
+            id: 'procession-waves',
+            label: 'Cocoon hatch procession',
+            primitiveId: 'prism-brood-procession',
+            offsetSeconds: 0,
+            telegraphStyle: 'warning',
+            leadSeconds: 0.82,
+            actionDurationSeconds: 3,
+            repeat: { count: 2, intervalSeconds: 3.35 },
+            parameters: {
+              projectileCount: phaseTwo ? 5 : 4,
+              sequence: route.baseSequence + 1,
+              motionCue: 'prism-brood-deploy',
+              shotIntervalFrames: phaseTwo ? 10 : 12,
+              projectileSpeedScale: phaseTwo ? 1.08 : 1,
+              channelWidthPixels: 126,
+              sweepRangeRatio: 0.22,
+              sweepPasses: 2
+            }
+          }
+        ]
+      },
+      {
+        id: 'lunar-prism-swoop',
+        label: 'Lunar Prism Swoop',
+        phaseId: route.phaseId,
+        role: 'core',
+        skillTest: 'lane-routing',
+        recognitionCue: 'The wings fold, one screen edge glints, and the full moth commits to a graceful curved crossing.',
+        solution: 'Read the lit entry edge, remain below the curve, then switch sides before the opposite return pass.',
+        safeRouteRule: 'channel-to-quadrant',
+        sourceSocketRoles: ['port', 'starboard'],
+        startSeconds: 15.9,
+        recoverySeconds: 1.1,
+        color: route.color,
+        beats: [
+          {
+            id: 'alternating-swoops',
+            label: 'Alternating lunar swoop',
+            primitiveId: 'prism-lunar-swoop',
+            offsetSeconds: 0,
+            telegraphStyle: 'warning',
+            leadSeconds: 0.78,
+            actionDurationSeconds: phaseTwo ? 1.35 : 1.48,
+            repeat: {
+              count: phaseTwo ? 3 : 2,
+              intervalSeconds: phaseTwo ? 1.7 : 2.05
+            },
+            parameters: {
+              projectileCount: phaseTwo ? 3 : 2,
+              sequence: route.baseSequence + 2,
+              motionCue: 'prism-swoop',
+              projectileSpeedScale: phaseTwo ? 1.06 : 1,
+              sweepRangeRatio: phaseTwo ? 0.29 : 0.26,
+              sweepPasses: phaseTwo ? 3 : 2
+            }
+          }
+        ]
+      },
+      {
+        id: 'kaleidoscope-brood',
+        label: 'Kaleidoscope Brood',
+        phaseId: route.phaseId,
+        role: 'signature',
+        skillTest: 'route-combination',
+        recognitionCue: 'The moth cocoons around its core, unfolds completely, and illuminates ordered wing sections that command matching brood nodes.',
+        solution: 'Follow the corridor indicated by each lit wing section; the final core pulse returns the escape route to center.',
+        safeRouteRule: 'shifting-channel',
+        sourceSocketRoles: ['port', 'starboard', 'core'],
+        startSeconds: phaseTwo ? 23 : 22,
+        recoverySeconds: 1.45,
+        color: route.color,
+        beats: [
+          {
+            id: 'cocoon-charge',
+            label: 'Prism cocoon charge',
+            primitiveId: 'prism-kaleidoscope-brood',
+            offsetSeconds: 0,
+            telegraphStyle: 'warning',
+            leadSeconds: 0.92,
+            actionDurationSeconds: 1,
+            parameters: {
+              projectileCount: 6,
+              sequence: route.baseSequence,
+              motionCue: 'prism-kaleidoscope',
+              pulseIntervalSeconds: phaseTwo ? 1.35 : 1.6,
+              shotIntervalFrames: phaseTwo ? 10 : 12,
+              projectileSpeedScale: phaseTwo ? 1.06 : 1,
+              channelWidthPixels: 132,
+              sweepRangeRatio: 0.5,
+              sweepPasses: 3
+            }
+          },
+          {
+            id: 'first-wing-command',
+            label: 'First illuminated wing command',
+            primitiveId: 'prism-kaleidoscope-brood',
+            offsetSeconds: 1.55,
+            telegraphStyle: 'warning',
+            leadSeconds: 0.68,
+            actionDurationSeconds: 1.55,
+            parameters: {
+              projectileCount: 6,
+              sequence: route.baseSequence + 1,
+              motionCue: 'prism-kaleidoscope',
+              channelWidthPixels: 132,
+              sweepPasses: 3
+            }
+          },
+          {
+            id: 'second-wing-command',
+            label: 'Second illuminated wing command',
+            primitiveId: 'prism-kaleidoscope-brood',
+            offsetSeconds: 3.85,
+            telegraphStyle: 'warning',
+            leadSeconds: 0.68,
+            actionDurationSeconds: 1.55,
+            parameters: {
+              projectileCount: 6,
+              sequence: route.baseSequence + 2,
+              motionCue: 'prism-kaleidoscope',
+              channelWidthPixels: 132,
+              sweepPasses: 3
+            }
+          },
+          {
+            id: 'core-escape',
+            label: 'Final prism-core escape',
+            primitiveId: 'prism-kaleidoscope-brood',
+            offsetSeconds: 6.15,
+            telegraphStyle: 'warning',
+            leadSeconds: 0.72,
+            actionDurationSeconds: 2.1,
+            parameters: {
+              projectileCount: 6,
+              sequence: route.baseSequence + 3,
+              motionCue: 'prism-kaleidoscope',
+              channelWidthPixels: 138,
+              sweepPasses: 3
+            }
+          }
+        ]
+      }
+    ]
+  };
+};
+
+const compiledMothTimeline = compileBossAttackTimeline({
+  durationSeconds: 34,
   loop: true,
-  clips: [
-    phaseCue('sandbox-moth-opening-fx', 'effect-cue', mothOpening, { color: '#e879f9' }),
-    phaseCue('sandbox-moth-opening-move', 'set-movement', mothOpening, {
-      movementPatternId: 'arena-roam',
-      speedMultiplier: 0.9
-    }),
-    phaseCue('sandbox-moth-left-wing', 'set-weak-point', mothOpening, {
-      componentId: 'left-cannon',
-      enabled: true
-    }),
-    ...warned({
-      id: 'sandbox-moth-opening-burst',
-      primitiveId: 'aimed-burst',
-      startSeconds: 1,
-      phaseId: mothOpening,
-      style: 'target',
-      color: '#f0abfc',
-      parameters: { projectileCount: 5 }
-    }),
-    ...warned({
-      id: 'sandbox-moth-opening-bricks',
-      primitiveId: 'summon-formation',
-      startSeconds: 3.5,
-      phaseId: mothOpening,
-      style: 'warning',
-      color: '#facc15',
-      parameters: { summonCount: 5, enemyId: 'brick', formationPatternId: 'grid' }
-    }),
-    ...warned({
-      id: 'sandbox-moth-opening-ring',
-      primitiveId: 'gap-ring',
-      startSeconds: 7,
-      phaseId: mothOpening,
-      style: 'ring',
-      color: '#c084fc',
-      parameters: { projectileCount: 18, sequence: 1 }
-    }),
-    ...warned({
-      id: 'sandbox-moth-opening-cross',
-      primitiveId: 'rotating-cross',
-      startSeconds: 10.2,
-      phaseId: mothOpening,
-      style: 'ring',
+  phases: [
+    buildPrismMothPhase({
+      phaseId: mothNursery,
+      phaseIndex: 1,
       color: '#67e8f9',
-      parameters: { projectileCount: 8, sequence: 2 }
+      cameraStrength: 0.65,
+      baseSequence: 0
     }),
-    phaseCue('sandbox-moth-brood-camera', 'camera-cue', mothBrood, { strength: 1.8 }),
-    phaseCue('sandbox-moth-brood-shield', 'set-shield', mothBrood, { shieldCount: 2, enabled: true }),
-    phaseCue('sandbox-moth-right-wing', 'set-weak-point', mothBrood, {
-      componentId: 'right-cannon',
-      enabled: true
-    }),
-    ...warned({
-      id: 'sandbox-moth-brood-helix',
-      primitiveId: 'helix-volley',
-      startSeconds: 1,
-      phaseId: mothBrood,
-      style: 'warning',
-      color: '#e879f9',
-      parameters: { projectileCount: 10, sequence: 3, handedness: 'left' }
-    }),
-    ...warned({
-      id: 'sandbox-moth-brood-bricks',
-      primitiveId: 'summon-formation',
-      startSeconds: 4.2,
-      phaseId: mothBrood,
-      style: 'warning',
-      color: '#fde047',
-      parameters: { summonCount: 6, enemyId: 'brick', formationPatternId: 'diamond' }
-    }),
-    ...warned({
-      id: 'sandbox-moth-brood-barrage',
-      primitiveId: 'side-barrage',
-      startSeconds: 7.5,
-      phaseId: mothBrood,
-      style: 'lane',
-      color: '#fb7185',
-      parameters: { projectileCount: 7, side: 'starboard' }
-    }),
-    ...warned({
-      id: 'sandbox-moth-brood-burst',
-      primitiveId: 'aimed-burst',
-      startSeconds: 10.4,
-      phaseId: mothBrood,
-      style: 'target',
-      color: '#f0abfc',
-      parameters: { projectileCount: 7 }
-    }),
-    phaseCue('sandbox-moth-rage-fx', 'effect-cue', mothRage, { color: '#ffffff' }),
-    phaseCue('sandbox-moth-rage-camera', 'camera-cue', mothRage, { strength: 3 }),
-    phaseCue('sandbox-moth-rage-shield-down', 'set-shield', mothRage, { shieldCount: 0, enabled: false }),
-    phaseCue('sandbox-moth-core', 'set-weak-point', mothRage, {
-      componentId: 'helmet',
-      enabled: true
-    }),
-    ...warned({
-      id: 'sandbox-moth-rage-collapse',
-      primitiveId: 'inward-collapse',
-      startSeconds: 1,
-      phaseId: mothRage,
-      style: 'target',
-      color: '#a855f7',
-      parameters: { projectileCount: 16, sequence: 4 }
-    }),
-    ...warned({
-      id: 'sandbox-moth-rage-bricks',
-      primitiveId: 'summon-formation',
-      startSeconds: 4.3,
-      phaseId: mothRage,
-      style: 'warning',
-      color: '#facc15',
-      parameters: { summonCount: 4, enemyId: 'brick', formationPatternId: 'pincer' }
-    }),
-    ...warned({
-      id: 'sandbox-moth-rage-cross',
-      primitiveId: 'rotating-cross',
-      startSeconds: 7.4,
-      phaseId: mothRage,
-      style: 'ring',
-      color: '#22d3ee',
-      parameters: { projectileCount: 10, sequence: 5 }
-    }),
-    ...warned({
-      id: 'sandbox-moth-rage-helix',
-      primitiveId: 'helix-volley',
-      startSeconds: 10.3,
-      phaseId: mothRage,
-      style: 'warning',
-      color: '#f472b6',
-      parameters: { projectileCount: 12, sequence: 6, handedness: 'right' }
+    buildPrismMothPhase({
+      phaseId: mothMetamorphosis,
+      phaseIndex: 2,
+      color: '#c084fc',
+      cameraStrength: 1.2,
+      baseSequence: 7
     })
+  ]
+});
+
+const mothTimeline: BossTimelineConfig = {
+  ...compiledMothTimeline,
+  clips: [
+    ...compiledMothTimeline.clips,
+    {
+      id: 'sandbox-moth-prism-metamorphosis-sequence',
+      label: 'Prism Metamorphosis',
+      track: 'presentation',
+      primitiveId: 'effect-cue',
+      trigger: 'phase-enter',
+      startSeconds: 0,
+      durationSeconds: PRISM_METAMORPHOSIS_DURATION_SECONDS,
+      phaseId: mothMetamorphosis,
+      parameters: {
+        color: '#e9d5ff',
+        motionCue: 'prism-metamorphosis'
+      }
+    }
   ]
 };
 
@@ -977,15 +1108,20 @@ const clawcarrierCalibration = 'sandbox-clawcarrier-siege-calibration';
 const clawcarrierCrossfire = 'sandbox-clawcarrier-armor-shear';
 const clawcarrierBreach = 'sandbox-clawcarrier-reactor-overdrive';
 type ClawcarrierSide = 'port' | 'starboard';
-type ClawcarrierGapDirection = 'clockwise' | 'counterclockwise';
 
 interface ClawcarrierPhaseRoute {
   readonly phaseId: string;
   readonly color: string;
   readonly cameraStrength: number;
   readonly firstCannonSide: ClawcarrierSide;
-  readonly firstSweepSide: ClawcarrierSide;
-  readonly gapDirection: ClawcarrierGapDirection;
+  readonly burstProjectileCount: number;
+  readonly burstShotIntervalFrames: number;
+  readonly channelWidthPixels: number;
+  readonly channelSweepRangeRatio: number;
+  readonly channelSweepPasses: number;
+  readonly channelShotIntervalFrames: number;
+  readonly channelProjectileSpeedScale: number;
+  readonly channelBaseSequence: number;
   readonly reactorSequences: readonly [number, number, number, number];
   readonly crushSequence: number;
 }
@@ -993,30 +1129,6 @@ interface ClawcarrierPhaseRoute {
 const oppositeClawcarrierSide = (side: ClawcarrierSide): ClawcarrierSide => (
   side === 'port' ? 'starboard' : 'port'
 );
-
-const buildClawcarrierSweepBeats = (
-  route: ClawcarrierPhaseRoute
-): readonly BossAttackBeatBlueprint[] => {
-  const sweepSides: readonly ClawcarrierSide[] = [
-    route.firstSweepSide,
-    oppositeClawcarrierSide(route.firstSweepSide)
-  ];
-  return [
-    ...sweepSides.map<BossAttackBeatBlueprint>((side, index) => ({
-      id: `${side === 'port' ? 'p' : 's'}-clamp`,
-      label: `${side === 'port' ? 'Port' : 'Starboard'} corner clamp`,
-      primitiveId: 'articulated-melee-sweep',
-      offsetSeconds: index * 2.05,
-      telegraphStyle: 'warning',
-      leadSeconds: 0.86,
-      actionDurationSeconds: 0.96,
-      parameters: {
-        side,
-        motionCue: 'claw-sweep'
-      }
-    }))
-  ];
-};
 
 const buildClawcarrierPhase = (
   route: ClawcarrierPhaseRoute
@@ -1027,12 +1139,12 @@ const buildClawcarrierPhase = (
   attacks: [
     {
       id: 'twin-rotary-crossfire',
-      label: 'Twin Rotary Crossfire',
+      label: 'Rapid Machine-Gun Bursts',
       phaseId: route.phaseId,
       role: 'core',
       skillTest: 'rhythm-dodge',
-      recognitionCue: 'The port rotary spins first, the starboard answers, then both housings brace together.',
-      solution: 'Dodge the first short burst, cross behind the delayed answer, then hold the center gap through the coordinated volley.',
+      recognitionCue: 'One rotary spools into a rapid burst, the opposite gun answers a moment later, then both finish together.',
+      solution: 'Read the first muzzle, make one controlled dodge through the reply, then hold the remaining center opening.',
       safeRouteRule: 'opposite-side-dodge',
       sourceSocketRoles: ['port', 'starboard'],
       startSeconds: 0.2,
@@ -1045,11 +1157,13 @@ const buildClawcarrierPhase = (
           primitiveId: 'paired-cannon-burst',
           offsetSeconds: 0,
           telegraphStyle: 'warning',
-          leadSeconds: 0.68,
-          actionDurationSeconds: 0.38,
+          leadSeconds: 0.48,
+          actionDurationSeconds: 0.46,
           parameters: {
-            projectileCount: 3,
+            projectileCount: route.burstProjectileCount,
             side: route.firstCannonSide,
+            shotIntervalFrames: route.burstShotIntervalFrames,
+            projectileSpeedScale: 1,
             motionCue: 'paired-crossfire'
           }
         },
@@ -1057,13 +1171,15 @@ const buildClawcarrierPhase = (
           id: 'reply',
           label: `${oppositeClawcarrierSide(route.firstCannonSide) === 'port' ? 'Port' : 'Starboard'} rotary answer`,
           primitiveId: 'paired-cannon-burst',
-          offsetSeconds: 1.7,
+          offsetSeconds: 1.05,
           telegraphStyle: 'warning',
-          leadSeconds: 0.68,
-          actionDurationSeconds: 0.38,
+          leadSeconds: 0.48,
+          actionDurationSeconds: 0.46,
           parameters: {
-            projectileCount: 3,
+            projectileCount: route.burstProjectileCount,
             side: oppositeClawcarrierSide(route.firstCannonSide),
+            shotIntervalFrames: route.burstShotIntervalFrames,
+            projectileSpeedScale: 1,
             motionCue: 'paired-crossfire'
           }
         },
@@ -1071,32 +1187,55 @@ const buildClawcarrierPhase = (
           id: 'twin-volley',
           label: 'Coordinated rotary crossfire',
           primitiveId: 'paired-cannon-burst',
-          offsetSeconds: 3.4,
+          offsetSeconds: 2.1,
           telegraphStyle: 'warning',
-          leadSeconds: 0.8,
-          actionDurationSeconds: 0.62,
+          leadSeconds: 0.56,
+          actionDurationSeconds: 0.64,
           parameters: {
-            projectileCount: 4,
+            projectileCount: route.burstProjectileCount + 1,
             sequence: route.crushSequence,
+            shotIntervalFrames: route.burstShotIntervalFrames,
+            projectileSpeedScale: 1,
             motionCue: 'paired-crossfire'
           }
         }
       ]
     },
     {
-      id: 'claw-sweep-pincer',
-      label: 'Claw Sweep Pincer',
+      id: 'machinegun-channel',
+      label: 'Moving Machine-Gun Channel',
       phaseId: route.phaseId,
-      role: 'core',
-      skillTest: 'lane-routing',
-      recognitionCue: 'One shoulder opens as Helios travels to a lower corner, tracks briefly, locks, and closes its connected claw before the opposite corner answers.',
-      solution: 'Cross away during the visible travel, leave the tracked corner before lock, and pass outside the closing claw tip. A destroyed claw changes the route; losing both claws triggers rotary fallback fire.',
+      role: 'signature',
+      skillTest: 'gap-tracking',
+      recognitionCue: 'Both mounted rotaries spool together as Helios braces high and begins a smooth horizontal sweep.',
+      solution: 'Enter the opening between the two downward streams and follow its predictable horizontal movement until both guns settle.',
       safeRouteRule: 'shifting-channel',
       sourceSocketRoles: ['port', 'starboard'],
-      startSeconds: 6,
-      recoverySeconds: 0.8,
+      startSeconds: 15.15,
+      recoverySeconds: 1,
       color: route.color,
-      beats: buildClawcarrierSweepBeats(route)
+      beats: [
+        {
+          id: 'moving-channel',
+          label: 'Synchronized moving channel',
+          primitiveId: 'paired-cannon-burst',
+          offsetSeconds: 0,
+          telegraphStyle: 'warning',
+          leadSeconds: 0.75,
+          actionDurationSeconds: 1.7,
+          parameters: {
+            projectileCount: 24,
+            sequence: route.channelBaseSequence,
+            motionCue: 'machinegun-channel',
+            shotIntervalFrames: route.channelShotIntervalFrames,
+            projectileSpeedScale: route.channelProjectileSpeedScale,
+            channelWidthPixels: route.channelWidthPixels,
+            sweepRangeRatio: route.channelSweepRangeRatio,
+            sweepPasses: route.channelSweepPasses
+          },
+          repeat: { count: 4, intervalSeconds: 1.7 }
+        }
+      ]
     },
     {
       id: 'reactor-maze',
@@ -1108,17 +1247,17 @@ const buildClawcarrierPhase = (
       solution: 'Read the fan order, cross its widening lanes between beats, then route around armed mines before their proximity explosions become active.',
       safeRouteRule: 'shifting-channel',
       sourceSocketRoles: ['core'],
-      startSeconds: 11.7,
-      recoverySeconds: 0.9,
+      startSeconds: 4.6,
+      recoverySeconds: 0.8,
       color: route.color,
       beats: route.reactorSequences.map((sequence, index) => ({
         id: index === 2 ? 'mines' : `fan-${index + 1}`,
         label: index === 2 ? 'Reactor mine deployment' : `Reactor fan beat ${index + 1}`,
         primitiveId: 'reactor-aperture-pattern' as const,
-        offsetSeconds: index * 1.35,
+        offsetSeconds: index * 1.28,
         telegraphStyle: 'warning' as const,
-        leadSeconds: index === 2 ? 0.82 : 0.62,
-        actionDurationSeconds: index === 2 ? 0.72 : 0.78,
+        leadSeconds: index === 2 ? 0.72 : 0.58,
+        actionDurationSeconds: index === 2 ? 0.76 : 0.7,
         parameters: {
           projectileCount: index === 2 ? 3 : 7 + (index % 3),
           sequence,
@@ -1130,14 +1269,14 @@ const buildClawcarrierPhase = (
       id: 'clawcarrier-crush',
       label: 'Clawcarrier Crush',
       phaseId: route.phaseId,
-      role: 'signature',
+      role: 'core',
       skillTest: 'route-combination',
       recognitionCue: 'The carrier rises, opens both claws, follows the player briefly, then freezes before committing to the locked dive.',
       solution: 'Bait the short tracking stage, leave the locked area before the dive, and stay outside the visibly closed claw tips until they release.',
       safeRouteRule: 'channel-to-quadrant',
       sourceSocketRoles: ['port', 'starboard'],
-      startSeconds: 18.2,
-      recoverySeconds: 0.9,
+      startSeconds: 10.65,
+      recoverySeconds: 0.8,
       color: route.color,
       beats: [
         {
@@ -1152,7 +1291,7 @@ const buildClawcarrierPhase = (
             sequence: route.crushSequence,
             motionCue: 'pincer-dive'
           },
-          repeat: { count: 4, intervalSeconds: 0.9 }
+          repeat: { count: 4, intervalSeconds: 0.86 }
         }
       ]
     }
@@ -1160,7 +1299,7 @@ const buildClawcarrierPhase = (
 });
 
 const clawcarrierTimeline = compileBossAttackTimeline({
-  durationSeconds: 23.5,
+  durationSeconds: 24.9,
   loop: true,
   phases: [
     buildClawcarrierPhase({
@@ -1168,8 +1307,14 @@ const clawcarrierTimeline = compileBossAttackTimeline({
       color: '#f59e0b',
       cameraStrength: 0.65,
       firstCannonSide: 'port',
-      firstSweepSide: 'port',
-      gapDirection: 'clockwise',
+      burstProjectileCount: 5,
+      burstShotIntervalFrames: 3,
+      channelWidthPixels: 160,
+      channelSweepRangeRatio: 0.36,
+      channelSweepPasses: 2,
+      channelShotIntervalFrames: 2,
+      channelProjectileSpeedScale: 0.92,
+      channelBaseSequence: 0,
       reactorSequences: [0, 1, 2, 3],
       crushSequence: 0
     }),
@@ -1178,8 +1323,14 @@ const clawcarrierTimeline = compileBossAttackTimeline({
       color: '#22d3ee',
       cameraStrength: 0.9,
       firstCannonSide: 'starboard',
-      firstSweepSide: 'starboard',
-      gapDirection: 'counterclockwise',
+      burstProjectileCount: 5,
+      burstShotIntervalFrames: 3,
+      channelWidthPixels: 160,
+      channelSweepRangeRatio: 0.42,
+      channelSweepPasses: 2,
+      channelShotIntervalFrames: 2,
+      channelProjectileSpeedScale: 0.98,
+      channelBaseSequence: 4,
       reactorSequences: [5, 4, 3, 2],
       crushSequence: 4
     }),
@@ -1188,8 +1339,14 @@ const clawcarrierTimeline = compileBossAttackTimeline({
       color: '#ef4444',
       cameraStrength: 1.15,
       firstCannonSide: 'port',
-      firstSweepSide: 'starboard',
-      gapDirection: 'clockwise',
+      burstProjectileCount: 6,
+      burstShotIntervalFrames: 2,
+      channelWidthPixels: 160,
+      channelSweepRangeRatio: 0.46,
+      channelSweepPasses: 2,
+      channelShotIntervalFrames: 2,
+      channelProjectileSpeedScale: 1.04,
+      channelBaseSequence: 8,
       reactorSequences: [2, 4, 1, 3],
       crushSequence: 8
     })
@@ -2727,44 +2884,37 @@ const definitions = deepFreeze([
   {
     id: 'prism-moth-brood',
     label: 'Prism Moth Broodkeeper',
-    shortLabel: 'Prism Moth summoner',
-    description: 'A Prism Moth sprite-archetype composition that exposes rig components, layers original projectile phrases, and summons warned Peer Review Bulwark formations.',
+    shortLabel: 'Living prismatic formation keeper',
+    description: 'A cohesive crystalline moth that teaches wingbeat rhythm, visibly hatches its own brood, performs graceful swoops, and commands a moving Kaleidoscope corridor.',
     designIntent: [
-      'Prism Moth sprite archetype supplies the articulated visual identity',
-      'Existing open-orbit component sockets provide authored weak points',
-      'Every brick formation receives a distinct warning window',
-      'Summons punctuate rather than replace the boss attack composition'
+      'Every damaging beat originates from a live wing, brood pod, or prism-core socket',
+      'Cocoon activation and wing posture replace playfield warning text',
+      'Deterministic brood formations preserve one readable moving route',
+      'Prism Metamorphosis remixes taught rules without copying Helios choreography'
     ],
     boss: gatekeeperBoss({
       id: 'sandbox-prism-moth-brood',
       label: 'Prism Moth Broodkeeper',
       rigId: 'open-orbit',
       spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH',
-      health: 1_050,
+      health: 1_150,
       shieldCount: 0,
+      sizeMultiplier: 1.05,
       phases: [
         {
-          id: mothOpening,
-          label: 'Wing articulation',
+          id: mothNursery,
+          label: 'Crystal Nursery',
           triggerHealthRatio: 1,
           movementPatternId: 'arena-roam',
-          speedMultiplier: 0.9,
+          speedMultiplier: 0.82,
           weaponSettingIds: ['sandbox-prism-moth-brood-burst', 'sandbox-prism-moth-brood-beam']
         },
         {
-          id: mothBrood,
-          label: 'Brood lattice',
-          triggerHealthRatio: 0.62,
+          id: mothMetamorphosis,
+          label: 'Prism Metamorphosis',
+          triggerHealthRatio: 0.48,
           movementPatternId: 'gatekeeper-cycle',
-          speedMultiplier: 1.1,
-          weaponSettingIds: ['sandbox-prism-moth-brood-burst', 'sandbox-prism-moth-brood-beam']
-        },
-        {
-          id: mothRage,
-          label: 'Prismatic molt',
-          triggerHealthRatio: 0.28,
-          movementPatternId: 'arena-roam',
-          speedMultiplier: 1.35,
+          speedMultiplier: 1.04,
           weaponSettingIds: ['sandbox-prism-moth-brood-burst', 'sandbox-prism-moth-brood-beam']
         }
       ],
@@ -2877,10 +3027,10 @@ const definitions = deepFreeze([
     description: 'A slow solar siege carrier whose braced claw banks, visibly spinning rotary guns, and opening reactor teach four connected dodge puzzles instead of relying on a raw speed check.',
     designIntent: [
       'Every tracer, ring, mine, and melee hit belongs to a visible rotary muzzle, reactor, or moving claw tip',
-      'Twin Rotary Crossfire spins and recoils one cannon, answers from the other, then coordinates both around a readable lane',
-      'Claw Sweep Pincer opens, strikes one connected claw at a time, then closes both with collision following the visible tips',
-      'Reactor Maze opens the armor and advances four incomplete rings before deliberately deploying animated mines',
-      'Clawcarrier Crush rises, tracks, locks, dives, closes, holds, releases, and returns without a targeting line'
+      'Rapid Machine-Gun Bursts teach sequential tracer pressure from live mounted muzzles',
+      'Moving Machine-Gun Channel turns both learned guns into a long synchronized route-following signature',
+      'Reactor Maze opens the armor and combines incomplete rings with bounded seeded two-dimensional mine fields',
+      'Clawcarrier Crush remains the sole physical clamp: rise, track, lock, dive, close, hold, release, and return'
     ],
     boss: gatekeeperBoss({
       id: 'sandbox-helios-clawcarrier',

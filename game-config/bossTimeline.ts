@@ -97,7 +97,17 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
     'Fire a bounded port, starboard, or coordinated rotary-cannon answer from registered visible muzzles.',
     true,
     true,
-    ['projectileCount', 'side', 'sequence', 'motionCue']
+    [
+      'projectileCount',
+      'side',
+      'sequence',
+      'motionCue',
+      'shotIntervalFrames',
+      'projectileSpeedScale',
+      'channelWidthPixels',
+      'sweepRangeRatio',
+      'sweepPasses'
+    ]
   ),
   'articulated-melee-sweep': primitive(
     'articulated-melee-sweep',
@@ -126,6 +136,77 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
     true,
     ['sequence', 'motionCue']
   ),
+  'prism-wingbeat-weave': primitive(
+    'prism-wingbeat-weave',
+    'Prism wingbeat weave',
+    'attack',
+    'Release a bounded sequence of crystal-feather fans from live left and right wing-edge sockets.',
+    true,
+    true,
+    [
+      'projectileCount',
+      'sequence',
+      'motionCue',
+      'shotIntervalFrames',
+      'projectileSpeedScale',
+      'channelWidthPixels',
+      'sweepRangeRatio',
+      'sweepPasses'
+    ]
+  ),
+  'prism-brood-procession': primitive(
+    'prism-brood-procession',
+    'Prism brood procession',
+    'summon',
+    'Deploy, arm, hatch, and route a bounded deterministic procession of Prism broodlings.',
+    true,
+    true,
+    [
+      'projectileCount',
+      'sequence',
+      'motionCue',
+      'shotIntervalFrames',
+      'projectileSpeedScale',
+      'channelWidthPixels',
+      'sweepRangeRatio',
+      'sweepPasses'
+    ]
+  ),
+  'prism-lunar-swoop': primitive(
+    'prism-lunar-swoop',
+    'Lunar prism swoop',
+    'movement',
+    'Fly a bounded curved or diagonal body pass after an anatomy-led edge telegraph.',
+    true,
+    true,
+    [
+      'sequence',
+      'motionCue',
+      'projectileCount',
+      'projectileSpeedScale',
+      'sweepRangeRatio',
+      'sweepPasses'
+    ]
+  ),
+  'prism-kaleidoscope-brood': primitive(
+    'prism-kaleidoscope-brood',
+    'Kaleidoscope brood',
+    'summon',
+    'Coordinate wing illumination, prism-core charge, cocoons, and broodlings into a moving safe corridor.',
+    true,
+    true,
+    [
+      'projectileCount',
+      'sequence',
+      'motionCue',
+      'pulseIntervalSeconds',
+      'shotIntervalFrames',
+      'projectileSpeedScale',
+      'channelWidthPixels',
+      'sweepRangeRatio',
+      'sweepPasses'
+    ]
+  ),
   'cross-beam': primitive('cross-beam', 'Cross beam', 'laser', 'Telegraph or fire the existing cross-beam presentation.', true, true),
   'rail-sweep': primitive('rail-sweep', 'Rail sweep', 'laser', 'Telegraph or fire a sweeping rail lane.', true, true, ['sequence']),
   'tail-fan': primitive('tail-fan', 'Tail fan', 'attack', 'Fire the registered tail-fan projectile pattern.', true, true, ['projectileCount', 'sequence']),
@@ -140,7 +221,15 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
   'set-weak-point': primitive('set-weak-point', 'Set weak point', 'defense', 'Enable or disable a registered boss component weak point.', false, false, ['componentId', 'enabled']),
   'set-movement': primitive('set-movement', 'Set movement', 'movement', 'Change movement pattern and phase speed multiplier.', false, false, ['movementPatternId', 'speedMultiplier']),
   'follow-path': primitive('follow-path', 'Follow path', 'movement', 'Traverse one allowlisted normalized movement path for the clip duration.', false, false, ['movementPathId']),
-  'effect-cue': primitive('effect-cue', 'Effect cue', 'presentation', 'Play a safe existing effect cue.', false, false, ['color']),
+  'effect-cue': primitive(
+    'effect-cue',
+    'Effect cue',
+    'presentation',
+    'Play a safe existing effect cue.',
+    false,
+    false,
+    ['color', 'motionCue']
+  ),
   'camera-cue': primitive('camera-cue', 'Camera cue', 'presentation', 'Apply bounded screen shake for emphasis.', false, false, ['strength'])
 });
 

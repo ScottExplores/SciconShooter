@@ -54,6 +54,12 @@ import {
 import { getBossSandboxIntegrityAssets } from './bossSandboxArtworkAssets';
 import { BossFactoryDebugPanel } from './BossFactoryDebugPanel';
 import { BossHealthTuningPanel } from './BossHealthTuningPanel';
+import { PrismMothAttackTuningPanel } from './PrismMothAttackTuningPanel';
+import {
+  DEFAULT_PRISM_MOTH_ATTACK_TUNING,
+  applyPrismMothAttackTuningToTimeline,
+  type PrismMothAttackTuning
+} from './prismMothAttackTuning';
 import './boss-sandbox.css';
 
 const PREVIEW_SEED = 'scicon-simple-boss-sandbox';
@@ -204,6 +210,8 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   const [previewMountToken, setPreviewMountToken] = useState(0);
   const [previewCanvasStatus, setPreviewCanvasStatus] =
     useState<PreviewCanvasStatus>('loading');
+  const [prismMothAttackTuning, setPrismMothAttackTuning] =
+    useState<Readonly<PrismMothAttackTuning>>(DEFAULT_PRISM_MOTH_ATTACK_TUNING);
   const [notice, setNotice] = useState('Ready');
   const commandNonce = useRef(0);
   const previewHostRef = useRef<HTMLDivElement>(null);
@@ -215,8 +223,56 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     : null;
   const preview = useMemo(() => {
     if (!selectedChoice) return null;
-    return buildBossSandboxPreview(initialState.campaign, selectedChoice);
-  }, [initialState.campaign, selectedChoice]);
+    const basePreview = buildBossSandboxPreview(initialState.campaign, selectedChoice);
+    if (selectedChoice.prototypeId !== 'prism-moth-brood') return basePreview;
+
+    const sourceBoss = basePreview.previewWave.events.find((event) => (
+      event.kind === 'boss' && event.id === basePreview.eventId
+    ));
+    if (!sourceBoss || sourceBoss.kind !== 'boss' || !sourceBoss.timeline) {
+      return basePreview;
+    }
+
+    const tunedTimeline = applyPrismMothAttackTuningToTimeline(
+      sourceBoss.timeline,
+      prismMothAttackTuning
+    );
+    const tuneEvents = (events: typeof basePreview.previewWave.events) => (
+      events.map((event) => (
+        event.kind === 'boss' && event.id === basePreview.eventId
+          ? { ...event, timeline: tunedTimeline }
+          : event
+      ))
+    );
+    const previewWave = {
+      ...basePreview.previewWave,
+      events: tuneEvents(basePreview.previewWave.events)
+    };
+    const campaign = {
+      ...basePreview.campaign,
+      levels: basePreview.campaign.levels.map((level) => (
+        level.id !== basePreview.levelId
+          ? level
+          : {
+            ...level,
+            waves: level.waves.map((wave) => (
+              wave.id === basePreview.waveId
+                ? { ...wave, events: tuneEvents(wave.events) }
+                : wave
+            ))
+          }
+      ))
+    };
+    return {
+      ...basePreview,
+      campaign,
+      previewWave
+    };
+  }, [
+    initialState.campaign,
+    prismMothAttackTuning,
+    selectedChoice
+  ]);
   const artworkRegistration = getSandboxBossArtworkRegistration(selectedChoice?.prototypeId);
 
   useEffect(() => {
@@ -970,6 +1026,28 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
             onBossInvincibilityChange={changeBossHullInvincibility}
             onComponentInvincibilityChange={changeBossComponentInvincibility}
           />
+          {selectedChoice.prototypeId === 'prism-moth-brood' ? (
+            <details className="boss-sandbox__prism-tuning">
+              <summary>Prism attack tuning</summary>
+              <p>Changes rebuild this isolated test fight. Mobile-safe limits stay enforced.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setPrismMothAttackTuning(DEFAULT_PRISM_MOTH_ATTACK_TUNING);
+                  setNotice('Prism attack tuning reset to its validated defaults');
+                }}
+              >
+                Reset Prism tuning
+              </button>
+              <PrismMothAttackTuningPanel
+                value={prismMothAttackTuning}
+                onChange={(value) => {
+                  setPrismMothAttackTuning(value);
+                  setNotice('Prism attack tuning applied to the isolated preview');
+                }}
+              />
+            </details>
+          ) : null}
           <p className="boss-sandbox__notice" role="status">{notice}</p>
         </aside>
       </main>

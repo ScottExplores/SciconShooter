@@ -74,6 +74,17 @@ const primitiveDefaults = (
       return { projectileCount: 8, handedness: 'left' };
     case 'side-barrage':
       return { projectileCount: 6, side: 'port', motionCue: 'heavy-cannon' };
+    case 'paired-cannon-burst':
+      return {
+        projectileCount: 6,
+        sequence: 0,
+        motionCue: 'paired-crossfire',
+        shotIntervalFrames: 3,
+        projectileSpeedScale: 1,
+        channelWidthPixels: 116,
+        sweepRangeRatio: 0.34,
+        sweepPasses: 1
+      };
     case 'summon-formation':
       return {
         summonCount: 4,
@@ -610,7 +621,7 @@ export function BossTimelineEditor({ boss, onChange }: BossTimelineEditorProps) 
             </div>
           ) : null}
 
-          {['aimed-burst', 'gap-ring', 'rotor-hazard-sentence', 'tail-fan', 'inward-collapse', 'rotating-cross', 'helix-volley', 'side-barrage', 'pod-volley', 'weave-wall'].includes(selectedClip.primitiveId) ? (
+          {['aimed-burst', 'gap-ring', 'rotor-hazard-sentence', 'paired-cannon-burst', 'tail-fan', 'inward-collapse', 'rotating-cross', 'helix-volley', 'side-barrage', 'pod-volley', 'weave-wall'].includes(selectedClip.primitiveId) ? (
             <NumberInput
               label="Projectile / beam count"
               value={selectedClip.parameters?.projectileCount ?? 6}
@@ -622,7 +633,7 @@ export function BossTimelineEditor({ boss, onChange }: BossTimelineEditorProps) 
               })}
             />
           ) : null}
-          {['gap-ring', 'rotor-hazard-sentence', 'radial-beam-array', 'rail-sweep', 'tail-fan', 'inward-collapse', 'rotating-cross', 'helix-volley', 'pod-volley', 'weave-wall'].includes(selectedClip.primitiveId) ? (
+          {['gap-ring', 'rotor-hazard-sentence', 'radial-beam-array', 'paired-cannon-burst', 'rail-sweep', 'tail-fan', 'inward-collapse', 'rotating-cross', 'helix-volley', 'pod-volley', 'weave-wall'].includes(selectedClip.primitiveId) ? (
             <NumberInput
               label="Sequence variant"
               value={selectedClip.parameters?.sequence ?? 0}
@@ -645,6 +656,80 @@ export function BossTimelineEditor({ boss, onChange }: BossTimelineEditorProps) 
                 pulseIntervalSeconds: clamp(pulseIntervalSeconds, 0.5, 2)
               })}
             />
+          ) : null}
+          {selectedClip.primitiveId === 'paired-cannon-burst' ? (
+            <>
+              <label className="le-field">
+                <span>Weapon motion</span>
+                <select
+                  value={selectedClip.parameters?.motionCue ?? 'paired-crossfire'}
+                  onChange={(event) => updateParameters({
+                    motionCue: event.target.value as BossTimelineMotionCue
+                  })}
+                >
+                  <option value="paired-crossfire">Paired crossfire</option>
+                  <option value="machinegun-channel">Moving machine-gun channel</option>
+                </select>
+              </label>
+              <NumberInput
+                label="Shot cadence (frames)"
+                value={selectedClip.parameters?.shotIntervalFrames ?? 3}
+                min={2}
+                max={12}
+                step={1}
+                onChange={(shotIntervalFrames) => updateParameters({
+                  shotIntervalFrames: Math.round(clamp(shotIntervalFrames, 2, 12))
+                })}
+              />
+              <NumberInput
+                label="Projectile speed"
+                value={selectedClip.parameters?.projectileSpeedScale ?? 1}
+                min={0.5}
+                max={2}
+                step={0.05}
+                onChange={(projectileSpeedScale) => updateParameters({
+                  projectileSpeedScale: clamp(projectileSpeedScale, 0.5, 2)
+                })}
+              />
+              {selectedClip.parameters?.motionCue === 'machinegun-channel' ? (
+                <>
+                  <NumberInput
+                    label="Safe channel width"
+                    value={selectedClip.parameters?.channelWidthPixels ?? 116}
+                    min={72}
+                    max={320}
+                    step={2}
+                    onChange={(channelWidthPixels) => updateParameters({
+                      channelWidthPixels: clamp(channelWidthPixels, 72, 320)
+                    })}
+                  />
+                  <NumberInput
+                    label="Boss sweep range"
+                    value={selectedClip.parameters?.sweepRangeRatio ?? 0.34}
+                    min={0.1}
+                    max={0.8}
+                    step={0.01}
+                    onChange={(sweepRangeRatio) => updateParameters({
+                      sweepRangeRatio: clamp(sweepRangeRatio, 0.1, 0.8)
+                    })}
+                  />
+                  <NumberInput
+                    label="Sweep passes"
+                    value={selectedClip.parameters?.sweepPasses ?? 1}
+                    min={1}
+                    max={3}
+                    step={1}
+                    onChange={(sweepPasses) => updateParameters({
+                      sweepPasses: Math.round(clamp(sweepPasses, 1, 3))
+                    })}
+                  />
+                  <small>
+                    Sweep speed is the selected range divided by this clip&apos;s duration.
+                    Telegraph and recovery timing remain editable on their own clips.
+                  </small>
+                </>
+              ) : null}
+            </>
           ) : null}
           {selectedClip.primitiveId === 'radial-beam-array' ? (
             <label className="le-field">

@@ -225,6 +225,58 @@ test('sustained rotor presentation preserves bounded authored cadence and pixel 
   assert.doesNotMatch(projectileRuntime.source, /Math\.random|Date\.|performance\./);
 });
 
+test('paired-cannon presentation preserves all moving-channel tuning parameters', () => {
+  const actionRuntime = loadTypeScriptModule(
+    path.join('services', 'gameplay', 'bosses', 'BossActionPresentationRuntime.ts')
+  ).exports;
+  const sourceClip = {
+    id: 'helios-channel',
+    label: 'Moving machine-gun channel',
+    track: 'attack',
+    primitiveId: 'paired-cannon-burst',
+    trigger: 'time',
+    startSeconds: 1,
+    durationSeconds: 1.35,
+    parameters: {
+      sequence: 4,
+      projectileCount: 24,
+      motionCue: 'machinegun-channel',
+      shotIntervalFrames: 2,
+      projectileSpeedScale: 1.04,
+      channelWidthPixels: 104,
+      sweepRangeRatio: 0.36,
+      sweepPasses: 2
+    }
+  };
+  const state = actionRuntime.createBossActionPresentationState({
+    cueClip: sourceClip,
+    sourceClip,
+    stage: 'fire',
+    attackFrame: 120,
+    executionIndex: 0,
+    framesPerSecond: 60
+  });
+
+  assert.deepEqual(
+    {
+      motionCue: state.motionCue,
+      shotIntervalFrames: state.shotIntervalFrames,
+      projectileSpeedScale: state.projectileSpeedScale,
+      channelWidthPixels: state.channelWidthPixels,
+      sweepRangeRatio: state.sweepRangeRatio,
+      sweepPasses: state.sweepPasses
+    },
+    {
+      motionCue: 'machinegun-channel',
+      shotIntervalFrames: 2,
+      projectileSpeedScale: 1.04,
+      channelWidthPixels: 104,
+      sweepRangeRatio: 0.36,
+      sweepPasses: 2
+    }
+  );
+});
+
 test('engine tags sprite pods and generated boss projectiles with deterministic ownership', () => {
   const source = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 

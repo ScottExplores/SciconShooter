@@ -154,11 +154,18 @@ const sandboxMasks = [
   'twin-halo-wardens',
   'riftcoil-wyrm',
   'nullwake-revenant',
-  'gloamforge-mantis'
+  'gloamforge-mantis',
+  'prism-moth-brood'
 ].map((key) => ({
   key,
   source: key === 'gloamforge-mantis'
     ? path.join(sandboxDirectory, 'gloamforge-mantis', 'gloamforge-mantis-neutral.png')
+    : key === 'prism-moth-brood'
+      ? path.join(
+        sandboxDirectory,
+        'prism-moth-broodkeeper',
+        'prism-moth-broodkeeper-neutral.png'
+      )
     : key === 'helios-clawcarrier'
       ? path.join(
         sandboxDirectory,

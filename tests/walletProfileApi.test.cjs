@@ -7,6 +7,7 @@ process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
 
 const { getWeeklyBoundaryMeta } = require('../shared/weeklyCompetitionBoundary');
+const campaign = require('../game-config/campaign.json');
 const signaturesPath = require.resolve('../api/_lib/baseSignatures');
 const routePath = require.resolve('../api/_lib/walletProfileRoute');
 const signatures = require(signaturesPath);
@@ -16,6 +17,15 @@ delete require.cache[routePath];
 const walletProfileHandler = require(routePath);
 
 const WALLET = '0x3333333333333333333333333333333333333333';
+const CAMPAIGN_LEVELS = campaign.levels.slice().sort((left, right) => left.order - right.order);
+const FIRST_MISSION = CAMPAIGN_LEVELS[0];
+const SECOND_MISSION = CAMPAIGN_LEVELS[1];
+const FIRST_WAVE = FIRST_MISSION.waves.slice().sort((left, right) => left.order - right.order)[0];
+const SECOND_MISSION_WAVE = SECOND_MISSION.waves
+  .slice()
+  .sort((left, right) => left.order - right.order)[0];
+const CAMPAIGN_REWARD_ID = `campaign:${FIRST_MISSION.id}:first-clear`;
+const CAMPAIGN_RESULT_ID = 'wallet-api-campaign-result';
 
 const jsonResponse = (data, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -129,6 +139,15 @@ test('challenge authentication creates a secure session and profile saves use re
   assert.ok(challenges.get(challengeResponse.body.challengeId).used_at);
 
   const cookie = cookiePair(authResponse.headers['Set-Cookie']);
+  const emptyProfileSessionResponse = makeResponse();
+  await walletProfileHandler(
+    makeRequest('GET', null, cookie),
+    emptyProfileSessionResponse
+  );
+  assert.equal(emptyProfileSessionResponse.statusCode, 200);
+  assert.equal(emptyProfileSessionResponse.body.walletAddress, WALLET);
+  assert.equal(emptyProfileSessionResponse.body.profile, null);
+
   const currentWeek = getWeeklyBoundaryMeta().weekKey;
   const spoofedSaveResponse = makeResponse();
   const originalConsoleError = console.error;
@@ -173,7 +192,8 @@ test('challenge authentication creates a secure session and profile saves use re
         ownedMiniShips: { 'citation-dart': 1 },
         equipped: { left: 'citation-dart', right: null },
         shipUpgrades: {},
-        weeklyStats: {}
+        weeklyStats: {},
+        creditedCampaignRewardIds: [CAMPAIGN_REWARD_ID, 'not-a-campaign-reward']
       },
       permanentState: {
         profileId: 'pilot:wrong',
@@ -183,6 +203,44 @@ test('challenge authentication creates a secure session and profile saves use re
         bossArchive: {
           unlockedEventIds: ['open-orbit-gatekeeper'],
           seenEventIds: ['open-orbit-gatekeeper']
+        },
+        campaignProgress: {
+          campaignId: campaign.id,
+          campaignRevision: campaign.revision,
+          recommendedMissionId: SECOND_MISSION.id,
+          recommendedWaveId: SECOND_MISSION_WAVE.id,
+          unlockedMissionIds: [FIRST_MISSION.id, SECOND_MISSION.id],
+          unlockedWaveIdsByMission: {
+            [FIRST_MISSION.id]: [FIRST_WAVE.id],
+            [SECOND_MISSION.id]: [SECOND_MISSION_WAVE.id]
+          },
+          missionRecords: {
+            [FIRST_MISSION.id]: {
+              completedWaveIds: [FIRST_WAVE.id],
+              bestScore: 777
+            }
+          },
+          claimedRewardIds: [CAMPAIGN_REWARD_ID],
+          processedResultIds: [CAMPAIGN_RESULT_ID],
+          completionRecords: [
+            {
+              resultId: CAMPAIGN_RESULT_ID,
+              playerId: `wallet:${WALLET}`,
+              campaignId: campaign.id,
+              campaignRevision: campaign.revision,
+              missionId: FIRST_MISSION.id,
+              waveId: FIRST_WAVE.id,
+              completedAt: '2026-07-23T18:00:00.000Z',
+              coinsAwarded: 20
+            },
+            {
+              resultId: 'wallet-api-mismatched-result',
+              missionId: FIRST_MISSION.id,
+              waveId: SECOND_MISSION_WAVE.id
+            }
+          ],
+          unviewedMissionIds: [SECOND_MISSION.id],
+          unviewedRewardIds: [CAMPAIGN_REWARD_ID]
         }
       },
       stats: { playerName: 'SCOTT' },
@@ -197,20 +255,72 @@ test('challenge authentication creates a secure session and profile saves use re
     'mintedMiniShips' in saveResponse.body.profile.snapshot.permanentState,
     false
   );
-  assert.deepEqual(saveResponse.body.profile.snapshot.permanentState.bossArchive, {
-    unlockedEventIds: ['open-orbit-gatekeeper'],
-    seenEventIds: ['open-orbit-gatekeeper']
-  });
+  assert.deepEqual(
+    saveResponse.body.profile.snapshot.permanentState.bossArchive.unlockedEventIds,
+    ['open-orbit-gatekeeper']
+  );
+  assert.deepEqual(
+    saveResponse.body.profile.snapshot.permanentState.bossArchive.seenEventIds,
+    ['open-orbit-gatekeeper']
+  );
+  assert.equal(saveResponse.body.profile.snapshot.permanentState.bossArchive.version, 1);
+  assert.equal(
+    saveResponse.body.profile.snapshot.permanentState.bossArchive.dailyChallenge.successfulClearsUsed,
+    0
+  );
+  assert.deepEqual(
+    saveResponse.body.profile.snapshot.weeklyState.creditedCampaignRewardIds,
+    [CAMPAIGN_REWARD_ID]
+  );
+  const savedCampaign = saveResponse.body.profile.snapshot.permanentState.campaignProgress;
+  assert.equal(savedCampaign.campaignId, campaign.id);
+  assert.equal(savedCampaign.campaignRevision, campaign.revision);
+  assert.equal(savedCampaign.recommendedMissionId, SECOND_MISSION.id);
+  assert.equal(savedCampaign.recommendedWaveId, SECOND_MISSION_WAVE.id);
+  assert.equal(savedCampaign.missionRecords[FIRST_MISSION.id].bestScore, 777);
+  assert.deepEqual(savedCampaign.claimedRewardIds, [CAMPAIGN_REWARD_ID]);
+  assert.deepEqual(savedCampaign.processedResultIds, [CAMPAIGN_RESULT_ID]);
+  assert.deepEqual(
+    savedCampaign.completionRecords.map((record) => record.resultId),
+    [CAMPAIGN_RESULT_ID]
+  );
 
   const getResponse = makeResponse();
   await walletProfileHandler(makeRequest('GET', null, cookie), getResponse);
   assert.equal(getResponse.statusCode, 200);
   assert.equal(getResponse.body.profile.revision, 1);
   assert.equal(getResponse.body.profile.snapshot.stats.playerName, 'SCOTT');
-  assert.deepEqual(getResponse.body.profile.snapshot.permanentState.bossArchive, {
-    unlockedEventIds: ['open-orbit-gatekeeper'],
-    seenEventIds: ['open-orbit-gatekeeper']
-  });
+  assert.deepEqual(
+    getResponse.body.profile.snapshot.permanentState.bossArchive.unlockedEventIds,
+    ['open-orbit-gatekeeper']
+  );
+  assert.deepEqual(
+    getResponse.body.profile.snapshot.permanentState.bossArchive.seenEventIds,
+    ['open-orbit-gatekeeper']
+  );
+  assert.equal(getResponse.body.profile.snapshot.permanentState.bossArchive.version, 1);
+  assert.deepEqual(
+    getResponse.body.profile.snapshot.weeklyState.creditedCampaignRewardIds,
+    [CAMPAIGN_REWARD_ID]
+  );
+  const loadedCampaign = getResponse.body.profile.snapshot.permanentState.campaignProgress;
+  assert.equal(loadedCampaign.recommendedMissionId, SECOND_MISSION.id);
+  assert.equal(loadedCampaign.recommendedWaveId, SECOND_MISSION_WAVE.id);
+  assert.equal(loadedCampaign.missionRecords[FIRST_MISSION.id].bestScore, 777);
+  assert.deepEqual(loadedCampaign.claimedRewardIds, [CAMPAIGN_REWARD_ID]);
+  assert.deepEqual(loadedCampaign.processedResultIds, [CAMPAIGN_RESULT_ID]);
+  assert.deepEqual(
+    loadedCampaign.completionRecords.map((record) => ({
+      resultId: record.resultId,
+      missionId: record.missionId,
+      waveId: record.waveId
+    })),
+    [{
+      resultId: CAMPAIGN_RESULT_ID,
+      missionId: FIRST_MISSION.id,
+      waveId: FIRST_WAVE.id
+    }]
+  );
 
   const conflictResponse = makeResponse();
   console.error = () => {};
@@ -227,4 +337,30 @@ test('challenge authentication creates a secure session and profile saves use re
   assert.equal(conflictResponse.statusCode, 409);
   assert.equal(conflictResponse.body.currentRevision, 1);
   assert.equal(conflictResponse.body.profile.revision, 1);
+});
+
+test('Boss Archive Challenge endpoints reject requests without a wallet-profile session', async () => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    const startResponse = makeResponse();
+    await walletProfileHandler(makeRequest('POST', {
+      action: 'start-boss-challenge',
+      eventId: 'open-orbit-gatekeeper',
+      variantId: 'standard'
+    }), startResponse);
+    assert.equal(startResponse.statusCode, 401);
+
+    const settleResponse = makeResponse();
+    await walletProfileHandler(makeRequest('POST', {
+      action: 'settle-boss-challenge',
+      runToken: 'not-a-run-token',
+      victory: true,
+      clearTimeMs: 10000,
+      damageTaken: 0
+    }), settleResponse);
+    assert.equal(settleResponse.statusCode, 401);
+  } finally {
+    console.error = originalConsoleError;
+  }
 });

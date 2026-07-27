@@ -12,7 +12,10 @@ export const BOSS_MODULAR_PROJECTILE_VISUAL_KINDS = [
   'boss-heavy-shell',
   'boss-gatling-tracer',
   'boss-reactor-pellet',
-  'boss-helios-mine'
+  'boss-helios-mine',
+  'boss-prism-feather',
+  'boss-prism-cocoon',
+  'boss-prism-broodling'
 ] as const;
 
 export type BossModularProjectileVisualKind =

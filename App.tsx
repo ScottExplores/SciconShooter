@@ -47,6 +47,8 @@ import {
   applySquadRunResult,
   awardWeeklySquadCoins,
   buildRuntimeSquadLoadout,
+  commitCampaignSquadSettlement,
+  creditCampaignRewardGrants,
   createFounderSquadSandboxState,
   emitSquadDomainEvent,
   equipMiniShip,
@@ -68,11 +70,28 @@ import {
   type WeeklySquadState
 } from './services/squadProgression';
 import {
+  applyCampaignCompletion,
+  createCampaignProgress,
+  finalizeCampaignCompletionMetrics,
+  getCampaignCheckpointLabel,
+  getCampaignMissionById,
+  getCampaignNotificationCount,
+  isCampaignMissionUnlocked,
+  isCampaignWaveUnlocked,
+  markCampaignMapViewed,
+  resetCampaignStars,
+  setCampaignCheckpoint,
+  unlockAllCampaignMissions,
+  type CampaignCompletionSettlement
+} from './services/campaignProgression';
+import {
   claimAchievement as claimAchievementReward,
+  claimBossArchiveMasteryEconomyReward,
   claimDailyGift as claimDailyGiftReward,
   markBossArchiveViewed,
   recordBossVictory,
   recordLifetimeRun,
+  resolveBossArchiveFightEconomy,
   type AchievementId
 } from './services/rewardProgression';
 import {
@@ -86,13 +105,16 @@ import {
   getSelectedShipStorageKey,
   getWalletProfileId,
   loadAuthenticatedWalletProfile,
-  logoutWalletProfileSession,
   readCachedWalletProfile,
   saveAuthenticatedWalletProfile,
+  settleWalletBossArchiveChallenge,
+  startWalletBossArchiveChallenge,
   WalletProfileRequestError,
+  type WalletBossArchiveChallengeRun,
   type WalletProfileSnapshot
 } from './services/walletProfileService';
 import {
+  discardWalletProfileDirty,
   markWalletProfileDirty,
   readWalletProfileDirty,
   walletProfileSnapshotsEqual
@@ -100,10 +122,20 @@ import {
 import { getStageName } from './services/stagePresentation';
 import { DEFAULT_GAME_CAMPAIGN } from './services/levelConfig';
 import {
+  BOSS_ARCHIVE_CATALOG,
   buildBossReplayCampaign,
   getBossArchiveEntry,
   type BossArchiveEntry
 } from './services/bossArchive';
+import {
+  BOSS_ARCHIVE_MASTERY_OBJECTIVE_IDS,
+  createBossArchiveDeveloperControls,
+  DEFAULT_BOSS_ARCHIVE_DAILY_CHARGE_LIMIT,
+  getBossArchiveDailyChargeStatus,
+  selectBossArchiveEntry,
+  type BossArchiveMasteryObjectiveId,
+  type BossArchiveRunMode
+} from './services/bossArchiveProgression';
 import {
   checkForDeploymentUpdate,
   reloadForDeploymentUpdate
@@ -115,8 +147,14 @@ const loadStoryTransmission = () => import('./components/StoryTransmission');
 const MissionRecordPreview = React.lazy(() => import('./components/MissionRecordPreview'));
 const WeeklyProposalSelection = React.lazy(() => import('./components/WeeklyProposalSelection'));
 const WaveVictoryOverlay = React.lazy(() => import('./components/WaveVictoryOverlay'));
+const CampaignMap = React.lazy(() => import('./components/CampaignMap'));
 const GameStage = React.lazy(loadGameStage);
 const StoryTransmission = React.lazy(loadStoryTransmission);
+import type {
+  CampaignMapDeveloperControls,
+  CampaignMapLaunchRequest,
+  CampaignMapStatus
+} from './components/CampaignMap';
 
 type GameplayPreloadPhase = Exclude<MissionLoadingPhase, 'error' | 'runtime-sync'>;
 type GameplayPreloadListener = (progress: number, phase: GameplayPreloadPhase) => void;
@@ -212,7 +250,35 @@ const preloadGameplayComponents = (listener?: GameplayPreloadListener) => {
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
-type ActiveRunMode = 'standard' | 'owner-test' | 'boss-archive';
+type ActiveRunMode = 'standard' | 'campaign' | 'campaign-replay' | 'owner-test' | 'boss-archive';
+type CampaignResultPresentation = {
+  summaryId: string;
+  settlement: CampaignCompletionSettlement;
+  collectedCoins: number;
+};
+type BossArchiveRunContext = {
+  eventId: string;
+  mode: BossArchiveRunMode;
+  variantId: string;
+  seed: string;
+  resultId: string;
+  serverChallengeRun: WalletBossArchiveChallengeRun | null;
+  serverWalletAddress: string | null;
+};
+type BossArchiveResultPresentation = {
+  eventId: string;
+  outcome: 'victory' | 'defeat';
+  clearTimeMs: number | null;
+  damageTaken: number;
+  noHit: boolean;
+  newPersonalRecord: boolean;
+  rewardCoins: number;
+  chargesRemaining: number;
+  masteryCompletedIds: BossArchiveMasteryObjectiveId[];
+  mode: BossArchiveRunMode;
+  variantId: string;
+  notice?: string;
+};
 type MissionLoadingState = {
   progress: number;
   phase: MissionLoadingPhase;
@@ -229,6 +295,7 @@ type PendingMissionRuntimeLaunch = {
   tip: string;
   squadLoadout: RuntimeSquadLoadout;
   runMode: ActiveRunMode;
+  missionNumber: number;
 };
 
 const OWNER_TEST_FLASK_COUNT = 40;
@@ -383,9 +450,21 @@ const App: React.FC = () => {
   const [continueCommand, setContinueCommand] = useState<{ nonce: number; lives: number } | null>(null);
   const [waveContinueCommand, setWaveContinueCommand] = useState<{ nonce: number } | null>(null);
   const [waveVictorySummary, setWaveVictorySummary] = useState<WaveVictorySummary | null>(null);
+  const [campaignResultPresentation, setCampaignResultPresentation] = useState<CampaignResultPresentation | null>(null);
+  const [campaignMapOpen, setCampaignMapOpen] = useState(false);
+  const [campaignMapStatus, setCampaignMapStatus] = useState<CampaignMapStatus>('ready');
+  const [campaignMapError, setCampaignMapError] = useState('');
+  const [campaignMapFocusMissionId, setCampaignMapFocusMissionId] = useState<string | null>(null);
+  const [campaignMapNewMissionIds, setCampaignMapNewMissionIds] = useState<string[]>([]);
+  const [activeCampaignLaunch, setActiveCampaignLaunch] = useState<CampaignMapLaunchRequest | null>(null);
   const [campaignCompletedRun, setCampaignCompletedRun] = useState(false);
   const [activeRunMode, setActiveRunMode] = useState<ActiveRunMode>('standard');
   const [activeBossEncounterId, setActiveBossEncounterId] = useState<string | null>(null);
+  const [activeBossArchiveRun, setActiveBossArchiveRun] = useState<BossArchiveRunContext | null>(null);
+  const [bossArchiveResult, setBossArchiveResult] = useState<BossArchiveResultPresentation | null>(null);
+  const [bossArchiveDailyLimit, setBossArchiveDailyLimit] = useState(
+    DEFAULT_BOSS_ARCHIVE_DAILY_CHARGE_LIMIT
+  );
   const [testWaveCommand, setTestWaveCommand] = useState<{ nonce: number; wave: number } | null>(null);
   const [testBossCommand, setTestBossCommand] = useState<{ nonce: number; wave: number } | null>(null);
   const [testFlaskCommand, setTestFlaskCommand] = useState<{ nonce: number; charge: number } | null>(null);
@@ -408,6 +487,8 @@ const App: React.FC = () => {
   const weeklyProposalReturnRef = useRef<'results' | 'record'>('results');
   const gameStateRef = useRef<GameState>(GameState.MENU);
   const submittingScoreRef = useRef(false);
+  const bossArchiveDamageTakenRef = useRef(0);
+  const processedBossArchiveResultsRef = useRef(new Set<string>());
   const submittedScoreKeysRef = useRef<Set<string>>(new Set());
   const runSessionPromiseRef = useRef<Promise<RunSession> | null>(null);
   const runStartedAtRef = useRef<number | null>(null);
@@ -417,6 +498,11 @@ const App: React.FC = () => {
   const squadRunAppliedGameIdRef = useRef<number | null>(null);
   const permanentRunAppliedGameIdRef = useRef<number | null>(null);
   const permanentBossAppliedKeysRef = useRef<Set<string>>(new Set());
+  const processedCampaignSummaryKeysRef = useRef<Set<string>>(new Set());
+  const campaignAttemptIdRef = useRef('');
+  const campaignResultPreviewRef = useRef(false);
+  const weeklySquadStateRef = useRef(weeklySquadState);
+  const permanentSquadStateRef = useRef(permanentSquadState);
   const activeRunSquadLoadoutRef = useRef<RuntimeSquadLoadout>(
     buildRuntimeSquadLoadout(weeklySquadState, 'researchhub')
   );
@@ -466,6 +552,14 @@ const App: React.FC = () => {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  useEffect(() => {
+    weeklySquadStateRef.current = weeklySquadState;
+  }, [weeklySquadState]);
+
+  useEffect(() => {
+    permanentSquadStateRef.current = permanentSquadState;
+  }, [permanentSquadState]);
 
   useEffect(() => {
     rewardClaimInFlightRef.current = false;
@@ -576,14 +670,21 @@ const App: React.FC = () => {
   const isOwnerWallet = activeWalletAddress?.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase();
   const isOwnerTestRun = activeRunMode === 'owner-test';
   const isBossArchiveRun = activeRunMode === 'boss-archive';
+  const isCampaignRun = activeRunMode === 'campaign' || activeRunMode === 'campaign-replay';
   const isFounderSandboxRun = isOwnerWallet || isOwnerTestRun;
-  const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun;
+  const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun || isCampaignRun;
   const activeBossReplay = useMemo(() => (
     activeBossEncounterId ? getBossArchiveEntry(activeBossEncounterId) : null
   ), [activeBossEncounterId]);
   const activeBossReplayCampaign = useMemo(() => (
     activeBossEncounterId ? buildBossReplayCampaign(activeBossEncounterId) ?? undefined : undefined
   ), [activeBossEncounterId]);
+  const campaignCheckpoint = useMemo(() => (
+    getCampaignCheckpointLabel(permanentSquadState.campaignProgress)
+  ), [permanentSquadState.campaignProgress]);
+  const campaignNotificationCount = useMemo(() => (
+    getCampaignNotificationCount(permanentSquadState.campaignProgress)
+  ), [permanentSquadState.campaignProgress]);
   const previewPilotName = missionRecordPilotName || playerNameInput || 'PILOT';
   const missionRecordWeeklyFunding = useMemo(() => runReceipt ? getMissionRecordWeeklyFunding({
     receipt: runReceipt,
@@ -620,6 +721,7 @@ const App: React.FC = () => {
   ) => {
     setWeeklySquadState((current) => {
       const next = update(current);
+      if (next !== current) weeklySquadStateRef.current = next;
       if (persist && next !== current) saveWeeklySquadState(next);
       return next;
     });
@@ -630,13 +732,38 @@ const App: React.FC = () => {
   ) => {
     setPermanentSquadState((current) => {
       const next = update(current);
-      if (next !== current) savePermanentSquadState(next);
+      if (next !== current) {
+        permanentSquadStateRef.current = next;
+        savePermanentSquadState(next);
+      }
       return next;
     });
   }, []);
 
-  const handleBossArchiveViewed = useCallback(() => {
-    updatePermanentSquadState(markBossArchiveViewed);
+  const handleBossArchiveViewed = useCallback((eventId: string) => {
+    updatePermanentSquadState((current) => markBossArchiveViewed(current, eventId));
+  }, [updatePermanentSquadState]);
+  const handleBossArchiveSelection = useCallback((eventId: string) => {
+    updatePermanentSquadState((current) => {
+      const nextArchive = selectBossArchiveEntry(current.bossArchive, eventId);
+      return nextArchive === current.bossArchive
+        ? current
+        : { ...current, bossArchive: nextArchive, updatedAt: new Date().toISOString() };
+    });
+  }, [updatePermanentSquadState]);
+  const bossArchiveDeveloperApi = useMemo(
+    () => createBossArchiveDeveloperControls(Boolean(import.meta.env.DEV || isOwnerWallet)),
+    [isOwnerWallet]
+  );
+  const updateBossArchiveProgress = useCallback((
+    update: (current: PermanentSquadState['bossArchive']) => PermanentSquadState['bossArchive']
+  ) => {
+    updatePermanentSquadState((current) => {
+      const bossArchive = update(current.bossArchive);
+      return bossArchive === current.bossArchive
+        ? current
+        : { ...current, bossArchive, updatedAt: new Date().toISOString() };
+    });
   }, [updatePermanentSquadState]);
   const handleUnlockSquadSlot = useCallback((slot: SquadSlotId) => {
     if (isOwnerWallet) return;
@@ -895,6 +1022,7 @@ const App: React.FC = () => {
   }, [gameState, stats.wave]);
 
   const handleRuntimeState = useCallback((runtime: GameRuntimeState) => {
+    bossArchiveDamageTakenRef.current = runtime.damageTaken;
     const nextPosition: PauseMissionPosition = {
       levelNumber: runtime.levelNumber,
       levelName: runtime.levelName,
@@ -1112,12 +1240,10 @@ const App: React.FC = () => {
         if (!isCurrent()) return;
 
         if (!normalizedAddress) {
-          if (sessionWalletAddress) {
-            await logoutWalletProfileSession(sessionWalletAddress);
-            if (walletProfileSessionAddressRef.current === sessionWalletAddress) {
-              walletProfileSessionAddressRef.current = null;
-            }
-          }
+          // Disconnecting the wallet detaches the active profile without
+          // revoking this device's time-limited, HttpOnly profile session.
+          // Reconnecting the same wallet can therefore resume without another
+          // gas-free signature until the server session expires.
           return;
         }
 
@@ -1323,7 +1449,13 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isOwnerWallet || activeRunMode === 'owner-test' || activeRunMode === 'boss-archive') return;
+    if (
+      !isOwnerWallet
+      || activeRunMode === 'owner-test'
+      || activeRunMode === 'boss-archive'
+      || activeRunMode === 'campaign'
+      || activeRunMode === 'campaign-replay'
+    ) return;
     if (gameState !== GameState.PLAYING && gameState !== GameState.PAUSED) return;
 
     setActiveRunMode('owner-test');
@@ -1340,10 +1472,38 @@ const App: React.FC = () => {
     beginRunSession(true);
   }, [activeRunMode, beginRunSession, gameState, isOwnerWallet]);
 
-  const launchGame = async (bossEncounterId: string | null = null) => {
+  const launchGame = async (
+    bossEncounterId: string | null = null,
+    bossMode: BossArchiveRunMode = 'practice',
+    bossVariantId = 'standard',
+    campaignRequest: CampaignMapLaunchRequest | null = null
+  ) => {
     if (missionLaunchPendingRef.current) return;
 
     const requestedBossReplay = bossEncounterId ? getBossArchiveEntry(bossEncounterId) : null;
+    const requestedCampaignMission = campaignRequest
+      ? getCampaignMissionById(campaignRequest.missionId)
+      : null;
+    if (
+      campaignRequest
+      && (
+        !requestedCampaignMission
+        || !requestedCampaignMission.waveIds.includes(campaignRequest.waveId)
+        || !isCampaignMissionUnlocked(
+          permanentSquadStateRef.current.campaignProgress,
+          campaignRequest.missionId
+        )
+        || !isCampaignWaveUnlocked(
+          permanentSquadStateRef.current.campaignProgress,
+          campaignRequest.missionId,
+          campaignRequest.waveId
+        )
+      )
+    ) {
+      setCampaignMapStatus('launch-error');
+      setCampaignMapError('That Mission checkpoint is still locked. Continue the illuminated route first.');
+      return;
+    }
     if (
       bossEncounterId
       && (
@@ -1354,16 +1514,99 @@ const App: React.FC = () => {
         )
       )
     ) return;
+    if (
+      requestedBossReplay
+      && bossMode === 'challenge'
+      && !(activeWalletAddress && !isOwnerWallet && !import.meta.env.DEV)
+      && getBossArchiveDailyChargeStatus(
+        permanentSquadState.bossArchive,
+        new Date(),
+        bossArchiveDailyLimit
+      ).remaining <= 0
+    ) return;
+
+    const requiresServerChallengeSettlement = Boolean(
+      requestedBossReplay
+      && bossMode === 'challenge'
+      && activeWalletAddress
+      && !isOwnerWallet
+      && !import.meta.env.DEV
+    );
+    let serverChallengeRun: WalletBossArchiveChallengeRun | null = null;
+    let serverWalletAddress: string | null = null;
+    if (requiresServerChallengeSettlement) {
+      if (walletProfileStatus !== 'ready') {
+        setWalletError('Reconnect this wallet profile before starting an official Boss Challenge. Practice remains available.');
+        return;
+      }
+      try {
+        const normalizedAddress = activeWalletAddress!.toLowerCase();
+        serverWalletAddress = normalizedAddress;
+        const startTask = walletProfileSaveChainRef.current
+          .catch(() => undefined)
+          .then(async () => {
+            const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
+            if (flushedProfile) {
+              walletProfileRevisionRef.current = flushedProfile.revision;
+              walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+              cacheWalletProfile(flushedProfile);
+            }
+            return startWalletBossArchiveChallenge({
+              walletAddress: normalizedAddress,
+              eventId: requestedBossReplay!.eventId,
+              variantId: 'standard'
+            });
+          });
+        walletProfileSaveChainRef.current = startTask.then(
+          () => undefined,
+          () => undefined
+        );
+        serverChallengeRun = await startTask;
+        setWalletError('');
+      } catch (error) {
+        console.error('Boss Archive Challenge start failed', error);
+        setWalletError(
+          error instanceof Error
+            ? `${error.message} Practice remains available.`
+            : 'This official Boss Challenge could not start. Practice remains available.'
+        );
+        return;
+      }
+    }
 
     const runMode: ActiveRunMode = requestedBossReplay
       ? 'boss-archive'
-      : isOwnerWallet
+      : campaignRequest?.kind === 'replay'
+        ? 'campaign-replay'
+        : campaignRequest
+          ? 'campaign'
+          : isOwnerWallet
         ? 'owner-test'
         : 'standard';
     setActiveRunMode(runMode);
     setActiveBossEncounterId(requestedBossReplay?.eventId ?? null);
+    setActiveCampaignLaunch(campaignRequest);
 
     const launchNonce = missionLaunchNonceRef.current + 1;
+    const archiveRunId = requestedBossReplay
+      ? (serverChallengeRun?.runId
+          ?? globalThis.crypto?.randomUUID?.()
+          ?? `${Date.now().toString(36)}-${launchNonce.toString(36)}`)
+      : null;
+    const nextArchiveRun = requestedBossReplay && archiveRunId
+      ? {
+          eventId: requestedBossReplay.eventId,
+          mode: bossMode,
+          variantId: bossVariantId,
+          seed: `boss-archive:${requestedBossReplay.eventId}:${bossMode}:${archiveRunId}`,
+          resultId: `boss-archive:${archiveRunId}`,
+          serverChallengeRun,
+          serverWalletAddress
+        } satisfies BossArchiveRunContext
+      : null;
+    setActiveBossArchiveRun(nextArchiveRun);
+    if (nextArchiveRun) setBossArchiveResult(null);
+    bossArchiveDamageTakenRef.current = 0;
     const shouldShowMissionLoading = !gameplayPreloadReady;
     const loadingTip = missionLoading?.phase === 'error'
       ? missionLoading.tip
@@ -1417,6 +1660,11 @@ const App: React.FC = () => {
     squadRunAppliedGameIdRef.current = null;
     permanentRunAppliedGameIdRef.current = null;
     permanentBossAppliedKeysRef.current.clear();
+    processedCampaignSummaryKeysRef.current.clear();
+    campaignResultPreviewRef.current = false;
+    campaignAttemptIdRef.current = campaignRequest
+      ? (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${launchNonce.toString(36)}`)
+      : '';
     setMissionRecordPilotName(null);
     clearIntroStoryTimeout();
     lastStoryWaveRef.current = 0;
@@ -1426,7 +1674,7 @@ const App: React.FC = () => {
     setStats(prev => ({
       ...prev,
       score: 0,
-      wave: requestedBossReplay?.missionNumber ?? 1,
+      wave: requestedBossReplay?.missionNumber ?? requestedCampaignMission?.number ?? 1,
       coins: 0,
       enemiesDefeated: 0,
       bombs: 2,
@@ -1456,6 +1704,7 @@ const App: React.FC = () => {
     setContinueCommand(null);
     setWaveContinueCommand(null);
     setWaveVictorySummary(null);
+    setCampaignResultPresentation(null);
     setCampaignCompletedRun(false);
     setTestWaveCommand(null);
     setTestBossCommand(null);
@@ -1490,18 +1739,35 @@ const App: React.FC = () => {
       startInTestMode,
       tip: loadingTip,
       squadLoadout,
-      runMode
+      runMode,
+      missionNumber: requestedBossReplay?.missionNumber ?? requestedCampaignMission?.number ?? 1
     };
     setGameRuntimeReady(false);
     setGameId(nextGameId);
-    lastStoryWaveRef.current = requestedBossReplay?.missionNumber ?? 1;
+    lastStoryWaveRef.current = requestedBossReplay?.missionNumber ?? requestedCampaignMission?.number ?? 1;
     setGameState(GameState.PLAYING);
   };
 
-  const startGame = () => launchGame(null);
+  const startGame = () => {
+    void launchGame(null, 'practice', 'standard', {
+      missionId: campaignCheckpoint.missionId,
+      waveId: campaignCheckpoint.waveId,
+      kind: 'checkpoint'
+    });
+  };
 
-  const startBossArchiveFight = (entry: BossArchiveEntry) => {
-    void launchGame(entry.eventId);
+  const startWeeklyRun = () => {
+    void launchGame(null);
+  };
+
+  const startBossArchiveFight = (
+    entry: BossArchiveEntry,
+    request: { mode: BossArchiveRunMode; variantId: string } = {
+      mode: 'practice',
+      variantId: 'standard'
+    }
+  ) => {
+    void launchGame(entry.eventId, request.mode, request.variantId);
   };
 
   const completeMissionRuntimeLaunch = (runtimeGameId: number) => {
@@ -1532,10 +1798,10 @@ const App: React.FC = () => {
       introStoryTimeoutRef.current = null;
       setIntroMissionLocked(false);
       if (gameStateRef.current === GameState.PLAYING) {
-        const introBeat = getStoryBeatForPhase(1);
+        const introBeat = getStoryBeatForPhase(pendingLaunch.missionNumber);
         if (introBeat && !hasSeenStoryBeatToday(introBeat)) {
           setActiveStoryBeat(introBeat);
-        } else {
+        } else if (pendingLaunch.runMode !== 'campaign' && pendingLaunch.runMode !== 'campaign-replay') {
           beginRunSession(pendingLaunch.startInTestMode || isOwnerWallet);
         }
       }
@@ -1575,6 +1841,12 @@ const App: React.FC = () => {
     setIntroMissionLocked(false);
     setShowTestChampionPreview(false);
     setWaveVictorySummary(null);
+    setCampaignResultPresentation(null);
+    setCampaignMapOpen(false);
+    setCampaignMapStatus('ready');
+    setCampaignMapError('');
+    setCampaignMapFocusMissionId(null);
+    setCampaignMapNewMissionIds([]);
     setCampaignCompletedRun(false);
     setWaveContinueCommand(null);
     setShowWeeklyProposalSelection(false);
@@ -1585,6 +1857,11 @@ const App: React.FC = () => {
     setScorecardChampionWinner(null);
     setActiveRunMode('standard');
     setActiveBossEncounterId(null);
+    setActiveBossArchiveRun(null);
+    setActiveCampaignLaunch(null);
+    processedCampaignSummaryKeysRef.current.clear();
+    campaignAttemptIdRef.current = '';
+    campaignResultPreviewRef.current = false;
     setOwnerFrameFrozen(false);
     runStartedAtRef.current = null;
     runSessionPromiseRef.current = null;
@@ -1637,7 +1914,417 @@ const App: React.FC = () => {
     setMusicTrackId(audioService.setMusicTrack(trackId));
   };
 
-  const showWaveVictory = (summary: WaveVictorySummary) => {
+  const openCampaignMap = (focusMissionId?: string | null) => {
+    const progress = permanentSquadStateRef.current.campaignProgress;
+    const newlyUnlocked = [...progress.unviewedMissionIds];
+    setCampaignMapNewMissionIds(newlyUnlocked);
+    setCampaignMapFocusMissionId(
+      focusMissionId
+      ?? newlyUnlocked.at(-1)
+      ?? progress.recommendedMissionId
+    );
+    setCampaignMapError('');
+    setCampaignMapStatus('ready');
+    setCampaignMapOpen(true);
+    if (getCampaignNotificationCount(progress) > 0) {
+      updatePermanentSquadState((current) => ({
+        ...current,
+        campaignProgress: markCampaignMapViewed(current.campaignProgress),
+        updatedAt: new Date().toISOString()
+      }));
+    }
+  };
+
+  const closeCampaignMap = () => {
+    setCampaignMapOpen(false);
+    setCampaignMapStatus('ready');
+    setCampaignMapError('');
+  };
+
+  const launchCampaignFromMap = (request: CampaignMapLaunchRequest) => {
+    setCampaignMapStatus('launch-pending');
+    setCampaignMapError('');
+    setCampaignMapOpen(false);
+    void launchGame(null, 'practice', 'standard', request);
+  };
+
+  const applyDeveloperCampaignCompletion = (missionId: string, waveId: string, stageComplete: boolean) => {
+    if (!import.meta.env.DEV || activeWalletAddress) return;
+    updatePermanentSquadState((current) => {
+      const result = applyCampaignCompletion(current.campaignProgress, {
+        resultId: `campaign-dev:${missionId}:${waveId}:${Date.now()}`,
+        playerId: current.profileId,
+        campaignId: DEFAULT_GAME_CAMPAIGN.id,
+        campaignRevision: DEFAULT_GAME_CAMPAIGN.revision,
+        missionId,
+        waveId,
+        stageComplete,
+        score: 999_999,
+        coinsCollected: 999,
+        damageTaken: 0,
+        elapsedSeconds: 1
+      });
+      let next: PermanentSquadState = {
+        ...current,
+        campaignProgress: result.progress,
+        updatedAt: new Date().toISOString()
+      };
+      const mission = getCampaignMissionById(missionId);
+      if (stageComplete && mission?.bossEventId) {
+        next = recordBossVictory(next, mission.bossEventId);
+      }
+      return next;
+    });
+  };
+
+  const previewDeveloperCampaignResult = useCallback((
+    missionId: string,
+    waveId: string,
+    stageComplete: boolean
+  ) => {
+    if (!import.meta.env.DEV || activeWalletAddress) return;
+    const mission = getCampaignMissionById(missionId);
+    const waveIndex = mission?.waveIds.indexOf(waveId) ?? -1;
+    const wave = mission?.waves[waveIndex];
+    if (!mission || !wave || waveIndex < 0) return;
+    const effectiveStageComplete = stageComplete && waveIndex === mission.waveIds.length - 1;
+    const previewId = `campaign-dev-preview:${mission.id}:${wave.id}:${Date.now()}`;
+    const completion = applyCampaignCompletion(
+      unlockAllCampaignMissions(createCampaignProgress()),
+      {
+        resultId: previewId,
+        playerId: 'campaign-dev-preview',
+        campaignId: DEFAULT_GAME_CAMPAIGN.id,
+        campaignRevision: DEFAULT_GAME_CAMPAIGN.revision,
+        missionId: mission.id,
+        waveId: wave.id,
+        stageComplete: effectiveStageComplete,
+        score: 8_750,
+        coinsCollected: 18,
+        damageTaken: 0,
+        elapsedSeconds: 42
+      }
+    );
+    const collectedGrant = {
+      id: `${previewId}:collected`,
+      label: 'Collected coins',
+      amount: 18,
+      kind: 'wave' as const,
+      oneTime: false
+    };
+    const grants = [collectedGrant, ...completion.settlement.grants];
+    const nextWaveId = mission.waveIds[waveIndex + 1] ?? null;
+    const nextMission = mission.nextMissionId ? getCampaignMissionById(mission.nextMissionId) : null;
+    const summary: WaveVictorySummary = {
+      id: previewId,
+      campaignId: DEFAULT_GAME_CAMPAIGN.id,
+      campaignRevision: DEFAULT_GAME_CAMPAIGN.revision,
+      levelId: mission.id,
+      waveId: wave.id,
+      waveNumber: wave.number,
+      waveTotal: mission.waveIds.length,
+      stageComplete: effectiveStageComplete,
+      bossEncounterId: effectiveStageComplete ? mission.bossEventId : null,
+      stage: mission.number,
+      stageName: mission.name,
+      finalWaveName: wave.name,
+      scoreEarned: 4_200,
+      totalScore: 8_750,
+      enemiesDefeated: 36,
+      coinsCollected: 18,
+      waveCoinsCollected: 18,
+      damageTaken: 0,
+      elapsedSeconds: 42,
+      remainingLives: 3,
+      nextLevelId: nextWaveId ? mission.id : nextMission?.id ?? null,
+      nextWaveId: nextWaveId ?? nextMission?.waveIds[0] ?? null,
+      nextWaveNumber: nextWaveId ? wave.number + 1 : nextMission ? 1 : null,
+      nextStage: nextMission?.number ?? mission.number,
+      hasNextStage: Boolean(nextWaveId || nextMission),
+      campaignComplete: effectiveStageComplete && !nextMission
+    };
+    campaignResultPreviewRef.current = true;
+    setActiveRunMode('campaign');
+    setActiveCampaignLaunch({ missionId: mission.id, waveId: wave.id, kind: 'mission' });
+    setCampaignResultPresentation({
+      summaryId: summary.id,
+      settlement: {
+        ...completion.settlement,
+        grants,
+        coinsAwarded: grants.reduce((total, grant) => total + grant.amount, 0)
+      },
+      collectedCoins: 18
+    });
+    setWaveVictorySummary(summary);
+    setCampaignMapOpen(false);
+    setCampaignMapStatus('ready');
+    setOwnerFrameFrozen(false);
+    setGameState(GameState.WAVE_COMPLETE);
+  }, [activeWalletAddress]);
+
+  const campaignMapDeveloperControls = useMemo<CampaignMapDeveloperControls | null>(() => {
+    if (!import.meta.env.DEV || activeWalletAddress) return null;
+    return {
+      enabled: true,
+      onUnlockAll: () => updatePermanentSquadState((current) => ({
+        ...current,
+        campaignProgress: unlockAllCampaignMissions(current.campaignProgress),
+        updatedAt: new Date().toISOString()
+      })),
+      onSetCheckpoint: (missionId, waveId) => updatePermanentSquadState((current) => ({
+        ...current,
+        campaignProgress: setCampaignCheckpoint(current.campaignProgress, missionId, waveId),
+        updatedAt: new Date().toISOString()
+      })),
+      onCompleteWave: (missionId, waveId) => {
+        const mission = getCampaignMissionById(missionId);
+        applyDeveloperCampaignCompletion(
+          missionId,
+          waveId,
+          mission?.waveIds.at(-1) === waveId
+        );
+      },
+      onCompleteMission: (missionId) => {
+        const mission = getCampaignMissionById(missionId);
+        const finalWaveId = mission?.waveIds.at(-1);
+        if (finalWaveId) applyDeveloperCampaignCompletion(missionId, finalWaveId, true);
+      },
+      onResetProgress: () => updatePermanentSquadState((current) => ({
+        ...current,
+        campaignProgress: createCampaignProgress(),
+        updatedAt: new Date().toISOString()
+      })),
+      onResetStars: () => updatePermanentSquadState((current) => ({
+        ...current,
+        campaignProgress: resetCampaignStars(current.campaignProgress),
+        updatedAt: new Date().toISOString()
+      })),
+      onPreviewLocked: () => undefined,
+      onPreviewNew: (missionId) => {
+        setCampaignMapNewMissionIds([missionId]);
+        setCampaignMapFocusMissionId(missionId);
+      },
+      onPreviewResult: previewDeveloperCampaignResult
+    };
+  }, [activeWalletAddress, previewDeveloperCampaignResult, updatePermanentSquadState]);
+
+  const markCampaignSettlementWalletDirty = useCallback((
+    nextWeeklyState: WeeklySquadState,
+    nextPermanentState: PermanentSquadState
+  ) => {
+    if (!activeWalletAddress || isOwnerWallet) return;
+    const normalizedAddress = activeWalletAddress.toLowerCase();
+    const expectedProfileId = getWalletProfileId(normalizedAddress);
+    if (
+      nextWeeklyState.profileId !== expectedProfileId
+      || nextPermanentState.profileId !== expectedProfileId
+      || activeProfileId !== expectedProfileId
+    ) return;
+    const snapshot: WalletProfileSnapshot = {
+      stats: {
+        highScore: stats.highScore,
+        totalCoins: stats.totalCoins,
+        playerName: playerNameInput
+      },
+      weeklyState: nextWeeklyState,
+      permanentState: {
+        ...nextPermanentState,
+        mintedMiniShips: []
+      },
+      selectedShipId
+    };
+    const currentDirty = readWalletProfileDirty(normalizedAddress);
+    const comparisonSnapshot = currentDirty?.snapshot
+      ?? walletProfileSyncedSnapshotRef.current
+      ?? walletProfileLocalBaselineRef.current;
+    if (comparisonSnapshot && walletProfileSnapshotsEqual(snapshot, comparisonSnapshot)) return;
+    markWalletProfileDirty({
+      address: normalizedAddress,
+      expectedRevision: walletProfileRevisionRef.current,
+      baseSnapshot: walletProfileSyncedSnapshotRef.current,
+      snapshot
+    });
+  }, [
+    activeProfileId,
+    activeWalletAddress,
+    isOwnerWallet,
+    playerNameInput,
+    selectedShipId,
+    stats.highScore,
+    stats.totalCoins
+  ]);
+
+  const handleCampaignProgress = useCallback((summary: WaveVictorySummary) => {
+    if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
+    const attemptId = campaignAttemptIdRef.current || `game-${gameId}`;
+    const resultId = `${activeProfileId}:${attemptId}:${summary.levelId}:${summary.waveId}`;
+    if (processedCampaignSummaryKeysRef.current.has(resultId)) return;
+
+    const currentPermanent = permanentSquadStateRef.current;
+    const completion = applyCampaignCompletion(currentPermanent.campaignProgress, {
+      resultId,
+      playerId: activeProfileId,
+      campaignId: summary.campaignId,
+      campaignRevision: summary.campaignRevision,
+      missionId: summary.levelId,
+      waveId: summary.waveId,
+      stageComplete: summary.stageComplete,
+      score: summary.totalScore,
+      coinsCollected: summary.coinsCollected,
+      damageTaken: summary.damageTaken,
+      elapsedSeconds: summary.elapsedSeconds
+    });
+
+    const rewardGrants = completion.settlement.duplicate
+      ? []
+      : completion.settlement.grants;
+    const credit = creditCampaignRewardGrants(weeklySquadStateRef.current, rewardGrants);
+
+    let nextPermanent: PermanentSquadState = {
+      ...currentPermanent,
+      campaignProgress: completion.progress,
+      lifetimeStats: completion.settlement.duplicate ? currentPermanent.lifetimeStats : {
+        ...currentPermanent.lifetimeStats,
+        highestWave: Math.max(currentPermanent.lifetimeStats.highestWave, summary.stage),
+        enemiesDefeated: currentPermanent.lifetimeStats.enemiesDefeated + summary.enemiesDefeated,
+        coinsCollected: currentPermanent.lifetimeStats.coinsCollected,
+        bestScore: Math.max(currentPermanent.lifetimeStats.bestScore, summary.totalScore)
+      },
+      updatedAt: new Date().toISOString()
+    };
+    if (!completion.settlement.duplicate && summary.stageComplete && summary.bossEncounterId) {
+      nextPermanent = recordBossVictory(nextPermanent, summary.bossEncounterId);
+    }
+
+    try {
+      commitCampaignSquadSettlement({
+        resultId,
+        weeklyState: credit.state,
+        permanentState: nextPermanent
+      });
+    } catch (error) {
+      console.error('Campaign checkpoint settlement failed', error);
+      setCampaignMapError('Campaign progress could not be saved on this device. Retry the Wave to secure it.');
+      return;
+    }
+    processedCampaignSummaryKeysRef.current.add(resultId);
+    weeklySquadStateRef.current = credit.state;
+    setWeeklySquadState(credit.state);
+    permanentSquadStateRef.current = nextPermanent;
+    setPermanentSquadState(nextPermanent);
+    markCampaignSettlementWalletDirty(credit.state, nextPermanent);
+    setCampaignResultPresentation({
+      summaryId: summary.id,
+      settlement: {
+        ...completion.settlement,
+        grants: rewardGrants,
+        coinsAwarded: credit.creditedAmount
+      },
+      collectedCoins: 0
+    });
+  }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty]);
+
+  const finalizeCampaignCollectedCoins = useCallback((summary: WaveVictorySummary) => {
+    if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
+    const collectedCoins = Math.max(0, Math.floor(summary.waveCoinsCollected));
+    const attemptId = campaignAttemptIdRef.current || `game-${gameId}`;
+    const resultId = `${activeProfileId}:${attemptId}:${summary.levelId}:${summary.waveId}`;
+    const collectedGrant = {
+      id: `campaign:${resultId}:collected`,
+      label: 'Collected coins',
+      amount: collectedCoins,
+      kind: 'wave' as const,
+      oneTime: false
+    };
+    const currentPermanent = permanentSquadStateRef.current;
+    const metrics = finalizeCampaignCompletionMetrics(currentPermanent.campaignProgress, {
+      resultId,
+      playerId: activeProfileId,
+      campaignId: summary.campaignId,
+      campaignRevision: summary.campaignRevision,
+      missionId: summary.levelId,
+      waveId: summary.waveId,
+      stageComplete: summary.stageComplete,
+      score: summary.totalScore,
+      coinsCollected: summary.coinsCollected,
+      damageTaken: summary.damageTaken,
+      elapsedSeconds: summary.elapsedSeconds
+    });
+    if (!metrics.accepted) return;
+    const finalGrants = [
+      ...(collectedCoins > 0 ? [collectedGrant] : []),
+      ...metrics.grants
+    ];
+    const credit = creditCampaignRewardGrants(
+      weeklySquadStateRef.current,
+      finalGrants
+    );
+
+    const creditedCollectedCoins = credit.creditedRewardIds.includes(collectedGrant.id)
+      ? collectedCoins
+      : 0;
+    const nextPermanent: PermanentSquadState = {
+      ...currentPermanent,
+      campaignProgress: metrics.progress,
+      lifetimeStats: {
+        ...currentPermanent.lifetimeStats,
+        coinsCollected: currentPermanent.lifetimeStats.coinsCollected + creditedCollectedCoins
+      },
+      updatedAt: new Date().toISOString()
+    };
+    try {
+      commitCampaignSquadSettlement({
+        resultId: `${resultId}:final`,
+        weeklyState: credit.state,
+        permanentState: nextPermanent
+      });
+    } catch (error) {
+      console.error('Campaign final reward settlement failed', error);
+      setCampaignMapError('Final Campaign rewards could not be saved. Return to the result to retry.');
+      return;
+    }
+    weeklySquadStateRef.current = credit.state;
+    setWeeklySquadState(credit.state);
+    permanentSquadStateRef.current = nextPermanent;
+    setPermanentSquadState(nextPermanent);
+    markCampaignSettlementWalletDirty(credit.state, nextPermanent);
+
+    setCampaignResultPresentation((current) => {
+      if (!current || current.summaryId !== summary.id) return current;
+      const creditedGrantIds = new Set(credit.creditedRewardIds);
+      const creditedFinalGrants = finalGrants.filter((grant) => creditedGrantIds.has(grant.id));
+      return {
+        ...current,
+        collectedCoins,
+        settlement: {
+          ...current.settlement,
+          previousStars: Math.min(current.settlement.previousStars, metrics.previousStars),
+          stars: Math.max(current.settlement.stars, metrics.stars),
+          newStarIds: Array.from(new Set([
+            ...current.settlement.newStarIds,
+            ...metrics.newStarIds
+          ])),
+          newBestScore: current.settlement.newBestScore || metrics.newBestScore,
+          newBestTime: current.settlement.newBestTime || metrics.newBestTime,
+          newBestCoins: current.settlement.newBestCoins || metrics.newBestCoins,
+          grants: [...creditedFinalGrants, ...current.settlement.grants],
+          coinsAwarded: current.settlement.coinsAwarded + credit.creditedAmount
+        }
+      };
+    });
+  }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty]);
+
+  const showWaveVictory = async (summary: WaveVictorySummary) => {
+    if (isBossArchiveRun) {
+      setOwnerFrameFrozen(true);
+      await finalizeBossArchiveFight(true, summary);
+      returnToBossArchive();
+      return;
+    }
+    if (isCampaignRun) {
+      handleCampaignProgress(summary);
+      finalizeCampaignCollectedCoins(summary);
+    }
     if (!isNonCompetitiveRun && summary.bossEncounterId) {
       const victoryKey = `${gameId}:${summary.id}`;
       if (!permanentBossAppliedKeysRef.current.has(victoryKey)) {
@@ -1652,11 +2339,23 @@ const App: React.FC = () => {
 
   const continueAfterWaveVictory = () => {
     if (!waveVictorySummary) return;
-    if (isBossArchiveRun) {
-      returnToBossArchive();
+    if (campaignResultPreviewRef.current) {
+      const focusMissionId = campaignResultPresentation?.settlement.newlyUnlockedMissionId
+        ?? waveVictorySummary.levelId;
+      campaignResultPreviewRef.current = false;
+      setWaveVictorySummary(null);
+      setCampaignResultPresentation(null);
+      setActiveRunMode('standard');
+      setActiveCampaignLaunch(null);
+      setGameState(GameState.MENU);
+      openCampaignMap(focusMissionId);
       return;
     }
     if (waveVictorySummary.campaignComplete || !waveVictorySummary.hasNextStage) {
+      if (isCampaignRun) {
+        openCampaignMap(waveVictorySummary.levelId);
+        return;
+      }
       setCampaignCompletedRun(true);
       setWaveVictorySummary(null);
       setGameState(GameState.GAMEOVER);
@@ -1672,7 +2371,7 @@ const App: React.FC = () => {
     if (activeStoryBeat) {
       markStoryBeatSeenToday(activeStoryBeat);
     }
-    if (completedPhase === 1) {
+    if (completedPhase === 1 && !isCampaignRun) {
       beginRunSession(isOwnerTestRun || isOwnerWallet);
     }
     setActiveStoryBeat(null);
@@ -1807,6 +2506,266 @@ const App: React.FC = () => {
     setWeeklySquadState(nextWeeklyState);
     return true;
   }, [permanentSquadState, weeklySquadState]);
+
+  const finalizeBossArchiveFight = useCallback(async (
+    victory: boolean,
+    summary: WaveVictorySummary | null = null
+  ) => {
+    const run = activeBossArchiveRun;
+    if (!run || processedBossArchiveResultsRef.current.has(run.resultId)) return false;
+    const clearTimeMs = victory && summary
+      ? Math.max(1, Math.round(summary.elapsedSeconds * 1000))
+      : null;
+    const damageTaken = Math.max(
+      0,
+      summary?.damageTaken ?? bossArchiveDamageTakenRef.current
+    );
+
+    if (
+      victory
+      && clearTimeMs !== null
+      && run.mode === 'challenge'
+      && run.serverChallengeRun
+      && run.serverWalletAddress
+    ) {
+      processedBossArchiveResultsRef.current.add(run.resultId);
+      try {
+        const settlementTask = walletProfileSaveChainRef.current
+          .catch(() => undefined)
+          .then(async () => {
+            const flushedProfile = await flushDirtyWalletProfile(run.serverWalletAddress!);
+            if (flushedProfile) {
+              walletProfileRevisionRef.current = flushedProfile.revision;
+              walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+              cacheWalletProfile(flushedProfile);
+            }
+            const settled = await settleWalletBossArchiveChallenge({
+              walletAddress: run.serverWalletAddress!,
+              runToken: run.serverChallengeRun!.runToken,
+              clearTimeMs,
+              damageTaken
+            });
+            discardWalletProfileDirty(run.serverWalletAddress!);
+            return settled;
+          });
+        walletProfileSaveChainRef.current = settlementTask.then(
+          () => undefined,
+          () => undefined
+        );
+        const { profile, settlement } = await settlementTask;
+        cacheWalletProfile(profile);
+        if (walletProfileAddressRef.current === run.serverWalletAddress) {
+          walletProfileRevisionRef.current = profile.revision;
+          walletProfileSyncedSnapshotRef.current = profile.snapshot;
+          walletProfileLocalBaselineRef.current = hydrateActiveProfile({
+            profileId: profile.profileId,
+            snapshot: profile.snapshot,
+            founderSandbox: false
+          });
+          setWalletProfileStatus('ready');
+        }
+        setBossArchiveResult({
+          eventId: settlement.eventId,
+          outcome: 'victory',
+          clearTimeMs: settlement.clearTimeMs,
+          damageTaken: settlement.damageTaken,
+          noHit: settlement.noHit,
+          newPersonalRecord: settlement.newBestChallengeTime
+            || settlement.newBestClearTime,
+          rewardCoins: settlement.rewardCoins,
+          chargesRemaining: settlement.chargesRemaining,
+          masteryCompletedIds: settlement.newlyCompletedObjectiveIds,
+          mode: 'challenge',
+          variantId: settlement.variantId,
+          notice: settlement.duplicate
+            ? 'This Challenge result was already settled. Your canonical wallet profile was restored.'
+            : undefined
+        });
+        return true;
+      } catch (error) {
+        console.error('Boss Archive Challenge settlement failed', error);
+        const noCharges = error instanceof WalletProfileRequestError
+          && error.code === 'no_charges';
+        setBossArchiveResult({
+          eventId: run.eventId,
+          outcome: 'victory',
+          clearTimeMs,
+          damageTaken,
+          noHit: damageTaken === 0,
+          newPersonalRecord: false,
+          rewardCoins: 0,
+          chargesRemaining: noCharges
+            ? 0
+            : getBossArchiveDailyChargeStatus(
+                permanentSquadState.bossArchive,
+                new Date(),
+                bossArchiveDailyLimit
+              ).remaining,
+          masteryCompletedIds: [],
+          mode: run.mode,
+          variantId: run.variantId,
+          notice: noCharges
+            ? 'The server reports that no Challenge charges remain today. No reward was applied.'
+            : 'Server verification is temporarily unavailable. This result may already be recorded; reconnect to refresh your canonical profile. Duplicate rewards cannot be granted.'
+        });
+        return true;
+      }
+    }
+
+    const economy = resolveBossArchiveFightEconomy(
+      permanentSquadState,
+      weeklySquadState,
+      {
+        eventId: run.eventId,
+        mode: run.mode,
+        victory,
+        clearTimeMs,
+        damageTaken,
+        resultId: run.resultId
+      },
+      { dailyLimit: bossArchiveDailyLimit }
+    );
+    if (!economy.result.accepted && !economy.result.duplicate) {
+      if (economy.result.reason !== 'no-charges') return false;
+      processedBossArchiveResultsRef.current.add(run.resultId);
+      setBossArchiveResult({
+        eventId: run.eventId,
+        outcome: victory ? 'victory' : 'defeat',
+        clearTimeMs,
+        damageTaken,
+        noHit: victory && damageTaken === 0,
+        newPersonalRecord: false,
+        rewardCoins: 0,
+        chargesRemaining: 0,
+        masteryCompletedIds: [],
+        mode: run.mode,
+        variantId: run.variantId
+      });
+      return true;
+    }
+    if (!economy.result.duplicate && !persistRewardClaim(
+      economy.permanentState,
+      economy.weeklyState
+    )) {
+      processedBossArchiveResultsRef.current.add(run.resultId);
+      setBossArchiveResult({
+        eventId: run.eventId,
+        outcome: victory ? 'victory' : 'defeat',
+        clearTimeMs,
+        damageTaken,
+        noHit: victory && damageTaken === 0,
+        newPersonalRecord: false,
+        rewardCoins: 0,
+        chargesRemaining: getBossArchiveDailyChargeStatus(
+          permanentSquadState.bossArchive,
+          new Date(),
+          bossArchiveDailyLimit
+        ).remaining,
+        masteryCompletedIds: [],
+        mode: run.mode,
+        variantId: run.variantId,
+        notice: 'This result could not be saved. No Challenge charge or reward was applied.'
+      });
+      return true;
+    }
+
+    processedBossArchiveResultsRef.current.add(run.resultId);
+    const chargeStatus = getBossArchiveDailyChargeStatus(
+      economy.result.state,
+      new Date(),
+      bossArchiveDailyLimit
+    );
+    setBossArchiveResult({
+      eventId: run.eventId,
+      outcome: victory ? 'victory' : 'defeat',
+      clearTimeMs,
+      damageTaken,
+      noHit: economy.result.noHit,
+      newPersonalRecord: economy.result.newBestChallengeTime
+        || economy.result.newBestClearTime,
+      rewardCoins: economy.result.challengeRewardCoins,
+      chargesRemaining: chargeStatus.remaining,
+      masteryCompletedIds: economy.result.newlyCompletedObjectiveIds,
+      mode: run.mode,
+      variantId: run.variantId
+    });
+    return true;
+  }, [
+    activeBossArchiveRun,
+    bossArchiveDailyLimit,
+    hydrateActiveProfile,
+    permanentSquadState,
+    persistRewardClaim,
+    weeklySquadState
+  ]);
+
+  const handleClaimBossArchiveMastery = useCallback((
+    eventId: string,
+    objectiveId: BossArchiveMasteryObjectiveId
+  ) => {
+    const resolution = claimBossArchiveMasteryEconomyReward(
+      permanentSquadState,
+      weeklySquadState,
+      eventId,
+      objectiveId
+    );
+    if (!resolution.claim.claimed) return;
+    persistRewardClaim(resolution.permanentState, resolution.weeklyState);
+  }, [permanentSquadState, persistRewardClaim, weeklySquadState]);
+
+  const bossArchiveDailyChargeStatus = useMemo(() => getBossArchiveDailyChargeStatus(
+    permanentSquadState.bossArchive,
+    new Date(),
+    bossArchiveDailyLimit
+  ), [bossArchiveDailyLimit, permanentSquadState.bossArchive]);
+
+  const bossArchiveDeveloperControls = useMemo(() => (
+    bossArchiveDeveloperApi ? {
+      enabled: true,
+      dailyLimit: bossArchiveDailyLimit,
+      onDailyLimitChange: setBossArchiveDailyLimit,
+      onUnlockAll: () => updateBossArchiveProgress(bossArchiveDeveloperApi.unlockAll),
+      onResetProgress: () => {
+        updateBossArchiveProgress(() => bossArchiveDeveloperApi.resetProgress());
+        setBossArchiveResult(null);
+      },
+      onResetDailyCharges: () => updateBossArchiveProgress((current) => (
+        bossArchiveDeveloperApi.resetDailyCharges(current)
+      )),
+      onSimulateNewUnlock: (eventId: string) => updateBossArchiveProgress((current) => (
+        bossArchiveDeveloperApi.simulateNewUnlock(current, eventId)
+      )),
+      onSimulateMastery: (eventId: string) => updateBossArchiveProgress((current) => (
+        bossArchiveDeveloperApi.simulateMasteryComplete(current, eventId)
+      )),
+      onPreviewResult: (outcome: 'victory' | 'defeat') => {
+        const eventId = permanentSquadState.bossArchive.lastSelectedEventId
+          ?? permanentSquadState.bossArchive.unlockedEventIds[0]
+          ?? BOSS_ARCHIVE_CATALOG[0]?.eventId;
+        if (!eventId) return;
+        setBossArchiveResult({
+          eventId,
+          outcome,
+          clearTimeMs: outcome === 'victory' ? 45_000 : null,
+          damageTaken: outcome === 'victory' ? 0 : 3,
+          noHit: outcome === 'victory',
+          newPersonalRecord: outcome === 'victory',
+          rewardCoins: outcome === 'victory' ? 125 : 0,
+          chargesRemaining: bossArchiveDailyChargeStatus.remaining,
+          masteryCompletedIds: outcome === 'victory' ? ['challenge-clear'] : [],
+          mode: 'challenge',
+          variantId: 'standard'
+        });
+      }
+    } : null
+  ), [
+    bossArchiveDailyChargeStatus.remaining,
+    bossArchiveDailyLimit,
+    bossArchiveDeveloperApi,
+    permanentSquadState.bossArchive.lastSelectedEventId,
+    permanentSquadState.bossArchive.unlockedEventIds,
+    updateBossArchiveProgress
+  ]);
 
   const handleClaimDailyGift = useCallback(() => {
     if (isOwnerWallet) return null;
@@ -1956,7 +2915,7 @@ const App: React.FC = () => {
   }, [activeStoryBeat, gameState, stats.wave]);
 
   const finalizeCurrentRun = async (): Promise<RunReceipt | null> => {
-    if (isBossArchiveRun) return null;
+    if (isBossArchiveRun || isCampaignRun) return null;
     if (runReceipt) return runReceipt;
     if (runReceiptPromiseRef.current) return runReceiptPromiseRef.current;
     if (finalizedRunGameIdRef.current === gameId) return null;
@@ -1998,7 +2957,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (gameState === GameState.GAMEOVER) {
-      if (isBossArchiveRun) {
+      if (isBossArchiveRun || isCampaignRun) {
         setShowNameInput(false);
         setScoreSubmitError('');
         return;
@@ -2033,7 +2992,7 @@ const App: React.FC = () => {
       setScoreSubmitError('');
       setShowNameInput(true);
     }
-  }, [gameId, gameState, isBossArchiveRun, isFounderSandboxRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
+  }, [gameId, gameState, isBossArchiveRun, isCampaignRun, isFounderSandboxRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
 
   const persistHighScore = async () => {
     if (!playerNameInput.trim() || submittingScoreRef.current) return false;
@@ -2486,7 +3445,14 @@ const App: React.FC = () => {
           progress={missionLoading.progress}
           phase={missionLoading.phase}
           tip={missionLoading.tip}
-          onRetry={() => { void launchGame(activeBossEncounterId); }}
+          onRetry={() => {
+            void launchGame(
+              activeBossEncounterId,
+              activeBossArchiveRun?.mode ?? 'practice',
+              activeBossArchiveRun?.variantId ?? 'standard',
+              activeCampaignLaunch
+            );
+          }}
           onCancel={cancelMissionLoading}
         />
       ) : null}
@@ -2502,11 +3468,17 @@ const App: React.FC = () => {
               running: gameState === GameState.PLAYING && gameRuntimeReady && !ownerFrameFrozen,
               onReady: () => completeMissionRuntimeLaunch(gameId),
               onInitializationError: (error) => failMissionRuntimeLaunch(gameId, error),
-              onGameOver: () => {
+              onGameOver: async () => {
                 setOwnerFrameFrozen(false);
+                if (isBossArchiveRun) {
+                  await finalizeBossArchiveFight(false);
+                  returnToBossArchive();
+                  return;
+                }
                 setGameState(GameState.GAMEOVER);
               },
               onContinueStarted: () => setGameState(GameState.PLAYING),
+              onCampaignProgress: handleCampaignProgress,
               onWaveVictory: showWaveVictory,
               isTransmissionOpen: introMissionLocked || Boolean(activeStoryBeat),
               bombCommand,
@@ -2517,9 +3489,11 @@ const App: React.FC = () => {
               playerShipUrl,
               playerShipId: usableShipId,
               squadLoadout: activeRunSquadLoadoutRef.current,
-              campaign: activeBossReplayCampaign,
-              levelId: activeBossReplay?.missionId,
-              waveId: activeBossReplay?.waveId,
+              campaign: activeBossReplayCampaign ?? (isCampaignRun ? DEFAULT_GAME_CAMPAIGN : undefined),
+              pauseAtInternalWaveResults: isCampaignRun,
+              levelId: activeBossReplay?.missionId ?? (isCampaignRun ? activeCampaignLaunch?.missionId : undefined),
+              waveId: activeBossReplay?.waveId ?? (isCampaignRun ? activeCampaignLaunch?.waveId : undefined),
+              randomSeed: activeBossArchiveRun?.seed,
               testMode: isOwnerTestRun,
               testWaveCommand,
               testBossCommand,
@@ -2563,6 +3537,16 @@ const App: React.FC = () => {
             summary={waveVictorySummary}
             onContinue={continueAfterWaveVictory}
             bossArchiveReplay={isBossArchiveRun}
+            campaignSettlement={isCampaignRun && campaignResultPresentation?.summaryId === waveVictorySummary.id
+              ? campaignResultPresentation.settlement
+              : null}
+            onOpenCampaignMap={isCampaignRun
+              ? () => openCampaignMap(
+                  campaignResultPresentation?.settlement.newlyUnlockedMissionId
+                  ?? waveVictorySummary.levelId
+                )
+              : undefined}
+            onReturnHome={isCampaignRun ? resetGame : undefined}
           />
         </React.Suspense>
       ) : null}
@@ -2570,6 +3554,10 @@ const App: React.FC = () => {
       {gameState === GameState.MENU && (
         <StartScreen
           onStart={startGame}
+          onStartWeeklyRun={startWeeklyRun}
+          onOpenCampaignMap={() => openCampaignMap()}
+          campaignNotificationCount={campaignNotificationCount}
+          campaignCheckpoint={campaignCheckpoint}
           allTimeLeaderboard={leaderboard}
           monthlyLeaderboard={monthlyLeaderboard}
           archivedWinners={archivedWinners}
@@ -2588,7 +3576,39 @@ const App: React.FC = () => {
           onClaimAchievement={handleClaimAchievement}
           onRequestWalletConnect={connectWallet}
           onBossArchiveViewed={handleBossArchiveViewed}
+          onBossArchiveSelection={handleBossArchiveSelection}
           onStartBossFight={startBossArchiveFight}
+          onClaimBossArchiveMastery={(eventId, objectiveId) => {
+            if (!BOSS_ARCHIVE_MASTERY_OBJECTIVE_IDS.includes(
+              objectiveId as BossArchiveMasteryObjectiveId
+            )) return;
+            handleClaimBossArchiveMastery(
+              eventId,
+              objectiveId as BossArchiveMasteryObjectiveId
+            );
+          }}
+          bossArchiveDailyChargeStatus={bossArchiveDailyChargeStatus}
+          bossArchiveResult={bossArchiveResult ? {
+            eventId: bossArchiveResult.eventId,
+            outcome: bossArchiveResult.outcome,
+            mode: bossArchiveResult.mode,
+            variantId: bossArchiveResult.variantId,
+            clearTimeMs: bossArchiveResult.clearTimeMs,
+            damageTaken: bossArchiveResult.damageTaken,
+            noHit: bossArchiveResult.noHit,
+            newPersonalRecord: bossArchiveResult.newPersonalRecord,
+            reward: bossArchiveResult.rewardCoins > 0 ? [{
+              id: `${bossArchiveResult.eventId}:challenge-result`,
+              label: 'Research Coins',
+              amount: bossArchiveResult.rewardCoins,
+              tone: 'coin'
+            }] : [],
+            chargesRemaining: bossArchiveResult.chargesRemaining,
+            masteryCompletedIds: bossArchiveResult.masteryCompletedIds,
+            notice: bossArchiveResult.notice
+          } : null}
+          onDismissBossArchiveResult={() => setBossArchiveResult(null)}
+          bossArchiveDeveloperControls={bossArchiveDeveloperControls}
           founderSandbox={isOwnerWallet}
           onUnlockSquadSlot={handleUnlockSquadSlot}
           onPurchaseMiniShip={handlePurchaseMiniShip}
@@ -2625,6 +3645,20 @@ const App: React.FC = () => {
           ) : null}
         />
       )}
+
+      <React.Suspense fallback={null}>
+        <CampaignMap
+          open={campaignMapOpen}
+          progress={permanentSquadState.campaignProgress}
+          status={campaignMapStatus}
+          errorMessage={campaignMapError}
+          initialMissionId={campaignMapFocusMissionId}
+          newMissionIds={campaignMapNewMissionIds}
+          onClose={closeCampaignMap}
+          onLaunch={launchCampaignFromMap}
+          developerControls={campaignMapDeveloperControls}
+        />
+      </React.Suspense>
 
       {gameState === GameState.PAUSED && isOwnerWallet && isOwnerTestRun && showTestChampionPreview ? (
         <div className="absolute inset-0 z-40">

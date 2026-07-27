@@ -34,6 +34,10 @@ import {
 import { sampleGloamforgeModularPose } from '@game/services/pixi/boss-rigs/GloamforgeModularPose';
 import { sampleHeliosModularPose } from '@game/services/pixi/boss-rigs/HeliosModularPose';
 import { sampleNullwakeModularPose } from '@game/services/pixi/boss-rigs/NullwakeModularPose';
+import {
+  samplePrismMothSandboxPose,
+  validatePrismMothRigCompatibility
+} from '@game/services/pixi/boss-rigs/PrismMothModularPose';
 import { getSandboxBossCollisionMask } from './generatedSandboxBossCollisionMasks';
 import {
   createFocusedPreviewCampaign,
@@ -49,8 +53,10 @@ import gloamforgeAtlasSource from '../../../../director-data/prototype-assets/gl
 import gloamforgeRigSource from '../../../../director-data/prototype-assets/gloamforge-mantis/gloamforge-mantis.rig.json';
 import heliosAtlasSource from '../../../../director-data/prototype-assets/helios-clawcarrier-v2/helios-clawcarrier-v2-atlas.json';
 import heliosRigSource from '../../../../director-data/prototype-assets/helios-clawcarrier-v2/helios-clawcarrier-v2.rig.json';
+import prismMothAtlasSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.json';
+import prismMothRigSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper.rig.json';
 
-export const BOSS_SANDBOX_VERSION = 'V 0.16' as const;
+export const BOSS_SANDBOX_VERSION = 'V 0.20' as const;
 
 export const getBossSandboxPerformingAttackId = (
   activeAttack: PreviewBossAttackSnapshot | null | undefined
@@ -78,6 +84,22 @@ export const HELIOS_CLAWCARRIER_SHEET_URL =
   `/__director/api/v1/prototype-assets/helios-clawcarrier/${HELIOS_CLAWCARRIER_SHEET_SHA256}/sheet.png`;
 export const HELIOS_CLAWCARRIER_REFERENCE_URL =
   `/__director/api/v1/prototype-assets/helios-clawcarrier/${HELIOS_CLAWCARRIER_REFERENCE_SHA256}/reference.png`;
+export const PRISM_MOTH_BROODKEEPER_ART_SHA256 =
+  'cd0381398cbfb5003822f126192dc0d18af3fe874eff11defec9d57202109f39';
+export const PRISM_MOTH_BROODKEEPER_SHEET_SHA256 =
+  '5ef8ca7e395c94b3777d4f85808b5701f8bc952d96a335438e8353dcc82b6292';
+export const PRISM_MOTH_BROODKEEPER_REFERENCE_SHA256 =
+  'b006c73ab1b027d5dce5ac2dc5cf841a2b2e30a202da264b91c00f8f93b77ade';
+export const PRISM_MOTH_BROODKEEPER_ART_URL =
+  `/__director/api/v1/prototype-assets/prism-moth-broodkeeper/${PRISM_MOTH_BROODKEEPER_ART_SHA256}/assembled.png`;
+export const PRISM_MOTH_BROODKEEPER_SHEET_URL =
+  `/__director/api/v1/prototype-assets/prism-moth-broodkeeper/${PRISM_MOTH_BROODKEEPER_SHEET_SHA256}/sheet.png`;
+export const PRISM_MOTH_BROODKEEPER_REFERENCE_URL =
+  `/__director/api/v1/prototype-assets/prism-moth-broodkeeper/${PRISM_MOTH_BROODKEEPER_REFERENCE_SHA256}/reference.png`;
+export const PRISM_MOTH_FEATHER_SHEET_SHA256 =
+  '87b88c95cdc29dfee7df974f9e7aa4ff359aeda50aa9630e7012d7427f64ba56';
+export const PRISM_MOTH_FEATHER_SHEET_URL =
+  '/game-art/generated/ui/scicon-simple-arcade-kit-v1/projectiles/prism-shard/cyan/projectile-prism-shard-cyan-sprite-sheet.png';
 export const AURORA_STORM_ENGINE_ART_SHA256 =
   '4b0db8c860f6813b60375241c4cbca710633bf1ea98677f3ab2d66d7b04925e3';
 export const AURORA_STORM_ENGINE_SHEET_SHA256 =
@@ -454,6 +476,211 @@ export const HELIOS_CLAWCARRIER_MODULAR_RIG = registerModularBossRig(
 const sampleHeliosSandboxPose: PreviewBossModularPoseSampler = (input) => (
   sampleHeliosModularPose(input).partOverrides
 );
+
+const getPrismMothPartRole = (partId: string): ModularBossPartRole => {
+  if (partId === 'root' || partId.startsWith('shoulder.')) return 'joint';
+  if (partId === 'body' || partId === 'abdomen') return 'body';
+  if (partId === 'core') return 'phase-attachment';
+  if (partId === 'crest' || partId.startsWith('wing.')) return 'armor';
+  if (partId.startsWith('brood-pod.')) return 'pod';
+  return 'decorative';
+};
+
+const getPrismMothSocketRole = (socketId: string): ModularBossSocketRole => {
+  if (socketId.startsWith('wing-')) return 'projectile-muzzle';
+  if (socketId.startsWith('brood-release-')) return 'detachable-pod';
+  if (socketId === 'prism-core') return 'core-origin';
+  return 'effect-origin';
+};
+
+const normalizePrismMothRigManifest = (): ModularBossRigManifest => {
+  if (prismMothAtlasSource.image.sha256 !== PRISM_MOTH_BROODKEEPER_SHEET_SHA256) {
+    throw new Error('Prism Moth atlas metadata does not match its fixed content hash.');
+  }
+  if (prismMothRigSource.atlas.sha256 !== PRISM_MOTH_BROODKEEPER_SHEET_SHA256) {
+    throw new Error('Prism Moth rig does not reference the registered atlas.');
+  }
+
+  const designSize = Object.freeze({
+    width: prismMothRigSource.canvas.width,
+    height: prismMothRigSource.canvas.height
+  });
+  const frames = Object.freeze(Object.fromEntries(
+    Object.entries(prismMothAtlasSource.frames).map(([frameId, frame]) => [
+      frameId,
+      Object.freeze({
+        x: frame.x,
+        y: frame.y,
+        width: frame.width,
+        height: frame.height
+      })
+    ])
+  ));
+  const parts = Object.freeze(prismMothRigSource.parts.map((part) => {
+    const isRoot = part.parentId === null;
+    return Object.freeze({
+      id: part.id,
+      role: getPrismMothPartRole(part.id),
+      parentId: part.parentId,
+      frameId: part.frameId,
+      transform: Object.freeze({
+        x: isRoot ? part.transform.x - designSize.width / 2 : part.transform.x,
+        y: isRoot ? part.transform.y - designSize.height / 2 : part.transform.y,
+        rotation: part.transform.rotationDegrees * Math.PI / 180,
+        scaleX: part.transform.scaleX,
+        scaleY: part.transform.scaleY
+      }),
+      anchor: part.anchor
+        ? Object.freeze({ x: part.anchor.x, y: part.anchor.y })
+        : null,
+      layer: part.layer,
+      visible: part.neutralVisible
+    });
+  }));
+  const sockets = Object.freeze(prismMothRigSource.sockets.map((socket) => (
+    Object.freeze({
+      id: socket.id,
+      role: getPrismMothSocketRole(socket.id),
+      partId: socket.partId,
+      x: socket.x,
+      y: socket.y,
+      rotation: socket.rotationDegrees * Math.PI / 180
+    })
+  )));
+  const featherFrames = Object.freeze(Object.fromEntries(
+    Array.from({ length: 4 }, (_, index) => [
+      `prism-feather.${index}`,
+      Object.freeze({
+        x: index * 128,
+        y: 0,
+        width: 128,
+        height: 128
+      })
+    ])
+  ));
+
+  return Object.freeze({
+    kind: MODULAR_BOSS_RIG_KIND,
+    id: prismMothRigSource.bossId,
+    designSize,
+    atlas: Object.freeze({
+      url: PRISM_MOTH_BROODKEEPER_SHEET_URL,
+      contentHash: PRISM_MOTH_BROODKEEPER_SHEET_SHA256,
+      width: prismMothAtlasSource.image.width,
+      height: prismMothAtlasSource.image.height,
+      frames
+    }),
+    supplementalAtlases: Object.freeze([
+      Object.freeze({
+        url: PRISM_MOTH_FEATHER_SHEET_URL,
+        contentHash: PRISM_MOTH_FEATHER_SHEET_SHA256,
+        width: 512,
+        height: 128,
+        frames: featherFrames
+      })
+    ]),
+    parts,
+    animations: Object.freeze([]),
+    sockets,
+    destruction: Object.freeze({
+      durationFrames: 104,
+      fragments: Object.freeze([
+        Object.freeze({
+          partId: 'wing.left.lower-outer',
+          delayFrames: 0,
+          travelX: -128,
+          travelY: 152,
+          rotationRadians: -1.8
+        }),
+        Object.freeze({
+          partId: 'wing.right.lower-outer',
+          delayFrames: 0,
+          travelX: 128,
+          travelY: 152,
+          rotationRadians: 1.8
+        }),
+        Object.freeze({
+          partId: 'wing.left.upper',
+          delayFrames: 8,
+          travelX: -170,
+          travelY: 118,
+          rotationRadians: -2.2
+        }),
+        Object.freeze({
+          partId: 'wing.right.upper',
+          delayFrames: 8,
+          travelX: 170,
+          travelY: 118,
+          rotationRadians: 2.2
+        }),
+        Object.freeze({
+          partId: 'wing.left.mid',
+          delayFrames: 14,
+          travelX: -106,
+          travelY: 184,
+          rotationRadians: -1.45
+        }),
+        Object.freeze({
+          partId: 'wing.right.mid',
+          delayFrames: 14,
+          travelX: 106,
+          travelY: 184,
+          rotationRadians: 1.45
+        }),
+        Object.freeze({
+          partId: 'brood-pod.left',
+          delayFrames: 20,
+          travelX: -76,
+          travelY: 222,
+          rotationRadians: -2.7
+        }),
+        Object.freeze({
+          partId: 'brood-pod.right',
+          delayFrames: 20,
+          travelX: 76,
+          travelY: 222,
+          rotationRadians: 2.7
+        }),
+        Object.freeze({
+          partId: 'crest',
+          delayFrames: 28,
+          travelX: -24,
+          travelY: 176,
+          rotationRadians: -0.9
+        }),
+        Object.freeze({
+          partId: 'core',
+          delayFrames: 40,
+          travelX: 8,
+          travelY: 126,
+          rotationRadians: 1.4
+        }),
+        Object.freeze({
+          partId: 'body',
+          delayFrames: 48,
+          travelX: 0,
+          travelY: 228,
+          rotationRadians: -0.42
+        })
+      ])
+    })
+  });
+};
+
+export const PRISM_MOTH_BROODKEEPER_MODULAR_RIG = registerModularBossRig(
+  normalizePrismMothRigManifest()
+);
+
+const prismMothRigIssues = validatePrismMothRigCompatibility(
+  PRISM_MOTH_BROODKEEPER_MODULAR_RIG
+);
+if (prismMothRigIssues.length > 0) {
+  throw new Error(
+    `Prism Moth modular rig is incompatible: ${prismMothRigIssues
+      .map((issue) => `${issue.path}: ${issue.message}`)
+      .join('; ')}`
+  );
+}
 
 const MERIDIAN_HARROWER_ATLAS_FRAMES = Object.freeze({
   coreBody: Object.freeze({ x: 552, y: 93, width: 202, height: 223 }),
@@ -1000,6 +1227,27 @@ const HELIOS_CLAWCARRIER_REFERENCE_ASSET = Object.freeze({
   height: 271
 }) satisfies SandboxBossArtworkAsset;
 
+const PRISM_MOTH_BROODKEEPER_ASSEMBLED_ASSET = Object.freeze({
+  url: PRISM_MOTH_BROODKEEPER_ART_URL,
+  contentHash: PRISM_MOTH_BROODKEEPER_ART_SHA256,
+  width: 512,
+  height: 512
+}) satisfies SandboxBossArtworkAsset;
+
+const PRISM_MOTH_BROODKEEPER_SHEET_ASSET = Object.freeze({
+  url: PRISM_MOTH_BROODKEEPER_SHEET_URL,
+  contentHash: PRISM_MOTH_BROODKEEPER_SHEET_SHA256,
+  width: 2048,
+  height: 2048
+}) satisfies SandboxBossArtworkAsset;
+
+const PRISM_MOTH_BROODKEEPER_REFERENCE_ASSET = Object.freeze({
+  url: PRISM_MOTH_BROODKEEPER_REFERENCE_URL,
+  contentHash: PRISM_MOTH_BROODKEEPER_REFERENCE_SHA256,
+  width: 384,
+  height: 384
+}) satisfies SandboxBossArtworkAsset;
+
 const AURORA_STORM_ENGINE_ASSEMBLED_ASSET = Object.freeze({
   url: AURORA_STORM_ENGINE_ART_URL,
   contentHash: AURORA_STORM_ENGINE_ART_SHA256,
@@ -1190,7 +1438,7 @@ export const SANDBOX_BOSS_ARTWORK_REGISTRATIONS: Readonly<
         frameHoldFrames: 2,
         minimumVisualHeight: 14,
         entityHeightScale: 1.7,
-        orientationOffsetRadians: 0
+        orientationOffsetRadians: Math.PI
       }),
       'boss-reactor-pellet': Object.freeze({
         frameIds: Object.freeze([
@@ -1215,6 +1463,80 @@ export const SANDBOX_BOSS_ARTWORK_REGISTRATIONS: Readonly<
         minimumVisualHeight: 30,
         entityHeightScale: 1.35,
         orientationOffsetRadians: 0
+      })
+    }),
+    vfxAtlas: Object.freeze({
+      ...SANDBOX_BOSS_VFX_SHEET_ASSET,
+      frames: SANDBOX_BOSS_VFX_ATLAS_FRAMES
+    })
+  }),
+  'prism-moth-brood': Object.freeze({
+    prototypeId: 'prism-moth-brood',
+    assembled: PRISM_MOTH_BROODKEEPER_ASSEMBLED_ASSET,
+    sheet: PRISM_MOTH_BROODKEEPER_SHEET_ASSET,
+    modularRig: PRISM_MOTH_BROODKEEPER_MODULAR_RIG,
+    sampleModularPose: samplePrismMothSandboxPose,
+    modularReferenceComparison: Object.freeze({
+      kind: MODULAR_BOSS_REFERENCE_COMPARISON_KIND,
+      ...PRISM_MOTH_BROODKEEPER_REFERENCE_ASSET,
+      provenance: 'Pinned canonical complete Prism Moth pose from the stage-20 generated expansion art.',
+      landmarks: Object.freeze([
+        Object.freeze({
+          id: 'prism-core',
+          label: 'Prism core',
+          reference: Object.freeze({ xRatio: 0.5, yRatio: 0.47 }),
+          rig: Object.freeze({ kind: 'socket', socketId: 'prism-core' })
+        }),
+        Object.freeze({
+          id: 'wing-tip-left',
+          label: 'Left upper wing tip',
+          reference: Object.freeze({ xRatio: 0.22, yRatio: 0.25 }),
+          rig: Object.freeze({ kind: 'socket', socketId: 'wing-tip-left' })
+        }),
+        Object.freeze({
+          id: 'wing-tip-right',
+          label: 'Right upper wing tip',
+          reference: Object.freeze({ xRatio: 0.78, yRatio: 0.25 }),
+          rig: Object.freeze({ kind: 'socket', socketId: 'wing-tip-right' })
+        })
+      ])
+    }),
+    projectileAnimations: Object.freeze({
+      'boss-prism-feather': Object.freeze({
+        frameIds: Object.freeze([
+          'prism-feather.0',
+          'prism-feather.1',
+          'prism-feather.2',
+          'prism-feather.3'
+        ]),
+        frameHoldFrames: 3,
+        minimumVisualHeight: 18,
+        entityHeightScale: 1.55,
+        orientationOffsetRadians: Math.PI / 2
+      }),
+      'boss-prism-cocoon': Object.freeze({
+        frameIds: Object.freeze([
+          'cocoon.lifecycle.0',
+          'cocoon.lifecycle.1',
+          'cocoon.lifecycle.2',
+          'cocoon.lifecycle.3'
+        ]),
+        frameHoldFrames: 14,
+        minimumVisualHeight: 34,
+        entityHeightScale: 1.8,
+        orientationOffsetRadians: 0
+      }),
+      'boss-prism-broodling': Object.freeze({
+        frameIds: Object.freeze([
+          'broodling.flutter.0',
+          'broodling.flutter.1',
+          'broodling.flutter.2',
+          'broodling.flutter.3'
+        ]),
+        frameHoldFrames: 3,
+        minimumVisualHeight: 24,
+        entityHeightScale: 1.65,
+        orientationOffsetRadians: Math.PI / 2
       })
     }),
     vfxAtlas: Object.freeze({

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "bossId": "helios-clawcarrier",
-  "status": "sandbox-only-factory-ready",
+  "status": "sandbox-only-v018-release-gates-passed",
   "fixedSeed": "helios-v2-safe-route-proof",
   "authoritative": {
     "rigKind": "modular-hierarchy-v1",
@@ -110,7 +110,21 @@
       "isBossSideBarrageGuide",
       "text effect"
     ],
-    "reviewOverlayHasGameplayAuthority": false
+    "reviewOverlayHasGameplayAuthority": false,
+    "mountedWeaponContract": {
+      "hierarchy": "body -> weapons.mount -> rotary -> muzzle",
+      "coordinates": "local-rig-only",
+      "neutralOutsideFiring": true,
+      "recoilAndVibration": "firing-only",
+      "recovery": "exact-neutral-local-transform"
+    },
+    "gatlingTracerOrientation": {
+      "formula": "atan2(velocityY, velocityX) + textureForwardOffset",
+      "priorOffsetRadians": 0,
+      "requiredOffsetRadians": 3.141592653589793,
+      "perShotOverridesForbidden": true,
+      "runtimeVisualReview": "passed-mobile-and-desktop"
+    }
   },
   "phases": [
     {
@@ -119,11 +133,20 @@
       "triggerHealthRatio": 1,
       "speedMultiplier": 0.72,
       "firstCannonSide": "port",
-      "firstSweepSide": "port",
+      "burstProjectileCount": 5,
+      "burstShotIntervalFrames": 3,
+      "channelDirection": "seeded-first-edge-then-alternate-each-complete-use",
+      "channelBaseSequence": 0,
+      "channelWidthPixels": 160,
+      "channelSweepRangeRatio": 0.36,
+      "channelSweepPasses": 2,
+      "channelShotIntervalFrames": 2,
+      "channelProjectileSpeedScale": 0.92,
       "reactorDirection": "clockwise",
       "reactorSequences": [0, 1, 2, 3],
       "crushSequence": 0,
-      "visibleTransformation": "Closed body, concealed reactor, narrow neutral claws, and a slow dormant rotary tick."
+      "mineTemplateStart": "staggered-diagonal",
+      "visibleTransformation": "Closed body, concealed reactor, narrow neutral claws, and both rotaries fixed to their neutral mounts when not firing."
     },
     {
       "id": "sandbox-clawcarrier-armor-shear",
@@ -131,11 +154,20 @@
       "triggerHealthRatio": 0.67,
       "speedMultiplier": 0.75,
       "firstCannonSide": "starboard",
-      "firstSweepSide": "starboard",
+      "burstProjectileCount": 5,
+      "burstShotIntervalFrames": 3,
+      "channelDirection": "seeded-first-edge-then-alternate-each-complete-use",
+      "channelBaseSequence": 4,
+      "channelWidthPixels": 160,
+      "channelSweepRangeRatio": 0.42,
+      "channelSweepPasses": 2,
+      "channelShotIntervalFrames": 2,
+      "channelProjectileSpeedScale": 0.98,
       "reactorDirection": "counterclockwise",
       "reactorSequences": [5, 4, 3, 2],
       "crushSequence": 4,
-      "visibleTransformation": "The body opens, the reactor remains visible, both claws spread and roll outward, the four stabilizer legs brace, and the rotary housings remain active."
+      "mineTemplateStart": "zigzag",
+      "visibleTransformation": "The body opens, the reactor remains visible, both claws spread and roll outward, the four stabilizer legs brace, and the rotary housings remain rigidly mounted."
     },
     {
       "id": "sandbox-clawcarrier-reactor-overdrive",
@@ -143,49 +175,74 @@
       "triggerHealthRatio": 0.32,
       "speedMultiplier": 0.78,
       "firstCannonSide": "port",
-      "firstSweepSide": "starboard",
+      "burstProjectileCount": 6,
+      "burstShotIntervalFrames": 2,
+      "channelDirection": "seeded-first-edge-then-alternate-each-complete-use",
+      "channelBaseSequence": 8,
+      "channelWidthPixels": 160,
+      "channelSweepRangeRatio": 0.46,
+      "channelSweepPasses": 2,
+      "channelShotIntervalFrames": 2,
+      "channelProjectileSpeedScale": 1.04,
       "reactorDirection": "clockwise",
       "reactorSequences": [2, 4, 1, 3],
       "crushSequence": 8,
+      "mineTemplateStart": "offset-triangle",
       "visibleTransformation": "Damaged body persists, the port claw droops while starboard braces, the stabilizer legs tuck asymmetrically, and the exposed reactor reverses its ambient rotation."
     }
   ],
   "attacks": [
     {
-      "id": "twin-rotary-crossfire",
-      "label": "Twin Rotary Crossfire",
+      "id": "rapid-machine-gun-bursts",
+      "runtimeAttackId": "twin-rotary-crossfire",
+      "label": "Rapid Machine-Gun Bursts",
       "kind": "core",
       "primitiveId": "paired-cannon-burst",
+      "motionCue": "paired-crossfire",
       "playerSkill": "rhythm-dodge",
       "anatomy": ["rotary.port", "rotary.starboard", "muzzle.port", "muzzle.starboard"],
       "sockets": ["rotary-muzzle-port", "rotary-muzzle-starboard"],
-      "recognitionCue": "One four-frame rotary spins and braces first, the opposite housing answers, then both commit together.",
-      "safeRule": "Clear the first short burst, cross behind the delayed answer, then hold the center opening through the coordinated volley.",
+      "recognitionCue": "Helios enters a short firing stance, one rotary spools and fires, the second joins after a readable delay, and both finish before spinning down.",
+      "safeRule": "Make short deliberate dodges through the targeted bursts; this teaches the mounted weapon without becoming the longer moving-channel puzzle.",
       "beats": [
-        "three sequential first-side shots from the live muzzle",
-        "three sequential opposite-side answers from the live muzzle",
-        "four alternating shots per rotary around the coordinated center corridor",
-        "recoil and spin-down",
+        "short firing stance and spool",
+        "sequential first-gun rapid burst",
+        "delayed second-gun join",
+        "rapid paired finish with one live muzzle sample, barrel frame, flash, and local recoil per round",
+        "spin-down and exact mounted-neutral return",
         "recovery"
       ],
-      "boundedVariation": "The phase selects the first side and cadence; every round samples the current mounted muzzle transform and synchronizes one starburst flash, barrel frame, and recoil pulse."
+      "boundedVariation": "The deterministic sequence may change the first side, targeted direction, and two- or three-burst rhythm. Attack 1 remains shorter than Attack 2, and every round samples the current mounted muzzle transform."
     },
     {
-      "id": "claw-sweep-pincer",
-      "label": "Claw Sweep Pincer",
-      "kind": "core",
-      "primitiveId": "articulated-melee-sweep",
+      "id": "machinegun-channel",
+      "runtimeAttackId": "machinegun-channel",
+      "label": "Moving Machine-Gun Channel",
+      "kind": "signature",
+      "primitiveId": "paired-cannon-burst",
+      "motionCue": "machinegun-channel",
       "playerSkill": "lane-routing",
-      "anatomy": ["claw.port.mount", "claw.port", "mandible.port", "claw.starboard.mount", "claw.starboard", "mandible.starboard"],
-      "sockets": ["claw-joint-port", "claw-tip-port", "claw-joint-starboard", "claw-tip-starboard"],
-      "recognitionCue": "Helios travels to one lower corner with its connected claw open, tracks briefly, visibly locks, closes, releases, and answers from the opposite corner.",
-      "safeRule": "Cross away during travel, leave the tracked corner before lock, and pass outside the closing claw tip.",
+      "sustainedFireSeconds": 6.8,
+      "segmentDurationSeconds": 1.7,
+      "repeatCount": 4,
+      "startingDirectionPolicy": "Use the gameplay seed for the first complete channel, then alternate the starting edge once per later complete use. The four continuation segments never consume another direction.",
+      "anatomy": ["root", "weapons.mount", "rotary.port", "rotary.starboard", "muzzle.port", "muzzle.starboard"],
+      "sockets": ["rotary-muzzle-port", "rotary-muzzle-starboard"],
+      "recognitionCue": "Helios settles upper-middle, both rotaries spool and glow, the connected rig reaches a mobile gutter, and simultaneous downward tracer rails establish two moving boundaries.",
+      "safeRule": "Enter between the two streams and continuously follow their moving center from gutter to gutter and back; stationary exterior edge camps are deliberately threatened, while the opening cannot cross, teleport, or close without a visible survivable transition.",
       "beats": [
-        "first-side move-open-track-lock-close-release",
-        "opposite-side move-open-track-lock-close-release",
-        "recovery or rotary fallback when both claws are destroyed"
+        "upper-middle settle",
+        "dual spool and muzzle glow",
+        "first simultaneous paired boundary rounds",
+        "continuous two-stream gutter-to-gutter sweep",
+        "route-proven reversal and return pass",
+        "firing taper and spin-down",
+        "exact mounted-neutral return and recovery"
       ],
-      "boundedVariation": "The phase selects the first side; a destroyed requested claw skips only its own beat while the surviving claw performs its single valid corner attempt, both destroyed skip the clamp and select rotary fallback, and damage exists only during visible closure at the surviving live tip."
+      "boundedVariation": "Every complete use alternates its starting edge deterministically. All phases retain one proven reversal and return pass, a 160 px interior opening, and a two-frame paired firing cadence; phase escalation uses bounded tracer speed and presentation changes without destroying the recognizable channel solution.",
+      "heliosSpecificChoreography": true,
+      "sharedPrimitivePolicy": "Reuse moving-socket, sequential-fire, movement, and route-proof primitives without making this signature a default future-boss attack.",
+      "retiredPrototype": "claw-sweep-pincer is not in the active Helios rotation; claw art remains active through clawcarrier-crush."
     },
     {
       "id": "reactor-maze",
@@ -200,16 +257,32 @@
       "beats": [
         "sequential downward fan beat 1",
         "reversed or center-out downward fan beat 2",
-        "bounded three-mine deploy and arm formation",
+        "bounded deterministic three-mine two-dimensional deploy and arm formation",
         "final sequential downward fan beat",
         "vent and recovery"
       ],
-      "boundedVariation": "Every fan remains inside the 8-through-4-o'clock envelope, the fixed sequence chooses order and mine lane formation, every emission samples reactor-core, and mine damage exists only in visible explosion frames."
+      "mineFormationTemplates": [
+        "staggered-diagonal",
+        "reverse-diagonal",
+        "zigzag",
+        "shallow-arc",
+        "offset-triangle",
+        "asymmetric-cluster"
+      ],
+      "mineFormationContract": {
+        "boundedDeterministicSelection": true,
+        "variesXAndY": true,
+        "minimumSpacingRequired": true,
+        "directPlayerSpawnForbidden": true,
+        "completeHorizontalWallForbidden": true,
+        "combinedReactorRouteProofRequired": true
+      },
+      "boundedVariation": "Every fan remains inside the 8-through-4-o'clock envelope. The deterministic sequence selects one explicit X/Y mine template with per-slot delay and deployment duration; every emission samples reactor-core, and mine damage exists only in visible explosion frames."
     },
     {
       "id": "clawcarrier-crush",
       "label": "Clawcarrier Crush",
-      "kind": "signature",
+      "kind": "core",
       "primitiveId": "tracking-pincer-dive",
       "playerSkill": "route-combination",
       "anatomy": ["root", "claw.port.mount", "claw.port", "mandible.port", "claw.starboard.mount", "claw.starboard", "mandible.starboard"],
@@ -224,9 +297,10 @@
       ],
       "repeat": {
         "count": 4,
-        "intervalSeconds": 0.9
+        "intervalSeconds": 0.86
       },
       "boundedVariation": "The phase selects a deterministic sequence offset; unrestricted tracking and random target changes are forbidden."
+      ,"changeBoundary": "Keep the existing tracking, lock, dive, visible claw closure, collision ownership, and survival rule unless regression correction is required by Attacks 1-3."
     }
   ],
   "destruction": {
@@ -245,12 +319,18 @@
     ]
   },
   "proof": {
-    "safeRouteCases": 24,
+    "status": "passed-refined-runtime-proof",
+    "priorSafeRouteCases": 24,
+    "priorCasesApplyToRetiredAttackSet": true,
+    "requiredBaseCases": 24,
+    "validatedRefinedCases": 24,
     "viewports": ["390x844", "1280x720"],
     "minimumRequiredClearancePixels": 6,
     "geometryUncertaintyPixels": 3,
     "warningAndFireOriginsMustMatch": true,
-    "witnessHashesMustReplay": true
+    "witnessHashesMustReplay": true,
+    "continuousMovingChannelWitnessRequired": true,
+    "allMineTemplatesMustPassWithReactorHazards": true
   },
   "visualProof": {
     "artifactDirectory": "director-data/prototype-assets/helios-clawcarrier-v2/review",
@@ -260,24 +340,28 @@
       "neutral-reference-under.png",
       "neutral-reference-over.png",
       "neutral-reference-landmarks.png",
-      "twin-rotary-crossfire-preparation.png",
-      "twin-rotary-crossfire-anticipation.png",
-      "twin-rotary-crossfire-telegraph.png",
-      "twin-rotary-crossfire-first-beat.png",
-      "twin-rotary-crossfire-peak-danger.png",
-      "twin-rotary-crossfire-recovery.png",
-      "claw-sweep-pincer-preparation.png",
-      "claw-sweep-pincer-anticipation.png",
-      "claw-sweep-pincer-telegraph.png",
-      "claw-sweep-pincer-first-beat.png",
-      "claw-sweep-pincer-peak-danger.png",
-      "claw-sweep-pincer-recovery.png",
+      "mounted-rotaries-idle-neutral.png",
+      "rapid-machine-gun-bursts-preparation.png",
+      "rapid-machine-gun-bursts-telegraph.png",
+      "rapid-machine-gun-bursts-first-beat.png",
+      "rapid-machine-gun-bursts-peak-danger.png",
+      "rapid-machine-gun-bursts-recovery.png",
+      "rapid-machine-gun-bursts-post-fire-neutral.png",
+      "moving-machine-gun-channel-preparation.png",
+      "moving-machine-gun-channel-telegraph.png",
+      "moving-machine-gun-channel-first-beat.png",
+      "moving-machine-gun-channel-peak-danger.png",
+      "moving-machine-gun-channel-ending.png",
+      "moving-machine-gun-channel-recovery.png",
       "reactor-maze-preparation.png",
       "reactor-maze-anticipation.png",
       "reactor-maze-telegraph.png",
       "reactor-maze-first-beat.png",
       "reactor-maze-peak-danger.png",
       "reactor-maze-recovery.png",
+      "reactor-maze-mine-formation-staggered-diagonal.png",
+      "reactor-maze-mine-formation-zigzag.png",
+      "reactor-maze-mine-formation-offset-triangle.png",
       "clawcarrier-crush-preparation.png",
       "clawcarrier-crush-rise.png",
       "clawcarrier-crush-lock.png",
@@ -289,21 +373,45 @@
       "reactor-overdrive-damage.png",
       "stagger-heavy-hit.png",
       "destruction-peak.png",
-      "socket-overlay-crossfire.png",
+      "socket-overlay-rapid-bursts.png",
+      "socket-overlay-channel.png",
       "socket-overlay-reactor.png",
       "claw-hit-regions.png",
       "helios-clawcarrier-v2-key-pose-contact-sheet.png",
       "visual-verification-result.md"
     ],
+    "reviewedArtifacts": [
+      "v016-mobile-neutral-mounted-settled.png",
+      "v016-mobile-attack1-rapid-fire.png",
+      "v016-mobile-attack1-angled-fire-beat2.png",
+      "v016-mobile-attack1-post-burst-neutral.png",
+      "v018-mobile-attack2-channel-protected-warning.png",
+      "v018-mobile-attack2-channel-protected-right-edge.png",
+      "v018-mobile-attack2-channel-protected-left-edge.png",
+      "v018-mobile-attack2-channel-protected-alternating-replay.png",
+      "v016-mobile-attack2-channel-recovery.png",
+      "v016-mobile-attack3-mines-seed-a.png",
+      "v016-mobile-attack3-mines-seed-b.png",
+      "v016-mobile-attack3-mines-seed-c.png",
+      "v016-mobile-attack4-clamp-dive.png",
+      "v016-desktop-attack2-channel-clean.png",
+      "helios-clawcarrier-v2-key-pose-contact-sheet.png",
+      "visual-verification-result.md"
+    ],
     "gates": [
+      "Gate 1 remains locked to the unchanged canonical reference and asset inventory",
       "clean mobile and desktop captures show one connected, aspect-preserved 460x330 rig",
+      "both rotaries remain rigidly hull-mounted outside firing and return exactly to neutral after recovery",
       "every projectile visibly leaves its owning rotary or reactor anatomy",
+      "gatling tracers point along actual downward and diagonal velocity without flipping",
+      "the moving machine-gun channel retains one continuous mobile and desktop route with at least 6px replayed clearance after uncertainty",
+      "every retained mine template visibly varies X and Y and passes combined reactor route proof",
       "melee damage remains attached to the visible moving claw tips",
       "anticipation, recovery, phase transformation, persistent damage, and destruction read without gameplay text or generic guides",
       "structural art is opaque and nearest-neighbor with no chopped frames, transient white textures, detached parts, or non-uniform breathing distortion",
       "review overlays are absent from clean gameplay captures",
       "spawn, reset, replay, loop, phase jump, and death clean up all transient state"
     ],
-    "status": "pending-helios-refinement-runtime-review"
+    "status": "v018-release-gates-passed"
   }
 }

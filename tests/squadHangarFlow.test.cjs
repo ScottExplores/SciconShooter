@@ -61,7 +61,7 @@ test('guest runs save device Pilot Hangar and Boss Archive progress while wallet
   assert.match(squad, /window\.localStorage\.setItem\(weeklyStorageKey\(state\.profileId\)/);
   assert.match(squad, /window\.localStorage\.setItem\(permanentStorageKey\(state\.profileId\)/);
   assert.doesNotMatch(squad, /state\.profileId === 'guest'/);
-  assert.match(squad, /bossArchive: \{\s*unlockedEventIds: \[\],\s*seenEventIds: \[\]/);
+  assert.match(squad, /bossArchive: createBossArchiveProgress\(\)/);
   assert.match(squad, /normalizeBossArchiveEventIds/);
   assert.match(app, /Coins fund permanent Hangar upgrades/);
   assert.match(app, /const \[pilotProfile\] = useState\(initializeLocalPilotProfile\)/);

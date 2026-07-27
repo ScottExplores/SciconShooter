@@ -124,9 +124,13 @@ test('spawn escalation targets are shared by spawning and clear-wave completion'
   assert.match(engine, /activeThreatCount: this\.getActiveThreatCount\(\)/);
 });
 
-test('internal waves advance immediately while stage finales own departure and records', () => {
+test('internal waves pause only when Campaign checkpoint results are enabled', () => {
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
-  assert.match(engine, /if \(!this\.isCurrentWaveStageFinal\(\)\) \{[\s\S]*?this\.startNextWave\(\);/);
+  assert.match(engine, /if \(!this\.isCurrentWaveStageFinal\(\)\) \{[\s\S]*?this\.beginTacticalWaveCompletion\('WAVE CLEAR!'/);
+  assert.match(engine, /pauseAtInternalWaveResults\?: boolean/);
+  assert.match(engine, /this\.pauseAtInternalWaveResults = options\.pauseAtInternalWaveResults \?\? false/);
+  assert.match(engine, /beginTacticalWaveCompletion\([\s\S]*?if \(this\.pauseAtInternalWaveResults\) \{[\s\S]*?this\.waveVictoryReady = true;[\s\S]*?this\.gameActive = false;[\s\S]*?return;[\s\S]*?this\.startNextWave\(\);/);
+  assert.match(engine, /continueToNextWave\(\)[\s\S]*?this\.startNextWave\(\);/);
   assert.match(engine, /const stageBoundary = [\s\S]*?previousEntry\.level\.id !== nextEntry\.level\.id/);
   assert.match(engine, /this\.resetWaveProgress\(stageBoundary\)/);
   assert.match(engine, /this\.introFlightDuration = stageBoundary/);
@@ -143,5 +147,8 @@ test('Gatekeeper stages expose a five-second movable reward window before the fu
   assert.match(engine, /STAGE_TAKEOFF_LAUNCH_FRAMES = 126/);
   assert.match(engine, /if \(this\.stageRewardCollectionFrames > 0\) \{[\s\S]*?this\.updateStageRewardCollection\(\)/);
   assert.match(engine, /updateStageRewardCollection\(\) \{[\s\S]*?this\.updatePlayerMovement\(this\.getPlayerMovementSpeed\(\)\)/);
-  assert.match(engine, /beginStageTakeoff\(\) \{[\s\S]*?this\.clearStageBoundaryDebris\(true\)/);
+  assert.match(
+    engine,
+    /beginStageTakeoff\(\) \{[\s\S]*?this\.clearStageBoundaryDebris\(true\);[\s\S]*?this\.refreshWaveVictorySummaryMetrics\(\)/
+  );
 });

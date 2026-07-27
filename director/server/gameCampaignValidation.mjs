@@ -212,6 +212,13 @@ const ENEMY_RANKS = new Set(['standard', 'elite']);
 const ENEMY_ATTACK_PATTERNS = new Set(['aimed-burst']);
 const WAVE_COMPLETION_RULES = new Set(['boss-defeat', 'clear-after-duration']);
 const SCORECARD_METRICS = new Set(['wave', 'targets', 'coins', 'flight']);
+const CAMPAIGN_MASTERY_OBJECTIVE_KINDS = new Set([
+  'complete',
+  'damage-at-most',
+  'coins-at-least',
+  'score-at-least',
+  'time-at-most'
+]);
 const EVENT_KINDS = new Set(['spawn', 'boss', 'asteroid-belt', 'powerup', 'recovery']);
 const BOSS_TIMELINE_TRIGGERS = new Set(['time', 'phase-enter', 'death']);
 const BOSS_TIMELINE_TELEGRAPH_STYLES = new Set(['warning', 'lane', 'target', 'ring', 'spokes']);
@@ -221,11 +228,21 @@ const BOSS_TIMELINE_MOTION_CUES = new Set([
   'heavy-cannon',
   'gatling-barrage',
   'paired-crossfire',
+  'machinegun-channel',
   'claw-sweep',
   'reactor-pattern',
   'reactor-fan',
   'reactor-mines',
-  'pincer-dive'
+  'pincer-dive',
+  'prism-wingbeat-weave',
+  'prism-brood-procession',
+  'prism-lunar-swoop',
+  'prism-kaleidoscope-brood',
+  'prism-wingbeat',
+  'prism-brood-deploy',
+  'prism-swoop',
+  'prism-kaleidoscope',
+  'prism-metamorphosis'
 ]);
 const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
   'clockwise',
@@ -276,10 +293,49 @@ const BOSS_TIMELINE_PRIMITIVES = new Map([
   ['radial-beam-array', { track: 'laser', damaging: true, supportsRepeat: false, parameterKeys: ['sequence', 'motionCue', 'rotationDirection'] }],
   ['corner-ambush-beam', { track: 'laser', damaging: true, supportsRepeat: false, parameterKeys: ['sequence'] }],
   ['corner-ambush-ram', { track: 'movement', damaging: true, supportsRepeat: false, parameterKeys: ['sequence'] }],
-  ['paired-cannon-burst', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'side', 'sequence', 'motionCue'] }],
+  ['paired-cannon-burst', {
+    track: 'attack',
+    damaging: true,
+    supportsRepeat: true,
+    parameterKeys: [
+      'projectileCount',
+      'side',
+      'sequence',
+      'motionCue',
+      'shotIntervalFrames',
+      'projectileSpeedScale',
+      'channelWidthPixels',
+      'sweepRangeRatio',
+      'sweepPasses'
+    ]
+  }],
   ['articulated-melee-sweep', { track: 'attack', damaging: true, supportsRepeat: false, parameterKeys: ['side', 'sequence', 'motionCue'] }],
   ['reactor-aperture-pattern', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence', 'rotationDirection', 'motionCue'] }],
   ['tracking-pincer-dive', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['sequence', 'motionCue'] }],
+  ['prism-wingbeat-weave', {
+    track: 'attack',
+    damaging: true,
+    supportsRepeat: true,
+    parameterKeys: ['projectileCount', 'sequence', 'motionCue', 'shotIntervalFrames', 'projectileSpeedScale', 'channelWidthPixels', 'sweepRangeRatio', 'sweepPasses']
+  }],
+  ['prism-brood-procession', {
+    track: 'summon',
+    damaging: true,
+    supportsRepeat: true,
+    parameterKeys: ['projectileCount', 'sequence', 'motionCue', 'shotIntervalFrames', 'projectileSpeedScale', 'channelWidthPixels', 'sweepRangeRatio', 'sweepPasses']
+  }],
+  ['prism-lunar-swoop', {
+    track: 'movement',
+    damaging: true,
+    supportsRepeat: true,
+    parameterKeys: ['sequence', 'motionCue', 'projectileCount', 'projectileSpeedScale', 'sweepRangeRatio', 'sweepPasses']
+  }],
+  ['prism-kaleidoscope-brood', {
+    track: 'summon',
+    damaging: true,
+    supportsRepeat: true,
+    parameterKeys: ['projectileCount', 'sequence', 'motionCue', 'pulseIntervalSeconds', 'shotIntervalFrames', 'projectileSpeedScale', 'channelWidthPixels', 'sweepRangeRatio', 'sweepPasses']
+  }],
   ['cross-beam', { track: 'laser', damaging: true, supportsRepeat: true, parameterKeys: [] }],
   ['rail-sweep', { track: 'laser', damaging: true, supportsRepeat: true, parameterKeys: ['sequence'] }],
   ['tail-fan', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount', 'sequence'] }],
@@ -294,7 +350,7 @@ const BOSS_TIMELINE_PRIMITIVES = new Map([
   ['set-weak-point', { track: 'defense', damaging: false, supportsRepeat: false, parameterKeys: ['componentId', 'enabled'] }],
   ['set-movement', { track: 'movement', damaging: false, supportsRepeat: false, parameterKeys: ['movementPatternId', 'speedMultiplier'] }],
   ['follow-path', { track: 'movement', damaging: false, supportsRepeat: false, parameterKeys: ['movementPathId'] }],
-  ['effect-cue', { track: 'presentation', damaging: false, supportsRepeat: false, parameterKeys: ['color'] }],
+  ['effect-cue', { track: 'presentation', damaging: false, supportsRepeat: false, parameterKeys: ['color', 'motionCue'] }],
   ['camera-cue', { track: 'presentation', damaging: false, supportsRepeat: false, parameterKeys: ['strength'] }]
 ]);
 
@@ -451,6 +507,86 @@ const validateScorecard = (scorecard, location, errors) => {
   validateUniqueEnumArray(scorecard.metrics, SCORECARD_METRICS, `${location}/metrics`, errors, { minimumItems: 1 });
   if (typeof scorecard.showEncounterArt !== 'boolean') errors.push(`${location}/showEncounterArt must be a boolean`);
   requireEnum(scorecard.encounterAssetKey, SCORECARD_ASSET_KEYS, `${location}/encounterAssetKey`, errors);
+};
+
+const validateCampaignProgression = (progression, location, levelId, errors) => {
+  if (progression === undefined) return;
+  if (!requireObject(progression, location, errors)) return;
+  allowedKeys(progression, ['reward', 'masteryObjectives', 'mapPosition', 'nextMissionId'], location, errors);
+
+  if (requireObject(progression.reward, `${location}/reward`, errors)) {
+    allowedKeys(
+      progression.reward,
+      ['waveClearCoins', 'missionClearCoins', 'firstClearCoins', 'bossFirstClearCoins', 'replayMultiplier'],
+      `${location}/reward`,
+      errors
+    );
+    ['waveClearCoins', 'missionClearCoins', 'firstClearCoins', 'bossFirstClearCoins'].forEach((key) => {
+      requireNumber(progression.reward[key], `${location}/reward/${key}`, errors, {
+        minimum: 0,
+        maximum: 1000000,
+        integer: true
+      });
+    });
+    requireNumber(progression.reward.replayMultiplier, `${location}/reward/replayMultiplier`, errors, {
+      minimum: Number.EPSILON,
+      maximum: 1
+    });
+  }
+
+  if (!Array.isArray(progression.masteryObjectives) || progression.masteryObjectives.length !== 3) {
+    errors.push(`${location}/masteryObjectives must contain exactly three mastery objectives`);
+  } else {
+    const objectiveIds = new Set();
+    let completionObjectiveCount = 0;
+    progression.masteryObjectives.forEach((objective, index) => {
+      const objectiveLocation = `${location}/masteryObjectives/${index}`;
+      if (!requireObject(objective, objectiveLocation, errors)) return;
+      allowedKeys(objective, ['id', 'label', 'kind', 'target', 'rewardCoins'], objectiveLocation, errors);
+      requireString(objective.id, `${objectiveLocation}/id`, errors, 160);
+      if (typeof objective.id === 'string' && typeof levelId === 'string' && !objective.id.startsWith(`${levelId}:`)) {
+        errors.push(`${objectiveLocation}/id must be scoped to its owning Mission`);
+      }
+      if (objectiveIds.has(objective.id)) errors.push(`${location}/masteryObjectives contains duplicate id: ${String(objective.id)}`);
+      objectiveIds.add(objective.id);
+      requireString(objective.label, `${objectiveLocation}/label`, errors, 160);
+      requireEnum(objective.kind, CAMPAIGN_MASTERY_OBJECTIVE_KINDS, `${objectiveLocation}/kind`, errors);
+      if (objective.kind === 'complete') {
+        completionObjectiveCount += 1;
+        if (objective.target !== 1) errors.push(`${objectiveLocation}/target must be 1 for a completion objective`);
+      } else {
+        requireNumber(objective.target, `${objectiveLocation}/target`, errors, { minimum: 0, maximum: 1000000000 });
+        if (
+          ['coins-at-least', 'score-at-least', 'time-at-most'].includes(objective.kind)
+          && isFiniteNumber(objective.target)
+          && objective.target <= 0
+        ) {
+          errors.push(`${objectiveLocation}/target must be positive for ${objective.kind}`);
+        }
+      }
+      requireNumber(objective.rewardCoins, `${objectiveLocation}/rewardCoins`, errors, {
+        minimum: 0,
+        maximum: 1000000,
+        integer: true
+      });
+    });
+    if (completionObjectiveCount !== 1) {
+      errors.push(`${location}/masteryObjectives must contain exactly one completion objective`);
+    }
+  }
+
+  if (progression.mapPosition !== undefined) {
+    const mapLocation = `${location}/mapPosition`;
+    if (requireObject(progression.mapPosition, mapLocation, errors)) {
+      allowedKeys(progression.mapPosition, ['x', 'y'], mapLocation, errors);
+      requireNumber(progression.mapPosition.x, `${mapLocation}/x`, errors, { minimum: 0, maximum: 1 });
+      requireNumber(progression.mapPosition.y, `${mapLocation}/y`, errors, { minimum: 0, maximum: 1 });
+    }
+  }
+
+  if (progression.nextMissionId !== undefined && progression.nextMissionId !== null) {
+    requireId(progression.nextMissionId, `${location}/nextMissionId`, errors);
+  }
 };
 
 const validateBaseEvent = (event, location, waveDuration, errors) => {
@@ -676,6 +812,11 @@ const validateBossTimeline = (timeline, location, phaseIds, errors) => {
           'sequence',
           'projectileCount',
           'pulseIntervalSeconds',
+          'shotIntervalFrames',
+          'projectileSpeedScale',
+          'channelWidthPixels',
+          'sweepRangeRatio',
+          'sweepPasses',
           'warningSeconds',
           'shieldCount',
           'summonCount',
@@ -703,6 +844,11 @@ const validateBossTimeline = (timeline, location, phaseIds, errors) => {
         if (parameters.sequence !== undefined) requireNumber(parameters.sequence, `${parameterLocation}/sequence`, errors, { minimum: 0, maximum: 100000, integer: true });
         if (parameters.projectileCount !== undefined) requireNumber(parameters.projectileCount, `${parameterLocation}/projectileCount`, errors, { minimum: 1, maximum: 24, integer: true });
         if (parameters.pulseIntervalSeconds !== undefined) requireNumber(parameters.pulseIntervalSeconds, `${parameterLocation}/pulseIntervalSeconds`, errors, { minimum: 0.5, maximum: 2 });
+        if (parameters.shotIntervalFrames !== undefined) requireNumber(parameters.shotIntervalFrames, `${parameterLocation}/shotIntervalFrames`, errors, { minimum: 2, maximum: 12, integer: true });
+        if (parameters.projectileSpeedScale !== undefined) requireNumber(parameters.projectileSpeedScale, `${parameterLocation}/projectileSpeedScale`, errors, { minimum: 0.5, maximum: 2 });
+        if (parameters.channelWidthPixels !== undefined) requireNumber(parameters.channelWidthPixels, `${parameterLocation}/channelWidthPixels`, errors, { minimum: 72, maximum: 320 });
+        if (parameters.sweepRangeRatio !== undefined) requireNumber(parameters.sweepRangeRatio, `${parameterLocation}/sweepRangeRatio`, errors, { minimum: 0.1, maximum: 0.8 });
+        if (parameters.sweepPasses !== undefined) requireNumber(parameters.sweepPasses, `${parameterLocation}/sweepPasses`, errors, { minimum: 1, maximum: 3, integer: true });
         if (parameters.warningSeconds !== undefined) requireNumber(parameters.warningSeconds, `${parameterLocation}/warningSeconds`, errors, { minimum: 0.1, maximum: 10 });
         if (parameters.shieldCount !== undefined) requireNumber(parameters.shieldCount, `${parameterLocation}/shieldCount`, errors, { minimum: 0, maximum: 12, integer: true });
         if (parameters.summonCount !== undefined) requireNumber(parameters.summonCount, `${parameterLocation}/summonCount`, errors, { minimum: 1, maximum: 12, integer: true });
@@ -1398,7 +1544,7 @@ const validateWave = (wave, location, availablePowerups, errors) => {
 
 const validateLevel = (level, location, errors) => {
   if (!requireObject(level, location, errors)) return;
-  allowedKeys(level, ['id', 'name', 'description', 'order', 'backgroundId', 'musicId', 'startingDifficulty', 'scoreTarget', 'durationSeconds', 'loopWaves', 'availablePowerupIds', 'scorecard', 'waves'], location, errors);
+  allowedKeys(level, ['id', 'name', 'description', 'order', 'backgroundId', 'musicId', 'startingDifficulty', 'scoreTarget', 'durationSeconds', 'loopWaves', 'availablePowerupIds', 'scorecard', 'campaignProgression', 'waves'], location, errors);
   requireId(level.id, `${location}/id`, errors);
   requireString(level.name, `${location}/name`, errors, 120);
   if (typeof level.description !== 'string' || level.description.length > 1000) errors.push(`${location}/description must be a string of 1000 characters or fewer`);
@@ -1411,6 +1557,7 @@ const validateLevel = (level, location, errors) => {
   if (typeof level.loopWaves !== 'boolean') errors.push(`${location}/loopWaves must be a boolean`);
   validateUniqueEnumArray(level.availablePowerupIds, POWERUP_IDS, `${location}/availablePowerupIds`, errors, { minimumItems: 1 });
   validateScorecard(level.scorecard, `${location}/scorecard`, errors);
+  validateCampaignProgression(level.campaignProgression, `${location}/campaignProgression`, level.id, errors);
   if (!Array.isArray(level.waves) || level.waves.length === 0) {
     errors.push(`${location}/waves must be a non-empty array`);
     return;
@@ -1452,6 +1599,15 @@ export const validateGameCampaign = (campaign) => {
     if (levelOrders.has(level?.order)) errors.push(`/levels contains duplicate order: ${String(level?.order)}`);
     levelIds.add(level?.id);
     levelOrders.add(level?.order);
+  });
+  campaign.levels.forEach((level, index) => {
+    const nextMissionId = level?.campaignProgression?.nextMissionId;
+    if (typeof nextMissionId !== 'string') return;
+    if (!levelIds.has(nextMissionId)) {
+      errors.push(`/levels/${index}/campaignProgression/nextMissionId references unknown Mission: ${nextMissionId}`);
+    } else if (nextMissionId === level?.id) {
+      errors.push(`/levels/${index}/campaignProgression/nextMissionId cannot reference its owning Mission`);
+    }
   });
   return { valid: errors.length === 0, errors: [...new Set(errors)] };
 };

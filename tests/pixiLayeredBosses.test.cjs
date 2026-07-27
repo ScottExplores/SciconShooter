@@ -142,7 +142,7 @@ test('boss components use predictable health shares while reserving the helmet f
   assert.match(engine, /const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1/);
   assert.match(engine, /applyBossComponentDamage\([\s\S]*?BOSS_COMPONENT_WEAK_POINT_MULTIPLIER/);
   assert.match(componentRuntime, /component\.hp = Math\.max\(0, previousHealth - normalizedDamage \* normalizedMultiplier\)/);
-  assert.match(componentFactory, /widthRatio: 0\.38/);
+  assert.match(componentFactory, /widthRatio: isPrismMoth \? 0\.44 : 0\.38/);
   assert.match(componentFactory, /widthRatio: 0\.34/);
   assert.match(engine, /const PAYWALL_BOSS_COMPONENT_LAYOUT/);
 

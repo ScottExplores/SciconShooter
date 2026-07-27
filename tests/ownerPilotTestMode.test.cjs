@@ -11,7 +11,7 @@ const engineSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts')
 
 test('project wallet enables a sticky test run with real flask charge and no leaderboard save path', () => {
   assert.match(appSource, /activeWalletAddress\?\.toLowerCase\(\) === DONATION_CONFIG\.RECIPIENT_ADDRESS\.toLowerCase\(\)/);
-  assert.match(appSource, /type ActiveRunMode = 'standard' \| 'owner-test'/);
+  assert.match(appSource, /type ActiveRunMode = 'standard'[\s\S]*?'campaign'[\s\S]*?'campaign-replay'[\s\S]*?'owner-test'[\s\S]*?'boss-archive'/);
   assert.match(appSource, /OWNER_TEST_FLASK_COUNT = 40/);
   assert.match(appSource, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords, \{ unlockAll: isOwnerWallet \}\)/);
   assert.match(appSource, /beginRunSession\(isOwnerTestRun \|\| isOwnerWallet\)/);
@@ -39,7 +39,8 @@ test('founder Hangar sandbox unlocks the fleet, supports reversible upgrades, an
 });
 
 test('project wallet can practice every authored Boss Archive encounter without granting earned unlocks', () => {
-  assert.match(startScreenSource, /founderSandbox\s*\? BOSS_ARCHIVE_CATALOG\s*:\s*earnedBossArchiveEntries/);
+  assert.match(startScreenSource, /founderSandbox \|\| bossArchiveDeveloperControls\?\.enabled/);
+  assert.match(startScreenSource, /bossArchiveDevelopmentAccess && bossArchiveDevUnlockAll\s*\? BOSS_ARCHIVE_CATALOG\s*:\s*earnedBossArchiveEntries/);
   assert.match(
     appSource,
     /!requestedBossReplay[\s\S]*?!isOwnerWallet[\s\S]*?!permanentSquadState\.bossArchive\.unlockedEventIds\.includes\(requestedBossReplay\.eventId\)/

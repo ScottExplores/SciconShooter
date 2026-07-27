@@ -90,8 +90,8 @@ test('minted ship ownership remains scoped to the connected wallet', () => {
   assert.match(app, /btc: unlocks\.btc \|\| permanentSquadState\.unlockedPlayerShips\.includes\('btc'\)/);
   assert.match(squad, /Minted ownership always follows the currently connected wallet/);
   assert.match(squad, /mintedMiniShips: target\.mintedMiniShips/);
-  assert.match(squad, /unlockedBossEventIds = normalizeBossArchiveEventIds/);
-  assert.match(squad, /bossArchive: \{\s*unlockedEventIds: unlockedBossEventIds,\s*seenEventIds: seenBossEventIds/);
+  assert.match(squad, /const bossArchive = mergeBossArchiveProgress\(\s*target\.bossArchive,\s*source\.bossArchive\s*\)/);
+  assert.match(squad, /bossArchive,\s*campaignProgress,\s*updatedAt: nowIso\(\)/);
   assert.doesNotMatch(
     squad.slice(squad.indexOf('const mergePermanentSquadProfiles'), squad.indexOf('export const migrateLegacySquadProfile')),
     /mintedMiniShips: source\.mintedMiniShips/

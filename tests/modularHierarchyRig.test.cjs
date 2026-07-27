@@ -464,6 +464,62 @@ test('simulation socket sampler follows the exact modular limb pose deterministi
   assert.equal(Object.isFrozen(firing.sockets), true);
 });
 
+test('simulation socket sampler maps Prism left/right anatomy and filters each attack source', () => {
+  const manifest = buildManifest();
+  manifest.id = 'prism-moth-broodkeeper';
+  manifest.sockets = [
+    { id: 'wing-edge-left', role: 'projectile-muzzle', partId: 'cannon.port', x: -4, y: 0, rotation: 0 },
+    { id: 'wing-edge-right', role: 'projectile-muzzle', partId: 'cannon.starboard', x: 4, y: 0, rotation: 0 },
+    { id: 'wing-tip-left', role: 'projectile-muzzle', partId: 'cannon.port', x: -8, y: 0, rotation: 0 },
+    { id: 'wing-tip-right', role: 'projectile-muzzle', partId: 'cannon.starboard', x: 8, y: 0, rotation: 0 },
+    { id: 'brood-release-left', role: 'detachable-pod', partId: 'pod.port', x: 0, y: 4, rotation: 0 },
+    { id: 'brood-release-right', role: 'detachable-pod', partId: 'pod.starboard', x: 0, y: 4, rotation: 0 },
+    { id: 'prism-core', role: 'core-origin', partId: 'body', x: 0, y: 0, rotation: 0 }
+  ];
+  const registration = runtime.exports.registerModularBossRig(manifest);
+  const sampler = socketRuntime.exports.createModularBossWeaponSocketPoseSampler(
+    registration,
+    () => ({})
+  );
+  const baseInput = {
+    frameCount: 40,
+    reducedMotion: false,
+    healthRatio: 1,
+    phaseIndex: 1
+  };
+  const sample = (primitiveId) => sampler({
+    ...baseInput,
+    action: {
+      primitiveId,
+      stage: 'fire',
+      progress: 0.5,
+      sequence: 0
+    }
+  });
+
+  assert.deepEqual(
+    Array.from(sample('prism-wingbeat-weave').sockets, (socket) => [socket.id, socket.role]),
+    [
+      ['wing-edge-left', 'port'],
+      ['wing-edge-right', 'starboard'],
+      ['wing-tip-left', 'port'],
+      ['wing-tip-right', 'starboard']
+    ]
+  );
+  assert.deepEqual(
+    Array.from(sample('prism-brood-procession').sockets, (socket) => socket.id),
+    ['brood-release-left', 'brood-release-right', 'prism-core']
+  );
+  assert.deepEqual(
+    Array.from(sample('prism-lunar-swoop').sockets, (socket) => socket.id),
+    ['wing-tip-left', 'wing-tip-right']
+  );
+  assert.deepEqual(
+    Array.from(sample('prism-kaleidoscope-brood').sockets, (socket) => socket.id),
+    ['brood-release-left', 'brood-release-right', 'prism-core']
+  );
+});
+
 test('Gloamforge pose visibly braces, charges, fires, detaches pods, and deploys phase two', () => {
   const sample = gloamforge.exports.sampleGloamforgeModularPose;
   const base = {

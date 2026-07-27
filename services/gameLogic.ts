@@ -161,20 +161,57 @@ import {
   type BossGapRouteDirectionPolicy
 } from './gameplay/bosses/BossPatternRuntime';
 import {
+  HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE,
   resolveHeliosClampPlan,
   resolveHeliosCornerClampPlacement,
   resolveHeliosCrossfireAngle,
   resolveHeliosCrossfireSides,
+  resolveHeliosMachineGunChannelHorizontalPadding,
+  resolveHeliosMachineGunChannelSequence,
+  resolveHeliosMachineGunChannelTargetPadding,
+  resolveHeliosMachineGunChannelTargets,
+  resolveHeliosMineArmPoint,
   resolveHeliosMineFormation,
-  HELIOS_MINE_DEPLOY_FRAMES,
+  resolveHeliosMineFormationSequence,
   sampleHeliosCornerClamp,
   sampleHeliosCrossfirePulse,
+  sampleHeliosMachineGunChannelMovement,
+  sampleHeliosMachineGunChannelPulse,
+  sampleHeliosMineDeployment,
   sampleHeliosMineLifecycle,
   sampleHeliosReactorFanShot,
   sampleHeliosTrackingPincer,
   type HeliosClawSide,
   type HeliosMineStage
 } from './gameplay/bosses/HeliosClawcarrierRuntime';
+import {
+  resolvePrismBroodProcessionParameters,
+  resolvePrismKaleidoscopeBroodParameters,
+  resolvePrismLunarSwoopParameters,
+  resolvePrismMothActionForWings,
+  resolvePrismMothBroodFormation,
+  resolvePrismMothEmitterSockets,
+  resolvePrismMothFormationSequence,
+  resolvePrismMothOwnedArtifactState,
+  resolvePrismMothPhaseRemixRules,
+  resolvePrismMothSeedBranch,
+  resolvePrismMothSignatureSequence,
+  resolvePrismMothSwoopPasses,
+  resolvePrismMothWingbeatSequence,
+  resolvePrismWingbeatWeaveParameters,
+  samplePrismMothBroodLifecycle,
+  samplePrismMothBroodPath,
+  samplePrismMothSignatureCorridor,
+  samplePrismMothSwoopPass,
+  type PrismMothActionId,
+  type PrismMothBroodFormation,
+  type PrismMothBroodFormationSlot,
+  type PrismMothRuntimeSocketId,
+  type PrismMothSignatureBeat,
+  type PrismMothSwoopPass,
+  type PrismMothWingBeatSource,
+  type PrismMothWingSide
+} from './gameplay/bosses/PrismMothRuntime';
 import {
   createBossActionPresentationState,
   type BossActionPresentationStage,
@@ -315,6 +352,21 @@ export type BossHeliosCornerClampState = {
   cornerY: number;
   lockedX: number;
 };
+export type BossHeliosMachineGunChannelState = {
+  actionClipId: string;
+  sequence: number;
+  directionSequence: number;
+  anchorX: number;
+  anchorY: number;
+  warningStartFrame: number;
+  fireStartFrame: number;
+  fireEndFrame: number;
+  channelWidthPixels: number;
+  sweepRangeRatio: number;
+  sweepPasses: number;
+  shotIntervalFrames: number;
+  projectileSpeedScale: number;
+};
 export type HeliosMineRuntimeState = {
   spawnFrame: number;
   triggerAgeFrame: number;
@@ -323,6 +375,73 @@ export type HeliosMineRuntimeState = {
   deployStartY: number;
   armX: number;
   armY: number;
+  deployFrames: number;
+};
+type PrismMothTimelinePrimitiveId =
+  | 'prism-wingbeat-weave'
+  | 'prism-brood-procession'
+  | 'prism-lunar-swoop'
+  | 'prism-kaleidoscope-brood';
+type PrismMothActionRuntimeState = {
+  key: string;
+  actionClipId: string;
+  executionIndex: number;
+  loopIndex: number;
+  phaseId: string;
+  phaseIndex: 1 | 2;
+  requestedActionId: PrismMothActionId;
+  resolvedActionId: PrismMothActionId;
+  sourceActionId: string;
+  sourceActionEndFrame: number;
+  warningStartFrame: number;
+  scheduledFireFrame: number;
+  fireStartFrame?: number;
+  fireEndFrame?: number;
+  anchorX: number;
+  anchorY: number;
+  preparationStartX?: number;
+  preparationStartY?: number;
+  preparationActivatedFrame?: number;
+  returnStartFrame?: number;
+  returnEndFrame?: number;
+  returnStartX?: number;
+  returnStartY?: number;
+  emittedIndexes: number[];
+  spawnedNodeIndexes: number[];
+  wingbeatSource?: PrismMothWingBeatSource;
+  delayedBroodEcho?: boolean;
+  formation?: PrismMothBroodFormation;
+  swoopPass?: PrismMothSwoopPass;
+  signatureBeat?: PrismMothSignatureBeat;
+  signatureBeatIndex?: number;
+  signatureNodesActivated?: boolean;
+  featherCount: number;
+  featherIntervalFrames: number;
+  featherSpeedScale: number;
+  fanAngleRadians: number;
+  trailIntervalFrames: number;
+  broodHatchDelayFrames: number;
+  broodFlightFrames: number;
+};
+type PrismMothArtifactKind = 'feather' | 'swoop-trail' | 'brood';
+type PrismMothOwnedArtifactRuntimeState = {
+  kind: PrismMothArtifactKind;
+  sourceActionId: string;
+  sourceActionEndFrame: number;
+  sourcePhaseId: string;
+  collisionActive: boolean;
+  damageActive: boolean;
+  spawnFrame: number;
+  formation?: PrismMothBroodFormation;
+  formationSlot?: PrismMothBroodFormationSlot;
+  deployOriginX?: number;
+  deployOriginY?: number;
+  cocoonX?: number;
+  cocoonY?: number;
+  hatchDelayFrames?: number;
+  flightFrames?: number;
+  activationFrame?: number;
+  signatureNodeIndex?: number;
 };
 type BossGatlingAttackLock = {
   actionClipId: string;
@@ -425,6 +544,10 @@ export class Entity {
   bossCornerAmbushRamState?: BossCornerAmbushRamState;
   bossTrackingPincerState?: BossTrackingPincerState;
   bossHeliosCornerClampState?: BossHeliosCornerClampState;
+  bossHeliosMachineGunChannelState?: BossHeliosMachineGunChannelState;
+  bossHeliosMachineGunChannelUseCount: number = 0;
+  bossPrismMothActionStates: PrismMothActionRuntimeState[] = [];
+  bossPrismMothBodyDamageActive: boolean = false;
   /** Pixi presentation only. Collision remains the entity's axis-aligned box. */
   bossPresentationBankRadians: number = 0;
   /** Continuous simulation-owned rotor pose shared by art, warnings, and hits. */
@@ -470,6 +593,7 @@ export class Entity {
   clawHasHitPlayer: boolean = false;
   heliosMineState?: HeliosMineRuntimeState;
   heliosMineStage?: HeliosMineStage;
+  prismMothArtifactState?: PrismMothOwnedArtifactRuntimeState;
 
   // Missile Props
   isMissile: boolean = false;
@@ -1131,6 +1255,8 @@ type EnemyRuntimeOverrides = {
 
 export interface GameEngineOptions {
   campaign?: GameCampaign;
+  /** Campaign checkpoints pause after internal Waves; standard weekly runs keep flowing. */
+  pauseAtInternalWaveResults?: boolean;
   previewMode?: boolean;
   /** Preview ships are invulnerable by default; disable for damage/death testing. */
   previewInvincible?: boolean;
@@ -1246,6 +1372,7 @@ export interface GameRuntimeState {
   durationSeconds: number;
   progress: number;
   bossActive: boolean;
+  damageTaken: number;
   complete: boolean;
   campaignComplete: boolean;
   stageDepartureProgress: number;
@@ -1256,6 +1383,13 @@ export interface GameRuntimeState {
 
 export interface WaveVictorySummary {
   id: string;
+  campaignId: string;
+  campaignRevision: number;
+  levelId: string;
+  waveId: string;
+  waveNumber: number;
+  waveTotal: number;
+  stageComplete: boolean;
   bossEncounterId: string | null;
   stage: number;
   stageName: string;
@@ -1264,7 +1398,14 @@ export interface WaveVictorySummary {
   totalScore: number;
   enemiesDefeated: number;
   coinsCollected: number;
+  /** Coins picked up during only the tactical Wave represented by this result. */
+  waveCoinsCollected: number;
+  damageTaken: number;
   elapsedSeconds: number;
+  remainingLives: number;
+  nextLevelId: string | null;
+  nextWaveId: string | null;
+  nextWaveNumber: number | null;
   nextStage: number;
   hasNextStage: boolean;
   campaignComplete: boolean;
@@ -1659,7 +1800,13 @@ export class GameEngine {
   waveStartScore: number = 0;
   waveStartEnemiesDefeated: number = 0;
   waveStartTotalCoins: number = 0;
+  waveDamageTaken: number = 0;
   waveFlightFrames: number = 0;
+  tacticalWaveStartScore: number = 0;
+  tacticalWaveStartEnemiesDefeated: number = 0;
+  tacticalWaveStartTotalCoins: number = 0;
+  tacticalWaveDamageTaken: number = 0;
+  tacticalWaveFlightFrames: number = 0;
   deathSequenceFrames: number = 0;
   deathSequenceDuration: number = 88;
   deathSequenceStartedAtMs: number = 0;
@@ -1692,6 +1839,7 @@ export class GameEngine {
   playerShipId: PlayerShipId = 'researchhub';
   campaignWaves: CampaignWaveEntry[] = [];
   currentCampaignIndex: number = 0;
+  private readonly pauseAtInternalWaveResults: boolean;
   previewMode: boolean = false;
   previewInvincible: boolean = true;
   previewUnlimitedBombs: boolean = false;
@@ -1749,6 +1897,7 @@ export class GameEngine {
     loadImage(this.bombSpriteUrl);
     loadImage(this.playerShipUrl);
     this.campaignWaves = this.buildCampaignWaveEntries(this.campaign);
+    this.pauseAtInternalWaveResults = options.pauseAtInternalWaveResults ?? false;
     this.previewMode = options.previewMode ?? false;
     this.previewBossCollisionMask = this.previewMode
       ? options.previewBossCollisionMask
@@ -1930,7 +2079,10 @@ export class GameEngine {
   }
 
   private recordPlayerDamage(amount: number) {
-    if (!this.telemetrySink || !this.telemetrySessionActive || amount <= 0) return;
+    if (amount <= 0) return;
+    this.waveDamageTaken += Math.max(0, amount);
+    this.tacticalWaveDamageTaken += Math.max(0, amount);
+    if (!this.telemetrySink || !this.telemetrySessionActive) return;
     this.telemetrySink.record({
       ...this.getTelemetryContext(),
       type: 'entity-damage',
@@ -2104,6 +2256,7 @@ export class GameEngine {
       durationSeconds,
       progress: Math.min(1, Math.max(0, this.stats.bossProgress || 0)),
       bossActive: Boolean(this.stats.isBossActive),
+      damageTaken: Math.max(0, this.waveDamageTaken),
       complete: this.previewComplete || this.campaignComplete,
       campaignComplete: this.campaignComplete,
       stageDepartureProgress: takeoff.progress,
@@ -2483,6 +2636,7 @@ export class GameEngine {
     this.compactEntities();
 
     for (const boss of bosses) {
+      this.clearPrismMothRuntime(boss);
       let targetHealthRatio = clamp(authoredPhase.triggerHealthRatio, 0.0001, 1);
       if (boss.type === EntityType.BOSS && event.revival && revivalPhaseIndex > 0) {
         boss.bossRevival = { ...event.revival };
@@ -2557,6 +2711,8 @@ export class GameEngine {
     );
     if (loopFrame === boss.attackTimer) return;
 
+    this.clearPrismMothRuntime(boss);
+
     this.pendingBossStrikes = this.pendingBossStrikes.filter(
       (strike) => strike.bossId !== boss.id
     );
@@ -2590,6 +2746,7 @@ export class GameEngine {
     boss.bossCornerAmbushRamState = undefined;
     boss.bossTrackingPincerState = undefined;
     boss.bossHeliosCornerClampState = undefined;
+    boss.bossHeliosMachineGunChannelState = undefined;
     boss.bossActionPresentation = undefined;
     boss.isCharging = false;
     boss.attackTimer = loopFrame;
@@ -3054,28 +3211,57 @@ export class GameEngine {
       : null;
   }
 
+  /** Available at the logical clear boundary, before the Mission takeoff cinematic finishes. */
+  getCampaignCompletionSummary() {
+    return this.waveVictorySummary ? { ...this.waveVictorySummary } : null;
+  }
+
   buildWaveVictorySummary(): WaveVictorySummary {
     const entry = this.getCurrentCampaignEntry();
     const defeatedMainBoss = entry?.wave.events.find((event) => (
       event.kind === 'boss' && event.bossId === 'gatekeeper'
     ));
-    const hasNextStage = getNextAuthoredCampaignIndex(
+    const nextCampaignIndex = getNextAuthoredCampaignIndex(
       this.currentCampaignIndex,
       this.campaignWaves.length
-    ) !== null;
+    );
+    const nextEntry = nextCampaignIndex === null ? null : this.campaignWaves[nextCampaignIndex] ?? null;
+    const hasNextStage = nextCampaignIndex !== null;
     const finalStage = Math.max(1, getAuthoredCampaignStageCount(this.campaign.levels.length));
+    const stageComplete = this.isCurrentWaveStageFinal();
+    const scoreStart = stageComplete ? this.waveStartScore : this.tacticalWaveStartScore;
+    const enemyStart = stageComplete ? this.waveStartEnemiesDefeated : this.tacticalWaveStartEnemiesDefeated;
+    const coinStart = stageComplete ? this.waveStartTotalCoins : this.tacticalWaveStartTotalCoins;
+    const damageTaken = stageComplete ? this.waveDamageTaken : this.tacticalWaveDamageTaken;
+    const flightFrames = stageComplete ? this.waveFlightFrames : this.tacticalWaveFlightFrames;
     return {
       id: `${this.wave}-${this.frameCount}-${this.stats.score}`,
+      campaignId: this.campaign.id,
+      campaignRevision: this.campaign.revision,
+      levelId: entry?.level.id ?? '',
+      waveId: entry?.wave.id ?? '',
+      waveNumber: (entry?.waveIndex ?? 0) + 1,
+      waveTotal: entry?.level.waves.length ?? 1,
+      stageComplete,
       bossEncounterId: defeatedMainBoss?.id ?? null,
       stage: this.wave,
       stageName: entry?.level.name ?? this.getWaveSector().name,
       finalWaveName: entry?.wave.name ?? 'FINAL WAVE',
-      scoreEarned: Math.max(0, this.stats.score - this.waveStartScore),
+      scoreEarned: Math.max(0, this.stats.score - scoreStart),
       totalScore: Math.max(0, this.stats.score),
-      enemiesDefeated: Math.max(0, this.stats.enemiesDefeated - this.waveStartEnemiesDefeated),
-      coinsCollected: Math.max(0, this.stats.totalCoins - this.waveStartTotalCoins),
-      elapsedSeconds: Math.max(0, Math.round(this.waveFlightFrames / GAME_CONFIG.FPS)),
-      nextStage: hasNextStage ? Math.min(finalStage, this.wave + 1) : finalStage,
+      enemiesDefeated: Math.max(0, this.stats.enemiesDefeated - enemyStart),
+      coinsCollected: Math.max(0, this.stats.totalCoins - coinStart),
+      waveCoinsCollected: Math.max(0, this.stats.totalCoins - this.tacticalWaveStartTotalCoins),
+      damageTaken: Math.max(0, damageTaken),
+      elapsedSeconds: Math.max(
+        0,
+        Math.round((flightFrames / GAME_CONFIG.FPS) * 1000) / 1000
+      ),
+      remainingLives: Math.max(0, this.lives),
+      nextLevelId: nextEntry?.level.id ?? null,
+      nextWaveId: nextEntry?.wave.id ?? null,
+      nextWaveNumber: nextEntry ? nextEntry.waveIndex + 1 : null,
+      nextStage: hasNextStage ? Math.min(finalStage, this.getStageNumberForCampaignIndex(nextCampaignIndex!)) : finalStage,
       hasNextStage,
       campaignComplete: !hasNextStage
     };
@@ -3835,10 +4021,16 @@ export class GameEngine {
     this.stageTakeoffBoostCuePlayed = false;
     this.waveVictoryReady = false;
     this.waveVictorySummary = null;
+    this.tacticalWaveStartScore = this.stats.score;
+    this.tacticalWaveStartEnemiesDefeated = this.stats.enemiesDefeated;
+    this.tacticalWaveStartTotalCoins = this.stats.totalCoins;
+    this.tacticalWaveDamageTaken = 0;
+    this.tacticalWaveFlightFrames = 0;
     if (resetStageSummary) {
       this.waveStartScore = this.stats.score;
       this.waveStartEnemiesDefeated = this.stats.enemiesDefeated;
       this.waveStartTotalCoins = this.stats.totalCoins;
+      this.waveDamageTaken = 0;
       this.waveFlightFrames = 0;
     }
   }
@@ -3903,15 +4095,35 @@ export class GameEngine {
     this.stats.isBossActive = false;
     this.waveTransitionPending = true;
     if (!this.isCurrentWaveStageFinal()) {
-      this.spawnFloatingText(this.width / 2, this.height / 2, 'WAVE CLEAR!', '#67e8f9');
-      this.playSound('wave');
-      this.startNextWave();
+      this.beginTacticalWaveCompletion('WAVE CLEAR!', '#67e8f9');
       return true;
     }
 
     this.beginStageCompletion('MISSION COMPLETE!', '#67e8f9');
     this.playSound('wave');
     return true;
+  }
+
+  beginTacticalWaveCompletion(label: string, color: string) {
+    this.waveTransitionPending = true;
+    this.clearStageBoundaryDebris(false, true, false);
+    this.pendingBossStrikes = [];
+    for (const pendingLaser of this.pendingEnemyLasers) {
+      const telegraph = this.entities.find((entity) => entity.id === pendingLaser.telegraphId);
+      if (telegraph) telegraph.markedForDeletion = true;
+    }
+    this.pendingEnemyLasers = [];
+    this.waveVictorySummary = this.buildWaveVictorySummary();
+    this.spawnFloatingText(this.width / 2, this.height / 2, label, color);
+    this.playSound('wave');
+    if (this.pauseAtInternalWaveResults) {
+      this.recordWaveCompletion();
+      this.waveVictoryReady = true;
+      this.gameActive = false;
+      return;
+    }
+
+    this.startNextWave();
   }
 
   beginStageCompletion(label: string, color: string) {
@@ -3940,6 +4152,11 @@ export class GameEngine {
   beginStageTakeoff() {
     this.stageRewardCollectionFrames = 0;
     this.clearStageBoundaryDebris(true);
+    // Capture the final post-collection totals even when every reward coin was
+    // picked up manually before takeoff (and therefore there was nothing left
+    // for bankDepartingBossCoins to credit). Keep the immutable attempt fields
+    // stable so persistence still recognizes this as the same completion.
+    this.refreshWaveVictorySummaryMetrics();
     this.playerVel = { x: 0, y: 0 };
     this.playerTilt = 0;
     this.playerDrawScale = 1;
@@ -4034,11 +4251,13 @@ export class GameEngine {
         && !boss.bossCornerAmbushRamState
         && !boss.bossTrackingPincerState
         && !boss.bossHeliosCornerClampState
+        && !boss.bossHeliosMachineGunChannelState
       ) continue;
       boss.bossCornerAmbushBeamState = undefined;
       boss.bossCornerAmbushRamState = undefined;
       boss.bossTrackingPincerState = undefined;
       boss.bossHeliosCornerClampState = undefined;
+      boss.bossHeliosMachineGunChannelState = undefined;
       boss.isCharging = false;
       this.removeBossCornerAmbushBeams(boss);
     }
@@ -4457,6 +4676,7 @@ export class GameEngine {
     }
 
     this.waveFlightFrames++;
+    this.tacticalWaveFlightFrames++;
     this.updatePendingBossStrikes();
     this.updatePendingEnemyLasers();
 
@@ -4681,7 +4901,11 @@ export class GameEngine {
         this.updateCoinEntity(e);
         return;
       }
-      if (!e.heliosMineState) {
+      const prismMothMovementHandled = e.prismMothArtifactState
+        ? this.updatePrismMothOwnedArtifact(e)
+        : false;
+      if (e.markedForDeletion) return;
+      if (!e.heliosMineState && !prismMothMovementHandled) {
         e.x += e.vx;
         e.y += e.vy;
       }
@@ -5992,6 +6216,7 @@ export class GameEngine {
   }
 
   private clearBossRevivalHazards(boss: Entity) {
+    this.clearPrismMothRuntime(boss);
     this.pendingBossStrikes = this.pendingBossStrikes.filter((strike) => strike.bossId !== boss.id);
     const removedTelegraphIds = new Set<string>();
     this.pendingEnemyLasers = this.pendingEnemyLasers.filter((laser) => {
@@ -6012,6 +6237,7 @@ export class GameEngine {
     boss.bossCornerAmbushRamState = undefined;
     boss.bossTrackingPincerState = undefined;
     boss.bossHeliosCornerClampState = undefined;
+    boss.bossHeliosMachineGunChannelState = undefined;
     this.clearBossTimelineActionLocks(boss);
     this.removeBossCornerAmbushBeams(boss);
     this.clearBossShieldRing();
@@ -6215,10 +6441,12 @@ export class GameEngine {
       ).forEach((cue) => this.dispatchBossTimelineCue(target, cue, phase, 'death'));
     }
     if (target.type === EntityType.BOSS) {
+      this.clearPrismMothRuntime(target);
       target.bossCornerAmbushBeamState = undefined;
       target.bossCornerAmbushRamState = undefined;
       target.bossTrackingPincerState = undefined;
       target.bossHeliosCornerClampState = undefined;
+      target.bossHeliosMachineGunChannelState = undefined;
       this.removeBossCornerAmbushBeams(target);
     }
     target.markedForDeletion = true;
@@ -6332,10 +6560,9 @@ export class GameEngine {
       if (this.isCurrentWaveStageFinal()) {
         this.beginStageCompletion('MISSION COMPLETE!', '#00FF00');
       } else {
-        // Authored internal Gatekeepers are allowed to advance a tactical wave,
-        // but never produce a stage record or ship departure.
-        this.spawnFloatingText(this.width / 2, this.height / 2, 'WAVE CLEAR!', '#67e8f9');
-        this.startNextWave();
+        // Internal Gatekeepers now pause at the same checkpoint-safe Wave result
+        // boundary as every other authored tactical Wave.
+        this.beginTacticalWaveCompletion('WAVE CLEAR!', '#67e8f9');
       }
     }
   }
@@ -7420,6 +7647,7 @@ export class GameEngine {
     if ((boss.bossAttackArchetype || boss.bossTimeline) && transitionedBetweenActivePhases) {
       // A new authored boss phase starts at the beginning of its cue cycle so
       // a damaging technique can never skip its warning.
+      this.clearPrismMothRuntime(boss);
       boss.attackTimer = 0;
       boss.bossMovementPathId = undefined;
       boss.bossMovementPathStartFrame = -1;
@@ -7434,6 +7662,7 @@ export class GameEngine {
       boss.bossCornerAmbushRamState = undefined;
       boss.bossTrackingPincerState = undefined;
       boss.bossHeliosCornerClampState = undefined;
+      boss.bossHeliosMachineGunChannelState = undefined;
       this.removeBossCornerAmbushBeams(boss);
       boss.isCharging = false;
       boss.bossActionPresentation = undefined;
@@ -7751,9 +7980,12 @@ export class GameEngine {
   getBossComponentDurability(boss: Entity, componentId: BossPartId) {
     const rigId = boss.bossRigId ?? 'open-orbit';
     const minimumDurability = BOSS_COMPONENT_DURABILITY[rigId][componentId] ?? 5;
-    const healthRatio = componentId === 'helmet'
-      ? BOSS_HELMET_HEALTH_RATIO
-      : BOSS_CANNON_HEALTH_RATIO;
+    const healthRatio = this.isSandboxPrismMoth(boss)
+      && (componentId === 'left-cannon' || componentId === 'right-cannon')
+      ? 0.22
+      : componentId === 'helmet'
+        ? BOSS_HELMET_HEALTH_RATIO
+        : BOSS_CANNON_HEALTH_RATIO;
     const durability = Math.max(
       minimumDurability,
       Math.round(Math.max(1, boss.maxHp) * healthRatio)
@@ -7764,22 +7996,27 @@ export class GameEngine {
   createBossComponents(boss: Entity) {
     if (boss.bossRigId === 'open-orbit' || boss.bossRigId === 'citation-storm') {
       const isCitationStorm = boss.bossRigId === 'citation-storm';
+      const isPrismMoth = this.isSandboxPrismMoth(boss);
       return ([
         {
           id: 'left-cannon',
-          label: isCitationStorm ? 'LEFT PLASMA CLAW' : 'LEFT RAILGUN',
-          centerXRatio: 0.17,
-          centerYRatio: isCitationStorm ? 0.51 : 0.45,
-          widthRatio: 0.38,
-          heightRatio: isCitationStorm ? 0.62 : 0.58
+          label: isPrismMoth
+            ? 'LEFT WING'
+            : isCitationStorm ? 'LEFT PLASMA CLAW' : 'LEFT RAILGUN',
+          centerXRatio: isPrismMoth ? 0.22 : 0.17,
+          centerYRatio: isPrismMoth ? 0.48 : isCitationStorm ? 0.51 : 0.45,
+          widthRatio: isPrismMoth ? 0.44 : 0.38,
+          heightRatio: isPrismMoth ? 0.7 : isCitationStorm ? 0.62 : 0.58
         },
         {
           id: 'right-cannon',
-          label: isCitationStorm ? 'RIGHT PLASMA CLAW' : 'RIGHT RAILGUN',
-          centerXRatio: 0.83,
-          centerYRatio: isCitationStorm ? 0.51 : 0.45,
-          widthRatio: 0.38,
-          heightRatio: isCitationStorm ? 0.62 : 0.58
+          label: isPrismMoth
+            ? 'RIGHT WING'
+            : isCitationStorm ? 'RIGHT PLASMA CLAW' : 'RIGHT RAILGUN',
+          centerXRatio: isPrismMoth ? 0.78 : 0.83,
+          centerYRatio: isPrismMoth ? 0.48 : isCitationStorm ? 0.51 : 0.45,
+          widthRatio: isPrismMoth ? 0.44 : 0.38,
+          heightRatio: isPrismMoth ? 0.7 : isCitationStorm ? 0.62 : 0.58
         }
       ] as const).map((layout) => {
         const maxHp = this.getBossComponentDurability(boss, layout.id);
@@ -8105,6 +8342,19 @@ export class GameEngine {
     if (boss.type !== EntityType.BOSS) return;
     const healthRatio = clamp(boss.hp / Math.max(1, boss.maxHp), 0, 1);
     const destroyedCount = (boss.bossComponents ?? []).filter((component) => component.destroyed).length;
+    if (this.isSandboxPrismMoth(boss)) {
+      const hullStage = healthRatio <= 0.18
+        ? 4
+        : healthRatio <= 0.4
+          ? 3
+          : healthRatio <= 0.64
+            ? 2
+            : healthRatio <= 0.82
+              ? 1
+              : 0;
+      boss.bossDecayStage = Math.max(hullStage, Math.min(4, destroyedCount * 2));
+      return;
+    }
     if (boss.bossRigId === 'open-orbit' || boss.bossRigId === 'citation-storm') {
       boss.bossDecayStage = destroyedCount < 2
         ? destroyedCount
@@ -8170,7 +8420,15 @@ export class GameEngine {
         : boss.bossRigId === 'crown-claw'
           ? `${component.label} SEVERED`
           : `${component.label} DISABLED`;
-      this.spawnFloatingText(impactX, impactY, label, component.id === 'helmet' ? '#fef08a' : '#fb7185', 17);
+      if (!this.isSandboxPrismMoth(boss)) {
+        this.spawnFloatingText(
+          impactX,
+          impactY,
+          label,
+          component.id === 'helmet' ? '#fef08a' : '#fb7185',
+          17
+        );
+      }
       this.spawnBurst(impactX, impactY, '#ffffff', 18, 5.2, 5);
       this.addShake(component.id === 'helmet' ? 5 : 3.5);
       this.addHitStop(component.id === 'helmet' ? 9 : 6);
@@ -9987,6 +10245,23 @@ export class GameEngine {
     stage: BossActionPresentationStage,
     sourceClip: BossTimelineCue['clip'] = cue.clip
   ) {
+    const isHeliosMachineGunChannel = (
+      sourceClip.primitiveId === 'paired-cannon-burst'
+      && sourceClip.parameters?.motionCue === HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE
+    );
+    const activeChannel = boss.bossHeliosMachineGunChannelState;
+    if (
+      isHeliosMachineGunChannel
+      && stage === 'warning'
+      && cue.executionIndex > 0
+      && activeChannel?.actionClipId === sourceClip.id
+      && boss.attackTimer < activeChannel.fireEndFrame
+    ) {
+      // The signature is one continuous stream. Repeated authored segments
+      // keep deterministic scheduling and attack-button isolation, but their
+      // continuation warnings must never interrupt the active gun pose.
+      return;
+    }
     const presentation = createBossActionPresentationState({
       cueClip: cue.clip,
       sourceClip,
@@ -10003,6 +10278,16 @@ export class GameEngine {
       || sourceClip.primitiveId === 'rotor-hazard-sentence'
     ) {
       boss.bossRotorDirection = resolveRotatingEmitterDirection(presentation.sequence);
+    }
+    if (
+      isHeliosMachineGunChannel
+      && stage === 'fire'
+      && activeChannel?.actionClipId === sourceClip.id
+    ) {
+      presentation.startFrame = activeChannel.fireStartFrame;
+      presentation.endFrame = activeChannel.fireEndFrame;
+      presentation.sequence = activeChannel.sequence;
+      presentation.executionIndex = 0;
     }
     boss.bossActionPresentation = presentation;
   }
@@ -10376,6 +10661,1264 @@ export class GameEngine {
     return this.previewMode && boss.sourceEventId === this.previewBossWeaponSocketEventId;
   }
 
+  private isSandboxPrismMoth(boss: Entity) {
+    return (this.previewMode || this.testMode)
+      && boss.sourceEventId === 'sandbox-prism-moth-brood';
+  }
+
+  private getPrismMothActionId(
+    primitiveId: string | undefined
+  ): PrismMothActionId | null {
+    switch (primitiveId as PrismMothTimelinePrimitiveId) {
+      case 'prism-wingbeat-weave':
+        return 'wingbeat-weave';
+      case 'prism-brood-procession':
+        return 'brood-procession';
+      case 'prism-lunar-swoop':
+        return 'lunar-prism-swoop';
+      case 'prism-kaleidoscope-brood':
+        return 'kaleidoscope-brood';
+      default:
+        return null;
+    }
+  }
+
+  private getPrismMothWingAvailability(boss: Entity) {
+    const isOperational = (id: BossPartId) => {
+      const component = boss.bossComponents?.find((item) => item.id === id);
+      return !component || !component.destroyed;
+    };
+    return {
+      port: isOperational('left-cannon'),
+      starboard: isOperational('right-cannon')
+    } as const;
+  }
+
+  private getPrismMothLoopIndex(boss: Entity) {
+    const durationFrames = boss.bossTimeline
+      ? getBossTimelineDurationFrames(boss.bossTimeline, GAME_CONFIG.FPS)
+      : 1;
+    return Math.floor(Math.max(0, boss.attackTimer) / Math.max(1, durationFrames));
+  }
+
+  private getPrismMothSeedKey(
+    boss: Entity,
+    sourceActionId: string,
+    loopIndex: number
+  ) {
+    return [
+      this.gameplayRandomSeed,
+      boss.sourceEventId ?? boss.id,
+      boss.bossTimelinePhaseId ?? boss.activeBossPhaseId ?? 'unphased',
+      sourceActionId,
+      loopIndex
+    ].join(':');
+  }
+
+  private getPrismMothActionScope(
+    boss: Entity,
+    actionClipId: string,
+    loopIndex: number
+  ) {
+    const timeline = boss.bossTimeline;
+    const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId ?? '';
+    if (!timeline) {
+      return {
+        sourceActionId: actionClipId,
+        sourceActionEndFrame: boss.attackTimer + GAME_CONFIG.FPS * 4
+      };
+    }
+    const owningAttack = timeline.attacks?.find((attack) => (
+      attack.variants.some((variant) => (
+        variant.phaseId === phaseId && variant.beatClipIds.includes(actionClipId)
+      ))
+    ));
+    const sourceActionId = owningAttack?.id ?? actionClipId;
+    const window = getBossTimelineAttackWindow(
+      timeline,
+      sourceActionId,
+      phaseId,
+      GAME_CONFIG.FPS
+    );
+    const durationFrames = getBossTimelineDurationFrames(timeline, GAME_CONFIG.FPS);
+    return {
+      sourceActionId,
+      sourceActionEndFrame: loopIndex * durationFrames
+        + (window?.endFrame ?? Math.min(durationFrames, boss.attackTimer + GAME_CONFIG.FPS * 4))
+    };
+  }
+
+  private getPrismMothSignatureBeatIndex(actionClipId: string) {
+    if (actionClipId.includes('cocoon-charge')) return 0;
+    if (actionClipId.includes('first-wing-command')) return 1;
+    if (actionClipId.includes('second-wing-command')) return 2;
+    if (actionClipId.includes('core-escape')) return 3;
+    return 0;
+  }
+
+  private getPrismMothSocketOrigin(
+    boss: Entity,
+    socketId: PrismMothRuntimeSocketId
+  ): BossAttackOriginPoint {
+    if (socketId === 'prism-core') {
+      return this.getPreviewBossWeaponOrigins(boss, ['core'])[0] ?? {
+        x: boss.x + boss.width * 0.5,
+        y: boss.y + boss.height * 0.57
+      };
+    }
+
+    const port = socketId.endsWith('-left');
+    const role: BossWeaponSocketRole = port ? 'port' : 'starboard';
+    const origins = [...this.getPreviewBossWeaponOrigins(boss, [role])]
+      .sort((left, right) => left.y - right.y);
+    if (origins.length > 0) {
+      if (socketId.startsWith('wing-tip-')) return origins[0];
+      if (socketId.startsWith('brood-release-')) return origins[origins.length - 1];
+      return origins[Math.floor((origins.length - 1) / 2)];
+    }
+
+    const xRatio = port ? 0.2 : 0.8;
+    const yRatio = socketId.startsWith('wing-tip-')
+      ? 0.24
+      : socketId.startsWith('brood-release-')
+        ? 0.69
+        : 0.45;
+    return {
+      x: boss.x + boss.width * xRatio,
+      y: boss.y + boss.height * yRatio
+    };
+  }
+
+  private resolvePrismMothFormationWithSpacing(
+    formation: PrismMothBroodFormation,
+    spacingRatio: number
+  ): PrismMothBroodFormation {
+    const spacingScale = clamp(spacingRatio / 0.22, 0.72, 1.42);
+    const slots = formation.slots.map((slot) => {
+      const startOffsetRatio = slot.startOffsetRatio * spacingScale;
+      const middleOffsetRatio = slot.middleOffsetRatio * spacingScale;
+      const endOffsetRatio = slot.endOffsetRatio * spacingScale;
+      return Object.freeze({
+        ...slot,
+        startOffsetRatio,
+        middleOffsetRatio,
+        endOffsetRatio,
+        cocoonXRatio: clamp(
+          formation.corridorStartRatio + startOffsetRatio,
+          0.06,
+          0.94
+        )
+      });
+    });
+    return Object.freeze({ ...formation, slots: Object.freeze(slots) });
+  }
+
+  private createPrismMothActionState(
+    boss: Entity,
+    cue: BossTimelineCue,
+    sourceClip: BossTimelineCue['clip']
+  ): PrismMothActionRuntimeState | null {
+    const requestedActionId = this.getPrismMothActionId(sourceClip.primitiveId);
+    if (!requestedActionId) return null;
+    const loopIndex = this.getPrismMothLoopIndex(boss);
+    const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId ?? '';
+    const phaseIndex = (boss.activeBossPhaseIndex + 1 >= 2 ? 2 : 1) as 1 | 2;
+    const key = `${loopIndex}:${sourceClip.id}:${cue.executionIndex}`;
+    const existing = boss.bossPrismMothActionStates.find((state) => state.key === key);
+    if (existing) return existing;
+
+    const wings = this.getPrismMothWingAvailability(boss);
+    const resolution = resolvePrismMothActionForWings({
+      actionId: requestedActionId,
+      wings
+    });
+    const scope = this.getPrismMothActionScope(boss, sourceClip.id, loopIndex);
+    const warningFrames = Math.max(
+      1,
+      Math.round(Math.max(
+        cue.clip.durationSeconds,
+        sourceClip.startSeconds - cue.clip.startSeconds
+      ) * GAME_CONFIG.FPS)
+    );
+    const sourceDurationFrames = Math.max(
+      1,
+      Math.round(sourceClip.durationSeconds * GAME_CONFIG.FPS)
+    );
+    const projectileCount = Math.max(1, Math.floor(sourceClip.parameters?.projectileCount ?? 4));
+    const requestedFeatherInterval = Math.max(
+      1,
+      Math.floor(sourceClip.parameters?.shotIntervalFrames ?? 4)
+    );
+    const maximumVisibleFeatherInterval = Math.max(
+      1,
+      Math.floor((sourceDurationFrames - 1) / Math.max(1, projectileCount - 1))
+    );
+    const state: PrismMothActionRuntimeState = {
+      key,
+      actionClipId: sourceClip.id,
+      executionIndex: cue.executionIndex,
+      loopIndex,
+      phaseId,
+      phaseIndex,
+      requestedActionId,
+      resolvedActionId: resolution.resolvedActionId,
+      sourceActionId: scope.sourceActionId,
+      sourceActionEndFrame: scope.sourceActionEndFrame,
+      warningStartFrame: boss.attackTimer,
+      scheduledFireFrame: boss.attackTimer + warningFrames,
+      anchorX: boss.x,
+      anchorY: boss.y,
+      emittedIndexes: [],
+      spawnedNodeIndexes: [],
+      featherCount: projectileCount,
+      featherIntervalFrames: Math.min(
+        requestedFeatherInterval,
+        maximumVisibleFeatherInterval
+      ),
+      featherSpeedScale: clamp(
+        Number(sourceClip.parameters?.projectileSpeedScale) || 1,
+        0.55,
+        1.65
+      ),
+      fanAngleRadians: clamp(
+        Number(sourceClip.parameters?.sweepRangeRatio) || 0.56,
+        0.28,
+        0.9
+      ),
+      trailIntervalFrames: Math.max(5, Math.min(18, requestedFeatherInterval)),
+      broodHatchDelayFrames: Math.max(
+        10,
+        Math.min(48, Math.floor(sourceClip.parameters?.shotIntervalFrames ?? 22))
+      ),
+      broodFlightFrames: Math.max(
+        96,
+        Math.min(
+          300,
+          Math.round(180 / Math.max(0.55, Number(sourceClip.parameters?.projectileSpeedScale) || 1))
+        )
+      )
+    };
+
+    const seedKey = this.getPrismMothSeedKey(boss, scope.sourceActionId, loopIndex);
+    if (requestedActionId === 'wingbeat-weave') {
+      const repeatCount = Math.max(3, Math.min(5, sourceClip.repeat?.count ?? 5));
+      const repeatCadence = Math.max(
+        8,
+        Math.round((sourceClip.repeat?.intervalSeconds ?? 0.72) * GAME_CONFIG.FPS)
+      );
+      const parameters = resolvePrismWingbeatWeaveParameters({
+        cadenceFrames: repeatCadence,
+        featherCount: projectileCount,
+        fanAngleRadians: state.fanAngleRadians,
+        safeLaneWidthRatio: Number(sourceClip.parameters?.channelWidthPixels)
+          / Math.max(1, this.width),
+        driftSpeedRatio: Number(sourceClip.parameters?.projectileSpeedScale) * 0.06,
+        sequenceLength: repeatCount
+      });
+      const baseSequence = Math.max(0, Math.floor(sourceClip.parameters?.sequence ?? 0));
+      const sequence = resolvePrismMothWingbeatSequence({
+        seedKey,
+        sequence: baseSequence,
+        useIndex: loopIndex,
+        phaseIndex,
+        sequenceLength: parameters.sequenceLength,
+        cadenceFrames: parameters.cadenceFrames,
+        wings
+      });
+      const beat = sequence[cue.executionIndex % Math.max(1, sequence.length)];
+      if (beat) {
+        const remix = resolvePrismMothPhaseRemixRules({
+          seedKey,
+          sequence: baseSequence,
+          useIndex: loopIndex,
+          phaseIndex
+        });
+        state.wingbeatSource = remix.wingbeatWeave.reverseSequence
+          && beat.source !== 'both'
+          ? beat.source === 'port' ? 'starboard' : 'port'
+          : beat.source;
+        state.delayedBroodEcho = beat.delayedBroodEcho;
+      }
+      state.featherCount = parameters.featherCount;
+      state.fanAngleRadians = parameters.fanAngleRadians;
+    } else if (resolution.resolvedActionId === 'brood-procession') {
+      const parameters = resolvePrismBroodProcessionParameters({
+        broodNodeCount: projectileCount,
+        hatchDelayFrames: state.broodHatchDelayFrames,
+        formationSequence: Math.max(0, Math.floor(sourceClip.parameters?.sequence ?? 0)),
+        broodSpeedRatio: 0.01 * state.featherSpeedScale,
+        formationSpacingRatio: Number(sourceClip.parameters?.sweepRangeRatio) || 0.22,
+        routeWidthRatio: Number(sourceClip.parameters?.channelWidthPixels)
+          / Math.max(1, this.width),
+        formationWaves: sourceClip.parameters?.sweepPasses
+      });
+      const waveIndex = cue.executionIndex % Math.max(1, parameters.formationWaves);
+      const sequence = resolvePrismMothFormationSequence({
+        seedKey,
+        sequence: parameters.formationSequence,
+        waveIndex,
+        phaseIndex
+      });
+      state.formation = this.resolvePrismMothFormationWithSpacing(
+        resolvePrismMothBroodFormation({
+          sequence,
+          nodeCount: parameters.broodNodeCount,
+          hatchDelayFrames: parameters.hatchDelayFrames,
+          routeWidthRatio: parameters.routeWidthRatio,
+          waveIndex,
+          phaseIndex
+        }),
+        parameters.formationSpacingRatio
+      );
+      state.broodHatchDelayFrames = parameters.hatchDelayFrames;
+      state.broodFlightFrames = Math.max(
+        96,
+        Math.min(300, Math.round(1.8 / parameters.broodSpeedRatio))
+      );
+    } else if (requestedActionId === 'lunar-prism-swoop') {
+      const requestedPassCount = Math.max(
+        2,
+        Math.min(
+          3,
+          sourceClip.repeat?.count
+            ?? sourceClip.parameters?.sweepPasses
+            ?? projectileCount
+        )
+      );
+      const parameters = resolvePrismLunarSwoopParameters({
+        passCount: requestedPassCount as 2 | 3,
+        swoopFrames: sourceDurationFrames,
+        curveDepthRatio: Number(sourceClip.parameters?.sweepRangeRatio) || 0.26,
+        edgeTelegraphFrames: warningFrames,
+        featherTrailFrames: Math.round(sourceDurationFrames * 0.62)
+      });
+      const passes = resolvePrismMothSwoopPasses({
+        seedKey,
+        sequence: Math.max(0, Math.floor(sourceClip.parameters?.sequence ?? 0)),
+        useIndex: loopIndex,
+        phaseIndex,
+        requestedPassCount: parameters.passCount,
+        curveDepthRatio: parameters.curveDepthRatio,
+        wings
+      });
+      state.swoopPass = passes[cue.executionIndex % Math.max(1, passes.length)];
+    } else if (requestedActionId === 'kaleidoscope-brood') {
+      const beatIndex = this.getPrismMothSignatureBeatIndex(sourceClip.id);
+      const baseSequence = Math.max(
+        0,
+        Math.floor(sourceClip.parameters?.sequence ?? beatIndex) - beatIndex
+      );
+      const configuredRotation = sourceClip.parameters?.rotationDirection;
+      const rotationDirection = configuredRotation === 'clockwise'
+        || configuredRotation === 'counterclockwise'
+        ? configuredRotation
+        : resolvePrismMothSeedBranch({
+            seedKey,
+            sequence: baseSequence,
+            useIndex: loopIndex,
+            branchCount: 2
+          }) === 0 ? 'clockwise' : 'counterclockwise';
+      const parameters = resolvePrismKaleidoscopeBroodParameters({
+        broodNodeCount: projectileCount,
+        activationSequence: baseSequence,
+        rotationDirection,
+        corridorWidthRatio: Number(sourceClip.parameters?.channelWidthPixels)
+          / Math.max(1, this.width),
+        patternBeats: Math.max(4, sourceClip.parameters?.sweepPasses ?? 4),
+        coreChargeFrames: Math.round(
+          (Number(sourceClip.parameters?.pulseIntervalSeconds) || 1.6) * GAME_CONFIG.FPS
+        )
+      });
+      const signature = resolvePrismMothSignatureSequence({
+        seedKey,
+        sequence: baseSequence,
+        useIndex: loopIndex,
+        phaseIndex,
+        parameters,
+        wings
+      });
+      state.signatureBeatIndex = beatIndex;
+      state.signatureBeat = signature[Math.min(beatIndex, signature.length - 1)];
+      const formationSequence = resolvePrismMothFormationSequence({
+        seedKey,
+        sequence: baseSequence,
+        waveIndex: 0,
+        phaseIndex
+      });
+      state.formation = resolvePrismMothBroodFormation({
+        sequence: formationSequence,
+        nodeCount: parameters.broodNodeCount,
+        hatchDelayFrames: state.broodHatchDelayFrames,
+        routeWidthRatio: parameters.corridorWidthRatio,
+        waveIndex: 0,
+        phaseIndex
+      });
+      state.featherCount = parameters.broodNodeCount;
+    }
+
+    boss.bossPrismMothActionStates.push(state);
+    return state;
+  }
+
+  private applyPrismMothPresentationState(
+    boss: Entity,
+    state: PrismMothActionRuntimeState
+  ) {
+    const presentation = boss.bossActionPresentation;
+    if (
+      !presentation
+      || presentation.actionClipId !== state.actionClipId
+      || presentation.executionIndex !== state.executionIndex
+    ) return;
+
+    if (state.resolvedActionId === 'wingbeat-weave') {
+      presentation.motionCue = 'prism-wingbeat';
+      presentation.side = state.wingbeatSource === 'both'
+        ? undefined
+        : state.wingbeatSource;
+    } else if (state.resolvedActionId === 'brood-procession') {
+      presentation.motionCue = 'prism-brood-deploy';
+      presentation.side = undefined;
+    } else if (state.resolvedActionId === 'lunar-prism-swoop') {
+      presentation.motionCue = 'prism-swoop';
+      presentation.side = state.swoopPass?.entrySide;
+    } else {
+      presentation.motionCue = 'prism-kaleidoscope';
+      presentation.side = state.signatureBeat?.source === 'core'
+        ? undefined
+        : state.signatureBeat?.source;
+    }
+  }
+
+  private getPrismMothActionSocketIds(
+    boss: Entity,
+    state: PrismMothActionRuntimeState
+  ) {
+    const wings = this.getPrismMothWingAvailability(boss);
+    if (state.resolvedActionId === 'wingbeat-weave') {
+      return resolvePrismMothEmitterSockets({
+        role: 'feather',
+        source: state.wingbeatSource ?? 'both',
+        wings
+      });
+    }
+    if (state.resolvedActionId === 'brood-procession') {
+      const requested = wings.port || wings.starboard ? 'both' : 'core';
+      return resolvePrismMothEmitterSockets({ role: 'brood', source: requested, wings });
+    }
+    if (state.resolvedActionId === 'lunar-prism-swoop') {
+      return resolvePrismMothEmitterSockets({
+        role: 'trail',
+        source: state.swoopPass?.trailSourceWing ?? 'both',
+        wings
+      });
+    }
+    const source = state.signatureBeat?.source ?? 'core';
+    return resolvePrismMothEmitterSockets({
+      role: source === 'core' ? 'core' : 'feather',
+      source,
+      wings
+    });
+  }
+
+  private showPrismMothAnatomyTelegraph(
+    boss: Entity,
+    cue: BossTimelineCue,
+    linkedAction: BossTimelineCue['clip']
+  ) {
+    const currentPresentation = boss.bossActionPresentation;
+    const currentPrismAction = this.getPrismMothActionId(
+      currentPresentation?.primitiveId
+    );
+    if (
+      !currentPrismAction
+      || currentPresentation?.stage !== 'fire'
+      || boss.attackTimer >= currentPresentation.endFrame
+    ) {
+      this.setBossActionPresentation(boss, cue, 'warning', linkedAction);
+    }
+    const state = this.createPrismMothActionState(boss, cue, linkedAction);
+    if (!state) return;
+    this.applyPrismMothPresentationState(boss, state);
+    boss.isCharging = true;
+
+    const color = linkedAction.parameters?.color
+      ?? (state.phaseIndex >= 2 ? '#c084fc' : '#67e8f9');
+    const sockets = this.getPrismMothActionSocketIds(boss, state);
+    for (const socketId of sockets) {
+      const origin = this.getPrismMothSocketOrigin(boss, socketId);
+      this.spawnBurst(origin.x, origin.y, color, 8, 2.1, 2);
+    }
+    if (state.resolvedActionId === 'lunar-prism-swoop' && state.swoopPass) {
+      const edgeX = state.swoopPass.entrySide === 'port' ? 12 : this.width - 12;
+      const edgeY = Math.max(96, this.height * 0.24);
+      this.spawnBurst(edgeX, edgeY, color, 12, 2.5, 2);
+    }
+    if (sockets.length === 0) {
+      const core = this.getPrismMothSocketOrigin(boss, 'prism-core');
+      this.spawnBurst(core.x, core.y, color, 10, 2.2, 2);
+    }
+    this.playSound('electricity', 0.46, {
+      pitchJitter: 0.015,
+      pitchOffset: state.phaseIndex >= 2 ? 0.12 : 0.04
+    });
+  }
+
+  private beginPrismMothTimelineAction(
+    boss: Entity,
+    cue: BossTimelineCue
+  ) {
+    const state = this.createPrismMothActionState(boss, cue, cue.clip);
+    if (!state) return;
+    const presentation = boss.bossActionPresentation;
+    state.fireStartFrame = boss.attackTimer;
+    state.fireEndFrame = presentation?.actionClipId === cue.clip.id
+      && presentation.executionIndex === cue.executionIndex
+      ? presentation.endFrame
+      : boss.attackTimer + Math.max(
+          1,
+          Math.round(cue.clip.durationSeconds * GAME_CONFIG.FPS)
+        );
+    state.scheduledFireFrame = state.fireStartFrame;
+
+    const wings = this.getPrismMothWingAvailability(boss);
+    const resolution = resolvePrismMothActionForWings({
+      actionId: state.requestedActionId,
+      wings
+    });
+    state.resolvedActionId = resolution.resolvedActionId;
+    if (resolution.resolvedActionId === 'brood-procession' && !state.formation) {
+      const parameters = resolvePrismBroodProcessionParameters({
+        broodNodeCount: state.featherCount,
+        hatchDelayFrames: state.broodHatchDelayFrames,
+        formationSequence: Math.max(0, Math.floor(cue.clip.parameters?.sequence ?? 0)),
+        broodSpeedRatio: 0.01 * state.featherSpeedScale,
+        formationSpacingRatio: Number(cue.clip.parameters?.sweepRangeRatio) || 0.22,
+        routeWidthRatio: Number(cue.clip.parameters?.channelWidthPixels)
+          / Math.max(1, this.width),
+        formationWaves: 1
+      });
+      const sequence = resolvePrismMothFormationSequence({
+        seedKey: this.getPrismMothSeedKey(boss, state.sourceActionId, state.loopIndex),
+        sequence: parameters.formationSequence,
+        waveIndex: cue.executionIndex % 2,
+        phaseIndex: state.phaseIndex
+      });
+      state.formation = this.resolvePrismMothFormationWithSpacing(
+        resolvePrismMothBroodFormation({
+          sequence,
+          nodeCount: parameters.broodNodeCount,
+          hatchDelayFrames: parameters.hatchDelayFrames,
+          routeWidthRatio: parameters.routeWidthRatio,
+          waveIndex: cue.executionIndex % 2,
+          phaseIndex: state.phaseIndex
+        }),
+        parameters.formationSpacingRatio
+      );
+    }
+    this.applyPrismMothPresentationState(boss, state);
+    boss.isCharging = false;
+  }
+
+  private spawnPrismMothFeather(
+    boss: Entity,
+    state: PrismMothActionRuntimeState,
+    socketId: PrismMothRuntimeSocketId,
+    angleRadians: number,
+    speed: number,
+    variant: number,
+    kind: 'feather' | 'swoop-trail' = 'feather'
+  ) {
+    const origin = this.getPrismMothSocketOrigin(boss, socketId);
+    const width = this.mobileProfile ? 13 : 16;
+    const height = this.mobileProfile ? 21 : 25;
+    const feather = this.createEntity(
+      EntityType.PROJECTILE,
+      origin.x - width / 2,
+      origin.y - height / 2
+    );
+    feather.vx = Math.cos(angleRadians) * speed;
+    feather.vy = Math.sin(angleRadians) * speed;
+    feather.width = width;
+    feather.height = height;
+    feather.color = variant % 3 === 0
+      ? '#67e8f9'
+      : variant % 3 === 1 ? '#c084fc' : '#f0abfc';
+    feather.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+    feather.bossOwnerId = boss.id;
+    feather.sourceEventId = boss.sourceEventId;
+    feather.sourceItemId = boss.sourceItemId;
+    feather.projectileVisualKind = 'boss-prism-feather';
+    feather.weaponVisualStartFrame = this.frameCount;
+    feather.variant = variant;
+    feather.prismMothArtifactState = {
+      kind,
+      sourceActionId: state.sourceActionId,
+      sourceActionEndFrame: state.sourceActionEndFrame,
+      sourcePhaseId: state.phaseId,
+      collisionActive: true,
+      damageActive: true,
+      spawnFrame: this.frameCount
+    };
+    this.entities.push(feather);
+    return feather;
+  }
+
+  private spawnPrismMothBroodNode(
+    boss: Entity,
+    state: PrismMothActionRuntimeState,
+    formation: PrismMothBroodFormation,
+    slot: PrismMothBroodFormationSlot,
+    options: {
+      activationFrame?: number;
+      signatureNodeIndex?: number;
+      forceCore?: boolean;
+    } = {}
+  ) {
+    const ownedBroodCount = this.entities.filter((entity) => (
+      !entity.markedForDeletion
+      && entity.bossOwnerId === boss.id
+      && entity.prismMothArtifactState?.kind === 'brood'
+    )).length;
+    if (ownedBroodCount >= 10) return null;
+
+    const wings = this.getPrismMothWingAvailability(boss);
+    const source: PrismMothWingSide | 'core' = options.forceCore
+      || (!wings.port && !wings.starboard)
+      ? 'core'
+      : slot.side;
+    const socketIds = resolvePrismMothEmitterSockets({
+      role: source === 'core' ? 'core' : 'brood',
+      source,
+      wings
+    });
+    const socketId = socketIds[0] ?? 'prism-core';
+    const origin = this.getPrismMothSocketOrigin(boss, socketId);
+    const size = this.mobileProfile ? 20 : 24;
+    const node = this.createEntity(
+      EntityType.PROJECTILE,
+      origin.x - size / 2,
+      origin.y - size / 2
+    );
+    node.width = size;
+    node.height = size;
+    node.vx = 0;
+    node.vy = 0;
+    node.color = '#a5f3fc';
+    node.damage = Math.max(1, Number(boss.projectileDamage) || 1);
+    node.bossOwnerId = boss.id;
+    node.sourceEventId = boss.sourceEventId;
+    node.sourceItemId = boss.sourceItemId;
+    node.projectileVisualKind = 'boss-prism-cocoon';
+    node.projectileAnimationMode = 'play-once-before-last';
+    node.weaponVisualStartFrame = this.frameCount;
+    node.variant = state.loopIndex * 1000 + state.executionIndex * 100 + slot.index;
+    node.prismMothArtifactState = {
+      kind: 'brood',
+      sourceActionId: state.sourceActionId,
+      sourceActionEndFrame: state.sourceActionEndFrame,
+      sourcePhaseId: state.phaseId,
+      collisionActive: false,
+      damageActive: false,
+      spawnFrame: this.frameCount,
+      formation,
+      formationSlot: slot,
+      deployOriginX: origin.x,
+      deployOriginY: origin.y,
+      cocoonX: slot.cocoonXRatio * this.width,
+      cocoonY: slot.cocoonYRatio * this.height,
+      hatchDelayFrames: state.broodHatchDelayFrames,
+      flightFrames: state.broodFlightFrames,
+      activationFrame: options.activationFrame,
+      signatureNodeIndex: options.signatureNodeIndex
+    };
+    this.entities.push(node);
+    return node;
+  }
+
+  private updatePrismMothWingbeatState(
+    boss: Entity,
+    state: PrismMothActionRuntimeState
+  ) {
+    const fireStartFrame = state.fireStartFrame;
+    const fireEndFrame = state.fireEndFrame;
+    if (fireStartFrame === undefined || fireEndFrame === undefined) return;
+    const elapsedFrames = boss.attackTimer - fireStartFrame;
+    if (elapsedFrames < 0 || boss.attackTimer >= fireEndFrame) return;
+    const latestDueIndex = Math.min(
+      state.featherCount - 1,
+      Math.floor(elapsedFrames / Math.max(1, state.featherIntervalFrames))
+    );
+    const wings = this.getPrismMothWingAvailability(boss);
+    for (let index = 0; index <= latestDueIndex; index += 1) {
+      if (state.emittedIndexes.includes(index)) continue;
+      const source = state.wingbeatSource === 'both'
+        ? index % 2 === 0 ? 'port' : 'starboard'
+        : state.wingbeatSource ?? (index % 2 === 0 ? 'port' : 'starboard');
+      const socketId = resolvePrismMothEmitterSockets({
+        role: 'feather',
+        source,
+        wings
+      })[0];
+      if (!socketId) continue;
+      const spreadProgress = state.featherCount <= 1
+        ? 0.5
+        : index / (state.featherCount - 1);
+      const outwardSign = source === 'port' ? 1 : -1;
+      const outwardAngle = state.fanAngleRadians * (0.28 + spreadProgress * 0.72);
+      const angle = Math.PI / 2 + outwardSign * outwardAngle;
+      const speed = Math.max(
+        2.6,
+        (Number(boss.projectileSpeed) || 5.6) * 0.68 * state.featherSpeedScale
+      );
+      this.spawnPrismMothFeather(
+        boss,
+        state,
+        socketId,
+        angle,
+        speed,
+        state.loopIndex * 10000 + state.executionIndex * 100 + index
+      );
+      state.emittedIndexes.push(index);
+      this.spawnBurst(
+        this.getPrismMothSocketOrigin(boss, socketId).x,
+        this.getPrismMothSocketOrigin(boss, socketId).y,
+        index % 2 === 0 ? '#67e8f9' : '#c084fc',
+        3,
+        1.6,
+        2
+      );
+      this.playSound('boss_shoot', 0.42, {
+        pitchJitter: 0.025,
+        pitchOffset: source === 'port' ? 0.06 : 0.12
+      });
+    }
+
+    if (
+      state.delayedBroodEcho
+      && !state.spawnedNodeIndexes.includes(900)
+      && elapsedFrames >= Math.max(1, Math.floor((fireEndFrame - fireStartFrame) * 0.62))
+    ) {
+      const source = state.wingbeatSource === 'starboard' ? 'starboard' : 'port';
+      const sequence = resolvePrismMothFormationSequence({
+        seedKey: this.getPrismMothSeedKey(boss, state.sourceActionId, state.loopIndex),
+        sequence: state.executionIndex + 17,
+        waveIndex: 0,
+        phaseIndex: state.phaseIndex
+      });
+      const formation = resolvePrismMothBroodFormation({
+        sequence,
+        nodeCount: 3,
+        hatchDelayFrames: 10,
+        routeWidthRatio: 0.34,
+        waveIndex: 0,
+        phaseIndex: state.phaseIndex
+      });
+      const slot = formation.slots.find((candidate) => candidate.side === source)
+        ?? formation.slots[0];
+      if (slot) {
+        this.spawnPrismMothBroodNode(boss, state, formation, slot, {
+          activationFrame: this.frameCount
+        });
+      }
+      state.spawnedNodeIndexes.push(900);
+    }
+  }
+
+  private updatePrismMothBroodState(
+    boss: Entity,
+    state: PrismMothActionRuntimeState
+  ) {
+    const fireStartFrame = state.fireStartFrame;
+    const fireEndFrame = state.fireEndFrame;
+    const formation = state.formation;
+    if (
+      fireStartFrame === undefined
+      || fireEndFrame === undefined
+      || !formation
+      || boss.attackTimer < fireStartFrame
+      || boss.attackTimer >= fireEndFrame
+    ) return;
+    const elapsedFrames = boss.attackTimer - fireStartFrame;
+    const releaseIntervalFrames = Math.max(
+      4,
+      Math.min(10, Math.floor(state.broodHatchDelayFrames / 2))
+    );
+    for (const slot of formation.slots) {
+      if (elapsedFrames < slot.index * releaseIntervalFrames) break;
+      if (state.spawnedNodeIndexes.includes(slot.index)) continue;
+      this.spawnPrismMothBroodNode(boss, state, formation, slot, {
+        activationFrame: this.frameCount,
+        forceCore: state.resolvedActionId === 'brood-procession'
+          && !this.getPrismMothWingAvailability(boss).port
+          && !this.getPrismMothWingAvailability(boss).starboard
+      });
+      state.spawnedNodeIndexes.push(slot.index);
+      this.playSound('boss_shoot', 0.34, {
+        pitchJitter: 0.02,
+        pitchOffset: 0.18 + slot.index * 0.025
+      });
+    }
+  }
+
+  private activatePrismMothSignatureNodes(
+    boss: Entity,
+    state: PrismMothActionRuntimeState
+  ) {
+    if (state.signatureNodesActivated || !state.signatureBeat) return;
+    const beat = state.signatureBeat;
+    const nodeIndexes = beat.finalEscapeBeat
+      ? null
+      : new Set(beat.activatedNodeIndexes);
+    for (const entity of this.entities) {
+      const artifact = entity.prismMothArtifactState;
+      if (
+        entity.markedForDeletion
+        || entity.bossOwnerId !== boss.id
+        || artifact?.kind !== 'brood'
+        || artifact.sourceActionId !== state.sourceActionId
+        || artifact.signatureNodeIndex === undefined
+        || artifact.activationFrame !== undefined
+        || (nodeIndexes && !nodeIndexes.has(artifact.signatureNodeIndex))
+      ) continue;
+      artifact.activationFrame = this.frameCount;
+      entity.weaponVisualStartFrame = this.frameCount;
+      entity.projectileAnimationMode = 'cycle';
+    }
+    state.signatureNodesActivated = true;
+  }
+
+  private updatePrismMothSignatureState(
+    boss: Entity,
+    state: PrismMothActionRuntimeState
+  ) {
+    const fireStartFrame = state.fireStartFrame;
+    const fireEndFrame = state.fireEndFrame;
+    const beat = state.signatureBeat;
+    if (
+      fireStartFrame === undefined
+      || fireEndFrame === undefined
+      || !beat
+      || boss.attackTimer < fireStartFrame
+      || boss.attackTimer >= fireEndFrame
+    ) return;
+    const elapsedFrames = boss.attackTimer - fireStartFrame;
+    const durationFrames = Math.max(1, fireEndFrame - fireStartFrame);
+    const progress = clamp(elapsedFrames / durationFrames, 0, 1);
+
+    if ((state.signatureBeatIndex ?? 0) === 0) {
+      const formation = state.formation;
+      if (!formation) return;
+      const releaseIntervalFrames = Math.max(
+        5,
+        Math.floor(durationFrames / Math.max(1, formation.slots.length + 1))
+      );
+      for (const slot of formation.slots) {
+        if (elapsedFrames < slot.index * releaseIntervalFrames) break;
+        if (state.spawnedNodeIndexes.includes(slot.index)) continue;
+        this.spawnPrismMothBroodNode(boss, state, formation, slot, {
+          signatureNodeIndex: slot.index
+        });
+        state.spawnedNodeIndexes.push(slot.index);
+      }
+      return;
+    }
+
+    this.activatePrismMothSignatureNodes(boss, state);
+    const cadence = Math.max(6, Math.min(16, state.trailIntervalFrames));
+    const pulseIndex = Math.floor(elapsedFrames / cadence);
+    if (state.emittedIndexes.includes(pulseIndex)) return;
+    const corridor = samplePrismMothSignatureCorridor({
+      beat,
+      progress,
+      arenaWidth: this.width,
+      playerRadiusPx: Math.max(8, this.player.width * 0.18)
+    });
+    const laneCount = this.mobileProfile ? 7 : 9;
+    const candidates = Array.from({ length: laneCount }, (_, index) => (
+      this.width * ((index + 0.5) / laneCount)
+    )).filter((x) => x < corridor.minimumX || x > corridor.maximumX);
+    if (candidates.length === 0) return;
+    const ordered = beat.rotationDirection === 'clockwise'
+      ? candidates
+      : [...candidates].reverse();
+    const targetX = ordered[pulseIndex % ordered.length];
+    const targetY = this.height + 36;
+    const wings = this.getPrismMothWingAvailability(boss);
+    const source = beat.source;
+    const socketId = resolvePrismMothEmitterSockets({
+      role: source === 'core' ? 'core' : 'feather',
+      source,
+      wings
+    })[0] ?? 'prism-core';
+    const origin = this.getPrismMothSocketOrigin(boss, socketId);
+    const angle = Math.atan2(targetY - origin.y, targetX - origin.x);
+    this.spawnPrismMothFeather(
+      boss,
+      state,
+      socketId,
+      angle,
+      Math.max(2.9, (Number(boss.projectileSpeed) || 5.6) * 0.62 * state.featherSpeedScale),
+      5000 + (state.signatureBeatIndex ?? 0) * 100 + pulseIndex
+    );
+    state.emittedIndexes.push(pulseIndex);
+    this.playSound('boss_shoot', 0.4, {
+      pitchJitter: 0.015,
+      pitchOffset: beat.finalEscapeBeat ? 0.2 : 0.1
+    });
+  }
+
+  private updatePrismMothActionRuntime(boss: Entity) {
+    if (!this.isSandboxPrismMoth(boss)) return;
+    for (const state of boss.bossPrismMothActionStates) {
+      if (state.phaseId !== (boss.bossTimelinePhaseId ?? boss.activeBossPhaseId ?? '')) {
+        continue;
+      }
+      if (state.resolvedActionId === 'wingbeat-weave') {
+        this.updatePrismMothWingbeatState(boss, state);
+      } else if (state.resolvedActionId === 'brood-procession') {
+        this.updatePrismMothBroodState(boss, state);
+      } else if (state.resolvedActionId === 'kaleidoscope-brood') {
+        this.updatePrismMothSignatureState(boss, state);
+      }
+    }
+    boss.bossPrismMothActionStates = boss.bossPrismMothActionStates.filter((state) => {
+      const terminalFrame = state.fireEndFrame === undefined
+        ? state.scheduledFireFrame + GAME_CONFIG.FPS
+        : state.fireEndFrame + 36;
+      return boss.attackTimer <= terminalFrame;
+    });
+  }
+
+  private updatePrismMothOwnedArtifact(entity: Entity) {
+    const state = entity.prismMothArtifactState;
+    if (!state) return false;
+    const owner = this.entities.find((candidate) => candidate.id === entity.bossOwnerId);
+    const ownerAlive = Boolean(owner && !owner.markedForDeletion && owner.hp > 0);
+    const sourceActionActive = Boolean(
+      owner
+      && (owner.bossTimelinePhaseId ?? owner.activeBossPhaseId ?? '') === state.sourcePhaseId
+      && owner.attackTimer < state.sourceActionEndFrame
+    );
+
+    if (state.kind !== 'brood') {
+      const authority = resolvePrismMothOwnedArtifactState({
+        ownerAlive,
+        sourceActionActive,
+        lifecycleComplete: false,
+        visibleCollisionActive: true,
+        visibleDamageActive: true
+      });
+      state.collisionActive = authority.collisionActive;
+      state.damageActive = authority.damageActive;
+      if (authority.shouldCleanup) entity.markedForDeletion = true;
+      return false;
+    }
+
+    const formation = state.formation;
+    const slot = state.formationSlot;
+    if (!formation || !slot) {
+      entity.markedForDeletion = true;
+      return true;
+    }
+    const deployFrames = 30;
+    const hatchDelayFrames = Math.max(10, state.hatchDelayFrames ?? 22);
+    const flightFrames = Math.max(60, state.flightFrames ?? 180);
+    const chronologicalAge = Math.max(0, this.frameCount - state.spawnFrame);
+    const lifecycleAge = state.activationFrame === undefined
+      ? Math.min(chronologicalAge, deployFrames + hatchDelayFrames - 1)
+      : state.activationFrame <= state.spawnFrame
+        ? chronologicalAge
+        : this.frameCount < state.activationFrame
+          ? Math.min(chronologicalAge, deployFrames + hatchDelayFrames - 1)
+          : deployFrames + hatchDelayFrames + (this.frameCount - state.activationFrame);
+    const lifecycle = samplePrismMothBroodLifecycle({
+      ageFrames: lifecycleAge,
+      deployFrames,
+      hatchDelayFrames,
+      hatchFrames: 18,
+      flightFrames,
+      exitFrames: 30
+    });
+    const authority = resolvePrismMothOwnedArtifactState({
+      ownerAlive,
+      sourceActionActive,
+      lifecycleComplete: lifecycle.shouldCleanup,
+      visibleCollisionActive: lifecycle.collisionActive,
+      visibleDamageActive: lifecycle.damageActive
+    });
+    state.collisionActive = authority.collisionActive;
+    state.damageActive = authority.damageActive;
+    if (authority.shouldCleanup) {
+      entity.markedForDeletion = true;
+      return true;
+    }
+
+    const cocoonX = state.cocoonX ?? slot.cocoonXRatio * this.width;
+    const cocoonY = state.cocoonY ?? slot.cocoonYRatio * this.height;
+    if (
+      lifecycle.stage === 'cocoon-deploying'
+      || lifecycle.stage === 'cocoon-armed'
+      || lifecycle.stage === 'hatching'
+    ) {
+      const deployProgress = clamp(chronologicalAge / deployFrames, 0, 1);
+      const eased = deployProgress * deployProgress * (3 - 2 * deployProgress);
+      const originX = state.deployOriginX ?? cocoonX;
+      const originY = state.deployOriginY ?? cocoonY;
+      const centerX = originX + (cocoonX - originX) * eased;
+      const centerY = originY + (cocoonY - originY) * eased;
+      entity.width = this.mobileProfile ? 20 : 24;
+      entity.height = this.mobileProfile ? 22 : 27;
+      entity.x = centerX - entity.width / 2;
+      entity.y = centerY - entity.height / 2;
+      entity.vx = 0;
+      entity.vy = 0;
+      if (entity.projectileVisualKind !== 'boss-prism-cocoon') {
+        entity.projectileVisualKind = 'boss-prism-cocoon';
+        entity.weaponVisualStartFrame = this.frameCount;
+      }
+      entity.projectileAnimationMode = lifecycle.stage === 'cocoon-armed'
+        ? 'hold-last'
+        : lifecycle.stage === 'cocoon-deploying'
+          ? 'play-once-before-last'
+          : 'cycle';
+      return true;
+    }
+
+    const flyingAt = deployFrames + hatchDelayFrames + 18;
+    const flightProgress = clamp((lifecycleAge - flyingAt) / flightFrames, 0, 1);
+    const path = samplePrismMothBroodPath({
+      formation,
+      slot,
+      progress: flightProgress,
+      arenaWidth: this.width,
+      arenaHeight: this.height,
+      broodRadiusPx: this.mobileProfile ? 9 : 11,
+      edgePaddingPx: this.mobileProfile ? 6 : 8
+    });
+    entity.width = this.mobileProfile ? 18 : 22;
+    entity.height = this.mobileProfile ? 16 : 19;
+    entity.x = path.centerX - entity.width / 2;
+    entity.y = path.centerY - entity.height / 2;
+    entity.vx = path.velocityX;
+    entity.vy = path.velocityY;
+    if (entity.projectileVisualKind !== 'boss-prism-broodling') {
+      entity.projectileVisualKind = 'boss-prism-broodling';
+      entity.weaponVisualStartFrame = this.frameCount;
+    }
+    entity.projectileAnimationMode = 'cycle';
+    return true;
+  }
+
+  private updatePrismMothTimelineMovement(
+    boss: Entity,
+    targetEntranceY: number,
+    healthRatio: number
+  ) {
+    if (!this.isSandboxPrismMoth(boss)) return false;
+    const hasSwoopState = boss.bossPrismMothActionStates.some((state) => (
+      state.resolvedActionId === 'lunar-prism-swoop' && state.swoopPass
+    ));
+    if (boss.y < targetEntranceY && !hasSwoopState) return false;
+    boss.bossPrismMothBodyDamageActive = false;
+    const now = boss.attackTimer;
+    const activeSwoop = [...boss.bossPrismMothActionStates].reverse().find((state) => (
+      state.resolvedActionId === 'lunar-prism-swoop'
+      && state.swoopPass
+      && state.fireStartFrame !== undefined
+      && state.fireEndFrame !== undefined
+      && now >= state.fireStartFrame
+      && now < state.fireEndFrame
+    ));
+    if (activeSwoop?.swoopPass && activeSwoop.fireStartFrame !== undefined && activeSwoop.fireEndFrame !== undefined) {
+      const previousX = boss.x;
+      const previousY = boss.y;
+      const progress = clamp(
+        (now - activeSwoop.fireStartFrame)
+          / Math.max(1, activeSwoop.fireEndFrame - activeSwoop.fireStartFrame),
+        0,
+        1
+      );
+      const sample = samplePrismMothSwoopPass({
+        pass: activeSwoop.swoopPass,
+        progress,
+        arenaWidth: this.width,
+        arenaHeight: this.height,
+        bossWidth: boss.width,
+        bossHeight: boss.height,
+        edgePaddingPx: this.mobileProfile ? 6 : 10
+      });
+      boss.x = sample.x;
+      boss.y = sample.y;
+      boss.vx = boss.x - previousX;
+      boss.vy = boss.y - previousY;
+      boss.bossPresentationBankRadians = sample.bankRadians;
+      boss.bossPrismMothBodyDamageActive = sample.visible && sample.damageActive;
+
+      const elapsedFrames = now - activeSwoop.fireStartFrame;
+      const trailIndex = Math.floor(elapsedFrames / activeSwoop.trailIntervalFrames);
+      const trailMarker = 1000 + trailIndex;
+      if (
+        sample.featherTrailActive
+        && !activeSwoop.emittedIndexes.includes(trailMarker)
+      ) {
+        const socketId = resolvePrismMothEmitterSockets({
+          role: 'trail',
+          source: activeSwoop.swoopPass.trailSourceWing,
+          wings: this.getPrismMothWingAvailability(boss)
+        })[0];
+        if (socketId) {
+          const outward = activeSwoop.swoopPass.trailSourceWing === 'port' ? 0.24 : -0.24;
+          this.spawnPrismMothFeather(
+            boss,
+            activeSwoop,
+            socketId,
+            Math.PI / 2 + outward,
+            Math.max(2.3, (Number(boss.projectileSpeed) || 5.6) * 0.5),
+            7000 + activeSwoop.executionIndex * 100 + trailIndex,
+            'swoop-trail'
+          );
+        }
+        activeSwoop.emittedIndexes.push(trailMarker);
+      }
+      if (
+        activeSwoop.swoopPass.leavesCocoon
+        && progress >= 0.72
+        && !activeSwoop.spawnedNodeIndexes.includes(901)
+      ) {
+        const sequence = resolvePrismMothFormationSequence({
+          seedKey: this.getPrismMothSeedKey(
+            boss,
+            activeSwoop.sourceActionId,
+            activeSwoop.loopIndex
+          ),
+          sequence: activeSwoop.executionIndex + 29,
+          waveIndex: 0,
+          phaseIndex: activeSwoop.phaseIndex
+        });
+        const formation = resolvePrismMothBroodFormation({
+          sequence,
+          nodeCount: 3,
+          hatchDelayFrames: 12,
+          routeWidthRatio: 0.34,
+          phaseIndex: activeSwoop.phaseIndex
+        });
+        const slot = formation.slots[activeSwoop.executionIndex % formation.slots.length];
+        if (slot) {
+          this.spawnPrismMothBroodNode(boss, activeSwoop, formation, slot, {
+            activationFrame: this.frameCount
+          });
+        }
+        activeSwoop.spawnedNodeIndexes.push(901);
+      }
+      return true;
+    }
+
+    const preparingSwoop = [...boss.bossPrismMothActionStates].reverse().find((state) => (
+      state.resolvedActionId === 'lunar-prism-swoop'
+      && state.swoopPass
+      && state.fireStartFrame === undefined
+      && now >= state.warningStartFrame
+      && now < state.scheduledFireFrame
+    ));
+    if (preparingSwoop?.swoopPass) {
+      if (preparingSwoop.preparationActivatedFrame === undefined) {
+        preparingSwoop.preparationActivatedFrame = now;
+        preparingSwoop.preparationStartX = boss.x;
+        preparingSwoop.preparationStartY = boss.y;
+      }
+      const destination = samplePrismMothSwoopPass({
+        pass: preparingSwoop.swoopPass,
+        progress: 0,
+        arenaWidth: this.width,
+        arenaHeight: this.height,
+        bossWidth: boss.width,
+        bossHeight: boss.height,
+        edgePaddingPx: this.mobileProfile ? 6 : 10
+      });
+      const progress = clamp(
+        (now - preparingSwoop.preparationActivatedFrame)
+          / Math.max(1, preparingSwoop.scheduledFireFrame - preparingSwoop.preparationActivatedFrame),
+        0,
+        1
+      );
+      const eased = progress * progress * (3 - 2 * progress);
+      const previousX = boss.x;
+      const previousY = boss.y;
+      boss.x = Number(preparingSwoop.preparationStartX)
+        + (destination.x - Number(preparingSwoop.preparationStartX)) * eased;
+      boss.y = Number(preparingSwoop.preparationStartY)
+        + (destination.y - Number(preparingSwoop.preparationStartY)) * eased;
+      boss.vx = boss.x - previousX;
+      boss.vy = boss.y - previousY;
+      boss.bossPresentationBankRadians = destination.bankRadians * eased;
+      return true;
+    }
+
+    const returningSwoop = [...boss.bossPrismMothActionStates].reverse().find((state) => (
+      state.resolvedActionId === 'lunar-prism-swoop'
+      && state.fireEndFrame !== undefined
+      && now >= state.fireEndFrame
+      && now <= state.fireEndFrame + 24
+    ));
+    if (returningSwoop?.fireEndFrame !== undefined) {
+      if (returningSwoop.returnStartFrame === undefined) {
+        returningSwoop.returnStartFrame = now;
+        returningSwoop.returnEndFrame = now + 24;
+        returningSwoop.returnStartX = boss.x;
+        returningSwoop.returnStartY = boss.y;
+      }
+      const progress = clamp(
+        (now - returningSwoop.returnStartFrame)
+          / Math.max(1, Number(returningSwoop.returnEndFrame) - returningSwoop.returnStartFrame),
+        0,
+        1
+      );
+      const eased = progress * progress * (3 - 2 * progress);
+      const previousX = boss.x;
+      const previousY = boss.y;
+      boss.x = Number(returningSwoop.returnStartX)
+        + (returningSwoop.anchorX - Number(returningSwoop.returnStartX)) * eased;
+      boss.y = Number(returningSwoop.returnStartY)
+        + (returningSwoop.anchorY - Number(returningSwoop.returnStartY)) * eased;
+      boss.vx = boss.x - previousX;
+      boss.vy = boss.y - previousY;
+      boss.bossPresentationBankRadians += (0 - boss.bossPresentationBankRadians) * 0.24;
+      return true;
+    }
+
+    const phaseIndex = boss.activeBossPhaseIndex + 1 >= 2 ? 2 : 1;
+    const pressure = 1 - clamp(healthRatio, 0, 1);
+    const horizontalAmplitude = Math.max(16, this.width - boss.width - 24)
+      * (phaseIndex >= 2 ? 0.32 : 0.2);
+    const centerX = (this.width - boss.width) / 2;
+    const targetX = centerX + Math.sin(now * (phaseIndex >= 2 ? 0.012 : 0.009)) * horizontalAmplitude;
+    const targetY = targetEntranceY
+      + (0.5 + Math.sin(now * 0.014 + Math.PI * 0.3) * 0.5)
+      * Math.min(this.height * 0.075, phaseIndex >= 2 ? 72 : 48);
+    const follow = (phaseIndex >= 2 ? 0.025 : 0.018) + pressure * 0.006;
+    boss.x += (targetX - boss.x) * follow;
+    boss.y += (targetY - boss.y) * follow;
+    boss.x = clamp(boss.x, 8, Math.max(8, this.width - boss.width - 8));
+    boss.y = clamp(boss.y, targetEntranceY, Math.max(targetEntranceY, this.height * 0.42));
+    boss.vx = 0;
+    boss.vy = 0;
+    boss.bossPresentationBankRadians += (0 - boss.bossPresentationBankRadians) * 0.18;
+    return true;
+  }
+
+  private clearPrismMothRuntime(boss: Entity) {
+    if (!this.isSandboxPrismMoth(boss)) return;
+    for (const entity of this.entities) {
+      if (entity.bossOwnerId === boss.id && entity.prismMothArtifactState) {
+        entity.markedForDeletion = true;
+      }
+    }
+    boss.bossPrismMothActionStates = [];
+    boss.bossPrismMothBodyDamageActive = false;
+    boss.bossPresentationBankRadians = 0;
+  }
+
   private showHeliosAnatomyTelegraph(
     boss: Entity,
     cue: BossTimelineCue,
@@ -10445,6 +11988,99 @@ export class GameEngine {
       return;
     }
     if (linkedAction.primitiveId === 'paired-cannon-burst') {
+      if (linkedAction.parameters?.motionCue === HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE) {
+        const existingChannel = boss.bossHeliosMachineGunChannelState;
+        if (
+          cue.executionIndex > 0
+          && existingChannel?.actionClipId === linkedAction.id
+          && boss.attackTimer < existingChannel.fireEndFrame
+        ) {
+          boss.isCharging = false;
+          return;
+        }
+        const warningFrames = Math.max(
+          1,
+          Math.round(Math.max(
+            cue.clip.durationSeconds,
+            Number(cue.clip.parameters?.warningSeconds) || 0,
+            linkedAction.startSeconds - cue.clip.startSeconds
+          ) * GAME_CONFIG.FPS)
+        );
+        const actionFrames = Math.max(
+          1,
+          Math.round(linkedAction.durationSeconds * GAME_CONFIG.FPS)
+        );
+        const repeatCount = Math.max(1, Math.min(
+          8,
+          Math.floor(linkedAction.repeat?.count ?? 1)
+        ));
+        const repeatIntervalFrames = linkedAction.repeat
+          ? Math.max(1, Math.round(linkedAction.repeat.intervalSeconds * GAME_CONFIG.FPS))
+          : 0;
+        const fireStartFrame = boss.attackTimer + warningFrames;
+        const channelUseIndex = boss.bossHeliosMachineGunChannelUseCount;
+        const channelSequence = resolveHeliosMachineGunChannelSequence({
+          sequence,
+          useIndex: channelUseIndex,
+          seedKey: [
+            this.gameplayRandomSeed,
+            boss.sourceEventId ?? boss.id,
+            boss.bossTimelinePhaseId ?? boss.activeBossPhaseId ?? 'unphased',
+            linkedAction.id
+          ].join(':')
+        });
+        boss.bossHeliosMachineGunChannelUseCount = channelUseIndex + 1;
+        boss.bossHeliosMachineGunChannelState = {
+          actionClipId: linkedAction.id,
+          sequence,
+          directionSequence: channelSequence,
+          anchorX: boss.x,
+          anchorY: boss.y,
+          warningStartFrame: boss.attackTimer,
+          fireStartFrame,
+          fireEndFrame: fireStartFrame
+            + Math.max(0, repeatCount - 1) * repeatIntervalFrames
+            + actionFrames,
+          channelWidthPixels: clamp(
+            Number(linkedAction.parameters?.channelWidthPixels) || 116,
+            72,
+            320
+          ),
+          sweepRangeRatio: clamp(
+            Number(linkedAction.parameters?.sweepRangeRatio) || 0.34,
+            0.1,
+            0.8
+          ),
+          sweepPasses: Math.max(1, Math.min(
+            3,
+            Math.floor(linkedAction.parameters?.sweepPasses ?? 1)
+          )),
+          shotIntervalFrames: Math.max(2, Math.min(
+            12,
+            Math.floor(linkedAction.parameters?.shotIntervalFrames ?? 3)
+          )),
+          projectileSpeedScale: clamp(
+            Number(linkedAction.parameters?.projectileSpeedScale) || 1,
+            0.5,
+            2
+          )
+        };
+        boss.bossTimelineTargetClipId = linkedAction.id;
+        boss.bossTimelineTargetExecutionIndex = 0;
+        boss.bossTimelineTargetX = this.width / 2;
+        boss.bossTimelineTargetY = this.height + 24;
+        for (const origin of this.getPreviewBossWeaponOrigins(
+          boss,
+          ['port', 'starboard']
+        )) {
+          this.spawnBurst(origin.x, origin.y, '#f59e0b', 3, 1.25, 2);
+        }
+        this.playSound('boss_machinegun', 0.42, {
+          pitchJitter: 0.008,
+          pitchOffset: -0.3
+        });
+        return;
+      }
       boss.bossTimelineTargetClipId = linkedAction.id;
       boss.bossTimelineTargetExecutionIndex = cue.executionIndex;
       // Helios teaches a fixed port/starboard rhythm rather than silently
@@ -10475,6 +12111,84 @@ export class GameEngine {
     phase: number,
     action: BossActionPresentationState
   ) {
+    if (action.motionCue === HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE) {
+      const channel = boss.bossHeliosMachineGunChannelState;
+      if (!channel || channel.actionClipId !== action.actionClipId) return;
+      const durationFrames = Math.max(1, channel.fireEndFrame - channel.fireStartFrame);
+      const pulse = sampleHeliosMachineGunChannelPulse({
+        elapsedFrames: boss.attackTimer - channel.fireStartFrame,
+        durationFrames,
+        sequence: channel.sequence,
+        intervalFrames: channel.shotIntervalFrames
+      });
+      if (!pulse?.firing) return;
+      const horizontalPadding = resolveHeliosMachineGunChannelHorizontalPadding(
+        this.mobileProfile
+      );
+      const movementBounds = sampleHeliosMachineGunChannelMovement({
+        stage: 'fire',
+        progress: 0,
+        sequence: channel.directionSequence,
+        anchorX: channel.anchorX,
+        anchorY: channel.anchorY,
+        arenaWidth: this.width,
+        arenaHeight: this.height,
+        bossWidth: boss.width,
+        bossHeight: boss.height,
+        horizontalPadding,
+        sweepRangeRatio: channel.sweepRangeRatio,
+        sweepPasses: channel.sweepPasses,
+        upperLaneRatio: this.mobileProfile ? 0.13 : 0.12
+      });
+      const channelTargets = resolveHeliosMachineGunChannelTargets({
+        bossX: boss.x,
+        startX: movementBounds.startX,
+        endX: movementBounds.endX,
+        arenaWidth: this.width,
+        channelWidthPixels: channel.channelWidthPixels,
+        edgePadding: resolveHeliosMachineGunChannelTargetPadding(
+          this.mobileProfile,
+          this.width
+        )
+      });
+      const targetY = this.height + (this.mobileProfile ? 44 : 64);
+      const baseSpeed = Math.min(
+        this.mobileProfile ? 6.1 : 6.8,
+        Math.max(4.6, (Number(boss.projectileSpeed) || 6.2) * 0.78)
+      );
+      for (let sideIndex = 0; sideIndex < pulse.firingSides.length; sideIndex += 1) {
+        const side = pulse.firingSides[sideIndex];
+        const origin = this.getPreviewBossWeaponOrigins(boss, [side])[0] ?? {
+          x: boss.x + boss.width * (side === 'port' ? 0.4 : 0.6),
+          y: boss.y + boss.height * 0.78,
+          strength: 1
+        };
+        const targetX = side === 'port'
+          ? channelTargets.portX
+          : channelTargets.starboardX;
+        const angle = Math.atan2(targetY - origin.y, targetX - origin.x);
+        const projectile = this.spawnGeneratedBossProjectile(
+          boss,
+          origin.x,
+          origin.y,
+          angle,
+          baseSpeed * channel.projectileSpeedScale,
+          side === 'port' ? '#f97316' : '#fbbf24',
+          this.mobileProfile ? 9 : 11,
+          channel.sequence * 10_000 + pulse.shotIndex * 2 + sideIndex
+        );
+        if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-gatling-tracer')) {
+          projectile.projectileVisualKind = 'boss-gatling-tracer';
+        }
+        this.spawnBurst(origin.x, origin.y, '#f59e0b', 2, 1.55, 2);
+      }
+      this.playSound('boss_machinegun', 0.42, {
+        pitchJitter: 0.012,
+        pitchOffset: 0.02 + (pulse.shotIndex % 3) * 0.015
+      });
+      this.addShake(0.26);
+      return;
+    }
     const fallbackToCrossfire = Boolean(
       boss.bossHeliosCornerClampState?.fallbackToCrossfire
       && action.primitiveId === 'articulated-melee-sweep'
@@ -10488,7 +12202,7 @@ export class GameEngine {
       elapsedFrames,
       roundsPerSide: requested,
       sides,
-      intervalFrames: phase >= 3 ? 3 : 4
+      intervalFrames: action.shotIntervalFrames ?? (phase >= 3 ? 2 : 3)
     });
     if (!pulse?.firing) return;
     const speed = Math.min(
@@ -10508,7 +12222,9 @@ export class GameEngine {
       origin.x,
       origin.y,
       angle,
-      speed * (1 + Math.abs(centeredIndex) * 0.012),
+      speed
+        * (action.projectileSpeedScale ?? 1)
+        * (1 + Math.abs(centeredIndex) * 0.012),
       pulse.side === 'port' ? '#f97316' : '#fbbf24',
       this.mobileProfile ? 10 : 12,
       action.sequence * 100 + pulse.shotIndex
@@ -10536,46 +12252,65 @@ export class GameEngine {
     };
     const elapsedFrames = Math.max(0, boss.attackTimer - action.startFrame);
     if (action.motionCue === 'reactor-mines') {
-      const formation = resolveHeliosMineFormation({
+      const timelineDurationFrames = boss.bossTimeline
+        ? getBossTimelineDurationFrames(boss.bossTimeline, GAME_CONFIG.FPS)
+        : 1;
+      const loopIndex = Math.floor(
+        Math.max(0, boss.attackTimer) / Math.max(1, timelineDurationFrames)
+      );
+      const formationSequence = resolveHeliosMineFormationSequence({
         sequence: action.sequence,
+        seedKey: [
+          this.gameplayRandomSeed,
+          boss.sourceEventId ?? boss.id,
+          boss.bossTimelinePhaseId ?? boss.activeBossPhaseId ?? 'unphased',
+          loopIndex,
+          action.actionClipId,
+          action.executionIndex
+        ].join(':')
+      });
+      const formation = resolveHeliosMineFormation({
+        sequence: formationSequence,
         count: action.projectileCount ?? 3
       });
       const slot = formation.find((candidate) => elapsedFrames === 2 + candidate.delayFrames);
       if (!slot) return;
       const mineSize = this.mobileProfile ? 24 : 30;
+      const armPoint = resolveHeliosMineArmPoint({
+        slot,
+        arenaWidth: this.width,
+        arenaHeight: this.height,
+        originX: core.x,
+        originY: core.y,
+        mineSize,
+        edgePadding: 12,
+        topPadding: this.mobileProfile ? 54 : 48,
+        bottomPadding: this.mobileProfile ? 34 : 22,
+        minimumForwardTravel: Math.max(
+          this.mobileProfile ? 104 : 112,
+          boss.y + boss.height + (this.mobileProfile ? 64 : 76) - core.y
+        )
+      });
       const mine = this.spawnGeneratedBossProjectile(
         boss,
         core.x,
         core.y,
-        slot.angleRadians,
+        armPoint.angleRadians,
         0,
         '#f59e0b',
         mineSize,
         action.sequence * 10 + slot.index
       );
       mine.damage = Math.max(1, Number(boss.projectileDamage) || 1);
-      const horizontalTravel = this.mobileProfile ? 190 : 250;
-      const targetCenterX = clamp(
-        core.x + Math.sin(slot.angleRadians - Math.PI / 2) * horizontalTravel,
-        mineSize / 2 + 12,
-        this.width - mineSize / 2 - 12
-      );
-      const targetCenterY = clamp(
-        Math.max(
-          core.y + 112,
-          boss.y + boss.height + (this.mobileProfile ? 64 : 76)
-        ),
-        core.y + 96,
-        Math.max(core.y + 96, this.height - (this.mobileProfile ? 180 : 150))
-      );
       mine.heliosMineState = {
         spawnFrame: this.frameCount,
         triggerAgeFrame: -1,
         hitPlayer: false,
         deployStartX: core.x,
         deployStartY: core.y,
-        armX: targetCenterX,
-        armY: targetCenterY
+        armX: armPoint.x,
+        armY: armPoint.y,
+        deployFrames: armPoint.deployFrames
       };
       mine.heliosMineStage = 'deploying';
       mine.projectileAnimationMode = 'play-once-before-last';
@@ -10639,7 +12374,8 @@ export class GameEngine {
       distanceToPlayer: Math.hypot(
         playerCenterX - mineCenterX,
         playerCenterY - mineCenterY
-      )
+      ),
+      deployFrames: state.deployFrames
     });
   }
 
@@ -10648,16 +12384,18 @@ export class GameEngine {
     if (!state) return;
     const ageFrames = Math.max(0, this.frameCount - state.spawnFrame);
     if (state.triggerAgeFrame < 0) {
-      const deployProgress = clamp(ageFrames / HELIOS_MINE_DEPLOY_FRAMES, 0, 1);
-      const easedProgress = 1 - Math.pow(1 - deployProgress, 3);
-      const previousCenterX = mine.x + mine.width / 2;
-      const previousCenterY = mine.y + mine.height / 2;
-      const centerX = state.deployStartX + (state.armX - state.deployStartX) * easedProgress;
-      const centerY = state.deployStartY + (state.armY - state.deployStartY) * easedProgress;
-      mine.x = centerX - mine.width / 2;
-      mine.y = centerY - mine.height / 2;
-      mine.vx = centerX - previousCenterX;
-      mine.vy = centerY - previousCenterY;
+      const deployment = sampleHeliosMineDeployment({
+        ageFrames,
+        deployFrames: state.deployFrames,
+        startX: state.deployStartX,
+        startY: state.deployStartY,
+        armX: state.armX,
+        armY: state.armY
+      });
+      mine.x = deployment.centerX - mine.width / 2;
+      mine.y = deployment.centerY - mine.height / 2;
+      mine.vx = deployment.velocityX;
+      mine.vy = deployment.velocityY;
     }
     let sample = this.sampleHeliosMineEntity(mine);
     if (!sample) return;
@@ -10714,6 +12452,14 @@ export class GameEngine {
     const linkedAction = boss.bossTimeline?.clips.find((clip) => (
       clip.telegraphClipId === cue.clip.id
     ));
+    if (
+      linkedAction
+      && this.isSandboxPrismMoth(boss)
+      && this.getPrismMothActionId(linkedAction.primitiveId)
+    ) {
+      this.showPrismMothAnatomyTelegraph(boss, cue, linkedAction);
+      return;
+    }
     this.setBossActionPresentation(
       boss,
       cue,
@@ -10986,6 +12732,14 @@ export class GameEngine {
       case 'tracking-pincer-dive':
         boss.isCharging = false;
         return;
+      case 'prism-wingbeat-weave':
+      case 'prism-brood-procession':
+      case 'prism-lunar-swoop':
+      case 'prism-kaleidoscope-brood':
+        if (this.isSandboxPrismMoth(boss)) {
+          this.beginPrismMothTimelineAction(boss, cue);
+        }
+        return;
       case 'cross-beam':
         this.spawnBossCrossBeamPair(boss, false);
         return;
@@ -11122,11 +12876,23 @@ export class GameEngine {
           }
           boss.isCharging = false;
         }
-        this.spawnRingEffect(
-          boss.x + boss.width / 2,
-          boss.y + boss.height / 2,
-          parameters?.color ?? '#67e8f9'
-        );
+        if (this.isSandboxPrismMoth(boss)) {
+          const core = this.getPrismMothSocketOrigin(boss, 'prism-core');
+          this.spawnBurst(
+            core.x,
+            core.y,
+            parameters?.color ?? '#67e8f9',
+            12,
+            2.4,
+            2
+          );
+        } else {
+          this.spawnRingEffect(
+            boss.x + boss.width / 2,
+            boss.y + boss.height / 2,
+            parameters?.color ?? '#67e8f9'
+          );
+        }
         return;
       case 'camera-cue':
         this.addShake(clamp(Number(parameters?.strength) || 2.5, 0, 10));
@@ -11318,7 +13084,7 @@ export class GameEngine {
     const timeline = boss.bossTimeline;
     if (!timeline) return false;
     const targetEntranceY = Math.max(72, Math.min(this.height * 0.13, 116));
-    const isPerformingSettledHeliosMovement = Boolean(
+    const isPerformingSettledTimelineMovement = Boolean(
       (
         boss.bossTrackingPincerState
         && boss.bossActionPresentation?.primitiveId === 'tracking-pincer-dive'
@@ -11327,13 +13093,23 @@ export class GameEngine {
         boss.bossHeliosCornerClampState
         && boss.bossActionPresentation?.primitiveId === 'articulated-melee-sweep'
       )
+      || (
+        boss.bossHeliosMachineGunChannelState
+        && boss.bossActionPresentation?.primitiveId === 'paired-cannon-burst'
+      )
+      || (
+        this.isSandboxPrismMoth(boss)
+        && boss.bossPrismMothActionStates.some((state) => (
+          state.resolvedActionId === 'lunar-prism-swoop' && state.swoopPass
+        ))
+      )
     );
-    if (boss.y < targetEntranceY && !isPerformingSettledHeliosMovement) {
+    if (boss.y < targetEntranceY && !isPerformingSettledTimelineMovement) {
       // The authored phase clock begins only after the silhouette has settled
       // into its combat anchor. This preserves a real read window and prevents
-      // off-screen attacks when a deliberately slow boss enters. An already
-      // settled Helios is allowed to rise above that anchor during its authored
-      // pincer sequence without accidentally restarting the whole timeline.
+      // off-screen attacks when a deliberately slow boss enters. Authored
+      // Helios and Prism movement sentences may rise above that anchor after a
+      // visible preparation without accidentally restarting the whole timeline.
       boss.attackTimer = 0;
       boss.bossActionPresentation = undefined;
       return true;
@@ -11350,10 +13126,14 @@ export class GameEngine {
       && boss.attackTimer > 0
       && boss.attackTimer % timelineDurationFrames === 0
     ) {
+      this.clearPrismMothRuntime(boss);
       this.clearBossTimelineActionLocks(boss);
     }
     const phaseId = boss.bossTimelinePhaseId ?? boss.activeBossPhaseId;
     if (phaseId !== boss.bossTimelineLastPhaseId) {
+      if (boss.bossTimelineLastPhaseId !== undefined) {
+        this.clearPrismMothRuntime(boss);
+      }
       boss.bossTimelineLastPhaseId = phaseId;
       getBossTimelineTriggeredCues(timeline, 'phase-enter', phaseId)
         .forEach((cue) => this.dispatchBossTimelineCue(boss, cue, phase, 'phase-enter'));
@@ -11375,6 +13155,7 @@ export class GameEngine {
     const heliosAction = boss.bossActionPresentation;
     if (
       heliosAction?.stage === 'fire'
+      && heliosAction.motionCue !== HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE
       && (
         heliosAction.primitiveId === 'paired-cannon-burst'
         || (
@@ -11391,13 +13172,86 @@ export class GameEngine {
     ) {
       this.spawnHeliosReactorPulse(boss, phase, heliosAction);
     }
+    this.updatePrismMothActionRuntime(boss);
     return true;
   }
 
   updateTimelineBossMovement(boss: Entity, healthRatio: number) {
     const targetEntranceY = Math.max(72, Math.min(this.height * 0.13, 116));
+    if (this.updatePrismMothTimelineMovement(boss, targetEntranceY, healthRatio)) {
+      return;
+    }
     const speed = Math.max(0.1, boss.configuredSpeed ?? 2) * boss.activeBossPhaseSpeedMultiplier;
     const entranceSpeed = Math.max(2.2, speed);
+    const channelState = boss.bossHeliosMachineGunChannelState;
+    if (channelState) {
+      const previousX = boss.x;
+      const previousY = boss.y;
+      const action = boss.bossActionPresentation?.actionClipId === channelState.actionClipId
+        ? boss.bossActionPresentation
+        : undefined;
+      if (!action) {
+        boss.x = channelState.anchorX;
+        boss.y = channelState.anchorY;
+        boss.vx = boss.x - previousX;
+        boss.vy = boss.y - previousY;
+        boss.bossPresentationBankRadians = 0;
+        boss.bossHeliosMachineGunChannelState = undefined;
+        return;
+      }
+      const stage = action.stage === 'warning'
+        ? 'warning'
+        : action.stage === 'recovery'
+          ? 'recovery'
+          : 'fire';
+      const stageStartFrame = stage === 'warning'
+        ? channelState.warningStartFrame
+        : stage === 'fire'
+          ? channelState.fireStartFrame
+          : action.startFrame;
+      const stageEndFrame = stage === 'warning'
+        ? channelState.fireStartFrame
+        : stage === 'fire'
+          ? channelState.fireEndFrame
+          : action.endFrame;
+      const stageProgress = clamp(
+        (boss.attackTimer - stageStartFrame)
+          / Math.max(1, stageEndFrame - stageStartFrame),
+        0,
+        1
+      );
+      const sample = sampleHeliosMachineGunChannelMovement({
+        stage,
+        progress: stageProgress,
+        sequence: channelState.directionSequence,
+        anchorX: channelState.anchorX,
+        anchorY: channelState.anchorY,
+        arenaWidth: this.width,
+        arenaHeight: this.height,
+        bossWidth: boss.width,
+        bossHeight: boss.height,
+        horizontalPadding: resolveHeliosMachineGunChannelHorizontalPadding(
+          this.mobileProfile
+        ),
+        sweepRangeRatio: channelState.sweepRangeRatio,
+        sweepPasses: channelState.sweepPasses,
+        upperLaneRatio: this.mobileProfile ? 0.13 : 0.12
+      });
+      boss.x = sample.x;
+      boss.y = sample.y;
+      boss.vx = boss.x - previousX;
+      boss.vy = boss.y - previousY;
+      boss.bossPresentationBankRadians = 0;
+      boss.isCharging = stage === 'warning';
+      if (stage === 'recovery' && stageProgress >= 0.999) {
+        boss.x = channelState.anchorX;
+        boss.y = channelState.anchorY;
+        boss.vx = boss.x - previousX;
+        boss.vy = boss.y - previousY;
+        boss.bossHeliosMachineGunChannelState = undefined;
+      }
+      return;
+    }
     const clampAction = boss.bossActionPresentation?.primitiveId === 'articulated-melee-sweep'
       ? boss.bossActionPresentation
       : undefined;
@@ -11652,6 +13506,13 @@ export class GameEngine {
     const phase = resolvedPhase || legacyConfiguredPhase || Math.max(1, this.stats.wave);
     if (this.updateConfiguredBossTimeline(boss, phase)) {
       this.updateTimelineBossMovement(boss, healthRatio);
+      if (
+        boss.bossActionPresentation?.stage === 'fire'
+        && boss.bossActionPresentation.motionCue
+          === HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE
+      ) {
+        this.spawnHeliosCrossfirePulse(boss, phase, boss.bossActionPresentation);
+      }
       return;
     }
     if (boss.bossAttackArchetype) {
@@ -11889,11 +13750,19 @@ export class GameEngine {
       if (this.creditCoinValue(coin)) credited++;
     }
 
-    if (credited > 0 && this.waveVictorySummary) {
-      const stableSummaryId = this.waveVictorySummary.id;
-      this.waveVictorySummary = { ...this.buildWaveVictorySummary(), id: stableSummaryId };
-    }
+    if (credited > 0) this.refreshWaveVictorySummaryMetrics();
     return credited;
+  }
+
+  private refreshWaveVictorySummaryMetrics() {
+    if (!this.waveVictorySummary) return;
+    const stableSummary = this.waveVictorySummary;
+    this.waveVictorySummary = {
+      ...this.buildWaveVictorySummary(),
+      id: stableSummary.id,
+      elapsedSeconds: stableSummary.elapsedSeconds,
+      damageTaken: stableSummary.damageTaken
+    };
   }
 
   private settleBossCoinMotion(coin: Entity) {
@@ -11990,10 +13859,7 @@ export class GameEngine {
     const credited = this.creditCoinValue(coin);
     this.registerCoinPickup(coin.x + coin.width / 2, coin.y + coin.height / 2);
 
-    if (credited && this.waveTransitionPending && this.waveVictorySummary) {
-      const stableSummaryId = this.waveVictorySummary.id;
-      this.waveVictorySummary = { ...this.buildWaveVictorySummary(), id: stableSummaryId };
-    }
+    if (credited && this.waveTransitionPending) this.refreshWaveVictorySummaryMetrics();
     return true;
   }
 
@@ -12328,9 +14194,11 @@ export class GameEngine {
 
       // 1. Enemies always hurt
       if (isEnemy) {
-          hurtsPlayer = e.type !== EntityType.BOSS
-            || !e.bossCornerAmbushRamState
-            || e.bossCornerAmbushRamState.stage === 'charge';
+          hurtsPlayer = e.type === EntityType.BOSS && this.isSandboxPrismMoth(e)
+            ? e.bossPrismMothBodyDamageActive
+            : e.type !== EntityType.BOSS
+              || !e.bossCornerAmbushRamState
+              || e.bossCornerAmbushRamState.stage === 'charge';
       }
 
       // 2. Projectiles hurt ONLY if they are NOT player shots
@@ -12345,6 +14213,7 @@ export class GameEngine {
             && !e.clawReturning
             && !e.clawHasHitPlayer
             && (!e.heliosMineState || this.isHeliosMineDamageActive(e))
+            && (!e.prismMothArtifactState || e.prismMothArtifactState.damageActive)
           ) {
                // EXTRA FAILSAFE: If it's Cyan or Purple, assume it's player ammo (glitch protection)
                if (e.color !== '#00FFFF' && e.color !== '#00ffff' && e.color !== '#6c63ff') {

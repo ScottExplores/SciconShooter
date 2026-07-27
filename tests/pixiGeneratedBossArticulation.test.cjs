@@ -148,8 +148,8 @@ test('Prism Moth weapon pods stay centered on the targetable cannon geometry', (
     renderer.indexOf('private drawArticulatedGeneratedBoss')
   );
 
-  assert.match(gameLogic, /id: 'left-cannon',[\s\S]*?centerXRatio: 0\.17/);
-  assert.match(gameLogic, /id: 'right-cannon',[\s\S]*?centerXRatio: 0\.83/);
+  assert.match(gameLogic, /id: 'left-cannon',[\s\S]*?centerXRatio: isPrismMoth \? 0\.22 : 0\.17/);
+  assert.match(gameLogic, /id: 'right-cannon',[\s\S]*?centerXRatio: isPrismMoth \? 0\.78 : 0\.83/);
   assert.match(mothDraw, /const podCenterXRatio = component\?\.centerXRatio \?\? \(side === 'left' \? 0\.17 : 0\.83\)/);
   assert.match(mothDraw, /const podCenterYRatio = component\?\.centerYRatio \?\? 0\.45/);
   assert.match(mothDraw, /const podX = \(podCenterXRatio - 0\.5\) \* PRISM_MOTH_DESIGN_SIZE\.width/);

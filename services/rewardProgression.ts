@@ -1,12 +1,25 @@
-import type {
-  PermanentLifetimeStats,
-  PermanentSquadState
+import {
+  awardWeeklySquadCoins,
+  type WeeklySquadState,
+  type PermanentLifetimeStats,
+  type PermanentSquadState
 } from './squadProgression';
 import type { PlayerShipId } from './playerShipService';
+import { normalizeBossArchiveEventIds } from './bossArchive';
 import {
-  getNewBossArchiveCount,
-  normalizeBossArchiveEventIds
-} from './bossArchive';
+  claimBossArchiveMasteryReward,
+  recordBossArchiveFightResult,
+  sanitizeBossArchiveBossRecord,
+  type BossArchiveFightResultInput,
+  type BossArchiveFightResolution,
+  type BossArchiveMasteryObjectiveId
+} from './bossArchiveProgression';
+
+export interface BossArchiveEconomyResolution {
+  permanentState: PermanentSquadState;
+  weeklyState: WeeklySquadState;
+  result: BossArchiveFightResolution;
+}
 
 export interface DailyGiftReward {
   day: number;
@@ -231,6 +244,10 @@ export const recordBossVictory = (
 ): PermanentSquadState => {
   const [normalizedEncounterId] = normalizeBossArchiveEventIds([encounterId]);
   if (!normalizedEncounterId) return state;
+  const newlyUnlocked = !state.bossArchive.unlockedEventIds.includes(normalizedEncounterId);
+  const previousRecord = sanitizeBossArchiveBossRecord(
+    state.bossArchive.records[normalizedEncounterId]
+  );
   return {
     ...state,
     bossArchive: {
@@ -238,7 +255,17 @@ export const recordBossVictory = (
       unlockedEventIds: normalizeBossArchiveEventIds([
         ...state.bossArchive.unlockedEventIds,
         normalizedEncounterId
-      ])
+      ]),
+      lastSelectedEventId: newlyUnlocked
+        ? normalizedEncounterId
+        : state.bossArchive.lastSelectedEventId,
+      records: {
+        ...state.bossArchive.records,
+        [normalizedEncounterId]: {
+          ...previousRecord,
+          totalClears: previousRecord.totalClears + 1
+        }
+      }
     },
     lifetimeStats: {
       ...state.lifetimeStats,
@@ -248,7 +275,10 @@ export const recordBossVictory = (
   };
 };
 
-export const markBossArchiveViewed = (state: PermanentSquadState): PermanentSquadState => {
+export const markBossArchiveViewed = (
+  state: PermanentSquadState,
+  encounterId?: string
+): PermanentSquadState => {
   const unlockedEventIds = normalizeBossArchiveEventIds(
     state.bossArchive.unlockedEventIds
   );
@@ -256,31 +286,103 @@ export const markBossArchiveViewed = (state: PermanentSquadState): PermanentSqua
   const seenEventIds = normalizeBossArchiveEventIds(
     state.bossArchive.seenEventIds
   ).filter((eventId) => unlockedEventIdSet.has(eventId));
-  const newBossCount = getNewBossArchiveCount(
-    unlockedEventIds,
-    seenEventIds
-  );
+  const [viewedEventId] = normalizeBossArchiveEventIds([encounterId]);
+  const nextSeenEventIds = viewedEventId && unlockedEventIdSet.has(viewedEventId)
+    ? normalizeBossArchiveEventIds([...seenEventIds, viewedEventId])
+    : seenEventIds;
   const archiveAlreadyNormalized = unlockedEventIds.length === state.bossArchive.unlockedEventIds.length
     && unlockedEventIds.every((eventId, index) => (
       eventId === state.bossArchive.unlockedEventIds[index]
     ))
-    && seenEventIds.length === state.bossArchive.seenEventIds.length
-    && seenEventIds.every((eventId, index) => (
+    && nextSeenEventIds.length === state.bossArchive.seenEventIds.length
+    && nextSeenEventIds.every((eventId, index) => (
       eventId === state.bossArchive.seenEventIds[index]
     ));
-  if (newBossCount === 0 && archiveAlreadyNormalized) {
+  if (archiveAlreadyNormalized) {
     return state;
   }
   return {
     ...state,
     bossArchive: {
+      ...state.bossArchive,
       unlockedEventIds,
-      seenEventIds: normalizeBossArchiveEventIds([
-        ...seenEventIds,
-        ...unlockedEventIds
-      ])
+      seenEventIds: nextSeenEventIds
     },
     updatedAt: new Date().toISOString()
+  };
+};
+
+/**
+ * Applies an Archive result and its existing-coin reward as one immutable
+ * transition. A Practice clear or failed Challenge always awards zero coins;
+ * a successful Challenge consumes exactly one available daily charge.
+ */
+export const resolveBossArchiveFightEconomy = (
+  permanentState: PermanentSquadState,
+  weeklyState: WeeklySquadState,
+  input: BossArchiveFightResultInput,
+  options: { now?: Date; dailyLimit?: number } = {}
+): BossArchiveEconomyResolution => {
+  const result = recordBossArchiveFightResult(
+    permanentState.bossArchive,
+    input,
+    options
+  );
+  const now = options.now ?? new Date();
+  return {
+    permanentState: result.state === permanentState.bossArchive
+      ? permanentState
+      : {
+          ...permanentState,
+          bossArchive: result.state,
+          updatedAt: now.toISOString()
+        },
+    weeklyState: result.challengeRewardCoins > 0
+      ? awardWeeklySquadCoins(
+          weeklyState,
+          result.challengeRewardCoins,
+          `boss-archive:${input.eventId}`
+        )
+      : weeklyState,
+    result
+  };
+};
+
+export const claimBossArchiveMasteryEconomyReward = (
+  permanentState: PermanentSquadState,
+  weeklyState: WeeklySquadState,
+  eventId: string,
+  objectiveId: BossArchiveMasteryObjectiveId,
+  now = new Date()
+) => {
+  const claim = claimBossArchiveMasteryReward(
+    permanentState.bossArchive,
+    eventId,
+    objectiveId,
+    now
+  );
+  return {
+    permanentState: claim.claimed
+      ? {
+          ...permanentState,
+          bossArchive: claim.state,
+          cosmetics: claim.rewardCosmeticId
+            ? Array.from(new Set([
+                ...permanentState.cosmetics,
+                claim.rewardCosmeticId
+              ]))
+            : permanentState.cosmetics,
+          updatedAt: now.toISOString()
+        }
+      : permanentState,
+    weeklyState: claim.rewardCoins > 0
+      ? awardWeeklySquadCoins(
+          weeklyState,
+          claim.rewardCoins,
+          `boss-mastery:${eventId}:${objectiveId}`
+        )
+      : weeklyState,
+    claim
   };
 };
 

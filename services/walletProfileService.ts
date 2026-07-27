@@ -39,6 +39,43 @@ interface WalletProfileChallenge {
   expiresAt: string;
 }
 
+export interface WalletBossArchiveChallengeRun {
+  runId: string;
+  runToken: string;
+  eventId: string;
+  variantId: 'standard';
+  issuedAt: string;
+  expiresAt: string;
+}
+
+export interface WalletBossArchiveChallengeSettlement {
+  accepted: true;
+  duplicate: boolean;
+  resultId: string;
+  eventId: string;
+  variantId: 'standard';
+  rewardCoins: number;
+  chargesRemaining: number;
+  clearTimeMs: number;
+  damageTaken: number;
+  noHit: boolean;
+  newBestClearTime: boolean;
+  newBestChallengeTime: boolean;
+  newlyCompletedObjectiveIds: Array<'challenge-clear' | 'no-hit-clear' | 'timed-clear'>;
+  utcDateKey: string;
+}
+
+interface WalletBossArchiveChallengeStartResponse {
+  walletAddress: string;
+  run: WalletBossArchiveChallengeRun;
+}
+
+interface WalletBossArchiveChallengeSettlementResponse {
+  walletAddress: string;
+  profile: WalletProfileRecord;
+  settlement: WalletBossArchiveChallengeSettlement;
+}
+
 export class WalletProfileRequestError extends Error {
   status: number;
   code: string;
@@ -136,10 +173,9 @@ export const cacheWalletProfile = (record: WalletProfileRecord) => {
   }
 };
 
-export const readWalletProfileSession = async (): Promise<WalletProfileRecord | null> => {
-  const response = await requestWalletProfile<WalletProfileResponse>();
-  return response.profile;
-};
+export const readWalletProfileSession = async (): Promise<WalletProfileResponse> => (
+  requestWalletProfile<WalletProfileResponse>()
+);
 
 export const authenticateWalletProfile = async (
   address: Address
@@ -168,9 +204,8 @@ export const loadAuthenticatedWalletProfile = async (
   try {
     const existingSession = await readWalletProfileSession();
     if (
-      existingSession
-      && existingSession.walletAddress.toLowerCase() === normalizeWalletAddress(address)
-    ) return existingSession;
+      existingSession.walletAddress?.toLowerCase() === normalizeWalletAddress(address)
+    ) return existingSession.profile;
   } catch (error) {
     if (!(error instanceof WalletProfileRequestError) || error.status !== 401) {
       throw error;
@@ -220,6 +255,102 @@ export const saveAuthenticatedWalletProfile = async ({
   }
   cacheWalletProfile(response.profile);
   return response.profile;
+};
+
+export const startWalletBossArchiveChallenge = async ({
+  walletAddress,
+  eventId,
+  variantId = 'standard'
+}: {
+  walletAddress: string;
+  eventId: string;
+  variantId?: 'standard';
+}): Promise<WalletBossArchiveChallengeRun> => {
+  const normalizedAddress = normalizeWalletAddress(walletAddress);
+  const response = await requestWalletProfile<WalletBossArchiveChallengeStartResponse>({
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'start-boss-challenge',
+      eventId,
+      variantId
+    })
+  });
+  if (
+    response.walletAddress?.toLowerCase() !== normalizedAddress
+    || !response.run?.runToken
+    || !response.run.runId
+    || response.run.eventId !== eventId
+    || response.run.variantId !== variantId
+  ) {
+    throw new WalletProfileRequestError(
+      'Boss Archive Challenge start returned invalid state.',
+      409,
+      'challenge_start_invalid'
+    );
+  }
+  return response.run;
+};
+
+export const settleWalletBossArchiveChallenge = async ({
+  walletAddress,
+  runToken,
+  clearTimeMs,
+  damageTaken
+}: {
+  walletAddress: string;
+  runToken: string;
+  clearTimeMs: number;
+  damageTaken: number;
+}): Promise<{
+  profile: WalletProfileRecord;
+  settlement: WalletBossArchiveChallengeSettlement;
+}> => {
+  const normalizedAddress = normalizeWalletAddress(walletAddress);
+  const requestBody = JSON.stringify({
+    action: 'settle-boss-challenge',
+    runToken,
+    victory: true,
+    clearTimeMs,
+    damageTaken
+  });
+  let response: WalletBossArchiveChallengeSettlementResponse | null = null;
+  let lastError: unknown = null;
+
+  // The server ledger makes this request idempotent. Retrying the same signed
+  // run is therefore safe when an RPC commits but its HTTP response is lost.
+  // Deterministic 4xx errors are not retried.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      response = await requestWalletProfile<WalletBossArchiveChallengeSettlementResponse>({
+        method: 'POST',
+        body: requestBody
+      });
+      break;
+    } catch (error) {
+      lastError = error;
+      const retryable = !(error instanceof WalletProfileRequestError)
+        || error.status >= 500;
+      if (!retryable || attempt === 2) throw error;
+    }
+  }
+  if (!response) throw lastError;
+  if (
+    response.walletAddress?.toLowerCase() !== normalizedAddress
+    || response.profile?.walletAddress?.toLowerCase() !== normalizedAddress
+    || response.profile?.profileId !== getWalletProfileId(normalizedAddress)
+    || response.settlement?.accepted !== true
+  ) {
+    throw new WalletProfileRequestError(
+      'Boss Archive Challenge settlement returned invalid wallet state.',
+      409,
+      'challenge_settlement_invalid'
+    );
+  }
+  cacheWalletProfile(response.profile);
+  return {
+    profile: response.profile,
+    settlement: response.settlement
+  };
 };
 
 export const flushDirtyWalletProfile = async (

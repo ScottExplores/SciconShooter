@@ -130,7 +130,8 @@ test('preview session controls clamp speed and remain isolated behind preview pr
   assert.match(canvas, /previewCommand\?: PreviewCommand \| null/);
   assert.match(canvas, /const telemetrySink = previewMode/);
   assert.match(canvas, /previewMode[\s\S]*telemetrySink[\s\S]*onTelemetrySnapshotRef\.current/);
-  assert.match(canvas, /randomSeed: previewMode \? previewSeed : undefined/);
+  assert.match(canvas, /randomSeed: previewMode \? previewSeed : randomSeed/);
+  assert.match(canvas, /randomSeed\?: GameplayRandomSeed/);
   assert.match(editor, /onPreviewPlayingChange: onPlayingChange/);
   assert.match(engine, /randomSeed\?: GameplayRandomSeed/);
   assert.match(engine, /telemetrySink\?: GameplayTelemetrySink/);

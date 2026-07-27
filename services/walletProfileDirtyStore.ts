@@ -140,6 +140,11 @@ export const readWalletProfileDirty = (
   }
 };
 
+export const discardWalletProfileDirty = (address: string) => {
+  const walletAddress = normalizeWalletAddress(address);
+  getStorage()?.removeItem(getWalletProfileDirtyStorageKey(walletAddress));
+};
+
 export const markWalletProfileDirty = ({
   address,
   expectedRevision,

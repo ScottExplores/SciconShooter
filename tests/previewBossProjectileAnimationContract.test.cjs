@@ -38,15 +38,15 @@ test('preview boss artwork declares a bounded per-kind modular projectile animat
   assert.match(gameLogic, /\| BossModularProjectileVisualKind/);
 });
 
-test('Helios gatling tracers keep their native +X art axis and rotate exactly once from velocity', () => {
+test('Helios gatling tracers correct their native -X art axis exactly once from velocity', () => {
   const tracerRegistration = bossSandboxModel.match(
     /'boss-gatling-tracer': Object\.freeze\(\{[\s\S]*?orientationOffsetRadians:\s*([^\n\r}]+)/
   );
   assert.ok(tracerRegistration, 'the Helios gatling tracer profile must be registered');
   assert.equal(
     tracerRegistration[1].trim(),
-    '0',
-    'the source tracer already faces +X, so its authored orientation offset must stay zero'
+    'Math.PI',
+    'the source tracer faces -X, so its authored orientation offset must add exactly PI'
   );
   assert.match(
     pixiRenderer,

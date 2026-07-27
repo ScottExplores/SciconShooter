@@ -56,6 +56,22 @@ const uniqueFrames = (frames, action) => new Set(frames.map((frameCount) => (
   helios.sampleHeliosModularPose({ ...basePose, frameCount, action }).portRotaryFrameId
 )));
 
+const pickMountedLocalTransforms = (resolved) => Object.freeze({
+  mount: resolved.partById['weapons.mount'].localTransform,
+  port: resolved.partById['rotary.port'].localTransform,
+  starboard: resolved.partById['rotary.starboard'].localTransform
+});
+
+const sampleMountedPose = (input) => {
+  const pose = helios.sampleHeliosModularPose(input);
+  const resolved = hierarchy.resolveModularBossRigHierarchy(rig, pose.partOverrides);
+  return Object.freeze({
+    pose,
+    resolved,
+    mounted: pickMountedLocalTransforms(resolved)
+  });
+};
+
 test('Helios V2 registers one exact connected hierarchy with anatomy-owned sockets', () => {
   assert.ok(registration);
   assert.ok(rig);
@@ -70,6 +86,22 @@ test('Helios V2 registers one exact connected hierarchy with anatomy-owned socke
   assert.deepEqual(
     rig.manifest.parts.filter((part) => part.parentId === null).map((part) => part.id),
     ['root']
+  );
+  assert.deepEqual(
+    Object.fromEntries([
+      'weapons.mount',
+      'rotary.port',
+      'rotary.starboard',
+      'muzzle.port',
+      'muzzle.starboard'
+    ].map((partId) => [partId, rig.partById[partId].parentId])),
+    {
+      'weapons.mount': 'body',
+      'rotary.port': 'weapons.mount',
+      'rotary.starboard': 'weapons.mount',
+      'muzzle.port': 'rotary.port',
+      'muzzle.starboard': 'rotary.starboard'
+    }
   );
 
   for (const part of rig.manifest.parts) {
@@ -97,6 +129,24 @@ test('Helios V2 registers one exact connected hierarchy with anatomy-owned socke
       { id: 'claw-tip-port', role: 'melee-root', partId: 'claw.port' },
       { id: 'claw-tip-starboard', role: 'melee-root', partId: 'claw.starboard' }
     ]
+  );
+
+  const detachedPortRig = Object.freeze({
+    ...rig,
+    partById: Object.freeze({
+      ...rig.partById,
+      'rotary.port': Object.freeze({
+        ...rig.partById['rotary.port'],
+        parentId: 'root'
+      })
+    })
+  });
+  assert.deepEqual(
+    helios.validateHeliosRigCompatibility(detachedPortRig),
+    [{
+      path: '/parts/rotary.port/parentId',
+      message: 'rotary.port must remain parented to weapons.mount.'
+    }]
   );
 });
 
@@ -159,7 +209,12 @@ test('Helios paired crossfire uses true multi-frame spin-up, full fire, and reco
   const betweenShots = helios.sampleHeliosModularPose({
     ...basePose,
     frameCount: 9,
-    action: { ...firing, elapsedFrames: 5, projectileCount: 4 }
+    action: {
+      ...firing,
+      elapsedFrames: 4,
+      projectileCount: 4,
+      shotIntervalFrames: 3
+    }
   }).partOverrides;
   assert.equal(portFlash['muzzle.port'].visible, true);
   assert.equal(portFlash['muzzle.starboard'].visible, false);
@@ -172,6 +227,132 @@ test('Helios paired crossfire uses true multi-frame spin-up, full fire, and reco
   assert.equal(betweenShots['muzzle.port'].visible, false);
   assert.equal(betweenShots['muzzle.starboard'].visible, false);
   assert.equal(portFlash['muzzle.port'].frameId, 'muzzle.flash.2');
+});
+
+test('Helios channel keeps mounted barrels animated for the complete continuous fire window', () => {
+  const channel = Object.freeze({
+    primitiveId: 'paired-cannon-burst',
+    motionCue: 'machinegun-channel',
+    stage: 'fire',
+    progress: 0.84,
+    sequence: 0,
+    elapsedFrames: 200,
+    durationFrames: 240,
+    projectileCount: 24,
+    shotIntervalFrames: 2
+  });
+  const lateFire = sampleMountedPose({
+    ...basePose,
+    frameCount: 202,
+    action: channel
+  });
+  const neutral = sampleMountedPose(basePose);
+  assert.equal(lateFire.pose.rotarySpinEnergy, 1);
+  assert.notEqual(lateFire.pose.portRotaryFrameId, 'rotary.port.0');
+  assert.equal(lateFire.pose.partOverrides['muzzle.port'].visible, true);
+  assert.equal(lateFire.pose.partOverrides['muzzle.starboard'].visible, true);
+  assert.deepEqual(lateFire.mounted.mount, neutral.mounted.mount);
+  assert.equal(lateFire.mounted.port.y, neutral.mounted.port.y - 8);
+  assert.equal(lateFire.mounted.starboard.y, neutral.mounted.starboard.y - 8);
+
+  const settled = sampleMountedPose({
+    ...basePose,
+    frameCount: 241,
+    action: {
+      ...channel,
+      stage: 'recovery',
+      progress: 1,
+      elapsedFrames: 241
+    }
+  });
+  assert.deepEqual(settled.mounted, neutral.mounted);
+  assert.equal(settled.pose.rotarySpinEnergy, 0);
+  assert.equal(settled.pose.partOverrides['muzzle.port'].visible, false);
+  assert.equal(settled.pose.partOverrides['muzzle.starboard'].visible, false);
+});
+
+test('Helios rotaries remain rigidly mounted and stopped outside machine-gun fire', () => {
+  const neutral = sampleMountedPose(basePose);
+  const nonFiringSamples = [
+    sampleMountedPose({ ...basePose, frameCount: 90 }),
+    sampleMountedPose({ ...basePose, frameCount: 120, phaseIndex: 2 }),
+    sampleMountedPose({ ...basePose, frameCount: 150, healthRatio: 0.3, damageStage: 4 }),
+    sampleMountedPose({
+      ...basePose,
+      frameCount: 90,
+      reaction: { kind: 'impact', progress: 0.5, direction: 1, strength: 1.5 }
+    }),
+    sampleMountedPose({
+      ...basePose,
+      frameCount: 70,
+      action: {
+        primitiveId: 'reactor-aperture-pattern',
+        motionCue: 'reactor-pattern',
+        stage: 'fire',
+        progress: 0.5
+      }
+    })
+  ];
+
+  for (const sample of nonFiringSamples) {
+    assert.deepEqual(sample.mounted, neutral.mounted);
+    assert.equal(sample.pose.rotarySpinEnergy, 0);
+    assert.equal(sample.pose.portRotaryFrameId, 'rotary.port.0');
+    assert.equal(sample.pose.starboardRotaryFrameId, 'rotary.starboard.0');
+  }
+});
+
+test('Helios rotary recoil is shot-local and settles to the exact neutral mount', () => {
+  const firing = Object.freeze({
+    primitiveId: 'paired-cannon-burst',
+    motionCue: 'paired-crossfire',
+    stage: 'fire',
+    progress: 0.4,
+    sequence: 0,
+    projectileCount: 3
+  });
+  const neutral = sampleMountedPose(basePose);
+  const portShot = sampleMountedPose({
+    ...basePose,
+    frameCount: 2,
+    action: { ...firing, side: 'port', elapsedFrames: 2 }
+  });
+  const starboardShot = sampleMountedPose({
+    ...basePose,
+    frameCount: 2,
+    action: { ...firing, side: 'starboard', elapsedFrames: 2 }
+  });
+  const betweenShots = sampleMountedPose({
+    ...basePose,
+    frameCount: 4,
+    action: {
+      ...firing,
+      side: 'port',
+      elapsedFrames: 4,
+      shotIntervalFrames: 3
+    }
+  });
+  const recovered = sampleMountedPose({
+    ...basePose,
+    frameCount: 30,
+    action: { ...firing, stage: 'recovery', progress: 1, elapsedFrames: 30 }
+  });
+
+  assert.equal(portShot.mounted.port.y, neutral.mounted.port.y - 8);
+  assert.deepEqual(portShot.mounted.starboard, neutral.mounted.starboard);
+  assert.equal(portShot.pose.partOverrides['muzzle.port'].visible, true);
+  assert.equal(portShot.pose.partOverrides['muzzle.starboard'].visible, false);
+
+  assert.equal(starboardShot.mounted.starboard.y, neutral.mounted.starboard.y - 8);
+  assert.deepEqual(starboardShot.mounted.port, neutral.mounted.port);
+  assert.equal(starboardShot.pose.partOverrides['muzzle.port'].visible, false);
+  assert.equal(starboardShot.pose.partOverrides['muzzle.starboard'].visible, true);
+
+  for (const settled of [betweenShots, recovered]) {
+    assert.deepEqual(settled.mounted, neutral.mounted);
+    assert.equal(settled.pose.partOverrides['muzzle.port'].visible, false);
+    assert.equal(settled.pose.partOverrides['muzzle.starboard'].visible, false);
+  }
 });
 
 test('Helios idle remains restrained while significant reactions and state changes read clearly', () => {
@@ -223,6 +404,16 @@ test('Helios projectile profiles resolve four compatible frames from the registe
     'boss-helios-mine',
     'boss-reactor-pellet'
   ]);
+  const tracer = registration.projectileAnimations['boss-gatling-tracer'];
+  assert.equal(tracer.orientationOffsetRadians, Math.PI);
+  for (const [vx, vy] of [[0, 1], [-1, 1], [1, 1]]) {
+    const speed = Math.hypot(vx, vy);
+    const rotation = Math.atan2(vy, vx) + tracer.orientationOffsetRadians;
+    const rotatedNativeForwardX = -Math.cos(rotation);
+    const rotatedNativeForwardY = -Math.sin(rotation);
+    assert.ok(Math.abs(rotatedNativeForwardX - vx / speed) < 1e-12);
+    assert.ok(Math.abs(rotatedNativeForwardY - vy / speed) < 1e-12);
+  }
   const expectedPrefixes = Object.freeze({
     'boss-heavy-shell': 'heavy-shell.',
     'boss-gatling-tracer': 'gatling-tracer.',

@@ -220,6 +220,54 @@ test('rotor pulse cadence is portable, authored, and bounded to a readable range
   }
 });
 
+test('moving machine-gun channel tuning is portable, typed, and bounded', () => {
+  const buildChannelCandidate = (parameterOverrides = {}) => {
+    const { candidate, boss } = campaignWithTimeline();
+    const attack = boss.timeline.clips.find((clip) => clip.primitiveId === 'aimed-burst');
+    attack.primitiveId = 'paired-cannon-burst';
+    attack.label = 'Moving machine-gun channel';
+    attack.parameters = {
+      projectileCount: 24,
+      sequence: 2,
+      motionCue: 'machinegun-channel',
+      shotIntervalFrames: 3,
+      projectileSpeedScale: 1,
+      channelWidthPixels: 116,
+      sweepRangeRatio: 0.34,
+      sweepPasses: 2,
+      ...parameterOverrides
+    };
+    return candidate;
+  };
+
+  const validCandidate = buildChannelCandidate();
+  const validServer = validateServerCampaign(validCandidate);
+  const validBrowser = validateBrowserCampaign(validCandidate);
+  assert.equal(validServer.valid, true, validServer.errors.join('\n'));
+  assert.equal(
+    validBrowser.valid,
+    true,
+    validBrowser.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n')
+  );
+
+  const invalidCases = [
+    ['shotIntervalFrames', 1],
+    ['projectileSpeedScale', 2.01],
+    ['channelWidthPixels', 71],
+    ['sweepRangeRatio', 0.81],
+    ['sweepPasses', 4]
+  ];
+  for (const [parameter, value] of invalidCases) {
+    const candidate = buildChannelCandidate({ [parameter]: value });
+    const serverResult = validateServerCampaign(candidate);
+    const browserResult = validateBrowserCampaign(candidate);
+    assert.equal(serverResult.valid, false, `${parameter} should fail server bounds`);
+    assert.ok(serverResult.errors.some((error) => error.includes(parameter)));
+    assert.equal(browserResult.valid, false, `${parameter} should fail browser bounds`);
+    assert.ok(browserResult.issues.some((issue) => issue.path.endsWith(`/${parameter}`)));
+  }
+});
+
 test('radial beams accept deterministic rotation policies in both validators', () => {
   const buildRadialCandidate = (rotationDirection) => {
     const { candidate, boss } = campaignWithTimeline();

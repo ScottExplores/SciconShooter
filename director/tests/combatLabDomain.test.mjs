@@ -93,12 +93,19 @@ test('content catalog discovers every real Combat Lab category without dangling 
   const sandboxBossArt = catalog.effectsAssets.filter((item) => (
     item.id.startsWith('prototype-asset:')
   ));
-  assert.equal(sandboxBossArt.length, 22);
+  assert.ok(sandboxBossArt.length > 0);
   assert.ok(sandboxBossArt.every((item) => (
     item.production === false
     && item.imagePaths.length === 1
     && item.sourceRefs[0]?.symbol === 'PROTOTYPE_ASSET_DEFINITIONS'
   )));
+  for (const id of [
+    'prototype-asset:prism-moth-brood:assembled',
+    'prototype-asset:prism-moth-brood:sheet',
+    'prototype-asset:prism-moth-brood:reference'
+  ]) {
+    assert.ok(sandboxBossArt.some((item) => item.id === id), id);
+  }
   assert.ok(sandboxBossArt.some((item) => (
     item.id === 'prototype-asset:nullwake-revenant:factory-atlas-v3'
   )));

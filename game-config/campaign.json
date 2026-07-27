@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "revision": 19,
+  "revision": 20,
   "id": "scicon-shooter-campaign",
   "name": "Scicon Shooter Campaign",
-  "updatedAt": "2026-07-22T00:30:00.000Z",
+  "updatedAt": "2026-07-27T00:00:00.000Z",
   "fps": 60,
   "recordCard": {
     "copy": {
@@ -91,6 +91,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "FINAL_BOSS"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 6,
+          "missionClearCoins": 19,
+          "firstClearCoins": 28,
+          "bossFirstClearCoins": 20,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "operation-open-galaxy:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 10
+          },
+          {
+            "id": "operation-open-galaxy:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 16
+          },
+          {
+            "id": "operation-open-galaxy:time",
+            "label": "Clear in 52s or less",
+            "kind": "time-at-most",
+            "target": 52,
+            "rewardCoins": 24
+          }
+        ],
+        "mapPosition": {
+          "x": 0.5,
+          "y": 0
+        },
+        "nextMissionId": "stage-citation-storm"
       },
       "waves": [
         {
@@ -567,6 +604,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "FINAL_BOSS"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 6,
+          "missionClearCoins": 22,
+          "firstClearCoins": 32,
+          "bossFirstClearCoins": 0,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-citation-storm:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 12
+          },
+          {
+            "id": "stage-citation-storm:coins",
+            "label": "Collect 14 coins",
+            "kind": "coins-at-least",
+            "target": 14,
+            "rewardCoins": 18
+          },
+          {
+            "id": "stage-citation-storm:score",
+            "label": "Reach 4,250 score",
+            "kind": "score-at-least",
+            "target": 4250,
+            "rewardCoins": 26
+          }
+        ],
+        "mapPosition": {
+          "x": 0.27,
+          "y": 0.05263157894736842
+        },
+        "nextMissionId": "stage-paywall-siege"
       },
       "waves": [
         {
@@ -1076,6 +1150,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "FINAL_BOSS"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 7,
+          "missionClearCoins": 25,
+          "firstClearCoins": 36,
+          "bossFirstClearCoins": 24,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-paywall-siege:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 14
+          },
+          {
+            "id": "stage-paywall-siege:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 20
+          },
+          {
+            "id": "stage-paywall-siege:time",
+            "label": "Clear in 52s or less",
+            "kind": "time-at-most",
+            "target": 52,
+            "rewardCoins": 28
+          }
+        ],
+        "mapPosition": {
+          "x": 0.7,
+          "y": 0.10526315789473684
+        },
+        "nextMissionId": "stage-open-galaxy"
       },
       "waves": [
         {
@@ -1736,6 +1847,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "FINAL_BOSS"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 7,
+          "missionClearCoins": 28,
+          "firstClearCoins": 40,
+          "bossFirstClearCoins": 0,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-open-galaxy:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 16
+          },
+          {
+            "id": "stage-open-galaxy:coins",
+            "label": "Collect 16 coins",
+            "kind": "coins-at-least",
+            "target": 16,
+            "rewardCoins": 22
+          },
+          {
+            "id": "stage-open-galaxy:score",
+            "label": "Reach 5,550 score",
+            "kind": "score-at-least",
+            "target": 5550,
+            "rewardCoins": 30
+          }
+        ],
+        "mapPosition": {
+          "x": 0.38,
+          "y": 0.15789473684210525
+        },
+        "nextMissionId": "stage-bastion-protocol"
       },
       "waves": [
         {
@@ -2433,6 +2581,43 @@
         "showEncounterArt": true,
         "encounterAssetKey": "FINAL_BOSS"
       },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 8,
+          "missionClearCoins": 31,
+          "firstClearCoins": 44,
+          "bossFirstClearCoins": 28,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-bastion-protocol:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 18
+          },
+          {
+            "id": "stage-bastion-protocol:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 24
+          },
+          {
+            "id": "stage-bastion-protocol:time",
+            "label": "Clear in 45s or less",
+            "kind": "time-at-most",
+            "target": 45,
+            "rewardCoins": 32
+          }
+        ],
+        "mapPosition": {
+          "x": 0.62,
+          "y": 0.21052631578947367
+        },
+        "nextMissionId": "stage-helix-convergence"
+      },
       "waves": [
         {
           "id": "bastion-protocol",
@@ -2804,6 +2989,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "PIXI_BOSS_CITATION_FRAMES"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 8,
+          "missionClearCoins": 34,
+          "firstClearCoins": 48,
+          "bossFirstClearCoins": 30,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-helix-convergence:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 20
+          },
+          {
+            "id": "stage-helix-convergence:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 26
+          },
+          {
+            "id": "stage-helix-convergence:time",
+            "label": "Clear in 55s or less",
+            "kind": "time-at-most",
+            "target": 55,
+            "rewardCoins": 34
+          }
+        ],
+        "mapPosition": {
+          "x": 0.5,
+          "y": 0.2631578947368421
+        },
+        "nextMissionId": "stage-redline-corridor"
       },
       "waves": [
         {
@@ -3337,6 +3559,43 @@
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_BOSS_RAIL_SERPENT"
       },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 9,
+          "missionClearCoins": 37,
+          "firstClearCoins": 52,
+          "bossFirstClearCoins": 32,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-redline-corridor:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 22
+          },
+          {
+            "id": "stage-redline-corridor:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 28
+          },
+          {
+            "id": "stage-redline-corridor:time",
+            "label": "Clear in 55s or less",
+            "kind": "time-at-most",
+            "target": 55,
+            "rewardCoins": 36
+          }
+        ],
+        "mapPosition": {
+          "x": 0.27,
+          "y": 0.3157894736842105
+        },
+        "nextMissionId": "stage-dark-matter-run"
+      },
       "waves": [
         {
           "id": "redline-corridor-wave-1",
@@ -3869,6 +4128,43 @@
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL"
       },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 9,
+          "missionClearCoins": 40,
+          "firstClearCoins": 56,
+          "bossFirstClearCoins": 0,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-dark-matter-run:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 24
+          },
+          {
+            "id": "stage-dark-matter-run:coins",
+            "label": "Collect 20 coins",
+            "kind": "coins-at-least",
+            "target": 20,
+            "rewardCoins": 30
+          },
+          {
+            "id": "stage-dark-matter-run:score",
+            "label": "Reach 8,150 score",
+            "kind": "score-at-least",
+            "target": 8150,
+            "rewardCoins": 38
+          }
+        ],
+        "mapPosition": {
+          "x": 0.7,
+          "y": 0.3684210526315789
+        },
+        "nextMissionId": "stage-mirror-array"
+      },
       "waves": [
         {
           "id": "dark-matter-run-wave-1",
@@ -4347,6 +4643,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_BOSS_PRISM_MOTH"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 10,
+          "missionClearCoins": 43,
+          "firstClearCoins": 60,
+          "bossFirstClearCoins": 36,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-mirror-array:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 26
+          },
+          {
+            "id": "stage-mirror-array:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 32
+          },
+          {
+            "id": "stage-mirror-array:time",
+            "label": "Clear in 55s or less",
+            "kind": "time-at-most",
+            "target": 55,
+            "rewardCoins": 40
+          }
+        ],
+        "mapPosition": {
+          "x": 0.38,
+          "y": 0.42105263157894735
+        },
+        "nextMissionId": "stage-null-sector"
       },
       "waves": [
         {
@@ -4879,6 +5212,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_BOSS_ECLIPSE_ENGINE"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 10,
+          "missionClearCoins": 46,
+          "firstClearCoins": 64,
+          "bossFirstClearCoins": 38,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-null-sector:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 28
+          },
+          {
+            "id": "stage-null-sector:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 34
+          },
+          {
+            "id": "stage-null-sector:time",
+            "label": "Clear in 55s or less",
+            "kind": "time-at-most",
+            "target": 55,
+            "rewardCoins": 42
+          }
+        ],
+        "mapPosition": {
+          "x": 0.62,
+          "y": 0.47368421052631576
+        },
+        "nextMissionId": "stage-shard-tempest"
       },
       "waves": [
         {
@@ -5424,6 +5794,43 @@
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL"
       },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 11,
+          "missionClearCoins": 49,
+          "firstClearCoins": 68,
+          "bossFirstClearCoins": 0,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-shard-tempest:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 30
+          },
+          {
+            "id": "stage-shard-tempest:coins",
+            "label": "Collect 23 coins",
+            "kind": "coins-at-least",
+            "target": 23,
+            "rewardCoins": 36
+          },
+          {
+            "id": "stage-shard-tempest:score",
+            "label": "Reach 10,100 score",
+            "kind": "score-at-least",
+            "target": 10100,
+            "rewardCoins": 44
+          }
+        ],
+        "mapPosition": {
+          "x": 0.5,
+          "y": 0.5263157894736842
+        },
+        "nextMissionId": "stage-quantum-cage"
+      },
       "waves": [
         {
           "id": "shard-tempest-wave-1",
@@ -5914,6 +6321,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_BOSS_ORBIT_GYROSCOPE"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 11,
+          "missionClearCoins": 52,
+          "firstClearCoins": 72,
+          "bossFirstClearCoins": 42,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-quantum-cage:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 32
+          },
+          {
+            "id": "stage-quantum-cage:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 38
+          },
+          {
+            "id": "stage-quantum-cage:time",
+            "label": "Clear in 55s or less",
+            "kind": "time-at-most",
+            "target": 55,
+            "rewardCoins": 46
+          }
+        ],
+        "mapPosition": {
+          "x": 0.27,
+          "y": 0.5789473684210527
+        },
+        "nextMissionId": "stage-gravity-well"
       },
       "waves": [
         {
@@ -6458,6 +6902,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_BOSS_SINGULARITY_CRAB"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 12,
+          "missionClearCoins": 55,
+          "firstClearCoins": 76,
+          "bossFirstClearCoins": 44,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-gravity-well:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 34
+          },
+          {
+            "id": "stage-gravity-well:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 40
+          },
+          {
+            "id": "stage-gravity-well:time",
+            "label": "Clear in 55s or less",
+            "kind": "time-at-most",
+            "target": 55,
+            "rewardCoins": 48
+          }
+        ],
+        "mapPosition": {
+          "x": 0.7,
+          "y": 0.631578947368421
+        },
+        "nextMissionId": "stage-event-horizon"
       },
       "waves": [
         {
@@ -7011,6 +7492,43 @@
         "showEncounterArt": true,
         "encounterAssetKey": "ENEMY_SWARM_FRAMES"
       },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 12,
+          "missionClearCoins": 58,
+          "firstClearCoins": 80,
+          "bossFirstClearCoins": 0,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-event-horizon:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 36
+          },
+          {
+            "id": "stage-event-horizon:coins",
+            "label": "Collect 26 coins",
+            "kind": "coins-at-least",
+            "target": 26,
+            "rewardCoins": 42
+          },
+          {
+            "id": "stage-event-horizon:score",
+            "label": "Reach 12,050 score",
+            "kind": "score-at-least",
+            "target": 12050,
+            "rewardCoins": 50
+          }
+        ],
+        "mapPosition": {
+          "x": 0.38,
+          "y": 0.6842105263157895
+        },
+        "nextMissionId": "stage-ion-citadel"
+      },
       "waves": [
         {
           "id": "event-horizon-wave-1",
@@ -7519,6 +8037,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_BOSS_HELIX_LEVIATHAN"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 13,
+          "missionClearCoins": 61,
+          "firstClearCoins": 84,
+          "bossFirstClearCoins": 48,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-ion-citadel:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 38
+          },
+          {
+            "id": "stage-ion-citadel:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 44
+          },
+          {
+            "id": "stage-ion-citadel:time",
+            "label": "Clear in 55s or less",
+            "kind": "time-at-most",
+            "target": 55,
+            "rewardCoins": 52
+          }
+        ],
+        "mapPosition": {
+          "x": 0.62,
+          "y": 0.7368421052631579
+        },
+        "nextMissionId": "stage-crimson-vector"
       },
       "waves": [
         {
@@ -8072,6 +8627,43 @@
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_BOSS_HAMMERHEAD_SIEGE"
       },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 13,
+          "missionClearCoins": 64,
+          "firstClearCoins": 88,
+          "bossFirstClearCoins": 50,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-crimson-vector:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 40
+          },
+          {
+            "id": "stage-crimson-vector:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 46
+          },
+          {
+            "id": "stage-crimson-vector:time",
+            "label": "Clear in 55s or less",
+            "kind": "time-at-most",
+            "target": 55,
+            "rewardCoins": 54
+          }
+        ],
+        "mapPosition": {
+          "x": 0.5,
+          "y": 0.7894736842105263
+        },
+        "nextMissionId": "stage-eclipse-swarm"
+      },
       "waves": [
         {
           "id": "crimson-vector-wave-1",
@@ -8624,6 +9216,43 @@
         "showEncounterArt": true,
         "encounterAssetKey": "ENEMY_SWARM_FRAMES"
       },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 14,
+          "missionClearCoins": 67,
+          "firstClearCoins": 92,
+          "bossFirstClearCoins": 0,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-eclipse-swarm:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 42
+          },
+          {
+            "id": "stage-eclipse-swarm:coins",
+            "label": "Collect 29 coins",
+            "kind": "coins-at-least",
+            "target": 29,
+            "rewardCoins": 48
+          },
+          {
+            "id": "stage-eclipse-swarm:score",
+            "label": "Reach 14,000 score",
+            "kind": "score-at-least",
+            "target": 14000,
+            "rewardCoins": 56
+          }
+        ],
+        "mapPosition": {
+          "x": 0.27,
+          "y": 0.8421052631578947
+        },
+        "nextMissionId": "stage-fracture-engine"
+      },
       "waves": [
         {
           "id": "eclipse-swarm-wave-1",
@@ -9132,6 +9761,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_BOSS_ECLIPSE_ENGINE"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 14,
+          "missionClearCoins": 70,
+          "firstClearCoins": 96,
+          "bossFirstClearCoins": 54,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-fracture-engine:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 44
+          },
+          {
+            "id": "stage-fracture-engine:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 50
+          },
+          {
+            "id": "stage-fracture-engine:time",
+            "label": "Clear in 55s or less",
+            "kind": "time-at-most",
+            "target": 55,
+            "rewardCoins": 58
+          }
+        ],
+        "mapPosition": {
+          "x": 0.7,
+          "y": 0.8947368421052632
+        },
+        "nextMissionId": "stage-last-light-gauntlet"
       },
       "waves": [
         {
@@ -9685,6 +10351,43 @@
         "showEncounterArt": true,
         "encounterAssetKey": "ENEMY_SWARM_FRAMES"
       },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 15,
+          "missionClearCoins": 73,
+          "firstClearCoins": 100,
+          "bossFirstClearCoins": 0,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-last-light-gauntlet:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 46
+          },
+          {
+            "id": "stage-last-light-gauntlet:coins",
+            "label": "Collect 31 coins",
+            "kind": "coins-at-least",
+            "target": 31,
+            "rewardCoins": 52
+          },
+          {
+            "id": "stage-last-light-gauntlet:score",
+            "label": "Reach 15,300 score",
+            "kind": "score-at-least",
+            "target": 15300,
+            "rewardCoins": 60
+          }
+        ],
+        "mapPosition": {
+          "x": 0.38,
+          "y": 0.9473684210526315
+        },
+        "nextMissionId": "stage-terminus-ascendant"
+      },
       "waves": [
         {
           "id": "last-light-gauntlet-wave-1",
@@ -10206,6 +10909,43 @@
         ],
         "showEncounterArt": true,
         "encounterAssetKey": "CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT"
+      },
+      "campaignProgression": {
+        "reward": {
+          "waveClearCoins": 15,
+          "missionClearCoins": 76,
+          "firstClearCoins": 104,
+          "bossFirstClearCoins": 58,
+          "replayMultiplier": 0.35
+        },
+        "masteryObjectives": [
+          {
+            "id": "stage-terminus-ascendant:complete",
+            "label": "Complete the Mission",
+            "kind": "complete",
+            "target": 1,
+            "rewardCoins": 48
+          },
+          {
+            "id": "stage-terminus-ascendant:damage",
+            "label": "Clear with 2 damage or less",
+            "kind": "damage-at-most",
+            "target": 2,
+            "rewardCoins": 54
+          },
+          {
+            "id": "stage-terminus-ascendant:time",
+            "label": "Clear in 55s or less",
+            "kind": "time-at-most",
+            "target": 55,
+            "rewardCoins": 62
+          }
+        ],
+        "mapPosition": {
+          "x": 0.62,
+          "y": 1
+        },
+        "nextMissionId": null
       },
       "waves": [
         {

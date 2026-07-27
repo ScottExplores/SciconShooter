@@ -63,16 +63,24 @@ const { createModularBossWeaponSocketPoseSampler } = await vite.ssrLoadModule(
   '/services/pixi/boss-rigs/ModularBossWeaponSocketRuntime.ts'
 );
 const {
+  HELIOS_MINE_FORMATION_TEMPLATE_IDS,
+  HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE,
+  resolveHeliosMineArmPoint,
   resolveHeliosMineFormation,
   resolveHeliosCrossfireSides,
-  sampleHeliosCornerClamp,
+  resolveHeliosMachineGunChannelHorizontalPadding,
+  resolveHeliosMachineGunChannelTargetPadding,
+  resolveHeliosMachineGunChannelTargets,
   sampleHeliosCrossfirePulse,
-  sampleHeliosMineLifecycle,
+  sampleHeliosMachineGunChannelMovement,
+  sampleHeliosMachineGunChannelPulse,
+  sampleHeliosMineRuntime,
   sampleHeliosReactorFanShot,
   sampleHeliosTrackingPincer
 } = await vite.ssrLoadModule('/services/gameplay/bosses/HeliosClawcarrierRuntime.ts');
 const {
   BOSS_SAFE_ROUTE_BENCHMARK_VIEWPORTS,
+  CONSERVATIVE_BOSS_SAFE_ROUTE_PLAYER,
   MINIMUM_PROVEN_BOSS_ROUTE_CLEARANCE_PIXELS,
   proveBossAttackSafeRoute
 } = await vite.ssrLoadModule('/services/gameplay/bosses/BossSafeRouteProof.ts');
@@ -92,7 +100,7 @@ const poseSampler = createModularBossWeaponSocketPoseSampler(
 );
 const attackIds = [
   'twin-rotary-crossfire',
-  'claw-sweep-pincer',
+  'machinegun-channel',
   'reactor-maze',
   'clawcarrier-crush'
 ];
@@ -208,11 +216,18 @@ const assertNoGenericHeliosGuides = (spawned, context) => {
   );
 };
 
-const resolveMeleeSample = (action, progress) => (
-  action.primitiveId === 'articulated-melee-sweep'
-    ? sampleHeliosCornerClamp({ stage: 'fire', progress, side: action.side ?? 'port' })
-    : sampleHeliosTrackingPincer({ sequence: action.sequence, progress })
+const isMachineGunChannel = (clipOrAction) => Boolean(
+  clipOrAction?.primitiveId === 'paired-cannon-burst'
+  && (
+    clipOrAction?.motionCue === HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE
+    || clipOrAction?.parameters?.motionCue === HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE
+  )
 );
+
+const resolveMeleeSample = (action, progress) => sampleHeliosTrackingPincer({
+  sequence: action.sequence,
+  progress
+});
 
 const captureExactAttackPose = (viewport, attack, phaseId) => {
   const engine = new GameEngine(createStats(), {
@@ -265,18 +280,88 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
   const beatByAction = new Map(beats.map((beat) => (
     [`${beat.clip.id}:${beat.executionIndex}`, beat]
   )));
+  const channelBeats = beats
+    .filter((beat) => isMachineGunChannel(beat.clip))
+    .sort((left, right) => left.fireFrame - right.fireFrame);
+  const channelBeatAtFrame = (frame) => channelBeats.find((beat, index) => (
+    frame >= beat.fireFrame
+    && frame < (channelBeats[index + 1]?.fireFrame ?? beat.endFrame)
+  ));
   const beatOrigins = {};
   const warningEvidence = {};
   const fireEvidence = {};
   const meleeEvidence = {};
   const pincerLocks = {};
-  const mineEntities = {};
+  const mineRecords = {};
   const mineLifecycleEvidence = {};
+  const channelEvidence = {
+    frames: [],
+    shots: []
+  };
   const phaseIndex = Math.max(
     1,
     bossEvent.phases.findIndex((phase) => phase.id === phaseId) + 1
   );
   const lastFrame = Math.max(...beats.map((beat) => beat.endFrame));
+  const resolveLiveChannelTargets = (channel) => {
+    const movementBounds = sampleHeliosMachineGunChannelMovement({
+      stage: 'fire',
+      progress: 0,
+      sequence: channel.directionSequence,
+      anchorX: channel.anchorX,
+      anchorY: channel.anchorY,
+      arenaWidth: viewport.width,
+      arenaHeight: viewport.height,
+      bossWidth: boss.width,
+      bossHeight: boss.height,
+      horizontalPadding: resolveHeliosMachineGunChannelHorizontalPadding(
+        viewport.mobileProfile
+      ),
+      sweepRangeRatio: channel.sweepRangeRatio,
+      sweepPasses: channel.sweepPasses,
+      upperLaneRatio: viewport.mobileProfile ? 0.13 : 0.12
+    });
+    return resolveHeliosMachineGunChannelTargets({
+      bossX: boss.x,
+      startX: movementBounds.startX,
+      endX: movementBounds.endX,
+      arenaWidth: viewport.width,
+      channelWidthPixels: channel.channelWidthPixels,
+      edgePadding: resolveHeliosMachineGunChannelTargetPadding(
+        viewport.mobileProfile,
+        viewport.width
+      )
+    });
+  };
+
+  const updateCapturedMines = () => {
+    for (const records of Object.values(mineRecords)) {
+      for (const record of records) {
+        const mine = record.entity;
+        if (mine.markedForDeletion) continue;
+        engine.updateHeliosMineEntity(mine);
+        const state = mine.heliosMineState;
+        assert.ok(state);
+        const center = entityCenter(mine);
+        const distanceToPlayer = Math.hypot(
+          engine.player.x + engine.player.width / 2 - center.x,
+          engine.player.y + engine.player.height / 2 - center.y
+        );
+        record.samples.push({
+          ageFrames: engine.frameCount - state.spawnFrame,
+          triggerFrame: state.triggerAgeFrame,
+          distanceToPlayer,
+          center: copyPoint(center),
+          velocity: { x: mine.vx, y: mine.vy },
+          stage: mine.heliosMineStage,
+          damageActive: engine.isHeliosMineDamageActive(mine),
+          visualKind: mine.projectileVisualKind,
+          spriteFrameCount: mine.spriteFrames?.length ?? 0,
+          markedForDeletion: Boolean(mine.markedForDeletion)
+        });
+      }
+    }
+  };
 
   while (boss.attackTimer <= lastFrame) {
     const previousAttackTimer = boss.attackTimer;
@@ -308,7 +393,22 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
           ));
           assert.equal(staleLock, undefined, `${beat.key} must not retain stale warning-time muzzle origins`);
           const sockets = Object.fromEntries(sides.map((side) => [side, []]));
-          beatOrigins[beat.key] = { sockets };
+          const channel = isMachineGunChannel(beat.clip)
+            ? boss.bossHeliosMachineGunChannelState
+            : undefined;
+          if (isMachineGunChannel(beat.clip)) {
+            assert.ok(channel, `${beat.key} must preserve one continuous channel state`);
+            assert.equal(channel.actionClipId, beat.clip.id);
+          }
+          beatOrigins[beat.key] = {
+            sockets,
+            ...(channel
+              ? {
+                  channelTargets: Object.fromEntries(sides.map((side) => [side, []])),
+                  channelSequence: channel.sequence
+                }
+              : {})
+          };
           const target = {
             x: Number(boss.bossTimelineTargetX),
             y: Number(boss.bossTimelineTargetY)
@@ -318,6 +418,7 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
             primitiveId,
             sides,
             target,
+            channelSequence: channel?.sequence,
             anatomyOnly: true
           };
         } else if (primitiveId === 'reactor-aperture-pattern') {
@@ -331,7 +432,10 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
           beatOrigins[beat.key] = {
             core: copyPoint(core),
             coreSamples: [],
-            targetLock
+            targetLock,
+            ...(beat.clip.parameters?.motionCue === 'reactor-mines'
+              ? { mineDeployments: [] }
+              : {})
           };
           warningEvidence[beat.key] = {
             primitiveId,
@@ -340,19 +444,6 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
             targetLock,
             anatomyOnly: true
           };
-        } else if (primitiveId === 'articulated-melee-sweep') {
-          const state = boss.bossHeliosCornerClampState;
-          assert.ok(state, `${beat.key} must preserve the production corner-clamp state`);
-          assert.equal(state.fallbackToCrossfire, false, `${beat.key} starts with intact claws`);
-          assert.equal(state.activeSide, beat.clip.parameters?.side);
-          warningEvidence[beat.key] = {
-            primitiveId,
-            activeSide: state.activeSide,
-            cornerX: state.cornerX,
-            cornerY: state.cornerY,
-            anatomyOnly: true
-          };
-          beatOrigins[beat.key] = { meleeSamples: [] };
         } else if (primitiveId === 'tracking-pincer-dive') {
           const state = boss.bossTrackingPincerState;
           assert.ok(state, `${beat.key} must preserve the production pincer state`);
@@ -401,11 +492,13 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
         primitiveId === 'paired-cannon-burst'
         || primitiveId === 'reactor-aperture-pattern'
       ) {
-        assert.equal(
-          damaging.length,
-          0,
-          `${beat.key} must begin with anticipation before its first sequential emission`
-        );
+        if (!isMachineGunChannel(beat.clip)) {
+          assert.equal(
+            damaging.length,
+            0,
+            `${beat.key} must begin with anticipation before its first sequential emission`
+          );
+        }
         fireEvidence[beat.key] = { count: 0, frames: [], origins: [], visualKinds: [] };
       } else {
         assert.equal(damaging.length, 0, `${beat.key} must use the boss's moving claw hit regions`);
@@ -421,7 +514,9 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
         || action.primitiveId === 'reactor-aperture-pattern'
       )
     ) {
-      const beat = beatByAction.get(`${action.actionClipId}:${action.executionIndex}`);
+      const beat = isMachineGunChannel(action)
+        ? channelBeatAtFrame(frame)
+        : beatByAction.get(`${action.actionClipId}:${action.executionIndex}`);
       assert.ok(beat, `${action.actionClipId}:${action.executionIndex} must resolve to its authored beat`);
       const evidence = fireEvidence[beat.key] ?? {
         count: 0,
@@ -431,49 +526,136 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
       };
       const elapsedFrames = frame - action.startFrame;
       if (action.primitiveId === 'paired-cannon-burst') {
+        const channel = isMachineGunChannel(action)
+          ? boss.bossHeliosMachineGunChannelState
+          : undefined;
         const sides = resolveHeliosCrossfireSides(action.side);
-        const pulse = sampleHeliosCrossfirePulse({
-          elapsedFrames,
-          roundsPerSide: action.projectileCount ?? 4,
-          sides,
-          intervalFrames: phaseIndex >= 3 ? 3 : 4
-        });
-        const expectedCount = pulse?.firing ? 1 : 0;
+        const pulse = channel
+          ? sampleHeliosMachineGunChannelPulse({
+              elapsedFrames: frame - channel.fireStartFrame,
+              durationFrames: channel.fireEndFrame - channel.fireStartFrame,
+              sequence: channel.sequence,
+              intervalFrames: channel.shotIntervalFrames
+            })
+          : sampleHeliosCrossfirePulse({
+              elapsedFrames,
+              roundsPerSide: action.projectileCount ?? 4,
+              sides,
+              intervalFrames: action.shotIntervalFrames ?? (phaseIndex >= 3 ? 2 : 3)
+            });
+        if (channel) {
+          const targets = resolveLiveChannelTargets(channel);
+          channelEvidence.frames.push({
+            frame,
+            x: boss.x,
+            y: boss.y,
+            centerX: targets.centerX,
+            portBoundaryX: targets.portX,
+            starboardBoundaryX: targets.starboardX,
+            channelWidthPixels: channel.channelWidthPixels
+          });
+        }
+        const expectedSides = pulse?.firing
+          ? channel
+            ? pulse.firingSides
+            : [pulse.side]
+          : [];
+        const expectedCount = expectedSides.length;
         assert.equal(
           damaging.length,
           expectedCount,
-          `${beat.key} frame ${frame} must emit exactly one round only on its cadence pulse`
+          `${beat.key} frame ${frame} must emit the exact anatomy-owned round set on its cadence pulse`
         );
         if (pulse?.firing) {
-          const liveOrigin = engine.getPreviewBossWeaponOrigins(boss, [pulse.side])[0];
-          assert.ok(liveOrigin, `${beat.key} must expose the firing rotary's live socket`);
-          const actualOrigin = entityCenter(damaging[0]);
-          assert.ok(
-            pointMatches(actualOrigin, preUpdateOrigins[pulse.side], 6)
-              || pointMatches(actualOrigin, liveOrigin, 6),
-            `${beat.key} round ${pulse.shotIndex} must originate at its live animated socket; actual=${JSON.stringify(actualOrigin)} pre=${JSON.stringify(copyPoint(preUpdateOrigins[pulse.side]))} post=${JSON.stringify(copyPoint(liveOrigin))}`
-          );
-          assert.equal(damaging[0].projectileVisualKind, 'boss-gatling-tracer');
-          beatOrigins[beat.key].sockets[pulse.side].push(copyPoint(actualOrigin));
-          evidence.count += 1;
-          evidence.frames.push(frame);
-          evidence.origins.push(copyPoint(actualOrigin));
-          evidence.visualKinds.push(damaging[0].projectileVisualKind);
+          expectedSides.forEach((side, sideIndex) => {
+            const projectile = damaging[sideIndex];
+            const liveOrigin = engine.getPreviewBossWeaponOrigins(boss, [side])[0];
+            assert.ok(liveOrigin, `${beat.key} must expose the firing rotary's live socket`);
+            const actualOrigin = entityCenter(projectile);
+            assert.ok(
+              pointMatches(actualOrigin, preUpdateOrigins[side], 6)
+                || pointMatches(actualOrigin, liveOrigin, 6),
+              `${beat.key} ${side} round ${pulse.shotIndex} must originate at its live animated socket; actual=${JSON.stringify(actualOrigin)} pre=${JSON.stringify(copyPoint(preUpdateOrigins[side]))} post=${JSON.stringify(copyPoint(liveOrigin))}`
+            );
+            assert.equal(projectile.projectileVisualKind, 'boss-gatling-tracer');
+            beatOrigins[beat.key].sockets[side].push(copyPoint(actualOrigin));
+            if (channel) {
+              const targets = resolveLiveChannelTargets(channel);
+              const target = {
+                x: side === 'port' ? targets.portX : targets.starboardX,
+                y: viewport.height + (viewport.mobileProfile ? 44 : 64)
+              };
+              assert.ok(projectile.vy > 0, `${beat.key} channel rounds must travel down-screen`);
+              const projectedTargetX = actualOrigin.x
+                + (target.y - actualOrigin.y) * projectile.vx / projectile.vy;
+              assert.ok(
+                Math.abs(projectedTargetX - target.x) < 0.000001,
+                `${beat.key} ${side} shot ${pulse.shotIndex} must retain its exact moving channel boundary`
+              );
+              beatOrigins[beat.key].channelTargets[side].push(target);
+              channelEvidence.shots.push({
+                frame,
+                elapsedFrames: frame - channel.fireStartFrame,
+                shotIndex: pulse.shotIndex * 2 + sideIndex,
+                side,
+                sideShotIndex: pulse.shotIndex,
+                beatKey: beat.key,
+                origin: copyPoint(actualOrigin),
+                target,
+                velocity: {
+                  x: projectile.vx,
+                  y: projectile.vy
+                },
+                projectileWidth: projectile.width,
+                projectileHeight: projectile.height,
+                visualKind: projectile.projectileVisualKind
+              });
+            }
+            evidence.count += 1;
+            evidence.frames.push(frame);
+            evidence.origins.push(copyPoint(actualOrigin));
+            evidence.visualKinds.push(projectile.projectileVisualKind);
+          });
         }
       } else {
         const liveCore = engine.getPreviewBossWeaponOrigins(boss, ['core'])[0];
         assert.ok(liveCore, `${beat.key} must expose a live reactor socket`);
         let expectedCount = 0;
         if (action.motionCue === 'reactor-mines') {
-          const formation = resolveHeliosMineFormation({
-            sequence: action.sequence,
-            count: action.projectileCount ?? 3
-          });
-          const slot = formation.find((candidate) => elapsedFrames === 2 + candidate.delayFrames);
-          expectedCount = slot ? 1 : 0;
-          if (slot) {
+          assert.ok(damaging.length <= 1, `${beat.key} must deploy at most one mine per frame`);
+          expectedCount = damaging.length;
+          if (expectedCount === 1) {
             assert.equal(damaging[0]?.projectileVisualKind, 'boss-helios-mine');
-            (mineEntities[beat.key] ??= []).push(damaging[0]);
+            const mine = damaging[0];
+            const state = mine.heliosMineState;
+            assert.ok(state, `${beat.key} mine must retain its exact deployment state`);
+            assert.ok(pointMatches(
+              { x: state.deployStartX, y: state.deployStartY },
+              entityCenter(mine)
+            ));
+            const deployment = {
+              frameOffset: elapsedFrames,
+              origin: { x: state.deployStartX, y: state.deployStartY },
+              armPoint: { x: state.armX, y: state.armY },
+              deployFrames: state.deployFrames
+            };
+            beatOrigins[beat.key].mineDeployments.push(deployment);
+            (mineRecords[beat.key] ??= []).push({
+              entity: mine,
+              actionSequence: action.sequence,
+              projectileCount: action.projectileCount ?? 3,
+              deployment,
+              mineSize: mine.width,
+              edgePadding: 12,
+              topPadding: viewport.mobileProfile ? 54 : 48,
+              bottomPadding: viewport.mobileProfile ? 34 : 22,
+              minimumForwardTravel: Math.max(
+                viewport.mobileProfile ? 104 : 112,
+                boss.y + boss.height + (viewport.mobileProfile ? 64 : 76)
+                  - state.deployStartY
+              ),
+              samples: []
+            });
           }
         } else {
           const target = beatOrigins[beat.key].targetLock;
@@ -532,10 +714,7 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
     }
     if (
       action?.stage === 'fire'
-      && (
-        action.primitiveId === 'articulated-melee-sweep'
-        || action.primitiveId === 'tracking-pincer-dive'
-      )
+      && action.primitiveId === 'tracking-pincer-dive'
     ) {
       const beat = beatByAction.get(`${action.actionClipId}:${action.executionIndex}`);
       assert.ok(
@@ -550,9 +729,7 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
       const sample = resolveMeleeSample(action, progress);
       if (sample.damageActive) {
         assert.ok(sample.closeEnergy > 0, `${beat.key} damage must coincide with visible closure`);
-        const activeSides = action.primitiveId === 'articulated-melee-sweep'
-          ? [action.side ?? 'port']
-          : ['port', 'starboard'];
+        const activeSides = ['port', 'starboard'];
         const liveTips = Object.fromEntries(activeSides.map((side) => {
           const tips = copyPoints(engine.getPreviewBossWeaponOrigins(boss, [side]));
           assert.equal(tips.length, 1, `${beat.key} must expose one actual ${side} claw tip`);
@@ -586,82 +763,265 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
         meleeEvidence[beat.key] = frames;
       }
     }
+    updateCapturedMines();
+  }
+
+  for (let step = 0; step < 260; step += 1) {
+    const activeMines = Object.values(mineRecords)
+      .flat()
+      .filter((record) => !record.entity.markedForDeletion);
+    if (activeMines.length === 0) break;
+    engine.frameCount += 1;
+    updateCapturedMines();
   }
 
   for (const beat of beats.filter((candidate) => (
     candidate.clip.primitiveId === 'reactor-aperture-pattern'
     && candidate.clip.parameters?.motionCue === 'reactor-mines'
   ))) {
-    const mines = mineEntities[beat.key] ?? [];
-    const expectedFormation = resolveHeliosMineFormation({
-      sequence: beat.clip.parameters?.sequence ?? 0,
-      count: beat.clip.parameters?.projectileCount ?? 3
-    });
-    assert.equal(mines.length, expectedFormation.length, `${beat.key} must deploy its bounded formation`);
-    const mine = mines[0];
-    assert.equal(mine.heliosMineStage, 'deploying');
-    const stages = ['deploying'];
-    const damageFrames = [];
-    engine.player.x = 0;
-    engine.player.y = Math.max(0, viewport.height - engine.player.height);
-    for (let step = 0; step < 260 && !mine.markedForDeletion; step += 1) {
-      engine.frameCount += 1;
-      mine.x += mine.vx;
-      mine.y += mine.vy;
-      engine.updateHeliosMineEntity(mine);
-      const stage = mine.heliosMineStage;
-      if (stage && stages.at(-1) !== stage) stages.push(stage);
-      const sample = sampleHeliosMineLifecycle({
-        ageFrames: engine.frameCount - mine.heliosMineState.spawnFrame,
-        triggerFrame: mine.heliosMineState.triggerAgeFrame,
-        distanceToPlayer: Math.hypot(
-          engine.player.x + engine.player.width / 2 - (mine.x + mine.width / 2),
-          engine.player.y + engine.player.height / 2 - (mine.y + mine.height / 2)
-        )
-      });
-      const damageActive = engine.isHeliosMineDamageActive(mine);
-      assert.equal(damageActive, sample.damageActive && !mine.heliosMineState.hitPlayer);
-      if (damageActive) {
-        damageFrames.push(engine.frameCount - mine.heliosMineState.spawnFrame);
-        assert.equal(mine.projectileVisualKind, 'boss-helios-explosion');
-        assert.ok(mine.spriteFrames.length > 1, 'mine damage must use visible explosion animation frames');
+    const records = mineRecords[beat.key] ?? [];
+    const requestedCount = beat.clip.parameters?.projectileCount ?? 3;
+    assert.ok(records.length > 0, `${beat.key} must deploy its bounded formation`);
+    const candidates = Array.from(
+      { length: HELIOS_MINE_FORMATION_TEMPLATE_IDS.length },
+      (_, offset) => {
+        const sequence = records[0].actionSequence + offset;
+        const formation = resolveHeliosMineFormation({ sequence, count: requestedCount });
+        const matches = formation.length === records.length
+          && formation.every((slot, index) => {
+            const record = records[index];
+            if (
+              record.deployment.frameOffset !== 2 + slot.delayFrames
+              || record.deployment.deployFrames !== slot.deployFrames
+            ) return false;
+            const armPoint = resolveHeliosMineArmPoint({
+              slot,
+              arenaWidth: viewport.width,
+              arenaHeight: viewport.height,
+              originX: record.deployment.origin.x,
+              originY: record.deployment.origin.y,
+              mineSize: record.mineSize,
+              edgePadding: record.edgePadding,
+              topPadding: record.topPadding,
+              bottomPadding: record.bottomPadding,
+              minimumForwardTravel: record.minimumForwardTravel
+            });
+            return pointMatches(armPoint, record.deployment.armPoint)
+              && armPoint.deployFrames === record.deployment.deployFrames;
+          });
+        return { sequence, formation, matches };
       }
-    }
-    assert.deepEqual(stages, ['deploying', 'armed', 'exploding', 'expired']);
-    assert.ok(damageFrames.length > 0, `${beat.key} must expose visible active explosion frames`);
-    assert.equal(mine.markedForDeletion, true, `${beat.key} must clean up after its final explosion frame`);
+    ).filter((candidate) => candidate.matches);
+    assert.equal(
+      candidates.length,
+      1,
+      `${beat.key} must resolve one bounded seeded formation from exact runtime arm points`
+    );
+    const [{ sequence: formationSequence, formation }] = candidates;
+    assert.equal(new Set(formation.map((slot) => slot.templateId)).size, 1);
+    assert.ok(
+      HELIOS_MINE_FORMATION_TEMPLATE_IDS.includes(formation[0].templateId),
+      `${beat.key} must use a retained bounded template`
+    );
+    assert.ok(
+      new Set(formation.map((slot) => slot.targetXRatio)).size > 1,
+      `${beat.key} formation must vary X`
+    );
+    assert.ok(
+      new Set(formation.map((slot) => slot.targetYRatio)).size > 1,
+      `${beat.key} formation must vary Y`
+    );
+
+    const lifecycleRecords = records.map((record, index) => {
+      const slot = formation[index];
+      const stages = [...new Set(record.samples.map((sample) => sample.stage))];
+      const damageFrames = record.samples
+        .filter((sample) => sample.damageActive)
+        .map((sample) => sample.ageFrames);
+      for (const sample of record.samples) {
+        const runtime = sampleHeliosMineRuntime({
+          slot,
+          ageFrames: sample.ageFrames,
+          triggerFrame: sample.triggerFrame,
+          distanceToPlayer: sample.distanceToPlayer,
+          arenaWidth: viewport.width,
+          arenaHeight: viewport.height,
+          originX: record.deployment.origin.x,
+          originY: record.deployment.origin.y,
+          mineSize: record.mineSize,
+          edgePadding: record.edgePadding,
+          topPadding: record.topPadding,
+          bottomPadding: record.bottomPadding,
+          minimumForwardTravel: record.minimumForwardTravel
+        });
+        assert.ok(pointMatches(runtime.armPoint, record.deployment.armPoint));
+        assert.equal(runtime.armPoint.deployFrames, record.deployment.deployFrames);
+        assert.ok(
+          pointMatches(
+            { x: runtime.deployment.centerX, y: runtime.deployment.centerY },
+            sample.center
+          ),
+          `${beat.key} mine ${index} age ${sample.ageFrames} must follow the exact shared cubic path`
+        );
+        if (sample.ageFrames < record.deployment.deployFrames) {
+          assert.ok(pointMatches(
+            { x: runtime.deployment.velocityX, y: runtime.deployment.velocityY },
+            sample.velocity
+          ));
+        }
+        assert.equal(sample.stage, runtime.lifecycle.stage);
+        assert.equal(sample.damageActive, runtime.lifecycle.damageActive);
+        if (sample.damageActive) {
+          assert.equal(sample.visualKind, 'boss-helios-explosion');
+          assert.ok(
+            sample.spriteFrameCount > 1,
+            'mine damage must use visible explosion animation frames'
+          );
+        }
+      }
+      assert.deepEqual(stages, ['deploying', 'armed', 'exploding', 'expired']);
+      assert.ok(damageFrames.length > 0, `${beat.key} mine ${index} must visibly damage`);
+      assert.equal(
+        record.entity.markedForDeletion,
+        true,
+        `${beat.key} mine ${index} must clean up after its final explosion frame`
+      );
+      return {
+        index,
+        templateId: slot.templateId,
+        frameOffset: record.deployment.frameOffset,
+        armPoint: record.deployment.armPoint,
+        deployFrames: record.deployment.deployFrames,
+        stages,
+        damageFrames,
+        cleanup: record.entity.markedForDeletion
+      };
+    });
     mineLifecycleEvidence[beat.key] = {
-      stages,
-      damageFrames,
-      cleanup: mine.markedForDeletion
+      formationSequence,
+      templateId: formation[0].templateId,
+      variedX: true,
+      variedY: true,
+      mines: lifecycleRecords
     };
+  }
+
+  if (channelBeats.length > 0) {
+    const firstChannelBeat = channelBeats[0];
+    const fireStartFrame = firstChannelBeat.fireFrame;
+    const fireEndFrame = Math.max(...channelBeats.map((beat) => beat.endFrame));
+    const durationFrames = fireEndFrame - fireStartFrame;
+    const channelSequence = beatOrigins[firstChannelBeat.key].channelSequence;
+    const intervalFrames = firstChannelBeat.clip.parameters?.shotIntervalFrames ?? 2;
+    const expectedShots = [];
+    for (let elapsedFrames = 0; elapsedFrames < durationFrames; elapsedFrames += 1) {
+      const pulse = sampleHeliosMachineGunChannelPulse({
+        elapsedFrames,
+        durationFrames,
+        sequence: channelSequence,
+        intervalFrames
+      });
+      if (!pulse?.firing) continue;
+      pulse.firingSides.forEach((side, sideIndex) => {
+        expectedShots.push({
+          frame: fireStartFrame + elapsedFrames,
+          elapsedFrames,
+          shotIndex: pulse.shotIndex * 2 + sideIndex,
+          side,
+          sideShotIndex: pulse.shotIndex
+        });
+      });
+    }
+    assert.deepEqual(
+      channelEvidence.shots.map(({
+        beatKey: _beatKey,
+        origin: _origin,
+        target: _target,
+        velocity: _velocity,
+        projectileWidth: _projectileWidth,
+        projectileHeight: _projectileHeight,
+        visualKind: _visualKind,
+        ...shot
+      }) => shot),
+      expectedShots,
+      `${attack.id}/${phaseId}/${viewport.id} must preserve one cadence across all repeated segments`
+    );
+    assert.deepEqual(
+      channelEvidence.frames.map((sample) => sample.frame),
+      Array.from({ length: durationFrames }, (_, index) => fireStartFrame + index),
+      `${attack.id}/${phaseId}/${viewport.id} must retain a continuous fire presentation`
+    );
+    for (let index = 0; index < channelEvidence.frames.length; index += 1) {
+      const sample = channelEvidence.frames[index];
+      assert.ok(
+        sample.portBoundaryX < sample.starboardBoundaryX,
+        'channel boundaries must never cross'
+      );
+      assert.ok(
+        Math.abs(
+          sample.starboardBoundaryX
+            - sample.portBoundaryX
+            - sample.channelWidthPixels
+        ) < 0.000001,
+        'channel boundaries must never close'
+      );
+      if (index === 0) continue;
+      const previous = channelEvidence.frames[index - 1];
+      assert.ok(
+        Math.hypot(sample.x - previous.x, sample.y - previous.y) <= 8,
+        `channel must not teleport between frames ${previous.frame} and ${sample.frame}`
+      );
+    }
+    for (const side of ['port', 'starboard']) {
+      const sockets = channelBeats.flatMap((beat) => (
+        beatOrigins[beat.key].sockets[side]
+      ));
+      const targets = channelBeats.flatMap((beat) => (
+        beatOrigins[beat.key].channelTargets[side]
+      ));
+      const sideShots = channelEvidence.shots.filter((shot) => shot.side === side);
+      assert.equal(sockets.length, sideShots.length);
+      assert.equal(targets.length, sideShots.length);
+      sideShots.forEach((shot, index) => {
+        assert.equal(shot.sideShotIndex, index);
+        assert.ok(pointMatches(sockets[index], shot.origin));
+        assert.ok(pointMatches(targets[index], shot.target));
+      });
+    }
   }
 
   for (const beat of beats) {
     const primitiveId = beat.clip.primitiveId;
     if (primitiveId === 'paired-cannon-burst') {
-      const expected = Math.max(
-        3,
-        Math.min(9, Math.round(beat.clip.parameters?.projectileCount ?? 4))
-      ) * resolveHeliosCrossfireSides(beat.clip.parameters?.side).length;
+      const expected = isMachineGunChannel(beat.clip)
+        ? channelEvidence.shots.filter((shot) => shot.beatKey === beat.key).length
+        : Math.max(
+            3,
+            Math.min(9, Math.round(beat.clip.parameters?.projectileCount ?? 4))
+          ) * resolveHeliosCrossfireSides(beat.clip.parameters?.side).length;
       assert.equal(fireEvidence[beat.key]?.count, expected);
-      assert.equal(new Set(fireEvidence[beat.key].frames).size, expected);
+      assert.equal(
+        new Set(fireEvidence[beat.key].frames).size,
+        isMachineGunChannel(beat.clip) ? expected / 2 : expected
+      );
       assert.ok(fireEvidence[beat.key].visualKinds.every((kind) => kind === 'boss-gatling-tracer'));
+      if (isMachineGunChannel(beat.clip)) {
+        for (const side of ['port', 'starboard']) {
+          assert.equal(
+            beatOrigins[beat.key].sockets[side].length,
+            beatOrigins[beat.key].channelTargets[side].length,
+            `${beat.key}/${side} must align every live muzzle with its exact moving target`
+          );
+        }
+      }
       continue;
     }
     if (primitiveId === 'reactor-aperture-pattern') {
       const expected = beat.clip.parameters?.motionCue === 'reactor-mines'
-        ? resolveHeliosMineFormation({
-            sequence: beat.clip.parameters?.sequence ?? 0,
-            count: beat.clip.parameters?.projectileCount ?? 3
-          }).length
+        ? beatOrigins[beat.key].mineDeployments.length
         : Math.max(5, Math.min(11, Math.floor(beat.clip.parameters?.projectileCount ?? 7)));
       assert.equal(fireEvidence[beat.key]?.count, expected);
       assert.equal(new Set(fireEvidence[beat.key].frames).size, expected);
-      continue;
-    }
-    if (primitiveId === 'articulated-melee-sweep') {
-      assert.ok(meleeEvidence[beat.key]?.length > 0, `${beat.key} must sample its exact damage window`);
       continue;
     }
     const sequence = Math.max(0, Math.floor(beat.clip.parameters?.sequence ?? 0))
@@ -679,7 +1039,8 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
     fireEvidence,
     meleeEvidence,
     pincerLocks,
-    mineLifecycleEvidence
+    mineLifecycleEvidence,
+    channelEvidence
   };
   return {
     pose: {
@@ -697,136 +1058,40 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
   };
 };
 
-const getProofSettings = (attackId, viewportId) => {
+const getProofSettings = (attackId, viewportId, phaseId) => {
   const mobile = viewportId === 'mobile-390x844';
-  if (attackId === 'clawcarrier-crush') {
-    return { searchBreadth: mobile ? 384 : 192 };
+  if (
+    attackId === 'twin-rotary-crossfire'
+    && mobile
+    && phaseId === 'sandbox-clawcarrier-armor-shear'
+  ) {
+    return { searchBreadth: 512, controlFrames: 4 };
   }
-  if (attackId === 'claw-sweep-pincer') {
-    return { searchBreadth: mobile ? 256 : 144 };
+  if (
+    attackId === 'reactor-maze'
+    && mobile
+    && phaseId === 'sandbox-clawcarrier-siege-calibration'
+  ) {
+    return { searchBreadth: 384, controlFrames: 4 };
+  }
+  if (
+    attackId === 'reactor-maze'
+    && !mobile
+    && phaseId === 'sandbox-clawcarrier-reactor-overdrive'
+  ) {
+    return { searchBreadth: 512, controlFrames: 4 };
+  }
+  if (attackId === 'clawcarrier-crush') {
+    return { searchBreadth: mobile ? 192 : 128, controlFrames: 6 };
+  }
+  if (attackId === 'machinegun-channel') {
+    return { searchBreadth: mobile ? 48 : 32, controlFrames: 6 };
   }
   if (attackId === 'reactor-maze') {
-    return mobile
-      ? { searchBreadth: 256 }
-      : { searchBreadth: 512 };
+    return { searchBreadth: mobile ? 192 : 160, controlFrames: 6 };
   }
-  return mobile
-    ? { searchBreadth: 512 }
-    : { searchBreadth: 112 };
+  return { searchBreadth: mobile ? 160 : 96, controlFrames: 6 };
 };
-
-const createClampMatrixEngine = (destroyedComponentIds) => {
-  const viewport = BOSS_SAFE_ROUTE_BENCHMARK_VIEWPORTS.mobile;
-  const engine = new GameEngine(createStats(), {
-    campaign: preview.campaign,
-    previewMode: true,
-    previewInvincible: true,
-    audioEnabled: false,
-    initialLevelId: preview.levelId,
-    initialWaveId: preview.waveId,
-    randomSeed: 'helios-v2-clamp-matrix',
-    previewBossCollisionEventId: preview.eventId,
-    previewBossWeaponSockets: artwork.weaponSockets,
-    previewBossWeaponSocketPoseSampler: poseSampler,
-    previewBossArtworkDesignSize: artwork.modularRig.manifest.designSize,
-    previewBossReducedMotion: false,
-    previewBossWeaponSocketEventId: preview.eventId,
-    previewBossProjectileVisualKinds: Object.keys(artwork.projectileAnimations ?? {})
-  });
-  engine.init(viewport.width, viewport.height);
-  assert.equal(
-    engine.triggerAuthoredBossAttack('claw-sweep-pincer', preview.eventId, bossEvent.phases[0].id),
-    true
-  );
-  const boss = engine.bossRef;
-  assert.ok(boss);
-  const combatAnchorY = Math.max(72, Math.min(viewport.height * 0.13, 116));
-  for (let frame = 0; boss.y < combatAnchorY && frame < 240; frame += 1) {
-    engine.frameCount += 1;
-    engine.updateBoss(boss);
-  }
-  for (const component of boss.bossComponents ?? []) {
-    if (!destroyedComponentIds.includes(component.id)) continue;
-    component.destroyed = true;
-    component.hp = 0;
-  }
-  assert.equal(
-    engine.triggerAuthoredBossAttack('claw-sweep-pincer', preview.eventId, bossEvent.phases[0].id),
-    true
-  );
-  boss.y = Math.max(boss.y, combatAnchorY);
-  engine.frameCount += 1;
-  engine.updateBoss(boss);
-  return { engine, boss };
-};
-
-const collectClampAttempts = ({ engine, boss }, frameBudget = 300) => {
-  const attempts = [];
-  const seenClipIds = new Set();
-  for (let frame = 0; frame < frameBudget; frame += 1) {
-    const state = boss.bossHeliosCornerClampState;
-    if (state && !seenClipIds.has(state.actionClipId)) {
-      seenClipIds.add(state.actionClipId);
-      attempts.push({
-        actionClipId: state.actionClipId,
-        activeSide: state.activeSide,
-        fallbackToCrossfire: state.fallbackToCrossfire
-      });
-    }
-    engine.frameCount += 1;
-    engine.updateBoss(boss);
-  }
-  return attempts;
-};
-
-test('Helios corner clamps resolve intact, one-arm, and both-arm fallback states in the real engine', () => {
-  const intact = createClampMatrixEngine([]);
-  assert.deepEqual(
-    collectClampAttempts(intact).map(({ activeSide, fallbackToCrossfire }) => ({ activeSide, fallbackToCrossfire })),
-    [
-      { activeSide: 'port', fallbackToCrossfire: false },
-      { activeSide: 'starboard', fallbackToCrossfire: false }
-    ]
-  );
-
-  const portDestroyed = createClampMatrixEngine(['left-cannon']);
-  assert.deepEqual(
-    collectClampAttempts(portDestroyed).map(({ activeSide, fallbackToCrossfire }) => ({ activeSide, fallbackToCrossfire })),
-    [{ activeSide: 'starboard', fallbackToCrossfire: false }],
-    'a destroyed port claw skips its own beat instead of reusing the surviving claw twice'
-  );
-
-  const starboardDestroyed = createClampMatrixEngine(['right-cannon']);
-  assert.deepEqual(
-    collectClampAttempts(starboardDestroyed).map(({ activeSide, fallbackToCrossfire }) => ({ activeSide, fallbackToCrossfire })),
-    [{ activeSide: 'port', fallbackToCrossfire: false }],
-    'a destroyed starboard claw skips its own beat instead of reusing the surviving claw twice'
-  );
-
-  const bothDestroyed = createClampMatrixEngine(['left-cannon', 'right-cannon']);
-  assert.ok(bothDestroyed.boss.bossHeliosCornerClampState);
-  assert.equal(bothDestroyed.boss.bossHeliosCornerClampState.activeSide, undefined);
-  assert.equal(bothDestroyed.boss.bossHeliosCornerClampState.fallbackToCrossfire, true);
-  assert.equal(bothDestroyed.boss.bossActionPresentation.motionCue, 'paired-crossfire');
-
-  for (let frame = 0; frame < 180; frame += 1) {
-    if (bothDestroyed.boss.bossActionPresentation?.stage === 'fire') break;
-    bothDestroyed.engine.frameCount += 1;
-    bothDestroyed.engine.updateBoss(bothDestroyed.boss);
-  }
-  assert.equal(bothDestroyed.boss.bossActionPresentation?.stage, 'fire');
-  assert.equal(bothDestroyed.engine.isHeliosMeleeDamageActive(bothDestroyed.boss), false);
-  assert.equal(
-    bothDestroyed.engine.bossMeleeClawsIntersectBox(bothDestroyed.boss, {
-      x: 0,
-      y: 0,
-      width: 390,
-      height: 844
-    }),
-    false,
-    'destroyed hidden claws must not retain a damaging melee region during rotary fallback'
-  );
-});
 
 test('all real Helios attacks use anatomy-owned geometry and retain a six-pixel safe route in every phase and viewport', () => {
   const capturedCases = [];
@@ -851,7 +1116,7 @@ test('all real Helios attacks use anatomy-owned geometry and retain a six-pixel 
   }
 
   for (const { attack, phase, viewport, capture } of capturedCases) {
-    const settings = getProofSettings(attack.id, viewport.id);
+    const settings = getProofSettings(attack.id, viewport.id, phase.id);
     const request = {
       timeline: bossEvent.timeline,
       attackId: attack.id,
@@ -876,6 +1141,96 @@ test('all real Helios attacks use anatomy-owned geometry and retain a six-pixel 
       first.minimumClearancePixels >= MINIMUM_PROVEN_BOSS_ROUTE_CLEARANCE_PIXELS,
       `${attack.id}/${phase.id}/${viewport.id} must retain at least six pixels`
     );
+    if (attack.id === 'machinegun-channel') {
+      const channelFrames = new Map(
+        capture.evidence.channelEvidence.frames.map((sample) => [sample.frame, sample])
+      );
+      const fireWitness = first.witness.filter((point) => channelFrames.has(point.frame));
+      assert.ok(
+        fireWitness.length >= Math.floor(channelFrames.size / settings.controlFrames),
+        `${attack.id}/${phase.id}/${viewport.id} must sample the complete channel witness`
+      );
+      const sampleLiveRailAtY = (point, side) => {
+        const candidates = capture.evidence.channelEvidence.shots
+          .filter((shot) => shot.side === side && shot.frame <= point.frame)
+          .map((shot) => {
+            const ageFrames = point.frame - shot.frame + 1;
+            return {
+              ...shot,
+              x: shot.origin.x + shot.velocity.x * ageFrames,
+              y: shot.origin.y + shot.velocity.y * ageFrames
+            };
+          })
+          .filter((shot) => (
+            shot.y >= -shot.projectileHeight
+            && shot.y <= viewport.height + shot.projectileHeight
+          ))
+          .sort((left, right) => left.y - right.y);
+        const before = [...candidates].reverse().find((shot) => shot.y <= point.y);
+        const after = candidates.find((shot) => shot.y >= point.y);
+        if (!before || !after) return undefined;
+        if (before === after || Math.abs(after.y - before.y) < 0.000001) {
+          return {
+            x: before.x,
+            projectileWidth: before.projectileWidth
+          };
+        }
+        const progress = (point.y - before.y) / (after.y - before.y);
+        return {
+          x: before.x + (after.x - before.x) * progress,
+          projectileWidth: Math.max(before.projectileWidth, after.projectileWidth)
+        };
+      };
+      let railWitnessCount = 0;
+      let interiorWitnessCount = 0;
+      for (const point of fireWitness) {
+        const portRail = sampleLiveRailAtY(point, 'port');
+        const starboardRail = sampleLiveRailAtY(point, 'starboard');
+        if (!portRail || !starboardRail) continue;
+        railWitnessCount += 1;
+        const interiorMargin = CONSERVATIVE_BOSS_SAFE_ROUTE_PLAYER.collisionWidth / 2
+          + Math.max(portRail.projectileWidth, starboardRail.projectileWidth) * 0.3
+          + 3
+          + MINIMUM_PROVEN_BOSS_ROUTE_CLEARANCE_PIXELS;
+        const isInsideChannel = (
+          point.x >= portRail.x + interiorMargin
+          && point.x <= starboardRail.x - interiorMargin
+        );
+        if (isInsideChannel) interiorWitnessCount += 1;
+        if (viewport.mobileProfile) {
+          assert.ok(
+            isInsideChannel,
+            `${attack.id}/${phase.id}/${viewport.id}/frame-${point.frame} escaped outside `
+              + `the live projectile channel: x=${point.x}, bounds=${portRail.x}..`
+              + `${starboardRail.x}`
+          );
+        }
+      }
+      assert.ok(
+        railWitnessCount >= Math.floor(fireWitness.length * 0.7),
+        `${attack.id}/${phase.id}/${viewport.id} must resolve both live projectile rails`
+      );
+      // The mandatory inside-the-rails contract is specifically the portrait
+      // mobile encounter requested for the Sandbox. The landscape benchmark
+      // still has to retain a six-pixel route and exact live rail geometry,
+      // but its much wider arena permits post-passage exterior evasion.
+      const targetPadding = resolveHeliosMachineGunChannelTargetPadding(
+        viewport.mobileProfile,
+        viewport.width
+      );
+      assert.ok(
+        Math.min(...capture.evidence.channelEvidence.frames.map(
+          (sample) => sample.portBoundaryX
+        )) <= targetPadding + 0.001,
+        `${attack.id}/${phase.id}/${viewport.id} must sweep the left exterior gutter`
+      );
+      assert.ok(
+        Math.max(...capture.evidence.channelEvidence.frames.map(
+          (sample) => sample.starboardBoundaryX
+        )) >= viewport.width - targetPadding - 0.001,
+        `${attack.id}/${phase.id}/${viewport.id} must sweep the right exterior gutter`
+      );
+    }
     assert.match(first.witnessHash, /^[0-9a-f]{8}$/);
     const repeated = proveBossAttackSafeRoute(request);
     assert.equal(repeated.status, 'proven', repeated.detail);

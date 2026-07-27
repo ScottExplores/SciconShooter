@@ -51,8 +51,8 @@ const spaceRuns = [
   }
 ];
 
-test('campaign revision 19 maps stages and every internal wave to five continuous space runs', () => {
-  assert.equal(campaign.revision, 19);
+test('campaign revision 20 maps stages and every internal wave to five continuous space runs', () => {
+  assert.equal(campaign.revision, 20);
   assert.deepEqual(
     campaign.levels.slice(0, 5).map((level) => level.backgroundId),
     ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']
@@ -125,4 +125,20 @@ test('browser, Director server, and Director editor recognize the same backgroun
   const result = validateGameCampaign(invalid);
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((error) => error.includes('/backgroundId')));
+});
+
+test('Director validation rejects malformed authored Campaign progression metadata', async () => {
+  const validatorUrl = pathToFileURL(path.join(root, 'director/server/gameCampaignValidation.mjs')).href;
+  const { validateGameCampaign } = await import(validatorUrl);
+  const invalid = structuredClone(campaign);
+
+  invalid.levels[0].campaignProgression.reward.replayMultiplier = 1.5;
+  invalid.levels[1].campaignProgression.masteryObjectives.pop();
+  invalid.levels[2].campaignProgression.nextMissionId = 'missing-mission';
+
+  const result = validateGameCampaign(invalid);
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((error) => error.includes('/reward/replayMultiplier')));
+  assert.ok(result.errors.some((error) => error.includes('exactly three mastery objectives')));
+  assert.ok(result.errors.some((error) => error.includes('references unknown Mission')));
 });

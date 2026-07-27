@@ -47,6 +47,21 @@ test('wallet transitions preserve dirty state and serialize cookie-changing acti
   assert.match(service, /action: 'logout',[\s\S]*walletAddress:/);
 });
 
+test('routine wallet disconnect preserves the verified device session for seamless reconnects', () => {
+  const service = read('services', 'walletProfileService.ts');
+  const app = read('App.tsx');
+
+  assert.match(
+    service,
+    /const existingSession = await readWalletProfileSession\(\)[\s\S]*existingSession\.walletAddress\?\.toLowerCase\(\) === normalizeWalletAddress\(address\)[\s\S]*return existingSession\.profile/
+  );
+  assert.match(
+    app,
+    /if \(!normalizedAddress\) \{[\s\S]*HttpOnly profile session[\s\S]*return;[\s\S]*\}/
+  );
+  assert.doesNotMatch(app, /logoutWalletProfileSession/);
+});
+
 test('cloud snapshots never persist client-provided minted ownership', () => {
   const app = read('App.tsx');
   const backend = read('api', '_lib', 'walletProfiles.js');
@@ -60,4 +75,22 @@ test('cloud snapshots never persist client-provided minted ownership', () => {
     ),
     /mintedMiniShips:/
   );
+});
+
+test('official Boss Archive settlement sends only signed result facts and safely retries', () => {
+  const service = read('services', 'walletProfileService.ts');
+  const start = service.indexOf('export const settleWalletBossArchiveChallenge');
+  const end = service.indexOf('export const flushDirtyWalletProfile', start);
+  const settlementClient = service.slice(start, end);
+
+  assert.match(settlementClient, /action: 'settle-boss-challenge'/);
+  assert.match(settlementClient, /runToken/);
+  assert.match(settlementClient, /victory: true/);
+  assert.match(settlementClient, /clearTimeMs/);
+  assert.match(settlementClient, /damageTaken/);
+  assert.match(settlementClient, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);
+  assert.match(settlementClient, /error\.status >= 500/);
+  assert.doesNotMatch(settlementClient, /rewardCoins:/);
+  assert.doesNotMatch(settlementClient, /utcDateKey:/);
+  assert.doesNotMatch(settlementClient, /dailyLimit:/);
 });

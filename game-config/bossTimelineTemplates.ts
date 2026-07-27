@@ -346,6 +346,77 @@ const advancedShowcase = (boss: BossEvent): BossTimelineConfig => {
       parameters: { sequence: 0, motionCue: 'pincer-dive' },
       actionDurationSeconds: 0.7
     }),
+    ...warningPair({
+      id: 'prism-wingbeat-weave',
+      primitiveId: 'prism-wingbeat-weave',
+      startSeconds: 18.2,
+      phaseId: ragePhaseId,
+      color: '#c4b5fd',
+      parameters: {
+        projectileCount: 5,
+        sequence: 0,
+        motionCue: 'prism-wingbeat',
+        shotIntervalFrames: 12,
+        projectileSpeedScale: 0.96,
+        channelWidthPixels: 122,
+        sweepRangeRatio: 0.56,
+        sweepPasses: 3
+      },
+      actionDurationSeconds: 0.36
+    }),
+    ...warningPair({
+      id: 'prism-brood-procession',
+      primitiveId: 'prism-brood-procession',
+      startSeconds: 19.5,
+      phaseId: ragePhaseId,
+      color: '#67e8f9',
+      parameters: {
+        projectileCount: 4,
+        sequence: 1,
+        motionCue: 'prism-brood-deploy',
+        shotIntervalFrames: 12,
+        projectileSpeedScale: 1,
+        channelWidthPixels: 126,
+        sweepRangeRatio: 0.22,
+        sweepPasses: 2
+      },
+      actionDurationSeconds: 0.5
+    }),
+    ...warningPair({
+      id: 'prism-lunar-swoop',
+      primitiveId: 'prism-lunar-swoop',
+      startSeconds: 20.9,
+      phaseId: ragePhaseId,
+      color: '#e879f9',
+      parameters: {
+        projectileCount: 2,
+        sequence: 2,
+        motionCue: 'prism-swoop',
+        projectileSpeedScale: 1,
+        sweepRangeRatio: 0.26,
+        sweepPasses: 2
+      },
+      actionDurationSeconds: 0.7
+    }),
+    ...warningPair({
+      id: 'prism-kaleidoscope-brood',
+      primitiveId: 'prism-kaleidoscope-brood',
+      startSeconds: 22.5,
+      phaseId: ragePhaseId,
+      color: '#f0abfc',
+      parameters: {
+        projectileCount: 6,
+        sequence: 3,
+        motionCue: 'prism-kaleidoscope',
+        pulseIntervalSeconds: 1.6,
+        shotIntervalFrames: 12,
+        projectileSpeedScale: 1,
+        channelWidthPixels: 132,
+        sweepRangeRatio: 0.5,
+        sweepPasses: 3
+      },
+      actionDurationSeconds: 0.7
+    }),
     {
       ...action('death-effect', 'effect-cue', 0, undefined, { color: '#ffffff' }),
       trigger: 'death',
@@ -359,7 +430,7 @@ const advancedShowcase = (boss: BossEvent): BossTimelineConfig => {
   ];
 
   return {
-    durationSeconds: 18.2,
+    durationSeconds: 24,
     loop: true,
     clips
   };

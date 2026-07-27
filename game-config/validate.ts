@@ -56,8 +56,12 @@ type UnknownRecord = Record<string, unknown>;
 
 const CAMPAIGN_KEYS = ['schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'hudAssets', 'levels'];
 const HUD_ASSET_KEYS = ['bombIconAssetKey'];
-const LEVEL_KEYS = ['id', 'name', 'description', 'order', 'backgroundId', 'musicId', 'startingDifficulty', 'scoreTarget', 'durationSeconds', 'loopWaves', 'availablePowerupIds', 'scorecard', 'waves'];
+const LEVEL_KEYS = ['id', 'name', 'description', 'order', 'backgroundId', 'musicId', 'startingDifficulty', 'scoreTarget', 'durationSeconds', 'loopWaves', 'availablePowerupIds', 'scorecard', 'campaignProgression', 'waves'];
 const SCORECARD_KEYS = ['trigger', 'title', 'subtitle', 'scoreLabel', 'metrics', 'showEncounterArt', 'encounterAssetKey'];
+const CAMPAIGN_PROGRESSION_KEYS = ['reward', 'masteryObjectives', 'mapPosition', 'nextMissionId'];
+const CAMPAIGN_REWARD_KEYS = ['waveClearCoins', 'missionClearCoins', 'firstClearCoins', 'bossFirstClearCoins', 'replayMultiplier'];
+const CAMPAIGN_MASTERY_OBJECTIVE_KEYS = ['id', 'label', 'kind', 'target', 'rewardCoins'];
+const CAMPAIGN_MAP_POSITION_KEYS = ['x', 'y'];
 const RECORD_CARD_KEYS = ['copy', 'colors', 'showGrid', 'shipAssetKey', 'encounterAssetKey', 'art'];
 const RECORD_CARD_COPY_KEYS = ['title', 'subtitle', 'callsignLabel', 'scoreLabel', 'verifiedLabel', 'reviewLabel', 'metricLabels'];
 const RECORD_CARD_METRIC_LABEL_KEYS = ['wave', 'targets', 'coins', 'flight'];
@@ -112,6 +116,11 @@ const BOSS_TIMELINE_PARAMETER_KEYS = [
   'sequence',
   'projectileCount',
   'pulseIntervalSeconds',
+  'shotIntervalFrames',
+  'projectileSpeedScale',
+  'channelWidthPixels',
+  'sweepRangeRatio',
+  'sweepPasses',
   'warningSeconds',
   'shieldCount',
   'summonCount',
@@ -135,6 +144,13 @@ const FORMATION_SLOT_KEYS = ['x', 'y'];
 const SPRITE_STYLE_KEYS = ['scale', 'rotationDegrees', 'flipX', 'opacity', 'hueRotateDegrees', 'saturation', 'brightness', 'glowColor', 'glowBlur'];
 
 const SCORECARD_METRICS = new Set(['wave', 'targets', 'coins', 'flight']);
+const CAMPAIGN_MASTERY_OBJECTIVE_KINDS = new Set([
+  'complete',
+  'damage-at-most',
+  'coins-at-least',
+  'score-at-least',
+  'time-at-most'
+]);
 const EVENT_KINDS = new Set(Object.keys(EVENT_KEYS));
 const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const ENEMY_RANKS = new Set(['standard', 'elite']);
@@ -149,11 +165,21 @@ const BOSS_TIMELINE_MOTION_CUES = new Set([
   'heavy-cannon',
   'gatling-barrage',
   'paired-crossfire',
+  'machinegun-channel',
   'claw-sweep',
   'reactor-pattern',
   'reactor-fan',
   'reactor-mines',
-  'pincer-dive'
+  'pincer-dive',
+  'prism-wingbeat-weave',
+  'prism-brood-procession',
+  'prism-lunar-swoop',
+  'prism-kaleidoscope-brood',
+  'prism-wingbeat',
+  'prism-brood-deploy',
+  'prism-swoop',
+  'prism-kaleidoscope',
+  'prism-metamorphosis'
 ]);
 const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
   'clockwise',
@@ -492,6 +518,91 @@ const validateScorecard = (value: unknown, path: string, issues: CampaignValidat
   }
 };
 
+const validateCampaignProgression = (
+  value: unknown,
+  path: string,
+  issues: CampaignValidationIssue[],
+  levelId: unknown
+) => {
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    pushIssue(issues, path, 'required_object', 'Campaign progression settings must be an object');
+    return;
+  }
+  checkKeys(value, CAMPAIGN_PROGRESSION_KEYS, path, issues);
+
+  if (!isRecord(value.reward)) {
+    pushIssue(issues, `${path}/reward`, 'required_object', 'Campaign reward settings are required');
+  } else {
+    checkKeys(value.reward, CAMPAIGN_REWARD_KEYS, `${path}/reward`, issues);
+    checkNumber(value.reward.waveClearCoins, `${path}/reward/waveClearCoins`, issues, 0, 1000000, true);
+    checkNumber(value.reward.missionClearCoins, `${path}/reward/missionClearCoins`, issues, 0, 1000000, true);
+    checkNumber(value.reward.firstClearCoins, `${path}/reward/firstClearCoins`, issues, 0, 1000000, true);
+    checkNumber(value.reward.bossFirstClearCoins, `${path}/reward/bossFirstClearCoins`, issues, 0, 1000000, true);
+    checkNumber(value.reward.replayMultiplier, `${path}/reward/replayMultiplier`, issues, Number.EPSILON, 1);
+  }
+
+  if (checkArray(value.masteryObjectives, `${path}/masteryObjectives`, issues)) {
+    if (value.masteryObjectives.length !== 3) {
+      pushIssue(issues, `${path}/masteryObjectives`, 'invalid_mastery_count', 'Campaign Missions require exactly three mastery objectives');
+    }
+    const objectiveIds: unknown[] = [];
+    let completionObjectiveCount = 0;
+    value.masteryObjectives.forEach((objective, index) => {
+      const objectivePath = `${path}/masteryObjectives/${index}`;
+      if (!isRecord(objective)) {
+        pushIssue(issues, objectivePath, 'required_object', 'Mastery objectives must be objects');
+        return;
+      }
+      checkKeys(objective, CAMPAIGN_MASTERY_OBJECTIVE_KEYS, objectivePath, issues);
+      if (checkString(objective.id, `${objectivePath}/id`, issues, { max: 160 })) {
+        objectiveIds.push(objective.id);
+        if (typeof levelId === 'string' && !String(objective.id).startsWith(`${levelId}:`)) {
+          pushIssue(issues, `${objectivePath}/id`, 'invalid_mastery_id', 'Mastery objective IDs must be scoped to their owning Mission');
+        }
+      }
+      checkString(objective.label, `${objectivePath}/label`, issues, { max: 160 });
+      if (typeof objective.kind !== 'string' || !CAMPAIGN_MASTERY_OBJECTIVE_KINDS.has(objective.kind)) {
+        pushIssue(issues, `${objectivePath}/kind`, 'unknown_reference', `Unknown Campaign mastery objective kind: ${String(objective.kind)}`);
+      }
+      if (objective.kind === 'complete') {
+        completionObjectiveCount += 1;
+        if (objective.target !== 1) {
+          pushIssue(issues, `${objectivePath}/target`, 'invalid_mastery_target', 'Completion mastery objectives must use a target of 1');
+        }
+      } else {
+        checkNumber(objective.target, `${objectivePath}/target`, issues, 0, 1000000000);
+        if (
+          ['coins-at-least', 'score-at-least', 'time-at-most'].includes(String(objective.kind))
+          && typeof objective.target === 'number'
+          && objective.target <= 0
+        ) {
+          pushIssue(issues, `${objectivePath}/target`, 'invalid_mastery_target', 'This mastery objective requires a positive target');
+        }
+      }
+      checkNumber(objective.rewardCoins, `${objectivePath}/rewardCoins`, issues, 0, 1000000, true);
+    });
+    checkUniqueStrings(objectiveIds, `${path}/masteryObjectives/id`, issues);
+    if (completionObjectiveCount !== 1) {
+      pushIssue(issues, `${path}/masteryObjectives`, 'invalid_completion_mastery', 'Campaign Missions require exactly one completion mastery objective');
+    }
+  }
+
+  if (value.mapPosition !== undefined) {
+    if (!isRecord(value.mapPosition)) {
+      pushIssue(issues, `${path}/mapPosition`, 'required_object', 'Campaign map positions must be objects');
+    } else {
+      checkKeys(value.mapPosition, CAMPAIGN_MAP_POSITION_KEYS, `${path}/mapPosition`, issues);
+      checkNumber(value.mapPosition.x, `${path}/mapPosition/x`, issues, 0, 1);
+      checkNumber(value.mapPosition.y, `${path}/mapPosition/y`, issues, 0, 1);
+    }
+  }
+
+  if (value.nextMissionId !== undefined && value.nextMissionId !== null) {
+    checkString(value.nextMissionId, `${path}/nextMissionId`, issues, { id: true });
+  }
+};
+
 const validateSpawnEnemies = (value: unknown, path: string, issues: CampaignValidationIssue[]) => {
   if (!checkArray(value, path, issues)) return;
   const ids: unknown[] = [];
@@ -705,6 +816,11 @@ const validateBossTimeline = (
         if (parameters.sequence !== undefined) checkNumber(parameters.sequence, `${parameterPath}/sequence`, issues, 0, 100000, true);
         if (parameters.projectileCount !== undefined) checkNumber(parameters.projectileCount, `${parameterPath}/projectileCount`, issues, 1, 24, true);
         if (parameters.pulseIntervalSeconds !== undefined) checkNumber(parameters.pulseIntervalSeconds, `${parameterPath}/pulseIntervalSeconds`, issues, 0.5, 2);
+        if (parameters.shotIntervalFrames !== undefined) checkNumber(parameters.shotIntervalFrames, `${parameterPath}/shotIntervalFrames`, issues, 2, 12, true);
+        if (parameters.projectileSpeedScale !== undefined) checkNumber(parameters.projectileSpeedScale, `${parameterPath}/projectileSpeedScale`, issues, 0.5, 2);
+        if (parameters.channelWidthPixels !== undefined) checkNumber(parameters.channelWidthPixels, `${parameterPath}/channelWidthPixels`, issues, 72, 320);
+        if (parameters.sweepRangeRatio !== undefined) checkNumber(parameters.sweepRangeRatio, `${parameterPath}/sweepRangeRatio`, issues, 0.1, 0.8);
+        if (parameters.sweepPasses !== undefined) checkNumber(parameters.sweepPasses, `${parameterPath}/sweepPasses`, issues, 1, 3, true);
         if (parameters.warningSeconds !== undefined) checkNumber(parameters.warningSeconds, `${parameterPath}/warningSeconds`, issues, 0.1, 10);
         if (parameters.shieldCount !== undefined) checkNumber(parameters.shieldCount, `${parameterPath}/shieldCount`, issues, 0, 12, true);
         if (parameters.summonCount !== undefined) checkNumber(parameters.summonCount, `${parameterPath}/summonCount`, issues, 1, 12, true);
@@ -1786,6 +1902,7 @@ const validateLevel = (
     });
   }
   validateScorecard(candidate.scorecard, `${path}/scorecard`, issues);
+  validateCampaignProgression(candidate.campaignProgression, `${path}/campaignProgression`, issues, candidate.id);
 
   const waveOrders = new Set<number>();
   if (checkArray(candidate.waves, `${path}/waves`, issues)) {
@@ -1831,6 +1948,29 @@ export const validateGameCampaign = (value: unknown): CampaignValidationResult =
         previousOrder = level.order;
       }
       validateLevel(level, `/levels/${index}`, issues, levelIds, waveIds, eventIds, levelOrders);
+    });
+    const campaignMissionIds = new Set(value.levels.flatMap((level) => (
+      isRecord(level) && typeof level.id === 'string' ? [level.id] : []
+    )));
+    value.levels.forEach((level, index) => {
+      if (!isRecord(level) || !isRecord(level.campaignProgression)) return;
+      const nextMissionId = level.campaignProgression.nextMissionId;
+      if (typeof nextMissionId !== 'string') return;
+      if (!campaignMissionIds.has(nextMissionId)) {
+        pushIssue(
+          issues,
+          `/levels/${index}/campaignProgression/nextMissionId`,
+          'unknown_reference',
+          `Unknown next Campaign Mission: ${nextMissionId}`
+        );
+      } else if (nextMissionId === level.id) {
+        pushIssue(
+          issues,
+          `/levels/${index}/campaignProgression/nextMissionId`,
+          'circular_reference',
+          'A Campaign Mission cannot unlock itself'
+        );
+      }
     });
   }
   return { valid: issues.length === 0, issues };
