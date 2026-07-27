@@ -71,6 +71,7 @@ test('guest runs save device Pilot Hangar and Boss Archive progress while wallet
   assert.match(app, /savePilotStats\(activeProfileId/);
   assert.match(app, /getWalletProfileId\(normalizedAddress\)/);
   assert.match(app, /saveAuthenticatedWalletProfile\(\{/);
+  assert.match(app, /const unsettledLifetimeCampaignEnemies = isCampaignRun/);
   assert.match(app, /if \(!isFounderSandboxRun && squadRunAppliedGameIdRef\.current !== gameId\)/);
   assert.match(app, /if \(!isFounderSandboxRun && permanentRunAppliedGameIdRef\.current !== gameId\)/);
   assert.match(app, /saveScore\(name, score, wave, \{[\s\S]*walletAddress: activeWalletAddress/);

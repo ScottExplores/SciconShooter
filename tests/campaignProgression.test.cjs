@@ -258,7 +258,7 @@ test('a fresh Campaign starts exactly at Mission 1, Wave 1', () => {
   assert.equal(progression.getCampaignCheckpointLabel(progress, TEST_CAMPAIGN).action, 'Start Mission');
 });
 
-test('clearing a Wave immediately advances and persists the exact next-Wave checkpoint', () => {
+test('clearing an internal Wave never creates a durable checkpoint', () => {
   const fresh = progression.createCampaignProgress(TEST_CAMPAIGN);
   const result = progression.applyCampaignCompletion(
     fresh,
@@ -266,24 +266,20 @@ test('clearing a Wave immediately advances and persists the exact next-Wave chec
     TEST_CAMPAIGN
   );
 
-  assert.equal(result.settlement.duplicate, false);
+  assert.equal(result.settlement.duplicate, true);
   assert.equal(result.settlement.stageComplete, false);
   assert.deepEqual(result.settlement.checkpoint, {
     missionId: 'mission-1',
-    waveId: 'mission-1-wave-2'
+    waveId: 'mission-1-wave-1'
   });
   assert.equal(result.progress.recommendedMissionId, 'mission-1');
-  assert.equal(result.progress.recommendedWaveId, 'mission-1-wave-2');
-  assert.deepEqual(Array.from(result.progress.unlockedWaveIdsByMission['mission-1']), [
-    'mission-1-wave-1',
-    'mission-1-wave-2'
-  ]);
-  assert.deepEqual(Array.from(result.progress.missionRecords['mission-1'].completedWaveIds), [
-    'mission-1-wave-1'
-  ]);
+  assert.equal(result.progress.recommendedWaveId, 'mission-1-wave-1');
+  assert.deepEqual(Array.from(result.progress.unlockedWaveIdsByMission['mission-1']), ['mission-1-wave-1']);
+  assert.deepEqual(Array.from(result.progress.missionRecords['mission-1'].completedWaveIds), []);
   assert.equal(result.progress.missionRecords['mission-1'].completed, false);
-  assert.deepEqual(Array.from(result.settlement.grants, (grant) => grant.kind), ['wave']);
-  assert.equal(progression.getCampaignCheckpointLabel(result.progress, TEST_CAMPAIGN).action, 'Continue Mission');
+  assert.deepEqual(Array.from(result.settlement.grants), []);
+  assert.equal(result.progress.processedResultIds.includes('checkpoint-wave'), false);
+  assert.equal(progression.getCampaignCheckpointLabel(result.progress, TEST_CAMPAIGN).action, 'Start Mission');
 });
 
 test('clearing a final Wave completes the Mission and unlocks the exact next Mission', () => {
@@ -301,6 +297,10 @@ test('clearing a final Wave completes the Mission and unlocks the exact next Mis
   assert.deepEqual(Array.from(finalWave.progress.unlockedWaveIdsByMission['mission-2']), ['mission-2-wave-1']);
   assert.equal(finalWave.progress.missionRecords['mission-1'].completed, true);
   assert.equal(finalWave.progress.missionRecords['mission-1'].stars, 3);
+  assert.equal(
+    finalWave.settlement.grants.find((grant) => grant.kind === 'wave').amount,
+    progression.buildCampaignMissionDefinitions(TEST_CAMPAIGN)[0].reward.waveClearCoins * 2
+  );
   assert.ok(finalWave.settlement.grants.some((grant) => grant.kind === 'first-clear'));
   assert.equal(progression.getCampaignCheckpointLabel(finalWave.progress, TEST_CAMPAIGN).action, 'Next Mission');
 });
@@ -343,7 +343,11 @@ test('clearing the final Mission changes the checkpoint action to Replay Final M
 
 test('a duplicate completion result cannot mutate progress or award duplicate grants', () => {
   const fresh = progression.createCampaignProgress(TEST_CAMPAIGN);
-  const input = completionInput({ resultId: 'stable-result-id' });
+  const input = completionInput({
+    resultId: 'stable-result-id',
+    waveId: 'mission-1-wave-2',
+    stageComplete: true
+  });
   const first = progression.applyCampaignCompletion(fresh, input, TEST_CAMPAIGN);
   const duplicate = progression.applyCampaignCompletion(first.progress, input, TEST_CAMPAIGN);
 
@@ -363,12 +367,14 @@ test('a duplicate completion result cannot mutate progress or award duplicate gr
   assert.deepEqual(Array.from(duplicateCredit.state.creditedCampaignRewardIds), Array.from(firstCredit.state.creditedCampaignRewardIds));
 });
 
-test('replays use reduced rewards and can never move the highest checkpoint backward', () => {
-  const { firstWave, finalWave } = clearFirstMission();
+test('Mission replays use reduced rewards and can never move progress backward', () => {
+  const { finalWave } = clearFirstMission();
   const replay = progression.applyCampaignCompletion(
     finalWave.progress,
     completionInput({
-      resultId: 'm1-w1-replay',
+      resultId: 'm1-replay',
+      waveId: 'mission-1-wave-2',
+      stageComplete: true,
       score: 250,
       coinsCollected: 0,
       damageTaken: 9,
@@ -377,7 +383,7 @@ test('replays use reduced rewards and can never move the highest checkpoint back
     TEST_CAMPAIGN
   );
 
-  const originalWaveReward = firstWave.settlement.grants.find((grant) => grant.kind === 'wave').amount;
+  const originalWaveReward = finalWave.settlement.grants.find((grant) => grant.kind === 'wave').amount;
   const replayWaveReward = replay.settlement.grants.find((grant) => grant.kind === 'wave').amount;
   assert.equal(replay.settlement.replay, true);
   assert.equal(replayWaveReward, Math.max(1, Math.round(
@@ -483,14 +489,14 @@ test('sanitization rejects unknown IDs and legacy migration resumes at the reach
   assert.equal(sanitized.recommendedWaveId, 'mission-1-wave-1');
   assert.deepEqual(Array.from(sanitized.unlockedMissionIds), ['mission-1']);
   assert.deepEqual(Array.from(sanitized.unlockedWaveIdsByMission['mission-1']), ['mission-1-wave-1']);
-  assert.deepEqual(Array.from(sanitized.missionRecords['mission-1'].completedWaveIds), ['mission-1-wave-1']);
+  assert.deepEqual(Array.from(sanitized.missionRecords['mission-1'].completedWaveIds), []);
   assert.deepEqual(Array.from(sanitized.missionRecords['mission-1'].earnedStarIds), ['mission-1:complete']);
   assert.deepEqual(Array.from(sanitized.processedResultIds), ['receipt-1']);
   assert.deepEqual(Array.from(sanitized.claimedRewardIds), ['reward-1']);
   assert.deepEqual(Array.from(sanitized.unviewedMissionIds), ['mission-1']);
 });
 
-test('merging profiles preserves the farthest checkpoint, completion receipts, records, and stars', () => {
+test('merging profiles preserves the farthest Mission, completion receipts, records, and stars', () => {
   const fresh = progression.createCampaignProgress(TEST_CAMPAIGN);
   const partial = progression.applyCampaignCompletion(
     fresh,
@@ -504,8 +510,8 @@ test('merging profiles preserves the farthest checkpoint, completion receipts, r
   assert.equal(merged.recommendedWaveId, 'mission-2-wave-1');
   assert.deepEqual(Array.from(merged.completedMissionIds), ['mission-1']);
   assert.equal(merged.missionRecords['mission-1'].stars, 3);
-  assert.ok(merged.processedResultIds.includes('partial-result'));
-  assert.ok(merged.processedResultIds.includes('m1-w1'));
+  assert.equal(merged.processedResultIds.includes('partial-result'), false);
+  assert.equal(merged.processedResultIds.includes('m1-w1'), false);
   assert.ok(merged.processedResultIds.includes('m1-w2'));
   assert.equal(new Set(merged.processedResultIds).size, merged.processedResultIds.length);
   assert.equal(new Set(merged.claimedRewardIds).size, merged.claimedRewardIds.length);

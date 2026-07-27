@@ -115,7 +115,7 @@ const campaignMissionRecord = (value, level) => {
     typeof entry === 'string' && Number.isFinite(Date.parse(entry)) ? new Date(entry).toISOString() : null
   );
   return {
-    completedWaveIds: completed ? [...waveIds] : completedWaveIds,
+    completedWaveIds: completed ? [...waveIds] : [],
     completed,
     stars: Math.max(integer(record.stars, 0, 3), Math.min(3, earnedStarIds.length), completed ? 1 : 0),
     earnedStarIds,
@@ -154,6 +154,13 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
   const completedMissionIds = CAMPAIGN_LEVELS
     .filter((level) => missionRecords[level.id].completed || asObject(value).completedMissionIds?.includes?.(level.id))
     .map((level) => level.id);
+  completedMissionIds.forEach((id) => {
+    missionRecords[id] = {
+      ...missionRecords[id],
+      completed: true,
+      completedWaveIds: [...(CAMPAIGN_WAVE_IDS_BY_LEVEL.get(id) || [])]
+    };
+  });
   const unlocked = new Set(
     hasStoredProgress
       ? stringList(value.unlockedMissionIds, { maxItems: CAMPAIGN_LEVELS.length, maxLength: 120 })
@@ -166,31 +173,21 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
     const index = CAMPAIGN_LEVEL_IDS.indexOf(id);
     if (CAMPAIGN_LEVEL_IDS[index + 1]) unlocked.add(CAMPAIGN_LEVEL_IDS[index + 1]);
   });
-  const rawUnlockedWaves = asObject(value.unlockedWaveIdsByMission);
   const unlockedWaveIdsByMission = {};
-  CAMPAIGN_LEVELS.forEach((level, index) => {
+  CAMPAIGN_LEVELS.forEach((level) => {
     const waveIds = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(level.id) || [];
-    const allowed = new Set(waveIds);
-    let ids = hasStoredProgress
-      ? stringList(rawUnlockedWaves[level.id], { maxItems: waveIds.length, maxLength: 120 })
-        .filter((id) => allowed.has(id))
-      : index < reachedMission - 1
-        ? [...waveIds]
-        : index === reachedMission - 1
-          ? waveIds.slice(0, 1)
-          : [];
-    if (completedMissionIds.includes(level.id)) ids = [...waveIds];
-    if (unlocked.has(level.id) && ids.length === 0 && waveIds[0]) ids = [waveIds[0]];
+    const ids = completedMissionIds.includes(level.id)
+      ? [...waveIds]
+      : unlocked.has(level.id) && waveIds[0]
+        ? [waveIds[0]]
+        : [];
     unlockedWaveIdsByMission[level.id] = ids;
   });
   let recommendedMissionId = typeof value.recommendedMissionId === 'string'
     && unlocked.has(value.recommendedMissionId)
     ? value.recommendedMissionId
     : CAMPAIGN_LEVEL_IDS[reachedMission - 1] || CAMPAIGN_LEVEL_IDS[0];
-  let recommendedWaveId = typeof value.recommendedWaveId === 'string'
-    && unlockedWaveIdsByMission[recommendedMissionId]?.includes(value.recommendedWaveId)
-    ? value.recommendedWaveId
-    : unlockedWaveIdsByMission[recommendedMissionId]?.[0];
+  let recommendedWaveId = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(recommendedMissionId)?.[0];
   if (!recommendedWaveId) {
     recommendedMissionId = CAMPAIGN_LEVEL_IDS[0];
     recommendedWaveId = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(recommendedMissionId)?.[0] || '';

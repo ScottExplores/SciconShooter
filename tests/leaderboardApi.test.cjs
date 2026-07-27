@@ -72,6 +72,47 @@ test('leaderboard derives score and wave from the signed receipt', async () => {
   }
 });
 
+test('leaderboard accepts a verified zero score without a rank threshold', async () => {
+  const runId = crypto.randomUUID();
+  const row = {
+    name: 'NEW PILOT', score: 0, wave: 7, date: new Date().toISOString(), wallet_address: null,
+    donated: false, proposal_id: null, proposal_title: null, proposal_url: null, proposal_author: null,
+    run_id: runId, verified: true, receipt_hash: 'hash'
+  };
+  const originalFetch = global.fetch;
+  let insertedScore = null;
+  global.fetch = async (url, options = {}) => {
+    const value = String(url);
+    if (value.includes('select=run_id&run_id=eq.')) return jsonResponse([]);
+    if (options.method === 'POST') {
+      const inserted = JSON.parse(options.body);
+      insertedScore = (Array.isArray(inserted) ? inserted[0] : inserted).score;
+      return jsonResponse(null, 204);
+    }
+    return jsonResponse([row]);
+  };
+
+  try {
+    const res = makeResponse();
+    await leaderboardHandler({
+      method: 'POST',
+      body: {
+        name: 'new pilot',
+        receiptToken: makeReceipt(runId, {
+          metrics: { score: 0, wave: 7, durationMs: 60_000, enemiesDefeated: 0, coinsCollected: 0 }
+        })
+      },
+      headers: {}, socket: { remoteAddress: '127.0.0.40' }
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(insertedScore, 0);
+    assert.equal(res.body.scores[0].score, 0);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('leaderboard rejects an unexpired receipt after its weekly score cutoff without touching storage', async () => {
   const runId = crypto.randomUUID();
   const { start } = getCurrentWeekRange(new Date());

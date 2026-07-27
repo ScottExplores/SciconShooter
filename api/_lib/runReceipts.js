@@ -9,6 +9,37 @@ const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_ru
 const MAX_RUN_DURATION_MS = 3 * 60 * 60 * 1000;
 const RECEIPT_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 const PLAYER_SHIP_IDS = new Set(['researchhub', 'bio', 'eth', 'btc']);
+const CAMPAIGN_CONFIG = require('../../game-config/campaign.json');
+const AUTHORED_MISSION_COUNT = Math.max(1, CAMPAIGN_CONFIG.levels?.length || 1);
+const FASTEST_PLAUSIBLE_MISSION_SECONDS = 8;
+const AUTHORED_MISSION_SCORE_PROFILES = (CAMPAIGN_CONFIG.levels || [])
+  .map((level, levelIndex) => {
+    const waves = level.waves || [];
+    const ordinaryDefeatScores = waves.flatMap((wave) => {
+      const fallbackScore = 30 * Math.max(1, Number(wave.scoreMultiplier) || 1);
+      return [
+        fallbackScore,
+        ...(wave.events || []).flatMap((event) => (
+          (event.enemies || []).map((enemy) => (
+            Number.isFinite(Number(enemy.scoreValue))
+              ? Math.max(0, Number(enemy.scoreValue))
+              : fallbackScore
+          ))
+        ))
+      ];
+    });
+    const bossRewardBudget = waves.reduce((missionTotal, wave) => (
+      missionTotal + (wave.events || []).reduce((waveTotal, event) => (
+        waveTotal + Math.max(0, Number(event.scoreReward) || 0)
+      ), 0)
+    ), 0);
+    return {
+      missionNumber: Math.max(1, Number(level.order) || levelIndex + 1),
+      ordinaryDefeatCeiling: Math.max(30, ...ordinaryDefeatScores),
+      bossRewardBudget
+    };
+  })
+  .sort((left, right) => left.missionNumber - right.missionNumber);
 
 const getReceiptSecret = () => (
   process.env.RUN_RECEIPT_SECRET
@@ -70,20 +101,46 @@ const normalizeRunMetrics = (metrics = {}) => ({
   playerShipId: normalizePlayerShipId(metrics.playerShipId)
 });
 
+const maximumPlausibleScoreForRun = (metrics, durationSeconds) => {
+  const finalMissionIndex = AUTHORED_MISSION_SCORE_PROFILES.findIndex((profile) => (
+    profile.missionNumber === metrics.wave
+  ));
+  const safeFinalIndex = finalMissionIndex >= 0
+    ? finalMissionIndex
+    : AUTHORED_MISSION_SCORE_PROFILES.length - 1;
+  const maximumMissionSpan = Math.max(
+    1,
+    Math.ceil(durationSeconds / FASTEST_PLAUSIBLE_MISSION_SECONDS) + 1
+  );
+  const scoreProfiles = AUTHORED_MISSION_SCORE_PROFILES.slice(
+    Math.max(0, safeFinalIndex - maximumMissionSpan + 1),
+    safeFinalIndex + 1
+  );
+  const ordinaryDefeatCeiling = Math.max(
+    30,
+    ...scoreProfiles.map((profile) => profile.ordinaryDefeatCeiling)
+  );
+  const bossRewardBudget = scoreProfiles.reduce((total, profile) => (
+    total + profile.bossRewardBudget
+  ), 0);
+
+  return 5000
+    + metrics.enemiesDefeated * ordinaryDefeatCeiling
+    + bossRewardBudget
+    + metrics.coinsCollected * 3
+    + Math.ceil(durationSeconds * 180);
+};
+
 const inspectRunMetrics = (metrics) => {
   const anomalies = [];
   const durationSeconds = Math.max(1, metrics.durationMs / 1000);
-  const maximumPlausibleWave = Math.ceil(durationSeconds / 12) + 4;
   const maximumPlausibleEnemies = Math.ceil(durationSeconds * 15) + 150;
   const maximumPlausibleCoins = metrics.enemiesDefeated * 6 + Math.ceil(durationSeconds * 3) + 150;
-  const maximumPlausibleScore = 5000
-    + metrics.enemiesDefeated * 650 * Math.max(1, metrics.wave)
-    + metrics.coinsCollected * 300
-    + Math.ceil(durationSeconds * 180);
+  const maximumPlausibleScore = maximumPlausibleScoreForRun(metrics, durationSeconds);
 
   if (metrics.durationMs < 1500) anomalies.push('run_too_short');
   if (metrics.durationMs > MAX_RUN_DURATION_MS) anomalies.push('run_too_long');
-  if (metrics.wave > maximumPlausibleWave) anomalies.push('wave_rate_impossible');
+  if (metrics.wave > AUTHORED_MISSION_COUNT) anomalies.push('mission_number_impossible');
   if (metrics.enemiesDefeated > maximumPlausibleEnemies) anomalies.push('enemy_rate_impossible');
   if (metrics.coinsCollected > maximumPlausibleCoins) anomalies.push('coin_rate_impossible');
   if (metrics.score > maximumPlausibleScore) anomalies.push('score_rate_impossible');
@@ -96,7 +153,10 @@ const hashIp = (req) => {
   return crypto.createHmac('sha256', getReceiptSecret()).update(rawIp).digest('hex').slice(0, 32);
 };
 
-const createRunStart = (gameVersion = 'unknown', { testRun = false, playerShipId = 'researchhub' } = {}) => {
+const createRunStart = (
+  gameVersion = 'unknown',
+  { testRun = false, playerShipId = 'researchhub' } = {}
+) => {
   const issuedAt = Date.now();
   const payload = {
     type: 'run-start',

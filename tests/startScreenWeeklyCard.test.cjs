@@ -19,6 +19,17 @@ const stylesSource = fs.readFileSync(
   path.join(__dirname, '..', 'styles', 'tailwind.input.css'),
   'utf8'
 );
+const appSource = fs.readFileSync(
+  path.join(__dirname, '..', 'App.tsx'),
+  'utf8'
+);
+
+test('Home has one Mission entry point and no separate weekly-score run control', () => {
+  assert.doesNotMatch(source, /onStartWeeklyRun|Weekly score run/);
+  assert.doesNotMatch(appSource, /startWeeklyRun|onStartWeeklyRun/);
+  assert.match(source, /onClick=\{onStart\}/);
+  assert.match(source, /\{campaignCheckpoint\.waveTotal\} WAVES/);
+});
 
 test('home winner card uses only the proposal saved on the current weekly leader', () => {
   assert.match(source, /proposalReferences\.forEach\(\(proposal\) => references\.set\(proposal\.id, proposal\)\)/);

@@ -24,6 +24,10 @@ const FIRST_WAVE = FIRST_MISSION.waves.slice().sort((left, right) => left.order 
 const SECOND_MISSION_WAVE = SECOND_MISSION.waves
   .slice()
   .sort((left, right) => left.order - right.order)[0];
+const SECOND_MISSION_LAST_WAVE = SECOND_MISSION.waves
+  .slice()
+  .sort((left, right) => left.order - right.order)
+  .at(-1);
 const CAMPAIGN_REWARD_ID = `campaign:${FIRST_MISSION.id}:first-clear`;
 const CAMPAIGN_RESULT_ID = 'wallet-api-campaign-result';
 
@@ -208,11 +212,11 @@ test('challenge authentication creates a secure session and profile saves use re
           campaignId: campaign.id,
           campaignRevision: campaign.revision,
           recommendedMissionId: SECOND_MISSION.id,
-          recommendedWaveId: SECOND_MISSION_WAVE.id,
+          recommendedWaveId: SECOND_MISSION_LAST_WAVE.id,
           unlockedMissionIds: [FIRST_MISSION.id, SECOND_MISSION.id],
           unlockedWaveIdsByMission: {
             [FIRST_MISSION.id]: [FIRST_WAVE.id],
-            [SECOND_MISSION.id]: [SECOND_MISSION_WAVE.id]
+            [SECOND_MISSION.id]: [SECOND_MISSION_WAVE.id, SECOND_MISSION_LAST_WAVE.id]
           },
           missionRecords: {
             [FIRST_MISSION.id]: {
@@ -277,6 +281,7 @@ test('challenge authentication creates a secure session and profile saves use re
   assert.equal(savedCampaign.campaignRevision, campaign.revision);
   assert.equal(savedCampaign.recommendedMissionId, SECOND_MISSION.id);
   assert.equal(savedCampaign.recommendedWaveId, SECOND_MISSION_WAVE.id);
+  assert.deepEqual(savedCampaign.missionRecords[FIRST_MISSION.id].completedWaveIds, []);
   assert.equal(savedCampaign.missionRecords[FIRST_MISSION.id].bestScore, 777);
   assert.deepEqual(savedCampaign.claimedRewardIds, [CAMPAIGN_REWARD_ID]);
   assert.deepEqual(savedCampaign.processedResultIds, [CAMPAIGN_RESULT_ID]);

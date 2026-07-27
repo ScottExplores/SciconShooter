@@ -66,10 +66,11 @@ test('App separates guest-local and authenticated wallet-cloud profiles', () => 
   assert.match(walletProfiles, /signBaseAccountMessage\(address, challenge\.message\)/);
 });
 
-test('all competitive Pilot runs accrue weekly, permanent, and Boss Archive progress', () => {
+test('Pilot progress keeps standalone and Campaign settlement paths separate', () => {
   const app = read('App.tsx');
 
-  assert.match(app, /if \(!isNonCompetitiveRun && summary\.bossEncounterId\) \{[\s\S]*recordBossVictory/);
+  assert.match(app, /if \(!isCampaignRun && !isNonCompetitiveRun && summary\.bossEncounterId\) \{[\s\S]*recordBossVictory/);
+  assert.match(app, /const unsettledLifetimeCampaignEnemies = isCampaignRun/);
   assert.match(app, /if \(!isFounderSandboxRun && squadRunAppliedGameIdRef\.current !== gameId\) \{[\s\S]*applySquadRunResult/);
   assert.match(app, /if \(!isFounderSandboxRun && permanentRunAppliedGameIdRef\.current !== gameId\) \{[\s\S]*recordLifetimeRun/);
   assert.doesNotMatch(app, /activeWalletAddress && !isFounderSandboxRun/);

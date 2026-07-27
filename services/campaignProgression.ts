@@ -287,16 +287,6 @@ const missionIndex = (missionId: string, missions = CAMPAIGN_MISSIONS) => (
   missions.findIndex((mission) => mission.id === missionId)
 );
 
-const waveFlatIndex = (missionId: string, waveId: string, missions = CAMPAIGN_MISSIONS) => {
-  let cursor = 0;
-  for (const mission of missions) {
-    const index = mission.waveIds.indexOf(waveId);
-    if (mission.id === missionId && index >= 0) return cursor + index;
-    cursor += mission.waveIds.length;
-  }
-  return -1;
-};
-
 export const createCampaignProgress = (
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN,
   legacyHighestMission = 0
@@ -355,7 +345,7 @@ const sanitizeMissionRecord = (
   const completedWaveIds = uniqueStrings(record.completedWaveIds, allowedWaves);
   const completed = Boolean(record.completed) || completedWaveIds.length === mission.waveIds.length;
   return {
-    completedWaveIds: completed ? [...mission.waveIds] : completedWaveIds,
+    completedWaveIds: completed ? [...mission.waveIds] : [],
     completed,
     stars: Math.max(integer(record.stars, 0, 3), earnedStarIds.length, completed ? 1 : 0),
     earnedStarIds: completed && !earnedStarIds.includes(mission.starObjectives[0].id)
@@ -402,18 +392,13 @@ export const sanitizeCampaignProgress = (
     if (missions[index + 1]) unlockedMissionIds.add(missions[index + 1].id);
   });
   const unlockedWaveIdsByMission = Object.fromEntries(missions.map((mission) => {
-    const stored = uniqueStrings(raw.unlockedWaveIdsByMission?.[mission.id], new Set(mission.waveIds));
-    if (unlockedMissionIds.has(mission.id) && stored.length === 0) stored.push(mission.waveIds[0]);
     if (completedMissionIds.includes(mission.id)) return [mission.id, [...mission.waveIds]];
-    return [mission.id, stored];
+    return [mission.id, unlockedMissionIds.has(mission.id) ? [mission.waveIds[0]] : []];
   }));
   let recommendedMissionId = typeof raw.recommendedMissionId === 'string' && unlockedMissionIds.has(raw.recommendedMissionId)
     ? raw.recommendedMissionId
     : fallback.recommendedMissionId;
-  let recommendedWaveId = typeof raw.recommendedWaveId === 'string'
-    && unlockedWaveIdsByMission[recommendedMissionId]?.includes(raw.recommendedWaveId)
-    ? raw.recommendedWaveId
-    : unlockedWaveIdsByMission[recommendedMissionId]?.[0];
+  let recommendedWaveId = missionById.get(recommendedMissionId)?.waveIds[0];
   if (!recommendedWaveId) {
     recommendedMissionId = fallback.recommendedMissionId;
     recommendedWaveId = fallback.recommendedWaveId;
@@ -503,15 +488,12 @@ export const applyCampaignCompletion = (
     progress.unlockedMissionIds.includes(mission.id)
     || progress.missionRecords[mission.id]?.completed
   ));
-  const waveUnlocked = Boolean(mission && (
-    progress.unlockedWaveIdsByMission[mission.id]?.includes(input.waveId)
-    || progress.missionRecords[mission.id]?.completedWaveIds.includes(input.waveId)
-  ));
   if (
     !mission
     || currentIndex < 0
     || !missionUnlocked
-    || !waveUnlocked
+    || !input.stageComplete
+    || currentIndex !== mission.waveIds.length - 1
     || input.campaignId !== campaign.id
     || progress.processedResultIds.includes(input.resultId)
   ) {
@@ -540,20 +522,13 @@ export const applyCampaignCompletion = (
 
   const completedAt = isoDate(input.completedAt);
   const previousRecord = progress.missionRecords[mission.id] ?? createMissionRecord();
-  const wasWaveComplete = previousRecord.completedWaveIds.includes(input.waveId);
   const wasMissionComplete = previousRecord.completed;
-  const stageComplete = currentIndex === mission.waveIds.length - 1;
-  const completedWaveIds = Array.from(new Set([...previousRecord.completedWaveIds, input.waveId]));
-  const nextWaveId = mission.waveIds[currentIndex + 1] ?? null;
+  const stageComplete = true;
   const nextMission = mission.nextMissionId ? missions.find((entry) => entry.id === mission.nextMissionId) ?? null : null;
   const unlockedMissionIds = new Set(progress.unlockedMissionIds);
   const unlockedWaveIdsByMission = Object.fromEntries(Object.entries(progress.unlockedWaveIdsByMission).map(([id, ids]) => [id, [...ids]]));
   unlockedMissionIds.add(mission.id);
-  unlockedWaveIdsByMission[mission.id] = Array.from(new Set([
-    ...(unlockedWaveIdsByMission[mission.id] ?? [mission.waveIds[0]]),
-    input.waveId,
-    ...(nextWaveId ? [nextWaveId] : [])
-  ]));
+  unlockedWaveIdsByMission[mission.id] = [...mission.waveIds];
   let newlyUnlockedMissionId: string | null = null;
   if (stageComplete && nextMission) {
     if (!unlockedMissionIds.has(nextMission.id)) newlyUnlockedMissionId = nextMission.id;
@@ -589,8 +564,8 @@ export const applyCampaignCompletion = (
   );
   const record: CampaignMissionRecord = {
     ...previousRecord,
-    completedWaveIds: stageComplete ? [...mission.waveIds] : completedWaveIds,
-    completed: previousRecord.completed || stageComplete,
+    completedWaveIds: [...mission.waveIds],
+    completed: true,
     stars,
     earnedStarIds: Array.from(earnedStarIds),
     bestScore: Math.max(previousRecord.bestScore, inputScore),
@@ -606,12 +581,12 @@ export const applyCampaignCompletion = (
 
   const claimed = new Set(progress.claimedRewardIds);
   const grants: CampaignRewardGrant[] = [];
-  const replay = wasWaveComplete;
+  const replay = wasMissionComplete;
   const repeatMultiplier = replay ? mission.reward.replayMultiplier : 1;
   addGrant(grants, claimed, {
-    id: `campaign:${input.resultId}:wave`,
-    label: replay ? 'Wave replay' : 'Wave clear',
-    amount: Math.max(1, Math.round(mission.reward.waveClearCoins * repeatMultiplier)),
+    id: `campaign:${input.resultId}:waves`,
+    label: replay ? 'Mission waves replay' : 'Mission waves clear',
+    amount: Math.max(1, Math.round(mission.reward.waveClearCoins * repeatMultiplier)) * mission.waveIds.length,
     kind: 'wave',
     oneTime: false
   });
@@ -655,13 +630,13 @@ export const applyCampaignCompletion = (
   });
   const coinsAwarded = grants.reduce((total, grant) => total + grant.amount, 0);
 
-  const previousCheckpointIndex = waveFlatIndex(progress.recommendedMissionId, progress.recommendedWaveId, missions);
-  const candidateMissionId = nextWaveId ? mission.id : nextMission?.id ?? mission.id;
-  const candidateWaveId = nextWaveId ?? nextMission?.waveIds[0] ?? input.waveId;
-  const candidateCheckpointIndex = waveFlatIndex(candidateMissionId, candidateWaveId, missions);
+  const previousCheckpointIndex = missionIndex(progress.recommendedMissionId, missions);
+  const candidateMissionId = nextMission?.id ?? mission.id;
+  const candidateCheckpointIndex = missionIndex(candidateMissionId, missions);
   const advancesCheckpoint = candidateCheckpointIndex > previousCheckpointIndex;
   const recommendedMissionId = advancesCheckpoint ? candidateMissionId : progress.recommendedMissionId;
-  const recommendedWaveId = advancesCheckpoint ? candidateWaveId : progress.recommendedWaveId;
+  const recommendedWaveId = missions.find((entry) => entry.id === recommendedMissionId)?.waveIds[0]
+    ?? progress.recommendedWaveId;
   const completedMissionIds = new Set(progress.completedMissionIds);
   if (stageComplete) completedMissionIds.add(mission.id);
   const completionRecord: CampaignCompletionRecord = {
@@ -881,22 +856,23 @@ export const markCampaignMapViewed = (progress: CampaignProgress): CampaignProgr
 export const setCampaignCheckpoint = (
   current: CampaignProgress,
   missionId: string,
-  waveId?: string,
+  _waveId?: string,
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN
 ): CampaignProgress => {
   const progress = sanitizeCampaignProgress(current, { campaign });
   const missions = buildCampaignMissionDefinitions(campaign);
   const mission = missions.find((entry) => entry.id === missionId);
   if (!mission) return progress;
-  const selectedWaveId = waveId && mission.waveIds.includes(waveId) ? waveId : mission.waveIds[0];
   const targetIndex = missions.findIndex((entry) => entry.id === missionId);
   const unlockedMissionIds = missions.slice(0, targetIndex + 1).map((entry) => entry.id);
   const unlockedWaveIdsByMission = { ...progress.unlockedWaveIdsByMission };
-  unlockedWaveIdsByMission[mission.id] = mission.waveIds.slice(0, mission.waveIds.indexOf(selectedWaveId) + 1);
+  unlockedWaveIdsByMission[mission.id] = progress.completedMissionIds.includes(mission.id)
+    ? [...mission.waveIds]
+    : [mission.waveIds[0]];
   return {
     ...progress,
     recommendedMissionId: mission.id,
-    recommendedWaveId: selectedWaveId,
+    recommendedWaveId: mission.waveIds[0],
     unlockedMissionIds: Array.from(new Set([...progress.unlockedMissionIds, ...unlockedMissionIds])),
     unlockedWaveIdsByMission,
     updatedAt: new Date().toISOString()
@@ -943,8 +919,8 @@ export const mergeCampaignProgress = (
   const first = sanitizeCampaignProgress(left, { campaign });
   const second = sanitizeCampaignProgress(right, { campaign });
   const missions = buildCampaignMissionDefinitions(campaign);
-  const firstCheckpoint = waveFlatIndex(first.recommendedMissionId, first.recommendedWaveId, missions);
-  const secondCheckpoint = waveFlatIndex(second.recommendedMissionId, second.recommendedWaveId, missions);
+  const firstCheckpoint = missionIndex(first.recommendedMissionId, missions);
+  const secondCheckpoint = missionIndex(second.recommendedMissionId, missions);
   const checkpoint = secondCheckpoint > firstCheckpoint ? second : first;
   const missionRecords = Object.fromEntries(missions.map((mission) => {
     const a = first.missionRecords[mission.id] ?? createMissionRecord();
@@ -1000,25 +976,23 @@ export const getCampaignCheckpointLabel = (
 ) => {
   const missions = buildCampaignMissionDefinitions(campaign);
   const mission = missions.find((entry) => entry.id === progress.recommendedMissionId) ?? missions[0];
-  const waveIndex = Math.max(0, mission.waveIds.indexOf(progress.recommendedWaveId));
-  const hasAnyCompletion = progress.completedMissionIds.length > 0
-    || Object.values(progress.missionRecords).some((record) => record.completedWaveIds.length > 0);
+  const hasAnyCompletion = progress.completedMissionIds.length > 0;
   const previousMissionComplete = mission.number > 1
     && progress.completedMissionIds.includes(missions[mission.number - 2]?.id);
   return {
     missionId: mission.id,
     missionNumber: mission.number,
     missionName: mission.name,
-    waveId: mission.waveIds[waveIndex],
-    waveNumber: waveIndex + 1,
+    waveId: mission.waveIds[0],
+    waveNumber: 1,
     waveTotal: mission.waveIds.length,
     action: progress.campaignCompleted
       ? 'Replay Final Mission'
       : !hasAnyCompletion
       ? 'Start Mission'
-      : waveIndex === 0 && previousMissionComplete
+      : previousMissionComplete
         ? 'Next Mission'
-        : 'Continue Mission'
+        : 'Start Mission'
   } as const;
 };
 

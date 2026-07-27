@@ -292,7 +292,8 @@ test('production integration unlocks only authored boss victories and keeps repl
   assert.match(app, /!isNonCompetitiveRun && summary\.bossEncounterId/);
   assert.match(app, /recordBossVictory\(current, summary\.bossEncounterId as string\)/);
   assert.match(app, /pendingLaunch\.runMode === 'boss-archive'/);
-  assert.match(app, /if \(isBossArchiveRun \|\| isCampaignRun\) return null/);
+  assert.match(app, /if \(isBossArchiveRun\) return null/);
+  assert.match(app, /if \(!isCampaignRun && !isNonCompetitiveRun && summary\.bossEncounterId\)/);
   assert.match(app, /campaign: activeBossReplayCampaign \?\?/);
   assert.match(app, /levelId: activeBossReplay\?\.missionId \?\?/);
   assert.match(app, /waveId: activeBossReplay\?\.waveId \?\?/);

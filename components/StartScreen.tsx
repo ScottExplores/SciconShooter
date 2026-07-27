@@ -65,11 +65,10 @@ type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 
 interface StartScreenProps {
   onStart: () => void;
-  onStartWeeklyRun?: () => void;
   onOpenCampaignMap?: () => void;
   campaignNotificationCount?: number;
   campaignCheckpoint?: {
-    action: 'Start Mission' | 'Continue Mission' | 'Next Mission' | 'Replay Final Mission';
+    action: 'Start Mission' | 'Next Mission' | 'Replay Final Mission';
     missionNumber: number;
     missionName: string;
     waveNumber: number;
@@ -571,7 +570,6 @@ const MoreMenuTile: React.FC<{
 
 const StartScreen: React.FC<StartScreenProps> = ({
   onStart,
-  onStartWeeklyRun,
   onOpenCampaignMap,
   campaignNotificationCount = 0,
   campaignCheckpoint = {
@@ -1268,11 +1266,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
           ) : null}
           <div
             className="flex w-full items-center justify-between gap-3 border-x border-cyan-300/18 bg-slate-950/58 px-3 py-1.5 font-mono uppercase"
-            aria-label={`${campaignCheckpoint.action}. Mission ${campaignCheckpoint.missionNumber}, Wave ${campaignCheckpoint.waveNumber} of ${campaignCheckpoint.waveTotal}, ${campaignCheckpoint.missionName}.`}
+            aria-label={`${campaignCheckpoint.action}. Mission ${campaignCheckpoint.missionNumber}, ${campaignCheckpoint.waveTotal} waves, ${campaignCheckpoint.missionName}.`}
           >
             <span className="text-[0.58rem] font-black tracking-[0.16em] text-emerald-300">{campaignCheckpoint.action}</span>
             <span aria-hidden="true" className="truncate text-right text-[0.62rem] font-bold tracking-[0.08em] text-cyan-100">
-              M{String(campaignCheckpoint.missionNumber).padStart(2, '0')} / W{campaignCheckpoint.waveNumber}/{campaignCheckpoint.waveTotal} / {campaignCheckpoint.missionName}
+              M{String(campaignCheckpoint.missionNumber).padStart(2, '0')} / {campaignCheckpoint.waveTotal} WAVES / {campaignCheckpoint.missionName}
             </span>
           </div>
           <PixelActionButton
@@ -1289,15 +1287,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <span>{campaignCheckpoint.action}</span>
             </span>
           </PixelActionButton>
-          {onStartWeeklyRun ? (
-            <button
-              type="button"
-              onClick={onStartWeeklyRun}
-              className="min-h-11 px-3 font-mono text-[0.6rem] font-black uppercase tracking-[0.13em] text-cyan-200 underline decoration-cyan-400/45 underline-offset-4 hover:text-cyan-50"
-            >
-              Weekly score run / starts at Mission 1
-            </button>
-          ) : null}
           {!compact ? <p className="text-sm font-bold text-emerald-200">Complete. Earn. Fund.</p> : null}
         </div>
       </div>
@@ -1772,7 +1761,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             ) : walletRuns.length === 0 ? (
               <div className="rounded-[6px] border border-cyan-300/15 bg-cyan-300/8 p-4 text-sm text-slate-200">
                 <p className="font-bold text-white">No saved runs yet</p>
-                <p className="mt-1 text-xs text-slate-400">Finish a mission and submit your score. Your latest five runs will appear here.</p>
+                <p className="mt-1 text-xs text-slate-400">Submit your score after a run. Your latest five runs will appear here.</p>
               </div>
             ) : walletRuns.slice(0, 5).map((run) => {
               const runShip = PLAYER_SHIPS[run.receipt.metrics.playerShipId];

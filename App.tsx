@@ -500,6 +500,7 @@ const App: React.FC = () => {
   const permanentBossAppliedKeysRef = useRef<Set<string>>(new Set());
   const processedCampaignSummaryKeysRef = useRef<Set<string>>(new Set());
   const campaignAttemptIdRef = useRef('');
+  const campaignRunCreditedEnemiesRef = useRef(0);
   const campaignResultPreviewRef = useRef(false);
   const weeklySquadStateRef = useRef(weeklySquadState);
   const permanentSquadStateRef = useRef(permanentSquadState);
@@ -672,7 +673,7 @@ const App: React.FC = () => {
   const isBossArchiveRun = activeRunMode === 'boss-archive';
   const isCampaignRun = activeRunMode === 'campaign' || activeRunMode === 'campaign-replay';
   const isFounderSandboxRun = isOwnerWallet || isOwnerTestRun;
-  const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun || isCampaignRun;
+  const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun;
   const activeBossReplay = useMemo(() => (
     activeBossEncounterId ? getBossArchiveEntry(activeBossEncounterId) : null
   ), [activeBossEncounterId]);
@@ -1484,11 +1485,16 @@ const App: React.FC = () => {
     const requestedCampaignMission = campaignRequest
       ? getCampaignMissionById(campaignRequest.missionId)
       : null;
+    const normalizedCampaignRequest = campaignRequest && requestedCampaignMission
+      ? {
+          ...campaignRequest,
+          waveId: requestedCampaignMission.waveIds[0]
+        }
+      : campaignRequest;
     if (
       campaignRequest
       && (
         !requestedCampaignMission
-        || !requestedCampaignMission.waveIds.includes(campaignRequest.waveId)
         || !isCampaignMissionUnlocked(
           permanentSquadStateRef.current.campaignProgress,
           campaignRequest.missionId
@@ -1496,7 +1502,7 @@ const App: React.FC = () => {
         || !isCampaignWaveUnlocked(
           permanentSquadStateRef.current.campaignProgress,
           campaignRequest.missionId,
-          campaignRequest.waveId
+          requestedCampaignMission.waveIds[0]
         )
       )
     ) {
@@ -1576,16 +1582,16 @@ const App: React.FC = () => {
 
     const runMode: ActiveRunMode = requestedBossReplay
       ? 'boss-archive'
-      : campaignRequest?.kind === 'replay'
+      : normalizedCampaignRequest?.kind === 'replay'
         ? 'campaign-replay'
-        : campaignRequest
+        : normalizedCampaignRequest
           ? 'campaign'
           : isOwnerWallet
         ? 'owner-test'
         : 'standard';
     setActiveRunMode(runMode);
     setActiveBossEncounterId(requestedBossReplay?.eventId ?? null);
-    setActiveCampaignLaunch(campaignRequest);
+    setActiveCampaignLaunch(normalizedCampaignRequest);
 
     const launchNonce = missionLaunchNonceRef.current + 1;
     const archiveRunId = requestedBossReplay
@@ -1662,7 +1668,8 @@ const App: React.FC = () => {
     permanentBossAppliedKeysRef.current.clear();
     processedCampaignSummaryKeysRef.current.clear();
     campaignResultPreviewRef.current = false;
-    campaignAttemptIdRef.current = campaignRequest
+    campaignRunCreditedEnemiesRef.current = 0;
+    campaignAttemptIdRef.current = normalizedCampaignRequest
       ? (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${launchNonce.toString(36)}`)
       : '';
     setMissionRecordPilotName(null);
@@ -1749,15 +1756,29 @@ const App: React.FC = () => {
   };
 
   const startGame = () => {
+    const mission = getCampaignMissionById(campaignCheckpoint.missionId);
     void launchGame(null, 'practice', 'standard', {
       missionId: campaignCheckpoint.missionId,
-      waveId: campaignCheckpoint.waveId,
+      waveId: mission?.waveIds[0] ?? campaignCheckpoint.waveId,
       kind: 'checkpoint'
     });
   };
 
-  const startWeeklyRun = () => {
-    void launchGame(null);
+  const retryGame = () => {
+    if (isCampaignRun && activeCampaignLaunch) {
+      const currentMissionNumber = Math.max(1, Math.floor(stats.wave));
+      const activeLevel = DEFAULT_GAME_CAMPAIGN.levels.find((level) => level.order === currentMissionNumber);
+      const mission = activeLevel ? getCampaignMissionById(activeLevel.id) : null;
+      if (mission) {
+        void launchGame(null, 'practice', 'standard', {
+          ...activeCampaignLaunch,
+          missionId: mission.id,
+          waveId: mission.waveIds[0]
+        });
+        return;
+      }
+    }
+    startGame();
   };
 
   const startBossArchiveFight = (
@@ -1801,7 +1822,7 @@ const App: React.FC = () => {
         const introBeat = getStoryBeatForPhase(pendingLaunch.missionNumber);
         if (introBeat && !hasSeenStoryBeatToday(introBeat)) {
           setActiveStoryBeat(introBeat);
-        } else if (pendingLaunch.runMode !== 'campaign' && pendingLaunch.runMode !== 'campaign-replay') {
+        } else {
           beginRunSession(pendingLaunch.startInTestMode || isOwnerWallet);
         }
       }
@@ -1861,6 +1882,7 @@ const App: React.FC = () => {
     setActiveCampaignLaunch(null);
     processedCampaignSummaryKeysRef.current.clear();
     campaignAttemptIdRef.current = '';
+    campaignRunCreditedEnemiesRef.current = 0;
     campaignResultPreviewRef.current = false;
     setOwnerFrameFrozen(false);
     runStartedAtRef.current = null;
@@ -2156,6 +2178,7 @@ const App: React.FC = () => {
 
   const handleCampaignProgress = useCallback((summary: WaveVictorySummary) => {
     if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
+    if (!summary.stageComplete) return;
     const attemptId = campaignAttemptIdRef.current || `game-${gameId}`;
     const resultId = `${activeProfileId}:${attemptId}:${summary.levelId}:${summary.waveId}`;
     if (processedCampaignSummaryKeysRef.current.has(resultId)) return;
@@ -2204,10 +2227,13 @@ const App: React.FC = () => {
       });
     } catch (error) {
       console.error('Campaign checkpoint settlement failed', error);
-      setCampaignMapError('Campaign progress could not be saved on this device. Retry the Wave to secure it.');
+      setCampaignMapError('Campaign progress could not be saved on this device. Retry the Mission to secure it.');
       return;
     }
     processedCampaignSummaryKeysRef.current.add(resultId);
+    if (!completion.settlement.duplicate) {
+      campaignRunCreditedEnemiesRef.current += Math.max(0, Math.floor(summary.enemiesDefeated));
+    }
     weeklySquadStateRef.current = credit.state;
     setWeeklySquadState(credit.state);
     permanentSquadStateRef.current = nextPermanent;
@@ -2226,7 +2252,8 @@ const App: React.FC = () => {
 
   const finalizeCampaignCollectedCoins = useCallback((summary: WaveVictorySummary) => {
     if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
-    const collectedCoins = Math.max(0, Math.floor(summary.waveCoinsCollected));
+    if (!summary.stageComplete) return;
+    const collectedCoins = Math.max(0, Math.floor(summary.coinsCollected));
     const attemptId = campaignAttemptIdRef.current || `game-${gameId}`;
     const resultId = `${activeProfileId}:${attemptId}:${summary.levelId}:${summary.waveId}`;
     const collectedGrant = {
@@ -2322,14 +2349,14 @@ const App: React.FC = () => {
       return;
     }
     if (isCampaignRun) {
-      handleCampaignProgress(summary);
-      finalizeCampaignCollectedCoins(summary);
       if (!summary.stageComplete) {
         setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
         return;
       }
+      handleCampaignProgress(summary);
+      finalizeCampaignCollectedCoins(summary);
     }
-    if (!isNonCompetitiveRun && summary.bossEncounterId) {
+    if (!isCampaignRun && !isNonCompetitiveRun && summary.bossEncounterId) {
       const victoryKey = `${gameId}:${summary.id}`;
       if (!permanentBossAppliedKeysRef.current.has(victoryKey)) {
         permanentBossAppliedKeysRef.current.add(victoryKey);
@@ -2375,7 +2402,7 @@ const App: React.FC = () => {
     if (activeStoryBeat) {
       markStoryBeatSeenToday(activeStoryBeat);
     }
-    if (completedPhase === 1 && !isCampaignRun) {
+    if (completedPhase !== undefined && !isBossArchiveRun) {
       beginRunSession(isOwnerTestRun || isOwnerWallet);
     }
     setActiveStoryBeat(null);
@@ -2919,7 +2946,7 @@ const App: React.FC = () => {
   }, [activeStoryBeat, gameState, stats.wave]);
 
   const finalizeCurrentRun = async (): Promise<RunReceipt | null> => {
-    if (isBossArchiveRun || isCampaignRun) return null;
+    if (isBossArchiveRun) return null;
     if (runReceipt) return runReceipt;
     if (runReceiptPromiseRef.current) return runReceiptPromiseRef.current;
     if (finalizedRunGameIdRef.current === gameId) return null;
@@ -2961,17 +2988,20 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (gameState === GameState.GAMEOVER) {
-      if (isBossArchiveRun || isCampaignRun) {
+      if (isBossArchiveRun) {
         setShowNameInput(false);
         setScoreSubmitError('');
         return;
       }
+      const unsettledLifetimeCampaignEnemies = isCampaignRun
+        ? Math.max(0, stats.enemiesDefeated - campaignRunCreditedEnemiesRef.current)
+        : stats.enemiesDefeated;
       if (!isFounderSandboxRun && squadRunAppliedGameIdRef.current !== gameId) {
         squadRunAppliedGameIdRef.current = gameId;
         updateWeeklySquadState((current) => applySquadRunResult(current, {
           score: stats.score,
           enemiesDefeated: stats.enemiesDefeated,
-          coinsCollected: stats.coins
+          coinsCollected: isCampaignRun ? 0 : stats.coins
         }));
       }
       if (!isFounderSandboxRun && permanentRunAppliedGameIdRef.current !== gameId) {
@@ -2979,8 +3009,8 @@ const App: React.FC = () => {
         updatePermanentSquadState((current) => recordLifetimeRun(current, {
           score: stats.score,
           wave: stats.wave,
-          enemiesDefeated: stats.enemiesDefeated,
-          coinsCollected: stats.coins
+          enemiesDefeated: unsettledLifetimeCampaignEnemies,
+          coinsCollected: isCampaignRun ? 0 : stats.coins
         }));
       }
       const scoreKey = `${gameId}:${stats.score}:${stats.wave}`;
@@ -3390,7 +3420,7 @@ const App: React.FC = () => {
       ) : null}
     </div>
   );
-  const gameOverContinueControls = !campaignCompletedRun && !isNonCompetitiveRun && !runReceipt && runReceiptStatus !== 'finalizing'
+  const gameOverContinueControls = !campaignCompletedRun && !isCampaignRun && !isNonCompetitiveRun && !runReceipt && runReceiptStatus !== 'finalizing'
     ? continueRunControls
     : null;
   const resultEncounter = getStageName(stats.wave);
@@ -3494,7 +3524,7 @@ const App: React.FC = () => {
               playerShipId: usableShipId,
               squadLoadout: activeRunSquadLoadoutRef.current,
               campaign: activeBossReplayCampaign ?? (isCampaignRun ? DEFAULT_GAME_CAMPAIGN : undefined),
-              pauseAtInternalWaveResults: isCampaignRun,
+              pauseAtInternalWaveResults: false,
               levelId: activeBossReplay?.missionId ?? (isCampaignRun ? activeCampaignLaunch?.missionId : undefined),
               waveId: activeBossReplay?.waveId ?? (isCampaignRun ? activeCampaignLaunch?.waveId : undefined),
               randomSeed: activeBossArchiveRun?.seed,
@@ -3558,7 +3588,6 @@ const App: React.FC = () => {
       {gameState === GameState.MENU && (
         <StartScreen
           onStart={startGame}
-          onStartWeeklyRun={startWeeklyRun}
           onOpenCampaignMap={() => openCampaignMap()}
           campaignNotificationCount={campaignNotificationCount}
           campaignCheckpoint={campaignCheckpoint}
@@ -3894,7 +3923,7 @@ const App: React.FC = () => {
                       </p>
                     ) : null}
                     <div className="grid gap-2">
-                      <button onClick={startGame} className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold">RETRY MISSION</button>
+                      <button onClick={retryGame} className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold">RETRY MISSION</button>
                       <button onClick={openSquadHangar} className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold">HANGAR</button>
                       <button onClick={resetGame} className="scicon-btn scicon-btn-secondary min-h-11 w-full py-2.5 text-xs font-bold text-gray-300">MAIN MENU</button>
                     </div>
@@ -4013,7 +4042,7 @@ const App: React.FC = () => {
             onMint={mintCurrentMissionRecord}
             weeklyFunding={missionRecordWeeklyFunding}
             onOpenWeeklyFunding={openMissionRecordWeeklyFunding}
-            onRetryRun={startGame}
+            onRetryRun={retryGame}
             onHangar={openSquadHangar}
             onMainMenu={() => {
               setShowMissionRecordPreview(false);

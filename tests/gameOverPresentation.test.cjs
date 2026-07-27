@@ -41,9 +41,9 @@ test('the canonical game-over flow keeps all existing actions inside the new pre
   assert.match(app, /handleContinueWithRsc/);
   assert.match(app, /onSubmit=\{submitScore\}/);
   assert.match(app, /onClick=\{skipScoreSubmission\}/);
-  assert.match(app, /onClick=\{startGame\}/);
+  assert.match(app, /onClick=\{retryGame\}/);
   assert.match(app, /setShowMissionRecordPreview\(true\)/);
-  assert.match(app, /onRetryRun=\{startGame\}/);
+  assert.match(app, /onRetryRun=\{retryGame\}/);
   assert.match(app, /onHangar=\{openSquadHangar\}/);
   assert.match(app, /onMainMenu=\{\(\) => \{/);
   assert.match(app, /setShowNameInput\(true\)/);

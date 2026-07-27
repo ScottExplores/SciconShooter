@@ -22,6 +22,10 @@ const FIRST_WAVE = FIRST_MISSION.waves.slice().sort((left, right) => left.order 
 const SECOND_MISSION_WAVE = SECOND_MISSION.waves
   .slice()
   .sort((left, right) => left.order - right.order)[0];
+const SECOND_MISSION_LAST_WAVE = SECOND_MISSION.waves
+  .slice()
+  .sort((left, right) => left.order - right.order)
+  .at(-1);
 
 test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted ownership', () => {
   const now = Date.UTC(2026, 6, 23, 19);
@@ -225,11 +229,11 @@ test('Campaign progress and reward receipts survive wallet sanitization with str
         campaignId: 'injected-campaign',
         campaignRevision: campaign.revision,
         recommendedMissionId: SECOND_MISSION.id,
-        recommendedWaveId: SECOND_MISSION_WAVE.id,
+        recommendedWaveId: SECOND_MISSION_LAST_WAVE.id,
         unlockedMissionIds: [FIRST_MISSION.id, SECOND_MISSION.id, 'unknown-mission'],
         unlockedWaveIdsByMission: {
           [FIRST_MISSION.id]: [FIRST_WAVE.id, SECOND_MISSION_WAVE.id, 'unknown-wave'],
-          [SECOND_MISSION.id]: [SECOND_MISSION_WAVE.id]
+          [SECOND_MISSION.id]: [SECOND_MISSION_WAVE.id, SECOND_MISSION_LAST_WAVE.id]
         },
         missionRecords: {
           [FIRST_MISSION.id]: {
@@ -283,7 +287,7 @@ test('Campaign progress and reward receipts survive wallet sanitization with str
   assert.deepEqual(progress.unlockedMissionIds, [FIRST_MISSION.id, SECOND_MISSION.id]);
   assert.deepEqual(progress.unlockedWaveIdsByMission[FIRST_MISSION.id], [FIRST_WAVE.id]);
   assert.deepEqual(progress.unlockedWaveIdsByMission[SECOND_MISSION.id], [SECOND_MISSION_WAVE.id]);
-  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].completedWaveIds, [FIRST_WAVE.id]);
+  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].completedWaveIds, []);
   assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].earnedStarIds, [`${FIRST_MISSION.id}:complete`]);
   assert.equal(progress.missionRecords[FIRST_MISSION.id].bestScore, 321);
   assert.deepEqual(progress.claimedRewardIds, [validRewardId]);

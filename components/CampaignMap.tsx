@@ -131,17 +131,10 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   const selectedRevealed = Boolean(selectedState?.unlocked || previewLocked);
   const selectedBaseClearReward = selectedMission ? getMissionBaseClearReward(selectedMission) : 0;
   const selectedReplayReward = selectedMission ? getMissionReplayReward(selectedMission) : 0;
-  const checkpointWaveIndex = selectedMission?.id === progress.recommendedMissionId
-    ? Math.max(0, selectedMission.waveIds.indexOf(progress.recommendedWaveId))
-    : 0;
   const launchRequest: CampaignMapLaunchRequest | null = selectedMission && selectedState?.unlocked
     ? {
         missionId: selectedMission.id,
-        waveId: selectedState.completed
-          ? selectedMission.waveIds[0]
-          : selectedState.current
-          ? selectedMission.waveIds[checkpointWaveIndex]
-          : selectedMission.waveIds[0],
+        waveId: selectedMission.waveIds[0],
         kind: selectedState.completed
           ? 'replay'
           : selectedState.current
@@ -152,9 +145,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   const launchLabel = launchRequest?.kind === 'replay'
     ? 'Replay Mission'
     : launchRequest?.kind === 'checkpoint'
-      ? checkpoint.action === 'Continue Mission'
-        ? `Continue Wave ${checkpointWaveIndex + 1}`
-        : checkpoint.action
+      ? checkpoint.action
       : 'Start Mission';
   const routeHeight = Math.max(720, ROUTE_TOP * 2 + Math.max(0, orderedMissions.length - 1) * NODE_STEP);
 
@@ -337,9 +328,9 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
             <h1 id="campaign-map-title">Campaign Map</h1>
             <p id="campaign-map-instructions">Select an unlocked Mission. Use arrow keys, touch drag, or the mouse wheel to navigate.</p>
           </div>
-          <div className="campaign-map-checkpoint" aria-label={`Current checkpoint Mission ${checkpoint.missionNumber}, Wave ${checkpoint.waveNumber} of ${checkpoint.waveTotal}`}>
-            <small>Current checkpoint</small>
-            <strong>M{String(checkpoint.missionNumber).padStart(2, '0')} / W{checkpoint.waveNumber}/{checkpoint.waveTotal}</strong>
+          <div className="campaign-map-checkpoint" aria-label={`Current Mission ${checkpoint.missionNumber}, ${checkpoint.waveTotal} waves`}>
+            <small>Current Mission</small>
+            <strong>M{String(checkpoint.missionNumber).padStart(2, '0')} / {checkpoint.waveTotal} WAVES</strong>
           </div>
         </header>
 
@@ -397,7 +388,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                   const stateLabel = !nodeState.unlocked
                     ? 'Locked'
                     : nodeState.current
-                      ? nodeState.completed ? 'Current checkpoint, completed' : 'Current checkpoint'
+                      ? nodeState.completed ? 'Current Mission, completed' : 'Current Mission'
                       : nodeState.completed
                         ? 'Completed'
                         : 'Unlocked';
@@ -456,7 +447,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
               >
                 <p className="campaign-map-sr-only" role="status">
                   Mission {selectedMission.number}, {selectedRevealed ? selectedMission.name : 'Encrypted Sector'}. {selectedState.current
-                    ? 'Current checkpoint.'
+                    ? 'Current Mission.'
                     : selectedState.completed
                       ? 'Completed.'
                       : selectedState.unlocked
@@ -467,7 +458,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                   <span>Mission {String(selectedMission.number).padStart(2, '0')} / {orderedMissions.length}</span>
                   <span className={`campaign-map-selection-state campaign-map-selection-state--${selectedState.current ? 'current' : selectedState.completed ? 'completed' : selectedState.unlocked ? 'unlocked' : 'locked'}`}>
                     {selectedState.current
-                      ? selectedState.completed ? 'Current / completed' : 'Current checkpoint'
+                      ? selectedState.completed ? 'Current / completed' : 'Current Mission'
                       : selectedState.completed
                         ? 'Completed'
                         : selectedState.unlocked
@@ -497,9 +488,9 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       : `Complete Mission ${Math.max(1, selectedMission.number - 1)} to reveal this sector.`}</p>
                     <div className="campaign-map-wave-list" aria-label="Mission waves">
                       {selectedMission.waves.map((wave) => {
-                        const completed = selectedRecord?.completedWaveIds.includes(wave.id);
-                        const unlocked = progress.unlockedWaveIdsByMission[selectedMission.id]?.includes(wave.id);
-                        const waveState = completed ? 'complete' : unlocked ? 'unlocked' : 'locked';
+                        const completed = selectedState.completed;
+                        const unlocked = selectedState.unlocked;
+                        const waveState = completed ? 'complete' : unlocked ? 'part of Mission' : 'locked';
                         return (
                           <span
                             key={wave.id}

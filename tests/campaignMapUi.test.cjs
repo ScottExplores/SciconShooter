@@ -36,6 +36,13 @@ test('Campaign Map offers a one-tap return after manual route exploration', () =
   assert.match(mapSource, /requestAnimationFrame\(\(\) => centerMissionNode\(progress\.recommendedMissionId\)\)/);
 });
 
+test('Campaign Map launches whole Missions from Wave 1 without a saved-Wave CTA', () => {
+  assert.match(mapSource, /waveId: selectedMission\.waveIds\[0\]/);
+  assert.doesNotMatch(mapSource, /Continue Wave/);
+  assert.doesNotMatch(mapSource, /waveId: selectedMission\.waveIds\[checkpointWaveIndex\]/);
+  assert.match(mapSource, /Current Mission/);
+});
+
 test('Home map and boss commands use icon-only buttons with shared new-item attention', () => {
   assert.match(startScreenSource, /data-campaign-map-trigger="true"[\s\S]*?data-attention=\{campaignNotificationCount > 0 \? 'true' : 'false'\}/);
   assert.match(startScreenSource, /sci-home-command-icon__art--map/);

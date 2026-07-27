@@ -55,7 +55,10 @@ const postReceiptAction = async (payload: Record<string, unknown>) => {
   return response.json();
 };
 
-const createLocalRunSession = (testRun = false, playerShipId: PlayerShipId = 'researchhub'): RunSession => {
+const createLocalRunSession = (
+  testRun = false,
+  playerShipId: PlayerShipId = 'researchhub'
+): RunSession => {
   const issuedAt = new Date();
   return {
     runId: crypto.randomUUID(),

@@ -83,6 +83,56 @@ test('rejects impossible run metrics', async () => {
   }, requestStub), /integrity checks/i);
 });
 
+test('accepts any authored Mission without trusting a client-selected starting Mission', async () => {
+  const start = createRunStart('test', { startingWave: 999 });
+  assert.equal(start.startingWave, undefined);
+  assert.equal(JSON.parse(Buffer.from(start.startToken.split('.')[0], 'base64url').toString('utf8')).startingWave, undefined);
+
+  const receipt = await finishRun(startToken(), {
+    score: 500,
+    wave: 20,
+    durationMs: 30_000,
+    enemiesDefeated: 2,
+    coinsCollected: 1
+  }, requestStub);
+
+  assert.equal(receipt.integrity, 'server-verified');
+  assert.equal(receipt.anomalies.includes('mission_number_impossible'), false);
+
+  const lateMissionBossReceipt = await finishRun(startToken(), {
+    score: 35_000,
+    wave: 20,
+    durationMs: 30_000,
+    enemiesDefeated: 2,
+    coinsCollected: 1
+  }, requestStub);
+  assert.equal(lateMissionBossReceipt.integrity, 'server-verified');
+
+  await assert.rejects(() => finishRun(startToken(), {
+    score: 500,
+    wave: 21,
+    durationMs: 30_000,
+    enemiesDefeated: 2,
+    coinsCollected: 1
+  }, requestStub), /integrity checks/i);
+
+  await assert.rejects(() => finishRun(startToken(), {
+    score: 2_900_000,
+    wave: 1,
+    durationMs: 30_000,
+    enemiesDefeated: 100,
+    coinsCollected: 1
+  }, requestStub), /integrity checks/i);
+
+  await assert.rejects(() => finishRun(startToken(), {
+    score: 99_999_999,
+    wave: 20,
+    durationMs: 30_000,
+    enemiesDefeated: 1,
+    coinsCollected: 1
+  }, requestStub), /integrity checks/i);
+});
+
 test('marks owner test receipts and permits wave-jump metrics without ranking integrity failures', async () => {
   const start = createRunStart('test', { testRun: true });
   assert.equal(start.testRun, true);
