@@ -202,8 +202,13 @@ test('production integration unlocks only authored boss victories and keeps repl
   assert.match(app, /levelId: activeBossReplay\?\.missionId/);
   assert.match(app, /waveId: activeBossReplay\?\.waveId/);
   assert.match(startScreen, /walletControl \|\| canOpenBossArchive/);
+  assert.match(startScreen, /founderSandbox\s*\? BOSS_ARCHIVE_CATALOG\s*:\s*earnedBossArchiveEntries/);
   assert.match(startScreen, /permanentSquadState\.bossArchive\.unlockedEventIds/);
   assert.match(startScreen, /permanentSquadState\.bossArchive\.seenEventIds/);
+  assert.match(
+    app,
+    /!requestedBossReplay[\s\S]*?!isOwnerWallet[\s\S]*?!permanentSquadState\.bossArchive\.unlockedEventIds\.includes\(requestedBossReplay\.eventId\)/
+  );
   assert.ok(
     startScreen.indexOf('onClick={openBossArchive}') < startScreen.indexOf('{walletControl}'),
     'Boss Archive trigger must render to the left of the wallet control'

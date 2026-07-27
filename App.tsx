@@ -1348,7 +1348,10 @@ const App: React.FC = () => {
       bossEncounterId
       && (
         !requestedBossReplay
-        || !permanentSquadState.bossArchive.unlockedEventIds.includes(requestedBossReplay.eventId)
+        || (
+          !isOwnerWallet
+          && !permanentSquadState.bossArchive.unlockedEventIds.includes(requestedBossReplay.eventId)
+        )
       )
     ) return;
 

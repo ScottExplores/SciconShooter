@@ -38,6 +38,16 @@ test('founder Hangar sandbox unlocks the fleet, supports reversible upgrades, an
   assert.match(hangarSource, /onDowngradeMainShip\(upgrade\.id\)/);
 });
 
+test('project wallet can practice every authored Boss Archive encounter without granting earned unlocks', () => {
+  assert.match(startScreenSource, /founderSandbox\s*\? BOSS_ARCHIVE_CATALOG\s*:\s*earnedBossArchiveEntries/);
+  assert.match(
+    appSource,
+    /!requestedBossReplay[\s\S]*?!isOwnerWallet[\s\S]*?!permanentSquadState\.bossArchive\.unlockedEventIds\.includes\(requestedBossReplay\.eventId\)/
+  );
+  assert.doesNotMatch(appSource, /recordBossVictory\(current,[^)]*isOwnerWallet/);
+  assert.match(appSource, /const isNonCompetitiveRun = isFounderSandboxRun \|\| isBossArchiveRun/);
+});
+
 test('engine test mode preserves lives and supports stage and authored-climax jumps', () => {
   assert.match(engineSource, /testMode\?: boolean/);
   assert.match(engineSource, /jumpToCampaignWave\(stageNumber: number\)/);

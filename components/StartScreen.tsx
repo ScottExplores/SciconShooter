@@ -35,6 +35,7 @@ import ShipCarousel from './ShipCarousel';
 import BossArchive from './BossArchive';
 import RewardCenter, { type RewardTab } from './RewardCenter';
 import {
+  BOSS_ARCHIVE_CATALOG,
   getUnlockedBossArchiveEntries,
   type BossArchiveEntry
 } from '../services/bossArchive';
@@ -642,16 +643,19 @@ const StartScreen: React.FC<StartScreenProps> = ({
     [permanentSquadState]
   );
   const hasRewardReady = dailyGiftStatus.isAvailable || claimableAchievementCount > 0;
-  const unlockedBossArchiveEntries = useMemo(() => (
+  const earnedBossArchiveEntries = useMemo(() => (
     getUnlockedBossArchiveEntries(permanentSquadState.bossArchive.unlockedEventIds)
   ), [permanentSquadState.bossArchive.unlockedEventIds]);
+  const availableBossArchiveEntries = founderSandbox
+    ? BOSS_ARCHIVE_CATALOG
+    : earnedBossArchiveEntries;
   const newBossArchiveEventIds = useMemo(() => {
     const seen = new Set(permanentSquadState.bossArchive.seenEventIds);
-    return unlockedBossArchiveEntries
+    return earnedBossArchiveEntries
       .map((entry) => entry.eventId)
       .filter((eventId) => !seen.has(eventId));
-  }, [permanentSquadState.bossArchive.seenEventIds, unlockedBossArchiveEntries]);
-  const canOpenBossArchive = unlockedBossArchiveEntries.length > 0 && Boolean(onStartBossFight);
+  }, [earnedBossArchiveEntries, permanentSquadState.bossArchive.seenEventIds]);
+  const canOpenBossArchive = availableBossArchiveEntries.length > 0 && Boolean(onStartBossFight);
 
   const openBossArchive = () => {
     if (!canOpenBossArchive) return;
@@ -1992,7 +1996,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
       {showBossArchive && canOpenBossArchive && onStartBossFight ? (
         <BossArchive
-          entries={unlockedBossArchiveEntries}
+          entries={availableBossArchiveEntries}
           newEncounterIds={bossArchiveOpenedNewIds}
           onClose={closeBossArchive}
           onChallenge={onStartBossFight}
