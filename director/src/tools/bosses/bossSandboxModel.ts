@@ -62,7 +62,7 @@ import heliosRigSource from '../../../../director-data/prototype-assets/helios-c
 import prismMothAtlasSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.json';
 import prismMothRigSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper.rig.json';
 
-export const BOSS_SANDBOX_VERSION = 'V 0.24' as const;
+export const BOSS_SANDBOX_VERSION = 'V 0.25' as const;
 
 export const getBossSandboxPerformingAttackId = (
   activeAttack: PreviewBossAttackSnapshot | null | undefined
@@ -1989,7 +1989,11 @@ export const getSandboxBossArtworkRegistration = (
   prototypeId ? SANDBOX_BOSS_ARTWORK_REGISTRATIONS[prototypeId] : undefined
 );
 
-const TEST_MISSION_ID = 'boss-sandbox:test-mission';
+export const BOSS_SANDBOX_GROUP_IDS = Object.freeze({
+  campaign: 'boss-sandbox:main-game',
+  test: 'boss-sandbox:test-bosses',
+  legacy: 'boss-sandbox:legacy-bosses'
+} as const);
 
 export type BossSandboxViewportMode = 'desktop' | 'mobile';
 
@@ -2045,11 +2049,13 @@ export const resolveBossSandboxFitScale = (
 
 export interface BossSandboxChoice {
   readonly id: string;
-  readonly source: 'campaign' | 'test';
+  readonly source: 'campaign' | 'test' | 'legacy';
   readonly missionId: string;
   readonly missionLabel: string;
   readonly bossLabel: string;
   readonly waveLabel: string;
+  readonly missionOrder?: number;
+  readonly waveOrder?: number;
   readonly levelId?: string;
   readonly waveId?: string;
   readonly eventId?: string;
@@ -2075,8 +2081,19 @@ const productionChoiceId = (levelId: string, waveId: string, eventId: string) =>
   `boss-sandbox:campaign:${levelId}:${waveId}:${eventId}`
 );
 
-const testChoiceId = (prototypeId: SandboxBossPrototypeId) => (
-  `boss-sandbox:test:${prototypeId}`
+const prototypeChoiceId = (
+  source: 'test' | 'legacy',
+  prototypeId: SandboxBossPrototypeId
+) => (
+  `boss-sandbox:${source}:${prototypeId}`
+);
+
+export const getBossSandboxChoiceOptionLabel = (
+  choice: BossSandboxChoice
+): string => (
+  choice.source === 'campaign' && choice.missionOrder !== undefined
+    ? `M${String(choice.missionOrder).padStart(2, '0')} · ${choice.bossLabel}`
+    : choice.bossLabel
 );
 
 export const buildBossSandboxGroups = (
@@ -2087,12 +2104,17 @@ export const buildBossSandboxGroups = (
     throw new Error(validation.issues.map((issue) => issue.message).join('; '));
   }
 
-  const campaignGroups = [...campaign.levels]
+  const campaignChoices = [...campaign.levels]
     .sort((left, right) => left.order - right.order)
-    .flatMap((level): BossSandboxGroup[] => {
-      const choices = [...level.waves]
-        .sort((left, right) => left.order - right.order)
-        .flatMap((wave) => wave.events.flatMap((event): BossSandboxChoice[] => (
+    .flatMap((level) => [...level.waves]
+      .sort((left, right) => left.order - right.order)
+      .flatMap((wave) => wave.events
+        .map((event, eventIndex) => ({ event, eventIndex }))
+        .sort((left, right) => (
+          left.event.startSeconds - right.event.startSeconds
+          || left.eventIndex - right.eventIndex
+        ))
+        .flatMap(({ event }): BossSandboxChoice[] => (
           event.kind === 'boss'
             ? [{
                 id: productionChoiceId(level.id, wave.id, event.id),
@@ -2101,41 +2123,58 @@ export const buildBossSandboxGroups = (
                 missionLabel: level.name,
                 bossLabel: event.label,
                 waveLabel: wave.name,
+                missionOrder: level.order,
+                waveOrder: wave.order,
                 levelId: level.id,
                 waveId: wave.id,
                 eventId: event.id
               }]
             : []
-        )));
-      return choices.length > 0
-        ? [{
-            id: level.id,
-            label: level.name,
-            source: 'campaign',
-            choices
-          }]
-        : [];
-    });
+        ))));
 
-  const testChoices = SANDBOX_BOSS_PROTOTYPES.map((prototype): BossSandboxChoice => ({
-    id: testChoiceId(prototype.id),
-    source: 'test',
-    missionId: TEST_MISSION_ID,
-    missionLabel: 'TEST MISSION · Never ships',
-    bossLabel: prototype.label,
-    waveLabel: 'Isolated boss fight',
-    prototypeId: prototype.id
-  }));
+  const prototypeChoices = SANDBOX_BOSS_PROTOTYPES.map(
+    (prototype): BossSandboxChoice => {
+      const source = prototype.libraryCategory;
+      return {
+        id: prototypeChoiceId(source, prototype.id),
+        source,
+        missionId: BOSS_SANDBOX_GROUP_IDS[source],
+        missionLabel: source === 'legacy'
+          ? 'REMOVED / LEGACY · Still testable'
+          : 'TEST BOSSES · Never ships',
+        bossLabel: prototype.label,
+        waveLabel: source === 'legacy'
+          ? 'Preserved isolated boss fight'
+          : 'Isolated boss fight',
+        prototypeId: prototype.id
+      };
+    }
+  );
 
-  return [
+  const testChoices = prototypeChoices.filter((choice) => choice.source === 'test');
+  const legacyChoices = prototypeChoices.filter((choice) => choice.source === 'legacy');
+
+  const groups: BossSandboxGroup[] = [
     {
-      id: TEST_MISSION_ID,
-      label: 'TEST MISSION · Never ships',
+      id: BOSS_SANDBOX_GROUP_IDS.campaign,
+      label: 'MAIN GAME · Campaign order',
+      source: 'campaign',
+      choices: campaignChoices
+    },
+    {
+      id: BOSS_SANDBOX_GROUP_IDS.test,
+      label: 'TEST BOSSES · Never ships',
       source: 'test',
       choices: testChoices
     },
-    ...campaignGroups
+    {
+      id: BOSS_SANDBOX_GROUP_IDS.legacy,
+      label: 'REMOVED / LEGACY · Still testable',
+      source: 'legacy',
+      choices: legacyChoices
+    }
   ];
+  return groups.filter((group) => group.choices.length > 0);
 };
 
 const getBossEvent = (preview: CombatLabPreviewResult): BossEvent => {
@@ -2226,7 +2265,7 @@ export const buildBossSandboxPreview = (
     });
   }
 
-  if (!choice.prototypeId) throw new Error('Test boss choice is incomplete');
+  if (!choice.prototypeId) throw new Error('Sandbox boss choice is incomplete');
   return buildSandboxBossPrototypePreview(campaign, choice.prototypeId);
 };
 

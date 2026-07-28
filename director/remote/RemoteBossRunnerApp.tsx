@@ -272,18 +272,7 @@ export default function RemoteBossRunnerApp() {
     ),
     [choices]
   );
-  const bossPickerSections = useMemo(() => ([
-    {
-      id: 'test',
-      label: 'Test bosses',
-      choices: choices.filter((choice) => choice.source === 'test')
-    },
-    {
-      id: 'campaign',
-      label: 'Campaign bosses',
-      choices: choices.filter((choice) => choice.source === 'campaign')
-    }
-  ].filter((section) => section.choices.length > 0)), [choices]);
+  const bossPickerSections = groups;
   const firstChoice = choices.find(
     (choice) => choice.prototypeId === 'aurora-storm-engine'
   ) ?? choices[0];
@@ -373,7 +362,11 @@ export default function RemoteBossRunnerApp() {
     () => choices.filter((choice) => choice.source === 'campaign').length,
     [choices]
   );
-  const testBossCount = choices.length - campaignBossCount;
+  const testBossCount = useMemo(
+    () => choices.filter((choice) => choice.source === 'test').length,
+    [choices]
+  );
+  const legacyBossCount = choices.length - campaignBossCount - testBossCount;
 
   useEffect(() => {
     if (!artworkRegistration) {
@@ -701,7 +694,9 @@ export default function RemoteBossRunnerApp() {
                 <section className="remote-runner__panel" aria-label="Boss picker">
                   <div className="remote-runner__section-title">
                     <span>Fight library</span>
-                    <small>{campaignBossCount} campaign · {testBossCount} test</small>
+                    <small>
+                      {campaignBossCount} main · {testBossCount} test · {legacyBossCount} legacy
+                    </small>
                   </div>
                   <article className="remote-runner__boss-card">
                     <BossArtwork
@@ -711,7 +706,11 @@ export default function RemoteBossRunnerApp() {
                     />
                     <div className="remote-runner__boss-card-copy">
                       <span data-source={selectedChoice.source}>
-                        {selectedChoice.source === 'test' ? 'TEST ONLY' : 'CAMPAIGN'}
+                        {selectedChoice.source === 'campaign'
+                          ? 'MAIN GAME'
+                          : selectedChoice.source === 'legacy'
+                            ? 'REMOVED / LEGACY'
+                            : 'TEST ONLY'}
                       </span>
                       <h2>{selectedChoice.bossLabel}</h2>
                       <p>{selectedChoice.missionLabel}</p>
@@ -756,9 +755,11 @@ export default function RemoteBossRunnerApp() {
                               <span className="remote-runner__boss-option-copy">
                                 <strong>{choice.bossLabel}</strong>
                                 <small>
-                                  {choice.source === 'test'
-                                    ? 'Test mission'
-                                    : choice.missionLabel}
+                                  {choice.source === 'campaign'
+                                    ? choice.missionLabel
+                                    : choice.source === 'legacy'
+                                      ? 'Preserved boss'
+                                      : 'Test mission'}
                                 </small>
                               </span>
                             </button>

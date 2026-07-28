@@ -37,6 +37,7 @@ import {
   createSandboxOnlyBossArtwork,
   getBossSandboxEventId,
   getBossSandboxAttacks,
+  getBossSandboxChoiceOptionLabel,
   getBossSandboxPerformingAttackId,
   getSandboxBossArtworkRegistration,
   getBossSandboxPhases,
@@ -674,7 +675,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 <optgroup label={group.label} key={group.id}>
                   {group.choices.map((choice) => (
                     <option value={choice.id} key={choice.id}>
-                      {choice.bossLabel}
+                      {getBossSandboxChoiceOptionLabel(choice)}
                     </option>
                   ))}
                 </optgroup>
@@ -732,7 +733,11 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
               ) : null}
             </div>
             <span data-source={selectedChoice.source}>
-              {selectedChoice.source === 'test' ? 'TEST ONLY' : 'CAMPAIGN COPY'}
+              {selectedChoice.source === 'campaign'
+                ? 'MAIN GAME'
+                : selectedChoice.source === 'legacy'
+                  ? 'REMOVED / LEGACY'
+                  : 'TEST ONLY'}
             </span>
             <h1>{selectedChoice.bossLabel}</h1>
             <p>{selectedChoice.missionLabel}</p>

@@ -140,6 +140,12 @@ const timelineRegistry = await vite.ssrLoadModule('/game-config/bossTimeline.ts'
 const artworkAssets = await vite.ssrLoadModule(
   '/director/src/tools/bosses/bossSandboxArtworkAssets.ts'
 );
+const getAllBossChoices = () => (
+  model.buildBossSandboxGroups(campaign).flatMap((group) => group.choices)
+);
+const getPrototypeChoice = (prototypeId) => (
+  getAllBossChoices().find((choice) => choice.prototypeId === prototypeId)
+);
 
 test('performing attack selector follows runtime stages and clears for recovery', () => {
   const activeAttack = {
@@ -212,24 +218,55 @@ test('every registered modular atlas participates in the browser integrity gate'
   }
 });
 
-test('Boss Sandbox groups every configured boss by Mission and keeps Test Mission virtual', () => {
+test('Boss Sandbox groups main-game, test-only, and removed bosses without losing campaign order', () => {
   const groups = model.buildBossSandboxGroups(campaign);
-  const testGroup = groups[0];
-  const campaignChoices = groups.slice(1).flatMap((group) => group.choices);
+  const groupById = new Map(groups.map((group) => [group.id, group]));
+  const campaignGroup = groupById.get(model.BOSS_SANDBOX_GROUP_IDS.campaign);
+  const testGroup = groupById.get(model.BOSS_SANDBOX_GROUP_IDS.test);
+  const legacyGroup = groupById.get(model.BOSS_SANDBOX_GROUP_IDS.legacy);
+  const campaignChoices = campaignGroup.choices;
+  const prototypeChoices = [...testGroup.choices, ...legacyGroup.choices];
   const configuredBossCount = campaign.levels.flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
     .filter((event) => event.kind === 'boss').length;
 
-  assert.equal(testGroup.id, 'boss-sandbox:test-mission');
+  assert.deepEqual(
+    groups.map((group) => group.id),
+    [
+      model.BOSS_SANDBOX_GROUP_IDS.campaign,
+      model.BOSS_SANDBOX_GROUP_IDS.test,
+      model.BOSS_SANDBOX_GROUP_IDS.legacy
+    ]
+  );
+  assert.equal(campaignGroup.source, 'campaign');
   assert.equal(testGroup.source, 'test');
-  assert.equal(testGroup.choices.length, 14);
+  assert.equal(legacyGroup.source, 'legacy');
+  assert.equal(testGroup.choices.length, 9);
+  assert.equal(legacyGroup.choices.length, 5);
   artworkFixtures.forEach(({ prototypeId }) => {
-    assert.ok(testGroup.choices.some((choice) => choice.prototypeId === prototypeId));
+    assert.ok(prototypeChoices.some((choice) => choice.prototypeId === prototypeId));
   });
-  assert.ok(testGroup.choices.some((choice) => choice.prototypeId === 'gloamforge-mantis'));
+  assert.ok(legacyGroup.choices.some((choice) => (
+    choice.prototypeId === 'frontier-crownclaw'
+  )));
+  assert.ok(testGroup.choices.some((choice) => (
+    choice.prototypeId === 'gloamforge-mantis'
+  )));
   assert.equal(campaignChoices.length, configuredBossCount);
-  assert.equal(new Set(groups.flatMap((group) => group.choices.map((choice) => choice.id))).size,
-    configuredBossCount + testGroup.choices.length);
+  assert.deepEqual(
+    campaignChoices.map((choice) => choice.missionOrder),
+    [...campaignChoices]
+      .map((choice) => choice.missionOrder)
+      .sort((left, right) => left - right)
+  );
+  assert.ok(campaignChoices.every((choice) => (
+    model.getBossSandboxChoiceOptionLabel(choice)
+      .startsWith(`M${String(choice.missionOrder).padStart(2, '0')} · `)
+  )));
+  assert.equal(
+    new Set(groups.flatMap((group) => group.choices.map((choice) => choice.id))).size,
+    configuredBossCount + prototypeChoices.length
+  );
   assert.deepEqual(campaign, sourceSnapshot);
 });
 
@@ -307,11 +344,8 @@ test('all boss choices expose numbered controls, grouping authored sentences and
 });
 
 test('fixed artwork registrations are presentation-only and locked to matching test events', () => {
-  const groups = model.buildBossSandboxGroups(campaign);
   for (const fixture of artworkFixtures) {
-    const choice = groups[0].choices.find(
-      (candidate) => candidate.prototypeId === fixture.prototypeId
-    );
+    const choice = getPrototypeChoice(fixture.prototypeId);
     assert.ok(choice);
 
     const preview = model.buildBossSandboxPreview(campaign, choice);
@@ -370,9 +404,7 @@ test('fixed artwork registrations are presentation-only and locked to matching t
 });
 
 test('Nullwake artwork publishes five frozen anatomy-owned normalized weapon sockets', () => {
-  const choice = model.buildBossSandboxGroups(campaign)[0].choices.find(
-    (candidate) => candidate.prototypeId === 'nullwake-revenant'
-  );
+  const choice = getPrototypeChoice('nullwake-revenant');
   assert.ok(choice);
 
   const preview = model.buildBossSandboxPreview(campaign, choice);
@@ -414,9 +446,7 @@ test('Nullwake artwork publishes five frozen anatomy-owned normalized weapon soc
 });
 
 test('Nullwake reassembles its exact existing pixels as a five-part articulated hierarchy', async () => {
-  const choice = model.buildBossSandboxGroups(campaign)[0].choices.find(
-    (candidate) => candidate.prototypeId === 'nullwake-revenant'
-  );
+  const choice = getPrototypeChoice('nullwake-revenant');
   assert.ok(choice);
 
   const preview = model.buildBossSandboxPreview(campaign, choice);
@@ -551,9 +581,7 @@ test('Nullwake supplemental factory atlas exposes only bounded, visible, binary-
 test('Gloamforge registers its generated component package as one validated modular hierarchy', {
   skip: !existsSync(gloamforgeAtlasPath)
 }, async () => {
-  const choice = model.buildBossSandboxGroups(campaign)[0].choices.find(
-    (candidate) => candidate.prototypeId === 'gloamforge-mantis'
-  );
+  const choice = getPrototypeChoice('gloamforge-mantis');
   assert.ok(choice);
 
   const preview = model.buildBossSandboxPreview(campaign, choice);
@@ -603,10 +631,7 @@ test('Gloamforge registers its generated component package as one validated modu
 });
 
 test('artwork registry returns undefined for test prototypes without concept art', () => {
-  const groups = model.buildBossSandboxGroups(campaign);
-  const choice = groups[0].choices.find(
-    (candidate) => candidate.prototypeId === 'sweep-bank-reentry'
-  );
+  const choice = getPrototypeChoice('sweep-bank-reentry');
   assert.ok(choice);
 
   const preview = model.buildBossSandboxPreview(campaign, choice);
@@ -622,11 +647,8 @@ test('artwork registry returns undefined for test prototypes without concept art
 test('all modular Test Mission bosses share one transparent, bounded, loopback-only VFX atlas', {
   skip: !existsSync(vfxSheetPath)
 }, async () => {
-  const groups = model.buildBossSandboxGroups(campaign);
   const atlases = artworkFixtures.map(({ prototypeId }) => {
-    const choice = groups[0].choices.find(
-      (candidate) => candidate.prototypeId === prototypeId
-    );
+    const choice = getPrototypeChoice(prototypeId);
     const preview = model.buildBossSandboxPreview(campaign, choice);
     return model.createSandboxOnlyBossArtwork(preview).vfxAtlas;
   });
@@ -663,10 +685,7 @@ for (const fixture of artworkFixtures) {
   test(`every ${fixture.prototypeId} authored-atlas frame is in bounds and visible`, {
     skip: !existsSync(fixture.sheetPath)
   }, async () => {
-    const groups = model.buildBossSandboxGroups(campaign);
-    const choice = groups[0].choices.find((candidate) => (
-      candidate.prototypeId === fixture.prototypeId
-    ));
+    const choice = getPrototypeChoice(fixture.prototypeId);
     assert.ok(choice);
     const preview = model.buildBossSandboxPreview(campaign, choice);
     const artwork = model.createSandboxOnlyBossArtwork(preview);

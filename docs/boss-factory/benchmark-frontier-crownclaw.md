@@ -48,9 +48,12 @@ Phase two visibly exposes the reactor, opens winch housings, rotates rear anatom
 
 ## Route matrix
 
-- Evidence: `director-data/prototype-assets/frontier-crownclaw/evidence/frontier-crownclaw-safe-route-evidence.json`
-- Witnesses: 28/28
-- Coverage: mobile `390 x 844`, desktop `1280 x 720`, both phases, two bounded seeds, all retained branches
+- Intact evidence: `director-data/prototype-assets/frontier-crownclaw/evidence/frontier-crownclaw-safe-route-evidence.json`
+- Intact witnesses: 28/28
+- Component-fallback evidence: `director-data/prototype-assets/frontier-crownclaw/evidence/frontier-crownclaw-component-fallback-safe-route-evidence.json`
+- Component-fallback witnesses: 48/48
+- Total retained witnesses: 76/76
+- Coverage: mobile `390 x 844`, desktop `1280 x 720`, both phases where applicable, two bounded seeds, every intact branch, port-only/starboard-only Harpoon and Cross-Link, and both zero-claw parity substitutions
 - Standard uncertainty: 3 px
 - Required post-uncertainty clearance: 6 px
 - Minimum measured clearance: `6.77702596335363 px`
@@ -60,22 +63,31 @@ The trace proof compiles the actual Frontier timeline, exercises the implemented
 ## Actual visual evidence
 
 - Neutral: `director-data/prototype-assets/frontier-crownclaw/evidence/modular-neutral.png`
-- Seven-panel review: `director-data/prototype-assets/frontier-crownclaw/evidence/key-pose-contact-sheet.png`
+- Neutral/reference overlay: `director-data/prototype-assets/frontier-crownclaw/evidence/neutral-reference-overlay.png`
+- Labeled 11-pose review: `director-data/prototype-assets/frontier-crownclaw/evidence/key-pose-contact-sheet.png`
 - Clean mobile play: `director-data/prototype-assets/frontier-crownclaw/evidence/mobile-gameplay.png`
 - Desktop runtime: `director-data/prototype-assets/frontier-crownclaw/evidence/frontier-crownclaw-desktop-runtime.png`
+- Desktop attacks: four representative captures under `director-data/prototype-assets/frontier-crownclaw/evidence/desktop/`
 - Phase two: `director-data/prototype-assets/frontier-crownclaw/evidence/frontier-crownclaw-mobile-critical-neutral.png`
 - Destruction: `director-data/prototype-assets/frontier-crownclaw/evidence/frontier-crownclaw-destruction-peak.png`
 - Attack stages: 20 reviewed PNGs under `director-data/prototype-assets/frontier-crownclaw/evidence/attacks/`
 
-The actual browser pass found and corrected a missing alpha-mask registration, an entry-state manual-attack fallback, a duplicate reactor beam, and the upward-authored crown bolt's velocity-orientation offset. A focused real-GameEngine regression now locks Attack 2 playback during entry.
+The actual browser pass found and corrected a missing alpha-mask registration, an entry-state manual-attack fallback, a duplicate reactor beam, and the upward-authored crown bolt's velocity-orientation offset. It also replaced the prior neutral placeholder, added the required 11-pose sheet, and retained one desktop capture per attack. Focused real-GameEngine regressions now lock manual playback and destroyed-claw behavior.
 
 ## Automated evidence
 
-- Frontier focused/adjacent suite: 92/92 passed
+- Final focused Frontier suite: 70/70 passed
 - Root TypeScript check: passed
+- Director TypeScript check: passed
 - Manual Attack 2 entry regression: passed
-- Route matrix: 28/28 passed
+- Intact route matrix: 28/28 passed
+- Component-fallback route matrix: 48/48 passed
 - Browser review: all four attacks at mobile and desktop; phase two, low health, and destruction at mobile
+- Root build and production-exclusion check: passed
+- Root repository suite: 937/937 passed
+- Prepared private Runner: 18/18 tests passed and all three pinned Frontier assets are present; campaign parity is stale (`2343f050...a1656` manifest versus `a4cbd1f7...dc924` current)
+- Full Director suite: 274/280 passed; five stale campaign-assumption fixtures and one generic all-primitives fixture remain outside the Frontier lock. The latter is correctly rejected because Frontier primitives are restricted to the Frontier Sandbox event.
+- Repository publication: not performed; the stale Runner snapshot was not rebuilt or deployed
 
 See `director-data/prototype-assets/frontier-crownclaw/evidence/visual-verification.md` for the complete gate record.
 
@@ -86,7 +98,9 @@ See `director-data/prototype-assets/frontier-crownclaw/evidence/visual-verificat
 3. Manual attack controls must override entry safely and prove the selected sentence through warning and fire.
 4. The world-space runtime owns damaging beam presentation; rig-local decorative duplicates create misleading collision.
 5. A boss-specific signature may reuse shared socket, lifecycle, and proof primitives without becoming a generic choreography template.
+6. Destructible anatomy needs both immediate hidden-emission cleanup and a separately proven route matrix for every retained fallback.
+7. A tuning panel may expose bounded schema-v1 proxies, but only the reset/default configuration inherits route proof; edited drafts must be rehashed and re-proven.
 
 ## Disposition
 
-Frontier Crownclaw is Factory-ready and Sandbox-only. It is not added to a Mission, campaign, progression, production deployment, or public release by this work. Any later change to its timeline, sockets, collision, art, viewport, or movement geometry must refresh the route matrix, focused playback/pose tests, hashes, and actual mobile/desktop review.
+Frontier Crownclaw is Factory-ready and Sandbox-only. This Frontier package does not add it to a Mission, campaign, progression, production deployment, or public release. The surrounding worktree contains unrelated campaign changes that remain outside this benchmark. Any later change to its timeline, sockets, collision, art, component rules, viewport, movement geometry, or tuning defaults must refresh both route matrices, focused playback/pose/component tests, hashes, and actual mobile/desktop review.

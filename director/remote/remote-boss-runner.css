@@ -517,6 +517,11 @@ button {
   color: #fde047;
 }
 
+.remote-runner__boss-card-copy > span[data-source="legacy"] {
+  border-color: rgb(216 180 254 / 48%);
+  color: #e9d5ff;
+}
+
 .remote-runner__boss-card-copy h2 {
   margin: 0.1rem 0 0;
   color: #f8fafc;

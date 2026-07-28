@@ -6,9 +6,9 @@
 - One-boss lock acquired: 2026-07-27
 - Status: Factory-ready Sandbox benchmark; native-pixel art, modular rig, runtime, deterministic route proof, and actual mobile/desktop browser review passed on 2026-07-27
 - Canonical execution path: `GameStage -> GameCanvas -> GameEngine -> PixiGameRenderer`
-- Campaign/progression status: unchanged; this rebuild must not enter a Mission, weekly mode, production integration, or deployment during the task
+- Campaign/progression status: the Frontier package remains Sandbox-only and does not enter a Mission, weekly mode, progression, production integration, or deployment. The surrounding worktree contains unrelated campaign edits that are outside this lock.
 - Quality benchmark: Helios Clawcarrier establishes verification and polish expectations only. Frontier must not inherit Helios machine guns, bullet channel, proximity mines, clamp choreography, movement rhythm, attack order, or phase-two behavior.
-- Authoritative gameplay visual: the future Frontier `modular-hierarchy-v1` rig. Flattened references and comparison overlays are review-only.
+- Authoritative gameplay visual: the registered Frontier `modular-hierarchy-v1` rig. Flattened references and comparison overlays are review-only.
 
 ## Identity
 
@@ -29,7 +29,7 @@
 
 ## Gate 1 reference lock and disposition
 
-The current Campaign Copy card resolves to a clipped decay derivative. It is preserved as historical UI evidence, but it cannot satisfy the Boss Factory requirement for a complete structural reference. The complete image from the same Astral/Frontier Crownclaw asset lineage is therefore the canonical complete reconstruction reference.
+The historical Campaign Copy card resolved to a clipped decay derivative. It is preserved as historical UI evidence, but it cannot satisfy the Boss Factory requirement for a complete structural reference. The complete image from the same Astral/Frontier Crownclaw asset lineage is therefore the canonical complete reconstruction reference.
 
 | Role | Path | SHA-256 | Decision |
 |---|---|---|---|
@@ -48,7 +48,7 @@ Gate 1 passed on 2026-07-27. The canonical reference is packaged at `director-da
 
 ## Native pixel-art contract
 
-- Logical neutral canvas target: `192 x 160` px, with the opaque structural silhouette targeted near `184 x 142` px. Alternate frames for one part use identical canvases, registration, handedness, pivot, and scale sign.
+- Accepted source/runtime sizes: the native source neutral is `224 x 192` px and the registered binary-alpha runtime neutral is `260 x 210` px. Alternate frames for one part use identical canvases, registration, handedness, pivot, and scale sign.
 - Display intent: aspect-preserved nearest-neighbor scaling. Target roughly 58-62% of the mobile arena width without covering the route below the boss; final display dimensions are Gate 2 decisions, not design assumptions.
 - Palette target: 32 or fewer structural colors across teal armor, steel shadows, gold mechanisms, energy-blue focal light, and outline ramps. VFX may use a small separate translucent palette.
 - Structural alpha: binary. Semitransparency belongs only to glow, beam, impact, sparks, and other separate effects.
@@ -56,7 +56,7 @@ Gate 1 passed on 2026-07-27. The canonical reference is packaged at `director-da
 - Detail rule: preserve large shell panels, crown/reactor shape, joint plates, chain housings, and primary claw teeth; consolidate tiny illustration noise into two- to four-pixel clusters.
 - Scaling rule: all structural parts scale uniformly with the root. No independent claw shrink, nonuniform stretch, or hidden double mirror is allowed.
 
-## Neutral correction plan
+## Accepted neutral corrections
 
 1. Rebuild the complete intact silhouette at native gameplay resolution; do not blindly downscale the current semi-pixel illustration.
 2. Preserve the broad shell-to-claw ratio and make each primary claw a dominant mobile-readable mass rather than a small projectile attachment.
@@ -68,7 +68,7 @@ Gate 1 passed on 2026-07-27. The canonical reference is packaged at `director-da
 8. Register mounted and launched states to one claw identity. The claw may open or rotate; it may not morph into an unrelated rocket-claw drawing.
 9. Render a neutral modular capture in the actual Boss Sandbox, center- and height-match it with the complete reference at multiple opacity levels, and correct width, body height, claw mass, rear appendages, joint roots, reactor position, layer order, and pixel density before final attack tuning.
 
-## Planned rig hierarchy and ownership
+## Final rig hierarchy and ownership
 
 ```text
 frontier-root
@@ -103,7 +103,7 @@ frontier-root
 - Chain links are a deterministic segmented presenter sampled each frame between the matching live hull and claw sockets. Slow motion may use a bounded sag curve; high-speed extension and retraction straighten the path without stretching individual links.
 - Claw collision follows visible opaque claw pixels or a tight union of authored claw shapes. The chain is non-damaging in the teaching attack unless a bright, tension-active frame explicitly enables a matching segmented collision path.
 - Rear emitters remain children of their visible appendages. The reactor beam always samples the current `reactor-beam-socket` world transform.
-- Existing left/right component health may be adapted to the primary claws only if it remains a clean compatibility mapping. No new generic component-destruction architecture is authorized by this design.
+- Existing left/right component health is cleanly mapped to the primary claws. Frontier-specific fallback selection and cleanup extend the existing component system without introducing a new generic destruction architecture.
 
 ## Purposeful animation and lifecycle
 
@@ -114,7 +114,7 @@ The folded shell descends heavily. Legs unfold in offset pairs, rear claws clear
 ### Idle
 
 - Root: slow hover and a very small delayed shell tilt, never constant shake.
-- Reactor: a six-frame aperture/pulse cycle with a brief blink; it is the primary frame-animated focal component.
+- Reactor: a two-frame idle family switched every six simulation frames with a brief blink, plus a separate four-frame charge family; it is the primary frame-animated focal component.
 - Shell/crown: restrained vent and crown-fin shift at a slower cadence than the reactor.
 - Legs: small offset two- or three-frame articulation; middle legs lag front and rear pairs.
 - Rear appendages: slight open/close delay following body sway.
@@ -149,7 +149,7 @@ The folded shell descends heavily. Legs unfold in offset pairs, rear claws clear
 - Connected beats: upper-center settle -> six-leg brace -> first spool/start and claw-open -> target lock -> launched claw and visible chain payout -> impact close -> maximum-tension recoil -> retract/reseat -> opposite claw lock/launch with a different depth -> impact/retract -> dual mechanical settle.
 - Recoil: the owning shoulder compresses, the shell rolls slightly toward the pulling chain, and the corresponding rear appendage braces.
 - Recovery: both claws seat with one heavy snap; winches stop; crown aperture opens briefly for a punish window; every transform returns exactly to neutral.
-- Destroyed-claw fallback: omit every hidden/destroyed side socket, chain, collision, and animation. A surviving claw performs one longer committed harpoon followed by extended reactor recovery. With both claws gone, this sentence is removed from selection.
+- Destroyed-claw fallback: omit every hidden/destroyed side socket, chain, collision, and animation immediately. One surviving claw owns both Harpoon beats. With both claws gone, even action sequences substitute Crown Reactor Beam and odd sequences substitute Bastion Crabwalk Barrage.
 
 ### Attack 2 - Crown Reactor Beam (core)
 
@@ -231,29 +231,30 @@ Per-attack proof obligations:
 - Bastion Crabwalk Barrage: include the moving visible hull, all six-leg translation, live rear-emitter origins, exact projectile formations, the boundary reversal, and both retained formation templates in both first directions.
 - Crown Cross-Link: sample both tether segments between their live endpoint sockets every simulation frame, including sag-to-tension transitions, claw bodies, opening rotation, crossover pause, reversal, and recovery. Prove clockwise and counterclockwise as one continuous witness; isolated safe snapshots are invalid.
 
-The persisted deterministic proof contains 28 witnesses across both viewports, both phases, and two bounded seeds. Every witness exceeds the required 6 px margin after 3 px geometry uncertainty; the weakest measured clearance is `6.77702596335363 px`. The proof compiles the actual Frontier timeline, samples the implemented Frontier hazard geometry, and resolves the registered rig sockets. Its explicit limitation is that the private `GameEngine` class is not directly instantiated by the trace harness, so actual canonical-browser review remains the final presentation and collision gate. That browser gate also passed at mobile `390 x 844` and desktop `1280 x 720`.
+The persisted deterministic proof contains 28 intact-anatomy witnesses plus 48 component-fallback witnesses across both viewports, both phases where applicable, and two bounded seeds. The fallback matrix covers port-only/starboard-only Harpoon and Cross-Link plus both zero-claw parity substitutions. All 76 witnesses exceed the required 6 px margin after 3 px geometry uncertainty; the weakest measured clearance remains `6.77702596335363 px`. The proof compiles the actual Frontier timeline, samples the implemented Frontier hazard geometry, and resolves the registered rig sockets. Its explicit limitation is that the private `GameEngine` class is not directly instantiated by the trace harness, so actual canonical-browser review remains the final presentation and collision gate. Focused real-GameEngine tests close the manual-playback and component-cleanup bridge, and the browser gate passed at mobile `390 x 844` and desktop `1280 x 720`.
 
-## Tuning controls to expose
+## Implemented Attack Tuning Lab
 
 - Chainclaw Harpoon: target-lock duration, launch speed, maximum extension, tension time, closing delay, retraction speed, launch count, angle/depth branch, Cross-Link spacing, and safe-opening width.
 - Crown Reactor Beam: charge duration, pulse count, beam width/duration, controlled shift speed/range, recovery duration, and safe-region width.
 - Bastion Crabwalk Barrage: crabwalk speed/range, direction changes, projectile count/cadence, formation spacing/template, formation beats, and recovery duration.
-- Every control is bounded and seeded where it selects a branch. Intensity changes must preserve the authored solution and proof margin.
+- The collapsed panel exposes 26 bounded controls. Reset defaults reproduce the route-proven `26.8 s` schedule. Some schema-v1 geometry fields are explicitly implemented as bounded timing/sequence proxies rather than direct runtime geometry controls.
+- Tuning changes rebuild only the isolated Sandbox fight. Only reset/default values inherit the persisted route evidence; any edited draft requires a new configuration hash and route proof before validation.
 
 ## Required evidence and current verdict
 
 - Canonical complete reference copy and hash: passed; packaged copy matches SHA-256 `a3c2e6853d192b45d996ee50b3432fd61d20513a2ea468695670d8df5957f4a5`
-- Neutral modular Sandbox capture and comparison: passed at `director-data/prototype-assets/frontier-crownclaw/evidence/modular-neutral.png`
-- Asset-usage inventory: complete at `director-data/prototype-assets/frontier-crownclaw/frontier-crownclaw.asset-usage.json`
+- Neutral modular Sandbox capture and comparison: passed at `director-data/prototype-assets/frontier-crownclaw/evidence/modular-neutral.png` with representative overlay evidence at `evidence/neutral-reference-overlay.png`
+- Accepted-package usage inventory: complete at `director-data/prototype-assets/frontier-crownclaw/frontier-crownclaw.asset-usage.json`; all 40 legacy public/tmp files are covered by `frontier-crownclaw.external-asset-disposition.json`
 - Accepted rig/pivot manifest: `director-data/prototype-assets/frontier-crownclaw/frontier-crownclaw.rig.json`; 51 parts, 11 live sockets, eight registered animations, SHA-256 `00735839641f7c3f4f334c39246b7fabaf23e9df10a3abe202b31a2fb44071e3`
 - Attack-to-sprite mapping: implemented and proven at `director-data/prototype-assets/frontier-crownclaw/frontier-crownclaw.attack-sprite-map.json`
-- Key-pose contact sheet: passed at `director-data/prototype-assets/frontier-crownclaw/evidence/key-pose-contact-sheet.png`
+- Labeled 11-pose contact sheet: passed at `director-data/prototype-assets/frontier-crownclaw/evidence/key-pose-contact-sheet.png`
 - Clean mobile gameplay screenshot: passed at `director-data/prototype-assets/frontier-crownclaw/evidence/mobile-gameplay.png`
-- Desktop runtime screenshot: passed at `director-data/prototype-assets/frontier-crownclaw/evidence/frontier-crownclaw-desktop-runtime.png`
+- Desktop runtime review: passed with one representative capture for each numbered attack under `director-data/prototype-assets/frontier-crownclaw/evidence/desktop/`
 - Per-attack five-stage captures: 20 reviewed captures under `director-data/prototype-assets/frontier-crownclaw/evidence/attacks/`
-- Deterministic route evidence: 28/28 witnesses passed at `director-data/prototype-assets/frontier-crownclaw/evidence/frontier-crownclaw-safe-route-evidence.json`; minimum `6.77702596335363 px`
+- Deterministic route evidence: 28/28 intact witnesses and 48/48 component-fallback witnesses passed; minimum `6.77702596335363 px`
 - Normal gameplay attack text, prediction lines, socket guides, bounds, and debug overlays: absent from the reviewed clean runtime captures
-- Runtime corrections discovered during actual review: registered the native alpha collision mask, made numbered Attack 2 override entry without falling back to Attack 1, and removed a duplicate rig-local beam so the engine-owned beam alone follows the crown socket
+- Runtime corrections discovered during actual review: registered the native alpha collision mask, made numbered Attack 2 override entry without falling back to Attack 1, removed a duplicate rig-local beam, corrected crown-bolt orientation, restricted Frontier primitives to the exact Sandbox event, implemented destroyed-claw cleanup/fallbacks, and added the bounded tuning surface
 - Final verdict: Factory-ready Sandbox benchmark; exactly three core attacks plus Crown Cross-Link, with Critical Cross-Link as the persistent phase-two anatomy/behavior remix
-- Campaign/progression/deployment: unchanged by this Frontier package; promotion remains outside scope
-- One-boss lock released: yes, after the focused regression suite, root typecheck, deterministic proofs, and mobile/desktop browser review passed
+- Campaign/progression/deployment: unchanged by this Frontier package; unrelated surrounding campaign edits are explicitly outside scope and promotion remains unauthorized
+- One-boss lock released: yes, after the focused regressions, typechecks, 76/76 deterministic witnesses, 937/937 root tests, root build/production-exclusion checks, and mobile/desktop browser review passed. The prepared private Runner also passes 18/18 tests and contains Frontier's three pinned assets, but its campaign manifest hash is stale against the current campaign. The full Director suite was rerun and passed 274/280; five stale campaign-assumption fixtures and one generic all-primitives fixture remain outside the Frontier lock. Repository publication was not performed, and the Runner snapshot was not rebuilt or deployed.

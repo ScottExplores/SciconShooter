@@ -95,6 +95,9 @@ test('focused Boss Sandbox uses the canonical preview and only essential control
   assert.match(source, /type: 'set-invincibility'/);
   assert.match(source, /href="\/sandbox">Advanced tools/);
   assert.match(source, /Boss to test/);
+  assert.match(source, /getBossSandboxChoiceOptionLabel\(choice\)/);
+  assert.match(source, /REMOVED \/ LEGACY/);
+  assert.match(source, /selectedChoice\.source === 'legacy'/);
   assert.match(source, /aria-label="Boss artwork choices"/);
   assert.match(source, /choiceArtworkUrls/);
   assert.match(source, /alt=\{`\$\{selectedChoice\.bossLabel\} boss artwork`\}/);
@@ -123,6 +126,10 @@ test('focused Boss Sandbox uses the canonical preview and only essential control
   assert.match(source, /boss-sandbox__version/);
   assert.match(source, /BOSS_SANDBOX_VERSION/);
   assert.match(source, /aria-label="Decrease fire rate"/);
+  assert.match(remoteSource, /const bossPickerSections = groups;/);
+  assert.match(remoteSource, /REMOVED \/ LEGACY/);
+  assert.match(remoteSource, /legacyBossCount/);
+  assert.match(remoteStyles, /data-source="legacy"/);
   assert.match(source, /aria-label="Increase fire rate"/);
   assert.match(source, /aria-label="Decrease speed"/);
   assert.match(source, /aria-label="Increase speed"/);

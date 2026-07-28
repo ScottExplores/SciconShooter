@@ -264,6 +264,11 @@
   background: rgba(251, 191, 36, .1);
 }
 
+.boss-sandbox__picker section > span[data-source='legacy'] {
+  color: #f0abfc;
+  background: rgba(192, 132, 252, .12);
+}
+
 .boss-sandbox__picker h1 {
   margin: 13px 0 7px;
   font-family: var(--font-display);
