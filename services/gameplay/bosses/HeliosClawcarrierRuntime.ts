@@ -44,6 +44,7 @@ export const HELIOS_MACHINE_GUN_CHANNEL_DEFAULT_INTERVAL_FRAMES = 2;
 export const HELIOS_MACHINE_GUN_CHANNEL_DEFAULT_SWEEP_RANGE_RATIO = 0.34;
 export const HELIOS_MACHINE_GUN_CHANNEL_DEFAULT_SWEEP_PASSES = 1;
 export const HELIOS_MACHINE_GUN_CHANNEL_DEFAULT_UPPER_LANE_RATIO = 0.16;
+export const HELIOS_MACHINE_GUN_CHANNEL_GUTTER_INTERVAL_FRAMES = 6;
 export const HELIOS_MACHINE_GUN_CHANNEL_MOBILE_HORIZONTAL_PADDING = 4;
 export const HELIOS_MACHINE_GUN_CHANNEL_DESKTOP_HORIZONTAL_PADDING = 24;
 export const HELIOS_MACHINE_GUN_CHANNEL_MOBILE_TARGET_PADDING = 4;
@@ -85,6 +86,12 @@ export interface HeliosMachineGunChannelTargets {
   readonly portX: number;
   readonly starboardX: number;
   readonly channelWidthPixels: number;
+}
+
+export interface HeliosMachineGunChannelGutterTargets {
+  readonly portX: number;
+  readonly starboardX: number;
+  readonly edgePadding: number;
 }
 
 export interface HeliosReactorFanShot {
@@ -462,6 +469,45 @@ export const resolveHeliosMachineGunChannelTargets = ({
 };
 
 /**
+ * Fixes one suppression line in each exterior gutter. These shots supplement
+ * the moving channel rails so neither screen edge becomes a stationary hiding
+ * place, while their targets remain outside the intended center corridor.
+ */
+export const resolveHeliosMachineGunChannelGutterTargets = ({
+  arenaWidth,
+  edgePadding
+}: {
+  arenaWidth: number;
+  edgePadding: number;
+}): HeliosMachineGunChannelGutterTargets => {
+  const width = Math.max(1, finiteOr(arenaWidth, 1));
+  const padding = clampFinite(edgePadding, 0, width / 2, 0);
+  return Object.freeze({
+    portX: padding,
+    starboardX: width - padding,
+    edgePadding: padding
+  });
+};
+
+export const shouldFireHeliosMachineGunChannelGutter = ({
+  elapsedFrames,
+  durationFrames,
+  intervalFrames = HELIOS_MACHINE_GUN_CHANNEL_GUTTER_INTERVAL_FRAMES
+}: {
+  elapsedFrames: number;
+  durationFrames: number;
+  intervalFrames?: number;
+}) => {
+  const elapsed = Math.floor(finiteOr(elapsedFrames, -1));
+  const duration = normalizeCount(durationFrames, 1, 3_600);
+  if (elapsed < 0 || elapsed >= duration) return false;
+  const relativeFrame = elapsed - HELIOS_MACHINE_GUN_CHANNEL_FIRST_SHOT_FRAME;
+  if (relativeFrame < 0) return false;
+  const cadence = normalizeCount(intervalFrames, 4, 12);
+  return relativeFrame % cadence === 0;
+};
+
+/**
  * Samples a sustained two-gun stream for one simulation frame. It has no
  * round-count ceiling: the authored fire window owns the bounded duration.
  * The lead side alternates for deterministic presentation timing, while both
@@ -579,29 +625,7 @@ export const buildHeliosReactorFanAngles = ({
     const ratio = count <= 1 ? 0.5 : index / (count - 1);
     return center - halfSpan + ratio * halfSpan * 2;
   });
-  const ascending = count < 9
-    ? evenlySpaced
-    : (() => {
-        // Dense low-health fans retain every authored projectile but widen one
-        // deterministic learnable aperture. Rays are redistributed on either
-        // side instead of removed, so 10/11-shot sprite density stays intact.
-        const gapIndex = Math.floor((count - 1) / 2);
-        const apertureHalfRadians = count >= 10 ? 0.14 : 0.08;
-        const leftEnd = evenlySpaced[gapIndex] - apertureHalfRadians;
-        const rightStart = evenlySpaced[gapIndex + 1] + apertureHalfRadians;
-        const leftCount = gapIndex + 1;
-        const rightCount = count - leftCount;
-        const left = Array.from({ length: leftCount }, (_, index) => {
-          const ratio = leftCount <= 1 ? 1 : index / (leftCount - 1);
-          return evenlySpaced[0] + (leftEnd - evenlySpaced[0]) * ratio;
-        });
-        const right = Array.from({ length: rightCount }, (_, index) => {
-          const ratio = rightCount <= 1 ? 0 : index / (rightCount - 1);
-          return rightStart
-            + (evenlySpaced[count - 1] - rightStart) * ratio;
-        });
-        return [...left, ...right];
-      })();
+  const ascending = evenlySpaced;
   if (orderMode === 1) return Object.freeze([...ascending].reverse());
   if (orderMode === 2) {
     const middle = Math.floor(ascending.length / 2);

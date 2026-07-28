@@ -3,7 +3,7 @@
 ## Authority and scope
 
 - Sandbox ID: `helios-clawcarrier`
-- Status: Sandbox-only V0.23 channel/rig polish implemented; refreshed route, visual, Runner, and Sites proof remains pending. V0.20 remains the last fully accepted visual release.
+- Status: Sandbox-only V0.24 gun-registration, uniform-fan, and channel-gutter polish is route-certified and privately published; refreshed dynamic visual acceptance remains pending. V0.20 remains the last fully accepted visual release.
 - Canonical execution path: `GameStage -> GameCanvas -> GameEngine -> PixiGameRenderer`
 - Authoritative gameplay visual: the registered `modular-hierarchy-v1` rig, not the concept board, legacy `articulated-pincer-v1` presenter, assembled fallback, or review overlay
 - Authoritative attack source: the compiled looping timeline with exactly three core attacks and one signature attack, each with a variant for all three phases. The retired claw-sweep Attack 2 is not part of the active rotation.
@@ -23,8 +23,8 @@
 - Locked reference board: `director-data/prototype-assets/helios-clawcarrier-v2/source/reference-board.png`
 - Reference board SHA-256: `9b0edf76349b45ebf2b0ede41cc87e14e1dc9ee60ea8e3f87b60ce5763cd43e9`
 - Review-only neutral crop: `helios-clawcarrier-v2-canonical-reference.png`, SHA-256 `8d6ce675283e1bb3dfd684247c13efaf80f1230400b529032dea3467f9177cb4`
-- Authoritative neutral assembly: `helios-clawcarrier-v2-neutral.png`, 460 x 330, SHA-256 `52e74b75999a7c3ee14b6975ca4e6201f8e9cc056e8e4c50ad94cf2cac0b4481`
-- Authoritative atlas: `helios-clawcarrier-v2-atlas.png`, 2048 x 1024, binary structural alpha, SHA-256 `47e8fd0f33c6e6a53589567327f7325c73e1a7d70f964025023b71a820c405ea`
+- Authoritative neutral assembly: `helios-clawcarrier-v2-neutral.png`, 460 x 330, SHA-256 `08fcc15404f57aecb70b35d9498b267bd4c2f313e84dc142becf190d7a9f7f57`
+- Authoritative atlas: `helios-clawcarrier-v2-atlas.png`, 2048 x 1024, binary structural alpha, SHA-256 `a686d39293f096e21adee7e7c85b78d1e2f3eb10d644f47b16235362eb7e9c11`
 - Asset-usage proof: `helios-clawcarrier-v2.asset-usage.json`; all 60 source cells are classified, all 40 runtime frames have consumers, and future/archived cells remain forbidden from runtime.
 - Rendering: nearest-neighbor, aspect-preserved scaling; structural sprites stay opaque. Glow and warning presentation are separate effects.
 
@@ -39,7 +39,7 @@
 | Stabilizer legs | `leg.outer-port`, `leg.inner-port`, `leg.inner-starboard`, `leg.outer-starboard` | none | Small body-owned secondary motion only; never a hitbox or projectile source |
 | Reactor aperture | `reactor.closed`, `reactor.open` | `reactor-core` | Downward fan origin, visible mine deployment, recovery vulnerability |
 
-The registered projectile sprite families are `boss-heavy-shell`, `boss-gatling-tracer`, `boss-reactor-pellet`, and `boss-helios-mine`, each backed by four equal-registration pixel frames. Helios uses the tracer, reactor-pellet, and mine vocabulary in the refined attacks; the heavy-shell family remains a classified runtime-ready Helios asset but is not a separate fifth attack. The tracer keeps the renderer's central `atan2(velocityY, velocityX) + textureForwardOffset` policy and rotates exactly 180 degrees from its prior runtime orientation through the registered texture-forward offset, never through per-shot correction.
+The registered projectile sprite families are `boss-heavy-shell`, `boss-gatling-tracer`, `boss-reactor-pellet`, and `boss-helios-mine`, each backed by four equal-registration pixel frames. Helios uses the tracer, reactor-pellet, and mine vocabulary in the refined attacks; the heavy-shell family remains a classified runtime-ready Helios asset but is not a separate fifth attack. The tracer keeps the renderer's central `atan2(velocityY, velocityX) + textureForwardOffset` policy and rotates exactly 180 degrees from its prior runtime orientation through the registered texture-forward offset, never through per-shot correction. V0.24 records an explicit bore registration point for every port and starboard rotary frame, eliminating apparent side-to-side barrel drift while keeping the already symmetric mounts and gameplay sockets unchanged.
 
 ## Communication contract: anatomy, never instructions
 
@@ -66,9 +66,9 @@ The registered projectile sprite families are `boss-heavy-shell`, `boss-gatling-
 
 - Player skill: enter and continuously follow a moving safe corridor.
 - Anatomy: both hull-mounted rotaries and their live `rotary-muzzle-port` / `rotary-muzzle-starboard` sockets plus the carrier's deterministic horizontal translation.
-- Recognition cue: Helios settles near the upper middle, both mechanisms spool and glow, then five live-muzzle tracers per side occupy the exterior lanes while preserving the middle before the full connected rig travels to a mobile gutter and establishes two moving boundaries.
-- Beats: settle, dual spool, 0.45-second warned exterior herd, first paired boundary rounds, four gapless firing segments, edge-to-edge traversal, visible reversal and return traversal, firing taper, spin-down, exact mounted-neutral return, and recovery. Segment durations shorten from `1.7` to `1.5` to `1.3` seconds across the phases, for `6.8`, `6.0`, and `5.2` seconds of continuous fire.
-- Safe rule: enter between the two streams and follow their continuous center as Helios carries the corridor from gutter to gutter. Both exterior lanes are swept by live tracers, so a stationary left- or right-edge camp is not a solution. The opening may not teleport, cross, or close without a visible survivable transition, and no text, guide line, or safe-channel overlay communicates the solution.
+- Recognition cue: Helios settles near the upper middle, both mechanisms spool and glow, then five live-muzzle tracers per side occupy the exterior lanes while preserving the middle before the full connected rig travels to a mobile gutter and establishes two moving boundaries. During the moving sentence, recurring paired suppressors continue down the far-left and far-right gutters so the opening between the main streams remains the only intended route.
+- Beats: settle, dual spool, 0.45-second warned exterior herd, first paired boundary rounds, four gapless firing segments with a paired exterior suppressor pulse every six simulation frames, edge-to-edge traversal, visible reversal and return traversal, firing taper, spin-down, exact mounted-neutral return, and recovery. Segment durations shorten from `1.7` to `1.5` to `1.3` seconds across the phases, for `6.8`, `6.0`, and `5.2` seconds of continuous fire.
+- Safe rule: enter between the two main streams and follow their continuous center as Helios carries the corridor from gutter to gutter. The recurring suppressors target the structural exterior gutters from the same live rotary sockets, so neither screen edge is a stationary solution. The central opening remains intact; it may not teleport, cross, or close without a visible survivable transition, and no text, guide line, or safe-channel overlay communicates the solution.
 - Bounded remix: the first complete use chooses its starting edge from the fixed gameplay seed; every later complete use alternates that edge. Every phase retains the taught edge-to-edge-and-back grammar, while the shorter segment duration and faster tracer travel make the low-health channel move more urgently. The recognizable interior-channel solution must remain intact.
 - Ownership boundary: `machinegun-channel` is Helios-specific choreography built from reusable moving-socket, sequential-fire, movement, and safe-route primitives; it is not a default Boss Factory attack.
 - Retirement: the former `claw-sweep-pincer` Attack 2 is absent from the active Helios timeline. Its code or notes may remain only as an explicitly unused prototype; the active claws belong to Attack 4.
@@ -80,7 +80,7 @@ The registered projectile sprite families are `boss-heavy-shell`, `boss-gatling-
 - Recognition cue: the body braces and reactor opens before drawing a bounded fan downward one round at a time; the mine beat visibly deploys, arms, detects proximity, explodes, and cleans up.
 - Beats: fan, reordered fan, bounded deterministic phase-scaled mine formation, final fan, vent and recovery. Siege Calibration emits `25` fan pellets plus `3` mines, Armor Shear emits `27` plus `4`, and Reactor Overdrive emits `31` plus `5`.
 - Safe rule: cross between staggered fan lanes and route around armed mines before their visible explosion-active frames.
-- Bounded remix: every fan remains within the 8-through-4-o'clock envelope. The sequence selects `staggered-diagonal`, `reverse-diagonal`, `zigzag`, `shallow-arc`, `offset-triangle`, or `asymmetric-cluster`, advances deterministically on later uses, and keeps explicit X/Y arm points, per-slot timing, minimum separation, player-spawn avoidance, and a readable route through concurrent reactor fire. Retained deterministic seeds must visibly differ. Deploying and armed mines do no damage.
+- Bounded remix: every fan remains within the 8-through-4-o'clock envelope and uses uniform angular spacing for its authored count; dense low-health fans no longer insert an artificial oversized center aperture. The sequence selects `staggered-diagonal`, `reverse-diagonal`, `zigzag`, `shallow-arc`, `offset-triangle`, or `asymmetric-cluster`, advances deterministically on later uses, and keeps explicit X/Y arm points, per-slot timing, minimum separation, player-spawn avoidance, and a readable route through concurrent reactor fire. Retained deterministic seeds must visibly differ. Deploying and armed mines do no damage.
 
 ### 4. Clawcarrier Crush — core physical attack
 
@@ -107,7 +107,7 @@ The registered projectile sprite families are `boss-heavy-shell`, `boss-gatling-
 | Armor Shear | Body opens, amber reactor becomes continuously visible, claws spread and roll outward, stabilizer legs brace, rotaries remain mounted | `5/5/6` rapid bursts with one or two aimed rounds; 160 px channel with four `1.5` s segments (`6.0` s total); `27` reactor pellets plus `4` mines; Crush sequence `4` |
 | Reactor Overdrive | Damaged body persists, port claw droops while starboard braces, legs tuck asymmetrically, reactor reverses its ambient rotation | `6/6/7` faster bursts with two aimed rounds; 160 px channel with four `1.3` s segments (`5.2` s total) and faster tracer travel; `31` reactor pellets plus `5` mines; Crush sequence `8` |
 
-Phase speed multipliers move only from `0.72` to `0.75` to `0.78`. Those small changes support the presentation; side order, anatomy, aperture order, and signature staging are the actual escalation.
+Phase speed multipliers move only from `0.72` to `0.75` to `0.78`. Those small changes support the presentation; side order, anatomy, fan order, and signature staging are the actual escalation.
 
 ## Lifecycle
 
@@ -125,11 +125,11 @@ Phase speed multipliers move only from `0.72` to `0.75` to `0.78`. Those small c
 ### Reopened programmatic evidence
 
 - Fixed gameplay seed remains `helios-v2-safe-route-proof`; additional retained seeds or sequence branches must cover every 2D mine template.
-- Gate 1's canonical reference, atlas, neutral assembly, and asset classification remain locked and unchanged. No new boss artwork is authorized.
+- Gate 1's canonical reference board remains locked. V0.24 changes only the registration of the existing rotary frames, then deterministically rebuilds the atlas and neutral assembly at the hashes listed above; it does not introduce a redesigned boss or an unclassified runtime sprite.
 - The accepted V0.20 24-case proof remains historical evidence for the prior mandatory-interior channel. It does not certify V0.22's mixed aim, phase-scaled timing/density, five-mine branch, or swept Crush collision.
 - The refreshed V0.22 24-case proof separately passes every attack in all three phases at mobile `390x844` and desktop `1280x720`, with at least 6 px replayed clearance after 3 px geometry uncertainty and deterministic witness hashes.
 - The V0.22 replacement proof must reconstruct the real compiled four-attack timeline through `GameEngine` for all three phases at mobile `390x844` and desktop `1280x720`, record configuration and route hashes, and retain at least 6 px replayed clearance after 3 px geometry uncertainty.
-- Moving-channel proof must use the actual carrier movement, both live animated muzzle samples on every cadence slot, actual cadence and projectile velocity, and one continuous constrained-player witness. Mobile proof must additionally show that the witness stays between the reconstructed live rails while stationary camps at both exterior gutters are threatened. Attack 3 proof must use the runtime mine deployment path and prove each retained template with the concurrent reactor hazards.
+- Moving-channel proof must use the actual carrier movement, both live animated muzzle samples on every cadence slot, actual cadence and projectile velocity, recurring paired exterior suppressors, and one continuous constrained-player witness. Mobile proof must additionally show that the witness stays between the reconstructed live rails while stationary camps at both exterior gutters are threatened throughout the sentence. Attack 3 proof must use the uniformly spaced runtime fan, the runtime mine deployment path, and each retained template with the concurrent reactor hazards.
 - Rig evidence must prove hull-relative gun attachment during idle, translation, phase and damage states; firing-only recoil/vibration and barrel animation; exact recovery to neutral; and stable tracer orientation for downward, down-left, and down-right travel.
 
 ### Required canonical visual artifacts
@@ -158,4 +158,4 @@ Store ignored review evidence under `director-data/prototype-assets/helios-clawc
 - Anticipation, damage, recovery, Armor Shear transformation, Reactor Overdrive asymmetry, and destruction are recognizable without attack text or generic guides.
 - Structural art is opaque and nearest-neighbor; no chopped frames, transient white texture, detached parts, or non-uniform breathing distortion appear.
 - Review overlays never appear in the corresponding clean gameplay captures.
-- Gates 2-5 were accepted for V0.20 after its local mobile review, deterministic runtime proof, shared Runner build, and live private Runner review. They remain historical evidence only until V0.22 receives refreshed proof, visual review, Runner verification, and private publication. Helios remains Sandbox-only; neither acceptance places it in a campaign Mission.
+- Gates 2-5 were accepted for V0.20 after its local mobile review, deterministic runtime proof, shared Runner build, and live private Runner review. V0.24 separately passes the complete 24-case route matrix and the 18-check owner-only Runner release, but it remains a Sandbox-only amendment until its refreshed dynamic capture set is visually accepted. Neither release places Helios in a campaign Mission.

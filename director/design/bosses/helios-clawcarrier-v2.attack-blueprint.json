@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "bossId": "helios-clawcarrier",
-  "status": "sandbox-only-v023-visual-and-channel-polish-implemented-proof-refresh-pending",
+  "status": "sandbox-only-v024-route-certified-private-runner-published-visual-review-pending",
   "historicalAcceptedRelease": "V0.20",
   "fixedSeed": "helios-v2-safe-route-proof",
   "durability": {
@@ -17,8 +17,8 @@
       "width": 460,
       "height": 330
     },
-    "neutralSha256": "52e74b75999a7c3ee14b6975ca4e6201f8e9cc056e8e4c50ad94cf2cac0b4481",
-    "atlasSha256": "47e8fd0f33c6e6a53589567327f7325c73e1a7d70f964025023b71a820c405ea",
+    "neutralSha256": "08fcc15404f57aecb70b35d9498b267bd4c2f313e84dc142becf190d7a9f7f57",
+    "atlasSha256": "a686d39293f096e21adee7e7c85b78d1e2f3eb10d644f47b16235362eb7e9c11",
     "parts": [
       "root",
       "claw.port.mount",
@@ -272,6 +272,12 @@
         "safeRule": "Coordinated live-muzzle tracers occupy both exterior lanes while preserving the center opening."
       },
       "repeatCount": 4,
+      "channelGutterSuppressors": {
+        "intervalFrames": 6,
+        "sourceSockets": ["rotary-muzzle-port", "rotary-muzzle-starboard"],
+        "mobileTargets": [4, 386],
+        "policy": "Suppress both structural exterior gutters throughout the moving sentence while retaining the two moving rails and their central route."
+      },
       "phaseTiming": [
         {
           "phaseId": "sandbox-clawcarrier-siege-calibration",
@@ -318,6 +324,7 @@
       "anatomy": ["body", "reactor"],
       "sockets": ["reactor-core"],
       "recognitionCue": "The body braces and reactor opens before drawing a bounded downward fan one projectile at a time; a separate beat deploys visible mines that arm before they can detonate.",
+      "fanSpacingPolicy": "Uniform angular spacing at every authored projectile count; no artificial center aperture is inserted for dense low-health fans.",
       "safeRule": "Cross between staggered fan lanes, then route around armed mines before their proximity explosions enter active frames.",
       "beats": [
         "sequential downward fan beat 1",
@@ -502,7 +509,7 @@
       "v022-mobile-attack4-watch-safely-feedback.png"
     ],
     "gates": [
-      "Gate 1 remains locked to the unchanged canonical reference and asset inventory",
+      "Gate 1 remains locked to the canonical reference and classified asset inventory; V0.24 only corrects existing rotary-frame bore registration",
       "clean mobile and desktop captures show one connected, aspect-preserved 460x330 rig",
       "both rotaries remain rigidly hull-mounted outside firing and return exactly to neutral after recovery",
       "every projectile visibly leaves its owning rotary or reactor anatomy",

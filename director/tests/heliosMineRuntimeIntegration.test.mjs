@@ -339,6 +339,9 @@ test('Helios rapid bursts and moving channel emit sequential rounds from live mo
   let entryLeftThreatened = false;
   let entryRightThreatened = false;
   let entryCenterStayedOpen = true;
+  const gutterPulseAttackFrames = [];
+  let gutterShots = 0;
+  let maximumLiveChannelTracers = 0;
   for (let frame = 0; frame < 1_200; frame += 1) {
     const existingIds = new Set(channelEngine.entities.map((entity) => entity.id));
     channelEngine.update();
@@ -372,9 +375,19 @@ test('Helios rapid bursts and moving channel emit sequential rounds from live mo
     }
     maximumStep = Math.max(maximumStep, Math.abs(channelBoss.x - previousBossX));
     previousBossX = channelBoss.x;
+    maximumLiveChannelTracers = Math.max(
+      maximumLiveChannelTracers,
+      channelEngine.entities.filter((entity) => (
+        !entity.markedForDeletion
+        && entity.projectileVisualKind === 'boss-gatling-tracer'
+      )).length
+    );
 
     const tracers = collectNewTracers(channelEngine, existingIds);
-    assert.ok(tracers.length <= 2, 'the channel may emit one anatomy-owned round per rotary per frame');
+    assert.ok(
+      tracers.length <= 4,
+      'the channel may emit one moving rail and one exterior suppressor per rotary'
+    );
     if (tracers.length === 0) continue;
     if (tracers.length === 1) {
       const tracer = tracers[0];
@@ -396,13 +409,19 @@ test('Helios rapid bursts and moving channel emit sequential rounds from live mo
       entryCenterStayedOpen &&= Math.abs(projectedX - 390 / 2) > 50;
       continue;
     }
-    assert.equal(tracers.length, 2, 'both rotaries must maintain the channel rails together');
+    assert.ok(
+      tracers.length === 2 || tracers.length === 4,
+      'both rotaries must maintain the rails; periodic pulses also suppress both gutters'
+    );
     channelShots += tracers.length;
     const origins = {
       port: channelEngine.getPreviewBossWeaponOrigins(channelBoss, ['port'])[0],
       starboard: channelEngine.getPreviewBossWeaponOrigins(channelBoss, ['starboard'])[0]
     };
-    const emittedSides = new Set();
+    const emittedRailSides = new Set();
+    const emittedGutterSides = new Set();
+    const gutterPulse = tracers.length === 4;
+    if (gutterPulse) gutterPulseAttackFrames.push(channelBoss.attackTimer);
     for (const tracer of tracers) {
       assert.ok(tracer.vy > 0, 'channel tracers must travel generally toward 6 o’clock');
       const tracerCenter = {
@@ -416,15 +435,25 @@ test('Helios rapid bursts and moving channel emit sequential rounds from live mo
       const side = distance(origins.port) <= distance(origins.starboard)
         ? 'port'
         : 'starboard';
-      emittedSides.add(side);
       const targetY = 844 + 44;
-      const boundaryX = tracerCenter.x
+      const projectedTargetX = tracerCenter.x
         + (targetY - tracerCenter.y) * tracer.vx / tracer.vy;
-      boundaryBySide.set(side, boundaryX);
-      if (side === 'port') {
-        minimumPortBoundaryX = Math.min(minimumPortBoundaryX, boundaryX);
+      const isGutterSuppressor = tracer.variant % 100_000 >= 50_000;
+      if (isGutterSuppressor) {
+        gutterShots += 1;
+        emittedGutterSides.add(side);
+        assert.ok(
+          Math.abs(projectedTargetX - (side === 'port' ? 4 : 386)) <= 0.75,
+          `${side} suppressor must remain fixed in its exterior gutter`
+        );
       } else {
-        maximumStarboardBoundaryX = Math.max(maximumStarboardBoundaryX, boundaryX);
+        emittedRailSides.add(side);
+        boundaryBySide.set(side, projectedTargetX);
+        if (side === 'port') {
+          minimumPortBoundaryX = Math.min(minimumPortBoundaryX, projectedTargetX);
+        } else {
+          maximumStarboardBoundaryX = Math.max(maximumStarboardBoundaryX, projectedTargetX);
+        }
       }
       const playerCenterY = channelEngine.player.y + channelEngine.player.height / 2;
       const boundaryAtPlayerY = tracerCenter.x
@@ -438,9 +467,14 @@ test('Helios rapid bursts and moving channel emit sequential rounds from live mo
       ) <= collisionReach;
     }
     assert.deepEqual(
-      [...emittedSides].sort(),
+      [...emittedRailSides].sort(),
       ['port', 'starboard'],
       'every cadence pulse must retain both ordered channel rails'
+    );
+    assert.deepEqual(
+      [...emittedGutterSides].sort(),
+      gutterPulse ? ['port', 'starboard'] : [],
+      'every suppression pulse must close both exterior lanes together'
     );
     if (boundaryBySide.size === 2) {
       const opening = boundaryBySide.get('starboard') - boundaryBySide.get('port');
@@ -454,6 +488,17 @@ test('Helios rapid bursts and moving channel emit sequential rounds from live mo
   assert.equal(entryRightThreatened, true, 'the entry must herd the right exterior lane inward');
   assert.equal(entryCenterStayedOpen, true, 'the entry herd must preserve the intended center route');
   assert.ok(channelShots >= 90, `the signature must sustain rapid fire; shots=${channelShots}`);
+  assert.ok(gutterShots >= 30, `the signature must repeatedly suppress both gutters; shots=${gutterShots}`);
+  assert.ok(gutterPulseAttackFrames.length >= 15);
+  gutterPulseAttackFrames.slice(1).forEach((frame, index) => assert.equal(
+    frame - gutterPulseAttackFrames[index],
+    6,
+    'exterior suppressors must recur every six simulation frames'
+  ));
+  assert.ok(
+    maximumLiveChannelTracers <= 220,
+    `the stronger channel must remain inside its live tracer budget; live=${maximumLiveChannelTracers}`
+  );
   const maximumViewportSafeSweep = Math.max(0, 390 - channelBoss.width - 8);
   const requiredVisibleSweep = Math.min(100, maximumViewportSafeSweep * 0.9);
   assert.ok(

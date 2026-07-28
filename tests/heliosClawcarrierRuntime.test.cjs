@@ -46,6 +46,7 @@ const {
   resolveHeliosCrossfireShotPlan,
   resolveHeliosCrossfireSides,
   resolveHeliosMachineGunChannelAngle,
+  resolveHeliosMachineGunChannelGutterTargets,
   resolveHeliosMachineGunChannelHorizontalPadding,
   resolveHeliosMachineGunChannelSequence,
   resolveHeliosMachineGunChannelTargetPadding,
@@ -63,7 +64,8 @@ const {
   sampleHeliosMineLifecycle,
   sampleHeliosMineRuntime,
   sampleHeliosReactorFanShot,
-  sampleHeliosTrackingPincer
+  sampleHeliosTrackingPincer,
+  shouldFireHeliosMachineGunChannelGutter
 } = moduleBox.exports;
 
 test('Helios rotary fire emits one alternating live-mount pulse per cadence slot', () => {
@@ -361,6 +363,45 @@ test('Helios moving channel maps its ordered safe gap across both viewport gutte
   }
 });
 
+test('Helios moving channel repeatedly suppresses both exterior hiding lanes', () => {
+  const gutters = resolveHeliosMachineGunChannelGutterTargets({
+    arenaWidth: 390,
+    edgePadding: resolveHeliosMachineGunChannelHorizontalPadding(true)
+  });
+  assert.deepEqual(
+    [gutters.portX, gutters.starboardX, gutters.edgePadding],
+    [4, 386, 4]
+  );
+
+  for (const bossX of [0, 46.5, 93]) {
+    const rails = resolveHeliosMachineGunChannelTargets({
+      bossX,
+      startX: 0,
+      endX: 93,
+      arenaWidth: 390,
+      channelWidthPixels: 122,
+      edgePadding: resolveHeliosMachineGunChannelTargetPadding(true)
+    });
+    assert.ok(gutters.portX <= rails.portX);
+    assert.ok(gutters.starboardX >= rails.starboardX);
+  }
+
+  const firingFrames = [];
+  for (let elapsedFrames = 0; elapsedFrames <= 30; elapsedFrames += 1) {
+    if (shouldFireHeliosMachineGunChannelGutter({
+      elapsedFrames,
+      durationFrames: 30
+    })) {
+      firingFrames.push(elapsedFrames);
+    }
+  }
+  assert.deepEqual(firingFrames, [2, 8, 14, 20, 26]);
+  assert.equal(shouldFireHeliosMachineGunChannelGutter({
+    elapsedFrames: 30,
+    durationFrames: 30
+  }), false);
+});
+
 test('Helios moving channel keeps both rails live on every cadence slot', () => {
   const firing = [];
   const samples = [];
@@ -453,13 +494,10 @@ test('Helios reactor fan stays downward, changes deterministic order, and stagge
     sequence: 2,
     projectileCount: 10
   })).sort((left, right) => left - right);
-  assert.equal(dense.length, 10, 'the low-health aperture must not remove projectiles');
+  assert.equal(dense.length, 10, 'the low-health fan must retain every projectile');
   const denseGaps = dense.slice(1).map((angle, index) => angle - dense[index]);
   const evenGap = (dense.at(-1) - dense[0]) / (dense.length - 1);
-  assert.ok(
-    Math.max(...denseGaps) >= evenGap + 0.13,
-    'dense fans retain one deliberately widened deterministic escape aperture'
-  );
+  denseGaps.forEach((gap) => assert.ok(Math.abs(gap - evenGap) < 1e-12));
   dense.forEach((angle) => assert.ok(angle >= minimum && angle <= maximum));
 
   const emitted = [];
@@ -477,7 +515,7 @@ test('Helios reactor fan stays downward, changes deterministic order, and stagge
   assert.equal(new Set(emitted.map(({ elapsedFrames }) => elapsedFrames)).size, 7);
 });
 
-test('Helios nine-round and overdrive fans retain every sprite around a deterministic aperture', () => {
+test('Helios nine-round and overdrive fans retain every sprite with no artificial center gap', () => {
   for (const projectileCount of [9, 10, 11]) {
     const angles = buildHeliosReactorFanAngles({
       sequence: 0,
@@ -486,14 +524,12 @@ test('Helios nine-round and overdrive fans retain every sprite around a determin
     });
     assert.equal(angles.length, projectileCount);
     const ordered = [...angles].sort((left, right) => left - right);
-    const widestGap = Math.max(...ordered.slice(1).map((angle, index) => (
-      angle - ordered[index]
-    )));
+    const gaps = ordered.slice(1).map((angle, index) => angle - ordered[index]);
     const evenGap = (Math.PI * 2 / 3) / (projectileCount - 1);
-    assert.ok(
-      widestGap >= evenGap + (projectileCount >= 10 ? 0.13 : 0.07),
-      `${projectileCount} sprites must preserve a visible learned opening`
-    );
+    gaps.forEach((gap) => assert.ok(
+      Math.abs(gap - evenGap) < 1e-12,
+      `${projectileCount} sprites must keep uniform spacing`
+    ));
   }
 });
 

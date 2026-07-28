@@ -11,17 +11,22 @@ import {
   resolveBossWeaveWallLayout
 } from './BossPatternRuntime';
 import {
+  HELIOS_MACHINE_GUN_CHANNEL_FIRST_SHOT_FRAME,
+  HELIOS_MACHINE_GUN_CHANNEL_GUTTER_INTERVAL_FRAMES,
   HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE,
   resolveHeliosMineFormation,
   resolveHeliosMineArmPoint,
   resolveHeliosCrossfireShotPlan,
   resolveHeliosCrossfireSides,
+  resolveHeliosMachineGunChannelGutterTargets,
+  resolveHeliosMachineGunChannelHorizontalPadding,
   sampleHeliosCrossfirePulse,
   sampleHeliosMachineGunChannelPulse,
   sampleHeliosMineDeployment,
   sampleHeliosMineLifecycle,
   sampleHeliosReactorFanShot,
-  sampleHeliosTrackingPincer
+  sampleHeliosTrackingPincer,
+  shouldFireHeliosMachineGunChannelGutter
 } from './HeliosClawcarrierRuntime';
 import { resolveBossTimelineAttackVariant } from './BossTimelineRuntime';
 
@@ -286,6 +291,7 @@ interface SimulationContext {
 
 interface ScheduledHeliosMachineGunChannelShot {
   readonly frame: number;
+  readonly role: 'rail' | 'gutter';
   readonly side: 'port' | 'starboard';
   readonly sideShotIndex: number;
   readonly origin?: BossSafeRoutePoint;
@@ -631,6 +637,13 @@ const buildHeliosMachineGunChannelSchedule = (
       pose.beatOrigins?.[beat.key]?.channelTargets?.starboard ?? []
     ))
   };
+  const gutterTargets = resolveHeliosMachineGunChannelGutterTargets({
+    arenaWidth: viewport.width,
+    edgePadding: resolveHeliosMachineGunChannelHorizontalPadding(
+      viewport.mobileProfile
+    )
+  });
+  const targetY = viewport.height + (viewport.mobileProfile ? 44 : 64);
   const shots: ScheduledHeliosMachineGunChannelShot[] = [];
   for (let elapsedFrames = 0; elapsedFrames < durationFrames; elapsedFrames += 1) {
     const pulse = sampleHeliosMachineGunChannelPulse({
@@ -639,16 +652,40 @@ const buildHeliosMachineGunChannelSchedule = (
       sequence,
       intervalFrames
     });
-    if (!pulse?.firing) continue;
-    pulse.firingSides.forEach((side) => {
-      shots.push({
-        frame: startFrame + elapsedFrames,
-        side,
-        sideShotIndex: pulse.shotIndex,
-        origin: liveOrigins[side][pulse.shotIndex],
-        target: liveTargets[side][pulse.shotIndex]
+    if (!pulse) continue;
+    if (pulse.firing) {
+      pulse.firingSides.forEach((side) => {
+        shots.push({
+          frame: startFrame + elapsedFrames,
+          role: 'rail',
+          side,
+          sideShotIndex: pulse.shotIndex,
+          origin: liveOrigins[side][pulse.shotIndex],
+          target: liveTargets[side][pulse.shotIndex]
+        });
       });
-    });
+    }
+    if (shouldFireHeliosMachineGunChannelGutter({
+      elapsedFrames,
+      durationFrames
+    })) {
+      pulse.firingSides.forEach((side) => {
+        shots.push({
+          frame: startFrame + elapsedFrames,
+          role: 'gutter',
+          side,
+          sideShotIndex: Math.floor(
+            (elapsedFrames - HELIOS_MACHINE_GUN_CHANNEL_FIRST_SHOT_FRAME)
+              / HELIOS_MACHINE_GUN_CHANNEL_GUTTER_INTERVAL_FRAMES
+          ),
+          origin: liveOrigins[side][pulse.shotIndex],
+          target: {
+            x: side === 'port' ? gutterTargets.portX : gutterTargets.starboardX,
+            y: targetY
+          }
+        });
+      });
+    }
   }
   const shotsByFrame = new Map<number, ScheduledHeliosMachineGunChannelShot[]>();
   shots.forEach((shot) => {
@@ -662,6 +699,7 @@ const buildHeliosMachineGunChannelSchedule = (
   for (let elapsedFrames = 0; elapsedFrames < durationFrames; elapsedFrames += 1) {
     const frameShots = shotsByFrame.get(startFrame + elapsedFrames) ?? [];
     frameShots.forEach((shot) => {
+      if (shot.role !== 'rail') return;
       if (shot.side === 'port' && shot.target) latestPortTarget = shot.target;
       if (shot.side === 'starboard' && shot.target) latestStarboardTarget = shot.target;
     });
@@ -683,6 +721,8 @@ const buildHeliosMachineGunChannelSchedule = (
   const sampleRailX = (frame: number, side: 'port' | 'starboard') => {
     const samples = shots
       .filter((shot) => (
+        shot.role === 'rail'
+        &&
         shot.side === side
         && shot.frame <= frame
         && shot.origin
@@ -1811,6 +1851,7 @@ const validateGeometry = (
       ) {
         return `The Helios machine-gun channel shot ${shot.sideShotIndex} has invalid forward geometry.`;
       }
+      if (shot.role === 'gutter') continue;
       const previous = previousBySide[shot.side];
       if (previous?.origin && previous.target) {
         const originStep = Math.hypot(

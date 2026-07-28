@@ -167,6 +167,7 @@ import {
   resolveHeliosCornerClampPlacement,
   resolveHeliosCrossfireShotPlan,
   resolveHeliosCrossfireSides,
+  resolveHeliosMachineGunChannelGutterTargets,
   resolveHeliosMachineGunChannelHorizontalPadding,
   resolveHeliosMachineGunChannelSequence,
   resolveHeliosMachineGunChannelTargetPadding,
@@ -183,6 +184,7 @@ import {
   sampleHeliosMineLifecycle,
   sampleHeliosReactorFanShot,
   sampleHeliosTrackingPincer,
+  shouldFireHeliosMachineGunChannelGutter,
   type HeliosClawSide,
   type HeliosMineStage
 } from './gameplay/bosses/HeliosClawcarrierRuntime';
@@ -12290,7 +12292,12 @@ export class GameEngine {
         sequence: channel.sequence,
         intervalFrames: channel.shotIntervalFrames
       });
-      if (!pulse?.firing) return;
+      if (!pulse) return;
+      const gutterFiring = shouldFireHeliosMachineGunChannelGutter({
+        elapsedFrames: pulse.elapsedFrames,
+        durationFrames
+      });
+      if (!pulse.firing && !gutterFiring) return;
       const horizontalPadding = resolveHeliosMachineGunChannelHorizontalPadding(
         this.mobileProfile
       );
@@ -12320,21 +12327,33 @@ export class GameEngine {
           this.width
         )
       });
+      const gutterTargets = resolveHeliosMachineGunChannelGutterTargets({
+        arenaWidth: this.width,
+        edgePadding: horizontalPadding
+      });
       const targetY = this.height + (this.mobileProfile ? 44 : 64);
       const baseSpeed = Math.min(
         this.mobileProfile ? 6.1 : 6.8,
         Math.max(4.6, (Number(boss.projectileSpeed) || 6.2) * 0.78)
       );
-      for (let sideIndex = 0; sideIndex < pulse.firingSides.length; sideIndex += 1) {
-        const side = pulse.firingSides[sideIndex];
-        const origin = this.getPreviewBossWeaponOrigins(boss, [side])[0] ?? {
+      const origins = new Map<HeliosClawSide, { x: number; y: number; strength: number }>();
+      const getOrigin = (side: HeliosClawSide) => {
+        const existing = origins.get(side);
+        if (existing) return existing;
+        const resolved = this.getPreviewBossWeaponOrigins(boss, [side])[0] ?? {
           x: boss.x + boss.width * (side === 'port' ? 0.4 : 0.6),
           y: boss.y + boss.height * 0.78,
           strength: 1
         };
-        const targetX = side === 'port'
-          ? channelTargets.portX
-          : channelTargets.starboardX;
+        origins.set(side, resolved);
+        return resolved;
+      };
+      const spawnChannelTracer = (
+        side: HeliosClawSide,
+        targetX: number,
+        sequenceOffset: number
+      ) => {
+        const origin = getOrigin(side);
         const angle = Math.atan2(targetY - origin.y, targetX - origin.x);
         const projectile = this.spawnGeneratedBossProjectile(
           boss,
@@ -12344,11 +12363,35 @@ export class GameEngine {
           baseSpeed * channel.projectileSpeedScale,
           side === 'port' ? '#f97316' : '#fbbf24',
           this.mobileProfile ? 9 : 11,
-          channel.sequence * 10_000 + pulse.shotIndex * 2 + sideIndex
+          channel.sequence * 100_000 + sequenceOffset
         );
         if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-gatling-tracer')) {
           projectile.projectileVisualKind = 'boss-gatling-tracer';
         }
+      };
+      if (pulse.firing) {
+        for (let sideIndex = 0; sideIndex < pulse.firingSides.length; sideIndex += 1) {
+          const side = pulse.firingSides[sideIndex];
+          spawnChannelTracer(
+            side,
+            side === 'port' ? channelTargets.portX : channelTargets.starboardX,
+            pulse.shotIndex * 4 + sideIndex
+          );
+        }
+      }
+      if (gutterFiring) {
+        for (let sideIndex = 0; sideIndex < pulse.firingSides.length; sideIndex += 1) {
+          const side = pulse.firingSides[sideIndex];
+          spawnChannelTracer(
+            side,
+            side === 'port' ? gutterTargets.portX : gutterTargets.starboardX,
+            50_000 + pulse.elapsedFrames * 2 + sideIndex
+          );
+        }
+      }
+      for (const side of pulse.firingSides) {
+        if (!pulse.firing && !gutterFiring) continue;
+        const origin = getOrigin(side);
         this.spawnBurst(origin.x, origin.y, '#f59e0b', 2, 1.55, 2);
       }
       this.playSound('boss_machinegun', 0.42, {

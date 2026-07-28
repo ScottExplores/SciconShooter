@@ -87,14 +87,16 @@ test('Helios asset usage classifies every source-grid cell and every used frame 
 });
 
 test('Helios package keeps handed claws stable, body-owns its guns and legs, and exposes only the starburst muzzle frame', async () => {
-  const [usage, rig, atlas] = await Promise.all([
+  const [usage, rig, atlas, sourceLayout] = await Promise.all([
     readJson('helios-clawcarrier-v2.asset-usage.json'),
     readJson('helios-clawcarrier-v2.rig.json'),
-    readJson('helios-clawcarrier-v2-atlas.json')
+    readJson('helios-clawcarrier-v2-atlas.json'),
+    readJson('source-layout.json')
   ]);
   const partById = Object.fromEntries(rig.parts.map((part) => [part.id, part]));
   const animationById = Object.fromEntries(rig.animations.map((animation) => [animation.id, animation]));
   const usageById = Object.fromEntries(usage.frames.map((frame) => [frame.frameId, frame]));
+  const sourceCellById = Object.fromEntries(sourceLayout.cells.map((cell) => [cell.id, cell]));
 
   assert.equal(partById['claw.port'].transform.scaleX, 0.88);
   assert.equal(partById['claw.starboard'].transform.scaleX, 0.88);
@@ -132,6 +134,34 @@ test('Helios package keeps handed claws stable, body-owns its guns and legs, and
   assert.equal(partById['weapons.mount'].parentId, 'body');
   assert.equal(partById['rotary.port'].parentId, 'weapons.mount');
   assert.equal(partById['rotary.starboard'].parentId, 'weapons.mount');
+  const expectedRotaryRegistration = {
+    'rotary.port.0': { x: 182, y: 157, unit: 'pixels' },
+    'rotary.port.1': { x: 165, y: 157, unit: 'pixels' },
+    'rotary.port.2': { x: 143, y: 157, unit: 'pixels' },
+    'rotary.port.3': { x: 120, y: 157, unit: 'pixels' },
+    'rotary.starboard.0': { x: 176, y: 156.5, unit: 'pixels' },
+    'rotary.starboard.1': { x: 169, y: 156.5, unit: 'pixels' },
+    'rotary.starboard.2': { x: 140, y: 156.5, unit: 'pixels' },
+    'rotary.starboard.3': { x: 122, y: 156.5, unit: 'pixels' }
+  };
+  for (const [frameId, registrationPoint] of Object.entries(expectedRotaryRegistration)) {
+    assert.deepEqual(
+      sourceCellById[frameId].registration,
+      registrationPoint,
+      `${frameId} must keep its visible bore registered to the live socket`
+    );
+  }
+  for (const frameIds of [
+    ['rotary.port.0', 'rotary.port.1', 'rotary.port.2', 'rotary.port.3'],
+    ['rotary.starboard.0', 'rotary.starboard.1', 'rotary.starboard.2', 'rotary.starboard.3']
+  ]) {
+    const firstAnchor = atlas.frames[frameIds[0]].anchor;
+    frameIds.slice(1).forEach((frameId) => assert.deepEqual(
+      atlas.frames[frameId].anchor,
+      firstAnchor,
+      `${frameId} must retain one stable mounted bore across the spin cycle`
+    ));
+  }
   assert.equal(partById['mandible.port'].parentId, 'claw.port');
   assert.equal(partById['mandible.starboard'].parentId, 'claw.starboard');
   assert.deepEqual(partById['mandible.port'].transform, {

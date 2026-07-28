@@ -43,7 +43,7 @@ export const PROTOTYPE_ASSET_DEFINITIONS = Object.freeze([
     prototypeId: 'helios-clawcarrier',
     variant: 'assembled',
     fileName: 'helios-clawcarrier-v2/helios-clawcarrier-v2-neutral.png',
-    sha256: '52e74b75999a7c3ee14b6975ca4e6201f8e9cc056e8e4c50ad94cf2cac0b4481',
+    sha256: '08fcc15404f57aecb70b35d9498b267bd4c2f313e84dc142becf190d7a9f7f57',
     width: 460,
     height: 330,
     label: 'Helios Clawcarrier V2 modular neutral preview'
@@ -52,7 +52,7 @@ export const PROTOTYPE_ASSET_DEFINITIONS = Object.freeze([
     prototypeId: 'helios-clawcarrier',
     variant: 'sheet',
     fileName: 'helios-clawcarrier-v2/helios-clawcarrier-v2-atlas.png',
-    sha256: '47e8fd0f33c6e6a53589567327f7325c73e1a7d70f964025023b71a820c405ea',
+    sha256: 'a686d39293f096e21adee7e7c85b78d1e2f3eb10d644f47b16235362eb7e9c11',
     width: 2048,
     height: 1024,
     label: 'Helios Clawcarrier V2 modular and projectile atlas'
