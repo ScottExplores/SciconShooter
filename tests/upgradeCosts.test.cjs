@@ -26,9 +26,9 @@ vm.runInNewContext(`(function(exports, require, module) { ${compiled} })(module.
 });
 
 const { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost } = moduleBox.exports;
-const stats = (fireRate, speed) => ({
+const stats = (fireRate, speed, repairsCount = 0) => ({
   lives: 3,
-  repairsCount: 0,
+  repairsCount,
   upgrades: { fireRate, speed, missile: 0 }
 });
 
@@ -37,12 +37,16 @@ test('allows flask life upgrades up to fifteen hearts', () => {
   assert.equal(FIELD_UPGRADE_CONFIG.extraLife.maxLevel, 15);
 });
 
-test('prices premium weapon and speed tiers in stored flasks', () => {
+test('prices weapon tiers normally and makes every single-track upgrade premium', () => {
   assert.equal(getFieldUpgradeFlaskCost(stats(4, 4), 'fireRate'), 1);
   assert.equal(getFieldUpgradeFlaskCost(stats(5, 4), 'fireRate'), 5);
   assert.equal(getFieldUpgradeFlaskCost(stats(6, 4), 'fireRate'), 10);
   assert.equal(getFieldUpgradeFlaskCost(stats(14, 4), 'fireRate'), 15);
+  assert.equal(getFieldUpgradeFlaskCost(stats(4, 0), 'speed'), 5);
+  assert.equal(getFieldUpgradeFlaskCost(stats(4, 4), 'speed'), 5);
   assert.equal(getFieldUpgradeFlaskCost(stats(4, 5), 'speed'), 5);
+  assert.equal(getFieldUpgradeFlaskCost(stats(4, 0, 0), 'extraLife'), 5);
+  assert.equal(getFieldUpgradeFlaskCost(stats(4, 0, 12), 'extraLife'), 5);
   assert.equal(FIELD_UPGRADE_CONFIG.fireRate.maxLevel, 21);
   assert.equal(FIELD_UPGRADE_CONFIG.speed.maxLevel, 6);
 });

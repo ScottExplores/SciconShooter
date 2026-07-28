@@ -14,7 +14,8 @@ test('runtime exposes ordered level and within-level wave position from campaign
     'levelTotal: number',
     'waveNumber: number',
     'waveTotal: number',
-    'wavePresentationRevision: number'
+    'wavePresentationRevision: number',
+    "wavePresentationKind: 'mission' | 'internal-wave'"
   ]) {
     assert.match(engine, new RegExp(field));
   }
@@ -23,11 +24,12 @@ test('runtime exposes ordered level and within-level wave position from campaign
   assert.match(engine, /waves\.forEach\(\(\{ wave \}, waveIndex\) =>/);
   assert.match(engine, /waveNumber: Math\.max\(1, \(entry\?\.waveIndex \?\? 0\) \+ 1\)/);
   assert.match(engine, /waveTotal = Math\.max\(1, entry\?\.level\.waves\.length \?\? 1\)/);
-  assert.match(engine, /beginWavePresentation\(\) \{\s*this\.wavePresentationRevision\+\+;/);
+  assert.match(engine, /beginWavePresentation\(kind: GameRuntimeState\['wavePresentationKind'\] = 'mission'\) \{\s*this\.wavePresentationKind = kind;\s*this\.wavePresentationRevision\+\+;/);
+  assert.match(engine, /this\.beginWavePresentation\('internal-wave'\)/);
   assert.match(engine, /this\.cinematicPaused = cinematicPause;/);
 });
 
-test('canonical Pixi scene presents Mission starts without replaying the banner for internal waves', () => {
+test('canonical Pixi scene presents full Mission starts and compact dissolving internal Wave cues', () => {
   const renderer = read('services', 'pixi', 'PixiGameRenderer.ts');
 
   assert.match(renderer, /scicon-simple-arcade-kit-v1\/wave-glyphs\/cyan/);
@@ -42,6 +44,11 @@ test('canonical Pixi scene presents Mission starts without replaying the banner 
   assert.match(renderer, /prefers-reduced-motion: reduce/);
   assert.match(renderer, /if \(!engine\.cinematicPaused\) \{\s*this\.wavePresentationElapsedMs =/);
   assert.match(renderer, /if \(state\.wavePresentationRevision !== this\.lastWavePresentationRevision\)/);
+  assert.match(renderer, /state\.wavePresentationKind === 'internal-wave'/);
+  assert.match(renderer, /this\.waveLevelText\.visible = !this\.internalWavePresentation/);
+  assert.match(renderer, /this\.waveNameText\.visible = !this\.internalWavePresentation/);
+  assert.match(renderer, /INTERNAL_WAVE_INTRO_DURATION_MS = INTERNAL_WAVE_INTRO_HOLD_UNTIL_MS \+ INTERNAL_WAVE_INTRO_EXIT_MS/);
+  assert.match(renderer, /this\.internalWavePresentation[\s\S]*?INTERNAL_WAVE_INTRO_DURATION_MS/);
   assert.doesNotMatch(renderer, /presentationKey !== this\.lastWavePresentationKey/);
 
   const updateStart = renderer.indexOf('  private updateWavePresentation(');
@@ -59,8 +66,13 @@ test('canonical Pixi scene presents Mission starts without replaying the banner 
 
   const compactCount = Number(renderer.match(/WAVE_INTRO_FRAGMENT_COUNT_COMPACT = (\d+)/)?.[1]);
   const fullCount = Number(renderer.match(/WAVE_INTRO_FRAGMENT_COUNT_FULL = (\d+)/)?.[1]);
+  const internalEnter = Number(renderer.match(/INTERNAL_WAVE_INTRO_ENTER_MS = (\d+)/)?.[1]);
+  const internalHold = Number(renderer.match(/INTERNAL_WAVE_INTRO_HOLD_UNTIL_MS = (\d+)/)?.[1]);
+  const internalExit = Number(renderer.match(/INTERNAL_WAVE_INTRO_EXIT_MS = (\d+)/)?.[1]);
   assert.ok(compactCount > 0 && compactCount <= 48);
   assert.ok(fullCount >= compactCount && fullCount <= 64);
+  assert.ok(internalEnter > 0 && internalHold > internalEnter);
+  assert.ok(internalHold + internalExit <= 1200);
 });
 
 test('production and Director previews share the same wave presentation renderer', () => {

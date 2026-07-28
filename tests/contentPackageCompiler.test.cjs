@@ -35,7 +35,7 @@ test('schema-v1 decompile and compile are byte-order and behavior preserving for
   assert.equal(
     contentPackage.waves.reduce((count, wave) => count + wave.events.length, 0)
       + contentPackage.bosses.length,
-    164
+    180
   );
   assert.deepEqual(contentPackage.manifest.campaignFieldOrder, Object.keys(campaign));
   assert.deepEqual(compiler.diagnoseContentPackage(contentPackage), []);

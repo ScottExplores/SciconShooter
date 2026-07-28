@@ -150,9 +150,16 @@ test('internal waves advance seamlessly and only Mission boundaries create resul
   assert.match(engine, /continueToNextWave\(\)[\s\S]*?this\.startNextWave\(\);/);
   assert.match(engine, /const stageBoundary = [\s\S]*?previousEntry\.level\.id !== nextEntry\.level\.id/);
   assert.match(engine, /this\.resetWaveProgress\(stageBoundary\)/);
-  assert.match(engine, /if \(stageBoundary\) \{[\s\S]*?this\.beginWavePresentation\(\);[\s\S]*?this\.playSound\('wave'\);[\s\S]*?\} else \{[\s\S]*?this\.recordWaveStart\(\);[\s\S]*?\}/);
+  assert.match(engine, /if \(stageBoundary\) \{[\s\S]*?this\.beginWavePresentation\('mission'\);[\s\S]*?this\.playSound\('wave'\);[\s\S]*?\} else \{[\s\S]*?this\.beginWavePresentation\('internal-wave'\);[\s\S]*?\}/);
   assert.match(engine, /this\.introFlightDuration = stageBoundary/);
   assert.match(engine, /this\.wave = this\.getStageNumberForCampaignIndex\(\)/);
+  assert.match(tacticalSource, /this\.clearStageBoundaryDebris\(false, true, false, true\)/);
+  assert.match(engine, /this\.internalWaveLooseEntriesRemaining = !stageBoundary && firstSpawnUsesFormation[\s\S]*?INTERNAL_WAVE_LOOSE_ENTRY_COUNT/);
+  assert.match(engine, /patternId: 'single-random'[\s\S]*?positionId: 'random-top'/);
+  assert.match(engine, /this\.getConfiguredSpawnsComplete\(\)[\s\S]*?WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES/);
+  assert.match(engine, /difficultyMultiplier,[\s\S]*?false[\s\S]*?this\.internalWaveLooseEntriesRemaining--/);
+  assert.match(engine, /getWaveContinuityLooseEnemyCap\(this\.getConfiguredWaveDurationFrames\(\)\)/);
+  assert.match(engine, /this\.playerVel = \{ x: 0, y: 0 \};[\s\S]*?this\.playerTilt = 0;[\s\S]*?if \(this\.introFlightFrames > 0\)/);
 });
 
 test('major-boss Missions expose a five-second movable reward window before the full takeoff cinematic', () => {

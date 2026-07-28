@@ -1192,6 +1192,34 @@
           "formationPackIds": [],
           "events": [
             {
+              "id": "operation-open-galaxy-wave-4-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 2.5,
+                  "damage": 1,
+                  "scoreValue": 10,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout",
+                  "rank": "standard",
+                  "sizeMultiplier": 1
+                }
+              ]
+            },
+            {
               "id": "operation-open-galaxy-wave-4-recovery",
               "kind": "recovery",
               "label": "Research recovery window",
@@ -1737,6 +1765,34 @@
           "formationPackIds": [],
           "events": [
             {
+              "id": "stage-citation-storm-wave-5-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 3.05,
+                  "damage": 1,
+                  "scoreValue": 20,
+                  "powerupDropChance": 0,
+                  "roleId": "role-orbit-scout",
+                  "rank": "standard",
+                  "sizeMultiplier": 1
+                }
+              ]
+            },
+            {
               "id": "stage-citation-storm-wave-5-recovery",
               "kind": "recovery",
               "label": "Research recovery window",
@@ -2215,6 +2271,34 @@
           "rhythm": "recovery",
           "formationPackIds": [],
           "events": [
+            {
+              "id": "stage-paywall-siege-wave-4-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 3.325,
+                  "damage": 1,
+                  "scoreValue": 40,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-scout",
+                  "rank": "standard",
+                  "sizeMultiplier": 1
+                }
+              ]
+            },
             {
               "id": "stage-paywall-siege-wave-4-recovery",
               "kind": "recovery",
@@ -2916,6 +3000,34 @@
           "rhythm": "recovery",
           "formationPackIds": [],
           "events": [
+            {
+              "id": "stage-open-galaxy-wave-5-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 3.6,
+                  "damage": 1,
+                  "scoreValue": 80,
+                  "powerupDropChance": 0,
+                  "roleId": "role-jet-scout",
+                  "rank": "standard",
+                  "sizeMultiplier": 1
+                }
+              ]
+            },
             {
               "id": "stage-open-galaxy-wave-5-recovery",
               "kind": "recovery",
@@ -3789,6 +3901,34 @@
           "formationPackIds": [],
           "events": [
             {
+              "id": "stage-helix-convergence-wave-4-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 1.7,
+                  "damage": 1,
+                  "scoreValue": 85,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-citation-swarm"
+                }
+              ]
+            },
+            {
               "id": "stage-helix-convergence-wave-4-recovery",
               "kind": "recovery",
               "label": "Research recovery window",
@@ -4407,6 +4547,34 @@
           "formationPackIds": [],
           "events": [
             {
+              "id": "stage-redline-corridor-wave-5-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 3.24,
+                  "damage": 1,
+                  "scoreValue": 259,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-research-drone"
+                }
+              ]
+            },
+            {
               "id": "stage-redline-corridor-wave-5-recovery",
               "kind": "recovery",
               "label": "Research recovery window",
@@ -4921,6 +5089,34 @@
           "rhythm": "recovery",
           "formationPackIds": [],
           "events": [
+            {
+              "id": "stage-dark-matter-run-wave-4-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 1,
+                  "health": 3,
+                  "speed": 3.64,
+                  "damage": 1,
+                  "scoreValue": 46,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-citation-swarm"
+                }
+              ]
+            },
             {
               "id": "stage-dark-matter-run-wave-4-recovery",
               "kind": "recovery",
@@ -5611,6 +5807,34 @@
           "formationPackIds": [],
           "events": [
             {
+              "id": "stage-mirror-array-wave-5-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "swarm",
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 3.33,
+                  "damage": 1,
+                  "scoreValue": 283,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-citation-swarm"
+                }
+              ]
+            },
+            {
               "id": "stage-mirror-array-wave-5-recovery",
               "kind": "recovery",
               "label": "Research recovery window",
@@ -6041,8 +6265,8 @@
               "positionId": "center-top",
               "movementPatternId": "arena-roam",
               "warningSeconds": 3.4,
-            "health": 1180,
-            "speed": 2.25,
+              "health": 1180,
+              "speed": 2.25,
               "damage": 1,
               "scoreReward": 16700,
               "powerupDropChance": 1,
@@ -6052,15 +6276,15 @@
                 {
                   "id": "null-sector-radial-burst",
                   "weaponId": "burst-volley",
-                "attackIntervalSeconds": 1.15,
+                  "attackIntervalSeconds": 1.15,
                   "damage": 1,
-                "projectileSpeed": 8.9,
+                  "projectileSpeed": 8.9,
                   "burstCount": 6
                 },
                 {
                   "id": "null-sector-charged-lanes",
                   "weaponId": "lane-beam",
-                "attackIntervalSeconds": 1.25,
+                  "attackIntervalSeconds": 1.25,
                   "damage": 1,
                   "projectileSpeed": 0,
                   "burstCount": 1
@@ -6077,23 +6301,23 @@
                     "null-sector-radial-burst"
                   ]
                 },
-              {
-                "id": "null-sector-phase-crossfire",
-                "label": "Charged crossfire",
-                "triggerHealthRatio": 0.62,
+                {
+                  "id": "null-sector-phase-crossfire",
+                  "label": "Charged crossfire",
+                  "triggerHealthRatio": 0.62,
                   "movementPatternId": "arena-roam",
-                "speedMultiplier": 1.08,
+                  "speedMultiplier": 1.08,
                   "weaponSettingIds": [
                     "null-sector-radial-burst",
                     "null-sector-charged-lanes"
                   ]
                 },
-              {
-                "id": "null-sector-phase-collapse",
-                "label": "Collapse pattern",
-                "triggerHealthRatio": 0.27,
+                {
+                  "id": "null-sector-phase-collapse",
+                  "label": "Collapse pattern",
+                  "triggerHealthRatio": 0.27,
                   "movementPatternId": "arena-roam",
-                "speedMultiplier": 1.18,
+                  "speedMultiplier": 1.18,
                   "weaponSettingIds": [
                     "null-sector-radial-burst",
                     "null-sector-charged-lanes"
@@ -6476,6 +6700,34 @@
           "rhythm": "recovery",
           "formationPackIds": [],
           "events": [
+            {
+              "id": "stage-shard-tempest-wave-4-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 3.42,
+                  "damage": 1,
+                  "scoreValue": 307,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            },
             {
               "id": "stage-shard-tempest-wave-4-recovery",
               "kind": "recovery",
@@ -7129,6 +7381,34 @@
           "formationPackIds": [],
           "events": [
             {
+              "id": "stage-quantum-cage-wave-5-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 1.92,
+                  "damage": 1,
+                  "scoreValue": 115,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-jet-scout"
+                }
+              ]
+            },
+            {
               "id": "stage-quantum-cage-wave-5-recovery",
               "kind": "recovery",
               "label": "Research recovery window",
@@ -7670,6 +7950,34 @@
           "rhythm": "recovery",
           "formationPackIds": [],
           "events": [
+            {
+              "id": "stage-gravity-well-wave-4-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 3.51,
+                  "damage": 1,
+                  "scoreValue": 331,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-jet-scout"
+                }
+              ]
+            },
             {
               "id": "stage-gravity-well-wave-4-recovery",
               "kind": "recovery",
@@ -8380,6 +8688,34 @@
           "formationPackIds": [],
           "events": [
             {
+              "id": "stage-event-horizon-wave-5-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 3.91,
+                  "damage": 1,
+                  "scoreValue": 64,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            },
+            {
               "id": "stage-event-horizon-wave-5-recovery",
               "kind": "recovery",
               "label": "Research recovery window",
@@ -8770,8 +9106,8 @@
               "positionId": "center-top",
               "movementPatternId": "arena-roam",
               "warningSeconds": 3.4,
-            "health": 1650,
-            "speed": 2.5,
+              "health": 1650,
+              "speed": 2.5,
               "damage": 1,
               "scoreReward": 23200,
               "powerupDropChance": 1,
@@ -8781,15 +9117,15 @@
                 {
                   "id": "ion-citadel-radial-burst",
                   "weaponId": "burst-volley",
-                "attackIntervalSeconds": 1.2,
+                  "attackIntervalSeconds": 1.2,
                   "damage": 1,
-                "projectileSpeed": 9.25,
+                  "projectileSpeed": 9.25,
                   "burstCount": 6
                 },
                 {
                   "id": "ion-citadel-charged-lanes",
                   "weaponId": "lane-beam",
-                "attackIntervalSeconds": 1.3,
+                  "attackIntervalSeconds": 1.3,
                   "damage": 1,
                   "projectileSpeed": 0,
                   "burstCount": 2
@@ -8806,23 +9142,23 @@
                     "ion-citadel-radial-burst"
                   ]
                 },
-              {
-                "id": "ion-citadel-phase-crossfire",
-                "label": "Charged crossfire",
-                "triggerHealthRatio": 0.5,
+                {
+                  "id": "ion-citadel-phase-crossfire",
+                  "label": "Charged crossfire",
+                  "triggerHealthRatio": 0.5,
                   "movementPatternId": "arena-roam",
-                "speedMultiplier": 1.09,
+                  "speedMultiplier": 1.09,
                   "weaponSettingIds": [
                     "ion-citadel-radial-burst",
                     "ion-citadel-charged-lanes"
                   ]
                 },
-              {
-                "id": "ion-citadel-phase-collapse",
-                "label": "Collapse pattern",
-                "triggerHealthRatio": 0.18,
+                {
+                  "id": "ion-citadel-phase-collapse",
+                  "label": "Collapse pattern",
+                  "triggerHealthRatio": 0.18,
                   "movementPatternId": "arena-roam",
-                "speedMultiplier": 1.2,
+                  "speedMultiplier": 1.2,
                   "weaponSettingIds": [
                     "ion-citadel-radial-burst",
                     "ion-citadel-charged-lanes"
@@ -9251,6 +9587,34 @@
           "rhythm": "recovery",
           "formationPackIds": [],
           "events": [
+            {
+              "id": "stage-crimson-vector-wave-4-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 2.1,
+                  "damage": 1,
+                  "scoreValue": 135,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-jet-scout"
+                }
+              ]
+            },
             {
               "id": "stage-crimson-vector-wave-4-recovery",
               "kind": "recovery",
@@ -9926,6 +10290,34 @@
           "formationPackIds": [],
           "events": [
             {
+              "id": "stage-eclipse-swarm-wave-5-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 4.04,
+                  "damage": 1,
+                  "scoreValue": 73,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-orbit-scout"
+                }
+              ]
+            },
+            {
               "id": "stage-eclipse-swarm-wave-5-recovery",
               "kind": "recovery",
               "label": "Research recovery window",
@@ -10475,6 +10867,34 @@
           "rhythm": "recovery",
           "formationPackIds": [],
           "events": [
+            {
+              "id": "stage-fracture-engine-wave-4-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 1,
+                  "health": 4,
+                  "speed": 3.74,
+                  "damage": 1,
+                  "scoreValue": 391,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-jet-scout"
+                }
+              ]
+            },
             {
               "id": "stage-fracture-engine-wave-4-recovery",
               "kind": "recovery",
@@ -11219,6 +11639,34 @@
           "formationPackIds": [],
           "events": [
             {
+              "id": "stage-last-light-gauntlet-wave-5-drifters",
+              "kind": "spawn",
+              "label": "Loose interceptors",
+              "startSeconds": 0,
+              "durationSeconds": 4,
+              "delayAfterSeconds": 0,
+              "blocksWaveClock": false,
+              "count": 3,
+              "patternId": "single-random",
+              "positionId": "random-top",
+              "spawnIntervalSeconds": 1.25,
+              "enemies": [
+                {
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "weight": 1,
+                  "health": 2,
+                  "speed": 4.13,
+                  "damage": 1,
+                  "scoreValue": 79,
+                  "powerupDropChance": 0,
+                  "rank": "standard",
+                  "sizeMultiplier": 1,
+                  "roleId": "role-jet-scout"
+                }
+              ]
+            },
+            {
               "id": "stage-last-light-gauntlet-wave-5-recovery",
               "kind": "recovery",
               "label": "Research recovery window",
@@ -11665,8 +12113,8 @@
               "positionId": "center-top",
               "movementPatternId": "arena-roam",
               "warningSeconds": 3.4,
-            "health": 2100,
-            "speed": 2.75,
+              "health": 2100,
+              "speed": 2.75,
               "damage": 1,
               "scoreReward": 29700,
               "powerupDropChance": 1,
@@ -11676,15 +12124,15 @@
                 {
                   "id": "terminus-ascendant-radial-burst",
                   "weaponId": "burst-volley",
-                "attackIntervalSeconds": 1.25,
+                  "attackIntervalSeconds": 1.25,
                   "damage": 1,
-                "projectileSpeed": 9.5,
+                  "projectileSpeed": 9.5,
                   "burstCount": 6
                 },
                 {
                   "id": "terminus-ascendant-charged-lanes",
                   "weaponId": "lane-beam",
-                "attackIntervalSeconds": 1.35,
+                  "attackIntervalSeconds": 1.35,
                   "damage": 1,
                   "projectileSpeed": 0,
                   "burstCount": 3
@@ -11701,23 +12149,23 @@
                     "terminus-ascendant-radial-burst"
                   ]
                 },
-              {
-                "id": "terminus-ascendant-phase-crossfire",
-                "label": "Charged crossfire",
-                "triggerHealthRatio": 0.46,
+                {
+                  "id": "terminus-ascendant-phase-crossfire",
+                  "label": "Charged crossfire",
+                  "triggerHealthRatio": 0.46,
                   "movementPatternId": "arena-roam",
-                "speedMultiplier": 1.1,
+                  "speedMultiplier": 1.1,
                   "weaponSettingIds": [
                     "terminus-ascendant-radial-burst",
                     "terminus-ascendant-charged-lanes"
                   ]
                 },
-              {
-                "id": "terminus-ascendant-phase-collapse",
-                "label": "Collapse pattern",
-                "triggerHealthRatio": 0.15,
+                {
+                  "id": "terminus-ascendant-phase-collapse",
+                  "label": "Collapse pattern",
+                  "triggerHealthRatio": 0.15,
                   "movementPatternId": "arena-roam",
-                "speedMultiplier": 1.22,
+                  "speedMultiplier": 1.22,
                   "weaponSettingIds": [
                     "terminus-ascendant-radial-burst",
                     "terminus-ascendant-charged-lanes"

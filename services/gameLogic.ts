@@ -1473,6 +1473,7 @@ export interface GameRuntimeState {
   waveNumber: number;
   waveTotal: number;
   wavePresentationRevision: number;
+  wavePresentationKind: 'mission' | 'internal-wave';
   elapsedSeconds: number;
   durationSeconds: number;
   progress: number;
@@ -1704,6 +1705,22 @@ const MOBILE_TAKEOFF_PARTICLE_CAP = 48;
 const DESKTOP_TAKEOFF_PARTICLE_CAP = 80;
 const MOBILE_TAKEOFF_PARTICLES_PER_FRAME = 2;
 const DESKTOP_TAKEOFF_PARTICLES_PER_FRAME = 4;
+export const INTERNAL_WAVE_LOOSE_ENTRY_COUNT = 2;
+export const INTERNAL_WAVE_LOOSE_ENTRY_INTERVAL_FRAMES = 18;
+export const INTERNAL_WAVE_LOOSE_ENTRY_WINDOW_FRAMES = 72;
+export const WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES = 90;
+export const WAVE_CONTINUITY_END_BUFFER_FRAMES = 75;
+export const WAVE_CONTINUITY_MAX_LOOSE_ENEMIES = 16;
+export const getWaveContinuityLooseEnemyCap = (durationFrames: number) => Math.min(
+  WAVE_CONTINUITY_MAX_LOOSE_ENEMIES,
+  Math.max(
+    0,
+    Math.ceil(
+      (Math.max(0, durationFrames) - WAVE_CONTINUITY_END_BUFFER_FRAMES)
+      / WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES
+    )
+  )
+);
 export const STAGE_BOUNDARY_CLEAR_ENTITY_TYPES = Object.freeze([
   'ENEMY_DRONE',
   'ENEMY_JOURNAL',
@@ -1736,6 +1753,22 @@ export const shouldClearStageBoundaryEntityType = (
     )
   )
   && (STAGE_BOUNDARY_CLEAR_ENTITY_TYPES as readonly string[]).includes(entityType)
+);
+
+export const shouldKeepInternalWaveEntity = (
+  entityType: EntityType,
+  isPlayerShot: boolean = false
+) => (
+  entityType === EntityType.PLAYER
+  || entityType === EntityType.PARTICLE
+  || entityType === EntityType.EFFECT
+  || entityType === EntityType.POWERUP
+  || entityType === EntityType.COIN
+  || entityType === EntityType.BOMB
+  || (
+    isPlayerShot
+    && (entityType === EntityType.PROJECTILE || entityType === EntityType.MISSILE)
+  )
 );
 
 type StageCompletionProjectileMotion = {
@@ -1973,6 +2006,7 @@ export class GameEngine {
   bossWarningDuration: number = 0;
   pendingBossType: BossWarningType | null = null;
   waveTransitionPending: boolean = false;
+  internalWaveLooseEntriesRemaining: number = 0;
   missileTimer: number = 0;
   playerVel = { x: 0, y: 0 };
   playerTilt: number = 0;
@@ -2002,6 +2036,7 @@ export class GameEngine {
   stageTakeoffStartY: number = 0;
   stageTakeoffBoostCuePlayed: boolean = false;
   wavePresentationRevision: number = 0;
+  wavePresentationKind: GameRuntimeState['wavePresentationKind'] = 'mission';
   waveVictoryReady: boolean = false;
   waveVictorySummary: WaveVictorySummary | null = null;
   waveStartScore: number = 0;
@@ -2420,7 +2455,8 @@ export class GameEngine {
       : 'boss-defeat';
   }
 
-  beginWavePresentation() {
+  beginWavePresentation(kind: GameRuntimeState['wavePresentationKind'] = 'mission') {
+    this.wavePresentationKind = kind;
     this.wavePresentationRevision++;
     this.recordWaveStart();
   }
@@ -2471,6 +2507,7 @@ export class GameEngine {
       waveNumber: Math.max(1, (entry?.waveIndex ?? 0) + 1),
       waveTotal,
       wavePresentationRevision: this.wavePresentationRevision,
+      wavePresentationKind: this.wavePresentationKind,
       elapsedSeconds: Math.min(durationSeconds, this.getWaveElapsedSeconds()),
       durationSeconds,
       progress: Math.min(1, Math.max(0, this.stats.bossProgress || 0)),
@@ -3894,30 +3931,28 @@ export class GameEngine {
 
     for (let readIndex = 0; readIndex < entities.length; readIndex++) {
       const entity = entities[readIndex];
-      if (
-        entity.type === EntityType.PLAYER
-        || entity.type === EntityType.PARTICLE
-        || entity.type === EntityType.POWERUP
-        || entity.type === EntityType.COIN
-        || entity.type === EntityType.BOMB
-      ) {
+      if (!entity.markedForDeletion && shouldKeepInternalWaveEntity(entity.type, entity.isPlayerShot)) {
         entities[writeIndex] = entity;
         writeIndex++;
       }
     }
 
     entities.length = writeIndex;
+    this.refreshLoadState();
   }
 
   private clearStageBoundaryDebris(
     autoBankBossCoins: boolean,
     preserveRewardWindow: boolean = false,
-    compactImmediately: boolean = true
+    compactImmediately: boolean = true,
+    preserveInternalWaveState: boolean = false
   ) {
     if (autoBankBossCoins) this.bankDepartingBossCoins();
 
     for (const entity of this.entities) {
-      if (shouldClearStageBoundaryEntityType(entity.type, preserveRewardWindow)) {
+      const preserveEntity = preserveInternalWaveState
+        && shouldKeepInternalWaveEntity(entity.type, entity.isPlayerShot);
+      if (!preserveEntity && shouldClearStageBoundaryEntityType(entity.type, preserveRewardWindow)) {
         for (const component of entity.bossComponents ?? []) {
           component.hp = 0;
           component.destroyed = true;
@@ -3932,7 +3967,7 @@ export class GameEngine {
     this.miniBossRef = null;
     this.stats.isBossActive = false;
     this.stats.bossHp = 0;
-    this.pendingPlayerShots.length = 0;
+    if (!preserveInternalWaveState) this.pendingPlayerShots.length = 0;
     this.pendingBossStrikes = [];
     this.pendingEnemyLasers = [];
     this.pendingConfiguredEncounter = null;
@@ -3942,7 +3977,7 @@ export class GameEngine {
     this.playerShotsBuffer.length = 0;
     this.homingTargetsBuffer.length = 0;
     this.collisionBoxes.clear();
-    this.playerAfterimages.length = 0;
+    if (!preserveInternalWaveState) this.playerAfterimages.length = 0;
     if (compactImmediately) this.compactEntities();
     this.refreshLoadState();
   }
@@ -4353,6 +4388,7 @@ export class GameEngine {
     this.bossWarningDuration = 0;
     this.pendingBossType = null;
     this.waveTransitionPending = false;
+    this.internalWaveLooseEntriesRemaining = 0;
     this.previewComplete = false;
     this.configuredEncounterIds.clear();
     this.configuredSpawnCounts.clear();
@@ -4468,7 +4504,7 @@ export class GameEngine {
 
   beginTacticalWaveCompletion() {
     this.waveTransitionPending = true;
-    this.clearStageBoundaryDebris(false, true, false);
+    this.clearStageBoundaryDebris(false, true, false, true);
     this.pendingBossStrikes = [];
     for (const pendingLaser of this.pendingEnemyLasers) {
       const telegraph = this.entities.find((entity) => entity.id === pendingLaser.telegraphId);
@@ -4568,11 +4604,20 @@ export class GameEngine {
     this.gameActive = true;
     this.campaignComplete = false;
     this.keepEntitiesForNextWave();
+    const firstSpawnPattern = String(this.getConfiguredSpawnEvents()[0]?.patternId || '').toLowerCase();
+    const firstSpawnUsesFormation = Boolean(firstSpawnPattern)
+      && !firstSpawnPattern.includes('single')
+      && !firstSpawnPattern.includes('random');
+    this.internalWaveLooseEntriesRemaining = !stageBoundary && firstSpawnUsesFormation
+      ? INTERNAL_WAVE_LOOSE_ENTRY_COUNT
+      : 0;
     if (stageBoundary) {
-      this.beginWavePresentation();
+      this.beginWavePresentation('mission');
       this.playSound('wave');
     } else {
-      this.recordWaveStart();
+      // The presentation is visual only: simulation, steering, firing, and
+      // enemy scheduling continue on the very next fixed step.
+      this.beginWavePresentation('internal-wave');
     }
     const configuredIntroSeconds = Number(this.getCurrentWaveDefinition()?.introSeconds);
     this.introFlightDuration = stageBoundary
@@ -4583,9 +4628,9 @@ export class GameEngine {
     this.introFlightFrames = this.introFlightDuration;
     this.playerDrawScale = this.introFlightFrames > 0 ? 1.46 : 1;
     this.playerDrawAlpha = this.introFlightFrames > 0 ? 0 : 1;
-    this.playerVel = { x: 0, y: 0 };
-    this.playerTilt = 0;
     if (stageBoundary) {
+      this.playerVel = { x: 0, y: 0 };
+      this.playerTilt = 0;
       if (this.introFlightFrames > 0) {
         this.player.x = this.width / 2 - this.player.width / 2;
         this.player.y = this.height + this.player.height * 0.75;
@@ -7743,18 +7788,52 @@ export class GameEngine {
     return true;
   }
 
+  getLooseConfiguredSpawnEvent(
+    event: RuntimeSpawnEvent,
+    id: string = event.id,
+    nonScoring: boolean = false
+  ): RuntimeSpawnEvent {
+    const { spawnAnchor: _spawnAnchor, formationSlots: _formationSlots, ...looseEvent } = event;
+    return {
+      ...looseEvent,
+      id,
+      label: `${event.label} drifter`,
+      patternId: 'single-random',
+      positionId: 'random-top',
+      enemies: nonScoring
+        ? event.enemies.map((enemy) => ({
+            ...enemy,
+            health: Math.min(4, Math.max(1, Number(enemy.health) || 1)),
+            damage: Math.min(1, Math.max(0, Number(enemy.damage) || 0)),
+            scoreValue: 0,
+            powerupDropChance: 0,
+            rank: 'standard',
+            sizeMultiplier: Math.min(1, Math.max(0.5, Number(enemy.sizeMultiplier) || 1)),
+            attackPatternId: undefined,
+            attackIntervalSeconds: undefined,
+            projectileSpeed: undefined,
+            burstCount: undefined
+          }))
+        : event.enemies
+    };
+  }
+
   spawnConfiguredEnemyFromEvent(
     event: RuntimeSpawnEvent,
     spawnIndex: number,
     targetCount: number,
-    difficultyMultiplier: number = this.getCurrentDifficultyMultiplier()
+    difficultyMultiplier: number = this.getCurrentDifficultyMultiplier(),
+    countTowardCombatBudget: boolean = true
   ) {
     const enemySetting = this.pickConfiguredEnemy(event);
     if (!enemySetting) return false;
     const role = this.getCampaignEnemyRole(enemySetting.roleId);
     const threatCost = Math.max(0.25, Number(role?.threatCost) || 1);
     const performanceCost = Math.max(0.25, Number(role?.performanceCost) || 1);
-    if (this.authoredWaveThreatSpent + threatCost > this.getCurrentWaveCombatBudget() + 0.001) {
+    if (
+      countTowardCombatBudget
+      && this.authoredWaveThreatSpent + threatCost > this.getCurrentWaveCombatBudget() + 0.001
+    ) {
       // The authored validator prevents this in tracked content. Marking the
       // event exhausted keeps a malformed hot-edited preview from deadlocking.
       this.configuredSpawnCounts.set(event.id, targetCount);
@@ -7797,15 +7876,20 @@ export class GameEngine {
     enemy.campaignRoleId = role?.id;
     enemy.campaignGameplayRole = role?.role;
     enemy.campaignDurabilityClass = role?.durabilityClass;
-    enemy.campaignThreatCost = threatCost;
+    enemy.campaignThreatCost = countTowardCombatBudget ? threatCost : 0;
     enemy.campaignPerformanceCost = performanceCost;
-    enemy.campaignFireBehavior = role?.fireBehavior;
+    enemy.campaignFireBehavior = countTowardCombatBudget ? role?.fireBehavior : 'none';
     enemy.campaignSpawnFrame = this.frameCount;
-    if (role?.fireBehavior && role.fireBehavior !== 'none' && !Number.isFinite(enemy.attackIntervalFrames)) {
+    if (
+      countTowardCombatBudget
+      && role?.fireBehavior
+      && role.fireBehavior !== 'none'
+      && !Number.isFinite(enemy.attackIntervalFrames)
+    ) {
       enemy.attackIntervalFrames = role.fireBehavior === 'aimed-burst' ? 82 : 104;
     }
     this.configureEnemyFormation(enemy, event, spawnIndex, targetCount);
-    this.authoredWaveThreatSpent += threatCost;
+    if (countTowardCombatBudget) this.authoredWaveThreatSpent += threatCost;
     this.configuredSpawnCounts.set(event.id, spawnIndex + 1);
     this.configuredSpawnFrames.set(event.id, this.waveProgressFrames);
     return true;
@@ -7817,6 +7901,31 @@ export class GameEngine {
     const elapsedSeconds = this.getWaveElapsedSeconds();
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
     const threatCap = Math.max(1, Number(this.getCurrentWaveDefinition()?.threatCap) || this.getThreatCap());
+    const looseEntryActive = this.internalWaveLooseEntriesRemaining > 0
+      && this.waveProgressFrames <= INTERNAL_WAVE_LOOSE_ENTRY_WINDOW_FRAMES;
+    if (!looseEntryActive) this.internalWaveLooseEntriesRemaining = 0;
+    const looseEntrySource = looseEntryActive
+      ? events.find((event) => elapsedSeconds >= Math.max(0, Number(event.startSeconds) || 0))
+      : null;
+    if (looseEntrySource && this.getActiveThreatCount() < threatCap) {
+      const looseEntryEventId = `${looseEntrySource.id}:lead-in`;
+      const spawned = this.configuredSpawnCounts.get(looseEntryEventId) || 0;
+      const previousFrame = this.configuredSpawnFrames.get(looseEntryEventId);
+      if (
+        spawned < INTERNAL_WAVE_LOOSE_ENTRY_COUNT
+        && (previousFrame === undefined
+          || this.waveProgressFrames - previousFrame >= INTERNAL_WAVE_LOOSE_ENTRY_INTERVAL_FRAMES)
+        && this.spawnConfiguredEnemyFromEvent(
+          this.getLooseConfiguredSpawnEvent(looseEntrySource, looseEntryEventId, true),
+          spawned,
+          INTERNAL_WAVE_LOOSE_ENTRY_COUNT,
+          difficultyMultiplier,
+          false
+        )
+      ) {
+        this.internalWaveLooseEntriesRemaining--;
+      }
+    }
 
     for (const event of events) {
       const startSeconds = Math.max(0, Number(event.startSeconds) || 0);
@@ -7846,6 +7955,38 @@ export class GameEngine {
         this.spawnRingEffect(warningX, this.height * 0.22, '#fb7185');
       }
       this.spawnConfiguredEnemyFromEvent(event, spawned, count, difficultyMultiplier);
+    }
+
+    const wave = this.getCurrentWaveDefinition();
+    const continuityEndFrame = this.getConfiguredWaveDurationFrames() - WAVE_CONTINUITY_END_BUFFER_FRAMES;
+    const continuityTargetCount = getWaveContinuityLooseEnemyCap(this.getConfiguredWaveDurationFrames());
+    const continuitySource = [...events]
+      .reverse()
+      .find((event) => elapsedSeconds >= Math.max(0, Number(event.startSeconds) || 0));
+    if (
+      wave?.rhythm !== 'recovery'
+      && continuitySource
+      && this.getConfiguredSpawnsComplete()
+      && this.waveProgressFrames < continuityEndFrame
+      && this.getActiveThreatCount() <= 2
+      && this.getActiveThreatCount() < threatCap
+    ) {
+      const continuityEventId = `${continuitySource.id}:continuity`;
+      const spawned = this.configuredSpawnCounts.get(continuityEventId) || 0;
+      const previousFrame = this.configuredSpawnFrames.get(continuityEventId);
+      if (
+        spawned < continuityTargetCount
+        && (previousFrame === undefined
+          || this.waveProgressFrames - previousFrame >= WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES)
+      ) {
+        this.spawnConfiguredEnemyFromEvent(
+          this.getLooseConfiguredSpawnEvent(continuitySource, continuityEventId, true),
+          spawned,
+          continuityTargetCount,
+          difficultyMultiplier,
+          false
+        );
+      }
     }
 
     return true;

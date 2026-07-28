@@ -903,6 +903,11 @@ const WAVE_INTRO_HOLD_UNTIL_MS = 1900;
 const WAVE_INTRO_EXIT_MS = 680;
 const WAVE_INTRO_DURATION_MS = WAVE_INTRO_HOLD_UNTIL_MS + WAVE_INTRO_EXIT_MS;
 const WAVE_INTRO_REDUCED_DURATION_MS = 1400;
+const INTERNAL_WAVE_INTRO_ENTER_MS = 320;
+const INTERNAL_WAVE_INTRO_HOLD_UNTIL_MS = 680;
+const INTERNAL_WAVE_INTRO_EXIT_MS = 470;
+const INTERNAL_WAVE_INTRO_DURATION_MS = INTERNAL_WAVE_INTRO_HOLD_UNTIL_MS + INTERNAL_WAVE_INTRO_EXIT_MS;
+const INTERNAL_WAVE_INTRO_REDUCED_DURATION_MS = 650;
 
 export const PIXI_WAVE_PRESENTATION_TEXTURE_URLS = Object.freeze([
   WAVE_TITLE_TEXTURE_URL,
@@ -1269,6 +1274,7 @@ export class PixiGameRenderer {
   private lastBombFrame = -999;
   private bioBeamVisualStartFrame = -1;
   private lastWavePresentationRevision = -1;
+  private internalWavePresentation = false;
   private wavePresentationElapsedMs = 0;
   private currentWaveCounter = '1/1';
   private reducedMotion = false;
@@ -2136,7 +2142,8 @@ export class PixiGameRenderer {
 
   private layoutWavePresentation() {
     const compact = this.width < 520;
-    const introScale = clamp(this.width / 430, 0.78, 1.2);
+    const introScale = clamp(this.width / 430, 0.78, 1.2)
+      * (this.internalWavePresentation ? 0.9 : 1);
     const titleWidth = compact ? 118 : 142;
     const titleHeight = compact ? 37 : 44;
     const glyphWidth = compact ? 28 : 33;
@@ -2188,11 +2195,14 @@ export class PixiGameRenderer {
   }
 
   private beginWavePresentation(state: GameRuntimeState) {
+    this.internalWavePresentation = state.wavePresentationKind === 'internal-wave';
     this.lastWavePresentationRevision = state.wavePresentationRevision;
     this.wavePresentationElapsedMs = 0;
     this.waveLevelText.text = `MISSION ${String(state.levelNumber).padStart(2, '0')} · ${state.levelName.toUpperCase()}`;
     this.waveNameText.text = state.waveName.toUpperCase();
     this.waveNameText.style.fill = state.waveAccent;
+    this.waveLevelText.visible = !this.internalWavePresentation;
+    this.waveNameText.visible = !this.internalWavePresentation;
     this.setWaveCounterGlyphs(`${state.waveNumber}/${state.waveTotal}`);
     this.waveIntroRoot.visible = true;
   }
@@ -2203,7 +2213,13 @@ export class PixiGameRenderer {
       this.beginWavePresentation(state);
     }
 
-    const duration = this.reducedMotion ? WAVE_INTRO_REDUCED_DURATION_MS : WAVE_INTRO_DURATION_MS;
+    const duration = this.internalWavePresentation
+      ? this.reducedMotion
+        ? INTERNAL_WAVE_INTRO_REDUCED_DURATION_MS
+        : INTERNAL_WAVE_INTRO_DURATION_MS
+      : this.reducedMotion
+        ? WAVE_INTRO_REDUCED_DURATION_MS
+        : WAVE_INTRO_DURATION_MS;
     if (!engine.cinematicPaused) {
       this.wavePresentationElapsedMs = Math.min(duration, this.wavePresentationElapsedMs + deltaMs);
     }
@@ -2216,9 +2232,15 @@ export class PixiGameRenderer {
       return;
     }
 
-    const enterDuration = this.reducedMotion ? 160 : WAVE_INTRO_ENTER_MS;
-    const exitStart = this.reducedMotion ? duration - 240 : WAVE_INTRO_HOLD_UNTIL_MS;
-    const exitDuration = this.reducedMotion ? 240 : WAVE_INTRO_EXIT_MS;
+    const enterDuration = this.internalWavePresentation
+      ? this.reducedMotion ? 120 : INTERNAL_WAVE_INTRO_ENTER_MS
+      : this.reducedMotion ? 160 : WAVE_INTRO_ENTER_MS;
+    const exitDuration = this.internalWavePresentation
+      ? this.reducedMotion ? 220 : INTERNAL_WAVE_INTRO_EXIT_MS
+      : this.reducedMotion ? 240 : WAVE_INTRO_EXIT_MS;
+    const exitStart = this.internalWavePresentation
+      ? this.reducedMotion ? duration - exitDuration : INTERNAL_WAVE_INTRO_HOLD_UNTIL_MS
+      : this.reducedMotion ? duration - exitDuration : WAVE_INTRO_HOLD_UNTIL_MS;
     const enter = clamp(age / enterDuration, 0, 1);
     const dissolve = clamp((age - exitStart) / exitDuration, 0, 1);
     const finalFade = 1 - clamp((dissolve - 0.86) / 0.14, 0, 1);
@@ -2313,7 +2335,7 @@ export class PixiGameRenderer {
       }
     }
 
-    const assembly = this.reducedMotion ? enter : clamp(age / WAVE_INTRO_ENTER_MS, 0, 1);
+    const assembly = this.reducedMotion ? enter : clamp(age / enterDuration, 0, 1);
     const centerRetention = 1 - clamp((dissolve - 0.24) / 0.5, 0, 1);
     const titleRetention = 1 - clamp((dissolve - 0.02) / 0.42, 0, 1);
     this.waveLevelText.alpha = clamp((assembly - 0.04) / 0.24, 0, 1) * centerRetention;

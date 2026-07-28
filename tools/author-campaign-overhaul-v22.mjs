@@ -260,6 +260,38 @@ const makeRecovery = (levelId, waveNumber, powerupIds) => ({
   powerupIds: powerupIds.includes('shield') ? ['shield'] : powerupIds.slice(0, 1)
 });
 
+const makeRecoveryDrifters = (source, levelId, waveNumber, sectorNumber) => {
+  const event = normalizeSpawn(source, `${levelId}-wave-${waveNumber}-drifters`, 0, sectorNumber);
+  const lightestEnemy = [...event.enemies].sort((left, right) => (
+    (roleCost.get(left.roleId) ?? Number.POSITIVE_INFINITY)
+    - (roleCost.get(right.roleId) ?? Number.POSITIVE_INFINITY)
+  ))[0];
+  const recoveryEnemy = {
+    ...lightestEnemy,
+    weight: 1,
+    health: Math.min(4, Math.max(1, lightestEnemy.health)),
+    powerupDropChance: 0,
+    rank: 'standard',
+    sizeMultiplier: Math.min(1, lightestEnemy.sizeMultiplier ?? 1)
+  };
+  delete recoveryEnemy.attackPatternId;
+  delete recoveryEnemy.attackIntervalSeconds;
+  delete recoveryEnemy.projectileSpeed;
+  delete recoveryEnemy.burstCount;
+  delete event.spawnAnchor;
+  delete event.formationSlots;
+  return {
+    ...event,
+    label: 'Loose interceptors',
+    durationSeconds: 4,
+    count: 3,
+    patternId: 'single-random',
+    positionId: 'random-top',
+    spawnIntervalSeconds: 1.25,
+    enemies: [recoveryEnemy]
+  };
+};
+
 const makePowerup = (source, id) => ({
   ...clone(source),
   id,
@@ -369,6 +401,7 @@ for (const level of campaign.levels) {
       const packId = inferPackId(firstSource);
       const events = [];
       if (isRecovery) {
+        events.push(makeRecoveryDrifters(firstSource, level.id, waveNumber, sectorNumber));
         events.push(makeRecovery(level.id, waveNumber, level.availablePowerupIds));
       } else {
         events.push(normalizeSpawn(firstSource, `${level.id}-wave-${waveNumber}-primary`, 0, sectorNumber));

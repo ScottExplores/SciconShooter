@@ -22,7 +22,18 @@ const loadTakeoffPresentation = () => {
     module: moduleBox,
     require,
     Math,
-    Number
+    Number,
+    EntityType: Object.fromEntries([
+      'PLAYER',
+      'PARTICLE',
+      'EFFECT',
+      'POWERUP',
+      'COIN',
+      'BOMB',
+      'PROJECTILE',
+      'MISSILE',
+      'ENEMY_DRONE'
+    ].map((type) => [type, type]))
   });
   return moduleBox.exports;
 };
@@ -202,6 +213,50 @@ test('stage-boundary cleanup deterministically removes every non-player entity a
   assert.match(cleanup, /this\.collisionBoxes\.clear\(\)/);
   assert.match(cleanup, /if \(compactImmediately\) this\.compactEntities\(\)/);
   assert.match(engine, /beginStageCompletion\(label: string, color: string\) \{[\s\S]*?this\.clearStageBoundaryDebris\(false, true, false\)/);
+});
+
+test('internal Wave cleanup preserves only persistent pickups and player-owned shots', () => {
+  const { shouldKeepInternalWaveEntity } = loadTakeoffPresentation();
+
+  assert.equal(shouldKeepInternalWaveEntity('PLAYER'), true);
+  assert.equal(shouldKeepInternalWaveEntity('PARTICLE'), true);
+  assert.equal(shouldKeepInternalWaveEntity('EFFECT'), true);
+  assert.equal(shouldKeepInternalWaveEntity('POWERUP'), true);
+  assert.equal(shouldKeepInternalWaveEntity('COIN'), true);
+  assert.equal(shouldKeepInternalWaveEntity('BOMB'), true);
+  assert.equal(shouldKeepInternalWaveEntity('PROJECTILE', true), true);
+  assert.equal(shouldKeepInternalWaveEntity('MISSILE', true), true);
+  assert.equal(shouldKeepInternalWaveEntity('PROJECTILE', false), false);
+  assert.equal(shouldKeepInternalWaveEntity('MISSILE', false), false);
+  assert.equal(shouldKeepInternalWaveEntity('ENEMY_DRONE'), false);
+
+  const keepStart = engine.indexOf('  keepEntitiesForNextWave()');
+  const keepEnd = engine.indexOf('\n  private clearStageBoundaryDebris(', keepStart);
+  const keep = engine.slice(keepStart, keepEnd);
+  assert.match(keep, /!entity\.markedForDeletion && shouldKeepInternalWaveEntity\(entity\.type, entity\.isPlayerShot\)/);
+  assert.match(keep, /this\.refreshLoadState\(\)/);
+  assert.match(engine, /preserveInternalWaveState: boolean = false/);
+  assert.match(engine, /if \(!preserveInternalWaveState\) this\.pendingPlayerShots\.length = 0/);
+  assert.match(engine, /if \(!preserveInternalWaveState\) this\.playerAfterimages\.length = 0/);
+  assert.match(engine, /beginTacticalWaveCompletion\(\)[\s\S]*?clearStageBoundaryDebris\(false, true, false, true\)/);
+});
+
+test('continuity drifters cover the authored timer without an unbounded spawn loop', () => {
+  const {
+    WAVE_CONTINUITY_END_BUFFER_FRAMES,
+    WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES,
+    WAVE_CONTINUITY_MAX_LOOSE_ENEMIES,
+    getWaveContinuityLooseEnemyCap
+  } = loadTakeoffPresentation();
+
+  assert.equal(getWaveContinuityLooseEnemyCap(60), 0);
+  assert.equal(getWaveContinuityLooseEnemyCap(16 * 60), 10);
+  assert.equal(getWaveContinuityLooseEnemyCap(20 * 60), 13);
+  assert.ok(getWaveContinuityLooseEnemyCap(60 * 60) <= WAVE_CONTINUITY_MAX_LOOSE_ENEMIES);
+  assert.ok(
+    getWaveContinuityLooseEnemyCap(16 * 60) * WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES
+      >= (16 * 60) - WAVE_CONTINUITY_END_BUFFER_FRAMES
+  );
 });
 
 test('reward-window projectiles keep moving without combat and expire before takeoff cleanup', () => {

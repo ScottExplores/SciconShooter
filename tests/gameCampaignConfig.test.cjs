@@ -325,13 +325,23 @@ test('each non-boss Mission teaches before it peaks and budgets cover every auth
   expectedPowerBySector.slice(1).forEach((power, index) => assert.ok(power > expectedPowerBySector[index]));
 });
 
-test('explicit recovery Waves separate formation pressure from each non-boss climax', () => {
+test('recovery Waves keep light downward traffic between formation peaks', () => {
   campaign.levels.filter((level) => level.campaignProgression.missionRole !== 'major-boss').forEach((level) => {
     const recoveryIndex = level.waves.findIndex((wave) => wave.rhythm === 'recovery');
     assert.ok(recoveryIndex > 0);
     assert.ok(recoveryIndex < level.waves.length - 1);
     const recovery = level.waves[recoveryIndex];
-    assert.ok(recovery.events.every((event) => event.kind === 'recovery'));
+    assert.equal(recovery.events.filter((event) => event.kind === 'recovery').length, 1);
+    const drifters = recovery.events.filter((event) => event.kind === 'spawn');
+    assert.equal(drifters.length, 1);
+    assert.equal(drifters[0].patternId, 'single-random');
+    assert.equal(drifters[0].positionId, 'random-top');
+    assert.equal(drifters[0].count, 3);
+    assert.equal(drifters[0].spawnIntervalSeconds, 1.25);
+    assert.equal('spawnAnchor' in drifters[0], false);
+    assert.equal('formationSlots' in drifters[0], false);
+    assert.ok(drifters[0].enemies.every((enemy) => enemy.health <= 4 && enemy.rank !== 'elite'));
+    assert.ok(drifters[0].enemies.every((enemy) => enemy.powerupDropChance === 0));
     assert.ok(['peak', 'clear'].includes(level.waves.at(-1).rhythm));
   });
 });

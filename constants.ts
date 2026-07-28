@@ -450,7 +450,10 @@ export const getFieldUpgradeFlaskCost = (stats: Stats, type: FieldUpgradeType) =
   if (type === 'fireRate' && level >= 14) return 15;
   if (type === 'fireRate' && level >= 6) return 10;
   if (type === 'fireRate' && level >= 5) return 5;
-  if (type === 'speed' && level >= 5) return 5;
+  // Speed and Life are single-track upgrades rather than seven-level weapon
+  // tiers. Every purchase is therefore a premium choice instead of a one-
+  // flask step that can be stacked immediately.
+  if (type === 'speed' || type === 'extraLife') return 5;
   return 1;
 };
 
