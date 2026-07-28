@@ -1,6 +1,6 @@
 # Helios Clawcarrier V2 review
 
-Status: **V0.22 behavior amendment implemented and deterministic proof refreshed; visual review, Runner verification, and private publication pending**. V0.20 remains the last fully accepted release. Gate 1 remains accepted against the unchanged art package, and Helios remains Test Mission content without campaign-Mission approval.
+Status: **V0.22 behavior amendment implemented, deterministically certified, verified in the local and hosted runners, and privately published**. The clean visual-evidence refresh remains pending, so V0.20 remains the last fully accepted visual release. Gate 1 remains accepted against the unchanged art package, and Helios remains Test Mission content without campaign-Mission approval.
 
 ## Implemented contract
 
@@ -30,7 +30,7 @@ Status: **V0.22 behavior amendment implemented and deterministic proof refreshed
 - [x] Gameplay attack-name text, `SAFE GAP` text, `isBossGapGuide`, `isBossSideBarrageGuide`, and text-effect teaching entities remain forbidden.
 - [x] Standard HUD remains available; socket, collision, safe-route, and reference-comparison overlays are review-only and default off.
 
-## Deterministic safety evidence — V0.20 accepted; V0.22 refresh pending
+## Deterministic safety evidence — V0.20 accepted; V0.22 certified
 
 - [x] Historical V0.20: `director/tests/heliosSafeRouteProof.test.mjs` exercised the then-current attacks through `GameEngine` with configuration hash, fixed seed, viewport, route hash, duration, search bounds, and replayed minimum clearance recorded.
 - [x] Historical V0.20: all four attacks passed every phase at mobile `390x844` and desktop `1280x720` with at least 6 px replayed clearance after 3 px geometry-uncertainty inflation.
@@ -40,7 +40,7 @@ Status: **V0.22 behavior amendment implemented and deterministic proof refreshed
 - [x] V0.22: the complete 24-case matrix replayed all four attacks through all three phases at mobile `390x844` and desktop `1280x720`. Every case retained at least 6 px clearance after 3 px geometry uncertainty, and every repeated run reproduced its route-witness hash.
 - [x] V0.22: the proof consumes the current live muzzle/core/claw samples, the accelerated `6.8/6.0/5.2` second channel, `25/27/31` reactor pellets, `3/4/5` mines, and the swept visible core plus claw-tip Crush collision. Nine-or-more-round fans retain every sprite while redistributing rays around one deterministic aperture.
 
-The accepted V0.20 results remain historical evidence. The new V0.22 matrix separately certifies the mixed aim, shortened low-health channel, denser reactor branch, varied mine counts, and swept Crush collision against the last valid campaign snapshot while an unrelated campaign-map package is still under construction.
+The accepted V0.20 results remain historical evidence. The new V0.22 matrix separately certifies the mixed aim, shortened low-health channel, denser reactor branch, varied mine counts, and swept Crush collision against the current validated campaign snapshot.
 
 ## Visual-proof manifest — V0.20 accepted locally; V0.22 refresh pending
 
@@ -68,12 +68,12 @@ Store ignored review evidence under `director-data/prototype-assets/helios-clawc
 - [x] Root and Director TypeScript checks pass.
 - [x] For V0.20, roster classification, authoritative design, blueprint, ignored attack map, rig manifest, contact sheet, and visual-verification result described the same accepted runtime.
 
-## V0.22 refresh gates — pending
+## V0.22 refresh gates — published; visual-evidence refresh pending
 
 - [x] Focused Helios runtime, channel, mine, and continuous-crush coverage passes `47/47`; the complete deterministic route proof passes all `24/24` phase/viewport cases.
-- [ ] Root TypeScript passes. Re-run Director TypeScript and the full Director suite after the unrelated campaign-map package returns the shared campaign to a valid state; record exact totals.
+- [x] Root and Director TypeScript checks pass; the complete Director suite passes `245/245`.
 - [ ] Complete clean mobile and desktop visual review against the new behavior branches and refresh ignored review evidence.
-- [ ] Rebuild and verify the shared Runner, then record its module, pinned-asset, and test totals.
-- [ ] Publish the verified V0.22 Runner privately and record its commit and Sites version.
+- [x] The shared Runner rebuilt from 862 modules with 26 pinned assets and passes `18/18` hosted-build tests at commit `623779e`.
+- [x] The verified V0.22 Runner is privately published as Sites version 26.
 
-The V0.22 behavior amendment changes no boss artwork, atlas frame, rig hierarchy, socket ownership, or asset hash. Gate 1 and the accepted V0.20 evidence therefore remain preserved, but V0.22 must not be marked fully accepted or published until the pending gates above are completed.
+The V0.22 behavior amendment changes no boss artwork, atlas frame, rig hierarchy, socket ownership, or asset hash. Gate 1 and the accepted V0.20 evidence therefore remain preserved. V0.22 is verified and privately published, but it should not replace V0.20 as the fully accepted visual baseline until the remaining clean capture set is reviewed.
