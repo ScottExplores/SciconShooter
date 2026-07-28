@@ -20,6 +20,7 @@ export type SandboxBossPrototypeId =
   | 'weak-point-laser-core'
   | 'meridian-harrower'
   | 'helios-clawcarrier'
+  | 'frontier-crownclaw'
   | 'aurora-storm-engine'
   | 'umbra-needlewing'
   | 'cinderjaw-siege-beetle'
@@ -115,6 +116,9 @@ const primitiveTracks: Record<BossTimelinePrimitiveId, BossTimelineClip['track']
   'prism-brood-procession': 'summon',
   'prism-lunar-swoop': 'movement',
   'prism-kaleidoscope-brood': 'summon',
+  'chainclaw-harpoon': 'attack',
+  'crown-reactor-beam': 'laser',
+  'bastion-crabwalk-barrage': 'attack',
   'cross-beam': 'laser',
   'rail-sweep': 'laser',
   'tail-fan': 'attack',
@@ -149,6 +153,9 @@ const primitiveLabels: Record<BossTimelinePrimitiveId, string> = {
   'prism-brood-procession': 'Brood procession',
   'prism-lunar-swoop': 'Lunar prism swoop',
   'prism-kaleidoscope-brood': 'Kaleidoscope brood',
+  'chainclaw-harpoon': 'Chainclaw harpoon',
+  'crown-reactor-beam': 'Crown reactor beam',
+  'bastion-crabwalk-barrage': 'Bastion crabwalk barrage',
   'cross-beam': 'Cross beam',
   'rail-sweep': 'Rail sweep',
   'tail-fan': 'Tail fan',
@@ -1392,6 +1399,245 @@ const clawcarrierTimeline = compileBossAttackTimeline({
     })
   ]
 });
+
+const frontierBastionLock = 'sandbox-frontier-bastion-lock';
+const frontierCriticalCrossLink = 'sandbox-frontier-critical-cross-link';
+type FrontierCrownclawSide = 'port' | 'starboard';
+
+interface FrontierCrownclawPhaseRoute {
+  readonly phaseId: string;
+  readonly color: string;
+  readonly cameraStrength: number;
+  readonly firstSide: FrontierCrownclawSide;
+  readonly sequenceBase: number;
+  readonly projectileCount: number;
+  readonly shotIntervalFrames: number;
+  readonly projectileSpeedScale: number;
+}
+
+const oppositeFrontierSide = (
+  side: FrontierCrownclawSide
+): FrontierCrownclawSide => side === 'port' ? 'starboard' : 'port';
+
+const buildFrontierCrownclawPhase = (
+  route: FrontierCrownclawPhaseRoute
+): BossAttackPhaseBlueprint => ({
+  phaseId: route.phaseId,
+  color: route.color,
+  cameraStrength: route.cameraStrength,
+  attacks: [
+    {
+      id: 'chainclaw-harpoon',
+      label: 'Chainclaw Harpoon',
+      phaseId: route.phaseId,
+      role: 'core',
+      skillTest: 'lane-routing',
+      recognitionCue: 'One winch unlocks, the matching pincer opens, and visible chain slack points toward a fixed target before launch.',
+      solution: 'Read the armed side, leave the locked claw lane, then cross behind the taut chain while the winch retracts and reseats.',
+      safeRouteRule: 'opposite-side-dodge',
+      sourceSocketRoles: ['port', 'starboard'],
+      startSeconds: 0.2,
+      recoverySeconds: 0.8,
+      color: route.color,
+      beats: [
+        {
+          id: 'first-cast',
+          label: `${route.firstSide === 'port' ? 'Port' : 'Starboard'} chain cast`,
+          primitiveId: 'chainclaw-harpoon',
+          offsetSeconds: 0,
+          telegraphStyle: 'target',
+          leadSeconds: 0.9,
+          actionDurationSeconds: 1.35,
+          parameters: {
+            sequence: route.sequenceBase,
+            side: route.firstSide,
+            motionCue: 'frontier-chainclaw-harpoon',
+            projectileSpeedScale: route.projectileSpeedScale
+          }
+        },
+        {
+          id: 'answer-cast',
+          label: `${oppositeFrontierSide(route.firstSide) === 'port' ? 'Port' : 'Starboard'} chain answer`,
+          primitiveId: 'chainclaw-harpoon',
+          offsetSeconds: 2.55,
+          telegraphStyle: 'target',
+          leadSeconds: 0.8,
+          actionDurationSeconds: 1.3,
+          parameters: {
+            sequence: route.sequenceBase + 1,
+            side: oppositeFrontierSide(route.firstSide),
+            motionCue: 'frontier-chainclaw-harpoon',
+            projectileSpeedScale: route.projectileSpeedScale
+          }
+        }
+      ]
+    },
+    {
+      id: 'crown-reactor-beam',
+      label: 'Crown Reactor Beam',
+      phaseId: route.phaseId,
+      role: 'core',
+      skillTest: 'gap-tracking',
+      recognitionCue: 'The crown rises, shell shutters open, and cyan energy spokes converge into the exact beam route before it fires.',
+      solution: 'Follow the thin cyan guide away from the locked sweep, cross after the bright center passes, and use the venting recovery.',
+      safeRouteRule: 'rotating-gap',
+      sourceSocketRoles: ['core'],
+      startSeconds: 5.75,
+      recoverySeconds: 0.9,
+      color: '#22d3ee',
+      beats: [
+        {
+          id: 'crown-sweep',
+          label: 'Crown reactor sweep',
+          primitiveId: 'crown-reactor-beam',
+          offsetSeconds: 0,
+          telegraphStyle: 'lane',
+          leadSeconds: 1.2,
+          actionDurationSeconds: 1.8,
+          parameters: {
+            sequence: route.sequenceBase + 2,
+            motionCue: 'frontier-reactor-fire',
+            rotationDirection: 'seeded-random'
+          }
+        },
+        {
+          id: 'crown-answer',
+          label: 'Crown reactor answer',
+          primitiveId: 'crown-reactor-beam',
+          offsetSeconds: 3.15,
+          telegraphStyle: 'lane',
+          leadSeconds: 1,
+          actionDurationSeconds: 1.55,
+          parameters: {
+            sequence: route.sequenceBase + 3,
+            motionCue: 'frontier-reactor-fire',
+            rotationDirection: 'seeded-random'
+          }
+        }
+      ]
+    },
+    {
+      id: 'bastion-crabwalk-barrage',
+      label: 'Bastion Crabwalk Barrage',
+      phaseId: route.phaseId,
+      role: 'core',
+      skillTest: 'rhythm-dodge',
+      recognitionCue: 'The legs plant in alternating tripods and the shell-side bastion ports light in the same order as the coming lateral march.',
+      solution: 'Read the first planted side, trail the deliberate crabwalk, and step through the alternating bolt gaps rather than racing the hull.',
+      safeRouteRule: 'shifting-channel',
+      sourceSocketRoles: ['port', 'starboard'],
+      startSeconds: 12.4,
+      recoverySeconds: 0.8,
+      color: '#fbbf24',
+      beats: [
+        {
+          id: 'outbound',
+          label: 'Outbound bastion march',
+          primitiveId: 'bastion-crabwalk-barrage',
+          offsetSeconds: 0,
+          telegraphStyle: 'warning',
+          leadSeconds: 0.85,
+          actionDurationSeconds: 2.35,
+          parameters: {
+            projectileCount: route.projectileCount,
+            sequence: route.sequenceBase + 4,
+            motionCue: 'frontier-bastion-crabwalk',
+            shotIntervalFrames: route.shotIntervalFrames,
+            projectileSpeedScale: route.projectileSpeedScale
+          }
+        },
+        {
+          id: 'return',
+          label: 'Returning bastion march',
+          primitiveId: 'bastion-crabwalk-barrage',
+          offsetSeconds: 3.35,
+          telegraphStyle: 'warning',
+          leadSeconds: 0.75,
+          actionDurationSeconds: 2.15,
+          parameters: {
+            projectileCount: route.projectileCount,
+            sequence: route.sequenceBase + 5,
+            motionCue: 'frontier-bastion-crabwalk',
+            shotIntervalFrames: route.shotIntervalFrames,
+            projectileSpeedScale: route.projectileSpeedScale
+          }
+        }
+      ]
+    },
+    {
+      id: 'crown-cross-link',
+      label: 'Crown Cross-Link',
+      phaseId: route.phaseId,
+      role: 'signature',
+      skillTest: 'route-combination',
+      recognitionCue: 'Both crown relays flare, both winches reverse, and the two visible chains draw a four-beat crossing lattice before each reseat.',
+      solution: 'Enter behind the first crossing chain, reverse with the second locked diagonal, then use the final uncrossing beat to return center.',
+      safeRouteRule: 'channel-to-quadrant',
+      sourceSocketRoles: ['port', 'starboard', 'core'],
+      startSeconds: 19.5,
+      recoverySeconds: 0.9,
+      color: '#67e8f9',
+      beats: [0, 1, 2, 3].map((index) => ({
+        id: `cross-link-${index + 1}`,
+        label: `Crown cross-link beat ${index + 1}`,
+        primitiveId: 'chainclaw-harpoon' as const,
+        // Keep each warning and active cast contiguous but non-overlapping so
+        // the next beat never replaces the previous chain's fire pose.
+        offsetSeconds: index * 1.55,
+        telegraphStyle: 'target' as const,
+        leadSeconds: 0.65,
+        actionDurationSeconds: 0.85,
+        parameters: {
+          sequence: route.sequenceBase + 6 + index,
+          motionCue: 'frontier-crown-cross-link' as const,
+          projectileSpeedScale: route.projectileSpeedScale
+        }
+      }))
+    }
+  ]
+});
+
+const frontierTimelineBase = compileBossAttackTimeline({
+  durationSeconds: 26.8,
+  loop: true,
+  phases: [
+    buildFrontierCrownclawPhase({
+      phaseId: frontierBastionLock,
+      color: '#22d3ee',
+      cameraStrength: 0.75,
+      firstSide: 'port',
+      sequenceBase: 0,
+      projectileCount: 9,
+      shotIntervalFrames: 6,
+      projectileSpeedScale: 0.9
+    }),
+    buildFrontierCrownclawPhase({
+      phaseId: frontierCriticalCrossLink,
+      color: '#fbbf24',
+      cameraStrength: 1.05,
+      firstSide: 'starboard',
+      sequenceBase: 20,
+      projectileCount: 12,
+      shotIntervalFrames: 5,
+      projectileSpeedScale: 1
+    })
+  ]
+});
+
+const frontierTimeline: BossTimelineConfig = {
+  ...frontierTimelineBase,
+  clips: frontierTimelineBase.clips.map((timelineClip) => (
+    timelineClip.id === `${frontierCriticalCrossLink}-identity`
+      ? {
+          ...timelineClip,
+          parameters: {
+            ...timelineClip.parameters,
+            motionCue: 'frontier-critical-cross-link'
+          }
+        }
+      : timelineClip
+  ))
+};
 
 const stormEngineStudy = 'sandbox-storm-engine-reference-study';
 const stormEngineOverdrive = 'sandbox-storm-engine-reverse-overdrive';
@@ -3117,6 +3363,56 @@ const definitions = deepFreeze([
         }
       ],
       timeline: clawcarrierTimeline
+    })
+  },
+  {
+    id: 'frontier-crownclaw',
+    label: 'Frontier Crownclaw',
+    shortLabel: 'Chained bastion puzzle',
+    description: 'A deliberate teal-and-gold frontier bastion whose crown reactor, visible winches, chain-mounted claws, planted crabwalk, and phase-two relay anatomy teach three readable attack rules before recombining them into Crown Cross-Link.',
+    designIntent: [
+      'Chainclaw Harpoon visibly unspools, launches, tensions, retracts, and mechanically reseats from live winch and claw sockets',
+      'Crown Reactor Beam opens the crown shell and fires only on the exact cyan geometry established by its registered warning',
+      'Bastion Crabwalk Barrage uses six planted legs and alternating live shell sockets instead of Helios movement or machine-gun choreography',
+      'Critical Cross-Link changes anatomy by opening the crown, exposing the reactor, deploying rear appendages, energizing both chains, and enabling relay fire',
+      'Every phase preserves continuous mobile and desktop escape routes with deterministic sequence branches and authored recovery'
+    ],
+    boss: gatekeeperBoss({
+      id: 'sandbox-frontier-crownclaw',
+      label: 'Frontier Crownclaw',
+      // The Sandbox replaces this validated catalog placeholder with the
+      // ignored Boss Factory native-pixel hierarchy after preview creation.
+      rigId: 'crown-claw',
+      spriteKey: 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT',
+      health: 7_200,
+      componentHealth: {
+        'left-cannon': 1_800,
+        'right-cannon': 1_800
+      },
+      shieldCount: 0,
+      speed: 0.74,
+      sizeMultiplier: 1.52,
+      burstIntervalSeconds: 30,
+      beamIntervalSeconds: 30,
+      phases: [
+        {
+          id: frontierBastionLock,
+          label: 'Bastion Lock',
+          triggerHealthRatio: 1,
+          movementPatternId: 'arena-roam',
+          speedMultiplier: 0.72,
+          weaponSettingIds: ['sandbox-frontier-crownclaw-burst', 'sandbox-frontier-crownclaw-beam']
+        },
+        {
+          id: frontierCriticalCrossLink,
+          label: 'Critical Cross-Link',
+          triggerHealthRatio: 0.5,
+          movementPatternId: 'gatekeeper-cycle',
+          speedMultiplier: 0.78,
+          weaponSettingIds: ['sandbox-frontier-crownclaw-burst', 'sandbox-frontier-crownclaw-beam']
+        }
+      ],
+      timeline: frontierTimeline
     })
   },
   {

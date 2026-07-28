@@ -95,10 +95,12 @@ test('server campaign validation rejects mismatched, unsafe, duplicate, and ungr
 
 test('campaign validation has no five-wave ceiling', async () => {
   const campaign = await loadCampaign();
-  const level = campaign.levels.reduce((largest, candidate) => (
-    candidate.waves.length > largest.waves.length ? candidate : largest
+  const level = campaign.levels.find((candidate) => (
+    candidate.campaignProgression?.missionRole === 'elite-checkpoint'
+    && candidate.waves.length === 5
   ));
   const sourceSpawn = firstSpawn(campaign);
+  assert.ok(level, 'tracked campaign should provide an elite-checkpoint that permits a sixth wave');
   const nextOrder = level.waves.length + 1;
 
   level.waves.push({
@@ -114,6 +116,9 @@ test('campaign validation has no five-wave ceiling', async () => {
     delayAfterSeconds: 2,
     scoreMultiplier: 2 ** (nextOrder - 1),
     threatCap: 64,
+    combatBudget: 64,
+    rhythm: 'recovery',
+    formationPackIds: [],
     events: [{
       id: `authoring-proof-formation-${nextOrder}`,
       label: 'Custom formation beyond the starter campaign',

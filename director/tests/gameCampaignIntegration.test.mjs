@@ -12,8 +12,28 @@ import { createDirectorRequestHandler } from '../server/localApi.mjs';
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const trackedRepositoryRoot = path.resolve(testDirectory, '..', '..');
+const trackedCampaign = JSON.parse(await readFile(
+  path.join(trackedRepositoryRoot, 'game-config', 'campaign.json'),
+  'utf8'
+));
 
-const makeCampaign = () => ({
+const makeCampaign = () => {
+  const campaign = structuredClone(trackedCampaign);
+  campaign.revision = 1;
+  campaign.updatedAt = '2026-07-11T12:00:00.000Z';
+  return campaign;
+};
+
+const getOpeningSpawn = (campaign) => campaign.levels[0].waves[0].events
+  .find((event) => event.kind === 'spawn');
+
+const getFirstMajorBoss = (campaign) => {
+  const sector = campaign.sectors[0];
+  const level = campaign.levels.find((candidate) => candidate.id === sector.missionIds.at(-1));
+  return level.waves[0].events.find((event) => event.kind === 'boss' && event.bossId === sector.majorBossId);
+};
+
+const makeLegacyCampaign = () => ({
   schemaVersion: 1,
   revision: 1,
   id: 'scicon-default-campaign',
@@ -217,9 +237,11 @@ test('game campaign repository confines both tracked and history paths to the wo
 test('structural game campaign validation covers nested runtime tuning fields', () => {
   assert.deepEqual(validateGameCampaign(makeCampaign()), { valid: true, errors: [] });
   const invalid = makeCampaign();
-  invalid.levels[0].waves[0].events[0].count = 0;
-  invalid.levels[0].waves[0].events[0].enemies[0].weight = 2;
-  invalid.levels[0].waves[0].events[1].phases[0].weaponSettingIds.push('missing-weapon');
+  const spawn = getOpeningSpawn(invalid);
+  const boss = getFirstMajorBoss(invalid);
+  spawn.count = 0;
+  spawn.enemies[0].weight = 2;
+  boss.phases[0].weaponSettingIds.push('missing-weapon');
   const result = validateGameCampaign(invalid);
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((error) => error.includes('/count')));
@@ -227,40 +249,39 @@ test('structural game campaign validation covers nested runtime tuning fields', 
   assert.ok(result.errors.some((error) => error.includes('weaponSettingIds')));
 });
 
-test('wave completion rules stay consistent with authored Gatekeeper milestones', () => {
+test('wave completion rules stay consistent with authored sector major-boss Missions', () => {
   const missingBoss = makeCampaign();
-  missingBoss.levels[0].waves[0].events = missingBoss.levels[0].waves[0].events.filter((event) => event.bossId !== 'gatekeeper');
+  const bossLevel = missingBoss.levels.find((level) => level.campaignProgression.missionRole === 'major-boss');
+  bossLevel.waves[0].events = [];
   const missingBossResult = validateGameCampaign(missingBoss);
   assert.equal(missingBossResult.valid, false);
-  assert.ok(missingBossResult.errors.some((error) => error.includes('boss-defeat requires a Gatekeeper')));
+  assert.ok(missingBossResult.errors.some((error) => error.includes('one direct encounter with sector major boss')));
 
   const unexpectedBoss = makeCampaign();
-  unexpectedBoss.levels[0].waves[0].completionRule = 'clear-after-duration';
+  const unexpectedBossLevel = unexpectedBoss.levels.find((level) => level.campaignProgression.missionRole === 'major-boss');
+  unexpectedBossLevel.waves[0].completionRule = 'clear-after-duration';
   const unexpectedBossResult = validateGameCampaign(unexpectedBoss);
   assert.equal(unexpectedBossResult.valid, false);
-  assert.ok(unexpectedBossResult.errors.some((error) => error.includes('cannot contain a Gatekeeper')));
+  assert.ok(unexpectedBossResult.errors.some((error) => error.includes('cannot contain a canonical major-boss event')));
 });
 
-test('legacy schema-v1 completion rules migrate by encounter shape without weakening strict validation', () => {
-  const bossLegacy = makeCampaign();
-  delete bossLegacy.levels[0].waves[0].completionRule;
-  const strictLegacyResult = validateGameCampaign(bossLegacy);
+test('legacy schema-v1 completion rules migrate without weakening revision-22 validation', () => {
+  const clearLegacy = makeCampaign();
+  delete clearLegacy.levels[0].waves[0].completionRule;
+  const strictLegacyResult = validateGameCampaign(clearLegacy);
   assert.equal(strictLegacyResult.valid, false);
   assert.ok(strictLegacyResult.errors.some((error) => error.includes('/completionRule')));
 
-  const migratedBoss = migrateLegacyGameCampaign(bossLegacy);
-  assert.notEqual(migratedBoss, bossLegacy);
-  assert.equal(Object.hasOwn(bossLegacy.levels[0].waves[0], 'completionRule'), false);
-  assert.equal(migratedBoss.levels[0].waves[0].completionRule, 'boss-defeat');
-  assert.deepEqual(validateGameCampaign(migratedBoss), { valid: true, errors: [] });
+  const migratedClear = migrateLegacyGameCampaign(clearLegacy);
+  assert.notEqual(migratedClear, clearLegacy);
+  assert.equal(Object.hasOwn(clearLegacy.levels[0].waves[0], 'completionRule'), false);
+  assert.equal(migratedClear.levels[0].waves[0].completionRule, 'clear-after-duration');
+  assert.deepEqual(validateGameCampaign(migratedClear), { valid: true, errors: [] });
 
-  const timedLegacy = makeCampaign();
-  timedLegacy.levels[0].waves[0].events = timedLegacy.levels[0].waves[0].events
-    .filter((event) => event.bossId !== 'gatekeeper');
-  delete timedLegacy.levels[0].waves[0].completionRule;
-  const migratedTimed = migrateLegacyGameCampaign(timedLegacy);
-  assert.equal(migratedTimed.levels[0].waves[0].completionRule, 'clear-after-duration');
-  assert.deepEqual(validateGameCampaign(migratedTimed), { valid: true, errors: [] });
+  const bossLegacy = makeLegacyCampaign();
+  delete bossLegacy.levels[0].waves[0].completionRule;
+  const migratedBoss = migrateLegacyGameCampaign(bossLegacy);
+  assert.equal(migratedBoss.levels[0].waves[0].completionRule, 'boss-defeat');
 
   const explicitlyInvalid = makeCampaign();
   explicitlyInvalid.levels[0].waves[0].completionRule = 'legacy-auto';
@@ -269,36 +290,36 @@ test('legacy schema-v1 completion rules migrate by encounter shape without weake
   assert.equal(validateGameCampaign(preserved).valid, false);
 });
 
-test('boss rigs are optional, allowlisted, and limited to gatekeeper encounters', () => {
+test('boss rigs are optional, allowlisted, and limited to canonical major-boss encounters', () => {
   const legacy = makeCampaign();
-  delete legacy.levels[0].waves[0].events[1].rigId;
+  delete getFirstMajorBoss(legacy).rigId;
   assert.deepEqual(validateGameCampaign(legacy), { valid: true, errors: [] });
 
   const configured = makeCampaign();
-  configured.levels[0].waves[0].events[1].rigId = 'crown-claw';
+  getFirstMajorBoss(configured).rigId = 'crown-claw';
   assert.deepEqual(validateGameCampaign(configured), { valid: true, errors: [] });
 
   const unknownRig = makeCampaign();
-  unknownRig.levels[0].waves[0].events[1].rigId = 'unregistered-rig';
+  getFirstMajorBoss(unknownRig).rigId = 'unregistered-rig';
   const unknownResult = validateGameCampaign(unknownRig);
   assert.equal(unknownResult.valid, false);
   assert.ok(unknownResult.errors.some((error) => error.includes('/rigId')));
 
   const unsupportedBoss = makeCampaign();
-  unsupportedBoss.levels[0].waves[0].events[1].bossId = 'bottleneck-drone';
+  getFirstMajorBoss(unsupportedBoss).bossId = 'bottleneck-drone';
   const unsupportedResult = validateGameCampaign(unsupportedBoss);
   assert.equal(unsupportedResult.valid, false);
-  assert.ok(unsupportedResult.errors.some((error) => error.includes('gatekeeper encounters only')));
+  assert.ok(unsupportedResult.errors.some((error) => error.includes('canonical major-boss encounters only')));
 });
 
 test('spawn anchors are optional normalized points with no extra fields', () => {
   const anchored = makeCampaign();
-  anchored.levels[0].waves[0].events[0].spawnAnchor = { x: 0.35, y: 0.2 };
-  anchored.levels[0].waves[0].events[1].spawnAnchor = { x: 0.5, y: 0.25 };
+  getOpeningSpawn(anchored).spawnAnchor = { x: 0.35, y: 0.2 };
+  getFirstMajorBoss(anchored).spawnAnchor = { x: 0.5, y: 0.25 };
   assert.deepEqual(validateGameCampaign(anchored), { valid: true, errors: [] });
 
   const invalid = makeCampaign();
-  invalid.levels[0].waves[0].events[0].spawnAnchor = { x: -0.1, y: 1.1, z: 0.5 };
+  getOpeningSpawn(invalid).spawnAnchor = { x: -0.1, y: 1.1, z: 0.5 };
   const result = validateGameCampaign(invalid);
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((error) => error.includes('/spawnAnchor/x')));
@@ -306,16 +327,14 @@ test('spawn anchors are optional normalized points with no extra fields', () => 
   assert.ok(result.errors.some((error) => error.includes('unsupported fields: z')));
 });
 
-test('sprite validation permits catalog swaps only within gameplay categories', () => {
+test('sprite validation enforces role-bound enemy art and gameplay categories', () => {
   const validSwap = makeCampaign();
-  validSwap.levels[0].waves[0].events[0].enemies[0].spriteKey = 'ENEMY_JOURNAL';
-  validSwap.levels[0].waves[0].events[1].spriteKey = 'MINI_BOSS';
   assert.deepEqual(validateGameCampaign(validSwap), { valid: true, errors: [] });
 
   const invalid = makeCampaign();
   const events = invalid.levels[0].waves[0].events;
-  events[0].enemies[0].spriteKey = 'FINAL_BOSS';
-  events[1].spriteKey = 'GAME_BG_BACK';
+  getOpeningSpawn(invalid).enemies[0].spriteKey = 'FINAL_BOSS';
+  getFirstMajorBoss(invalid).spriteKey = 'GAME_BG_BACK';
   events.splice(1, 0, {
     id: 'unsafe-asteroid-belt',
     label: 'Unsafe asteroid belt',
@@ -343,26 +362,23 @@ test('sprite validation permits catalog swaps only within gameplay categories', 
   const spriteErrors = result.errors.filter((error) => error.includes('/spriteKey has unsupported value'));
   assert.equal(spriteErrors.length, 3);
   assert.ok(spriteErrors.some((error) => error.includes('/events/0/enemies/0/spriteKey')));
-  assert.ok(spriteErrors.some((error) => error.includes('/events/1/spriteKey')));
-  assert.ok(spriteErrors.some((error) => error.includes('/events/2/spriteKey')));
+  assert.ok(spriteErrors.some((error) => error.includes('/spriteKey')));
 });
 
 test('Stage 20 expansion art preserves enemy, mini-boss, boss, and scorecard role boundaries', () => {
   const valid = makeCampaign();
-  valid.levels[0].waves[0].events[0].enemies[0].spriteKey = 'CAMPAIGN_ENEMY_DNA_CONDUCTOR';
-  valid.levels[0].waves[0].events[1].spriteKey = 'CAMPAIGN_ENEMY_LASER_HUNTER';
   valid.levels[0].scorecard.encounterAssetKey = 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT';
   valid.recordCard.encounterAssetKey = 'CAMPAIGN_BOSS_ECLIPSE_ENGINE';
   assert.deepEqual(validateGameCampaign(valid), { valid: true, errors: [] });
 
   const invalid = makeCampaign();
-  invalid.levels[0].waves[0].events[0].enemies[0].spriteKey = 'CAMPAIGN_BOSS_RAIL_SERPENT';
-  invalid.levels[0].waves[0].events[1].spriteKey = 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER';
+  getOpeningSpawn(invalid).enemies[0].spriteKey = 'CAMPAIGN_BOSS_RAIL_SERPENT';
+  getFirstMajorBoss(invalid).spriteKey = 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER';
   invalid.levels[0].scorecard.encounterAssetKey = 'POWERUP_MAX_SHOT_AURA_FRAMES';
   const result = validateGameCampaign(invalid);
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((error) => error.includes('/enemies/0/spriteKey has unsupported value')));
-  assert.ok(result.errors.some((error) => error.includes('/events/1/spriteKey has unsupported value')));
+  assert.ok(result.errors.some((error) => error.includes('/events/0/spriteKey has unsupported value')));
   assert.ok(result.errors.some((error) => error.includes('/scorecard/encounterAssetKey has unsupported value')));
 });
 
@@ -371,7 +387,7 @@ test('generated assets are accepted only for their registered game roles and raw
   assert.deepEqual(validateGameCampaign(validHud), { valid: true, errors: [] });
 
   const wrongRole = makeCampaign();
-  wrongRole.levels[0].waves[0].events[0].enemies[0].spriteKey = 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F';
+  getOpeningSpawn(wrongRole).enemies[0].spriteKey = 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F';
   const wrongRoleResult = validateGameCampaign(wrongRole);
   assert.equal(wrongRoleResult.valid, false);
   assert.ok(wrongRoleResult.errors.some((error) => error.includes('/enemies/0/spriteKey has unsupported value')));
@@ -398,7 +414,7 @@ test('legacy tracked campaigns retain their stored hash while opening with infer
 
   const state = await repository.readCampaign();
   assert.equal(state.contentHash, legacyHash, 'legacy draft base hashes must still match the stored campaign');
-  assert.equal(state.campaign.levels[0].waves[0].completionRule, 'boss-defeat');
+  assert.equal(state.campaign.levels[0].waves[0].completionRule, 'clear-after-duration');
   const stored = JSON.parse(await readFile(campaignPath, 'utf8'));
   assert.equal(Object.hasOwn(stored.levels[0].waves[0], 'completionRule'), false);
 });
@@ -407,7 +423,7 @@ test('invalid apply leaves the tracked file, manifest, and version history uncha
   const { repository, repositoryRoot, dataRoot } = await makeRepository(t);
   const before = await repository.readCampaign();
   const invalid = structuredClone(before.campaign);
-  invalid.levels[0].waves[0].events[0].enemies[0].health = -1;
+  getOpeningSpawn(invalid).enemies[0].health = -1;
 
   await assert.rejects(
     () => repository.applyCampaign(invalid, { expectedContentHash: before.contentHash }),
@@ -426,14 +442,14 @@ test('apply snapshots the baseline, atomically updates disk, and enforces optimi
   const { repository, repositoryRoot, dataRoot } = await makeRepository(t);
   const before = await repository.readCampaign();
   const edited = structuredClone(before.campaign);
-  edited.levels[0].waves[0].events[0].count = 12;
+  edited.levels[0].name = 'Open Orbit Tuned';
 
   const applied = await repository.applyCampaign(edited, {
     expectedContentHash: before.contentHash,
     changeNote: 'Increase opening formation'
   });
   assert.equal(applied.campaign.revision, 2);
-  assert.equal(applied.campaign.levels[0].waves[0].events[0].count, 12);
+  assert.equal(applied.campaign.levels[0].name, 'Open Orbit Tuned');
   assert.equal(applied.version.source, 'apply');
   assert.equal(applied.version.changeNote, 'Increase opening formation');
 
@@ -516,7 +532,7 @@ test('rollback verifies a selected immutable version and records a new rollback 
   const { repository } = await makeRepository(t);
   const before = await repository.readCampaign();
   const edited = structuredClone(before.campaign);
-  edited.levels[0].waves[0].events[0].count = 15;
+  edited.levels[0].name = 'Open Orbit Tuned';
   const applied = await repository.applyCampaign(edited, { expectedContentHash: before.contentHash });
   const baseline = (await repository.listVersions()).find((version) => version.source === 'baseline');
 
@@ -525,7 +541,7 @@ test('rollback verifies a selected immutable version and records a new rollback 
     changeNote: 'Restore tracked baseline'
   });
   assert.equal(rolledBack.campaign.revision, 3);
-  assert.equal(rolledBack.campaign.levels[0].waves[0].events[0].count, 8);
+  assert.equal(rolledBack.campaign.levels[0].name, before.campaign.levels[0].name);
   assert.equal(rolledBack.version.source, 'rollback');
   assert.equal(rolledBack.version.rollbackOf, baseline.id);
   assert.deepEqual((await repository.listVersions()).map((version) => version.revision), [3, 2, 1]);
@@ -556,7 +572,7 @@ test('legacy immutable campaign snapshots can be listed and rolled forward with 
 
   assert.ok((await repository.listVersions()).some((version) => version.id === legacyId));
   const restored = await repository.rollback(legacyId, { expectedContentHash: current.contentHash });
-  assert.equal(restored.campaign.levels[0].waves[0].completionRule, 'boss-defeat');
+  assert.equal(restored.campaign.levels[0].waves[0].completionRule, 'clear-after-duration');
   assert.deepEqual(validateGameCampaign(restored.campaign), { valid: true, errors: [] });
 });
 
@@ -566,7 +582,7 @@ test('legacy schema-v1 payloads retain current scorecard and HUD presentation wh
   const legacyPayload = structuredClone(before.campaign);
   delete legacyPayload.recordCard;
   delete legacyPayload.hudAssets;
-  legacyPayload.levels[0].waves[0].events[0].count = 11;
+  legacyPayload.levels[0].waves[0].events[0].label = 'Legacy opening formation';
 
   const applied = await repository.applyCampaign(legacyPayload, {
     expectedContentHash: before.contentHash,
@@ -575,7 +591,7 @@ test('legacy schema-v1 payloads retain current scorecard and HUD presentation wh
 
   assert.deepEqual(applied.campaign.recordCard, before.campaign.recordCard);
   assert.deepEqual(applied.campaign.hudAssets, before.campaign.hudAssets);
-  assert.equal(applied.campaign.levels[0].waves[0].events[0].count, 11);
+  assert.equal(applied.campaign.levels[0].waves[0].events[0].label, 'Legacy opening formation');
 });
 
 test('game campaign HTTP routes require the mutation token and return validation errors without writes', async (t) => {
@@ -604,7 +620,7 @@ test('game campaign HTTP routes require the mutation token and return validation
   assert.equal(denied.status, 403);
 
   const invalid = structuredClone(fetched.body.campaign);
-  invalid.levels[0].waves[0].events[0].spawnIntervalSeconds = 0;
+  getOpeningSpawn(invalid).spawnIntervalSeconds = 0;
   const rejected = await requestJson({
     port,
     path: '/__director/api/game-campaign/apply',
@@ -623,6 +639,9 @@ test('the existing review API persists normalized live-preview context through a
   const { repository: gameRepository, repositoryRoot, dataRoot } = await makeRepository(t);
   const disk = await gameRepository.readCampaign();
   const configVersion = `game-campaign-disk-r${disk.revision}-${disk.contentHash.slice(7, 19)}`;
+  const reviewLevel = disk.campaign.levels[0];
+  const reviewWave = reviewLevel.waves[0];
+  const reviewEvent = getOpeningSpawn(disk.campaign);
   const repository = new ConfigRepository({
     repositoryRoot,
     dataRoot,
@@ -645,13 +664,13 @@ test('the existing review API persists normalized live-preview context through a
     campaignId: disk.campaign.id,
     campaignRevision: disk.revision,
     campaignContentHash: disk.contentHash,
-    levelId: 'open-orbit',
-    levelName: 'Open Orbit',
-    waveId: 'wave-1',
-    waveName: 'Opening Review',
-    eventId: 'review-gatekeeper',
-    eventLabel: 'Review Gatekeeper',
-    eventKind: 'boss',
+    levelId: reviewLevel.id,
+    levelName: reviewLevel.name,
+    waveId: reviewWave.id,
+    waveName: reviewWave.name,
+    eventId: reviewEvent.id,
+    eventLabel: reviewEvent.label,
+    eventKind: reviewEvent.kind,
     elapsedSeconds: 42.5,
     draft: false
   };
@@ -663,7 +682,7 @@ test('the existing review API persists normalized live-preview context through a
     body: {
       surface: 'wave',
       configVersion,
-      target: 'Open Orbit / Opening Review / Review Gatekeeper',
+      target: `${reviewLevel.name} / ${reviewWave.name} / ${reviewEvent.label}`,
       note: 'Move this warning away from the sprite.',
       status: 'open',
       anchor: { x: 0.74, y: 0.22 },
@@ -693,7 +712,7 @@ test('the existing review API persists normalized live-preview context through a
     body: {
       surface: 'wave',
       configVersion: draftVersion,
-      target: 'Open Orbit / Draft Review Wave / Review Gatekeeper',
+      target: `${reviewLevel.name} / Draft Review Wave / ${reviewEvent.label}`,
       note: 'This note belongs to the exact unsaved draft.',
       status: 'open',
       anchor: { x: 0.42, y: 0.58 },

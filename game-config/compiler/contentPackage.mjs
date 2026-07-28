@@ -99,6 +99,45 @@ const validateReferenceList = (value, path, diagnostics) => {
   return value.filter((id) => typeof id === 'string' && id);
 };
 
+const validateCampaignFieldOrder = (value, campaign, diagnostics) => {
+  const path = '/manifest/campaignFieldOrder';
+  if (!Array.isArray(value)) {
+    diagnostic(
+      diagnostics,
+      'invalid-package',
+      path,
+      'manifest campaignFieldOrder must be an array'
+    );
+    return [];
+  }
+
+  const expectedKeys = new Set([...Object.keys(campaign), 'levels']);
+  const seen = new Set();
+  value.forEach((key, index) => {
+    const keyPath = `${path}/${index}`;
+    if (typeof key !== 'string' || !key) {
+      diagnostic(diagnostics, 'invalid-package', keyPath, 'campaign field names must be non-empty strings');
+      return;
+    }
+    if (!expectedKeys.has(key)) {
+      diagnostic(diagnostics, 'invalid-package', keyPath, `unknown campaign field: ${key}`);
+      return;
+    }
+    if (seen.has(key)) {
+      diagnostic(diagnostics, 'invalid-package', keyPath, `duplicate campaign field: ${key}`);
+      return;
+    }
+    seen.add(key);
+  });
+
+  expectedKeys.forEach((key) => {
+    if (!seen.has(key)) {
+      diagnostic(diagnostics, 'invalid-package', path, `campaignFieldOrder is missing field: ${key}`);
+    }
+  });
+  return value.filter((key) => typeof key === 'string' && expectedKeys.has(key));
+};
+
 const validateResourceHeader = (resource, expectedKind, path, diagnostics) => {
   if (resource.schemaVersion !== RESOURCE_SCHEMA_VERSION) {
     diagnostic(
@@ -238,6 +277,10 @@ export const diagnoseContentPackage = (contentPackage) => {
         'manifest sourceCampaignRevision must match campaign metadata revision'
       );
     }
+  }
+
+  if (isRecord(manifest) && isRecord(campaign)) {
+    validateCampaignFieldOrder(manifest.campaignFieldOrder, campaign, diagnostics);
   }
 
   const missions = indexResources(contentPackage.missions, 'missions', diagnostics);
@@ -486,7 +529,11 @@ export const compileContentPackage = (contentPackage) => {
     });
     return { ...cloneJson(mission.payload), waves };
   });
-  return { ...cloneJson(contentPackage.campaign), levels };
+  const campaignMetadata = cloneJson(contentPackage.campaign);
+  return Object.fromEntries(contentPackage.manifest.campaignFieldOrder.map((key) => [
+    key,
+    key === 'levels' ? levels : campaignMetadata[key]
+  ]));
 };
 
 export const compileContentPackageWithDiagnostics = (contentPackage) => {

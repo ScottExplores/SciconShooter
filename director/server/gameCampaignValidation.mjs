@@ -177,7 +177,13 @@ const refreshGeneratedAssetCatalog = () => {
 
 refreshGeneratedAssetCatalog();
 const ENEMY_IDS = new Set(['drone', 'swarm', 'brick', 'journal']);
-const BOSS_IDS = new Set(['bottleneck-drone', 'paywall-wall', 'gatekeeper']);
+const BOSS_IDS = new Set([
+  'bottleneck-drone', 'paywall-wall', 'gatekeeper', 'gatekeeper-prime', 'helix-leviathan',
+  'eclipse-engine', 'research-tribunal'
+]);
+const MAJOR_BOSS_IDS = new Set([
+  'gatekeeper', 'gatekeeper-prime', 'helix-leviathan', 'eclipse-engine', 'research-tribunal'
+]);
 const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const POWERUP_IDS = new Set(['double-shot', 'triple-shot', 'max-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
 const BACKGROUND_IDS = new Set([
@@ -219,6 +225,50 @@ const CAMPAIGN_MASTERY_OBJECTIVE_KINDS = new Set([
   'score-at-least',
   'time-at-most'
 ]);
+const CAMPAIGN_MISSION_ROLES = new Set([
+  'introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'
+]);
+const CAMPAIGN_MISSION_ROLE_ORDER = [
+  'introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'
+];
+const CAMPAIGN_WAVE_RHYTHMS = new Set([
+  'warm-up', 'introduce', 'variation', 'support', 'recovery', 'peak', 'clear', 'boss'
+]);
+const ENEMY_DURABILITY_CLASSES = new Set(['light', 'standard', 'armored', 'elite']);
+const ENEMY_GAMEPLAY_ROLES = new Set([
+  'formation-unit', 'diver', 'flanker', 'shooter', 'burst-shooter', 'suppressor',
+  'armored-unit', 'support-unit', 'priority-target', 'formation-leader', 'elite'
+]);
+const ENEMY_FIRE_BEHAVIORS = new Set(['none', 'post-formation', 'aimed-burst']);
+const ENEMY_ENTRY_BEHAVIORS = new Set(['formation', 'dive', 'flank', 'lane']);
+const FORMATION_ENTRY_DIRECTIONS = new Set(['top', 'left', 'right', 'split']);
+const FORMATION_FIRING_BEHAVIORS = new Set(['none', 'post-formation', 'staggered', 'priority']);
+const SUPPORT_RECOMMENDATION_TAGS = new Set([
+  'anti-swarm', 'anti-armor', 'lane-control', 'boss-damage', 'survival', 'anti-summon'
+]);
+const MINI_BOSS_IDS = new Set(['bottleneck-drone', 'paywall-wall']);
+const MINI_BOSS_USAGES = new Set(['solo', 'paired', 'solo-or-paired']);
+const MINI_BOSS_VALIDATION_STATUSES = new Set(['validated', 'provisional']);
+const CAMPAIGN_BRANCH_MISSION_TYPES = new Set([
+  'present-drop', 'elite-remix', 'mini-boss-signal', 'formation-challenge', 'support-trial',
+  'mastery-mission', 'hidden-research-signal', 'research-cache'
+]);
+const CAMPAIGN_COMBAT_BRANCH_MISSION_TYPES = new Set([
+  'elite-remix', 'formation-challenge', 'support-trial'
+]);
+const CAMPAIGN_BRANCH_NODE_ICONS = new Set([
+  'present-drop-cache', 'encrypted-branch', 'elite-warning', 'mini-boss-signal',
+  'formation-challenge', 'support-trial', 'mastery-prism', 'research-signal'
+]);
+const CAMPAIGN_BRANCH_REWARD_CATEGORIES = new Set(['upgrade-coins', 'coins-and-trophy', 'cosmetic', 'support-preview']);
+const CAMPAIGN_BRANCH_REPLAY_POLICIES = new Set(['no-replay-after-claim', 'repeatable-no-reward', 'repeatable-rewarded']);
+const CAMPAIGN_BRANCH_UNLOCK_KINDS = new Set([
+  'all-stars-earned', 'sector-mastered', 'branch-completed', 'boss-defeated', 'achievement-earned',
+  'hidden-object-discovered', 'support-challenge-completed'
+]);
+const CAMPAIGN_BRANCH_DISCOVERY_STATES = new Set(['encrypted', 'revealed']);
+const PRESENT_DROP_PRESENT_KINDS = new Set(['standard', 'armored', 'fast', 'golden']);
+const PRESENT_DROP_PATTERN_IDS = new Set(['lane-rain', 'staggered-columns', 'sine-sweep', 'final-center']);
 const EVENT_KINDS = new Set(['spawn', 'boss', 'asteroid-belt', 'powerup', 'recovery']);
 const BOSS_TIMELINE_TRIGGERS = new Set(['time', 'phase-enter', 'death']);
 const BOSS_TIMELINE_TELEGRAPH_STYLES = new Set(['warning', 'lane', 'target', 'ring', 'spokes']);
@@ -242,7 +292,15 @@ const BOSS_TIMELINE_MOTION_CUES = new Set([
   'prism-brood-deploy',
   'prism-swoop',
   'prism-kaleidoscope',
-  'prism-metamorphosis'
+  'prism-metamorphosis',
+  'frontier-chainclaw-harpoon',
+  'frontier-crown-cross-link',
+  'frontier-reactor-charge',
+  'frontier-reactor-fire',
+  'frontier-bastion-crabwalk',
+  'frontier-critical-cross-link',
+  'frontier-stagger',
+  'frontier-death'
 ]);
 const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
   'clockwise',
@@ -286,6 +344,12 @@ const BOSS_COMPONENT_IDS = new Set(['left-cannon', 'right-cannon', 'helmet']);
 const BOSS_TIMELINE_COMPONENT_IDS = new Set(['left-cannon', 'right-cannon', 'helmet']);
 const BOSS_TIMELINE_SIDES = new Set(['port', 'starboard']);
 const BOSS_TIMELINE_HANDEDNESS = new Set(['left', 'right']);
+const FRONTIER_CROWNCLAW_SANDBOX_EVENT_ID = 'sandbox-frontier-crownclaw';
+const FRONTIER_CROWNCLAW_SANDBOX_PRIMITIVES = new Set([
+  'chainclaw-harpoon',
+  'crown-reactor-beam',
+  'bastion-crabwalk-barrage'
+]);
 const BOSS_TIMELINE_PRIMITIVES = new Map([
   ['telegraph', { track: 'presentation', damaging: false, supportsRepeat: true, parameterKeys: ['warningSeconds', 'telegraphStyle', 'color'] }],
   ['aimed-burst', { track: 'attack', damaging: true, supportsRepeat: true, parameterKeys: ['projectileCount'] }],
@@ -336,6 +400,24 @@ const BOSS_TIMELINE_PRIMITIVES = new Map([
     damaging: true,
     supportsRepeat: true,
     parameterKeys: ['projectileCount', 'sequence', 'motionCue', 'pulseIntervalSeconds', 'shotIntervalFrames', 'projectileSpeedScale', 'channelWidthPixels', 'sweepRangeRatio', 'sweepPasses']
+  }],
+  ['chainclaw-harpoon', {
+    track: 'attack',
+    damaging: true,
+    supportsRepeat: true,
+    parameterKeys: ['sequence', 'side', 'motionCue', 'projectileSpeedScale']
+  }],
+  ['crown-reactor-beam', {
+    track: 'laser',
+    damaging: true,
+    supportsRepeat: true,
+    parameterKeys: ['sequence', 'motionCue', 'rotationDirection']
+  }],
+  ['bastion-crabwalk-barrage', {
+    track: 'attack',
+    damaging: true,
+    supportsRepeat: true,
+    parameterKeys: ['projectileCount', 'sequence', 'motionCue', 'shotIntervalFrames', 'projectileSpeedScale']
   }],
   ['cross-beam', { track: 'laser', damaging: true, supportsRepeat: true, parameterKeys: [] }],
   ['rail-sweep', { track: 'laser', damaging: true, supportsRepeat: true, parameterKeys: ['sequence'] }],
@@ -513,7 +595,10 @@ const validateScorecard = (scorecard, location, errors) => {
 const validateCampaignProgression = (progression, location, levelId, errors) => {
   if (progression === undefined) return;
   if (!requireObject(progression, location, errors)) return;
-  allowedKeys(progression, ['reward', 'masteryObjectives', 'mapPosition', 'nextMissionId'], location, errors);
+  allowedKeys(progression, [
+    'reward', 'masteryObjectives', 'masterySetBonusCoins', 'sectorId', 'missionRole', 'combatBudget',
+    'recommendedPower', 'testedLoadouts', 'recommendedSupportTags', 'mapPosition', 'nextMissionId'
+  ], location, errors);
 
   if (requireObject(progression.reward, `${location}/reward`, errors)) {
     allowedKeys(
@@ -576,6 +661,46 @@ const validateCampaignProgression = (progression, location, levelId, errors) => 
     }
   }
 
+  requireNumber(progression.masterySetBonusCoins, `${location}/masterySetBonusCoins`, errors, {
+    minimum: 0,
+    maximum: 1000000,
+    integer: true
+  });
+  requireId(progression.sectorId, `${location}/sectorId`, errors);
+  requireEnum(progression.missionRole, CAMPAIGN_MISSION_ROLES, `${location}/missionRole`, errors);
+  requireNumber(progression.combatBudget, `${location}/combatBudget`, errors, {
+    minimum: Number.EPSILON,
+    maximum: 1000000
+  });
+  if (requireObject(progression.recommendedPower, `${location}/recommendedPower`, errors)) {
+    const keys = ['minimum', 'expected', 'comfortable'];
+    allowedKeys(progression.recommendedPower, keys, `${location}/recommendedPower`, errors);
+    keys.forEach((key) => requireNumber(
+      progression.recommendedPower[key],
+      `${location}/recommendedPower/${key}`,
+      errors,
+      { minimum: 0, maximum: 1000000000, integer: true }
+    ));
+    if (keys.every((key) => isFiniteNumber(progression.recommendedPower[key])) && !(
+      progression.recommendedPower.minimum <= progression.recommendedPower.expected
+      && progression.recommendedPower.expected <= progression.recommendedPower.comfortable
+    )) {
+      errors.push(`${location}/recommendedPower must be ordered minimum <= expected <= comfortable`);
+    }
+  }
+  if (requireObject(progression.testedLoadouts, `${location}/testedLoadouts`, errors)) {
+    const keys = ['lowPower', 'expectedPower', 'upgraded'];
+    allowedKeys(progression.testedLoadouts, keys, `${location}/testedLoadouts`, errors);
+    keys.forEach((key) => requireString(progression.testedLoadouts[key], `${location}/testedLoadouts/${key}`, errors, 200));
+  }
+  validateUniqueEnumArray(
+    progression.recommendedSupportTags,
+    SUPPORT_RECOMMENDATION_TAGS,
+    `${location}/recommendedSupportTags`,
+    errors,
+    { minimumItems: 0 }
+  );
+
   if (progression.mapPosition !== undefined) {
     const mapLocation = `${location}/mapPosition`;
     if (requireObject(progression.mapPosition, mapLocation, errors)) {
@@ -590,6 +715,604 @@ const validateCampaignProgression = (progression, location, levelId, errors) => 
   }
 };
 
+const validateCampaignSectors = (sectors, errors) => {
+  if (!Array.isArray(sectors) || sectors.length === 0) {
+    errors.push('/sectors must be a non-empty array');
+    return;
+  }
+  const ids = new Set();
+  const orders = new Set();
+  sectors.forEach((sector, index) => {
+    const location = `/sectors/${index}`;
+    if (!requireObject(sector, location, errors)) return;
+    allowedKeys(sector, ['id', 'order', 'name', 'themeId', 'missionIds', 'majorBossId', 'branchIds'], location, errors);
+    requireId(sector.id, `${location}/id`, errors);
+    if (ids.has(sector.id)) errors.push(`/sectors contains duplicate id: ${String(sector.id)}`);
+    ids.add(sector.id);
+    requireNumber(sector.order, `${location}/order`, errors, { minimum: 1, maximum: 1000, integer: true });
+    if (orders.has(sector.order)) errors.push(`/sectors contains duplicate order: ${String(sector.order)}`);
+    orders.add(sector.order);
+    requireString(sector.name, `${location}/name`, errors, 120);
+    requireId(sector.themeId, `${location}/themeId`, errors);
+    if (!Array.isArray(sector.missionIds) || sector.missionIds.length !== 5) {
+      errors.push(`${location}/missionIds must contain exactly five Missions`);
+    } else {
+      const missionIds = new Set();
+      sector.missionIds.forEach((missionId, missionIndex) => {
+        requireId(missionId, `${location}/missionIds/${missionIndex}`, errors);
+        if (missionIds.has(missionId)) errors.push(`${location}/missionIds contains duplicate value: ${String(missionId)}`);
+        missionIds.add(missionId);
+      });
+    }
+    requireEnum(sector.majorBossId, MAJOR_BOSS_IDS, `${location}/majorBossId`, errors);
+    if (!Array.isArray(sector.branchIds)) {
+      errors.push(`${location}/branchIds must be an array`);
+    } else {
+      const branchIds = new Set();
+      sector.branchIds.forEach((branchId, branchIndex) => {
+        requireId(branchId, `${location}/branchIds/${branchIndex}`, errors);
+        if (branchIds.has(branchId)) errors.push(`${location}/branchIds contains duplicate value: ${String(branchId)}`);
+        branchIds.add(branchId);
+      });
+    }
+  });
+};
+
+const validateCampaignVisualThemes = (themes, errors) => {
+  if (!Array.isArray(themes) || themes.length === 0) {
+    errors.push('/visualThemes must be a non-empty array');
+    return;
+  }
+  const ids = new Set();
+  themes.forEach((theme, index) => {
+    const location = `/visualThemes/${index}`;
+    if (!requireObject(theme, location, errors)) return;
+    allowedKeys(theme, ['id', 'label', 'backgroundId', 'accent', 'description'], location, errors);
+    requireId(theme.id, `${location}/id`, errors);
+    if (ids.has(theme.id)) errors.push(`/visualThemes contains duplicate id: ${String(theme.id)}`);
+    ids.add(theme.id);
+    requireString(theme.label, `${location}/label`, errors, 120);
+    requireEnum(theme.backgroundId, BACKGROUND_IDS, `${location}/backgroundId`, errors);
+    if (typeof theme.accent !== 'string' || !HEX_COLOR_PATTERN.test(theme.accent)) errors.push(`${location}/accent must be a six-digit hex color`);
+    requireString(theme.description, `${location}/description`, errors, 500);
+  });
+};
+
+const validateEnemyRoleManifest = (roles, errors) => {
+  if (!Array.isArray(roles) || roles.length === 0) {
+    errors.push('/enemyRoles must be a non-empty array');
+    return;
+  }
+  const ids = new Set();
+  roles.forEach((role, index) => {
+    const location = `/enemyRoles/${index}`;
+    if (!requireObject(role, location, errors)) return;
+    allowedKeys(role, [
+      'id', 'label', 'enemyId', 'spriteKey', 'role', 'threatCost', 'introductionSector',
+      'introductionMission', 'durabilityClass', 'fireBehavior', 'entryBehavior',
+      'compatibleFormationPackIds', 'synergyTags', 'reuseCooldownWaves', 'maximumSimultaneousCount',
+      'performanceCost'
+    ], location, errors);
+    requireId(role.id, `${location}/id`, errors);
+    if (ids.has(role.id)) errors.push(`/enemyRoles contains duplicate id: ${String(role.id)}`);
+    ids.add(role.id);
+    requireString(role.label, `${location}/label`, errors, 120);
+    requireEnum(role.enemyId, ENEMY_IDS, `${location}/enemyId`, errors);
+    requireEnum(role.spriteKey, ENEMY_SPRITE_KEYS, `${location}/spriteKey`, errors);
+    requireEnum(role.role, ENEMY_GAMEPLAY_ROLES, `${location}/role`, errors);
+    requireNumber(role.threatCost, `${location}/threatCost`, errors, { minimum: Number.EPSILON, maximum: 1000000 });
+    requireNumber(role.introductionSector, `${location}/introductionSector`, errors, { minimum: 1, maximum: 1000, integer: true });
+    requireNumber(role.introductionMission, `${location}/introductionMission`, errors, { minimum: 1, maximum: 5, integer: true });
+    requireEnum(role.durabilityClass, ENEMY_DURABILITY_CLASSES, `${location}/durabilityClass`, errors);
+    requireEnum(role.fireBehavior, ENEMY_FIRE_BEHAVIORS, `${location}/fireBehavior`, errors);
+    requireEnum(role.entryBehavior, ENEMY_ENTRY_BEHAVIORS, `${location}/entryBehavior`, errors);
+    if (!Array.isArray(role.compatibleFormationPackIds)) errors.push(`${location}/compatibleFormationPackIds must be an array`);
+    else role.compatibleFormationPackIds.forEach((id, itemIndex) => requireId(id, `${location}/compatibleFormationPackIds/${itemIndex}`, errors));
+    if (!Array.isArray(role.synergyTags)) errors.push(`${location}/synergyTags must be an array`);
+    else role.synergyTags.forEach((tag, itemIndex) => requireId(tag, `${location}/synergyTags/${itemIndex}`, errors));
+    requireNumber(role.reuseCooldownWaves, `${location}/reuseCooldownWaves`, errors, { minimum: 0, maximum: 100, integer: true });
+    requireNumber(role.maximumSimultaneousCount, `${location}/maximumSimultaneousCount`, errors, { minimum: 1, maximum: 1000, integer: true });
+    requireNumber(role.performanceCost, `${location}/performanceCost`, errors, { minimum: Number.EPSILON, maximum: 1000000 });
+  });
+};
+
+const validateFormationPackManifest = (packs, errors) => {
+  if (!Array.isArray(packs) || packs.length === 0) {
+    errors.push('/formationPacks must be a non-empty array');
+    return;
+  }
+  const ids = new Set();
+  packs.forEach((pack, index) => {
+    const location = `/formationPacks/${index}`;
+    if (!requireObject(pack, location, errors)) return;
+    allowedKeys(pack, [
+      'id', 'label', 'enemyRoleIds', 'enemyCount', 'totalThreatCost', 'entryDirection', 'entryPath',
+      'formationShape', 'firingBehavior', 'synergyAdjustment', 'minimumSector',
+      'maximumSimultaneousInstances', 'recoveryRequiredSeconds', 'compatibleMissionRoles',
+      'compatibleSectorIds', 'mobilePerformanceCost'
+    ], location, errors);
+    requireId(pack.id, `${location}/id`, errors);
+    if (ids.has(pack.id)) errors.push(`/formationPacks contains duplicate id: ${String(pack.id)}`);
+    ids.add(pack.id);
+    requireString(pack.label, `${location}/label`, errors, 120);
+    if (!Array.isArray(pack.enemyRoleIds) || pack.enemyRoleIds.length === 0) errors.push(`${location}/enemyRoleIds must be a non-empty array`);
+    else pack.enemyRoleIds.forEach((id, itemIndex) => requireId(id, `${location}/enemyRoleIds/${itemIndex}`, errors));
+    requireNumber(pack.enemyCount, `${location}/enemyCount`, errors, { minimum: 1, maximum: 1000, integer: true });
+    requireNumber(pack.totalThreatCost, `${location}/totalThreatCost`, errors, { minimum: Number.EPSILON, maximum: 1000000 });
+    requireEnum(pack.entryDirection, FORMATION_ENTRY_DIRECTIONS, `${location}/entryDirection`, errors);
+    requireId(pack.entryPath, `${location}/entryPath`, errors);
+    requireEnum(pack.formationShape, SPAWN_PATTERNS, `${location}/formationShape`, errors);
+    requireEnum(pack.firingBehavior, FORMATION_FIRING_BEHAVIORS, `${location}/firingBehavior`, errors);
+    requireNumber(pack.synergyAdjustment, `${location}/synergyAdjustment`, errors, { minimum: -1000000, maximum: 1000000 });
+    requireNumber(pack.minimumSector, `${location}/minimumSector`, errors, { minimum: 1, maximum: 1000, integer: true });
+    requireNumber(pack.maximumSimultaneousInstances, `${location}/maximumSimultaneousInstances`, errors, { minimum: 1, maximum: 100, integer: true });
+    requireNumber(pack.recoveryRequiredSeconds, `${location}/recoveryRequiredSeconds`, errors, { minimum: 0, maximum: 600 });
+    validateUniqueEnumArray(pack.compatibleMissionRoles, CAMPAIGN_MISSION_ROLES, `${location}/compatibleMissionRoles`, errors, { minimumItems: 1 });
+    if (!Array.isArray(pack.compatibleSectorIds) || pack.compatibleSectorIds.length === 0) errors.push(`${location}/compatibleSectorIds must be a non-empty array`);
+    else pack.compatibleSectorIds.forEach((id, itemIndex) => requireId(id, `${location}/compatibleSectorIds/${itemIndex}`, errors));
+    requireNumber(pack.mobilePerformanceCost, `${location}/mobilePerformanceCost`, errors, { minimum: Number.EPSILON, maximum: 1000000 });
+  });
+};
+
+const validateMiniBossManifest = (miniBosses, errors) => {
+  if (!Array.isArray(miniBosses) || miniBosses.length === 0) {
+    errors.push('/miniBosses must be a non-empty array');
+    return;
+  }
+  const ids = new Set();
+  miniBosses.forEach((miniBoss, index) => {
+    const location = `/miniBosses/${index}`;
+    if (!requireObject(miniBoss, location, errors)) return;
+    allowedKeys(miniBoss, [
+      'id', 'bossId', 'label', 'visualIdentity', 'combatRole', 'mainAttacks', 'suitableSectorIds',
+      'threatCost', 'recommendedPower', 'usage', 'campaignReady', 'validationStatus'
+    ], location, errors);
+    requireId(miniBoss.id, `${location}/id`, errors);
+    if (ids.has(miniBoss.id)) errors.push(`/miniBosses contains duplicate id: ${String(miniBoss.id)}`);
+    ids.add(miniBoss.id);
+    requireEnum(miniBoss.bossId, MINI_BOSS_IDS, `${location}/bossId`, errors);
+    requireString(miniBoss.label, `${location}/label`, errors, 120);
+    requireString(miniBoss.visualIdentity, `${location}/visualIdentity`, errors, 500);
+    requireString(miniBoss.combatRole, `${location}/combatRole`, errors, 240);
+    if (!Array.isArray(miniBoss.mainAttacks) || miniBoss.mainAttacks.length < 2 || miniBoss.mainAttacks.length > 3) {
+      errors.push(`${location}/mainAttacks must contain two or three attacks`);
+    } else miniBoss.mainAttacks.forEach((attack, itemIndex) => requireString(attack, `${location}/mainAttacks/${itemIndex}`, errors, 160));
+    if (!Array.isArray(miniBoss.suitableSectorIds) || miniBoss.suitableSectorIds.length === 0) errors.push(`${location}/suitableSectorIds must be a non-empty array`);
+    else miniBoss.suitableSectorIds.forEach((id, itemIndex) => requireId(id, `${location}/suitableSectorIds/${itemIndex}`, errors));
+    requireNumber(miniBoss.threatCost, `${location}/threatCost`, errors, { minimum: Number.EPSILON, maximum: 1000000 });
+    requireNumber(miniBoss.recommendedPower, `${location}/recommendedPower`, errors, { minimum: 0, maximum: 1000000000, integer: true });
+    requireEnum(miniBoss.usage, MINI_BOSS_USAGES, `${location}/usage`, errors);
+    if (typeof miniBoss.campaignReady !== 'boolean') errors.push(`${location}/campaignReady must be a boolean`);
+    requireEnum(miniBoss.validationStatus, MINI_BOSS_VALIDATION_STATUSES, `${location}/validationStatus`, errors);
+  });
+};
+
+const validateCampaignMapPosition = (position, location, errors) => {
+  if (!requireObject(position, location, errors)) return false;
+  allowedKeys(position, ['x', 'y'], location, errors);
+  requireNumber(position.x, `${location}/x`, errors, { minimum: 0, maximum: 1 });
+  requireNumber(position.y, `${location}/y`, errors, { minimum: 0, maximum: 1 });
+  return isFiniteNumber(position.x) && isFiniteNumber(position.y)
+    && position.x >= 0 && position.x <= 1 && position.y >= 0 && position.y <= 1;
+};
+
+const validateCampaignBranchUnlockCondition = (
+  condition,
+  location,
+  missionIds,
+  branchIds,
+  bossEventIds,
+  errors
+) => {
+  if (!requireObject(condition, location, errors)) return;
+  if (!CAMPAIGN_BRANCH_UNLOCK_KINDS.has(condition.kind)) {
+    allowedKeys(condition, ['kind'], location, errors);
+    requireEnum(condition.kind, CAMPAIGN_BRANCH_UNLOCK_KINDS, `${location}/kind`, errors);
+    return;
+  }
+  if (condition.kind === 'all-stars-earned') {
+    allowedKeys(condition, ['kind', 'missionId'], location, errors);
+    requireId(condition.missionId, `${location}/missionId`, errors);
+    if (typeof condition.missionId === 'string' && !missionIds.has(condition.missionId)) {
+      errors.push(`${location}/missionId references unknown Campaign Mission: ${condition.missionId}`);
+    }
+  } else if (condition.kind === 'sector-mastered') {
+    allowedKeys(condition, ['kind', 'missionIds'], location, errors);
+    if (!Array.isArray(condition.missionIds) || condition.missionIds.length === 0) {
+      errors.push(`${location}/missionIds must be a non-empty array`);
+    } else {
+      const seen = new Set();
+      condition.missionIds.forEach((missionId, index) => {
+        requireId(missionId, `${location}/missionIds/${index}`, errors);
+        if (seen.has(missionId)) errors.push(`${location}/missionIds contains duplicate value: ${String(missionId)}`);
+        if (typeof missionId === 'string' && !missionIds.has(missionId)) {
+          errors.push(`${location}/missionIds/${index} references unknown Campaign Mission: ${missionId}`);
+        }
+        seen.add(missionId);
+      });
+    }
+  } else if (condition.kind === 'branch-completed') {
+    allowedKeys(condition, ['kind', 'branchId'], location, errors);
+    requireId(condition.branchId, `${location}/branchId`, errors);
+    if (typeof condition.branchId === 'string' && !branchIds.has(condition.branchId)) {
+      errors.push(`${location}/branchId references unknown Campaign branch: ${condition.branchId}`);
+    }
+  } else if (condition.kind === 'boss-defeated') {
+    allowedKeys(condition, ['kind', 'bossEventId'], location, errors);
+    requireId(condition.bossEventId, `${location}/bossEventId`, errors);
+    if (typeof condition.bossEventId === 'string' && !bossEventIds.has(condition.bossEventId)) {
+      errors.push(`${location}/bossEventId references unknown Campaign boss event: ${condition.bossEventId}`);
+    }
+  } else {
+    const key = condition.kind === 'achievement-earned'
+      ? 'achievementId'
+      : condition.kind === 'hidden-object-discovered'
+        ? 'discoveryId'
+        : 'challengeId';
+    allowedKeys(condition, ['kind', key], location, errors);
+    requireId(condition[key], `${location}/${key}`, errors);
+  }
+};
+
+const validateCampaignPresentDropMission = (mission, location, errors) => {
+  if (!requireObject(mission, location, errors)) return 0;
+  allowedKeys(
+    mission,
+    ['id', 'kind', 'backgroundId', 'musicId', 'introSeconds', 'durationSeconds', 'exitSeconds', 'successCondition', 'presentTypes', 'spawnGroups'],
+    location,
+    errors
+  );
+  requireId(mission.id, `${location}/id`, errors);
+  if (mission.kind !== 'present-drop') errors.push(`${location}/kind must be present-drop`);
+  requireEnum(mission.backgroundId, BACKGROUND_IDS, `${location}/backgroundId`, errors);
+  requireEnum(mission.musicId, MUSIC_IDS, `${location}/musicId`, errors);
+  requireNumber(mission.introSeconds, `${location}/introSeconds`, errors, { minimum: 0, maximum: 10 });
+  requireNumber(mission.durationSeconds, `${location}/durationSeconds`, errors, { minimum: 20, maximum: 120 });
+  requireNumber(mission.exitSeconds, `${location}/exitSeconds`, errors, { minimum: 0, maximum: 10 });
+  if (mission.successCondition !== 'complete-timed-drop') errors.push(`${location}/successCondition must be complete-timed-drop`);
+
+  const presentTypes = new Map();
+  const presentKinds = new Set();
+  if (!Array.isArray(mission.presentTypes) || mission.presentTypes.length === 0 || mission.presentTypes.length > 6) {
+    errors.push(`${location}/presentTypes must contain between 1 and 6 target types`);
+  } else {
+    const presentTypeIds = new Set();
+    mission.presentTypes.forEach((present, index) => {
+      const presentLocation = `${location}/presentTypes/${index}`;
+      if (!requireObject(present, presentLocation, errors)) return;
+      allowedKeys(present, ['id', 'displayName', 'kind', 'spriteKey', 'health', 'coinValue', 'speedMultiplier', 'sizeMultiplier'], presentLocation, errors);
+      requireId(present.id, `${presentLocation}/id`, errors);
+      requireString(present.displayName, `${presentLocation}/displayName`, errors, 80);
+      requireEnum(present.kind, PRESENT_DROP_PRESENT_KINDS, `${presentLocation}/kind`, errors);
+      requireEnum(present.spriteKey, ASTEROID_SPRITE_KEYS, `${presentLocation}/spriteKey`, errors);
+      requireNumber(present.health, `${presentLocation}/health`, errors, { minimum: Number.EPSILON, maximum: 1000 });
+      requireNumber(present.coinValue, `${presentLocation}/coinValue`, errors, { minimum: 1, maximum: 100000, integer: true });
+      requireNumber(present.speedMultiplier, `${presentLocation}/speedMultiplier`, errors, { minimum: 0.25, maximum: 3 });
+      requireNumber(present.sizeMultiplier, `${presentLocation}/sizeMultiplier`, errors, { minimum: 0.5, maximum: 2 });
+      if (presentTypeIds.has(present.id)) errors.push(`${location}/presentTypes contains duplicate id: ${String(present.id)}`);
+      if (presentKinds.has(present.kind)) errors.push(`${location}/presentTypes contains duplicate kind: ${String(present.kind)}`);
+      presentTypeIds.add(present.id);
+      presentKinds.add(present.kind);
+      if (typeof present.id === 'string' && isFiniteNumber(present.coinValue)) {
+        presentTypes.set(present.id, { coinValue: present.coinValue });
+      }
+    });
+    if (!presentKinds.has('standard') || !presentKinds.has('golden')) {
+      errors.push(`${location}/presentTypes must include standard and golden targets`);
+    }
+  }
+
+  let maximumPerformanceCoins = 0;
+  const usedPresentTypeIds = new Set();
+  if (!Array.isArray(mission.spawnGroups) || mission.spawnGroups.length === 0 || mission.spawnGroups.length > 32) {
+    errors.push(`${location}/spawnGroups must contain between 1 and 32 groups`);
+  } else {
+    const groupIds = new Set();
+    let previousStart = -Infinity;
+    mission.spawnGroups.forEach((group, index) => {
+      const groupLocation = `${location}/spawnGroups/${index}`;
+      if (!requireObject(group, groupLocation, errors)) return;
+      allowedKeys(group, ['id', 'startSeconds', 'count', 'presentTypeId', 'patternId', 'spawnIntervalSeconds'], groupLocation, errors);
+      requireId(group.id, `${groupLocation}/id`, errors);
+      requireNumber(group.startSeconds, `${groupLocation}/startSeconds`, errors, { minimum: 0, maximum: mission.durationSeconds });
+      requireNumber(group.count, `${groupLocation}/count`, errors, { minimum: 1, maximum: 100, integer: true });
+      requireId(group.presentTypeId, `${groupLocation}/presentTypeId`, errors);
+      requireEnum(group.patternId, PRESENT_DROP_PATTERN_IDS, `${groupLocation}/patternId`, errors);
+      requireNumber(group.spawnIntervalSeconds, `${groupLocation}/spawnIntervalSeconds`, errors, { minimum: 0.05, maximum: 10 });
+      if (groupIds.has(group.id)) errors.push(`${location}/spawnGroups contains duplicate id: ${String(group.id)}`);
+      groupIds.add(group.id);
+      if (isFiniteNumber(group.startSeconds) && group.startSeconds < previousStart) {
+        errors.push(`${location}/spawnGroups must be ordered by startSeconds`);
+      }
+      if (isFiniteNumber(group.startSeconds)) previousStart = group.startSeconds;
+      const presentType = presentTypes.get(group.presentTypeId);
+      if (!presentType) {
+        errors.push(`${groupLocation}/presentTypeId references unknown Present Drop target: ${String(group.presentTypeId)}`);
+      } else {
+        usedPresentTypeIds.add(group.presentTypeId);
+        if (Number.isInteger(group.count)) maximumPerformanceCoins += group.count * presentType.coinValue;
+      }
+      if (
+        isFiniteNumber(group.startSeconds)
+        && Number.isInteger(group.count)
+        && isFiniteNumber(group.spawnIntervalSeconds)
+        && isFiniteNumber(mission.durationSeconds)
+        && group.startSeconds + Math.max(0, group.count - 1) * group.spawnIntervalSeconds > mission.durationSeconds + EPSILON
+      ) {
+        errors.push(`${groupLocation} spawns must fit inside the Present Drop duration`);
+      }
+    });
+  }
+  for (const presentTypeId of presentTypes.keys()) {
+    if (!usedPresentTypeIds.has(presentTypeId)) errors.push(`${location}/presentTypes contains unused target type: ${presentTypeId}`);
+  }
+  return maximumPerformanceCoins;
+};
+
+const validateCampaignCombatBranchMission = (mission, location, enemyRoles, errors) => {
+  if (!requireObject(mission, location, errors)) return 0;
+  allowedKeys(mission, [
+    'id', 'kind', 'backgroundId', 'musicId', 'introSeconds', 'durationSeconds', 'exitSeconds',
+    'successCondition', 'threatCap', 'combatBudget', 'rhythm', 'availablePowerupIds', 'events'
+  ], location, errors);
+  requireId(mission.id, `${location}/id`, errors);
+  requireEnum(mission.kind, CAMPAIGN_COMBAT_BRANCH_MISSION_TYPES, `${location}/kind`, errors);
+  requireEnum(mission.backgroundId, BACKGROUND_IDS, `${location}/backgroundId`, errors);
+  requireEnum(mission.musicId, MUSIC_IDS, `${location}/musicId`, errors);
+  requireNumber(mission.introSeconds, `${location}/introSeconds`, errors, { minimum: 0, maximum: 10 });
+  requireNumber(mission.durationSeconds, `${location}/durationSeconds`, errors, { minimum: 20, maximum: 120 });
+  requireNumber(mission.exitSeconds, `${location}/exitSeconds`, errors, { minimum: 0, maximum: 10 });
+  if (mission.successCondition !== 'clear-authored-encounters') {
+    errors.push(`${location}/successCondition must be clear-authored-encounters`);
+  }
+  requireNumber(mission.threatCap, `${location}/threatCap`, errors, { minimum: 1, maximum: 1000, integer: true });
+  requireNumber(mission.combatBudget, `${location}/combatBudget`, errors, { minimum: Number.EPSILON, maximum: 1000000 });
+  requireEnum(mission.rhythm, CAMPAIGN_WAVE_RHYTHMS, `${location}/rhythm`, errors);
+  validateUniqueEnumArray(mission.availablePowerupIds, POWERUP_IDS, `${location}/availablePowerupIds`, errors);
+  const availablePowerups = new Set(Array.isArray(mission.availablePowerupIds) ? mission.availablePowerupIds : []);
+  const rolesById = new Map(
+    (Array.isArray(enemyRoles) ? enemyRoles.filter(isPlainObject) : [])
+      .filter((role) => typeof role.id === 'string')
+      .map((role) => [role.id, role])
+  );
+  if (!Array.isArray(mission.events) || mission.events.length === 0 || mission.events.length > 32) {
+    errors.push(`${location}/events must contain between 1 and 32 authored events`);
+    return 0;
+  }
+  const eventIds = new Set();
+  const formationPatterns = new Set();
+  let previousStartSeconds = -Infinity;
+  let weightedThreat = 0;
+  let hostileEventCount = 0;
+  let powerupEventCount = 0;
+  let eliteEnemyCount = 0;
+  let nonEliteEnemyCount = 0;
+  mission.events.forEach((event, eventIndex) => {
+    const eventLocation = `${location}/events/${eventIndex}`;
+    validateEvent(event, eventLocation, mission.durationSeconds, availablePowerups, errors);
+    if (eventIds.has(event?.id)) errors.push(`${location}/events contains duplicate id: ${String(event?.id)}`);
+    eventIds.add(event?.id);
+    if (isFiniteNumber(event?.startSeconds) && event.startSeconds < previousStartSeconds) {
+      errors.push(`${location}/events must be ordered by startSeconds`);
+    }
+    if (isFiniteNumber(event?.startSeconds)) previousStartSeconds = event.startSeconds;
+    if (isFiniteNumber(event?.startSeconds) && isFiniteNumber(event?.durationSeconds)
+      && event.blocksWaveClock !== true
+      && event.startSeconds + event.durationSeconds > mission.durationSeconds + EPSILON) {
+      errors.push(`${eventLocation} must finish inside the combat branch duration`);
+    }
+    if (event?.kind === 'boss') {
+      errors.push(`${eventLocation}/kind cannot contain major or mini-boss events`);
+    }
+    if (event?.kind === 'asteroid-belt' && event.bonusTargetKind !== undefined) {
+      errors.push(`${eventLocation}/bonusTargetKind belongs only to Present Drop branches`);
+    }
+    if (event?.kind === 'powerup') powerupEventCount += 1;
+    if (event?.kind === 'spawn') {
+      hostileEventCount += 1;
+      formationPatterns.add(event.patternId);
+      if (isFiniteNumber(event.count) && isFiniteNumber(mission.threatCap) && event.count > mission.threatCap) {
+        errors.push(`${eventLocation}/count exceeds the combat branch threat cap`);
+      }
+      let weightedUnitThreat = 0;
+      if (Array.isArray(event.enemies)) event.enemies.forEach((enemy, enemyIndex) => {
+        const roleLocation = `${eventLocation}/enemies/${enemyIndex}/roleId`;
+        const role = typeof enemy?.roleId === 'string' ? rolesById.get(enemy.roleId) : undefined;
+        if (!role) {
+          errors.push(`${roleLocation} references unknown enemy role: ${String(enemy?.roleId)}`);
+        } else {
+          if (role.enemyId !== enemy.enemyId) {
+            errors.push(`${roleLocation} belongs to ${String(role.enemyId)}, not ${String(enemy.enemyId)}`);
+          }
+          if (role.spriteKey !== enemy.spriteKey) {
+            errors.push(`${eventLocation}/enemies/${enemyIndex}/spriteKey must match role ${String(enemy.roleId)}`);
+          }
+          if (isFiniteNumber(enemy.weight) && isFiniteNumber(role.threatCost)) {
+            weightedUnitThreat += enemy.weight * role.threatCost;
+          }
+        }
+        if (enemy?.rank === 'elite') eliteEnemyCount += 1;
+        else nonEliteEnemyCount += 1;
+      });
+      if (isFiniteNumber(event.count)) weightedThreat += event.count * weightedUnitThreat;
+    } else if (event?.kind === 'asteroid-belt') {
+      hostileEventCount += 1;
+    }
+  });
+  if (hostileEventCount === 0) errors.push(`${location}/events requires at least one hostile encounter`);
+  if (isFiniteNumber(mission.combatBudget) && weightedThreat > mission.combatBudget + EPSILON) {
+    errors.push(`${location}/combatBudget is below authored enemy-role threat ${weightedThreat}`);
+  }
+  if (mission.kind === 'formation-challenge' && formationPatterns.size < 2) {
+    errors.push(`${location}/events formation challenges require at least two formation patterns`);
+  }
+  if (mission.kind === 'support-trial' && powerupEventCount === 0) {
+    errors.push(`${location}/events support trials require at least one power-up event`);
+  }
+  if (mission.kind === 'elite-remix' && (eliteEnemyCount === 0 || nonEliteEnemyCount > 0)) {
+    errors.push(`${location}/events elite remixes require every spawn enemy to use elite rank`);
+  }
+  return 0;
+};
+
+const validateCampaignBranches = (branches, levels, enemyRoles, errors) => {
+  if (branches === undefined) return;
+  if (!Array.isArray(branches)) {
+    errors.push('/campaignBranches must be an array');
+    return;
+  }
+  const levelRows = Array.isArray(levels) ? levels.filter(isPlainObject) : [];
+  const missionIds = new Set(levelRows.map((level) => level.id).filter((id) => typeof id === 'string'));
+  const bossEventIds = new Set(levelRows.flatMap((level) => Array.isArray(level.waves) ? level.waves : []).flatMap((wave) => (
+    isPlainObject(wave) && Array.isArray(wave.events)
+      ? wave.events.filter((event) => isPlainObject(event) && event.kind === 'boss').map((event) => event.id).filter((id) => typeof id === 'string')
+      : []
+  )));
+  const missionPositions = new Map(levelRows.flatMap((level) => (
+    typeof level.id === 'string' && isPlainObject(level.campaignProgression) && isPlainObject(level.campaignProgression.mapPosition)
+      ? [[level.id, level.campaignProgression.mapPosition]]
+      : []
+  )));
+  const branchRows = branches.filter(isPlainObject);
+  const branchIds = new Set(branchRows.map((branch) => branch.branchId).filter((id) => typeof id === 'string'));
+  const seenBranchIds = new Set();
+  const seenMissionDefinitionIds = new Set();
+  const branchPositions = [];
+
+  branches.forEach((branch, index) => {
+    const location = `/campaignBranches/${index}`;
+    if (!requireObject(branch, location, errors)) return;
+    allowedKeys(branch, [
+      'branchId', 'sourceMissionId', 'unlockCondition', 'requiredStars', 'missionType', 'displayName',
+      'hiddenName', 'mapPosition', 'routeControlPoints', 'icon', 'lockedIcon', 'rewardPreview',
+      'oneTimeCompletion', 'replayPolicy', 'failurePolicy', 'rewardCommitPolicy', 'missionDefinitionId',
+      'missionDefinition', 'completionReward', 'returnNodeId', 'nextBranchNodeId', 'discoveryState'
+    ], location, errors);
+    requireId(branch.branchId, `${location}/branchId`, errors);
+    if (seenBranchIds.has(branch.branchId)) errors.push('/campaignBranches contains duplicate branchId');
+    seenBranchIds.add(branch.branchId);
+    requireId(branch.sourceMissionId, `${location}/sourceMissionId`, errors);
+    if (typeof branch.sourceMissionId === 'string' && !missionIds.has(branch.sourceMissionId)) {
+      errors.push(`${location}/sourceMissionId references unknown Campaign Mission: ${branch.sourceMissionId}`);
+    }
+    validateCampaignBranchUnlockCondition(branch.unlockCondition, `${location}/unlockCondition`, missionIds, branchIds, bossEventIds, errors);
+    requireNumber(branch.requiredStars, `${location}/requiredStars`, errors, { minimum: 0, maximum: 3, integer: true });
+    if (isPlainObject(branch.unlockCondition) && branch.unlockCondition.kind === 'all-stars-earned') {
+      if (branch.requiredStars !== 3) errors.push(`${location}/requiredStars must be 3 for an all-stars branch`);
+      if (branch.unlockCondition.missionId !== branch.sourceMissionId) {
+        errors.push(`${location}/unlockCondition/missionId must reference the source Mission`);
+      }
+    }
+    requireEnum(branch.missionType, CAMPAIGN_BRANCH_MISSION_TYPES, `${location}/missionType`, errors);
+    requireString(branch.displayName, `${location}/displayName`, errors, 80);
+    requireString(branch.hiddenName, `${location}/hiddenName`, errors, 80);
+    if (validateCampaignMapPosition(branch.mapPosition, `${location}/mapPosition`, errors)) {
+      branchPositions.push({ location: `${location}/mapPosition`, x: branch.mapPosition.x, y: branch.mapPosition.y });
+    }
+    if (!Array.isArray(branch.routeControlPoints) || branch.routeControlPoints.length < 2 || branch.routeControlPoints.length > 12) {
+      errors.push(`${location}/routeControlPoints must contain between 2 and 12 map points`);
+    } else {
+      branch.routeControlPoints.forEach((point, pointIndex) => validateCampaignMapPosition(point, `${location}/routeControlPoints/${pointIndex}`, errors));
+      const sourcePosition = missionPositions.get(branch.sourceMissionId);
+      const firstPoint = branch.routeControlPoints[0];
+      const lastPoint = branch.routeControlPoints.at(-1);
+      if (sourcePosition && isPlainObject(firstPoint) && (
+        Math.abs(Number(firstPoint.x) - Number(sourcePosition.x)) > EPSILON
+        || Math.abs(Number(firstPoint.y) - Number(sourcePosition.y)) > EPSILON
+      )) errors.push(`${location}/routeControlPoints/0 must equal the source Mission position`);
+      if (isPlainObject(lastPoint) && isPlainObject(branch.mapPosition) && (
+        Math.abs(Number(lastPoint.x) - Number(branch.mapPosition.x)) > EPSILON
+        || Math.abs(Number(lastPoint.y) - Number(branch.mapPosition.y)) > EPSILON
+      )) errors.push(`${location}/routeControlPoints must end at the branch map position`);
+    }
+    requireEnum(branch.icon, CAMPAIGN_BRANCH_NODE_ICONS, `${location}/icon`, errors);
+    requireEnum(branch.lockedIcon, CAMPAIGN_BRANCH_NODE_ICONS, `${location}/lockedIcon`, errors);
+    if (requireObject(branch.rewardPreview, `${location}/rewardPreview`, errors)) {
+      allowedKeys(branch.rewardPreview, ['category', 'label', 'minimumCoins', 'maximumCoins', 'hiddenUntilUnlocked'], `${location}/rewardPreview`, errors);
+      requireEnum(branch.rewardPreview.category, CAMPAIGN_BRANCH_REWARD_CATEGORIES, `${location}/rewardPreview/category`, errors);
+      requireString(branch.rewardPreview.label, `${location}/rewardPreview/label`, errors, 80);
+      requireNumber(branch.rewardPreview.minimumCoins, `${location}/rewardPreview/minimumCoins`, errors, { minimum: 0, maximum: 1000000, integer: true });
+      requireNumber(branch.rewardPreview.maximumCoins, `${location}/rewardPreview/maximumCoins`, errors, { minimum: 0, maximum: 1000000, integer: true });
+      if (typeof branch.rewardPreview.hiddenUntilUnlocked !== 'boolean') errors.push(`${location}/rewardPreview/hiddenUntilUnlocked must be a boolean`);
+      if (isFiniteNumber(branch.rewardPreview.minimumCoins) && isFiniteNumber(branch.rewardPreview.maximumCoins) && branch.rewardPreview.maximumCoins < branch.rewardPreview.minimumCoins) {
+        errors.push(`${location}/rewardPreview maximum must be at least minimum`);
+      }
+    }
+    if (typeof branch.oneTimeCompletion !== 'boolean') errors.push(`${location}/oneTimeCompletion must be a boolean`);
+    requireEnum(branch.replayPolicy, CAMPAIGN_BRANCH_REPLAY_POLICIES, `${location}/replayPolicy`, errors);
+    if (branch.oneTimeCompletion === true && branch.replayPolicy !== 'no-replay-after-claim') {
+      errors.push(`${location}/replayPolicy must disable replay for a one-time branch`);
+    }
+    if (branch.oneTimeCompletion === false && branch.replayPolicy === 'no-replay-after-claim') {
+      errors.push(`${location}/replayPolicy must be repeatable for a repeatable branch`);
+    }
+    if (branch.failurePolicy !== 'retry-no-reward') errors.push(`${location}/failurePolicy must be retry-no-reward`);
+    if (branch.rewardCommitPolicy !== 'authoritative-idempotent-on-success') {
+      errors.push(`${location}/rewardCommitPolicy must be authoritative-idempotent-on-success`);
+    }
+    requireId(branch.missionDefinitionId, `${location}/missionDefinitionId`, errors);
+    if (seenMissionDefinitionIds.has(branch.missionDefinitionId)) errors.push('/campaignBranches contains duplicate missionDefinitionId');
+    seenMissionDefinitionIds.add(branch.missionDefinitionId);
+    const maximumPerformanceCoins = branch.missionType === 'present-drop'
+      ? validateCampaignPresentDropMission(branch.missionDefinition, `${location}/missionDefinition`, errors)
+      : CAMPAIGN_COMBAT_BRANCH_MISSION_TYPES.has(branch.missionType)
+        ? validateCampaignCombatBranchMission(branch.missionDefinition, `${location}/missionDefinition`, enemyRoles, errors)
+        : 0;
+    if (!isPlainObject(branch.missionDefinition) || branch.missionDefinition.kind !== branch.missionType) {
+      errors.push(`${location}/missionDefinition/kind must match missionType`);
+    }
+    if (isPlainObject(branch.missionDefinition) && branch.missionDefinition.id !== branch.missionDefinitionId) {
+      errors.push(`${location}/missionDefinition/id must match missionDefinitionId`);
+    }
+    if (requireObject(branch.completionReward, `${location}/completionReward`, errors)) {
+      allowedKeys(branch.completionReward, ['baseCoins', 'oneTimeBonusCoins', 'maximumPerformanceCoins', 'totalMinimumCoins', 'totalMaximumCoins'], `${location}/completionReward`, errors);
+      ['baseCoins', 'oneTimeBonusCoins', 'maximumPerformanceCoins', 'totalMinimumCoins', 'totalMaximumCoins'].forEach((key) => {
+        requireNumber(branch.completionReward[key], `${location}/completionReward/${key}`, errors, { minimum: 0, maximum: 1000000, integer: true });
+      });
+      const totalMinimumCoins = Number(branch.completionReward.baseCoins) + Number(branch.completionReward.oneTimeBonusCoins);
+      const totalMaximumCoins = totalMinimumCoins + Number(branch.completionReward.maximumPerformanceCoins);
+      if (branch.completionReward.maximumPerformanceCoins !== maximumPerformanceCoins) {
+        errors.push(`${location}/completionReward/maximumPerformanceCoins must equal the authored target value`);
+      }
+      if (branch.completionReward.totalMinimumCoins !== totalMinimumCoins) {
+        errors.push(`${location}/completionReward/totalMinimumCoins must equal base plus one-time bonus`);
+      }
+      if (branch.completionReward.totalMaximumCoins !== totalMaximumCoins) {
+        errors.push(`${location}/completionReward/totalMaximumCoins must include all target coins`);
+      }
+      if (isPlainObject(branch.rewardPreview) && (
+        branch.rewardPreview.minimumCoins !== branch.completionReward.totalMinimumCoins
+        || branch.rewardPreview.maximumCoins !== branch.completionReward.totalMaximumCoins
+      )) errors.push(`${location}/rewardPreview must match completionReward bounds`);
+    }
+    requireId(branch.returnNodeId, `${location}/returnNodeId`, errors);
+    if (typeof branch.returnNodeId === 'string' && !missionIds.has(branch.returnNodeId) && !branchIds.has(branch.returnNodeId)) {
+      errors.push(`${location}/returnNodeId references unknown map node: ${branch.returnNodeId}`);
+    }
+    if (branch.nextBranchNodeId !== undefined && branch.nextBranchNodeId !== null) {
+      requireId(branch.nextBranchNodeId, `${location}/nextBranchNodeId`, errors);
+      if (typeof branch.nextBranchNodeId === 'string' && !branchIds.has(branch.nextBranchNodeId)) {
+        errors.push(`${location}/nextBranchNodeId references unknown Campaign branch: ${branch.nextBranchNodeId}`);
+      }
+      if (branch.nextBranchNodeId === branch.branchId) errors.push(`${location}/nextBranchNodeId cannot reference itself`);
+    }
+    requireEnum(branch.discoveryState, CAMPAIGN_BRANCH_DISCOVERY_STATES, `${location}/discoveryState`, errors);
+  });
+
+  const occupiedPositions = levelRows.flatMap((level) => (
+    isPlainObject(level.campaignProgression) && isPlainObject(level.campaignProgression.mapPosition)
+      ? [{ location: `/levels/${String(level.id)}/campaignProgression/mapPosition`, x: Number(level.campaignProgression.mapPosition.x), y: Number(level.campaignProgression.mapPosition.y) }]
+      : []
+  ));
+  branchPositions.forEach((position, index) => {
+    [...occupiedPositions, ...branchPositions.slice(0, index)].forEach((other) => {
+      if (isFiniteNumber(other.x) && isFiniteNumber(other.y) && Math.hypot(position.x - other.x, position.y - other.y) < 0.04) {
+        errors.push(`${position.location} is too close to ${other.location}`);
+      }
+    });
+  });
+};
+
 const validateBaseEvent = (event, location, waveDuration, errors) => {
   requireId(event.id, `${location}/id`, errors);
   requireString(event.label, `${location}/label`, errors, 120);
@@ -602,8 +1325,9 @@ const validateBaseEvent = (event, location, waveDuration, errors) => {
 
 const validateSpawnEnemy = (enemy, location, errors) => {
   if (!requireObject(enemy, location, errors)) return;
-  allowedKeys(enemy, ['enemyId', 'spriteKey', 'spriteStyle', 'weight', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance', 'rank', 'sizeMultiplier', 'attackPatternId', 'attackIntervalSeconds', 'projectileSpeed', 'burstCount'], location, errors);
+  allowedKeys(enemy, ['enemyId', 'roleId', 'spriteKey', 'spriteStyle', 'weight', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance', 'rank', 'sizeMultiplier', 'attackPatternId', 'attackIntervalSeconds', 'projectileSpeed', 'burstCount'], location, errors);
   requireEnum(enemy.enemyId, ENEMY_IDS, `${location}/enemyId`, errors);
+  if (enemy.roleId !== undefined) requireId(enemy.roleId, `${location}/roleId`, errors);
   requireEnum(enemy.spriteKey, ENEMY_SPRITE_KEYS, `${location}/spriteKey`, errors);
   validateSpriteStyle(enemy.spriteStyle, `${location}/spriteStyle`, errors);
   requireNumber(enemy.weight, `${location}/weight`, errors, { minimum: 0, maximum: 1 });
@@ -703,7 +1427,13 @@ const validateBossPhase = (phase, location, weaponIds, previousRatio, errors) =>
   return phase.triggerHealthRatio;
 };
 
-const validateBossTimeline = (timeline, location, phaseIds, errors) => {
+const validateBossTimeline = (
+  timeline,
+  location,
+  phaseIds,
+  errors,
+  allowFrontierCrownclawSandboxPrimitives = false
+) => {
   if (timeline === undefined) return;
   if (!requireObject(timeline, location, errors)) return;
   allowedKeys(timeline, ['durationSeconds', 'loop', 'clips', 'attacks'], location, errors);
@@ -744,6 +1474,13 @@ const validateBossTimeline = (timeline, location, phaseIds, errors) => {
     const primitive = BOSS_TIMELINE_PRIMITIVES.get(clip.primitiveId);
     if (!primitive) {
       errors.push(`${clipLocation}/primitiveId has unsupported value: ${String(clip.primitiveId)}`);
+    } else if (
+      !allowFrontierCrownclawSandboxPrimitives
+      && FRONTIER_CROWNCLAW_SANDBOX_PRIMITIVES.has(clip.primitiveId)
+    ) {
+      errors.push(
+        `${clipLocation}/primitiveId is restricted to the Frontier Crownclaw Boss Sandbox prototype`
+      );
     } else if (clip.track !== primitive.track) {
       errors.push(`${clipLocation}/track must be ${primitive.track} for ${clip.primitiveId}`);
     }
@@ -1385,7 +2122,7 @@ const validateBossEvent = (event, location, errors) => {
   requireEnum(event.bossId, BOSS_IDS, `${location}/bossId`, errors);
   if (event.rigId !== undefined) {
     requireEnum(event.rigId, BOSS_RIG_IDS, `${location}/rigId`, errors);
-    if (event.bossId !== 'gatekeeper') errors.push(`${location}/rigId supports gatekeeper encounters only`);
+    if (!MAJOR_BOSS_IDS.has(event.bossId)) errors.push(`${location}/rigId supports canonical major-boss encounters only`);
   }
   if (event.componentMode !== undefined) {
     requireEnum(event.componentMode, BOSS_COMPONENT_MODES, `${location}/componentMode`, errors);
@@ -1479,12 +2216,13 @@ const validateBossEvent = (event, location, errors) => {
     event.timeline,
     `${location}/timeline`,
     new Set(event.phases.map((phase) => phase?.id).filter((id) => typeof id === 'string')),
-    errors
+    errors,
+    event.id === FRONTIER_CROWNCLAW_SANDBOX_EVENT_ID
   );
 };
 
 const validateAsteroidEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance', 'coinDropValue', 'bonusTargetKind'], location, errors);
   requireEnum(event.spriteKey, ASTEROID_SPRITE_KEYS, `${location}/spriteKey`, errors);
   validateSpriteStyle(event.spriteStyle, `${location}/spriteStyle`, errors);
   requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 10000, integer: true });
@@ -1498,6 +2236,10 @@ const validateAsteroidEvent = (event, location, errors) => {
   requireNumber(event.damage, `${location}/damage`, errors, { minimum: 0, maximum: 100000 });
   requireNumber(event.scoreValue, `${location}/scoreValue`, errors, { minimum: 0, maximum: 100000000 });
   requireNumber(event.powerupDropChance, `${location}/powerupDropChance`, errors, { minimum: 0, maximum: 1 });
+  if (event.coinDropValue !== undefined) requireNumber(event.coinDropValue, `${location}/coinDropValue`, errors, { minimum: 1, maximum: 1000000, integer: true });
+  if (event.bonusTargetKind !== undefined) requireEnum(event.bonusTargetKind, new Set(['standard', 'armored', 'fast', 'golden']), `${location}/bonusTargetKind`, errors);
+  if (event.bonusTargetKind !== undefined && event.coinDropValue === undefined) errors.push(`${location}/coinDropValue is required for bonus targets`);
+  if (event.coinDropValue !== undefined && event.bonusTargetKind === undefined) errors.push(`${location}/bonusTargetKind is required for coin-dropping bonus targets`);
 };
 
 const validatePowerupEvent = (event, location, availablePowerups, errors) => {
@@ -1533,7 +2275,7 @@ const validateEvent = (event, location, waveDuration, availablePowerups, errors)
 
 const validateWave = (wave, location, availablePowerups, errors) => {
   if (!requireObject(wave, location, errors)) return;
-  allowedKeys(wave, ['id', 'name', 'order', 'accent', 'backgroundId', 'completionRule', 'difficultyMultiplier', 'durationSeconds', 'introSeconds', 'delayAfterSeconds', 'scoreMultiplier', 'threatCap', 'events'], location, errors);
+  allowedKeys(wave, ['id', 'name', 'order', 'accent', 'backgroundId', 'completionRule', 'difficultyMultiplier', 'durationSeconds', 'introSeconds', 'delayAfterSeconds', 'scoreMultiplier', 'threatCap', 'combatBudget', 'rhythm', 'formationPackIds', 'events'], location, errors);
   requireId(wave.id, `${location}/id`, errors);
   requireString(wave.name, `${location}/name`, errors, 120);
   requireNumber(wave.order, `${location}/order`, errors, { minimum: 1, maximum: 10000, integer: true });
@@ -1546,6 +2288,17 @@ const validateWave = (wave, location, availablePowerups, errors) => {
   requireNumber(wave.delayAfterSeconds, `${location}/delayAfterSeconds`, errors, { minimum: 0, maximum: 3600 });
   requireNumber(wave.scoreMultiplier, `${location}/scoreMultiplier`, errors, { minimum: 0, maximum: 1000000 });
   requireNumber(wave.threatCap, `${location}/threatCap`, errors, { minimum: 1, maximum: 10000, integer: true });
+  requireNumber(wave.combatBudget, `${location}/combatBudget`, errors, { minimum: Number.EPSILON, maximum: 1000000 });
+  requireEnum(wave.rhythm, CAMPAIGN_WAVE_RHYTHMS, `${location}/rhythm`, errors);
+  if (!Array.isArray(wave.formationPackIds)) errors.push(`${location}/formationPackIds must be an array`);
+  else {
+    const packIds = new Set();
+    wave.formationPackIds.forEach((id, index) => {
+      requireId(id, `${location}/formationPackIds/${index}`, errors);
+      if (packIds.has(id)) errors.push(`${location}/formationPackIds contains duplicate value: ${String(id)}`);
+      packIds.add(id);
+    });
+  }
   if (!Array.isArray(wave.events) || wave.events.length === 0) {
     errors.push(`${location}/events must be a non-empty array`);
     return;
@@ -1561,12 +2314,12 @@ const validateWave = (wave, location, availablePowerups, errors) => {
     }
     if (isFiniteNumber(event?.startSeconds)) previousStart = event.startSeconds;
   });
-  const mainBossCount = wave.events.filter((event) => event?.kind === 'boss' && event?.bossId === 'gatekeeper').length;
+  const mainBossCount = wave.events.filter((event) => event?.kind === 'boss' && MAJOR_BOSS_IDS.has(event?.bossId)).length;
   if (wave.completionRule === 'boss-defeat' && mainBossCount === 0) {
-    errors.push(`${location}/completionRule boss-defeat requires a Gatekeeper event`);
+    errors.push(`${location}/completionRule boss-defeat requires a canonical major-boss event`);
   }
   if (wave.completionRule === 'clear-after-duration' && mainBossCount > 0) {
-    errors.push(`${location}/completionRule clear-after-duration cannot contain a Gatekeeper event`);
+    errors.push(`${location}/completionRule clear-after-duration cannot contain a canonical major-boss event`);
   }
 };
 
@@ -1602,11 +2355,132 @@ const validateLevel = (level, location, errors) => {
   });
 };
 
+const validateCampaignManifestCrossReferences = (campaign, errors) => {
+  const levels = Array.isArray(campaign.levels) ? campaign.levels.filter(isPlainObject) : [];
+  const sectors = Array.isArray(campaign.sectors) ? campaign.sectors.filter(isPlainObject) : [];
+  const themes = Array.isArray(campaign.visualThemes) ? campaign.visualThemes.filter(isPlainObject) : [];
+  const roles = Array.isArray(campaign.enemyRoles) ? campaign.enemyRoles.filter(isPlainObject) : [];
+  const packs = Array.isArray(campaign.formationPacks) ? campaign.formationPacks.filter(isPlainObject) : [];
+  const miniBosses = Array.isArray(campaign.miniBosses) ? campaign.miniBosses.filter(isPlainObject) : [];
+  const branches = Array.isArray(campaign.campaignBranches) ? campaign.campaignBranches.filter(isPlainObject) : [];
+  const levelsById = new Map(levels.flatMap((level) => typeof level.id === 'string' ? [[level.id, level]] : []));
+  const sectorsById = new Map(sectors.flatMap((sector) => typeof sector.id === 'string' ? [[sector.id, sector]] : []));
+  const themeIds = new Set(themes.flatMap((theme) => typeof theme.id === 'string' ? [theme.id] : []));
+  const rolesById = new Map(roles.flatMap((role) => typeof role.id === 'string' ? [[role.id, role]] : []));
+  const packsById = new Map(packs.flatMap((pack) => typeof pack.id === 'string' ? [[pack.id, pack]] : []));
+  const branchIds = new Set(branches.flatMap((branch) => typeof branch.branchId === 'string' ? [branch.branchId] : []));
+  const missionOwners = new Map();
+
+  sectors.forEach((sector, sectorIndex) => {
+    const sectorLocation = `/sectors/${sectorIndex}`;
+    if (typeof sector.themeId === 'string' && !themeIds.has(sector.themeId)) errors.push(`${sectorLocation}/themeId references unknown visual theme: ${sector.themeId}`);
+    if (Array.isArray(sector.branchIds)) sector.branchIds.forEach((branchId, branchIndex) => {
+      if (typeof branchId === 'string' && !branchIds.has(branchId)) errors.push(`${sectorLocation}/branchIds/${branchIndex} references unknown Campaign branch: ${branchId}`);
+    });
+    if (!Array.isArray(sector.missionIds) || sector.missionIds.length !== 5) return;
+    sector.missionIds.forEach((missionId, missionIndex) => {
+      if (typeof missionId !== 'string') return;
+      const level = levelsById.get(missionId);
+      if (!level) {
+        errors.push(`${sectorLocation}/missionIds/${missionIndex} references unknown Mission: ${missionId}`);
+        return;
+      }
+      missionOwners.set(missionId, [...(missionOwners.get(missionId) ?? []), sector.id]);
+      const levelIndex = levels.indexOf(level);
+      const progression = isPlainObject(level.campaignProgression) ? level.campaignProgression : undefined;
+      if (!progression) {
+        errors.push(`/levels/${levelIndex}/campaignProgression is required for sector Missions`);
+        return;
+      }
+      if (progression.sectorId !== sector.id) errors.push(`/levels/${levelIndex}/campaignProgression/sectorId must reference owning sector ${String(sector.id)}`);
+      const expectedRole = CAMPAIGN_MISSION_ROLE_ORDER[missionIndex];
+      if (progression.missionRole !== expectedRole) errors.push(`/levels/${levelIndex}/campaignProgression/missionRole must be ${expectedRole} for sector position ${missionIndex + 1}`);
+      const waveCount = Array.isArray(level.waves) ? level.waves.length : 0;
+      const range = {
+        introduction: [5, 5],
+        'formation-remix': [5, 6],
+        'elite-checkpoint': [4, 6],
+        'boss-preparation': [6, 7],
+        'major-boss': [1, 1]
+      }[expectedRole];
+      if (waveCount < range[0] || waveCount > range[1]) errors.push(`/levels/${levelIndex}/waves must contain ${range[0] === range[1] ? range[0] : `${range[0]}-${range[1]}`} waves for ${expectedRole}`);
+      if (expectedRole === 'major-boss' && Array.isArray(level.waves) && isPlainObject(level.waves[0])) {
+        const bossEvents = Array.isArray(level.waves[0].events)
+          ? level.waves[0].events.filter((event) => isPlainObject(event) && event.kind === 'boss')
+          : [];
+        if (level.waves[0].completionRule !== 'boss-defeat' || bossEvents.length !== 1 || bossEvents[0]?.bossId !== sector.majorBossId) {
+          errors.push(`/levels/${levelIndex}/waves/0 must be one direct encounter with sector major boss ${String(sector.majorBossId)}`);
+        }
+      }
+    });
+  });
+
+  levels.forEach((level, levelIndex) => {
+    if (typeof level.id === 'string' && (missionOwners.get(level.id) ?? []).length !== 1) {
+      errors.push(`/levels/${levelIndex}/campaignProgression/sectorId must place the Mission in exactly one sector`);
+    }
+    const progression = isPlainObject(level.campaignProgression) ? level.campaignProgression : undefined;
+    if (progression && typeof progression.sectorId === 'string' && !sectorsById.has(progression.sectorId)) errors.push(`/levels/${levelIndex}/campaignProgression/sectorId references unknown sector: ${progression.sectorId}`);
+    if (!Array.isArray(level.waves)) return;
+    level.waves.forEach((wave, waveIndex) => {
+      if (!isPlainObject(wave)) return;
+      if (isFiniteNumber(progression?.combatBudget) && isFiniteNumber(wave.combatBudget) && wave.combatBudget > progression.combatBudget) errors.push(`/levels/${levelIndex}/waves/${waveIndex}/combatBudget exceeds owning Mission budget`);
+      let packBudget = 0;
+      if (Array.isArray(wave.formationPackIds)) wave.formationPackIds.forEach((packId, packIndex) => {
+        if (typeof packId !== 'string') return;
+        const pack = packsById.get(packId);
+        if (!pack) {
+          errors.push(`/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex} references unknown formation pack: ${packId}`);
+          return;
+        }
+        if (isFiniteNumber(pack.totalThreatCost)) packBudget += pack.totalThreatCost;
+        if (typeof progression?.sectorId === 'string' && Array.isArray(pack.compatibleSectorIds) && !pack.compatibleSectorIds.includes(progression.sectorId)) errors.push(`/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex} is incompatible with sector ${progression.sectorId}`);
+        if (typeof progression?.missionRole === 'string' && Array.isArray(pack.compatibleMissionRoles) && !pack.compatibleMissionRoles.includes(progression.missionRole)) errors.push(`/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex} is incompatible with Mission role ${progression.missionRole}`);
+      });
+      if (isFiniteNumber(wave.combatBudget) && packBudget > wave.combatBudget + EPSILON) errors.push(`/levels/${levelIndex}/waves/${waveIndex}/formationPackIds exceed wave combat budget`);
+      if (!Array.isArray(wave.events)) return;
+      wave.events.forEach((event, eventIndex) => {
+        if (!isPlainObject(event) || event.kind !== 'spawn' || !Array.isArray(event.enemies)) return;
+        event.enemies.forEach((enemy, enemyIndex) => {
+          if (!isPlainObject(enemy) || enemy.roleId === undefined) return;
+          const role = typeof enemy.roleId === 'string' ? rolesById.get(enemy.roleId) : undefined;
+          const roleLocation = `/levels/${levelIndex}/waves/${waveIndex}/events/${eventIndex}/enemies/${enemyIndex}/roleId`;
+          if (!role) errors.push(`${roleLocation} references unknown enemy role: ${String(enemy.roleId)}`);
+          else if (role.enemyId !== enemy.enemyId) errors.push(`${roleLocation} belongs to ${String(role.enemyId)}, not ${String(enemy.enemyId)}`);
+        });
+      });
+    });
+  });
+
+  roles.forEach((role, roleIndex) => {
+    if (Array.isArray(role.compatibleFormationPackIds)) role.compatibleFormationPackIds.forEach((packId, packIndex) => {
+      if (typeof packId === 'string' && !packsById.has(packId)) errors.push(`/enemyRoles/${roleIndex}/compatibleFormationPackIds/${packIndex} references unknown formation pack: ${packId}`);
+    });
+    if (isFiniteNumber(role.introductionSector) && !sectors.some((sector) => sector.order === role.introductionSector)) errors.push(`/enemyRoles/${roleIndex}/introductionSector references missing sector order ${role.introductionSector}`);
+  });
+  packs.forEach((pack, packIndex) => {
+    if (Array.isArray(pack.enemyRoleIds)) pack.enemyRoleIds.forEach((roleId, roleIndex) => {
+      if (typeof roleId === 'string' && !rolesById.has(roleId)) errors.push(`/formationPacks/${packIndex}/enemyRoleIds/${roleIndex} references unknown enemy role: ${roleId}`);
+    });
+    if (Array.isArray(pack.compatibleSectorIds)) pack.compatibleSectorIds.forEach((sectorId, sectorIndex) => {
+      if (typeof sectorId === 'string' && !sectorsById.has(sectorId)) errors.push(`/formationPacks/${packIndex}/compatibleSectorIds/${sectorIndex} references unknown sector: ${sectorId}`);
+    });
+  });
+  miniBosses.forEach((miniBoss, miniBossIndex) => {
+    if (Array.isArray(miniBoss.suitableSectorIds)) miniBoss.suitableSectorIds.forEach((sectorId, sectorIndex) => {
+      if (typeof sectorId === 'string' && !sectorsById.has(sectorId)) errors.push(`/miniBosses/${miniBossIndex}/suitableSectorIds/${sectorIndex} references unknown sector: ${sectorId}`);
+    });
+  });
+};
+
 export const validateGameCampaign = (campaign) => {
   refreshGeneratedAssetCatalog();
   const errors = [];
   if (!requireObject(campaign, '/', errors)) return { valid: false, errors };
-  allowedKeys(campaign, ['schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'hudAssets', 'levels'], '/', errors);
+  allowedKeys(campaign, [
+    'schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'hudAssets', 'levels',
+    'sectors', 'visualThemes', 'enemyRoles', 'formationPacks', 'miniBosses', 'campaignBranches'
+  ], '/', errors);
   if (campaign.schemaVersion !== 1) errors.push('/schemaVersion must be 1');
   requireNumber(campaign.revision, '/revision', errors, { minimum: 1, maximum: 1000000000, integer: true });
   requireId(campaign.id, '/id', errors);
@@ -1615,6 +2489,11 @@ export const validateGameCampaign = (campaign) => {
   if (campaign.fps !== 60) errors.push('/fps must be 60');
   validateRecordCard(campaign.recordCard, '/recordCard', errors);
   validateHudAssets(campaign.hudAssets, '/hudAssets', errors);
+  validateCampaignSectors(campaign.sectors, errors);
+  validateCampaignVisualThemes(campaign.visualThemes, errors);
+  validateEnemyRoleManifest(campaign.enemyRoles, errors);
+  validateFormationPackManifest(campaign.formationPacks, errors);
+  validateMiniBossManifest(campaign.miniBosses, errors);
   if (!Array.isArray(campaign.levels) || campaign.levels.length === 0) {
     errors.push('/levels must be a non-empty array');
     return { valid: false, errors: [...new Set(errors)] };
@@ -1637,6 +2516,8 @@ export const validateGameCampaign = (campaign) => {
       errors.push(`/levels/${index}/campaignProgression/nextMissionId cannot reference its owning Mission`);
     }
   });
+  validateCampaignBranches(campaign.campaignBranches, campaign.levels, campaign.enemyRoles, errors);
+  validateCampaignManifestCrossReferences(campaign, errors);
   return { valid: errors.length === 0, errors: [...new Set(errors)] };
 };
 

@@ -34,11 +34,13 @@ Parent each weapon, barrel, effect, and socket to the hull or articulated mount 
 
 An appendage attack must visibly originate from the corresponding live wing, limb, pod, mouth, helmet, or other mechanism. Its anticipation and the boss's locomotion must support the same physical action. A fallback may transfer responsibility only to another visible surviving mechanism that is explicitly authored and tested.
 
+A launched body part must preserve a visible connection or an authored return mechanism. Resolve both endpoints from current live sockets, keep repeated chain, cable, or tether units at fixed native dimensions instead of stretching them, and prevent large gaps between units. Hide the seated copy while the part is launched, restore it only after reseat, and remove the launched part plus every owned connector on cancellation, reconstruction, owner loss, and death.
+
 Capture and inspect neutral, fully open, fully closed, maximum left/right articulation, cannon firing, claw/weapon strike, charge, phase two, stagger, and death before accepting the motion range.
 
 ## Lifecycle
 
-Require entrance, purposeful idle, attack anticipation, attack recoil, large-hit, stagger, persistent damage, visible phase transition, and deterministic multi-fragment destruction. Keep ordinary hit feedback local and brief.
+Require entrance, purposeful idle, attack anticipation, attack recoil, large-hit, stagger, persistent damage, visible phase transition, and deterministic multi-fragment destruction. Keep ordinary hit feedback local and brief. Give every completed boss a non-attack animation pass; when appropriate, register frame animation on at least one focal component and inspect rear/secondary appendages at mobile gameplay scale so neutral motion remains alive and connected.
 
 Treat summons as owned lifecycle entities, not projectile-shaped collision shortcuts. Require visible creation or deployment, activation or hatch, active motion/collision, exit or destruction, and cleanup. Enable damage only while the summon is visibly active; cap ownership and remove owned entities on owner loss, phase reconstruction, or action cancellation.
 

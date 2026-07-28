@@ -222,7 +222,7 @@ test('Boss Sandbox groups every configured boss by Mission and keeps Test Missio
 
   assert.equal(testGroup.id, 'boss-sandbox:test-mission');
   assert.equal(testGroup.source, 'test');
-  assert.equal(testGroup.choices.length, 13);
+  assert.equal(testGroup.choices.length, 14);
   artworkFixtures.forEach(({ prototypeId }) => {
     assert.ok(testGroup.choices.some((choice) => choice.prototypeId === prototypeId));
   });
@@ -246,12 +246,12 @@ test('production choices resolve to one valid source boss without mutating campa
   assert.deepEqual(campaign, sourceSnapshot);
 });
 
-test('all 50 boss choices expose numbered controls, grouping authored sentences and preserving legacy clips', () => {
+test('all boss choices expose numbered controls, grouping authored sentences and preserving legacy clips', () => {
   const groups = model.buildBossSandboxGroups(campaign);
   const choices = groups.flatMap((group) => group.choices);
   let tinyTimelineAttackCount = 0;
 
-  assert.equal(choices.length, 50);
+  assert.equal(choices.length, 26);
   for (const choice of choices) {
     const preview = model.buildBossSandboxPreview(campaign, choice);
     const event = preview.previewWave.events.find((candidate) => candidate.kind === 'boss');

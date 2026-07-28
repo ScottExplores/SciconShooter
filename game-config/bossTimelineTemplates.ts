@@ -417,6 +417,51 @@ const advancedShowcase = (boss: BossEvent): BossTimelineConfig => {
       },
       actionDurationSeconds: 0.7
     }),
+    ...warningPair({
+      id: 'chainclaw-harpoon',
+      primitiveId: 'chainclaw-harpoon',
+      startSeconds: 24,
+      phaseId: ragePhaseId,
+      style: 'target',
+      color: '#fbbf24',
+      parameters: {
+        sequence: 0,
+        side: 'port',
+        motionCue: 'frontier-chainclaw-harpoon',
+        projectileSpeedScale: 1
+      },
+      actionDurationSeconds: 0.7
+    }),
+    ...warningPair({
+      id: 'crown-reactor-beam',
+      primitiveId: 'crown-reactor-beam',
+      startSeconds: 25.5,
+      phaseId: ragePhaseId,
+      style: 'lane',
+      color: '#67e8f9',
+      parameters: {
+        sequence: 1,
+        motionCue: 'frontier-reactor-fire',
+        rotationDirection: 'clockwise'
+      },
+      actionDurationSeconds: 0.7
+    }),
+    ...warningPair({
+      id: 'bastion-crabwalk-barrage',
+      primitiveId: 'bastion-crabwalk-barrage',
+      startSeconds: 27,
+      phaseId: ragePhaseId,
+      style: 'warning',
+      color: '#fbbf24',
+      parameters: {
+        projectileCount: 12,
+        sequence: 0,
+        motionCue: 'frontier-bastion-crabwalk',
+        shotIntervalFrames: 5,
+        projectileSpeedScale: 1
+      },
+      actionDurationSeconds: 0.7
+    }),
     {
       ...action('death-effect', 'effect-cue', 0, undefined, { color: '#ffffff' }),
       trigger: 'death',
@@ -430,7 +475,7 @@ const advancedShowcase = (boss: BossEvent): BossTimelineConfig => {
   ];
 
   return {
-    durationSeconds: 24,
+    durationSeconds: 29,
     loop: true,
     clips
   };

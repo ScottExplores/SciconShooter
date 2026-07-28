@@ -88,15 +88,20 @@ test('sound controls live in the pause menu instead of consuming gameplay HUD sp
 
 test('speed upgrades visibly evolve the player thruster palette and flame strength', () => {
   const source = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  const pixiSource = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
 
   assert.match(source, /const PLAYER_THRUSTER_PALETTES = \[/);
   assert.match(source, /glow: '#22d3ee'/);
   assert.match(source, /glow: '#a78bfa'/);
   assert.match(source, /glow: '#facc15'/);
-  assert.match(source, /const speedLevel = Math\.min\(6, Math\.max\(0, Math\.floor\(this\.stats\.upgrades\.speed \|\| 0\)\)\)/);
+  assert.match(source, /const speedLevel = Math\.min\(7, Math\.max\(0, Math\.floor\(this\.stats\.upgrades\.speed \|\| 0\)\)\)/);
   assert.match(source, /const upgradeBoost = 1 \+ speedLevel \* 0\.055/);
   assert.match(source, /ctx\.shadowColor = palette\.glow/);
   assert.match(source, /drawPlayerThrusterUpgradeOverlay\(ctx: CanvasRenderingContext2D, e: Entity\)/);
   assert.match(source, /if \(speedLevel <= 0\) return/);
   assert.match(source, /this\.drawPlayerThrusterUpgradeOverlay\(ctx, e\)/);
+  assert.match(source, /const speedLevel = Math\.min\(this\.stats\.upgrades\.speed \|\| 0, 7\)/);
+  assert.match(source, /\+ \(speedLevel >= 7 \? 2 : 0\)/);
+  assert.match(pixiSource, /Math\.min\(engine\.stats\.upgrades\.speed \|\| 0, 7\)/);
+  assert.match(pixiSource, /\+ \(speedLevel >= 7 \? 2 : 0\)/);
 });

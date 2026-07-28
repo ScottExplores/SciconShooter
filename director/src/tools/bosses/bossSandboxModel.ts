@@ -32,6 +32,10 @@ import {
   type ModularBossSocketRole
 } from '@game/services/pixi/boss-rigs/ModularHierarchyRig';
 import { sampleGloamforgeModularPose } from '@game/services/pixi/boss-rigs/GloamforgeModularPose';
+import {
+  sampleFrontierCrownclawSandboxPose,
+  validateFrontierCrownclawRigCompatibility
+} from '@game/services/pixi/boss-rigs/FrontierCrownclawModularPose';
 import { sampleHeliosModularPose } from '@game/services/pixi/boss-rigs/HeliosModularPose';
 import { sampleNullwakeModularPose } from '@game/services/pixi/boss-rigs/NullwakeModularPose';
 import {
@@ -51,6 +55,8 @@ import {
 } from '@director/combat-lab/sandboxBossPrototypes';
 import gloamforgeAtlasSource from '../../../../director-data/prototype-assets/gloamforge-mantis/gloamforge-mantis-atlas.json';
 import gloamforgeRigSource from '../../../../director-data/prototype-assets/gloamforge-mantis/gloamforge-mantis.rig.json';
+import frontierCrownclawAtlasSource from '../../../../director-data/prototype-assets/frontier-crownclaw/frontier-crownclaw-atlas.json';
+import frontierCrownclawRigSource from '../../../../director-data/prototype-assets/frontier-crownclaw/frontier-crownclaw.rig.json';
 import heliosAtlasSource from '../../../../director-data/prototype-assets/helios-clawcarrier-v2/helios-clawcarrier-v2-atlas.json';
 import heliosRigSource from '../../../../director-data/prototype-assets/helios-clawcarrier-v2/helios-clawcarrier-v2.rig.json';
 import prismMothAtlasSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.json';
@@ -84,6 +90,18 @@ export const HELIOS_CLAWCARRIER_SHEET_URL =
   `/__director/api/v1/prototype-assets/helios-clawcarrier/${HELIOS_CLAWCARRIER_SHEET_SHA256}/sheet.png`;
 export const HELIOS_CLAWCARRIER_REFERENCE_URL =
   `/__director/api/v1/prototype-assets/helios-clawcarrier/${HELIOS_CLAWCARRIER_REFERENCE_SHA256}/reference.png`;
+export const FRONTIER_CROWNCLAW_ART_SHA256 =
+  '3fe62b12ade41026f74c334e3272f28261a60c8a0935b003e536bcff9d33e342';
+export const FRONTIER_CROWNCLAW_SHEET_SHA256 =
+  '8da50a881b5ad2425c294e7b9f382172c7fadbff70b8b52f4d2206d793e980fb';
+export const FRONTIER_CROWNCLAW_REFERENCE_SHA256 =
+  'a3c2e6853d192b45d996ee50b3432fd61d20513a2ea468695670d8df5957f4a5';
+export const FRONTIER_CROWNCLAW_ART_URL =
+  `/__director/api/v1/prototype-assets/frontier-crownclaw/${FRONTIER_CROWNCLAW_ART_SHA256}/assembled.png`;
+export const FRONTIER_CROWNCLAW_SHEET_URL =
+  `/__director/api/v1/prototype-assets/frontier-crownclaw/${FRONTIER_CROWNCLAW_SHEET_SHA256}/sheet.png`;
+export const FRONTIER_CROWNCLAW_REFERENCE_URL =
+  `/__director/api/v1/prototype-assets/frontier-crownclaw/${FRONTIER_CROWNCLAW_REFERENCE_SHA256}/reference.png`;
 export const PRISM_MOTH_BROODKEEPER_ART_SHA256 =
   'cd0381398cbfb5003822f126192dc0d18af3fe874eff11defec9d57202109f39';
 export const PRISM_MOTH_BROODKEEPER_SHEET_SHA256 =
@@ -476,6 +494,214 @@ export const HELIOS_CLAWCARRIER_MODULAR_RIG = registerModularBossRig(
 const sampleHeliosSandboxPose: PreviewBossModularPoseSampler = (input) => (
   sampleHeliosModularPose(input).partOverrides
 );
+
+const getFrontierCrownclawPartRole = (partId: string): ModularBossPartRole => {
+  if (partId === 'root' || partId.endsWith('.mount')) return 'joint';
+  if (partId === 'body') return 'body';
+  if (partId.startsWith('shell.')) return 'armor';
+  if (
+    partId === 'crown'
+    || partId === 'reactor'
+    || partId.startsWith('rear-appendage.')
+  ) {
+    return 'phase-attachment';
+  }
+  if (partId.startsWith('claw.') || partId.startsWith('mandible.')) return 'arm';
+  if (partId.startsWith('spool.') || partId.startsWith('bastion.')) return 'weapon';
+  if (partId.startsWith('leg.')) return 'stabilizer';
+  if (
+    partId === 'beam'
+    || partId === 'chain-contact'
+    || partId === 'damage-vfx'
+  ) {
+    return 'effect';
+  }
+  return 'decorative';
+};
+
+const getFrontierCrownclawSocketRole = (
+  socketId: string
+): ModularBossSocketRole => {
+  if (
+    socketId.startsWith('claw-socket-')
+    || socketId.startsWith('claw-tip-')
+  ) {
+    return 'melee-root';
+  }
+  if (socketId.startsWith('chain-spool-')) return 'effect-origin';
+  if (socketId === 'crown-reactor') return 'beam-origin';
+  if (
+    socketId.startsWith('bastion-port-')
+    || socketId.startsWith('rear-bastion-')
+  ) {
+    return 'projectile-muzzle';
+  }
+  return 'effect-origin';
+};
+
+const normalizeFrontierCrownclawRigManifest = (): ModularBossRigManifest => {
+  if (
+    frontierCrownclawAtlasSource.image.sha256
+    !== FRONTIER_CROWNCLAW_SHEET_SHA256
+  ) {
+    throw new Error('Frontier Crownclaw atlas metadata does not match its fixed content hash.');
+  }
+  if (
+    frontierCrownclawRigSource.atlas.sha256
+    !== FRONTIER_CROWNCLAW_SHEET_SHA256
+  ) {
+    throw new Error('Frontier Crownclaw rig does not reference the registered atlas.');
+  }
+
+  const designSize = Object.freeze({
+    width: frontierCrownclawRigSource.canvas.width,
+    height: frontierCrownclawRigSource.canvas.height
+  });
+  const frames = Object.freeze(Object.fromEntries(
+    Object.entries(frontierCrownclawAtlasSource.frames).map(([frameId, frame]) => [
+      frameId,
+      Object.freeze({
+        x: frame.x,
+        y: frame.y,
+        width: frame.width,
+        height: frame.height
+      })
+    ])
+  ));
+  const parts = Object.freeze(frontierCrownclawRigSource.parts.map((part) => {
+    const isRoot = part.parentId === null;
+    return Object.freeze({
+      id: part.id,
+      role: getFrontierCrownclawPartRole(part.id),
+      parentId: part.parentId,
+      frameId: part.frameId,
+      transform: Object.freeze({
+        x: isRoot ? part.transform.x - designSize.width / 2 : part.transform.x,
+        y: isRoot ? part.transform.y - designSize.height / 2 : part.transform.y,
+        rotation: part.transform.rotationDegrees * Math.PI / 180,
+        scaleX: part.transform.scaleX,
+        scaleY: part.transform.scaleY
+      }),
+      anchor: part.anchor
+        ? Object.freeze({ x: part.anchor.x, y: part.anchor.y })
+        : null,
+      layer: part.layer,
+      visible: part.neutralVisible
+    });
+  }));
+  const animations = Object.freeze(frontierCrownclawRigSource.animations.map((animation) => (
+    Object.freeze({
+      kind: FIXED_FRAME_ANIMATION_KIND,
+      id: animation.id,
+      partId: animation.partId,
+      frameIds: Object.freeze([...animation.frameIds]),
+      frameHold: Math.max(1, Math.round(60 / animation.fps)),
+      loop: animation.loop
+    })
+  )));
+  const sockets = Object.freeze(frontierCrownclawRigSource.sockets.map((socket) => (
+    Object.freeze({
+      id: socket.id,
+      role: getFrontierCrownclawSocketRole(socket.id),
+      partId: socket.partId,
+      x: socket.x,
+      y: socket.y,
+      rotation: 0
+    })
+  )));
+
+  return Object.freeze({
+    kind: MODULAR_BOSS_RIG_KIND,
+    id: frontierCrownclawRigSource.bossId,
+    designSize,
+    atlas: Object.freeze({
+      url: FRONTIER_CROWNCLAW_SHEET_URL,
+      contentHash: FRONTIER_CROWNCLAW_SHEET_SHA256,
+      width: frontierCrownclawAtlasSource.image.width,
+      height: frontierCrownclawAtlasSource.image.height,
+      frames
+    }),
+    parts,
+    animations,
+    sockets,
+    destruction: Object.freeze({
+      durationFrames: 112,
+      fragments: Object.freeze([
+        Object.freeze({
+          partId: 'claw.port.palm',
+          delayFrames: 0,
+          travelX: -148,
+          travelY: 174,
+          rotationRadians: -2.2
+        }),
+        Object.freeze({
+          partId: 'claw.starboard.palm',
+          delayFrames: 0,
+          travelX: 148,
+          travelY: 174,
+          rotationRadians: 2.2
+        }),
+        Object.freeze({
+          partId: 'rear-appendage.port',
+          delayFrames: 10,
+          travelX: -112,
+          travelY: 142,
+          rotationRadians: -2.6
+        }),
+        Object.freeze({
+          partId: 'rear-appendage.starboard',
+          delayFrames: 10,
+          travelX: 112,
+          travelY: 142,
+          rotationRadians: 2.6
+        }),
+        Object.freeze({
+          partId: 'reactor',
+          delayFrames: 22,
+          travelX: 12,
+          travelY: 132,
+          rotationRadians: 1.7
+        }),
+        Object.freeze({
+          partId: 'mandible.port',
+          delayFrames: 26,
+          travelX: -74,
+          travelY: 202,
+          rotationRadians: -2.9
+        }),
+        Object.freeze({
+          partId: 'mandible.starboard',
+          delayFrames: 26,
+          travelX: 74,
+          travelY: 202,
+          rotationRadians: 2.9
+        }),
+        Object.freeze({
+          partId: 'body',
+          delayFrames: 38,
+          travelX: 0,
+          travelY: 220,
+          rotationRadians: 0.38
+        })
+      ])
+    })
+  });
+};
+
+export const FRONTIER_CROWNCLAW_MODULAR_RIG = registerModularBossRig(
+  normalizeFrontierCrownclawRigManifest()
+);
+
+const frontierCrownclawRigIssues = validateFrontierCrownclawRigCompatibility(
+  FRONTIER_CROWNCLAW_MODULAR_RIG
+);
+if (frontierCrownclawRigIssues.length > 0) {
+  throw new Error(
+    `Frontier Crownclaw modular rig is incompatible: ${frontierCrownclawRigIssues
+      .map((issue) => `${issue.path}: ${issue.message}`)
+      .join('; ')}`
+  );
+}
 
 const getPrismMothPartRole = (partId: string): ModularBossPartRole => {
   if (partId === 'root' || partId.startsWith('shoulder.')) return 'joint';
@@ -1227,6 +1453,27 @@ const HELIOS_CLAWCARRIER_REFERENCE_ASSET = Object.freeze({
   height: 271
 }) satisfies SandboxBossArtworkAsset;
 
+const FRONTIER_CROWNCLAW_ASSEMBLED_ASSET = Object.freeze({
+  url: FRONTIER_CROWNCLAW_ART_URL,
+  contentHash: FRONTIER_CROWNCLAW_ART_SHA256,
+  width: 260,
+  height: 210
+}) satisfies SandboxBossArtworkAsset;
+
+const FRONTIER_CROWNCLAW_SHEET_ASSET = Object.freeze({
+  url: FRONTIER_CROWNCLAW_SHEET_URL,
+  contentHash: FRONTIER_CROWNCLAW_SHEET_SHA256,
+  width: 2048,
+  height: 256
+}) satisfies SandboxBossArtworkAsset;
+
+const FRONTIER_CROWNCLAW_REFERENCE_ASSET = Object.freeze({
+  url: FRONTIER_CROWNCLAW_REFERENCE_URL,
+  contentHash: FRONTIER_CROWNCLAW_REFERENCE_SHA256,
+  width: 640,
+  height: 512
+}) satisfies SandboxBossArtworkAsset;
+
 const PRISM_MOTH_BROODKEEPER_ASSEMBLED_ASSET = Object.freeze({
   url: PRISM_MOTH_BROODKEEPER_ART_URL,
   contentHash: PRISM_MOTH_BROODKEEPER_ART_SHA256,
@@ -1468,6 +1715,69 @@ export const SANDBOX_BOSS_ARTWORK_REGISTRATIONS: Readonly<
     vfxAtlas: Object.freeze({
       ...SANDBOX_BOSS_VFX_SHEET_ASSET,
       frames: SANDBOX_BOSS_VFX_ATLAS_FRAMES
+    })
+  }),
+  'frontier-crownclaw': Object.freeze({
+    prototypeId: 'frontier-crownclaw',
+    assembled: FRONTIER_CROWNCLAW_ASSEMBLED_ASSET,
+    sheet: FRONTIER_CROWNCLAW_SHEET_ASSET,
+    modularRig: FRONTIER_CROWNCLAW_MODULAR_RIG,
+    sampleModularPose: sampleFrontierCrownclawSandboxPose,
+    modularReferenceComparison: Object.freeze({
+      kind: MODULAR_BOSS_REFERENCE_COMPARISON_KIND,
+      ...FRONTIER_CROWNCLAW_REFERENCE_ASSET,
+      provenance:
+        'Locked complete Astral Crownclaw neutral reference; the clipped Campaign Copy frame is retained separately as evidence only.',
+      landmarks: Object.freeze([
+        Object.freeze({
+          id: 'crown-reactor',
+          label: 'Crown reactor',
+          reference: Object.freeze({ xRatio: 0.5, yRatio: 0.51 }),
+          rig: Object.freeze({ kind: 'socket', socketId: 'crown-reactor' })
+        }),
+        Object.freeze({
+          id: 'claw-tip-port',
+          label: 'Port chained claw tip',
+          reference: Object.freeze({ xRatio: 0.17, yRatio: 0.83 }),
+          rig: Object.freeze({ kind: 'socket', socketId: 'claw-tip-port' })
+        }),
+        Object.freeze({
+          id: 'claw-tip-starboard',
+          label: 'Starboard chained claw tip',
+          reference: Object.freeze({ xRatio: 0.83, yRatio: 0.83 }),
+          rig: Object.freeze({ kind: 'socket', socketId: 'claw-tip-starboard' })
+        })
+      ])
+    }),
+    projectileAnimations: Object.freeze({
+      'boss-frontier-chainclaw': Object.freeze({
+        frameIds: Object.freeze(['claw.harpoon']),
+        frameHoldFrames: 3,
+        minimumVisualHeight: 38,
+        entityHeightScale: 1.15,
+        orientationOffsetRadians: 0
+      }),
+      'boss-frontier-chain-link': Object.freeze({
+        frameIds: Object.freeze(['chain.link']),
+        frameHoldFrames: 3,
+        minimumVisualHeight: 10,
+        entityHeightScale: 1,
+        orientationOffsetRadians: 0
+      }),
+      'boss-frontier-crown-bolt': Object.freeze({
+        frameIds: Object.freeze(['crown-bolt.0']),
+        frameHoldFrames: 3,
+        minimumVisualHeight: 22,
+        entityHeightScale: 1.4,
+        orientationOffsetRadians: Math.PI / 2
+      }),
+      'boss-frontier-shell-shard': Object.freeze({
+        frameIds: Object.freeze(['shell-shard.0']),
+        frameHoldFrames: 4,
+        minimumVisualHeight: 18,
+        entityHeightScale: 1.35,
+        orientationOffsetRadians: 0
+      })
     })
   }),
   'prism-moth-brood': Object.freeze({

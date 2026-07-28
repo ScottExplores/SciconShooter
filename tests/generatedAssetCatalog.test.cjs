@@ -12,8 +12,10 @@ const engineSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts')
 
 test('generated asset manifest registers the content-addressed biohazard HUD icon', () => {
   assert.equal(manifest.schemaVersion, 1);
-  assert.equal(manifest.assets.length, 1);
-  assert.deepEqual(manifest.assets[0], {
+  const biohazardEntry = manifest.assets.find((entry) => (
+    entry.id === 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F'
+  ));
+  assert.deepEqual(biohazardEntry, {
     id: 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F',
     label: 'Pixel biohazard bomb',
     roles: ['hud'],
@@ -26,7 +28,10 @@ test('generated asset manifest registers the content-addressed biohazard HUD ico
 });
 
 test('registered biohazard PNG exists with the manifest hash and dimensions', () => {
-  const entry = manifest.assets[0];
+  const entry = manifest.assets.find((candidate) => (
+    candidate.id === 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F'
+  ));
+  assert.ok(entry);
   const filePath = path.join(root, 'public', ...entry.path.split('/').filter(Boolean));
   const png = fs.readFileSync(filePath);
   assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);

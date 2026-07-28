@@ -52,6 +52,7 @@ const assertSchemaV1CampaignShape = (campaign) => {
 export const decompileSchemaV1Campaign = (campaign) => {
   assertSchemaV1CampaignShape(campaign);
   const source = cloneJson(campaign);
+  const campaignFieldOrder = Object.keys(source);
   const { levels, ...campaignMetadata } = source;
   const missions = [];
   const waves = [];
@@ -99,6 +100,7 @@ export const decompileSchemaV1Campaign = (campaign) => {
       sourceCampaignId: campaign.id,
       sourceCampaignRevision: campaign.revision,
       sourceCampaignHash: hashJson(campaign),
+      campaignFieldOrder,
       missionIds: levels.map((mission) => mission.id)
     },
     campaign: campaignMetadata,

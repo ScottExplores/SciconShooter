@@ -1,7 +1,8 @@
 import {
   ENEMY_CATALOG,
   POWERUP_CATALOG,
-  SPAWN_PATTERN_CATALOG
+  SPAWN_PATTERN_CATALOG,
+  isMajorBossId
 } from '@game/game-config/catalog';
 import type {
   AsteroidEvent,
@@ -537,7 +538,7 @@ export const createFocusedPreviewCampaign = (
     eventId = focusedEvent.id;
     previewWave = {
       ...clone(located.wave),
-      completionRule: focusedEvent.kind === 'boss' && focusedEvent.bossId === 'gatekeeper'
+      completionRule: focusedEvent.kind === 'boss' && isMajorBossId(focusedEvent.bossId)
         ? 'boss-defeat'
         : 'clear-after-duration',
       introSeconds: 0,
@@ -727,8 +728,8 @@ export const createPromotionCampaign = (
   const promotedBosses = input.kind === 'wave'
     ? input.wave.events.filter((event): event is BossEvent => event.kind === 'boss')
     : input.event.kind === 'boss' ? [input.event] : [];
-  if (promotedBosses.some((boss) => boss.bossId === 'gatekeeper' && !boss.rigId)) {
-    warnings.push('This promoted gatekeeper does not declare rigId, so the runtime will use its compatibility fallback; select an explicit renderer rig before release.');
+  if (promotedBosses.some((boss) => isMajorBossId(boss.bossId) && !boss.rigId)) {
+    warnings.push('This promoted major boss does not declare rigId, so the runtime will use its compatibility fallback; select an explicit renderer rig before release.');
   }
   campaign.revision += 1;
   campaign.updatedAt = toIsoString(options);

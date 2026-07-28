@@ -94,3 +94,23 @@ test('official Boss Archive settlement sends only signed result facts and safely
   assert.doesNotMatch(settlementClient, /utcDateKey:/);
   assert.doesNotMatch(settlementClient, /dailyLimit:/);
 });
+
+test('connected Campaign branch settlement sends completion facts while the server owns combat rewards', () => {
+  const service = read('services', 'walletProfileService.ts');
+  const start = service.indexOf('export const startWalletCampaignBranch');
+  const end = service.indexOf('export const flushDirtyWalletProfile', start);
+  const branchClient = service.slice(start, end);
+
+  assert.match(branchClient, /action: 'start-campaign-branch'/);
+  assert.match(branchClient, /branchId/);
+  assert.match(branchClient, /action: 'settle-campaign-branch'/);
+  assert.match(branchClient, /attemptToken/);
+  assert.match(branchClient, /stageComplete/);
+  assert.match(branchClient, /objectiveUnitsCompleted/);
+  assert.match(branchClient, /destroyedByType: destroyedByType \?\? \{\}/);
+  assert.match(branchClient, /collectedPresentCoins: collectedPresentCoins \?\? 0/);
+  assert.match(branchClient, /for \(let attempt = 0; attempt < 3; attempt \+= 1\)/);
+  assert.doesNotMatch(branchClient, /baseCoins:/);
+  assert.doesNotMatch(branchClient, /oneTimeBonusCoins:/);
+  assert.doesNotMatch(branchClient, /coinsAwarded:/);
+});

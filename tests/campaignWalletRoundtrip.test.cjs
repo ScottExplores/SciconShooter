@@ -45,6 +45,12 @@ const TEST_CAMPAIGN = {
 };
 
 const compileCampaignProgression = () => {
+  const branchSource = fs.readFileSync(path.join(root, 'services', 'campaignBranchProgression.ts'), 'utf8');
+  const branchCompiled = ts.transpileModule(branchSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText;
+  const branchModule = { exports: {} };
+  Function('exports', 'require', 'module', branchCompiled)(branchModule.exports, require, branchModule);
   const source = fs.readFileSync(path.join(root, 'services', 'campaignProgression.ts'), 'utf8');
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
@@ -58,7 +64,15 @@ const compileCampaignProgression = () => {
   };
   Function('exports', 'require', 'module', compiled)(
     module.exports,
-    (request) => request === './levelConfig' ? levelConfig : require(request),
+    (request) => request === './levelConfig'
+      ? levelConfig
+      : request === './campaignBranchProgression'
+        ? branchModule.exports
+        : request === '../game-config/catalog'
+          ? { isMajorBossId: () => false }
+          : request === '../game-config/campaign-migration-v22.json'
+            ? require('../game-config/campaign-migration-v22.json')
+        : require(request),
     module
   );
   return module.exports;

@@ -79,7 +79,14 @@ export type GeneratedAssetRole =
   | 'scorecard';
 
 export type EnemyId = 'drone' | 'swarm' | 'brick' | 'journal';
-export type BossId = 'bottleneck-drone' | 'paywall-wall' | 'gatekeeper';
+export type BossId =
+  | 'bottleneck-drone'
+  | 'paywall-wall'
+  | 'gatekeeper'
+  | 'gatekeeper-prime'
+  | 'helix-leviathan'
+  | 'eclipse-engine'
+  | 'research-tribunal';
 export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
 export type PowerupId = 'double-shot' | 'triple-shot' | 'max-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
 export type BackgroundId =
@@ -119,6 +126,117 @@ export type ScorecardMetricId = 'wave' | 'targets' | 'coins' | 'flight';
 export type EnemyRank = 'standard' | 'elite';
 export type EnemyAttackPatternId = 'aimed-burst';
 
+export type CampaignMissionRole =
+  | 'introduction'
+  | 'formation-remix'
+  | 'elite-checkpoint'
+  | 'boss-preparation'
+  | 'major-boss';
+
+export type CampaignWaveRhythm =
+  | 'warm-up'
+  | 'introduce'
+  | 'variation'
+  | 'support'
+  | 'recovery'
+  | 'peak'
+  | 'clear'
+  | 'boss';
+
+export type EnemyDurabilityClass = 'light' | 'standard' | 'armored' | 'elite';
+
+export type EnemyGameplayRole =
+  | 'formation-unit'
+  | 'diver'
+  | 'flanker'
+  | 'shooter'
+  | 'burst-shooter'
+  | 'suppressor'
+  | 'armored-unit'
+  | 'support-unit'
+  | 'priority-target'
+  | 'formation-leader'
+  | 'elite';
+
+export type SupportRecommendationTag =
+  | 'anti-swarm'
+  | 'anti-armor'
+  | 'lane-control'
+  | 'boss-damage'
+  | 'survival'
+  | 'anti-summon';
+
+export interface CampaignSectorDefinition {
+  id: string;
+  order: number;
+  name: string;
+  themeId: string;
+  missionIds: [string, string, string, string, string];
+  majorBossId: BossId;
+  branchIds: string[];
+}
+
+export interface CampaignVisualThemeDefinition {
+  id: string;
+  label: string;
+  backgroundId: BackgroundId;
+  accent: string;
+  description: string;
+}
+
+export interface EnemyRoleDefinition {
+  id: string;
+  label: string;
+  enemyId: EnemyId;
+  spriteKey: AssetKey;
+  role: EnemyGameplayRole;
+  threatCost: number;
+  introductionSector: number;
+  introductionMission: number;
+  durabilityClass: EnemyDurabilityClass;
+  fireBehavior: 'none' | 'post-formation' | 'aimed-burst';
+  entryBehavior: 'formation' | 'dive' | 'flank' | 'lane';
+  compatibleFormationPackIds: string[];
+  synergyTags: string[];
+  reuseCooldownWaves: number;
+  maximumSimultaneousCount: number;
+  performanceCost: number;
+}
+
+export interface FormationPackDefinition {
+  id: string;
+  label: string;
+  enemyRoleIds: string[];
+  enemyCount: number;
+  totalThreatCost: number;
+  entryDirection: 'top' | 'left' | 'right' | 'split';
+  entryPath: string;
+  formationShape: SpawnPatternId;
+  firingBehavior: 'none' | 'post-formation' | 'staggered' | 'priority';
+  synergyAdjustment: number;
+  minimumSector: number;
+  maximumSimultaneousInstances: number;
+  recoveryRequiredSeconds: number;
+  compatibleMissionRoles: CampaignMissionRole[];
+  compatibleSectorIds: string[];
+  mobilePerformanceCost: number;
+}
+
+export interface MiniBossCatalogDefinition {
+  id: string;
+  bossId: Extract<BossId, 'bottleneck-drone' | 'paywall-wall'>;
+  label: string;
+  visualIdentity: string;
+  combatRole: string;
+  mainAttacks: string[];
+  suitableSectorIds: string[];
+  threatCost: number;
+  recommendedPower: number;
+  usage: 'solo' | 'paired' | 'solo-or-paired';
+  campaignReady: boolean;
+  validationStatus: 'validated' | 'provisional';
+}
+
 export interface GameCampaignConfig {
   /** Increment only for a breaking JSON shape change. Current default: 1. */
   schemaVersion: 1;
@@ -136,6 +254,18 @@ export interface GameCampaignConfig {
   hudAssets: HudAssetsConfig;
   /** Ordered player-facing Missions. `levels` remains the compatibility/config key; at least one Mission is required. */
   levels: LevelDefinition[];
+  /** Four five-Mission route groups. Additional sectors use the same data shape. */
+  sectors: CampaignSectorDefinition[];
+  /** Shared visual themes referenced by sectors. */
+  visualThemes: CampaignVisualThemeDefinition[];
+  /** Canonical role variants consumed by authored spawn packs. */
+  enemyRoles: EnemyRoleDefinition[];
+  /** Reusable deterministic encounter packs and their bounded costs. */
+  formationPacks: FormationPackDefinition[];
+  /** Campaign-approved mini-boss inventory. */
+  miniBosses: MiniBossCatalogDefinition[];
+  /** Optional mastery routes. Omission preserves the original linear Campaign. */
+  campaignBranches?: CampaignBranchDefinition[];
 }
 
 /** Compatibility-friendly short name for engine/editor consumers. */
@@ -227,6 +357,159 @@ export interface CampaignMapPositionDefinition {
   y: number;
 }
 
+export type CampaignBranchMissionType =
+  | 'present-drop'
+  | 'elite-remix'
+  | 'mini-boss-signal'
+  | 'formation-challenge'
+  | 'support-trial'
+  | 'mastery-mission'
+  | 'hidden-research-signal'
+  | 'research-cache';
+
+export type CampaignBranchNodeIconId =
+  | 'present-drop-cache'
+  | 'encrypted-branch'
+  | 'elite-warning'
+  | 'mini-boss-signal'
+  | 'formation-challenge'
+  | 'support-trial'
+  | 'mastery-prism'
+  | 'research-signal';
+
+export type CampaignBranchUnlockCondition =
+  | { kind: 'all-stars-earned'; missionId: string }
+  | { kind: 'sector-mastered'; missionIds: string[] }
+  | { kind: 'branch-completed'; branchId: string }
+  | { kind: 'boss-defeated'; bossEventId: string }
+  | { kind: 'achievement-earned'; achievementId: string }
+  | { kind: 'hidden-object-discovered'; discoveryId: string }
+  | { kind: 'support-challenge-completed'; challengeId: string };
+
+export interface CampaignBranchRewardPreview {
+  category: 'upgrade-coins' | 'coins-and-trophy' | 'cosmetic' | 'support-preview';
+  label: string;
+  minimumCoins: number;
+  maximumCoins: number;
+  hiddenUntilUnlocked: boolean;
+}
+
+export interface CampaignBranchCompletionReward {
+  /** Granted only after a successful authoritative completion. */
+  baseCoins: number;
+  /** One-time mastery bonus granted with the first successful completion. */
+  oneTimeBonusCoins: number;
+  /** Maximum provisional value obtainable from mission targets. */
+  maximumPerformanceCoins: number;
+  totalMinimumCoins: number;
+  totalMaximumCoins: number;
+}
+
+export type PresentDropPresentKind = 'standard' | 'armored' | 'fast' | 'golden';
+export type PresentDropPatternId =
+  | 'lane-rain'
+  | 'staggered-columns'
+  | 'sine-sweep'
+  | 'final-center';
+
+export interface PresentDropPresentDefinition {
+  id: string;
+  displayName: string;
+  kind: PresentDropPresentKind;
+  /** Safe catalog ID; campaign JSON never stores a raw asset path. */
+  spriteKey: AssetKey;
+  health: number;
+  coinValue: number;
+  speedMultiplier: number;
+  sizeMultiplier: number;
+}
+
+export interface PresentDropSpawnGroupDefinition {
+  id: string;
+  startSeconds: number;
+  count: number;
+  presentTypeId: string;
+  patternId: PresentDropPatternId;
+  spawnIntervalSeconds: number;
+}
+
+export interface CampaignPresentDropMissionDefinition {
+  id: string;
+  kind: 'present-drop';
+  backgroundId: BackgroundId;
+  musicId: MusicId;
+  introSeconds: number;
+  durationSeconds: number;
+  exitSeconds: number;
+  successCondition: 'complete-timed-drop';
+  presentTypes: PresentDropPresentDefinition[];
+  spawnGroups: PresentDropSpawnGroupDefinition[];
+}
+
+/**
+ * A combat-focused optional route that is compiled onto the canonical
+ * GameEngine wave/event vocabulary. Branch content remains declarative: it
+ * cannot embed scripts, raw asset paths, bosses, or a second gameplay loop.
+ */
+export type CampaignCombatBranchMissionKind =
+  | 'elite-remix'
+  | 'formation-challenge'
+  | 'support-trial';
+
+export interface CampaignCombatBranchMissionDefinition {
+  id: string;
+  kind: CampaignCombatBranchMissionKind;
+  backgroundId: BackgroundId;
+  musicId: MusicId;
+  introSeconds: number;
+  durationSeconds: number;
+  exitSeconds: number;
+  successCondition: 'clear-authored-encounters';
+  /** Maximum simultaneous hostile entities before adaptive device caps. */
+  threatCap: number;
+  /** Ceiling for the sum of weighted authored enemy-role threat. */
+  combatBudget: number;
+  rhythm: CampaignWaveRhythm;
+  /** Power-ups referenced by powerup/recovery events in this branch. */
+  availablePowerupIds: PowerupId[];
+  /** Existing safe GameEngine events; major and mini-boss events are forbidden. */
+  events: WaveEvent[];
+}
+
+export type CampaignBranchMissionDefinition =
+  | CampaignPresentDropMissionDefinition
+  | CampaignCombatBranchMissionDefinition;
+
+/**
+ * Optional Campaign-map node. Route points include the source and destination
+ * endpoints so any map renderer can draw the authored path without guessing.
+ */
+export interface CampaignBranchDefinition {
+  branchId: string;
+  sourceMissionId: string;
+  unlockCondition: CampaignBranchUnlockCondition;
+  /** Standard mastery routes use 3; chained or discovery routes may use 0. */
+  requiredStars: number;
+  missionType: CampaignBranchMissionType;
+  displayName: string;
+  hiddenName: string;
+  mapPosition: CampaignMapPositionDefinition;
+  routeControlPoints: CampaignMapPositionDefinition[];
+  icon: CampaignBranchNodeIconId;
+  lockedIcon: CampaignBranchNodeIconId;
+  rewardPreview: CampaignBranchRewardPreview;
+  oneTimeCompletion: boolean;
+  replayPolicy: 'no-replay-after-claim' | 'repeatable-no-reward' | 'repeatable-rewarded';
+  failurePolicy: 'retry-no-reward';
+  rewardCommitPolicy: 'authoritative-idempotent-on-success';
+  missionDefinitionId: string;
+  missionDefinition: CampaignBranchMissionDefinition;
+  completionReward: CampaignBranchCompletionReward;
+  returnNodeId: string;
+  nextBranchNodeId?: string | null;
+  discoveryState: 'encrypted' | 'revealed';
+}
+
 /**
  * Optional authored Campaign-map and reward metadata. Older campaign packages
  * may omit this block and retain the deterministic compatibility defaults.
@@ -239,6 +522,23 @@ export interface CampaignMissionProgressionDefinition {
     CampaignMasteryObjectiveDefinition,
     CampaignMasteryObjectiveDefinition
   ];
+  /** Separate one-time reward granted when the final missing star is earned. */
+  masterySetBonusCoins: number;
+  /** Data-driven route identity used by the Map and Campaign Lab. */
+  sectorId: string;
+  missionRole: CampaignMissionRole;
+  combatBudget: number;
+  recommendedPower: {
+    minimum: number;
+    expected: number;
+    comfortable: number;
+  };
+  testedLoadouts: {
+    lowPower: string;
+    expectedPower: string;
+    upgraded: string;
+  };
+  recommendedSupportTags: SupportRecommendationTag[];
   mapPosition?: CampaignMapPositionDefinition;
   /** Null marks the authored end of the route; omission follows Mission order. */
   nextMissionId?: string | null;
@@ -309,6 +609,12 @@ export interface WaveDefinition {
   scoreMultiplier: number;
   /** Maximum simultaneous hostile entities before adaptive device caps. */
   threatCap: number;
+  /** Authored encounter-budget ceiling for this internal wave. */
+  combatBudget: number;
+  /** Teaching/rhythm role displayed by founder tools, not normal HUD. */
+  rhythm: CampaignWaveRhythm;
+  /** Reusable deterministic packs represented by this wave. */
+  formationPackIds: string[];
   /** Ordered by startSeconds, then array order for simultaneous events. */
   events: WaveEvent[];
 }
@@ -357,6 +663,8 @@ export interface SpriteStyle {
 
 export interface SpawnEnemySetting {
   enemyId: EnemyId;
+  /** Canonical role-variant ID from the campaign's enemyRoles manifest. */
+  roleId?: string;
   spriteKey: AssetKey;
   spriteStyle?: SpriteStyle;
   /** Relative selection probability within the event; all rows must sum to 1. */
@@ -464,6 +772,9 @@ export type BossTimelinePrimitiveId =
   | 'prism-brood-procession'
   | 'prism-lunar-swoop'
   | 'prism-kaleidoscope-brood'
+  | 'chainclaw-harpoon'
+  | 'crown-reactor-beam'
+  | 'bastion-crabwalk-barrage'
   | 'cross-beam'
   | 'rail-sweep'
   | 'tail-fan'
@@ -507,7 +818,15 @@ export type BossTimelineMotionCue =
   | 'prism-brood-deploy'
   | 'prism-swoop'
   | 'prism-kaleidoscope'
-  | 'prism-metamorphosis';
+  | 'prism-metamorphosis'
+  | 'frontier-chainclaw-harpoon'
+  | 'frontier-crown-cross-link'
+  | 'frontier-reactor-charge'
+  | 'frontier-reactor-fire'
+  | 'frontier-bastion-crabwalk'
+  | 'frontier-critical-cross-link'
+  | 'frontier-stagger'
+  | 'frontier-death';
 
 /**
  * Explicit rotation policy for authored radial beam arrays. Seeded random
@@ -698,6 +1017,10 @@ export interface AsteroidEvent extends BaseWaveEvent {
   damage: number;
   scoreValue: number;
   powerupDropChance: number;
+  /** Optional provisional coin value for non-hostile bonus targets. */
+  coinDropValue?: number;
+  /** Identifies a Present Drop target without introducing a second renderer. */
+  bonusTargetKind?: PresentDropPresentKind;
 }
 
 export interface PowerupEvent extends BaseWaveEvent {

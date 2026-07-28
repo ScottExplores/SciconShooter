@@ -26,6 +26,36 @@
       "minItems": 1,
       "maxItems": 6,
       "items": { "$ref": "#/definitions/powerup" }
+    },
+    "sectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/campaignSector" }
+    },
+    "visualThemes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/visualTheme" }
+    },
+    "enemyRoles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/enemyRole" }
+    },
+    "formationPacks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/formationPack" }
+    },
+    "miniBosses": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/miniBoss" }
+    },
+    "campaignBranches": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/campaignBranch" }
     }
   },
   "definitions": {
@@ -33,6 +63,335 @@
     "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
     "label": { "type": "string", "minLength": 1, "maxLength": 100 },
     "assetPath": { "type": "string", "maxLength": 240, "pattern": "^/game-art/[A-Za-z0-9_./-]+\\.(?:png|webp|jpg|jpeg|svg)$" },
+    "assetKey": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[A-Z0-9_]+$" },
+    "missionRole": { "enum": ["introduction", "formation-remix", "elite-checkpoint", "boss-preparation", "major-boss"] },
+    "waveRhythm": { "enum": ["warm-up", "introduce", "variation", "support", "recovery", "peak", "clear", "boss"] },
+    "supportTag": { "enum": ["anti-swarm", "anti-armor", "lane-control", "boss-damage", "survival", "anti-summon"] },
+    "campaignSector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "order", "name", "themeId", "missionIds", "majorBossId", "branchIds"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "order": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "name": { "$ref": "#/definitions/label" },
+        "themeId": { "$ref": "#/definitions/id" },
+        "missionIds": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/id" }
+        },
+        "majorBossId": { "enum": ["gatekeeper", "gatekeeper-prime", "helix-leviathan", "eclipse-engine", "research-tribunal"] },
+        "branchIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/id" } }
+      }
+    },
+    "visualTheme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "backgroundId", "accent", "description"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "label": { "$ref": "#/definitions/label" },
+        "backgroundId": { "$ref": "#/definitions/id" },
+        "accent": { "$ref": "#/definitions/color" },
+        "description": { "type": "string", "minLength": 1, "maxLength": 500 }
+      }
+    },
+    "enemyRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "enemyId", "spriteKey", "role", "threatCost", "introductionSector", "introductionMission", "durabilityClass", "fireBehavior", "entryBehavior", "compatibleFormationPackIds", "synergyTags", "reuseCooldownWaves", "maximumSimultaneousCount", "performanceCost"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "label": { "$ref": "#/definitions/label" },
+        "enemyId": { "enum": ["drone", "swarm", "brick", "journal"] },
+        "spriteKey": { "$ref": "#/definitions/assetKey" },
+        "role": { "enum": ["formation-unit", "diver", "flanker", "shooter", "burst-shooter", "suppressor", "armored-unit", "support-unit", "priority-target", "formation-leader", "elite"] },
+        "threatCost": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 },
+        "introductionSector": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "introductionMission": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "durabilityClass": { "enum": ["light", "standard", "armored", "elite"] },
+        "fireBehavior": { "enum": ["none", "post-formation", "aimed-burst"] },
+        "entryBehavior": { "enum": ["formation", "dive", "flank", "lane"] },
+        "compatibleFormationPackIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/id" } },
+        "synergyTags": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/id" } },
+        "reuseCooldownWaves": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "maximumSimultaneousCount": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "performanceCost": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 }
+      }
+    },
+    "formationPack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "enemyRoleIds", "enemyCount", "totalThreatCost", "entryDirection", "entryPath", "formationShape", "firingBehavior", "synergyAdjustment", "minimumSector", "maximumSimultaneousInstances", "recoveryRequiredSeconds", "compatibleMissionRoles", "compatibleSectorIds", "mobilePerformanceCost"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "label": { "$ref": "#/definitions/label" },
+        "enemyRoleIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/id" } },
+        "enemyCount": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "totalThreatCost": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 },
+        "entryDirection": { "enum": ["top", "left", "right", "split"] },
+        "entryPath": { "$ref": "#/definitions/id" },
+        "formationShape": { "enum": ["single-random", "row", "v", "sine", "pincer", "grid", "diamond", "spiral", "asteroid-lanes"] },
+        "firingBehavior": { "enum": ["none", "post-formation", "staggered", "priority"] },
+        "synergyAdjustment": { "type": "number", "minimum": -1000000, "maximum": 1000000 },
+        "minimumSector": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "maximumSimultaneousInstances": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "recoveryRequiredSeconds": { "type": "number", "minimum": 0, "maximum": 600 },
+        "compatibleMissionRoles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/missionRole" } },
+        "compatibleSectorIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/id" } },
+        "mobilePerformanceCost": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 }
+      }
+    },
+    "miniBoss": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "bossId", "label", "visualIdentity", "combatRole", "mainAttacks", "suitableSectorIds", "threatCost", "recommendedPower", "usage", "campaignReady", "validationStatus"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "bossId": { "enum": ["bottleneck-drone", "paywall-wall"] },
+        "label": { "$ref": "#/definitions/label" },
+        "visualIdentity": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "combatRole": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "mainAttacks": { "type": "array", "minItems": 2, "maxItems": 3, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 160 } },
+        "suitableSectorIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/id" } },
+        "threatCost": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 },
+        "recommendedPower": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "usage": { "enum": ["solo", "paired", "solo-or-paired"] },
+        "campaignReady": { "type": "boolean" },
+        "validationStatus": { "enum": ["validated", "provisional"] }
+      }
+    },
+    "campaignMapPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "campaignBranchReward": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseCoins", "oneTimeBonusCoins", "maximumPerformanceCoins", "totalMinimumCoins", "totalMaximumCoins"],
+      "properties": {
+        "baseCoins": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "oneTimeBonusCoins": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "maximumPerformanceCoins": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "totalMinimumCoins": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "totalMaximumCoins": { "type": "integer", "minimum": 0, "maximum": 1000000 }
+      }
+    },
+    "campaignBranchRewardPreview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "label", "minimumCoins", "maximumCoins", "hiddenUntilUnlocked"],
+      "properties": {
+        "category": { "$ref": "#/definitions/id" },
+        "label": { "$ref": "#/definitions/label" },
+        "minimumCoins": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "maximumCoins": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "hiddenUntilUnlocked": { "type": "boolean" }
+      }
+    },
+    "campaignBranchEvent": {
+      "type": "object",
+      "required": ["id", "kind", "label", "startSeconds", "durationSeconds", "delayAfterSeconds", "blocksWaveClock"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "kind": { "enum": ["spawn", "asteroid-belt", "powerup", "recovery"] },
+        "label": { "$ref": "#/definitions/label" },
+        "startSeconds": { "type": "number", "minimum": 0, "maximum": 120 },
+        "durationSeconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 120 },
+        "delayAfterSeconds": { "type": "number", "minimum": 0, "maximum": 30 },
+        "blocksWaveClock": { "type": "boolean" },
+        "powerupIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["shield", "double-shot", "triple-shot", "magnet", "research-beam", "extra-life", "max-shot"] }
+        }
+      },
+      "additionalProperties": true
+    },
+    "campaignCombatBranchMission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "backgroundId", "musicId", "introSeconds", "durationSeconds", "exitSeconds", "successCondition", "threatCap", "combatBudget", "rhythm", "availablePowerupIds", "events"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "kind": { "enum": ["elite-remix", "formation-challenge", "support-trial"] },
+        "backgroundId": { "$ref": "#/definitions/id" },
+        "musicId": { "$ref": "#/definitions/id" },
+        "introSeconds": { "type": "number", "minimum": 0, "maximum": 10 },
+        "durationSeconds": { "type": "number", "minimum": 20, "maximum": 120 },
+        "exitSeconds": { "type": "number", "minimum": 0, "maximum": 10 },
+        "successCondition": { "const": "clear-authored-encounters" },
+        "threatCap": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "combatBudget": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 },
+        "rhythm": { "$ref": "#/definitions/waveRhythm" },
+        "availablePowerupIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["shield", "double-shot", "triple-shot", "magnet", "research-beam", "extra-life", "max-shot"] }
+        },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": { "$ref": "#/definitions/campaignBranchEvent" }
+        }
+      }
+    },
+    "campaignPresentType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName", "kind", "spriteKey", "health", "coinValue", "speedMultiplier", "sizeMultiplier"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "displayName": { "$ref": "#/definitions/label" },
+        "kind": { "enum": ["standard", "armored", "fast", "golden"] },
+        "spriteKey": { "$ref": "#/definitions/assetKey" },
+        "health": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 },
+        "coinValue": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "speedMultiplier": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 },
+        "sizeMultiplier": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 }
+      }
+    },
+    "campaignPresentSpawnGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "startSeconds", "count", "presentTypeId", "patternId", "spawnIntervalSeconds"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "startSeconds": { "type": "number", "minimum": 0, "maximum": 120 },
+        "count": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "presentTypeId": { "$ref": "#/definitions/id" },
+        "patternId": { "enum": ["lane-rain", "sine-sweep", "staggered-columns", "final-center"] },
+        "spawnIntervalSeconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 30 }
+      }
+    },
+    "campaignPresentDropMission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "backgroundId", "musicId", "introSeconds", "durationSeconds", "exitSeconds", "successCondition", "presentTypes", "spawnGroups"],
+      "properties": {
+        "id": { "$ref": "#/definitions/id" },
+        "kind": { "const": "present-drop" },
+        "backgroundId": { "$ref": "#/definitions/id" },
+        "musicId": { "$ref": "#/definitions/id" },
+        "introSeconds": { "type": "number", "minimum": 0, "maximum": 10 },
+        "durationSeconds": { "type": "number", "minimum": 20, "maximum": 120 },
+        "exitSeconds": { "type": "number", "minimum": 0, "maximum": 10 },
+        "successCondition": { "const": "complete-timed-drop" },
+        "presentTypes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/definitions/campaignPresentType" }
+        },
+        "spawnGroups": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": { "$ref": "#/definitions/campaignPresentSpawnGroup" }
+        }
+      }
+    },
+    "campaignBranch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branchId", "sourceMissionId", "unlockCondition", "requiredStars", "missionType", "displayName", "hiddenName", "mapPosition", "routeControlPoints", "icon", "lockedIcon", "rewardPreview", "oneTimeCompletion", "replayPolicy", "failurePolicy", "rewardCommitPolicy", "missionDefinitionId", "missionDefinition", "completionReward", "returnNodeId", "nextBranchNodeId", "discoveryState"],
+      "properties": {
+        "branchId": { "$ref": "#/definitions/id" },
+        "sourceMissionId": { "$ref": "#/definitions/id" },
+        "unlockCondition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "missionId"],
+          "properties": {
+            "kind": { "const": "all-stars-earned" },
+            "missionId": { "$ref": "#/definitions/id" }
+          }
+        },
+        "requiredStars": { "const": 3 },
+        "missionType": { "enum": ["present-drop", "elite-remix", "formation-challenge", "support-trial"] },
+        "displayName": { "$ref": "#/definitions/label" },
+        "hiddenName": { "$ref": "#/definitions/label" },
+        "mapPosition": { "$ref": "#/definitions/campaignMapPoint" },
+        "routeControlPoints": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 12,
+          "items": { "$ref": "#/definitions/campaignMapPoint" }
+        },
+        "icon": { "$ref": "#/definitions/id" },
+        "lockedIcon": { "$ref": "#/definitions/id" },
+        "rewardPreview": { "$ref": "#/definitions/campaignBranchRewardPreview" },
+        "oneTimeCompletion": { "const": true },
+        "replayPolicy": { "const": "no-replay-after-claim" },
+        "failurePolicy": { "const": "retry-no-reward" },
+        "rewardCommitPolicy": { "const": "authoritative-idempotent-on-success" },
+        "missionDefinitionId": { "$ref": "#/definitions/id" },
+        "missionDefinition": {
+          "oneOf": [
+            { "$ref": "#/definitions/campaignPresentDropMission" },
+            { "$ref": "#/definitions/campaignCombatBranchMission" }
+          ]
+        },
+        "completionReward": { "$ref": "#/definitions/campaignBranchReward" },
+        "returnNodeId": { "$ref": "#/definitions/id" },
+        "nextBranchNodeId": { "type": ["string", "null"], "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "discoveryState": { "enum": ["encrypted", "revealed"] }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "missionType": { "const": "present-drop" },
+                "missionDefinition": { "$ref": "#/definitions/campaignPresentDropMission" }
+              }
+            },
+            {
+              "properties": {
+                "missionType": { "const": "formation-challenge" },
+                "missionDefinition": {
+                  "allOf": [
+                    { "$ref": "#/definitions/campaignCombatBranchMission" },
+                    { "type": "object", "properties": { "kind": { "const": "formation-challenge" } } }
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "missionType": { "const": "support-trial" },
+                "missionDefinition": {
+                  "allOf": [
+                    { "$ref": "#/definitions/campaignCombatBranchMission" },
+                    { "type": "object", "properties": { "kind": { "const": "support-trial" } } }
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "missionType": { "const": "elite-remix" },
+                "missionDefinition": {
+                  "allOf": [
+                    { "$ref": "#/definitions/campaignCombatBranchMission" },
+                    { "type": "object", "properties": { "kind": { "const": "elite-remix" } } }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
     "enemyWeights": {
       "type": "object",
       "additionalProperties": false,
@@ -74,6 +433,9 @@
         "accent": { "$ref": "#/definitions/color" },
         "backgroundId": { "$ref": "#/definitions/id" },
         "difficultyMultiplier": { "type": "number", "minimum": 0.1, "maximum": 20 },
+        "combatBudget": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 },
+        "rhythm": { "$ref": "#/definitions/waveRhythm" },
+        "formationPackIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/id" } },
         "segments": { "type": "array", "minItems": 1, "maxItems": 100, "items": { "$ref": "#/definitions/segment" } },
         "betweenWaves": { "type": "array", "maxItems": 20, "items": { "$ref": "#/definitions/segment" } }
       }

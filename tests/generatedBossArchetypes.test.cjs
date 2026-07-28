@@ -27,32 +27,40 @@ const loadArchetypes = () => {
   return module.exports;
 };
 
-test('all nine generated Gatekeeper encounters resolve to eight stable boss archetypes', () => {
+test('the generated revision-22 sector bosses resolve through the stable archetype catalog', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const { GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY, resolveGeneratedBossArchetype } = loadArchetypes();
-  const generatedBosses = campaign.levels
-    .flatMap((level) => level.waves)
-    .flatMap((wave) => wave.events)
-    .filter((event) => event.kind === 'boss' && event.spriteKey in GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY)
+  const sectorBosses = campaign.sectors.map((sector) => {
+    const mission = campaign.levels.find((level) => level.id === sector.missionIds.at(-1));
+    const event = mission.waves.flatMap((wave) => wave.events).find((candidate) => candidate.kind === 'boss');
+    assert.equal(mission.campaignProgression.missionRole, 'major-boss');
+    assert.equal(mission.waves.length, 1, `${mission.name} is a direct boss encounter`);
+    assert.equal(event.bossId, sector.majorBossId);
+    return { missionId: mission.id, event };
+  });
+  const generatedBosses = sectorBosses
+    .filter(({ event }) => event.spriteKey in GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY)
     .map((event) => ({
-      id: event.id,
-      spriteKey: event.spriteKey,
-      archetype: resolveGeneratedBossArchetype(event.spriteKey)
+      id: event.event.id,
+      spriteKey: event.event.spriteKey,
+      archetype: resolveGeneratedBossArchetype(event.event.spriteKey)
     }));
 
+  assert.equal(campaign.revision, 22);
+  assert.equal(campaign.sectors.length, 4);
+  assert.equal(sectorBosses.length, 4);
   assert.equal(Object.keys(GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY).length, 8);
-  assert.equal(generatedBosses.length, 9, 'Eclipse Engine is intentionally reused by two encounters');
+  assert.equal(
+    resolveGeneratedBossArchetype(sectorBosses[0].event.spriteKey),
+    null,
+    'Gatekeeper Prime retains its dedicated Boss Factory runtime'
+  );
+  assert.equal(generatedBosses.length, 3);
   assert.deepEqual(
     JSON.parse(JSON.stringify(generatedBosses)),
     [
-      { id: 'redline-corridor-final-boss', spriteKey: 'CAMPAIGN_BOSS_RAIL_SERPENT', archetype: 'rail-serpent' },
-      { id: 'mirror-array-final-boss', spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH', archetype: 'prism-moth' },
       { id: 'null-sector-final-boss', spriteKey: 'CAMPAIGN_BOSS_ECLIPSE_ENGINE', archetype: 'eclipse-engine' },
-      { id: 'quantum-cage-final-boss', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE', archetype: 'orbit-gyroscope' },
-      { id: 'gravity-well-final-boss', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB', archetype: 'singularity-crab' },
       { id: 'ion-citadel-final-boss', spriteKey: 'CAMPAIGN_BOSS_HELIX_LEVIATHAN', archetype: 'helix-leviathan' },
-      { id: 'crimson-vector-final-boss', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE', archetype: 'hammerhead-siege' },
-      { id: 'fracture-engine-final-boss', spriteKey: 'CAMPAIGN_BOSS_ECLIPSE_ENGINE', archetype: 'eclipse-engine' },
       { id: 'terminus-ascendant-final-boss', spriteKey: 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT', archetype: 'tribunal-dreadnought' }
     ]
   );

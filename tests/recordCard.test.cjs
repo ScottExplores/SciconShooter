@@ -65,7 +65,7 @@ test('record card embeds encounter art and meaningful run values', async () => {
     assert.match(res.body, /preserveAspectRatio="none" style="image-rendering:pixelated"/);
     assert.doesNotMatch(res.body, /SERVER VERIFIED/);
     assert.ok(fetchedUrls.some((url) => url.includes('/game-art/branding/bio-ship.png')));
-    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/enemies/asteroid-1.png')));
+    assert.ok(fetchedUrls.some((url) => url.includes('/game-art/enemies/paywall-interceptor.png')));
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/generated/boss-weapons/citation-storm-plasma-claw-left.png')), false);
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/generated/boss-weapons/citation-storm-plasma-claw-right.png')), false);
     assert.equal(fetchedUrls.some((url) => url.includes('/game-art/bosses/final-boss-sentinel.png')), false);
@@ -78,12 +78,12 @@ test('record card embeds encounter art and meaningful run values', async () => {
   }
 });
 
-test('later-stage record cards embed their authored campaign art without the legacy boss fallback', async () => {
+test('revision-22 record cards embed their resolved mission encounter art without the legacy boss fallback', async () => {
   const runId = '66666666-7777-4888-8999-000000000000';
   const expectedStages = new Map([
-    [7, '/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/rail-serpent.png'],
-    [8, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dark-asteroid-sentinel.png'],
-    [9, '/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/prism-moth.png'],
+    [7, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-left.png'],
+    [8, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dna-conductor.png'],
+    [9, '/game-art/pixi/bosses/paywall-decimator/body/frame-1.png'],
     [20, '/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/tribunal-dreadnought.png']
   ]);
   const originalFetch = global.fetch;

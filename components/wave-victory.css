@@ -45,6 +45,20 @@
   animation: waveRecordDeploy 680ms cubic-bezier(0.18, 0.88, 0.28, 1.12) 140ms both;
 }
 
+.wave-record-shell.is-mastered::after {
+  position: absolute;
+  inset: 7% 3%;
+  z-index: 6;
+  border: 2px solid rgba(255, 229, 95, 0.72);
+  box-shadow:
+    0 0 10px rgba(255, 229, 95, 0.6),
+    0 0 28px rgba(34, 211, 238, 0.38),
+    inset 0 0 18px rgba(255, 229, 95, 0.18);
+  content: '';
+  pointer-events: none;
+  animation: waveRecordMastered 1.35s steps(5, end) 1.05s both;
+}
+
 .wave-record-art,
 .wave-victory-plaque-art {
   position: absolute;
@@ -348,6 +362,21 @@
 .wave-record-reward-chip.is-boss-unlock {
   border-color: rgba(255, 229, 95, 0.38);
   color: #fff3a6;
+}
+
+.wave-record-reward-chip.is-mastered {
+  border-color: rgba(255, 229, 95, 0.72);
+  background: rgba(250, 204, 21, 0.12);
+  color: #fff5a3;
+  text-shadow: 0 0 7px rgba(255, 229, 95, 0.6);
+}
+
+.wave-record-reward-chip.is-affordable {
+  max-width: 100%;
+  border-color: rgba(255, 229, 95, 0.62);
+  background: linear-gradient(90deg, rgba(113, 63, 18, 0.42), rgba(6, 78, 59, 0.28));
+  color: #fef3c7;
+  text-shadow: 0 0 7px rgba(255, 229, 95, 0.42);
 }
 
 .wave-record-reward-chip.is-unlock,
@@ -692,6 +721,13 @@
   0% { opacity: 0; transform: translateY(7px) scale(0.2) rotate(-22deg); }
   55% { opacity: 1; transform: translateY(-2px) scale(1.35) rotate(8deg); }
   100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+
+@keyframes waveRecordMastered {
+  0% { opacity: 0; transform: scale(0.92); }
+  35% { opacity: 1; transform: scale(1.015); }
+  68% { opacity: 0.55; transform: scale(0.995); }
+  100% { opacity: 0.92; transform: scale(1); }
 }
 
 @keyframes waveVictoryWingLeft {

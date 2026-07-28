@@ -347,8 +347,47 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
     defaultSpriteKey: 'FINAL_BOSS',
     defaultMovementPatternId: 'gatekeeper-cycle',
     allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'gatekeeper-prime': {
+    id: 'gatekeeper-prime',
+    label: 'Gatekeeper Prime',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'PIXI_BOSS_OPEN_ORBIT_FRAMES',
+    defaultMovementPatternId: 'gatekeeper-cycle',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'helix-leviathan': {
+    id: 'helix-leviathan',
+    label: 'Helix Leviathan',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_HELIX_LEVIATHAN',
+    defaultMovementPatternId: 'gatekeeper-cycle',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'eclipse-engine': {
+    id: 'eclipse-engine',
+    label: 'Eclipse Engine',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_ECLIPSE_ENGINE',
+    defaultMovementPatternId: 'gatekeeper-cycle',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'research-tribunal': {
+    id: 'research-tribunal',
+    label: 'Research Tribunal',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT',
+    defaultMovementPatternId: 'gatekeeper-cycle',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
   }
 };
+
+/** Canonical classification shared by validation, runtime, Map, and Archive. */
+export const isMajorBossId = (id: unknown): id is BossId => (
+  typeof id === 'string'
+  && Object.prototype.hasOwnProperty.call(BOSS_CATALOG, id)
+  && BOSS_CATALOG[id as BossId].entityType === 'BOSS'
+);
 
 export const POWERUP_CATALOG: Record<PowerupId, PowerupCatalogEntry> = {
   'double-shot': { id: 'double-shot', label: 'Double Shot', runtimeType: 'DOUBLE_SHOT', defaultWeight: 0.36 },

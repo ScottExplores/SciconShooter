@@ -7,6 +7,7 @@ Five static, safely padded dashboard glyphs in the Scicon Neon-Frame palette.
 - Cell: 256 × 256
 - Order: Proposals, Trophies, Home, Hangar, More
 - Runtime selection light remains on the tab frame; the glyph geometry does not animate.
+- Boss Archive command: `boss-archive-defeated-emblem-v1.png` (384 × 384 transparent PNG), a defeated mechanical-boss skull with a piercing energy spear.
 
 The built-in image generator produced a flat-magenta keyed source. The installed image-generation helper produced `tools/generated-image-sources/scicon-neon-dashboard-icons-v2/dashboard-nav-icons-transparent-source.png`, and `tools/build-scicon-neon-dashboard-icons-v2.py` normalizes the approved silhouettes into the production strip. Only the optimized runtime sheet is shipped from `public/`.
 

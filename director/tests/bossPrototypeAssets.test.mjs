@@ -178,7 +178,7 @@ test('fixed content-addressed prototype routes serve only hash-verified PNG asse
     prototypeAssets: localPrototypeAssets
   });
 
-  assert.equal(PROTOTYPE_ASSET_DEFINITIONS.length, 26);
+  assert.equal(PROTOTYPE_ASSET_DEFINITIONS.length, 29);
   for (const asset of PROTOTYPE_ASSET_DEFINITIONS) {
     const response = await requestBuffer(port, `/__director${asset.route}`);
     assert.equal(response.status, 200);

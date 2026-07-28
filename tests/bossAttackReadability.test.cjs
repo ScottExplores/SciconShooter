@@ -76,26 +76,51 @@ const loadCrossBeamLifetimeHelper = () => {
   return module.exports.resolveCrossBeamLifetime;
 };
 
-test('Stage 6 Violet Arbiter keeps its health budget while reducing stacked pressure', () => {
+test('Mission 10 Eclipse Engine keeps its authored budget while charged lanes stay readable', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
-  const stage = campaign.levels.find((level) => level.order === 6);
-  const boss = stage.waves
-    .flatMap((wave) => wave.events)
-    .find((event) => event.id === 'helix-convergence-final-boss');
+  const migration = JSON.parse(
+    fs.readFileSync(path.join(root, 'game-config', 'campaign-migration-v22.json'), 'utf8')
+  );
+  const missionSix = campaign.levels.find((level) => level.order === 6);
+  const missionTen = campaign.levels.find((level) => level.order === 10);
+  const boss = missionTen.waves[0].events.find((event) => event.kind === 'boss');
 
+  assert.equal(campaign.revision, 22);
+  assert.equal(missionSix.campaignProgression.missionRole, 'introduction');
+  assert.equal(
+    missionSix.waves.flatMap((wave) => wave.events).some((event) => event.kind === 'boss'),
+    false,
+    'the former Violet Arbiter Mission is now the second-sector introduction'
+  );
+  assert.equal(missionTen.campaignProgression.missionRole, 'major-boss');
+  assert.equal(missionTen.waves.length, 1, 'major-boss Missions launch their boss directly');
+  assert.equal(migration.bossEventAliases['helix-convergence-final-boss'], 'null-sector-final-boss');
   assert.ok(boss);
-  assert.equal(boss.health, 820);
-  assert.equal(boss.shieldCount, 0);
-  assert.equal(boss.speed, 2.05);
+  assert.equal(boss.id, 'null-sector-final-boss');
+  assert.equal(boss.bossId, 'eclipse-engine');
+  assert.equal(boss.health, 1180);
+  assert.equal(boss.shieldCount, 1);
+  assert.equal(boss.speed, 2.25);
+  assert.ok(boss.warningSeconds >= 3.4);
 
-  const burst = boss.weapons.find((weapon) => weapon.id === 'helix-convergence-radial-burst');
+  const burst = boss.weapons.find((weapon) => weapon.id === 'null-sector-radial-burst');
   assert.deepEqual(
     {
       attackIntervalSeconds: burst.attackIntervalSeconds,
       projectileSpeed: burst.projectileSpeed,
       burstCount: burst.burstCount
     },
-    { attackIntervalSeconds: 1.05, projectileSpeed: 7.8, burstCount: 7 }
+    { attackIntervalSeconds: 1.15, projectileSpeed: 8.9, burstCount: 6 }
+  );
+
+  const chargedLanes = boss.weapons.find((weapon) => weapon.id === 'null-sector-charged-lanes');
+  assert.deepEqual(
+    {
+      attackIntervalSeconds: chargedLanes.attackIntervalSeconds,
+      projectileSpeed: chargedLanes.projectileSpeed,
+      burstCount: chargedLanes.burstCount
+    },
+    { attackIntervalSeconds: 1.25, projectileSpeed: 0, burstCount: 1 }
   );
 
   assert.deepEqual(
@@ -105,17 +130,11 @@ test('Stage 6 Violet Arbiter keeps its health budget while reducing stacked pres
       speedMultiplier: phase.speedMultiplier
     })),
     [
-      { id: 'helix-convergence-phase-control', triggerHealthRatio: 1, speedMultiplier: 1 },
-      { id: 'helix-convergence-phase-crossfire', triggerHealthRatio: 0.6, speedMultiplier: 1.08 },
-      { id: 'helix-convergence-phase-collapse', triggerHealthRatio: 0.24, speedMultiplier: 1.18 }
+      { id: 'null-sector-phase-control', triggerHealthRatio: 1, speedMultiplier: 1 },
+      { id: 'null-sector-phase-crossfire', triggerHealthRatio: 0.62, speedMultiplier: 1.08 },
+      { id: 'null-sector-phase-collapse', triggerHealthRatio: 0.27, speedMultiplier: 1.18 }
     ]
   );
-
-  assert.match(engineSource, /isVioletArbiter \? 420/);
-  assert.match(engineSource, /isVioletArbiter \? 510/);
-  assert.match(engineSource, /isVioletArbiter \? 60 : 54/);
-  assert.match(engineSource, /Math\.max\(330, 354 - Math\.round\(pressure \* 24\)\)/);
-  assert.match(engineSource, /cycleLength - \(isVioletArbiter \? 76 : 70\)/);
 
   const resolveCrossBeamLifetime = loadCrossBeamLifetimeHelper();
   assert.equal(resolveCrossBeamLifetime(true), 46);
@@ -136,6 +155,60 @@ test('Stage 6 Violet Arbiter keeps its health budget while reducing stacked pres
   );
   const warningBranch = engineSource.slice(warningBranchStart, warningBranchEnd);
   assert.match(warningBranch, /spawnBossCrossBeamPair\(boss, true, warningFrames\)/);
+});
+
+test('late-sector major bosses preserve escalation while reserving shorter lethal phases', () => {
+  const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
+  const expected = new Map([
+    [10, {
+      health: 1180,
+      speed: 2.25,
+      shields: 1,
+      burstInterval: 1.15,
+      projectileSpeed: 8.9,
+      laneInterval: 1.25,
+      laneBurst: 1,
+      phaseTriggers: [1, 0.62, 0.27]
+    }],
+    [15, {
+      health: 1650,
+      speed: 2.5,
+      shields: 2,
+      burstInterval: 1.2,
+      projectileSpeed: 9.25,
+      laneInterval: 1.3,
+      laneBurst: 2,
+      phaseTriggers: [1, 0.5, 0.18]
+    }],
+    [20, {
+      health: 2100,
+      speed: 2.75,
+      shields: 3,
+      burstInterval: 1.25,
+      projectileSpeed: 9.5,
+      laneInterval: 1.35,
+      laneBurst: 3,
+      phaseTriggers: [1, 0.46, 0.15]
+    }]
+  ]);
+
+  for (const [missionNumber, contract] of expected) {
+    const level = campaign.levels.find((entry) => entry.order === missionNumber);
+    const boss = level.waves[0].events.find((event) => event.kind === 'boss');
+    const burst = boss.weapons.find((weapon) => weapon.weaponId === 'burst-volley');
+    const lane = boss.weapons.find((weapon) => weapon.weaponId === 'lane-beam');
+
+    assert.equal(level.campaignProgression.missionRole, 'major-boss');
+    assert.equal(boss.health, contract.health);
+    assert.equal(boss.speed, contract.speed);
+    assert.equal(boss.shieldCount, contract.shields);
+    assert.equal(burst.attackIntervalSeconds, contract.burstInterval);
+    assert.equal(burst.projectileSpeed, contract.projectileSpeed);
+    assert.equal(burst.burstCount, 6, 'the authored radial identity is retained');
+    assert.equal(lane.attackIntervalSeconds, contract.laneInterval);
+    assert.equal(lane.burstCount, contract.laneBurst, 'sector lane pressure still escalates');
+    assert.deepEqual(boss.phases.map((phase) => phase.triggerHealthRatio), contract.phaseTriggers);
+  }
 });
 
 test('every generated heavy attack is preceded by its paired warning and followed by recovery', () => {

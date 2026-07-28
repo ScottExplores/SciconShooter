@@ -143,7 +143,8 @@ test('boss action presentation uses simulation frames and preserves authored act
       stage: 'warning',
       startFrame: 120,
       endFrame: 165,
-      sequence: 6
+      sequence: 6,
+      projectileCount: 18
     }
   );
   assert.doesNotMatch(source, /Math\.random/);
@@ -273,6 +274,53 @@ test('paired-cannon presentation preserves all moving-channel tuning parameters'
       channelWidthPixels: 104,
       sweepRangeRatio: 0.36,
       sweepPasses: 2
+    }
+  );
+});
+
+test('Frontier barrage presentation preserves its authored sequential-fire tuning', () => {
+  const actionRuntime = loadTypeScriptModule(
+    path.join('services', 'gameplay', 'bosses', 'BossActionPresentationRuntime.ts')
+  ).exports;
+  const sourceClip = {
+    id: 'frontier-bastion-barrage',
+    label: 'Bastion Crabwalk Barrage',
+    track: 'attack',
+    primitiveId: 'bastion-crabwalk-barrage',
+    trigger: 'time',
+    startSeconds: 4,
+    durationSeconds: 2.4,
+    parameters: {
+      sequence: 2,
+      projectileCount: 12,
+      shotIntervalFrames: 5,
+      projectileSpeedScale: 1.08,
+      motionCue: 'frontier-bastion-crabwalk'
+    }
+  };
+  const state = actionRuntime.createBossActionPresentationState({
+    cueClip: sourceClip,
+    sourceClip,
+    stage: 'fire',
+    attackFrame: 240,
+    executionIndex: 1,
+    framesPerSecond: 60
+  });
+
+  assert.deepEqual(
+    {
+      sequence: state.sequence,
+      projectileCount: state.projectileCount,
+      shotIntervalFrames: state.shotIntervalFrames,
+      projectileSpeedScale: state.projectileSpeedScale,
+      motionCue: state.motionCue
+    },
+    {
+      sequence: 3,
+      projectileCount: 12,
+      shotIntervalFrames: 5,
+      projectileSpeedScale: 1.08,
+      motionCue: 'frontier-bastion-crabwalk'
     }
   );
 });

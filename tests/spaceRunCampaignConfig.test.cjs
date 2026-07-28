@@ -51,8 +51,8 @@ const spaceRuns = [
   }
 ];
 
-test('campaign revision 20 maps stages and every internal wave to five continuous space runs', () => {
-  assert.equal(campaign.revision, 20);
+test('campaign revision 22 keeps every Mission and internal Wave on its authored continuous space run', () => {
+  assert.equal(campaign.revision, 22);
   assert.deepEqual(
     campaign.levels.slice(0, 5).map((level) => level.backgroundId),
     ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']

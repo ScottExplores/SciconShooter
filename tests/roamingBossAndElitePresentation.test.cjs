@@ -22,25 +22,24 @@ const findCampaignEvent = (eventId) => {
   return event;
 };
 
-test('Citation Storm is a bossless stage built around compact elite hunter packs', () => {
+test('Citation Storm is a bossless formation-remix Mission with compact authored formation packs', () => {
   const stage = findCampaignLevel('stage-citation-storm');
   const events = stage.waves.flatMap((wave) => wave.events);
+  const packedSpawns = events.filter((event) => event.kind === 'spawn' && event.patternId !== 'single-random');
 
-  const eliteEvent = findCampaignEvent('citation-storm-elite-reviewers');
-  assert.equal(eliteEvent.kind, 'spawn');
-  assert.equal(eliteEvent.blocksWaveClock, false);
-  assert.equal(eliteEvent.patternId, 'diamond');
-  assert.equal(eliteEvent.count, 4);
-  assert.equal(eliteEvent.enemies[0].rank, 'elite');
-  assert.equal(eliteEvent.enemies[0].attackPatternId, 'aimed-burst');
-  assert.ok(eliteEvent.enemies[0].sizeMultiplier > 1);
+  assert.equal(stage.campaignProgression.missionRole, 'formation-remix');
+  assert.ok(packedSpawns.length >= 4);
+  assert.ok(packedSpawns.some((event) => event.patternId === 'spiral'));
+  assert.ok(packedSpawns.some((event) => event.patternId === 'diamond'));
+  assert.ok(packedSpawns.every((event) => event.count >= 3));
+  assert.ok(packedSpawns.every((event) => event.formationPackIds === undefined));
 
   assert.ok(stage.waves.every((wave) => wave.completionRule === 'clear-after-duration'));
-  assert.equal(events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'), false);
+  assert.equal(events.some((event) => event.kind === 'boss'), false);
 
-  const overseer = findCampaignEvent('bastion-protocol-gatekeeper');
+  const overseer = findCampaignEvent('open-orbit-gatekeeper');
   assert.equal(overseer.movementPatternId, 'gatekeeper-cycle');
-  assert.equal(overseer.rigId, 'crown-claw');
+  assert.equal(overseer.rigId, 'open-orbit');
 });
 
 test('the real engine owns roaming attacks, cross-beam danger, and elite firing', () => {

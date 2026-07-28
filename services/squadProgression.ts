@@ -31,8 +31,8 @@ import {
 } from './campaignProgression';
 export type { CampaignProgress } from './campaignProgression';
 
-export const SQUAD_PROFILE_VERSION = 3;
-const RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = [1, 2] as const;
+export const SQUAD_PROFILE_VERSION = 4;
+const RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = [1, 2, 3] as const;
 const PERMANENT_SQUAD_PROFILE_VERSION = 1;
 export const MAIN_SHIP_UPGRADE_MAX_LEVEL = FIRE_RATE_LEVELS_PER_TIER;
 export const MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL;
@@ -118,6 +118,12 @@ export interface WeeklySquadState {
   profileId: string;
   weekKey: string;
   coins: number;
+  /**
+   * Unspent coins originating from one-time Campaign rewards. This is a
+   * protected subset of `coins`: seasonal earnings are spent first and this
+   * remainder survives the Sunday competition rollover.
+   */
+  durableCampaignCoins: number;
   unlockedSlots: Record<SquadSlotId, boolean>;
   ownedMiniShips: Partial<Record<MiniShipId, number>>;
   equipped: Record<SquadSlotId, MiniShipId | null>;
@@ -420,6 +426,7 @@ export const createWeeklySquadState = (
   profileId: normalizeProfileId(profileId),
   weekKey,
   coins: WEEKLY_STARTING_COINS,
+  durableCampaignCoins: 0,
   unlockedSlots: { left: false, right: false },
   ownedMiniShips: {},
   equipped: { left: null, right: null },
@@ -442,7 +449,8 @@ export const rollWeeklySquadStateForward = (
   version: SQUAD_PROFILE_VERSION,
   profileId: normalizeProfileId(state.profileId),
   weekKey,
-  coins: WEEKLY_STARTING_COINS,
+  coins: WEEKLY_STARTING_COINS + Math.max(0, Math.floor(state.durableCampaignCoins || 0)),
+  durableCampaignCoins: Math.max(0, Math.floor(state.durableCampaignCoins || 0)),
   weeklyStats: createWeeklySquadStats(),
   updatedAt: nowIso()
 });
@@ -504,12 +512,18 @@ const sanitizeWeeklyState = (
   if (!value.shipUpgrades && legacyUpgrades) {
     shipUpgrades.researchhub = sanitizeMainShipUpgradeLevels(legacyUpgrades);
   }
+  const coins = Math.max(0, Math.floor(Number(value.coins) || 0));
+  const durableCampaignCoins = Math.min(
+    coins,
+    Math.max(0, Math.floor(Number(value.durableCampaignCoins) || 0))
+  );
   return {
     ...fallback,
     ...currentValue,
     version: SQUAD_PROFILE_VERSION,
     profileId: normalizeProfileId(profileId),
-    coins: Math.max(0, Math.floor(Number(value.coins) || 0)),
+    coins,
+    durableCampaignCoins,
     unlockedSlots: {
       left: Boolean(value.unlockedSlots?.left),
       right: Boolean(value.unlockedSlots?.right)
@@ -856,6 +870,10 @@ const mergeWeeklySquadProfiles = (
   return {
     ...target,
     coins: Math.max(target.coins, source.coins),
+    durableCampaignCoins: Math.min(
+      Math.max(target.coins, source.coins),
+      Math.max(target.durableCampaignCoins, source.durableCampaignCoins)
+    ),
     unlockedSlots,
     ownedMiniShips,
     equipped,
@@ -1016,11 +1034,22 @@ export const migrateLegacySquadProfile = (
   return result;
 };
 
-const spendCoins = (state: WeeklySquadState, cost: number) => ({
-  ...state,
-  coins: state.coins - cost,
-  updatedAt: nowIso()
-});
+const spendCoins = (state: WeeklySquadState, cost: number) => {
+  const normalizedCost = Math.max(0, Math.floor(Number(cost) || 0));
+  const coins = Math.max(0, Math.floor(Number(state.coins) || 0));
+  const durableCampaignCoins = Math.min(
+    coins,
+    Math.max(0, Math.floor(Number(state.durableCampaignCoins) || 0))
+  );
+  const seasonalCoins = coins - durableCampaignCoins;
+  const durableCoinsSpent = Math.max(0, normalizedCost - seasonalCoins);
+  return {
+    ...state,
+    coins: Math.max(0, coins - normalizedCost),
+    durableCampaignCoins: Math.max(0, durableCampaignCoins - durableCoinsSpent),
+    updatedAt: nowIso()
+  };
+};
 
 export const unlockSquadSlot = (state: WeeklySquadState, slot: SquadSlotId): WeeklySquadState => {
   if (state.unlockedSlots[slot]) return state;
@@ -1186,6 +1215,9 @@ export const creditCampaignRewardGrants = (
   const creditedAmount = accepted.reduce((total, grant) => (
     total + Math.max(0, Math.floor(Number(grant.amount) || 0))
   ), 0);
+  const durableCreditedAmount = accepted.reduce((total, grant) => (
+    total + (grant.oneTime ? Math.max(0, Math.floor(Number(grant.amount) || 0)) : 0)
+  ), 0);
   if (accepted.length === 0) {
     return { state, creditedAmount: 0, creditedRewardIds: [] };
   }
@@ -1199,11 +1231,8 @@ export const creditCampaignRewardGrants = (
     state: {
       ...state,
       coins: state.coins + creditedAmount,
+      durableCampaignCoins: state.durableCampaignCoins + durableCreditedAmount,
       creditedCampaignRewardIds: Array.from(credited).slice(-1024),
-      weeklyStats: {
-        ...state.weeklyStats,
-        coinsEarned: state.weeklyStats.coinsEarned + creditedAmount
-      },
       updatedAt: nowIso()
     },
     creditedAmount,

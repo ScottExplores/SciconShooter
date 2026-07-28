@@ -3,6 +3,8 @@ import type {
   BossEvent,
   GameCampaignConfig
 } from '../game-config/types';
+import { isMajorBossId } from '../game-config/catalog';
+import * as campaignMigration from '../game-config/campaign-migration-v22.json' with { type: 'json' };
 import {
   cloneGameCampaign,
   DEFAULT_GAME_CAMPAIGN,
@@ -264,7 +266,7 @@ const buildBossArchiveCatalog = (): readonly BossArchiveEntry[] => {
       .sort((left, right) => left.order - right.order)
       .flatMap((wave) => wave.events
         .filter((event): event is BossEvent => (
-          event.kind === 'boss' && event.bossId === 'gatekeeper'
+          event.kind === 'boss' && isMajorBossId(event.bossId)
         ))
         .map((event) => {
           const artUrl = getPrimaryAssetPath(event.spriteKey);
@@ -295,7 +297,7 @@ const buildBossArchiveCatalog = (): readonly BossArchiveEntry[] => {
             waveNumber: wave.order,
             spriteKey: event.spriteKey,
             artUrl,
-            subtitle: RIG_CLASSIFICATIONS[event.rigId ?? ''] ?? 'ARCHIVE GATEKEEPER',
+            subtitle: RIG_CLASSIFICATIONS[event.rigId ?? ''] ?? 'MAJOR BOSS',
             description: BOSS_ARCHIVE_DESCRIPTIONS[event.id]
               ?? `${event.label} commands the final defense of ${level.name}.`,
             mechanicTags: buildMechanicTags(event),
@@ -354,10 +356,17 @@ export const BOSS_ARCHIVE_CATALOG = buildBossArchiveCatalog();
 const BOSS_ARCHIVE_BY_NORMALIZED_ID = new Map(
   BOSS_ARCHIVE_CATALOG.map((entry) => [entry.eventId.trim().toLowerCase(), entry])
 );
+const BOSS_ARCHIVE_EVENT_ALIASES = new Map(
+  Object.entries(campaignMigration.bossEventAliases ?? {})
+    .map(([legacyId, canonicalId]) => [legacyId.trim().toLowerCase(), canonicalId] as const)
+    .filter(([, canonicalId]) => BOSS_ARCHIVE_BY_NORMALIZED_ID.has(canonicalId.trim().toLowerCase()))
+);
 
 export const normalizeBossArchiveEventId = (value: unknown): string | null => {
   if (typeof value !== 'string') return null;
-  return BOSS_ARCHIVE_BY_NORMALIZED_ID.get(value.trim().toLowerCase())?.eventId ?? null;
+  const normalized = value.trim().toLowerCase();
+  const canonical = BOSS_ARCHIVE_EVENT_ALIASES.get(normalized) ?? normalized;
+  return BOSS_ARCHIVE_BY_NORMALIZED_ID.get(canonical.toLowerCase())?.eventId ?? null;
 };
 
 /** Filters unknown values, removes duplicates, and restores campaign order. */
@@ -427,9 +436,15 @@ export const inferLegacyBossArchiveEventIds = (
     : Math.max(0, Math.min(finalMission, highestMission - 1));
 
   if (completedThrough > 0) {
-    return BOSS_ARCHIVE_CATALOG
+    const inferred = BOSS_ARCHIVE_CATALOG
       .filter((entry) => entry.missionNumber <= completedThrough)
       .map((entry) => entry.eventId);
+    if (inferred.length > 0 || bossesDefeated === 0) return inferred;
+
+    // In the pre-v22 campaign, early Gatekeeper variants appeared before the
+    // first authored sector boss. Their aliases intentionally collapse into
+    // the canonical first-sector Archive entry during migration.
+    return BOSS_ARCHIVE_CATALOG.slice(0, 1).map((entry) => entry.eventId);
   }
 
   // Very old profiles may have only a boss counter and no mission field.

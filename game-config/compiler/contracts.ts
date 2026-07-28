@@ -34,6 +34,7 @@ export interface ContentPackageManifestV1 {
   sourceCampaignId: string;
   sourceCampaignRevision: number;
   sourceCampaignHash: `sha256:${string}`;
+  campaignFieldOrder: string[];
   missionIds: string[];
 }
 

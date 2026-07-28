@@ -37,9 +37,10 @@ import {
   PLAYER_SHIPS,
   type PlayerShipId
 } from './services/playerShipService';
-import type { GameRuntimeState, WaveVictorySummary } from './services/gameLogic';
+import type { GameEngineDebugSnapshot, GameRuntimeState, WaveVictorySummary } from './services/gameLogic';
 import PauseMenu from './components/PauseMenu';
 import GameOverPresentation from './components/GameOverPresentation';
+import PixelActionButton from './components/PixelActionButton';
 import { WalletControl } from './components/WalletControl';
 import {
   adjustFounderMainShipUpgrade,
@@ -52,13 +53,19 @@ import {
   createFounderSquadSandboxState,
   emitSquadDomainEvent,
   equipMiniShip,
+  getMainShipUpgradeCost,
+  getMiniShipUpgradeCost,
   loadPermanentSquadState,
   loadWeeklySquadState,
+  MAIN_SHIP_UPGRADES,
   migrateLegacySquadProfile,
+  MINI_SHIP_CATALOG,
+  MINI_SHIP_MAX_LEVEL,
   preloadMiniShipTextures,
   purchaseMiniShip,
   savePermanentSquadState,
   saveWeeklySquadState,
+  SQUAD_SLOT_UNLOCK_COST,
   unlockSquadSlot,
   upgradeMainShip,
   upgradeMiniShip,
@@ -70,6 +77,12 @@ import {
   type WeeklySquadState
 } from './services/squadProgression';
 import {
+  calculateSquadPowerRating,
+  getCampaignRecommendedSupportIds,
+  getCampaignSupportTagsForMiniShip
+} from './services/squadPowerRating';
+import {
+  CAMPAIGN_MISSIONS,
   applyCampaignCompletion,
   createCampaignProgress,
   finalizeCampaignCompletionMetrics,
@@ -84,6 +97,22 @@ import {
   unlockAllCampaignMissions,
   type CampaignCompletionSettlement
 } from './services/campaignProgression';
+import {
+  applyFounderCampaignBranchAction,
+  canLaunchCampaignBranch,
+  settleCampaignBranchAttempt
+} from './services/campaignBranchProgression';
+import {
+  buildCampaignBranchRuntimeCampaign,
+  getCampaignBranchDefinition,
+  getCampaignBranchRuntimeWaveId,
+  isCombatBranchDefinition,
+  isPresentDropBranchDefinition,
+  verifyCampaignCombatBranchRuntimeResult,
+  verifyPresentDropRuntimeResult,
+  type CampaignCombatBranchRuntimeResult,
+  type PresentDropRuntimeResult
+} from './services/campaignBranchRuntime';
 import {
   claimAchievement as claimAchievementReward,
   claimBossArchiveMasteryEconomyReward,
@@ -107,10 +136,13 @@ import {
   loadAuthenticatedWalletProfile,
   readCachedWalletProfile,
   saveAuthenticatedWalletProfile,
+  settleWalletCampaignBranch,
   settleWalletBossArchiveChallenge,
+  startWalletCampaignBranch,
   startWalletBossArchiveChallenge,
   WalletProfileRequestError,
   type WalletBossArchiveChallengeRun,
+  type WalletCampaignBranchAttempt,
   type WalletProfileSnapshot
 } from './services/walletProfileService';
 import {
@@ -147,11 +179,18 @@ const loadStoryTransmission = () => import('./components/StoryTransmission');
 const MissionRecordPreview = React.lazy(() => import('./components/MissionRecordPreview'));
 const WeeklyProposalSelection = React.lazy(() => import('./components/WeeklyProposalSelection'));
 const WaveVictoryOverlay = React.lazy(() => import('./components/WaveVictoryOverlay'));
+const CampaignBranchResultOverlay = React.lazy(() => import('./components/CampaignBranchResultOverlay'));
 const CampaignMap = React.lazy(() => import('./components/CampaignMap'));
 const GameStage = React.lazy(loadGameStage);
 const StoryTransmission = React.lazy(loadStoryTransmission);
 import type {
   CampaignMapDeveloperControls,
+  CampaignMapBranchDefinition,
+  CampaignMapBranchLaunchRequest,
+  CampaignMapBranchProgress,
+  CampaignLabLaunchRequest,
+  CampaignLabLoadoutPreset,
+  CampaignLabTelemetry,
   CampaignMapLaunchRequest,
   CampaignMapStatus
 } from './components/CampaignMap';
@@ -169,10 +208,73 @@ const MISSION_LOADING_TIPS = [
 ] as const;
 
 const AUTHORED_CAMPAIGN_STAGE_COUNT = Math.max(1, DEFAULT_GAME_CAMPAIGN.levels.length);
+const CAMPAIGN_BRANCH_DEFINITIONS = DEFAULT_GAME_CAMPAIGN.campaignBranches ?? [];
+const CAMPAIGN_MAP_BRANCHES: CampaignMapBranchDefinition[] = CAMPAIGN_BRANCH_DEFINITIONS.map((branch) => ({
+  branchId: branch.branchId,
+  sourceMissionId: branch.sourceMissionId,
+  displayName: branch.displayName,
+  hiddenName: branch.hiddenName,
+  missionType: branch.missionType === 'elite-remix'
+    ? 'elite-challenge'
+    : branch.missionType === 'mini-boss-signal'
+      ? 'mini-boss-challenge'
+      : branch.missionType,
+  requiredStars: branch.requiredStars,
+  mapPosition: branch.mapPosition,
+  routeControlPoints: branch.routeControlPoints,
+  icon: branch.icon,
+  lockedIcon: branch.lockedIcon,
+  rewardPreview: `${branch.rewardPreview.label} / ${branch.rewardPreview.minimumCoins}-${branch.rewardPreview.maximumCoins} COINS`,
+  oneTimeCompletion: branch.oneTimeCompletion,
+  replayPolicy: branch.replayPolicy === 'no-replay-after-claim' ? 'one-time' : 'repeatable',
+  missionDefinitionId: branch.missionDefinitionId,
+  returnNodeId: branch.returnNodeId,
+  nextBranchNodeId: branch.nextBranchNodeId ?? undefined,
+  discoveryState: 'locked'
+}));
 
 const getRandomMissionLoadingTip = () => (
   MISSION_LOADING_TIPS[Math.floor(Math.random() * MISSION_LOADING_TIPS.length)]
 );
+
+const getNewlyAffordableSquadUpgrade = (
+  state: WeeklySquadState,
+  nextCoinBalance: number,
+  shipId: PlayerShipId
+) => {
+  const before = Math.max(0, Math.floor(state.coins));
+  const after = Math.max(before, Math.floor(nextCoinBalance));
+  if (after <= before) return null;
+  const candidates: Array<{ cost: number; label: string }> = [];
+  (['left', 'right'] as const).forEach((slot) => {
+    if (!state.unlockedSlots[slot]) {
+      candidates.push({
+        cost: SQUAD_SLOT_UNLOCK_COST[slot],
+        label: `${slot === 'left' ? 'Left' : 'Right'} Wing unlock`
+      });
+    }
+  });
+  MINI_SHIP_CATALOG.forEach((miniShip) => {
+    const level = state.ownedMiniShips[miniShip.id] ?? 0;
+    if (level <= 0 && miniShip.purchaseCost > 0) {
+      candidates.push({ cost: miniShip.purchaseCost, label: `${miniShip.name} unlock` });
+    } else if (level > 0 && level < MINI_SHIP_MAX_LEVEL) {
+      candidates.push({
+        cost: getMiniShipUpgradeCost(miniShip.id, level),
+        label: `${miniShip.name} upgrade`
+      });
+    }
+  });
+  const shipUpgrades = state.shipUpgrades[shipId];
+  MAIN_SHIP_UPGRADES.forEach((upgrade) => {
+    const level = shipUpgrades?.[upgrade.id] ?? 0;
+    const cost = getMainShipUpgradeCost(upgrade.id, level);
+    if (Number.isFinite(cost)) candidates.push({ cost, label: `${upgrade.name} upgrade` });
+  });
+  return candidates
+    .filter((candidate) => candidate.cost > before && candidate.cost <= after)
+    .sort((left, right) => left.cost - right.cost)[0]?.label ?? null;
+};
 
 let gameplayPreloadPromise: Promise<void> | null = null;
 let gameplayPreloadReady = false;
@@ -250,11 +352,28 @@ const preloadGameplayComponents = (listener?: GameplayPreloadListener) => {
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
-type ActiveRunMode = 'standard' | 'campaign' | 'campaign-replay' | 'owner-test' | 'boss-archive';
+type ActiveRunMode = 'standard' | 'campaign' | 'campaign-replay' | 'campaign-lab' | 'campaign-branch' | 'owner-test' | 'boss-archive';
 type CampaignResultPresentation = {
   summaryId: string;
   settlement: CampaignCompletionSettlement;
   collectedCoins: number;
+  newlyAffordableUpgrade: string | null;
+};
+type CampaignBranchVerifiedResult = (
+  | ({ kind: 'present-drop' } & PresentDropRuntimeResult)
+  | ({ kind: 'combat' } & CampaignCombatBranchRuntimeResult)
+);
+type CampaignBranchResultPresentation = CampaignBranchVerifiedResult & {
+  branchId: string;
+  branchName: string;
+  summaryId: string;
+  duplicate: boolean;
+  newlyAffordableUpgrade: string | null;
+};
+type CampaignBranchRunContext = {
+  branchId: string;
+  serverAttempt: WalletCampaignBranchAttempt | null;
+  serverWalletAddress: string | null;
 };
 type BossArchiveRunContext = {
   eventId: string;
@@ -451,12 +570,39 @@ const App: React.FC = () => {
   const [waveContinueCommand, setWaveContinueCommand] = useState<{ nonce: number } | null>(null);
   const [waveVictorySummary, setWaveVictorySummary] = useState<WaveVictorySummary | null>(null);
   const [campaignResultPresentation, setCampaignResultPresentation] = useState<CampaignResultPresentation | null>(null);
+  const [campaignBranchResult, setCampaignBranchResult] = useState<CampaignBranchResultPresentation | null>(null);
   const [campaignMapOpen, setCampaignMapOpen] = useState(false);
   const [campaignMapStatus, setCampaignMapStatus] = useState<CampaignMapStatus>('ready');
   const [campaignMapError, setCampaignMapError] = useState('');
   const [campaignMapFocusMissionId, setCampaignMapFocusMissionId] = useState<string | null>(null);
+  const [campaignMapFocusBranchId, setCampaignMapFocusBranchId] = useState<string | null>(null);
+  const [campaignMapUnlockingBranchId, setCampaignMapUnlockingBranchId] = useState<string | null>(null);
   const [campaignMapNewMissionIds, setCampaignMapNewMissionIds] = useState<string[]>([]);
   const [activeCampaignLaunch, setActiveCampaignLaunch] = useState<CampaignMapLaunchRequest | null>(null);
+  const [activeCampaignBranchId, setActiveCampaignBranchId] = useState<string | null>(null);
+  const [campaignBranchSpawnSeed, setCampaignBranchSpawnSeed] = useState(0);
+  const [campaignBranchValueMultiplier, setCampaignBranchValueMultiplier] = useState(1);
+  const [campaignLabShipId, setCampaignLabShipId] = useState<PlayerShipId>('researchhub');
+  const initialCampaignLabSupports = getCampaignRecommendedSupportIds(
+    CAMPAIGN_MISSIONS[0]?.recommendedSupportTags ?? [],
+    2
+  );
+  const [campaignLabSupportId, setCampaignLabSupportId] = useState<string>(
+    initialCampaignLabSupports[0] ?? 'none'
+  );
+  const [campaignLabRightSupportId, setCampaignLabRightSupportId] = useState<string>('none');
+  const [campaignLabPreset, setCampaignLabPreset] = useState<CampaignLabLoadoutPreset>('expected-power');
+  const [campaignLabUpgradeLevels, setCampaignLabUpgradeLevels] = useState<Record<string, number>>({
+    fireRate: 7,
+    speed: 3,
+    startingHearts: 1,
+    supportLevel: 2
+  });
+  const [campaignLabLoopFormation, setCampaignLabLoopFormation] = useState(false);
+  const [campaignLabTelemetry, setCampaignLabTelemetry] = useState<CampaignLabTelemetry | null>(null);
+  const [campaignLabMissionId, setCampaignLabMissionId] = useState(() => CAMPAIGN_MISSIONS[0]?.id ?? 'mission-01');
+  const [campaignLabWaveId, setCampaignLabWaveId] = useState('');
+  const [activeMissionShipId, setActiveMissionShipId] = useState<PlayerShipId>('researchhub');
   const [campaignCompletedRun, setCampaignCompletedRun] = useState(false);
   const [activeRunMode, setActiveRunMode] = useState<ActiveRunMode>('standard');
   const [activeBossEncounterId, setActiveBossEncounterId] = useState<string | null>(null);
@@ -500,6 +646,11 @@ const App: React.FC = () => {
   const permanentBossAppliedKeysRef = useRef<Set<string>>(new Set());
   const processedCampaignSummaryKeysRef = useRef<Set<string>>(new Set());
   const campaignAttemptIdRef = useRef('');
+  const campaignRunMasteryEligibleRef = useRef(false);
+  const campaignBranchRunRef = useRef<CampaignBranchRunContext | null>(null);
+  const campaignBranchAttemptSettledRef = useRef(false);
+  const campaignBranchCoinBaselineRef = useRef<number | null>(null);
+  const campaignLabActiveRequestRef = useRef<CampaignLabLaunchRequest | null>(null);
   const campaignRunCreditedEnemiesRef = useRef(0);
   const campaignResultPreviewRef = useRef(false);
   const weeklySquadStateRef = useRef(weeklySquadState);
@@ -669,17 +820,88 @@ const App: React.FC = () => {
   }, [donatedWallets, walletError, walletRuntimeAction?.type, walletSession]);
   const activeWalletAddress = wallet.address ?? null;
   const isOwnerWallet = activeWalletAddress?.toLowerCase() === DONATION_CONFIG.RECIPIENT_ADDRESS.toLowerCase();
+  const founderAuthorizationRef = useRef(Boolean(isOwnerWallet));
+  founderAuthorizationRef.current = Boolean(isOwnerWallet);
   const isOwnerTestRun = activeRunMode === 'owner-test';
   const isBossArchiveRun = activeRunMode === 'boss-archive';
-  const isCampaignRun = activeRunMode === 'campaign' || activeRunMode === 'campaign-replay';
+  const isCampaignBranchRun = activeRunMode === 'campaign-branch';
+  const isCampaignLabRun = activeRunMode === 'campaign-lab';
+  const isCampaignRun = activeRunMode === 'campaign' || activeRunMode === 'campaign-replay' || isCampaignLabRun;
   const isFounderSandboxRun = isOwnerWallet || isOwnerTestRun;
-  const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun;
+  const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun || isCampaignRun || isCampaignBranchRun;
   const activeBossReplay = useMemo(() => (
     activeBossEncounterId ? getBossArchiveEntry(activeBossEncounterId) : null
   ), [activeBossEncounterId]);
   const activeBossReplayCampaign = useMemo(() => (
     activeBossEncounterId ? buildBossReplayCampaign(activeBossEncounterId) ?? undefined : undefined
   ), [activeBossEncounterId]);
+  const activeCampaignBranch = useMemo(() => (
+    activeCampaignBranchId
+      ? getCampaignBranchDefinition(DEFAULT_GAME_CAMPAIGN, activeCampaignBranchId)
+      : null
+  ), [activeCampaignBranchId]);
+  const activeCampaignBranchCampaign = useMemo(() => (
+    activeCampaignBranch
+      ? buildCampaignBranchRuntimeCampaign(DEFAULT_GAME_CAMPAIGN, activeCampaignBranch, {
+          spawnSeed: isOwnerWallet ? campaignBranchSpawnSeed : 0,
+          valueMultiplier: isOwnerWallet ? campaignBranchValueMultiplier : 1
+        })
+      : undefined
+  ), [activeCampaignBranch, campaignBranchSpawnSeed, campaignBranchValueMultiplier, isOwnerWallet]);
+  const campaignMapBranchProgress = useMemo<Record<string, CampaignMapBranchProgress>>(() => (
+    Object.fromEntries(CAMPAIGN_BRANCH_DEFINITIONS.map((branch) => {
+      const progress = permanentSquadState.campaignProgress.branchProgress;
+      const founderLocked = progress.founderLockedBranchIds.includes(branch.branchId);
+      const claimed = !founderLocked && progress.claimedBranchIds.includes(branch.branchId);
+      const completed = !founderLocked && progress.completedBranchIds.includes(branch.branchId);
+      const unlocked = !founderLocked && progress.unlockedBranchIds.includes(branch.branchId);
+      const isNew = !founderLocked && progress.newBranchIds.includes(branch.branchId);
+      const lastReceipt = [...progress.attemptReceipts]
+        .reverse()
+        .find((receipt) => receipt.branchId === branch.branchId && receipt.outcome === 'success');
+      const baseCacheReward = branch.completionReward.baseCoins;
+      const oneTimeCompletionBonus = branch.completionReward.oneTimeBonusCoins;
+      const branchKind = isPresentDropBranchDefinition(branch) ? 'present-drop' : 'combat';
+      const objectiveLabel = branch.missionType === 'support-trial'
+        ? 'Trial encounters'
+        : branch.missionType === 'formation-challenge'
+          ? 'Formation encounters'
+          : 'Elite encounters';
+      return [branch.branchId, {
+        discoveryState: claimed
+          ? 'claimed'
+          : completed
+            ? 'completed'
+            : isNew
+              ? 'new'
+              : unlocked
+                ? 'unlocked'
+                : 'locked',
+        unlocked,
+        completed,
+        claimed,
+        isNew,
+        lastResult: lastReceipt ? {
+          kind: branchKind,
+          objectiveLabel,
+          objectiveUnitsCompleted: lastReceipt.presentsDestroyed,
+          presentsDestroyed: lastReceipt.presentsDestroyed,
+          standard: lastReceipt.destroyedByType.standard,
+          armored: lastReceipt.destroyedByType.armored,
+          fast: lastReceipt.destroyedByType.fast,
+          golden: lastReceipt.destroyedByType.golden,
+          collectedPresentCoins: Math.max(
+            0,
+            lastReceipt.coinsAwarded - baseCacheReward - oneTimeCompletionBonus
+          ),
+          baseReward: baseCacheReward,
+          oneTimeCompletionBonus,
+          totalCoins: lastReceipt.coinsAwarded,
+          completedAt: lastReceipt.completedAt
+        } : undefined
+      } satisfies CampaignMapBranchProgress];
+    }))
+  ), [permanentSquadState.campaignProgress.branchProgress]);
   const campaignCheckpoint = useMemo(() => (
     getCampaignCheckpointLabel(permanentSquadState.campaignProgress)
   ), [permanentSquadState.campaignProgress]);
@@ -714,7 +936,7 @@ const App: React.FC = () => {
     };
   }, [activeWalletAddress, isOwnerWallet, permanentSquadState.unlockedPlayerShips, walletRecords]);
   const usableShipId = getUsablePlayerShip(selectedShipId, shipUnlocks);
-  const playerShipUrl = PLAYER_SHIPS[usableShipId].assetUrl;
+  const activeMissionPlayerShipUrl = PLAYER_SHIPS[activeMissionShipId].assetUrl;
 
   const updateWeeklySquadState = useCallback((
     update: (current: WeeklySquadState) => WeeklySquadState,
@@ -753,9 +975,16 @@ const App: React.FC = () => {
     });
   }, [updatePermanentSquadState]);
   const bossArchiveDeveloperApi = useMemo(
-    () => createBossArchiveDeveloperControls(Boolean(import.meta.env.DEV || isOwnerWallet)),
+    () => isOwnerWallet
+      ? createBossArchiveDeveloperControls(() => founderAuthorizationRef.current)
+      : null,
     [isOwnerWallet]
   );
+  const runBossArchiveFounderAction = useCallback((action: () => void) => {
+    if (!founderAuthorizationRef.current) return false;
+    action();
+    return true;
+  }, []);
   const updateBossArchiveProgress = useCallback((
     update: (current: PermanentSquadState['bossArchive']) => PermanentSquadState['bossArchive']
   ) => {
@@ -1456,6 +1685,8 @@ const App: React.FC = () => {
       || activeRunMode === 'boss-archive'
       || activeRunMode === 'campaign'
       || activeRunMode === 'campaign-replay'
+      || activeRunMode === 'campaign-lab'
+      || activeRunMode === 'campaign-branch'
     ) return;
     if (gameState !== GameState.PLAYING && gameState !== GameState.PAUSED) return;
 
@@ -1477,22 +1708,39 @@ const App: React.FC = () => {
     bossEncounterId: string | null = null,
     bossMode: BossArchiveRunMode = 'practice',
     bossVariantId = 'standard',
-    campaignRequest: CampaignMapLaunchRequest | null = null
+    campaignRequest: CampaignMapLaunchRequest | null = null,
+    branchRequest: CampaignMapBranchLaunchRequest | null = null,
+    campaignLabRequest: CampaignLabLaunchRequest | null = null
   ) => {
     if (missionLaunchPendingRef.current) return;
+
+    const authorizedCampaignLabRequest = campaignLabRequest && founderAuthorizationRef.current
+      ? campaignLabRequest
+      : null;
+    if (campaignLabRequest && !authorizedCampaignLabRequest) {
+      setCampaignMapStatus('launch-error');
+      setCampaignMapError('Campaign Lab launch rejected: connect the authorized founder wallet.');
+      return;
+    }
 
     const requestedBossReplay = bossEncounterId ? getBossArchiveEntry(bossEncounterId) : null;
     const requestedCampaignMission = campaignRequest
       ? getCampaignMissionById(campaignRequest.missionId)
       : null;
+    const requestedCampaignBranch = branchRequest
+      ? getCampaignBranchDefinition(DEFAULT_GAME_CAMPAIGN, branchRequest.branchId)
+      : null;
     const normalizedCampaignRequest = campaignRequest && requestedCampaignMission
       ? {
           ...campaignRequest,
-          waveId: requestedCampaignMission.waveIds[0]
+          waveId: requestedCampaignMission.waveIds.includes(campaignRequest.waveId)
+            ? campaignRequest.waveId
+            : requestedCampaignMission.waveIds[0]
         }
       : campaignRequest;
     if (
       campaignRequest
+      && !authorizedCampaignLabRequest
       && (
         !requestedCampaignMission
         || !isCampaignMissionUnlocked(
@@ -1502,12 +1750,27 @@ const App: React.FC = () => {
         || !isCampaignWaveUnlocked(
           permanentSquadStateRef.current.campaignProgress,
           campaignRequest.missionId,
-          requestedCampaignMission.waveIds[0]
+          normalizedCampaignRequest?.waveId ?? requestedCampaignMission.waveIds[0]
         )
       )
     ) {
       setCampaignMapStatus('launch-error');
       setCampaignMapError('That Mission checkpoint is still locked. Continue the illuminated route first.');
+      return;
+    }
+    if (
+      branchRequest
+      && (
+        !requestedCampaignBranch
+        || !canLaunchCampaignBranch(
+          permanentSquadStateRef.current.campaignProgress.branchProgress,
+          requestedCampaignBranch
+        )
+      )
+    ) {
+      setCampaignMapStatus('launch-error');
+      setCampaignMapError('This optional route is still encrypted or its one-time cache was already recovered.');
+      setCampaignMapOpen(true);
       return;
     }
     if (
@@ -1580,8 +1843,63 @@ const App: React.FC = () => {
       }
     }
 
-    const runMode: ActiveRunMode = requestedBossReplay
+    const requiresServerBranchSettlement = Boolean(
+      requestedCampaignBranch
+      && activeWalletAddress
+      && !isOwnerWallet
+      && !import.meta.env.DEV
+    );
+    let serverBranchAttempt: WalletCampaignBranchAttempt | null = null;
+    let serverBranchWalletAddress: string | null = null;
+    if (requiresServerBranchSettlement) {
+      if (walletProfileStatus !== 'ready') {
+        setCampaignMapStatus('launch-error');
+        setCampaignMapError('Reconnect this wallet profile before starting the one-time bonus route.');
+        setCampaignMapOpen(true);
+        return;
+      }
+      try {
+        const normalizedAddress = activeWalletAddress!.toLowerCase();
+        serverBranchWalletAddress = normalizedAddress;
+        const startTask = walletProfileSaveChainRef.current
+          .catch(() => undefined)
+          .then(async () => {
+            const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
+            if (flushedProfile) {
+              walletProfileRevisionRef.current = flushedProfile.revision;
+              walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+              cacheWalletProfile(flushedProfile);
+            }
+            return startWalletCampaignBranch({
+              walletAddress: normalizedAddress,
+              branchId: requestedCampaignBranch!.branchId
+            });
+          });
+        walletProfileSaveChainRef.current = startTask.then(
+          () => undefined,
+          () => undefined
+        );
+        serverBranchAttempt = await startTask;
+        setWalletError('');
+      } catch (error) {
+        console.error('Campaign bonus route start failed', error);
+        setCampaignMapStatus('launch-error');
+        setCampaignMapError(
+          error instanceof Error
+            ? error.message
+            : 'The one-time bonus route could not be authorized. Reconnect and try again.'
+        );
+        setCampaignMapOpen(true);
+        return;
+      }
+    }
+
+    const runMode: ActiveRunMode = authorizedCampaignLabRequest
+      ? 'campaign-lab'
+      : requestedBossReplay
       ? 'boss-archive'
+      : requestedCampaignBranch
+        ? 'campaign-branch'
       : normalizedCampaignRequest?.kind === 'replay'
         ? 'campaign-replay'
         : normalizedCampaignRequest
@@ -1592,6 +1910,7 @@ const App: React.FC = () => {
     setActiveRunMode(runMode);
     setActiveBossEncounterId(requestedBossReplay?.eventId ?? null);
     setActiveCampaignLaunch(normalizedCampaignRequest);
+    setActiveCampaignBranchId(requestedCampaignBranch?.branchId ?? null);
 
     const launchNonce = missionLaunchNonceRef.current + 1;
     const archiveRunId = requestedBossReplay
@@ -1612,6 +1931,13 @@ const App: React.FC = () => {
       : null;
     setActiveBossArchiveRun(nextArchiveRun);
     if (nextArchiveRun) setBossArchiveResult(null);
+    campaignBranchRunRef.current = requestedCampaignBranch
+      ? {
+          branchId: requestedCampaignBranch.branchId,
+          serverAttempt: serverBranchAttempt,
+          serverWalletAddress: serverBranchWalletAddress
+        }
+      : null;
     bossArchiveDamageTakenRef.current = 0;
     const shouldShowMissionLoading = !gameplayPreloadReady;
     const loadingTip = missionLoading?.phase === 'error'
@@ -1655,9 +1981,71 @@ const App: React.FC = () => {
 
     if (missionLaunchNonceRef.current !== launchNonce) return;
 
-    const startInTestMode = runMode === 'owner-test';
+    const startInTestMode = runMode === 'owner-test' || runMode === 'campaign-lab';
     const nextGameId = gameId + 1;
-    const squadLoadout = buildRuntimeSquadLoadout(weeklySquadState, usableShipId);
+    const requestedLabShipId = authorizedCampaignLabRequest?.shipId
+      ? parsePlayerShipId(authorizedCampaignLabRequest.shipId)
+      : null;
+    const runShipId = requestedLabShipId ?? usableShipId;
+    const requestedSupportIds = authorizedCampaignLabRequest
+      ? [authorizedCampaignLabRequest.supportId, authorizedCampaignLabRequest.rightSupportId]
+      : [];
+    const campaignLabSupports = requestedSupportIds.reduce<Array<(typeof MINI_SHIP_CATALOG)[number]>>(
+      (supports, supportId) => {
+        if (!supportId || supportId === 'none' || supports.some((entry) => entry.id === supportId)) {
+          return supports;
+        }
+        const support = MINI_SHIP_CATALOG.find((entry) => entry.id === supportId);
+        if (support && supports.length < 2) supports.push(support);
+        return supports;
+      },
+      []
+    );
+    const campaignLabLeftSupport = campaignLabSupports[0] ?? null;
+    const campaignLabRightSupport = campaignLabSupports[1] ?? null;
+    const clampLabLevel = (value: number | undefined, maximum: number) => (
+      Math.max(0, Math.min(maximum, Math.floor(Number(value) || 0)))
+    );
+    const campaignLabState: WeeklySquadState = authorizedCampaignLabRequest
+      ? {
+          ...weeklySquadState,
+          unlockedSlots: {
+            ...weeklySquadState.unlockedSlots,
+            left: Boolean(campaignLabLeftSupport),
+            right: Boolean(campaignLabRightSupport)
+          },
+          ownedMiniShips: campaignLabSupports.reduce((owned, support) => ({
+            ...owned,
+            [support.id]: Math.max(
+              1,
+              clampLabLevel(authorizedCampaignLabRequest.upgradeLevels.supportLevel, MINI_SHIP_MAX_LEVEL)
+            )
+          }), { ...weeklySquadState.ownedMiniShips }),
+          equipped: {
+            ...weeklySquadState.equipped,
+            left: campaignLabLeftSupport?.id ?? null,
+            right: campaignLabRightSupport?.id ?? null
+          },
+          shipUpgrades: {
+            ...weeklySquadState.shipUpgrades,
+            [runShipId]: {
+              fireRate: clampLabLevel(
+                authorizedCampaignLabRequest.upgradeLevels.fireRate,
+                MAIN_SHIP_UPGRADES.find((upgrade) => upgrade.id === 'fireRate')?.costs.length ?? 21
+              ),
+              speed: clampLabLevel(
+                authorizedCampaignLabRequest.upgradeLevels.speed,
+                MAIN_SHIP_UPGRADES.find((upgrade) => upgrade.id === 'speed')?.costs.length ?? 7
+              ),
+              startingHearts: clampLabLevel(
+                authorizedCampaignLabRequest.upgradeLevels.startingHearts,
+                MAIN_SHIP_UPGRADES.find((upgrade) => upgrade.id === 'startingHearts')?.costs.length ?? 7
+              )
+            }
+          }
+        }
+      : weeklySquadState;
+    const squadLoadout = buildRuntimeSquadLoadout(campaignLabState, runShipId);
     const startingLives = Math.min(
       GAME_CONFIG.MAX_LIVES,
       3 + squadLoadout.upgrades.startingHearts
@@ -1669,9 +2057,18 @@ const App: React.FC = () => {
     processedCampaignSummaryKeysRef.current.clear();
     campaignResultPreviewRef.current = false;
     campaignRunCreditedEnemiesRef.current = 0;
-    campaignAttemptIdRef.current = normalizedCampaignRequest
-      ? (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${launchNonce.toString(36)}`)
+    campaignRunMasteryEligibleRef.current = Boolean(
+      normalizedCampaignRequest
+      && requestedCampaignMission
+      && normalizedCampaignRequest.waveId === requestedCampaignMission.waveIds[0]
+    );
+    campaignAttemptIdRef.current = normalizedCampaignRequest || requestedCampaignBranch
+      ? (serverBranchAttempt?.attemptId
+          ?? globalThis.crypto?.randomUUID?.()
+          ?? `${Date.now().toString(36)}-${launchNonce.toString(36)}`)
       : '';
+    campaignBranchAttemptSettledRef.current = false;
+    campaignBranchCoinBaselineRef.current = requestedCampaignBranch ? stats.totalCoins : null;
     setMissionRecordPilotName(null);
     clearIntroStoryTimeout();
     lastStoryWaveRef.current = 0;
@@ -1681,7 +2078,10 @@ const App: React.FC = () => {
     setStats(prev => ({
       ...prev,
       score: 0,
-      wave: requestedBossReplay?.missionNumber ?? requestedCampaignMission?.number ?? 1,
+      wave: requestedBossReplay?.missionNumber
+        ?? requestedCampaignMission?.number
+        ?? getCampaignMissionById(requestedCampaignBranch?.sourceMissionId ?? '')?.number
+        ?? 1,
       coins: 0,
       enemiesDefeated: 0,
       bombs: 2,
@@ -1712,6 +2112,7 @@ const App: React.FC = () => {
     setWaveContinueCommand(null);
     setWaveVictorySummary(null);
     setCampaignResultPresentation(null);
+    setCampaignBranchResult(null);
     setCampaignCompletedRun(false);
     setTestWaveCommand(null);
     setTestBossCommand(null);
@@ -1734,7 +2135,10 @@ const App: React.FC = () => {
     setMissionMintStatus('idle');
     setMissionMintMessage('');
     finalizedRunGameIdRef.current = null;
-    activeRunShipIdRef.current = usableShipId;
+    activeRunShipIdRef.current = runShipId;
+    setActiveMissionShipId(runShipId);
+    campaignLabActiveRequestRef.current = authorizedCampaignLabRequest;
+    if (authorizedCampaignLabRequest) setCampaignLabTelemetry(null);
     runStartedAtRef.current = null;
     runReceiptPromiseRef.current = null;
     runSessionPromiseRef.current = null;
@@ -1747,36 +2151,49 @@ const App: React.FC = () => {
       tip: loadingTip,
       squadLoadout,
       runMode,
-      missionNumber: requestedBossReplay?.missionNumber ?? requestedCampaignMission?.number ?? 1
+      missionNumber: requestedBossReplay?.missionNumber
+        ?? requestedCampaignMission?.number
+        ?? getCampaignMissionById(requestedCampaignBranch?.sourceMissionId ?? '')?.number
+        ?? 1
     };
     setGameRuntimeReady(false);
     setGameId(nextGameId);
-    lastStoryWaveRef.current = requestedBossReplay?.missionNumber ?? requestedCampaignMission?.number ?? 1;
+    lastStoryWaveRef.current = requestedBossReplay?.missionNumber
+      ?? requestedCampaignMission?.number
+      ?? getCampaignMissionById(requestedCampaignBranch?.sourceMissionId ?? '')?.number
+      ?? 1;
     setGameState(GameState.PLAYING);
   };
 
   const startGame = () => {
-    const mission = getCampaignMissionById(campaignCheckpoint.missionId);
     void launchGame(null, 'practice', 'standard', {
       missionId: campaignCheckpoint.missionId,
-      waveId: mission?.waveIds[0] ?? campaignCheckpoint.waveId,
+      waveId: campaignCheckpoint.waveId,
       kind: 'checkpoint'
     });
   };
 
   const retryGame = () => {
+    if (isCampaignBranchRun && activeCampaignBranch) {
+      void launchGame(null, 'practice', 'standard', null, {
+        branchId: activeCampaignBranch.branchId,
+        sourceMissionId: activeCampaignBranch.sourceMissionId,
+        missionDefinitionId: activeCampaignBranch.missionDefinitionId,
+        kind: 'branch'
+      });
+      return;
+    }
     if (isCampaignRun && activeCampaignLaunch) {
-      const currentMissionNumber = Math.max(1, Math.floor(stats.wave));
-      const activeLevel = DEFAULT_GAME_CAMPAIGN.levels.find((level) => level.order === currentMissionNumber);
-      const mission = activeLevel ? getCampaignMissionById(activeLevel.id) : null;
-      if (mission) {
-        void launchGame(null, 'practice', 'standard', {
-          ...activeCampaignLaunch,
-          missionId: mission.id,
-          waveId: mission.waveIds[0]
-        });
-        return;
-      }
+      const checkpoint = getCampaignCheckpointLabel(permanentSquadStateRef.current.campaignProgress);
+      const retryRequest = activeCampaignLaunch.kind === 'replay'
+        ? activeCampaignLaunch
+        : {
+            missionId: checkpoint.missionId,
+            waveId: checkpoint.waveId,
+            kind: 'checkpoint' as const
+          };
+      void launchGame(null, 'practice', 'standard', retryRequest);
+      return;
     }
     startGame();
   };
@@ -1803,7 +2220,7 @@ const App: React.FC = () => {
     missionLaunchPendingRef.current = false;
     setGameRuntimeReady(true);
     setMissionLoading(null);
-    if (pendingLaunch.runMode === 'boss-archive') {
+    if (pendingLaunch.runMode === 'boss-archive' || pendingLaunch.runMode === 'campaign-branch') {
       setIntroMissionLocked(false);
       return;
     }
@@ -1851,6 +2268,10 @@ const App: React.FC = () => {
   };
 
   const resetGame = () => {
+    if (isCampaignBranchRun && campaignBranchCoinBaselineRef.current !== null) {
+      const baseline = campaignBranchCoinBaselineRef.current;
+      setStats((current) => ({ ...current, coins: 0, totalCoins: baseline }));
+    }
     missionLaunchNonceRef.current += 1;
     missionLaunchPendingRef.current = false;
     pendingMissionRuntimeRef.current = null;
@@ -1863,10 +2284,13 @@ const App: React.FC = () => {
     setShowTestChampionPreview(false);
     setWaveVictorySummary(null);
     setCampaignResultPresentation(null);
+    setCampaignBranchResult(null);
     setCampaignMapOpen(false);
     setCampaignMapStatus('ready');
     setCampaignMapError('');
     setCampaignMapFocusMissionId(null);
+    setCampaignMapFocusBranchId(null);
+    setCampaignMapUnlockingBranchId(null);
     setCampaignMapNewMissionIds([]);
     setCampaignCompletedRun(false);
     setWaveContinueCommand(null);
@@ -1880,8 +2304,13 @@ const App: React.FC = () => {
     setActiveBossEncounterId(null);
     setActiveBossArchiveRun(null);
     setActiveCampaignLaunch(null);
+    setActiveCampaignBranchId(null);
     processedCampaignSummaryKeysRef.current.clear();
     campaignAttemptIdRef.current = '';
+    campaignRunMasteryEligibleRef.current = false;
+    campaignBranchRunRef.current = null;
+    campaignBranchAttemptSettledRef.current = false;
+    campaignBranchCoinBaselineRef.current = null;
     campaignRunCreditedEnemiesRef.current = 0;
     campaignResultPreviewRef.current = false;
     setOwnerFrameFrozen(false);
@@ -1939,7 +2368,10 @@ const App: React.FC = () => {
   const openCampaignMap = (focusMissionId?: string | null) => {
     const progress = permanentSquadStateRef.current.campaignProgress;
     const newlyUnlocked = [...progress.unviewedMissionIds];
+    const newlyUnlockedBranches = [...progress.branchProgress.newBranchIds];
     setCampaignMapNewMissionIds(newlyUnlocked);
+    setCampaignMapFocusBranchId(newlyUnlockedBranches.at(-1) ?? null);
+    setCampaignMapUnlockingBranchId(newlyUnlockedBranches.at(-1) ?? null);
     setCampaignMapFocusMissionId(
       focusMissionId
       ?? newlyUnlocked.at(-1)
@@ -1961,6 +2393,7 @@ const App: React.FC = () => {
     setCampaignMapOpen(false);
     setCampaignMapStatus('ready');
     setCampaignMapError('');
+    setCampaignMapUnlockingBranchId(null);
   };
 
   const launchCampaignFromMap = (request: CampaignMapLaunchRequest) => {
@@ -1970,8 +2403,41 @@ const App: React.FC = () => {
     void launchGame(null, 'practice', 'standard', request);
   };
 
-  const applyDeveloperCampaignCompletion = (missionId: string, waveId: string, stageComplete: boolean) => {
-    if (!import.meta.env.DEV || activeWalletAddress) return;
+  const launchCampaignBranchFromMap = (request: CampaignMapBranchLaunchRequest) => {
+    setCampaignMapStatus('launch-pending');
+    setCampaignMapError('');
+    setCampaignMapOpen(false);
+    void launchGame(null, 'practice', 'standard', null, request);
+  };
+
+  const launchCampaignLabFromMap = (request: CampaignLabLaunchRequest) => {
+    if (!founderAuthorizationRef.current) {
+      setCampaignMapStatus('launch-error');
+      setCampaignMapError('Campaign Lab launch rejected: connect the authorized founder wallet.');
+      return;
+    }
+    const mission = getCampaignMissionById(request.missionId);
+    if (!mission) return;
+    const normalizedRequest: CampaignLabLaunchRequest = {
+      ...request,
+      waveId: mission.waveIds.includes(request.waveId) ? request.waveId : mission.waveIds[0]
+    };
+    campaignLabActiveRequestRef.current = normalizedRequest;
+    setCampaignLabShipId(parsePlayerShipId(normalizedRequest.shipId) ?? usableShipId);
+    setCampaignLabSupportId(normalizedRequest.supportId ?? 'none');
+    setCampaignLabRightSupportId(normalizedRequest.rightSupportId ?? 'none');
+    setCampaignLabPreset(normalizedRequest.preset);
+    setCampaignLabUpgradeLevels({ ...normalizedRequest.upgradeLevels });
+    setCampaignLabMissionId(normalizedRequest.missionId);
+    setCampaignLabWaveId(normalizedRequest.waveId);
+    setCampaignMapStatus('launch-pending');
+    setCampaignMapError('');
+    setCampaignMapOpen(false);
+    void launchGame(null, 'practice', 'standard', normalizedRequest, null, normalizedRequest);
+  };
+
+  const applyDeveloperCampaignCompletion = useCallback((missionId: string, waveId: string, stageComplete: boolean) => {
+    if (!founderAuthorizationRef.current) return;
     updatePermanentSquadState((current) => {
       const result = applyCampaignCompletion(current.campaignProgress, {
         resultId: `campaign-dev:${missionId}:${waveId}:${Date.now()}`,
@@ -1997,14 +2463,14 @@ const App: React.FC = () => {
       }
       return next;
     });
-  };
+  }, [updatePermanentSquadState]);
 
   const previewDeveloperCampaignResult = useCallback((
     missionId: string,
     waveId: string,
     stageComplete: boolean
   ) => {
-    if (!import.meta.env.DEV || activeWalletAddress) return;
+    if (!founderAuthorizationRef.current) return;
     const mission = getCampaignMissionById(missionId);
     const waveIndex = mission?.waveIds.indexOf(waveId) ?? -1;
     const wave = mission?.waves[waveIndex];
@@ -2075,30 +2541,210 @@ const App: React.FC = () => {
         grants,
         coinsAwarded: grants.reduce((total, grant) => total + grant.amount, 0)
       },
-      collectedCoins: 18
+      collectedCoins: 18,
+      newlyAffordableUpgrade: null
     });
     setWaveVictorySummary(summary);
     setCampaignMapOpen(false);
     setCampaignMapStatus('ready');
     setOwnerFrameFrozen(false);
     setGameState(GameState.WAVE_COMPLETE);
-  }, [activeWalletAddress]);
+  }, []);
 
   const campaignMapDeveloperControls = useMemo<CampaignMapDeveloperControls | null>(() => {
-    if (!import.meta.env.DEV || activeWalletAddress) return null;
+    if (!isOwnerWallet) return null;
+    const founderAuthorization = {
+      walletAddress: activeWalletAddress,
+      founderWalletAddresses: [DONATION_CONFIG.RECIPIENT_ADDRESS]
+    };
+    const commitFounderBranchAction = (
+      branchId: string,
+      action: 'unlock' | 'lock' | 'reset-completion'
+    ) => {
+      if (!founderAuthorizationRef.current) return null;
+      const current = permanentSquadStateRef.current;
+      const result = applyFounderCampaignBranchAction(
+        current.campaignProgress.branchProgress,
+        founderAuthorization,
+        action,
+        branchId,
+        CAMPAIGN_BRANCH_DEFINITIONS
+      );
+      if (!result.authorized) return null;
+      const next: PermanentSquadState = {
+        ...current,
+        campaignProgress: {
+          ...current.campaignProgress,
+          branchProgress: result.progress
+        },
+        updatedAt: new Date().toISOString()
+      };
+      permanentSquadStateRef.current = next;
+      savePermanentSquadState(next);
+      setPermanentSquadState(next);
+      return next;
+    };
+    const simulateFounderBranchOutcome = (branchId: string, outcome: 'failed' | 'success') => {
+      if (!founderAuthorizationRef.current) return;
+      const branch = getCampaignBranchDefinition(DEFAULT_GAME_CAMPAIGN, branchId);
+      const unlocked = commitFounderBranchAction(branchId, 'unlock');
+      if (!branch || !unlocked) return;
+      const runtimeOptions = {
+        spawnSeed: campaignBranchSpawnSeed,
+        valueMultiplier: campaignBranchValueMultiplier
+      };
+      const verified: CampaignBranchVerifiedResult | null = isPresentDropBranchDefinition(branch)
+        ? {
+            kind: 'present-drop',
+            ...verifyPresentDropRuntimeResult(branch, {
+              destroyed: { standard: 999, armored: 999, fast: 999, golden: 999 },
+              coinsCollected: 999_999
+            }, runtimeOptions)
+          }
+        : isCombatBranchDefinition(branch)
+          ? {
+              kind: 'combat',
+              ...verifyCampaignCombatBranchRuntimeResult(branch, {
+                stageComplete: outcome === 'success',
+                objectiveUnitsCompleted: branch.missionDefinition.events.length
+              }, runtimeOptions)
+            }
+          : null;
+      if (!verified) {
+        setCampaignMapError(`Founder simulation rejected: unsupported branch type ${String(branch.missionType)}.`);
+        return;
+      }
+      const attemptId = `founder-branch-${outcome}:${branchId}:${Date.now()}`;
+      const settlement = settleCampaignBranchAttempt(
+        unlocked.campaignProgress.branchProgress,
+        {
+          branchId,
+          attemptId,
+          playerId: activeProfileId,
+          outcome,
+          verifiedDestroyedByType: outcome === 'success' && verified.kind === 'present-drop'
+            ? verified.destroyed
+            : null,
+          verifiedPresentsDestroyed: outcome === 'success' && verified.kind === 'present-drop'
+            ? verified.destroyedTotal
+            : 0,
+          verifiedCoinsAwarded: outcome === 'success' ? verified.totalCoins : 0,
+          rewardReceiptId: outcome === 'success'
+            ? `campaign-branch:${activeProfileId}:${branchId}:reward:v1`
+            : null,
+          completedAt: new Date().toISOString()
+        },
+        CAMPAIGN_BRANCH_DEFINITIONS
+      );
+      if (!settlement.accepted) {
+        setCampaignMapError(settlement.duplicate
+          ? 'Duplicate protection verified: the reward was rejected and 0 coins were added.'
+          : `Founder simulation rejected: ${settlement.reason}.`);
+        return;
+      }
+      const credit = creditCampaignRewardGrants(
+        weeklySquadStateRef.current,
+        settlement.grant ? [settlement.grant] : []
+      );
+      const nextPermanent: PermanentSquadState = {
+        ...unlocked,
+        campaignProgress: {
+          ...unlocked.campaignProgress,
+          branchProgress: settlement.progress
+        },
+        updatedAt: new Date().toISOString()
+      };
+      const resultId = `founder-branch-simulation:${activeProfileId}:${attemptId}`;
+      commitCampaignSquadSettlement({
+        resultId,
+        weeklyState: credit.state,
+        permanentState: nextPermanent
+      });
+      weeklySquadStateRef.current = credit.state;
+      permanentSquadStateRef.current = nextPermanent;
+      saveWeeklySquadState(credit.state);
+      savePermanentSquadState(nextPermanent);
+      setWeeklySquadState(credit.state);
+      setPermanentSquadState(nextPermanent);
+      if (credit.creditedAmount > 0) {
+        setStats((current) => ({ ...current, totalCoins: current.totalCoins + credit.creditedAmount }));
+      }
+      setCampaignMapError(outcome === 'success'
+        ? `Founder success simulated: ${credit.creditedAmount} coins settled once.`
+        : 'Founder failure simulated: 0 coins settled and retry remains available.');
+    };
+    const buildCampaignLabRequest = (
+      missionId: string,
+      waveId?: string
+    ): CampaignLabLaunchRequest | null => {
+      const mission = getCampaignMissionById(missionId);
+      if (!mission) return null;
+      return {
+        missionId: mission.id,
+        waveId: waveId && mission.waveIds.includes(waveId) ? waveId : mission.waveIds[0],
+        kind: 'mission',
+        sectorId: mission.sectorId,
+        shipId: campaignLabShipId,
+        supportId: campaignLabSupportId,
+        rightSupportId: campaignLabRightSupportId,
+        preset: campaignLabPreset,
+        upgradeLevels: { ...campaignLabUpgradeLevels }
+      };
+    };
+    const launchCampaignLabRole = (
+      role: 'elite-checkpoint' | 'major-boss',
+      useFinalWave: boolean
+    ) => {
+      if (!founderAuthorizationRef.current) return;
+      const selectedMission = getCampaignMissionById(campaignLabMissionId) ?? CAMPAIGN_MISSIONS[0];
+      const target = CAMPAIGN_MISSIONS.find((mission) => (
+        mission.sectorId === selectedMission?.sectorId && mission.missionRole === role
+      ));
+      if (!target) return;
+      const request = buildCampaignLabRequest(
+        target.id,
+        useFinalWave ? target.waveIds.at(-1) : target.waveIds[0]
+      );
+      if (request) launchCampaignLabFromMap(request);
+    };
+    const campaignLabSupportLevel = Math.max(
+      1,
+      Math.min(MINI_SHIP_MAX_LEVEL, Math.floor(campaignLabUpgradeLevels.supportLevel ?? 1))
+    );
+    const campaignLabPowerSupportIds = [campaignLabSupportId, campaignLabRightSupportId]
+      .filter((id, index, ids): id is MiniShipId => (
+        id !== 'none'
+        && ids.indexOf(id) === index
+        && MINI_SHIP_CATALOG.some((ship) => ship.id === id)
+      ));
+    const campaignLabLoadoutPower = calculateSquadPowerRating(
+      {
+        fireRate: Math.max(0, Math.min(21, Math.floor(campaignLabUpgradeLevels.fireRate ?? 0))),
+        speed: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.speed ?? 0))),
+        startingHearts: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.startingHearts ?? 0)))
+      },
+      campaignLabPowerSupportIds.map((id) => ({ id, level: campaignLabSupportLevel }))
+    );
     return {
       enabled: true,
-      onUnlockAll: () => updatePermanentSquadState((current) => ({
-        ...current,
-        campaignProgress: unlockAllCampaignMissions(current.campaignProgress),
-        updatedAt: new Date().toISOString()
-      })),
-      onSetCheckpoint: (missionId, waveId) => updatePermanentSquadState((current) => ({
-        ...current,
-        campaignProgress: setCampaignCheckpoint(current.campaignProgress, missionId, waveId),
-        updatedAt: new Date().toISOString()
-      })),
+      onUnlockAll: () => {
+        if (!founderAuthorizationRef.current) return;
+        updatePermanentSquadState((current) => ({
+          ...current,
+          campaignProgress: unlockAllCampaignMissions(current.campaignProgress),
+          updatedAt: new Date().toISOString()
+        }));
+      },
+      onSetCheckpoint: (missionId, waveId) => {
+        if (!founderAuthorizationRef.current) return;
+        updatePermanentSquadState((current) => ({
+          ...current,
+          campaignProgress: setCampaignCheckpoint(current.campaignProgress, missionId, waveId),
+          updatedAt: new Date().toISOString()
+        }));
+      },
       onCompleteWave: (missionId, waveId) => {
+        if (!founderAuthorizationRef.current) return;
         const mission = getCampaignMissionById(missionId);
         applyDeveloperCampaignCompletion(
           missionId,
@@ -2107,28 +2753,292 @@ const App: React.FC = () => {
         );
       },
       onCompleteMission: (missionId) => {
+        if (!founderAuthorizationRef.current) return;
         const mission = getCampaignMissionById(missionId);
         const finalWaveId = mission?.waveIds.at(-1);
         if (finalWaveId) applyDeveloperCampaignCompletion(missionId, finalWaveId, true);
       },
-      onResetProgress: () => updatePermanentSquadState((current) => ({
-        ...current,
-        campaignProgress: createCampaignProgress(),
-        updatedAt: new Date().toISOString()
-      })),
-      onResetStars: () => updatePermanentSquadState((current) => ({
-        ...current,
-        campaignProgress: resetCampaignStars(current.campaignProgress),
-        updatedAt: new Date().toISOString()
-      })),
-      onPreviewLocked: () => undefined,
+      onResetProgress: () => {
+        if (!founderAuthorizationRef.current) return;
+        updatePermanentSquadState((current) => ({
+          ...current,
+          campaignProgress: createCampaignProgress(),
+          updatedAt: new Date().toISOString()
+        }));
+      },
+      onResetStars: () => {
+        if (!founderAuthorizationRef.current) return;
+        updatePermanentSquadState((current) => ({
+          ...current,
+          campaignProgress: resetCampaignStars(current.campaignProgress),
+          updatedAt: new Date().toISOString()
+        }));
+      },
+      onPreviewLocked: () => {
+        if (!founderAuthorizationRef.current) return;
+      },
       onPreviewNew: (missionId) => {
+        if (!founderAuthorizationRef.current) return;
         setCampaignMapNewMissionIds([missionId]);
         setCampaignMapFocusMissionId(missionId);
       },
-      onPreviewResult: previewDeveloperCampaignResult
+      onPreviewResult: previewDeveloperCampaignResult,
+      onUnlockBranch: (branchId) => {
+        if (!founderAuthorizationRef.current) return;
+        commitFounderBranchAction(branchId, 'unlock');
+        setCampaignMapError('Founder test: branch unlocked.');
+      },
+      onLockBranch: (branchId) => {
+        if (!founderAuthorizationRef.current) return;
+        commitFounderBranchAction(branchId, 'lock');
+        setCampaignMapError('Founder test: branch locked.');
+      },
+      onGrantThreeStars: (missionId) => {
+        if (!founderAuthorizationRef.current) return;
+        const mission = getCampaignMissionById(missionId);
+        const finalWaveId = mission?.waveIds.at(-1);
+        if (finalWaveId) applyDeveloperCampaignCompletion(missionId, finalWaveId, true);
+      },
+      onResetBranch: (branchId) => {
+        if (!founderAuthorizationRef.current) return;
+        commitFounderBranchAction(branchId, 'reset-completion');
+        setCampaignMapError('Founder test: branch completion reset.');
+      },
+      onPreviewBranch: (branchId) => {
+        if (!founderAuthorizationRef.current) return;
+        const branch = getCampaignBranchDefinition(DEFAULT_GAME_CAMPAIGN, branchId);
+        if (!branch || !commitFounderBranchAction(branchId, 'unlock')) return;
+        setCampaignMapOpen(false);
+        void launchGame(null, 'practice', 'standard', null, {
+          branchId: branch.branchId,
+          sourceMissionId: branch.sourceMissionId,
+          missionDefinitionId: branch.missionDefinitionId,
+          kind: 'branch'
+        });
+      },
+      onSimulateBranchFailure: (branchId) => {
+        if (!founderAuthorizationRef.current) return;
+        simulateFounderBranchOutcome(branchId, 'failed');
+      },
+      onSimulateBranchSuccess: (branchId) => {
+        if (!founderAuthorizationRef.current) return;
+        simulateFounderBranchOutcome(branchId, 'success');
+      },
+      onVerifyDuplicateReward: (branchId) => {
+        if (!founderAuthorizationRef.current) return;
+        const branch = getCampaignBranchDefinition(DEFAULT_GAME_CAMPAIGN, branchId);
+        if (!branch) return;
+        const unlocked = applyFounderCampaignBranchAction(
+          permanentSquadStateRef.current.campaignProgress.branchProgress,
+          founderAuthorization,
+          'unlock',
+          branchId,
+          CAMPAIGN_BRANCH_DEFINITIONS
+        ).progress;
+        const receiptId = `campaign-branch:${activeProfileId}:${branchId}:founder-duplicate-proof`;
+        const first = settleCampaignBranchAttempt(unlocked, {
+          branchId,
+          attemptId: `founder-duplicate-proof:first:${branchId}`,
+          playerId: activeProfileId,
+          outcome: 'success',
+          verifiedPresentsDestroyed: 1,
+          verifiedCoinsAwarded: branch.completionReward.totalMinimumCoins,
+          rewardReceiptId: receiptId,
+          completedAt: new Date().toISOString()
+        }, CAMPAIGN_BRANCH_DEFINITIONS);
+        const duplicate = settleCampaignBranchAttempt(first.progress, {
+          branchId,
+          attemptId: `founder-duplicate-proof:second:${branchId}`,
+          playerId: activeProfileId,
+          outcome: 'success',
+          verifiedPresentsDestroyed: 999,
+          verifiedCoinsAwarded: 999_999,
+          rewardReceiptId: receiptId,
+          completedAt: new Date().toISOString()
+        }, CAMPAIGN_BRANCH_DEFINITIONS);
+        setCampaignMapError(
+          duplicate.duplicate && duplicate.coinsAwarded === 0
+            ? 'Duplicate protection verified: second settlement awarded 0 coins.'
+            : 'Duplicate protection check failed.'
+        );
+      },
+      spawnSeed: campaignBranchSpawnSeed,
+      valueMultiplier: campaignBranchValueMultiplier,
+      onSpawnSeedChange: (seed) => {
+        if (!founderAuthorizationRef.current) return;
+        setCampaignBranchSpawnSeed(Math.max(0, Math.min(9_999, Math.floor(seed || 0))));
+      },
+      onValueMultiplierChange: (multiplier) => {
+        if (!founderAuthorizationRef.current) return;
+        setCampaignBranchValueMultiplier(
+          Math.max(0.25, Math.min(5, Number.isFinite(multiplier) ? multiplier : 1))
+        );
+      },
+      shipOptions: Object.values(PLAYER_SHIPS).map((ship) => ({
+        id: ship.id,
+        label: ship.name
+      })),
+      supportOptions: [
+        { id: 'none', label: 'No support ship' },
+        ...MINI_SHIP_CATALOG.map((ship) => ({
+          id: ship.id,
+          label: `${ship.name} / ${ship.role} / ${getCampaignSupportTagsForMiniShip(ship.id).join(', ')}`
+        }))
+      ],
+      upgradeTracks: [
+        ...MAIN_SHIP_UPGRADES.map((upgrade) => ({
+          id: upgrade.id,
+          label: upgrade.name,
+          level: campaignLabUpgradeLevels[upgrade.id] ?? 0,
+          minLevel: 0,
+          maxLevel: upgrade.costs.length
+        })),
+        {
+          id: 'supportLevel',
+          label: 'Support level',
+          level: campaignLabUpgradeLevels.supportLevel ?? 1,
+          minLevel: 1,
+          maxLevel: MINI_SHIP_MAX_LEVEL
+        }
+      ],
+      selectedShipId: campaignLabShipId,
+      selectedSupportId: campaignLabSupportId,
+      selectedRightSupportId: campaignLabRightSupportId,
+      loadoutPower: campaignLabLoadoutPower,
+      selectedPreset: campaignLabPreset,
+      loopFormation: campaignLabLoopFormation,
+      telemetry: campaignLabTelemetry,
+      onSelectSector: (sectorId) => {
+        if (!founderAuthorizationRef.current) return;
+        const mission = CAMPAIGN_MISSIONS.find((candidate) => candidate.sectorId === sectorId);
+        if (!mission) return;
+        setCampaignLabMissionId(mission.id);
+        setCampaignLabWaveId(mission.waveIds[0]);
+      },
+      onSelectMission: (missionId) => {
+        if (!founderAuthorizationRef.current) return;
+        const mission = getCampaignMissionById(missionId);
+        if (!mission) return;
+        setCampaignLabMissionId(mission.id);
+        setCampaignLabWaveId(mission.waveIds[0]);
+      },
+      onSelectWave: (missionId, waveId) => {
+        if (!founderAuthorizationRef.current) return;
+        const mission = getCampaignMissionById(missionId);
+        if (!mission?.waveIds.includes(waveId)) return;
+        setCampaignLabMissionId(missionId);
+        setCampaignLabWaveId(waveId);
+      },
+      onSelectShip: (shipId) => {
+        if (!founderAuthorizationRef.current) return;
+        const parsed = parsePlayerShipId(shipId);
+        if (parsed) setCampaignLabShipId(parsed);
+      },
+      onSelectSupport: (supportId) => {
+        if (!founderAuthorizationRef.current) return;
+        if (supportId === 'none' || MINI_SHIP_CATALOG.some((ship) => ship.id === supportId)) {
+          setCampaignLabSupportId(supportId);
+          if (supportId !== 'none' && supportId === campaignLabRightSupportId) {
+            setCampaignLabRightSupportId('none');
+          }
+        }
+      },
+      onSelectRightSupport: (supportId) => {
+        if (!founderAuthorizationRef.current) return;
+        if (supportId === 'none' || MINI_SHIP_CATALOG.some((ship) => ship.id === supportId)) {
+          setCampaignLabRightSupportId(supportId);
+          if (supportId !== 'none' && supportId === campaignLabSupportId) {
+            setCampaignLabSupportId('none');
+          }
+        }
+      },
+      onSetUpgradeLevel: (upgradeId, level) => {
+        if (!founderAuthorizationRef.current) return;
+        setCampaignLabUpgradeLevels((current) => ({
+          ...current,
+          [upgradeId]: Math.max(0, Math.floor(Number(level) || 0))
+        }));
+      },
+      onApplyLoadoutPreset: (preset) => {
+        if (!founderAuthorizationRef.current) return;
+        setCampaignLabPreset(preset);
+        const selectedMission = getCampaignMissionById(campaignLabMissionId);
+        const recommendedSupports = getCampaignRecommendedSupportIds(
+          selectedMission?.recommendedSupportTags ?? [],
+          2
+        );
+        setCampaignLabSupportId(preset === 'low-power' ? 'none' : recommendedSupports[0] ?? 'none');
+        setCampaignLabRightSupportId(preset === 'upgraded' ? recommendedSupports[1] ?? 'none' : 'none');
+        setCampaignLabUpgradeLevels(preset === 'low-power'
+          ? { fireRate: 0, speed: 0, startingHearts: 0, supportLevel: 1 }
+          : preset === 'upgraded'
+            ? { fireRate: 21, speed: 7, startingHearts: 7, supportLevel: MINI_SHIP_MAX_LEVEL }
+            : { fireRate: 7, speed: 3, startingHearts: 1, supportLevel: 2 });
+      },
+      onLaunchSelectedMission: (request) => {
+        if (!founderAuthorizationRef.current) return;
+        launchCampaignLabFromMap(request);
+      },
+      onRestartFormation: () => {
+        if (!founderAuthorizationRef.current) return;
+        const request = campaignLabActiveRequestRef.current
+          ?? buildCampaignLabRequest(campaignLabMissionId, campaignLabWaveId);
+        if (request) launchCampaignLabFromMap(request);
+      },
+      onLoopFormationChange: (enabled) => {
+        if (!founderAuthorizationRef.current) return;
+        setCampaignLabLoopFormation(Boolean(enabled));
+      },
+      onSkipToMiniBoss: () => launchCampaignLabRole('elite-checkpoint', true),
+      onSkipToMajorBoss: () => launchCampaignLabRole('major-boss', false),
+      onPreviewNodeState: (missionId, state) => {
+        if (!founderAuthorizationRef.current) return;
+        setCampaignMapError(`Campaign Lab preview: ${missionId} is shown as ${state}.`);
+      },
+      onPreviewBranchState: (branchId, state) => {
+        if (!founderAuthorizationRef.current) return;
+        setCampaignMapError(`Campaign Lab preview: ${branchId} is shown as ${state}.`);
+      },
+      onPreviewStarClaim: (missionId, starNumber) => {
+        if (!founderAuthorizationRef.current) return;
+        const mission = getCampaignMissionById(missionId);
+        const finalWaveId = mission?.waveIds.at(-1);
+        if (!finalWaveId) return;
+        setCampaignMapError(`Campaign Lab: previewing Star ${starNumber} settlement.`);
+        previewDeveloperCampaignResult(missionId, finalWaveId, true);
+      },
+      onPreviewRewardClaim: (missionId, rewardType) => {
+        if (!founderAuthorizationRef.current) return;
+        const mission = getCampaignMissionById(missionId);
+        const waveId = rewardType === 'wave-clear'
+          ? mission?.waveIds[0]
+          : mission?.waveIds.at(-1);
+        if (!waveId) return;
+        setCampaignMapError(`Campaign Lab: previewing ${rewardType} reward settlement.`);
+        previewDeveloperCampaignResult(missionId, waveId, rewardType !== 'wave-clear');
+      }
     };
-  }, [activeWalletAddress, previewDeveloperCampaignResult, updatePermanentSquadState]);
+  }, [
+    activeProfileId,
+    activeWalletAddress,
+    applyDeveloperCampaignCompletion,
+    campaignLabLoopFormation,
+    campaignLabMissionId,
+    campaignLabPreset,
+    campaignLabShipId,
+    campaignLabRightSupportId,
+    campaignLabSupportId,
+    campaignLabTelemetry,
+    campaignLabUpgradeLevels,
+    campaignLabWaveId,
+    campaignBranchSpawnSeed,
+    campaignBranchValueMultiplier,
+    isOwnerWallet,
+    launchCampaignLabFromMap,
+    launchGame,
+    previewDeveloperCampaignResult,
+    updatePermanentSquadState
+  ]);
 
   const markCampaignSettlementWalletDirty = useCallback((
     nextWeeklyState: WeeklySquadState,
@@ -2176,9 +3086,275 @@ const App: React.FC = () => {
     stats.totalCoins
   ]);
 
+  const settleCampaignBranchOutcome = useCallback(async (
+    outcome: 'failed' | 'interrupted' | 'success',
+    summary?: WaveVictorySummary | null
+  ) => {
+    const branch = activeCampaignBranch;
+    if (!branch || campaignBranchAttemptSettledRef.current) return null;
+    const attemptId = campaignAttemptIdRef.current || `branch-${gameId}`;
+    const runtimeOptions = {
+      spawnSeed: isOwnerWallet ? campaignBranchSpawnSeed : 0,
+      valueMultiplier: isOwnerWallet ? campaignBranchValueMultiplier : 1
+    };
+    const verified: CampaignBranchVerifiedResult = isPresentDropBranchDefinition(branch)
+      ? {
+          kind: 'present-drop',
+          ...verifyPresentDropRuntimeResult(branch, {
+            destroyed: summary?.presentDrop?.destroyed,
+            coinsCollected: outcome === 'success' ? summary?.waveCoinsCollected : 0
+          }, runtimeOptions)
+        }
+      : isCombatBranchDefinition(branch)
+        ? {
+            kind: 'combat',
+            ...verifyCampaignCombatBranchRuntimeResult(branch, {
+              stageComplete: outcome === 'success' && summary?.stageComplete === true,
+              objectiveUnitsCompleted: summary?.enemiesDefeated ?? 0
+            }, runtimeOptions)
+          }
+        : (() => {
+            throw new Error(`Unsupported Campaign branch type: ${String(branch.missionType)}`);
+          })();
+    if (outcome === 'success' && verified.kind === 'combat' && !verified.success) {
+      setCampaignMapError('The optional combat route did not reach its authored completion state. Retry safely.');
+      return null;
+    }
+    const serverRun = campaignBranchRunRef.current;
+    if (
+      serverRun?.branchId === branch.branchId
+      && serverRun.serverAttempt
+      && serverRun.serverWalletAddress
+    ) {
+      const weeklyBeforeCredit = weeklySquadStateRef.current;
+      campaignBranchAttemptSettledRef.current = true;
+      try {
+        const settlementTask = walletProfileSaveChainRef.current
+          .catch(() => undefined)
+          .then(async () => {
+            const flushedProfile = await flushDirtyWalletProfile(serverRun.serverWalletAddress!);
+            if (flushedProfile) {
+              walletProfileRevisionRef.current = flushedProfile.revision;
+              walletProfileSyncedSnapshotRef.current = flushedProfile.snapshot;
+              cacheWalletProfile(flushedProfile);
+            }
+            const settled = await settleWalletCampaignBranch({
+              walletAddress: serverRun.serverWalletAddress!,
+              attemptToken: serverRun.serverAttempt!.attemptToken,
+              outcome,
+              destroyedByType: outcome === 'success' && verified.kind === 'present-drop'
+                ? verified.destroyed
+                : undefined,
+              collectedPresentCoins: outcome === 'success' && verified.kind === 'present-drop'
+                ? verified.collectedPresentCoins
+                : undefined,
+              stageComplete: verified.kind === 'combat'
+                ? outcome === 'success' && verified.success
+                : undefined,
+              objectiveUnitsCompleted: outcome === 'success' && verified.kind === 'combat'
+                ? verified.objectiveUnitsCompleted
+                : undefined
+            });
+            discardWalletProfileDirty(serverRun.serverWalletAddress!);
+            return settled;
+          });
+        walletProfileSaveChainRef.current = settlementTask.then(
+          () => undefined,
+          () => undefined
+        );
+        const { profile, settlement } = await settlementTask;
+        cacheWalletProfile(profile);
+        let hydratedSnapshot = profile.snapshot;
+        if (walletProfileAddressRef.current === serverRun.serverWalletAddress) {
+          walletProfileRevisionRef.current = profile.revision;
+          walletProfileSyncedSnapshotRef.current = profile.snapshot;
+          hydratedSnapshot = hydrateActiveProfile({
+            profileId: profile.profileId,
+            snapshot: profile.snapshot,
+            founderSandbox: false
+          });
+          walletProfileLocalBaselineRef.current = hydratedSnapshot;
+          weeklySquadStateRef.current = hydratedSnapshot.weeklyState;
+          permanentSquadStateRef.current = hydratedSnapshot.permanentState;
+          setWalletProfileStatus('ready');
+        }
+        setCampaignMapError('');
+
+        if (outcome === 'success') {
+          campaignBranchCoinBaselineRef.current = null;
+          const canonicalResult = isPresentDropBranchDefinition(branch)
+            ? {
+                kind: 'present-drop' as const,
+                ...verifyPresentDropRuntimeResult(branch, {
+                  destroyed: settlement.destroyedByType,
+                  coinsCollected: settlement.performanceCoins
+                })
+              }
+            : {
+                kind: 'combat' as const,
+                ...verifyCampaignCombatBranchRuntimeResult(branch, {
+                  stageComplete: settlement.stageComplete,
+                  objectiveUnitsCompleted: settlement.objectiveUnitsCompleted
+                })
+              };
+          const newlyAffordableUpgrade = settlement.duplicate
+            ? null
+            : getNewlyAffordableSquadUpgrade(
+                weeklyBeforeCredit,
+                hydratedSnapshot.weeklyState.coins,
+                usableShipId
+              );
+          const presentation: CampaignBranchResultPresentation = {
+            ...canonicalResult,
+            totalCoins: settlement.coinsAwarded,
+            branchId: branch.branchId,
+            branchName: branch.displayName,
+            summaryId: summary?.id ?? settlement.rewardReceiptId ?? settlement.attemptId,
+            duplicate: settlement.duplicate,
+            newlyAffordableUpgrade
+          };
+          setCampaignBranchResult(presentation);
+          return presentation;
+        }
+
+        const baseline = campaignBranchCoinBaselineRef.current;
+        campaignBranchCoinBaselineRef.current = null;
+        if (baseline !== null) {
+          setStats((current) => ({ ...current, coins: 0, totalCoins: baseline }));
+        }
+        return null;
+      } catch (error) {
+        campaignBranchAttemptSettledRef.current = false;
+        console.error('Campaign branch server settlement failed', error);
+        setCampaignMapError(
+          'The bonus result could not be verified by the wallet profile service. No provisional coins were kept; retry safely.'
+        );
+        const baseline = campaignBranchCoinBaselineRef.current;
+        if (baseline !== null) {
+          setStats((current) => ({ ...current, coins: 0, totalCoins: baseline }));
+        }
+        return null;
+      }
+    }
+
+    const rewardReceiptId = outcome === 'success'
+      ? `campaign-branch:${activeProfileId}:${branch.branchId}:reward:v1`
+      : null;
+    const currentPermanent = permanentSquadStateRef.current;
+    const settlement = settleCampaignBranchAttempt(
+      currentPermanent.campaignProgress.branchProgress,
+      {
+        branchId: branch.branchId,
+        attemptId,
+        playerId: activeProfileId,
+        outcome,
+        verifiedDestroyedByType: outcome === 'success' && verified.kind === 'present-drop'
+          ? verified.destroyed
+          : null,
+        verifiedPresentsDestroyed: outcome === 'success'
+          ? verified.kind === 'present-drop'
+            ? verified.destroyedTotal
+            : verified.objectiveUnitsCompleted
+          : 0,
+        verifiedCoinsAwarded: outcome === 'success' ? verified.totalCoins : 0,
+        rewardReceiptId,
+        completedAt: new Date().toISOString()
+      },
+      CAMPAIGN_BRANCH_DEFINITIONS
+    );
+    campaignBranchAttemptSettledRef.current = settlement.accepted || settlement.duplicate;
+    if (!settlement.accepted && !settlement.duplicate) {
+      setCampaignMapError('The bonus result could not be verified. Retry the optional route.');
+      return null;
+    }
+    const grants = settlement.grant ? [settlement.grant] : [];
+    const weeklyBeforeCredit = weeklySquadStateRef.current;
+    const credit = creditCampaignRewardGrants(weeklyBeforeCredit, grants);
+    const newlyAffordableUpgrade = settlement.duplicate
+      ? null
+      : getNewlyAffordableSquadUpgrade(weeklyBeforeCredit, credit.state.coins, usableShipId);
+    const nextPermanent: PermanentSquadState = {
+      ...currentPermanent,
+      campaignProgress: {
+        ...currentPermanent.campaignProgress,
+        branchProgress: settlement.progress
+      },
+      lifetimeStats: outcome === 'success' && !settlement.duplicate
+        ? {
+            ...currentPermanent.lifetimeStats,
+            coinsCollected: currentPermanent.lifetimeStats.coinsCollected + credit.creditedAmount
+          }
+        : currentPermanent.lifetimeStats,
+      updatedAt: new Date().toISOString()
+    };
+    const settlementId = `campaign-branch:${activeProfileId}:${branch.branchId}:${attemptId}:${outcome}`;
+    try {
+      commitCampaignSquadSettlement({
+        resultId: settlementId,
+        weeklyState: credit.state,
+        permanentState: nextPermanent
+      });
+    } catch (error) {
+      campaignBranchAttemptSettledRef.current = false;
+      console.error('Campaign branch settlement failed', error);
+      setCampaignMapError('The bonus result could not be saved. Retry the optional route.');
+      return null;
+    }
+    weeklySquadStateRef.current = credit.state;
+    setWeeklySquadState(credit.state);
+    permanentSquadStateRef.current = nextPermanent;
+    setPermanentSquadState(nextPermanent);
+    markCampaignSettlementWalletDirty(credit.state, nextPermanent);
+
+    if (outcome === 'success') {
+      const baseline = campaignBranchCoinBaselineRef.current ?? stats.totalCoins;
+      campaignBranchCoinBaselineRef.current = null;
+      setStats((current) => ({
+        ...current,
+        totalCoins: baseline + credit.creditedAmount
+      }));
+      const presentation: CampaignBranchResultPresentation = {
+        ...verified,
+        branchId: branch.branchId,
+        branchName: branch.displayName,
+        summaryId: summary?.id ?? settlementId,
+        duplicate: settlement.duplicate,
+        newlyAffordableUpgrade
+      };
+      setCampaignBranchResult(presentation);
+      return presentation;
+    }
+
+    const baseline = campaignBranchCoinBaselineRef.current;
+    if (baseline !== null) setStats((current) => ({ ...current, coins: 0, totalCoins: baseline }));
+    return null;
+  }, [
+    activeCampaignBranch,
+    activeProfileId,
+    campaignBranchSpawnSeed,
+    campaignBranchValueMultiplier,
+    gameId,
+    hydrateActiveProfile,
+    isOwnerWallet,
+    markCampaignSettlementWalletDirty,
+    stats.totalCoins,
+    usableShipId
+  ]);
+
+  const returnToCampaignMapAfterBranchAttempt = async (outcome?: 'failed' | 'interrupted') => {
+    const branchId = activeCampaignBranch?.branchId ?? null;
+    const sourceMissionId = activeCampaignBranch?.sourceMissionId ?? null;
+    if (outcome) await settleCampaignBranchOutcome(outcome);
+    resetGame();
+    setCampaignMapFocusMissionId(sourceMissionId);
+    setCampaignMapFocusBranchId(branchId);
+    setCampaignMapStatus('ready');
+    setCampaignMapError('');
+    setCampaignMapOpen(true);
+  };
+
   const handleCampaignProgress = useCallback((summary: WaveVictorySummary) => {
     if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
-    if (!summary.stageComplete) return;
     const attemptId = campaignAttemptIdRef.current || `game-${gameId}`;
     const resultId = `${activeProfileId}:${attemptId}:${summary.levelId}:${summary.waveId}`;
     if (processedCampaignSummaryKeysRef.current.has(resultId)) return;
@@ -2195,21 +3371,40 @@ const App: React.FC = () => {
       score: summary.totalScore,
       coinsCollected: summary.coinsCollected,
       damageTaken: summary.damageTaken,
-      elapsedSeconds: summary.elapsedSeconds
+      elapsedSeconds: summary.elapsedSeconds,
+      masteryEligible: summary.stageComplete && campaignRunMasteryEligibleRef.current
     });
+
+    if (!completion.settlement.accepted && !completion.settlement.duplicate) {
+      console.error('Campaign checkpoint settlement rejected', completion.settlement.reason);
+      setCampaignMapError('Campaign progress could not be verified. Retry this Wave to secure the checkpoint.');
+      return;
+    }
 
     const rewardGrants = completion.settlement.duplicate
       ? []
       : completion.settlement.grants;
-    const credit = creditCampaignRewardGrants(weeklySquadStateRef.current, rewardGrants);
+    const weeklyBeforeCredit = weeklySquadStateRef.current;
+    const credit = creditCampaignRewardGrants(weeklyBeforeCredit, rewardGrants);
+    const newlyAffordableUpgrade = completion.settlement.duplicate
+      ? null
+      : getNewlyAffordableSquadUpgrade(weeklyBeforeCredit, credit.state.coins, usableShipId);
 
+    const creditedEnemies = completion.settlement.duplicate
+      ? 0
+      : summary.stageComplete
+        ? Math.max(
+            0,
+            Math.floor(summary.enemiesDefeated) - campaignRunCreditedEnemiesRef.current
+          )
+        : Math.max(0, Math.floor(summary.enemiesDefeated));
     let nextPermanent: PermanentSquadState = {
       ...currentPermanent,
       campaignProgress: completion.progress,
       lifetimeStats: completion.settlement.duplicate ? currentPermanent.lifetimeStats : {
         ...currentPermanent.lifetimeStats,
         highestWave: Math.max(currentPermanent.lifetimeStats.highestWave, summary.stage),
-        enemiesDefeated: currentPermanent.lifetimeStats.enemiesDefeated + summary.enemiesDefeated,
+        enemiesDefeated: currentPermanent.lifetimeStats.enemiesDefeated + creditedEnemies,
         coinsCollected: currentPermanent.lifetimeStats.coinsCollected,
         bestScore: Math.max(currentPermanent.lifetimeStats.bestScore, summary.totalScore)
       },
@@ -2232,7 +3427,7 @@ const App: React.FC = () => {
     }
     processedCampaignSummaryKeysRef.current.add(resultId);
     if (!completion.settlement.duplicate) {
-      campaignRunCreditedEnemiesRef.current += Math.max(0, Math.floor(summary.enemiesDefeated));
+      campaignRunCreditedEnemiesRef.current += creditedEnemies;
     }
     weeklySquadStateRef.current = credit.state;
     setWeeklySquadState(credit.state);
@@ -2246,14 +3441,14 @@ const App: React.FC = () => {
         grants: rewardGrants,
         coinsAwarded: credit.creditedAmount
       },
-      collectedCoins: 0
+      collectedCoins: 0,
+      newlyAffordableUpgrade
     });
-  }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty]);
+  }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty, usableShipId]);
 
   const finalizeCampaignCollectedCoins = useCallback((summary: WaveVictorySummary) => {
     if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
-    if (!summary.stageComplete) return;
-    const collectedCoins = Math.max(0, Math.floor(summary.coinsCollected));
+    const collectedCoins = Math.max(0, Math.floor(summary.waveCoinsCollected));
     const attemptId = campaignAttemptIdRef.current || `game-${gameId}`;
     const resultId = `${activeProfileId}:${attemptId}:${summary.levelId}:${summary.waveId}`;
     const collectedGrant = {
@@ -2275,16 +3470,23 @@ const App: React.FC = () => {
       score: summary.totalScore,
       coinsCollected: summary.coinsCollected,
       damageTaken: summary.damageTaken,
-      elapsedSeconds: summary.elapsedSeconds
+      elapsedSeconds: summary.elapsedSeconds,
+      masteryEligible: summary.stageComplete && campaignRunMasteryEligibleRef.current
     });
     if (!metrics.accepted) return;
     const finalGrants = [
       ...(collectedCoins > 0 ? [collectedGrant] : []),
       ...metrics.grants
     ];
+    const weeklyBeforeCredit = weeklySquadStateRef.current;
     const credit = creditCampaignRewardGrants(
-      weeklySquadStateRef.current,
+      weeklyBeforeCredit,
       finalGrants
+    );
+    const newlyAffordableUpgrade = getNewlyAffordableSquadUpgrade(
+      weeklyBeforeCredit,
+      credit.state.coins,
+      usableShipId
     );
 
     const creditedCollectedCoins = credit.creditedRewardIds.includes(collectedGrant.id)
@@ -2323,6 +3525,7 @@ const App: React.FC = () => {
       return {
         ...current,
         collectedCoins,
+        newlyAffordableUpgrade: current.newlyAffordableUpgrade ?? newlyAffordableUpgrade,
         settlement: {
           ...current.settlement,
           previousStars: Math.min(current.settlement.previousStars, metrics.previousStars),
@@ -2339,7 +3542,7 @@ const App: React.FC = () => {
         }
       };
     });
-  }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty]);
+  }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty, usableShipId]);
 
   const showWaveVictory = async (summary: WaveVictorySummary) => {
     if (isBossArchiveRun) {
@@ -2348,12 +3551,29 @@ const App: React.FC = () => {
       returnToBossArchive();
       return;
     }
-    if (isCampaignRun) {
-      if (!summary.stageComplete) {
-        setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
+    if (isCampaignBranchRun) {
+      const result = await settleCampaignBranchOutcome('success', summary);
+      if (!result) {
+        setGameState(GameState.GAMEOVER);
         return;
       }
-      handleCampaignProgress(summary);
+      setOwnerFrameFrozen(false);
+      setWaveVictorySummary(summary);
+      setGameState(GameState.WAVE_COMPLETE);
+      return;
+    }
+    if (isCampaignLabRun && campaignLabLoopFormation && campaignLabActiveRequestRef.current) {
+      const loopRequest = campaignLabActiveRequestRef.current;
+      setOwnerFrameFrozen(false);
+      setWaveVictorySummary(summary);
+      setGameState(GameState.WAVE_COMPLETE);
+      window.setTimeout(() => {
+        if (!founderAuthorizationRef.current || !campaignLabLoopFormation) return;
+        launchCampaignLabFromMap(loopRequest);
+      }, 650);
+      return;
+    }
+    if (isCampaignRun) {
       finalizeCampaignCollectedCoins(summary);
     }
     if (!isCampaignRun && !isNonCompetitiveRun && summary.bossEncounterId) {
@@ -2370,6 +3590,26 @@ const App: React.FC = () => {
 
   const continueAfterWaveVictory = () => {
     if (!waveVictorySummary) return;
+    if (isCampaignBranchRun && activeCampaignBranch) {
+      const branchId = activeCampaignBranch.branchId;
+      const sourceMissionId = activeCampaignBranch.sourceMissionId;
+      setWaveVictorySummary(null);
+      setCampaignBranchResult(null);
+      setActiveRunMode('standard');
+      setActiveCampaignBranchId(null);
+      campaignAttemptIdRef.current = '';
+      campaignBranchRunRef.current = null;
+      campaignBranchAttemptSettledRef.current = false;
+      campaignBranchCoinBaselineRef.current = null;
+      setCampaignMapFocusMissionId(sourceMissionId);
+      setCampaignMapFocusBranchId(branchId);
+      setCampaignMapUnlockingBranchId(null);
+      setCampaignMapStatus('ready');
+      setCampaignMapError('');
+      setCampaignMapOpen(true);
+      setGameState(GameState.MENU);
+      return;
+    }
     if (campaignResultPreviewRef.current) {
       const focusMissionId = campaignResultPresentation?.settlement.newlyUnlockedMissionId
         ?? waveVictorySummary.levelId;
@@ -2750,51 +3990,68 @@ const App: React.FC = () => {
     bossArchiveDailyLimit
   ), [bossArchiveDailyLimit, permanentSquadState.bossArchive]);
 
-  const bossArchiveDeveloperControls = useMemo(() => (
-    bossArchiveDeveloperApi ? {
+  const bossArchiveDeveloperControls = useMemo(() => {
+    if (!isOwnerWallet || !bossArchiveDeveloperApi) return null;
+    return {
       enabled: true,
       dailyLimit: bossArchiveDailyLimit,
-      onDailyLimitChange: setBossArchiveDailyLimit,
-      onUnlockAll: () => updateBossArchiveProgress(bossArchiveDeveloperApi.unlockAll),
-      onResetProgress: () => {
-        updateBossArchiveProgress(() => bossArchiveDeveloperApi.resetProgress());
-        setBossArchiveResult(null);
+      onDailyLimitChange: (nextLimit: number) => {
+        runBossArchiveFounderAction(() => setBossArchiveDailyLimit(nextLimit));
       },
-      onResetDailyCharges: () => updateBossArchiveProgress((current) => (
-        bossArchiveDeveloperApi.resetDailyCharges(current)
-      )),
-      onSimulateNewUnlock: (eventId: string) => updateBossArchiveProgress((current) => (
-        bossArchiveDeveloperApi.simulateNewUnlock(current, eventId)
-      )),
-      onSimulateMastery: (eventId: string) => updateBossArchiveProgress((current) => (
-        bossArchiveDeveloperApi.simulateMasteryComplete(current, eventId)
-      )),
+      onUnlockAll: () => {
+        runBossArchiveFounderAction(() => updateBossArchiveProgress(bossArchiveDeveloperApi.unlockAll));
+      },
+      onResetProgress: () => {
+        runBossArchiveFounderAction(() => {
+          updateBossArchiveProgress((current) => bossArchiveDeveloperApi.resetProgress(current));
+          setBossArchiveResult(null);
+        });
+      },
+      onResetDailyCharges: () => {
+        runBossArchiveFounderAction(() => updateBossArchiveProgress((current) => (
+          bossArchiveDeveloperApi.resetDailyCharges(current)
+        )));
+      },
+      onSimulateNewUnlock: (eventId: string) => {
+        runBossArchiveFounderAction(() => updateBossArchiveProgress((current) => (
+          bossArchiveDeveloperApi.simulateNewUnlock(current, eventId)
+        )));
+      },
+      onSimulateMastery: (eventId: string) => {
+        runBossArchiveFounderAction(() => updateBossArchiveProgress((current) => (
+          bossArchiveDeveloperApi.simulateMasteryComplete(current, eventId)
+        )));
+      },
       onPreviewResult: (outcome: 'victory' | 'defeat') => {
-        const eventId = permanentSquadState.bossArchive.lastSelectedEventId
-          ?? permanentSquadState.bossArchive.unlockedEventIds[0]
-          ?? BOSS_ARCHIVE_CATALOG[0]?.eventId;
-        if (!eventId) return;
-        setBossArchiveResult({
-          eventId,
-          outcome,
-          clearTimeMs: outcome === 'victory' ? 45_000 : null,
-          damageTaken: outcome === 'victory' ? 0 : 3,
-          noHit: outcome === 'victory',
-          newPersonalRecord: outcome === 'victory',
-          rewardCoins: outcome === 'victory' ? 125 : 0,
-          chargesRemaining: bossArchiveDailyChargeStatus.remaining,
-          masteryCompletedIds: outcome === 'victory' ? ['challenge-clear'] : [],
-          mode: 'challenge',
-          variantId: 'standard'
+        runBossArchiveFounderAction(() => {
+          const eventId = permanentSquadState.bossArchive.lastSelectedEventId
+            ?? permanentSquadState.bossArchive.unlockedEventIds[0]
+            ?? BOSS_ARCHIVE_CATALOG[0]?.eventId;
+          if (!eventId) return;
+          setBossArchiveResult({
+            eventId,
+            outcome,
+            clearTimeMs: outcome === 'victory' ? 45_000 : null,
+            damageTaken: outcome === 'victory' ? 0 : 3,
+            noHit: outcome === 'victory',
+            newPersonalRecord: outcome === 'victory',
+            rewardCoins: outcome === 'victory' ? 125 : 0,
+            chargesRemaining: bossArchiveDailyChargeStatus.remaining,
+            masteryCompletedIds: outcome === 'victory' ? ['challenge-clear'] : [],
+            mode: 'challenge',
+            variantId: 'standard'
+          });
         });
       }
-    } : null
-  ), [
+    };
+  }, [
     bossArchiveDailyChargeStatus.remaining,
     bossArchiveDailyLimit,
     bossArchiveDeveloperApi,
+    isOwnerWallet,
     permanentSquadState.bossArchive.lastSelectedEventId,
     permanentSquadState.bossArchive.unlockedEventIds,
+    runBossArchiveFounderAction,
     updateBossArchiveProgress
   ]);
 
@@ -2996,7 +4253,7 @@ const App: React.FC = () => {
       const unsettledLifetimeCampaignEnemies = isCampaignRun
         ? Math.max(0, stats.enemiesDefeated - campaignRunCreditedEnemiesRef.current)
         : stats.enemiesDefeated;
-      if (!isFounderSandboxRun && squadRunAppliedGameIdRef.current !== gameId) {
+      if (!isNonCompetitiveRun && squadRunAppliedGameIdRef.current !== gameId) {
         squadRunAppliedGameIdRef.current = gameId;
         updateWeeklySquadState((current) => applySquadRunResult(current, {
           score: stats.score,
@@ -3004,7 +4261,7 @@ const App: React.FC = () => {
           coinsCollected: isCampaignRun ? 0 : stats.coins
         }));
       }
-      if (!isFounderSandboxRun && permanentRunAppliedGameIdRef.current !== gameId) {
+      if (!isNonCompetitiveRun && permanentRunAppliedGameIdRef.current !== gameId) {
         permanentRunAppliedGameIdRef.current = gameId;
         updatePermanentSquadState((current) => recordLifetimeRun(current, {
           score: stats.score,
@@ -3019,17 +4276,17 @@ const App: React.FC = () => {
         return;
       }
 
-      if (!isFounderSandboxRun && stats.score > stats.highScore) {
+      if (!isNonCompetitiveRun && stats.score > stats.highScore) {
         setStats(s => ({ ...s, highScore: s.score }));
       }
 
       setScoreSubmitError('');
-      setShowNameInput(true);
+      setShowNameInput(!isNonCompetitiveRun);
     }
-  }, [gameId, gameState, isBossArchiveRun, isCampaignRun, isFounderSandboxRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
+  }, [gameId, gameState, isBossArchiveRun, isCampaignRun, isNonCompetitiveRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
 
   const persistHighScore = async () => {
-    if (!playerNameInput.trim() || submittingScoreRef.current) return false;
+    if (isNonCompetitiveRun || !playerNameInput.trim() || submittingScoreRef.current) return false;
 
     submittingScoreRef.current = true;
     setIsSubmittingScore(true);
@@ -3484,7 +4741,14 @@ const App: React.FC = () => {
               activeBossEncounterId,
               activeBossArchiveRun?.mode ?? 'practice',
               activeBossArchiveRun?.variantId ?? 'standard',
-              activeCampaignLaunch
+              activeCampaignLaunch,
+              activeCampaignBranch ? {
+                branchId: activeCampaignBranch.branchId,
+                sourceMissionId: activeCampaignBranch.sourceMissionId,
+                missionDefinitionId: activeCampaignBranch.missionDefinitionId,
+                kind: 'branch'
+              } : null,
+              isCampaignLabRun ? campaignLabActiveRequestRef.current : null
             );
           }}
           onCancel={cancelMissionLoading}
@@ -3497,8 +4761,24 @@ const App: React.FC = () => {
             key={gameId}
             canvas={{
               stats,
-              onStatsChange: setStats,
+              onStatsChange: (nextStats) => {
+                if (!isCampaignBranchRun) {
+                  setStats(nextStats);
+                  return;
+                }
+                const baseline = campaignBranchCoinBaselineRef.current;
+                setStats(baseline === null ? nextStats : {
+                  ...nextStats,
+                  totalCoins: baseline
+                });
+              },
               onRuntimeState: handleRuntimeState,
+              onDebugSnapshot: isCampaignLabRun
+                ? (snapshot: Readonly<GameEngineDebugSnapshot>) => {
+                    if (!founderAuthorizationRef.current) return;
+                    setCampaignLabTelemetry(snapshot.campaignLab);
+                  }
+                : undefined,
               running: gameState === GameState.PLAYING && gameRuntimeReady && !ownerFrameFrozen,
               onReady: () => completeMissionRuntimeLaunch(gameId),
               onInitializationError: (error) => failMissionRuntimeLaunch(gameId, error),
@@ -3508,6 +4788,9 @@ const App: React.FC = () => {
                   await finalizeBossArchiveFight(false);
                   returnToBossArchive();
                   return;
+                }
+                if (isCampaignBranchRun) {
+                  await settleCampaignBranchOutcome('failed');
                 }
                 setGameState(GameState.GAMEOVER);
               },
@@ -3520,13 +4803,19 @@ const App: React.FC = () => {
               continueCommand,
               waveContinueCommand,
               polishSettings,
-              playerShipUrl,
-              playerShipId: usableShipId,
+              playerShipUrl: activeMissionPlayerShipUrl,
+              playerShipId: activeMissionShipId,
               squadLoadout: activeRunSquadLoadoutRef.current,
-              campaign: activeBossReplayCampaign ?? (isCampaignRun ? DEFAULT_GAME_CAMPAIGN : undefined),
-              pauseAtInternalWaveResults: false,
-              levelId: activeBossReplay?.missionId ?? (isCampaignRun ? activeCampaignLaunch?.missionId : undefined),
-              waveId: activeBossReplay?.waveId ?? (isCampaignRun ? activeCampaignLaunch?.waveId : undefined),
+              campaign: activeBossReplayCampaign
+                ?? activeCampaignBranchCampaign
+                ?? (isCampaignRun ? DEFAULT_GAME_CAMPAIGN : undefined),
+              pauseAtInternalWaveResults: isCampaignRun,
+              levelId: activeBossReplay?.missionId
+                ?? activeCampaignBranch?.missionDefinition.id
+                ?? (isCampaignRun ? activeCampaignLaunch?.missionId : undefined),
+              waveId: activeBossReplay?.waveId
+                ?? (activeCampaignBranch ? getCampaignBranchRuntimeWaveId(activeCampaignBranch) : undefined)
+                ?? (isCampaignRun ? activeCampaignLaunch?.waveId : undefined),
               randomSeed: activeBossArchiveRun?.seed,
               testMode: isOwnerTestRun,
               testWaveCommand,
@@ -3552,7 +4841,7 @@ const App: React.FC = () => {
                 if (introMissionLocked || activeStoryBeat) return;
                 setBombCommand({ nonce: Date.now() });
               },
-              selectedShipId: usableShipId,
+              selectedShipId: activeMissionShipId,
               shipAbilityLocked: gameState !== GameState.PLAYING || ownerFrameFrozen || introMissionLocked || Boolean(activeStoryBeat),
               onUseShipAbility: () => {
                 if (introMissionLocked || activeStoryBeat) return;
@@ -3565,7 +4854,17 @@ const App: React.FC = () => {
         </React.Suspense>
       )}
 
-      {gameState === GameState.WAVE_COMPLETE && waveVictorySummary ? (
+      {gameState === GameState.WAVE_COMPLETE && waveVictorySummary && isCampaignBranchRun && campaignBranchResult ? (
+        <React.Suspense fallback={null}>
+          <CampaignBranchResultOverlay
+            branchName={campaignBranchResult.branchName}
+            result={campaignBranchResult}
+            onReturnToMap={continueAfterWaveVictory}
+          />
+        </React.Suspense>
+      ) : null}
+
+      {gameState === GameState.WAVE_COMPLETE && waveVictorySummary && !isCampaignBranchRun ? (
         <React.Suspense fallback={null}>
           <WaveVictoryOverlay
             summary={waveVictorySummary}
@@ -3573,6 +4872,9 @@ const App: React.FC = () => {
             bossArchiveReplay={isBossArchiveRun}
             campaignSettlement={isCampaignRun && campaignResultPresentation?.summaryId === waveVictorySummary.id
               ? campaignResultPresentation.settlement
+              : null}
+            newlyAffordableUpgrade={isCampaignRun && campaignResultPresentation?.summaryId === waveVictorySummary.id
+              ? campaignResultPresentation.newlyAffordableUpgrade
               : null}
             onOpenCampaignMap={isCampaignRun
               ? () => openCampaignMap(
@@ -3687,8 +4989,15 @@ const App: React.FC = () => {
           errorMessage={campaignMapError}
           initialMissionId={campaignMapFocusMissionId}
           newMissionIds={campaignMapNewMissionIds}
+          branches={CAMPAIGN_MAP_BRANCHES}
+          branchProgressById={campaignMapBranchProgress}
+          newBranchIds={permanentSquadState.campaignProgress.branchProgress.newBranchIds}
+          initialBranchId={campaignMapFocusBranchId}
+          unlockingBranchId={campaignMapUnlockingBranchId}
           onClose={closeCampaignMap}
           onLaunch={launchCampaignFromMap}
+          onLaunchBranch={launchCampaignBranchFromMap}
+          onSkipBranchAnimation={() => setCampaignMapUnlockingBranchId(null)}
           developerControls={campaignMapDeveloperControls}
         />
       </React.Suspense>
@@ -3697,6 +5006,7 @@ const App: React.FC = () => {
         <div className="absolute inset-0 z-40">
           <StartScreen
             onStart={() => setShowTestChampionPreview(false)}
+            campaignCheckpoint={campaignCheckpoint}
             allTimeLeaderboard={leaderboard}
             monthlyLeaderboard={monthlyLeaderboard}
             archivedWinners={archivedWinners}
@@ -3755,7 +5065,11 @@ const App: React.FC = () => {
             setOwnerFrameFrozen(false);
             setGameState(GameState.PLAYING);
           }}
-          onQuit={isBossArchiveRun ? returnToBossArchive : resetGame}
+          onQuit={isBossArchiveRun
+            ? returnToBossArchive
+            : isCampaignBranchRun
+              ? () => { void returnToCampaignMapAfterBranchAttempt('interrupted'); }
+              : resetGame}
           onToggleAudio={toggleGameAudio}
           onSfxVolumeChange={setGameSfxVolume}
           onMusicVolumeChange={setGameMusicVolume}
@@ -3852,6 +5166,31 @@ const App: React.FC = () => {
                 <button type="button" onClick={returnToMainMenu} className="scicon-btn scicon-btn-secondary min-h-11 w-full py-2.5 text-xs font-bold text-gray-300">
                   MAIN MENU
                 </button>
+              </div>
+            </div>
+          ) : isCampaignBranchRun ? (
+            <div className="sci-gameover-result-content relative z-10 grid gap-3 p-2 text-center">
+              <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200">
+                Optional Mastery Route
+              </p>
+              <h2 className="arcade-font text-2xl font-black uppercase tracking-widest text-white">
+                Supply Signal Lost
+              </h2>
+              <div className="mx-auto w-full max-w-xs border border-cyan-200/25 bg-cyan-300/8 p-3">
+                <p className="text-sm font-black uppercase text-cyan-50">
+                  {activeCampaignBranch?.displayName ?? 'Research Supply Drop'}
+                </p>
+                <p className="mt-2 text-[10px] font-bold leading-relaxed text-slate-300">
+                  Provisional coins were discarded. This optional route remains available and your main Mission checkpoint was not changed.
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <PixelActionButton tone="green" ready shine onClick={retryGame} className="min-h-11 w-full">
+                  Retry Supply Drop
+                </PixelActionButton>
+                <PixelActionButton tone="neutral" onClick={() => { void returnToCampaignMapAfterBranchAttempt(); }} className="min-h-11 w-full">
+                  Return to Campaign Map
+                </PixelActionButton>
               </div>
             </div>
           ) : (

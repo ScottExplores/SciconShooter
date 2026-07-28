@@ -80,7 +80,7 @@ test('authored boss phases switch movement, speed, and active weapon numbers at 
 
 test('cloning a gatekeeper remaps nested weapons, phases, timeline clips, and timeline references', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
-  const source = structuredClone(findCampaignEvent(campaign, 'bastion-protocol-gatekeeper'));
+  const source = structuredClone(findCampaignEvent(campaign, 'open-orbit-gatekeeper'));
   source.timeline = {
     durationSeconds: 4,
     loop: true,
@@ -119,7 +119,7 @@ test('cloning a gatekeeper remaps nested weapons, phases, timeline clips, and ti
   const clone = cloneWaveEvent(source);
 
   assert.notEqual(clone.id, source.id);
-  assert.equal(clone.rigId, 'crown-claw');
+  assert.equal(clone.rigId, 'open-orbit');
   assert.equal(clone.weapons.length, source.weapons.length);
   assert.notDeepEqual(clone.weapons.map((weapon) => weapon.id), source.weapons.map((weapon) => weapon.id));
   const clonedWeaponIds = new Set(clone.weapons.map((weapon) => weapon.id));
@@ -140,22 +140,19 @@ test('cloning a gatekeeper remaps nested weapons, phases, timeline clips, and ti
   assert.equal(clone.revival.phaseId, clone.phases[1].id);
 });
 
-test('all authored gatekeepers carry stable rigs and runtime prefers them over the legacy event-id fallback', () => {
+test('all four authored sector bosses carry stable rigs and runtime prefers them over the legacy event-id fallback', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
+  const majorBossIds = new Set(campaign.sectors.map((sector) => sector.majorBossId));
   const rigs = Object.fromEntries(campaign.levels.flatMap((level) => level.waves).flatMap((wave) => wave.events)
-    .filter((event) => event.kind === 'boss' && event.bossId === 'gatekeeper')
+    .filter((event) => event.kind === 'boss' && majorBossIds.has(event.bossId))
     .map((event) => [event.id, event.rigId]));
-  assert.deepEqual({
-    'open-orbit-gatekeeper': rigs['open-orbit-gatekeeper'],
-    'paywall-siege-gatekeeper': rigs['paywall-siege-gatekeeper'],
-    'bastion-protocol-gatekeeper': rigs['bastion-protocol-gatekeeper']
-  }, {
+  assert.deepEqual(rigs, {
     'open-orbit-gatekeeper': 'open-orbit',
-    'paywall-siege-gatekeeper': 'paywall-siege',
-    'bastion-protocol-gatekeeper': 'crown-claw'
+    'null-sector-final-boss': 'crown-claw',
+    'ion-citadel-final-boss': 'citation-storm',
+    'terminus-ascendant-final-boss': 'open-orbit'
   });
-  assert.equal(rigs['helix-convergence-final-boss'], 'citation-storm');
-  assert.ok(Object.keys(rigs).length > 3);
+  assert.equal(Object.keys(rigs).length, 4);
   Object.values(rigs).forEach((rigId) => {
     assert.ok(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw'].includes(rigId));
   });
@@ -168,7 +165,7 @@ test('all authored gatekeepers carry stable rigs and runtime prefers them over t
   assert.match(engine, /const configuredPhase = this\.applyConfiguredBossPhase\(boss\)/);
   assert.match(browserValidator, /const BOSS_RIG_IDS = new Set\(\['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw'\]\)/);
   assert.match(browserValidator, /'bossId', 'rigId'/);
-  assert.match(browserValidator, /Layered boss rigs are supported only by gatekeepers/);
+  assert.match(browserValidator, /Layered boss rigs are supported only by canonical major bosses/);
 });
 
 test('preview damage and editor collision inspection are explicit engine-only controls', () => {

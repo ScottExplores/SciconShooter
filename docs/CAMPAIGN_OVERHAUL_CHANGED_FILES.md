@@ -1,0 +1,185 @@
+# Campaign Overhaul Changed-File Inventory
+
+Snapshot date: 2026-07-28
+
+This inventory records the complete current worktree associated with the Campaign overhaul handoff. It does not imply that files were staged, committed, pushed, merged, or deployed.
+
+Authored worktree inventory: **151 files** (97 modified, 54 new).
+
+## Modified files
+
+- [modified] `.agents/skills/scicon-boss-factory/references/boss-contract.md`
+- [modified] `.agents/skills/scicon-boss-factory/references/validation-gates.md`
+- [modified] `.agents/skills/scicon-boss-factory/SKILL.md`
+- [modified] `api/_lib/walletProfileRoute.js`
+- [modified] `api/_lib/walletProfiles.js`
+- [modified] `App.tsx`
+- [modified] `components/campaign-map.css`
+- [modified] `components/CampaignMap.tsx`
+- [modified] `components/SquadHangar.tsx`
+- [modified] `components/StartScreen.tsx`
+- [modified] `components/wave-victory.css`
+- [modified] `components/WaveVictoryOverlay.tsx`
+- [modified] `director/schemas/wave-campaign.schema.json`
+- [modified] `director/server/gameCampaignValidation.mjs`
+- [modified] `director/server/prototypeAssetCatalog.mjs`
+- [modified] `director/src/combat-lab/contentCatalog.ts`
+- [modified] `director/src/combat-lab/experimentModel.ts`
+- [modified] `director/src/combat-lab/sandboxBossPrototypes.ts`
+- [modified] `director/src/editor/EditorInspector.tsx`
+- [modified] `director/src/tools/bosses/boss-sandbox.css`
+- [modified] `director/src/tools/bosses/BossSandboxApp.tsx`
+- [modified] `director/src/tools/bosses/bossSandboxModel.ts`
+- [modified] `director/src/tools/bosses/generatedSandboxBossCollisionMasks.ts`
+- [modified] `director/tests/bossPrototypeAssets.test.mjs`
+- [modified] `director/tests/bossSandboxModel.test.mjs`
+- [modified] `director/tests/combatLabDomain.test.mjs`
+- [modified] `director/tests/customFormationAuthoring.test.mjs`
+- [modified] `director/tests/gameCampaignIntegration.test.mjs`
+- [modified] `director/tests/sandboxBossPrototypes.test.mjs`
+- [modified] `docs/boss-factory/roster-classification.md`
+- [modified] `game-config/bossTimeline.ts`
+- [modified] `game-config/bossTimelineTemplates.ts`
+- [modified] `game-config/campaign.json`
+- [modified] `game-config/catalog.ts`
+- [modified] `game-config/compiler/contentPackage.mjs`
+- [modified] `game-config/compiler/contracts.ts`
+- [modified] `game-config/compiler/README.md`
+- [modified] `game-config/generated-assets.json`
+- [modified] `game-config/migrations/schemaV1ContentPackage.mjs`
+- [modified] `game-config/types.ts`
+- [modified] `game-config/validate.ts`
+- [modified] `public/game-art/generated/ui/scicon-neon-dashboard-icons-v2/pack-manifest.json`
+- [modified] `public/game-art/generated/ui/scicon-neon-dashboard-icons-v2/README.md`
+- [modified] `services/bossArchive.ts`
+- [modified] `services/bossArchiveProgression.ts`
+- [modified] `services/campaignProgression.ts`
+- [modified] `services/gameLogic.ts`
+- [modified] `services/gameplay/bosses/BossActionPresentationRuntime.ts`
+- [modified] `services/gameplay/bosses/BossProjectilePresentationRuntime.ts`
+- [modified] `services/pixi/boss-rigs/ModularBossWeaponSocketRuntime.ts`
+- [modified] `services/pixi/PixiGameRenderer.ts`
+- [modified] `services/squadProgression.ts`
+- [modified] `services/walletProfileService.ts`
+- [modified] `shared/record-card/renderRecordCardSvg.mjs`
+- [modified] `styles/tailwind.generated.css`
+- [modified] `tests/bossArchive.test.cjs`
+- [modified] `tests/bossArchiveChallengeServer.test.cjs`
+- [modified] `tests/bossArchiveProgression.test.cjs`
+- [modified] `tests/bossAttackReadability.test.cjs`
+- [modified] `tests/bossCoinBurst.test.cjs`
+- [modified] `tests/bossConfigurationRuntime.test.cjs`
+- [modified] `tests/bossPuzzlePatternRuntime.test.cjs`
+- [modified] `tests/bossSilhouetteCollisionRuntime.test.cjs`
+- [modified] `tests/campaignExpansionAssets.test.cjs`
+- [modified] `tests/campaignMapUi.test.cjs`
+- [modified] `tests/campaignProgression.test.cjs`
+- [modified] `tests/campaignWalletRoundtrip.test.cjs`
+- [modified] `tests/contentPackageCompiler.test.cjs`
+- [modified] `tests/customFormationAuthoring.test.cjs`
+- [modified] `tests/gameCampaignConfig.test.cjs`
+- [modified] `tests/gameOverPresentation.test.cjs`
+- [modified] `tests/gameplayPacingRegression.test.cjs`
+- [modified] `tests/generatedAssetCatalog.test.cjs`
+- [modified] `tests/generatedBossArchetypes.test.cjs`
+- [modified] `tests/missionRecordShipAndTimer.test.cjs`
+- [modified] `tests/missionScoreEntryFlow.test.cjs`
+- [modified] `tests/modularHierarchyRig.test.cjs`
+- [modified] `tests/ownerPilotTestMode.test.cjs`
+- [modified] `tests/pilotProfile.test.cjs`
+- [modified] `tests/pixiCombatPresentation.test.cjs`
+- [modified] `tests/pixiEnvironmentRoute.test.cjs`
+- [modified] `tests/pixiLayeredBosses.test.cjs`
+- [modified] `tests/playerShipUnlock.test.cjs`
+- [modified] `tests/previewInvincibleHitFeedback.test.cjs`
+- [modified] `tests/recordCard.test.cjs`
+- [modified] `tests/recordCardRenderer.test.cjs`
+- [modified] `tests/researchShipAbility.test.cjs`
+- [modified] `tests/roamingBossAndElitePresentation.test.cjs`
+- [modified] `tests/spaceRunCampaignConfig.test.cjs`
+- [modified] `tests/squadHangarFlow.test.cjs`
+- [modified] `tests/upgradeSprites.test.cjs`
+- [modified] `tests/walletProfileApi.test.cjs`
+- [modified] `tests/walletProfileClient.test.cjs`
+- [modified] `tests/walletProfileSchema.test.cjs`
+- [modified] `tests/waveCompletion.test.cjs`
+- [modified] `tests/waveVictoryFlow.test.cjs`
+- [modified] `tools/generate-boss-collision-masks.mjs`
+
+## New files
+
+- [new] `api/_lib/campaignBranchRuns.js`
+- [new] `components/CampaignBranchResultOverlay.tsx`
+- [new] `director/design/bosses/frontier-crownclaw.md`
+- [new] `director/src/tools/bosses/frontierCrownclawAttackTuning.ts`
+- [new] `director/src/tools/bosses/FrontierCrownclawAttackTuningPanel.tsx`
+- [new] `director/tests/campaignOverhaulValidation.test.mjs`
+- [new] `director/tests/frontierCrownclawAttackTuning.test.mjs`
+- [new] `director/tests/frontierCrownclawComponentFallback.test.mjs`
+- [new] `director/tests/frontierCrownclawManualAttackPlayback.test.mjs`
+- [new] `director/tests/frontierCrownclawRuntimeIntegration.test.mjs`
+- [new] `director/tests/frontierCrownclawSafeRouteProof.test.mjs`
+- [new] `docs/boss-factory/benchmark-frontier-crownclaw.md`
+- [new] `docs/CAMPAIGN_ECONOMY_SIMULATION.md`
+- [new] `docs/CAMPAIGN_OPTIONAL_BRANCH_ROUTES.md`
+- [new] `docs/CAMPAIGN_OVERHAUL_CHANGED_FILES.md`
+- [new] `docs/CAMPAIGN_OVERHAUL_CHECKLIST.md`
+- [new] `docs/CAMPAIGN_SAVE_MIGRATION_V22.md`
+- [new] `game-config/campaign-migration-v22.json`
+- [new] `public/game-art/generated/research-supply-armored-a4ab6f161a36.png`
+- [new] `public/game-art/generated/research-supply-fast-e47684f06aad.png`
+- [new] `public/game-art/generated/research-supply-golden-de501f4a437d.png`
+- [new] `public/game-art/generated/research-supply-standard-05c6d35dfd79.png`
+- [new] `public/game-art/generated/ui/scicon-neon-dashboard-icons-v2/boss-archive-defeated-emblem-v1.png`
+- [new] `services/campaignBranchProgression.ts`
+- [new] `services/campaignBranchRuntime.ts`
+- [new] `services/gameplay/bosses/FrontierCrownclawEngineTraceProof.ts`
+- [new] `services/gameplay/bosses/FrontierCrownclawRuntime.ts`
+- [new] `services/gameplay/bosses/FrontierCrownclawSafeRouteProof.ts`
+- [new] `services/gameplay/bosses/GatekeeperPrimeRuntime.ts`
+- [new] `services/gameplay/playerLifeRuntime.ts`
+- [new] `services/pixi/boss-rigs/FrontierCrownclawModularPose.ts`
+- [new] `services/squadPowerRating.ts`
+- [new] `tests/bossArchiveAuthorization.test.cjs`
+- [new] `tests/campaignBranchAppIntegration.test.cjs`
+- [new] `tests/campaignBranchEconomy.test.cjs`
+- [new] `tests/campaignBranchesConfig.test.cjs`
+- [new] `tests/campaignBranchExpansion.test.cjs`
+- [new] `tests/campaignBranchMapPresentation.test.cjs`
+- [new] `tests/campaignBranchProgression.test.cjs`
+- [new] `tests/campaignBranchRuntime.test.cjs`
+- [new] `tests/campaignBranchServerSettlement.test.cjs`
+- [new] `tests/campaignEconomySimulation.test.cjs`
+- [new] `tests/campaignPowerSupportAlignment.test.cjs`
+- [new] `tests/campaignWeeklyIsolation.test.cjs`
+- [new] `tests/frontierCrownclawModularPose.test.cjs`
+- [new] `tests/frontierCrownclawRuntime.test.cjs`
+- [new] `tests/gatekeeperPrimeRuntime.test.cjs`
+- [new] `tests/playerLifeRuntime.test.cjs`
+- [new] `tests/presentDropRuntime.test.cjs`
+- [new] `tools/author-campaign-overhaul-v22.mjs`
+- [new] `tools/lib/campaign-overhaul-v22-normalizer.mjs`
+- [new] `tools/repair-campaign-overhaul-v22.mjs`
+- [new] `tools/simulate-campaign-boss-balance.mjs`
+- [new] `tools/simulate-campaign-economy.mjs`
+
+## Excluded unreferenced proof artifacts
+
+The following **16 untracked files** are visible in the shared worktree but are not referenced by the implementation or validation documents and are excluded from the authored release inventory. They were not deleted or modified during this handoff.
+
+- [untracked, excluded] `artifacts/campaign-proof/01-home-desktop.png`
+- [untracked, excluded] `artifacts/campaign-proof/02-map-current-desktop.png`
+- [untracked, excluded] `artifacts/campaign-proof/03-map-completed-locked-new.png`
+- [untracked, excluded] `artifacts/campaign-proof/04-selected-mission.png`
+- [untracked, excluded] `artifacts/campaign-proof/05-boss-node.png`
+- [untracked, excluded] `artifacts/campaign-proof/06-halfway-checkpoint.png`
+- [untracked, excluded] `artifacts/campaign-proof/07-replay-boss-selection.png`
+- [untracked, excluded] `artifacts/campaign-proof/08-mouse-drag-scroll.png`
+- [untracked, excluded] `artifacts/campaign-proof/09-long-20-mission-map.png`
+- [untracked, excluded] `artifacts/campaign-proof/10-wave-result.png`
+- [untracked, excluded] `artifacts/campaign-proof/11-mission-result.png`
+- [untracked, excluded] `artifacts/campaign-proof/12-mission-boss-result.png`
+- [untracked, excluded] `artifacts/campaign-proof/13-home-mobile.png`
+- [untracked, excluded] `artifacts/campaign-proof/14-map-mobile.png`
+- [untracked, excluded] `artifacts/campaign-proof/15-desktop-final.png`
+- [untracked, excluded] `artifacts/campaign-proof/16-map-desktop-final.png`

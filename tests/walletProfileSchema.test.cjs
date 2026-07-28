@@ -7,6 +7,8 @@ process.env.NODE_ENV = 'test';
 
 const {
   createWeeklyState,
+  preserveCampaignBranchServerState,
+  sanitizeCampaignBranchProgress,
   sanitizeWalletSnapshot
 } = require('../api/_lib/walletProfiles');
 const { getWeeklyBoundaryMeta } = require('../shared/weeklyCompetitionBoundary');
@@ -26,6 +28,14 @@ const SECOND_MISSION_LAST_WAVE = SECOND_MISSION.waves
   .slice()
   .sort((left, right) => left.order - right.order)
   .at(-1);
+const TEST_BRANCHES = [{
+  branchId: 'wallet-test-supply-cache',
+  sourceMissionId: FIRST_MISSION.id,
+  unlockCondition: { kind: 'all-stars-earned', missionId: FIRST_MISSION.id },
+  requiredStars: 3,
+  oneTimeCompletion: true,
+  replayPolicy: 'no-replay-after-claim'
+}];
 
 test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted ownership', () => {
   const now = Date.UTC(2026, 6, 23, 19);
@@ -38,6 +48,7 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
       profileId: 'pilot:wrong-device',
       weekKey,
       coins: 42.8,
+      durableCampaignCoins: 999,
       unlockedSlots: { left: 1, right: false, admin: true },
       ownedMiniShips: {
         'citation-dart': 99,
@@ -91,6 +102,8 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
     'weeklyState'
   ]);
   assert.equal(sanitized.weeklyState.profileId, PROFILE_ID);
+  assert.equal(sanitized.weeklyState.coins, 42);
+  assert.equal(sanitized.weeklyState.durableCampaignCoins, 42);
   assert.equal(sanitized.permanentState.profileId, PROFILE_ID);
   assert.equal(sanitized.weeklyState.ownedMiniShips['citation-dart'], 5);
   assert.equal(sanitized.weeklyState.ownedMiniShips['not-a-real-ship'], undefined);
@@ -102,7 +115,7 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
   assert.deepEqual(sanitized.permanentState.achievementTiers, { 'boss-breaker': 5 });
   assert.deepEqual(sanitized.permanentState.bossArchive, {
     version: 1,
-    unlockedEventIds: ['open-orbit-gatekeeper', 'paywall-siege-gatekeeper'],
+    unlockedEventIds: ['open-orbit-gatekeeper'],
     seenEventIds: ['open-orbit-gatekeeper'],
     lastSelectedEventId: null,
     records: {},
@@ -114,6 +127,12 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
   });
   assert.equal(sanitized.stats.playerName.length, 15);
   assert.equal(sanitized.selectedShipId, 'bio');
+
+  const negativeDurableBalance = sanitizeWalletSnapshot({
+    weeklyState: { weekKey, coins: 100, durableCampaignCoins: -25 }
+  }, WALLET, now);
+  assert.equal(negativeDurableBalance.weeklyState.coins, 100);
+  assert.equal(negativeDurableBalance.weeklyState.durableCampaignCoins, 0);
 });
 
 test('a stale weekly snapshot resets competition totals while preserving Hangar and Boss Archive progress', () => {
@@ -124,6 +143,7 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
       ...expected,
       weekKey: '2026-07-12',
       coins: 999999,
+      durableCampaignCoins: 275,
       unlockedSlots: { left: true, right: true },
       ownedMiniShips: { 'citation-dart': 4, 'photon-manta': 3 },
       equipped: { left: 'citation-dart', right: 'photon-manta' },
@@ -143,7 +163,8 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
   }, WALLET, now);
 
   assert.equal(sanitized.weeklyState.weekKey, expected.weekKey);
-  assert.equal(sanitized.weeklyState.coins, 0);
+  assert.equal(sanitized.weeklyState.coins, 275);
+  assert.equal(sanitized.weeklyState.durableCampaignCoins, 275);
   assert.deepEqual(sanitized.weeklyState.weeklyStats, expected.weeklyStats);
   assert.deepEqual(sanitized.weeklyState.unlockedSlots, { left: true, right: true });
   assert.deepEqual(sanitized.weeklyState.ownedMiniShips, {
@@ -161,7 +182,7 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
   });
   assert.deepEqual(sanitized.permanentState.bossArchive, {
     version: 1,
-    unlockedEventIds: ['open-orbit-gatekeeper', 'paywall-siege-gatekeeper'],
+    unlockedEventIds: ['open-orbit-gatekeeper'],
     seenEventIds: ['open-orbit-gatekeeper'],
     lastSelectedEventId: null,
     records: {},
@@ -186,7 +207,7 @@ test('legacy cloud snapshots infer Boss Archive unlocks before writing canonical
 
   assert.deepEqual(sanitized.permanentState.bossArchive, {
     version: 1,
-    unlockedEventIds: ['open-orbit-gatekeeper', 'paywall-siege-gatekeeper'],
+    unlockedEventIds: ['open-orbit-gatekeeper'],
     seenEventIds: [],
     lastSelectedEventId: null,
     records: {},
@@ -196,7 +217,7 @@ test('legacy cloud snapshots infer Boss Archive unlocks before writing canonical
       processedClearIds: []
     }
   });
-  assert.equal(sanitized.permanentState.campaignProgress.version, 1);
+  assert.equal(sanitized.permanentState.campaignProgress.version, 3);
   assert.equal(sanitized.permanentState.campaignProgress.campaignId, campaign.id);
   assert.equal(sanitized.permanentState.campaignProgress.recommendedMissionId, CAMPAIGN_LEVELS[3].id);
   assert.equal(sanitized.permanentState.campaignProgress.recommendedWaveId, CAMPAIGN_LEVELS[3].waves[0].id);
@@ -211,17 +232,129 @@ test('legacy cloud snapshots infer Boss Archive unlocks before writing canonical
   assert.equal(fresh.permanentState.campaignProgress.recommendedWaveId, FIRST_WAVE.id);
   assert.deepEqual(fresh.permanentState.campaignProgress.completedMissionIds, []);
   assert.deepEqual(fresh.weeklyState.creditedCampaignRewardIds, []);
+  assert.equal(fresh.weeklyState.durableCampaignCoins, 0);
+});
+
+test('cloud branch migration unlocks prior three-star mastery without inventing completion', () => {
+  const now = Date.UTC(2026, 6, 27, 19);
+  const migrated = sanitizeCampaignBranchProgress(
+    undefined,
+    { [FIRST_MISSION.id]: { stars: 3 } },
+    now,
+    TEST_BRANCHES
+  );
+
+  assert.equal(migrated.version, 2);
+  assert.deepEqual(migrated.unlockedBranchIds, ['wallet-test-supply-cache']);
+  assert.deepEqual(migrated.newBranchIds, ['wallet-test-supply-cache']);
+  assert.deepEqual(migrated.completedBranchIds, []);
+  assert.deepEqual(migrated.claimedBranchIds, []);
+  assert.deepEqual(migrated.attemptReceipts, []);
+});
+
+test('cloud branch sanitizer and revision merge preserve one-time receipts without duplicate IDs', () => {
+  const now = Date.UTC(2026, 6, 27, 19);
+  const claimed = sanitizeCampaignBranchProgress({
+    unlockedBranchIds: ['wallet-test-supply-cache', 'injected-branch'],
+    completedBranchIds: ['wallet-test-supply-cache'],
+    claimedBranchIds: ['wallet-test-supply-cache'],
+    processedAttemptIds: ['branch-attempt-1', 'branch-attempt-1'],
+    claimedRewardReceiptIds: ['campaign-branch:receipt-1', 'campaign-branch:receipt-1'],
+    attemptReceipts: [{
+      attemptId: 'branch-attempt-1',
+      branchId: 'wallet-test-supply-cache',
+      playerId: PROFILE_ID,
+      outcome: 'success',
+      presentsDestroyed: 20,
+      coinsCalculated: 275,
+      coinsAwarded: 275,
+      completedAt: '2026-07-27T18:00:00.000Z',
+      rewardReceiptId: 'campaign-branch:receipt-1',
+      claimed: true
+    }, {
+      attemptId: 'injected-attempt',
+      branchId: 'injected-branch',
+      playerId: PROFILE_ID,
+      outcome: 'success',
+      coinsAwarded: 999999,
+      rewardReceiptId: 'campaign-branch:injected',
+      claimed: true
+    }, {
+      attemptId: 'malformed-success',
+      branchId: 'wallet-test-supply-cache',
+      playerId: PROFILE_ID,
+      outcome: 'success',
+      coinsAwarded: 999999,
+      completedAt: '2026-07-27T18:05:00.000Z',
+      claimed: true
+    }]
+  }, { [FIRST_MISSION.id]: { stars: 3 } }, now, TEST_BRANCHES);
+
+  assert.deepEqual(claimed.unlockedBranchIds, ['wallet-test-supply-cache']);
+  assert.deepEqual(claimed.completedBranchIds, ['wallet-test-supply-cache']);
+  assert.deepEqual(claimed.claimedBranchIds, ['wallet-test-supply-cache']);
+  assert.deepEqual(claimed.processedAttemptIds, ['branch-attempt-1']);
+  assert.deepEqual(claimed.claimedRewardReceiptIds, ['campaign-branch:receipt-1']);
+  assert.equal(claimed.attemptReceipts.length, 1);
+
+  const currentSnapshot = {
+    permanentState: {
+      campaignProgress: {
+        missionRecords: { [FIRST_MISSION.id]: { stars: 3 } },
+        replayRewardEpochByMission: { [FIRST_MISSION.id]: '2026-07-27' },
+        branchProgress: claimed
+      }
+    }
+  };
+  const incomingSnapshot = {
+    weeklyState: {},
+    stats: {},
+    selectedShipId: 'researchhub',
+    permanentState: {
+      campaignProgress: {
+        missionRecords: { [FIRST_MISSION.id]: { stars: 3 } },
+        replayRewardEpochByMission: { [FIRST_MISSION.id]: '2026-07-26' },
+        branchProgress: {
+          unlockedBranchIds: ['wallet-test-supply-cache'],
+          attemptReceipts: []
+        }
+      }
+    }
+  };
+  const merged = preserveCampaignBranchServerState({
+    currentSnapshot,
+    incomingSnapshot,
+    now: now + 1_000,
+    branchDefinitions: TEST_BRANCHES
+  });
+  const roundTripped = merged.permanentState.campaignProgress.branchProgress;
+  assert.equal(roundTripped.version, 2);
+  assert.deepEqual(roundTripped.claimedBranchIds, ['wallet-test-supply-cache']);
+  assert.deepEqual(roundTripped.processedAttemptIds, ['branch-attempt-1']);
+  assert.deepEqual(roundTripped.claimedRewardReceiptIds, ['campaign-branch:receipt-1']);
+  assert.equal(roundTripped.attemptReceipts.length, 1);
+  assert.deepEqual(merged.permanentState.campaignProgress.replayRewardEpochByMission, {
+    [FIRST_MISSION.id]: '2026-07-27'
+  });
 });
 
 test('Campaign progress and reward receipts survive wallet sanitization with strict Mission-Wave pairing', () => {
   const now = Date.UTC(2026, 6, 23, 19);
   const weekKey = getWeeklyBoundaryMeta(new Date(now)).weekKey;
   const validRewardId = `campaign:${FIRST_MISSION.id}:first-clear`;
+  const validBranchRewardId = 'campaign-branch:wallet-test-supply-cache:receipt-1';
   const validResultId = 'campaign-result-valid';
   const sanitized = sanitizeWalletSnapshot({
     weeklyState: {
       weekKey,
-      creditedCampaignRewardIds: [validRewardId, validRewardId, 'not-a-campaign-reward']
+      coins: 180,
+      durableCampaignCoins: 120,
+      creditedCampaignRewardIds: [
+        validRewardId,
+        validRewardId,
+        validBranchRewardId,
+        'not-a-campaign-reward'
+      ]
     },
     permanentState: {
       campaignProgress: {
@@ -278,17 +411,23 @@ test('Campaign progress and reward receipts survive wallet sanitization with str
   }, WALLET, now);
 
   const progress = sanitized.permanentState.campaignProgress;
-  assert.deepEqual(sanitized.weeklyState.creditedCampaignRewardIds, [validRewardId]);
-  assert.equal(progress.version, 1);
+  assert.deepEqual(
+    sanitized.weeklyState.creditedCampaignRewardIds,
+    [validRewardId, validBranchRewardId]
+  );
+  assert.equal(progress.version, 3);
   assert.equal(progress.campaignId, campaign.id);
   assert.equal(progress.campaignRevision, campaign.revision);
   assert.equal(progress.recommendedMissionId, SECOND_MISSION.id);
   assert.equal(progress.recommendedWaveId, SECOND_MISSION_WAVE.id);
   assert.deepEqual(progress.unlockedMissionIds, [FIRST_MISSION.id, SECOND_MISSION.id]);
-  assert.deepEqual(progress.unlockedWaveIdsByMission[FIRST_MISSION.id], [FIRST_WAVE.id]);
+  assert.deepEqual(
+    progress.unlockedWaveIdsByMission[FIRST_MISSION.id],
+    FIRST_MISSION.waves.slice().sort((left, right) => left.order - right.order).slice(0, 2).map((wave) => wave.id)
+  );
   assert.deepEqual(progress.unlockedWaveIdsByMission[SECOND_MISSION.id], [SECOND_MISSION_WAVE.id]);
-  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].completedWaveIds, []);
-  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].earnedStarIds, [`${FIRST_MISSION.id}:complete`]);
+  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].completedWaveIds, [FIRST_WAVE.id]);
+  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].earnedStarIds, []);
   assert.equal(progress.missionRecords[FIRST_MISSION.id].bestScore, 321);
   assert.deepEqual(progress.claimedRewardIds, [validRewardId]);
   assert.deepEqual(progress.processedResultIds, [validResultId]);
@@ -302,10 +441,66 @@ test('Campaign progress and reward receipts survive wallet sanitization with str
     roundTripped.weeklyState.creditedCampaignRewardIds,
     sanitized.weeklyState.creditedCampaignRewardIds
   );
+  assert.equal(roundTripped.weeklyState.coins, 180);
+  assert.equal(roundTripped.weeklyState.durableCampaignCoins, 120);
   assert.deepEqual(
-    { ...roundTripped.permanentState.campaignProgress, updatedAt: null },
-    { ...progress, updatedAt: null }
+    {
+      ...roundTripped.permanentState.campaignProgress,
+      branchProgress: {
+        ...roundTripped.permanentState.campaignProgress.branchProgress,
+        updatedAt: null
+      },
+      updatedAt: null
+    },
+    {
+      ...progress,
+      branchProgress: { ...progress.branchProgress, updatedAt: null },
+      updatedAt: null
+    }
   );
+});
+
+test('cloud Campaign migration preserves a rev21 partial checkpoint and replay reward epoch', () => {
+  const now = Date.UTC(2026, 6, 27, 19);
+  const waveIds = FIRST_MISSION.waves
+    .slice()
+    .sort((left, right) => left.order - right.order)
+    .map((wave) => wave.id);
+  const sanitized = sanitizeWalletSnapshot({
+    permanentState: {
+      campaignProgress: {
+        version: 2,
+        campaignId: campaign.id,
+        campaignRevision: 21,
+        recommendedMissionId: FIRST_MISSION.id,
+        recommendedWaveId: 'open-orbit-checkpoint',
+        unlockedMissionIds: [FIRST_MISSION.id],
+        unlockedWaveIdsByMission: {
+          [FIRST_MISSION.id]: ['open-orbit', 'open-orbit-checkpoint']
+        },
+        missionRecords: {
+          [FIRST_MISSION.id]: {
+            completedWaveIds: ['open-orbit', 'open-orbit-checkpoint']
+          }
+        },
+        replayRewardEpochByMission: {
+          [FIRST_MISSION.id]: '2026-07-26',
+          injected: '2099-01-01'
+        }
+      }
+    }
+  }, WALLET, now);
+  const progress = sanitized.permanentState.campaignProgress;
+
+  assert.equal(progress.version, 3);
+  assert.equal(progress.campaignRevision, campaign.revision);
+  assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].completedWaveIds, waveIds.slice(0, 3));
+  assert.deepEqual(progress.unlockedWaveIdsByMission[FIRST_MISSION.id], waveIds.slice(0, 4));
+  assert.equal(progress.recommendedMissionId, FIRST_MISSION.id);
+  assert.equal(progress.recommendedWaveId, waveIds[3]);
+  assert.deepEqual(progress.replayRewardEpochByMission, {
+    [FIRST_MISSION.id]: '2026-07-26'
+  });
 });
 
 test('wallet snapshots retain sanitized Boss Archive records, mastery, and UTC charges', () => {

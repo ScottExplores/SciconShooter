@@ -27,15 +27,18 @@ test('Brian pauses the opening flight before its protected combat intro begins',
   );
 });
 
-test('formations stay visual and stage bosses provide an intentional five-second loot window', () => {
+test('formations stay visual and four sector bosses provide an intentional five-second loot window', () => {
   assert.doesNotMatch(engineSource, /LINE SWARM|V-SWARM|WAVE SWARM|PINCER!/);
   assert.doesNotMatch(engineSource, /bossCoinDrops|bossPowerupDrops|bossBombDrops/);
 
   const waves = campaign.levels.flatMap((level) => level.waves);
   assert.ok(waves.length > 0);
-  const gatekeeperWaves = waves.filter((wave) => wave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'));
-  assert.equal(gatekeeperWaves.length, 13);
-  gatekeeperWaves.forEach((wave) => assert.equal(wave.delayAfterSeconds, 5));
+  const majorBossIds = new Set(campaign.sectors.map((sector) => sector.majorBossId));
+  const majorBossWaves = waves.filter((wave) => wave.events.some((event) => (
+    event.kind === 'boss' && majorBossIds.has(event.bossId)
+  )));
+  assert.equal(majorBossWaves.length, 4);
+  majorBossWaves.forEach((wave) => assert.equal(wave.delayAfterSeconds, 5));
   campaign.levels.forEach((level) => {
     const finalWave = level.waves.at(-1);
     assert.ok(finalWave.delayAfterSeconds >= 0 && finalWave.delayAfterSeconds <= 5);
@@ -45,20 +48,18 @@ test('formations stay visual and stage bosses provide an intentional five-second
   assert.match(engineSource, /STAGE_TAKEOFF_FRAMES = 180/);
 });
 
-test('milestone Gatekeepers ramp their cadence without exceeding the configured maximum speed', () => {
-  const firstWave = campaign.levels[0].waves.at(-1);
-  const thirdWave = campaign.levels[2].waves.at(-1);
-  const firstGatekeeper = firstWave.events.find((event) => event.id === 'open-orbit-gatekeeper');
-  const thirdGatekeeper = thirdWave.events.find((event) => event.id === 'paywall-siege-gatekeeper');
-  const firstBurstWeapon = firstGatekeeper.weapons.find((weapon) => weapon.id === 'gatekeeper-burst');
-  const thirdBurstWeapon = thirdGatekeeper.weapons.find((weapon) => weapon.id === 'gatekeeper-burst');
+test('sector major bosses ramp durability and projectile pressure without exceeding the authored cap', () => {
+  const bosses = campaign.sectors.map((sector) => {
+    const level = campaign.levels.find((candidate) => candidate.id === sector.missionIds.at(-1));
+    return level.waves[0].events.find((event) => event.kind === 'boss' && event.bossId === sector.majorBossId);
+  });
+  const projectileWeapons = bosses.map((boss) => boss.weapons.find((weapon) => weapon.projectileSpeed > 0));
 
-  assert.equal(firstBurstWeapon.burstCount, 3);
-  assert.equal(firstBurstWeapon.attackIntervalSeconds, 0.883);
-  assert.equal(thirdBurstWeapon.burstCount, 7);
-  assert.equal(thirdBurstWeapon.attackIntervalSeconds, 0.65);
-  assert.ok(thirdGatekeeper.health > firstGatekeeper.health);
-  assert.equal(thirdGatekeeper.movementPatternId, 'gatekeeper-cycle');
+  assert.deepEqual(bosses.map((boss) => boss.health), [170, 1180, 1650, 2100]);
+  assert.deepEqual(projectileWeapons.map((weapon) => weapon.burstCount), [3, 6, 6, 6]);
+  assert.deepEqual(projectileWeapons.map((weapon) => weapon.projectileSpeed), [6.55, 8.9, 9.25, 9.5]);
+  bosses.slice(1).forEach((boss, index) => assert.ok(boss.health > bosses[index].health));
+  assert.ok(projectileWeapons.every((weapon) => weapon.projectileSpeed <= 10.5));
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1\.45/);
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0\.35/);
   assert.match(engineSource, /getGatekeeperBurstInterval\(baseFireRate, healthRatio, cadenceConfig\)/);

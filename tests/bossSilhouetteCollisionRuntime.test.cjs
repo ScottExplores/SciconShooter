@@ -193,11 +193,12 @@ test('boss component selection requires visible component-mask overlap', () => {
     collisionHelpers.indexOf('detonateBitcoinHashBurst(')
   );
   const hullHit = collisionHelpers.slice(
-    collisionHelpers.indexOf('bossSilhouetteIntersectsBox('),
+    collisionHelpers.indexOf('bossSilhouetteIntersectsBoxAt('),
     collisionHelpers.indexOf('bossComponentSilhouetteIntersectsBox(')
   );
 
-  assert.match(hullHit, /if \(!mask\) return this\.boxesIntersect\(box, this\.getCollisionBox\(boss\)\)/);
+  assert.match(hullHit, /if \(!mask\) \{[\s\S]*?const collisionBox = this\.getCollisionBox\(boss\);[\s\S]*?return this\.boxesIntersect\(box,/);
+  assert.match(hullHit, /return this\.bossSilhouetteIntersectsBoxAt\(boss, box, boss\.x, boss\.y\)/);
   assert.match(hullHit, /boss\.bossPresentationBankRadians/);
   assert.match(
     collisionHelpers,

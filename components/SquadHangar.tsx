@@ -30,6 +30,7 @@ import {
   type SquadSlotId,
   type WeeklySquadState
 } from '../services/squadProgression';
+import { calculateSquadPowerRating } from '../services/squadPowerRating';
 import PixelActionButton from './PixelActionButton';
 
 type HangarPosition = 'main' | SquadSlotId;
@@ -260,9 +261,12 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
     && Boolean(activeMiniId)
     && state.equipped[activePosition] === activeMiniId;
   const activeMainShipUpgrades = state.shipUpgrades[mainShipId];
-  const totalUpgradeLevel = Object.values(activeMainShipUpgrades).reduce((total, level) => total + level, 0);
-  const miniPower = Object.values(state.ownedMiniShips).reduce((total, level) => total + (level || 0) * 75, 0);
-  const power = 1000 + totalUpgradeLevel * 120 + miniPower;
+  const equippedPowerSupports = (['left', 'right'] as const).flatMap((slot) => {
+    const id = state.equipped[slot];
+    if (!state.unlockedSlots[slot] || !id) return [];
+    return [{ id, level: state.ownedMiniShips[id] ?? 1 }];
+  });
+  const power = calculateSquadPowerRating(activeMainShipUpgrades, equippedPowerSupports);
   const tier = getMainShipFireRateTier(activeMainShipUpgrades.fireRate);
   const fireRateTierProgress = getMainShipFireRateTierProgress(activeMainShipUpgrades.fireRate);
   const activeTier = activePosition === 'main'

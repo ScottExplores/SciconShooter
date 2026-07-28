@@ -23,7 +23,8 @@ test('flight time begins when the first transmission deploys instead of when the
 });
 
 test('selected ship identity travels through the signed receipt and scorecard preview', () => {
-  assert.match(appSource, /activeRunShipIdRef\.current = usableShipId/);
+  assert.match(appSource, /const runShipId = requestedLabShipId \?\? usableShipId/);
+  assert.match(appSource, /activeRunShipIdRef\.current = runShipId/);
   assert.match(receiptClientSource, /playerShipId: PlayerShipId/);
   assert.match(receiptClientSource, /action: 'start'[\s\S]*?playerShipId/);
   assert.match(receiptServerSource, /playerShipId: normalizePlayerShipId\(playerShipId\)/);

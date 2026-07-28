@@ -60,6 +60,12 @@ import {
   applyPrismMothAttackTuningToTimeline,
   type PrismMothAttackTuning
 } from './prismMothAttackTuning';
+import { FrontierCrownclawAttackTuningPanel } from './FrontierCrownclawAttackTuningPanel';
+import {
+  DEFAULT_FRONTIER_CROWNCLAW_ATTACK_TUNING,
+  applyFrontierCrownclawAttackTuningToTimeline,
+  type FrontierCrownclawAttackTuning
+} from './frontierCrownclawAttackTuning';
 import './boss-sandbox.css';
 
 const PREVIEW_SEED = 'scicon-simple-boss-sandbox';
@@ -212,6 +218,10 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     useState<PreviewCanvasStatus>('loading');
   const [prismMothAttackTuning, setPrismMothAttackTuning] =
     useState<Readonly<PrismMothAttackTuning>>(DEFAULT_PRISM_MOTH_ATTACK_TUNING);
+  const [frontierCrownclawAttackTuning, setFrontierCrownclawAttackTuning] =
+    useState<Readonly<FrontierCrownclawAttackTuning>>(
+      DEFAULT_FRONTIER_CROWNCLAW_ATTACK_TUNING
+    );
   const [notice, setNotice] = useState('Ready');
   const commandNonce = useRef(0);
   const previewHostRef = useRef<HTMLDivElement>(null);
@@ -224,7 +234,9 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   const preview = useMemo(() => {
     if (!selectedChoice) return null;
     const basePreview = buildBossSandboxPreview(initialState.campaign, selectedChoice);
-    if (selectedChoice.prototypeId !== 'prism-moth-brood') return basePreview;
+    const isPrismMoth = selectedChoice.prototypeId === 'prism-moth-brood';
+    const isFrontierCrownclaw = selectedChoice.prototypeId === 'frontier-crownclaw';
+    if (!isPrismMoth && !isFrontierCrownclaw) return basePreview;
 
     const sourceBoss = basePreview.previewWave.events.find((event) => (
       event.kind === 'boss' && event.id === basePreview.eventId
@@ -233,10 +245,15 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
       return basePreview;
     }
 
-    const tunedTimeline = applyPrismMothAttackTuningToTimeline(
-      sourceBoss.timeline,
-      prismMothAttackTuning
-    );
+    const tunedTimeline = isPrismMoth
+      ? applyPrismMothAttackTuningToTimeline(
+          sourceBoss.timeline,
+          prismMothAttackTuning
+        )
+      : applyFrontierCrownclawAttackTuningToTimeline(
+          sourceBoss.timeline,
+          frontierCrownclawAttackTuning
+        );
     const tuneEvents = (events: typeof basePreview.previewWave.events) => (
       events.map((event) => (
         event.kind === 'boss' && event.id === basePreview.eventId
@@ -269,6 +286,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
       previewWave
     };
   }, [
+    frontierCrownclawAttackTuning,
     initialState.campaign,
     prismMothAttackTuning,
     selectedChoice
@@ -1044,6 +1062,33 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 onChange={(value) => {
                   setPrismMothAttackTuning(value);
                   setNotice('Prism attack tuning applied to the isolated preview');
+                }}
+              />
+            </details>
+          ) : null}
+          {selectedChoice.prototypeId === 'frontier-crownclaw' ? (
+            <details className="boss-sandbox__frontier-tuning">
+              <summary>Frontier attack tuning</summary>
+              <p>
+                Changes rebuild only this isolated fight. Reset values retain the
+                route-proven timing; schema-v1 geometry budgets stay explicitly bounded.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setFrontierCrownclawAttackTuning(
+                    DEFAULT_FRONTIER_CROWNCLAW_ATTACK_TUNING
+                  );
+                  setNotice('Frontier attack tuning reset to its route-proven defaults');
+                }}
+              >
+                Reset Frontier tuning
+              </button>
+              <FrontierCrownclawAttackTuningPanel
+                value={frontierCrownclawAttackTuning}
+                onChange={(value) => {
+                  setFrontierCrownclawAttackTuning(value);
+                  setNotice('Frontier attack tuning applied to the isolated preview');
                 }}
               />
             </details>

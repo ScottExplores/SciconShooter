@@ -115,11 +115,15 @@ test('the shared formation runtime resolves authored slots before built-in geome
 test('clean wave authoring creates one valid opening formation beyond wave five', () => {
   const campaign = JSON.parse(readSource('game-config', 'campaign.json'));
   const operations = loadTypeScriptModule('director', 'src', 'editor', 'editorOperations.ts');
-  const sourceWave = findCampaignWave(campaign, 'bastion-protocol-crownclaw');
+  const sourceMission = campaign.levels.reduce((longest, candidate) => (
+    candidate.waves.length > longest.waves.length ? candidate : longest
+  ));
+  const sourceWave = findCampaignWave(campaign, sourceMission.waves.at(-1).id);
   const originalSource = structuredClone(sourceWave);
-  const nextOrder = sourceWave.order + 1;
+  const nextOrder = Math.max(...sourceMission.waves.map((wave) => wave.order)) + 1;
   const starter = operations.createStarterWave(sourceWave, nextOrder);
 
+  assert.ok(sourceMission.waves.length >= 7, 'the authored campaign exposes a variable seven-wave Mission');
   assert.ok(nextOrder > 5);
   assert.equal(starter.name, `New Wave ${nextOrder}`);
   assert.equal(starter.order, nextOrder);

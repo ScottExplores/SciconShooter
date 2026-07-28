@@ -24,44 +24,57 @@ const loadWaveCompletion = () => {
   return module.exports;
 };
 
-test('twenty stages own their internal waves and only stage finales may use boss-defeat', () => {
+test('four five-Mission sectors own tactical Waves and reserve boss-defeat for direct major-boss Missions', () => {
   assert.equal(campaign.levels.length, 20);
+  assert.equal(campaign.sectors.length, 4);
   assert.deepEqual(campaign.levels.slice(0, 5).map((level) => level.name), [
     'OPEN ORBIT', 'CITATION STORM', 'PAYWALL SIEGE', 'OPEN GALAXY', 'BASTION PROTOCOL'
   ]);
-  assert.deepEqual(campaign.levels.slice(0, 5).map((level) => level.waves.length), [3, 3, 3, 3, 5]);
-  assert.ok(campaign.levels.slice(5).every((level) => level.waves.length === 3));
+  const expectedWaveCounts = [5, 6, 5, 7, 1];
+  const expectedRoles = ['introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'];
+
+  campaign.sectors.forEach((sector) => {
+    const levels = sector.missionIds.map((missionId) => campaign.levels.find((level) => level.id === missionId));
+    assert.ok(levels.every(Boolean), `${sector.id} references five real Missions`);
+    assert.deepEqual(levels.map((level) => level.waves.length), expectedWaveCounts);
+    assert.deepEqual(levels.map((level) => level.campaignProgression.missionRole), expectedRoles);
+  });
 
   campaign.levels.forEach((level) => {
+    const isMajorBossMission = level.campaignProgression.missionRole === 'major-boss';
     level.waves.forEach((wave, index) => {
-      const gatekeepers = wave.events.filter((event) => event.kind === 'boss' && event.bossId === 'gatekeeper');
-      assert.equal(gatekeepers.length, wave.completionRule === 'boss-defeat' ? 1 : 0, wave.id);
-      if (index < level.waves.length - 1) assert.equal(wave.completionRule, 'clear-after-duration');
+      const sector = campaign.sectors.find((candidate) => candidate.id === level.campaignProgression.sectorId);
+      const majorBosses = wave.events.filter((event) => event.kind === 'boss' && event.bossId === sector.majorBossId);
+      assert.equal(majorBosses.length, wave.completionRule === 'boss-defeat' ? 1 : 0, wave.id);
+      assert.equal(wave.completionRule, isMajorBossMission ? 'boss-defeat' : 'clear-after-duration');
+      if (isMajorBossMission) {
+        assert.equal(level.waves.length, 1);
+        assert.equal(index, 0);
+        assert.equal(wave.events.length, 1);
+      }
     });
   });
 });
 
-test('bossless stages finish with authored asteroid and elite climaxes', () => {
-  const bosslessStages = [campaign.levels[1], campaign.levels[3]];
-  const packsByStage = bosslessStages.map((level) => level.waves.flatMap((wave) => wave.events).filter((event) => (
-    event.kind === 'spawn' && event.enemies.every((enemy) => enemy.rank === 'elite')
-  )));
+test('elite checkpoints and boss-preparation Missions finish with authored blocking climaxes', () => {
+  const roleClimaxes = new Map([
+    ['elite-checkpoint', new Set(['bottleneck-drone', 'paywall-wall'])],
+    ['boss-preparation', new Set(['bottleneck-drone', 'paywall-wall'])]
+  ]);
 
-  assert.deepEqual(packsByStage.map((packs) => packs.map((pack) => pack.count)), [[3, 4], [3, 4]]);
-  packsByStage.flat().forEach((pack) => {
-    assert.notEqual(pack.patternId, 'single-random');
-    assert.ok(pack.enemies.every((enemy) => enemy.attackPatternId === 'aimed-burst'));
-    assert.ok(pack.enemies.every((enemy) => enemy.sizeMultiplier > 1));
-  });
-
-  const earlyHealth = packsByStage[0].map((pack) => pack.enemies[0].health);
-  const lateHealth = packsByStage[1].map((pack) => pack.enemies[0].health);
-  assert.ok(Math.min(...lateHealth) > Math.max(...earlyHealth));
-  const asteroidClimax = bosslessStages[0].waves.at(-1).events.at(-1);
-  assert.equal(asteroidClimax.id, 'citation-storm-asteroid-belt');
-  assert.equal(asteroidClimax.count, 36);
-  assert.equal(asteroidClimax.spriteStyle.brightness, 0.56);
-  assert.equal(bosslessStages[1].waves.at(-1).events.at(-1).id, 'open-galaxy-elite-frontier-pack');
+  for (const [role, allowedBossIds] of roleClimaxes) {
+    const missions = campaign.levels.filter((level) => level.campaignProgression.missionRole === role);
+    assert.equal(missions.length, 4);
+    missions.forEach((level) => {
+      const finalWave = level.waves.at(-1);
+      const climax = finalWave.events.find((event) => event.kind === 'boss');
+      assert.ok(climax, `${level.id} authors a ${role} climax`);
+      assert.equal(allowedBossIds.has(climax.bossId), true);
+      assert.equal(climax.blocksWaveClock, true);
+      assert.equal(finalWave.completionRule, 'clear-after-duration');
+      assert.equal(finalWave.delayAfterSeconds, 1.8);
+    });
+  }
 });
 
 test('clear-wave completion waits for the timer, schedules, warnings, and every hostile', () => {
@@ -137,8 +150,9 @@ test('internal waves pause only when Campaign checkpoint results are enabled', (
   assert.match(engine, /this\.wave = this\.getStageNumberForCampaignIndex\(\)/);
 });
 
-test('Gatekeeper stages expose a five-second movable reward window before the full takeoff cinematic', () => {
-  const bossStages = [campaign.levels[0], campaign.levels[2], campaign.levels[4]];
+test('major-boss Missions expose a five-second movable reward window before the full takeoff cinematic', () => {
+  const bossStages = campaign.levels.filter((level) => level.campaignProgression.missionRole === 'major-boss');
+  assert.equal(bossStages.length, 4);
   bossStages.forEach((level) => assert.equal(level.waves.at(-1).delayAfterSeconds, 5));
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
   assert.match(engine, /STAGE_TAKEOFF_FRAMES = 180/);

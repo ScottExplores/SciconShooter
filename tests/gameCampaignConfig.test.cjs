@@ -21,9 +21,9 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
   return { keys, strings };
 };
 
-test('tracked campaign contains twenty ordered stages with tactical internal waves', () => {
+test('revision 22 contains four ordered five-Mission sectors with tactical internal Waves', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 20);
+  assert.equal(campaign.revision, 22);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.levels.length, 20);
@@ -33,41 +33,51 @@ test('tracked campaign contains twenty ordered stages with tactical internal wav
     ['OPEN ORBIT', 'CITATION STORM', 'PAYWALL SIEGE', 'OPEN GALAXY', 'BASTION PROTOCOL']
   );
   assert.deepEqual(campaign.levels.map((level) => level.order), Array.from({ length: 20 }, (_, index) => index + 1));
-  assert.deepEqual(firstFive.map((level) => level.waves.length), [3, 3, 3, 3, 5]);
+  assert.deepEqual(firstFive.map((level) => level.waves.length), [5, 6, 5, 7, 1]);
   assert.deepEqual(firstFive.map((level) => level.waves[0].scoreMultiplier), [1, 2, 4, 8, 16]);
   campaign.levels.forEach((level) => {
     assert.equal(level.loopWaves, false);
-    assert.equal(level.durationSeconds, null);
+    assert.ok(level.durationSeconds > 0);
     assert.ok(level.availablePowerupIds.includes('extra-life'));
     assert.deepEqual(level.waves.map((wave) => wave.order), level.waves.map((_, index) => index + 1));
     assert.ok(level.waves.every((wave) => wave.scoreMultiplier === level.waves[0].scoreMultiplier));
   });
-  firstFive.forEach((level) => {
-    assert.equal(level.startingDifficulty, 1);
-    assert.ok(level.waves.every((wave) => wave.difficultyMultiplier === 1));
+  campaign.levels.forEach((level) => {
+    const multipliers = level.waves.map((wave) => wave.difficultyMultiplier);
+    multipliers.slice(1).forEach((multiplier, index) => assert.ok(multiplier > multipliers[index]));
   });
-  assert.ok(campaign.levels.slice(5).every((level) => level.waves.length === 3));
+  assert.equal(campaign.sectors.length, 4);
+  campaign.sectors.forEach((sector) => {
+    const levels = sector.missionIds.map((missionId) => campaign.levels.find((level) => level.id === missionId));
+    assert.ok(levels.every(Boolean));
+    assert.deepEqual(levels.map((level) => level.waves.length), [5, 6, 5, 7, 1]);
+    assert.deepEqual(levels.map((level) => level.campaignProgression.missionRole), [
+      'introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'
+    ]);
+  });
 });
 
 test('all twenty Missions author Campaign rewards, three mastery stars, and a normalized map route', () => {
   const objectiveIds = new Set();
-  const expectedX = [0.5, 0.27, 0.7, 0.38, 0.62];
+  const expectedX = [0.28, 0.45, 0.68, 0.52, 0.74];
+  const sectorRewardTiers = [
+    { waveClearCoins: 16, missionClearCoins: 50, firstClearCoins: 115 },
+    { waveClearCoins: 20, missionClearCoins: 65, firstClearCoins: 150 },
+    { waveClearCoins: 24, missionClearCoins: 80, firstClearCoins: 185 },
+    { waveClearCoins: 28, missionClearCoins: 95, firstClearCoins: 220 }
+  ];
 
   campaign.levels.forEach((level, index) => {
-    const number = index + 1;
     const progression = level.campaignProgression;
-    const hasGatekeeper = level.waves.some((wave) => wave.events.some((event) => (
-      event.kind === 'boss' && event.bossId === 'gatekeeper'
-    )));
+    const rewardTier = sectorRewardTiers[Math.floor(index / 5)];
+    const earnsBossBonus = ['elite-checkpoint', 'major-boss'].includes(progression.missionRole);
 
     assert.ok(progression, `${level.id} should author Campaign progression metadata`);
-    assert.deepEqual(progression.reward, {
-      waveClearCoins: 5 + Math.ceil(number / 2),
-      missionClearCoins: 16 + (number * 3),
-      firstClearCoins: 24 + (number * 4),
-      bossFirstClearCoins: hasGatekeeper ? 18 + (number * 2) : 0,
-      replayMultiplier: 0.35
-    });
+    assert.equal(progression.reward.waveClearCoins, rewardTier.waveClearCoins);
+    assert.equal(progression.reward.missionClearCoins, rewardTier.missionClearCoins);
+    assert.equal(progression.reward.firstClearCoins, rewardTier.firstClearCoins);
+    assert.equal(progression.reward.replayMultiplier, 0.25);
+    assert.equal(progression.reward.bossFirstClearCoins > 0, earnsBossBonus);
     assert.equal(progression.masteryObjectives.length, 3);
     assert.equal(progression.masteryObjectives.filter((objective) => objective.kind === 'complete').length, 1);
     progression.masteryObjectives.forEach((objective) => {
@@ -96,37 +106,31 @@ test('browser validation owns the authored Campaign progression contract', () =>
   assert.match(validator, /validateCampaignProgression\(candidate\.campaignProgression/);
 });
 
-test('Stages 6 through 20 form a non-recycling authored campaign with varied climaxes', () => {
-  const extendedStages = campaign.levels.slice(5);
+test('all twenty Missions form a non-recycling campaign with distinct sector climaxes', () => {
   const stageSix = campaign.levels[5];
   const stageTwenty = campaign.levels[19];
-  const finalWave = (stage) => stage.waves.at(-1);
-  const gatekeeper = (stage) => finalWave(stage).events.find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper');
-  const bosslessOrders = extendedStages.filter((stage) => !gatekeeper(stage)).map((stage) => stage.order);
+  const sectorBosses = campaign.sectors.map((sector) => {
+    const level = campaign.levels.find((candidate) => candidate.id === sector.missionIds.at(-1));
+    return level.waves[0].events.find((event) => event.kind === 'boss' && event.bossId === sector.majorBossId);
+  });
 
   assert.equal(stageSix.id, 'stage-helix-convergence');
   assert.equal(stageTwenty.id, 'stage-terminus-ascendant');
   assert.equal(stageTwenty.order, 20);
-  assert.deepEqual(bosslessOrders, [8, 11, 14, 17, 19]);
-  assert.ok(extendedStages.every((stage) => stage.loopWaves === false));
-  assert.ok(extendedStages.every((stage) => finalWave(stage).delayAfterSeconds === 5));
+  assert.ok(campaign.levels.every((stage) => stage.loopWaves === false));
+  assert.deepEqual(sectorBosses.map((boss) => boss.bossId), [
+    'gatekeeper-prime', 'eclipse-engine', 'helix-leviathan', 'research-tribunal'
+  ]);
+  assert.deepEqual(campaign.levels.filter((level) => level.waves.some((wave) => wave.completionRule === 'boss-defeat')).map((level) => level.order), [5, 10, 15, 20]);
+  sectorBosses.forEach((boss, index) => {
+    if (index === 0) return;
+    assert.ok(boss.health > sectorBosses[index - 1].health);
+    assert.ok(boss.scoreReward > sectorBosses[index - 1].scoreReward);
+  });
 
-  const purpleBoss = gatekeeper(stageSix);
-  assert.ok(purpleBoss);
-  assert.equal(purpleBoss.rigId, 'citation-storm');
-  assert.equal(purpleBoss.spriteKey, 'PIXI_BOSS_CITATION_FRAMES');
-  assert.equal(purpleBoss.label, 'Violet Arbiter');
-
-  assert.ok(campaign.levels[7].waves.at(-1).events.some((event) => event.kind === 'asteroid-belt'));
-  assert.ok(campaign.levels[13].waves.at(-1).events.some((event) => event.kind === 'spawn' && event.blocksWaveClock));
-  assert.ok(campaign.levels[18].waves.at(-1).events.some((event) => event.kind === 'boss' && event.bossId === 'paywall-wall'));
-
-  const terminus = gatekeeper(stageTwenty);
-  assert.ok(terminus.health > purpleBoss.health);
-  assert.ok(terminus.scoreReward > purpleBoss.scoreReward);
   assert.ok(stageTwenty.startingDifficulty > stageSix.startingDifficulty);
-  assert.ok(finalWave(stageTwenty).difficultyMultiplier > finalWave(stageSix).difficultyMultiplier);
-  assert.ok(finalWave(stageTwenty).threatCap > finalWave(stageSix).threatCap);
+  assert.ok(stageTwenty.waves[0].difficultyMultiplier > stageSix.waves.at(-1).difficultyMultiplier);
+  assert.ok(stageTwenty.waves[0].threatCap >= stageSix.waves.at(-1).threatCap);
 
   const scoreMultipliers = campaign.levels.map((stage) => stage.waves[0].scoreMultiplier);
   scoreMultipliers.slice(1).forEach((multiplier, index) => {
@@ -147,83 +151,69 @@ test('mission records enlarge the complete boss rig and the Paywall Siege mini-b
   });
   assert.equal(campaign.recordCard.art.encounter.width / 210, 1.3);
   assert.equal(campaign.recordCard.art.encounter.height / 210, 1.3);
-  const paywallMiniBoss = campaign.levels[2].waves[0].events.find((event) => event.id === 'paywall-siege-mini-boss');
+  const paywallMiniBoss = campaign.levels[2].waves.at(-1).events.find((event) => event.bossId === 'bottleneck-drone');
   assert.ok(paywallMiniBoss);
   assert.equal(paywallMiniBoss.spriteStyle.scale, 1.15);
-  assert.equal(campaign.levels[0].waves[0].events.find((event) => event.id === 'open-orbit-mini-boss').spriteStyle, undefined);
+  assert.equal(campaign.levels[0].waves.some((wave) => wave.events.some((event) => event.kind === 'boss')), false);
 });
 
-test('main bosses follow a clear health curve with an explicit Stage 6 pressure reset', () => {
-  const finalBosses = campaign.levels
-    .flatMap((level) => level.waves)
-    .filter((wave) => wave.completionRule === 'boss-defeat')
-    .map((wave) => wave.events.find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper'));
-  const bursts = finalBosses.map((boss) => boss.weapons.find((weapon) => weapon.id.endsWith('burst')));
+test('four sector bosses follow a readable durability, score, and projectile-pressure curve', () => {
+  const finalBosses = campaign.sectors.map((sector) => {
+    const level = campaign.levels.find((candidate) => candidate.id === sector.missionIds.at(-1));
+    return level.waves[0].events.find((event) => event.kind === 'boss' && event.bossId === sector.majorBossId);
+  });
+  const bursts = finalBosses.map((boss) => boss.weapons.find((weapon) => weapon.projectileSpeed > 0));
 
-  assert.deepEqual(finalBosses.slice(0, 3).map((boss) => boss.health), [170, 400, 720]);
-  assert.deepEqual(finalBosses.slice(0, 3).map((boss) => boss.scoreReward), [1010, 4040, 10000]);
-  assert.deepEqual(bursts.slice(0, 3).map((weapon) => weapon.projectileSpeed), [6.55, 7.65, 8.4]);
-  assert.deepEqual(bursts.slice(0, 3).map((weapon) => weapon.burstCount), [3, 7, 8]);
-
-  for (let index = 1; index < finalBosses.length; index += 1) {
-    assert.ok(finalBosses[index].health > finalBosses[index - 1].health);
-    assert.ok(finalBosses[index].scoreReward > finalBosses[index - 1].scoreReward);
-    if (finalBosses[index].id === 'helix-convergence-final-boss') {
-      assert.deepEqual(
-        {
-          attackIntervalSeconds: bursts[index].attackIntervalSeconds,
-          projectileSpeed: bursts[index].projectileSpeed,
-          burstCount: bursts[index].burstCount
-        },
-        { attackIntervalSeconds: 1.05, projectileSpeed: 7.8, burstCount: 7 }
-      );
-    } else {
-      assert.ok(bursts[index].projectileSpeed > bursts[index - 1].projectileSpeed);
-      assert.ok(bursts[index].burstCount >= bursts[index - 1].burstCount);
-    }
-  }
+  assert.deepEqual(finalBosses.map((boss) => boss.health), [170, 1180, 1650, 2100]);
+  assert.deepEqual(finalBosses.map((boss) => boss.scoreReward), [1010, 16700, 23200, 29700]);
+  assert.deepEqual(bursts.map((weapon) => weapon.projectileSpeed), [6.55, 8.9, 9.25, 9.5]);
+  assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 6, 6, 6]);
+  finalBosses.slice(1).forEach((boss, index) => {
+    assert.ok(boss.health > finalBosses[index].health);
+    assert.ok(boss.scoreReward > finalBosses[index].scoreReward);
+    assert.ok(bursts[index + 1].projectileSpeed > bursts[index].projectileSpeed);
+  });
 });
 
-test('sector stages expose ordered internal waves with stage-only Gatekeepers', () => {
-  campaign.levels.slice(0, 4).forEach((level, index) => {
-    assert.equal(level.waves.length, 3);
-    assert.ok(level.waves[0].events.some((event) => event.kind === 'powerup'));
+test('sector Missions expose ordered role-specific Waves with direct major-boss encounters', () => {
+  const expectedCounts = new Map([
+    ['introduction', 5],
+    ['formation-remix', 6],
+    ['elite-checkpoint', 5],
+    ['boss-preparation', 7],
+    ['major-boss', 1]
+  ]);
+  campaign.levels.forEach((level) => {
+    const role = level.campaignProgression.missionRole;
+    assert.equal(level.waves.length, expectedCounts.get(role));
+    if (role !== 'major-boss') assert.ok(level.waves[0].events.some((event) => event.kind === 'powerup'));
     level.waves.forEach((wave) => {
-      assert.ok(wave.events.some((event) => event.kind === 'spawn' || event.kind === 'asteroid-belt'));
       const starts = wave.events.map((event) => event.startSeconds);
       assert.deepEqual(starts, [...starts].sort((left, right) => left - right));
       assert.ok(wave.events.every((event) => event.startSeconds <= wave.durationSeconds));
     });
-    const finalWave = level.waves.at(-1);
-    const hasGatekeeper = finalWave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper');
-    assert.equal(hasGatekeeper, index === 0 || index === 2);
-    assert.equal(finalWave.completionRule, hasGatekeeper ? 'boss-defeat' : 'clear-after-duration');
-    assert.ok(level.waves.slice(0, -1).every((wave) => wave.completionRule === 'clear-after-duration'));
+    if (role === 'major-boss') {
+      const sector = campaign.sectors.find((candidate) => candidate.id === level.campaignProgression.sectorId);
+      assert.equal(level.waves[0].completionRule, 'boss-defeat');
+      assert.equal(level.waves[0].events.length, 1);
+      assert.equal(level.waves[0].events[0].bossId, sector.majorBossId);
+    } else {
+      assert.ok(level.waves.every((wave) => wave.completionRule === 'clear-after-duration'));
+    }
   });
 });
 
-test('Stage 5 is a five-wave escalating Paywall Bastion endurance encounter', () => {
-  const stage = campaign.levels[4];
-  const events = stage.waves.flatMap((wave) => wave.events);
-  const walls = events.filter((event) => event.kind === 'boss' && event.bossId === 'paywall-wall');
-  const gatekeeper = events.find((event) => event.id === 'bastion-protocol-gatekeeper');
-
-  assert.equal(stage.id, 'stage-bastion-protocol');
-  assert.equal(stage.waves.length, 5);
-  assert.ok(events.some((event) => event.kind === 'powerup'));
-  assert.equal(walls.length, 4);
-  assert.deepEqual(walls.map((event) => event.count), [1, 2, 3, 4]);
-  assert.deepEqual(walls.map((event) => event.spriteKey), Array(4).fill('PAYWALL_BASTION_FRAMES'));
-  assert.ok(walls.every((event) => event.blocksWaveClock));
-  assert.ok(walls.every((event, index) => index === 0 || event.health > walls[index - 1].health));
-  assert.ok(walls.every((event, index) => index === 0 || event.speed > walls[index - 1].speed));
-  assert.ok(gatekeeper);
-  assert.equal(gatekeeper.bossId, 'gatekeeper');
-  assert.equal(gatekeeper.movementPatternId, 'gatekeeper-cycle');
-  assert.equal(gatekeeper.spriteKey, 'PIXI_BOSS_CROWNCLAW_FRAMES');
-  assert.ok(stage.waves.slice(0, -1).every((wave) => wave.completionRule === 'clear-after-duration'));
-  assert.equal(stage.waves.at(-1).completionRule, 'boss-defeat');
-  assert.equal(stage.waves.at(-1).delayAfterSeconds, 5);
+test('each sector finale is one direct major-boss encounter with a five-second reward window', () => {
+  campaign.sectors.forEach((sector) => {
+    const stage = campaign.levels.find((level) => level.id === sector.missionIds.at(-1));
+    assert.equal(stage.campaignProgression.missionRole, 'major-boss');
+    assert.equal(stage.waves.length, 1);
+    assert.equal(stage.waves[0].events.length, 1);
+    assert.equal(stage.waves[0].events[0].kind, 'boss');
+    assert.equal(stage.waves[0].events[0].bossId, sector.majorBossId);
+    assert.equal(stage.waves[0].completionRule, 'boss-defeat');
+    assert.equal(stage.waves[0].delayAfterSeconds, 5);
+  });
 });
 
 test('browser campaign validation permits multiple Paywall Bastion rows', () => {
@@ -235,20 +225,16 @@ test('browser campaign validation permits multiple Paywall Bastion rows', () => 
   assert.match(directorValidator, /'bastion-protocol'/);
 });
 
-test('interstitial elite packs escalate from Citation Storm to Open Galaxy', () => {
-  const citationStorm = campaign.levels[1];
-  const openGalaxy = campaign.levels[3];
-  const elitePacks = (level) => level.waves.flatMap((wave) => wave.events).filter((event) => (
-    event.kind === 'spawn' && event.enemies.every((enemy) => enemy.rank === 'elite')
-  ));
-  const citationPacks = elitePacks(citationStorm);
-  const frontierPacks = elitePacks(openGalaxy);
-
-  assert.deepEqual(citationPacks.map((event) => event.count), [3, 4]);
-  assert.deepEqual(frontierPacks.map((event) => event.count), [3, 4]);
-  assert.ok(Math.min(...frontierPacks.map((event) => event.enemies[0].health))
-    > Math.max(...citationPacks.map((event) => event.enemies[0].health)));
-  assert.ok(frontierPacks.every((event) => event.enemies[0].attackIntervalSeconds <= 1.05));
+test('elite checkpoints and boss-preparation climaxes escalate across the four sectors', () => {
+  for (const role of ['elite-checkpoint', 'boss-preparation']) {
+    const missions = campaign.levels.filter((level) => level.campaignProgression.missionRole === role);
+    const climaxes = missions.map((level) => level.waves.at(-1).events.find((event) => event.kind === 'boss'));
+    assert.equal(climaxes.length, 4);
+    assert.ok(climaxes.every(Boolean));
+    climaxes.slice(1).forEach((event, index) => {
+      assert.ok(event.health > climaxes[index].health);
+    });
+  }
 });
 
 test('ids are unique and boss health phases are strictly descending with valid weapon references', () => {
@@ -301,96 +287,67 @@ test('spawn pools are complete, weighted, and contain directly editable combat v
   });
 });
 
-test('sector stages escalate through readable formation packs instead of slow single-file spawns', () => {
-  const sectorStages = campaign.levels.slice(0, 4);
-  const wavePatterns = sectorStages.map((level) => (
-    level.waves.flatMap((wave) => wave.events)
-      .filter((event) => event.kind === 'spawn' && event.patternId !== 'single-random')
-      .map((event) => event.patternId)
-  ));
-  const spawnIntervals = sectorStages.map((level) => (
-    level.waves.flatMap((wave) => wave.events)
-      .filter((event) => event.kind === 'spawn' && event.patternId !== 'single-random')
-      .map((event) => event.spawnIntervalSeconds)
-  ));
-
-  assert.deepEqual(wavePatterns[0], ['v', 'grid', 'sine']);
-  assert.deepEqual(wavePatterns[1], ['spiral', 'diamond', 'grid', 'diamond', 'diamond']);
-  assert.deepEqual(wavePatterns[2], ['grid', 'pincer', 'diamond']);
-  assert.deepEqual(wavePatterns[3], ['spiral', 'diamond', 'pincer', 'grid', 'grid']);
-  spawnIntervals.flat().forEach((interval) => assert.ok(interval <= 0.18));
-  assert.ok(Math.max(...spawnIntervals[3]) < Math.max(...spawnIntervals[0]));
-});
-
-test('each stage opens with loose interceptors before formations and scales the pressure upward', () => {
-  const stages = campaign.levels.slice(0, 4);
-  const openingCounts = [];
-  const firstFormationCounts = [];
-
-  stages.forEach((stage) => {
-    const prefix = stage.waves[0].id;
-    const opening = stage.waves[0].events.find((event) => event.id === `${prefix}-opening-drifters`);
-    const firstFormation = stage.waves[0].events.find((event) => event.id === `${prefix}-phase-1`);
-
-    assert.ok(opening);
-    assert.equal(opening.patternId, 'single-random');
-    assert.equal(opening.positionId, 'random-top');
-    assert.equal(opening.startSeconds, 0);
-    assert.ok(opening.spawnIntervalSeconds >= 0.8);
-    assert.ok(firstFormation.startSeconds > opening.durationSeconds);
-    if (stage.order <= 2) {
-      assert.ok(opening.enemies.some((enemy) => enemy.spriteKey.startsWith('LEGACY_ENEMY_')));
-    } else {
-      assert.ok(opening.enemies.every((enemy) => (
-        enemy.spriteKey.startsWith('PIXI_JET_') || enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES'
-      )));
-    }
-    openingCounts.push(opening.count);
-    firstFormationCounts.push(firstFormation.count);
-  });
-
-  assert.deepEqual(openingCounts, [4, 5, 6, 7]);
-  assert.deepEqual(firstFormationCounts, [8, 12, 15, 18]);
-
-  const firstFinalBoss = stages[0].waves.at(-1).events.find((event) => event.id === 'open-orbit-gatekeeper');
-  assert.equal(firstFinalBoss.health, 170);
-});
-
-test('small random intercepts bridge formations and boss encounters without replacing either', () => {
-  campaign.levels.slice(0, 4).forEach((level) => {
-    const prefix = level.waves[0].id;
-    const events = level.waves.flatMap((wave) => wave.events);
-    const drifters = events.filter((event) => (
-      event.kind === 'spawn' && event.patternId === 'single-random' && event.id.includes('-drifters-')
-    ));
-    const phaseTwo = events.find((event) => event.id === `${prefix}-phase-2`);
-    const postMini = drifters.find((event) => event.id === `${prefix}-drifters-after-mini`);
-    const phaseThree = events.find((event) => event.id === `${prefix}-phase-3`);
-    const postCheckpoint = drifters.find((event) => event.id === `${prefix}-drifters-after-checkpoint`);
-
-    assert.equal(drifters.length, 5);
-    drifters.forEach((event) => {
-      assert.equal(event.positionId, 'random-top');
-      assert.ok(event.count >= 2 && event.count <= 3);
-      assert.ok(event.spawnIntervalSeconds >= 0.8);
+test('non-boss Missions escalate through readable authored formation packs', () => {
+  const packIds = new Set(campaign.formationPacks.map((pack) => pack.id));
+  const nonBossMissions = campaign.levels.filter((level) => level.campaignProgression.missionRole !== 'major-boss');
+  nonBossMissions.forEach((level) => {
+    const introduce = level.waves.find((wave) => wave.rhythm === 'introduce');
+    assert.ok(introduce, `${level.id} has an introduction Wave`);
+    assert.ok(introduce.formationPackIds.length > 0);
+    introduce.formationPackIds.forEach((packId) => assert.equal(packIds.has(packId), true));
+    introduce.events.filter((event) => event.kind === 'spawn').forEach((event) => {
+      assert.notEqual(event.patternId, 'single-random');
+      assert.ok(event.spawnIntervalSeconds <= 0.32);
     });
-    assert.ok(postMini.startSeconds < phaseTwo.startSeconds);
-    assert.ok(postCheckpoint.startSeconds < phaseThree.startSeconds);
   });
 });
 
-test('enemy families unlock progressively across stages', () => {
-  const stages = campaign.levels.slice(0, 4);
-  const stageEnemyIds = (level) => [...new Set(
-    level.waves.flatMap((wave) => wave.events)
-      .filter((event) => event.kind === 'spawn')
-      .flatMap((event) => event.enemies.map((enemy) => enemy.enemyId))
-  )];
+test('each non-boss Mission teaches before it peaks and budgets cover every authored Wave', () => {
+  const expectedPowerBySector = [];
+  campaign.sectors.forEach((sector) => {
+    const missions = sector.missionIds.slice(0, 4).map((missionId) => campaign.levels.find((level) => level.id === missionId));
+    missions.forEach((stage) => {
+      const introduceIndex = stage.waves.findIndex((wave) => wave.rhythm === 'introduce');
+      const peakIndex = stage.waves.findIndex((wave) => ['peak', 'clear'].includes(wave.rhythm));
+      assert.ok(introduceIndex >= 0);
+      assert.ok(peakIndex > introduceIndex);
+      assert.ok(stage.waves[0].events.some((event) => event.kind === 'powerup'));
+    });
+    missions.forEach((mission) => {
+      assert.ok(mission.campaignProgression.combatBudget >= Math.max(...mission.waves.map((wave) => wave.combatBudget)));
+    });
+    expectedPowerBySector.push(Math.min(...missions.map((mission) => mission.campaignProgression.recommendedPower.expected)));
+  });
+  expectedPowerBySector.slice(1).forEach((power, index) => assert.ok(power > expectedPowerBySector[index]));
+});
 
-  assert.deepEqual(stageEnemyIds(stages[0]), ['drone']);
-  assert.deepEqual(stageEnemyIds(stages[1]), ['drone', 'swarm']);
-  assert.deepEqual(stageEnemyIds(stages[2]), ['drone', 'swarm', 'brick']);
-  assert.deepEqual(stageEnemyIds(stages[3]), ['drone', 'swarm', 'brick', 'journal']);
+test('explicit recovery Waves separate formation pressure from each non-boss climax', () => {
+  campaign.levels.filter((level) => level.campaignProgression.missionRole !== 'major-boss').forEach((level) => {
+    const recoveryIndex = level.waves.findIndex((wave) => wave.rhythm === 'recovery');
+    assert.ok(recoveryIndex > 0);
+    assert.ok(recoveryIndex < level.waves.length - 1);
+    const recovery = level.waves[recoveryIndex];
+    assert.ok(recovery.events.every((event) => event.kind === 'recovery'));
+    assert.ok(['peak', 'clear'].includes(level.waves.at(-1).rhythm));
+  });
+});
+
+test('each sector teaches all four enemy families through role-bound spawn definitions', () => {
+  const roles = new Map(campaign.enemyRoles.map((role) => [role.id, role]));
+  campaign.sectors.forEach((sector) => {
+    const enemies = sector.missionIds.slice(0, 4)
+      .map((missionId) => campaign.levels.find((level) => level.id === missionId))
+      .flatMap((level) => level.waves)
+      .flatMap((wave) => wave.events)
+      .filter((event) => event.kind === 'spawn')
+      .flatMap((event) => event.enemies);
+    assert.deepEqual(new Set(enemies.map((enemy) => enemy.enemyId)), new Set(['drone', 'swarm', 'brick', 'journal']));
+    enemies.forEach((enemy) => {
+      const role = roles.get(enemy.roleId);
+      assert.equal(role.enemyId, enemy.enemyId);
+      assert.equal(role.spriteKey, enemy.spriteKey);
+    });
+  });
 });
 
 test('predatory journal spawns use the original animation or registered campaign variants', () => {
@@ -405,24 +362,23 @@ test('predatory journal spawns use the original animation or registered campaign
   assert.ok(journalSettings.length > 0);
   const allowedJournalSprites = new Set([
     'ENEMY_JOURNAL_FRAMES',
-    'CAMPAIGN_ENEMY_ORBIT_DISC',
+    'CAMPAIGN_ENEMY_DNA_CONDUCTOR',
     'CAMPAIGN_ENEMY_LASER_HUNTER',
-    'CAMPAIGN_ENEMY_SHIELD_RAMMER',
-    'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
+    'CAMPAIGN_ENEMY_CRESCENT_MINELAYER',
+    'CAMPAIGN_ENEMY_PRISM_ARTILLERY'
   ]);
   journalSettings.forEach((enemy) => assert.equal(allowedJournalSprites.has(enemy.spriteKey), true));
 });
 
-test('asteroid belts use registered belt art while legacy belt frames stay out of formations', () => {
+test('dark asteroid sentinels use their role-bound art while legacy belt frames stay out of formations', () => {
   const events = campaign.levels.flatMap((level) => level.waves.flatMap((wave) => wave.events));
-  const asteroidEvents = events.filter((event) => event.kind === 'asteroid-belt');
   const formationEnemies = events
     .filter((event) => event.kind === 'spawn')
     .flatMap((event) => event.enemies);
 
-  assert.ok(asteroidEvents.length > 0);
-  const asteroidSprites = new Set(['ASTEROID_BELT_FRAMES', 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL']);
-  asteroidEvents.forEach((event) => assert.equal(asteroidSprites.has(event.spriteKey), true));
+  const sentinels = formationEnemies.filter((enemy) => enemy.spriteKey === 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL');
+  assert.ok(sentinels.length > 0);
+  assert.ok(sentinels.every((enemy) => enemy.enemyId === 'brick'));
   formationEnemies.forEach((enemy) => assert.notEqual(enemy.spriteKey, 'ASTEROID_BELT_FRAMES'));
 });
 
@@ -445,37 +401,22 @@ test('shared loader validates campaign JSON before exposing it to the game', () 
   assert.match(source, /getDifficultyMultiplier/);
 });
 
-test('legacy hierarchy migration preserves custom events and existing combat tuning', async () => {
-  const { migrateLegacyStageWaveHierarchy } = await import('../game-config/legacyCampaignMigration.mjs');
-  const legacyWaveIds = ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol'];
-  const legacy = {
-    ...campaign,
-    levels: [{
-      ...campaign.levels[0],
-      id: 'operation-open-galaxy',
-      name: 'Research Frontier',
-      waves: campaign.levels.slice(0, 5).map((stage, index) => ({
-        ...stage.waves[0],
-        id: legacyWaveIds[index],
-        name: stage.name,
-        events: stage.waves.flatMap((wave) => wave.events.map((event) => ({ ...event })))
-      }))
-    }]
-  };
-  const tuned = structuredClone(legacy);
-  const asteroid = tuned.levels[0].waves[1].events.find((event) => event.id === 'citation-storm-asteroid-belt');
-  asteroid.count = 99;
-  asteroid.health = 77;
-  asteroid.label = 'CUSTOM STORM';
-  const migrated = migrateLegacyStageWaveHierarchy(tuned);
-  const migratedAsteroid = migrated.levels[1].waves.flatMap((wave) => wave.events)
-    .find((event) => event.id === 'citation-storm-asteroid-belt');
-  assert.equal(migratedAsteroid.count, 99);
-  assert.equal(migratedAsteroid.health, 77);
-  assert.equal(migratedAsteroid.label, 'CUSTOM STORM');
+test('legacy migration leaves revision-22 structure untouched and infers only omitted legacy completion rules', async () => {
+  const {
+    migrateLegacyStageWaveHierarchy,
+    migrateLegacyWaveCompletionRule
+  } = await import('../game-config/legacyCampaignMigration.mjs');
+  const current = structuredClone(campaign);
+  assert.equal(migrateLegacyStageWaveHierarchy(current), current);
 
-  const withCustomEvent = structuredClone(legacy);
-  withCustomEvent.levels[0].waves[0].events.push({ id: 'director-custom-event' });
-  assert.equal(migrateLegacyStageWaveHierarchy(withCustomEvent), withCustomEvent);
-  assert.equal(withCustomEvent.levels[0].waves[0].events.at(-1).id, 'director-custom-event');
+  const legacyBossWave = { id: 'legacy-boss', events: [{ kind: 'boss', bossId: 'gatekeeper' }] };
+  const migratedBoss = migrateLegacyWaveCompletionRule(legacyBossWave);
+  assert.equal(migratedBoss.completionRule, 'boss-defeat');
+  assert.equal(Object.hasOwn(legacyBossWave, 'completionRule'), false);
+
+  const legacyClearWave = { id: 'legacy-clear', events: [{ kind: 'spawn' }] };
+  assert.equal(migrateLegacyWaveCompletionRule(legacyClearWave).completionRule, 'clear-after-duration');
+
+  const explicit = { ...legacyClearWave, completionRule: 'clear-after-duration' };
+  assert.equal(migrateLegacyWaveCompletionRule(explicit), explicit);
 });

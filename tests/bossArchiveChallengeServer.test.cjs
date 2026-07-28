@@ -23,7 +23,9 @@ const WALLET = '0x5555555555555555555555555555555555555555';
 const NOW = Date.parse('2026-07-26T12:00:00.000Z');
 const EVENT_ID = campaign.levels
   .flatMap((level) => level.waves.flatMap((wave) => wave.events))
-  .find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper').id;
+  .find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper-prime')?.id;
+
+assert.ok(EVENT_ID, 'the canonical Gatekeeper Prime encounter must remain authored');
 
 const jsonResponse = (data, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -155,10 +157,10 @@ test('a signed Boss Archive run settles once and an expired retry restores the l
     now: NOW + 10_000
   });
   assert.equal(first.settlement.duplicate, false);
-  assert.equal(first.settlement.rewardCoins, 100);
+  assert.equal(first.settlement.rewardCoins, 200);
   assert.equal(first.settlement.chargesRemaining, 2);
   assert.equal(first.profile.revision, 2);
-  assert.equal(first.profile.snapshot.weeklyState.coins, 125);
+  assert.equal(first.profile.snapshot.weeklyState.coins, 225);
   assert.equal(rpcCalls.length, 1);
   assert.deepEqual(Object.keys(rpcCalls[0]).sort(), [
     'p_clear_time_ms',
@@ -182,9 +184,9 @@ test('a signed Boss Archive run settles once and an expired retry restores the l
     now: NOW + 2 * 60 * 60 * 1000
   });
   assert.equal(replay.settlement.duplicate, true);
-  assert.equal(replay.settlement.rewardCoins, 100);
+  assert.equal(replay.settlement.rewardCoins, 200);
   assert.equal(replay.profile.revision, 2);
-  assert.equal(replay.profile.snapshot.weeklyState.coins, 125);
+  assert.equal(replay.profile.snapshot.weeklyState.coins, 225);
   assert.equal(rpcCalls.length, 1);
 });
 

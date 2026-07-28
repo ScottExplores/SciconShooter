@@ -43,7 +43,11 @@ const {
   duplicateCombatLabPreset,
   loadCombatLabPreset
 } = experimentModule;
-const { parseGameCampaign, validateGameCampaign } = validationModule;
+const {
+  migrateLegacyWaveCompletionRule,
+  parseGameCampaign,
+  validateGameCampaign
+} = validationModule;
 
 const findEvent = (value, eventId) => {
   for (const level of value.levels) {
@@ -57,15 +61,21 @@ const findEvent = (value, eventId) => {
 
 test('runtime campaign parsing restores only missing legacy completion rules', () => {
   const legacy = structuredClone(campaign);
-  legacy.levels.forEach((level) => level.waves.forEach((wave) => { delete wave.completionRule; }));
+  const legacyClearWave = legacy.levels[0].waves[0];
+  delete legacyClearWave.completionRule;
   assert.equal(validateGameCampaign(legacy).valid, false);
 
   const parsed = parseGameCampaign(legacy);
-  parsed.levels.forEach((level) => level.waves.forEach((wave) => {
-    const hasGatekeeper = wave.events.some((event) => event.kind === 'boss' && event.bossId === 'gatekeeper');
-    assert.equal(wave.completionRule, hasGatekeeper ? 'boss-defeat' : 'clear-after-duration');
-  }));
+  assert.equal(parsed.levels[0].waves[0].completionRule, 'clear-after-duration');
+  assert.equal(validateGameCampaign(parsed).valid, true);
   assert.equal(Object.hasOwn(legacy.levels[0].waves[0], 'completionRule'), false);
+
+  const legacyGatekeeperWave = {
+    events: [{ kind: 'boss', bossId: 'gatekeeper' }]
+  };
+  const migratedGatekeeperWave = migrateLegacyWaveCompletionRule(legacyGatekeeperWave);
+  assert.equal(migratedGatekeeperWave.completionRule, 'boss-defeat');
+  assert.equal(Object.hasOwn(legacyGatekeeperWave, 'completionRule'), false);
 
   const invalid = structuredClone(campaign);
   invalid.levels[0].waves[0].completionRule = 'legacy-auto';
@@ -190,7 +200,10 @@ test('every formation, enemy, power-up, boss weapon, and boss phase selection cr
 
 test('promotion inserts a full valid wave with unique remapped event and nested boss IDs', () => {
   const before = JSON.stringify(campaign);
-  const targetLevel = campaign.levels[0];
+  const targetLevel = campaign.levels.find((level) => (
+    level.campaignProgression?.missionRole === 'elite-checkpoint'
+  ));
+  assert.ok(targetLevel, 'fixture should contain an elite-checkpoint Mission');
   const sourceWave = targetLevel.waves.find((wave) => wave.events.some((event) => event.kind === 'boss'));
   assert.ok(sourceWave, 'fixture should contain a boss wave');
 

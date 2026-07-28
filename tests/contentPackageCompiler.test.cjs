@@ -30,13 +30,14 @@ test('schema-v1 decompile and compile are byte-order and behavior preserving for
 
   const contentPackage = compiler.decompileSchemaV1Campaign(campaign);
   assert.equal(contentPackage.missions.length, 20);
-  assert.equal(contentPackage.waves.length, 62);
-  assert.equal(contentPackage.bosses.length, 37);
+  assert.equal(contentPackage.waves.length, 96);
+  assert.equal(contentPackage.bosses.length, 12);
   assert.equal(
     contentPackage.waves.reduce((count, wave) => count + wave.events.length, 0)
       + contentPackage.bosses.length,
-    193
+    164
   );
+  assert.deepEqual(contentPackage.manifest.campaignFieldOrder, Object.keys(campaign));
   assert.deepEqual(compiler.diagnoseContentPackage(contentPackage), []);
 
   const compiled = compiler.compileContentPackage(contentPackage);
@@ -120,6 +121,14 @@ test('compiler diagnostics close references and reject duplicate or multiply own
   assert.ok(
     compiler.diagnoseContentPackage(orphan)
       .some((item) => item.code === 'orphan-resource' && item.message.includes('orphan-compiler-wave'))
+  );
+
+  const missingCampaignField = structuredClone(baseline);
+  missingCampaignField.manifest.campaignFieldOrder = missingCampaignField.manifest.campaignFieldOrder
+    .filter((field) => field !== 'levels');
+  assert.ok(
+    compiler.diagnoseContentPackage(missingCampaignField)
+      .some((item) => item.code === 'invalid-package' && item.message.includes('levels'))
   );
 
   assert.throws(

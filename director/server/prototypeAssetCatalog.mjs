@@ -67,6 +67,33 @@ export const PROTOTYPE_ASSET_DEFINITIONS = Object.freeze([
     label: 'Helios Clawcarrier V2 canonical neutral comparison reference'
   }),
   asset({
+    prototypeId: 'frontier-crownclaw',
+    variant: 'assembled',
+    fileName: 'frontier-crownclaw/frontier-crownclaw-neutral.png',
+    sha256: '3fe62b12ade41026f74c334e3272f28261a60c8a0935b003e536bcff9d33e342',
+    width: 260,
+    height: 210,
+    label: 'Frontier Crownclaw modular neutral preview'
+  }),
+  asset({
+    prototypeId: 'frontier-crownclaw',
+    variant: 'sheet',
+    fileName: 'frontier-crownclaw/frontier-crownclaw-atlas.png',
+    sha256: '8da50a881b5ad2425c294e7b9f382172c7fadbff70b8b52f4d2206d793e980fb',
+    width: 2048,
+    height: 256,
+    label: 'Frontier Crownclaw modular and attack animation atlas'
+  }),
+  asset({
+    prototypeId: 'frontier-crownclaw',
+    variant: 'reference',
+    fileName: 'frontier-crownclaw/source/frontier-crownclaw-canonical-reference.png',
+    sha256: 'a3c2e6853d192b45d996ee50b3432fd61d20513a2ea468695670d8df5957f4a5',
+    width: 640,
+    height: 512,
+    label: 'Frontier Crownclaw locked canonical neutral comparison reference'
+  }),
+  asset({
     prototypeId: 'prism-moth-broodkeeper',
     variant: 'assembled',
     fileName: 'prism-moth-broodkeeper/prism-moth-broodkeeper-neutral.png',

@@ -18,7 +18,7 @@ test('project wallet enables a sticky test run with real flask charge and no lea
   assert.match(appSource, /completedPhase !== undefined && !isBossArchiveRun/);
   assert.match(appSource, /const isFounderSandboxRun = isOwnerWallet \|\| isOwnerTestRun/);
   assert.match(appSource, /if \(isFounderSandboxRun\) \{[\s\S]*?finalizeCurrentRun\(\)/);
-  assert.match(appSource, /!isFounderSandboxRun && stats\.score > stats\.highScore/);
+  assert.match(appSource, /!isNonCompetitiveRun && stats\.score > stats\.highScore/);
 });
 
 test('founder Hangar sandbox unlocks the fleet, supports reversible upgrades, and never persists test levels', () => {
@@ -60,7 +60,7 @@ test('engine test mode preserves lives and supports stage and authored-climax ju
   assert.match(engineSource, /this\.queueConfiguredEncounter\(climax as RuntimeEncounterEvent\)/);
   assert.doesNotMatch(engineSource, /if \(!mainBoss\)[\s\S]{0,180}startBossWarning\('gatekeeper'\)/);
   assert.match(engineSource, /this\.entities = \[\][\s\S]*?this\.resetWaveProgress\(\)/);
-  assert.match(engineSource, /if \(!this\.testMode\) \{\s*this\.lives -= incomingDamage/);
+  assert.match(engineSource, /if \(!this\.testMode\) \{\s*this\.applyPlayerLifeDamage\(incomingDamage\)/);
   assert.match(canvasSource, /engine\.jumpToCampaignWave\(testWaveCommand\.wave\)/);
   assert.match(canvasSource, /engine\.jumpToCampaignBoss\(testBossCommand\.wave\)/);
 });

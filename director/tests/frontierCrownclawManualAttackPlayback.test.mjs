@@ -1,0 +1,193 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import test, { after } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { createServer } from 'vite';
+
+const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+const repositoryRoot = path.resolve(testDirectory, '..', '..');
+const campaign = JSON.parse(await readFile(
+  path.join(repositoryRoot, 'game-config', 'campaign.json'),
+  'utf8'
+));
+
+globalThis.Image ??= class ImageStub {
+  complete = true;
+  naturalWidth = 1;
+  naturalHeight = 1;
+  crossOrigin = 'anonymous';
+  src = '';
+};
+globalThis.document ??= {
+  hidden: false,
+  addEventListener() {},
+  removeEventListener() {}
+};
+globalThis.window ??= {
+  AudioContext: undefined,
+  webkitAudioContext: undefined,
+  addEventListener() {},
+  removeEventListener() {},
+  setInterval,
+  clearInterval,
+  localStorage: {
+    getItem() { return null; },
+    setItem() {},
+    removeItem() {}
+  }
+};
+
+const vite = await createServer({
+  root: repositoryRoot,
+  configFile: false,
+  resolve: {
+    alias: {
+      '@game': repositoryRoot,
+      '@director': path.join(repositoryRoot, 'director', 'src')
+    }
+  },
+  server: { middlewareMode: true, hmr: false },
+  appType: 'custom'
+});
+after(async () => vite.close());
+
+const { buildSandboxBossPrototypePreview } = await vite.ssrLoadModule(
+  '/director/src/combat-lab/sandboxBossPrototypes.ts'
+);
+const { createSandboxOnlyBossArtwork } = await vite.ssrLoadModule(
+  '/director/src/tools/bosses/bossSandboxModel.ts'
+);
+const { createModularBossWeaponSocketPoseSampler } = await vite.ssrLoadModule(
+  '/services/pixi/boss-rigs/ModularBossWeaponSocketRuntime.ts'
+);
+const { GameEngine } = await vite.ssrLoadModule('/services/gameLogic.ts');
+
+const preview = buildSandboxBossPrototypePreview(campaign, 'frontier-crownclaw');
+const artwork = createSandboxOnlyBossArtwork(preview);
+assert.equal(preview.eventId, 'sandbox-frontier-crownclaw');
+assert.ok(artwork.modularRig, 'Frontier must use its registered modular rig');
+
+const poseSampler = createModularBossWeaponSocketPoseSampler(
+  artwork.modularRig,
+  artwork.sampleModularPose
+);
+
+const createStats = () => ({
+  score: 0,
+  highScore: 0,
+  wave: 1,
+  coins: 0,
+  totalCoins: 0,
+  enemiesDefeated: 0,
+  bombs: 2,
+  bombCharge: 0,
+  bombChargeMax: 100,
+  shipAbilityCooldown: 0,
+  shipAbilityCooldownMax: 960,
+  lives: 3,
+  repairsCount: 0,
+  upgrades: { fireRate: 0, speed: 0, missile: 0 },
+  powerupUses: {},
+  bossProgress: 0,
+  isBossActive: false,
+  bossHp: 0,
+  bossMaxHp: 100
+});
+
+const createEngine = () => new GameEngine(createStats(), {
+  campaign: preview.campaign,
+  previewMode: true,
+  previewInvincible: true,
+  audioEnabled: false,
+  initialLevelId: preview.levelId,
+  initialWaveId: preview.waveId,
+  randomSeed: 'frontier-manual-reactor-entry-regression',
+  previewBossCollisionEventId: preview.eventId,
+  previewBossCollisionMask: artwork.collisionMask,
+  previewBossArtworkDesignSize: artwork.modularRig.manifest.designSize,
+  previewBossWeaponSockets: artwork.weaponSockets,
+  previewBossWeaponSocketPoseSampler: poseSampler,
+  previewBossReducedMotion: false,
+  previewBossWeaponSocketEventId: preview.eventId,
+  previewBossProjectileVisualKinds: Object.keys(artwork.projectileAnimations ?? {})
+});
+
+test('manual Crown Reactor Beam starts during entry without falling back to Attack 1', () => {
+  const engine = createEngine();
+  const width = 390;
+  const height = 844;
+  const combatAnchorY = Math.max(72, Math.min(height * 0.13, 116));
+  engine.init(width, height);
+  assert.equal(
+    engine.spawnPreviewEventNow(preview.eventId),
+    true,
+    'the focused preview must spawn the authored Frontier event on demand'
+  );
+
+  const boss = engine.bossRef;
+  assert.ok(boss, 'the canonical mobile preview must spawn Frontier Crownclaw');
+
+  // Recreate the exact UI race: the user presses Attack 2 before the entrance
+  // has reached its combat anchor.
+  boss.y = combatAnchorY - 48;
+  boss.vy = Math.max(1, boss.configuredSpeed || 1);
+  assert.ok(boss.y < combatAnchorY);
+
+  assert.equal(
+    engine.triggerAuthoredBossAttack('crown-reactor-beam', preview.eventId),
+    true
+  );
+  assert.equal(boss.y, combatAnchorY, 'manual playback must settle the entering boss');
+
+  const observedAttackIds = new Set();
+  const observedPrimitiveIds = new Set();
+  const observedStages = new Set();
+  let sawReactorGuide = false;
+  let sawReactorBeam = false;
+  let sawDamagingReactorBeam = false;
+
+  for (let frame = 0; frame < 360 && !sawDamagingReactorBeam; frame += 1) {
+    engine.update();
+    const snapshot = engine.getPreviewSnapshot();
+    const activeAttack = snapshot.boss?.activeAttack;
+    if (activeAttack) {
+      observedAttackIds.add(activeAttack.id);
+      observedStages.add(activeAttack.stage);
+    }
+    if (snapshot.boss?.activePrimitiveId) {
+      observedPrimitiveIds.add(snapshot.boss.activePrimitiveId);
+    }
+
+    for (const entity of engine.entities) {
+      if (entity.markedForDeletion || entity.bossOwnerId !== boss.id) continue;
+      if (entity.frontierCrownclawArtifactKind === 'reactor-guide') {
+        sawReactorGuide = true;
+      }
+      if (entity.frontierCrownclawArtifactKind === 'reactor-beam') {
+        sawReactorBeam = true;
+        sawDamagingReactorBeam ||= entity.frontierCrownclawDamageActive === true;
+      }
+    }
+  }
+
+  assert.deepEqual([...observedAttackIds], ['crown-reactor-beam']);
+  assert.ok(observedStages.has('warning'), 'Attack 2 must retain its linked warning');
+  assert.ok(observedStages.has('fire'), 'Attack 2 must advance into its fire window');
+  assert.deepEqual([...observedPrimitiveIds], ['crown-reactor-beam']);
+  assert.equal(sawReactorGuide, true, 'the crown warning must own reactor guide geometry');
+  assert.equal(sawReactorBeam, true, 'the crown must create its owned reactor beam');
+  assert.equal(sawDamagingReactorBeam, true, 'the owned beam must reach its damage window');
+  assert.equal(
+    engine.entities.some((entity) => (
+      entity.bossOwnerId === boss.id
+      && (
+        entity.frontierCrownclawArtifactKind === 'harpoon-guide'
+        || entity.frontierCrownclawArtifactKind === 'harpoon-claw'
+        || entity.frontierCrownclawArtifactKind === 'harpoon-link'
+      )
+    )),
+    false,
+    'manual Attack 2 playback must never fall back to Chainclaw Harpoon'
+  );
+});

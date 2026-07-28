@@ -11,6 +11,10 @@ manifest.missionIds
     -> wave.eventIds
 ```
 
+The manifest also records `campaignFieldOrder`, including the position of the
+extracted `levels` collection, so revision-22 root catalogs compile back into the
+same byte order as the tracked schema-v1 campaign.
+
 Mission and wave payloads retain their schema-v1 runtime fields minus nested arrays.
 Non-boss events stay with their wave; boss events are separate resources with
 explicit Mission and wave parents. Compilation rejects open, duplicate, multiply

@@ -312,6 +312,45 @@ export const sanitizeBossArchiveBossRecord = (value: unknown): BossArchiveBossRe
   };
 };
 
+const earlierIso = (left: string | null, right: string | null) => {
+  if (!left) return right;
+  if (!right) return left;
+  return left <= right ? left : right;
+};
+
+const shorterDuration = (left: number | null, right: number | null) => {
+  if (left === null) return right;
+  if (right === null) return left;
+  return Math.min(left, right);
+};
+
+const mergeMigratedBossArchiveRecords = (values: unknown[]): BossArchiveBossRecord => (
+  values.map(sanitizeBossArchiveBossRecord).reduce((merged, record) => ({
+    attempts: merged.attempts + record.attempts,
+    practiceAttempts: merged.practiceAttempts + record.practiceAttempts,
+    challengeAttempts: merged.challengeAttempts + record.challengeAttempts,
+    totalClears: merged.totalClears + record.totalClears,
+    practiceClears: merged.practiceClears + record.practiceClears,
+    challengeClears: merged.challengeClears + record.challengeClears,
+    noHitClears: merged.noHitClears + record.noHitClears,
+    bestClearTimeMs: shorterDuration(merged.bestClearTimeMs, record.bestClearTimeMs),
+    bestChallengeTimeMs: shorterDuration(merged.bestChallengeTimeMs, record.bestChallengeTimeMs),
+    bestNoHitTimeMs: shorterDuration(merged.bestNoHitTimeMs, record.bestNoHitTimeMs),
+    mastery: Object.fromEntries(BOSS_ARCHIVE_MASTERY_OBJECTIVE_IDS.map((id) => ({
+      id,
+      completedAt: earlierIso(merged.mastery[id].completedAt, record.mastery[id].completedAt),
+      claimedAt: earlierIso(merged.mastery[id].claimedAt, record.mastery[id].claimedAt)
+    })).map(({ id, ...progress }) => [id, progress])) as BossArchiveBossRecord['mastery'],
+    processedResultIds: Array.from(new Set([
+      ...merged.processedResultIds,
+      ...record.processedResultIds
+    ])).slice(-64),
+    lastResult: !merged.lastResult || (record.lastResult?.playedAt ?? '') > merged.lastResult.playedAt
+      ? record.lastResult
+      : merged.lastResult
+  }), createBossArchiveBossRecord())
+);
+
 const createDailyChallengeProgress = (now = new Date()): BossArchiveDailyChallengeProgress => ({
   utcDateKey: getBossArchiveUtcDateKey(now),
   successfulClearsUsed: 0,
@@ -354,11 +393,14 @@ export const sanitizeBossArchiveProgress = (
   const seen = normalizeBossArchiveEventIds(seenEventIds ?? raw.seenEventIds)
     .filter((eventId) => unlockedSet.has(eventId));
   const rawRecords = isRecord(raw.records) ? raw.records : {};
-  const records = Object.fromEntries(BOSS_ARCHIVE_CATALOG.flatMap((entry) => (
-    rawRecords[entry.eventId] === undefined
+  const records = Object.fromEntries(BOSS_ARCHIVE_CATALOG.flatMap((entry) => {
+    const migratedValues = Object.entries(rawRecords)
+      .filter(([eventId]) => normalizeBossArchiveEventId(eventId) === entry.eventId)
+      .map(([, record]) => record);
+    return migratedValues.length === 0
       ? []
-      : [[entry.eventId, sanitizeBossArchiveBossRecord(rawRecords[entry.eventId])]]
-  )));
+      : [[entry.eventId, mergeMigratedBossArchiveRecords(migratedValues)]];
+  }));
   const rawDaily = isRecord(raw.dailyChallenge) ? raw.dailyChallenge : {};
   const currentDateKey = getBossArchiveUtcDateKey(now);
   const storedDateKey = typeof rawDaily.utcDateKey === 'string'
@@ -737,7 +779,7 @@ export const mergeBossArchiveProgress = (
 
 export interface BossArchiveDeveloperControls {
   unlockAll(state: BossArchiveProgress): BossArchiveProgress;
-  resetProgress(now?: Date): BossArchiveProgress;
+  resetProgress(state: BossArchiveProgress, now?: Date): BossArchiveProgress;
   resetDailyCharges(state: BossArchiveProgress, now?: Date): BossArchiveProgress;
   simulateNewUnlock(state: BossArchiveProgress, eventId?: string): BossArchiveProgress;
   simulateMasteryComplete(state: BossArchiveProgress, eventId: string, now?: Date): BossArchiveProgress;
@@ -749,20 +791,37 @@ export interface BossArchiveDeveloperControls {
   ): BossArchiveFightResolution;
 }
 
-/** Call with `import.meta.env.DEV`; production callers receive no controls. */
+export type BossArchiveDeveloperAuthorization = boolean | (() => boolean);
+
+/**
+ * Founder-only controls. A callback is preferred so an already-created
+ * control object becomes inert immediately after the active wallet changes.
+ */
 export const createBossArchiveDeveloperControls = (
-  enabled: boolean
-): BossArchiveDeveloperControls | null => enabled ? {
-  unlockAll: (state) => ({
+  authorization: BossArchiveDeveloperAuthorization
+): BossArchiveDeveloperControls | null => {
+  const isAuthorized = () => {
+    try {
+      return typeof authorization === 'function' ? authorization() === true : authorization === true;
+    } catch {
+      return false;
+    }
+  };
+  if (!isAuthorized()) return null;
+  return {
+    unlockAll: (state) => !isAuthorized() ? state : ({
     ...state,
     unlockedEventIds: BOSS_ARCHIVE_CATALOG.map((entry) => entry.eventId)
   }),
-  resetProgress: (now = new Date()) => createBossArchiveProgress([], [], now),
-  resetDailyCharges: (state, now = new Date()) => ({
+    resetProgress: (state, now = new Date()) => (
+    isAuthorized() ? createBossArchiveProgress([], [], now) : state
+  ),
+    resetDailyCharges: (state, now = new Date()) => !isAuthorized() ? state : ({
     ...state,
     dailyChallenge: createDailyChallengeProgress(now)
   }),
-  simulateNewUnlock: (state, requestedEventId) => {
+    simulateNewUnlock: (state, requestedEventId) => {
+    if (!isAuthorized()) return state;
     const eventId = normalizeBossArchiveEventId(requestedEventId)
       ?? BOSS_ARCHIVE_CATALOG.find((entry) => !state.unlockedEventIds.includes(entry.eventId))?.eventId
       ?? null;
@@ -773,8 +832,9 @@ export const createBossArchiveDeveloperControls = (
       seenEventIds: state.seenEventIds.filter((seenId) => seenId !== eventId),
       lastSelectedEventId: eventId
     };
-  },
-  simulateMasteryComplete: (state, eventIdValue, now = new Date()) => {
+    },
+    simulateMasteryComplete: (state, eventIdValue, now = new Date()) => {
+    if (!isAuthorized()) return state;
     const eventId = normalizeBossArchiveEventId(eventIdValue);
     if (!eventId) return state;
     const record = sanitizeBossArchiveBossRecord(state.records[eventId]);
@@ -792,17 +852,34 @@ export const createBossArchiveDeveloperControls = (
         }
       }
     };
-  },
-  previewResult: (state, eventId, victory, now = new Date()) => recordBossArchiveFightResult(
-    state,
-    {
-      eventId,
-      mode: 'challenge',
-      victory,
-      clearTimeMs: victory ? 45_000 : null,
-      damageTaken: victory ? 0 : 1,
-      resultId: `dev-preview:${eventId}:${now.toISOString()}`
     },
-    { now }
-  )
-} : null;
+    previewResult: (state, eventId, victory, now = new Date()) => {
+    if (!isAuthorized()) {
+      return {
+        state,
+        accepted: false,
+        duplicate: false,
+        reason: 'locked-boss',
+        challengeChargeConsumed: false,
+        challengeRewardCoins: 0,
+        newlyCompletedObjectiveIds: [],
+        newBestClearTime: false,
+        newBestChallengeTime: false,
+        noHit: false
+      };
+    }
+    return recordBossArchiveFightResult(
+      state,
+      {
+        eventId,
+        mode: 'challenge',
+        victory,
+        clearTimeMs: victory ? 45_000 : null,
+        damageTaken: victory ? 0 : 1,
+        resultId: `dev-preview:${eventId}:${now.toISOString()}`
+      },
+      { now }
+    );
+    }
+  };
+};

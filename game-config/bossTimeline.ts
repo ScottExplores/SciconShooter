@@ -208,6 +208,33 @@ export const BOSS_TIMELINE_PRIMITIVES: Readonly<Record<
       'sweepPasses'
     ]
   ),
+  'chainclaw-harpoon': primitive(
+    'chainclaw-harpoon',
+    'Chainclaw harpoon',
+    'attack',
+    'Unspool, launch, tension, retract, and mechanically reseat one or two socket-owned chain claws on a locked route.',
+    true,
+    true,
+    ['sequence', 'side', 'motionCue', 'projectileSpeedScale']
+  ),
+  'crown-reactor-beam': primitive(
+    'crown-reactor-beam',
+    'Crown reactor beam',
+    'laser',
+    'Open the crown reactor and sweep one bounded beam, or the phase-two cross-linked relay, on the warned geometry.',
+    true,
+    true,
+    ['sequence', 'motionCue', 'rotationDirection']
+  ),
+  'bastion-crabwalk-barrage': primitive(
+    'bastion-crabwalk-barrage',
+    'Bastion crabwalk barrage',
+    'attack',
+    'Crabwalk through a deterministic lateral route while alternating bounded socket-owned crown bolts and shell shards.',
+    true,
+    true,
+    ['projectileCount', 'sequence', 'motionCue', 'shotIntervalFrames', 'projectileSpeedScale']
+  ),
   'cross-beam': primitive('cross-beam', 'Cross beam', 'laser', 'Telegraph or fire the existing cross-beam presentation.', true, true),
   'rail-sweep': primitive('rail-sweep', 'Rail sweep', 'laser', 'Telegraph or fire a sweeping rail lane.', true, true, ['sequence']),
   'tail-fan': primitive('tail-fan', 'Tail fan', 'attack', 'Fire the registered tail-fan projectile pattern.', true, true, ['projectileCount', 'sequence']),

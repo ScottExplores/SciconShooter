@@ -6,13 +6,14 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
-test('campaign gatekeepers use five-state layered damage art', () => {
+test('campaign sector bosses use registered damage art and Gatekeeper Prime retains five-state layered frames', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const constants = read('constants.ts');
   const expected = new Map([
     ['open-orbit-gatekeeper', 'PIXI_BOSS_OPEN_ORBIT_FRAMES'],
-    ['paywall-siege-gatekeeper', 'PIXI_BOSS_PAYWALL_FRAMES'],
-    ['bastion-protocol-gatekeeper', 'PIXI_BOSS_CROWNCLAW_FRAMES']
+    ['null-sector-final-boss', 'CAMPAIGN_BOSS_ECLIPSE_ENGINE'],
+    ['ion-citadel-final-boss', 'CAMPAIGN_BOSS_HELIX_LEVIATHAN'],
+    ['terminus-ascendant-final-boss', 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT']
   ]);
   const bossEvents = campaign.levels.flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
@@ -21,8 +22,9 @@ test('campaign gatekeepers use five-state layered damage art', () => {
   assert.equal(bossEvents.length, expected.size);
   for (const event of bossEvents) {
     assert.equal(event.spriteKey, expected.get(event.id));
-    assert.match(constants, new RegExp(`${event.spriteKey}: (?:\\[|Array\\.from)`));
+    assert.match(constants, new RegExp(`${event.spriteKey}:`));
   }
+  assert.match(constants, /PIXI_BOSS_OPEN_ORBIT_FRAMES: (?:\[|Array\.from)/);
 
   for (const directory of ['open-orbit', 'citation-storm', 'paywall-decimator/body']) {
     for (let frame = 1; frame <= 5; frame++) {
@@ -40,8 +42,9 @@ test('campaign gatekeepers use five-state layered damage art', () => {
 
 test('configured gatekeepers start before the Director wave boundary', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
+  const majorBossIds = new Set(campaign.sectors.map((sector) => sector.majorBossId));
   for (const wave of campaign.levels.flatMap((level) => level.waves)) {
-    const gatekeepers = wave.events.filter((event) => event.kind === 'boss' && event.bossId === 'gatekeeper');
+    const gatekeepers = wave.events.filter((event) => event.kind === 'boss' && majorBossIds.has(event.bossId));
     for (const gatekeeper of gatekeepers) {
       assert.ok(
         gatekeeper.startSeconds < wave.durationSeconds,
@@ -125,7 +128,7 @@ test('boss components use predictable health shares while reserving the helmet f
   const engine = read('services/gameLogic.ts');
   const componentRuntime = read('services/gameplay/bosses/BossComponentRuntime.ts');
   const componentFactory = engine.slice(
-    engine.indexOf('createBossComponents(boss: Entity)'),
+    engine.indexOf('createBossComponents(boss: Entity, componentHealth?: BossComponentHealth)'),
     engine.indexOf('getBossComponentBox(boss: Entity')
   );
 
@@ -135,10 +138,13 @@ test('boss components use predictable health shares while reserving the helmet f
   assert.match(engine, /'crown-claw': Object\.freeze\(\{ 'left-cannon': 8, 'right-cannon': 8 \}\)/);
   assert.match(engine, /const BOSS_CANNON_HEALTH_RATIO = 0\.07/);
   assert.match(engine, /const BOSS_HELMET_HEALTH_RATIO = 0\.18/);
-  assert.match(engine, /getBossComponentDurability\(boss: Entity, componentId: BossPartId\)/);
+  assert.match(
+    engine,
+    /getBossComponentDurability\(\s*boss: Entity,\s*componentId: BossPartId,\s*componentHealth\?: BossComponentHealth\s*\)/
+  );
   assert.match(engine, /Math\.round\(Math\.max\(1, boss\.maxHp\) \* healthRatio\)/);
   assert.doesNotMatch(engine, /durability \* 0\.8/);
-  assert.match(componentFactory, /this\.getBossComponentDurability\(boss, layout\.id\)/);
+  assert.match(componentFactory, /this\.getBossComponentDurability\(boss, layout\.id, componentHealth\)/);
   assert.match(engine, /const BOSS_COMPONENT_WEAK_POINT_MULTIPLIER = 1/);
   assert.match(engine, /applyBossComponentDamage\([\s\S]*?BOSS_COMPONENT_WEAK_POINT_MULTIPLIER/);
   assert.match(componentRuntime, /component\.hp = Math\.max\(0, previousHealth - normalizedDamage \* normalizedMultiplier\)/);
@@ -294,17 +300,18 @@ test('Wave 1 gatekeeper has an approachable arcade health budget', () => {
   assert.equal(openingBoss.shieldCount, 0);
 });
 
-test('Astral Crownclaw uses an animated six-leg rig with destructible claws', () => {
+test('Eclipse Engine uses the animated six-leg Crownclaw rig with destructible claws', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const engine = read('services/gameLogic.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const crownEvent = campaign.levels.flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
-    .find((event) => event.id === 'bastion-protocol-gatekeeper');
+    .find((event) => event.id === 'null-sector-final-boss');
 
   assert.ok(crownEvent);
-  assert.equal(crownEvent.spriteKey, 'PIXI_BOSS_CROWNCLAW_FRAMES');
-  assert.equal(crownEvent.shieldCount, 0);
+  assert.equal(crownEvent.spriteKey, 'CAMPAIGN_BOSS_ECLIPSE_ENGINE');
+  assert.equal(crownEvent.rigId, 'crown-claw');
+  assert.equal(crownEvent.shieldCount, 1);
   assert.match(engine, /boss\.bossRigId === 'crown-claw'/);
   assert.match(engine, /spawnCrownClawStrike\(boss: Entity, component: BossComponentState/);
   assert.match(engine, /updateCrownClawBoss\(boss: Entity\)/);

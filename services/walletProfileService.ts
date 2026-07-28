@@ -76,6 +76,58 @@ interface WalletBossArchiveChallengeSettlementResponse {
   settlement: WalletBossArchiveChallengeSettlement;
 }
 
+export type WalletCampaignBranchOutcome = 'success' | 'failed' | 'interrupted';
+export type WalletCampaignBranchKind = 'present-drop' | 'combat';
+
+export interface WalletCampaignBranchDestroyedCounts {
+  standard: number;
+  armored: number;
+  fast: number;
+  golden: number;
+}
+
+export interface WalletCampaignBranchAttempt {
+  attemptId: string;
+  attemptToken: string;
+  branchId: string;
+  branchKind: WalletCampaignBranchKind;
+  missionType: string;
+  durationMs: number;
+  issuedAt: string;
+  notBefore: string;
+  expiresAt: string;
+}
+
+export interface WalletCampaignBranchSettlement {
+  accepted: true;
+  duplicate: boolean;
+  attemptId: string;
+  branchId: string;
+  branchKind: WalletCampaignBranchKind;
+  missionType: string;
+  outcome: WalletCampaignBranchOutcome;
+  stageComplete: boolean;
+  objectiveUnitsCompleted: number;
+  destroyedByType: WalletCampaignBranchDestroyedCounts;
+  presentsDestroyed: number;
+  performanceCoins: number;
+  coinsAwarded: number;
+  rewardReceiptId: string | null;
+  claimed: boolean;
+  retryAllowed: boolean;
+}
+
+interface WalletCampaignBranchStartResponse {
+  walletAddress: string;
+  attempt: WalletCampaignBranchAttempt;
+}
+
+interface WalletCampaignBranchSettlementResponse {
+  walletAddress: string;
+  profile: WalletProfileRecord;
+  settlement: WalletCampaignBranchSettlement;
+}
+
 export class WalletProfileRequestError extends Error {
   status: number;
   code: string;
@@ -344,6 +396,110 @@ export const settleWalletBossArchiveChallenge = async ({
       'Boss Archive Challenge settlement returned invalid wallet state.',
       409,
       'challenge_settlement_invalid'
+    );
+  }
+  cacheWalletProfile(response.profile);
+  return {
+    profile: response.profile,
+    settlement: response.settlement
+  };
+};
+
+export const startWalletCampaignBranch = async ({
+  walletAddress,
+  branchId
+}: {
+  walletAddress: string;
+  branchId: string;
+}): Promise<WalletCampaignBranchAttempt> => {
+  const normalizedAddress = normalizeWalletAddress(walletAddress);
+  const response = await requestWalletProfile<WalletCampaignBranchStartResponse>({
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'start-campaign-branch',
+      branchId
+    })
+  });
+  if (
+    response.walletAddress?.toLowerCase() !== normalizedAddress
+    || !response.attempt?.attemptToken
+    || !response.attempt.attemptId
+    || response.attempt.branchId !== branchId
+    || !['present-drop', 'combat'].includes(response.attempt.branchKind)
+    || !Number.isFinite(response.attempt.durationMs)
+  ) {
+    throw new WalletProfileRequestError(
+      'Campaign bonus route start returned invalid state.',
+      409,
+      'branch_start_invalid'
+    );
+  }
+  return response.attempt;
+};
+
+export const settleWalletCampaignBranch = async ({
+  walletAddress,
+  attemptToken,
+  outcome,
+  destroyedByType,
+  collectedPresentCoins,
+  stageComplete,
+  objectiveUnitsCompleted
+}: {
+  walletAddress: string;
+  attemptToken: string;
+  outcome: WalletCampaignBranchOutcome;
+  destroyedByType?: Partial<WalletCampaignBranchDestroyedCounts>;
+  collectedPresentCoins?: number;
+  stageComplete?: boolean;
+  objectiveUnitsCompleted?: number;
+}): Promise<{
+  profile: WalletProfileRecord;
+  settlement: WalletCampaignBranchSettlement;
+}> => {
+  const normalizedAddress = normalizeWalletAddress(walletAddress);
+  const requestBody = JSON.stringify({
+    action: 'settle-campaign-branch',
+    attemptToken,
+    outcome,
+    destroyedByType: destroyedByType ?? {},
+    collectedPresentCoins: collectedPresentCoins ?? 0,
+    stageComplete,
+    objectiveUnitsCompleted
+  });
+  let response: WalletCampaignBranchSettlementResponse | null = null;
+  let lastError: unknown = null;
+
+  // Settlement uses a stable server receipt and revision-CAS write, so retrying
+  // the same signed attempt after a lost HTTP response cannot double-credit it.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      response = await requestWalletProfile<WalletCampaignBranchSettlementResponse>({
+        method: 'POST',
+        body: requestBody
+      });
+      break;
+    } catch (error) {
+      lastError = error;
+      const retryable = !(error instanceof WalletProfileRequestError)
+        || error.status >= 500
+        || error.code === 'branch_settlement_conflict';
+      if (!retryable || attempt === 2) throw error;
+    }
+  }
+  if (!response) throw lastError;
+  if (
+    response.walletAddress?.toLowerCase() !== normalizedAddress
+    || response.profile?.walletAddress?.toLowerCase() !== normalizedAddress
+    || response.profile?.profileId !== getWalletProfileId(normalizedAddress)
+    || response.settlement?.accepted !== true
+    || !['present-drop', 'combat'].includes(response.settlement?.branchKind)
+    || !Number.isFinite(response.settlement?.objectiveUnitsCompleted)
+  ) {
+    throw new WalletProfileRequestError(
+      'Campaign bonus route settlement returned invalid wallet state.',
+      409,
+      'branch_settlement_invalid'
     );
   }
   cacheWalletProfile(response.profile);

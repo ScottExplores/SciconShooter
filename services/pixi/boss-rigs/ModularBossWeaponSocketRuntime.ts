@@ -13,7 +13,7 @@ const resolveSocketRole = (
   id: string,
   role: string
 ): BossWeaponSocketRole | null => {
-  if (role === 'core-origin') return 'core';
+  if (role === 'core-origin' || role === 'beam-origin') return 'core';
   if (id.includes('starboard')) return 'starboard';
   if (id.includes('port')) return 'port';
   if (/(?:^|[.-])right(?:$|[.-])/.test(id)) return 'starboard';
@@ -22,11 +22,25 @@ const resolveSocketRole = (
 };
 
 const socketMatchesAction = (
+  rigId: string,
   id: string,
   role: BossWeaponSocketRole,
   action: Parameters<BossWeaponSocketPoseSampler>[0]['action']
 ) => {
   if (!action) return true;
+  if (rigId === 'frontier-crownclaw') {
+    if (action.primitiveId === 'chainclaw-harpoon') {
+      return id.startsWith('claw-socket-')
+        || id.startsWith('claw-tip-')
+        || id.startsWith('chain-spool-');
+    }
+    if (action.primitiveId === 'crown-reactor-beam') {
+      return id === 'crown-reactor';
+    }
+    if (action.primitiveId === 'bastion-crabwalk-barrage') {
+      return id.startsWith('bastion-port-') || id.startsWith('rear-bastion-');
+    }
+  }
   if (action.primitiveId === 'reactor-aperture-pattern') return role === 'core';
   if (action.primitiveId === 'prism-wingbeat-weave') {
     return id.startsWith('wing-edge-') || id.startsWith('wing-tip-');
@@ -70,7 +84,10 @@ export const createModularBossWeaponSocketPoseSampler = (
     kind: 'normalized-boss-sockets-v1' as const,
     sockets: Object.freeze(hierarchy.sockets.flatMap((socket) => {
       const role = resolveSocketRole(socket.id, socket.role);
-      if (!role || !socketMatchesAction(socket.id, role, input.action)) return [];
+      if (
+        !role
+        || !socketMatchesAction(registration.manifest.id, socket.id, role, input.action)
+      ) return [];
       return [Object.freeze({
         id: socket.id,
         role,

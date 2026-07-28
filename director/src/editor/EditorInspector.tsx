@@ -31,7 +31,8 @@ import {
   ASSET_CATALOG,
   BOSS_CATALOG,
   ENEMY_CATALOG,
-  getAssetKeysForRole
+  getAssetKeysForRole,
+  isMajorBossId
 } from '../../../game-config/catalog';
 import { DEFAULT_RECORD_CARD_CONFIG } from '../../../game-config/recordCard';
 import { EditorIcon } from './EditorIcon';
@@ -629,13 +630,13 @@ function BossSettings({
             const selected = BOSSES.find((item) => item.id === bossId)!;
             updateBoss({
               bossId,
-              rigId: bossId === 'gatekeeper' ? (boss.rigId ?? 'open-orbit') : undefined,
+              rigId: isMajorBossId(bossId) ? (boss.rigId ?? 'open-orbit') : undefined,
               count: bossId === 'bottleneck-drone' ? (boss.count ?? 1) : 1,
               spriteKey: selected.spriteKey,
               movementPatternId: selected.movement
             });
           }} />
-          {boss.bossId === 'gatekeeper' ? (
+          {isMajorBossId(boss.bossId) ? (
             <SelectField label="Boss rig" value={boss.rigId ?? 'open-orbit'} options={BOSS_RIGS} onChange={(rigId) => updateBoss({ rigId })} />
           ) : null}
           <AssetSelectField

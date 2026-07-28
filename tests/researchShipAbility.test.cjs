@@ -27,7 +27,7 @@ test('every playable ship ability is routed through the real engine and shared H
     assert.match(engine, new RegExp(ability));
   }
   assert.match(app, /shipAbilityCommand/);
-  assert.match(app, /playerShipId: usableShipId/);
+  assert.match(app, /playerShipId: activeMissionShipId/);
   assert.match(canvas, /engineRef\.current\.triggerShipAbility\(\)/);
   assert.match(canvas, /playerShipId,/);
   assert.match(hud, /selectedShipId && onUseShipAbility/);

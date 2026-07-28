@@ -1,6 +1,6 @@
 {
   "id": "scicon-neon-dashboard-icons-v2",
-  "version": 1,
+  "version": 2,
   "source": "built-in image generation plus local chroma-key removal",
   "assets": {
     "dashboardNavIcons": {
@@ -28,6 +28,15 @@
         "static"
       ],
       "sha256": "2d797ebf5d25203eacce74c751c7966dfdf21bbd58d9ac88ec02b40cc3739dc5"
+    },
+    "bossArchiveDefeatedEmblem": {
+      "path": "/game-art/generated/ui/scicon-neon-dashboard-icons-v2/boss-archive-defeated-emblem-v1.png",
+      "size": [
+        384,
+        384
+      ],
+      "usage": "Home Boss Archive command",
+      "sha256": "a18c9134fa5acd6eeb1527ee292b5a6bdbf5bea421ba7feef74ac326bc9ab2cd"
     }
   }
 }

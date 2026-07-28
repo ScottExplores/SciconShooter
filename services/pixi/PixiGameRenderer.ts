@@ -331,7 +331,8 @@ const PLAYER_THRUSTER_COLORS = [
   ['#f0abfc', '#a855f7'],
   ['#fca5a5', '#ef4444'],
   ['#ffffff', '#38bdf8'],
-  ['#ffffff', '#facc15']
+  ['#ffffff', '#facc15'],
+  ['#ecfeff', '#0ea5e9']
 ] as const;
 const STAGE_TAKEOFF_THRUSTER_VISUAL_CAP = 6.4;
 
@@ -3368,10 +3369,11 @@ export class PixiGameRenderer {
       return;
     }
 
-    const speedLevel = Math.min(engine.stats.upgrades.speed || 0, 6);
+    const speedLevel = Math.min(engine.stats.upgrades.speed || 0, 7);
     const maxHorizontalSpeed = GAME_CONFIG.BASE_PLAYER_SPEED
       + (Math.min(speedLevel, 5) * 1.5)
-      + (speedLevel >= 6 ? 3 : 0);
+      + (speedLevel >= 6 ? 3 : 0)
+      + (speedLevel >= 7 ? 2 : 0);
     const presentationSpeed = maxHorizontalSpeed
       * (engine.touchPos ? PLAYER_SHIP_TOUCH_SPEED_SCALE : 1);
     const normalizedHorizontal = applyPlayerSteeringDeadzone(

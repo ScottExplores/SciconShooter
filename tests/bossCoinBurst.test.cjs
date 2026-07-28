@@ -24,6 +24,23 @@ const {
   getBossCoinBurstKinematics
 } = moduleBox.exports;
 
+const gameLogicSource = read('services', 'gameLogic.ts');
+const refreshHelperStart = gameLogicSource.indexOf('export const refreshWaveVictoryRewardMetrics =');
+const refreshHelperEnd = gameLogicSource.indexOf('\n\nconst createPresentDropDestroyedCounts', refreshHelperStart);
+assert.ok(refreshHelperStart >= 0 && refreshHelperEnd > refreshHelperStart);
+const refreshHelperCompiled = ts.transpileModule(
+  gameLogicSource.slice(refreshHelperStart, refreshHelperEnd),
+  {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
+  }
+).outputText;
+const refreshHelperModule = { exports: {} };
+vm.runInNewContext(
+  `(function(exports, require, module) { ${refreshHelperCompiled} })(module.exports, require, module);`,
+  { module: refreshHelperModule, require }
+);
+const { refreshWaveVictoryRewardMetrics } = refreshHelperModule.exports;
+
 test('boss coin rewards follow one bounded progression curve', () => {
   assert.deepEqual(
     [1, 2, 3, 4, 5, 9].map((wave) => getBossCoinBurstCount('mini-boss', wave)),
@@ -52,6 +69,73 @@ test('boss coin burst trajectories are deterministic upward fans with gravity', 
   assert.ok(first.some((coin) => coin.vx < -4));
   assert.ok(first.some((coin) => coin.vx > 4));
   assert.ok(new Set(first.map((coin) => coin.offsetX.toFixed(3))).size > 40, 'the shower should not stack into one line');
+});
+
+test('manual reward-window collection refreshes final totals without changing attempt identity', () => {
+  const capturedSummary = {
+    id: 'mission-05-attempt-1',
+    campaignId: 'campaign-main',
+    campaignRevision: 7,
+    levelId: 'mission-05',
+    waveId: 'mission-05-wave-03',
+    waveNumber: 3,
+    waveTotal: 3,
+    stageComplete: true,
+    bossEncounterId: 'mission-05-boss',
+    stage: 5,
+    stageName: 'Bastion Protocol',
+    finalWaveName: 'Supply Lock',
+    scoreEarned: 20,
+    totalScore: 120,
+    enemiesDefeated: 9,
+    coinsCollected: 0,
+    waveCoinsCollected: 0,
+    damageTaken: 2,
+    elapsedSeconds: 41.25,
+    remainingLives: 8,
+    nextLevelId: 'mission-06',
+    nextWaveId: 'mission-06-wave-01',
+    nextWaveNumber: 1,
+    nextStage: 6,
+    hasNextStage: true,
+    campaignComplete: false,
+    presentDrop: {
+      destroyed: { standard: 18, armored: 4, fast: 11, golden: 1 },
+      destroyedTotal: 34,
+      coinValueSpawned: 257
+    }
+  };
+
+  // Every post-boss coin was picked up by the player, so takeoff has no
+  // leftover coin entity to auto-bank. Current totals are the authority.
+  const refreshed = refreshWaveVictoryRewardMetrics(
+    capturedSummary,
+    { score: 127, totalCoins: 14 },
+    100,
+    10,
+    12
+  );
+
+  assert.equal(refreshed.scoreEarned, 27);
+  assert.equal(refreshed.totalScore, 127);
+  assert.equal(refreshed.coinsCollected, 4);
+  assert.equal(refreshed.waveCoinsCollected, 2);
+
+  const mutableMetrics = new Set([
+    'scoreEarned',
+    'totalScore',
+    'coinsCollected',
+    'waveCoinsCollected'
+  ]);
+  for (const [key, value] of Object.entries(capturedSummary)) {
+    if (!mutableMetrics.has(key)) assert.deepEqual(refreshed[key], value, `${key} must remain immutable`);
+  }
+
+  assert.deepEqual(
+    refreshWaveVictoryRewardMetrics(refreshed, { score: 127, totalCoins: 14 }, 100, 10, 12),
+    refreshed,
+    'repeating completion refresh must not duplicate score or coin rewards'
+  );
 });
 
 test('gameplay keeps boss coins collectible through rewards, then banks and clears them for takeoff', () => {
@@ -100,7 +184,7 @@ test('gameplay keeps boss coins collectible through rewards, then banks and clea
   assert.match(engine, /creditCoinValue\(coin: Entity\)[\s\S]*?if \(coin\.coinValueCredited\) return false;[\s\S]*?this\.stats\.totalCoins\+\+/);
   assert.match(engine, /collectCoinIfReachedPlayer\(coin: Entity\)[\s\S]*?const credited = this\.creditCoinValue\(coin\)/);
   assert.match(engine, /if \(credited && this\.waveTransitionPending\) this\.refreshWaveVictorySummaryMetrics\(\)/);
-  assert.match(engine, /refreshWaveVictorySummaryMetrics\(\)[\s\S]{0,320}buildWaveVictorySummary\(\)/);
+  assert.match(engine, /refreshWaveVictorySummaryMetrics\(\)[\s\S]{0,420}refreshWaveVictoryRewardMetrics\(/);
   assert.match(takeoffSource, /this\.refreshWaveVictorySummaryMetrics\(\)/);
   assert.match(cleanupSource, /this\.compactEntities\(\)/, 'takeoff must not leave reward coins frozen offscreen');
   assert.match(renderer, /EntityType\.COIN[\s\S]{0,500}coinBurstFrames/);

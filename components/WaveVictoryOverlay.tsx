@@ -11,6 +11,7 @@ export interface WaveVictoryOverlayProps {
   onContinue: () => void;
   bossArchiveReplay?: boolean;
   campaignSettlement?: CampaignCompletionSettlement | null;
+  newlyAffordableUpgrade?: string | null;
   onOpenCampaignMap?: () => void;
   onReturnHome?: () => void;
 }
@@ -30,15 +31,24 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   onContinue,
   bossArchiveReplay = false,
   campaignSettlement = null,
+  newlyAffordableUpgrade = null,
   onOpenCampaignMap,
   onReturnHome
 }) => {
   const missionComplete = summary.stageComplete;
   const campaignResult = Boolean(campaignSettlement);
   const campaignComplete = missionComplete && (summary.campaignComplete || !summary.hasNextStage);
+  const missionMastered = Boolean(
+    campaignSettlement
+    && campaignSettlement.previousStars < 3
+    && campaignSettlement.stars === 3
+  );
   const specialNoticeCount = campaignSettlement
     ? Number(Boolean(campaignSettlement.newlyUnlockedMissionId))
+      + Number(campaignSettlement.newlyUnlockedBranchIds.length > 0)
       + Number(missionComplete && campaignSettlement.firstClear && Boolean(summary.bossEncounterId))
+      + Number(missionMastered)
+      + Number(Boolean(newlyAffordableUpgrade))
     : 0;
   const visibleGrantLimit = Math.max(1, 3 - specialNoticeCount);
   const visibleGrants = campaignSettlement?.grants.slice(0, visibleGrantLimit) ?? [];
@@ -110,7 +120,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
       <div className="wave-victory-backdrop" aria-hidden="true" />
       <div className="wave-victory-stage">
         <section
-          className={`wave-record-shell ${campaignResult && !missionComplete ? 'wave-record-shell-wave' : 'wave-record-shell-mission'}`}
+          className={`wave-record-shell ${campaignResult && !missionComplete ? 'wave-record-shell-wave' : 'wave-record-shell-mission'} ${missionMastered ? 'is-mastered' : ''}`}
           aria-label={`Mission ${summary.stage}, wave ${summary.waveNumber} of ${summary.waveTotal} result`}
         >
           <div className="wave-record-art" aria-hidden="true">
@@ -186,6 +196,17 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
                   )}
                   {campaignSettlement.newlyUnlockedMissionId ? (
                     <span className="wave-record-reward-chip is-unlock">Next Mission unlocked</span>
+                  ) : null}
+                  {campaignSettlement.newlyUnlockedBranchIds.length > 0 ? (
+                    <span className="wave-record-reward-chip is-unlock">Bonus route unlocked</span>
+                  ) : null}
+                  {missionMastered ? (
+                    <span className="wave-record-reward-chip is-mastered">Mission Mastered</span>
+                  ) : null}
+                  {newlyAffordableUpgrade ? (
+                    <span className="wave-record-reward-chip is-affordable">
+                      Upgrade now affordable: {newlyAffordableUpgrade}
+                    </span>
                   ) : null}
                   {missionComplete && campaignSettlement.firstClear && summary.bossEncounterId ? (
                     <span className="wave-record-reward-chip is-boss-unlock">Boss Archive unlocked</span>

@@ -520,6 +520,97 @@ test('simulation socket sampler maps Prism left/right anatomy and filters each a
   );
 });
 
+test('simulation socket sampler maps Frontier beam origins and filters each attack to its anatomy', () => {
+  const manifest = buildManifest();
+  manifest.id = 'frontier-crownclaw';
+  manifest.sockets = [
+    { id: 'claw-socket-port', role: 'melee-root', partId: 'cannon.port', x: 0, y: 0, rotation: 0 },
+    { id: 'claw-socket-starboard', role: 'melee-root', partId: 'cannon.starboard', x: 0, y: 0, rotation: 0 },
+    { id: 'claw-tip-port', role: 'melee-root', partId: 'cannon.port', x: -8, y: 0, rotation: 0 },
+    { id: 'claw-tip-starboard', role: 'melee-root', partId: 'cannon.starboard', x: 8, y: 0, rotation: 0 },
+    { id: 'chain-spool-port', role: 'effect-origin', partId: 'pod.port', x: 0, y: 0, rotation: 0 },
+    { id: 'chain-spool-starboard', role: 'effect-origin', partId: 'pod.starboard', x: 0, y: 0, rotation: 0 },
+    { id: 'crown-reactor', role: 'beam-origin', partId: 'body', x: 0, y: 0, rotation: 0 },
+    { id: 'bastion-port-port', role: 'projectile-muzzle', partId: 'cannon.port', x: -4, y: 0, rotation: 0 },
+    { id: 'bastion-port-starboard', role: 'projectile-muzzle', partId: 'cannon.starboard', x: 4, y: 0, rotation: 0 },
+    { id: 'rear-bastion-port', role: 'projectile-muzzle', partId: 'pod.port', x: -4, y: 4, rotation: 0 },
+    { id: 'rear-bastion-starboard', role: 'projectile-muzzle', partId: 'pod.starboard', x: 4, y: 4, rotation: 0 }
+  ];
+  const registration = runtime.exports.registerModularBossRig(manifest);
+  const sampler = socketRuntime.exports.createModularBossWeaponSocketPoseSampler(
+    registration,
+    () => ({})
+  );
+  const baseInput = {
+    frameCount: 40,
+    reducedMotion: false,
+    healthRatio: 1,
+    phaseIndex: 1
+  };
+  const socketIds = (primitiveId) => Array.from(sampler({
+    ...baseInput,
+    action: {
+      primitiveId,
+      stage: 'fire',
+      progress: 0.5,
+      sequence: 0
+    }
+  }).sockets, (socket) => socket.id);
+
+  assert.deepEqual(socketIds('chainclaw-harpoon'), [
+    'claw-socket-port',
+    'claw-socket-starboard',
+    'claw-tip-port',
+    'claw-tip-starboard',
+    'chain-spool-port',
+    'chain-spool-starboard'
+  ]);
+  assert.deepEqual(socketIds('crown-reactor-beam'), ['crown-reactor']);
+  assert.deepEqual(socketIds('bastion-crabwalk-barrage'), [
+    'bastion-port-port',
+    'bastion-port-starboard',
+    'rear-bastion-port',
+    'rear-bastion-starboard'
+  ]);
+  assert.equal(
+    sampler({
+      ...baseInput,
+      action: {
+        primitiveId: 'crown-reactor-beam',
+        stage: 'fire',
+        progress: 0.5,
+        sequence: 0
+      }
+    }).sockets[0].role,
+    'core'
+  );
+});
+
+test('Frontier action filters do not alter other modular boss socket profiles', () => {
+  const registration = runtime.exports.registerModularBossRig(buildManifest());
+  const sampler = socketRuntime.exports.createModularBossWeaponSocketPoseSampler(
+    registration,
+    () => ({})
+  );
+  const sockets = sampler({
+    frameCount: 40,
+    reducedMotion: false,
+    healthRatio: 1,
+    phaseIndex: 1,
+    action: {
+      primitiveId: 'crown-reactor-beam',
+      stage: 'fire',
+      progress: 0.5,
+      sequence: 0
+    }
+  }).sockets;
+
+  assert.deepEqual(
+    Array.from(sockets, (socket) => socket.id),
+    ['muzzle-port', 'muzzle-starboard', 'pod-port', 'pod-starboard', 'crucible-core']
+  );
+});
+
 test('Gloamforge pose visibly braces, charges, fires, detaches pods, and deploys phase two', () => {
   const sample = gloamforge.exports.sampleGloamforgeModularPose;
   const base = {

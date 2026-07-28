@@ -10,6 +10,7 @@ const {
 } = require('./walletProfileAuth');
 const { getWeeklyBoundaryMeta } = require('../../shared/weeklyCompetitionBoundary');
 const campaign = require('../../game-config/campaign.json');
+const campaignMigration = require('../../game-config/campaign-migration-v22.json');
 
 const PROFILES_TABLE = process.env.SUPABASE_WALLET_PROFILES_TABLE || 'scicon_wallet_profiles';
 const CHALLENGES_TABLE = process.env.SUPABASE_WALLET_PROFILE_CHALLENGES_TABLE || 'scicon_wallet_profile_challenges';
@@ -41,12 +42,18 @@ const ACHIEVEMENT_IDS = new Set([
   'mission-veteran',
   'ace-score'
 ]);
+const CAMPAIGN_MAJOR_BOSS_IDS = new Set([
+  'gatekeeper',
+  ...(Array.isArray(campaign.sectors)
+    ? campaign.sectors.map((sector) => sector?.majorBossId).filter((id) => typeof id === 'string')
+    : [])
+]);
 const BOSS_ARCHIVE_ENTRIES = Object.freeze(
   campaign.levels
     .slice()
     .sort((left, right) => left.order - right.order)
     .flatMap((level) => level.waves.flatMap((wave) => wave.events
-      .filter((event) => event.kind === 'boss' && event.bossId === 'gatekeeper')
+      .filter((event) => event.kind === 'boss' && CAMPAIGN_MAJOR_BOSS_IDS.has(event.bossId))
       .map((event) => Object.freeze({
         eventId: event.id,
         missionNumber: level.order
@@ -56,6 +63,17 @@ const BOSS_ARCHIVE_EVENT_IDS = Object.freeze(
   BOSS_ARCHIVE_ENTRIES.map((entry) => entry.eventId)
 );
 const BOSS_ARCHIVE_EVENT_ID_SET = new Set(BOSS_ARCHIVE_EVENT_IDS);
+const BOSS_ARCHIVE_EVENT_ALIASES = new Map(
+  Object.entries(campaignMigration.bossEventAliases || {})
+    .map(([legacyId, canonicalId]) => [legacyId.trim().toLowerCase(), canonicalId])
+    .filter(([, canonicalId]) => BOSS_ARCHIVE_EVENT_ID_SET.has(canonicalId))
+);
+const canonicalBossArchiveEventId = (value) => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  const canonical = BOSS_ARCHIVE_EVENT_ALIASES.get(normalized) || normalized;
+  return BOSS_ARCHIVE_EVENT_ID_SET.has(canonical) ? canonical : null;
+};
 const BOSS_ARCHIVE_BASE_CHALLENGE_REWARD_COINS = 100;
 const BOSS_ARCHIVE_CHALLENGE_REWARD_STEP_COINS = 25;
 const BOSS_ARCHIVE_BASE_SPEED_TARGET_MS = 75_000;
@@ -82,32 +100,82 @@ const CAMPAIGN_WAVE_IDS_BY_LEVEL = new Map(CAMPAIGN_LEVELS.map((level) => [
   level.id,
   Object.freeze(level.waves.slice().sort((left, right) => left.order - right.order).map((wave) => wave.id))
 ]));
+const CAMPAIGN_WAVE_ALIASES = campaignMigration.waveAliases || {};
+const campaignStoredRevision = (value) => (
+  Number.isFinite(Number(value))
+    ? Math.max(0, Math.floor(Number(value)))
+    : campaign.revision
+);
+const campaignWaveId = (levelId, value, storedRevision) => {
+  if (typeof value !== 'string') return null;
+  const waveIds = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(levelId) || [];
+  if (waveIds.includes(value)) return value;
+  if (storedRevision >= campaignMigration.toRevision) return null;
+  const alias = CAMPAIGN_WAVE_ALIASES[levelId]?.[value];
+  return waveIds.includes(alias) ? alias : null;
+};
+const prefixThrough = (ids, index) => index < 0 ? [] : ids.slice(0, Math.min(ids.length, index + 1));
+const orderedPrefix = (ids, included) => {
+  const prefix = [];
+  for (const id of ids) {
+    if (!included.has(id)) break;
+    prefix.push(id);
+  }
+  return prefix;
+};
+const campaignCheckpointRank = (missionId, waveId) => {
+  const missionIndex = CAMPAIGN_LEVEL_IDS.indexOf(missionId);
+  const waveIndex = (CAMPAIGN_WAVE_IDS_BY_LEVEL.get(missionId) || []).indexOf(waveId);
+  return missionIndex < 0 || waveIndex < 0 ? -1 : missionIndex * 1000 + waveIndex;
+};
+const CAMPAIGN_BRANCHES = Object.freeze(
+  Array.isArray(campaign.campaignBranches) ? campaign.campaignBranches : []
+);
 
 const campaignStarIds = (level) => {
+  const authoredObjectives = level?.campaignProgression?.masteryObjectives;
+  if (Array.isArray(authoredObjectives) && authoredObjectives.length > 0) {
+    return authoredObjectives
+      .map((objective) => objective?.id)
+      .filter((id) => typeof id === 'string' && id.length > 0)
+      .slice(0, 3);
+  }
   const boss = level.waves.some((wave) => wave.events.some((event) => (
-    event.kind === 'boss' && event.bossId === 'gatekeeper'
+    event.kind === 'boss' && CAMPAIGN_MAJOR_BOSS_IDS.has(event.bossId)
   )));
   return boss
     ? [`${level.id}:complete`, `${level.id}:damage`, `${level.id}:time`]
     : [`${level.id}:complete`, `${level.id}:coins`, `${level.id}:score`];
 };
 
-const campaignMissionRecord = (value, level) => {
+const campaignMissionRecord = (value, level, storedRevision = campaign.revision) => {
   const record = asObject(value);
   const waveIds = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(level.id) || [];
-  const waveIdSet = new Set(waveIds);
   const starIds = campaignStarIds(level);
   const starIdSet = new Set(starIds);
-  const completedWaveIds = stringList(record.completedWaveIds, {
+  const mappedCompletedWaveIds = stringList(record.completedWaveIds, {
     maxItems: waveIds.length,
     maxLength: 120
-  }).filter((id) => waveIdSet.has(id));
+  }).flatMap((id) => {
+    const canonical = campaignWaveId(level.id, id, storedRevision);
+    return canonical ? [canonical] : [];
+  });
+  const completedWaveIds = storedRevision < campaignMigration.toRevision && mappedCompletedWaveIds.length > 0
+    ? prefixThrough(waveIds, Math.max(...mappedCompletedWaveIds.map((id) => waveIds.indexOf(id))))
+    : orderedPrefix(waveIds, new Set(mappedCompletedWaveIds));
   const completed = Boolean(record.completed) || completedWaveIds.length === waveIds.length;
-  const earnedStarIds = stringList(record.earnedStarIds, {
+  let earnedStarIds = stringList(record.earnedStarIds, {
     maxItems: 3,
     maxLength: 160
   }).filter((id) => starIdSet.has(id));
-  if (completed && !earnedStarIds.includes(starIds[0])) earnedStarIds.unshift(starIds[0]);
+  if (completed) {
+    starIds.slice(0, integer(record.stars, 0, 3)).forEach((id) => {
+      if (!earnedStarIds.includes(id)) earnedStarIds.push(id);
+    });
+    if (!earnedStarIds.includes(starIds[0])) earnedStarIds.unshift(starIds[0]);
+  } else {
+    earnedStarIds = [];
+  }
   const nullableInteger = (entry, min = 0) => (
     entry === null || entry === undefined ? null : integer(entry, min, 1_000_000_000)
   );
@@ -115,9 +183,11 @@ const campaignMissionRecord = (value, level) => {
     typeof entry === 'string' && Number.isFinite(Date.parse(entry)) ? new Date(entry).toISOString() : null
   );
   return {
-    completedWaveIds: completed ? [...waveIds] : [],
+    completedWaveIds: completed ? [...waveIds] : completedWaveIds,
     completed,
-    stars: Math.max(integer(record.stars, 0, 3), Math.min(3, earnedStarIds.length), completed ? 1 : 0),
+    stars: completed
+      ? Math.max(integer(record.stars, 0, 3), Math.min(3, earnedStarIds.length), 1)
+      : 0,
     earnedStarIds,
     bestScore: integer(record.bestScore, 0, 1_000_000_000),
     bestClearTimeMs: nullableInteger(record.bestClearTimeMs, 1),
@@ -129,8 +199,177 @@ const campaignMissionRecord = (value, level) => {
   };
 };
 
+const sanitizeCampaignBranchProgress = (
+  rawValue,
+  missionRecords,
+  now,
+  branchDefinitions = CAMPAIGN_BRANCHES
+) => {
+  const branches = Array.isArray(branchDefinitions)
+    ? branchDefinitions.filter((branch) => (
+        branch
+        && typeof branch === 'object'
+        && !Array.isArray(branch)
+        && typeof branch.branchId === 'string'
+        && typeof branch.sourceMissionId === 'string'
+      ))
+    : [];
+  const branchIds = branches.map((branch) => branch.branchId);
+  const branchIdSet = new Set(branchIds);
+  const value = asObject(rawValue);
+  const storedUnlockedIds = stringList(value.unlockedBranchIds, {
+    maxItems: branchIds.length,
+    maxLength: 120
+  }).filter((id) => branchIdSet.has(id));
+  const storedUnlocked = new Set(storedUnlockedIds);
+  const founderLocked = new Set(stringList(value.founderLockedBranchIds, {
+    maxItems: branchIds.length,
+    maxLength: 120
+  }).filter((id) => branchIdSet.has(id)));
+  const completed = new Set(stringList(value.completedBranchIds, {
+    maxItems: branchIds.length,
+    maxLength: 120
+  }).filter((id) => branchIdSet.has(id)));
+  const claimed = new Set(stringList(value.claimedBranchIds, {
+    maxItems: branchIds.length,
+    maxLength: 120
+  }).filter((id) => branchIdSet.has(id)));
+  const attemptIds = new Set();
+  const rewardReceiptIds = new Set();
+  const attemptReceipts = (Array.isArray(value.attemptReceipts) ? value.attemptReceipts : [])
+    .flatMap((entry) => {
+      const receipt = asObject(entry);
+      const attemptId = text(receipt.attemptId, 180);
+      const branchId = text(receipt.branchId, 120);
+      const playerId = text(receipt.playerId, 180) || 'unknown';
+      const outcome = ['failed', 'interrupted', 'success'].includes(receipt.outcome)
+        ? receipt.outcome
+        : null;
+      const rewardReceiptId = text(receipt.rewardReceiptId, 180) || null;
+      const success = outcome === 'success';
+      if (
+        !attemptId
+        || !branchIdSet.has(branchId)
+        || !outcome
+        || attemptIds.has(attemptId)
+        || (success && !rewardReceiptId)
+        || (success && rewardReceiptIds.has(rewardReceiptId))
+      ) return [];
+      attemptIds.add(attemptId);
+      if (success) rewardReceiptIds.add(rewardReceiptId);
+      const claimedReceipt = success && Boolean(receipt.claimed) && Boolean(rewardReceiptId);
+      if (success) completed.add(branchId);
+      if (claimedReceipt) claimed.add(branchId);
+      const destroyedByType = Object.fromEntries(
+        ['standard', 'armored', 'fast', 'golden'].map((kind) => [
+          kind,
+          integer(asObject(receipt.destroyedByType)[kind], 0, 10_000)
+        ])
+      );
+      return [{
+        attemptId,
+        branchId,
+        playerId,
+        outcome,
+        destroyedByType,
+        presentsDestroyed: Math.max(
+          integer(receipt.presentsDestroyed, 0, 1_000_000),
+          Object.values(destroyedByType).reduce((total, count) => total + count, 0)
+        ),
+        performanceCoins: success ? integer(receipt.performanceCoins, 0, 1_000_000) : 0,
+        coinsCalculated: success ? integer(receipt.coinsCalculated, 0, 1_000_000) : 0,
+        coinsAwarded: success && rewardReceiptId
+          ? integer(receipt.coinsAwarded, 0, 1_000_000)
+          : 0,
+        completedAt: typeof receipt.completedAt === 'string' && Number.isFinite(Date.parse(receipt.completedAt))
+          ? new Date(receipt.completedAt).toISOString()
+          : isoNow(now),
+        rewardReceiptId: success ? rewardReceiptId : null,
+        claimed: claimedReceipt
+      }];
+    })
+    .slice(-256);
+  const unlocked = new Set(storedUnlockedIds);
+  let unlockedAnotherBranch = true;
+  while (unlockedAnotherBranch) {
+    unlockedAnotherBranch = false;
+    branches.forEach((branch) => {
+      if (founderLocked.has(branch.branchId)) return;
+      if (unlocked.has(branch.branchId)) return;
+      const condition = asObject(branch.unlockCondition);
+      const requiredStars = integer(branch.requiredStars, 0, 3);
+      const conditionMet = !condition.kind || condition.kind === 'all-stars-earned'
+        ? requiredStars > 0
+          && integer(asObject(missionRecords)[condition.missionId || branch.sourceMissionId]?.stars, 0, 3) >= requiredStars
+        : condition.kind === 'sector-mastered'
+          ? Array.isArray(condition.missionIds)
+            && condition.missionIds.length > 0
+            && condition.missionIds.every((missionId) => (
+              integer(asObject(missionRecords)[missionId]?.stars, 0, 3) >= 3
+            ))
+          : condition.kind === 'branch-completed'
+            ? completed.has(condition.branchId)
+            : false;
+      if (conditionMet) {
+        unlocked.add(branch.branchId);
+        unlockedAnotherBranch = true;
+      }
+    });
+  }
+  completed.forEach((branchId) => {
+    if (!founderLocked.has(branchId)) unlocked.add(branchId);
+  });
+  claimed.forEach((branchId) => {
+    if (!founderLocked.has(branchId)) unlocked.add(branchId);
+    completed.add(branchId);
+  });
+  founderLocked.forEach((branchId) => unlocked.delete(branchId));
+  const viewed = new Set(stringList(value.viewedBranchIds, {
+    maxItems: branchIds.length,
+    maxLength: 120
+  }).filter((id) => unlocked.has(id)));
+  const requestedNew = new Set(stringList(value.newBranchIds, {
+    maxItems: branchIds.length,
+    maxLength: 120
+  }).filter((id) => branchIdSet.has(id)));
+  branchIds.forEach((branchId) => {
+    if (unlocked.has(branchId) && !storedUnlocked.has(branchId)) requestedNew.add(branchId);
+  });
+  const processedAttemptIds = new Set(stringList(value.processedAttemptIds, {
+    maxItems: 512,
+    maxLength: 180
+  }));
+  attemptReceipts.forEach((receipt) => processedAttemptIds.add(receipt.attemptId));
+  const claimedRewardReceiptIds = new Set(stringList(value.claimedRewardReceiptIds, {
+    maxItems: 256,
+    maxLength: 180
+  }));
+  attemptReceipts.forEach((receipt) => {
+    if (receipt.claimed && receipt.rewardReceiptId) claimedRewardReceiptIds.add(receipt.rewardReceiptId);
+  });
+  return {
+    version: 2,
+    founderLockedBranchIds: branchIds.filter((branchId) => founderLocked.has(branchId)),
+    unlockedBranchIds: branchIds.filter((branchId) => unlocked.has(branchId)),
+    newBranchIds: branchIds.filter((branchId) => (
+      unlocked.has(branchId)
+      && requestedNew.has(branchId)
+      && !viewed.has(branchId)
+      && !completed.has(branchId)
+    )),
+    viewedBranchIds: branchIds.filter((branchId) => viewed.has(branchId)),
+    completedBranchIds: branchIds.filter((branchId) => completed.has(branchId)),
+    claimedBranchIds: branchIds.filter((branchId) => claimed.has(branchId)),
+    processedAttemptIds: Array.from(processedAttemptIds).slice(-512),
+    claimedRewardReceiptIds: Array.from(claimedRewardReceiptIds).slice(-256),
+    attemptReceipts,
+    updatedAt: isoNow(now)
+  };
+};
+
 const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
   const value = asObject(rawValue);
+  const storedRevision = campaignStoredRevision(value.campaignRevision);
   const hasStoredProgress = Boolean(
     rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)
   );
@@ -139,7 +378,7 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
     : Math.max(1, Math.min(CAMPAIGN_LEVELS.length, integer(lifetimeStats.highestWave, 1, CAMPAIGN_LEVELS.length)));
   const missionRecords = {};
   CAMPAIGN_LEVELS.forEach((level, index) => {
-    const stored = campaignMissionRecord(asObject(value.missionRecords)[level.id], level);
+    const stored = campaignMissionRecord(asObject(value.missionRecords)[level.id], level, storedRevision);
     const legacyCompleted = !hasStoredProgress && index < reachedMission - 1;
     missionRecords[level.id] = legacyCompleted
       ? {
@@ -176,31 +415,66 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
   const unlockedWaveIdsByMission = {};
   CAMPAIGN_LEVELS.forEach((level) => {
     const waveIds = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(level.id) || [];
-    const ids = completedMissionIds.includes(level.id)
-      ? [...waveIds]
-      : unlocked.has(level.id) && waveIds[0]
-        ? [waveIds[0]]
-        : [];
-    unlockedWaveIdsByMission[level.id] = ids;
+    if (!unlocked.has(level.id)) {
+      unlockedWaveIdsByMission[level.id] = [];
+      return;
+    }
+    if (completedMissionIds.includes(level.id)) {
+      unlockedWaveIdsByMission[level.id] = [...waveIds];
+      return;
+    }
+    const completedCount = missionRecords[level.id].completedWaveIds.length;
+    const requested = stringList(asObject(value.unlockedWaveIdsByMission)[level.id], {
+      maxItems: waveIds.length,
+      maxLength: 120
+    }).flatMap((id) => {
+      const canonical = campaignWaveId(level.id, id, storedRevision);
+      return canonical ? [canonical] : [];
+    });
+    if (value.recommendedMissionId === level.id) {
+      const recommended = campaignWaveId(level.id, value.recommendedWaveId, storedRevision);
+      if (recommended) requested.push(recommended);
+    }
+    // Requested unlocks may restore the immediate checkpoint, but may never
+    // jump over an uncleared Wave.
+    const requestedIndex = requested.reduce(
+      (highest, id) => Math.max(highest, waveIds.indexOf(id)),
+      0
+    );
+    const furthestIndex = Math.min(
+      waveIds.length - 1,
+      Math.max(requestedIndex, completedCount),
+      completedCount
+    );
+    unlockedWaveIdsByMission[level.id] = prefixThrough(waveIds, furthestIndex);
   });
-  let recommendedMissionId = typeof value.recommendedMissionId === 'string'
-    && unlocked.has(value.recommendedMissionId)
-    ? value.recommendedMissionId
-    : CAMPAIGN_LEVEL_IDS[reachedMission - 1] || CAMPAIGN_LEVEL_IDS[0];
-  let recommendedWaveId = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(recommendedMissionId)?.[0];
-  if (!recommendedWaveId) {
-    recommendedMissionId = CAMPAIGN_LEVEL_IDS[0];
-    recommendedWaveId = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(recommendedMissionId)?.[0] || '';
-  }
+  const derivedCheckpoint = CAMPAIGN_LEVELS.reduce((best, level) => {
+    const waveId = unlockedWaveIdsByMission[level.id]?.at(-1);
+    const rank = waveId ? campaignCheckpointRank(level.id, waveId) : -1;
+    return rank > best.rank ? { missionId: level.id, waveId, rank } : best;
+  }, {
+    missionId: CAMPAIGN_LEVEL_IDS[reachedMission - 1] || CAMPAIGN_LEVEL_IDS[0],
+    waveId: CAMPAIGN_WAVE_IDS_BY_LEVEL.get(
+      CAMPAIGN_LEVEL_IDS[reachedMission - 1] || CAMPAIGN_LEVEL_IDS[0]
+    )?.[0] || '',
+    rank: -1
+  });
+  const recommendedMissionId = derivedCheckpoint.missionId;
+  const recommendedWaveId = derivedCheckpoint.waveId;
   const completionRecords = (Array.isArray(value.completionRecords) ? value.completionRecords : [])
     .flatMap((entry) => {
       const record = asObject(entry);
       const resultId = text(record.resultId, 180);
       const missionWaveIds = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(record.missionId);
+      const migratedRecordWaveId = campaignWaveId(
+        record.missionId,
+        record.waveId,
+        campaignStoredRevision(record.campaignRevision ?? storedRevision)
+      );
       if (
         !resultId
         || !missionWaveIds
-        || !missionWaveIds.includes(record.waveId)
+        || !migratedRecordWaveId
       ) return [];
       return [{
         resultId,
@@ -208,21 +482,28 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
         campaignId: campaign.id,
         campaignRevision: integer(record.campaignRevision, 0, 1_000_000),
         missionId: record.missionId,
-        waveId: record.waveId,
+        waveId: migratedRecordWaveId,
         completedAt: typeof record.completedAt === 'string' && Number.isFinite(Date.parse(record.completedAt))
           ? new Date(record.completedAt).toISOString()
           : isoNow(now),
         stageComplete: Boolean(record.stageComplete),
         firstClearGranted: Boolean(record.firstClearGranted),
+        masteryEligible: Boolean(record.masteryEligible),
         coinsAwarded: integer(record.coinsAwarded, 0, 1_000_000),
         starsEarned: integer(record.starsEarned, 0, 3)
       }];
     })
     .slice(-96);
+  const replayRewardEpochByMission = Object.fromEntries(CAMPAIGN_LEVELS.flatMap((level) => {
+    const epoch = asObject(value.replayRewardEpochByMission)[level.id];
+    if (typeof epoch !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(epoch)) return [];
+    const parsed = Date.parse(`${epoch}T00:00:00.000Z`);
+    return Number.isFinite(parsed) ? [[level.id, new Date(parsed).toISOString().slice(0, 10)]] : [];
+  }));
   return {
-    version: 1,
+    version: 3,
     campaignId: campaign.id,
-    campaignRevision: integer(value.campaignRevision, campaign.revision, 1_000_000),
+    campaignRevision: campaign.revision,
     recommendedMissionId,
     recommendedWaveId,
     unlockedMissionIds: CAMPAIGN_LEVEL_IDS.filter((id) => unlocked.has(id)),
@@ -231,6 +512,7 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
     missionRecords,
     claimedRewardIds: stringList(value.claimedRewardIds, { maxItems: 768, maxLength: 180 })
       .filter((id) => id.startsWith('campaign:')),
+    replayRewardEpochByMission,
     processedResultIds: stringList(value.processedResultIds, { maxItems: 384, maxLength: 180 }),
     completionRecords,
     unviewedMissionIds: stringList(value.unviewedMissionIds, { maxItems: CAMPAIGN_LEVELS.length, maxLength: 120 })
@@ -239,6 +521,7 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
       .filter((id) => CAMPAIGN_LEVEL_ID_SET.has(id)),
     unviewedRewardIds: stringList(value.unviewedRewardIds, { maxItems: 120, maxLength: 180 })
       .filter((id) => id.startsWith('campaign:')),
+    branchProgress: sanitizeCampaignBranchProgress(value.branchProgress, missionRecords, now),
     campaignCompleted: completedMissionIds.length === CAMPAIGN_LEVELS.length,
     updatedAt: isoNow(now)
   };
@@ -276,7 +559,8 @@ const stringList = (value, { maxItems = 100, maxLength = 80, pattern } = {}) => 
 const bossArchiveEventIds = (value) => {
   const requested = new Set(
     stringList(value, { maxItems: BOSS_ARCHIVE_EVENT_IDS.length, maxLength: 120 })
-      .filter((eventId) => BOSS_ARCHIVE_EVENT_ID_SET.has(eventId))
+      .map(canonicalBossArchiveEventId)
+      .filter(Boolean)
   );
   return BOSS_ARCHIVE_EVENT_IDS.filter((eventId) => requested.has(eventId));
 };
@@ -362,6 +646,57 @@ const sanitizeBossArchiveRecord = (value) => {
   };
 };
 
+const mergeMigratedBossArchiveRecords = (values) => values
+  .map(sanitizeBossArchiveRecord)
+  .reduce((merged, record) => {
+    const earliest = (left, right) => {
+      if (!left) return right;
+      if (!right) return left;
+      return left < right ? left : right;
+    };
+    const shortest = (left, right) => {
+      if (left === null) return right;
+      if (right === null) return left;
+      return Math.min(left, right);
+    };
+    const latestResult = !merged.lastResult
+      || (record.lastResult?.playedAt || '') > merged.lastResult.playedAt
+      ? record.lastResult
+      : merged.lastResult;
+    return {
+      attempts: integer(merged.attempts + record.attempts, 0, 1_000_000_000),
+      practiceAttempts: integer(
+        merged.practiceAttempts + record.practiceAttempts,
+        0,
+        1_000_000_000
+      ),
+      challengeAttempts: integer(
+        merged.challengeAttempts + record.challengeAttempts,
+        0,
+        1_000_000_000
+      ),
+      totalClears: integer(merged.totalClears + record.totalClears, 0, 1_000_000_000),
+      practiceClears: integer(merged.practiceClears + record.practiceClears, 0, 1_000_000_000),
+      challengeClears: integer(merged.challengeClears + record.challengeClears, 0, 1_000_000_000),
+      noHitClears: integer(merged.noHitClears + record.noHitClears, 0, 1_000_000_000),
+      bestClearTimeMs: shortest(merged.bestClearTimeMs, record.bestClearTimeMs),
+      bestChallengeTimeMs: shortest(
+        merged.bestChallengeTimeMs,
+        record.bestChallengeTimeMs
+      ),
+      bestNoHitTimeMs: shortest(merged.bestNoHitTimeMs, record.bestNoHitTimeMs),
+      mastery: Object.fromEntries(BOSS_ARCHIVE_MASTERY_IDS.map((id) => [id, {
+        completedAt: earliest(merged.mastery[id].completedAt, record.mastery[id].completedAt),
+        claimedAt: earliest(merged.mastery[id].claimedAt, record.mastery[id].claimedAt)
+      }])),
+      processedResultIds: stringList([
+        ...merged.processedResultIds,
+        ...record.processedResultIds
+      ], { maxItems: 64, maxLength: 120 }),
+      lastResult: latestResult
+    };
+  }, sanitizeBossArchiveRecord(null));
+
 const sanitizeBossArchiveProgress = (value, unlockedEventIds, now) => {
   const archive = asObject(value);
   const unlockedSet = new Set(unlockedEventIds);
@@ -372,9 +707,10 @@ const sanitizeBossArchiveProgress = (value, unlockedEventIds, now) => {
     && /^\d{4}-\d{2}-\d{2}$/.test(dailyChallenge.utcDateKey)
     ? dailyChallenge.utcDateKey
     : utcDateKey;
-  const lastSelectedEventId = typeof archive.lastSelectedEventId === 'string'
-    && unlockedSet.has(archive.lastSelectedEventId)
-    ? archive.lastSelectedEventId
+  const normalizedLastSelectedEventId = canonicalBossArchiveEventId(archive.lastSelectedEventId);
+  const lastSelectedEventId = normalizedLastSelectedEventId
+    && unlockedSet.has(normalizedLastSelectedEventId)
+    ? normalizedLastSelectedEventId
     : null;
   return {
     version: 1,
@@ -382,11 +718,14 @@ const sanitizeBossArchiveProgress = (value, unlockedEventIds, now) => {
     seenEventIds: bossArchiveEventIds(archive.seenEventIds)
       .filter((eventId) => unlockedSet.has(eventId)),
     lastSelectedEventId,
-    records: Object.fromEntries(BOSS_ARCHIVE_EVENT_IDS.flatMap((eventId) => (
-      records[eventId] === undefined
+    records: Object.fromEntries(BOSS_ARCHIVE_EVENT_IDS.flatMap((eventId) => {
+      const migratedValues = Object.entries(records)
+        .filter(([storedEventId]) => canonicalBossArchiveEventId(storedEventId) === eventId)
+        .map(([, record]) => record);
+      return migratedValues.length === 0
         ? []
-        : [[eventId, sanitizeBossArchiveRecord(records[eventId])]]
-    ))),
+        : [[eventId, mergeMigratedBossArchiveRecords(migratedValues)]];
+    })),
     dailyChallenge: storedDateKey === utcDateKey
       ? {
           utcDateKey,
@@ -523,6 +862,83 @@ const preserveBossArchiveServerState = ({
   };
 };
 
+/**
+ * Campaign branch results are server-owned. Ordinary profile saves may update
+ * harmless discovery/view state, but cannot introduce completion, claim, or
+ * reward receipts that were not already present in the canonical profile.
+ */
+const preserveCampaignBranchServerState = ({
+  currentSnapshot,
+  incomingSnapshot,
+  now,
+  branchDefinitions = CAMPAIGN_BRANCHES
+}) => {
+  const currentCampaign = asObject(currentSnapshot?.permanentState?.campaignProgress);
+  const incomingCampaign = asObject(incomingSnapshot.permanentState?.campaignProgress);
+  const current = asObject(currentCampaign.branchProgress);
+  const incoming = asObject(incomingCampaign.branchProgress);
+  const mergeSafeIds = (field) => [
+    ...(Array.isArray(current[field]) ? current[field] : []),
+    ...(Array.isArray(incoming[field]) ? incoming[field] : [])
+  ];
+  const branchProgress = sanitizeCampaignBranchProgress({
+    unlockedBranchIds: Array.isArray(current.unlockedBranchIds) ? current.unlockedBranchIds : [],
+    newBranchIds: mergeSafeIds('newBranchIds'),
+    viewedBranchIds: mergeSafeIds('viewedBranchIds'),
+    founderLockedBranchIds: Array.isArray(current.founderLockedBranchIds)
+      ? current.founderLockedBranchIds
+      : [],
+    completedBranchIds: Array.isArray(current.completedBranchIds) ? current.completedBranchIds : [],
+    claimedBranchIds: Array.isArray(current.claimedBranchIds) ? current.claimedBranchIds : [],
+    processedAttemptIds: Array.isArray(current.processedAttemptIds) ? current.processedAttemptIds : [],
+    claimedRewardReceiptIds: Array.isArray(current.claimedRewardReceiptIds)
+      ? current.claimedRewardReceiptIds
+      : [],
+    attemptReceipts: Array.isArray(current.attemptReceipts) ? current.attemptReceipts : []
+  }, incomingCampaign.missionRecords, now, branchDefinitions);
+  if (Array.isArray(current.founderLockedBranchIds)) {
+    branchProgress.founderLockedBranchIds = [...current.founderLockedBranchIds];
+  }
+  const currentReplayEpochs = asObject(currentCampaign.replayRewardEpochByMission);
+  const incomingReplayEpochs = asObject(incomingCampaign.replayRewardEpochByMission);
+  const replayRewardEpochByMission = Object.fromEntries(CAMPAIGN_LEVEL_IDS.flatMap((missionId) => {
+    const currentEpoch = typeof currentReplayEpochs[missionId] === 'string'
+      ? currentReplayEpochs[missionId]
+      : '';
+    const incomingEpoch = typeof incomingReplayEpochs[missionId] === 'string'
+      ? incomingReplayEpochs[missionId]
+      : '';
+    const epoch = currentEpoch > incomingEpoch ? currentEpoch : incomingEpoch;
+    return epoch ? [[missionId, epoch]] : [];
+  }));
+  const currentRewardIds = stringList(
+    currentSnapshot?.weeklyState?.creditedCampaignRewardIds,
+    { maxItems: 1024, maxLength: 180 }
+  ).filter((id) => id.startsWith('campaign-branch:'));
+  const incomingNonBranchRewardIds = stringList(
+    incomingSnapshot.weeklyState?.creditedCampaignRewardIds,
+    { maxItems: 1024, maxLength: 180 }
+  ).filter((id) => !id.startsWith('campaign-branch:'));
+  return {
+    ...incomingSnapshot,
+    weeklyState: {
+      ...incomingSnapshot.weeklyState,
+      creditedCampaignRewardIds: Array.from(new Set([
+        ...incomingNonBranchRewardIds,
+        ...currentRewardIds
+      ])).slice(-1024)
+    },
+    permanentState: {
+      ...incomingSnapshot.permanentState,
+      campaignProgress: {
+        ...incomingCampaign,
+        replayRewardEpochByMission,
+        branchProgress
+      }
+    }
+  };
+};
+
 const fetchBossArchiveDailyLedger = async (address, now = Date.now()) => {
   const walletAddress = normalizeWalletAddress(address);
   const utcDateKey = isoNow(now).slice(0, 10);
@@ -552,9 +968,14 @@ const inferLegacyBossArchiveEventIds = (lifetimeStats) => {
     : Math.max(0, Math.min(FINAL_CAMPAIGN_MISSION, highestMission - 1));
 
   if (completedThrough > 0) {
-    return BOSS_ARCHIVE_ENTRIES
+    const inferred = BOSS_ARCHIVE_ENTRIES
       .filter((entry) => entry.missionNumber <= completedThrough)
       .map((entry) => entry.eventId);
+    if (inferred.length > 0 || bossesDefeated === 0) return inferred;
+
+    // Pre-v22 early Gatekeeper variants collapse into the canonical first
+    // sector boss, so retain that earned unlock even before Mission 5.
+    return BOSS_ARCHIVE_EVENT_IDS.slice(0, 1);
   }
   if (highestMission === 0 && bossesDefeated > 0) {
     return BOSS_ARCHIVE_EVENT_IDS.slice(0, Math.min(bossesDefeated, BOSS_ARCHIVE_EVENT_IDS.length));
@@ -575,10 +996,11 @@ const createShipUpgrades = () => Object.fromEntries(
 );
 
 const createWeeklyState = (profileId, now) => ({
-  version: 3,
+  version: 4,
   profileId,
   weekKey: getWeeklyBoundaryMeta(new Date(now)).weekKey,
   coins: 0,
+  durableCampaignCoins: 0,
   unlockedSlots: { left: false, right: false },
   ownedMiniShips: {},
   equipped: { left: null, right: null },
@@ -618,11 +1040,17 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
     equipped[slot] = MINI_SHIP_ID_SET.has(id) && ownedMiniShips[id] ? id : null;
   });
   const weeklyStats = asObject(value.weeklyStats);
+  const sanitizedCoins = integer(value.coins, 0, 1_000_000_000);
+  const durableCampaignCoins = Math.min(
+    integer(value.durableCampaignCoins, 0, 1_000_000_000),
+    sanitizedCoins
+  );
   return {
     ...fallback,
     // Competition currency and run totals restart each week. Hangar ownership,
     // equipment, and upgrade levels remain durable across that boundary.
-    coins: isCurrentWeek ? integer(value.coins, 0, 1_000_000_000) : 0,
+    coins: isCurrentWeek ? sanitizedCoins : durableCampaignCoins,
+    durableCampaignCoins,
     unlockedSlots: {
       left: Boolean(asObject(value.unlockedSlots).left),
       right: Boolean(asObject(value.unlockedSlots).right)
@@ -633,7 +1061,7 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
     creditedCampaignRewardIds: stringList(value.creditedCampaignRewardIds, {
       maxItems: 1024,
       maxLength: 180
-    }).filter((id) => id.startsWith('campaign:')),
+    }).filter((id) => id.startsWith('campaign:') || id.startsWith('campaign-branch:')),
     weeklyStats: isCurrentWeek
       ? {
           runs: integer(weeklyStats.runs, 0, 1_000_000),
@@ -826,8 +1254,9 @@ const saveWalletProfile = async ({
     throw apiError('A valid expectedRevision is required.', 400);
   }
   let sanitizedSnapshot = sanitizeWalletSnapshot(snapshot, walletAddress, now);
+  let current = null;
   if (revision > 0) {
-    const current = await fetchWalletProfile(walletAddress, now);
+    current = await fetchWalletProfile(walletAddress, now);
     if (!current || current.revision !== revision) {
       throw apiError(
         'This wallet profile changed on another device. Reload it before saving again.',
@@ -843,6 +1272,11 @@ const saveWalletProfile = async ({
       now
     });
   }
+  sanitizedSnapshot = preserveCampaignBranchServerState({
+    currentSnapshot: current?.snapshot ?? null,
+    incomingSnapshot: sanitizedSnapshot,
+    now
+  });
   const updatedAt = isoNow(now);
   let rows;
 
@@ -900,10 +1334,12 @@ module.exports = {
   getWalletProfileChallenge,
   rowToProfile,
   sanitizeCampaignProgress,
+  sanitizeCampaignBranchProgress,
   sanitizePermanentState,
   sanitizeStats,
   sanitizeWalletSnapshot,
   sanitizeWeeklyState,
   preserveBossArchiveServerState,
+  preserveCampaignBranchServerState,
   saveWalletProfile
 };

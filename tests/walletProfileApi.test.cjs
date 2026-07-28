@@ -29,6 +29,7 @@ const SECOND_MISSION_LAST_WAVE = SECOND_MISSION.waves
   .sort((left, right) => left.order - right.order)
   .at(-1);
 const CAMPAIGN_REWARD_ID = `campaign:${FIRST_MISSION.id}:first-clear`;
+const CAMPAIGN_BRANCH_REWARD_ID = 'campaign-branch:test-branch:reward-receipt-1';
 const CAMPAIGN_RESULT_ID = 'wallet-api-campaign-result';
 
 const jsonResponse = (data, status = 200) => ({
@@ -192,12 +193,17 @@ test('challenge authentication creates a secure session and profile saves use re
         profileId: 'pilot:wrong',
         weekKey: currentWeek,
         coins: 50,
+        durableCampaignCoins: 35,
         unlockedSlots: { left: true, right: false },
         ownedMiniShips: { 'citation-dart': 1 },
         equipped: { left: 'citation-dart', right: null },
         shipUpgrades: {},
         weeklyStats: {},
-        creditedCampaignRewardIds: [CAMPAIGN_REWARD_ID, 'not-a-campaign-reward']
+        creditedCampaignRewardIds: [
+          CAMPAIGN_REWARD_ID,
+          CAMPAIGN_BRANCH_REWARD_ID,
+          'not-a-campaign-reward'
+        ]
       },
       permanentState: {
         profileId: 'pilot:wrong',
@@ -255,6 +261,8 @@ test('challenge authentication creates a secure session and profile saves use re
   assert.equal(saveResponse.body.profile.revision, 1);
   assert.equal(saveResponse.body.profile.profileId, `wallet:${WALLET}`);
   assert.equal(saveResponse.body.profile.snapshot.weeklyState.profileId, `wallet:${WALLET}`);
+  assert.equal(saveResponse.body.profile.snapshot.weeklyState.coins, 50);
+  assert.equal(saveResponse.body.profile.snapshot.weeklyState.durableCampaignCoins, 35);
   assert.equal(
     'mintedMiniShips' in saveResponse.body.profile.snapshot.permanentState,
     false
@@ -281,7 +289,7 @@ test('challenge authentication creates a secure session and profile saves use re
   assert.equal(savedCampaign.campaignRevision, campaign.revision);
   assert.equal(savedCampaign.recommendedMissionId, SECOND_MISSION.id);
   assert.equal(savedCampaign.recommendedWaveId, SECOND_MISSION_WAVE.id);
-  assert.deepEqual(savedCampaign.missionRecords[FIRST_MISSION.id].completedWaveIds, []);
+  assert.deepEqual(savedCampaign.missionRecords[FIRST_MISSION.id].completedWaveIds, [FIRST_WAVE.id]);
   assert.equal(savedCampaign.missionRecords[FIRST_MISSION.id].bestScore, 777);
   assert.deepEqual(savedCampaign.claimedRewardIds, [CAMPAIGN_REWARD_ID]);
   assert.deepEqual(savedCampaign.processedResultIds, [CAMPAIGN_RESULT_ID]);
@@ -295,6 +303,8 @@ test('challenge authentication creates a secure session and profile saves use re
   assert.equal(getResponse.statusCode, 200);
   assert.equal(getResponse.body.profile.revision, 1);
   assert.equal(getResponse.body.profile.snapshot.stats.playerName, 'SCOTT');
+  assert.equal(getResponse.body.profile.snapshot.weeklyState.coins, 50);
+  assert.equal(getResponse.body.profile.snapshot.weeklyState.durableCampaignCoins, 35);
   assert.deepEqual(
     getResponse.body.profile.snapshot.permanentState.bossArchive.unlockedEventIds,
     ['open-orbit-gatekeeper']
@@ -363,6 +373,31 @@ test('Boss Archive Challenge endpoints reject requests without a wallet-profile 
       victory: true,
       clearTimeMs: 10000,
       damageTaken: 0
+    }), settleResponse);
+    assert.equal(settleResponse.statusCode, 401);
+  } finally {
+    console.error = originalConsoleError;
+  }
+});
+
+test('Campaign branch start and settlement endpoints reject requests without a wallet-profile session', async () => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    const startResponse = makeResponse();
+    await walletProfileHandler(makeRequest('POST', {
+      action: 'start-campaign-branch',
+      branchId: campaign.campaignBranches[0].branchId
+    }), startResponse);
+    assert.equal(startResponse.statusCode, 401);
+
+    const settleResponse = makeResponse();
+    await walletProfileHandler(makeRequest('POST', {
+      action: 'settle-campaign-branch',
+      attemptToken: 'not-an-attempt-token',
+      outcome: 'success',
+      destroyedByType: {},
+      collectedPresentCoins: 0
     }), settleResponse);
     assert.equal(settleResponse.statusCode, 401);
   } finally {

@@ -21,6 +21,10 @@ const {
   createBossArchiveChallengeRun,
   settleBossArchiveChallengeRun
 } = require('./bossArchiveChallenges');
+const {
+  createCampaignBranchAttempt,
+  settleCampaignBranchAttempt
+} = require('./campaignBranchRuns');
 
 const MAX_REQUEST_BODY_BYTES = MAX_SNAPSHOT_BYTES + 32 * 1024;
 
@@ -95,7 +99,7 @@ module.exports = async (req, res) => {
       scope: `wallet-profile:${String(body.action || 'unknown')}`,
       limit: body.action === 'save'
         ? 180
-        : body.action === 'settle-boss-challenge'
+        : body.action === 'settle-boss-challenge' || body.action === 'settle-campaign-branch'
           ? 20
           : 30,
       windowMs: body.action === 'save' ? 60_000 : 10 * 60_000
@@ -133,6 +137,33 @@ module.exports = async (req, res) => {
         victory: body.victory,
         clearTimeMs: body.clearTimeMs,
         damageTaken: body.damageTaken
+      });
+      return sendJson(res, 200, {
+        walletAddress: session.walletAddress,
+        ...result
+      });
+    }
+    if (body.action === 'start-campaign-branch') {
+      const session = readWalletProfileSession(req);
+      const attempt = await createCampaignBranchAttempt({
+        address: session.walletAddress,
+        branchId: body.branchId
+      });
+      return sendJson(res, 200, {
+        walletAddress: session.walletAddress,
+        attempt
+      });
+    }
+    if (body.action === 'settle-campaign-branch') {
+      const session = readWalletProfileSession(req);
+      const result = await settleCampaignBranchAttempt({
+        address: session.walletAddress,
+        attemptToken: body.attemptToken,
+        outcome: body.outcome,
+        destroyedByType: body.destroyedByType,
+        collectedPresentCoins: body.collectedPresentCoins,
+        stageComplete: body.stageComplete,
+        objectiveUnitsCompleted: body.objectiveUnitsCompleted
       });
       return sendJson(res, 200, {
         walletAddress: session.walletAddress,

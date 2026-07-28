@@ -663,7 +663,8 @@
   text-align: center;
 }
 
-.boss-sandbox__prism-tuning {
+.boss-sandbox__prism-tuning,
+.boss-sandbox__frontier-tuning {
   margin-top: 16px;
   padding: 9px;
   border: 1px solid rgba(196, 181, 253, .26);
@@ -671,7 +672,8 @@
   background: rgba(76, 29, 149, .08);
 }
 
-.boss-sandbox__prism-tuning > summary {
+.boss-sandbox__prism-tuning > summary,
+.boss-sandbox__frontier-tuning > summary {
   color: #ddd6fe;
   font-family: var(--font-mono);
   font-size: 8px;
@@ -681,14 +683,16 @@
   cursor: pointer;
 }
 
-.boss-sandbox__prism-tuning > p {
+.boss-sandbox__prism-tuning > p,
+.boss-sandbox__frontier-tuning > p {
   margin: 9px 0;
   color: #879bb0;
   font-size: 8px;
   line-height: 1.45;
 }
 
-.boss-sandbox__prism-tuning > button {
+.boss-sandbox__prism-tuning > button,
+.boss-sandbox__frontier-tuning > button {
   width: 100%;
   min-height: 30px;
   margin-bottom: 9px;
@@ -700,12 +704,14 @@
   font-size: 8px;
 }
 
-.prism-moth-attack-tuning {
+.prism-moth-attack-tuning,
+.frontier-crownclaw-attack-tuning {
   display: grid;
   gap: 8px;
 }
 
-.prism-moth-attack-tuning fieldset {
+.prism-moth-attack-tuning fieldset,
+.frontier-crownclaw-attack-tuning fieldset {
   display: grid;
   min-width: 0;
   gap: 6px;
@@ -715,7 +721,8 @@
   border-radius: 4px;
 }
 
-.prism-moth-attack-tuning legend {
+.prism-moth-attack-tuning legend,
+.frontier-crownclaw-attack-tuning legend {
   padding: 0 4px;
   color: #c4b5fd;
   font-family: var(--font-mono);
@@ -723,7 +730,8 @@
   line-height: 1.4;
 }
 
-.prism-moth-attack-tuning__control {
+.prism-moth-attack-tuning__control,
+.frontier-crownclaw-attack-tuning__control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 66px;
   align-items: center;
@@ -734,7 +742,8 @@
 }
 
 .prism-moth-attack-tuning__control input,
-.prism-moth-attack-tuning__control select {
+.prism-moth-attack-tuning__control select,
+.frontier-crownclaw-attack-tuning__control input {
   width: 100%;
   min-width: 0;
   min-height: 28px;
@@ -745,6 +754,23 @@
   background: #0b1220;
   font-family: var(--font-mono);
   font-size: 7px;
+}
+
+.boss-sandbox__frontier-tuning {
+  border-color: rgba(34, 211, 238, .28);
+  background: rgba(8, 145, 178, .07);
+}
+
+.boss-sandbox__frontier-tuning > summary,
+.boss-sandbox__frontier-tuning > button,
+.frontier-crownclaw-attack-tuning legend {
+  color: #a5f3fc;
+}
+
+.boss-sandbox__frontier-tuning > button,
+.frontier-crownclaw-attack-tuning fieldset,
+.frontier-crownclaw-attack-tuning__control input {
+  border-color: rgba(34, 211, 238, .24);
 }
 
 .boss-sandbox__notice {

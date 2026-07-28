@@ -67,8 +67,8 @@ interface StartScreenProps {
   onStart: () => void;
   onOpenCampaignMap?: () => void;
   campaignNotificationCount?: number;
-  campaignCheckpoint?: {
-    action: 'Start Mission' | 'Next Mission' | 'Replay Final Mission';
+  campaignCheckpoint: {
+    action: 'Start Mission' | 'Continue Mission' | 'Next Mission' | 'Replay Final Mission';
     missionNumber: number;
     missionName: string;
     waveNumber: number;
@@ -572,13 +572,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onStart,
   onOpenCampaignMap,
   campaignNotificationCount = 0,
-  campaignCheckpoint = {
-    action: 'Start Mission',
-    missionNumber: 1,
-    missionName: 'Open Orbit',
-    waveNumber: 1,
-    waveTotal: 3
-  },
+  campaignCheckpoint,
   allTimeLeaderboard,
   monthlyLeaderboard,
   archivedWinners,
@@ -1204,7 +1198,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <div
               data-boss-archive-command-row={canOpenBossArchive ? 'true' : 'false'}
               data-campaign-map-command-row={onOpenCampaignMap ? 'true' : 'false'}
-              className="relative grid min-h-12 w-full grid-cols-[clamp(3.25rem,14vw,3.6rem)_clamp(3.25rem,14vw,3.6rem)_minmax(0,1fr)] items-center gap-2 pr-14 md:grid-cols-[clamp(3.25rem,14vw,3.6rem)_minmax(0,1fr)_clamp(3.25rem,14vw,3.6rem)] md:pr-0"
+              className="relative grid min-h-12 w-full grid-cols-[clamp(3.25rem,14vw,3.6rem)_minmax(0,1fr)_clamp(3.25rem,14vw,3.6rem)] items-center gap-2"
             >
               {canOpenBossArchive ? (
                 <button
@@ -1219,7 +1213,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   title="Boss Archive"
                 >
                   <img
-                    src="/game-art/bosses/final-boss-sentinel.png"
+                    src="/game-art/generated/ui/scicon-neon-dashboard-icons-v2/boss-archive-defeated-emblem-v1.png"
                     alt=""
                     className="sci-home-command-icon__art sci-home-command-icon__art--boss"
                     aria-hidden="true"
@@ -1233,7 +1227,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ) : null}
               <div
                 data-boss-archive-wallet-slot="true"
-                className="col-start-3 row-start-1 flex min-w-0 justify-center md:col-start-2"
+                className="col-start-2 row-start-1 flex min-w-0 justify-center"
               >
                 {walletControl}
               </div>
@@ -1243,7 +1237,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                   onClick={onOpenCampaignMap}
                   data-campaign-map-trigger="true"
                   data-attention={campaignNotificationCount > 0 ? 'true' : 'false'}
-                  className="sci-home-command-icon sci-home-command-icon--map group col-start-2 row-start-1 justify-self-start md:col-start-3 md:justify-self-end"
+                  className="sci-home-command-icon sci-home-command-icon--map group col-start-3 row-start-1 justify-self-end"
                   aria-label={campaignNotificationCount > 0
                     ? `Open Campaign Map. ${campaignNotificationCount} new campaign updates.`
                     : 'Open Campaign Map'}
@@ -1264,17 +1258,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ) : <span className="col-start-3" aria-hidden="true" />}
             </div>
           ) : null}
-          <div
-            className="flex w-full items-center justify-between gap-3 border-x border-cyan-300/18 bg-slate-950/58 px-3 py-1.5 font-mono uppercase"
-            aria-label={`${campaignCheckpoint.action}. Mission ${campaignCheckpoint.missionNumber}, ${campaignCheckpoint.waveTotal} waves, ${campaignCheckpoint.missionName}.`}
-          >
-            <span className="text-[0.58rem] font-black tracking-[0.16em] text-emerald-300">{campaignCheckpoint.action}</span>
-            <span aria-hidden="true" className="truncate text-right text-[0.62rem] font-bold tracking-[0.08em] text-cyan-100">
-              M{String(campaignCheckpoint.missionNumber).padStart(2, '0')} / {campaignCheckpoint.waveTotal} WAVES / {campaignCheckpoint.missionName}
-            </span>
-          </div>
           <PixelActionButton
             onClick={onStart}
+            aria-label={`${campaignCheckpoint.action}. Mission ${campaignCheckpoint.missionNumber}, ${campaignCheckpoint.waveTotal} WAVES, ${campaignCheckpoint.missionName}.`}
             tone="green"
             ready
             shine

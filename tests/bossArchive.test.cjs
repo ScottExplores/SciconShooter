@@ -19,6 +19,13 @@ const loadBossArchive = (campaignFixture = campaign) => {
   }).outputText;
   const module = { exports: {} };
   const localRequire = (request) => {
+    if (request === '../game-config/catalog') {
+      const majorBossIds = new Set([
+        'gatekeeper',
+        ...(campaignFixture.sectors || []).map((sector) => sector.majorBossId)
+      ]);
+      return { isMajorBossId: (bossId) => majorBossIds.has(bossId) };
+    }
     if (request === './levelConfig') {
       return {
         DEFAULT_GAME_CAMPAIGN: campaignFixture,
@@ -38,27 +45,28 @@ const loadBossArchive = (campaignFixture = campaign) => {
 
 const archive = loadBossArchive();
 
-const authoredGatekeepers = campaign.levels
+const majorBossIds = new Set(['gatekeeper', ...(campaign.sectors || []).map((sector) => sector.majorBossId)]);
+const authoredMajorBosses = campaign.levels
   .slice()
   .sort((left, right) => left.order - right.order)
   .flatMap((level) => level.waves
     .slice()
     .sort((left, right) => left.order - right.order)
     .flatMap((wave) => wave.events
-      .filter((event) => event.kind === 'boss' && event.bossId === 'gatekeeper')
+      .filter((event) => event.kind === 'boss' && majorBossIds.has(event.bossId))
       .map((event) => ({ level, wave, event }))));
 
-test('catalog uses exact authored gatekeeper event IDs in campaign order', () => {
-  assert.equal(archive.BOSS_ARCHIVE_CATALOG.length, authoredGatekeepers.length);
+test('catalog uses exact authored canonical major-boss event IDs in campaign order', () => {
+  assert.equal(archive.BOSS_ARCHIVE_CATALOG.length, authoredMajorBosses.length);
   assert.deepEqual(
     Array.from(archive.BOSS_ARCHIVE_CATALOG, (entry) => entry.eventId),
-    authoredGatekeepers.map(({ event }) => event.id)
+    authoredMajorBosses.map(({ event }) => event.id)
   );
-  assert.equal(new Set(archive.BOSS_ARCHIVE_CATALOG.map((entry) => entry.eventId)).size, authoredGatekeepers.length);
+  assert.equal(new Set(archive.BOSS_ARCHIVE_CATALOG.map((entry) => entry.eventId)).size, authoredMajorBosses.length);
 
   archive.BOSS_ARCHIVE_CATALOG.forEach((entry, index) => {
-    const authored = authoredGatekeepers[index];
-    assert.equal(entry.bossId, 'gatekeeper');
+    const authored = authoredMajorBosses[index];
+    assert.equal(entry.bossId, authored.event.bossId);
     assert.equal(entry.missionId, authored.level.id);
     assert.equal(entry.missionNumber, authored.level.order);
     assert.equal(entry.waveId, authored.wave.id);
@@ -80,7 +88,7 @@ test('every archive entry carries immutable presentation, reward, and three-obje
     assert.ok(entry.mechanicTags.length > 0);
     assert.ok(entry.mechanicTags.length <= 4);
     assert.ok(entry.difficulty.tier >= 1 && entry.difficulty.tier <= 5);
-    assert.equal(entry.theme.backgroundId, authoredGatekeepers.find(({ event }) => event.id === entry.eventId).wave.backgroundId);
+    assert.equal(entry.theme.backgroundId, authoredMajorBosses.find(({ event }) => event.id === entry.eventId).wave.backgroundId);
     assert.match(entry.theme.accentColor, /^#[0-9a-f]{6}$/i);
     assert.equal(entry.preview.portraitUrl, entry.artUrl);
     assert.equal(entry.preview.idleFrameUrls.length, 2);
@@ -120,12 +128,14 @@ test('every archive entry carries immutable presentation, reward, and three-obje
 
 test('future authored bosses receive safe defaults and spoiler-free locked presentation', () => {
   const futureCampaign = clone(campaign);
-  const level = futureCampaign.levels[0];
+  const level = futureCampaign.levels.find((candidate) => candidate.waves.some((wave) => wave.events.some(
+    (event) => event.kind === 'boss' && majorBossIds.has(event.bossId)
+  )));
   const wave = level.waves.find((candidate) => candidate.events.some(
-    (event) => event.kind === 'boss' && event.bossId === 'gatekeeper'
+    (event) => event.kind === 'boss' && majorBossIds.has(event.bossId)
   ));
   const template = wave.events.find(
-    (event) => event.kind === 'boss' && event.bossId === 'gatekeeper'
+    (event) => event.kind === 'boss' && majorBossIds.has(event.bossId)
   );
   const futureEvent = {
     ...clone(template),
@@ -144,7 +154,7 @@ test('future authored bosses receive safe defaults and spoiler-free locked prese
   const entry = futureArchive.getBossArchiveEntry(futureEvent.id);
   assert.ok(entry);
   assert.equal(entry.eventId, futureEvent.id);
-  assert.equal(entry.subtitle, 'ARCHIVE GATEKEEPER');
+  assert.equal(entry.subtitle, 'MAJOR BOSS');
   assert.equal(entry.description, `${futureEvent.label} commands the final defense of ${level.name}.`);
   assert.deepEqual(Array.from(entry.mechanicTags), ['Combat Pattern']);
   assert.equal(entry.lockedPresentation.label, 'Unknown Signal');
@@ -229,7 +239,7 @@ test('legacy inference is conservative and can recover final-campaign and counte
 });
 
 test('replay campaign preserves structure and replaces only the selected boss wave events', () => {
-  const selected = archive.BOSS_ARCHIVE_CATALOG.find((entry) => entry.missionNumber === 9);
+  const selected = archive.BOSS_ARCHIVE_CATALOG.find((entry) => entry.missionNumber === 10);
   assert.ok(selected);
   const replay = archive.buildBossReplayCampaign(selected.eventId);
   assert.ok(replay);
@@ -288,15 +298,15 @@ test('production integration unlocks only authored boss victories and keeps repl
   const startScreen = fs.readFileSync(path.join(root, 'components', 'StartScreen.tsx'), 'utf8');
 
   assert.match(engine, /bossEncounterId: defeatedMainBoss\?\.id \?\? null/);
-  assert.match(engine, /event\.kind === 'boss' && event\.bossId === 'gatekeeper'/);
+  assert.match(engine, /event\.kind === 'boss' && isMajorBossId\(event\.bossId\)/);
   assert.match(app, /!isNonCompetitiveRun && summary\.bossEncounterId/);
   assert.match(app, /recordBossVictory\(current, summary\.bossEncounterId as string\)/);
   assert.match(app, /pendingLaunch\.runMode === 'boss-archive'/);
   assert.match(app, /if \(isBossArchiveRun\) return null/);
   assert.match(app, /if \(!isCampaignRun && !isNonCompetitiveRun && summary\.bossEncounterId\)/);
-  assert.match(app, /campaign: activeBossReplayCampaign \?\?/);
-  assert.match(app, /levelId: activeBossReplay\?\.missionId \?\?/);
-  assert.match(app, /waveId: activeBossReplay\?\.waveId \?\?/);
+  assert.match(app, /campaign:\s*activeBossReplayCampaign\s*\?\?/);
+  assert.match(app, /levelId:\s*activeBossReplay\?\.missionId\s*\?\?/);
+  assert.match(app, /waveId:\s*activeBossReplay\?\.waveId\s*\?\?/);
   assert.match(
     engine,
     /requestedInitialCampaignIndex = this\.findCampaignWaveIndex\(\s*this\.initialLevelId,\s*this\.initialWaveId\s*\)/

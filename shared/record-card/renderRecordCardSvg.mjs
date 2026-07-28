@@ -83,6 +83,12 @@ const RECORD_CARD_ENCOUNTER_ART = Object.freeze({
     Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/cannon-right.png', x: 0.6, y: 0.52, width: 0.28, height: 0.32 }),
     Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/helmet.png', x: 0.35, y: 0.13, width: 0.3, height: 0.3 })
   ]),
+  PAYWALL_BASTION_FRAMES: Object.freeze([
+    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/body/frame-1.png', x: 0.16, y: 0.18, width: 0.68, height: 0.58 }),
+    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/cannon-left.png', x: 0.12, y: 0.52, width: 0.28, height: 0.32 }),
+    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/cannon-right.png', x: 0.6, y: 0.52, width: 0.28, height: 0.32 }),
+    Object.freeze({ path: '/game-art/pixi/bosses/paywall-decimator/helmet.png', x: 0.35, y: 0.13, width: 0.3, height: 0.3 })
+  ]),
   PIXI_BOSS_CROWNCLAW_FRAMES: Object.freeze([
     Object.freeze({ path: '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png', x: 0.03, y: 0.08, width: 0.94, height: 0.84 })
   ]),
@@ -140,6 +146,12 @@ export const DEFAULT_RECORD_CARD_PRESENTATION = Object.freeze({
  * remain supported for Director previews and older links.
  */
 export const resolveRecordCardEncounterAssetKey = (campaign, waveRef) => {
+  const majorBossIds = new Set([
+    'gatekeeper',
+    ...(Array.isArray(campaign?.sectors)
+      ? campaign.sectors.map((sector) => sector?.majorBossId).filter((id) => typeof id === 'string')
+      : [])
+  ]);
   const levels = (Array.isArray(campaign?.levels) ? campaign.levels : [])
     .slice()
     .sort((left, right) => Number(left?.order) - Number(right?.order));
@@ -158,11 +170,11 @@ export const resolveRecordCardEncounterAssetKey = (campaign, waveRef) => {
       .slice()
       .sort((left, right) => Number(left?.order) - Number(right?.order));
     wave = stageWaves.slice().reverse().find((candidate) => (
-      candidate?.events?.some((event) => event?.kind === 'boss' && event?.bossId === 'gatekeeper')
+      candidate?.events?.some((event) => event?.kind === 'boss' && majorBossIds.has(event?.bossId))
     )) ?? stageWaves.at(-1);
   }
   const events = (Array.isArray(wave?.events) ? wave.events : []).slice().reverse();
-  const event = events.find((candidate) => candidate?.kind === 'boss' && candidate?.bossId === 'gatekeeper')
+  const event = events.find((candidate) => candidate?.kind === 'boss' && majorBossIds.has(candidate?.bossId))
     ?? events.find((candidate) => candidate?.kind === 'asteroid-belt')
     ?? events.find((candidate) => (
       candidate?.kind === 'spawn'

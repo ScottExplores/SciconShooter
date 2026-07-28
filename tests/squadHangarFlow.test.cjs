@@ -12,7 +12,7 @@ test('weekly competition rollover preserves permanent Hangar progression and res
   assert.match(source, /MAIN_SHIP_UPGRADE_MAX_LEVEL = FIRE_RATE_LEVELS_PER_TIER/);
   assert.match(source, /MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL/);
   assert.match(source, /id === 'fireRate' \? MAIN_SHIP_FIRE_RATE_MAX_LEVEL : MAIN_SHIP_UPGRADE_MAX_LEVEL/);
-  assert.match(source, /SQUAD_PROFILE_VERSION = 3/);
+  assert.match(source, /SQUAD_PROFILE_VERSION = 4/);
   assert.match(source, /LEFT_SQUAD_SLOT_UNLOCK_COST = 50/);
   assert.match(source, /RIGHT_SQUAD_SLOT_UNLOCK_COST = 500/);
   assert.match(source, /FIRST_LEFT_WING_MINI_SHIP_ID: MiniShipId = 'citation-dart'/);
@@ -24,7 +24,7 @@ test('weekly competition rollover preserves permanent Hangar progression and res
   assert.match(source, /rollWeeklySquadStateForward\(state, currentWeek\)/);
   assert.match(
     source,
-    /rollWeeklySquadStateForward = \([\s\S]*?\.\.\.state,[\s\S]*?weekKey,[\s\S]*?coins: WEEKLY_STARTING_COINS,[\s\S]*?weeklyStats: createWeeklySquadStats\(\)/
+    /rollWeeklySquadStateForward = \([\s\S]*?\.\.\.state,[\s\S]*?weekKey,[\s\S]*?coins: WEEKLY_STARTING_COINS \+ Math\.max\([\s\S]*?durableCampaignCoins:[\s\S]*?weeklyStats: createWeeklySquadStats\(\)/
   );
   assert.match(
     source,
@@ -37,7 +37,7 @@ test('weekly competition rollover preserves permanent Hangar progression and res
   assert.match(source, /ownedMiniShips: \{\}/);
   assert.match(source, /equipped: \{ left: null, right: null \}/);
   assert.match(source, /shipUpgrades: createMainShipUpgradesByShip\(\)/);
-  assert.match(source, /RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = \[1, 2\]/);
+  assert.match(source, /RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = \[1, 2, 3\]/);
   assert.match(source, /retiredWeeklyStorageKeys\(profileId\)\.forEach\(\(key\) => window\.localStorage\.removeItem\(key\)\)/);
   assert.match(source, /PERMANENT_SQUAD_PROFILE_VERSION = 1/);
   assert.match(source, /MINI_SHIP_UPGRADE_COST_CURVE = \[0, 160, 360, 650, 1050\]/);
@@ -72,8 +72,8 @@ test('guest runs save device Pilot Hangar and Boss Archive progress while wallet
   assert.match(app, /getWalletProfileId\(normalizedAddress\)/);
   assert.match(app, /saveAuthenticatedWalletProfile\(\{/);
   assert.match(app, /const unsettledLifetimeCampaignEnemies = isCampaignRun/);
-  assert.match(app, /if \(!isFounderSandboxRun && squadRunAppliedGameIdRef\.current !== gameId\)/);
-  assert.match(app, /if \(!isFounderSandboxRun && permanentRunAppliedGameIdRef\.current !== gameId\)/);
+  assert.match(app, /if \(!isNonCompetitiveRun && squadRunAppliedGameIdRef\.current !== gameId\)/);
+  assert.match(app, /if \(!isNonCompetitiveRun && permanentRunAppliedGameIdRef\.current !== gameId\)/);
   assert.match(app, /saveScore\(name, score, wave, \{[\s\S]*walletAddress: activeWalletAddress/);
 });
 
@@ -267,7 +267,8 @@ test('main ship upgrades remain isolated to the selected ship through the Hangar
   assert.match(squad, /\[shipId\]: \{ \.\.\.currentUpgrades, \[id\]: level \+ 1 \}/);
   assert.match(squad, /upgrades: \{ \.\.\.\(state\.shipUpgrades\[mainShipId\]/);
   assert.match(app, /upgradeMainShip\(current, usableShipId, id\)/);
-  assert.match(app, /buildRuntimeSquadLoadout\(weeklySquadState, usableShipId\)/);
+  assert.match(app, /const runShipId = requestedLabShipId \?\? usableShipId/);
+  assert.match(app, /buildRuntimeSquadLoadout\(campaignLabState, runShipId\)/);
 });
 
 test('gameplay pickups use animated transparent PNG artwork instead of founder portraits', () => {

@@ -92,8 +92,9 @@ test('title screen keeps the updated BTC ship in the playable roster', () => {
 });
 
 test('selected ship art is used by the player and afterimages', () => {
-  assert.match(appSource, /playerShipUrl = PLAYER_SHIPS\[usableShipId\]\.assetUrl/);
-  assert.match(appSource, /playerShipUrl/);
+  assert.match(appSource, /activeMissionPlayerShipUrl = PLAYER_SHIPS\[activeMissionShipId\]\.assetUrl/);
+  assert.match(appSource, /playerShipUrl: activeMissionPlayerShipUrl/);
+  assert.match(appSource, /playerShipId: activeMissionShipId/);
   assert.ok((runtimeSource.match(/this\.playerShipUrl/g) || []).length >= 4);
   assert.match(runtimeSource, /getReadyImage\(this\.playerShipUrl\)/);
   assert.match(runtimeSource, /imageCache\[this\.playerShipUrl\]/);

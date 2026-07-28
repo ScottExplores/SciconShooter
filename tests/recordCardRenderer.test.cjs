@@ -192,6 +192,30 @@ test('AUTO encounter art resolves from ordered stages while explicit wave refs r
   assert.equal(resolveRecordCardEncounterAssetKey(null, campaign.levels[1].waves[0]), 'ENEMY_JOURNAL');
 });
 
+test('AUTO encounter art resolves canonical sector bosses by bossId instead of scorecard or event position', async () => {
+  const { resolveRecordCardEncounterAssetKey } = await renderer;
+  const campaign = {
+    sectors: [{ majorBossId: 'helix-leviathan' }],
+    levels: [{
+      order: 1,
+      waves: [
+        { id: 'major', order: 1, events: [
+          { kind: 'boss', bossId: 'helix-leviathan', spriteKey: 'CAMPAIGN_BOSS_HELIX_LEVIATHAN' },
+          { kind: 'boss', bossId: 'bottleneck-drone', spriteKey: 'MINI_BOSS' }
+        ] },
+        { id: 'epilogue', order: 2, events: [
+          { kind: 'spawn', enemies: [{ spriteKey: 'ENEMY_DRONE_FRAMES' }] }
+        ] }
+      ]
+    }]
+  };
+
+  assert.equal(
+    resolveRecordCardEncounterAssetKey(campaign, 1),
+    'CAMPAIGN_BOSS_HELIX_LEVIATHAN'
+  );
+});
+
 test('modern encounter art resolves to the same body and cannon rig used in gameplay', async () => {
   const { renderRecordCardSvg, resolveRecordCardEncounterArt } = await renderer;
   const expectedByAssetKey = {
@@ -206,6 +230,12 @@ test('modern encounter art resolves to the same body and cannon rig used in game
       '/game-art/generated/boss-weapons/citation-storm-plasma-claw-right.png'
     ],
     PIXI_BOSS_PAYWALL_FRAMES: [
+      '/game-art/pixi/bosses/paywall-decimator/body/frame-1.png',
+      '/game-art/pixi/bosses/paywall-decimator/cannon-left.png',
+      '/game-art/pixi/bosses/paywall-decimator/cannon-right.png',
+      '/game-art/pixi/bosses/paywall-decimator/helmet.png'
+    ],
+    PAYWALL_BASTION_FRAMES: [
       '/game-art/pixi/bosses/paywall-decimator/body/frame-1.png',
       '/game-art/pixi/bosses/paywall-decimator/cannon-left.png',
       '/game-art/pixi/bosses/paywall-decimator/cannon-right.png',

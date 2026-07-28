@@ -57,6 +57,8 @@ Inspect for floating parts, disconnected joints, incorrect overlap/layering, tin
 
 Confirm weapons, barrels, effects, and sockets inherit the current transform of their owning hull or articulated mount. Inspect mounted weapons during idle, horizontal and vertical translation, phase changes, damage states, firing, and recovery. They must remain fixed to their owning mount outside intentional aiming, show recoil or bounded vibration only while firing, and return to the exact neutral local pose afterward. During firing, inspect sequential rapid-fire frames and require every emitted round to align with its own brief barrel animation, muzzle flash, and local recoil. For continuous fire, the barrel animation must remain active throughout the firing interval and visibly stop during recovery.
 
+For a launched body part, inspect seated, release, extension, peak, retraction, and reseat. Require the owner and launched endpoint to come from current live sockets. Repeated chain, cable, or tether units must retain fixed native dimensions without stretch or large gaps. The seated copy must not remain visible during launch, and cancellation, reconstruction, owner loss, reseat, and death must leave no duplicate launched part or connector residue.
+
 For anatomy that creates or commands summons, include its closed/neutral, deploy or hatch, active command, and recovery poses. Confirm each summon visibly leaves the current live source anatomy and the source does not keep emitting after it is destroyed or hidden.
 
 Pass only when every joint remains visually connected and every shape-changing frame remains registered throughout motion.
@@ -133,6 +135,6 @@ Confirm local-only tools and prototype assets remain excluded from production. P
 
 ## One-boss stop gate
 
-Invisible creation, damaging inactive summon art, ownerless entities, missing owner/action cleanup, an unproved retained formation template, or an appendage attack emitted by unrelated anatomy are also stop-gate failures.
+Invisible creation, damaging inactive summon art, ownerless entities, missing owner/action cleanup, an unproved retained formation template, an appendage attack emitted by unrelated anatomy, a duplicated launched body part, a stretched or gapped connector, or launched-part residue after reseat/cancellation/reconstruction/owner loss/death are also stop-gate failures.
 
 Keep the active boss lock when any required artifact is missing, any Gate 1–5 verdict is blocked or failed, route clearance is below 6 px, normal gameplay contains debug text/lines, a joint or mounted weapon detaches or drifts, firing effects persist into idle, directional projectile art points backward, an attack lacks anatomy ownership, a moving corridor lacks a continuous witness, deterministic mines collapse into an unproven repeated line, or the mobile evidence is unreviewed. Do not design or generate another boss until the lock is released.

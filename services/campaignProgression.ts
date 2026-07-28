@@ -1,19 +1,36 @@
 import type {
   CampaignMasteryObjectiveDefinition,
   CampaignMasteryObjectiveKind,
+  CampaignMissionRole,
   CampaignMissionRewardDefinition,
+  SupportRecommendationTag,
+  BossEvent,
+  BossId,
   GameCampaignConfig,
   LevelDefinition,
   WaveDefinition
 } from '../game-config/types';
+import { isMajorBossId } from '../game-config/catalog';
 import {
   DEFAULT_GAME_CAMPAIGN,
   flattenLevels,
   getBackground,
   getPrimaryAssetPath
 } from './levelConfig';
+import {
+  createCampaignBranchProgress,
+  getCampaignBranchDefinitions,
+  markCampaignBranchesViewed,
+  mergeCampaignBranchProgress,
+  reconcileCampaignBranchUnlocks,
+  sanitizeCampaignBranchProgress,
+  type CampaignBranchProgress
+} from './campaignBranchProgression';
+// Vite and Node both load the tracked migration manifest as data. Keeping the
+// aliases outside this module lets content revisions be audited independently.
+import * as CAMPAIGN_MIGRATION_V22_MODULE from '../game-config/campaign-migration-v22.json';
 
-export const CAMPAIGN_PROGRESS_VERSION = 1;
+export const CAMPAIGN_PROGRESS_VERSION = 3;
 export const CAMPAIGN_REPLAY_REWARD_MULTIPLIER = 0.35;
 const MAX_COMPLETION_RECORDS = 96;
 const MAX_RESULT_IDS = 384;
@@ -34,10 +51,25 @@ export interface CampaignMissionDefinition {
   waveIds: string[];
   waves: Array<{ id: string; number: number; name: string }>;
   bossEventId: string | null;
+  bossId: BossId | null;
   bossName: string | null;
+  bossPreview: {
+    eventId: string;
+    bossId: BossId;
+    name: string;
+    assetKey: string;
+    previewUrl: string;
+  } | null;
   nextMissionId: string | null;
   reward: CampaignRewardDefinition;
   starObjectives: CampaignStarObjective[];
+  masterySetBonusCoins: number;
+  sectorId: string;
+  missionRole: CampaignMissionRole;
+  combatBudget: number;
+  recommendedPower: { minimum: number; expected: number; comfortable: number };
+  testedLoadouts: { lowPower: string; expectedPower: string; upgraded: string };
+  recommendedSupportTags: SupportRecommendationTag[];
   mapPosition: { x: number; y: number };
 }
 
@@ -65,6 +97,7 @@ export interface CampaignCompletionRecord {
   completedAt: string;
   stageComplete: boolean;
   firstClearGranted: boolean;
+  masteryEligible: boolean;
   coinsAwarded: number;
   starsEarned: number;
 }
@@ -80,11 +113,14 @@ export interface CampaignProgress {
   completedMissionIds: string[];
   missionRecords: Record<string, CampaignMissionRecord>;
   claimedRewardIds: string[];
+  /** Latest UTC reward epoch claimed for each Mission replay. */
+  replayRewardEpochByMission: Record<string, string>;
   processedResultIds: string[];
   completionRecords: CampaignCompletionRecord[];
   unviewedMissionIds: string[];
   unviewedStarMissionIds: string[];
   unviewedRewardIds: string[];
+  branchProgress: CampaignBranchProgress;
   campaignCompleted: boolean;
   updatedAt: string;
 }
@@ -102,17 +138,32 @@ export interface CampaignCompletionInput {
   damageTaken: number;
   elapsedSeconds: number;
   completedAt?: string;
+  /**
+   * True only when this result began at authored Wave 1 and the final metrics
+   * cover the complete Mission. Resumed/replayed later-wave launches may earn
+   * the completion star, but can never earn performance mastery.
+   */
+  masteryEligible?: boolean;
 }
 
 export interface CampaignRewardGrant {
   id: string;
   label: string;
   amount: number;
-  kind: 'wave' | 'mission' | 'first-clear' | 'boss' | 'star';
+  kind: 'wave' | 'mission' | 'first-clear' | 'boss' | 'star' | 'mastery-set' | 'branch';
   oneTime: boolean;
 }
 
 export interface CampaignCompletionSettlement {
+  accepted: boolean;
+  reason:
+    | 'settled'
+    | 'duplicate-result'
+    | 'campaign-mismatch'
+    | 'unknown-wave'
+    | 'mission-locked'
+    | 'wave-locked'
+    | 'stage-state-mismatch';
   duplicate: boolean;
   missionId: string;
   waveId: string;
@@ -120,6 +171,7 @@ export interface CampaignCompletionSettlement {
   replay: boolean;
   firstClear: boolean;
   newlyUnlockedMissionId: string | null;
+  newlyUnlockedBranchIds: string[];
   previousStars: number;
   stars: number;
   newStarIds: string[];
@@ -154,6 +206,10 @@ const finite = (value: unknown, fallback = 0) => {
   return Number.isFinite(number) ? number : fallback;
 };
 
+const integerOr = (value: unknown, fallback: number) => (
+  Number.isFinite(Number(value)) ? integer(value) : integer(fallback)
+);
+
 const uniqueStrings = (value: unknown, allowed?: ReadonlySet<string>) => {
   if (!Array.isArray(value)) return [];
   return Array.from(new Set(value.filter((entry): entry is string => (
@@ -168,9 +224,82 @@ const isoDate = (value?: string) => {
 
 const trimTail = <T,>(values: T[], max: number) => values.slice(Math.max(0, values.length - max));
 
+interface CampaignMigrationV22Manifest {
+  fromRevision: number;
+  toRevision: number;
+  missionIdsPreserved: string[];
+  waveAliases: Record<string, Record<string, string>>;
+}
+
+const MIGRATION_V22 = (
+  (CAMPAIGN_MIGRATION_V22_MODULE as unknown as { default?: CampaignMigrationV22Manifest }).default
+  ?? CAMPAIGN_MIGRATION_V22_MODULE
+) as CampaignMigrationV22Manifest;
+
+const orderedPrefix = (orderedIds: readonly string[], included: ReadonlySet<string>) => {
+  const prefix: string[] = [];
+  for (const id of orderedIds) {
+    if (!included.has(id)) break;
+    prefix.push(id);
+  }
+  return prefix;
+};
+
+const prefixThroughIndex = (orderedIds: readonly string[], index: number) => (
+  index < 0 ? [] : orderedIds.slice(0, Math.min(orderedIds.length, index + 1))
+);
+
+const migratedWaveId = (
+  missionId: string,
+  waveId: unknown,
+  mission: CampaignMissionDefinition,
+  storedRevision: number
+) => {
+  if (typeof waveId !== 'string') return null;
+  if (mission.waveIds.includes(waveId)) return waveId;
+  if (storedRevision >= MIGRATION_V22.toRevision) return null;
+  const alias = MIGRATION_V22.waveAliases[missionId]?.[waveId];
+  return alias && mission.waveIds.includes(alias) ? alias : null;
+};
+
+/**
+ * Revision-21 partial records represented progress with three authored Waves.
+ * An alias points at the equivalent v22 checkpoint, so every newly inserted
+ * Wave before that checkpoint becomes complete while later Waves stay locked.
+ */
+const migrateCompletedWaveIds = (
+  value: unknown,
+  mission: CampaignMissionDefinition,
+  storedRevision: number
+) => {
+  if (!Array.isArray(value)) return [];
+  const mapped = value.flatMap((waveId) => {
+    const id = migratedWaveId(mission.id, waveId, mission, storedRevision);
+    return id ? [id] : [];
+  });
+  if (storedRevision < MIGRATION_V22.toRevision && mapped.length > 0) {
+    const furthest = Math.max(...mapped.map((id) => mission.waveIds.indexOf(id)));
+    return prefixThroughIndex(mission.waveIds, furthest);
+  }
+  return orderedPrefix(mission.waveIds, new Set(mapped));
+};
+
+const checkpointRank = (
+  missions: readonly CampaignMissionDefinition[],
+  missionId: string,
+  waveId: string
+) => {
+  const missionPosition = missions.findIndex((mission) => mission.id === missionId);
+  if (missionPosition < 0) return -1;
+  const wavePosition = missions[missionPosition].waveIds.indexOf(waveId);
+  return wavePosition < 0 ? -1 : (missionPosition * 1000) + wavePosition;
+};
+
 const hasBoss = (level: LevelDefinition) => level.waves
   .flatMap((wave) => wave.events)
-  .find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper');
+  .find((event): event is BossEvent => (
+    event.kind === 'boss' && isMajorBossId(event.bossId)
+  ));
 
 const getMissionStarObjectives = (
   level: LevelDefinition,
@@ -243,6 +372,18 @@ export const buildCampaignMissionDefinitions = (
     const nextMissionId = authored && Object.prototype.hasOwnProperty.call(authored, 'nextMissionId')
       ? authored.nextMissionId ?? null
       : levels[index + 1]?.id ?? null;
+    const sector = campaign.sectors?.find((entry) => entry.missionIds.includes(level.id));
+    const sectorSlot = sector?.missionIds.indexOf(level.id) ?? (index % 5);
+    const missionRoleFallback: CampaignMissionRole = boss
+      ? 'major-boss'
+      : sectorSlot === 0
+        ? 'introduction'
+        : sectorSlot === 2
+          ? 'elite-checkpoint'
+          : sectorSlot === 3
+            ? 'boss-preparation'
+            : 'formation-remix';
+    const previewUrl = getPrimaryAssetPath(boss?.spriteKey ?? level.scorecard.encounterAssetKey);
     return {
       id: level.id,
       number,
@@ -250,16 +391,42 @@ export const buildCampaignMissionDefinitions = (
       description: level.description,
       backgroundId: level.backgroundId,
       tint: getBackground(level.backgroundId).tint,
-      previewUrl: getPrimaryAssetPath(level.scorecard.encounterAssetKey),
+      previewUrl,
       waveIds: waves.map((wave) => wave.id),
       waves: waves.map((wave, waveIndex) => ({ id: wave.id, number: waveIndex + 1, name: wave.name })),
       bossEventId: boss?.id ?? null,
+      bossId: boss?.bossId ?? null,
       bossName: boss?.label ?? null,
+      bossPreview: boss ? {
+        eventId: boss.id,
+        bossId: boss.bossId,
+        name: boss.label,
+        assetKey: boss.spriteKey,
+        previewUrl
+      } : null,
       nextMissionId,
       reward: authored ? { ...authored.reward } : fallbackReward,
       starObjectives: authored
         ? authored.masteryObjectives.map((objective) => ({ ...objective }))
         : getMissionStarObjectives(level, number, boss?.id ?? null),
+      masterySetBonusCoins: integer(authored?.masterySetBonusCoins, 0),
+      sectorId: authored?.sectorId ?? sector?.id ?? `sector-${Math.floor(index / 5) + 1}`,
+      missionRole: authored?.missionRole ?? missionRoleFallback,
+      combatBudget: integer(
+        authored?.combatBudget,
+        waves.reduce((total, wave) => total + integer(wave.combatBudget), 0)
+      ),
+      recommendedPower: authored?.recommendedPower
+        ? { ...authored.recommendedPower }
+        : { minimum: number * 100, expected: number * 125, comfortable: number * 150 },
+      testedLoadouts: authored?.testedLoadouts
+        ? { ...authored.testedLoadouts }
+        : {
+            lowPower: 'Base ship with no support requirement',
+            expectedPower: 'Current Mission recommendation',
+            upgraded: 'One ship tier above recommendation'
+          },
+      recommendedSupportTags: [...(authored?.recommendedSupportTags ?? [])],
       mapPosition: authored?.mapPosition
         ? { ...authored.mapPosition }
         : fallbackMapPosition
@@ -322,11 +489,13 @@ export const createCampaignProgress = (
     completedMissionIds,
     missionRecords,
     claimedRewardIds: [],
+    replayRewardEpochByMission: {},
     processedResultIds: [],
     completionRecords: [],
     unviewedMissionIds: [],
     unviewedStarMissionIds: [],
     unviewedRewardIds: [],
+    branchProgress: createCampaignBranchProgress(),
     campaignCompleted: completedMissionIds.length === missions.length,
     updatedAt: new Date().toISOString()
   };
@@ -334,23 +503,34 @@ export const createCampaignProgress = (
 
 const sanitizeMissionRecord = (
   value: unknown,
-  mission: CampaignMissionDefinition
+  mission: CampaignMissionDefinition,
+  storedRevision: number
 ): CampaignMissionRecord => {
   const record = value && typeof value === 'object' && !Array.isArray(value)
     ? value as Partial<CampaignMissionRecord>
     : {};
-  const allowedWaves = new Set(mission.waveIds);
   const allowedStars = new Set(mission.starObjectives.map((objective) => objective.id));
-  const earnedStarIds = uniqueStrings(record.earnedStarIds, allowedStars);
-  const completedWaveIds = uniqueStrings(record.completedWaveIds, allowedWaves);
+  let earnedStarIds = uniqueStrings(record.earnedStarIds, allowedStars);
+  const completedWaveIds = migrateCompletedWaveIds(record.completedWaveIds, mission, storedRevision);
   const completed = Boolean(record.completed) || completedWaveIds.length === mission.waveIds.length;
+  if (completed) {
+    const storedStars = integer(record.stars, 0, 3);
+    mission.starObjectives.slice(0, storedStars).forEach((objective) => {
+      if (!earnedStarIds.includes(objective.id)) earnedStarIds.push(objective.id);
+    });
+    if (!earnedStarIds.includes(mission.starObjectives[0].id)) {
+      earnedStarIds = [mission.starObjectives[0].id, ...earnedStarIds];
+    }
+  } else {
+    // Mastery is a Mission-clear evaluation. Partial wave saves cannot carry
+    // performance stars from an incomplete or injected record.
+    earnedStarIds = [];
+  }
   return {
-    completedWaveIds: completed ? [...mission.waveIds] : [],
+    completedWaveIds: completed ? [...mission.waveIds] : completedWaveIds,
     completed,
-    stars: Math.max(integer(record.stars, 0, 3), earnedStarIds.length, completed ? 1 : 0),
-    earnedStarIds: completed && !earnedStarIds.includes(mission.starObjectives[0].id)
-      ? [mission.starObjectives[0].id, ...earnedStarIds]
-      : earnedStarIds,
+    stars: completed ? Math.min(3, Math.max(integer(record.stars, 0, 3), earnedStarIds.length, 1)) : 0,
+    earnedStarIds,
     bestScore: integer(record.bestScore),
     bestClearTimeMs: record.bestClearTimeMs === null || record.bestClearTimeMs === undefined
       ? null
@@ -374,16 +554,29 @@ export const sanitizeCampaignProgress = (
   const fallback = createCampaignProgress(campaign, options.legacyHighestMission ?? 0);
   if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback;
   const raw = value as Partial<CampaignProgress>;
+  const storedRevision = integerOr(raw.campaignRevision, campaign.revision);
   const missionIds = new Set(missions.map((mission) => mission.id));
   const missionById = new Map(missions.map((mission) => [mission.id, mission]));
   const missionRecords = Object.fromEntries(missions.map((mission) => [
     mission.id,
-    sanitizeMissionRecord(raw.missionRecords?.[mission.id], mission)
+    sanitizeMissionRecord(raw.missionRecords?.[mission.id], mission, storedRevision)
   ]));
-  const completedMissionIds = missions
-    .filter((mission) => missionRecords[mission.id].completed || raw.completedMissionIds?.includes(mission.id))
-    .map((mission) => mission.id);
-  completedMissionIds.forEach((id) => { missionRecords[id] = { ...missionRecords[id], completed: true, completedWaveIds: [...missions.find((mission) => mission.id === id)!.waveIds] }; });
+  const requestedCompletedMissionIds = new Set(uniqueStrings(raw.completedMissionIds, missionIds));
+  const completedMissionIds = missions.flatMap((mission) => {
+    if (!missionRecords[mission.id].completed && !requestedCompletedMissionIds.has(mission.id)) return [];
+    const record = missionRecords[mission.id];
+    const earnedStarIds = record.earnedStarIds.includes(mission.starObjectives[0].id)
+      ? record.earnedStarIds
+      : [mission.starObjectives[0].id, ...record.earnedStarIds];
+    missionRecords[mission.id] = {
+      ...record,
+      completed: true,
+      completedWaveIds: [...mission.waveIds],
+      stars: Math.max(1, record.stars),
+      earnedStarIds
+    };
+    return [mission.id];
+  });
   const unlockedMissionIds = new Set(uniqueStrings(raw.unlockedMissionIds, missionIds));
   unlockedMissionIds.add(missions[0].id);
   completedMissionIds.forEach((id) => {
@@ -391,18 +584,52 @@ export const sanitizeCampaignProgress = (
     const index = missionIndex(id, missions);
     if (missions[index + 1]) unlockedMissionIds.add(missions[index + 1].id);
   });
+  const rawUnlockedWaves = raw.unlockedWaveIdsByMission && typeof raw.unlockedWaveIdsByMission === 'object'
+    ? raw.unlockedWaveIdsByMission
+    : {};
   const unlockedWaveIdsByMission = Object.fromEntries(missions.map((mission) => {
+    if (!unlockedMissionIds.has(mission.id)) return [mission.id, []];
     if (completedMissionIds.includes(mission.id)) return [mission.id, [...mission.waveIds]];
-    return [mission.id, unlockedMissionIds.has(mission.id) ? [mission.waveIds[0]] : []];
+    const completedCount = missionRecords[mission.id].completedWaveIds.length;
+    const requested = Array.isArray(rawUnlockedWaves[mission.id])
+      ? rawUnlockedWaves[mission.id].flatMap((waveId) => {
+          const id = migratedWaveId(mission.id, waveId, mission, storedRevision);
+          return id ? [id] : [];
+        })
+      : [];
+    const rawRecommended = raw.recommendedMissionId === mission.id
+      ? migratedWaveId(mission.id, raw.recommendedWaveId, mission, storedRevision)
+      : null;
+    if (rawRecommended) requested.push(rawRecommended);
+    const requestedIndex = requested.reduce(
+      (highest, id) => Math.max(highest, mission.waveIds.indexOf(id)),
+      0
+    );
+    // A partial record grants at most the immediate next Wave. Stored unlocks
+    // may restore a checkpoint but can never jump over an uncleared Wave.
+    const furthestUnlockedIndex = Math.min(
+      mission.waveIds.length - 1,
+      Math.max(requestedIndex, completedCount),
+      completedCount
+    );
+    return [mission.id, prefixThroughIndex(mission.waveIds, furthestUnlockedIndex)];
   }));
-  let recommendedMissionId = typeof raw.recommendedMissionId === 'string' && unlockedMissionIds.has(raw.recommendedMissionId)
-    ? raw.recommendedMissionId
-    : fallback.recommendedMissionId;
-  let recommendedWaveId = missionById.get(recommendedMissionId)?.waveIds[0];
-  if (!recommendedWaveId) {
-    recommendedMissionId = fallback.recommendedMissionId;
-    recommendedWaveId = fallback.recommendedWaveId;
-  }
+  const derivedCheckpoint = missions.reduce(
+    (best, mission) => {
+      const waves = unlockedWaveIdsByMission[mission.id] ?? [];
+      const waveId = waves.at(-1);
+      if (!waveId) return best;
+      const rank = checkpointRank(missions, mission.id, waveId);
+      return rank > best.rank ? { missionId: mission.id, waveId, rank } : best;
+    },
+    {
+      missionId: fallback.recommendedMissionId,
+      waveId: fallback.recommendedWaveId,
+      rank: checkpointRank(missions, fallback.recommendedMissionId, fallback.recommendedWaveId)
+    }
+  );
+  const recommendedMissionId = derivedCheckpoint.missionId;
+  const recommendedWaveId = derivedCheckpoint.waveId;
   const completionRecords = Array.isArray(raw.completionRecords)
     ? raw.completionRecords.flatMap((entry) => {
         if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
@@ -410,13 +637,15 @@ export const sanitizeCampaignProgress = (
         const recordMission = typeof record.missionId === 'string'
           ? missionById.get(record.missionId)
           : null;
+        const migratedRecordWaveId = recordMission
+          ? migratedWaveId(recordMission.id, record.waveId, recordMission, integerOr(record.campaignRevision, storedRevision))
+          : null;
         if (
           typeof record.resultId !== 'string'
           || record.resultId.trim().length === 0
           || typeof record.missionId !== 'string'
-          || typeof record.waveId !== 'string'
           || !recordMission
-          || !recordMission.waveIds.includes(record.waveId)
+          || !migratedRecordWaveId
         ) return [];
         return [{
           resultId: record.resultId,
@@ -424,15 +653,31 @@ export const sanitizeCampaignProgress = (
           campaignId: campaign.id,
           campaignRevision: integer(record.campaignRevision, 0),
           missionId: record.missionId,
-          waveId: record.waveId,
+          waveId: migratedRecordWaveId,
           completedAt: isoDate(record.completedAt),
           stageComplete: Boolean(record.stageComplete),
           firstClearGranted: Boolean(record.firstClearGranted),
+          masteryEligible: Boolean(record.masteryEligible),
           coinsAwarded: integer(record.coinsAwarded),
           starsEarned: integer(record.starsEarned, 0, 3)
         }];
       })
     : [];
+  const replayRewardEpochByMission = Object.fromEntries(
+    missions.flatMap((mission) => {
+      const epoch = raw.replayRewardEpochByMission?.[mission.id];
+      if (typeof epoch !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(epoch)) return [];
+      const parsed = Date.parse(`${epoch}T00:00:00.000Z`);
+      return Number.isFinite(parsed) ? [[mission.id, new Date(parsed).toISOString().slice(0, 10)]] : [];
+    })
+  );
+  const branchDefinitions = getCampaignBranchDefinitions(campaign);
+  const branchProgress = sanitizeCampaignBranchProgress(
+    raw.branchProgress,
+    branchDefinitions,
+    missionRecords,
+    typeof raw.updatedAt === 'string' ? raw.updatedAt : fallback.updatedAt
+  );
   return {
     version: CAMPAIGN_PROGRESS_VERSION,
     campaignId: campaign.id,
@@ -443,12 +688,14 @@ export const sanitizeCampaignProgress = (
     unlockedWaveIdsByMission,
     completedMissionIds,
     missionRecords,
-    claimedRewardIds: trimTail(uniqueStrings(raw.claimedRewardIds), MAX_REWARD_IDS),
+    claimedRewardIds: trimTail(uniqueStrings(raw.claimedRewardIds).filter((id) => id.startsWith('campaign:')), MAX_REWARD_IDS),
+    replayRewardEpochByMission,
     processedResultIds: trimTail(uniqueStrings(raw.processedResultIds), MAX_RESULT_IDS),
     completionRecords: trimTail(completionRecords, MAX_COMPLETION_RECORDS),
     unviewedMissionIds: uniqueStrings(raw.unviewedMissionIds, missionIds),
     unviewedStarMissionIds: uniqueStrings(raw.unviewedStarMissionIds, missionIds),
-    unviewedRewardIds: uniqueStrings(raw.unviewedRewardIds),
+    unviewedRewardIds: uniqueStrings(raw.unviewedRewardIds).filter((id) => id.startsWith('campaign:')),
+    branchProgress,
     campaignCompleted: completedMissionIds.length === missions.length,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString()
   };
@@ -475,6 +722,36 @@ const addGrant = (
   claimed.add(grant.id);
 };
 
+const rejectedCompletion = (
+  progress: CampaignProgress,
+  input: CampaignCompletionInput,
+  reason: Exclude<CampaignCompletionSettlement['reason'], 'settled'>,
+  duplicate = false
+): { progress: CampaignProgress; settlement: CampaignCompletionSettlement } => ({
+  progress,
+  settlement: {
+    accepted: false,
+    reason,
+    duplicate,
+    missionId: input.missionId,
+    waveId: input.waveId,
+    stageComplete: input.stageComplete,
+    replay: false,
+    firstClear: false,
+    newlyUnlockedMissionId: null,
+    newlyUnlockedBranchIds: [],
+    previousStars: progress.missionRecords[input.missionId]?.stars ?? 0,
+    stars: progress.missionRecords[input.missionId]?.stars ?? 0,
+    newStarIds: [],
+    newBestScore: false,
+    newBestTime: false,
+    newBestCoins: false,
+    grants: [],
+    coinsAwarded: 0,
+    checkpoint: { missionId: progress.recommendedMissionId, waveId: progress.recommendedWaveId }
+  }
+});
+
 export const applyCampaignCompletion = (
   current: CampaignProgress,
   input: CampaignCompletionInput,
@@ -484,51 +761,47 @@ export const applyCampaignCompletion = (
   const missions = buildCampaignMissionDefinitions(campaign);
   const mission = missions.find((entry) => entry.id === input.missionId);
   const currentIndex = mission ? mission.waveIds.indexOf(input.waveId) : -1;
-  const missionUnlocked = Boolean(mission && (
-    progress.unlockedMissionIds.includes(mission.id)
-    || progress.missionRecords[mission.id]?.completed
-  ));
-  if (
-    !mission
-    || currentIndex < 0
-    || !missionUnlocked
-    || !input.stageComplete
-    || currentIndex !== mission.waveIds.length - 1
-    || input.campaignId !== campaign.id
-    || progress.processedResultIds.includes(input.resultId)
-  ) {
-    return {
-      progress,
-      settlement: {
-        duplicate: true,
-        missionId: input.missionId,
-        waveId: input.waveId,
-        stageComplete: input.stageComplete,
-        replay: false,
-        firstClear: false,
-        newlyUnlockedMissionId: null,
-        previousStars: progress.missionRecords[input.missionId]?.stars ?? 0,
-        stars: progress.missionRecords[input.missionId]?.stars ?? 0,
-        newStarIds: [],
-        newBestScore: false,
-        newBestTime: false,
-        newBestCoins: false,
-        grants: [],
-        coinsAwarded: 0,
-        checkpoint: { missionId: progress.recommendedMissionId, waveId: progress.recommendedWaveId }
-      }
-    };
+  if (input.campaignId !== campaign.id) return rejectedCompletion(progress, input, 'campaign-mismatch');
+  if (!mission || currentIndex < 0) return rejectedCompletion(progress, input, 'unknown-wave');
+  if (!progress.unlockedMissionIds.includes(mission.id)) {
+    return rejectedCompletion(progress, input, 'mission-locked');
+  }
+  if (!progress.unlockedWaveIdsByMission[mission.id]?.includes(input.waveId)) {
+    return rejectedCompletion(progress, input, 'wave-locked');
+  }
+  if (progress.processedResultIds.includes(input.resultId)) {
+    return rejectedCompletion(progress, input, 'duplicate-result', true);
+  }
+  const isFinalWave = currentIndex === mission.waveIds.length - 1;
+  if (Boolean(input.stageComplete) !== isFinalWave) {
+    return rejectedCompletion(progress, input, 'stage-state-mismatch');
   }
 
   const completedAt = isoDate(input.completedAt);
   const previousRecord = progress.missionRecords[mission.id] ?? createMissionRecord();
+  const wasWaveComplete = previousRecord.completedWaveIds.includes(input.waveId);
   const wasMissionComplete = previousRecord.completed;
-  const stageComplete = true;
+  const stageComplete = isFinalWave;
+  const masteryEligible = stageComplete && input.masteryEligible === true;
   const nextMission = mission.nextMissionId ? missions.find((entry) => entry.id === mission.nextMissionId) ?? null : null;
   const unlockedMissionIds = new Set(progress.unlockedMissionIds);
   const unlockedWaveIdsByMission = Object.fromEntries(Object.entries(progress.unlockedWaveIdsByMission).map(([id, ids]) => [id, [...ids]]));
   unlockedMissionIds.add(mission.id);
-  unlockedWaveIdsByMission[mission.id] = [...mission.waveIds];
+  const completedWaveIds = new Set(previousRecord.completedWaveIds);
+  completedWaveIds.add(input.waveId);
+  const orderedCompletedWaveIds = orderedPrefix(mission.waveIds, completedWaveIds);
+  const nextWaveId = mission.waveIds[currentIndex + 1] ?? null;
+  const previousUnlockedWaveIndex = (unlockedWaveIdsByMission[mission.id] ?? []).reduce(
+    (highest, waveId) => Math.max(highest, mission.waveIds.indexOf(waveId)),
+    0
+  );
+  unlockedWaveIdsByMission[mission.id] = prefixThroughIndex(
+    mission.waveIds,
+    Math.max(previousUnlockedWaveIndex, Math.min(
+      mission.waveIds.length - 1,
+      currentIndex + (nextWaveId ? 1 : 0)
+    ))
+  );
   let newlyUnlockedMissionId: string | null = null;
   if (stageComplete && nextMission) {
     if (!unlockedMissionIds.has(nextMission.id)) newlyUnlockedMissionId = nextMission.id;
@@ -543,7 +816,8 @@ export const applyCampaignCompletion = (
   const newStarIds: string[] = [];
   if (stageComplete) {
     mission.starObjectives.forEach((objective) => {
-      if (objectiveMet(objective, input) && !earnedStarIds.has(objective.id)) {
+      const eligible = objective.kind === 'complete' || masteryEligible;
+      if (eligible && objectiveMet(objective, input) && !earnedStarIds.has(objective.id)) {
         earnedStarIds.add(objective.id);
         newStarIds.push(objective.id);
       }
@@ -556,24 +830,27 @@ export const applyCampaignCompletion = (
   const inputClearTimeMs = stageComplete && inputElapsedSeconds > 0
     ? Math.max(1, Math.round(inputElapsedSeconds * 1000))
     : null;
-  const newBestScore = inputScore > previousRecord.bestScore;
-  const newBestCoins = inputCoins > previousRecord.bestCoinsCollected;
-  const newBestTime = inputClearTimeMs !== null && (
+  const newBestScore = masteryEligible && inputScore > previousRecord.bestScore;
+  const newBestCoins = masteryEligible && inputCoins > previousRecord.bestCoinsCollected;
+  const newBestTime = masteryEligible && inputClearTimeMs !== null && (
     previousRecord.bestClearTimeMs === null
     || inputClearTimeMs < previousRecord.bestClearTimeMs
   );
+  const inputDamage = integer(input.damageTaken);
+  const newBestDamage = masteryEligible && (
+    previousRecord.bestDamageTaken === null
+    || inputDamage < previousRecord.bestDamageTaken
+  );
   const record: CampaignMissionRecord = {
     ...previousRecord,
-    completedWaveIds: [...mission.waveIds],
-    completed: true,
+    completedWaveIds: stageComplete ? [...mission.waveIds] : orderedCompletedWaveIds,
+    completed: wasMissionComplete || stageComplete,
     stars,
     earnedStarIds: Array.from(earnedStarIds),
-    bestScore: Math.max(previousRecord.bestScore, inputScore),
+    bestScore: newBestScore ? inputScore : previousRecord.bestScore,
     bestClearTimeMs: newBestTime ? inputClearTimeMs : previousRecord.bestClearTimeMs,
-    bestDamageTaken: stageComplete
-      ? Math.min(previousRecord.bestDamageTaken ?? Number.MAX_SAFE_INTEGER, integer(input.damageTaken))
-      : previousRecord.bestDamageTaken,
-    bestCoinsCollected: Math.max(previousRecord.bestCoinsCollected, inputCoins),
+    bestDamageTaken: newBestDamage ? inputDamage : previousRecord.bestDamageTaken,
+    bestCoinsCollected: newBestCoins ? inputCoins : previousRecord.bestCoinsCollected,
     firstCompletedAt: stageComplete ? previousRecord.firstCompletedAt ?? completedAt : previousRecord.firstCompletedAt,
     lastCompletedAt: stageComplete ? completedAt : previousRecord.lastCompletedAt,
     completionCount: stageComplete ? previousRecord.completionCount + 1 : previousRecord.completionCount
@@ -581,18 +858,30 @@ export const applyCampaignCompletion = (
 
   const claimed = new Set(progress.claimedRewardIds);
   const grants: CampaignRewardGrant[] = [];
-  const replay = wasMissionComplete;
-  const repeatMultiplier = replay ? mission.reward.replayMultiplier : 1;
-  addGrant(grants, claimed, {
-    id: `campaign:${input.resultId}:waves`,
-    label: replay ? 'Mission waves replay' : 'Mission waves clear',
-    amount: Math.max(1, Math.round(mission.reward.waveClearCoins * repeatMultiplier)) * mission.waveIds.length,
-    kind: 'wave',
-    oneTime: false
-  });
-  if (stageComplete) {
+  const replay = wasWaveComplete;
+  const replayRewardEpoch = completedAt.slice(0, 10);
+  const previousReplayRewardEpoch = progress.replayRewardEpochByMission[mission.id] ?? '';
+  const replayRewardEligible = stageComplete
+    && wasMissionComplete
+    && replayRewardEpoch > previousReplayRewardEpoch;
+  if (!replay || replayRewardEligible) {
     addGrant(grants, claimed, {
-      id: `campaign:${input.resultId}:mission`,
+      id: replay
+        ? `campaign:${mission.id}:replay:${replayRewardEpoch}:wave`
+        : `campaign:${mission.id}:wave:${input.waveId}:clear`,
+      label: replay ? 'Daily Mission replay' : `Wave ${currentIndex + 1} clear`,
+      amount: Math.max(1, Math.round(
+        mission.reward.waveClearCoins * (replay ? mission.reward.replayMultiplier : 1)
+      )),
+      kind: 'wave',
+      oneTime: false
+    });
+  }
+  if (stageComplete && (!wasMissionComplete || replayRewardEligible)) {
+    addGrant(grants, claimed, {
+      id: wasMissionComplete
+        ? `campaign:${mission.id}:replay:${replayRewardEpoch}:mission`
+        : `campaign:${mission.id}:mission-clear`,
       label: wasMissionComplete ? 'Mission replay' : 'Mission clear',
       amount: Math.max(1, Math.round(mission.reward.missionClearCoins * (wasMissionComplete ? mission.reward.replayMultiplier : 1))),
       kind: 'mission',
@@ -628,15 +917,30 @@ export const applyCampaignCompletion = (
       oneTime: true
     });
   });
+  if (previousRecord.stars < 3 && stars === 3) {
+    addGrant(grants, claimed, {
+      id: `campaign:${mission.id}:mastery-set-bonus`,
+      label: `${mission.name} mastery set`,
+      amount: mission.masterySetBonusCoins,
+      kind: 'mastery-set',
+      oneTime: true
+    });
+  }
   const coinsAwarded = grants.reduce((total, grant) => total + grant.amount, 0);
 
-  const previousCheckpointIndex = missionIndex(progress.recommendedMissionId, missions);
-  const candidateMissionId = nextMission?.id ?? mission.id;
-  const candidateCheckpointIndex = missionIndex(candidateMissionId, missions);
-  const advancesCheckpoint = candidateCheckpointIndex > previousCheckpointIndex;
+  const candidateMissionId = stageComplete && nextMission ? nextMission.id : mission.id;
+  const candidateWaveId = stageComplete && nextMission
+    ? nextMission.waveIds[0]
+    : nextWaveId ?? input.waveId;
+  const previousCheckpointRank = checkpointRank(
+    missions,
+    progress.recommendedMissionId,
+    progress.recommendedWaveId
+  );
+  const candidateCheckpointRank = checkpointRank(missions, candidateMissionId, candidateWaveId);
+  const advancesCheckpoint = candidateCheckpointRank > previousCheckpointRank;
   const recommendedMissionId = advancesCheckpoint ? candidateMissionId : progress.recommendedMissionId;
-  const recommendedWaveId = missions.find((entry) => entry.id === recommendedMissionId)?.waveIds[0]
-    ?? progress.recommendedWaveId;
+  const recommendedWaveId = advancesCheckpoint ? candidateWaveId : progress.recommendedWaveId;
   const completedMissionIds = new Set(progress.completedMissionIds);
   if (stageComplete) completedMissionIds.add(mission.id);
   const completionRecord: CampaignCompletionRecord = {
@@ -649,9 +953,21 @@ export const applyCampaignCompletion = (
     completedAt,
     stageComplete,
     firstClearGranted: stageComplete && !wasMissionComplete,
+    masteryEligible,
     coinsAwarded,
     starsEarned: newStarIds.length
   };
+  const branchDefinitions = getCampaignBranchDefinitions(campaign);
+  const branchProgress = reconcileCampaignBranchUnlocks(
+    progress.branchProgress,
+    branchDefinitions,
+    { ...progress.missionRecords, [mission.id]: record },
+    completedAt
+  );
+  const previouslyUnlockedBranchIds = new Set(progress.branchProgress.unlockedBranchIds);
+  const newlyUnlockedBranchIds = branchProgress.unlockedBranchIds.filter((branchId) => (
+    !previouslyUnlockedBranchIds.has(branchId)
+  ));
   const nextProgress: CampaignProgress = {
     ...progress,
     campaignId: campaign.id,
@@ -663,6 +979,9 @@ export const applyCampaignCompletion = (
     completedMissionIds: missions.filter((entry) => completedMissionIds.has(entry.id)).map((entry) => entry.id),
     missionRecords: { ...progress.missionRecords, [mission.id]: record },
     claimedRewardIds: trimTail(Array.from(claimed), MAX_REWARD_IDS),
+    replayRewardEpochByMission: replayRewardEligible
+      ? { ...progress.replayRewardEpochByMission, [mission.id]: replayRewardEpoch }
+      : progress.replayRewardEpochByMission,
     processedResultIds: trimTail([...progress.processedResultIds, input.resultId], MAX_RESULT_IDS),
     completionRecords: trimTail([...progress.completionRecords, completionRecord], MAX_COMPLETION_RECORDS),
     unviewedMissionIds: newlyUnlockedMissionId
@@ -674,6 +993,7 @@ export const applyCampaignCompletion = (
     unviewedRewardIds: grants.some((grant) => grant.oneTime)
       ? Array.from(new Set([...progress.unviewedRewardIds, ...grants.filter((grant) => grant.oneTime).map((grant) => grant.id)]))
       : progress.unviewedRewardIds,
+    branchProgress,
     campaignCompleted: completedMissionIds.size === missions.length,
     updatedAt: completedAt
   };
@@ -681,6 +1001,8 @@ export const applyCampaignCompletion = (
   return {
     progress: nextProgress,
     settlement: {
+      accepted: true,
+      reason: 'settled',
       duplicate: false,
       missionId: mission.id,
       waveId: input.waveId,
@@ -688,6 +1010,7 @@ export const applyCampaignCompletion = (
       replay,
       firstClear: stageComplete && !wasMissionComplete,
       newlyUnlockedMissionId,
+      newlyUnlockedBranchIds,
       previousStars: previousRecord.stars,
       stars,
       newStarIds,
@@ -739,20 +1062,26 @@ export const finalizeCampaignCompletionMetrics = (
   const inputScore = integer(input.score);
   const inputCoins = integer(input.coinsCollected);
   const inputElapsedSeconds = finite(input.elapsedSeconds);
+  const masteryEligible = completionRecord.masteryEligible && input.masteryEligible === true;
   const inputClearTimeMs = completionRecord.stageComplete && inputElapsedSeconds > 0
     ? Math.max(1, Math.round(inputElapsedSeconds * 1000))
     : null;
-  const newBestScore = inputScore > previousRecord.bestScore;
-  const newBestCoins = inputCoins > previousRecord.bestCoinsCollected;
-  const newBestTime = inputClearTimeMs !== null && (
+  const newBestScore = masteryEligible && inputScore > previousRecord.bestScore;
+  const newBestCoins = masteryEligible && inputCoins > previousRecord.bestCoinsCollected;
+  const newBestTime = masteryEligible && inputClearTimeMs !== null && (
     previousRecord.bestClearTimeMs === null
     || inputClearTimeMs < previousRecord.bestClearTimeMs
   );
+  const inputDamage = integer(input.damageTaken);
+  const newBestDamage = masteryEligible && (
+    previousRecord.bestDamageTaken === null
+    || inputDamage < previousRecord.bestDamageTaken
+  );
   const earnedStarIds = new Set(previousRecord.earnedStarIds);
   const newStarIds: string[] = [];
-  if (completionRecord.stageComplete) {
+  if (completionRecord.stageComplete && masteryEligible) {
     mission.starObjectives.forEach((objective) => {
-      if (objectiveMet(objective, input) && !earnedStarIds.has(objective.id)) {
+      if (objective.kind !== 'complete' && objectiveMet(objective, input) && !earnedStarIds.has(objective.id)) {
         earnedStarIds.add(objective.id);
         newStarIds.push(objective.id);
       }
@@ -772,11 +1101,21 @@ export const finalizeCampaignCompletionMetrics = (
       oneTime: true
     });
   });
+  if (previousRecord.stars < 3 && stars === 3) {
+    addGrant(grants, claimed, {
+      id: `campaign:${mission.id}:mastery-set-bonus`,
+      label: `${mission.name} mastery set`,
+      amount: mission.masterySetBonusCoins,
+      kind: 'mastery-set',
+      oneTime: true
+    });
+  }
 
   if (
     !newBestScore
     && !newBestTime
     && !newBestCoins
+    && !newBestDamage
     && newStarIds.length === 0
   ) {
     return {
@@ -797,9 +1136,10 @@ export const finalizeCampaignCompletionMetrics = (
     ...previousRecord,
     stars,
     earnedStarIds: Array.from(earnedStarIds),
-    bestScore: Math.max(previousRecord.bestScore, inputScore),
+    bestScore: newBestScore ? inputScore : previousRecord.bestScore,
     bestClearTimeMs: newBestTime ? inputClearTimeMs : previousRecord.bestClearTimeMs,
-    bestCoinsCollected: Math.max(previousRecord.bestCoinsCollected, inputCoins)
+    bestDamageTaken: newBestDamage ? inputDamage : previousRecord.bestDamageTaken,
+    bestCoinsCollected: newBestCoins ? inputCoins : previousRecord.bestCoinsCollected
   };
   const grantTotal = grants.reduce((total, grant) => total + grant.amount, 0);
   const completionRecords = progress.completionRecords.map((entry) => (
@@ -811,6 +1151,12 @@ export const finalizeCampaignCompletionMetrics = (
         }
       : entry
   ));
+  const branchProgress = reconcileCampaignBranchUnlocks(
+    progress.branchProgress,
+    getCampaignBranchDefinitions(campaign),
+    { ...progress.missionRecords, [mission.id]: updatedRecord },
+    updatedAt
+  );
   const nextProgress: CampaignProgress = {
     ...progress,
     missionRecords: { ...progress.missionRecords, [mission.id]: updatedRecord },
@@ -822,6 +1168,7 @@ export const finalizeCampaignCompletionMetrics = (
     unviewedRewardIds: grants.length > 0
       ? Array.from(new Set([...progress.unviewedRewardIds, ...grants.map((grant) => grant.id)]))
       : progress.unviewedRewardIds,
+    branchProgress,
     updatedAt
   };
 
@@ -838,17 +1185,25 @@ export const finalizeCampaignCompletionMetrics = (
   };
 };
 
-export const markCampaignMapViewed = (progress: CampaignProgress): CampaignProgress => {
+export const markCampaignMapViewed = (
+  progress: CampaignProgress,
+  campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN
+): CampaignProgress => {
   if (
     progress.unviewedMissionIds.length === 0
     && progress.unviewedStarMissionIds.length === 0
     && progress.unviewedRewardIds.length === 0
+    && progress.branchProgress.newBranchIds.length === 0
   ) return progress;
   return {
     ...progress,
     unviewedMissionIds: [],
     unviewedStarMissionIds: [],
     unviewedRewardIds: [],
+    branchProgress: markCampaignBranchesViewed(
+      progress.branchProgress,
+      getCampaignBranchDefinitions(campaign)
+    ),
     updatedAt: new Date().toISOString()
   };
 };
@@ -856,25 +1211,31 @@ export const markCampaignMapViewed = (progress: CampaignProgress): CampaignProgr
 export const setCampaignCheckpoint = (
   current: CampaignProgress,
   missionId: string,
-  _waveId?: string,
+  waveId?: string,
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN
 ): CampaignProgress => {
   const progress = sanitizeCampaignProgress(current, { campaign });
   const missions = buildCampaignMissionDefinitions(campaign);
   const mission = missions.find((entry) => entry.id === missionId);
   if (!mission) return progress;
-  const targetIndex = missions.findIndex((entry) => entry.id === missionId);
-  const unlockedMissionIds = missions.slice(0, targetIndex + 1).map((entry) => entry.id);
-  const unlockedWaveIdsByMission = { ...progress.unlockedWaveIdsByMission };
-  unlockedWaveIdsByMission[mission.id] = progress.completedMissionIds.includes(mission.id)
-    ? [...mission.waveIds]
-    : [mission.waveIds[0]];
+  const targetWaveId = waveId ?? mission.waveIds[0];
+  if (
+    !progress.unlockedMissionIds.includes(mission.id)
+    || !progress.unlockedWaveIdsByMission[mission.id]?.includes(targetWaveId)
+  ) return progress;
+  const currentRank = checkpointRank(
+    missions,
+    progress.recommendedMissionId,
+    progress.recommendedWaveId
+  );
+  const targetRank = checkpointRank(missions, mission.id, targetWaveId);
+  // Launching a replay is allowed by the caller, but selecting it must never
+  // lower the durable "continue" checkpoint.
+  if (targetRank < currentRank) return progress;
   return {
     ...progress,
     recommendedMissionId: mission.id,
-    recommendedWaveId: mission.waveIds[0],
-    unlockedMissionIds: Array.from(new Set([...progress.unlockedMissionIds, ...unlockedMissionIds])),
-    unlockedWaveIdsByMission,
+    recommendedWaveId: targetWaveId,
     updatedAt: new Date().toISOString()
   };
 };
@@ -905,7 +1266,9 @@ export const resetCampaignStars = (
       missionId,
       { ...record, stars: 0, earnedStarIds: [] }
     ])),
-    claimedRewardIds: progress.claimedRewardIds.filter((id) => !id.includes(':reward')),
+    claimedRewardIds: progress.claimedRewardIds.filter((id) => (
+      !id.includes(':reward') && !id.endsWith(':mastery-set-bonus')
+    )),
     unviewedStarMissionIds: [],
     updatedAt: new Date().toISOString()
   };
@@ -919,8 +1282,8 @@ export const mergeCampaignProgress = (
   const first = sanitizeCampaignProgress(left, { campaign });
   const second = sanitizeCampaignProgress(right, { campaign });
   const missions = buildCampaignMissionDefinitions(campaign);
-  const firstCheckpoint = missionIndex(first.recommendedMissionId, missions);
-  const secondCheckpoint = missionIndex(second.recommendedMissionId, missions);
+  const firstCheckpoint = checkpointRank(missions, first.recommendedMissionId, first.recommendedWaveId);
+  const secondCheckpoint = checkpointRank(missions, second.recommendedMissionId, second.recommendedWaveId);
   const checkpoint = secondCheckpoint > firstCheckpoint ? second : first;
   const missionRecords = Object.fromEntries(missions.map((mission) => {
     const a = first.missionRecords[mission.id] ?? createMissionRecord();
@@ -941,6 +1304,12 @@ export const mergeCampaignProgress = (
       completionCount: Math.max(a.completionCount, b.completionCount)
     }];
   }));
+  const branchProgress = mergeCampaignBranchProgress(
+    first.branchProgress,
+    second.branchProgress,
+    getCampaignBranchDefinitions(campaign),
+    missionRecords
+  );
   return sanitizeCampaignProgress({
     ...first,
     recommendedMissionId: checkpoint.recommendedMissionId,
@@ -956,6 +1325,12 @@ export const mergeCampaignProgress = (
     completedMissionIds: Array.from(new Set([...first.completedMissionIds, ...second.completedMissionIds])),
     missionRecords,
     claimedRewardIds: trimTail(Array.from(new Set([...first.claimedRewardIds, ...second.claimedRewardIds])), MAX_REWARD_IDS),
+    replayRewardEpochByMission: Object.fromEntries(missions.flatMap((mission) => {
+      const firstEpoch = first.replayRewardEpochByMission[mission.id] ?? '';
+      const secondEpoch = second.replayRewardEpochByMission[mission.id] ?? '';
+      const epoch = firstEpoch > secondEpoch ? firstEpoch : secondEpoch;
+      return epoch ? [[mission.id, epoch]] : [];
+    })),
     processedResultIds: trimTail(Array.from(new Set([...first.processedResultIds, ...second.processedResultIds])), MAX_RESULT_IDS),
     completionRecords: trimTail(
       Array.from(new Map([...first.completionRecords, ...second.completionRecords].map((record) => [record.resultId, record])).values())
@@ -965,6 +1340,7 @@ export const mergeCampaignProgress = (
     unviewedMissionIds: Array.from(new Set([...first.unviewedMissionIds, ...second.unviewedMissionIds])),
     unviewedStarMissionIds: Array.from(new Set([...first.unviewedStarMissionIds, ...second.unviewedStarMissionIds])),
     unviewedRewardIds: Array.from(new Set([...first.unviewedRewardIds, ...second.unviewedRewardIds])),
+    branchProgress,
     campaignCompleted: first.campaignCompleted || second.campaignCompleted,
     updatedAt: [first.updatedAt, second.updatedAt].sort().at(-1)
   }, { campaign });
@@ -976,6 +1352,7 @@ export const getCampaignCheckpointLabel = (
 ) => {
   const missions = buildCampaignMissionDefinitions(campaign);
   const mission = missions.find((entry) => entry.id === progress.recommendedMissionId) ?? missions[0];
+  const wave = mission.waves.find((entry) => entry.id === progress.recommendedWaveId) ?? mission.waves[0];
   const hasAnyCompletion = progress.completedMissionIds.length > 0;
   const previousMissionComplete = mission.number > 1
     && progress.completedMissionIds.includes(missions[mission.number - 2]?.id);
@@ -983,11 +1360,13 @@ export const getCampaignCheckpointLabel = (
     missionId: mission.id,
     missionNumber: mission.number,
     missionName: mission.name,
-    waveId: mission.waveIds[0],
-    waveNumber: 1,
+    waveId: wave.id,
+    waveNumber: wave.number,
     waveTotal: mission.waveIds.length,
     action: progress.campaignCompleted
       ? 'Replay Final Mission'
+      : wave.number > 1
+        ? 'Continue Mission'
       : !hasAnyCompletion
       ? 'Start Mission'
       : previousMissionComplete
@@ -999,7 +1378,8 @@ export const getCampaignCheckpointLabel = (
 export const getCampaignNotificationCount = (progress: CampaignProgress) => new Set([
   ...progress.unviewedMissionIds.map((id) => `mission:${id}`),
   ...progress.unviewedStarMissionIds.map((id) => `star:${id}`),
-  ...progress.unviewedRewardIds.map((id) => `reward:${id}`)
+  ...progress.unviewedRewardIds.map((id) => `reward:${id}`),
+  ...progress.branchProgress.newBranchIds.map((id) => `branch:${id}`)
 ]).size;
 
 export const getCampaignMissionById = (missionId: string) => (

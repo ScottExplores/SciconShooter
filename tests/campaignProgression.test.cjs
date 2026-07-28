@@ -15,6 +15,16 @@ const TEST_CAMPAIGN = {
   fps: 60,
   recordCard: {},
   hudAssets: {},
+  campaignBranches: [{
+    branchId: 'mission-1-supply-cache',
+    sourceMissionId: 'mission-1',
+    requiredStars: 3,
+    missionType: 'present-drop',
+    oneTimeCompletion: true,
+    replayPolicy: 'one-time',
+    completionReward: { coins: 250 },
+    missionDefinition: {}
+  }],
   levels: [
     {
       id: 'mission-1',
@@ -76,7 +86,8 @@ const TEST_CAMPAIGN = {
             id: 'paywall-gatekeeper-event',
             kind: 'boss',
             bossId: 'gatekeeper',
-            label: 'Paywall Gatekeeper'
+            label: 'Paywall Gatekeeper',
+            spriteKey: 'MAJOR_BOSS_ART'
           }]
         }
       ]
@@ -102,7 +113,19 @@ const compileService = (name, requires = {}) => {
   return module.exports;
 };
 
+const branchProgression = compileService('campaignBranchProgression.ts');
+
 const progression = compileService('campaignProgression.ts', {
+  '../game-config/catalog': {
+    isMajorBossId: (bossId) => [
+      'gatekeeper',
+      'gatekeeper-prime',
+      'eclipse-engine',
+      'helix-leviathan',
+      'research-tribunal'
+    ].includes(bossId)
+  },
+  './campaignBranchProgression': branchProgression,
   './levelConfig': levelConfigStub
 });
 
@@ -150,6 +173,7 @@ const completionInput = (overrides = {}) => ({
   coinsCollected: 4,
   damageTaken: 1,
   elapsedSeconds: 25,
+  masteryEligible: true,
   completedAt: '2026-07-26T12:00:00.000Z',
   ...overrides
 });
@@ -217,30 +241,24 @@ test('Mission definitions prefer authored Campaign metadata and preserve compati
   assert.notStrictEqual(authoredMission.starObjectives[0], authoredCampaign.levels[0].campaignProgression.masteryObjectives[0]);
 });
 
-test('the twenty authored Missions preserve the previous deterministic reward, mastery, and route values', () => {
+test('the twenty authored Missions expose rev22 route, power, support, budget, and dynamic Wave metadata', () => {
   const trackedCampaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
-  const legacyCampaign = structuredClone(trackedCampaign);
-  legacyCampaign.levels.forEach((level) => { delete level.campaignProgression; });
-
   const authoredDefinitions = progression.buildCampaignMissionDefinitions(trackedCampaign);
-  const fallbackDefinitions = progression.buildCampaignMissionDefinitions(legacyCampaign);
   assert.equal(authoredDefinitions.length, 20);
   assert.deepEqual(
-    authoredDefinitions.map(({ id, reward, starObjectives, mapPosition, nextMissionId }) => ({
-      id,
-      reward,
-      starObjectives,
-      mapPosition,
-      nextMissionId
-    })),
-    fallbackDefinitions.map(({ id, reward, starObjectives, mapPosition, nextMissionId }) => ({
-      id,
-      reward,
-      starObjectives,
-      mapPosition,
-      nextMissionId
-    }))
+    authoredDefinitions.map((mission) => mission.waveIds.length),
+    [5, 6, 5, 7, 1, 5, 6, 5, 7, 1, 5, 6, 5, 7, 1, 5, 6, 5, 7, 1]
   );
+  authoredDefinitions.forEach((mission) => {
+    assert.ok(mission.sectorId);
+    assert.ok(mission.missionRole);
+    assert.ok(mission.combatBudget > 0);
+    assert.ok(mission.recommendedPower.expected > 0);
+    assert.equal(typeof mission.testedLoadouts.expectedPower, 'string');
+    assert.ok(Array.isArray(mission.recommendedSupportTags));
+    assert.ok(mission.masterySetBonusCoins > 0);
+  });
+  [5, 10, 15, 20].forEach((number) => assert.ok(authoredDefinitions[number - 1].bossPreview));
 });
 
 test('a fresh Campaign starts exactly at Mission 1, Wave 1', () => {
@@ -258,7 +276,7 @@ test('a fresh Campaign starts exactly at Mission 1, Wave 1', () => {
   assert.equal(progression.getCampaignCheckpointLabel(progress, TEST_CAMPAIGN).action, 'Start Mission');
 });
 
-test('clearing an internal Wave never creates a durable checkpoint', () => {
+test('clearing an internal Wave creates an exact durable checkpoint and one Wave reward', () => {
   const fresh = progression.createCampaignProgress(TEST_CAMPAIGN);
   const result = progression.applyCampaignCompletion(
     fresh,
@@ -266,20 +284,23 @@ test('clearing an internal Wave never creates a durable checkpoint', () => {
     TEST_CAMPAIGN
   );
 
-  assert.equal(result.settlement.duplicate, true);
+  assert.equal(result.settlement.accepted, true);
+  assert.equal(result.settlement.duplicate, false);
   assert.equal(result.settlement.stageComplete, false);
   assert.deepEqual(result.settlement.checkpoint, {
     missionId: 'mission-1',
-    waveId: 'mission-1-wave-1'
+    waveId: 'mission-1-wave-2'
   });
   assert.equal(result.progress.recommendedMissionId, 'mission-1');
-  assert.equal(result.progress.recommendedWaveId, 'mission-1-wave-1');
-  assert.deepEqual(Array.from(result.progress.unlockedWaveIdsByMission['mission-1']), ['mission-1-wave-1']);
-  assert.deepEqual(Array.from(result.progress.missionRecords['mission-1'].completedWaveIds), []);
+  assert.equal(result.progress.recommendedWaveId, 'mission-1-wave-2');
+  assert.deepEqual(Array.from(result.progress.unlockedWaveIdsByMission['mission-1']), ['mission-1-wave-1', 'mission-1-wave-2']);
+  assert.deepEqual(Array.from(result.progress.missionRecords['mission-1'].completedWaveIds), ['mission-1-wave-1']);
   assert.equal(result.progress.missionRecords['mission-1'].completed, false);
-  assert.deepEqual(Array.from(result.settlement.grants), []);
-  assert.equal(result.progress.processedResultIds.includes('checkpoint-wave'), false);
-  assert.equal(progression.getCampaignCheckpointLabel(result.progress, TEST_CAMPAIGN).action, 'Start Mission');
+  assert.equal(result.settlement.grants.length, 1);
+  assert.equal(result.settlement.grants[0].kind, 'wave');
+  assert.equal(result.settlement.grants[0].id, 'campaign:mission-1:wave:mission-1-wave-1:clear');
+  assert.equal(result.progress.processedResultIds.includes('checkpoint-wave'), true);
+  assert.equal(progression.getCampaignCheckpointLabel(result.progress, TEST_CAMPAIGN).action, 'Continue Mission');
 });
 
 test('clearing a final Wave completes the Mission and unlocks the exact next Mission', () => {
@@ -299,10 +320,73 @@ test('clearing a final Wave completes the Mission and unlocks the exact next Mis
   assert.equal(finalWave.progress.missionRecords['mission-1'].stars, 3);
   assert.equal(
     finalWave.settlement.grants.find((grant) => grant.kind === 'wave').amount,
-    progression.buildCampaignMissionDefinitions(TEST_CAMPAIGN)[0].reward.waveClearCoins * 2
+    progression.buildCampaignMissionDefinitions(TEST_CAMPAIGN)[0].reward.waveClearCoins
   );
   assert.ok(finalWave.settlement.grants.some((grant) => grant.kind === 'first-clear'));
   assert.equal(progression.getCampaignCheckpointLabel(finalWave.progress, TEST_CAMPAIGN).action, 'Next Mission');
+});
+
+test('three-star mastery unlocks an optional branch without changing the main checkpoint', () => {
+  const { finalWave } = clearFirstMission();
+
+  assert.deepEqual(
+    Array.from(finalWave.progress.branchProgress.unlockedBranchIds),
+    ['mission-1-supply-cache']
+  );
+  assert.deepEqual(
+    Array.from(finalWave.progress.branchProgress.newBranchIds),
+    ['mission-1-supply-cache']
+  );
+  assert.deepEqual(Array.from(finalWave.settlement.newlyUnlockedBranchIds), ['mission-1-supply-cache']);
+  assert.deepEqual(finalWave.settlement.checkpoint, {
+    missionId: 'mission-2',
+    waveId: 'mission-2-wave-1'
+  });
+
+  const worseReplay = progression.applyCampaignCompletion(
+    finalWave.progress,
+    completionInput({
+      resultId: 'branch-unlock-poor-replay',
+      waveId: 'mission-1-wave-2',
+      stageComplete: true,
+      score: 1,
+      coinsCollected: 0,
+      damageTaken: 99,
+      elapsedSeconds: 999
+    }),
+    TEST_CAMPAIGN
+  );
+  assert.deepEqual(Array.from(worseReplay.progress.branchProgress.unlockedBranchIds), ['mission-1-supply-cache']);
+  assert.deepEqual(worseReplay.settlement.checkpoint, {
+    missionId: 'mission-2',
+    waveId: 'mission-2-wave-1'
+  });
+});
+
+test('Campaign save migration reveals branches for existing three-star records and never marks them claimed', () => {
+  const fresh = progression.createCampaignProgress(TEST_CAMPAIGN);
+  const migrated = progression.sanitizeCampaignProgress({
+    ...fresh,
+    version: 1,
+    branchProgress: undefined,
+    missionRecords: {
+      ...fresh.missionRecords,
+      'mission-1': {
+        ...fresh.missionRecords['mission-1'],
+        completed: true,
+        completedWaveIds: ['mission-1-wave-1', 'mission-1-wave-2'],
+        stars: 3,
+        earnedStarIds: ['mission-1:complete', 'mission-1:coins', 'mission-1:score']
+      }
+    }
+  }, { campaign: TEST_CAMPAIGN });
+
+  assert.deepEqual(Array.from(migrated.branchProgress.unlockedBranchIds), ['mission-1-supply-cache']);
+  assert.deepEqual(Array.from(migrated.branchProgress.newBranchIds), ['mission-1-supply-cache']);
+  assert.deepEqual(Array.from(migrated.branchProgress.completedBranchIds), []);
+  assert.deepEqual(Array.from(migrated.branchProgress.claimedBranchIds), []);
+  assert.equal(migrated.recommendedMissionId, 'mission-2');
+  assert.equal(migrated.recommendedWaveId, 'mission-2-wave-1');
 });
 
 test('clearing the final Mission changes the checkpoint action to Replay Final Mission', () => {
@@ -344,9 +428,7 @@ test('clearing the final Mission changes the checkpoint action to Replay Final M
 test('a duplicate completion result cannot mutate progress or award duplicate grants', () => {
   const fresh = progression.createCampaignProgress(TEST_CAMPAIGN);
   const input = completionInput({
-    resultId: 'stable-result-id',
-    waveId: 'mission-1-wave-2',
-    stageComplete: true
+    resultId: 'stable-result-id'
   });
   const first = progression.applyCampaignCompletion(fresh, input, TEST_CAMPAIGN);
   const duplicate = progression.applyCampaignCompletion(first.progress, input, TEST_CAMPAIGN);
@@ -365,6 +447,38 @@ test('a duplicate completion result cannot mutate progress or award duplicate gr
   assert.equal(duplicateCredit.creditedAmount, 0);
   assert.equal(duplicateCredit.state.coins, firstCredit.state.coins);
   assert.deepEqual(Array.from(duplicateCredit.state.creditedCampaignRewardIds), Array.from(firstCredit.state.creditedCampaignRewardIds));
+});
+
+test('a claimed optional-branch receipt credits the Pilot coin balance exactly once', () => {
+  const { finalWave } = clearFirstMission();
+  const settlement = branchProgression.settleCampaignBranchAttempt(
+    finalWave.progress.branchProgress,
+    {
+      branchId: 'mission-1-supply-cache',
+      attemptId: 'supply-cache-attempt-1',
+      playerId: 'pilot:test',
+      outcome: 'success',
+      verifiedPresentsDestroyed: 18,
+      verifiedCoinsAwarded: 250,
+      rewardReceiptId: 'campaign-branch:supply-cache:receipt-1',
+      completedAt: '2026-07-26T12:04:00.000Z'
+    },
+    TEST_CAMPAIGN.campaignBranches
+  );
+  assert.equal(settlement.accepted, true);
+  assert.equal(settlement.coinsAwarded, 250);
+
+  const weekly = squad.createWeeklySquadState('pilot:test', '2026-07-26');
+  const firstCredit = squad.creditCampaignRewardGrants(weekly, [settlement.grant]);
+  const duplicateCredit = squad.creditCampaignRewardGrants(firstCredit.state, [settlement.grant]);
+  assert.equal(firstCredit.creditedAmount, 250);
+  assert.equal(firstCredit.state.coins, 250);
+  assert.equal(duplicateCredit.creditedAmount, 0);
+  assert.equal(duplicateCredit.state.coins, 250);
+  assert.deepEqual(
+    Array.from(duplicateCredit.state.creditedCampaignRewardIds),
+    ['campaign-branch:supply-cache:receipt-1']
+  );
 });
 
 test('Mission replays use reduced rewards and can never move progress backward', () => {
@@ -396,6 +510,50 @@ test('Mission replays use reduced rewards and can never move progress backward',
   });
   assert.equal(replay.progress.recommendedMissionId, 'mission-2');
   assert.equal(replay.progress.recommendedWaveId, 'mission-2-wave-1');
+});
+
+test('Mission replay income is capped to one reduced payout per Mission per UTC day', () => {
+  const { finalWave } = clearFirstMission();
+  const firstReplay = progression.applyCampaignCompletion(
+    finalWave.progress,
+    completionInput({
+      resultId: 'daily-replay-1',
+      waveId: 'mission-1-wave-2',
+      stageComplete: true,
+      masteryEligible: false,
+      completedAt: '2026-07-26T18:00:00.000Z'
+    }),
+    TEST_CAMPAIGN
+  );
+  const sameDayReplay = progression.applyCampaignCompletion(
+    firstReplay.progress,
+    completionInput({
+      resultId: 'daily-replay-2',
+      waveId: 'mission-1-wave-2',
+      stageComplete: true,
+      masteryEligible: false,
+      completedAt: '2026-07-26T23:59:00.000Z'
+    }),
+    TEST_CAMPAIGN
+  );
+  const nextDayReplay = progression.applyCampaignCompletion(
+    sameDayReplay.progress,
+    completionInput({
+      resultId: 'daily-replay-3',
+      waveId: 'mission-1-wave-2',
+      stageComplete: true,
+      masteryEligible: false,
+      completedAt: '2026-07-27T00:01:00.000Z'
+    }),
+    TEST_CAMPAIGN
+  );
+
+  assert.deepEqual(firstReplay.settlement.grants.map((grant) => grant.kind), ['wave', 'mission']);
+  assert.equal(firstReplay.progress.replayRewardEpochByMission['mission-1'], '2026-07-26');
+  assert.deepEqual(sameDayReplay.settlement.grants, []);
+  assert.equal(sameDayReplay.settlement.accepted, true);
+  assert.deepEqual(nextDayReplay.settlement.grants.map((grant) => grant.kind), ['wave', 'mission']);
+  assert.equal(nextDayReplay.progress.replayRewardEpochByMission['mission-1'], '2026-07-27');
 });
 
 test('first-clear and star bonuses are one-time while earned stars are never removed by worse replays', () => {
@@ -486,13 +644,13 @@ test('sanitization rejects unknown IDs and legacy migration resumes at the reach
 
   assert.equal(sanitized.campaignId, TEST_CAMPAIGN.id);
   assert.equal(sanitized.recommendedMissionId, 'mission-1');
-  assert.equal(sanitized.recommendedWaveId, 'mission-1-wave-1');
+  assert.equal(sanitized.recommendedWaveId, 'mission-1-wave-2');
   assert.deepEqual(Array.from(sanitized.unlockedMissionIds), ['mission-1']);
-  assert.deepEqual(Array.from(sanitized.unlockedWaveIdsByMission['mission-1']), ['mission-1-wave-1']);
-  assert.deepEqual(Array.from(sanitized.missionRecords['mission-1'].completedWaveIds), []);
-  assert.deepEqual(Array.from(sanitized.missionRecords['mission-1'].earnedStarIds), ['mission-1:complete']);
+  assert.deepEqual(Array.from(sanitized.unlockedWaveIdsByMission['mission-1']), ['mission-1-wave-1', 'mission-1-wave-2']);
+  assert.deepEqual(Array.from(sanitized.missionRecords['mission-1'].completedWaveIds), ['mission-1-wave-1']);
+  assert.deepEqual(Array.from(sanitized.missionRecords['mission-1'].earnedStarIds), []);
   assert.deepEqual(Array.from(sanitized.processedResultIds), ['receipt-1']);
-  assert.deepEqual(Array.from(sanitized.claimedRewardIds), ['reward-1']);
+  assert.deepEqual(Array.from(sanitized.claimedRewardIds), []);
   assert.deepEqual(Array.from(sanitized.unviewedMissionIds), ['mission-1']);
 });
 
@@ -510,14 +668,14 @@ test('merging profiles preserves the farthest Mission, completion receipts, reco
   assert.equal(merged.recommendedWaveId, 'mission-2-wave-1');
   assert.deepEqual(Array.from(merged.completedMissionIds), ['mission-1']);
   assert.equal(merged.missionRecords['mission-1'].stars, 3);
-  assert.equal(merged.processedResultIds.includes('partial-result'), false);
-  assert.equal(merged.processedResultIds.includes('m1-w1'), false);
+  assert.equal(merged.processedResultIds.includes('partial-result'), true);
+  assert.equal(merged.processedResultIds.includes('m1-w1'), true);
   assert.ok(merged.processedResultIds.includes('m1-w2'));
   assert.equal(new Set(merged.processedResultIds).size, merged.processedResultIds.length);
   assert.equal(new Set(merged.claimedRewardIds).size, merged.claimedRewardIds.length);
 });
 
-test('weekly rollover resets seasonal coins but preserves Campaign reward receipts and permanent Campaign progress', () => {
+test('weekly rollover preserves unspent one-time Campaign coins, receipts, and permanent Campaign progress', () => {
   const { finalWave } = clearFirstMission();
   const weekly = squad.createWeeklySquadState('pilot:test', '2026-07-26');
   const credited = squad.creditCampaignRewardGrants(weekly, finalWave.settlement.grants);
@@ -529,7 +687,14 @@ test('weekly rollover resets seasonal coins but preserves Campaign reward receip
 
   assert.ok(credited.state.coins > 0);
   assert.equal(rolled.weekKey, '2026-08-02');
-  assert.equal(rolled.coins, squad.WEEKLY_STARTING_COINS);
+  assert.equal(
+    credited.state.durableCampaignCoins,
+    finalWave.settlement.grants
+      .filter((grant) => grant.oneTime)
+      .reduce((total, grant) => total + grant.amount, 0)
+  );
+  assert.equal(rolled.coins, credited.state.durableCampaignCoins + squad.WEEKLY_STARTING_COINS);
+  assert.equal(rolled.durableCampaignCoins, credited.state.durableCampaignCoins);
   assert.deepEqual(rolled.weeklyStats, {
     runs: 0,
     score: 0,
@@ -546,7 +711,30 @@ test('weekly rollover resets seasonal coins but preserves Campaign reward receip
 
   const retriedCredit = squad.creditCampaignRewardGrants(rolled, finalWave.settlement.grants);
   assert.equal(retriedCredit.creditedAmount, 0);
-  assert.equal(retriedCredit.state.coins, 0);
+  assert.equal(retriedCredit.state.coins, rolled.coins);
+});
+
+test('seasonal coins are spent before durable Campaign coins and spent rewards are not recreated', () => {
+  const weekly = {
+    ...squad.createWeeklySquadState('pilot:test', '2026-07-26'),
+    coins: 150,
+    durableCampaignCoins: 100
+  };
+  const seasonalSpend = squad.unlockSquadSlot(weekly, 'left');
+  assert.equal(seasonalSpend.coins, 100);
+  assert.equal(seasonalSpend.durableCampaignCoins, 100);
+
+  const durableSpend = squad.unlockSquadSlot({
+    ...seasonalSpend,
+    coins: 570,
+    durableCampaignCoins: 550
+  }, 'right');
+  assert.equal(durableSpend.coins, 70);
+  assert.equal(durableSpend.durableCampaignCoins, 70);
+
+  const rolled = squad.rollWeeklySquadStateForward(durableSpend, '2026-08-02');
+  assert.equal(rolled.coins, 70 + squad.WEEKLY_STARTING_COINS);
+  assert.equal(rolled.durableCampaignCoins, 70);
 });
 
 test('completion rejects locked Missions and locked Waves instead of advancing injected progress', () => {
@@ -562,7 +750,9 @@ test('completion rejects locked Missions and locked Waves instead of advancing i
     TEST_CAMPAIGN
   );
 
-  assert.equal(injected.settlement.duplicate, true);
+  assert.equal(injected.settlement.accepted, false);
+  assert.equal(injected.settlement.duplicate, false);
+  assert.equal(injected.settlement.reason, 'mission-locked');
   assert.deepEqual(Array.from(injected.settlement.grants), []);
   assert.equal(injected.progress.recommendedMissionId, 'mission-1');
   assert.deepEqual(Array.from(injected.progress.unlockedMissionIds), ['mission-1']);
@@ -672,4 +862,194 @@ test('Campaign settlement journal recovers an interrupted weekly/permanent pair 
   } finally {
     global.window = originalWindow;
   }
+});
+
+const dynamicCampaign = (counts) => ({
+  ...structuredClone(TEST_CAMPAIGN),
+  revision: 22,
+  id: `dynamic-${counts.join('-')}`,
+  campaignBranches: [],
+  levels: counts.map((count, missionIndex) => ({
+    ...structuredClone(TEST_CAMPAIGN.levels[0]),
+    id: `dynamic-mission-${missionIndex + 1}`,
+    name: `Dynamic Mission ${missionIndex + 1}`,
+    order: missionIndex + 1,
+    waves: Array.from({ length: count }, (_, waveIndex) => ({
+      ...structuredClone(TEST_CAMPAIGN.levels[0].waves[0]),
+      id: `dynamic-m${missionIndex + 1}-wave-${waveIndex + 1}`,
+      name: `Wave ${waveIndex + 1}`,
+      order: waveIndex + 1
+    }))
+  }))
+});
+
+test('rev21 partial and completed records migrate through the tracked v22 Wave aliases', () => {
+  const tracked = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
+  const first = tracked.levels[0];
+  const second = tracked.levels[1];
+  const partial = progression.sanitizeCampaignProgress({
+    version: 2,
+    campaignId: tracked.id,
+    campaignRevision: 21,
+    recommendedMissionId: first.id,
+    recommendedWaveId: 'open-orbit-checkpoint',
+    unlockedMissionIds: [first.id],
+    unlockedWaveIdsByMission: { [first.id]: ['open-orbit', 'open-orbit-checkpoint'] },
+    missionRecords: {
+      [first.id]: { completedWaveIds: ['open-orbit', 'open-orbit-checkpoint'] }
+    }
+  }, { campaign: tracked });
+
+  assert.deepEqual(partial.missionRecords[first.id].completedWaveIds, first.waves.slice(0, 3).map((wave) => wave.id));
+  assert.equal(partial.recommendedMissionId, first.id);
+  assert.equal(partial.recommendedWaveId, first.waves[3].id);
+
+  const completed = progression.sanitizeCampaignProgress({
+    ...partial,
+    version: 2,
+    campaignRevision: 21,
+    completedMissionIds: [first.id],
+    missionRecords: { [first.id]: { ...partial.missionRecords[first.id], completed: true } }
+  }, { campaign: tracked });
+  assert.deepEqual(completed.missionRecords[first.id].completedWaveIds, first.waves.map((wave) => wave.id));
+  assert.equal(completed.recommendedMissionId, second.id);
+  assert.equal(completed.recommendedWaveId, second.waves[0].id);
+});
+
+test('dynamic 1, 5, 6, and 7 Wave Missions unlock exactly one Wave at a time', () => {
+  const campaign = dynamicCampaign([1, 5, 6, 7]);
+  let progress = progression.createCampaignProgress(campaign);
+  campaign.levels.forEach((mission, missionIndex) => {
+    mission.waves.forEach((wave, waveIndex) => {
+      const final = waveIndex === mission.waves.length - 1;
+      const result = progression.applyCampaignCompletion(progress, {
+        ...completionInput(),
+        resultId: `dynamic-${missionIndex}-${waveIndex}`,
+        campaignId: campaign.id,
+        campaignRevision: campaign.revision,
+        missionId: mission.id,
+        waveId: wave.id,
+        stageComplete: final,
+        masteryEligible: waveIndex === 0
+      }, campaign);
+      assert.equal(result.settlement.accepted, true);
+      progress = result.progress;
+      if (!final) {
+        assert.equal(progress.recommendedMissionId, mission.id);
+        assert.equal(progress.recommendedWaveId, mission.waves[waveIndex + 1].id);
+        assert.equal(progress.unlockedWaveIdsByMission[mission.id].length, waveIndex + 2);
+      }
+    });
+  });
+  assert.equal(progress.campaignCompleted, true);
+  assert.deepEqual(campaign.levels.map((mission) => progress.missionRecords[mission.id].completedWaveIds.length), [1, 5, 6, 7]);
+});
+
+test('a resumed later-Wave clear cannot earn performance stars or the mastery set bonus', () => {
+  const campaign = structuredClone(TEST_CAMPAIGN);
+  campaign.levels[0].campaignProgression = {
+    reward: { waveClearCoins: 10, missionClearCoins: 20, firstClearCoins: 30, bossFirstClearCoins: 0, replayMultiplier: 0.25 },
+    masteryObjectives: [
+      { id: 'mission-1:complete', label: 'Complete', kind: 'complete', target: 1, rewardCoins: 5 },
+      { id: 'mission-1:score', label: 'Score', kind: 'score-at-least', target: 100, rewardCoins: 7 },
+      { id: 'mission-1:damage', label: 'No damage', kind: 'damage-at-most', target: 0, rewardCoins: 9 }
+    ],
+    masterySetBonusCoins: 77,
+    sectorId: 'test-sector',
+    missionRole: 'introduction',
+    combatBudget: 10,
+    recommendedPower: { minimum: 1, expected: 2, comfortable: 3 },
+    testedLoadouts: { lowPower: 'low', expectedPower: 'expected', upgraded: 'upgraded' },
+    recommendedSupportTags: [],
+    nextMissionId: 'mission-2'
+  };
+  const first = progression.applyCampaignCompletion(
+    progression.createCampaignProgress(campaign),
+    { ...completionInput(), campaignId: campaign.id, resultId: 'resume-w1' },
+    campaign
+  );
+  const resumedFinal = progression.applyCampaignCompletion(first.progress, {
+    ...completionInput(),
+    campaignId: campaign.id,
+    resultId: 'resume-w2',
+    waveId: 'mission-1-wave-2',
+    stageComplete: true,
+    masteryEligible: false,
+    score: 99_999,
+    damageTaken: 0
+  }, campaign);
+  assert.equal(resumedFinal.progress.missionRecords['mission-1'].stars, 1);
+  assert.equal(resumedFinal.settlement.grants.some((grant) => grant.kind === 'mastery-set'), false);
+  assert.equal(resumedFinal.progress.missionRecords['mission-1'].bestScore, 0);
+});
+
+test('the final missing star grants the authored mastery set bonus once and in reward order', () => {
+  const campaign = structuredClone(TEST_CAMPAIGN);
+  campaign.levels[0].campaignProgression = {
+    reward: { waveClearCoins: 10, missionClearCoins: 20, firstClearCoins: 30, bossFirstClearCoins: 0, replayMultiplier: 0.25 },
+    masteryObjectives: [
+      { id: 'mission-1:complete', label: 'Complete', kind: 'complete', target: 1, rewardCoins: 5 },
+      { id: 'mission-1:score', label: 'Score', kind: 'score-at-least', target: 100, rewardCoins: 7 },
+      { id: 'mission-1:damage', label: 'No damage', kind: 'damage-at-most', target: 0, rewardCoins: 9 }
+    ],
+    masterySetBonusCoins: 77,
+    sectorId: 'test-sector',
+    missionRole: 'introduction',
+    combatBudget: 10,
+    recommendedPower: { minimum: 1, expected: 2, comfortable: 3 },
+    testedLoadouts: { lowPower: 'low', expectedPower: 'expected', upgraded: 'upgraded' },
+    recommendedSupportTags: [],
+    nextMissionId: 'mission-2'
+  };
+  const first = progression.applyCampaignCompletion(
+    progression.createCampaignProgress(campaign),
+    { ...completionInput(), campaignId: campaign.id, resultId: 'mastery-w1' },
+    campaign
+  );
+  const final = progression.applyCampaignCompletion(first.progress, {
+    ...completionInput(),
+    campaignId: campaign.id,
+    resultId: 'mastery-w2',
+    waveId: 'mission-1-wave-2',
+    stageComplete: true,
+    score: 1000,
+    damageTaken: 0
+  }, campaign);
+  assert.deepEqual(final.settlement.grants.map((grant) => grant.kind), [
+    'wave', 'mission', 'first-clear', 'star', 'star', 'star', 'mastery-set'
+  ]);
+  assert.equal(final.settlement.grants.find((grant) => grant.kind === 'mastery-set').amount, 77);
+
+  const replay = progression.applyCampaignCompletion(final.progress, {
+    ...completionInput(),
+    campaignId: campaign.id,
+    resultId: 'mastery-replay',
+    waveId: 'mission-1-wave-2',
+    stageComplete: true,
+    score: 1000,
+    damageTaken: 0
+  }, campaign);
+  assert.equal(replay.settlement.grants.some((grant) => grant.kind === 'mastery-set'), false);
+});
+
+test('merge preserves the furthest Wave checkpoint inside the same Mission and checkpoint selection cannot skip', () => {
+  const campaign = dynamicCampaign([5]);
+  const fresh = progression.createCampaignProgress(campaign);
+  const wave1 = progression.applyCampaignCompletion(fresh, {
+    ...completionInput(), campaignId: campaign.id, resultId: 'merge-w1', missionId: campaign.levels[0].id, waveId: campaign.levels[0].waves[0].id
+  }, campaign).progress;
+  const wave2 = progression.applyCampaignCompletion(wave1, {
+    ...completionInput(), campaignId: campaign.id, resultId: 'merge-w2', missionId: campaign.levels[0].id, waveId: campaign.levels[0].waves[1].id
+  }, campaign).progress;
+  const wave3 = progression.applyCampaignCompletion(wave2, {
+    ...completionInput(), campaignId: campaign.id, resultId: 'merge-w3', missionId: campaign.levels[0].id, waveId: campaign.levels[0].waves[2].id
+  }, campaign).progress;
+  const merged = progression.mergeCampaignProgress(wave1, wave3, campaign);
+  assert.equal(merged.recommendedWaveId, campaign.levels[0].waves[3].id);
+  assert.deepEqual(merged.missionRecords[campaign.levels[0].id].completedWaveIds, campaign.levels[0].waves.slice(0, 3).map((wave) => wave.id));
+
+  const lockedSelection = progression.setCampaignCheckpoint(merged, campaign.levels[0].id, campaign.levels[0].waves[4].id, campaign);
+  assert.equal(lockedSelection.recommendedWaveId, campaign.levels[0].waves[3].id);
+  const backwardReplaySelection = progression.setCampaignCheckpoint(merged, campaign.levels[0].id, campaign.levels[0].waves[0].id, campaign);
+  assert.equal(backwardReplaySelection.recommendedWaveId, campaign.levels[0].waves[3].id);
 });

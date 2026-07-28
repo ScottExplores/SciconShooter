@@ -23,12 +23,19 @@ const bossArchiveStub = {
   getBossArchiveChallengeRewardCoins: (missionNumber) => 100 + 25 * (missionNumber - 1),
   getBossArchiveSpeedTargetSeconds: (missionNumber) => 75 + 2.5 * (missionNumber - 1),
   getBossArchiveEntry: (value) => SAMPLE_BOSSES.find((entry) => entry.eventId === String(value).trim().toLowerCase()) ?? null,
-  normalizeBossArchiveEventId: (value) => SAMPLE_BOSSES.find(
-    (entry) => entry.eventId === String(value ?? '').trim().toLowerCase()
-  )?.eventId ?? null,
+  normalizeBossArchiveEventId: (value) => {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    if (normalized === 'legacy-boss-one' || normalized === 'legacy-boss-one-b') return 'boss-one';
+    return SAMPLE_BOSSES.find((entry) => entry.eventId === normalized)?.eventId ?? null;
+  },
   normalizeBossArchiveEventIds: (value) => {
     const requested = new Set(Array.isArray(value)
-      ? value.map((item) => String(item).trim().toLowerCase())
+      ? value.map((item) => {
+          const normalized = String(item).trim().toLowerCase();
+          return normalized === 'legacy-boss-one' || normalized === 'legacy-boss-one-b'
+            ? 'boss-one'
+            : normalized;
+        })
       : []);
     return SAMPLE_BOSSES.filter((entry) => requested.has(entry.eventId)).map((entry) => entry.eventId);
   }
@@ -80,6 +87,51 @@ test('reselecting the current boss is idempotent and cannot create a render-save
   assert.notEqual(selected, initial);
   assert.equal(selected.lastSelectedEventId, 'boss-one');
   assert.equal(progression.selectBossArchiveEntry(selected, 'boss-one'), selected);
+});
+
+test('legacy boss event aliases migrate unlocks, selection, and record history to the canonical boss', () => {
+  const migrated = progression.sanitizeBossArchiveProgress({
+    unlockedEventIds: ['legacy-boss-one'],
+    seenEventIds: ['legacy-boss-one'],
+    lastSelectedEventId: 'legacy-boss-one',
+    records: {
+      'boss-one': {
+        attempts: 1,
+        practiceAttempts: 1,
+        practiceClears: 1,
+        totalClears: 1,
+        bestClearTimeMs: 45_000,
+        processedResultIds: ['canonical-clear']
+      },
+      'legacy-boss-one': {
+        attempts: 3,
+        practiceAttempts: 3,
+        practiceClears: 2,
+        totalClears: 2,
+        bestClearTimeMs: 42_000,
+        processedResultIds: ['legacy-clear']
+      },
+      'legacy-boss-one-b': {
+        attempts: 2,
+        challengeAttempts: 2,
+        challengeClears: 1,
+        totalClears: 1,
+        bestClearTimeMs: 40_000,
+        processedResultIds: ['legacy-clear-b']
+      }
+    }
+  });
+
+  assert.deepEqual(migrated.unlockedEventIds, ['boss-one']);
+  assert.deepEqual(migrated.seenEventIds, ['boss-one']);
+  assert.equal(migrated.lastSelectedEventId, 'boss-one');
+  assert.equal(migrated.records['boss-one'].attempts, 6);
+  assert.equal(migrated.records['boss-one'].totalClears, 4);
+  assert.equal(migrated.records['boss-one'].bestClearTimeMs, 40_000);
+  assert.deepEqual(
+    migrated.records['boss-one'].processedResultIds,
+    ['canonical-clear', 'legacy-clear', 'legacy-clear-b']
+  );
 });
 
 test('only successful rewarded Challenge clears consume the global daily charge', () => {
@@ -273,6 +325,28 @@ test('developer simulation helpers are unavailable unless explicitly enabled', (
     }
   }, new Date('2026-07-27T08:00:00.000Z'));
   assert.equal(reset.dailyChallenge.successfulClearsUsed, 0);
+});
+
+test('developer simulation helpers become inert immediately after founder authorization is revoked', () => {
+  let authorized = true;
+  const controls = progression.createBossArchiveDeveloperControls(() => authorized);
+  assert.ok(controls);
+
+  const state = unlockedState();
+  const allUnlocked = controls.unlockAll(state);
+  assert.notEqual(allUnlocked, state);
+  authorized = false;
+
+  assert.equal(controls.unlockAll(state), state);
+  assert.equal(controls.resetProgress(state), state);
+  assert.equal(controls.resetDailyCharges(state), state);
+  assert.equal(controls.simulateNewUnlock(state, 'boss-two'), state);
+  assert.equal(controls.simulateMasteryComplete(state, 'boss-one'), state);
+
+  const preview = controls.previewResult(state, 'boss-one', true);
+  assert.equal(preview.state, state);
+  assert.equal(preview.accepted, false);
+  assert.equal(preview.challengeRewardCoins, 0);
 });
 
 test('economy integration delegates rewards to the existing weekly coin ledger', () => {

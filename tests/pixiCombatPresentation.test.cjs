@@ -72,7 +72,7 @@ test('paywall formations share one integrity bar and later waves use terrain-pac
   assert.ok(laterAssetKeys.includes('PIXI_JET_HEAVY_FRAMES'));
 });
 
-test('Paywall Bastions use attack and real health decay frames while Stage 5 increases wall rows', () => {
+test('Paywall Bastions use attack and real health decay frames across authored checkpoints', () => {
   const constants = read('constants.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const engine = read('services/gameLogic.ts');
@@ -89,10 +89,11 @@ test('Paywall Bastions use attack and real health decay frames while Stage 5 inc
   assert.match(engine, /Number\(configured\.count \?\? 2\)/);
   assert.match(engine, /e\.spriteFrames = this\.resolveSpriteFrames\(configured\.spriteKey\)/);
 
-  const bastionStage = findCampaignLevel(campaign, 'stage-bastion-protocol');
-  const bastionEvents = bastionStage.waves.flatMap((wave) => wave.events);
-  const walls = bastionEvents.filter(
-    (event) => event.kind === 'boss' && event.spriteKey === 'PAYWALL_BASTION_FRAMES',
-  );
-  assert.deepEqual(walls.map((event) => event.count), [1, 2, 3, 4]);
+  const walls = campaign.levels
+    .flatMap((level) => level.waves)
+    .flatMap((wave) => wave.events)
+    .filter((event) => event.kind === 'boss' && event.spriteKey === 'PAYWALL_BASTION_FRAMES');
+  assert.equal(walls.length, 4);
+  assert.ok(walls.every((event) => event.bossId === 'paywall-wall'));
+  assert.ok(walls.every((event) => event.count === 1));
 });

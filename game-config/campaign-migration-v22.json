@@ -1,0 +1,153 @@
+{
+  "id": "campaign-revision-21-to-22",
+  "fromRevision": 21,
+  "toRevision": 22,
+  "generatedAt": "2026-07-27T20:00:00.000Z",
+  "missionIdsPreserved": [
+    "operation-open-galaxy",
+    "stage-citation-storm",
+    "stage-paywall-siege",
+    "stage-open-galaxy",
+    "stage-bastion-protocol",
+    "stage-helix-convergence",
+    "stage-redline-corridor",
+    "stage-dark-matter-run",
+    "stage-mirror-array",
+    "stage-null-sector",
+    "stage-shard-tempest",
+    "stage-quantum-cage",
+    "stage-gravity-well",
+    "stage-event-horizon",
+    "stage-ion-citadel",
+    "stage-crimson-vector",
+    "stage-eclipse-swarm",
+    "stage-fracture-engine",
+    "stage-last-light-gauntlet",
+    "stage-terminus-ascendant"
+  ],
+  "waveAliases": {
+    "operation-open-galaxy": {
+      "open-orbit": "operation-open-galaxy-wave-1",
+      "open-orbit-checkpoint": "operation-open-galaxy-wave-3",
+      "open-orbit-final": "operation-open-galaxy-wave-5"
+    },
+    "stage-citation-storm": {
+      "citation-storm": "stage-citation-storm-wave-1",
+      "citation-storm-pressure": "stage-citation-storm-wave-4",
+      "citation-storm-maelstrom": "stage-citation-storm-wave-6"
+    },
+    "stage-paywall-siege": {
+      "paywall-siege": "stage-paywall-siege-wave-1",
+      "paywall-siege-checkpoint": "stage-paywall-siege-wave-3",
+      "paywall-siege-core": "stage-paywall-siege-wave-5"
+    },
+    "stage-open-galaxy": {
+      "open-galaxy": "stage-open-galaxy-wave-1",
+      "open-galaxy-ambush": "stage-open-galaxy-wave-4",
+      "open-galaxy-onslaught": "stage-open-galaxy-wave-7"
+    },
+    "stage-bastion-protocol": {
+      "bastion-protocol": "bastion-protocol-crownclaw",
+      "bastion-protocol-phalanx": "bastion-protocol-crownclaw",
+      "bastion-protocol-lockdown": "bastion-protocol-crownclaw",
+      "bastion-protocol-core": "bastion-protocol-crownclaw",
+      "bastion-protocol-crownclaw": "bastion-protocol-crownclaw"
+    },
+    "stage-helix-convergence": {
+      "helix-convergence-wave-1": "stage-helix-convergence-wave-1",
+      "helix-convergence-wave-2": "stage-helix-convergence-wave-3",
+      "helix-convergence-wave-3": "stage-helix-convergence-wave-5"
+    },
+    "stage-redline-corridor": {
+      "redline-corridor-wave-1": "stage-redline-corridor-wave-1",
+      "redline-corridor-wave-2": "stage-redline-corridor-wave-4",
+      "redline-corridor-wave-3": "stage-redline-corridor-wave-6"
+    },
+    "stage-dark-matter-run": {
+      "dark-matter-run-wave-1": "stage-dark-matter-run-wave-1",
+      "dark-matter-run-wave-2": "stage-dark-matter-run-wave-3",
+      "dark-matter-run-wave-3": "stage-dark-matter-run-wave-5"
+    },
+    "stage-mirror-array": {
+      "mirror-array-wave-1": "stage-mirror-array-wave-1",
+      "mirror-array-wave-2": "stage-mirror-array-wave-4",
+      "mirror-array-wave-3": "stage-mirror-array-wave-7"
+    },
+    "stage-null-sector": {
+      "null-sector-wave-1": "null-sector-wave-3",
+      "null-sector-wave-2": "null-sector-wave-3",
+      "null-sector-wave-3": "null-sector-wave-3"
+    },
+    "stage-shard-tempest": {
+      "shard-tempest-wave-1": "stage-shard-tempest-wave-1",
+      "shard-tempest-wave-2": "stage-shard-tempest-wave-3",
+      "shard-tempest-wave-3": "stage-shard-tempest-wave-5"
+    },
+    "stage-quantum-cage": {
+      "quantum-cage-wave-1": "stage-quantum-cage-wave-1",
+      "quantum-cage-wave-2": "stage-quantum-cage-wave-4",
+      "quantum-cage-wave-3": "stage-quantum-cage-wave-6"
+    },
+    "stage-gravity-well": {
+      "gravity-well-wave-1": "stage-gravity-well-wave-1",
+      "gravity-well-wave-2": "stage-gravity-well-wave-3",
+      "gravity-well-wave-3": "stage-gravity-well-wave-5"
+    },
+    "stage-event-horizon": {
+      "event-horizon-wave-1": "stage-event-horizon-wave-1",
+      "event-horizon-wave-2": "stage-event-horizon-wave-4",
+      "event-horizon-wave-3": "stage-event-horizon-wave-7"
+    },
+    "stage-ion-citadel": {
+      "ion-citadel-wave-1": "ion-citadel-wave-3",
+      "ion-citadel-wave-2": "ion-citadel-wave-3",
+      "ion-citadel-wave-3": "ion-citadel-wave-3"
+    },
+    "stage-crimson-vector": {
+      "crimson-vector-wave-1": "stage-crimson-vector-wave-1",
+      "crimson-vector-wave-2": "stage-crimson-vector-wave-3",
+      "crimson-vector-wave-3": "stage-crimson-vector-wave-5"
+    },
+    "stage-eclipse-swarm": {
+      "eclipse-swarm-wave-1": "stage-eclipse-swarm-wave-1",
+      "eclipse-swarm-wave-2": "stage-eclipse-swarm-wave-4",
+      "eclipse-swarm-wave-3": "stage-eclipse-swarm-wave-6"
+    },
+    "stage-fracture-engine": {
+      "fracture-engine-wave-1": "stage-fracture-engine-wave-1",
+      "fracture-engine-wave-2": "stage-fracture-engine-wave-3",
+      "fracture-engine-wave-3": "stage-fracture-engine-wave-5"
+    },
+    "stage-last-light-gauntlet": {
+      "last-light-gauntlet-wave-1": "stage-last-light-gauntlet-wave-1",
+      "last-light-gauntlet-wave-2": "stage-last-light-gauntlet-wave-4",
+      "last-light-gauntlet-wave-3": "stage-last-light-gauntlet-wave-7"
+    },
+    "stage-terminus-ascendant": {
+      "terminus-ascendant-wave-1": "terminus-ascendant-wave-3",
+      "terminus-ascendant-wave-2": "terminus-ascendant-wave-3",
+      "terminus-ascendant-wave-3": "terminus-ascendant-wave-3"
+    }
+  },
+  "bossEventAliases": {
+    "open-orbit-gatekeeper": "open-orbit-gatekeeper",
+    "paywall-siege-gatekeeper": "open-orbit-gatekeeper",
+    "bastion-protocol-gatekeeper": "open-orbit-gatekeeper",
+    "helix-convergence-final-boss": "null-sector-final-boss",
+    "redline-corridor-final-boss": "null-sector-final-boss",
+    "mirror-array-final-boss": "null-sector-final-boss",
+    "null-sector-final-boss": "null-sector-final-boss",
+    "quantum-cage-final-boss": "ion-citadel-final-boss",
+    "gravity-well-final-boss": "ion-citadel-final-boss",
+    "ion-citadel-final-boss": "ion-citadel-final-boss",
+    "crimson-vector-final-boss": "terminus-ascendant-final-boss",
+    "fracture-engine-final-boss": "terminus-ascendant-final-boss",
+    "terminus-ascendant-final-boss": "terminus-ascendant-final-boss"
+  },
+  "notes": [
+    "Completed missions remain complete and expand to the full authored v22 wave list.",
+    "Partial checkpoints map monotonically by their relative old-wave position.",
+    "Historical major-boss event unlocks map to the canonical fifth-mission boss for their sector.",
+    "Mission 5 keeps stage-bastion-protocol so its mastery branch and claims remain valid."
+  ]
+}

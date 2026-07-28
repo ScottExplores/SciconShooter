@@ -45,7 +45,7 @@ const getPrototypeBoss = (prototypeId) => {
 };
 
 test('all Sandbox boss descriptors build deterministic, valid, immutable-provenance previews', () => {
-  assert.equal(SANDBOX_BOSS_PROTOTYPES.length, 13);
+  assert.equal(SANDBOX_BOSS_PROTOTYPES.length, 14);
   assert.equal(Object.isFrozen(SANDBOX_BOSS_PROTOTYPES), true);
 
   const prototypeHashes = new Set();
@@ -81,8 +81,8 @@ test('all Sandbox boss descriptors build deterministic, valid, immutable-provena
     previewHashes.add(first.sandboxPrototype.previewHash);
   }
 
-  assert.equal(prototypeHashes.size, 13);
-  assert.equal(previewHashes.size, 13);
+  assert.equal(prototypeHashes.size, 14);
+  assert.equal(previewHashes.size, 14);
   assert.deepEqual(campaign, sourceSnapshot, 'pure builders must not mutate their source campaign');
 });
 

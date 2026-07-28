@@ -7,7 +7,8 @@ import {
   POWERUP_CATALOG,
   SPAWN_PATTERN_CATALOG,
   SPAWN_POSITION_CATALOG,
-  WEAPON_CATALOG
+  WEAPON_CATALOG,
+  isMajorBossId
 } from '@game/game-config/catalog';
 import type {
   AssetKey,
@@ -431,7 +432,7 @@ const createBossItems = (
   const rigDescription = event.rigId
     ? ` Its explicit ${event.rigId} renderer rig is preserved in focused previews.`
     : '';
-  const rigFact = event.bossId !== 'gatekeeper'
+  const rigFact = !isMajorBossId(event.bossId)
     ? 'Not used by this boss family'
     : event.rigId ?? 'Compatibility event mapping, then open-orbit fallback';
   return {

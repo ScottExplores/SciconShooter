@@ -90,29 +90,27 @@ test('long round masters do not hard-wrap and props stay inside their terrain fa
   assert.match(environment, /TERRAIN_PROP_ATLASES/);
 });
 
-test('ground sectors use terrain aircraft and the river checkpoint is not an asteroid belt', () => {
+test('ground sectors use terrain aircraft and never turn the river route into an asteroid belt', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const desertStage = findCampaignLevel(campaign, 'stage-paywall-siege');
   const riverStage = findCampaignLevel(campaign, 'stage-open-galaxy');
 
-  for (const [stage, openingEventId] of [
-    [desertStage, 'paywall-siege-opening-drifters'],
-    [riverStage, 'open-galaxy-opening-drifters']
-  ]) {
-    const opening = findCampaignEvent(stage, openingEventId);
-    assert.ok(opening.enemies.every((enemy) => (
+  for (const stage of [desertStage, riverStage]) {
+    const combatSpawns = stage.waves
+      .flatMap((wave) => wave.events)
+      .filter((event) => event.kind === 'spawn' && Array.isArray(event.enemies));
+    assert.ok(combatSpawns.length > 0, `${stage.id} retains authored combat spawns`);
+    assert.ok(combatSpawns.every((event) => event.enemies.every((enemy) => (
       enemy.spriteKey.startsWith('PIXI_JET_') || enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES'
-    )));
+    ))));
   }
 
   const riverEvents = riverStage.waves.flatMap((wave) => wave.events);
   assert.equal(riverEvents.some((event) => event.kind === 'asteroid-belt'), false);
-  const ambush = findCampaignEvent(riverStage, 'open-galaxy-river-ambush');
-  assert.equal(ambush.kind, 'spawn');
-  assert.deepEqual(
-    ambush.enemies.map((enemy) => enemy.spriteKey),
-    ['PIXI_JET_SCOUT_FRAMES', 'ENEMY_JOURNAL_FRAMES']
-  );
+  assert.ok(riverEvents.some((event) => (
+    event.kind === 'spawn'
+    && event.enemies?.some((enemy) => enemy.spriteKey === 'ENEMY_JOURNAL_FRAMES')
+  )));
 });
 
 test('ground props remain registered to terrain while space landmarks use slow depth motion', () => {
