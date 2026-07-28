@@ -335,6 +335,10 @@ test('Helios rapid bursts and moving channel emit sequential rounds from live mo
   let wasChannelActive = false;
   let settledChannelPosition;
   let firstDirectionSequence;
+  let entryTracerCount = 0;
+  let entryLeftThreatened = false;
+  let entryRightThreatened = false;
+  let entryCenterStayedOpen = true;
   for (let frame = 0; frame < 1_200; frame += 1) {
     const existingIds = new Set(channelEngine.entities.map((entity) => entity.id));
     channelEngine.update();
@@ -372,6 +376,26 @@ test('Helios rapid bursts and moving channel emit sequential rounds from live mo
     const tracers = collectNewTracers(channelEngine, existingIds);
     assert.ok(tracers.length <= 2, 'the channel may emit one anatomy-owned round per rotary per frame');
     if (tracers.length === 0) continue;
+    if (tracers.length === 1) {
+      const tracer = tracers[0];
+      assert.equal(channelState, undefined, 'the exterior herd must finish before the moving rails begin');
+      assert.ok(tracer.vy > 0, 'entry tracers must travel toward the player lanes');
+      entryTracerCount += 1;
+      const tracerCenter = {
+        x: tracer.x + tracer.width / 2,
+        y: tracer.y + tracer.height / 2
+      };
+      const playerCenterY = channelEngine.player.y + channelEngine.player.height / 2;
+      const projectedX = tracerCenter.x
+        + (playerCenterY - tracerCenter.y) * tracer.vx / tracer.vy;
+      const collisionReach = channelEngine.player.width / 2 + tracer.width * 0.3 + 3;
+      entryLeftThreatened ||= Math.abs(projectedX - channelEngine.player.width / 2) <= collisionReach;
+      entryRightThreatened ||= Math.abs(
+        projectedX - (390 - channelEngine.player.width / 2)
+      ) <= collisionReach;
+      entryCenterStayedOpen &&= Math.abs(projectedX - 390 / 2) > 50;
+      continue;
+    }
     assert.equal(tracers.length, 2, 'both rotaries must maintain the channel rails together');
     channelShots += tracers.length;
     const origins = {
@@ -425,6 +449,10 @@ test('Helios rapid bursts and moving channel emit sequential rounds from live mo
     }
   }
   assert.ok(channelAnchor);
+  assert.equal(entryTracerCount, 10, 'the warned entry must fire five live tracers per rotary');
+  assert.equal(entryLeftThreatened, true, 'the entry must herd the left exterior lane inward');
+  assert.equal(entryRightThreatened, true, 'the entry must herd the right exterior lane inward');
+  assert.equal(entryCenterStayedOpen, true, 'the entry herd must preserve the intended center route');
   assert.ok(channelShots >= 90, `the signature must sustain rapid fire; shots=${channelShots}`);
   const maximumViewportSafeSweep = Math.max(0, 390 - channelBoss.width - 8);
   const requiredVisibleSweep = Math.min(100, maximumViewportSafeSweep * 0.9);

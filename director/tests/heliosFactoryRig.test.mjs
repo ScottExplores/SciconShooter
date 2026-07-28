@@ -89,6 +89,14 @@ test('Helios V2 registers one exact connected hierarchy with anatomy-owned socke
   );
   assert.deepEqual(
     Object.fromEntries([
+      'claw.port',
+      'claw.starboard',
+      'mandible.port',
+      'mandible.starboard',
+      'leg.outer-port',
+      'leg.inner-port',
+      'leg.inner-starboard',
+      'leg.outer-starboard',
       'weapons.mount',
       'rotary.port',
       'rotary.starboard',
@@ -96,6 +104,14 @@ test('Helios V2 registers one exact connected hierarchy with anatomy-owned socke
       'muzzle.starboard'
     ].map((partId) => [partId, rig.partById[partId].parentId])),
     {
+      'claw.port': 'claw.port.mount',
+      'claw.starboard': 'claw.starboard.mount',
+      'mandible.port': 'claw.port',
+      'mandible.starboard': 'claw.starboard',
+      'leg.outer-port': 'body',
+      'leg.inner-port': 'body',
+      'leg.inner-starboard': 'body',
+      'leg.outer-starboard': 'body',
       'weapons.mount': 'body',
       'rotary.port': 'weapons.mount',
       'rotary.starboard': 'weapons.mount',
@@ -103,6 +119,9 @@ test('Helios V2 registers one exact connected hierarchy with anatomy-owned socke
       'muzzle.starboard': 'rotary.starboard'
     }
   );
+  assert.ok(rig.renderPartIds.indexOf('claw.port') < rig.renderPartIds.indexOf('leg.outer-port'));
+  assert.ok(rig.renderPartIds.indexOf('leg.outer-port') < rig.renderPartIds.indexOf('body'));
+  assert.ok(rig.renderPartIds.indexOf('body') < rig.renderPartIds.indexOf('rotary.port'));
 
   for (const part of rig.manifest.parts) {
     const visited = new Set();
@@ -374,6 +393,19 @@ test('Helios idle remains restrained while significant reactions and state chang
   assert.ok(Math.abs(laterRoot.yOffset - root.yOffset) <= 8.1);
   assert.ok(Math.abs(impactRoot.xOffset - root.xOffset) >= 6);
   assert.ok(Math.abs(impactRoot.rotationOffset - root.rotationOffset) >= 0.045);
+  for (const partId of [
+    'leg.outer-port',
+    'leg.inner-port',
+    'leg.inner-starboard',
+    'leg.outer-starboard'
+  ]) {
+    const first = idle.partOverrides[partId];
+    const later = laterIdle.partOverrides[partId];
+    const travel = Math.hypot(later.xOffset - first.xOffset, later.yOffset - first.yOffset);
+    assert.ok(travel > 0.05, `${partId} must remain visibly alive between idle samples`);
+    assert.ok(travel < 4, `${partId} idle motion must remain restrained`);
+    assert.ok(Math.abs(later.rotationOffset - first.rotationOffset) < 0.04);
+  }
 
   const closed = helios.sampleHeliosModularPose(basePose);
   const phaseOpen = helios.sampleHeliosModularPose({ ...basePose, phaseIndex: 2 });

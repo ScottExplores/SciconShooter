@@ -43,7 +43,7 @@ export const PROTOTYPE_ASSET_DEFINITIONS = Object.freeze([
     prototypeId: 'helios-clawcarrier',
     variant: 'assembled',
     fileName: 'helios-clawcarrier-v2/helios-clawcarrier-v2-neutral.png',
-    sha256: 'a4797077b4da9c1569d861cb11273383913f5a71dbb05ddadbac53e80c93d8d0',
+    sha256: '52e74b75999a7c3ee14b6975ca4e6201f8e9cc056e8e4c50ad94cf2cac0b4481',
     width: 460,
     height: 330,
     label: 'Helios Clawcarrier V2 modular neutral preview'

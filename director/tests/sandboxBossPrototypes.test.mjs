@@ -327,7 +327,7 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
   );
   assert.equal(boss.timeline.loop, true);
   assert.equal(boss.timeline.durationSeconds, 24.9);
-  assert.equal(damaging.length, 27);
+  assert.equal(damaging.length, 30);
   assert.deepEqual(
     boss.timeline.attacks.map((attack) => [attack.id, attack.role]),
     [
@@ -407,6 +407,7 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
       ['paired-cannon-burst', 'paired-crossfire'],
       ['paired-cannon-burst', 'paired-crossfire'],
       ['paired-cannon-burst', 'paired-crossfire'],
+      ['paired-cannon-burst', 'paired-crossfire'],
       ['paired-cannon-burst', 'machinegun-channel'],
       ['reactor-aperture-pattern', 'reactor-fan'],
       ['reactor-aperture-pattern', 'reactor-fan'],
@@ -425,12 +426,29 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
   assert.equal(channel.durationSeconds, 1.7);
   assert.equal(channel.parameters.channelWidthPixels, 160);
   assert.equal(channel.parameters.sweepPasses, 2);
+  const channelAttack = boss.timeline.attacks.find((attack) => attack.id === 'machinegun-channel');
+  channelAttack.variants.forEach((variant) => {
+    const [entry, movingChannel] = variant.beatClipIds.map((clipId) => clipsById.get(clipId));
+    assert.equal(entry.parameters.motionCue, 'paired-crossfire');
+    assert.equal(entry.parameters.projectileCount, 5);
+    assert.equal(entry.parameters.shotIntervalFrames, 2);
+    assert.equal(entry.parameters.projectileSpeedScale, 1.35);
+    assert.equal(entry.durationSeconds, 0.36);
+    assert.equal(
+      Number((clipsById.get(movingChannel.telegraphClipId).startSeconds
+        - clipsById.get(entry.telegraphClipId).startSeconds).toFixed(6)),
+      0.82,
+      `${variant.phaseId} must visibly herd the exterior lanes before channel fire`
+    );
+  });
   assert.deepEqual(
     boss.phases.map((phase) => {
       const variant = boss.timeline.attacks
         .find((attack) => attack.id === 'machinegun-channel')
         .variants.find((candidate) => candidate.phaseId === phase.id);
-      const clip = clipsById.get(variant.beatClipIds[0]);
+      const clip = variant.beatClipIds
+        .map((clipId) => clipsById.get(clipId))
+        .find((candidate) => candidate.parameters.motionCue === 'machinegun-channel');
       return [
         clip.parameters.sweepRangeRatio,
         clip.parameters.sweepPasses,

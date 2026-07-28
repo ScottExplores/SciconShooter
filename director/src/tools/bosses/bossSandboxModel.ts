@@ -56,7 +56,7 @@ import heliosRigSource from '../../../../director-data/prototype-assets/helios-c
 import prismMothAtlasSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.json';
 import prismMothRigSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper.rig.json';
 
-export const BOSS_SANDBOX_VERSION = 'V 0.22' as const;
+export const BOSS_SANDBOX_VERSION = 'V 0.23' as const;
 
 export const getBossSandboxPerformingAttackId = (
   activeAttack: PreviewBossAttackSnapshot | null | undefined
@@ -73,7 +73,7 @@ export const MERIDIAN_HARROWER_ART_URL =
 export const MERIDIAN_HARROWER_SHEET_URL =
   `/__director/api/v1/prototype-assets/meridian-harrower/${MERIDIAN_HARROWER_SHEET_SHA256}/sheet.png`;
 export const HELIOS_CLAWCARRIER_ART_SHA256 =
-  'a4797077b4da9c1569d861cb11273383913f5a71dbb05ddadbac53e80c93d8d0';
+  '52e74b75999a7c3ee14b6975ca4e6201f8e9cc056e8e4c50ad94cf2cac0b4481';
 export const HELIOS_CLAWCARRIER_SHEET_SHA256 =
   '47e8fd0f33c6e6a53589567327f7325c73e1a7d70f964025023b71a820c405ea';
 export const HELIOS_CLAWCARRIER_REFERENCE_SHA256 =

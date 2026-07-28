@@ -1217,8 +1217,8 @@ const buildClawcarrierPhase = (
       phaseId: route.phaseId,
       role: 'signature',
       skillTest: 'gap-tracking',
-      recognitionCue: 'Both mounted rotaries spool together as Helios braces high and begins a smooth horizontal sweep.',
-      solution: 'Enter the opening between the two downward streams and follow its predictable horizontal movement until both guns settle.',
+      recognitionCue: 'Both mounted rotaries spool together, herd the exterior lanes inward, then Helios braces high and begins a smooth horizontal sweep.',
+      solution: 'Move through the center opening as the first tracers close the exterior lanes, then follow the opening between the two moving streams until both guns settle.',
       safeRouteRule: 'shifting-channel',
       sourceSocketRoles: ['port', 'starboard'],
       startSeconds: 15.4,
@@ -1226,10 +1226,26 @@ const buildClawcarrierPhase = (
       color: route.color,
       beats: [
         {
+          id: 'exterior-herd',
+          label: 'Exterior lane herding burst',
+          primitiveId: 'paired-cannon-burst',
+          offsetSeconds: 0,
+          telegraphStyle: 'warning',
+          leadSeconds: 0.45,
+          actionDurationSeconds: 0.36,
+          parameters: {
+            projectileCount: 5,
+            sequence: route.crossfireBaseSequence + 3,
+            shotIntervalFrames: 2,
+            projectileSpeedScale: 1.35,
+            motionCue: 'paired-crossfire'
+          }
+        },
+        {
           id: 'moving-channel',
           label: 'Synchronized moving channel',
           primitiveId: 'paired-cannon-burst',
-          offsetSeconds: 0,
+          offsetSeconds: 0.82,
           telegraphStyle: 'warning',
           leadSeconds: 0.75,
           actionDurationSeconds: route.channelSegmentSeconds,

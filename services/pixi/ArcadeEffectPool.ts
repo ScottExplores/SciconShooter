@@ -261,6 +261,14 @@ export class ArcadeEffectPool {
     this.spawnSpriteExplosion(x, y, size, 160);
   }
 
+  /**
+   * Plays the registered five-frame pixel damage pop without procedural lines,
+   * shockwaves, lights, or new gameplay entities. Used for recurring boss wear.
+   */
+  spawnBossDamageSprite(x: number, y: number, size: number, duration = 220) {
+    this.spawnBossSpriteExplosion(x, y, size, duration);
+  }
+
   private drawLight(light: PooledLight, progress: number) {
     const fade = 1 - progress;
     const radius = light.size * (0.58 + progress * 0.42);

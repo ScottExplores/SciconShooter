@@ -132,6 +132,22 @@ test('Helios package keeps handed claws stable, body-owns its guns and legs, and
   assert.equal(partById['weapons.mount'].parentId, 'body');
   assert.equal(partById['rotary.port'].parentId, 'weapons.mount');
   assert.equal(partById['rotary.starboard'].parentId, 'weapons.mount');
+  assert.equal(partById['mandible.port'].parentId, 'claw.port');
+  assert.equal(partById['mandible.starboard'].parentId, 'claw.starboard');
+  assert.deepEqual(partById['mandible.port'].transform, {
+    x: -41,
+    y: 80,
+    rotationDegrees: -6,
+    scaleX: 0.75,
+    scaleY: 0.75
+  });
+  assert.deepEqual(partById['mandible.starboard'].transform, {
+    x: 41,
+    y: 80,
+    rotationDegrees: 6,
+    scaleX: 0.75,
+    scaleY: 0.75
+  });
   for (const partId of [
     'leg.outer-port',
     'leg.inner-port',
@@ -139,6 +155,9 @@ test('Helios package keeps handed claws stable, body-owns its guns and legs, and
     'leg.outer-starboard'
   ]) {
     assert.equal(partById[partId].parentId, 'body', `${partId} follows the hull`);
+    assert.equal(partById[partId].layer, 7, `${partId} stays behind the hull and rotaries`);
+    assert.ok(partById[partId].transform.scaleX >= 0.23, `${partId} remains visibly leg-sized`);
+    assert.ok(partById[partId].transform.scaleY >= 0.23, `${partId} remains visibly leg-sized`);
     assert.equal(partById[partId].damageable, false, `${partId} is decorative`);
     assert.equal(partById[partId].socketless, true, `${partId} owns no gameplay socket`);
     assert.equal(rig.sockets.some((socket) => socket.partId === partId), false);

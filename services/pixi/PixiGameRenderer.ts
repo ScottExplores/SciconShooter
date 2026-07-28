@@ -32,6 +32,7 @@ import {
 import { RESEARCH_IMPACT_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
 import { MINI_SHIP_CATALOG } from '../squadProgression';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
+import { sampleBossLowHealthDamageCue } from './BossDamagePresentation';
 import {
   PIXI_ENVIRONMENT_TEXTURE_URLS,
   PixiEnvironment,
@@ -5273,9 +5274,18 @@ export class PixiGameRenderer {
       }
     }
     this.seenBossPhase.set(entity.id, decayStage);
-    if (progress < 0.52 && engine.frameCount % (engine.performanceMode ? 48 : 30) === 0) {
-      this.effectPool.spawn('smoke', entity.x + entity.width * (0.25 + Math.random() * 0.5), entity.y + entity.height * (0.35 + Math.random() * 0.4), entity.width * 0.18, '#475569', 800);
-      this.effectPool.spawn('spark', entity.x + entity.width * Math.random(), entity.y + entity.height * Math.random(), Math.max(3, entity.width * 0.035), phaseColor, 380);
+    const damageCue = sampleBossLowHealthDamageCue({
+      healthRatio: progress,
+      frameCount: engine.frameCount,
+      performanceMode: engine.performanceMode,
+      bossId: entity.id,
+      bossWidth: entity.width
+    });
+    if (damageCue) {
+      const cueX = entity.x + entity.width * damageCue.xRatio;
+      const cueY = entity.y + entity.height * damageCue.yRatio;
+      this.effectPool.spawn('smoke', cueX, cueY, entity.width * 0.18, '#475569', 800);
+      this.effectPool.spawnBossDamageSprite(cueX, cueY, damageCue.size, damageCue.durationMs);
     }
   }
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "bossId": "helios-clawcarrier",
-  "status": "sandbox-only-v022-behavior-implemented-proof-refresh-pending",
+  "status": "sandbox-only-v023-visual-and-channel-polish-implemented-proof-refresh-pending",
   "historicalAcceptedRelease": "V0.20",
   "fixedSeed": "helios-v2-safe-route-proof",
   "durability": {
@@ -17,7 +17,7 @@
       "width": 460,
       "height": 330
     },
-    "neutralSha256": "a4797077b4da9c1569d861cb11273383913f5a71dbb05ddadbac53e80c93d8d0",
+    "neutralSha256": "52e74b75999a7c3ee14b6975ca4e6201f8e9cc056e8e4c50ad94cf2cac0b4481",
     "atlasSha256": "47e8fd0f33c6e6a53589567327f7325c73e1a7d70f964025023b71a820c405ea",
     "parts": [
       "root",
@@ -261,6 +261,16 @@
       "primitiveId": "paired-cannon-burst",
       "motionCue": "machinegun-channel",
       "playerSkill": "lane-routing",
+      "entryHerd": {
+        "projectileSprite": "boss-gatling-tracer",
+        "roundsPerSide": 5,
+        "shotIntervalFrames": 2,
+        "projectileSpeedScale": 1.35,
+        "warningSeconds": 0.45,
+        "actionSeconds": 0.36,
+        "movingChannelOffsetSeconds": 0.82,
+        "safeRule": "Coordinated live-muzzle tracers occupy both exterior lanes while preserving the center opening."
+      },
       "repeatCount": 4,
       "phaseTiming": [
         {
@@ -271,29 +281,30 @@
         {
           "phaseId": "sandbox-clawcarrier-armor-shear",
           "segmentDurationSeconds": 1.5,
-          "sustainedFireSeconds": 6.4
+          "sustainedFireSeconds": 6
         },
         {
           "phaseId": "sandbox-clawcarrier-reactor-overdrive",
           "segmentDurationSeconds": 1.3,
-          "sustainedFireSeconds": 6
+          "sustainedFireSeconds": 5.2
         }
       ],
       "startingDirectionPolicy": "Use the gameplay seed for the first complete channel, then alternate the starting edge once per later complete use. The four continuation segments never consume another direction.",
       "anatomy": ["root", "weapons.mount", "rotary.port", "rotary.starboard", "muzzle.port", "muzzle.starboard"],
       "sockets": ["rotary-muzzle-port", "rotary-muzzle-starboard"],
-      "recognitionCue": "Helios settles upper-middle, both rotaries spool and glow, the connected rig reaches a mobile gutter, and simultaneous downward tracer rails establish two moving boundaries.",
+      "recognitionCue": "Helios settles upper-middle, both rotaries spool and glow, an outward paired burst occupies both exterior lanes, then the connected rig reaches a mobile gutter and establishes two moving boundaries.",
       "safeRule": "Enter between the two streams and continuously follow their moving center from gutter to gutter and back; stationary exterior edge camps are deliberately threatened, while the opening cannot cross, teleport, or close without a visible survivable transition.",
       "beats": [
         "upper-middle settle",
         "dual spool and muzzle glow",
+        "live-muzzle exterior herding burst that leaves the middle open",
         "first simultaneous paired boundary rounds",
         "continuous two-stream gutter-to-gutter sweep",
         "route-proven reversal and return pass",
         "firing taper and spin-down",
         "exact mounted-neutral return and recovery"
       ],
-      "boundedVariation": "Every complete use alternates its starting edge deterministically. All phases retain one reversal and return pass, a 160 px interior opening, and a two-frame paired firing cadence. Lower-health phases shorten each of the four gapless segments from 1.7 to 1.5 to 1.3 seconds and raise bounded tracer speed without destroying the recognizable channel solution.",
+      "boundedVariation": "Every complete use alternates its starting edge deterministically. Every phase first uses the same five-round-per-side exterior herd, then retains one reversal and return pass, a 160 px interior opening, and a two-frame paired firing cadence. Lower-health phases shorten each of the four gapless segments from 1.7 to 1.5 to 1.3 seconds and raise bounded tracer speed without destroying the recognizable channel solution.",
       "heliosSpecificChoreography": true,
       "sharedPrimitivePolicy": "Reuse moving-socket, sequential-fire, movement, and route-proof primitives without making this signature a default future-boss attack.",
       "retiredPrototype": "claw-sweep-pincer is not in the active Helios rotation; claw art remains active through clawcarrier-crush."

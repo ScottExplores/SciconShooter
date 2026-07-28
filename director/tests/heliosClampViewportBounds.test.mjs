@@ -137,8 +137,11 @@ const getStructuralScreenBounds = (hierarchy, topLeftX, topLeftY) => {
 const buildPhaseCase = (phase, phaseIndex) => {
   const variant = channelAttack.variants.find((candidate) => candidate.phaseId === phase.id);
   assert.ok(variant, `machinegun-channel must define ${phase.id}`);
-  assert.equal(variant.beatClipIds.length, 1, `${phase.id} must own one repeated channel clip`);
-  const action = bossEvent.timeline.clips.find((clip) => clip.id === variant.beatClipIds[0]);
+  const channelClips = variant.beatClipIds
+    .map((clipId) => bossEvent.timeline.clips.find((clip) => clip.id === clipId))
+    .filter((clip) => clip?.parameters?.motionCue === HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE);
+  assert.equal(channelClips.length, 1, `${phase.id} must own one repeated moving channel clip`);
+  const action = channelClips[0];
   const warning = bossEvent.timeline.clips.find((clip) => clip.id === action?.telegraphClipId);
   const recovery = bossEvent.timeline.clips.find((clip) => clip.id === variant.recoveryClipId);
   assert.ok(action && warning && recovery, `${phase.id} must compile warning, fire, and recovery`);

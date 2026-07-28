@@ -146,6 +146,14 @@ export const validateHeliosRigCompatibility = (
     }
   });
   const expectedParents = Object.freeze({
+    'claw.port': 'claw.port.mount',
+    'claw.starboard': 'claw.starboard.mount',
+    'mandible.port': 'claw.port',
+    'mandible.starboard': 'claw.starboard',
+    'leg.outer-port': 'body',
+    'leg.inner-port': 'body',
+    'leg.inner-starboard': 'body',
+    'leg.outer-starboard': 'body',
     'weapons.mount': 'body',
     'rotary.port': 'weapons.mount',
     'rotary.starboard': 'weapons.mount',
@@ -345,11 +353,11 @@ export const sampleHeliosModularPose = (
       frameId: 'claw.starboard.shell'
     }),
     'mandible.port': freezeOverride({
-      xOffset: sweepPort * 10 + crushClose * 18,
+      xOffset: sweepPort * 11.5 + crushClose * 20.5,
       rotationOffset: sweepPort * 0.32 + crushClose * 0.44
     }),
     'mandible.starboard': freezeOverride({
-      xOffset: -sweepStarboard * 10 - crushClose * 18,
+      xOffset: -sweepStarboard * 11.5 - crushClose * 20.5,
       rotationOffset: -sweepStarboard * 0.32 - crushClose * 0.44
     }),
     body: freezeOverride({
@@ -357,24 +365,24 @@ export const sampleHeliosModularPose = (
       yOffset: -breath * 0.7
     }),
     'leg.outer-port': freezeOverride({
-      xOffset: secondary * -1.1 - sweepPort * 4 + crushClose * 3,
-      yOffset: breath * 0.7 + sweepPort * 3,
-      rotationOffset: -0.018 + secondary * 0.008 - sweepPort * 0.06
+      xOffset: secondary * -1.6 - sweepPort * 4 + crushClose * 3,
+      yOffset: breath * 1.05 + sweepPort * 3,
+      rotationOffset: -0.014 + secondary * 0.016 - sweepPort * 0.06
     }),
     'leg.inner-port': freezeOverride({
-      xOffset: secondary * -0.55 - sweepPort * 2,
-      yOffset: -breath * 0.55 + sweepPort * 2,
-      rotationOffset: -0.008 - secondary * 0.006 - sweepPort * 0.035
+      xOffset: secondary * -0.85 - sweepPort * 2,
+      yOffset: -breath * 0.8 + sweepPort * 2,
+      rotationOffset: -0.007 - secondary * 0.011 - sweepPort * 0.035
     }),
     'leg.inner-starboard': freezeOverride({
-      xOffset: secondary * 0.55 + sweepStarboard * 2,
-      yOffset: breath * 0.55 + sweepStarboard * 2,
-      rotationOffset: 0.008 + secondary * 0.006 + sweepStarboard * 0.035
+      xOffset: secondary * 0.85 + sweepStarboard * 2,
+      yOffset: breath * 0.8 + sweepStarboard * 2,
+      rotationOffset: 0.007 + secondary * 0.011 + sweepStarboard * 0.035
     }),
     'leg.outer-starboard': freezeOverride({
-      xOffset: secondary * 1.1 + sweepStarboard * 4 - crushClose * 3,
-      yOffset: -breath * 0.7 + sweepStarboard * 3,
-      rotationOffset: 0.018 - secondary * 0.008 + sweepStarboard * 0.06
+      xOffset: secondary * 1.6 + sweepStarboard * 4 - crushClose * 3,
+      yOffset: -breath * 1.05 + sweepStarboard * 3,
+      rotationOffset: 0.014 - secondary * 0.016 + sweepStarboard * 0.06
     }),
     reactor: freezeOverride({
       frameId: reactorOpen ? 'reactor.open' : 'reactor.closed',

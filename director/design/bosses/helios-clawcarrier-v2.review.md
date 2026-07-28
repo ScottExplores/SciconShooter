@@ -1,13 +1,13 @@
 # Helios Clawcarrier V2 review
 
-Status: **V0.22 behavior amendment implemented, deterministically certified, verified in the local and hosted runners, and privately published**. The clean visual-evidence refresh remains pending, so V0.20 remains the last fully accepted visual release. Gate 1 remains accepted against the unchanged art package, and Helios remains Test Mission content without campaign-Mission approval.
+Status: **V0.23 channel/rig polish is locally verified and the private Runner build is ready to publish**. V0.22 remains the last privately published behavior package until that deployment completes, and V0.20 remains the last fully accepted visual release. Helios remains Test Mission content without campaign-Mission approval.
 
 ## Implemented contract
 
 - [x] One authoritative 460 x 330 `modular-hierarchy-v1` assembly replaces the legacy `articulated-pincer-v1` presentation as gameplay truth.
 - [x] Matching transparent source parts, binary structural alpha, nearest-neighbor registration, and aspect-preserved scaling are retained.
 - [x] All 60 source cells are classified and all 40 runtime frames have registered consumers.
-- [x] One connected modular hierarchy owns the body, two mounted claws, two mandibles, reactor, four stabilizer legs, two four-frame rotaries, and two muzzle presenters. The archived temporary center exhaust remains absent.
+- [x] One connected modular hierarchy owns the body, two mounted claws, two mandibles, reactor, four stabilizer legs, two four-frame rotaries, and two muzzle presenters. V0.23 parents each mandible directly to its matching claw and places enlarged stabilizers behind the hull/rotaries. The archived temporary center exhaust remains absent.
 - [x] Nine hierarchy-resolved sockets cover the heavy/rotary muzzles, reactor core, claw joints, and moving claw tips.
 - [x] Projectile presentation uses registered four-frame pixel families: `boss-heavy-shell`, `boss-gatling-tracer`, `boss-reactor-pellet`, and `boss-helios-mine`.
 - [x] The two rotaries remain at their exact hull-relative neutral transforms outside firing, inherit every hull movement without drift, recoil/vibrate only while firing, and settle exactly after recovery.
@@ -20,7 +20,7 @@ Status: **V0.22 behavior amendment implemented, deterministically certified, ver
 ## Attack and phase review
 
 - [x] Core Attack 1 is **Rapid Machine-Gun Bursts** (`rapid-machine-gun-bursts`): a short firing stance, first-gun burst, delayed second-gun join, rapid paired finish, spin-down, and exact neutral return. The phase beat counts are `5/5/6`, `5/5/6`, and `6/6/7` with sequence triplets `0/1/2`, `10/11/12`, and `20/21/22`. A bounded deterministic subset of each one-sided burst aims at the warning-locked player point (one aimed round in Siege Calibration, one or two in Armor Shear, and two in Reactor Overdrive), while the paired finisher stays fixed.
-- [x] Signature Attack 2 is **Moving Machine-Gun Channel** (`machinegun-channel`): Helios settles upper-middle, spools both mounted rotaries, and sustains four gapless firing segments. Segment duration falls from `1.7` to `1.5` to `1.3` seconds across the phases, for `6.8`, `6.0`, and `5.2` seconds of continuous fire. Both live guns fire together every two frames around one 160 px opening while the connected rig travels gutter-to-gutter, reverses, and returns.
+- [x] Signature Attack 2 is **Moving Machine-Gun Channel** (`machinegun-channel`): Helios settles upper-middle, spools both mounted rotaries, fires a warned five-round-per-side exterior herding burst from the live muzzles, then sustains four gapless firing segments. The entry burst occupies both exterior lanes while preserving the center. Segment duration falls from `1.7` to `1.5` to `1.3` seconds across the phases, for `6.8`, `6.0`, and `5.2` seconds of continuous fire. Both live guns then fire together every two frames around one 160 px opening while the connected rig travels gutter-to-gutter, reverses, and returns.
 - [x] The first complete channel chooses its starting edge from the fixed gameplay seed. Each later complete use alternates the starting edge, so replay/loop does not repeat the same edge order. The four internal continuation segments count as one use.
 - [x] Core Attack 3 remains **Reactor Maze** (`reactor-maze`) with `25/27/31` fan pellets and `3/4/5` mines across the phases. A bounded deterministic template advances per use among `staggered-diagonal`, `reverse-diagonal`, `zigzag`, `shallow-arc`, `offset-triangle`, and `asymmetric-cluster`; each varies X and Y, preserves minimum spacing, and avoids direct player spawn.
 - [x] Core physical Attack 4 remains **Clawcarrier Crush** (`clawcarrier-crush`) as one uninterrupted four-stage sentence. Each stage lasts `0.65` seconds (`39` frames at 60 Hz); continuation warnings are suppressed, the return begins without a pause or snap, and damage-active contact uses operational claw-tip regions plus swept visible-silhouette collision. Unprotected contact removes one life, while Watch safely retains hit feedback without removing a life.
@@ -30,7 +30,7 @@ Status: **V0.22 behavior amendment implemented, deterministically certified, ver
 - [x] Gameplay attack-name text, `SAFE GAP` text, `isBossGapGuide`, `isBossSideBarrageGuide`, and text-effect teaching entities remain forbidden.
 - [x] Standard HUD remains available; socket, collision, safe-route, and reference-comparison overlays are review-only and default off.
 
-## Deterministic safety evidence — V0.20 accepted; V0.22 certified
+## Deterministic safety evidence — V0.20 accepted; V0.22 and V0.23 certified
 
 - [x] Historical V0.20: `director/tests/heliosSafeRouteProof.test.mjs` exercised the then-current attacks through `GameEngine` with configuration hash, fixed seed, viewport, route hash, duration, search bounds, and replayed minimum clearance recorded.
 - [x] Historical V0.20: all four attacks passed every phase at mobile `390x844` and desktop `1280x720` with at least 6 px replayed clearance after 3 px geometry-uncertainty inflation.
@@ -39,6 +39,7 @@ Status: **V0.22 behavior amendment implemented, deterministically certified, ver
 - [x] Historical V0.20: repeated captures reproduced warning/fire evidence and route-witness hashes, and the proof rejected generic gap/side guides and gameplay text on every captured frame.
 - [x] V0.22: the complete 24-case matrix replayed all four attacks through all three phases at mobile `390x844` and desktop `1280x720`. Every case retained at least 6 px clearance after 3 px geometry uncertainty, and every repeated run reproduced its route-witness hash.
 - [x] V0.22: the proof consumes the current live muzzle/core/claw samples, the accelerated `6.8/6.0/5.2` second channel, `25/27/31` reactor pellets, `3/4/5` mines, and the swept visible core plus claw-tip Crush collision. Nine-or-more-round fans retain every sprite while redistributing rays around one deterministic aperture.
+- [x] V0.23: the same complete matrix passes with the five-round-per-side exterior-herding entry reconstructed before the moving rails. Both exterior camps are threatened, the middle remains open during entry, and the subsequent moving channel retains its certified route.
 
 The accepted V0.20 results remain historical evidence. The new V0.22 matrix separately certifies the mixed aim, shortened low-health channel, denser reactor branch, varied mine counts, and swept Crush collision against the current validated campaign snapshot.
 
@@ -77,3 +78,11 @@ Store ignored review evidence under `director-data/prototype-assets/helios-clawc
 - [x] The verified V0.22 Runner is privately published as Sites version 26.
 
 The V0.22 behavior amendment changes no boss artwork, atlas frame, rig hierarchy, socket ownership, or asset hash. Gate 1 and the accepted V0.20 evidence therefore remain preserved. V0.22 is verified and privately published, but it should not replace V0.20 as the fully accepted visual baseline until the remaining clean capture set is reviewed.
+
+## V0.23 refresh gates
+
+- [x] The complete 24-case route matrix passes with the new exterior-herding entry. The complete Director run covered 243 checks; its single stale one-clip channel assertion was updated for the two-beat signature and then passed all three viewport-bound cases in isolation.
+- [x] The rebuilt neutral and local mobile Sandbox verify attached claw mandibles, larger background stabilizers, subtle leg motion, and unbroken hull/rotary layering without chopped or floating anatomy.
+- [x] The shared five-frame low-health pixel-damage cue is deterministic, bounded to one sprite cue per eligible frame, and replaces the recurring procedural line spark for every Pixi boss. Local Helios review at low health confirms the presentation path; a roster-wide clean capture set remains future visual evidence rather than a release blocker.
+- [x] Root and Director TypeScript checks pass. The shared Runner rebuilt from 863 modules with 26 pinned assets and passes `18/18` hosted-build tests.
+- [ ] Publish the verified owner-only Sites V0.23 package and record its version.

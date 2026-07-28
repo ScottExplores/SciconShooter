@@ -3,7 +3,7 @@
 ## Authority and scope
 
 - Sandbox ID: `helios-clawcarrier`
-- Status: Sandbox-only V0.22 behavior amendment implemented; refreshed route, visual, Runner, and Sites proof remains pending. V0.20 remains the last accepted release, and Gate 1 remains locked to its unchanged art package.
+- Status: Sandbox-only V0.23 channel/rig polish implemented; refreshed route, visual, Runner, and Sites proof remains pending. V0.20 remains the last fully accepted visual release.
 - Canonical execution path: `GameStage -> GameCanvas -> GameEngine -> PixiGameRenderer`
 - Authoritative gameplay visual: the registered `modular-hierarchy-v1` rig, not the concept board, legacy `articulated-pincer-v1` presenter, assembled fallback, or review overlay
 - Authoritative attack source: the compiled looping timeline with exactly three core attacks and one signature attack, each with a variant for all three phases. The retired claw-sweep Attack 2 is not part of the active rotation.
@@ -23,7 +23,7 @@
 - Locked reference board: `director-data/prototype-assets/helios-clawcarrier-v2/source/reference-board.png`
 - Reference board SHA-256: `9b0edf76349b45ebf2b0ede41cc87e14e1dc9ee60ea8e3f87b60ce5763cd43e9`
 - Review-only neutral crop: `helios-clawcarrier-v2-canonical-reference.png`, SHA-256 `8d6ce675283e1bb3dfd684247c13efaf80f1230400b529032dea3467f9177cb4`
-- Authoritative neutral assembly: `helios-clawcarrier-v2-neutral.png`, 460 x 330, SHA-256 `a4797077b4da9c1569d861cb11273383913f5a71dbb05ddadbac53e80c93d8d0`
+- Authoritative neutral assembly: `helios-clawcarrier-v2-neutral.png`, 460 x 330, SHA-256 `52e74b75999a7c3ee14b6975ca4e6201f8e9cc056e8e4c50ad94cf2cac0b4481`
 - Authoritative atlas: `helios-clawcarrier-v2-atlas.png`, 2048 x 1024, binary structural alpha, SHA-256 `47e8fd0f33c6e6a53589567327f7325c73e1a7d70f964025023b71a820c405ea`
 - Asset-usage proof: `helios-clawcarrier-v2.asset-usage.json`; all 60 source cells are classified, all 40 runtime frames have consumers, and future/archived cells remain forbidden from runtime.
 - Rendering: nearest-neighbor, aspect-preserved scaling; structural sprites stay opaque. Glow and warning presentation are separate effects.
@@ -66,8 +66,8 @@ The registered projectile sprite families are `boss-heavy-shell`, `boss-gatling-
 
 - Player skill: enter and continuously follow a moving safe corridor.
 - Anatomy: both hull-mounted rotaries and their live `rotary-muzzle-port` / `rotary-muzzle-starboard` sockets plus the carrier's deterministic horizontal translation.
-- Recognition cue: Helios settles near the upper middle, both mechanisms spool and glow, the full connected rig travels to a mobile gutter, and simultaneous downward tracer rails establish the two moving boundaries.
-- Beats: settle, dual spool, first paired boundary rounds, four gapless firing segments, edge-to-edge traversal, visible reversal and return traversal, firing taper, spin-down, exact mounted-neutral return, and recovery. Segment durations shorten from `1.7` to `1.5` to `1.3` seconds across the phases, for `6.8`, `6.0`, and `5.2` seconds of continuous fire.
+- Recognition cue: Helios settles near the upper middle, both mechanisms spool and glow, then five live-muzzle tracers per side occupy the exterior lanes while preserving the middle before the full connected rig travels to a mobile gutter and establishes two moving boundaries.
+- Beats: settle, dual spool, 0.45-second warned exterior herd, first paired boundary rounds, four gapless firing segments, edge-to-edge traversal, visible reversal and return traversal, firing taper, spin-down, exact mounted-neutral return, and recovery. Segment durations shorten from `1.7` to `1.5` to `1.3` seconds across the phases, for `6.8`, `6.0`, and `5.2` seconds of continuous fire.
 - Safe rule: enter between the two streams and follow their continuous center as Helios carries the corridor from gutter to gutter. Both exterior lanes are swept by live tracers, so a stationary left- or right-edge camp is not a solution. The opening may not teleport, cross, or close without a visible survivable transition, and no text, guide line, or safe-channel overlay communicates the solution.
 - Bounded remix: the first complete use chooses its starting edge from the fixed gameplay seed; every later complete use alternates that edge. Every phase retains the taught edge-to-edge-and-back grammar, while the shorter segment duration and faster tracer travel make the low-health channel move more urgently. The recognizable interior-channel solution must remain intact.
 - Ownership boundary: `machinegun-channel` is Helios-specific choreography built from reusable moving-socket, sequential-fire, movement, and safe-route primitives; it is not a default Boss Factory attack.
@@ -113,6 +113,7 @@ Phase speed multipliers move only from `0.72` to `0.75` to `0.78`. Those small c
 
 - Entrance: folded claw mounts unfold into the connected neutral pose.
 - Idle: restrained whole-body hover and opposing claw motion while both machine guns remain fixed at their exact hull-relative neutral position and frame, with no independent rotation, recoil, vibration, or barrel cycling.
+- Stabilizers and claws: four enlarged stabilizer legs sit on layer 7 behind the hull and rotaries but ahead of the large claw shells, with restrained mirrored articulation. Each white mandible is parented directly to its matching large claw and overlaps its opaque shell instead of floating beside it.
 - Anticipation/recoil: each primitive drives its owning mechanism; Attacks 1 and 2 spool and recoil the mounted rotaries only while firing, Reactor Maze exposes the core, and Crush opens then closes both claws.
 - Significant hit/stagger: short directional whole-rig reaction is reserved for meaningful impact; ordinary damage does not make the entire boss flinch.
 - Persistent damage: `body.damaged`, asymmetric claw posture, exposed reactor, and leg bracing remain visible in Reactor Overdrive.

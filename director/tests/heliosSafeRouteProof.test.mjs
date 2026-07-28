@@ -1155,6 +1155,9 @@ const getProofSettings = (attackId, viewportId, phaseId) => {
     return { searchBreadth: mobile ? 192 : 128, controlFrames: 6 };
   }
   if (attackId === 'machinegun-channel') {
+    if (mobile && phaseId === 'sandbox-clawcarrier-reactor-overdrive') {
+      return { searchBreadth: 192, controlFrames: 4 };
+    }
     return { searchBreadth: mobile ? 48 : 32, controlFrames: 6 };
   }
   if (attackId === 'reactor-maze') {
