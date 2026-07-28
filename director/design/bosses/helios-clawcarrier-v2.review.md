@@ -1,6 +1,6 @@
 # Helios Clawcarrier V2 review
 
-Status: **V0.23 channel/rig polish is locally verified and the private Runner build is ready to publish**. V0.22 remains the last privately published behavior package until that deployment completes, and V0.20 remains the last fully accepted visual release. Helios remains Test Mission content without campaign-Mission approval.
+Status: **V0.23 channel/rig polish is locally verified and privately published**. V0.20 remains the last fully accepted clean visual release until the expanded capture set is reviewed. Helios remains Test Mission content without campaign-Mission approval.
 
 ## Implemented contract
 
@@ -85,4 +85,4 @@ The V0.22 behavior amendment changes no boss artwork, atlas frame, rig hierarchy
 - [x] The rebuilt neutral and local mobile Sandbox verify attached claw mandibles, larger background stabilizers, subtle leg motion, and unbroken hull/rotary layering without chopped or floating anatomy.
 - [x] The shared five-frame low-health pixel-damage cue is deterministic, bounded to one sprite cue per eligible frame, and replaces the recurring procedural line spark for every Pixi boss. Local Helios review at low health confirms the presentation path; a roster-wide clean capture set remains future visual evidence rather than a release blocker.
 - [x] Root and Director TypeScript checks pass. The shared Runner rebuilt from 863 modules with 26 pinned assets and passes `18/18` hosted-build tests.
-- [ ] Publish the verified owner-only Sites V0.23 package and record its version.
+- [x] The verified owner-only V0.23 package is privately published as Sites version 27 from Runner commit `9aa7a3e`.
