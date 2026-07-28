@@ -29,7 +29,7 @@ test('mission launch joins a pending preload with progress, then locks simulatio
   const startIndex = app.indexOf('const launchGame = async');
   const readyIndex = app.indexOf('const completeMissionRuntimeLaunch');
   const failureIndex = app.indexOf('const failMissionRuntimeLaunch');
-  const resetIndex = app.indexOf('const resetGame');
+  const resetIndex = app.indexOf('const resetGame = () =>');
   const startFlow = app.slice(startIndex, readyIndex);
   const readyFlow = app.slice(readyIndex, failureIndex);
   const failureFlow = app.slice(failureIndex, resetIndex);
@@ -54,6 +54,19 @@ test('mission launch joins a pending preload with progress, then locks simulatio
   assert.match(app, /hud=\{gameRuntimeReady &&/);
   assert.match(component, /context\?: 'startup' \| 'mission'/);
   assert.match(component, /Loading Scicon Shooter/);
+});
+
+test('mission launch reserves and validates one token before wallet authorization can race Map navigation', () => {
+  const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
+  const startIndex = app.indexOf('const launchGame = async');
+  const runModeIndex = app.indexOf('const runMode: ActiveRunMode', startIndex);
+  const authorizationFlow = app.slice(startIndex, runModeIndex);
+
+  assert.match(authorizationFlow, /if \(missionLaunchPendingRef\.current\) return;\s*const launchNonce = missionLaunchNonceRef\.current \+ 1;\s*missionLaunchNonceRef\.current = launchNonce;\s*missionLaunchPendingRef\.current = true/);
+  assert.match(authorizationFlow, /serverChallengeRun = await startTask;\s*if \(missionLaunchNonceRef\.current !== launchNonce\) return;/);
+  assert.match(authorizationFlow, /serverBranchAttempt = await startTask;\s*if \(missionLaunchNonceRef\.current !== launchNonce\) return;/);
+  assert.match(app, /if \(gameStateRef\.current !== GameState\.MENU \|\| missionLaunchPendingRef\.current\) resetGame\(\)/);
+  assert.match(app, /missionLaunchNonceRef\.current \+= 1;\s*missionLaunchPendingRef\.current = false/);
 });
 
 test('loading presentation uses generated Scicon art and an accessible real progress bar', () => {

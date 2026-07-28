@@ -1269,7 +1269,6 @@ export class PixiGameRenderer {
   private lastBombFrame = -999;
   private bioBeamVisualStartFrame = -1;
   private lastWavePresentationRevision = -1;
-  private lastWavePresentationKey = '';
   private wavePresentationElapsedMs = 0;
   private currentWaveCounter = '1/1';
   private reducedMotion = false;
@@ -2190,7 +2189,6 @@ export class PixiGameRenderer {
 
   private beginWavePresentation(state: GameRuntimeState) {
     this.lastWavePresentationRevision = state.wavePresentationRevision;
-    this.lastWavePresentationKey = `${state.levelId}:${state.waveId}`;
     this.wavePresentationElapsedMs = 0;
     this.waveLevelText.text = `MISSION ${String(state.levelNumber).padStart(2, '0')} · ${state.levelName.toUpperCase()}`;
     this.waveNameText.text = state.waveName.toUpperCase();
@@ -2201,11 +2199,7 @@ export class PixiGameRenderer {
 
   private updateWavePresentation(engine: GameEngine, timestamp: number, deltaMs: number) {
     const state = engine.getRuntimeState();
-    const presentationKey = `${state.levelId}:${state.waveId}`;
-    if (
-      state.wavePresentationRevision !== this.lastWavePresentationRevision
-      || presentationKey !== this.lastWavePresentationKey
-    ) {
+    if (state.wavePresentationRevision !== this.lastWavePresentationRevision) {
       this.beginWavePresentation(state);
     }
 

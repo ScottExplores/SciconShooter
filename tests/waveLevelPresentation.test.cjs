@@ -27,7 +27,7 @@ test('runtime exposes ordered level and within-level wave position from campaign
   assert.match(engine, /this\.cinematicPaused = cinematicPause;/);
 });
 
-test('canonical Pixi scene presents a centered Mission and internal Wave transition without a HUD badge', () => {
+test('canonical Pixi scene presents Mission starts without replaying the banner for internal waves', () => {
   const renderer = read('services', 'pixi', 'PixiGameRenderer.ts');
 
   assert.match(renderer, /scicon-simple-arcade-kit-v1\/wave-glyphs\/cyan/);
@@ -41,6 +41,8 @@ test('canonical Pixi scene presents a centered Mission and internal Wave transit
   assert.match(renderer, /this\.waveNameText\.text = state\.waveName\.toUpperCase\(\)/);
   assert.match(renderer, /prefers-reduced-motion: reduce/);
   assert.match(renderer, /if \(!engine\.cinematicPaused\) \{\s*this\.wavePresentationElapsedMs =/);
+  assert.match(renderer, /if \(state\.wavePresentationRevision !== this\.lastWavePresentationRevision\)/);
+  assert.doesNotMatch(renderer, /presentationKey !== this\.lastWavePresentationKey/);
 
   const updateStart = renderer.indexOf('  private updateWavePresentation(');
   const updateEnd = renderer.indexOf('\n  private resetArticulatedBossRig(', updateStart);

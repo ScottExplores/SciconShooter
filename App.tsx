@@ -93,7 +93,6 @@ import {
   isCampaignWaveUnlocked,
   markCampaignMapViewed,
   resetCampaignStars,
-  setCampaignCheckpoint,
   unlockAllCampaignMissions,
   type CampaignCompletionSettlement
 } from './services/campaignProgression';
@@ -571,7 +570,9 @@ const App: React.FC = () => {
   const [waveVictorySummary, setWaveVictorySummary] = useState<WaveVictorySummary | null>(null);
   const [campaignResultPresentation, setCampaignResultPresentation] = useState<CampaignResultPresentation | null>(null);
   const [campaignBranchResult, setCampaignBranchResult] = useState<CampaignBranchResultPresentation | null>(null);
-  const [campaignMapOpen, setCampaignMapOpen] = useState(false);
+  const [campaignMapOpen, setCampaignMapOpen] = useState(() => (
+    new URLSearchParams(window.location.search).get('view') === 'campaign-map'
+  ));
   const [campaignMapStatus, setCampaignMapStatus] = useState<CampaignMapStatus>('ready');
   const [campaignMapError, setCampaignMapError] = useState('');
   const [campaignMapFocusMissionId, setCampaignMapFocusMissionId] = useState<string | null>(null);
@@ -632,6 +633,7 @@ const App: React.FC = () => {
   const weeklyProposalTransitionRef = useRef<number | null>(null);
   const weeklyProposalReturnRef = useRef<'results' | 'record'>('results');
   const gameStateRef = useRef<GameState>(GameState.MENU);
+  const openCampaignMapRef = useRef<(focusMissionId?: string | null) => void>(() => undefined);
   const submittingScoreRef = useRef(false);
   const bossArchiveDamageTakenRef = useRef(0);
   const processedBossArchiveResultsRef = useRef(new Set<string>());
@@ -826,9 +828,10 @@ const App: React.FC = () => {
   const isBossArchiveRun = activeRunMode === 'boss-archive';
   const isCampaignBranchRun = activeRunMode === 'campaign-branch';
   const isCampaignLabRun = activeRunMode === 'campaign-lab';
-  const isCampaignRun = activeRunMode === 'campaign' || activeRunMode === 'campaign-replay' || isCampaignLabRun;
+  const isCompetitiveCampaignRun = activeRunMode === 'campaign' || activeRunMode === 'campaign-replay';
+  const isCampaignRun = isCompetitiveCampaignRun || isCampaignLabRun;
   const isFounderSandboxRun = isOwnerWallet || isOwnerTestRun;
-  const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun || isCampaignRun || isCampaignBranchRun;
+  const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun || isCampaignLabRun || isCampaignBranchRun;
   const activeBossReplay = useMemo(() => (
     activeBossEncounterId ? getBossArchiveEntry(activeBossEncounterId) : null
   ), [activeBossEncounterId]);
@@ -1713,6 +1716,14 @@ const App: React.FC = () => {
     campaignLabRequest: CampaignLabLaunchRequest | null = null
   ) => {
     if (missionLaunchPendingRef.current) return;
+    const launchNonce = missionLaunchNonceRef.current + 1;
+    missionLaunchNonceRef.current = launchNonce;
+    missionLaunchPendingRef.current = true;
+    const releaseLaunchReservation = () => {
+      if (missionLaunchNonceRef.current === launchNonce) {
+        missionLaunchPendingRef.current = false;
+      }
+    };
 
     const authorizedCampaignLabRequest = campaignLabRequest && founderAuthorizationRef.current
       ? campaignLabRequest
@@ -1720,6 +1731,7 @@ const App: React.FC = () => {
     if (campaignLabRequest && !authorizedCampaignLabRequest) {
       setCampaignMapStatus('launch-error');
       setCampaignMapError('Campaign Lab launch rejected: connect the authorized founder wallet.');
+      releaseLaunchReservation();
       return;
     }
 
@@ -1730,14 +1742,14 @@ const App: React.FC = () => {
     const requestedCampaignBranch = branchRequest
       ? getCampaignBranchDefinition(DEFAULT_GAME_CAMPAIGN, branchRequest.branchId)
       : null;
-    const normalizedCampaignRequest = campaignRequest && requestedCampaignMission
-      ? {
-          ...campaignRequest,
-          waveId: requestedCampaignMission.waveIds.includes(campaignRequest.waveId)
-            ? campaignRequest.waveId
-            : requestedCampaignMission.waveIds[0]
-        }
-      : campaignRequest;
+    const normalizedCampaignRequest = authorizedCampaignLabRequest
+      ?? (campaignRequest && requestedCampaignMission
+        ? {
+            ...campaignRequest,
+            waveId: requestedCampaignMission.waveIds[0],
+            kind: campaignRequest.kind === 'replay' ? 'replay' as const : 'mission' as const
+          }
+        : campaignRequest);
     if (
       campaignRequest
       && !authorizedCampaignLabRequest
@@ -1756,6 +1768,7 @@ const App: React.FC = () => {
     ) {
       setCampaignMapStatus('launch-error');
       setCampaignMapError('That Mission checkpoint is still locked. Continue the illuminated route first.');
+      releaseLaunchReservation();
       return;
     }
     if (
@@ -1770,7 +1783,8 @@ const App: React.FC = () => {
     ) {
       setCampaignMapStatus('launch-error');
       setCampaignMapError('This optional route is still encrypted or its one-time cache was already recovered.');
-      setCampaignMapOpen(true);
+      showCampaignMapRoute();
+      releaseLaunchReservation();
       return;
     }
     if (
@@ -1782,7 +1796,10 @@ const App: React.FC = () => {
           && !permanentSquadState.bossArchive.unlockedEventIds.includes(requestedBossReplay.eventId)
         )
       )
-    ) return;
+    ) {
+      releaseLaunchReservation();
+      return;
+    }
     if (
       requestedBossReplay
       && bossMode === 'challenge'
@@ -1792,7 +1809,10 @@ const App: React.FC = () => {
         new Date(),
         bossArchiveDailyLimit
       ).remaining <= 0
-    ) return;
+    ) {
+      releaseLaunchReservation();
+      return;
+    }
 
     const requiresServerChallengeSettlement = Boolean(
       requestedBossReplay
@@ -1806,6 +1826,7 @@ const App: React.FC = () => {
     if (requiresServerChallengeSettlement) {
       if (walletProfileStatus !== 'ready') {
         setWalletError('Reconnect this wallet profile before starting an official Boss Challenge. Practice remains available.');
+        releaseLaunchReservation();
         return;
       }
       try {
@@ -1831,14 +1852,17 @@ const App: React.FC = () => {
           () => undefined
         );
         serverChallengeRun = await startTask;
+        if (missionLaunchNonceRef.current !== launchNonce) return;
         setWalletError('');
       } catch (error) {
+        if (missionLaunchNonceRef.current !== launchNonce) return;
         console.error('Boss Archive Challenge start failed', error);
         setWalletError(
           error instanceof Error
             ? `${error.message} Practice remains available.`
             : 'This official Boss Challenge could not start. Practice remains available.'
         );
+        releaseLaunchReservation();
         return;
       }
     }
@@ -1855,7 +1879,8 @@ const App: React.FC = () => {
       if (walletProfileStatus !== 'ready') {
         setCampaignMapStatus('launch-error');
         setCampaignMapError('Reconnect this wallet profile before starting the one-time bonus route.');
-        setCampaignMapOpen(true);
+        showCampaignMapRoute();
+        releaseLaunchReservation();
         return;
       }
       try {
@@ -1880,8 +1905,10 @@ const App: React.FC = () => {
           () => undefined
         );
         serverBranchAttempt = await startTask;
+        if (missionLaunchNonceRef.current !== launchNonce) return;
         setWalletError('');
       } catch (error) {
+        if (missionLaunchNonceRef.current !== launchNonce) return;
         console.error('Campaign bonus route start failed', error);
         setCampaignMapStatus('launch-error');
         setCampaignMapError(
@@ -1889,7 +1916,8 @@ const App: React.FC = () => {
             ? error.message
             : 'The one-time bonus route could not be authorized. Reconnect and try again.'
         );
-        setCampaignMapOpen(true);
+        showCampaignMapRoute();
+        releaseLaunchReservation();
         return;
       }
     }
@@ -1912,7 +1940,6 @@ const App: React.FC = () => {
     setActiveCampaignLaunch(normalizedCampaignRequest);
     setActiveCampaignBranchId(requestedCampaignBranch?.branchId ?? null);
 
-    const launchNonce = missionLaunchNonceRef.current + 1;
     const archiveRunId = requestedBossReplay
       ? (serverChallengeRun?.runId
           ?? globalThis.crypto?.randomUUID?.()
@@ -1943,8 +1970,6 @@ const App: React.FC = () => {
     const loadingTip = missionLoading?.phase === 'error'
       ? missionLoading.tip
       : getRandomMissionLoadingTip();
-    missionLaunchNonceRef.current = launchNonce;
-    missionLaunchPendingRef.current = true;
     audioService.init();
     if (shouldShowMissionLoading) {
       setMissionLoading({
@@ -2166,10 +2191,11 @@ const App: React.FC = () => {
   };
 
   const startGame = () => {
+    const mission = getCampaignMissionById(campaignCheckpoint.missionId);
     void launchGame(null, 'practice', 'standard', {
       missionId: campaignCheckpoint.missionId,
-      waveId: campaignCheckpoint.waveId,
-      kind: 'checkpoint'
+      waveId: mission?.waveIds[0] ?? campaignCheckpoint.waveId,
+      kind: 'mission'
     });
   };
 
@@ -2184,14 +2210,12 @@ const App: React.FC = () => {
       return;
     }
     if (isCampaignRun && activeCampaignLaunch) {
-      const checkpoint = getCampaignCheckpointLabel(permanentSquadStateRef.current.campaignProgress);
-      const retryRequest = activeCampaignLaunch.kind === 'replay'
-        ? activeCampaignLaunch
-        : {
-            missionId: checkpoint.missionId,
-            waveId: checkpoint.waveId,
-            kind: 'checkpoint' as const
-          };
+      const mission = getCampaignMissionById(activeCampaignLaunch.missionId);
+      const retryRequest = {
+        missionId: activeCampaignLaunch.missionId,
+        waveId: mission?.waveIds[0] ?? activeCampaignLaunch.waveId,
+        kind: activeCampaignLaunch.kind === 'replay' ? 'replay' as const : 'mission' as const
+      };
       void launchGame(null, 'practice', 'standard', retryRequest);
       return;
     }
@@ -2365,10 +2389,36 @@ const App: React.FC = () => {
     setMusicTrackId(audioService.setMusicTrack(trackId));
   };
 
+  const clearCampaignMapRoute = () => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('view') !== 'campaign-map') return;
+    url.searchParams.delete('view');
+    const nextState = window.history.state && typeof window.history.state === 'object'
+      ? { ...window.history.state }
+      : {};
+    delete nextState.sciconCampaignMap;
+    window.history.replaceState(nextState, '', `${url.pathname}${url.search}${url.hash}`);
+  };
+
+  const showCampaignMapRoute = () => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('view') !== 'campaign-map') {
+      url.searchParams.set('view', 'campaign-map');
+      window.history.pushState(
+        { ...(window.history.state ?? {}), sciconCampaignMap: true },
+        '',
+        `${url.pathname}${url.search}${url.hash}`
+      );
+    }
+    setCampaignMapOpen(true);
+  };
+
   const openCampaignMap = (focusMissionId?: string | null) => {
+    if (gameStateRef.current !== GameState.MENU || missionLaunchPendingRef.current) resetGame();
     const progress = permanentSquadStateRef.current.campaignProgress;
     const newlyUnlocked = [...progress.unviewedMissionIds];
     const newlyUnlockedBranches = [...progress.branchProgress.newBranchIds];
+    showCampaignMapRoute();
     setCampaignMapNewMissionIds(newlyUnlocked);
     setCampaignMapFocusBranchId(newlyUnlockedBranches.at(-1) ?? null);
     setCampaignMapUnlockingBranchId(newlyUnlockedBranches.at(-1) ?? null);
@@ -2379,7 +2429,6 @@ const App: React.FC = () => {
     );
     setCampaignMapError('');
     setCampaignMapStatus('ready');
-    setCampaignMapOpen(true);
     if (getCampaignNotificationCount(progress) > 0) {
       updatePermanentSquadState((current) => ({
         ...current,
@@ -2388,9 +2437,20 @@ const App: React.FC = () => {
       }));
     }
   };
+  openCampaignMapRef.current = openCampaignMap;
 
   const closeCampaignMap = () => {
+    const url = new URL(window.location.href);
+    if (
+      url.searchParams.get('view') === 'campaign-map'
+      && window.history.state?.sciconCampaignMap === true
+    ) {
+      window.history.back();
+      return;
+    }
+    clearCampaignMapRoute();
     setCampaignMapOpen(false);
+    setGameState(GameState.MENU);
     setCampaignMapStatus('ready');
     setCampaignMapError('');
     setCampaignMapUnlockingBranchId(null);
@@ -2399,6 +2459,7 @@ const App: React.FC = () => {
   const launchCampaignFromMap = (request: CampaignMapLaunchRequest) => {
     setCampaignMapStatus('launch-pending');
     setCampaignMapError('');
+    clearCampaignMapRoute();
     setCampaignMapOpen(false);
     void launchGame(null, 'practice', 'standard', request);
   };
@@ -2406,6 +2467,7 @@ const App: React.FC = () => {
   const launchCampaignBranchFromMap = (request: CampaignMapBranchLaunchRequest) => {
     setCampaignMapStatus('launch-pending');
     setCampaignMapError('');
+    clearCampaignMapRoute();
     setCampaignMapOpen(false);
     void launchGame(null, 'practice', 'standard', null, request);
   };
@@ -2432,9 +2494,27 @@ const App: React.FC = () => {
     setCampaignLabWaveId(normalizedRequest.waveId);
     setCampaignMapStatus('launch-pending');
     setCampaignMapError('');
+    clearCampaignMapRoute();
     setCampaignMapOpen(false);
     void launchGame(null, 'practice', 'standard', normalizedRequest, null, normalizedRequest);
   };
+
+  useEffect(() => {
+    const syncCampaignMapRoute = () => {
+      const requested = new URLSearchParams(window.location.search).get('view') === 'campaign-map';
+      if (requested) {
+        openCampaignMapRef.current();
+      } else {
+        setCampaignMapOpen(false);
+        setCampaignMapStatus('ready');
+        setCampaignMapError('');
+        setCampaignMapUnlockingBranchId(null);
+      }
+    };
+    syncCampaignMapRoute();
+    window.addEventListener('popstate', syncCampaignMapRoute);
+    return () => window.removeEventListener('popstate', syncCampaignMapRoute);
+  }, []);
 
   const applyDeveloperCampaignCompletion = useCallback((missionId: string, waveId: string, stageComplete: boolean) => {
     if (!founderAuthorizationRef.current) return;
@@ -2465,17 +2545,13 @@ const App: React.FC = () => {
     });
   }, [updatePermanentSquadState]);
 
-  const previewDeveloperCampaignResult = useCallback((
-    missionId: string,
-    waveId: string,
-    stageComplete: boolean
-  ) => {
+  const previewDeveloperCampaignResult = useCallback((missionId: string) => {
     if (!founderAuthorizationRef.current) return;
     const mission = getCampaignMissionById(missionId);
-    const waveIndex = mission?.waveIds.indexOf(waveId) ?? -1;
+    const waveId = mission?.waveIds.at(-1);
+    const waveIndex = waveId ? mission?.waveIds.indexOf(waveId) ?? -1 : -1;
     const wave = mission?.waves[waveIndex];
     if (!mission || !wave || waveIndex < 0) return;
-    const effectiveStageComplete = stageComplete && waveIndex === mission.waveIds.length - 1;
     const previewId = `campaign-dev-preview:${mission.id}:${wave.id}:${Date.now()}`;
     const completion = applyCampaignCompletion(
       unlockAllCampaignMissions(createCampaignProgress()),
@@ -2486,7 +2562,7 @@ const App: React.FC = () => {
         campaignRevision: DEFAULT_GAME_CAMPAIGN.revision,
         missionId: mission.id,
         waveId: wave.id,
-        stageComplete: effectiveStageComplete,
+        stageComplete: true,
         score: 8_750,
         coinsCollected: 18,
         damageTaken: 0,
@@ -2501,7 +2577,6 @@ const App: React.FC = () => {
       oneTime: false
     };
     const grants = [collectedGrant, ...completion.settlement.grants];
-    const nextWaveId = mission.waveIds[waveIndex + 1] ?? null;
     const nextMission = mission.nextMissionId ? getCampaignMissionById(mission.nextMissionId) : null;
     const summary: WaveVictorySummary = {
       id: previewId,
@@ -2511,8 +2586,8 @@ const App: React.FC = () => {
       waveId: wave.id,
       waveNumber: wave.number,
       waveTotal: mission.waveIds.length,
-      stageComplete: effectiveStageComplete,
-      bossEncounterId: effectiveStageComplete ? mission.bossEventId : null,
+      stageComplete: true,
+      bossEncounterId: mission.bossEventId,
       stage: mission.number,
       stageName: mission.name,
       finalWaveName: wave.name,
@@ -2524,12 +2599,12 @@ const App: React.FC = () => {
       damageTaken: 0,
       elapsedSeconds: 42,
       remainingLives: 3,
-      nextLevelId: nextWaveId ? mission.id : nextMission?.id ?? null,
-      nextWaveId: nextWaveId ?? nextMission?.waveIds[0] ?? null,
-      nextWaveNumber: nextWaveId ? wave.number + 1 : nextMission ? 1 : null,
+      nextLevelId: nextMission?.id ?? null,
+      nextWaveId: nextMission?.waveIds[0] ?? null,
+      nextWaveNumber: nextMission ? 1 : null,
       nextStage: nextMission?.number ?? mission.number,
-      hasNextStage: Boolean(nextWaveId || nextMission),
-      campaignComplete: effectiveStageComplete && !nextMission
+      hasNextStage: Boolean(nextMission),
+      campaignComplete: !nextMission
     };
     campaignResultPreviewRef.current = true;
     setActiveRunMode('campaign');
@@ -2545,6 +2620,7 @@ const App: React.FC = () => {
       newlyAffordableUpgrade: null
     });
     setWaveVictorySummary(summary);
+    clearCampaignMapRoute();
     setCampaignMapOpen(false);
     setCampaignMapStatus('ready');
     setOwnerFrameFrozen(false);
@@ -2735,23 +2811,6 @@ const App: React.FC = () => {
           updatedAt: new Date().toISOString()
         }));
       },
-      onSetCheckpoint: (missionId, waveId) => {
-        if (!founderAuthorizationRef.current) return;
-        updatePermanentSquadState((current) => ({
-          ...current,
-          campaignProgress: setCampaignCheckpoint(current.campaignProgress, missionId, waveId),
-          updatedAt: new Date().toISOString()
-        }));
-      },
-      onCompleteWave: (missionId, waveId) => {
-        if (!founderAuthorizationRef.current) return;
-        const mission = getCampaignMissionById(missionId);
-        applyDeveloperCampaignCompletion(
-          missionId,
-          waveId,
-          mission?.waveIds.at(-1) === waveId
-        );
-      },
       onCompleteMission: (missionId) => {
         if (!founderAuthorizationRef.current) return;
         const mission = getCampaignMissionById(missionId);
@@ -2808,6 +2867,7 @@ const App: React.FC = () => {
         if (!founderAuthorizationRef.current) return;
         const branch = getCampaignBranchDefinition(DEFAULT_GAME_CAMPAIGN, branchId);
         if (!branch || !commitFounderBranchAction(branchId, 'unlock')) return;
+        clearCampaignMapRoute();
         setCampaignMapOpen(false);
         void launchGame(null, 'practice', 'standard', null, {
           branchId: branch.branchId,
@@ -3001,21 +3061,17 @@ const App: React.FC = () => {
       },
       onPreviewStarClaim: (missionId, starNumber) => {
         if (!founderAuthorizationRef.current) return;
-        const mission = getCampaignMissionById(missionId);
-        const finalWaveId = mission?.waveIds.at(-1);
-        if (!finalWaveId) return;
         setCampaignMapError(`Campaign Lab: previewing Star ${starNumber} settlement.`);
-        previewDeveloperCampaignResult(missionId, finalWaveId, true);
+        previewDeveloperCampaignResult(missionId);
       },
       onPreviewRewardClaim: (missionId, rewardType) => {
         if (!founderAuthorizationRef.current) return;
-        const mission = getCampaignMissionById(missionId);
-        const waveId = rewardType === 'wave-clear'
-          ? mission?.waveIds[0]
-          : mission?.waveIds.at(-1);
-        if (!waveId) return;
+        if (rewardType === 'wave-clear') {
+          setCampaignMapError('Campaign Lab: internal Waves have no standalone result or saved reward.');
+          return;
+        }
         setCampaignMapError(`Campaign Lab: previewing ${rewardType} reward settlement.`);
-        previewDeveloperCampaignResult(missionId, waveId, rewardType !== 'wave-clear');
+        previewDeveloperCampaignResult(missionId);
       }
     };
   }, [
@@ -3345,16 +3401,15 @@ const App: React.FC = () => {
     const branchId = activeCampaignBranch?.branchId ?? null;
     const sourceMissionId = activeCampaignBranch?.sourceMissionId ?? null;
     if (outcome) await settleCampaignBranchOutcome(outcome);
-    resetGame();
-    setCampaignMapFocusMissionId(sourceMissionId);
+    openCampaignMap(sourceMissionId);
     setCampaignMapFocusBranchId(branchId);
     setCampaignMapStatus('ready');
     setCampaignMapError('');
-    setCampaignMapOpen(true);
   };
 
   const handleCampaignProgress = useCallback((summary: WaveVictorySummary) => {
     if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
+    if (!summary.stageComplete) return;
     const attemptId = campaignAttemptIdRef.current || `game-${gameId}`;
     const resultId = `${activeProfileId}:${attemptId}:${summary.levelId}:${summary.waveId}`;
     if (processedCampaignSummaryKeysRef.current.has(resultId)) return;
@@ -3377,7 +3432,7 @@ const App: React.FC = () => {
 
     if (!completion.settlement.accepted && !completion.settlement.duplicate) {
       console.error('Campaign checkpoint settlement rejected', completion.settlement.reason);
-      setCampaignMapError('Campaign progress could not be verified. Retry this Wave to secure the checkpoint.');
+      setCampaignMapError('Campaign progress could not be verified. Retry this Mission to record the clear.');
       return;
     }
 
@@ -3392,12 +3447,7 @@ const App: React.FC = () => {
 
     const creditedEnemies = completion.settlement.duplicate
       ? 0
-      : summary.stageComplete
-        ? Math.max(
-            0,
-            Math.floor(summary.enemiesDefeated) - campaignRunCreditedEnemiesRef.current
-          )
-        : Math.max(0, Math.floor(summary.enemiesDefeated));
+      : Math.max(0, Math.floor(summary.enemiesDefeated));
     let nextPermanent: PermanentSquadState = {
       ...currentPermanent,
       campaignProgress: completion.progress,
@@ -3448,7 +3498,7 @@ const App: React.FC = () => {
 
   const finalizeCampaignCollectedCoins = useCallback((summary: WaveVictorySummary) => {
     if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
-    const collectedCoins = Math.max(0, Math.floor(summary.waveCoinsCollected));
+    const collectedCoins = Math.max(0, Math.floor(summary.coinsCollected));
     const attemptId = campaignAttemptIdRef.current || `game-${gameId}`;
     const resultId = `${activeProfileId}:${attemptId}:${summary.levelId}:${summary.waveId}`;
     const collectedGrant = {
@@ -3545,6 +3595,11 @@ const App: React.FC = () => {
   }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty, usableShipId]);
 
   const showWaveVictory = async (summary: WaveVictorySummary) => {
+    if (!summary.stageComplete) {
+      setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
+      setGameState(GameState.PLAYING);
+      return;
+    }
     if (isBossArchiveRun) {
       setOwnerFrameFrozen(true);
       await finalizeBossArchiveFight(true, summary);
@@ -3601,13 +3656,11 @@ const App: React.FC = () => {
       campaignBranchRunRef.current = null;
       campaignBranchAttemptSettledRef.current = false;
       campaignBranchCoinBaselineRef.current = null;
-      setCampaignMapFocusMissionId(sourceMissionId);
+      openCampaignMap(sourceMissionId);
       setCampaignMapFocusBranchId(branchId);
       setCampaignMapUnlockingBranchId(null);
       setCampaignMapStatus('ready');
       setCampaignMapError('');
-      setCampaignMapOpen(true);
-      setGameState(GameState.MENU);
       return;
     }
     if (campaignResultPreviewRef.current) {
@@ -3631,6 +3684,22 @@ const App: React.FC = () => {
       setWaveVictorySummary(null);
       setGameState(GameState.GAMEOVER);
       return;
+    }
+    if (isCampaignRun && waveVictorySummary.nextLevelId) {
+      const nextMission = getCampaignMissionById(waveVictorySummary.nextLevelId);
+      const nextWaveId = nextMission?.waveIds[0] ?? waveVictorySummary.nextWaveId;
+      if (nextMission && nextWaveId) {
+        const nextKind = permanentSquadStateRef.current.campaignProgress
+          .missionRecords[nextMission.id]?.completed
+          ? 'replay' as const
+          : 'mission' as const;
+        setActiveCampaignLaunch({
+          missionId: nextMission.id,
+          waveId: nextWaveId,
+          kind: nextKind
+        });
+        setActiveRunMode(nextKind === 'replay' ? 'campaign-replay' : 'campaign');
+      }
     }
     setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
     setWaveVictorySummary(null);
@@ -4755,7 +4824,7 @@ const App: React.FC = () => {
         />
       ) : null}
 
-      {(gameState === GameState.PLAYING || gameState === GameState.WAVE_COMPLETE || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
+      {!campaignMapOpen && (gameState === GameState.PLAYING || gameState === GameState.WAVE_COMPLETE || gameState === GameState.PAUSED || gameState === GameState.GAMEOVER) && (
         <React.Suspense fallback={null}>
           <GameStage
             key={gameId}
@@ -4809,7 +4878,6 @@ const App: React.FC = () => {
               campaign: activeBossReplayCampaign
                 ?? activeCampaignBranchCampaign
                 ?? (isCampaignRun ? DEFAULT_GAME_CAMPAIGN : undefined),
-              pauseAtInternalWaveResults: isCampaignRun,
               levelId: activeBossReplay?.missionId
                 ?? activeCampaignBranch?.missionDefinition.id
                 ?? (isCampaignRun ? activeCampaignLaunch?.missionId : undefined),
@@ -4854,7 +4922,7 @@ const App: React.FC = () => {
         </React.Suspense>
       )}
 
-      {gameState === GameState.WAVE_COMPLETE && waveVictorySummary && isCampaignBranchRun && campaignBranchResult ? (
+      {!campaignMapOpen && gameState === GameState.WAVE_COMPLETE && waveVictorySummary && isCampaignBranchRun && campaignBranchResult ? (
         <React.Suspense fallback={null}>
           <CampaignBranchResultOverlay
             branchName={campaignBranchResult.branchName}
@@ -4864,7 +4932,7 @@ const App: React.FC = () => {
         </React.Suspense>
       ) : null}
 
-      {gameState === GameState.WAVE_COMPLETE && waveVictorySummary && !isCampaignBranchRun ? (
+      {!campaignMapOpen && gameState === GameState.WAVE_COMPLETE && waveVictorySummary?.stageComplete && !isCampaignBranchRun ? (
         <React.Suspense fallback={null}>
           <WaveVictoryOverlay
             summary={waveVictorySummary}
@@ -4887,7 +4955,7 @@ const App: React.FC = () => {
         </React.Suspense>
       ) : null}
 
-      {gameState === GameState.MENU && (
+      {gameState === GameState.MENU && !campaignMapOpen && (
         <StartScreen
           onStart={startGame}
           onOpenCampaignMap={() => openCampaignMap()}
@@ -4981,26 +5049,28 @@ const App: React.FC = () => {
         />
       )}
 
-      <React.Suspense fallback={null}>
-        <CampaignMap
-          open={campaignMapOpen}
-          progress={permanentSquadState.campaignProgress}
-          status={campaignMapStatus}
-          errorMessage={campaignMapError}
-          initialMissionId={campaignMapFocusMissionId}
-          newMissionIds={campaignMapNewMissionIds}
-          branches={CAMPAIGN_MAP_BRANCHES}
-          branchProgressById={campaignMapBranchProgress}
-          newBranchIds={permanentSquadState.campaignProgress.branchProgress.newBranchIds}
-          initialBranchId={campaignMapFocusBranchId}
-          unlockingBranchId={campaignMapUnlockingBranchId}
-          onClose={closeCampaignMap}
-          onLaunch={launchCampaignFromMap}
-          onLaunchBranch={launchCampaignBranchFromMap}
-          onSkipBranchAnimation={() => setCampaignMapUnlockingBranchId(null)}
-          developerControls={campaignMapDeveloperControls}
-        />
-      </React.Suspense>
+      {gameState === GameState.MENU && campaignMapOpen ? (
+        <React.Suspense fallback={null}>
+          <CampaignMap
+            open
+            progress={permanentSquadState.campaignProgress}
+            status={campaignMapStatus}
+            errorMessage={campaignMapError}
+            initialMissionId={campaignMapFocusMissionId}
+            newMissionIds={campaignMapNewMissionIds}
+            branches={CAMPAIGN_MAP_BRANCHES}
+            branchProgressById={campaignMapBranchProgress}
+            newBranchIds={permanentSquadState.campaignProgress.branchProgress.newBranchIds}
+            initialBranchId={campaignMapFocusBranchId}
+            unlockingBranchId={campaignMapUnlockingBranchId}
+            onClose={closeCampaignMap}
+            onLaunch={launchCampaignFromMap}
+            onLaunchBranch={launchCampaignBranchFromMap}
+            onSkipBranchAnimation={() => setCampaignMapUnlockingBranchId(null)}
+            developerControls={campaignMapDeveloperControls}
+          />
+        </React.Suspense>
+      ) : null}
 
       {gameState === GameState.PAUSED && isOwnerWallet && isOwnerTestRun && showTestChampionPreview ? (
         <div className="absolute inset-0 z-40">

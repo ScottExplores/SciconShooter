@@ -35,9 +35,8 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   onOpenCampaignMap,
   onReturnHome
 }) => {
-  const missionComplete = summary.stageComplete;
   const campaignResult = Boolean(campaignSettlement);
-  const campaignComplete = missionComplete && (summary.campaignComplete || !summary.hasNextStage);
+  const campaignComplete = summary.campaignComplete || !summary.hasNextStage;
   const missionMastered = Boolean(
     campaignSettlement
     && campaignSettlement.previousStars < 3
@@ -46,7 +45,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
   const specialNoticeCount = campaignSettlement
     ? Number(Boolean(campaignSettlement.newlyUnlockedMissionId))
       + Number(campaignSettlement.newlyUnlockedBranchIds.length > 0)
-      + Number(missionComplete && campaignSettlement.firstClear && Boolean(summary.bossEncounterId))
+      + Number(campaignSettlement.firstClear && Boolean(summary.bossEncounterId))
       + Number(missionMastered)
       + Number(Boolean(newlyAffordableUpgrade))
     : 0;
@@ -69,27 +68,19 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
     ? 'Boss Defeated'
     : campaignComplete
       ? 'Campaign Complete'
-      : campaignResult && missionComplete
+      : campaignResult
         ? 'Mission Complete'
-        : campaignResult
-          ? 'Wave Complete'
-          : 'Victory';
+        : 'Victory';
   const resultSubtitle = bossArchiveReplay
     ? 'Practice encounter cleared'
     : campaignComplete
       ? 'All 20 missions cleared'
-      : campaignResult && !missionComplete
-        ? `Mission ${summary.stage} · Wave ${summary.waveNumber}/${summary.waveTotal}`
-        : missionComplete
-        ? `Mission ${summary.stage} cleared`
-        : `Mission ${summary.stage} checkpoint secured`;
+      : `Mission ${summary.stage} cleared`;
   const primaryAction = bossArchiveReplay
     ? { prefix: 'Return to', target: 'Boss Archive' }
     : campaignComplete
       ? { prefix: 'Open', target: 'Campaign Map' }
-      : !campaignResult || missionComplete
-        ? { prefix: 'Continue', target: `Mission ${summary.nextStage}` }
-        : { prefix: 'Continue', target: `Wave ${summary.nextWaveNumber ?? Math.min(summary.waveTotal, summary.waveNumber + 1)}/${summary.waveTotal}` };
+      : { prefix: 'Continue', target: `Mission ${summary.nextStage}` };
   const recordStatus = bossArchiveReplay
     ? 'Archive challenge cleared'
     : !campaignSettlement
@@ -98,21 +89,19 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
         : 'Mission data locked'
       : campaignSettlement.duplicate
         ? 'Progress already secured'
-        : !missionComplete
-          ? `Checkpoint secured · next wave ${summary.nextWaveNumber ?? summary.waveNumber + 1}`
-          : campaignSettlement.firstClear
-            ? newBestNotice
-              ? `First clear · ${newBestNotice}`
-              : 'First-clear record secured'
-            : campaignSettlement.replay
-              ? newBestNotice || 'Replay record updated'
-              : campaignComplete
-                ? 'Campaign data secured'
-                : newBestNotice || 'Mission record updated';
+        : campaignSettlement.firstClear
+          ? newBestNotice
+            ? `First clear · ${newBestNotice}`
+            : 'First-clear record secured'
+          : campaignSettlement.replay
+            ? newBestNotice || 'Replay record updated'
+            : campaignComplete
+              ? 'Campaign data secured'
+              : newBestNotice || 'Mission record updated';
 
   return (
     <div
-      className={`wave-victory-overlay ${campaignResult && !missionComplete ? 'is-wave-result' : 'is-mission-result'}`}
+      className="wave-victory-overlay is-mission-result"
       role="dialog"
       aria-modal="true"
       aria-labelledby="wave-victory-title"
@@ -120,8 +109,8 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
       <div className="wave-victory-backdrop" aria-hidden="true" />
       <div className="wave-victory-stage">
         <section
-          className={`wave-record-shell ${campaignResult && !missionComplete ? 'wave-record-shell-wave' : 'wave-record-shell-mission'} ${missionMastered ? 'is-mastered' : ''}`}
-          aria-label={`Mission ${summary.stage}, wave ${summary.waveNumber} of ${summary.waveTotal} result`}
+          className={`wave-record-shell wave-record-shell-mission ${missionMastered ? 'is-mastered' : ''}`}
+          aria-label={`Mission ${summary.stage} completed after ${summary.waveTotal} waves`}
         >
           <div className="wave-record-art" aria-hidden="true">
             <LayerImage className="wave-record-glow" src={`${RECORD_PARTS}/energy-glow.png`} />
@@ -136,7 +125,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
 
           <div className="wave-record-content">
             <div className="wave-record-heading">
-              <span>{campaignResult && !missionComplete ? 'Wave Record' : 'Mission Record'}</span>
+              <span>Mission Record</span>
               <strong>Mission {summary.stage} · W{summary.waveNumber}/{summary.waveTotal}</strong>
             </div>
 
@@ -146,7 +135,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
             </div>
 
             <div className="wave-record-score">
-              <span>{campaignResult && !missionComplete ? 'Wave Score' : 'Mission Score'}</span>
+              <span>Mission Score</span>
               <strong>{summary.scoreEarned.toLocaleString()}</strong>
             </div>
 
@@ -208,7 +197,7 @@ const WaveVictoryOverlay: React.FC<WaveVictoryOverlayProps> = ({
                       Upgrade now affordable: {newlyAffordableUpgrade}
                     </span>
                   ) : null}
-                  {missionComplete && campaignSettlement.firstClear && summary.bossEncounterId ? (
+                  {campaignSettlement.firstClear && summary.bossEncounterId ? (
                     <span className="wave-record-reward-chip is-boss-unlock">Boss Archive unlocked</span>
                   ) : null}
                   {hiddenGrantCount > 0 ? <span className="wave-record-reward-more">+{hiddenGrantCount} more</span> : null}

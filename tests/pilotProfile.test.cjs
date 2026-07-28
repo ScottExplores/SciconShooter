@@ -73,7 +73,7 @@ test('Pilot progress keeps standalone and Campaign settlement paths separate', (
   assert.match(app, /const unsettledLifetimeCampaignEnemies = isCampaignRun/);
   assert.match(app, /if \(!isNonCompetitiveRun && squadRunAppliedGameIdRef\.current !== gameId\) \{[\s\S]*applySquadRunResult/);
   assert.match(app, /if \(!isNonCompetitiveRun && permanentRunAppliedGameIdRef\.current !== gameId\) \{[\s\S]*recordLifetimeRun/);
-  assert.match(app, /const isNonCompetitiveRun = isFounderSandboxRun \|\| isBossArchiveRun \|\| isCampaignRun \|\| isCampaignBranchRun/);
+  assert.match(app, /const isNonCompetitiveRun = isFounderSandboxRun \|\| isBossArchiveRun \|\| isCampaignLabRun \|\| isCampaignBranchRun/);
   assert.doesNotMatch(app, /activeWalletAddress && !isFounderSandboxRun/);
 });
 

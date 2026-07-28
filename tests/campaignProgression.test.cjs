@@ -276,7 +276,7 @@ test('a fresh Campaign starts exactly at Mission 1, Wave 1', () => {
   assert.equal(progression.getCampaignCheckpointLabel(progress, TEST_CAMPAIGN).action, 'Start Mission');
 });
 
-test('clearing an internal Wave creates an exact durable checkpoint and one Wave reward', () => {
+test('developer Wave projections stay internal while the public action still restarts the Mission', () => {
   const fresh = progression.createCampaignProgress(TEST_CAMPAIGN);
   const result = progression.applyCampaignCompletion(
     fresh,
@@ -300,7 +300,26 @@ test('clearing an internal Wave creates an exact durable checkpoint and one Wave
   assert.equal(result.settlement.grants[0].kind, 'wave');
   assert.equal(result.settlement.grants[0].id, 'campaign:mission-1:wave:mission-1-wave-1:clear');
   assert.equal(result.progress.processedResultIds.includes('checkpoint-wave'), true);
-  assert.equal(progression.getCampaignCheckpointLabel(result.progress, TEST_CAMPAIGN).action, 'Continue Mission');
+  assert.equal(progression.getCampaignCheckpointLabel(result.progress, TEST_CAMPAIGN).action, 'Start Mission');
+});
+
+test('a Mission-final summary settles directly from its Wave-1 save and includes every Wave reward', () => {
+  const fresh = progression.createCampaignProgress(TEST_CAMPAIGN);
+  const result = progression.applyCampaignCompletion(
+    fresh,
+    completionInput({
+      resultId: 'seamless-mission-clear',
+      waveId: 'mission-1-wave-2',
+      stageComplete: true
+    }),
+    TEST_CAMPAIGN
+  );
+  const mission = progression.buildCampaignMissionDefinitions(TEST_CAMPAIGN)[0];
+  const waveGrant = result.settlement.grants.find((grant) => grant.kind === 'wave');
+  assert.equal(result.settlement.accepted, true);
+  assert.equal(result.progress.missionRecords['mission-1'].completed, true);
+  assert.deepEqual(result.progress.missionRecords['mission-1'].completedWaveIds, mission.waveIds);
+  assert.equal(waveGrant.amount, mission.reward.waveClearCoins * mission.waveIds.length);
 });
 
 test('clearing a final Wave completes the Mission and unlocks the exact next Mission', () => {
@@ -497,11 +516,14 @@ test('Mission replays use reduced rewards and can never move progress backward',
     TEST_CAMPAIGN
   );
 
+  const mission = progression.buildCampaignMissionDefinitions(TEST_CAMPAIGN)[0];
   const originalWaveReward = finalWave.settlement.grants.find((grant) => grant.kind === 'wave').amount;
   const replayWaveReward = replay.settlement.grants.find((grant) => grant.kind === 'wave').amount;
   assert.equal(replay.settlement.replay, true);
   assert.equal(replayWaveReward, Math.max(1, Math.round(
-    originalWaveReward * progression.CAMPAIGN_REPLAY_REWARD_MULTIPLIER
+    mission.reward.waveClearCoins
+    * mission.waveIds.length
+    * progression.CAMPAIGN_REPLAY_REWARD_MULTIPLIER
   )));
   assert.ok(replayWaveReward < originalWaveReward);
   assert.deepEqual(replay.settlement.checkpoint, {

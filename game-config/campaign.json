@@ -968,7 +968,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.28,
+          "x": 0.5,
           "y": 0
         },
         "nextMissionId": "stage-citation-storm",
@@ -1348,7 +1348,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.45,
+          "x": 0.24,
           "y": 0.05263157894736842
         },
         "nextMissionId": "stage-paywall-siege",
@@ -1904,8 +1904,8 @@
           }
         ],
         "mapPosition": {
-          "x": 0.68,
-          "y": 0.10526315789473684
+          "x": 0.76,
+          "y": 0.05263157894736842
         },
         "nextMissionId": "stage-open-galaxy",
         "masterySetBonusCoins": 145,
@@ -2462,7 +2462,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.52,
+          "x": 0.5,
           "y": 0.15789473684210525
         },
         "nextMissionId": "stage-bastion-protocol",
@@ -3461,7 +3461,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.28,
+          "x": 0.5,
           "y": 0.2631578947368421
         },
         "nextMissionId": "stage-redline-corridor",
@@ -3997,7 +3997,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.45,
+          "x": 0.76,
           "y": 0.3157894736842105
         },
         "nextMissionId": "stage-dark-matter-run",
@@ -4607,8 +4607,8 @@
           }
         ],
         "mapPosition": {
-          "x": 0.68,
-          "y": 0.3684210526315789
+          "x": 0.24,
+          "y": 0.3157894736842105
         },
         "nextMissionId": "stage-mirror-array",
         "masterySetBonusCoins": 180,
@@ -5197,7 +5197,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.52,
+          "x": 0.5,
           "y": 0.42105263157894735
         },
         "nextMissionId": "stage-null-sector",
@@ -6171,7 +6171,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.28,
+          "x": 0.5,
           "y": 0.5263157894736842
         },
         "nextMissionId": "stage-quantum-cage",
@@ -6672,7 +6672,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.45,
+          "x": 0.24,
           "y": 0.5789473684210527
         },
         "nextMissionId": "stage-gravity-well",
@@ -7333,8 +7333,8 @@
           }
         ],
         "mapPosition": {
-          "x": 0.68,
-          "y": 0.631578947368421
+          "x": 0.76,
+          "y": 0.5789473684210527
         },
         "nextMissionId": "stage-event-horizon",
         "masterySetBonusCoins": 215,
@@ -7951,7 +7951,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.52,
+          "x": 0.5,
           "y": 0.6842105263157895
         },
         "nextMissionId": "stage-ion-citadel",
@@ -8900,7 +8900,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.28,
+          "x": 0.5,
           "y": 0.7894736842105263
         },
         "nextMissionId": "stage-eclipse-swarm",
@@ -9464,7 +9464,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.45,
+          "x": 0.76,
           "y": 0.8421052631578947
         },
         "nextMissionId": "stage-fracture-engine",
@@ -10154,8 +10154,8 @@
           }
         ],
         "mapPosition": {
-          "x": 0.68,
-          "y": 0.8947368421052632
+          "x": 0.24,
+          "y": 0.8421052631578947
         },
         "nextMissionId": "stage-last-light-gauntlet",
         "masterySetBonusCoins": 250,
@@ -10756,7 +10756,7 @@
           }
         ],
         "mapPosition": {
-          "x": 0.52,
+          "x": 0.5,
           "y": 0.9473684210526315
         },
         "nextMissionId": "stage-terminus-ascendant",

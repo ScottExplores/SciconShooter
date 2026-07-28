@@ -1362,8 +1362,6 @@ type EnemyRuntimeOverrides = {
 
 export interface GameEngineOptions {
   campaign?: GameCampaign;
-  /** Campaign checkpoints pause after internal Waves; standard weekly runs keep flowing. */
-  pauseAtInternalWaveResults?: boolean;
   previewMode?: boolean;
   /** Preview ships are invulnerable by default; disable for damage/death testing. */
   previewInvincible?: boolean;
@@ -2059,7 +2057,6 @@ export class GameEngine {
   playerShipId: PlayerShipId = 'researchhub';
   campaignWaves: CampaignWaveEntry[] = [];
   currentCampaignIndex: number = 0;
-  private readonly pauseAtInternalWaveResults: boolean;
   previewMode: boolean = false;
   previewInvincible: boolean = true;
   previewUnlimitedBombs: boolean = false;
@@ -2117,7 +2114,6 @@ export class GameEngine {
     loadImage(this.bombSpriteUrl);
     loadImage(this.playerShipUrl);
     this.campaignWaves = this.buildCampaignWaveEntries(this.campaign);
-    this.pauseAtInternalWaveResults = options.pauseAtInternalWaveResults ?? false;
     this.previewMode = options.previewMode ?? false;
     this.previewBossCollisionMask = this.previewMode
       ? options.previewBossCollisionMask
@@ -4461,7 +4457,7 @@ export class GameEngine {
     this.stats.isBossActive = false;
     this.waveTransitionPending = true;
     if (!this.isCurrentWaveStageFinal()) {
-      this.beginTacticalWaveCompletion('WAVE CLEAR!', '#67e8f9');
+      this.beginTacticalWaveCompletion();
       return true;
     }
 
@@ -4470,7 +4466,7 @@ export class GameEngine {
     return true;
   }
 
-  beginTacticalWaveCompletion(label: string, color: string) {
+  beginTacticalWaveCompletion() {
     this.waveTransitionPending = true;
     this.clearStageBoundaryDebris(false, true, false);
     this.pendingBossStrikes = [];
@@ -4479,16 +4475,6 @@ export class GameEngine {
       if (telegraph) telegraph.markedForDeletion = true;
     }
     this.pendingEnemyLasers = [];
-    this.waveVictorySummary = this.buildWaveVictorySummary();
-    this.spawnFloatingText(this.width / 2, this.height / 2, label, color);
-    this.playSound('wave');
-    if (this.pauseAtInternalWaveResults) {
-      this.recordWaveCompletion();
-      this.waveVictoryReady = true;
-      this.gameActive = false;
-      return;
-    }
-
     this.startNextWave();
   }
 
@@ -4582,7 +4568,12 @@ export class GameEngine {
     this.gameActive = true;
     this.campaignComplete = false;
     this.keepEntitiesForNextWave();
-    this.beginWavePresentation();
+    if (stageBoundary) {
+      this.beginWavePresentation();
+      this.playSound('wave');
+    } else {
+      this.recordWaveStart();
+    }
     const configuredIntroSeconds = Number(this.getCurrentWaveDefinition()?.introSeconds);
     this.introFlightDuration = stageBoundary
       ? Number.isFinite(configuredIntroSeconds) && configuredIntroSeconds >= 0
@@ -4604,7 +4595,6 @@ export class GameEngine {
       this.resetSquadCompanionPositions();
     }
     this.sectorTint = (this.sectorTint + 1) % 3;
-    this.playSound('wave');
   }
 
   resize(width: number, height: number) {
@@ -7024,9 +7014,8 @@ export class GameEngine {
       if (this.isCurrentWaveStageFinal()) {
         this.beginStageCompletion('MISSION COMPLETE!', '#00FF00');
       } else {
-        // Internal Gatekeepers now pause at the same checkpoint-safe Wave result
-        // boundary as every other authored tactical Wave.
-        this.beginTacticalWaveCompletion('WAVE CLEAR!', '#67e8f9');
+        // Gatekeepers inside a Mission are spawn-group boundaries, not results.
+        this.beginTacticalWaveCompletion();
       }
     }
   }

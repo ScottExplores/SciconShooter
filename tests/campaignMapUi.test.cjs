@@ -8,6 +8,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'u
 
 const mapSource = read('components/CampaignMap.tsx');
 const mapStyles = read('components/campaign-map.css');
+const appSource = read('App.tsx');
 const startScreenSource = read('components/StartScreen.tsx');
 const homeStyles = read('styles/tailwind.input.css');
 const campaign = JSON.parse(read('game-config/campaign.json'));
@@ -26,7 +27,8 @@ test('Campaign Map polls a connected gamepad for navigation and close controls',
 });
 
 test('Campaign Map respects mobile safe areas at the shell, header, and scrolling detail panel', () => {
-  assert.match(mapStyles, /\.campaign-map-overlay[\s\S]*?env\(safe-area-inset-top\)[\s\S]*?env\(safe-area-inset-right\)[\s\S]*?env\(safe-area-inset-bottom\)[\s\S]*?env\(safe-area-inset-left\)/);
+  assert.match(mapStyles, /\.campaign-map-screen[\s\S]*?env\(safe-area-inset-top\)[\s\S]*?env\(safe-area-inset-right\)[\s\S]*?env\(safe-area-inset-bottom\)[\s\S]*?env\(safe-area-inset-left\)/);
+  assert.match(mapStyles, /\.campaign-map-screen[\s\S]*?background: #010412;[\s\S]*?isolation: isolate/);
   assert.match(mapStyles, /\.campaign-map-header[\s\S]*?env\(safe-area-inset-top\)[\s\S]*?env\(safe-area-inset-right\)[\s\S]*?env\(safe-area-inset-left\)/);
   assert.match(mapStyles, /\.campaign-map-selection[\s\S]*?env\(safe-area-inset-bottom\)/);
 });
@@ -37,9 +39,8 @@ test('Campaign Map offers a one-tap return after manual route exploration', () =
   assert.match(mapSource, /requestAnimationFrame\(\(\) => centerMissionNode\(progress\.recommendedMissionId\)\)/);
 });
 
-test('Campaign Map launches the real saved wave checkpoint while replay Missions start from Wave 1', () => {
-  assert.match(mapSource, /selectedMission\.id === progress\.recommendedMissionId/);
-  assert.match(mapSource, /selectedMission\.waveIds\.includes\(progress\.recommendedWaveId\)/);
+test('Campaign Map always starts or retries a Mission from Wave 1', () => {
+  assert.match(mapSource, /const selectedLaunchWaveId = selectedMission\?\.waveIds\[0\] \?\? null/);
   assert.match(mapSource, /waveId: selectedLaunchWaveId \?\? selectedMission\.waveIds\[0\]/);
   assert.match(mapSource, /Current Mission/);
 });
@@ -58,12 +59,25 @@ test('Campaign Map derives every five-Mission sector and theme from authored dat
   assert.match(mapStyles, /\.campaign-map-node--role-major-boss/);
 });
 
-test('Campaign Map shows real per-wave progress rather than treating an unlocked Mission as complete', () => {
-  assert.match(mapSource, /completedWaveIds = new Set/);
-  assert.match(mapSource, /selectedState\.completedWaveIds\.has\(wave\.id\)/);
-  assert.match(mapSource, /selectedState\.unlockedWaveIds\.has\(wave\.id\)/);
-  assert.match(mapSource, /progress\.recommendedWaveId === wave\.id/);
-  assert.match(mapSource, /campaign-map-node-progress/);
+test('each authored sector places a left and right route on one tier before they rejoin', () => {
+  const levelsById = new Map(campaign.levels.map((level) => [level.id, level]));
+  campaign.sectors.forEach((sector) => {
+    const missions = sector.missionIds.map((id) => levelsById.get(id));
+    const left = missions[1].campaignProgression.mapPosition;
+    const right = missions[2].campaignProgression.mapPosition;
+    const merge = missions[3].campaignProgression.mapPosition;
+    assert.equal(left.y, right.y);
+    assert.ok(Math.min(left.x, right.x) <= 0.24);
+    assert.ok(Math.max(left.x, right.x) >= 0.76);
+    assert.ok(merge.y > left.y);
+  });
+});
+
+test('Campaign Map treats waves as one Mission lineup instead of durable checkpoints', () => {
+  assert.match(mapSource, /const completedWaveIds = new Set\(completed \? mission\.waveIds : \[\]\)/);
+  assert.match(mapSource, /const unlockedWaveIds = new Set\(unlocked \? mission\.waveIds : \[\]\)/);
+  assert.doesNotMatch(mapSource, /progress\.recommendedWaveId === wave\.id/);
+  assert.doesNotMatch(mapSource, /campaign-map-node-progress/);
 });
 
 test('Campaign Map exposes power guidance, support roles, rewards, and a separate mastery set bonus', () => {
@@ -76,15 +90,45 @@ test('Campaign Map exposes power guidance, support roles, rewards, and a separat
 });
 
 test('locked boss nodes use their canonical preview only as a silhouette and never substitute another boss', () => {
-  assert.match(mapSource, /missionRole === 'major-boss'[\s\S]*?mission\.bossId[\s\S]*?mission\.previewUrl/);
+  assert.match(mapSource, /const bossPreviewUrl = mission\.bossPreview\?\.previewUrl \?\? null/);
+  assert.match(mapSource, /missionRole === 'major-boss'[\s\S]*?mission\.bossId[\s\S]*?bossPreviewUrl/);
   assert.match(mapSource, /!nodeState\.completed[\s\S]*?missionRole === 'major-boss'/);
   assert.match(mapSource, /!selectedState\?\.completed[\s\S]*?getCampaignMissionRole\(selectedMission\) === 'major-boss'/);
   assert.match(mapSource, /className=\{showLockedBossSilhouette \? 'campaign-map-node-boss-silhouette'/);
+  assert.match(mapSource, /src=\{selectedMission\.bossPreview\.previewUrl\}/);
   assert.match(mapSource, /selectedLockedBossSilhouette/);
   assert.match(mapSource, /selectedMission\.bossEventId && selectedState\.completed/);
-  assert.match(mapSource, /campaign-map-encrypted-symbol/);
   assert.doesNotMatch(mapSource, /final-boss-sentinel/);
   assert.doesNotMatch(mapSource, /bosses\/.*\?\?/);
+});
+
+test('regular nodes are numbered, completed nodes are distinct, and sector routes split then rejoin', () => {
+  assert.match(mapSource, /campaign-map-node-stage-number/);
+  assert.match(mapSource, /campaign-map-selection-mission-number/);
+  assert.match(mapSource, /campaign-map-node-cleared/);
+  assert.doesNotMatch(mapSource, /src=\{mission\.previewUrl\}|src=\{selectedMission\.previewUrl\}/);
+  assert.match(mapSource, /entry\.id, toMissionId: leftRoute\.id/);
+  assert.match(mapSource, /entry\.id, toMissionId: rightRoute\.id/);
+  assert.match(mapSource, /leftRoute\.id, toMissionId: merge\.id/);
+  assert.match(mapSource, /rightRoute\.id, toMissionId: merge\.id/);
+  assert.match(mapSource, /merge\.id, toMissionId: boss\.id/);
+  assert.match(mapSource, /data-campaign-route-edge/);
+  assert.match(mapStyles, /\.campaign-map-node--completed:not\(\.campaign-map-node--boss\) \.campaign-map-node-core/);
+  assert.match(mapStyles, /\.campaign-map-node-cleared/);
+});
+
+test('Campaign Map is an opaque routed screen with a real Back-to-Home transition', () => {
+  assert.match(mapSource, /<main className="campaign-map-screen">/);
+  assert.match(mapSource, /aria-label="Back to Home"/);
+  assert.doesNotMatch(mapSource, /aria-modal="true"|campaign-map-overlay/);
+  assert.match(appSource, /get\('view'\) === 'campaign-map'/);
+  assert.match(appSource, /window\.history\.pushState\([\s\S]*?sciconCampaignMap: true/);
+  assert.match(appSource, /window\.addEventListener\('popstate', syncCampaignMapRoute\)/);
+  assert.match(appSource, /if \(requested\) \{\s*openCampaignMapRef\.current\(\);/);
+  assert.match(appSource, /syncCampaignMapRoute\(\);\s*window\.addEventListener\('popstate', syncCampaignMapRoute\)/);
+  assert.match(appSource, /openCampaignMapRef\.current = openCampaignMap/);
+  assert.match(appSource, /gameState === GameState\.MENU && !campaignMapOpen/);
+  assert.match(appSource, /gameState === GameState\.MENU && campaignMapOpen/);
 });
 
 test('Home map and boss commands use icon-only buttons with shared new-item attention', () => {
@@ -117,9 +161,9 @@ test('short and narrow mobile Campaign details preserve objectives and support g
   assert.match(mapStyles, /\.campaign-map-selection-topline > :last-child[\s\S]*?grid-column: 1 \/ -1/);
 });
 
-test('Campaign developer controls expose Wave, Mission, and full-map result previews', () => {
-  assert.match(mapSource, /onPreviewResult: \(missionId: string, waveId: string, stageComplete: boolean\) => void/);
-  assert.match(mapSource, />Preview Wave result<\/button>/);
+test('Campaign developer controls expose Mission and full-map result previews without Wave checkpoints', () => {
+  assert.match(mapSource, /onPreviewResult: \(missionId: string\) => void/);
+  assert.doesNotMatch(mapSource, />Preview Wave result<\/button>|>Set checkpoint<\/button>|>Complete wave<\/button>/);
   assert.match(mapSource, />Preview Mission result<\/button>/);
   assert.match(mapSource, />Simulate 20-Mission map<\/button>/);
 });

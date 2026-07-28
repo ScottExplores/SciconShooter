@@ -12,7 +12,8 @@ const receiptApiSource = read('api/run-receipts.js');
 const receiptServerSource = read('api/_lib/runReceipts.js');
 
 test('every normal competitive Mission death can submit its score without a rank or personal-best gate', () => {
-  assert.match(appSource, /const isNonCompetitiveRun = isFounderSandboxRun \|\| isBossArchiveRun \|\| isCampaignRun \|\| isCampaignBranchRun;/);
+  assert.match(appSource, /const isCompetitiveCampaignRun = activeRunMode === 'campaign' \|\| activeRunMode === 'campaign-replay';/);
+  assert.match(appSource, /const isNonCompetitiveRun = isFounderSandboxRun \|\| isBossArchiveRun \|\| isCampaignLabRun \|\| isCampaignBranchRun;/);
   assert.match(appSource, /const finalizeCurrentRun = async[\s\S]*?if \(isBossArchiveRun\) return null;/);
   assert.match(appSource, /if \(gameState === GameState\.GAMEOVER\) \{[\s\S]*?if \(isBossArchiveRun\)[\s\S]*?setShowNameInput\(!isNonCompetitiveRun\);/);
   assert.match(appSource, /const score = stats\.score;[\s\S]*?saveScore\(name, score, wave/);
@@ -20,9 +21,10 @@ test('every normal competitive Mission death can submit its score without a rank
   assert.doesNotMatch(appSource, /setShowNameInput\([^)]*(qualif|rank|leaderboard)/i);
 });
 
-test('Campaign deaths restart from the latest verified Wave checkpoint and never expose paid Continue', () => {
-  assert.match(appSource, /const retryGame = \(\) => \{[\s\S]*?const checkpoint = getCampaignCheckpointLabel\(permanentSquadStateRef\.current\.campaignProgress\)[\s\S]*?missionId: checkpoint\.missionId,[\s\S]*?waveId: checkpoint\.waveId/);
-  assert.match(appSource, /const normalizedCampaignRequest[\s\S]*?requestedCampaignMission\.waveIds\.includes\(campaignRequest\.waveId\)[\s\S]*?campaignRequest\.waveId[\s\S]*?requestedCampaignMission\.waveIds\[0\]/);
+test('Campaign deaths restart the active Mission from Wave 1 and never expose paid Continue', () => {
+  assert.match(appSource, /const retryGame = \(\) => \{[\s\S]*?const mission = getCampaignMissionById\(activeCampaignLaunch\.missionId\)[\s\S]*?missionId: activeCampaignLaunch\.missionId,[\s\S]*?waveId: mission\?\.waveIds\[0\] \?\? activeCampaignLaunch\.waveId/);
+  assert.match(appSource, /const normalizedCampaignRequest[\s\S]*?waveId: requestedCampaignMission\.waveIds\[0\]/);
+  assert.match(appSource, /if \(isCampaignRun && waveVictorySummary\.nextLevelId\) \{[\s\S]*?setActiveCampaignLaunch\(\{[\s\S]*?missionId: nextMission\.id,[\s\S]*?waveId: nextWaveId/);
   assert.match(appSource, /gameOverContinueControls = !campaignCompletedRun && !isCampaignRun && !isNonCompetitiveRun/);
   assert.match(appSource, /onClick=\{retryGame\}[\s\S]*?>RETRY MISSION</);
   assert.match(appSource, /onRetryRun=\{retryGame\}/);
@@ -42,8 +44,8 @@ test('score receipt integrity accepts any authored Mission without trusting a cl
   assert.doesNotMatch(receiptServerSource, /metrics\.enemiesDefeated\s*\*[^\n;]*metrics\.wave/);
 });
 
-test('Campaign checkpoints stay out of weekly competition and credit lifetime enemies once', () => {
-  assert.match(appSource, /const creditedEnemies = completion\.settlement\.duplicate[\s\S]*?Math\.floor\(summary\.enemiesDefeated\) - campaignRunCreditedEnemiesRef\.current[\s\S]*?Math\.floor\(summary\.enemiesDefeated\)/);
+test('Mission settlements stay out of weekly competition and credit each Mission enemy total once', () => {
+  assert.match(appSource, /const creditedEnemies = completion\.settlement\.duplicate[\s\S]*?Math\.max\(0, Math\.floor\(summary\.enemiesDefeated\)\)/);
   assert.match(appSource, /campaignRunCreditedEnemiesRef\.current \+= creditedEnemies/);
   assert.match(appSource, /lifetimeStats: completion\.settlement\.duplicate[\s\S]*?enemiesDefeated: currentPermanent\.lifetimeStats\.enemiesDefeated \+ creditedEnemies/);
   assert.match(appSource, /const unsettledLifetimeCampaignEnemies = isCampaignRun[\s\S]*?stats\.enemiesDefeated - campaignRunCreditedEnemiesRef\.current/);

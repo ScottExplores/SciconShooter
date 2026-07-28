@@ -31,17 +31,17 @@ test('stage records are calculated from baselines preserved across internal wave
   assert.match(engineSource, /if \(resetStageSummary\) \{[\s\S]*?this\.waveStartScore = this\.stats\.score/);
 });
 
-test('Campaign runs pause at every internal Wave result while weekly runs retain the default flow', () => {
+test('internal Waves cannot opt into result pauses and Mission results keep the explicit continue channel', () => {
   assert.match(canvasSource, /onWaveVictory\?: \(summary: WaveVictorySummary\) => void/);
-  assert.match(canvasSource, /pauseAtInternalWaveResults\?: boolean/);
-  assert.match(canvasSource, /pauseAtInternalWaveResults = false/);
-  assert.match(canvasSource, /new GameEngine\(initialStats, \{[\s\S]*?pauseAtInternalWaveResults,/);
+  assert.doesNotMatch(canvasSource, /pauseAtInternalWaveResults/);
+  assert.doesNotMatch(engineSource, /pauseAtInternalWaveResults/);
   assert.match(canvasSource, /lastWaveVictoryIdRef\.current !== waveVictory\.id/);
   assert.match(canvasSource, /onWaveVictoryRef\.current\?\.\(waveVictory\)/);
   assert.match(canvasSource, /handledWaveContinueNonceRef\.current === waveContinueCommand\.nonce/);
   assert.match(canvasSource, /engine\.continueToNextWave\(\)/);
-  assert.match(appSource, /pauseAtInternalWaveResults: isCampaignRun/);
-  assert.match(appSource, /const isCampaignRun = activeRunMode === 'campaign' \|\| activeRunMode === 'campaign-replay'/);
+  assert.doesNotMatch(appSource, /pauseAtInternalWaveResults/);
+  assert.match(appSource, /const isCompetitiveCampaignRun = activeRunMode === 'campaign' \|\| activeRunMode === 'campaign-replay'/);
+  assert.match(appSource, /const isCampaignRun = isCompetitiveCampaignRun \|\| isCampaignLabRun/);
 });
 
 test('the app keeps the real game mounted behind the stage-complete overlay state', () => {
@@ -56,26 +56,34 @@ test('the app keeps the real game mounted behind the stage-complete overlay stat
   assert.match(appSource, /campaignComplete={campaignCompletedRun}/);
 });
 
-test('internal Campaign summaries settle and present a checkpoint result before continuing', () => {
+test('internal summaries are ignored while only Mission-final Campaign summaries settle and render', () => {
   const handlerStart = appSource.indexOf('const showWaveVictory = async');
   const handlerEnd = appSource.indexOf('const continueAfterWaveVictory', handlerStart);
   const handlerSource = appSource.slice(handlerStart, handlerEnd);
   assert.ok(handlerStart >= 0 && handlerEnd > handlerStart);
-  assert.doesNotMatch(handlerSource, /if \(!summary\.stageComplete\)/);
+  assert.match(handlerSource, /if \(!summary\.stageComplete\) \{[\s\S]*?setWaveContinueCommand[\s\S]*?setGameState\(GameState\.PLAYING\);[\s\S]*?return;/);
   assert.match(handlerSource, /if \(isCampaignRun\) \{\s*finalizeCampaignCollectedCoins\(summary\);\s*\}/);
   assert.match(handlerSource, /setWaveVictorySummary\(summary\);[\s\S]*?setGameState\(GameState\.WAVE_COMPLETE\)/);
   assert.match(appSource, /onCampaignProgress: handleCampaignProgress/);
-  assert.doesNotMatch(appSource, /const handleCampaignProgress[\s\S]{0,220}if \(!summary\.stageComplete\) return/);
+  assert.match(appSource, /const handleCampaignProgress[\s\S]{0,220}if \(!summary\.stageComplete\) return/);
+  assert.match(appSource, /waveVictorySummary\?\.stageComplete && !isCampaignBranchRun/);
 });
 
 test('Campaign result settlement uses attempt-scoped IDs and a stable final collected-coin receipt', () => {
   assert.match(appSource, /const campaignAttemptIdRef = useRef\(''\)/);
   assert.match(appSource, /campaignAttemptIdRef\.current = normalizedCampaignRequest[\s\S]*?globalThis\.crypto\?\.randomUUID\?\.\(\)/);
   assert.match(appSource, /const finalizeCampaignCollectedCoins = useCallback\(\(summary: WaveVictorySummary\) => \{/);
-  assert.match(appSource, /const collectedCoins = Math\.max\(0, Math\.floor\(summary\.waveCoinsCollected\)\)/);
+  assert.match(appSource, /const collectedCoins = Math\.max\(0, Math\.floor\(summary\.coinsCollected\)\)/);
   assert.match(appSource, /id: `campaign:\$\{resultId\}:collected`/);
   assert.match(appSource, /masteryEligible: summary\.stageComplete && campaignRunMasteryEligibleRef\.current/);
   assert.match(appSource, /const showWaveVictory = async \(summary: WaveVictorySummary\) => \{[\s\S]*?finalizeCampaignCollectedCoins\(summary\);/);
+});
+
+test('continuing into the next Mission makes death retry that Mission from its first Wave', () => {
+  assert.match(
+    appSource,
+    /if \(isCampaignRun && waveVictorySummary\.nextLevelId\) \{[\s\S]*?const nextMission = getCampaignMissionById\(waveVictorySummary\.nextLevelId\)[\s\S]*?const nextWaveId = nextMission\?\.waveIds\[0\] \?\? waveVictorySummary\.nextWaveId[\s\S]*?setActiveCampaignLaunch\(\{[\s\S]*?missionId: nextMission\.id,[\s\S]*?waveId: nextWaveId,[\s\S]*?kind: nextKind/
+  );
 });
 
 test('Campaign mastery results surface an upgrade that became affordable after reward credit', () => {
@@ -101,7 +109,7 @@ test('the victory overlay uses the layered Scicon reveal packs and shows mission
   assert.match(overlaySource, /Campaign Complete/);
   assert.match(overlaySource, /All 20 missions cleared/);
   assert.match(overlaySource, /Campaign Map/);
-  assert.match(overlaySource, /Wave Complete/);
+  assert.doesNotMatch(overlaySource, /Wave Complete|Checkpoint secured|is-wave-result|wave-record-shell-wave/);
   assert.match(overlaySource, /campaignSettlement/);
   assert.doesNotMatch(overlaySource, /Stage \{summary\.|All 20 stages cleared/);
 });

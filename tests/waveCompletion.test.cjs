@@ -137,15 +137,20 @@ test('spawn escalation targets are shared by spawning and clear-wave completion'
   assert.match(engine, /activeThreatCount: this\.getActiveThreatCount\(\)/);
 });
 
-test('internal waves pause only when Campaign checkpoint results are enabled', () => {
+test('internal waves advance seamlessly and only Mission boundaries create results', () => {
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
-  assert.match(engine, /if \(!this\.isCurrentWaveStageFinal\(\)\) \{[\s\S]*?this\.beginTacticalWaveCompletion\('WAVE CLEAR!'/);
-  assert.match(engine, /pauseAtInternalWaveResults\?: boolean/);
-  assert.match(engine, /this\.pauseAtInternalWaveResults = options\.pauseAtInternalWaveResults \?\? false/);
-  assert.match(engine, /beginTacticalWaveCompletion\([\s\S]*?if \(this\.pauseAtInternalWaveResults\) \{[\s\S]*?this\.waveVictoryReady = true;[\s\S]*?this\.gameActive = false;[\s\S]*?return;[\s\S]*?this\.startNextWave\(\);/);
+  assert.match(engine, /if \(!this\.isCurrentWaveStageFinal\(\)\) \{[\s\S]*?this\.beginTacticalWaveCompletion\(\)/);
+  assert.doesNotMatch(engine, /pauseAtInternalWaveResults/);
+  const tacticalStart = engine.indexOf('  beginTacticalWaveCompletion()');
+  const tacticalEnd = engine.indexOf('\n  beginStageCompletion(', tacticalStart);
+  const tacticalSource = engine.slice(tacticalStart, tacticalEnd);
+  assert.ok(tacticalStart >= 0 && tacticalEnd > tacticalStart);
+  assert.match(tacticalSource, /this\.startNextWave\(\)/);
+  assert.doesNotMatch(tacticalSource, /buildWaveVictorySummary|spawnFloatingText|playSound|waveVictoryReady|gameActive = false/);
   assert.match(engine, /continueToNextWave\(\)[\s\S]*?this\.startNextWave\(\);/);
   assert.match(engine, /const stageBoundary = [\s\S]*?previousEntry\.level\.id !== nextEntry\.level\.id/);
   assert.match(engine, /this\.resetWaveProgress\(stageBoundary\)/);
+  assert.match(engine, /if \(stageBoundary\) \{[\s\S]*?this\.beginWavePresentation\(\);[\s\S]*?this\.playSound\('wave'\);[\s\S]*?\} else \{[\s\S]*?this\.recordWaveStart\(\);[\s\S]*?\}/);
   assert.match(engine, /this\.introFlightDuration = stageBoundary/);
   assert.match(engine, /this\.wave = this\.getStageNumberForCampaignIndex\(\)/);
 });

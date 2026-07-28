@@ -241,7 +241,7 @@ test('crediting Campaign rewards changes only the shared Campaign coin reserve, 
   assert.deepEqual(weekly.leaderboard, before.leaderboard);
 });
 
-test('App routes Campaign runs around weekly run, boss, high-score, and leaderboard mutation paths', () => {
+test('App isolates Campaign reward grants while allowing the final death score into weekly competition', () => {
   const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const campaignHandlerStart = appSource.indexOf('const handleCampaignProgress = useCallback');
   const campaignHandlerEnd = appSource.indexOf('const showWaveVictory = async', campaignHandlerStart);
@@ -267,12 +267,14 @@ test('App routes Campaign runs around weekly run, boss, high-score, and leaderbo
 
   assert.match(
     appSource,
-    /const isNonCompetitiveRun\s*=\s*[^;]*\|\|\s*isCampaignRun\s*\|\|\s*isCampaignBranchRun\s*;/
+    /const isNonCompetitiveRun\s*=\s*isFounderSandboxRun\s*\|\|\s*isBossArchiveRun\s*\|\|\s*isCampaignLabRun\s*\|\|\s*isCampaignBranchRun\s*;/
   );
+  assert.doesNotMatch(appSource, /isNonCompetitiveRun\s*=\s*[^;]*isCampaignRun/);
   assert.match(
     appSource,
     /if\s*\(\s*!isNonCompetitiveRun\s*&&\s*squadRunAppliedGameIdRef\.current\s*!==\s*gameId\s*\)\s*\{[\s\S]{0,500}?applySquadRunResult\(/
   );
+  assert.match(appSource, /coinsCollected:\s*isCampaignRun\s*\?\s*0\s*:\s*stats\.coins/);
   assert.match(
     appSource,
     /if\s*\(\s*!isCampaignRun\s*&&\s*!isNonCompetitiveRun\s*&&\s*summary\.bossEncounterId\s*\)/

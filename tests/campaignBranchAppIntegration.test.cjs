@@ -10,7 +10,7 @@ const resultSource = fs.readFileSync(path.join(root, 'components', 'CampaignBran
 
 test('optional branch runs use the canonical engine while remaining noncompetitive and checkpoint-neutral', () => {
   assert.match(appSource, /type ActiveRunMode = [^;]*'campaign-branch'/);
-  assert.match(appSource, /isNonCompetitiveRun = isFounderSandboxRun \|\| isBossArchiveRun \|\| isCampaignRun \|\| isCampaignBranchRun/);
+  assert.match(appSource, /isNonCompetitiveRun = isFounderSandboxRun \|\| isBossArchiveRun \|\| isCampaignLabRun \|\| isCampaignBranchRun/);
   assert.match(appSource, /campaign: activeBossReplayCampaign\s*\?\? activeCampaignBranchCampaign/);
   assert.match(appSource, /onCampaignProgress: handleCampaignProgress/);
   assert.match(appSource, /if \(activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay'\) return/);

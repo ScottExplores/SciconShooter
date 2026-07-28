@@ -59,7 +59,6 @@ test('revision 22 contains four ordered five-Mission sectors with tactical inter
 
 test('all twenty Missions author Campaign rewards, three mastery stars, and a normalized map route', () => {
   const objectiveIds = new Set();
-  const expectedX = [0.28, 0.45, 0.68, 0.52, 0.74];
   const sectorRewardTiers = [
     { waveClearCoins: 16, missionClearCoins: 50, firstClearCoins: 115 },
     { waveClearCoins: 20, missionClearCoins: 65, firstClearCoins: 150 },
@@ -86,7 +85,12 @@ test('all twenty Missions author Campaign rewards, three mastery stars, and a no
       objectiveIds.add(objective.id);
       assert.ok(objective.rewardCoins >= 0);
     });
-    assert.equal(progression.mapPosition.x, expectedX[index % expectedX.length]);
+    const sectorIndex = Math.floor(index / 5);
+    const sectorMissionIndex = index % 5;
+    const splitLeft = sectorIndex % 2 === 0 ? 0.24 : 0.76;
+    const splitRight = sectorIndex % 2 === 0 ? 0.76 : 0.24;
+    const expectedX = [0.5, splitLeft, splitRight, 0.5, 0.74][sectorMissionIndex];
+    assert.equal(progression.mapPosition.x, expectedX);
     assert.ok(progression.mapPosition.y >= 0 && progression.mapPosition.y <= 1);
     assert.equal(progression.nextMissionId, campaign.levels[index + 1]?.id ?? null);
   });

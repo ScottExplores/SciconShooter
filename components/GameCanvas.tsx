@@ -137,8 +137,6 @@ export interface GameCanvasProps {
   playerShipId?: PlayerShipId;
   squadLoadout?: RuntimeSquadLoadout;
   campaign?: GameCampaign;
-  /** Pause at internal Wave results for checkpointed Campaign and Campaign Replay runs. */
-  pauseAtInternalWaveResults?: boolean;
   levelId?: string;
   waveId?: string;
   previewMode?: boolean;
@@ -204,7 +202,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   playerShipId = 'researchhub',
   squadLoadout,
   campaign,
-  pauseAtInternalWaveResults = false,
   levelId,
   waveId,
   previewMode = false,
@@ -784,7 +781,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         : undefined;
       const engine = new GameEngine(initialStats, {
         campaign,
-        pauseAtInternalWaveResults,
         previewMode,
         previewInvincible: previewInvincibleRef.current,
         previewUnlimitedBombs,
@@ -1267,7 +1263,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [audioEnabled, campaign, musicEnabled, pauseAtInternalWaveResults, previewBossArtwork, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
+  }, [audioEnabled, campaign, musicEnabled, previewBossArtwork, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
 
   return (
     <div

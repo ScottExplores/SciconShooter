@@ -763,16 +763,22 @@ export const applyCampaignCompletion = (
   const currentIndex = mission ? mission.waveIds.indexOf(input.waveId) : -1;
   if (input.campaignId !== campaign.id) return rejectedCompletion(progress, input, 'campaign-mismatch');
   if (!mission || currentIndex < 0) return rejectedCompletion(progress, input, 'unknown-wave');
+  const isFinalWave = currentIndex === mission.waveIds.length - 1;
   if (!progress.unlockedMissionIds.includes(mission.id)) {
     return rejectedCompletion(progress, input, 'mission-locked');
   }
-  if (!progress.unlockedWaveIdsByMission[mission.id]?.includes(input.waveId)) {
+  // Normal play reports only the Mission-final summary. Internal Waves are
+  // deliberately seamless and are never durable checkpoints, so a verified
+  // final-Wave result may settle an unlocked Mission from its Wave-1 save.
+  if (
+    !progress.unlockedWaveIdsByMission[mission.id]?.includes(input.waveId)
+    && !(input.stageComplete && isFinalWave)
+  ) {
     return rejectedCompletion(progress, input, 'wave-locked');
   }
   if (progress.processedResultIds.includes(input.resultId)) {
     return rejectedCompletion(progress, input, 'duplicate-result', true);
   }
-  const isFinalWave = currentIndex === mission.waveIds.length - 1;
   if (Boolean(input.stageComplete) !== isFinalWave) {
     return rejectedCompletion(progress, input, 'stage-state-mismatch');
   }
@@ -864,14 +870,21 @@ export const applyCampaignCompletion = (
   const replayRewardEligible = stageComplete
     && wasMissionComplete
     && replayRewardEpoch > previousReplayRewardEpoch;
+  const waveRewardCount = stageComplete
+    ? wasMissionComplete
+      ? mission.waveIds.length
+      : Math.max(1, mission.waveIds.length - previousRecord.completedWaveIds.length)
+    : 1;
   if (!replay || replayRewardEligible) {
     addGrant(grants, claimed, {
       id: replay
         ? `campaign:${mission.id}:replay:${replayRewardEpoch}:wave`
         : `campaign:${mission.id}:wave:${input.waveId}:clear`,
-      label: replay ? 'Daily Mission replay' : `Wave ${currentIndex + 1} clear`,
+      label: replay ? 'Daily Mission replay' : 'Mission wave clear total',
       amount: Math.max(1, Math.round(
-        mission.reward.waveClearCoins * (replay ? mission.reward.replayMultiplier : 1)
+        mission.reward.waveClearCoins
+        * waveRewardCount
+        * (replay ? mission.reward.replayMultiplier : 1)
       )),
       kind: 'wave',
       oneTime: false
@@ -1365,8 +1378,6 @@ export const getCampaignCheckpointLabel = (
     waveTotal: mission.waveIds.length,
     action: progress.campaignCompleted
       ? 'Replay Final Mission'
-      : wave.number > 1
-        ? 'Continue Mission'
       : !hasAnyCompletion
       ? 'Start Mission'
       : previousMissionComplete
