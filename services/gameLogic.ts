@@ -5,6 +5,7 @@ import { ASSETS, GAME_CONFIG, COLORS } from '../constants';
 import type {
   AssetKey,
   AsteroidEvent,
+  BossComponentHealth,
   BossEvent,
   BossHealthPhase,
   BossRevivalConfig,
@@ -164,7 +165,7 @@ import {
   HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE,
   resolveHeliosClampPlan,
   resolveHeliosCornerClampPlacement,
-  resolveHeliosCrossfireAngle,
+  resolveHeliosCrossfireShotPlan,
   resolveHeliosCrossfireSides,
   resolveHeliosMachineGunChannelHorizontalPadding,
   resolveHeliosMachineGunChannelSequence,
@@ -173,6 +174,7 @@ import {
   resolveHeliosMineArmPoint,
   resolveHeliosMineFormation,
   resolveHeliosMineFormationSequence,
+  resolveHeliosTrackingPincerCoreRadius,
   sampleHeliosCornerClamp,
   sampleHeliosCrossfirePulse,
   sampleHeliosMachineGunChannelMovement,
@@ -377,6 +379,11 @@ export type HeliosMineRuntimeState = {
   armY: number;
   deployFrames: number;
 };
+export type BossHeliosMineFormationState = {
+  actionClipId: string;
+  executionIndex: number;
+  sequence: number;
+};
 type PrismMothTimelinePrimitiveId =
   | 'prism-wingbeat-weave'
   | 'prism-brood-procession'
@@ -548,6 +555,8 @@ export class Entity {
   bossHeliosCornerClampState?: BossHeliosCornerClampState;
   bossHeliosMachineGunChannelState?: BossHeliosMachineGunChannelState;
   bossHeliosMachineGunChannelUseCount: number = 0;
+  bossHeliosMineFormationState?: BossHeliosMineFormationState;
+  bossHeliosMineFormationUseCount: number = 0;
   bossPrismMothActionStates: PrismMothActionRuntimeState[] = [];
   bossPrismMothBodyDamageActive: boolean = false;
   /** Pixi presentation only. Collision remains the entity's axis-aligned box. */
@@ -8011,7 +8020,18 @@ export class GameEngine {
      }
   }
 
-  getBossComponentDurability(boss: Entity, componentId: BossPartId) {
+  getBossComponentDurability(
+    boss: Entity,
+    componentId: BossPartId,
+    componentHealth?: BossComponentHealth
+  ) {
+    const authoredHealth = Number(componentHealth?.[componentId]);
+    if (Number.isFinite(authoredHealth) && authoredHealth > 0) {
+      return Math.max(
+        1,
+        authoredHealth * Math.max(0.01, boss.configuredDifficultyMultiplier || 1)
+      );
+    }
     const rigId = boss.bossRigId ?? 'open-orbit';
     const minimumDurability = BOSS_COMPONENT_DURABILITY[rigId][componentId] ?? 5;
     const healthRatio = this.isSandboxPrismMoth(boss)
@@ -8027,7 +8047,7 @@ export class GameEngine {
     return durability;
   }
 
-  createBossComponents(boss: Entity) {
+  createBossComponents(boss: Entity, componentHealth?: BossComponentHealth) {
     if (boss.bossRigId === 'open-orbit' || boss.bossRigId === 'citation-storm') {
       const isCitationStorm = boss.bossRigId === 'citation-storm';
       const isPrismMoth = this.isSandboxPrismMoth(boss);
@@ -8053,7 +8073,7 @@ export class GameEngine {
           heightRatio: isPrismMoth ? 0.7 : isCitationStorm ? 0.62 : 0.58
         }
       ] as const).map((layout) => {
-        const maxHp = this.getBossComponentDurability(boss, layout.id);
+        const maxHp = this.getBossComponentDurability(boss, layout.id, componentHealth);
         return {
           ...layout,
           hp: maxHp,
@@ -8073,7 +8093,7 @@ export class GameEngine {
           : layout.id === 'right-cannon'
             ? { centerXRatio: 0.73, centerYRatio: 0.7, widthRatio: 0.3, heightRatio: 0.36 }
             : { centerXRatio: 0.5, centerYRatio: 0.45, widthRatio: 0.32, heightRatio: 0.3 };
-        const maxHp = this.getBossComponentDurability(boss, layout.id);
+        const maxHp = this.getBossComponentDurability(boss, layout.id, componentHealth);
         return {
           ...layout,
           ...paywallLayout,
@@ -8106,7 +8126,7 @@ export class GameEngine {
           heightRatio: 0.58
         }
       ] as const).map((layout) => {
-        const maxHp = this.getBossComponentDurability(boss, layout.id);
+        const maxHp = this.getBossComponentDurability(boss, layout.id, componentHealth);
         return {
           ...layout,
           hp: maxHp,
@@ -8168,20 +8188,66 @@ export class GameEngine {
     return getCampaignBossCollisionMask(boss.spriteUrl);
   }
 
-  bossSilhouetteIntersectsBox(boss: Entity, box: CollisionBox) {
+  bossSilhouetteIntersectsBoxAt(
+    boss: Entity,
+    box: CollisionBox,
+    x: number,
+    y: number
+  ) {
     const mask = this.getBossCollisionMask(boss);
-    if (!mask) return this.boxesIntersect(box, this.getCollisionBox(boss));
+    if (!mask) {
+      const collisionBox = this.getCollisionBox(boss);
+      return this.boxesIntersect(box, {
+        ...collisionBox,
+        x: collisionBox.x + x - boss.x,
+        y: collisionBox.y + y - boss.y
+      });
+    }
     return intersectsBossCollisionMask(
       mask,
       {
-        x: boss.x,
-        y: boss.y,
+        x,
+        y,
         width: boss.width,
         height: boss.height
       },
       box,
       boss.bossPresentationBankRadians
     );
+  }
+
+  bossSilhouetteIntersectsBox(boss: Entity, box: CollisionBox) {
+    return this.bossSilhouetteIntersectsBoxAt(boss, box, boss.x, boss.y);
+  }
+
+  private bossSweptOpaqueCoreIntersectsBox(boss: Entity, box: CollisionBox) {
+    const previousX = boss.x - boss.vx;
+    const previousY = boss.y - boss.vy;
+    const travel = Math.hypot(boss.vx, boss.vy);
+    const sampleSpacing = Math.max(4, Math.min(box.width, box.height) * 0.3);
+    const sampleCount = Math.max(1, Math.min(32, Math.ceil(travel / sampleSpacing)));
+    const coreRadius = resolveHeliosTrackingPincerCoreRadius(boss.width, boss.height);
+    for (let index = 0; index <= sampleCount; index += 1) {
+      const progress = index / sampleCount;
+      const sampleX = previousX + boss.vx * progress;
+      const sampleY = previousY + boss.vy * progress;
+      const coreBox = {
+        x: sampleX + boss.width / 2 - coreRadius,
+        y: sampleY + boss.height / 2 - coreRadius,
+        width: coreRadius * 2,
+        height: coreRadius * 2
+      };
+      if (!this.boxesIntersect(box, coreBox)) continue;
+      if (this.bossSilhouetteIntersectsBoxAt(
+        boss,
+        box,
+        sampleX,
+        sampleY
+      )) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private isHeliosClawOperational(boss: Entity, side: HeliosClawSide) {
@@ -8230,12 +8296,16 @@ export class GameEngine {
     ));
     const tips = this.getPreviewBossWeaponOrigins(boss, operationalSides);
     const radius = Math.max(9, Math.min(boss.width, boss.height) * 0.095);
-    return tips.some((tip) => this.boxesIntersect(box, {
+    const clawTipHit = tips.some((tip) => this.boxesIntersect(box, {
       x: tip.x - radius,
       y: tip.y - radius,
       width: radius * 2,
       height: radius * 2
     }));
+    return clawTipHit || (
+      action?.primitiveId === 'tracking-pincer-dive'
+      && this.bossSweptOpaqueCoreIntersectsBox(boss, box)
+    );
   }
 
   bossComponentSilhouetteIntersectsBox(
@@ -8605,14 +8675,14 @@ export class GameEngine {
       }
       boss.bossComponents = configured.componentMode === 'hull-only'
         ? []
-        : this.createBossComponents(boss);
+        : this.createBossComponents(boss, configured.componentHealth);
       boss.bossRevivalBaseWidth = boss.width;
       boss.bossRevivalBaseHeight = boss.height;
       if (boss.spriteUrl) loadImage(boss.spriteUrl);
       boss.spriteFrames?.forEach(loadImage);
     }
     boss.bossRigId ??= 'open-orbit';
-    boss.bossComponents ??= this.createBossComponents(boss);
+    boss.bossComponents ??= this.createBossComponents(boss, configured?.componentHealth);
     this.bossRef = boss;
     this.entities.push(boss);
     const shieldCount = configured ? Math.max(0, Math.floor(Number(configured.shieldCount) || 0)) : undefined;
@@ -9121,6 +9191,7 @@ export class GameEngine {
     boss.bossTimelineTargetY = null;
     boss.bossCrossBeamOriginX = null;
     boss.bossCrossBeamOriginY = null;
+    boss.bossHeliosMineFormationState = undefined;
   }
 
   private captureBossTimelineActionOrigins(
@@ -10284,16 +10355,25 @@ export class GameEngine {
       && sourceClip.parameters?.motionCue === HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE
     );
     const activeChannel = boss.bossHeliosMachineGunChannelState;
-    if (
-      isHeliosMachineGunChannel
+    const isHeliosPincerContinuation = (
+      sourceClip.primitiveId === 'tracking-pincer-dive'
       && stage === 'warning'
       && cue.executionIndex > 0
-      && activeChannel?.actionClipId === sourceClip.id
-      && boss.attackTimer < activeChannel.fireEndFrame
+      && boss.bossTrackingPincerState?.actionClipId === sourceClip.id
+    );
+    if (
+      isHeliosPincerContinuation
+      || (
+        isHeliosMachineGunChannel
+        && stage === 'warning'
+        && cue.executionIndex > 0
+        && activeChannel?.actionClipId === sourceClip.id
+        && boss.attackTimer < activeChannel.fireEndFrame
+      )
     ) {
-      // The signature is one continuous stream. Repeated authored segments
-      // keep deterministic scheduling and attack-button isolation, but their
-      // continuation warnings must never interrupt the active gun pose.
+      // These signatures are one continuous sentence. Repeated authored
+      // segments keep deterministic scheduling, but continuation warnings
+      // must never replace the active gun or pincer pose.
       return;
     }
     const presentation = createBossActionPresentationState({
@@ -12150,11 +12230,15 @@ export class GameEngine {
       }
       boss.bossTimelineTargetClipId = linkedAction.id;
       boss.bossTimelineTargetExecutionIndex = cue.executionIndex;
-      // Helios teaches a fixed port/starboard rhythm rather than silently
-      // re-aiming each burst at a moving player. The animated cannon stance
-      // identifies the threatened half; no trajectory guide is required.
-      boss.bossTimelineTargetX = this.width / 2;
-      boss.bossTimelineTargetY = this.height * 0.82;
+      const sides = resolveHeliosCrossfireSides(linkedAction.parameters?.side);
+      // One-sided bursts mix a few deterministic shots toward this warning-
+      // locked point. The coordinated finisher keeps its fixed safe corridor.
+      boss.bossTimelineTargetX = sides.length === 1
+        ? this.player.x + this.player.width / 2
+        : this.width / 2;
+      boss.bossTimelineTargetY = sides.length === 1
+        ? this.player.y + this.player.height / 2
+        : this.height * 0.82;
       this.playSound('boss_machinegun', 0.38, { pitchJitter: 0.01, pitchOffset: -0.24 });
       return;
     }
@@ -12167,6 +12251,24 @@ export class GameEngine {
       boss.bossTimelineTargetExecutionIndex = cue.executionIndex;
       boss.bossTimelineTargetX = this.player.x + this.player.width / 2;
       boss.bossTimelineTargetY = this.player.y + this.player.height / 2;
+      if (linkedAction.parameters?.motionCue === 'reactor-mines') {
+        const mineUseIndex = boss.bossHeliosMineFormationUseCount;
+        boss.bossHeliosMineFormationState = {
+          actionClipId: linkedAction.id,
+          executionIndex: cue.executionIndex,
+          sequence: resolveHeliosMineFormationSequence({
+            sequence,
+            useIndex: mineUseIndex,
+            seedKey: [
+              this.gameplayRandomSeed,
+              boss.sourceEventId ?? boss.id,
+              boss.bossTimelinePhaseId ?? boss.activeBossPhaseId ?? 'unphased',
+              linkedAction.id
+            ].join(':')
+          })
+        };
+        boss.bossHeliosMineFormationUseCount = mineUseIndex + 1;
+      }
       this.playSound('electricity', 0.44, { pitchJitter: 0.015, pitchOffset: -0.2 });
       return;
     }
@@ -12282,13 +12384,30 @@ export class GameEngine {
       strength: 1
     };
     const centeredIndex = pulse.sideShotIndex - (requested - 1) / 2;
-    const angle = resolveHeliosCrossfireAngle(pulse.side, sides.length > 1)
-      + centeredIndex * 0.045;
+    const hasLockedTarget = boss.bossTimelineTargetClipId === action.actionClipId
+      && boss.bossTimelineTargetExecutionIndex === action.executionIndex
+      && Number.isFinite(boss.bossTimelineTargetX)
+      && Number.isFinite(boss.bossTimelineTargetY);
+    const lockedTargetAngle = hasLockedTarget
+      ? Math.atan2(
+          Number(boss.bossTimelineTargetY) - origin.y,
+          Number(boss.bossTimelineTargetX) - origin.x
+        )
+      : Math.PI / 2;
+    const shotPlan = resolveHeliosCrossfireShotPlan({
+      side: pulse.side,
+      coordinated: sides.length > 1,
+      sideShotIndex: pulse.sideShotIndex,
+      roundsPerSide: requested,
+      phaseIndex: phase,
+      sequence: action.sequence,
+      lockedTargetAngleRadians: lockedTargetAngle
+    });
     const projectile = this.spawnGeneratedBossProjectile(
       boss,
       origin.x,
       origin.y,
-      angle,
+      shotPlan.angleRadians,
       speed
         * (action.projectileSpeedScale ?? 1)
         * (1 + Math.abs(centeredIndex) * 0.012),
@@ -12325,17 +12444,21 @@ export class GameEngine {
       const loopIndex = Math.floor(
         Math.max(0, boss.attackTimer) / Math.max(1, timelineDurationFrames)
       );
-      const formationSequence = resolveHeliosMineFormationSequence({
-        sequence: action.sequence,
-        seedKey: [
-          this.gameplayRandomSeed,
-          boss.sourceEventId ?? boss.id,
-          boss.bossTimelinePhaseId ?? boss.activeBossPhaseId ?? 'unphased',
-          loopIndex,
-          action.actionClipId,
-          action.executionIndex
-        ].join(':')
-      });
+      const cachedFormation = boss.bossHeliosMineFormationState;
+      const formationSequence = cachedFormation?.actionClipId === action.actionClipId
+        && cachedFormation.executionIndex === action.executionIndex
+        ? cachedFormation.sequence
+        : resolveHeliosMineFormationSequence({
+            sequence: action.sequence,
+            seedKey: [
+              this.gameplayRandomSeed,
+              boss.sourceEventId ?? boss.id,
+              boss.bossTimelinePhaseId ?? boss.activeBossPhaseId ?? 'unphased',
+              loopIndex,
+              action.actionClipId,
+              action.executionIndex
+            ].join(':')
+          });
       const formation = resolveHeliosMineFormation({
         sequence: formationSequence,
         count: action.projectileCount ?? 3
@@ -12519,6 +12642,15 @@ export class GameEngine {
     const linkedAction = boss.bossTimeline?.clips.find((clip) => (
       clip.telegraphClipId === cue.clip.id
     ));
+    if (
+      linkedAction?.primitiveId === 'tracking-pincer-dive'
+      && cue.executionIndex > 0
+      && boss.bossTrackingPincerState?.actionClipId === linkedAction.id
+    ) {
+      // Attack 4 telegraphs only once before the four contiguous motion
+      // stages. Repeated warning cues are compiler bookkeeping, not pauses.
+      return;
+    }
     if (
       linkedAction
       && this.isSandboxPrismMoth(boss)
@@ -13165,6 +13297,11 @@ export class GameEngine {
         && boss.bossActionPresentation?.primitiveId === 'paired-cannon-burst'
       )
       || (
+        boss.bossActionPresentation?.primitiveId === 'reactor-aperture-pattern'
+        && boss.bossActionPresentation.stage === 'fire'
+        && boss.bossActionPresentation.motionCue === 'reactor-fan'
+      )
+      || (
         this.isSandboxPrismMoth(boss)
         && boss.bossPrismMothActionStates.some((state) => (
           state.resolvedActionId === 'lunar-prism-swoop' && state.swoopPass
@@ -13431,6 +13568,14 @@ export class GameEngine {
           boss.y += (pincerState.riseY - boss.y) * 0.24;
           pincerState.riseX = boss.x;
           pincerState.riseY = boss.y;
+        } else {
+          // Keep the committed chassis moving into the locked line. Previously
+          // the final lock frames held the exact same pose, which read as a
+          // one-beat pause between the swoop and the damaging dive.
+          boss.x += (pincerState.targetX - boss.x) * 0.18;
+          boss.y += (pincerState.targetY - boss.y) * 0.035;
+          pincerState.riseX = boss.x;
+          pincerState.riseY = boss.y;
         }
       } else if (sample.stage === 'dive-close') {
         boss.x = pincerState.riseX
@@ -13447,6 +13592,19 @@ export class GameEngine {
       boss.vx = boss.x - previousX;
       boss.vy = boss.y - previousY;
       boss.bossPresentationBankRadians = 0;
+      return;
+    }
+    if (
+      boss.bossActionPresentation?.primitiveId === 'reactor-aperture-pattern'
+      && boss.bossActionPresentation.stage === 'fire'
+      && boss.bossActionPresentation.motionCue === 'reactor-fan'
+    ) {
+      // The reactor aperture is a readable firing sentence: Helios braces while
+      // the fan is emitted so its authored gap does not slide across the player.
+      // He resumes his normal hover between beats and during recovery.
+      boss.vx = 0;
+      boss.vy = 0;
+      boss.bossPresentationBankRadians += (0 - boss.bossPresentationBankRadians) * 0.24;
       return;
     }
     const cornerRam = boss.bossCornerAmbushRamState;

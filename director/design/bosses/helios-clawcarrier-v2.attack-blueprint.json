@@ -1,8 +1,16 @@
 {
   "schemaVersion": 2,
   "bossId": "helios-clawcarrier",
-  "status": "sandbox-only-v020-release-gates-passed",
+  "status": "sandbox-only-v022-behavior-implemented-proof-refresh-pending",
+  "historicalAcceptedRelease": "V0.20",
   "fixedSeed": "helios-v2-safe-route-proof",
+  "durability": {
+    "hullHealth": 8000,
+    "componentHealth": {
+      "left-cannon": 2000,
+      "right-cannon": 2000
+    }
+  },
   "authoritative": {
     "rigKind": "modular-hierarchy-v1",
     "designSize": {
@@ -135,15 +143,23 @@
       "firstCannonSide": "port",
       "burstProjectileCount": 5,
       "burstShotIntervalFrames": 3,
+      "crossfireBaseSequence": 0,
+      "crossfireBeatSequences": [0, 1, 2],
+      "crossfireBeatProjectileCounts": [5, 5, 6],
       "channelDirection": "seeded-first-edge-then-alternate-each-complete-use",
       "channelBaseSequence": 0,
       "channelWidthPixels": 160,
       "channelSweepRangeRatio": 0.36,
       "channelSweepPasses": 2,
+      "channelSegmentSeconds": 1.7,
+      "channelSustainedFireSeconds": 6.8,
       "channelShotIntervalFrames": 2,
       "channelProjectileSpeedScale": 0.92,
       "reactorDirection": "clockwise",
       "reactorSequences": [0, 1, 2, 3],
+      "reactorFanProjectileCounts": [8, 9, 8],
+      "reactorFanProjectileTotal": 25,
+      "reactorMineCount": 3,
       "crushSequence": 0,
       "mineTemplateStart": "staggered-diagonal",
       "visibleTransformation": "Closed body, concealed reactor, narrow neutral claws, and both rotaries fixed to their neutral mounts when not firing."
@@ -156,15 +172,23 @@
       "firstCannonSide": "starboard",
       "burstProjectileCount": 5,
       "burstShotIntervalFrames": 3,
+      "crossfireBaseSequence": 10,
+      "crossfireBeatSequences": [10, 11, 12],
+      "crossfireBeatProjectileCounts": [5, 5, 6],
       "channelDirection": "seeded-first-edge-then-alternate-each-complete-use",
       "channelBaseSequence": 4,
       "channelWidthPixels": 160,
       "channelSweepRangeRatio": 0.42,
       "channelSweepPasses": 2,
+      "channelSegmentSeconds": 1.5,
+      "channelSustainedFireSeconds": 6,
       "channelShotIntervalFrames": 2,
       "channelProjectileSpeedScale": 0.98,
       "reactorDirection": "counterclockwise",
-      "reactorSequences": [5, 4, 3, 2],
+      "reactorSequences": [5, 4, 3, 3],
+      "reactorFanProjectileCounts": [9, 9, 9],
+      "reactorFanProjectileTotal": 27,
+      "reactorMineCount": 4,
       "crushSequence": 4,
       "mineTemplateStart": "zigzag",
       "visibleTransformation": "The body opens, the reactor remains visible, both claws spread and roll outward, the four stabilizer legs brace, and the rotary housings remain rigidly mounted."
@@ -177,15 +201,23 @@
       "firstCannonSide": "port",
       "burstProjectileCount": 6,
       "burstShotIntervalFrames": 2,
+      "crossfireBaseSequence": 20,
+      "crossfireBeatSequences": [20, 21, 22],
+      "crossfireBeatProjectileCounts": [6, 6, 7],
       "channelDirection": "seeded-first-edge-then-alternate-each-complete-use",
       "channelBaseSequence": 8,
       "channelWidthPixels": 160,
       "channelSweepRangeRatio": 0.46,
       "channelSweepPasses": 2,
+      "channelSegmentSeconds": 1.3,
+      "channelSustainedFireSeconds": 5.2,
       "channelShotIntervalFrames": 2,
-      "channelProjectileSpeedScale": 1.04,
+      "channelProjectileSpeedScale": 1.12,
       "reactorDirection": "clockwise",
-      "reactorSequences": [2, 4, 1, 3],
+      "reactorSequences": [2, 5, 1, 4],
+      "reactorFanProjectileCounts": [10, 11, 10],
+      "reactorFanProjectileTotal": 31,
+      "reactorMineCount": 5,
       "crushSequence": 8,
       "mineTemplateStart": "offset-triangle",
       "visibleTransformation": "Damaged body persists, the port claw droops while starboard braces, the stabilizer legs tuck asymmetrically, and the exposed reactor reverses its ambient rotation."
@@ -212,7 +244,14 @@
         "spin-down and exact mounted-neutral return",
         "recovery"
       ],
-      "boundedVariation": "The deterministic sequence may change the first side, targeted direction, and two- or three-burst rhythm. Attack 1 remains shorter than Attack 2, and every round samples the current mounted muzzle transform."
+      "aimMix": {
+        "oneSidedBursts": "A bounded deterministic subset aims at the warning-locked player point while the remaining rounds keep their authored side lanes.",
+        "siegeCalibrationAimedRoundsPerOneSidedBurst": 1,
+        "armorShearAimedRoundsPerOneSidedBurst": "1-or-2-by-sequence-and-side",
+        "reactorOverdriveAimedRoundsPerOneSidedBurst": 2,
+        "coordinatedFinisher": "fixed-angle-safe-corridor"
+      },
+      "boundedVariation": "The deterministic sequence changes the first side and which bounded one-sided rounds use the warning-locked player aim. The coordinated finisher remains fixed to preserve its learnable corridor. Attack 1 remains shorter than Attack 2, and every round samples the current mounted muzzle transform."
     },
     {
       "id": "machinegun-channel",
@@ -222,9 +261,24 @@
       "primitiveId": "paired-cannon-burst",
       "motionCue": "machinegun-channel",
       "playerSkill": "lane-routing",
-      "sustainedFireSeconds": 6.8,
-      "segmentDurationSeconds": 1.7,
       "repeatCount": 4,
+      "phaseTiming": [
+        {
+          "phaseId": "sandbox-clawcarrier-siege-calibration",
+          "segmentDurationSeconds": 1.7,
+          "sustainedFireSeconds": 6.8
+        },
+        {
+          "phaseId": "sandbox-clawcarrier-armor-shear",
+          "segmentDurationSeconds": 1.5,
+          "sustainedFireSeconds": 6.4
+        },
+        {
+          "phaseId": "sandbox-clawcarrier-reactor-overdrive",
+          "segmentDurationSeconds": 1.3,
+          "sustainedFireSeconds": 6
+        }
+      ],
       "startingDirectionPolicy": "Use the gameplay seed for the first complete channel, then alternate the starting edge once per later complete use. The four continuation segments never consume another direction.",
       "anatomy": ["root", "weapons.mount", "rotary.port", "rotary.starboard", "muzzle.port", "muzzle.starboard"],
       "sockets": ["rotary-muzzle-port", "rotary-muzzle-starboard"],
@@ -239,7 +293,7 @@
         "firing taper and spin-down",
         "exact mounted-neutral return and recovery"
       ],
-      "boundedVariation": "Every complete use alternates its starting edge deterministically. All phases retain one proven reversal and return pass, a 160 px interior opening, and a two-frame paired firing cadence; phase escalation uses bounded tracer speed and presentation changes without destroying the recognizable channel solution.",
+      "boundedVariation": "Every complete use alternates its starting edge deterministically. All phases retain one reversal and return pass, a 160 px interior opening, and a two-frame paired firing cadence. Lower-health phases shorten each of the four gapless segments from 1.7 to 1.5 to 1.3 seconds and raise bounded tracer speed without destroying the recognizable channel solution.",
       "heliosSpecificChoreography": true,
       "sharedPrimitivePolicy": "Reuse moving-socket, sequential-fire, movement, and route-proof primitives without making this signature a default future-boss attack.",
       "retiredPrototype": "claw-sweep-pincer is not in the active Helios rotation; claw art remains active through clawcarrier-crush."
@@ -257,9 +311,29 @@
       "beats": [
         "sequential downward fan beat 1",
         "reversed or center-out downward fan beat 2",
-        "bounded deterministic three-mine two-dimensional deploy and arm formation",
+        "bounded deterministic phase-scaled three-through-five-mine two-dimensional deploy and arm formation",
         "final sequential downward fan beat",
         "vent and recovery"
+      ],
+      "phaseDensity": [
+        {
+          "phaseId": "sandbox-clawcarrier-siege-calibration",
+          "fanProjectileCounts": [8, 9, 8],
+          "fanProjectileTotal": 25,
+          "mineCount": 3
+        },
+        {
+          "phaseId": "sandbox-clawcarrier-armor-shear",
+          "fanProjectileCounts": [9, 9, 9],
+          "fanProjectileTotal": 27,
+          "mineCount": 4
+        },
+        {
+          "phaseId": "sandbox-clawcarrier-reactor-overdrive",
+          "fanProjectileCounts": [10, 11, 10],
+          "fanProjectileTotal": 31,
+          "mineCount": 5
+        }
       ],
       "mineFormationTemplates": [
         "staggered-diagonal",
@@ -287,8 +361,8 @@
       "playerSkill": "route-combination",
       "anatomy": ["root", "claw.port.mount", "claw.port", "mandible.port", "claw.starboard.mount", "claw.starboard", "mandible.starboard"],
       "sockets": ["claw-tip-port", "claw-tip-starboard"],
-      "recognitionCue": "The carrier rises, opens both claws, follows briefly, freezes its target, dives, then closes.",
-      "safeRule": "Bait the tracking stage, leave the locked area before the dive, and remain outside the visibly closing claw tips until release.",
+      "recognitionCue": "The carrier rises, opens both claws, follows briefly, locks its target, then performs one uninterrupted crushing dive with no continuation warning or inter-stage pause.",
+      "safeRule": "Bait the tracking stage, leave the locked area before the continuous dive, and remain outside the swept visible hull and operational claw-tip regions until release.",
       "beats": [
         "rise-open",
         "track-lock",
@@ -297,10 +371,19 @@
       ],
       "repeat": {
         "count": 4,
-        "intervalSeconds": 0.86
+        "stageDurationSeconds": 0.65,
+        "intervalSeconds": 0.65,
+        "framesPerStageAt60Hz": 39,
+        "continuationWarnings": false
       },
-      "boundedVariation": "The phase selects a deterministic sequence offset; unrestricted tracking and random target changes are forbidden."
-      ,"changeBoundary": "Keep the existing tracking, lock, dive, visible claw closure, collision ownership, and survival rule unless regression correction is required by Attacks 1-3."
+      "collisionContract": {
+        "activeRegions": ["operational-claw-tips", "swept-visible-boss-silhouette"],
+        "damageWindow": "authored-tracking-pincer-dive-active-frames-only",
+        "unprotectedContact": "removes-one-life",
+        "watchSafelyContact": "preserves-lives-and-retains-hit-feedback"
+      },
+      "boundedVariation": "The phase selects a deterministic sequence offset; unrestricted tracking and random target changes are forbidden.",
+      "changeBoundary": "V0.22 keeps the authored track-and-lock solution while making all four 39-frame motion stages contiguous, suppressing compiler continuation warnings, and preventing fast-dive tunneling with swept visible-silhouette collision alongside the live claw tips."
     }
   ],
   "destruction": {
@@ -319,11 +402,13 @@
     ]
   },
   "proof": {
-    "status": "passed-refined-runtime-proof",
+    "status": "v022-proof-refresh-pending",
+    "historicalV020Status": "passed-refined-runtime-proof",
     "priorSafeRouteCases": 24,
-    "priorCasesApplyToRetiredAttackSet": true,
+    "priorCasesApplyToHistoricalV020Behavior": true,
     "requiredBaseCases": 24,
-    "validatedRefinedCases": 24,
+    "historicalV020ValidatedCases": 24,
+    "v022ValidatedCases": null,
     "viewports": ["390x844", "1280x720"],
     "minimumRequiredClearancePixels": 6,
     "geometryUncertaintyPixels": 3,
@@ -380,7 +465,7 @@
       "helios-clawcarrier-v2-key-pose-contact-sheet.png",
       "visual-verification-result.md"
     ],
-    "reviewedArtifacts": [
+    "historicalV020ReviewedArtifacts": [
       "v016-mobile-neutral-mounted-settled.png",
       "v016-mobile-attack1-rapid-fire.png",
       "v016-mobile-attack1-angled-fire-beat2.png",
@@ -398,6 +483,13 @@
       "helios-clawcarrier-v2-key-pose-contact-sheet.png",
       "visual-verification-result.md"
     ],
+    "pendingV022Artifacts": [
+      "v022-mobile-attack1-mixed-aim.png",
+      "v022-mobile-attack2-reactor-overdrive-channel.png",
+      "v022-mobile-attack3-five-mine-density.png",
+      "v022-mobile-attack4-continuous-crush-contact.png",
+      "v022-mobile-attack4-watch-safely-feedback.png"
+    ],
     "gates": [
       "Gate 1 remains locked to the unchanged canonical reference and asset inventory",
       "clean mobile and desktop captures show one connected, aspect-preserved 460x330 rig",
@@ -408,12 +500,13 @@
       "every established portrait-mobile channel witness remains between the reconstructed simultaneous rails while stationary camps at both exterior gutters are threatened",
       "the connected portrait-mobile rig reaches both structural gutters and reverses for a second pass without clipping",
       "every retained mine template visibly varies X and Y and passes combined reactor route proof",
-      "melee damage remains attached to the visible moving claw tips",
+      "during Clawcarrier Crush, damage follows the live operational claw tips and swept visible boss silhouette without fast-dive tunneling",
       "anticipation, recovery, phase transformation, persistent damage, and destruction read without gameplay text or generic guides",
       "structural art is opaque and nearest-neighbor with no chopped frames, transient white textures, detached parts, or non-uniform breathing distortion",
       "review overlays are absent from clean gameplay captures",
       "spawn, reset, replay, loop, phase jump, and death clean up all transient state"
     ],
-    "status": "v020-release-gates-passed"
+    "status": "v022-visual-and-publish-refresh-pending",
+    "historicalV020Status": "release-gates-passed"
   }
 }

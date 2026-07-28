@@ -282,6 +282,7 @@ const CORNER_AMBUSH_BEAM_MAX_LIVE_SECONDS = 1.25;
 const CORNER_AMBUSH_RAM_MIN_LIVE_SECONDS = 0.45;
 const CORNER_AMBUSH_RAM_MAX_LIVE_SECONDS = 1.4;
 const BOSS_COMPONENT_MODES = new Set(['legacy-rig', 'hull-only']);
+const BOSS_COMPONENT_IDS = new Set(['left-cannon', 'right-cannon', 'helmet']);
 const BOSS_TIMELINE_COMPONENT_IDS = new Set(['left-cannon', 'right-cannon', 'helmet']);
 const BOSS_TIMELINE_SIDES = new Set(['port', 'starboard']);
 const BOSS_TIMELINE_HANDEDNESS = new Set(['left', 'right']);
@@ -1380,7 +1381,7 @@ const validateBossTimeline = (timeline, location, phaseIds, errors) => {
 };
 
 const validateBossEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'rigId', 'componentMode', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases', 'revival', 'timeline'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'bossId', 'rigId', 'componentMode', 'componentHealth', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases', 'revival', 'timeline'], location, errors);
   requireEnum(event.bossId, BOSS_IDS, `${location}/bossId`, errors);
   if (event.rigId !== undefined) {
     requireEnum(event.rigId, BOSS_RIG_IDS, `${location}/rigId`, errors);
@@ -1388,6 +1389,33 @@ const validateBossEvent = (event, location, errors) => {
   }
   if (event.componentMode !== undefined) {
     requireEnum(event.componentMode, BOSS_COMPONENT_MODES, `${location}/componentMode`, errors);
+  }
+  if (event.componentHealth !== undefined) {
+    const componentLocation = `${location}/componentHealth`;
+    if (requireObject(event.componentHealth, componentLocation, errors)) {
+      allowedKeys(
+        event.componentHealth,
+        [...BOSS_COMPONENT_IDS],
+        componentLocation,
+        errors
+      );
+      if (Object.keys(event.componentHealth).length === 0) {
+        errors.push(`${componentLocation} must configure at least one component`);
+      }
+      for (const componentId of BOSS_COMPONENT_IDS) {
+        if (event.componentHealth[componentId] !== undefined) {
+          requireNumber(
+            event.componentHealth[componentId],
+            `${componentLocation}/${componentId}`,
+            errors,
+            { minimum: Number.EPSILON, maximum: 10000000 }
+          );
+        }
+      }
+    }
+    if (event.componentMode === 'hull-only') {
+      errors.push(`${componentLocation} is not supported when componentMode is hull-only`);
+    }
   }
   if (event.count !== undefined) {
     requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 4, integer: true });

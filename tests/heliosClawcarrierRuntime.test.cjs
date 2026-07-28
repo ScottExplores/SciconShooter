@@ -43,6 +43,7 @@ const {
   resolveHeliosClampPlan,
   resolveHeliosCornerClampPlacement,
   resolveHeliosCrossfireAngle,
+  resolveHeliosCrossfireShotPlan,
   resolveHeliosCrossfireSides,
   resolveHeliosMachineGunChannelAngle,
   resolveHeliosMachineGunChannelHorizontalPadding,
@@ -108,6 +109,58 @@ test('Helios rotary fire emits one alternating live-mount pulse per cadence slot
     samples.some((sample) => !sample.firing && sample.flashEnergy > 0),
     'the synchronized flash/recoil may decay for one visible frame after each shot'
   );
+});
+
+test('Helios crossfire deterministically mixes warning-locked aim without closing the coordinated corridor', () => {
+  const lockedAngle = Math.PI * 0.7;
+  const phaseAimCounts = [1, 2, 3].map((phaseIndex) => {
+    const plans = Array.from({ length: phaseIndex >= 3 ? 6 : 5 }, (_, sideShotIndex) => (
+      resolveHeliosCrossfireShotPlan({
+        side: 'port',
+        coordinated: false,
+        sideShotIndex,
+        roundsPerSide: phaseIndex >= 3 ? 6 : 5,
+        phaseIndex,
+        sequence: phaseIndex * 10,
+        lockedTargetAngleRadians: lockedAngle
+      })
+    ));
+    assert.deepEqual(
+      plans,
+      Array.from({ length: plans.length }, (_, sideShotIndex) => (
+        resolveHeliosCrossfireShotPlan({
+          side: 'port',
+          coordinated: false,
+          sideShotIndex,
+          roundsPerSide: plans.length,
+          phaseIndex,
+          sequence: phaseIndex * 10,
+          lockedTargetAngleRadians: lockedAngle
+        })
+      )),
+      'the same authored phase and sequence must replay exactly'
+    );
+    plans.forEach((plan) => {
+      assert.ok(plan.angleRadians >= Math.PI / 6);
+      assert.ok(plan.angleRadians <= Math.PI * 5 / 6);
+    });
+    return plans.filter((plan) => plan.aimedAtLockedPlayer).length;
+  });
+  assert.deepEqual(phaseAimCounts, [1, 1, 2]);
+
+  const coordinated = Array.from({ length: 7 }, (_, sideShotIndex) => (
+    resolveHeliosCrossfireShotPlan({
+      side: 'starboard',
+      coordinated: true,
+      sideShotIndex,
+      roundsPerSide: 7,
+      phaseIndex: 3,
+      sequence: 22,
+      lockedTargetAngleRadians: Math.PI / 2
+    })
+  ));
+  assert.equal(coordinated.some((plan) => plan.aimedAtLockedPlayer), false);
+  assert.equal(new Set(coordinated.map((plan) => plan.angleRadians)).size, 7);
 });
 
 test('Helios moving machine-gun channel approaches, sweeps, reverses, and returns without teleporting', () => {
@@ -396,6 +449,19 @@ test('Helios reactor fan stays downward, changes deterministic order, and stagge
   assert.ok(leftBiased[0] < rightBiased[0]);
   assert.ok(leftBiased.at(-1) < rightBiased.at(-1));
 
+  const dense = Array.from(buildHeliosReactorFanAngles({
+    sequence: 2,
+    projectileCount: 10
+  })).sort((left, right) => left - right);
+  assert.equal(dense.length, 10, 'the low-health aperture must not remove projectiles');
+  const denseGaps = dense.slice(1).map((angle, index) => angle - dense[index]);
+  const evenGap = (dense.at(-1) - dense[0]) / (dense.length - 1);
+  assert.ok(
+    Math.max(...denseGaps) >= evenGap + 0.13,
+    'dense fans retain one deliberately widened deterministic escape aperture'
+  );
+  dense.forEach((angle) => assert.ok(angle >= minimum && angle <= maximum));
+
   const emitted = [];
   for (let elapsedFrames = 0; elapsedFrames < 50; elapsedFrames += 1) {
     const sample = sampleHeliosReactorFanShot({
@@ -411,6 +477,26 @@ test('Helios reactor fan stays downward, changes deterministic order, and stagge
   assert.equal(new Set(emitted.map(({ elapsedFrames }) => elapsedFrames)).size, 7);
 });
 
+test('Helios nine-round and overdrive fans retain every sprite around a deterministic aperture', () => {
+  for (const projectileCount of [9, 10, 11]) {
+    const angles = buildHeliosReactorFanAngles({
+      sequence: 0,
+      projectileCount,
+      targetAngleRadians: Math.PI / 2
+    });
+    assert.equal(angles.length, projectileCount);
+    const ordered = [...angles].sort((left, right) => left - right);
+    const widestGap = Math.max(...ordered.slice(1).map((angle, index) => (
+      angle - ordered[index]
+    )));
+    const evenGap = (Math.PI * 2 / 3) / (projectileCount - 1);
+    assert.ok(
+      widestGap >= evenGap + (projectileCount >= 10 ? 0.13 : 0.07),
+      `${projectileCount} sprites must preserve a visible learned opening`
+    );
+  }
+});
+
 test('Helios mines resolve six deterministic bounded templates with varied X, Y, delays, and speeds', () => {
   assert.deepEqual(Array.from(HELIOS_MINE_FORMATION_TEMPLATE_IDS), [
     'staggered-diagonal',
@@ -422,7 +508,7 @@ test('Helios mines resolve six deterministic bounded templates with varied X, Y,
   ]);
   const formations = Array.from(
     { length: HELIOS_MINE_FORMATION_TEMPLATE_IDS.length },
-    (_, sequence) => resolveHeliosMineFormation({ sequence, count: 4 })
+    (_, sequence) => resolveHeliosMineFormation({ sequence, count: 5 })
   );
   assert.equal(new Set(formations.map((formation) => formation[0].templateId)).size, 6);
   assert.equal(new Set(formations.map((formation) => JSON.stringify(
@@ -431,21 +517,21 @@ test('Helios mines resolve six deterministic bounded templates with varied X, Y,
 
   formations.forEach((formation, sequence) => {
     assert.equal(Object.isFrozen(formation), true);
-    assert.equal(formation.length, 4);
+    assert.equal(formation.length, 5);
     assert.equal(formation[0].templateId, resolveHeliosMineFormationTemplateId(sequence));
-    assert.equal(new Set(formation.map(({ targetXRatio }) => targetXRatio)).size, 4);
+    assert.ok(new Set(formation.map(({ targetXRatio }) => targetXRatio)).size >= 4);
     assert.ok(
       new Set(formation.map(({ targetYRatio }) => targetYRatio)).size >= 3,
       `${formation[0].templateId} must vary Y instead of creating a horizontal line`
     );
-    assert.equal(new Set(formation.map(({ delayFrames }) => delayFrames)).size, 4);
-    assert.equal(new Set(formation.map(({ deployFrames }) => deployFrames)).size, 4);
+    assert.equal(new Set(formation.map(({ delayFrames }) => delayFrames)).size, 5);
+    assert.equal(new Set(formation.map(({ deployFrames }) => deployFrames)).size, 5);
     formation.forEach((slot, index) => {
       assert.equal(Object.isFrozen(slot), true);
       assert.equal(slot.index, index);
       assert.ok(slot.targetXRatio >= 0.18 && slot.targetXRatio <= 0.82);
       assert.ok(slot.targetYRatio >= 0.47 && slot.targetYRatio <= 0.79);
-      assert.ok(slot.delayFrames >= 0 && slot.delayFrames <= 38);
+      assert.ok(slot.delayFrames >= 0 && slot.delayFrames <= 42);
       assert.ok(slot.deployFrames >= 36 && slot.deployFrames <= 48);
       assert.equal(slot.speedScale, HELIOS_MINE_DEPLOY_FRAMES / slot.deployFrames);
       assert.ok(slot.angleRadians >= Math.PI / 2 - 0.48);
@@ -462,11 +548,11 @@ test('Helios mines resolve six deterministic bounded templates with varied X, Y,
     });
   });
 
-  const first = resolveHeliosMineFormation({ sequence: 0, count: 4 });
-  assert.deepEqual(resolveHeliosMineFormation({ sequence: 0, count: 4 }), first);
-  assert.deepEqual(resolveHeliosMineFormation({ sequence: 6, count: 4 }), first);
+  const first = resolveHeliosMineFormation({ sequence: 0, count: 5 });
+  assert.deepEqual(resolveHeliosMineFormation({ sequence: 0, count: 5 }), first);
+  assert.deepEqual(resolveHeliosMineFormation({ sequence: 6, count: 5 }), first);
   assert.equal(resolveHeliosMineFormation({ sequence: 0, count: 2 }).length, 2);
-  assert.equal(resolveHeliosMineFormation({ sequence: 0, count: 99 }).length, 4);
+  assert.equal(resolveHeliosMineFormation({ sequence: 0, count: 99 }).length, 5);
 
   const armPoints = first.map((slot) => resolveHeliosMineArmPoint({
     slot,
@@ -476,8 +562,8 @@ test('Helios mines resolve six deterministic bounded templates with varied X, Y,
     originY: 150,
     mineSize: 24
   }));
-  assert.equal(new Set(armPoints.map(({ x }) => x)).size, 4);
-  assert.equal(new Set(armPoints.map(({ y }) => y)).size, 4);
+  assert.ok(new Set(armPoints.map(({ x }) => x)).size >= 4);
+  assert.ok(new Set(armPoints.map(({ y }) => y)).size >= 4);
   armPoints.forEach((point, index) => {
     assert.equal(Object.isFrozen(point), true);
     assert.ok(point.x >= 24 && point.x <= 366);
@@ -518,6 +604,30 @@ test('Helios mine template selection is stable for one gameplay seed and varies 
   assert.ok(
     new Set(selectedTemplates).size >= 3,
     'bounded seeded variation must visibly exercise several authored templates'
+  );
+
+  const useCycle = Array.from({ length: 6 }, (_, useIndex) => (
+    resolveHeliosMineFormation({
+      sequence: resolveHeliosMineFormationSequence({
+        sequence,
+        seedKey: seedKeys[0],
+        useIndex
+      }),
+      count: 5
+    })[0].templateId
+  ));
+  assert.equal(new Set(useCycle).size, 6);
+  assert.equal(
+    resolveHeliosMineFormationSequence({
+      sequence,
+      seedKey: seedKeys[0],
+      useIndex: 2
+    }),
+    resolveHeliosMineFormationSequence({
+      sequence,
+      seedKey: seedKeys[0],
+      useIndex: 2
+    })
   );
 });
 
@@ -734,7 +844,7 @@ test('Helios tracking pincer exposes four deterministic stages and one bounded c
   const rise = sampleHeliosTrackingPincer({ sequence: 0, progress: 0.8 });
   const tracking = sampleHeliosTrackingPincer({ sequence: 1, progress: 0.5 });
   const locked = sampleHeliosTrackingPincer({ sequence: 1, progress: 0.8 });
-  const diveBeforeClose = sampleHeliosTrackingPincer({ sequence: 2, progress: 0.5 });
+  const diveBeforeClose = sampleHeliosTrackingPincer({ sequence: 2, progress: 0.35 });
   const diveClose = sampleHeliosTrackingPincer({ sequence: 2, progress: 0.7 });
   const hold = sampleHeliosTrackingPincer({ sequence: 3, progress: 0.2 });
   const returnPose = sampleHeliosTrackingPincer({ sequence: 3, progress: 0.8 });

@@ -100,6 +100,11 @@ const spawnHelios = (engine) => {
   assert.ok(boss, 'the canonical preview must spawn Helios');
   assert.equal(boss.bossRigId, 'crown-claw');
   assert.ok((boss.bossComponents?.length ?? 0) >= 2);
+  assert.equal(boss.maxHp, 8_000);
+  assert.deepEqual(
+    boss.bossComponents.map((component) => [component.id, component.maxHp]),
+    [['left-cannon', 2_000], ['right-cannon', 2_000]]
+  );
   return boss;
 };
 

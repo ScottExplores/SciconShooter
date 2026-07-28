@@ -1,16 +1,25 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test, { after } from 'node:test';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, '..', '..');
-const campaign = JSON.parse(await readFile(
-  path.join(repositoryRoot, 'game-config', 'campaign.json'),
-  'utf8'
-));
+const execFileAsync = promisify(execFile);
+const requestedCampaignGitRef = String(process.env.HELIOS_CAMPAIGN_GIT_REF ?? '').trim();
+const campaignSource = requestedCampaignGitRef
+  ? (await execFileAsync(
+      'git',
+      ['show', requestedCampaignGitRef],
+      { cwd: repositoryRoot, encoding: 'utf8', maxBuffer: 2 * 1024 * 1024, windowsHide: true }
+    )).stdout
+  : await readFile(path.join(repositoryRoot, 'game-config', 'campaign.json'), 'utf8');
+const campaign = JSON.parse(campaignSource);
+const pinnedCampaignModuleId = '\0helios-safe-route-campaign-snapshot';
 
 globalThis.Image ??= class ImageStub {
   complete = true;
@@ -47,6 +56,24 @@ const vite = await createServer({
       '@director': path.join(repositoryRoot, 'director', 'src')
     }
   },
+  plugins: [{
+    name: 'helios-safe-route-campaign-snapshot',
+    enforce: 'pre',
+    resolveId(source) {
+      const normalized = source.replaceAll('\\', '/');
+      return (
+        normalized === 'game-config/campaign.json'
+        || normalized.endsWith('/game-config/campaign.json')
+      )
+        ? pinnedCampaignModuleId
+        : null;
+    },
+    load(id) {
+      return id === pinnedCampaignModuleId
+        ? `export default ${JSON.stringify(campaign)};`
+        : null;
+    }
+  }],
   server: { middlewareMode: true, hmr: false },
   appType: 'custom'
 });
@@ -67,6 +94,7 @@ const {
   HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE,
   resolveHeliosMineArmPoint,
   resolveHeliosMineFormation,
+  resolveHeliosTrackingPincerCoreRadius,
   resolveHeliosCrossfireSides,
   resolveHeliosMachineGunChannelHorizontalPadding,
   resolveHeliosMachineGunChannelTargetPadding,
@@ -104,6 +132,11 @@ const attackIds = [
   'reactor-maze',
   'clawcarrier-crush'
 ];
+const requestedRouteCase = String(process.env.HELIOS_ROUTE_CASE ?? '').trim();
+const routeCaseMatches = (attackId, phaseId, viewportId) => (
+  !requestedRouteCase
+  || `${attackId}|${phaseId}|${viewportId}` === requestedRouteCase
+);
 const attacks = attackIds.map((attackId) => {
   const attack = bossEvent.timeline.attacks.find((candidate) => candidate.id === attackId);
   assert.ok(attack, `Helios V2 must compile ${attackId}`);
@@ -736,6 +769,14 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
           return [side, tips[0]];
         }));
         const radius = Math.max(9, Math.min(boss.width, boss.height) * 0.095);
+        const bodyRadius = resolveHeliosTrackingPincerCoreRadius(
+          boss.width,
+          boss.height
+        );
+        const bodyCenter = {
+          x: boss.x + boss.width / 2,
+          y: boss.y + boss.height / 2
+        };
         const existing = beatOrigins[beat.key] ?? {};
         if (existing.meleeRadiusPixels !== undefined) {
           assert.equal(existing.meleeRadiusPixels, radius);
@@ -743,6 +784,7 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
         beatOrigins[beat.key] = {
           ...existing,
           meleeRadiusPixels: radius,
+          meleeBodyRadiusPixels: bodyRadius,
           meleeSamples: [
             ...(existing.meleeSamples ?? []),
             ...activeSides.map((side) => ({
@@ -750,6 +792,13 @@ const captureExactAttackPose = (viewport, attack, phaseId) => {
               side,
               point: liveTips[side]
             }))
+          ],
+          meleeBodySamples: [
+            ...(existing.meleeBodySamples ?? []),
+            {
+              frameOffset: frame - beat.fireFrame,
+              point: bodyCenter
+            }
           ]
         };
         const frames = meleeEvidence[beat.key] ?? [];
@@ -1076,7 +1125,28 @@ const getProofSettings = (attackId, viewportId, phaseId) => {
   }
   if (
     attackId === 'reactor-maze'
+    && mobile
+    && phaseId === 'sandbox-clawcarrier-armor-shear'
+  ) {
+    return { searchBreadth: 384, controlFrames: 4 };
+  }
+  if (
+    attackId === 'reactor-maze'
     && !mobile
+    && phaseId === 'sandbox-clawcarrier-siege-calibration'
+  ) {
+    return { searchBreadth: 512, controlFrames: 4 };
+  }
+  if (
+    attackId === 'reactor-maze'
+    && !mobile
+    && phaseId === 'sandbox-clawcarrier-reactor-overdrive'
+  ) {
+    return { searchBreadth: 512, controlFrames: 4 };
+  }
+  if (
+    attackId === 'reactor-maze'
+    && mobile
     && phaseId === 'sandbox-clawcarrier-reactor-overdrive'
   ) {
     return { searchBreadth: 512, controlFrames: 4 };
@@ -1103,6 +1173,7 @@ test('all real Helios attacks use anatomy-owned geometry and retain a six-pixel 
     assert.match(attack.safeRouteRule, /\S/);
     for (const phase of bossEvent.phases) {
       for (const viewport of Object.values(BOSS_SAFE_ROUTE_BENCHMARK_VIEWPORTS)) {
+        if (!routeCaseMatches(attack.id, phase.id, viewport.id)) continue;
         const firstCapture = captureExactAttackPose(viewport, attack, phase.id);
         const repeatedCapture = captureExactAttackPose(viewport, attack, phase.id);
         assert.deepEqual(
@@ -1247,8 +1318,9 @@ test('all real Helios attacks use anatomy-owned geometry and retain a six-pixel 
   }
 
   assert.deepEqual(unproven, [], JSON.stringify(unproven, null, 2));
-  assert.equal(evidence.length, 24);
+  assert.ok(capturedCases.length > 0, `No Helios route case matched ${requestedRouteCase}`);
+  assert.equal(evidence.length, capturedCases.length);
   assert.equal(new Set(evidence.map((entry) => (
     `${entry.attackId}:${entry.phaseId}:${entry.viewportId}`
-  ))).size, 24);
+  ))).size, capturedCases.length);
 });

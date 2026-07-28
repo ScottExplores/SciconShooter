@@ -72,7 +72,7 @@ const WAVE_KEYS = ['id', 'name', 'order', 'accent', 'backgroundId', 'completionR
 const BASE_EVENT_KEYS = ['id', 'kind', 'label', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor'];
 const EVENT_KEYS: Record<string, string[]> = {
   spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'formationSlots', 'enemies'],
-  boss: [...BASE_EVENT_KEYS, 'bossId', 'rigId', 'componentMode', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases', 'revival', 'timeline'],
+  boss: [...BASE_EVENT_KEYS, 'bossId', 'rigId', 'componentMode', 'componentHealth', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases', 'revival', 'timeline'],
   'asteroid-belt': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'],
   powerup: [...BASE_EVENT_KEYS, 'positionId', 'spawnIntervalSeconds', 'powerupIds'],
   recovery: [...BASE_EVENT_KEYS, 'positionId', 'coinCount', 'powerupIds']
@@ -1571,6 +1571,51 @@ const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValida
       'unsupported_value',
       `Unsupported boss component mode: ${String(event.componentMode)}`
     );
+  }
+  if (event.componentHealth !== undefined) {
+    if (!isRecord(event.componentHealth)) {
+      pushIssue(
+        issues,
+        `${path}/componentHealth`,
+        'required_object',
+        'Boss component health must be an object'
+      );
+    } else {
+      checkKeys(
+        event.componentHealth,
+        [...BOSS_COMPONENT_IDS],
+        `${path}/componentHealth`,
+        issues
+      );
+      if (Object.keys(event.componentHealth).length === 0) {
+        pushIssue(
+          issues,
+          `${path}/componentHealth`,
+          'empty_collection',
+          'Boss component health must configure at least one component'
+        );
+      }
+      for (const componentId of BOSS_COMPONENT_IDS) {
+        const health = event.componentHealth[componentId];
+        if (health !== undefined) {
+          checkNumber(
+            health,
+            `${path}/componentHealth/${componentId}`,
+            issues,
+            Number.EPSILON,
+            10000000
+          );
+        }
+      }
+    }
+    if (event.componentMode === 'hull-only') {
+      pushIssue(
+        issues,
+        `${path}/componentHealth`,
+        'incompatible_value',
+        'Hull-only bosses cannot configure component health'
+      );
+    }
   }
   if (event.count !== undefined) {
     checkNumber(event.count, `${path}/count`, issues, 1, 4, true);

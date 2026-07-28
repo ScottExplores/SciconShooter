@@ -168,6 +168,44 @@ const buildPhaseCase = (phase, phaseIndex) => {
 const phaseCases = bossEvent.phases.map(buildPhaseCase);
 assert.equal(phaseCases.length, 3, 'viewport proof must cover all three Helios phases');
 
+test('Helios channel accelerates by shortening its low-health route without changing the puzzle', () => {
+  assert.deepEqual(
+    phaseCases.map(({ segmentFrames, totalFireFrames }) => ({
+      segmentFrames,
+      totalFireFrames
+    })),
+    [
+      { segmentFrames: 102, totalFireFrames: 408 },
+      { segmentFrames: 90, totalFireFrames: 360 },
+      { segmentFrames: 78, totalFireFrames: 312 }
+    ]
+  );
+  const viewport = VIEWPORTS[0];
+  const rates = phaseCases.map(({ action, totalFireFrames }) => {
+    const start = sampleHeliosMachineGunChannelMovement({
+      stage: 'fire',
+      progress: 0,
+      sequence: Number(action.parameters?.sequence) || 0,
+      anchorX: (viewport.width - BOSS_WIDTH) / 2,
+      anchorY: Math.max(72, Math.min(viewport.height * 0.13, 116)),
+      arenaWidth: viewport.width,
+      arenaHeight: viewport.height,
+      bossWidth: BOSS_WIDTH,
+      bossHeight: BOSS_HEIGHT,
+      horizontalPadding: resolveHeliosMachineGunChannelHorizontalPadding(true),
+      sweepRangeRatio: Number(action.parameters?.sweepRangeRatio) || 0.34,
+      sweepPasses: Number(action.parameters?.sweepPasses) || 1,
+      upperLaneRatio: 0.13
+    });
+    return Math.abs(start.endX - start.startX)
+      * Number(action.parameters?.sweepPasses ?? 1)
+      / totalFireFrames;
+  });
+  assert.ok(rates[1] > rates[0]);
+  assert.ok(rates[2] > rates[1]);
+  assert.ok(rates[2] <= 2.5, 'the base-speed ship must still be able to follow the channel');
+});
+
 test('Helios channel mirrors its starting edge without changing its safe travel span', () => {
   for (const viewport of VIEWPORTS) {
     for (const phaseCase of phaseCases) {

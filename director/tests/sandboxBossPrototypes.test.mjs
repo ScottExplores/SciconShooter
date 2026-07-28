@@ -308,7 +308,11 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
 
   assert.ok(descriptor);
   assert.equal(boss.rigId, 'crown-claw');
-  assert.equal(boss.health, 3_200);
+  assert.equal(boss.health, 8_000);
+  assert.deepEqual(boss.componentHealth, {
+    'left-cannon': 2_000,
+    'right-cannon': 2_000
+  });
   assert.equal(boss.shieldCount, 0);
   assert.equal(boss.speed, 1.35);
   assert.equal(boss.sizeMultiplier, 1.35);
@@ -353,6 +357,11 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
       [phaseIndex >= 2 ? 2 : 3, phaseIndex >= 2 ? 2 : 3, phaseIndex >= 2 ? 2 : 3],
       `${variant.phaseId} must use rapid sequential machine-gun cadence`
     );
+    assert.deepEqual(
+      beats.map((beat) => beat.parameters.sequence),
+      [phaseIndex * 10, phaseIndex * 10 + 1, phaseIndex * 10 + 2],
+      `${variant.phaseId} must retain deterministic aimed-round branches`
+    );
     const warningStarts = beats.map((beat) => clipsById.get(beat.telegraphClipId).startSeconds);
     assert.deepEqual(
       warningStarts.map((start) => Number((start - warningStarts[0]).toFixed(6))),
@@ -367,7 +376,7 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
         const firstBeat = clipsById.get(variant.beatClipIds[0]);
         return clipsById.get(firstBeat.telegraphClipId).startSeconds;
       }),
-      [0.2, 15.15, 4.6, 10.65],
+      [0.2, 15.4, 4.6, 11.2],
       `${phase.id} must retain the retimed four-sentence cadence`
     );
   });
@@ -422,11 +431,36 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
         .find((attack) => attack.id === 'machinegun-channel')
         .variants.find((candidate) => candidate.phaseId === phase.id);
       const clip = clipsById.get(variant.beatClipIds[0]);
-      return [clip.parameters.sweepRangeRatio, clip.parameters.sweepPasses];
+      return [
+        clip.parameters.sweepRangeRatio,
+        clip.parameters.sweepPasses,
+        clip.durationSeconds,
+        clip.repeat.intervalSeconds
+      ];
     }),
-    [[0.36, 2], [0.42, 2], [0.46, 2]],
-    'every phase must complete an edge-to-edge sweep and one readable reversal'
+    [
+      [0.36, 2, 1.7, 1.7],
+      [0.42, 2, 1.5, 1.5],
+      [0.46, 2, 1.3, 1.3]
+    ],
+    'lower-health phases must complete the same readable route progressively faster'
   );
+  assert.deepEqual(
+    boss.phases.map((phase) => {
+      const variant = boss.timeline.attacks
+        .find((attack) => attack.id === 'reactor-maze')
+        .variants.find((candidate) => candidate.phaseId === phase.id);
+      return variant.beatClipIds.map((clipId) => clipsById.get(clipId).parameters.projectileCount);
+    }),
+    [[8, 9, 3, 8], [9, 9, 4, 9], [10, 11, 5, 10]]
+  );
+  const crushVariants = boss.timeline.attacks
+    .find((attack) => attack.id === 'clawcarrier-crush').variants;
+  crushVariants.forEach((variant) => {
+    const crush = clipsById.get(variant.beatClipIds[0]);
+    assert.equal(crush.durationSeconds, 0.65);
+    assert.deepEqual(crush.repeat, { count: 4, intervalSeconds: 0.65 });
+  });
   assert.equal(
     boss.timeline.clips.some((clip) => clip.primitiveId === 'articulated-melee-sweep'),
     false,
@@ -458,6 +492,32 @@ test('Helios Clawcarrier compiles three learned weapons and one signature route 
     assert.ok(clip.label, `${clip.id} needs a bespoke attack label`);
     assert.ok(clip.startSeconds > warning.startSeconds, `${clip.id} must follow its warning`);
   });
+});
+
+test('boss component health overrides stay portable, bounded, and incompatible with hull-only mode', () => {
+  const source = buildSandboxBossPrototypePreview(campaign, 'helios-clawcarrier').campaign;
+  const getBoss = (candidate) => candidate.levels
+    .flatMap((level) => level.waves)
+    .flatMap((wave) => wave.events)
+    .find((event) => event.id === 'sandbox-helios-clawcarrier');
+  const assertRejectedByBoth = (candidate, label) => {
+    const browserResult = validateBrowserCampaign(candidate);
+    const serverResult = validateServerCampaign(candidate);
+    assert.equal(browserResult.valid, false, `${label} must fail browser validation`);
+    assert.equal(serverResult.valid, false, `${label} must fail server validation`);
+  };
+
+  const unknownComponent = structuredClone(source);
+  getBoss(unknownComponent).componentHealth.reactor = 10;
+  assertRejectedByBoth(unknownComponent, 'unknown component');
+
+  const invalidHealth = structuredClone(source);
+  getBoss(invalidHealth).componentHealth['left-cannon'] = 0;
+  assertRejectedByBoth(invalidHealth, 'zero component health');
+
+  const hullOnlyConflict = structuredClone(source);
+  getBoss(hullOnlyConflict).componentMode = 'hull-only';
+  assertRejectedByBoth(hullOnlyConflict, 'hull-only component health');
 });
 
 test('Aurora Oculus reverses rotors deterministically and staggers dense one-gap rings', () => {

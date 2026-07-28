@@ -638,6 +638,10 @@ export interface BossTimelineConfig {
   attacks?: BossAttackSentence[];
 }
 
+export type BossComponentId = 'left-cannon' | 'right-cannon' | 'helmet';
+
+export type BossComponentHealth = Partial<Record<BossComponentId, number>>;
+
 export interface BossEvent extends BaseWaveEvent {
   kind: 'boss';
   bossId: BossId;
@@ -649,6 +653,8 @@ export interface BossEvent extends BaseWaveEvent {
    * cannons, armor plates, or weak points that are not part of their design.
    */
   componentMode?: 'legacy-rig' | 'hull-only';
+  /** Optional authored starting durability for individual rig components. */
+  componentHealth?: BossComponentHealth;
   /** Number of matching bosses spawned together, or rows for a configured paywall formation. */
   count?: number;
   spriteKey: AssetKey;

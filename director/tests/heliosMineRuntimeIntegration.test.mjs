@@ -92,6 +92,24 @@ const createStats = () => ({
   bossMaxHp: 100
 });
 
+const createHeliosEngine = (seed) => new GameEngine(createStats(), {
+  campaign: preview.campaign,
+  previewMode: true,
+  previewInvincible: true,
+  audioEnabled: false,
+  initialLevelId: preview.levelId,
+  initialWaveId: preview.waveId,
+  randomSeed: seed,
+  previewBossCollisionEventId: preview.eventId,
+  previewBossCollisionMask: artwork.collisionMask,
+  previewBossWeaponSockets: artwork.weaponSockets,
+  previewBossWeaponSocketPoseSampler: poseSampler,
+  previewBossArtworkDesignSize: artwork.modularRig.manifest.designSize,
+  previewBossReducedMotion: false,
+  previewBossWeaponSocketEventId: preview.eventId,
+  previewBossProjectileVisualKinds: Object.keys(artwork.projectileAnimations ?? {})
+});
+
 test('Helios Attack 3 mines complete their visible lifecycle through the real engine update', () => {
   const engine = new GameEngine(createStats(), {
     campaign: preview.campaign,
@@ -197,6 +215,38 @@ test('Helios Attack 3 mines complete their visible lifecycle through the real en
     false,
     'no Helios mine may leak after cleanup'
   );
+});
+
+test('Helios Attack 3 escalates sequential reactor sprites and mines by health phase', () => {
+  const expected = [
+    { pellets: 25, mines: 3 },
+    { pellets: 27, mines: 4 },
+    { pellets: 31, mines: 5 }
+  ];
+  for (const [phaseIndex, phase] of preview.previewWave.events
+    .find((event) => event.kind === 'boss').phases.entries()) {
+    const engine = createHeliosEngine(`helios-reactor-density-${phaseIndex}`);
+    engine.init(390, 844);
+    assert.equal(engine.spawnPreviewEventNow(preview.eventId), true);
+    assert.equal(engine.jumpToAuthoredBossPhase(phase.id, preview.eventId), true);
+    assert.equal(
+      engine.triggerAuthoredBossAttack('reactor-maze', preview.eventId, phase.id),
+      true
+    );
+    const pelletIds = new Set();
+    const mineIds = new Set();
+    for (let frame = 0; frame < 620; frame += 1) {
+      engine.update();
+      for (const entity of engine.entities) {
+        if (entity.projectileVisualKind === 'boss-reactor-pellet') {
+          pelletIds.add(entity.id);
+        }
+        if (entity.heliosMineState) mineIds.add(entity.id);
+      }
+    }
+    assert.equal(pelletIds.size, expected[phaseIndex].pellets, `${phase.label} pellet count`);
+    assert.equal(mineIds.size, expected[phaseIndex].mines, `${phase.label} mine count`);
+  }
 });
 
 test('Helios rapid bursts and moving channel emit sequential rounds from live mounted muzzles', () => {

@@ -360,6 +360,7 @@ const gatekeeperBoss = ({
   health,
   shieldCount,
   componentMode,
+  componentHealth,
   revival,
   phases,
   timeline,
@@ -369,6 +370,7 @@ const gatekeeperBoss = ({
   beamIntervalSeconds = 2.4
 }: Pick<BossEvent, 'id' | 'label' | 'rigId' | 'spriteKey' | 'health' | 'shieldCount' | 'phases' | 'timeline'> & {
   componentMode?: BossEvent['componentMode'];
+  componentHealth?: BossEvent['componentHealth'];
   revival?: BossEvent['revival'];
   speed?: number;
   sizeMultiplier?: number;
@@ -385,6 +387,7 @@ const gatekeeperBoss = ({
   bossId: 'gatekeeper',
   rigId,
   componentMode,
+  componentHealth,
   spriteKey,
   positionId: 'center-top',
   movementPatternId: 'arena-roam',
@@ -1117,13 +1120,17 @@ interface ClawcarrierPhaseRoute {
   readonly firstCannonSide: ClawcarrierSide;
   readonly burstProjectileCount: number;
   readonly burstShotIntervalFrames: number;
+  readonly crossfireBaseSequence: number;
   readonly channelWidthPixels: number;
   readonly channelSweepRangeRatio: number;
   readonly channelSweepPasses: number;
+  readonly channelSegmentSeconds: number;
   readonly channelShotIntervalFrames: number;
   readonly channelProjectileSpeedScale: number;
   readonly channelBaseSequence: number;
   readonly reactorSequences: readonly [number, number, number, number];
+  readonly reactorFanProjectileCounts: readonly [number, number, number];
+  readonly reactorMineCount: number;
   readonly crushSequence: number;
 }
 
@@ -1162,6 +1169,7 @@ const buildClawcarrierPhase = (
           actionDurationSeconds: 0.46,
           parameters: {
             projectileCount: route.burstProjectileCount,
+            sequence: route.crossfireBaseSequence,
             side: route.firstCannonSide,
             shotIntervalFrames: route.burstShotIntervalFrames,
             projectileSpeedScale: 1,
@@ -1178,6 +1186,7 @@ const buildClawcarrierPhase = (
           actionDurationSeconds: 0.46,
           parameters: {
             projectileCount: route.burstProjectileCount,
+            sequence: route.crossfireBaseSequence + 1,
             side: oppositeClawcarrierSide(route.firstCannonSide),
             shotIntervalFrames: route.burstShotIntervalFrames,
             projectileSpeedScale: 1,
@@ -1194,7 +1203,7 @@ const buildClawcarrierPhase = (
           actionDurationSeconds: 0.64,
           parameters: {
             projectileCount: route.burstProjectileCount + 1,
-            sequence: route.crushSequence,
+            sequence: route.crossfireBaseSequence + 2,
             shotIntervalFrames: route.burstShotIntervalFrames,
             projectileSpeedScale: 1,
             motionCue: 'paired-crossfire'
@@ -1212,7 +1221,7 @@ const buildClawcarrierPhase = (
       solution: 'Enter the opening between the two downward streams and follow its predictable horizontal movement until both guns settle.',
       safeRouteRule: 'shifting-channel',
       sourceSocketRoles: ['port', 'starboard'],
-      startSeconds: 15.15,
+      startSeconds: 15.4,
       recoverySeconds: 1,
       color: route.color,
       beats: [
@@ -1223,7 +1232,7 @@ const buildClawcarrierPhase = (
           offsetSeconds: 0,
           telegraphStyle: 'warning',
           leadSeconds: 0.75,
-          actionDurationSeconds: 1.7,
+          actionDurationSeconds: route.channelSegmentSeconds,
           parameters: {
             projectileCount: 24,
             sequence: route.channelBaseSequence,
@@ -1234,7 +1243,7 @@ const buildClawcarrierPhase = (
             sweepRangeRatio: route.channelSweepRangeRatio,
             sweepPasses: route.channelSweepPasses
           },
-          repeat: { count: 4, intervalSeconds: 1.7 }
+          repeat: { count: 4, intervalSeconds: route.channelSegmentSeconds }
         }
       ]
     },
@@ -1255,12 +1264,14 @@ const buildClawcarrierPhase = (
         id: index === 2 ? 'mines' : `fan-${index + 1}`,
         label: index === 2 ? 'Reactor mine deployment' : `Reactor fan beat ${index + 1}`,
         primitiveId: 'reactor-aperture-pattern' as const,
-        offsetSeconds: index * 1.28,
+        offsetSeconds: index * 1.48,
         telegraphStyle: 'warning' as const,
         leadSeconds: index === 2 ? 0.72 : 0.58,
-        actionDurationSeconds: index === 2 ? 0.76 : 0.7,
+        actionDurationSeconds: 0.76,
         parameters: {
-          projectileCount: index === 2 ? 3 : 7 + (index % 3),
+          projectileCount: index === 2
+            ? route.reactorMineCount
+            : route.reactorFanProjectileCounts[index < 2 ? index : 2],
           sequence,
           motionCue: index === 2 ? 'reactor-mines' : 'reactor-fan'
         }
@@ -1272,11 +1283,11 @@ const buildClawcarrierPhase = (
       phaseId: route.phaseId,
       role: 'core',
       skillTest: 'route-combination',
-      recognitionCue: 'The carrier rises, opens both claws, follows the player briefly, then freezes before committing to the locked dive.',
+      recognitionCue: 'The carrier rises, opens both claws, follows the player briefly, locks the route, then commits to one uninterrupted crushing dive.',
       solution: 'Bait the short tracking stage, leave the locked area before the dive, and stay outside the visibly closed claw tips until they release.',
       safeRouteRule: 'channel-to-quadrant',
       sourceSocketRoles: ['port', 'starboard'],
-      startSeconds: 10.65,
+      startSeconds: 11.2,
       recoverySeconds: 0.8,
       color: route.color,
       beats: [
@@ -1287,12 +1298,12 @@ const buildClawcarrierPhase = (
           offsetSeconds: 0,
           telegraphStyle: 'warning',
           leadSeconds: 0.55,
-          actionDurationSeconds: 0.5,
+          actionDurationSeconds: 0.65,
           parameters: {
             sequence: route.crushSequence,
             motionCue: 'pincer-dive'
           },
-          repeat: { count: 4, intervalSeconds: 0.86 }
+          repeat: { count: 4, intervalSeconds: 0.65 }
         }
       ]
     }
@@ -1310,13 +1321,17 @@ const clawcarrierTimeline = compileBossAttackTimeline({
       firstCannonSide: 'port',
       burstProjectileCount: 5,
       burstShotIntervalFrames: 3,
+      crossfireBaseSequence: 0,
       channelWidthPixels: 160,
       channelSweepRangeRatio: 0.36,
       channelSweepPasses: 2,
+      channelSegmentSeconds: 1.7,
       channelShotIntervalFrames: 2,
       channelProjectileSpeedScale: 0.92,
       channelBaseSequence: 0,
       reactorSequences: [0, 1, 2, 3],
+      reactorFanProjectileCounts: [8, 9, 8],
+      reactorMineCount: 3,
       crushSequence: 0
     }),
     buildClawcarrierPhase({
@@ -1326,13 +1341,17 @@ const clawcarrierTimeline = compileBossAttackTimeline({
       firstCannonSide: 'starboard',
       burstProjectileCount: 5,
       burstShotIntervalFrames: 3,
+      crossfireBaseSequence: 10,
       channelWidthPixels: 160,
       channelSweepRangeRatio: 0.42,
       channelSweepPasses: 2,
+      channelSegmentSeconds: 1.5,
       channelShotIntervalFrames: 2,
       channelProjectileSpeedScale: 0.98,
       channelBaseSequence: 4,
-      reactorSequences: [5, 4, 3, 2],
+      reactorSequences: [5, 4, 3, 3],
+      reactorFanProjectileCounts: [9, 9, 9],
+      reactorMineCount: 4,
       crushSequence: 4
     }),
     buildClawcarrierPhase({
@@ -1342,13 +1361,17 @@ const clawcarrierTimeline = compileBossAttackTimeline({
       firstCannonSide: 'port',
       burstProjectileCount: 6,
       burstShotIntervalFrames: 2,
+      crossfireBaseSequence: 20,
       channelWidthPixels: 160,
       channelSweepRangeRatio: 0.46,
       channelSweepPasses: 2,
+      channelSegmentSeconds: 1.3,
       channelShotIntervalFrames: 2,
-      channelProjectileSpeedScale: 1.04,
+      channelProjectileSpeedScale: 1.12,
       channelBaseSequence: 8,
-      reactorSequences: [2, 4, 1, 3],
+      reactorSequences: [2, 5, 1, 4],
+      reactorFanProjectileCounts: [10, 11, 10],
+      reactorMineCount: 5,
       crushSequence: 8
     })
   ]
@@ -3041,7 +3064,11 @@ const definitions = deepFreeze([
       // Helios V2 modular atlas after the canonical preview is constructed.
       rigId: 'crown-claw',
       spriteKey: 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT',
-      health: 3_200,
+      health: 8_000,
+      componentHealth: {
+        'left-cannon': 2_000,
+        'right-cannon': 2_000
+      },
       shieldCount: 0,
       speed: 1.35,
       sizeMultiplier: 1.35,

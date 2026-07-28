@@ -15,6 +15,29 @@ export interface HeliosCrossfirePulse {
   readonly recoilEnergy: number;
 }
 
+export interface HeliosCrossfireShotPlan {
+  readonly angleRadians: number;
+  readonly aimedAtLockedPlayer: boolean;
+  readonly aimedRoundCount: number;
+}
+
+/**
+ * Opaque center mass used by the Clawcarrier Crush contact pass. The live
+ * claws keep their own moving hit regions; limiting the hull sweep to this
+ * guaranteed-opaque core prevents the assembled rest-pose mask from becoming
+ * an unavoidable full-width wall on portrait mobile.
+ */
+export const resolveHeliosTrackingPincerCoreRadius = (
+  bossWidth: number,
+  bossHeight: number
+) => Math.max(
+  18,
+  Math.min(
+    Math.max(1, finiteOr(bossWidth, 1)) * 0.15,
+    Math.max(1, finiteOr(bossHeight, 1)) * 0.2
+  )
+);
+
 export const HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE = 'machinegun-channel' as const;
 export const HELIOS_MACHINE_GUN_CHANNEL_FIRST_SHOT_FRAME = 2;
 export const HELIOS_MACHINE_GUN_CHANNEL_DEFAULT_INTERVAL_FRAMES = 2;
@@ -541,19 +564,44 @@ export const buildHeliosReactorFanAngles = ({
   const normalizedSequence = Math.abs(Math.floor(Number(sequence) || 0));
   const orderMode = normalizedSequence % 3;
   const widthMode = Math.floor(normalizedSequence / 3) % 3;
-  const halfSpan = widthMode === 0
+  const halfSpan = count >= 10
     ? Math.PI / 3
-    : widthMode === 1
-      ? Math.PI * 0.28
-      : Math.PI * 0.24;
+    : widthMode === 0
+      ? Math.PI / 3
+      : widthMode === 1
+        ? Math.PI * 0.28
+        : Math.PI * 0.24;
   const center = Math.max(
     minimumAngle + halfSpan,
     Math.min(maximumAngle - halfSpan, Number(targetAngleRadians) || Math.PI / 2)
   );
-  const ascending = Array.from({ length: count }, (_, index) => {
+  const evenlySpaced = Array.from({ length: count }, (_, index) => {
     const ratio = count <= 1 ? 0.5 : index / (count - 1);
     return center - halfSpan + ratio * halfSpan * 2;
   });
+  const ascending = count < 9
+    ? evenlySpaced
+    : (() => {
+        // Dense low-health fans retain every authored projectile but widen one
+        // deterministic learnable aperture. Rays are redistributed on either
+        // side instead of removed, so 10/11-shot sprite density stays intact.
+        const gapIndex = Math.floor((count - 1) / 2);
+        const apertureHalfRadians = count >= 10 ? 0.14 : 0.08;
+        const leftEnd = evenlySpaced[gapIndex] - apertureHalfRadians;
+        const rightStart = evenlySpaced[gapIndex + 1] + apertureHalfRadians;
+        const leftCount = gapIndex + 1;
+        const rightCount = count - leftCount;
+        const left = Array.from({ length: leftCount }, (_, index) => {
+          const ratio = leftCount <= 1 ? 1 : index / (leftCount - 1);
+          return evenlySpaced[0] + (leftEnd - evenlySpaced[0]) * ratio;
+        });
+        const right = Array.from({ length: rightCount }, (_, index) => {
+          const ratio = rightCount <= 1 ? 0 : index / (rightCount - 1);
+          return rightStart
+            + (evenlySpaced[count - 1] - rightStart) * ratio;
+        });
+        return [...left, ...right];
+      })();
   if (orderMode === 1) return Object.freeze([...ascending].reverse());
   if (orderMode === 2) {
     const middle = Math.floor(ascending.length / 2);
@@ -618,37 +666,43 @@ const HELIOS_MINE_FORMATION_TEMPLATES: Readonly<Record<
     { targetXRatio: 0.22, targetYRatio: 0.48, delayFrames: 0, deployFrames: 38 },
     { targetXRatio: 0.41, targetYRatio: 0.58, delayFrames: 10, deployFrames: 44 },
     { targetXRatio: 0.62, targetYRatio: 0.68, delayFrames: 23, deployFrames: 48 },
-    { targetXRatio: 0.81, targetYRatio: 0.76, delayFrames: 35, deployFrames: 41 }
+    { targetXRatio: 0.81, targetYRatio: 0.76, delayFrames: 35, deployFrames: 41 },
+    { targetXRatio: 0.18, targetYRatio: 0.79, delayFrames: 42, deployFrames: 45 }
   ]),
   'reverse-diagonal': freezeMineTemplateSlots([
     { targetXRatio: 0.78, targetYRatio: 0.48, delayFrames: 0, deployFrames: 40 },
     { targetXRatio: 0.59, targetYRatio: 0.59, delayFrames: 13, deployFrames: 46 },
     { targetXRatio: 0.38, targetYRatio: 0.69, delayFrames: 24, deployFrames: 42 },
-    { targetXRatio: 0.19, targetYRatio: 0.77, delayFrames: 38, deployFrames: 48 }
+    { targetXRatio: 0.19, targetYRatio: 0.77, delayFrames: 38, deployFrames: 48 },
+    { targetXRatio: 0.82, targetYRatio: 0.79, delayFrames: 42, deployFrames: 44 }
   ]),
   zigzag: freezeMineTemplateSlots([
     { targetXRatio: 0.20, targetYRatio: 0.62, delayFrames: 0, deployFrames: 36 },
     { targetXRatio: 0.43, targetYRatio: 0.48, delayFrames: 9, deployFrames: 45 },
     { targetXRatio: 0.64, targetYRatio: 0.71, delayFrames: 21, deployFrames: 40 },
-    { targetXRatio: 0.82, targetYRatio: 0.55, delayFrames: 33, deployFrames: 47 }
+    { targetXRatio: 0.82, targetYRatio: 0.55, delayFrames: 33, deployFrames: 47 },
+    { targetXRatio: 0.38, targetYRatio: 0.79, delayFrames: 41, deployFrames: 43 }
   ]),
   'shallow-arc': freezeMineTemplateSlots([
     { targetXRatio: 0.18, targetYRatio: 0.66, delayFrames: 0, deployFrames: 43 },
     { targetXRatio: 0.39, targetYRatio: 0.55, delayFrames: 12, deployFrames: 38 },
     { targetXRatio: 0.62, targetYRatio: 0.53, delayFrames: 25, deployFrames: 46 },
-    { targetXRatio: 0.82, targetYRatio: 0.65, delayFrames: 36, deployFrames: 41 }
+    { targetXRatio: 0.82, targetYRatio: 0.65, delayFrames: 36, deployFrames: 41 },
+    { targetXRatio: 0.52, targetYRatio: 0.79, delayFrames: 42, deployFrames: 48 }
   ]),
   'offset-triangle': freezeMineTemplateSlots([
     { targetXRatio: 0.49, targetYRatio: 0.47, delayFrames: 0, deployFrames: 37 },
     { targetXRatio: 0.24, targetYRatio: 0.66, delayFrames: 11, deployFrames: 46 },
     { targetXRatio: 0.76, targetYRatio: 0.70, delayFrames: 23, deployFrames: 40 },
-    { targetXRatio: 0.57, targetYRatio: 0.79, delayFrames: 34, deployFrames: 48 }
+    { targetXRatio: 0.57, targetYRatio: 0.79, delayFrames: 34, deployFrames: 48 },
+    { targetXRatio: 0.18, targetYRatio: 0.48, delayFrames: 41, deployFrames: 44 }
   ]),
   'asymmetric-cluster': freezeMineTemplateSlots([
     { targetXRatio: 0.19, targetYRatio: 0.52, delayFrames: 0, deployFrames: 45 },
     { targetXRatio: 0.48, targetYRatio: 0.74, delayFrames: 14, deployFrames: 39 },
     { targetXRatio: 0.81, targetYRatio: 0.49, delayFrames: 25, deployFrames: 47 },
-    { targetXRatio: 0.64, targetYRatio: 0.61, delayFrames: 37, deployFrames: 42 }
+    { targetXRatio: 0.64, targetYRatio: 0.61, delayFrames: 37, deployFrames: 42 },
+    { targetXRatio: 0.24, targetYRatio: 0.79, delayFrames: 42, deployFrames: 46 }
   ])
 });
 
@@ -663,14 +717,17 @@ export const resolveHeliosMineFormationTemplateId = (
 
 export const resolveHeliosMineFormationSequence = ({
   sequence,
-  seedKey
+  seedKey,
+  useIndex = 0
 }: {
   sequence: number;
   seedKey: string;
+  useIndex?: number;
 }) => (
   Math.max(0, Math.floor(finiteOr(sequence, 0)))
   + hashStableSeedKey(String(seedKey ?? ''))
     % HELIOS_MINE_FORMATION_TEMPLATE_IDS.length
+  + Math.max(0, Math.floor(finiteOr(useIndex, 0)))
 );
 
 /**
@@ -684,7 +741,7 @@ export const resolveHeliosMineFormation = ({
   sequence: number;
   count: number;
 }): readonly HeliosMineFormationSlot[] => {
-  const slotCount = normalizeCount(count, 2, 4);
+  const slotCount = normalizeCount(count, 2, 5);
   const templateId = resolveHeliosMineFormationTemplateId(sequence);
   const slots = HELIOS_MINE_FORMATION_TEMPLATES[templateId].slice(0, slotCount);
   return Object.freeze(slots.map((slot, index) => {
@@ -859,7 +916,10 @@ export const sampleHeliosMineLifecycle = ({
     stage: 'armed',
     frameIndex: 3,
     damageActive: false,
-    shouldTrigger: proximityTrigger || age >= automaticTriggerAge,
+    // Always render at least one fully armed frame before a proximity or
+    // automatic detonation can replace the mine with its explosion atlas.
+    shouldTrigger: age > deploymentDuration
+      && (proximityTrigger || age >= automaticTriggerAge),
     shouldCleanup: false
   });
 };
@@ -1122,7 +1182,7 @@ export const sampleHeliosTrackingPincer = ({
       returnProgress: 0,
       trackingActive: false,
       lockActive: true,
-      damageActive: t >= 0.58 && t <= 0.96
+      damageActive: t >= 0.42
     });
   }
   const release = 1 - smoothstep((t - 0.28) / 0.32);
@@ -1136,7 +1196,7 @@ export const sampleHeliosTrackingPincer = ({
     returnProgress: smoothstep((t - 0.36) / 0.64),
     trackingActive: false,
     lockActive: true,
-    damageActive: t <= 0.24
+    damageActive: t <= 0.28
   });
 };
 
@@ -1158,6 +1218,72 @@ export const resolveHeliosCrossfireAngle = (
 ) => {
   const outwardOffset = coordinated ? 0.3 : 0.08;
   return Math.PI / 2 + (side === 'port' ? outwardOffset : -outwardOffset);
+};
+
+/**
+ * Mixes a bounded number of warning-locked player shots into each one-sided
+ * rotary burst. The coordinated finisher remains fixed so its center corridor
+ * stays learnable, and every branch is deterministic for replay/proof parity.
+ */
+export const resolveHeliosCrossfireShotPlan = ({
+  side,
+  coordinated,
+  sideShotIndex,
+  roundsPerSide,
+  phaseIndex,
+  sequence,
+  lockedTargetAngleRadians
+}: {
+  side: HeliosClawSide;
+  coordinated: boolean;
+  sideShotIndex: number;
+  roundsPerSide: number;
+  phaseIndex: number;
+  sequence: number;
+  lockedTargetAngleRadians: number;
+}): HeliosCrossfireShotPlan => {
+  const rounds = normalizeCount(roundsPerSide, 3, 9);
+  const shotIndex = Math.max(0, Math.min(
+    rounds - 1,
+    Math.floor(finiteOr(sideShotIndex, 0))
+  ));
+  const normalizedPhase = normalizeCount(phaseIndex, 1, 3);
+  const normalizedSequence = Math.abs(Math.floor(finiteOr(sequence, 0)));
+  const sideOffset = side === 'port' ? 0 : 3;
+  const requestedAimCount = coordinated
+    ? 0
+    : normalizedPhase === 1
+      ? 1
+      : normalizedPhase === 2
+        ? 1 + ((normalizedSequence + sideOffset) % 2)
+        : 2;
+  const aimedIndices = new Set<number>();
+  const firstOffset = (
+    normalizedSequence
+    + sideOffset
+    + normalizedPhase * 2
+  ) % rounds;
+  for (let index = 0; index < requestedAimCount; index += 1) {
+    aimedIndices.add((
+      firstOffset
+      + Math.floor((index + 0.5) * rounds / Math.max(1, requestedAimCount))
+    ) % rounds);
+  }
+  const centeredIndex = shotIndex - (rounds - 1) / 2;
+  const fixedAngle = resolveHeliosCrossfireAngle(side, coordinated)
+    + centeredIndex * 0.045;
+  const aimedAtLockedPlayer = aimedIndices.has(shotIndex);
+  const targetAngle = clampFinite(
+    lockedTargetAngleRadians,
+    Math.PI / 6,
+    Math.PI * 5 / 6,
+    fixedAngle
+  );
+  return Object.freeze({
+    angleRadians: aimedAtLockedPlayer ? targetAngle : fixedAngle,
+    aimedAtLockedPlayer,
+    aimedRoundCount: aimedIndices.size
+  });
 };
 
 /**

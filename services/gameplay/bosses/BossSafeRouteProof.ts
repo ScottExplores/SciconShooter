@@ -14,7 +14,7 @@ import {
   HELIOS_MACHINE_GUN_CHANNEL_MOTION_CUE,
   resolveHeliosMineFormation,
   resolveHeliosMineArmPoint,
-  resolveHeliosCrossfireAngle,
+  resolveHeliosCrossfireShotPlan,
   resolveHeliosCrossfireSides,
   sampleHeliosCrossfirePulse,
   sampleHeliosMachineGunChannelPulse,
@@ -97,6 +97,10 @@ export interface BossSafeRouteBeatOrigin {
   readonly targetLock?: BossSafeRoutePoint;
   /** Exact live claw locations, present only during visible damage-active frames. */
   readonly meleeSamples?: readonly BossSafeRouteMeleeSample[];
+  /** Conservative opaque-hull radius used only by the pincer collision pass. */
+  readonly meleeBodyRadiusPixels?: number;
+  /** Exact live hull centers during pincer damage-active frames. */
+  readonly meleeBodySamples?: readonly BossSafeRoutePointSample[];
 }
 
 export interface BossSafeRouteMineDeployment {
@@ -110,6 +114,11 @@ export interface BossSafeRouteMineDeployment {
 export interface BossSafeRouteMeleeSample {
   readonly frameOffset: number;
   readonly side: 'port' | 'starboard';
+  readonly point: BossSafeRoutePoint;
+}
+
+export interface BossSafeRoutePointSample {
+  readonly frameOffset: number;
   readonly point: BossSafeRoutePoint;
 }
 
@@ -255,6 +264,8 @@ interface SearchState {
   hazards: SafeRouteHazard[];
   locks: Readonly<Record<string, BossSafeRoutePoint>>;
   minimumClearance: number;
+  minimumClearanceHazardKind?: SafeRouteHazard['kind'];
+  minimumClearanceFrame?: number;
   currentClearance: number;
   readonly initialX: number;
   readonly initialY: number;
@@ -1077,10 +1088,26 @@ const spawnActiveHeliosCrossfirePulse = (
     context.viewport.mobileProfile ? 6 : 6.7,
     Math.max(4.5, (Number(context.pose.projectileSpeed) || 6.2) * 0.76)
   );
+  const lockedTarget = state.locks[beat.key] ?? {
+    x: context.viewport.width / 2,
+    y: context.viewport.height * 0.82
+  };
+  const shotPlan = resolveHeliosCrossfireShotPlan({
+    side: pulse.side,
+    coordinated: sides.length > 1,
+    sideShotIndex: pulse.sideShotIndex,
+    roundsPerSide,
+    phaseIndex,
+    sequence: resolveBossPatternSequence(parameters?.sequence, beat.executionIndex),
+    lockedTargetAngleRadians: Math.atan2(
+      lockedTarget.y - origin.y,
+      lockedTarget.x - origin.x
+    )
+  });
   spawnProjectile(
     state.hazards,
     origin,
-    resolveHeliosCrossfireAngle(pulse.side, sides.length > 1) + centeredIndex * 0.045,
+    shotPlan.angleRadians,
     speed
       * (parameters?.projectileSpeedScale ?? 1)
       * (1 + Math.abs(centeredIndex) * 0.012),
@@ -1157,20 +1184,22 @@ const spawnActiveHeliosReactorPulse = (
   }
   const target = state.locks[beat.key];
   if (!target) return false;
-  const provisionalCore = exact?.coreSamples?.[0] ?? fallbackCore;
-  const targetAngle = Math.atan2(
-    target.y - provisionalCore.y,
-    target.x - provisionalCore.x
-  );
+  const provisionalShot = sampleHeliosReactorFanShot({
+    elapsedFrames,
+    sequence,
+    projectileCount: parameters?.projectileCount ?? 7,
+    intervalFrames: phaseIndex >= 3 ? 4 : 5
+  });
+  if (!provisionalShot?.firing) return true;
+  const origin = exact?.coreSamples?.[provisionalShot.shotIndex] ?? fallbackCore;
   const fanShot = sampleHeliosReactorFanShot({
     elapsedFrames,
     sequence,
     projectileCount: parameters?.projectileCount ?? 7,
-    targetAngleRadians: targetAngle,
+    targetAngleRadians: Math.atan2(target.y - origin.y, target.x - origin.x),
     intervalFrames: phaseIndex >= 3 ? 4 : 5
   });
   if (!fanShot?.firing) return true;
-  const origin = exact?.coreSamples?.[fanShot.shotIndex] ?? fallbackCore;
   spawnProjectile(
     state.hazards,
     origin,
@@ -1188,19 +1217,35 @@ const spawnActiveHeliosMeleeSamples = (
   context: SimulationContext
 ) => {
   const exact = context.pose.beatOrigins?.[beat.key];
-  if (!exact?.meleeSamples || exact.meleeSamples.length === 0) return true;
   const frameOffset = state.frame - beat.fireFrame;
-  const samples = exact.meleeSamples.filter((sample) => sample.frameOffset === frameOffset);
-  if (samples.length === 0) return true;
-  const radius = getBeatMeleeRadius(context.pose, beat);
-  if (!Number.isFinite(radius) || Number(radius) <= 0) return false;
-  samples.forEach((sample) => spawnZone(
-    state.hazards,
-    sample.point,
-    Number(radius),
-    context.pose.geometryUncertaintyPixels,
-    2
-  ));
+  const samples = exact?.meleeSamples?.filter((sample) => (
+    sample.frameOffset === frameOffset
+  )) ?? [];
+  if (samples.length > 0) {
+    const radius = getBeatMeleeRadius(context.pose, beat);
+    if (!Number.isFinite(radius) || Number(radius) <= 0) return false;
+    samples.forEach((sample) => spawnZone(
+      state.hazards,
+      sample.point,
+      Number(radius),
+      context.pose.geometryUncertaintyPixels,
+      2
+    ));
+  }
+  const bodySamples = exact?.meleeBodySamples?.filter((sample) => (
+    sample.frameOffset === frameOffset
+  )) ?? [];
+  if (bodySamples.length > 0) {
+    const bodyRadius = Number(exact?.meleeBodyRadiusPixels);
+    if (!Number.isFinite(bodyRadius) || bodyRadius <= 0) return false;
+    bodySamples.forEach((sample) => spawnZone(
+      state.hazards,
+      sample.point,
+      bodyRadius,
+      context.pose.geometryUncertaintyPixels,
+      2
+    ));
+  }
   return true;
 };
 
@@ -1233,6 +1278,7 @@ const advanceHazards = (
 ) => {
   const retained: SafeRouteHazard[] = [];
   let currentClearance = Number.POSITIVE_INFINITY;
+  let currentClearanceHazardKind: SafeRouteHazard['kind'] | undefined;
   for (const hazard of state.hazards) {
     if (hazard.kind === 'beam') {
       hazard.life -= 1;
@@ -1297,12 +1343,19 @@ const advanceHazards = (
     }
     const clearance = collisionClearance(state, hazard, context.player);
     if (clearance <= 0) return false;
-    currentClearance = Math.min(currentClearance, clearance);
+    if (clearance < currentClearance) {
+      currentClearance = clearance;
+      currentClearanceHazardKind = hazard.kind;
+    }
     retained.push(hazard);
   }
   state.hazards = retained;
   state.currentClearance = currentClearance;
-  state.minimumClearance = Math.min(state.minimumClearance, currentClearance);
+  if (currentClearance < state.minimumClearance) {
+    state.minimumClearance = currentClearance;
+    state.minimumClearanceHazardKind = currentClearanceHazardKind;
+    state.minimumClearanceFrame = state.frame;
+  }
   return true;
 };
 
@@ -2231,7 +2284,7 @@ export const proveBossAttackSafeRoute = (
     return failure(
       request,
       'insufficient-clearance',
-      `The widest deterministic witness retained ${Number.isFinite(replay.state.minimumClearance) ? replay.state.minimumClearance.toFixed(2) : 'no'} px after uncertainty; at least ${MINIMUM_PROVEN_BOSS_ROUTE_CLEARANCE_PIXELS} px is required.`,
+      `The widest deterministic witness retained ${Number.isFinite(replay.state.minimumClearance) ? replay.state.minimumClearance.toFixed(2) : 'no'} px after uncertainty; at least ${MINIMUM_PROVEN_BOSS_ROUTE_CLEARANCE_PIXELS} px is required. Closest hazard: ${replay.state.minimumClearanceHazardKind ?? 'unknown'} at frame ${replay.state.minimumClearanceFrame ?? 'unknown'}.`,
       modeledPrimitives,
       checkedFrames
     );
