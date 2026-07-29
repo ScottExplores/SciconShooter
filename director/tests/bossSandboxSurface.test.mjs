@@ -281,6 +281,19 @@ test('local and remote Boss Sandbox attack buttons follow the live runtime attac
     source,
     /triggerAttack\([\s\S]*attack\.id,[\s\S]*attack\.phaseId,[\s\S]*index \+ 1/
   );
+  const remoteTriggerStart = remoteSource.indexOf('  const triggerAttack = useCallback');
+  const remoteTriggerEnd = remoteSource.indexOf(
+    '\n\n  const handleCommandResult = useCallback',
+    remoteTriggerStart
+  );
+  const remoteTrigger = remoteSource.slice(remoteTriggerStart, remoteTriggerEnd);
+  assert.match(remoteTrigger, /type: 'trigger-boss-attack'/);
+  assert.match(remoteTrigger, /attackId,[\s\S]*phaseId,[\s\S]*eventId,[\s\S]*loop: false/);
+  assert.doesNotMatch(remoteTrigger, /resume\(\)/);
+  assert.match(
+    remoteSource,
+    /previewCommand\.type === 'trigger-boss-attack'[\s\S]*setPlaying\(true\)[\s\S]*setDrawerOpen\(false\)/
+  );
   assert.match(source, /Attack \{index \+ 1\}/);
   assert.match(source, /const replaySelectedAttack = useCallback/);
   assert.match(source, /const toggleSelectedAttackLoop = useCallback/);

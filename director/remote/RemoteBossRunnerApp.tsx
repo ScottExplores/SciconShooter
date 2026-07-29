@@ -542,10 +542,15 @@ export default function RemoteBossRunnerApp() {
   ) => {
     if (!eventId) return;
     setSelectedPhaseId(phaseId);
-    sendCommand({ type: 'trigger-boss-attack', attackId, eventId });
+    sendCommand({
+      type: 'trigger-boss-attack',
+      attackId,
+      phaseId,
+      eventId,
+      loop: false
+    });
     setNotice(`Starting Attack ${attackNumber}.`);
-    resume();
-  }, [eventId, resume, sendCommand]);
+  }, [eventId, sendCommand]);
 
   const handleCommandResult = useCallback((result: PreviewCommandResult) => {
     if (!previewCommand || previewCommand.nonce !== result.nonce) return;
@@ -562,6 +567,10 @@ export default function RemoteBossRunnerApp() {
       setNotice('Pixi frame downloaded as PNG.');
     } else if (!result.handled) {
       setNotice('That action was not ready. Restart the fight and try again.');
+    } else if (previewCommand.type === 'trigger-boss-attack') {
+      setPlaying(true);
+      setDrawerOpen(false);
+      setNotice('Selected attack started from its first warning.');
     }
     setPreviewCommand(null);
   }, [previewCommand, selectedChoice?.bossLabel]);
