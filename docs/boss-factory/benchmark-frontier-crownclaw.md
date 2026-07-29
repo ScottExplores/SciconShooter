@@ -6,7 +6,7 @@ Frontier Crownclaw is a low, wide teal/gold/steel bastion crab. Its crown reacto
 
 Helios Clawcarrier is a polish benchmark only. Frontier does not inherit Helios's guns, channel, clamp, mines, timing, or phase grammar.
 
-V0.26 is a mobile-only Factory amendment under the one-boss lock. Its changed claw, tether collision, beam art, and deep target geometry now pass regenerated canonical-mobile route proof plus focused type/build gates. Factory-ready status remains withheld until current actual-gameplay captures, phone/wide-host portrait review, Runner parity, and private deployment verification pass.
+V0.26 is a mobile-only Factory amendment under the one-boss lock. Its changed claw, tether collision, beam art, and deep target geometry now pass regenerated canonical-mobile route proof, focused type/build gates, owner-only Runner parity, and Sites deployment. Wide-host review confirms the fixed portrait arena and requested Harpoon/Beam presentation. Factory-ready status remains withheld until phone-width review and the complete current capture set pass.
 
 ## Locked pixel art
 
@@ -60,7 +60,7 @@ Phase two visibly exposes the reactor, opens winch housings, rotates rear anatom
 - Required post-uncertainty clearance: 6 px
 - Minimum measured clearance: `6.77702596335363 px`
 
-The regenerated trace proof compiles the current V0.26 Frontier timeline, resolves registered rig sockets, models the full-size launched claw as an oriented box, gives damaging chain segments a `6.5 px` radius, follows the deeper warning-locked ship row, and applies the standard `3 px` uncertainty. All 76 witnesses retain at least `6 px` post-uncertainty clearance; the minimum remains `6.77702596335363 px`. Historical desktop evidence is retained only as an archival/internal diagnostic and is not a product gameplay mode or current acceptance viewport. Actual-gameplay collision and presentation review remains pending in phone-width and wide host shells that preserve identical `390 x 844` geometry.
+The regenerated trace proof compiles the current V0.26 Frontier timeline, resolves registered rig sockets, models the full-size launched claw as an oriented box, gives damaging chain segments a `6.5 px` radius, follows the deeper warning-locked ship row, and applies the standard `3 px` uncertainty. All 76 witnesses retain at least `6 px` post-uncertainty clearance; the minimum remains `6.77702596335363 px`. Historical desktop evidence is retained only as an archival/internal diagnostic and is not a product gameplay mode or current acceptance viewport. Owner-only Sites review confirms wide-host letterboxing around the identical `390 x 844` arena; phone-width review and the complete current capture set remain pending.
 
 ## Actual visual evidence
 
@@ -73,7 +73,7 @@ The regenerated trace proof compiles the current V0.26 Frontier timeline, resolv
 - Destruction: `director-data/prototype-assets/frontier-crownclaw/evidence/frontier-crownclaw-destruction-peak.png`
 - Attack stages: 20 reviewed PNGs under `director-data/prototype-assets/frontier-crownclaw/evidence/attacks/`
 
-The historical browser pass found and corrected a missing alpha-mask registration, an entry-state manual-attack fallback, a duplicate reactor beam, and the upward-authored crown bolt's velocity-orientation offset. It also replaced the prior neutral placeholder and added the required 11-pose sheet. V0.26 actual-gameplay review remains pending for the full-size open claw, visible chain segments and their damage windows, deeper warning-locked strike, native beam frames, collision alignment, and identical portrait geometry in phone-width and wide host shells.
+The historical browser pass found and corrected a missing alpha-mask registration, an entry-state manual-attack fallback, a duplicate reactor beam, and the upward-authored crown bolt's velocity-orientation offset. It also replaced the prior neutral placeholder and added the required 11-pose sheet. V0.26 live Sites review confirms the full-size open claw, repeated visible chain segments reaching the ship row, native reactor-beam presentation, wide-host portrait geometry, Restart recovery, and phase-aware numbered controls. Phone-width inspection, direct live collision inspection, and the complete five-stage capture set remain pending.
 
 ## V0.26 automated evidence
 
@@ -83,13 +83,13 @@ The historical browser pass found and corrected a missing alpha-mask registratio
 - Intact canonical-mobile route matrix: 28/28 passed
 - Component-fallback canonical-mobile route matrix: 48/48 passed
 - Root production build and production-exclusion check: passed
-- Current actual-gameplay capture and phone/wide-host portrait review: pending
-- Current Runner parity: pending
-- Private deployment verification: pending
+- Current actual-gameplay capture and portrait review: requested Harpoon/Beam plus wide-host portrait passed; phone-width and complete five-stage set pending
+- Current Runner parity: passed; 18/18 hosted tests plus live phase-aware controls and Restart verification
+- Private deployment verification: passed; owner-only Sites version 33
 
 See `director-data/prototype-assets/frontier-crownclaw/evidence/visual-verification.md` for the complete gate record.
 
-The route, focused-test, typecheck, and production-build results above are current V0.26 evidence. They do not substitute for visual inspection, Runner parity, or deployment verification.
+The route, focused-test, typecheck, production-build, Runner, and deployment results above are current V0.26 evidence. They do not substitute for the remaining phone-width inspection or complete five-stage capture set.
 
 ## Reusable lessons
 
@@ -103,4 +103,4 @@ The route, focused-test, typecheck, and production-build results above are curre
 
 ## Disposition
 
-Frontier Crownclaw V0.26 is Factory-compatible, Sandbox-only, and listed under **Test Bosses** while its one-boss lock is active. The picker exposes only **Main Game** and **Test Bosses**; internal legacy or rebuild labels never create another user-facing category. This package does not add Frontier to a Mission, campaign, progression, or public release. The canonical-mobile intact/fallback route matrix, focused verification, Root/Director typechecks, and production build/exclusion gate pass. Restore Factory-ready status only after phone-width and wide-host portrait review, current captures, Runner parity, and private deployment verification pass.
+Frontier Crownclaw V0.26 is Factory-compatible, Sandbox-only, and listed under **Test Bosses** while its one-boss lock is active. The picker exposes only **Main Game** and **Test Bosses**; internal legacy or rebuild labels never create another user-facing category. This package does not add Frontier to a Mission, campaign, progression, or public release. The canonical-mobile intact/fallback route matrix, focused verification, Root/Director typechecks, production build/exclusion, wide-host portrait review, Runner parity, and owner-only Sites deployment pass. Restore Factory-ready status only after phone-width review and the complete current capture set pass.
