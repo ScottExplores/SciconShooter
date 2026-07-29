@@ -55,6 +55,10 @@ export type FrontierCrownclawTimelineStage =
 export const FRONTIER_CROWNCLAW_CHAIN_LINK_COUNT = 10;
 export const FRONTIER_CROWNCLAW_FIRST_BARRAGE_FRAME = 6;
 export const FRONTIER_CROWNCLAW_BARRAGE_INTERVAL_FRAMES = 5;
+export const FRONTIER_CROWNCLAW_CRITICAL_BEAM_CORRIDOR_HALF_ANGLE_RADIANS =
+  Math.PI * 0.11;
+export const FRONTIER_CROWNCLAW_CRITICAL_BEAM_SWEEP_HALF_ANGLE_RADIANS =
+  Math.PI * 0.21;
 
 export const FRONTIER_CROWNCLAW_RUNTIME_LIMITS = Object.freeze({
   maximumChainLinksPerClaw: FRONTIER_CROWNCLAW_CHAIN_LINK_COUNT,
@@ -468,7 +472,7 @@ export interface FrontierReactorBeamPlan {
   readonly startAngleRadians: number;
   readonly endAngleRadians: number;
   readonly relayMode: 'direct' | 'cross-linked';
-  readonly beamCount: 1 | 3;
+  readonly beamCount: 1 | 2;
   readonly relayOffsetRadians: number;
 }
 
@@ -497,7 +501,9 @@ export const resolveFrontierReactorBeamPlan = ({
     Math.PI * 0.27,
     Math.PI * 0.73
   );
-  const halfSweep = phaseState.critical ? Math.PI * 0.21 : Math.PI * 0.16;
+  const halfSweep = phaseState.critical
+    ? FRONTIER_CROWNCLAW_CRITICAL_BEAM_SWEEP_HALF_ANGLE_RADIANS
+    : Math.PI * 0.16;
   const startAngleRadians = clamp(
     center - sweepDirection * halfSweep,
     Math.PI * 0.18,
@@ -513,12 +519,27 @@ export const resolveFrontierReactorBeamPlan = ({
     startAngleRadians,
     endAngleRadians,
     relayMode: phaseState.beamRelayMode,
-    beamCount: phaseState.beamRelayMode === 'cross-linked' ? 3 : 1,
+    beamCount: phaseState.beamRelayMode === 'cross-linked' ? 2 : 1,
     relayOffsetRadians: phaseState.beamRelayMode === 'cross-linked'
-      ? Math.PI * 0.11
+      ? FRONTIER_CROWNCLAW_CRITICAL_BEAM_CORRIDOR_HALF_ANGLE_RADIANS
       : 0
   });
 };
+
+export const resolveFrontierReactorBeamAngles = (
+  primaryAngleRadians: number,
+  plan: Readonly<Pick<
+    FrontierReactorBeamPlan,
+    'relayMode' | 'relayOffsetRadians'
+  >>
+): readonly number[] => (
+  plan.relayMode === 'cross-linked'
+    ? Object.freeze([
+      primaryAngleRadians - plan.relayOffsetRadians,
+      primaryAngleRadians + plan.relayOffsetRadians
+    ])
+    : Object.freeze([primaryAngleRadians])
+);
 
 export type FrontierReactorBeamLifecycle =
   | 'sealed'
@@ -586,13 +607,10 @@ export const sampleFrontierCrownReactorBeam = ({
     plan.endAngleRadians,
     sweepProgress
   );
-  const beamAnglesRadians = plan.relayMode === 'cross-linked'
-    ? Object.freeze([
-      primaryAngleRadians - plan.relayOffsetRadians,
-      primaryAngleRadians,
-      primaryAngleRadians + plan.relayOffsetRadians
-    ])
-    : Object.freeze([primaryAngleRadians]);
+  const beamAnglesRadians = resolveFrontierReactorBeamAngles(
+    primaryAngleRadians,
+    plan
+  );
 
   return Object.freeze({
     lifecycle,

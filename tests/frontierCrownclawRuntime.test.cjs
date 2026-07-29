@@ -237,9 +237,40 @@ test('reactor beam telegraphs before damage and phase two relays through deploye
   assert.equal(firing.damaging, true);
   assert.equal(firing.beamAnglesRadians.length, 1);
   assert.equal(relayPlan.relayMode, 'cross-linked');
-  assert.equal(relayed.beamAnglesRadians.length, 3);
+  assert.equal(relayPlan.beamCount, 2);
+  assert.equal(
+    relayPlan.relayOffsetRadians,
+    runtime.FRONTIER_CROWNCLAW_CRITICAL_BEAM_CORRIDOR_HALF_ANGLE_RADIANS
+  );
+  assert.equal(
+    runtime.FRONTIER_CROWNCLAW_CRITICAL_BEAM_CORRIDOR_HALF_ANGLE_RADIANS,
+    Math.PI * 0.11
+  );
+  assert.equal(
+    runtime.FRONTIER_CROWNCLAW_CRITICAL_BEAM_SWEEP_HALF_ANGLE_RADIANS,
+    Math.PI * 0.21
+  );
+  assert.ok(
+    runtime.FRONTIER_CROWNCLAW_CRITICAL_BEAM_SWEEP_HALF_ANGLE_RADIANS
+      > runtime.FRONTIER_CROWNCLAW_CRITICAL_BEAM_CORRIDOR_HALF_ANGLE_RADIANS,
+    'the original wide sweep must cross the arena while the paired relays leave their center empty'
+  );
+  assert.equal(relayed.beamAnglesRadians.length, 2);
   assert.ok(relayed.beamAnglesRadians[0] < relayed.beamAnglesRadians[1]);
-  assert.ok(relayed.beamAnglesRadians[1] < relayed.beamAnglesRadians[2]);
+  assert.ok(
+    Math.abs(
+      (relayed.beamAnglesRadians[0] + relayed.beamAnglesRadians[1]) / 2
+        - relayed.primaryAngleRadians
+    ) < 1e-9,
+    'the paired relays must leave the primary centerline empty'
+  );
+  assert.ok(
+    relayed.beamAnglesRadians.every((angle) => (
+      Math.abs(angle - relayed.primaryAngleRadians)
+        >= relayPlan.relayOffsetRadians - 1e-9
+    )),
+    'neither phase-two relay may occupy the removed center beam'
+  );
   assert.deepEqual(
     plain(runtime.resolveFrontierReactorBeamPlan({
       seedKey: 'beam-proof',

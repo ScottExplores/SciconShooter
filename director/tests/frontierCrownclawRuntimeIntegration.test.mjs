@@ -306,7 +306,8 @@ test('mobile and desktop compiled traces replay deterministically across both bo
     assert.equal(proof.actionClipTraces.length, 10);
     assert.ok(proof.maximumOwnedArtifacts <= 22);
     assert.ok(proof.weakestRouteClearancePixels >= 6);
-    assert.match(proof.limitation, /does not instantiate the private GameEngine class/i);
+    assert.match(proof.limitation, /approximate sockets/i);
+    assert.match(proof.limitation, /exact GameEngine playback/i);
   }
 
   const allRoutes = matrix.flatMap((proof) => proof.routeProofs);
@@ -320,7 +321,10 @@ test('mobile and desktop compiled traces replay deterministically across both bo
   const weakest = [...allRoutes].sort((left, right) => (
     left.minimumClearancePixels - right.minimumClearancePixels
   ))[0];
-  assert.ok(weakest.minimumClearancePixels > 6.7);
+  assert.equal(weakest.attackId, 'crown-reactor-beam');
+  assert.equal(weakest.phaseId, safeRoute.FRONTIER_CROWNCLAW_PHASE_IDS.critical);
+  assert.equal(weakest.viewportId, desktop.id);
+  assert.ok(weakest.minimumClearancePixels > 6.01);
 });
 
 test('warning-owned locks stay fixed while live rig sockets continue to follow anatomy', () => {
@@ -415,7 +419,7 @@ test('harpoon links, reactor relays, rear bastions, and budgets match the engine
     .forEach((trace) => assert.equal(trace.maximumBeamCount, 1));
   phaseTwo.actionClipTraces
     .filter((trace) => trace.primitiveId === 'crown-reactor-beam')
-    .forEach((trace) => assert.equal(trace.maximumBeamCount, 3));
+    .forEach((trace) => assert.equal(trace.maximumBeamCount, 2));
 
   phaseOne.actionClipTraces
     .filter((trace) => trace.primitiveId === 'bastion-crabwalk-barrage')

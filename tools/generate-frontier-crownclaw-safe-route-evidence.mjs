@@ -68,6 +68,7 @@ try {
     minimumClearancePixels: Math.min(
       ...intactRoutes.map((route) => route.minimumClearancePixels)
     ),
+    limitation: 'Deterministic boss-owned analytic geometry shares Frontier runtime samplers but approximates registered-rig sockets. Exact GameEngine timing, live sockets, beam count, and collision for Critical Attack 2 are separately gated by frontierCrownclawManualAttackPlayback.test.mjs.',
     routes: intactRoutes
   };
 
@@ -99,6 +100,7 @@ try {
     minimumClearancePixels: Math.min(
       ...fallbackRoutes.map((route) => route.minimumClearancePixels)
     ),
+    limitation: 'Deterministic component-fallback analytic geometry shares Frontier runtime samplers but approximates registered-rig sockets. Exact GameEngine fallback cleanup is covered by frontierCrownclawComponentFallback.test.mjs, and exact Critical Attack 2 playback is covered by frontierCrownclawManualAttackPlayback.test.mjs.',
     routes: fallbackRoutes
   };
 

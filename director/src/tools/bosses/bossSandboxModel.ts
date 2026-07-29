@@ -62,7 +62,7 @@ import heliosRigSource from '../../../../director-data/prototype-assets/helios-c
 import prismMothAtlasSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.json';
 import prismMothRigSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper.rig.json';
 
-export const BOSS_SANDBOX_VERSION = 'V 0.26' as const;
+export const BOSS_SANDBOX_VERSION = 'V 0.27' as const;
 
 export const getBossSandboxPerformingAttackId = (
   activeAttack: PreviewBossAttackSnapshot | null | undefined

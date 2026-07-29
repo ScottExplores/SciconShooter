@@ -39,6 +39,8 @@ const runtime = await vite.ssrLoadModule(
 const {
   FRONTIER_CROWNCLAW_ATTACK_IDS,
   FRONTIER_CROWNCLAW_BENCHMARK_VIEWPORTS,
+  FRONTIER_CROWNCLAW_CRITICAL_BEAM_CORRIDOR_HALF_ANGLE_RADIANS,
+  FRONTIER_CROWNCLAW_DEFAULT_SANDBOX_ROUTE_PLAYER,
   FRONTIER_CROWNCLAW_GEOMETRY_UNCERTAINTY_PIXELS,
   FRONTIER_CROWNCLAW_PHASE_IDS,
   FRONTIER_CROWNCLAW_SAFE_ROUTE_SEED,
@@ -149,11 +151,12 @@ test('all core attacks and Critical Crown Cross-Link retain six pixels after unc
     assert.ok(proof.checkedFrames >= 300);
     assert.match(proof.routeHash, /^[0-9a-f]{8}$/);
     assert.match(proof.configurationHash, /^[0-9a-f]{8}$/);
-    assert.match(proof.detail, /continuous baseline-speed route/i);
+    assert.match(proof.detail, /continuous default-loadout route/i);
 
     for (let index = 1; index < proof.witness.length; index += 1) {
       assert.ok(
-        distance(proof.witness[index - 1], proof.witness[index]) <= 2.500001,
+        distance(proof.witness[index - 1], proof.witness[index])
+          <= FRONTIER_CROWNCLAW_DEFAULT_SANDBOX_ROUTE_PLAYER.maximumSpeedPerFrame + 0.000001,
         `${entry.attackId} witness teleported at frame ${index}`
       );
     }
@@ -162,10 +165,10 @@ test('all core attacks and Critical Crown Cross-Link retain six pixels after unc
   const weakest = [...first].sort((left, right) => (
     left.proof.minimumClearancePixels - right.proof.minimumClearancePixels
   ))[0];
-  assert.equal(weakest.attackId, FRONTIER_CROWNCLAW_ATTACK_IDS.crabwalkBarrage);
+  assert.equal(weakest.attackId, FRONTIER_CROWNCLAW_ATTACK_IDS.reactorBeam);
   assert.equal(weakest.phaseId, FRONTIER_CROWNCLAW_PHASE_IDS.critical);
-  assert.equal(weakest.viewportId, mobile.id);
-  assert.ok(weakest.proof.minimumClearancePixels > 6.7);
+  assert.equal(weakest.viewportId, desktop.id);
+  assert.ok(weakest.proof.minimumClearancePixels > 6.01);
 });
 
 test('every retained one-claw and zero-claw fallback branch keeps a deterministic safe route on mobile and desktop', () => {
@@ -208,7 +211,8 @@ test('every retained one-claw and zero-claw fallback branch keeps a deterministi
     assert.match(proof.configurationHash, /^[0-9a-f]{8}$/);
     for (let index = 1; index < proof.witness.length; index += 1) {
       assert.ok(
-        distance(proof.witness[index - 1], proof.witness[index]) <= 2.500001,
+        distance(proof.witness[index - 1], proof.witness[index])
+          <= FRONTIER_CROWNCLAW_DEFAULT_SANDBOX_ROUTE_PLAYER.maximumSpeedPerFrame + 0.000001,
         `${entry.scenarioId} witness teleported at frame ${index}`
       );
     }
@@ -347,32 +351,79 @@ test('Chainclaw Harpoon samples attached heads and tensioned tethers from live c
   );
 });
 
-test('Crown Reactor Beam samples one finite sweep and a telegraphed phase-two reversal', () => {
-  const firstStart = sample({
+test('Critical Crown Reactor Beam owns two full-length tapered boundaries with an empty rideable center', () => {
+  const beamPairAt = (frame, prefix) => sample({
     attackId: FRONTIER_CROWNCLAW_ATTACK_IDS.reactorBeam,
-    frame: 115
-  }).hazards.find((hazard) => hazard.id === 'reactor-primary-sweep');
-  const firstEnd = sample({
-    attackId: FRONTIER_CROWNCLAW_ATTACK_IDS.reactorBeam,
-    frame: 210
-  }).hazards.find((hazard) => hazard.id === 'reactor-primary-sweep');
-  const reversalStart = sample({
-    attackId: FRONTIER_CROWNCLAW_ATTACK_IDS.reactorBeam,
-    frame: 245
-  }).hazards.find((hazard) => hazard.id === 'reactor-controlled-reversal');
-  const reversalEnd = sample({
-    attackId: FRONTIER_CROWNCLAW_ATTACK_IDS.reactorBeam,
-    frame: 325
-  }).hazards.find((hazard) => hazard.id === 'reactor-controlled-reversal');
+    frame
+  }).hazards.filter((hazard) => hazard.id.startsWith(prefix));
+  const firstStart = beamPairAt(81, 'reactor-primary-sweep-');
+  const firstMiddle = beamPairAt(126, 'reactor-primary-sweep-');
+  const firstEnd = beamPairAt(164, 'reactor-primary-sweep-');
+  const reversalStart = beamPairAt(257, 'reactor-controlled-reversal-');
+  const reversalEnd = beamPairAt(328, 'reactor-controlled-reversal-');
 
-  for (const beam of [firstStart, firstEnd, reversalStart, reversalEnd]) {
-    assert.ok(beam);
-    assert.equal(beam.shape, 'capsule');
-    assert.equal(beam.sourceSocket, 'crown-reactor-aperture');
-    assert.ok(beam.end.y < mobile.height, 'The beam must retain a real lower safe apron.');
+  for (const pair of [
+    firstStart,
+    firstMiddle,
+    firstEnd,
+    reversalStart,
+    reversalEnd
+  ]) {
+    assert.equal(pair.length, 2, 'Critical Cross-Link must own exactly two beams.');
+    assert.deepEqual(
+      pair.map((beam) => beam.id.slice(beam.id.lastIndexOf('-') + 1)),
+      ['port', 'starboard']
+    );
+    for (const beam of pair) {
+      assert.equal(beam.shape, 'capsule');
+      assert.equal(beam.sourceSocket, 'crown-reactor-aperture');
+      assert.ok(
+        distance(beam.start, beam.end) > Math.hypot(mobile.width, mobile.height),
+        'Each paired boundary must retain the original full-screen ray length.'
+      );
+    }
   }
-  const firstDelta = firstEnd.end.x - firstStart.end.x;
-  const reversalDelta = reversalEnd.end.x - reversalStart.end.x;
+
+  const angleFromVertical = (beam) => Math.atan2(
+    beam.end.x - beam.start.x,
+    beam.end.y - beam.start.y
+  );
+  for (const pair of [firstStart, firstMiddle, firstEnd]) {
+    const angles = pair.map(angleFromVertical).sort((left, right) => left - right);
+    assert.ok(angles[0] < angles[1]);
+    assert.ok(
+      Math.abs(
+        (angles[1] - angles[0])
+          - FRONTIER_CROWNCLAW_CRITICAL_BEAM_CORRIDOR_HALF_ANGLE_RADIANS * 2
+      ) < 1e-9,
+      'The two relays must preserve the authored tapered corridor angle.'
+    );
+    const centerAngle = (angles[0] + angles[1]) / 2;
+    assert.ok(
+      angles.every((angle) => Math.abs(angle - centerAngle) > 1e-6),
+      'No damaging beam may occupy the centerline.'
+    );
+  }
+
+  const routeY = mobile.height * 0.62;
+  const xAtRouteY = (beam) => (
+    beam.start.x
+      + (routeY - beam.start.y)
+        * (beam.end.x - beam.start.x)
+        / (beam.end.y - beam.start.y)
+  );
+  const middleX = firstMiddle.map(xAtRouteY).sort((left, right) => left - right);
+  const freeCorridorWidth = middleX[1]
+    - middleX[0]
+    - firstMiddle[0].radius
+    - firstMiddle[1].radius;
+  assert.ok(
+    freeCorridorWidth >= 150,
+    `The restored mobile corridor must retain its original wide spacing; observed ${freeCorridorWidth.toFixed(2)} px.`
+  );
+
+  const firstDelta = firstEnd[0].end.x - firstStart[0].end.x;
+  const reversalDelta = reversalEnd[0].end.x - reversalStart[0].end.x;
   assert.ok(firstDelta * reversalDelta < 0, 'The phase-two second sweep must reverse direction.');
 
   const transitionGap = sample({

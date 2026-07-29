@@ -201,12 +201,23 @@ test('two destroyed claws deterministically substitute reactor then barrage with
   const cases = [
     {
       attackId: 'chainclaw-harpoon',
+      phaseId: phaseOneId,
       expectedKind: 'reactor-beam',
       expectedPrimitiveId: 'crown-reactor-beam',
-      expectedEvidence: 'reactor-beam'
+      expectedEvidence: 'reactor-beam',
+      expectedBeamCount: 1
+    },
+    {
+      attackId: 'chainclaw-harpoon',
+      phaseId: phaseTwoId,
+      expectedKind: 'reactor-beam',
+      expectedPrimitiveId: 'crown-reactor-beam',
+      expectedEvidence: 'reactor-beam',
+      expectedBeamCount: 2
     },
     {
       attackId: oddSequenceHarpoonClipId,
+      phaseId: phaseOneId,
       expectedKind: 'crabwalk',
       expectedPrimitiveId: 'bastion-crabwalk-barrage',
       expectedEvidence: 'boss-frontier-crown-bolt'
@@ -218,13 +229,14 @@ test('two destroyed claws deterministically substitute reactor then barrage with
     disableWithoutCombatEffects(boss, 'left-cannon');
     disableWithoutCombatEffects(boss, 'right-cannon');
     assert.equal(
-      engine.triggerAuthoredBossAttack(request.attackId, preview.eventId, phaseOneId),
+      engine.triggerAuthoredBossAttack(request.attackId, preview.eventId, request.phaseId),
       true
     );
 
     let sawExpectedPrimitive = false;
     let sawExpectedEvidence = false;
     let sawChainGeometry = false;
+    let maximumDamagingBeamCount = 0;
     const elapsed = updateUntil(engine, () => {
       sawExpectedPrimitive ||= engine.getPreviewSnapshot().boss?.activePrimitiveId
         === request.expectedPrimitiveId;
@@ -238,6 +250,15 @@ test('two destroyed claws deterministically substitute reactor then barrage with
             && entity.frontierCrownclawDamageActive === true
           : entity.projectileVisualKind === request.expectedEvidence;
       }
+      maximumDamagingBeamCount = Math.max(
+        maximumDamagingBeamCount,
+        engine.entities.filter((entity) => (
+          !entity.markedForDeletion
+          && entity.bossOwnerId === boss.id
+          && entity.frontierCrownclawArtifactKind === 'reactor-beam'
+          && entity.frontierCrownclawDamageActive
+        )).length
+      );
       return sawExpectedPrimitive && sawExpectedEvidence;
     });
 
@@ -245,6 +266,9 @@ test('two destroyed claws deterministically substitute reactor then barrage with
     assert.equal(sawChainGeometry, false, 'no hidden claw geometry may survive substitution');
     assert.equal(boss.bossFrontierCrownclawState.kind, request.expectedKind);
     assert.deepEqual([...boss.bossFrontierCrownclawState.sides], []);
+    if (request.expectedBeamCount !== undefined) {
+      assert.equal(maximumDamagingBeamCount, request.expectedBeamCount);
+    }
   }
 });
 

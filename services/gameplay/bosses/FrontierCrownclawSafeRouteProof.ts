@@ -6,12 +6,25 @@ import {
   type BossSafeRoutePoint,
   type BossSafeRouteViewport
 } from './BossSafeRouteProof';
+import {
+  FRONTIER_CROWNCLAW_CRITICAL_BEAM_CORRIDOR_HALF_ANGLE_RADIANS,
+  FRONTIER_CROWNCLAW_CRITICAL_BEAM_SWEEP_HALF_ANGLE_RADIANS,
+  resolveFrontierReactorBeamAngles,
+  resolveFrontierReactorBeamPlan,
+  sampleFrontierCrownReactorBeam
+} from './FrontierCrownclawRuntime';
+
+export {
+  FRONTIER_CROWNCLAW_CRITICAL_BEAM_CORRIDOR_HALF_ANGLE_RADIANS,
+  FRONTIER_CROWNCLAW_CRITICAL_BEAM_SWEEP_HALF_ANGLE_RADIANS
+};
 
 /**
- * Frontier Crownclaw's proof geometry is intentionally boss-owned. It samples
- * the same visible claw heads, tensioned chains, reactor blade and rear-shell
- * projectile paths that the runtime can consume without adding Crownclaw-only
- * assumptions to the shared safe-route analyzer.
+ * Frontier Crownclaw's proof geometry is intentionally boss-owned. It is a
+ * conservative deterministic geometry model that shares the runtime's pure
+ * choreography samplers while approximating registered-rig sockets. Exact
+ * GameEngine timing, live sockets, and collision are verified separately by
+ * the canonical preview integration tests.
  */
 
 export const FRONTIER_CROWNCLAW_SAFE_ROUTE_FPS = 60;
@@ -21,6 +34,11 @@ export const FRONTIER_CROWNCLAW_SAFE_ROUTE_VARIANT_SEEDS = Object.freeze([
   FRONTIER_CROWNCLAW_SAFE_ROUTE_SEED,
   FRONTIER_CROWNCLAW_SAFE_ROUTE_SEED + 1
 ]);
+export const FRONTIER_CROWNCLAW_DEFAULT_SANDBOX_ROUTE_PLAYER = Object.freeze({
+  ...CONSERVATIVE_BOSS_SAFE_ROUTE_PLAYER,
+  maximumSpeedPerFrame: 4,
+  accelerationPerFrame: 0.425
+});
 
 export const FRONTIER_CROWNCLAW_PHASE_IDS = Object.freeze({
   bastion: 'bastion-cross-link',
@@ -316,7 +334,7 @@ const durationFor = (
     case FRONTIER_CROWNCLAW_ATTACK_IDS.harpoon:
       return critical ? 450 : 480;
     case FRONTIER_CROWNCLAW_ATTACK_IDS.reactorBeam:
-      return critical ? 360 : 300;
+      return 360;
     case FRONTIER_CROWNCLAW_ATTACK_IDS.crabwalkBarrage:
       return critical ? 430 : 360;
     case FRONTIER_CROWNCLAW_ATTACK_IDS.crossLink:
@@ -641,13 +659,148 @@ const beamCapsule = ({
   });
 };
 
+const sampleCriticalReactorBeamGeometry = (
+  request: Readonly<FrontierCrownclawGeometryRequest>,
+  coreSocket: Readonly<BossSafeRoutePoint>
+) => {
+  const sequenceOffset = Math.max(0, Math.floor(Number(request.sequence) || 0)) * 2;
+  const windows = [
+    {
+      id: 'reactor-primary-sweep',
+      fireStartFrame: 72,
+      durationFrames: 108,
+      sequence: 22 + sequenceOffset
+    },
+    {
+      id: 'reactor-controlled-reversal',
+      fireStartFrame: 249,
+      durationFrames: 93,
+      sequence: 23 + sequenceOffset
+    }
+  ].map((window) => {
+    const plan = resolveFrontierReactorBeamPlan({
+      seedKey: 'frontier-crownclaw',
+      sequence: window.sequence,
+      phaseIndex: 2,
+      lockedTargetAngleRadians: Math.PI / 2
+    });
+    const progress = clamp(
+      (request.frame - window.fireStartFrame) / window.durationFrames,
+      0,
+      1
+    );
+    return {
+      ...window,
+      plan,
+      sample: sampleFrontierCrownReactorBeam({
+        stage: 'fire',
+        progress,
+        plan
+      })
+    };
+  });
+  const firstWindow = windows[0];
+  const secondWindow = windows[1];
+  const firstEndFrame = firstWindow.fireStartFrame + firstWindow.durationFrames;
+  const secondEndFrame = secondWindow.fireStartFrame + secondWindow.durationFrames;
+  const activeWindow = windows.find((window) => (
+    request.frame >= window.fireStartFrame
+      && request.frame <= window.fireStartFrame + window.durationFrames
+  ));
+  const activeCorridorAngle = request.frame < firstWindow.fireStartFrame
+    ? firstWindow.plan.startAngleRadians
+    : request.frame <= firstEndFrame
+      ? firstWindow.sample.primaryAngleRadians
+      : request.frame < secondWindow.fireStartFrame
+        ? lerp(
+            firstWindow.plan.endAngleRadians,
+            secondWindow.plan.startAngleRadians,
+            smoothstep(
+              (request.frame - firstEndFrame)
+                / (secondWindow.fireStartFrame - firstEndFrame)
+            )
+          )
+        : request.frame <= secondEndFrame
+          ? secondWindow.sample.primaryAngleRadians
+          : secondWindow.plan.endAngleRadians;
+  const routeCorridorAngle = activeWindow?.sample.damaging
+    ? sampleFrontierCrownReactorBeam({
+        stage: 'fire',
+        progress: clamp(
+          (
+            request.frame
+              + 40
+              - activeWindow.fireStartFrame
+          ) / activeWindow.durationFrames,
+          0,
+          1
+        ),
+        plan: activeWindow.plan
+      }).primaryAngleRadians
+    : activeCorridorAngle;
+  const hazards: FrontierCrownclawHazard[] = [];
+  if (activeWindow?.sample.damaging) {
+    activeWindow.sample.beamAnglesRadians.forEach((beamAngle, index) => {
+      hazards.push(beamCapsule({
+        request,
+        origin: coreSocket,
+        angle: Math.PI / 2 - beamAngle,
+        lengthScale: Math.hypot(request.viewport.width, request.viewport.height)
+          / request.viewport.height * 1.15,
+        radius: request.viewport.mobileProfile ? 10.5 : 12,
+        id: `${activeWindow.id}-${index === 0 ? 'port' : 'starboard'}`
+      }));
+    });
+  }
+
+  const routeY = request.viewport.height * (request.viewport.mobileProfile ? 0.48 : 0.58);
+  const activePlan = activeWindow?.plan
+    ?? (request.frame < secondWindow.fireStartFrame
+      ? firstWindow.plan
+      : secondWindow.plan);
+  const routeIntersections = resolveFrontierReactorBeamAngles(
+    routeCorridorAngle,
+    activePlan
+  )
+    .map((beamAngle) => {
+      const proofAngle = Math.PI / 2 - beamAngle;
+      return coreSocket.x
+        + Math.tan(proofAngle) * (routeY - coreSocket.y);
+    })
+    .sort((left, right) => left - right);
+  const corridorCenterX = (
+    routeIntersections[0] + routeIntersections[routeIntersections.length - 1]
+  ) / 2;
+  const leftRouteX = request.viewport.width * 0.08;
+  const rightRouteX = request.viewport.width * 0.92;
+  const corridorEntryMinimumX = request.viewport.width * 0.12;
+  const corridorEntryMaximumX = request.viewport.width * 0.88;
+  const routeTargetX = corridorCenterX > corridorEntryMaximumX
+    ? rightRouteX
+    : corridorCenterX < corridorEntryMinimumX
+      ? leftRouteX
+      : corridorCenterX;
+  return {
+    hazards,
+    routeTarget: point(
+      routeTargetX,
+      routeY
+    )
+  };
+};
+
 const sampleReactorBeamGeometry = (
   request: Readonly<FrontierCrownclawGeometryRequest>,
   coreSocket: Readonly<BossSafeRoutePoint>
 ) => {
   const critical = request.phaseId === FRONTIER_CROWNCLAW_PHASE_IDS.critical;
+  if (critical) {
+    return sampleCriticalReactorBeamGeometry(request, coreSocket);
+  }
   const direction = (normalizeSeed(request.seed) & 1) === 0 ? 1 : -1;
   const hazards: FrontierCrownclawHazard[] = [];
+  const firstStart = 130;
+  const firstEnd = 245;
   if (request.frame >= 80 && request.frame < 98) {
     hazards.push(beamCapsule({
       request,
@@ -659,37 +812,29 @@ const sampleReactorBeamGeometry = (
     }));
   }
 
-  const firstStart = critical ? 115 : 130;
-  const firstEnd = critical ? 210 : 245;
   if (request.frame >= firstStart && request.frame <= firstEnd) {
     const progress = smoothstep((request.frame - firstStart) / (firstEnd - firstStart));
-    const angle = direction * lerp(-0.5, 0.5, progress);
-    hazards.push(beamCapsule({
-      request,
-      origin: coreSocket,
-      angle,
-      lengthScale: 0.58,
-      radius: request.viewport.mobileProfile ? 10.5 : 12,
-      id: 'reactor-primary-sweep'
-    }));
+    const halfSweep = 0.5;
+    const angle = direction * lerp(-halfSweep, halfSweep, progress);
+    [angle].forEach((beamAngle) => {
+      hazards.push(beamCapsule({
+        request,
+        origin: coreSocket,
+        angle: beamAngle,
+        lengthScale: 0.58,
+        radius: request.viewport.mobileProfile ? 10.5 : 12,
+        id: 'reactor-primary-sweep'
+      }));
+    });
   }
 
-  if (critical && request.frame >= 245 && request.frame <= 325) {
-    const progress = smoothstep((request.frame - 245) / 80);
-    const angle = direction * lerp(0.38, -0.36, progress);
-    hazards.push(beamCapsule({
-      request,
-      origin: coreSocket,
-      angle,
-      lengthScale: 0.56,
-      radius: request.viewport.mobileProfile ? 9 : 10.5,
-      id: 'reactor-controlled-reversal'
-    }));
-  }
-
+  const routeY = request.viewport.height * 0.9;
   return {
     hazards,
-    routeTarget: point(request.viewport.width / 2, request.viewport.height * 0.9)
+    routeTarget: point(
+      request.viewport.width / 2,
+      routeY
+    )
   };
 };
 
@@ -1038,6 +1183,212 @@ const hazardClearance = (
     - hazard.geometryUncertaintyPixels;
 };
 
+const findCriticalReactorSpeedBoundedRoute = ({
+  request,
+  seed,
+  fallback,
+  player,
+  geometryUncertaintyPixels,
+  durationFrames,
+  minimumX,
+  maximumX,
+  minimumY,
+  maximumY
+}: Readonly<{
+  request: FrontierCrownclawSafeRouteProofRequest;
+  seed: number;
+  fallback: FrontierCrownclawComponentFallbackResolution;
+  player: BossSafeRoutePlayerProfile;
+  geometryUncertaintyPixels: number;
+  durationFrames: number;
+  minimumX: number;
+  maximumX: number;
+  minimumY: number;
+  maximumY: number;
+}>): Readonly<{
+  witness: readonly FrontierCrownclawRouteWitnessPoint[];
+  minimumClearancePixels: number;
+}> | undefined => {
+  const firstDamagingFrame = 81;
+  const routeY = request.viewport.height * (
+    request.viewport.mobileProfile ? 0.48 : 0.58
+  );
+  if (routeY < minimumY || routeY > maximumY) return undefined;
+
+  const gridStep = 1;
+  const routeSearchClearancePixels =
+    MINIMUM_PROVEN_BOSS_ROUTE_CLEARANCE_PIXELS;
+  const gridCount = Math.floor((maximumX - minimumX) / gridStep) + 1;
+  const gridX = Array.from(
+    { length: gridCount },
+    (_, index) => minimumX + index * gridStep
+  );
+  const geometries = Array.from({ length: durationFrames }, (_, frame) => (
+    sampleFrontierCrownclawAttackGeometry({
+      attackId: request.attackId,
+      phaseId: request.phaseId,
+      viewport: request.viewport,
+      seed,
+      operationalClawSides: fallback.operationalClawSides,
+      sequence: fallback.sequence,
+      frame,
+      geometryUncertaintyPixels
+    })
+  ));
+  const clearanceAt = (
+    frame: number,
+    x: number,
+    y: number
+  ) => {
+    let clearance = Math.min(
+      x - minimumX,
+      maximumX - x,
+      y - minimumY,
+      maximumY - y
+    );
+    for (const hazard of geometries[frame].hazards) {
+      clearance = Math.min(
+        clearance,
+        hazardClearance(point(x, y), player, hazard)
+      );
+    }
+    return clearance;
+  };
+
+  const predecessorFrames: Int32Array[] = [];
+  let reachable = new Uint8Array(gridCount);
+  const initialX = request.viewport.width / 2;
+  const initialY = request.viewport.height * 0.84;
+  const preparationDistance = player.maximumSpeedPerFrame
+    * (firstDamagingFrame + 1);
+  const firstPredecessors = new Int32Array(gridCount);
+  firstPredecessors.fill(-2);
+  for (let index = 0; index < gridCount; index += 1) {
+    const x = gridX[index];
+    if (
+      magnitude(x - initialX, routeY - initialY) <= preparationDistance
+      && clearanceAt(firstDamagingFrame, x, routeY)
+        >= routeSearchClearancePixels
+    ) {
+      reachable[index] = 1;
+      firstPredecessors[index] = -1;
+    }
+  }
+  if (!reachable.some(Boolean)) return undefined;
+  predecessorFrames[firstDamagingFrame] = firstPredecessors;
+
+  const maximumGridDelta = Math.floor(
+    player.maximumSpeedPerFrame / gridStep
+  );
+  for (
+    let frame = firstDamagingFrame + 1;
+    frame < durationFrames;
+    frame += 1
+  ) {
+    const nextReachable = new Uint8Array(gridCount);
+    const predecessors = new Int32Array(gridCount);
+    predecessors.fill(-2);
+    for (let index = 0; index < gridCount; index += 1) {
+      if (
+        clearanceAt(frame, gridX[index], routeY)
+          < routeSearchClearancePixels
+      ) {
+        continue;
+      }
+      for (let delta = 0; delta <= maximumGridDelta; delta += 1) {
+        const candidates = delta === 0
+          ? [index]
+          : [index - delta, index + delta];
+        const predecessor = candidates.find((candidate) => (
+          candidate >= 0
+          && candidate < gridCount
+          && reachable[candidate] === 1
+          && Math.abs(gridX[index] - gridX[candidate])
+            <= player.maximumSpeedPerFrame + 0.000001
+        ));
+        if (predecessor === undefined) continue;
+        nextReachable[index] = 1;
+        predecessors[index] = predecessor;
+        break;
+      }
+    }
+    if (!nextReachable.some(Boolean)) return undefined;
+    predecessorFrames[frame] = predecessors;
+    reachable = nextReachable;
+  }
+
+  let finalIndex = -1;
+  let finalDistance = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < gridCount; index += 1) {
+    if (reachable[index] !== 1) continue;
+    const distanceFromCenter = Math.abs(gridX[index] - request.viewport.width / 2);
+    if (distanceFromCenter < finalDistance) {
+      finalDistance = distanceFromCenter;
+      finalIndex = index;
+    }
+  }
+  if (finalIndex < 0) return undefined;
+
+  const routeIndexes = new Int32Array(durationFrames - firstDamagingFrame);
+  let routeIndex = finalIndex;
+  for (
+    let frame = durationFrames - 1;
+    frame >= firstDamagingFrame;
+    frame -= 1
+  ) {
+    routeIndexes[frame - firstDamagingFrame] = routeIndex;
+    const predecessor = predecessorFrames[frame][routeIndex];
+    if (frame > firstDamagingFrame && predecessor < 0) return undefined;
+    routeIndex = predecessor;
+  }
+
+  const routeStartX = gridX[routeIndexes[0]];
+  const witness: FrontierCrownclawRouteWitnessPoint[] = [];
+  let minimumClearancePixels = Number.POSITIVE_INFINITY;
+  let previous = point(initialX, initialY);
+  for (let frame = 0; frame < durationFrames; frame += 1) {
+    const current = frame < firstDamagingFrame
+      ? point(
+          lerp(
+            initialX,
+            routeStartX,
+            (frame + 1) / (firstDamagingFrame + 1)
+          ),
+          lerp(
+            initialY,
+            routeY,
+            (frame + 1) / (firstDamagingFrame + 1)
+          )
+        )
+      : point(
+          gridX[routeIndexes[frame - firstDamagingFrame]],
+          routeY
+        );
+    const clearance = clearanceAt(frame, current.x, current.y);
+    minimumClearancePixels = Math.min(minimumClearancePixels, clearance);
+    witness.push({
+      frame,
+      x: current.x,
+      y: current.y,
+      vx: current.x - previous.x,
+      vy: current.y - previous.y,
+      routeTargetX: current.x,
+      routeTargetY: current.y
+    });
+    previous = current;
+  }
+  if (
+    minimumClearancePixels
+      < MINIMUM_PROVEN_BOSS_ROUTE_CLEARANCE_PIXELS
+  ) {
+    return undefined;
+  }
+  return {
+    witness,
+    minimumClearancePixels
+  };
+};
+
 const configurationHash = (
   request: Readonly<FrontierCrownclawSafeRouteProofRequest>,
   seed: number,
@@ -1062,8 +1413,8 @@ const configurationHash = (
     fps: FRONTIER_CROWNCLAW_SAFE_ROUTE_FPS,
     requiredClearancePixels: MINIMUM_PROVEN_BOSS_ROUTE_CLEARANCE_PIXELS,
     geometryRevision: componentFallbackRequested
-      ? 'frontier-crownclaw-component-fallback-route-v2'
-      : 'frontier-crownclaw-route-v2',
+      ? 'frontier-crownclaw-component-fallback-route-v3'
+      : 'frontier-crownclaw-route-v3',
     ...(componentFallbackRequested ? {
       resolvedAttackId: fallback.resolvedAttackId,
       operationalClawSides: fallback.operationalClawSides,
@@ -1084,8 +1435,16 @@ export const proveFrontierCrownclawSafeRoute = (
   request: Readonly<FrontierCrownclawSafeRouteProofRequest>
 ): FrontierCrownclawSafeRouteProof => {
   const seed = normalizeSeed(request.seed ?? FRONTIER_CROWNCLAW_SAFE_ROUTE_SEED);
-  const player = request.player ?? CONSERVATIVE_BOSS_SAFE_ROUTE_PLAYER;
   const fallback = resolveFrontierCrownclawSafeRouteFallback(request);
+  const criticalReactorRoute = (
+    fallback.resolvedAttackId === FRONTIER_CROWNCLAW_ATTACK_IDS.reactorBeam
+    && request.phaseId === FRONTIER_CROWNCLAW_PHASE_IDS.critical
+  );
+  const player = request.player ?? (
+    criticalReactorRoute
+      ? FRONTIER_CROWNCLAW_DEFAULT_SANDBOX_ROUTE_PLAYER
+      : CONSERVATIVE_BOSS_SAFE_ROUTE_PLAYER
+  );
   const geometryUncertaintyPixels = Math.max(
     0,
     Number(request.geometryUncertaintyPixels)
@@ -1143,6 +1502,47 @@ export const proveFrontierCrownclawSafeRoute = (
   const metrics = metricsFor(request.viewport);
   const minimumY = metrics.bossY + metrics.bodyRadius + halfHeight + geometryUncertaintyPixels;
   const maximumY = request.viewport.height - halfHeight - geometryUncertaintyPixels;
+  if (criticalReactorRoute) {
+    const route = findCriticalReactorSpeedBoundedRoute({
+      request,
+      seed,
+      fallback,
+      player,
+      geometryUncertaintyPixels,
+      durationFrames,
+      minimumX,
+      maximumX,
+      minimumY,
+      maximumY
+    });
+    if (!route) {
+      return {
+        ...base,
+        status: 'unproven',
+        reason: 'route-collision',
+        checkedFrames: 0,
+        minimumClearancePixels: Number.NEGATIVE_INFINITY,
+        detail: 'No continuous default-loadout route could follow both restored wide reactor sweeps.'
+      };
+    }
+    const routeHash = fnv1a(route.witness.map((sample) => [
+      sample.frame,
+      sample.x.toFixed(3),
+      sample.y.toFixed(3),
+      sample.vx.toFixed(3),
+      sample.vy.toFixed(3)
+    ].join(':')).join('|'));
+    return {
+      ...base,
+      status: 'proven',
+      reason: 'proven',
+      checkedFrames: route.witness.length,
+      minimumClearancePixels: route.minimumClearancePixels,
+      routeHash,
+      witness: route.witness,
+      detail: `A continuous default-loadout route followed the restored wide paired beams and retained ${route.minimumClearancePixels.toFixed(2)} px after ${geometryUncertaintyPixels} px geometry uncertainty.`
+    };
+  }
   let x = request.viewport.width / 2;
   let y = request.viewport.height * 0.84;
   let vx = 0;
@@ -1254,7 +1654,7 @@ export const proveFrontierCrownclawSafeRoute = (
     minimumClearancePixels: minimumClearance,
     routeHash,
     witness,
-    detail: `A continuous baseline-speed route retained ${minimumClearance.toFixed(2)} px after ${geometryUncertaintyPixels} px geometry uncertainty${fallback.resolvedAttackId === request.attackId
+    detail: `A continuous default-loadout route retained ${minimumClearance.toFixed(2)} px after ${geometryUncertaintyPixels} px geometry uncertainty${fallback.resolvedAttackId === request.attackId
       ? fallback.operationalClawSides.length === 1
         ? ` with ${fallback.operationalClawSides[0]} as the sole operational claw.`
         : '.'

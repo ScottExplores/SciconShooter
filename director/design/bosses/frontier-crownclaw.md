@@ -234,6 +234,24 @@ Per-attack proof obligations:
 
 The regenerated V0.26 proof contains 28/28 intact-anatomy witnesses plus 48/48 component-fallback witnesses in the canonical `390 x 844` arena, both phases where applicable, and two bounded seeds. It models the full-size launched claw as an oriented box, uses a `6.5 px` chain collision radius, follows the deeper warning-locked target geometry, and applies the standard `3 px` uncertainty. All 76 current witnesses exceed the required `6 px` post-uncertainty margin; the minimum remains `6.77702596335363 px`. Historical desktop witnesses remain archival/internal diagnostics only and are not a product gameplay mode or V0.26 acceptance viewport. The owner-only wide-host Runner now proves the same letterboxed portrait arena; fresh phone-width review remains pending.
 
+### V0.27 Critical Cross-Link beam correction
+
+Critical Crown Reactor Beam retains its original wide geometry: each relay sits
+`0.11π` from the primary angle and the primary angle sweeps through the original
+`0.21π` half-range. The correction removes only the former center relay. The
+warning therefore owns four rails (the two retained beams at the beginning and
+end of the sweep), while fire owns exactly two full-length animated beams and
+never recreates a center beam.
+
+The regenerated analytic matrices pass 28/28 intact and 48/48 component-fallback
+witnesses across the retained mobile and internal desktop diagnostics, with a
+minimum `6.012001051 px` clearance after the standard `3 px` uncertainty. The
+separate exact `GameEngine` mobile playback measures a `61.87 px` conservative
+safe lane, proves two live beam bodies and four warning rails, and verifies that
+the player can reach the warned lane before damage. The analytic proof
+approximates rig sockets; exact engine playback and the canonical mobile browser
+capture remain the collision and presentation authorities.
+
 ## Implemented Attack Tuning Lab
 
 - Chainclaw Harpoon: target-lock duration, launch speed, maximum extension, tension time, closing delay, retraction speed, launch count, angle/depth branch, Cross-Link spacing, and safe-opening width.

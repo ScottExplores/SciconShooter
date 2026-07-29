@@ -8,6 +8,14 @@ Helios Clawcarrier is a polish benchmark only. Frontier does not inherit Helios'
 
 V0.26 is a mobile-only Factory amendment under the one-boss lock. Its changed claw, tether collision, beam art, and deep target geometry now pass regenerated canonical-mobile route proof, focused type/build gates, owner-only Runner parity, and Sites deployment. Wide-host review confirms the fixed portrait arena and requested Harpoon/Beam presentation. Factory-ready status remains withheld until phone-width review and the complete current capture set pass.
 
+V0.27 corrects only Critical Cross-Link's Crown Reactor Beam. It restores the
+original wide `0.11π` relay spacing and `0.21π` sweep half-range while removing
+the middle beam. Critical fire now has exactly two full-length animated beams;
+its warning has four matching start/end rails. The exact mobile `GameEngine`
+playback measures a `61.87 px` conservative safe lane, and the regenerated
+analytic matrices pass 28/28 intact plus 48/48 component-fallback witnesses
+with a minimum `6.012001051 px` clearance after `3 px` uncertainty.
+
 ## Locked pixel art
 
 - Canonical reference SHA-256: `a3c2e6853d192b45d996ee50b3432fd61d20513a2ea468695670d8df5957f4a5`

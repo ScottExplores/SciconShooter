@@ -510,7 +510,7 @@ const traceReactorBeam = ({
   invariant(!warningSample.damaging, `${clip.id} warning must remain non-damaging`);
   invariant(fireSample.damaging, `${clip.id} fire sample must become damaging`);
   invariant(
-    fireSample.beamAnglesRadians.length === (phaseIndex === 2 ? 3 : 1),
+    fireSample.beamAnglesRadians.length === (phaseIndex === 2 ? 2 : 1),
     `${clip.id} beam count must reflect the phase-two relay anatomy`
   );
   const liveSourceSockets = resolveSockets({
@@ -546,7 +546,7 @@ const traceReactorBeam = ({
     rearSocketShotCount: 0,
     cleanupClearsAllOwnedArtifacts: cleanupClearsAll('crown-reactor-beam', phaseIndex),
     detail: phaseIndex === 2
-      ? 'The opened crown owns three cross-linked beam entities from one live reactor socket.'
+      ? 'The opened crown owns two cross-linked corridor beams from one live reactor socket, with no center beam.'
       : 'The closed bastion crown owns one warned sweep from one live reactor socket.'
   });
 };
@@ -850,6 +850,6 @@ export const buildFrontierCrownclawEngineTraceProof = (
     maximumOwnedArtifacts,
     productionEligible: false,
     deterministicHash: fnv1a(JSON.stringify(hashPayload)),
-    limitation: 'This is a deterministic compiled-timeline/runtime-sampler trace with live registered-rig socket resolution; it does not instantiate the private GameEngine class, so canonical browser captures remain the final collision and presentation gate.'
+    limitation: 'Action traces use the compiled timeline, runtime samplers, and caller-supplied live rig sockets. Their included route proofs are a separate boss-owned analytic model with approximate sockets; exact GameEngine playback and canonical browser captures remain the final collision and presentation gates.'
   });
 };

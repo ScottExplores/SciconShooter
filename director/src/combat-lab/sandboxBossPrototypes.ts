@@ -1479,7 +1479,7 @@ const buildFrontierCrownclawPhase = (
       role: 'core',
       skillTest: 'gap-tracking',
       recognitionCue: 'The crown rises, shell shutters open, and cyan energy spokes converge into the exact beam route before it fires.',
-      solution: 'Follow the thin cyan guide away from the locked sweep, cross after the bright center passes, and use the venting recovery.',
+      solution: 'Cross behind the phase-one sweep. In Critical Cross-Link, enter the warned empty lane between the two tapered relays and ride that lane through the sweep.',
       safeRouteRule: 'rotating-gap',
       sourceSocketRoles: ['core'],
       startSeconds: 5.75,

@@ -215,6 +215,7 @@ import {
   FRONTIER_CROWNCLAW_MOTION_CUES,
   resolveFrontierChainclawPlan,
   resolveFrontierCrabwalkPlan,
+  resolveFrontierReactorBeamAngles,
   resolveFrontierReactorBeamPlan,
   sampleFrontierBarragePulse,
   sampleFrontierBastionCrabwalk,
@@ -12004,14 +12005,17 @@ export class GameEngine {
     if (kind === 'reactor-beam' && reactorPlan) {
       const origin = this.getFrontierCrownclawSocketOrigin(boss, 'crown-reactor');
       const length = Math.hypot(this.width, this.height) * 1.15;
-      const offsets = reactorPlan.relayMode === 'cross-linked'
-        ? [-reactorPlan.relayOffsetRadians, 0, reactorPlan.relayOffsetRadians]
-        : [0];
-      offsets.forEach((offset) => {
-        [reactorPlan.startAngleRadians, reactorPlan.endAngleRadians].forEach((angle) => {
+      [
+        reactorPlan.startAngleRadians,
+        reactorPlan.endAngleRadians
+      ].forEach((primaryAngleRadians) => {
+        resolveFrontierReactorBeamAngles(
+          primaryAngleRadians,
+          reactorPlan
+        ).forEach((angle) => {
           const target = {
-            x: origin.x + Math.cos(angle + offset) * length,
-            y: origin.y + Math.sin(angle + offset) * length
+            x: origin.x + Math.cos(angle) * length,
+            y: origin.y + Math.sin(angle) * length
           };
           this.createFrontierCrownclawLine(
             boss,
