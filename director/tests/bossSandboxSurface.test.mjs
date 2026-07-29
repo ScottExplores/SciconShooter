@@ -294,6 +294,10 @@ test('local and remote Boss Sandbox attack buttons follow the live runtime attac
     remoteSource,
     /previewCommand\.type === 'trigger-boss-attack'[\s\S]*setPlaying\(true\)[\s\S]*setDrawerOpen\(false\)/
   );
+  assert.match(
+    remoteSource,
+    /getBossSandboxAttacks\(preview, selectedPhaseId\)/
+  );
   assert.match(source, /Attack \{index \+ 1\}/);
   assert.match(source, /const replaySelectedAttack = useCallback/);
   assert.match(source, /const toggleSelectedAttackLoop = useCallback/);

@@ -352,8 +352,8 @@ export default function RemoteBossRunnerApp() {
     [preview]
   );
   const attacks = useMemo(
-    () => preview ? getBossSandboxAttacks(preview) : [],
-    [preview]
+    () => preview ? getBossSandboxAttacks(preview, selectedPhaseId) : [],
+    [preview, selectedPhaseId]
   );
   const performingAttackId = getBossSandboxPerformingAttackId(
     previewSnapshot?.boss?.activeAttack
