@@ -30,31 +30,6 @@ export type SandboxBossPrototypeId =
   | 'riftcoil-wyrm'
   | 'nullwake-revenant';
 
-export type SandboxBossLibraryCategory = 'test' | 'legacy';
-
-/**
- * Library lifecycle is explicit because the current campaign cannot tell us
- * whether an absent boss was removed or was always a Sandbox-only study.
- * When a campaign boss is retired, preserve its isolated prototype and move
- * that prototype to `legacy`; campaign ordering itself remains data-driven.
- */
-export const SANDBOX_BOSS_LIBRARY_CATEGORY_BY_ID = Object.freeze({
-  'sweep-bank-reentry': 'legacy',
-  'prism-moth-brood': 'test',
-  'weak-point-laser-core': 'legacy',
-  'meridian-harrower': 'test',
-  'helios-clawcarrier': 'test',
-  'frontier-crownclaw': 'legacy',
-  'aurora-storm-engine': 'test',
-  'umbra-needlewing': 'legacy',
-  'cinderjaw-siege-beetle': 'test',
-  'gloamforge-mantis': 'test',
-  'vesperglass-mothmother': 'test',
-  'twin-halo-wardens': 'legacy',
-  'riftcoil-wyrm': 'test',
-  'nullwake-revenant': 'test'
-} satisfies Readonly<Record<SandboxBossPrototypeId, SandboxBossLibraryCategory>>);
-
 export interface SandboxBossPrototypeProvenance {
   readonly schemaVersion: 1;
   readonly source: 'director-sandbox-prototype';
@@ -71,7 +46,6 @@ export interface SandboxBossPrototypePreview extends CombatLabPreviewResult {
 
 export interface SandboxBossPrototypeDescriptor {
   readonly id: SandboxBossPrototypeId;
-  readonly libraryCategory: SandboxBossLibraryCategory;
   readonly label: string;
   readonly shortLabel: string;
   readonly description: string;
@@ -3933,7 +3907,6 @@ export const SANDBOX_BOSS_PROTOTYPES: readonly SandboxBossPrototypeDescriptor[] 
     });
     return Object.freeze({
       id: definition.id,
-      libraryCategory: SANDBOX_BOSS_LIBRARY_CATEGORY_BY_ID[definition.id],
       label: definition.label,
       shortLabel: definition.shortLabel,
       description: definition.description,

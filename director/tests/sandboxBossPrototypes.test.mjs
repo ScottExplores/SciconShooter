@@ -50,11 +50,10 @@ test('all Sandbox boss descriptors build deterministic, valid, immutable-provena
 
   const prototypeHashes = new Set();
   const previewHashes = new Set();
-  const libraryCategories = new Map();
   for (const descriptor of SANDBOX_BOSS_PROTOTYPES) {
     assert.equal(Object.isFrozen(descriptor), true);
     assert.equal(descriptor.sandboxOnly, true);
-    assert.ok(['test', 'legacy'].includes(descriptor.libraryCategory));
+    assert.equal(Object.hasOwn(descriptor, 'libraryCategory'), false);
     assert.match(descriptor.prototypeHash, /^sandbox-fnv1a64:[0-9a-f]{16}$/);
 
     const first = descriptor.buildPreview(campaign);
@@ -81,21 +80,10 @@ test('all Sandbox boss descriptors build deterministic, valid, immutable-provena
 
     prototypeHashes.add(descriptor.prototypeHash);
     previewHashes.add(first.sandboxPrototype.previewHash);
-    libraryCategories.set(
-      descriptor.libraryCategory,
-      (libraryCategories.get(descriptor.libraryCategory) ?? 0) + 1
-    );
   }
 
   assert.equal(prototypeHashes.size, 14);
   assert.equal(previewHashes.size, 14);
-  assert.deepEqual(Object.fromEntries(libraryCategories), { legacy: 5, test: 9 });
-  assert.equal(
-    SANDBOX_BOSS_PROTOTYPES.find((descriptor) => (
-      descriptor.id === 'frontier-crownclaw'
-    )).libraryCategory,
-    'legacy'
-  );
   assert.deepEqual(campaign, sourceSnapshot, 'pure builders must not mutate their source campaign');
 });
 

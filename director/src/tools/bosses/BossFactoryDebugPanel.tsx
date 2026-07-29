@@ -3,7 +3,6 @@ import type {
   PreviewDebugOverlayState,
   PreviewSafeRegionGuide
 } from '@game/services/gameplay/previewSession';
-import type { BossSandboxViewportMode } from './bossSandboxModel';
 import './boss-factory-debug.css';
 
 const TIME_SCALES = [0.25, 0.5, 1] as const;
@@ -26,13 +25,11 @@ const SAFE_REGION_LABELS: Record<PreviewSafeRegionGuide, string> = {
 export interface BossFactoryDebugPanelProps {
   readonly playing: boolean;
   readonly timeScale: number;
-  readonly viewportMode: BossSandboxViewportMode;
   readonly overlays: PreviewDebugOverlayState;
   readonly safeRegionGuide: PreviewSafeRegionGuide | null;
   readonly referenceComparisonAvailable: boolean;
   readonly referenceComparison: PreviewBossReferenceComparisonState;
   readonly onTimeScaleChange: (timeScale: number) => void;
-  readonly onViewportModeChange: (viewportMode: BossSandboxViewportMode) => void;
   readonly onStepFrame: () => void;
   readonly onResetSeed: () => void;
   readonly onBossHealthChange: (healthRatio: number) => void;
@@ -49,13 +46,11 @@ export interface BossFactoryDebugPanelProps {
 export function BossFactoryDebugPanel({
   playing,
   timeScale,
-  viewportMode,
   overlays,
   safeRegionGuide,
   referenceComparisonAvailable,
   referenceComparison,
   onTimeScaleChange,
-  onViewportModeChange,
   onStepFrame,
   onResetSeed,
   onBossHealthChange,
@@ -70,26 +65,6 @@ export function BossFactoryDebugPanel({
         <small>Optional test controls</small>
       </summary>
       <div className="boss-factory-debug__body">
-        <fieldset>
-          <legend>Preview viewport</legend>
-          <div className="boss-factory-debug__button-row">
-            {([
-              ['mobile', 'Mobile canvas'],
-              ['desktop', 'Desktop canvas']
-            ] as const).map(([mode, label]) => (
-              <button
-                type="button"
-                key={mode}
-                aria-pressed={viewportMode === mode}
-                className={viewportMode === mode ? 'is-active' : ''}
-                onClick={() => onViewportModeChange(mode)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
         <fieldset>
           <legend>Simulation speed</legend>
           <div className="boss-factory-debug__button-row">

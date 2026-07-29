@@ -83,10 +83,10 @@ Phase two must transform anatomy, movement, coordination, or exposure while reta
 - Keep attack names, beat/state labels, predicted trajectories, aiming lines, joint/socket guides, part bounds, and collision outlines out of normal gameplay.
 - Require an explicit developer toggle for every debug overlay; keep every toggle off by default and off in final gameplay captures.
 - Telegraph through visible anatomy, movement, registered sprite animation, effects, and supported sound-event hooks.
-- Prove all critical attacks on mobile and desktop with at least 6 px of replayed route clearance after the standard 3 px geometry uncertainty is applied.
+- Prove all critical attacks in the canonical 390×844 mobile arena with at least 6 px of replayed route clearance after the standard 3 px geometry uncertainty is applied.
 - For a moving corridor, prove one continuous witness across the entire attack using the real boss movement, current animated emitter sockets, projectile cadence and velocity, direction changes, and recovery. The corridor may not teleport, cross, or close without a visibly survivable transition.
 - For a summoned formation, prove every retained bounded template from visible deployment through active traversal and cleanup, including concurrent hazards. Do not prove an approximation that differs from final spawn positions or motion.
-- Visually inspect every attack in the actual canonical runtime at both mobile and desktop viewport sizes. Tests, deterministic proofs, mock renders, catalog previews, and thumbnails are supporting evidence only.
+- Visually inspect every attack in the same canonical portrait arena on both phone-width and wide host shells. A wide host may letterbox the arena but must not change its logical dimensions. Tests, deterministic proofs, mock renders, catalog previews, and thumbnails are supporting evidence only.
 
 ## Asset accountability
 

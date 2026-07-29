@@ -430,12 +430,10 @@ export const sampleFrontierChainclawHarpoon = ({
   const clawDamaging = stage === 'fire' && (
     lifecycle === 'launching'
     || lifecycle === 'latched'
+    || lifecycle === 'tensioned'
   );
-  const chainDamaging = Boolean(
-    signature
-    && stage === 'fire'
-    && (lifecycle === 'latched' || lifecycle === 'tensioned')
-  );
+  const chainDamaging = stage === 'fire'
+    && (lifecycle === 'latched' || lifecycle === 'tensioned');
   const links = sampleQuadraticChain({
     start: spool,
     end: claw,

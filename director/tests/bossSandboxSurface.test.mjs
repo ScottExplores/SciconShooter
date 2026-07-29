@@ -63,24 +63,21 @@ test('local and remote Boss Sandbox previews integrity-check the complete modula
   }
 });
 
-test('focused Boss Sandbox defaults to mobile and keeps view controls in Debug / Review', () => {
+test('focused and hosted Boss Sandbox always use the canonical mobile arena', () => {
   assert.match(
     modelSource,
     /DEFAULT_BOSS_SANDBOX_VIEWPORT_MODE: BossSandboxViewportMode =\s*'mobile';/,
     'the focused boss workflow should open with the phone-sized arena'
   );
-  assert.match(
-    source,
-    /useState<BossSandboxViewportMode>\(DEFAULT_BOSS_SANDBOX_VIEWPORT_MODE\)/
-  );
-  assert.match(source, /const previewViewport = BOSS_SANDBOX_VIEWPORTS\[previewViewportMode\];/);
-  assert.match(source, /data-viewport-mode=\{previewViewportMode\}/);
-  assert.match(source, /viewportMode=\{previewViewportMode\}/);
-  assert.match(source, /onViewportModeChange=\{changePreviewViewportMode\}/);
+  assert.match(source, /const previewViewport = BOSS_SANDBOX_VIEWPORTS\.mobile;/);
+  assert.match(source, /data-viewport-mode="mobile"/);
+  assert.match(remoteSource, /previewViewport=\{BOSS_SANDBOX_VIEWPORTS\.mobile\}/);
   assert.match(debugPanelSource, /<span>Debug \/ Review<\/span>/);
-  assert.match(debugPanelSource, /<legend>Preview viewport<\/legend>/);
-  assert.match(debugPanelSource, /\['mobile', 'Mobile canvas'\]/);
-  assert.match(debugPanelSource, /\['desktop', 'Desktop canvas'\]/);
+  assert.doesNotMatch(debugPanelSource, /Preview viewport|Mobile canvas|Desktop canvas/);
+  assert.doesNotMatch(source, /previewViewportMode|changePreviewViewportMode/);
+  assert.match(remoteStyles, /calc\(100dvh \* 390 \/ 844\)/);
+  assert.match(remoteStyles, /max-width:\s*390px/);
+  assert.match(remoteStyles, /max-height:\s*844px/);
   assert.doesNotMatch(source, /Mobile fit|Desktop fit|Reload view/);
   assert.doesNotMatch(source, /boss-sandbox__viewbar/);
   assert.doesNotMatch(styles, /\.boss-sandbox__viewbar/);
@@ -96,8 +93,7 @@ test('focused Boss Sandbox uses the canonical preview and only essential control
   assert.match(source, /href="\/sandbox">Advanced tools/);
   assert.match(source, /Boss to test/);
   assert.match(source, /getBossSandboxChoiceOptionLabel\(choice\)/);
-  assert.match(source, /REMOVED \/ LEGACY/);
-  assert.match(source, /selectedChoice\.source === 'legacy'/);
+  assert.doesNotMatch(source, /REMOVED \/ LEGACY|source === 'legacy'/);
   assert.match(source, /aria-label="Boss artwork choices"/);
   assert.match(source, /choiceArtworkUrls/);
   assert.match(source, /alt=\{`\$\{selectedChoice\.bossLabel\} boss artwork`\}/);
@@ -127,9 +123,8 @@ test('focused Boss Sandbox uses the canonical preview and only essential control
   assert.match(source, /BOSS_SANDBOX_VERSION/);
   assert.match(source, /aria-label="Decrease fire rate"/);
   assert.match(remoteSource, /const bossPickerSections = groups;/);
-  assert.match(remoteSource, /REMOVED \/ LEGACY/);
-  assert.match(remoteSource, /legacyBossCount/);
-  assert.match(remoteStyles, /data-source="legacy"/);
+  assert.doesNotMatch(remoteSource, /REMOVED \/ LEGACY|legacyBossCount|source === 'legacy'/);
+  assert.doesNotMatch(remoteStyles, /data-source="legacy"/);
   assert.match(source, /aria-label="Increase fire rate"/);
   assert.match(source, /aria-label="Decrease speed"/);
   assert.match(source, /aria-label="Increase speed"/);

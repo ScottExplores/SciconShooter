@@ -11798,12 +11798,13 @@ export class GameEngine {
     const ratio = side === 'port'
       ? state.harpoonPlan?.portTargetRatio
       : state.harpoonPlan?.starboardTargetRatio;
+    const plannedX = (ratio?.x ?? 0.5) * this.width;
     return {
-      x: clamp((ratio?.x ?? 0.5) * this.width, 12, Math.max(12, this.width - 12)),
+      x: clamp(plannedX, 24, Math.max(24, this.width - 24)),
       y: clamp(
-        (ratio?.y ?? 0.68) * this.height,
-        this.height * 0.28,
-        Math.max(this.height * 0.28, this.height - 18)
+        Math.max((ratio?.y ?? 0.68) * this.height, state.lockedTargetY),
+        this.height * 0.68,
+        Math.max(this.height * 0.68, this.height - 42)
       )
     };
   }
@@ -12075,8 +12076,8 @@ export class GameEngine {
         );
         const claw = this.createEntity(
           EntityType.PROJECTILE,
-          origin.x - 22,
-          origin.y - 22
+          origin.x - 54,
+          origin.y - 35
         );
         claw.frontierCrownclawArtifactKind = 'harpoon-claw';
         claw.frontierCrownclawActionClipId = cue.clip.id;
@@ -12084,8 +12085,8 @@ export class GameEngine {
         claw.frontierCrownclawDamageActive = false;
         claw.projectileVisualKind = 'boss-frontier-chainclaw';
         claw.projectileAnimationMode = 'hold-last';
-        claw.width = 44;
-        claw.height = 44;
+        claw.width = 108;
+        claw.height = 70;
         claw.color = '#fbbf24';
         claw.damage = 0;
         claw.bossOwnerId = boss.id;
@@ -12095,8 +12096,8 @@ export class GameEngine {
         for (let index = 0; index < FRONTIER_CROWNCLAW_CHAIN_LINK_COUNT; index += 1) {
           const link = this.createEntity(
             EntityType.PROJECTILE,
-            origin.x - 9,
-            origin.y - 5
+            origin.x - 26,
+            origin.y - 6.5
           );
           link.frontierCrownclawArtifactKind = 'harpoon-link';
           link.frontierCrownclawActionClipId = cue.clip.id;
@@ -12105,8 +12106,8 @@ export class GameEngine {
           link.frontierCrownclawDamageActive = false;
           link.projectileVisualKind = 'boss-frontier-chain-link';
           link.projectileAnimationMode = 'hold-last';
-          link.width = 18;
-          link.height = this.mobileProfile ? 8 : 10;
+          link.width = 52;
+          link.height = 13;
           link.color = '#fbbf24';
           link.damage = 0;
           link.bossOwnerId = boss.id;
@@ -12182,6 +12183,7 @@ export class GameEngine {
           entity.y = sample.claw.y - entity.height / 2;
           entity.vx = 0;
           entity.vy = 0;
+          entity.beamAngleRadians = sample.clawRotationRadians;
           entity.spriteFrameFixedRotationRadians = sample.clawRotationRadians;
           entity.frontierCrownclawDamageActive = sample.clawDamaging;
           entity.damage = sample.clawDamaging
@@ -12254,6 +12256,11 @@ export class GameEngine {
         );
         beam.frontierCrownclawActionClipId = state.actionClipId;
         beam.frontierCrownclawBeamIndex = beamIndex;
+        beam.projectileVisualKind = 'boss-frontier-reactor-beam';
+        beam.weaponVisualStartFrame = this.frameCount;
+      }
+      if (beam.isTelegraph && sample.damaging) {
+        beam.weaponVisualStartFrame = this.frameCount;
       }
       beam.life = 3;
       beam.maxLife = 3;
@@ -16126,7 +16133,10 @@ export class GameEngine {
         return this.bossSilhouetteIntersectsBox(entity, playerBox);
       }
       if (
-        entity.frontierCrownclawArtifactKind === 'harpoon-link'
+        (
+          entity.frontierCrownclawArtifactKind === 'harpoon-link'
+          || entity.frontierCrownclawArtifactKind === 'harpoon-claw'
+        )
         && entity.beamAngleRadians !== null
       ) {
         return this.rotatedBeamIntersectsBox(entity, playerBox);

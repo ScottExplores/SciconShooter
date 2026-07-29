@@ -44,7 +44,7 @@
 ## Safety and release
 
 - [ ] Same configuration, seed, viewport, and command replay identically
-- [ ] All critical attacks have at least 6 px replayed clearance after 3 px geometry uncertainty on mobile and desktop
+- [ ] All critical attacks have at least 6 px replayed clearance after 3 px geometry uncertainty in the canonical 390×844 mobile arena
 - [ ] Spawn/reset/replay/loop/state controls clean up correctly
 - [ ] Production exclusion, Director, root, and private Runner gates pass
 - [ ] Visual-verification result records reviewer, date, evidence, and Gate 1–5 verdicts

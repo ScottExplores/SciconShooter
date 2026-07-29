@@ -2778,12 +2778,16 @@ export class PixiGameRenderer {
     view.hasFallbackBody = true;
   }
 
-  private getPreviewBossModularProjectileTexture(entity: Entity, engineFrame: number) {
+  private getPreviewBossModularProjectileTexture(
+    entity: Entity,
+    engineFrame: number,
+    allowBeam = false
+  ) {
     if (
       !this.modularPreviewBossReady
       || !entity.bossOwnerId
       || entity.bossOwnerId !== this.previewBossRuntimeEntityId
-      || entity.isBeam
+      || (!allowBeam && entity.isBeam)
     ) {
       return undefined;
     }
@@ -2936,8 +2940,10 @@ export class PixiGameRenderer {
       view.sprite.width = visualHeight * (
         modularProjectile.frame.width / Math.max(1, modularProjectile.frame.height)
       );
-      view.root.rotation = Math.atan2(entity.vy, entity.vx)
-        + modularProjectile.animation.orientationOffsetRadians;
+      view.root.rotation = (
+        entity.spriteFrameFixedRotationRadians
+        ?? Math.atan2(entity.vy, entity.vx)
+      ) + modularProjectile.animation.orientationOffsetRadians;
       return;
     }
     const previewBossProjectileVfx = this.getPreviewBossProjectileVfxTexture(entity, engineFrame);
@@ -3092,9 +3098,16 @@ export class PixiGameRenderer {
       } else {
         view.aura.roundRect(-width / 2, -height / 2, width, height, radius)
           .fill({ color, alpha: cornerAmbushBeam ? 0.44 : 0.28 });
-        const beamTexture = entity.bossOwnerId === this.previewBossRuntimeEntityId
-          ? this.getPreviewBossVfxTexture('beamLive')
-          : undefined;
+        const modularBeam = this.getPreviewBossModularProjectileTexture(
+          entity,
+          engineFrame,
+          true
+        );
+        const beamTexture = modularBeam?.texture ?? (
+          entity.bossOwnerId === this.previewBossRuntimeEntityId
+            ? this.getPreviewBossVfxTexture('beamLive')
+            : undefined
+        );
         const impactTexture = entity.bossOwnerId === this.previewBossRuntimeEntityId
           ? this.getPreviewBossVfxTexture('beamImpact')
           : undefined;
@@ -3112,7 +3125,7 @@ export class PixiGameRenderer {
           view.sprite.width = Math.max(8, height * 1.45);
           view.sprite.height = width;
           view.sprite.rotation = Math.PI / 2;
-          if (impactTexture) {
+          if (impactTexture && !modularBeam) {
             const impacts = this.ensureProjectileCopySprites(view, 3);
             impacts.forEach((impact, index) => {
               impact.texture = impactTexture;

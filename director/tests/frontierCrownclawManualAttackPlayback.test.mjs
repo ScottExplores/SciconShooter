@@ -166,6 +166,7 @@ test('manual Crown Reactor Beam starts during entry without falling back to Atta
       }
       if (entity.frontierCrownclawArtifactKind === 'reactor-beam') {
         sawReactorBeam = true;
+        assert.equal(entity.projectileVisualKind, 'boss-frontier-reactor-beam');
         sawDamagingReactorBeam ||= entity.frontierCrownclawDamageActive === true;
       }
     }
@@ -189,5 +190,97 @@ test('manual Crown Reactor Beam starts during entry without falling back to Atta
     )),
     false,
     'manual Attack 2 playback must never fall back to Chainclaw Harpoon'
+  );
+});
+
+test('Chainclaw throws the full-size open claw toward the warning-locked ship and its visible chain hits', () => {
+  const engine = createEngine();
+  engine.init(390, 844);
+  assert.equal(engine.spawnPreviewEventNow(preview.eventId), true);
+  const boss = engine.bossRef;
+  assert.ok(boss);
+
+  engine.player.x = 286;
+  engine.player.y = 700;
+  const lockedPlayer = {
+    x: engine.player.x + engine.player.width / 2,
+    y: engine.player.y + engine.player.height / 2
+  };
+  assert.equal(
+    engine.triggerAuthoredBossAttack('chainclaw-harpoon', preview.eventId),
+    true
+  );
+
+  let guide;
+  for (let frame = 0; frame < 180 && !guide; frame += 1) {
+    engine.update();
+    guide = engine.entities.find((entity) => (
+      !entity.markedForDeletion
+      && entity.bossOwnerId === boss.id
+      && entity.frontierCrownclawArtifactKind === 'harpoon-guide'
+    ));
+  }
+  assert.ok(guide, 'the warning must expose its exact locked throw path');
+  assert.ok(
+    Math.abs(guide.beamTargetY - lockedPlayer.y) < 1,
+    'the chain arm must target the ship depth captured during warning'
+  );
+
+  const lockedTarget = {
+    x: guide.beamTargetX,
+    y: guide.beamTargetY
+  };
+  engine.player.x = 16;
+  engine.player.y = 300;
+
+  let activeClaw;
+  let activeLink;
+  let deepestClawY = 0;
+  for (let frame = 0; frame < 300; frame += 1) {
+    engine.update();
+    const claw = engine.entities.find((entity) => (
+      !entity.markedForDeletion
+      && entity.bossOwnerId === boss.id
+      && entity.frontierCrownclawArtifactKind === 'harpoon-claw'
+    ));
+    if (claw) {
+      deepestClawY = Math.max(deepestClawY, claw.y + claw.height / 2);
+      activeClaw ||= claw;
+    }
+    const link = engine.entities.find((entity) => (
+      !entity.markedForDeletion
+      && entity.bossOwnerId === boss.id
+      && entity.frontierCrownclawArtifactKind === 'harpoon-link'
+      && entity.frontierCrownclawDamageActive
+    ));
+    if (link) {
+      activeLink = link;
+      break;
+    }
+  }
+
+  assert.ok(activeClaw, 'the warning must advance into a launched claw');
+  assert.equal(activeClaw.projectileVisualKind, 'boss-frontier-chainclaw');
+  assert.equal(activeClaw.width, 108);
+  assert.equal(activeClaw.height, 70);
+  assert.ok(
+    Math.abs(deepestClawY - lockedTarget.y) < 8,
+    'moving after warning must not pull the claw away from its locked lower target'
+  );
+  assert.ok(activeLink, 'ordinary Chainclaw Harpoon must expose a damaging visible tether');
+  assert.equal(activeLink.projectileVisualKind, 'boss-frontier-chain-link');
+  assert.equal(activeLink.width, 52);
+  assert.equal(activeLink.height, 13);
+  assert.ok(Number.isFinite(activeLink.beamAngleRadians));
+
+  const livesBefore = engine.stats.lives;
+  const feedbackBefore = engine.lastPreviewPlayerHitFeedbackFrame;
+  engine.player.x = activeLink.x + activeLink.width / 2 - engine.player.width / 2;
+  engine.player.y = activeLink.y + activeLink.height / 2 - engine.player.height / 2;
+  engine.update();
+  assert.equal(engine.stats.lives, livesBefore, 'safe preview must suppress only damage');
+  assert.ok(
+    engine.lastPreviewPlayerHitFeedbackFrame > feedbackBefore,
+    'touching the visible chain must still trigger normal hit feedback'
   );
 });

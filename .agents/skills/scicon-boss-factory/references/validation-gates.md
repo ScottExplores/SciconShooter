@@ -92,7 +92,7 @@ Pass only when the attack-to-sprite map is complete and each core/signature atta
 
 ## Gate 5 — Actual Gameplay Review
 
-- Run and visually inspect the real compiled boss at both canonical mobile and desktop viewport sizes; do not substitute catalog thumbnails, mock renders, or deterministic proofs.
+- Run and visually inspect the real compiled boss in the canonical 390×844 arena on both a phone-width host and a wide host shell; the wide host must letterbox rather than widen gameplay. Do not substitute catalog thumbnails, mock renders, or deterministic proofs.
 - Trigger every attack individually and through the normal loop.
 - Capture each attack’s actual preparation, telegraph, first beat, peak danger, and recovery.
 - Capture phase transition, persistent damage, stagger, and death in context.
@@ -106,13 +106,13 @@ Pass only when the gameplay evidence looks intentional, readable, anatomically c
 
 ## Deterministic safety proof
 
-- Prove every critical attack, not only the signature, using the real compiled attack on mobile and desktop.
+- Prove every critical attack, not only the signature, using the real compiled attack in the canonical 390×844 mobile arena.
 - Record configuration hash, fixed seed, viewport, route hash, duration, search bounds, and minimum replayed clearance.
 - Require at least 6 px of replayed clearance after the standard 3 px geometry uncertainty is applied. A merely positive witness does not pass.
 - Model moving-corridor boss motion, live per-round emitter sockets, projectile cadence and velocity, direction changes, and player acceleration across one continuous replay. Isolated safe snapshots do not prove a corridor.
 - Prove every retained deterministic formation template or seed branch together with the rest of its attack. The proof must use the runtime deployment path and final armed positions, not an approximation that diverges from gameplay.
 - Include the summon lifecycle timing in formation replay: collision must remain disabled before visible activation and after visible exit/destruction, and owner/action cleanup must leave no hostile residue.
-- Reject unavoidable damage, direct player spawns, unreadable rules, excessive obstruction, and mobile-only failures.
+- Reject unavoidable damage, direct player spawns, unreadable rules, excessive obstruction, and canonical-mobile failures.
 - Never reduce collision radius, required clearance, or search rigor merely to pass.
 
 ## Functional and release checks

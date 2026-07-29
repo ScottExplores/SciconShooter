@@ -50,8 +50,32 @@ test('Helios gatling tracers correct their native -X art axis exactly once from 
   );
   assert.match(
     pixiRenderer,
-    /view\.root\.rotation\s*=\s*Math\.atan2\(entity\.vy, entity\.vx\)\s*\+\s*modularProjectile\.animation\.orientationOffsetRadians/,
-    'Pixi must orient the native tracer once from its live velocity plus the registered offset'
+    /entity\.spriteFrameFixedRotationRadians[\s\S]*?\?\? Math\.atan2\(entity\.vy, entity\.vx\)[\s\S]*?\+ modularProjectile\.animation\.orientationOffsetRadians/,
+    'Pixi must honor an authored fixed axis or live velocity, then apply the registered offset exactly once'
+  );
+});
+
+test('Frontier modular hazards use the open claw, chain segment, and animated beam sprites', () => {
+  assert.match(projectileRuntime, /'boss-frontier-reactor-beam'/);
+  assert.match(
+    bossSandboxModel,
+    /'boss-frontier-chainclaw':[\s\S]*?frameIds:\s*Object\.freeze\(\['claw\.open'\]\)/
+  );
+  assert.match(
+    bossSandboxModel,
+    /'boss-frontier-chain-link':[\s\S]*?frameIds:\s*Object\.freeze\(\['chain\.segment'\]\)/
+  );
+  assert.match(
+    bossSandboxModel,
+    /'boss-frontier-reactor-beam':[\s\S]*?'beam\.0'[\s\S]*?'beam\.3'/
+  );
+  assert.match(
+    gameLogic,
+    /beam\.projectileVisualKind = 'boss-frontier-reactor-beam'/
+  );
+  assert.match(
+    pixiRenderer,
+    /getPreviewBossModularProjectileTexture\([\s\S]*?entity,[\s\S]*?engineFrame,[\s\S]*?true[\s\S]*?\)/
   );
 });
 

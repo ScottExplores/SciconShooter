@@ -31,7 +31,6 @@ import {
 import {
   BOSS_SANDBOX_VERSION,
   BOSS_SANDBOX_VIEWPORTS,
-  DEFAULT_BOSS_SANDBOX_VIEWPORT_MODE,
   buildBossSandboxGroups,
   buildBossSandboxPreview,
   createSandboxOnlyBossArtwork,
@@ -43,8 +42,7 @@ import {
   getBossSandboxPhases,
   isSandboxBossPrototypePreview,
   resolveBossSandboxFitScale,
-  type BossSandboxChoice,
-  type BossSandboxViewportMode
+  type BossSandboxChoice
 } from './bossSandboxModel';
 import {
   BOSS_SANDBOX_FIRE_RATE_MAX,
@@ -202,8 +200,6 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   const [attackLoopEnabled, setAttackLoopEnabled] = useState(false);
   const [previewSnapshot, setPreviewSnapshot] = useState<PreviewSnapshot | null>(null);
   const [previewTimeScale, setPreviewTimeScale] = useState(1);
-  const [previewViewportMode, setPreviewViewportMode] =
-    useState<BossSandboxViewportMode>(DEFAULT_BOSS_SANDBOX_VIEWPORT_MODE);
   const [debugOverlays, setDebugOverlays] = useState<PreviewDebugOverlayState>(
     DEFAULT_PREVIEW_DEBUG_OVERLAYS
   );
@@ -343,7 +339,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
       ? createSandboxOnlyBossArtwork(preview)
       : undefined
   ), [artworkRegistration, preview, previewArtworkStatus]);
-  const previewViewport = BOSS_SANDBOX_VIEWPORTS[previewViewportMode];
+  const previewViewport = BOSS_SANDBOX_VIEWPORTS.mobile;
   const previewScale = resolveBossSandboxFitScale(
     previewHostSize,
     previewViewport,
@@ -461,18 +457,6 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     sendCommand({ type: 'set-time-scale', timeScale });
     setNotice(`Simulation speed set to ${timeScale}×`);
   }, [sendCommand]);
-
-  const changePreviewViewportMode = useCallback((
-    viewportMode: BossSandboxViewportMode
-  ) => {
-    setPreviewViewportMode(viewportMode);
-    setPlaying(true);
-    setPreviewCanvasStatus('loading');
-    setPreviewMountToken((value) => value + 1);
-    setNotice(viewportMode === 'mobile'
-      ? 'Mobile gameplay canvas selected'
-      : 'Desktop gameplay canvas selected');
-  }, []);
 
   const changeDebugOverlay = useCallback((
     key: keyof PreviewDebugOverlayState,
@@ -735,9 +719,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
             <span data-source={selectedChoice.source}>
               {selectedChoice.source === 'campaign'
                 ? 'MAIN GAME'
-                : selectedChoice.source === 'legacy'
-                  ? 'REMOVED / LEGACY'
-                  : 'TEST ONLY'}
+                : 'TEST ONLY'}
             </span>
             <h1>{selectedChoice.bossLabel}</h1>
             <p>{selectedChoice.missionLabel}</p>
@@ -853,7 +835,6 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
           <BossFactoryDebugPanel
             playing={playing}
             timeScale={previewTimeScale}
-            viewportMode={previewViewportMode}
             overlays={debugOverlays}
             safeRegionGuide={previewSnapshot?.boss?.safeRegionGuide ?? null}
             referenceComparisonAvailable={Boolean(
@@ -861,7 +842,6 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
             )}
             referenceComparison={referenceComparison}
             onTimeScaleChange={changePreviewTimeScale}
-            onViewportModeChange={changePreviewViewportMode}
             onStepFrame={() => {
               sendCommand({ type: 'step-frame' });
               setNotice('Advanced one fixed simulation frame');
@@ -905,7 +885,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
               >
                 <div
                   className="boss-sandbox__viewport-frame"
-                  data-viewport-mode={previewViewportMode}
+                  data-viewport-mode="mobile"
                   style={{
                     width: `${previewViewport.width}px`,
                     height: `${previewViewport.height}px`,

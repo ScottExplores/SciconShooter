@@ -103,8 +103,7 @@ test('chainclaw visibly unspools, launches, tensions, retracts, and reseats on o
   const tensioned = runtime.sampleFrontierChainclawHarpoon({
     ...base,
     stage: 'fire',
-    progress: 0.5,
-    signature: true
+    progress: 0.5
   });
   const retracting = runtime.sampleFrontierChainclawHarpoon({
     ...base,
@@ -130,6 +129,11 @@ test('chainclaw visibly unspools, launches, tensions, retracts, and reseats on o
   assert.equal(tensioned.lifecycle, 'tensioned');
   assert.ok(tensioned.tension > 0.7);
   assert.equal(tensioned.chainDamaging, true);
+  assert.equal(warning.chainDamaging, false);
+  assert.equal(launchStart.chainDamaging, false);
+  assert.equal(launchEnd.chainDamaging, true);
+  assert.equal(retracting.chainDamaging, false);
+  assert.equal(recovered.chainDamaging, false);
   assert.equal(retracting.lifecycle, 'retracting');
   assert.ok(retracting.extensionRatio < 1 && retracting.extensionRatio > 0);
   assert.equal(reseated.reseated, true);
@@ -156,8 +160,7 @@ test('chainclaw visibly unspools, launches, tensions, retracts, and reseats on o
     plain(runtime.sampleFrontierChainclawHarpoon({
       ...base,
       stage: 'fire',
-      progress: 0.5,
-      signature: true
+      progress: 0.5
     })),
     plain(tensioned)
   );

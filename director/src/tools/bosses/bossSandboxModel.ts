@@ -62,7 +62,7 @@ import heliosRigSource from '../../../../director-data/prototype-assets/helios-c
 import prismMothAtlasSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.json';
 import prismMothRigSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper.rig.json';
 
-export const BOSS_SANDBOX_VERSION = 'V 0.25' as const;
+export const BOSS_SANDBOX_VERSION = 'V 0.26' as const;
 
 export const getBossSandboxPerformingAttackId = (
   activeAttack: PreviewBossAttackSnapshot | null | undefined
@@ -1751,16 +1751,23 @@ export const SANDBOX_BOSS_ARTWORK_REGISTRATIONS: Readonly<
     }),
     projectileAnimations: Object.freeze({
       'boss-frontier-chainclaw': Object.freeze({
-        frameIds: Object.freeze(['claw.harpoon']),
+        frameIds: Object.freeze(['claw.open']),
         frameHoldFrames: 3,
-        minimumVisualHeight: 38,
-        entityHeightScale: 1.15,
-        orientationOffsetRadians: 0
+        minimumVisualHeight: 70,
+        entityHeightScale: 0.65,
+        orientationOffsetRadians: Math.PI
       }),
       'boss-frontier-chain-link': Object.freeze({
-        frameIds: Object.freeze(['chain.link']),
+        frameIds: Object.freeze(['chain.segment']),
         frameHoldFrames: 3,
-        minimumVisualHeight: 10,
+        minimumVisualHeight: 13,
+        entityHeightScale: 0.25,
+        orientationOffsetRadians: 0
+      }),
+      'boss-frontier-reactor-beam': Object.freeze({
+        frameIds: Object.freeze(['beam.0', 'beam.1', 'beam.2', 'beam.3']),
+        frameHoldFrames: 3,
+        minimumVisualHeight: 21,
         entityHeightScale: 1,
         orientationOffsetRadians: 0
       }),
@@ -1991,8 +1998,7 @@ export const getSandboxBossArtworkRegistration = (
 
 export const BOSS_SANDBOX_GROUP_IDS = Object.freeze({
   campaign: 'boss-sandbox:main-game',
-  test: 'boss-sandbox:test-bosses',
-  legacy: 'boss-sandbox:legacy-bosses'
+  test: 'boss-sandbox:test-bosses'
 } as const);
 
 export type BossSandboxViewportMode = 'desktop' | 'mobile';
@@ -2049,7 +2055,7 @@ export const resolveBossSandboxFitScale = (
 
 export interface BossSandboxChoice {
   readonly id: string;
-  readonly source: 'campaign' | 'test' | 'legacy';
+  readonly source: 'campaign' | 'test';
   readonly missionId: string;
   readonly missionLabel: string;
   readonly bossLabel: string;
@@ -2081,11 +2087,8 @@ const productionChoiceId = (levelId: string, waveId: string, eventId: string) =>
   `boss-sandbox:campaign:${levelId}:${waveId}:${eventId}`
 );
 
-const prototypeChoiceId = (
-  source: 'test' | 'legacy',
-  prototypeId: SandboxBossPrototypeId
-) => (
-  `boss-sandbox:${source}:${prototypeId}`
+const prototypeChoiceId = (prototypeId: SandboxBossPrototypeId) => (
+  `boss-sandbox:test:${prototypeId}`
 );
 
 export const getBossSandboxChoiceOptionLabel = (
@@ -2133,26 +2136,16 @@ export const buildBossSandboxGroups = (
         ))));
 
   const prototypeChoices = SANDBOX_BOSS_PROTOTYPES.map(
-    (prototype): BossSandboxChoice => {
-      const source = prototype.libraryCategory;
-      return {
-        id: prototypeChoiceId(source, prototype.id),
-        source,
-        missionId: BOSS_SANDBOX_GROUP_IDS[source],
-        missionLabel: source === 'legacy'
-          ? 'REMOVED / LEGACY · Still testable'
-          : 'TEST BOSSES · Never ships',
-        bossLabel: prototype.label,
-        waveLabel: source === 'legacy'
-          ? 'Preserved isolated boss fight'
-          : 'Isolated boss fight',
-        prototypeId: prototype.id
-      };
-    }
+    (prototype): BossSandboxChoice => ({
+      id: prototypeChoiceId(prototype.id),
+      source: 'test',
+      missionId: BOSS_SANDBOX_GROUP_IDS.test,
+      missionLabel: 'TEST BOSSES · Never ships',
+      bossLabel: prototype.label,
+      waveLabel: 'Isolated boss fight',
+      prototypeId: prototype.id
+    })
   );
-
-  const testChoices = prototypeChoices.filter((choice) => choice.source === 'test');
-  const legacyChoices = prototypeChoices.filter((choice) => choice.source === 'legacy');
 
   const groups: BossSandboxGroup[] = [
     {
@@ -2165,13 +2158,7 @@ export const buildBossSandboxGroups = (
       id: BOSS_SANDBOX_GROUP_IDS.test,
       label: 'TEST BOSSES · Never ships',
       source: 'test',
-      choices: testChoices
-    },
-    {
-      id: BOSS_SANDBOX_GROUP_IDS.legacy,
-      label: 'REMOVED / LEGACY · Still testable',
-      source: 'legacy',
-      choices: legacyChoices
+      choices: prototypeChoices
     }
   ];
   return groups.filter((group) => group.choices.length > 0);

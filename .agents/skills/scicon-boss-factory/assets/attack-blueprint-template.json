@@ -18,7 +18,7 @@
     "debugTogglesDefaultOn": false
   },
   "routeProof": {
-    "requiredViewports": ["mobile", "desktop"],
+    "requiredViewports": ["mobile-390x844"],
     "geometryUncertaintyPx": 3,
     "minimumReplayedClearancePxAfterUncertainty": 6
   },

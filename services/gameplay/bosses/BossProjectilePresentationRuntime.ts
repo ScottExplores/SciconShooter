@@ -18,6 +18,7 @@ export const BOSS_MODULAR_PROJECTILE_VISUAL_KINDS = [
   'boss-prism-broodling',
   'boss-frontier-chainclaw',
   'boss-frontier-chain-link',
+  'boss-frontier-reactor-beam',
   'boss-frontier-crown-bolt',
   'boss-frontier-shell-shard'
 ] as const;

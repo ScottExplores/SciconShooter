@@ -4,11 +4,12 @@
 
 - Active benchmark boss ID: `frontier-crownclaw`
 - One-boss lock acquired: 2026-07-27
-- Status: Factory-ready Sandbox benchmark; native-pixel art, modular rig, runtime, deterministic route proof, and actual mobile/desktop browser review passed on 2026-07-27
+- Status: V0.26 Factory amendment under actual-gameplay review. The regenerated canonical-mobile route matrices, focused checks, typechecks, and production build/exclusion gate pass; current visual captures, phone/wide-host gameplay review, Runner parity, and private deployment verification remain pending before Factory-ready status is restored.
 - Canonical execution path: `GameStage -> GameCanvas -> GameEngine -> PixiGameRenderer`
-- Campaign/progression status: the Frontier package remains Sandbox-only and does not enter a Mission, weekly mode, progression, production integration, or deployment. The surrounding worktree contains unrelated campaign edits that are outside this lock.
+- Campaign/progression status: the Frontier package remains Sandbox-only under **Test Bosses** and does not enter a Mission, weekly mode, progression, production integration, or deployment. The Boss Sandbox has only **Main Game** and **Test Bosses** selection categories; an internal legacy/rebuild classification never creates a third picker category.
 - Quality benchmark: Helios Clawcarrier establishes verification and polish expectations only. Frontier must not inherit Helios machine guns, bullet channel, proximity mines, clamp choreography, movement rhythm, attack order, or phase-two behavior.
 - Authoritative gameplay visual: the registered Frontier `modular-hierarchy-v1` rig. Flattened references and comparison overlays are review-only.
+- Canonical gameplay arena: mobile portrait `390 x 844`. A phone-width host and a wide authoring shell must center or letterbox that same portrait arena; neither host may widen its gameplay geometry.
 
 ## Identity
 
@@ -100,9 +101,9 @@ frontier-root
   vfx-layer
 ```
 
-- Chain links are a deterministic segmented presenter sampled each frame between the matching live hull and claw sockets. Slow motion may use a bounded sag curve; high-speed extension and retraction straighten the path without stretching individual links.
-- Claw collision follows visible opaque claw pixels or a tight union of authored claw shapes. The chain is non-damaging in the teaching attack unless a bright, tension-active frame explicitly enables a matching segmented collision path.
-- Rear emitters remain children of their visible appendages. The reactor beam always samples the current `reactor-beam-socket` world transform.
+- Chain links use the registered `chain.segment` sprite in a deterministic segmented presenter sampled each frame between the matching live hull and claw sockets. Slow motion may use a bounded sag curve; high-speed extension and retraction straighten the path without stretching individual links.
+- The launched weapon uses the registered `claw.open` sprite at the same apparent scale as its seated primary claw. Claw collision follows the visible open-claw body. Every chain segment gains a matching collision region during the latched and tensioned phases; warning, initial payout, retraction, reseat, and recovery chain frames remain non-damaging.
+- Rear emitters remain children of their visible appendages. The reactor beam always samples the current `reactor-beam-socket` world transform and presents the registered `beam.0`, `beam.1`, `beam.2`, and `beam.3` active frames instead of a generic vector beam.
 - Existing left/right component health is cleanly mapped to the primary claws. Frontier-specific fallback selection and cleanup extend the existing component system without introducing a new generic destruction architecture.
 
 ## Purposeful animation and lifecycle
@@ -143,10 +144,10 @@ The folded shell descends heavily. Legs unfold in offset pairs, rear claws clear
 
 - Player question: which committed claw target should I leave first, and where can I stand while the second claw takes its related but different route?
 - Owning anatomy: primary claws, matching shoulder/wrist joints, hull and claw chain sockets, and matching winches.
-- Recognition cue: the rig braces toward one side, the chosen winch begins rotating, the matching claw opens, and energy gathers inside the claw before a short target-lock hold.
+- Recognition cue: the rig braces toward one side, the chosen winch begins rotating, the matching claw opens, and energy gathers inside the claw before a short target-lock hold records the ship position.
 - Bounded branch: fixed seed chooses `port-then-starboard` or `starboard-then-port`; the second strike is `shallow-then-deep` or `diagonal-then-near-vertical`. The visible pose identifies the branch before damage.
-- Safe rule: leave the first locked impact region, remain clear of the visible moving claw, then cross behind its retracting path before the second committed strike. In the teaching version, ordinary chain links are visual only; damage belongs to the visible claw impact/close frames.
-- Connected beats: upper-center settle -> six-leg brace -> first spool/start and claw-open -> target lock -> launched claw and visible chain payout -> impact close -> maximum-tension recoil -> retract/reseat -> opposite claw lock/launch with a different depth -> impact/retract -> dual mechanical settle.
+- Safe rule: leave the warning-locked ship position, remain clear of the full-size open claw as it travels deep toward that committed row, avoid the attached chain while it is latched or visibly tensioned, then cross only after the chain becomes non-damaging for retraction. The strike never tracks a later ship movement after its warning lock.
+- Connected beats: upper-center settle -> six-leg brace -> first spool/start and `claw.open` warning -> ship-position lock -> full-size launched claw and `chain.segment` payout toward the locked lower depth -> latched/tensioned chain damage -> impact recoil -> non-damaging retract/reseat -> opposite claw warning/lock/launch with a different depth -> impact/retract -> dual mechanical settle.
 - Recoil: the owning shoulder compresses, the shell rolls slightly toward the pulling chain, and the corresponding rear appendage braces.
 - Recovery: both claws seat with one heavy snap; winches stop; crown aperture opens briefly for a punish window; every transform returns exactly to neutral.
 - Destroyed-claw fallback: omit every hidden/destroyed side socket, chain, collision, and animation immediately. One surviving claw owns both Harpoon beats. With both claws gone, even action sequences substitute Crown Reactor Beam and odd sequences substitute Bastion Crabwalk Barrage.
@@ -181,7 +182,7 @@ The folded shell descends heavily. Legs unfold in offset pairs, rear claws clear
 - Bounded branch: fixed seed chooses clockwise or counterclockwise opening rotation. Later complete uses alternate direction; no unrestricted randomness is allowed.
 - Safe rule: two claws launch to opposite side anchors, creating nonparallel chain boundaries with one deliberate gap near their separated endpoints. One winch pays out as the other retracts so the gap rotates continuously; after a clear crossover pause, the relationship reverses once. The player follows the hinged opening rather than camping an outer gutter or entering a parallel bullet corridor.
 - Connected beats: center settle -> dual brace/open -> dual spool warning -> opposite-side launches -> visible tension wave establishes active boundaries -> coordinated payout/retraction rotates the opening -> one claw closes as the other yields a crossover window -> one readable reversal -> heavy dual retract/reseat -> reactor exposure.
-- Damage contract: claws damage only on visible close/impact frames. Chain collision is enabled only while the bright blue tension wave is visible and follows the same segmented path drawn between live sockets. Slack/dull chain art is non-damaging.
+- Damage contract: an actively launched open claw is damaging through its launching, latched, and tensioned windows. Chain collision is enabled during the latched and tensioned windows and follows the same `chain.segment` path drawn between live sockets. Warning, initial payout, retraction, reseat, recovery, and slack chain art are non-damaging.
 - Peak: both claws, both chain paths, winches, crown aperture, rear braces, and shell tilt participate in a unique registered key pose.
 - Recovery: both chains straighten during retraction, claws reconnect with a heavy mechanical snap, the shell sags, and the crown reactor remains fully exposed longer than after a core attack.
 - Distinction from Helios: hazards are articulated nonparallel tethers and moving claw anchors; there are no mounted machine-gun rails, continuous projectile streams, mines, or clamp closure.
@@ -215,10 +216,10 @@ Behavioral remix:
 - Do not place the first Harpoon lesson immediately before the full signature.
 - Any attack reconstruction, phase jump, restart, or owner loss must remove claws-in-flight, chains, beam collision, projectiles, warnings, and transient VFX before the next state begins.
 
-## Mobile and desktop route-proof intent
+## Canonical mobile route-proof contract
 
 - Fixed benchmark seed: `frontier-crownclaw-gold-standard-v1`
-- Canonical viewports: mobile `390 x 844`; desktop `1280 x 720`
+- Canonical arena: mobile portrait `390 x 844`, unchanged inside phone-width and wide host shells
 - Geometry uncertainty: 3 px
 - Required minimum replayed clearance after uncertainty: 6 px
 - Evidence must record configuration hash, seed, viewport, branch/template, route hash, duration, search bounds, and minimum replayed clearance.
@@ -231,7 +232,7 @@ Per-attack proof obligations:
 - Bastion Crabwalk Barrage: include the moving visible hull, all six-leg translation, live rear-emitter origins, exact projectile formations, the boundary reversal, and both retained formation templates in both first directions.
 - Crown Cross-Link: sample both tether segments between their live endpoint sockets every simulation frame, including sag-to-tension transitions, claw bodies, opening rotation, crossover pause, reversal, and recovery. Prove clockwise and counterclockwise as one continuous witness; isolated safe snapshots are invalid.
 
-The persisted deterministic proof contains 28 intact-anatomy witnesses plus 48 component-fallback witnesses across both viewports, both phases where applicable, and two bounded seeds. The fallback matrix covers port-only/starboard-only Harpoon and Cross-Link plus both zero-claw parity substitutions. All 76 witnesses exceed the required 6 px margin after 3 px geometry uncertainty; the weakest measured clearance remains `6.77702596335363 px`. The proof compiles the actual Frontier timeline, samples the implemented Frontier hazard geometry, and resolves the registered rig sockets. Its explicit limitation is that the private `GameEngine` class is not directly instantiated by the trace harness, so actual canonical-browser review remains the final presentation and collision gate. Focused real-GameEngine tests close the manual-playback and component-cleanup bridge, and the browser gate passed at mobile `390 x 844` and desktop `1280 x 720`.
+The regenerated V0.26 proof contains 28/28 intact-anatomy witnesses plus 48/48 component-fallback witnesses in the canonical `390 x 844` arena, both phases where applicable, and two bounded seeds. It models the full-size launched claw as an oriented box, uses a `6.5 px` chain collision radius, follows the deeper warning-locked target geometry, and applies the standard `3 px` uncertainty. All 76 current witnesses exceed the required `6 px` post-uncertainty margin; the minimum remains `6.77702596335363 px`. Historical desktop witnesses remain archival/internal diagnostics only and are not a product gameplay mode or V0.26 acceptance viewport. Fresh phone-width and wide-host actual-gameplay review of the same portrait arena remains pending.
 
 ## Implemented Attack Tuning Lab
 
@@ -247,14 +248,15 @@ The persisted deterministic proof contains 28 intact-anatomy witnesses plus 48 c
 - Neutral modular Sandbox capture and comparison: passed at `director-data/prototype-assets/frontier-crownclaw/evidence/modular-neutral.png` with representative overlay evidence at `evidence/neutral-reference-overlay.png`
 - Accepted-package usage inventory: complete at `director-data/prototype-assets/frontier-crownclaw/frontier-crownclaw.asset-usage.json`; all 40 legacy public/tmp files are covered by `frontier-crownclaw.external-asset-disposition.json`
 - Accepted rig/pivot manifest: `director-data/prototype-assets/frontier-crownclaw/frontier-crownclaw.rig.json`; 51 parts, 11 live sockets, eight registered animations, SHA-256 `00735839641f7c3f4f334c39246b7fabaf23e9df10a3abe202b31a2fb44071e3`
-- Attack-to-sprite mapping: implemented and proven at `director-data/prototype-assets/frontier-crownclaw/frontier-crownclaw.attack-sprite-map.json`
+- Attack-to-sprite mapping: V0.26 maps launched claws to `claw.open`, tether units to `chain.segment`, and active reactor beam animation to `beam.0` through `beam.3` at `director-data/prototype-assets/frontier-crownclaw/frontier-crownclaw.attack-sprite-map.json`; current visual review is pending
 - Labeled 11-pose contact sheet: passed at `director-data/prototype-assets/frontier-crownclaw/evidence/key-pose-contact-sheet.png`
-- Clean mobile gameplay screenshot: passed at `director-data/prototype-assets/frontier-crownclaw/evidence/mobile-gameplay.png`
-- Desktop runtime review: passed with one representative capture for each numbered attack under `director-data/prototype-assets/frontier-crownclaw/evidence/desktop/`
-- Per-attack five-stage captures: 20 reviewed captures under `director-data/prototype-assets/frontier-crownclaw/evidence/attacks/`
-- Deterministic route evidence: 28/28 intact witnesses and 48/48 component-fallback witnesses passed; minimum `6.77702596335363 px`
+- Clean mobile gameplay screenshot: the existing `director-data/prototype-assets/frontier-crownclaw/evidence/mobile-gameplay.png` is a pre-V0.26 baseline; a replacement current-revision capture is pending
+- Wide-host review: must letterbox the same `390 x 844` arena. Historical desktop captures remain archival evidence only and are not a V0.26 gameplay mode or acceptance gate.
+- Per-attack five-stage captures: the existing 20 reviewed captures under `director-data/prototype-assets/frontier-crownclaw/evidence/attacks/` are historical; V0.26 Harpoon and Beam presentation require refreshed actual-gameplay review, and the complete current capture set remains pending
+- Deterministic route evidence: current V0.26 matrices pass 28/28 intact and 48/48 component-fallback witnesses with full-size oriented-claw geometry, `6.5 px` damaging chain radius, deeper locked targets, `3 px` uncertainty, and minimum `6.77702596335363 px` clearance
+- Automated verification: the current focused groups pass 23/23, 63/63, and 10/10; Root and Director typechecks pass; the Root production build and production-exclusion check pass
 - Normal gameplay attack text, prediction lines, socket guides, bounds, and debug overlays: absent from the reviewed clean runtime captures
-- Runtime corrections discovered during actual review: registered the native alpha collision mask, made numbered Attack 2 override entry without falling back to Attack 1, removed a duplicate rig-local beam, corrected crown-bolt orientation, restricted Frontier primitives to the exact Sandbox event, implemented destroyed-claw cleanup/fallbacks, and added the bounded tuning surface
-- Final verdict: Factory-ready Sandbox benchmark; exactly three core attacks plus Crown Cross-Link, with Critical Cross-Link as the persistent phase-two anatomy/behavior remix
+- Runtime corrections discovered during actual review: the historical review registered the native alpha collision mask, made numbered Attack 2 override entry without falling back to Attack 1, removed a duplicate rig-local beam, corrected crown-bolt orientation, restricted Frontier primitives to the exact Sandbox event, implemented destroyed-claw cleanup/fallbacks, and added the bounded tuning surface. V0.26 additionally replaces yellow connector placeholders with `chain.segment`, uses a full-size `claw.open`, makes latched/tensioned chain contact damaging, presents the registered beam frames, and drives Harpoon depth toward the warning-locked ship position.
+- Current verdict: Factory-compatible V0.26 Sandbox revision under visual review; exactly three core attacks plus Crown Cross-Link remain authored, and deterministic route/build/type gates are closed, but current actual-gameplay gates are not yet closed
 - Campaign/progression/deployment: unchanged by this Frontier package; unrelated surrounding campaign edits are explicitly outside scope and promotion remains unauthorized
-- One-boss lock released: yes, after the focused regressions, typechecks, 76/76 deterministic witnesses, 937/937 root tests, root build/production-exclusion checks, and mobile/desktop browser review passed. The prepared private Runner also passes 18/18 tests and contains Frontier's three pinned assets, but its campaign manifest hash is stale against the current campaign. The full Director suite was rerun and passed 274/280; five stale campaign-assumption fixtures and one generic all-primitives fixture remain outside the Frontier lock. Repository publication was not performed, and the Runner snapshot was not rebuilt or deployed.
+- One-boss lock: held for V0.26 until phone/wide-host portrait gameplay review, the current capture set, Runner parity, and private deployment verification are complete. The canonical-mobile route matrix, focused regressions, Root/Director typechecks, and production build/exclusion gate are complete.

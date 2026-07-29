@@ -120,9 +120,18 @@ export interface FrontierCrownclawCapsuleHazard extends FrontierCrownclawHazardB
   readonly radius: number;
 }
 
+export interface FrontierCrownclawOrientedBoxHazard extends FrontierCrownclawHazardBase {
+  readonly shape: 'oriented-box';
+  readonly center: BossSafeRoutePoint;
+  readonly halfWidth: number;
+  readonly halfHeight: number;
+  readonly angleRadians: number;
+}
+
 export type FrontierCrownclawHazard =
   | FrontierCrownclawCircleHazard
-  | FrontierCrownclawCapsuleHazard;
+  | FrontierCrownclawCapsuleHazard
+  | FrontierCrownclawOrientedBoxHazard;
 
 export interface FrontierCrownclawAttackGeometryFrame {
   readonly attackId: FrontierCrownclawAttackId;
@@ -214,7 +223,8 @@ interface FrontierCrownclawMetrics {
   readonly chainSocketOffsetY: number;
   readonly rearSocketOffsetX: number;
   readonly rearSocketOffsetY: number;
-  readonly clawRadius: number;
+  readonly clawHalfWidth: number;
+  readonly clawHalfHeight: number;
   readonly chainRadius: number;
   readonly projectileRadius: number;
 }
@@ -290,8 +300,9 @@ const metricsFor = (
     chainSocketOffsetY: mobile ? 13 : 16,
     rearSocketOffsetX: mobile ? 49 : 78,
     rearSocketOffsetY: mobile ? 29 : 34,
-    clawRadius: mobile ? 17 : 20,
-    chainRadius: mobile ? 4.5 : 5.5,
+    clawHalfWidth: 54,
+    clawHalfHeight: 35,
+    chainRadius: 6.5,
     projectileRadius: mobile ? 6.5 : 7.5
   };
 };
@@ -441,6 +452,27 @@ const capsuleHazard = ({
   geometryUncertaintyPixels
 });
 
+const orientedBoxHazard = ({
+  id,
+  kind,
+  sourceSocket,
+  center,
+  halfWidth,
+  halfHeight,
+  angleRadians,
+  geometryUncertaintyPixels
+}: Omit<FrontierCrownclawOrientedBoxHazard, 'shape'>): FrontierCrownclawOrientedBoxHazard => ({
+  id,
+  kind,
+  sourceSocket,
+  shape: 'oriented-box',
+  center,
+  halfWidth,
+  halfHeight,
+  angleRadians,
+  geometryUncertaintyPixels
+});
+
 const harpoonStrokes = (
   phaseId: FrontierCrownclawPhaseId,
   seed: number
@@ -481,7 +513,7 @@ const sampleHarpoonHead = ({
         ? (stroke.shallow ? 0.29 : critical ? 0.17 : 0.2)
         : (stroke.shallow ? 0.71 : critical ? 0.83 : 0.8)
     ),
-    viewport.height * (stroke.shallow ? 0.67 : critical ? 0.79 : 0.76)
+    viewport.height * (stroke.shallow ? 0.82 : critical ? 0.87 : 0.85)
   );
   const sweepDistance = viewport.width * (critical ? 0.055 : 0.04) * sideDirection;
   let head: BossSafeRoutePoint;
@@ -539,12 +571,17 @@ const sampleHarpoonGeometry = (
     });
     if (!sampled) continue;
     if (sampled.damagingClaw) {
-      hazards.push(circleHazard({
+      hazards.push(orientedBoxHazard({
         id: `harpoon-${index}-${stroke.side}-claw`,
         kind: 'claw-head',
         sourceSocket: `${stroke.side}-primary-claw`,
         center: sampled.point,
-        radius: metrics.clawRadius,
+        halfWidth: metrics.clawHalfWidth,
+        halfHeight: metrics.clawHalfHeight,
+        angleRadians: Math.atan2(
+          sampled.point.y - socket.y,
+          sampled.point.x - socket.x
+        ),
         geometryUncertaintyPixels: request.geometryUncertaintyPixels
       }));
     }
@@ -840,12 +877,14 @@ const sampleCrossLinkGeometry = (
       }));
     }
     if (request.frame >= 75 && request.frame <= (side === 'port' ? portRetractStart + 14 : starboardRetractStart + 14)) {
-      hazards.push(circleHazard({
+      hazards.push(orientedBoxHazard({
         id: `cross-link-${side}-claw`,
         kind: 'claw-head',
         sourceSocket: `${side}-primary-claw`,
         center: head,
-        radius: metrics.clawRadius,
+        halfWidth: metrics.clawHalfWidth,
+        halfHeight: metrics.clawHalfHeight,
+        angleRadians: Math.atan2(head.y - socket.y, head.x - socket.x),
         geometryUncertaintyPixels: request.geometryUncertaintyPixels
       }));
     }
@@ -974,10 +1013,28 @@ const hazardClearance = (
         playerCenter.x - hazard.center.x,
         playerCenter.y - hazard.center.y
       )
-    : pointToSegmentDistance(playerCenter, hazard.start, hazard.end);
+    : hazard.shape === 'capsule'
+      ? pointToSegmentDistance(playerCenter, hazard.start, hazard.end)
+      : (() => {
+          const deltaX = playerCenter.x - hazard.center.x;
+          const deltaY = playerCenter.y - hazard.center.y;
+          const cosine = Math.cos(-hazard.angleRadians);
+          const sine = Math.sin(-hazard.angleRadians);
+          const localX = deltaX * cosine - deltaY * sine;
+          const localY = deltaX * sine + deltaY * cosine;
+          const outsideX = Math.max(Math.abs(localX) - hazard.halfWidth, 0);
+          const outsideY = Math.max(Math.abs(localY) - hazard.halfHeight, 0);
+          if (outsideX > 0 || outsideY > 0) {
+            return magnitude(outsideX, outsideY);
+          }
+          return -Math.min(
+            hazard.halfWidth - Math.abs(localX),
+            hazard.halfHeight - Math.abs(localY)
+          );
+        })();
   return centerDistance
     - conservativePlayerRadius
-    - hazard.radius
+    - (hazard.shape === 'oriented-box' ? 0 : hazard.radius)
     - hazard.geometryUncertaintyPixels;
 };
 
@@ -1005,8 +1062,8 @@ const configurationHash = (
     fps: FRONTIER_CROWNCLAW_SAFE_ROUTE_FPS,
     requiredClearancePixels: MINIMUM_PROVEN_BOSS_ROUTE_CLEARANCE_PIXELS,
     geometryRevision: componentFallbackRequested
-      ? 'frontier-crownclaw-component-fallback-route-v1'
-      : 'frontier-crownclaw-route-v1',
+      ? 'frontier-crownclaw-component-fallback-route-v2'
+      : 'frontier-crownclaw-route-v2',
     ...(componentFallbackRequested ? {
       resolvedAttackId: fallback.resolvedAttackId,
       operationalClawSides: fallback.operationalClawSides,

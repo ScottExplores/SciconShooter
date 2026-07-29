@@ -218,14 +218,13 @@ test('every registered modular atlas participates in the browser integrity gate'
   }
 });
 
-test('Boss Sandbox groups main-game, test-only, and removed bosses without losing campaign order', () => {
+test('Boss Sandbox groups main-game and every non-campaign prototype without losing campaign order', () => {
   const groups = model.buildBossSandboxGroups(campaign);
   const groupById = new Map(groups.map((group) => [group.id, group]));
   const campaignGroup = groupById.get(model.BOSS_SANDBOX_GROUP_IDS.campaign);
   const testGroup = groupById.get(model.BOSS_SANDBOX_GROUP_IDS.test);
-  const legacyGroup = groupById.get(model.BOSS_SANDBOX_GROUP_IDS.legacy);
   const campaignChoices = campaignGroup.choices;
-  const prototypeChoices = [...testGroup.choices, ...legacyGroup.choices];
+  const prototypeChoices = testGroup.choices;
   const configuredBossCount = campaign.levels.flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
     .filter((event) => event.kind === 'boss').length;
@@ -234,19 +233,16 @@ test('Boss Sandbox groups main-game, test-only, and removed bosses without losin
     groups.map((group) => group.id),
     [
       model.BOSS_SANDBOX_GROUP_IDS.campaign,
-      model.BOSS_SANDBOX_GROUP_IDS.test,
-      model.BOSS_SANDBOX_GROUP_IDS.legacy
+      model.BOSS_SANDBOX_GROUP_IDS.test
     ]
   );
   assert.equal(campaignGroup.source, 'campaign');
   assert.equal(testGroup.source, 'test');
-  assert.equal(legacyGroup.source, 'legacy');
-  assert.equal(testGroup.choices.length, 9);
-  assert.equal(legacyGroup.choices.length, 5);
+  assert.equal(testGroup.choices.length, 14);
   artworkFixtures.forEach(({ prototypeId }) => {
     assert.ok(prototypeChoices.some((choice) => choice.prototypeId === prototypeId));
   });
-  assert.ok(legacyGroup.choices.some((choice) => (
+  assert.ok(testGroup.choices.some((choice) => (
     choice.prototypeId === 'frontier-crownclaw'
   )));
   assert.ok(testGroup.choices.some((choice) => (
@@ -268,6 +264,26 @@ test('Boss Sandbox groups main-game, test-only, and removed bosses without losin
     configuredBossCount + prototypeChoices.length
   );
   assert.deepEqual(campaign, sourceSnapshot);
+});
+
+test('Frontier projectile registrations resolve to the authored open claw, chain, and laser frames', () => {
+  const registration = model.getSandboxBossArtworkRegistration('frontier-crownclaw');
+  assert.ok(registration?.modularRig);
+  const animations = registration.projectileAnimations;
+  assert.deepEqual(animations['boss-frontier-chainclaw'].frameIds, ['claw.open']);
+  assert.deepEqual(animations['boss-frontier-chain-link'].frameIds, ['chain.segment']);
+  assert.deepEqual(
+    animations['boss-frontier-reactor-beam'].frameIds,
+    ['beam.0', 'beam.1', 'beam.2', 'beam.3']
+  );
+  for (const animation of Object.values(animations)) {
+    for (const frameId of animation.frameIds) {
+      assert.ok(
+        registration.modularRig.frameById[frameId],
+        `Frontier modular atlas must contain ${frameId}`
+      );
+    }
+  }
 });
 
 test('production choices resolve to one valid source boss without mutating campaign', () => {

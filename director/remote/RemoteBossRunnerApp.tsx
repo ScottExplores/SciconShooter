@@ -34,6 +34,7 @@ import {
 import '../src/combat-lab/sandboxBossPrototypes';
 import {
   BOSS_SANDBOX_VERSION,
+  BOSS_SANDBOX_VIEWPORTS,
   buildBossSandboxGroups,
   buildBossSandboxPreview,
   createSandboxOnlyBossArtwork,
@@ -366,7 +367,6 @@ export default function RemoteBossRunnerApp() {
     () => choices.filter((choice) => choice.source === 'test').length,
     [choices]
   );
-  const legacyBossCount = choices.length - campaignBossCount - testBossCount;
 
   useEffect(() => {
     if (!artworkRegistration) {
@@ -604,6 +604,7 @@ export default function RemoteBossRunnerApp() {
             onPreviewCommandResult={handleCommandResult}
             onPreviewSnapshot={setPreviewSnapshot}
             previewSettings={previewSettings}
+            previewViewport={BOSS_SANDBOX_VIEWPORTS.mobile}
             previewBossArtwork={previewBossArtwork}
             audioEnabled
             musicEnabled={false}
@@ -695,7 +696,7 @@ export default function RemoteBossRunnerApp() {
                   <div className="remote-runner__section-title">
                     <span>Fight library</span>
                     <small>
-                      {campaignBossCount} main · {testBossCount} test · {legacyBossCount} legacy
+                      {campaignBossCount} main · {testBossCount} test
                     </small>
                   </div>
                   <article className="remote-runner__boss-card">
@@ -708,9 +709,7 @@ export default function RemoteBossRunnerApp() {
                       <span data-source={selectedChoice.source}>
                         {selectedChoice.source === 'campaign'
                           ? 'MAIN GAME'
-                          : selectedChoice.source === 'legacy'
-                            ? 'REMOVED / LEGACY'
-                            : 'TEST ONLY'}
+                          : 'TEST ONLY'}
                       </span>
                       <h2>{selectedChoice.bossLabel}</h2>
                       <p>{selectedChoice.missionLabel}</p>
@@ -757,9 +756,7 @@ export default function RemoteBossRunnerApp() {
                                 <small>
                                   {choice.source === 'campaign'
                                     ? choice.missionLabel
-                                    : choice.source === 'legacy'
-                                      ? 'Preserved boss'
-                                      : 'Test mission'}
+                                    : 'Test mission'}
                                 </small>
                               </span>
                             </button>
