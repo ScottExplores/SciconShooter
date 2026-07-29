@@ -93,7 +93,7 @@ The historical browser pass found and corrected a missing alpha-mask registratio
 - Root production build and production-exclusion check: passed
 - Current actual-gameplay capture and portrait review: requested Harpoon/Beam plus wide-host portrait passed; phone-width and complete five-stage set pending
 - Current Runner parity: passed; 18/18 hosted tests plus live phase-aware controls and Restart verification
-- Private deployment verification: passed; owner-only Sites version 33
+- Private deployment verification: passed; owner-only Sites version 34, Boss Sandbox V0.27
 
 See `director-data/prototype-assets/frontier-crownclaw/evidence/visual-verification.md` for the complete gate record.
 
