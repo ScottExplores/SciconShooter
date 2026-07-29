@@ -38,7 +38,7 @@
         "waveName": { "type": "string", "minLength": 1, "maxLength": 120 },
         "eventId": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
         "eventLabel": { "type": "string", "minLength": 1, "maxLength": 120 },
-        "eventKind": { "enum": ["spawn", "boss", "asteroid-belt", "powerup", "recovery"] },
+        "eventKind": { "enum": ["spawn", "boss", "asteroid-belt", "supply-drop", "powerup", "recovery"] },
         "elapsedSeconds": { "type": "number", "minimum": 0, "maximum": 86400 },
         "draft": { "type": "boolean" }
       }

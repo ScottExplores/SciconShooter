@@ -7,10 +7,24 @@ const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
 const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+const enemyFiring = fs.readFileSync(path.join(root, 'services', 'campaignEnemyFiring.ts'), 'utf8');
+const formationBudget = fs.readFileSync(path.join(root, 'services', 'campaignFormationBudget.ts'), 'utf8');
 const environment = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiEnvironment.ts'), 'utf8');
 const renderer = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
 
 const loadProgression = () => {
+  const weaponSource = fs.readFileSync(path.join(root, 'services', 'weaponTierProgression.ts'), 'utf8');
+  const weaponCompiled = ts.transpileModule(weaponSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText;
+  const weaponModule = { exports: {} };
+  vm.runInNewContext(`(function(exports, require, module) { ${weaponCompiled} })(module.exports, require, module);`, {
+    module: weaponModule,
+    require,
+    Math,
+    Number,
+    Array
+  });
   const source = fs.readFileSync(path.join(root, 'services', 'campaignCombatProgression.ts'), 'utf8');
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
@@ -18,7 +32,9 @@ const loadProgression = () => {
   const module = { exports: {} };
   vm.runInNewContext(`(function(exports, require, module) { ${compiled} })(module.exports, require, module);`, {
     module,
-    require,
+    require: (request) => request === './weaponTierProgression'
+      ? weaponModule.exports
+      : require(request),
     Math,
     Number,
     Array
@@ -78,9 +94,12 @@ test('Max Shot doubles the complete current weapon pattern without changing cade
   } = loadProgression();
 
   assert.equal(MAX_SHOT_VOLLEY_MULTIPLIER, 2);
-  assert.equal(MAX_SHOT_PROJECTILE_CAP, 18);
-  assert.deepEqual([1, 2, 3, 9, 99].map(getMaxShotProjectileCount), [2, 4, 6, 18, 18]);
-  assert.deepEqual([1, 2, 3].map((tierVolley) => getMaxShotProjectileCount(tierVolley * 3)), [6, 12, 18]);
+  assert.equal(MAX_SHOT_PROJECTILE_CAP, 42);
+  assert.deepEqual([1, 2, 3, 7, 21, 99].map(getMaxShotProjectileCount), [2, 4, 6, 14, 42, 42]);
+  assert.deepEqual(
+    [1, 2, 3, 4, 5, 6, 7].map((tierVolley) => getMaxShotProjectileCount(tierVolley * 3)),
+    [6, 12, 18, 24, 30, 36, 42]
+  );
 
   const copies = getMaxShotCopyPattern();
   assert.equal(copies.length, 2);
@@ -131,4 +150,41 @@ test('generated campaign enemies have readable specialist attacks and side sentr
   assert.match(engine, /archetype === 'laser-hunter'/);
   assert.match(engine, /enemy\.spriteUrl\?\.includes\('\/wall-sniper-'\)/);
   assert.match(engine, /resolveFormationEntryPlan\(/);
+});
+
+test('authored role and formation-pack firing policy is enforced by the runtime scheduler', () => {
+  assert.match(engine, /canCampaignEnemyFire\(\{/);
+  assert.match(engine, /campaignFireDelaySeconds = countTowardCombatBudget/);
+  assert.match(engine, /getCampaignFormationFiringBehavior\(role\?\.id\)/);
+  assert.match(engine, /campaignFormationFiringBehavior === 'priority'/);
+  assert.match(engine, /isCampaignPriorityFireRole\(candidate\.campaignGameplayRole\)/);
+  assert.match(enemyFiring, /behavior === 'formation-command'.*formationState === 'dive'/s);
+  assert.match(enemyFiring, /behavior === 'elite-only'.*isElite/s);
+  assert.match(enemyFiring, /formationFiringBehavior === 'none'/);
+  assert.match(enemyFiring, /formationFiringBehavior === 'post-formation'/);
+});
+
+test('formation-pack instance, recovery, and shooter ceilings are enforced without suppressing loose spawns', () => {
+  assert.match(engine, /campaignFormationPackInstances: Map<string, CampaignFormationPackInstanceState>/);
+  assert.match(engine, /reconcileCampaignFormationPackInstances\(\)/);
+  assert.match(engine, /canStartCampaignFormationPackInstance\(\{/);
+  assert.match(engine, /campaignFormationPackLastRetiredFrames\.get\(formationPack\.id\)/);
+  assert.match(engine, /countTowardCombatBudget\s*\? this\.getCampaignFormationPackForSpawn\(event\)/);
+  assert.match(engine, /getAllowedCampaignShooterIds\(\)/);
+  assert.match(engine, /!allowedCampaignShooterIds\.has\(source\.id\)/);
+  assert.match(engine, /!allowedCampaignShooterIds\.has\(candidate\.id\)/);
+  assert.match(formationBudget, /if \(alreadyStarted\) return true/);
+  assert.match(formationBudget, /Math\.ceil\(/);
+  assert.match(formationBudget, /authoredRoleLimit === undefined/);
+});
+
+test('campaign mini-boss IDs resolve to encounter choreography and reward one completed encounter', () => {
+  assert.match(engine, /getMiniBossEncounterDefinition\(configured\.bossId\)/);
+  assert.match(engine, /getMiniBossEncounterDefinition\(state\.encounterId\)/);
+  assert.match(engine, /private awardMiniBossLabVictory\(state: MiniBossLabEngineState\)/);
+  assert.match(engine, /if \(state\.victoryRewarded\) return/);
+  assert.match(engine, /this\.creditedMiniBossEncounterIds\.add\(state\.eventId\)/);
+  assert.match(engine, /this\.waveVictoryKillCounts\.miniBossKills\+\+/);
+  assert.match(engine, /this\.spawnBossCoinBurst\(anchor\)/);
+  assert.match(engine, /this\.awardMiniBossLabVictory\(state\)/);
 });

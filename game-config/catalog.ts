@@ -27,6 +27,7 @@ const GENERATED_ASSET_ROLES = new Set<GeneratedAssetRole>([
   'enemy',
   'boss',
   'asteroid',
+  'supply-drop',
   'hud',
   'player',
   'background',
@@ -340,6 +341,70 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
     defaultMovementPatternId: 'wall-march',
     allowedWeaponIds: ['wall-bolt']
   },
+  'fracture-engine-elite': {
+    id: 'fracture-engine-elite',
+    label: 'Fracture Engine Elite',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'MINI_BOSS',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'wall-bolt']
+  },
+  'aegis-brood-core': {
+    id: 'aegis-brood-core',
+    label: 'Aegis Brood Core',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'CAMPAIGN_ENEMY_RING_SENTINEL',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'wall-bolt']
+  },
+  'railspine-wallcrawler': {
+    id: 'railspine-wallcrawler',
+    label: 'Railspine Wallcrawler',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'CAMPAIGN_ENEMY_LASER_HUNTER',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'wall-bolt']
+  },
+  'maw-carrier': {
+    id: 'maw-carrier',
+    label: 'Maw Carrier',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'wall-bolt']
+  },
+  'twin-meridian-sentinels': {
+    id: 'twin-meridian-sentinels',
+    label: 'Twin Meridian Sentinels',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'CAMPAIGN_ENEMY_RING_SENTINEL',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'wall-bolt']
+  },
+  'prism-bloom': {
+    id: 'prism-bloom',
+    label: 'Prism Bloom',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'wall-bolt']
+  },
+  'aegis-convoy-captain': {
+    id: 'aegis-convoy-captain',
+    label: 'Aegis Convoy Captain',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'CAMPAIGN_ENEMY_LASER_HUNTER',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'wall-bolt']
+  },
+  'gridline-sentries': {
+    id: 'gridline-sentries',
+    label: 'Gridline Sentries',
+    entityType: 'MINI_BOSS',
+    defaultSpriteKey: 'CAMPAIGN_ENEMY_RING_SENTINEL',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['aimed-shot', 'wall-bolt']
+  },
   gatekeeper: {
     id: 'gatekeeper',
     label: 'Gatekeeper',
@@ -378,6 +443,54 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
     entityType: 'BOSS',
     defaultSpriteKey: 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT',
     defaultMovementPatternId: 'gatekeeper-cycle',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'prism-moth': {
+    id: 'prism-moth',
+    label: 'Prism Moth Broodkeeper',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'rail-serpent': {
+    id: 'rail-serpent',
+    label: 'Rail Serpent',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_RAIL_SERPENT',
+    defaultMovementPatternId: 'gatekeeper-cycle',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'singularity-crab': {
+    id: 'singularity-crab',
+    label: 'Singularity Crab',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'orbit-gyroscope': {
+    id: 'orbit-gyroscope',
+    label: 'Orbit Gyroscope',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'hammerhead-siege': {
+    id: 'hammerhead-siege',
+    label: 'Hammerhead Siege',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE',
+    defaultMovementPatternId: 'gatekeeper-cycle',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'frontier-crownclaw': {
+    id: 'frontier-crownclaw',
+    label: 'Frontier Crownclaw',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'PIXI_BOSS_CROWNCLAW_FRAMES',
+    defaultMovementPatternId: 'arena-roam',
     allowedWeaponIds: ['burst-volley', 'lane-beam']
   }
 };

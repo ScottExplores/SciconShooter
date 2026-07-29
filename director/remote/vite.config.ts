@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
-import { rewriteDirectorPrototypeAssetUrls } from './runnerAssetUrlRewrite.mjs';
+import { rewriteHostedRunnerAssetUrls } from './runnerAssetUrlRewrite.mjs';
 
 const remoteRoot = path.dirname(fileURLToPath(import.meta.url));
 const directorRoot = path.resolve(remoteRoot, '..');
@@ -25,8 +25,11 @@ const remotePrototypeAssetUrls = (): Plugin => ({
   name: 'scicon-remote-prototype-asset-urls',
   enforce: 'pre',
   transform(source, id) {
-    if (!source.includes('/__director/api/v1/prototype-assets/')) return null;
-    const code = rewriteDirectorPrototypeAssetUrls(source);
+    if (
+      !source.includes('/__director/api/v1/prototype-assets/')
+      && !source.includes('/game-art/generated/mini-boss-lab-v2')
+    ) return null;
+    const code = rewriteHostedRunnerAssetUrls(source);
     return { code, map: null };
   }
 });

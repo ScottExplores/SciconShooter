@@ -49,11 +49,20 @@ test('wallet transitions preserve dirty state and serialize cookie-changing acti
 
 test('routine wallet disconnect preserves the verified device session for seamless reconnects', () => {
   const service = read('services', 'walletProfileService.ts');
+  const sessionResolver = read('services', 'walletProfileSession.ts');
   const app = read('App.tsx');
 
   assert.match(
     service,
-    /const existingSession = await readWalletProfileSession\(\)[\s\S]*existingSession\.walletAddress\?\.toLowerCase\(\) === normalizeWalletAddress\(address\)[\s\S]*return existingSession\.profile/
+    /resolveWalletProfileSession\(\{[\s\S]*readSession: readWalletProfileSession/
+  );
+  assert.match(
+    sessionResolver,
+    /existingWalletAddress === expectedWalletAddress[\s\S]*return boundExistingSession/
+  );
+  assert.match(
+    app,
+    /const authenticatedSession = await loadAuthenticatedWalletProfile\([\s\S]*let profile = authenticatedSession\.profile/
   );
   assert.match(
     app,

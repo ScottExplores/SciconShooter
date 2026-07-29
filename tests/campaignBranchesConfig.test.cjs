@@ -14,7 +14,7 @@ test('Mission 05 mastery preserves the original concrete, data-driven Present Dr
   const { validateGameCampaign } = await import(validatorUrl);
   assert.deepEqual(validateGameCampaign(campaign), { valid: true, errors: [] });
   assert.ok(campaign.revision >= 22);
-  assert.equal(campaign.campaignBranches.length, 4);
+  assert.ok(campaign.campaignBranches.length >= 4);
 
   const branch = campaign.campaignBranches.find((entry) => entry.branchId === 'branch-bastion-research-supply');
   assert.ok(branch);
@@ -80,7 +80,7 @@ test('Present Drop target values, timing, and reward preview close exactly', () 
   assert.ok(maximumCoins < firstSectorAuthoredCoins / 2, 'the optional cache cannot replace normal sector progression');
 });
 
-test('Present Drop sprite IDs are allowlisted asteroid-role assets', () => {
+test('Present Drop sprite IDs are allowlisted Supply Drop role assets', () => {
   const campaign = readCampaign();
   const generated = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'generated-assets.json'), 'utf8'));
   const assets = new Map(generated.assets.map((asset) => [asset.id, asset]));
@@ -89,7 +89,8 @@ test('Present Drop sprite IDs are allowlisted asteroid-role assets', () => {
   for (const present of presentDrop.missionDefinition.presentTypes) {
     const asset = assets.get(present.spriteKey);
     assert.ok(asset, `${present.spriteKey} is registered`);
-    assert.ok(asset.roles.includes('asteroid'), `${present.spriteKey} is safe for canonical asteroid rendering`);
+    assert.ok(asset.roles.includes('supply-drop'), `${present.spriteKey} is safe for canonical Supply Drop rendering`);
+    assert.equal(asset.roles.includes('asteroid'), false, `${present.spriteKey} does not masquerade as an asteroid`);
     assert.ok(fs.existsSync(path.join(root, 'public', asset.path.slice(1))), `${asset.path} exists`);
   }
 });
@@ -113,7 +114,7 @@ test('branch validation rejects partial mastery, bad routes, farming policies, a
   assert.ok(result.errors.some((error) => error.includes('/completionReward/totalMaximumCoins')));
 });
 
-test('campaign branches remain optional and bonus asteroid metadata is strictly paired', async () => {
+test('campaign branches remain optional and Supply Drops use a dedicated validated event contract', async () => {
   const { validateGameCampaign } = await import(validatorUrl);
   const legacyCompatible = readCampaign();
   delete legacyCompatible.campaignBranches;
@@ -122,22 +123,45 @@ test('campaign branches remain optional and bonus asteroid metadata is strictly 
   });
   assert.deepEqual(validateGameCampaign(legacyCompatible), { valid: true, errors: [] });
 
-  const bonusTargetCampaign = readCampaign();
-  const authoredBranchAsteroid = bonusTargetCampaign.campaignBranches
+  const supplyDropCampaign = readCampaign();
+  const authoredBranchAsteroid = supplyDropCampaign.campaignBranches
     .flatMap((branch) => branch.missionDefinition.events ?? [])
     .find((event) => event.kind === 'asteroid-belt');
   assert.ok(authoredBranchAsteroid, 'tracked campaign includes an asteroid event fixture');
-  const asteroidEvent = structuredClone(authoredBranchAsteroid);
-  asteroidEvent.id = 'validation-bonus-asteroid';
-  asteroidEvent.startSeconds = 0;
-  asteroidEvent.durationSeconds = 1;
-  asteroidEvent.coinDropValue = 12;
-  asteroidEvent.bonusTargetKind = 'armored';
-  bonusTargetCampaign.levels[0].waves[0].events.unshift(asteroidEvent);
-  assert.deepEqual(validateGameCampaign(bonusTargetCampaign), { valid: true, errors: [] });
+  const armored = supplyDropCampaign.campaignBranches
+    .find((entry) => entry.branchId === 'branch-bastion-research-supply')
+    .missionDefinition.presentTypes.find((present) => present.kind === 'armored');
+  const supplyEvent = {
+    id: 'validation-supply-drop',
+    label: 'ARMORED RESEARCH SUPPLY',
+    kind: 'supply-drop',
+    startSeconds: 0,
+    durationSeconds: 1,
+    delayAfterSeconds: 0,
+    blocksWaveClock: false,
+    spawnAnchor: { x: 0.5, y: 0.035 },
+    spriteKey: armored.spriteKey,
+    presentKind: 'armored',
+    positionId: 'formation-top',
+    health: 4,
+    speed: 1.05,
+    scoreValue: 0,
+    coinDropValue: 12
+  };
+  supplyDropCampaign.levels[0].waves[0].events.unshift(supplyEvent);
+  assert.deepEqual(validateGameCampaign(supplyDropCampaign), { valid: true, errors: [] });
 
-  delete asteroidEvent.coinDropValue;
-  const invalid = validateGameCampaign(bonusTargetCampaign);
+  const asteroidMasquerade = structuredClone(supplyDropCampaign);
+  asteroidMasquerade.levels[0].waves[0].events[0] = {
+    ...authoredBranchAsteroid,
+    id: 'validation-asteroid-masquerade',
+    startSeconds: 0,
+    durationSeconds: 1,
+    coinDropValue: 12,
+    bonusTargetKind: 'armored'
+  };
+  const invalid = validateGameCampaign(asteroidMasquerade);
   assert.equal(invalid.valid, false);
-  assert.ok(invalid.errors.some((error) => error.includes('/coinDropValue')));
+  assert.ok(invalid.errors.some((error) => error.includes('coinDropValue')));
+  assert.ok(invalid.errors.some((error) => error.includes('bonusTargetKind')));
 });

@@ -81,6 +81,51 @@ function Get-DirectoryLabel([string]$Prefix, [string]$RelativePath) {
   return "$Prefix\$directory"
 }
 
+function Convert-AssetSlugToLabel([string]$Slug) {
+  if ([string]::IsNullOrWhiteSpace($Slug)) { return '' }
+  $words = $Slug -replace '\.[^.]+$', '' -replace '[-_]+', ' '
+  return (Get-Culture).TextInfo.ToTitleCase($words.ToLowerInvariant())
+}
+
+function Get-ProjectBossGroup([string]$RelativePath) {
+  $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  if ($normalized -match '(^|/)bosses/frames/([^/]+)$') {
+    return Convert-AssetSlugToLabel ([System.IO.Path]::GetFileNameWithoutExtension($Matches[2]))
+  }
+  if ($normalized -match '(^|/)bosses/([^/]+)') {
+    return Convert-AssetSlugToLabel $Matches[2]
+  }
+  if ($normalized -match '^generated/boss-weapons/(citation-storm|open-galaxy|open-orbit)-') {
+    return Convert-AssetSlugToLabel $Matches[1]
+  }
+  if ($normalized -match '^pixi/effects/boss-damage/') { return 'Shared Boss Damage Effects' }
+  if ($normalized -match '^pixi/effects/explosion/') { return 'Shared Boss Effects' }
+  return ''
+}
+
+function Get-PrototypeBossGroup([string]$RelativePath) {
+  $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
+  if ($normalized.Contains('/')) {
+    return Convert-AssetSlugToLabel ($normalized.Split('/')[0])
+  }
+
+  $rootBossAliases = [ordered]@{
+    '^aurora-' = 'Aurora Storm Engine'
+    '^cinderjaw-' = 'Cinderjaw Siege Beetle'
+    '^helios-' = 'Helios Clawcarrier'
+    '^meridian-' = 'Meridian Harrower'
+    '^nullwake-' = 'Nullwake Revenant'
+    '^riftcoil-' = 'Riftcoil Wyrm'
+    '^twin-halo-' = 'Twin Halo Wardens'
+    '^umbra-' = 'Umbra Needlewing'
+    '^vesperglass-' = 'Vesperglass Mothmother'
+  }
+  foreach ($pattern in $rootBossAliases.Keys) {
+    if ($normalized -match $pattern) { return $rootBossAliases[$pattern] }
+  }
+  return 'Unassigned Test Boss Assets'
+}
+
 function Get-ProjectCategory([string]$RelativePath) {
   $normalized = $RelativePath.ToLowerInvariant().Replace('\', '/')
   if ($normalized -match '(^|/)animations/' -or $normalized.EndsWith('.gif')) { return 'Scicon - Animations' }
@@ -401,7 +446,7 @@ $prototypeImageFiles = Get-FilesByExtension $ProjectPrototypeArtRoot $imageExten
     # Windows PowerShell 5.1 does not expose Path.GetRelativePath. Reuse the
     # gallery's confined-path helper so refreshes work in either host.
     $prototypeRelative = Get-PathWithin $ProjectPrototypeArtRoot $_.FullName
-    -not ($prototypeRelative -match '(^|[\\/])review([\\/]|$)')
+    -not ($prototypeRelative -match '(^|[\\/])(review|evidence)([\\/]|$)')
   }
 $sourceArtImageFiles = Get-FilesByExtension $ProjectSourceArtRoot $imageExtensions
 $archiveArtImageFiles = Get-FilesByExtension $ProjectArchiveArtRoot $imageExtensions
@@ -496,6 +541,7 @@ foreach ($file in $projectImageFiles) {
     simpleCategories = [string[]]@(Get-ProjectRuntimeGalleryCategories $relative $file.Extension)
     library = 'space'
     source = 'Scicon project'
+    bossGroup = Get-ProjectBossGroup $relative
     pack = Get-DirectoryLabel 'Scicon Shooter\public\game-art' $relative
     name = $file.Name
     path = Get-RelativeFileUrl $galleryRoot $file.FullName
@@ -517,6 +563,7 @@ foreach ($file in $prototypeImageFiles) {
     simpleCategories = [string[]]@(Get-PrototypeSimpleCategories $relative $file.Extension)
     library = 'space'
     source = 'Scicon test prototype'
+    bossGroup = Get-PrototypeBossGroup $relative
     pack = Get-DirectoryLabel 'Scicon Shooter\director-data\prototype-assets' $relative
     name = $file.Name
     path = Get-RelativeFileUrl $galleryRoot $file.FullName
@@ -790,6 +837,15 @@ $copyPathCss = @'
   .selection-toolbar .bulk-delete { border-color:#9f3443; background:#43151d; color:#ffadb8; }
   .selection-toolbar .bulk-delete:hover { border-color:#ff5268; background:#611c28; color:#fff; }
   .selection-toolbar button:focus-visible { outline:2px solid var(--mint); outline-offset:2px; }
+  .asset-subgroups { display:grid; gap:10px; }
+  .asset-subgroup { border:1px solid #31556b; border-radius:7px; overflow:hidden; background:#09121a; }
+  .asset-subgroup summary { display:flex; align-items:center; gap:9px; min-height:42px; padding:9px 12px; background:#102331; color:var(--cyan); font:800 13px/1.2 "Segoe UI",Arial,sans-serif; cursor:pointer; user-select:none; }
+  .asset-subgroup summary::-webkit-details-marker { display:none; }
+  .asset-subgroup summary::before { content:'\25B6'; color:var(--mint); font-size:10px; transition:transform .15s ease; }
+  .asset-subgroup[open] summary::before { transform:rotate(90deg); }
+  .asset-subgroup summary:hover { background:#163246; }
+  .asset-subgroup summary:focus-visible { outline:2px solid var(--mint); outline-offset:-3px; }
+  .asset-subgroup .grid { padding:10px; }
   .gallery-toast { position:fixed; right:18px; bottom:18px; z-index:1000; max-width:min(420px,calc(100vw - 36px)); padding:11px 14px; border:1px solid #42c889; border-radius:7px; background:#10281f; color:#baf8d7; box-shadow:0 10px 30px rgba(0,0,0,.45); font:700 12px/1.4 "Segoe UI",Arial,sans-serif; }
   .gallery-toast.error { border-color:#ff5268; background:#351319; color:#ffd2d8; }
   .audio-copy-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -828,6 +884,27 @@ $updatedHtml = [System.Text.RegularExpressions.Regex]::Replace(
   $viewerCss.TrimEnd()
 )
 
+$updatedHtml = [System.Text.RegularExpressions.Regex]::Replace(
+  $updatedHtml,
+  '(?m)^  /\* Resizable image viewer \*/\r?\n(?:.*\r?\n)*?^  /\* End resizable image viewer \*/\r?\n?',
+  ''
+)
+$viewerResizeCss = @'
+  /* Resizable image viewer */
+  dialog#viewer { box-sizing:border-box; min-width:260px; min-height:180px; max-width:calc(100vw - 8px); max-height:calc(100vh - 8px); resize:none; overflow:hidden; }
+  dialog#viewer[open] { display:flex; flex-direction:column; }
+  dialog#viewer .viewer-head { flex:0 0 auto; }
+  dialog#viewer .viewer-body { box-sizing:border-box; flex:1 1 auto; min-height:0; max-height:none; overflow:auto; }
+  .viewer-resize-grip { position:absolute; right:2px; bottom:2px; z-index:4; width:26px; height:26px; border:0; padding:0; cursor:nwse-resize; touch-action:none; opacity:.92; background:linear-gradient(135deg,transparent 0 42%,var(--cyan) 43% 49%,transparent 50% 61%,var(--cyan) 62% 68%,transparent 69% 80%,var(--cyan) 81% 87%,transparent 88%); filter:drop-shadow(0 1px 1px #000); }
+  .viewer-resize-grip:hover { opacity:1; }
+  /* End resizable image viewer */
+'@
+$updatedHtml = [System.Text.RegularExpressions.Regex]::Replace(
+  $updatedHtml,
+  '(?m)^(  \.viewer-info \{[^\r\n]*\})',
+  '$1' + "`r`n" + $viewerResizeCss.TrimEnd()
+)
+
 $viewerBodyMarkup = @'
   <div class="viewer-body">
     <img id="viewerImage" alt="">
@@ -838,6 +915,7 @@ $viewerBodyMarkup = @'
     </div>
     <div class="viewer-info" id="viewerInfo"></div>
   </div>
+  <div class="viewer-resize-grip" title="Drag to resize preview" aria-hidden="true"></div>
 '@
 $updatedHtml = [System.Text.RegularExpressions.Regex]::Replace(
   $updatedHtml,
@@ -862,6 +940,7 @@ const viewerAvStatus = document.querySelector('#viewerAvStatus');
 const replayAvPreview = document.querySelector('#replayAvPreview');
 const viewerTitle = document.querySelector('#viewerTitle');
 const viewerInfo = document.querySelector('#viewerInfo');
+const viewerResizeGrip = document.querySelector('.viewer-resize-grip');
 const selectionToolbar = document.querySelector('#selectionToolbar');
 const selectionCount = document.querySelector('#selectionCount');
 const selectVisibleButton = document.querySelector('#selectVisible');
@@ -874,6 +953,31 @@ let currentViewerItem = null;
 let renderedAssetPaths = [];
 const selectedAssetPaths = new Set();
 const interactiveGallery = location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname);
+viewerResizeGrip.addEventListener('pointerdown', event => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const startBounds = viewer.getBoundingClientRect();
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const pointerId = event.pointerId;
+  viewerResizeGrip.setPointerCapture(pointerId);
+  const resize = moveEvent => {
+    const width = Math.max(260, Math.min(window.innerWidth - 8, startBounds.width + moveEvent.clientX - startX));
+    const height = Math.max(180, Math.min(window.innerHeight - 8, startBounds.height + moveEvent.clientY - startY));
+    viewer.style.width = `${Math.round(width)}px`;
+    viewer.style.height = `${Math.round(height)}px`;
+  };
+  const finish = () => {
+    window.removeEventListener('pointermove', resize);
+    window.removeEventListener('pointerup', finish);
+    window.removeEventListener('pointercancel', finish);
+    if (viewerResizeGrip.hasPointerCapture(pointerId)) viewerResizeGrip.releasePointerCapture(pointerId);
+  };
+  window.addEventListener('pointermove', resize);
+  window.addEventListener('pointerup', finish);
+  window.addEventListener('pointercancel', finish);
+});
 const assetUrl = value => {
   const item = typeof value === 'string' ? { path: value, absolutePath: '' } : value;
   if (interactiveGallery && item.absolutePath) return `/api/file?path=${encodeURIComponent(item.absolutePath)}`;
@@ -1093,7 +1197,7 @@ function render() {
   const selected = category.value;
   const libraryAssets = assets.filter(isInActiveLibrary);
   const viewAssets = libraryAssets.filter(item => !inGameOnly || item.inGame);
-  const filtered = viewAssets.filter(item => (!selected || (item.simpleCategories || [item.simpleCategory]).includes(selected)) && (!needle || `${item.name} ${item.path} ${item.pack} ${(item.simpleCategories || [item.simpleCategory]).join(' ')} ${item.category} ${item.source} ${(item.usageLocations || []).join(' ')}`.toLowerCase().includes(needle)));
+  const filtered = viewAssets.filter(item => (!selected || (item.simpleCategories || [item.simpleCategory]).includes(selected)) && (!needle || `${item.name} ${item.path} ${item.pack} ${item.bossGroup || ''} ${(item.simpleCategories || [item.simpleCategory]).join(' ')} ${item.category} ${item.source} ${(item.usageLocations || []).join(' ')}`.toLowerCase().includes(needle)));
   renderedAssetPaths = filtered.map(item => item.absolutePath);
   const label = { space: 'Space Shooter', extras: 'Legacy Extras' }[activeLibrary];
   count.textContent = inGameOnly
@@ -1107,8 +1211,28 @@ function render() {
     const section = document.createElement('section');
     const heading = document.createElement('h2');
     heading.textContent = `${group} (${items.length})`;
+    const organizeByBoss = activeLibrary === 'space' && (group === 'Bosses' || group === 'Test Bosses & Prototypes');
+    const subgroupContainer = document.createElement('div');
+    subgroupContainer.className = 'asset-subgroups';
     const grid = document.createElement('div');
     grid.className = 'grid';
+    const bossGrids = new Map();
+    if (organizeByBoss) {
+      const bossGroups = [...new Set(items.map(item => item.bossGroup || 'Shared & Miscellaneous Boss Assets'))].sort((left, right) => left.localeCompare(right));
+      for (const bossGroup of bossGroups) {
+        const subgroup = document.createElement('details');
+        subgroup.className = 'asset-subgroup';
+        subgroup.open = Boolean(needle);
+        const subgroupItems = items.filter(item => (item.bossGroup || 'Shared & Miscellaneous Boss Assets') === bossGroup);
+        const summary = document.createElement('summary');
+        summary.textContent = `${bossGroup} (${subgroupItems.length})`;
+        const subgroupGrid = document.createElement('div');
+        subgroupGrid.className = 'grid';
+        bossGrids.set(bossGroup, subgroupGrid);
+        subgroup.append(summary, subgroupGrid);
+        subgroupContainer.append(subgroup);
+      }
+    }
     for (const item of items) {
       const card = document.createElement('article');
       card.className = 'asset';
@@ -1171,9 +1295,10 @@ function render() {
       actions.append(tags, controls);
       meta.append(actions);
       card.append(selector, preview, meta);
-      grid.append(card);
+      const targetGrid = organizeByBoss ? bossGrids.get(item.bossGroup || 'Shared & Miscellaneous Boss Assets') : grid;
+      targetGrid.append(card);
     }
-    section.append(heading, grid);
+    section.append(heading, organizeByBoss ? subgroupContainer : grid);
     sections.append(section);
   }
   if (!filtered.length) sections.innerHTML = '<div class="empty">No matching assets in this view.</div>';
@@ -1254,6 +1379,17 @@ $updatedHtml = [System.Text.RegularExpressions.Regex]::Replace(
 $updatedHtml = $updatedHtml.Replace(
   "if (!sounds.length) document.querySelector('#audioSection').hidden = true;`r`nsearch.addEventListener('input', render);",
   "if (!sounds.length) document.querySelector('#audioSection').hidden = true;`r`nupdateCategories();`r`nsearch.addEventListener('input', render);"
+)
+$updatedHtml = $updatedHtml.Replace(
+  "viewer.addEventListener('click', event => { if (event.target === viewer) viewer.close(); });",
+  @'
+viewer.addEventListener('click', event => {
+  if (event.target !== viewer) return;
+  const bounds = viewer.getBoundingClientRect();
+  const clickedBackdrop = event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom;
+  if (clickedBackdrop) viewer.close();
+});
+'@.Trim()
 )
 
 $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)

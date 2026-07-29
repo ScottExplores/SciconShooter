@@ -221,6 +221,8 @@ test('Critical Cross-Link Attack 2 restores the wide sweep with only its center 
   let maximumGuideCount = 0;
   let maximumDamagingBeamCount = 0;
   let observedBeamIndexes = [];
+  let warnedBeamAngles = [];
+  let initialLiveBeamAngles = [];
   let closestToVertical;
   let minimumLiveSafeLaneWidth = Number.POSITIVE_INFINITY;
   const observedFireClips = new Set();
@@ -274,12 +276,24 @@ test('Critical Cross-Link Attack 2 restores the wide sweep with only its center 
       && entity.frontierCrownclawArtifactKind === 'reactor-guide'
     ));
     maximumGuideCount = Math.max(maximumGuideCount, guides.length);
+    if (guides.length > 0 && warnedBeamAngles.length === 0) {
+      warnedBeamAngles = guides
+        .map((guide) => guide.beamAngleRadians)
+        .sort((left, right) => left - right);
+    }
 
-    const beams = engine.entities.filter((entity) => (
+    const liveBeams = engine.entities.filter((entity) => (
       !entity.markedForDeletion
       && entity.bossOwnerId === boss.id
       && entity.frontierCrownclawArtifactKind === 'reactor-beam'
-      && entity.frontierCrownclawDamageActive
+    ));
+    if (liveBeams.length > 0 && initialLiveBeamAngles.length === 0) {
+      initialLiveBeamAngles = liveBeams
+        .map((beam) => beam.beamAngleRadians)
+        .sort((left, right) => left - right);
+    }
+    const beams = liveBeams.filter((entity) => (
+      entity.frontierCrownclawDamageActive
     ));
     if (beams.length === 0) continue;
     if (!preparationReachabilityChecked) {
@@ -401,7 +415,15 @@ test('Critical Cross-Link Attack 2 restores the wide sweep with only its center 
     observedFireClips.add(beams[0].frontierCrownclawActionClipId);
   }
 
-  assert.equal(maximumGuideCount, 4, 'two start guides plus two end guides must warn the corridor');
+  assert.equal(maximumGuideCount, 2, 'only the two laser paths may appear during warning');
+  assert.equal(warnedBeamAngles.length, 2);
+  assert.equal(initialLiveBeamAngles.length, 2);
+  warnedBeamAngles.forEach((angle, index) => {
+    assert.ok(
+      Math.abs(angle - initialLiveBeamAngles[index]) < 0.000001,
+      `warning rail ${index + 1} must become laser ${index + 1}`
+    );
+  });
   assert.equal(preparationReachabilityChecked, true);
   assert.equal(maximumDamagingBeamCount, 2);
   assert.deepEqual(observedBeamIndexes, [0, 1]);

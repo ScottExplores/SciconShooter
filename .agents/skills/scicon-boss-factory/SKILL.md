@@ -1,6 +1,6 @@
 ---
 name: scicon-boss-factory
-description: Create, rebuild, animate, tune, and prove cohesive modular pixel-art bosses for SciCon Shooter using the canonical mobile Boss Sandbox, deterministic attack timelines, anatomy-owned weapon sockets, and safe-route validation. Use for new test bosses, Boss Factory benchmark work, rebuilding weak existing bosses, authoring multi-beat maze attacks or signature moves, generating or processing matching boss art and components, rigging parts, validating mobile boss fights, or diagnosing boss art/attack quality.
+description: Create, rebuild, animate, tune, and prove cohesive modular pixel-art bosses and mini-boss encounters for SciCon Shooter using the canonical mobile Boss Sandbox, deterministic attack timelines, anatomy-owned weapon sockets, and safe-route validation. Use for new test bosses, paired mini-bosses, guardian formations, wall encounters, Boss Factory benchmark work, rebuilding weak existing bosses, authoring multi-beat maze attacks or signature moves, generating or processing matching boss art and components, rigging parts, validating mobile boss fights, or diagnosing boss art/attack quality.
 ---
 
 # SciCon Boss Factory
@@ -16,8 +16,9 @@ Name one active benchmark boss before editing. Do not design, generate, rebuild,
 1. Read [references/project-map.md](references/project-map.md).
 2. Inspect the current boss registration, authored timeline, rig, tests, and roster classification before editing.
 3. Read [references/boss-contract.md](references/boss-contract.md) before designing art or attacks.
-4. Copy and complete the [boss design](assets/boss-design-template.md), [asset-usage inventory](assets/asset-usage-inventory-template.json), [rig/pivot manifest](assets/rig-template.json), [attack-to-sprite map](assets/attack-blueprint-template.json), [review checklist](assets/review-checklist.md), and [visual-verification result](assets/visual-verification-template.md) inside the boss-specific design/evidence folder. Do not silently omit a required artifact.
-5. Keep the boss sandbox-only until every gate in [references/validation-gates.md](references/validation-gates.md) passes.
+4. For a mini-boss, elite, paired encounter, guardian formation, or wall encounter, read [references/mini-boss-profile.md](references/mini-boss-profile.md). That profile narrows the full-boss attack and phase requirements; all shared art, socket, safety, cleanup, and canonical-preview rules still apply.
+5. Copy and complete the [boss design](assets/boss-design-template.md), [asset-usage inventory](assets/asset-usage-inventory-template.json), [rig/pivot manifest](assets/rig-template.json), [attack-to-sprite map](assets/attack-blueprint-template.json), [review checklist](assets/review-checklist.md), and [visual-verification result](assets/visual-verification-template.md) inside the boss-specific design/evidence folder. Do not silently omit a required artifact.
+6. Keep the boss sandbox-only until every gate in [references/validation-gates.md](references/validation-gates.md) passes.
 
 ## Execute the factory workflow
 

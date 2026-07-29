@@ -30,6 +30,15 @@ import {
   type CampaignRewardGrant
 } from './campaignProgression';
 export type { CampaignProgress } from './campaignProgression';
+import { createCampaignGraphIndex } from './campaignGraph';
+import { DEFAULT_GAME_CAMPAIGN } from './levelConfig';
+import {
+  mergeWeeklyCampaignStreak,
+  sanitizeWeeklyCampaignStreak,
+  type WeeklyCampaignStreakState
+} from './weeklyCampaignStreak';
+
+const SQUAD_CAMPAIGN_GRAPH = createCampaignGraphIndex(DEFAULT_GAME_CAMPAIGN);
 
 export const SQUAD_PROFILE_VERSION = 4;
 const RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = [1, 2, 3] as const;
@@ -130,6 +139,8 @@ export interface WeeklySquadState {
   shipUpgrades: MainShipUpgradesByShip;
   /** Durable idempotency receipts for Campaign bonuses; intentionally survive weekly coin rollover. */
   creditedCampaignRewardIds: string[];
+  /** Current repeatable weekly Campaign run. It resets at the competition boundary. */
+  weeklyCampaignStreak: WeeklyCampaignStreakState | null;
   weeklyStats: WeeklySquadStats;
   updatedAt: string;
 }
@@ -347,7 +358,11 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
     costs: [
       60, 90, 130, 190, 270, 360, 480,
       630, 810, 1020, 1260, 1530, 1830, 2190,
-      2600, 3050, 3550, 4100, 4700, 5350, 6050
+      2600, 3050, 3550, 4100, 4700, 5350, 6050,
+      6800, 7300, 7800, 8400, 9000, 9700, 10400,
+      11200, 12000, 12800, 13600, 14500, 15400, 16400,
+      17400, 18400, 19500, 20600, 21800, 23000, 24300,
+      25600, 27000, 28500, 30000, 31600, 33200, 34900
     ]
   },
   {
@@ -359,8 +374,11 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
   {
     id: 'startingHearts',
     name: 'Starting Hearts',
-    description: 'Permanently adds one starting heart for every Hangar level.',
-    costs: [90, 140, 210, 310, 450, 630, 850]
+    description: 'Permanently adds one starting heart, up to the ten-heart ship cap.',
+    // Survivability is intentionally a premium track. Early fire-rate and
+    // movement choices stay accessible while later hearts require deliberate
+    // saving instead of becoming the automatic cheapest upgrade.
+    costs: [180, 320, 560, 900, 1400, 2100, 3000]
   }
 ];
 
@@ -432,6 +450,7 @@ export const createWeeklySquadState = (
   equipped: { left: null, right: null },
   shipUpgrades: createMainShipUpgradesByShip(),
   creditedCampaignRewardIds: [],
+  weeklyCampaignStreak: null,
   weeklyStats: createWeeklySquadStats(),
   updatedAt: nowIso()
 });
@@ -451,6 +470,7 @@ export const rollWeeklySquadStateForward = (
   weekKey,
   coins: WEEKLY_STARTING_COINS + Math.max(0, Math.floor(state.durableCampaignCoins || 0)),
   durableCampaignCoins: Math.max(0, Math.floor(state.durableCampaignCoins || 0)),
+  weeklyCampaignStreak: null,
   weeklyStats: createWeeklySquadStats(),
   updatedAt: nowIso()
 });
@@ -517,6 +537,13 @@ const sanitizeWeeklyState = (
     coins,
     Math.max(0, Math.floor(Number(value.durableCampaignCoins) || 0))
   );
+  const boundary = getWeeklyBoundaryMeta(new Date());
+  const weeklyCampaignStreak = sanitizeWeeklyCampaignStreak(
+    value.weeklyCampaignStreak,
+    SQUAD_CAMPAIGN_GRAPH,
+    { weeklyId: boundary.weekKey, resetAtMs: boundary.endsAt.getTime() },
+    Date.now()
+  );
   return {
     ...fallback,
     ...currentValue,
@@ -535,6 +562,7 @@ const sanitizeWeeklyState = (
       (Array.isArray(value.creditedCampaignRewardIds) ? value.creditedCampaignRewardIds : [])
         .filter((id): id is string => typeof id === 'string' && id.length > 0)
     )).slice(-1024),
+    weeklyCampaignStreak,
     weeklyStats: {
       runs: Math.max(0, Math.floor(Number(value.weeklyStats?.runs) || 0)),
       score: Math.max(0, Math.floor(Number(value.weeklyStats?.score) || 0)),
@@ -882,6 +910,16 @@ const mergeWeeklySquadProfiles = (
       ...target.creditedCampaignRewardIds,
       ...source.creditedCampaignRewardIds
     ])).slice(-1024),
+    weeklyCampaignStreak: (() => {
+      const boundary = getWeeklyBoundaryMeta(new Date());
+      return mergeWeeklyCampaignStreak(
+        target.weeklyCampaignStreak,
+        source.weeklyCampaignStreak,
+        SQUAD_CAMPAIGN_GRAPH,
+        { weeklyId: boundary.weekKey, resetAtMs: boundary.endsAt.getTime() },
+        Date.now()
+      );
+    })(),
     weeklyStats: {
       runs: Math.max(target.weeklyStats.runs, source.weeklyStats.runs),
       score: Math.max(target.weeklyStats.score, source.weeklyStats.score),

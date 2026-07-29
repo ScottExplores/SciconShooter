@@ -11,7 +11,8 @@ V0.26 is a mobile-only Factory amendment under the one-boss lock. Its changed cl
 V0.27 corrects only Critical Cross-Link's Crown Reactor Beam. It restores the
 original wide `0.11π` relay spacing and `0.21π` sweep half-range while removing
 the middle beam. Critical fire now has exactly two full-length animated beams;
-its warning has four matching start/end rails. The exact mobile `GameEngine`
+its warning has exactly two rails aligned to the beams' starting paths. The
+sweep endpoints are movement, not additional incoming lasers. The exact mobile `GameEngine`
 playback measures a `61.87 px` conservative safe lane, and the regenerated
 analytic matrices pass 28/28 intact plus 48/48 component-fallback witnesses
 with a minimum `6.012001051 px` clearance after `3 px` uncertainty.

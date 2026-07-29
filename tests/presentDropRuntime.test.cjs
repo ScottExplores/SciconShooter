@@ -14,22 +14,27 @@ const sliceMethod = (startMarker, endMarker) => {
   return engineSource.slice(start, end);
 };
 
-test('authored asteroid encounters propagate Present Drop metadata and use supply labeling', () => {
-  const spawnSource = sliceMethod('spawnAsteroidBelt(configured?: RuntimeAsteroidEvent)', '\n  updateWallBoss()');
+test('authored Supply Drops use their own non-hostile entity path and package metadata', () => {
+  const asteroidSource = sliceMethod('spawnAsteroidBelt(configured?: RuntimeAsteroidEvent)', '\n  spawnSupplyDrop(');
+  const spawnSource = sliceMethod('spawnSupplyDrop(configured: RuntimeSupplyDropEvent)', '\n  updateWallBoss()');
 
-  assert.match(spawnSource, /asteroid\.coinDropValue\s*=/);
-  assert.match(spawnSource, /asteroid\.bonusTargetKind\s*=\s*bonusTargetKind/);
-  assert.match(spawnSource, /bonusTargetKind\s*\?\s*'SUPPLY DROP'\s*:\s*'ASTEROID BELT'/);
-  assert.match(engineSource, /configuredBonusDrop[\s\S]*?'SUPPLY DROP'/);
+  assert.match(spawnSource, /EntityType\.SUPPLY_DROP/);
+  assert.match(spawnSource, /packageEntity\.supplyDropKind\s*=\s*configured\.presentKind/);
+  assert.match(spawnSource, /packageEntity\.coinDropValue\s*=/);
+  assert.match(spawnSource, /packageEntity\.contactDamage\s*=\s*0/);
+  assert.match(spawnSource, /'SUPPLY DROP'/);
+  assert.doesNotMatch(asteroidSource, /supplyDropKind|coinDropValue|SUPPLY DROP/);
 });
 
-test('Present Drop targets advance the timed wave without masquerading as a boss belt', () => {
+test('Supply Drop targets advance the timed wave without masquerading as an asteroid belt', () => {
   const countSource = sliceMethod('getAsteroidBeltCount()', '\n  getActiveMiniBosses()');
   const updateSource = sliceMethod('update(cinematicPause: boolean = false)', '\n  getGunPodOffsets()');
 
-  assert.match(countSource, /!entity\.bonusTargetKind/);
-  assert.match(updateSource, /entity\.variant\s*>=\s*900[\s\S]*?!entity\.bonusTargetKind/);
-  assert.match(updateSource, /const isBossAlive = !!this\.bossRef[\s\S]*?asteroidBeltCount > 0/);
+  assert.doesNotMatch(countSource, /supplyDropKind|bonusTargetKind/);
+  assert.doesNotMatch(updateSource, /bonusTargetKind/);
+  assert.match(updateSource, /const isBossAlive = Boolean\([\s\S]*?activeMiniBossLabState[\s\S]*?asteroidBeltCount > 0[\s\S]*?\);/);
+  assert.match(engineSource, /currentWaveHasPresentDrop[\s\S]*?event\.kind === 'supply-drop'/);
+  assert.match(engineSource, /queueConfiguredEncounter[\s\S]*?event\.kind === 'supply-drop'[\s\S]*?spawnSupplyDrop/);
   assert.match(engineSource, /activeThreatCount:\s*this\.getActiveThreatCount\(\)/);
 });
 
@@ -37,11 +42,11 @@ test('destroyed presents release only their bounded authored coin value and no r
   const destroySource = sliceMethod('handleEnemyDestroyed(target: Entity)', '\n  applyResearchBeamDamage()');
   const burstSource = sliceMethod('private spawnPresentDropCoinBurst(target: Entity)', '\n  spawnBossCoinBurst(target: Entity)');
 
-  assert.match(destroySource, /this\.presentDropDestroyed\[bonusTargetKind\]\+\+/);
+  assert.match(destroySource, /this\.presentDropDestroyed\[supplyDropKind\]\+\+/);
   assert.match(destroySource, /this\.presentDropCoinValueSpawned \+= this\.spawnPresentDropCoinBurst\(target\)/);
-  assert.match(destroySource, /!isBonusTarget && target\.type !== EntityType\.BOSS[\s\S]*?spawnPowerup\(target\.x, target\.y\)/);
-  assert.match(destroySource, /!isBonusTarget && target\.type !== EntityType\.BOSS && this\.lives/);
-  assert.match(destroySource, /!isBonusTarget && target\.type !== EntityType\.BOSS && !this\.isBombResolving/);
+  assert.match(destroySource, /!isSupplyDrop && target\.type !== EntityType\.BOSS[\s\S]*?spawnPowerup\(target\.x, target\.y\)/);
+  assert.match(destroySource, /!isSupplyDrop && target\.type !== EntityType\.BOSS && this\.lives/);
+  assert.match(destroySource, /!isSupplyDrop && target\.type !== EntityType\.BOSS && !this\.isBombResolving/);
   assert.match(burstSource, /Math\.min\([\s\S]*?MAX_ACTIVE_BOSS_REWARD_COINS,[\s\S]*?Math\.floor\(configuredCoinValue\)/);
   assert.match(burstSource, /MAX_ACTIVE_BOSS_REWARD_COINS - activeCoinCount/);
   assert.match(burstSource, /for \(let index = 0; index < spawnCount; index\+\+\)/);

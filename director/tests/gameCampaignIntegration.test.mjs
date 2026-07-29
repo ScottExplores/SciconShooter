@@ -24,13 +24,72 @@ const makeCampaign = () => {
   return campaign;
 };
 
-const getOpeningSpawn = (campaign) => campaign.levels[0].waves[0].events
-  .find((event) => event.kind === 'spawn');
+const getFirstEvent = (level, predicate) => level.waves
+  .flatMap((wave) => wave.events)
+  .find(predicate);
 
-const getFirstMajorBoss = (campaign) => {
+const getOpeningSpawn = (campaign) => getFirstEvent(
+  campaign.levels[0],
+  (event) => event.kind === 'spawn'
+);
+
+const getFirstMajorBossEncounter = (campaign) => {
   const sector = campaign.sectors[0];
   const level = campaign.levels.find((candidate) => candidate.id === sector.missionIds.at(-1));
-  return level.waves[0].events.find((event) => event.kind === 'boss' && event.bossId === sector.majorBossId);
+  const wave = level.waves.find((candidate) => candidate.events.some(
+    (event) => event.kind === 'boss' && event.bossId === sector.majorBossId
+  ));
+  const event = wave.events.find(
+    (candidate) => candidate.kind === 'boss' && candidate.bossId === sector.majorBossId
+  );
+  return { sector, level, wave, event };
+};
+
+const getFirstMajorBoss = (campaign) => getFirstMajorBossEncounter(campaign).event;
+
+const makeCompactCampaign = () => {
+  const campaign = makeCampaign();
+  delete campaign.campaignGraph;
+  delete campaign.campaignBranches;
+
+  const sector = structuredClone(campaign.sectors[0]);
+  delete sector.mainNodeIds;
+  delete sector.routeNodeIds;
+  sector.branchIds = [];
+  campaign.sectors = [sector];
+
+  const missionIds = new Set(sector.missionIds);
+  campaign.levels = campaign.levels.filter((level) => missionIds.has(level.id));
+  campaign.levels.forEach((level, levelIndex) => {
+    level.campaignProgression.nextMissionId = campaign.levels[levelIndex + 1]?.id ?? null;
+    if (level.campaignProgression.missionRole === 'major-boss') {
+      level.waves = [level.waves.at(-1)];
+    }
+  });
+
+  campaign.visualThemes = campaign.visualThemes.filter((theme) => theme.id === sector.themeId);
+  const roleIds = new Set(campaign.levels.flatMap((level) => level.waves.flatMap(
+    (wave) => wave.events.flatMap((event) => event.enemies?.map((enemy) => enemy.roleId).filter(Boolean) ?? [])
+  )));
+  const formationPackIds = new Set(campaign.levels.flatMap((level) => level.waves.flatMap(
+    (wave) => wave.formationPackIds ?? []
+  )));
+  const bossIds = new Set(campaign.levels.flatMap((level) => level.waves.flatMap(
+    (wave) => wave.events.filter((event) => event.kind === 'boss').map((event) => event.bossId)
+  )));
+  campaign.enemyRoles = campaign.enemyRoles
+    .filter((role) => roleIds.has(role.id))
+    .map((role) => ({
+      ...role,
+      compatibleFormationPackIds: role.compatibleFormationPackIds.filter((id) => formationPackIds.has(id))
+    }));
+  campaign.formationPacks = campaign.formationPacks
+    .filter((pack) => formationPackIds.has(pack.id))
+    .map((pack) => ({ ...pack, compatibleSectorIds: [sector.id] }));
+  campaign.miniBosses = campaign.miniBosses
+    .filter((miniBoss) => bossIds.has(miniBoss.bossId))
+    .map((miniBoss) => ({ ...miniBoss, suitableSectorIds: [sector.id] }));
+  return campaign;
 };
 
 const makeLegacyCampaign = () => ({
@@ -251,15 +310,18 @@ test('structural game campaign validation covers nested runtime tuning fields', 
 
 test('wave completion rules stay consistent with authored sector major-boss Missions', () => {
   const missingBoss = makeCampaign();
-  const bossLevel = missingBoss.levels.find((level) => level.campaignProgression.missionRole === 'major-boss');
-  bossLevel.waves[0].events = [];
+  const missingBossEncounter = getFirstMajorBossEncounter(missingBoss);
+  missingBossEncounter.wave.events = missingBossEncounter.wave.events.filter(
+    (event) => event !== missingBossEncounter.event
+  );
   const missingBossResult = validateGameCampaign(missingBoss);
   assert.equal(missingBossResult.valid, false);
-  assert.ok(missingBossResult.errors.some((error) => error.includes('one direct encounter with sector major boss')));
+  assert.ok(missingBossResult.errors.some(
+    (error) => error.includes('must be the only matching sector major boss encounter')
+  ));
 
   const unexpectedBoss = makeCampaign();
-  const unexpectedBossLevel = unexpectedBoss.levels.find((level) => level.campaignProgression.missionRole === 'major-boss');
-  unexpectedBossLevel.waves[0].completionRule = 'clear-after-duration';
+  getFirstMajorBossEncounter(unexpectedBoss).wave.completionRule = 'clear-after-duration';
   const unexpectedBossResult = validateGameCampaign(unexpectedBoss);
   assert.equal(unexpectedBossResult.valid, false);
   assert.ok(unexpectedBossResult.errors.some((error) => error.includes('cannot contain a canonical major-boss event')));
@@ -365,16 +427,18 @@ test('sprite validation enforces role-bound enemy art and gameplay categories', 
   assert.ok(spriteErrors.some((error) => error.includes('/spriteKey')));
 });
 
-test('Stage 20 expansion art preserves enemy, mini-boss, boss, and scorecard role boundaries', () => {
+test('Mission 20 expansion art preserves enemy, mini-boss, boss, and scorecard role boundaries', () => {
   const valid = makeCampaign();
-  valid.levels[0].scorecard.encounterAssetKey = 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT';
+  const validMission = valid.levels.find((level) => level.order === 20);
+  validMission.scorecard.encounterAssetKey = 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT';
   valid.recordCard.encounterAssetKey = 'CAMPAIGN_BOSS_ECLIPSE_ENGINE';
   assert.deepEqual(validateGameCampaign(valid), { valid: true, errors: [] });
 
   const invalid = makeCampaign();
-  getOpeningSpawn(invalid).enemies[0].spriteKey = 'CAMPAIGN_BOSS_RAIL_SERPENT';
-  getFirstMajorBoss(invalid).spriteKey = 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER';
-  invalid.levels[0].scorecard.encounterAssetKey = 'POWERUP_MAX_SHOT_AURA_FRAMES';
+  const invalidMission = invalid.levels.find((level) => level.order === 20);
+  getFirstEvent(invalidMission, (event) => event.kind === 'spawn').enemies[0].spriteKey = 'CAMPAIGN_BOSS_RAIL_SERPENT';
+  getFirstEvent(invalidMission, (event) => event.kind === 'boss').spriteKey = 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER';
+  invalidMission.scorecard.encounterAssetKey = 'POWERUP_MAX_SHOT_AURA_FRAMES';
   const result = validateGameCampaign(invalid);
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((error) => error.includes('/enemies/0/spriteKey has unsupported value')));
@@ -611,15 +675,16 @@ test('game campaign HTTP routes require the mutation token and return validation
   assert.equal(fetched.status, 200);
   assert.equal(fetched.body.sourcePath, 'game-config/campaign.json');
 
+  const compactCampaign = makeCompactCampaign();
   const denied = await requestJson({
     port,
     path: '/__director/api/game-campaign/apply',
     method: 'POST',
-    body: { campaign: fetched.body.campaign, expectedContentHash: fetched.body.contentHash }
+    body: { campaign: compactCampaign, expectedContentHash: fetched.body.contentHash }
   });
   assert.equal(denied.status, 403);
 
-  const invalid = structuredClone(fetched.body.campaign);
+  const invalid = structuredClone(compactCampaign);
   getOpeningSpawn(invalid).spawnIntervalSeconds = 0;
   const rejected = await requestJson({
     port,
@@ -694,15 +759,24 @@ test('the existing review API persists normalized live-preview context through a
   assert.deepEqual(response.body.review.anchor, { x: 0.74, y: 0.22 });
   assert.deepEqual(response.body.review.context, context);
 
-  const draftCampaign = structuredClone(disk.campaign);
-  draftCampaign.levels[0].waves[0].name = 'Draft Review Wave';
+  const draftCampaign = makeCompactCampaign();
+  const draftLevel = draftCampaign.levels[0];
+  const draftWave = draftLevel.waves[0];
+  const draftEvent = getOpeningSpawn(draftCampaign);
+  draftWave.name = 'Draft Review Wave';
   const draftContentHash = contentHash(draftCampaign);
   const draftVersion = `game-campaign-draft-r${disk.revision}-${draftContentHash.slice(7, 19)}`;
   const draftContext = {
     ...context,
     draft: true,
     draftContentHash,
-    waveName: 'Draft Review Wave'
+    levelId: draftLevel.id,
+    levelName: draftLevel.name,
+    waveId: draftWave.id,
+    waveName: draftWave.name,
+    eventId: draftEvent.id,
+    eventLabel: draftEvent.label,
+    eventKind: draftEvent.kind
   };
   const draftResponse = await requestJson({
     port,
@@ -712,7 +786,7 @@ test('the existing review API persists normalized live-preview context through a
     body: {
       surface: 'wave',
       configVersion: draftVersion,
-      target: `${reviewLevel.name} / Draft Review Wave / ${reviewEvent.label}`,
+      target: `${draftLevel.name} / ${draftWave.name} / ${draftEvent.label}`,
       note: 'This note belongs to the exact unsaved draft.',
       status: 'open',
       anchor: { x: 0.42, y: 0.58 },
@@ -720,7 +794,7 @@ test('the existing review API persists normalized live-preview context through a
       draftCampaign
     }
   });
-  assert.equal(draftResponse.status, 201);
+  assert.equal(draftResponse.status, 201, JSON.stringify(draftResponse.body));
   assert.equal(draftResponse.body.review.configVersion, draftVersion);
   assert.equal(draftResponse.body.review.context.draftContentHash, draftContentHash);
 });

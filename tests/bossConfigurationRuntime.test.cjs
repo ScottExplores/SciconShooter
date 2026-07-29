@@ -80,7 +80,11 @@ test('authored boss phases switch movement, speed, and active weapon numbers at 
 
 test('cloning a gatekeeper remaps nested weapons, phases, timeline clips, and timeline references', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
-  const source = structuredClone(findCampaignEvent(campaign, 'open-orbit-gatekeeper'));
+  const source = structuredClone(campaign.levels
+    .flatMap((level) => level.waves)
+    .flatMap((wave) => wave.events)
+    .find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper-prime'));
+  assert.ok(source, 'Gatekeeper Prime exists in the authored campaign');
   source.timeline = {
     durationSeconds: 4,
     loop: true,
@@ -140,19 +144,25 @@ test('cloning a gatekeeper remaps nested weapons, phases, timeline clips, and ti
   assert.equal(clone.revival.phaseId, clone.phases[1].id);
 });
 
-test('all four authored sector bosses carry stable rigs and runtime prefers them over the legacy event-id fallback', () => {
+test('all ten authored sector bosses carry stable rigs and runtime prefers them over the legacy event-id fallback', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const majorBossIds = new Set(campaign.sectors.map((sector) => sector.majorBossId));
   const rigs = Object.fromEntries(campaign.levels.flatMap((level) => level.waves).flatMap((wave) => wave.events)
     .filter((event) => event.kind === 'boss' && majorBossIds.has(event.bossId))
-    .map((event) => [event.id, event.rigId]));
+    .map((event) => [event.bossId, event.rigId]));
   assert.deepEqual(rigs, {
-    'open-orbit-gatekeeper': 'open-orbit',
-    'null-sector-final-boss': 'crown-claw',
-    'ion-citadel-final-boss': 'citation-storm',
-    'terminus-ascendant-final-boss': 'open-orbit'
+    'gatekeeper-prime': 'open-orbit',
+    'eclipse-engine': 'crown-claw',
+    'helix-leviathan': 'citation-storm',
+    'research-tribunal': 'open-orbit',
+    'prism-moth': 'crown-claw',
+    'rail-serpent': 'crown-claw',
+    'singularity-crab': 'crown-claw',
+    'orbit-gyroscope': 'crown-claw',
+    'hammerhead-siege': 'crown-claw',
+    'frontier-crownclaw': 'crown-claw'
   });
-  assert.equal(Object.keys(rigs).length, 4);
+  assert.equal(Object.keys(rigs).length, campaign.sectors.length);
   Object.values(rigs).forEach((rigId) => {
     assert.ok(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw'].includes(rigId));
   });

@@ -56,7 +56,8 @@ type UnknownRecord = Record<string, unknown>;
 
 const CAMPAIGN_KEYS = [
   'schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'hudAssets', 'levels',
-  'sectors', 'visualThemes', 'enemyRoles', 'formationPacks', 'miniBosses', 'campaignBranches'
+  'sectors', 'visualThemes', 'enemyRoles', 'formationPacks', 'miniBosses', 'campaignBranches',
+  'campaignGraph'
 ];
 const HUD_ASSET_KEYS = ['bombIconAssetKey'];
 const LEVEL_KEYS = ['id', 'name', 'description', 'order', 'backgroundId', 'musicId', 'startingDifficulty', 'scoreTarget', 'durationSeconds', 'loopWaves', 'availablePowerupIds', 'scorecard', 'campaignProgression', 'waves'];
@@ -67,11 +68,29 @@ const CAMPAIGN_PROGRESSION_KEYS = [
 ];
 const CAMPAIGN_RECOMMENDED_POWER_KEYS = ['minimum', 'expected', 'comfortable'];
 const CAMPAIGN_TESTED_LOADOUT_KEYS = ['lowPower', 'expectedPower', 'upgraded'];
-const CAMPAIGN_SECTOR_KEYS = ['id', 'order', 'name', 'themeId', 'missionIds', 'majorBossId', 'branchIds'];
+const CAMPAIGN_SECTOR_KEYS = [
+  'id', 'order', 'name', 'themeId', 'missionIds', 'mainNodeIds', 'routeNodeIds',
+  'majorBossId', 'branchIds'
+];
+const CAMPAIGN_GRAPH_KEYS = ['entryNodeId', 'nodes'];
+const CAMPAIGN_GRAPH_NODE_KEYS = [
+  'nodeId', 'sectorId', 'depth', 'routeId', 'displayLabel', 'missionDefinitionId',
+  'prerequisiteNodeIds', 'prerequisiteMode', 'outgoingEdges', 'rejoinNodeId', 'optional',
+  'mainPath', 'masteryBranch', 'oneTime', 'bossId', 'miniBossIds', 'weeklyStreakEligible',
+  'weeklyScoreMultiplier', 'recommendedPower', 'rewardProfile', 'mapPosition',
+  'routeControlPoints', 'routeSummary'
+];
+const CAMPAIGN_GRAPH_EDGE_KEYS = [
+  'edgeId', 'toNodeId', 'routeId', 'label', 'kind', 'risk', 'weeklyScoreMultiplier'
+];
+const CAMPAIGN_ROUTE_SUMMARY_KEYS = [
+  'combatIntensity', 'miniBossPresence', 'rewardType', 'recommendedSupportTags',
+  'estimatedWaveCount'
+];
 const CAMPAIGN_VISUAL_THEME_KEYS = ['id', 'label', 'backgroundId', 'accent', 'description'];
 const ENEMY_ROLE_KEYS = [
   'id', 'label', 'enemyId', 'spriteKey', 'role', 'threatCost', 'introductionSector',
-  'introductionMission', 'durabilityClass', 'fireBehavior', 'entryBehavior',
+  'introductionMission', 'durabilityClass', 'fireBehavior', 'fireDelaySeconds', 'entryBehavior',
   'compatibleFormationPackIds', 'synergyTags', 'reuseCooldownWaves', 'maximumSimultaneousCount',
   'performanceCost'
 ];
@@ -127,7 +146,8 @@ const BASE_EVENT_KEYS = ['id', 'kind', 'label', 'startSeconds', 'durationSeconds
 const EVENT_KEYS: Record<string, string[]> = {
   spawn: [...BASE_EVENT_KEYS, 'count', 'patternId', 'positionId', 'spawnIntervalSeconds', 'formationSlots', 'enemies'],
   boss: [...BASE_EVENT_KEYS, 'bossId', 'rigId', 'componentMode', 'componentHealth', 'count', 'spriteKey', 'spriteStyle', 'positionId', 'movementPatternId', 'warningSeconds', 'health', 'speed', 'damage', 'scoreReward', 'powerupDropChance', 'shieldCount', 'sizeMultiplier', 'weapons', 'phases', 'revival', 'timeline'],
-  'asteroid-belt': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance', 'coinDropValue', 'bonusTargetKind'],
+  'asteroid-belt': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'],
+  'supply-drop': [...BASE_EVENT_KEYS, 'spriteKey', 'spriteStyle', 'presentKind', 'positionId', 'health', 'speed', 'scoreValue', 'coinDropValue'],
   powerup: [...BASE_EVENT_KEYS, 'positionId', 'spawnIntervalSeconds', 'powerupIds'],
   recovery: [...BASE_EVENT_KEYS, 'positionId', 'coinCount', 'powerupIds']
 };
@@ -220,14 +240,29 @@ const ENEMY_GAMEPLAY_ROLES = new Set([
   'formation-unit', 'diver', 'flanker', 'shooter', 'burst-shooter', 'suppressor',
   'armored-unit', 'support-unit', 'priority-target', 'formation-leader', 'elite'
 ]);
-const ENEMY_FIRE_BEHAVIORS = new Set(['none', 'post-formation', 'aimed-burst']);
+const ENEMY_FIRE_BEHAVIORS = new Set([
+  'none', 'post-formation', 'aimed-burst', 'formation-command', 'elite-only'
+]);
 const ENEMY_ENTRY_BEHAVIORS = new Set(['formation', 'dive', 'flank', 'lane']);
 const FORMATION_ENTRY_DIRECTIONS = new Set(['top', 'left', 'right', 'split']);
 const FORMATION_FIRING_BEHAVIORS = new Set(['none', 'post-formation', 'staggered', 'priority']);
 const SUPPORT_RECOMMENDATION_TAGS = new Set([
   'anti-swarm', 'anti-armor', 'lane-control', 'boss-damage', 'survival', 'anti-summon'
 ]);
-const MINI_BOSS_IDS = new Set(['bottleneck-drone', 'paywall-wall']);
+const CAMPAIGN_ROUTE_EDGE_KINDS = new Set([
+  'progression', 'route-choice', 'rejoin', 'optional', 'crossing'
+]);
+const CAMPAIGN_ROUTE_RISKS = new Set(['low', 'moderate', 'high']);
+const CAMPAIGN_REWARD_PROFILES = new Set([
+  'standard', 'combat-premium', 'support-safe', 'boss', 'mastery', 'one-time'
+]);
+const CAMPAIGN_PREREQUISITE_MODES = new Set(['any', 'all']);
+const CAMPAIGN_MINI_BOSS_PRESENCE = new Set(['none', 'optional', 'required']);
+const MINI_BOSS_IDS = new Set<string>(
+  Object.values(BOSS_CATALOG)
+    .filter((entry) => entry.entityType !== 'BOSS')
+    .map((entry) => entry.id)
+);
 const MINI_BOSS_USAGES = new Set(['solo', 'paired', 'solo-or-paired']);
 const MINI_BOSS_VALIDATION_STATUSES = new Set(['validated', 'provisional']);
 const CAMPAIGN_BRANCH_MISSION_TYPES = new Set([
@@ -786,6 +821,18 @@ const validateCampaignSectors = (value: unknown, issues: CampaignValidationIssue
       sector.missionIds.forEach((missionId, missionIndex) => checkString(missionId, `${path}/missionIds/${missionIndex}`, issues, { id: true }));
       checkUniqueStrings(sector.missionIds, `${path}/missionIds`, issues);
     }
+    if (sector.mainNodeIds !== undefined) {
+      if (!Array.isArray(sector.mainNodeIds) || sector.mainNodeIds.length !== 5) {
+        pushIssue(issues, `${path}/mainNodeIds`, 'invalid_sector_shape', 'Graph sectors must contain exactly five main node IDs');
+      } else {
+        sector.mainNodeIds.forEach((nodeId, nodeIndex) => checkString(nodeId, `${path}/mainNodeIds/${nodeIndex}`, issues, { id: true }));
+        checkUniqueStrings(sector.mainNodeIds, `${path}/mainNodeIds`, issues);
+      }
+    }
+    if (sector.routeNodeIds !== undefined && checkArray(sector.routeNodeIds, `${path}/routeNodeIds`, issues, true)) {
+      sector.routeNodeIds.forEach((nodeId, nodeIndex) => checkString(nodeId, `${path}/routeNodeIds/${nodeIndex}`, issues, { id: true }));
+      checkUniqueStrings(sector.routeNodeIds, `${path}/routeNodeIds`, issues);
+    }
     if (!checkCatalogRef(sector.majorBossId, BOSS_CATALOG, `${path}/majorBossId`, issues)
       || BOSS_CATALOG[sector.majorBossId as keyof typeof BOSS_CATALOG]?.entityType !== 'BOSS') {
       pushIssue(issues, `${path}/majorBossId`, 'invalid_main_boss', 'Sector majorBossId must reference a canonical major boss');
@@ -845,6 +892,19 @@ const validateEnemyRoleManifest = (value: unknown, issues: CampaignValidationIss
     }
     if (typeof role.fireBehavior !== 'string' || !ENEMY_FIRE_BEHAVIORS.has(role.fireBehavior)) {
       pushIssue(issues, `${path}/fireBehavior`, 'unknown_reference', `Unknown enemy fire behavior: ${String(role.fireBehavior)}`);
+    }
+    checkNumber(role.fireDelaySeconds, `${path}/fireDelaySeconds`, issues, 0, 30);
+    if (role.fireBehavior === 'none' && role.fireDelaySeconds !== 0) {
+      pushIssue(issues, `${path}/fireDelaySeconds`, 'invalid_value', 'Never-fire roles must use a zero fire delay');
+    }
+    if (typeof role.fireBehavior === 'string'
+      && role.fireBehavior !== 'none'
+      && typeof role.fireDelaySeconds === 'number'
+      && role.fireDelaySeconds < 0.5) {
+      pushIssue(issues, `${path}/fireDelaySeconds`, 'invalid_value', 'Firing roles require at least a 0.5 second readable delay');
+    }
+    if (role.fireBehavior === 'elite-only' && role.durabilityClass !== 'elite') {
+      pushIssue(issues, `${path}/fireBehavior`, 'incompatible_reference', 'Elite-only fire requires elite durability');
     }
     if (typeof role.entryBehavior !== 'string' || !ENEMY_ENTRY_BEHAVIORS.has(role.entryBehavior)) {
       pushIssue(issues, `${path}/entryBehavior`, 'unknown_reference', `Unknown enemy entry behavior: ${String(role.entryBehavior)}`);
@@ -1063,8 +1123,8 @@ const validateCampaignPresentDropMission = (
         pushIssue(issues, `${presentPath}/kind`, 'unknown_reference', `Unknown Present Drop target kind: ${String(present.kind)}`);
       }
       const spriteKnown = checkCatalogRef(present.spriteKey, ASSET_CATALOG, `${presentPath}/spriteKey`, issues);
-      if (spriteKnown && !isAssetAllowedForRole(present.spriteKey as string, 'asteroid')) {
-        pushIssue(issues, `${presentPath}/spriteKey`, 'invalid_asset_role', 'Present Drop targets must use an asset registered for asteroids');
+      if (spriteKnown && !isAssetAllowedForRole(present.spriteKey as string, 'supply-drop')) {
+        pushIssue(issues, `${presentPath}/spriteKey`, 'invalid_asset_role', 'Present Drop targets must use an asset registered for Supply Drops');
       }
       checkNumber(present.health, `${presentPath}/health`, issues, Number.EPSILON, 1000);
       const coinValid = checkNumber(present.coinValue, `${presentPath}/coinValue`, issues, 1, 100000, true);
@@ -1203,8 +1263,8 @@ const validateCampaignCombatBranchMission = (
         if (event.kind === 'boss') {
           pushIssue(issues, `${eventPath}/kind`, 'unsupported_value', 'Optional combat branches cannot contain major or mini-boss events');
         }
-        if (event.kind === 'asteroid-belt' && event.bonusTargetKind !== undefined) {
-          pushIssue(issues, `${eventPath}/bonusTargetKind`, 'unsupported_value', 'Bonus targets belong only to Present Drop branches');
+        if (event.kind === 'supply-drop') {
+          pushIssue(issues, `${eventPath}/kind`, 'unsupported_value', 'Supply Drop events belong only to Present Drop branches');
         }
         if (event.kind === 'powerup') powerupEventCount += 1;
         if (event.kind === 'spawn') {
@@ -2689,25 +2749,27 @@ const validateEvent = (
     checkNumber(candidate.warningSeconds, `${path}/warningSeconds`, issues, 0, 60);
     checkNumber(candidate.health, `${path}/health`, issues, Number.EPSILON, 1000000);
     checkNumber(candidate.speed, `${path}/speed`, issues, 0, 100);
-    checkNumber(candidate.damage, `${path}/damage`, issues, candidate.bonusTargetKind === undefined ? Number.EPSILON : 0, 1000);
+    checkNumber(candidate.damage, `${path}/damage`, issues, Number.EPSILON, 1000);
     checkNumber(candidate.scoreValue, `${path}/scoreValue`, issues, 0, 10000000);
     checkNumber(candidate.powerupDropChance, `${path}/powerupDropChance`, issues, 0, 1);
-    if (candidate.coinDropValue !== undefined) {
-      checkNumber(candidate.coinDropValue, `${path}/coinDropValue`, issues, 1, 1000000, true);
-    }
-    if (candidate.bonusTargetKind !== undefined) {
-      if (typeof candidate.bonusTargetKind !== 'string' || !PRESENT_DROP_PRESENT_KINDS.has(candidate.bonusTargetKind)) {
-        pushIssue(issues, `${path}/bonusTargetKind`, 'unknown_reference', `Unknown bonus target kind: ${String(candidate.bonusTargetKind)}`);
-      }
-      if (candidate.coinDropValue === undefined) {
-        pushIssue(issues, `${path}/coinDropValue`, 'required_number', 'Bonus targets require a positive provisional coin value');
-      }
-    } else if (candidate.coinDropValue !== undefined) {
-      pushIssue(issues, `${path}/bonusTargetKind`, 'required_string', 'Coin-dropping bonus targets require a bonus target kind');
-    }
     if (typeof candidate.warningSeconds === 'number' && typeof candidate.durationSeconds === 'number' && candidate.warningSeconds > candidate.durationSeconds) {
       pushIssue(issues, `${path}/warningSeconds`, 'invalid_timing', 'Warning cannot exceed the event duration');
     }
+  } else if (kind === 'supply-drop') {
+    if (!checkCatalogRef(candidate.spriteKey, ASSET_CATALOG, `${path}/spriteKey`, issues) || !isAssetAllowedForRole(candidate.spriteKey as string, 'supply-drop')) {
+      pushIssue(issues, `${path}/spriteKey`, 'invalid_sprite', 'Supply Drops must reference an asset registered for Supply Drops');
+    }
+    validateSpriteStyle(candidate.spriteStyle, `${path}/spriteStyle`, issues);
+    if (typeof candidate.presentKind !== 'string' || !PRESENT_DROP_PRESENT_KINDS.has(candidate.presentKind)) {
+      pushIssue(issues, `${path}/presentKind`, 'unknown_reference', `Unknown Supply Drop package kind: ${String(candidate.presentKind)}`);
+    }
+    if (!checkCatalogRef(candidate.positionId, SPAWN_POSITION_CATALOG, `${path}/positionId`, issues) || candidate.positionId !== 'formation-top') {
+      pushIssue(issues, `${path}/positionId`, 'invalid_position', 'Supply Drops require formation-top positioning');
+    }
+    checkNumber(candidate.health, `${path}/health`, issues, Number.EPSILON, 1000000);
+    checkNumber(candidate.speed, `${path}/speed`, issues, Number.EPSILON, 100);
+    checkNumber(candidate.scoreValue, `${path}/scoreValue`, issues, 0, 10000000);
+    checkNumber(candidate.coinDropValue, `${path}/coinDropValue`, issues, 1, 1000000, true);
   } else if (kind === 'powerup') {
     checkCatalogRef(candidate.positionId, SPAWN_POSITION_CATALOG, `${path}/positionId`, issues);
     checkNumber(candidate.spawnIntervalSeconds, `${path}/spawnIntervalSeconds`, issues, Number.EPSILON, 600);
@@ -2860,6 +2922,436 @@ const validateLevel = (
   }
 };
 
+const validateCampaignGraphMapPosition = (
+  value: unknown,
+  path: string,
+  issues: CampaignValidationIssue[]
+) => {
+  if (!isRecord(value)) {
+    pushIssue(issues, path, 'required_object', 'Campaign graph positions must be objects');
+    return;
+  }
+  checkKeys(value, CAMPAIGN_MAP_POSITION_KEYS, path, issues);
+  checkNumber(value.x, `${path}/x`, issues, 0, 1);
+  checkNumber(value.y, `${path}/y`, issues, 0, 1);
+};
+
+const validateCampaignGraph = (
+  value: unknown,
+  campaign: UnknownRecord,
+  issues: CampaignValidationIssue[]
+) => {
+  if (value === undefined) return;
+  if (!isRecord(value)) {
+    pushIssue(issues, '/campaignGraph', 'required_object', 'Campaign graph must be an object');
+    return;
+  }
+  checkKeys(value, CAMPAIGN_GRAPH_KEYS, '/campaignGraph', issues);
+  checkString(value.entryNodeId, '/campaignGraph/entryNodeId', issues, { id: true });
+  if (!checkArray(value.nodes, '/campaignGraph/nodes', issues)) return;
+
+  const levels = Array.isArray(campaign.levels) ? campaign.levels.filter(isRecord) : [];
+  const sectors = Array.isArray(campaign.sectors) ? campaign.sectors.filter(isRecord) : [];
+  const miniBosses = Array.isArray(campaign.miniBosses) ? campaign.miniBosses.filter(isRecord) : [];
+  const levelIds = new Set(levels.flatMap((level) => typeof level.id === 'string' ? [level.id] : []));
+  const sectorIds = new Set(sectors.flatMap((sector) => typeof sector.id === 'string' ? [sector.id] : []));
+  const campaignMiniBossIds = new Set(miniBosses.flatMap((entry) => typeof entry.bossId === 'string' ? [entry.bossId] : []));
+  const nodeById = new Map<string, { node: UnknownRecord; path: string }>();
+  const edgeById = new Map<string, string>();
+
+  value.nodes.forEach((node, nodeIndex) => {
+    const path = `/campaignGraph/nodes/${nodeIndex}`;
+    if (!isRecord(node)) {
+      pushIssue(issues, path, 'required_object', 'Campaign graph nodes must be objects');
+      return;
+    }
+    checkKeys(node, CAMPAIGN_GRAPH_NODE_KEYS, path, issues);
+    if (checkString(node.nodeId, `${path}/nodeId`, issues, { id: true })) {
+      const nodeId = String(node.nodeId);
+      if (nodeById.has(nodeId)) {
+        pushIssue(issues, `${path}/nodeId`, 'duplicate_id', `Duplicate Campaign graph node ID: ${nodeId}`);
+      } else {
+        nodeById.set(nodeId, { node, path });
+      }
+    }
+    checkString(node.sectorId, `${path}/sectorId`, issues, { id: true });
+    checkNumber(node.depth, `${path}/depth`, issues, 1, 10000, true);
+    checkString(node.routeId, `${path}/routeId`, issues, { id: true });
+    checkString(node.displayLabel, `${path}/displayLabel`, issues, { max: 40 });
+    checkString(node.missionDefinitionId, `${path}/missionDefinitionId`, issues, { id: true });
+    if (checkArray(node.prerequisiteNodeIds, `${path}/prerequisiteNodeIds`, issues, true)) {
+      node.prerequisiteNodeIds.forEach((nodeId, prerequisiteIndex) => (
+        checkString(nodeId, `${path}/prerequisiteNodeIds/${prerequisiteIndex}`, issues, { id: true })
+      ));
+      checkUniqueStrings(node.prerequisiteNodeIds, `${path}/prerequisiteNodeIds`, issues);
+    }
+    if (typeof node.prerequisiteMode !== 'string' || !CAMPAIGN_PREREQUISITE_MODES.has(node.prerequisiteMode)) {
+      pushIssue(issues, `${path}/prerequisiteMode`, 'unsupported_value', `Unsupported Campaign prerequisite mode: ${String(node.prerequisiteMode)}`);
+    }
+    if (node.rejoinNodeId !== null) {
+      checkString(node.rejoinNodeId, `${path}/rejoinNodeId`, issues, { id: true });
+    }
+    checkBoolean(node.optional, `${path}/optional`, issues);
+    checkBoolean(node.mainPath, `${path}/mainPath`, issues);
+    checkBoolean(node.masteryBranch, `${path}/masteryBranch`, issues);
+    checkBoolean(node.oneTime, `${path}/oneTime`, issues);
+    if (node.bossId !== null) {
+      if (!checkCatalogRef(node.bossId, BOSS_CATALOG, `${path}/bossId`, issues)
+        || BOSS_CATALOG[node.bossId as keyof typeof BOSS_CATALOG]?.entityType !== 'BOSS') {
+        pushIssue(issues, `${path}/bossId`, 'invalid_main_boss', 'Graph bossId must reference a canonical major boss');
+      }
+    }
+    if (checkArray(node.miniBossIds, `${path}/miniBossIds`, issues, true)) {
+      node.miniBossIds.forEach((bossId, miniBossIndex) => {
+        if (checkString(bossId, `${path}/miniBossIds/${miniBossIndex}`, issues, { id: true })
+          && !campaignMiniBossIds.has(String(bossId))) {
+          pushIssue(issues, `${path}/miniBossIds/${miniBossIndex}`, 'unknown_reference', `Unknown Campaign mini-boss: ${String(bossId)}`);
+        }
+      });
+      checkUniqueStrings(node.miniBossIds, `${path}/miniBossIds`, issues);
+    }
+    checkBoolean(node.weeklyStreakEligible, `${path}/weeklyStreakEligible`, issues);
+    checkNumber(node.weeklyScoreMultiplier, `${path}/weeklyScoreMultiplier`, issues, 0.1, 10);
+    if (!isRecord(node.recommendedPower)) {
+      pushIssue(issues, `${path}/recommendedPower`, 'required_object', 'Graph recommended power bands are required');
+    } else {
+      checkKeys(node.recommendedPower, CAMPAIGN_RECOMMENDED_POWER_KEYS, `${path}/recommendedPower`, issues);
+      const minimumValid = checkNumber(node.recommendedPower.minimum, `${path}/recommendedPower/minimum`, issues, 0, 1000000000, true);
+      const expectedValid = checkNumber(node.recommendedPower.expected, `${path}/recommendedPower/expected`, issues, 0, 1000000000, true);
+      const comfortableValid = checkNumber(node.recommendedPower.comfortable, `${path}/recommendedPower/comfortable`, issues, 0, 1000000000, true);
+      if (minimumValid && expectedValid && Number(node.recommendedPower.expected) < Number(node.recommendedPower.minimum)) {
+        pushIssue(issues, `${path}/recommendedPower/expected`, 'invalid_power_order', 'Expected power cannot be below minimum power');
+      }
+      if (expectedValid && comfortableValid && Number(node.recommendedPower.comfortable) < Number(node.recommendedPower.expected)) {
+        pushIssue(issues, `${path}/recommendedPower/comfortable`, 'invalid_power_order', 'Comfortable power cannot be below expected power');
+      }
+    }
+    if (typeof node.rewardProfile !== 'string' || !CAMPAIGN_REWARD_PROFILES.has(node.rewardProfile)) {
+      pushIssue(issues, `${path}/rewardProfile`, 'unsupported_value', `Unsupported Campaign reward profile: ${String(node.rewardProfile)}`);
+    }
+    validateCampaignGraphMapPosition(node.mapPosition, `${path}/mapPosition`, issues);
+    if (checkArray(node.routeControlPoints, `${path}/routeControlPoints`, issues)) {
+      if (node.routeControlPoints.length > 16) {
+        pushIssue(issues, `${path}/routeControlPoints`, 'invalid_route_shape', 'Campaign graph routes support at most sixteen control points');
+      }
+      node.routeControlPoints.forEach((point, pointIndex) => (
+        validateCampaignGraphMapPosition(point, `${path}/routeControlPoints/${pointIndex}`, issues)
+      ));
+    }
+    if (!isRecord(node.routeSummary)) {
+      pushIssue(issues, `${path}/routeSummary`, 'required_object', 'Campaign graph route summaries are required');
+    } else {
+      checkKeys(node.routeSummary, CAMPAIGN_ROUTE_SUMMARY_KEYS, `${path}/routeSummary`, issues);
+      if (typeof node.routeSummary.combatIntensity !== 'string' || !CAMPAIGN_ROUTE_RISKS.has(node.routeSummary.combatIntensity)) {
+        pushIssue(issues, `${path}/routeSummary/combatIntensity`, 'unsupported_value', `Unsupported route combat intensity: ${String(node.routeSummary.combatIntensity)}`);
+      }
+      if (typeof node.routeSummary.miniBossPresence !== 'string' || !CAMPAIGN_MINI_BOSS_PRESENCE.has(node.routeSummary.miniBossPresence)) {
+        pushIssue(issues, `${path}/routeSummary/miniBossPresence`, 'unsupported_value', `Unsupported mini-boss presence: ${String(node.routeSummary.miniBossPresence)}`);
+      }
+      checkString(node.routeSummary.rewardType, `${path}/routeSummary/rewardType`, issues, { max: 100 });
+      if (checkArray(node.routeSummary.recommendedSupportTags, `${path}/routeSummary/recommendedSupportTags`, issues, true)) {
+        node.routeSummary.recommendedSupportTags.forEach((tag, tagIndex) => {
+          if (typeof tag !== 'string' || !SUPPORT_RECOMMENDATION_TAGS.has(tag)) {
+            pushIssue(issues, `${path}/routeSummary/recommendedSupportTags/${tagIndex}`, 'unknown_reference', `Unknown support recommendation tag: ${String(tag)}`);
+          }
+        });
+        checkUniqueStrings(node.routeSummary.recommendedSupportTags, `${path}/routeSummary/recommendedSupportTags`, issues);
+      }
+      checkNumber(node.routeSummary.estimatedWaveCount, `${path}/routeSummary/estimatedWaveCount`, issues, 1, 20, true);
+    }
+
+    if (checkArray(node.outgoingEdges, `${path}/outgoingEdges`, issues, true)) {
+      const localTargets: unknown[] = [];
+      node.outgoingEdges.forEach((edge, edgeIndex) => {
+        const edgePath = `${path}/outgoingEdges/${edgeIndex}`;
+        if (!isRecord(edge)) {
+          pushIssue(issues, edgePath, 'required_object', 'Campaign graph edges must be objects');
+          return;
+        }
+        checkKeys(edge, CAMPAIGN_GRAPH_EDGE_KEYS, edgePath, issues);
+        if (checkString(edge.edgeId, `${edgePath}/edgeId`, issues, { id: true })) {
+          const edgeId = String(edge.edgeId);
+          if (edgeById.has(edgeId)) {
+            pushIssue(issues, `${edgePath}/edgeId`, 'duplicate_id', `Duplicate Campaign graph edge ID: ${edgeId}`);
+          } else {
+            edgeById.set(edgeId, edgePath);
+          }
+        }
+        if (checkString(edge.toNodeId, `${edgePath}/toNodeId`, issues, { id: true })) localTargets.push(edge.toNodeId);
+        checkString(edge.routeId, `${edgePath}/routeId`, issues, { id: true });
+        checkString(edge.label, `${edgePath}/label`, issues, { max: 120 });
+        if (typeof edge.kind !== 'string' || !CAMPAIGN_ROUTE_EDGE_KINDS.has(edge.kind)) {
+          pushIssue(issues, `${edgePath}/kind`, 'unsupported_value', `Unsupported Campaign route edge kind: ${String(edge.kind)}`);
+        }
+        if (typeof edge.risk !== 'string' || !CAMPAIGN_ROUTE_RISKS.has(edge.risk)) {
+          pushIssue(issues, `${edgePath}/risk`, 'unsupported_value', `Unsupported Campaign route risk: ${String(edge.risk)}`);
+        }
+        checkNumber(edge.weeklyScoreMultiplier, `${edgePath}/weeklyScoreMultiplier`, issues, 0.1, 10);
+      });
+      checkUniqueStrings(localTargets, `${path}/outgoingEdges/toNodeId`, issues);
+    }
+  });
+
+  const entryId = typeof value.entryNodeId === 'string' ? value.entryNodeId : '';
+  const entry = nodeById.get(entryId);
+  if (entryId && !entry) {
+    pushIssue(issues, '/campaignGraph/entryNodeId', 'unknown_reference', `Unknown Campaign graph entry node: ${entryId}`);
+  } else if (entry) {
+    if (Array.isArray(entry.node.prerequisiteNodeIds) && entry.node.prerequisiteNodeIds.length > 0) {
+      pushIssue(issues, `${entry.path}/prerequisiteNodeIds`, 'invalid_entry_node', 'Campaign graph entry node cannot require prerequisites');
+    }
+    if (entry.node.mainPath !== true) {
+      pushIssue(issues, `${entry.path}/mainPath`, 'invalid_entry_node', 'Campaign graph entry node must be on the main path');
+    }
+  }
+
+  const getReachable = (sourceNodeId: string) => {
+    const reachable = new Set<string>();
+    const queue = [sourceNodeId];
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      if (!currentId || reachable.has(currentId)) continue;
+      reachable.add(currentId);
+      const current = nodeById.get(currentId)?.node;
+      if (!current || !Array.isArray(current.outgoingEdges)) continue;
+      current.outgoingEdges.forEach((edge) => {
+        if (isRecord(edge) && typeof edge.toNodeId === 'string' && nodeById.has(edge.toNodeId)) {
+          queue.push(edge.toNodeId);
+        }
+      });
+    }
+    return reachable;
+  };
+
+  nodeById.forEach(({ node, path }, nodeId) => {
+    if (typeof node.sectorId === 'string' && !sectorIds.has(node.sectorId)) {
+      pushIssue(issues, `${path}/sectorId`, 'unknown_reference', `Unknown Campaign sector: ${node.sectorId}`);
+    }
+    if (typeof node.missionDefinitionId === 'string' && !levelIds.has(node.missionDefinitionId)) {
+      pushIssue(issues, `${path}/missionDefinitionId`, 'unknown_reference', `Unknown Campaign Mission definition: ${node.missionDefinitionId}`);
+    }
+    if (Array.isArray(node.prerequisiteNodeIds)) node.prerequisiteNodeIds.forEach((prerequisiteNodeId, prerequisiteIndex) => {
+      if (typeof prerequisiteNodeId !== 'string') return;
+      if (!nodeById.has(prerequisiteNodeId)) {
+        pushIssue(issues, `${path}/prerequisiteNodeIds/${prerequisiteIndex}`, 'unknown_reference', `Unknown prerequisite graph node: ${prerequisiteNodeId}`);
+      } else if (prerequisiteNodeId === nodeId) {
+        pushIssue(issues, `${path}/prerequisiteNodeIds/${prerequisiteIndex}`, 'circular_reference', 'A Campaign graph node cannot require itself');
+      } else if (!getReachable(prerequisiteNodeId).has(nodeId)) {
+        pushIssue(issues, `${path}/prerequisiteNodeIds/${prerequisiteIndex}`, 'invalid_prerequisite', 'Prerequisites must be forward ancestors of their graph node');
+      }
+    });
+    if (nodeId !== entryId) {
+      const hasIncomingEdge = [...nodeById.values()].some(({ node: source }) => (
+        Array.isArray(source.outgoingEdges)
+        && source.outgoingEdges.some((edge) => isRecord(edge) && edge.toNodeId === nodeId)
+      ));
+      if (!hasIncomingEdge) {
+        pushIssue(issues, `${path}/nodeId`, 'unreachable_node', 'Every non-entry Campaign graph node requires an incoming edge');
+      }
+    }
+    if (node.rejoinNodeId !== null && typeof node.rejoinNodeId === 'string') {
+      const rejoin = nodeById.get(node.rejoinNodeId);
+      if (!rejoin) {
+        pushIssue(issues, `${path}/rejoinNodeId`, 'unknown_reference', `Unknown Campaign rejoin node: ${node.rejoinNodeId}`);
+      } else if (node.rejoinNodeId === nodeId) {
+        pushIssue(issues, `${path}/rejoinNodeId`, 'circular_reference', 'A Campaign route cannot rejoin itself');
+      } else if (!getReachable(nodeId).has(node.rejoinNodeId)) {
+        pushIssue(issues, `${path}/rejoinNodeId`, 'invalid_rejoin', 'A Campaign rejoin node must be reachable from its route node');
+      }
+    }
+    if (Array.isArray(node.miniBossIds) && isRecord(node.routeSummary)) {
+      if (node.routeSummary.miniBossPresence === 'none' && node.miniBossIds.length > 0) {
+        pushIssue(issues, `${path}/routeSummary/miniBossPresence`, 'inconsistent_summary', 'Routes marked with no mini-bosses cannot reference miniBossIds');
+      }
+      if (node.routeSummary.miniBossPresence === 'required' && node.miniBossIds.length === 0) {
+        pushIssue(issues, `${path}/routeSummary/miniBossPresence`, 'inconsistent_summary', 'Routes with a required mini-boss must reference at least one miniBossId');
+      }
+    }
+    if (!Array.isArray(node.outgoingEdges)) return;
+    node.outgoingEdges.forEach((edge, edgeIndex) => {
+      if (!isRecord(edge) || typeof edge.toNodeId !== 'string') return;
+      const edgePath = `${path}/outgoingEdges/${edgeIndex}`;
+      const target = nodeById.get(edge.toNodeId);
+      if (!target) {
+        pushIssue(issues, `${edgePath}/toNodeId`, 'unknown_reference', `Unknown Campaign graph target: ${edge.toNodeId}`);
+        return;
+      }
+      if (edge.toNodeId === nodeId) {
+        pushIssue(issues, `${edgePath}/toNodeId`, 'circular_reference', 'A Campaign graph edge cannot target its source node');
+      }
+      if (typeof node.depth === 'number' && typeof target.node.depth === 'number' && target.node.depth <= node.depth) {
+        pushIssue(issues, `${edgePath}/toNodeId`, 'non_forward_edge', 'Campaign graph traversal must move to a greater progression depth');
+      }
+      if (edge.kind === 'rejoin' && node.rejoinNodeId !== edge.toNodeId) {
+        pushIssue(issues, `${edgePath}/toNodeId`, 'invalid_rejoin', 'Rejoin edges must target the node declared by rejoinNodeId');
+      }
+      if (edge.kind === 'rejoin' && edge.routeId !== node.routeId) {
+        pushIssue(issues, `${edgePath}/routeId`, 'invalid_route', 'Rejoin edge routeId must match its source route');
+      }
+      if (edge.kind === 'route-choice' && edge.routeId !== target.node.routeId) {
+        pushIssue(issues, `${edgePath}/routeId`, 'invalid_route', 'Route-choice edge routeId must match its target route');
+      }
+    });
+
+    const routeChoices = node.outgoingEdges.filter((edge) => isRecord(edge) && edge.kind === 'route-choice');
+    if (routeChoices.length > 0) {
+      if (routeChoices.length < 2) {
+        pushIssue(issues, `${path}/outgoingEdges`, 'invalid_route_choice', 'Route-choice nodes require at least two sibling options');
+      }
+      const siblings = routeChoices.flatMap((edge) => (
+        isRecord(edge) && typeof edge.toNodeId === 'string' && nodeById.has(edge.toNodeId)
+          ? [nodeById.get(edge.toNodeId)!]
+          : []
+      ));
+      const depths = new Set(siblings.map((sibling) => sibling.node.depth));
+      const sectorSet = new Set(siblings.map((sibling) => sibling.node.sectorId));
+      const routeIds = siblings.map((sibling) => sibling.node.routeId);
+      const labels = siblings.map((sibling) => sibling.node.displayLabel);
+      const rejoins = new Set(siblings.map((sibling) => sibling.node.rejoinNodeId));
+      if (depths.size > 1) pushIssue(issues, `${path}/outgoingEdges`, 'invalid_route_siblings', 'Route siblings must share one progression depth');
+      if (sectorSet.size > 1 || (sectorSet.size === 1 && !sectorSet.has(node.sectorId))) {
+        pushIssue(issues, `${path}/outgoingEdges`, 'invalid_route_siblings', 'Route siblings must stay in their source sector');
+      }
+      if (new Set(routeIds).size !== routeIds.length) {
+        pushIssue(issues, `${path}/outgoingEdges`, 'duplicate_route', 'Route siblings require distinct route IDs');
+      }
+      if (new Set(labels).size !== labels.length) {
+        pushIssue(issues, `${path}/outgoingEdges`, 'duplicate_label', 'Route siblings require distinct display labels');
+      }
+      if (rejoins.size !== 1 || rejoins.has(null) || rejoins.has(undefined)) {
+        pushIssue(issues, `${path}/outgoingEdges`, 'invalid_rejoin', 'Route siblings must declare one shared rejoin node');
+      }
+      siblings.forEach((sibling) => {
+        if (!Array.isArray(sibling.node.prerequisiteNodeIds)
+          || !sibling.node.prerequisiteNodeIds.includes(nodeId)) {
+          pushIssue(issues, `${sibling.path}/prerequisiteNodeIds`, 'invalid_route_siblings', 'Each route sibling must require its route-choice source');
+        }
+      });
+      const sharedRejoinId = [...rejoins][0];
+      const sharedRejoin = typeof sharedRejoinId === 'string' ? nodeById.get(sharedRejoinId) : undefined;
+      if (sharedRejoin) {
+        if (sharedRejoin.node.prerequisiteMode !== 'any') {
+          pushIssue(issues, `${sharedRejoin.path}/prerequisiteMode`, 'invalid_rejoin', 'A sibling rejoin node must accept any completed route');
+        }
+        const rejoinPrerequisites = Array.isArray(sharedRejoin.node.prerequisiteNodeIds)
+          ? new Set(sharedRejoin.node.prerequisiteNodeIds)
+          : new Set<unknown>();
+        siblings.forEach((sibling) => {
+          if (!rejoinPrerequisites.has(sibling.node.nodeId)) {
+            pushIssue(issues, `${sharedRejoin.path}/prerequisiteNodeIds`, 'invalid_rejoin', 'A sibling rejoin node must reference every route sibling');
+          }
+        });
+      }
+      siblings.forEach((sibling, siblingIndex) => siblings.forEach((other, otherIndex) => {
+        if (siblingIndex !== otherIndex && getReachable(String(sibling.node.nodeId)).has(String(other.node.nodeId))) {
+          pushIssue(issues, `${sibling.path}/outgoingEdges`, 'sibling_traversal', 'A route sibling cannot advance into another sibling');
+        }
+      }));
+    }
+  });
+
+  if (entry) {
+    const reachable = getReachable(entryId);
+    nodeById.forEach(({ path }, nodeId) => {
+      if (!reachable.has(nodeId)) {
+        pushIssue(issues, `${path}/nodeId`, 'unreachable_node', 'Campaign graph nodes must be reachable from entryNodeId');
+      }
+    });
+  }
+
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (nodeId: string) => {
+    if (visited.has(nodeId)) return;
+    visiting.add(nodeId);
+    const source = nodeById.get(nodeId);
+    if (source && Array.isArray(source.node.outgoingEdges)) source.node.outgoingEdges.forEach((edge, edgeIndex) => {
+      if (!isRecord(edge) || typeof edge.toNodeId !== 'string' || !nodeById.has(edge.toNodeId)) return;
+      if (visiting.has(edge.toNodeId)) {
+        pushIssue(issues, `${source.path}/outgoingEdges/${edgeIndex}/toNodeId`, 'circular_reference', 'Campaign graph traversal must be acyclic');
+      } else {
+        visit(edge.toNodeId);
+      }
+    });
+    visiting.delete(nodeId);
+    visited.add(nodeId);
+  };
+  nodeById.forEach((_node, nodeId) => visit(nodeId));
+
+  const orderedSectors = [...sectors].sort((left, right) => Number(left.order) - Number(right.order));
+  sectors.forEach((sector, sectorIndex) => {
+    const sectorPath = `/sectors/${sectorIndex}`;
+    if (!Array.isArray(sector.mainNodeIds) || sector.mainNodeIds.length !== 5) {
+      pushIssue(issues, `${sectorPath}/mainNodeIds`, 'required_graph_nodes', 'Graph sectors require five mainNodeIds');
+      return;
+    }
+    if (!Array.isArray(sector.routeNodeIds)) {
+      pushIssue(issues, `${sectorPath}/routeNodeIds`, 'required_graph_nodes', 'Graph sectors require routeNodeIds, even when empty');
+      return;
+    }
+    const mainIds = new Set(sector.mainNodeIds.filter((id): id is string => typeof id === 'string'));
+    const routeIds = new Set(sector.routeNodeIds.filter((id): id is string => typeof id === 'string'));
+    const listedIds = new Set([...mainIds, ...routeIds]);
+    const mainDepths: number[] = [];
+    sector.mainNodeIds.forEach((nodeId, mainIndex) => {
+      if (typeof nodeId !== 'string') return;
+      const graphNode = nodeById.get(nodeId);
+      if (!graphNode) {
+        pushIssue(issues, `${sectorPath}/mainNodeIds/${mainIndex}`, 'unknown_reference', `Unknown Campaign graph node: ${nodeId}`);
+        return;
+      }
+      if (graphNode.node.sectorId !== sector.id) {
+        pushIssue(issues, `${sectorPath}/mainNodeIds/${mainIndex}`, 'invalid_reference', 'Main graph nodes must belong to their owning sector');
+      }
+      if (graphNode.node.mainPath !== true || graphNode.node.optional !== false) {
+        pushIssue(issues, `${sectorPath}/mainNodeIds/${mainIndex}`, 'invalid_main_path', 'Main graph nodes must be required mainPath nodes');
+      }
+      if (Array.isArray(sector.missionIds) && graphNode.node.missionDefinitionId !== sector.missionIds[mainIndex]) {
+        pushIssue(issues, `${sectorPath}/mainNodeIds/${mainIndex}`, 'invalid_reference', 'Each main graph node must reference the Mission in the matching sector slot');
+      }
+      if (typeof graphNode.node.depth === 'number') mainDepths.push(graphNode.node.depth);
+    });
+    mainDepths.slice(1).forEach((depth, index) => {
+      if (depth <= mainDepths[index]) {
+        pushIssue(issues, `${sectorPath}/mainNodeIds/${index + 1}`, 'invalid_depth_order', 'Sector main graph nodes must use increasing progression depths');
+      }
+    });
+    sector.routeNodeIds.forEach((nodeId, routeIndex) => {
+      if (typeof nodeId !== 'string') return;
+      if (mainIds.has(nodeId)) {
+        pushIssue(issues, `${sectorPath}/routeNodeIds/${routeIndex}`, 'duplicate_reference', 'Route nodes cannot also be main nodes');
+      }
+      const graphNode = nodeById.get(nodeId);
+      if (!graphNode) {
+        pushIssue(issues, `${sectorPath}/routeNodeIds/${routeIndex}`, 'unknown_reference', `Unknown Campaign graph node: ${nodeId}`);
+      } else if (graphNode.node.sectorId !== sector.id) {
+        pushIssue(issues, `${sectorPath}/routeNodeIds/${routeIndex}`, 'invalid_reference', 'Route graph nodes must belong to their owning sector');
+      }
+    });
+    nodeById.forEach(({ node, path }, nodeId) => {
+      if (node.sectorId === sector.id && !listedIds.has(nodeId)) {
+        pushIssue(issues, `${path}/nodeId`, 'unlisted_sector_node', 'Every graph node must be listed in its sector mainNodeIds or routeNodeIds');
+      }
+    });
+    const bossNodes = [...nodeById.values()].filter(({ node }) => node.sectorId === sector.id && node.bossId !== null);
+    if (bossNodes.length !== 1) {
+      pushIssue(issues, `${sectorPath}/majorBossId`, 'invalid_boss_count', 'Each graph sector requires exactly one major-boss node');
+    } else {
+      const bossNode = bossNodes[0];
+      if (bossNode.node.bossId !== sector.majorBossId) {
+        pushIssue(issues, `${bossNode.path}/bossId`, 'invalid_reference', 'Graph boss node must reference its sector majorBossId');
+      }
+      if (bossNode.node.nodeId !== sector.mainNodeIds[4]) {
+        pushIssue(issues, `${bossNode.path}/nodeId`, 'invalid_boss_position', 'The sector major boss must be its fifth main graph node');
+      }
+    }
+  });
+  const firstSector = orderedSectors[0];
+  if (entry && firstSector && Array.isArray(firstSector.mainNodeIds) && firstSector.mainNodeIds[0] !== entryId) {
+    pushIssue(issues, '/campaignGraph/entryNodeId', 'invalid_entry_node', 'Campaign graph entry must be the first main node of the first sector');
+  }
+};
+
 const validateCampaignManifestCrossReferences = (
   campaign: UnknownRecord,
   issues: CampaignValidationIssue[]
@@ -2871,13 +3363,44 @@ const validateCampaignManifestCrossReferences = (
   const formationPacks = Array.isArray(campaign.formationPacks) ? campaign.formationPacks.filter(isRecord) : [];
   const miniBosses = Array.isArray(campaign.miniBosses) ? campaign.miniBosses.filter(isRecord) : [];
   const branches = Array.isArray(campaign.campaignBranches) ? campaign.campaignBranches.filter(isRecord) : [];
+  const graph = isRecord(campaign.campaignGraph) ? campaign.campaignGraph : undefined;
+  const graphNodes = graph && Array.isArray(graph.nodes) ? graph.nodes.filter(isRecord) : [];
+  const graphNodeById = new Map(graphNodes.flatMap((node) => typeof node.nodeId === 'string' ? [[node.nodeId, node] as const] : []));
   const levelsById = new Map(levels.flatMap((level) => typeof level.id === 'string' ? [[level.id, level] as const] : []));
   const sectorsById = new Map(sectors.flatMap((sector) => typeof sector.id === 'string' ? [[sector.id, sector] as const] : []));
   const themesById = new Map(visualThemes.flatMap((theme) => typeof theme.id === 'string' ? [[theme.id, theme] as const] : []));
   const rolesById = new Map(enemyRoles.flatMap((role) => typeof role.id === 'string' ? [[role.id, role] as const] : []));
   const packsById = new Map(formationPacks.flatMap((pack) => typeof pack.id === 'string' ? [[pack.id, pack] as const] : []));
   const branchIds = new Set(branches.flatMap((branch) => typeof branch.branchId === 'string' ? [branch.branchId] : []));
-  const missionOwners = new Map<string, string[]>();
+  const missionOwners = new Map<string, Set<string>>();
+  const missionSchedule = new Map<string, { sectorOrder: number; missionSlot: number }>();
+  const registerMissionOwner = (missionId: string, sectorId: string) => {
+    const owners = missionOwners.get(missionId) ?? new Set<string>();
+    owners.add(sectorId);
+    missionOwners.set(missionId, owners);
+  };
+
+  const isGroupedFormationPattern = (patternId: unknown) => {
+    const normalized = typeof patternId === 'string' ? patternId.trim().toLowerCase() : '';
+    return normalized.length > 0
+      && !normalized.includes('single')
+      && !normalized.includes('random');
+  };
+  const resolveDeclaredFormationPack = (event: UnknownRecord, packs: UnknownRecord[]) => {
+    if (!isGroupedFormationPattern(event.patternId) || !Array.isArray(event.enemies)) return undefined;
+    const roleIds = [...new Set(event.enemies.flatMap((enemy) => (
+      isRecord(enemy) && typeof enemy.roleId === 'string' ? [enemy.roleId] : []
+    )))];
+    if (roleIds.length === 0) return undefined;
+    const compatible = packs.filter((pack) => {
+      const packRoleIds = pack.enemyRoleIds;
+      return Array.isArray(packRoleIds)
+        && roleIds.every((roleId) => packRoleIds.includes(roleId));
+    });
+    if (compatible.length === 1) return compatible[0];
+    const shapeMatches = compatible.filter((pack) => pack.formationShape === event.patternId);
+    return shapeMatches.length === 1 ? shapeMatches[0] : undefined;
+  };
 
   sectors.forEach((sector, sectorIndex) => {
     const sectorPath = `/sectors/${sectorIndex}`;
@@ -2897,7 +3420,10 @@ const validateCampaignManifestCrossReferences = (
         pushIssue(issues, `${sectorPath}/missionIds/${missionIndex}`, 'unknown_reference', `Unknown Campaign Mission: ${missionId}`);
         return;
       }
-      missionOwners.set(missionId, [...(missionOwners.get(missionId) ?? []), String(sector.id)]);
+      registerMissionOwner(missionId, String(sector.id));
+      if (typeof sector.order === 'number') {
+        missionSchedule.set(missionId, { sectorOrder: sector.order, missionSlot: missionIndex + 1 });
+      }
       const progression = isRecord(level.campaignProgression) ? level.campaignProgression : undefined;
       if (!progression) {
         pushIssue(issues, `/levels/${levels.indexOf(level)}/campaignProgression`, 'required_object', 'Sector Missions require Campaign progression metadata');
@@ -2916,30 +3442,90 @@ const validateCampaignManifestCrossReferences = (
         'formation-remix': [5, 6],
         'elite-checkpoint': [4, 6],
         'boss-preparation': [6, 7],
-        'major-boss': [1, 1]
+        'major-boss': graph ? [3, 4] : [1, 1]
       };
       const range = waveRange[expectedRole];
       if (waveCount < range[0] || waveCount > range[1]) {
         pushIssue(issues, `/levels/${levels.indexOf(level)}/waves`, 'invalid_wave_count', `${expectedRole} Missions require ${range[0] === range[1] ? range[0] : `${range[0]}-${range[1]}`} waves`);
       }
-      if (expectedRole === 'major-boss' && Array.isArray(level.waves) && isRecord(level.waves[0])) {
-        const bossEvents = Array.isArray(level.waves[0].events)
-          ? level.waves[0].events.filter((event) => isRecord(event) && event.kind === 'boss')
-          : [];
-        if (level.waves[0].completionRule !== 'boss-defeat'
-          || bossEvents.length !== 1
-          || bossEvents[0]?.bossId !== sector.majorBossId) {
-          pushIssue(issues, `/levels/${levels.indexOf(level)}/waves/0`, 'invalid_major_boss_mission', 'Major-boss Missions must be one direct encounter with the sector major boss');
+      if (expectedRole === 'major-boss' && Array.isArray(level.waves) && level.waves.length > 0) {
+        const levelIndex = levels.indexOf(level);
+        if (!graph && isRecord(level.waves[0])) {
+          const bossEvents = Array.isArray(level.waves[0].events)
+            ? level.waves[0].events.filter((event) => isRecord(event) && event.kind === 'boss')
+            : [];
+          if (level.waves[0].completionRule !== 'boss-defeat'
+            || bossEvents.length !== 1
+            || bossEvents[0]?.bossId !== sector.majorBossId) {
+            pushIssue(issues, `/levels/${levelIndex}/waves/0`, 'invalid_major_boss_mission', 'Legacy major-boss Missions must be one direct encounter with the sector major boss');
+          }
+        } else if (graph) {
+          const finalWaveIndex = level.waves.length - 1;
+          const finalWave = level.waves[finalWaveIndex];
+          const finalEvents = isRecord(finalWave) && Array.isArray(finalWave.events) ? finalWave.events.filter(isRecord) : [];
+          const finalMajorBosses = finalEvents.filter((event) => (
+            event.kind === 'boss'
+            && typeof event.bossId === 'string'
+            && hasCatalogId(BOSS_CATALOG, event.bossId)
+            && BOSS_CATALOG[event.bossId as keyof typeof BOSS_CATALOG].entityType === 'BOSS'
+          ));
+          if (!isRecord(finalWave)
+            || finalWave.completionRule !== 'boss-defeat'
+            || finalMajorBosses.length !== 1
+            || finalMajorBosses[0]?.bossId !== sector.majorBossId) {
+            pushIssue(issues, `/levels/${levelIndex}/waves/${finalWaveIndex}`, 'invalid_major_boss_mission', 'Graph major-boss Missions must finish with exactly one matching sector boss');
+          }
+          level.waves.slice(0, -1).forEach((leadInWave, leadInIndex) => {
+            if (!isRecord(leadInWave)) return;
+            const hasMajorBoss = Array.isArray(leadInWave.events) && leadInWave.events.some((event) => (
+              isRecord(event)
+              && event.kind === 'boss'
+              && typeof event.bossId === 'string'
+              && hasCatalogId(BOSS_CATALOG, event.bossId)
+              && BOSS_CATALOG[event.bossId as keyof typeof BOSS_CATALOG].entityType === 'BOSS'
+            ));
+            if (leadInWave.completionRule !== 'clear-after-duration' || hasMajorBoss) {
+              pushIssue(issues, `/levels/${levelIndex}/waves/${leadInIndex}`, 'invalid_boss_lead_in', 'Boss lead-in Waves must clear normally and cannot contain a major boss');
+            }
+          });
         }
       }
     });
+
+    if (graph && Array.isArray(sector.routeNodeIds)) {
+      const mainDepthToSlot = new Map<number, number>();
+      if (Array.isArray(sector.mainNodeIds)) sector.mainNodeIds.forEach((nodeId, nodeIndex) => {
+        const node = typeof nodeId === 'string' ? graphNodeById.get(nodeId) : undefined;
+        if (node && typeof node.depth === 'number') mainDepthToSlot.set(node.depth, nodeIndex + 1);
+      });
+      sector.routeNodeIds.forEach((nodeId, routeIndex) => {
+        if (typeof nodeId !== 'string') return;
+        const node = graphNodeById.get(nodeId);
+        if (!node || typeof node.missionDefinitionId !== 'string') return;
+        const missionId = node.missionDefinitionId;
+        const level = levelsById.get(missionId);
+        if (!level) return;
+        registerMissionOwner(missionId, String(sector.id));
+        const missionSlot = typeof node.depth === 'number' ? mainDepthToSlot.get(node.depth) : undefined;
+        if (typeof sector.order === 'number' && missionSlot !== undefined) {
+          missionSchedule.set(missionId, { sectorOrder: sector.order, missionSlot });
+        }
+        const progression = isRecord(level.campaignProgression) ? level.campaignProgression : undefined;
+        if (!progression || progression.sectorId !== sector.id) {
+          pushIssue(issues, `/sectors/${sectorIndex}/routeNodeIds/${routeIndex}`, 'invalid_reference', 'Route Mission progression must reference its owning sector');
+        }
+        if (node.bossId === null && progression?.missionRole === 'major-boss') {
+          pushIssue(issues, `/levels/${levels.indexOf(level)}/campaignProgression/missionRole`, 'invalid_route_role', 'Non-boss route Missions cannot use the major-boss role');
+        }
+      });
+    }
   });
 
   levels.forEach((level, levelIndex) => {
     if (typeof level.id === 'string') {
-      const owners = missionOwners.get(level.id) ?? [];
-      if (owners.length !== 1) {
-        pushIssue(issues, `/levels/${levelIndex}/campaignProgression/sectorId`, 'invalid_sector_membership', `Campaign Missions must belong to exactly one sector; found ${owners.length}`);
+      const owners = missionOwners.get(level.id) ?? new Set<string>();
+      if (owners.size !== 1) {
+        pushIssue(issues, `/levels/${levelIndex}/campaignProgression/sectorId`, 'invalid_sector_membership', `Campaign Missions must belong to exactly one sector; found ${owners.size}`);
       }
     }
     const progression = isRecord(level.campaignProgression) ? level.campaignProgression : undefined;
@@ -2947,6 +3533,7 @@ const validateCampaignManifestCrossReferences = (
       pushIssue(issues, `/levels/${levelIndex}/campaignProgression/sectorId`, 'unknown_reference', `Unknown Campaign sector: ${progression.sectorId}`);
     }
     if (!Array.isArray(level.waves)) return;
+    const previousWaveOrderByRole = new Map<string, number>();
     level.waves.forEach((wave, waveIndex) => {
       if (!isRecord(wave)) return;
       if (typeof progression?.combatBudget === 'number' && typeof wave.combatBudget === 'number' && wave.combatBudget > progression.combatBudget) {
@@ -2961,29 +3548,103 @@ const validateCampaignManifestCrossReferences = (
           return;
         }
         if (typeof pack.totalThreatCost === 'number') packBudget += pack.totalThreatCost;
+        if (graph && Array.isArray(pack.enemyRoleIds) && typeof level.id === 'string') {
+          const schedule = missionSchedule.get(level.id);
+          pack.enemyRoleIds.forEach((roleId) => {
+            const role = typeof roleId === 'string' ? rolesById.get(roleId) : undefined;
+            if (!role || !schedule || typeof role.introductionSector !== 'number' || typeof role.introductionMission !== 'number') return;
+            if (role.introductionSector > schedule.sectorOrder
+              || (role.introductionSector === schedule.sectorOrder && role.introductionMission > schedule.missionSlot)) {
+              pushIssue(issues, `/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex}`, 'role_used_before_introduction', `Formation pack ${packId} uses role ${roleId} before its authored introduction`);
+            }
+          });
+        }
         if (typeof progression?.sectorId === 'string' && Array.isArray(pack.compatibleSectorIds) && !pack.compatibleSectorIds.includes(progression.sectorId)) {
           pushIssue(issues, `/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex}`, 'incompatible_reference', `Formation pack ${packId} is not compatible with sector ${progression.sectorId}`);
         }
-        if (typeof progression?.missionRole === 'string' && Array.isArray(pack.compatibleMissionRoles) && !pack.compatibleMissionRoles.includes(progression.missionRole)) {
-          pushIssue(issues, `/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex}`, 'incompatible_reference', `Formation pack ${packId} is not compatible with Mission role ${progression.missionRole}`);
+        const compatibilityRole = graph
+          && progression?.missionRole === 'major-boss'
+          && Array.isArray(level.waves)
+          && waveIndex < level.waves.length - 1
+          ? 'boss-preparation'
+          : progression?.missionRole;
+        if (typeof compatibilityRole === 'string' && Array.isArray(pack.compatibleMissionRoles) && !pack.compatibleMissionRoles.includes(compatibilityRole)) {
+          pushIssue(issues, `/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex}`, 'incompatible_reference', `Formation pack ${packId} is not compatible with Mission role ${compatibilityRole}`);
         }
       });
       if (typeof wave.combatBudget === 'number' && packBudget > wave.combatBudget + EPSILON) {
         pushIssue(issues, `/levels/${levelIndex}/waves/${waveIndex}/formationPackIds`, 'budget_exceeded', 'Formation pack threat costs exceed the authored wave combat budget');
       }
       if (!Array.isArray(wave.events)) return;
+      const declaredPacks = Array.isArray(wave.formationPackIds)
+        ? wave.formationPackIds.flatMap((packId) => (
+            typeof packId === 'string' && packsById.has(packId) ? [packsById.get(packId)!] : []
+          ))
+        : [];
+      const usedPackIds = new Set<string>();
+      const waveRoleIds = new Set<string>();
       wave.events.forEach((event, eventIndex) => {
         if (!isRecord(event) || event.kind !== 'spawn' || !Array.isArray(event.enemies)) return;
+        if (isGroupedFormationPattern(event.patternId)) {
+          const resolvedPack = resolveDeclaredFormationPack(event, declaredPacks);
+          if (!resolvedPack || typeof resolvedPack.id !== 'string') {
+            pushIssue(
+              issues,
+              `/levels/${levelIndex}/waves/${waveIndex}/events/${eventIndex}`,
+              'missing_formation_binding',
+              'Grouped Campaign spawn events must resolve to exactly one declared role-compatible formation pack'
+            );
+          } else {
+            usedPackIds.add(resolvedPack.id);
+          }
+        }
         event.enemies.forEach((enemy, enemyIndex) => {
           if (!isRecord(enemy) || enemy.roleId === undefined) return;
           const rolePath = `/levels/${levelIndex}/waves/${waveIndex}/events/${eventIndex}/enemies/${enemyIndex}/roleId`;
           const role = typeof enemy.roleId === 'string' ? rolesById.get(enemy.roleId) : undefined;
+          if (typeof enemy.roleId === 'string') waveRoleIds.add(enemy.roleId);
           if (!role) {
             pushIssue(issues, rolePath, 'unknown_reference', `Unknown enemy role: ${String(enemy.roleId)}`);
           } else if (role.enemyId !== enemy.enemyId) {
             pushIssue(issues, rolePath, 'incompatible_reference', `Enemy role ${String(enemy.roleId)} belongs to ${String(role.enemyId)}, not ${String(enemy.enemyId)}`);
+          } else if (graph && typeof level.id === 'string') {
+            const schedule = missionSchedule.get(level.id);
+            if (schedule
+              && typeof role.introductionSector === 'number'
+              && typeof role.introductionMission === 'number'
+              && (role.introductionSector > schedule.sectorOrder
+                || (role.introductionSector === schedule.sectorOrder && role.introductionMission > schedule.missionSlot))) {
+              pushIssue(issues, rolePath, 'role_used_before_introduction', `Enemy role ${String(enemy.roleId)} is used before its authored introduction`);
+            }
           }
         });
+      });
+      if (Array.isArray(wave.formationPackIds)) wave.formationPackIds.forEach((packId, packIndex) => {
+        if (typeof packId === 'string' && packsById.has(packId) && !usedPackIds.has(packId)) {
+          pushIssue(
+            issues,
+            `/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex}`,
+            'unused_formation_binding',
+            `Formation pack ${packId} is not used by any grouped spawn event in this Wave`
+          );
+        }
+      });
+      waveRoleIds.forEach((roleId) => {
+        const role = rolesById.get(roleId);
+        const currentOrder = typeof wave.order === 'number' ? wave.order : waveIndex + 1;
+        const previousOrder = previousWaveOrderByRole.get(roleId);
+        if (role && previousOrder !== undefined && typeof role.reuseCooldownWaves === 'number') {
+          const interveningWaves = Math.max(0, currentOrder - previousOrder - 1);
+          if (interveningWaves < role.reuseCooldownWaves) {
+            pushIssue(
+              issues,
+              `/levels/${levelIndex}/waves/${waveIndex}/events`,
+              'reuse_cooldown_violation',
+              `Enemy role ${roleId} requires ${role.reuseCooldownWaves} intervening Wave(s); found ${interveningWaves}`
+            );
+          }
+        }
+        previousWaveOrderByRole.set(roleId, currentOrder);
       });
     });
   });
@@ -3081,6 +3742,7 @@ export const validateGameCampaign = (value: unknown): CampaignValidationResult =
       }
     });
   }
+  validateCampaignGraph(value.campaignGraph, value, issues);
   validateCampaignBranches(value.campaignBranches, value.levels, value.enemyRoles, issues);
   validateCampaignManifestCrossReferences(value, issues);
   return { valid: issues.length === 0, issues };

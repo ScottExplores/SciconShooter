@@ -13,12 +13,12 @@ const findCampaignLevel = (levelId) => {
   return level;
 };
 
-const findCampaignEvent = (eventId) => {
+const findCampaignBoss = (bossId) => {
   const event = campaign.levels
     .flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
-    .find((candidate) => candidate.id === eventId);
-  assert.ok(event, `campaign event ${eventId} exists`);
+    .find((candidate) => candidate.kind === 'boss' && candidate.bossId === bossId);
+  assert.ok(event, `campaign boss ${bossId} exists`);
   return event;
 };
 
@@ -37,7 +37,7 @@ test('Citation Storm is a bossless formation-remix Mission with compact authored
   assert.ok(stage.waves.every((wave) => wave.completionRule === 'clear-after-duration'));
   assert.equal(events.some((event) => event.kind === 'boss'), false);
 
-  const overseer = findCampaignEvent('open-orbit-gatekeeper');
+  const overseer = findCampaignBoss('gatekeeper-prime');
   assert.equal(overseer.movementPatternId, 'gatekeeper-cycle');
   assert.equal(overseer.rigId, 'open-orbit');
 });
@@ -65,6 +65,7 @@ test('Pixi presents a fixed boss meter and compact elite health bars', () => {
   assert.match(renderer, /frameWidth \* \(143 \/ 737\)/);
   assert.match(renderer, /\.fill\('#ef233c'\)/);
   assert.match(renderer, /this\.bossHealthRoot\.position\.set\(this\.width \/ 2/);
-  assert.match(renderer, /entity\.type === EntityType\.MINI_BOSS \|\| entity\.isElite/);
+  assert.match(renderer, /entity\.type === EntityType\.MINI_BOSS[\s\S]*?engine\.compactMiniBossHealthBarsVisible/);
+  assert.match(renderer, /entity\.isElite[\s\S]*?this\.drawHealthBar\(view, entity\)/);
   assert.doesNotMatch(renderer, /entity\.type === EntityType\.BOSS \|\| entity\.type === EntityType\.MINI_BOSS\) \{\s*this\.drawHealthBar/);
 });

@@ -71,7 +71,22 @@ const campaignMasks = [
     key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/bullet-ring-emitter.png'
   },
   {
+    key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/crescent-minelayer.png'
+  },
+  {
+    key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dark-asteroid-sentinel.png'
+  },
+  {
+    key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dna-conductor.png'
+  },
+  {
     key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/laser-hunter.png'
+  },
+  {
+    key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/laser-stalker.png'
+  },
+  {
+    key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/orbit-disc.png'
   },
   {
     key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/prism-artillery.png'
@@ -80,7 +95,31 @@ const campaignMasks = [
     key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/ring-sentinel.png'
   },
   {
+    key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/shield-rammer.png'
+  },
+  {
+    key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-left.png'
+  },
+  {
+    key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-right.png'
+  },
+  {
     key: '/game-art/bosses/mini-boss-drone.png'
+  },
+  {
+    key: '/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-01-idle.png'
+  },
+  {
+    key: '/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-02-neutral.png'
+  },
+  {
+    key: '/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-03-attack.png'
+  },
+  {
+    key: '/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-04-damage-50.png'
+  },
+  {
+    key: '/game-art/generated/scicon-flight-motion-pack-v1/bosses/bottleneck-harvester/frames/bottleneck-harvester-05-critical-15.png'
   },
   {
     key: '/game-art/generated/scicon-flight-motion-pack-v1/bosses/paywall-bastion/frames/paywall-bastion-01-idle.png',

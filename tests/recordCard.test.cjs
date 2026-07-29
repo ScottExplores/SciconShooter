@@ -78,12 +78,12 @@ test('record card embeds encounter art and meaningful run values', async () => {
   }
 });
 
-test('revision-22 record cards embed their resolved mission encounter art without the legacy boss fallback', async () => {
+test('revision-23 record cards embed their resolved mission encounter art without the legacy boss fallback', async () => {
   const runId = '66666666-7777-4888-8999-000000000000';
   const expectedStages = new Map([
     [7, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-left.png'],
     [8, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dna-conductor.png'],
-    [9, '/game-art/pixi/bosses/paywall-decimator/body/frame-1.png'],
+    [9, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/ring-sentinel.png'],
     [20, '/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/tribunal-dreadnought.png']
   ]);
   const originalFetch = global.fetch;

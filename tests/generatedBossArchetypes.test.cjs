@@ -27,14 +27,14 @@ const loadArchetypes = () => {
   return module.exports;
 };
 
-test('the generated revision-22 sector bosses resolve through the stable archetype catalog', () => {
+test('the generated revision-23 sector bosses resolve through the stable archetype catalog', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const { GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY, resolveGeneratedBossArchetype } = loadArchetypes();
   const sectorBosses = campaign.sectors.map((sector) => {
     const mission = campaign.levels.find((level) => level.id === sector.missionIds.at(-1));
     const event = mission.waves.flatMap((wave) => wave.events).find((candidate) => candidate.kind === 'boss');
     assert.equal(mission.campaignProgression.missionRole, 'major-boss');
-    assert.equal(mission.waves.length, 1, `${mission.name} is a direct boss encounter`);
+    assert.equal(mission.waves.length, 4, `${mission.name} teaches, varies, recovers, then launches its boss`);
     assert.equal(event.bossId, sector.majorBossId);
     return { missionId: mission.id, event };
   });
@@ -46,22 +46,27 @@ test('the generated revision-22 sector bosses resolve through the stable archety
       archetype: resolveGeneratedBossArchetype(event.event.spriteKey)
     }));
 
-  assert.equal(campaign.revision, 22);
-  assert.equal(campaign.sectors.length, 4);
-  assert.equal(sectorBosses.length, 4);
+  assert.equal(campaign.revision, 23);
+  assert.equal(campaign.sectors.length, 10);
+  assert.equal(sectorBosses.length, 10);
   assert.equal(Object.keys(GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY).length, 8);
   assert.equal(
     resolveGeneratedBossArchetype(sectorBosses[0].event.spriteKey),
     null,
     'Gatekeeper Prime retains its dedicated Boss Factory runtime'
   );
-  assert.equal(generatedBosses.length, 3);
+  assert.equal(generatedBosses.length, 8);
   assert.deepEqual(
     JSON.parse(JSON.stringify(generatedBosses)),
     [
-      { id: 'null-sector-final-boss', spriteKey: 'CAMPAIGN_BOSS_ECLIPSE_ENGINE', archetype: 'eclipse-engine' },
-      { id: 'ion-citadel-final-boss', spriteKey: 'CAMPAIGN_BOSS_HELIX_LEVIATHAN', archetype: 'helix-leviathan' },
-      { id: 'terminus-ascendant-final-boss', spriteKey: 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT', archetype: 'tribunal-dreadnought' }
+      { id: 'stage-null-sector-major-boss', spriteKey: 'CAMPAIGN_BOSS_ECLIPSE_ENGINE', archetype: 'eclipse-engine' },
+      { id: 'stage-ion-citadel-major-boss', spriteKey: 'CAMPAIGN_BOSS_HELIX_LEVIATHAN', archetype: 'helix-leviathan' },
+      { id: 'stage-terminus-ascendant-major-boss', spriteKey: 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT', archetype: 'tribunal-dreadnought' },
+      { id: 'stage-prism-expanse-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH', archetype: 'prism-moth' },
+      { id: 'stage-rail-meridian-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_RAIL_SERPENT', archetype: 'rail-serpent' },
+      { id: 'stage-singularity-reach-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB', archetype: 'singularity-crab' },
+      { id: 'stage-gyroscope-array-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE', archetype: 'orbit-gyroscope' },
+      { id: 'stage-hammerhead-line-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE', archetype: 'hammerhead-siege' }
     ]
   );
   assert.equal(resolveGeneratedBossArchetype('PLAYER_SHIP'), null);
@@ -202,10 +207,10 @@ test('runtime routes generated archetypes before generic arena roaming and bound
     'authored archetypes bypass the shared escalation and arena-roam layers'
   );
   assert.match(engineSource, /Math\.min\(MAX_GENERATED_BOSS_PROJECTILES_PER_CUE, requestedCount\)/);
-  assert.match(
-    engineSource,
-    /const requestedCount = projectileCount \?\? \(\(this\.mobileProfile \? 14 : 18\) \+ phase \* 2\)/
-  );
+  assert.match(engineSource, /getCampaignGeneratedBossProjectileBudget\(boss: Entity, fallbackCount: number\)/);
+  assert.match(engineSource, /endsWith\('-major-boss'\)/);
+  assert.match(engineSource, /Math\.floor\(authoredBurstCount\) \* 3/);
+  assert.match(engineSource, /this\.getCampaignGeneratedBossProjectileBudget\(boss, fallbackCount\)/);
   assert.match(engineSource, /requestedComponent\?\.destroyed/);
   assert.match(engineSource, /allCannonsDestroyed/);
   assert.match(engineSource, /motionCue === 'gatling-barrage'/);
@@ -239,9 +244,13 @@ test('runtime presents every generated warning without damage and resets phase t
   assert.match(runtime, /if \(cue\.technique === 'rail-tail-volley'\)/);
   assert.match(runtime, /if \(cue\.technique === 'eclipse-dark-pulse'\)/);
   assert.equal(
-    (runtime.match(/this\.spawnBossSafeGapRing\(boss, cue\.sequence, phase, true\)/g) || []).length,
+    (runtime.match(/this\.spawnBossSafeGapRing\([\s\S]*?boss,[\s\S]*?cue\.sequence,[\s\S]*?phase,[\s\S]*?true,[\s\S]*?this\.getCampaignGeneratedBossProjectileBudget\(boss, fallbackCount\)[\s\S]*?\)/g) || []).length,
     1,
     'dark pulse has one explicit fire route rather than a warning fallthrough'
   );
   assert.match(engineSource, /boss\.attackTimer = 0;[\s\S]*boss\.generatedBossChargeUntilTimer = -1/);
+  assert.match(runtime, /const authoredCadenceScale = isAuthoredCampaignBoss/);
+  assert.match(runtime, /techniqueTimer === boss\.generatedBossTechniqueTimer/);
+  assert.match(runtime, /boss\.generatedBossTechniqueTimer = techniqueTimer/);
+  assert.match(engineSource, /if \(String\(boss\.sourceEventId \?\? ''\)\.endsWith\('-major-boss'\)\) return/);
 });

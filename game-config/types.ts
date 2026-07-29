@@ -73,6 +73,7 @@ export type GeneratedAssetRole =
   | 'enemy'
   | 'boss'
   | 'asteroid'
+  | 'supply-drop'
   | 'hud'
   | 'player'
   | 'background'
@@ -82,11 +83,39 @@ export type EnemyId = 'drone' | 'swarm' | 'brick' | 'journal';
 export type BossId =
   | 'bottleneck-drone'
   | 'paywall-wall'
+  | 'fracture-engine-elite'
+  | 'aegis-brood-core'
+  | 'railspine-wallcrawler'
+  | 'maw-carrier'
+  | 'twin-meridian-sentinels'
+  | 'prism-bloom'
+  | 'aegis-convoy-captain'
+  | 'gridline-sentries'
   | 'gatekeeper'
   | 'gatekeeper-prime'
   | 'helix-leviathan'
   | 'eclipse-engine'
-  | 'research-tribunal';
+  | 'research-tribunal'
+  | 'prism-moth'
+  | 'rail-serpent'
+  | 'singularity-crab'
+  | 'orbit-gyroscope'
+  | 'hammerhead-siege'
+  | 'frontier-crownclaw';
+
+export type CampaignMiniBossId = Extract<
+  BossId,
+  | 'bottleneck-drone'
+  | 'paywall-wall'
+  | 'fracture-engine-elite'
+  | 'aegis-brood-core'
+  | 'railspine-wallcrawler'
+  | 'maw-carrier'
+  | 'twin-meridian-sentinels'
+  | 'prism-bloom'
+  | 'aegis-convoy-captain'
+  | 'gridline-sentries'
+>;
 export type BossRigId = 'open-orbit' | 'citation-storm' | 'paywall-siege' | 'crown-claw';
 export type PowerupId = 'double-shot' | 'triple-shot' | 'max-shot' | 'magnet' | 'shield' | 'research-beam' | 'extra-life';
 export type BackgroundId =
@@ -166,12 +195,98 @@ export type SupportRecommendationTag =
   | 'survival'
   | 'anti-summon';
 
+export type CampaignRouteEdgeKind =
+  | 'progression'
+  | 'route-choice'
+  | 'rejoin'
+  | 'optional'
+  | 'crossing';
+
+export type CampaignRouteRisk = 'low' | 'moderate' | 'high';
+
+export type CampaignRewardProfileId =
+  | 'standard'
+  | 'combat-premium'
+  | 'support-safe'
+  | 'boss'
+  | 'mastery'
+  | 'one-time';
+
+/**
+ * One explicit traversal option in the persistent Campaign graph. Edges are
+ * authoritative for progression; array order and display order are never used
+ * to infer the next Mission.
+ */
+export interface CampaignRouteEdgeDefinition {
+  edgeId: string;
+  toNodeId: string;
+  routeId: string;
+  label: string;
+  kind: CampaignRouteEdgeKind;
+  risk: CampaignRouteRisk;
+  /** Weekly score tuning only. Campaign coin settlement remains separate. */
+  weeklyScoreMultiplier: number;
+}
+
+export interface CampaignRouteSummaryDefinition {
+  combatIntensity: CampaignRouteRisk;
+  miniBossPresence: 'none' | 'optional' | 'required';
+  rewardType: string;
+  recommendedSupportTags: SupportRecommendationTag[];
+  estimatedWaveCount: number;
+}
+
+/**
+ * A selectable Campaign Mission node. `missionDefinitionId` references the
+ * real LevelDefinition consumed by GameEngine. Sibling nodes may share a depth
+ * but must always have different stable node IDs and explicit outgoing edges.
+ */
+export interface CampaignGraphNodeDefinition {
+  nodeId: string;
+  sectorId: string;
+  /** Global main-progression depth. Route siblings intentionally share it. */
+  depth: number;
+  routeId: string;
+  displayLabel: string;
+  missionDefinitionId: string;
+  prerequisiteNodeIds: string[];
+  prerequisiteMode: 'any' | 'all';
+  outgoingEdges: CampaignRouteEdgeDefinition[];
+  rejoinNodeId: string | null;
+  optional: boolean;
+  mainPath: boolean;
+  masteryBranch: boolean;
+  oneTime: boolean;
+  bossId: BossId | null;
+  miniBossIds: BossId[];
+  weeklyStreakEligible: boolean;
+  weeklyScoreMultiplier: number;
+  recommendedPower: {
+    minimum: number;
+    expected: number;
+    comfortable: number;
+  };
+  rewardProfile: CampaignRewardProfileId;
+  mapPosition: CampaignMapPositionDefinition;
+  routeControlPoints: CampaignMapPositionDefinition[];
+  routeSummary: CampaignRouteSummaryDefinition;
+}
+
+export interface CampaignGraphDefinition {
+  entryNodeId: string;
+  nodes: CampaignGraphNodeDefinition[];
+}
+
 export interface CampaignSectorDefinition {
   id: string;
   order: number;
   name: string;
   themeId: string;
   missionIds: [string, string, string, string, string];
+  /** Stable graph nodes for the five required progression depths. */
+  mainNodeIds?: [string, string, string, string, string];
+  /** Same-depth route alternatives and other ordinary route nodes. */
+  routeNodeIds?: string[];
   majorBossId: BossId;
   branchIds: string[];
 }
@@ -194,7 +309,9 @@ export interface EnemyRoleDefinition {
   introductionSector: number;
   introductionMission: number;
   durabilityClass: EnemyDurabilityClass;
-  fireBehavior: 'none' | 'post-formation' | 'aimed-burst';
+  fireBehavior: 'none' | 'post-formation' | 'aimed-burst' | 'formation-command' | 'elite-only';
+  /** Quiet window after spawn before this role may fire. Never-fire roles use zero. */
+  fireDelaySeconds: number;
   entryBehavior: 'formation' | 'dive' | 'flank' | 'lane';
   compatibleFormationPackIds: string[];
   synergyTags: string[];
@@ -224,7 +341,7 @@ export interface FormationPackDefinition {
 
 export interface MiniBossCatalogDefinition {
   id: string;
-  bossId: Extract<BossId, 'bottleneck-drone' | 'paywall-wall'>;
+  bossId: CampaignMiniBossId;
   label: string;
   visualIdentity: string;
   combatRole: string;
@@ -266,6 +383,8 @@ export interface GameCampaignConfig {
   miniBosses: MiniBossCatalogDefinition[];
   /** Optional mastery routes. Omission preserves the original linear Campaign. */
   campaignBranches?: CampaignBranchDefinition[];
+  /** Explicit directed route graph. Omission is supported only for legacy packages and tests. */
+  campaignGraph?: CampaignGraphDefinition;
 }
 
 /** Compatibility-friendly short name for engine/editor consumers. */
@@ -1017,10 +1136,19 @@ export interface AsteroidEvent extends BaseWaveEvent {
   damage: number;
   scoreValue: number;
   powerupDropChance: number;
-  /** Optional provisional coin value for non-hostile bonus targets. */
-  coinDropValue?: number;
-  /** Identifies a Present Drop target without introducing a second renderer. */
-  bonusTargetKind?: PresentDropPresentKind;
+}
+
+/** A non-hostile, destructible package in the timed Present Drop branch. */
+export interface SupplyDropEvent extends BaseWaveEvent {
+  kind: 'supply-drop';
+  spriteKey: AssetKey;
+  spriteStyle?: SpriteStyle;
+  presentKind: PresentDropPresentKind;
+  positionId: SpawnPositionId;
+  health: number;
+  speed: number;
+  scoreValue: number;
+  coinDropValue: number;
 }
 
 export interface PowerupEvent extends BaseWaveEvent {
@@ -1038,7 +1166,7 @@ export interface RecoveryEvent extends BaseWaveEvent {
   powerupIds: PowerupId[];
 }
 
-export type WaveEvent = SpawnEvent | BossEvent | AsteroidEvent | PowerupEvent | RecoveryEvent;
+export type WaveEvent = SpawnEvent | BossEvent | AsteroidEvent | SupplyDropEvent | PowerupEvent | RecoveryEvent;
 
 export interface AssetCatalogEntry {
   id: AssetKey;

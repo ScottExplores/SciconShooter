@@ -180,6 +180,7 @@ test('stage-boundary cleanup deterministically removes every non-player entity a
     'ENEMY_INVADER',
     'BOSS',
     'MINI_BOSS',
+    'SUPPLY_DROP',
     'PROJECTILE',
     'MISSILE',
     'POWERUP',

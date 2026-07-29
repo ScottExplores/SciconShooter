@@ -98,7 +98,11 @@ test('Present Drop reward is meaningful against current ship and support costs w
     'one optional branch must not complete an entire weapon tier'
   );
   assert.equal(affordablePrefixCount(speedCosts, maximumReward).count, 3);
-  assert.equal(affordablePrefixCount(heartCosts, maximumReward).count, 2);
+  assert.equal(
+    affordablePrefixCount(heartCosts, maximumReward).count,
+    1,
+    'premium survivability should not let one branch buy two permanent hearts'
+  );
 
   assert.ok(
     maximumReward >= miniUpgradeCurve[1],
@@ -124,7 +128,7 @@ test('Present Drop ceiling remains a minority bonus beside the next five-mission
   const minimumReward = branch.completionReward.totalMinimumCoins;
   const maximumReward = branch.completionReward.totalMaximumCoins;
 
-  assert.equal(nextSectorCoins, 3_320, 'the expanded next-sector authored economy changed and needs a branch review');
+  assert.equal(nextSectorCoins, 1_492, 'the revision-23 next-sector economy changed and needs a branch review');
   assert.ok(
     minimumReward >= nextSectorCoins * 0.03,
     'the preserved guaranteed bonus should remain noticeable beside the expanded sector economy'

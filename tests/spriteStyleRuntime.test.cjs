@@ -7,9 +7,9 @@ const root = path.resolve(__dirname, '..');
 const engineSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 const typesSource = fs.readFileSync(path.join(root, 'game-config', 'types.ts'), 'utf8');
 
-test('sprite style is a typed optional setting for enemies, bosses, and asteroid belts', () => {
+test('sprite style is a typed optional setting for enemies, bosses, asteroid belts, and Supply Drops', () => {
   assert.match(typesSource, /export interface SpriteStyle\s*{/);
-  assert.equal((typesSource.match(/spriteStyle\?: SpriteStyle;/g) || []).length, 3);
+  assert.equal((typesSource.match(/spriteStyle\?: SpriteStyle;/g) || []).length, 4);
 });
 
 test('configured sprite styles are copied onto every supported runtime entity', () => {

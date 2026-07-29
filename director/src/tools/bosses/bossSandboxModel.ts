@@ -1,4 +1,4 @@
-import type { BossEvent, GameCampaignConfig } from '@game/game-config/types';
+import type { AssetKey, BossEvent, GameCampaignConfig } from '@game/game-config/types';
 import { isDamagingBossTimelinePrimitive } from '@game/game-config/bossTimeline';
 import { validateGameCampaign } from '@game/game-config/validate';
 import {
@@ -20,6 +20,7 @@ import type {
   PreviewBossModularPoseSampler
 } from '@game/services/pixi/boss-rigs/PreviewBossRigContracts';
 import type { PreviewBossAttackSnapshot } from '@game/services/gameplay/previewSession';
+import { getMiniBossEncounterDefinition } from '@game/services/gameplay/mini-bosses';
 import {
   MODULAR_BOSS_REFERENCE_COMPARISON_KIND
 } from '@game/services/pixi/boss-rigs/PreviewBossReferenceComparison';
@@ -50,7 +51,9 @@ import {
 import {
   buildSandboxBossPrototypePreview,
   SANDBOX_BOSS_PROTOTYPES,
+  type SandboxEncounterCategoryId,
   type SandboxBossPrototypeId,
+  type SandboxMiniBossEncounterMetadata,
   type SandboxBossPrototypePreview
 } from '@director/combat-lab/sandboxBossPrototypes';
 import gloamforgeAtlasSource from '../../../../director-data/prototype-assets/gloamforge-mantis/gloamforge-mantis-atlas.json';
@@ -62,7 +65,7 @@ import heliosRigSource from '../../../../director-data/prototype-assets/helios-c
 import prismMothAtlasSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper-atlas.json';
 import prismMothRigSource from '../../../../director-data/prototype-assets/prism-moth-broodkeeper/prism-moth-broodkeeper.rig.json';
 
-export const BOSS_SANDBOX_VERSION = 'V 0.27' as const;
+export const BOSS_SANDBOX_VERSION = 'V 0.31' as const;
 
 export const getBossSandboxPerformingAttackId = (
   activeAttack: PreviewBossAttackSnapshot | null | undefined
@@ -1998,8 +2001,41 @@ export const getSandboxBossArtworkRegistration = (
 
 export const BOSS_SANDBOX_GROUP_IDS = Object.freeze({
   campaign: 'boss-sandbox:main-game',
-  test: 'boss-sandbox:test-bosses'
+  test: 'boss-sandbox:test-bosses',
+  miniBosses: 'boss-sandbox:mini-boss-lab'
 } as const);
+
+export interface BossSandboxCategory {
+  readonly id: SandboxEncounterCategoryId;
+  readonly label: string;
+  readonly selectorLabel: string;
+}
+
+export const BOSS_SANDBOX_CATEGORIES: readonly BossSandboxCategory[] = Object.freeze([
+  Object.freeze({ id: 'full-bosses', label: 'Full Bosses', selectorLabel: 'Boss to Test' }),
+  Object.freeze({ id: 'mini-bosses', label: 'Mini Bosses', selectorLabel: 'Mini Boss to Test' }),
+  Object.freeze({ id: 'test-bosses', label: 'Test Bosses', selectorLabel: 'Test Boss to Test' }),
+  Object.freeze({ id: 'elite-enemies', label: 'Elite Enemies', selectorLabel: 'Elite to Test' }),
+  Object.freeze({ id: 'paired-encounters', label: 'Paired Encounters', selectorLabel: 'Encounter to Test' }),
+  Object.freeze({ id: 'guardian-formations', label: 'Guardian Formations', selectorLabel: 'Formation to Test' }),
+  Object.freeze({ id: 'wall-encounters', label: 'Wall Encounters', selectorLabel: 'Encounter to Test' }),
+  Object.freeze({ id: 'all-encounters', label: 'All Encounters', selectorLabel: 'Encounter to Test' })
+]);
+
+export const DEFAULT_BOSS_SANDBOX_CATEGORY_ID: SandboxEncounterCategoryId =
+  'all-encounters';
+
+export const getBossSandboxSelectorLabel = (
+  categoryId: SandboxEncounterCategoryId
+): string => BOSS_SANDBOX_CATEGORIES.find((category) => category.id === categoryId)
+  ?.selectorLabel ?? 'Encounter to Test';
+
+export type BossSandboxHostMode = 'mobile-shell' | 'desktop-shell';
+
+export const BOSS_SANDBOX_HOST_MODES = Object.freeze([
+  Object.freeze({ id: 'mobile-shell' as const, label: 'Mobile host' }),
+  Object.freeze({ id: 'desktop-shell' as const, label: 'Desktop host' })
+]);
 
 export type BossSandboxViewportMode = 'desktop' | 'mobile';
 
@@ -2056,6 +2092,8 @@ export const resolveBossSandboxFitScale = (
 export interface BossSandboxChoice {
   readonly id: string;
   readonly source: 'campaign' | 'test';
+  readonly encounterClass: 'full-boss' | 'mini-boss';
+  readonly categories: readonly SandboxEncounterCategoryId[];
   readonly missionId: string;
   readonly missionLabel: string;
   readonly bossLabel: string;
@@ -2066,6 +2104,9 @@ export interface BossSandboxChoice {
   readonly waveId?: string;
   readonly eventId?: string;
   readonly prototypeId?: SandboxBossPrototypeId;
+  readonly miniBoss?: SandboxMiniBossEncounterMetadata;
+  readonly artworkAssetId?: AssetKey;
+  readonly artworkUrl?: string;
 }
 
 export interface BossSandboxGroup {
@@ -2122,6 +2163,8 @@ export const buildBossSandboxGroups = (
             ? [{
                 id: productionChoiceId(level.id, wave.id, event.id),
                 source: 'campaign',
+                encounterClass: 'full-boss',
+                categories: ['full-bosses', 'all-encounters'],
                 missionId: level.id,
                 missionLabel: level.name,
                 bossLabel: event.label,
@@ -2139,14 +2182,34 @@ export const buildBossSandboxGroups = (
     (prototype): BossSandboxChoice => ({
       id: prototypeChoiceId(prototype.id),
       source: 'test',
-      missionId: BOSS_SANDBOX_GROUP_IDS.test,
+      encounterClass: prototype.encounterClass,
+      categories: prototype.miniBoss
+        ? [...prototype.miniBoss.categories, 'all-encounters']
+        : ['full-bosses', 'test-bosses', 'all-encounters'],
+      missionId: prototype.miniBoss
+        ? BOSS_SANDBOX_GROUP_IDS.miniBosses
+        : BOSS_SANDBOX_GROUP_IDS.test,
       missionLabel: 'TEST BOSSES · Never ships',
+      ...(prototype.miniBoss
+        ? { missionLabel: 'MINI-BOSS LAB | Campaign preview' }
+        : {}),
       bossLabel: prototype.label,
       waveLabel: 'Isolated boss fight',
-      prototypeId: prototype.id
+      prototypeId: prototype.id,
+      ...(prototype.miniBoss
+        ? {
+            miniBoss: prototype.miniBoss,
+            artworkAssetId: prototype.miniBoss.assetIds[0],
+            artworkUrl: getMiniBossEncounterDefinition(prototype.miniBoss.encounterId)
+              ?.assets.find((asset) => asset.usage === 'primary-body')
+              ?.url
+          }
+        : {})
     })
   );
 
+  const testBossChoices = prototypeChoices.filter((choice) => choice.encounterClass === 'full-boss');
+  const miniBossChoices = prototypeChoices.filter((choice) => choice.encounterClass === 'mini-boss');
   const groups: BossSandboxGroup[] = [
     {
       id: BOSS_SANDBOX_GROUP_IDS.campaign,
@@ -2158,11 +2221,27 @@ export const buildBossSandboxGroups = (
       id: BOSS_SANDBOX_GROUP_IDS.test,
       label: 'TEST BOSSES · Never ships',
       source: 'test',
-      choices: prototypeChoices
+      choices: testBossChoices
+    },
+    {
+      id: BOSS_SANDBOX_GROUP_IDS.miniBosses,
+      label: 'MINI-BOSS LAB · Campaign roster',
+      source: 'test',
+      choices: miniBossChoices
     }
   ];
   return groups.filter((group) => group.choices.length > 0);
 };
+
+export const filterBossSandboxGroups = (
+  groups: readonly BossSandboxGroup[],
+  categoryId: SandboxEncounterCategoryId
+): readonly BossSandboxGroup[] => groups
+  .map((group) => ({
+    ...group,
+    choices: group.choices.filter((choice) => choice.categories.includes(categoryId))
+  }))
+  .filter((group) => group.choices.length > 0);
 
 const getBossEvent = (preview: CombatLabPreviewResult): BossEvent => {
   const event = preview.previewWave.events.find((candidate) => candidate.kind === 'boss');

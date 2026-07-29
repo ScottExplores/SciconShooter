@@ -25,6 +25,10 @@ import {
   type PlayerShipId
 } from '@game/services/playerShipService';
 import {
+  isCampaignFormationPattern,
+  resolveCampaignFormationPackForSpawn
+} from '@game/services/campaignFormationBudget';
+import {
   MINI_SHIP_BY_ID,
   MINI_SHIP_MAX_LEVEL,
   buildRuntimeSquadLoadout as buildProductionRuntimeSquadLoadout,
@@ -351,6 +355,30 @@ const normalizeFocusedEventTiming = (event: WaveEvent): WaveEvent => ({
   delayAfterSeconds: 0
 });
 
+const resolveFocusedFormationPackIds = (
+  campaign: GameCampaignConfig,
+  sourceWave: WaveDefinition,
+  events: readonly WaveEvent[]
+): string[] => {
+  const declaredPacks = sourceWave.formationPackIds.flatMap((packId) => {
+    const pack = campaign.formationPacks.find((candidate) => candidate.id === packId);
+    return pack ? [pack] : [];
+  });
+  const resolvedIds: string[] = [];
+
+  events.forEach((event) => {
+    if (event.kind !== 'spawn' || !isCampaignFormationPattern(event.patternId)) return;
+    const resolved = resolveCampaignFormationPackForSpawn(event, declaredPacks)
+      ?? resolveCampaignFormationPackForSpawn(event, campaign.formationPacks);
+    if (!resolved) {
+      throw new Error(`Combat Lab formation focus ${event.id} has no unambiguous compatible formation pack`);
+    }
+    if (!resolvedIds.includes(resolved.id)) resolvedIds.push(resolved.id);
+  });
+
+  return resolvedIds;
+};
+
 const replaceWave = (
   campaign: GameCampaignConfig,
   levelId: string,
@@ -544,6 +572,11 @@ export const createFocusedPreviewCampaign = (
       introSeconds: 0,
       delayAfterSeconds: 0,
       durationSeconds: Math.max(located.wave.durationSeconds, eventFitsWave(focusedEvent)),
+      formationPackIds: resolveFocusedFormationPackIds(
+        sourceCampaign,
+        located.wave,
+        [focusedEvent]
+      ),
       events: [focusedEvent]
     };
   }

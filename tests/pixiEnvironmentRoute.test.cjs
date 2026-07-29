@@ -23,31 +23,39 @@ const findCampaignEvent = (level, eventId) => {
 test('campaign follows a coherent space-to-planet-to-space environment route', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const environment = read('services/pixi/PixiEnvironment.ts');
+  const mainMissionIds = new Set(campaign.sectors.flatMap((sector) => sector.missionIds));
+  const mainLevels = campaign.sectors.flatMap((sector) => sector.missionIds.map((missionId) => (
+    findCampaignLevel(campaign, missionId)
+  )));
+  const alternateLevels = campaign.levels.filter((level) => !mainMissionIds.has(level.id));
 
   assert.deepEqual(
-    campaign.levels.slice(0, 5).map((level) => level.backgroundId),
-    ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']
-  );
-  assert.deepEqual(
-    campaign.levels.slice(5).map((level) => level.backgroundId),
+    mainLevels.map((level) => level.backgroundId),
     [
-      'helix-redline',
-      'helix-redline',
-      'shattered-void',
-      'shattered-void',
-      'shattered-void',
-      'shattered-void',
-      'gravity-rift',
-      'gravity-rift',
-      'gravity-rift',
-      'ion-eclipse',
-      'ion-eclipse',
-      'ion-eclipse',
-      'terminus-frontier',
-      'terminus-frontier',
-      'terminus-frontier'
+      'open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol',
+      'helix-redline', 'helix-redline', 'shattered-void', 'shattered-void', 'shattered-void',
+      'shattered-void', 'gravity-rift', 'gravity-rift', 'gravity-rift', 'ion-eclipse',
+      'ion-eclipse', 'ion-eclipse', 'terminus-frontier', 'terminus-frontier', 'terminus-frontier',
+      ...Array(5).fill('ion-eclipse'),
+      ...Array(5).fill('helix-redline'),
+      ...Array(5).fill('gravity-rift'),
+      ...Array(5).fill('open-galaxy'),
+      ...Array(5).fill('shattered-void'),
+      ...Array(5).fill('terminus-frontier')
     ]
   );
+  assert.deepEqual(alternateLevels.map((level) => level.backgroundId), [
+    'open-orbit',
+    'shattered-void',
+    'gravity-rift',
+    'terminus-frontier',
+    'ion-eclipse',
+    'helix-redline',
+    'gravity-rift',
+    'open-galaxy',
+    'shattered-void',
+    'terminus-frontier'
+  ]);
   assert.match(environment, /orbital-departure/);
   assert.match(environment, /deep-nebula/);
   assert.match(environment, /planetary-descent/);

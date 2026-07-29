@@ -27,7 +27,7 @@ const gatekeeper = loadTypeScriptModule(
   'services/gameplay/bosses/GatekeeperPrimeRuntime.ts'
 );
 
-test('Mission 5 is a direct, dedicated Gatekeeper Prime encounter', () => {
+test('Mission 5 ends its authored runway with a dedicated Gatekeeper Prime encounter', () => {
   const campaign = JSON.parse(
     fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8')
   );
@@ -36,13 +36,15 @@ test('Mission 5 is a direct, dedicated Gatekeeper Prime encounter', () => {
   ));
   assert.ok(mission, 'Mission 5 exists');
   assert.equal(mission.order, 5);
-  assert.equal(mission.waves.length, 1);
-  assert.equal(mission.waves[0].completionRule, 'boss-defeat');
-  assert.equal(mission.waves[0].events.length, 1);
+  assert.equal(mission.waves.length, 4);
+  assert.ok(mission.waves.slice(0, -1).every((wave) => wave.completionRule === 'clear-after-duration'));
+  const finalWave = mission.waves.at(-1);
+  assert.equal(finalWave.completionRule, 'boss-defeat');
+  assert.equal(finalWave.events.length, 1);
 
-  const event = mission.waves[0].events[0];
+  const event = finalWave.events[0];
   assert.equal(event.kind, 'boss');
-  assert.equal(event.id, 'open-orbit-gatekeeper');
+  assert.equal(event.id, 'stage-bastion-protocol-major-boss');
   assert.equal(event.bossId, gatekeeper.GATEKEEPER_PRIME_BOSS_ID);
   assert.equal(event.rigId, 'open-orbit');
   assert.equal(event.spriteKey, 'PIXI_BOSS_OPEN_ORBIT_FRAMES');

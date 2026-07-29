@@ -44,7 +44,7 @@ test('weekly competition rollover preserves permanent Hangar progression and res
   assert.match(source, /entry\.purchaseCost \* \(0\.55 \+ currentLevel \* 0\.15\)/);
   assert.match(source, /60, 90, 130, 190, 270, 360, 480,[\s\S]*?2600, 3050, 3550, 4100, 4700, 5350, 6050/);
   assert.match(source, /costs: \[55, 85, 130, 200, 300, 440, 625\]/);
-  assert.match(source, /costs: \[90, 140, 210, 310, 450, 630, 850\]/);
+  assert.match(source, /costs: \[180, 320, 560, 900, 1400, 2100, 3000\]/);
   assert.match(source, /if \(slot === 'left'\) \{[\s\S]*?\[FIRST_LEFT_WING_MINI_SHIP_ID\]: next\.ownedMiniShips\[FIRST_LEFT_WING_MINI_SHIP_ID\] \|\| 1/);
   assert.match(source, /next\.equipped = \{ \.\.\.next\.equipped, left: FIRST_LEFT_WING_MINI_SHIP_ID \}/);
   assert.match(source, /mini_ship_awarded/);
@@ -178,6 +178,8 @@ test('main ship upgrade cards show the matching existing gameplay sprites', () =
   assert.match(hangar, /src=\{MAIN_UPGRADE_SPRITE\[upgrade\.id\]\}/);
   assert.match(hangar, /getMainShipFireRateTier\(activeMainShipUpgrades\.fireRate\)/);
   assert.match(hangar, /getMainShipFireRateTierProgress\(activeMainShipUpgrades\.fireRate\)/);
+  assert.match(hangar, /Array\.from\(\{ length: FIRE_RATE_TIER_COUNT \}/);
+  assert.match(hangar, /repeat\(\$\{FIRE_RATE_TIER_COUNT\}, minmax\(0, 1fr\)\)/);
   assert.match(hangar, /const maxLevel = getMainShipUpgradeMaxLevel\(upgrade\.id\)/);
   spriteNames.forEach((name) => {
     assert.match(hangar, new RegExp(`/game-art/powerups/${name.replace('.', '\\.')}`));

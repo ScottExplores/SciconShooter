@@ -1,5 +1,6 @@
 const { createRunStart, finishRun } = require('./_lib/runReceipts');
 const { checkRateLimit } = require('./_lib/rateLimit');
+const { readOptionalWalletProfileSession } = require('./_lib/walletProfileAuth');
 
 const sendJson = (res, status, payload) => {
   res.statusCode = status;
@@ -36,9 +37,14 @@ module.exports = async (req, res) => {
     });
     if (!rate.allowed) return sendJson(res, 429, { error: 'Too many run requests. Please wait before trying again.' });
     if (body.action === 'start') {
+      const walletSession = readOptionalWalletProfileSession(req);
       return sendJson(res, 200, createRunStart(body.gameVersion, {
         testRun: Boolean(body.testRun),
-        playerShipId: body.playerShipId
+        playerShipId: body.playerShipId,
+        runMode: body.runMode,
+        profileId: body.profileId,
+        walletSession,
+        weeklyCampaignProof: body.weeklyCampaignProof
       }));
     }
     if (body.action === 'finish') {

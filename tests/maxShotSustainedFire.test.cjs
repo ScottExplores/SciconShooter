@@ -6,17 +6,6 @@ const vm = require('node:vm');
 const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
-const progressionSource = fs.readFileSync(path.join(root, 'services', 'campaignCombatProgression.ts'), 'utf8');
-const compiled = ts.transpileModule(progressionSource, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
-}).outputText;
-const moduleBox = { exports: {} };
-vm.runInNewContext(`(function(exports, require, module) { ${compiled} })(module.exports, require, module);`, {
-  module: moduleBox,
-  require
-});
-
-const progression = moduleBox.exports;
 const weaponTierSource = fs.readFileSync(path.join(root, 'services', 'weaponTierProgression.ts'), 'utf8');
 const weaponTierCompiled = ts.transpileModule(weaponTierSource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
@@ -26,6 +15,19 @@ vm.runInNewContext(
   `(function(exports, require, module) { ${weaponTierCompiled} })(module.exports, require, module);`,
   { module: weaponTierBox, require }
 );
+const progressionSource = fs.readFileSync(path.join(root, 'services', 'campaignCombatProgression.ts'), 'utf8');
+const compiled = ts.transpileModule(progressionSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
+}).outputText;
+const moduleBox = { exports: {} };
+vm.runInNewContext(`(function(exports, require, module) { ${compiled} })(module.exports, require, module);`, {
+  module: moduleBox,
+  require: (request) => request === './weaponTierProgression'
+    ? weaponTierBox.exports
+    : require(request)
+});
+
+const progression = moduleBox.exports;
 const playerShotSpreadSource = fs.readFileSync(path.join(root, 'services', 'playerShotSpread.ts'), 'utf8');
 const playerShotSpreadCompiled = ts.transpileModule(playerShotSpreadSource, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
@@ -55,8 +57,8 @@ const bioPrimary = bioPrimaryBox.exports;
 const engineSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 const rendererSource = fs.readFileSync(path.join(root, 'services', 'pixi', 'PixiGameRenderer.ts'), 'utf8');
 
-test('Tier-3 spread Max Shot sustains every cadence slot inside its bounded entity budget', () => {
-  const cadenceFrames = 5;
+test('Tier-7 spread Max Shot sustains every cadence slot inside its bounded entity budget', () => {
+  const cadenceFrames = 4;
   const simulationEntitiesPerVolley = progression.getMaxShotSimulationEntityCount(true);
   const entityCap = progression.getMaxShotSustainedEntityFloor(true);
   const lifetime = progression.MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
@@ -82,7 +84,7 @@ test('Tier-3 spread Max Shot sustains every cadence slot inside its bounded enti
     peakEntities = Math.max(peakEntities, activeExpiryFrames.length);
   }
 
-  assert.equal(admittedVolleys, 120);
+  assert.equal(admittedVolleys, 150);
   assert.equal(simulationEntitiesPerVolley, 3);
   assert.equal(entityCap, 72);
   assert.equal(peakEntities, 72);
@@ -90,17 +92,17 @@ test('Tier-3 spread Max Shot sustains every cadence slot inside its bounded enti
   assert.equal(progression.canAdmitMaxShotVolley(70, 0, true, entityCap), false);
 });
 
-test('BIO normal and spread+Max sustain Tier-3 cadence with complete paired-lane reservations', () => {
-  const cadenceFrames = 5;
+test('BIO normal and spread+Max sustain Tier-7 cadence with complete paired-lane reservations', () => {
+  const cadenceFrames = 4;
   const lifetime = progression.MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
   const scenarios = [
-    { label: 'normal', spreadActive: false, maxShotActive: false, expectedDamage: 3 },
-    { label: 'spread+Max', spreadActive: true, maxShotActive: true, expectedDamage: 18 }
+    { label: 'normal', spreadActive: false, maxShotActive: false, expectedDamage: 4.5 },
+    { label: 'spread+Max', spreadActive: true, maxShotActive: true, expectedDamage: 27 }
   ];
 
   for (const scenario of scenarios) {
     const plan = bioPrimary.getBioPrimaryShotPlan(
-      21,
+      49,
       scenario.spreadActive,
       scenario.maxShotActive
     );
@@ -129,27 +131,29 @@ test('BIO normal and spread+Max sustain Tier-3 cadence with complete paired-lane
       peakReservations = Math.max(peakReservations, activeExpiryFrames.length);
     }
 
-    assert.equal(plan.simulationEntityCount, scenario.spreadActive ? 6 : 2);
-    assert.equal(plan.queuedEntityCount, scenario.spreadActive ? 5 : 1);
-    assert.equal(plan.totalDamage, scenario.expectedDamage);
+    assert.equal(plan.simulationEntityCount, scenario.spreadActive ? 3 : 1);
+    assert.equal(plan.queuedEntityCount, scenario.spreadActive ? 2 : 0);
+    assert.ok(Math.abs(plan.totalDamage - scenario.expectedDamage) < 1e-10);
     assert.ok(entityCap >= peakReservations);
-    assert.equal(admittedVolleys, 120);
+    assert.equal(admittedVolleys, 150);
   }
 });
 
-test('one pooled lane bundle presents exactly twice every tiered spread pattern', () => {
+test('one pooled lane bundle presents exactly twice every one-to-seven-round spread pattern', () => {
   const copies = progression.getMaxShotCopyPattern();
-  const tierPatterns = [
-    progression.buildMaxShotBundleVisualPattern([0], [0]),
-    progression.buildMaxShotBundleVisualPattern([-3.5, 3.5], [-0.02, 0.02]),
-    progression.buildMaxShotBundleVisualPattern([-6, 0, 6], [-0.03, 0, 0.03])
-  ];
+  const tierPatterns = Array.from({ length: 7 }, (_, index) => {
+    const volleySize = index + 1;
+    return progression.buildMaxShotBundleVisualPattern(
+      weaponTierBox.exports.getTightVolleyOffsets(volleySize),
+      weaponTierBox.exports.getTightVolleyAngleOffsets(volleySize)
+    );
+  });
 
   assert.equal(copies.length, 2);
-  assert.deepEqual(tierPatterns.map((pattern) => pattern.length), [2, 4, 6]);
+  assert.deepEqual(tierPatterns.map((pattern) => pattern.length), [2, 4, 6, 8, 10, 12, 14]);
   assert.deepEqual(
     tierPatterns.map((pattern) => pattern.length * progression.getMaxShotSimulationEntityCount(true)),
-    [6, 12, 18]
+    [6, 12, 18, 24, 30, 36, 42]
   );
   assert.match(rendererSource, /projectileCopies\?: Sprite\[\]/);
   assert.match(rendererSource, /ensureProjectileCopySprites\(view, visualPattern\.length\)/);

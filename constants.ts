@@ -40,6 +40,12 @@ export const ASSETS = {
     "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-11-300deg.png",
     "/game-art/generated/rsc-coin-flip-v1/frames/rsc-coin-flip-12-330deg.png"
   ],
+  // Dedicated Present Drop targets. These preserve the existing generated
+  // package artwork without routing the mechanic through asteroid assets.
+  SUPPLY_DROP_STANDARD: "/game-art/generated/research-supply-standard-05c6d35dfd79.png",
+  SUPPLY_DROP_ARMORED: "/game-art/generated/research-supply-armored-a4ab6f161a36.png",
+  SUPPLY_DROP_FAST: "/game-art/generated/research-supply-fast-e47684f06aad.png",
+  SUPPLY_DROP_GOLDEN: "/game-art/generated/research-supply-golden-de501f4a437d.png",
 
   // Real RSC Token (Clean Bottle)
   REAL_RSC_ICON: "/game-art/tokens/rsc-bottle.png",
@@ -380,7 +386,9 @@ export const GAME_CONFIG = {
   FPS: 60,
   BASE_PLAYER_SPEED: 2.5, // Reduced from 3.2 to make start heavier
   PLAYER_LIVES: 3,
-  MAX_LIVES: 15,
+  // Campaign and field upgrades share one survivability ceiling. The Hangar
+  // exposes seven permanent heart purchases on top of the three-heart base.
+  MAX_LIVES: 10,
   BASE_SPAWN_RATE: 80, // Faster spawns
   // We now use milestones, but this controls the fill speed of the bar between bosses
   WAVE_DURATION_FRAMES: 3600, 
@@ -447,6 +455,9 @@ export const getFieldUpgradeCost = (stats: Stats, type: FieldUpgradeType) => {
 
 export const getFieldUpgradeFlaskCost = (stats: Stats, type: FieldUpgradeType) => {
   const level = getFieldUpgradeLevel(stats, type);
+  if (type === 'fireRate' && level >= 21) {
+    return Math.min(35, 20 + Math.floor((level - 21) / 7) * 5);
+  }
   if (type === 'fireRate' && level >= 14) return 15;
   if (type === 'fireRate' && level >= 6) return 10;
   if (type === 'fireRate' && level >= 5) return 5;

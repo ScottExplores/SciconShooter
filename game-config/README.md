@@ -8,7 +8,7 @@
 - The campaign-level `recordCard` presentation feeds the Director preview, in-game mission record, and NFT/share SVG renderer.
 - A Mission owns its background, music cue, difficulty, score target, available power-ups, scorecard presentation, and ordered internal `waves`.
 - An internal wave owns its active duration, mission-boundary timing, threat cap, score multiplier, and ordered `events`.
-- Event kinds are `spawn`, `boss`, `asteroid-belt`, `powerup`, and `recovery`.
+- Event kinds are `spawn`, `boss`, `asteroid-belt`, `supply-drop`, `powerup`, and `recovery`.
 - JSON stores constrained catalog IDs such as `ENEMY_JOURNAL_FRAMES` or `gatekeeper`; arbitrary asset paths and executable behavior are rejected.
 - Spawn events select a reusable formation grammar: row, V, sine, pincer, grid, diamond, or spiral. The runtime owns the shared enter, assemble, dive, and return behavior.
 - `hudAssets.bombIconAssetKey` selects the bomb control artwork used by the shared real-game HUD.
@@ -22,7 +22,7 @@ Later Missions deliberately mix boss finales with bossless survival climaxes. Bl
 
 - `types.ts` defines the shared model.
 - `catalog.ts` maps safe IDs to the real assets and runtime types.
-- `generated-assets.json` is the validated, role-constrained catalog for generated enemy, boss, asteroid, HUD, player, background, and scorecard art. Generated PNG paths never appear directly in `campaign.json`.
+- `generated-assets.json` is the validated, role-constrained catalog for generated enemy, boss, asteroid, Supply Drop, HUD, player, background, and scorecard art. Generated PNG paths never appear directly in `campaign.json`.
 - `validate.ts` checks IDs, references, timing, ranges, spawn weights, weapons, and boss phase ordering.
 - `services/levelConfig.ts` validates `campaign.json` before the game can use it.
 - `services/gameLogic.ts` reads the same configuration for normal gameplay and editor previews.

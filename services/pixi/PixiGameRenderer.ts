@@ -948,6 +948,10 @@ export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
   ...ASSETS.ENEMY_SWARM_FRAMES,
   ...ASSETS.ENEMY_BRICK_FRAMES,
   ...ASSETS.ASTEROID_BELT_FRAMES,
+  ASSETS.SUPPLY_DROP_STANDARD,
+  ASSETS.SUPPLY_DROP_ARMORED,
+  ASSETS.SUPPLY_DROP_FAST,
+  ASSETS.SUPPLY_DROP_GOLDEN,
   ...ASSETS.ENEMY_JOURNAL_FRAMES,
   ...ASSETS.PAYWALL_BASTION_FRAMES,
   ...ASSETS.PIXI_JET_SCOUT_FRAMES,
@@ -1016,6 +1020,7 @@ const isEnemyType = (type: EntityType) => (
   type === EntityType.ENEMY_DRONE
   || type === EntityType.ENEMY_SWARM
   || type === EntityType.ENEMY_BRICK
+  || type === EntityType.SUPPLY_DROP
   || type === EntityType.ENEMY_JOURNAL
   || type === EntityType.ENEMY_INVADER
   || type === EntityType.MINI_BOSS
@@ -1107,6 +1112,12 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
   if (entity.type === EntityType.ENEMY_BRICK && entity.variant >= 900) {
     return getStaticAsteroidTexture(engine, entity);
   }
+  // Mini-Boss Lab animation state is resolved by the fixed-step simulation.
+  // Rendering that exact URL keeps the visible frame and its alpha mask in
+  // lockstep instead of independently guessing a frame from render timing.
+  if (entity.type === EntityType.MINI_BOSS && entity.miniBossLabEncounterId && entity.spriteUrl) {
+    return entity.spriteUrl;
+  }
   if (entity.spriteFrames?.length) {
     if (entity.type === EntityType.BOSS) {
       return entity.spriteFrames[clamp(entity.bossDecayStage, 0, entity.spriteFrames.length - 1)];
@@ -1116,6 +1127,28 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
     }
     if (isFormationMotionEnemy(entity) && entity.spriteFrames.length === 3) {
       return entity.spriteFrames[getFormationMotionFrameIndex(engine, entity)];
+    }
+    if (entity.type === EntityType.MINI_BOSS && entity.miniBossLabEncounterId) {
+      const frames = entity.spriteFrames;
+      const healthRatio = entity.maxHp > 0 ? entity.hp / entity.maxHp : 1;
+      if (frames.length >= 5) {
+        if (healthRatio <= 0.15 || entity.miniBossLabVisualState === 'death') return frames[4];
+        if (healthRatio <= 0.5 || entity.miniBossLabVisualState === 'low-health') return frames[3];
+        if (
+          entity.miniBossLabVisualState === 'charge'
+          || entity.miniBossLabVisualState === 'signature'
+          || entity.miniBossLabVisualState === 'support'
+        ) return frames[2];
+        return frames[Math.floor((engine.frameCount + entity.variant * 7) / 28) % 2];
+      }
+      if (frames.length === 3) {
+        if (
+          entity.miniBossLabVisualState === 'charge'
+          || entity.miniBossLabVisualState === 'signature'
+          || entity.miniBossLabVisualState === 'support'
+        ) return frames[2];
+        return frames[Math.floor((engine.frameCount + entity.variant * 5) / 24) % 2];
+      }
     }
     const speed = entity.type === EntityType.ENEMY_SWARM ? 5 : 6;
     return entity.spriteFrames[(Math.floor(engine.frameCount / speed) + entity.variant) % entity.spriteFrames.length];
@@ -1132,6 +1165,8 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
     case EntityType.ENEMY_BRICK: {
       return ASSETS.ENEMY_BRICK_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     }
+    case EntityType.SUPPLY_DROP:
+      return ASSETS.SUPPLY_DROP_STANDARD;
     case EntityType.ENEMY_JOURNAL:
       return ASSETS.ENEMY_JOURNAL_FRAMES[getFormationMotionFrameIndex(engine, entity)];
     case EntityType.ENEMY_INVADER:
@@ -1288,6 +1323,7 @@ export class PixiGameRenderer {
   private readonly previewBossVfxTextures = new Map<PreviewBossVfxFrameId, Texture>();
   private previewBossVfxReady = false;
   private previewBossRuntimeEntityId: string | null = null;
+  private readonly previewBossRuntimeEntityIds = new Set<string>();
   private cornerAmbushBossId: string | null = null;
   private previewDebugOverlays: PreviewDebugOverlayState = DEFAULT_PREVIEW_DEBUG_OVERLAYS;
   private previewBossReferenceComparison: PreviewBossReferenceComparisonState =
@@ -1299,7 +1335,7 @@ export class PixiGameRenderer {
 
   private isPreviewBossEntity(entity: Entity) {
     if (
-      entity.type !== EntityType.BOSS
+      (entity.type !== EntityType.BOSS && entity.type !== EntityType.MINI_BOSS)
       || !entity.sourceEventId
       || entity.sourceEventId !== this.previewBossArtwork?.eventId
     ) {
@@ -1322,6 +1358,7 @@ export class PixiGameRenderer {
   private getPreviewBossArtwork(entity: Entity): PreviewBossArtwork | undefined {
     if (
       (!this.previewBossArtworkReady && !this.modularPreviewBossReady)
+      || entity.type !== EntityType.BOSS
       || !this.isPreviewBossEntity(entity)
     ) {
       return undefined;
@@ -2738,19 +2775,51 @@ export class PixiGameRenderer {
     view.health.clear();
     view.label.text = '';
 
-    const width = entity.isElite ? clamp(entity.width * 0.86, 42, 92) : entity.width;
+    const width = entity.type === EntityType.MINI_BOSS && entity.miniBossLabHealthBarWidth
+      ? clamp(entity.miniBossLabHealthBarWidth, 54, 126)
+      : entity.isElite
+        ? clamp(entity.width * 0.86, 42, 92)
+        : entity.width;
     const y = -entity.height * 0.5 - (entity.isElite ? 12 : 18);
+    const drawY = entity.type === EntityType.MINI_BOSS ? 0 : y;
     const progress = clamp(entity.hp / Math.max(1, entity.maxHp), 0, 1);
-    view.health.roundRect(-width / 2, y, width, 8, 4).fill({ color: '#020617', alpha: 0.94 });
-    view.health.roundRect(-width / 2 + 1, y + 1, Math.max(0, (width - 2) * progress), 6, 3)
+    view.health.roundRect(-width / 2, drawY, width, 8, 4).fill({ color: '#020617', alpha: 0.94 });
+    view.health.roundRect(-width / 2 + 1, drawY + 1, Math.max(0, (width - 2) * progress), 6, 3)
       .fill(progress > 0.55 ? '#34d399' : progress > 0.25 ? '#facc15' : '#fb7185');
-    view.health.roundRect(-width / 2, y, width, 8, 4).stroke({ color: '#bae6fd', width: 1, alpha: 0.75 });
+    view.health.roundRect(-width / 2, drawY, width, 8, 4).stroke({ color: '#bae6fd', width: 1, alpha: 0.75 });
 
     if (entity.type === EntityType.MINI_BOSS) {
-      view.label.text = 'BOTTLENECK DRONE';
+      view.label.text = entity.text?.trim()
+        || entity.sourceItemId?.replace(/[-_]+/g, ' ').toUpperCase()
+        || 'MINI-BOSS';
       view.label.style.fill = '#fda4af';
-      view.label.position.set(0, y - 13);
+      view.label.position.set(0, 0);
     }
+  }
+
+  private alignMiniBossHealthOverlay(view: EntityView, entity: Entity) {
+    const rotation = view.root.rotation;
+    const rootScaleX = Math.max(0.001, Math.abs(view.root.scale.x));
+    const rootScaleY = Math.max(0.001, Math.abs(view.root.scale.y));
+    const rotatedHalfHeight = (
+      Math.abs(Math.sin(rotation)) * entity.width
+      + Math.abs(Math.cos(rotation)) * entity.height
+    ) * 0.5;
+    const barOffsetY = -rotatedHalfHeight - 18;
+    const inverseRotation = -rotation;
+    const inverseScaleX = 1 / rootScaleX;
+    const inverseScaleY = 1 / rootScaleY;
+    const placeUpright = (displayObject: Graphics | Text, offsetY: number) => {
+      displayObject.position.set(
+        Math.sin(rotation) * offsetY * inverseScaleX,
+        Math.cos(rotation) * offsetY * inverseScaleY
+      );
+      displayObject.rotation = inverseRotation;
+      displayObject.scale.set(inverseScaleX, inverseScaleY);
+    };
+
+    placeUpright(view.health, barOffsetY);
+    placeUpright(view.label, barOffsetY - 13);
   }
 
   private drawFallbackBody(view: EntityView, entity: Entity) {
@@ -2786,7 +2855,7 @@ export class PixiGameRenderer {
     if (
       !this.modularPreviewBossReady
       || !entity.bossOwnerId
-      || entity.bossOwnerId !== this.previewBossRuntimeEntityId
+      || !this.previewBossRuntimeEntityIds.has(entity.bossOwnerId)
       || (!allowBeam && entity.isBeam)
     ) {
       return undefined;
@@ -2845,7 +2914,7 @@ export class PixiGameRenderer {
     }
     if (
       !entity.bossOwnerId
-      || entity.bossOwnerId !== this.previewBossRuntimeEntityId
+      || !this.previewBossRuntimeEntityIds.has(entity.bossOwnerId)
     ) {
       return undefined;
     }
@@ -2886,7 +2955,7 @@ export class PixiGameRenderer {
     if (
       !this.previewBossVfxReady
       || !entity.bossOwnerId
-      || entity.bossOwnerId !== this.previewBossRuntimeEntityId
+      || !this.previewBossRuntimeEntityIds.has(entity.bossOwnerId)
       || entity.isBeam
     ) {
       return undefined;
@@ -3104,11 +3173,11 @@ export class PixiGameRenderer {
           true
         );
         const beamTexture = modularBeam?.texture ?? (
-          entity.bossOwnerId === this.previewBossRuntimeEntityId
+          Boolean(entity.bossOwnerId && this.previewBossRuntimeEntityIds.has(entity.bossOwnerId))
             ? this.getPreviewBossVfxTexture('beamLive')
             : undefined
         );
-        const impactTexture = entity.bossOwnerId === this.previewBossRuntimeEntityId
+        const impactTexture = entity.bossOwnerId && this.previewBossRuntimeEntityIds.has(entity.bossOwnerId)
           ? this.getPreviewBossVfxTexture('beamImpact')
           : undefined;
         if (beamTexture) {
@@ -5763,7 +5832,7 @@ export class PixiGameRenderer {
     }
     if (entity.flashFrames <= 0) return;
     const alpha = clamp(entity.flashFrames / 10, 0.15, 0.74);
-    if (entity.type === EntityType.ENEMY_BRICK) {
+    if (entity.type === EntityType.ENEMY_BRICK || entity.type === EntityType.SUPPLY_DROP) {
       view.flash.roundRect(-entity.width * 0.34, -entity.height * 0.34, entity.width * 0.68, entity.height * 0.68, 7)
         .fill({ color: '#ffffff', alpha });
     } else {
@@ -5858,8 +5927,44 @@ export class PixiGameRenderer {
         view.sprite.visible = !modularPreviewReady;
       }
     } else if (entity.type === EntityType.MINI_BOSS) {
-      view.sprite.y = Math.sin(engine.frameCount * 0.08) * 4;
-      view.root.rotation = Math.sin(engine.frameCount * 0.025) * 0.035;
+      const state = entity.miniBossLabVisualState;
+      const phase = engine.frameCount + entity.variant * 11;
+      const pulse = (Math.sin(phase * 0.12) + 1) * 0.5;
+
+      // The simulation already owns this entity's center, dimensions, and
+      // bank angle. Keep the visible structural pixels on that exact geometry:
+      // no renderer-only bob, jitter, rotation, or scale may move the sprite
+      // away from its alpha-mask collision silhouette.
+      view.aura.clear();
+      view.sprite.position.set(0, 0);
+      view.root.rotation = entity.bossPresentationBankRadians;
+      view.root.scale.set(1);
+      view.sprite.alpha = 0.97 + pulse * 0.03;
+      if (state === 'charge') {
+        view.sprite.tint = '#dbeafe';
+        view.sprite.alpha = 0.9 + pulse * 0.1;
+      } else if (state === 'signature') {
+        view.sprite.tint = '#ecfeff';
+        view.sprite.alpha = 0.94 + pulse * 0.06;
+      } else if (state === 'support') {
+        view.sprite.tint = '#f0fdfa';
+        view.sprite.alpha = 0.95 + pulse * 0.05;
+      } else if (state === 'low-health') {
+        view.sprite.tint = '#ffe4e6';
+        view.sprite.alpha = 0.9 + pulse * 0.1;
+      } else if (state === 'hit') {
+        view.sprite.tint = '#e0f2fe';
+        view.sprite.alpha = 0.88;
+      }
+      if (entity.miniBossLabShielded && entity.hp > 0) {
+        const shieldPulse = 0.72 + Math.sin(phase * 0.11) * 0.14;
+        view.aura
+          .ellipse(0, 0, entity.width * 0.64, entity.height * 0.61)
+          .fill({ color: '#22d3ee', alpha: 0.075 * shieldPulse });
+        view.aura
+          .ellipse(0, 0, entity.width * 0.7, entity.height * 0.67)
+          .stroke({ color: '#67e8f9', width: 2, alpha: shieldPulse });
+      }
     } else if (entity.type === EntityType.ENEMY_DRONE) {
       view.root.rotation = entity.formation === 'spiral'
         ? Math.PI / 2 + entity.angle
@@ -5873,6 +5978,10 @@ export class PixiGameRenderer {
       if (entity.variant < 900) {
         view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.03) * 0.2;
       }
+    } else if (entity.type === EntityType.SUPPLY_DROP) {
+      const pulse = 1 + Math.sin((engine.frameCount + entity.variant) * 0.065) * 0.035;
+      view.root.scale.set(pulse);
+      view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.025) * 0.035;
     } else if (entity.type === EntityType.ENEMY_JOURNAL || entity.type === EntityType.ENEMY_INVADER) {
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.05) * 0.09;
     } else if (entity.type === EntityType.COIN) {
@@ -5906,8 +6015,20 @@ export class PixiGameRenderer {
         .stroke({ color: '#c4b5fd', width: 2, alpha: pulse });
     }
 
-    if (entity.type === EntityType.MINI_BOSS || entity.isElite) {
+    if (
+      entity.type === EntityType.MINI_BOSS
+        ? engine.compactMiniBossHealthBarsVisible
+          && entity.miniBossLabShowHealthBar
+          && entity.hp > 0
+        : entity.isElite
+    ) {
       this.drawHealthBar(view, entity);
+      if (entity.type === EntityType.MINI_BOSS) {
+        this.alignMiniBossHealthOverlay(view, entity);
+      }
+    } else if (entity.type === EntityType.MINI_BOSS) {
+      view.health.clear();
+      view.label.text = '';
     } else if (entity.type === EntityType.BOSS) {
       view.health.clear();
       view.label.text = '';
@@ -5935,14 +6056,21 @@ export class PixiGameRenderer {
 
   private syncEntities(engine: GameEngine) {
     const entities = engine.entities;
-    this.previewBossRuntimeEntityId = (
+    const tracksPreviewBosses = (
       this.previewBossArtworkReady
       || this.previewBossAtlasReady
       || this.modularPreviewBossReady
       || this.previewBossVfxReady
-    )
-      ? entities.find((entity) => this.isPreviewBossEntity(entity))?.id ?? null
-      : null;
+    );
+    this.previewBossRuntimeEntityIds.clear();
+    if (tracksPreviewBosses) {
+      for (const entity of entities) {
+        if (!entity.markedForDeletion && this.isPreviewBossEntity(entity)) {
+          this.previewBossRuntimeEntityIds.add(entity.id);
+        }
+      }
+    }
+    this.previewBossRuntimeEntityId = this.previewBossRuntimeEntityIds.values().next().value ?? null;
     for (const entity of entities) {
       if (entity.markedForDeletion) continue;
       let view = this.views.get(entity.id);
@@ -6680,6 +6808,7 @@ export class PixiGameRenderer {
     this.textureBank.destroy();
     this.articulatedBossRigLoads.clear();
     this.previewBossRuntimeEntityId = null;
+    this.previewBossRuntimeEntityIds.clear();
     this.cornerAmbushBossId = null;
     this.views.clear();
     this.recycledViews.clear();

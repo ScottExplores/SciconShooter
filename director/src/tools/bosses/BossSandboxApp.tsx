@@ -30,18 +30,25 @@ import {
 } from '@director/api/directorClient';
 import {
   BOSS_SANDBOX_VERSION,
+  BOSS_SANDBOX_CATEGORIES,
+  BOSS_SANDBOX_HOST_MODES,
   BOSS_SANDBOX_VIEWPORTS,
+  DEFAULT_BOSS_SANDBOX_CATEGORY_ID,
   buildBossSandboxGroups,
   buildBossSandboxPreview,
   createSandboxOnlyBossArtwork,
+  filterBossSandboxGroups,
   getBossSandboxEventId,
   getBossSandboxAttacks,
   getBossSandboxChoiceOptionLabel,
   getBossSandboxPerformingAttackId,
+  getBossSandboxSelectorLabel,
   getSandboxBossArtworkRegistration,
   getBossSandboxPhases,
   isSandboxBossPrototypePreview,
   resolveBossSandboxFitScale,
+  type BossSandboxCategory,
+  type BossSandboxHostMode,
   type BossSandboxChoice
 } from './bossSandboxModel';
 import {
@@ -84,6 +91,10 @@ const getBossChoiceArtworkUrl = (
   campaign: GameCampaignConfig,
   choice: BossSandboxChoice
 ): string | null => {
+  if (choice.artworkUrl) return choice.artworkUrl;
+  if (choice.artworkAssetId) {
+    return ASSET_CATALOG[choice.artworkAssetId]?.paths[0] ?? null;
+  }
   const registration = getSandboxBossArtworkRegistration(choice.prototypeId);
   if (registration) return registration.assembled.url;
 
@@ -161,9 +172,16 @@ function SandboxCompanionControl({
 }
 
 function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
-  const groups = useMemo(
+  const allGroups = useMemo(
     () => buildBossSandboxGroups(initialState.campaign),
     [initialState.campaign]
+  );
+  const [categoryId, setCategoryId] = useState<BossSandboxCategory['id']>(
+    DEFAULT_BOSS_SANDBOX_CATEGORY_ID
+  );
+  const groups = useMemo(
+    () => filterBossSandboxGroups(allGroups, categoryId),
+    [allGroups, categoryId]
   );
   const choices = useMemo(
     () => groups.flatMap((group) => group.choices),
@@ -198,6 +216,11 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
   const [attackLoopEnabled, setAttackLoopEnabled] = useState(false);
+  const [signatureLoopEnabled, setSignatureLoopEnabled] = useState(false);
+  const [miniBossShieldEnabled, setMiniBossShieldEnabled] = useState(true);
+  const [compactHealthBarsEnabled, setCompactHealthBarsEnabled] = useState(true);
+  const [wallSide, setWallSide] = useState<'left' | 'right'>('left');
+  const [hostMode, setHostMode] = useState<BossSandboxHostMode>('mobile-shell');
   const [previewSnapshot, setPreviewSnapshot] = useState<PreviewSnapshot | null>(null);
   const [previewTimeScale, setPreviewTimeScale] = useState(1);
   const [debugOverlays, setDebugOverlays] = useState<PreviewDebugOverlayState>(
@@ -344,7 +367,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     previewHostSize,
     previewViewport,
     0,
-    Number.POSITIVE_INFINITY
+    hostMode === 'mobile-shell' ? 1 : Number.POSITIVE_INFINITY
   );
   const previewCanMount = !artworkRegistration || previewArtworkStatus !== 'checking';
   const phases = useMemo(
@@ -395,6 +418,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     setSelectedPhaseId(null);
     setSelectedAttackId(null);
     setAttackLoopEnabled(false);
+    setSignatureLoopEnabled(false);
     setPreviewSnapshot(null);
     setRestartToken((value) => value + 1);
     setNotice('Boss restarted');
@@ -479,6 +503,74 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     sendCommand({ type: 'set-boss-health', eventId, healthRatio });
     setNotice(`Boss health set to ${Math.round(healthRatio * 100)}%`);
   }, [eventId, sendCommand]);
+
+  const toggleMiniBossSignatureLoop = useCallback(() => {
+    if (!eventId) return;
+    const enabled = !signatureLoopEnabled;
+    setSignatureLoopEnabled(enabled);
+    sendCommand({ type: 'set-mini-boss-signature-loop', eventId, enabled });
+    setPlaying(true);
+    setNotice(enabled ? 'Signature maneuver loop enabled' : 'Signature maneuver loop disabled');
+  }, [eventId, sendCommand, signatureLoopEnabled]);
+
+  const triggerMiniBossSupport = useCallback(() => {
+    if (!eventId) return;
+    sendCommand({ type: 'trigger-mini-boss-support', eventId });
+    setPlaying(true);
+    setNotice('Supporting behavior triggered');
+  }, [eventId, sendCommand]);
+
+  const triggerMiniBossLowHealth = useCallback(() => {
+    if (!eventId) return;
+    sendCommand({ type: 'set-mini-boss-low-health', eventId });
+    setNotice('Low-health presentation triggered');
+  }, [eventId, sendCommand]);
+
+  const triggerMiniBossHit = useCallback(() => {
+    if (!eventId) return;
+    sendCommand({ type: 'trigger-mini-boss-hit', eventId });
+    setNotice('Hit reaction triggered');
+  }, [eventId, sendCommand]);
+
+  const triggerMiniBossDeath = useCallback(() => {
+    if (!eventId) return;
+    sendCommand({ type: 'trigger-mini-boss-death', eventId });
+    setNotice('Death cleanup sequence triggered');
+  }, [eventId, sendCommand]);
+
+  const destroyMiniBossUnit = useCallback(() => {
+    if (!eventId) return;
+    sendCommand({ type: 'destroy-mini-boss-unit', eventId });
+    setNotice('One linked unit destroyed');
+  }, [eventId, sendCommand]);
+
+  const destroyMiniBossGuardians = useCallback(() => {
+    if (!eventId) return;
+    sendCommand({ type: 'destroy-mini-boss-guardians', eventId });
+    setNotice('Guardians destroyed for vulnerability test');
+  }, [eventId, sendCommand]);
+
+  const toggleMiniBossShield = useCallback(() => {
+    if (!eventId) return;
+    const enabled = !miniBossShieldEnabled;
+    setMiniBossShieldEnabled(enabled);
+    sendCommand({ type: 'set-mini-boss-shield', eventId, enabled });
+    setNotice(`Mini-boss shield ${enabled ? 'enabled' : 'disabled'}`);
+  }, [eventId, miniBossShieldEnabled, sendCommand]);
+
+  const changeMiniBossWallSide = useCallback((side: 'left' | 'right') => {
+    if (!eventId) return;
+    setWallSide(side);
+    sendCommand({ type: 'set-mini-boss-wall-side', eventId, side });
+    setNotice(`Wall encounter moved to the ${side} edge`);
+  }, [eventId, sendCommand]);
+
+  const toggleCompactHealthBars = useCallback(() => {
+    const enabled = !compactHealthBarsEnabled;
+    setCompactHealthBarsEnabled(enabled);
+    sendCommand({ type: 'set-compact-health-bars', enabled });
+    setNotice(`Compact health bars ${enabled ? 'shown' : 'hidden'}`);
+  }, [compactHealthBarsEnabled, sendCommand]);
 
   const changeBossMaxHealth = useCallback((maxHealth: number) => {
     if (!eventId) return;
@@ -616,6 +708,10 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     setSelectedPhaseId(null);
     setSelectedAttackId(null);
     setAttackLoopEnabled(false);
+    setSignatureLoopEnabled(false);
+    setMiniBossShieldEnabled(true);
+    setCompactHealthBarsEnabled(true);
+    setWallSide('left');
     setPreviewTimeScale(1);
     setDebugOverlays(DEFAULT_PREVIEW_DEBUG_OVERLAYS);
     setReferenceComparison(DEFAULT_PREVIEW_BOSS_REFERENCE_COMPARISON);
@@ -624,6 +720,15 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     setRestartToken((value) => value + 1);
     setNotice('Loaded a fresh isolated boss fight');
   }, [choices, selectedChoiceId]);
+
+  const selectCategory = useCallback((nextCategoryId: BossSandboxCategory['id']) => {
+    setCategoryId(nextCategoryId);
+    const nextChoices = filterBossSandboxGroups(allGroups, nextCategoryId)
+      .flatMap((group) => group.choices);
+    if (!nextChoices.some((choice) => choice.id === selectedChoiceId) && nextChoices[0]) {
+      selectBoss(nextChoices[0].id);
+    }
+  }, [allGroups, selectBoss, selectedChoiceId]);
 
   if (!selectedChoice || !preview) {
     return <div className="boss-sandbox boss-sandbox--state">No configured bosses are available.</div>;
@@ -649,9 +754,21 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
       <main className="boss-sandbox__main">
         <aside className="boss-sandbox__picker">
           <div>
-            <p>Boss to test</p>
+            <nav className="boss-sandbox__categories" aria-label="Encounter categories">
+              {BOSS_SANDBOX_CATEGORIES.map((category) => (
+                <button
+                  type="button"
+                  key={category.id}
+                  aria-pressed={categoryId === category.id}
+                  onClick={() => selectCategory(category.id)}
+                >
+                  {category.label}
+                </button>
+              ))}
+            </nav>
+            <p>{getBossSandboxSelectorLabel(categoryId)}</p>
             <select
-              aria-label="Boss to test"
+              aria-label={getBossSandboxSelectorLabel(categoryId)}
               value={selectedChoice.id}
               onChange={(event) => selectBoss(event.target.value)}
             >
@@ -717,13 +834,57 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
               ) : null}
             </div>
             <span data-source={selectedChoice.source}>
-              {selectedChoice.source === 'campaign'
+              {selectedChoice.miniBoss
+                ? 'CAMPAIGN MINI-BOSS'
+                : selectedChoice.source === 'campaign'
                 ? 'MAIN GAME'
                 : 'TEST ONLY'}
             </span>
             <h1>{selectedChoice.bossLabel}</h1>
             <p>{selectedChoice.missionLabel}</p>
             <small>{selectedChoice.waveLabel}</small>
+            {selectedChoice.miniBoss ? (
+              <div className="boss-sandbox__encounter-details">
+                <div className="boss-sandbox__category-chips" aria-label="Encounter categories">
+                  {selectedChoice.miniBoss.categories.map((encounterCategoryId) => (
+                    <span key={encounterCategoryId}>
+                      {BOSS_SANDBOX_CATEGORIES.find((category) => (
+                        category.id === encounterCategoryId
+                      ))?.label}
+                    </span>
+                  ))}
+                </div>
+                <dl>
+                  <div>
+                    <dt>Encounter ID</dt>
+                    <dd>{selectedChoice.miniBoss.encounterId}</dd>
+                  </div>
+                  <div>
+                    <dt>Expected fight</dt>
+                    <dd>{selectedChoice.miniBoss.expectedDurationSeconds}s</dd>
+                  </div>
+                  <div>
+                    <dt>Signature</dt>
+                    <dd>{selectedChoice.miniBoss.signatureManeuver}</dd>
+                  </div>
+                  <div>
+                    <dt>Support</dt>
+                    <dd>{selectedChoice.miniBoss.supportingBehavior}</dd>
+                  </div>
+                  <div>
+                    <dt>Linked units</dt>
+                    <dd>{selectedChoice.miniBoss.linkedUnitCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Assets</dt>
+                    <dd>Approved and bound by stable ID</dd>
+                  </div>
+                </dl>
+                <p className="boss-sandbox__test-only-note">
+                  Campaign-assigned | Sandbox preview ready
+                </p>
+              </div>
+            ) : null}
             {artworkRegistration ? (
               <p
                 className={`boss-sandbox__art-status is-${previewArtworkStatus}`}
@@ -743,7 +904,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
               Restart
             </button>
             <button type="button" onClick={spawnBoss}>
-              Spawn boss
+              {selectedChoice.miniBoss ? 'Spawn encounter' : 'Spawn boss'}
             </button>
             <button
               type="button"
@@ -758,6 +919,98 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
             </button>
           </div>
 
+          {selectedChoice.miniBoss ? (
+            <section className="boss-sandbox__mini-lab" aria-label="Mini-Boss Lab controls">
+              <span>Mini-Boss Lab</span>
+              <div className="boss-sandbox__mini-lab-grid">
+                <button
+                  type="button"
+                  aria-pressed={signatureLoopEnabled}
+                  className={signatureLoopEnabled ? 'is-active' : ''}
+                  onClick={toggleMiniBossSignatureLoop}
+                >
+                  {signatureLoopEnabled ? 'Signature loop on' : 'Loop signature'}
+                </button>
+                <button type="button" onClick={triggerMiniBossSupport}>
+                  Support behavior
+                </button>
+                <button type="button" onClick={triggerMiniBossHit}>Trigger hit</button>
+                <button type="button" onClick={triggerMiniBossLowHealth}>Low health</button>
+                <button type="button" onClick={triggerMiniBossDeath}>Trigger death</button>
+                <button
+                  type="button"
+                  aria-pressed={compactHealthBarsEnabled}
+                  className={compactHealthBarsEnabled ? 'is-active' : ''}
+                  onClick={toggleCompactHealthBars}
+                >
+                  Compact bars
+                </button>
+                {[1, 0.5, 0.15].map((healthRatio) => (
+                  <button
+                    type="button"
+                    key={healthRatio}
+                    onClick={() => changeBossHealth(healthRatio)}
+                  >
+                    Health {Math.round(healthRatio * 100)}%
+                  </button>
+                ))}
+                {selectedChoice.categories.includes('paired-encounters') ? (
+                  <button type="button" onClick={destroyMiniBossUnit}>
+                    Destroy one unit
+                  </button>
+                ) : null}
+                {selectedChoice.categories.includes('guardian-formations') ? (
+                  <>
+                    <button type="button" onClick={destroyMiniBossGuardians}>
+                      Destroy guardians
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={miniBossShieldEnabled}
+                      className={miniBossShieldEnabled ? 'is-active' : ''}
+                      onClick={toggleMiniBossShield}
+                    >
+                      {miniBossShieldEnabled ? 'Shield on' : 'Shield off'}
+                    </button>
+                  </>
+                ) : null}
+              </div>
+              {selectedChoice.categories.includes('wall-encounters') ? (
+                <div className="boss-sandbox__mini-lab-segment" role="group" aria-label="Wall side">
+                  <span>Wall</span>
+                  {(['left', 'right'] as const).map((side) => (
+                    <button
+                      type="button"
+                      key={side}
+                      aria-pressed={wallSide === side}
+                      className={wallSide === side ? 'is-active' : ''}
+                      onClick={() => changeMiniBossWallSide(side)}
+                    >
+                      {side === 'left' ? 'Left' : 'Right'}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="boss-sandbox__mini-lab-segment" role="group" aria-label="Preview host">
+                <span>Host</span>
+                {BOSS_SANDBOX_HOST_MODES.map((mode) => (
+                  <button
+                    type="button"
+                    key={mode.id}
+                    aria-pressed={hostMode === mode.id}
+                    className={hostMode === mode.id ? 'is-active' : ''}
+                    onClick={() => setHostMode(mode.id)}
+                    title="The gameplay arena remains the canonical 390 by 844 mobile field"
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {!selectedChoice.miniBoss ? (
+            <>
           <nav className="boss-sandbox__attacks" aria-label="Boss attacks">
             <span>Start attack</span>
             {previewSnapshot?.boss?.activeAttack ? (
@@ -831,6 +1084,8 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
               ))}
             </nav>
           ) : null}
+            </>
+          ) : null}
 
           <BossFactoryDebugPanel
             playing={playing}
@@ -874,7 +1129,11 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
         </aside>
 
         <section className="boss-sandbox__play" aria-label="Live mobile boss preview">
-          <div className="boss-sandbox__stage" ref={previewHostRef}>
+          <div
+            className="boss-sandbox__stage"
+            data-host-mode={hostMode}
+            ref={previewHostRef}
+          >
             {previewCanMount ? (
               <div
                 className="boss-sandbox__viewport-scale-box"
@@ -1021,14 +1280,16 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
                 onChange={(selection) => updateCompanion('right', selection)}
               />
           </section>
-          <BossHealthTuningPanel
-            boss={previewSnapshot?.boss ?? null}
-            onBossHealthRatioChange={changeBossHealth}
-            onBossMaxHealthChange={changeBossMaxHealth}
-            onComponentMaxHealthChange={changeBossComponentMaxHealth}
-            onBossInvincibilityChange={changeBossHullInvincibility}
-            onComponentInvincibilityChange={changeBossComponentInvincibility}
-          />
+          {!selectedChoice.miniBoss ? (
+            <BossHealthTuningPanel
+              boss={previewSnapshot?.boss ?? null}
+              onBossHealthRatioChange={changeBossHealth}
+              onBossMaxHealthChange={changeBossMaxHealth}
+              onComponentMaxHealthChange={changeBossComponentMaxHealth}
+              onBossInvincibilityChange={changeBossHullInvincibility}
+              onComponentInvincibilityChange={changeBossComponentInvincibility}
+            />
+          ) : null}
           {selectedChoice.prototypeId === 'prism-moth-brood' ? (
             <details className="boss-sandbox__prism-tuning">
               <summary>Prism attack tuning</summary>

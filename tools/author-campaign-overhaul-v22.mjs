@@ -23,25 +23,25 @@ const allMiniBosses = allEvents.filter((event) => (
 ));
 
 const roleSeed = [
-  ['role-orbit-scout', 'Orbit Scout', 'drone', 'LEGACY_ENEMY_DRONE_FRAMES', 'formation-unit', 1, 1, 1, 'light', 'none', 'formation', 0, 14, 1],
-  ['role-research-drone', 'Research Drone', 'drone', 'ENEMY_DRONE_FRAMES', 'shooter', 2, 1, 1, 'standard', 'post-formation', 'formation', 1, 10, 1],
-  ['role-citation-swarm', 'Citation Swarm', 'swarm', 'ENEMY_SWARM_FRAMES', 'diver', 1, 1, 2, 'light', 'none', 'dive', 0, 14, 1],
-  ['role-jet-scout', 'Jet Scout', 'drone', 'PIXI_JET_SCOUT_FRAMES', 'flanker', 2, 1, 3, 'standard', 'post-formation', 'flank', 1, 10, 1],
-  ['role-jet-interceptor', 'Jet Interceptor', 'swarm', 'PIXI_JET_INTERCEPTOR_FRAMES', 'burst-shooter', 3, 1, 3, 'standard', 'aimed-burst', 'flank', 1, 8, 2],
-  ['role-jet-heavy', 'Jet Heavy', 'brick', 'PIXI_JET_HEAVY_FRAMES', 'armored-unit', 5, 1, 4, 'armored', 'post-formation', 'lane', 2, 5, 3],
-  ['role-journal-priority', 'Journal Priority', 'journal', 'ENEMY_JOURNAL_FRAMES', 'priority-target', 4, 1, 4, 'standard', 'aimed-burst', 'formation', 2, 6, 2],
-  ['role-dna-conductor', 'DNA Conductor', 'journal', 'CAMPAIGN_ENEMY_DNA_CONDUCTOR', 'support-unit', 5, 2, 1, 'elite', 'post-formation', 'formation', 2, 4, 3],
-  ['role-laser-stalker', 'Laser Stalker', 'drone', 'CAMPAIGN_ENEMY_LASER_STALKER', 'suppressor', 4, 2, 1, 'standard', 'aimed-burst', 'lane', 2, 5, 3],
-  ['role-orbit-disc', 'Orbit Disc', 'swarm', 'CAMPAIGN_ENEMY_ORBIT_DISC', 'flanker', 3, 2, 1, 'standard', 'post-formation', 'flank', 1, 8, 2],
-  ['role-wall-sniper-left', 'Port Wall Sniper', 'drone', 'CAMPAIGN_ENEMY_WALL_SNIPER_LEFT', 'shooter', 4, 2, 2, 'standard', 'aimed-burst', 'lane', 2, 4, 2],
-  ['role-wall-sniper-right', 'Starboard Wall Sniper', 'drone', 'CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT', 'shooter', 4, 2, 2, 'standard', 'aimed-burst', 'lane', 2, 4, 2],
-  ['role-laser-hunter', 'Laser Hunter', 'journal', 'CAMPAIGN_ENEMY_LASER_HUNTER', 'priority-target', 5, 2, 2, 'elite', 'aimed-burst', 'formation', 2, 3, 3],
-  ['role-dark-sentinel', 'Dark Asteroid Sentinel', 'brick', 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL', 'armored-unit', 6, 2, 3, 'armored', 'post-formation', 'lane', 2, 4, 3],
-  ['role-crescent-minelayer', 'Crescent Minelayer', 'journal', 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER', 'support-unit', 5, 2, 3, 'standard', 'post-formation', 'flank', 2, 4, 3],
-  ['role-shield-rammer', 'Shield Rammer', 'brick', 'CAMPAIGN_ENEMY_SHIELD_RAMMER', 'armored-unit', 6, 2, 3, 'armored', 'none', 'dive', 2, 4, 3],
-  ['role-prism-artillery', 'Prism Artillery', 'journal', 'CAMPAIGN_ENEMY_PRISM_ARTILLERY', 'suppressor', 6, 2, 4, 'elite', 'aimed-burst', 'formation', 2, 3, 4],
-  ['role-ring-sentinel', 'Ring Sentinel', 'brick', 'CAMPAIGN_ENEMY_RING_SENTINEL', 'formation-leader', 6, 2, 4, 'elite', 'post-formation', 'formation', 2, 3, 4],
-  ['role-ring-emitter', 'Bullet Ring Emitter', 'journal', 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER', 'suppressor', 7, 2, 4, 'elite', 'aimed-burst', 'formation', 3, 3, 4]
+  ['role-orbit-scout', 'Orbit Scout', 'drone', 'LEGACY_ENEMY_DRONE_FRAMES', 'formation-unit', 1, 1, 1, 'light', 'none', 0, 'formation', 0, 14, 1],
+  ['role-research-drone', 'Research Drone', 'drone', 'ENEMY_DRONE_FRAMES', 'shooter', 2, 1, 1, 'standard', 'post-formation', 2.4, 'formation', 1, 10, 1],
+  ['role-citation-swarm', 'Citation Swarm', 'swarm', 'ENEMY_SWARM_FRAMES', 'diver', 1, 1, 2, 'light', 'none', 0, 'dive', 0, 14, 1],
+  ['role-jet-scout', 'Jet Scout', 'drone', 'PIXI_JET_SCOUT_FRAMES', 'flanker', 2, 1, 3, 'standard', 'post-formation', 2.2, 'flank', 1, 10, 1],
+  ['role-jet-interceptor', 'Jet Interceptor', 'swarm', 'PIXI_JET_INTERCEPTOR_FRAMES', 'burst-shooter', 3, 1, 3, 'standard', 'aimed-burst', 2.6, 'flank', 1, 8, 2],
+  ['role-jet-heavy', 'Jet Heavy', 'brick', 'PIXI_JET_HEAVY_FRAMES', 'armored-unit', 5, 1, 4, 'armored', 'post-formation', 2.4, 'lane', 2, 5, 3],
+  ['role-journal-priority', 'Journal Priority', 'journal', 'ENEMY_JOURNAL_FRAMES', 'priority-target', 4, 1, 4, 'standard', 'aimed-burst', 2.8, 'formation', 2, 6, 2],
+  ['role-dna-conductor', 'DNA Conductor', 'journal', 'CAMPAIGN_ENEMY_DNA_CONDUCTOR', 'support-unit', 5, 2, 1, 'elite', 'post-formation', 2, 'formation', 2, 4, 3],
+  ['role-laser-stalker', 'Laser Stalker', 'drone', 'CAMPAIGN_ENEMY_LASER_STALKER', 'suppressor', 4, 2, 1, 'standard', 'aimed-burst', 2.4, 'lane', 2, 5, 3],
+  ['role-orbit-disc', 'Orbit Disc', 'swarm', 'CAMPAIGN_ENEMY_ORBIT_DISC', 'flanker', 3, 2, 1, 'standard', 'post-formation', 2, 'flank', 1, 8, 2],
+  ['role-wall-sniper-left', 'Port Wall Sniper', 'drone', 'CAMPAIGN_ENEMY_WALL_SNIPER_LEFT', 'shooter', 4, 2, 2, 'standard', 'aimed-burst', 2.6, 'lane', 2, 4, 2],
+  ['role-wall-sniper-right', 'Starboard Wall Sniper', 'drone', 'CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT', 'shooter', 4, 2, 2, 'standard', 'aimed-burst', 2.6, 'lane', 2, 4, 2],
+  ['role-laser-hunter', 'Laser Hunter', 'journal', 'CAMPAIGN_ENEMY_LASER_HUNTER', 'priority-target', 5, 2, 2, 'elite', 'aimed-burst', 2.4, 'formation', 2, 3, 3],
+  ['role-dark-sentinel', 'Dark Asteroid Sentinel', 'brick', 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL', 'armored-unit', 6, 2, 3, 'armored', 'post-formation', 2.2, 'lane', 2, 4, 3],
+  ['role-crescent-minelayer', 'Crescent Minelayer', 'journal', 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER', 'support-unit', 5, 2, 3, 'standard', 'post-formation', 2.2, 'flank', 2, 4, 3],
+  ['role-shield-rammer', 'Shield Rammer', 'brick', 'CAMPAIGN_ENEMY_SHIELD_RAMMER', 'armored-unit', 6, 2, 3, 'armored', 'none', 0, 'dive', 2, 4, 3],
+  ['role-prism-artillery', 'Prism Artillery', 'journal', 'CAMPAIGN_ENEMY_PRISM_ARTILLERY', 'suppressor', 6, 2, 4, 'elite', 'aimed-burst', 2.6, 'formation', 2, 3, 4],
+  ['role-ring-sentinel', 'Ring Sentinel', 'brick', 'CAMPAIGN_ENEMY_RING_SENTINEL', 'formation-leader', 6, 2, 4, 'elite', 'formation-command', 1.8, 'formation', 2, 3, 4],
+  ['role-ring-emitter', 'Bullet Ring Emitter', 'journal', 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER', 'suppressor', 7, 2, 4, 'elite', 'elite-only', 2.4, 'formation', 3, 3, 4]
 ];
 
 const packs = [
@@ -71,7 +71,7 @@ const formationPacks = packs.map(([
 
 const enemyRoles = roleSeed.map(([
   id, label, enemyId, spriteKey, role, threatCost, introductionSector,
-  introductionMission, durabilityClass, fireBehavior, entryBehavior,
+  introductionMission, durabilityClass, fireBehavior, fireDelaySeconds, entryBehavior,
   reuseCooldownWaves, maximumSimultaneousCount, performanceCost
 ]) => ({
   id,
@@ -84,6 +84,7 @@ const enemyRoles = roleSeed.map(([
   introductionMission,
   durabilityClass,
   fireBehavior,
+  fireDelaySeconds,
   entryBehavior,
   compatibleFormationPackIds: formationPacks
     .filter((pack) => pack.enemyRoleIds.includes(id))

@@ -109,14 +109,23 @@ const parseCookies = (value) => {
   return cookies;
 };
 
+const readWalletProfileSessionToken = (req) => (
+  parseCookies(req?.headers?.cookie)[SESSION_COOKIE_NAME]
+);
+
 const readWalletProfileSession = (req, now = Date.now()) => {
-  const token = parseCookies(req?.headers?.cookie)[SESSION_COOKIE_NAME];
+  const token = readWalletProfileSessionToken(req);
   return verifyWalletProfileSession(token, now);
 };
 
-const sessionCookie = (token, maxAgeSeconds) => [
+const readOptionalWalletProfileSession = (req, now = Date.now()) => {
+  const token = readWalletProfileSessionToken(req);
+  return token ? verifyWalletProfileSession(token, now) : null;
+};
+
+const sessionCookie = (token, maxAgeSeconds, path = '/api') => [
   `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}`,
-  'Path=/api/wallet-profile',
+  `Path=${path}`,
   `Max-Age=${Math.max(0, Math.floor(maxAgeSeconds))}`,
   'HttpOnly',
   'Secure',
@@ -124,11 +133,17 @@ const sessionCookie = (token, maxAgeSeconds) => [
 ].join('; ');
 
 const setWalletProfileSessionCookie = (res, token) => {
-  res.setHeader('Set-Cookie', sessionCookie(token, SESSION_LIFETIME_MS / 1000));
+  res.setHeader('Set-Cookie', [
+    sessionCookie('', 0, '/api/wallet-profile'),
+    sessionCookie(token, SESSION_LIFETIME_MS / 1000)
+  ]);
 };
 
 const clearWalletProfileSessionCookie = (res) => {
-  res.setHeader('Set-Cookie', sessionCookie('', 0));
+  res.setHeader('Set-Cookie', [
+    sessionCookie('', 0, '/api/wallet-profile'),
+    sessionCookie('', 0)
+  ]);
 };
 
 const normalizeRequestOrigin = (req) => {
@@ -192,7 +207,9 @@ module.exports = {
   normalizeRequestOrigin,
   normalizeWalletAddress,
   parseCookies,
+  readOptionalWalletProfileSession,
   readWalletProfileSession,
+  readWalletProfileSessionToken,
   setWalletProfileSessionCookie,
   verifyWalletProfileSession,
   walletProfileId

@@ -49,7 +49,7 @@ test('semantic modular projectile animations select boss-owned atlas frames with
   const methodSource = rendererSource.slice(methodStart, methodEnd);
 
   assert.ok(methodStart >= 0 && methodEnd > methodStart);
-  assert.match(methodSource, /entity\.bossOwnerId !== this\.previewBossRuntimeEntityId/);
+  assert.match(methodSource, /!this\.previewBossRuntimeEntityIds\.has\(entity\.bossOwnerId\)/);
   assert.match(methodSource, /this\.previewBossArtwork\?\.projectileAnimations/);
   assert.match(methodSource, /modularRig\.frameById\[frameId\]/);
   assert.match(methodSource, /this\.getModularPreviewBossTexture\(frameId\)/);

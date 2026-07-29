@@ -1,4 +1,5 @@
 import type {
+  AssetKey,
   BossEvent,
   BossTimelineClip,
   BossTimelineConfig,
@@ -6,6 +7,7 @@ import type {
   BossTimelineTelegraphStyle,
   GameCampaignConfig
 } from '@game/game-config/types';
+import { getMiniBossEncounterDefinition } from '@game/services/gameplay/mini-bosses';
 import {
   compileBossAttackTimeline,
   type BossAttackBeatBlueprint,
@@ -15,6 +17,7 @@ import { assertValidGameCampaign } from '@game/game-config/validate';
 import type { CombatLabPreviewResult } from './experimentModel';
 
 export type SandboxBossPrototypeId =
+  | 'paywall-decimator-archive'
   | 'sweep-bank-reentry'
   | 'prism-moth-brood'
   | 'weak-point-laser-core'
@@ -28,7 +31,79 @@ export type SandboxBossPrototypeId =
   | 'vesperglass-mothmother'
   | 'twin-halo-wardens'
   | 'riftcoil-wyrm'
-  | 'nullwake-revenant';
+  | 'nullwake-revenant'
+  | 'fracture-engine-elite'
+  | 'aegis-brood-core'
+  | 'railspine-wallcrawler'
+  | 'maw-carrier'
+  | 'twin-meridian-sentinels'
+  | 'prism-bloom'
+  | 'aegis-convoy-captain'
+  | 'gridline-sentries';
+
+export type SandboxEncounterCategoryId =
+  | 'full-bosses'
+  | 'test-bosses'
+  | 'mini-bosses'
+  | 'elite-enemies'
+  | 'paired-encounters'
+  | 'guardian-formations'
+  | 'wall-encounters'
+  | 'all-encounters';
+
+export type SandboxMiniBossAssetValidationStatus =
+  | 'approved-existing-assets-bound'
+  | 'validated-runtime-art';
+
+export interface SandboxMiniBossEncounterMetadata {
+  /** Stable lookup key shared by Campaign runtime and isolated Sandbox previews. */
+  readonly encounterId: string;
+  readonly categories: readonly Exclude<
+    SandboxEncounterCategoryId,
+    'full-bosses' | 'test-bosses' | 'all-encounters'
+  >[];
+  readonly visualIdentity: string;
+  readonly expectedDurationSeconds: number;
+  readonly signatureManeuver: string;
+  readonly supportingBehavior: string;
+  readonly linkedUnitCount: number;
+  readonly deterministicSeed: string;
+  readonly assetIds: readonly AssetKey[];
+  readonly assetValidationStatus: SandboxMiniBossAssetValidationStatus;
+  readonly sandboxReady: true;
+  readonly campaignAssigned: true;
+}
+
+const miniBossRegistryMetadata = (
+  encounterId: SandboxBossPrototypeId
+): Pick<
+  SandboxMiniBossEncounterMetadata,
+  | 'encounterId'
+  | 'expectedDurationSeconds'
+  | 'signatureManeuver'
+  | 'supportingBehavior'
+  | 'linkedUnitCount'
+  | 'deterministicSeed'
+  | 'sandboxReady'
+  | 'campaignAssigned'
+> => {
+  const definition = getMiniBossEncounterDefinition(encounterId);
+  if (!definition) throw new Error(`Missing Mini-Boss Lab definition for ${encounterId}`);
+  return Object.freeze({
+    encounterId: definition.id,
+    expectedDurationSeconds: definition.expectedDurationSeconds,
+    signatureManeuver: definition.signature.name,
+    supportingBehavior: definition.support.name,
+    linkedUnitCount: definition.memberArchetypes.reduce((count, member) => count + member.count, 0),
+    deterministicSeed: definition.deterministicSeed,
+    sandboxReady: definition.sandboxReady,
+    campaignAssigned: definition.campaignAssigned
+  });
+};
+
+const miniBossExpectedDuration = (
+  encounterId: SandboxBossPrototypeId
+): number => miniBossRegistryMetadata(encounterId).expectedDurationSeconds;
 
 export interface SandboxBossPrototypeProvenance {
   readonly schemaVersion: 1;
@@ -51,6 +126,8 @@ export interface SandboxBossPrototypeDescriptor {
   readonly description: string;
   readonly designIntent: readonly string[];
   readonly sandboxOnly: true;
+  readonly encounterClass: 'full-boss' | 'mini-boss';
+  readonly miniBoss?: SandboxMiniBossEncounterMetadata;
   readonly prototypeHash: string;
   buildPreview(sourceCampaign: GameCampaignConfig): SandboxBossPrototypePreview;
 }
@@ -63,6 +140,7 @@ interface PrototypeDefinition {
   readonly shortLabel: string;
   readonly description: string;
   readonly designIntent: readonly string[];
+  readonly miniBoss?: SandboxMiniBossEncounterMetadata;
   readonly boss: Readonly<BossEvent>;
 }
 
@@ -371,6 +449,7 @@ const gatekeeperBoss = ({
   revival,
   phases,
   timeline,
+  durationSeconds = 90,
   speed = 2.1,
   sizeMultiplier = 1,
   burstIntervalSeconds = 1.1,
@@ -379,6 +458,7 @@ const gatekeeperBoss = ({
   componentMode?: BossEvent['componentMode'];
   componentHealth?: BossEvent['componentHealth'];
   revival?: BossEvent['revival'];
+  durationSeconds?: number;
   speed?: number;
   sizeMultiplier?: number;
   burstIntervalSeconds?: number;
@@ -388,7 +468,7 @@ const gatekeeperBoss = ({
   kind: 'boss',
   label,
   startSeconds: 0,
-  durationSeconds: 90,
+  durationSeconds,
   delayAfterSeconds: 0,
   blocksWaveClock: true,
   bossId: 'gatekeeper',
@@ -3128,7 +3208,315 @@ const gloamforgeTimeline = serialBossTimeline([
   }
 ]);
 
+const miniBossTimeline = ({
+  phaseId,
+  color,
+  durationSeconds,
+  signature,
+  support
+}: {
+  phaseId: string;
+  color: string;
+  durationSeconds: number;
+  signature: SerialAttackStep;
+  support: SerialAttackStep;
+}): BossTimelineConfig => serialBossTimeline([{
+  phaseId,
+  color,
+  cameraStrength: 0.45,
+  steps: [signature, support]
+}], durationSeconds);
+
+const fractureEnginePhase = 'sandbox-fracture-engine-linked-crossfire';
+const fractureEngineTimeline = miniBossTimeline({
+  phaseId: fractureEnginePhase,
+  color: '#c084fc',
+  durationSeconds: miniBossExpectedDuration('fracture-engine-elite'),
+  signature: {
+    id: 'sandbox-fracture-engine-crossfire',
+    label: 'Fracture Crossfire',
+    primitiveId: 'side-barrage',
+    style: 'lane',
+    parameters: { projectileCount: 6, side: 'port' },
+    leadSeconds: 1.15,
+    actionDurationSeconds: 2.2,
+    recoverySeconds: 2.2
+  },
+  support: {
+    id: 'sandbox-fracture-engine-reposition',
+    label: 'Linked Reposition',
+    primitiveId: 'pod-volley',
+    style: 'target',
+    parameters: { projectileCount: 4 },
+    leadSeconds: 0.9,
+    actionDurationSeconds: 1.1,
+    recoverySeconds: 2.4
+  }
+});
+
+const aegisBroodPhase = 'sandbox-aegis-brood-guardian-halo';
+const aegisBroodTimeline = miniBossTimeline({
+  phaseId: aegisBroodPhase,
+  color: '#67e8f9',
+  durationSeconds: miniBossExpectedDuration('aegis-brood-core'),
+  signature: {
+    id: 'sandbox-aegis-brood-halo',
+    label: 'Guardian Halo',
+    primitiveId: 'gap-ring',
+    style: 'ring',
+    parameters: { projectileCount: 16, sequence: 0 },
+    leadSeconds: 1.2,
+    actionDurationSeconds: 1.4,
+    recoverySeconds: 2.4
+  },
+  support: {
+    id: 'sandbox-aegis-brood-ring-shift',
+    label: 'Ring Formation Shift',
+    primitiveId: 'pod-volley',
+    style: 'target',
+    parameters: { projectileCount: 4, sequence: 1 },
+    leadSeconds: 0.9,
+    actionDurationSeconds: 1,
+    recoverySeconds: 2.6
+  }
+});
+
+const railspinePhase = 'sandbox-railspine-wall-rail';
+const railspineTimeline = miniBossTimeline({
+  phaseId: railspinePhase,
+  color: '#38bdf8',
+  durationSeconds: miniBossExpectedDuration('railspine-wallcrawler'),
+  signature: {
+    id: 'sandbox-railspine-rail-sweep',
+    label: 'Rail Sweep',
+    primitiveId: 'rail-sweep',
+    style: 'lane',
+    parameters: { sequence: 0 },
+    leadSeconds: 1.25,
+    actionDurationSeconds: 2.4,
+    recoverySeconds: 2.5
+  },
+  support: {
+    id: 'sandbox-railspine-edge-burst',
+    label: 'Edge Burst',
+    primitiveId: 'aimed-burst',
+    style: 'target',
+    parameters: { projectileCount: 4 },
+    leadSeconds: 0.8,
+    actionDurationSeconds: 0.8,
+    recoverySeconds: 2.8
+  }
+});
+
+const mawCarrierPhase = 'sandbox-maw-carrier-release-cycle';
+const mawCarrierTimeline = miniBossTimeline({
+  phaseId: mawCarrierPhase,
+  color: '#f97316',
+  durationSeconds: miniBossExpectedDuration('maw-carrier'),
+  signature: {
+    id: 'sandbox-maw-carrier-release',
+    label: 'Carrier Release',
+    primitiveId: 'summon-formation',
+    style: 'ring',
+    parameters: { summonCount: 4, enemyId: 'brick', formationPatternId: 'diamond' },
+    leadSeconds: 1.2,
+    actionDurationSeconds: 1.2,
+    recoverySeconds: 2.5
+  },
+  support: {
+    id: 'sandbox-maw-carrier-defense',
+    label: 'Defensive Burst',
+    primitiveId: 'side-barrage',
+    style: 'lane',
+    parameters: { projectileCount: 6, side: 'starboard' },
+    leadSeconds: 0.9,
+    actionDurationSeconds: 1,
+    recoverySeconds: 3
+  }
+});
+
+const twinMeridianPhase = 'sandbox-twin-meridian-exchange-cycle';
+const twinMeridianTimeline = miniBossTimeline({
+  phaseId: twinMeridianPhase,
+  color: '#22d3ee',
+  durationSeconds: miniBossExpectedDuration('twin-meridian-sentinels'),
+  signature: {
+    id: 'sandbox-twin-meridian-exchange',
+    label: 'Sentinel Exchange',
+    primitiveId: 'side-barrage',
+    style: 'lane',
+    parameters: { projectileCount: 6, side: 'starboard' },
+    leadSeconds: 1.05,
+    actionDurationSeconds: 2,
+    recoverySeconds: 2.4
+  },
+  support: {
+    id: 'sandbox-twin-meridian-guard-swap',
+    label: 'Guarded Position Swap',
+    primitiveId: 'pod-volley',
+    style: 'target',
+    parameters: { projectileCount: 3, sequence: 1 },
+    leadSeconds: 0.85,
+    actionDurationSeconds: 1,
+    recoverySeconds: 2.6
+  }
+});
+
+const prismBloomPhase = 'sandbox-prism-bloom-open-cycle';
+const prismBloomTimeline = miniBossTimeline({
+  phaseId: prismBloomPhase,
+  color: '#e879f9',
+  durationSeconds: miniBossExpectedDuration('prism-bloom'),
+  signature: {
+    id: 'sandbox-prism-bloom-ring',
+    label: 'Bloom Ring',
+    primitiveId: 'gap-ring',
+    style: 'ring',
+    parameters: { projectileCount: 18, sequence: 0 },
+    leadSeconds: 1.1,
+    actionDurationSeconds: 1.5,
+    recoverySeconds: 2.5
+  },
+  support: {
+    id: 'sandbox-prism-bloom-petal-pulse',
+    label: 'Petal Pulse',
+    primitiveId: 'pod-volley',
+    style: 'target',
+    parameters: { projectileCount: 5 },
+    leadSeconds: 0.85,
+    actionDurationSeconds: 0.9,
+    recoverySeconds: 2.8
+  }
+});
+
+const aegisConvoyPhase = 'sandbox-aegis-convoy-command-cycle';
+const aegisConvoyTimeline = miniBossTimeline({
+  phaseId: aegisConvoyPhase,
+  color: '#facc15',
+  durationSeconds: miniBossExpectedDuration('aegis-convoy-captain'),
+  signature: {
+    id: 'sandbox-aegis-convoy-formation',
+    label: 'Command Formation',
+    primitiveId: 'summon-formation',
+    style: 'lane',
+    parameters: { summonCount: 6, enemyId: 'brick', formationPatternId: 'diamond' },
+    leadSeconds: 1.2,
+    actionDurationSeconds: 1.4,
+    recoverySeconds: 2.6
+  },
+  support: {
+    id: 'sandbox-aegis-convoy-command-burst',
+    label: 'Command Burst',
+    primitiveId: 'aimed-burst',
+    style: 'target',
+    parameters: { projectileCount: 5 },
+    leadSeconds: 0.9,
+    actionDurationSeconds: 1,
+    recoverySeconds: 3
+  }
+});
+
+const gridlinePhase = 'sandbox-gridline-lock-cycle';
+const gridlineTimeline = miniBossTimeline({
+  phaseId: gridlinePhase,
+  color: '#2dd4bf',
+  durationSeconds: miniBossExpectedDuration('gridline-sentries'),
+  signature: {
+    id: 'sandbox-gridline-lock',
+    label: 'Grid Lock',
+    primitiveId: 'cross-beam',
+    style: 'lane',
+    leadSeconds: 1.25,
+    actionDurationSeconds: 2.2,
+    recoverySeconds: 2.6
+  },
+  support: {
+    id: 'sandbox-gridline-edge-shift',
+    label: 'Edge Shift',
+    primitiveId: 'aimed-burst',
+    style: 'target',
+    parameters: { projectileCount: 3 },
+    leadSeconds: 0.85,
+    actionDurationSeconds: 0.8,
+    recoverySeconds: 2.8
+  }
+});
+
 const definitions = deepFreeze([
+  {
+    id: 'paywall-decimator-archive',
+    label: 'Paywall Decimator',
+    shortLabel: 'Archived red twin-cannon boss',
+    description: 'The retired red Paywall Core encounter, preserved as a playable Test boss after its Campaign placement was removed.',
+    designIntent: [
+      'Preserve removed Campaign bosses without restoring them to Mission progression',
+      'Keep the original twin-cannon sprite, burst cadence, beam cadence, and two health phases',
+      'Provide a stable isolated fight for future comparison or rebuilding'
+    ],
+    boss: {
+      id: 'sandbox-paywall-decimator-archive',
+      kind: 'boss',
+      label: 'Paywall Decimator',
+      startSeconds: 0,
+      durationSeconds: 28,
+      delayAfterSeconds: 0,
+      blocksWaveClock: true,
+      bossId: 'gatekeeper',
+      rigId: 'paywall-siege',
+      spriteKey: 'PIXI_BOSS_PAYWALL_FRAMES',
+      positionId: 'center-top',
+      movementPatternId: 'gatekeeper-cycle',
+      warningSeconds: 5,
+      health: 400,
+      speed: 2,
+      damage: 1,
+      scoreReward: 0,
+      powerupDropChance: 0,
+      shieldCount: 0,
+      weapons: [
+        {
+          id: 'sandbox-paywall-decimator-burst',
+          weaponId: 'burst-volley',
+          attackIntervalSeconds: 0.65,
+          damage: 1,
+          projectileSpeed: 7.65,
+          burstCount: 7
+        },
+        {
+          id: 'sandbox-paywall-decimator-beam',
+          weaponId: 'lane-beam',
+          attackIntervalSeconds: 0.333,
+          damage: 1,
+          projectileSpeed: 0,
+          burstCount: 3
+        }
+      ],
+      phases: [
+        {
+          id: 'sandbox-paywall-decimator-standard',
+          label: 'Burst and beam cycle',
+          triggerHealthRatio: 1,
+          movementPatternId: 'gatekeeper-cycle',
+          speedMultiplier: 1,
+          weaponSettingIds: [
+            'sandbox-paywall-decimator-burst',
+            'sandbox-paywall-decimator-beam'
+          ]
+        },
+        {
+          id: 'sandbox-paywall-decimator-low-health',
+          label: 'Low-health cycle',
+          triggerHealthRatio: 0.35,
+          movementPatternId: 'gatekeeper-cycle',
+          speedMultiplier: 1,
+          weaponSettingIds: [
+            'sandbox-paywall-decimator-burst',
+            'sandbox-paywall-decimator-beam'
+          ]
+        }
+      ]
+    }
+  },
   {
     id: 'sweep-bank-reentry',
     label: 'Redline Re-entry',
@@ -3824,6 +4212,334 @@ const definitions = deepFreeze([
       ],
       timeline: riftcoilTimeline
     })
+  },
+  {
+    id: 'fracture-engine-elite',
+    label: 'Fracture Engine Elite',
+    shortLabel: 'Alternating linked crossfire',
+    description: 'Two linked purple-and-red fracture engines trade ordered diagonal fire, reposition around a visible crossing route, and fall back to a slower solo pattern when one engine is destroyed.',
+    designIntent: [
+      'Alternating charges identify the next firing engine before damage begins',
+      'Crossfire arrives in an authored sequence rather than a simultaneous projectile rain',
+      'The survivor uses a slower one-sided sentence instead of doubling its cadence'
+    ],
+    miniBoss: {
+      ...miniBossRegistryMetadata('fracture-engine-elite'),
+      categories: ['mini-bosses', 'elite-enemies', 'paired-encounters'],
+      visualIdentity: 'Linked purple and red ring engines with orbiting fracture satellites',
+      assetIds: ['CAMPAIGN_ENEMY_ORBIT_DISC'],
+      assetValidationStatus: 'approved-existing-assets-bound'
+    },
+    boss: gatekeeperBoss({
+      id: 'sandbox-fracture-engine-elite',
+      label: 'Fracture Engine Elite',
+      rigId: 'open-orbit',
+      componentMode: 'hull-only',
+      spriteKey: 'CAMPAIGN_ENEMY_RING_SENTINEL',
+      health: 1_100,
+      shieldCount: 0,
+      durationSeconds: miniBossExpectedDuration('fracture-engine-elite'),
+      speed: 1.05,
+      sizeMultiplier: 0.72,
+      burstIntervalSeconds: 30,
+      beamIntervalSeconds: 30,
+      phases: [{
+        id: fractureEnginePhase,
+        label: 'Linked Crossfire',
+        triggerHealthRatio: 1,
+        movementPatternId: 'arena-roam',
+        speedMultiplier: 0.9,
+        weaponSettingIds: ['sandbox-fracture-engine-elite-burst', 'sandbox-fracture-engine-elite-beam']
+      }],
+      timeline: fractureEngineTimeline
+    })
+  },
+  {
+    id: 'aegis-brood-core',
+    label: 'Aegis Brood Core',
+    shortLabel: 'Guardian halo core',
+    description: 'A protected eye-core whose deliberate guardian ring opens one readable gap, sends a mirrored pair, and exposes the core during recovery.',
+    designIntent: [
+      'Guardian count and shield state remain visually legible',
+      'Removing key guardians creates a bounded vulnerability window',
+      'The halo pulse preserves one deterministic escape opening'
+    ],
+    miniBoss: {
+      ...miniBossRegistryMetadata('aegis-brood-core'),
+      categories: ['mini-bosses', 'guardian-formations'],
+      visualIdentity: 'Cyan shield core inside a deliberate six-guardian halo',
+      assetIds: ['CAMPAIGN_ENEMY_SHIELD_RAMMER', 'CAMPAIGN_ENEMY_RING_SENTINEL'],
+      assetValidationStatus: 'approved-existing-assets-bound'
+    },
+    boss: gatekeeperBoss({
+      id: 'sandbox-aegis-brood-core',
+      label: 'Aegis Brood Core',
+      rigId: 'open-orbit',
+      componentMode: 'hull-only',
+      spriteKey: 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER',
+      health: 950,
+      shieldCount: 0,
+      durationSeconds: miniBossExpectedDuration('aegis-brood-core'),
+      speed: 0.7,
+      sizeMultiplier: 0.7,
+      burstIntervalSeconds: 30,
+      beamIntervalSeconds: 30,
+      phases: [{
+        id: aegisBroodPhase,
+        label: 'Guardian Halo',
+        triggerHealthRatio: 1,
+        movementPatternId: 'sine-drift',
+        speedMultiplier: 0.7,
+        weaponSettingIds: ['sandbox-aegis-brood-core-burst', 'sandbox-aegis-brood-core-beam']
+      }],
+      timeline: aegisBroodTimeline
+    })
+  },
+  {
+    id: 'railspine-wallcrawler',
+    label: 'Railspine Wallcrawler',
+    shortLabel: 'Edge-crawling rail sweep',
+    description: 'A segmented magnetic wall creature that braces against the arena edge, sweeps one exact visible rail, then crawls to a new firing height.',
+    designIntent: [
+      'The creature stays physically attached to the selected wall',
+      'Visible beam length and damaging collision share one geometry',
+      'Its short support burst never obscures the moving beam solution'
+    ],
+    miniBoss: {
+      ...miniBossRegistryMetadata('railspine-wallcrawler'),
+      categories: ['mini-bosses', 'wall-encounters'],
+      visualIdentity: 'Magnetic segmented spine with gripping legs and a bright rail eye',
+      assetIds: ['CAMPAIGN_ENEMY_WALL_SNIPER_LEFT', 'CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT'],
+      assetValidationStatus: 'approved-existing-assets-bound'
+    },
+    boss: gatekeeperBoss({
+      id: 'sandbox-railspine-wallcrawler',
+      label: 'Railspine Wallcrawler',
+      rigId: 'paywall-siege',
+      componentMode: 'hull-only',
+      spriteKey: 'CAMPAIGN_ENEMY_LASER_HUNTER',
+      health: 850,
+      shieldCount: 0,
+      durationSeconds: miniBossExpectedDuration('railspine-wallcrawler'),
+      speed: 0.9,
+      sizeMultiplier: 0.68,
+      burstIntervalSeconds: 30,
+      beamIntervalSeconds: 30,
+      phases: [{
+        id: railspinePhase,
+        label: 'Wall Rail',
+        triggerHealthRatio: 1,
+        movementPatternId: 'sine-drift',
+        speedMultiplier: 0.8,
+        weaponSettingIds: ['sandbox-railspine-wallcrawler-burst', 'sandbox-railspine-wallcrawler-beam']
+      }],
+      timeline: railspineTimeline
+    })
+  },
+  {
+    id: 'maw-carrier',
+    label: 'Maw Carrier',
+    shortLabel: 'Bounded formation carrier',
+    description: 'An armored brood chamber that opens visibly, releases two bounded formations, closes to reposition, and exposes its inner core after one defensive beat.',
+    designIntent: [
+      'Mouth state clearly communicates spawning and vulnerability',
+      'Reinforcement totals remain hard-bounded for the entire encounter',
+      'The defensive burst stays secondary to the authored carrier release'
+    ],
+    miniBoss: {
+      ...miniBossRegistryMetadata('maw-carrier'),
+      categories: ['mini-bosses', 'elite-enemies'],
+      visualIdentity: 'Armored teal brood chamber with a pulsing interior maw',
+      assetIds: ['CAMPAIGN_ENEMY_DNA_CONDUCTOR', 'CAMPAIGN_ENEMY_CRESCENT_MINELAYER'],
+      assetValidationStatus: 'approved-existing-assets-bound'
+    },
+    boss: gatekeeperBoss({
+      id: 'sandbox-maw-carrier',
+      label: 'Maw Carrier',
+      rigId: 'open-orbit',
+      componentMode: 'hull-only',
+      spriteKey: 'CAMPAIGN_ENEMY_PRISM_ARTILLERY',
+      health: 1_250,
+      shieldCount: 0,
+      durationSeconds: miniBossExpectedDuration('maw-carrier'),
+      speed: 0.75,
+      sizeMultiplier: 0.78,
+      burstIntervalSeconds: 30,
+      beamIntervalSeconds: 30,
+      phases: [{
+        id: mawCarrierPhase,
+        label: 'Release Cycle',
+        triggerHealthRatio: 1,
+        movementPatternId: 'arena-roam',
+        speedMultiplier: 0.72,
+        weaponSettingIds: ['sandbox-maw-carrier-burst', 'sandbox-maw-carrier-beam']
+      }],
+      timeline: mawCarrierTimeline
+    })
+  },
+  {
+    id: 'twin-meridian-sentinels',
+    label: 'Twin Meridian Sentinels',
+    shortLabel: 'Guarded role exchange',
+    description: 'A handed sentinel pair that exchanges active and guarded roles, mirrors one authored response, and leaves a destroyed partner silent.',
+    designIntent: [
+      'Left and right handedness stays visually stable during position exchange',
+      'Only the active sentinel owns the current damaging sentence',
+      'A survivor slows into a readable solo response'
+    ],
+    miniBoss: {
+      ...miniBossRegistryMetadata('twin-meridian-sentinels'),
+      categories: ['mini-bosses', 'paired-encounters'],
+      visualIdentity: 'Complementary cyan sentinels with alternating active eyes',
+      assetIds: ['CAMPAIGN_ENEMY_LASER_HUNTER'],
+      assetValidationStatus: 'approved-existing-assets-bound'
+    },
+    boss: gatekeeperBoss({
+      id: 'sandbox-twin-meridian-sentinels',
+      label: 'Twin Meridian Sentinels',
+      rigId: 'citation-storm',
+      componentMode: 'hull-only',
+      spriteKey: 'CAMPAIGN_ENEMY_LASER_HUNTER',
+      health: 1_050,
+      shieldCount: 0,
+      durationSeconds: miniBossExpectedDuration('twin-meridian-sentinels'),
+      speed: 0.95,
+      sizeMultiplier: 0.68,
+      burstIntervalSeconds: 30,
+      beamIntervalSeconds: 30,
+      phases: [{
+        id: twinMeridianPhase,
+        label: 'Sentinel Exchange',
+        triggerHealthRatio: 1,
+        movementPatternId: 'arena-roam',
+        speedMultiplier: 0.82,
+        weaponSettingIds: ['sandbox-twin-meridian-sentinels-burst', 'sandbox-twin-meridian-sentinels-beam']
+      }],
+      timeline: twinMeridianTimeline
+    })
+  },
+  {
+    id: 'prism-bloom',
+    label: 'Prism Bloom',
+    shortLabel: 'Petal ring puzzle',
+    description: 'A mechanical flower whose petals open in order and emit incomplete rings with a deliberate escape opening before the core closes again.',
+    designIntent: [
+      'Petal posture communicates charge, fire, and recovery',
+      'Every ring retains a deterministic opening large enough for the player',
+      'Slow drift supports the ring puzzle without becoming a second attack'
+    ],
+    miniBoss: {
+      ...miniBossRegistryMetadata('prism-bloom'),
+      categories: ['mini-bosses', 'elite-enemies'],
+      visualIdentity: 'Bright prismatic eye surrounded by breathing mechanical petals',
+      assetIds: ['CAMPAIGN_ENEMY_BULLET_RING_EMITTER'],
+      assetValidationStatus: 'approved-existing-assets-bound'
+    },
+    boss: gatekeeperBoss({
+      id: 'sandbox-prism-bloom',
+      label: 'Prism Bloom',
+      rigId: 'open-orbit',
+      componentMode: 'hull-only',
+      spriteKey: 'CAMPAIGN_ENEMY_PRISM_ARTILLERY',
+      health: 900,
+      shieldCount: 0,
+      durationSeconds: miniBossExpectedDuration('prism-bloom'),
+      speed: 0.65,
+      sizeMultiplier: 0.7,
+      burstIntervalSeconds: 30,
+      beamIntervalSeconds: 30,
+      phases: [{
+        id: prismBloomPhase,
+        label: 'Bloom Cycle',
+        triggerHealthRatio: 1,
+        movementPatternId: 'sine-drift',
+        speedMultiplier: 0.65,
+        weaponSettingIds: ['sandbox-prism-bloom-burst', 'sandbox-prism-bloom-beam']
+      }],
+      timeline: prismBloomTimeline
+    })
+  },
+  {
+    id: 'aegis-convoy-captain',
+    label: 'Aegis Convoy Captain',
+    shortLabel: 'Escort command formation',
+    description: 'A shield commander that signals a bounded escort formation, orders one paired pass, opens the formation, and becomes vulnerable before regrouping.',
+    designIntent: [
+      'Signal lights make command transitions readable',
+      'Escort losses reduce protection and extend the vulnerability beat',
+      'Captain death ends coordination instead of leaving orphaned commands'
+    ],
+    miniBoss: {
+      ...miniBossRegistryMetadata('aegis-convoy-captain'),
+      categories: ['mini-bosses', 'guardian-formations'],
+      visualIdentity: 'Large shield captain leading a four-unit wedge of orbit escorts',
+      assetIds: ['CAMPAIGN_ENEMY_SHIELD_RAMMER', 'CAMPAIGN_ENEMY_ORBIT_DISC'],
+      assetValidationStatus: 'approved-existing-assets-bound'
+    },
+    boss: gatekeeperBoss({
+      id: 'sandbox-aegis-convoy-captain',
+      label: 'Aegis Convoy Captain',
+      rigId: 'paywall-siege',
+      componentMode: 'hull-only',
+      spriteKey: 'CAMPAIGN_ENEMY_RING_SENTINEL',
+      health: 1_300,
+      shieldCount: 0,
+      durationSeconds: miniBossExpectedDuration('aegis-convoy-captain'),
+      speed: 0.8,
+      sizeMultiplier: 0.78,
+      burstIntervalSeconds: 30,
+      beamIntervalSeconds: 30,
+      phases: [{
+        id: aegisConvoyPhase,
+        label: 'Command Formation',
+        triggerHealthRatio: 1,
+        movementPatternId: 'arena-roam',
+        speedMultiplier: 0.72,
+        weaponSettingIds: ['sandbox-aegis-convoy-captain-burst', 'sandbox-aegis-convoy-captain-beam']
+      }],
+      timeline: aegisConvoyTimeline
+    })
+  },
+  {
+    id: 'gridline-sentries',
+    label: 'Gridline Sentries',
+    shortLabel: 'Two-axis wall lock',
+    description: 'Two edge-attached sentries establish horizontal and vertical boundaries in sequence, shift one safe quadrant, and remove a dead unit\'s boundary immediately.',
+    designIntent: [
+      'Horizontal and vertical units remain visually distinct',
+      'Boundary shutdown order is telegraphed and deterministic',
+      'Destroying one sentry leaves only a simple one-axis maneuver'
+    ],
+    miniBoss: {
+      ...miniBossRegistryMetadata('gridline-sentries'),
+      categories: ['mini-bosses', 'paired-encounters', 'wall-encounters'],
+      visualIdentity: 'Orthogonal wall sentries with cyan grid emitters and moving grips',
+      assetIds: ['CAMPAIGN_ENEMY_WALL_SNIPER_LEFT', 'CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT'],
+      assetValidationStatus: 'approved-existing-assets-bound'
+    },
+    boss: gatekeeperBoss({
+      id: 'sandbox-gridline-sentries',
+      label: 'Gridline Sentries',
+      rigId: 'citation-storm',
+      componentMode: 'hull-only',
+      spriteKey: 'CAMPAIGN_ENEMY_LASER_HUNTER',
+      health: 1_000,
+      shieldCount: 0,
+      durationSeconds: miniBossExpectedDuration('gridline-sentries'),
+      speed: 0.8,
+      sizeMultiplier: 0.66,
+      burstIntervalSeconds: 30,
+      beamIntervalSeconds: 30,
+      phases: [{
+        id: gridlinePhase,
+        label: 'Grid Lock',
+        triggerHealthRatio: 1,
+        movementPatternId: 'sine-drift',
+        speedMultiplier: 0.7,
+        weaponSettingIds: ['sandbox-gridline-sentries-burst', 'sandbox-gridline-sentries-beam']
+      }],
+      timeline: gridlineTimeline
+    })
   }
 ] satisfies readonly PrototypeDefinition[]);
 
@@ -3846,7 +4562,7 @@ const buildPreview = (
     name: `SANDBOX · ${definition.label}`,
     completionRule: 'boss-defeat' as const,
     difficultyMultiplier: 1,
-    durationSeconds: 90,
+    durationSeconds: boss.durationSeconds,
     introSeconds: 0,
     delayAfterSeconds: 0,
     scoreMultiplier: 1,
@@ -3903,6 +4619,7 @@ export const SANDBOX_BOSS_PROTOTYPES: readonly SandboxBossPrototypeDescriptor[] 
       schemaVersion: 1,
       sandboxOnly: true,
       id: definition.id,
+      miniBoss: definition.miniBoss,
       boss: definition.boss
     });
     return Object.freeze({
@@ -3912,6 +4629,8 @@ export const SANDBOX_BOSS_PROTOTYPES: readonly SandboxBossPrototypeDescriptor[] 
       description: definition.description,
       designIntent: definition.designIntent,
       sandboxOnly: true as const,
+      encounterClass: definition.miniBoss ? 'mini-boss' as const : 'full-boss' as const,
+      ...(definition.miniBoss ? { miniBoss: definition.miniBoss } : {}),
       prototypeHash,
       buildPreview: (sourceCampaign: GameCampaignConfig) => (
         buildPreview(definition, prototypeHash, sourceCampaign)

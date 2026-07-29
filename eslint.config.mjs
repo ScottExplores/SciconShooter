@@ -8,6 +8,9 @@ export default [
     ignores: [
       'dist/**',
       'node_modules/**',
+      '**/node_modules/**',
+      'sites/boss-test-runner/**',
+      'tmp/**',
       'contracts/out/**',
       '.codex-remote-attachments/**',
       'tailwind.generated.css'

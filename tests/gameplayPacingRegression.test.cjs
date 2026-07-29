@@ -27,7 +27,7 @@ test('Brian pauses the opening flight before its protected combat intro begins',
   );
 });
 
-test('formations stay visual and four sector bosses provide an intentional five-second loot window', () => {
+test('formations stay visual and ten sector bosses provide an intentional five-second loot window', () => {
   assert.doesNotMatch(engineSource, /LINE SWARM|V-SWARM|WAVE SWARM|PINCER!/);
   assert.doesNotMatch(engineSource, /bossCoinDrops|bossPowerupDrops|bossBombDrops/);
 
@@ -37,7 +37,7 @@ test('formations stay visual and four sector bosses provide an intentional five-
   const majorBossWaves = waves.filter((wave) => wave.events.some((event) => (
     event.kind === 'boss' && majorBossIds.has(event.bossId)
   )));
-  assert.equal(majorBossWaves.length, 4);
+  assert.equal(majorBossWaves.length, campaign.sectors.length);
   majorBossWaves.forEach((wave) => assert.equal(wave.delayAfterSeconds, 5));
   campaign.levels.forEach((level) => {
     const finalWave = level.waves.at(-1);
@@ -51,13 +51,13 @@ test('formations stay visual and four sector bosses provide an intentional five-
 test('sector major bosses ramp durability and projectile pressure without exceeding the authored cap', () => {
   const bosses = campaign.sectors.map((sector) => {
     const level = campaign.levels.find((candidate) => candidate.id === sector.missionIds.at(-1));
-    return level.waves[0].events.find((event) => event.kind === 'boss' && event.bossId === sector.majorBossId);
+    return level.waves.at(-1).events.find((event) => event.kind === 'boss' && event.bossId === sector.majorBossId);
   });
   const projectileWeapons = bosses.map((boss) => boss.weapons.find((weapon) => weapon.projectileSpeed > 0));
 
-  assert.deepEqual(bosses.map((boss) => boss.health), [170, 1180, 1650, 2100]);
-  assert.deepEqual(projectileWeapons.map((weapon) => weapon.burstCount), [3, 6, 6, 6]);
-  assert.deepEqual(projectileWeapons.map((weapon) => weapon.projectileSpeed), [6.55, 8.9, 9.25, 9.5]);
+  assert.deepEqual(bosses.map((boss) => boss.health), [170, 650, 950, 1400, 1750, 1850, 1950, 2100, 2300, 2450]);
+  assert.deepEqual(projectileWeapons.map((weapon) => weapon.burstCount), [2, 3, 1, 3, 2, 3, 1, 2, 1, 3]);
+  assert.deepEqual(projectileWeapons.map((weapon) => weapon.projectileSpeed), [6.52, 7, 6, 6.4, 6.2, 6.8, 4.6, 6.2, 5.6, 7.6]);
   bosses.slice(1).forEach((boss, index) => assert.ok(boss.health > bosses[index].health));
   assert.ok(projectileWeapons.every((weapon) => weapon.projectileSpeed <= 10.5));
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1\.45/);
@@ -109,7 +109,7 @@ test('player ship uses a five-percent smaller gameplay footprint', () => {
 test('Research keeps tight fire-rate tiers while BIO swaps to equal-damage straight twin rails', () => {
   assert.match(engineSource, /const fireInterval = getFireRateIntervalFrames\(level\)/);
   assert.match(engineSource, /const volleySize = getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\)/);
-  assert.match(engineSource, /const volleyOffsets = getTightVolleyOffsets\(volleySize\)/);
+  assert.match(engineSource, /getTightVolleyOffsets\(volleySize\)\.map/);
   assert.match(engineSource, /const weaponKind: PlayerWeaponKind = 'pulse'/);
   assert.match(engineSource, /this\.playerShipId === 'bio'[\s\S]*getBioPrimaryShotPlan/);
   assert.match(engineSource, /hasPlayerShotCapacity\(bioPrimaryPlan\.simulationEntityCount\)/);

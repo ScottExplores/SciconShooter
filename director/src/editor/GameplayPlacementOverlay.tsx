@@ -28,13 +28,14 @@ const defaultAnchor = (event: WaveEvent): NormalizedPoint => {
   if (event.spawnAnchor) return event.spawnAnchor;
   if (event.kind === 'boss') return { x: 0.5, y: 0.22 };
   if (event.kind === 'asteroid-belt') return { x: 0.5, y: 0.17 };
+  if (event.kind === 'supply-drop') return { x: 0.5, y: 0.08 };
   if (event.kind === 'powerup' || event.kind === 'recovery') return { x: 0.5, y: 0.48 };
   return { x: 0.5, y: 0.16 };
 };
 
 const eventAssetKey = (event: WaveEvent): AssetKey => {
   if (event.kind === 'spawn') return event.enemies[0]?.spriteKey ?? 'ENEMY_DRONE_FRAMES';
-  if (event.kind === 'boss' || event.kind === 'asteroid-belt') return event.spriteKey;
+  if (event.kind === 'boss' || event.kind === 'asteroid-belt' || event.kind === 'supply-drop') return event.spriteKey;
   return event.kind === 'powerup' ? 'REAL_RSC_ICON' : 'RSC_TOKEN';
 };
 

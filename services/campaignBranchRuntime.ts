@@ -1,11 +1,11 @@
 import type {
-  AsteroidEvent,
   CampaignBranchDefinition,
   CampaignCombatBranchMissionDefinition,
   CampaignPresentDropMissionDefinition,
   GameCampaignConfig,
   PresentDropPatternId,
   PresentDropPresentKind,
+  SupplyDropEvent,
   WaveEvent
 } from '../game-config/types';
 
@@ -219,7 +219,7 @@ export const verifyCampaignCombatBranchRuntimeResult = (
 const buildPresentEvents = (
   branch: CampaignPresentDropBranchDefinition,
   options: CampaignBranchRuntimeOptions = {}
-): AsteroidEvent[] => {
+): SupplyDropEvent[] => {
   const mission = branch.missionDefinition;
   const spawnSeed = finiteInteger(options.spawnSeed, 0, 9_999);
   const valueMultiplier = normalizeValueMultiplier(options.valueMultiplier);
@@ -231,7 +231,7 @@ const buildPresentEvents = (
       const startSeconds = group.startSeconds + index * group.spawnIntervalSeconds;
       return {
         id: `${mission.id}:${group.id}:${index + 1}`,
-        kind: 'asteroid-belt' as const,
+        kind: 'supply-drop' as const,
         label: present.displayName,
         startSeconds,
         durationSeconds: Math.max(0.5, mission.durationSeconds - startSeconds),
@@ -247,20 +247,13 @@ const buildPresentEvents = (
           glowColor: present.kind === 'golden' ? '#fde047' : '#22d3ee',
           glowBlur: present.kind === 'golden' ? 14 : 5
         },
-        count: 1,
-        density: 0.08,
-        patternId: 'asteroid-lanes' as const,
-        positionId: 'lane-top' as const,
-        spawnIntervalSeconds: group.spawnIntervalSeconds,
-        warningSeconds: 0,
+        presentKind: present.kind,
+        positionId: 'formation-top' as const,
         health: present.health,
         speed: 1.5 * present.speedMultiplier,
-        damage: 0,
         scoreValue: 0,
-        powerupDropChance: 0,
-        coinDropValue: Math.max(1, Math.round(present.coinValue * valueMultiplier)),
-        bonusTargetKind: present.kind
-      } satisfies AsteroidEvent;
+        coinDropValue: Math.max(1, Math.round(present.coinValue * valueMultiplier))
+      } satisfies SupplyDropEvent;
     });
   });
 };
@@ -282,7 +275,7 @@ const cloneAuthoredCombatEvents = (
       }
     : event.kind === 'powerup' || event.kind === 'recovery'
       ? { powerupIds: [...event.powerupIds] }
-      : event.kind === 'asteroid-belt'
+      : event.kind === 'asteroid-belt' || event.kind === 'supply-drop'
         ? (event.spriteStyle ? { spriteStyle: { ...event.spriteStyle } } : {})
         : {})
 } as WaveEvent));

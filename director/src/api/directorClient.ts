@@ -88,7 +88,7 @@ export interface WorkspaceApplyResult {
   };
 }
 
-export type GeneratedAssetRole = 'enemy' | 'boss' | 'asteroid' | 'hud' | 'player' | 'background' | 'scorecard';
+export type GeneratedAssetRole = 'enemy' | 'boss' | 'asteroid' | 'supply-drop' | 'hud' | 'player' | 'background' | 'scorecard';
 
 export interface GeneratedAssetEntry {
   id: string;

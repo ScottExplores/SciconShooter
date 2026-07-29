@@ -244,6 +244,15 @@ if (!html.includes("async function deleteSelectedGalleryItems()") || !html.inclu
 if (html.includes('<div class="path">${item.pack}</div>') || !html.includes("viewerInfo.hidden = true")) {
   throw new Error("Visible asset location text is still present");
 }
+if (!html.includes('class="viewer-resize-grip"') || !html.includes("viewerResizeGrip.addEventListener('pointerdown'")) {
+  throw new Error("The image preview resize grip is missing");
+}
+if (!html.includes("viewer.style.width = `${Math.round(width)}px`") || !html.includes("viewer.style.height = `${Math.round(height)}px`")) {
+  throw new Error("The image preview resize behavior is missing");
+}
+if (!html.includes("const clickedBackdrop =") || !html.includes("if (clickedBackdrop) viewer.close()")) {
+  throw new Error("Resize-safe image preview backdrop handling is missing");
+}
 const livingMachineryPreview = assets.find((item) => item.name === "first-place-row-living-machinery-idle.gif");
 if (!livingMachineryPreview?.absolutePath.endsWith("first-place-row-living-machinery-idle.gif")) {
   throw new Error("Animation copy path is not registered correctly");
@@ -282,11 +291,12 @@ if (uncatalogedTrackedImages.length) {
   throw new Error(`Tracked project images missing from gallery: ${uncatalogedTrackedImages.slice(0, 10).join(", ")}`);
 }
 const gameArtFiles = listImages(gameArtRoot);
-// Runtime review captures are QA evidence, not reusable sprites. Keep the
-// gallery focused on source sheets, modular parts, effects, and previews.
+// Runtime review and evidence captures are QA records, not reusable sprites.
+// Keep the gallery focused on source sheets, modular parts, effects, and previews.
 const prototypeArtFiles = listImages(prototypeArtRoot).filter((filePath) => {
   const relativePath = path.relative(prototypeArtRoot, filePath);
-  return !relativePath.split(path.sep).includes("review");
+  const segments = relativePath.split(path.sep);
+  return !segments.includes("review") && !segments.includes("evidence");
 });
 const sourceArtFiles = listImages(sourceArtRoot);
 const archiveArtFiles = listImages(archiveArtRoot);
@@ -395,6 +405,19 @@ if (prototypeAssets.some((item) => (
   (/(?:sheet|atlas)/i.test(item.name) && !item.simpleCategories.includes("Sprite Sheets"))
 ))) {
   throw new Error("Test/prototype boss images are missing semantic Bosses or Sprite Sheets categories");
+}
+if (prototypeAssets.some((item) => !item.bossGroup)) {
+  throw new Error("Test/prototype boss images are missing boss-group metadata");
+}
+if (assets.some((item) => /[\\/](?:review|evidence)[\\/]/i.test(item.absolutePath))) {
+  throw new Error("Review or evidence screenshots were added to the sprite gallery");
+}
+const groupedProjectBossAssets = assets.filter((item) => item.source === "Scicon project" && item.simpleCategories.includes("Bosses"));
+if (groupedProjectBossAssets.some((item) => !item.bossGroup)) {
+  throw new Error("Project boss images are missing boss-group metadata");
+}
+if (!html.includes("const organizeByBoss =") || !html.includes("subgroup.className = 'asset-subgroup'")) {
+  throw new Error("Collapsible boss subgroups are missing from the gallery");
 }
 if (new Set(assets.map((item) => normalizeAbsolutePath(item.absolutePath))).size !== assets.length) {
   throw new Error("Duplicate image paths were added to the gallery");

@@ -16,7 +16,7 @@ const metadataApiSource = read('api/record-metadata.js');
 const mintAuthorizationSource = read('api/mint-authorization.js');
 
 test('flight time begins when the first transmission deploys instead of when the intro starts', () => {
-  assert.match(appSource, /completedPhase !== undefined && !isBossArchiveRun[\s\S]*?beginRunSession\(isOwnerTestRun \|\| isOwnerWallet\)/);
+  assert.match(appSource, /completedPhase !== undefined && !isBossArchiveRun[\s\S]*?beginRunSession\(isOwnerTestRun \|\| isOwnerWallet, activeRunMode\)/);
   assert.match(appSource, /runStartedAtRef\.current = Date\.now\(\)/);
   assert.match(appSource, /durationMs: Math\.max\(0, Date\.now\(\) - gameplayStartedAt\)/);
   assert.doesNotMatch(appSource, /Date\.now\(\) - new Date\(session\.issuedAt\)/);

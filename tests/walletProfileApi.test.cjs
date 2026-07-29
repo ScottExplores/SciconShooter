@@ -28,6 +28,13 @@ const SECOND_MISSION_LAST_WAVE = SECOND_MISSION.waves
   .slice()
   .sort((left, right) => left.order - right.order)
   .at(-1);
+const GRAPH_ENTRY = campaign.campaignGraph.nodes.find((node) => (
+  node.nodeId === campaign.campaignGraph.entryNodeId
+));
+const GRAPH_ROUTE_A_ID = GRAPH_ENTRY.outgoingEdges[0].toNodeId;
+const FIRST_BOSS_EVENT_ID = campaign.levels
+  .flatMap((level) => level.waves.flatMap((wave) => wave.events))
+  .find((event) => event.kind === 'boss' && event.bossId === campaign.sectors[0].majorBossId).id;
 const CAMPAIGN_REWARD_ID = `campaign:${FIRST_MISSION.id}:first-clear`;
 const CAMPAIGN_BRANCH_REWARD_ID = 'campaign-branch:test-branch:reward-receipt-1';
 const CAMPAIGN_RESULT_ID = 'wallet-api-campaign-result';
@@ -55,7 +62,11 @@ const makeRequest = (method, body, cookie) => ({
   }
 });
 
-const cookiePair = (setCookie) => String(setCookie).split(';')[0];
+const cookiePair = (setCookie) => {
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  const activeCookie = cookies.find((cookie) => !/Max-Age=0(?:;|$)/.test(String(cookie)));
+  return String(activeCookie || '').split(';')[0];
+};
 
 test('challenge authentication creates a secure session and profile saves use revision CAS', async (t) => {
   const originalFetch = global.fetch;
@@ -139,8 +150,8 @@ test('challenge authentication creates a secure session and profile saves use re
   assert.equal(authResponse.statusCode, 200);
   assert.equal(authResponse.body.walletAddress, WALLET);
   assert.equal(authResponse.body.profile, null);
-  assert.match(authResponse.headers['Set-Cookie'], /HttpOnly/);
-  assert.match(authResponse.headers['Set-Cookie'], /Secure/);
+  assert.match(String(authResponse.headers['Set-Cookie']), /HttpOnly/);
+  assert.match(String(authResponse.headers['Set-Cookie']), /Secure/);
   assert.ok(challenges.get(challengeResponse.body.challengeId).used_at);
 
   const cookie = cookiePair(authResponse.headers['Set-Cookie']);
@@ -215,10 +226,20 @@ test('challenge authentication creates a secure session and profile saves use re
           seenEventIds: ['open-orbit-gatekeeper']
         },
         campaignProgress: {
+          version: 4,
           campaignId: campaign.id,
           campaignRevision: campaign.revision,
           recommendedMissionId: SECOND_MISSION.id,
           recommendedWaveId: SECOND_MISSION_LAST_WAVE.id,
+          recommendedGraphNodeId: GRAPH_ROUTE_A_ID,
+          currentGraphNodeId: GRAPH_ROUTE_A_ID,
+          furthestMainGraphNodeId: GRAPH_ROUTE_A_ID,
+          unlockedGraphNodeIds: [GRAPH_ENTRY.nodeId, GRAPH_ROUTE_A_ID, 'unknown-node'],
+          completedGraphNodeIds: [GRAPH_ENTRY.nodeId],
+          selectedRouteTargetBySourceNodeId: {
+            [GRAPH_ENTRY.nodeId]: GRAPH_ROUTE_A_ID
+          },
+          pendingRouteChoice: null,
           unlockedMissionIds: [FIRST_MISSION.id, SECOND_MISSION.id],
           unlockedWaveIdsByMission: {
             [FIRST_MISSION.id]: [FIRST_WAVE.id],
@@ -269,11 +290,11 @@ test('challenge authentication creates a secure session and profile saves use re
   );
   assert.deepEqual(
     saveResponse.body.profile.snapshot.permanentState.bossArchive.unlockedEventIds,
-    ['open-orbit-gatekeeper']
+    [FIRST_BOSS_EVENT_ID]
   );
   assert.deepEqual(
     saveResponse.body.profile.snapshot.permanentState.bossArchive.seenEventIds,
-    ['open-orbit-gatekeeper']
+    [FIRST_BOSS_EVENT_ID]
   );
   assert.equal(saveResponse.body.profile.snapshot.permanentState.bossArchive.version, 1);
   assert.equal(
@@ -286,6 +307,7 @@ test('challenge authentication creates a secure session and profile saves use re
   );
   const savedCampaign = saveResponse.body.profile.snapshot.permanentState.campaignProgress;
   assert.equal(savedCampaign.campaignId, campaign.id);
+  assert.equal(savedCampaign.version, 4);
   assert.equal(savedCampaign.campaignRevision, campaign.revision);
   assert.equal(savedCampaign.recommendedMissionId, SECOND_MISSION.id);
   assert.equal(savedCampaign.recommendedWaveId, SECOND_MISSION_WAVE.id);
@@ -293,6 +315,14 @@ test('challenge authentication creates a secure session and profile saves use re
   assert.equal(savedCampaign.missionRecords[FIRST_MISSION.id].bestScore, 777);
   assert.deepEqual(savedCampaign.claimedRewardIds, [CAMPAIGN_REWARD_ID]);
   assert.deepEqual(savedCampaign.processedResultIds, [CAMPAIGN_RESULT_ID]);
+  assert.equal(savedCampaign.recommendedGraphNodeId, GRAPH_ROUTE_A_ID);
+  assert.equal(savedCampaign.currentGraphNodeId, GRAPH_ROUTE_A_ID);
+  assert.equal(savedCampaign.furthestMainGraphNodeId, GRAPH_ROUTE_A_ID);
+  assert.deepEqual(savedCampaign.completedGraphNodeIds, [GRAPH_ENTRY.nodeId]);
+  assert.equal(savedCampaign.unlockedGraphNodeIds.includes('unknown-node'), false);
+  assert.deepEqual(savedCampaign.selectedRouteTargetBySourceNodeId, {
+    [GRAPH_ENTRY.nodeId]: GRAPH_ROUTE_A_ID
+  });
   assert.deepEqual(
     savedCampaign.completionRecords.map((record) => record.resultId),
     [CAMPAIGN_RESULT_ID]
@@ -307,11 +337,11 @@ test('challenge authentication creates a secure session and profile saves use re
   assert.equal(getResponse.body.profile.snapshot.weeklyState.durableCampaignCoins, 35);
   assert.deepEqual(
     getResponse.body.profile.snapshot.permanentState.bossArchive.unlockedEventIds,
-    ['open-orbit-gatekeeper']
+    [FIRST_BOSS_EVENT_ID]
   );
   assert.deepEqual(
     getResponse.body.profile.snapshot.permanentState.bossArchive.seenEventIds,
-    ['open-orbit-gatekeeper']
+    [FIRST_BOSS_EVENT_ID]
   );
   assert.equal(getResponse.body.profile.snapshot.permanentState.bossArchive.version, 1);
   assert.deepEqual(
@@ -319,11 +349,17 @@ test('challenge authentication creates a secure session and profile saves use re
     [CAMPAIGN_REWARD_ID]
   );
   const loadedCampaign = getResponse.body.profile.snapshot.permanentState.campaignProgress;
+  assert.equal(loadedCampaign.version, 4);
   assert.equal(loadedCampaign.recommendedMissionId, SECOND_MISSION.id);
   assert.equal(loadedCampaign.recommendedWaveId, SECOND_MISSION_WAVE.id);
   assert.equal(loadedCampaign.missionRecords[FIRST_MISSION.id].bestScore, 777);
   assert.deepEqual(loadedCampaign.claimedRewardIds, [CAMPAIGN_REWARD_ID]);
   assert.deepEqual(loadedCampaign.processedResultIds, [CAMPAIGN_RESULT_ID]);
+  assert.equal(loadedCampaign.recommendedGraphNodeId, GRAPH_ROUTE_A_ID);
+  assert.equal(loadedCampaign.currentGraphNodeId, GRAPH_ROUTE_A_ID);
+  assert.deepEqual(loadedCampaign.selectedRouteTargetBySourceNodeId, {
+    [GRAPH_ENTRY.nodeId]: GRAPH_ROUTE_A_ID
+  });
   assert.deepEqual(
     loadedCampaign.completionRecords.map((record) => ({
       resultId: record.resultId,

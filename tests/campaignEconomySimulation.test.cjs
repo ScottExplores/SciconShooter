@@ -16,14 +16,15 @@ const loadSimulation = async () => {
   };
 };
 
-test('revision-22 economy reports clear-only, expected, and full-mastery envelopes for all four sectors', async () => {
+test('revision-23 economy reports main, alternate-route, and mastery envelopes for all ten sectors', async () => {
   const { simulation } = await loadSimulation();
 
-  assert.equal(simulation.campaignRevision, 22);
-  assert.equal(simulation.sectorRows.length, 4);
-  assert.equal(simulation.missionRows.length, 20);
+  assert.equal(simulation.campaignRevision, 23);
+  assert.equal(simulation.sectorRows.length, 10);
+  assert.equal(simulation.missionRows.length, 50);
   assert.equal(simulation.sectorRows.every((sector) => sector.missionCount === 5), true);
-  assert.equal(simulation.sectorRows.every((sector) => sector.waveCount === 24), true);
+  assert.equal(simulation.sectorRows.every((sector) => sector.waveCount === 27), true);
+  assert.equal(simulation.sectorRows.every((sector) => sector.alternateRouteCount === 1), true);
   assert.deepEqual(
     simulation.sectorRows.map((sector) => ({
       clearOnly: sector.clearOnlyCoins,
@@ -32,26 +33,35 @@ test('revision-22 economy reports clear-only, expected, and full-mastery envelop
       fullMaximum: sector.fullMasteryMaximumCoins
     })),
     [
-      { clearOnly: 1709, expected: 2059, fullMinimum: 3479, fullMaximum: 3736 },
-      { clearOnly: 2195, expected: 2620, fullMinimum: 4430, fullMaximum: 4430 },
-      { clearOnly: 2681, expected: 3181, fullMinimum: 5341, fullMaximum: 5341 },
-      { clearOnly: 3167, expected: 3742, fullMinimum: 6272, fullMaximum: 6272 }
+      { clearOnly: 905, expected: 1040, fullMinimum: 1978, fullMaximum: 2235 },
+      { clearOnly: 1082, expected: 1242, fullMinimum: 2428, fullMaximum: 2428 },
+      { clearOnly: 1259, expected: 1444, fullMinimum: 2844, fullMaximum: 2844 },
+      { clearOnly: 1436, expected: 1646, fullMinimum: 3274, fullMaximum: 3274 },
+      { clearOnly: 1613, expected: 1848, fullMinimum: 3629, fullMaximum: 3629 },
+      { clearOnly: 1790, expected: 2050, fullMinimum: 4023, fullMaximum: 4023 },
+      { clearOnly: 1967, expected: 2252, fullMinimum: 4425, fullMaximum: 4425 },
+      { clearOnly: 2144, expected: 2454, fullMinimum: 4820, fullMaximum: 4820 },
+      { clearOnly: 2321, expected: 2656, fullMinimum: 5214, fullMaximum: 5214 },
+      { clearOnly: 2498, expected: 2858, fullMinimum: 5610, fullMaximum: 5610 }
     ]
   );
   assert.deepEqual(simulation.totals, {
-    clearCoins: 3562,
-    firstClearCoins: 4990,
-    star1Coins: 1200,
-    star2Coins: 1850,
-    star3Coins: 3050,
-    masteryCoins: 3950,
-    branchMinimumCoins: 920,
-    branchMaximumCoins: 1177,
-    clearOnlyCoins: 9752,
-    expectedCoins: 11602,
-    fullMasteryMinimumCoins: 19522,
-    fullMasteryMaximumCoins: 19779,
-    dailyReplayCoins: 475
+    clearCoins: 7705,
+    firstClearCoins: 7785,
+    star1Coins: 1525,
+    star2Coins: 2475,
+    star3Coins: 3900,
+    masteryCoins: 5700,
+    alternateClearOnlyCoins: 3345,
+    alternateExpectedCoins: 3840,
+    alternateFullMasteryCoins: 5760,
+    branchMinimumCoins: 3395,
+    branchMaximumCoins: 3652,
+    clearOnlyCoins: 17015,
+    expectedCoins: 19490,
+    fullMasteryMinimumCoins: 38245,
+    fullMasteryMaximumCoins: 38502,
+    dailyReplayCoins: 715
   });
 });
 
@@ -59,7 +69,14 @@ test('economy simulation consumes premium-adjusted support and main-ship costs f
   const { simulation } = await loadSimulation();
   const reference = simulation.upgradeReference;
 
-  assert.equal(reference.fullMainShipCoins, 44765);
+  assert.equal(reference.fullMainShipCoins, 561645);
+  assert.equal(reference.allFourMainShipsCoins, 2246580);
+  assert.equal(reference.allSupportsAndSlotsCoins, 38310);
+  assert.equal(reference.mainUpgradeCosts.fireRate.length, 49);
+  assert.equal(reference.mainUpgradeCosts.fireRate.slice(0, 21).reduce((sum, cost) => sum + cost, 0), 40250);
+  assert.equal(reference.mainUpgradeCosts.fireRate.reduce((sum, cost) => sum + cost, 0), 551350);
+  assert.equal(reference.mainUpgradeQueue.length, 63);
+  assert.deepEqual(reference.mainUpgradeCosts.startingHearts, [180, 320, 560, 900, 1400, 2100, 3000]);
   assert.deepEqual(reference.slotCosts, { left: 50, right: 500 });
   assert.equal(reference.supportShips.length, 10);
   assert.deepEqual(reference.supportShips[0], {
@@ -78,24 +95,27 @@ test('economy simulation consumes premium-adjusted support and main-ship costs f
     levelOneToFiveCoins: 5032,
     acquireAndMaxCoins: 5792
   });
-  assert.equal(simulation.cadences.clearOnly.purchasesFunded, 24);
-  assert.equal(simulation.cadences.expected.purchasesFunded, 26);
-  assert.equal(simulation.cadences.fullMasteryMinimum.purchasesFunded, 29);
+  assert.equal(simulation.cadences.clearOnly.purchasesFunded, 25);
+  assert.equal(simulation.cadences.expected.purchasesFunded, 27);
+  assert.equal(simulation.cadences.fullMasteryMinimum.purchasesFunded, 32);
 });
 
-test('authored replay and branch income stay bounded and separate from weekly statistics', async () => {
+test('authored replay, route, and branch income stay bounded and separate from weekly statistics', async () => {
   const { simulation } = await loadSimulation();
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const squadSource = fs.readFileSync(path.join(root, 'services', 'squadProgression.ts'), 'utf8');
   const progressionSource = fs.readFileSync(path.join(root, 'services', 'campaignProgression.ts'), 'utf8');
 
-  assert.equal(campaign.campaignBranches.length, 4);
+  assert.equal(campaign.campaignBranches.length, 10);
   assert.deepEqual(
     campaign.campaignBranches.map((branch) => branch.completionReward.totalMinimumCoins),
-    [120, 210, 260, 330]
+    [120, 210, 260, 330, 325, 360, 395, 430, 465, 500]
   );
   assert.equal(campaign.campaignBranches.every((branch) => branch.replayPolicy === 'no-replay-after-claim'), true);
-  assert.deepEqual(simulation.sectorRows.map((sector) => sector.dailyReplayCoins), [85, 105, 130, 155]);
+  assert.deepEqual(
+    simulation.sectorRows.map((sector) => sector.dailyReplayCoins),
+    [40, 45, 55, 60, 70, 75, 80, 90, 95, 105]
+  );
 
   const campaignCreditBody = squadSource.match(
     /export const creditCampaignRewardGrants\s*=([\s\S]*?)\n\};\n\nexport const buildRuntimeSquadLoadout/
@@ -106,6 +126,32 @@ test('authored replay and branch income stay bounded and separate from weekly st
   assert.match(progressionSource, /replayRewardEpochByMission/);
   assert.match(progressionSource, /previousReplayRewardEpoch/);
   assert.match(progressionSource, /replayRewardEpoch > previousReplayRewardEpoch/);
+});
+
+test('Reward Center, Boss Archive, and combat pickup sources remain explicit', async () => {
+  const { simulation } = await loadSimulation();
+
+  assert.equal(simulation.rewardCenterInventory.dailyGiftDays, 30);
+  assert.equal(simulation.rewardCenterInventory.dailyGiftCycleCoins, 9450);
+  assert.equal(simulation.rewardCenterInventory.achievementCoins, 10400);
+  assert.equal(simulation.bossArchiveInventory.entries.length, 10);
+  assert.equal(simulation.bossArchiveInventory.dailyChargeLimit, 3);
+  assert.equal(simulation.bossArchiveInventory.oneTimeMasteryCoins, 5700);
+  assert.equal(simulation.bossArchiveInventory.maximumDailyChallengeCoins, 840);
+  assert.ok(
+    simulation.bossArchiveInventory.maximumDailyChallengeCoins * 7
+      <= simulation.totals.expectedCoins / 3,
+    'a full week of Archive charges must not replace the authored Campaign'
+  );
+  assert.ok(
+    simulation.rewardCenterInventory.dailyGiftCycleCoins
+      + simulation.rewardCenterInventory.achievementCoins
+      <= simulation.totals.expectedCoins * 1.05,
+    'one calendar plus every lifetime achievement must stay near one expected Campaign'
+  );
+  assert.equal(simulation.combatPickupInventory.coinValuePerEntity, 1);
+  assert.equal(simulation.combatPickupInventory.activeBossCoinCap, 128);
+  assert.ok(simulation.combatPickupInventory.mainRoute.totalAuthoredPickupCeiling > 0);
 });
 
 test('checked-in economy report is deterministic, current, and free of mojibake', async () => {

@@ -818,6 +818,8 @@ function LevelEditorWorkspace({ initialState }: { initialState: LevelEditorIniti
       next = { ...event, spawnAnchor, spriteKey: assetKey as typeof event.spriteKey };
     } else if (event.kind === 'asteroid-belt' && isAssetAllowedForRole(assetKey, 'asteroid')) {
       next = { ...event, spawnAnchor, spriteKey: assetKey };
+    } else if (event.kind === 'supply-drop' && isAssetAllowedForRole(assetKey, 'supply-drop')) {
+      next = { ...event, spawnAnchor, spriteKey: assetKey };
     }
     if (!next) {
       notify('That sprite is not compatible with the selected gameplay object', true);

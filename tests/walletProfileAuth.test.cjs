@@ -6,6 +6,7 @@ process.env.WALLET_PROFILE_AUTH_SECRET = 'wallet-profile-auth-test-secret';
 
 const {
   SESSION_COOKIE_NAME,
+  SESSION_LIFETIME_MS,
   clearWalletProfileSessionCookie,
   createWalletProfileSession,
   getWalletProfileAuthSecret,
@@ -54,15 +55,47 @@ test('wallet profile session cookies use the required browser protections', () =
   const res = { setHeader(name, value) { headers[name] = value; } };
   setWalletProfileSessionCookie(res, 'signed-token');
 
-  assert.match(headers['Set-Cookie'], new RegExp(`^${SESSION_COOKIE_NAME}=`));
-  assert.match(headers['Set-Cookie'], /HttpOnly/);
-  assert.match(headers['Set-Cookie'], /Secure/);
-  assert.match(headers['Set-Cookie'], /SameSite=Lax/);
-  assert.match(headers['Set-Cookie'], /Path=\/api\/wallet-profile/);
-  assert.match(headers['Set-Cookie'], /Max-Age=2592000/);
+  assert.equal(Array.isArray(headers['Set-Cookie']), true);
+  const [legacyCleanup, activeCookie] = headers['Set-Cookie'];
+  assert.match(activeCookie, new RegExp(`^${SESSION_COOKIE_NAME}=`));
+  assert.match(activeCookie, /HttpOnly/);
+  assert.match(activeCookie, /Secure/);
+  assert.match(activeCookie, /SameSite=Lax/);
+  assert.match(activeCookie, /Path=\/api(?:;|$)/);
+  assert.match(activeCookie, /Max-Age=2592000/);
+  assert.match(legacyCleanup, /Path=\/api\/wallet-profile/);
+  assert.match(legacyCleanup, /Max-Age=0/);
 
   clearWalletProfileSessionCookie(res);
-  assert.match(headers['Set-Cookie'], /Max-Age=0/);
+  assert.equal(headers['Set-Cookie'].length, 2);
+  headers['Set-Cookie'].forEach((cookie) => assert.match(cookie, /Max-Age=0/));
+});
+
+test('the default session remains valid for its advertised Max-Age and expires at the boundary', () => {
+  const now = Date.UTC(2026, 6, 23, 12);
+  const token = createWalletProfileSession(WALLET, now);
+
+  assert.doesNotThrow(() => (
+    verifyWalletProfileSession(token, now + SESSION_LIFETIME_MS - 1)
+  ));
+  assert.throws(
+    () => verifyWalletProfileSession(token, now + SESSION_LIFETIME_MS),
+    /expired/
+  );
+
+  const headers = {};
+  setWalletProfileSessionCookie({
+    setHeader(name, value) {
+      headers[name] = value;
+    }
+  }, token);
+  const activeCookie = headers['Set-Cookie'].find((cookie) => (
+    !/Max-Age=0(?:;|$)/.test(cookie)
+  ));
+  assert.match(
+    activeCookie,
+    new RegExp(`Max-Age=${SESSION_LIFETIME_MS / 1000}(?:;|$)`)
+  );
 });
 
 test('the gas-free profile message binds wallet, domain, chain, challenge, and expiry', () => {

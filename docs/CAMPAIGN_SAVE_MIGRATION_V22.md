@@ -1,8 +1,9 @@
 # Campaign save migration: revision 21 to 22
 
 Campaign revision 22 expands the authored route from fixed three-Wave Missions
-to dynamic Mission lengths. Client and wallet saves use Campaign progress
-schema version 3.
+to dynamic Mission lengths. Current client and wallet saves use Campaign
+progress schema version 4; older version-3 checkpoints are migrated into the
+authored Campaign graph without guessing an ambiguous route.
 
 ## Migration source
 
@@ -32,6 +33,32 @@ revision-22 equivalent. Both `services/campaignProgression.ts` and
   per UTC date. `replayRewardEpochByMission` stores the latest paid date and
   merges by the later date, preventing same-day result-ID farming and clock
   rollback alternation.
+
+## Wallet merge and receipt retention
+
+An authenticated wallet save sanitizes both the canonical cloud snapshot and
+the active device snapshot before merging them. Mission completion, contiguous
+Wave progress, stars, best records, unlocks, result IDs, reward claims,
+completion records, and replay epochs merge monotonically. A stale device may
+add valid newer progress, but it cannot erase the wallet's existing Campaign
+history. Conflicting graph choices continue to prefer the already committed
+cloud route.
+
+Receipt history is intentionally bounded to keep wallet profiles small:
+
+- 768 permanent Campaign reward claim IDs;
+- 384 processed Campaign result IDs;
+- 96 detailed Campaign completion records; and
+- 1,024 wallet credit IDs shared by Campaign and server-settled branch rewards.
+
+Cross-device merges retain the newest unique tail within each bound. Date-scoped
+daily replay IDs are not stored in the permanent reward ledger because the
+per-Mission replay epoch is their canonical one-per-day guard; replay churn
+therefore cannot evict first-clear, star, boss, or mastery receipts. Canonical
+server-settled branch receipts are reserved before ordinary Campaign credit IDs
+are trimmed. The remaining bounded arrays are a replay-resistance cache, not an
+authoritative gameplay ledger: durable Mission/star state and the replay epoch
+are the long-lived guards after an old attempt/result receipt ages out.
 
 ## Runtime settlement contract
 

@@ -343,10 +343,10 @@ test('local and hosted boss surfaces keep loadout changes out of canvas keys and
     '  const announceLiveLoadoutChange = useCallback',
     '\n\n  const spawnBoss = useCallback'
   );
-  const localViewportCallback = sliceRequired(
+  const localViewportFrame = sliceRequired(
     localSandboxSource,
-    '  const changePreviewViewportMode = useCallback',
-    '\n\n  const changeDebugOverlay = useCallback'
+    'className="boss-sandbox__viewport-frame"',
+    '                  <GameEditorCanvas'
   );
   const remoteCompanionCallback = sliceRequired(
     remoteRunnerSource,
@@ -357,9 +357,10 @@ test('local and hosted boss surfaces keep loadout changes out of canvas keys and
   assert.doesNotMatch(localSandboxSource, /loadoutKey/);
   assert.doesNotMatch(remoteRunnerSource, /loadoutKey/);
   assert.match(localCanvas, /key=\{`\$\{selectedChoice\.id\}:\$\{previewMountToken\}`\}/);
-  assert.match(localViewportCallback, /setPreviewViewportMode\(viewportMode\)/);
-  assert.match(localViewportCallback, /setPreviewCanvasStatus\('loading'\)/);
-  assert.match(localViewportCallback, /setPreviewMountToken\(\(value\) => value \+ 1\)/);
+  assert.match(localViewportFrame, /data-viewport-mode="mobile"/);
+  assert.match(localViewportFrame, /width: `\$\{previewViewport\.width\}px`/);
+  assert.match(localViewportFrame, /height: `\$\{previewViewport\.height\}px`/);
+  assert.match(localViewportFrame, /transform: `scale\(\$\{previewScale\}\)`/);
   assert.match(remoteCanvas, /key=\{`\$\{selectedChoice\.id\}:\$\{artworkStatus\}`\}/);
   assert.doesNotMatch(localCanvas, /fireRateLevel|speedLevel|mainShipId|companions/);
   assert.doesNotMatch(remoteCanvas, /fireRateLevel|speedLevel|mainShipId|companions/);

@@ -114,6 +114,7 @@ const compileService = (name, requires = {}) => {
 };
 
 const branchProgression = compileService('campaignBranchProgression.ts');
+const campaignGraph = compileService('campaignGraph.ts');
 
 const progression = compileService('campaignProgression.ts', {
   '../game-config/catalog': {
@@ -122,9 +123,17 @@ const progression = compileService('campaignProgression.ts', {
       'gatekeeper-prime',
       'eclipse-engine',
       'helix-leviathan',
-      'research-tribunal'
+      'research-tribunal',
+      'prism-moth',
+      'rail-serpent',
+      'singularity-crab',
+      'orbit-gyroscope',
+      'hammerhead-siege',
+      'frontier-crownclaw'
     ].includes(bossId)
   },
+  '../services/campaignGraph.ts': campaignGraph,
+  './campaignGraph': campaignGraph,
   './campaignBranchProgression': branchProgression,
   './levelConfig': levelConfigStub
 });
@@ -149,7 +158,7 @@ const squad = compileService('squadProgression.ts', {
   },
   './weaponTierProgression': {
     FIRE_RATE_LEVELS_PER_TIER: 7,
-    FIRE_RATE_MAX_LEVEL: 21,
+    FIRE_RATE_MAX_LEVEL: 49,
     getFireRateTier: () => 1,
     getFireRateTierProgress: () => ({ tier: 1, level: 0 })
   },
@@ -158,7 +167,13 @@ const squad = compileService('squadProgression.ts', {
     normalizeBossArchiveEventIds: (value) => Array.isArray(value) ? value : []
   },
   './bossArchiveProgression': bossArchiveProgressionStub,
-  './campaignProgression': progression
+  './campaignGraph': campaignGraph,
+  './campaignProgression': progression,
+  './levelConfig': levelConfigStub,
+  './weeklyCampaignStreak': {
+    sanitizeWeeklyCampaignStreak: (value) => value ?? null,
+    mergeWeeklyCampaignStreak: (target, source) => source ?? target ?? null
+  }
 });
 
 const completionInput = (overrides = {}) => ({
@@ -241,13 +256,17 @@ test('Mission definitions prefer authored Campaign metadata and preserve compati
   assert.notStrictEqual(authoredMission.starObjectives[0], authoredCampaign.levels[0].campaignProgression.masteryObjectives[0]);
 });
 
-test('the twenty authored Missions expose rev22 route, power, support, budget, and dynamic Wave metadata', () => {
+test('the revision-23 graph exposes fifty main depths, ten alternates, power, support, budget, and dynamic Wave metadata', () => {
   const trackedCampaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const authoredDefinitions = progression.buildCampaignMissionDefinitions(trackedCampaign);
-  assert.equal(authoredDefinitions.length, 20);
+  assert.equal(authoredDefinitions.length, 60);
+  assert.equal(trackedCampaign.sectors.length, 10);
+  assert.equal(trackedCampaign.campaignGraph.nodes.length, 60);
   assert.deepEqual(
-    authoredDefinitions.map((mission) => mission.waveIds.length),
-    [5, 6, 5, 7, 1, 5, 6, 5, 7, 1, 5, 6, 5, 7, 1, 5, 6, 5, 7, 1]
+    trackedCampaign.sectors.map((sector) => (
+      sector.missionIds.map((missionId) => authoredDefinitions.find((mission) => mission.id === missionId).waveIds.length)
+    )),
+    Array.from({ length: 10 }, () => [5, 6, 5, 7, 4])
   );
   authoredDefinitions.forEach((mission) => {
     assert.ok(mission.sectorId);
@@ -258,7 +277,11 @@ test('the twenty authored Missions expose rev22 route, power, support, budget, a
     assert.ok(Array.isArray(mission.recommendedSupportTags));
     assert.ok(mission.masterySetBonusCoins > 0);
   });
-  [5, 10, 15, 20].forEach((number) => assert.ok(authoredDefinitions[number - 1].bossPreview));
+  trackedCampaign.sectors.forEach((sector) => {
+    const bossMission = authoredDefinitions.find((mission) => mission.id === sector.missionIds[4]);
+    assert.ok(bossMission?.bossPreview);
+    assert.equal(bossMission.bossId, sector.majorBossId);
+  });
 });
 
 test('a fresh Campaign starts exactly at Mission 1, Wave 1', () => {
@@ -676,6 +699,19 @@ test('sanitization rejects unknown IDs and legacy migration resumes at the reach
   assert.deepEqual(Array.from(sanitized.unviewedMissionIds), ['mission-1']);
 });
 
+test('daily replay receipts cannot evict permanent Campaign reward claims', () => {
+  const permanentRewardId = 'campaign:mission-1:first-clear';
+  const replayRewardIds = Array.from(
+    { length: 1_200 },
+    (_, index) => `campaign:mission-1:replay:2026-07-${String((index % 28) + 1).padStart(2, '0')}:wave:${index}`
+  );
+  const sanitized = progression.sanitizeCampaignProgress({
+    claimedRewardIds: [permanentRewardId, ...replayRewardIds]
+  }, { campaign: TEST_CAMPAIGN });
+
+  assert.deepEqual(Array.from(sanitized.claimedRewardIds), [permanentRewardId]);
+});
+
 test('merging profiles preserves the farthest Mission, completion receipts, records, and stars', () => {
   const fresh = progression.createCampaignProgress(TEST_CAMPAIGN);
   const partial = progression.applyCampaignCompletion(
@@ -934,8 +970,12 @@ test('rev21 partial and completed records migrate through the tracked v22 Wave a
     missionRecords: { [first.id]: { ...partial.missionRecords[first.id], completed: true } }
   }, { campaign: tracked });
   assert.deepEqual(completed.missionRecords[first.id].completedWaveIds, first.waves.map((wave) => wave.id));
-  assert.equal(completed.recommendedMissionId, second.id);
-  assert.equal(completed.recommendedWaveId, second.waves[0].id);
+  assert.equal(completed.recommendedMissionId, first.id);
+  assert.equal(completed.pendingRouteChoice.sourceNodeId, tracked.sectors[0].mainNodeIds[0]);
+  assert.deepEqual(
+    new Set(completed.pendingRouteChoice.optionNodeIds),
+    new Set([tracked.sectors[0].mainNodeIds[1], tracked.sectors[0].routeNodeIds[0]])
+  );
 });
 
 test('dynamic 1, 5, 6, and 7 Wave Missions unlock exactly one Wave at a time', () => {

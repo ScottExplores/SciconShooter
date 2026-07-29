@@ -208,7 +208,7 @@ test('renderer owns one generic preview atlas rig with fallback and cleanup', ()
   assert.match(source, /helmet\?\.exposed \|\| helmet\?\.destroyed/);
   assert.match(source, /view\.sprite\.visible = !previewAtlasReady/);
   assert.match(source, /String\(entity\.projectileVisualKind \?\? ''\) !== 'boss-pod'/);
-  assert.match(source, /entity\.bossOwnerId !== this\.previewBossRuntimeEntityId/);
+  assert.match(source, /!this\.previewBossRuntimeEntityIds\.has\(entity\.bossOwnerId\)/);
   assert.match(source, /Math\.atan2\(entity\.vy, entity\.vx\) - Math\.PI \/ 2/);
   assert.doesNotMatch(source, /meridian|director/i);
 

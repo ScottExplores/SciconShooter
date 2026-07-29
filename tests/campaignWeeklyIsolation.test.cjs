@@ -73,8 +73,11 @@ const compileService = (name, requires = {}) => {
 };
 
 const branchProgression = compileService('campaignBranchProgression.ts');
+const campaignGraph = compileService('campaignGraph.ts');
 const campaignProgression = compileService('campaignProgression.ts', {
   '../game-config/catalog': { isMajorBossId: () => false },
+  '../services/campaignGraph.ts': campaignGraph,
+  './campaignGraph': campaignGraph,
   './campaignBranchProgression': branchProgression,
   './levelConfig': {
     DEFAULT_GAME_CAMPAIGN: TEST_CAMPAIGN,
@@ -98,7 +101,7 @@ const squadProgression = compileService('squadProgression.ts', {
   },
   './weaponTierProgression': {
     FIRE_RATE_LEVELS_PER_TIER: 7,
-    FIRE_RATE_MAX_LEVEL: 21,
+    FIRE_RATE_MAX_LEVEL: 49,
     getFireRateTier: () => 1,
     getFireRateTierProgress: () => ({ tier: 1, level: 0 })
   },
@@ -111,7 +114,15 @@ const squadProgression = compileService('squadProgression.ts', {
     sanitizeBossArchiveProgress: (value, fallback = {}) => ({ ...fallback, ...(value || {}) }),
     mergeBossArchiveProgress: (left, right) => ({ ...left, ...right })
   },
-  './campaignProgression': campaignProgression
+  './campaignGraph': campaignGraph,
+  './campaignProgression': campaignProgression,
+  './levelConfig': {
+    DEFAULT_GAME_CAMPAIGN: TEST_CAMPAIGN
+  },
+  './weeklyCampaignStreak': {
+    sanitizeWeeklyCampaignStreak: (value) => value ?? null,
+    mergeWeeklyCampaignStreak: (target, source) => source ?? target ?? null
+  }
 });
 
 const completion = (overrides = {}) => ({

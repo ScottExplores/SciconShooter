@@ -131,7 +131,12 @@ export interface GameCanvasProps {
   bombCommand?: { nonce: number } | null;
   shipAbilityCommand?: { nonce: number } | null;
   continueCommand?: { nonce: number; lives: number } | null;
-  waveContinueCommand?: { nonce: number } | null;
+  waveContinueCommand?: {
+    nonce: number;
+    /** Explicit directed-graph destination for a completed Mission. */
+    targetLevelId?: string;
+    targetWaveId?: string;
+  } | null;
   polishSettings: GamePolishSettings;
   playerShipUrl?: string;
   playerShipId?: PlayerShipId;
@@ -503,6 +508,36 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
           command.loop ?? false
         );
         break;
+      case 'set-mini-boss-signature-loop':
+        handled = engine.setPreviewMiniBossSignatureLoop(command.eventId, command.enabled);
+        break;
+      case 'trigger-mini-boss-support':
+        handled = engine.triggerPreviewMiniBossSupport(command.eventId);
+        break;
+      case 'set-mini-boss-low-health':
+        handled = engine.setPreviewMiniBossLowHealth(command.eventId);
+        break;
+      case 'trigger-mini-boss-hit':
+        handled = engine.triggerPreviewMiniBossHit(command.eventId);
+        break;
+      case 'trigger-mini-boss-death':
+        handled = engine.triggerPreviewMiniBossDeath(command.eventId);
+        break;
+      case 'destroy-mini-boss-unit':
+        handled = engine.destroyPreviewMiniBossUnit(command.eventId);
+        break;
+      case 'destroy-mini-boss-guardians':
+        handled = engine.destroyPreviewMiniBossGuardians(command.eventId);
+        break;
+      case 'set-mini-boss-shield':
+        handled = engine.setPreviewMiniBossShield(command.eventId, command.enabled);
+        break;
+      case 'set-mini-boss-wall-side':
+        handled = engine.setPreviewMiniBossWallSide(command.eventId, command.side);
+        break;
+      case 'set-compact-health-bars':
+        handled = engine.setPreviewCompactHealthBars(command.enabled);
+        break;
       case 'seek-to-frame':
         handled = engine.seekPreviewToFrame(command.frame);
         break;
@@ -610,7 +645,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     if (!waveContinueCommand || !engine) return;
     if (handledWaveContinueNonceRef.current === waveContinueCommand.nonce) return;
     handledWaveContinueNonceRef.current = waveContinueCommand.nonce;
-    if (!engine.continueToNextWave()) return;
+    const continued = waveContinueCommand.targetLevelId
+      ? engine.continueToCampaignMission(
+          waveContinueCommand.targetLevelId,
+          waveContinueCommand.targetWaveId
+        )
+      : engine.continueToNextWave();
+    if (!continued) return;
 
     const statsSnapshot = cloneStatsForReact(engine.stats);
     lastPublishedStatsRef.current = statsSnapshot;

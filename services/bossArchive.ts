@@ -83,9 +83,11 @@ export interface BossArchiveLockedPresentation {
 }
 
 export const BOSS_ARCHIVE_BASE_CHALLENGE_REWARD_COINS = 100;
-export const BOSS_ARCHIVE_CHALLENGE_REWARD_STEP_COINS = 25;
+export const BOSS_ARCHIVE_CHALLENGE_REWARD_STEP_COINS = 20;
+export const BOSS_ARCHIVE_CHALLENGE_REWARD_MISSIONS_PER_TIER = 5;
 export const BOSS_ARCHIVE_BASE_SPEED_TARGET_SECONDS = 75;
 export const BOSS_ARCHIVE_SPEED_TARGET_STEP_SECONDS = 2.5;
+const LEGACY_CAMPAIGN_FINAL_MISSION = 20;
 export const BOSS_ARCHIVE_MASTERY_REWARD_MULTIPLIERS = Object.freeze([
   0.75,
   1,
@@ -95,7 +97,10 @@ export const BOSS_ARCHIVE_MASTERY_REWARD_MULTIPLIERS = Object.freeze([
 export const getBossArchiveChallengeRewardCoins = (missionNumber: number) => (
   BOSS_ARCHIVE_BASE_CHALLENGE_REWARD_COINS
   + BOSS_ARCHIVE_CHALLENGE_REWARD_STEP_COINS
-    * Math.max(0, Math.floor(Number(missionNumber) || 1) - 1)
+    * Math.floor(
+      Math.max(0, Math.floor(Number(missionNumber) || 1) - 1)
+      / BOSS_ARCHIVE_CHALLENGE_REWARD_MISSIONS_PER_TIER
+    )
 );
 
 export const getBossArchiveSpeedTargetSeconds = (missionNumber: number) => (
@@ -430,7 +435,14 @@ export const inferLegacyBossArchiveEventIds = (
     0
   );
   const completedCampaign = progress.campaignCompleted === true
-    || (highestMission >= finalMission && bossesDefeated >= finalMission);
+    || (highestMission >= finalMission && bossesDefeated >= finalMission)
+    // The pre-graph Campaign ended at Mission 20. A profile that reached that
+    // historical cap with the matching victory count proved a full clear even
+    // though the revision-23 graph now contains more authored nodes.
+    || (
+      highestMission >= LEGACY_CAMPAIGN_FINAL_MISSION
+      && bossesDefeated >= LEGACY_CAMPAIGN_FINAL_MISSION
+    );
   const completedThrough = completedCampaign
     ? finalMission
     : Math.max(0, Math.min(finalMission, highestMission - 1));

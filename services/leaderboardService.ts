@@ -118,6 +118,7 @@ const writeRemoteLeaderboardData = async (
 ): Promise<LeaderboardData> => {
   const response = await fetch(API_URL, {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json'

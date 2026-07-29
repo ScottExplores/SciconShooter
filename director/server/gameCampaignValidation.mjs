@@ -65,7 +65,7 @@ const BUILT_IN_ASSET_KEYS = [
   ...CAMPAIGN_ENEMY_ASSET_KEYS,
   'POWERUP_MAX_SHOT_AURA_FRAMES'
 ];
-const GENERATED_ASSET_ROLES = new Set(['enemy', 'boss', 'asteroid', 'hud', 'player', 'background', 'scorecard']);
+const GENERATED_ASSET_ROLES = new Set(['enemy', 'boss', 'asteroid', 'supply-drop', 'hud', 'player', 'background', 'scorecard']);
 const GENERATED_ASSET_ID_PATTERN = /^GENERATED_[A-Z0-9]+(?:_[A-Z0-9]+)*$/;
 const GENERATED_ASSET_PATH_PATTERN = /^\/game-art\/generated\/[a-z0-9]+(?:-[a-z0-9]+)*\.png$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
@@ -113,6 +113,7 @@ const ASSET_KEYS = new Set();
 const ENEMY_SPRITE_KEYS = new Set();
 const BOSS_SPRITE_KEYS = new Set();
 const ASTEROID_SPRITE_KEYS = new Set();
+const SUPPLY_DROP_SPRITE_KEYS = new Set();
 const HUD_ASSET_KEYS = new Set();
 const SCORECARD_ASSET_KEYS = new Set();
 
@@ -163,6 +164,7 @@ const refreshGeneratedAssetCatalog = () => {
     ...generatedForRole('boss')
   ]);
   replaceSet(ASTEROID_SPRITE_KEYS, ['ASTEROID_BELT_FRAMES', 'CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL', ...generatedForRole('asteroid')]);
+  replaceSet(SUPPLY_DROP_SPRITE_KEYS, generatedForRole('supply-drop'));
   replaceSet(HUD_ASSET_KEYS, ['RSC_TOKEN', 'REAL_RSC_ICON', ...generatedForRole('hud')]);
   replaceSet(SCORECARD_ASSET_KEYS, [
     'PLAYER_SHIP', 'RSC_TOKEN', 'REAL_RSC_ICON',
@@ -178,11 +180,16 @@ const refreshGeneratedAssetCatalog = () => {
 refreshGeneratedAssetCatalog();
 const ENEMY_IDS = new Set(['drone', 'swarm', 'brick', 'journal']);
 const BOSS_IDS = new Set([
-  'bottleneck-drone', 'paywall-wall', 'gatekeeper', 'gatekeeper-prime', 'helix-leviathan',
-  'eclipse-engine', 'research-tribunal'
+  'bottleneck-drone', 'paywall-wall', 'fracture-engine-elite', 'aegis-brood-core',
+  'railspine-wallcrawler', 'maw-carrier', 'twin-meridian-sentinels', 'prism-bloom',
+  'aegis-convoy-captain', 'gridline-sentries', 'gatekeeper', 'gatekeeper-prime', 'helix-leviathan',
+  'eclipse-engine', 'research-tribunal', 'prism-moth', 'rail-serpent', 'singularity-crab',
+  'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw'
 ]);
 const MAJOR_BOSS_IDS = new Set([
-  'gatekeeper', 'gatekeeper-prime', 'helix-leviathan', 'eclipse-engine', 'research-tribunal'
+  'gatekeeper', 'gatekeeper-prime', 'helix-leviathan', 'eclipse-engine', 'research-tribunal',
+  'prism-moth', 'rail-serpent', 'singularity-crab', 'orbit-gyroscope', 'hammerhead-siege',
+  'frontier-crownclaw'
 ]);
 const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const POWERUP_IDS = new Set(['double-shot', 'triple-shot', 'max-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);
@@ -239,14 +246,35 @@ const ENEMY_GAMEPLAY_ROLES = new Set([
   'formation-unit', 'diver', 'flanker', 'shooter', 'burst-shooter', 'suppressor',
   'armored-unit', 'support-unit', 'priority-target', 'formation-leader', 'elite'
 ]);
-const ENEMY_FIRE_BEHAVIORS = new Set(['none', 'post-formation', 'aimed-burst']);
+const ENEMY_FIRE_BEHAVIORS = new Set([
+  'none', 'post-formation', 'aimed-burst', 'formation-command', 'elite-only'
+]);
 const ENEMY_ENTRY_BEHAVIORS = new Set(['formation', 'dive', 'flank', 'lane']);
 const FORMATION_ENTRY_DIRECTIONS = new Set(['top', 'left', 'right', 'split']);
 const FORMATION_FIRING_BEHAVIORS = new Set(['none', 'post-formation', 'staggered', 'priority']);
 const SUPPORT_RECOMMENDATION_TAGS = new Set([
   'anti-swarm', 'anti-armor', 'lane-control', 'boss-damage', 'survival', 'anti-summon'
 ]);
-const MINI_BOSS_IDS = new Set(['bottleneck-drone', 'paywall-wall']);
+const CAMPAIGN_ROUTE_EDGE_KINDS = new Set([
+  'progression', 'route-choice', 'rejoin', 'optional', 'crossing'
+]);
+const CAMPAIGN_ROUTE_RISKS = new Set(['low', 'moderate', 'high']);
+const CAMPAIGN_REWARD_PROFILES = new Set([
+  'standard', 'combat-premium', 'support-safe', 'boss', 'mastery', 'one-time'
+]);
+const CAMPAIGN_ROUTE_MINI_BOSS_PRESENCE = new Set(['none', 'optional', 'required']);
+const MINI_BOSS_IDS = new Set([
+  'bottleneck-drone',
+  'paywall-wall',
+  'fracture-engine-elite',
+  'aegis-brood-core',
+  'railspine-wallcrawler',
+  'maw-carrier',
+  'twin-meridian-sentinels',
+  'prism-bloom',
+  'aegis-convoy-captain',
+  'gridline-sentries'
+]);
 const MINI_BOSS_USAGES = new Set(['solo', 'paired', 'solo-or-paired']);
 const MINI_BOSS_VALIDATION_STATUSES = new Set(['validated', 'provisional']);
 const CAMPAIGN_BRANCH_MISSION_TYPES = new Set([
@@ -269,7 +297,7 @@ const CAMPAIGN_BRANCH_UNLOCK_KINDS = new Set([
 const CAMPAIGN_BRANCH_DISCOVERY_STATES = new Set(['encrypted', 'revealed']);
 const PRESENT_DROP_PRESENT_KINDS = new Set(['standard', 'armored', 'fast', 'golden']);
 const PRESENT_DROP_PATTERN_IDS = new Set(['lane-rain', 'staggered-columns', 'sine-sweep', 'final-center']);
-const EVENT_KINDS = new Set(['spawn', 'boss', 'asteroid-belt', 'powerup', 'recovery']);
+const EVENT_KINDS = new Set(['spawn', 'boss', 'asteroid-belt', 'supply-drop', 'powerup', 'recovery']);
 const BOSS_TIMELINE_TRIGGERS = new Set(['time', 'phase-enter', 'death']);
 const BOSS_TIMELINE_TELEGRAPH_STYLES = new Set(['warning', 'lane', 'target', 'ring', 'spokes']);
 const BOSS_TIMELINE_MOTION_CUES = new Set([
@@ -725,7 +753,9 @@ const validateCampaignSectors = (sectors, errors) => {
   sectors.forEach((sector, index) => {
     const location = `/sectors/${index}`;
     if (!requireObject(sector, location, errors)) return;
-    allowedKeys(sector, ['id', 'order', 'name', 'themeId', 'missionIds', 'majorBossId', 'branchIds'], location, errors);
+    allowedKeys(sector, [
+      'id', 'order', 'name', 'themeId', 'missionIds', 'mainNodeIds', 'routeNodeIds', 'majorBossId', 'branchIds'
+    ], location, errors);
     requireId(sector.id, `${location}/id`, errors);
     if (ids.has(sector.id)) errors.push(`/sectors contains duplicate id: ${String(sector.id)}`);
     ids.add(sector.id);
@@ -745,6 +775,30 @@ const validateCampaignSectors = (sectors, errors) => {
       });
     }
     requireEnum(sector.majorBossId, MAJOR_BOSS_IDS, `${location}/majorBossId`, errors);
+    if (sector.mainNodeIds !== undefined) {
+      if (!Array.isArray(sector.mainNodeIds) || sector.mainNodeIds.length !== 5) {
+        errors.push(`${location}/mainNodeIds must contain exactly five Campaign graph nodes`);
+      } else {
+        const mainNodeIds = new Set();
+        sector.mainNodeIds.forEach((nodeId, nodeIndex) => {
+          requireId(nodeId, `${location}/mainNodeIds/${nodeIndex}`, errors);
+          if (mainNodeIds.has(nodeId)) errors.push(`${location}/mainNodeIds contains duplicate value: ${String(nodeId)}`);
+          mainNodeIds.add(nodeId);
+        });
+      }
+    }
+    if (sector.routeNodeIds !== undefined) {
+      if (!Array.isArray(sector.routeNodeIds)) {
+        errors.push(`${location}/routeNodeIds must be an array`);
+      } else {
+        const routeNodeIds = new Set();
+        sector.routeNodeIds.forEach((nodeId, nodeIndex) => {
+          requireId(nodeId, `${location}/routeNodeIds/${nodeIndex}`, errors);
+          if (routeNodeIds.has(nodeId)) errors.push(`${location}/routeNodeIds contains duplicate value: ${String(nodeId)}`);
+          routeNodeIds.add(nodeId);
+        });
+      }
+    }
     if (!Array.isArray(sector.branchIds)) {
       errors.push(`${location}/branchIds must be an array`);
     } else {
@@ -789,7 +843,7 @@ const validateEnemyRoleManifest = (roles, errors) => {
     if (!requireObject(role, location, errors)) return;
     allowedKeys(role, [
       'id', 'label', 'enemyId', 'spriteKey', 'role', 'threatCost', 'introductionSector',
-      'introductionMission', 'durabilityClass', 'fireBehavior', 'entryBehavior',
+      'introductionMission', 'durabilityClass', 'fireBehavior', 'fireDelaySeconds', 'entryBehavior',
       'compatibleFormationPackIds', 'synergyTags', 'reuseCooldownWaves', 'maximumSimultaneousCount',
       'performanceCost'
     ], location, errors);
@@ -805,6 +859,16 @@ const validateEnemyRoleManifest = (roles, errors) => {
     requireNumber(role.introductionMission, `${location}/introductionMission`, errors, { minimum: 1, maximum: 5, integer: true });
     requireEnum(role.durabilityClass, ENEMY_DURABILITY_CLASSES, `${location}/durabilityClass`, errors);
     requireEnum(role.fireBehavior, ENEMY_FIRE_BEHAVIORS, `${location}/fireBehavior`, errors);
+    requireNumber(role.fireDelaySeconds, `${location}/fireDelaySeconds`, errors, { minimum: 0, maximum: 30 });
+    if (role.fireBehavior === 'none' && role.fireDelaySeconds !== 0) {
+      errors.push(`${location}/fireDelaySeconds must be zero when fireBehavior is none`);
+    }
+    if (role.fireBehavior !== 'none' && isFiniteNumber(role.fireDelaySeconds) && role.fireDelaySeconds < 0.5) {
+      errors.push(`${location}/fireDelaySeconds must be at least 0.5 seconds for firing roles`);
+    }
+    if (role.fireBehavior === 'elite-only' && role.durabilityClass !== 'elite') {
+      errors.push(`${location}/fireBehavior elite-only requires elite durability`);
+    }
     requireEnum(role.entryBehavior, ENEMY_ENTRY_BEHAVIORS, `${location}/entryBehavior`, errors);
     if (!Array.isArray(role.compatibleFormationPackIds)) errors.push(`${location}/compatibleFormationPackIds must be an array`);
     else role.compatibleFormationPackIds.forEach((id, itemIndex) => requireId(id, `${location}/compatibleFormationPackIds/${itemIndex}`, errors));
@@ -896,6 +960,353 @@ const validateCampaignMapPosition = (position, location, errors) => {
     && position.x >= 0 && position.x <= 1 && position.y >= 0 && position.y <= 1;
 };
 
+const validateCampaignRouteSummary = (summary, location, errors) => {
+  if (!requireObject(summary, location, errors)) return;
+  allowedKeys(summary, [
+    'combatIntensity', 'miniBossPresence', 'rewardType', 'recommendedSupportTags', 'estimatedWaveCount'
+  ], location, errors);
+  requireEnum(summary.combatIntensity, CAMPAIGN_ROUTE_RISKS, `${location}/combatIntensity`, errors);
+  requireEnum(summary.miniBossPresence, CAMPAIGN_ROUTE_MINI_BOSS_PRESENCE, `${location}/miniBossPresence`, errors);
+  requireString(summary.rewardType, `${location}/rewardType`, errors, 120);
+  validateUniqueEnumArray(
+    summary.recommendedSupportTags,
+    SUPPORT_RECOMMENDATION_TAGS,
+    `${location}/recommendedSupportTags`,
+    errors
+  );
+  requireNumber(summary.estimatedWaveCount, `${location}/estimatedWaveCount`, errors, {
+    minimum: 1,
+    maximum: 100,
+    integer: true
+  });
+};
+
+const validateCampaignGraph = (graph, campaign, errors) => {
+  if (graph === undefined) return;
+  if (!requireObject(graph, '/campaignGraph', errors)) return;
+  allowedKeys(graph, ['entryNodeId', 'nodes'], '/campaignGraph', errors);
+  requireId(graph.entryNodeId, '/campaignGraph/entryNodeId', errors);
+  if (!Array.isArray(graph.nodes) || graph.nodes.length === 0) {
+    errors.push('/campaignGraph/nodes must be a non-empty array');
+    return;
+  }
+
+  const levels = Array.isArray(campaign.levels) ? campaign.levels.filter(isPlainObject) : [];
+  const sectors = Array.isArray(campaign.sectors) ? campaign.sectors.filter(isPlainObject) : [];
+  const levelsById = new Map(levels.flatMap((level) => typeof level.id === 'string' ? [[level.id, level]] : []));
+  const sectorsById = new Map(sectors.flatMap((sector) => typeof sector.id === 'string' ? [[sector.id, sector]] : []));
+  const nodes = graph.nodes.filter(isPlainObject);
+  const nodesById = new Map();
+  const missionOwnerById = new Map();
+  const edgeOwnerById = new Map();
+
+  graph.nodes.forEach((node, nodeIndex) => {
+    const location = `/campaignGraph/nodes/${nodeIndex}`;
+    if (!requireObject(node, location, errors)) return;
+    allowedKeys(node, [
+      'nodeId', 'sectorId', 'depth', 'routeId', 'displayLabel', 'missionDefinitionId',
+      'prerequisiteNodeIds', 'prerequisiteMode', 'outgoingEdges', 'rejoinNodeId', 'optional',
+      'mainPath', 'masteryBranch', 'oneTime', 'bossId', 'miniBossIds', 'weeklyStreakEligible',
+      'weeklyScoreMultiplier', 'recommendedPower', 'rewardProfile', 'mapPosition',
+      'routeControlPoints', 'routeSummary'
+    ], location, errors);
+    requireId(node.nodeId, `${location}/nodeId`, errors);
+    if (nodesById.has(node.nodeId)) errors.push(`/campaignGraph/nodes contains duplicate nodeId: ${String(node.nodeId)}`);
+    else if (typeof node.nodeId === 'string') nodesById.set(node.nodeId, node);
+    requireId(node.sectorId, `${location}/sectorId`, errors);
+    requireNumber(node.depth, `${location}/depth`, errors, { minimum: 1, maximum: 100000, integer: true });
+    requireId(node.routeId, `${location}/routeId`, errors);
+    requireString(node.displayLabel, `${location}/displayLabel`, errors, 120);
+    requireId(node.missionDefinitionId, `${location}/missionDefinitionId`, errors);
+    if (typeof node.missionDefinitionId === 'string') {
+      const priorOwner = missionOwnerById.get(node.missionDefinitionId);
+      if (priorOwner) {
+        errors.push(`${location}/missionDefinitionId must be unique; already owned by Campaign graph node ${priorOwner}`);
+      } else missionOwnerById.set(node.missionDefinitionId, node.nodeId);
+    }
+    if (!Array.isArray(node.prerequisiteNodeIds)) {
+      errors.push(`${location}/prerequisiteNodeIds must be an array`);
+    } else {
+      const prerequisiteIds = new Set();
+      node.prerequisiteNodeIds.forEach((nodeId, itemIndex) => {
+        requireId(nodeId, `${location}/prerequisiteNodeIds/${itemIndex}`, errors);
+        if (prerequisiteIds.has(nodeId)) errors.push(`${location}/prerequisiteNodeIds contains duplicate value: ${String(nodeId)}`);
+        prerequisiteIds.add(nodeId);
+      });
+    }
+    requireEnum(node.prerequisiteMode, new Set(['any', 'all']), `${location}/prerequisiteMode`, errors);
+    if (!Array.isArray(node.outgoingEdges)) {
+      errors.push(`${location}/outgoingEdges must be an array`);
+    } else {
+      const routeChoiceLabels = new Set();
+      const routeChoiceIds = new Set();
+      node.outgoingEdges.forEach((edge, edgeIndex) => {
+        const edgeLocation = `${location}/outgoingEdges/${edgeIndex}`;
+        if (!requireObject(edge, edgeLocation, errors)) return;
+        allowedKeys(edge, [
+          'edgeId', 'toNodeId', 'routeId', 'label', 'kind', 'risk', 'weeklyScoreMultiplier'
+        ], edgeLocation, errors);
+        requireId(edge.edgeId, `${edgeLocation}/edgeId`, errors);
+        if (edgeOwnerById.has(edge.edgeId)) {
+          errors.push(`${edgeLocation}/edgeId must be globally unique; already owned by ${edgeOwnerById.get(edge.edgeId)}`);
+        } else if (typeof edge.edgeId === 'string') edgeOwnerById.set(edge.edgeId, node.nodeId);
+        requireId(edge.toNodeId, `${edgeLocation}/toNodeId`, errors);
+        requireId(edge.routeId, `${edgeLocation}/routeId`, errors);
+        requireString(edge.label, `${edgeLocation}/label`, errors, 120);
+        requireEnum(edge.kind, CAMPAIGN_ROUTE_EDGE_KINDS, `${edgeLocation}/kind`, errors);
+        requireEnum(edge.risk, CAMPAIGN_ROUTE_RISKS, `${edgeLocation}/risk`, errors);
+        requireNumber(edge.weeklyScoreMultiplier, `${edgeLocation}/weeklyScoreMultiplier`, errors, {
+          minimum: 0.1,
+          maximum: 10
+        });
+        if (edge.kind === 'route-choice') {
+          const normalizedLabel = typeof edge.label === 'string' ? edge.label.trim().toLowerCase() : edge.label;
+          if (routeChoiceLabels.has(normalizedLabel)) errors.push(`${location}/outgoingEdges route-choice labels must be unique`);
+          if (routeChoiceIds.has(edge.routeId)) errors.push(`${location}/outgoingEdges route-choice routeIds must be unique`);
+          routeChoiceLabels.add(normalizedLabel);
+          routeChoiceIds.add(edge.routeId);
+        }
+      });
+    }
+    if (node.rejoinNodeId !== null) requireId(node.rejoinNodeId, `${location}/rejoinNodeId`, errors);
+    ['optional', 'mainPath', 'masteryBranch', 'oneTime', 'weeklyStreakEligible'].forEach((key) => {
+      if (typeof node[key] !== 'boolean') errors.push(`${location}/${key} must be a boolean`);
+    });
+    if (node.bossId !== null) requireEnum(node.bossId, MAJOR_BOSS_IDS, `${location}/bossId`, errors);
+    validateUniqueEnumArray(node.miniBossIds, MINI_BOSS_IDS, `${location}/miniBossIds`, errors);
+    requireNumber(node.weeklyScoreMultiplier, `${location}/weeklyScoreMultiplier`, errors, {
+      minimum: 0.1,
+      maximum: 10
+    });
+    if (requireObject(node.recommendedPower, `${location}/recommendedPower`, errors)) {
+      const powerKeys = ['minimum', 'expected', 'comfortable'];
+      allowedKeys(node.recommendedPower, powerKeys, `${location}/recommendedPower`, errors);
+      powerKeys.forEach((key) => requireNumber(
+        node.recommendedPower[key],
+        `${location}/recommendedPower/${key}`,
+        errors,
+        { minimum: 0, maximum: 1000000000, integer: true }
+      ));
+      if (powerKeys.every((key) => isFiniteNumber(node.recommendedPower[key])) && !(
+        node.recommendedPower.minimum <= node.recommendedPower.expected
+        && node.recommendedPower.expected <= node.recommendedPower.comfortable
+      )) errors.push(`${location}/recommendedPower must be ordered minimum <= expected <= comfortable`);
+    }
+    requireEnum(node.rewardProfile, CAMPAIGN_REWARD_PROFILES, `${location}/rewardProfile`, errors);
+    validateCampaignMapPosition(node.mapPosition, `${location}/mapPosition`, errors);
+    if (!Array.isArray(node.routeControlPoints) || node.routeControlPoints.length > 12) {
+      errors.push(`${location}/routeControlPoints must be an array with at most 12 map points`);
+    } else {
+      node.routeControlPoints.forEach((position, pointIndex) => (
+        validateCampaignMapPosition(position, `${location}/routeControlPoints/${pointIndex}`, errors)
+      ));
+    }
+    validateCampaignRouteSummary(node.routeSummary, `${location}/routeSummary`, errors);
+  });
+
+  if (!nodesById.has(graph.entryNodeId)) {
+    errors.push(`/campaignGraph/entryNodeId references unknown Campaign graph node: ${String(graph.entryNodeId)}`);
+  }
+
+  const incomingSources = new Map([...nodesById.keys()].map((nodeId) => [nodeId, new Set()]));
+  nodes.forEach((node) => {
+    const nodeIndex = graph.nodes.indexOf(node);
+    const location = `/campaignGraph/nodes/${nodeIndex}`;
+    if (typeof node.sectorId === 'string' && !sectorsById.has(node.sectorId)) {
+      errors.push(`${location}/sectorId references unknown Campaign sector: ${node.sectorId}`);
+    }
+    const level = typeof node.missionDefinitionId === 'string' ? levelsById.get(node.missionDefinitionId) : undefined;
+    if (!level && typeof node.missionDefinitionId === 'string') {
+      errors.push(`${location}/missionDefinitionId references unknown Campaign Mission: ${node.missionDefinitionId}`);
+    } else if (level) {
+      if (level.campaignProgression?.sectorId !== node.sectorId) {
+        errors.push(`${location}/missionDefinitionId must reference a Mission owned by sector ${String(node.sectorId)}`);
+      }
+      if (isFiniteNumber(node.routeSummary?.estimatedWaveCount) && Array.isArray(level.waves)
+        && node.routeSummary.estimatedWaveCount !== level.waves.length) {
+        errors.push(`${location}/routeSummary/estimatedWaveCount must match the referenced Mission wave count`);
+      }
+    }
+    if (Array.isArray(node.prerequisiteNodeIds)) node.prerequisiteNodeIds.forEach((prerequisiteId, itemIndex) => {
+      const prerequisite = nodesById.get(prerequisiteId);
+      if (!prerequisite) {
+        errors.push(`${location}/prerequisiteNodeIds/${itemIndex} references unknown Campaign graph node: ${String(prerequisiteId)}`);
+      } else if (prerequisiteId === node.nodeId) {
+        errors.push(`${location}/prerequisiteNodeIds/${itemIndex} cannot reference its owning node`);
+      } else if (isFiniteNumber(prerequisite.depth) && isFiniteNumber(node.depth) && prerequisite.depth >= node.depth) {
+        errors.push(`${location}/prerequisiteNodeIds/${itemIndex} must reference a lower-depth node`);
+      }
+    });
+    if (node.nodeId === graph.entryNodeId && Array.isArray(node.prerequisiteNodeIds) && node.prerequisiteNodeIds.length > 0) {
+      errors.push(`${location}/prerequisiteNodeIds must be empty for the Campaign graph entry node`);
+    }
+    if (node.nodeId !== graph.entryNodeId && Array.isArray(node.prerequisiteNodeIds) && node.prerequisiteNodeIds.length === 0) {
+      errors.push(`${location}/prerequisiteNodeIds must identify how this non-entry node unlocks`);
+    }
+    if (Array.isArray(node.outgoingEdges)) node.outgoingEdges.forEach((edge, edgeIndex) => {
+      if (!isPlainObject(edge)) return;
+      const edgeLocation = `${location}/outgoingEdges/${edgeIndex}`;
+      const target = nodesById.get(edge.toNodeId);
+      if (!target) {
+        errors.push(`${edgeLocation}/toNodeId references unknown Campaign graph node: ${String(edge.toNodeId)}`);
+        return;
+      }
+      incomingSources.get(target.nodeId)?.add(node.nodeId);
+      if (edge.toNodeId === node.nodeId) errors.push(`${edgeLocation}/toNodeId cannot reference its owning node`);
+      if (isFiniteNumber(node.depth) && isFiniteNumber(target.depth) && target.depth <= node.depth) {
+        errors.push(`${edgeLocation}/toNodeId must advance to a higher-depth node`);
+      }
+      if (Array.isArray(target.prerequisiteNodeIds) && !target.prerequisiteNodeIds.includes(node.nodeId)) {
+        errors.push(`${edgeLocation}/toNodeId must list ${String(node.nodeId)} as a prerequisite`);
+      }
+      if (edge.kind === 'rejoin' && node.rejoinNodeId !== edge.toNodeId) {
+        errors.push(`${edgeLocation} must target the owning node's rejoinNodeId`);
+      }
+    });
+    if (node.rejoinNodeId !== null) {
+      const target = nodesById.get(node.rejoinNodeId);
+      if (!target) errors.push(`${location}/rejoinNodeId references unknown Campaign graph node: ${String(node.rejoinNodeId)}`);
+      else {
+        if (target.sectorId !== node.sectorId) errors.push(`${location}/rejoinNodeId must remain inside sector ${String(node.sectorId)}`);
+        if (isFiniteNumber(node.depth) && isFiniteNumber(target.depth) && target.depth <= node.depth) {
+          errors.push(`${location}/rejoinNodeId must reference a higher-depth node`);
+        }
+      }
+    }
+  });
+
+  const canReach = (fromNodeId, toNodeId) => {
+    const pending = [fromNodeId];
+    const visited = new Set();
+    while (pending.length > 0) {
+      const currentId = pending.shift();
+      if (currentId === toNodeId) return true;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+      const current = nodesById.get(currentId);
+      if (!current || !Array.isArray(current.outgoingEdges)) continue;
+      current.outgoingEdges.forEach((edge) => {
+        if (isPlainObject(edge) && typeof edge.toNodeId === 'string' && !visited.has(edge.toNodeId)) pending.push(edge.toNodeId);
+      });
+    }
+    return false;
+  };
+
+  nodes.forEach((node) => {
+    const nodeIndex = graph.nodes.indexOf(node);
+    const location = `/campaignGraph/nodes/${nodeIndex}`;
+    if (node.nodeId !== graph.entryNodeId && (incomingSources.get(node.nodeId)?.size ?? 0) === 0) {
+      errors.push(`${location} is disconnected because it has no incoming route edge`);
+    }
+    if (node.rejoinNodeId !== null && nodesById.has(node.rejoinNodeId) && !canReach(node.nodeId, node.rejoinNodeId)) {
+      errors.push(`${location}/rejoinNodeId must be reachable through this node's outgoing route edges`);
+    }
+  });
+
+  if (nodesById.has(graph.entryNodeId)) {
+    const reachable = new Set();
+    const pending = [graph.entryNodeId];
+    while (pending.length > 0) {
+      const nodeId = pending.shift();
+      if (reachable.has(nodeId)) continue;
+      reachable.add(nodeId);
+      const node = nodesById.get(nodeId);
+      if (!node || !Array.isArray(node.outgoingEdges)) continue;
+      node.outgoingEdges.forEach((edge) => {
+        if (isPlainObject(edge) && nodesById.has(edge.toNodeId)) pending.push(edge.toNodeId);
+      });
+    }
+    nodesById.forEach((_node, nodeId) => {
+      if (!reachable.has(nodeId)) errors.push(`/campaignGraph/nodes node ${nodeId} is unreachable from entryNodeId`);
+    });
+  }
+
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = (nodeId) => {
+    if (visiting.has(nodeId)) {
+      errors.push(`/campaignGraph contains a directed cycle through node ${nodeId}`);
+      return;
+    }
+    if (visited.has(nodeId)) return;
+    visiting.add(nodeId);
+    const node = nodesById.get(nodeId);
+    if (node && Array.isArray(node.outgoingEdges)) node.outgoingEdges.forEach((edge) => {
+      if (isPlainObject(edge) && nodesById.has(edge.toNodeId)) visit(edge.toNodeId);
+    });
+    visiting.delete(nodeId);
+    visited.add(nodeId);
+  };
+  nodesById.forEach((_node, nodeId) => visit(nodeId));
+
+  const siblingGroups = new Map();
+  nodes.forEach((node) => {
+    const key = `${String(node.sectorId)}:${String(node.depth)}`;
+    siblingGroups.set(key, [...(siblingGroups.get(key) ?? []), node]);
+  });
+  siblingGroups.forEach((siblings, key) => {
+    if (siblings.length < 2) return;
+    const labels = new Set();
+    const routeIds = new Set();
+    const rejoinIds = new Set(siblings.map((node) => node.rejoinNodeId));
+    siblings.forEach((node) => {
+      const label = typeof node.displayLabel === 'string' ? node.displayLabel.trim().toLowerCase() : node.displayLabel;
+      if (labels.has(label)) errors.push(`/campaignGraph sibling nodes at ${key} must use distinct displayLabel values`);
+      if (routeIds.has(node.routeId)) errors.push(`/campaignGraph sibling nodes at ${key} must use distinct routeId values`);
+      labels.add(label);
+      routeIds.add(node.routeId);
+    });
+    if (rejoinIds.size > 1) errors.push(`/campaignGraph sibling nodes at ${key} must share one rejoinNodeId`);
+  });
+
+  const referencedNodeOwners = new Map();
+  sectors.forEach((sector, sectorIndex) => {
+    const sectorLocation = `/sectors/${sectorIndex}`;
+    if (!Array.isArray(sector.mainNodeIds) || sector.mainNodeIds.length !== 5) {
+      errors.push(`${sectorLocation}/mainNodeIds is required when campaignGraph is present`);
+      return;
+    }
+    if (!Array.isArray(sector.routeNodeIds)) {
+      errors.push(`${sectorLocation}/routeNodeIds is required when campaignGraph is present`);
+      return;
+    }
+    const listedNodeIds = [...sector.mainNodeIds, ...sector.routeNodeIds];
+    const localIds = new Set();
+    listedNodeIds.forEach((nodeId, listedIndex) => {
+      const node = nodesById.get(nodeId);
+      const key = listedIndex < 5 ? 'mainNodeIds' : 'routeNodeIds';
+      const keyIndex = listedIndex < 5 ? listedIndex : listedIndex - 5;
+      if (!node) errors.push(`${sectorLocation}/${key}/${keyIndex} references unknown Campaign graph node: ${String(nodeId)}`);
+      else if (node.sectorId !== sector.id) errors.push(`${sectorLocation}/${key}/${keyIndex} must reference a node owned by sector ${String(sector.id)}`);
+      if (localIds.has(nodeId)) errors.push(`${sectorLocation} lists Campaign graph node ${String(nodeId)} more than once`);
+      localIds.add(nodeId);
+      referencedNodeOwners.set(nodeId, [...(referencedNodeOwners.get(nodeId) ?? []), sector.id]);
+    });
+    sector.mainNodeIds.forEach((nodeId, mainIndex) => {
+      const node = nodesById.get(nodeId);
+      if (!node) return;
+      if (node.mainPath !== true) errors.push(`${sectorLocation}/mainNodeIds/${mainIndex} must reference a mainPath node`);
+      if (node.missionDefinitionId !== sector.missionIds?.[mainIndex]) {
+        errors.push(`${sectorLocation}/mainNodeIds/${mainIndex} must reference Mission ${String(sector.missionIds?.[mainIndex])}`);
+      }
+    });
+    sector.routeNodeIds.forEach((nodeId, routeIndex) => {
+      const node = nodesById.get(nodeId);
+      if (node?.mainPath === true) errors.push(`${sectorLocation}/routeNodeIds/${routeIndex} cannot reference a mainPath node`);
+    });
+    const bossNodes = listedNodeIds.map((nodeId) => nodesById.get(nodeId)).filter((node) => node?.bossId !== null);
+    if (bossNodes.length !== 1) errors.push(`${sectorLocation} must contain exactly one major boss Campaign graph node`);
+    else {
+      if (bossNodes[0].bossId !== sector.majorBossId) errors.push(`${sectorLocation} boss graph node must reference ${String(sector.majorBossId)}`);
+      if (bossNodes[0].nodeId !== sector.mainNodeIds[4]) errors.push(`${sectorLocation}/mainNodeIds/4 must be the sector major boss graph node`);
+    }
+  });
+  nodesById.forEach((node, nodeId) => {
+    const owners = referencedNodeOwners.get(nodeId) ?? [];
+    if (owners.length !== 1) errors.push(`/campaignGraph/nodes node ${nodeId} must be listed by exactly one owning sector`);
+  });
+};
+
 const validateCampaignBranchUnlockCondition = (
   condition,
   location,
@@ -984,7 +1395,7 @@ const validateCampaignPresentDropMission = (mission, location, errors) => {
       requireId(present.id, `${presentLocation}/id`, errors);
       requireString(present.displayName, `${presentLocation}/displayName`, errors, 80);
       requireEnum(present.kind, PRESENT_DROP_PRESENT_KINDS, `${presentLocation}/kind`, errors);
-      requireEnum(present.spriteKey, ASTEROID_SPRITE_KEYS, `${presentLocation}/spriteKey`, errors);
+      requireEnum(present.spriteKey, SUPPLY_DROP_SPRITE_KEYS, `${presentLocation}/spriteKey`, errors);
       requireNumber(present.health, `${presentLocation}/health`, errors, { minimum: Number.EPSILON, maximum: 1000 });
       requireNumber(present.coinValue, `${presentLocation}/coinValue`, errors, { minimum: 1, maximum: 100000, integer: true });
       requireNumber(present.speedMultiplier, `${presentLocation}/speedMultiplier`, errors, { minimum: 0.25, maximum: 3 });
@@ -1104,8 +1515,8 @@ const validateCampaignCombatBranchMission = (mission, location, enemyRoles, erro
     if (event?.kind === 'boss') {
       errors.push(`${eventLocation}/kind cannot contain major or mini-boss events`);
     }
-    if (event?.kind === 'asteroid-belt' && event.bonusTargetKind !== undefined) {
-      errors.push(`${eventLocation}/bonusTargetKind belongs only to Present Drop branches`);
+    if (event?.kind === 'supply-drop') {
+      errors.push(`${eventLocation}/kind belongs only to Present Drop branches`);
     }
     if (event?.kind === 'powerup') powerupEventCount += 1;
     if (event?.kind === 'spawn') {
@@ -2222,7 +2633,7 @@ const validateBossEvent = (event, location, errors) => {
 };
 
 const validateAsteroidEvent = (event, location, errors) => {
-  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance', 'coinDropValue', 'bonusTargetKind'], location, errors);
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'spriteKey', 'spriteStyle', 'count', 'density', 'patternId', 'positionId', 'spawnIntervalSeconds', 'warningSeconds', 'health', 'speed', 'damage', 'scoreValue', 'powerupDropChance'], location, errors);
   requireEnum(event.spriteKey, ASTEROID_SPRITE_KEYS, `${location}/spriteKey`, errors);
   validateSpriteStyle(event.spriteStyle, `${location}/spriteStyle`, errors);
   requireNumber(event.count, `${location}/count`, errors, { minimum: 1, maximum: 10000, integer: true });
@@ -2233,13 +2644,21 @@ const validateAsteroidEvent = (event, location, errors) => {
   requireNumber(event.warningSeconds, `${location}/warningSeconds`, errors, { minimum: 0, maximum: 300 });
   requireNumber(event.health, `${location}/health`, errors, { minimum: 0.01, maximum: 100000000 });
   requireNumber(event.speed, `${location}/speed`, errors, { minimum: 0, maximum: 100000 });
-  requireNumber(event.damage, `${location}/damage`, errors, { minimum: 0, maximum: 100000 });
+  requireNumber(event.damage, `${location}/damage`, errors, { minimum: Number.EPSILON, maximum: 100000 });
   requireNumber(event.scoreValue, `${location}/scoreValue`, errors, { minimum: 0, maximum: 100000000 });
   requireNumber(event.powerupDropChance, `${location}/powerupDropChance`, errors, { minimum: 0, maximum: 1 });
-  if (event.coinDropValue !== undefined) requireNumber(event.coinDropValue, `${location}/coinDropValue`, errors, { minimum: 1, maximum: 1000000, integer: true });
-  if (event.bonusTargetKind !== undefined) requireEnum(event.bonusTargetKind, new Set(['standard', 'armored', 'fast', 'golden']), `${location}/bonusTargetKind`, errors);
-  if (event.bonusTargetKind !== undefined && event.coinDropValue === undefined) errors.push(`${location}/coinDropValue is required for bonus targets`);
-  if (event.coinDropValue !== undefined && event.bonusTargetKind === undefined) errors.push(`${location}/bonusTargetKind is required for coin-dropping bonus targets`);
+};
+
+const validateSupplyDropEvent = (event, location, errors) => {
+  allowedKeys(event, ['id', 'label', 'kind', 'startSeconds', 'durationSeconds', 'delayAfterSeconds', 'blocksWaveClock', 'spawnAnchor', 'spriteKey', 'spriteStyle', 'presentKind', 'positionId', 'health', 'speed', 'scoreValue', 'coinDropValue'], location, errors);
+  requireEnum(event.spriteKey, SUPPLY_DROP_SPRITE_KEYS, `${location}/spriteKey`, errors);
+  validateSpriteStyle(event.spriteStyle, `${location}/spriteStyle`, errors);
+  requireEnum(event.presentKind, PRESENT_DROP_PRESENT_KINDS, `${location}/presentKind`, errors);
+  if (event.positionId !== 'formation-top') errors.push(`${location}/positionId must be formation-top`);
+  requireNumber(event.health, `${location}/health`, errors, { minimum: Number.EPSILON, maximum: 100000000 });
+  requireNumber(event.speed, `${location}/speed`, errors, { minimum: Number.EPSILON, maximum: 100000 });
+  requireNumber(event.scoreValue, `${location}/scoreValue`, errors, { minimum: 0, maximum: 100000000 });
+  requireNumber(event.coinDropValue, `${location}/coinDropValue`, errors, { minimum: 1, maximum: 1000000, integer: true });
 };
 
 const validatePowerupEvent = (event, location, availablePowerups, errors) => {
@@ -2269,6 +2688,7 @@ const validateEvent = (event, location, waveDuration, availablePowerups, errors)
   if (event.kind === 'spawn') validateSpawnEvent(event, location, errors);
   else if (event.kind === 'boss') validateBossEvent(event, location, errors);
   else if (event.kind === 'asteroid-belt') validateAsteroidEvent(event, location, errors);
+  else if (event.kind === 'supply-drop') validateSupplyDropEvent(event, location, errors);
   else if (event.kind === 'powerup') validatePowerupEvent(event, location, availablePowerups, errors);
   else if (event.kind === 'recovery') validateRecoveryEvent(event, location, availablePowerups, errors);
 };
@@ -2363,6 +2783,10 @@ const validateCampaignManifestCrossReferences = (campaign, errors) => {
   const packs = Array.isArray(campaign.formationPacks) ? campaign.formationPacks.filter(isPlainObject) : [];
   const miniBosses = Array.isArray(campaign.miniBosses) ? campaign.miniBosses.filter(isPlainObject) : [];
   const branches = Array.isArray(campaign.campaignBranches) ? campaign.campaignBranches.filter(isPlainObject) : [];
+  const graphNodes = isPlainObject(campaign.campaignGraph) && Array.isArray(campaign.campaignGraph.nodes)
+    ? campaign.campaignGraph.nodes.filter(isPlainObject)
+    : [];
+  const usesCampaignGraph = graphNodes.length > 0;
   const levelsById = new Map(levels.flatMap((level) => typeof level.id === 'string' ? [[level.id, level]] : []));
   const sectorsById = new Map(sectors.flatMap((sector) => typeof sector.id === 'string' ? [[sector.id, sector]] : []));
   const themeIds = new Set(themes.flatMap((theme) => typeof theme.id === 'string' ? [theme.id] : []));
@@ -2370,6 +2794,34 @@ const validateCampaignManifestCrossReferences = (campaign, errors) => {
   const packsById = new Map(packs.flatMap((pack) => typeof pack.id === 'string' ? [[pack.id, pack]] : []));
   const branchIds = new Set(branches.flatMap((branch) => typeof branch.branchId === 'string' ? [branch.branchId] : []));
   const missionOwners = new Map();
+  const graphMissionOwners = new Map();
+  graphNodes.forEach((node) => {
+    if (typeof node.missionDefinitionId !== 'string' || typeof node.sectorId !== 'string') return;
+    graphMissionOwners.set(
+      node.missionDefinitionId,
+      [...(graphMissionOwners.get(node.missionDefinitionId) ?? []), node.sectorId]
+    );
+  });
+  const isGroupedFormationPattern = (patternId) => {
+    const normalized = typeof patternId === 'string' ? patternId.trim().toLowerCase() : '';
+    return normalized.length > 0
+      && !normalized.includes('single')
+      && !normalized.includes('random');
+  };
+  const resolveDeclaredFormationPack = (event, declaredPacks) => {
+    if (!isGroupedFormationPattern(event.patternId) || !Array.isArray(event.enemies)) return undefined;
+    const roleIds = [...new Set(event.enemies.flatMap((enemy) => (
+      isPlainObject(enemy) && typeof enemy.roleId === 'string' ? [enemy.roleId] : []
+    )))];
+    if (roleIds.length === 0) return undefined;
+    const compatible = declaredPacks.filter((pack) => (
+      Array.isArray(pack.enemyRoleIds)
+      && roleIds.every((roleId) => pack.enemyRoleIds.includes(roleId))
+    ));
+    if (compatible.length === 1) return compatible[0];
+    const shapeMatches = compatible.filter((pack) => pack.formationShape === event.patternId);
+    return shapeMatches.length === 1 ? shapeMatches[0] : undefined;
+  };
 
   sectors.forEach((sector, sectorIndex) => {
     const sectorLocation = `/sectors/${sectorIndex}`;
@@ -2401,30 +2853,54 @@ const validateCampaignManifestCrossReferences = (campaign, errors) => {
         'formation-remix': [5, 6],
         'elite-checkpoint': [4, 6],
         'boss-preparation': [6, 7],
-        'major-boss': [1, 1]
+        'major-boss': usesCampaignGraph ? [3, 4] : [1, 1]
       }[expectedRole];
       if (waveCount < range[0] || waveCount > range[1]) errors.push(`/levels/${levelIndex}/waves must contain ${range[0] === range[1] ? range[0] : `${range[0]}-${range[1]}`} waves for ${expectedRole}`);
-      if (expectedRole === 'major-boss' && Array.isArray(level.waves) && isPlainObject(level.waves[0])) {
-        const bossEvents = Array.isArray(level.waves[0].events)
-          ? level.waves[0].events.filter((event) => isPlainObject(event) && event.kind === 'boss')
-          : [];
-        if (level.waves[0].completionRule !== 'boss-defeat' || bossEvents.length !== 1 || bossEvents[0]?.bossId !== sector.majorBossId) {
-          errors.push(`/levels/${levelIndex}/waves/0 must be one direct encounter with sector major boss ${String(sector.majorBossId)}`);
+      if (expectedRole === 'major-boss' && Array.isArray(level.waves) && level.waves.length > 0) {
+        if (!usesCampaignGraph && isPlainObject(level.waves[0])) {
+          const bossEvents = Array.isArray(level.waves[0].events)
+            ? level.waves[0].events.filter((event) => isPlainObject(event) && event.kind === 'boss')
+            : [];
+          if (level.waves[0].completionRule !== 'boss-defeat' || bossEvents.length !== 1 || bossEvents[0]?.bossId !== sector.majorBossId) {
+            errors.push(`/levels/${levelIndex}/waves/0 must be one direct encounter with sector major boss ${String(sector.majorBossId)}`);
+          }
+        } else if (usesCampaignGraph) {
+          const finalWaveIndex = level.waves.length - 1;
+          level.waves.forEach((wave, waveIndex) => {
+            if (!isPlainObject(wave)) return;
+            const majorBossEvents = Array.isArray(wave.events)
+              ? wave.events.filter((event) => isPlainObject(event) && event.kind === 'boss' && MAJOR_BOSS_IDS.has(event.bossId))
+              : [];
+            if (waveIndex < finalWaveIndex) {
+              if (wave.completionRule === 'boss-defeat' || majorBossEvents.length > 0) {
+                errors.push(`/levels/${levelIndex}/waves/${waveIndex} must be a non-major-boss lead-in or recovery Wave`);
+              }
+            } else if (wave.completionRule !== 'boss-defeat' || majorBossEvents.length !== 1 || majorBossEvents[0]?.bossId !== sector.majorBossId) {
+              errors.push(`/levels/${levelIndex}/waves/${waveIndex} must be the only matching sector major boss encounter: ${String(sector.majorBossId)}`);
+            }
+          });
         }
       }
     });
   });
 
   levels.forEach((level, levelIndex) => {
-    if (typeof level.id === 'string' && (missionOwners.get(level.id) ?? []).length !== 1) {
+    const owningSectors = usesCampaignGraph ? graphMissionOwners.get(level.id) : missionOwners.get(level.id);
+    if (typeof level.id === 'string' && (owningSectors ?? []).length !== 1) {
       errors.push(`/levels/${levelIndex}/campaignProgression/sectorId must place the Mission in exactly one sector`);
     }
     const progression = isPlainObject(level.campaignProgression) ? level.campaignProgression : undefined;
     if (progression && typeof progression.sectorId === 'string' && !sectorsById.has(progression.sectorId)) errors.push(`/levels/${levelIndex}/campaignProgression/sectorId references unknown sector: ${progression.sectorId}`);
     if (!Array.isArray(level.waves)) return;
+    const previousWaveOrderByRole = new Map();
     level.waves.forEach((wave, waveIndex) => {
       if (!isPlainObject(wave)) return;
       if (isFiniteNumber(progression?.combatBudget) && isFiniteNumber(wave.combatBudget) && wave.combatBudget > progression.combatBudget) errors.push(`/levels/${levelIndex}/waves/${waveIndex}/combatBudget exceeds owning Mission budget`);
+      const compatibilityRole = usesCampaignGraph
+        && progression?.missionRole === 'major-boss'
+        && waveIndex < level.waves.length - 1
+        ? 'boss-preparation'
+        : progression?.missionRole;
       let packBudget = 0;
       if (Array.isArray(wave.formationPackIds)) wave.formationPackIds.forEach((packId, packIndex) => {
         if (typeof packId !== 'string') return;
@@ -2435,19 +2911,67 @@ const validateCampaignManifestCrossReferences = (campaign, errors) => {
         }
         if (isFiniteNumber(pack.totalThreatCost)) packBudget += pack.totalThreatCost;
         if (typeof progression?.sectorId === 'string' && Array.isArray(pack.compatibleSectorIds) && !pack.compatibleSectorIds.includes(progression.sectorId)) errors.push(`/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex} is incompatible with sector ${progression.sectorId}`);
-        if (typeof progression?.missionRole === 'string' && Array.isArray(pack.compatibleMissionRoles) && !pack.compatibleMissionRoles.includes(progression.missionRole)) errors.push(`/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex} is incompatible with Mission role ${progression.missionRole}`);
+        if (typeof compatibilityRole === 'string' && Array.isArray(pack.compatibleMissionRoles) && !pack.compatibleMissionRoles.includes(compatibilityRole)) errors.push(`/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex} is incompatible with Mission role ${compatibilityRole}`);
       });
       if (isFiniteNumber(wave.combatBudget) && packBudget > wave.combatBudget + EPSILON) errors.push(`/levels/${levelIndex}/waves/${waveIndex}/formationPackIds exceed wave combat budget`);
       if (!Array.isArray(wave.events)) return;
+      const declaredPacks = Array.isArray(wave.formationPackIds)
+        ? wave.formationPackIds.flatMap((packId) => (
+            typeof packId === 'string' && packsById.has(packId) ? [packsById.get(packId)] : []
+          ))
+        : [];
+      const usedPackIds = new Set();
+      const waveRoleIds = new Set();
       wave.events.forEach((event, eventIndex) => {
         if (!isPlainObject(event) || event.kind !== 'spawn' || !Array.isArray(event.enemies)) return;
+        if (isGroupedFormationPattern(event.patternId)) {
+          const resolvedPack = resolveDeclaredFormationPack(event, declaredPacks);
+          if (!resolvedPack || typeof resolvedPack.id !== 'string') {
+            errors.push(`/levels/${levelIndex}/waves/${waveIndex}/events/${eventIndex} grouped Campaign spawn must resolve to exactly one declared role-compatible formation pack`);
+          } else {
+            usedPackIds.add(resolvedPack.id);
+          }
+        }
         event.enemies.forEach((enemy, enemyIndex) => {
           if (!isPlainObject(enemy) || enemy.roleId === undefined) return;
           const role = typeof enemy.roleId === 'string' ? rolesById.get(enemy.roleId) : undefined;
           const roleLocation = `/levels/${levelIndex}/waves/${waveIndex}/events/${eventIndex}/enemies/${enemyIndex}/roleId`;
+          if (typeof enemy.roleId === 'string') waveRoleIds.add(enemy.roleId);
           if (!role) errors.push(`${roleLocation} references unknown enemy role: ${String(enemy.roleId)}`);
-          else if (role.enemyId !== enemy.enemyId) errors.push(`${roleLocation} belongs to ${String(role.enemyId)}, not ${String(enemy.enemyId)}`);
+          else {
+            if (role.enemyId !== enemy.enemyId) errors.push(`${roleLocation} belongs to ${String(role.enemyId)}, not ${String(enemy.enemyId)}`);
+            if (usesCampaignGraph) {
+              const sector = sectorsById.get(progression?.sectorId);
+              const sectorOrder = sector?.order;
+              const missionSlot = Array.isArray(sector?.missionIds) && sector.missionIds.includes(level.id)
+                ? sector.missionIds.indexOf(level.id) + 1
+                : CAMPAIGN_MISSION_ROLE_ORDER.indexOf(progression?.missionRole) + 1;
+              if (isFiniteNumber(sectorOrder) && isFiniteNumber(role.introductionSector) && (
+                sectorOrder < role.introductionSector
+                || (sectorOrder === role.introductionSector && missionSlot > 0 && missionSlot < role.introductionMission)
+              )) {
+                errors.push(`${roleLocation} uses ${String(role.id)} before its Sector ${String(role.introductionSector)} Mission ${String(role.introductionMission)} introduction`);
+              }
+            }
+          }
         });
+      });
+      if (Array.isArray(wave.formationPackIds)) wave.formationPackIds.forEach((packId, packIndex) => {
+        if (typeof packId === 'string' && packsById.has(packId) && !usedPackIds.has(packId)) {
+          errors.push(`/levels/${levelIndex}/waves/${waveIndex}/formationPackIds/${packIndex} formation pack ${packId} is not used by any grouped spawn event in this Wave`);
+        }
+      });
+      waveRoleIds.forEach((roleId) => {
+        const role = rolesById.get(roleId);
+        const currentOrder = typeof wave.order === 'number' ? wave.order : waveIndex + 1;
+        const previousOrder = previousWaveOrderByRole.get(roleId);
+        if (role && previousOrder !== undefined && typeof role.reuseCooldownWaves === 'number') {
+          const interveningWaves = Math.max(0, currentOrder - previousOrder - 1);
+          if (interveningWaves < role.reuseCooldownWaves) {
+            errors.push(`/levels/${levelIndex}/waves/${waveIndex}/events enemy role ${roleId} requires ${role.reuseCooldownWaves} intervening Wave(s); found ${interveningWaves}`);
+          }
+        }
+        previousWaveOrderByRole.set(roleId, currentOrder);
       });
     });
   });
@@ -2479,7 +3003,7 @@ export const validateGameCampaign = (campaign) => {
   if (!requireObject(campaign, '/', errors)) return { valid: false, errors };
   allowedKeys(campaign, [
     'schemaVersion', 'revision', 'id', 'name', 'updatedAt', 'fps', 'recordCard', 'hudAssets', 'levels',
-    'sectors', 'visualThemes', 'enemyRoles', 'formationPacks', 'miniBosses', 'campaignBranches'
+    'sectors', 'visualThemes', 'enemyRoles', 'formationPacks', 'miniBosses', 'campaignBranches', 'campaignGraph'
   ], '/', errors);
   if (campaign.schemaVersion !== 1) errors.push('/schemaVersion must be 1');
   requireNumber(campaign.revision, '/revision', errors, { minimum: 1, maximum: 1000000000, integer: true });
@@ -2517,6 +3041,7 @@ export const validateGameCampaign = (campaign) => {
     }
   });
   validateCampaignBranches(campaign.campaignBranches, campaign.levels, campaign.enemyRoles, errors);
+  validateCampaignGraph(campaign.campaignGraph, campaign, errors);
   validateCampaignManifestCrossReferences(campaign, errors);
   return { valid: errors.length === 0, errors: [...new Set(errors)] };
 };

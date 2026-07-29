@@ -130,6 +130,49 @@ export type PreviewCommand =
     readonly loop?: boolean;
   })
   | (PreviewCommandBase & {
+    readonly type: 'set-mini-boss-signature-loop';
+    readonly eventId: string;
+    readonly enabled: boolean;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'trigger-mini-boss-support';
+    readonly eventId: string;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'set-mini-boss-low-health';
+    readonly eventId: string;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'trigger-mini-boss-hit';
+    readonly eventId: string;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'trigger-mini-boss-death';
+    readonly eventId: string;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'destroy-mini-boss-unit';
+    readonly eventId: string;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'destroy-mini-boss-guardians';
+    readonly eventId: string;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'set-mini-boss-shield';
+    readonly eventId: string;
+    readonly enabled: boolean;
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'set-mini-boss-wall-side';
+    readonly eventId: string;
+    readonly side: 'left' | 'right';
+  })
+  | (PreviewCommandBase & {
+    readonly type: 'set-compact-health-bars';
+    readonly enabled: boolean;
+  })
+  | (PreviewCommandBase & {
     readonly type: 'seek-to-frame';
     /** Absolute simulation frame reconstructed from the active wave start. */
     readonly frame: number;
@@ -182,6 +225,26 @@ export interface PreviewBossAttackSnapshot {
   readonly clipId: string;
 }
 
+export interface PreviewMiniBossMemberSnapshot {
+  readonly id: string;
+  readonly label: string;
+  readonly role: string;
+  readonly health: number;
+  readonly maxHealth: number;
+  readonly healthRatio: number;
+  readonly alive: boolean;
+}
+
+export interface PreviewMiniBossEncounterSnapshot {
+  readonly eventId: string;
+  readonly encounterId: string;
+  readonly signatureLoop: boolean;
+  readonly shieldEnabled: boolean;
+  readonly wallSide: 'left' | 'right' | null;
+  readonly compactHealthBars: boolean;
+  readonly members: readonly PreviewMiniBossMemberSnapshot[];
+}
+
 /**
  * Compact reader-facing state for local tools. GameCanvas publishes it on the
  * existing low-frequency runtime cadence, never from every simulation step.
@@ -197,6 +260,7 @@ export interface PreviewSnapshot extends PreviewPlaybackSnapshot {
   readonly entityCount: number;
   readonly activeEventIds: readonly string[];
   readonly boss: PreviewBossSnapshot | null;
+  readonly miniBossEncounter: PreviewMiniBossEncounterSnapshot | null;
 }
 
 export interface PreviewCommandResult {

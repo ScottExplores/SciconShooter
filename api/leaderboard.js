@@ -7,6 +7,7 @@ const WEEKLY_PROPOSAL_CHALLENGE_STALE_CODE = 'WEEKLY_PROPOSAL_CHALLENGE_STALE';
 const { verifyRunReceipt } = require('./_lib/runReceipts');
 const { findEligibleProposal } = require('./_lib/researchHubEligibility');
 const { verifyBaseMessage } = require('./_lib/baseSignatures');
+const { readOptionalWalletProfileSession } = require('./_lib/walletProfileAuth');
 const crypto = require('crypto');
 const { checkRateLimit } = require('./_lib/rateLimit');
 const { getCurrentWeekRange } = require('../shared/weeklyCompetitionBoundary.js');
@@ -336,7 +337,12 @@ const getVerifiedWeeklyLeaderForReceipt = async (receipt) => {
   return { currentLeader, currentScores };
 };
 
-const createProposalSelectionChallenge = async (receipt, proposalId, requestedAddress) => {
+const createProposalSelectionChallenge = async (
+  receipt,
+  proposalId,
+  requestedAddress,
+  authenticatedWalletAddress = null
+) => {
   const normalizedProposalId = String(proposalId || '').trim();
   if (!/^\d{1,20}$/.test(normalizedProposalId)) {
     throw Object.assign(new Error('Invalid ResearchHub proposal ID.'), { statusCode: 400 });
@@ -345,6 +351,14 @@ const createProposalSelectionChallenge = async (receipt, proposalId, requestedAd
   const { currentLeader } = await getVerifiedWeeklyLeaderForReceipt(receipt);
   const leaderWallet = normalizeAddress(currentLeader.walletAddress);
   if (!leaderWallet) return { signatureRequired: false };
+
+  // The wallet-profile cookie is already a nonce-backed, expiring proof of
+  // wallet control. Reuse it instead of opening a second Base signature sheet
+  // for an ordinary proposal choice on the same authenticated device.
+  const sessionWallet = normalizeAddress(authenticatedWalletAddress);
+  if (sessionWallet === leaderWallet) {
+    return { signatureRequired: false, sessionAuthorized: true };
+  }
 
   const wallet = normalizeAddress(requestedAddress);
   if (!wallet || wallet !== leaderWallet) {
@@ -378,9 +392,17 @@ const createProposalSelectionChallenge = async (receipt, proposalId, requestedAd
   return { signatureRequired: true, challengeId, message, expiresAt };
 };
 
-const requireWalletProposalAuthorization = async ({ leader, receipt, proposalId, authorization }) => {
+const requireWalletProposalAuthorization = async ({
+  leader,
+  receipt,
+  proposalId,
+  authorization,
+  authenticatedWalletAddress = null
+}) => {
   const leaderWallet = normalizeAddress(leader.walletAddress);
   if (!leaderWallet) return;
+
+  if (normalizeAddress(authenticatedWalletAddress) === leaderWallet) return;
 
   const wallet = normalizeAddress(authorization?.address);
   const challengeId = sanitizeText(authorization?.challengeId, 80);
@@ -452,7 +474,12 @@ const requireWalletProposalAuthorization = async ({ leader, receipt, proposalId,
   }
 };
 
-const selectProposalForWeeklyLeader = async (receipt, proposalId, authorization = {}) => {
+const selectProposalForWeeklyLeader = async (
+  receipt,
+  proposalId,
+  authorization = {},
+  authenticatedWalletAddress = null
+) => {
   const { currentLeader, currentScores } = await getVerifiedWeeklyLeaderForReceipt(receipt);
 
   if (currentLeader.proposalId === String(proposalId)) {
@@ -463,7 +490,8 @@ const selectProposalForWeeklyLeader = async (receipt, proposalId, authorization 
       leader: currentLeader,
       receipt,
       proposalId: currentLeader.proposalId,
-      authorization
+      authorization,
+      authenticatedWalletAddress
     });
     return { ...toLeaderboardPayload(currentScores), selectedProposal: {
       id: currentLeader.proposalId,
@@ -491,7 +519,8 @@ const selectProposalForWeeklyLeader = async (receipt, proposalId, authorization 
     leader: latestLeader,
     receipt,
     proposalId: proposal.id,
-    authorization
+    authorization,
+    authenticatedWalletAddress
   });
 
   const previousProposal = {
@@ -657,8 +686,17 @@ module.exports = async (req, res) => {
         return sendJson(res, 403, { error: 'Pilot Test runs are not eligible for leaderboards.' });
       }
 
+      const proposalSession = isProposalAction
+        ? readOptionalWalletProfileSession(req)
+        : null;
+
       if (action === 'select-proposal-challenge') {
-        const challenge = await createProposalSelectionChallenge(receipt, body.proposalId, body.address);
+        const challenge = await createProposalSelectionChallenge(
+          receipt,
+          body.proposalId,
+          body.address,
+          proposalSession?.walletAddress
+        );
         return sendJson(res, 200, { challenge });
       }
 
@@ -667,7 +705,7 @@ module.exports = async (req, res) => {
           address: body.address,
           challengeId: body.challengeId,
           signature: body.signature
-        });
+        }, proposalSession?.walletAddress);
         return sendJson(res, 200, result);
       }
 
@@ -687,12 +725,31 @@ module.exports = async (req, res) => {
         return sendJson(res, 400, { error: 'Pilot name is required' });
       }
 
+      // Wallet attribution is authenticated metadata, not leaderboard input.
+      // When the client requests wallet attribution, a valid profile session
+      // owns the address. Without that request this remains a guest score; with
+      // no matching session, an arbitrary body walletAddress is ignored.
+      const walletAttributionRequested = Boolean(sanitizeText(body.walletAddress, 80));
+      const walletSession = walletAttributionRequested
+        ? readOptionalWalletProfileSession(req)
+        : null;
+      if (
+        walletSession
+        && receipt.identity?.kind === 'wallet'
+        && receipt.identity.walletAddress !== walletSession.walletAddress
+      ) {
+        return sendJson(res, 403, {
+          error: 'This run belongs to a different wallet profile.',
+          code: 'RUN_IDENTITY_MISMATCH'
+        });
+      }
+
       const entry = sanitizeEntry({
         name,
         score: receipt.metrics.score,
         wave: receipt.metrics.wave,
         date: new Date(receipt.finishedAt).toISOString(),
-        walletAddress: sanitizeText(body.walletAddress, 80)?.toLowerCase(),
+        walletAddress: walletSession?.walletAddress,
         runId: receipt.runId,
         verified: receipt.integrity === 'server-verified',
         receiptHash: crypto.createHash('sha256').update(body.receiptToken).digest('hex')

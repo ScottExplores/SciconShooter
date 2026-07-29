@@ -1,5 +1,7 @@
 # SciCon Shooter Campaign Overhaul Checklist
 
+> Historical baseline note: this file preserves the initial revision-22 audit. The authoritative revision-23 implementation and completion checklist is `docs/CAMPAIGN_GRAPH_BALANCE_AND_WEEKLY_GOAL.md`, which covers the expanded ten-sector graph, 60 Mission nodes, 330 Waves, formation normalization, mini-boss checkpoints, Weekly Streak, economy, wallet sessions, and final automated balance evidence.
+
 This checklist tracks the mandatory Campaign Mode overhaul requested on 2026-07-27. A checked item means the behavior is present in the actual Campaign path and has direct source/config/test evidence. A panel, type, placeholder, static screenshot, or passing build alone is not enough.
 
 Status vocabulary:
@@ -122,10 +124,12 @@ Evidence: enemy-role/formation-pack manifests, Campaign Lab telemetry, `gameLogi
 
 ## 5. Enemy role and durability manifests
 
-Current status: **Partially complete.** Nineteen roles and four durability classes are authored, validated, and consumed by `GameEngine`; final visual/TTK validation is outstanding.
+Current status: **Partially complete.** Nineteen roles and four durability classes are authored, validated, and consumed by `GameEngine`; simultaneous-role and firing ceilings are enforced, the authored cross-Wave cooldown schedule is conflict-free, and final visual/TTK validation remains outstanding.
 
 - [x] The roster is classified into formation, diver, flanker, shooter, burst, suppressor, armored, support, priority, leader, and elite roles using project assets.
 - [x] Every role defines threat cost, introduction sector/Mission, durability, fire/entry behavior, compatible packs, synergy tags, cooldown, max simultaneous count, and performance cost.
+- [x] `maximumSimultaneousCount` is a hard per-role spawn ceiling, and the current Wave's unique firing-role maxima combine with the existing Mission hostile-shot cap to form a deterministic global shooter-slot ceiling used by both standard and elite firing paths.
+- [x] `reuseCooldownWaves` now matches the actual internal-Wave schedule. Twelve intentionally repeatable roles use zero cooldown, five specialist/reserved roles retain nonzero cooldowns, and browser/Director validation rejects any future authored reuse inside the declared interval. The tracked Campaign has zero cooldown conflicts.
 - [x] Light roles use low durability and can suppress immediate fire.
 - [x] Standard roles use moderate durability and authored post-formation firing where appropriate.
 - [x] Armored roles reference distinct armored/shield/heavy sprite identities and sustained-damage behavior.
@@ -133,29 +137,31 @@ Current status: **Partially complete.** Nineteen roles and four durability class
 - [x] Sector introductions progress from Light/Standard reading toward shooters, armor, support, priority, and specialized combinations.
 - [ ] **Partially complete:** A live visual/TTK pass has not yet proven that every reused sprite/health increase remains visibly and mechanically legible at gameplay scale.
 
-Evidence: `campaign.json`, both validators, `campaignOverhaulValidation.test.mjs`, and role consumption/limits in `gameLogic.ts`.
+Evidence: `campaign.json`, both validators, `campaignOverhaulValidation.test.mjs`, `campaignFormationBudget.test.cjs`, and role consumption/limits in `gameLogic.ts`.
 
 ## 6. Formation packs and combat budgets
 
 Current status: **Already complete and verified at the data/runtime contract level.** Live tuning quality remains part of section 22, not a missing formation-system feature.
 
 - [x] A data-driven threat-cost system is authored and consumed by runtime spawning.
-- [x] Ten reusable packs define roles/count, exact weighted threat, entry/path/shape, firing, synergy, minimum sector, max instances, recovery, compatible Mission/sector themes, and mobile performance cost.
+- [x] Eleven reusable packs define roles/count, exact weighted threat, entry/path/shape, firing, synergy, minimum sector, max instances, recovery, compatible Mission/sector themes, and mobile performance cost. The exact Light Jet Pincer prevents Mission 3 from inheriting the Mission 4 Jet Heavy role.
+- [x] Runtime treats one declared formation spawn event as one pack instance, lets an already-started instance finish, enforces `maximumSimultaneousInstances` before a new event begins, and starts `recoveryRequiredSeconds` only after the closed instance has no living members.
+- [x] Pack state persists across internal Waves, resets at Mission/restart boundaries, and excludes loose lead-ins and continuity drifters. Every grouped spawn now has one explicit compatible declaration rather than relying on a guessed global pack.
 - [x] Every Mission and internal Wave has an authored combat budget.
 - [x] Validation enforces exact pack usage, role/sprite references, weighted budget coverage, compatible sectors/Mission roles, introductions, and bounded threat/performance limits.
-- [x] Encounter packs are authored/deterministic; no unrestricted procedural pack selection was added.
+- [x] Encounter packs are authored/deterministic; no unrestricted procedural pack selection was added. All 386 grouped spawn events resolve to a uniquely compatible declared pack, with zero missing, malformed, ambiguous, or unused declarations.
 
-Evidence: `campaignOverhaulValidation.test.mjs`, browser/Director validators, `gameLogic.ts`, and revision-22 manifests.
+Evidence: `CAMPAIGN_FORMATION_AUTHORING.md`, `campaignFormationAuthoring.test.cjs`, `campaignFormationBudget.test.cjs`, `campaignFormationAuthoringValidation.test.mjs`, browser/Director validators, and `gameLogic.ts`.
 
 ## 7. Mini-boss catalog and encounters
 
-Current status: **Partially complete.** Catalog/placement are complete; strict per-mini-boss visual and safe-route evidence is not.
+Current status: **Partially complete.** Catalog, placement, runtime choreography, and deterministic mobile safe-route evidence are complete; final human visual/readability approval is not.
 
-- [x] Bottleneck Drone and Paywall Wall are cataloged with ID, art identity, combat role, two attacks, sectors, threat, recommended power, solo/paired use, Campaign readiness, and validation status.
-- [x] Revision 22 places a single checkpoint/preparation mini-boss at each authored climax and grants extra one-time rewards at Missions 3/8/13/18.
+- [x] Ten mini-bosses are cataloged with stable ID, art identity, combat role, coherent attack sentence, suitable sectors, threat, recommended power, solo/paired use, Campaign readiness, and validation status.
+- [x] Revision 23 places exactly one mini-boss encounter in both checkpoint Missions of every sector: 20 deterministic placements across 10 sectors. Bottleneck Drone and Paywall Wall remain the Sector 1 teaching encounters; eight newer encounter definitions remain previewable in the Boss Sandbox while also serving Campaign checkpoints.
 - [ ] **Partially complete:** Readable entrance, anatomy-specific motion, telegraph quality, duration, reward feel, and each two-attack sentence have not been visually reviewed as a focused mini-boss package.
-- [ ] **Partially complete:** Dedicated deterministic safe-route tests for each mini-boss attack are not present at the same standard as Gatekeeper Prime.
-- [x] No paired mini-boss encounter is authored in revision 22; therefore no unproved paired route is shipped. A future pair must add complementary-mechanic and combined-route proof before use.
+- [x] The eight newer encounters replay their live hazards at 390x844 in deterministic safe-route proofs, including paired-survivor, guardian/convoy, wall/grid, reinforcement, staged-death, and owner-cleanup cases. This is automated collision evidence, not a substitute for human phone review.
+- [x] Twin Meridian Sentinels and Gridline Sentries are paired encounters with complementary ownership rules and a surviving route proven after either member is destroyed.
 
 ## 8. Gatekeeper Prime / Paywall boss
 

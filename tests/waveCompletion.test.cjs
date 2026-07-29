@@ -24,13 +24,13 @@ const loadWaveCompletion = () => {
   return module.exports;
 };
 
-test('four five-Mission sectors own tactical Waves and reserve boss-defeat for direct major-boss Missions', () => {
-  assert.equal(campaign.levels.length, 20);
-  assert.equal(campaign.sectors.length, 4);
+test('ten five-Mission sectors own tactical Waves and reserve boss-defeat for major-boss finales', () => {
+  assert.equal(campaign.levels.length, 60);
+  assert.equal(campaign.sectors.length, 10);
   assert.deepEqual(campaign.levels.slice(0, 5).map((level) => level.name), [
-    'OPEN ORBIT', 'CITATION STORM', 'PAYWALL SIEGE', 'OPEN GALAXY', 'BASTION PROTOCOL'
+    'ORBIT ENTRY', 'CITATION CROSSING', 'PAYWALL CHECKPOINT', 'BASTION APPROACH', 'BASTION PROTOCOL'
   ]);
-  const expectedWaveCounts = [5, 6, 5, 7, 1];
+  const expectedWaveCounts = [5, 6, 5, 7, 4];
   const expectedRoles = ['introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'];
 
   campaign.sectors.forEach((sector) => {
@@ -43,13 +43,14 @@ test('four five-Mission sectors own tactical Waves and reserve boss-defeat for d
   campaign.levels.forEach((level) => {
     const isMajorBossMission = level.campaignProgression.missionRole === 'major-boss';
     level.waves.forEach((wave, index) => {
+      const isMajorBossFinale = isMajorBossMission && index === level.waves.length - 1;
       const sector = campaign.sectors.find((candidate) => candidate.id === level.campaignProgression.sectorId);
       const majorBosses = wave.events.filter((event) => event.kind === 'boss' && event.bossId === sector.majorBossId);
       assert.equal(majorBosses.length, wave.completionRule === 'boss-defeat' ? 1 : 0, wave.id);
-      assert.equal(wave.completionRule, isMajorBossMission ? 'boss-defeat' : 'clear-after-duration');
-      if (isMajorBossMission) {
-        assert.equal(level.waves.length, 1);
-        assert.equal(index, 0);
+      assert.equal(wave.completionRule, isMajorBossFinale ? 'boss-defeat' : 'clear-after-duration');
+      if (isMajorBossFinale) {
+        assert.equal(level.waves.length, 4);
+        assert.equal(index, 3);
         assert.equal(wave.events.length, 1);
       }
     });
@@ -57,14 +58,15 @@ test('four five-Mission sectors own tactical Waves and reserve boss-defeat for d
 });
 
 test('elite checkpoints and boss-preparation Missions finish with authored blocking climaxes', () => {
+  const authoredMiniBossIds = new Set(campaign.miniBosses.map((entry) => entry.bossId));
   const roleClimaxes = new Map([
-    ['elite-checkpoint', new Set(['bottleneck-drone', 'paywall-wall'])],
-    ['boss-preparation', new Set(['bottleneck-drone', 'paywall-wall'])]
+    ['elite-checkpoint', authoredMiniBossIds],
+    ['boss-preparation', authoredMiniBossIds]
   ]);
 
   for (const [role, allowedBossIds] of roleClimaxes) {
     const missions = campaign.levels.filter((level) => level.campaignProgression.missionRole === role);
-    assert.equal(missions.length, 4);
+    assert.equal(missions.length, campaign.sectors.length);
     missions.forEach((level) => {
       const finalWave = level.waves.at(-1);
       const climax = finalWave.events.find((event) => event.kind === 'boss');
@@ -164,7 +166,7 @@ test('internal waves advance seamlessly and only Mission boundaries create resul
 
 test('major-boss Missions expose a five-second movable reward window before the full takeoff cinematic', () => {
   const bossStages = campaign.levels.filter((level) => level.campaignProgression.missionRole === 'major-boss');
-  assert.equal(bossStages.length, 4);
+  assert.equal(bossStages.length, campaign.sectors.length);
   bossStages.forEach((level) => assert.equal(level.waves.at(-1).delayAfterSeconds, 5));
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
   assert.match(engine, /STAGE_TAKEOFF_FRAMES = 180/);

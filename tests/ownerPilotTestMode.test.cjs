@@ -14,7 +14,7 @@ test('project wallet enables a sticky test run with real flask charge and no lea
   assert.match(appSource, /type ActiveRunMode = 'standard'[\s\S]*?'campaign'[\s\S]*?'campaign-replay'[\s\S]*?'owner-test'[\s\S]*?'boss-archive'/);
   assert.match(appSource, /OWNER_TEST_FLASK_COUNT = 40/);
   assert.match(appSource, /getPlayerShipUnlocks\(activeWalletAddress, walletRecords, \{ unlockAll: isOwnerWallet \}\)/);
-  assert.match(appSource, /beginRunSession\(isOwnerTestRun \|\| isOwnerWallet\)/);
+  assert.match(appSource, /beginRunSession\(isOwnerTestRun \|\| isOwnerWallet, activeRunMode\)/);
   assert.match(appSource, /completedPhase !== undefined && !isBossArchiveRun/);
   assert.match(appSource, /const isFounderSandboxRun = isOwnerWallet \|\| isOwnerTestRun/);
   assert.match(appSource, /if \(isFounderSandboxRun\) \{[\s\S]*?finalizeCurrentRun\(\)/);

@@ -15,9 +15,12 @@ test('daily gifts define a persistent 30-day calendar with ship milestones', () 
   const coins = coinList[1].match(/\d+/g).map(Number);
 
   assert.equal(coins.length, 30);
-  assert.deepEqual(coins.slice(0, 6), [50, 100, 200, 400, 800, 1000]);
-  assert.ok(coins.slice(5).every((coinsForDay) => coinsForDay === 1000));
-  assert.ok(coins.every((coinsForDay, index) => index === 0 || coinsForDay >= coins[index - 1]));
+  assert.deepEqual(coins.slice(0, 5), [50, 100, 200, 400, 800]);
+  assert.equal(coins[13], 500, 'the ETH milestone should retain a larger coin grant');
+  assert.equal(coins[20], 500, 'the third-week milestone should retain a larger coin grant');
+  assert.equal(coins[29], 1000, 'the BTC milestone should remain the calendar peak');
+  assert.equal(coins.reduce((total, reward) => total + reward, 0), 9450);
+  assert.ok(coins.every((coinsForDay) => coinsForDay <= 1000));
   assert.match(rewards, /day === 14 \? \{ shipId: 'eth' as const \}/);
   assert.match(rewards, /day === 30 \? \{ shipId: 'btc' as const \}/);
   assert.match(rewards, /daysSinceClaim === 1/);
@@ -48,12 +51,11 @@ test('achievements advance through permanent progressive tiers', () => {
   assert.match(rewards, /targets: \[2, 4, 6, 10, 15\]/);
   assert.match(rewards, /targets: \[2, 5, 10, 25, 50\]/);
   assert.match(rewards, /targets: \[100, 500, 1500, 5000, 10000\]/);
-  assert.match(rewards, /rewards: \[150, 300, 500, 800, 1400\]/);
-  assert.match(rewards, /rewards: \[200, 400, 700, 1200, 2000\]/);
-  assert.match(rewards, /rewards: \[150, 350, 600, 1100, 1800\]/);
-  assert.match(rewards, /rewards: \[100, 300, 600, 1000, 1700\]/);
-  assert.match(rewards, /rewards: \[150, 350, 650, 1100, 1800\]/);
-  assert.match(rewards, /rewards: \[200, 450, 800, 1400, 2400\]/);
+  assert.match(rewards, /rewards: \[75, 150, 250, 400, 650\]/);
+  assert.match(rewards, /rewards: \[100, 200, 300, 500, 800\]/);
+  assert.match(rewards, /rewards: \[50, 100, 200, 350, 600\]/);
+  assert.match(rewards, /rewards: \[75, 150, 250, 450, 700\]/);
+  assert.match(rewards, /rewards: \[100, 200, 350, 600, 900\]/);
   assert.match(rewards, /\[id\]: status\.claimedTiers \+ 1/);
   assert.match(rewards, /getClaimableAchievementCount/);
   assert.match(rewards, /runs: state\.lifetimeStats\.runs \+ 1/);

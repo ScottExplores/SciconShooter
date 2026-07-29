@@ -4,6 +4,7 @@ export const EVENT_TIMELINE_LANES = [
   { id: 'spawn', label: 'Formations' },
   { id: 'boss', label: 'Bosses' },
   { id: 'asteroid-belt', label: 'Hazards' },
+  { id: 'supply-drop', label: 'Supply Drops' },
   { id: 'powerup', label: 'Powerups' },
   { id: 'recovery', label: 'Recovery' }
 ] as const;

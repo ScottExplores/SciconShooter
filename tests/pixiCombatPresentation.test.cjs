@@ -89,11 +89,18 @@ test('Paywall Bastions use attack and real health decay frames across authored c
   assert.match(engine, /Number\(configured\.count \?\? 2\)/);
   assert.match(engine, /e\.spriteFrames = this\.resolveSpriteFrames\(configured\.spriteKey\)/);
 
-  const walls = campaign.levels
+  const checkpointBosses = campaign.levels
     .flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
-    .filter((event) => event.kind === 'boss' && event.spriteKey === 'PAYWALL_BASTION_FRAMES');
-  assert.equal(walls.length, 4);
-  assert.ok(walls.every((event) => event.bossId === 'paywall-wall'));
+    .filter((event) => event.kind === 'boss');
+  const walls = checkpointBosses.filter((event) => event.bossId === 'paywall-wall');
+  assert.equal(walls.length, 1);
+  assert.ok(walls.every((event) => event.spriteKey === 'PAYWALL_BASTION_FRAMES'));
   assert.ok(walls.every((event) => event.count === 1));
+  assert.equal(
+    checkpointBosses.some((event) => (
+      event.bossId !== 'paywall-wall' && event.spriteKey === 'PAYWALL_BASTION_FRAMES'
+    )),
+    false
+  );
 });

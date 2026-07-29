@@ -265,13 +265,15 @@ test('Mission Builder boss duplication remaps nested attack variants with their 
 });
 
 test('Combat Lab promotion remaps nested attack references and preserves the four attack identities', () => {
-  const { candidate, boss } = compiledCampaignFixture();
-  const targetLevel = candidate.levels.find((level) => (
-    level.waves.some((wave) => wave.completionRule === 'boss-defeat')
-  ));
-  const targetWave = targetLevel?.waves.find((wave) => wave.completionRule === 'boss-defeat');
-  assert.ok(targetLevel);
-  assert.ok(targetWave);
+  const candidate = structuredClone(campaign);
+  const boss = candidate.levels
+    .flatMap((level) => level.waves)
+    .flatMap((wave) => wave.events)
+    .find((event) => event.kind === 'boss' && event.bossId === 'bottleneck-drone');
+  assert.ok(boss);
+  boss.timeline = compileBossAttackTimeline(createBlueprint(boss.phases.map((phase) => phase.id)));
+  const targetLevel = candidate.levels[0];
+  const targetWave = targetLevel.waves[0];
   const result = createPromotionCampaign(candidate, {
     kind: 'event',
     targetLevelId: targetLevel.id,

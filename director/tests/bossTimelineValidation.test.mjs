@@ -122,7 +122,7 @@ const campaignWithRevival = () => {
   const boss = candidate.levels
     .flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
-    .find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper' && event.phases.length > 1);
+    .find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper-prime' && event.phases.length > 1);
   assert.ok(boss);
   boss.revival = {
     phaseId: boss.phases[1].id,
@@ -600,7 +600,7 @@ test('the allowlisted sweep path samples deterministically with tangent-derived 
   assert.ok(Math.abs(endpoint.bankRadians) < Number.EPSILON);
 });
 
-test('advanced non-shipping boss fixture exercises every registered primitive and validates in both runtimes', () => {
+test('advanced non-shipping boss fixture exercises every registered primitive but remains sandbox-only', () => {
   const candidate = structuredClone(campaign);
   const boss = candidate.levels
     .flatMap((level) => level.waves)
@@ -617,12 +617,14 @@ test('advanced non-shipping boss fixture exercises every registered primitive an
 
   const serverResult = validateServerCampaign(candidate);
   const browserResult = validateBrowserCampaign(candidate);
-  assert.equal(serverResult.valid, true, serverResult.errors.join('\n'));
-  assert.equal(
-    browserResult.valid,
-    true,
-    browserResult.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n')
-  );
+  assert.equal(serverResult.valid, false);
+  assert.ok(serverResult.errors.some((error) => (
+    error.includes('restricted to the Frontier Crownclaw Boss Sandbox prototype')
+  )));
+  assert.equal(browserResult.valid, false);
+  assert.ok(browserResult.issues.some((issue) => (
+    issue.message.includes('restricted to the Frontier Crownclaw Boss Sandbox prototype')
+  )));
 
   const singlePhaseCandidate = structuredClone(campaign);
   const singlePhaseBoss = singlePhaseCandidate.levels
@@ -633,12 +635,14 @@ test('advanced non-shipping boss fixture exercises every registered primitive an
   singlePhaseBoss.timeline = createBossTimelineTemplate('advanced-showcase', singlePhaseBoss);
   const singlePhaseServerResult = validateServerCampaign(singlePhaseCandidate);
   const singlePhaseBrowserResult = validateBrowserCampaign(singlePhaseCandidate);
-  assert.equal(singlePhaseServerResult.valid, true, singlePhaseServerResult.errors.join('\n'));
-  assert.equal(
-    singlePhaseBrowserResult.valid,
-    true,
-    singlePhaseBrowserResult.issues.map((issue) => `${issue.path}: ${issue.message}`).join('\n')
-  );
+  assert.equal(singlePhaseServerResult.valid, false);
+  assert.ok(singlePhaseServerResult.errors.some((error) => (
+    error.includes('restricted to the Frontier Crownclaw Boss Sandbox prototype')
+  )));
+  assert.equal(singlePhaseBrowserResult.valid, false);
+  assert.ok(singlePhaseBrowserResult.issues.some((issue) => (
+    issue.message.includes('restricted to the Frontier Crownclaw Boss Sandbox prototype')
+  )));
 });
 
 test('boss timeline validation rejects individually bounded clips that exceed the simultaneous entity budget', () => {

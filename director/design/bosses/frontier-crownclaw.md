@@ -239,15 +239,16 @@ The regenerated V0.26 proof contains 28/28 intact-anatomy witnesses plus 48/48 c
 Critical Crown Reactor Beam retains its original wide geometry: each relay sits
 `0.11π` from the primary angle and the primary angle sweeps through the original
 `0.21π` half-range. The correction removes only the former center relay. The
-warning therefore owns four rails (the two retained beams at the beginning and
-end of the sweep), while fire owns exactly two full-length animated beams and
-never recreates a center beam.
+warning owns exactly two rails aligned to the two beams at the beginning of
+fire. The endpoint of the subsequent sweep is movement, so it is not shown as a
+second pair of incoming lasers. Fire owns exactly two full-length animated
+beams and never recreates a center beam.
 
 The regenerated analytic matrices pass 28/28 intact and 48/48 component-fallback
 witnesses across the retained mobile and internal desktop diagnostics, with a
 minimum `6.012001051 px` clearance after the standard `3 px` uncertainty. The
 separate exact `GameEngine` mobile playback measures a `61.87 px` conservative
-safe lane, proves two live beam bodies and four warning rails, and verifies that
+safe lane, proves two live beam bodies and two aligned warning rails, and verifies that
 the player can reach the warned lane before damage. The analytic proof
 approximates rig sockets; exact engine playback and the canonical mobile browser
 capture remain the collision and presentation authorities.

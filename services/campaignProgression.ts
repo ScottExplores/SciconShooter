@@ -26,15 +26,23 @@ import {
   sanitizeCampaignBranchProgress,
   type CampaignBranchProgress
 } from './campaignBranchProgression';
+import {
+  createCampaignGraphIndex,
+  decideNextCampaignNode,
+  getCampaignGraphNodesForMission,
+  validateCampaignRouteSelection,
+  type CampaignGraphIndex
+} from '../services/campaignGraph.ts';
 // Vite and Node both load the tracked migration manifest as data. Keeping the
 // aliases outside this module lets content revisions be audited independently.
 import * as CAMPAIGN_MIGRATION_V22_MODULE from '../game-config/campaign-migration-v22.json';
 
-export const CAMPAIGN_PROGRESS_VERSION = 3;
+export const CAMPAIGN_PROGRESS_VERSION = 4;
 export const CAMPAIGN_REPLAY_REWARD_MULTIPLIER = 0.35;
 const MAX_COMPLETION_RECORDS = 96;
 const MAX_RESULT_IDS = 384;
 const MAX_REWARD_IDS = 768;
+const CAMPAIGN_REPLAY_REWARD_MARKER = ':replay:';
 
 export type CampaignStarObjectiveKind = CampaignMasteryObjectiveKind;
 export type CampaignStarObjective = CampaignMasteryObjectiveDefinition;
@@ -108,6 +116,21 @@ export interface CampaignProgress {
   campaignRevision: number;
   recommendedMissionId: string;
   recommendedWaveId: string;
+  /** Graph node presented by Continue; it never regresses when an older node is replayed. */
+  recommendedGraphNodeId: string | null;
+  /** Most recently selected/launched graph node, including an intentional replay. */
+  currentGraphNodeId: string | null;
+  /** Deepest reached node on the authored main route, independent from current replay selection. */
+  furthestMainGraphNodeId: string | null;
+  unlockedGraphNodeIds: string[];
+  completedGraphNodeIds: string[];
+  /** One committed direct target per completed fork/source node. */
+  selectedRouteTargetBySourceNodeId: Record<string, string>;
+  /** A completed fork waiting for the player to choose one direct exit. */
+  pendingRouteChoice: {
+    sourceNodeId: string;
+    optionNodeIds: string[];
+  } | null;
   unlockedMissionIds: string[];
   unlockedWaveIdsByMission: Record<string, string[]>;
   completedMissionIds: string[];
@@ -124,6 +147,28 @@ export interface CampaignProgress {
   campaignCompleted: boolean;
   updatedAt: string;
 }
+
+export type CampaignRouteSelectionResult =
+  | {
+    accepted: true;
+    reason: 'selected';
+    progress: CampaignProgress;
+    sourceNodeId: string;
+    targetNodeId: string;
+  }
+  | {
+    accepted: false;
+    reason:
+      | 'campaign-has-no-graph'
+      | 'source-not-complete'
+      | 'unknown-source'
+      | 'unknown-target'
+      | 'not-outgoing'
+      | 'prerequisites-not-met';
+    progress: CampaignProgress;
+    sourceNodeId: string;
+    targetNodeId: string;
+  };
 
 export interface CampaignCompletionInput {
   resultId: string;
@@ -224,6 +269,17 @@ const isoDate = (value?: string) => {
 
 const trimTail = <T,>(values: T[], max: number) => values.slice(Math.max(0, values.length - max));
 
+// Daily replay eligibility is persisted separately in
+// replayRewardEpochByMission. Keeping those date-scoped IDs in the permanent
+// claim ledger would eventually evict first-clear, star, boss, and mastery
+// receipts from the bounded profile after enough calendar days.
+const permanentCampaignRewardIds = (value: unknown) => trimTail(
+  uniqueStrings(value).filter((id) => (
+    id.startsWith('campaign:') && !id.includes(CAMPAIGN_REPLAY_REWARD_MARKER)
+  )),
+  MAX_REWARD_IDS
+);
+
 interface CampaignMigrationV22Manifest {
   fromRevision: number;
   toRevision: number;
@@ -294,6 +350,83 @@ const checkpointRank = (
   const wavePosition = missions[missionPosition].waveIds.indexOf(waveId);
   return wavePosition < 0 ? -1 : (missionPosition * 1000) + wavePosition;
 };
+
+const hasAuthoredCampaignGraph = (campaign: GameCampaignConfig) => (
+  Boolean(campaign.campaignGraph && campaign.campaignGraph.nodes.length > 0)
+);
+
+const getGraphNodeForMission = (
+  graph: CampaignGraphIndex,
+  missionId: string,
+  preferredNodeIds: readonly (string | null | undefined)[] = []
+) => {
+  const candidates = getCampaignGraphNodesForMission(graph, missionId);
+  for (const preferredNodeId of preferredNodeIds) {
+    if (!preferredNodeId) continue;
+    const match = candidates.find((node) => node.nodeId === preferredNodeId);
+    if (match) return match;
+  }
+  return [...candidates].sort((left, right) => (
+    Number(right.mainPath) - Number(left.mainPath)
+    || left.depth - right.depth
+    || left.nodeId.localeCompare(right.nodeId)
+  ))[0] ?? null;
+};
+
+const compareGraphCheckpointNodes = (
+  graph: CampaignGraphIndex,
+  leftNodeId: string | null | undefined,
+  rightNodeId: string | null | undefined
+) => {
+  const left = leftNodeId ? graph.nodeById.get(leftNodeId) : null;
+  const right = rightNodeId ? graph.nodeById.get(rightNodeId) : null;
+  if (!left && !right) return 0;
+  if (!left) return -1;
+  if (!right) return 1;
+  return left.depth - right.depth
+    || Number(left.mainPath) - Number(right.mainPath)
+    || right.nodeId.localeCompare(left.nodeId);
+};
+
+const deepestMainGraphNodeId = (
+  graph: CampaignGraphIndex,
+  nodeIds: Iterable<string>,
+  fallbackNodeId: string | null = null
+) => {
+  const candidates = Array.from(new Set(nodeIds))
+    .filter((nodeId) => graph.nodeById.get(nodeId)?.mainPath);
+  if (fallbackNodeId && graph.nodeById.get(fallbackNodeId)?.mainPath) candidates.push(fallbackNodeId);
+  return candidates.sort((left, right) => compareGraphCheckpointNodes(graph, right, left))[0]
+    ?? (graph.nodeById.get(graph.definition.entryNodeId)?.mainPath ? graph.definition.entryNodeId : fallbackNodeId);
+};
+
+const unlockGraphNodeMission = (
+  graph: CampaignGraphIndex,
+  nodeId: string,
+  missionById: ReadonlyMap<string, CampaignMissionDefinition>,
+  unlockedGraphNodeIds: Set<string>,
+  unlockedMissionIds: Set<string>,
+  unlockedWaveIdsByMission: Record<string, string[]>
+) => {
+  const node = graph.nodeById.get(nodeId);
+  if (!node) return;
+  const mission = missionById.get(node.missionDefinitionId);
+  if (!mission) return;
+  unlockedGraphNodeIds.add(node.nodeId);
+  unlockedMissionIds.add(mission.id);
+  unlockedWaveIdsByMission[mission.id] = Array.from(new Set([
+    ...(unlockedWaveIdsByMission[mission.id] ?? []),
+    mission.waveIds[0]
+  ]));
+};
+
+const graphNodeIdsFromMissionIds = (
+  graph: CampaignGraphIndex,
+  missionIds: Iterable<string>
+) => Array.from(new Set(Array.from(missionIds).flatMap((missionId) => {
+  const node = getGraphNodeForMission(graph, missionId);
+  return node ? [node.nodeId] : [];
+})));
 
 const hasBoss = (level: LevelDefinition) => level.waves
   .flatMap((wave) => wave.events)
@@ -475,12 +608,39 @@ export const createCampaignProgress = (
     }];
   }));
   const recommended = missions[reached - 1] ?? first;
+  const graph = hasAuthoredCampaignGraph(campaign) ? createCampaignGraphIndex(campaign) : null;
+  const completedGraphNodeIds = graph ? graphNodeIdsFromMissionIds(graph, completedMissionIds) : [];
+  const unlockedGraphNodeIds = graph
+    ? Array.from(new Set([
+        graph.definition.entryNodeId,
+        ...graphNodeIdsFromMissionIds(graph, unlockedMissionIds)
+      ])).filter((nodeId) => graph.nodeById.has(nodeId))
+    : [];
+  const recommendedGraphNodeId = graph
+    ? getGraphNodeForMission(graph, recommended.id, unlockedGraphNodeIds)?.nodeId
+      ?? graph.definition.entryNodeId
+    : null;
+  const furthestMainGraphNodeId = graph
+      ? deepestMainGraphNodeId(
+        graph,
+        [...completedGraphNodeIds, recommendedGraphNodeId ?? graph.definition.entryNodeId]
+          .filter((nodeId): nodeId is string => Boolean(nodeId)),
+        graph.definition.entryNodeId
+      )
+    : null;
   return {
     version: CAMPAIGN_PROGRESS_VERSION,
     campaignId: campaign.id,
     campaignRevision: campaign.revision,
     recommendedMissionId: recommended.id,
     recommendedWaveId: recommended.waveIds[0],
+    recommendedGraphNodeId,
+    currentGraphNodeId: recommendedGraphNodeId,
+    furthestMainGraphNodeId,
+    unlockedGraphNodeIds,
+    completedGraphNodeIds,
+    selectedRouteTargetBySourceNodeId: {},
+    pendingRouteChoice: null,
     unlockedMissionIds,
     unlockedWaveIdsByMission: Object.fromEntries(missions.map((mission, index) => [
       mission.id,
@@ -496,7 +656,11 @@ export const createCampaignProgress = (
     unviewedStarMissionIds: [],
     unviewedRewardIds: [],
     branchProgress: createCampaignBranchProgress(),
-    campaignCompleted: completedMissionIds.length === missions.length,
+    campaignCompleted: graph
+      ? completedGraphNodeIds.some((nodeId) => (
+          (graph.edgesBySourceNodeId.get(nodeId)?.length ?? 0) === 0
+        ))
+      : completedMissionIds.length === missions.length,
     updatedAt: new Date().toISOString()
   };
 };
@@ -557,6 +721,7 @@ export const sanitizeCampaignProgress = (
   const storedRevision = integerOr(raw.campaignRevision, campaign.revision);
   const missionIds = new Set(missions.map((mission) => mission.id));
   const missionById = new Map(missions.map((mission) => [mission.id, mission]));
+  const graph = hasAuthoredCampaignGraph(campaign) ? createCampaignGraphIndex(campaign) : null;
   const missionRecords = Object.fromEntries(missions.map((mission) => [
     mission.id,
     sanitizeMissionRecord(raw.missionRecords?.[mission.id], mission, storedRevision)
@@ -579,11 +744,122 @@ export const sanitizeCampaignProgress = (
   });
   const unlockedMissionIds = new Set(uniqueStrings(raw.unlockedMissionIds, missionIds));
   unlockedMissionIds.add(missions[0].id);
-  completedMissionIds.forEach((id) => {
-    unlockedMissionIds.add(id);
-    const index = missionIndex(id, missions);
-    if (missions[index + 1]) unlockedMissionIds.add(missions[index + 1].id);
-  });
+  completedMissionIds.forEach((id) => unlockedMissionIds.add(id));
+  if (!graph) {
+    completedMissionIds.forEach((id) => {
+      const index = missionIndex(id, missions);
+      if (missions[index + 1]) unlockedMissionIds.add(missions[index + 1].id);
+    });
+  }
+
+  const graphNodeIds = new Set(graph?.definition.nodes.map((node) => node.nodeId) ?? []);
+  const completedGraphNodeIds = new Set<string>();
+  const unlockedGraphNodeIds = new Set<string>();
+  const selectedRouteTargetBySourceNodeId: Record<string, string> = {};
+  let pendingRouteChoice: CampaignProgress['pendingRouteChoice'] = null;
+  if (graph) {
+    uniqueStrings(raw.completedGraphNodeIds, graphNodeIds)
+      .forEach((nodeId) => completedGraphNodeIds.add(nodeId));
+    graphNodeIdsFromMissionIds(graph, completedMissionIds)
+      .forEach((nodeId) => completedGraphNodeIds.add(nodeId));
+    uniqueStrings(raw.unlockedGraphNodeIds, graphNodeIds)
+      .forEach((nodeId) => unlockedGraphNodeIds.add(nodeId));
+    graphNodeIdsFromMissionIds(graph, unlockedMissionIds)
+      .forEach((nodeId) => unlockedGraphNodeIds.add(nodeId));
+    completedGraphNodeIds.forEach((nodeId) => unlockedGraphNodeIds.add(nodeId));
+    unlockedGraphNodeIds.add(graph.definition.entryNodeId);
+
+    const rawSelections = raw.selectedRouteTargetBySourceNodeId
+      && typeof raw.selectedRouteTargetBySourceNodeId === 'object'
+      && !Array.isArray(raw.selectedRouteTargetBySourceNodeId)
+      ? raw.selectedRouteTargetBySourceNodeId
+      : {};
+    Object.entries(rawSelections)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .forEach(([sourceNodeId, targetNodeId]) => {
+        if (typeof targetNodeId !== 'string' || !completedGraphNodeIds.has(sourceNodeId)) return;
+        const validation = validateCampaignRouteSelection(
+          graph,
+          sourceNodeId,
+          targetNodeId,
+          completedGraphNodeIds
+        );
+        if (!validation.valid) return;
+        selectedRouteTargetBySourceNodeId[sourceNodeId] = targetNodeId;
+        unlockedGraphNodeIds.add(targetNodeId);
+      });
+
+    if (integer(raw.version, 0, CAMPAIGN_PROGRESS_VERSION) < CAMPAIGN_PROGRESS_VERSION) {
+      const preservedMissionIds = new Set(completedMissionIds);
+      if (typeof raw.recommendedMissionId === 'string' && missionIds.has(raw.recommendedMissionId)) {
+        preservedMissionIds.add(raw.recommendedMissionId);
+      }
+      const preservedNodeIds = new Set(graphNodeIdsFromMissionIds(graph, preservedMissionIds));
+      completedGraphNodeIds.forEach((sourceNodeId) => {
+        if (selectedRouteTargetBySourceNodeId[sourceNodeId]) return;
+        const preservedTargets = (graph.edgesBySourceNodeId.get(sourceNodeId) ?? [])
+          .map((edge) => edge.toNodeId)
+          .filter((targetNodeId) => preservedNodeIds.has(targetNodeId));
+        if (preservedTargets.length !== 1) return;
+        const validation = validateCampaignRouteSelection(
+          graph,
+          sourceNodeId,
+          preservedTargets[0],
+          completedGraphNodeIds
+        );
+        if (!validation.valid) return;
+        selectedRouteTargetBySourceNodeId[sourceNodeId] = preservedTargets[0];
+        unlockedGraphNodeIds.add(preservedTargets[0]);
+      });
+    }
+
+    const pendingCandidates: Array<{ sourceNodeId: string; optionNodeIds: string[]; depth: number }> = [];
+    completedGraphNodeIds.forEach((sourceNodeId) => {
+      const unselectedDecision = decideNextCampaignNode(graph, sourceNodeId, {
+        completedNodeIds: completedGraphNodeIds
+      });
+      if (unselectedDecision.kind === 'advance') {
+        unlockedGraphNodeIds.add(unselectedDecision.nextNode.nodeId);
+        selectedRouteTargetBySourceNodeId[sourceNodeId] ??= unselectedDecision.nextNode.nodeId;
+      } else if (unselectedDecision.kind === 'choice-required') {
+        const optionNodeIds = unselectedDecision.options.map((node) => node.nodeId);
+        optionNodeIds.forEach((nodeId) => unlockedGraphNodeIds.add(nodeId));
+        if (!selectedRouteTargetBySourceNodeId[sourceNodeId]) {
+          pendingCandidates.push({
+            sourceNodeId,
+            optionNodeIds,
+            depth: unselectedDecision.currentNode.depth
+          });
+        }
+      }
+    });
+
+    const rawPending = raw.pendingRouteChoice;
+    if (rawPending && typeof rawPending === 'object' && !Array.isArray(rawPending)) {
+      const sourceNodeId = typeof rawPending.sourceNodeId === 'string' ? rawPending.sourceNodeId : '';
+      const candidate = pendingCandidates.find((entry) => entry.sourceNodeId === sourceNodeId);
+      if (candidate) {
+        const requestedOptions = uniqueStrings(rawPending.optionNodeIds, new Set(candidate.optionNodeIds));
+        pendingRouteChoice = {
+          sourceNodeId,
+          optionNodeIds: requestedOptions.length > 1 ? requestedOptions : candidate.optionNodeIds
+        };
+      }
+    }
+    if (!pendingRouteChoice) {
+      const candidate = pendingCandidates.sort((left, right) => (
+        right.depth - left.depth || left.sourceNodeId.localeCompare(right.sourceNodeId)
+      ))[0];
+      pendingRouteChoice = candidate
+        ? { sourceNodeId: candidate.sourceNodeId, optionNodeIds: candidate.optionNodeIds }
+        : null;
+    }
+
+    unlockedGraphNodeIds.forEach((nodeId) => {
+      const node = graph.nodeById.get(nodeId);
+      if (node && missionById.has(node.missionDefinitionId)) unlockedMissionIds.add(node.missionDefinitionId);
+    });
+  }
   const rawUnlockedWaves = raw.unlockedWaveIdsByMission && typeof raw.unlockedWaveIdsByMission === 'object'
     ? raw.unlockedWaveIdsByMission
     : {};
@@ -628,8 +904,73 @@ export const sanitizeCampaignProgress = (
       rank: checkpointRank(missions, fallback.recommendedMissionId, fallback.recommendedWaveId)
     }
   );
-  const recommendedMissionId = derivedCheckpoint.missionId;
-  const recommendedWaveId = derivedCheckpoint.waveId;
+  let recommendedMissionId = derivedCheckpoint.missionId;
+  let recommendedWaveId = derivedCheckpoint.waveId;
+  let recommendedGraphNodeId: string | null = null;
+  let currentGraphNodeId: string | null = null;
+  let furthestMainGraphNodeId: string | null = null;
+  if (graph) {
+    const requestedRecommendedNodeId = typeof raw.recommendedGraphNodeId === 'string'
+      && unlockedGraphNodeIds.has(raw.recommendedGraphNodeId)
+      ? raw.recommendedGraphNodeId
+      : null;
+    const preservedMissionNodeId = typeof raw.recommendedMissionId === 'string'
+      ? getGraphNodeForMission(
+          graph,
+          raw.recommendedMissionId,
+          [requestedRecommendedNodeId, raw.currentGraphNodeId]
+        )?.nodeId ?? null
+      : null;
+    const selectedTargetNodeIds = Object.values(selectedRouteTargetBySourceNodeId)
+      .filter((nodeId) => unlockedGraphNodeIds.has(nodeId));
+    const defaultRecommendedNodeIds = pendingRouteChoice
+      ? [pendingRouteChoice.sourceNodeId]
+      : [requestedRecommendedNodeId, preservedMissionNodeId, ...selectedTargetNodeIds];
+    recommendedGraphNodeId = defaultRecommendedNodeIds
+      .filter((nodeId): nodeId is string => Boolean(nodeId && unlockedGraphNodeIds.has(nodeId)))
+      .sort((left, right) => compareGraphCheckpointNodes(graph, right, left))[0]
+      ?? graph.definition.entryNodeId;
+
+    const requestedFurthestMainNodeId = typeof raw.furthestMainGraphNodeId === 'string'
+      && graph.nodeById.get(raw.furthestMainGraphNodeId)?.mainPath
+      ? raw.furthestMainGraphNodeId
+      : null;
+    furthestMainGraphNodeId = deepestMainGraphNodeId(
+      graph,
+      [
+        ...completedGraphNodeIds,
+        ...Object.values(selectedRouteTargetBySourceNodeId)
+      ],
+      requestedFurthestMainNodeId ?? graph.definition.entryNodeId
+    );
+    if (
+      furthestMainGraphNodeId
+      && compareGraphCheckpointNodes(graph, furthestMainGraphNodeId, recommendedGraphNodeId) > 0
+    ) {
+      recommendedGraphNodeId = furthestMainGraphNodeId;
+    }
+
+    const requestedCurrentNodeId = typeof raw.currentGraphNodeId === 'string'
+      && unlockedGraphNodeIds.has(raw.currentGraphNodeId)
+      ? raw.currentGraphNodeId
+      : null;
+    currentGraphNodeId = requestedCurrentNodeId ?? recommendedGraphNodeId;
+    const recommendedNode = graph.nodeById.get(recommendedGraphNodeId);
+    const recommendedMission = recommendedNode
+      ? missionById.get(recommendedNode.missionDefinitionId)
+      : null;
+    if (recommendedMission) {
+      recommendedMissionId = recommendedMission.id;
+      const requestedWaveId = raw.recommendedMissionId === recommendedMission.id
+        ? migratedWaveId(recommendedMission.id, raw.recommendedWaveId, recommendedMission, storedRevision)
+        : null;
+      recommendedWaveId = requestedWaveId
+        && unlockedWaveIdsByMission[recommendedMission.id]?.includes(requestedWaveId)
+        && !missionRecords[recommendedMission.id]?.completedWaveIds.includes(requestedWaveId)
+        ? requestedWaveId
+        : unlockedWaveIdsByMission[recommendedMission.id]?.at(-1) ?? recommendedMission.waveIds[0];
+    }
+  }
   const completionRecords = Array.isArray(raw.completionRecords)
     ? raw.completionRecords.flatMap((entry) => {
         if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
@@ -684,11 +1025,22 @@ export const sanitizeCampaignProgress = (
     campaignRevision: campaign.revision,
     recommendedMissionId,
     recommendedWaveId,
+    recommendedGraphNodeId,
+    currentGraphNodeId,
+    furthestMainGraphNodeId,
+    unlockedGraphNodeIds: graph
+      ? graph.definition.nodes.filter((node) => unlockedGraphNodeIds.has(node.nodeId)).map((node) => node.nodeId)
+      : [],
+    completedGraphNodeIds: graph
+      ? graph.definition.nodes.filter((node) => completedGraphNodeIds.has(node.nodeId)).map((node) => node.nodeId)
+      : [],
+    selectedRouteTargetBySourceNodeId,
+    pendingRouteChoice,
     unlockedMissionIds: missions.filter((mission) => unlockedMissionIds.has(mission.id)).map((mission) => mission.id),
     unlockedWaveIdsByMission,
     completedMissionIds,
     missionRecords,
-    claimedRewardIds: trimTail(uniqueStrings(raw.claimedRewardIds).filter((id) => id.startsWith('campaign:')), MAX_REWARD_IDS),
+    claimedRewardIds: permanentCampaignRewardIds(raw.claimedRewardIds),
     replayRewardEpochByMission,
     processedResultIds: trimTail(uniqueStrings(raw.processedResultIds), MAX_RESULT_IDS),
     completionRecords: trimTail(completionRecords, MAX_COMPLETION_RECORDS),
@@ -696,7 +1048,11 @@ export const sanitizeCampaignProgress = (
     unviewedStarMissionIds: uniqueStrings(raw.unviewedStarMissionIds, missionIds),
     unviewedRewardIds: uniqueStrings(raw.unviewedRewardIds).filter((id) => id.startsWith('campaign:')),
     branchProgress,
-    campaignCompleted: completedMissionIds.length === missions.length,
+    campaignCompleted: graph
+      ? Array.from(completedGraphNodeIds).some((nodeId) => (
+          (graph.edgesBySourceNodeId.get(nodeId)?.length ?? 0) === 0
+        ))
+      : completedMissionIds.length === missions.length,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString()
   };
 };
@@ -789,9 +1145,24 @@ export const applyCampaignCompletion = (
   const wasMissionComplete = previousRecord.completed;
   const stageComplete = isFinalWave;
   const masteryEligible = stageComplete && input.masteryEligible === true;
-  const nextMission = mission.nextMissionId ? missions.find((entry) => entry.id === mission.nextMissionId) ?? null : null;
+  const graph = hasAuthoredCampaignGraph(campaign) ? createCampaignGraphIndex(campaign) : null;
+  const graphNode = graph
+    ? getGraphNodeForMission(graph, mission.id, [
+        progress.currentGraphNodeId,
+        progress.recommendedGraphNodeId,
+        ...progress.unlockedGraphNodeIds.filter((nodeId) => !progress.completedGraphNodeIds.includes(nodeId))
+      ])
+    : null;
+  const nextMission = !graph && mission.nextMissionId
+    ? missions.find((entry) => entry.id === mission.nextMissionId) ?? null
+    : null;
   const unlockedMissionIds = new Set(progress.unlockedMissionIds);
   const unlockedWaveIdsByMission = Object.fromEntries(Object.entries(progress.unlockedWaveIdsByMission).map(([id, ids]) => [id, [...ids]]));
+  const missionById = new Map(missions.map((entry) => [entry.id, entry]));
+  const completedGraphNodeIds = new Set(progress.completedGraphNodeIds);
+  const unlockedGraphNodeIds = new Set(progress.unlockedGraphNodeIds);
+  const selectedRouteTargetBySourceNodeId = { ...progress.selectedRouteTargetBySourceNodeId };
+  let pendingRouteChoice = progress.pendingRouteChoice;
   unlockedMissionIds.add(mission.id);
   const completedWaveIds = new Set(previousRecord.completedWaveIds);
   completedWaveIds.add(input.waveId);
@@ -808,14 +1179,62 @@ export const applyCampaignCompletion = (
       currentIndex + (nextWaveId ? 1 : 0)
     ))
   );
+  const newlyUnlockedMissionIds: string[] = [];
   let newlyUnlockedMissionId: string | null = null;
-  if (stageComplete && nextMission) {
-    if (!unlockedMissionIds.has(nextMission.id)) newlyUnlockedMissionId = nextMission.id;
+  let graphDecision: ReturnType<typeof decideNextCampaignNode> | null = null;
+  if (stageComplete && graph && graphNode) {
+    completedGraphNodeIds.add(graphNode.nodeId);
+    unlockedGraphNodeIds.add(graphNode.nodeId);
+    const selectedTargetNodeId = selectedRouteTargetBySourceNodeId[graphNode.nodeId] ?? null;
+    graphDecision = decideNextCampaignNode(graph, graphNode.nodeId, {
+      selectedTargetNodeId,
+      completedNodeIds: completedGraphNodeIds
+    });
+    if (graphDecision.kind === 'advance') {
+      const targetMissionId = graphDecision.nextNode.missionDefinitionId;
+      if (!unlockedMissionIds.has(targetMissionId)) newlyUnlockedMissionIds.push(targetMissionId);
+      unlockGraphNodeMission(
+        graph,
+        graphDecision.nextNode.nodeId,
+        missionById,
+        unlockedGraphNodeIds,
+        unlockedMissionIds,
+        unlockedWaveIdsByMission
+      );
+      selectedRouteTargetBySourceNodeId[graphNode.nodeId] = graphDecision.nextNode.nodeId;
+      if (pendingRouteChoice?.sourceNodeId === graphNode.nodeId) pendingRouteChoice = null;
+    } else if (graphDecision.kind === 'choice-required') {
+      graphDecision.options.forEach((option) => {
+        if (!unlockedMissionIds.has(option.missionDefinitionId)) {
+          newlyUnlockedMissionIds.push(option.missionDefinitionId);
+        }
+        unlockGraphNodeMission(
+          graph,
+          option.nodeId,
+          missionById,
+          unlockedGraphNodeIds,
+          unlockedMissionIds,
+          unlockedWaveIdsByMission
+        );
+      });
+      pendingRouteChoice = {
+        sourceNodeId: graphNode.nodeId,
+        optionNodeIds: graphDecision.options.map((option) => option.nodeId)
+      };
+    } else if (graphDecision.kind === 'terminal') {
+      pendingRouteChoice = pendingRouteChoice?.sourceNodeId === graphNode.nodeId
+        ? null
+        : pendingRouteChoice;
+    }
+    newlyUnlockedMissionId = newlyUnlockedMissionIds[0] ?? null;
+  } else if (stageComplete && nextMission) {
+    if (!unlockedMissionIds.has(nextMission.id)) newlyUnlockedMissionIds.push(nextMission.id);
     unlockedMissionIds.add(nextMission.id);
     unlockedWaveIdsByMission[nextMission.id] = Array.from(new Set([
       ...(unlockedWaveIdsByMission[nextMission.id] ?? []),
       nextMission.waveIds[0]
     ]));
+    newlyUnlockedMissionId = newlyUnlockedMissionIds[0] ?? null;
   }
 
   const earnedStarIds = new Set(previousRecord.earnedStarIds);
@@ -941,19 +1360,63 @@ export const applyCampaignCompletion = (
   }
   const coinsAwarded = grants.reduce((total, grant) => total + grant.amount, 0);
 
-  const candidateMissionId = stageComplete && nextMission ? nextMission.id : mission.id;
-  const candidateWaveId = stageComplete && nextMission
-    ? nextMission.waveIds[0]
-    : nextWaveId ?? input.waveId;
-  const previousCheckpointRank = checkpointRank(
-    missions,
-    progress.recommendedMissionId,
-    progress.recommendedWaveId
-  );
-  const candidateCheckpointRank = checkpointRank(missions, candidateMissionId, candidateWaveId);
-  const advancesCheckpoint = candidateCheckpointRank > previousCheckpointRank;
-  const recommendedMissionId = advancesCheckpoint ? candidateMissionId : progress.recommendedMissionId;
-  const recommendedWaveId = advancesCheckpoint ? candidateWaveId : progress.recommendedWaveId;
+  let recommendedMissionId = progress.recommendedMissionId;
+  let recommendedWaveId = progress.recommendedWaveId;
+  let recommendedGraphNodeId = progress.recommendedGraphNodeId;
+  let currentGraphNodeId = progress.currentGraphNodeId;
+  let furthestMainGraphNodeId = progress.furthestMainGraphNodeId;
+  if (graph && graphNode) {
+    const candidateNode = stageComplete && graphDecision?.kind === 'advance'
+      ? graphDecision.nextNode
+      : graphNode;
+    currentGraphNodeId = candidateNode.nodeId;
+    if (
+      !recommendedGraphNodeId
+      || compareGraphCheckpointNodes(graph, candidateNode.nodeId, recommendedGraphNodeId) > 0
+    ) {
+      recommendedGraphNodeId = candidateNode.nodeId;
+    }
+    furthestMainGraphNodeId = deepestMainGraphNodeId(
+      graph,
+      [
+        ...completedGraphNodeIds,
+        furthestMainGraphNodeId ?? '',
+        candidateNode.mainPath ? candidateNode.nodeId : ''
+      ].filter(Boolean),
+      graph.definition.entryNodeId
+    );
+    if (
+      furthestMainGraphNodeId
+      && recommendedGraphNodeId
+      && compareGraphCheckpointNodes(graph, furthestMainGraphNodeId, recommendedGraphNodeId) > 0
+    ) {
+      recommendedGraphNodeId = furthestMainGraphNodeId;
+    }
+    const recommendedNode = recommendedGraphNodeId
+      ? graph.nodeById.get(recommendedGraphNodeId)
+      : null;
+    const recommendedMission = recommendedNode
+      ? missionById.get(recommendedNode.missionDefinitionId)
+      : null;
+    if (recommendedMission) {
+      recommendedMissionId = recommendedMission.id;
+      recommendedWaveId = recommendedMission.waveIds[0];
+    }
+  } else {
+    const candidateMissionId = stageComplete && nextMission ? nextMission.id : mission.id;
+    const candidateWaveId = stageComplete && nextMission
+      ? nextMission.waveIds[0]
+      : nextWaveId ?? input.waveId;
+    const previousCheckpointRank = checkpointRank(
+      missions,
+      progress.recommendedMissionId,
+      progress.recommendedWaveId
+    );
+    const candidateCheckpointRank = checkpointRank(missions, candidateMissionId, candidateWaveId);
+    const advancesCheckpoint = candidateCheckpointRank > previousCheckpointRank;
+    recommendedMissionId = advancesCheckpoint ? candidateMissionId : progress.recommendedMissionId;
+    recommendedWaveId = advancesCheckpoint ? candidateWaveId : progress.recommendedWaveId;
+  }
   const completedMissionIds = new Set(progress.completedMissionIds);
   if (stageComplete) completedMissionIds.add(mission.id);
   const completionRecord: CampaignCompletionRecord = {
@@ -987,18 +1450,29 @@ export const applyCampaignCompletion = (
     campaignRevision: Math.max(progress.campaignRevision, input.campaignRevision, campaign.revision),
     recommendedMissionId,
     recommendedWaveId,
+    recommendedGraphNodeId,
+    currentGraphNodeId,
+    furthestMainGraphNodeId,
+    unlockedGraphNodeIds: graph
+      ? graph.definition.nodes.filter((node) => unlockedGraphNodeIds.has(node.nodeId)).map((node) => node.nodeId)
+      : progress.unlockedGraphNodeIds,
+    completedGraphNodeIds: graph
+      ? graph.definition.nodes.filter((node) => completedGraphNodeIds.has(node.nodeId)).map((node) => node.nodeId)
+      : progress.completedGraphNodeIds,
+    selectedRouteTargetBySourceNodeId,
+    pendingRouteChoice,
     unlockedMissionIds: missions.filter((entry) => unlockedMissionIds.has(entry.id)).map((entry) => entry.id),
     unlockedWaveIdsByMission,
     completedMissionIds: missions.filter((entry) => completedMissionIds.has(entry.id)).map((entry) => entry.id),
     missionRecords: { ...progress.missionRecords, [mission.id]: record },
-    claimedRewardIds: trimTail(Array.from(claimed), MAX_REWARD_IDS),
+    claimedRewardIds: permanentCampaignRewardIds(Array.from(claimed)),
     replayRewardEpochByMission: replayRewardEligible
       ? { ...progress.replayRewardEpochByMission, [mission.id]: replayRewardEpoch }
       : progress.replayRewardEpochByMission,
     processedResultIds: trimTail([...progress.processedResultIds, input.resultId], MAX_RESULT_IDS),
     completionRecords: trimTail([...progress.completionRecords, completionRecord], MAX_COMPLETION_RECORDS),
-    unviewedMissionIds: newlyUnlockedMissionId
-      ? Array.from(new Set([...progress.unviewedMissionIds, newlyUnlockedMissionId]))
+    unviewedMissionIds: newlyUnlockedMissionIds.length > 0
+      ? Array.from(new Set([...progress.unviewedMissionIds, ...newlyUnlockedMissionIds]))
       : progress.unviewedMissionIds,
     unviewedStarMissionIds: newStarIds.length > 0
       ? Array.from(new Set([...progress.unviewedStarMissionIds, mission.id]))
@@ -1007,7 +1481,9 @@ export const applyCampaignCompletion = (
       ? Array.from(new Set([...progress.unviewedRewardIds, ...grants.filter((grant) => grant.oneTime).map((grant) => grant.id)]))
       : progress.unviewedRewardIds,
     branchProgress,
-    campaignCompleted: completedMissionIds.size === missions.length,
+    campaignCompleted: graph
+      ? progress.campaignCompleted || (stageComplete && graphDecision?.kind === 'terminal')
+      : completedMissionIds.size === missions.length,
     updatedAt: completedAt
   };
 
@@ -1034,6 +1510,154 @@ export const applyCampaignCompletion = (
       coinsAwarded,
       checkpoint: { missionId: recommendedMissionId, waveId: recommendedWaveId }
     }
+  };
+};
+
+/**
+ * Commits one direct authored exit after a completed fork. Merely selecting a
+ * reachable descendant is intentionally insufficient: the target must be an
+ * immediate edge whose prerequisites are satisfied by durable completion.
+ */
+export const selectCampaignRoute = (
+  current: CampaignProgress,
+  sourceNodeId: string,
+  targetNodeId: string,
+  campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN
+): CampaignRouteSelectionResult => {
+  const progress = sanitizeCampaignProgress(current, { campaign });
+  if (!hasAuthoredCampaignGraph(campaign)) {
+    return {
+      accepted: false,
+      reason: 'campaign-has-no-graph',
+      progress,
+      sourceNodeId,
+      targetNodeId
+    };
+  }
+  const graph = createCampaignGraphIndex(campaign);
+  if (!graph.nodeById.has(sourceNodeId)) {
+    return {
+      accepted: false,
+      reason: 'unknown-source',
+      progress,
+      sourceNodeId,
+      targetNodeId
+    };
+  }
+  if (!graph.nodeById.has(targetNodeId)) {
+    return {
+      accepted: false,
+      reason: 'unknown-target',
+      progress,
+      sourceNodeId,
+      targetNodeId
+    };
+  }
+  if (!progress.completedGraphNodeIds.includes(sourceNodeId)) {
+    return {
+      accepted: false,
+      reason: 'source-not-complete',
+      progress,
+      sourceNodeId,
+      targetNodeId
+    };
+  }
+  const validation = validateCampaignRouteSelection(
+    graph,
+    sourceNodeId,
+    targetNodeId,
+    progress.completedGraphNodeIds
+  );
+  if (!validation.valid) {
+    return {
+      accepted: false,
+      reason: validation.reason,
+      progress,
+      sourceNodeId,
+      targetNodeId
+    };
+  }
+
+  const missions = buildCampaignMissionDefinitions(campaign);
+  const missionById = new Map(missions.map((mission) => [mission.id, mission]));
+  const targetMission = missionById.get(validation.targetNode.missionDefinitionId);
+  if (!targetMission) {
+    return {
+      accepted: false,
+      reason: 'unknown-target',
+      progress,
+      sourceNodeId,
+      targetNodeId
+    };
+  }
+  const unlockedGraphNodeIds = new Set(progress.unlockedGraphNodeIds);
+  const unlockedMissionIds = new Set(progress.unlockedMissionIds);
+  const unlockedWaveIdsByMission = Object.fromEntries(
+    Object.entries(progress.unlockedWaveIdsByMission).map(([missionId, waveIds]) => [missionId, [...waveIds]])
+  );
+  const wasMissionUnlocked = unlockedMissionIds.has(targetMission.id);
+  unlockGraphNodeMission(
+    graph,
+    targetNodeId,
+    missionById,
+    unlockedGraphNodeIds,
+    unlockedMissionIds,
+    unlockedWaveIdsByMission
+  );
+
+  let recommendedGraphNodeId = progress.recommendedGraphNodeId;
+  if (
+    !recommendedGraphNodeId
+    || compareGraphCheckpointNodes(graph, targetNodeId, recommendedGraphNodeId) > 0
+  ) {
+    recommendedGraphNodeId = targetNodeId;
+  }
+  const recommendedNode = recommendedGraphNodeId
+    ? graph.nodeById.get(recommendedGraphNodeId)
+    : validation.targetNode;
+  const recommendedMission = missionById.get(recommendedNode?.missionDefinitionId ?? targetMission.id)
+    ?? targetMission;
+  const furthestMainGraphNodeId = deepestMainGraphNodeId(
+    graph,
+    [
+      ...(progress.furthestMainGraphNodeId ? [progress.furthestMainGraphNodeId] : []),
+      ...(validation.targetNode.mainPath ? [targetNodeId] : [])
+    ],
+    graph.definition.entryNodeId
+  );
+  const nextProgress: CampaignProgress = {
+    ...progress,
+    recommendedMissionId: recommendedMission.id,
+    recommendedWaveId: progress.recommendedMissionId === recommendedMission.id
+      && progress.unlockedWaveIdsByMission[recommendedMission.id]?.includes(progress.recommendedWaveId)
+      ? progress.recommendedWaveId
+      : recommendedMission.waveIds[0],
+    recommendedGraphNodeId,
+    currentGraphNodeId: targetNodeId,
+    furthestMainGraphNodeId,
+    unlockedGraphNodeIds: graph.definition.nodes
+      .filter((node) => unlockedGraphNodeIds.has(node.nodeId))
+      .map((node) => node.nodeId),
+    unlockedMissionIds: missions.filter((mission) => unlockedMissionIds.has(mission.id)).map((mission) => mission.id),
+    unlockedWaveIdsByMission,
+    selectedRouteTargetBySourceNodeId: {
+      ...progress.selectedRouteTargetBySourceNodeId,
+      [sourceNodeId]: targetNodeId
+    },
+    pendingRouteChoice: progress.pendingRouteChoice?.sourceNodeId === sourceNodeId
+      ? null
+      : progress.pendingRouteChoice,
+    unviewedMissionIds: wasMissionUnlocked
+      ? progress.unviewedMissionIds
+      : Array.from(new Set([...progress.unviewedMissionIds, targetMission.id])),
+    updatedAt: new Date().toISOString()
+  };
+  return {
+    accepted: true,
+    reason: 'selected',
+    progress: nextProgress,
+    sourceNodeId,
+    targetNodeId
   };
 };
 
@@ -1173,7 +1797,7 @@ export const finalizeCampaignCompletionMetrics = (
   const nextProgress: CampaignProgress = {
     ...progress,
     missionRecords: { ...progress.missionRecords, [mission.id]: updatedRecord },
-    claimedRewardIds: trimTail(Array.from(claimed), MAX_REWARD_IDS),
+    claimedRewardIds: permanentCampaignRewardIds(Array.from(claimed)),
     completionRecords,
     unviewedStarMissionIds: newStarIds.length > 0
       ? Array.from(new Set([...progress.unviewedStarMissionIds, mission.id]))
@@ -1236,6 +1860,44 @@ export const setCampaignCheckpoint = (
     !progress.unlockedMissionIds.includes(mission.id)
     || !progress.unlockedWaveIdsByMission[mission.id]?.includes(targetWaveId)
   ) return progress;
+  if (hasAuthoredCampaignGraph(campaign)) {
+    const graph = createCampaignGraphIndex(campaign);
+    const node = getGraphNodeForMission(graph, mission.id, [
+      progress.currentGraphNodeId,
+      progress.recommendedGraphNodeId,
+      ...progress.unlockedGraphNodeIds
+    ]);
+    if (!node || !progress.unlockedGraphNodeIds.includes(node.nodeId)) return progress;
+    const advancesCheckpoint = !progress.recommendedGraphNodeId
+      || compareGraphCheckpointNodes(graph, node.nodeId, progress.recommendedGraphNodeId) > 0;
+    const recommendedGraphNodeId = advancesCheckpoint
+      ? node.nodeId
+      : progress.recommendedGraphNodeId;
+    const recommendedNode = recommendedGraphNodeId
+      ? graph.nodeById.get(recommendedGraphNodeId)
+      : node;
+    const recommendedMission = recommendedNode
+      ? missions.find((entry) => entry.id === recommendedNode.missionDefinitionId)
+      : mission;
+    const furthestMainGraphNodeId = node.mainPath && advancesCheckpoint
+      ? deepestMainGraphNodeId(
+          graph,
+          [node.nodeId, progress.furthestMainGraphNodeId ?? ''].filter(Boolean),
+          graph.definition.entryNodeId
+        )
+      : progress.furthestMainGraphNodeId;
+    return {
+      ...progress,
+      recommendedMissionId: recommendedMission?.id ?? progress.recommendedMissionId,
+      recommendedWaveId: advancesCheckpoint
+        ? targetWaveId
+        : progress.recommendedWaveId,
+      recommendedGraphNodeId,
+      currentGraphNodeId: node.nodeId,
+      furthestMainGraphNodeId,
+      updatedAt: new Date().toISOString()
+    };
+  }
   const currentRank = checkpointRank(
     missions,
     progress.recommendedMissionId,
@@ -1259,8 +1921,12 @@ export const unlockAllCampaignMissions = (
 ): CampaignProgress => {
   const progress = sanitizeCampaignProgress(current, { campaign });
   const missions = buildCampaignMissionDefinitions(campaign);
+  const graph = hasAuthoredCampaignGraph(campaign) ? createCampaignGraphIndex(campaign) : null;
   return {
     ...progress,
+    unlockedGraphNodeIds: graph
+      ? graph.definition.nodes.map((node) => node.nodeId)
+      : progress.unlockedGraphNodeIds,
     unlockedMissionIds: missions.map((mission) => mission.id),
     unlockedWaveIdsByMission: Object.fromEntries(missions.map((mission) => [mission.id, [...mission.waveIds]])),
     unviewedMissionIds: Array.from(new Set([...progress.unviewedMissionIds, ...missions.map((mission) => mission.id)])),
@@ -1295,9 +1961,14 @@ export const mergeCampaignProgress = (
   const first = sanitizeCampaignProgress(left, { campaign });
   const second = sanitizeCampaignProgress(right, { campaign });
   const missions = buildCampaignMissionDefinitions(campaign);
-  const firstCheckpoint = checkpointRank(missions, first.recommendedMissionId, first.recommendedWaveId);
-  const secondCheckpoint = checkpointRank(missions, second.recommendedMissionId, second.recommendedWaveId);
-  const checkpoint = secondCheckpoint > firstCheckpoint ? second : first;
+  const graph = hasAuthoredCampaignGraph(campaign) ? createCampaignGraphIndex(campaign) : null;
+  const firstCheckpoint = graph
+    ? 0
+    : checkpointRank(missions, first.recommendedMissionId, first.recommendedWaveId);
+  const secondCheckpoint = graph
+    ? compareGraphCheckpointNodes(graph, second.recommendedGraphNodeId, first.recommendedGraphNodeId)
+    : checkpointRank(missions, second.recommendedMissionId, second.recommendedWaveId) - firstCheckpoint;
+  const checkpoint = secondCheckpoint > 0 ? second : first;
   const missionRecords = Object.fromEntries(missions.map((mission) => {
     const a = first.missionRecords[mission.id] ?? createMissionRecord();
     const b = second.missionRecords[mission.id] ?? createMissionRecord();
@@ -1323,10 +1994,64 @@ export const mergeCampaignProgress = (
     getCampaignBranchDefinitions(campaign),
     missionRecords
   );
+  const mergedCompletedGraphNodeIds = Array.from(new Set([
+    ...first.completedGraphNodeIds,
+    ...second.completedGraphNodeIds
+  ]));
+  const mergedRouteSelections: Record<string, string> = {};
+  if (graph) {
+    const completedSet = new Set(mergedCompletedGraphNodeIds);
+    const sources = Array.from(new Set([
+      ...Object.keys(first.selectedRouteTargetBySourceNodeId),
+      ...Object.keys(second.selectedRouteTargetBySourceNodeId)
+    ])).sort();
+    sources.forEach((sourceNodeId) => {
+      const candidates = Array.from(new Set([
+        first.selectedRouteTargetBySourceNodeId[sourceNodeId],
+        second.selectedRouteTargetBySourceNodeId[sourceNodeId]
+      ].filter((nodeId): nodeId is string => Boolean(nodeId))));
+      const validCandidates = candidates.filter((targetNodeId) => (
+        completedSet.has(sourceNodeId)
+        && validateCampaignRouteSelection(graph, sourceNodeId, targetNodeId, completedSet).valid
+      ));
+      const selected = validCandidates.sort((leftTarget, rightTarget) => {
+        const leftCompleted = Number(completedSet.has(leftTarget));
+        const rightCompleted = Number(completedSet.has(rightTarget));
+        return rightCompleted - leftCompleted
+          || compareGraphCheckpointNodes(graph, rightTarget, leftTarget)
+          || leftTarget.localeCompare(rightTarget);
+      })[0];
+      if (selected) mergedRouteSelections[sourceNodeId] = selected;
+    });
+  }
+  const latest = first.updatedAt === second.updatedAt
+    ? first
+    : first.updatedAt > second.updatedAt ? first : second;
+  const mergedFurthestMainGraphNodeId = graph
+    ? deepestMainGraphNodeId(
+        graph,
+        [
+          first.furthestMainGraphNodeId ?? '',
+          second.furthestMainGraphNodeId ?? '',
+          ...mergedCompletedGraphNodeIds
+        ].filter(Boolean),
+        graph.definition.entryNodeId
+      )
+    : null;
   return sanitizeCampaignProgress({
     ...first,
     recommendedMissionId: checkpoint.recommendedMissionId,
     recommendedWaveId: checkpoint.recommendedWaveId,
+    recommendedGraphNodeId: checkpoint.recommendedGraphNodeId,
+    currentGraphNodeId: latest.currentGraphNodeId,
+    furthestMainGraphNodeId: mergedFurthestMainGraphNodeId,
+    unlockedGraphNodeIds: Array.from(new Set([
+      ...first.unlockedGraphNodeIds,
+      ...second.unlockedGraphNodeIds
+    ])),
+    completedGraphNodeIds: mergedCompletedGraphNodeIds,
+    selectedRouteTargetBySourceNodeId: graph ? mergedRouteSelections : {},
+    pendingRouteChoice: latest.pendingRouteChoice,
     unlockedMissionIds: Array.from(new Set([...first.unlockedMissionIds, ...second.unlockedMissionIds])),
     unlockedWaveIdsByMission: Object.fromEntries(missions.map((mission) => [
       mission.id,
@@ -1337,7 +2062,10 @@ export const mergeCampaignProgress = (
     ])),
     completedMissionIds: Array.from(new Set([...first.completedMissionIds, ...second.completedMissionIds])),
     missionRecords,
-    claimedRewardIds: trimTail(Array.from(new Set([...first.claimedRewardIds, ...second.claimedRewardIds])), MAX_REWARD_IDS),
+    claimedRewardIds: permanentCampaignRewardIds([
+      ...first.claimedRewardIds,
+      ...second.claimedRewardIds
+    ]),
     replayRewardEpochByMission: Object.fromEntries(missions.flatMap((mission) => {
       const firstEpoch = first.replayRewardEpochByMission[mission.id] ?? '';
       const secondEpoch = second.replayRewardEpochByMission[mission.id] ?? '';

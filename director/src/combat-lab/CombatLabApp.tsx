@@ -15,6 +15,10 @@ import type {
 import type { GameplayTelemetrySnapshot } from '@game/services/gameplay/telemetry';
 import { PLAYABLE_PLAYER_SHIP_IDS, PLAYER_SHIPS, type PlayerShipId } from '@game/services/playerShipService';
 import {
+  getFireRateTier,
+  getFireRateTierProgress
+} from '@game/services/weaponTierProgression';
+import {
   MAIN_SHIP_UPGRADE_MAX_LEVEL,
   MAIN_SHIP_FIRE_RATE_MAX_LEVEL,
   MINI_SHIP_MAX_LEVEL,
@@ -273,6 +277,9 @@ function ShipSetup({
   onChange: (loadout: CombatLabLoadoutSelection) => void;
 }) {
   const companions = loadout.companions ?? [];
+  const fireRateLevel = loadout.upgrades?.fireRate ?? 0;
+  const fireRateTier = getFireRateTier(fireRateLevel);
+  const fireRateTierProgress = getFireRateTierProgress(fireRateLevel);
   const companionFor = (slot: SquadSlotId) => companions.find((item) => item.slot === slot);
   const updateCompanion = (slot: SquadSlotId, miniShipId: MiniShipId | '') => {
     const next = companions.filter((item) => item.slot !== slot && (!miniShipId || item.miniShipId !== miniShipId));
@@ -306,7 +313,7 @@ function ShipSetup({
           const companion = companionFor(slot);
           return <label key={`${slot}-level`}><span>{slot} mini level</span><input type="number" min={1} max={MINI_SHIP_MAX_LEVEL} disabled={!companion} value={companion?.level ?? 1} onChange={(input) => updateCompanionLevel(slot, Number(input.target.value))} /></label>;
         })}
-        <label><span>Fire-rate level</span><input type="number" min={0} max={MAIN_SHIP_FIRE_RATE_MAX_LEVEL} value={loadout.upgrades?.fireRate ?? 0} onChange={(input) => onChange({ ...loadout, upgrades: { ...loadout.upgrades, fireRate: Number(input.target.value) } })} /></label>
+        <label><span>Fire-rate level · T{fireRateTier} ({fireRateTierProgress}/{MAIN_SHIP_UPGRADE_MAX_LEVEL})</span><input type="number" min={0} max={MAIN_SHIP_FIRE_RATE_MAX_LEVEL} value={fireRateLevel} onChange={(input) => onChange({ ...loadout, upgrades: { ...loadout.upgrades, fireRate: Number(input.target.value) } })} /></label>
         <label><span>Speed level</span><input type="number" min={0} max={MAIN_SHIP_UPGRADE_MAX_LEVEL} value={loadout.upgrades?.speed ?? 0} onChange={(input) => onChange({ ...loadout, upgrades: { ...loadout.upgrades, speed: Number(input.target.value) } })} /></label>
       </div>
     </details>

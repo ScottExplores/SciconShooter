@@ -76,16 +76,16 @@ const loadCrossBeamLifetimeHelper = () => {
   return module.exports.resolveCrossBeamLifetime;
 };
 
-test('Mission 10 Eclipse Engine keeps its authored budget while charged lanes stay readable', () => {
+test('Mission 10 Eclipse Engine keeps its revision-23 authored budget while charged lanes stay readable', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const migration = JSON.parse(
-    fs.readFileSync(path.join(root, 'game-config', 'campaign-migration-v22.json'), 'utf8')
+    fs.readFileSync(path.join(root, 'game-config', 'campaign-migration-v23.json'), 'utf8')
   );
   const missionSix = campaign.levels.find((level) => level.order === 6);
   const missionTen = campaign.levels.find((level) => level.order === 10);
-  const boss = missionTen.waves[0].events.find((event) => event.kind === 'boss');
+  const boss = missionTen.waves.at(-1).events.find((event) => event.kind === 'boss');
 
-  assert.equal(campaign.revision, 22);
+  assert.equal(campaign.revision, 23);
   assert.equal(missionSix.campaignProgression.missionRole, 'introduction');
   assert.equal(
     missionSix.waves.flatMap((wave) => wave.events).some((event) => event.kind === 'boss'),
@@ -93,15 +93,16 @@ test('Mission 10 Eclipse Engine keeps its authored budget while charged lanes st
     'the former Violet Arbiter Mission is now the second-sector introduction'
   );
   assert.equal(missionTen.campaignProgression.missionRole, 'major-boss');
-  assert.equal(missionTen.waves.length, 1, 'major-boss Missions launch their boss directly');
-  assert.equal(migration.bossEventAliases['helix-convergence-final-boss'], 'null-sector-final-boss');
+  assert.equal(missionTen.waves.length, 4, 'major-boss Missions teach, vary, recover, then launch the boss');
+  assert.equal(migration.toRevision, 23);
+  assert.equal(migration.missionNodeAliases['stage-null-sector'], 'node-s02-d05');
   assert.ok(boss);
-  assert.equal(boss.id, 'null-sector-final-boss');
+  assert.equal(boss.id, 'stage-null-sector-major-boss');
   assert.equal(boss.bossId, 'eclipse-engine');
-  assert.equal(boss.health, 1180);
+  assert.equal(boss.health, 650);
   assert.equal(boss.shieldCount, 1);
-  assert.equal(boss.speed, 2.25);
-  assert.ok(boss.warningSeconds >= 3.4);
+  assert.equal(boss.speed, 2.15);
+  assert.ok(boss.warningSeconds >= 3);
 
   const burst = boss.weapons.find((weapon) => weapon.id === 'null-sector-radial-burst');
   assert.deepEqual(
@@ -110,7 +111,7 @@ test('Mission 10 Eclipse Engine keeps its authored budget while charged lanes st
       projectileSpeed: burst.projectileSpeed,
       burstCount: burst.burstCount
     },
-    { attackIntervalSeconds: 1.15, projectileSpeed: 8.9, burstCount: 6 }
+    { attackIntervalSeconds: 1.52, projectileSpeed: 7, burstCount: 3 }
   );
 
   const chargedLanes = boss.weapons.find((weapon) => weapon.id === 'null-sector-charged-lanes');
@@ -120,7 +121,7 @@ test('Mission 10 Eclipse Engine keeps its authored budget while charged lanes st
       projectileSpeed: chargedLanes.projectileSpeed,
       burstCount: chargedLanes.burstCount
     },
-    { attackIntervalSeconds: 1.25, projectileSpeed: 0, burstCount: 1 }
+    { attackIntervalSeconds: 1.52, projectileSpeed: 0, burstCount: 3 }
   );
 
   assert.deepEqual(
@@ -130,9 +131,9 @@ test('Mission 10 Eclipse Engine keeps its authored budget while charged lanes st
       speedMultiplier: phase.speedMultiplier
     })),
     [
-      { id: 'null-sector-phase-control', triggerHealthRatio: 1, speedMultiplier: 1 },
-      { id: 'null-sector-phase-crossfire', triggerHealthRatio: 0.62, speedMultiplier: 1.08 },
-      { id: 'null-sector-phase-collapse', triggerHealthRatio: 0.27, speedMultiplier: 1.18 }
+      { id: 'null-sector-phase-control', triggerHealthRatio: 1, speedMultiplier: 0.82 },
+      { id: 'null-sector-phase-crossfire', triggerHealthRatio: 0.62, speedMultiplier: 0.9 },
+      { id: 'null-sector-phase-collapse', triggerHealthRatio: 0.27, speedMultiplier: 1 }
     ]
   );
 
@@ -161,32 +162,35 @@ test('late-sector major bosses preserve escalation while reserving shorter letha
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const expected = new Map([
     [10, {
-      health: 1180,
-      speed: 2.25,
+      health: 650,
+      speed: 2.15,
       shields: 1,
-      burstInterval: 1.15,
-      projectileSpeed: 8.9,
-      laneInterval: 1.25,
-      laneBurst: 1,
+      burstInterval: 1.52,
+      projectileSpeed: 7,
+      burstCount: 3,
+      laneInterval: 1.52,
+      laneBurst: 3,
       phaseTriggers: [1, 0.62, 0.27]
     }],
     [15, {
-      health: 1650,
-      speed: 2.5,
+      health: 950,
+      speed: 2.18,
       shields: 2,
-      burstInterval: 1.2,
-      projectileSpeed: 9.25,
-      laneInterval: 1.3,
-      laneBurst: 2,
+      burstInterval: 2,
+      projectileSpeed: 6,
+      burstCount: 1,
+      laneInterval: 2,
+      laneBurst: 1,
       phaseTriggers: [1, 0.5, 0.18]
     }],
     [20, {
-      health: 2100,
-      speed: 2.75,
+      health: 1400,
+      speed: 2.2,
       shields: 3,
-      burstInterval: 1.25,
-      projectileSpeed: 9.5,
-      laneInterval: 1.35,
+      burstInterval: 1.48,
+      projectileSpeed: 6.4,
+      burstCount: 3,
+      laneInterval: 1.48,
       laneBurst: 3,
       phaseTriggers: [1, 0.46, 0.15]
     }]
@@ -194,7 +198,7 @@ test('late-sector major bosses preserve escalation while reserving shorter letha
 
   for (const [missionNumber, contract] of expected) {
     const level = campaign.levels.find((entry) => entry.order === missionNumber);
-    const boss = level.waves[0].events.find((event) => event.kind === 'boss');
+    const boss = level.waves.at(-1).events.find((event) => event.kind === 'boss');
     const burst = boss.weapons.find((weapon) => weapon.weaponId === 'burst-volley');
     const lane = boss.weapons.find((weapon) => weapon.weaponId === 'lane-beam');
 
@@ -204,7 +208,7 @@ test('late-sector major bosses preserve escalation while reserving shorter letha
     assert.equal(boss.shieldCount, contract.shields);
     assert.equal(burst.attackIntervalSeconds, contract.burstInterval);
     assert.equal(burst.projectileSpeed, contract.projectileSpeed);
-    assert.equal(burst.burstCount, 6, 'the authored radial identity is retained');
+    assert.equal(burst.burstCount, contract.burstCount, 'the bounded authored radial identity is retained');
     assert.equal(lane.attackIntervalSeconds, contract.laneInterval);
     assert.equal(lane.burstCount, contract.laneBurst, 'sector lane pressure still escalates');
     assert.deepEqual(boss.phases.map((phase) => phase.triggerHealthRatio), contract.phaseTriggers);

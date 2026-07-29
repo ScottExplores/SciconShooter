@@ -91,7 +91,8 @@ test('focused Boss Sandbox uses the canonical preview and only essential control
   assert.match(source, /type: 'jump-to-boss-phase'/);
   assert.match(source, /type: 'set-invincibility'/);
   assert.match(source, /href="\/sandbox">Advanced tools/);
-  assert.match(source, /Boss to test/);
+  assert.match(source, /getBossSandboxSelectorLabel\(categoryId\)/);
+  assert.match(source, /aria-label="Encounter categories"/);
   assert.match(source, /getBossSandboxChoiceOptionLabel\(choice\)/);
   assert.doesNotMatch(source, /REMOVED \/ LEGACY|source === 'legacy'/);
   assert.match(source, /aria-label="Boss artwork choices"/);
@@ -145,6 +146,38 @@ test('focused Boss Sandbox uses the canonical preview and only essential control
     /\b(?:saveGameCampaign|saveGameCampaignWorkspace|localStorage|Export JSON|Review draft|Apply to game)\b/
   );
   assert.doesNotMatch(source, /<textarea|Make change/);
+});
+
+test('Mini-Boss Lab exposes category-aware sandbox controls without changing the mobile arena', () => {
+  assert.match(source, /BOSS_SANDBOX_CATEGORIES\.map/);
+  assert.match(source, /filterBossSandboxGroups\(allGroups, categoryId\)/);
+  assert.match(source, /getBossSandboxSelectorLabel\(categoryId\)/);
+  assert.match(source, /selectedChoice\.miniBoss \?/);
+  assert.match(source, /Campaign-assigned \| Sandbox preview ready/);
+  assert.match(source, /Expected fight/);
+  assert.match(source, /Signature/);
+  assert.match(source, /Support/);
+  assert.match(source, /Linked units/);
+  assert.match(source, /Approved and bound by stable ID/);
+  assert.match(source, /type: 'set-mini-boss-signature-loop'/);
+  assert.match(source, /type: 'trigger-mini-boss-support'/);
+  assert.match(source, /type: 'set-mini-boss-low-health'/);
+  assert.match(source, /type: 'trigger-mini-boss-hit'/);
+  assert.match(source, /type: 'trigger-mini-boss-death'/);
+  assert.match(source, /type: 'destroy-mini-boss-unit'/);
+  assert.match(source, /type: 'destroy-mini-boss-guardians'/);
+  assert.match(source, /type: 'set-mini-boss-shield'/);
+  assert.match(source, /type: 'set-mini-boss-wall-side'/);
+  assert.match(source, /type: 'set-compact-health-bars'/);
+  assert.match(source, /BOSS_SANDBOX_HOST_MODES\.map/);
+  assert.match(source, /hostMode === 'mobile-shell' \? 1 : Number\.POSITIVE_INFINITY/);
+  assert.match(source, /const previewViewport = BOSS_SANDBOX_VIEWPORTS\.mobile;/);
+  assert.match(source, /data-viewport-mode="mobile"/);
+  assert.match(styles, /\.boss-sandbox__categories/);
+  assert.match(styles, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.doesNotMatch(styles, /\.boss-sandbox__categories \{[^}]*overflow-x: auto/s);
+  assert.match(styles, /\.boss-sandbox__mini-lab/);
+  assert.match(styles, /\.boss-sandbox__encounter-details/);
 });
 
 test('local and hosted runners share one compact closed Boss Factory review panel', () => {

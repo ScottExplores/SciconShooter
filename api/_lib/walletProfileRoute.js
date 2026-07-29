@@ -6,6 +6,7 @@ const {
   normalizeRequestOrigin,
   normalizeWalletAddress,
   readWalletProfileSession,
+  readWalletProfileSessionToken,
   setWalletProfileSessionCookie
 } = require('./walletProfileAuth');
 const {
@@ -87,6 +88,9 @@ module.exports = async (req, res) => {
   try {
     if (req.method === 'GET') {
       const session = readWalletProfileSession(req);
+      // Reissue legacy path-scoped sessions at /api so authenticated metadata
+      // can be consumed safely by sibling APIs such as leaderboard submission.
+      setWalletProfileSessionCookie(res, readWalletProfileSessionToken(req));
       return sendJson(res, 200, {
         walletAddress: session.walletAddress,
         profile: await fetchWalletProfile(session.walletAddress)

@@ -4,6 +4,11 @@ const {
   hasSupabaseConfig,
   supabaseHeaders
 } = require('./supabase');
+const {
+  createWeeklyCampaignStreakRunBinding,
+  validateFinalizedWeeklyCampaignStreakProof
+} = require('./walletProfiles');
+const { readOptionalWalletProfileSession } = require('./walletProfileAuth');
 
 const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const MAX_RUN_DURATION_MS = 3 * 60 * 60 * 1000;
@@ -12,6 +17,7 @@ const PLAYER_SHIP_IDS = new Set(['researchhub', 'bio', 'eth', 'btc']);
 const CAMPAIGN_CONFIG = require('../../game-config/campaign.json');
 const AUTHORED_MISSION_COUNT = Math.max(1, CAMPAIGN_CONFIG.levels?.length || 1);
 const FASTEST_PLAUSIBLE_MISSION_SECONDS = 8;
+const WEEKLY_DURATION_TOLERANCE_MS = 15_000;
 const AUTHORED_MISSION_SCORE_PROFILES = (CAMPAIGN_CONFIG.levels || [])
   .map((level, levelIndex) => {
     const waves = level.waves || [];
@@ -92,6 +98,31 @@ const normalizePlayerShipId = (value) => (
     : 'researchhub'
 );
 
+const normalizeGuestProfileId = (value) => {
+  const profileId = String(value || '').trim().toLowerCase();
+  return /^pilot:[a-z0-9-]{8,}$/.test(profileId) ? profileId : 'guest';
+};
+
+const profileBindingHash = (profileId) => crypto
+  .createHmac('sha256', getReceiptSecret())
+  .update(`run-profile:${profileId}`)
+  .digest('hex');
+
+const createRunIdentityBinding = ({ profileId, walletSession } = {}) => {
+  if (walletSession?.walletAddress && walletSession?.profileId) {
+    return {
+      kind: 'wallet',
+      profileIdHash: profileBindingHash(walletSession.profileId),
+      walletAddress: walletSession.walletAddress
+    };
+  }
+  const guestProfileId = normalizeGuestProfileId(profileId);
+  return {
+    kind: 'guest',
+    profileIdHash: profileBindingHash(guestProfileId)
+  };
+};
+
 const normalizeRunMetrics = (metrics = {}) => ({
   score: normalizeMetric(metrics.score, 0, 100000000),
   wave: normalizeMetric(metrics.wave, 1, 1000),
@@ -148,6 +179,41 @@ const inspectRunMetrics = (metrics) => {
   return anomalies;
 };
 
+const canonicalWeeklyCampaignReceipt = (rawProof, now, expectedBinding) => {
+  const streak = validateFinalizedWeeklyCampaignStreakProof(rawProof, {
+    now,
+    expectedBinding
+  });
+  const enemiesDefeated = streak.scoreEvents.reduce((total, event) => (
+    total
+      + event.outcome.regularEnemyKills
+      + event.outcome.eliteKills
+      + event.outcome.miniBossKills
+      + event.outcome.majorBossKills
+  ), 0);
+  const proofJson = JSON.stringify(streak);
+  return {
+    streak,
+    metrics: {
+      score: streak.score.totalPoints,
+      wave: Math.max(1, streak.score.completedNodeCount),
+      enemiesDefeated,
+      coinsCollected: 0
+    },
+    summary: {
+      weeklyId: streak.weeklyId,
+      startNodeId: streak.startNodeId,
+      finalNodeId: streak.currentNodeId,
+      completedNodeCount: streak.score.completedNodeCount,
+      eventCount: streak.score.eventCount,
+      startRevision: expectedBinding.revision,
+      finalRevision: streak.revision,
+      finalizationReason: streak.finalization.reason,
+      proofHash: crypto.createHash('sha256').update(proofJson).digest('hex')
+    }
+  };
+};
+
 const hashIp = (req) => {
   const rawIp = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
   return crypto.createHmac('sha256', getReceiptSecret()).update(rawIp).digest('hex').slice(0, 32);
@@ -155,14 +221,42 @@ const hashIp = (req) => {
 
 const createRunStart = (
   gameVersion = 'unknown',
-  { testRun = false, playerShipId = 'researchhub' } = {}
+  {
+    testRun = false,
+    playerShipId = 'researchhub',
+    runMode = 'standard',
+    profileId = 'guest',
+    walletSession = null,
+    weeklyCampaignProof = null,
+    nowMs = Date.now()
+  } = {}
 ) => {
-  const issuedAt = Date.now();
+  const issuedAt = Math.floor(Number(nowMs));
+  const normalizedRunMode = runMode === 'weekly-streak' ? 'weekly-streak' : 'standard';
+  if (normalizedRunMode === 'weekly-streak' && !weeklyCampaignProof) {
+    const error = new Error('An active Weekly Streak proof is required when the run starts.');
+    error.statusCode = 422;
+    error.details = ['weekly_start_proof_required'];
+    throw error;
+  }
+  if (normalizedRunMode !== 'weekly-streak' && weeklyCampaignProof) {
+    const error = new Error('Weekly Streak proof does not match this run session.');
+    error.statusCode = 422;
+    error.details = ['weekly_run_mode_mismatch'];
+    throw error;
+  }
+  const weeklyCampaignBinding = normalizedRunMode === 'weekly-streak'
+    ? createWeeklyCampaignStreakRunBinding(weeklyCampaignProof, { now: issuedAt })
+    : null;
+  const identity = createRunIdentityBinding({ profileId, walletSession });
   const payload = {
     type: 'run-start',
     runId: crypto.randomUUID(),
     gameVersion: String(gameVersion || 'unknown').slice(0, 32),
     playerShipId: normalizePlayerShipId(playerShipId),
+    runMode: normalizedRunMode,
+    identity,
+    ...(weeklyCampaignBinding ? { weeklyCampaignBinding } : {}),
     testRun: Boolean(testRun),
     issuedAt,
     expiresAt: issuedAt + MAX_RUN_DURATION_MS
@@ -173,6 +267,9 @@ const createRunStart = (
     issuedAt: new Date(issuedAt).toISOString(),
     expiresAt: new Date(payload.expiresAt).toISOString(),
     playerShipId: payload.playerShipId,
+    runMode: payload.runMode,
+    identity: payload.identity,
+    ...(payload.weeklyCampaignBinding ? { weeklyCampaignBinding: payload.weeklyCampaignBinding } : {}),
     testRun: payload.testRun,
     startToken: signPayload(payload)
   };
@@ -215,15 +312,72 @@ const saveReceipt = async (receipt, req) => {
 
 const finishRun = async (startToken, rawMetrics, req) => {
   const start = verifyPayload(startToken, 'run-start');
+  const now = Date.now();
+  const startRunMode = start.runMode === 'weekly-streak' ? 'weekly-streak' : 'standard';
+  const hasWeeklyProof = Boolean(rawMetrics?.weeklyCampaignProof);
+  if (startRunMode === 'weekly-streak' && !hasWeeklyProof) {
+    const error = new Error('Weekly Streak proof is required for this run session.');
+    error.statusCode = 422;
+    error.details = ['weekly_proof_required'];
+    throw error;
+  }
+  if (startRunMode !== 'weekly-streak' && hasWeeklyProof) {
+    const error = new Error('Weekly Streak proof does not match this run session.');
+    error.statusCode = 422;
+    error.details = ['weekly_run_mode_mismatch'];
+    throw error;
+  }
+  if (startRunMode === 'weekly-streak' && !start.weeklyCampaignBinding) {
+    const error = new Error('Weekly Streak run binding is missing from this run session.');
+    error.statusCode = 422;
+    error.details = ['weekly_start_binding_missing'];
+    throw error;
+  }
+  const finishWalletSession = readOptionalWalletProfileSession(req, now);
+  if (
+    start.identity?.kind === 'wallet'
+    && (
+      !finishWalletSession
+      || finishWalletSession.walletAddress !== start.identity.walletAddress
+      || profileBindingHash(finishWalletSession.profileId) !== start.identity.profileIdHash
+    )
+  ) {
+    const error = new Error('This run was started by a different wallet profile.');
+    error.statusCode = 403;
+    error.details = ['run_identity_mismatch'];
+    throw error;
+  }
+  const weeklyCampaign = rawMetrics?.weeklyCampaignProof
+    ? canonicalWeeklyCampaignReceipt(
+        rawMetrics.weeklyCampaignProof,
+        now,
+        start.weeklyCampaignBinding
+      )
+    : null;
+  const normalizedClientMetrics = normalizeRunMetrics(rawMetrics);
+  const measuredDuration = Math.max(0, now - start.issuedAt);
   const metrics = {
-    ...normalizeRunMetrics(rawMetrics),
+    ...normalizedClientMetrics,
+    ...(weeklyCampaign?.metrics ?? {}),
+    ...(weeklyCampaign ? { durationMs: measuredDuration } : {}),
     playerShipId: normalizePlayerShipId(start.playerShipId)
   };
-  const now = Date.now();
-  const measuredDuration = Math.max(0, now - start.issuedAt);
   const durationDelta = Math.abs(measuredDuration - metrics.durationMs);
   const testRun = Boolean(start.testRun);
   const anomalies = testRun ? [] : inspectRunMetrics(metrics);
+  if (weeklyCampaign) {
+    const reportedMissionDuration = weeklyCampaign.streak.scoreEvents.reduce((total, event) => (
+      total + (event.outcome.elapsedMs ?? 0)
+    ), 0);
+    const newlyReportedMissionDuration = reportedMissionDuration
+      - Math.max(0, Number(start.weeklyCampaignBinding.scoreElapsedMs) || 0);
+    if (
+      newlyReportedMissionDuration < 0
+      || newlyReportedMissionDuration > measuredDuration + WEEKLY_DURATION_TOLERANCE_MS
+    ) {
+      anomalies.push('weekly_duration_impossible');
+    }
+  }
   if (!testRun && durationDelta > Math.max(30000, measuredDuration * 0.35)) anomalies.push('duration_mismatch');
 
   const hardFailure = anomalies.some((flag) => flag.endsWith('_impossible') || flag === 'run_too_long');
@@ -242,6 +396,8 @@ const finishRun = async (startToken, rawMetrics, req) => {
     finishedAt: now,
     expiresAt: now + RECEIPT_LIFETIME_MS,
     metrics,
+    weeklyCampaign: weeklyCampaign?.summary,
+    identity: start.identity,
     testRun,
     integrity: anomalies.length > 0 ? 'review' : 'server-verified'
   };
@@ -253,6 +409,8 @@ const finishRun = async (startToken, rawMetrics, req) => {
     finishedAt: new Date(now).toISOString(),
     expiresAt: new Date(receiptPayload.expiresAt).toISOString(),
     metrics,
+    weeklyCampaign: receiptPayload.weeklyCampaign,
+    identity: receiptPayload.identity,
     testRun,
     integrity: receiptPayload.integrity,
     anomalies,

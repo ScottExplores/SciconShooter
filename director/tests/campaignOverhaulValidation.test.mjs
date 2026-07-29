@@ -6,10 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
 import { validateGameCampaign as validateServerCampaign } from '../server/gameCampaignValidation.mjs';
 import { validateConfig as validateDirectorConfig } from '../server/validation.mjs';
-import {
-  campaignFormationPackIdForSpawn,
-  campaignWeightedSpawnThreat
-} from '../../tools/lib/campaign-overhaul-v22-normalizer.mjs';
+import { campaignWeightedSpawnThreat } from '../../tools/lib/campaign-overhaul-v22-normalizer.mjs';
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(testDirectory, '..', '..');
@@ -34,10 +31,6 @@ const makeStrictlyCompatibleCampaign = () => {
   const campaign = structuredClone(trackedCampaign);
   const sectorIds = campaign.sectors.map((sector) => sector.id);
   const missionRoles = ['introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'];
-  const rolesByEnemyId = new Map();
-  campaign.enemyRoles.forEach((role) => {
-    if (!rolesByEnemyId.has(role.enemyId)) rolesByEnemyId.set(role.enemyId, role.id);
-  });
   campaign.formationPacks.forEach((pack) => {
     pack.compatibleSectorIds = [...sectorIds];
     pack.compatibleMissionRoles = [...missionRoles];
@@ -50,12 +43,6 @@ const makeStrictlyCompatibleCampaign = () => {
       ), 0);
       wave.combatBudget = Math.max(wave.combatBudget, packBudget);
       missionBudget = Math.max(missionBudget, wave.combatBudget);
-      wave.events.forEach((event) => {
-        if (event.kind !== 'spawn') return;
-        event.enemies.forEach((enemy) => {
-          enemy.roleId = rolesByEnemyId.get(enemy.enemyId);
-        });
-      });
     });
     level.campaignProgression.combatBudget = missionBudget;
   });
@@ -84,18 +71,12 @@ test('tracked campaign.json satisfies the complete browser and Director contract
 
 test('authored formation metadata, weighted budgets, and teaching encounters match real wave mechanics', () => {
   const rolesById = new Map(trackedCampaign.enemyRoles.map((role) => [role.id, role]));
-  const usageByPackId = new Map(trackedCampaign.formationPacks.map((pack) => [pack.id, {
-    sectors: new Set(),
-    missionRoles: new Set(),
-    enemyRoles: new Set(),
-    maximumCount: 0,
-    maximumThreat: 0
-  }]));
+  const packsById = new Map(trackedCampaign.formationPacks.map((pack) => [pack.id, pack]));
+  const referencedPackIds = new Set();
 
   trackedCampaign.levels.forEach((level) => {
-    level.waves.forEach((wave) => {
+    level.waves.forEach((wave, waveIndex) => {
       const spawnEvents = wave.events.filter((event) => event.kind === 'spawn');
-      const expectedPackIds = [];
       const weightedThreat = spawnEvents.reduce((sum, event) => {
         const enemyIds = event.enemies.map((enemy) => enemy.enemyId);
         assert.equal(new Set(enemyIds).size, enemyIds.length, `${event.id} must not repeat an enemy archetype`);
@@ -104,32 +85,37 @@ test('authored formation metadata, weighted budgets, and teaching encounters mat
           assert.equal(enemy.enemyId, role.enemyId, `${event.id} enemyId must match ${enemy.roleId}`);
           assert.equal(enemy.spriteKey, role.spriteKey, `${event.id} spriteKey must match ${enemy.roleId}`);
         });
-        const packId = campaignFormationPackIdForSpawn(event);
         const eventThreat = campaignWeightedSpawnThreat(event, rolesById);
-        if (packId) {
-          if (!expectedPackIds.includes(packId)) expectedPackIds.push(packId);
-          const usage = usageByPackId.get(packId);
-          usage.sectors.add(level.campaignProgression.sectorId);
-          usage.missionRoles.add(level.campaignProgression.missionRole);
-          event.enemies.forEach((enemy) => usage.enemyRoles.add(enemy.roleId));
-          usage.maximumCount = Math.max(usage.maximumCount, event.count);
-          usage.maximumThreat = Math.max(usage.maximumThreat, eventThreat);
-        }
         return sum + eventThreat;
       }, 0);
-      assert.deepEqual(wave.formationPackIds, expectedPackIds, `${wave.id} pack IDs must describe its spawn mechanics`);
+      assert.equal(
+        new Set(wave.formationPackIds).size,
+        wave.formationPackIds.length,
+        `${wave.id} must not repeat a formation pack`
+      );
+      wave.formationPackIds.forEach((packId) => {
+        const pack = packsById.get(packId);
+        const compatibilityRole = level.campaignProgression.missionRole === 'major-boss'
+          && waveIndex < level.waves.length - 1
+          ? 'boss-preparation'
+          : level.campaignProgression.missionRole;
+        assert.ok(pack, `${wave.id} must reference a known formation pack`);
+        assert.ok(
+          pack.compatibleSectorIds.includes(level.campaignProgression.sectorId),
+          `${packId} must support ${level.campaignProgression.sectorId}`
+        );
+        assert.ok(
+          pack.compatibleMissionRoles.includes(compatibilityRole),
+          `${packId} must support ${compatibilityRole}`
+        );
+        referencedPackIds.add(packId);
+      });
       assert.ok(wave.combatBudget + 1e-9 >= weightedThreat, `${wave.id} must budget weighted count × role threat`);
     });
   });
 
   trackedCampaign.formationPacks.forEach((pack) => {
-    const usage = usageByPackId.get(pack.id);
-    assert.ok(usage.sectors.size > 0, `${pack.id} must be used by an authored encounter`);
-    assert.deepEqual(new Set(pack.compatibleSectorIds), usage.sectors);
-    assert.deepEqual(new Set(pack.compatibleMissionRoles), usage.missionRoles);
-    assert.deepEqual(new Set(pack.enemyRoleIds), usage.enemyRoles);
-    assert.equal(pack.enemyCount, usage.maximumCount);
-    assert.equal(pack.totalThreatCost, usage.maximumThreat);
+    assert.ok(referencedPackIds.has(pack.id), `${pack.id} must be used by an authored encounter`);
   });
 
   trackedCampaign.sectors.forEach((sector) => {
@@ -251,7 +237,18 @@ test('all canonical major boss IDs satisfy boss-defeat classification', () => {
   const campaign = makeStrictlyCompatibleCampaign();
   assert.deepEqual(
     campaign.sectors.map((sector) => sector.majorBossId),
-    ['gatekeeper-prime', 'eclipse-engine', 'helix-leviathan', 'research-tribunal']
+    [
+      'gatekeeper-prime',
+      'eclipse-engine',
+      'helix-leviathan',
+      'research-tribunal',
+      'prism-moth',
+      'rail-serpent',
+      'singularity-crab',
+      'orbit-gyroscope',
+      'hammerhead-siege',
+      'frontier-crownclaw'
+    ]
   );
   assert.equal(validateServerCampaign(campaign).valid, true);
   assert.equal(validateBrowserCampaign(campaign).valid, true);

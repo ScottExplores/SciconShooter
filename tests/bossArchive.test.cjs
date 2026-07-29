@@ -80,7 +80,7 @@ test('catalog uses exact authored canonical major-boss event IDs in campaign ord
 
 test('every archive entry carries immutable presentation, reward, and three-objective mastery data', () => {
   archive.BOSS_ARCHIVE_CATALOG.forEach((entry) => {
-    const expectedReward = 100 + (25 * (entry.missionNumber - 1));
+    const expectedReward = 100 + (20 * Math.floor((entry.missionNumber - 1) / 5));
     const expectedSpeedTarget = 75 + (2.5 * (entry.missionNumber - 1));
 
     assert.ok(entry.subtitle.length > 0);

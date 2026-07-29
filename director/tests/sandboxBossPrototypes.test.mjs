@@ -45,7 +45,7 @@ const getPrototypeBoss = (prototypeId) => {
 };
 
 test('all Sandbox boss descriptors build deterministic, valid, immutable-provenance previews', () => {
-  assert.equal(SANDBOX_BOSS_PROTOTYPES.length, 14);
+  assert.equal(SANDBOX_BOSS_PROTOTYPES.length, 23);
   assert.equal(Object.isFrozen(SANDBOX_BOSS_PROTOTYPES), true);
 
   const prototypeHashes = new Set();
@@ -82,9 +82,52 @@ test('all Sandbox boss descriptors build deterministic, valid, immutable-provena
     previewHashes.add(first.sandboxPrototype.previewHash);
   }
 
-  assert.equal(prototypeHashes.size, 14);
-  assert.equal(previewHashes.size, 14);
+  assert.equal(prototypeHashes.size, SANDBOX_BOSS_PROTOTYPES.length);
+  assert.equal(previewHashes.size, SANDBOX_BOSS_PROTOTYPES.length);
   assert.deepEqual(campaign, sourceSnapshot, 'pure builders must not mutate their source campaign');
+});
+
+test('Mini-Boss Lab exposes eight Campaign-assigned encounters for isolated previews', () => {
+  const expectedIds = [
+    'fracture-engine-elite',
+    'aegis-brood-core',
+    'railspine-wallcrawler',
+    'maw-carrier',
+    'twin-meridian-sentinels',
+    'prism-bloom',
+    'aegis-convoy-captain',
+    'gridline-sentries'
+  ];
+  const miniBosses = SANDBOX_BOSS_PROTOTYPES.filter((descriptor) => (
+    descriptor.encounterClass === 'mini-boss'
+  ));
+
+  assert.deepEqual(miniBosses.map((descriptor) => descriptor.id), expectedIds);
+  for (const descriptor of miniBosses) {
+    const metadata = descriptor.miniBoss;
+    assert.ok(metadata, `${descriptor.id} needs Mini-Boss Lab metadata`);
+    assert.equal(metadata.encounterId, descriptor.id);
+    assert.equal(metadata.sandboxReady, true);
+    assert.equal(metadata.campaignAssigned, true);
+    assert.equal(metadata.categories.includes('mini-bosses'), true);
+    assert.equal(metadata.assetValidationStatus, 'approved-existing-assets-bound');
+    assert.ok(metadata.assetIds.length > 0);
+    assert.ok(metadata.signatureManeuver.length > 0);
+    assert.ok(metadata.supportingBehavior.length > 0);
+    assert.ok(metadata.expectedDurationSeconds >= 15);
+    assert.ok(metadata.expectedDurationSeconds <= 35);
+
+    const { boss, preview } = getPrototypeBoss(descriptor.id);
+    assert.equal(boss.id, `sandbox-${descriptor.id}`);
+    assert.equal(boss.durationSeconds, metadata.expectedDurationSeconds);
+    assert.equal(preview.previewWave.durationSeconds, metadata.expectedDurationSeconds);
+    assert.equal(boss.phases.length, 1);
+    assert.equal(
+      boss.timeline.clips.filter((clip) => Boolean(clip.telegraphClipId)).length,
+      2,
+      `${descriptor.id} should expose one signature beat and one supporting beat`
+    );
+  }
 });
 
 test('Redline Re-entry uses the allowlisted sweep, bank, and re-entry path', () => {
@@ -857,7 +900,7 @@ test('Umbra Needlewing alone owns the fair corner-ambush blackout vocabulary', (
     if (descriptor.id === 'umbra-needlewing') continue;
     const { boss } = getPrototypeBoss(descriptor.id);
     assert.equal(
-      boss.timeline.clips.some((clip) => (
+      (boss.timeline?.clips ?? []).some((clip) => (
         clip.primitiveId === 'corner-ambush-beam'
         || clip.primitiveId === 'corner-ambush-ram'
       )),

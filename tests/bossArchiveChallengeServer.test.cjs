@@ -157,10 +157,10 @@ test('a signed Boss Archive run settles once and an expired retry restores the l
     now: NOW + 10_000
   });
   assert.equal(first.settlement.duplicate, false);
-  assert.equal(first.settlement.rewardCoins, 200);
+  assert.equal(first.settlement.rewardCoins, 100);
   assert.equal(first.settlement.chargesRemaining, 2);
   assert.equal(first.profile.revision, 2);
-  assert.equal(first.profile.snapshot.weeklyState.coins, 225);
+  assert.equal(first.profile.snapshot.weeklyState.coins, 125);
   assert.equal(rpcCalls.length, 1);
   assert.deepEqual(Object.keys(rpcCalls[0]).sort(), [
     'p_clear_time_ms',
@@ -184,9 +184,9 @@ test('a signed Boss Archive run settles once and an expired retry restores the l
     now: NOW + 2 * 60 * 60 * 1000
   });
   assert.equal(replay.settlement.duplicate, true);
-  assert.equal(replay.settlement.rewardCoins, 200);
+  assert.equal(replay.settlement.rewardCoins, 100);
   assert.equal(replay.profile.revision, 2);
-  assert.equal(replay.profile.snapshot.weeklyState.coins, 225);
+  assert.equal(replay.profile.snapshot.weeklyState.coins, 125);
   assert.equal(rpcCalls.length, 1);
 });
 

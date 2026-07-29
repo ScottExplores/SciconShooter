@@ -45,9 +45,13 @@ test('Campaign Map always starts or retries a Mission from Wave 1', () => {
   assert.match(mapSource, /Current Mission/);
 });
 
-test('Campaign Map derives every five-Mission sector and theme from authored data', () => {
-  assert.equal(campaign.sectors.length, 4);
-  campaign.sectors.forEach((sector) => assert.equal(sector.missionIds.length, 5));
+test('Campaign Map derives all ten five-depth sectors and themes from authored data', () => {
+  assert.equal(campaign.sectors.length, 10);
+  campaign.sectors.forEach((sector) => {
+    assert.equal(sector.missionIds.length, 5);
+    assert.equal(sector.mainNodeIds.length, 5);
+    assert.equal(sector.routeNodeIds.length, 1);
+  });
   assert.match(mapSource, /DEFAULT_GAME_CAMPAIGN\.sectors/);
   assert.match(mapSource, /DEFAULT_GAME_CAMPAIGN\.visualThemes\.find/);
   assert.doesNotMatch(mapSource, /\{ id: 'sector-open-orbit'/);
@@ -60,16 +64,19 @@ test('Campaign Map derives every five-Mission sector and theme from authored dat
 });
 
 test('each authored sector places a left and right route on one tier before they rejoin', () => {
-  const levelsById = new Map(campaign.levels.map((level) => [level.id, level]));
+  const graphNodesById = new Map(campaign.campaignGraph.nodes.map((node) => [node.nodeId, node]));
   campaign.sectors.forEach((sector) => {
-    const missions = sector.missionIds.map((id) => levelsById.get(id));
-    const left = missions[1].campaignProgression.mapPosition;
-    const right = missions[2].campaignProgression.mapPosition;
-    const merge = missions[3].campaignProgression.mapPosition;
-    assert.equal(left.y, right.y);
-    assert.ok(Math.min(left.x, right.x) <= 0.24);
-    assert.ok(Math.max(left.x, right.x) >= 0.76);
-    assert.ok(merge.y > left.y);
+    const entry = graphNodesById.get(sector.mainNodeIds[0]);
+    const left = graphNodesById.get(sector.mainNodeIds[1]);
+    const right = graphNodesById.get(sector.routeNodeIds[0]);
+    const merge = graphNodesById.get(sector.mainNodeIds[2]);
+    assert.deepEqual(new Set(entry.outgoingEdges.map((edge) => edge.toNodeId)), new Set([left.nodeId, right.nodeId]));
+    assert.equal(left.depth, right.depth);
+    assert.ok(left.mapPosition.x < 0.5);
+    assert.ok(right.mapPosition.x > 0.5);
+    assert.equal(left.rejoinNodeId, merge.nodeId);
+    assert.equal(right.rejoinNodeId, merge.nodeId);
+    assert.ok(merge.depth > left.depth);
   });
 });
 
@@ -120,7 +127,7 @@ test('regular nodes are numbered, completed nodes are distinct, and sector route
 test('Campaign Map is an opaque routed screen with a real Back-to-Home transition', () => {
   assert.match(mapSource, /<main className="campaign-map-screen">/);
   assert.match(mapSource, /aria-label="Back to Home"/);
-  assert.doesNotMatch(mapSource, /aria-modal="true"|campaign-map-overlay/);
+  assert.doesNotMatch(mapSource, /<main[^>]*aria-modal="true"|campaign-map-overlay/);
   assert.match(appSource, /get\('view'\) === 'campaign-map'/);
   assert.match(appSource, /window\.history\.pushState\([\s\S]*?sciconCampaignMap: true/);
   assert.match(appSource, /window\.addEventListener\('popstate', syncCampaignMapRoute\)/);
@@ -165,7 +172,7 @@ test('Campaign developer controls expose Mission and full-map result previews wi
   assert.match(mapSource, /onPreviewResult: \(missionId: string\) => void/);
   assert.doesNotMatch(mapSource, />Preview Wave result<\/button>|>Set checkpoint<\/button>|>Complete wave<\/button>/);
   assert.match(mapSource, />Preview Mission result<\/button>/);
-  assert.match(mapSource, />Simulate 20-Mission map<\/button>/);
+  assert.match(mapSource, />Simulate full Campaign map<\/button>/);
 });
 
 test('Campaign Lab renders only for an enabled founder control object and guards stale direct actions', () => {
@@ -188,6 +195,11 @@ test('Campaign Lab exposes the complete founder route, loadout, runtime, and cla
   assert.match(mapSource, /CampaignLabUpgradeTrack/);
   assert.match(mapSource, /\['low-power', 'expected-power', 'upgraded'\]/);
   assert.match(mapSource, />Launch selected Mission<\/button>/);
+  assert.match(mapSource, />Start Weekly Streak<\/button>/);
+  assert.match(mapSource, />Simulate route choice<\/button>/);
+  assert.match(mapSource, />Simulate backward selection<\/button>/);
+  assert.match(mapSource, />Preview guest flow<\/button>/);
+  assert.match(mapSource, />Preview wallet flow<\/button>/);
   assert.match(mapSource, />Restart formation<\/button>/);
   assert.match(mapSource, /'Stop formation loop' : 'Loop formation'/);
   assert.match(mapSource, />Skip to mini-boss<\/button>/);
@@ -202,6 +214,10 @@ test('Campaign Lab exposes the complete founder route, loadout, runtime, and cla
   assert.match(mapSource, /const applyCampaignBranchPreview = \(/);
   assert.match(mapSource, /const nodeState = getDisplayedMissionState\(mission\)/);
   assert.match(mapSource, /const branchState = getDisplayedBranchState\(branch\)/);
+  assert.match(appSource, /onStartWeeklyStreak: \(request\) => \{\s*if \(!founderAuthorizationRef\.current\) return;/);
+  assert.match(appSource, /onSimulateRouteChoice: \(sourceNodeId, targetNodeId\) => \{\s*if \(!founderAuthorizationRef\.current\) return;/);
+  assert.match(appSource, /onSimulateBackwardSelection: \(targetNodeId\) => \{\s*if \(!founderAuthorizationRef\.current\) return;/);
+  assert.match(appSource, /onPreviewAuthenticationFlow: \(flow\) => \{\s*if \(!founderAuthorizationRef\.current\) return;/);
 });
 
 test('Campaign Lab presents authored encounter and live performance telemetry with safe placeholders', () => {
@@ -215,6 +231,8 @@ test('Campaign Lab presents authored encounter and live performance telemetry wi
   assert.match(mapSource, />Projectiles P \/ E<\/small>/);
   assert.match(mapSource, />Clear time<\/small>/);
   assert.match(mapSource, />Damage received<\/small>/);
+  assert.match(mapSource, />Coins earned<\/small>/);
+  assert.match(mapSource, />Weekly points earned<\/small>/);
   assert.match(mapSource, />Player DPS<\/small>/);
   assert.match(mapSource, />Enemy average TTK<\/small>/);
   assert.match(mapSource, />FPS \/ frame<\/small>/);

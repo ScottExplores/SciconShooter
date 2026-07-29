@@ -57,7 +57,9 @@ import {
   getMiniShipUpgradeCost,
   loadPermanentSquadState,
   loadWeeklySquadState,
+  MAIN_SHIP_FIRE_RATE_MAX_LEVEL,
   MAIN_SHIP_UPGRADES,
+  MINI_SHIP_BY_ID,
   migrateLegacySquadProfile,
   MINI_SHIP_CATALOG,
   MINI_SHIP_MAX_LEVEL,
@@ -78,9 +80,26 @@ import {
 } from './services/squadProgression';
 import {
   calculateSquadPowerRating,
+  calculateRuntimeSquadPowerRating,
   getCampaignRecommendedSupportIds,
   getCampaignSupportTagsForMiniShip
 } from './services/squadPowerRating';
+import { createCampaignGraphIndex } from './services/campaignGraph';
+import {
+  confirmWeeklyCampaignSelectionFinalization,
+  finalizeCompletedWeeklyCampaignStreak,
+  finalizeWeeklyCampaignDeliberateEnd,
+  finalizeWeeklyCampaignLoss,
+  getEligibleWeeklyCampaignStartNodeIds,
+  markWeeklyCampaignStreakSubmission,
+  recordWeeklyCampaignNodeScore,
+  requestWeeklyCampaignAdvance,
+  startWeeklyCampaignStreak,
+  type WeeklyCampaignSelectionConfirmation,
+  type WeeklyCampaignStreakState
+} from './services/weeklyCampaignStreak';
+import { buildWeeklyCampaignRuntimeOutcome } from './services/weeklyCampaignRuntimeAdapter';
+import { getWeeklyBoundaryMeta } from './shared/weeklyCompetitionBoundary.browser';
 import {
   CAMPAIGN_MISSIONS,
   applyCampaignCompletion,
@@ -93,6 +112,7 @@ import {
   isCampaignWaveUnlocked,
   markCampaignMapViewed,
   resetCampaignStars,
+  selectCampaignRoute,
   unlockAllCampaignMissions,
   type CampaignCompletionSettlement
 } from './services/campaignProgression';
@@ -191,6 +211,7 @@ import type {
   CampaignLabLoadoutPreset,
   CampaignLabTelemetry,
   CampaignMapLaunchRequest,
+  CampaignMapRouteSelectionRequest,
   CampaignMapStatus
 } from './components/CampaignMap';
 
@@ -207,6 +228,7 @@ const MISSION_LOADING_TIPS = [
 ] as const;
 
 const AUTHORED_CAMPAIGN_STAGE_COUNT = Math.max(1, DEFAULT_GAME_CAMPAIGN.levels.length);
+const WEEKLY_CAMPAIGN_GRAPH = createCampaignGraphIndex(DEFAULT_GAME_CAMPAIGN);
 const CAMPAIGN_BRANCH_DEFINITIONS = DEFAULT_GAME_CAMPAIGN.campaignBranches ?? [];
 const CAMPAIGN_MAP_BRANCHES: CampaignMapBranchDefinition[] = CAMPAIGN_BRANCH_DEFINITIONS.map((branch) => ({
   branchId: branch.branchId,
@@ -351,7 +373,7 @@ const preloadGameplayComponents = (listener?: GameplayPreloadListener) => {
 
 type ProposalFeedStatus = 'loading' | 'ready' | 'empty' | 'error';
 type ProposalSelectionStatus = 'idle' | 'saving' | 'confirmed' | 'error';
-type ActiveRunMode = 'standard' | 'campaign' | 'campaign-replay' | 'campaign-lab' | 'campaign-branch' | 'owner-test' | 'boss-archive';
+type ActiveRunMode = 'standard' | 'campaign' | 'campaign-replay' | 'weekly-streak' | 'campaign-lab' | 'campaign-branch' | 'owner-test' | 'boss-archive';
 type CampaignResultPresentation = {
   summaryId: string;
   settlement: CampaignCompletionSettlement;
@@ -566,7 +588,11 @@ const App: React.FC = () => {
   const [bombCommand, setBombCommand] = useState<{ nonce: number } | null>(null);
   const [shipAbilityCommand, setShipAbilityCommand] = useState<{ nonce: number } | null>(null);
   const [continueCommand, setContinueCommand] = useState<{ nonce: number; lives: number } | null>(null);
-  const [waveContinueCommand, setWaveContinueCommand] = useState<{ nonce: number } | null>(null);
+  const [waveContinueCommand, setWaveContinueCommand] = useState<{
+    nonce: number;
+    targetLevelId?: string;
+    targetWaveId?: string;
+  } | null>(null);
   const [waveVictorySummary, setWaveVictorySummary] = useState<WaveVictorySummary | null>(null);
   const [campaignResultPresentation, setCampaignResultPresentation] = useState<CampaignResultPresentation | null>(null);
   const [campaignBranchResult, setCampaignBranchResult] = useState<CampaignBranchResultPresentation | null>(null);
@@ -579,6 +605,7 @@ const App: React.FC = () => {
   const [campaignMapFocusBranchId, setCampaignMapFocusBranchId] = useState<string | null>(null);
   const [campaignMapUnlockingBranchId, setCampaignMapUnlockingBranchId] = useState<string | null>(null);
   const [campaignMapNewMissionIds, setCampaignMapNewMissionIds] = useState<string[]>([]);
+  const [weeklyCampaignConfirmation, setWeeklyCampaignConfirmation] = useState<WeeklyCampaignSelectionConfirmation | null>(null);
   const [activeCampaignLaunch, setActiveCampaignLaunch] = useState<CampaignMapLaunchRequest | null>(null);
   const [activeCampaignBranchId, setActiveCampaignBranchId] = useState<string | null>(null);
   const [campaignBranchSpawnSeed, setCampaignBranchSpawnSeed] = useState(0);
@@ -640,6 +667,7 @@ const App: React.FC = () => {
   const submittedScoreKeysRef = useRef<Set<string>>(new Set());
   const runSessionPromiseRef = useRef<Promise<RunSession> | null>(null);
   const runStartedAtRef = useRef<number | null>(null);
+  const weeklyRunSessionKeyRef = useRef<string | null>(null);
   const activeRunShipIdRef = useRef<PlayerShipId>('researchhub');
   const runReceiptPromiseRef = useRef<Promise<RunReceipt> | null>(null);
   const finalizedRunGameIdRef = useRef<number | null>(null);
@@ -828,8 +856,9 @@ const App: React.FC = () => {
   const isBossArchiveRun = activeRunMode === 'boss-archive';
   const isCampaignBranchRun = activeRunMode === 'campaign-branch';
   const isCampaignLabRun = activeRunMode === 'campaign-lab';
+  const isWeeklyCampaignRun = activeRunMode === 'weekly-streak';
   const isCompetitiveCampaignRun = activeRunMode === 'campaign' || activeRunMode === 'campaign-replay';
-  const isCampaignRun = isCompetitiveCampaignRun || isCampaignLabRun;
+  const isCampaignRun = isCompetitiveCampaignRun || isCampaignLabRun || isWeeklyCampaignRun;
   const isFounderSandboxRun = isOwnerWallet || isOwnerTestRun;
   const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun || isCampaignLabRun || isCampaignBranchRun;
   const activeBossReplay = useMemo(() => (
@@ -940,6 +969,21 @@ const App: React.FC = () => {
   }, [activeWalletAddress, isOwnerWallet, permanentSquadState.unlockedPlayerShips, walletRecords]);
   const usableShipId = getUsablePlayerShip(selectedShipId, shipUnlocks);
   const activeMissionPlayerShipUrl = PLAYER_SHIPS[activeMissionShipId].assetUrl;
+  const weeklyCampaignEligibleStartNodeIds = useMemo(() => (
+    getEligibleWeeklyCampaignStartNodeIds(
+      WEEKLY_CAMPAIGN_GRAPH,
+      permanentSquadState.campaignProgress.unlockedGraphNodeIds
+    )
+  ), [permanentSquadState.campaignProgress.unlockedGraphNodeIds]);
+  const weeklyCampaignLoadout = useMemo(() => {
+    const loadout = buildRuntimeSquadLoadout(weeklySquadState, usableShipId);
+    return {
+      shipName: PLAYER_SHIPS[usableShipId].name,
+      shipAssetUrl: PLAYER_SHIPS[usableShipId].assetUrl,
+      supportNames: loadout.companions.map((companion) => MINI_SHIP_BY_ID[companion.id].name),
+      power: calculateRuntimeSquadPowerRating(loadout)
+    };
+  }, [usableShipId, weeklySquadState]);
 
   const updateWeeklySquadState = useCallback((
     update: (current: WeeklySquadState) => WeeklySquadState,
@@ -987,6 +1031,36 @@ const App: React.FC = () => {
     if (!founderAuthorizationRef.current) return false;
     action();
     return true;
+  }, []);
+
+  const persistWeeklyCampaignStreak = useCallback((streak: WeeklyCampaignStreakState | null) => {
+    const next = {
+      ...weeklySquadStateRef.current,
+      weeklyCampaignStreak: streak,
+      updatedAt: new Date().toISOString()
+    };
+    weeklySquadStateRef.current = next;
+    saveWeeklySquadState(next);
+    setWeeklySquadState(next);
+  }, []);
+
+  const presentWeeklyCampaignFinalScore = useCallback((streak: WeeklyCampaignStreakState) => {
+    const enemiesDefeated = streak.scoreEvents.reduce((total, event) => (
+      total
+      + event.outcome.regularEnemyKills
+      + event.outcome.eliteKills
+      + event.outcome.miniBossKills
+      + event.outcome.majorBossKills
+    ), 0);
+    const lastOutcome = streak.scoreEvents.at(-1)?.outcome;
+    setStats((current) => ({
+      ...current,
+      score: streak.score.totalPoints,
+      wave: Math.max(1, streak.score.completedNodeCount),
+      coins: 0,
+      enemiesDefeated,
+      lives: lastOutcome?.livesRemaining ?? current.lives
+    }));
   }, []);
   const updateBossArchiveProgress = useCallback((
     update: (current: PermanentSquadState['bossArchive']) => PermanentSquadState['bossArchive']
@@ -1037,14 +1111,23 @@ const App: React.FC = () => {
     if (!isOwnerWallet) return;
     updateWeeklySquadState((current) => adjustFounderMainShipUpgrade(current, usableShipId, id, -1), false);
   }, [isOwnerWallet, updateWeeklySquadState, usableShipId]);
-  const beginRunSession = useCallback((testRun: boolean) => {
+  const beginRunSession = useCallback((testRun: boolean, runMode: ActiveRunMode) => {
     if (runSessionPromiseRef.current) return;
 
+    const weeklyStreak = runMode === 'weekly-streak'
+      ? weeklySquadStateRef.current.weeklyCampaignStreak
+      : null;
+    weeklyRunSessionKeyRef.current = weeklyStreak
+      ? `${weeklyStreak.weeklyId}:${weeklyStreak.startNodeId}:${weeklyStreak.createdAtMs}`
+      : null;
     runStartedAtRef.current = Date.now();
     setRunReceiptStatus('starting');
     runSessionPromiseRef.current = startRunSession({
       testRun,
-      playerShipId: activeRunShipIdRef.current
+      playerShipId: activeRunShipIdRef.current,
+      runMode: runMode === 'weekly-streak' ? 'weekly-streak' : 'standard',
+      profileId: weeklySquadStateRef.current.profileId,
+      weeklyCampaignProof: weeklyStreak
     }).then((session) => {
       setRunReceiptStatus(session.localOnly ? 'local' : 'idle');
       return session;
@@ -1481,10 +1564,12 @@ const App: React.FC = () => {
         }
 
         const walletProfileId = getWalletProfileId(normalizedAddress);
-        let profile = await loadAuthenticatedWalletProfile(
+        const authenticatedSession = await loadAuthenticatedWalletProfile(
           activeWalletAddress as Address
         );
-        walletProfileSessionAddressRef.current = normalizedAddress;
+        let profile = authenticatedSession.profile;
+        walletProfileSessionAddressRef.current =
+          authenticatedSession.walletAddress;
         if (!isCurrent()) return;
 
         const flushedProfile = await flushDirtyWalletProfile(normalizedAddress);
@@ -1679,7 +1764,7 @@ const App: React.FC = () => {
       window.removeEventListener('pagehide', flushCurrentWallet);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [activeRunMode]);
 
   useEffect(() => {
     if (
@@ -1688,6 +1773,7 @@ const App: React.FC = () => {
       || activeRunMode === 'boss-archive'
       || activeRunMode === 'campaign'
       || activeRunMode === 'campaign-replay'
+      || activeRunMode === 'weekly-streak'
       || activeRunMode === 'campaign-lab'
       || activeRunMode === 'campaign-branch'
     ) return;
@@ -1704,7 +1790,8 @@ const App: React.FC = () => {
     finalizedRunGameIdRef.current = null;
     runReceiptPromiseRef.current = null;
     runSessionPromiseRef.current = null;
-    beginRunSession(true);
+    weeklyRunSessionKeyRef.current = null;
+    beginRunSession(true, 'owner-test');
   }, [activeRunMode, beginRunSession, gameState, isOwnerWallet]);
 
   const launchGame = async (
@@ -1747,12 +1834,27 @@ const App: React.FC = () => {
         ? {
             ...campaignRequest,
             waveId: requestedCampaignMission.waveIds[0],
-            kind: campaignRequest.kind === 'replay' ? 'replay' as const : 'mission' as const
+            kind: campaignRequest.kind === 'weekly-streak'
+              ? 'weekly-streak' as const
+              : campaignRequest.kind === 'replay' ? 'replay' as const : 'mission' as const
           }
         : campaignRequest);
+    const activeWeeklyStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
+    const requestedWeeklyNode = campaignRequest?.kind === 'weekly-streak'
+      ? WEEKLY_CAMPAIGN_GRAPH.definition.nodes.find((node) => (
+          node.missionDefinitionId === campaignRequest.missionId
+          && node.nodeId === activeWeeklyStreak?.currentNodeId
+        )) ?? null
+      : null;
+    const weeklyLaunchAllowed = Boolean(
+      campaignRequest?.kind === 'weekly-streak'
+      && activeWeeklyStreak?.finalization.status === 'active'
+      && requestedWeeklyNode
+    );
     if (
       campaignRequest
       && !authorizedCampaignLabRequest
+      && !weeklyLaunchAllowed
       && (
         !requestedCampaignMission
         || !isCampaignMissionUnlocked(
@@ -1928,6 +2030,8 @@ const App: React.FC = () => {
       ? 'boss-archive'
       : requestedCampaignBranch
         ? 'campaign-branch'
+      : normalizedCampaignRequest?.kind === 'weekly-streak'
+        ? 'weekly-streak'
       : normalizedCampaignRequest?.kind === 'replay'
         ? 'campaign-replay'
         : normalizedCampaignRequest
@@ -1992,7 +2096,8 @@ const App: React.FC = () => {
             });
           }
         : undefined);
-    } catch {
+    } catch (error) {
+      console.error('Gameplay preload failed.', error);
       if (missionLaunchNonceRef.current === launchNonce) {
         missionLaunchPendingRef.current = false;
         setMissionLoading((current) => ({
@@ -2056,7 +2161,8 @@ const App: React.FC = () => {
             [runShipId]: {
               fireRate: clampLabLevel(
                 authorizedCampaignLabRequest.upgradeLevels.fireRate,
-                MAIN_SHIP_UPGRADES.find((upgrade) => upgrade.id === 'fireRate')?.costs.length ?? 21
+                MAIN_SHIP_UPGRADES.find((upgrade) => upgrade.id === 'fireRate')?.costs.length
+                  ?? MAIN_SHIP_FIRE_RATE_MAX_LEVEL
               ),
               speed: clampLabLevel(
                 authorizedCampaignLabRequest.upgradeLevels.speed,
@@ -2074,6 +2180,17 @@ const App: React.FC = () => {
     const startingLives = Math.min(
       GAME_CONFIG.MAX_LIVES,
       3 + squadLoadout.upgrades.startingHearts
+    );
+    const weeklyStreakForLaunch = runMode === 'weekly-streak'
+      ? weeklySquadStateRef.current.weeklyCampaignStreak
+      : null;
+    const weeklyRunKeyForLaunch = weeklyStreakForLaunch
+      ? `${weeklyStreakForLaunch.weeklyId}:${weeklyStreakForLaunch.startNodeId}:${weeklyStreakForLaunch.createdAtMs}`
+      : null;
+    const preserveConnectedWeeklySession = Boolean(
+      weeklyRunKeyForLaunch
+      && weeklyRunSessionKeyRef.current === weeklyRunKeyForLaunch
+      && runSessionPromiseRef.current
     );
     activeRunSquadLoadoutRef.current = squadLoadout;
     squadRunAppliedGameIdRef.current = null;
@@ -2164,9 +2281,12 @@ const App: React.FC = () => {
     setActiveMissionShipId(runShipId);
     campaignLabActiveRequestRef.current = authorizedCampaignLabRequest;
     if (authorizedCampaignLabRequest) setCampaignLabTelemetry(null);
-    runStartedAtRef.current = null;
-    runReceiptPromiseRef.current = null;
-    runSessionPromiseRef.current = null;
+    if (!preserveConnectedWeeklySession) {
+      runStartedAtRef.current = null;
+      runReceiptPromiseRef.current = null;
+      runSessionPromiseRef.current = null;
+      weeklyRunSessionKeyRef.current = null;
+    }
     setRunReceiptStatus('idle');
     submittingScoreRef.current = false;
     pendingMissionRuntimeRef.current = {
@@ -2214,7 +2334,9 @@ const App: React.FC = () => {
       const retryRequest = {
         missionId: activeCampaignLaunch.missionId,
         waveId: mission?.waveIds[0] ?? activeCampaignLaunch.waveId,
-        kind: activeCampaignLaunch.kind === 'replay' ? 'replay' as const : 'mission' as const
+        kind: activeCampaignLaunch.kind === 'weekly-streak'
+          ? 'weekly-streak' as const
+          : activeCampaignLaunch.kind === 'replay' ? 'replay' as const : 'mission' as const
       };
       void launchGame(null, 'practice', 'standard', retryRequest);
       return;
@@ -2264,7 +2386,10 @@ const App: React.FC = () => {
         if (introBeat && !hasSeenStoryBeatToday(introBeat)) {
           setActiveStoryBeat(introBeat);
         } else {
-          beginRunSession(pendingLaunch.startInTestMode || isOwnerWallet);
+          beginRunSession(
+            pendingLaunch.startInTestMode || isOwnerWallet,
+            pendingLaunch.runMode
+          );
         }
       }
     }, 2650);
@@ -2278,7 +2403,7 @@ const App: React.FC = () => {
       || pendingLaunch.launchNonce !== missionLaunchNonceRef.current
     ) return;
 
-    void error;
+    console.error('Gameplay runtime launch failed.', error);
     pendingMissionRuntimeRef.current = null;
     missionLaunchPendingRef.current = false;
     clearIntroStoryTimeout();
@@ -2316,6 +2441,7 @@ const App: React.FC = () => {
     setCampaignMapFocusBranchId(null);
     setCampaignMapUnlockingBranchId(null);
     setCampaignMapNewMissionIds([]);
+    setWeeklyCampaignConfirmation(null);
     setCampaignCompletedRun(false);
     setWaveContinueCommand(null);
     setShowWeeklyProposalSelection(false);
@@ -2340,6 +2466,7 @@ const App: React.FC = () => {
     setOwnerFrameFrozen(false);
     runStartedAtRef.current = null;
     runSessionPromiseRef.current = null;
+    weeklyRunSessionKeyRef.current = null;
     setGameState(GameState.MENU);
   };
 
@@ -2463,6 +2590,99 @@ const App: React.FC = () => {
     setCampaignMapOpen(false);
     void launchGame(null, 'practice', 'standard', request);
   };
+
+  const finishWeeklyCampaignForLeaderboard = useCallback((streak: WeeklyCampaignStreakState) => {
+    persistWeeklyCampaignStreak(streak);
+    presentWeeklyCampaignFinalScore(streak);
+    setWeeklyCampaignConfirmation(null);
+    clearCampaignMapRoute();
+    setCampaignMapOpen(false);
+    setActiveRunMode('weekly-streak');
+    setActiveCampaignLaunch(null);
+    setWaveVictorySummary(null);
+    setCampaignResultPresentation(null);
+    setCampaignCompletedRun(streak.finalization.reason === 'terminal-complete');
+    setGameState(GameState.GAMEOVER);
+  }, [persistWeeklyCampaignStreak, presentWeeklyCampaignFinalScore]);
+
+  const startWeeklyCampaignFromMap = useCallback((
+    request: CampaignMapLaunchRequest & { nodeId: string }
+  ) => {
+    const now = new Date();
+    const boundary = getWeeklyBoundaryMeta(now);
+    try {
+      const streak = startWeeklyCampaignStreak(WEEKLY_CAMPAIGN_GRAPH, {
+        weeklyId: boundary.weekKey,
+        resetAtMs: boundary.endsAt.getTime(),
+        startNodeId: request.nodeId,
+        unlockedNodeIds: permanentSquadStateRef.current.campaignProgress.unlockedGraphNodeIds,
+        nowMs: now.getTime()
+      });
+      persistWeeklyCampaignStreak(streak);
+      setWeeklyCampaignConfirmation(null);
+      launchCampaignFromMap({ ...request, kind: 'weekly-streak' });
+    } catch (error) {
+      setCampaignMapStatus('launch-error');
+      setCampaignMapError(error instanceof Error ? error.message : 'Weekly Streak could not start.');
+    }
+  }, [persistWeeklyCampaignStreak]);
+
+  const selectWeeklyCampaignMissionFromMap = useCallback((
+    request: CampaignMapLaunchRequest & { nodeId: string }
+  ) => {
+    const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
+    if (!streak || streak.finalization.status !== 'active') {
+      setCampaignMapStatus('launch-error');
+      setCampaignMapError('Start a Weekly Campaign Streak before choosing its route.');
+      return;
+    }
+    if (request.nodeId === streak.currentNodeId && !streak.scoredNodeIds.includes(request.nodeId)) {
+      setWeeklyCampaignConfirmation(null);
+      launchCampaignFromMap({ ...request, kind: 'weekly-streak' });
+      return;
+    }
+    const result = requestWeeklyCampaignAdvance(
+      streak,
+      WEEKLY_CAMPAIGN_GRAPH,
+      request.nodeId,
+      Date.now()
+    );
+    if (result.kind === 'advanced') {
+      persistWeeklyCampaignStreak(result.state);
+      setWeeklyCampaignConfirmation(null);
+      launchCampaignFromMap({ ...request, kind: 'weekly-streak' });
+      return;
+    }
+    if (result.kind === 'confirmation-required') {
+      setWeeklyCampaignConfirmation(result.confirmation);
+      return;
+    }
+    setCampaignMapStatus('launch-error');
+    setCampaignMapError(`Weekly route blocked: ${result.reason.replace(/-/g, ' ')}.`);
+  }, [persistWeeklyCampaignStreak]);
+
+  const confirmWeeklyCampaignSelectionEnd = useCallback(() => {
+    const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
+    const confirmation = weeklyCampaignConfirmation;
+    if (!streak || !confirmation) return;
+    try {
+      finishWeeklyCampaignForLeaderboard(confirmWeeklyCampaignSelectionFinalization(
+        streak,
+        confirmation,
+        Date.now()
+      ));
+    } catch (error) {
+      setWeeklyCampaignConfirmation(null);
+      setCampaignMapStatus('launch-error');
+      setCampaignMapError(error instanceof Error ? error.message : 'Weekly Streak confirmation expired.');
+    }
+  }, [finishWeeklyCampaignForLeaderboard, weeklyCampaignConfirmation]);
+
+  const endWeeklyCampaignStreak = useCallback(() => {
+    const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
+    if (!streak || streak.finalization.status !== 'active') return;
+    finishWeeklyCampaignForLeaderboard(finalizeWeeklyCampaignDeliberateEnd(streak, Date.now()));
+  }, [finishWeeklyCampaignForLeaderboard]);
 
   const launchCampaignBranchFromMap = (request: CampaignMapBranchLaunchRequest) => {
     setCampaignMapStatus('launch-pending');
@@ -2594,6 +2814,10 @@ const App: React.FC = () => {
       scoreEarned: 4_200,
       totalScore: 8_750,
       enemiesDefeated: 36,
+      regularEnemyKills: 36,
+      eliteKills: 0,
+      miniBossKills: 0,
+      majorBossKills: 0,
       coinsCollected: 18,
       waveCoinsCollected: 18,
       damageTaken: 0,
@@ -2795,7 +3019,10 @@ const App: React.FC = () => {
       ));
     const campaignLabLoadoutPower = calculateSquadPowerRating(
       {
-        fireRate: Math.max(0, Math.min(21, Math.floor(campaignLabUpgradeLevels.fireRate ?? 0))),
+        fireRate: Math.max(0, Math.min(
+          MAIN_SHIP_FIRE_RATE_MAX_LEVEL,
+          Math.floor(campaignLabUpgradeLevels.fireRate ?? 0)
+        )),
         speed: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.speed ?? 0))),
         startingHearts: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.startingHearts ?? 0)))
       },
@@ -2967,7 +3194,11 @@ const App: React.FC = () => {
       loadoutPower: campaignLabLoadoutPower,
       selectedPreset: campaignLabPreset,
       loopFormation: campaignLabLoopFormation,
-      telemetry: campaignLabTelemetry,
+      telemetry: {
+        ...(campaignLabTelemetry ?? {}),
+        weeklyPointsEarned:
+          weeklySquadStateRef.current.weeklyCampaignStreak?.score.totalPoints ?? 0
+      },
       onSelectSector: (sectorId) => {
         if (!founderAuthorizationRef.current) return;
         const mission = CAMPAIGN_MISSIONS.find((candidate) => candidate.sectorId === sectorId);
@@ -3032,12 +3263,82 @@ const App: React.FC = () => {
         setCampaignLabUpgradeLevels(preset === 'low-power'
           ? { fireRate: 0, speed: 0, startingHearts: 0, supportLevel: 1 }
           : preset === 'upgraded'
-            ? { fireRate: 21, speed: 7, startingHearts: 7, supportLevel: MINI_SHIP_MAX_LEVEL }
+            ? { fireRate: MAIN_SHIP_FIRE_RATE_MAX_LEVEL, speed: 7, startingHearts: 7, supportLevel: MINI_SHIP_MAX_LEVEL }
             : { fireRate: 7, speed: 3, startingHearts: 1, supportLevel: 2 });
       },
       onLaunchSelectedMission: (request) => {
         if (!founderAuthorizationRef.current) return;
         launchCampaignLabFromMap(request);
+      },
+      onStartWeeklyStreak: (request) => {
+        if (!founderAuthorizationRef.current) return;
+        startWeeklyCampaignFromMap(request);
+      },
+      onSimulateRouteChoice: (sourceNodeId, targetNodeId) => {
+        if (!founderAuthorizationRef.current) return;
+        const activeStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
+        if (activeStreak?.finalization.status === 'active') {
+          const targetNode = WEEKLY_CAMPAIGN_GRAPH.nodeById.get(targetNodeId);
+          const targetMission = targetNode
+            ? getCampaignMissionById(targetNode.missionDefinitionId)
+            : null;
+          const waveId = targetMission?.waveIds[0];
+          if (!targetNode || !targetMission || !waveId) {
+            setCampaignMapError('Campaign Lab route simulation rejected: unknown target node.');
+            return;
+          }
+          selectWeeklyCampaignMissionFromMap({
+            nodeId: targetNode.nodeId,
+            missionId: targetMission.id,
+            waveId,
+            kind: 'weekly-streak'
+          });
+          return;
+        }
+        const result = selectCampaignRoute(
+          permanentSquadStateRef.current.campaignProgress,
+          sourceNodeId,
+          targetNodeId
+        );
+        if (!result.accepted) {
+          setCampaignMapError(`Campaign Lab route simulation rejected: ${result.reason.replace(/-/g, ' ')}.`);
+          return;
+        }
+        updatePermanentSquadState((current) => ({
+          ...current,
+          campaignProgress: result.progress,
+          updatedAt: new Date().toISOString()
+        }));
+        setCampaignMapError(`Campaign Lab route committed: ${sourceNodeId} → ${targetNodeId}.`);
+      },
+      onSimulateBackwardSelection: (targetNodeId) => {
+        if (!founderAuthorizationRef.current) return;
+        const activeStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
+        if (!activeStreak || activeStreak.finalization.status !== 'active') {
+          setCampaignMapError('Campaign Lab backward simulation requires an active Weekly Streak.');
+          return;
+        }
+        const targetNode = WEEKLY_CAMPAIGN_GRAPH.nodeById.get(targetNodeId);
+        const targetMission = targetNode
+          ? getCampaignMissionById(targetNode.missionDefinitionId)
+          : null;
+        const waveId = targetMission?.waveIds[0];
+        if (!targetNode || !targetMission || !waveId) {
+          setCampaignMapError('Campaign Lab backward simulation rejected: unknown target node.');
+          return;
+        }
+        selectWeeklyCampaignMissionFromMap({
+          nodeId: targetNode.nodeId,
+          missionId: targetMission.id,
+          waveId,
+          kind: 'weekly-streak'
+        });
+      },
+      onPreviewAuthenticationFlow: (flow) => {
+        if (!founderAuthorizationRef.current) return;
+        setCampaignMapError(flow === 'guest'
+          ? 'Authentication preview: guest play uses the local Pilot profile and requests no wallet signature.'
+          : `Authentication preview: wallet profile status is ${walletProfileStatus}; a matching cached session is reused before any signature request.`);
       },
       onRestartFormation: () => {
         if (!founderAuthorizationRef.current) return;
@@ -3093,6 +3394,9 @@ const App: React.FC = () => {
     launchCampaignLabFromMap,
     launchGame,
     previewDeveloperCampaignResult,
+    selectWeeklyCampaignMissionFromMap,
+    startWeeklyCampaignFromMap,
+    walletProfileStatus,
     updatePermanentSquadState
   ]);
 
@@ -3141,6 +3445,35 @@ const App: React.FC = () => {
     stats.highScore,
     stats.totalCoins
   ]);
+
+  const selectCampaignRouteFromMap = useCallback((request: CampaignMapRouteSelectionRequest) => {
+    const current = permanentSquadStateRef.current;
+    const selection = selectCampaignRoute(
+      current.campaignProgress,
+      request.sourceNodeId,
+      request.targetNodeId,
+      DEFAULT_GAME_CAMPAIGN
+    );
+    if (!selection.accepted) {
+      setCampaignMapStatus('launch-error');
+      setCampaignMapError(`That route is no longer available (${selection.reason.replace(/-/g, ' ')}).`);
+      return;
+    }
+    const nextPermanent: PermanentSquadState = {
+      ...current,
+      campaignProgress: selection.progress,
+      updatedAt: new Date().toISOString()
+    };
+    permanentSquadStateRef.current = nextPermanent;
+    savePermanentSquadState(nextPermanent);
+    setPermanentSquadState(nextPermanent);
+    markCampaignSettlementWalletDirty(weeklySquadStateRef.current, nextPermanent);
+    launchCampaignFromMap({
+      missionId: request.missionId,
+      waveId: request.waveId,
+      kind: 'mission'
+    });
+  }, [launchCampaignFromMap, markCampaignSettlementWalletDirty]);
 
   const settleCampaignBranchOutcome = useCallback(async (
     outcome: 'failed' | 'interrupted' | 'success',
@@ -3408,6 +3741,52 @@ const App: React.FC = () => {
   };
 
   const handleCampaignProgress = useCallback((summary: WaveVictorySummary) => {
+    if (activeRunMode === 'weekly-streak') {
+      if (!summary.stageComplete) return;
+      const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
+      const node = streak ? WEEKLY_CAMPAIGN_GRAPH.nodeById.get(streak.currentNodeId) : null;
+      const mission = getCampaignMissionById(summary.levelId);
+      const resultId = streak
+        ? `weekly:${streak.weeklyId}:${summary.id}`
+        : `weekly:missing:${summary.id}`;
+      if (
+        !streak
+        || streak.finalization.status !== 'active'
+        || !node
+        || node.missionDefinitionId !== summary.levelId
+        || processedCampaignSummaryKeysRef.current.has(resultId)
+      ) return;
+      const performanceStars = mission
+        ? mission.starObjectives.filter((objective) => {
+            if (objective.kind === 'complete') return true;
+            if (objective.kind === 'damage-at-most') return summary.damageTaken <= objective.target;
+            if (objective.kind === 'coins-at-least') return summary.coinsCollected >= objective.target;
+            if (objective.kind === 'score-at-least') return summary.scoreEarned >= objective.target;
+            if (objective.kind === 'time-at-most') return summary.elapsedSeconds <= objective.target;
+            return false;
+          }).length
+        : 0;
+      const parTimeSeconds = mission?.starObjectives.find((objective) => (
+        objective.kind === 'time-at-most'
+      ))?.target;
+      try {
+        const nextStreak = recordWeeklyCampaignNodeScore(streak, WEEKLY_CAMPAIGN_GRAPH, {
+          eventId: resultId,
+          nodeId: node.nodeId,
+          occurredAtMs: Date.now(),
+          outcome: buildWeeklyCampaignRuntimeOutcome(summary, {
+            parTimeSeconds,
+            performanceStars: Math.min(3, performanceStars) as 0 | 1 | 2 | 3
+          })
+        });
+        processedCampaignSummaryKeysRef.current.add(resultId);
+        persistWeeklyCampaignStreak(nextStreak);
+      } catch (error) {
+        console.error('Weekly Campaign score settlement failed', error);
+        setCampaignMapError('Weekly Streak score could not be secured. Retry this Mission.');
+      }
+      return;
+    }
     if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
     if (!summary.stageComplete) return;
     const attemptId = campaignAttemptIdRef.current || `game-${gameId}`;
@@ -3494,7 +3873,7 @@ const App: React.FC = () => {
       collectedCoins: 0,
       newlyAffordableUpgrade
     });
-  }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty, usableShipId]);
+  }, [activeProfileId, activeRunMode, gameId, markCampaignSettlementWalletDirty, persistWeeklyCampaignStreak, usableShipId]);
 
   const finalizeCampaignCollectedCoins = useCallback((summary: WaveVictorySummary) => {
     if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;
@@ -3645,6 +4024,62 @@ const App: React.FC = () => {
 
   const continueAfterWaveVictory = () => {
     if (!waveVictorySummary) return;
+    if (isWeeklyCampaignRun) {
+      const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
+      if (!streak || streak.finalization.status !== 'active') return;
+      const outgoing = WEEKLY_CAMPAIGN_GRAPH.edgesBySourceNodeId.get(streak.currentNodeId) ?? [];
+      if (outgoing.length === 0) {
+        try {
+          finishWeeklyCampaignForLeaderboard(finalizeCompletedWeeklyCampaignStreak(
+            streak,
+            WEEKLY_CAMPAIGN_GRAPH,
+            Date.now()
+          ));
+        } catch (error) {
+          setCampaignMapError(error instanceof Error ? error.message : 'Weekly Streak could not finalize.');
+        }
+        return;
+      }
+      if (outgoing.length === 1) {
+        const result = requestWeeklyCampaignAdvance(
+          streak,
+          WEEKLY_CAMPAIGN_GRAPH,
+          outgoing[0].toNodeId,
+          Date.now()
+        );
+        if (result.kind !== 'advanced') {
+          setCampaignMapError(result.kind === 'blocked'
+            ? `Weekly route blocked: ${result.reason.replace(/-/g, ' ')}.`
+            : result.confirmation.message);
+          return;
+        }
+        const nextNode = WEEKLY_CAMPAIGN_GRAPH.nodeById.get(result.state.currentNodeId);
+        const nextMission = nextNode ? getCampaignMissionById(nextNode.missionDefinitionId) : null;
+        const nextWaveId = nextMission?.waveIds[0];
+        if (!nextMission || !nextWaveId) return;
+        persistWeeklyCampaignStreak(result.state);
+        setActiveCampaignLaunch({
+          missionId: nextMission.id,
+          waveId: nextWaveId,
+          kind: 'weekly-streak'
+        });
+        setWaveContinueCommand((current) => ({
+          nonce: (current?.nonce ?? 0) + 1,
+          targetLevelId: nextMission.id,
+          targetWaveId: nextWaveId
+        }));
+        setWaveVictorySummary(null);
+        setGameState(GameState.PLAYING);
+        return;
+      }
+      const firstOption = WEEKLY_CAMPAIGN_GRAPH.nodeById.get(outgoing[0].toNodeId);
+      setWaveVictorySummary(null);
+      setCampaignResultPresentation(null);
+      setGameState(GameState.MENU);
+      openCampaignMap(firstOption?.missionDefinitionId ?? waveVictorySummary.levelId);
+      setCampaignMapError('Choose one connected route. Your choice is binding for this Weekly Streak.');
+      return;
+    }
     if (isCampaignBranchRun && activeCampaignBranch) {
       const branchId = activeCampaignBranch.branchId;
       const sourceMissionId = activeCampaignBranch.sourceMissionId;
@@ -3675,6 +4110,24 @@ const App: React.FC = () => {
       openCampaignMap(focusMissionId);
       return;
     }
+    if (isCampaignRun) {
+      const campaignProgress = permanentSquadStateRef.current.campaignProgress;
+      const pendingChoice = campaignProgress.pendingRouteChoice;
+      if (pendingChoice) {
+        const firstOption = DEFAULT_GAME_CAMPAIGN.campaignGraph?.nodes.find((node) => (
+          node.nodeId === pendingChoice.optionNodeIds[0]
+        ));
+        setWaveVictorySummary(null);
+        setCampaignResultPresentation(null);
+        setActiveRunMode('standard');
+        setActiveCampaignLaunch(null);
+        campaignAttemptIdRef.current = '';
+        setGameState(GameState.MENU);
+        openCampaignMap(firstOption?.missionDefinitionId ?? waveVictorySummary.levelId);
+        setCampaignMapError('Choose one connected route to continue. The other route remains available for replay.');
+        return;
+      }
+    }
     if (waveVictorySummary.campaignComplete || !waveVictorySummary.hasNextStage) {
       if (isCampaignRun) {
         openCampaignMap(waveVictorySummary.levelId);
@@ -3685,6 +4138,7 @@ const App: React.FC = () => {
       setGameState(GameState.GAMEOVER);
       return;
     }
+    let continuationTarget: { targetLevelId: string; targetWaveId: string } | null = null;
     if (isCampaignRun && waveVictorySummary.nextLevelId) {
       const nextMission = getCampaignMissionById(waveVictorySummary.nextLevelId);
       const nextWaveId = nextMission?.waveIds[0] ?? waveVictorySummary.nextWaveId;
@@ -3699,9 +4153,16 @@ const App: React.FC = () => {
           kind: nextKind
         });
         setActiveRunMode(nextKind === 'replay' ? 'campaign-replay' : 'campaign');
+        continuationTarget = {
+          targetLevelId: nextMission.id,
+          targetWaveId: nextWaveId
+        };
       }
     }
-    setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
+    setWaveContinueCommand(current => ({
+      nonce: (current?.nonce ?? 0) + 1,
+      ...(continuationTarget ?? {})
+    }));
     setWaveVictorySummary(null);
     setGameState(GameState.PLAYING);
   };
@@ -3712,7 +4173,7 @@ const App: React.FC = () => {
       markStoryBeatSeenToday(activeStoryBeat);
     }
     if (completedPhase !== undefined && !isBossArchiveRun) {
-      beginRunSession(isOwnerTestRun || isOwnerWallet);
+      beginRunSession(isOwnerTestRun || isOwnerWallet, activeRunMode);
     }
     setActiveStoryBeat(null);
   };
@@ -4276,6 +4737,12 @@ const App: React.FC = () => {
     if (runReceipt) return runReceipt;
     if (runReceiptPromiseRef.current) return runReceiptPromiseRef.current;
     if (finalizedRunGameIdRef.current === gameId) return null;
+    const weeklyCampaignProof = isWeeklyCampaignRun
+      ? weeklySquadStateRef.current.weeklyCampaignStreak
+      : null;
+    if (isWeeklyCampaignRun && weeklyCampaignProof?.finalization.status !== 'finalized') {
+      throw new Error('Weekly Streak proof must be finalized before leaderboard verification.');
+    }
 
     trackEvent('mission_completed', { score: stats.score, wave: stats.wave });
     finalizedRunGameIdRef.current = gameId;
@@ -4284,7 +4751,10 @@ const App: React.FC = () => {
     runStartedAtRef.current = gameplayStartedAt;
     const sessionPromise = runSessionPromiseRef.current ?? startRunSession({
       testRun: isOwnerTestRun,
-      playerShipId: activeRunShipIdRef.current
+      playerShipId: activeRunShipIdRef.current,
+      runMode: isWeeklyCampaignRun ? 'weekly-streak' : 'standard',
+      profileId: weeklySquadStateRef.current.profileId,
+      weeklyCampaignProof
     });
     runSessionPromiseRef.current = sessionPromise;
     const receiptPromise = sessionPromise
@@ -4295,7 +4765,7 @@ const App: React.FC = () => {
         enemiesDefeated: stats.enemiesDefeated,
         coinsCollected: stats.coins,
         playerShipId: activeRunShipIdRef.current
-      }))
+      }, weeklyCampaignProof))
       .then((receipt) => {
         setRunReceipt(receipt);
         setRunReceiptStatus(receipt.integrity === 'local-unverified' ? 'local' : 'ready');
@@ -4354,6 +4824,21 @@ const App: React.FC = () => {
     }
   }, [gameId, gameState, isBossArchiveRun, isCampaignRun, isNonCompetitiveRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
 
+  const updateWeeklyCampaignSubmission = useCallback((
+    status: 'pending' | 'submitted' | 'failed',
+    submissionId: string | null = null
+  ) => {
+    if (!isWeeklyCampaignRun) return;
+    const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
+    if (!streak || streak.finalization.status !== 'finalized') return;
+    persistWeeklyCampaignStreak(markWeeklyCampaignStreakSubmission(
+      streak,
+      status,
+      Date.now(),
+      submissionId
+    ));
+  }, [isWeeklyCampaignRun, persistWeeklyCampaignStreak]);
+
   const persistHighScore = async () => {
     if (isNonCompetitiveRun || !playerNameInput.trim() || submittingScoreRef.current) return false;
 
@@ -4366,6 +4851,7 @@ const App: React.FC = () => {
     const wave = stats.wave;
     const scoreKey = `${gameId}:${score}:${wave}`;
     const submittedAt = new Date().toISOString();
+    updateWeeklyCampaignSubmission('pending');
 
     if (isFounderSandboxRun) {
       let recordReady = false;
@@ -4454,9 +4940,11 @@ const App: React.FC = () => {
         ].slice(0, 5));
         void getWalletRuns(activeWalletAddress).then(setWalletRuns);
       }
+      updateWeeklyCampaignSubmission('submitted', verifiedReceipt.runId);
       confirmedSave = true;
       return true;
     } catch (error) {
+      updateWeeklyCampaignSubmission('failed');
       console.error("Score submission error", error);
       submittedScoreKeysRef.current.delete(scoreKey);
       setLeaderboard(previousLeaderboard);
@@ -4845,7 +5333,11 @@ const App: React.FC = () => {
               onDebugSnapshot: isCampaignLabRun
                 ? (snapshot: Readonly<GameEngineDebugSnapshot>) => {
                     if (!founderAuthorizationRef.current) return;
-                    setCampaignLabTelemetry(snapshot.campaignLab);
+                    setCampaignLabTelemetry({
+                      ...snapshot.campaignLab,
+                      weeklyPointsEarned:
+                        weeklySquadStateRef.current.weeklyCampaignStreak?.score.totalPoints ?? 0
+                    });
                   }
                 : undefined,
               running: gameState === GameState.PLAYING && gameRuntimeReady && !ownerFrameFrozen,
@@ -4853,6 +5345,16 @@ const App: React.FC = () => {
               onInitializationError: (error) => failMissionRuntimeLaunch(gameId, error),
               onGameOver: async () => {
                 setOwnerFrameFrozen(false);
+                if (isWeeklyCampaignRun) {
+                  const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
+                  if (streak?.finalization.status === 'active') {
+                    const finalized = finalizeWeeklyCampaignLoss(streak, Date.now());
+                    persistWeeklyCampaignStreak(finalized);
+                    presentWeeklyCampaignFinalScore(finalized);
+                  }
+                  setGameState(GameState.GAMEOVER);
+                  return;
+                }
                 if (isBossArchiveRun) {
                   await finalizeBossArchiveFight(false);
                   returnToBossArchive();
@@ -5065,7 +5567,17 @@ const App: React.FC = () => {
             unlockingBranchId={campaignMapUnlockingBranchId}
             onClose={closeCampaignMap}
             onLaunch={launchCampaignFromMap}
+            onSelectRoute={selectCampaignRouteFromMap}
             onLaunchBranch={launchCampaignBranchFromMap}
+            weeklyStreak={weeklySquadState.weeklyCampaignStreak}
+            weeklyEligibleStartNodeIds={weeklyCampaignEligibleStartNodeIds}
+            weeklyLoadout={weeklyCampaignLoadout}
+            weeklySelectionConfirmation={weeklyCampaignConfirmation}
+            onStartWeeklyStreak={startWeeklyCampaignFromMap}
+            onSelectWeeklyMission={selectWeeklyCampaignMissionFromMap}
+            onConfirmWeeklySelectionEnd={confirmWeeklyCampaignSelectionEnd}
+            onCancelWeeklySelectionEnd={() => setWeeklyCampaignConfirmation(null)}
+            onEndWeeklyStreak={endWeeklyCampaignStreak}
             onSkipBranchAnimation={() => setCampaignMapUnlockingBranchId(null)}
             developerControls={campaignMapDeveloperControls}
           />
@@ -5137,6 +5649,8 @@ const App: React.FC = () => {
           }}
           onQuit={isBossArchiveRun
             ? returnToBossArchive
+            : isWeeklyCampaignRun
+              ? endWeeklyCampaignStreak
             : isCampaignBranchRun
               ? () => { void returnToCampaignMapAfterBranchAttempt('interrupted'); }
               : resetGame}

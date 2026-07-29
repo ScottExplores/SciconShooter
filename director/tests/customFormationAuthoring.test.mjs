@@ -24,6 +24,22 @@ const firstSpawn = (campaign) => campaign.levels
   .flatMap((wave) => wave.events)
   .find((event) => event.kind === 'spawn');
 
+const bindSpawnToPack = (campaign, spawn, packId) => {
+  const pack = campaign.formationPacks.find((candidate) => candidate.id === packId);
+  const level = campaign.levels.find((candidate) => candidate.waves.some((wave) => (
+    wave.events.includes(spawn)
+  )));
+  const wave = level?.waves.find((candidate) => candidate.events.includes(spawn));
+  assert.ok(pack, `fixture should provide formation pack ${packId}`);
+  assert.ok(level && wave, 'fixture spawn should belong to a Campaign Wave');
+  wave.formationPackIds = [packId];
+  wave.combatBudget = Math.max(wave.combatBudget, pack.totalThreatCost);
+  level.campaignProgression.combatBudget = Math.max(
+    level.campaignProgression.combatBudget,
+    wave.combatBudget
+  );
+};
+
 test('server campaign validation accepts a bounded custom formation whose slots match its spawn count', async () => {
   const campaign = await loadCampaign();
   const spawn = firstSpawn(campaign);
@@ -32,6 +48,7 @@ test('server campaign validation accepts a bounded custom formation whose slots 
   spawn.count = customSlots.length;
   spawn.patternId = 'v';
   spawn.formationSlots = structuredClone(customSlots);
+  bindSpawnToPack(campaign, spawn, 'pack-orbit-v');
 
   assert.deepEqual(validateGameCampaign(campaign), { valid: true, errors: [] });
 });
@@ -99,8 +116,13 @@ test('campaign validation has no five-wave ceiling', async () => {
     candidate.campaignProgression?.missionRole === 'elite-checkpoint'
     && candidate.waves.length === 5
   ));
-  const sourceSpawn = firstSpawn(campaign);
+  const sourceWave = level.waves.find((wave) => (
+    wave.formationPackIds.length === 1
+    && wave.events.some((event) => event.kind === 'spawn' && !event.patternId.includes('single'))
+  ));
+  const sourceSpawn = sourceWave?.events.find((event) => event.kind === 'spawn');
   assert.ok(level, 'tracked campaign should provide an elite-checkpoint that permits a sixth wave');
+  assert.ok(sourceWave && sourceSpawn, 'elite-checkpoint fixture should provide an explicitly bound grouped spawn');
   const nextOrder = level.waves.length + 1;
 
   level.waves.push({
@@ -118,7 +140,7 @@ test('campaign validation has no five-wave ceiling', async () => {
     threatCap: 64,
     combatBudget: 64,
     rhythm: 'recovery',
-    formationPackIds: [],
+    formationPackIds: structuredClone(sourceWave.formationPackIds),
     events: [{
       id: `authoring-proof-formation-${nextOrder}`,
       label: 'Custom formation beyond the starter campaign',
@@ -128,13 +150,18 @@ test('campaign validation has no five-wave ceiling', async () => {
       delayAfterSeconds: 0,
       blocksWaveClock: false,
       count: customSlots.length,
-      patternId: 'v',
+      patternId: sourceSpawn.patternId,
       positionId: 'formation-top',
       spawnIntervalSeconds: 0.2,
       formationSlots: structuredClone(customSlots),
       enemies: structuredClone(sourceSpawn.enemies)
     }]
   });
+  const graphNode = campaign.campaignGraph.nodes.find((node) => (
+    node.missionDefinitionId === level.id
+  ));
+  assert.ok(graphNode, 'tracked campaign graph should reference the authored Mission');
+  graphNode.routeSummary.estimatedWaveCount = level.waves.length;
 
   assert.ok(nextOrder > 5, 'tracked starter campaign should reach wave five before this proof');
   assert.deepEqual(validateGameCampaign(campaign), { valid: true, errors: [] });

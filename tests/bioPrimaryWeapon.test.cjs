@@ -40,28 +40,31 @@ test('BIO starts as two half-damage straight rails staggered by one frame', () =
   assert.equal(BIO_PRIMARY_DAMAGE_PER_ROUND, 0.5);
   assert.equal(plan.volleySize, 1);
   assert.equal(plan.logicalRoundCount, 2);
-  assert.equal(plan.simulationEntityCount, 2);
-  assert.equal(plan.queuedEntityCount, 1);
+  assert.equal(plan.simulationEntityCount, 1);
+  assert.equal(plan.queuedEntityCount, 0);
   assert.equal(plan.totalDamage, 1);
-  assert.deepEqual(Array.from(plan.shots, (shot) => shot.fireDelayFrames), [0, 1]);
-  assert.deepEqual(Array.from(plan.shots, (shot) => shot.offsetX), [-10, 10]);
+  assert.deepEqual(Array.from(plan.shots, (shot) => shot.fireDelayFrames), [0]);
+  assert.deepEqual(Array.from(plan.shots, (shot) => shot.offsetX), [0]);
   plan.shots.forEach((shot) => {
     assert.equal(shot.angleBias, 0);
     assert.equal(shot.damagePerRound, 0.5);
-    assert.equal(shot.representedRoundCount, 1);
-    assert.equal(shot.visualPattern[0].launchDelayFrames, 0);
+    assert.equal(shot.representedRoundCount, 2);
+    assert.deepEqual(Array.from(shot.visualPattern, (round) => round.launchDelayFrames), [0, 1]);
+    assert.deepEqual(Array.from(shot.visualPattern, (round) => round.offsetX), [-10, 10]);
   });
 });
 
 test('BIO tiers preserve exact Research damage with bounded rail entities', () => {
-  for (const [level, expectedTier] of [[0, 1], [7, 2], [14, 3]]) {
+  const expectedTotals = [1, 2, 3, 3.45, 3.85, 4.2, 4.5];
+  for (const [index, expectedTier] of [1, 2, 3, 4, 5, 6, 7].entries()) {
+    const level = index * 7;
     const plan = getBioPrimaryShotPlan(level, false, false);
     assert.equal(plan.volleySize, expectedTier);
     assert.equal(plan.logicalRoundCount, expectedTier * 2);
-    assert.equal(plan.totalDamage, expectedTier, `level ${level} matches Research damage`);
-    assert.equal(plan.simulationEntityCount, 2, 'tier copies stay bundled per rail');
-    assert.equal(plan.queuedEntityCount, 1);
-    plan.shots.forEach((shot) => assert.equal(shot.representedRoundCount, expectedTier));
+    assert.ok(Math.abs(plan.totalDamage - expectedTotals[index]) < 1e-10, `level ${level} matches Research damage`);
+    assert.equal(plan.simulationEntityCount, 1, 'both rails and tier copies stay in one lane bundle');
+    assert.equal(plan.queuedEntityCount, 0);
+    plan.shots.forEach((shot) => assert.equal(shot.representedRoundCount, expectedTier * 2));
   }
 });
 
@@ -71,19 +74,19 @@ test('BIO triple shot creates three angled lanes while retaining two rails per l
   assert.equal(plan.repeatCount, 3);
   assert.equal(plan.logicalRoundCount, 18);
   assert.equal(plan.totalDamage, 9, 'Tier 3 BIO spread matches nine full-strength Research rounds');
-  assert.equal(plan.simulationEntityCount, 6, 'three lanes each retain the paired BIO rails');
-  assert.equal(plan.queuedEntityCount, 5);
-  assert.deepEqual(Array.from(plan.shots, (shot) => shot.fireDelayFrames), [0, 1, 1, 2, 2, 3]);
-  assert.ok(plan.shots.slice(0, 2).every((shot) => shot.angleBias === 0));
-  assert.ok(plan.shots.slice(2, 4).every((shot) => shot.angleBias < 0));
-  assert.ok(plan.shots.slice(4).every((shot) => shot.angleBias > 0));
-  assert.ok(Math.abs(plan.shots[2].angleBias * (180 / Math.PI) + 15) < 0.00001);
-  assert.ok(Math.abs(plan.shots[4].angleBias * (180 / Math.PI) - 20) < 0.00001);
+  assert.equal(plan.simulationEntityCount, 3, 'three collision lanes each retain the paired BIO rails');
+  assert.equal(plan.queuedEntityCount, 2);
+  assert.deepEqual(Array.from(plan.shots, (shot) => shot.fireDelayFrames), [0, 1, 2]);
+  assert.equal(plan.shots[0].angleBias, 0);
+  assert.ok(plan.shots[1].angleBias < 0);
+  assert.ok(plan.shots[2].angleBias > 0);
+  assert.ok(Math.abs(plan.shots[1].angleBias * (180 / Math.PI) + 15) < 0.00001);
+  assert.ok(Math.abs(plan.shots[2].angleBias * (180 / Math.PI) - 20) < 0.00001);
   assert.ok(plan.shots.every((shot) => shot.visualPattern.every((round) => round.angleOffset === 0)));
   assert.deepEqual(
     Array.from(plan.shots[0].visualPattern, (round) => round.launchDelayFrames),
-    [0, 2, 4],
-    'tier rounds remain visibly staggered inside each angled rail'
+    [0, 2, 4, 1, 3, 5],
+    'both rails and tier rounds remain visibly staggered inside each angled lane'
   );
 });
 
@@ -99,7 +102,7 @@ test('BIO Max Shot doubles represented rounds without increasing simulation enti
 });
 
 test('every BIO tier, spread, and Max Shot copy stays inside the ship radius', () => {
-  for (const level of [0, 7, 14, 21]) {
+  for (const level of [0, 7, 14, 21, 28, 35, 42, 49]) {
     for (const spreadActive of [false, true]) {
       for (const maxShotActive of [false, true]) {
         const plan = getBioPrimaryShotPlan(level, spreadActive, maxShotActive);

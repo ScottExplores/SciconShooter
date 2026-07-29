@@ -19,40 +19,60 @@ vm.runInNewContext(`(function(exports, require, module) { ${compiled} })(module.
 const {
   FIRE_RATE_LEVELS_PER_TIER,
   FIRE_RATE_MAX_LEVEL,
+  FIRE_RATE_TIER_COUNT,
+  FIRE_RATE_VOLLEY_DAMAGE_MULTIPLIERS,
   getFireRateIntervalFrames,
+  getFireRateProjectileDamageMultiplier,
   getFireRateTier,
   getFireRateTierProgress,
+  getFireRateVolleyDamageMultiplier,
   getFireRateVolleySize,
   getTightVolleyAngleOffsets,
   getTightVolleyOffsets
 } = moduleBox.exports;
 
-test('fire-rate levels cross three seven-upgrade tiers at levels seven and fourteen', () => {
+test('fire-rate levels cross seven seven-upgrade tiers without rewriting legacy levels', () => {
   assert.equal(FIRE_RATE_LEVELS_PER_TIER, 7);
-  assert.equal(FIRE_RATE_MAX_LEVEL, 21);
+  assert.equal(FIRE_RATE_TIER_COUNT, 7);
+  assert.equal(FIRE_RATE_MAX_LEVEL, 49);
   assert.equal(getFireRateTier(0), 1);
   assert.equal(getFireRateTier(6), 1);
   assert.equal(getFireRateTier(7), 2);
   assert.equal(getFireRateTier(13), 2);
   assert.equal(getFireRateTier(14), 3);
-  assert.equal(getFireRateTier(21), 3);
+  assert.equal(getFireRateTier(20), 3);
+  assert.equal(getFireRateTier(21), 4);
+  assert.equal(getFireRateTier(28), 5);
+  assert.equal(getFireRateTier(35), 6);
+  assert.equal(getFireRateTier(42), 7);
+  assert.equal(getFireRateTier(49), 7);
   assert.equal(getFireRateTierProgress(7), 0);
   assert.equal(getFireRateTierProgress(14), 0);
-  assert.equal(getFireRateTierProgress(21), 7);
+  assert.equal(getFireRateTierProgress(21), 0);
+  assert.equal(getFireRateTierProgress(42), 0);
+  assert.equal(getFireRateTierProgress(49), 7);
 });
 
-test('higher fire-rate tiers add tight parallel bullets and multiply every triple-shot lane', () => {
-  assert.equal(getFireRateVolleySize(0), 1);
-  assert.equal(getFireRateVolleySize(7), 2);
-  assert.equal(getFireRateVolleySize(14), 3);
+test('all seven tiers add symmetric visible rounds and multiply every triple-shot lane', () => {
+  assert.deepEqual(
+    [0, 7, 14, 21, 28, 35, 42].map(getFireRateVolleySize),
+    [1, 2, 3, 4, 5, 6, 7]
+  );
   assert.deepEqual(Array.from(getTightVolleyOffsets(1)), [0]);
   assert.deepEqual(Array.from(getTightVolleyOffsets(2)), [-3.5, 3.5]);
   assert.deepEqual(Array.from(getTightVolleyOffsets(3)), [-6, 0, 6]);
-  assert.equal(getFireRateVolleySize(7) * 3, 6);
-  assert.equal(getFireRateVolleySize(14) * 3, 9);
+  for (let volleySize = 1; volleySize <= 7; volleySize += 1) {
+    const offsets = Array.from(getTightVolleyOffsets(volleySize));
+    assert.equal(offsets.length, volleySize);
+    assert.ok(Math.max(...offsets.map(Math.abs)) <= 15, `tier ${volleySize} stays inside the ship silhouette`);
+    offsets.forEach((offset, index) => {
+      assert.ok(Math.abs(offset + offsets[offsets.length - 1 - index]) < 1e-10);
+    });
+    assert.equal(getFireRateVolleySize((volleySize - 1) * 7) * 3, volleySize * 3);
+  }
 });
 
-test('tier-two and tier-three bundles taper outward by only a few degrees', () => {
+test('all tier bundles taper outward symmetrically by at most 2.5 degrees', () => {
   const radiansToDegrees = (radians) => radians * (180 / Math.PI);
   assert.deepEqual(Array.from(getTightVolleyAngleOffsets(1)), [0]);
   assert.deepEqual(
@@ -63,9 +83,17 @@ test('tier-two and tier-three bundles taper outward by only a few degrees', () =
   assert.ok(Math.abs(tierThreeAngles[0] + 1.6) < 1e-10);
   assert.equal(tierThreeAngles[1], 0);
   assert.ok(Math.abs(tierThreeAngles[2] - 1.6) < 1e-10);
+  for (let volleySize = 1; volleySize <= 7; volleySize += 1) {
+    const angles = Array.from(getTightVolleyAngleOffsets(volleySize)).map(radiansToDegrees);
+    assert.equal(angles.length, volleySize);
+    assert.ok(Math.max(...angles.map(Math.abs)) <= 2.5 + 1e-10);
+    angles.forEach((angle, index) => {
+      assert.ok(Math.abs(angle + angles[angles.length - 1 - index]) < 1e-10);
+    });
+  }
 });
 
-test('all twenty-one upgrades improve cadence without exceeding the prior five-frame ceiling', () => {
+test('all forty-nine upgrades improve cadence while preserving the shipped first 21 levels', () => {
   let previous = getFireRateIntervalFrames(0);
   assert.equal(previous, 15);
   for (let level = 1; level <= FIRE_RATE_MAX_LEVEL; level += 1) {
@@ -73,19 +101,31 @@ test('all twenty-one upgrades improve cadence without exceeding the prior five-f
     assert.ok(current < previous, `level ${level} should be faster than level ${level - 1}`);
     previous = current;
   }
-  assert.ok(Math.abs(previous - 5) < 1e-10);
+  assert.ok(Math.abs(getFireRateIntervalFrames(21) - 5) < 1e-10);
+  assert.ok(Math.abs(previous - 4) < 1e-10);
 });
 
-test('the engine emits each tight bundle in the center and in both triple-shot side lanes', () => {
+test('later visible rounds use a balanced volley budget instead of raw seven-times damage', () => {
+  assert.deepEqual(Array.from(FIRE_RATE_VOLLEY_DAMAGE_MULTIPLIERS), [1, 2, 3, 3.45, 3.85, 4.2, 4.5]);
+  for (let volleySize = 1; volleySize <= 7; volleySize += 1) {
+    const total = getFireRateVolleyDamageMultiplier(volleySize);
+    const perRound = getFireRateProjectileDamageMultiplier(volleySize);
+    assert.ok(Math.abs(perRound * volleySize - total) < 1e-10);
+  }
+  assert.equal(getFireRateVolleyDamageMultiplier(7), 4.5);
+  assert.ok(getFireRateProjectileDamageMultiplier(7) < 1);
+});
+
+test('the engine emits one collision bundle per center or triple-shot lane', () => {
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
 
   assert.match(engine, /const volleySize = getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\)/);
-  assert.match(engine, /const volleyOffsets = getTightVolleyOffsets\(volleySize\)/);
-  assert.match(engine, /const volleyAngleOffsets = getTightVolleyAngleOffsets\(volleySize\)/);
-  assert.match(engine, /volleyOffsets\.forEach\(\(offsetX, index\) => \{[\s\S]*this\.spawnPlayerBullet/);
-  assert.match(engine, /\(\[-1, 1\] as const\)\.forEach[\s\S]*volleyOffsets\.forEach\(\(bundleOffset, bundleIndex\)/);
-  assert.match(engine, /offsetX: side \* 4 \+ bundleOffset/);
-  assert.match(engine, /angleBias: sideAngle \+ volleyAngleOffsets\[bundleIndex\]/);
+  assert.match(engine, /const tightVolleyVisualPattern = getTightVolleyVisualPattern\(volleySize\)/);
+  assert.match(engine, /const maxShotVisualPattern = maxShotActive[\s\S]*getMaxShotBundleVisualPattern\(volleySize\)/);
+  assert.match(engine, /getPrimaryVolleySimulationEntityCount\(overdriveSpread\)/);
+  assert.match(engine, /this\.spawnPlayerBullet\([\s\S]*tightVolleyVisualPattern,[\s\S]*volleyProjectileDamage/);
+  assert.match(engine, /playSound: false,[\s\S]*maxShotVisualPattern: tightVolleyVisualPattern/);
+  assert.match(engine, /Math\.abs\(Math\.sin\(round\.angleOffset\)\) \* 100/);
 });
 
 test('bomb drops and pickups have no inventory ceiling', () => {

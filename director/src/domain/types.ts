@@ -153,7 +153,7 @@ export interface LevelEditorReviewContext {
   waveName: string;
   eventId?: string;
   eventLabel?: string;
-  eventKind?: 'spawn' | 'boss' | 'asteroid-belt' | 'powerup' | 'recovery';
+  eventKind?: 'spawn' | 'boss' | 'asteroid-belt' | 'supply-drop' | 'powerup' | 'recovery';
   elapsedSeconds: number;
   draft: boolean;
 }

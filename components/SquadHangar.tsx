@@ -31,6 +31,7 @@ import {
   type WeeklySquadState
 } from '../services/squadProgression';
 import { calculateSquadPowerRating } from '../services/squadPowerRating';
+import { FIRE_RATE_TIER_COUNT } from '../services/weaponTierProgression';
 import PixelActionButton from './PixelActionButton';
 
 type HangarPosition = 'main' | SquadSlotId;
@@ -378,7 +379,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             {!unlocked ? <span className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/66 text-[0.58rem] font-black uppercase text-slate-200">Locked</span> : null}
             <AnimatedPlayerShip shipId={shipId} frame={playerSelectionFrame} className="relative z-10 mx-auto mt-4 h-[52%] w-[86%] drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
             <span className={`relative z-10 mt-1 block truncate text-[0.52rem] font-black uppercase ${selected ? 'text-yellow-200' : 'text-slate-300'}`}>{ship.name.replace(/ ship$/i, '')}</span>
-            <div className="relative z-10 mt-1"><LevelPips level={shipTier} max={3} /></div>
+            <div className="relative z-10 mt-1"><LevelPips level={shipTier} max={FIRE_RATE_TIER_COUNT} /></div>
           </button>
         );
       })}
@@ -557,9 +558,12 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
 
         <section className="bg-[#080f2c] px-3 pb-4 pt-3 sm:px-5">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="grid grid-cols-3 gap-px border border-cyan-200/22 bg-cyan-200/20 p-px">
-              {[1, 2, 3].map((tierId) => (
-                <button key={tierId} type="button" disabled={tierId !== tier} className={`min-h-9 px-3 text-[0.62rem] font-black uppercase ${tierId === tier ? 'bg-blue-600 text-white' : 'bg-slate-900/90 text-slate-500'}`}>Tier {tierId}</button>
+            <div
+              className="grid gap-px border border-cyan-200/22 bg-cyan-200/20 p-px"
+              style={{ gridTemplateColumns: `repeat(${FIRE_RATE_TIER_COUNT}, minmax(0, 1fr))` }}
+            >
+              {Array.from({ length: FIRE_RATE_TIER_COUNT }, (_, index) => index + 1).map((tierId) => (
+                <button key={tierId} type="button" disabled={tierId !== tier} className={`min-h-9 px-1.5 text-[0.52rem] font-black uppercase sm:px-2 sm:text-[0.58rem] ${tierId === tier ? 'bg-blue-600 text-white' : 'bg-slate-900/90 text-slate-500'}`}>T{tierId}</button>
               ))}
             </div>
             {mode === 'upgrades' ? <button type="button" onClick={() => setMode('catalog')} className="min-h-9 border border-cyan-200/30 bg-cyan-300/8 px-3 text-[0.62rem] font-black uppercase text-cyan-100">Fleet</button> : null}

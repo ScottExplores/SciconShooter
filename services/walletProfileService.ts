@@ -13,6 +13,11 @@ import {
   replaceWalletProfileDirty,
   WalletProfileMergeConflictError
 } from './walletProfileDirtyStore';
+import {
+  resolveWalletProfileSession,
+  type AuthenticatedWalletProfileSession,
+  type WalletProfileSessionResponse
+} from './walletProfileSession';
 
 export interface WalletProfileSnapshot {
   stats: PilotStatsSnapshot;
@@ -28,10 +33,7 @@ export interface WalletProfileRecord {
   snapshot: WalletProfileSnapshot;
 }
 
-interface WalletProfileResponse {
-  walletAddress?: string;
-  profile: WalletProfileRecord | null;
-}
+type WalletProfileResponse = WalletProfileSessionResponse<WalletProfileRecord>;
 
 interface WalletProfileChallenge {
   challengeId: string;
@@ -229,9 +231,9 @@ export const readWalletProfileSession = async (): Promise<WalletProfileResponse>
   requestWalletProfile<WalletProfileResponse>()
 );
 
-export const authenticateWalletProfile = async (
+const requestWalletProfileAuthentication = async (
   address: Address
-): Promise<WalletProfileRecord | null> => {
+): Promise<WalletProfileResponse> => {
   const challenge = await requestWalletProfile<WalletProfileChallenge>({
     method: 'POST',
     body: JSON.stringify({ action: 'challenge', address })
@@ -247,24 +249,41 @@ export const authenticateWalletProfile = async (
       signature
     })
   });
-  return response.profile;
+  return response;
 };
+
+export const authenticateWalletProfile = async (
+  address: Address
+): Promise<AuthenticatedWalletProfileSession<WalletProfileRecord>> => (
+  resolveWalletProfileSession({
+    walletAddress: address,
+    readSession: async () => {
+      throw new WalletProfileRequestError(
+        'Wallet profile authorization is required.',
+        401
+      );
+    },
+    authenticate: () => requestWalletProfileAuthentication(address),
+    isUnauthenticatedError: (error) => (
+      error instanceof WalletProfileRequestError
+      && error.status === 401
+    )
+  })
+);
 
 export const loadAuthenticatedWalletProfile = async (
   address: Address
-): Promise<WalletProfileRecord | null> => {
-  try {
-    const existingSession = await readWalletProfileSession();
-    if (
-      existingSession.walletAddress?.toLowerCase() === normalizeWalletAddress(address)
-    ) return existingSession.profile;
-  } catch (error) {
-    if (!(error instanceof WalletProfileRequestError) || error.status !== 401) {
-      throw error;
-    }
-  }
-  return authenticateWalletProfile(address);
-};
+): Promise<AuthenticatedWalletProfileSession<WalletProfileRecord>> => (
+  resolveWalletProfileSession({
+    walletAddress: address,
+    readSession: readWalletProfileSession,
+    authenticate: () => requestWalletProfileAuthentication(address),
+    isUnauthenticatedError: (error) => (
+      error instanceof WalletProfileRequestError
+      && error.status === 401
+    )
+  })
+);
 
 export const saveAuthenticatedWalletProfile = async ({
   walletAddress,

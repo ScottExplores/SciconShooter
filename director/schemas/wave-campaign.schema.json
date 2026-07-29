@@ -102,7 +102,7 @@
     "enemyRole": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "label", "enemyId", "spriteKey", "role", "threatCost", "introductionSector", "introductionMission", "durabilityClass", "fireBehavior", "entryBehavior", "compatibleFormationPackIds", "synergyTags", "reuseCooldownWaves", "maximumSimultaneousCount", "performanceCost"],
+      "required": ["id", "label", "enemyId", "spriteKey", "role", "threatCost", "introductionSector", "introductionMission", "durabilityClass", "fireBehavior", "fireDelaySeconds", "entryBehavior", "compatibleFormationPackIds", "synergyTags", "reuseCooldownWaves", "maximumSimultaneousCount", "performanceCost"],
       "properties": {
         "id": { "$ref": "#/definitions/id" },
         "label": { "$ref": "#/definitions/label" },
@@ -113,7 +113,8 @@
         "introductionSector": { "type": "integer", "minimum": 1, "maximum": 1000 },
         "introductionMission": { "type": "integer", "minimum": 1, "maximum": 5 },
         "durabilityClass": { "enum": ["light", "standard", "armored", "elite"] },
-        "fireBehavior": { "enum": ["none", "post-formation", "aimed-burst"] },
+        "fireBehavior": { "enum": ["none", "post-formation", "aimed-burst", "formation-command", "elite-only"] },
+        "fireDelaySeconds": { "type": "number", "minimum": 0, "maximum": 30 },
         "entryBehavior": { "enum": ["formation", "dive", "flank", "lane"] },
         "compatibleFormationPackIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/id" } },
         "synergyTags": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/id" } },

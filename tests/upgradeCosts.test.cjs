@@ -32,9 +32,10 @@ const stats = (fireRate, speed, repairsCount = 0) => ({
   upgrades: { fireRate, speed, missile: 0 }
 });
 
-test('allows flask life upgrades up to fifteen hearts', () => {
-  assert.equal(GAME_CONFIG.MAX_LIVES, 15);
-  assert.equal(FIELD_UPGRADE_CONFIG.extraLife.maxLevel, 15);
+test('caps every life-upgrade path at ten total hearts', () => {
+  assert.equal(GAME_CONFIG.PLAYER_LIVES, 3);
+  assert.equal(GAME_CONFIG.MAX_LIVES, 10);
+  assert.equal(FIELD_UPGRADE_CONFIG.extraLife.maxLevel, 10);
 });
 
 test('prices weapon tiers normally and makes every single-track upgrade premium', () => {
@@ -42,11 +43,15 @@ test('prices weapon tiers normally and makes every single-track upgrade premium'
   assert.equal(getFieldUpgradeFlaskCost(stats(5, 4), 'fireRate'), 5);
   assert.equal(getFieldUpgradeFlaskCost(stats(6, 4), 'fireRate'), 10);
   assert.equal(getFieldUpgradeFlaskCost(stats(14, 4), 'fireRate'), 15);
+  assert.equal(getFieldUpgradeFlaskCost(stats(21, 4), 'fireRate'), 20);
+  assert.equal(getFieldUpgradeFlaskCost(stats(28, 4), 'fireRate'), 25);
+  assert.equal(getFieldUpgradeFlaskCost(stats(35, 4), 'fireRate'), 30);
+  assert.equal(getFieldUpgradeFlaskCost(stats(42, 4), 'fireRate'), 35);
   assert.equal(getFieldUpgradeFlaskCost(stats(4, 0), 'speed'), 5);
   assert.equal(getFieldUpgradeFlaskCost(stats(4, 4), 'speed'), 5);
   assert.equal(getFieldUpgradeFlaskCost(stats(4, 5), 'speed'), 5);
   assert.equal(getFieldUpgradeFlaskCost(stats(4, 0, 0), 'extraLife'), 5);
   assert.equal(getFieldUpgradeFlaskCost(stats(4, 0, 12), 'extraLife'), 5);
-  assert.equal(FIELD_UPGRADE_CONFIG.fireRate.maxLevel, 21);
+  assert.equal(FIELD_UPGRADE_CONFIG.fireRate.maxLevel, 49);
   assert.equal(FIELD_UPGRADE_CONFIG.speed.maxLevel, 6);
 });

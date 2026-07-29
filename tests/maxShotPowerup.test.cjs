@@ -50,7 +50,7 @@ test('Max Shot reserves room for the doubled tier-and-spread pattern before emit
   const fireBulletStart = engine.indexOf('\n  fireBullet() {');
   const fireBullet = engine.slice(fireBulletStart, engine.indexOf('\n  fireMissile()', fireBulletStart));
   assert.match(fireBullet, /basePatternProjectileCount = volleySize \* \(overdriveSpread \? 3 : 1\)/);
-  assert.match(fireBullet, /getMaxShotSimulationEntityCount\(overdriveSpread\)/);
+  assert.match(fireBullet, /getPrimaryVolleySimulationEntityCount\(overdriveSpread\)/);
   assert.match(fireBullet, /\(maxShotVisualPattern\?\.length \?\? 0\) \* simulationEntityCount !== visualProjectileCount/);
   const capacityGate = fireBullet.indexOf('!canAdmitMaxShotVolley(');
   const firstEmission = fireBullet.indexOf('this.spawnPlayerBullet(');
@@ -61,8 +61,14 @@ test('Max Shot reserves room for the doubled tier-and-spread pattern before emit
     /spawnPlayerBullet\(/,
     'no Max Shot projectile may emit before the complete-volley capacity check'
   );
-  assert.match(fireBullet, /maxShotVisualPattern\r?\n\s*\);/);
-  assert.match(fireBullet, /maxShotVisualPattern\r?\n\s*\}\);/);
+  assert.match(
+    fireBullet,
+    /if \(maxShotActive && maxShotVisualPattern\)[\s\S]*?this\.spawnPlayerBullet\([\s\S]*?maxShotVisualPattern,[\s\S]*?volleyProjectileDamage[\s\S]*?\);/
+  );
+  assert.match(
+    fireBullet,
+    /this\.queuePlayerBullet\(\{[\s\S]*?maxShotVisualPattern,[\s\S]*?damageOverride: volleyProjectileDamage[\s\S]*?\}\);/
+  );
 });
 
 test('Max Shot presentation reuses one aura sprite and one bounded screen-edge graphic', () => {

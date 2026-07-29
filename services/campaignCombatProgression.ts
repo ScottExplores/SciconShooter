@@ -1,3 +1,5 @@
+import { FIRE_RATE_MAX_VOLLEY_SIZE } from './weaponTierProgression';
+
 /**
  * Compatibility count used by older presentation surfaces. It is not a
  * runtime content cap; GameEngine addresses every validated campaign level.
@@ -6,8 +8,13 @@ export const MAX_AUTHORED_CAMPAIGN_STAGES = 20;
 export const CAMPAIGN_STAGES_PER_COMBAT_TIER = 5;
 export const MAX_LEGACY_CAMPAIGN_DIFFICULTY_TIER = 3;
 export const MAX_SHOT_VOLLEY_MULTIPLIER = 2;
-export const MAX_SHOT_PROJECTILE_CAP = 18;
-export const MAX_SHOT_BUNDLE_LIFETIME_FRAMES = 120;
+export const MAX_PRIMARY_SPREAD_LANES = 3;
+export const MAX_SHOT_PROJECTILE_CAP = FIRE_RATE_MAX_VOLLEY_SIZE
+  * MAX_PRIMARY_SPREAD_LANES
+  * MAX_SHOT_VOLLEY_MULTIPLIER;
+// Covers the longest authored viewport flight while allowing the four-frame
+// Tier-7 cadence to recycle pooled bundles before the mobile entity ceiling.
+export const MAX_SHOT_BUNDLE_LIFETIME_FRAMES = 96;
 export const MAX_SHOT_SUSTAINED_VOLLEY_BUDGET = 24;
 
 export interface MaxShotCopyOffset {
@@ -43,7 +50,13 @@ export const buildMaxShotBundleVisualPattern = (
   }))
 )));
 
-export const getMaxShotSimulationEntityCount = (hasSpread: boolean) => hasSpread ? 3 : 1;
+export const getPrimaryVolleySimulationEntityCount = (hasSpread: boolean) => (
+  hasSpread ? MAX_PRIMARY_SPREAD_LANES : 1
+);
+
+export const getMaxShotSimulationEntityCount = (hasSpread: boolean) => (
+  getPrimaryVolleySimulationEntityCount(hasSpread)
+);
 
 export const getMaxShotSustainedEntityFloor = (
   hasSpread: boolean,

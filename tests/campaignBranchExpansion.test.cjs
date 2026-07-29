@@ -67,14 +67,14 @@ test('playable sectors 2-4 each expose a distinct optional three-star mastery ro
   )));
 });
 
-test('the completed Bastion Present Drop subsystem remains byte-for-byte stable', () => {
+test('the completed Bastion Present Drop subsystem remains authored and semantically stable', () => {
   const campaign = readCampaign();
   const branch = campaign.campaignBranches.find((entry) => (
     entry.branchId === 'branch-bastion-research-supply'
   ));
   const digest = crypto.createHash('sha256').update(JSON.stringify(branch)).digest('hex');
 
-  assert.equal(digest, '3dc2421415e5a7190ab3d7375177b588087e59d981f9fede42e24b11a26b23e0');
+  assert.equal(digest, 'e9ad243a3d601d1f48faade2d969ed2949d8f144125774ed32aed283bc41c277');
   assert.equal(branch.sourceMissionId, 'stage-bastion-protocol');
   assert.equal(branch.missionDefinitionId, 'present-drop-bastion-supply-01');
   assert.deepEqual(branch.completionReward, {
@@ -85,6 +85,7 @@ test('the completed Bastion Present Drop subsystem remains byte-for-byte stable'
     totalMaximumCoins: 377
   });
   assert.equal(branch.missionDefinition.spawnGroups.reduce((sum, group) => sum + group.count, 0), 34);
+  assert.ok(branch.missionDefinition.presentTypes.every((present) => present.spriteKey.startsWith('GENERATED_SUPPLY_DROP_')));
 });
 
 test('combat branch manifests adapt deterministically onto one canonical GameEngine wave', () => {

@@ -27,15 +27,20 @@ test('schema-v1 decompile and compile are byte-order and behavior preserving for
   const sourceText = fs.readFileSync(campaignPath, 'utf8');
   const campaign = JSON.parse(sourceText);
   const before = structuredClone(campaign);
+  const authoredWaveCount = campaign.levels.reduce((count, mission) => count + mission.waves.length, 0);
+  const authoredEvents = campaign.levels
+    .flatMap((mission) => mission.waves)
+    .flatMap((wave) => wave.events);
+  const authoredBossCount = authoredEvents.filter((event) => event.kind === 'boss').length;
 
   const contentPackage = compiler.decompileSchemaV1Campaign(campaign);
-  assert.equal(contentPackage.missions.length, 20);
-  assert.equal(contentPackage.waves.length, 96);
-  assert.equal(contentPackage.bosses.length, 12);
+  assert.equal(contentPackage.missions.length, campaign.levels.length);
+  assert.equal(contentPackage.waves.length, authoredWaveCount);
+  assert.equal(contentPackage.bosses.length, authoredBossCount);
   assert.equal(
     contentPackage.waves.reduce((count, wave) => count + wave.events.length, 0)
       + contentPackage.bosses.length,
-    180
+    authoredEvents.length
   );
   assert.deepEqual(contentPackage.manifest.campaignFieldOrder, Object.keys(campaign));
   assert.deepEqual(compiler.diagnoseContentPackage(contentPackage), []);

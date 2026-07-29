@@ -15,6 +15,10 @@ import {
 import type { SupportRecommendationTag } from '../game-config/types';
 import { DEFAULT_GAME_CAMPAIGN } from '../services/levelConfig';
 import { getCampaignSupportRecommendations } from '../services/squadPowerRating';
+import type {
+  WeeklyCampaignSelectionConfirmation,
+  WeeklyCampaignStreakState
+} from '../services/weeklyCampaignStreak';
 import PixelActionButton from './PixelActionButton';
 import './campaign-map.css';
 
@@ -59,6 +63,18 @@ const CAMPAIGN_SECTOR_PRESETS = DEFAULT_GAME_CAMPAIGN.sectors
     };
   })
   .sort((left, right) => left.order - right.order);
+
+const CAMPAIGN_GRAPH_NODES = DEFAULT_GAME_CAMPAIGN.campaignGraph?.nodes ?? [];
+const CAMPAIGN_GRAPH_NODE_BY_MISSION_ID = new Map(
+  CAMPAIGN_GRAPH_NODES.map((node) => [node.missionDefinitionId, node])
+);
+const getCampaignGraphNodeForMission = (missionId: string) => (
+  CAMPAIGN_GRAPH_NODE_BY_MISSION_ID.get(missionId) ?? null
+);
+const getCampaignMissionDisplayLabel = (mission: CampaignMissionDefinition) => (
+  getCampaignGraphNodeForMission(mission.id)?.displayLabel
+  ?? String(mission.number).padStart(2, '0')
+);
 
 const CAMPAIGN_MISSION_ROLE_LABELS: Readonly<Record<CampaignMapMissionRole, string>> = Object.freeze({
   introduction: 'Introduction',
@@ -157,12 +173,26 @@ const formatSupportTag = (tag: string) => tag
   .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 export type CampaignMapStatus = 'ready' | 'loading' | 'empty' | 'error' | 'launch-pending' | 'launch-error';
-export type CampaignLaunchKind = 'checkpoint' | 'mission' | 'replay';
+export type CampaignLaunchKind = 'checkpoint' | 'mission' | 'replay' | 'weekly-streak';
 
 export interface CampaignMapLaunchRequest {
   missionId: string;
   waveId: string;
   kind: CampaignLaunchKind;
+}
+
+export interface CampaignMapRouteSelectionRequest {
+  sourceNodeId: string;
+  targetNodeId: string;
+  missionId: string;
+  waveId: string;
+}
+
+export interface CampaignMapWeeklyLoadout {
+  shipName: string;
+  shipAssetUrl: string;
+  supportNames: string[];
+  power: number;
 }
 
 export type CampaignMapBranchMissionType =
@@ -302,6 +332,8 @@ export interface CampaignLabTelemetry {
   clearTimeMs?: number | null;
   clearTimeSeconds?: number | null;
   damageReceived?: number | null;
+  coinsEarned?: number | null;
+  weeklyPointsEarned?: number | null;
   playerDps?: number | null;
   enemyTimeToKillMs?: number | null;
   averageEnemyTimeToKillSeconds?: number | null;
@@ -384,6 +416,10 @@ export interface CampaignMapDeveloperControls {
   onSetUpgradeLevel?: (upgradeId: string, level: number) => void;
   onApplyLoadoutPreset?: (preset: CampaignLabLoadoutPreset) => void;
   onLaunchSelectedMission?: (request: CampaignLabLaunchRequest) => void;
+  onStartWeeklyStreak?: (request: CampaignMapLaunchRequest & { nodeId: string }) => void;
+  onSimulateRouteChoice?: (sourceNodeId: string, targetNodeId: string) => void;
+  onSimulateBackwardSelection?: (targetNodeId: string) => void;
+  onPreviewAuthenticationFlow?: (flow: 'guest' | 'wallet') => void;
   onRestartFormation?: () => void;
   onLoopFormationChange?: (enabled: boolean) => void;
   onSkipToMiniBoss?: () => void;
@@ -424,7 +460,17 @@ interface CampaignMapProps {
   readOnly?: boolean;
   onClose: () => void;
   onLaunch: (request: CampaignMapLaunchRequest) => void;
+  onSelectRoute?: (request: CampaignMapRouteSelectionRequest) => void;
   onLaunchBranch?: (request: CampaignMapBranchLaunchRequest) => void;
+  weeklyStreak?: WeeklyCampaignStreakState | null;
+  weeklyEligibleStartNodeIds?: readonly string[];
+  weeklyLoadout?: CampaignMapWeeklyLoadout | null;
+  weeklySelectionConfirmation?: WeeklyCampaignSelectionConfirmation | null;
+  onStartWeeklyStreak?: (request: CampaignMapLaunchRequest & { nodeId: string }) => void;
+  onSelectWeeklyMission?: (request: CampaignMapLaunchRequest & { nodeId: string }) => void;
+  onConfirmWeeklySelectionEnd?: () => void;
+  onCancelWeeklySelectionEnd?: () => void;
+  onEndWeeklyStreak?: () => void;
   onSkipBranchAnimation?: (branchId: string) => void;
   developerControls?: CampaignMapDeveloperControls | null;
 }
@@ -577,6 +623,31 @@ export const buildCampaignSectorRouteEdges = (
   return edges;
 };
 
+export const buildCampaignGraphRouteEdges = (
+  missions: CampaignMissionDefinition[]
+): CampaignMapRouteEdge[] => {
+  const missionIds = new Set(missions.map((mission) => mission.id));
+  if (!DEFAULT_GAME_CAMPAIGN.campaignGraph) {
+    return buildCampaignSectorRouteEdges(buildCampaignSectors(missions));
+  }
+  return DEFAULT_GAME_CAMPAIGN.campaignGraph.nodes.flatMap((node) => (
+    node.outgoingEdges.flatMap((routeEdge) => {
+      const target = DEFAULT_GAME_CAMPAIGN.campaignGraph?.nodes.find((entry) => (
+        entry.nodeId === routeEdge.toNodeId
+      ));
+      if (
+        !target
+        || !missionIds.has(node.missionDefinitionId)
+        || !missionIds.has(target.missionDefinitionId)
+      ) return [];
+      return [{
+        fromMissionId: node.missionDefinitionId,
+        toMissionId: target.missionDefinitionId
+      }];
+    })
+  ));
+};
+
 const clampMapCoordinate = (value: number, minimum = 0, maximum = 1) => (
   Math.max(minimum, Math.min(maximum, Number.isFinite(value) ? value : minimum))
 );
@@ -691,19 +762,42 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   readOnly = false,
   onClose,
   onLaunch,
+  onSelectRoute,
   onLaunchBranch,
+  weeklyStreak = null,
+  weeklyEligibleStartNodeIds = [],
+  weeklyLoadout = null,
+  weeklySelectionConfirmation = null,
+  onStartWeeklyStreak,
+  onSelectWeeklyMission,
+  onConfirmWeeklySelectionEnd,
+  onCancelWeeklySelectionEnd,
+  onEndWeeklyStreak,
   onSkipBranchAnimation,
   developerControls = null
 }) => {
   const checkpoint = useMemo(() => getCampaignCheckpointLabel(progress), [progress]);
   const orderedMissions = useMemo(() => (
-    [...missions].sort((left, right) => left.number - right.number)
+    [...missions].sort((left, right) => {
+      const leftNode = getCampaignGraphNodeForMission(left.id);
+      const rightNode = getCampaignGraphNodeForMission(right.id);
+      if (leftNode && rightNode) {
+        if (leftNode.depth !== rightNode.depth) return leftNode.depth - rightNode.depth;
+        if (leftNode.mapPosition.x !== rightNode.mapPosition.x) {
+          return leftNode.mapPosition.x - rightNode.mapPosition.x;
+        }
+      }
+      return left.number - right.number;
+    })
   ), [missions]);
   const campaignSectors = useMemo(() => buildCampaignSectors(orderedMissions), [orderedMissions]);
   const campaignRouteEdges = useMemo(
-    () => buildCampaignSectorRouteEdges(campaignSectors),
-    [campaignSectors]
+    () => buildCampaignGraphRouteEdges(orderedMissions),
+    [orderedMissions]
   );
+  const routeDepthCount = CAMPAIGN_GRAPH_NODES.length > 0
+    ? Math.max(1, ...CAMPAIGN_GRAPH_NODES.map((node) => node.depth))
+    : Math.max(1, orderedMissions.length);
   const preferredMissionId = initialMissionId
     ?? newMissionIds.at(-1)
     ?? progress.unviewedMissionIds.at(-1)
@@ -736,6 +830,12 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
     ?? orderedMissions.find((mission) => mission.id === progress.recommendedMissionId)
     ?? orderedMissions[0]
     ?? null;
+  const selectedGraphNode = selectedMission
+    ? getCampaignGraphNodeForMission(selectedMission.id)
+    : null;
+  const selectedMissionDisplayLabel = selectedMission
+    ? getCampaignMissionDisplayLabel(selectedMission)
+    : '--';
   const visibleBranches = useMemo(() => branches.filter((branch) => (
     orderedMissions.some((mission) => mission.id === branch.sourceMissionId)
   )), [branches, orderedMissions]);
@@ -804,10 +904,46 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
     ? visibleBranches.filter((branch) => branch.sourceMissionId === selectedMission.id)
     : [];
   const selectedRecord = selectedMission ? progress.missionRecords[selectedMission.id] : null;
-  const selectedRevealed = Boolean(selectedState?.unlocked || previewLocked);
+  const selectedPermanentlyRevealed = Boolean(selectedState?.unlocked || previewLocked);
   const selectedBaseClearReward = selectedMission ? getMissionBaseClearReward(selectedMission) : 0;
   const selectedReplayReward = selectedMission ? getMissionReplayReward(selectedMission) : 0;
   const selectedLaunchWaveId = selectedMission?.waveIds[0] ?? null;
+  const weeklyActive = weeklyStreak?.finalization.status === 'active';
+  const weeklyCurrentNode = weeklyStreak
+    ? CAMPAIGN_GRAPH_NODES.find((node) => node.nodeId === weeklyStreak.currentNodeId) ?? null
+    : null;
+  const weeklyCurrentScored = Boolean(
+    weeklyStreak?.scoredNodeIds.includes(weeklyStreak.currentNodeId)
+  );
+  const weeklySelectedEligible = Boolean(
+    selectedGraphNode?.weeklyStreakEligible
+    && weeklyEligibleStartNodeIds.includes(selectedGraphNode.nodeId)
+  );
+  const weeklySelectedIsCurrent = Boolean(
+    weeklyActive && selectedGraphNode?.nodeId === weeklyStreak?.currentNodeId
+  );
+  const weeklySelectedIsDirectTarget = Boolean(
+    weeklyActive
+    && selectedGraphNode
+    && weeklyCurrentNode?.outgoingEdges.some((edge) => edge.toNodeId === selectedGraphNode.nodeId)
+  );
+  const selectedRevealed = selectedPermanentlyRevealed
+    || weeklySelectedIsCurrent
+    || (weeklySelectedIsDirectTarget && weeklyCurrentScored);
+  const weeklySelectedRequest = selectedMission && selectedGraphNode && selectedLaunchWaveId
+    ? {
+        nodeId: selectedGraphNode.nodeId,
+        missionId: selectedMission.id,
+        waveId: selectedLaunchWaveId,
+        kind: 'weekly-streak' as const
+      }
+    : null;
+  const developerRouteChoice = selectedGraphNode?.outgoingEdges[0] ?? null;
+  const developerBackwardNode = selectedGraphNode
+    ? [...CAMPAIGN_GRAPH_NODES]
+        .filter((node) => node.mainPath && node.depth < selectedGraphNode.depth)
+        .sort((left, right) => right.depth - left.depth)[0] ?? null
+    : null;
   const launchRequest: CampaignMapLaunchRequest | null = selectedMission && selectedState?.unlocked
     ? {
         missionId: selectedMission.id,
@@ -815,9 +951,24 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
         kind: selectedState.completed ? 'replay' : 'mission'
       }
     : null;
-  const launchLabel = launchRequest?.kind === 'replay'
+  const routeSelectionRequest: CampaignMapRouteSelectionRequest | null = (
+    selectedMission
+    && selectedGraphNode
+    && selectedLaunchWaveId
+    && progress.pendingRouteChoice?.optionNodeIds.includes(selectedGraphNode.nodeId)
+  ) ? {
+      sourceNodeId: progress.pendingRouteChoice.sourceNodeId,
+      targetNodeId: selectedGraphNode.nodeId,
+      missionId: selectedMission.id,
+      waveId: selectedLaunchWaveId
+    }
+    : null;
+  const launchLabel = routeSelectionRequest
+    ? `Commit Route ${selectedGraphNode?.displayLabel ?? ''}`.trim()
+    : launchRequest?.kind === 'replay'
     ? 'Replay Mission'
     : 'Start Mission';
+  const launchReady = Boolean(routeSelectionRequest ? onSelectRoute : launchRequest);
   const campaignLabUpgradeLevels = Object.fromEntries(developerUpgradeTracks.map((track) => [
     track.id,
     developerUpgradeLevels[track.id] ?? track.level
@@ -835,7 +986,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
         upgradeLevels: campaignLabUpgradeLevels
       }
     : null;
-  const routeHeight = Math.max(720, ROUTE_TOP * 2 + Math.max(0, orderedMissions.length - 1) * NODE_STEP);
+  const routeHeight = Math.max(720, ROUTE_TOP * 2 + Math.max(0, routeDepthCount - 1) * NODE_STEP);
   const unlockAnimationActive = Boolean(
     unlockingBranchId
     && unlockingBranchId !== dismissedUnlockAnimationId
@@ -1099,7 +1250,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
               <div className="campaign-map-starfield campaign-map-starfield--near" aria-hidden="true" />
               <div className="campaign-map-route" style={{ height: routeHeight }}>
                 {campaignSectors.map((sector) => {
-                  const missionTops = sector.missions.map((mission) => getNodeTop(mission, orderedMissions.length));
+                  const missionTops = sector.missions.map((mission) => getNodeTop(mission, routeDepthCount));
                   const top = Math.max(12, Math.min(...missionTops) - 52);
                   const bottom = Math.max(...missionTops) + 94;
                   const current = sector.missions.some((mission) => mission.id === progress.recommendedMissionId);
@@ -1131,8 +1282,8 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                     const fromMission = orderedMissions.find((mission) => mission.id === edge.fromMissionId);
                     const toMission = orderedMissions.find((mission) => mission.id === edge.toMissionId);
                     if (!fromMission || !toMission) return null;
-                    const from = getMissionRoutePoint(fromMission, orderedMissions.length);
-                    const to = getMissionRoutePoint(toMission, orderedMissions.length);
+                    const from = getMissionRoutePoint(fromMission, routeDepthCount);
+                    const to = getMissionRoutePoint(toMission, routeDepthCount);
                     const points = `${from.x},${from.y} ${to.x},${to.y}`;
                     const destinationState = getDisplayedMissionState(toMission);
                     return (
@@ -1154,7 +1305,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                     const sourceMission = orderedMissions.find((mission) => mission.id === branch.sourceMissionId);
                     if (!sourceMission) return null;
                     const branchState = getDisplayedBranchState(branch);
-                    const points = getBranchRoutePoints(branch, sourceMission, orderedMissions.length, routeHeight);
+                    const points = getBranchRoutePoints(branch, sourceMission, routeDepthCount, routeHeight);
                     const active = branchState.unlocked || branchState.completed || branchState.claimed;
                     return (
                       <g key={branch.branchId} data-campaign-branch-route={branch.branchId}>
@@ -1175,6 +1326,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                 {orderedMissions.map((mission) => {
                   const nodeState = getDisplayedMissionState(mission);
                   const missionRole = getCampaignMissionRole(mission);
+                  const missionDisplayLabel = getCampaignMissionDisplayLabel(mission);
                   const selected = !selectedBranch && selectedMission?.id === mission.id;
                   const newNode = nodeState.new || newMissionIds.includes(mission.id);
                   const bossPreviewUrl = mission.bossPreview?.previewUrl ?? null;
@@ -1210,7 +1362,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       data-mission-role={missionRole}
                       style={{
                         '--campaign-node-x': `${mission.mapPosition.x * 100}%`,
-                        '--campaign-node-y': `${getNodeTop(mission, orderedMissions.length)}px`,
+                        '--campaign-node-y': `${getNodeTop(mission, routeDepthCount)}px`,
                         '--campaign-node-tint': mission.tint
                       } as React.CSSProperties}
                       onClick={() => {
@@ -1220,7 +1372,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       aria-current={nodeState.current ? 'step' : undefined}
                       aria-pressed={selected}
                       tabIndex={selected ? 0 : -1}
-                      aria-label={`Mission ${mission.number}: ${!nodeState.unlocked && !previewLocked ? 'Encrypted Sector' : mission.name}. ${stateLabel}. ${nodeState.stars} of 3 stars.${newNode ? ' New.' : ''}`}
+                      aria-label={`Mission ${missionDisplayLabel}: ${!nodeState.unlocked && !previewLocked ? 'Encrypted Sector' : mission.name}. ${stateLabel}. ${nodeState.stars} of 3 stars.${newNode ? ' New.' : ''}`}
                     >
                       <span className="campaign-map-node-ring" aria-hidden="true" />
                       <span className="campaign-map-node-core">
@@ -1233,12 +1385,12 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                           />
                         ) : (
                           <span className="campaign-map-node-stage-number" aria-hidden="true">
-                            {String(mission.number).padStart(2, '0')}
+                            {missionDisplayLabel}
                           </span>
                         )}
                       </span>
                       {missionRole === 'major-boss' ? (
-                        <span className="campaign-map-node-number">{String(mission.number).padStart(2, '0')}</span>
+                        <span className="campaign-map-node-number">{missionDisplayLabel}</span>
                       ) : null}
                       {nodeState.completed ? <span className="campaign-map-node-cleared" aria-hidden="true">&#10003;</span> : null}
                       <span className="campaign-map-node-role" aria-hidden="true">{CAMPAIGN_MISSION_ROLE_LABELS[missionRole]}</span>
@@ -1434,7 +1586,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                 aria-labelledby="campaign-map-selection-title"
               >
                 <p className="campaign-map-sr-only" role="status">
-                  Mission {selectedMission.number}, {selectedRevealed ? selectedMission.name : 'Encrypted Sector'}. {selectedState.current
+                  Mission {selectedMissionDisplayLabel}, {selectedRevealed ? selectedMission.name : 'Encrypted Sector'}. {selectedState.current
                     ? 'Current Mission.'
                     : selectedState.completed
                       ? 'Completed.'
@@ -1443,7 +1595,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                         : 'Locked.'}
                 </p>
                 <div className="campaign-map-selection-topline">
-                  <span>{selectedSector?.name ?? 'Campaign'} / Mission {String(selectedMission.number).padStart(2, '0')}</span>
+                  <span>{selectedSector?.name ?? 'Campaign'} / Mission {selectedMissionDisplayLabel}</span>
                   <span className={`campaign-map-selection-state campaign-map-selection-state--${selectedState.current ? 'current' : selectedState.completed ? 'completed' : selectedState.unlocked ? 'unlocked' : 'locked'}`}>
                     {selectedState.current
                       ? selectedState.completed ? 'Current / completed' : 'Current Mission'
@@ -1464,7 +1616,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       <img src={selectedMission.bossPreview.previewUrl} alt="" />
                     ) : (
                       <span className="campaign-map-selection-mission-number" aria-hidden="true">
-                        {String(selectedMission.number).padStart(2, '0')}
+                        {selectedMissionDisplayLabel}
                       </span>
                     )}
                   </div>
@@ -1485,7 +1637,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                     </div>
                     <p>{selectedRevealed
                       ? `${selectedMission.description} ${selectedMissionRole ? CAMPAIGN_MISSION_ROLE_BRIEFS[selectedMissionRole] : ''}`
-                      : `Complete Mission ${Math.max(1, selectedMission.number - 1)} to decrypt this route. Encounter details remain hidden.`}</p>
+                      : 'Complete a connected prerequisite Mission to decrypt this route. Encounter details remain hidden.'}</p>
                     <div className="campaign-map-wave-list" aria-label="Mission waves">
                       {selectedMission.waves.map((wave) => {
                         const completed = selectedState.completedWaveIds.has(wave.id);
@@ -1562,7 +1714,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                         >
                           <span aria-hidden="true">{branchState.unlocked ? '\u2605\u2605\u2605' : '\u2606\u2606\u2606'}</span>
                           <strong>{branchState.unlocked ? 'Bonus route unlocked' : 'Earn all 3 stars to reveal a bonus route'}</strong>
-                          <small>{branchState.unlocked ? branch.displayName : `Master Mission ${String(selectedMission.number).padStart(2, '0')}`}</small>
+                          <small>{branchState.unlocked ? branch.displayName : `Master Mission ${selectedMissionDisplayLabel}`}</small>
                         </button>
                       );
                     })}
@@ -1570,6 +1722,83 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                 ) : (
                   <p className="campaign-map-locked-copy">Mission intelligence, command-target identity, rewards, and mastery objectives remain encrypted.</p>
                 )}
+                {selectedRevealed && weeklyLoadout ? (
+                  <section className={`campaign-map-weekly ${weeklyActive ? 'is-active' : ''}`} aria-label="Weekly Campaign Streak">
+                    <div className="campaign-map-weekly__heading">
+                      <div>
+                        <small>Weekly Campaign Streak</small>
+                        <strong>{weeklyActive
+                          ? `${weeklyStreak.score.totalPoints.toLocaleString()} points / ${weeklyStreak.score.completedNodeCount} cleared`
+                          : 'Choose any unlocked weekly Mission to begin'}</strong>
+                      </div>
+                      <span>{weeklyActive ? 'LIVE' : 'READY'}</span>
+                    </div>
+                    <div className="campaign-map-weekly__loadout">
+                      <img src={weeklyLoadout.shipAssetUrl} alt="" />
+                      <span><small>Current ship</small><b>{weeklyLoadout.shipName}</b></span>
+                      <span><small>Support</small><b>{weeklyLoadout.supportNames.join(' / ') || 'None equipped'}</b></span>
+                      <span><small>Power</small><b>{weeklyLoadout.power.toLocaleString()}</b></span>
+                    </div>
+                    {selectedPowerGuide ? (
+                      <p className="campaign-map-weekly__preflight">
+                        {weeklyLoadout.power >= selectedPowerGuide.expected
+                          ? `Preflight ready: above expected power ${selectedPowerGuide.expected.toLocaleString()}.`
+                          : weeklyLoadout.power >= selectedPowerGuide.minimum
+                            ? `Preflight viable: below expected power ${selectedPowerGuide.expected.toLocaleString()}.`
+                            : `Preflight warning: recommended minimum is ${selectedPowerGuide.minimum.toLocaleString()}.`}
+                      </p>
+                    ) : null}
+                    <div className="campaign-map-weekly__actions">
+                      {!weeklyActive ? (
+                        <PixelActionButton
+                          tone={weeklySelectedEligible ? 'gold' : 'neutral'}
+                          ready={weeklySelectedEligible}
+                          disabled={!weeklySelectedEligible || !weeklySelectedRequest || !onStartWeeklyStreak || status === 'launch-pending'}
+                          onClick={() => weeklySelectedRequest && onStartWeeklyStreak?.(weeklySelectedRequest)}
+                        >
+                          {weeklySelectedEligible ? 'Begin Weekly Streak Here' : 'Weekly Start Locked'}
+                        </PixelActionButton>
+                      ) : weeklySelectedIsCurrent && !weeklyCurrentScored ? (
+                        <PixelActionButton
+                          tone="green"
+                          ready
+                          disabled={!weeklySelectedRequest || !onSelectWeeklyMission || status === 'launch-pending'}
+                          onClick={() => weeklySelectedRequest && onSelectWeeklyMission?.(weeklySelectedRequest)}
+                        >
+                          Continue Current Streak Mission
+                        </PixelActionButton>
+                      ) : (
+                        <PixelActionButton
+                          tone={weeklySelectedIsDirectTarget && weeklyCurrentScored ? 'gold' : 'neutral'}
+                          ready={weeklySelectedIsDirectTarget && weeklyCurrentScored}
+                          disabled={!weeklySelectedRequest || !onSelectWeeklyMission || status === 'launch-pending'}
+                          onClick={() => weeklySelectedRequest && onSelectWeeklyMission?.(weeklySelectedRequest)}
+                        >
+                          {weeklySelectedIsDirectTarget && weeklyCurrentScored
+                            ? 'Commit Weekly Route'
+                            : weeklySelectedIsCurrent
+                              ? 'End Streak and Submit'
+                              : 'Select Mission (Ends Streak)'}
+                        </PixelActionButton>
+                      )}
+                      {weeklyActive ? (
+                        <button type="button" className="campaign-map-weekly__end" onClick={onEndWeeklyStreak}>
+                          End streak and submit score
+                        </button>
+                      ) : null}
+                    </div>
+                    {weeklySelectionConfirmation ? (
+                      <div className="campaign-map-weekly__confirmation" role="alertdialog" aria-modal="true" aria-label="End Weekly Streak confirmation">
+                        <strong>End this Weekly Streak?</strong>
+                        <p>{weeklySelectionConfirmation.message}</p>
+                        <div>
+                          <PixelActionButton tone="gold" onClick={onConfirmWeeklySelectionEnd}>End and Submit</PixelActionButton>
+                          <button type="button" onClick={onCancelWeeklySelectionEnd}>Keep Streak</button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
                 <div className={`campaign-map-actions ${selectedMission.id === progress.recommendedMissionId ? 'is-current' : ''}`}>
                   {selectedMission.id !== progress.recommendedMissionId || routeAwayFromCurrent ? (
                     <button
@@ -1584,14 +1813,21 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                     </button>
                   ) : null}
                   <PixelActionButton
-                    tone={launchRequest && !readOnly ? 'green' : 'neutral'}
-                    ready={Boolean(launchRequest) && !readOnly}
-                    shine={Boolean(launchRequest) && !readOnly}
-                    disabled={!launchRequest || readOnly || status === 'launch-pending'}
-                    onClick={() => launchRequest && onLaunch(launchRequest)}
+                    tone={launchReady && !readOnly && !weeklyActive ? 'green' : 'neutral'}
+                    ready={launchReady && !readOnly && !weeklyActive}
+                    shine={launchReady && !readOnly && !weeklyActive}
+                    disabled={weeklyActive || !launchReady || readOnly || status === 'launch-pending'}
+                    onClick={() => {
+                      if (routeSelectionRequest) onSelectRoute?.(routeSelectionRequest);
+                      else if (launchRequest) onLaunch(launchRequest);
+                    }}
                     className="campaign-map-launch"
                   >
-                    {status === 'launch-pending' ? 'Preparing Mission...' : readOnly ? 'Viewing active route' : launchRequest ? launchLabel : 'Locked'}
+                    {status === 'launch-pending'
+                      ? 'Preparing Mission...'
+                      : weeklyActive
+                        ? 'Weekly Streak Active'
+                        : readOnly ? 'Viewing active route' : launchReady ? launchLabel : 'Locked'}
                   </PixelActionButton>
                 </div>
                 {status === 'launch-error' ? <p className="campaign-map-launch-error" role="alert">{errorMessage || 'Mission launch failed. Try again.'}</p> : null}
@@ -1799,6 +2035,29 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                   >Launch selected Mission</button>
                   <button
                     type="button"
+                    disabled={!weeklySelectedRequest || !developerControls.onStartWeeklyStreak}
+                    onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => {
+                      if (weeklySelectedRequest) controls.onStartWeeklyStreak?.(weeklySelectedRequest);
+                    })}
+                  >Start Weekly Streak</button>
+                  <button
+                    type="button"
+                    disabled={!selectedGraphNode || !developerRouteChoice || !developerControls.onSimulateRouteChoice}
+                    onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => {
+                      if (selectedGraphNode && developerRouteChoice) {
+                        controls.onSimulateRouteChoice?.(selectedGraphNode.nodeId, developerRouteChoice.toNodeId);
+                      }
+                    })}
+                  >Simulate route choice</button>
+                  <button
+                    type="button"
+                    disabled={!developerBackwardNode || !developerControls.onSimulateBackwardSelection}
+                    onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => {
+                      if (developerBackwardNode) controls.onSimulateBackwardSelection?.(developerBackwardNode.nodeId);
+                    })}
+                  >Simulate backward selection</button>
+                  <button
+                    type="button"
                     disabled={!developerControls.onRestartFormation}
                     onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => controls.onRestartFormation?.())}
                   >Restart formation</button>
@@ -1825,6 +2084,22 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                 </div>
               </section>
 
+              <section className="campaign-map-devtools__section" aria-labelledby="campaign-lab-auth-heading">
+                <h3 id="campaign-lab-auth-heading">Authentication previews</h3>
+                <div className="campaign-map-devtools__actions">
+                  <button
+                    type="button"
+                    disabled={!developerControls.onPreviewAuthenticationFlow}
+                    onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => controls.onPreviewAuthenticationFlow?.('guest'))}
+                  >Preview guest flow</button>
+                  <button
+                    type="button"
+                    disabled={!developerControls.onPreviewAuthenticationFlow}
+                    onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => controls.onPreviewAuthenticationFlow?.('wallet'))}
+                  >Preview wallet flow</button>
+                </div>
+              </section>
+
               <section className="campaign-map-devtools__section" aria-labelledby="campaign-lab-progress-heading">
                 <h3 id="campaign-lab-progress-heading">Progress and result harness</h3>
                 <div className="campaign-map-devtools__actions">
@@ -1841,7 +2116,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       <button type="button" onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => controls.onCompleteMission(selectedMission.id))}>Complete Mission</button>
                       <button type="button" onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => controls.onPreviewNew(selectedMission.id))}>Preview new</button>
                       <button type="button" onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => controls.onPreviewResult(selectedMission.id))}>Preview Mission result</button>
-                      <button type="button" onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => controls.onUnlockAll())}>Simulate 20-Mission map</button>
+                      <button type="button" onClick={() => runCampaignMapDeveloperAction(developerControls, (controls) => controls.onUnlockAll())}>Simulate full Campaign map</button>
                     </>
                   ) : null}
                 </div>
@@ -2003,6 +2278,8 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                     ?? (typeof developerTelemetry?.clearTimeSeconds === 'number' ? developerTelemetry.clearTimeSeconds * 1000 : null)
                   )}</strong></span>
                   <span><small>Damage received</small><strong>{formatCampaignLabNumber(developerTelemetry?.damageReceived, 0)}</strong></span>
+                  <span><small>Coins earned</small><strong>{formatCampaignLabNumber(developerTelemetry?.coinsEarned, 0)}</strong></span>
+                  <span><small>Weekly points earned</small><strong>{formatCampaignLabNumber(developerTelemetry?.weeklyPointsEarned, 0)}</strong></span>
                   <span><small>Player DPS</small><strong>{formatCampaignLabNumber(developerTelemetry?.playerDps)}</strong></span>
                   <span><small>Enemy average TTK</small><strong>{formatCampaignLabDuration(
                     developerTelemetry?.enemyTimeToKillMs

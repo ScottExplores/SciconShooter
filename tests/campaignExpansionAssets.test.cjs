@@ -62,16 +62,22 @@ test('Max Shot exposes the complete eight-frame electric aura sequence', () => {
   }
 });
 
-test('every revision-22 sector ends in one direct authored major-boss Mission', () => {
+test('every revision-23 sector ends in one authored major-boss Mission', () => {
   const expectedSpriteByBossId = new Map([
     ['gatekeeper-prime', 'PIXI_BOSS_OPEN_ORBIT_FRAMES'],
     ['eclipse-engine', 'CAMPAIGN_BOSS_ECLIPSE_ENGINE'],
     ['helix-leviathan', 'CAMPAIGN_BOSS_HELIX_LEVIATHAN'],
-    ['research-tribunal', 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT']
+    ['research-tribunal', 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT'],
+    ['prism-moth', 'CAMPAIGN_BOSS_PRISM_MOTH'],
+    ['rail-serpent', 'CAMPAIGN_BOSS_RAIL_SERPENT'],
+    ['singularity-crab', 'CAMPAIGN_BOSS_SINGULARITY_CRAB'],
+    ['orbit-gyroscope', 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE'],
+    ['hammerhead-siege', 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'],
+    ['frontier-crownclaw', 'PIXI_BOSS_CROWNCLAW_FRAMES']
   ]);
 
-  assert.equal(campaign.revision, 22);
-  assert.equal(campaign.sectors.length, 4);
+  assert.equal(campaign.revision, 23);
+  assert.equal(campaign.sectors.length, 10);
   for (const sector of campaign.sectors) {
     assert.equal(sector.missionIds.length, 5, `${sector.name} has five Missions`);
     const bossMissionId = sector.missionIds.at(-1);
@@ -81,7 +87,7 @@ test('every revision-22 sector ends in one direct authored major-boss Mission', 
 
     assert.equal(level.order, sector.order * 5, `${sector.name} boss occupies every fifth Mission`);
     assert.equal(level.campaignProgression.missionRole, 'major-boss');
-    assert.equal(level.waves.length, 1, `${level.name} launches directly`);
+    assert.equal(level.waves.length, 4, `${level.name} preserves its authored boss runway`);
     assert.equal(bossEvents.length, 1, `${level.name} has one major boss`);
     assert.equal(finale.bossId, sector.majorBossId, `${level.name} uses its canonical bossId`);
     assert.equal(finale.spriteKey, expectedSpriteByBossId.get(sector.majorBossId), level.name);
@@ -89,7 +95,7 @@ test('every revision-22 sector ends in one direct authored major-boss Mission', 
   }
 });
 
-test('all twelve generated enemy silhouettes are revision-22 authored enemy roles', () => {
+test('all twelve generated enemy silhouettes remain authored enemy roles in revision 23', () => {
   const formationPackIds = new Set(campaign.formationPacks.map((pack) => pack.id));
   const generatedRoles = campaign.enemyRoles.filter((role) => role.spriteKey in enemyAssets);
 
@@ -124,17 +130,20 @@ test('all twelve generated enemy silhouettes are revision-22 authored enemy role
 });
 
 test('each sector checkpoint and boss-preparation Mission ends with an authored mini-boss', () => {
-  const expected = new Map([
-    [3, 'MINI_BOSS'],
-    [4, 'PAYWALL_BASTION_FRAMES'],
-    [8, 'CAMPAIGN_ENEMY_LASER_HUNTER'],
-    [9, 'PAYWALL_BASTION_FRAMES'],
-    [13, 'PAYWALL_BASTION_FRAMES'],
-    [14, 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'],
-    [18, 'CAMPAIGN_ENEMY_RING_SENTINEL'],
-    [19, 'PAYWALL_BASTION_FRAMES']
+  const expectedSpriteByBossId = new Map([
+    ['bottleneck-drone', 'MINI_BOSS'],
+    ['paywall-wall', 'PAYWALL_BASTION_FRAMES'],
+    ['fracture-engine-elite', 'MINI_BOSS'],
+    ['aegis-brood-core', 'CAMPAIGN_ENEMY_RING_SENTINEL'],
+    ['railspine-wallcrawler', 'CAMPAIGN_ENEMY_LASER_HUNTER'],
+    ['maw-carrier', 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'],
+    ['twin-meridian-sentinels', 'CAMPAIGN_ENEMY_RING_SENTINEL'],
+    ['prism-bloom', 'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'],
+    ['aegis-convoy-captain', 'CAMPAIGN_ENEMY_LASER_HUNTER'],
+    ['gridline-sentries', 'CAMPAIGN_ENEMY_RING_SENTINEL']
   ]);
   const miniBossIds = new Set(campaign.miniBosses.map((entry) => entry.bossId));
+  assert.deepEqual(miniBossIds, new Set(expectedSpriteByBossId.keys()));
 
   for (const sector of campaign.sectors) {
     for (const [missionOffset, missionRole] of [[2, 'elite-checkpoint'], [3, 'boss-preparation']]) {
@@ -145,11 +154,15 @@ test('each sector checkpoint and boss-preparation Mission ends with an authored 
       assert.equal(level.campaignProgression.missionRole, missionRole, level.name);
       assert.equal(miniBosses.length, 1, `${level.name} ends with one authored checkpoint`);
       assert.equal(miniBossIds.has(miniBosses[0].bossId), true, `${level.name} uses the mini-boss catalog`);
-      assert.equal(miniBosses[0].spriteKey, expected.get(level.order), level.name);
+      assert.equal(
+        miniBosses[0].spriteKey,
+        expectedSpriteByBossId.get(miniBosses[0].bossId),
+        `${level.name} resolves the authored ${miniBosses[0].bossId} sprite`
+      );
     }
   }
 
-  for (const key of new Set([...expected.values()].filter((spriteKey) => spriteKey in enemyAssets))) {
+  for (const key of new Set([...expectedSpriteByBossId.values()].filter((spriteKey) => spriteKey in enemyAssets))) {
     assert.match(catalogSource, new RegExp(`${key}: asset\\([^\\n]+\\['enemy', 'boss', 'scorecard'\\]`));
   }
 });

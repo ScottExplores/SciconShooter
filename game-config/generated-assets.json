@@ -14,10 +14,10 @@
       "createdAt": "2026-07-12T00:00:00.000Z"
     },
     {
-      "id": "GENERATED_ASTEROID_RESEARCH_SUPPLY_STANDARD_05C6D35DFD79",
+      "id": "GENERATED_SUPPLY_DROP_RESEARCH_STANDARD_05C6D35DFD79",
       "label": "Research Supply Drop - Standard Present",
       "roles": [
-        "asteroid"
+        "supply-drop"
       ],
       "path": "/game-art/generated/research-supply-standard-05c6d35dfd79.png",
       "sha256": "05c6d35dfd79528afcaaeae8866890e5580a542ae27896cd31b1c84d3752eebf",
@@ -26,10 +26,10 @@
       "createdAt": "2026-07-27T00:00:00.000Z"
     },
     {
-      "id": "GENERATED_ASTEROID_RESEARCH_SUPPLY_ARMORED_A4AB6F161A36",
+      "id": "GENERATED_SUPPLY_DROP_RESEARCH_ARMORED_A4AB6F161A36",
       "label": "Research Supply Drop - Armored Present",
       "roles": [
-        "asteroid"
+        "supply-drop"
       ],
       "path": "/game-art/generated/research-supply-armored-a4ab6f161a36.png",
       "sha256": "a4ab6f161a36d40c21d338844b7992062c568a91f8cda6974fc6fc5ccdbe9e26",
@@ -38,10 +38,10 @@
       "createdAt": "2026-07-27T00:00:00.000Z"
     },
     {
-      "id": "GENERATED_ASTEROID_RESEARCH_SUPPLY_FAST_E47684F06AAD",
+      "id": "GENERATED_SUPPLY_DROP_RESEARCH_FAST_E47684F06AAD",
       "label": "Research Supply Drop - Fast Present",
       "roles": [
-        "asteroid"
+        "supply-drop"
       ],
       "path": "/game-art/generated/research-supply-fast-e47684f06aad.png",
       "sha256": "e47684f06aad9312dc847221e0b39d6ed59f0455e80b6e8b03eae67e27dae67c",
@@ -50,10 +50,10 @@
       "createdAt": "2026-07-27T00:00:00.000Z"
     },
     {
-      "id": "GENERATED_ASTEROID_RESEARCH_SUPPLY_GOLDEN_DE501F4A437D",
+      "id": "GENERATED_SUPPLY_DROP_RESEARCH_GOLDEN_DE501F4A437D",
       "label": "Research Supply Drop - Golden Present",
       "roles": [
-        "asteroid"
+        "supply-drop"
       ],
       "path": "/game-art/generated/research-supply-golden-de501f4a437d.png",
       "sha256": "de501f4a437d81a0e117f9ace15e84d330982b892e0cb093ac8e412808fd3134",

@@ -11,7 +11,13 @@ const campaignPath = path.resolve(testDirectory, '..', '..', 'game-config', 'cam
 const readCampaign = async () => JSON.parse(await readFile(campaignPath, 'utf8'));
 
 const findEvents = (campaign) => {
-  const events = campaign.levels.flatMap((level) => level.waves.flatMap((wave) => wave.events));
+  const levelEvents = campaign.levels.flatMap((level) => (
+    level.waves.flatMap((wave) => wave.events)
+  ));
+  const branchEvents = (campaign.campaignBranches ?? []).flatMap((branch) => (
+    branch.missionDefinition?.events ?? []
+  ));
+  const events = [...levelEvents, ...branchEvents];
   return {
     spawn: events.find((event) => event.kind === 'spawn'),
     boss: events.find((event) => event.kind === 'boss'),

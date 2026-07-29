@@ -10,18 +10,24 @@ test('campaign sector bosses use registered damage art and Gatekeeper Prime reta
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const constants = read('constants.ts');
   const expected = new Map([
-    ['open-orbit-gatekeeper', 'PIXI_BOSS_OPEN_ORBIT_FRAMES'],
-    ['null-sector-final-boss', 'CAMPAIGN_BOSS_ECLIPSE_ENGINE'],
-    ['ion-citadel-final-boss', 'CAMPAIGN_BOSS_HELIX_LEVIATHAN'],
-    ['terminus-ascendant-final-boss', 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT']
+    ['gatekeeper-prime', 'PIXI_BOSS_OPEN_ORBIT_FRAMES'],
+    ['eclipse-engine', 'CAMPAIGN_BOSS_ECLIPSE_ENGINE'],
+    ['helix-leviathan', 'CAMPAIGN_BOSS_HELIX_LEVIATHAN'],
+    ['research-tribunal', 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT'],
+    ['prism-moth', 'CAMPAIGN_BOSS_PRISM_MOTH'],
+    ['rail-serpent', 'CAMPAIGN_BOSS_RAIL_SERPENT'],
+    ['singularity-crab', 'CAMPAIGN_BOSS_SINGULARITY_CRAB'],
+    ['orbit-gyroscope', 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE'],
+    ['hammerhead-siege', 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'],
+    ['frontier-crownclaw', 'PIXI_BOSS_CROWNCLAW_FRAMES']
   ]);
   const bossEvents = campaign.levels.flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
-    .filter((event) => expected.has(event.id));
+    .filter((event) => event.kind === 'boss' && expected.has(event.bossId));
 
   assert.equal(bossEvents.length, expected.size);
   for (const event of bossEvents) {
-    assert.equal(event.spriteKey, expected.get(event.id));
+    assert.equal(event.spriteKey, expected.get(event.bossId));
     assert.match(constants, new RegExp(`${event.spriteKey}:`));
   }
   assert.match(constants, /PIXI_BOSS_OPEN_ORBIT_FRAMES: (?:\[|Array\.from)/);
@@ -293,7 +299,7 @@ test('Wave 1 gatekeeper has an approachable arcade health budget', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const openingBoss = campaign.levels.flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
-    .find((event) => event.id === 'open-orbit-gatekeeper');
+    .find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper-prime');
 
   assert.ok(openingBoss);
   assert.equal(openingBoss.health, 170);
@@ -306,7 +312,7 @@ test('Eclipse Engine uses the animated six-leg Crownclaw rig with destructible c
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const crownEvent = campaign.levels.flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
-    .find((event) => event.id === 'null-sector-final-boss');
+    .find((event) => event.kind === 'boss' && event.bossId === 'eclipse-engine');
 
   assert.ok(crownEvent);
   assert.equal(crownEvent.spriteKey, 'CAMPAIGN_BOSS_ECLIPSE_ENGINE');
@@ -374,10 +380,11 @@ test('boss wound stages use the checked-in gallery explosion sequence', () => {
   }
 });
 
-test('later authored Stage tiers keep bosses and add telegraphed escalation patterns', () => {
+test('later authored Mission tiers keep bosses and add telegraphed escalation patterns', () => {
   const engine = read('services/gameLogic.ts');
 
-  assert.match(engine, /const nextCampaignIndex = getNextAuthoredCampaignIndex/);
+  assert.match(engine, /const authoredNextCampaignIndex = getNextAuthoredCampaignIndex/);
+  assert.match(engine, /const nextCampaignIndex = graphNode/);
   assert.match(engine, /if \(nextCampaignIndex === null\)/);
   assert.doesNotMatch(engine, /currentCampaignIndex = .*%/);
   assert.match(engine, /spawnBossGapRing\(boss: Entity\)/);

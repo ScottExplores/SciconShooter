@@ -17,6 +17,7 @@ export enum EntityType {
   ENEMY_JOURNAL = 'ENEMY_JOURNAL', // Predatory Journal
   ENEMY_BRICK = 'ENEMY_BRICK', // Bureaucracy Brick (Newspaper)
   ENEMY_SWARM = 'ENEMY_SWARM', // Misinformation (Flies)
+  SUPPLY_DROP = 'SUPPLY_DROP', // Non-hostile ResearchHub supply package
   ENEMY_INVADER = 'ENEMY_INVADER', // Wall Boss Segment
   BOSS = 'BOSS',
   MINI_BOSS = 'MINI_BOSS',

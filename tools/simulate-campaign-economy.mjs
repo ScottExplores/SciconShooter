@@ -15,6 +15,18 @@ const parseNumberList = (source) => (
   [...source.matchAll(/\b\d+(?:\.\d+)?\b/g)].map((entry) => Number(entry[0]))
 );
 
+const parseExportedNumber = (source, exportName) => Number(requireMatch(
+  source,
+  new RegExp(`export const ${exportName}\\s*=\\s*(\\d+(?:\\.\\d+)?)`),
+  exportName
+)[1]);
+
+const parseInternalNumber = (source, constantName) => Number(requireMatch(
+  source,
+  new RegExp(`const ${constantName}\\s*=\\s*(\\d+(?:\\.\\d+)?)`),
+  constantName
+)[1]);
+
 const parseUpgradeInputs = (squadSource) => {
   const upgradeBlock = requireMatch(
     squadSource,
@@ -69,14 +81,94 @@ const parseUpgradeInputs = (squadSource) => {
   };
 };
 
+const parseRewardCenterInputs = (rewardSource) => {
+  const dailyCoins = parseNumberList(requireMatch(
+    rewardSource,
+    /const DAILY_COIN_REWARDS\s*=\s*\[([\s\S]*?)\]\s*as const;/,
+    'DAILY_COIN_REWARDS'
+  )[1]);
+  const achievementBlock = requireMatch(
+    rewardSource,
+    /export const ACHIEVEMENT_DEFINITIONS[\s\S]*?=\s*\[([\s\S]*?)\]\s*;/,
+    'ACHIEVEMENT_DEFINITIONS'
+  )[1];
+  const achievements = [...achievementBlock.matchAll(
+    /\{\s*id:\s*'([^']+)',\s*title:\s*'([^']+)',[\s\S]*?rewards:\s*\[([^\]]+)\][\s\S]*?\}/g
+  )].map((entry) => ({
+    id: entry[1],
+    title: entry[2],
+    rewards: parseNumberList(entry[3])
+  }));
+  if (dailyCoins.length !== 30) {
+    throw new Error(`Expected 30 daily-gift rewards, found ${dailyCoins.length}.`);
+  }
+  if (achievements.length !== 6) {
+    throw new Error(`Expected 6 achievement tracks, found ${achievements.length}.`);
+  }
+  return { dailyCoins, achievements };
+};
+
+const parseBossArchiveInputs = (archiveSource, progressionSource) => ({
+  baseChallengeCoins: parseExportedNumber(
+    archiveSource,
+    'BOSS_ARCHIVE_BASE_CHALLENGE_REWARD_COINS'
+  ),
+  challengeStepCoins: parseExportedNumber(
+    archiveSource,
+    'BOSS_ARCHIVE_CHALLENGE_REWARD_STEP_COINS'
+  ),
+  challengeMissionsPerTier: parseExportedNumber(
+    archiveSource,
+    'BOSS_ARCHIVE_CHALLENGE_REWARD_MISSIONS_PER_TIER'
+  ),
+  masteryMultipliers: parseNumberList(requireMatch(
+    archiveSource,
+    /export const BOSS_ARCHIVE_MASTERY_REWARD_MULTIPLIERS\s*=\s*Object\.freeze\(\[([\s\S]*?)\]\s*as const\)/,
+    'BOSS_ARCHIVE_MASTERY_REWARD_MULTIPLIERS'
+  )[1]),
+  dailyChargeLimit: parseExportedNumber(
+    progressionSource,
+    'DEFAULT_BOSS_ARCHIVE_DAILY_CHARGE_LIMIT'
+  )
+});
+
+const parseCombatCoinInputs = (bossCoinSource) => ({
+  ordinaryKillCoins: 1,
+  activeBossCoinCap: parseExportedNumber(bossCoinSource, 'MAX_ACTIVE_BOSS_REWARD_COINS'),
+  miniBoss: {
+    base: parseInternalNumber(bossCoinSource, 'MINI_BOSS_BASE_COINS'),
+    perMission: parseInternalNumber(bossCoinSource, 'MINI_BOSS_COINS_PER_STAGE'),
+    maximum: parseInternalNumber(bossCoinSource, 'MINI_BOSS_MAX_COINS')
+  },
+  mainBoss: {
+    base: parseInternalNumber(bossCoinSource, 'MAIN_BOSS_BASE_COINS'),
+    perMission: parseInternalNumber(bossCoinSource, 'MAIN_BOSS_COINS_PER_STAGE'),
+    maximum: parseInternalNumber(bossCoinSource, 'MAIN_BOSS_MAX_COINS')
+  }
+});
+
 export const loadCampaignEconomyInputs = async (root = defaultRoot) => {
-  const [campaignSource, squadSource] = await Promise.all([
+  const [
+    campaignSource,
+    squadSource,
+    rewardSource,
+    bossArchiveSource,
+    bossArchiveProgressionSource,
+    bossCoinSource
+  ] = await Promise.all([
     readFile(path.join(root, 'game-config', 'campaign.json'), 'utf8'),
-    readFile(path.join(root, 'services', 'squadProgression.ts'), 'utf8')
+    readFile(path.join(root, 'services', 'squadProgression.ts'), 'utf8'),
+    readFile(path.join(root, 'services', 'rewardProgression.ts'), 'utf8'),
+    readFile(path.join(root, 'services', 'bossArchive.ts'), 'utf8'),
+    readFile(path.join(root, 'services', 'bossArchiveProgression.ts'), 'utf8'),
+    readFile(path.join(root, 'services', 'bossCoinBurst.ts'), 'utf8')
   ]);
   return {
     campaign: JSON.parse(campaignSource),
-    upgrades: parseUpgradeInputs(squadSource)
+    upgrades: parseUpgradeInputs(squadSource),
+    rewardCenter: parseRewardCenterInputs(rewardSource),
+    bossArchive: parseBossArchiveInputs(bossArchiveSource, bossArchiveProgressionSource),
+    combatCoins: parseCombatCoinInputs(bossCoinSource)
   };
 };
 
@@ -198,9 +290,61 @@ const firstAffordableMission = (missionRows, earningsForMission, target) => {
   return null;
 };
 
-export const simulateCampaignEconomy = ({ campaign, upgrades }) => {
+const getAuthoredPickupInventory = (missions, combatCoins) => {
+  let recoveryCoins = 0;
+  let miniBossBurstCeiling = 0;
+  let mainBossBurstCeiling = 0;
+  let configuredEnemyCount = 0;
+  for (const mission of missions) {
+    for (const wave of mission.waves) {
+      for (const event of wave.events) {
+        if (event.kind === 'recovery') {
+          recoveryCoins += Math.max(0, Math.floor(Number(event.coinCount) || 0));
+        }
+        if (event.kind === 'spawn') {
+          configuredEnemyCount += Math.max(0, Math.floor(Number(event.count) || 0));
+        }
+        if (event.kind === 'asteroid-belt') {
+          configuredEnemyCount += Math.max(0, Math.floor(Number(event.count) || 0));
+        }
+        if (event.kind === 'mini-boss' || event.kind === 'boss') {
+          const curve = event.kind === 'boss' ? combatCoins.mainBoss : combatCoins.miniBoss;
+          const rewardPerBoss = Math.min(
+            curve.maximum,
+            curve.base + Math.max(0, mission.order - 1) * curve.perMission
+          );
+          const count = Math.max(1, Math.floor(Number(event.count) || 1));
+          if (event.kind === 'boss') mainBossBurstCeiling += rewardPerBoss * count;
+          else miniBossBurstCeiling += rewardPerBoss * count;
+        }
+      }
+    }
+  }
+  return {
+    recoveryCoins,
+    configuredEnemyCount,
+    configuredEnemyKillCoins: configuredEnemyCount * combatCoins.ordinaryKillCoins,
+    miniBossBurstCeiling,
+    mainBossBurstCeiling,
+    totalAuthoredPickupCeiling: recoveryCoins
+      + configuredEnemyCount * combatCoins.ordinaryKillCoins
+      + miniBossBurstCeiling
+      + mainBossBurstCeiling
+  };
+};
+
+export const simulateCampaignEconomy = ({
+  campaign,
+  upgrades,
+  rewardCenter,
+  bossArchive,
+  combatCoins
+}) => {
   const missionById = new Map(campaign.levels.map((mission) => [mission.id, mission]));
   const branchById = new Map((campaign.campaignBranches ?? []).map((branch) => [branch.branchId, branch]));
+  const graphNodeById = new Map(
+    (campaign.campaignGraph?.nodes ?? []).map((node) => [node.nodeId, node])
+  );
   const missionRows = [];
   const sectorRows = campaign.sectors.map((sector) => {
     const missions = sector.missionIds.map((missionId) => {
@@ -209,6 +353,21 @@ export const simulateCampaignEconomy = ({ campaign, upgrades }) => {
       const row = { ...getMissionBreakdown(mission), sectorId: sector.id, sectorOrder: sector.order };
       missionRows.push(row);
       return row;
+    });
+    const alternateMissions = (sector.routeNodeIds ?? []).map((nodeId) => {
+      const node = graphNodeById.get(nodeId);
+      if (!node) throw new Error(`${sector.id} references missing route node ${nodeId}.`);
+      const mission = missionById.get(node.missionDefinitionId);
+      if (!mission) {
+        throw new Error(`${nodeId} references missing Mission ${node.missionDefinitionId}.`);
+      }
+      return {
+        ...getMissionBreakdown(mission),
+        sectorId: sector.id,
+        sectorOrder: sector.order,
+        graphNodeId: nodeId,
+        routeLabel: node.displayLabel
+      };
     });
     const branches = sector.branchIds.map((branchId) => {
       const branch = branchById.get(branchId);
@@ -229,14 +388,23 @@ export const simulateCampaignEconomy = ({ campaign, upgrades }) => {
       star2Coins: sum(missions.map((mission) => mission.star2Coins)),
       star3Coins: sum(missions.map((mission) => mission.star3Coins)),
       masteryCoins: sum(missions.map((mission) => mission.masteryCoins)),
+      alternateRouteCount: alternateMissions.length,
+      alternateClearOnlyCoins: sum(alternateMissions.map((mission) => mission.clearOnlyCoins)),
+      alternateExpectedCoins: sum(alternateMissions.map((mission) => mission.expectedCoins)),
+      alternateFullMasteryCoins: sum(alternateMissions.map((mission) => mission.fullMasteryCoins)),
       branchMinimumCoins,
       branchMaximumCoins,
       clearOnlyCoins: sum(missions.map((mission) => mission.clearOnlyCoins)),
       expectedCoins: sum(missions.map((mission) => mission.expectedCoins)),
-      fullMasteryMinimumCoins: sum(missions.map((mission) => mission.fullMasteryCoins)) + branchMinimumCoins,
-      fullMasteryMaximumCoins: sum(missions.map((mission) => mission.fullMasteryCoins)) + branchMaximumCoins,
+      fullMasteryMinimumCoins: sum(missions.map((mission) => mission.fullMasteryCoins))
+        + sum(alternateMissions.map((mission) => mission.fullMasteryCoins))
+        + branchMinimumCoins,
+      fullMasteryMaximumCoins: sum(missions.map((mission) => mission.fullMasteryCoins))
+        + sum(alternateMissions.map((mission) => mission.fullMasteryCoins))
+        + branchMaximumCoins,
       dailyReplayCoins: sum(missions.map((mission) => mission.dailyReplayCoins)),
-      branches
+      branches,
+      alternateMissions
     };
     return row;
   });
@@ -256,14 +424,23 @@ export const simulateCampaignEconomy = ({ campaign, upgrades }) => {
     );
   }
 
+  const alternateMasteryBySectorFinalMission = new Map(
+    sectorRows.map((sector) => [
+      missionById.get(campaign.sectors.find((entry) => entry.id === sector.sectorId)?.missionIds.at(-1))?.id,
+      sector.alternateFullMasteryCoins
+    ])
+  );
+
   const queue = buildMainUpgradeQueue(upgrades.mainUpgradeCosts);
   const scenarioEarnings = {
     clearOnly: (mission) => mission.clearOnlyCoins,
     expected: (mission) => mission.expectedCoins,
     fullMasteryMinimum: (mission) => mission.fullMasteryCoins
-      + (branchMinimumBySourceMission.get(mission.missionId) ?? 0),
+      + (branchMinimumBySourceMission.get(mission.missionId) ?? 0)
+      + (alternateMasteryBySectorFinalMission.get(mission.missionId) ?? 0),
     fullMasteryMaximum: (mission) => mission.fullMasteryCoins
       + (branchMaximumBySourceMission.get(mission.missionId) ?? 0)
+      + (alternateMasteryBySectorFinalMission.get(mission.missionId) ?? 0)
   };
   const cadences = Object.fromEntries(Object.entries(scenarioEarnings).map(([scenario, earnings]) => (
     [scenario, runCadence(missionRows, queue, earnings)]
@@ -310,6 +487,9 @@ export const simulateCampaignEconomy = ({ campaign, upgrades }) => {
     star2Coins: sum(sectorRows.map((sector) => sector.star2Coins)),
     star3Coins: sum(sectorRows.map((sector) => sector.star3Coins)),
     masteryCoins: sum(sectorRows.map((sector) => sector.masteryCoins)),
+    alternateClearOnlyCoins: sum(sectorRows.map((sector) => sector.alternateClearOnlyCoins)),
+    alternateExpectedCoins: sum(sectorRows.map((sector) => sector.alternateExpectedCoins)),
+    alternateFullMasteryCoins: sum(sectorRows.map((sector) => sector.alternateFullMasteryCoins)),
     branchMinimumCoins: sum(sectorRows.map((sector) => sector.branchMinimumCoins)),
     branchMaximumCoins: sum(sectorRows.map((sector) => sector.branchMaximumCoins)),
     clearOnlyCoins: sum(sectorRows.map((sector) => sector.clearOnlyCoins)),
@@ -317,6 +497,57 @@ export const simulateCampaignEconomy = ({ campaign, upgrades }) => {
     fullMasteryMinimumCoins: sum(sectorRows.map((sector) => sector.fullMasteryMinimumCoins)),
     fullMasteryMaximumCoins: sum(sectorRows.map((sector) => sector.fullMasteryMaximumCoins)),
     dailyReplayCoins: sum(sectorRows.map((sector) => sector.dailyReplayCoins))
+  };
+
+  const rewardCenterInventory = {
+    dailyGiftDays: rewardCenter.dailyCoins.length,
+    dailyGiftCycleCoins: sum(rewardCenter.dailyCoins),
+    achievements: rewardCenter.achievements.map((achievement) => ({
+      ...achievement,
+      totalCoins: sum(achievement.rewards)
+    })),
+    achievementCoins: sum(rewardCenter.achievements.flatMap((achievement) => achievement.rewards))
+  };
+
+  const bossNodes = (campaign.campaignGraph?.nodes ?? []).filter((node) => node.bossId);
+  const bossArchiveEntries = bossNodes.map((node) => {
+    const mission = missionById.get(node.missionDefinitionId);
+    if (!mission) throw new Error(`${node.nodeId} references missing boss Mission ${node.missionDefinitionId}.`);
+    const challengeCoins = bossArchive.baseChallengeCoins
+      + bossArchive.challengeStepCoins * Math.floor(
+        Math.max(0, mission.order - 1) / bossArchive.challengeMissionsPerTier
+      );
+    const masteryRewards = bossArchive.masteryMultipliers.map((multiplier) => (
+      Math.max(1, Math.round(challengeCoins * multiplier))
+    ));
+    return {
+      bossId: node.bossId,
+      missionId: mission.id,
+      missionOrder: mission.order,
+      challengeCoins,
+      masteryRewards,
+      masteryCoins: sum(masteryRewards)
+    };
+  });
+  const bossArchiveInventory = {
+    dailyChargeLimit: bossArchive.dailyChargeLimit,
+    entries: bossArchiveEntries,
+    oneTimeMasteryCoins: sum(bossArchiveEntries.map((entry) => entry.masteryCoins)),
+    maximumDailyChallengeCoins: bossArchive.dailyChargeLimit
+      * Math.max(0, ...bossArchiveEntries.map((entry) => entry.challengeCoins))
+  };
+
+  const mainMissions = campaign.sectors.flatMap((sector) => (
+    sector.missionIds.map((missionId) => missionById.get(missionId)).filter(Boolean)
+  ));
+  const alternateMissions = sectorRows.flatMap((sector) => (
+    sector.alternateMissions.map((mission) => missionById.get(mission.missionId)).filter(Boolean)
+  ));
+  const combatPickupInventory = {
+    mainRoute: getAuthoredPickupInventory(mainMissions, combatCoins),
+    alternateRoutes: getAuthoredPickupInventory(alternateMissions, combatCoins),
+    coinValuePerEntity: combatCoins.ordinaryKillCoins,
+    activeBossCoinCap: combatCoins.activeBossCoinCap
   };
 
   return {
@@ -331,8 +562,15 @@ export const simulateCampaignEconomy = ({ campaign, upgrades }) => {
       fullMainShipCoins: sum(Object.values(upgrades.mainUpgradeCosts).flat()),
       slotCosts: upgrades.slotCosts,
       supportShips,
-      supportMilestones
+      supportMilestones,
+      allSupportsAndSlotsCoins: sum(supportShips.map((ship) => ship.acquireAndMaxCoins))
+        + upgrades.slotCosts.left
+        + upgrades.slotCosts.right,
+      allFourMainShipsCoins: sum(Object.values(upgrades.mainUpgradeCosts).flat()) * 4
     },
+    rewardCenterInventory,
+    bossArchiveInventory,
+    combatPickupInventory,
     cadences
   };
 };
@@ -345,39 +583,86 @@ const scenarioCadenceRows = (simulation) => ([
 ]);
 
 export const renderCampaignEconomyMarkdown = (simulation) => {
-  const { totals, upgradeReference } = simulation;
+  const {
+    totals,
+    upgradeReference,
+    rewardCenterInventory,
+    bossArchiveInventory,
+    combatPickupInventory
+  } = simulation;
   const cheapestPaidSupport = upgradeReference.supportShips.find((ship) => ship.purchaseCost > 0);
   const mostExpensiveSupport = upgradeReference.supportShips.at(-1);
   const fullMainPercentMinimum = totals.fullMasteryMinimumCoins / upgradeReference.fullMainShipCoins * 100;
   const expectedPercentMinimum = totals.expectedCoins / upgradeReference.fullMainShipCoins * 100;
   const replayPercentOfMastery = totals.dailyReplayCoins / totals.fullMasteryMinimumCoins * 100;
+  const healthCosts = upgradeReference.mainUpgradeCosts.startingHearts;
+  const healthTrackCoins = sum(healthCosts);
+  const routeAlternativeCount = sum(simulation.sectorRows.map((sector) => sector.alternateRouteCount));
+  const rewardCenterCoins = rewardCenterInventory.dailyGiftCycleCoins
+    + rewardCenterInventory.achievementCoins;
+  const highestBossChallenge = bossArchiveInventory.entries.at(-1);
 
   return `# Campaign Economy Simulation - Revision ${simulation.campaignRevision}
 
-Generated from \`game-config/campaign.json\` and the real upgrade catalogs in \`services/squadProgression.ts\`. This is a static authored-reward model; it is not a substitute for combat telemetry or a full player-economy forecast.
+Generated deterministically from the Campaign, Hangar, Reward Center, Boss Archive, and boss-coin runtime sources. Run \`node tools/simulate-campaign-economy.mjs\` to regenerate this file or \`node tools/simulate-campaign-economy.mjs --check\` to verify it.
+
+This model covers **${simulation.sectorRows.length} sectors, ${simulation.missionRows.length} main-path Missions, ${routeAlternativeCount} route-alternative Missions, and ${bossArchiveInventory.entries.length} major bosses**. Authored grants are exact. Combat pickup totals are ceilings because kills and pickups depend on play.
 
 ## Scenario definitions
 
-- **Clear-only:** first successful clear of every main-path Mission, including all Wave/Mission grants, one-time first-clear or boss/checkpoint grants, and the automatic Mission-clear Star 1. It excludes Star 2, Star 3, mastery-set bonuses, branches, ordinary in-wave coin pickups, and replay.
+- **Clear-only:** first successful clear of every main-path Mission, including Wave/Mission grants, one-time first-clear or boss/checkpoint grants, and automatic Star 1. It excludes Star 2, Star 3, mastery-set bonuses, alternate routes, branches, combat pickups, and replay.
 - **Expected:** clear-only plus every Mission-specific Star 2. It assumes a capable run but not a no-damage Master Clear. Three-star branches therefore remain locked.
-- **Full mastery:** all main-path first-clear grants, all three stars, all mastery-set bonuses, and every optional one-time branch. The range comes only from Present Drop performance (120-377); the other three branches are fixed.
+- **Full mastery:** every main-path and route-alternative first clear, all three stars, all mastery-set bonuses, and every optional one-time mastery branch. The range comes from variable branch performance.
+
+Weekly leaderboard points and proposal funding are never converted into Campaign coins and are excluded.
+
+## Exact persistent source inventory
+
+| Source | Exact value or curve | Persistence and repeat rule |
+|---|---|---|
+| Main-path authored grants | Clear-only ${money(totals.clearOnlyCoins)}; expected ${money(totals.expectedCoins)}; full mastery with alternates/branches ${money(totals.fullMasteryMinimumCoins)}-${money(totals.fullMasteryMaximumCoins)} | First-clear, boss, star, mastery, alternate, and branch receipt IDs are one-time and durable. Wave/Mission clear grants are repeatable and seasonal. |
+| Route-alternative authored grants | Clear-only ${money(totals.alternateClearOnlyCoins)}; expected ${money(totals.alternateExpectedCoins)}; full mastery ${money(totals.alternateFullMasteryCoins)} | One separate reward ledger per alternate Mission; included only in the full-mastery scenario. |
+| Authored daily replay | ${money(totals.dailyReplayCoins)} maximum across all completed main Missions per UTC day | One reduced grant per Mission per UTC date; no same-day repeat grant. Seasonal balance. |
+| Daily Gift calendar | ${money(rewardCenterInventory.dailyGiftCycleCoins)} over ${rewardCenterInventory.dailyGiftDays} consecutive days | Each day is claimable once; missing a day resets the calendar. Coins enter the seasonal balance. |
+| Achievements | ${money(rewardCenterInventory.achievementCoins)} across ${rewardCenterInventory.achievements.length} five-tier tracks | Each tier is one-time per Pilot; coins enter the seasonal balance. |
+| Boss Archive challenge | ${bossArchiveInventory.dailyChargeLimit} paid clears/day; ${money(bossArchiveInventory.entries[0]?.challengeCoins ?? 0)}-${money(highestBossChallenge?.challengeCoins ?? 0)} per clear; maximum ${money(bossArchiveInventory.maximumDailyChallengeCoins)}/day after final unlock | Daily charge limit is global. Practice pays zero. Seasonal balance. |
+| Boss Archive mastery | ${money(bossArchiveInventory.oneTimeMasteryCoins)} across all authored bosses | Three one-time mastery receipts per boss; seasonal balance after claim. |
+| Ordinary combat coin | ${combatPickupInventory.coinValuePerEntity} coin per credited coin entity | Repeatable. Enemy kills, recovery drops, bonus targets, and boss bursts settle through the run boundary. |
+| Main-route configured pickup ceiling | ${money(combatPickupInventory.mainRoute.totalAuthoredPickupCeiling)} (${money(combatPickupInventory.mainRoute.configuredEnemyKillCoins)} configured kills + ${money(combatPickupInventory.mainRoute.recoveryCoins)} recovery + ${money(combatPickupInventory.mainRoute.miniBossBurstCeiling)} mini-boss + ${money(combatPickupInventory.mainRoute.mainBossBurstCeiling)} major-boss) | Ceiling, not forecast: formation-generated enemies, missed kills/pickups, bonus targets, and the ${combatPickupInventory.activeBossCoinCap}-coin active cap can change realized income. |
+| Alternate-route configured pickup ceiling | ${money(combatPickupInventory.alternateRoutes.totalAuthoredPickupCeiling)} | Same variable combat conditions as the main route. |
+
+### Reward Center totals
+
+| Reward Center source | Tier values | Total |
+|---|---|---:|
+| Daily Gifts | ${rewardCenterInventory.dailyGiftDays} authored days | ${money(rewardCenterInventory.dailyGiftCycleCoins)} |
+${rewardCenterInventory.achievements.map((achievement) => `| ${achievement.title} | ${achievement.rewards.map(money).join(' / ')} | ${money(achievement.totalCoins)} |`).join('\n')}
+| **Daily cycle + all achievement tiers** | | **${money(rewardCenterCoins)}** |
+
+### Boss Archive rewards
+
+| Boss Mission | Challenge clear | Mastery 1 | Mastery 2 | Mastery 3 | One-time mastery total |
+|---:|---:|---:|---:|---:|---:|
+${bossArchiveInventory.entries.map((entry) => `| ${entry.missionOrder} | ${money(entry.challengeCoins)} | ${entry.masteryRewards.map(money).join(' | ')} | ${money(entry.masteryCoins)} |`).join('\n')}
 
 ## Sector earnings
 
-| Sector | Waves | Wave + Mission clear | First-clear + challenge | Star 1 | Star 2 | Star 3 | Mastery set | Branch | Clear-only | Expected | Full mastery |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-${simulation.sectorRows.map((sector) => `| ${sector.sectorOrder} - ${sector.sectorName} | ${sector.waveCount} | ${money(sector.clearCoins)} | ${money(sector.firstClearCoins)} | ${money(sector.star1Coins)} | ${money(sector.star2Coins)} | ${money(sector.star3Coins)} | ${money(sector.masteryCoins)} | ${money(sector.branchMinimumCoins)}-${money(sector.branchMaximumCoins)} | ${money(sector.clearOnlyCoins)} | ${money(sector.expectedCoins)} | ${money(sector.fullMasteryMinimumCoins)}-${money(sector.fullMasteryMaximumCoins)} |`).join('\n')}
-| **Campaign** | **${sum(simulation.sectorRows.map((sector) => sector.waveCount))}** | **${money(totals.clearCoins)}** | **${money(totals.firstClearCoins)}** | **${money(totals.star1Coins)}** | **${money(totals.star2Coins)}** | **${money(totals.star3Coins)}** | **${money(totals.masteryCoins)}** | **${money(totals.branchMinimumCoins)}-${money(totals.branchMaximumCoins)}** | **${money(totals.clearOnlyCoins)}** | **${money(totals.expectedCoins)}** | **${money(totals.fullMasteryMinimumCoins)}-${money(totals.fullMasteryMaximumCoins)}** |
+| Sector | Main Waves | Clear-only | Expected | Alternate full mastery | Branch | Full mastery |
+|---|---:|---:|---:|---:|---:|---:|
+${simulation.sectorRows.map((sector) => `| ${sector.sectorOrder} - ${sector.sectorName} | ${sector.waveCount} | ${money(sector.clearOnlyCoins)} | ${money(sector.expectedCoins)} | ${money(sector.alternateFullMasteryCoins)} | ${money(sector.branchMinimumCoins)}-${money(sector.branchMaximumCoins)} | ${money(sector.fullMasteryMinimumCoins)}-${money(sector.fullMasteryMaximumCoins)} |`).join('\n')}
+| **Campaign** | **${sum(simulation.sectorRows.map((sector) => sector.waveCount))}** | **${money(totals.clearOnlyCoins)}** | **${money(totals.expectedCoins)}** | **${money(totals.alternateFullMasteryCoins)}** | **${money(totals.branchMinimumCoins)}-${money(totals.branchMaximumCoins)}** | **${money(totals.fullMasteryMinimumCoins)}-${money(totals.fullMasteryMaximumCoins)}** |
 
-The three scenarios award **${money(totals.clearOnlyCoins)}**, **${money(totals.expectedCoins)}**, and **${money(totals.fullMasteryMinimumCoins)}-${money(totals.fullMasteryMaximumCoins)}** authored coins respectively. Ordinary dropped coins are deliberately excluded because their realized value depends on kills, pickup skill, and support loadout.
+Detailed main-path authored grants: Wave + Mission clear ${money(totals.clearCoins)}, first-clear + boss/checkpoint ${money(totals.firstClearCoins)}, Star 1 ${money(totals.star1Coins)}, Star 2 ${money(totals.star2Coins)}, Star 3 ${money(totals.star3Coins)}, main mastery sets ${money(totals.masteryCoins)}, and branches ${money(totals.branchMinimumCoins)}-${money(totals.branchMaximumCoins)}.
 
-## Upgrade costs from the runtime catalog
+## Exact persistent sink inventory
 
-- One complete main-ship set for one ship costs **${money(upgradeReference.fullMainShipCoins)}**: Fire Rate ${money(sum(upgradeReference.mainUpgradeCosts.fireRate))}, Movement Speed ${money(sum(upgradeReference.mainUpgradeCosts.speed))}, and Starting Hearts ${money(sum(upgradeReference.mainUpgradeCosts.startingHearts))}.
-- Main-ship choices begin at **55-90 coins**. The final Fire Rate purchase is **${money(upgradeReference.mainUpgradeCosts.fireRate.at(-1))} coins**.
+- One complete main-ship set costs **${money(upgradeReference.fullMainShipCoins)}** per ship: Fire Rate ${money(sum(upgradeReference.mainUpgradeCosts.fireRate))}, Movement Speed ${money(sum(upgradeReference.mainUpgradeCosts.speed))}, and Starting Hearts ${money(healthTrackCoins)}. All four ships cost ${money(upgradeReference.allFourMainShipsCoins)}.
+- Fire Rate remains accessible at **${money(upgradeReference.mainUpgradeCosts.fireRate[0])}** and Speed at **${money(upgradeReference.mainUpgradeCosts.speed[0])}**. Fire Rate keeps the shipped first 21 prices exactly, then adds 28 premium purchases for Tiers 4-7.
+- Starting Hearts cost **${healthCosts.map(money).join(' / ')}**, totaling **${money(healthTrackCoins)}**. Three base hearts plus seven purchases produces the hard **10-heart cap**.
 - Squad-slot gates are **${money(upgradeReference.slotCosts.left)}** for left and **${money(upgradeReference.slotCosts.right)}** for right. The left unlock includes Citation Dart at level 1.
 - Support level costs are not a flat 2,220. The runtime adds a ship-price premium at each step: \`round(base[level] + purchaseCost * (0.55 + level * 0.15))\`.
 - An already-owned Citation Dart costs **${money(upgradeReference.supportShips[0].levelOneToFiveCoins)}** to take from level 1 to 5. The cheapest paid support (${cheapestPaidSupport.name}) costs **${money(cheapestPaidSupport.acquireAndMaxCoins)}** to buy and max; the premium ${mostExpensiveSupport.name} costs **${money(mostExpensiveSupport.acquireAndMaxCoins)}**.
+- Buying both slots and buying/maxing every support costs **${money(upgradeReference.allSupportsAndSlotsCoins)}**.
 
 | Support ship | Buy | L1->2 | L2->3 | L3->4 | L4->5 | L1->5 upgrades | Buy + max |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -385,7 +670,7 @@ ${upgradeReference.supportShips.map((ship) => `| ${ship.name} | ${money(ship.pur
 
 ## Meaningful-upgrade cadence
 
-For comparison, the simulator spends on one deterministic, balanced main-ship basket: Movement Speed, Fire Rate, and Starting Hearts alternate through level 7; remaining purchases advance Fire Rate. This is a reference path, not a required build. Branches are credited after their source sector and full-mastery cadence uses the conservative branch floor.
+For comparison, the simulator spends on one deterministic basket: Movement Speed, Fire Rate, and Starting Hearts alternate through level 7; remaining purchases advance Fire Rate. Route-alternative and branch income is credited only after the owning sector boss, so the cadence never assumes optional rewards before they are reachable.
 
 | Scenario | Authored coins | Basket upgrades funded | Average Missions per funded upgrade | Longest no-purchase stretch | Bank | Next basket purchase |
 |---|---:|---:|---:|---:|---:|---|
@@ -393,7 +678,7 @@ ${scenarioCadenceRows(simulation).map(([label, coins, cadence]) => `| ${label} |
 
 The expected path supplies **${decimal(expectedPercentMinimum)}%** of one fully maxed main ship if the player saves every authored coin. Full mastery supplies **${decimal(fullMainPercentMinimum)}%-${decimal(totals.fullMasteryMaximumCoins / upgradeReference.fullMainShipCoins * 100)}%**. Because support purchases compete for the same balance, actual main-ship completion will be slower; this is an intentional long-tail constraint that still needs player telemetry.
 
-### Early, mid, and late progression
+### Sector-by-sector affordability
 
 | Segment | Expected authored coins | Full-mastery authored coins | Reference-basket purchases by segment end (expected / mastery floor) |
 |---|---:|---:|---:|
@@ -404,10 +689,9 @@ ${simulation.sectorRows.map((sector, index) => {
     return `| ${sector.sectorOrder} - ${sector.sectorName} | ${money(sector.expectedCoins)} | ${money(sector.fullMasteryMinimumCoins)}-${money(sector.fullMasteryMaximumCoins)} | ${expectedPurchases} / ${masteryPurchases} |`;
   }).join('\n')}
 
-- **Early (Sector 1):** starter costs are covered without replay; saving mastery income can also open a slot or begin a support build.
-- **Mid (Sectors 2-3):** authored income reaches 630-2,190 coin main choices and meaningful support premiums without a single sector buying an entire advanced track.
-- **Late (Sector 4):** rewards materially advance 2,600+ Fire Rate decisions, but the 3,050-6,050 tail remains a long-term choice rather than an automatic max-out.
-- The reference basket's longest authored savings stretch is one Mission for clear-only/expected and two Missions at the advanced full-mastery tail. This avoids a long static drought, but does not prove that every player-selected purchase order feels equally smooth.
+- Sector 1 covers multiple low-cost Speed/Fire upgrades without replay, while the first heart is deliberately no longer the cheapest purchase.
+- The health curve is ${decimal(healthTrackCoins / 2680)}x the former 2,680-coin curve. Expected authored Campaign income can max health only by deferring offense and support purchases.
+- The seven-tier Fire Rate tail is a deliberate long-term sink: 49 purchases cost ${money(sum(upgradeReference.mainUpgradeCosts.fireRate))} per ship, while the complete authored Campaign funds only part of that track before repeatable rewards and combat drops.
 
 ## Support affordability checkpoints
 
@@ -424,27 +708,34 @@ Completed Missions can pay one reduced authored replay grant per Mission per UTC
 | Sector | Maximum authored replay coins per UTC day after all five Missions are complete |
 |---|---:|
 ${simulation.sectorRows.map((sector) => `| ${sector.sectorOrder} - ${sector.sectorName} | ${money(sector.dailyReplayCoins)} |`).join('\n')}
-| **All 20 Missions** | **${money(totals.dailyReplayCoins)}** |
+| **All ${simulation.missionRows.length} main-path Missions** | **${money(totals.dailyReplayCoins)}** |
 
 The authored daily replay ceiling is **${decimal(replayPercentOfMastery)}%** of the one-time full-mastery floor. It prevents result-ID or same-day easy-Mission spam from dominating immediately. It is not a lifetime cap: over many days replay income and unmodeled dropped coins can still become substantial, so retention telemetry is required before calling the long-term economy final.
 
-## Weekly isolation
+## Inflation and farming review
 
-- The simulation counts no weekly leaderboard reward or weekly-run earnings.
-- \`creditCampaignRewardGrants\` adds Campaign grants to spendable coins without incrementing \`weeklyStats\`; Campaign progress and reward receipt IDs remain separate from weekly score/lives/checkpoints.
-- One-time first-clear, boss, star, mastery, and branch coins enter the protected durable Campaign reserve and survive the Sunday rollover when unspent.
-- Repeatable Wave/Mission/replay grants are intentionally not added to that durable reserve. Any unspent repeatable portion can be removed at rollover; this anti-farm distinction should be made clear to players if balances are surfaced as permanent Campaign currency.
-- Ship/support upgrades and Campaign records persist independently of the weekly competition reset.
+- **Bounded Campaign replay:** ${money(totals.dailyReplayCoins)}/day is ${decimal(replayPercentOfMastery)}% of the one-time full-mastery floor. Same-Mission repeats in one UTC day pay no additional authored replay grant.
+- **Unbounded combat pickup risk:** ordinary kill/drop coins remain replayable and are skill/loadout dependent. A per-run or diminishing-return policy is still absent.
+- **Boss Archive challenge income is sector-tiered and bounded:** ${bossArchiveInventory.dailyChargeLimit} clears of the highest unlocked boss can pay ${money(bossArchiveInventory.maximumDailyChallengeCoins)}/day, or ${money(bossArchiveInventory.maximumDailyChallengeCoins * 7)}/week. That is ${decimal((bossArchiveInventory.maximumDailyChallengeCoins * 7) / totals.expectedCoins * 100)}% of the expected ten-sector authored path, so Archive play remains useful without replacing Campaign progression.
+- **Reward Center gross is long-horizon income:** one 30-day calendar plus every lifetime achievement tier is ${money(rewardCenterCoins)}, ${decimal(rewardCenterCoins / totals.expectedCoins * 100)}% of expected authored Campaign income. Only the ${money(rewardCenterInventory.dailyGiftCycleCoins)} calendar repeats; the ${money(rewardCenterInventory.achievementCoins)} achievement inventory is one-time per Pilot.
+- **Weekly isolation remains correct:** Campaign reward credit does not increment weekly score statistics. One-time Campaign grants are durable; repeatable grants, Daily Gifts, achievements, Boss Archive payments, and ordinary run coins enter the seasonal balance. Upgrades survive the reset.
+
+## Seven-projectile-tier validation
+
+The runtime now supports seven visible Fire Rate tiers across 49 upgrade levels. Each tier still contains seven purchases, existing numeric levels are preserved, and the shipped level-0 through level-21 cadence and costs remain unchanged. Tiers 4-7 add premium long-tail prices and only tighten cadence from five frames to four frames.
+
+Seven-round volleys are simulated as one collision bundle per center or Triple Shot lane. Max Shot doubles each visible pattern without multiplying collision entities or shot audio. Total per-lane damage scales through 1x / 2x / 3x / 3.45x / 3.85x / 4.2x / 4.5x, so Tier 7 does not become seven full-strength hits. Focused headless mobile/desktop tests cover pooled render counts, collision admission, Max Shot, BIO twin rails, audio cadence, and representative boss TTK.
 
 ## Acceptance and honest limitations
 
-- **Pass (static authored model):** clear-only and expected paths fund starter and mid-tier choices without forced replay; every fully mastered sector gives a meaningful step toward the next reference purchase; branches are useful but never replace the following sector.
-- **Pass (reward bounds):** Present Drop remains 120-377, the other branches are fixed at 210/260/330, all are one-time, and the daily authored replay ceiling is bounded to ${money(totals.dailyReplayCoins)} across the entire campaign.
-- **Warning:** full mastery yields only ${decimal(fullMainPercentMinimum)}%-${decimal(totals.fullMasteryMaximumCoins / upgradeReference.fullMainShipCoins * 100)}% of one complete main-ship set before support spending. That preserves a long tail, but late-tier grind perception must be tested rather than inferred.
-- **Warning:** ordinary enemy/boss coin drops, coin-magnet effects, deaths, clear rates, play time, and player purchase order are not modeled. Actual earnings will be higher and more variable.
-- **Warning:** the model covers the authored four-sector, 20-Mission revision-22 campaign only. It must be rerun when rewards, branches, upgrade prices, or new sectors change.
-- **Not yet proven:** low/expected/upgraded loadout clear rates, mandatory-support risk, mobile/desktop performance, damage, death Wave, enemy/boss TTK, projectile peaks, and power-guidance accuracy require live Campaign Lab playtests.
-- **Security limitation:** wallet persistence sanitizes and de-duplicates receipts, but browser-reported Campaign combat is not fully server-authoritative. Higher-value rewards still need the existing integrity roadmap.
+- **Pass:** all ten sectors, fifty main-path Missions, ten alternate-route Missions, ten mastery branches, exact first-clear/star/mastery rewards, Reward Center rewards, Boss Archive rewards, replays, and every persistent coin sink are represented.
+- **Pass:** total lives are capped at ten and the seven-heart Hangar track is ${money(healthTrackCoins)} coins while early Speed/Fire prices remain unchanged.
+- **Pass:** the 49-level, seven-tier Fire Rate sink is included in every affordability percentage and deterministic purchase cadence above.
+- **Pass:** the report is generated from runtime source files and has a deterministic stale-file check.
+- **Affordability:** expected authored income supplies ${decimal(expectedPercentMinimum)}% of one maxed main ship; full mastery supplies ${decimal(fullMainPercentMinimum)}%-${decimal(totals.fullMasteryMaximumCoins / upgradeReference.fullMainShipCoins * 100)}% before support spending.
+- **Pass with telemetry:** a full week of maximum Boss Archive charges remains below one third of expected authored Campaign income, while one 30-day gift cycle plus all lifetime achievement tiers stays near one expected Campaign. Combat pickups still require live retention telemetry.
+- **Not modeled as guaranteed income:** dropped coins, magnet collection, player deaths, clear rate, play time, and performance-dependent Present Drop results.
+- **Security limitation:** browser Campaign combat remains server-verifiable, not fully server-authoritative. Valuable rewards require the existing receipt/integrity controls.
 
 ## Required playtest matrix
 

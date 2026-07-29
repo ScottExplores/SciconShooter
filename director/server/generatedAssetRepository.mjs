@@ -17,6 +17,7 @@ export const GENERATED_ASSET_ROLES = Object.freeze([
   'enemy',
   'boss',
   'asteroid',
+  'supply-drop',
   'hud',
   'player',
   'background',
@@ -24,7 +25,7 @@ export const GENERATED_ASSET_ROLES = Object.freeze([
 ]);
 
 const ROLE_SET = new Set(GENERATED_ASSET_ROLES);
-const SCORECARD_COMPANION_ROLES = new Set(['enemy', 'boss', 'asteroid', 'player']);
+const SCORECARD_COMPANION_ROLES = new Set(['enemy', 'boss', 'asteroid', 'supply-drop', 'player']);
 const MANIFEST_SCHEMA_VERSION = 1;
 const MAX_PROMPT_LENGTH = 1_500;
 const MAX_LABEL_LENGTH = 80;

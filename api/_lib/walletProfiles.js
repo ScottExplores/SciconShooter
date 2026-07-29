@@ -11,6 +11,7 @@ const {
 const { getWeeklyBoundaryMeta } = require('../../shared/weeklyCompetitionBoundary');
 const campaign = require('../../game-config/campaign.json');
 const campaignMigration = require('../../game-config/campaign-migration-v22.json');
+const campaignGraphMigration = require('../../game-config/campaign-migration-v23.json');
 
 const PROFILES_TABLE = process.env.SUPABASE_WALLET_PROFILES_TABLE || 'scicon_wallet_profiles';
 const CHALLENGES_TABLE = process.env.SUPABASE_WALLET_PROFILE_CHALLENGES_TABLE || 'scicon_wallet_profile_challenges';
@@ -63,9 +64,26 @@ const BOSS_ARCHIVE_EVENT_IDS = Object.freeze(
   BOSS_ARCHIVE_ENTRIES.map((entry) => entry.eventId)
 );
 const BOSS_ARCHIVE_EVENT_ID_SET = new Set(BOSS_ARCHIVE_EVENT_IDS);
+const LEGACY_BOSS_ARCHIVE_MISSION_BY_EVENT_ID = Object.freeze({
+  'open-orbit-gatekeeper': 'stage-bastion-protocol',
+  'null-sector-final-boss': 'stage-null-sector',
+  'ion-citadel-final-boss': 'stage-ion-citadel',
+  'terminus-ascendant-final-boss': 'stage-terminus-ascendant'
+});
+const canonicalCampaignBossEventId = (legacyCanonicalEventId) => {
+  if (BOSS_ARCHIVE_EVENT_ID_SET.has(legacyCanonicalEventId)) return legacyCanonicalEventId;
+  const missionId = LEGACY_BOSS_ARCHIVE_MISSION_BY_EVENT_ID[legacyCanonicalEventId];
+  if (!missionId) return null;
+  const mission = campaign.levels.find((level) => level.id === missionId);
+  return mission?.waves.flatMap((wave) => wave.events)
+    .find((event) => event.kind === 'boss' && CAMPAIGN_MAJOR_BOSS_IDS.has(event.bossId))?.id ?? null;
+};
 const BOSS_ARCHIVE_EVENT_ALIASES = new Map(
   Object.entries(campaignMigration.bossEventAliases || {})
-    .map(([legacyId, canonicalId]) => [legacyId.trim().toLowerCase(), canonicalId])
+    .map(([legacyId, canonicalId]) => [
+      legacyId.trim().toLowerCase(),
+      canonicalCampaignBossEventId(canonicalId)
+    ])
     .filter(([, canonicalId]) => BOSS_ARCHIVE_EVENT_ID_SET.has(canonicalId))
 );
 const canonicalBossArchiveEventId = (value) => {
@@ -75,14 +93,18 @@ const canonicalBossArchiveEventId = (value) => {
   return BOSS_ARCHIVE_EVENT_ID_SET.has(canonical) ? canonical : null;
 };
 const BOSS_ARCHIVE_BASE_CHALLENGE_REWARD_COINS = 100;
-const BOSS_ARCHIVE_CHALLENGE_REWARD_STEP_COINS = 25;
+const BOSS_ARCHIVE_CHALLENGE_REWARD_STEP_COINS = 20;
+const BOSS_ARCHIVE_CHALLENGE_REWARD_MISSIONS_PER_TIER = 5;
 const BOSS_ARCHIVE_BASE_SPEED_TARGET_MS = 75_000;
 const BOSS_ARCHIVE_SPEED_TARGET_STEP_MS = 2_500;
 const BOSS_ARCHIVE_CONFIG_BY_EVENT_ID = new Map(
   BOSS_ARCHIVE_ENTRIES.map((entry) => [entry.eventId, Object.freeze({
     ...entry,
     rewardCoins: BOSS_ARCHIVE_BASE_CHALLENGE_REWARD_COINS
-      + BOSS_ARCHIVE_CHALLENGE_REWARD_STEP_COINS * Math.max(0, entry.missionNumber - 1),
+      + BOSS_ARCHIVE_CHALLENGE_REWARD_STEP_COINS * Math.floor(
+        Math.max(0, entry.missionNumber - 1)
+        / BOSS_ARCHIVE_CHALLENGE_REWARD_MISSIONS_PER_TIER
+      ),
     timedTargetMs: BOSS_ARCHIVE_BASE_SPEED_TARGET_MS
       + BOSS_ARCHIVE_SPEED_TARGET_STEP_MS * Math.max(0, entry.missionNumber - 1)
   })])
@@ -130,6 +152,95 @@ const campaignCheckpointRank = (missionId, waveId) => {
 };
 const CAMPAIGN_BRANCHES = Object.freeze(
   Array.isArray(campaign.campaignBranches) ? campaign.campaignBranches : []
+);
+const CAMPAIGN_PROGRESS_VERSION = 4;
+const MAX_CAMPAIGN_COMPLETION_RECORDS = 96;
+const MAX_CAMPAIGN_RESULT_IDS = 384;
+const MAX_CAMPAIGN_REWARD_IDS = 768;
+const MAX_CREDITED_CAMPAIGN_REWARD_IDS = 1024;
+const CAMPAIGN_REPLAY_REWARD_MARKER = ':replay:';
+const CAMPAIGN_GRAPH = (
+  campaign.revision >= campaignGraphMigration.toRevision
+  && campaign.campaignGraph
+  && typeof campaign.campaignGraph === 'object'
+  && !Array.isArray(campaign.campaignGraph)
+  && Array.isArray(campaign.campaignGraph.nodes)
+  && campaign.campaignGraph.nodes.length > 0
+)
+  ? campaign.campaignGraph
+  : null;
+const CAMPAIGN_GRAPH_NODES = Object.freeze(CAMPAIGN_GRAPH?.nodes ?? []);
+const CAMPAIGN_GRAPH_NODE_IDS = Object.freeze(CAMPAIGN_GRAPH_NODES.map((node) => node.nodeId));
+const CAMPAIGN_GRAPH_NODE_ID_SET = new Set(CAMPAIGN_GRAPH_NODE_IDS);
+const CAMPAIGN_GRAPH_NODE_BY_ID = new Map(
+  CAMPAIGN_GRAPH_NODES.map((node) => [node.nodeId, node])
+);
+const CAMPAIGN_LEVEL_BY_ID = new Map(
+  CAMPAIGN_LEVELS.map((level) => [level.id, level])
+);
+const CAMPAIGN_GRAPH_EDGE_BY_ID = new Map(
+  CAMPAIGN_GRAPH_NODES.flatMap((node) => (
+    Array.isArray(node.outgoingEdges)
+      ? node.outgoingEdges.map((edge) => [edge.edgeId, { ...edge, fromNodeId: node.nodeId }])
+      : []
+  ))
+);
+const CAMPAIGN_GRAPH_NODES_BY_MISSION_ID = new Map();
+CAMPAIGN_GRAPH_NODES.forEach((node) => {
+  const nodes = CAMPAIGN_GRAPH_NODES_BY_MISSION_ID.get(node.missionDefinitionId) ?? [];
+  nodes.push(node);
+  CAMPAIGN_GRAPH_NODES_BY_MISSION_ID.set(node.missionDefinitionId, nodes);
+});
+
+const campaignGraphNodeOrder = (nodeId) => {
+  const node = CAMPAIGN_GRAPH_NODE_BY_ID.get(nodeId);
+  if (!node) return -1;
+  const levelOrder = CAMPAIGN_LEVELS.find((level) => level.id === node.missionDefinitionId)?.order ?? 0;
+  return Math.max(0, Math.floor(Number(node.depth) || 0)) * 10_000
+    + (node.mainPath ? 1_000 : 0)
+    + Math.max(0, Math.floor(Number(levelOrder) || 0));
+};
+
+const deepestCampaignGraphNodeId = (nodeIds, { mainPathOnly = false } = {}) => (
+  Array.from(new Set(nodeIds))
+    .filter((nodeId) => {
+      const node = CAMPAIGN_GRAPH_NODE_BY_ID.get(nodeId);
+      return Boolean(node && (!mainPathOnly || node.mainPath));
+    })
+    .sort((left, right) => (
+      campaignGraphNodeOrder(right) - campaignGraphNodeOrder(left)
+      || left.localeCompare(right)
+    ))[0] ?? null
+);
+
+const campaignGraphNodeForMission = (missionId, preferredNodeIds = []) => {
+  const candidates = CAMPAIGN_GRAPH_NODES_BY_MISSION_ID.get(missionId) ?? [];
+  if (candidates.length === 0) return null;
+  const preferred = preferredNodeIds
+    .map((nodeId) => CAMPAIGN_GRAPH_NODE_BY_ID.get(nodeId))
+    .find((node) => node?.missionDefinitionId === missionId);
+  return preferred
+    ?? candidates.find((node) => node.mainPath)
+    ?? candidates[0];
+};
+
+const campaignGraphNodeIdsForMissions = (missionIds) => {
+  const missionIdSet = missionIds instanceof Set ? missionIds : new Set(missionIds);
+  return CAMPAIGN_GRAPH_NODES
+    .filter((node) => missionIdSet.has(node.missionDefinitionId))
+    .map((node) => node.nodeId);
+};
+
+const campaignGraphOutgoingTargetIds = (sourceNodeId) => {
+  const source = CAMPAIGN_GRAPH_NODE_BY_ID.get(sourceNodeId);
+  if (!source || !Array.isArray(source.outgoingEdges)) return [];
+  return source.outgoingEdges
+    .map((edge) => edge?.toNodeId)
+    .filter((targetNodeId) => CAMPAIGN_GRAPH_NODE_ID_SET.has(targetNodeId));
+};
+
+const isDirectCampaignGraphRoute = (sourceNodeId, targetNodeId) => (
+  campaignGraphOutgoingTargetIds(sourceNodeId).includes(targetNodeId)
 );
 
 const campaignStarIds = (level) => {
@@ -370,6 +481,7 @@ const sanitizeCampaignBranchProgress = (
 const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
   const value = asObject(rawValue);
   const storedRevision = campaignStoredRevision(value.campaignRevision);
+  const storedProgressVersion = integer(value.version, 0, CAMPAIGN_PROGRESS_VERSION);
   const hasStoredProgress = Boolean(
     rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)
   );
@@ -409,9 +521,118 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
   unlocked.add(CAMPAIGN_LEVEL_IDS[0]);
   completedMissionIds.forEach((id) => {
     unlocked.add(id);
-    const index = CAMPAIGN_LEVEL_IDS.indexOf(id);
-    if (CAMPAIGN_LEVEL_IDS[index + 1]) unlocked.add(CAMPAIGN_LEVEL_IDS[index + 1]);
+    if (!CAMPAIGN_GRAPH) {
+      const index = CAMPAIGN_LEVEL_IDS.indexOf(id);
+      if (CAMPAIGN_LEVEL_IDS[index + 1]) unlocked.add(CAMPAIGN_LEVEL_IDS[index + 1]);
+    }
   });
+  const completedGraphNodeIds = new Set();
+  const unlockedGraphNodeIds = new Set();
+  const selectedRouteTargetBySourceNodeId = {};
+  let pendingRouteChoice = null;
+  if (CAMPAIGN_GRAPH) {
+    stringList(value.completedGraphNodeIds, {
+      maxItems: CAMPAIGN_GRAPH_NODE_IDS.length,
+      maxLength: 120
+    }).filter((id) => CAMPAIGN_GRAPH_NODE_ID_SET.has(id))
+      .forEach((id) => completedGraphNodeIds.add(id));
+    campaignGraphNodeIdsForMissions(completedMissionIds)
+      .forEach((id) => completedGraphNodeIds.add(id));
+    stringList(value.unlockedGraphNodeIds, {
+      maxItems: CAMPAIGN_GRAPH_NODE_IDS.length,
+      maxLength: 120
+    }).filter((id) => CAMPAIGN_GRAPH_NODE_ID_SET.has(id))
+      .forEach((id) => unlockedGraphNodeIds.add(id));
+    campaignGraphNodeIdsForMissions(unlocked)
+      .forEach((id) => unlockedGraphNodeIds.add(id));
+    completedGraphNodeIds.forEach((id) => unlockedGraphNodeIds.add(id));
+    if (CAMPAIGN_GRAPH_NODE_ID_SET.has(CAMPAIGN_GRAPH.entryNodeId)) {
+      unlockedGraphNodeIds.add(CAMPAIGN_GRAPH.entryNodeId);
+    }
+
+    const rawSelections = asObject(value.selectedRouteTargetBySourceNodeId);
+    Object.entries(rawSelections)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .forEach(([sourceNodeId, targetNodeId]) => {
+        if (
+          typeof targetNodeId !== 'string'
+          || !completedGraphNodeIds.has(sourceNodeId)
+          || !isDirectCampaignGraphRoute(sourceNodeId, targetNodeId)
+        ) return;
+        selectedRouteTargetBySourceNodeId[sourceNodeId] = targetNodeId;
+        unlockedGraphNodeIds.add(targetNodeId);
+      });
+
+    // Revision-22/version-3 snapshots have Mission checkpoints but no graph
+    // choice ledger. Preserve an old route only when those checkpoints identify
+    // exactly one direct exit; never guess between two authored alternatives.
+    if (storedProgressVersion < CAMPAIGN_PROGRESS_VERSION) {
+      const preservedMissionIds = new Set(completedMissionIds);
+      if (CAMPAIGN_LEVEL_ID_SET.has(value.recommendedMissionId)) {
+        preservedMissionIds.add(value.recommendedMissionId);
+      }
+      completedGraphNodeIds.forEach((sourceNodeId) => {
+        if (selectedRouteTargetBySourceNodeId[sourceNodeId]) return;
+        const preservedTargets = campaignGraphOutgoingTargetIds(sourceNodeId)
+          .filter((targetNodeId) => {
+            const target = CAMPAIGN_GRAPH_NODE_BY_ID.get(targetNodeId);
+            return target && preservedMissionIds.has(target.missionDefinitionId);
+          });
+        if (preservedTargets.length !== 1) return;
+        selectedRouteTargetBySourceNodeId[sourceNodeId] = preservedTargets[0];
+        unlockedGraphNodeIds.add(preservedTargets[0]);
+      });
+    }
+
+    const pendingCandidates = [];
+    completedGraphNodeIds.forEach((sourceNodeId) => {
+      const outgoingTargetIds = campaignGraphOutgoingTargetIds(sourceNodeId);
+      if (outgoingTargetIds.length === 1) {
+        selectedRouteTargetBySourceNodeId[sourceNodeId] ??= outgoingTargetIds[0];
+        unlockedGraphNodeIds.add(outgoingTargetIds[0]);
+        return;
+      }
+      if (outgoingTargetIds.length < 2) return;
+      outgoingTargetIds.forEach((id) => unlockedGraphNodeIds.add(id));
+      if (!selectedRouteTargetBySourceNodeId[sourceNodeId]) {
+        pendingCandidates.push({
+          sourceNodeId,
+          optionNodeIds: outgoingTargetIds,
+          depth: Math.max(0, Math.floor(Number(CAMPAIGN_GRAPH_NODE_BY_ID.get(sourceNodeId)?.depth) || 0))
+        });
+      }
+    });
+
+    const rawPending = asObject(value.pendingRouteChoice);
+    const requestedPending = pendingCandidates.find((entry) => entry.sourceNodeId === rawPending.sourceNodeId);
+    if (requestedPending) {
+      const requestedOptions = stringList(rawPending.optionNodeIds, {
+        maxItems: requestedPending.optionNodeIds.length,
+        maxLength: 120
+      }).filter((id) => requestedPending.optionNodeIds.includes(id));
+      pendingRouteChoice = {
+        sourceNodeId: requestedPending.sourceNodeId,
+        optionNodeIds: requestedOptions.length > 1
+          ? requestedPending.optionNodeIds.filter((id) => requestedOptions.includes(id))
+          : requestedPending.optionNodeIds
+      };
+    }
+    if (!pendingRouteChoice) {
+      const pending = pendingCandidates.sort((left, right) => (
+        right.depth - left.depth || left.sourceNodeId.localeCompare(right.sourceNodeId)
+      ))[0];
+      pendingRouteChoice = pending
+        ? { sourceNodeId: pending.sourceNodeId, optionNodeIds: pending.optionNodeIds }
+        : null;
+    }
+
+    unlockedGraphNodeIds.forEach((nodeId) => {
+      const node = CAMPAIGN_GRAPH_NODE_BY_ID.get(nodeId);
+      if (node && CAMPAIGN_LEVEL_ID_SET.has(node.missionDefinitionId)) {
+        unlocked.add(node.missionDefinitionId);
+      }
+    });
+  }
   const unlockedWaveIdsByMission = {};
   CAMPAIGN_LEVELS.forEach((level) => {
     const waveIds = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(level.id) || [];
@@ -459,8 +680,67 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
     )?.[0] || '',
     rank: -1
   });
-  const recommendedMissionId = derivedCheckpoint.missionId;
-  const recommendedWaveId = derivedCheckpoint.waveId;
+  let recommendedMissionId = derivedCheckpoint.missionId;
+  let recommendedWaveId = derivedCheckpoint.waveId;
+  let recommendedGraphNodeId = null;
+  let currentGraphNodeId = null;
+  let furthestMainGraphNodeId = null;
+  if (CAMPAIGN_GRAPH) {
+    const requestedRecommendedNodeId = typeof value.recommendedGraphNodeId === 'string'
+      && unlockedGraphNodeIds.has(value.recommendedGraphNodeId)
+      ? value.recommendedGraphNodeId
+      : null;
+    const preservedMissionNodeId = CAMPAIGN_LEVEL_ID_SET.has(value.recommendedMissionId)
+      ? campaignGraphNodeForMission(value.recommendedMissionId, [
+          requestedRecommendedNodeId,
+          value.currentGraphNodeId
+        ])?.nodeId ?? null
+      : null;
+    const selectedTargetNodeIds = Object.values(selectedRouteTargetBySourceNodeId)
+      .filter((id) => unlockedGraphNodeIds.has(id));
+    const recommendedCandidates = pendingRouteChoice
+      ? [pendingRouteChoice.sourceNodeId]
+      : [requestedRecommendedNodeId, preservedMissionNodeId, ...selectedTargetNodeIds];
+    recommendedGraphNodeId = deepestCampaignGraphNodeId(
+      recommendedCandidates.filter((id) => id && unlockedGraphNodeIds.has(id))
+    ) ?? CAMPAIGN_GRAPH.entryNodeId;
+
+    const requestedFurthestMainNodeId = typeof value.furthestMainGraphNodeId === 'string'
+      && unlockedGraphNodeIds.has(value.furthestMainGraphNodeId)
+      && CAMPAIGN_GRAPH_NODE_BY_ID.get(value.furthestMainGraphNodeId)?.mainPath
+      ? value.furthestMainGraphNodeId
+      : null;
+    furthestMainGraphNodeId = deepestCampaignGraphNodeId([
+      ...completedGraphNodeIds,
+      ...selectedTargetNodeIds,
+      requestedFurthestMainNodeId
+    ].filter(Boolean), { mainPathOnly: true }) ?? CAMPAIGN_GRAPH.entryNodeId;
+    if (
+      campaignGraphNodeOrder(furthestMainGraphNodeId)
+      > campaignGraphNodeOrder(recommendedGraphNodeId)
+    ) {
+      recommendedGraphNodeId = furthestMainGraphNodeId;
+    }
+
+    const requestedCurrentNodeId = typeof value.currentGraphNodeId === 'string'
+      && unlockedGraphNodeIds.has(value.currentGraphNodeId)
+      ? value.currentGraphNodeId
+      : null;
+    currentGraphNodeId = requestedCurrentNodeId ?? recommendedGraphNodeId;
+    const recommendedNode = CAMPAIGN_GRAPH_NODE_BY_ID.get(recommendedGraphNodeId);
+    if (recommendedNode && CAMPAIGN_LEVEL_ID_SET.has(recommendedNode.missionDefinitionId)) {
+      recommendedMissionId = recommendedNode.missionDefinitionId;
+      const requestedWaveId = value.recommendedMissionId === recommendedMissionId
+        ? campaignWaveId(recommendedMissionId, value.recommendedWaveId, storedRevision)
+        : null;
+      const unlockedCheckpointWaveId = unlockedWaveIdsByMission[recommendedMissionId]?.at(-1);
+      recommendedWaveId = unlockedCheckpointWaveId
+        ?? (requestedWaveId
+          && unlockedWaveIdsByMission[recommendedMissionId]?.includes(requestedWaveId)
+          ? requestedWaveId
+          : CAMPAIGN_WAVE_IDS_BY_LEVEL.get(recommendedMissionId)?.[0] ?? '');
+    }
+  }
   const completionRecords = (Array.isArray(value.completionRecords) ? value.completionRecords : [])
     .flatMap((entry) => {
       const record = asObject(entry);
@@ -493,7 +773,7 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
         starsEarned: integer(record.starsEarned, 0, 3)
       }];
     })
-    .slice(-96);
+    .slice(-MAX_CAMPAIGN_COMPLETION_RECORDS);
   const replayRewardEpochByMission = Object.fromEntries(CAMPAIGN_LEVELS.flatMap((level) => {
     const epoch = asObject(value.replayRewardEpochByMission)[level.id];
     if (typeof epoch !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(epoch)) return [];
@@ -501,19 +781,32 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
     return Number.isFinite(parsed) ? [[level.id, new Date(parsed).toISOString().slice(0, 10)]] : [];
   }));
   return {
-    version: 3,
+    version: CAMPAIGN_PROGRESS_VERSION,
     campaignId: campaign.id,
     campaignRevision: campaign.revision,
     recommendedMissionId,
     recommendedWaveId,
+    recommendedGraphNodeId,
+    currentGraphNodeId,
+    furthestMainGraphNodeId,
+    unlockedGraphNodeIds: CAMPAIGN_GRAPH
+      ? CAMPAIGN_GRAPH_NODE_IDS.filter((id) => unlockedGraphNodeIds.has(id))
+      : [],
+    completedGraphNodeIds: CAMPAIGN_GRAPH
+      ? CAMPAIGN_GRAPH_NODE_IDS.filter((id) => completedGraphNodeIds.has(id))
+      : [],
+    selectedRouteTargetBySourceNodeId,
+    pendingRouteChoice,
     unlockedMissionIds: CAMPAIGN_LEVEL_IDS.filter((id) => unlocked.has(id)),
     unlockedWaveIdsByMission,
     completedMissionIds,
     missionRecords,
-    claimedRewardIds: stringList(value.claimedRewardIds, { maxItems: 768, maxLength: 180 })
-      .filter((id) => id.startsWith('campaign:')),
+    claimedRewardIds: campaignPermanentRewardIds(value.claimedRewardIds),
     replayRewardEpochByMission,
-    processedResultIds: stringList(value.processedResultIds, { maxItems: 384, maxLength: 180 }),
+    processedResultIds: stringList(value.processedResultIds, {
+      maxItems: MAX_CAMPAIGN_RESULT_IDS,
+      maxLength: 180
+    }),
     completionRecords,
     unviewedMissionIds: stringList(value.unviewedMissionIds, { maxItems: CAMPAIGN_LEVELS.length, maxLength: 120 })
       .filter((id) => CAMPAIGN_LEVEL_ID_SET.has(id)),
@@ -522,9 +815,196 @@ const sanitizeCampaignProgress = (rawValue, lifetimeStats, now) => {
     unviewedRewardIds: stringList(value.unviewedRewardIds, { maxItems: 120, maxLength: 180 })
       .filter((id) => id.startsWith('campaign:')),
     branchProgress: sanitizeCampaignBranchProgress(value.branchProgress, missionRecords, now),
-    campaignCompleted: completedMissionIds.length === CAMPAIGN_LEVELS.length,
+    campaignCompleted: CAMPAIGN_GRAPH
+      ? Array.from(completedGraphNodeIds).some((nodeId) => (
+          campaignGraphOutgoingTargetIds(nodeId).length === 0
+        ))
+      : completedMissionIds.length === CAMPAIGN_LEVELS.length,
     updatedAt: isoNow(now)
   };
+};
+
+const mergeCampaignGraphProgress = ({
+  currentProgress,
+  incomingProgress,
+  lifetimeStats,
+  now = Date.now()
+}) => {
+  const incoming = sanitizeCampaignProgress(incomingProgress, lifetimeStats, now);
+  if (!currentProgress || typeof currentProgress !== 'object') return incoming;
+  const current = sanitizeCampaignProgress(currentProgress, lifetimeStats, now);
+
+  const boundedTailUnion = (left, right, maxItems) => Array.from(new Set([
+    ...(Array.isArray(left) ? left : []),
+    ...(Array.isArray(right) ? right : [])
+  ])).slice(-maxItems);
+  const earliestIso = (left, right) => [left, right]
+    .filter((value) => typeof value === 'string' && Number.isFinite(Date.parse(value)))
+    .sort()[0] ?? null;
+  const latestIso = (left, right) => [left, right]
+    .filter((value) => typeof value === 'string' && Number.isFinite(Date.parse(value)))
+    .sort()
+    .at(-1) ?? null;
+  const lowestNullable = (left, right) => {
+    const values = [left, right].filter((value) => Number.isFinite(value));
+    return values.length > 0 ? Math.min(...values) : null;
+  };
+  const missionRecords = Object.fromEntries(CAMPAIGN_LEVELS.map((level) => {
+    const cloud = current.missionRecords[level.id];
+    const device = incoming.missionRecords[level.id];
+    const waveIds = CAMPAIGN_WAVE_IDS_BY_LEVEL.get(level.id) ?? [];
+    const starIds = campaignStarIds(level);
+    const completed = cloud.completed || device.completed;
+    return [level.id, {
+      completedWaveIds: completed
+        ? [...waveIds]
+        : waveIds.filter((waveId) => (
+            cloud.completedWaveIds.includes(waveId)
+            || device.completedWaveIds.includes(waveId)
+          )),
+      completed,
+      stars: Math.max(cloud.stars, device.stars),
+      earnedStarIds: starIds.filter((starId) => (
+        cloud.earnedStarIds.includes(starId)
+        || device.earnedStarIds.includes(starId)
+      )),
+      bestScore: Math.max(cloud.bestScore, device.bestScore),
+      bestClearTimeMs: lowestNullable(cloud.bestClearTimeMs, device.bestClearTimeMs),
+      bestDamageTaken: lowestNullable(cloud.bestDamageTaken, device.bestDamageTaken),
+      bestCoinsCollected: Math.max(cloud.bestCoinsCollected, device.bestCoinsCollected),
+      firstCompletedAt: earliestIso(cloud.firstCompletedAt, device.firstCompletedAt),
+      lastCompletedAt: latestIso(cloud.lastCompletedAt, device.lastCompletedAt),
+      // Snapshot merges are convergent, so summing would double count the same
+      // run after a retry. Keep the largest monotonic counter instead.
+      completionCount: Math.max(cloud.completionCount, device.completionCount)
+    }];
+  }));
+  const completionRecordByResultId = new Map();
+  [...current.completionRecords, ...incoming.completionRecords].forEach((record) => {
+    const existing = completionRecordByResultId.get(record.resultId);
+    if (!existing) {
+      completionRecordByResultId.set(record.resultId, record);
+      return;
+    }
+    // The canonical cloud identity wins on a conflicting result ID. Only
+    // monotonic settlement details may be improved by the active device.
+    completionRecordByResultId.set(record.resultId, {
+      ...existing,
+      completedAt: earliestIso(existing.completedAt, record.completedAt) ?? existing.completedAt,
+      stageComplete: existing.stageComplete || record.stageComplete,
+      firstClearGranted: existing.firstClearGranted || record.firstClearGranted,
+      masteryEligible: existing.masteryEligible || record.masteryEligible,
+      coinsAwarded: Math.max(existing.coinsAwarded, record.coinsAwarded),
+      starsEarned: Math.max(existing.starsEarned, record.starsEarned)
+    });
+  });
+  const completionRecords = Array.from(completionRecordByResultId.values())
+    .sort((left, right) => (
+      left.completedAt.localeCompare(right.completedAt)
+      || left.resultId.localeCompare(right.resultId)
+    ))
+    .slice(-MAX_CAMPAIGN_COMPLETION_RECORDS);
+  const replayRewardEpochByMission = Object.fromEntries(CAMPAIGN_LEVEL_IDS.flatMap((missionId) => {
+    const cloudEpoch = current.replayRewardEpochByMission[missionId] ?? '';
+    const deviceEpoch = incoming.replayRewardEpochByMission[missionId] ?? '';
+    const epoch = cloudEpoch > deviceEpoch ? cloudEpoch : deviceEpoch;
+    return epoch ? [[missionId, epoch]] : [];
+  }));
+  const mergedBase = {
+    ...incoming,
+    unlockedMissionIds: Array.from(new Set([
+      ...current.unlockedMissionIds,
+      ...incoming.unlockedMissionIds
+    ])),
+    unlockedWaveIdsByMission: Object.fromEntries(CAMPAIGN_LEVEL_IDS.map((missionId) => [
+      missionId,
+      Array.from(new Set([
+        ...(current.unlockedWaveIdsByMission[missionId] ?? []),
+        ...(incoming.unlockedWaveIdsByMission[missionId] ?? [])
+      ]))
+    ])),
+    completedMissionIds: Array.from(new Set([
+      ...current.completedMissionIds,
+      ...incoming.completedMissionIds
+    ])),
+    missionRecords,
+    claimedRewardIds: campaignPermanentRewardIds([
+      ...current.claimedRewardIds,
+      ...incoming.claimedRewardIds
+    ]),
+    replayRewardEpochByMission,
+    processedResultIds: boundedTailUnion(
+      boundedTailUnion(
+        current.processedResultIds,
+        incoming.processedResultIds,
+        MAX_CAMPAIGN_RESULT_IDS
+      ),
+      completionRecords.map((record) => record.resultId),
+      MAX_CAMPAIGN_RESULT_IDS
+    ),
+    completionRecords,
+    campaignCompleted: current.campaignCompleted || incoming.campaignCompleted
+  };
+  if (!CAMPAIGN_GRAPH) {
+    return sanitizeCampaignProgress(mergedBase, lifetimeStats, now);
+  }
+  const completedGraphNodeIds = Array.from(new Set([
+    ...current.completedGraphNodeIds,
+    ...incoming.completedGraphNodeIds
+  ])).filter((id) => CAMPAIGN_GRAPH_NODE_ID_SET.has(id));
+  const completedSet = new Set(completedGraphNodeIds);
+  const unlockedGraphNodeIds = Array.from(new Set([
+    ...current.unlockedGraphNodeIds,
+    ...incoming.unlockedGraphNodeIds,
+    ...completedGraphNodeIds
+  ])).filter((id) => CAMPAIGN_GRAPH_NODE_ID_SET.has(id));
+  const unlockedSet = new Set(unlockedGraphNodeIds);
+  const selectedRouteTargetBySourceNodeId = {};
+  const selectionSources = Array.from(new Set([
+    ...Object.keys(current.selectedRouteTargetBySourceNodeId),
+    ...Object.keys(incoming.selectedRouteTargetBySourceNodeId)
+  ])).sort();
+  selectionSources.forEach((sourceNodeId) => {
+    if (!completedSet.has(sourceNodeId)) return;
+    // A route choice is committed. Keep the canonical cloud choice when two
+    // devices disagree, while still accepting a previously unrecorded direct
+    // choice from the active device.
+    const candidates = [
+      current.selectedRouteTargetBySourceNodeId[sourceNodeId],
+      incoming.selectedRouteTargetBySourceNodeId[sourceNodeId]
+    ].filter((targetNodeId, index, values) => (
+      typeof targetNodeId === 'string'
+      && values.indexOf(targetNodeId) === index
+      && isDirectCampaignGraphRoute(sourceNodeId, targetNodeId)
+    ));
+    const selected = candidates[0];
+    if (!selected) return;
+    selectedRouteTargetBySourceNodeId[sourceNodeId] = selected;
+    unlockedSet.add(selected);
+  });
+  const recommendedGraphNodeId = deepestCampaignGraphNodeId([
+    current.recommendedGraphNodeId,
+    incoming.recommendedGraphNodeId
+  ].filter(Boolean));
+  const furthestMainGraphNodeId = deepestCampaignGraphNodeId([
+    current.furthestMainGraphNodeId,
+    incoming.furthestMainGraphNodeId,
+    ...completedGraphNodeIds
+  ].filter(Boolean), { mainPathOnly: true });
+  const incomingCurrentNodeId = incoming.currentGraphNodeId;
+  const currentGraphNodeId = incomingCurrentNodeId && unlockedSet.has(incomingCurrentNodeId)
+    ? incomingCurrentNodeId
+    : current.currentGraphNodeId;
+  return sanitizeCampaignProgress({
+    ...mergedBase,
+    recommendedGraphNodeId,
+    currentGraphNodeId,
+    furthestMainGraphNodeId,
+    unlockedGraphNodeIds: Array.from(unlockedSet),
+    completedGraphNodeIds,
+    selectedRouteTargetBySourceNodeId,
+    pendingRouteChoice: incoming.pendingRouteChoice ?? current.pendingRouteChoice
+  }, lifetimeStats, now);
 };
 
 const apiError = (message, statusCode, details = {}) => Object.assign(
@@ -555,6 +1035,16 @@ const stringList = (value, { maxItems = 100, maxLength = 80, pattern } = {}) => 
       .filter((item) => item && (!pattern || pattern.test(item)))
   )).slice(0, maxItems);
 };
+
+const campaignPermanentRewardIds = (value) => Array.from(new Set(
+  (Array.isArray(value) ? value : [])
+    .filter((item) => typeof item === 'string')
+    .map((item) => item.trim().slice(0, 180))
+    .filter((item) => (
+      item.startsWith('campaign:')
+      && !item.includes(CAMPAIGN_REPLAY_REWARD_MARKER)
+    ))
+)).slice(-MAX_CAMPAIGN_REWARD_IDS);
 
 const bossArchiveEventIds = (value) => {
   const requested = new Set(
@@ -874,7 +1364,12 @@ const preserveCampaignBranchServerState = ({
   branchDefinitions = CAMPAIGN_BRANCHES
 }) => {
   const currentCampaign = asObject(currentSnapshot?.permanentState?.campaignProgress);
-  const incomingCampaign = asObject(incomingSnapshot.permanentState?.campaignProgress);
+  const incomingCampaign = mergeCampaignGraphProgress({
+    currentProgress: currentSnapshot?.permanentState?.campaignProgress,
+    incomingProgress: incomingSnapshot.permanentState?.campaignProgress,
+    lifetimeStats: incomingSnapshot.permanentState?.lifetimeStats,
+    now
+  });
   const current = asObject(currentCampaign.branchProgress);
   const incoming = asObject(incomingCampaign.branchProgress);
   const mergeSafeIds = (field) => [
@@ -911,22 +1406,36 @@ const preserveCampaignBranchServerState = ({
     const epoch = currentEpoch > incomingEpoch ? currentEpoch : incomingEpoch;
     return epoch ? [[missionId, epoch]] : [];
   }));
-  const currentRewardIds = stringList(
+  const currentCreditedRewardIds = stringList(
     currentSnapshot?.weeklyState?.creditedCampaignRewardIds,
-    { maxItems: 1024, maxLength: 180 }
-  ).filter((id) => id.startsWith('campaign-branch:'));
+    { maxItems: MAX_CREDITED_CAMPAIGN_REWARD_IDS, maxLength: 180 }
+  ).filter((id) => id.startsWith('campaign:') || id.startsWith('campaign-branch:'));
+  const currentBranchRewardIds = currentCreditedRewardIds
+    .filter((id) => id.startsWith('campaign-branch:'));
+  const currentNonBranchRewardIds = currentCreditedRewardIds
+    .filter((id) => id.startsWith('campaign:'));
   const incomingNonBranchRewardIds = stringList(
     incomingSnapshot.weeklyState?.creditedCampaignRewardIds,
-    { maxItems: 1024, maxLength: 180 }
+    { maxItems: MAX_CREDITED_CAMPAIGN_REWARD_IDS, maxLength: 180 }
   ).filter((id) => !id.startsWith('campaign-branch:'));
+  const nonBranchCapacity = Math.max(
+    0,
+    MAX_CREDITED_CAMPAIGN_REWARD_IDS - currentBranchRewardIds.length
+  );
+  const mergedNonBranchRewardIds = nonBranchCapacity > 0
+    ? Array.from(new Set([
+        ...currentNonBranchRewardIds,
+        ...incomingNonBranchRewardIds
+      ])).slice(-nonBranchCapacity)
+    : [];
   return {
     ...incomingSnapshot,
     weeklyState: {
       ...incomingSnapshot.weeklyState,
       creditedCampaignRewardIds: Array.from(new Set([
-        ...incomingNonBranchRewardIds,
-        ...currentRewardIds
-      ])).slice(-1024)
+        ...mergedNonBranchRewardIds,
+        ...currentBranchRewardIds
+      ])).slice(-MAX_CREDITED_CAMPAIGN_REWARD_IDS)
     },
     permanentState: {
       ...incomingSnapshot.permanentState,
@@ -984,6 +1493,8 @@ const inferLegacyBossArchiveEventIds = (lifetimeStats) => {
 };
 
 const isoNow = (now) => new Date(now).toISOString();
+const MAIN_SHIP_FIRE_RATE_MAX_LEVEL = 49;
+const MAIN_SHIP_STANDARD_UPGRADE_MAX_LEVEL = 7;
 
 const createUpgradeLevels = () => ({
   fireRate: 0,
@@ -1006,6 +1517,7 @@ const createWeeklyState = (profileId, now) => ({
   equipped: { left: null, right: null },
   shipUpgrades: createShipUpgrades(),
   creditedCampaignRewardIds: [],
+  weeklyCampaignStreak: null,
   weeklyStats: {
     runs: 0,
     score: 0,
@@ -1014,6 +1526,632 @@ const createWeeklyState = (profileId, now) => ({
   },
   updatedAt: isoNow(now)
 });
+
+const WEEKLY_CAMPAIGN_SCORE_RULES = Object.freeze({
+  regularEnemy: 12,
+  eliteEnemy: 45,
+  waveClear: 150,
+  missionClear: 650,
+  miniBoss: 500,
+  majorBoss: 1600,
+  noDamage: 300,
+  accuracy90: 200,
+  accuracy75: 100,
+  parTime: 150,
+  nearParTime: 75,
+  threeStarQuality: 400,
+  remainingLife: 20,
+  maximumRemainingLives: 10,
+  consecutiveStep: 0.015,
+  maximumConsecutiveBonus: 0.15,
+  routeRiskMultiplier: { low: 1, moderate: 1.05, high: 1.1 },
+  minimumAuthoredMultiplier: 1,
+  maximumCombinedRouteMultiplier: 1.5
+});
+
+const WEEKLY_CAMPAIGN_PROOF_MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const WEEKLY_CAMPAIGN_PROOF_MAX_MISSION_DURATION_MS = 90 * 60 * 1000;
+
+const getWeeklyMissionOutcomeLimits = (node) => {
+  const level = CAMPAIGN_LEVEL_BY_ID.get(node?.missionDefinitionId);
+  if (!level) return null;
+  const waves = Array.isArray(level.waves) ? level.waves : [];
+  const authoredSpawnBudget = waves.reduce((missionTotal, wave) => (
+    (Array.isArray(wave?.events) ? wave.events : []).reduce((waveTotal, event) => {
+      if (!['spawn', 'formation', 'elite'].includes(event?.kind)) return waveTotal;
+      const enemies = Array.isArray(event?.enemies) ? event.enemies : [];
+      const explicitCount = Math.max(0, Math.floor(Number(event?.count) || 0));
+      const spawnCount = Math.max(explicitCount, enemies.length);
+      return {
+        total: waveTotal.total + spawnCount,
+        elite: waveTotal.elite + (enemies.some((enemy) => enemy?.rank === 'elite') ? spawnCount : 0)
+      };
+    }, missionTotal)
+  ), { total: 0, elite: 0 });
+  const minimumElapsedMs = Math.max(1_000, Math.floor(
+    waves.reduce((total, wave) => (
+      wave?.completionRule === 'clear-after-duration'
+        ? total + Math.max(0, Number(wave.durationSeconds) || 0)
+        : total
+    ), 0) * 1_000 * 0.8
+  ));
+  const masteryObjectives = Array.isArray(level.campaignProgression?.masteryObjectives)
+    ? level.campaignProgression.masteryObjectives
+    : [];
+  const parTimeObjective = masteryObjectives.find((objective) => objective?.kind === 'time-at-most');
+  const authoredBossIds = waves.flatMap((wave) => (
+    Array.isArray(wave?.events)
+      ? wave.events.filter((event) => event?.kind === 'boss' && typeof event.bossId === 'string')
+        .map((event) => event.bossId)
+      : []
+  ));
+  const majorBossKillCeiling = node?.bossId
+    ? authoredBossIds.filter((bossId) => bossId === node.bossId).length
+    : 0;
+  const miniBossKillCeiling = Math.max(0, authoredBossIds.length - majorBossKillCeiling);
+  return {
+    waveCount: waves.length,
+    // Formation controllers and carrier-style units can create bounded
+    // children, so leave conservative slack while rejecting fabricated
+    // five-figure totals for a single Mission.
+    nonBossKillCeiling: Math.max(25, authoredSpawnBudget.total * 4 + 25),
+    regularEnemyKillCeiling: Math.max(25, authoredSpawnBudget.total * 4 + 25),
+    eliteKillCeiling: authoredSpawnBudget.elite,
+    miniBossKillCeiling,
+    majorBossKillCeiling,
+    minimumElapsedMs,
+    parTimeMs: Number(parTimeObjective?.target) > 0
+      ? Math.floor(Number(parTimeObjective.target) * 1_000)
+      : null,
+    masteryObjectives
+  };
+};
+
+const calculateWeeklyPerformanceStars = (limits, outcome) => {
+  if (!limits || !outcome?.missionCompleted) return 0;
+  return limits.masteryObjectives.reduce((stars, objective) => {
+    if (stars >= 3) return stars;
+    if (objective?.kind === 'complete') return stars + 1;
+    if (objective?.kind === 'damage-at-most') {
+      return outcome.damageTaken <= Number(objective.target) ? stars + 1 : stars;
+    }
+    if (objective?.kind === 'time-at-most') {
+      return outcome.elapsedMs !== null && outcome.elapsedMs <= Number(objective.target) * 1_000
+        ? stars + 1
+        : stars;
+    }
+    // Weekly receipts deliberately do not trust Campaign coin or raw score
+    // aggregates. Those objective kinds therefore cannot award a server star.
+    return stars;
+  }, 0);
+};
+
+const strictWeeklyInteger = (value, minimum, maximum) => {
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric < minimum || numeric > maximum) return null;
+  return numeric;
+};
+
+const strictWeeklyTimestamp = (value, minimum, maximum) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  const timestamp = Math.floor(numeric);
+  return timestamp >= minimum && timestamp <= maximum ? timestamp : null;
+};
+
+const weeklyCampaignPrefixDigest = (streak, {
+  visitedNodeCount = streak.visitedNodeIds.length,
+  committedRouteCount = streak.committedRoutes.length,
+  scoreEventCount = streak.scoreEvents.length
+} = {}) => crypto.createHash('sha256').update(JSON.stringify({
+  schemaVersion: streak.schemaVersion,
+  weeklyId: streak.weeklyId,
+  resetAtMs: streak.resetAtMs,
+  startNodeId: streak.startNodeId,
+  createdAtMs: streak.createdAtMs,
+  visitedNodeIds: streak.visitedNodeIds.slice(0, visitedNodeCount),
+  committedRoutes: streak.committedRoutes.slice(0, committedRouteCount),
+  scoreEvents: streak.scoreEvents.slice(0, scoreEventCount).map((event) => ({
+    eventId: event.eventId,
+    nodeId: event.nodeId,
+    occurredAtMs: event.occurredAtMs,
+    outcome: event.outcome
+  }))
+})).digest('hex');
+
+const canonicalizeWeeklyCampaignStreakServer = (
+  rawValue,
+  boundary,
+  now,
+  { requireFinalized = false, expectedBinding = null } = {}
+) => {
+  const fail = (code) => ({ streak: null, error: code });
+  const value = asObject(rawValue);
+  if (!CAMPAIGN_GRAPH || Object.keys(value).length === 0) return fail('weekly_proof_missing');
+  if (value.schemaVersion !== 1) return fail('weekly_schema_invalid');
+  const revision = strictWeeklyInteger(value.revision, 1, Number.MAX_SAFE_INTEGER);
+  if (revision === null) return fail('weekly_revision_invalid');
+  if (value.weeklyId !== boundary.weekKey) return fail('weekly_boundary_invalid');
+  const resetAtMs = strictWeeklyInteger(value.resetAtMs, 1, Number.MAX_SAFE_INTEGER);
+  if (resetAtMs !== boundary.endsAt.getTime() || now >= resetAtMs) {
+    return fail('weekly_boundary_invalid');
+  }
+
+  const startNodeId = typeof value.startNodeId === 'string' ? value.startNodeId : '';
+  const startNode = CAMPAIGN_GRAPH_NODE_BY_ID.get(startNodeId);
+  if (!startNode?.weeklyStreakEligible) return fail('weekly_start_node_invalid');
+  if (
+    expectedBinding
+    && (
+      expectedBinding.weeklyId !== boundary.weekKey
+      || expectedBinding.resetAtMs !== resetAtMs
+      || (expectedBinding.startNodeId && expectedBinding.startNodeId !== startNodeId)
+    )
+  ) return fail('weekly_start_binding_mismatch');
+
+  const latestAllowedTimestamp = now + WEEKLY_CAMPAIGN_PROOF_MAX_CLOCK_SKEW_MS;
+  const createdAtMs = strictWeeklyTimestamp(
+    value.createdAtMs,
+    boundary.startsAt.getTime(),
+    Math.min(resetAtMs - 1, latestAllowedTimestamp)
+  );
+  const updatedAtMs = createdAtMs === null
+    ? null
+    : strictWeeklyTimestamp(
+        value.updatedAtMs,
+        createdAtMs,
+        Math.min(resetAtMs - 1, latestAllowedTimestamp)
+      );
+  if (createdAtMs === null || updatedAtMs === null) return fail('weekly_timestamps_invalid');
+  if (expectedBinding?.createdAtMs !== undefined && expectedBinding.createdAtMs !== createdAtMs) {
+    return fail('weekly_start_binding_mismatch');
+  }
+
+  const rawVisitedNodeIds = Array.isArray(value.visitedNodeIds) ? value.visitedNodeIds : [];
+  const rawCommitments = Array.isArray(value.committedRoutes) ? value.committedRoutes : [];
+  if (
+    rawVisitedNodeIds.length < 1
+    || rawVisitedNodeIds.length > CAMPAIGN_GRAPH_NODE_IDS.length
+    || rawVisitedNodeIds[0] !== startNodeId
+    || new Set(rawVisitedNodeIds).size !== rawVisitedNodeIds.length
+    || rawCommitments.length !== rawVisitedNodeIds.length - 1
+  ) return fail('weekly_route_order_invalid');
+
+  const committedRoutes = [];
+  const visitedNodeIds = [startNodeId];
+  const committedEdgeIds = new Set();
+  let currentNodeId = startNodeId;
+  for (let index = 0; index < rawCommitments.length; index += 1) {
+    const commitment = asObject(rawCommitments[index]);
+    const edgeId = typeof commitment.edgeId === 'string' ? commitment.edgeId : '';
+    const edge = CAMPAIGN_GRAPH_EDGE_BY_ID.get(edgeId);
+    const target = edge ? CAMPAIGN_GRAPH_NODE_BY_ID.get(edge.toNodeId) : null;
+    if (
+      !edge
+      || committedEdgeIds.has(edge.edgeId)
+      || edge.fromNodeId !== currentNodeId
+      || commitment.fromNodeId !== currentNodeId
+      || commitment.toNodeId !== edge.toNodeId
+      || rawVisitedNodeIds[index + 1] !== edge.toNodeId
+      || !target?.weeklyStreakEligible
+      || visitedNodeIds.includes(edge.toNodeId)
+    ) return fail('weekly_route_order_invalid');
+    const prerequisites = Array.isArray(target.prerequisiteNodeIds)
+      ? target.prerequisiteNodeIds
+      : [];
+    const prerequisitesMet = prerequisites.length === 0
+      || (target.prerequisiteMode === 'any'
+        ? prerequisites.some((nodeId) => visitedNodeIds.includes(nodeId))
+        : prerequisites.every((nodeId) => visitedNodeIds.includes(nodeId)));
+    if (!prerequisitesMet) return fail('weekly_prerequisites_invalid');
+    const committedAtMs = strictWeeklyTimestamp(
+      commitment.committedAtMs,
+      createdAtMs,
+      updatedAtMs
+    );
+    if (
+      committedAtMs === null
+      || (committedRoutes.length > 0
+        && committedAtMs <= committedRoutes[committedRoutes.length - 1].committedAtMs)
+    ) return fail('weekly_timestamps_invalid');
+    committedRoutes.push({
+      edgeId: edge.edgeId,
+      fromNodeId: currentNodeId,
+      toNodeId: edge.toNodeId,
+      routeId: edge.routeId,
+      risk: ['low', 'moderate', 'high'].includes(edge.risk) ? edge.risk : 'low',
+      committedAtMs
+    });
+    committedEdgeIds.add(edge.edgeId);
+    currentNodeId = edge.toNodeId;
+    visitedNodeIds.push(currentNodeId);
+  }
+  if (value.currentNodeId !== currentNodeId) return fail('weekly_route_order_invalid');
+
+  const rawScoreEvents = Array.isArray(value.scoreEvents) ? value.scoreEvents : [];
+  const rawScoredNodeIds = Array.isArray(value.scoredNodeIds) ? value.scoredNodeIds : [];
+  if (
+    (requireFinalized && rawScoreEvents.length < 1)
+    || rawScoreEvents.length > visitedNodeIds.length
+    || rawScoreEvents.length !== rawScoredNodeIds.length
+    || new Set(rawScoredNodeIds).size !== rawScoredNodeIds.length
+  ) return fail('weekly_score_event_order_invalid');
+
+  const rawEventIds = new Set();
+  const scoreEvents = [];
+  const score = {
+    totalPoints: 0,
+    enemyPoints: 0,
+    elitePoints: 0,
+    wavePoints: 0,
+    missionPoints: 0,
+    miniBossPoints: 0,
+    majorBossPoints: 0,
+    performancePoints: 0,
+    remainingLifePoints: 0,
+    routeBonusPoints: 0,
+    consecutiveBonusPoints: 0,
+    completedNodeCount: 0,
+    eventCount: 0
+  };
+  let previousEventTimestamp = createdAtMs;
+  for (let index = 0; index < rawScoreEvents.length; index += 1) {
+    const event = asObject(rawScoreEvents[index]);
+    const nodeId = visitedNodeIds[index];
+    const node = CAMPAIGN_GRAPH_NODE_BY_ID.get(nodeId);
+    const eventId = typeof event.eventId === 'string' ? event.eventId.trim() : '';
+    if (
+      !node
+      || event.nodeId !== nodeId
+      || rawScoredNodeIds[index] !== nodeId
+      || !eventId
+      || eventId.length > 180
+      || rawEventIds.has(eventId)
+    ) return fail('weekly_score_event_order_invalid');
+    const occurredAtMs = strictWeeklyTimestamp(event.occurredAtMs, previousEventTimestamp, updatedAtMs);
+    if (occurredAtMs === null || occurredAtMs <= previousEventTimestamp) {
+      return fail('weekly_timestamps_invalid');
+    }
+    const limits = getWeeklyMissionOutcomeLimits(node);
+    if (!limits) return fail('weekly_mission_definition_missing');
+    const outcomeValue = asObject(event.outcome);
+    const regularEnemyKills = strictWeeklyInteger(
+      outcomeValue.regularEnemyKills,
+      0,
+      limits.regularEnemyKillCeiling
+    );
+    const eliteKills = strictWeeklyInteger(outcomeValue.eliteKills, 0, limits.eliteKillCeiling);
+    const wavesCleared = strictWeeklyInteger(outcomeValue.wavesCleared, 0, limits.waveCount);
+    const miniBossKills = strictWeeklyInteger(
+      outcomeValue.miniBossKills,
+      0,
+      limits.miniBossKillCeiling
+    );
+    const majorBossKills = strictWeeklyInteger(
+      outcomeValue.majorBossKills,
+      0,
+      limits.majorBossKillCeiling
+    );
+    const damageTaken = strictWeeklyInteger(outcomeValue.damageTaken, 0, 1_000_000);
+    const livesRemaining = strictWeeklyInteger(
+      outcomeValue.livesRemaining,
+      0,
+      WEEKLY_CAMPAIGN_SCORE_RULES.maximumRemainingLives
+    );
+    const accuracy = outcomeValue.accuracy === null || outcomeValue.accuracy === undefined
+      ? null
+      : Number(outcomeValue.accuracy);
+    const elapsedMs = outcomeValue.elapsedMs === null || outcomeValue.elapsedMs === undefined
+      ? null
+      : strictWeeklyInteger(
+          outcomeValue.elapsedMs,
+          1,
+          WEEKLY_CAMPAIGN_PROOF_MAX_MISSION_DURATION_MS
+        );
+    if (
+      outcomeValue.missionCompleted !== true
+      || regularEnemyKills === null
+      || eliteKills === null
+      || regularEnemyKills + eliteKills > limits.nonBossKillCeiling
+      || wavesCleared !== limits.waveCount
+      || miniBossKills !== limits.miniBossKillCeiling
+      || majorBossKills !== limits.majorBossKillCeiling
+      || damageTaken === null
+      || livesRemaining === null
+      || (accuracy !== null && (!Number.isFinite(accuracy) || accuracy < 0 || accuracy > 1))
+      || (outcomeValue.elapsedMs !== null && outcomeValue.elapsedMs !== undefined && elapsedMs === null)
+      || (elapsedMs !== null && elapsedMs < limits.minimumElapsedMs)
+      || (requireFinalized && elapsedMs === null)
+    ) return fail('weekly_outcome_impossible');
+
+    const outcome = {
+      regularEnemyKills,
+      eliteKills,
+      wavesCleared,
+      miniBossKills,
+      majorBossKills,
+      missionCompleted: true,
+      damageTaken,
+      livesRemaining,
+      accuracy,
+      elapsedMs,
+      parTimeMs: limits.parTimeMs,
+      performanceStars: 0
+    };
+    outcome.performanceStars = calculateWeeklyPerformanceStars(limits, outcome);
+
+    const incoming = index > 0 ? committedRoutes[index - 1] : null;
+    const edge = incoming ? CAMPAIGN_GRAPH_EDGE_BY_ID.get(incoming.edgeId) : null;
+    if (incoming && incoming.committedAtMs <= previousEventTimestamp) {
+      return fail('weekly_timestamps_invalid');
+    }
+    if (incoming && occurredAtMs <= incoming.committedAtMs) {
+      return fail('weekly_timestamps_invalid');
+    }
+    const enemyPoints = outcome.regularEnemyKills * WEEKLY_CAMPAIGN_SCORE_RULES.regularEnemy;
+    const elitePoints = outcome.eliteKills * WEEKLY_CAMPAIGN_SCORE_RULES.eliteEnemy;
+    const wavePoints = outcome.wavesCleared * WEEKLY_CAMPAIGN_SCORE_RULES.waveClear;
+    const missionPoints = WEEKLY_CAMPAIGN_SCORE_RULES.missionClear;
+    const miniBossPoints = outcome.miniBossKills * WEEKLY_CAMPAIGN_SCORE_RULES.miniBoss;
+    const majorBossPoints = outcome.majorBossKills * WEEKLY_CAMPAIGN_SCORE_RULES.majorBoss;
+    const noDamagePoints = outcome.damageTaken === 0 ? WEEKLY_CAMPAIGN_SCORE_RULES.noDamage : 0;
+    const accuracyPoints = outcome.accuracy !== null && outcome.accuracy >= 0.9
+      ? WEEKLY_CAMPAIGN_SCORE_RULES.accuracy90
+      : outcome.accuracy !== null && outcome.accuracy >= 0.75
+        ? WEEKLY_CAMPAIGN_SCORE_RULES.accuracy75
+        : 0;
+    const timePoints = outcome.elapsedMs !== null && outcome.parTimeMs !== null
+      ? outcome.elapsedMs <= outcome.parTimeMs
+        ? WEEKLY_CAMPAIGN_SCORE_RULES.parTime
+        : outcome.elapsedMs <= outcome.parTimeMs * 1.2
+          ? WEEKLY_CAMPAIGN_SCORE_RULES.nearParTime
+          : 0
+      : 0;
+    const threeStarQualityPoints = outcome.performanceStars === 3
+      ? WEEKLY_CAMPAIGN_SCORE_RULES.threeStarQuality
+      : 0;
+    const remainingLifePoints = outcome.livesRemaining * WEEKLY_CAMPAIGN_SCORE_RULES.remainingLife;
+    const basePoints = enemyPoints + elitePoints + wavePoints + missionPoints + miniBossPoints
+      + majorBossPoints + noDamagePoints + accuracyPoints + timePoints + threeStarQualityPoints
+      + remainingLifePoints;
+    const riskMultiplier = WEEKLY_CAMPAIGN_SCORE_RULES.routeRiskMultiplier[edge?.risk] || 1;
+    const routeMultiplier = Math.min(
+      WEEKLY_CAMPAIGN_SCORE_RULES.maximumCombinedRouteMultiplier,
+      riskMultiplier * Math.max(
+        WEEKLY_CAMPAIGN_SCORE_RULES.minimumAuthoredMultiplier,
+        Number(edge?.weeklyScoreMultiplier) || 1
+      ) * Math.max(
+        WEEKLY_CAMPAIGN_SCORE_RULES.minimumAuthoredMultiplier,
+        Number(node.weeklyScoreMultiplier) || 1
+      )
+    );
+    const afterRoute = Math.round(basePoints * routeMultiplier);
+    const consecutiveMultiplier = 1 + Math.min(
+      score.completedNodeCount * WEEKLY_CAMPAIGN_SCORE_RULES.consecutiveStep,
+      WEEKLY_CAMPAIGN_SCORE_RULES.maximumConsecutiveBonus
+    );
+    const totalPoints = Math.round(afterRoute * consecutiveMultiplier);
+    const breakdown = {
+      enemyPoints,
+      elitePoints,
+      wavePoints,
+      missionPoints,
+      miniBossPoints,
+      majorBossPoints,
+      noDamagePoints,
+      accuracyPoints,
+      timePoints,
+      threeStarQualityPoints,
+      remainingLifePoints,
+      basePoints,
+      routeMultiplier,
+      routeBonusPoints: afterRoute - basePoints,
+      consecutiveMultiplier,
+      consecutiveBonusPoints: totalPoints - afterRoute,
+      totalPoints
+    };
+    scoreEvents.push({ eventId, nodeId, occurredAtMs, outcome, breakdown });
+    score.totalPoints += totalPoints;
+    score.enemyPoints += enemyPoints;
+    score.elitePoints += elitePoints;
+    score.wavePoints += wavePoints;
+    score.missionPoints += missionPoints;
+    score.miniBossPoints += miniBossPoints;
+    score.majorBossPoints += majorBossPoints;
+    score.performancePoints += noDamagePoints + accuracyPoints + timePoints + threeStarQualityPoints;
+    score.remainingLifePoints += remainingLifePoints;
+    score.routeBonusPoints += breakdown.routeBonusPoints;
+    score.consecutiveBonusPoints += breakdown.consecutiveBonusPoints;
+    score.completedNodeCount += 1;
+    score.eventCount += 1;
+    rawEventIds.add(eventId);
+    previousEventTimestamp = occurredAtMs;
+  }
+
+  // Every route commitment requires the source Mission to have been scored.
+  if (scoreEvents.length < committedRoutes.length) return fail('weekly_unscored_route_advance');
+  for (let index = 0; index < committedRoutes.length; index += 1) {
+    if (committedRoutes[index].committedAtMs <= scoreEvents[index].occurredAtMs) {
+      return fail('weekly_timestamps_invalid');
+    }
+  }
+
+  const rawFinalization = asObject(value.finalization);
+  const allowedReasons = new Set([
+    'loss', 'deliberate-end', 'backward-selection', 'repeat-selection',
+    'disconnected-selection', 'forward-route-violation', 'terminal-complete',
+    'merge-conflict', 'migrated-finalized'
+  ]);
+  const finalized = rawFinalization.status === 'finalized';
+  if (requireFinalized && !finalized) return fail('weekly_proof_not_finalized');
+  if (!finalized && rawFinalization.status !== 'active') return fail('weekly_finalization_invalid');
+  const reason = finalized && allowedReasons.has(rawFinalization.reason)
+    ? rawFinalization.reason
+    : null;
+  if (finalized && !reason) return fail('weekly_finalization_invalid');
+  const finalizedAtMs = finalized
+    ? strictWeeklyTimestamp(rawFinalization.finalizedAtMs, previousEventTimestamp + 1, updatedAtMs)
+    : null;
+  if (finalized && finalizedAtMs === null) return fail('weekly_timestamps_invalid');
+  if (reason === 'terminal-complete') {
+    const eligibleOutgoing = (Array.isArray(CAMPAIGN_GRAPH_NODE_BY_ID.get(currentNodeId)?.outgoingEdges)
+      ? CAMPAIGN_GRAPH_NODE_BY_ID.get(currentNodeId).outgoingEdges
+      : []).filter((edge) => CAMPAIGN_GRAPH_NODE_BY_ID.get(edge.toNodeId)?.weeklyStreakEligible);
+    if (scoreEvents.length !== visitedNodeIds.length || eligibleOutgoing.length > 0) {
+      return fail('weekly_terminal_invalid');
+    }
+  }
+  const submissionStatus = finalized
+    && ['ready', 'pending', 'submitted', 'failed'].includes(rawFinalization.submissionStatus)
+    ? rawFinalization.submissionStatus
+    : finalized ? 'ready' : 'not-ready';
+  const triggerNodeId = typeof rawFinalization.triggerNodeId === 'string'
+    && CAMPAIGN_GRAPH_NODE_BY_ID.has(rawFinalization.triggerNodeId)
+    ? rawFinalization.triggerNodeId
+    : null;
+
+  const streak = {
+    schemaVersion: 1,
+    revision,
+    weeklyId: boundary.weekKey,
+    resetAtMs,
+    startNodeId,
+    currentNodeId,
+    committedRoutes,
+    visitedNodeIds,
+    scoredNodeIds: scoreEvents.map((event) => event.nodeId),
+    scoreEvents,
+    score,
+    finalization: {
+      status: finalized ? 'finalized' : 'active',
+      reason,
+      finalizedAtMs,
+      triggerNodeId,
+      submissionStatus,
+      submissionId: typeof rawFinalization.submissionId === 'string'
+        ? rawFinalization.submissionId.slice(0, 180)
+        : null,
+      submittedAtMs: submissionStatus === 'submitted'
+        ? strictWeeklyTimestamp(rawFinalization.submittedAtMs, finalizedAtMs ?? createdAtMs, updatedAtMs)
+        : null
+    },
+    createdAtMs,
+    updatedAtMs
+  };
+
+  if (expectedBinding) {
+    const visitedNodeCount = strictWeeklyInteger(
+      expectedBinding.visitedNodeCount,
+      1,
+      visitedNodeIds.length
+    );
+    const committedRouteCount = strictWeeklyInteger(
+      expectedBinding.committedRouteCount,
+      0,
+      committedRoutes.length
+    );
+    const scoreEventCount = strictWeeklyInteger(
+      expectedBinding.scoreEventCount,
+      0,
+      scoreEvents.length
+    );
+    const boundRevision = strictWeeklyInteger(
+      expectedBinding.revision,
+      1,
+      Number.MAX_SAFE_INTEGER
+    );
+    const boundAtMs = strictWeeklyTimestamp(
+      expectedBinding.boundAtMs,
+      createdAtMs,
+      Math.min(resetAtMs - 1, latestAllowedTimestamp)
+    );
+    if (
+      visitedNodeCount === null
+      || committedRouteCount === null
+      || scoreEventCount === null
+      || boundRevision === null
+      || boundAtMs === null
+      || committedRouteCount !== visitedNodeCount - 1
+      || scoreEventCount > visitedNodeCount
+      || expectedBinding.currentNodeId !== visitedNodeIds[visitedNodeCount - 1]
+      || expectedBinding.prefixHash !== weeklyCampaignPrefixDigest(streak, {
+        visitedNodeCount,
+        committedRouteCount,
+        scoreEventCount
+      })
+    ) return fail('weekly_start_binding_mismatch');
+
+    const newCommitments = committedRoutes.slice(committedRouteCount);
+    const newEvents = scoreEvents.slice(scoreEventCount);
+    if (
+      newCommitments.some((commitment) => commitment.committedAtMs <= boundAtMs)
+      || newEvents.some((event) => event.occurredAtMs <= boundAtMs)
+    ) return fail('weekly_start_binding_mismatch');
+
+    const minimumRevision = boundRevision
+      + newCommitments.length
+      + newEvents.length
+      + (finalized ? 1 : 0);
+    if (revision < minimumRevision) return fail('weekly_revision_invalid');
+  }
+
+  return {
+    error: null,
+    streak
+  };
+};
+
+const sanitizeWeeklyCampaignStreakServer = (rawValue, boundary, now) => (
+  canonicalizeWeeklyCampaignStreakServer(rawValue, boundary, now).streak
+);
+
+const createWeeklyCampaignStreakRunBinding = (
+  rawValue,
+  { now = Date.now() } = {}
+) => {
+  const boundary = getWeeklyBoundaryMeta(new Date(now));
+  const result = canonicalizeWeeklyCampaignStreakServer(rawValue, boundary, now);
+  if (!result.streak || result.streak.finalization.status !== 'active') {
+    throw apiError('An active Weekly Campaign proof is required to start this run.', 422, {
+      details: { anomalies: [result.error || 'weekly_start_proof_not_active'] }
+    });
+  }
+  const streak = result.streak;
+  return {
+    schemaVersion: 1,
+    weeklyId: streak.weeklyId,
+    resetAtMs: streak.resetAtMs,
+    startNodeId: streak.startNodeId,
+    createdAtMs: streak.createdAtMs,
+    currentNodeId: streak.currentNodeId,
+    revision: streak.revision,
+    visitedNodeCount: streak.visitedNodeIds.length,
+    committedRouteCount: streak.committedRoutes.length,
+    scoreEventCount: streak.scoreEvents.length,
+    scoreElapsedMs: streak.scoreEvents.reduce((total, event) => (
+      total + (event.outcome.elapsedMs ?? 0)
+    ), 0),
+    prefixHash: weeklyCampaignPrefixDigest(streak),
+    boundAtMs: Math.floor(now)
+  };
+};
+
+const validateFinalizedWeeklyCampaignStreakProof = (
+  rawValue,
+  { now = Date.now(), expectedBinding = null } = {}
+) => {
+  const boundary = getWeeklyBoundaryMeta(new Date(now));
+  const result = canonicalizeWeeklyCampaignStreakServer(rawValue, boundary, now, {
+    requireFinalized: true,
+    expectedBinding
+  });
+  if (!result.streak) {
+    throw apiError('Weekly Campaign proof failed integrity checks.', 422, {
+      details: { anomalies: [result.error || 'weekly_proof_invalid'] }
+    });
+  }
+  return result.streak;
+};
 
 const sanitizeWeeklyState = (rawValue, profileId, now) => {
   const value = asObject(rawValue);
@@ -1029,9 +2167,9 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
   PLAYER_SHIP_IDS.forEach((shipId) => {
     const levels = asObject(rawUpgrades[shipId]);
     shipUpgrades[shipId] = {
-      fireRate: integer(levels.fireRate, 0, 21),
-      speed: integer(levels.speed, 0, 7),
-      startingHearts: integer(levels.startingHearts, 0, 7)
+      fireRate: integer(levels.fireRate, 0, MAIN_SHIP_FIRE_RATE_MAX_LEVEL),
+      speed: integer(levels.speed, 0, MAIN_SHIP_STANDARD_UPGRADE_MAX_LEVEL),
+      startingHearts: integer(levels.startingHearts, 0, MAIN_SHIP_STANDARD_UPGRADE_MAX_LEVEL)
     };
   });
   const equipped = {};
@@ -1045,6 +2183,7 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
     integer(value.durableCampaignCoins, 0, 1_000_000_000),
     sanitizedCoins
   );
+  const boundary = getWeeklyBoundaryMeta(new Date(now));
   return {
     ...fallback,
     // Competition currency and run totals restart each week. Hangar ownership,
@@ -1059,9 +2198,12 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
     equipped,
     shipUpgrades,
     creditedCampaignRewardIds: stringList(value.creditedCampaignRewardIds, {
-      maxItems: 1024,
+      maxItems: MAX_CREDITED_CAMPAIGN_REWARD_IDS,
       maxLength: 180
     }).filter((id) => id.startsWith('campaign:') || id.startsWith('campaign-branch:')),
+    weeklyCampaignStreak: isCurrentWeek
+      ? sanitizeWeeklyCampaignStreakServer(value.weeklyCampaignStreak, boundary, now)
+      : null,
     weeklyStats: isCurrentWeek
       ? {
           runs: integer(weeklyStats.runs, 0, 1_000_000),
@@ -1326,6 +2468,7 @@ module.exports = {
   MAX_SNAPSHOT_BYTES,
   PROFILES_TABLE,
   consumeWalletProfileChallenge,
+  createWeeklyCampaignStreakRunBinding,
   createWalletProfileChallenge,
   createWeeklyState,
   fetchWalletProfile,
@@ -1334,11 +2477,13 @@ module.exports = {
   getWalletProfileChallenge,
   rowToProfile,
   sanitizeCampaignProgress,
+  mergeCampaignGraphProgress,
   sanitizeCampaignBranchProgress,
   sanitizePermanentState,
   sanitizeStats,
   sanitizeWalletSnapshot,
   sanitizeWeeklyState,
+  validateFinalizedWeeklyCampaignStreakProof,
   preserveBossArchiveServerState,
   preserveCampaignBranchServerState,
   saveWalletProfile

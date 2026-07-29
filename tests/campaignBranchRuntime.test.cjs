@@ -66,18 +66,20 @@ const campaign = {
   }]
 };
 
-test('present-drop adapter creates one canonical asteroid target event per authored present', () => {
+test('present-drop adapter creates one canonical Supply Drop event per authored package', () => {
   const result = runtime.buildCampaignBranchRuntimeCampaign(campaign, branch);
   assert.equal(result.levels.length, 1);
   assert.equal(result.levels[0].waves.length, 1);
   assert.equal(result.levels[0].waves[0].completionRule, 'clear-after-duration');
   assert.equal(result.levels[0].waves[0].events.length, 6);
   assert.deepEqual(
-    result.levels[0].waves[0].events.map((event) => event.bonusTargetKind),
+    result.levels[0].waves[0].events.map((event) => event.presentKind),
     ['standard', 'standard', 'armored', 'fast', 'fast', 'golden']
   );
   assert.ok(result.levels[0].waves[0].events.every((event) => event.blocksWaveClock === false));
-  assert.ok(result.levels[0].waves[0].events.every((event) => event.damage === 0));
+  assert.ok(result.levels[0].waves[0].events.every((event) => event.kind === 'supply-drop'));
+  assert.ok(result.levels[0].waves[0].events.every((event) => event.positionId === 'formation-top'));
+  assert.ok(result.levels[0].waves[0].events.every((event) => event.damage === undefined));
   assert.equal(result.campaignBranches, undefined);
 });
 
@@ -94,9 +96,12 @@ test('result verification clamps client counts and coins to authored destroyed v
   assert.equal(verified.totalCoins, 147);
 });
 
-test('runtime source keeps branch missions on the existing asteroid and clear-wave path', () => {
-  assert.match(source, /kind: 'asteroid-belt'/);
+test('runtime source keeps branch missions on the dedicated Supply Drop and clear-wave path', () => {
+  assert.match(source, /kind: 'supply-drop'/);
   assert.match(source, /completionRule: 'clear-after-duration'/);
-  assert.match(source, /bonusTargetKind: present\.kind/);
+  assert.match(source, /presentKind: present\.kind/);
+  assert.doesNotMatch(source, /kind: 'asteroid-belt'/);
+  assert.doesNotMatch(source, /patternId: 'asteroid-lanes'/);
+  assert.doesNotMatch(source, /ENEMY_BRICK/);
   assert.doesNotMatch(source, /new PIXI|document\.createElement\(['"]canvas/);
 });

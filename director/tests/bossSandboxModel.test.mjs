@@ -223,8 +223,9 @@ test('Boss Sandbox groups main-game and every non-campaign prototype without los
   const groupById = new Map(groups.map((group) => [group.id, group]));
   const campaignGroup = groupById.get(model.BOSS_SANDBOX_GROUP_IDS.campaign);
   const testGroup = groupById.get(model.BOSS_SANDBOX_GROUP_IDS.test);
+  const miniBossGroup = groupById.get(model.BOSS_SANDBOX_GROUP_IDS.miniBosses);
   const campaignChoices = campaignGroup.choices;
-  const prototypeChoices = testGroup.choices;
+  const prototypeChoices = [...testGroup.choices, ...miniBossGroup.choices];
   const configuredBossCount = campaign.levels.flatMap((level) => level.waves)
     .flatMap((wave) => wave.events)
     .filter((event) => event.kind === 'boss').length;
@@ -233,12 +234,16 @@ test('Boss Sandbox groups main-game and every non-campaign prototype without los
     groups.map((group) => group.id),
     [
       model.BOSS_SANDBOX_GROUP_IDS.campaign,
-      model.BOSS_SANDBOX_GROUP_IDS.test
+      model.BOSS_SANDBOX_GROUP_IDS.test,
+      model.BOSS_SANDBOX_GROUP_IDS.miniBosses
     ]
   );
   assert.equal(campaignGroup.source, 'campaign');
   assert.equal(testGroup.source, 'test');
-  assert.equal(testGroup.choices.length, 14);
+  assert.equal(miniBossGroup.source, 'test');
+  assert.equal(testGroup.choices.length, 15);
+  assert.equal(miniBossGroup.choices.length, 8);
+  assert.equal(miniBossGroup.label, 'MINI-BOSS LAB · Campaign roster');
   artworkFixtures.forEach(({ prototypeId }) => {
     assert.ok(prototypeChoices.some((choice) => choice.prototypeId === prototypeId));
   });
@@ -263,6 +268,73 @@ test('Boss Sandbox groups main-game and every non-campaign prototype without los
     new Set(groups.flatMap((group) => group.choices.map((choice) => choice.id))).size,
     configuredBossCount + prototypeChoices.length
   );
+  assert.deepEqual(campaign, sourceSnapshot);
+});
+
+test('Mini-Boss Lab categories filter eight Campaign-assigned Sandbox-previewable encounters', () => {
+  const groups = model.buildBossSandboxGroups(campaign);
+  assert.deepEqual(
+    model.BOSS_SANDBOX_CATEGORIES.map((category) => category.label),
+    [
+      'Full Bosses',
+      'Mini Bosses',
+      'Test Bosses',
+      'Elite Enemies',
+      'Paired Encounters',
+      'Guardian Formations',
+      'Wall Encounters',
+      'All Encounters'
+    ]
+  );
+  assert.equal(model.getBossSandboxSelectorLabel('full-bosses'), 'Boss to Test');
+  assert.equal(model.getBossSandboxSelectorLabel('test-bosses'), 'Test Boss to Test');
+  assert.equal(model.getBossSandboxSelectorLabel('mini-bosses'), 'Mini Boss to Test');
+  assert.equal(model.getBossSandboxSelectorLabel('elite-enemies'), 'Elite to Test');
+  assert.equal(model.getBossSandboxSelectorLabel('guardian-formations'), 'Formation to Test');
+
+  const testBossChoices = model.filterBossSandboxGroups(groups, 'test-bosses')
+    .flatMap((group) => group.choices);
+  assert.equal(testBossChoices.length, 15);
+  assert.ok(testBossChoices.every((choice) => choice.source === 'test'));
+  assert.ok(testBossChoices.every((choice) => choice.encounterClass === 'full-boss'));
+  assert.ok(testBossChoices.some((choice) => (
+    choice.prototypeId === 'cinderjaw-siege-beetle'
+    && choice.bossLabel === 'Cinderjaw Siege Beetle'
+  )));
+  const paywallArchive = testBossChoices.find((choice) => (
+    choice.prototypeId === 'paywall-decimator-archive'
+  ));
+  assert.ok(paywallArchive);
+  assert.equal(paywallArchive.bossLabel, 'Paywall Decimator');
+  const paywallPreview = model.buildBossSandboxPreview(campaign, paywallArchive);
+  const paywallBoss = paywallPreview.previewWave.events.find((event) => event.kind === 'boss');
+  assert.equal(paywallBoss.spriteKey, 'PIXI_BOSS_PAYWALL_FRAMES');
+  assert.equal(paywallBoss.rigId, 'paywall-siege');
+  assert.deepEqual(
+    paywallBoss.weapons.map((weapon) => weapon.id),
+    ['sandbox-paywall-decimator-burst', 'sandbox-paywall-decimator-beam']
+  );
+
+  const miniBossChoices = model.filterBossSandboxGroups(groups, 'mini-bosses')
+    .flatMap((group) => group.choices);
+  assert.equal(miniBossChoices.length, 8);
+  assert.ok(miniBossChoices.every((choice) => choice.source === 'test'));
+  assert.ok(miniBossChoices.every((choice) => choice.encounterClass === 'mini-boss'));
+  assert.ok(miniBossChoices.every((choice) => choice.miniBoss?.sandboxReady === true));
+  assert.ok(miniBossChoices.every((choice) => choice.miniBoss?.campaignAssigned === true));
+  assert.ok(miniBossChoices.every((choice) => choice.artworkAssetId));
+
+  const pairIds = model.filterBossSandboxGroups(groups, 'paired-encounters')
+    .flatMap((group) => group.choices)
+    .map((choice) => choice.miniBoss?.encounterId);
+  assert.deepEqual(pairIds, [
+    'fracture-engine-elite',
+    'twin-meridian-sentinels',
+    'gridline-sentries'
+  ]);
+  const allChoices = model.filterBossSandboxGroups(groups, 'all-encounters')
+    .flatMap((group) => group.choices);
+  assert.equal(allChoices.length, groups.flatMap((group) => group.choices).length);
   assert.deepEqual(campaign, sourceSnapshot);
 });
 
@@ -302,9 +374,16 @@ test('production choices resolve to one valid source boss without mutating campa
 test('all boss choices expose numbered controls, grouping authored sentences and preserving legacy clips', () => {
   const groups = model.buildBossSandboxGroups(campaign);
   const choices = groups.flatMap((group) => group.choices);
+  const testChoiceCount = groups.filter((group) => group.source === 'test')
+    .flatMap((group) => group.choices).length;
   let tinyTimelineAttackCount = 0;
 
-  assert.equal(choices.length, 26);
+  assert.equal(choices.length, (
+    campaign.levels.flatMap((level) => level.waves)
+      .flatMap((wave) => wave.events)
+      .filter((event) => event.kind === 'boss').length
+    + testChoiceCount
+  ));
   for (const choice of choices) {
     const preview = model.buildBossSandboxPreview(campaign, choice);
     const event = preview.previewWave.events.find((candidate) => candidate.kind === 'boss');

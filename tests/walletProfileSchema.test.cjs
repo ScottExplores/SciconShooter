@@ -7,6 +7,7 @@ process.env.NODE_ENV = 'test';
 
 const {
   createWeeklyState,
+  mergeCampaignGraphProgress,
   preserveCampaignBranchServerState,
   sanitizeCampaignBranchProgress,
   sanitizeWalletSnapshot
@@ -28,6 +29,14 @@ const SECOND_MISSION_LAST_WAVE = SECOND_MISSION.waves
   .slice()
   .sort((left, right) => left.order - right.order)
   .at(-1);
+const CAMPAIGN_GRAPH = campaign.campaignGraph;
+const GRAPH_ENTRY = CAMPAIGN_GRAPH.nodes.find((node) => node.nodeId === CAMPAIGN_GRAPH.entryNodeId);
+const GRAPH_ROUTE_TARGETS = GRAPH_ENTRY.outgoingEdges.map((edge) => edge.toNodeId);
+const GRAPH_ROUTE_A = CAMPAIGN_GRAPH.nodes.find((node) => node.nodeId === GRAPH_ROUTE_TARGETS[0]);
+const GRAPH_ROUTE_B = CAMPAIGN_GRAPH.nodes.find((node) => node.nodeId === GRAPH_ROUTE_TARGETS[1]);
+const FIRST_BOSS_EVENT_ID = campaign.levels
+  .flatMap((level) => level.waves.flatMap((wave) => wave.events))
+  .find((event) => event.kind === 'boss' && event.bossId === campaign.sectors[0].majorBossId).id;
 const TEST_BRANCHES = [{
   branchId: 'wallet-test-supply-cache',
   sourceMissionId: FIRST_MISSION.id,
@@ -107,7 +116,7 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
   assert.equal(sanitized.permanentState.profileId, PROFILE_ID);
   assert.equal(sanitized.weeklyState.ownedMiniShips['citation-dart'], 5);
   assert.equal(sanitized.weeklyState.ownedMiniShips['not-a-real-ship'], undefined);
-  assert.equal(sanitized.weeklyState.shipUpgrades.researchhub.fireRate, 21);
+  assert.equal(sanitized.weeklyState.shipUpgrades.researchhub.fireRate, 49);
   assert.equal(sanitized.weeklyState.shipUpgrades.researchhub.speed, 7);
   assert.equal(sanitized.weeklyState.equipped.right, null);
   assert.equal('mintedMiniShips' in sanitized.permanentState, false);
@@ -115,8 +124,8 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
   assert.deepEqual(sanitized.permanentState.achievementTiers, { 'boss-breaker': 5 });
   assert.deepEqual(sanitized.permanentState.bossArchive, {
     version: 1,
-    unlockedEventIds: ['open-orbit-gatekeeper'],
-    seenEventIds: ['open-orbit-gatekeeper'],
+    unlockedEventIds: [FIRST_BOSS_EVENT_ID],
+    seenEventIds: [FIRST_BOSS_EVENT_ID],
     lastSelectedEventId: null,
     records: {},
     dailyChallenge: {
@@ -166,6 +175,7 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
   assert.equal(sanitized.weeklyState.coins, 275);
   assert.equal(sanitized.weeklyState.durableCampaignCoins, 275);
   assert.deepEqual(sanitized.weeklyState.weeklyStats, expected.weeklyStats);
+  assert.equal(sanitized.weeklyState.weeklyCampaignStreak, null);
   assert.deepEqual(sanitized.weeklyState.unlockedSlots, { left: true, right: true });
   assert.deepEqual(sanitized.weeklyState.ownedMiniShips, {
     'citation-dart': 4,
@@ -182,8 +192,8 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
   });
   assert.deepEqual(sanitized.permanentState.bossArchive, {
     version: 1,
-    unlockedEventIds: ['open-orbit-gatekeeper'],
-    seenEventIds: ['open-orbit-gatekeeper'],
+    unlockedEventIds: [FIRST_BOSS_EVENT_ID],
+    seenEventIds: [FIRST_BOSS_EVENT_ID],
     lastSelectedEventId: null,
     records: {},
     dailyChallenge: {
@@ -192,6 +202,59 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
       processedClearIds: []
     }
   });
+});
+
+test('wallet snapshots preserve the current Weekly Campaign Streak and recompute its score', () => {
+  const now = Date.UTC(2026, 6, 23, 19);
+  const boundary = getWeeklyBoundaryMeta(new Date(now));
+  const event = {
+    eventId: 'weekly-wallet-event',
+    nodeId: GRAPH_ENTRY.nodeId,
+    occurredAtMs: now - 1_000,
+    outcome: {
+      regularEnemyKills: 1,
+      eliteKills: 0,
+      wavesCleared: GRAPH_ENTRY.routeSummary.estimatedWaveCount,
+      miniBossKills: 0,
+      majorBossKills: 0,
+      missionCompleted: true,
+      damageTaken: 0,
+      livesRemaining: 3,
+      accuracy: null,
+      elapsedMs: null,
+      parTimeMs: null,
+      performanceStars: 1
+    },
+    breakdown: { totalPoints: 999999999 }
+  };
+  const sanitized = sanitizeWalletSnapshot({
+    weeklyState: {
+      weekKey: boundary.weekKey,
+      weeklyCampaignStreak: {
+        schemaVersion: 1,
+        revision: 2,
+        weeklyId: boundary.weekKey,
+        resetAtMs: boundary.endsAt.getTime(),
+        startNodeId: GRAPH_ENTRY.nodeId,
+        currentNodeId: GRAPH_ENTRY.nodeId,
+        committedRoutes: [],
+        visitedNodeIds: [GRAPH_ENTRY.nodeId],
+        scoredNodeIds: [GRAPH_ENTRY.nodeId],
+        scoreEvents: [event],
+        score: { totalPoints: 999999999 },
+        finalization: { status: 'active', submissionStatus: 'not-ready' },
+        createdAtMs: now - 2_000,
+        updatedAtMs: now - 1_000
+      }
+    }
+  }, WALLET, now);
+
+  const streak = sanitized.weeklyState.weeklyCampaignStreak;
+  assert.equal(streak.weeklyId, boundary.weekKey);
+  assert.deepEqual(streak.visitedNodeIds, [GRAPH_ENTRY.nodeId]);
+  assert.equal(streak.score.totalPoints, 2172);
+  assert.equal(streak.scoreEvents[0].breakdown.totalPoints, 2172);
+  assert.equal(streak.finalization.status, 'active');
 });
 
 test('legacy cloud snapshots infer Boss Archive unlocks before writing canonical arrays', () => {
@@ -207,7 +270,7 @@ test('legacy cloud snapshots infer Boss Archive unlocks before writing canonical
 
   assert.deepEqual(sanitized.permanentState.bossArchive, {
     version: 1,
-    unlockedEventIds: ['open-orbit-gatekeeper'],
+    unlockedEventIds: [FIRST_BOSS_EVENT_ID],
     seenEventIds: [],
     lastSelectedEventId: null,
     records: {},
@@ -217,7 +280,7 @@ test('legacy cloud snapshots infer Boss Archive unlocks before writing canonical
       processedClearIds: []
     }
   });
-  assert.equal(sanitized.permanentState.campaignProgress.version, 3);
+  assert.equal(sanitized.permanentState.campaignProgress.version, 4);
   assert.equal(sanitized.permanentState.campaignProgress.campaignId, campaign.id);
   assert.equal(sanitized.permanentState.campaignProgress.recommendedMissionId, CAMPAIGN_LEVELS[3].id);
   assert.equal(sanitized.permanentState.campaignProgress.recommendedWaveId, CAMPAIGN_LEVELS[3].waves[0].id);
@@ -298,6 +361,12 @@ test('cloud branch sanitizer and revision merge preserve one-time receipts witho
   assert.equal(claimed.attemptReceipts.length, 1);
 
   const currentSnapshot = {
+    weeklyState: {
+      creditedCampaignRewardIds: [
+        'campaign:cloud-credit',
+        'campaign-branch:canonical-credit'
+      ]
+    },
     permanentState: {
       campaignProgress: {
         missionRecords: { [FIRST_MISSION.id]: { stars: 3 } },
@@ -307,7 +376,12 @@ test('cloud branch sanitizer and revision merge preserve one-time receipts witho
     }
   };
   const incomingSnapshot = {
-    weeklyState: {},
+    weeklyState: {
+      creditedCampaignRewardIds: [
+        'campaign:device-credit',
+        'campaign-branch:forged-device-credit'
+      ]
+    },
     stats: {},
     selectedShipId: 'researchhub',
     permanentState: {
@@ -336,6 +410,11 @@ test('cloud branch sanitizer and revision merge preserve one-time receipts witho
   assert.deepEqual(merged.permanentState.campaignProgress.replayRewardEpochByMission, {
     [FIRST_MISSION.id]: '2026-07-27'
   });
+  assert.deepEqual(merged.weeklyState.creditedCampaignRewardIds, [
+    'campaign:cloud-credit',
+    'campaign:device-credit',
+    'campaign-branch:canonical-credit'
+  ]);
 });
 
 test('Campaign progress and reward receipts survive wallet sanitization with strict Mission-Wave pairing', () => {
@@ -376,7 +455,11 @@ test('Campaign progress and reward receipts survive wallet sanitization with str
           },
           'unknown-mission': { completed: true }
         },
-        claimedRewardIds: [validRewardId, 'not-a-campaign-reward'],
+        claimedRewardIds: [
+          validRewardId,
+          `campaign:${FIRST_MISSION.id}:replay:2026-07-23:wave`,
+          'not-a-campaign-reward'
+        ],
         processedResultIds: [validResultId],
         completionRecords: [
           {
@@ -415,7 +498,7 @@ test('Campaign progress and reward receipts survive wallet sanitization with str
     sanitized.weeklyState.creditedCampaignRewardIds,
     [validRewardId, validBranchRewardId]
   );
-  assert.equal(progress.version, 3);
+  assert.equal(progress.version, 4);
   assert.equal(progress.campaignId, campaign.id);
   assert.equal(progress.campaignRevision, campaign.revision);
   assert.equal(progress.recommendedMissionId, SECOND_MISSION.id);
@@ -460,6 +543,314 @@ test('Campaign progress and reward receipts survive wallet sanitization with str
   );
 });
 
+test('Campaign v4 graph checkpoints and direct route choices survive a wallet save-load round trip', () => {
+  const now = Date.UTC(2026, 6, 28, 19);
+  const snapshot = sanitizeWalletSnapshot({
+    permanentState: {
+      campaignProgress: {
+        version: 4,
+        campaignId: campaign.id,
+        campaignRevision: campaign.revision,
+        recommendedMissionId: GRAPH_ROUTE_B.missionDefinitionId,
+        recommendedWaveId: CAMPAIGN_LEVELS.find((level) => (
+          level.id === GRAPH_ROUTE_B.missionDefinitionId
+        )).waves[0].id,
+        recommendedGraphNodeId: GRAPH_ROUTE_B.nodeId,
+        currentGraphNodeId: GRAPH_ROUTE_B.nodeId,
+        furthestMainGraphNodeId: GRAPH_ENTRY.nodeId,
+        unlockedGraphNodeIds: [
+          GRAPH_ENTRY.nodeId,
+          GRAPH_ROUTE_A.nodeId,
+          GRAPH_ROUTE_B.nodeId,
+          'unknown-node'
+        ],
+        completedGraphNodeIds: [GRAPH_ENTRY.nodeId, 'unknown-node'],
+        selectedRouteTargetBySourceNodeId: {
+          [GRAPH_ENTRY.nodeId]: GRAPH_ROUTE_B.nodeId,
+          'unknown-source': GRAPH_ROUTE_A.nodeId
+        },
+        pendingRouteChoice: {
+          sourceNodeId: 'unknown-source',
+          optionNodeIds: ['unknown-node']
+        },
+        unlockedMissionIds: [
+          GRAPH_ENTRY.missionDefinitionId,
+          GRAPH_ROUTE_A.missionDefinitionId,
+          GRAPH_ROUTE_B.missionDefinitionId
+        ],
+        completedMissionIds: [GRAPH_ENTRY.missionDefinitionId],
+        missionRecords: {
+          [GRAPH_ENTRY.missionDefinitionId]: { completed: true }
+        }
+      }
+    }
+  }, WALLET, now);
+  const progress = snapshot.permanentState.campaignProgress;
+
+  assert.equal(progress.version, 4);
+  assert.equal(progress.recommendedGraphNodeId, GRAPH_ROUTE_B.nodeId);
+  assert.equal(progress.currentGraphNodeId, GRAPH_ROUTE_B.nodeId);
+  assert.equal(progress.furthestMainGraphNodeId, GRAPH_ENTRY.nodeId);
+  assert.deepEqual(progress.completedGraphNodeIds, [GRAPH_ENTRY.nodeId]);
+  assert.deepEqual(progress.unlockedGraphNodeIds.slice(0, 3), [
+    GRAPH_ENTRY.nodeId,
+    GRAPH_ROUTE_A.nodeId,
+    GRAPH_ROUTE_B.nodeId
+  ]);
+  assert.equal(progress.unlockedGraphNodeIds.includes('unknown-node'), false);
+  assert.deepEqual(progress.selectedRouteTargetBySourceNodeId, {
+    [GRAPH_ENTRY.nodeId]: GRAPH_ROUTE_B.nodeId
+  });
+  assert.equal(progress.pendingRouteChoice, null);
+
+  const loaded = sanitizeWalletSnapshot(snapshot, WALLET, now + 1_000)
+    .permanentState.campaignProgress;
+  assert.deepEqual(
+    { ...loaded, branchProgress: { ...loaded.branchProgress, updatedAt: null }, updatedAt: null },
+    { ...progress, branchProgress: { ...progress.branchProgress, updatedAt: null }, updatedAt: null }
+  );
+});
+
+test('Campaign v3 migration infers only an unambiguous authored route and rejects unknown graph IDs', () => {
+  const now = Date.UTC(2026, 6, 28, 19);
+  const routeAMission = CAMPAIGN_LEVELS.find((level) => level.id === GRAPH_ROUTE_A.missionDefinitionId);
+  const migrated = sanitizeWalletSnapshot({
+    permanentState: {
+      campaignProgress: {
+        version: 3,
+        campaignId: campaign.id,
+        campaignRevision: 22,
+        recommendedMissionId: routeAMission.id,
+        recommendedWaveId: routeAMission.waves[0].id,
+        unlockedMissionIds: [GRAPH_ENTRY.missionDefinitionId, routeAMission.id],
+        completedMissionIds: [GRAPH_ENTRY.missionDefinitionId],
+        missionRecords: {
+          [GRAPH_ENTRY.missionDefinitionId]: { completed: true }
+        },
+        recommendedGraphNodeId: 'unknown-node',
+        currentGraphNodeId: 'unknown-node',
+        completedGraphNodeIds: ['unknown-node']
+      }
+    }
+  }, WALLET, now).permanentState.campaignProgress;
+
+  assert.equal(migrated.version, 4);
+  assert.deepEqual(migrated.completedGraphNodeIds, [GRAPH_ENTRY.nodeId]);
+  assert.deepEqual(migrated.selectedRouteTargetBySourceNodeId, {
+    [GRAPH_ENTRY.nodeId]: GRAPH_ROUTE_A.nodeId
+  });
+  assert.equal(migrated.pendingRouteChoice, null);
+  assert.equal(migrated.recommendedGraphNodeId, GRAPH_ROUTE_A.nodeId);
+  assert.equal(migrated.currentGraphNodeId, GRAPH_ROUTE_A.nodeId);
+  assert.equal(migrated.unlockedGraphNodeIds.includes('unknown-node'), false);
+
+  const undecided = sanitizeWalletSnapshot({
+    permanentState: {
+      campaignProgress: {
+        version: 3,
+        campaignRevision: 22,
+        recommendedMissionId: GRAPH_ENTRY.missionDefinitionId,
+        unlockedMissionIds: [GRAPH_ENTRY.missionDefinitionId],
+        completedMissionIds: [GRAPH_ENTRY.missionDefinitionId],
+        missionRecords: {
+          [GRAPH_ENTRY.missionDefinitionId]: { completed: true }
+        }
+      }
+    }
+  }, WALLET, now).permanentState.campaignProgress;
+  assert.deepEqual(undecided.selectedRouteTargetBySourceNodeId, {});
+  assert.deepEqual(undecided.pendingRouteChoice, {
+    sourceNodeId: GRAPH_ENTRY.nodeId,
+    optionNodeIds: GRAPH_ROUTE_TARGETS
+  });
+});
+
+test('Campaign graph merge keeps committed cloud routes and unions known cross-device checkpoints', () => {
+  const now = Date.UTC(2026, 6, 28, 19);
+  const base = {
+    version: 4,
+    campaignId: campaign.id,
+    campaignRevision: campaign.revision,
+    recommendedMissionId: GRAPH_ROUTE_B.missionDefinitionId,
+    recommendedGraphNodeId: GRAPH_ROUTE_B.nodeId,
+    currentGraphNodeId: GRAPH_ROUTE_B.nodeId,
+    furthestMainGraphNodeId: GRAPH_ENTRY.nodeId,
+    unlockedMissionIds: [GRAPH_ENTRY.missionDefinitionId, GRAPH_ROUTE_B.missionDefinitionId],
+    completedMissionIds: [GRAPH_ENTRY.missionDefinitionId],
+    missionRecords: { [GRAPH_ENTRY.missionDefinitionId]: { completed: true } },
+    unlockedGraphNodeIds: [GRAPH_ENTRY.nodeId, GRAPH_ROUTE_B.nodeId],
+    completedGraphNodeIds: [GRAPH_ENTRY.nodeId],
+    selectedRouteTargetBySourceNodeId: { [GRAPH_ENTRY.nodeId]: GRAPH_ROUTE_B.nodeId }
+  };
+  const merged = mergeCampaignGraphProgress({
+    currentProgress: base,
+    incomingProgress: {
+      ...base,
+      recommendedMissionId: GRAPH_ROUTE_A.missionDefinitionId,
+      recommendedGraphNodeId: GRAPH_ROUTE_A.nodeId,
+      currentGraphNodeId: GRAPH_ROUTE_A.nodeId,
+      unlockedMissionIds: [GRAPH_ENTRY.missionDefinitionId, GRAPH_ROUTE_A.missionDefinitionId],
+      unlockedGraphNodeIds: [GRAPH_ENTRY.nodeId, GRAPH_ROUTE_A.nodeId, 'unknown-node'],
+      selectedRouteTargetBySourceNodeId: {
+        [GRAPH_ENTRY.nodeId]: GRAPH_ROUTE_A.nodeId,
+        'unknown-source': 'unknown-node'
+      }
+    },
+    lifetimeStats: {},
+    now
+  });
+
+  assert.equal(merged.version, 4);
+  assert.equal(merged.unlockedGraphNodeIds.includes(GRAPH_ROUTE_A.nodeId), true);
+  assert.equal(merged.unlockedGraphNodeIds.includes(GRAPH_ROUTE_B.nodeId), true);
+  assert.equal(merged.unlockedGraphNodeIds.includes('unknown-node'), false);
+  assert.deepEqual(merged.selectedRouteTargetBySourceNodeId, {
+    [GRAPH_ENTRY.nodeId]: GRAPH_ROUTE_B.nodeId
+  });
+  assert.equal(merged.currentGraphNodeId, GRAPH_ROUTE_A.nodeId);
+});
+
+test('Campaign wallet merge preserves monotonic Mission state and bounded idempotency receipts', () => {
+  const now = Date.UTC(2026, 6, 28, 19);
+  const entryMission = CAMPAIGN_LEVELS.find((level) => (
+    level.id === GRAPH_ENTRY.missionDefinitionId
+  ));
+  const entryWaveIds = entryMission.waves
+    .slice()
+    .sort((left, right) => left.order - right.order)
+    .map((wave) => wave.id);
+  const starIds = entryMission.campaignProgression.masteryObjectives.map((objective) => objective.id);
+  const cloudRewardIds = Array.from(
+    { length: 768 },
+    (_, index) => `campaign:cloud-reward:${index}`
+  );
+  const deviceRewardIds = [
+    ...cloudRewardIds.slice(-384),
+    ...Array.from({ length: 384 }, (_, index) => `campaign:device-reward:${index}`)
+  ];
+  const cloudResultIds = Array.from({ length: 384 }, (_, index) => `cloud-result-${index}`);
+  const deviceResultIds = [
+    ...cloudResultIds.slice(-192),
+    ...Array.from({ length: 192 }, (_, index) => `device-result-${index}`)
+  ];
+  const completionRecord = (resultId, offsetSeconds) => ({
+    resultId,
+    playerId: PROFILE_ID,
+    campaignId: campaign.id,
+    campaignRevision: campaign.revision,
+    missionId: entryMission.id,
+    waveId: entryWaveIds[0],
+    completedAt: new Date(now + offsetSeconds * 1_000).toISOString(),
+    stageComplete: false,
+    firstClearGranted: false,
+    masteryEligible: false,
+    coinsAwarded: 1,
+    starsEarned: 0
+  });
+  const cloudCompletionRecords = Array.from(
+    { length: 96 },
+    (_, index) => completionRecord(`cloud-completion-${index}`, index)
+  );
+  const deviceCompletionRecords = [
+    ...cloudCompletionRecords.slice(-48),
+    ...Array.from(
+      { length: 48 },
+      (_, index) => completionRecord(`device-completion-${index}`, 96 + index)
+    )
+  ];
+  const currentProgress = {
+    version: 4,
+    campaignId: campaign.id,
+    campaignRevision: campaign.revision,
+    recommendedMissionId: entryMission.id,
+    recommendedGraphNodeId: GRAPH_ENTRY.nodeId,
+    currentGraphNodeId: GRAPH_ENTRY.nodeId,
+    furthestMainGraphNodeId: GRAPH_ENTRY.nodeId,
+    unlockedMissionIds: [entryMission.id],
+    unlockedWaveIdsByMission: { [entryMission.id]: entryWaveIds },
+    completedMissionIds: [entryMission.id],
+    missionRecords: {
+      [entryMission.id]: {
+        completed: true,
+        completedWaveIds: entryWaveIds,
+        stars: 2,
+        earnedStarIds: starIds.slice(0, 2),
+        bestScore: 900,
+        bestClearTimeMs: 60_000,
+        bestDamageTaken: 2,
+        bestCoinsCollected: 75,
+        firstCompletedAt: '2026-07-25T18:00:00.000Z',
+        lastCompletedAt: '2026-07-28T18:00:00.000Z',
+        completionCount: 7
+      }
+    },
+    unlockedGraphNodeIds: [GRAPH_ENTRY.nodeId],
+    completedGraphNodeIds: [GRAPH_ENTRY.nodeId],
+    claimedRewardIds: cloudRewardIds,
+    replayRewardEpochByMission: { [entryMission.id]: '2026-07-28' },
+    processedResultIds: cloudResultIds,
+    completionRecords: cloudCompletionRecords
+  };
+  const incomingProgress = {
+    version: 4,
+    campaignId: campaign.id,
+    campaignRevision: campaign.revision,
+    recommendedMissionId: entryMission.id,
+    recommendedGraphNodeId: GRAPH_ENTRY.nodeId,
+    currentGraphNodeId: GRAPH_ENTRY.nodeId,
+    furthestMainGraphNodeId: GRAPH_ENTRY.nodeId,
+    unlockedMissionIds: [entryMission.id],
+    unlockedWaveIdsByMission: { [entryMission.id]: [entryWaveIds[0]] },
+    completedMissionIds: [],
+    missionRecords: {
+      [entryMission.id]: {
+        completed: false,
+        completedWaveIds: [],
+        bestScore: 100,
+        bestClearTimeMs: 90_000,
+        bestDamageTaken: 8,
+        bestCoinsCollected: 10,
+        completionCount: 1
+      }
+    },
+    unlockedGraphNodeIds: [GRAPH_ENTRY.nodeId],
+    completedGraphNodeIds: [],
+    claimedRewardIds: deviceRewardIds,
+    replayRewardEpochByMission: { [entryMission.id]: '2026-07-27' },
+    processedResultIds: deviceResultIds,
+    completionRecords: deviceCompletionRecords
+  };
+
+  const merged = mergeCampaignGraphProgress({
+    currentProgress,
+    incomingProgress,
+    lifetimeStats: {},
+    now
+  });
+  const record = merged.missionRecords[entryMission.id];
+
+  assert.equal(record.completed, true);
+  assert.deepEqual(record.completedWaveIds, entryWaveIds);
+  assert.equal(record.stars, 2);
+  assert.deepEqual(record.earnedStarIds, starIds.slice(0, 2));
+  assert.equal(record.bestScore, 900);
+  assert.equal(record.bestClearTimeMs, 60_000);
+  assert.equal(record.bestDamageTaken, 2);
+  assert.equal(record.bestCoinsCollected, 75);
+  assert.equal(record.completionCount, 7);
+  assert.equal(merged.claimedRewardIds.length, 768);
+  assert.equal(merged.claimedRewardIds.includes('campaign:device-reward:383'), true);
+  assert.equal(merged.claimedRewardIds.includes('campaign:cloud-reward:0'), false);
+  assert.equal(merged.processedResultIds.length, 384);
+  assert.equal(merged.processedResultIds.includes('device-result-191'), true);
+  assert.equal(merged.completionRecords.length, 96);
+  assert.equal(merged.completionRecords.some((entry) => entry.resultId === 'device-completion-47'), true);
+  assert.equal(merged.completionRecords.some((entry) => entry.resultId === 'cloud-completion-0'), false);
+  assert.deepEqual(merged.replayRewardEpochByMission, {
+    [entryMission.id]: '2026-07-28'
+  });
+});
+
 test('cloud Campaign migration preserves a rev21 partial checkpoint and replay reward epoch', () => {
   const now = Date.UTC(2026, 6, 27, 19);
   const waveIds = FIRST_MISSION.waves
@@ -492,7 +883,7 @@ test('cloud Campaign migration preserves a rev21 partial checkpoint and replay r
   }, WALLET, now);
   const progress = sanitized.permanentState.campaignProgress;
 
-  assert.equal(progress.version, 3);
+  assert.equal(progress.version, 4);
   assert.equal(progress.campaignRevision, campaign.revision);
   assert.deepEqual(progress.missionRecords[FIRST_MISSION.id].completedWaveIds, waveIds.slice(0, 3));
   assert.deepEqual(progress.unlockedWaveIdsByMission[FIRST_MISSION.id], waveIds.slice(0, 4));
@@ -555,12 +946,12 @@ test('wallet snapshots retain sanitized Boss Archive records, mastery, and UTC c
   }, WALLET, now);
 
   const archive = sanitized.permanentState.bossArchive;
-  assert.equal(archive.lastSelectedEventId, 'open-orbit-gatekeeper');
+  assert.equal(archive.lastSelectedEventId, FIRST_BOSS_EVENT_ID);
   assert.equal(archive.dailyChallenge.successfulClearsUsed, 2);
   assert.deepEqual(archive.dailyChallenge.processedClearIds, ['receipt-1']);
-  assert.equal(archive.records['open-orbit-gatekeeper'].challengeClears, 1);
-  assert.equal(archive.records['open-orbit-gatekeeper'].mastery['challenge-clear'].claimedAt, '2026-07-23T18:01:00.000Z');
-  assert.equal(archive.records['open-orbit-gatekeeper'].mastery.injected, undefined);
+  assert.equal(archive.records[FIRST_BOSS_EVENT_ID].challengeClears, 1);
+  assert.equal(archive.records[FIRST_BOSS_EVENT_ID].mastery['challenge-clear'].claimedAt, '2026-07-23T18:01:00.000Z');
+  assert.equal(archive.records[FIRST_BOSS_EVENT_ID].mastery.injected, undefined);
   assert.equal(archive.records['unknown-boss'], undefined);
   assert.deepEqual(sanitized.permanentState.cosmetics, [
     'boss-archive:open-orbit-gatekeeper:badge'
