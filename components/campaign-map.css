@@ -862,33 +862,6 @@
   background: rgba(159, 18, 57, 0.32);
 }
 
-.campaign-map-wave-list {
-  display: flex;
-  gap: 0.24rem;
-  margin-top: 0.4rem;
-}
-
-.campaign-map-wave-list span {
-  display: grid;
-  place-items: center;
-  width: 1.25rem;
-  height: 0.95rem;
-  color: #64748b;
-  font: 900 0.52rem/1 ui-monospace, monospace;
-  border: 1px solid rgba(71, 85, 105, 0.65);
-}
-
-.campaign-map-wave-list span.is-unlocked {
-  color: #bae6fd;
-  border-color: rgba(56, 189, 248, 0.65);
-}
-
-.campaign-map-wave-list span.is-complete {
-  color: #022c22;
-  background: #6ee7b7;
-  border-color: #a7f3d0;
-}
-
 .campaign-map-records {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(6.3rem, 1fr));
@@ -1545,110 +1518,6 @@
   font: 900 1rem/1 ui-monospace, monospace;
 }
 
-.campaign-map-role-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  align-items: center;
-  margin-top: 0.2rem;
-}
-
-.campaign-map-role-badge {
-  padding: 2px 5px;
-  color: #cffafe;
-  font: 900 0.48rem/1 ui-monospace, monospace;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  background: rgba(8, 47, 73, 0.54);
-  border: 1px solid rgba(103, 232, 249, 0.48);
-}
-
-.campaign-map-role-badge--elite-checkpoint {
-  color: #fde68a;
-  background: rgba(120, 53, 15, 0.42);
-  border-color: rgba(245, 158, 11, 0.62);
-}
-
-.campaign-map-role-badge--boss-preparation,
-.campaign-map-role-badge--major-boss {
-  color: #fecdd3;
-  background: rgba(136, 19, 55, 0.36);
-  border-color: rgba(251, 113, 133, 0.62);
-}
-
-.campaign-map-wave-list span.is-current {
-  color: #1c1917;
-  background: #fef08a;
-  border-color: #fff7ae;
-  box-shadow: 0 0 7px rgba(250, 204, 21, 0.72);
-}
-
-.campaign-map-loadout-guide {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(7.5rem, 0.75fr);
-  gap: 0.45rem;
-}
-
-.campaign-map-power-guide {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid rgba(56, 189, 248, 0.3);
-}
-
-.campaign-map-power-guide > span {
-  display: grid;
-  gap: 0.12rem;
-  min-width: 0;
-  padding: 0.34rem 0.38rem;
-  background: rgba(8, 47, 73, 0.24);
-  border-right: 1px solid rgba(56, 189, 248, 0.18);
-}
-
-.campaign-map-power-guide > span:last-child { border-right: 0; }
-
-.campaign-map-power-guide > span.is-expected {
-  background: rgba(6, 78, 59, 0.34);
-  box-shadow: inset 0 -2px #34d399;
-}
-
-.campaign-map-power-guide small,
-.campaign-map-support-tags > small {
-  color: #67e8f9;
-  font: 800 0.46rem/1.1 ui-monospace, monospace;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.campaign-map-power-guide strong {
-  color: #e0f2fe;
-  font: 900 0.64rem/1.1 ui-monospace, monospace;
-}
-
-.campaign-map-support-tags {
-  display: grid;
-  gap: 0.3rem;
-  align-content: center;
-  padding: 0.35rem 0.42rem;
-  background: rgba(15, 23, 42, 0.64);
-  border: 1px solid rgba(167, 139, 250, 0.34);
-}
-
-.campaign-map-support-tags > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem;
-}
-
-.campaign-map-support-tags span {
-  padding: 2px 4px;
-  color: #ddd6fe;
-  font: 800 0.46rem/1.15 ui-monospace, monospace;
-  text-transform: uppercase;
-  background: rgba(76, 29, 149, 0.34);
-  border: 1px solid rgba(167, 139, 250, 0.38);
-}
-
 /* Match the Start Mission / Weekly Funding mechanical pixel-frame language. */
 .campaign-map-dialog::before {
   content: '';
@@ -1832,13 +1701,6 @@
     font-size: 0.56rem;
   }
 
-  .campaign-map-loadout-guide {
-    grid-template-columns: 1fr;
-  }
-
-  .campaign-map-support-tags {
-    padding-block: 0.3rem;
-  }
 }
 
 @media (max-width: 350px) {
@@ -1892,10 +1754,6 @@
     width: 3.3rem;
   }
 
-  .campaign-map-loadout-guide {
-    grid-template-columns: 1fr;
-  }
-
   .campaign-map-objectives {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.2rem;
@@ -1907,9 +1765,6 @@
     font-size: 0.5rem;
   }
 
-  .campaign-map-support-tags {
-    padding-block: 0.25rem;
-  }
 }
 
 .campaign-map-weekly {

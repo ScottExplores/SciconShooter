@@ -12,9 +12,7 @@ import {
   type CampaignMissionDefinition,
   type CampaignProgress
 } from '../services/campaignProgression';
-import type { SupportRecommendationTag } from '../game-config/types';
 import { DEFAULT_GAME_CAMPAIGN } from '../services/levelConfig';
-import { getCampaignSupportRecommendations } from '../services/squadPowerRating';
 import type {
   WeeklyCampaignSelectionConfirmation,
   WeeklyCampaignStreakState
@@ -40,7 +38,6 @@ type CampaignMapMissionMetadata = CampaignMissionDefinition & {
   sectorName?: string;
   missionRole?: CampaignMapMissionRole;
   recommendedPower?: number | Partial<CampaignMapPowerGuide>;
-  recommendedSupportTags?: SupportRecommendationTag[];
   masterySetBonusCoins?: number;
 };
 
@@ -82,14 +79,6 @@ const CAMPAIGN_MISSION_ROLE_LABELS: Readonly<Record<CampaignMapMissionRole, stri
   'elite-checkpoint': 'Elite Checkpoint',
   'boss-preparation': 'Boss Preparation',
   'major-boss': 'Sector Boss'
-});
-
-const CAMPAIGN_MISSION_ROLE_BRIEFS: Readonly<Record<CampaignMapMissionRole, string>> = Object.freeze({
-  introduction: 'Learn this sector\'s new threats and flight lanes.',
-  'formation-remix': 'Read familiar formations in a new combat pattern.',
-  'elite-checkpoint': 'Break an elite defense without revealing the sector boss.',
-  'boss-preparation': 'A final systems check before the sector command target.',
-  'major-boss': 'Direct command encounter. No approach waves.'
 });
 
 const CAMPAIGN_MISSION_ROLE_SEQUENCE: readonly CampaignMapMissionRole[] = [
@@ -157,20 +146,6 @@ const getCampaignPowerGuide = (mission: CampaignMissionDefinition): CampaignMapP
     comfortable: Math.max(0, Math.round(Number(recommendation.comfortable) || expected * 1.3))
   };
 };
-
-const getCampaignSupportTags = (mission: CampaignMissionDefinition): SupportRecommendationTag[] => {
-  const authored = getCampaignMissionMetadata(mission).recommendedSupportTags;
-  if (authored?.length) return authored;
-  const role = getCampaignMissionRole(mission);
-  if (role === 'major-boss') return ['boss-damage', 'survival'];
-  if (role === 'boss-preparation') return ['survival', 'anti-summon'];
-  if (role === 'elite-checkpoint') return ['anti-armor', 'lane-control'];
-  return ['anti-swarm', 'lane-control'];
-};
-
-const formatSupportTag = (tag: string) => tag
-  .replace(/[-_]+/g, ' ')
-  .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 export type CampaignMapStatus = 'ready' | 'loading' | 'empty' | 'error' | 'launch-pending' | 'launch-error';
 export type CampaignLaunchKind = 'checkpoint' | 'mission' | 'replay' | 'weekly-streak';
@@ -505,10 +480,6 @@ const formatTime = (milliseconds: number | null) => {
   const seconds = Math.max(0, Math.round(milliseconds / 100) / 10);
   return `${seconds.toFixed(1)}s`;
 };
-
-const formatTheme = (backgroundId: string) => backgroundId
-  .replace(/[-_]+/g, ' ')
-  .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const getMissionBaseClearReward = (mission: CampaignMissionDefinition) => (
   (mission.reward.waveClearCoins * mission.waveIds.length) + mission.reward.missionClearCoins
@@ -873,8 +844,6 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   const selectedMissionRole = selectedMission ? getCampaignMissionRole(selectedMission) : null;
   const selectedSector = selectedMission ? getCampaignSectorPreset(selectedMission) : null;
   const selectedPowerGuide = selectedMission ? getCampaignPowerGuide(selectedMission) : null;
-  const selectedSupportTags = selectedMission ? getCampaignSupportTags(selectedMission) : [];
-  const selectedSupportRecommendations = getCampaignSupportRecommendations(selectedSupportTags);
   const selectedMasterySetBonus = selectedMission
     ? Math.max(0, Math.round(getCampaignMissionMetadata(selectedMission).masterySetBonusCoins ?? 0))
     : 0;
@@ -1627,59 +1596,10 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                         <span className="campaign-map-boss-tag">{selectedMission.bossName ?? 'Boss encounter'}</span>
                       ) : null}
                     </div>
-                    <div className="campaign-map-role-line">
-                      <span className={`campaign-map-role-badge campaign-map-role-badge--${selectedMissionRole}`}>
-                        {selectedMissionRole ? CAMPAIGN_MISSION_ROLE_LABELS[selectedMissionRole] : 'Mission'}
-                      </span>
-                      {selectedRevealed ? (
-                        <span className="campaign-map-environment">Environment / {formatTheme(selectedMission.backgroundId)}</span>
-                      ) : null}
-                    </div>
-                    <p>{selectedRevealed
-                      ? `${selectedMission.description} ${selectedMissionRole ? CAMPAIGN_MISSION_ROLE_BRIEFS[selectedMissionRole] : ''}`
-                      : 'Complete a connected prerequisite Mission to decrypt this route. Encounter details remain hidden.'}</p>
-                    <div className="campaign-map-wave-list" aria-label="Mission waves">
-                      {selectedMission.waves.map((wave) => {
-                        const completed = selectedState.completedWaveIds.has(wave.id);
-                        const unlocked = completed || selectedState.unlockedWaveIds.has(wave.id);
-                        const waveState = completed ? 'complete' : unlocked ? 'part of this Mission' : 'locked';
-                        return (
-                          <span
-                            key={wave.id}
-                            className={completed ? 'is-complete' : unlocked ? 'is-unlocked' : ''}
-                            aria-label={`Wave ${wave.number}: ${waveState}`}
-                            title={`Wave ${wave.number} - ${waveState}`}
-                          >
-                            {wave.number}
-                          </span>
-                        );
-                      })}
-                    </div>
                   </div>
                 </div>
                 {selectedRevealed ? (
                   <>
-                    {selectedPowerGuide || selectedSupportTags.length > 0 ? (
-                      <div className="campaign-map-loadout-guide" aria-label="Recommended Mission loadout">
-                        {selectedPowerGuide ? (
-                          <div className="campaign-map-power-guide">
-                            <span><small>Minimum</small><strong>{selectedPowerGuide.minimum.toLocaleString()}</strong></span>
-                            <span className="is-expected"><small>Expected</small><strong>{selectedPowerGuide.expected.toLocaleString()}</strong></span>
-                            <span><small>Comfortable</small><strong>{selectedPowerGuide.comfortable.toLocaleString()}</strong></span>
-                          </div>
-                        ) : null}
-                        {selectedSupportTags.length > 0 ? (
-                          <div className="campaign-map-support-tags">
-                            <small>Recommended Support</small>
-                            <div>{selectedSupportRecommendations.map((recommendation) => (
-                              <span key={recommendation.tag}>
-                                {formatSupportTag(recommendation.tag)}: {recommendation.shipNames.slice(0, 2).join(' / ')}
-                              </span>
-                            ))}</div>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
                     <div className="campaign-map-records">
                       <span><small>Stars</small><strong>{selectedState.stars}/3</strong></span>
                       <span><small>Best score</small><strong>{(selectedRecord?.bestScore ?? 0).toLocaleString()}</strong></span>

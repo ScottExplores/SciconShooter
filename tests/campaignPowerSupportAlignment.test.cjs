@@ -31,7 +31,7 @@ test('Hangar power counts equipped companions rather than every owned mini ship'
   assert.doesNotMatch(powerBlock, /Object\.values\(state\.ownedMiniShips\)/);
 });
 
-test('every authored support tag maps to concrete catalog mini ships', () => {
+test('every authored support tag maps to concrete catalog mini ships without duplicating a recommendation panel on the Campaign Map', () => {
   const tagIds = ['anti-swarm', 'anti-armor', 'lane-control', 'boss-damage', 'survival', 'anti-summon'];
   const miniIds = new Set(
     [...squadSource.matchAll(/^\s+id:\s*'([^']+)',/gm)].map((match) => match[1])
@@ -45,8 +45,9 @@ test('every authored support tag maps to concrete catalog mini ships', () => {
     ids.forEach((id) => assert.ok(miniIds.has(id), `${tag} references unknown mini ship ${id}`));
   });
 
-  assert.match(mapSource, /getCampaignSupportRecommendations\(selectedSupportTags\)/);
-  assert.match(mapSource, /recommendation\.shipNames\.slice\(0, 2\)\.join\(' \/ '\)/);
+  assert.doesNotMatch(mapSource, /campaign-map-support-tags/);
+  assert.doesNotMatch(mapSource, /getCampaignSupportRecommendations/);
+  assert.match(appSource, /getCampaignRecommendedSupportIds/);
 });
 
 test('Campaign Lab launches distinct two-support combinations and reports their power', () => {

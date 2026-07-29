@@ -13,9 +13,9 @@ const startScreenSource = read('components/StartScreen.tsx');
 const homeStyles = read('styles/tailwind.input.css');
 const campaign = JSON.parse(read('game-config/campaign.json'));
 
-test('Campaign Map reveals configured boss and environment details without generic substitutions', () => {
+test('Campaign Map reveals the configured boss without restoring the removed environment briefing', () => {
   assert.match(mapSource, /selectedMission\.bossName \?\? 'Boss encounter'/);
-  assert.match(mapSource, /Environment \/ \{formatTheme\(selectedMission\.backgroundId\)\}/);
+  assert.doesNotMatch(mapSource, /Environment \/ \{formatTheme\(selectedMission\.backgroundId\)\}/);
 });
 
 test('Campaign Map polls a connected gamepad for navigation and close controls', () => {
@@ -87,12 +87,14 @@ test('Campaign Map treats waves as one Mission lineup instead of durable checkpo
   assert.doesNotMatch(mapSource, /campaign-map-node-progress/);
 });
 
-test('Campaign Map exposes power guidance, support roles, rewards, and a separate mastery set bonus', () => {
-  assert.match(mapSource, /campaign-map-power-guide/);
-  assert.match(mapSource, />Minimum</);
-  assert.match(mapSource, />Expected</);
-  assert.match(mapSource, />Comfortable</);
-  assert.match(mapSource, /campaign-map-support-tags/);
+test('Campaign Map prioritizes actionable records and mastery details over redundant briefing panels', () => {
+  assert.doesNotMatch(mapSource, /campaign-map-role-line/);
+  assert.doesNotMatch(mapSource, /campaign-map-wave-list/);
+  assert.doesNotMatch(mapSource, /campaign-map-loadout-guide/);
+  assert.doesNotMatch(mapSource, /campaign-map-power-guide/);
+  assert.doesNotMatch(mapSource, /campaign-map-support-tags/);
+  assert.match(mapSource, /campaign-map-records/);
+  assert.match(mapSource, /campaign-map-objectives/);
   assert.match(mapSource, /3-star mastery set/);
 });
 
@@ -160,10 +162,10 @@ test('Home Campaign calls require an authored dynamic checkpoint and never fall 
   assert.doesNotMatch(startScreenSource, /waveTotal:\s*3/);
 });
 
-test('short and narrow mobile Campaign details preserve objectives and support guidance', () => {
+test('short and narrow mobile Campaign details preserve objectives', () => {
   const shortViewportStyles = mapStyles.slice(mapStyles.indexOf('@media (max-height: 740px)'));
   assert.doesNotMatch(shortViewportStyles, /\.campaign-map-objectives\s*\{[\s\S]*?display:\s*none/);
-  assert.doesNotMatch(shortViewportStyles, /\.campaign-map-support-tags\s*\{[\s\S]*?display:\s*none/);
+  assert.doesNotMatch(mapStyles, /\.campaign-map-loadout-guide|\.campaign-map-power-guide|\.campaign-map-support-tags/);
   assert.match(mapStyles, /@media \(max-width: 350px\)[\s\S]*?\.campaign-map-selection-topline[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto/);
   assert.match(mapStyles, /\.campaign-map-selection-topline > :last-child[\s\S]*?grid-column: 1 \/ -1/);
 });
