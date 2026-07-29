@@ -421,7 +421,6 @@ export default function RemoteBossRunnerApp() {
   const restart = useCallback(() => {
     setRestartToken((value) => value + 1);
     setSelectedPhaseId(null);
-    setCanvasStatus('loading');
     setNotice('Restarting the selected boss.');
     resume();
   }, [resume]);

@@ -315,6 +315,20 @@ test('local and remote Boss Sandbox attack buttons follow the live runtime attac
   );
 });
 
+test('remote restart preserves the ready renderer instead of reopening its startup blocker', () => {
+  const restartStart = remoteSource.indexOf('  const restart = useCallback');
+  const restartEnd = remoteSource.indexOf(
+    '\n\n  const selectBoss = useCallback',
+    restartStart
+  );
+  assert.notEqual(restartStart, -1);
+  assert.notEqual(restartEnd, -1);
+  const restart = remoteSource.slice(restartStart, restartEnd);
+
+  assert.match(restart, /setRestartToken\(\(value\) => value \+ 1\)/);
+  assert.doesNotMatch(restart, /setCanvasStatus\('loading'\)/);
+});
+
 test('generated boss art is selected from the fixed local registry', () => {
   assert.match(source, /getSandboxBossArtworkRegistration\(selectedChoice\?\.prototypeId\)/);
   assert.match(source, /createSandboxOnlyBossArtwork\(preview\)/);
