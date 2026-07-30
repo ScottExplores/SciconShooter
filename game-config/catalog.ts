@@ -76,10 +76,12 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   PIXI_BOSS_OPEN_GALAXY_FRAMES: asset('PIXI_BOSS_OPEN_GALAXY_FRAMES', 'Open Galaxy Dreadnought', ASSETS.PIXI_BOSS_OPEN_GALAXY_FRAMES, ['boss', 'scorecard']),
   PIXI_BOSS_CROWNCLAW_FRAMES: asset('PIXI_BOSS_CROWNCLAW_FRAMES', 'Astral Crownclaw', ASSETS.PIXI_BOSS_CROWNCLAW_FRAMES, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_ECLIPSE_ENGINE: asset('CAMPAIGN_BOSS_ECLIPSE_ENGINE', 'Eclipse Engine', ASSETS.CAMPAIGN_BOSS_ECLIPSE_ENGINE, ['boss', 'scorecard']),
+  CAMPAIGN_BOSS_FRONTIER_CROWNCLAW: asset('CAMPAIGN_BOSS_FRONTIER_CROWNCLAW', 'Frontier Crownclaw', ASSETS.CAMPAIGN_BOSS_FRONTIER_CROWNCLAW, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_HAMMERHEAD_SIEGE: asset('CAMPAIGN_BOSS_HAMMERHEAD_SIEGE', 'Hammerhead Siege', ASSETS.CAMPAIGN_BOSS_HAMMERHEAD_SIEGE, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: asset('CAMPAIGN_BOSS_HELIOS_CLAWCARRIER', 'Helios Clawcarrier', ASSETS.CAMPAIGN_BOSS_HELIOS_CLAWCARRIER, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_HELIX_LEVIATHAN: asset('CAMPAIGN_BOSS_HELIX_LEVIATHAN', 'Helix Leviathan', ASSETS.CAMPAIGN_BOSS_HELIX_LEVIATHAN, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_ORBIT_GYROSCOPE: asset('CAMPAIGN_BOSS_ORBIT_GYROSCOPE', 'Orbit Gyroscope', ASSETS.CAMPAIGN_BOSS_ORBIT_GYROSCOPE, ['boss', 'scorecard']),
+  CAMPAIGN_BOSS_NULLWAKE_REVENANT: asset('CAMPAIGN_BOSS_NULLWAKE_REVENANT', 'Nullwake Revenant', ASSETS.CAMPAIGN_BOSS_NULLWAKE_REVENANT, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_PRISM_MOTH: asset('CAMPAIGN_BOSS_PRISM_MOTH', 'Prism Moth', ASSETS.CAMPAIGN_BOSS_PRISM_MOTH, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_RAIL_SERPENT: asset('CAMPAIGN_BOSS_RAIL_SERPENT', 'Rail Serpent', ASSETS.CAMPAIGN_BOSS_RAIL_SERPENT, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_SINGULARITY_CRAB: asset('CAMPAIGN_BOSS_SINGULARITY_CRAB', 'Singularity Crab', ASSETS.CAMPAIGN_BOSS_SINGULARITY_CRAB, ['boss', 'scorecard']),
@@ -506,7 +508,15 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
     id: 'frontier-crownclaw',
     label: 'Frontier Crownclaw',
     entityType: 'BOSS',
-    defaultSpriteKey: 'PIXI_BOSS_CROWNCLAW_FRAMES',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW',
+    defaultMovementPatternId: 'arena-roam',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'nullwake-revenant': {
+    id: 'nullwake-revenant',
+    label: 'Nullwake Revenant',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_NULLWAKE_REVENANT',
     defaultMovementPatternId: 'arena-roam',
     allowedWeaponIds: ['burst-volley', 'lane-beam']
   }

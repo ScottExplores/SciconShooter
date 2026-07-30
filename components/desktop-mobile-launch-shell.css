@@ -1,0 +1,250 @@
+.scicon-desktop-mobile-launch {
+  position: fixed;
+  inset: 0;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 100vw;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #020617 url('/game-art/generated/ui/scicon-desktop-mobile-launch-v1/desktop-mobile-nebula.png') center / cover no-repeat;
+  color: #f8fafc;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.scicon-desktop-mobile-launch__shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 48%, rgb(2 6 23 / 0.08), rgb(2 6 23 / 0.3) 44%, rgb(2 6 23 / 0.58) 100%),
+    linear-gradient(180deg, rgb(2 6 23 / 0.12), rgb(2 6 23 / 0.34));
+}
+
+.scicon-desktop-mobile-launch__landing {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(46rem, calc(100vw - 4rem));
+  grid-template-columns: minmax(0, 1fr) 14rem;
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 2px solid rgb(103 232 249 / 0.62);
+  clip-path: polygon(18px 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 18px 100%, 0 calc(100% - 18px), 0 18px);
+  background:
+    linear-gradient(135deg, rgb(8 47 73 / 0.9), rgb(2 6 23 / 0.96) 52%, rgb(46 16 101 / 0.88));
+  box-shadow:
+    inset 0 0 0 1px rgb(216 251 255 / 0.12),
+    inset 0 0 3rem rgb(34 211 238 / 0.08),
+    0 1.75rem 6rem rgb(0 0 0 / 0.62),
+    0 0 2.5rem rgb(34 211 238 / 0.2);
+  transform: translate(-50%, -50%);
+}
+
+.scicon-desktop-mobile-launch__copy {
+  display: grid;
+  justify-items: start;
+}
+
+.scicon-desktop-mobile-launch__eyebrow {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  border: 1px solid rgb(250 204 21 / 0.48);
+  background: rgb(113 63 18 / 0.32);
+  padding: 0.35rem 0.65rem;
+  color: #fef08a;
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.scicon-desktop-mobile-launch__icon {
+  width: 4rem;
+  height: 4rem;
+  margin-top: 1rem;
+  border: 1px solid rgb(103 232 249 / 0.44);
+  border-radius: 0.85rem;
+  object-fit: cover;
+  image-rendering: pixelated;
+  box-shadow: 0 0 1.5rem rgb(34 211 238 / 0.3);
+}
+
+.scicon-desktop-mobile-launch__copy h1 {
+  max-width: 31rem;
+  margin: 1rem 0 0;
+  color: #ecfeff;
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: clamp(1.8rem, 4vw, 3.15rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+  text-transform: uppercase;
+  text-shadow: 0 0 1rem rgb(34 211 238 / 0.3);
+}
+
+.scicon-desktop-mobile-launch__copy p {
+  max-width: 34rem;
+  margin: 1rem 0 0;
+  color: #cbd5e1;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.65;
+}
+
+.scicon-desktop-mobile-launch__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.4rem;
+}
+
+.scicon-desktop-mobile-launch__base-action,
+.scicon-desktop-mobile-launch__play-action,
+.scicon-desktop-mobile-launch__side-link {
+  display: inline-grid;
+  min-height: 3rem;
+  place-items: center;
+  border: 2px solid;
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+  padding: 0.75rem 1.2rem;
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.scicon-desktop-mobile-launch__base-action {
+  border-color: #a7f3d0;
+  background: linear-gradient(180deg, #a7f3d0, #10b981 65%, #047857);
+  color: #022c22;
+  box-shadow: 0 0 1.25rem rgb(16 185 129 / 0.28);
+}
+
+.scicon-desktop-mobile-launch__play-action,
+.scicon-desktop-mobile-launch__side-link {
+  border-color: rgb(165 243 252 / 0.58);
+  background: rgb(8 47 73 / 0.86);
+  color: #cffafe;
+}
+
+.scicon-desktop-mobile-launch__base-action:hover,
+.scicon-desktop-mobile-launch__play-action:hover,
+.scicon-desktop-mobile-launch__side-link:hover,
+.scicon-desktop-mobile-launch__base-action:focus-visible,
+.scicon-desktop-mobile-launch__play-action:focus-visible,
+.scicon-desktop-mobile-launch__side-link:focus-visible {
+  filter: brightness(1.13);
+  outline: 2px solid #ecfeff;
+  outline-offset: 3px;
+  transform: translateY(-1px);
+}
+
+.scicon-desktop-mobile-launch__qr-card {
+  display: grid;
+  justify-items: center;
+  gap: 0.65rem;
+  border: 1px solid rgb(216 251 255 / 0.42);
+  background: rgb(2 6 23 / 0.72);
+  padding: 1rem;
+  color: #cffafe;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: inset 0 0 1.5rem rgb(34 211 238 / 0.06), 0 0 1.5rem rgb(34 211 238 / 0.12);
+}
+
+.scicon-desktop-mobile-launch__qr-card span,
+.scicon-desktop-mobile-launch__qr-card small {
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.scicon-desktop-mobile-launch__qr-card small {
+  color: #94a3b8;
+  font-size: 0.55rem;
+}
+
+.scicon-desktop-mobile-launch__qr-card img {
+  width: 11rem;
+  height: 11rem;
+  border: 0.65rem solid white;
+  background: white;
+  image-rendering: pixelated;
+}
+
+.scicon-desktop-mobile-launch__play-area {
+  position: absolute;
+  inset: 0;
+}
+
+.scicon-desktop-mobile-launch__frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 390px;
+  height: 844px;
+  border: 2px solid rgb(103 232 249 / 0.72);
+  background: #020617;
+  box-shadow:
+    0 0 0 1px rgb(15 23 42 / 0.92),
+    0 0 2.75rem rgb(34 211 238 / 0.28),
+    0 2rem 7rem rgb(0 0 0 / 0.72);
+  transform: translate(-50%, -50%) scale(var(--scicon-mobile-frame-scale, 1));
+  transform-origin: center;
+}
+
+.scicon-desktop-mobile-launch__frame-label {
+  position: absolute;
+  bottom: calc(100% + 0.55rem);
+  left: 50%;
+  width: max-content;
+  color: rgb(165 243 252 / 0.82);
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+}
+
+.scicon-desktop-mobile-launch__iframe {
+  display: block;
+  width: 390px;
+  height: 844px;
+  border: 0;
+  background: #020617;
+}
+
+.scicon-desktop-mobile-launch__side-link {
+  position: absolute;
+  right: max(1.5rem, calc((100vw - 390px) / 8));
+  bottom: 1.5rem;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.58rem;
+}
+
+@media (max-height: 620px) {
+  .scicon-desktop-mobile-launch__frame-label,
+  .scicon-desktop-mobile-launch__side-link {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scicon-desktop-mobile-launch__base-action,
+  .scicon-desktop-mobile-launch__play-action,
+  .scicon-desktop-mobile-launch__side-link {
+    transition: none;
+  }
+}

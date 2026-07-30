@@ -243,7 +243,7 @@ test('all canonical major boss IDs satisfy boss-defeat classification', () => {
       'prism-moth',
       'frontier-crownclaw',
       'helios-clawcarrier',
-      'rail-serpent',
+      'nullwake-revenant',
       'singularity-crab',
       'orbit-gyroscope',
       'hammerhead-siege',

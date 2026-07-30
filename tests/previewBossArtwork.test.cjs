@@ -19,11 +19,13 @@ const exclusionSource = fs.readFileSync(
   'utf8'
 );
 
-test('preview boss artwork flows through the canonical canvas and is ignored in production mode', () => {
+test('preview overrides and promoted campaign boss artwork share the canonical canvas', () => {
   assert.match(editorSource, /previewBossArtwork/);
   assert.match(editorSource, /onReady/);
   assert.match(editorSource, /onInitializationError/);
-  assert.match(canvasSource, /previewBossArtwork: previewMode \? previewBossArtwork : undefined/);
+  assert.match(canvasSource, /resolveCampaignBossArtwork/);
+  assert.match(canvasSource, /previewBossArtwork \?\? resolveCampaignBossArtwork/);
+  assert.match(canvasSource, /previewBossArtwork: activeBossArtwork/);
   assert.match(rendererSource, /entity\.sourceEventId !== this\.previewBossArtwork\?\.eventId/);
   assert.match(rendererSource, /usesStandaloneBossArt/);
   assert.doesNotMatch(rendererSource, /meridian-harrower|director-data|__director/);

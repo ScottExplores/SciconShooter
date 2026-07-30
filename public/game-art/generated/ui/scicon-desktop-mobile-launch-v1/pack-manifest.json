@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "scicon-desktop-mobile-launch-v1",
+  "galleryCategory": "Interface / Desktop Mobile Launch",
+  "runtimeProtocol": "Static outer desktop presentation only. The canonical game continues to run inside one same-origin 390x844 mobile frame.",
+  "assets": {
+    "backdrop": {
+      "path": "/game-art/generated/ui/scicon-desktop-mobile-launch-v1/desktop-mobile-nebula.png",
+      "width": 1774,
+      "height": 887,
+      "sha256": "58cde7e35a7f63366a7622eb5edbdc0bdf522f6eb6cf8398692f35c0563f585e",
+      "provenance": "Copied from the retained Codex image-generation output call_QLTwg8haOJe564FTfmgd0trx.png."
+    },
+    "baseAppInviteQr": {
+      "path": "/game-art/generated/ui/scicon-desktop-mobile-launch-v1/base-app-invite-qr.png",
+      "width": 320,
+      "height": 320,
+      "sha256": "63c4eaebc8859b6cbd2207825abc3db1287045981a5d7d3187d548529ea1ecf9",
+      "encodedUrl": "https://base.app/invite/scottexplores/6SR3DKQB",
+      "provenance": "Generated once as a static QR image and served locally; the production page makes no QR-service request."
+    }
+  }
+}

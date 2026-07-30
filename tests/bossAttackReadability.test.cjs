@@ -99,7 +99,7 @@ test('Mission 10 Paywall Decimator keeps its authored burst budget while charged
   assert.ok(boss);
   assert.equal(boss.id, 'stage-null-sector-major-boss');
   assert.equal(boss.bossId, 'paywall-decimator');
-  assert.equal(boss.health, 650);
+  assert.equal(boss.health, 800);
   assert.equal(boss.shieldCount, 0);
   assert.equal(boss.speed, 2);
   assert.ok(boss.warningSeconds >= 5);
@@ -162,7 +162,7 @@ test('promoted early-sector major bosses preserve approved durability and author
   const expected = new Map([
     [10, {
       bossId: 'paywall-decimator',
-      health: 650,
+      health: 800,
       speed: 2,
       shields: 0,
       burstInterval: 0.65,
@@ -174,7 +174,7 @@ test('promoted early-sector major bosses preserve approved durability and author
     }],
     [15, {
       bossId: 'prism-moth',
-      health: 1150,
+      health: 1300,
       speed: 2.1,
       shields: 0,
       burstInterval: 1.1,
@@ -198,7 +198,7 @@ test('promoted early-sector major bosses preserve approved durability and author
     }],
     [25, {
       bossId: 'helios-clawcarrier',
-      health: 1800,
+      health: 2350,
       speed: 1.35,
       shields: 0,
       burstInterval: 4.8,

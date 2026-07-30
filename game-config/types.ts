@@ -28,10 +28,12 @@ export type BuiltInAssetKey =
   | 'PIXI_BOSS_OPEN_GALAXY_FRAMES'
   | 'PIXI_BOSS_CROWNCLAW_FRAMES'
   | 'CAMPAIGN_BOSS_ECLIPSE_ENGINE'
+  | 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW'
   | 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'
   | 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER'
   | 'CAMPAIGN_BOSS_HELIX_LEVIATHAN'
   | 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE'
+  | 'CAMPAIGN_BOSS_NULLWAKE_REVENANT'
   | 'CAMPAIGN_BOSS_PRISM_MOTH'
   | 'CAMPAIGN_BOSS_RAIL_SERPENT'
   | 'CAMPAIGN_BOSS_SINGULARITY_CRAB'
@@ -104,7 +106,8 @@ export type BossId =
   | 'singularity-crab'
   | 'orbit-gyroscope'
   | 'hammerhead-siege'
-  | 'frontier-crownclaw';
+  | 'frontier-crownclaw'
+  | 'nullwake-revenant';
 
 export type CampaignMiniBossId = Extract<
   BossId,

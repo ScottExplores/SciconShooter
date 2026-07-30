@@ -13,13 +13,13 @@ test('campaign boss slots use registered damage art and Gatekeeper Prime retains
     [5, { bossId: 'gatekeeper-prime', spriteKey: 'PIXI_BOSS_OPEN_ORBIT_FRAMES' }],
     [10, { bossId: 'paywall-decimator', spriteKey: 'PIXI_BOSS_PAYWALL_FRAMES' }],
     [15, { bossId: 'prism-moth', spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH' }],
-    [20, { bossId: 'frontier-crownclaw', spriteKey: 'PIXI_BOSS_CROWNCLAW_FRAMES' }],
+    [20, { bossId: 'frontier-crownclaw', spriteKey: 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW' }],
     [25, { bossId: 'helios-clawcarrier', spriteKey: 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER' }],
-    [30, { bossId: 'rail-serpent', spriteKey: 'CAMPAIGN_BOSS_RAIL_SERPENT' }],
+    [30, { bossId: 'nullwake-revenant', spriteKey: 'CAMPAIGN_BOSS_NULLWAKE_REVENANT' }],
     [35, { bossId: 'singularity-crab', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB' }],
     [40, { bossId: 'orbit-gyroscope', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE' }],
     [45, { bossId: 'hammerhead-siege', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE' }],
-    [50, { bossId: 'frontier-crownclaw', spriteKey: 'PIXI_BOSS_CROWNCLAW_FRAMES' }]
+    [50, { bossId: 'frontier-crownclaw', spriteKey: 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW' }]
   ]);
   for (const [missionOrder, expected] of expectedByMissionOrder) {
     const level = campaign.levels.find((candidate) => candidate.order === missionOrder);
@@ -34,11 +34,11 @@ test('campaign boss slots use registered damage art and Gatekeeper Prime retains
   assert.match(constants, /PIXI_BOSS_OPEN_ORBIT_FRAMES: (?:\[|Array\.from)/);
   assert.match(
     constants,
-    /CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: "\/game-art\/generated\/bosses\/helios-clawcarrier\/helios-clawcarrier-neutral\.png"/
+    /CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: "\/game-art\/generated\/bosses\/campaign-packages\/helios-clawcarrier\/assembled\.png"/
   );
   assert.ok(fs.existsSync(path.join(
     root,
-    'public/game-art/generated/bosses/helios-clawcarrier/helios-clawcarrier-neutral.png'
+    'public/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png'
   )));
 
   for (const directory of ['open-orbit', 'citation-storm', 'paywall-decimator/body']) {
@@ -216,7 +216,10 @@ test('boss cannons use enlarged visuals with focused collision footprints', () =
     engine.indexOf('isBossHullProtected(boss: Entity)'),
     engine.indexOf('spawnBoss(configured?: RuntimeBossEvent')
   );
-  assert.match(hullProtection, /isBossHullProtectedByComponents\(boss\.bossComponents \?\? \[\]\)/);
+  assert.match(
+    hullProtection,
+    /isBossHullProtectedByComponents\([\s\S]*?boss\.bossComponents \?\? \[\],[\s\S]*?boss\.bossRigId === 'paywall-siege'[\s\S]*?\)/
+  );
   assert.match(componentRuntime, /component\.id === 'helmet' && !component\.destroyed/);
   assert.doesNotMatch(componentRuntime, /left-cannon|right-cannon/);
 });
@@ -331,7 +334,7 @@ test('both Frontier Crownclaw Campaign slots use the animated six-leg rig with d
     const mission = campaign.levels.find((level) => level.order === missionOrder);
     const event = mission.waves.flatMap((wave) => wave.events).find((candidate) => candidate.kind === 'boss');
     assert.equal(event.bossId, 'frontier-crownclaw', `M${missionOrder} boss identity`);
-    assert.equal(event.spriteKey, 'PIXI_BOSS_CROWNCLAW_FRAMES', `M${missionOrder} boss art`);
+    assert.equal(event.spriteKey, 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW', `M${missionOrder} boss art`);
     assert.equal(event.rigId, 'crown-claw', `M${missionOrder} rig`);
     return event;
   });

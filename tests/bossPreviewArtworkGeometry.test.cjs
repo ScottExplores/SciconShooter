@@ -75,18 +75,18 @@ test('production, unrelated events, and invalid art metadata retain configured d
   });
 });
 
-test('the canonical preview passes modular design bounds into GameEngine only in preview mode', () => {
+test('the canonical canvas passes selected modular design bounds into GameEngine', () => {
   const canvas = read('components/GameCanvas.tsx');
   const engine = read('services/gameLogic.ts');
 
   assert.match(
     canvas,
-    /previewBossArtworkDesignSize: previewMode[\s\S]*?previewBossArtwork\?\.modularRig\?\.manifest\.designSize/
+    /previewBossArtworkDesignSize:[\s\S]*?activeBossArtwork\?\.modularRig\?\.manifest\.designSize/
   );
   assert.match(engine, /resolveBossPreviewArtworkDimensions\(\{/);
   assert.match(engine, /selectedEventId: this\.previewBossCollisionEventId/);
   assert.match(
     engine,
-    /this\.previewBossArtworkDesignSize = this\.previewMode[\s\S]*?: undefined;/
+    /this\.previewBossArtworkDesignSize = options\.previewBossArtworkDesignSize[\s\S]*?: undefined;/
   );
 });

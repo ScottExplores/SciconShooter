@@ -131,7 +131,8 @@ const progression = compileService('campaignProgression.ts', {
       'singularity-crab',
       'orbit-gyroscope',
       'hammerhead-siege',
-      'frontier-crownclaw'
+      'frontier-crownclaw',
+      'nullwake-revenant'
     ].includes(bossId)
   },
   '../services/campaignGraph.ts': campaignGraph,

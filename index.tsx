@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/tailwind.generated.css';
 import App from './App';
+import DesktopMobileLaunchShell from './components/DesktopMobileLaunchShell';
 import { AppProviders } from './providers';
 
 const rootElement = document.getElementById('root');
@@ -12,8 +13,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <AppProviders>
-      <App />
-    </AppProviders>
+    <DesktopMobileLaunchShell>
+      <AppProviders>
+        <App />
+      </AppProviders>
+    </DesktopMobileLaunchShell>
   </React.StrictMode>
 );

@@ -239,5 +239,5 @@ test('collision masks are generated, immutable, and hash-bound to Sandbox art', 
   );
   assert.match(sandboxModel, /collisionMask: collisionMaskAsset\.mask/);
   assert.match(contracts, /readonly collisionMask\?: BossCollisionMask/);
-  assert.match(canvas, /previewBossCollisionMask:[\s\S]*?previewBossArtwork\?\.collisionMask/);
+  assert.match(canvas, /previewBossCollisionMask: activeBossArtwork\?\.collisionMask/);
 });

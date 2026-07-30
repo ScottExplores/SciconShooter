@@ -19,10 +19,12 @@ const toBossTimelineFrame = (seconds) => Math.max(
 
 const CAMPAIGN_BOSS_ASSET_KEYS = [
   'CAMPAIGN_BOSS_ECLIPSE_ENGINE',
+  'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW',
   'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE',
   'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER',
   'CAMPAIGN_BOSS_HELIX_LEVIATHAN',
   'CAMPAIGN_BOSS_ORBIT_GYROSCOPE',
+  'CAMPAIGN_BOSS_NULLWAKE_REVENANT',
   'CAMPAIGN_BOSS_PRISM_MOTH',
   'CAMPAIGN_BOSS_RAIL_SERPENT',
   'CAMPAIGN_BOSS_SINGULARITY_CRAB',
@@ -186,13 +188,13 @@ const BOSS_IDS = new Set([
   'aegis-convoy-captain', 'gridline-sentries', 'gatekeeper', 'gatekeeper-prime', 'paywall-decimator',
   'helios-clawcarrier', 'helix-leviathan',
   'eclipse-engine', 'research-tribunal', 'prism-moth', 'rail-serpent', 'singularity-crab',
-  'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw'
+  'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw', 'nullwake-revenant'
 ]);
 const MAJOR_BOSS_IDS = new Set([
   'gatekeeper', 'gatekeeper-prime', 'paywall-decimator', 'helios-clawcarrier', 'helix-leviathan',
   'eclipse-engine', 'research-tribunal',
   'prism-moth', 'rail-serpent', 'singularity-crab', 'orbit-gyroscope', 'hammerhead-siege',
-  'frontier-crownclaw'
+  'frontier-crownclaw', 'nullwake-revenant'
 ]);
 const BOSS_RIG_IDS = new Set(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw']);
 const POWERUP_IDS = new Set(['double-shot', 'triple-shot', 'max-shot', 'magnet', 'shield', 'research-beam', 'extra-life']);

@@ -201,7 +201,7 @@ test('fifty main depths form a non-recycling campaign with ten authored sector c
   assert.ok(campaign.levels.every((stage) => stage.loopWaves === false));
   assert.deepEqual(sectorBosses.map((boss) => boss.bossId), [
     'gatekeeper-prime', 'paywall-decimator', 'prism-moth', 'frontier-crownclaw', 'helios-clawcarrier',
-    'rail-serpent', 'singularity-crab', 'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw'
+    'nullwake-revenant', 'singularity-crab', 'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw'
   ]);
   assert.deepEqual(
     campaign.levels.filter((level) => level.waves.some((wave) => wave.completionRule === 'boss-defeat')).map((level) => level.order),
@@ -255,9 +255,9 @@ test('ten sector bosses follow a readable durability, bounded score, and project
   });
   const bursts = finalBosses.map((boss) => boss.weapons.find((weapon) => weapon.projectileSpeed > 0));
 
-  assert.deepEqual(finalBosses.map((boss) => boss.health), [500, 650, 1150, 1600, 1800, 1850, 1950, 2100, 2300, 2450]);
+  assert.deepEqual(finalBosses.map((boss) => boss.health), [500, 800, 1300, 1600, 2350, 2500, 2700, 2900, 3150, 3400]);
   assert.deepEqual(finalBosses.map((boss) => boss.scoreReward), [1010, 5010, 9010, 13010, 17010, 21010, 25010, 29010, 33010, 37010]);
-  assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 7, 4, 4, 4, 3, 1, 2, 1, 3]);
+  assert.deepEqual(bursts.map((weapon) => weapon.burstCount), [3, 7, 4, 4, 4, 4, 1, 2, 1, 3]);
   finalBosses.slice(1).forEach((boss, index) => {
     assert.ok(boss.health > finalBosses[index].health);
     assert.ok(boss.scoreReward > finalBosses[index].scoreReward);

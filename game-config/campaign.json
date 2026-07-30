@@ -8533,7 +8533,7 @@
               "positionId": "center-top",
               "movementPatternId": "gatekeeper-cycle",
               "warningSeconds": 5,
-              "health": 650,
+              "health": 800,
               "speed": 2,
               "damage": 1,
               "scoreReward": 5010,
@@ -11712,7 +11712,7 @@
               "positionId": "center-top",
               "movementPatternId": "arena-roam",
               "warningSeconds": 1.2,
-              "health": 1150,
+              "health": 1300,
               "speed": 2.1,
               "damage": 1,
               "scoreReward": 9010,
@@ -15516,7 +15516,7 @@
           "flight"
         ],
         "showEncounterArt": true,
-        "encounterAssetKey": "PIXI_BOSS_CROWNCLAW_FRAMES"
+        "encounterAssetKey": "CAMPAIGN_BOSS_FRONTIER_CROWNCLAW"
       },
       "campaignProgression": {
         "reward": {
@@ -15911,7 +15911,7 @@
                 "left-cannon": 400,
                 "right-cannon": 400
               },
-              "spriteKey": "PIXI_BOSS_CROWNCLAW_FRAMES",
+              "spriteKey": "CAMPAIGN_BOSS_FRONTIER_CROWNCLAW",
               "positionId": "center-top",
               "movementPatternId": "arena-roam",
               "warningSeconds": 1.2,
@@ -20200,14 +20200,14 @@
               "bossId": "helios-clawcarrier",
               "rigId": "crown-claw",
               "componentHealth": {
-                "left-cannon": 450,
-                "right-cannon": 450
+                "left-cannon": 600,
+                "right-cannon": 600
               },
               "spriteKey": "CAMPAIGN_BOSS_HELIOS_CLAWCARRIER",
               "positionId": "center-top",
               "movementPatternId": "arena-roam",
               "warningSeconds": 1.2,
-              "health": 1800,
+              "health": 2350,
               "speed": 1.35,
               "damage": 1,
               "scoreReward": 17010,
@@ -24609,7 +24609,7 @@
           "flight"
         ],
         "showEncounterArt": true,
-        "encounterAssetKey": "CAMPAIGN_BOSS_RAIL_SERPENT"
+        "encounterAssetKey": "CAMPAIGN_BOSS_NULLWAKE_REVENANT"
       },
       "campaignProgression": {
         "reward": {
@@ -24993,83 +24993,1841 @@
             {
               "id": "stage-rail-meridian-commander-major-boss",
               "kind": "boss",
-              "label": "RAIL MERIDIAN COMMANDER",
+              "label": "Nullwake Revenant",
               "startSeconds": 0.8,
               "durationSeconds": 60,
               "delayAfterSeconds": 0,
               "blocksWaveClock": true,
-              "bossId": "rail-serpent",
-              "rigId": "crown-claw",
-              "spriteKey": "CAMPAIGN_BOSS_RAIL_SERPENT",
-              "spriteStyle": {
-                "hueRotateDegrees": 145,
-                "saturation": 1.16,
-                "brightness": 1.04,
-                "glowColor": "#67e8f9",
-                "glowBlur": 8
-              },
+              "bossId": "nullwake-revenant",
+              "rigId": "open-orbit",
+              "componentMode": "hull-only",
+              "spriteKey": "CAMPAIGN_BOSS_NULLWAKE_REVENANT",
               "positionId": "center-top",
-              "movementPatternId": "gatekeeper-cycle",
-              "warningSeconds": 3,
-              "health": 1850,
-              "speed": 2.25,
+              "movementPatternId": "arena-roam",
+              "warningSeconds": 1.2,
+              "health": 2500,
+              "speed": 0.65,
               "damage": 1,
               "scoreReward": 21010,
               "powerupDropChance": 1,
-              "shieldCount": 3,
-              "sizeMultiplier": 1.14,
+              "shieldCount": 0,
+              "sizeMultiplier": 1.32,
+              "revival": {
+                "phaseId": "sandbox-nullwake-backplane-crown",
+                "shutdownSeconds": 2.2,
+                "rebootSeconds": 2.6,
+                "restoreHealthRatio": 1,
+                "awakenedSizeMultiplier": 1.22
+              },
               "weapons": [
                 {
-                  "id": "terminus-ascendant-radial-burst",
+                  "id": "sandbox-nullwake-revenant-burst",
                   "weaponId": "burst-volley",
-                  "attackIntervalSeconds": 1.44,
+                  "attackIntervalSeconds": 30,
                   "damage": 1,
-                  "projectileSpeed": 6.8,
-                  "burstCount": 3
+                  "projectileSpeed": 5.8,
+                  "burstCount": 4
                 },
                 {
-                  "id": "terminus-ascendant-charged-lanes",
+                  "id": "sandbox-nullwake-revenant-beam",
                   "weaponId": "lane-beam",
-                  "attackIntervalSeconds": 1.44,
+                  "attackIntervalSeconds": 30,
                   "damage": 1,
-                  "projectileSpeed": 0,
-                  "burstCount": 3
+                  "projectileSpeed": 5,
+                  "burstCount": 1
                 }
               ],
               "phases": [
                 {
-                  "id": "terminus-ascendant-phase-control",
-                  "label": "Arena control",
+                  "id": "sandbox-nullwake-borrowed-charge",
+                  "label": "Borrowed Charge",
                   "triggerHealthRatio": 1,
                   "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.82,
+                  "speedMultiplier": 0.72,
                   "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst"
+                    "sandbox-nullwake-revenant-burst",
+                    "sandbox-nullwake-revenant-beam"
                   ]
                 },
                 {
-                  "id": "terminus-ascendant-phase-crossfire",
-                  "label": "Charged crossfire",
-                  "triggerHealthRatio": 0.46,
-                  "movementPatternId": "arena-roam",
-                  "speedMultiplier": 0.9,
+                  "id": "sandbox-nullwake-backplane-crown",
+                  "label": "Backplane Crown",
+                  "triggerHealthRatio": 0.99,
+                  "movementPatternId": "sine-drift",
+                  "speedMultiplier": 0.78,
                   "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst",
-                    "terminus-ascendant-charged-lanes"
+                    "sandbox-nullwake-revenant-burst",
+                    "sandbox-nullwake-revenant-beam"
                   ]
                 },
                 {
-                  "id": "terminus-ascendant-phase-collapse",
-                  "label": "Collapse pattern",
-                  "triggerHealthRatio": 0.15,
+                  "id": "sandbox-nullwake-terminal-overclock",
+                  "label": "Terminal Overclock",
+                  "triggerHealthRatio": 0.28,
                   "movementPatternId": "arena-roam",
-                  "speedMultiplier": 1,
+                  "speedMultiplier": 0.84,
                   "weaponSettingIds": [
-                    "terminus-ascendant-radial-burst",
-                    "terminus-ascendant-charged-lanes"
+                    "sandbox-nullwake-revenant-burst",
+                    "sandbox-nullwake-revenant-beam"
                   ]
                 }
-              ]
+              ],
+              "timeline": {
+                "durationSeconds": 24.7,
+                "loop": true,
+                "clips": [
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-identity",
+                    "label": "sandbox-nullwake-borrowed-charge identity",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-camera",
+                    "label": "sandbox-nullwake-borrowed-charge camera cue",
+                    "track": "presentation",
+                    "primitiveId": "camera-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "strength": 0.6
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-identity",
+                    "label": "sandbox-nullwake-backplane-crown identity",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-camera",
+                    "label": "sandbox-nullwake-backplane-crown camera cue",
+                    "track": "presentation",
+                    "primitiveId": "camera-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "strength": 1.15
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-identity",
+                    "label": "sandbox-nullwake-terminal-overclock identity",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-camera",
+                    "label": "sandbox-nullwake-terminal-overclock camera cue",
+                    "track": "presentation",
+                    "primitiveId": "camera-cue",
+                    "trigger": "phase-enter",
+                    "startSeconds": 0,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "strength": 1.3
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-claw-corridor-claw-1-warning",
+                    "label": "Port claw wake warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 0.2,
+                    "durationSeconds": 0.75,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "lane",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-claw-corridor-claw-1",
+                    "label": "Port claw wake",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 0.95,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-claw-corridor-claw-1-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "port"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-claw-corridor-claw-2-warning",
+                    "label": "Starboard claw wake warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 1.55,
+                    "durationSeconds": 0.75,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "lane",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-claw-corridor-claw-2",
+                    "label": "Starboard claw wake",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 2.3,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-claw-corridor-claw-2-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "starboard"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-claw-corridor-claw-3-warning",
+                    "label": "Port claw wake warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 2.9000000000000004,
+                    "durationSeconds": 0.75,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "lane",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-claw-corridor-claw-3",
+                    "label": "Port claw wake",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 3.6500000000000004,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-claw-corridor-claw-3-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "port"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-claw-corridor-recovery",
+                    "label": "Claw Corridor recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 3.8500000000000005,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-1-warning",
+                    "label": "Dead-signal gate 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 4.75,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-1",
+                    "label": "Dead-signal gate 1",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 5.55,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-1-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 0,
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-2-warning",
+                    "label": "Dead-signal gate 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 6.2,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-2",
+                    "label": "Dead-signal gate 2",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 7,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-2-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 1,
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-3-warning",
+                    "label": "Dead-signal gate 3 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 7.65,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-3",
+                    "label": "Dead-signal gate 3",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 8.450000000000001,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-3-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 2,
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-dead-signal-gates-recovery",
+                    "label": "Dead-Signal Gates recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 8.65,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-1-warning",
+                    "label": "Memory lattice 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 9.55,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "lane",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-1",
+                    "label": "Memory lattice 1",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 10.4,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-1-warning",
+                    "parameters": {
+                      "sequence": 0
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-2-warning",
+                    "label": "Memory lattice 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 11.100000000000001,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "lane",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-2",
+                    "label": "Memory lattice 2",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 11.950000000000001,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-2-warning",
+                    "parameters": {
+                      "sequence": 1
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-3-warning",
+                    "label": "Memory lattice 3 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 12.65,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "lane",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-3",
+                    "label": "Memory lattice 3",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 13.5,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-3-warning",
+                    "parameters": {
+                      "sequence": 2
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-memory-lattice-recovery",
+                    "label": "Memory Lattice recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 13.75,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-entry-warning",
+                    "label": "Maze entry channel warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 14.7,
+                    "durationSeconds": 0.9,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "lane",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-entry",
+                    "label": "Maze entry channel",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 15.6,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-entry-warning",
+                    "parameters": {
+                      "sequence": 4
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-first-gate-warning",
+                    "label": "Maze route gate warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 16.25,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-first-gate",
+                    "label": "Maze route gate",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 17.05,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-first-gate-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 2,
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-cross-warning",
+                    "label": "Maze quadrant cross warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 17.8,
+                    "durationSeconds": 0.95,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.95,
+                      "telegraphStyle": "lane",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-cross",
+                    "label": "Maze quadrant cross",
+                    "track": "laser",
+                    "primitiveId": "cross-beam",
+                    "trigger": "time",
+                    "startSeconds": 18.75,
+                    "durationSeconds": 0.45,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-cross-warning"
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-claw-warning",
+                    "label": "Maze claw pressure warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 19.35,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "lane",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-claw",
+                    "label": "Maze claw pressure",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 20.150000000000002,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-claw-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "port"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-return-gate-warning",
+                    "label": "Maze return gate warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 20.75,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "ring",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-return-gate",
+                    "label": "Maze return gate",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 21.6,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-return-gate-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 3,
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-exit-warning",
+                    "label": "Maze exit channel warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 22.25,
+                    "durationSeconds": 0.9,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "lane",
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-exit",
+                    "label": "Maze exit channel",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 23.15,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "telegraphClipId": "sandbox-nullwake-borrowed-charge-revenant-maze-maze-exit-warning",
+                    "parameters": {
+                      "sequence": 5
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-borrowed-charge-revenant-maze-recovery",
+                    "label": "Revenant Maze recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 23.4,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-nullwake-borrowed-charge",
+                    "parameters": {
+                      "color": "#67e8f9"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-claw-corridor-claw-1-warning",
+                    "label": "Starboard claw wake warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 0.2,
+                    "durationSeconds": 0.75,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "lane",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-claw-corridor-claw-1",
+                    "label": "Starboard claw wake",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 0.95,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-claw-corridor-claw-1-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "starboard"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-claw-corridor-claw-2-warning",
+                    "label": "Port claw wake warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 1.55,
+                    "durationSeconds": 0.75,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "lane",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-claw-corridor-claw-2",
+                    "label": "Port claw wake",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 2.3,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-claw-corridor-claw-2-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "port"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-claw-corridor-claw-3-warning",
+                    "label": "Starboard claw wake warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 2.9000000000000004,
+                    "durationSeconds": 0.75,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "lane",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-claw-corridor-claw-3",
+                    "label": "Starboard claw wake",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 3.6500000000000004,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-claw-corridor-claw-3-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "starboard"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-claw-corridor-recovery",
+                    "label": "Claw Corridor recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 3.8500000000000005,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-1-warning",
+                    "label": "Dead-signal gate 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 4.75,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-1",
+                    "label": "Dead-signal gate 1",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 5.55,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-1-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 0,
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-2-warning",
+                    "label": "Dead-signal gate 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 6.2,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-2",
+                    "label": "Dead-signal gate 2",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 7,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-2-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 1,
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-3-warning",
+                    "label": "Dead-signal gate 3 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 7.65,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-3",
+                    "label": "Dead-signal gate 3",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 8.450000000000001,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-3-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 2,
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-dead-signal-gates-recovery",
+                    "label": "Dead-Signal Gates recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 8.65,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-memory-lattice-lattice-1-warning",
+                    "label": "Memory lattice 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 9.55,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "lane",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-memory-lattice-lattice-1",
+                    "label": "Memory lattice 1",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 10.4,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-memory-lattice-lattice-1-warning",
+                    "parameters": {
+                      "sequence": 2
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-memory-lattice-lattice-2-warning",
+                    "label": "Memory lattice 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 11.100000000000001,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "lane",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-memory-lattice-lattice-2",
+                    "label": "Memory lattice 2",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 11.950000000000001,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-memory-lattice-lattice-2-warning",
+                    "parameters": {
+                      "sequence": 1
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-memory-lattice-lattice-3-warning",
+                    "label": "Memory lattice 3 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 12.65,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "lane",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-memory-lattice-lattice-3",
+                    "label": "Memory lattice 3",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 13.5,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-memory-lattice-lattice-3-warning",
+                    "parameters": {
+                      "sequence": 0
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-memory-lattice-recovery",
+                    "label": "Memory Lattice recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 13.75,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-entry-warning",
+                    "label": "Maze entry channel warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 14.7,
+                    "durationSeconds": 0.9,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "lane",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-entry",
+                    "label": "Maze entry channel",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 15.6,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-revenant-maze-maze-entry-warning",
+                    "parameters": {
+                      "sequence": 2
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-first-gate-warning",
+                    "label": "Maze route gate warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 16.25,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-first-gate",
+                    "label": "Maze route gate",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 17.05,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-revenant-maze-maze-first-gate-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 2,
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-cross-warning",
+                    "label": "Maze quadrant cross warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 17.8,
+                    "durationSeconds": 0.95,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.95,
+                      "telegraphStyle": "lane",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-cross",
+                    "label": "Maze quadrant cross",
+                    "track": "laser",
+                    "primitiveId": "cross-beam",
+                    "trigger": "time",
+                    "startSeconds": 18.75,
+                    "durationSeconds": 0.45,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-revenant-maze-maze-cross-warning"
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-claw-warning",
+                    "label": "Maze claw pressure warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 19.35,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "lane",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-claw",
+                    "label": "Maze claw pressure",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 20.150000000000002,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-revenant-maze-maze-claw-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "starboard"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-return-gate-warning",
+                    "label": "Maze return gate warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 20.75,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "ring",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-return-gate",
+                    "label": "Maze return gate",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 21.6,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-revenant-maze-maze-return-gate-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 3,
+                      "rotationDirection": "counterclockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-exit-warning",
+                    "label": "Maze exit channel warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 22.25,
+                    "durationSeconds": 0.9,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "lane",
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-maze-exit",
+                    "label": "Maze exit channel",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 23.15,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "telegraphClipId": "sandbox-nullwake-backplane-crown-revenant-maze-maze-exit-warning",
+                    "parameters": {
+                      "sequence": 0
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-backplane-crown-revenant-maze-recovery",
+                    "label": "Revenant Maze recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 23.4,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-nullwake-backplane-crown",
+                    "parameters": {
+                      "color": "#fb923c"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-claw-corridor-claw-1-warning",
+                    "label": "Port claw wake warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 0.2,
+                    "durationSeconds": 0.75,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "lane",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-claw-corridor-claw-1",
+                    "label": "Port claw wake",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 0.95,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-claw-corridor-claw-1-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "port"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-claw-corridor-claw-2-warning",
+                    "label": "Port claw wake warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 1.55,
+                    "durationSeconds": 0.75,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "lane",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-claw-corridor-claw-2",
+                    "label": "Port claw wake",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 2.3,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-claw-corridor-claw-2-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "port"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-claw-corridor-claw-3-warning",
+                    "label": "Starboard claw wake warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 2.9000000000000004,
+                    "durationSeconds": 0.75,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.75,
+                      "telegraphStyle": "lane",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-claw-corridor-claw-3",
+                    "label": "Starboard claw wake",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 3.6500000000000004,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-claw-corridor-claw-3-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "starboard"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-claw-corridor-recovery",
+                    "label": "Claw Corridor recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 3.8500000000000005,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-1-warning",
+                    "label": "Dead-signal gate 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 4.75,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-1",
+                    "label": "Dead-signal gate 1",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 5.55,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-1-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 1,
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-2-warning",
+                    "label": "Dead-signal gate 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 6.2,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-2",
+                    "label": "Dead-signal gate 2",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 7,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-2-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 2,
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-3-warning",
+                    "label": "Dead-signal gate 3 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 7.65,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-3",
+                    "label": "Dead-signal gate 3",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 8.450000000000001,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-3-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 1,
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-dead-signal-gates-recovery",
+                    "label": "Dead-Signal Gates recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 8.65,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-1-warning",
+                    "label": "Memory lattice 1 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 9.55,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "lane",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-1",
+                    "label": "Memory lattice 1",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 10.4,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-1-warning",
+                    "parameters": {
+                      "sequence": 1
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-2-warning",
+                    "label": "Memory lattice 2 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 11.100000000000001,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "lane",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-2",
+                    "label": "Memory lattice 2",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 11.950000000000001,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-2-warning",
+                    "parameters": {
+                      "sequence": 2
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-3-warning",
+                    "label": "Memory lattice 3 warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 12.65,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "lane",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-3",
+                    "label": "Memory lattice 3",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 13.5,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-3-warning",
+                    "parameters": {
+                      "sequence": 1
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-memory-lattice-recovery",
+                    "label": "Memory Lattice recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 13.75,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-entry-warning",
+                    "label": "Maze entry channel warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 14.7,
+                    "durationSeconds": 0.9,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "lane",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-entry",
+                    "label": "Maze entry channel",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 15.6,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-entry-warning",
+                    "parameters": {
+                      "sequence": 3
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-first-gate-warning",
+                    "label": "Maze route gate warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 16.25,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "ring",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-first-gate",
+                    "label": "Maze route gate",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 17.05,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-first-gate-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 2,
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-cross-warning",
+                    "label": "Maze quadrant cross warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 17.8,
+                    "durationSeconds": 0.95,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.95,
+                      "telegraphStyle": "lane",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-cross",
+                    "label": "Maze quadrant cross",
+                    "track": "laser",
+                    "primitiveId": "cross-beam",
+                    "trigger": "time",
+                    "startSeconds": 18.75,
+                    "durationSeconds": 0.45,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-cross-warning"
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-claw-warning",
+                    "label": "Maze claw pressure warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 19.35,
+                    "durationSeconds": 0.8,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.8,
+                      "telegraphStyle": "lane",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-claw",
+                    "label": "Maze claw pressure",
+                    "track": "attack",
+                    "primitiveId": "side-barrage",
+                    "trigger": "time",
+                    "startSeconds": 20.150000000000002,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-claw-warning",
+                    "parameters": {
+                      "projectileCount": 4,
+                      "side": "port"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-return-gate-warning",
+                    "label": "Maze return gate warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 20.75,
+                    "durationSeconds": 0.85,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.85,
+                      "telegraphStyle": "ring",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-return-gate",
+                    "label": "Maze return gate",
+                    "track": "attack",
+                    "primitiveId": "gap-ring",
+                    "trigger": "time",
+                    "startSeconds": 21.6,
+                    "durationSeconds": 0.2,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-return-gate-warning",
+                    "parameters": {
+                      "projectileCount": 14,
+                      "sequence": 1,
+                      "rotationDirection": "clockwise"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-exit-warning",
+                    "label": "Maze exit channel warning",
+                    "track": "presentation",
+                    "primitiveId": "telegraph",
+                    "trigger": "time",
+                    "startSeconds": 22.25,
+                    "durationSeconds": 0.9,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "warningSeconds": 0.9,
+                      "telegraphStyle": "lane",
+                      "color": "#c084fc"
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-exit",
+                    "label": "Maze exit channel",
+                    "track": "attack",
+                    "primitiveId": "weave-wall",
+                    "trigger": "time",
+                    "startSeconds": 23.15,
+                    "durationSeconds": 0.25,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "telegraphClipId": "sandbox-nullwake-terminal-overclock-revenant-maze-maze-exit-warning",
+                    "parameters": {
+                      "sequence": 2
+                    }
+                  },
+                  {
+                    "id": "sandbox-nullwake-terminal-overclock-revenant-maze-recovery",
+                    "label": "Revenant Maze recovery",
+                    "track": "presentation",
+                    "primitiveId": "effect-cue",
+                    "trigger": "time",
+                    "startSeconds": 23.4,
+                    "durationSeconds": 1,
+                    "phaseId": "sandbox-nullwake-terminal-overclock",
+                    "parameters": {
+                      "color": "#c084fc"
+                    }
+                  }
+                ],
+                "attacks": [
+                  {
+                    "id": "claw-corridor",
+                    "label": "Claw Corridor",
+                    "role": "core",
+                    "skillTest": "rhythm-dodge",
+                    "recognitionCue": "One firing claw bank opens while the opposite bank folds inward.",
+                    "solution": "Move away from the warned firing bank and read repeated-side feints.",
+                    "safeRouteRule": "opposite-side-dodge",
+                    "sourceSocketRoles": [
+                      "port",
+                      "starboard"
+                    ],
+                    "variants": [
+                      {
+                        "phaseId": "sandbox-nullwake-borrowed-charge",
+                        "beatClipIds": [
+                          "sandbox-nullwake-borrowed-charge-claw-corridor-claw-1",
+                          "sandbox-nullwake-borrowed-charge-claw-corridor-claw-2",
+                          "sandbox-nullwake-borrowed-charge-claw-corridor-claw-3"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-borrowed-charge-claw-corridor-recovery"
+                      },
+                      {
+                        "phaseId": "sandbox-nullwake-backplane-crown",
+                        "beatClipIds": [
+                          "sandbox-nullwake-backplane-crown-claw-corridor-claw-1",
+                          "sandbox-nullwake-backplane-crown-claw-corridor-claw-2",
+                          "sandbox-nullwake-backplane-crown-claw-corridor-claw-3"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-backplane-crown-claw-corridor-recovery"
+                      },
+                      {
+                        "phaseId": "sandbox-nullwake-terminal-overclock",
+                        "beatClipIds": [
+                          "sandbox-nullwake-terminal-overclock-claw-corridor-claw-1",
+                          "sandbox-nullwake-terminal-overclock-claw-corridor-claw-2",
+                          "sandbox-nullwake-terminal-overclock-claw-corridor-claw-3"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-terminal-overclock-claw-corridor-recovery"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "dead-signal-gates",
+                    "label": "Dead-Signal Gates",
+                    "role": "core",
+                    "skillTest": "gap-tracking",
+                    "recognitionCue": "The core draws three ordered aperture guides.",
+                    "solution": "Follow each shown gap waypoint one reachable step at a time.",
+                    "safeRouteRule": "rotating-gap",
+                    "sourceSocketRoles": [
+                      "core"
+                    ],
+                    "variants": [
+                      {
+                        "phaseId": "sandbox-nullwake-borrowed-charge",
+                        "beatClipIds": [
+                          "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-1",
+                          "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-2",
+                          "sandbox-nullwake-borrowed-charge-dead-signal-gates-gate-3"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-borrowed-charge-dead-signal-gates-recovery"
+                      },
+                      {
+                        "phaseId": "sandbox-nullwake-backplane-crown",
+                        "beatClipIds": [
+                          "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-1",
+                          "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-2",
+                          "sandbox-nullwake-backplane-crown-dead-signal-gates-gate-3"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-backplane-crown-dead-signal-gates-recovery"
+                      },
+                      {
+                        "phaseId": "sandbox-nullwake-terminal-overclock",
+                        "beatClipIds": [
+                          "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-1",
+                          "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-2",
+                          "sandbox-nullwake-terminal-overclock-dead-signal-gates-gate-3"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-terminal-overclock-dead-signal-gates-recovery"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "memory-lattice",
+                    "label": "Memory Lattice",
+                    "role": "core",
+                    "skillTest": "lane-routing",
+                    "recognitionCue": "All four claws flatten while cyan rails frame the next channel.",
+                    "solution": "Enter the two-lane channel, then follow its one-step shifts.",
+                    "safeRouteRule": "shifting-channel",
+                    "sourceSocketRoles": [
+                      "core"
+                    ],
+                    "variants": [
+                      {
+                        "phaseId": "sandbox-nullwake-borrowed-charge",
+                        "beatClipIds": [
+                          "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-1",
+                          "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-2",
+                          "sandbox-nullwake-borrowed-charge-memory-lattice-lattice-3"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-borrowed-charge-memory-lattice-recovery"
+                      },
+                      {
+                        "phaseId": "sandbox-nullwake-backplane-crown",
+                        "beatClipIds": [
+                          "sandbox-nullwake-backplane-crown-memory-lattice-lattice-1",
+                          "sandbox-nullwake-backplane-crown-memory-lattice-lattice-2",
+                          "sandbox-nullwake-backplane-crown-memory-lattice-lattice-3"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-backplane-crown-memory-lattice-recovery"
+                      },
+                      {
+                        "phaseId": "sandbox-nullwake-terminal-overclock",
+                        "beatClipIds": [
+                          "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-1",
+                          "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-2",
+                          "sandbox-nullwake-terminal-overclock-memory-lattice-lattice-3"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-terminal-overclock-memory-lattice-recovery"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "revenant-maze",
+                    "label": "Revenant Maze",
+                    "role": "signature",
+                    "skillTest": "route-combination",
+                    "recognitionCue": "All limbs lock inward and the core changes color around a route guide.",
+                    "solution": "Follow channel, core gap, safe cross quadrant, lit claw, then the return gate.",
+                    "safeRouteRule": "channel-to-quadrant",
+                    "sourceSocketRoles": [
+                      "port",
+                      "starboard",
+                      "core"
+                    ],
+                    "variants": [
+                      {
+                        "phaseId": "sandbox-nullwake-borrowed-charge",
+                        "beatClipIds": [
+                          "sandbox-nullwake-borrowed-charge-revenant-maze-maze-entry",
+                          "sandbox-nullwake-borrowed-charge-revenant-maze-maze-first-gate",
+                          "sandbox-nullwake-borrowed-charge-revenant-maze-maze-cross",
+                          "sandbox-nullwake-borrowed-charge-revenant-maze-maze-claw",
+                          "sandbox-nullwake-borrowed-charge-revenant-maze-maze-return-gate",
+                          "sandbox-nullwake-borrowed-charge-revenant-maze-maze-exit"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-borrowed-charge-revenant-maze-recovery"
+                      },
+                      {
+                        "phaseId": "sandbox-nullwake-backplane-crown",
+                        "beatClipIds": [
+                          "sandbox-nullwake-backplane-crown-revenant-maze-maze-entry",
+                          "sandbox-nullwake-backplane-crown-revenant-maze-maze-first-gate",
+                          "sandbox-nullwake-backplane-crown-revenant-maze-maze-cross",
+                          "sandbox-nullwake-backplane-crown-revenant-maze-maze-claw",
+                          "sandbox-nullwake-backplane-crown-revenant-maze-maze-return-gate",
+                          "sandbox-nullwake-backplane-crown-revenant-maze-maze-exit"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-backplane-crown-revenant-maze-recovery"
+                      },
+                      {
+                        "phaseId": "sandbox-nullwake-terminal-overclock",
+                        "beatClipIds": [
+                          "sandbox-nullwake-terminal-overclock-revenant-maze-maze-entry",
+                          "sandbox-nullwake-terminal-overclock-revenant-maze-maze-first-gate",
+                          "sandbox-nullwake-terminal-overclock-revenant-maze-maze-cross",
+                          "sandbox-nullwake-terminal-overclock-revenant-maze-maze-claw",
+                          "sandbox-nullwake-terminal-overclock-revenant-maze-maze-return-gate",
+                          "sandbox-nullwake-terminal-overclock-revenant-maze-maze-exit"
+                        ],
+                        "recoveryClipId": "sandbox-nullwake-terminal-overclock-revenant-maze-recovery"
+                      }
+                    ]
+                  }
+                ]
+              }
             }
           ]
         }
@@ -28391,7 +30149,7 @@
               "positionId": "center-top",
               "movementPatternId": "arena-roam",
               "warningSeconds": 3,
-              "health": 1950,
+              "health": 2700,
               "speed": 2.28,
               "damage": 1,
               "scoreReward": 25010,
@@ -31771,7 +33529,7 @@
               "positionId": "center-top",
               "movementPatternId": "arena-roam",
               "warningSeconds": 3,
-              "health": 2100,
+              "health": 2900,
               "speed": 2.3,
               "damage": 1,
               "scoreReward": 29010,
@@ -35151,7 +36909,7 @@
               "positionId": "center-top",
               "movementPatternId": "gatekeeper-cycle",
               "warningSeconds": 3,
-              "health": 2300,
+              "health": 3150,
               "speed": 2.32,
               "damage": 1,
               "scoreReward": 33010,
@@ -38129,7 +39887,7 @@
           "flight"
         ],
         "showEncounterArt": true,
-        "encounterAssetKey": "PIXI_BOSS_CROWNCLAW_FRAMES"
+        "encounterAssetKey": "CAMPAIGN_BOSS_FRONTIER_CROWNCLAW"
       },
       "campaignProgression": {
         "reward": {
@@ -38520,7 +40278,7 @@
               "blocksWaveClock": true,
               "bossId": "frontier-crownclaw",
               "rigId": "crown-claw",
-              "spriteKey": "PIXI_BOSS_CROWNCLAW_FRAMES",
+              "spriteKey": "CAMPAIGN_BOSS_FRONTIER_CROWNCLAW",
               "spriteStyle": {
                 "hueRotateDegrees": 145,
                 "saturation": 1.16,
@@ -38531,7 +40289,7 @@
               "positionId": "center-top",
               "movementPatternId": "gatekeeper-cycle",
               "warningSeconds": 3,
-              "health": 2450,
+              "health": 3400,
               "speed": 2.35,
               "damage": 1,
               "scoreReward": 37010,
@@ -45862,7 +47620,7 @@
       "routeNodeIds": [
         "node-s06-d02b"
       ],
-      "majorBossId": "rail-serpent",
+      "majorBossId": "nullwake-revenant",
       "branchIds": [
         "branch-rail-meridian-mastery"
       ]
@@ -49261,7 +51019,7 @@
         "mainPath": true,
         "masteryBranch": false,
         "oneTime": false,
-        "bossId": "rail-serpent",
+        "bossId": "nullwake-revenant",
         "miniBossIds": [],
         "weeklyStreakEligible": true,
         "weeklyScoreMultiplier": 1.14,

@@ -159,7 +159,7 @@ test('desktop and hosted Boss Sandbox shells display one shared version label', 
   assert.match(hosted, /\{BOSS_SANDBOX_VERSION\}/);
 });
 
-test('preview boss anatomy sockets travel from the shared artwork model into simulation', () => {
+test('boss anatomy sockets travel from shared Test and Campaign artwork into simulation', () => {
   const model = read(
     'director',
     'src',
@@ -172,10 +172,10 @@ test('preview boss anatomy sockets travel from the shared artwork model into sim
 
   assert.match(model, /weaponSockets: Object\.freeze\(\{/);
   assert.match(model, /id: 'revenant-core', role: 'core'/);
-  assert.match(canvas, /previewBossWeaponSockets: previewMode[\s\S]*previewBossArtwork\?\.weaponSockets/);
+  assert.match(canvas, /previewBossWeaponSockets: activeBossArtwork\?\.weaponSockets/);
   assert.match(canvas, /createModularBossWeaponSocketPoseSampler/);
   assert.match(canvas, /previewBossWeaponSocketPoseSampler,/);
-  assert.match(canvas, /previewBossWeaponSocketEventId: previewMode[\s\S]*previewBossArtwork\?\.eventId/);
+  assert.match(canvas, /previewBossWeaponSocketEventId: activeBossArtwork\?\.eventId/);
   assert.match(engine, /previewBossWeaponSockets\?: BossWeaponSocketProfile/);
   assert.match(engine, /previewBossWeaponSocketPoseSampler\?: BossWeaponSocketPoseSampler/);
   assert.match(engine, /previewBossWeaponSocketEventId\?: string/);

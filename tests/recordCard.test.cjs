@@ -84,8 +84,8 @@ test('revision-23 record cards embed their resolved mission encounter art withou
     [7, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-left.png'],
     [8, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/dna-conductor.png'],
     [9, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/ring-sentinel.png'],
-    [20, '/game-art/generated/bosses/astral-crownclaw/astral-crownclaw-intact.png'],
-    [25, '/game-art/generated/bosses/helios-clawcarrier/helios-clawcarrier-neutral.png']
+    [20, '/game-art/generated/bosses/campaign-packages/frontier-crownclaw/assembled.png'],
+    [25, '/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png']
   ]);
   const originalFetch = global.fetch;
   let activeStage = 7;

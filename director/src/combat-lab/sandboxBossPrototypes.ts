@@ -3871,6 +3871,7 @@ const definitions = deepFreeze([
     boss: gatekeeperBoss({
       id: 'sandbox-nullwake-revenant',
       label: 'Nullwake Revenant',
+      bossId: 'nullwake-revenant',
       rigId: 'open-orbit',
       componentMode: 'hull-only',
       spriteKey: 'CAMPAIGN_BOSS_ECLIPSE_ENGINE',

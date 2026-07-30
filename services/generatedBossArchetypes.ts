@@ -2,7 +2,6 @@ import type { AssetKey } from '../game-config/types';
 
 export const GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY = Object.freeze({
   CAMPAIGN_BOSS_RAIL_SERPENT: 'rail-serpent',
-  CAMPAIGN_BOSS_PRISM_MOTH: 'prism-moth',
   CAMPAIGN_BOSS_SINGULARITY_CRAB: 'singularity-crab',
   CAMPAIGN_BOSS_ORBIT_GYROSCOPE: 'orbit-gyroscope',
   CAMPAIGN_BOSS_HELIX_LEVIATHAN: 'helix-leviathan',
@@ -13,7 +12,7 @@ export const GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY = Object.freeze({
 
 export type GeneratedBossArchetype = (
   typeof GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY
-)[keyof typeof GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY];
+)[keyof typeof GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY] | 'prism-moth';
 
 export type GeneratedBossTechnique =
   | 'rail-telegraph'

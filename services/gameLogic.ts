@@ -340,7 +340,8 @@ import {
   applyBossComponentDamage,
   isBossComponentTargetable,
   isBossHullProtectedByComponents,
-  setBossComponentExposure
+  setBossComponentExposure,
+  syncHullLinkedHelmetToHullHealth
 } from './gameplay/bosses/BossComponentRuntime';
 import {
   intersectsBossCollisionMask,
@@ -2346,32 +2347,21 @@ export class GameEngine {
     loadImage(this.playerShipUrl);
     this.campaignWaves = this.buildCampaignWaveEntries(this.campaign);
     this.previewMode = options.previewMode ?? false;
-    this.previewBossCollisionMask = this.previewMode
-      ? options.previewBossCollisionMask
-      : undefined;
-    this.previewBossCollisionEventId = this.previewMode
-      ? options.previewBossCollisionEventId
-      : undefined;
-    this.previewBossArtworkDesignSize = this.previewMode
-      && options.previewBossArtworkDesignSize
+    this.previewBossCollisionMask = options.previewBossCollisionMask;
+    this.previewBossCollisionEventId = options.previewBossCollisionEventId;
+    this.previewBossArtworkDesignSize = options.previewBossArtworkDesignSize
       ? Object.freeze({
           width: options.previewBossArtworkDesignSize.width,
           height: options.previewBossArtworkDesignSize.height
         })
       : undefined;
-    this.previewBossWeaponSockets = this.previewMode
-      ? options.previewBossWeaponSockets
-      : undefined;
-    this.previewBossWeaponSocketPoseSampler = this.previewMode
-      ? options.previewBossWeaponSocketPoseSampler
-      : undefined;
-    this.previewBossReducedMotion = this.previewMode
-      && Boolean(options.previewBossReducedMotion);
-    this.previewBossWeaponSocketEventId = this.previewMode
-      ? options.previewBossWeaponSocketEventId
-      : undefined;
+    this.previewBossWeaponSockets = options.previewBossWeaponSockets;
+    this.previewBossWeaponSocketPoseSampler =
+      options.previewBossWeaponSocketPoseSampler;
+    this.previewBossReducedMotion = Boolean(options.previewBossReducedMotion);
+    this.previewBossWeaponSocketEventId = options.previewBossWeaponSocketEventId;
     this.previewBossProjectileVisualKinds = new Set(
-      this.previewMode ? options.previewBossProjectileVisualKinds ?? [] : []
+      options.previewBossProjectileVisualKinds ?? []
     );
     this.previewUnlimitedBombs = this.previewMode && Boolean(options.previewUnlimitedBombs);
     this.previewShipAbilityNoCooldown =
@@ -10969,6 +10959,12 @@ export class GameEngine {
   }
 
   damageBossComponent(boss: Entity, component: BossComponentState, damage: number) {
+    if (boss.bossRigId === 'paywall-siege' && component.id === 'helmet') {
+      // Paywall's helmet is hull-linked presentation armor, not a separate
+      // health pool. Shots that visibly land on it must always damage the hull.
+      this.damageBossHull(boss, damage);
+      return;
+    }
     if (this.isPreviewBossComponentInvincible(component)) {
       this.pulseBossComponentFlash(component);
       return;
@@ -11042,8 +11038,40 @@ export class GameEngine {
     this.updateBossDecayStage(boss);
   }
 
+  detachPaywallHelmetForHullHealth(boss: Entity) {
+    if (boss.bossRigId !== 'paywall-siege') return false;
+    const helmet = syncHullLinkedHelmetToHullHealth(
+      boss.bossComponents ?? [],
+      boss.hp,
+      boss.maxHp
+    );
+    if (!helmet) return false;
+
+    const box = this.getBossComponentBox(boss, helmet);
+    const impactX = box.x + box.width / 2;
+    const impactY = box.y + box.height / 2;
+    this.queueBossSignificantImpact(
+      boss,
+      helmet.centerXRatio,
+      helmet.centerYRatio,
+      1.2,
+      true
+    );
+    this.spawnBurst(impactX, impactY, '#fef08a', 14, 4.6, 4);
+    this.addShake(4);
+    this.addHitStop(7);
+    this.playSound('explode', 1.35, {
+      pitchJitter: 0.06,
+      pitchOffset: -0.08
+    });
+    return true;
+  }
+
   isBossHullProtected(boss: Entity) {
-    return isBossHullProtectedByComponents(boss.bossComponents ?? []);
+    return isBossHullProtectedByComponents(
+      boss.bossComponents ?? [],
+      boss.bossRigId === 'paywall-siege'
+    );
   }
 
   damageBossHull(boss: Entity, damage: number) {
@@ -11070,6 +11098,7 @@ export class GameEngine {
     }
     const previousHealth = boss.hp;
     boss.hp -= damage;
+    this.detachPaywallHelmetForHullHealth(boss);
     const firstDepletionWillRevive = boss.hp <= 0 && this.canBeginBossRevival(boss);
     this.recordEntityDamage(
       boss,

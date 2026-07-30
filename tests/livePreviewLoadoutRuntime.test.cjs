@@ -280,7 +280,12 @@ test('GameCanvas applies preview loadouts through a narrow effect without recons
   );
   const runtimeSetupDependencies = canvasSource
     .split(/\r?\n/)
-    .find((line) => line.includes('}, [audioEnabled, campaign,'));
+    .find((line) => (
+      line.includes('}, [')
+      && line.includes('setupPlayerShipIdDependency')
+      && line.includes('setupPlayerShipUrlDependency')
+      && line.includes('setupSquadLoadoutDependency')
+    ));
   assert.ok(runtimeSetupDependencies, 'runtime setup dependency list is missing');
 
   const setupDependencies = runtimeSetupDependencies

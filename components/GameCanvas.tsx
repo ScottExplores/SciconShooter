@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   GameEngine,
   preloadGameplayAssets as preloadEngineGameplayAssets,
@@ -32,6 +32,7 @@ import {
   type GameplayTelemetrySnapshot
 } from '../services/gameplay/telemetry';
 import { createModularBossWeaponSocketPoseSampler } from '../services/pixi/boss-rigs/ModularBossWeaponSocketRuntime';
+import { resolveCampaignBossArtwork } from '../services/pixi/boss-rigs/CampaignBossArtworkRegistry';
 import type { BossModularProjectileVisualKind } from '../services/gameplay/bosses/BossProjectilePresentationRuntime';
 
 export const preloadGameplayAssets = async () => {
@@ -242,6 +243,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   const previewViewportHeight = previewMode && previewViewport
     ? Math.max(1, Math.round(previewViewport.height))
     : undefined;
+  const activeBossArtwork = useMemo(
+    () => previewBossArtwork ?? resolveCampaignBossArtwork(
+      campaign ?? DEFAULT_GAME_CAMPAIGN,
+      levelId,
+      waveId
+    ),
+    [campaign, levelId, previewBossArtwork, waveId]
+  );
   const setupPlayerShipIdDependency = previewMode ? null : playerShipId;
   const setupPlayerShipUrlDependency = previewMode ? null : playerShipUrl;
   const setupSquadLoadoutDependency = previewMode ? null : squadLoadout;
@@ -775,7 +784,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const initialWidth = previewViewportWidth ?? Math.max(1, Math.round(initialRect.width || 720));
       const initialHeight = previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
       const renderer = new PixiGameRenderer({
-        previewBossArtwork: previewMode ? previewBossArtwork : undefined
+        previewBossArtwork: activeBossArtwork
       });
       pendingRenderer = renderer;
       const initialEnvironmentWindow = resolveCampaignEnvironmentWindow(
@@ -808,16 +817,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         audioService.setMusicPlaybackEnabled(musicEnabled);
       }
       const initialLoadout = runtimeLoadoutRef.current;
-      const previewBossReducedMotion = previewMode
+      const previewBossReducedMotion = Boolean(activeBossArtwork)
         && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
       const previewBossWeaponSocketPoseSampler = (
-        previewMode
-        && previewBossArtwork?.modularRig
-        && previewBossArtwork.sampleModularPose
+        activeBossArtwork?.modularRig
+        && activeBossArtwork.sampleModularPose
       )
         ? createModularBossWeaponSocketPoseSampler(
-            previewBossArtwork.modularRig,
-            previewBossArtwork.sampleModularPose
+            activeBossArtwork.modularRig,
+            activeBossArtwork.sampleModularPose
           )
         : undefined;
       const engine = new GameEngine(initialStats, {
@@ -834,26 +842,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
         initialWaveId: waveId,
         testMode: testModeRef.current,
         randomSeed: previewMode ? previewSeed : randomSeed,
-        previewBossCollisionEventId: previewMode
-          ? previewBossArtwork?.eventId
-          : undefined,
-        previewBossCollisionMask: previewMode
-          ? previewBossArtwork?.collisionMask
-          : undefined,
-        previewBossArtworkDesignSize: previewMode
-          ? previewBossArtwork?.modularRig?.manifest.designSize
-          : undefined,
-        previewBossWeaponSockets: previewMode
-          ? previewBossArtwork?.weaponSockets
-          : undefined,
+        previewBossCollisionEventId: activeBossArtwork?.eventId,
+        previewBossCollisionMask: activeBossArtwork?.collisionMask,
+        previewBossArtworkDesignSize:
+          activeBossArtwork?.modularRig?.manifest.designSize,
+        previewBossWeaponSockets: activeBossArtwork?.weaponSockets,
         previewBossWeaponSocketPoseSampler,
         previewBossReducedMotion,
-        previewBossWeaponSocketEventId: previewMode
-          ? previewBossArtwork?.eventId
-          : undefined,
-        previewBossProjectileVisualKinds: previewMode && previewBossArtwork?.projectileAnimations
+        previewBossWeaponSocketEventId: activeBossArtwork?.eventId,
+        previewBossProjectileVisualKinds: activeBossArtwork?.projectileAnimations
           ? Object.keys(
-              previewBossArtwork.projectileAnimations
+              activeBossArtwork.projectileAnimations
             ) as BossModularProjectileVisualKind[]
           : undefined,
         telemetrySink
@@ -1304,7 +1303,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [audioEnabled, campaign, musicEnabled, previewBossArtwork, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
+  }, [activeBossArtwork, audioEnabled, campaign, musicEnabled, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
 
   return (
     <div

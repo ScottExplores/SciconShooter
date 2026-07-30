@@ -2,31 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
-const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const HELIOS_ASSET_KEY = 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER';
-const HELIOS_ASSET_URL = '/game-art/generated/bosses/helios-clawcarrier/helios-clawcarrier-neutral.png';
+const HELIOS_ASSET_URL = '/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png';
 const HELIOS_ASSET_PATH = path.join(root, 'public', HELIOS_ASSET_URL.replace(/^\//, ''));
-
-const executeTypeScriptModule = (relativePath) => {
-  const source = read(relativePath);
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022
-    }
-  }).outputText;
-  const moduleBox = { exports: {} };
-  vm.runInNewContext(
-    `(function(exports, require, module) { ${compiled} })(module.exports, require, module);`,
-    { module: moduleBox, require, exports: moduleBox.exports, Math, Number }
-  );
-  return { source, ...moduleBox.exports };
-};
 
 test('M25 Helios art stays aligned across Campaign, constants, catalog, and record cards', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
@@ -73,49 +55,41 @@ test('the promoted Helios asset is a non-empty PNG in the production public tree
   );
 });
 
-test('Helios owns an immutable, non-rectangular generated alpha collision mask', () => {
-  const masks = executeTypeScriptModule(
-    'services/gameplay/bosses/generatedBossCollisionMasks.ts'
+test('Helios promoted package carries its fresh non-rectangular alpha collision mask', () => {
+  const registry = JSON.parse(
+    read('game-config/generated/campaign-boss-artwork.json')
   );
-  const mask = masks.getCampaignBossCollisionMask(HELIOS_ASSET_URL);
+  const mask = registry.packages['helios-clawcarrier'].artwork.collisionMask;
 
-  assert.match(
-    masks.source,
-    new RegExp(`"${escapeRegExp(HELIOS_ASSET_URL)}"\\s*:\\s*Object\\.freeze`)
-  );
-  assert.ok(mask, 'the exact promoted Helios URL must resolve to a collision mask');
+  assert.ok(mask, 'the exact promoted Helios package must include a collision mask');
   assert.equal(mask.width, 64);
   assert.equal(mask.height, 64);
   assert.equal(mask.rowWords.length, 128);
   assert.ok(mask.rowWords.some((word) => word !== 0), 'the mask must contain opaque art');
   assert.ok(mask.rowWords.some((word) => word === 0), 'the mask must retain transparent sprite space');
-  assert.equal(Object.isFrozen(mask), true);
-  assert.equal(Object.isFrozen(mask.rowWords), true);
 });
 
-test('Pixi keeps promoted Helios standalone art ahead of the generic Crownclaw rig', () => {
-  const renderer = read('services/pixi/PixiGameRenderer.ts');
-  const standaloneHelperStart = renderer.indexOf('const usesStandaloneBossArt');
-  const standaloneHelperEnd = renderer.indexOf('export interface PixiGameRendererOptions', standaloneHelperStart);
-  const standaloneHelper = renderer.slice(standaloneHelperStart, standaloneHelperEnd);
-  const drawStart = renderer.indexOf('private drawBossComponents');
-  const standaloneBranch = renderer.indexOf('if (usesStandaloneBossArt(', drawStart);
-  const crownClawBranch = renderer.indexOf("if (entity.bossRigId === 'crown-claw')", drawStart);
-  const setupAndStandaloneBranch = renderer.slice(drawStart, crownClawBranch);
+test('campaign Helios resolves the promoted modular artwork package instead of static-only art', () => {
+  const registrySource = read(
+    'services/pixi/boss-rigs/CampaignBossArtworkRegistry.ts'
+  );
+  const canvas = read('components/GameCanvas.tsx');
+  const registry = JSON.parse(
+    read('game-config/generated/campaign-boss-artwork.json')
+  );
+  const heliosPackage = registry.packages['helios-clawcarrier'];
 
-  assert.ok(standaloneHelperStart >= 0);
-  assert.match(
-    standaloneHelper,
-    /entity\.spriteUrl === ASSETS\.CAMPAIGN_BOSS_HELIOS_CLAWCARRIER/
+  assert.ok(heliosPackage);
+  assert.equal(heliosPackage.poseKey, 'helios-clawcarrier');
+  assert.equal(
+    heliosPackage.artwork.modularRigManifest.id,
+    'helios-clawcarrier-v2'
   );
-  assert.ok(standaloneBranch > drawStart);
-  assert.ok(
-    standaloneBranch < crownClawBranch,
-    'standalone art must return before crown-claw component artwork can replace it'
+  assert.equal(
+    heliosPackage.artwork.url,
+    '/game-art/generated/bosses/campaign-packages/helios-clawcarrier/assembled.png'
   );
-  assert.match(setupAndStandaloneBranch, /rig\.crownClaw\.root\.visible = false/);
-  assert.match(
-    setupAndStandaloneBranch,
-    /if \(usesStandaloneBossArt\([\s\S]*?\)\) \{[\s\S]*?return;\s*\}/
-  );
+  assert.match(registrySource, /sampleHeliosModularPose/);
+  assert.match(canvas, /resolveCampaignBossArtwork/);
+  assert.match(canvas, /previewBossArtwork: activeBossArtwork/);
 });

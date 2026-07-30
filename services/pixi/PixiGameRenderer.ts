@@ -5050,6 +5050,13 @@ export class PixiGameRenderer {
     return entity.bossRigId === 'crown-claw' ? CROWNCLAW_ARM_SCALE : BOSS_CANNON_SCALE;
   }
 
+  private shouldDrawBossComponentHealthBars(entity: Entity) {
+    // Full bosses use the single encounter health bar. Individual part bars
+    // obscured the authored sprites and made hull-linked presentation pieces
+    // such as Paywall's helmet look like independent health pools.
+    return entity.type === EntityType.MINI_BOSS;
+  }
+
   private drawBossComponentHealthBar(
     graphics: Graphics,
     entity: Entity,
@@ -5142,7 +5149,7 @@ export class PixiGameRenderer {
       crown.guns[side].scale.set(CROWNCLAW_ARM_SCALE);
       crown.claws[side].scale.set(CROWNCLAW_ARM_SCALE);
 
-      if (component) {
+      if (component && this.shouldDrawBossComponentHealthBars(entity)) {
         this.drawBossComponentHealthBar(
           rig.componentHealth,
           entity,
@@ -5195,7 +5202,7 @@ export class PixiGameRenderer {
 
       const previousState = this.seenBossComponents.get(entity.id);
       const nextState: Partial<Record<BossPartId, boolean>> = {};
-      const showInlineComponentState = !this.isPreviewBossEntity(entity);
+      const showInlineComponentState = this.shouldDrawBossComponentHealthBars(entity);
       for (const component of components) {
         nextState[component.id] = component.destroyed;
         const visualScale = this.getBossComponentVisualScale(entity, component);
@@ -5289,9 +5296,11 @@ export class PixiGameRenderer {
             direction
           );
         }
-        this.phaseText.text = component.id === 'helmet' ? 'CORE EXPOSED' : `${component.label} DESTROYED`;
-        this.phaseText.style.fill = component.id === 'helmet' ? '#fef08a' : '#fb923c';
-        this.phaseTextUntilFrame = engine.frameCount + 88;
+        if (!(entity.bossRigId === 'paywall-siege' && component.id === 'helmet')) {
+          this.phaseText.text = component.id === 'helmet' ? 'CORE EXPOSED' : `${component.label} DESTROYED`;
+          this.phaseText.style.fill = component.id === 'helmet' ? '#fef08a' : '#fb923c';
+          this.phaseTextUntilFrame = engine.frameCount + 88;
+        }
       }
       sprite.visible = Boolean(texture && !component.destroyed);
       if (!texture || component.destroyed) continue;
@@ -5302,12 +5311,14 @@ export class PixiGameRenderer {
       );
       sprite.width = entity.width * component.widthRatio * visualScale;
       sprite.height = entity.height * component.heightRatio * visualScale;
-      this.drawBossComponentHealthBar(
-        rig.componentHealth,
-        entity,
-        component,
-        visualScale
-      );
+      if (this.shouldDrawBossComponentHealthBars(entity)) {
+        this.drawBossComponentHealthBar(
+          rig.componentHealth,
+          entity,
+          component,
+          visualScale
+        );
+      }
       const movementScale = entity.bossRigId === 'citation-storm' ? 1.45 : 1;
       sprite.rotation = component.id === 'left-cannon'
         ? -0.04 + Math.sin(engine.frameCount * 0.05) * 0.025 * movementScale

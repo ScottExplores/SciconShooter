@@ -15,7 +15,6 @@ const bossAssets = {
   CAMPAIGN_BOSS_HAMMERHEAD_SIEGE: 'bosses/frames/hammerhead-siege.png',
   CAMPAIGN_BOSS_HELIX_LEVIATHAN: 'bosses/frames/helix-leviathan.png',
   CAMPAIGN_BOSS_ORBIT_GYROSCOPE: 'bosses/frames/orbit-gyroscope.png',
-  CAMPAIGN_BOSS_PRISM_MOTH: 'bosses/frames/prism-moth.png',
   CAMPAIGN_BOSS_RAIL_SERPENT: 'bosses/frames/rail-serpent.png',
   CAMPAIGN_BOSS_SINGULARITY_CRAB: 'bosses/frames/singularity-crab.png',
   CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT: 'bosses/frames/tribunal-dreadnought.png'
@@ -62,18 +61,29 @@ test('Max Shot exposes the complete eight-frame electric aura sequence', () => {
   }
 });
 
-test('Helios Clawcarrier exposes its promoted Campaign art through every asset registry', () => {
-  const key = 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER';
-  const relativePath = 'bosses/helios-clawcarrier/helios-clawcarrier-neutral.png';
+test('promoted Test Bosses expose their exact assembled art through every asset registry', () => {
+  const promotedAssets = {
+    CAMPAIGN_BOSS_PRISM_MOTH: 'prism-moth',
+    CAMPAIGN_BOSS_FRONTIER_CROWNCLAW: 'frontier-crownclaw',
+    CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: 'helios-clawcarrier',
+    CAMPAIGN_BOSS_NULLWAKE_REVENANT: 'nullwake-revenant'
+  };
 
-  assert.match(constantsSource, new RegExp(`${key}:\\s*"/game-art/generated/${relativePath.replaceAll('.', '\\.')}`));
-  assert.match(typesSource, new RegExp(`'${key}'`));
-  assert.match(catalogSource, new RegExp(`${key}: asset\\('${key}'`));
-  assert.match(
-    recordCardApiSource,
-    new RegExp(`${key}:\\s*'/game-art/generated/${relativePath.replaceAll('.', '\\.')}'`)
-  );
-  assert.equal(fs.existsSync(path.join(root, 'public', 'game-art', 'generated', relativePath)), true);
+  for (const [key, bossId] of Object.entries(promotedAssets)) {
+    const relativePath = `bosses/campaign-packages/${bossId}/assembled.png`;
+    assert.match(constantsSource, new RegExp(`${key}:\\s*"/game-art/generated/${relativePath.replaceAll('.', '\\.')}`));
+    assert.match(typesSource, new RegExp(`'${key}'`));
+    assert.match(catalogSource, new RegExp(`${key}: asset\\('${key}'`));
+    assert.match(
+      recordCardApiSource,
+      new RegExp(`${key}:\\s*'/game-art/generated/${relativePath.replaceAll('.', '\\.')}'`)
+    );
+    assert.equal(
+      fs.existsSync(path.join(root, 'public', 'game-art', 'generated', relativePath)),
+      true,
+      relativePath
+    );
+  }
 });
 
 test('every revision-23 sector ends in one authored major-boss Mission', () => {
@@ -81,13 +91,13 @@ test('every revision-23 sector ends in one authored major-boss Mission', () => {
     [5, { bossId: 'gatekeeper-prime', spriteKey: 'PIXI_BOSS_OPEN_ORBIT_FRAMES' }],
     [10, { bossId: 'paywall-decimator', spriteKey: 'PIXI_BOSS_PAYWALL_FRAMES' }],
     [15, { bossId: 'prism-moth', spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH' }],
-    [20, { bossId: 'frontier-crownclaw', spriteKey: 'PIXI_BOSS_CROWNCLAW_FRAMES' }],
+    [20, { bossId: 'frontier-crownclaw', spriteKey: 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW' }],
     [25, { bossId: 'helios-clawcarrier', spriteKey: 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER' }],
-    [30, { bossId: 'rail-serpent', spriteKey: 'CAMPAIGN_BOSS_RAIL_SERPENT' }],
+    [30, { bossId: 'nullwake-revenant', spriteKey: 'CAMPAIGN_BOSS_NULLWAKE_REVENANT' }],
     [35, { bossId: 'singularity-crab', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB' }],
     [40, { bossId: 'orbit-gyroscope', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE' }],
     [45, { bossId: 'hammerhead-siege', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE' }],
-    [50, { bossId: 'frontier-crownclaw', spriteKey: 'PIXI_BOSS_CROWNCLAW_FRAMES' }]
+    [50, { bossId: 'frontier-crownclaw', spriteKey: 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW' }]
   ]);
 
   assert.equal(campaign.revision, 23);
