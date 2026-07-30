@@ -62,6 +62,11 @@ test('internal summaries are ignored while only Mission-final Campaign summaries
   const handlerSource = appSource.slice(handlerStart, handlerEnd);
   assert.ok(handlerStart >= 0 && handlerEnd > handlerStart);
   assert.match(handlerSource, /if \(!summary\.stageComplete\) \{[\s\S]*?setWaveContinueCommand[\s\S]*?setGameState\(GameState\.PLAYING\);[\s\S]*?return;/);
+  assert.ok(
+    handlerSource.indexOf("audioService.playSound('mission_victory'")
+      > handlerSource.indexOf('if (!summary.stageComplete)'),
+    'the victory signet must sit after the internal-Wave early return'
+  );
   assert.match(handlerSource, /if \(isCampaignRun\) \{\s*finalizeCampaignCollectedCoins\(summary\);\s*\}/);
   assert.match(handlerSource, /setWaveVictorySummary\(summary\);[\s\S]*?setGameState\(GameState\.WAVE_COMPLETE\)/);
   assert.match(appSource, /onCampaignProgress: handleCampaignProgress/);

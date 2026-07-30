@@ -98,8 +98,8 @@ test('non-boss matrix artifact and Markdown remain tied to the current runtime s
   const tool = await loadTool();
   assert.equal(artifact.metadata.sourceDigest, tool.computeCampaignNonBossSourceDigest(root));
   assert.equal(
-    fs.readFileSync(reportPath, 'utf8'),
-    tool.renderCampaignNonBossBalanceMarkdown(artifact)
+    fs.readFileSync(reportPath, 'utf8').replaceAll('\r\n', '\n'),
+    tool.renderCampaignNonBossBalanceMarkdown(artifact).replaceAll('\r\n', '\n')
   );
   assert.doesNotMatch(fs.readFileSync(reportPath, 'utf8'), /Ã¢|Â·|ï¿½/);
 });

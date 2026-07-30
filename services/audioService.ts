@@ -1,20 +1,71 @@
 
-type GameSoundType = 'shoot' | 'boss_shoot' | 'boss_cannon' | 'boss_machinegun' | 'impact' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'gameover' | 'missile' | 'bomb';
-type SampleKey = 'player-shot' | 'boss-shot' | 'hit' | 'explosion';
+type GameSoundType = 'shoot' | 'boss_shoot' | 'boss_cannon' | 'boss_machinegun' | 'boss_alert' | 'impact' | 'explode' | 'coin' | 'powerup' | 'hit' | 'boss_roar' | 'electricity' | 'siren' | 'launch' | 'wave' | 'mission_victory' | 'gameover' | 'missile' | 'bomb';
+type SampleKey =
+  | 'player-shot'
+  | 'boss-shot'
+  | 'boss-rotary-burst'
+  | 'boss-warning'
+  | 'mission-launch'
+  | 'mission-victory'
+  | 'hit'
+  | 'explosion'
+  | 'ui-click'
+  | 'ui-confirm'
+  | 'ui-back'
+  | 'ui-error'
+  | 'ui-open'
+  | 'ui-close';
 
-export type MissionMusicTrackId = 'scicon-flight' | 'acid-clatter' | 'pressure' | 'exellent';
+export type UiSoundType = 'click' | 'confirm' | 'back' | 'error' | 'open' | 'close';
+export type MusicScene = 'silent' | 'home' | 'map' | 'mission' | 'boss' | 'results';
+export type MissionMusicTrackId =
+  | 'scicon-flight'
+  | 'acid-clatter'
+  | 'pressure'
+  | 'exellent'
+  | 'racing-asteroids'
+  | 'final-hour';
 
 export const MISSION_MUSIC_TRACKS: ReadonlyArray<{
   id: MissionMusicTrackId;
   title: string;
   artist: string;
   src: string | null;
+  gain: number;
 }> = [
-  { id: 'scicon-flight', title: 'Scicon Flight Mix', artist: 'Scicon Shooter', src: null },
-  { id: 'acid-clatter', title: 'ACID CLATTER', artist: 'Phonk Killer', src: '/audio/music/acid-clatter.mp3' },
-  { id: 'pressure', title: 'PRESSURE', artist: 'Mission Track', src: '/audio/music/pressure.mp3' },
-  { id: 'exellent', title: 'Exellent', artist: 'Mission Track', src: '/audio/music/exellent.mp3' }
+  { id: 'scicon-flight', title: 'Scicon Flight Mix', artist: 'Scicon Shooter', src: null, gain: 1 },
+  { id: 'acid-clatter', title: 'ACID CLATTER', artist: 'Phonk Killer', src: '/audio/music/acid-clatter.mp3', gain: 0.24 },
+  { id: 'pressure', title: 'PRESSURE', artist: 'Mission Track', src: '/audio/music/pressure.mp3', gain: 0.23 },
+  { id: 'exellent', title: 'Exellent', artist: 'Mission Track', src: '/audio/music/exellent.mp3', gain: 0.13 },
+  { id: 'racing-asteroids', title: 'Racing Through Asteroids', artist: 'Leonardo Paz', src: '/audio/music/mission-racing.mp3', gain: 0.78 },
+  { id: 'final-hour', title: 'Final Hour', artist: 'isaiah658', src: '/audio/music/final-hour.mp3', gain: 0.66 }
 ];
+
+const SCENE_MUSIC_TRACKS: Readonly<Record<'home' | 'map' | 'boss', {
+  title: string;
+  artist: string;
+  src: string;
+  gain: number;
+}>> = {
+  home: {
+    title: 'Stillness of Space',
+    artist: 'Leonardo Paz',
+    src: '/audio/music/home-stillness.mp3',
+    gain: 1
+  },
+  map: {
+    title: 'Building a Colony',
+    artist: 'Leonardo Paz',
+    src: '/audio/music/map-colony.mp3',
+    gain: 0.46
+  },
+  boss: {
+    title: 'Battle in Outer Space',
+    artist: 'Leonardo Paz',
+    src: '/audio/music/boss-battle.mp3',
+    gain: 0.92
+  }
+};
 
 type SampleProfile = {
   sample: SampleKey;
@@ -25,14 +76,28 @@ type SampleProfile = {
 const SAMPLE_URLS: Record<SampleKey, string> = {
   'player-shot': '/audio/sfx/player-shot.wav',
   'boss-shot': '/audio/sfx/boss-shot.wav',
+  'boss-rotary-burst': '/audio/sfx/boss-rotary-burst.wav',
+  'boss-warning': '/audio/sfx/boss-warning.wav',
+  'mission-launch': '/audio/sfx/mission-launch.wav',
+  'mission-victory': '/audio/ui/victory-signet/victory-signet-preview-mix.wav',
   hit: '/audio/sfx/hit.wav',
-  explosion: '/audio/sfx/explosion.wav'
+  explosion: '/audio/sfx/explosion.wav',
+  'ui-click': '/audio/ui/click.wav',
+  'ui-confirm': '/audio/ui/confirm.wav',
+  'ui-back': '/audio/ui/back.wav',
+  'ui-error': '/audio/ui/error.wav',
+  'ui-open': '/audio/ui/open.wav',
+  'ui-close': '/audio/ui/close.wav'
 };
 
 const SAMPLE_PROFILES: Partial<Record<GameSoundType, SampleProfile>> = {
   boss_shoot: { sample: 'boss-shot', volume: 0.24, maxDuration: 0.38 },
   boss_cannon: { sample: 'boss-shot', volume: 0.3, maxDuration: 0.48 },
-  boss_machinegun: { sample: 'player-shot', volume: 0.14, maxDuration: 0.14 },
+  boss_machinegun: { sample: 'boss-rotary-burst', volume: 0.24, maxDuration: 0.62 },
+  boss_alert: { sample: 'boss-warning', volume: 0.22, maxDuration: 2.6 },
+  siren: { sample: 'boss-warning', volume: 0.18, maxDuration: 0.95 },
+  launch: { sample: 'mission-launch', volume: 0.2, maxDuration: 2.1 },
+  mission_victory: { sample: 'mission-victory', volume: 0.24, maxDuration: 2.8 },
   impact: { sample: 'hit', volume: 0.075, maxDuration: 0.16 },
   hit: { sample: 'hit', volume: 0.23, maxDuration: 0.42 },
   explode: { sample: 'explosion', volume: 0.2, maxDuration: 0.82 }
@@ -46,16 +111,31 @@ const MAX_SFX_GAIN = 0.3;
 // still needs enough level to survive small phone speakers and the shared SFX
 // bus. The old 0.045 peak was effectively inaudible beside impacts and music.
 const PLAYER_SHOT_GAIN = 0.12;
-// The former default was notch 2 at a 0.05 ceiling (0.02 output). The new
-// 5/5 ceiling is deliberately 30% quieter than that audible default.
+// Procedural music stays restrained; mastered file tracks use a separate
+// ceiling plus per-track compensation from the measured source loudness.
 const MAX_PROCEDURAL_MUSIC_GAIN = 0.014;
-const MAX_MUSIC_ELEMENT_VOLUME = 0.014;
+const MAX_MUSIC_ELEMENT_VOLUME = 0.04;
+const MUSIC_CROSSFADE_STEPS = 12;
+const MUSIC_CROSSFADE_STEP_MS = 50;
+const MUSIC_PRELOAD_TIMEOUT_MS = 5_000;
 const MAX_VOLUME_LEVEL = 5;
 const DEFAULT_MUSIC_VOLUME_LEVEL = MAX_VOLUME_LEVEL;
 const MUSIC_TRACK_STORAGE_KEY = 'scicon-shooter:mission-music-track:v1';
 const SFX_VOLUME_STORAGE_KEY = 'scicon-shooter:sfx-volume:v1';
 const LEGACY_MUSIC_VOLUME_STORAGE_KEY = 'scicon-shooter:music-volume:v1';
 const MUSIC_VOLUME_STORAGE_KEY = 'scicon-shooter:music-volume:v2';
+const UI_SAMPLE_KEYS: ReadonlyArray<SampleKey> = [
+  'ui-click',
+  'ui-confirm',
+  'ui-back',
+  'ui-error',
+  'ui-open',
+  'ui-close'
+];
+const ALL_SAMPLE_KEYS = Object.keys(SAMPLE_URLS) as SampleKey[];
+// A real source gives WebKit a media load to authorize even when the first
+// gesture happens before React has selected a music scene. It is never audible.
+const MUSIC_UNLOCK_SOURCE = '/audio/music/home-stillness.mp3';
 const MISSION_BASS_PATTERN = [
   73.42, 55, 73.42, 65.41,
   73.42, 87.31, 73.42, 77.78,
@@ -83,45 +163,95 @@ class AudioService {
   private musicRequested: boolean = false;
   private musicPaused: boolean = false;
   private musicPlaybackEnabled: boolean = true;
-  private musicLaunchPending: boolean = false;
-  private selectedMusicTrackId: MissionMusicTrackId = 'scicon-flight';
+  private selectedMusicTrackId: MissionMusicTrackId = 'racing-asteroids';
+  private musicDecks: HTMLAudioElement[];
   private musicPlayer: HTMLAudioElement | null = null;
+  private fadingMusicPlayer: HTMLAudioElement | null = null;
+  private pendingMusicPlayer: HTMLAudioElement | null = null;
+  private pendingMusicPlayerGain: number = 1;
+  private pendingMusicRequestId: number = 0;
+  private musicDeckPlayAttempts = new Map<HTMLAudioElement, Promise<void>>();
+  private musicPlayerGain: number = 1;
+  private fadingMusicPlayerGain: number = 1;
+  private musicFadeProgress: number = 1;
+  private musicFadeTimer: number | null = null;
+  private musicUnlockTimer: number | null = null;
+  private musicScene: MusicScene = 'silent';
+  private musicPositions = new Map<string, number>();
   private activeMusicNodes = new Set<OscillatorNode>();
   private activeProceduralNodes = new Set<OscillatorNode>();
   private activeSampleNodes = new Set<AudioBufferSourceNode>();
   private sampleBuffers: Partial<Record<SampleKey, AudioBuffer>> = {};
-  private sampleLoadPromise: Promise<void> | null = null;
-  private pageActive: boolean = !document.hidden;
+  private preparedSampleData: Partial<Record<SampleKey, ArrayBuffer>> = {};
+  private samplePreparePromises: Partial<Record<SampleKey, Promise<void>>> = {};
+  private sampleLoadPromises: Partial<Record<SampleKey, Promise<void>>> = {};
+  private pendingUiSound: UiSoundType | null = null;
+  private musicTrackListeners = new Set<(trackId: MissionMusicTrackId) => void>();
+  private pageActive: boolean = typeof document === 'undefined' ? true : !document.hidden;
   private lastSoundTime: Partial<Record<GameSoundType, number>> = {};
+  private lastUiSoundTime: Partial<Record<UiSoundType, number>> = {};
 
   constructor() {
     this.selectedMusicTrackId = this.readStoredMusicTrack();
     this.sfxVolumeLevel = this.readStoredVolumeLevel(SFX_VOLUME_STORAGE_KEY, MAX_VOLUME_LEVEL);
     this.musicVolumeLevel = this.readInitialMusicVolumeLevel();
 
-    try {
-      // Initialize on first user interaction
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        this.ctx = new AudioContextClass();
-        this.masterGain = this.ctx.createGain();
-        this.sfxGain = this.ctx.createGain();
-        this.musicGain = this.ctx.createGain();
-        this.sfxGain.connect(this.masterGain);
-        this.musicGain.connect(this.masterGain);
-        this.masterGain.connect(this.ctx.destination);
-        this.applyAudioLevels();
-        void this.preloadSamples();
-      }
-    } catch {
-      console.error("WebAudio not supported");
-    }
+    // Reusing two stable media elements is materially more reliable on iOS
+    // than allocating a new element after every scene transition. Runtime
+    // balance tools import this service without browser media globals, so
+    // leave the deck empty in that environment instead of constructing Audio.
+    this.musicDecks = typeof Audio === 'undefined'
+      ? []
+      : [this.createMusicDeck(), this.createMusicDeck()];
 
-    document.addEventListener('visibilitychange', this.handleVisibilityChange);
-    window.addEventListener('pagehide', this.handlePageHide);
-    window.addEventListener('pageshow', this.handlePageShow);
-    window.addEventListener('blur', this.handleBlur);
-    window.addEventListener('focus', this.handleFocus);
+    // Only tiny interface cues are fetched eagerly. Mission combat assets are
+    // fetched and decoded by prepare() during the mission-loading gate.
+    void this.prepareSamples(UI_SAMPLE_KEYS);
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', this.handlePageHide);
+      window.addEventListener('pageshow', this.handlePageShow);
+      window.addEventListener('blur', this.handleBlur);
+      window.addEventListener('focus', this.handleFocus);
+    }
+  }
+
+  private createMusicDeck() {
+    const player = new Audio();
+    player.preload = 'auto';
+    player.setAttribute('playsinline', '');
+    player.addEventListener?.('ended', () => {
+      if (player !== this.musicPlayer || this.musicScene !== 'mission' || player.loop) return;
+      this.musicPositions.delete(player.src);
+      this.advanceMusicTrack();
+    });
+    player.addEventListener?.('playing', () => {
+      this.commitPendingMusicPlayer(player, this.pendingMusicRequestId);
+    });
+    return player;
+  }
+
+  private ensureAudioContext() {
+    if (this.ctx) return this.ctx;
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return null;
+      this.ctx = new AudioContextClass();
+      this.masterGain = this.ctx.createGain();
+      this.sfxGain = this.ctx.createGain();
+      this.musicGain = this.ctx.createGain();
+      this.sfxGain.connect(this.masterGain);
+      this.musicGain.connect(this.masterGain);
+      this.masterGain.connect(this.ctx.destination);
+      this.applyAudioLevels();
+      void this.preloadSamples(UI_SAMPLE_KEYS);
+    } catch {
+      console.error('WebAudio not supported');
+    }
+    return this.ctx;
   }
 
   private handleVisibilityChange = () => {
@@ -192,7 +322,7 @@ class AudioService {
     } catch {
       // Storage can be unavailable in embedded or privacy-restricted browsers.
     }
-    return 'scicon-flight';
+    return 'racing-asteroids';
   }
 
   private readStoredVolumeLevel(storageKey: string, fallback: number) {
@@ -243,37 +373,276 @@ class AudioService {
       || MISSION_MUSIC_TRACKS[0];
   }
 
-  private applyMusicPlayerVolume() {
-    if (!this.musicPlayer) return;
-    this.musicPlayer.volume = this.muted || !this.pageActive || this.musicVolumeLevel === 0
-      ? 0
-      : MAX_MUSIC_ELEMENT_VOLUME * (this.musicVolumeLevel / MAX_VOLUME_LEVEL);
+  private getSceneMusicTrack(scene: MusicScene = this.musicScene): {
+    src: string | null;
+    gain: number;
+    loop: boolean;
+  } | null {
+    if (scene === 'home' || scene === 'map' || scene === 'boss') {
+      return { ...SCENE_MUSIC_TRACKS[scene], loop: true };
+    }
+    if (scene === 'mission') {
+      return { ...this.getSelectedMusicTrack(), loop: false };
+    }
+    return null;
   }
 
-  private pauseMusicPlayer(reset: boolean = false) {
-    if (!this.musicPlayer) return;
-    this.musicPlayer.pause();
-    if (reset) {
-      try {
-        this.musicPlayer.currentTime = 0;
-      } catch {
-        // Some browsers reject seeking before media metadata is available.
-      }
+  private clearMusicFade(pauseFadingPlayer: boolean = true) {
+    if (this.musicFadeTimer !== null) {
+      window.clearInterval(this.musicFadeTimer);
+      this.musicFadeTimer = null;
+    }
+    if (pauseFadingPlayer && this.fadingMusicPlayer) {
+      this.rememberMusicPosition(this.fadingMusicPlayer);
+      this.fadingMusicPlayer.pause();
+      this.fadingMusicPlayer = null;
+    }
+    this.musicFadeProgress = 1;
+  }
+
+  private rememberMusicPosition(player: HTMLAudioElement) {
+    if (!player.src || !Number.isFinite(player.currentTime) || player.currentTime <= 0) return;
+    this.musicPositions.set(player.src, player.currentTime);
+  }
+
+  private applyMusicPlayerVolume() {
+    const baseVolume = this.muted || this.musicPaused || !this.pageActive || this.musicVolumeLevel === 0
+      ? 0
+      : MAX_MUSIC_ELEMENT_VOLUME * (this.musicVolumeLevel / MAX_VOLUME_LEVEL);
+    if (this.musicPlayer) {
+      this.musicPlayer.volume = Math.max(
+        0,
+        Math.min(1, baseVolume * this.musicPlayerGain * this.musicFadeProgress)
+      );
+    }
+    if (this.fadingMusicPlayer) {
+      this.fadingMusicPlayer.volume = Math.max(
+        0,
+        Math.min(1, baseVolume * this.fadingMusicPlayerGain * (1 - this.musicFadeProgress))
+      );
     }
   }
 
-  private ensureMusicPlayer(src: string) {
-    const absoluteSrc = new URL(src, window.location.href).href;
-    if (this.musicPlayer?.src === absoluteSrc) return this.musicPlayer;
+  private pauseMusicPlayer(reset: boolean = false) {
+    const players = new Set([
+      this.musicPlayer,
+      this.fadingMusicPlayer,
+      this.pendingMusicPlayer
+    ]);
+    players.forEach((player) => {
+      if (!player) return;
+      if (!reset) this.rememberMusicPosition(player);
+      player.pause();
+      if (reset) {
+        if (player.src) this.musicPositions.delete(player.src);
+        try {
+          player.currentTime = 0;
+        } catch {
+          // Some browsers reject seeking before media metadata is available.
+        }
+      }
+    });
+  }
 
-    this.pauseMusicPlayer(true);
-    const player = new Audio(src);
-    player.loop = true;
+  private beginMusicCrossfade() {
+    if (!this.musicPlayer) return;
+
+    this.clearMusicFade(false);
+    this.musicFadeProgress = 0;
+    this.applyMusicPlayerVolume();
+    let step = 0;
+    this.musicFadeTimer = window.setInterval(() => {
+      step++;
+      this.musicFadeProgress = Math.min(1, step / MUSIC_CROSSFADE_STEPS);
+      this.applyMusicPlayerVolume();
+      if (this.musicFadeProgress < 1) return;
+      if (this.musicFadeTimer !== null) {
+        window.clearInterval(this.musicFadeTimer);
+        this.musicFadeTimer = null;
+      }
+      if (this.fadingMusicPlayer) {
+        this.rememberMusicPosition(this.fadingMusicPlayer);
+        this.fadingMusicPlayer.pause();
+      }
+      this.fadingMusicPlayer = null;
+    }, MUSIC_CROSSFADE_STEP_MS);
+  }
+
+  private fadeMusicToSilence() {
+    this.clearMusicFade();
+    if (!this.musicPlayer) return;
+    this.fadingMusicPlayer = this.musicPlayer;
+    this.fadingMusicPlayerGain = this.musicPlayerGain;
+    this.musicPlayer = null;
+    this.musicFadeProgress = 0;
+    this.applyMusicPlayerVolume();
+    let step = 0;
+    this.musicFadeTimer = window.setInterval(() => {
+      step++;
+      this.musicFadeProgress = Math.min(1, step / MUSIC_CROSSFADE_STEPS);
+      this.applyMusicPlayerVolume();
+      if (this.musicFadeProgress < 1) return;
+      if (this.musicFadeTimer !== null) {
+        window.clearInterval(this.musicFadeTimer);
+        this.musicFadeTimer = null;
+      }
+      if (this.fadingMusicPlayer) {
+        this.rememberMusicPosition(this.fadingMusicPlayer);
+        this.fadingMusicPlayer.pause();
+      }
+      this.fadingMusicPlayer = null;
+    }, MUSIC_CROSSFADE_STEP_MS);
+  }
+
+  private configureMusicDeck(player: HTMLAudioElement, src: string, loop: boolean) {
+    const absoluteSrc = new URL(src, window.location.href).href;
+    player.loop = loop;
     player.preload = 'auto';
     player.setAttribute('playsinline', '');
-    this.musicPlayer = player;
+    if (player.src === absoluteSrc) return absoluteSrc;
+
+    player.pause();
+    this.musicDeckPlayAttempts.delete(player);
+    player.src = absoluteSrc;
+    const resumeAt = this.musicPositions.get(absoluteSrc) ?? 0;
+    if (resumeAt > 0) {
+      const restorePosition = () => {
+        if (player.src !== absoluteSrc) return;
+        try {
+          player.currentTime = resumeAt;
+        } catch {
+          // Metadata can still be unavailable in older mobile browsers.
+        }
+      };
+      restorePosition();
+      player.addEventListener?.('loadedmetadata', restorePosition, { once: true });
+    }
+    try {
+      player.load?.();
+    } catch {
+      // Older embedded WebViews may begin loading on src assignment alone.
+    }
+    return absoluteSrc;
+  }
+
+  private cancelPendingMusicPlayback() {
+    this.pendingMusicRequestId++;
+    if (
+      this.pendingMusicPlayer
+      && this.pendingMusicPlayer !== this.musicPlayer
+      && this.pendingMusicPlayer !== this.fadingMusicPlayer
+    ) {
+      this.pendingMusicPlayer.pause();
+    }
+    this.pendingMusicPlayer = null;
+  }
+
+  private preparePendingMusicPlayer(src: string, gain: number, loop: boolean) {
+    const absoluteSrc = new URL(src, window.location.href).href;
+    if (this.musicPlayer?.src === absoluteSrc) {
+      this.musicPlayerGain = gain;
+      this.musicPlayer.loop = loop;
+      this.applyMusicPlayerVolume();
+      return { player: this.musicPlayer, requestId: null as number | null };
+    }
+    if (this.pendingMusicPlayer?.src === absoluteSrc) {
+      this.pendingMusicPlayerGain = gain;
+      this.pendingMusicPlayer.loop = loop;
+      return { player: this.pendingMusicPlayer, requestId: this.pendingMusicRequestId };
+    }
+
+    this.cancelPendingMusicPlayback();
+    // Finish any prior transition before selecting the now-idle second deck.
+    // The current deck stays audible at full level while the new source loads.
+    this.clearMusicFade();
     this.applyMusicPlayerVolume();
-    return player;
+    const player = this.musicDecks.find((deck) => deck !== this.musicPlayer)
+      || this.musicDecks[0];
+    if (!player) return null;
+    this.configureMusicDeck(player, src, loop);
+    player.volume = 0;
+    this.pendingMusicPlayer = player;
+    this.pendingMusicPlayerGain = gain;
+    this.pendingMusicRequestId++;
+    return { player, requestId: this.pendingMusicRequestId };
+  }
+
+  private commitPendingMusicPlayer(player: HTMLAudioElement, requestId: number) {
+    if (player !== this.pendingMusicPlayer || requestId !== this.pendingMusicRequestId) {
+      if (player !== this.musicPlayer && player !== this.fadingMusicPlayer) player.pause();
+      return;
+    }
+    const previousPlayer = this.musicPlayer;
+    const previousGain = this.musicPlayerGain;
+    this.pendingMusicPlayer = null;
+    this.fadingMusicPlayer = previousPlayer === player ? null : previousPlayer;
+    this.fadingMusicPlayerGain = previousGain;
+    this.musicPlayer = player;
+    this.musicPlayerGain = this.pendingMusicPlayerGain;
+    this.beginMusicCrossfade();
+  }
+
+  private requestMusicPlayback(player: HTMLAudioElement, requestId: number | null) {
+    let attempt = this.musicDeckPlayAttempts.get(player);
+    this.musicDeckPlayAttempts.delete(player);
+    if (!attempt) {
+      try {
+        const playResult = player.play();
+        if (!playResult || typeof playResult.then !== 'function') {
+          // Older WebKit announces successful playback with the `playing`
+          // event. Do not fade the outgoing deck before that signal.
+          return;
+        }
+        attempt = Promise.resolve(playResult).then(() => undefined);
+      } catch {
+        return;
+      }
+    }
+
+    void attempt.then(() => {
+      if (requestId === null) {
+        if (player === this.musicPlayer) this.applyMusicPlayerVolume();
+        return;
+      }
+      this.commitPendingMusicPlayer(player, requestId);
+    }).catch(() => {
+      // Keep the pending deck and requested scene intact. The next user
+      // interaction, volume change, or lifecycle resume retries play().
+      if (player === this.pendingMusicPlayer) player.volume = 0;
+    });
+  }
+
+  private attemptMusicDeckUnlockSynchronously() {
+    const selectedTrack = this.getSceneMusicTrack();
+    const unlockSrc = selectedTrack?.src || MUSIC_UNLOCK_SOURCE;
+    const unlockLoop = selectedTrack?.loop ?? true;
+
+    this.musicDecks.forEach((player) => {
+      // A second tap can arrive while the previous scene is still fading.
+      // That outgoing deck is already authorized and must remain untouched
+      // until the crossfade completes.
+      if (player === this.fadingMusicPlayer) return;
+      const isCurrent = player === this.musicPlayer;
+      if (!isCurrent && player !== this.pendingMusicPlayer) {
+        this.configureMusicDeck(player, unlockSrc, unlockLoop);
+        player.volume = 0;
+      }
+      try {
+        const playResult = player.play();
+        if (!playResult || typeof playResult.then !== 'function') return;
+        const attempt = Promise.resolve(playResult).then(() => undefined);
+        this.musicDeckPlayAttempts.set(player, attempt);
+        void attempt.then(() => {
+          if (player !== this.musicPlayer && player !== this.pendingMusicPlayer) player.pause();
+        }).catch(() => undefined).finally(() => {
+          if (this.musicDeckPlayAttempts.get(player) === attempt) {
+            this.musicDeckPlayAttempts.delete(player);
+          }
+        });
+      } catch {
+        // A later gesture retries both persistent decks.
+      }
+    });
   }
 
   private beginSelectedMusic() {
@@ -284,47 +653,97 @@ class AudioService {
       || this.muted
       || !this.pageActive
       || this.musicVolumeLevel === 0
+      || !this.ctx
     ) return;
-    const selectedTrack = this.getSelectedMusicTrack();
+    const selectedTrack = this.getSceneMusicTrack();
+    if (!selectedTrack) return;
 
     if (!selectedTrack.src) {
-      this.pauseMusicPlayer();
+      this.clearMusicFade();
+      this.pauseMusicPlayer(true);
+      this.musicPlayer = null;
       this.beginMusicTimer();
       return;
     }
 
     this.clearMusicTimer();
     this.stopActiveMusicNodes();
-    const player = this.ensureMusicPlayer(selectedTrack.src);
-    this.applyMusicPlayerVolume();
-    void player.play().catch(() => {
-      // A future user interaction or lifecycle resume can retry playback.
-    });
+    const pendingMusic = this.preparePendingMusicPlayer(
+      selectedTrack.src,
+      selectedTrack.gain,
+      selectedTrack.loop
+    );
+    if (!pendingMusic) return;
+    const { player, requestId } = pendingMusic;
+    this.requestMusicPlayback(player, requestId);
   }
 
-  private preloadSamples() {
-    if (
-      !this.ctx
-      || this.sampleLoadPromise
-      || typeof fetch !== 'function'
-      || typeof this.ctx.decodeAudioData !== 'function'
-    ) {
-      return this.sampleLoadPromise;
+  private prepareSamples(keys: ReadonlyArray<SampleKey> = ALL_SAMPLE_KEYS) {
+    if (typeof fetch !== 'function') return Promise.resolve();
+
+    const loads = keys.map((key) => {
+      if (this.sampleBuffers[key] || this.preparedSampleData[key]) return Promise.resolve();
+      const existing = this.samplePreparePromises[key];
+      if (existing) return existing;
+
+      const load = (async () => {
+        try {
+          const response = await fetch(SAMPLE_URLS[key]);
+          if (!response.ok) return;
+          this.preparedSampleData[key] = await response.arrayBuffer();
+        } catch {
+          // A missing optional cue never prevents the game from loading.
+        }
+      })();
+      this.samplePreparePromises[key] = load;
+      void load.finally(() => {
+        if (!this.preparedSampleData[key] && !this.sampleBuffers[key]) {
+          delete this.samplePreparePromises[key];
+        }
+      });
+      return load;
+    });
+    return Promise.all(loads).then(() => undefined);
+  }
+
+  private preloadSamples(keys: ReadonlyArray<SampleKey> = ALL_SAMPLE_KEYS) {
+    if (!this.ctx || typeof this.ctx.decodeAudioData !== 'function') {
+      return Promise.resolve();
     }
 
     const context = this.ctx;
-    const loads = (Object.entries(SAMPLE_URLS) as Array<[SampleKey, string]>).map(async ([key, url]) => {
-      try {
-        const response = await fetch(url);
-        if (!response.ok) return;
-        const data = await response.arrayBuffer();
-        this.sampleBuffers[key] = await context.decodeAudioData(data);
-      } catch {
-        // Procedural sounds remain available when a sample cannot be decoded.
-      }
+    const loads = keys.map((key) => {
+      if (this.sampleBuffers[key]) return Promise.resolve();
+      const existing = this.sampleLoadPromises[key];
+      if (existing) return existing;
+
+      const load = this.prepareSamples([key]).then(async () => {
+        const data = this.preparedSampleData[key];
+        if (!data) return;
+        try {
+          this.sampleBuffers[key] = await context.decodeAudioData(data);
+        } catch {
+          // Procedural gameplay fallbacks remain available if decode fails.
+        } finally {
+          // decodeAudioData may detach its input. Either way, do not retain a
+          // second full copy of every combat sample for the rest of the run.
+          delete this.preparedSampleData[key];
+          delete this.samplePreparePromises[key];
+        }
+      });
+      this.sampleLoadPromises[key] = load;
+      void load.finally(() => {
+        if (!this.sampleBuffers[key]) delete this.sampleLoadPromises[key];
+      });
+      return load;
     });
-    this.sampleLoadPromise = Promise.all(loads).then(() => undefined);
-    return this.sampleLoadPromise;
+
+    return Promise.all(loads).then(() => {
+      const pending = this.pendingUiSound;
+      if (!pending || !this.sampleBuffers[`ui-${pending}` as SampleKey]) return;
+      this.pendingUiSound = null;
+      this.playUiSound(pending);
+    });
   }
 
   private playSample(type: GameSoundType, intensity: number, pitch: number) {
@@ -332,7 +751,10 @@ class AudioService {
     const profile = SAMPLE_PROFILES[type];
     if (!profile) return false;
     const buffer = this.sampleBuffers[profile.sample];
-    if (!buffer || typeof this.ctx.createBufferSource !== 'function') return false;
+    if (!buffer || typeof this.ctx.createBufferSource !== 'function') {
+      void this.preloadSamples([profile.sample]);
+      return false;
+    }
 
     const source = this.ctx.createBufferSource();
     const gain = this.ctx.createGain();
@@ -362,13 +784,74 @@ class AudioService {
     return true;
   }
 
+  private playDirectSample(
+    sample: SampleKey,
+    volume: number,
+    maxDuration: number,
+    pitch: number = 1
+  ) {
+    if (!this.ctx || !this.sfxGain || this.sfxVolumeLevel === 0) return false;
+    const buffer = this.sampleBuffers[sample];
+    if (!buffer || typeof this.ctx.createBufferSource !== 'function') return false;
+
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+    const now = this.ctx.currentTime;
+    const playbackRate = Math.max(0.88, Math.min(1.12, pitch));
+    const duration = Math.max(0.035, Math.min(buffer.duration / playbackRate, maxDuration));
+    const fadeDuration = Math.min(0.08, duration * 0.3);
+
+    source.buffer = buffer;
+    source.playbackRate.setValueAtTime(playbackRate, now);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.setValueAtTime(volume, now + Math.max(0.01, duration - fadeDuration));
+    gain.gain.exponentialRampToValueAtTime(SILENCE_GAIN, now + duration);
+    source.connect(gain);
+    gain.connect(this.sfxGain);
+    source.onended = () => this.activeSampleNodes.delete(source);
+    this.activeSampleNodes.add(source);
+    source.start(now);
+    source.stop(now + duration + 0.02);
+    return true;
+  }
+
+  public playUiSound(type: UiSoundType) {
+    this.init(true);
+    if (!this.ctx || this.muted || !this.pageActive || this.sfxVolumeLevel === 0) return;
+
+    const nowMs = performance.now();
+    const cooldownMs = type === 'click' ? 45 : 70;
+    if (nowMs - (this.lastUiSoundTime[type] || 0) < cooldownMs) return;
+    const sample = `ui-${type}` as SampleKey;
+    if (!this.sampleBuffers[sample]) {
+      this.pendingUiSound = type;
+      void this.preloadSamples([sample]);
+      return;
+    }
+
+    this.lastUiSoundTime[type] = nowMs;
+    const volume = type === 'confirm'
+      ? 0.16
+      : type === 'error'
+        ? 0.14
+        : 0.105;
+    const maxDuration = type === 'open' || type === 'close' ? 0.42 : 0.28;
+    this.playDirectSample(sample, volume, maxDuration);
+  }
+
   private setPageActive(active: boolean) {
     if (this.pageActive === active) return;
     this.pageActive = active;
 
     if (!active) {
+      if (this.musicUnlockTimer !== null) {
+        window.clearTimeout(this.musicUnlockTimer);
+        this.musicUnlockTimer = null;
+      }
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
+      this.cancelPendingMusicPlayback();
+      this.clearMusicFade();
       this.pauseMusicPlayer();
       this.stopActiveSampleNodes();
       this.stopActiveProceduralNodes();
@@ -405,12 +888,34 @@ class AudioService {
     gainNode.gain.setTargetAtTime(volume, t, 0.08);
   }
 
-  public init() {
-    void this.preloadSamples();
+  public init(deferRequestedMusic: boolean = false) {
+    this.ensureAudioContext();
+    void this.preloadSamples(UI_SAMPLE_KEYS);
+    // Both play() calls happen in this stack frame. On iPhone/WebKit that is
+    // the difference between authorizing the persistent decks and a later
+    // asynchronous scene change being rejected as autoplay.
+    this.attemptMusicDeckUnlockSynchronously();
     if (this.pageActive && !this.muted && this.ctx?.state === 'suspended') {
       void this.ctx.resume().catch(() => undefined);
     }
     this.applyAudioLevels();
+    if (this.musicUnlockTimer !== null) {
+      window.clearTimeout(this.musicUnlockTimer);
+      this.musicUnlockTimer = null;
+    }
+    if (deferRequestedMusic) {
+      this.musicUnlockTimer = window.setTimeout(() => {
+        this.musicUnlockTimer = null;
+        this.beginSelectedMusic();
+      }, 80);
+    } else {
+      this.beginSelectedMusic();
+    }
+  }
+
+  public async prepare() {
+    this.init();
+    await this.preloadSamples(ALL_SAMPLE_KEYS);
   }
 
   public toggleMute() {
@@ -418,8 +923,14 @@ class AudioService {
 
     this.applyAudioLevels();
     if (this.muted) {
+      if (this.musicUnlockTimer !== null) {
+        window.clearTimeout(this.musicUnlockTimer);
+        this.musicUnlockTimer = null;
+      }
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
+      this.cancelPendingMusicPlayback();
+      this.clearMusicFade();
       this.pauseMusicPlayer();
       this.stopActiveSampleNodes();
       this.stopActiveProceduralNodes();
@@ -448,6 +959,7 @@ class AudioService {
 
   public setSfxVolumeLevel(level: number) {
     const nextLevel = Math.max(0, Math.min(MAX_VOLUME_LEVEL, Math.round(level)));
+    const wasMuted = this.muted;
     this.sfxVolumeLevel = nextLevel;
     this.storeVolumeLevel(SFX_VOLUME_STORAGE_KEY, nextLevel);
     if (nextLevel > 0) this.muted = false;
@@ -455,6 +967,8 @@ class AudioService {
     if (nextLevel === 0) {
       this.stopActiveSampleNodes();
       this.stopActiveProceduralNodes();
+    } else if (wasMuted && this.pageActive && this.musicRequested && !this.musicPaused) {
+      this.init();
     }
     return this.sfxVolumeLevel;
   }
@@ -466,6 +980,7 @@ class AudioService {
   public setMusicVolumeLevel(level: number) {
     const nextLevel = Math.max(0, Math.min(MAX_VOLUME_LEVEL, Math.round(level)));
     const wasSilent = this.musicVolumeLevel === 0;
+    const wasMuted = this.muted;
     this.musicVolumeLevel = nextLevel;
     this.storeVolumeLevel(MUSIC_VOLUME_STORAGE_KEY, nextLevel);
     if (nextLevel > 0) this.muted = false;
@@ -473,19 +988,22 @@ class AudioService {
     if (nextLevel === 0) {
       this.clearMusicTimer();
       this.stopActiveMusicNodes();
+      this.cancelPendingMusicPlayback();
+      this.clearMusicFade();
       this.pauseMusicPlayer();
-    } else if (wasSilent && this.pageActive) {
+    } else if ((wasSilent || wasMuted) && this.pageActive && this.musicRequested && !this.musicPaused) {
       this.init();
-      this.beginSelectedMusic();
     }
     return this.musicVolumeLevel;
   }
 
   public startMusic() {
     if (!this.musicPlaybackEnabled) return;
+    if (this.musicScene === 'silent' || this.musicScene === 'results') {
+      this.musicScene = 'mission';
+    }
     if (!this.musicRequested) {
       this.musicStep = 0;
-      this.musicLaunchPending = true;
     }
     this.musicRequested = true;
     this.musicPaused = false;
@@ -497,7 +1015,9 @@ class AudioService {
     this.musicPaused = true;
     this.clearMusicTimer();
     this.stopActiveMusicNodes();
+    this.cancelPendingMusicPlayback();
     this.pauseMusicPlayer();
+    this.applyMusicPlayerVolume();
   }
 
   public resumeMusic() {
@@ -510,10 +1030,86 @@ class AudioService {
     this.musicRequested = false;
     this.musicPaused = false;
     this.musicStep = 0;
-    this.musicLaunchPending = false;
+    if (this.musicUnlockTimer !== null) {
+      window.clearTimeout(this.musicUnlockTimer);
+      this.musicUnlockTimer = null;
+    }
     this.clearMusicTimer();
     this.stopActiveMusicNodes();
+    this.cancelPendingMusicPlayback();
+    this.clearMusicFade();
     this.pauseMusicPlayer(true);
+  }
+
+  public getMusicScene() {
+    return this.musicScene;
+  }
+
+  public prepareMusicScene(scene: MusicScene = this.musicScene): Promise<void> {
+    const track = this.getSceneMusicTrack(scene);
+    if (!track?.src) return Promise.resolve();
+
+    const absoluteSrc = new URL(track.src, window.location.href).href;
+    const player = this.musicDecks.find((deck) => deck.src === absoluteSrc)
+      || this.musicDecks.find((deck) => (
+        deck !== this.musicPlayer
+        && deck !== this.fadingMusicPlayer
+        && deck !== this.pendingMusicPlayer
+      ));
+    // During a rapid second transition both decks can briefly be occupied.
+    // Normal scene playback still loads the requested source once one is free.
+    if (!player) return Promise.resolve();
+
+    if (player.src !== absoluteSrc) {
+      this.configureMusicDeck(player, track.src, track.loop);
+    } else {
+      player.loop = track.loop;
+    }
+    if (player.readyState >= 2) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let timeoutId: number | null = null;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        player.removeEventListener?.('canplay', finish);
+        player.removeEventListener?.('loadeddata', finish);
+        player.removeEventListener?.('error', finish);
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+        resolve();
+      };
+      player.addEventListener?.('canplay', finish, { once: true });
+      player.addEventListener?.('loadeddata', finish, { once: true });
+      player.addEventListener?.('error', finish, { once: true });
+      timeoutId = window.setTimeout(finish, MUSIC_PRELOAD_TIMEOUT_MS);
+    });
+  }
+
+  public setMusicScene(scene: MusicScene) {
+    if (scene === this.musicScene) {
+      if (scene !== 'silent' && scene !== 'results' && !this.musicRequested) {
+        this.musicRequested = true;
+        if (!this.musicPaused) this.beginSelectedMusic();
+      }
+      return this.musicScene;
+    }
+
+    this.musicScene = scene;
+    this.clearMusicTimer();
+    this.stopActiveMusicNodes();
+    if (scene === 'silent' || scene === 'results') {
+      this.musicRequested = false;
+      this.musicPaused = false;
+      this.cancelPendingMusicPlayback();
+      this.fadeMusicToSilence();
+      return this.musicScene;
+    }
+
+    this.musicRequested = true;
+    this.musicPaused = false;
+    this.beginSelectedMusic();
+    return this.musicScene;
   }
 
   public setMusicPlaybackEnabled(enabled: boolean) {
@@ -530,6 +1126,23 @@ class AudioService {
     return this.selectedMusicTrackId;
   }
 
+  public subscribeMusicTrack(listener: (trackId: MissionMusicTrackId) => void) {
+    this.musicTrackListeners.add(listener);
+    return () => {
+      this.musicTrackListeners.delete(listener);
+    };
+  }
+
+  private notifyMusicTrackChanged() {
+    this.musicTrackListeners.forEach((listener) => {
+      try {
+        listener(this.selectedMusicTrackId);
+      } catch {
+        // A presentation listener cannot interrupt soundtrack progression.
+      }
+    });
+  }
+
   public setMusicTrack(trackId: MissionMusicTrackId) {
     if (!MISSION_MUSIC_TRACKS.some((track) => track.id === trackId)) {
       return this.selectedMusicTrackId;
@@ -538,15 +1151,14 @@ class AudioService {
 
     this.clearMusicTimer();
     this.stopActiveMusicNodes();
-    this.pauseMusicPlayer(true);
     this.selectedMusicTrackId = trackId;
     this.musicStep = 0;
-    this.musicLaunchPending = trackId === 'scicon-flight';
     try {
       window.localStorage?.setItem(MUSIC_TRACK_STORAGE_KEY, trackId);
     } catch {
       // The selection still applies for this session when storage is unavailable.
     }
+    this.notifyMusicTrackChanged();
     this.beginSelectedMusic();
     return trackId;
   }
@@ -634,14 +1246,6 @@ class AudioService {
     }
   }
 
-  private playMissionLaunchCue() {
-    if (!this.ctx || !this.musicGain) return;
-    const startTime = this.ctx.currentTime + 0.015;
-    [110, 146.83, 196, 293.66].forEach((note, index) => {
-      this.scheduleMusicTone(note, 'triangle', startTime + (index * 0.085), 0.22, 0.024, note * 1.9, 0.008);
-    });
-  }
-
   private beginMusicTimer() {
     if (
       !this.ctx
@@ -653,11 +1257,6 @@ class AudioService {
       || this.musicVolumeLevel === 0
       || this.getSelectedMusicTrack().src
     ) return;
-
-    if (this.musicLaunchPending) {
-      this.musicLaunchPending = false;
-      this.playMissionLaunchCue();
-    }
 
     const pulse = () => {
       if (
@@ -699,6 +1298,13 @@ class AudioService {
       }
 
       this.musicStep++;
+      if (
+        this.musicStep >= 256
+        && this.musicScene === 'mission'
+        && this.selectedMusicTrackId === 'scicon-flight'
+      ) {
+        this.advanceMusicTrack();
+      }
     };
 
     pulse();
@@ -768,13 +1374,15 @@ class AudioService {
     intensity: number = 1,
     options: { pitchJitter?: number; pitchOffset?: number } = {}
   ) {
+    if (!this.ctx) this.init();
     if (!this.ctx || this.muted || !this.pageActive || this.sfxVolumeLevel === 0) return;
 
     const minSpacingMs: Partial<Record<GameSoundType, number>> = {
       shoot: 28,
       boss_shoot: 95,
       boss_cannon: 160,
-      boss_machinegun: 42,
+      boss_machinegun: 620,
+      boss_alert: 2_600,
       impact: 58,
       coin: 24,
       explode: 72,
@@ -784,6 +1392,7 @@ class AudioService {
       electricity: 40,
       siren: 620,
       boss_roar: 180,
+      mission_victory: 2_000,
       bomb: 140
     };
     const nowMs = performance.now();
@@ -798,6 +1407,10 @@ class AudioService {
     const pitch = (1 - (pitchJitter / 2)) + (Math.random() * pitchJitter) + pitchOffset;
     const comboLift = Math.min(Math.max(intensity - 1, 0), 8) * 0.07;
     if (this.playSample(type, intensity, pitch)) return;
+    if (type === 'boss_alert') {
+      this.playBossWarningSiren(t);
+      return;
+    }
     if (type === 'siren') {
       this.playBossWarningSiren(t);
       return;
@@ -861,8 +1474,8 @@ class AudioService {
         break;
 
       case 'boss_machinegun':
-        // The checked-in player-shot sample is preferred for the tighter
-        // mechanical report; this fallback avoids a silent first preload.
+        // The checked-in rotary burst is preferred. This short fallback avoids
+        // a silent warning if the authored sample is still decoding.
         osc.type = 'square';
         osc.frequency.setValueAtTime(760 * pitch, t);
         osc.frequency.exponentialRampToValueAtTime(190 * pitch, t + 0.065);
@@ -903,6 +1516,7 @@ class AudioService {
         break;
 
       case 'wave':
+      case 'mission_victory':
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(240 * pitch, t);
         osc.frequency.linearRampToValueAtTime(720 * pitch, t + 0.18);

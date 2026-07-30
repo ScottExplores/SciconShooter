@@ -1889,6 +1889,43 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <p className="sci-more-menu__disclosure">
           Community-built, open source, and not an official ResearchHub product.
         </p>
+        <p className="sci-more-menu__disclosure">
+          Music from{' '}
+          <a
+            href="https://opengameart.org/node/118190"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            "Outer Space Music Pack" by Leonardo Paz
+          </a>{' '}
+          is used under{' '}
+          <a
+            href="https://creativecommons.org/licenses/by/4.0/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            CC BY 4.0
+          </a>.
+          {' '}Included tracks: "Stillness of Space," "Building a Colony," "Racing Through
+          Asteroids," and "Battle in Outer Space." The source OGG tracks were converted
+          to MP3, renamed, and volume-balanced for Scicon Shooter.
+          {' '}
+          <a
+            href="https://opengameart.org/content/final-hour"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            "Final Hour" by isaiah658
+          </a>{' '}
+          is used under{' '}
+          <a
+            href="https://creativecommons.org/publicdomain/zero/1.0/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            CC0
+          </a>.
+        </p>
       </div>
     </HudPanel>
   );

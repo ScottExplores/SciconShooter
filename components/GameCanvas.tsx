@@ -1279,7 +1279,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
       window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (audioEnabled) audioService.stopMusic();
       if (audioEnabled && !musicEnabled) audioService.setMusicPlaybackEnabled(true);
       if (engineRef.current === engine) engineRef.current = null;
       if (pixiRendererRef.current === renderer) pixiRendererRef.current = null;

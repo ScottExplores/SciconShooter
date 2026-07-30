@@ -5,7 +5,9 @@ const test = require('node:test');
 const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
-const read = (...segments) => fs.readFileSync(path.join(root, ...segments), 'utf8');
+const read = (...segments) => (
+  fs.readFileSync(path.join(root, ...segments), 'utf8').replaceAll('\r\n', '\n')
+);
 
 const engineSource = read('services', 'gameLogic.ts');
 const canvasSource = read('components', 'GameCanvas.tsx');

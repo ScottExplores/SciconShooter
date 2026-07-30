@@ -36,7 +36,10 @@ test('mission launch joins a pending preload with progress, then locks simulatio
 
   assert.ok(startIndex >= 0 && readyIndex > startIndex && failureIndex > readyIndex);
   assert.match(startFlow, /if \(shouldShowMissionLoading\) \{[\s\S]*setMissionLoading\(\{/);
-  assert.match(startFlow, /await preloadGameplayComponents\(shouldShowMissionLoading[\s\S]*\(progress, phase\) =>/);
+  assert.match(startFlow, /await Promise\.all\(\[\s*preloadGameplayComponents\(shouldShowMissionLoading[\s\S]*\(progress, phase\) =>/);
+  assert.match(startFlow, /audioService\.prepare\(\)/);
+  assert.match(startFlow, /audioService\.prepareMusicScene\('mission'\)/);
+  assert.match(startFlow, /catch \(error\) \{\s*console\.error\('Gameplay preload failed\.', error\);\s*audioService\.playUiSound\('error'\)/);
   assert.match(startFlow, /setMissionLoading\(\{[\s\S]*progress,[\s\S]*phase,[\s\S]*tip: loadingTip/);
   assert.match(startFlow, /pendingMissionRuntimeRef\.current = \{/);
   assert.match(startFlow, /setGameRuntimeReady\(false\)/);

@@ -7,6 +7,7 @@ import {
   audioService,
   type MissionMusicTrackId
 } from './services/audioService';
+import { installUiAudioFeedback } from './services/uiAudioFeedback';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from './constants';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT, getLeaderboardData, saveScore, saveWeeklyLeaderProposal } from './services/leaderboardService';
 import { getArchivedWeeklyWinners } from './services/winnerArchiveService';
@@ -637,6 +638,8 @@ const App: React.FC = () => {
   const [activeRunMode, setActiveRunMode] = useState<ActiveRunMode>('standard');
   const [activeBossEncounterId, setActiveBossEncounterId] = useState<string | null>(null);
   const [activeBossArchiveRun, setActiveBossArchiveRun] = useState<BossArchiveRunContext | null>(null);
+  const [majorBossMusicActive, setMajorBossMusicActive] = useState(false);
+  const [resultAudioActive, setResultAudioActive] = useState(false);
   const [bossArchiveResult, setBossArchiveResult] = useState<BossArchiveResultPresentation | null>(null);
   const [bossArchiveDailyLimit, setBossArchiveDailyLimit] = useState(
     DEFAULT_BOSS_ARCHIVE_DAILY_CHARGE_LIMIT
@@ -1322,6 +1325,27 @@ const App: React.FC = () => {
   const [musicVolumeLevel, setMusicVolumeLevel] = useState(() => audioService.getMusicVolumeLevel());
   const [musicTrackId, setMusicTrackId] = useState<MissionMusicTrackId>(() => audioService.getMusicTrackId());
 
+  useEffect(() => installUiAudioFeedback(document), []);
+
+  useEffect(() => {
+    const unsubscribe = audioService.subscribeMusicTrack(setMusicTrackId);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (resultAudioActive || gameState === GameState.WAVE_COMPLETE || gameState === GameState.GAMEOVER) {
+      audioService.setMusicScene('results');
+      return;
+    }
+    if (missionLoading || gameState === GameState.PLAYING || gameState === GameState.PAUSED) {
+      audioService.setMusicScene(isBossArchiveRun || majorBossMusicActive ? 'boss' : 'mission');
+      return;
+    }
+    audioService.setMusicScene(campaignMapOpen ? 'map' : 'home');
+  }, [campaignMapOpen, gameState, isBossArchiveRun, majorBossMusicActive, missionLoading, resultAudioActive]);
+
   useEffect(() => {
     if (gameState === GameState.PAUSED) {
       audioService.pauseMusic();
@@ -1346,6 +1370,14 @@ const App: React.FC = () => {
 
   const handleRuntimeState = useCallback((runtime: GameRuntimeState) => {
     bossArchiveDamageTakenRef.current = runtime.damageTaken;
+    setMajorBossMusicActive((current) => {
+      if (runtime.majorBossActive) return true;
+      // A defeated Mission-final boss disappears from the runtime before the
+      // departure cinematic ends. Keep its score alive until the final result
+      // arrives, while allowing any non-final Wave encounter to return to the
+      // regular Mission playlist.
+      return current && runtime.waveNumber >= runtime.waveTotal;
+    });
     const nextPosition: PauseMissionPosition = {
       levelNumber: runtime.levelNumber,
       levelName: runtime.levelName,
@@ -1815,6 +1847,7 @@ const App: React.FC = () => {
     const launchNonce = missionLaunchNonceRef.current + 1;
     missionLaunchNonceRef.current = launchNonce;
     missionLaunchPendingRef.current = true;
+    setResultAudioActive(false);
     const releaseLaunchReservation = () => {
       if (missionLaunchNonceRef.current === launchNonce) {
         missionLaunchPendingRef.current = false;
@@ -2117,6 +2150,7 @@ const App: React.FC = () => {
         ? 'owner-test'
         : 'standard';
     setActiveRunMode(runMode);
+    setMajorBossMusicActive(Boolean(requestedBossReplay));
     setActiveBossEncounterId(requestedBossReplay?.eventId ?? null);
     setActiveCampaignLaunch(normalizedCampaignRequest);
     setActiveCampaignBranchId(requestedCampaignBranch?.branchId ?? null);
@@ -2163,18 +2197,23 @@ const App: React.FC = () => {
     }
 
     try {
-      await preloadGameplayComponents(shouldShowMissionLoading
-        ? (progress, phase) => {
-            if (missionLaunchNonceRef.current !== launchNonce) return;
-            setMissionLoading({
-              progress,
-              phase,
-              tip: loadingTip
-            });
-          }
-        : undefined);
+      await Promise.all([
+        preloadGameplayComponents(shouldShowMissionLoading
+          ? (progress, phase) => {
+              if (missionLaunchNonceRef.current !== launchNonce) return;
+              setMissionLoading({
+                progress,
+                phase,
+                tip: loadingTip
+              });
+            }
+          : undefined),
+        audioService.prepare(),
+        audioService.prepareMusicScene('mission')
+      ]);
     } catch (error) {
       console.error('Gameplay preload failed.', error);
+      audioService.playUiSound('error');
       if (missionLaunchNonceRef.current === launchNonce) {
         missionLaunchPendingRef.current = false;
         setMissionLoading((current) => ({
@@ -2541,6 +2580,8 @@ const App: React.FC = () => {
     clearWeeklyProposalTransition();
     setScorecardChampionWinner(null);
     setActiveRunMode('standard');
+    setMajorBossMusicActive(false);
+    setResultAudioActive(false);
     setActiveBossEncounterId(null);
     setActiveBossArchiveRun(null);
     setActiveCampaignLaunch(null);
@@ -2587,19 +2628,23 @@ const App: React.FC = () => {
   };
 
   const toggleGameAudio = () => {
-    setAudioMuted(audioService.toggleMute());
+    const nextMuted = audioService.toggleMute();
+    setAudioMuted(nextMuted);
     setSfxVolumeLevel(audioService.getSfxVolumeLevel());
     setMusicVolumeLevel(audioService.getMusicVolumeLevel());
+    if (!nextMuted) audioService.playUiSound('confirm');
   };
 
   const setGameSfxVolume = (level: number) => {
     setSfxVolumeLevel(audioService.setSfxVolumeLevel(level));
     setAudioMuted(audioService.isMuted());
+    audioService.playUiSound('click');
   };
 
   const setGameMusicVolume = (level: number) => {
     setMusicVolumeLevel(audioService.setMusicVolumeLevel(level));
     setAudioMuted(audioService.isMuted());
+    audioService.playUiSound('click');
   };
 
   const changeMissionMusic = (trackId: MissionMusicTrackId) => {
@@ -4065,10 +4110,19 @@ const App: React.FC = () => {
 
   const showWaveVictory = async (summary: WaveVictorySummary) => {
     if (!summary.stageComplete) {
+      setMajorBossMusicActive(false);
+      setResultAudioActive(false);
       setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
       setGameState(GameState.PLAYING);
       return;
     }
+    // Select the result mix at the logical clear boundary. Boss Archive and
+    // bonus-route settlements can await the network without extending combat
+    // music underneath a completed Mission.
+    setMajorBossMusicActive(false);
+    setResultAudioActive(true);
+    audioService.setMusicScene('results');
+    audioService.playSound('mission_victory', 1, { pitchJitter: 0 });
     if (isBossArchiveRun) {
       setOwnerFrameFrozen(true);
       await finalizeBossArchiveFight(true, summary);
@@ -4114,6 +4168,7 @@ const App: React.FC = () => {
 
   const continueAfterWaveVictory = () => {
     if (!waveVictorySummary) return;
+    setResultAudioActive(false);
     if (isWeeklyCampaignRun) {
       const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
       if (!streak || streak.finalization.status !== 'active') return;
@@ -4790,6 +4845,7 @@ const App: React.FC = () => {
       lives: 5
     }));
     setContinueCommand({ nonce: Date.now(), lives: 5 });
+    setResultAudioActive(false);
     setGameState(GameState.PLAYING);
     audioService.playSound('powerup');
 
@@ -5430,6 +5486,8 @@ const App: React.FC = () => {
               onInitializationError: (error) => failMissionRuntimeLaunch(gameId, error),
               onGameOver: async () => {
                 setOwnerFrameFrozen(false);
+                setResultAudioActive(true);
+                audioService.setMusicScene('results');
                 if (isWeeklyCampaignRun) {
                   const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
                   if (streak?.finalization.status === 'active') {
@@ -5450,7 +5508,10 @@ const App: React.FC = () => {
                 }
                 setGameState(GameState.GAMEOVER);
               },
-              onContinueStarted: () => setGameState(GameState.PLAYING),
+              onContinueStarted: () => {
+                setResultAudioActive(false);
+                setGameState(GameState.PLAYING);
+              },
               onCampaignProgress: handleCampaignProgress,
               onWaveVictory: showWaveVictory,
               isTransmissionOpen: introMissionLocked || Boolean(activeStoryBeat),
@@ -5983,6 +6044,27 @@ const App: React.FC = () => {
                 </div>
                 <p className="mt-4 border-t border-gray-700 pt-2 text-xs italic text-gray-500">
                   "Upgrade the ship. Clear the bottleneck. Fund the future."
+                </p>
+                <p className="text-[10px] leading-relaxed text-slate-500">
+                  Music from{' '}
+                  <a
+                    href="https://opengameart.org/node/118190"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-cyan-300 underline underline-offset-2"
+                  >
+                    "Outer Space Music Pack" by Leonardo Paz
+                  </a>{' '}
+                  is used under{' '}
+                  <a
+                    href="https://creativecommons.org/licenses/by/4.0/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-cyan-300 underline underline-offset-2"
+                  >
+                    CC BY 4.0
+                  </a>. The source OGG tracks were converted to MP3, renamed, and
+                  volume-balanced for Scicon Shooter.
                 </p>
               </div>
 

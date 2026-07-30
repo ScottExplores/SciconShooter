@@ -103,8 +103,8 @@ test('economy simulation consumes premium-adjusted support and main-ship costs f
 test('authored replay, route, and branch income stay bounded and separate from weekly statistics', async () => {
   const { simulation } = await loadSimulation();
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
-  const squadSource = fs.readFileSync(path.join(root, 'services', 'squadProgression.ts'), 'utf8');
-  const progressionSource = fs.readFileSync(path.join(root, 'services', 'campaignProgression.ts'), 'utf8');
+  const squadSource = fs.readFileSync(path.join(root, 'services', 'squadProgression.ts'), 'utf8').replace(/\r\n/g, '\n');
+  const progressionSource = fs.readFileSync(path.join(root, 'services', 'campaignProgression.ts'), 'utf8').replace(/\r\n/g, '\n');
 
   assert.equal(campaign.campaignBranches.length, 10);
   assert.deepEqual(
@@ -162,7 +162,7 @@ test('checked-in economy report is deterministic, current, and free of mojibake'
     'utf8'
   );
 
-  assert.equal(checkedIn, expected);
+  assert.equal(checkedIn.replaceAll('\r\n', '\n'), expected.replaceAll('\r\n', '\n'));
   assert.doesNotMatch(checkedIn, /â€”|â†’|ï¿½/);
   assert.match(checkedIn, /\*\*Not run\*\*/);
 });
