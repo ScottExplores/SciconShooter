@@ -26,7 +26,7 @@ const {
 
 const gameLogicSource = read('services', 'gameLogic.ts');
 const refreshHelperStart = gameLogicSource.indexOf('export const refreshWaveVictoryRewardMetrics =');
-const refreshHelperEnd = gameLogicSource.indexOf('\n\nconst createPresentDropDestroyedCounts', refreshHelperStart);
+const refreshHelperEnd = gameLogicSource.indexOf('const createPresentDropDestroyedCounts', refreshHelperStart);
 assert.ok(refreshHelperStart >= 0 && refreshHelperEnd > refreshHelperStart);
 const refreshHelperCompiled = ts.transpileModule(
   gameLogicSource.slice(refreshHelperStart, refreshHelperEnd),

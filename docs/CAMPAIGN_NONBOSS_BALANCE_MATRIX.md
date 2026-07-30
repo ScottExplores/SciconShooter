@@ -25,7 +25,7 @@ node tools/simulate-campaign-nonboss-balance.mjs --write
 - Maximum simulated Mission time: 180 seconds.
 - Weekly points: the same current App adaptation used for a completed Weekly node (regular kills from the Mission summary, authored mini-boss count, no inferred accuracy, mastery-objective quality), evaluated as a standalone node with no previous-node streak bonus.
 - Rendering/FPS: Pixi rendering is intentionally absent. Entity, hostile-projectile, active-firing-enemy, performance-budget, and engine performance-mode peaks are recorded instead.
-- Source digest: `17c768271c44abcc72c2f839ea9f5ab7886f7f9547561a3d980af5cf3ac173e7`.
+- Source digest: `d59695d6f1a84f370ebf898b3f39064a9e6731f457c8b761457e7d7ab4e498d7`.
 
 Each table cell below is `clears/deaths/timeouts; median damage; median coins; median Weekly points; peak hostile projectiles; peak active entities`.
 

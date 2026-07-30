@@ -77,18 +77,18 @@ test('adaptive performance preserves the planetary background instead of popping
   assert.match(engineSource, /const backgroundSpriteLimit = this\.bgEntities\.length/);
 });
 
-test('main bosses use a siren alert before the transmission panel', () => {
+test('main bosses use the authored boss alert before the transmission panel', () => {
   const audioSource = fs.readFileSync(path.join(root, 'services', 'audioService.ts'), 'utf8');
 
   assert.match(engineSource, /MAIN_BOSS_ALERT_FRAMES = 120/);
   assert.match(engineSource, /drawMainBossAlert\(ctx/);
   assert.match(engineSource, /GATEKEEPER SIGNAL DETECTED/);
   assert.match(engineSource, /warningAge < alertFrames[\s\S]*?drawMainBossAlert\(ctx\)[\s\S]*?drawBossWarningComms\(ctx\)/);
-  assert.match(engineSource, /this\.playSound\('siren'\)/);
-  assert.match(audioSource, /playBossWarningSiren/);
-  assert.match(audioSource, /siren:\s*620/);
-  assert.match(audioSource, /lowAlarm\.frequency/);
-  assert.match(audioSource, /highAlarm\.frequency/);
+  assert.match(engineSource, /this\.playSound\(type === 'gatekeeper' \? 'boss_alert' : 'siren'\)/);
+  assert.match(engineSource, /this\.playSound\(this\.pendingBossType === 'gatekeeper' \? 'boss_alert' : 'siren'\)/);
+  assert.match(audioSource, /'boss-warning': '\/audio\/sfx\/boss-warning\.wav'/);
+  assert.match(audioSource, /boss_alert: \{ sample: 'boss-warning'/);
+  assert.match(audioSource, /boss_alert:\s*2_600/);
 });
 
 test('white Citation Wraiths and standard red Paywall Interceptors use enlarged gameplay bounds', () => {

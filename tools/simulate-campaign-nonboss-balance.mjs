@@ -85,7 +85,11 @@ export const computeCampaignNonBossSourceDigest = (root = repositoryRoot) => {
   for (const relativePath of SOURCE_DIGEST_PATHS) {
     hash.update(relativePath.replaceAll('\\', '/'));
     hash.update('\0');
-    hash.update(fs.readFileSync(path.join(root, relativePath)));
+    // Git may materialize text with CRLF on Windows. Hash normalized source so
+    // a gameplay-identical checkout carries the same proof on every runner.
+    hash.update(
+      fs.readFileSync(path.join(root, relativePath), 'utf8').replaceAll('\r\n', '\n')
+    );
     hash.update('\0');
   }
   return hash.digest('hex');

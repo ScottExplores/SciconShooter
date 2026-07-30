@@ -1591,6 +1591,8 @@ export interface GameRuntimeState {
   durationSeconds: number;
   progress: number;
   bossActive: boolean;
+  /** Major Mission boss warning/fight only; excludes mini-bosses and hazards. */
+  majorBossActive: boolean;
   damageTaken: number;
   complete: boolean;
   campaignComplete: boolean;
@@ -2715,6 +2717,10 @@ export class GameEngine {
       durationSeconds,
       progress: Math.min(1, Math.max(0, this.stats.bossProgress || 0)),
       bossActive: Boolean(this.stats.isBossActive),
+      majorBossActive: Boolean(
+        (this.bossRef && !this.bossRef.markedForDeletion)
+        || (this.inBossWarningSequence && this.pendingBossType === 'gatekeeper')
+      ),
       damageTaken: Math.max(0, this.waveDamageTaken),
       complete: this.previewComplete || this.campaignComplete,
       campaignComplete: this.campaignComplete,
@@ -4766,13 +4772,11 @@ export class GameEngine {
     this.deathSequenceStartedAtMs = 0;
     this.hitStopFrames = 0;
     this.gameActive = false;
-    if (this.audioEnabled) audioService.stopMusic();
   }
 
   continueRun(lives: number = GAME_CONFIG.PLAYER_LIVES) {
     this.gameActive = true;
     this.campaignComplete = false;
-    if (this.audioEnabled) audioService.startMusic();
     this.deathSequenceFrames = 0;
     this.deathSequenceStartedAtMs = 0;
     this.waveDepartureFrames = 0;
@@ -4885,8 +4889,6 @@ export class GameEngine {
     }
     this.sectorTint = 0;
 
-    // START MUSIC
-    if (this.audioEnabled) audioService.startMusic();
     this.playSound('launch');
   }
 
@@ -5621,7 +5623,7 @@ export class GameEngine {
     if (type === 'gatekeeper') {
       this.clearThreatsForMainBoss();
     }
-    this.playSound('siren');
+    this.playSound(type === 'gatekeeper' ? 'boss_alert' : 'siren');
   }
 
   clearThreatsForMainBoss() {
@@ -5905,7 +5907,7 @@ export class GameEngine {
         const mainBossAlertFrames = Math.min(MAIN_BOSS_ALERT_FRAMES, Math.max(1, this.bossWarningDuration - 60));
         const mainBossAlertActive = this.pendingBossType === 'gatekeeper' && warningAge < mainBossAlertFrames;
         if ((this.isSubBossWarning() || mainBossAlertActive) && this.bossWarningFrame > 0 && this.bossWarningFrame % 36 === 0) {
-            this.playSound('siren');
+            this.playSound(this.pendingBossType === 'gatekeeper' ? 'boss_alert' : 'siren');
         }
         if (this.pendingBossType === 'gatekeeper' && warningAge === mainBossAlertFrames) {
             this.playSound('boss_roar');
@@ -12895,10 +12897,14 @@ export class GameEngine {
         15
       );
     }
-    this.playSound('boss_machinegun', 0.52, {
-      pitchJitter: 0.035,
-      pitchOffset: leftSide ? -0.04 : 0.04
-    });
+    // The machine-gun cue is a complete authored burst, so trigger it once
+    // when this volley begins instead of restarting it for every tracer.
+    if (pulseIndex === 0) {
+      this.playSound('boss_machinegun', 0.52, {
+        pitchJitter: 0.035,
+        pitchOffset: -0.04
+      });
+    }
   }
 
   updateGeneratedBossMovement(
@@ -15826,11 +15832,12 @@ export class GameEngine {
         boss.bossActionPresentation.motionCue = 'paired-crossfire';
         boss.bossActionPresentation.projectileCount = 4;
       }
-      this.playSound(
-        plan.fallbackToCrossfire ? 'boss_machinegun' : 'boss_roar',
-        plan.fallbackToCrossfire ? 0.42 : 0.58,
-        { pitchJitter: 0.01, pitchOffset: plan.fallbackToCrossfire ? -0.18 : -0.1 }
-      );
+      if (!plan.fallbackToCrossfire) {
+        this.playSound('boss_roar', 0.58, {
+          pitchJitter: 0.01,
+          pitchOffset: -0.1
+        });
+      }
       return;
     }
     if (linkedAction.primitiveId === 'paired-cannon-burst') {
@@ -15921,10 +15928,6 @@ export class GameEngine {
         )) {
           this.spawnBurst(origin.x, origin.y, '#f59e0b', 3, 1.25, 2);
         }
-        this.playSound('boss_machinegun', 0.42, {
-          pitchJitter: 0.008,
-          pitchOffset: -0.3
-        });
         return;
       }
       boss.bossTimelineTargetClipId = linkedAction.id;
@@ -15938,7 +15941,6 @@ export class GameEngine {
       boss.bossTimelineTargetY = sides.length === 1
         ? this.player.y + this.player.height / 2
         : this.height * 0.82;
-      this.playSound('boss_machinegun', 0.38, { pitchJitter: 0.01, pitchOffset: -0.24 });
       return;
     }
     if (linkedAction.primitiveId === 'reactor-aperture-pattern') {
@@ -16091,10 +16093,12 @@ export class GameEngine {
         const origin = getOrigin(side);
         this.spawnBurst(origin.x, origin.y, '#f59e0b', 2, 1.55, 2);
       }
-      this.playSound('boss_machinegun', 0.42, {
-        pitchJitter: 0.012,
-        pitchOffset: 0.02 + (pulse.shotIndex % 3) * 0.015
-      });
+      if (pulse.shotIndex === 0) {
+        this.playSound('boss_machinegun', 0.42, {
+          pitchJitter: 0.012,
+          pitchOffset: 0.02
+        });
+      }
       this.addShake(0.26);
       return;
     }
@@ -16159,10 +16163,12 @@ export class GameEngine {
       projectile.projectileVisualKind = 'boss-gatling-tracer';
     }
     this.spawnBurst(origin.x, origin.y, '#f59e0b', 3, 1.8, 2);
-    this.playSound('boss_machinegun', sides.length > 1 ? 0.58 : 0.5, {
-      pitchJitter: 0.018,
-      pitchOffset: (phase >= 3 ? 0.08 : -0.02) + pulse.shotIndex * 0.004
-    });
+    if (pulse.shotIndex === 0) {
+      this.playSound('boss_machinegun', sides.length > 1 ? 0.58 : 0.5, {
+        pitchJitter: 0.018,
+        pitchOffset: phase >= 3 ? 0.08 : -0.02
+      });
+    }
     this.addShake(sides.length > 1 ? 0.75 : 0.5);
   }
 

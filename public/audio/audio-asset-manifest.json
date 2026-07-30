@@ -1,0 +1,473 @@
+{
+  "schemaVersion": 1,
+  "releaseDate": "2026-07-30",
+  "scope": {
+    "assets": "The assets array inventories the 14 production files newly imported or re-rendered for this sound pass.",
+    "legacyMusic": "The legacyMusic array hash-pins the three pre-existing mission songs retained at the product owner's request.",
+    "notInventoried": "Other pre-existing repository audio, including the procedural-flight selection and victory signet, is outside this import manifest."
+  },
+  "formatPolicy": {
+    "shortEffects": "48 kHz, stereo, 16-bit PCM WAV; cropped from source masters, edge-faded, and gain-matched. Measured post-render sample peaks are recorded per asset.",
+    "music": "44.1 kHz stereo MP3 at 192 kb/s CBR, compatibility-transcoded from the licensed OGG delivery files with FFmpeg 7.0/libmp3lame for broad iPhone and Safari playback."
+  },
+  "assets": [
+    {
+      "id": "boss-warning",
+      "path": "/audio/sfx/boss-warning.wav",
+      "role": "Boss entrance and major-attack warning",
+      "creator": "SoundMorph",
+      "collection": "Users of Tommorow",
+      "sourceAsset": "alarm_loops_08.wav",
+      "sourcePage": "https://sonniss.com/gameaudiogdc/",
+      "retrievalMirrorUrl": "https://gamesounds.xyz/Sonniss.com%20-%20GDC%202015%20-%20Game%20Audio%20Bundle/SoundMorph%20-%20Users%20of%20Tommorow/alarm_loops_08.wav",
+      "retrievalMirrorNote": "Third-party archive mirror used to retrieve the named file; it is not operated by Sonniss. Provenance and license are documented by the official Sonniss pages.",
+      "license": "Sonniss GDC Bundle License",
+      "licenseUrl": "https://sonniss.com/gdc-bundle-license/",
+      "attributionRequired": false,
+      "sourceSha256": "b07db9329def3ac121eeb6907abbad09a5c417589c2b9fdde8e8cfa22cc1dbf2",
+      "outputSha256": "c14b9ff64c1a8e003b91f475cc35acde89a0035b61f4b93dc479704d7e2509e0",
+      "processing": {
+        "sourceFormat": "96 kHz, stereo, 24-bit PCM WAV",
+        "cropSeconds": [0.0, 2.4],
+        "fadeInSeconds": 0.008,
+        "fadeOutSeconds": 0.12,
+        "nominalPeakTargetDbfs": -4.0,
+        "measuredSamplePeakDbfs": -4.0338
+      },
+      "output": {
+        "durationSeconds": 2.4,
+        "byteLength": 461034,
+        "sampleRateHz": 48000,
+        "channels": 2,
+        "bitDepth": 16
+      }
+    },
+    {
+      "id": "boss-rotary-burst",
+      "path": "/audio/sfx/boss-rotary-burst.wav",
+      "role": "Authored boss rotary-blaster volley",
+      "creator": "SoundMorph",
+      "collection": "Future Weapons",
+      "sourceAsset": "Blaster Machine_Gun-01-Burst-03.wav",
+      "sourcePage": "https://sonniss.com/sound-effects/sci-fi-weapons-futuristic-hi-tech-weapon/",
+      "bundlePage": "https://sonniss.com/gameaudiogdc/",
+      "retrievalMirrorUrl": "https://gamesounds.xyz/Sonniss.com%20-%20GDC%202015%20-%20Game%20Audio%20Bundle/SoundMorph%20-%20Future%20Weapons/Blaster%20Machine_Gun-01-Burst-03.wav",
+      "retrievalMirrorNote": "Third-party archive mirror used to retrieve the named file; it is not operated by Sonniss. Provenance and license are documented by the official Sonniss pages.",
+      "license": "Sonniss GDC Bundle License",
+      "licenseUrl": "https://sonniss.com/gdc-bundle-license/",
+      "attributionRequired": false,
+      "sourceSha256": "738e3833bc5b19493a856e471eadbda35bdce6a82439c812d9629e33ffd83763",
+      "outputSha256": "aa386dae661c05e5a6ec57cbefe9a24f7e6ac3f08bffd48c42c87cf42915d5e6",
+      "processing": {
+        "sourceFormat": "96 kHz, stereo, 24-bit PCM WAV",
+        "cropSeconds": [0.0, 0.62],
+        "fadeInSeconds": 0.004,
+        "fadeOutSeconds": 0.1,
+        "nominalPeakTargetDbfs": -4.0,
+        "measuredSamplePeakDbfs": -4.0612,
+        "editorialNote": "A complete short rotary gesture is retained with a 100 ms release beginning at 0.520 s. Trigger once per authored volley, not once per projectile."
+      },
+      "output": {
+        "durationSeconds": 0.62,
+        "byteLength": 119118,
+        "sampleRateHz": 48000,
+        "channels": 2,
+        "bitDepth": 16
+      }
+    },
+    {
+      "id": "mission-launch",
+      "path": "/audio/sfx/mission-launch.wav",
+      "role": "Mission-start takeoff transition",
+      "creator": "SoundMorph",
+      "collection": "Road Riders",
+      "sourceAsset": "lightbike_takeoff_03.wav",
+      "sourcePage": "https://sonniss.com/gameaudiogdc/",
+      "retrievalMirrorUrl": "https://gamesounds.xyz/Sonniss.com%20-%20GDC%202015%20-%20Game%20Audio%20Bundle/SoundMorph%20-%20Road%20Riders/lightbike_takeoff_03.wav",
+      "retrievalMirrorNote": "Third-party archive mirror used to retrieve the named file; it is not operated by Sonniss. Provenance and license are documented by the official Sonniss pages.",
+      "license": "Sonniss GDC Bundle License",
+      "licenseUrl": "https://sonniss.com/gdc-bundle-license/",
+      "attributionRequired": false,
+      "sourceSha256": "d71b9a2ec3cf3ec239afaf3fdf37c6c95a9b90fbc59c1c7ff1d598fc789cc54c",
+      "outputSha256": "69b54e1a078c926994b817c0e936a6a3d1bcff94372d132ac8ba67b9b1684c19",
+      "processing": {
+        "sourceFormat": "96 kHz, stereo, 24-bit PCM WAV",
+        "cropSeconds": [0.0, 2.1],
+        "fadeInSeconds": 0.005,
+        "fadeOutSeconds": 0.28,
+        "nominalPeakTargetDbfs": -4.0,
+        "measuredSamplePeakDbfs": -4.1334,
+        "editorialNote": "Uses the initial ignition and accelerating takeoff gesture; the extended engine coast and trailing silence are omitted."
+      },
+      "output": {
+        "durationSeconds": 2.1,
+        "byteLength": 403414,
+        "sampleRateHz": 48000,
+        "channels": 2,
+        "bitDepth": 16
+      }
+    },
+    {
+      "id": "ui-click",
+      "path": "/audio/ui/click.wav",
+      "role": "Primary navigation press",
+      "creator": "Kenney Vleugels",
+      "collection": "Interface Sounds",
+      "sourceAsset": "click3.wav",
+      "sourcePage": "https://kenney.nl/assets/interface-sounds",
+      "downloadUrl": "https://lpc.opengameart.org/sites/default/files/UI_SFX_Set.zip",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "sourceSha256": "9649d0ed86f2129e39568922eda43da25c287ca0d2905328ecddbd70d11fbb34",
+      "outputSha256": "0f2160c49f2a930b79e73b062dfe683f94ec656a4bfaf1bf57bad6f0476718a5",
+      "processing": {
+        "sourceFormat": "44.1 kHz, stereo, 16-bit PCM WAV",
+        "cropSeconds": [0.0, 0.078],
+        "fadeInSeconds": 0.002,
+        "fadeOutSeconds": 0.02,
+        "nominalPeakTargetDbfs": -6.0,
+        "measuredSamplePeakDbfs": -6.0105
+      },
+      "output": {
+        "durationSeconds": 0.078,
+        "byteLength": 15058,
+        "sampleRateHz": 48000,
+        "channels": 2,
+        "bitDepth": 16
+      }
+    },
+    {
+      "id": "ui-confirm",
+      "path": "/audio/ui/confirm.wav",
+      "role": "Commit, purchase, reward, and mission confirmation",
+      "creator": "Kenney Vleugels",
+      "collection": "Interface Sounds",
+      "sourceAsset": "switch15.wav",
+      "sourcePage": "https://kenney.nl/assets/interface-sounds",
+      "downloadUrl": "https://lpc.opengameart.org/sites/default/files/UI_SFX_Set.zip",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "sourceSha256": "c2261fbd86a69789485c8eef05f939624d0eab8dff5441f5ed89aba9493e69af",
+      "outputSha256": "76e70dc94a768f1b456cbce9235d68664dbc4b2f43981f69d905939ac486b763",
+      "processing": {
+        "sourceFormat": "44.1 kHz, stereo, 16-bit PCM WAV",
+        "cropSeconds": [0.03, 0.235],
+        "fadeInSeconds": 0.003,
+        "fadeOutSeconds": 0.025,
+        "nominalPeakTargetDbfs": -6.0,
+        "measuredSamplePeakDbfs": -5.3451
+      },
+      "output": {
+        "durationSeconds": 0.205,
+        "byteLength": 39458,
+        "sampleRateHz": 48000,
+        "channels": 2,
+        "bitDepth": 16
+      }
+    },
+    {
+      "id": "ui-back",
+      "path": "/audio/ui/back.wav",
+      "role": "Back and cancel",
+      "creator": "Kenney Vleugels",
+      "collection": "Interface Sounds",
+      "sourceAsset": "switch26.wav",
+      "sourcePage": "https://kenney.nl/assets/interface-sounds",
+      "downloadUrl": "https://lpc.opengameart.org/sites/default/files/UI_SFX_Set.zip",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "sourceSha256": "1589fb7c71c84143e66bbcee76b51c687651e80284ec8c2678e502a7fb0e3485",
+      "outputSha256": "db3407528f026d2aca2c6cee7d5e9183bc1d96c630498f1b18f2946ad45e4e0a",
+      "processing": {
+        "sourceFormat": "44.1 kHz, stereo, 16-bit PCM WAV",
+        "cropSeconds": [0.025, 0.175],
+        "fadeInSeconds": 0.003,
+        "fadeOutSeconds": 0.022,
+        "nominalPeakTargetDbfs": -6.0,
+        "measuredSamplePeakDbfs": -5.4185
+      },
+      "output": {
+        "durationSeconds": 0.15,
+        "byteLength": 28896,
+        "sampleRateHz": 48000,
+        "channels": 2,
+        "bitDepth": 16
+      }
+    },
+    {
+      "id": "ui-error",
+      "path": "/audio/ui/error.wav",
+      "role": "Locked, invalid, or failed action",
+      "creator": "Kenney Vleugels",
+      "collection": "Interface Sounds",
+      "sourceAsset": "switch34.wav",
+      "sourcePage": "https://kenney.nl/assets/interface-sounds",
+      "downloadUrl": "https://lpc.opengameart.org/sites/default/files/UI_SFX_Set.zip",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "sourceSha256": "a6963d782cbb7df8d13ecbc32ed962658424f3ae543bde4f531afa53f933d016",
+      "outputSha256": "4bab4c871990ebc950020a567c984a5163cf6d080f6b0d3f146fefe655cd6512",
+      "processing": {
+        "sourceFormat": "44.1 kHz, stereo, 16-bit PCM WAV",
+        "cropSeconds": [0.035, 0.355],
+        "fadeInSeconds": 0.003,
+        "fadeOutSeconds": 0.03,
+        "nominalPeakTargetDbfs": -6.0,
+        "measuredSamplePeakDbfs": -5.3113
+      },
+      "output": {
+        "durationSeconds": 0.32,
+        "byteLength": 61536,
+        "sampleRateHz": 48000,
+        "channels": 2,
+        "bitDepth": 16
+      }
+    },
+    {
+      "id": "ui-open",
+      "path": "/audio/ui/open.wav",
+      "role": "Open panel or overlay",
+      "creator": "Kenney Vleugels",
+      "collection": "Interface Sounds",
+      "sourceAsset": "switch10.wav",
+      "sourcePage": "https://kenney.nl/assets/interface-sounds",
+      "downloadUrl": "https://lpc.opengameart.org/sites/default/files/UI_SFX_Set.zip",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "sourceSha256": "1207d7bb246f5da46d81a8897f950f73bd122320c9c5a5ab6fef76e2516c1963",
+      "outputSha256": "83ad3dc205c5780b7d635c8299aeb72ca129787090613138fc64df2036721dcd",
+      "processing": {
+        "sourceFormat": "44.1 kHz, stereo, 16-bit PCM WAV",
+        "cropSeconds": [0.095, 0.225],
+        "fadeInSeconds": 0.003,
+        "fadeOutSeconds": 0.022,
+        "nominalPeakTargetDbfs": -6.0,
+        "measuredSamplePeakDbfs": -6.0418
+      },
+      "output": {
+        "durationSeconds": 0.13,
+        "byteLength": 25038,
+        "sampleRateHz": 48000,
+        "channels": 2,
+        "bitDepth": 16
+      }
+    },
+    {
+      "id": "ui-close",
+      "path": "/audio/ui/close.wav",
+      "role": "Close or dismiss panel",
+      "creator": "Kenney Vleugels",
+      "collection": "Interface Sounds",
+      "sourceAsset": "switch11.wav",
+      "sourcePage": "https://kenney.nl/assets/interface-sounds",
+      "downloadUrl": "https://lpc.opengameart.org/sites/default/files/UI_SFX_Set.zip",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "sourceSha256": "8ddd5b2bc3c049be48a3a7af8510853d96185d372e2170a3b4d97342e8378be9",
+      "outputSha256": "08d1063d03e9d862d14510533997a700eb6ead772ca6e77ec196607624352f2e",
+      "processing": {
+        "sourceFormat": "44.1 kHz, stereo, 16-bit PCM WAV",
+        "cropSeconds": [0.052, 0.17],
+        "fadeInSeconds": 0.003,
+        "fadeOutSeconds": 0.022,
+        "nominalPeakTargetDbfs": -6.0,
+        "measuredSamplePeakDbfs": -6.1085
+      },
+      "output": {
+        "durationSeconds": 0.118,
+        "byteLength": 22738,
+        "sampleRateHz": 48000,
+        "channels": 2,
+        "bitDepth": 16
+      }
+    },
+    {
+      "id": "music-home-stillness",
+      "path": "/audio/music/home-stillness.mp3",
+      "role": "Home screen ambience",
+      "title": "Stillness of Space",
+      "creator": "Leonardo Paz",
+      "collection": "Outer Space Music Pack",
+      "sourceAsset": "02_stillness_of_space.ogg",
+      "sourcePage": "https://opengameart.org/node/118190",
+      "downloadUrl": "https://opengameart.org/sites/default/files/02_stillness_of_space.ogg",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "attributionRequired": true,
+      "attribution": "\"Outer Space Music Pack\" by Leonardo Paz, licensed CC BY 4.0; filename changed for Scicon Shooter.",
+      "sourceSha256": "9c5c67565b5693eb312ff691c66ae242965252e748fd23634458bf6e7ece0b95",
+      "sourceByteLength": 1682452,
+      "outputSha256": "3cafb2e08a2a1b3d7679ee2e260bc8d29e54f378fcb0fac20c4217294fc8f782",
+      "processing": {
+        "sourceFormat": "44.1 kHz stereo OGG Vorbis",
+        "conversion": "Compatibility transcode only; no editorial cut, remix, or loudness normalization.",
+        "encoder": "FFmpeg 7.0 / libmp3lame, 192 kb/s CBR"
+      },
+      "output": {
+        "durationSeconds": 96.026122,
+        "byteLength": 2305296,
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "codec": "MP3",
+        "bitRateBps": 192000
+      }
+    },
+    {
+      "id": "music-map-colony",
+      "path": "/audio/music/map-colony.mp3",
+      "role": "Campaign map loop",
+      "title": "Building a Colony",
+      "creator": "Leonardo Paz",
+      "collection": "Outer Space Music Pack",
+      "sourceAsset": "05_building_a_colony_loop.ogg",
+      "sourcePage": "https://opengameart.org/node/118190",
+      "downloadUrl": "https://opengameart.org/sites/default/files/05_building_a_colony_loop_1.ogg",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "attributionRequired": true,
+      "attribution": "\"Outer Space Music Pack\" by Leonardo Paz, licensed CC BY 4.0; filename changed for Scicon Shooter.",
+      "sourceSha256": "66dbb0a21c8640405e4b815177c324261158a111eb941759327f500a56acd3de",
+      "sourceByteLength": 741779,
+      "outputSha256": "b14565f0f6ba008fff99eb0823d5f5040dc7cac39e04386efebb3135ce8de9ea",
+      "processing": {
+        "sourceFormat": "44.1 kHz stereo OGG Vorbis",
+        "conversion": "Compatibility transcode only; no editorial cut, remix, or loudness normalization.",
+        "encoder": "FFmpeg 7.0 / libmp3lame, 192 kb/s CBR"
+      },
+      "output": {
+        "durationSeconds": 48.039184,
+        "byteLength": 1153610,
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "codec": "MP3",
+        "bitRateBps": 192000
+      }
+    },
+    {
+      "id": "music-mission-racing",
+      "path": "/audio/music/mission-racing.mp3",
+      "role": "Mission playlist loop",
+      "title": "Racing Through Asteroids",
+      "creator": "Leonardo Paz",
+      "collection": "Outer Space Music Pack",
+      "sourceAsset": "03_racing_through_asteroids_loop.ogg",
+      "sourcePage": "https://opengameart.org/node/118190",
+      "downloadUrl": "https://opengameart.org/sites/default/files/03_racing_through_asteroids_loop.ogg",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "attributionRequired": true,
+      "attribution": "\"Outer Space Music Pack\" by Leonardo Paz, licensed CC BY 4.0; filename changed for Scicon Shooter.",
+      "sourceSha256": "3056f4da3b78ba5a96033cfe5244956c07bd88ad4c7a6019af9e1c99b9e3654f",
+      "sourceByteLength": 916203,
+      "outputSha256": "370c28cbc6e9fe3439174743f576f2356de9f18deddb1c14a66027606ca1649b",
+      "processing": {
+        "sourceFormat": "44.1 kHz stereo OGG Vorbis",
+        "conversion": "Compatibility transcode only; no editorial cut, remix, or loudness normalization.",
+        "encoder": "FFmpeg 7.0 / libmp3lame, 192 kb/s CBR"
+      },
+      "output": {
+        "durationSeconds": 53.002449,
+        "byteLength": 1272728,
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "codec": "MP3",
+        "bitRateBps": 192000
+      }
+    },
+    {
+      "id": "music-boss-battle",
+      "path": "/audio/music/boss-battle.mp3",
+      "role": "Boss encounter loop",
+      "title": "Battle in Outer Space",
+      "creator": "Leonardo Paz",
+      "collection": "Outer Space Music Pack",
+      "sourceAsset": "06_battle_in_space_loop.ogg",
+      "sourcePage": "https://opengameart.org/node/118190",
+      "downloadUrl": "https://opengameart.org/sites/default/files/06_battle_in_space_loop.ogg",
+      "license": "CC-BY-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "attributionRequired": true,
+      "attribution": "\"Outer Space Music Pack\" by Leonardo Paz, licensed CC BY 4.0; filename changed for Scicon Shooter.",
+      "sourceSha256": "38a5099a8d31a1eb21f134562e162034a68785b414a06d0fcea45dc4a5645e9f",
+      "sourceByteLength": 755885,
+      "outputSha256": "a28a56d6ab6baf2720303dd760c6ddc3fe70c61e69bacaf86bff66703adcf7a9",
+      "processing": {
+        "sourceFormat": "44.1 kHz stereo OGG Vorbis",
+        "conversion": "Compatibility transcode only; no editorial cut, remix, or loudness normalization.",
+        "encoder": "FFmpeg 7.0 / libmp3lame, 192 kb/s CBR"
+      },
+      "output": {
+        "durationSeconds": 44.8,
+        "byteLength": 1075870,
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "codec": "MP3",
+        "bitRateBps": 192000
+      }
+    },
+    {
+      "id": "music-final-hour",
+      "path": "/audio/music/final-hour.mp3",
+      "role": "Additional mission playlist track",
+      "title": "Final Hour",
+      "creator": "isaiah658",
+      "sourceAsset": "Final-Hour-isaiah658.ogg",
+      "sourcePage": "https://opengameart.org/content/final-hour",
+      "downloadUrl": "https://opengameart.org/sites/default/files/Final-Hour-isaiah658.ogg",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "sourceSha256": "e44b524d315cc4e7949e93f3f5c68783dcf74a5ecb79acff75111027f14277ac",
+      "sourceByteLength": 2662362,
+      "outputSha256": "d7de884bc31c6db25a88b539593d1e771de73251b12a62acecd2931eba0ba2fa",
+      "processing": {
+        "sourceFormat": "44.1 kHz stereo OGG Vorbis",
+        "conversion": "Compatibility transcode only; no editorial cut, remix, or loudness normalization.",
+        "encoder": "FFmpeg 7.0 / libmp3lame, 192 kb/s CBR"
+      },
+      "output": {
+        "durationSeconds": 136.986122,
+        "byteLength": 3288336,
+        "sampleRateHz": 44100,
+        "channels": 2,
+        "codec": "MP3",
+        "bitRateBps": 192000
+      }
+    }
+  ],
+  "legacyMusic": [
+    {
+      "path": "/audio/music/acid-clatter.mp3",
+      "title": "ACID CLATTER",
+      "status": "legacy-unverified",
+      "license": "Unknown",
+      "sha256": "ed5ec1245ea69f4d53a695b8c6e59637813845d2ae19a4a49bc36bf54259e393",
+      "durationSeconds": 100.68,
+      "note": "Retained at product-owner request. No source or redistribution license is documented in this repository."
+    },
+    {
+      "path": "/audio/music/pressure.mp3",
+      "title": "PRESSURE",
+      "status": "legacy-unverified",
+      "license": "Unknown",
+      "sha256": "c373b88299bf3b3bfdb3c6d0de578029f674452779548c0d85750d078cd83435",
+      "durationSeconds": 119.3,
+      "note": "Retained at product-owner request. No source or redistribution license is documented in this repository."
+    },
+    {
+      "path": "/audio/music/exellent.mp3",
+      "title": "Exellent",
+      "status": "legacy-unverified",
+      "license": "Unknown",
+      "sha256": "092465d7f7423b7c56379b626fde698ca0ebcb4aa8c72c14693ad1cfc979bd46",
+      "durationSeconds": 181.21,
+      "note": "Retained at product-owner request. No source or redistribution license is documented in this repository."
+    }
+  ]
+}

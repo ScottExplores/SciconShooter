@@ -371,6 +371,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
       <div className="scicon-left-actions pointer-events-auto absolute left-3 top-[57%] z-20 flex -translate-y-1/2 flex-col gap-2 sm:left-5">
         <button
           type="button"
+          data-audio="none"
           {...bombActionHandlers}
           disabled={!canUseBomb}
           className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
@@ -392,6 +393,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         {selectedShipId && onUseShipAbility ? (
           <button
             type="button"
+            data-audio="none"
             {...shipAbilityActionHandlers}
             disabled={!abilityReady}
             className={`relative flex h-[4.375rem] w-[4.375rem] items-center justify-center overflow-hidden rounded-[22px] border shadow-[0_18px_44px_rgba(0,0,0,0.38)] backdrop-blur-md transition active:scale-95 ${
@@ -475,6 +477,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             <button
               key={type}
               type="button"
+              data-audio="none"
               onClick={() => {
                 if (!canPick) return;
                 onDisableLabGlow();

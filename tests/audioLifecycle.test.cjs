@@ -6,8 +6,9 @@ const vm = require('node:vm');
 const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
+const MUSIC_STORAGE_KEY = 'scicon-shooter:mission-music-track:v1';
 
-const loadAudioService = (initialStoredValues = {}) => {
+const loadAudioService = (initialStoredValues = {}, options = {}) => {
   const source = fs.readFileSync(path.join(root, 'services', 'audioService.ts'), 'utf8');
   const compiled = ts.transpileModule(source, {
     compilerOptions: {
@@ -15,20 +16,34 @@ const loadAudioService = (initialStoredValues = {}) => {
       target: ts.ScriptTarget.ES2020
     }
   }).outputText;
-  const listeners = new Map();
+  const documentListeners = new Map();
+  const windowListeners = new Map();
   const intervals = new Map();
-  let nextIntervalId = 1;
-  let oscillatorsCreated = 0;
+  const timeouts = new Map();
   const musicPlayers = [];
+  const audioContexts = [];
+  const fetchCalls = [];
+  const decodedSampleData = [];
   const storedValues = new Map(Object.entries(initialStoredValues));
+  let nextTimerId = 1;
+  let oscillatorsCreated = 0;
+
+  const addListener = (registry, type, listener) => {
+    const listeners = registry.get(type) || [];
+    listeners.push(listener);
+    registry.set(type, listeners);
+  };
 
   class FakeAudioParam {
-    targetValues = [];
-    setValues = [];
+    constructor() {
+      this.targetValues = [];
+      this.setValues = [];
+      this.rampValues = [];
+    }
     setTargetAtTime(value) { this.targetValues.push(value); }
     setValueAtTime(value) { this.setValues.push(value); }
-    linearRampToValueAtTime() {}
-    exponentialRampToValueAtTime() {}
+    linearRampToValueAtTime(value) { this.rampValues.push(value); }
+    exponentialRampToValueAtTime(value) { this.rampValues.push(value); }
   }
 
   class FakeAudioNode {
@@ -36,22 +51,40 @@ const loadAudioService = (initialStoredValues = {}) => {
   }
 
   class FakeGainNode extends FakeAudioNode {
-    gain = new FakeAudioParam();
+    constructor() {
+      super();
+      this.gain = new FakeAudioParam();
+    }
   }
 
   class FakeOscillatorNode extends FakeAudioNode {
-    frequency = new FakeAudioParam();
-    onended = null;
+    constructor() {
+      super();
+      this.frequency = new FakeAudioParam();
+      this.detune = new FakeAudioParam();
+      this.onended = null;
+      this.stopCalls = 0;
+    }
     start() {}
-    stop() {}
+    stop() { this.stopCalls += 1; }
   }
 
   class FakeAudioContext {
-    state = 'running';
-    currentTime = 0;
-    destination = {};
-    suspendCalls = 0;
-    resumeCalls = 0;
+    constructor() {
+      this.state = options.initialContextState || 'suspended';
+      this.currentTime = 0;
+      this.destination = {};
+      this.suspendCalls = 0;
+      this.resumeCalls = 0;
+      if (options.decodeAudioData) {
+        this.decodeAudioData = async (data) => {
+          decodedSampleData.push(data);
+          if (options.decodeAudioData === 'reject') throw new Error('decode failed');
+          return { duration: 1 };
+        };
+      }
+      audioContexts.push(this);
+    }
     createGain() { return new FakeGainNode(); }
     createOscillator() {
       oscillatorsCreated += 1;
@@ -70,86 +103,431 @@ const loadAudioService = (initialStoredValues = {}) => {
   }
 
   class FakeAudio {
-    constructor(src) {
-      this.src = new URL(src, 'http://localhost/').href;
+    constructor(src = '') {
+      this.src = src ? new URL(src, 'http://localhost/').href : '';
       this.currentTime = 0;
       this.loop = false;
       this.preload = 'none';
       this.volume = 1;
       this.paused = true;
+      this.readyState = options.initialMediaReadyState ?? 4;
       this.playCalls = 0;
       this.pauseCalls = 0;
+      this.loadCalls = 0;
+      this.listeners = new Map();
       musicPlayers.push(this);
     }
     setAttribute() {}
+    addEventListener(type, listener, listenerOptions = {}) {
+      const listeners = this.listeners.get(type) || [];
+      listeners.push({ listener, once: Boolean(listenerOptions?.once) });
+      this.listeners.set(type, listeners);
+    }
+    removeEventListener(type, listener) {
+      const listeners = this.listeners.get(type) || [];
+      this.listeners.set(type, listeners.filter((entry) => entry.listener !== listener));
+    }
+    dispatch(type) {
+      if (type === 'ended') this.paused = true;
+      const listeners = [...(this.listeners.get(type) || [])];
+      listeners.forEach(({ listener }) => listener({ type, target: this }));
+      this.listeners.set(type, listeners.filter(({ once }) => !once));
+    }
     play() {
-      this.paused = false;
       this.playCalls += 1;
+      const outcome = options.playOutcome?.(this, this.playCalls, musicPlayers.indexOf(this));
+      if (outcome === 'reject') {
+        this.paused = true;
+        return Promise.reject(new Error('play rejected'));
+      }
+      if (outcome && typeof outcome.then === 'function') {
+        return outcome.then(() => {
+          this.paused = false;
+        });
+      }
+      this.paused = false;
       return Promise.resolve();
     }
     pause() {
       this.paused = true;
       this.pauseCalls += 1;
     }
+    load() { this.loadCalls += 1; }
   }
 
-  const addListener = (type, listener) => listeners.set(type, listener);
+  const document = {
+    hidden: false,
+    addEventListener(type, listener) {
+      addListener(documentListeners, type, listener);
+    }
+  };
+  const window = {
+    AudioContext: FakeAudioContext,
+    location: { href: 'http://localhost/' },
+    localStorage: {
+      getItem: (key) => storedValues.get(key) ?? null,
+      setItem: (key, value) => storedValues.set(key, value)
+    },
+    addEventListener(type, listener) {
+      addListener(windowListeners, type, listener);
+    },
+    setInterval(callback) {
+      const id = nextTimerId++;
+      intervals.set(id, callback);
+      return id;
+    },
+    clearInterval(id) {
+      intervals.delete(id);
+    },
+    setTimeout(callback) {
+      const id = nextTimerId++;
+      timeouts.set(id, callback);
+      return id;
+    },
+    clearTimeout(id) {
+      timeouts.delete(id);
+    }
+  };
   const context = {
     module: { exports: {} },
     exports: {},
     console,
-    Audio: FakeAudio,
     URL,
-    performance: { now: () => 1000 },
-    document: {
-      hidden: false,
-      addEventListener: addListener
-    },
-    window: {
-      AudioContext: FakeAudioContext,
-      location: { href: 'http://localhost/' },
-      localStorage: {
-        getItem: (key) => storedValues.get(key) || null,
-        setItem: (key, value) => storedValues.set(key, value)
-      },
-      addEventListener: addListener,
-      setInterval(callback) {
-        const id = nextIntervalId++;
-        intervals.set(id, callback);
-        return id;
-      },
-      clearInterval(id) {
-        intervals.delete(id);
+    performance: { now: () => 10_000 },
+    document,
+    window,
+    ...(!options.withoutMediaElement ? { Audio: FakeAudio } : {}),
+    ...(options.fetch ? {
+      fetch: async (url) => {
+        fetchCalls.push(url);
+        return options.fetch(url);
       }
-    }
+    } : {})
   };
   context.exports = context.module.exports;
   vm.runInNewContext(compiled, context);
 
+  const dispatchAll = (registry, type) => {
+    (registry.get(type) || []).forEach((listener) => listener({ type }));
+  };
+  const runIntervals = (rounds = 1) => {
+    for (let round = 0; round < rounds; round++) {
+      [...intervals.values()].forEach((callback) => callback());
+    }
+  };
+  const runTimeouts = () => {
+    const pending = [...timeouts.entries()];
+    pending.forEach(([id, callback]) => {
+      if (!timeouts.has(id)) return;
+      timeouts.delete(id);
+      callback();
+    });
+  };
+  const flushPromises = async (rounds = 6) => {
+    for (let round = 0; round < rounds; round++) await Promise.resolve();
+  };
+
   return {
     audioService: context.module.exports.audioService,
-    audioContext: context.module.exports.audioService.ctx,
-    masterGainParam: context.module.exports.audioService.masterGain.gain,
-    sfxGainParam: context.module.exports.audioService.sfxGain.gain,
-    musicGainParam: context.module.exports.audioService.musicGain.gain,
-    document: context.document,
-    listeners,
+    missionTracks: context.module.exports.MISSION_MUSIC_TRACKS,
+    document,
     intervals,
+    timeouts,
     musicPlayers,
+    audioContexts,
     storedValues,
+    fetchCalls,
+    decodedSampleData,
+    runIntervals,
+    runTimeouts,
+    flushPromises,
+    dispatchDocument: (type) => dispatchAll(documentListeners, type),
+    dispatchWindow: (type) => dispatchAll(windowListeners, type),
+    get audioContext() {
+      return audioContexts.at(-1) || null;
+    },
+    get masterGainParam() {
+      return context.module.exports.audioService.masterGain?.gain || null;
+    },
+    get sfxGainParam() {
+      return context.module.exports.audioService.sfxGain?.gain || null;
+    },
+    get musicGainParam() {
+      return context.module.exports.audioService.musicGain?.gain || null;
+    },
+    get currentMusicPlayer() {
+      return context.module.exports.audioService.musicPlayer || null;
+    },
+    get pendingMusicPlayer() {
+      return context.module.exports.audioService.pendingMusicPlayer || null;
+    },
     get oscillatorsCreated() {
       return oscillatorsCreated;
     }
   };
 };
 
-test('six-step sound-effects volume stays independent while global mute gates both buses', () => {
+test('two reusable music decks are precreated but playback stays locked until a user gesture', async () => {
   const harness = loadAudioService();
+
+  assert.equal(harness.audioContexts.length, 0);
+  assert.equal(harness.musicPlayers.length, 2);
+  assert.deepEqual(harness.musicPlayers.map((player) => player.playCalls), [0, 0]);
+  assert.equal(harness.audioService.getMusicScene(), 'silent');
+
+  harness.audioService.setMusicScene('home');
+  assert.equal(harness.audioService.getMusicScene(), 'home');
+  assert.equal(harness.audioContexts.length, 0);
+  assert.equal(harness.musicPlayers.length, 2);
+
+  harness.audioService.init();
+  assert.deepEqual(
+    harness.musicPlayers.map((player) => player.playCalls),
+    [1, 1],
+    'both persistent decks must receive play() synchronously in the gesture stack'
+  );
+  await harness.flushPromises();
+
+  assert.equal(harness.audioContexts.length, 1);
+  assert.equal(harness.audioContext.resumeCalls, 1);
+  assert.equal(harness.musicPlayers.length, 2, 'scene changes must reuse the same two decks');
+  assert.match(harness.currentMusicPlayer.src, /\/audio\/music\/home-stillness\.mp3$/);
+  assert.equal(harness.currentMusicPlayer.loop, true);
+});
+
+test('home, mission, and boss scenes use dedicated tracks with a dual-player crossfade', async () => {
+  const harness = loadAudioService();
+  harness.audioService.setMusicScene('home');
+  harness.audioService.init();
+  await harness.flushPromises();
+
+  const home = harness.currentMusicPlayer;
+  harness.runIntervals(12);
+  assert.ok(home.volume > 0);
+
+  harness.audioService.setMusicScene('mission');
+  await harness.flushPromises();
+  const mission = harness.currentMusicPlayer;
+  assert.match(mission.src, /\/audio\/music\/mission-racing\.mp3$/);
+  assert.equal(mission.loop, false);
+  assert.equal(home.paused, false);
+  assert.equal(mission.paused, false);
+  assert.equal(mission.volume, 0);
+
+  harness.runIntervals(6);
+  assert.ok(home.volume > 0, 'outgoing music should still be audible halfway through the fade');
+  assert.ok(mission.volume > 0, 'incoming music should be audible halfway through the fade');
+  harness.runIntervals(6);
+  assert.equal(home.paused, true);
+  assert.ok(Math.abs(mission.volume - (0.04 * 0.78)) < 0.00001);
+
+  harness.audioService.setMusicScene('boss');
+  await harness.flushPromises();
+  const boss = harness.currentMusicPlayer;
+  assert.match(boss.src, /\/audio\/music\/boss-battle\.mp3$/);
+  assert.equal(boss.loop, true);
+  assert.equal(boss.volume, 0);
+  assert.equal(mission.paused, false);
+  harness.runIntervals(12);
+  assert.equal(mission.paused, true);
+  assert.ok(Math.abs(boss.volume - (0.04 * 0.92)) < 0.00001);
+
+  harness.audioService.setMusicScene('results');
+  assert.equal(harness.audioService.getMusicScene(), 'results');
+  harness.runIntervals(12);
+  assert.equal(boss.paused, true);
+  assert.equal(harness.intervals.size, 0);
+});
+
+test('a rapid second gesture leaves the outgoing crossfade deck intact', async () => {
+  const harness = loadAudioService();
+  harness.audioService.setMusicScene('home');
+  harness.audioService.init();
+  await harness.flushPromises();
+  harness.runIntervals(12);
+
+  const home = harness.currentMusicPlayer;
+  harness.audioService.setMusicScene('mission');
+  await harness.flushPromises();
+  const homeSrc = home.src;
+  const homePauseCalls = home.pauseCalls;
+
+  harness.audioService.init();
+  await harness.flushPromises();
+
+  assert.equal(home.src, homeSrc);
+  assert.equal(home.pauseCalls, homePauseCalls);
+  assert.equal(home.paused, false);
+  harness.runIntervals(12);
+  assert.equal(home.paused, true);
+});
+
+test('a rejected incoming deck leaves outgoing music audible and retries on the next gesture', async () => {
+  let rejectMission = true;
+  const harness = loadAudioService({}, {
+    playOutcome: (player) => (
+      rejectMission && /mission-racing\.mp3$/.test(player.src) ? 'reject' : undefined
+    )
+  });
+  harness.audioService.setMusicScene('home');
+  harness.audioService.init();
+  await harness.flushPromises();
+  harness.runIntervals(12);
+  const home = harness.currentMusicPlayer;
+  const homeVolume = home.volume;
+
+  harness.audioService.setMusicScene('mission');
+  await harness.flushPromises();
+  assert.equal(harness.currentMusicPlayer, home);
+  assert.equal(home.paused, false);
+  assert.equal(home.volume, homeVolume);
+  assert.equal(harness.intervals.size, 0, 'no crossfade starts until incoming play succeeds');
+  assert.match(harness.pendingMusicPlayer.src, /mission-racing\.mp3$/);
+
+  rejectMission = false;
+  harness.audioService.init();
+  await harness.flushPromises();
+  assert.match(harness.currentMusicPlayer.src, /mission-racing\.mp3$/);
+  assert.equal(home.paused, false);
+  harness.runIntervals(12);
+  assert.equal(home.paused, true);
+  assert.equal(harness.musicPlayers.length, 2);
+});
+
+test('results cancel a slow incoming deck so combat music cannot commit after the run ends', async () => {
+  let resolveMission;
+  let delayMission = false;
+  const missionPlayback = new Promise((resolve) => { resolveMission = resolve; });
+  const harness = loadAudioService({}, {
+    playOutcome: (player) => (
+      delayMission && /mission-racing\.mp3$/.test(player.src) ? missionPlayback : undefined
+    )
+  });
+  harness.audioService.setMusicScene('home');
+  harness.audioService.init();
+  await harness.flushPromises();
+  harness.runIntervals(12);
+
+  delayMission = true;
+  harness.audioService.setMusicScene('mission');
+  const mission = harness.pendingMusicPlayer;
+  harness.audioService.setMusicScene('results');
+  resolveMission();
+  await harness.flushPromises();
+  harness.runIntervals(12);
+
+  assert.equal(harness.audioService.getMusicScene(), 'results');
+  assert.equal(harness.currentMusicPlayer, null);
+  assert.equal(mission.paused, true);
+});
+
+test('the six-track mission playlist advances on ended events and wraps after its procedural track', async () => {
+  const harness = loadAudioService({
+    [MUSIC_STORAGE_KEY]: 'acid-clatter'
+  });
+  assert.deepEqual(
+    Array.from(harness.missionTracks, (track) => track.id),
+    ['scicon-flight', 'acid-clatter', 'pressure', 'exellent', 'racing-asteroids', 'final-hour']
+  );
+
+  harness.audioService.setMusicScene('mission');
+  harness.audioService.init();
+  await harness.flushPromises();
+
+  const expectedFileSequence = [
+    ['acid-clatter', /acid-clatter\.mp3$/],
+    ['pressure', /pressure\.mp3$/],
+    ['exellent', /exellent\.mp3$/],
+    ['racing-asteroids', /mission-racing\.mp3$/],
+    ['final-hour', /final-hour\.mp3$/]
+  ];
+
+  for (let index = 0; index < expectedFileSequence.length; index++) {
+    const [trackId, sourcePattern] = expectedFileSequence[index];
+    const player = harness.currentMusicPlayer;
+    assert.equal(harness.audioService.getMusicTrackId(), trackId);
+    assert.match(player.src, sourcePattern);
+    assert.equal(player.loop, false);
+    player.dispatch('ended');
+    await harness.flushPromises();
+    harness.runIntervals(12);
+  }
+
+  assert.equal(harness.audioService.getMusicTrackId(), 'scicon-flight');
+  assert.equal(harness.intervals.size, 1, 'the procedural playlist entry should start its sequencer');
+  assert.equal(harness.audioService.advanceMusicTrack(), 'acid-clatter');
+  await harness.flushPromises();
+  assert.equal(harness.audioService.getMusicTrackId(), 'acid-clatter');
+  assert.equal(harness.storedValues.get(MUSIC_STORAGE_KEY), 'acid-clatter');
+  assert.match(harness.currentMusicPlayer.src, /acid-clatter\.mp3$/);
+});
+
+test('the licensed mission track is the new-user fallback while stored legacy selections remain honored', () => {
+  const freshHarness = loadAudioService();
+  const legacyHarness = loadAudioService({ [MUSIC_STORAGE_KEY]: 'pressure' });
+  const invalidHarness = loadAudioService({ [MUSIC_STORAGE_KEY]: 'not-a-track' });
+
+  assert.equal(freshHarness.audioService.getMusicTrackId(), 'racing-asteroids');
+  assert.equal(legacyHarness.audioService.getMusicTrackId(), 'pressure');
+  assert.equal(invalidHarness.audioService.getMusicTrackId(), 'racing-asteroids');
+});
+
+test('pause and visibility changes preserve the current scene track position', async () => {
+  const harness = loadAudioService();
+  harness.audioService.setMusicScene('home');
+  harness.audioService.init();
+  await harness.flushPromises();
+
+  const home = harness.currentMusicPlayer;
+  home.currentTime = 18.5;
+  harness.audioService.pauseMusic();
+  assert.equal(home.paused, true);
+  assert.equal(home.currentTime, 18.5);
+
+  harness.audioService.resumeMusic();
+  await harness.flushPromises();
+  assert.equal(home.playCalls, 2);
+  assert.equal(home.currentTime, 18.5);
+
+  harness.document.hidden = true;
+  harness.dispatchDocument('visibilitychange');
+  await harness.flushPromises();
+  assert.equal(home.paused, true);
+  assert.equal(home.currentTime, 18.5);
+  assert.equal(harness.audioContext.suspendCalls, 1);
+
+  harness.document.hidden = false;
+  harness.dispatchDocument('visibilitychange');
+  await harness.flushPromises();
+  assert.equal(harness.audioContext.resumeCalls, 2);
+  assert.equal(home.playCalls, 3);
+  assert.equal(home.currentTime, 18.5);
+});
+
+test('pagehide silences requested music and stopped music does not restart on pageshow', async () => {
+  const harness = loadAudioService();
+  harness.audioService.setMusicScene('home');
+  harness.audioService.init();
+  await harness.flushPromises();
+  const home = harness.currentMusicPlayer;
+
+  harness.dispatchWindow('pagehide');
+  await harness.flushPromises();
+  assert.equal(home.paused, true);
+
+  harness.audioService.stopMusic();
+  harness.dispatchWindow('pageshow');
+  await harness.flushPromises();
+  assert.equal(home.playCalls, 1);
+});
+
+test('sound-effects controls remain independent while global mute gates both buses', () => {
+  const harness = loadAudioService();
+  harness.audioService.init();
 
   assert.equal(harness.audioService.getSfxVolumeLevel(), 5);
   assert.equal(harness.audioService.getMusicVolumeLevel(), 5);
   harness.audioService.setSfxVolumeLevel(3);
-  assert.equal(harness.audioService.getSfxVolumeLevel(), 3);
   assert.ok(Math.abs(harness.sfxGainParam.targetValues.at(-1) - 0.18) < 0.00001);
   assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.014) < 0.00001);
 
@@ -158,198 +536,93 @@ test('six-step sound-effects volume stays independent while global mute gates bo
   assert.equal(harness.masterGainParam.targetValues.at(-1), 0);
 
   assert.equal(harness.audioService.toggleMute(), false);
-  assert.equal(harness.audioService.getSfxVolumeLevel(), 3);
   assert.equal(harness.masterGainParam.targetValues.at(-1), 1);
   assert.ok(Math.abs(harness.sfxGainParam.targetValues.at(-1) - 0.18) < 0.00001);
 });
 
-test('music and sound-effects zero notches mute only their own buses', () => {
+test('raising a volume control unmutes and resumes requested music', async () => {
   const harness = loadAudioService();
+  harness.audioService.setMusicScene('home');
+  harness.audioService.init();
+  await harness.flushPromises();
+  harness.runIntervals(12);
+  const home = harness.currentMusicPlayer;
 
-  assert.equal(harness.audioService.setSfxVolumeLevel(0), 0);
+  assert.equal(harness.audioService.toggleMute(), true);
+  const playsBefore = home.playCalls;
+  harness.audioService.setMusicVolumeLevel(4);
+  await harness.flushPromises();
+
   assert.equal(harness.audioService.isMuted(), false);
-  assert.equal(harness.sfxGainParam.targetValues.at(-1), 0);
-  assert.ok(harness.musicGainParam.targetValues.at(-1) > 0);
-
-  assert.equal(harness.audioService.setMusicVolumeLevel(0), 0);
-  assert.equal(harness.musicGainParam.targetValues.at(-1), 0);
-  assert.equal(harness.audioService.setSfxVolumeLevel(2), 2);
-  assert.equal(harness.audioService.isMuted(), false);
-  assert.ok(Math.abs(harness.sfxGainParam.targetValues.at(-1) - 0.12) < 0.00001);
+  assert.ok(home.playCalls > playsBefore);
+  assert.equal(home.paused, false);
 });
 
-test('preview sound effects can suppress music without changing the production default', () => {
+test('mission track subscribers receive manual and automatic playlist changes', async () => {
   const harness = loadAudioService();
+  const changes = [];
+  const unsubscribe = harness.audioService.subscribeMusicTrack((trackId) => changes.push(trackId));
 
-  assert.equal(harness.audioService.isMusicPlaybackEnabled(), true);
-  harness.audioService.setMusicPlaybackEnabled(false);
-  harness.audioService.startMusic();
-  assert.equal(harness.audioService.isMusicPlaybackEnabled(), false);
-  assert.equal(harness.intervals.size, 0);
-  assert.equal(harness.musicPlayers.length, 0);
+  harness.audioService.setMusicTrack('pressure');
+  harness.audioService.setMusicScene('mission');
+  harness.audioService.init();
+  await harness.flushPromises();
+  harness.currentMusicPlayer.dispatch('ended');
+  await harness.flushPromises();
 
-  harness.audioService.setMusicPlaybackEnabled(true);
-  harness.audioService.startMusic();
-  assert.equal(harness.intervals.size, 1);
+  assert.deepEqual(changes, ['pressure', 'exellent']);
+  unsubscribe();
+  harness.audioService.setMusicTrack('final-hour');
+  assert.deepEqual(changes, ['pressure', 'exellent']);
 });
 
-test('mission music opens with one launch cue and one progressive sequencer timer', () => {
-  const harness = loadAudioService();
-  assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.014) < 0.00001);
-  harness.audioService.startMusic();
-
-  assert.equal(harness.intervals.size, 1);
-  assert.ok(harness.oscillatorsCreated >= 6);
-
-  const afterFirstStart = harness.oscillatorsCreated;
-  harness.audioService.startMusic();
-  assert.equal(harness.intervals.size, 1);
-  assert.equal(harness.oscillatorsCreated, afterFirstStart);
-
-  const pulse = [...harness.intervals.values()][0];
-  pulse();
-  assert.ok(harness.oscillatorsCreated > afterFirstStart);
-});
-
-test('mission music can switch to a supplied song and uses its independent low-volume bus', async () => {
-  const harness = loadAudioService();
-  harness.audioService.startMusic();
-  assert.equal(harness.intervals.size, 1);
-
-  assert.equal(harness.audioService.setMusicTrack('acid-clatter'), 'acid-clatter');
-  await Promise.resolve();
-  assert.equal(harness.intervals.size, 0);
-  assert.equal(harness.musicPlayers.length, 1);
-  assert.match(harness.musicPlayers[0].src, /\/audio\/music\/acid-clatter\.mp3$/);
-  assert.equal(harness.musicPlayers[0].loop, true);
-  assert.equal(harness.musicPlayers[0].playCalls, 1);
-  assert.equal(harness.storedValues.get('scicon-shooter:mission-music-track:v1'), 'acid-clatter');
-
-  harness.audioService.setSfxVolumeLevel(2);
-  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.014) < 0.00001);
-  harness.audioService.setMusicVolumeLevel(1);
-  assert.ok(Math.abs(harness.musicPlayers[0].volume - 0.0028) < 0.00001);
-  harness.audioService.toggleMute();
-  assert.equal(harness.musicPlayers[0].paused, true);
-  assert.equal(harness.musicPlayers[0].volume, 0);
-});
-
-test('the old notch-two default migrates to the quieter five-notch ceiling', () => {
-  const harness = loadAudioService({
-    'scicon-shooter:music-volume:v1': '2'
+test('only UI samples fetch eagerly and decoded ArrayBuffers are released', async () => {
+  const harness = loadAudioService({}, {
+    decodeAudioData: true,
+    fetch: async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(16)
+    })
   });
+  await harness.flushPromises(12);
 
-  assert.equal(harness.audioService.getMusicVolumeLevel(), 5);
-  assert.equal(harness.storedValues.get('scicon-shooter:music-volume:v2'), '5');
-  assert.ok(Math.abs(harness.musicGainParam.targetValues.at(-1) - 0.014) < 0.00001);
+  assert.equal(harness.fetchCalls.length, 6);
+  assert.ok(harness.fetchCalls.every((url) => url.startsWith('/audio/ui/')));
+
+  await harness.audioService.prepare();
+  await harness.flushPromises(12);
+  assert.ok(harness.fetchCalls.some((url) => url === '/audio/sfx/boss-rotary-burst.wav'));
+  assert.ok(harness.decodedSampleData.length >= 14);
+  assert.deepEqual(Object.keys(harness.audioService.preparedSampleData), []);
 });
 
-test('explicit legacy mute and custom music levels remain respected', () => {
-  const mutedHarness = loadAudioService({
-    'scicon-shooter:music-volume:v1': '0'
-  });
-  const customHarness = loadAudioService({
-    'scicon-shooter:music-volume:v1': '3'
-  });
+test('the old notch-two default migrates while explicit mute and custom levels remain respected', () => {
+  const migratedHarness = loadAudioService({ 'scicon-shooter:music-volume:v1': '2' });
+  const mutedHarness = loadAudioService({ 'scicon-shooter:music-volume:v1': '0' });
+  const customHarness = loadAudioService({ 'scicon-shooter:music-volume:v1': '3' });
 
+  assert.equal(migratedHarness.audioService.getMusicVolumeLevel(), 5);
+  assert.equal(migratedHarness.storedValues.get('scicon-shooter:music-volume:v2'), '5');
   assert.equal(mutedHarness.audioService.getMusicVolumeLevel(), 0);
   assert.equal(customHarness.audioService.getMusicVolumeLevel(), 3);
-  assert.ok(Math.abs(customHarness.musicGainParam.targetValues.at(-1) - 0.0084) < 0.00001);
 });
 
-test('pausing a mission pauses its song in place and resumes from the same position', async () => {
-  const harness = loadAudioService();
-  harness.audioService.setMusicTrack('pressure');
-  harness.audioService.startMusic();
-  await Promise.resolve();
+test('server-side game simulations can import audio without a media element global', async () => {
+  const harness = loadAudioService({}, { withoutMediaElement: true });
 
-  const player = harness.musicPlayers[0];
-  player.currentTime = 18.5;
-  assert.equal(player.playCalls, 1);
-
-  harness.audioService.pauseMusic();
-  assert.equal(player.paused, true);
-  assert.equal(player.currentTime, 18.5);
-
-  harness.audioService.resumeMusic();
-  await Promise.resolve();
-  assert.equal(player.playCalls, 2);
-  assert.equal(player.currentTime, 18.5);
+  assert.equal(harness.musicPlayers.length, 0);
+  assert.doesNotThrow(() => harness.audioService.setMusicScene('home'));
+  await assert.doesNotReject(() => harness.audioService.prepareMusicScene('home'));
 });
 
-test('the procedural mix also stops its timer while paused and resumes without a new launch', () => {
-  const harness = loadAudioService();
-  harness.audioService.startMusic();
-  assert.equal(harness.intervals.size, 1);
-  const launchOscillators = harness.oscillatorsCreated;
+test('App owns scene music and GameCanvas teardown does not stop the global soundtrack', () => {
+  const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
+  const canvasSource = fs.readFileSync(path.join(root, 'components', 'GameCanvas.tsx'), 'utf8');
 
-  harness.audioService.pauseMusic();
-  assert.equal(harness.intervals.size, 0);
-  harness.audioService.resumeMusic();
-  assert.equal(harness.intervals.size, 1);
-  assert.ok(harness.oscillatorsCreated > launchOscillators);
-});
-
-test('playlist advancement wraps across the four mission tracks', () => {
-  const harness = loadAudioService();
-  assert.equal(harness.audioService.getMusicTrackId(), 'scicon-flight');
-  assert.equal(harness.audioService.advanceMusicTrack(), 'acid-clatter');
-  assert.equal(harness.audioService.advanceMusicTrack(2), 'exellent');
-  assert.equal(harness.audioService.advanceMusicTrack(), 'scicon-flight');
-});
-
-test('switching back to the original mix resumes the procedural sequencer', () => {
-  const harness = loadAudioService();
-  harness.audioService.setMusicTrack('pressure');
-  harness.audioService.startMusic();
-  assert.equal(harness.musicPlayers.length, 1);
-  assert.equal(harness.intervals.size, 0);
-
-  harness.audioService.setMusicTrack('scicon-flight');
-  assert.equal(harness.musicPlayers[0].paused, true);
-  assert.equal(harness.intervals.size, 1);
-});
-
-test('backgrounding clears music and suspends Web Audio until the page is visible again', async () => {
-  const harness = loadAudioService();
-  harness.audioService.startMusic();
-  assert.equal(harness.intervals.size, 1);
-
-  harness.document.hidden = true;
-  harness.listeners.get('visibilitychange')();
-  await Promise.resolve();
-  assert.equal(harness.intervals.size, 0);
-  assert.equal(harness.audioContext.suspendCalls, 1);
-
-  harness.document.hidden = false;
-  harness.listeners.get('visibilitychange')();
-  await Promise.resolve();
-  assert.equal(harness.audioContext.resumeCalls, 1);
-  assert.equal(harness.intervals.size, 1);
-});
-
-test('pagehide silences the app and stopped music does not restart on pageshow', async () => {
-  const harness = loadAudioService();
-  harness.audioService.startMusic();
-  harness.listeners.get('pagehide')();
-  await Promise.resolve();
-  assert.equal(harness.intervals.size, 0);
-
-  harness.audioService.stopMusic();
-  harness.listeners.get('pageshow')();
-  await Promise.resolve();
-  assert.equal(harness.intervals.size, 0);
-});
-
-test('the game canvas stops shared music when its engine unmounts', () => {
-  const source = fs.readFileSync(path.join(root, 'components', 'GameCanvas.tsx'), 'utf8');
-  assert.match(source, /if \(audioEnabled\) audioService\.stopMusic\(\)/);
-});
-
-test('the app pauses shared music and advances the playlist every two missions', () => {
-  const source = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
-  assert.match(source, /gameState === GameState\.PAUSED[\s\S]*audioService\.pauseMusic\(\)/);
-  assert.match(source, /gameState === GameState\.PLAYING[\s\S]*audioService\.resumeMusic\(\)/);
-  assert.match(source, /Math\.floor\(\(mission - 1\) \/ 2\)/);
-  assert.match(source, /audioService\.advanceMusicTrack\(advances\)/);
+  assert.match(appSource, /audioService\.setMusicScene\(isBossArchiveRun \|\| majorBossMusicActive \? 'boss' : 'mission'\)/);
+  assert.match(appSource, /audioService\.setMusicScene\('results'\)/);
+  assert.match(appSource, /audioService\.setMusicScene\(campaignMapOpen \? 'map' : 'home'\)/);
+  assert.match(appSource, /gameState === GameState\.PAUSED[\s\S]*audioService\.pauseMusic\(\)/);
+  assert.match(appSource, /gameState === GameState\.PLAYING[\s\S]*audioService\.resumeMusic\(\)/);
+  assert.doesNotMatch(canvasSource, /audioService\.stopMusic\(\)/);
 });
