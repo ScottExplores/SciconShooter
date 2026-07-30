@@ -440,6 +440,7 @@ const serialBossTimeline = (
 const gatekeeperBoss = ({
   id,
   label,
+  bossId = 'gatekeeper',
   rigId,
   spriteKey,
   health,
@@ -455,6 +456,7 @@ const gatekeeperBoss = ({
   burstIntervalSeconds = 1.1,
   beamIntervalSeconds = 2.4
 }: Pick<BossEvent, 'id' | 'label' | 'rigId' | 'spriteKey' | 'health' | 'shieldCount' | 'phases' | 'timeline'> & {
+  bossId?: BossEvent['bossId'];
   componentMode?: BossEvent['componentMode'];
   componentHealth?: BossEvent['componentHealth'];
   revival?: BossEvent['revival'];
@@ -471,7 +473,7 @@ const gatekeeperBoss = ({
   durationSeconds,
   delayAfterSeconds: 0,
   blocksWaveClock: true,
-  bossId: 'gatekeeper',
+  bossId,
   rigId,
   componentMode,
   componentHealth,
@@ -3461,7 +3463,7 @@ const definitions = deepFreeze([
       durationSeconds: 28,
       delayAfterSeconds: 0,
       blocksWaveClock: true,
-      bossId: 'gatekeeper',
+      bossId: 'paywall-decimator',
       rigId: 'paywall-siege',
       spriteKey: 'PIXI_BOSS_PAYWALL_FRAMES',
       positionId: 'center-top',
@@ -3569,6 +3571,7 @@ const definitions = deepFreeze([
     boss: gatekeeperBoss({
       id: 'sandbox-prism-moth-brood',
       label: 'Prism Moth Broodkeeper',
+      bossId: 'prism-moth',
       rigId: 'open-orbit',
       componentMode: 'hull-only',
       spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH',
@@ -3710,6 +3713,7 @@ const definitions = deepFreeze([
     boss: gatekeeperBoss({
       id: 'sandbox-helios-clawcarrier',
       label: 'Helios Clawcarrier',
+      bossId: 'helios-clawcarrier',
       // The Sandbox swaps this catalog-backed placeholder for the ignored
       // Helios V2 modular atlas after the canonical preview is constructed.
       rigId: 'crown-claw',
@@ -3768,6 +3772,7 @@ const definitions = deepFreeze([
     boss: gatekeeperBoss({
       id: 'sandbox-frontier-crownclaw',
       label: 'Frontier Crownclaw',
+      bossId: 'frontier-crownclaw',
       // The Sandbox replaces this validated catalog placeholder with the
       // ignored Boss Factory native-pixel hierarchy after preview creation.
       rigId: 'crown-claw',

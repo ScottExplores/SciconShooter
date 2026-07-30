@@ -1198,6 +1198,8 @@ const usesStandaloneBossArt = (entity: Entity, previewArtwork = false) => (
     previewArtwork
     ||
     entity.spriteUrl?.includes('/scicon-stage20-expansion-v1/bosses/')
+    ||
+    entity.spriteUrl === ASSETS.CAMPAIGN_BOSS_HELIOS_CLAWCARRIER
   )
 );
 

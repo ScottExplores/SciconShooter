@@ -27,7 +27,7 @@ const loadArchetypes = () => {
   return module.exports;
 };
 
-test('the generated revision-23 sector bosses resolve through the stable archetype catalog', () => {
+test('the revision-23 Campaign roster resolves through generated or dedicated boss runtimes by slot', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const { GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY, resolveGeneratedBossArchetype } = loadArchetypes();
   const sectorBosses = campaign.sectors.map((sector) => {
@@ -36,33 +36,41 @@ test('the generated revision-23 sector bosses resolve through the stable archety
     assert.equal(mission.campaignProgression.missionRole, 'major-boss');
     assert.equal(mission.waves.length, 4, `${mission.name} teaches, varies, recovers, then launches its boss`);
     assert.equal(event.bossId, sector.majorBossId);
-    return { missionId: mission.id, event };
+    return { missionId: mission.id, missionOrder: mission.order, event };
   });
   const generatedBosses = sectorBosses
     .filter(({ event }) => event.spriteKey in GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY)
-    .map((event) => ({
-      id: event.event.id,
-      spriteKey: event.event.spriteKey,
-      archetype: resolveGeneratedBossArchetype(event.event.spriteKey)
+    .map(({ event }) => ({
+      id: event.id,
+      spriteKey: event.spriteKey,
+      archetype: resolveGeneratedBossArchetype(event.spriteKey)
     }));
 
   assert.equal(campaign.revision, 23);
   assert.equal(campaign.sectors.length, 10);
   assert.equal(sectorBosses.length, 10);
   assert.equal(Object.keys(GENERATED_BOSS_ARCHETYPE_BY_ASSET_KEY).length, 8);
-  assert.equal(
-    resolveGeneratedBossArchetype(sectorBosses[0].event.spriteKey),
-    null,
-    'Gatekeeper Prime retains its dedicated Boss Factory runtime'
-  );
-  assert.equal(generatedBosses.length, 8);
+  const dedicatedBossSlots = new Map([
+    [5, 'gatekeeper-prime'],
+    [10, 'paywall-decimator'],
+    [20, 'frontier-crownclaw'],
+    [25, 'helios-clawcarrier'],
+    [50, 'frontier-crownclaw']
+  ]);
+  for (const [missionOrder, bossId] of dedicatedBossSlots) {
+    const slot = sectorBosses.find((candidate) => candidate.missionOrder === missionOrder);
+    assert.equal(slot.event.bossId, bossId, `M${missionOrder} dedicated boss identity`);
+    assert.equal(
+      resolveGeneratedBossArchetype(slot.event.spriteKey),
+      null,
+      `M${missionOrder} retains its dedicated Boss Factory runtime`
+    );
+  }
+  assert.equal(generatedBosses.length, 5);
   assert.deepEqual(
     JSON.parse(JSON.stringify(generatedBosses)),
     [
-      { id: 'stage-null-sector-major-boss', spriteKey: 'CAMPAIGN_BOSS_ECLIPSE_ENGINE', archetype: 'eclipse-engine' },
-      { id: 'stage-ion-citadel-major-boss', spriteKey: 'CAMPAIGN_BOSS_HELIX_LEVIATHAN', archetype: 'helix-leviathan' },
-      { id: 'stage-terminus-ascendant-major-boss', spriteKey: 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT', archetype: 'tribunal-dreadnought' },
-      { id: 'stage-prism-expanse-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH', archetype: 'prism-moth' },
+      { id: 'stage-ion-citadel-major-boss', spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH', archetype: 'prism-moth' },
       { id: 'stage-rail-meridian-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_RAIL_SERPENT', archetype: 'rail-serpent' },
       { id: 'stage-singularity-reach-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB', archetype: 'singularity-crab' },
       { id: 'stage-gyroscope-array-commander-major-boss', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE', archetype: 'orbit-gyroscope' },

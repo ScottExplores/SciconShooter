@@ -64,10 +64,18 @@ export interface GatekeeperPrimeRouteProof {
 
 export const GATEKEEPER_PRIME_FIXED_SEED = 'gatekeeper-prime-mission-05-v1';
 export const GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES = 252;
+export const GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES = 410;
+export const GATEKEEPER_PRIME_SEQUENCE_FRAMES =
+  GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES + GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES * 2;
 export const GATEKEEPER_PRIME_TELEGRAPH_START_FRAME = 24;
 export const GATEKEEPER_PRIME_FIRE_START_FRAME = 72;
 export const GATEKEEPER_PRIME_FIRE_END_FRAME = 116;
 export const GATEKEEPER_PRIME_RECOVERY_END_FRAME = 180;
+export const GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES = Object.freeze([77, 154, 231]);
+export const GATEKEEPER_PRIME_SIGNATURE_TELEGRAPH_START_FRAME = 250;
+export const GATEKEEPER_PRIME_SIGNATURE_FIRE_START_FRAME = 320;
+export const GATEKEEPER_PRIME_SIGNATURE_FIRE_END_FRAME = 388;
+export const GATEKEEPER_PRIME_SIGNATURE_RECOVERY_END_FRAME = 400;
 export const GATEKEEPER_PRIME_ROUTE_UNCERTAINTY_PIXELS = 3 as const;
 export const GATEKEEPER_PRIME_MINIMUM_ROUTE_CLEARANCE_PIXELS = 6;
 export const GATEKEEPER_PRIME_MOBILE_PROJECTILE_CAP = 18;
@@ -105,7 +113,7 @@ export const resolveGatekeeperPrimePhase = (
       index: 2,
       verticalExcursionPixels: 38,
       maximumPatrolSpeedPixelsPerFrame: 1.72,
-      railPulseFrames: Object.freeze([72, 82, 92, 102])
+      railPulseFrames: GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES
     });
   }
   if (health <= 0.64) {
@@ -114,7 +122,7 @@ export const resolveGatekeeperPrimePhase = (
       index: 1,
       verticalExcursionPixels: 26,
       maximumPatrolSpeedPixelsPerFrame: 1.58,
-      railPulseFrames: Object.freeze([72, 84, 96])
+      railPulseFrames: GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES
     });
   }
   return Object.freeze({
@@ -122,7 +130,7 @@ export const resolveGatekeeperPrimePhase = (
     index: 0,
     verticalExcursionPixels: 14,
     maximumPatrolSpeedPixelsPerFrame: 1.42,
-    railPulseFrames: Object.freeze([72, 86, 100])
+    railPulseFrames: GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES
   });
 };
 
@@ -130,15 +138,42 @@ export const sampleGatekeeperPrimeAttack = (
   combatFrame: number
 ): GatekeeperPrimeAttackSample => {
   const frame = Math.max(0, Math.floor(Number(combatFrame) || 0));
-  const localFrame = frame % GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES;
-  const attackIndex = (Math.floor(frame / GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES) % 3) as 0 | 1 | 2;
-  const stage: GatekeeperPrimeAttackStage = localFrame < GATEKEEPER_PRIME_TELEGRAPH_START_FRAME
+  const sequenceFrame = frame % GATEKEEPER_PRIME_SEQUENCE_FRAMES;
+  const attackIndex = (
+    sequenceFrame < GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
+      ? 0
+      : sequenceFrame < GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
+        + GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES
+        ? 1
+        : 2
+  ) as 0 | 1 | 2;
+  const localFrame = attackIndex === 0
+    ? sequenceFrame
+    : attackIndex === 1
+      ? sequenceFrame - GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
+      : sequenceFrame
+        - GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
+        - GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES;
+  const signatureAttack = attackIndex === 0;
+  const telegraphStartFrame = signatureAttack
+    ? GATEKEEPER_PRIME_SIGNATURE_TELEGRAPH_START_FRAME
+    : GATEKEEPER_PRIME_TELEGRAPH_START_FRAME;
+  const fireStartFrame = signatureAttack
+    ? GATEKEEPER_PRIME_SIGNATURE_FIRE_START_FRAME
+    : GATEKEEPER_PRIME_FIRE_START_FRAME;
+  const fireEndFrame = signatureAttack
+    ? GATEKEEPER_PRIME_SIGNATURE_FIRE_END_FRAME
+    : GATEKEEPER_PRIME_FIRE_END_FRAME;
+  const recoveryEndFrame = signatureAttack
+    ? GATEKEEPER_PRIME_SIGNATURE_RECOVERY_END_FRAME
+    : GATEKEEPER_PRIME_RECOVERY_END_FRAME;
+  const stage: GatekeeperPrimeAttackStage = localFrame < telegraphStartFrame
     ? 'settle'
-    : localFrame < GATEKEEPER_PRIME_FIRE_START_FRAME
+    : localFrame < fireStartFrame
       ? 'telegraph'
-      : localFrame < GATEKEEPER_PRIME_FIRE_END_FRAME
+      : localFrame < fireEndFrame
         ? 'fire'
-        : localFrame < GATEKEEPER_PRIME_RECOVERY_END_FRAME
+        : localFrame < recoveryEndFrame
           ? 'recovery'
           : 'return';
   return Object.freeze({
@@ -146,10 +181,10 @@ export const sampleGatekeeperPrimeAttack = (
     attackIndex,
     localFrame,
     stage,
-    telegraphStartFrame: GATEKEEPER_PRIME_TELEGRAPH_START_FRAME,
-    fireStartFrame: GATEKEEPER_PRIME_FIRE_START_FRAME,
-    fireEndFrame: GATEKEEPER_PRIME_FIRE_END_FRAME,
-    recoveryEndFrame: GATEKEEPER_PRIME_RECOVERY_END_FRAME
+    telegraphStartFrame,
+    fireStartFrame,
+    fireEndFrame,
+    recoveryEndFrame
   });
 };
 
@@ -207,7 +242,11 @@ export const sampleGatekeeperPrimePatrol = ({
     phase.verticalExcursionPixels * attackDepthScale,
     Math.max(0, maximumAllowedY - minimumY)
   );
-  const normalizedFrame = attack.localFrame / GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES;
+  const normalizedFrame = attack.localFrame / (
+    attack.attackId === 'rail-fan'
+      ? GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
+      : GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES
+  );
   const verticalProgress = normalizedFrame < 0.44
     ? smoothstep(normalizedFrame / 0.44)
     : normalizedFrame < 0.58
@@ -296,20 +335,54 @@ const proveRailFanRoute = ({
   let playerX = width / 2;
   let playerVx = 0;
   let minimumClearance = Number.POSITIVE_INFINITY;
-  const targetX = playerX;
-  const targetY = playerY;
   const phase = resolveGatekeeperPrimePhase(0.2);
 
-  for (let frame = 0; frame <= 190; frame += 1) {
-    if (frame >= GATEKEEPER_PRIME_TELEGRAPH_START_FRAME) {
+  for (let frame = 0; frame <= GATEKEEPER_PRIME_SIGNATURE_FIRE_END_FRAME; frame += 1) {
+    if (frame >= 24) {
+      const beamCenterX = width * 0.7;
+      const beamHalfWidth = (width < 520 ? 19 : 24)
+        + GATEKEEPER_PRIME_ROUTE_UNCERTAINTY_PIXELS;
+      const dodgeTargetX = Math.min(
+        width - PLAYER_COLLISION.width / 2 - 9,
+        width / 2 + Math.min(140, width * 0.26)
+      );
+      const dodgeAmplitude = dodgeTargetX - width / 2;
+      const leftDodgeTargetX = width / 2 - dodgeAmplitude;
+      const warnedSafeTargetX = beamCenterX
+        - beamHalfWidth
+        - PLAYER_COLLISION.width / 2
+        - GATEKEEPER_PRIME_MINIMUM_ROUTE_CLEARANCE_PIXELS
+        - 8;
+      const targetX = frame <= GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES[0]
+        ? dodgeTargetX
+        : frame <= GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES[1]
+          ? leftDodgeTargetX
+          : frame <= GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES[2]
+            ? dodgeTargetX
+            : warnedSafeTargetX;
+      const desiredVelocity = clamp(
+        targetX - playerX,
+        -PLAYER_COLLISION.maximumSpeedPerFrame,
+        PLAYER_COLLISION.maximumSpeedPerFrame
+      );
       playerVx = clamp(
-        playerVx + PLAYER_COLLISION.accelerationPerFrame,
-        0,
+        playerVx + clamp(
+          desiredVelocity - playerVx,
+          -PLAYER_COLLISION.accelerationPerFrame,
+          PLAYER_COLLISION.accelerationPerFrame
+        ),
+        -PLAYER_COLLISION.maximumSpeedPerFrame,
         PLAYER_COLLISION.maximumSpeedPerFrame
       );
     }
+    const playerMinimumX = PLAYER_COLLISION.width / 2 + 9;
     const playerMaximumX = width - PLAYER_COLLISION.width / 2 - 9;
-    playerX = Math.min(playerMaximumX, playerX + playerVx);
+    const nextPlayerX = clamp(playerX + playerVx, playerMinimumX, playerMaximumX);
+    if (
+      (nextPlayerX === playerMinimumX && playerVx < 0)
+      || (nextPlayerX === playerMaximumX && playerVx > 0)
+    ) playerVx = 0;
+    playerX = nextPlayerX;
     points.push({ x: playerX, y: playerY });
 
     if (phase.railPulseFrames.includes(frame)) {
@@ -325,16 +398,20 @@ const proveRailFanRoute = ({
         x: patrol.x + bossWidth * xRatio,
         y: patrol.y + bossHeight * 0.64
       }));
-      origins.forEach((origin, originIndex) => {
-        const baseAngle = Math.atan2(targetY - origin.y, targetX - origin.x);
-        const angle = baseAngle + (originIndex === 0 ? -0.1 : 0.1);
+      for (let shotIndex = 0; shotIndex < 3; shotIndex += 1) {
+        const originIndex = shotIndex % origins.length;
+        const origin = origins[originIndex];
+        const baseAngle = Math.atan2(playerY - origin.y, playerX - origin.x);
+        const spread = (shotIndex - 1) * 0.2;
+        const angle = baseAngle + spread;
+        const speed = 6.55;
         projectiles.push({
           x: origin.x,
           y: origin.y,
-          vx: Math.cos(angle) * 6.55,
-          vy: Math.sin(angle) * 6.55
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed
         });
-      });
+      }
     }
 
     for (const projectile of projectiles) {
@@ -351,6 +428,22 @@ const proveRailFanRoute = ({
         rightHalfHeight: 8 + GATEKEEPER_PRIME_ROUTE_UNCERTAINTY_PIXELS
       });
       minimumClearance = Math.min(minimumClearance, clearance);
+    }
+
+    if (
+      frame >= GATEKEEPER_PRIME_SIGNATURE_FIRE_START_FRAME
+      && frame < GATEKEEPER_PRIME_SIGNATURE_FIRE_END_FRAME
+    ) {
+      // Prove the harder branch: the warned core beam shifts into the same
+      // right-hand lane used by the opening dodge, so the witness must reverse
+      // during the complete 70-frame telegraph instead of hiding at the edge.
+      const beamCenterX = width * 0.7;
+      const beamHalfWidth = (width < 520 ? 19 : 24)
+        + GATEKEEPER_PRIME_ROUTE_UNCERTAINTY_PIXELS;
+      const beamClearance = Math.abs(playerX - beamCenterX)
+        - PLAYER_COLLISION.width / 2
+        - beamHalfWidth;
+      minimumClearance = Math.min(minimumClearance, beamClearance);
     }
   }
 
@@ -389,7 +482,7 @@ const proveCoreLaneRoute = ({
   let minimumClearance = Number.POSITIVE_INFINITY;
   for (let frame = GATEKEEPER_PRIME_FIRE_START_FRAME; frame < GATEKEEPER_PRIME_FIRE_END_FRAME; frame += 1) {
     const patrol = sampleGatekeeperPrimePatrol({
-      combatFrame: GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES + frame,
+      combatFrame: GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES + frame,
       healthRatio: 0.2,
       viewportWidth: width,
       viewportHeight: height,
@@ -441,7 +534,10 @@ const proveTwinGateRoute = ({
   // checked frame-to-frame across the complete acquisition and live interval.
   for (let frame = 0; frame < GATEKEEPER_PRIME_FIRE_END_FRAME; frame += 1) {
     const patrol = sampleGatekeeperPrimePatrol({
-      combatFrame: GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES * 2 + frame,
+      combatFrame:
+        GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
+        + GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES
+        + frame,
       healthRatio: 0.2,
       viewportWidth: width,
       viewportHeight: height,

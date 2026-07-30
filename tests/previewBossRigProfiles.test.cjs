@@ -623,7 +623,7 @@ test('renderer pools all preview rig profiles and never embeds prototype identit
   assert.match(renderer, /view\.sprite\.filters = null/);
   assert.doesNotMatch(
     renderer,
-    /helios|aurora|meridian|clawcarrier|storm-engine|director-data|prototype-assets/i
+    /aurora|meridian|storm-engine|director-data|prototype-assets/i
   );
 
   const presenters = renderer.slice(

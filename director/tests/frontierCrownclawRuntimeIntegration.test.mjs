@@ -236,12 +236,13 @@ test('compiled sandbox preview preserves exactly three Frontier cores plus Crown
   }
 });
 
-test('Frontier anatomy primitives remain valid only on the exact Sandbox event boundary', () => {
-  const buildValidationFixture = (eventId) => {
+test('Frontier anatomy primitives follow the promoted Frontier boss identity', () => {
+  const buildValidationFixture = (eventId, bossId) => {
     const fixture = plain(campaign);
     const wave = fixture.levels[0].waves[0];
     const frontierEvent = plain(boss);
     frontierEvent.id = eventId;
+    frontierEvent.bossId = bossId;
     frontierEvent.startSeconds = 0;
     wave.events = [frontierEvent];
     wave.durationSeconds = Math.max(
@@ -251,10 +252,13 @@ test('Frontier anatomy primitives remain valid only on the exact Sandbox event b
     );
     return fixture;
   };
-  const restricted = buildValidationFixture('campaign-frontier-crownclaw');
-  const sandbox = buildValidationFixture('sandbox-frontier-crownclaw');
+  const wrongIdentity = buildValidationFixture('sandbox-frontier-crownclaw', 'gatekeeper');
+  const promoted = buildValidationFixture(
+    'stage-terminus-ascendant-major-boss',
+    'frontier-crownclaw'
+  );
 
-  const portableRestricted = portableValidation.validateGameCampaign(restricted);
+  const portableRestricted = portableValidation.validateGameCampaign(wrongIdentity);
   assert.ok(
     portableRestricted.issues.some((issue) => (
       issue.code === 'sandbox_only_primitive'
@@ -263,14 +267,14 @@ test('Frontier anatomy primitives remain valid only on the exact Sandbox event b
     'The portable validator must reject Frontier-only execution primitives in campaign content.'
   );
   assert.equal(
-    portableValidation.validateGameCampaign(sandbox).issues.some((issue) => (
+    portableValidation.validateGameCampaign(promoted).issues.some((issue) => (
       issue.code === 'sandbox_only_primitive'
     )),
     false,
-    'The exact Frontier Sandbox event must retain access to its test-only primitives.'
+    'The Frontier identity must retain access to its registered execution primitives after promotion.'
   );
 
-  const serverRestricted = serverValidation.validateGameCampaign(restricted);
+  const serverRestricted = serverValidation.validateGameCampaign(wrongIdentity);
   assert.ok(
     serverRestricted.errors.some((error) => (
       /restricted to the Frontier Crownclaw Boss Sandbox prototype/.test(error)
@@ -278,11 +282,11 @@ test('Frontier anatomy primitives remain valid only on the exact Sandbox event b
     'The server validator must enforce the same Sandbox-only primitive boundary.'
   );
   assert.equal(
-    serverValidation.validateGameCampaign(sandbox).errors.some((error) => (
+    serverValidation.validateGameCampaign(promoted).errors.some((error) => (
       /restricted to the Frontier Crownclaw Boss Sandbox prototype/.test(error)
     )),
     false,
-    'The server validator must accept the exact Frontier Sandbox event boundary.'
+    'The server validator must accept the promoted Frontier boss identity.'
   );
 });
 
@@ -459,7 +463,7 @@ test('harpoon links, reactor relays, rear bastions, and budgets match the engine
   assert.ok(resolvedPhaseTwo.socketById['rear-bastion-starboard']);
 });
 
-test('owner loss clears every owned artifact and production remains guarded', () => {
+test('owner loss clears every owned artifact and the promoted identity remains guarded', () => {
   for (const actionId of frontierRuntime.FRONTIER_CROWNCLAW_ACTION_IDS) {
     const cleared = frontierRuntime.resolveFrontierCrownclawOwnedArtifactState({
       ownerAlive: false,
@@ -484,7 +488,7 @@ test('owner loss clears every owned artifact and production remains guarded', ()
 
   assert.match(
     gameLogicSource,
-    /private isSandboxFrontierCrownclaw\(boss: Entity\)[\s\S]*?\(this\.previewMode \|\| this\.testMode\)[\s\S]*?boss\.sourceEventId === 'sandbox-frontier-crownclaw'/
+    /private isSandboxFrontierCrownclaw\(boss: Entity\)[\s\S]*?return boss\.sourceItemId === 'frontier-crownclaw'/
   );
   for (const runtimeCall of [
     'this.showFrontierCrownclawTelegraph(boss, cue, linkedAction)',
@@ -502,11 +506,13 @@ test('owner loss clears every owned artifact and production remains guarded', ()
     /entity\.bossOwnerId && removedEntityIds\.has\(entity\.bossOwnerId\)[\s\S]*?entity\.markedForDeletion = true/,
     'Preview cleanup must delete all entities owned by the removed Frontier boss.'
   );
-  assert.equal(
-    JSON.stringify(campaign).includes('sandbox-frontier-crownclaw'),
-    false,
-    'The sandbox event must not leak into the production campaign snapshot.'
-  );
+  const promotedCampaignEvent = campaign.levels
+    .find((level) => level.order === 20)
+    ?.waves.flatMap((wave) => wave.events)
+    .find((event) => event.kind === 'boss');
+  assert.equal(promotedCampaignEvent?.id, 'stage-terminus-ascendant-major-boss');
+  assert.equal(promotedCampaignEvent?.bossId, 'frontier-crownclaw');
+  assert.ok(promotedCampaignEvent?.timeline);
   assert.doesNotMatch(traceSource, /Math\.random|Date\.|performance\./);
   assert.equal(
     poseRuntime.validateFrontierCrownclawRigCompatibility(rig).length,

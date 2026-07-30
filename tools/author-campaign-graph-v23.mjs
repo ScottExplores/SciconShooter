@@ -9,25 +9,17 @@ const campaignPath = path.join(repositoryRoot, 'game-config', 'campaign.json');
 const migrationPath = path.join(repositoryRoot, 'game-config', 'campaign-migration-v23.json');
 const campaign = JSON.parse(await readFile(campaignPath, 'utf8'));
 
-// Keep this authoring pass repeatable while v23 is being reviewed. A rerun
-// intentionally collapses only the generated v23 surface back to the twenty
-// preserved v22 Missions before rebuilding it; authored legacy IDs and records
-// stay intact.
+// Historical migration only. The live revision-23 Campaign now contains
+// user-approved boss placements and authored boss timelines that this original
+// graph generator cannot reconstruct from its revision-22 templates.
 if (campaign.revision === 23 && campaign.campaignGraph) {
-  campaign.levels = campaign.levels
-    .filter((level) => Number(level.order) <= 20)
-    .sort((left, right) => Number(left.order) - Number(right.order));
-  campaign.sectors = campaign.sectors.slice(0, 4);
-  campaign.campaignBranches = campaign.campaignBranches.slice(0, 4);
-  campaign.visualThemes = campaign.visualThemes.filter((theme) => (
-    ['theme-open-orbit', 'theme-redline', 'theme-gravity', 'theme-terminus'].includes(theme.id)
-  ));
-  delete campaign.campaignGraph;
-  campaign.revision = 22;
+  throw new Error(
+    'Campaign graph v23 is a historical migration and must not overwrite the current authored Campaign.'
+  );
 }
 
 if (campaign.revision !== 22 || campaign.campaignGraph) {
-  throw new Error('Campaign graph v23 requires revision 22 or a generated revision 23 package.');
+  throw new Error('Campaign graph v23 requires the historical revision-22 input package.');
 }
 
 const clone = (value) => JSON.parse(JSON.stringify(value));

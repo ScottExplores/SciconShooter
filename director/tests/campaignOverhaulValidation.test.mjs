@@ -239,10 +239,10 @@ test('all canonical major boss IDs satisfy boss-defeat classification', () => {
     campaign.sectors.map((sector) => sector.majorBossId),
     [
       'gatekeeper-prime',
-      'eclipse-engine',
-      'helix-leviathan',
-      'research-tribunal',
+      'paywall-decimator',
       'prism-moth',
+      'frontier-crownclaw',
+      'helios-clawcarrier',
       'rail-serpent',
       'singularity-crab',
       'orbit-gyroscope',

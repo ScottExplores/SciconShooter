@@ -6,31 +6,40 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
-test('campaign sector bosses use registered damage art and Gatekeeper Prime retains five-state layered frames', () => {
+test('campaign boss slots use registered damage art and Gatekeeper Prime retains five-state layered frames', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const constants = read('constants.ts');
-  const expected = new Map([
-    ['gatekeeper-prime', 'PIXI_BOSS_OPEN_ORBIT_FRAMES'],
-    ['eclipse-engine', 'CAMPAIGN_BOSS_ECLIPSE_ENGINE'],
-    ['helix-leviathan', 'CAMPAIGN_BOSS_HELIX_LEVIATHAN'],
-    ['research-tribunal', 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT'],
-    ['prism-moth', 'CAMPAIGN_BOSS_PRISM_MOTH'],
-    ['rail-serpent', 'CAMPAIGN_BOSS_RAIL_SERPENT'],
-    ['singularity-crab', 'CAMPAIGN_BOSS_SINGULARITY_CRAB'],
-    ['orbit-gyroscope', 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE'],
-    ['hammerhead-siege', 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'],
-    ['frontier-crownclaw', 'PIXI_BOSS_CROWNCLAW_FRAMES']
+  const expectedByMissionOrder = new Map([
+    [5, { bossId: 'gatekeeper-prime', spriteKey: 'PIXI_BOSS_OPEN_ORBIT_FRAMES' }],
+    [10, { bossId: 'paywall-decimator', spriteKey: 'PIXI_BOSS_PAYWALL_FRAMES' }],
+    [15, { bossId: 'prism-moth', spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH' }],
+    [20, { bossId: 'frontier-crownclaw', spriteKey: 'PIXI_BOSS_CROWNCLAW_FRAMES' }],
+    [25, { bossId: 'helios-clawcarrier', spriteKey: 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER' }],
+    [30, { bossId: 'rail-serpent', spriteKey: 'CAMPAIGN_BOSS_RAIL_SERPENT' }],
+    [35, { bossId: 'singularity-crab', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB' }],
+    [40, { bossId: 'orbit-gyroscope', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE' }],
+    [45, { bossId: 'hammerhead-siege', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE' }],
+    [50, { bossId: 'frontier-crownclaw', spriteKey: 'PIXI_BOSS_CROWNCLAW_FRAMES' }]
   ]);
-  const bossEvents = campaign.levels.flatMap((level) => level.waves)
-    .flatMap((wave) => wave.events)
-    .filter((event) => event.kind === 'boss' && expected.has(event.bossId));
+  for (const [missionOrder, expected] of expectedByMissionOrder) {
+    const level = campaign.levels.find((candidate) => candidate.order === missionOrder);
+    const bossEvents = level.waves.flatMap((wave) => wave.events).filter((event) => event.kind === 'boss');
+    const event = bossEvents[0];
 
-  assert.equal(bossEvents.length, expected.size);
-  for (const event of bossEvents) {
-    assert.equal(event.spriteKey, expected.get(event.bossId));
+    assert.equal(bossEvents.length, 1, `M${missionOrder} has one major boss`);
+    assert.equal(event.bossId, expected.bossId, `M${missionOrder} boss identity`);
+    assert.equal(event.spriteKey, expected.spriteKey, `M${missionOrder} boss art`);
     assert.match(constants, new RegExp(`${event.spriteKey}:`));
   }
   assert.match(constants, /PIXI_BOSS_OPEN_ORBIT_FRAMES: (?:\[|Array\.from)/);
+  assert.match(
+    constants,
+    /CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: "\/game-art\/generated\/bosses\/helios-clawcarrier\/helios-clawcarrier-neutral\.png"/
+  );
+  assert.ok(fs.existsSync(path.join(
+    root,
+    'public/game-art/generated/bosses/helios-clawcarrier/helios-clawcarrier-neutral.png'
+  )));
 
   for (const directory of ['open-orbit', 'citation-storm', 'paywall-decimator/body']) {
     for (let frame = 1; frame <= 5; frame++) {
@@ -295,29 +304,39 @@ test('destroyed side weapons leave distinct health-scaled core attacks active', 
   assert.doesNotMatch(renderer, /ASSETS\.PIXI_BOSS_PAYWALL_THRUST_FRAMES\[Math\.floor\(engine\.frameCount/);
 });
 
-test('Wave 1 gatekeeper has an approachable arcade health budget', () => {
+test('M05 Gatekeeper Prime uses its stronger hull and exact one-third cannon budgets', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
-  const openingBoss = campaign.levels.flatMap((level) => level.waves)
+  const openingMission = campaign.levels.find((level) => level.order === 5);
+  const openingBoss = openingMission.waves
     .flatMap((wave) => wave.events)
-    .find((event) => event.kind === 'boss' && event.bossId === 'gatekeeper-prime');
+    .find((event) => event.kind === 'boss');
 
   assert.ok(openingBoss);
-  assert.equal(openingBoss.health, 170);
+  assert.equal(openingBoss.bossId, 'gatekeeper-prime');
+  assert.equal(openingBoss.health, 500);
+  assert.deepEqual(openingBoss.componentHealth, {
+    'left-cannon': 165,
+    'right-cannon': 165
+  });
+  assert.equal(openingBoss.componentHealth['left-cannon'] / openingBoss.health, 0.33);
+  assert.equal(openingBoss.componentHealth['right-cannon'] / openingBoss.health, 0.33);
   assert.equal(openingBoss.shieldCount, 0);
 });
 
-test('Eclipse Engine uses the animated six-leg Crownclaw rig with destructible claws', () => {
+test('both Frontier Crownclaw Campaign slots use the animated six-leg rig with destructible claws', () => {
   const campaign = JSON.parse(read('game-config/campaign.json'));
   const engine = read('services/gameLogic.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
-  const crownEvent = campaign.levels.flatMap((level) => level.waves)
-    .flatMap((wave) => wave.events)
-    .find((event) => event.kind === 'boss' && event.bossId === 'eclipse-engine');
+  const crownEvents = [20, 50].map((missionOrder) => {
+    const mission = campaign.levels.find((level) => level.order === missionOrder);
+    const event = mission.waves.flatMap((wave) => wave.events).find((candidate) => candidate.kind === 'boss');
+    assert.equal(event.bossId, 'frontier-crownclaw', `M${missionOrder} boss identity`);
+    assert.equal(event.spriteKey, 'PIXI_BOSS_CROWNCLAW_FRAMES', `M${missionOrder} boss art`);
+    assert.equal(event.rigId, 'crown-claw', `M${missionOrder} rig`);
+    return event;
+  });
 
-  assert.ok(crownEvent);
-  assert.equal(crownEvent.spriteKey, 'CAMPAIGN_BOSS_ECLIPSE_ENGINE');
-  assert.equal(crownEvent.rigId, 'crown-claw');
-  assert.equal(crownEvent.shieldCount, 1);
+  assert.equal(crownEvents.length, 2);
   assert.match(engine, /boss\.bossRigId === 'crown-claw'/);
   assert.match(engine, /spawnCrownClawStrike\(boss: Entity, component: BossComponentState/);
   assert.match(engine, /updateCrownClawBoss\(boss: Entity\)/);

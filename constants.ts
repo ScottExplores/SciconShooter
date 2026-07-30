@@ -210,6 +210,7 @@ export const ASSETS = {
   ),
   CAMPAIGN_BOSS_ECLIPSE_ENGINE: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/eclipse-engine.png",
   CAMPAIGN_BOSS_HAMMERHEAD_SIEGE: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/hammerhead-siege.png",
+  CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: "/game-art/generated/bosses/helios-clawcarrier/helios-clawcarrier-neutral.png",
   CAMPAIGN_BOSS_HELIX_LEVIATHAN: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/helix-leviathan.png",
   CAMPAIGN_BOSS_ORBIT_GYROSCOPE: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/orbit-gyroscope.png",
   CAMPAIGN_BOSS_PRISM_MOTH: "/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/prism-moth.png",

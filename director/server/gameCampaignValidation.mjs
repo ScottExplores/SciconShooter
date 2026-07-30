@@ -20,6 +20,7 @@ const toBossTimelineFrame = (seconds) => Math.max(
 const CAMPAIGN_BOSS_ASSET_KEYS = [
   'CAMPAIGN_BOSS_ECLIPSE_ENGINE',
   'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE',
+  'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER',
   'CAMPAIGN_BOSS_HELIX_LEVIATHAN',
   'CAMPAIGN_BOSS_ORBIT_GYROSCOPE',
   'CAMPAIGN_BOSS_PRISM_MOTH',
@@ -182,12 +183,14 @@ const ENEMY_IDS = new Set(['drone', 'swarm', 'brick', 'journal']);
 const BOSS_IDS = new Set([
   'bottleneck-drone', 'paywall-wall', 'fracture-engine-elite', 'aegis-brood-core',
   'railspine-wallcrawler', 'maw-carrier', 'twin-meridian-sentinels', 'prism-bloom',
-  'aegis-convoy-captain', 'gridline-sentries', 'gatekeeper', 'gatekeeper-prime', 'helix-leviathan',
+  'aegis-convoy-captain', 'gridline-sentries', 'gatekeeper', 'gatekeeper-prime', 'paywall-decimator',
+  'helios-clawcarrier', 'helix-leviathan',
   'eclipse-engine', 'research-tribunal', 'prism-moth', 'rail-serpent', 'singularity-crab',
   'orbit-gyroscope', 'hammerhead-siege', 'frontier-crownclaw'
 ]);
 const MAJOR_BOSS_IDS = new Set([
-  'gatekeeper', 'gatekeeper-prime', 'helix-leviathan', 'eclipse-engine', 'research-tribunal',
+  'gatekeeper', 'gatekeeper-prime', 'paywall-decimator', 'helios-clawcarrier', 'helix-leviathan',
+  'eclipse-engine', 'research-tribunal',
   'prism-moth', 'rail-serpent', 'singularity-crab', 'orbit-gyroscope', 'hammerhead-siege',
   'frontier-crownclaw'
 ]);
@@ -372,7 +375,7 @@ const BOSS_COMPONENT_IDS = new Set(['left-cannon', 'right-cannon', 'helmet']);
 const BOSS_TIMELINE_COMPONENT_IDS = new Set(['left-cannon', 'right-cannon', 'helmet']);
 const BOSS_TIMELINE_SIDES = new Set(['port', 'starboard']);
 const BOSS_TIMELINE_HANDEDNESS = new Set(['left', 'right']);
-const FRONTIER_CROWNCLAW_SANDBOX_EVENT_ID = 'sandbox-frontier-crownclaw';
+const FRONTIER_CROWNCLAW_BOSS_ID = 'frontier-crownclaw';
 const FRONTIER_CROWNCLAW_SANDBOX_PRIMITIVES = new Set([
   'chainclaw-harpoon',
   'crown-reactor-beam',
@@ -2628,7 +2631,7 @@ const validateBossEvent = (event, location, errors) => {
     `${location}/timeline`,
     new Set(event.phases.map((phase) => phase?.id).filter((id) => typeof id === 'string')),
     errors,
-    event.id === FRONTIER_CROWNCLAW_SANDBOX_EVENT_ID
+    event.bossId === FRONTIER_CROWNCLAW_BOSS_ID
   );
 };
 

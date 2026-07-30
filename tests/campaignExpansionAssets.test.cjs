@@ -62,18 +62,32 @@ test('Max Shot exposes the complete eight-frame electric aura sequence', () => {
   }
 });
 
+test('Helios Clawcarrier exposes its promoted Campaign art through every asset registry', () => {
+  const key = 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER';
+  const relativePath = 'bosses/helios-clawcarrier/helios-clawcarrier-neutral.png';
+
+  assert.match(constantsSource, new RegExp(`${key}:\\s*"/game-art/generated/${relativePath.replaceAll('.', '\\.')}`));
+  assert.match(typesSource, new RegExp(`'${key}'`));
+  assert.match(catalogSource, new RegExp(`${key}: asset\\('${key}'`));
+  assert.match(
+    recordCardApiSource,
+    new RegExp(`${key}:\\s*'/game-art/generated/${relativePath.replaceAll('.', '\\.')}'`)
+  );
+  assert.equal(fs.existsSync(path.join(root, 'public', 'game-art', 'generated', relativePath)), true);
+});
+
 test('every revision-23 sector ends in one authored major-boss Mission', () => {
-  const expectedSpriteByBossId = new Map([
-    ['gatekeeper-prime', 'PIXI_BOSS_OPEN_ORBIT_FRAMES'],
-    ['eclipse-engine', 'CAMPAIGN_BOSS_ECLIPSE_ENGINE'],
-    ['helix-leviathan', 'CAMPAIGN_BOSS_HELIX_LEVIATHAN'],
-    ['research-tribunal', 'CAMPAIGN_BOSS_TRIBUNAL_DREADNOUGHT'],
-    ['prism-moth', 'CAMPAIGN_BOSS_PRISM_MOTH'],
-    ['rail-serpent', 'CAMPAIGN_BOSS_RAIL_SERPENT'],
-    ['singularity-crab', 'CAMPAIGN_BOSS_SINGULARITY_CRAB'],
-    ['orbit-gyroscope', 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE'],
-    ['hammerhead-siege', 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE'],
-    ['frontier-crownclaw', 'PIXI_BOSS_CROWNCLAW_FRAMES']
+  const expectedByMissionOrder = new Map([
+    [5, { bossId: 'gatekeeper-prime', spriteKey: 'PIXI_BOSS_OPEN_ORBIT_FRAMES' }],
+    [10, { bossId: 'paywall-decimator', spriteKey: 'PIXI_BOSS_PAYWALL_FRAMES' }],
+    [15, { bossId: 'prism-moth', spriteKey: 'CAMPAIGN_BOSS_PRISM_MOTH' }],
+    [20, { bossId: 'frontier-crownclaw', spriteKey: 'PIXI_BOSS_CROWNCLAW_FRAMES' }],
+    [25, { bossId: 'helios-clawcarrier', spriteKey: 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER' }],
+    [30, { bossId: 'rail-serpent', spriteKey: 'CAMPAIGN_BOSS_RAIL_SERPENT' }],
+    [35, { bossId: 'singularity-crab', spriteKey: 'CAMPAIGN_BOSS_SINGULARITY_CRAB' }],
+    [40, { bossId: 'orbit-gyroscope', spriteKey: 'CAMPAIGN_BOSS_ORBIT_GYROSCOPE' }],
+    [45, { bossId: 'hammerhead-siege', spriteKey: 'CAMPAIGN_BOSS_HAMMERHEAD_SIEGE' }],
+    [50, { bossId: 'frontier-crownclaw', spriteKey: 'PIXI_BOSS_CROWNCLAW_FRAMES' }]
   ]);
 
   assert.equal(campaign.revision, 23);
@@ -84,13 +98,16 @@ test('every revision-23 sector ends in one authored major-boss Mission', () => {
     const level = campaign.levels.find((candidate) => candidate.id === bossMissionId);
     const bossEvents = level.waves.flatMap((wave) => wave.events).filter((event) => event.kind === 'boss');
     const finale = bossEvents[0];
+    const expected = expectedByMissionOrder.get(level.order);
 
     assert.equal(level.order, sector.order * 5, `${sector.name} boss occupies every fifth Mission`);
+    assert.ok(expected, `${level.name} has an approved roster entry`);
     assert.equal(level.campaignProgression.missionRole, 'major-boss');
     assert.equal(level.waves.length, 4, `${level.name} preserves its authored boss runway`);
     assert.equal(bossEvents.length, 1, `${level.name} has one major boss`);
-    assert.equal(finale.bossId, sector.majorBossId, `${level.name} uses its canonical bossId`);
-    assert.equal(finale.spriteKey, expectedSpriteByBossId.get(sector.majorBossId), level.name);
+    assert.equal(sector.majorBossId, expected.bossId, `${level.name} sector roster`);
+    assert.equal(finale.bossId, expected.bossId, `${level.name} uses its canonical bossId`);
+    assert.equal(finale.spriteKey, expected.spriteKey, level.name);
     assert.equal(level.scorecard.encounterAssetKey, finale.spriteKey, `${level.name} scorecard`);
   }
 });

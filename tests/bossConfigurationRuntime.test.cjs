@@ -146,24 +146,26 @@ test('cloning a gatekeeper remaps nested weapons, phases, timeline clips, and ti
 
 test('all ten authored sector bosses carry stable rigs and runtime prefers them over the legacy event-id fallback', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
-  const majorBossIds = new Set(campaign.sectors.map((sector) => sector.majorBossId));
-  const rigs = Object.fromEntries(campaign.levels.flatMap((level) => level.waves).flatMap((wave) => wave.events)
-    .filter((event) => event.kind === 'boss' && majorBossIds.has(event.bossId))
-    .map((event) => [event.bossId, event.rigId]));
-  assert.deepEqual(rigs, {
-    'gatekeeper-prime': 'open-orbit',
-    'eclipse-engine': 'crown-claw',
-    'helix-leviathan': 'citation-storm',
-    'research-tribunal': 'open-orbit',
-    'prism-moth': 'crown-claw',
-    'rail-serpent': 'crown-claw',
-    'singularity-crab': 'crown-claw',
-    'orbit-gyroscope': 'crown-claw',
-    'hammerhead-siege': 'crown-claw',
-    'frontier-crownclaw': 'crown-claw'
+  const rigs = campaign.sectors.map((sector, index) => {
+    const level = campaign.levels.find((candidate) => candidate.id === sector.missionIds.at(-1));
+    const bossEvents = level.waves.at(-1).events.filter((event) => event.kind === 'boss');
+    assert.equal(bossEvents.length, 1);
+    assert.equal(bossEvents[0].bossId, sector.majorBossId);
+    return { missionOrder: (index + 1) * 5, bossId: bossEvents[0].bossId, rigId: bossEvents[0].rigId };
   });
-  assert.equal(Object.keys(rigs).length, campaign.sectors.length);
-  Object.values(rigs).forEach((rigId) => {
+  assert.deepEqual(rigs, [
+    { missionOrder: 5, bossId: 'gatekeeper-prime', rigId: 'open-orbit' },
+    { missionOrder: 10, bossId: 'paywall-decimator', rigId: 'paywall-siege' },
+    { missionOrder: 15, bossId: 'prism-moth', rigId: 'open-orbit' },
+    { missionOrder: 20, bossId: 'frontier-crownclaw', rigId: 'crown-claw' },
+    { missionOrder: 25, bossId: 'helios-clawcarrier', rigId: 'crown-claw' },
+    { missionOrder: 30, bossId: 'rail-serpent', rigId: 'crown-claw' },
+    { missionOrder: 35, bossId: 'singularity-crab', rigId: 'crown-claw' },
+    { missionOrder: 40, bossId: 'orbit-gyroscope', rigId: 'crown-claw' },
+    { missionOrder: 45, bossId: 'hammerhead-siege', rigId: 'crown-claw' },
+    { missionOrder: 50, bossId: 'frontier-crownclaw', rigId: 'crown-claw' }
+  ]);
+  rigs.map((entry) => entry.rigId).forEach((rigId) => {
     assert.ok(['open-orbit', 'citation-storm', 'paywall-siege', 'crown-claw'].includes(rigId));
   });
 

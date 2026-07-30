@@ -77,6 +77,7 @@ export const BUILT_IN_ASSET_CATALOG: Readonly<Record<BuiltInAssetKey, AssetCatal
   PIXI_BOSS_CROWNCLAW_FRAMES: asset('PIXI_BOSS_CROWNCLAW_FRAMES', 'Astral Crownclaw', ASSETS.PIXI_BOSS_CROWNCLAW_FRAMES, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_ECLIPSE_ENGINE: asset('CAMPAIGN_BOSS_ECLIPSE_ENGINE', 'Eclipse Engine', ASSETS.CAMPAIGN_BOSS_ECLIPSE_ENGINE, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_HAMMERHEAD_SIEGE: asset('CAMPAIGN_BOSS_HAMMERHEAD_SIEGE', 'Hammerhead Siege', ASSETS.CAMPAIGN_BOSS_HAMMERHEAD_SIEGE, ['boss', 'scorecard']),
+  CAMPAIGN_BOSS_HELIOS_CLAWCARRIER: asset('CAMPAIGN_BOSS_HELIOS_CLAWCARRIER', 'Helios Clawcarrier', ASSETS.CAMPAIGN_BOSS_HELIOS_CLAWCARRIER, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_HELIX_LEVIATHAN: asset('CAMPAIGN_BOSS_HELIX_LEVIATHAN', 'Helix Leviathan', ASSETS.CAMPAIGN_BOSS_HELIX_LEVIATHAN, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_ORBIT_GYROSCOPE: asset('CAMPAIGN_BOSS_ORBIT_GYROSCOPE', 'Orbit Gyroscope', ASSETS.CAMPAIGN_BOSS_ORBIT_GYROSCOPE, ['boss', 'scorecard']),
   CAMPAIGN_BOSS_PRISM_MOTH: asset('CAMPAIGN_BOSS_PRISM_MOTH', 'Prism Moth', ASSETS.CAMPAIGN_BOSS_PRISM_MOTH, ['boss', 'scorecard']),
@@ -419,6 +420,22 @@ export const BOSS_CATALOG: Record<BossId, BossCatalogEntry> = {
     entityType: 'BOSS',
     defaultSpriteKey: 'PIXI_BOSS_OPEN_ORBIT_FRAMES',
     defaultMovementPatternId: 'gatekeeper-cycle',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'paywall-decimator': {
+    id: 'paywall-decimator',
+    label: 'Paywall Decimator',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'PIXI_BOSS_PAYWALL_FRAMES',
+    defaultMovementPatternId: 'gatekeeper-cycle',
+    allowedWeaponIds: ['burst-volley', 'lane-beam']
+  },
+  'helios-clawcarrier': {
+    id: 'helios-clawcarrier',
+    label: 'Helios Clawcarrier',
+    entityType: 'BOSS',
+    defaultSpriteKey: 'CAMPAIGN_BOSS_HELIOS_CLAWCARRIER',
+    defaultMovementPatternId: 'arena-roam',
     allowedWeaponIds: ['burst-volley', 'lane-beam']
   },
   'helix-leviathan': {

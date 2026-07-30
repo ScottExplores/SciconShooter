@@ -332,7 +332,7 @@ const BOSS_TIMELINE_ROTATION_DIRECTIONS = new Set([
   'counterclockwise',
   'seeded-random'
 ]);
-const FRONTIER_CROWNCLAW_SANDBOX_EVENT_ID = 'sandbox-frontier-crownclaw';
+const FRONTIER_CROWNCLAW_BOSS_ID = 'frontier-crownclaw';
 const FRONTIER_CROWNCLAW_SANDBOX_PRIMITIVES = new Set([
   'chainclaw-harpoon',
   'crown-reactor-beam',
@@ -2677,7 +2677,7 @@ const validateBoss = (event: UnknownRecord, path: string, issues: CampaignValida
     `${path}/timeline`,
     issues,
     phaseIds,
-    event.id === FRONTIER_CROWNCLAW_SANDBOX_EVENT_ID
+    event.bossId === FRONTIER_CROWNCLAW_BOSS_ID
   );
 };
 

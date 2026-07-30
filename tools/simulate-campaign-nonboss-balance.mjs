@@ -261,8 +261,7 @@ export const renderCampaignNonBossBalanceMarkdown = (artifact) => {
     '- Recommended power is converted to a consistent upgrade mix; it is not an exact player inventory.',
     '- The Weekly score is a projection from the actual runtime Mission result through the current client score adapter. Accuracy remains `null`, elites remain folded into regular kills, and route/consecutive bonuses are intentionally excluded.',
     '- Headless engine entity peaks are useful readability/performance proxies, not a physical-device FPS measurement or human mobile/desktop playtest.',
-    '- This report does not change Campaign tuning. It records evidence for a separate balance decision.',
-    ''
+    '- This report does not change Campaign tuning. It records evidence for a separate balance decision.'
   );
   return `${lines.join('\n')}\n`;
 };

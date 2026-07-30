@@ -33,10 +33,14 @@ test('formations stay visual and ten sector bosses provide an intentional five-s
 
   const waves = campaign.levels.flatMap((level) => level.waves);
   assert.ok(waves.length > 0);
-  const majorBossIds = new Set(campaign.sectors.map((sector) => sector.majorBossId));
-  const majorBossWaves = waves.filter((wave) => wave.events.some((event) => (
-    event.kind === 'boss' && majorBossIds.has(event.bossId)
-  )));
+  const majorBossWaves = campaign.sectors.map((sector) => {
+    const level = campaign.levels.find((candidate) => candidate.id === sector.missionIds.at(-1));
+    const wave = level.waves.at(-1);
+    const bossEvents = wave.events.filter((event) => event.kind === 'boss');
+    assert.equal(bossEvents.length, 1);
+    assert.equal(bossEvents[0].bossId, sector.majorBossId);
+    return wave;
+  });
   assert.equal(majorBossWaves.length, campaign.sectors.length);
   majorBossWaves.forEach((wave) => assert.equal(wave.delayAfterSeconds, 5));
   campaign.levels.forEach((level) => {
@@ -55,11 +59,11 @@ test('sector major bosses ramp durability and projectile pressure without exceed
   });
   const projectileWeapons = bosses.map((boss) => boss.weapons.find((weapon) => weapon.projectileSpeed > 0));
 
-  assert.deepEqual(bosses.map((boss) => boss.health), [170, 650, 950, 1400, 1750, 1850, 1950, 2100, 2300, 2450]);
-  assert.deepEqual(projectileWeapons.map((weapon) => weapon.burstCount), [2, 3, 1, 3, 2, 3, 1, 2, 1, 3]);
-  assert.deepEqual(projectileWeapons.map((weapon) => weapon.projectileSpeed), [6.52, 7, 6, 6.4, 6.2, 6.8, 4.6, 6.2, 5.6, 7.6]);
+  assert.deepEqual(bosses.map((boss) => boss.health), [500, 650, 1150, 1600, 1800, 1850, 1950, 2100, 2300, 2450]);
+  assert.deepEqual(projectileWeapons.map((weapon) => weapon.burstCount), [3, 7, 4, 4, 4, 3, 1, 2, 1, 3]);
+  assert.deepEqual(projectileWeapons.map((weapon) => weapon.projectileSpeed), [6.55, 7.65, 5.8, 5.8, 5.8, 6.8, 4.6, 6.2, 5.6, 7.6]);
   bosses.slice(1).forEach((boss, index) => assert.ok(boss.health > bosses[index].health));
-  assert.ok(projectileWeapons.every((weapon) => weapon.projectileSpeed <= 10.5));
+  assert.ok(projectileWeapons.every((weapon) => weapon.projectileSpeed <= 7.65));
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_START_INTERVAL_MULTIPLIER = 1\.45/);
   assert.match(engineSource, /WAVE_ONE_GATEKEEPER_MAX_SPEED_HEALTH_RATIO = 0\.35/);
   assert.match(engineSource, /getGatekeeperBurstInterval\(baseFireRate, healthRatio, cadenceConfig\)/);

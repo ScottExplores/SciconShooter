@@ -539,18 +539,37 @@ test('live Kaleidoscope Brood activates cocoons in beats and leaves one route, n
   );
 });
 
-test('the new Prism runtime is disabled when the exact sandbox event guard is absent', () => {
+test('the Prism runtime follows its promoted boss identity instead of the sandbox event id', () => {
   const harness = createHarness('prism-production-guard');
   const { engine } = harness;
   const boss = settleAndStart(harness, 'wingbeat-weave');
-  boss.sourceEventId = 'campaign-prism-moth-probe';
+  boss.sourceEventId = 'stage-ion-citadel-major-boss';
   boss.attackTimer = 0;
   boss.bossPrismMothActionStates = [];
   for (let frame = 0; frame < 520; frame += 1) engine.update();
-  assert.equal(boss.bossPrismMothActionStates.length, 0);
+  assert.ok(
+    boss.bossPrismMothActionStates.length > 0,
+    'the Campaign event id must retain Prism behavior when the boss identity is prism-moth'
+  );
+
+  const wrongIdentityHarness = createHarness('prism-wrong-identity-guard');
+  const wrongIdentityBoss = settleAndStart(wrongIdentityHarness, 'wingbeat-weave');
+  wrongIdentityBoss.sourceEventId = 'stage-ion-citadel-major-boss';
+  wrongIdentityBoss.sourceItemId = 'gatekeeper';
+  wrongIdentityBoss.attackTimer = 0;
+  wrongIdentityBoss.bossPrismMothActionStates = [];
+  const existingArtifactIds = new Set(
+    wrongIdentityHarness.engine.entities
+      .filter((entity) => entity.prismMothArtifactState)
+      .map((entity) => entity.id)
+  );
+  for (let frame = 0; frame < 520; frame += 1) wrongIdentityHarness.engine.update();
+  assert.equal(wrongIdentityBoss.bossPrismMothActionStates.length, 0);
   assert.equal(
-    engine.entities.some((entity) => entity.prismMothArtifactState),
+    wrongIdentityHarness.engine.entities.some((entity) => (
+      entity.prismMothArtifactState && !existingArtifactIds.has(entity.id)
+    )),
     false,
-    'production-shaped Prism entities must preserve their existing campaign runtime'
+    'another boss identity must not activate Prism-owned artifacts'
   );
 });

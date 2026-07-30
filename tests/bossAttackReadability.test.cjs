@@ -76,7 +76,7 @@ const loadCrossBeamLifetimeHelper = () => {
   return module.exports.resolveCrossBeamLifetime;
 };
 
-test('Mission 10 Eclipse Engine keeps its revision-23 authored budget while charged lanes stay readable', () => {
+test('Mission 10 Paywall Decimator keeps its authored burst budget while charged lanes stay readable', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const migration = JSON.parse(
     fs.readFileSync(path.join(root, 'game-config', 'campaign-migration-v23.json'), 'utf8')
@@ -98,30 +98,30 @@ test('Mission 10 Eclipse Engine keeps its revision-23 authored budget while char
   assert.equal(migration.missionNodeAliases['stage-null-sector'], 'node-s02-d05');
   assert.ok(boss);
   assert.equal(boss.id, 'stage-null-sector-major-boss');
-  assert.equal(boss.bossId, 'eclipse-engine');
+  assert.equal(boss.bossId, 'paywall-decimator');
   assert.equal(boss.health, 650);
-  assert.equal(boss.shieldCount, 1);
-  assert.equal(boss.speed, 2.15);
-  assert.ok(boss.warningSeconds >= 3);
+  assert.equal(boss.shieldCount, 0);
+  assert.equal(boss.speed, 2);
+  assert.ok(boss.warningSeconds >= 5);
 
-  const burst = boss.weapons.find((weapon) => weapon.id === 'null-sector-radial-burst');
+  const burst = boss.weapons.find((weapon) => weapon.id === 'sandbox-paywall-decimator-burst');
   assert.deepEqual(
     {
       attackIntervalSeconds: burst.attackIntervalSeconds,
       projectileSpeed: burst.projectileSpeed,
       burstCount: burst.burstCount
     },
-    { attackIntervalSeconds: 1.52, projectileSpeed: 7, burstCount: 3 }
+    { attackIntervalSeconds: 0.65, projectileSpeed: 7.65, burstCount: 7 }
   );
 
-  const chargedLanes = boss.weapons.find((weapon) => weapon.id === 'null-sector-charged-lanes');
+  const chargedLanes = boss.weapons.find((weapon) => weapon.id === 'sandbox-paywall-decimator-beam');
   assert.deepEqual(
     {
       attackIntervalSeconds: chargedLanes.attackIntervalSeconds,
       projectileSpeed: chargedLanes.projectileSpeed,
       burstCount: chargedLanes.burstCount
     },
-    { attackIntervalSeconds: 1.52, projectileSpeed: 0, burstCount: 3 }
+    { attackIntervalSeconds: 0.333, projectileSpeed: 0, burstCount: 3 }
   );
 
   assert.deepEqual(
@@ -131,9 +131,8 @@ test('Mission 10 Eclipse Engine keeps its revision-23 authored budget while char
       speedMultiplier: phase.speedMultiplier
     })),
     [
-      { id: 'null-sector-phase-control', triggerHealthRatio: 1, speedMultiplier: 0.82 },
-      { id: 'null-sector-phase-crossfire', triggerHealthRatio: 0.62, speedMultiplier: 0.9 },
-      { id: 'null-sector-phase-collapse', triggerHealthRatio: 0.27, speedMultiplier: 1 }
+      { id: 'sandbox-paywall-decimator-standard', triggerHealthRatio: 1, speedMultiplier: 1 },
+      { id: 'sandbox-paywall-decimator-low-health', triggerHealthRatio: 0.35, speedMultiplier: 1 }
     ]
   );
 
@@ -158,41 +157,56 @@ test('Mission 10 Eclipse Engine keeps its revision-23 authored budget while char
   assert.match(warningBranch, /spawnBossCrossBeamPair\(boss, true, warningFrames\)/);
 });
 
-test('late-sector major bosses preserve escalation while reserving shorter lethal phases', () => {
+test('promoted early-sector major bosses preserve approved durability and authored pressure identities', () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const expected = new Map([
     [10, {
+      bossId: 'paywall-decimator',
       health: 650,
-      speed: 2.15,
-      shields: 1,
-      burstInterval: 1.52,
-      projectileSpeed: 7,
-      burstCount: 3,
-      laneInterval: 1.52,
+      speed: 2,
+      shields: 0,
+      burstInterval: 0.65,
+      projectileSpeed: 7.65,
+      burstCount: 7,
+      laneInterval: 0.333,
       laneBurst: 3,
-      phaseTriggers: [1, 0.62, 0.27]
+      phaseTriggers: [1, 0.35]
     }],
     [15, {
-      health: 950,
-      speed: 2.18,
-      shields: 2,
-      burstInterval: 2,
-      projectileSpeed: 6,
-      burstCount: 1,
-      laneInterval: 2,
+      bossId: 'prism-moth',
+      health: 1150,
+      speed: 2.1,
+      shields: 0,
+      burstInterval: 1.1,
+      projectileSpeed: 5.8,
+      burstCount: 4,
+      laneInterval: 2.4,
       laneBurst: 1,
-      phaseTriggers: [1, 0.5, 0.18]
+      phaseTriggers: [1, 0.5]
     }],
     [20, {
-      health: 1400,
-      speed: 2.2,
-      shields: 3,
-      burstInterval: 1.48,
-      projectileSpeed: 6.4,
-      burstCount: 3,
-      laneInterval: 1.48,
-      laneBurst: 3,
-      phaseTriggers: [1, 0.46, 0.15]
+      bossId: 'frontier-crownclaw',
+      health: 1600,
+      speed: 0.74,
+      shields: 0,
+      burstInterval: 30,
+      projectileSpeed: 5.8,
+      burstCount: 4,
+      laneInterval: 30,
+      laneBurst: 1,
+      phaseTriggers: [1, 0.5]
+    }],
+    [25, {
+      bossId: 'helios-clawcarrier',
+      health: 1800,
+      speed: 1.35,
+      shields: 0,
+      burstInterval: 4.8,
+      projectileSpeed: 5.8,
+      burstCount: 4,
+      laneInterval: 8,
+      laneBurst: 1,
+      phaseTriggers: [1, 0.67, 0.32]
     }]
   ]);
 
@@ -203,6 +217,7 @@ test('late-sector major bosses preserve escalation while reserving shorter letha
     const lane = boss.weapons.find((weapon) => weapon.weaponId === 'lane-beam');
 
     assert.equal(level.campaignProgression.missionRole, 'major-boss');
+    assert.equal(boss.bossId, contract.bossId);
     assert.equal(boss.health, contract.health);
     assert.equal(boss.speed, contract.speed);
     assert.equal(boss.shieldCount, contract.shields);

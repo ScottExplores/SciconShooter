@@ -456,6 +456,23 @@ const focusBossPhase = (
       phases: [{ ...focusedPhase, speedMultiplier: 1 }]
     };
   }
+  if (event.timeline?.attacks?.length) {
+    const dormantReferencedPhases = event.phases
+      .filter((candidate) => candidate.id !== phase.id)
+      .map((candidate, index) => ({
+        ...clone(candidate),
+        // Boss Factory timelines require every authored phase to remain
+        // reference-closed. Keep non-selected phases practically dormant
+        // instead of deleting definitions still owned by clips and variants.
+        triggerHealthRatio: 0.001 / (index + 1),
+        weaponSettingIds: remappedWeaponIds
+      }));
+    return {
+      ...event,
+      weapons: clone(weapons),
+      phases: [focusedPhase, ...dormantReferencedPhases]
+    };
+  }
   return {
     ...event,
     weapons: clone(weapons),

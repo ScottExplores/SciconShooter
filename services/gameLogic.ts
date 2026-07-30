@@ -108,9 +108,7 @@ import {
 import {
   GATEKEEPER_PRIME_BOSS_ID,
   GATEKEEPER_PRIME_DESKTOP_PROJECTILE_CAP,
-  GATEKEEPER_PRIME_FIRE_START_FRAME,
   GATEKEEPER_PRIME_MOBILE_PROJECTILE_CAP,
-  GATEKEEPER_PRIME_TELEGRAPH_START_FRAME,
   isGatekeeperPrimeRailPulseFrame,
   sampleGatekeeperPrimePatrol,
   type GatekeeperPrimeAttackId,
@@ -11431,30 +11429,31 @@ export class GameEngine {
       : boss.gatekeeperPrimePhaseId === 'prime-pressure'
         ? 1
         : 0;
-    const speed = Math.min(7.25, (boss.projectileSpeed ?? 6.55) * (1 + phaseIndex * 0.035));
+    const speed = boss.projectileSpeed ?? 6.55;
     let activeCount = this.getGatekeeperPrimeActiveProjectileCount(boss);
-    origins.forEach((origin, originIndex) => {
+    const shotCount = 3;
+    for (let shotIndex = 0; shotIndex < shotCount; shotIndex++) {
       if (activeCount >= cap) return;
+      const originIndex = shotIndex % origins.length;
+      const origin = origins[originIndex];
       const baseAngle = Math.atan2(targetY - origin.y, targetX - origin.x);
-      const sideBias = origins.length > 1
-        ? (originIndex - (origins.length - 1) / 2) * 0.2
-        : Math.sin(pulseFrame * 0.11) * 0.055;
+      const spread = (shotIndex - (shotCount - 1) / 2) * 0.2;
       const projectile = this.createEntity(
         EntityType.PROJECTILE,
         origin.x - 7,
         origin.y - 8
       );
-      projectile.vx = Math.cos(baseAngle + sideBias) * speed;
-      projectile.vy = Math.sin(baseAngle + sideBias) * speed;
+      projectile.vx = Math.cos(baseAngle + spread) * speed;
+      projectile.vy = Math.sin(baseAngle + spread) * speed;
       projectile.width = 14;
       projectile.height = 17;
       projectile.color = phaseIndex >= 2 ? '#fef08a' : '#67e8f9';
       projectile.damage = Math.max(1, Number(boss.projectileDamage) || 1);
       projectile.bossOwnerId = boss.id;
-      projectile.variant = pulseFrame + originIndex * 17;
+      projectile.variant = pulseFrame + shotIndex * 17;
       this.entities.push(projectile);
       activeCount++;
-    });
+    }
     this.playSound('boss_shoot', 0.88 + phaseIndex * 0.08, {
       pitchJitter: 0.035,
       pitchOffset: -0.08 + phaseIndex * 0.04
@@ -11536,9 +11535,47 @@ export class GameEngine {
       bossWidth: boss.width,
       bossHeight: boss.height
     });
+    if (
+      sample.attack.attackId === 'rail-fan'
+      && sample.attack.localFrame === sample.attack.telegraphStartFrame
+      && boss.beamLaneSign === 0
+    ) {
+      boss.beamLaneSign = this.gameplayRandom.chance(0.5) ? -1 : 1;
+    }
     const previousX = boss.x;
     const previousY = boss.y;
-    boss.x = sample.x;
+    let resolvedX = sample.x;
+    if (
+      sample.attack.attackId === 'rail-fan'
+      && boss.beamLaneSign !== 0
+      && sample.attack.localFrame >= sample.attack.telegraphStartFrame
+      && sample.attack.localFrame < sample.attack.recoveryEndFrame
+    ) {
+      const laneCenterX = boss.beamLaneSign < 0 ? this.width * 0.3 : this.width * 0.7;
+      const laneX = clamp(
+        laneCenterX - boss.width / 2,
+        sample.minimumX,
+        sample.maximumX
+      );
+      const entering = clamp(
+        (sample.attack.localFrame - sample.attack.telegraphStartFrame)
+          / Math.max(1, sample.attack.fireStartFrame - sample.attack.telegraphStartFrame),
+        0,
+        1
+      );
+      const leaving = sample.attack.localFrame < sample.attack.fireEndFrame
+        ? 1
+        : 1 - clamp(
+          (sample.attack.localFrame - sample.attack.fireEndFrame)
+            / Math.max(1, sample.attack.recoveryEndFrame - sample.attack.fireEndFrame),
+          0,
+          1
+        );
+      const blend = Math.min(entering, leaving);
+      const easedBlend = blend * blend * (3 - 2 * blend);
+      resolvedX += (laneX - resolvedX) * easedBlend;
+    }
+    boss.x = resolvedX;
     boss.y = sample.y;
     boss.vx = boss.x - previousX;
     boss.vy = boss.y - previousY;
@@ -11568,16 +11605,16 @@ export class GameEngine {
       }
     }
 
-    if (sample.attack.localFrame === GATEKEEPER_PRIME_TELEGRAPH_START_FRAME) {
+    if (sample.attack.localFrame === sample.attack.telegraphStartFrame) {
       boss.gatekeeperPrimeLockedTargetX = this.player.x + this.player.width / 2;
       boss.gatekeeperPrimeLockedTargetY = this.player.y + this.player.height / 2;
       this.spawnGatekeeperPrimeChargeCue(boss);
-      if (sample.attack.attackId === 'core-lane') {
+      if (sample.attack.attackId === 'rail-fan' || sample.attack.attackId === 'core-lane') {
         this.spawnGatekeeperPrimeLaneBeam(
           boss,
           0.5,
           true,
-          GATEKEEPER_PRIME_FIRE_START_FRAME - GATEKEEPER_PRIME_TELEGRAPH_START_FRAME,
+          sample.attack.fireStartFrame - sample.attack.telegraphStartFrame,
           31
         );
       } else if (sample.attack.attackId === 'twin-gate') {
@@ -11586,7 +11623,7 @@ export class GameEngine {
           boss,
           origin.xRatio,
           true,
-          GATEKEEPER_PRIME_FIRE_START_FRAME - GATEKEEPER_PRIME_TELEGRAPH_START_FRAME,
+          sample.attack.fireStartFrame - sample.attack.telegraphStartFrame,
           61 + index,
           true
         ));
@@ -11597,9 +11634,15 @@ export class GameEngine {
       this.spawnGatekeeperPrimeRailPulse(boss, sample.attack.localFrame);
     }
 
-    if (sample.attack.localFrame === GATEKEEPER_PRIME_FIRE_START_FRAME) {
-      if (sample.attack.attackId === 'core-lane') {
-        this.spawnGatekeeperPrimeLaneBeam(boss, 0.5, false, 40, 31);
+    if (sample.attack.localFrame === sample.attack.fireStartFrame) {
+      if (sample.attack.attackId === 'rail-fan' || sample.attack.attackId === 'core-lane') {
+        this.spawnGatekeeperPrimeLaneBeam(
+          boss,
+          0.5,
+          false,
+          sample.attack.attackId === 'rail-fan' ? 68 : 40,
+          31
+        );
       } else if (sample.attack.attackId === 'twin-gate') {
         const cannonOrigins = this.getGatekeeperPrimeActiveCannonOrigins(boss);
         cannonOrigins.forEach((origin, index) => this.spawnGatekeeperPrimeLaneBeam(
@@ -11617,6 +11660,7 @@ export class GameEngine {
     if (sample.attack.stage === 'return') {
       boss.gatekeeperPrimeLockedTargetX = null;
       boss.gatekeeperPrimeLockedTargetY = null;
+      if (sample.attack.attackId === 'rail-fan') boss.beamLaneSign = 0;
     }
   }
 
@@ -13628,13 +13672,11 @@ export class GameEngine {
   }
 
   private isSandboxPrismMoth(boss: Entity) {
-    return (this.previewMode || this.testMode)
-      && boss.sourceEventId === 'sandbox-prism-moth-brood';
+    return boss.sourceItemId === 'prism-moth';
   }
 
   private isSandboxFrontierCrownclaw(boss: Entity) {
-    return (this.previewMode || this.testMode)
-      && boss.sourceEventId === 'sandbox-frontier-crownclaw';
+    return boss.sourceItemId === 'frontier-crownclaw';
   }
 
   private isFrontierCrownclawSideOperational(

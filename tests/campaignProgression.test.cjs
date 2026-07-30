@@ -121,6 +121,8 @@ const progression = compileService('campaignProgression.ts', {
     isMajorBossId: (bossId) => [
       'gatekeeper',
       'gatekeeper-prime',
+      'paywall-decimator',
+      'helios-clawcarrier',
       'eclipse-engine',
       'helix-leviathan',
       'research-tribunal',

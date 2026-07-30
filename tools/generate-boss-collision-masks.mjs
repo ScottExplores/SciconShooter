@@ -68,6 +68,9 @@ const campaignMasks = [
     key: '/game-art/generated/scicon-stage20-expansion-v1/bosses/frames/tribunal-dreadnought.png'
   },
   {
+    key: '/game-art/generated/bosses/helios-clawcarrier/helios-clawcarrier-neutral.png'
+  },
+  {
     key: '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/bullet-ring-emitter.png'
   },
   {
