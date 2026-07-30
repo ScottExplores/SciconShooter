@@ -27,31 +27,31 @@ export interface BossArchiveDifficultyConfig {
 }
 
 /**
- * Canonical Boss Archive tuning. Medium deliberately preserves the authored
- * Campaign encounter byte-for-byte; the other settings are applied only to a
+ * Canonical Boss Archive tuning. Easy deliberately preserves the authored
+ * Campaign encounter byte-for-byte; the harder settings are applied only to a
  * cloned one-boss replay campaign.
  */
 export const BOSS_ARCHIVE_DIFFICULTIES: readonly BossArchiveDifficultyConfig[] = Object.freeze([
   Object.freeze({
     id: 'easy' as const,
     label: 'Easy' as const,
-    description: 'Reduced hull strength and a steadier attack tempo.',
-    healthMultiplier: 0.75,
-    tempoMultiplier: 0.9
-  }),
-  Object.freeze({
-    id: 'medium' as const,
-    label: 'Medium' as const,
     description: 'The original Campaign boss tuning.',
     healthMultiplier: 1,
     tempoMultiplier: 1
   }),
   Object.freeze({
+    id: 'medium' as const,
+    label: 'Medium' as const,
+    description: 'Reinforced hull strength with faster Campaign attack patterns.',
+    healthMultiplier: 1.25,
+    tempoMultiplier: 1.12
+  }),
+  Object.freeze({
     id: 'heroic' as const,
     label: 'Heroic' as const,
-    description: 'Reinforced hull strength and accelerated boss patterns.',
-    healthMultiplier: 1.5,
-    tempoMultiplier: 1.2
+    description: 'Heavy armor and sharply accelerated patterns for veteran pilots.',
+    healthMultiplier: 1.65,
+    tempoMultiplier: 1.28
   })
 ]);
 
@@ -61,7 +61,7 @@ const BOSS_ARCHIVE_DIFFICULTY_BY_ID = new Map(
 
 export const normalizeBossArchiveDifficultyId = (
   value: unknown,
-  fallback: BossArchiveDifficultyId = 'medium'
+  fallback: BossArchiveDifficultyId = 'easy'
 ): BossArchiveDifficultyId => {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
   return BOSS_ARCHIVE_DIFFICULTY_BY_ID.has(normalized as BossArchiveDifficultyId)
@@ -71,7 +71,7 @@ export const normalizeBossArchiveDifficultyId = (
 
 export const getBossArchiveDifficulty = (value: unknown): BossArchiveDifficultyConfig => (
   BOSS_ARCHIVE_DIFFICULTY_BY_ID.get(normalizeBossArchiveDifficultyId(value))
-  ?? BOSS_ARCHIVE_DIFFICULTIES[1]
+  ?? BOSS_ARCHIVE_DIFFICULTIES[0]
 );
 
 export type BossArchiveMasteryObjectiveKind =
@@ -101,6 +101,11 @@ export interface BossArchivePreview {
   readonly composition?: BossArchivePreviewComposition;
 }
 
+/** Ephemeral overlay carried only by isolated Archive replay campaigns. */
+type BossArchiveReplayBossEvent = BossEvent & {
+  readonly attackTempoMultiplier?: number;
+};
+
 export interface BossArchivePreviewLayer {
   readonly url: string;
   readonly x: number;
@@ -108,6 +113,7 @@ export interface BossArchivePreviewLayer {
   readonly width: number;
   readonly height: number;
   readonly rotationDegrees?: number;
+  readonly motionRole?: 'hull' | 'port-limb' | 'starboard-limb' | 'core';
 }
 
 export interface BossArchivePreviewComposition {
@@ -351,14 +357,22 @@ const buildBossArchivePreviewComposition = (
       width: 278.96,
       height: 202.8,
       layers: Object.freeze([
-        Object.freeze({ url: artUrl, x: 29.48, y: 2.8, width: 220, height: 200 }),
+        Object.freeze({
+          url: artUrl,
+          x: 29.48,
+          y: 2.8,
+          width: 220,
+          height: 200,
+          motionRole: 'hull' as const
+        }),
         Object.freeze({
           url: ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_LEFT,
           x: 0,
           y: 0,
           width: 133.76,
           height: 185.6,
-          rotationDegrees: -2.292
+          rotationDegrees: -2.292,
+          motionRole: 'port-limb' as const
         }),
         Object.freeze({
           url: ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_RIGHT,
@@ -366,7 +380,8 @@ const buildBossArchivePreviewComposition = (
           y: 0,
           width: 133.76,
           height: 185.6,
-          rotationDegrees: 2.292
+          rotationDegrees: 2.292,
+          motionRole: 'starboard-limb' as const
         })
       ])
     });
@@ -377,14 +392,22 @@ const buildBossArchivePreviewComposition = (
       width: 220,
       height: 200,
       layers: Object.freeze([
-        Object.freeze({ url: artUrl, x: 0, y: 0, width: 220, height: 200 }),
+        Object.freeze({
+          url: artUrl,
+          x: 0,
+          y: 0,
+          width: 220,
+          height: 200,
+          motionRole: 'hull' as const
+        }),
         Object.freeze({
           url: ASSETS.PIXI_BOSS_PAYWALL_CANNON_LEFT,
           x: 6.6,
           y: 82.4,
           width: 105.6,
           height: 115.2,
-          rotationDegrees: -2.292
+          rotationDegrees: -2.292,
+          motionRole: 'port-limb' as const
         }),
         Object.freeze({
           url: ASSETS.PIXI_BOSS_PAYWALL_CANNON_RIGHT,
@@ -392,14 +415,16 @@ const buildBossArchivePreviewComposition = (
           y: 82.4,
           width: 105.6,
           height: 115.2,
-          rotationDegrees: 2.292
+          rotationDegrees: 2.292,
+          motionRole: 'starboard-limb' as const
         }),
         Object.freeze({
           url: ASSETS.PIXI_BOSS_PAYWALL_HELMET,
           x: 74.8,
           y: 60,
           width: 70.4,
-          height: 60
+          height: 60,
+          motionRole: 'core' as const
         })
       ])
     });
@@ -756,13 +781,14 @@ const scaleBossArchiveTimeline = (
 const applyBossArchiveDifficulty = (
   boss: BossEvent,
   difficulty: BossArchiveDifficultyConfig
-): BossEvent => {
-  if (difficulty.id === 'medium') return boss;
+): BossArchiveReplayBossEvent => {
+  if (difficulty.healthMultiplier === 1 && difficulty.tempoMultiplier === 1) return boss;
   const { healthMultiplier, tempoMultiplier } = difficulty;
   return {
     ...boss,
     health: roundBossArchiveTuning(boss.health * healthMultiplier),
     speed: roundBossArchiveTuning(boss.speed * tempoMultiplier),
+    attackTempoMultiplier: tempoMultiplier,
     ...(boss.componentHealth ? {
       componentHealth: Object.fromEntries(Object.entries(boss.componentHealth).map(
         ([componentId, health]) => [
@@ -796,7 +822,7 @@ const applyBossArchiveDifficulty = (
  */
 export const buildBossReplayCampaign = (
   eventId: unknown,
-  difficultyId: unknown = 'medium'
+  difficultyId: unknown = 'easy'
 ): GameCampaignConfig | null => {
   const entry = getBossArchiveEntry(eventId);
   if (!entry) return null;

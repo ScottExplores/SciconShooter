@@ -1,0 +1,45 @@
+{
+  "id": "scicon-campaign-map-celestials-v1",
+  "purpose": "Campaign Map regular-Mission buttons",
+  "generationMode": "built-in image generation with local chroma-key removal and nearest-neighbor reduction",
+  "promptSet": [
+    "Isolated 16-bit research ocean world with cyan science nodes and mechanical orbit details",
+    "Isolated 16-bit amber crater moon with a cyan survey beacon",
+    "Isolated 16-bit fractured blue-white ice moon with a contained turquoise polar glow",
+    "Isolated 16-bit indigo gas dwarf with cyan storm bands and a thin gold ring"
+  ],
+  "assets": [
+    {
+      "id": "ocean",
+      "path": "/game-art/generated/ui/scicon-campaign-map-celestials-v1/campaign-ocean-world.png",
+      "width": 128,
+      "height": 128,
+      "bytes": 24280,
+      "sha256": "48340c928aa63c5d60be65e76cce4f54deef2573a69580e35a6c85ef4880c353"
+    },
+    {
+      "id": "crater",
+      "path": "/game-art/generated/ui/scicon-campaign-map-celestials-v1/campaign-crater-moon.png",
+      "width": 128,
+      "height": 128,
+      "bytes": 30363,
+      "sha256": "b0aca64a3f220919dc96dec8926c5a74097dac93ef920b29e11c6a8a64722daa"
+    },
+    {
+      "id": "ice",
+      "path": "/game-art/generated/ui/scicon-campaign-map-celestials-v1/campaign-ice-moon.png",
+      "width": 128,
+      "height": 128,
+      "bytes": 30729,
+      "sha256": "960a46a089439a5e5f8fd61a394d4344d014c0e81127ab4058ae0385b4243a5a"
+    },
+    {
+      "id": "ringed",
+      "path": "/game-art/generated/ui/scicon-campaign-map-celestials-v1/campaign-ringed-gas-dwarf.png",
+      "width": 128,
+      "height": 128,
+      "bytes": 16396,
+      "sha256": "5530b099bd82322ebeda16ad047c10612273173ea28f08310093b1d070922685"
+    }
+  ]
+}

@@ -77,7 +77,7 @@ test('Paywall Decimator parts independently control bolt cannons and the core ra
   assert.match(engine, /type BossPartId = 'left-cannon' \| 'right-cannon' \| 'helmet'/);
   assert.match(engine, /damageBossComponent\(boss: Entity, component: BossComponentState/);
   assert.match(engine, /if \(boss\.bossRigId === 'paywall-siege'\)/);
-  assert.match(engine, /spawnPaywallBossRay\(boss: Entity, enraged: boolean\)/);
+  assert.match(engine, /spawnPaywallBossRay\(boss: Entity, enraged: boolean, lifetimeFrames\?: number\)/);
   assert.match(engine, /spawnPaywallBossBoltVolley\(boss: Entity, component: BossComponentState, enraged: boolean\)/);
   assert.match(engine, /cannons\.forEach\(\(component\) => this\.spawnPaywallBossBoltVolley/);
   assert.match(engine, /'CORE RAY CHARGING'/);
@@ -289,6 +289,7 @@ test('boss shield escorts are large readable targets with low-wave durability', 
 
 test('destroyed side weapons leave distinct health-scaled core attacks active', () => {
   const engine = read('services/gameLogic.ts');
+  const paywallRuntime = read('services/gameplay/bosses/PaywallBossRuntime.ts');
   const renderer = read('services/pixi/PixiGameRenderer.ts');
   const constants = read('constants.ts');
 
@@ -300,7 +301,8 @@ test('destroyed side weapons leave distinct health-scaled core attacks active', 
   assert.match(engine, /const pressure = 1 - healthRatio/);
   assert.match(engine, /const allowsBeam = !hasConfiguredWeapons/);
   assert.match(engine, /cannons\.length === 0/);
-  assert.match(engine, /healthRatio <= 0\.25 \? 232 : healthRatio <= 0\.55 \? 274 : 318/);
+  assert.match(engine, /boss\.attackTimer % cadence\.rayCycleLength/);
+  assert.match(paywallRuntime, /health <= 0\.25 \? 232 : health <= 0\.55 \? 274 : 318/);
   assert.match(renderer, /thrusterSprites: readonly \[Sprite, Sprite\]/);
   assert.match(renderer, /thrustFrameOrder = \[0, 1, 2, 1\]/);
   assert.match(constants, /PIXI_BOSS_THRUSTER_FRAMES/);

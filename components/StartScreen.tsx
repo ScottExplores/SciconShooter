@@ -2076,7 +2076,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           onChallenge={(entry) => onStartBossFight(entry, {
             mode: 'challenge',
             variantId: 'standard',
-            difficultyId: 'medium'
+            difficultyId: 'easy'
           })}
           onLaunch={onStartBossFight}
           onSelectionChange={onBossArchiveSelection}

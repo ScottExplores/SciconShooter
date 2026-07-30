@@ -18,9 +18,9 @@ const loadModel = () => {
     if (request === '../../services/bossArchive') {
       return {
         BOSS_ARCHIVE_DIFFICULTIES: Object.freeze([
-          Object.freeze({ id: 'easy', label: 'Easy', description: 'Easy', healthMultiplier: 0.75, tempoMultiplier: 0.9 }),
-          Object.freeze({ id: 'medium', label: 'Medium', description: 'Medium', healthMultiplier: 1, tempoMultiplier: 1 }),
-          Object.freeze({ id: 'heroic', label: 'Heroic', description: 'Heroic', healthMultiplier: 1.5, tempoMultiplier: 1.2 })
+          Object.freeze({ id: 'easy', label: 'Easy', description: 'Easy', healthMultiplier: 1, tempoMultiplier: 1 }),
+          Object.freeze({ id: 'medium', label: 'Medium', description: 'Medium', healthMultiplier: 1.25, tempoMultiplier: 1.12 }),
+          Object.freeze({ id: 'heroic', label: 'Heroic', description: 'Heroic', healthMultiplier: 1.65, tempoMultiplier: 1.28 })
         ])
       };
     }
@@ -178,6 +178,7 @@ test('Boss Archive exposes one charge-based fight flow with difficulty records a
   assert.match(archive, /className="boss-archive-index__portrait"/);
   assert.match(archive, /className="boss-archive-reveal__portrait"/);
   assert.match(portrait, /composition\.layers\.map/);
+  assert.match(portrait, /data-motion-role=\{layer\.motionRole \?\? 'hull'\}/);
   assert.match(portrait, /preserveAspectRatio="xMidYMid meet"/);
   assert.doesNotMatch(`${carousel}\n${portrait}`, /setInterval|idleFrameUrls|frameIndex/);
   assert.doesNotMatch(css, /boss-archive-selected-idle|boss-archive-new-pulse/);
@@ -187,6 +188,12 @@ test('Boss Archive exposes one charge-based fight flow with difficulty records a
   );
   assert.doesNotMatch(carousel, /\.filter\(\(\{ relative \}\) => Math\.abs\(relative\) <= 2\)/);
   assert.match(carousel, /image\.decode\?\.\(\)/);
+  assert.match(archive, /useState<BossArchiveDifficultyId>\('easy'\)/);
+  assert.match(css, /boss-archive-intact-hover/);
+  assert.match(css, /boss-archive-port-articulation/);
+  assert.match(css, /boss-archive-starboard-articulation/);
+  const archiveIdleKeyframes = css.slice(css.indexOf('@keyframes boss-archive-intact-hover'));
+  assert.doesNotMatch(archiveIdleKeyframes, /filter:|opacity:/);
   assert.doesNotMatch(css, /backdrop-filter|mix-blend-mode|boss-archive-ambient-turn/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);

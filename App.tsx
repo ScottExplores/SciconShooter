@@ -870,7 +870,7 @@ const App: React.FC = () => {
     activeBossEncounterId
       ? buildBossReplayCampaign(
           activeBossEncounterId,
-          activeBossArchiveRun?.difficultyId ?? 'medium'
+          activeBossArchiveRun?.difficultyId ?? 'easy'
         ) ?? undefined
       : undefined
   ), [activeBossArchiveRun?.difficultyId, activeBossEncounterId]);
@@ -1808,7 +1808,7 @@ const App: React.FC = () => {
     campaignRequest: CampaignMapLaunchRequest | null = null,
     branchRequest: CampaignMapBranchLaunchRequest | null = null,
     campaignLabRequest: CampaignLabLaunchRequest | null = null,
-    bossDifficultyId: BossArchiveDifficultyId = 'medium',
+    bossDifficultyId: BossArchiveDifficultyId = 'easy',
     reusableBossArchiveRun: BossArchiveRunContext | null = null
   ) => {
     if (missionLaunchPendingRef.current) return;
@@ -2430,7 +2430,7 @@ const App: React.FC = () => {
     } = {
       mode: 'challenge',
       variantId: 'standard',
-      difficultyId: 'medium'
+      difficultyId: 'easy'
     }
   ) => {
     void launchGame(
@@ -4652,7 +4652,7 @@ const App: React.FC = () => {
             masteryCompletedIds: outcome === 'victory' ? ['challenge-clear'] : [],
             mode: 'challenge',
             variantId: 'standard',
-            difficultyId: 'medium'
+            difficultyId: 'easy'
           });
         });
       }
@@ -5389,7 +5389,7 @@ const App: React.FC = () => {
                 kind: 'branch'
               } : null,
               isCampaignLabRun ? campaignLabActiveRequestRef.current : null,
-              activeBossArchiveRun?.difficultyId ?? 'medium',
+              activeBossArchiveRun?.difficultyId ?? 'easy',
               activeBossArchiveRun
             );
           }}
@@ -5789,7 +5789,7 @@ const App: React.FC = () => {
           {isBossArchiveRun ? (
             <div className="sci-gameover-result-content relative z-10 grid gap-3 p-2 text-center">
               <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-red-200">
-                Boss Archive / {activeBossArchiveRun?.difficultyId ?? 'medium'}
+                Boss Archive / {activeBossArchiveRun?.difficultyId ?? 'easy'}
               </p>
               <h2 className="arcade-font text-2xl font-black uppercase tracking-widest text-white">
                 Challenge Failed
@@ -5818,7 +5818,7 @@ const App: React.FC = () => {
                   onClick={() => activeBossReplay && startBossArchiveFight(activeBossReplay, {
                     mode: 'challenge',
                     variantId: 'standard',
-                    difficultyId: activeBossArchiveRun?.difficultyId ?? 'medium'
+                    difficultyId: activeBossArchiveRun?.difficultyId ?? 'easy'
                   })}
                   disabled={!activeBossReplay || bossArchiveDailyChargeStatus.remaining <= 0}
                   className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold disabled:opacity-50"

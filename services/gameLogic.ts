@@ -110,11 +110,15 @@ import {
   GATEKEEPER_PRIME_DESKTOP_PROJECTILE_CAP,
   GATEKEEPER_PRIME_MOBILE_PROJECTILE_CAP,
   isGatekeeperPrimeRailPulseFrame,
+  resolveGatekeeperPrimeAttackSchedule,
   sampleGatekeeperPrimePatrol,
   type GatekeeperPrimeAttackId,
   type GatekeeperPrimeAttackStage,
   type GatekeeperPrimePhaseId
 } from './gameplay/bosses/GatekeeperPrimeRuntime';
+import {
+  resolvePaywallBossCadence
+} from './gameplay/bosses/PaywallBossRuntime';
 import {
   resolveBossPreviewArtworkDimensions,
   type BossPreviewArtworkDesignSize
@@ -812,6 +816,7 @@ export class Entity {
   configuredBaseSpeed?: number;
   configuredSpeed?: number;
   configuredDifficultyMultiplier: number = 1;
+  configuredAttackTempoMultiplier: number = 1;
   attackIntervalFrames?: number;
   movementPattern?: string;
   phaseThresholds: number[] = [];
@@ -1409,6 +1414,7 @@ type RuntimeBossEvent = BossEvent & {
   health: number;
   movementPattern?: string;
   contactDamage?: number;
+  attackTempoMultiplier?: number;
   scoreReward?: number;
   warningSeconds?: number;
   weapons?: RuntimeBossWeapon[];
@@ -11169,6 +11175,11 @@ export class GameEngine {
       boss.spriteFrames = this.resolveSpriteFrames(configured.spriteKey);
       if (configured.spriteStyle) boss.spriteStyle = { ...configured.spriteStyle };
       boss.contactDamage = Math.max(0, (Number(configured.damage) || 1) * difficultyMultiplier);
+      boss.configuredAttackTempoMultiplier = clamp(
+        Number(configured.attackTempoMultiplier) || 1,
+        1,
+        1.35
+      );
       boss.scoreReward = Math.max(0, Number(configured.scoreReward) || 0);
       boss.powerupDropChance = clamp(Number(configured.powerupDropChance) || 0, 0, 1);
       boss.phaseThresholds = configured.phases.map((healthPhase) => Number(healthPhase.triggerHealthRatio)).filter(Number.isFinite);
@@ -11530,13 +11541,16 @@ export class GameEngine {
    * all warnings and damaging emissions.
    */
   private updateGatekeeperPrime(boss: Entity, healthRatio: number) {
+    const attackTempoMultiplier = boss.configuredAttackTempoMultiplier;
+    const attackSchedule = resolveGatekeeperPrimeAttackSchedule(attackTempoMultiplier);
     const previewSample = sampleGatekeeperPrimePatrol({
       combatFrame: 0,
       healthRatio,
       viewportWidth: this.width,
       viewportHeight: this.height,
       bossWidth: boss.width,
-      bossHeight: boss.height
+      bossHeight: boss.height,
+      attackTempoMultiplier
     });
     if (boss.gatekeeperPrimeCombatStartFrame < 0) {
       const previousX = boss.x;
@@ -11562,7 +11576,8 @@ export class GameEngine {
       viewportWidth: this.width,
       viewportHeight: this.height,
       bossWidth: boss.width,
-      bossHeight: boss.height
+      bossHeight: boss.height,
+      attackTempoMultiplier
     });
     if (
       sample.attack.attackId === 'rail-fan'
@@ -11659,7 +11674,7 @@ export class GameEngine {
       }
     }
 
-    if (isGatekeeperPrimeRailPulseFrame(combatFrame, healthRatio)) {
+    if (isGatekeeperPrimeRailPulseFrame(combatFrame, healthRatio, attackTempoMultiplier)) {
       this.spawnGatekeeperPrimeRailPulse(boss, sample.attack.localFrame);
     }
 
@@ -11669,18 +11684,22 @@ export class GameEngine {
           boss,
           0.5,
           false,
-          sample.attack.attackId === 'rail-fan' ? 68 : 40,
+          sample.attack.attackId === 'rail-fan'
+            ? sample.attack.fireEndFrame - sample.attack.fireStartFrame
+            : attackTempoMultiplier === 1
+              ? 40
+              : Math.max(24, Math.round(40 / attackSchedule.attackTempoMultiplier)),
           31
         );
       } else if (sample.attack.attackId === 'twin-gate') {
         const cannonOrigins = this.getGatekeeperPrimeActiveCannonOrigins(boss);
-        cannonOrigins.forEach((origin, index) => this.spawnGatekeeperPrimeLaneBeam(
-          boss,
-          origin.xRatio,
-          false,
-          44,
-          61 + index,
-          true
+          cannonOrigins.forEach((origin, index) => this.spawnGatekeeperPrimeLaneBeam(
+            boss,
+            origin.xRatio,
+            false,
+            sample.attack.fireEndFrame - sample.attack.fireStartFrame,
+            61 + index,
+            true
         ));
         this.playSound('boss_roar', 0.85, { pitchJitter: 0.02, pitchOffset: -0.1 });
       }
@@ -11693,7 +11712,7 @@ export class GameEngine {
     }
   }
 
-  spawnPaywallBossRay(boss: Entity, enraged: boolean) {
+  spawnPaywallBossRay(boss: Entity, enraged: boolean, lifetimeFrames?: number) {
     const beamWidth = Math.max(42, Math.min(enraged ? 68 : 58, boss.width * (enraged ? 0.26 : 0.22)));
     const anchorOffsetX = boss.width * 0.5 - beamWidth / 2;
     const beam = this.createEntity(EntityType.PROJECTILE, boss.x + anchorOffsetX, boss.y + boss.height * 0.68);
@@ -11702,7 +11721,7 @@ export class GameEngine {
     beam.spriteFrames = [...ASSETS.PIXI_BOSS_PAYWALL_RAY_FRAMES];
     beam.width = beamWidth;
     beam.height = this.height;
-    beam.life = enraged ? 70 : 62;
+    beam.life = Math.max(1, Math.round(lifetimeFrames ?? (enraged ? 70 : 62)));
     beam.maxLife = beam.life;
     beam.color = '#ff9d2e';
     beam.damage = Math.max(1, Number(boss.projectileDamage) || 1);
@@ -11843,35 +11862,40 @@ export class GameEngine {
     const coreEmitterOperational = boss.hp > 0;
     const coreExposed = Boolean(helmet?.destroyed);
     const allArmorDestroyed = (boss.bossComponents ?? []).every((component) => component.destroyed);
+    const attackTempoMultiplier = boss.configuredAttackTempoMultiplier;
+    const cadence = resolvePaywallBossCadence({
+      healthRatio,
+      allArmorDestroyed,
+      coreExposed,
+      attackTempoMultiplier
+    });
     const hasConfiguredWeapons = boss.weaponKinds.length > 0;
     const allowsBeam = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => kind.includes('beam'));
     const allowsBurst = !hasConfiguredWeapons || boss.weaponKinds.some((kind) => !kind.includes('beam'));
-    const rayCycleLength = healthRatio <= 0.25 ? 232 : healthRatio <= 0.55 ? 274 : 318;
-    const rayCycle = boss.attackTimer % rayCycleLength;
-    const rayChargeStart = Math.round(rayCycleLength * (coreExposed ? 0.46 : 0.52));
-    const rayChargeFrames = healthRatio <= 0.25 ? 32 : healthRatio <= 0.55 ? 40 : 48;
-    const rayFireFrame = rayChargeStart + rayChargeFrames;
+    const rayCycle = boss.attackTimer % cadence.rayCycleLength;
     boss.isCharging = allowsBeam && coreEmitterOperational
-      ? (rayCycle >= rayChargeStart && rayCycle < rayFireFrame) || activeRays
+      ? (rayCycle >= cadence.rayChargeStart && rayCycle < cadence.rayFireFrame) || activeRays
       : activeRays;
-    if (allowsBeam && coreEmitterOperational && rayCycle === rayChargeStart) {
+    if (allowsBeam && coreEmitterOperational && rayCycle === cadence.rayChargeStart) {
       this.spawnFloatingText(boss.x + boss.width / 2, boss.y + boss.height * 0.82, 'CORE RAY CHARGING', '#fef08a', 16);
       this.playSound('boss_roar');
     }
-    if (allowsBeam && coreEmitterOperational && rayCycle === rayFireFrame) {
-      this.spawnPaywallBossRay(boss, healthRatio <= 0.35 || coreExposed);
+    if (allowsBeam && coreEmitterOperational && rayCycle === cadence.rayFireFrame) {
+      this.spawnPaywallBossRay(
+        boss,
+        healthRatio <= 0.35 || coreExposed,
+        cadence.rayLifetimeFrames
+      );
       boss.isCharging = true;
     }
 
-    const boltInterval = Math.max(46, Math.round((allArmorDestroyed ? 54 : 76) * (0.72 + healthRatio * 0.28)));
-    if (allowsBurst && !boss.isCharging && cannons.length > 0 && boss.attackTimer - boss.lastBurstAttackTimer >= boltInterval) {
+    if (allowsBurst && !boss.isCharging && cannons.length > 0 && boss.attackTimer - boss.lastBurstAttackTimer >= cadence.boltInterval) {
       const enraged = healthRatio <= 0.38;
       cannons.forEach((component) => this.spawnPaywallBossBoltVolley(boss, component, enraged));
       boss.lastBurstAttackTimer = boss.attackTimer;
     }
     if (allowsBurst && !boss.isCharging && cannons.length === 0) {
-      const coreInterval = healthRatio <= 0.25 ? 42 : healthRatio <= 0.55 ? 56 : 74;
-      if (boss.attackTimer - boss.lastBurstAttackTimer >= coreInterval) {
+      if (boss.attackTimer - boss.lastBurstAttackTimer >= cadence.coreInterval) {
         this.spawnBossCoreVolley(boss, 3);
         boss.lastBurstAttackTimer = boss.attackTimer;
       }

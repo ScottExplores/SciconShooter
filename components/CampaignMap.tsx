@@ -17,6 +17,7 @@ import type {
   WeeklyCampaignSelectionConfirmation,
   WeeklyCampaignStreakState
 } from '../services/weeklyCampaignStreak';
+import CampaignMapCelestial from './campaign-map/CampaignMapCelestial';
 import PixelActionButton from './PixelActionButton';
 import './campaign-map.css';
 
@@ -796,6 +797,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   const branchNodeRefs = useRef(new Map<string, HTMLButtonElement>());
   const dragRef = useRef<{ pointerId: number; y: number; scrollTop: number } | null>(null);
   const gamepadStateRef = useRef({ next: false, previous: false, close: false });
+  const initialRouteCenterPendingRef = useRef(true);
 
   const selectedMission = orderedMissions.find((mission) => mission.id === selectedMissionId)
     ?? orderedMissions.find((mission) => mission.id === progress.recommendedMissionId)
@@ -1014,21 +1016,35 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
     ));
   }, [developerControls?.enabled, developerUpgradeTrackKey, open]);
 
+  const centerRouteTarget = useCallback((
+    target: HTMLElement | null,
+    behavior: ScrollBehavior = 'smooth'
+  ) => {
+    const scroller = routeRef.current;
+    if (!target || !scroller || scroller.clientHeight <= 0) return false;
+    const targetRect = target.getBoundingClientRect();
+    const scrollerRect = scroller.getBoundingClientRect();
+    const targetTop = scroller.scrollTop
+      + (targetRect.top - scrollerRect.top)
+      - ((scroller.clientHeight - targetRect.height) / 2);
+    const clampedTop = Math.max(
+      0,
+      Math.min(Math.max(0, scroller.scrollHeight - scroller.clientHeight), targetTop)
+    );
+    if (behavior === 'auto') scroller.scrollTop = clampedTop;
+    else scroller.scrollTo({ top: clampedTop, behavior });
+    return true;
+  }, []);
+
   const centerMissionNode = useCallback((missionId: string, behavior: ScrollBehavior = 'smooth') => {
     const target = nodeRefs.current.get(missionId);
-    const scroller = routeRef.current;
-    if (!target || !scroller) return;
-    const targetTop = target.offsetTop - ((scroller.clientHeight - target.offsetHeight) / 2);
-    scroller.scrollTo({ top: Math.max(0, targetTop), behavior });
-  }, []);
+    centerRouteTarget(target ?? null, behavior);
+  }, [centerRouteTarget]);
 
   const centerBranchNode = useCallback((branchId: string, behavior: ScrollBehavior = 'smooth') => {
     const target = branchNodeRefs.current.get(branchId);
-    const scroller = routeRef.current;
-    if (!target || !scroller) return;
-    const targetTop = target.offsetTop - ((scroller.clientHeight - target.offsetHeight) / 2);
-    scroller.scrollTo({ top: Math.max(0, targetTop), behavior });
-  }, []);
+    centerRouteTarget(target ?? null, behavior);
+  }, [centerRouteTarget]);
 
   const refreshCurrentMissionDistance = useCallback(() => {
     const currentNode = nodeRefs.current.get(progress.recommendedMissionId);
@@ -1078,14 +1094,45 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   }, [progress.recommendedMissionId, progress.recommendedWaveId, selectedMission]);
 
   useLayoutEffect(() => {
-    if (!open) return;
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (selectedBranchId) {
-      centerBranchNode(selectedBranchId, reduceMotion ? 'auto' : 'smooth');
-    } else if (selectedMissionId) {
-      centerMissionNode(selectedMissionId, reduceMotion ? 'auto' : 'smooth');
+    if (!open) {
+      initialRouteCenterPendingRef.current = true;
+      return;
     }
-  }, [centerBranchNode, centerMissionNode, open, selectedBranchId, selectedMissionId]);
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const centerSelected = (behavior: ScrollBehavior) => {
+      if (selectedBranchId) centerBranchNode(selectedBranchId, behavior);
+      else if (selectedMissionId) centerMissionNode(selectedMissionId, behavior);
+    };
+    if (!initialRouteCenterPendingRef.current) {
+      centerSelected(reduceMotion ? 'auto' : 'smooth');
+      return;
+    }
+
+    // A freshly mounted mobile map can be more than 8,000 px tall. Jump to the
+    // selected node before first paint, then confirm the position after two
+    // layout frames so WebKit/Chrome never need a manual scroll to rasterize it.
+    centerSelected('auto');
+    let settleFrame = 0;
+    const layoutFrame = window.requestAnimationFrame(() => {
+      centerSelected('auto');
+      settleFrame = window.requestAnimationFrame(() => {
+        centerSelected('auto');
+        initialRouteCenterPendingRef.current = false;
+        refreshCurrentMissionDistance();
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(layoutFrame);
+      if (settleFrame) window.cancelAnimationFrame(settleFrame);
+    };
+  }, [
+    centerBranchNode,
+    centerMissionNode,
+    open,
+    refreshCurrentMissionDistance,
+    selectedBranchId,
+    selectedMissionId
+  ]);
 
   useEffect(() => {
     if (!open || typeof navigator.getGamepads !== 'function') return;
@@ -1353,9 +1400,11 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                             draggable={false}
                           />
                         ) : (
-                          <span className="campaign-map-node-stage-number" aria-hidden="true">
-                            {missionDisplayLabel}
-                          </span>
+                          <CampaignMapCelestial
+                            role={missionRole}
+                            missionNumber={mission.number}
+                            missionLabel={missionDisplayLabel}
+                          />
                         )}
                       </span>
                       {missionRole === 'major-boss' ? (
@@ -1584,9 +1633,12 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                     {selectedMissionRole === 'major-boss' && selectedMission.bossPreview?.previewUrl ? (
                       <img src={selectedMission.bossPreview.previewUrl} alt="" />
                     ) : (
-                      <span className="campaign-map-selection-mission-number" aria-hidden="true">
-                        {selectedMissionDisplayLabel}
-                      </span>
+                      <CampaignMapCelestial
+                        role={selectedMissionRole ?? 'introduction'}
+                        missionNumber={selectedMission.number}
+                        missionLabel={selectedMissionDisplayLabel}
+                        className="campaign-map-celestial--selection"
+                      />
                     )}
                   </div>
                   <div className="campaign-map-selection-copy">

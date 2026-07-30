@@ -342,7 +342,7 @@ export const saveAuthenticatedWalletProfile = async ({
 export const startWalletBossArchiveChallenge = async ({
   walletAddress,
   eventId,
-  difficultyId = 'medium',
+  difficultyId = 'easy',
   variantId = 'standard',
   attemptId = globalThis.crypto.randomUUID()
 }: {

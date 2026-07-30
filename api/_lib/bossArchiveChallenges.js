@@ -84,7 +84,7 @@ const createBossArchiveChallengeRun = async ({
   address,
   eventId,
   variantId = 'standard',
-  difficultyId = 'medium',
+  difficultyId = 'easy',
   attemptId = null,
   now = Date.now()
 }) => {

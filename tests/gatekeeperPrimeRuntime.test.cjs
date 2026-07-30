@@ -255,6 +255,49 @@ test('Gatekeeper Prime restores three aimed volleys before its signature laser',
   }
 });
 
+test('Archive Gatekeeper cadence accelerates without skipping its 48-frame lane warnings', () => {
+  const easyTempo = 1;
+  const mediumTempo = 1.12;
+  const heroicTempo = 1.28;
+  const easy = gatekeeper.resolveGatekeeperPrimeAttackSchedule(easyTempo);
+  const medium = gatekeeper.resolveGatekeeperPrimeAttackSchedule(mediumTempo);
+  const heroic = gatekeeper.resolveGatekeeperPrimeAttackSchedule(heroicTempo);
+
+  assert.equal(easyTempo, 1);
+  assert.equal(easy.attackCycleFrames, gatekeeper.GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES);
+  assert.equal(easy.signatureCycleFrames, gatekeeper.GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES);
+  assert.equal(easy.sequenceFrames, gatekeeper.GATEKEEPER_PRIME_SEQUENCE_FRAMES);
+  assert.deepEqual([...easy.signatureVolleyFrames], [77, 154, 231]);
+  assert.ok(medium.sequenceFrames < easy.sequenceFrames);
+  assert.ok(heroic.sequenceFrames < medium.sequenceFrames);
+
+  for (const schedule of [easy, medium, heroic]) {
+    assert.ok(schedule.fireStartFrame - schedule.telegraphStartFrame >= 48);
+    assert.ok(
+      schedule.signatureFireStartFrame - schedule.signatureTelegraphStartFrame >= 48
+    );
+    const emittedVolleyFrames = [];
+    for (let frame = 0; frame < schedule.signatureCycleFrames; frame += 1) {
+      if (gatekeeper.isGatekeeperPrimeRailPulseFrame(
+        frame,
+        0.2,
+        schedule.attackTempoMultiplier
+      )) emittedVolleyFrames.push(frame);
+    }
+    assert.deepEqual(emittedVolleyFrames, [...schedule.signatureVolleyFrames]);
+  }
+
+  for (const proof of gatekeeper.proveGatekeeperPrimeRoutes({
+    viewportId: 'heroic-mobile-390x844',
+    width: 390,
+    height: 844,
+    attackTempoMultiplier: heroicTempo
+  })) {
+    assert.equal(proof.passes, true, proof.attackId);
+    assert.ok(proof.minimumClearancePixelsAfterUncertainty >= 6, proof.attackId);
+  }
+});
+
 test('all Gatekeeper Prime attacks have reproducible routes with at least 6px clearance', () => {
   const viewports = [
     { viewportId: 'mobile-390x844', width: 390, height: 844 },
@@ -292,5 +335,7 @@ test('game runtime dispatches Gatekeeper Prime before generic boss movement', ()
   assert.match(source, /getGatekeeperPrimeActiveCannonOrigins/);
   assert.match(source, /getGatekeeperPrimeProjectileCap/);
   assert.match(source, /const shotCount = 3;/);
-  assert.match(source, /sample\.attack\.attackId === 'rail-fan' \? 68 : 40/);
+  assert.match(source, /const attackTempoMultiplier = boss\.configuredAttackTempoMultiplier/);
+  assert.match(source, /isGatekeeperPrimeRailPulseFrame\(combatFrame, healthRatio, attackTempoMultiplier\)/);
+  assert.match(source, /sample\.attack\.fireEndFrame - sample\.attack\.fireStartFrame/);
 });

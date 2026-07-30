@@ -287,7 +287,7 @@ const BossArchive: React.FC<BossArchiveProps> = ({
     );
   }
   const [selectedIndex, setSelectedIndex] = useState(initialIndexRef.current);
-  const [difficultyId, setDifficultyId] = useState<BossArchiveDifficultyId>('medium');
+  const [difficultyId, setDifficultyId] = useState<BossArchiveDifficultyId>('easy');
   const [showIndex, setShowIndex] = useState(false);
   const [showDeveloperTools, setShowDeveloperTools] = useState(false);
   const [revealEventId, setRevealEventId] = useState<string | null>(null);
@@ -451,7 +451,7 @@ const BossArchive: React.FC<BossArchiveProps> = ({
 
   const selectedDifficulty = BOSS_ARCHIVE_DIFFICULTIES.find(
     (difficulty) => difficulty.id === difficultyId
-  ) ?? BOSS_ARCHIVE_DIFFICULTIES[1];
+  ) ?? BOSS_ARCHIVE_DIFFICULTIES[0];
   const selectedDifficultyRecord = selectedItem?.unlocked
     ? getBossArchiveDifficultyRecord(selectedItem.record, difficultyId)
     : null;

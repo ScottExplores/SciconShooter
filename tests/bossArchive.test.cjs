@@ -333,7 +333,7 @@ test('replay campaign preserves structure and replaces only the selected boss wa
   assert.equal(archive.buildBossReplayCampaign('unknown-event'), null);
 });
 
-test('archive difficulty scales only the cloned boss while Medium stays authored', () => {
+test('archive Easy stays authored while Medium and Heroic scale only the cloned boss', () => {
   const selected = archive.BOSS_ARCHIVE_CATALOG.find((entry) => entry.missionNumber === 10)
     ?? archive.BOSS_ARCHIVE_CATALOG[0];
   const originalSnapshot = clone(campaign);
@@ -349,15 +349,19 @@ test('archive difficulty scales only the cloned boss while Medium stays authored
   const easy = replayBoss('easy');
   const medium = replayBoss('medium');
   const heroic = replayBoss('heroic');
-  assert.equal(medium.health, authoredBoss.health);
-  assert.equal(medium.speed, authoredBoss.speed);
-  assert.equal(easy.health, authoredBoss.health * 0.75);
-  assert.equal(heroic.health, authoredBoss.health * 1.5);
-  assert.equal(easy.speed, authoredBoss.speed * 0.9);
-  assert.equal(heroic.speed, authoredBoss.speed * 1.2);
+  assert.equal(archive.normalizeBossArchiveDifficultyId(undefined), 'easy');
+  assert.equal(archive.normalizeBossArchiveDifficultyId('unknown'), 'easy');
+  assert.deepEqual(replayBoss(undefined), easy);
+  assert.equal(easy.health, authoredBoss.health);
+  assert.equal(easy.speed, authoredBoss.speed);
+  assert.equal(medium.health, authoredBoss.health * 1.25);
+  assert.equal(heroic.health, authoredBoss.health * 1.65);
+  assert.equal(medium.speed, authoredBoss.speed * 1.12);
+  assert.equal(heroic.speed, authoredBoss.speed * 1.28);
   assert.equal(easy.weapons[0].damage, authoredBoss.weapons[0].damage);
   assert.equal(heroic.weapons[0].damage, authoredBoss.weapons[0].damage);
-  assert.ok(easy.weapons[0].attackIntervalSeconds > authoredBoss.weapons[0].attackIntervalSeconds);
+  assert.equal(easy.weapons[0].attackIntervalSeconds, authoredBoss.weapons[0].attackIntervalSeconds);
+  assert.ok(medium.weapons[0].attackIntervalSeconds < authoredBoss.weapons[0].attackIntervalSeconds);
   assert.ok(heroic.weapons[0].attackIntervalSeconds < authoredBoss.weapons[0].attackIntervalSeconds);
   assert.deepEqual(
     easy.phases.map((phase) => phase.speedMultiplier),
@@ -369,8 +373,9 @@ test('archive difficulty scales only the cloned boss while Medium stays authored
   );
   if (authoredBoss.componentHealth) {
     for (const [componentId, health] of Object.entries(authoredBoss.componentHealth)) {
-      assert.equal(easy.componentHealth[componentId], health * 0.75);
-      assert.equal(heroic.componentHealth[componentId], health * 1.5);
+      assert.equal(easy.componentHealth[componentId], health);
+      assert.equal(medium.componentHealth[componentId], health * 1.25);
+      assert.equal(heroic.componentHealth[componentId], health * 1.65);
     }
   }
   assert.deepEqual(campaign, originalSnapshot);
@@ -381,11 +386,48 @@ test('archive difficulty scales only the cloned boss while Medium stays authored
       tempoMultiplier
     })),
     [
-      { id: 'easy', healthMultiplier: 0.75, tempoMultiplier: 0.9 },
-      { id: 'medium', healthMultiplier: 1, tempoMultiplier: 1 },
-      { id: 'heroic', healthMultiplier: 1.5, tempoMultiplier: 1.2 }
+      { id: 'easy', healthMultiplier: 1, tempoMultiplier: 1 },
+      { id: 'medium', healthMultiplier: 1.25, tempoMultiplier: 1.12 },
+      { id: 'heroic', healthMultiplier: 1.65, tempoMultiplier: 1.28 }
     ]
   );
+});
+
+test('every Archive boss keeps exact Easy combat data and carries exact hard-mode tempo', () => {
+  for (const entry of archive.BOSS_ARCHIVE_CATALOG) {
+    const authored = campaign.levels
+      .find((level) => level.id === entry.missionId)
+      .waves.find((wave) => wave.id === entry.waveId)
+      .events.find((event) => event.id === entry.eventId);
+    const replayBoss = (difficultyId) => archive.buildBossReplayCampaign(entry.eventId, difficultyId)
+      .levels.find((level) => level.id === entry.missionId)
+      .waves.find((wave) => wave.id === entry.waveId)
+      .events[0];
+    const easy = replayBoss('easy');
+    const medium = replayBoss('medium');
+    const heroic = replayBoss('heroic');
+    const { startSeconds: authoredStartSeconds, ...authoredCombatData } = authored;
+    const { startSeconds: easyStartSeconds, ...easyCombatData } = easy;
+
+    assert.notEqual(authoredStartSeconds, undefined);
+    assert.equal(easyStartSeconds, 0);
+    assert.deepEqual(easyCombatData, authoredCombatData, entry.eventId);
+    assert.equal('attackTempoMultiplier' in easy, false, entry.eventId);
+    assert.equal(medium.attackTempoMultiplier, 1.12, entry.eventId);
+    assert.equal(heroic.attackTempoMultiplier, 1.28, entry.eventId);
+    assert.ok(medium.health > easy.health, entry.eventId);
+    assert.ok(heroic.health > medium.health, entry.eventId);
+    assert.ok(medium.weapons.every((weapon, index) => (
+      weapon.attackIntervalSeconds < easy.weapons[index].attackIntervalSeconds
+      && weapon.damage === easy.weapons[index].damage
+      && weapon.projectileSpeed === easy.weapons[index].projectileSpeed
+    )), entry.eventId);
+    assert.ok(heroic.weapons.every((weapon, index) => (
+      weapon.attackIntervalSeconds < medium.weapons[index].attackIntervalSeconds
+      && weapon.damage === easy.weapons[index].damage
+      && weapon.projectileSpeed === easy.weapons[index].projectileSpeed
+    )), entry.eventId);
+  }
 });
 
 test('service imports the canonical art resolver rather than constructing asset paths', () => {
@@ -409,7 +451,7 @@ test('production integration unlocks only authored boss victories and keeps repl
   assert.match(app, /if \(isBossArchiveRun\) return null/);
   assert.match(app, /if \(!isCampaignRun && !isNonCompetitiveRun && summary\.bossEncounterId\)/);
   assert.match(app, /campaign:\s*activeBossReplayCampaign\s*\?\?/);
-  assert.match(app, /buildBossReplayCampaign\(\s*activeBossEncounterId,\s*activeBossArchiveRun\?\.difficultyId \?\? 'medium'/);
+  assert.match(app, /buildBossReplayCampaign\(\s*activeBossEncounterId,\s*activeBossArchiveRun\?\.difficultyId \?\? 'easy'/);
   assert.match(app, /beginBossArchiveFightEconomy\([\s\S]*?difficultyId: bossDifficultyId,[\s\S]*?attemptId: reservedArchiveResultId!/);
   assert.match(app, /difficultyId: bossDifficultyId,[\s\S]*?seed: `boss-archive:/);
   assert.doesNotMatch(app, /'practice'|Practice Run|Practice remains available/);

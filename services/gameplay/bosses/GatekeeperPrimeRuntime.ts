@@ -81,6 +81,22 @@ export const GATEKEEPER_PRIME_MINIMUM_ROUTE_CLEARANCE_PIXELS = 6;
 export const GATEKEEPER_PRIME_MOBILE_PROJECTILE_CAP = 18;
 export const GATEKEEPER_PRIME_DESKTOP_PROJECTILE_CAP = 24;
 
+export interface GatekeeperPrimeAttackSchedule {
+  readonly attackTempoMultiplier: number;
+  readonly attackCycleFrames: number;
+  readonly signatureCycleFrames: number;
+  readonly sequenceFrames: number;
+  readonly telegraphStartFrame: number;
+  readonly fireStartFrame: number;
+  readonly fireEndFrame: number;
+  readonly recoveryEndFrame: number;
+  readonly signatureVolleyFrames: readonly number[];
+  readonly signatureTelegraphStartFrame: number;
+  readonly signatureFireStartFrame: number;
+  readonly signatureFireEndFrame: number;
+  readonly signatureRecoveryEndFrame: number;
+}
+
 const ATTACK_ORDER = Object.freeze([
   'rail-fan',
   'core-lane',
@@ -97,6 +113,95 @@ const PLAYER_COLLISION = Object.freeze({
 const clamp = (value: number, minimum: number, maximum: number) => (
   Math.max(minimum, Math.min(maximum, value))
 );
+
+const normalizeAttackTempoMultiplier = (value: number) => (
+  clamp(Number.isFinite(value) ? value : 1, 1, 1.35)
+);
+
+const scaleAttackFrames = (frames: number, tempoMultiplier: number, minimum = 1) => (
+  Math.max(minimum, Math.round(frames / normalizeAttackTempoMultiplier(tempoMultiplier)))
+);
+
+/**
+ * Compresses deterministic settle/return cadence without shortening either
+ * lane warning below its authored 48-frame readability contract. Integer
+ * boundaries ensure warning/fire equality triggers cannot be skipped.
+ */
+export const resolveGatekeeperPrimeAttackSchedule = (
+  attackTempoMultiplier = 1
+): GatekeeperPrimeAttackSchedule => {
+  const tempo = normalizeAttackTempoMultiplier(attackTempoMultiplier);
+  const telegraphStartFrame = scaleAttackFrames(
+    GATEKEEPER_PRIME_TELEGRAPH_START_FRAME,
+    tempo
+  );
+  const fireStartFrame = telegraphStartFrame + Math.max(
+    48,
+    scaleAttackFrames(
+      GATEKEEPER_PRIME_FIRE_START_FRAME - GATEKEEPER_PRIME_TELEGRAPH_START_FRAME,
+      tempo
+    )
+  );
+  const fireEndFrame = fireStartFrame + scaleAttackFrames(
+    GATEKEEPER_PRIME_FIRE_END_FRAME - GATEKEEPER_PRIME_FIRE_START_FRAME,
+    tempo,
+    24
+  );
+  const recoveryEndFrame = fireEndFrame + scaleAttackFrames(
+    GATEKEEPER_PRIME_RECOVERY_END_FRAME - GATEKEEPER_PRIME_FIRE_END_FRAME,
+    tempo,
+    24
+  );
+  const attackCycleFrames = Math.max(
+    recoveryEndFrame + 1,
+    scaleAttackFrames(GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES, tempo)
+  );
+
+  // Keep the three aimed volleys and their acquisition runway intact. Their
+  // constructive mobile dodge relies on the authored 77-frame spacing; the
+  // hard-mode pressure comes from shorter beam/recovery and repeat cadence.
+  const signatureTelegraphStartFrame = GATEKEEPER_PRIME_SIGNATURE_TELEGRAPH_START_FRAME;
+  const signatureFireStartFrame = signatureTelegraphStartFrame + Math.max(
+    48,
+    scaleAttackFrames(
+      GATEKEEPER_PRIME_SIGNATURE_FIRE_START_FRAME
+        - GATEKEEPER_PRIME_SIGNATURE_TELEGRAPH_START_FRAME,
+      tempo
+    )
+  );
+  const signatureFireEndFrame = signatureFireStartFrame + scaleAttackFrames(
+    GATEKEEPER_PRIME_SIGNATURE_FIRE_END_FRAME - GATEKEEPER_PRIME_SIGNATURE_FIRE_START_FRAME,
+    tempo,
+    30
+  );
+  const signatureRecoveryEndFrame = signatureFireEndFrame + scaleAttackFrames(
+    GATEKEEPER_PRIME_SIGNATURE_RECOVERY_END_FRAME
+      - GATEKEEPER_PRIME_SIGNATURE_FIRE_END_FRAME,
+    tempo,
+    8
+  );
+  const signatureCycleFrames = Math.max(
+    signatureRecoveryEndFrame + 1,
+    scaleAttackFrames(GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES, tempo)
+  );
+  const signatureVolleyFrames = GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES;
+
+  return Object.freeze({
+    attackTempoMultiplier: tempo,
+    attackCycleFrames,
+    signatureCycleFrames,
+    sequenceFrames: signatureCycleFrames + attackCycleFrames * 2,
+    telegraphStartFrame,
+    fireStartFrame,
+    fireEndFrame,
+    recoveryEndFrame,
+    signatureVolleyFrames,
+    signatureTelegraphStartFrame,
+    signatureFireStartFrame,
+    signatureFireEndFrame,
+    signatureRecoveryEndFrame
+  });
+};
 
 const smoothstep = (value: number) => {
   const progress = clamp(value, 0, 1);
@@ -135,38 +240,40 @@ export const resolveGatekeeperPrimePhase = (
 };
 
 export const sampleGatekeeperPrimeAttack = (
-  combatFrame: number
+  combatFrame: number,
+  attackTempoMultiplier = 1
 ): GatekeeperPrimeAttackSample => {
   const frame = Math.max(0, Math.floor(Number(combatFrame) || 0));
-  const sequenceFrame = frame % GATEKEEPER_PRIME_SEQUENCE_FRAMES;
+  const schedule = resolveGatekeeperPrimeAttackSchedule(attackTempoMultiplier);
+  const sequenceFrame = frame % schedule.sequenceFrames;
   const attackIndex = (
-    sequenceFrame < GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
+    sequenceFrame < schedule.signatureCycleFrames
       ? 0
-      : sequenceFrame < GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
-        + GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES
+      : sequenceFrame < schedule.signatureCycleFrames
+        + schedule.attackCycleFrames
         ? 1
         : 2
   ) as 0 | 1 | 2;
   const localFrame = attackIndex === 0
     ? sequenceFrame
     : attackIndex === 1
-      ? sequenceFrame - GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
+      ? sequenceFrame - schedule.signatureCycleFrames
       : sequenceFrame
-        - GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
-        - GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES;
+        - schedule.signatureCycleFrames
+        - schedule.attackCycleFrames;
   const signatureAttack = attackIndex === 0;
   const telegraphStartFrame = signatureAttack
-    ? GATEKEEPER_PRIME_SIGNATURE_TELEGRAPH_START_FRAME
-    : GATEKEEPER_PRIME_TELEGRAPH_START_FRAME;
+    ? schedule.signatureTelegraphStartFrame
+    : schedule.telegraphStartFrame;
   const fireStartFrame = signatureAttack
-    ? GATEKEEPER_PRIME_SIGNATURE_FIRE_START_FRAME
-    : GATEKEEPER_PRIME_FIRE_START_FRAME;
+    ? schedule.signatureFireStartFrame
+    : schedule.fireStartFrame;
   const fireEndFrame = signatureAttack
-    ? GATEKEEPER_PRIME_SIGNATURE_FIRE_END_FRAME
-    : GATEKEEPER_PRIME_FIRE_END_FRAME;
+    ? schedule.signatureFireEndFrame
+    : schedule.fireEndFrame;
   const recoveryEndFrame = signatureAttack
-    ? GATEKEEPER_PRIME_SIGNATURE_RECOVERY_END_FRAME
-    : GATEKEEPER_PRIME_RECOVERY_END_FRAME;
+    ? schedule.signatureRecoveryEndFrame
+    : schedule.recoveryEndFrame;
   const stage: GatekeeperPrimeAttackStage = localFrame < telegraphStartFrame
     ? 'settle'
     : localFrame < fireStartFrame
@@ -200,7 +307,8 @@ export const sampleGatekeeperPrimePatrol = ({
   viewportWidth,
   viewportHeight,
   bossWidth,
-  bossHeight
+  bossHeight,
+  attackTempoMultiplier = 1
 }: {
   readonly combatFrame: number;
   readonly healthRatio: number;
@@ -208,10 +316,12 @@ export const sampleGatekeeperPrimePatrol = ({
   readonly viewportHeight: number;
   readonly bossWidth: number;
   readonly bossHeight: number;
+  readonly attackTempoMultiplier?: number;
 }): GatekeeperPrimePatrolSample => {
   const frame = Math.max(0, Math.floor(Number(combatFrame) || 0));
+  const schedule = resolveGatekeeperPrimeAttackSchedule(attackTempoMultiplier);
   const phase = resolveGatekeeperPrimePhase(healthRatio);
-  const attack = sampleGatekeeperPrimeAttack(frame);
+  const attack = sampleGatekeeperPrimeAttack(frame, schedule.attackTempoMultiplier);
   const edgeInset = viewportWidth < 520 ? 12 : 18;
   const minimumX = edgeInset;
   const maximumX = Math.max(minimumX, viewportWidth - bossWidth - edgeInset);
@@ -244,8 +354,8 @@ export const sampleGatekeeperPrimePatrol = ({
   );
   const normalizedFrame = attack.localFrame / (
     attack.attackId === 'rail-fan'
-      ? GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
-      : GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES
+      ? schedule.signatureCycleFrames
+      : schedule.attackCycleFrames
   );
   const verticalProgress = normalizedFrame < 0.44
     ? smoothstep(normalizedFrame / 0.44)
@@ -271,11 +381,14 @@ export const sampleGatekeeperPrimePatrol = ({
 
 export const isGatekeeperPrimeRailPulseFrame = (
   combatFrame: number,
-  healthRatio: number
+  healthRatio: number,
+  attackTempoMultiplier = 1
 ) => {
-  const attack = sampleGatekeeperPrimeAttack(combatFrame);
+  const schedule = resolveGatekeeperPrimeAttackSchedule(attackTempoMultiplier);
+  const attack = sampleGatekeeperPrimeAttack(combatFrame, schedule.attackTempoMultiplier);
   return attack.attackId === 'rail-fan'
-    && resolveGatekeeperPrimePhase(healthRatio).railPulseFrames.includes(attack.localFrame);
+    && resolveGatekeeperPrimePhase(healthRatio).railPulseFrames.length > 0
+    && schedule.signatureVolleyFrames.includes(attack.localFrame);
 };
 
 const fnv1a = (value: string) => {
@@ -321,14 +434,17 @@ const proveRailFanRoute = ({
   width,
   height,
   bossWidth,
-  bossHeight
+  bossHeight,
+  attackTempoMultiplier
 }: {
   readonly viewportId: string;
   readonly width: number;
   readonly height: number;
   readonly bossWidth: number;
   readonly bossHeight: number;
+  readonly attackTempoMultiplier: number;
 }): GatekeeperPrimeRouteProof => {
+  const schedule = resolveGatekeeperPrimeAttackSchedule(attackTempoMultiplier);
   const points: Array<{ x: number; y: number }> = [];
   const projectiles: Array<{ x: number; y: number; vx: number; vy: number }> = [];
   const playerY = height - PLAYER_COLLISION.height / 2 - (width < 520 ? 24 : 34);
@@ -337,7 +453,7 @@ const proveRailFanRoute = ({
   let minimumClearance = Number.POSITIVE_INFINITY;
   const phase = resolveGatekeeperPrimePhase(0.2);
 
-  for (let frame = 0; frame <= GATEKEEPER_PRIME_SIGNATURE_FIRE_END_FRAME; frame += 1) {
+  for (let frame = 0; frame <= schedule.signatureFireEndFrame; frame += 1) {
     if (frame >= 24) {
       const beamCenterX = width * 0.7;
       const beamHalfWidth = (width < 520 ? 19 : 24)
@@ -353,11 +469,11 @@ const proveRailFanRoute = ({
         - PLAYER_COLLISION.width / 2
         - GATEKEEPER_PRIME_MINIMUM_ROUTE_CLEARANCE_PIXELS
         - 8;
-      const targetX = frame <= GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES[0]
+      const targetX = frame <= schedule.signatureVolleyFrames[0]
         ? dodgeTargetX
-        : frame <= GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES[1]
+        : frame <= schedule.signatureVolleyFrames[1]
           ? leftDodgeTargetX
-          : frame <= GATEKEEPER_PRIME_SIGNATURE_VOLLEY_FRAMES[2]
+          : frame <= schedule.signatureVolleyFrames[2]
             ? dodgeTargetX
             : warnedSafeTargetX;
       const desiredVelocity = clamp(
@@ -385,14 +501,15 @@ const proveRailFanRoute = ({
     playerX = nextPlayerX;
     points.push({ x: playerX, y: playerY });
 
-    if (phase.railPulseFrames.includes(frame)) {
+    if (phase.railPulseFrames.length > 0 && schedule.signatureVolleyFrames.includes(frame)) {
       const patrol = sampleGatekeeperPrimePatrol({
         combatFrame: frame,
         healthRatio: 0.2,
         viewportWidth: width,
         viewportHeight: height,
         bossWidth,
-        bossHeight
+        bossHeight,
+        attackTempoMultiplier: schedule.attackTempoMultiplier
       });
       const origins = [0.22, 0.78].map((xRatio) => ({
         x: patrol.x + bossWidth * xRatio,
@@ -431,8 +548,8 @@ const proveRailFanRoute = ({
     }
 
     if (
-      frame >= GATEKEEPER_PRIME_SIGNATURE_FIRE_START_FRAME
-      && frame < GATEKEEPER_PRIME_SIGNATURE_FIRE_END_FRAME
+      frame >= schedule.signatureFireStartFrame
+      && frame < schedule.signatureFireEndFrame
     ) {
       // Prove the harder branch: the warned core beam shifts into the same
       // right-hand lane used by the opening dodge, so the witness must reverse
@@ -468,26 +585,30 @@ const proveCoreLaneRoute = ({
   width,
   height,
   bossWidth,
-  bossHeight
+  bossHeight,
+  attackTempoMultiplier
 }: {
   readonly viewportId: string;
   readonly width: number;
   readonly height: number;
   readonly bossWidth: number;
   readonly bossHeight: number;
+  readonly attackTempoMultiplier: number;
 }): GatekeeperPrimeRouteProof => {
+  const schedule = resolveGatekeeperPrimeAttackSchedule(attackTempoMultiplier);
   const points: Array<{ x: number; y: number }> = [];
   const playerX = PLAYER_COLLISION.width / 2 + 9;
   const playerY = height - PLAYER_COLLISION.height / 2 - (width < 520 ? 24 : 34);
   let minimumClearance = Number.POSITIVE_INFINITY;
-  for (let frame = GATEKEEPER_PRIME_FIRE_START_FRAME; frame < GATEKEEPER_PRIME_FIRE_END_FRAME; frame += 1) {
+  for (let frame = schedule.fireStartFrame; frame < schedule.fireEndFrame; frame += 1) {
     const patrol = sampleGatekeeperPrimePatrol({
-      combatFrame: GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES + frame,
+      combatFrame: schedule.signatureCycleFrames + frame,
       healthRatio: 0.2,
       viewportWidth: width,
       viewportHeight: height,
       bossWidth,
-      bossHeight
+      bossHeight,
+      attackTempoMultiplier: schedule.attackTempoMultiplier
     });
     points.push({ x: playerX, y: playerY });
     const beamCenter = patrol.x + bossWidth / 2 - 16;
@@ -515,14 +636,17 @@ const proveTwinGateRoute = ({
   width,
   height,
   bossWidth,
-  bossHeight
+  bossHeight,
+  attackTempoMultiplier
 }: {
   readonly viewportId: string;
   readonly width: number;
   readonly height: number;
   readonly bossWidth: number;
   readonly bossHeight: number;
+  readonly attackTempoMultiplier: number;
 }): GatekeeperPrimeRouteProof => {
+  const schedule = resolveGatekeeperPrimeAttackSchedule(attackTempoMultiplier);
   const points: Array<{ x: number; y: number }> = [];
   const playerY = height - PLAYER_COLLISION.height / 2 - (width < 520 ? 24 : 34);
   let minimumClearance = Number.POSITIVE_INFINITY;
@@ -532,17 +656,18 @@ const proveTwinGateRoute = ({
   // The corridor is visible for the complete telegraph, so the witness enters
   // it from rest before the damaging beams begin. Motion feasibility is still
   // checked frame-to-frame across the complete acquisition and live interval.
-  for (let frame = 0; frame < GATEKEEPER_PRIME_FIRE_END_FRAME; frame += 1) {
+  for (let frame = 0; frame < schedule.fireEndFrame; frame += 1) {
     const patrol = sampleGatekeeperPrimePatrol({
       combatFrame:
-        GATEKEEPER_PRIME_SIGNATURE_CYCLE_FRAMES
-        + GATEKEEPER_PRIME_ATTACK_CYCLE_FRAMES
+        schedule.signatureCycleFrames
+        + schedule.attackCycleFrames
         + frame,
       healthRatio: 0.2,
       viewportWidth: width,
       viewportHeight: height,
       bossWidth,
-      bossHeight
+      bossHeight,
+      attackTempoMultiplier: schedule.attackTempoMultiplier
     });
     const playerX = patrol.x + bossWidth / 2;
     if (previousX !== undefined) {
@@ -555,9 +680,9 @@ const proveTwinGateRoute = ({
       previousVelocity = velocity;
     }
     previousX = playerX;
-    if (frame < GATEKEEPER_PRIME_TELEGRAPH_START_FRAME) continue;
+    if (frame < schedule.telegraphStartFrame) continue;
     points.push({ x: playerX, y: playerY });
-    if (frame < GATEKEEPER_PRIME_FIRE_START_FRAME) continue;
+    if (frame < schedule.fireStartFrame) continue;
     const leftBeamCenter = patrol.x + bossWidth * 0.24;
     const rightBeamCenter = patrol.x + bossWidth * 0.76;
     const beamHalfWidth = (width < 520 ? 9 : 11) + GATEKEEPER_PRIME_ROUTE_UNCERTAINTY_PIXELS;
@@ -585,15 +710,17 @@ export const proveGatekeeperPrimeRoutes = ({
   width,
   height,
   bossWidth = 220,
-  bossHeight = 200
+  bossHeight = 200,
+  attackTempoMultiplier = 1
 }: {
   readonly viewportId: string;
   readonly width: number;
   readonly height: number;
   readonly bossWidth?: number;
   readonly bossHeight?: number;
+  readonly attackTempoMultiplier?: number;
 }): readonly GatekeeperPrimeRouteProof[] => Object.freeze([
-  proveRailFanRoute({ viewportId, width, height, bossWidth, bossHeight }),
-  proveCoreLaneRoute({ viewportId, width, height, bossWidth, bossHeight }),
-  proveTwinGateRoute({ viewportId, width, height, bossWidth, bossHeight })
+  proveRailFanRoute({ viewportId, width, height, bossWidth, bossHeight, attackTempoMultiplier }),
+  proveCoreLaneRoute({ viewportId, width, height, bossWidth, bossHeight, attackTempoMultiplier }),
+  proveTwinGateRoute({ viewportId, width, height, bossWidth, bossHeight, attackTempoMultiplier })
 ]);

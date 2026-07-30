@@ -331,7 +331,9 @@ const sanitizeLastResult = (value: unknown): BossArchiveLastResult | null => {
   if (!playedAt) return null;
   return {
     mode: value.mode,
-    difficultyId: normalizeBossArchiveDifficultyId(value.difficultyId),
+    // Historical records predate explicit difficulty IDs and used the former
+    // Campaign-equivalent Medium label. Preserve that display classification.
+    difficultyId: normalizeBossArchiveDifficultyId(value.difficultyId, 'medium'),
     victory: value.victory === true,
     clearTimeMs: normalizeDuration(value.clearTimeMs),
     damageTaken: clampInteger(value.damageTaken, 0, 1_000_000),
@@ -1157,7 +1159,7 @@ export const createBossArchiveDeveloperControls = (
         accepted: false,
         duplicate: false,
         reason: 'locked-boss',
-        difficultyId: 'medium',
+        difficultyId: 'easy',
         challengeChargeConsumed: false,
         challengeRewardCoins: 0,
         newlyCompletedObjectiveIds: [],
@@ -1170,7 +1172,7 @@ export const createBossArchiveDeveloperControls = (
     const attemptId = `dev-preview:${eventId}:${now.toISOString()}`;
     const launch = beginBossArchiveFight(
       state,
-      { eventId, difficultyId: 'medium', attemptId },
+      { eventId, difficultyId: 'easy', attemptId },
       { now }
     );
     if (!launch.accepted) {

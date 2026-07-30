@@ -485,6 +485,48 @@
   image-rendering: pixelated;
 }
 
+.boss-archive-portrait__assembly,
+.boss-archive-portrait__layer {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.boss-archive-portrait__layer[data-motion-role='port-limb'] {
+  transform-origin: 76% 46%;
+}
+
+.boss-archive-portrait__layer[data-motion-role='starboard-limb'] {
+  transform-origin: 24% 46%;
+}
+
+.boss-archive-portrait__layer[data-motion-role='core'] {
+  transform-origin: 50% 72%;
+}
+
+.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
+  .boss-archive-portrait__assembly {
+  animation: boss-archive-intact-hover 4.8s steps(12, end) infinite;
+}
+
+.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
+  .boss-archive-portrait__layer[data-motion-role='port-limb'] {
+  animation: boss-archive-port-articulation 5.6s steps(14, end) infinite;
+}
+
+.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
+  .boss-archive-portrait__layer[data-motion-role='starboard-limb'] {
+  animation: boss-archive-starboard-articulation 5.6s steps(14, end) infinite;
+}
+
+.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
+  .boss-archive-portrait__layer[data-motion-role='core'] {
+  animation: boss-archive-core-breathe 4.1s steps(10, end) infinite;
+}
+
+img.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='false'] {
+  animation: boss-archive-intact-hover 4.8s steps(12, end) infinite;
+}
+
 .boss-archive-carousel__unknown {
   position: relative;
   display: grid;
@@ -1400,6 +1442,26 @@
   100% { opacity: 1; filter: drop-shadow(0 0 1.2rem rgb(34 211 238 / 54%)); transform: scale(1); }
 }
 
+@keyframes boss-archive-intact-hover {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes boss-archive-port-articulation {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  50% { transform: rotate(-1.6deg) translateY(-1px); }
+}
+
+@keyframes boss-archive-starboard-articulation {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  50% { transform: rotate(1.6deg) translateY(-1px); }
+}
+
+@keyframes boss-archive-core-breathe {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
+}
+
 @media (min-width: 640px) {
   .boss-archive-overlay { padding: 1.1rem; align-items: center; }
   .boss-archive-shell { max-height: min(92dvh, 56rem); }
@@ -1490,6 +1552,12 @@
   .boss-archive-reveal::after,
   .boss-archive-reveal__scan,
   .boss-archive-reveal__portrait {
+    animation: none !important;
+  }
+
+  .boss-archive-carousel__portrait,
+  .boss-archive-portrait__assembly,
+  .boss-archive-portrait__layer {
     animation: none !important;
   }
 

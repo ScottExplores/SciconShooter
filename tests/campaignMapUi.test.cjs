@@ -111,9 +111,10 @@ test('locked boss nodes use their canonical preview only as a silhouette and nev
   assert.doesNotMatch(mapSource, /bosses\/.*\?\?/);
 });
 
-test('regular nodes are numbered, completed nodes are distinct, and sector routes split then rejoin', () => {
-  assert.match(mapSource, /campaign-map-node-stage-number/);
-  assert.match(mapSource, /campaign-map-selection-mission-number/);
+test('regular nodes use numbered celestial buttons, completed nodes are distinct, and sector routes split then rejoin', () => {
+  assert.match(mapSource, /CampaignMapCelestial/);
+  assert.match(mapSource, /missionLabel=\{missionDisplayLabel\}/);
+  assert.match(mapSource, /className="campaign-map-celestial--selection"/);
   assert.match(mapSource, /campaign-map-node-cleared/);
   assert.doesNotMatch(mapSource, /src=\{mission\.previewUrl\}|src=\{selectedMission\.previewUrl\}/);
   assert.match(mapSource, /entry\.id, toMissionId: leftRoute\.id/);
@@ -124,6 +125,26 @@ test('regular nodes are numbered, completed nodes are distinct, and sector route
   assert.match(mapSource, /data-campaign-route-edge/);
   assert.match(mapStyles, /\.campaign-map-node--completed:not\(\.campaign-map-node--boss\) \.campaign-map-node-core/);
   assert.match(mapStyles, /\.campaign-map-node-cleared/);
+});
+
+test('Campaign Map centers the initial long route before paint and reserves smooth motion for later navigation', () => {
+  assert.match(mapSource, /initialRouteCenterPendingRef/);
+  assert.match(mapSource, /target\.getBoundingClientRect\(\)/);
+  assert.match(mapSource, /scroller\.getBoundingClientRect\(\)/);
+  assert.match(mapSource, /if \(behavior === 'auto'\) scroller\.scrollTop = clampedTop/);
+  assert.match(mapSource, /centerSelected\('auto'\)/);
+  assert.match(mapSource, /window\.cancelAnimationFrame\(layoutFrame\)/);
+  assert.match(mapSource, /window\.cancelAnimationFrame\(settleFrame\)/);
+  assert.match(mapStyles, /\.campaign-map-route-scroll[\s\S]*?overflow-anchor: none/);
+});
+
+test('Campaign celestial motion is limited to selected, current, and hovered nodes with reduced-motion protection', () => {
+  const baseCelestialSpriteRule = mapStyles.match(/^\.campaign-map-celestial__sprite\s*\{[^}]*\}/m)?.[0] ?? '';
+  assert.match(mapStyles, /\.campaign-map-node--current \.campaign-map-celestial__sprite/);
+  assert.match(mapStyles, /\.campaign-map-node\.is-selected \.campaign-map-celestial__sprite/);
+  assert.match(mapStyles, /@media \(hover: hover\) and \(pointer: fine\)/);
+  assert.doesNotMatch(baseCelestialSpriteRule, /animation:/);
+  assert.match(mapStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.campaign-map-celestial__sprite[\s\S]*?animation: none !important/);
 });
 
 test('Campaign Map is an opaque routed screen with a real Back-to-Home transition', () => {

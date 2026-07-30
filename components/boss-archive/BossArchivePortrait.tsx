@@ -10,10 +10,11 @@ export interface BossArchivePortraitProps {
 }
 
 /**
- * Renders one motionless, intact Archive portrait. Bosses with detachable
+ * Renders one intact Archive portrait. Bosses with detachable
  * weapons use their authored neutral rig layers inside a single SVG viewport;
- * every other boss remains one flattened image. No combat or damage timer is
- * mounted here.
+ * selected composed portraits can articulate those internal layers while
+ * flattened bosses receive only a small hover. No combat frame, damage frame,
+ * React timer, or image-source swap is mounted here.
  */
 const BossArchivePortrait: React.FC<BossArchivePortraitProps> = ({
   entry,
@@ -33,24 +34,31 @@ const BossArchivePortrait: React.FC<BossArchivePortraitProps> = ({
         viewBox={`0 0 ${composition.width} ${composition.height}`}
         preserveAspectRatio="xMidYMid meet"
       >
-        {composition.layers.map((layer, index) => {
-          const centerX = layer.x + layer.width / 2;
-          const centerY = layer.y + layer.height / 2;
-          return (
-            <image
-              key={`${layer.url}:${index}`}
-              href={layer.url}
-              x={layer.x}
-              y={layer.y}
-              width={layer.width}
-              height={layer.height}
-              preserveAspectRatio="none"
-              transform={layer.rotationDegrees
-                ? `rotate(${layer.rotationDegrees} ${centerX} ${centerY})`
-                : undefined}
-            />
-          );
-        })}
+        <g className="boss-archive-portrait__assembly">
+          {composition.layers.map((layer, index) => {
+            const centerX = layer.x + layer.width / 2;
+            const centerY = layer.y + layer.height / 2;
+            return (
+              <g
+                key={`${layer.url}:${index}`}
+                className="boss-archive-portrait__layer"
+                data-motion-role={layer.motionRole ?? 'hull'}
+              >
+                <image
+                  href={layer.url}
+                  x={layer.x}
+                  y={layer.y}
+                  width={layer.width}
+                  height={layer.height}
+                  preserveAspectRatio="none"
+                  transform={layer.rotationDegrees
+                    ? `rotate(${layer.rotationDegrees} ${centerX} ${centerY})`
+                    : undefined}
+                />
+              </g>
+            );
+          })}
+        </g>
       </svg>
     );
   }
@@ -62,6 +70,7 @@ const BossArchivePortrait: React.FC<BossArchivePortraitProps> = ({
       decoding={eager ? 'sync' : 'async'}
       loading={eager ? 'eager' : 'lazy'}
       className={className}
+      data-composed="false"
       data-idle-preview={idlePreview}
     />
   );

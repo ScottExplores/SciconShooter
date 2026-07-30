@@ -44,10 +44,10 @@ const bossArchiveStub = {
       : []);
     return SAMPLE_BOSSES.filter((entry) => requested.has(entry.eventId)).map((entry) => entry.eventId);
   },
-  normalizeBossArchiveDifficultyId: (value) => (
+  normalizeBossArchiveDifficultyId: (value, fallback = 'easy') => (
     ['easy', 'medium', 'heroic'].includes(String(value).trim().toLowerCase())
       ? String(value).trim().toLowerCase()
-      : 'medium'
+      : fallback
   )
 };
 
