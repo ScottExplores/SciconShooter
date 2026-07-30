@@ -2243,6 +2243,12 @@ export const filterBossSandboxGroups = (
   }))
   .filter((group) => group.choices.length > 0);
 
+export const getDefaultBossSandboxChoice = (
+  choices: readonly BossSandboxChoice[]
+): BossSandboxChoice | undefined => (
+  choices.find((choice) => choice.source === 'campaign') ?? choices[0]
+);
+
 const getBossEvent = (preview: CombatLabPreviewResult): BossEvent => {
   const event = preview.previewWave.events.find((candidate) => candidate.kind === 'boss');
   if (!event || event.kind !== 'boss') throw new Error('Boss Sandbox preview must contain one boss');

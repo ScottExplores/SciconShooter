@@ -41,6 +41,7 @@ import {
   getBossSandboxEventId,
   getBossSandboxAttacks,
   getBossSandboxChoiceOptionLabel,
+  getDefaultBossSandboxChoice,
   getBossSandboxPerformingAttackId,
   getBossSandboxSelectorLabel,
   getSandboxBossArtworkRegistration,
@@ -194,9 +195,7 @@ function BossSandboxWorkspace({ initialState }: BossSandboxWorkspaceProps) {
     ])),
     [choices, initialState.campaign]
   );
-  const firstChoice = choices.find((choice) => choice.prototypeId === 'helios-clawcarrier')
-    ?? choices.find((choice) => choice.prototypeId === 'meridian-harrower')
-    ?? choices[0];
+  const firstChoice = getDefaultBossSandboxChoice(choices);
   const [selectedChoiceId, setSelectedChoiceId] = useState(firstChoice?.id ?? '');
   const [playing, setPlaying] = useState(true);
   const [invincible, setInvincible] = useState(true);

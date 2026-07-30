@@ -271,6 +271,44 @@ test('Boss Sandbox groups main-game and every non-campaign prototype without los
   assert.deepEqual(campaign, sourceSnapshot);
 });
 
+test('Boss Sandbox defaults to MAIN GAME and preserves the milestone campaign boss roster', () => {
+  const groups = model.buildBossSandboxGroups(campaign);
+  const campaignChoices = groups.find((group) => (
+    group.id === model.BOSS_SANDBOX_GROUP_IDS.campaign
+  )).choices;
+  const allChoices = groups.flatMap((group) => group.choices);
+
+  assert.equal(model.getDefaultBossSandboxChoice(allChoices), campaignChoices[0]);
+  assert.equal(model.getDefaultBossSandboxChoice(allChoices).source, 'campaign');
+
+  const expectedRoster = [
+    [5, 'GATEKEEPER PRIME', 'gatekeeper-prime'],
+    [10, 'Paywall Decimator', 'paywall-decimator'],
+    [15, 'Prism Moth Broodkeeper', 'prism-moth'],
+    [20, 'Frontier Crownclaw', 'frontier-crownclaw'],
+    [25, 'Helios Clawcarrier', 'helios-clawcarrier']
+  ];
+
+  const actualRoster = expectedRoster.map(([missionOrder]) => {
+    const choice = campaignChoices.find((candidate) => (
+      candidate.missionOrder === missionOrder
+    ));
+    assert.ok(choice, `M${missionOrder} must be selectable from MAIN GAME`);
+    assert.equal(choice.source, 'campaign');
+
+    const preview = model.buildBossSandboxPreview(campaign, choice);
+    const boss = preview.previewWave.events.find((event) => (
+      event.kind === 'boss' && event.id === choice.eventId
+    ));
+    assert.ok(boss, `M${missionOrder} must preview its selected campaign boss`);
+    assert.equal(preview.eventId, choice.eventId);
+
+    return [missionOrder, boss.label, boss.bossId];
+  });
+
+  assert.deepEqual(actualRoster, expectedRoster);
+});
+
 test('Mini-Boss Lab categories filter eight Campaign-assigned Sandbox-previewable encounters', () => {
   const groups = model.buildBossSandboxGroups(campaign);
   assert.deepEqual(
