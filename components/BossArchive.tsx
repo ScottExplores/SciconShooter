@@ -11,6 +11,7 @@ import {
   type BossArchiveProgress
 } from '../services/bossArchiveProgression';
 import BossArchiveCarousel from './boss-archive/BossArchiveCarousel';
+import BossArchivePortrait from './boss-archive/BossArchivePortrait';
 import {
   BOSS_ARCHIVE_DIFFICULTIES,
   buildBossArchiveViewEntries,
@@ -625,7 +626,11 @@ const BossArchive: React.FC<BossArchiveProps> = ({
                     onClick={() => { selectIndex(index); setShowIndex(false); }}
                   >
                     <span>{item.unlocked
-                      ? <img src={item.presentation.portraitUrl ?? item.entry.artUrl} alt="" />
+                      ? <BossArchivePortrait
+                          entry={item.entry}
+                          portraitUrl={item.presentation.portraitUrl ?? item.entry.artUrl}
+                          className="boss-archive-index__portrait"
+                        />
                       : <i className="boss-archive-index__unknown" aria-hidden="true">?</i>}</span>
                     <small>M-{String(item.entry.missionNumber).padStart(2, '0')}</small>
                     <strong>{item.unlocked ? item.entry.label : 'Unknown Signal'}</strong>
@@ -641,7 +646,12 @@ const BossArchive: React.FC<BossArchiveProps> = ({
             markEncounterViewed(selectedItem.entry.eventId);
           }} aria-label={`New boss unlocked: ${selectedItem.entry.label}. Skip reveal.`}>
             <span className="boss-archive-reveal__scan" aria-hidden="true" />
-            <img src={selectedItem.presentation.portraitUrl ?? selectedItem.entry.artUrl} alt="" />
+            <BossArchivePortrait
+              entry={selectedItem.entry}
+              portraitUrl={selectedItem.presentation.portraitUrl ?? selectedItem.entry.artUrl}
+              className="boss-archive-reveal__portrait"
+              eager
+            />
             <small>Archive signal resolved</small>
             <strong>{selectedItem.entry.label}</strong>
             <em>Tap to continue</em>

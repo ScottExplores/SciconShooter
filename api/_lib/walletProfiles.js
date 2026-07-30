@@ -1300,18 +1300,19 @@ const sanitizeBossArchiveProgress = (value, unlockedEventIds, now) => {
     && /^\d{4}-\d{2}-\d{2}$/.test(dailyAttempts.utcDateKey)
     ? dailyAttempts.utcDateKey
     : null;
+  const hasStoredDailyAttempts = Object.keys(dailyAttempts).length > 0;
   const hasCurrentDailyAttempts = storedAttemptDateKey === utcDateKey;
   const legacyAttemptIds = sanitizedDailyChallenge.processedClearIds;
   const sanitizedDailyAttempts = {
     utcDateKey,
     attemptsUsed: hasCurrentDailyAttempts
       ? integer(dailyAttempts.attemptsUsed, 0, BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT)
-      : Math.min(
+      : !hasStoredDailyAttempts ? Math.min(
           BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT,
           sanitizedDailyChallenge.successfulClearsUsed
-        ),
+        ) : 0,
     processedAttemptIds: stringList(
-      hasCurrentDailyAttempts ? dailyAttempts.processedAttemptIds : legacyAttemptIds,
+      hasStoredDailyAttempts ? dailyAttempts.processedAttemptIds : legacyAttemptIds,
       { maxItems: 64, maxLength: 120 }
     )
   };
@@ -1434,28 +1435,29 @@ const preserveBossArchiveServerState = ({
       ...ledgerIds
     ], { maxItems: 64, maxLength: 120 })
   };
-  const currentDailyAttempts = currentArchive.dailyAttempts?.utcDateKey === utcDateKey
-    ? currentArchive.dailyAttempts
-    : { utcDateKey, attemptsUsed: 0, processedAttemptIds: [] };
+  const storedDailyAttempts = currentArchive.dailyAttempts ?? {};
+  const currentDailyAttempts = storedDailyAttempts.utcDateKey === utcDateKey
+    ? storedDailyAttempts
+    : {
+        utcDateKey,
+        attemptsUsed: 0,
+        processedAttemptIds: storedDailyAttempts.processedAttemptIds ?? []
+      };
   const dailyAttempts = {
     utcDateKey,
     // Attempt consumption is server-owned. A normal client save can neither
     // restore a spent charge nor manufacture an idempotency receipt.
-    attemptsUsed: Math.max(
-      integer(currentDailyAttempts.attemptsUsed, 0, BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT),
-      Array.isArray(dailyLedger)
-        ? Math.min(BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT, dailyLedger.length)
-        : 0
+    // Successful-clear rows may belong to fights launched before UTC reset,
+    // so the launch ledger alone is authoritative for today's charge count.
+    attemptsUsed: integer(
+      currentDailyAttempts.attemptsUsed,
+      0,
+      BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT
     ),
-    processedAttemptIds: stringList([
-      ...stringList(currentDailyAttempts.processedAttemptIds, {
-        maxItems: 64,
-        maxLength: 120
-      }),
-      ...(Array.isArray(dailyLedger)
-        ? dailyLedger.map((row) => `boss-archive:${String(row.result_id || '')}`)
-        : [])
-    ], { maxItems: 64, maxLength: 120 })
+    processedAttemptIds: stringList(currentDailyAttempts.processedAttemptIds, {
+      maxItems: 64,
+      maxLength: 120
+    })
   };
   const requestedSelection = incomingArchive.lastSelectedEventId
     ?? currentArchive.lastSelectedEventId;
@@ -2519,9 +2521,14 @@ const reserveBossArchiveDailyAttempt = async ({
         { code: 'boss_locked' }
       );
     }
-    const currentDaily = archive.dailyAttempts?.utcDateKey === utcDateKey
-      ? archive.dailyAttempts
-      : { utcDateKey, attemptsUsed: 0, processedAttemptIds: [] };
+    const storedDaily = archive.dailyAttempts ?? {};
+    const currentDaily = storedDaily.utcDateKey === utcDateKey
+      ? storedDaily
+      : {
+          utcDateKey,
+          attemptsUsed: 0,
+          processedAttemptIds: storedDaily.processedAttemptIds ?? []
+        };
     if (currentDaily.processedAttemptIds.includes(attemptReceiptId)) {
       return {
         profile,

@@ -19,6 +19,17 @@ const loadBossArchive = (campaignFixture = campaign) => {
   }).outputText;
   const module = { exports: {} };
   const localRequire = (request) => {
+    if (request === '../constants') {
+      return {
+        ASSETS: {
+          PIXI_BOSS_OPEN_ORBIT_ARM_LEFT: '/components/open-orbit-left.png',
+          PIXI_BOSS_OPEN_ORBIT_ARM_RIGHT: '/components/open-orbit-right.png',
+          PIXI_BOSS_PAYWALL_CANNON_LEFT: '/components/paywall-left.png',
+          PIXI_BOSS_PAYWALL_CANNON_RIGHT: '/components/paywall-right.png',
+          PIXI_BOSS_PAYWALL_HELMET: '/components/paywall-helmet.png'
+        }
+      };
+    }
     if (request === '../game-config/catalog') {
       const majorBossIds = new Set([
         'gatekeeper',
@@ -115,6 +126,9 @@ test('every archive entry carries immutable presentation, reward, and three-obje
       entry.theme,
       entry.preview,
       entry.preview.idleFrameUrls,
+      ...(entry.preview.composition
+        ? [entry.preview.composition, entry.preview.composition.layers, ...entry.preview.composition.layers]
+        : []),
       entry.variants,
       entry.variants[0],
       entry.challenge,
@@ -125,6 +139,40 @@ test('every archive entry carries immutable presentation, reward, and three-obje
       entry.lockedPresentation.mechanicTags
     ].forEach((value) => assert.equal(Object.isFrozen(value), true));
   });
+});
+
+test('detachable Archive bosses expose complete static neutral compositions', () => {
+  const gatekeeper = archive.BOSS_ARCHIVE_CATALOG.find(
+    (entry) => entry.spriteKey === 'PIXI_BOSS_OPEN_ORBIT_FRAMES'
+  );
+  const paywall = archive.BOSS_ARCHIVE_CATALOG.find(
+    (entry) => entry.spriteKey === 'PIXI_BOSS_PAYWALL_FRAMES'
+  );
+  assert.ok(gatekeeper?.preview.composition);
+  assert.ok(paywall?.preview.composition);
+  assert.deepEqual(
+    Array.from(gatekeeper.preview.composition.layers, (layer) => layer.url),
+    [
+      gatekeeper.artUrl,
+      '/components/open-orbit-left.png',
+      '/components/open-orbit-right.png'
+    ]
+  );
+  assert.deepEqual(
+    Array.from(paywall.preview.composition.layers, (layer) => layer.url),
+    [
+      paywall.artUrl,
+      '/components/paywall-left.png',
+      '/components/paywall-right.png',
+      '/components/paywall-helmet.png'
+    ]
+  );
+  assert.equal(gatekeeper.preview.composition.layers[1].rotationDegrees, -2.292);
+  assert.equal(gatekeeper.preview.composition.layers[2].rotationDegrees, 2.292);
+  assert.equal(paywall.preview.composition.layers[3].width, 70.4);
+  archive.BOSS_ARCHIVE_CATALOG
+    .filter((entry) => ![gatekeeper.eventId, paywall.eventId].includes(entry.eventId))
+    .forEach((entry) => assert.equal(entry.preview.composition, undefined));
 });
 
 test('future authored bosses receive safe defaults and spoiler-free locked presentation', () => {

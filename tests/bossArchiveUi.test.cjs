@@ -151,6 +151,7 @@ test('records and daily challenge copy are formatted without false reward claims
 test('Boss Archive exposes one charge-based fight flow with difficulty records and stable artwork', () => {
   const archive = read('components/BossArchive.tsx');
   const carousel = read('components/boss-archive/BossArchiveCarousel.tsx');
+  const portrait = read('components/boss-archive/BossArchivePortrait.tsx');
   const css = read('components/boss-archive/boss-archive.css');
 
   assert.match(archive, /BossArchiveCarousel/);
@@ -173,8 +174,12 @@ test('Boss Archive exposes one charge-based fight flow with difficulty records a
   assert.match(carousel, /onWheel/);
   assert.match(carousel, /ArrowLeft/);
   assert.match(carousel, /navigator\.getGamepads/);
-  assert.match(carousel, /portraitUrl \?\? item\.entry\.artUrl/);
-  assert.doesNotMatch(carousel, /setInterval|idleFrameUrls|frameIndex/);
+  assert.match(carousel, /BossArchivePortrait/);
+  assert.match(archive, /className="boss-archive-index__portrait"/);
+  assert.match(archive, /className="boss-archive-reveal__portrait"/);
+  assert.match(portrait, /composition\.layers\.map/);
+  assert.match(portrait, /preserveAspectRatio="xMidYMid meet"/);
+  assert.doesNotMatch(`${carousel}\n${portrait}`, /setInterval|idleFrameUrls|frameIndex/);
   assert.doesNotMatch(css, /backdrop-filter|mix-blend-mode|boss-archive-ambient-turn/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
@@ -183,11 +188,11 @@ test('Boss Archive exposes one charge-based fight flow with difficulty records a
 test('locked carousel and index entries never request real boss artwork', () => {
   const archive = read('components/BossArchive.tsx');
   const carousel = read('components/boss-archive/BossArchiveCarousel.tsx');
-  assert.match(carousel, /if \(!item\.unlocked\) return;/);
+  assert.match(carousel, /if \(!item\.unlocked\) return \(/);
   assert.match(carousel, /boss-archive-carousel__unknown[\s\S]*<i \/>/);
   assert.doesNotMatch(
     carousel.match(/: \(\s*<div className="boss-archive-carousel__unknown"[\s\S]*?\);/m)?.[0] ?? '',
-    /<img/
+    /<img|BossArchivePortrait/
   );
-  assert.match(archive, /item\.unlocked\s*\? <img[\s\S]*boss-archive-index__unknown/);
+  assert.match(archive, /item\.unlocked\s*\? <BossArchivePortrait[\s\S]*boss-archive-index__unknown/);
 });

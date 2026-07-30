@@ -4,6 +4,7 @@ import {
   getLoopedBossArchiveIndex,
   type BossArchiveViewEntry
 } from './BossArchiveModel';
+import BossArchivePortrait from './BossArchivePortrait';
 
 const DRAG_THRESHOLD_PX = 42;
 const WHEEL_COOLDOWN_MS = 320;
@@ -15,21 +16,20 @@ const BossPreviewArt = ({
   item: BossArchiveViewEntry;
   selected: boolean;
 }) => {
-  return item.unlocked ? (
-    <img
-      src={item.presentation.portraitUrl ?? item.entry.artUrl}
-      alt=""
-      draggable={false}
-      decoding="async"
-      loading={selected ? 'eager' : 'lazy'}
-      className="boss-archive-carousel__portrait"
-      data-idle-preview={selected ? 'active' : 'static'}
-    />
-  ) : (
+  if (!item.unlocked) return (
     <div className="boss-archive-carousel__unknown" aria-hidden="true">
       <i />
       <span>?</span>
     </div>
+  );
+  return (
+    <BossArchivePortrait
+      entry={item.entry}
+      portraitUrl={item.presentation.portraitUrl ?? item.entry.artUrl}
+      eager={selected}
+      className="boss-archive-carousel__portrait"
+      idlePreview={selected ? 'active' : 'static'}
+    />
   );
 };
 
@@ -69,6 +69,7 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
     items.forEach((item) => {
       if (!item.unlocked) return;
       urls.add(item.presentation.portraitUrl ?? item.entry.artUrl);
+      item.entry.preview.composition?.layers.forEach((layer) => urls.add(layer.url));
     });
     const images = Array.from(urls, (url) => {
       const image = new Image();

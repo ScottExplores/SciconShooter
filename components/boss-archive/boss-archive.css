@@ -483,6 +483,10 @@
   filter: drop-shadow(0 .55rem .45rem rgb(0 0 0 / 76%));
 }
 
+.boss-archive-carousel__portrait[data-composed='true'] image {
+  image-rendering: pixelated;
+}
+
 .boss-archive-carousel__card[data-selected='true'] .boss-archive-carousel__portrait[data-idle-preview='active'] {
   animation: boss-archive-selected-idle 2.6s ease-in-out infinite;
   filter: drop-shadow(0 .55rem .45rem rgb(0 0 0 / 72%)) drop-shadow(0 0 .55rem color-mix(in srgb, var(--boss-accent) 34%, transparent));
@@ -1146,14 +1150,14 @@
   background: radial-gradient(circle, rgb(34 211 238 / 12%), transparent 64%);
 }
 
-.boss-archive-index__grid img {
+.boss-archive-index__portrait {
   width: 92%;
   height: 4.5rem;
   object-fit: contain;
   image-rendering: pixelated;
 }
 
-.boss-archive-index__grid button[data-locked='true'] img {
+.boss-archive-index__grid button[data-locked='true'] .boss-archive-index__portrait {
   opacity: .25;
   filter: brightness(.1) saturate(0);
 }
@@ -1231,7 +1235,7 @@
   animation: boss-archive-reveal-scan 1.2s ease-in-out both;
 }
 
-.boss-archive-reveal img {
+.boss-archive-reveal__portrait {
   z-index: 2;
   width: min(64%, 18rem);
   height: 42%;
@@ -1504,7 +1508,7 @@
   .boss-archive-reveal::before,
   .boss-archive-reveal::after,
   .boss-archive-reveal__scan,
-  .boss-archive-reveal img {
+  .boss-archive-reveal__portrait {
     animation: none !important;
   }
 

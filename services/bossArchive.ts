@@ -5,6 +5,7 @@ import type {
   BossTimelineConfig,
   GameCampaignConfig
 } from '../game-config/types';
+import { ASSETS } from '../constants';
 import { isMajorBossId } from '../game-config/catalog';
 import * as campaignMigration from '../game-config/campaign-migration-v22.json' with { type: 'json' };
 import {
@@ -96,6 +97,23 @@ export interface BossArchivePreview {
   /** One intact composed frame; combat/destruction animation is never exposed here. */
   readonly idleFrameUrls: readonly string[];
   readonly idleFramesPerSecond: number;
+  /** Optional neutral-pose assembly for bosses whose weapons are separate runtime sprites. */
+  readonly composition?: BossArchivePreviewComposition;
+}
+
+export interface BossArchivePreviewLayer {
+  readonly url: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly rotationDegrees?: number;
+}
+
+export interface BossArchivePreviewComposition {
+  readonly width: number;
+  readonly height: number;
+  readonly layers: readonly BossArchivePreviewLayer[];
 }
 
 export interface BossArchiveVariant {
@@ -322,6 +340,73 @@ const buildLockedPresentation = (missionNumber: number): BossArchiveLockedPresen
   portraitUrl: null
 });
 
+const buildBossArchivePreviewComposition = (
+  event: BossEvent,
+  artUrl: string
+): BossArchivePreviewComposition | undefined => {
+  if (event.spriteKey === 'PIXI_BOSS_OPEN_ORBIT_FRAMES') {
+    return Object.freeze({
+      // Matches the neutral production rig: the intact hull plus both 1.6x
+      // railgun arms, including their small authored resting rotations.
+      width: 278.96,
+      height: 202.8,
+      layers: Object.freeze([
+        Object.freeze({ url: artUrl, x: 29.48, y: 2.8, width: 220, height: 200 }),
+        Object.freeze({
+          url: ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_LEFT,
+          x: 0,
+          y: 0,
+          width: 133.76,
+          height: 185.6,
+          rotationDegrees: -2.292
+        }),
+        Object.freeze({
+          url: ASSETS.PIXI_BOSS_OPEN_ORBIT_ARM_RIGHT,
+          x: 145.2,
+          y: 0,
+          width: 133.76,
+          height: 185.6,
+          rotationDegrees: 2.292
+        })
+      ])
+    });
+  }
+  if (event.spriteKey === 'PIXI_BOSS_PAYWALL_FRAMES') {
+    return Object.freeze({
+      // Paywall Siege's cannon and helmet sprites sit inside the hull bounds.
+      width: 220,
+      height: 200,
+      layers: Object.freeze([
+        Object.freeze({ url: artUrl, x: 0, y: 0, width: 220, height: 200 }),
+        Object.freeze({
+          url: ASSETS.PIXI_BOSS_PAYWALL_CANNON_LEFT,
+          x: 6.6,
+          y: 82.4,
+          width: 105.6,
+          height: 115.2,
+          rotationDegrees: -2.292
+        }),
+        Object.freeze({
+          url: ASSETS.PIXI_BOSS_PAYWALL_CANNON_RIGHT,
+          x: 107.8,
+          y: 82.4,
+          width: 105.6,
+          height: 115.2,
+          rotationDegrees: 2.292
+        }),
+        Object.freeze({
+          url: ASSETS.PIXI_BOSS_PAYWALL_HELMET,
+          x: 74.8,
+          y: 60,
+          width: 70.4,
+          height: 60
+        })
+      ])
+    });
+  }
+  return undefined;
+};
+
 const buildBossArchiveCatalog = (): readonly BossArchiveEntry[] => {
   const entries = DEFAULT_GAME_CAMPAIGN.levels
     .slice()
@@ -341,6 +426,7 @@ const buildBossArchiveCatalog = (): readonly BossArchiveEntry[] => {
           // portraits always use the intact composed art so a boss never seems
           // to degrade, die, or blink while the player is choosing a fight.
           const idleFrameUrls = Object.freeze([artUrl]);
+          const composition = buildBossArchivePreviewComposition(event, artUrl);
           return Object.freeze({
             eventId: event.id,
             bossId: event.bossId,
@@ -367,7 +453,8 @@ const buildBossArchiveCatalog = (): readonly BossArchiveEntry[] => {
             preview: Object.freeze({
               portraitUrl: artUrl,
               idleFrameUrls,
-              idleFramesPerSecond: 0
+              idleFramesPerSecond: 0,
+              ...(composition ? { composition } : {})
             }),
             variants: Object.freeze([
               Object.freeze({

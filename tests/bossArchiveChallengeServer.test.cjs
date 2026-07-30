@@ -342,14 +342,28 @@ test('three starts consume all daily charges even when no fight is settled', asy
   );
 });
 
-test('Challenge start uses the server UTC ledger instead of a stale profile counter', async (t) => {
+test('settlement rows do not consume launch charges for the current UTC day', async (t) => {
   const originalFetch = global.fetch;
-  const profileRow = createProfileRow();
+  let profileRow = createProfileRow();
   profileRow.snapshot.permanentState.bossArchive.dailyChallenge.successfulClearsUsed = 0;
-  global.fetch = async (url) => {
-    const resource = new URL(String(url)).pathname.split('/').pop();
-    if (resource === 'scicon_wallet_profiles') return jsonResponse([profileRow]);
+  let resultLedgerReads = 0;
+  global.fetch = async (url, options = {}) => {
+    const parsed = new URL(String(url));
+    const resource = parsed.pathname.split('/').pop();
+    if (resource === 'scicon_wallet_profiles') {
+      if (String(options.method || 'GET').toUpperCase() === 'PATCH') {
+        const body = JSON.parse(options.body || '{}');
+        profileRow = {
+          ...profileRow,
+          revision: body.revision,
+          snapshot: body.snapshot,
+          updated_at: body.updated_at
+        };
+      }
+      return jsonResponse([profileRow]);
+    }
     if (resource === 'scicon_boss_archive_challenge_results') {
+      resultLedgerReads += 1;
       return jsonResponse([
         { result_id: '11111111-1111-4111-8111-111111111111' },
         { result_id: '22222222-2222-4222-8222-222222222222' },
@@ -360,13 +374,18 @@ test('Challenge start uses the server UTC ledger instead of a stale profile coun
   };
   t.after(() => { global.fetch = originalFetch; });
 
-  await assert.rejects(
-    createBossArchiveChallengeRun({ address: WALLET, eventId: EVENT_ID, now: NOW }),
-    (error) => error?.code === 'no_charges' && error?.statusCode === 409
-  );
+  const started = await createBossArchiveChallengeRun({
+    address: WALLET,
+    eventId: EVENT_ID,
+    attemptId: 'cccccccc-cccc-4ccc-8ccc-000000000001',
+    now: NOW
+  });
+  assert.equal(started.chargesRemaining, 2);
+  assert.equal(started.profile.snapshot.permanentState.bossArchive.dailyAttempts.attemptsUsed, 1);
+  assert.equal(resultLedgerReads, 0);
 });
 
-test('ordinary profile saves preserve canonical Challenge records and derive UTC usage from the ledger', () => {
+test('ordinary profile saves preserve canonical Challenge records without deriving attempts from clears', () => {
   const current = createProfileRow().snapshot;
   current.permanentState.bossArchive.records[EVENT_ID] = {
     attempts: 1,
@@ -421,6 +440,10 @@ test('ordinary profile saves preserve canonical Challenge records and derive UTC
     protectedSnapshot.permanentState.bossArchive.dailyChallenge.processedClearIds,
     ['boss-archive:11111111-1111-4111-8111-111111111111']
   );
+  assert.equal(
+    protectedSnapshot.permanentState.bossArchive.dailyAttempts.attemptsUsed,
+    0
+  );
 
   const forged = structuredClone(current);
   const forgedRecord = forged.permanentState.bossArchive.records[EVENT_ID];
@@ -464,4 +487,56 @@ test('ordinary profile saves preserve canonical Challenge records and derive UTC
     ['boss-archive:11111111-1111-4111-8111-111111111111']
   );
   assert.equal(protectedRecord.lastResult.clearTimeMs, 10_000);
+});
+
+test('a launch retry across UTC reset keeps its receipt and spends no fresh charge', async (t) => {
+  const originalFetch = global.fetch;
+  let profileRow = createProfileRow();
+  let patchCount = 0;
+  global.fetch = async (url, options = {}) => {
+    const parsed = new URL(String(url));
+    const resource = parsed.pathname.split('/').pop();
+    if (resource !== 'scicon_wallet_profiles') {
+      throw new Error(`Unexpected Supabase request: ${url}`);
+    }
+    if (String(options.method || 'GET').toUpperCase() === 'PATCH') {
+      patchCount += 1;
+      const body = JSON.parse(options.body || '{}');
+      const requestedRevision = Number(
+        String(parsed.searchParams.get('revision') || '').replace(/^eq\./, '')
+      );
+      if (requestedRevision !== profileRow.revision) return jsonResponse([]);
+      profileRow = {
+        ...profileRow,
+        revision: body.revision,
+        snapshot: body.snapshot,
+        updated_at: body.updated_at
+      };
+    }
+    return jsonResponse([profileRow]);
+  };
+  t.after(() => { global.fetch = originalFetch; });
+
+  const attemptId = 'dddddddd-dddd-4ddd-8ddd-000000000001';
+  const beforeReset = Date.parse('2026-07-26T23:59:50.000Z');
+  const afterReset = Date.parse('2026-07-27T00:00:05.000Z');
+  const first = await createBossArchiveChallengeRun({
+    address: WALLET,
+    eventId: EVENT_ID,
+    difficultyId: 'heroic',
+    attemptId,
+    now: beforeReset
+  });
+  const retry = await createBossArchiveChallengeRun({
+    address: WALLET,
+    eventId: EVENT_ID,
+    difficultyId: 'heroic',
+    attemptId,
+    now: afterReset
+  });
+
+  assert.equal(retry.runId, first.runId);
+  assert.equal(retry.chargesRemaining, 3);
+  assert.equal(retry.profile.snapshot.permanentState.bossArchive.dailyAttempts.attemptsUsed, 0);
+  assert.equal(patchCount, 1);
 });

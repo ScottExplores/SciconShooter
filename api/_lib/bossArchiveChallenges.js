@@ -8,7 +8,6 @@ const {
   normalizeWalletAddress
 } = require('./walletProfileAuth');
 const {
-  fetchBossArchiveDailyLedger,
   fetchWalletProfile,
   getBossArchiveChallengeConfig,
   recordBossArchiveDifficultyResult,
@@ -109,8 +108,6 @@ const createBossArchiveChallengeRun = async ({
   if (!hasUnlockedBoss(profile, challengeConfig.eventId)) {
     throw apiError('Defeat this boss in the campaign before starting its Challenge.', 403, 'boss_locked');
   }
-  const dailyLedger = await fetchBossArchiveDailyLedger(walletAddress, now);
-
   const issuedAt = Math.floor(Number(now));
   const expiresAt = issuedAt + BOSS_ARCHIVE_CHALLENGE_LIFETIME_MS;
   const runId = derivedRunId({
@@ -126,13 +123,11 @@ const createBossArchiveChallengeRun = async ({
     eventId: challengeConfig.eventId,
     difficultyId: normalizedDifficultyId,
     attemptId: runId,
-    minimumAttemptsUsed: Array.isArray(dailyLedger)
-      ? dailyLedger.length
-      : normalizeInteger(
-          profile.snapshot?.permanentState?.bossArchive?.dailyChallenge?.successfulClearsUsed,
-          0,
-          BOSS_ARCHIVE_DAILY_LIMIT
-        ),
+    // Launch receipts, not successful-clear rows, own the three daily charges.
+    // Legacy clear counters are migrated into dailyAttempts while sanitizing
+    // the profile, so using the settlement ledger here would charge an
+    // overnight clear against the following UTC day.
+    minimumAttemptsUsed: 0,
     dailyLimit: BOSS_ARCHIVE_DAILY_LIMIT,
     now
   });
