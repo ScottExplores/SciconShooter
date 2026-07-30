@@ -123,7 +123,7 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
   assert.deepEqual(sanitized.permanentState.unlockedPlayerShips, ['eth']);
   assert.deepEqual(sanitized.permanentState.achievementTiers, { 'boss-breaker': 5 });
   assert.deepEqual(sanitized.permanentState.bossArchive, {
-    version: 1,
+    version: 2,
     unlockedEventIds: [FIRST_BOSS_EVENT_ID],
     seenEventIds: [FIRST_BOSS_EVENT_ID],
     lastSelectedEventId: null,
@@ -196,7 +196,7 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
     startingHearts: 3
   });
   assert.deepEqual(sanitized.permanentState.bossArchive, {
-    version: 1,
+    version: 2,
     unlockedEventIds: [FIRST_BOSS_EVENT_ID],
     seenEventIds: [FIRST_BOSS_EVENT_ID],
     lastSelectedEventId: null,
@@ -279,7 +279,7 @@ test('legacy cloud snapshots infer Boss Archive unlocks before writing canonical
   }, WALLET, now);
 
   assert.deepEqual(sanitized.permanentState.bossArchive, {
-    version: 1,
+    version: 2,
     unlockedEventIds: [FIRST_BOSS_EVENT_ID],
     seenEventIds: [],
     lastSelectedEventId: null,

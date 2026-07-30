@@ -442,7 +442,6 @@
   background: rgb(113 63 18 / 82%);
   color: #fef9c3;
   box-shadow: 0 0 .7rem rgb(250 204 21 / 32%);
-  animation: boss-archive-new-pulse 1.4s ease-in-out infinite;
 }
 
 .boss-archive-carousel__artwell {
@@ -480,16 +479,10 @@
   height: 91%;
   object-fit: contain;
   image-rendering: pixelated;
-  filter: drop-shadow(0 .55rem .45rem rgb(0 0 0 / 76%));
 }
 
 .boss-archive-carousel__portrait[data-composed='true'] image {
   image-rendering: pixelated;
-}
-
-.boss-archive-carousel__card[data-selected='true'] .boss-archive-carousel__portrait[data-idle-preview='active'] {
-  animation: boss-archive-selected-idle 2.6s ease-in-out infinite;
-  filter: drop-shadow(0 .55rem .45rem rgb(0 0 0 / 72%)) drop-shadow(0 0 .55rem color-mix(in srgb, var(--boss-accent) 34%, transparent));
 }
 
 .boss-archive-carousel__unknown {
@@ -1389,16 +1382,6 @@
   text-align: center;
 }
 
-@keyframes boss-archive-selected-idle {
-  0%, 100% { transform: translate3d(0, 1%, 0) scale(1); }
-  50% { transform: translate3d(0, -2%, 0) scale(1.018); }
-}
-
-@keyframes boss-archive-new-pulse {
-  0%, 100% { filter: brightness(.9); opacity: .82; }
-  50% { filter: brightness(1.25); opacity: 1; }
-}
-
 @keyframes boss-archive-reveal-frame {
   0% { opacity: 0; transform: scale(.88); }
   100% { opacity: 1; transform: scale(1); }
@@ -1502,8 +1485,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .boss-archive-carousel__card[data-selected='true'] .boss-archive-carousel__portrait[data-idle-preview='active'],
-  .boss-archive-carousel__new,
   .boss-archive-reveal,
   .boss-archive-reveal::before,
   .boss-archive-reveal::after,

@@ -296,7 +296,7 @@ test('challenge authentication creates a secure session and profile saves use re
     saveResponse.body.profile.snapshot.permanentState.bossArchive.seenEventIds,
     [FIRST_BOSS_EVENT_ID]
   );
-  assert.equal(saveResponse.body.profile.snapshot.permanentState.bossArchive.version, 1);
+  assert.equal(saveResponse.body.profile.snapshot.permanentState.bossArchive.version, 2);
   assert.equal(
     saveResponse.body.profile.snapshot.permanentState.bossArchive.dailyChallenge.successfulClearsUsed,
     0
@@ -343,7 +343,7 @@ test('challenge authentication creates a secure session and profile saves use re
     getResponse.body.profile.snapshot.permanentState.bossArchive.seenEventIds,
     [FIRST_BOSS_EVENT_ID]
   );
-  assert.equal(getResponse.body.profile.snapshot.permanentState.bossArchive.version, 1);
+  assert.equal(getResponse.body.profile.snapshot.permanentState.bossArchive.version, 2);
   assert.deepEqual(
     getResponse.body.profile.snapshot.weeklyState.creditedCampaignRewardIds,
     [CAMPAIGN_REWARD_ID]

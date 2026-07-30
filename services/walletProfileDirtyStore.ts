@@ -61,6 +61,10 @@ const comparableSnapshot = (snapshot: WalletProfileSnapshot) => {
   delete comparable.weeklyState.updatedAt;
   delete comparable.permanentState.updatedAt;
   delete comparable.permanentState.mintedMiniShips;
+  // Archive schema versions describe the local sanitizer, not player progress.
+  // Ignore them while comparing saves so a normal v1 -> v2 migration cannot be
+  // mistaken for a second-device progression conflict.
+  delete (comparable.permanentState.bossArchive as { version?: unknown }).version;
   return comparable;
 };
 

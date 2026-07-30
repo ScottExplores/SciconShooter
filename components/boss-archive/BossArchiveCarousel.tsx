@@ -26,7 +26,7 @@ const BossPreviewArt = ({
     <BossArchivePortrait
       entry={item.entry}
       portraitUrl={item.presentation.portraitUrl ?? item.entry.artUrl}
-      eager={selected}
+      eager
       className="boss-archive-carousel__portrait"
       idlePreview={selected ? 'active' : 'static'}
     />
@@ -73,8 +73,10 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
     });
     const images = Array.from(urls, (url) => {
       const image = new Image();
-      image.decoding = 'async';
+      image.decoding = 'sync';
+      image.loading = 'eager';
       image.src = url;
+      void image.decode?.().catch(() => undefined);
       return image;
     });
     return () => { images.forEach((image) => { image.onload = null; image.onerror = null; }); };
@@ -128,11 +130,13 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
     }
   };
 
-  const visibleItems = useMemo(() => items.map((item, index) => ({
+  // Keep every card mounted so revisiting a boss never remounts and re-decodes
+  // its artwork. Off-window cards remain hidden and non-interactive.
+  const carouselItems = useMemo(() => items.map((item, index) => ({
     item,
     index,
     relative: getBossArchiveRelativePosition(index, selectedIndex, items.length)
-  })).filter(({ relative }) => Math.abs(relative) <= 2), [items, selectedIndex]);
+  })), [items, selectedIndex]);
 
   return (
     <section
@@ -233,7 +237,8 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
           <i />
         </div>
 
-        {visibleItems.map(({ item, index, relative }) => {
+        {carouselItems.map(({ item, index, relative }) => {
+          const isVisible = Math.abs(relative) <= 2;
           const adjustedSlot = relative + dragX / stepPx;
           const isSelected = index === selectedIndex && !dragging;
           const distance = Math.min(2, Math.abs(adjustedSlot));
@@ -245,7 +250,9 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
             '--boss-scale': 1 - distance * 0.18,
             '--boss-angle': `${adjustedSlot * -10}deg`,
             '--boss-opacity': Math.max(0.18, 1 - distance * 0.36),
-            '--boss-accent': item.presentation.accentColor ?? '#22d3ee'
+            '--boss-accent': item.presentation.accentColor ?? '#22d3ee',
+            visibility: isVisible ? 'visible' : 'hidden',
+            pointerEvents: isVisible ? 'auto' : 'none'
           } as React.CSSProperties;
           return (
             <button
@@ -256,6 +263,7 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
               data-selected={isSelected ? 'true' : 'false'}
               data-locked={item.unlocked ? 'false' : 'true'}
               data-new={item.isNew ? 'true' : 'false'}
+              aria-hidden={isVisible ? undefined : true}
               tabIndex={isSelected ? 0 : -1}
               aria-label={item.unlocked
                 ? `${item.entry.label}, Mission ${item.entry.missionNumber}${item.isNew ? ', newly unlocked' : ''}`

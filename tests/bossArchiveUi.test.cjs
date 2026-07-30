@@ -180,6 +180,13 @@ test('Boss Archive exposes one charge-based fight flow with difficulty records a
   assert.match(portrait, /composition\.layers\.map/);
   assert.match(portrait, /preserveAspectRatio="xMidYMid meet"/);
   assert.doesNotMatch(`${carousel}\n${portrait}`, /setInterval|idleFrameUrls|frameIndex/);
+  assert.doesNotMatch(css, /boss-archive-selected-idle|boss-archive-new-pulse/);
+  assert.doesNotMatch(
+    css.match(/\.boss-archive-carousel__portrait\s*\{[\s\S]*?\}/)?.[0] ?? '',
+    /animation|filter/
+  );
+  assert.doesNotMatch(carousel, /\.filter\(\(\{ relative \}\) => Math\.abs\(relative\) <= 2\)/);
+  assert.match(carousel, /image\.decode\?\.\(\)/);
   assert.doesNotMatch(css, /backdrop-filter|mix-blend-mode|boss-archive-ambient-turn/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);

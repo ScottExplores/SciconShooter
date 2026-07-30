@@ -17,6 +17,7 @@ const PROFILES_TABLE = process.env.SUPABASE_WALLET_PROFILES_TABLE || 'scicon_wal
 const CHALLENGES_TABLE = process.env.SUPABASE_WALLET_PROFILE_CHALLENGES_TABLE || 'scicon_wallet_profile_challenges';
 const BOSS_ARCHIVE_RESULTS_TABLE = process.env.SUPABASE_BOSS_ARCHIVE_RESULTS_TABLE
   || 'scicon_boss_archive_challenge_results';
+const BOSS_ARCHIVE_PROGRESS_VERSION = 2;
 const BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT = 3;
 const BOSS_ARCHIVE_DIFFICULTY_IDS = Object.freeze(['easy', 'medium', 'heroic']);
 const CHALLENGE_LIFETIME_MS = 10 * 60 * 1000;
@@ -1317,7 +1318,7 @@ const sanitizeBossArchiveProgress = (value, unlockedEventIds, now) => {
     )
   };
   return {
-    version: 1,
+    version: BOSS_ARCHIVE_PROGRESS_VERSION,
     unlockedEventIds,
     seenEventIds: bossArchiveEventIds(archive.seenEventIds)
       .filter((eventId) => unlockedSet.has(eventId)),

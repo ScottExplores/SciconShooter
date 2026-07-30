@@ -145,6 +145,57 @@ test('semantic comparison ignores regenerated timestamps and minted ownership', 
   assert.equal(dirtyStore.walletProfileSnapshotsEqual(left, right), true);
 });
 
+test('semantic comparison ignores Boss Archive schema migration versions', async () => {
+  global.window = { localStorage: createStorage() };
+  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const serverSnapshot = snapshot(WALLET_A);
+  serverSnapshot.permanentState.bossArchive.version = 1;
+  const migratedClientSnapshot = structuredClone(serverSnapshot);
+  migratedClientSnapshot.permanentState.bossArchive.version = 2;
+
+  assert.equal(
+    dirtyStore.walletProfileSnapshotsEqual(serverSnapshot, migratedClientSnapshot),
+    true
+  );
+});
+
+test('Boss Archive version migration rebases over a server-reserved attempt', async () => {
+  global.window = { localStorage: createStorage() };
+  const dirtyStore = await import('../services/walletProfileDirtyStore.ts');
+  const base = snapshot(WALLET_A);
+  base.permanentState.bossArchive = {
+    version: 1,
+    unlockedEventIds: ['open-orbit-gatekeeper'],
+    seenEventIds: [],
+    dailyAttempts: {
+      utcDateKey: '2026-07-23',
+      attemptsUsed: 0,
+      processedAttemptIds: []
+    }
+  };
+  const local = structuredClone(base);
+  local.permanentState.bossArchive.version = 2;
+  const remote = structuredClone(base);
+  remote.permanentState.bossArchive.dailyAttempts = {
+    utcDateKey: '2026-07-23',
+    attemptsUsed: 1,
+    processedAttemptIds: ['boss-archive:attempt-1']
+  };
+
+  const merged = dirtyStore.mergeWalletProfileSnapshots({
+    address: WALLET_A,
+    baseSnapshot: base,
+    localSnapshot: local,
+    remoteSnapshot: remote
+  });
+
+  assert.equal(merged.permanentState.bossArchive.dailyAttempts.attemptsUsed, 1);
+  assert.deepEqual(
+    merged.permanentState.bossArchive.dailyAttempts.processedAttemptIds,
+    ['boss-archive:attempt-1']
+  );
+});
+
 test('semantic comparison detects Boss Archive unlock and viewed-state changes', async () => {
   global.window = { localStorage: createStorage() };
   const dirtyStore = await import('../services/walletProfileDirtyStore.ts');

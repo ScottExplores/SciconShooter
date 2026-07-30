@@ -630,6 +630,7 @@ const BossArchive: React.FC<BossArchiveProps> = ({
                           entry={item.entry}
                           portraitUrl={item.presentation.portraitUrl ?? item.entry.artUrl}
                           className="boss-archive-index__portrait"
+                          eager
                         />
                       : <i className="boss-archive-index__unknown" aria-hidden="true">?</i>}</span>
                     <small>M-{String(item.entry.missionNumber).padStart(2, '0')}</small>
