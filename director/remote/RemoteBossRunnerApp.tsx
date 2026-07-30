@@ -38,6 +38,7 @@ import {
   buildBossSandboxGroups,
   buildBossSandboxPreview,
   createSandboxOnlyBossArtwork,
+  getDefaultBossSandboxChoice,
   getBossSandboxAttacks,
   getBossSandboxEventId,
   getBossSandboxPerformingAttackId,
@@ -274,9 +275,7 @@ export default function RemoteBossRunnerApp() {
     [choices]
   );
   const bossPickerSections = groups;
-  const firstChoice = choices.find(
-    (choice) => choice.prototypeId === 'aurora-storm-engine'
-  ) ?? choices[0];
+  const firstChoice = getDefaultBossSandboxChoice(choices);
   const [selectedChoiceId, setSelectedChoiceId] = useState(firstChoice?.id ?? '');
   const [playing, setPlaying] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
