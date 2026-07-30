@@ -8,44 +8,20 @@ import {
 const DRAG_THRESHOLD_PX = 42;
 const WHEEL_COOLDOWN_MS = 320;
 
-const useAnimatedPreviewFrame = (
-  item: BossArchiveViewEntry,
-  selected: boolean,
-  reducedMotion: boolean
-) => {
-  const frames = item.presentation.idleFrameUrls?.length
-    ? item.presentation.idleFrameUrls
-    : [item.presentation.portraitUrl ?? item.entry.artUrl];
-  const [frameIndex, setFrameIndex] = useState(0);
-
-  useEffect(() => {
-    setFrameIndex(0);
-    if (!selected || reducedMotion || frames.length < 2) return undefined;
-    const frameMs = 1000 / Math.max(1, item.presentation.idleFps ?? 6);
-    const timer = window.setInterval(() => {
-      setFrameIndex((current) => (current + 1) % frames.length);
-    }, frameMs);
-    return () => window.clearInterval(timer);
-  }, [frames.length, item.entry.eventId, item.presentation.idleFps, reducedMotion, selected]);
-
-  return frames[Math.min(frameIndex, frames.length - 1)] ?? item.entry.artUrl;
-};
-
 const BossPreviewArt = ({
   item,
-  selected,
-  reducedMotion
+  selected
 }: {
   item: BossArchiveViewEntry;
   selected: boolean;
-  reducedMotion: boolean;
 }) => {
-  const src = useAnimatedPreviewFrame(item, selected, reducedMotion);
   return item.unlocked ? (
     <img
-      src={src}
+      src={item.presentation.portraitUrl ?? item.entry.artUrl}
       alt=""
       draggable={false}
+      decoding="async"
+      loading={selected ? 'eager' : 'lazy'}
       className="boss-archive-carousel__portrait"
       data-idle-preview={selected ? 'active' : 'static'}
     />
@@ -60,19 +36,17 @@ const BossPreviewArt = ({
 export interface BossArchiveCarouselProps {
   readonly items: readonly BossArchiveViewEntry[];
   readonly selectedIndex: number;
-  readonly reducedMotion: boolean;
   readonly onSelectIndex: (index: number) => void;
   readonly onOpenIndex: () => void;
 }
 
 /**
- * Lightweight DOM cover-flow. It never mounts a gameplay renderer: only the
- * selected entry advances optional idle frames while its neighbors stay still.
+ * Lightweight DOM cover-flow. It never mounts a gameplay renderer or advances
+ * combat frames; the selected intact portrait receives only a gentle CSS hover.
  */
 const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
   items,
   selectedIndex,
-  reducedMotion,
   onSelectIndex,
   onOpenIndex
 }) => {
@@ -95,10 +69,10 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
     items.forEach((item) => {
       if (!item.unlocked) return;
       urls.add(item.presentation.portraitUrl ?? item.entry.artUrl);
-      item.presentation.idleFrameUrls?.forEach((url) => urls.add(url));
     });
     const images = Array.from(urls, (url) => {
       const image = new Image();
+      image.decoding = 'async';
       image.src = url;
       return image;
     });
@@ -299,7 +273,6 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
                 <BossPreviewArt
                   item={item}
                   selected={isSelected}
-                  reducedMotion={reducedMotion}
                 />
               </span>
               <span className="boss-archive-carousel__card-copy">

@@ -7,9 +7,12 @@ import {
 import type { PlayerShipId } from './playerShipService';
 import { normalizeBossArchiveEventIds } from './bossArchive';
 import {
+  beginBossArchiveFight,
   claimBossArchiveMasteryReward,
   recordBossArchiveFightResult,
   sanitizeBossArchiveBossRecord,
+  type BossArchiveFightLaunchInput,
+  type BossArchiveFightLaunchResolution,
   type BossArchiveFightResultInput,
   type BossArchiveFightResolution,
   type BossArchiveMasteryObjectiveId
@@ -19,6 +22,12 @@ export interface BossArchiveEconomyResolution {
   permanentState: PermanentSquadState;
   weeklyState: WeeklySquadState;
   result: BossArchiveFightResolution;
+}
+
+export interface BossArchiveEconomyLaunchResolution {
+  permanentState: PermanentSquadState;
+  weeklyState: WeeklySquadState;
+  result: BossArchiveFightLaunchResolution;
 }
 
 export interface DailyGiftReward {
@@ -312,10 +321,36 @@ export const markBossArchiveViewed = (
   };
 };
 
+/** Reserves one daily charge and records the Archive attempt before gameplay. */
+export const beginBossArchiveFightEconomy = (
+  permanentState: PermanentSquadState,
+  weeklyState: WeeklySquadState,
+  input: BossArchiveFightLaunchInput,
+  options: { now?: Date; dailyLimit?: number } = {}
+): BossArchiveEconomyLaunchResolution => {
+  const result = beginBossArchiveFight(
+    permanentState.bossArchive,
+    input,
+    options
+  );
+  const now = options.now ?? new Date();
+  return {
+    permanentState: result.state === permanentState.bossArchive
+      ? permanentState
+      : {
+          ...permanentState,
+          bossArchive: result.state,
+          updatedAt: now.toISOString()
+        },
+    weeklyState,
+    result
+  };
+};
+
 /**
- * Applies an Archive result and its existing-coin reward as one immutable
- * transition. A Practice clear or failed Challenge always awards zero coins;
- * a successful Challenge consumes exactly one available daily charge.
+ * Settles an already-reserved Archive fight and applies its existing reward.
+ * This transition never spends a daily charge; losing runs were charged when
+ * they launched through beginBossArchiveFightEconomy.
  */
 export const resolveBossArchiveFightEconomy = (
   permanentState: PermanentSquadState,

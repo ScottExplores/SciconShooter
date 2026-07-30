@@ -1,6 +1,8 @@
 import type {
   BackgroundId,
   BossEvent,
+  BossTimelineClip,
+  BossTimelineConfig,
   GameCampaignConfig
 } from '../game-config/types';
 import { isMajorBossId } from '../game-config/catalog';
@@ -8,11 +10,69 @@ import * as campaignMigration from '../game-config/campaign-migration-v22.json' 
 import {
   cloneGameCampaign,
   DEFAULT_GAME_CAMPAIGN,
-  getAssetPaths,
   getPrimaryAssetPath
 } from './levelConfig';
 
 export type BossArchiveDifficultyTier = 1 | 2 | 3 | 4 | 5;
+export const BOSS_ARCHIVE_DIFFICULTY_IDS = ['easy', 'medium', 'heroic'] as const;
+export type BossArchiveDifficultyId = typeof BOSS_ARCHIVE_DIFFICULTY_IDS[number];
+
+export interface BossArchiveDifficultyConfig {
+  readonly id: BossArchiveDifficultyId;
+  readonly label: 'Easy' | 'Medium' | 'Heroic';
+  readonly description: string;
+  readonly healthMultiplier: number;
+  readonly tempoMultiplier: number;
+}
+
+/**
+ * Canonical Boss Archive tuning. Medium deliberately preserves the authored
+ * Campaign encounter byte-for-byte; the other settings are applied only to a
+ * cloned one-boss replay campaign.
+ */
+export const BOSS_ARCHIVE_DIFFICULTIES: readonly BossArchiveDifficultyConfig[] = Object.freeze([
+  Object.freeze({
+    id: 'easy' as const,
+    label: 'Easy' as const,
+    description: 'Reduced hull strength and a steadier attack tempo.',
+    healthMultiplier: 0.75,
+    tempoMultiplier: 0.9
+  }),
+  Object.freeze({
+    id: 'medium' as const,
+    label: 'Medium' as const,
+    description: 'The original Campaign boss tuning.',
+    healthMultiplier: 1,
+    tempoMultiplier: 1
+  }),
+  Object.freeze({
+    id: 'heroic' as const,
+    label: 'Heroic' as const,
+    description: 'Reinforced hull strength and accelerated boss patterns.',
+    healthMultiplier: 1.5,
+    tempoMultiplier: 1.2
+  })
+]);
+
+const BOSS_ARCHIVE_DIFFICULTY_BY_ID = new Map(
+  BOSS_ARCHIVE_DIFFICULTIES.map((difficulty) => [difficulty.id, difficulty])
+);
+
+export const normalizeBossArchiveDifficultyId = (
+  value: unknown,
+  fallback: BossArchiveDifficultyId = 'medium'
+): BossArchiveDifficultyId => {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return BOSS_ARCHIVE_DIFFICULTY_BY_ID.has(normalized as BossArchiveDifficultyId)
+    ? normalized as BossArchiveDifficultyId
+    : fallback;
+};
+
+export const getBossArchiveDifficulty = (value: unknown): BossArchiveDifficultyConfig => (
+  BOSS_ARCHIVE_DIFFICULTY_BY_ID.get(normalizeBossArchiveDifficultyId(value))
+  ?? BOSS_ARCHIVE_DIFFICULTIES[1]
+);
+
 export type BossArchiveMasteryObjectiveKind =
   | 'challenge-clear'
   | 'no-hit-clear'
@@ -33,7 +93,7 @@ export interface BossArchiveTheme {
 export interface BossArchivePreview {
   /** Static card/portrait art. Unselected cards should use this path. */
   readonly portraitUrl: string;
-  /** Existing authored frames used only by the selected boss preview. */
+  /** One intact composed frame; combat/destruction animation is never exposed here. */
   readonly idleFrameUrls: readonly string[];
   readonly idleFramesPerSecond: number;
 }
@@ -277,19 +337,10 @@ const buildBossArchiveCatalog = (): readonly BossArchiveEntry[] => {
           const artUrl = getPrimaryAssetPath(event.spriteKey);
           const challengeRewardCoins = getBossArchiveChallengeRewardCoins(level.order);
           const accentColor = wave.accent || '#67e8f9';
-          const authoredPreviewFrames = getAssetPaths(event.spriteKey);
-          // Some campaign sprite arrays are authored destruction/decay sequences.
-          // They are valid in combat, but cycling them in the Archive makes an
-          // intact boss appear to fall apart while idling. Keep those portraits
-          // composed on their first frame; true idle arrays can still animate.
-          const archivePreviewFrames = authoredPreviewFrames.some((url) => (
-            /\/(?:decay|death|destroyed?)\//i.test(url)
-          ))
-            ? authoredPreviewFrames.slice(0, 1)
-            : authoredPreviewFrames;
-          const idleFrameUrls = Object.freeze(
-            archivePreviewFrames.length > 0 ? [...archivePreviewFrames] : [artUrl]
-          );
+          // Combat sprite arrays may contain damage/destruction frames. Archive
+          // portraits always use the intact composed art so a boss never seems
+          // to degrade, die, or blink while the player is choosing a fight.
+          const idleFrameUrls = Object.freeze([artUrl]);
           return Object.freeze({
             eventId: event.id,
             bossId: event.bossId,
@@ -316,7 +367,7 @@ const buildBossArchiveCatalog = (): readonly BossArchiveEntry[] => {
             preview: Object.freeze({
               portraitUrl: artUrl,
               idleFrameUrls,
-              idleFramesPerSecond: idleFrameUrls.length > 1 ? 8 : 0
+              idleFramesPerSecond: 0
             }),
             variants: Object.freeze([
               Object.freeze({
@@ -469,13 +520,196 @@ export const inferLegacyBossArchiveEventIds = (
   return [];
 };
 
+const BOSS_ARCHIVE_GENERIC_TELEGRAPH_MIN_SECONDS = 0.35;
+const BOSS_ARCHIVE_CORNER_TELEGRAPH_MIN_SECONDS = 0.8;
+const BOSS_ARCHIVE_CORNER_BEAM_MIN_LIVE_SECONDS = 0.3;
+const BOSS_ARCHIVE_CORNER_RAM_MIN_LIVE_SECONDS = 0.45;
+
+const roundBossArchiveTuning = (value: number) => (
+  Math.round(value * 1_000_000) / 1_000_000
+);
+
+const scaleBossArchiveSeconds = (
+  value: number,
+  tempoMultiplier: number,
+  minimum = 0.01
+) => Math.max(minimum, roundBossArchiveTuning(value / tempoMultiplier));
+
+const getBossArchiveTelegraphMinimum = (clip: BossTimelineClip) => (
+  clip.primitiveId === 'corner-ambush-beam' || clip.primitiveId === 'corner-ambush-ram'
+    ? BOSS_ARCHIVE_CORNER_TELEGRAPH_MIN_SECONDS
+    : BOSS_ARCHIVE_GENERIC_TELEGRAPH_MIN_SECONDS
+);
+
+/**
+ * Retimes only the cloned Archive timeline. Damaging movement windows and
+ * recovery cadence follow the selected tempo while linked warnings retain a
+ * readable minimum lead. Projectile speed/damage parameters are untouched.
+ */
+const scaleBossArchiveTimeline = (
+  timeline: BossTimelineConfig,
+  tempoMultiplier: number
+): BossTimelineConfig => {
+  if (tempoMultiplier === 1) return timeline;
+  const originalById = new Map(timeline.clips.map((clip) => [clip.id, clip]));
+  const scaledClips = timeline.clips.map((clip): BossTimelineClip => {
+    const minimumDuration = clip.primitiveId === 'corner-ambush-beam'
+      ? BOSS_ARCHIVE_CORNER_BEAM_MIN_LIVE_SECONDS
+      : clip.primitiveId === 'corner-ambush-ram'
+        ? BOSS_ARCHIVE_CORNER_RAM_MIN_LIVE_SECONDS
+        : 0.01;
+    const parameters = clip.parameters ? {
+      ...clip.parameters,
+      ...(clip.parameters.pulseIntervalSeconds !== undefined ? {
+        pulseIntervalSeconds: scaleBossArchiveSeconds(
+          clip.parameters.pulseIntervalSeconds,
+          tempoMultiplier,
+          0.5
+        )
+      } : {}),
+      ...(clip.parameters.shotIntervalFrames !== undefined ? {
+        shotIntervalFrames: Math.max(
+          2,
+          Math.round(clip.parameters.shotIntervalFrames / tempoMultiplier)
+        )
+      } : {}),
+      ...(clip.parameters.warningSeconds !== undefined ? {
+        warningSeconds: scaleBossArchiveSeconds(
+          clip.parameters.warningSeconds,
+          tempoMultiplier,
+          BOSS_ARCHIVE_GENERIC_TELEGRAPH_MIN_SECONDS
+        )
+      } : {}),
+      ...(clip.parameters.speedMultiplier !== undefined ? {
+        speedMultiplier: roundBossArchiveTuning(
+          clip.parameters.speedMultiplier * tempoMultiplier
+        )
+      } : {})
+    } : undefined;
+    return {
+      ...clip,
+      startSeconds: roundBossArchiveTuning(clip.startSeconds / tempoMultiplier),
+      durationSeconds: scaleBossArchiveSeconds(
+        clip.durationSeconds,
+        tempoMultiplier,
+        minimumDuration
+      ),
+      ...(clip.repeat ? {
+        repeat: {
+          ...clip.repeat,
+          intervalSeconds: scaleBossArchiveSeconds(
+            clip.repeat.intervalSeconds,
+            tempoMultiplier,
+            0.05
+          )
+        }
+      } : {}),
+      ...(parameters ? { parameters } : {})
+    };
+  });
+  const scaledById = new Map(scaledClips.map((clip) => [clip.id, clip]));
+
+  // Re-anchor each linked warning to its damaging action after scaling. This
+  // prevents Heroic tempo from shortening a warning below the runtime's safe
+  // reading window, including the stricter corner ambush contract.
+  for (const action of scaledClips) {
+    if (!action.telegraphClipId) continue;
+    const originalAction = originalById.get(action.id);
+    const originalTelegraph = originalById.get(action.telegraphClipId);
+    const telegraph = scaledById.get(action.telegraphClipId);
+    if (!originalAction || !originalTelegraph || !telegraph) continue;
+    if (action.trigger !== 'time' || telegraph.trigger !== 'time') continue;
+    const originalLead = Math.max(
+      0,
+      originalAction.startSeconds - originalTelegraph.startSeconds
+    );
+    const warningLead = Math.max(
+      getBossArchiveTelegraphMinimum(action),
+      roundBossArchiveTuning(originalLead / tempoMultiplier)
+    );
+    telegraph.startSeconds = Math.max(
+      0,
+      roundBossArchiveTuning(action.startSeconds - warningLead)
+    );
+    telegraph.durationSeconds = Math.max(telegraph.durationSeconds, warningLead);
+    telegraph.parameters = {
+      ...(telegraph.parameters ?? {}),
+      warningSeconds: warningLead
+    };
+  }
+
+  const scaledDuration = scaleBossArchiveSeconds(
+    timeline.durationSeconds,
+    tempoMultiplier
+  );
+  const latestClipEnd = scaledClips.reduce((latest, clip) => {
+    if (clip.trigger !== 'time') return latest;
+    const repeatEnd = clip.repeat
+      ? (clip.repeat.count - 1) * clip.repeat.intervalSeconds
+      : 0;
+    return Math.max(latest, clip.startSeconds + repeatEnd + clip.durationSeconds);
+  }, 0);
+  return {
+    ...timeline,
+    durationSeconds: roundBossArchiveTuning(Math.max(scaledDuration, latestClipEnd)),
+    clips: scaledClips,
+    ...(timeline.attacks ? {
+      attacks: timeline.attacks.map((attack) => ({
+        ...attack,
+        sourceSocketRoles: [...attack.sourceSocketRoles],
+        variants: attack.variants.map((variant) => ({
+          ...variant,
+          beatClipIds: [...variant.beatClipIds]
+        }))
+      }))
+    } : {})
+  };
+};
+
+const applyBossArchiveDifficulty = (
+  boss: BossEvent,
+  difficulty: BossArchiveDifficultyConfig
+): BossEvent => {
+  if (difficulty.id === 'medium') return boss;
+  const { healthMultiplier, tempoMultiplier } = difficulty;
+  return {
+    ...boss,
+    health: roundBossArchiveTuning(boss.health * healthMultiplier),
+    speed: roundBossArchiveTuning(boss.speed * tempoMultiplier),
+    ...(boss.componentHealth ? {
+      componentHealth: Object.fromEntries(Object.entries(boss.componentHealth).map(
+        ([componentId, health]) => [
+          componentId,
+          roundBossArchiveTuning(Number(health) * healthMultiplier)
+        ]
+      ))
+    } : {}),
+    weapons: boss.weapons.map((weapon) => ({
+      ...weapon,
+      attackIntervalSeconds: scaleBossArchiveSeconds(
+        weapon.attackIntervalSeconds,
+        tempoMultiplier,
+        0.1
+      )
+    })),
+    phases: boss.phases.map((phase) => ({
+      ...phase,
+      weaponSettingIds: [...phase.weaponSettingIds]
+    })),
+    ...(boss.timeline ? {
+      timeline: scaleBossArchiveTimeline(boss.timeline, tempoMultiplier)
+    } : {})
+  };
+};
+
 /**
  * Produces an isolated campaign for one unlocked replay target. Every mission
  * and wave remains in its authored position; only the selected wave's event
  * list is replaced with the selected boss starting immediately.
  */
 export const buildBossReplayCampaign = (
-  eventId: unknown
+  eventId: unknown,
+  difficultyId: unknown = 'medium'
 ): GameCampaignConfig | null => {
   const entry = getBossArchiveEntry(eventId);
   if (!entry) return null;
@@ -488,6 +722,10 @@ export const buildBossReplayCampaign = (
   ));
   if (!wave || !boss) return null;
 
-  wave.events = [{ ...boss, startSeconds: 0 }];
+  const difficulty = getBossArchiveDifficulty(difficultyId);
+  wave.events = [{
+    ...applyBossArchiveDifficulty(boss, difficulty),
+    startSeconds: 0
+  }];
   return campaign;
 };

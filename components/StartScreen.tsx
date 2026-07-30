@@ -44,7 +44,6 @@ import {
   type BossArchiveEntry
 } from '../services/bossArchive';
 import {
-  getBossArchiveUnclaimedMasteryCount,
   type BossArchiveDailyChargeStatus
 } from '../services/bossArchiveProgression';
 import {
@@ -113,7 +112,6 @@ interface StartScreenProps {
   onBossArchiveViewed?: (eventId: string) => void;
   onBossArchiveSelection?: (eventId: string) => void;
   onStartBossFight?: (entry: BossArchiveEntry, request: BossArchiveFightRequest) => void;
-  onClaimBossArchiveMastery?: (eventId: string, objectiveId: string) => void;
   bossArchiveDailyChargeStatus?: BossArchiveDailyChargeStatus;
   bossArchiveResult?: BossArchiveResult | null;
   onDismissBossArchiveResult?: () => void;
@@ -612,7 +610,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onBossArchiveViewed,
   onBossArchiveSelection,
   onStartBossFight,
-  onClaimBossArchiveMastery,
   bossArchiveDailyChargeStatus,
   bossArchiveResult = null,
   onDismissBossArchiveResult,
@@ -692,8 +689,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       .map((entry) => entry.eventId)
       .filter((eventId) => !seen.has(eventId));
   }, [earnedBossArchiveEntries, permanentSquadState.bossArchive.seenEventIds]);
-  const bossArchiveNotificationCount = newBossArchiveEventIds.length
-    + getBossArchiveUnclaimedMasteryCount(permanentSquadState.bossArchive);
+  const bossArchiveNotificationCount = newBossArchiveEventIds.length;
   const canOpenBossArchive = Boolean(onStartBossFight) && (
     availableBossArchiveEntries.length > 0 || bossArchiveDevelopmentAccess
   );
@@ -2078,13 +2074,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
           newEncounterIds={bossArchiveOpenedNewIds}
           onClose={closeBossArchive}
           onChallenge={(entry) => onStartBossFight(entry, {
-            mode: 'practice',
-            variantId: 'standard'
+            mode: 'challenge',
+            variantId: 'standard',
+            difficultyId: 'medium'
           })}
           onLaunch={onStartBossFight}
           onSelectionChange={onBossArchiveSelection}
           onNewEncounterViewed={onBossArchiveViewed}
-          onClaimMastery={onClaimBossArchiveMastery}
           selectedEncounterId={permanentSquadState.bossArchive.lastSelectedEventId}
           progress={permanentSquadState.bossArchive}
           dailyChargeStatus={bossArchiveDailyChargeStatus}

@@ -14,9 +14,21 @@ const loadModel = () => {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
   }).outputText;
   const module = { exports: {} };
+  const localRequire = (request) => {
+    if (request === '../../services/bossArchive') {
+      return {
+        BOSS_ARCHIVE_DIFFICULTIES: Object.freeze([
+          Object.freeze({ id: 'easy', label: 'Easy', description: 'Easy', healthMultiplier: 0.75, tempoMultiplier: 0.9 }),
+          Object.freeze({ id: 'medium', label: 'Medium', description: 'Medium', healthMultiplier: 1, tempoMultiplier: 1 }),
+          Object.freeze({ id: 'heroic', label: 'Heroic', description: 'Heroic', healthMultiplier: 1.5, tempoMultiplier: 1.2 })
+        ])
+      };
+    }
+    return require(request);
+  };
   vm.runInNewContext(
-    `(function(exports, require, module) { ${compiled} })(module.exports, require, module);`,
-    { module, require, Object, Map, Set, Array, Boolean, Math, Number, String }
+    `(function(exports, require, module) { ${compiled} })(module.exports, localRequire, module);`,
+    { module, localRequire, Object, Map, Set, Array, Boolean, Math, Number, String }
   );
   return module.exports;
 };
@@ -111,18 +123,48 @@ test('records and daily challenge copy are formatted without false reward claims
     remaining: 2,
     resetLabel: 'Reset 4h'
   }), null);
+
+  const heroic = model.getBossArchiveDifficultyRecord({
+    difficultyRecords: {
+      heroic: {
+        attempts: 4,
+        clears: 2,
+        noHitClears: 1,
+        bestClearTimeMs: 54_000,
+        bestNoHitTimeMs: 54_000
+      }
+    }
+  }, 'heroic');
+  assert.equal(heroic.clears, 2);
+  assert.equal(heroic.bestClearTimeMs, 54_000);
+  const migratedMedium = model.getBossArchiveDifficultyRecord({
+    challengeAttempts: 3,
+    challengeClears: 2,
+    noHitClears: 1,
+    bestChallengeTimeMs: 61_000
+  }, 'medium');
+  assert.equal(migratedMedium.attempts, 3);
+  assert.equal(migratedMedium.clears, 2);
+  assert.equal(migratedMedium.bestClearTimeMs, 61_000);
 });
 
-test('Boss Archive surface exposes polished carousel, modes, mastery, results, and accessible input hooks', () => {
+test('Boss Archive exposes one charge-based fight flow with difficulty records and stable artwork', () => {
   const archive = read('components/BossArchive.tsx');
   const carousel = read('components/boss-archive/BossArchiveCarousel.tsx');
   const css = read('components/boss-archive/boss-archive.css');
 
   assert.match(archive, /BossArchiveCarousel/);
   assert.match(archive, /Recovered[\s\S]*Daily charges/);
-  assert.match(archive, /Practice[\s\S]*Challenge/);
-  assert.match(archive, /A charge is spent only after victory\. Failed attempts are free\./);
-  assert.match(archive, /Mastery Protocol/);
+  assert.deepEqual(
+    Array.from(model.BOSS_ARCHIVE_DIFFICULTIES, (difficulty) => difficulty.label),
+    ['Easy', 'Medium', 'Heroic']
+  );
+  assert.match(archive, /BOSS_ARCHIVE_DIFFICULTIES\.map/);
+  assert.match(archive, /Defeated[\s\S]*Best clear[\s\S]*No-hit/);
+  assert.match(archive, /Each fight costs 1 daily charge\./);
+  assert.match(archive, /Play Boss/);
+  assert.doesNotMatch(archive, />\s*Practice\s*</i);
+  assert.doesNotMatch(archive, /Mastery Protocol|>\s*Variant\s*<|Practice rewards/i);
   assert.match(archive, /BossArchiveResultPanel/);
   assert.match(archive, /Archive Index/);
   assert.match(archive, /onNewEncounterViewed\?/);
@@ -131,7 +173,9 @@ test('Boss Archive surface exposes polished carousel, modes, mastery, results, a
   assert.match(carousel, /onWheel/);
   assert.match(carousel, /ArrowLeft/);
   assert.match(carousel, /navigator\.getGamepads/);
-  assert.match(carousel, /data-idle-preview=\{selected \? 'active' : 'static'\}/);
+  assert.match(carousel, /portraitUrl \?\? item\.entry\.artUrl/);
+  assert.doesNotMatch(carousel, /setInterval|idleFrameUrls|frameIndex/);
+  assert.doesNotMatch(css, /backdrop-filter|mix-blend-mode|boss-archive-ambient-turn/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
 });

@@ -133,8 +133,8 @@ import {
   type PresentDropRuntimeResult
 } from './services/campaignBranchRuntime';
 import {
+  beginBossArchiveFightEconomy,
   claimAchievement as claimAchievementReward,
-  claimBossArchiveMasteryEconomyReward,
   claimDailyGift as claimDailyGiftReward,
   markBossArchiveViewed,
   recordBossVictory,
@@ -176,10 +176,10 @@ import {
   BOSS_ARCHIVE_CATALOG,
   buildBossReplayCampaign,
   getBossArchiveEntry,
+  type BossArchiveDifficultyId,
   type BossArchiveEntry
 } from './services/bossArchive';
 import {
-  BOSS_ARCHIVE_MASTERY_OBJECTIVE_IDS,
   createBossArchiveDeveloperControls,
   DEFAULT_BOSS_ARCHIVE_DAILY_CHARGE_LIMIT,
   getBossArchiveDailyChargeStatus,
@@ -400,6 +400,7 @@ type BossArchiveRunContext = {
   eventId: string;
   mode: BossArchiveRunMode;
   variantId: string;
+  difficultyId: BossArchiveDifficultyId;
   seed: string;
   resultId: string;
   serverChallengeRun: WalletBossArchiveChallengeRun | null;
@@ -417,6 +418,7 @@ type BossArchiveResultPresentation = {
   masteryCompletedIds: BossArchiveMasteryObjectiveId[];
   mode: BossArchiveRunMode;
   variantId: string;
+  difficultyId: BossArchiveDifficultyId;
   notice?: string;
 };
 type MissionLoadingState = {
@@ -865,8 +867,13 @@ const App: React.FC = () => {
     activeBossEncounterId ? getBossArchiveEntry(activeBossEncounterId) : null
   ), [activeBossEncounterId]);
   const activeBossReplayCampaign = useMemo(() => (
-    activeBossEncounterId ? buildBossReplayCampaign(activeBossEncounterId) ?? undefined : undefined
-  ), [activeBossEncounterId]);
+    activeBossEncounterId
+      ? buildBossReplayCampaign(
+          activeBossEncounterId,
+          activeBossArchiveRun?.difficultyId ?? 'medium'
+        ) ?? undefined
+      : undefined
+  ), [activeBossArchiveRun?.difficultyId, activeBossEncounterId]);
   const activeCampaignBranch = useMemo(() => (
     activeCampaignBranchId
       ? getCampaignBranchDefinition(DEFAULT_GAME_CAMPAIGN, activeCampaignBranchId)
@@ -1796,11 +1803,13 @@ const App: React.FC = () => {
 
   const launchGame = async (
     bossEncounterId: string | null = null,
-    bossMode: BossArchiveRunMode = 'practice',
+    bossMode: BossArchiveRunMode = 'challenge',
     bossVariantId = 'standard',
     campaignRequest: CampaignMapLaunchRequest | null = null,
     branchRequest: CampaignMapBranchLaunchRequest | null = null,
-    campaignLabRequest: CampaignLabLaunchRequest | null = null
+    campaignLabRequest: CampaignLabLaunchRequest | null = null,
+    bossDifficultyId: BossArchiveDifficultyId = 'medium',
+    reusableBossArchiveRun: BossArchiveRunContext | null = null
   ) => {
     if (missionLaunchPendingRef.current) return;
     const launchNonce = missionLaunchNonceRef.current + 1;
@@ -1823,6 +1832,19 @@ const App: React.FC = () => {
     }
 
     const requestedBossReplay = bossEncounterId ? getBossArchiveEntry(bossEncounterId) : null;
+    const matchingReusableArchiveRun = requestedBossReplay
+      && reusableBossArchiveRun?.eventId === requestedBossReplay.eventId
+      && reusableBossArchiveRun.difficultyId === bossDifficultyId
+      && !processedBossArchiveResultsRef.current.has(reusableBossArchiveRun.resultId)
+        ? reusableBossArchiveRun
+        : null;
+    const reservedArchiveRunId = requestedBossReplay && !matchingReusableArchiveRun
+      ? (globalThis.crypto?.randomUUID?.()
+          ?? `${Date.now().toString(36)}-${launchNonce.toString(36)}`)
+      : null;
+    const reservedArchiveResultId = reservedArchiveRunId
+      ? `boss-archive:${reservedArchiveRunId}`
+      : null;
     const requestedCampaignMission = campaignRequest
       ? getCampaignMissionById(campaignRequest.missionId)
       : null;
@@ -1905,6 +1927,7 @@ const App: React.FC = () => {
     if (
       requestedBossReplay
       && bossMode === 'challenge'
+      && !matchingReusableArchiveRun
       && !(activeWalletAddress && !isOwnerWallet && !import.meta.env.DEV)
       && getBossArchiveDailyChargeStatus(
         permanentSquadState.bossArchive,
@@ -1919,15 +1942,18 @@ const App: React.FC = () => {
     const requiresServerChallengeSettlement = Boolean(
       requestedBossReplay
       && bossMode === 'challenge'
+      && !matchingReusableArchiveRun
       && activeWalletAddress
       && !isOwnerWallet
       && !import.meta.env.DEV
     );
-    let serverChallengeRun: WalletBossArchiveChallengeRun | null = null;
-    let serverWalletAddress: string | null = null;
+    let serverChallengeRun: WalletBossArchiveChallengeRun | null =
+      matchingReusableArchiveRun?.serverChallengeRun ?? null;
+    let serverWalletAddress: string | null =
+      matchingReusableArchiveRun?.serverWalletAddress ?? null;
     if (requiresServerChallengeSettlement) {
       if (walletProfileStatus !== 'ready') {
-        setWalletError('Reconnect this wallet profile before starting an official Boss Challenge. Practice remains available.');
+        setWalletError('Reconnect this wallet profile before starting a Boss Archive fight.');
         releaseLaunchReservation();
         return;
       }
@@ -1946,27 +1972,78 @@ const App: React.FC = () => {
             return startWalletBossArchiveChallenge({
               walletAddress: normalizedAddress,
               eventId: requestedBossReplay!.eventId,
-              variantId: 'standard'
+              variantId: 'standard',
+              difficultyId: bossDifficultyId
             });
           });
         walletProfileSaveChainRef.current = startTask.then(
           () => undefined,
           () => undefined
         );
-        serverChallengeRun = await startTask;
+        const started = await startTask;
         if (missionLaunchNonceRef.current !== launchNonce) return;
+        serverChallengeRun = started.run;
+        cacheWalletProfile(started.profile);
+        discardWalletProfileDirty(normalizedAddress);
+        if (walletProfileAddressRef.current === normalizedAddress) {
+          walletProfileRevisionRef.current = started.profile.revision;
+          walletProfileSyncedSnapshotRef.current = started.profile.snapshot;
+          const hydratedSnapshot = hydrateActiveProfile({
+            profileId: started.profile.profileId,
+            snapshot: started.profile.snapshot,
+            founderSandbox: false
+          });
+          walletProfileLocalBaselineRef.current = hydratedSnapshot;
+          permanentSquadStateRef.current = hydratedSnapshot.permanentState;
+          weeklySquadStateRef.current = hydratedSnapshot.weeklyState;
+          setWalletProfileStatus('ready');
+        }
         setWalletError('');
       } catch (error) {
         if (missionLaunchNonceRef.current !== launchNonce) return;
         console.error('Boss Archive Challenge start failed', error);
         setWalletError(
           error instanceof Error
-            ? `${error.message} Practice remains available.`
-            : 'This official Boss Challenge could not start. Practice remains available.'
+            ? error.message
+            : 'This Boss Archive fight could not start. Reconnect and try again.'
         );
         releaseLaunchReservation();
         return;
       }
+    }
+
+    if (
+      requestedBossReplay
+      && !matchingReusableArchiveRun
+      && !requiresServerChallengeSettlement
+    ) {
+      const reservation = beginBossArchiveFightEconomy(
+        permanentSquadStateRef.current,
+        weeklySquadStateRef.current,
+        {
+          eventId: requestedBossReplay.eventId,
+          difficultyId: bossDifficultyId,
+          attemptId: reservedArchiveResultId!
+        },
+        { dailyLimit: bossArchiveDailyLimit }
+      );
+      if (!reservation.result.accepted) {
+        setWalletError(
+          reservation.result.reason === 'no-charges'
+            ? 'All three Boss Archive charges have been used for today.'
+            : 'This Boss Archive fight could not be reserved. Please try again.'
+        );
+        releaseLaunchReservation();
+        return;
+      }
+      if (!persistRewardClaim(reservation.permanentState, reservation.weeklyState)) {
+        setWalletError('This Boss Archive charge could not be saved. Please try again.');
+        releaseLaunchReservation();
+        return;
+      }
+      permanentSquadStateRef.current = reservation.permanentState;
+      weeklySquadStateRef.current = reservation.weeklyState;
+      setWalletError('');
     }
 
     const requiresServerBranchSettlement = Boolean(
@@ -2044,22 +2121,22 @@ const App: React.FC = () => {
     setActiveCampaignLaunch(normalizedCampaignRequest);
     setActiveCampaignBranchId(requestedCampaignBranch?.branchId ?? null);
 
-    const archiveRunId = requestedBossReplay
-      ? (serverChallengeRun?.runId
-          ?? globalThis.crypto?.randomUUID?.()
-          ?? `${Date.now().toString(36)}-${launchNonce.toString(36)}`)
+    const archiveRunId = requestedBossReplay && !matchingReusableArchiveRun
+      ? (serverChallengeRun?.runId ?? reservedArchiveRunId)
       : null;
-    const nextArchiveRun = requestedBossReplay && archiveRunId
+    const nextArchiveRun = matchingReusableArchiveRun
+      ?? (requestedBossReplay && archiveRunId
       ? {
           eventId: requestedBossReplay.eventId,
           mode: bossMode,
           variantId: bossVariantId,
-          seed: `boss-archive:${requestedBossReplay.eventId}:${bossMode}:${archiveRunId}`,
+          difficultyId: bossDifficultyId,
+          seed: `boss-archive:${requestedBossReplay.eventId}:${bossDifficultyId}:${archiveRunId}`,
           resultId: `boss-archive:${archiveRunId}`,
           serverChallengeRun,
           serverWalletAddress
         } satisfies BossArchiveRunContext
-      : null;
+      : null);
     setActiveBossArchiveRun(nextArchiveRun);
     if (nextArchiveRun) setBossArchiveResult(null);
     campaignBranchRunRef.current = requestedCampaignBranch
@@ -2312,7 +2389,7 @@ const App: React.FC = () => {
 
   const startGame = () => {
     const mission = getCampaignMissionById(campaignCheckpoint.missionId);
-    void launchGame(null, 'practice', 'standard', {
+    void launchGame(null, 'challenge', 'standard', {
       missionId: campaignCheckpoint.missionId,
       waveId: mission?.waveIds[0] ?? campaignCheckpoint.waveId,
       kind: 'mission'
@@ -2321,7 +2398,7 @@ const App: React.FC = () => {
 
   const retryGame = () => {
     if (isCampaignBranchRun && activeCampaignBranch) {
-      void launchGame(null, 'practice', 'standard', null, {
+      void launchGame(null, 'challenge', 'standard', null, {
         branchId: activeCampaignBranch.branchId,
         sourceMissionId: activeCampaignBranch.sourceMissionId,
         missionDefinitionId: activeCampaignBranch.missionDefinitionId,
@@ -2338,7 +2415,7 @@ const App: React.FC = () => {
           ? 'weekly-streak' as const
           : activeCampaignLaunch.kind === 'replay' ? 'replay' as const : 'mission' as const
       };
-      void launchGame(null, 'practice', 'standard', retryRequest);
+      void launchGame(null, 'challenge', 'standard', retryRequest);
       return;
     }
     startGame();
@@ -2346,12 +2423,25 @@ const App: React.FC = () => {
 
   const startBossArchiveFight = (
     entry: BossArchiveEntry,
-    request: { mode: BossArchiveRunMode; variantId: string } = {
-      mode: 'practice',
-      variantId: 'standard'
+    request: {
+      mode: BossArchiveRunMode;
+      variantId: string;
+      difficultyId: BossArchiveDifficultyId;
+    } = {
+      mode: 'challenge',
+      variantId: 'standard',
+      difficultyId: 'medium'
     }
   ) => {
-    void launchGame(entry.eventId, request.mode, request.variantId);
+    void launchGame(
+      entry.eventId,
+      request.mode,
+      request.variantId,
+      null,
+      null,
+      null,
+      request.difficultyId
+    );
   };
 
   const completeMissionRuntimeLaunch = (runtimeGameId: number) => {
@@ -2588,7 +2678,7 @@ const App: React.FC = () => {
     setCampaignMapError('');
     clearCampaignMapRoute();
     setCampaignMapOpen(false);
-    void launchGame(null, 'practice', 'standard', request);
+    void launchGame(null, 'challenge', 'standard', request);
   };
 
   const finishWeeklyCampaignForLeaderboard = useCallback((streak: WeeklyCampaignStreakState) => {
@@ -2689,7 +2779,7 @@ const App: React.FC = () => {
     setCampaignMapError('');
     clearCampaignMapRoute();
     setCampaignMapOpen(false);
-    void launchGame(null, 'practice', 'standard', null, request);
+    void launchGame(null, 'challenge', 'standard', null, request);
   };
 
   const launchCampaignLabFromMap = (request: CampaignLabLaunchRequest) => {
@@ -2716,7 +2806,7 @@ const App: React.FC = () => {
     setCampaignMapError('');
     clearCampaignMapRoute();
     setCampaignMapOpen(false);
-    void launchGame(null, 'practice', 'standard', normalizedRequest, null, normalizedRequest);
+    void launchGame(null, 'challenge', 'standard', normalizedRequest, null, normalizedRequest);
   };
 
   useEffect(() => {
@@ -3096,7 +3186,7 @@ const App: React.FC = () => {
         if (!branch || !commitFounderBranchAction(branchId, 'unlock')) return;
         clearCampaignMapRoute();
         setCampaignMapOpen(false);
-        void launchGame(null, 'practice', 'standard', null, {
+        void launchGame(null, 'challenge', 'standard', null, {
           branchId: branch.branchId,
           sourceMissionId: branch.sourceMissionId,
           missionDefinitionId: branch.missionDefinitionId,
@@ -4378,6 +4468,7 @@ const App: React.FC = () => {
           masteryCompletedIds: settlement.newlyCompletedObjectiveIds,
           mode: 'challenge',
           variantId: settlement.variantId,
+          difficultyId: settlement.difficultyId ?? run.difficultyId,
           notice: settlement.duplicate
             ? 'This Challenge result was already settled. Your canonical wallet profile was restored.'
             : undefined
@@ -4405,6 +4496,7 @@ const App: React.FC = () => {
           masteryCompletedIds: [],
           mode: run.mode,
           variantId: run.variantId,
+          difficultyId: run.difficultyId,
           notice: noCharges
             ? 'The server reports that no Challenge charges remain today. No reward was applied.'
             : 'Server verification is temporarily unavailable. This result may already be recorded; reconnect to refresh your canonical profile. Duplicate rewards cannot be granted.'
@@ -4414,11 +4506,12 @@ const App: React.FC = () => {
     }
 
     const economy = resolveBossArchiveFightEconomy(
-      permanentSquadState,
-      weeklySquadState,
+      permanentSquadStateRef.current,
+      weeklySquadStateRef.current,
       {
         eventId: run.eventId,
         mode: run.mode,
+        difficultyId: run.difficultyId,
         victory,
         clearTimeMs,
         damageTaken,
@@ -4440,7 +4533,8 @@ const App: React.FC = () => {
         chargesRemaining: 0,
         masteryCompletedIds: [],
         mode: run.mode,
-        variantId: run.variantId
+        variantId: run.variantId,
+        difficultyId: run.difficultyId
       });
       return true;
     }
@@ -4465,7 +4559,8 @@ const App: React.FC = () => {
         masteryCompletedIds: [],
         mode: run.mode,
         variantId: run.variantId,
-        notice: 'This result could not be saved. No Challenge charge or reward was applied.'
+        difficultyId: run.difficultyId,
+        notice: 'This result could not be saved. The launch charge was already used; reconnect before another fight.'
       });
       return true;
     }
@@ -4488,7 +4583,8 @@ const App: React.FC = () => {
       chargesRemaining: chargeStatus.remaining,
       masteryCompletedIds: economy.result.newlyCompletedObjectiveIds,
       mode: run.mode,
-      variantId: run.variantId
+      variantId: run.variantId,
+      difficultyId: run.difficultyId
     });
     return true;
   }, [
@@ -4499,20 +4595,6 @@ const App: React.FC = () => {
     persistRewardClaim,
     weeklySquadState
   ]);
-
-  const handleClaimBossArchiveMastery = useCallback((
-    eventId: string,
-    objectiveId: BossArchiveMasteryObjectiveId
-  ) => {
-    const resolution = claimBossArchiveMasteryEconomyReward(
-      permanentSquadState,
-      weeklySquadState,
-      eventId,
-      objectiveId
-    );
-    if (!resolution.claim.claimed) return;
-    persistRewardClaim(resolution.permanentState, resolution.weeklyState);
-  }, [permanentSquadState, persistRewardClaim, weeklySquadState]);
 
   const bossArchiveDailyChargeStatus = useMemo(() => getBossArchiveDailyChargeStatus(
     permanentSquadState.bossArchive,
@@ -4569,7 +4651,8 @@ const App: React.FC = () => {
             chargesRemaining: bossArchiveDailyChargeStatus.remaining,
             masteryCompletedIds: outcome === 'victory' ? ['challenge-clear'] : [],
             mode: 'challenge',
-            variantId: 'standard'
+            variantId: 'standard',
+            difficultyId: 'medium'
           });
         });
       }
@@ -5296,7 +5379,7 @@ const App: React.FC = () => {
           onRetry={() => {
             void launchGame(
               activeBossEncounterId,
-              activeBossArchiveRun?.mode ?? 'practice',
+              activeBossArchiveRun?.mode ?? 'challenge',
               activeBossArchiveRun?.variantId ?? 'standard',
               activeCampaignLaunch,
               activeCampaignBranch ? {
@@ -5305,7 +5388,9 @@ const App: React.FC = () => {
                 missionDefinitionId: activeCampaignBranch.missionDefinitionId,
                 kind: 'branch'
               } : null,
-              isCampaignLabRun ? campaignLabActiveRequestRef.current : null
+              isCampaignLabRun ? campaignLabActiveRequestRef.current : null,
+              activeBossArchiveRun?.difficultyId ?? 'medium',
+              activeBossArchiveRun
             );
           }}
           onCancel={cancelMissionLoading}
@@ -5483,21 +5568,13 @@ const App: React.FC = () => {
           onBossArchiveViewed={handleBossArchiveViewed}
           onBossArchiveSelection={handleBossArchiveSelection}
           onStartBossFight={startBossArchiveFight}
-          onClaimBossArchiveMastery={(eventId, objectiveId) => {
-            if (!BOSS_ARCHIVE_MASTERY_OBJECTIVE_IDS.includes(
-              objectiveId as BossArchiveMasteryObjectiveId
-            )) return;
-            handleClaimBossArchiveMastery(
-              eventId,
-              objectiveId as BossArchiveMasteryObjectiveId
-            );
-          }}
           bossArchiveDailyChargeStatus={bossArchiveDailyChargeStatus}
           bossArchiveResult={bossArchiveResult ? {
             eventId: bossArchiveResult.eventId,
             outcome: bossArchiveResult.outcome,
             mode: bossArchiveResult.mode,
             variantId: bossArchiveResult.variantId,
+            difficultyId: bossArchiveResult.difficultyId,
             clearTimeMs: bossArchiveResult.clearTimeMs,
             damageTaken: bossArchiveResult.damageTaken,
             noHit: bossArchiveResult.noHit,
@@ -5712,7 +5789,7 @@ const App: React.FC = () => {
           {isBossArchiveRun ? (
             <div className="sci-gameover-result-content relative z-10 grid gap-3 p-2 text-center">
               <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-red-200">
-                Boss Archive / Practice Run
+                Boss Archive / {activeBossArchiveRun?.difficultyId ?? 'medium'}
               </p>
               <h2 className="arcade-font text-2xl font-black uppercase tracking-widest text-white">
                 Challenge Failed
@@ -5733,13 +5810,17 @@ const App: React.FC = () => {
                 </div>
               ) : null}
               <p className="text-xs font-semibold text-slate-300">
-                Practice fights never spend coins or affect the weekly leaderboard.
+                This fight used one daily charge and does not affect the weekly leaderboard.
               </p>
               <div className="grid gap-2">
                 <button
                   type="button"
-                  onClick={() => activeBossReplay && startBossArchiveFight(activeBossReplay)}
-                  disabled={!activeBossReplay}
+                  onClick={() => activeBossReplay && startBossArchiveFight(activeBossReplay, {
+                    mode: 'challenge',
+                    variantId: 'standard',
+                    difficultyId: activeBossArchiveRun?.difficultyId ?? 'medium'
+                  })}
+                  disabled={!activeBossReplay || bossArchiveDailyChargeStatus.remaining <= 0}
                   className="scicon-btn min-h-11 w-full py-2.5 text-xs font-bold disabled:opacity-50"
                 >
                   RETRY BOSS

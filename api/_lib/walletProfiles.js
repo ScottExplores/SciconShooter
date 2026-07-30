@@ -17,6 +17,8 @@ const PROFILES_TABLE = process.env.SUPABASE_WALLET_PROFILES_TABLE || 'scicon_wal
 const CHALLENGES_TABLE = process.env.SUPABASE_WALLET_PROFILE_CHALLENGES_TABLE || 'scicon_wallet_profile_challenges';
 const BOSS_ARCHIVE_RESULTS_TABLE = process.env.SUPABASE_BOSS_ARCHIVE_RESULTS_TABLE
   || 'scicon_boss_archive_challenge_results';
+const BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT = 3;
+const BOSS_ARCHIVE_DIFFICULTY_IDS = Object.freeze(['easy', 'medium', 'heroic']);
 const CHALLENGE_LIFETIME_MS = 10 * 60 * 1000;
 const MAX_SNAPSHOT_BYTES = 256 * 1024;
 
@@ -1097,11 +1099,42 @@ const sanitizeBossArchiveLastResult = (value) => {
   if (!playedAt || !['practice', 'challenge'].includes(result.mode)) return null;
   return {
     mode: result.mode,
+    difficultyId: BOSS_ARCHIVE_DIFFICULTY_IDS.includes(result.difficultyId)
+      ? result.difficultyId
+      : 'medium',
     victory: result.victory === true,
     clearTimeMs: optionalDuration(result.clearTimeMs),
     damageTaken: integer(result.damageTaken, 0, 1_000_000),
     playedAt
   };
+};
+
+const sanitizeBossArchiveDifficultyRecord = (value) => {
+  const record = asObject(value);
+  const clears = integer(record.clears, 0, 1_000_000_000);
+  const attempts = Math.max(clears, integer(record.attempts, 0, 1_000_000_000));
+  return {
+    attempts,
+    clears,
+    noHitClears: integer(record.noHitClears, 0, clears),
+    bestClearTimeMs: optionalDuration(record.bestClearTimeMs),
+    bestNoHitTimeMs: optionalDuration(record.bestNoHitTimeMs),
+    processedResultIds: stringList(record.processedResultIds, {
+      maxItems: 64,
+      maxLength: 120
+    })
+  };
+};
+
+const sanitizeBossArchiveDifficultyRecords = (value) => {
+  const records = asObject(value);
+  return Object.fromEntries(BOSS_ARCHIVE_DIFFICULTY_IDS.flatMap((difficultyId) => (
+    records[difficultyId]
+      && typeof records[difficultyId] === 'object'
+      && !Array.isArray(records[difficultyId])
+      ? [[difficultyId, sanitizeBossArchiveDifficultyRecord(records[difficultyId])]]
+      : []
+  )));
 };
 
 const sanitizeBossArchiveRecord = (value) => {
@@ -1110,23 +1143,47 @@ const sanitizeBossArchiveRecord = (value) => {
   const challengeAttempts = integer(record.challengeAttempts, 0, 1_000_000_000);
   const practiceClears = integer(record.practiceClears, 0, practiceAttempts);
   const challengeClears = integer(record.challengeClears, 0, challengeAttempts);
+  const totalClears = Math.max(
+    practiceClears + challengeClears,
+    integer(record.totalClears, 0, 1_000_000_000)
+  );
+  const attempts = Math.max(
+    totalClears,
+    practiceAttempts + challengeAttempts,
+    integer(record.attempts, 0, 1_000_000_000)
+  );
+  const noHitClears = integer(record.noHitClears, 0, totalClears);
+  const bestClearTimeMs = optionalDuration(record.bestClearTimeMs);
+  const bestNoHitTimeMs = optionalDuration(record.bestNoHitTimeMs);
+  const storedDifficultyRecords = sanitizeBossArchiveDifficultyRecords(record.difficultyRecords);
+  const hasStoredDifficultyRecords = Object.keys(storedDifficultyRecords).length > 0;
+  const difficultyRecords = Object.fromEntries(BOSS_ARCHIVE_DIFFICULTY_IDS.map((difficultyId) => [
+    difficultyId,
+    storedDifficultyRecords[difficultyId] || (
+      difficultyId === 'medium' && !hasStoredDifficultyRecords
+        ? {
+            ...sanitizeBossArchiveDifficultyRecord(null),
+            attempts,
+            clears: totalClears,
+            noHitClears,
+            bestClearTimeMs,
+            bestNoHitTimeMs
+          }
+        : sanitizeBossArchiveDifficultyRecord(null)
+    )
+  ]));
   return {
-    attempts: Math.max(
-      practiceAttempts + challengeAttempts,
-      integer(record.attempts, 0, 1_000_000_000)
-    ),
+    attempts,
     practiceAttempts,
     challengeAttempts,
-    totalClears: Math.max(
-      practiceClears + challengeClears,
-      integer(record.totalClears, 0, 1_000_000_000)
-    ),
+    totalClears,
     practiceClears,
     challengeClears,
-    noHitClears: integer(record.noHitClears, 0, practiceClears + challengeClears),
-    bestClearTimeMs: optionalDuration(record.bestClearTimeMs),
+    noHitClears,
+    bestClearTimeMs,
     bestChallengeTimeMs: optionalDuration(record.bestChallengeTimeMs),
-    bestNoHitTimeMs: optionalDuration(record.bestNoHitTimeMs),
+    bestNoHitTimeMs,
+    difficultyRecords,
     mastery: sanitizeBossArchiveMastery(record.mastery),
     processedResultIds: stringList(record.processedResultIds, {
       maxItems: 64,
@@ -1175,6 +1232,28 @@ const mergeMigratedBossArchiveRecords = (values) => values
         record.bestChallengeTimeMs
       ),
       bestNoHitTimeMs: shortest(merged.bestNoHitTimeMs, record.bestNoHitTimeMs),
+      difficultyRecords: Object.fromEntries(BOSS_ARCHIVE_DIFFICULTY_IDS.flatMap((difficultyId) => {
+        const left = merged.difficultyRecords[difficultyId];
+        const right = record.difficultyRecords[difficultyId];
+        if (!left && !right) return [];
+        const leftRecord = sanitizeBossArchiveDifficultyRecord(left);
+        const rightRecord = sanitizeBossArchiveDifficultyRecord(right);
+        return [[difficultyId, {
+          attempts: integer(leftRecord.attempts + rightRecord.attempts, 0, 1_000_000_000),
+          clears: integer(leftRecord.clears + rightRecord.clears, 0, 1_000_000_000),
+          noHitClears: integer(
+            leftRecord.noHitClears + rightRecord.noHitClears,
+            0,
+            1_000_000_000
+          ),
+          bestClearTimeMs: shortest(leftRecord.bestClearTimeMs, rightRecord.bestClearTimeMs),
+          bestNoHitTimeMs: shortest(leftRecord.bestNoHitTimeMs, rightRecord.bestNoHitTimeMs),
+          processedResultIds: stringList([
+            ...leftRecord.processedResultIds,
+            ...rightRecord.processedResultIds
+          ], { maxItems: 64, maxLength: 120 })
+        }]];
+      })),
       mastery: Object.fromEntries(BOSS_ARCHIVE_MASTERY_IDS.map((id) => [id, {
         completedAt: earliest(merged.mastery[id].completedAt, record.mastery[id].completedAt),
         claimedAt: earliest(merged.mastery[id].claimedAt, record.mastery[id].claimedAt)
@@ -1192,6 +1271,7 @@ const sanitizeBossArchiveProgress = (value, unlockedEventIds, now) => {
   const unlockedSet = new Set(unlockedEventIds);
   const records = asObject(archive.records);
   const dailyChallenge = asObject(archive.dailyChallenge);
+  const dailyAttempts = asObject(archive.dailyAttempts);
   const utcDateKey = isoNow(now).slice(0, 10);
   const storedDateKey = typeof dailyChallenge.utcDateKey === 'string'
     && /^\d{4}-\d{2}-\d{2}$/.test(dailyChallenge.utcDateKey)
@@ -1202,6 +1282,39 @@ const sanitizeBossArchiveProgress = (value, unlockedEventIds, now) => {
     && unlockedSet.has(normalizedLastSelectedEventId)
     ? normalizedLastSelectedEventId
     : null;
+  const sanitizedDailyChallenge = storedDateKey === utcDateKey
+    ? {
+        utcDateKey,
+        successfulClearsUsed: integer(dailyChallenge.successfulClearsUsed, 0, 99),
+        processedClearIds: stringList(dailyChallenge.processedClearIds, {
+          maxItems: 64,
+          maxLength: 120
+        })
+      }
+    : {
+        utcDateKey,
+        successfulClearsUsed: 0,
+        processedClearIds: []
+      };
+  const storedAttemptDateKey = typeof dailyAttempts.utcDateKey === 'string'
+    && /^\d{4}-\d{2}-\d{2}$/.test(dailyAttempts.utcDateKey)
+    ? dailyAttempts.utcDateKey
+    : null;
+  const hasCurrentDailyAttempts = storedAttemptDateKey === utcDateKey;
+  const legacyAttemptIds = sanitizedDailyChallenge.processedClearIds;
+  const sanitizedDailyAttempts = {
+    utcDateKey,
+    attemptsUsed: hasCurrentDailyAttempts
+      ? integer(dailyAttempts.attemptsUsed, 0, BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT)
+      : Math.min(
+          BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT,
+          sanitizedDailyChallenge.successfulClearsUsed
+        ),
+    processedAttemptIds: stringList(
+      hasCurrentDailyAttempts ? dailyAttempts.processedAttemptIds : legacyAttemptIds,
+      { maxItems: 64, maxLength: 120 }
+    )
+  };
   return {
     version: 1,
     unlockedEventIds,
@@ -1216,20 +1329,8 @@ const sanitizeBossArchiveProgress = (value, unlockedEventIds, now) => {
         ? []
         : [[eventId, mergeMigratedBossArchiveRecords(migratedValues)]];
     })),
-    dailyChallenge: storedDateKey === utcDateKey
-      ? {
-          utcDateKey,
-          successfulClearsUsed: integer(dailyChallenge.successfulClearsUsed, 0, 99),
-          processedClearIds: stringList(dailyChallenge.processedClearIds, {
-            maxItems: 64,
-            maxLength: 120
-          })
-        }
-      : {
-          utcDateKey,
-          successfulClearsUsed: 0,
-          processedClearIds: []
-        }
+    dailyChallenge: sanitizedDailyChallenge,
+    dailyAttempts: sanitizedDailyAttempts
   };
 };
 
@@ -1271,6 +1372,7 @@ const mergeProtectedBossArchiveRecord = (currentValue, incomingValue) => {
     bestClearTimeMs: minimumDuration(current.bestClearTimeMs, incoming.bestClearTimeMs),
     bestChallengeTimeMs: current.bestChallengeTimeMs,
     bestNoHitTimeMs: minimumDuration(current.bestNoHitTimeMs, incoming.bestNoHitTimeMs),
+    difficultyRecords: current.difficultyRecords,
     mastery: Object.fromEntries(BOSS_ARCHIVE_MASTERY_IDS.map((id) => [id, {
       completedAt: current.mastery[id]?.completedAt ?? null,
       // Claiming a completed cosmetic node remains a normal profile action;
@@ -1332,6 +1434,29 @@ const preserveBossArchiveServerState = ({
       ...ledgerIds
     ], { maxItems: 64, maxLength: 120 })
   };
+  const currentDailyAttempts = currentArchive.dailyAttempts?.utcDateKey === utcDateKey
+    ? currentArchive.dailyAttempts
+    : { utcDateKey, attemptsUsed: 0, processedAttemptIds: [] };
+  const dailyAttempts = {
+    utcDateKey,
+    // Attempt consumption is server-owned. A normal client save can neither
+    // restore a spent charge nor manufacture an idempotency receipt.
+    attemptsUsed: Math.max(
+      integer(currentDailyAttempts.attemptsUsed, 0, BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT),
+      Array.isArray(dailyLedger)
+        ? Math.min(BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT, dailyLedger.length)
+        : 0
+    ),
+    processedAttemptIds: stringList([
+      ...stringList(currentDailyAttempts.processedAttemptIds, {
+        maxItems: 64,
+        maxLength: 120
+      }),
+      ...(Array.isArray(dailyLedger)
+        ? dailyLedger.map((row) => `boss-archive:${String(row.result_id || '')}`)
+        : [])
+    ], { maxItems: 64, maxLength: 120 })
+  };
   const requestedSelection = incomingArchive.lastSelectedEventId
     ?? currentArchive.lastSelectedEventId;
   return {
@@ -1346,7 +1471,8 @@ const preserveBossArchiveServerState = ({
           ? requestedSelection
           : null,
         records,
-        dailyChallenge
+        dailyChallenge,
+        dailyAttempts
       }
     }
   };
@@ -2323,6 +2449,259 @@ const fetchWalletProfile = async (address, now = Date.now()) => {
   return rowToProfile(Array.isArray(rows) ? rows[0] : null, now);
 };
 
+const writeWalletProfileSnapshotCas = async ({ profile, snapshot, now }) => {
+  const sanitizedSnapshot = sanitizeWalletSnapshot(
+    snapshot,
+    profile.walletAddress,
+    now
+  );
+  const rows = await fetchSupabaseJson(
+    `${PROFILES_TABLE}?wallet_address=eq.${encodeURIComponent(profile.walletAddress)}`
+      + `&revision=eq.${profile.revision}`,
+    {
+      method: 'PATCH',
+      headers: supabaseHeaders({ Prefer: 'return=representation' }),
+      body: JSON.stringify({
+        revision: profile.revision + 1,
+        snapshot: sanitizedSnapshot,
+        updated_at: isoNow(now)
+      })
+    }
+  );
+  return rowToProfile(Array.isArray(rows) ? rows[0] : null, now);
+};
+
+const reserveBossArchiveDailyAttempt = async ({
+  address,
+  eventId,
+  difficultyId,
+  attemptId,
+  minimumAttemptsUsed = 0,
+  dailyLimit = BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT,
+  now = Date.now()
+}) => {
+  const walletAddress = normalizeWalletAddress(address);
+  const canonicalEventId = canonicalBossArchiveEventId(eventId);
+  const normalizedDifficultyId = BOSS_ARCHIVE_DIFFICULTY_IDS.includes(difficultyId)
+    ? difficultyId
+    : null;
+  const normalizedAttemptId = String(attemptId || '').trim().toLowerCase();
+  const normalizedDailyLimit = Math.min(
+    BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT,
+    integer(dailyLimit, 1, BOSS_ARCHIVE_DAILY_ATTEMPT_LIMIT)
+  );
+  if (!walletAddress) {
+    throw apiError('A valid Base wallet address is required.', 400, { code: 'invalid_wallet' });
+  }
+  if (!canonicalEventId || !normalizedDifficultyId) {
+    throw apiError('This Boss Archive Challenge is unavailable.', 400, { code: 'invalid_challenge' });
+  }
+  if (!/^[0-9a-f-]{36}$/.test(normalizedAttemptId)) {
+    throw apiError('A valid Boss Archive attempt id is required.', 400, { code: 'invalid_attempt' });
+  }
+  const attemptReceiptId = `boss-archive:${normalizedAttemptId}`;
+
+  const utcDateKey = isoNow(now).slice(0, 10);
+  for (let retry = 0; retry < 5; retry += 1) {
+    const profile = await fetchWalletProfile(walletAddress, now);
+    if (!profile) {
+      throw apiError(
+        'Create this wallet profile before starting a Challenge.',
+        409,
+        { code: 'profile_missing' }
+      );
+    }
+    const archive = profile.snapshot.permanentState.bossArchive;
+    if (!archive.unlockedEventIds.includes(canonicalEventId)) {
+      throw apiError(
+        'Defeat this boss in the campaign before starting its Challenge.',
+        403,
+        { code: 'boss_locked' }
+      );
+    }
+    const currentDaily = archive.dailyAttempts?.utcDateKey === utcDateKey
+      ? archive.dailyAttempts
+      : { utcDateKey, attemptsUsed: 0, processedAttemptIds: [] };
+    if (currentDaily.processedAttemptIds.includes(attemptReceiptId)) {
+      return {
+        profile,
+        duplicate: true,
+        attemptsUsed: Math.max(
+          integer(currentDaily.attemptsUsed, 0, normalizedDailyLimit),
+          Math.min(normalizedDailyLimit, integer(minimumAttemptsUsed, 0, normalizedDailyLimit))
+        )
+      };
+    }
+    const attemptsUsed = Math.max(
+      integer(currentDaily.attemptsUsed, 0, normalizedDailyLimit),
+      Math.min(normalizedDailyLimit, integer(minimumAttemptsUsed, 0, normalizedDailyLimit))
+    );
+    if (attemptsUsed >= normalizedDailyLimit) {
+      throw apiError(
+        'No Boss Archive Challenge charges remain until 00:00 UTC.',
+        409,
+        { code: 'no_charges' }
+      );
+    }
+
+    const currentRecord = sanitizeBossArchiveRecord(archive.records[canonicalEventId]);
+    const currentDifficulty = sanitizeBossArchiveDifficultyRecord(
+      currentRecord.difficultyRecords[normalizedDifficultyId]
+    );
+    const dailyAttempts = {
+      utcDateKey,
+      attemptsUsed: attemptsUsed + 1,
+      processedAttemptIds: stringList([
+        ...currentDaily.processedAttemptIds,
+        attemptReceiptId
+      ], { maxItems: 64, maxLength: 120 })
+    };
+    const nextSnapshot = {
+      ...profile.snapshot,
+      permanentState: {
+        ...profile.snapshot.permanentState,
+        bossArchive: {
+          ...archive,
+          records: {
+            ...archive.records,
+            [canonicalEventId]: {
+              ...currentRecord,
+              difficultyRecords: {
+                ...currentRecord.difficultyRecords,
+                [normalizedDifficultyId]: {
+                  ...currentDifficulty,
+                  attempts: currentDifficulty.attempts + 1
+                }
+              }
+            }
+          },
+          dailyAttempts
+        }
+      }
+    };
+    const saved = await writeWalletProfileSnapshotCas({
+      profile,
+      snapshot: nextSnapshot,
+      now
+    });
+    if (saved) {
+      return {
+        profile: saved,
+        duplicate: false,
+        attemptsUsed: dailyAttempts.attemptsUsed
+      };
+    }
+  }
+  throw apiError(
+    'Boss Archive Challenge state changed repeatedly. Try again.',
+    409,
+    { code: 'challenge_start_conflict' }
+  );
+};
+
+const recordBossArchiveDifficultyResult = async ({
+  address,
+  eventId,
+  difficultyId,
+  resultId,
+  clearTimeMs,
+  damageTaken,
+  now = Date.now()
+}) => {
+  const walletAddress = normalizeWalletAddress(address);
+  const canonicalEventId = canonicalBossArchiveEventId(eventId);
+  const normalizedDifficultyId = BOSS_ARCHIVE_DIFFICULTY_IDS.includes(difficultyId)
+    ? difficultyId
+    : null;
+  const normalizedResultId = String(resultId || '').trim().toLowerCase();
+  if (!walletAddress || !canonicalEventId || !normalizedDifficultyId) {
+    throw apiError('Boss Archive Challenge result is invalid.', 400, { code: 'settlement_invalid' });
+  }
+  if (!/^[0-9a-f-]{36}$/.test(normalizedResultId)) {
+    throw apiError('Boss Archive Challenge result is invalid.', 400, { code: 'settlement_invalid' });
+  }
+  const resultReceiptId = `boss-archive:${normalizedResultId}`;
+  const normalizedClearTimeMs = optionalDuration(clearTimeMs);
+  if (normalizedClearTimeMs === null) {
+    throw apiError('Boss Archive Challenge clear time is invalid.', 400, { code: 'settlement_invalid' });
+  }
+  const normalizedDamageTaken = integer(damageTaken, 0, 1_000_000);
+
+  for (let retry = 0; retry < 5; retry += 1) {
+    const profile = await fetchWalletProfile(walletAddress, now);
+    if (!profile) {
+      throw apiError(
+        'Boss Archive Challenge profile could not be reloaded.',
+        500,
+        { code: 'profile_missing' }
+      );
+    }
+    const archive = profile.snapshot.permanentState.bossArchive;
+    const currentRecord = sanitizeBossArchiveRecord(archive.records[canonicalEventId]);
+    const currentDifficulty = sanitizeBossArchiveDifficultyRecord(
+      currentRecord.difficultyRecords[normalizedDifficultyId]
+    );
+    if (currentDifficulty.processedResultIds.includes(resultReceiptId)) return profile;
+
+    const noHit = normalizedDamageTaken === 0;
+    const difficultyRecord = {
+      ...currentDifficulty,
+      attempts: Math.max(currentDifficulty.attempts, currentDifficulty.clears + 1),
+      clears: currentDifficulty.clears + 1,
+      noHitClears: currentDifficulty.noHitClears + (noHit ? 1 : 0),
+      bestClearTimeMs: minimumDuration(
+        currentDifficulty.bestClearTimeMs,
+        normalizedClearTimeMs
+      ),
+      bestNoHitTimeMs: noHit
+        ? minimumDuration(currentDifficulty.bestNoHitTimeMs, normalizedClearTimeMs)
+        : currentDifficulty.bestNoHitTimeMs,
+      processedResultIds: stringList([
+        ...currentDifficulty.processedResultIds,
+        resultReceiptId
+      ], { maxItems: 64, maxLength: 120 })
+    };
+    const nextSnapshot = {
+      ...profile.snapshot,
+      permanentState: {
+        ...profile.snapshot.permanentState,
+        bossArchive: {
+          ...archive,
+          records: {
+            ...archive.records,
+            [canonicalEventId]: {
+              ...currentRecord,
+              lastResult: {
+                mode: 'challenge',
+                difficultyId: normalizedDifficultyId,
+                victory: true,
+                clearTimeMs: normalizedClearTimeMs,
+                damageTaken: normalizedDamageTaken,
+                playedAt: isoNow(now)
+              },
+              difficultyRecords: {
+                ...currentRecord.difficultyRecords,
+                [normalizedDifficultyId]: difficultyRecord
+              }
+            }
+          }
+        }
+      }
+    };
+    const saved = await writeWalletProfileSnapshotCas({
+      profile,
+      snapshot: nextSnapshot,
+      now
+    });
+    if (saved) return saved;
+  }
+  throw apiError(
+    'Boss Archive Challenge result changed repeatedly. Try settlement again.',
+    409,
+    { code: 'challenge_settlement_conflict' }
+  );
+};
+
 const createWalletProfileChallenge = async ({ address, origin, now = Date.now() }) => {
   const walletAddress = normalizeWalletAddress(address);
   if (!walletAddress) throw apiError('A valid Base wallet address is required.', 400);
@@ -2486,5 +2865,7 @@ module.exports = {
   validateFinalizedWeeklyCampaignStreakProof,
   preserveBossArchiveServerState,
   preserveCampaignBranchServerState,
+  recordBossArchiveDifficultyResult,
+  reserveBossArchiveDailyAttempt,
   saveWalletProfile
 };

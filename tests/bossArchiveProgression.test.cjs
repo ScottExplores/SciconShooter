@@ -20,6 +20,11 @@ const SAMPLE_BOSSES = [
 
 const bossArchiveStub = {
   BOSS_ARCHIVE_CATALOG: SAMPLE_BOSSES,
+  BOSS_ARCHIVE_DIFFICULTIES: [
+    { id: 'easy' },
+    { id: 'medium' },
+    { id: 'heroic' }
+  ],
   getBossArchiveChallengeRewardCoins: (missionNumber) => 100 + 25 * (missionNumber - 1),
   getBossArchiveSpeedTargetSeconds: (missionNumber) => 75 + 2.5 * (missionNumber - 1),
   getBossArchiveEntry: (value) => SAMPLE_BOSSES.find((entry) => entry.eventId === String(value).trim().toLowerCase()) ?? null,
@@ -38,7 +43,12 @@ const bossArchiveStub = {
         })
       : []);
     return SAMPLE_BOSSES.filter((entry) => requested.has(entry.eventId)).map((entry) => entry.eventId);
-  }
+  },
+  normalizeBossArchiveDifficultyId: (value) => (
+    ['easy', 'medium', 'heroic'].includes(String(value).trim().toLowerCase())
+      ? String(value).trim().toLowerCase()
+      : 'medium'
+  )
 };
 
 const compileService = (name, requires = {}) => {
@@ -134,91 +144,103 @@ test('legacy boss event aliases migrate unlocks, selection, and record history t
   );
 });
 
-test('only successful rewarded Challenge clears consume the global daily charge', () => {
+test('every launched boss fight consumes one charge, including a loss', () => {
   const now = new Date('2026-07-26T10:00:00.000Z');
-  let state = unlockedState(now);
-  const failed = progression.recordBossArchiveFightResult(state, {
+  const launched = progression.beginBossArchiveFight(unlockedState(now), {
+    eventId: 'boss-one',
+    difficultyId: 'heroic',
+    attemptId: 'boss-archive:failed-1'
+  }, { now });
+  assert.equal(launched.accepted, true);
+  assert.equal(launched.chargeConsumed, true);
+  assert.equal(launched.chargesRemaining, 2);
+  assert.equal(launched.state.dailyAttempts.attemptsUsed, 1);
+  assert.equal(launched.state.records['boss-one'].attempts, 1);
+  assert.equal(launched.state.records['boss-one'].difficultyRecords.heroic.attempts, 1);
+
+  const failed = progression.recordBossArchiveFightResult(launched.state, {
     eventId: 'boss-one',
     mode: 'challenge',
+    difficultyId: 'heroic',
     victory: false,
     damageTaken: 2,
-    resultId: 'failed-1'
+    resultId: 'boss-archive:failed-1'
   }, { now });
   assert.equal(failed.accepted, true);
   assert.equal(failed.challengeChargeConsumed, false);
   assert.equal(failed.challengeRewardCoins, 0);
-  assert.equal(failed.state.dailyChallenge.successfulClearsUsed, 0);
+  assert.equal(failed.state.dailyAttempts.attemptsUsed, 1);
+  assert.equal(failed.state.records['boss-one'].difficultyRecords.heroic.clears, 0);
 
-  const practice = progression.recordBossArchiveFightResult(failed.state, {
+  const secondLaunch = progression.beginBossArchiveFight(failed.state, {
     eventId: 'boss-one',
-    mode: 'practice',
-    victory: true,
-    clearTimeMs: 50_000,
-    damageTaken: 0,
-    resultId: 'practice-1'
+    difficultyId: 'easy',
+    attemptId: 'boss-archive:clear-1'
   }, { now });
-  assert.equal(practice.challengeChargeConsumed, false);
-  assert.equal(practice.challengeRewardCoins, 0);
-  assert.equal(practice.state.dailyChallenge.successfulClearsUsed, 0);
+  assert.equal(secondLaunch.chargeConsumed, true);
+  assert.equal(secondLaunch.state.dailyAttempts.attemptsUsed, 2);
 
-  const challenge = progression.recordBossArchiveFightResult(practice.state, {
+  const challenge = progression.recordBossArchiveFightResult(secondLaunch.state, {
     eventId: 'boss-one',
     mode: 'challenge',
+    difficultyId: 'easy',
     victory: true,
     clearTimeMs: 50_000,
     damageTaken: 0,
-    resultId: 'challenge-1'
+    resultId: 'boss-archive:clear-1'
   }, { now });
   assert.equal(challenge.accepted, true);
-  assert.equal(challenge.challengeChargeConsumed, true);
+  assert.equal(challenge.challengeChargeConsumed, false);
   assert.ok(challenge.challengeRewardCoins > 0);
-  assert.equal(challenge.state.dailyChallenge.successfulClearsUsed, 1);
+  assert.equal(challenge.state.dailyAttempts.attemptsUsed, 2);
+  assert.equal(challenge.state.records['boss-one'].difficultyRecords.easy.clears, 1);
   assert.deepEqual(
     Array.from(challenge.newlyCompletedObjectiveIds),
     ['challenge-clear', 'no-hit-clear', 'timed-clear']
   );
 });
 
-test('a zero-charge victory is rejected without mutating records, IDs, rewards, or mastery', () => {
+test('a fourth launch is rejected before combat without mutating records', () => {
   const now = new Date('2026-07-26T10:00:00.000Z');
   const state = unlockedState(now);
-  state.dailyChallenge.successfulClearsUsed = 3;
+  state.dailyAttempts.attemptsUsed = 3;
   const before = JSON.stringify(state);
-  const result = progression.recordBossArchiveFightResult(state, {
+  const result = progression.beginBossArchiveFight(state, {
     eventId: 'boss-one',
-    mode: 'challenge',
-    victory: true,
-    clearTimeMs: 40_000,
-    damageTaken: 0,
-    resultId: 'blocked-clear'
+    difficultyId: 'medium',
+    attemptId: 'boss-archive:blocked-launch'
   }, { now });
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'no-charges');
-  assert.equal(result.challengeChargeConsumed, false);
-  assert.equal(result.challengeRewardCoins, 0);
-  assert.deepEqual(Array.from(result.newlyCompletedObjectiveIds), []);
+  assert.equal(result.chargeConsumed, false);
   assert.equal(JSON.stringify(result.state), before);
   assert.equal(result.state.records['boss-one'], undefined);
-  assert.deepEqual(Array.from(result.state.dailyChallenge.processedClearIds), []);
+  assert.deepEqual(Array.from(result.state.dailyAttempts.processedAttemptIds), []);
 });
 
 test('duplicate result IDs cannot consume a second charge or duplicate records', () => {
   const now = new Date('2026-07-26T10:00:00.000Z');
+  const launched = progression.beginBossArchiveFight(unlockedState(now), {
+    eventId: 'boss-one',
+    difficultyId: 'medium',
+    attemptId: 'boss-archive:receipt-123'
+  }, { now });
   const input = {
     eventId: 'boss-one',
     mode: 'challenge',
+    difficultyId: 'medium',
     victory: true,
     clearTimeMs: 60_000,
     damageTaken: 1,
-    resultId: 'receipt-123'
+    resultId: 'boss-archive:receipt-123'
   };
-  const first = progression.recordBossArchiveFightResult(unlockedState(now), input, { now });
+  const first = progression.recordBossArchiveFightResult(launched.state, input, { now });
   const duplicate = progression.recordBossArchiveFightResult(first.state, input, { now });
   assert.equal(duplicate.accepted, false);
   assert.equal(duplicate.duplicate, true);
   assert.equal(duplicate.reason, 'duplicate-result');
-  assert.equal(duplicate.state.dailyChallenge.successfulClearsUsed, 1);
+  assert.equal(duplicate.state.dailyAttempts.attemptsUsed, 1);
   assert.equal(duplicate.state.records['boss-one'].challengeClears, 1);
 });
 
@@ -236,17 +258,49 @@ test('daily charges reset at the next UTC date and expose the next UTC boundary'
   assert.equal(status.resetsAt, '2026-07-28T00:00:00.000Z');
 });
 
-test('mastery rewards are one-time claims and do not consume another charge', () => {
-  const now = new Date('2026-07-26T10:00:00.000Z');
-  const clear = progression.recordBossArchiveFightResult(unlockedState(now), {
+test('a fight launched before UTC midnight can settle after reset without spending the new day', () => {
+  const launchTime = new Date('2026-07-26T23:59:50.000Z');
+  const resultTime = new Date('2026-07-27T00:00:10.000Z');
+  const launch = progression.beginBossArchiveFight(unlockedState(launchTime), {
+    eventId: 'boss-one',
+    difficultyId: 'heroic',
+    attemptId: 'boss-archive:midnight-run'
+  }, { now: launchTime });
+  assert.equal(launch.state.dailyAttempts.attemptsUsed, 1);
+
+  const result = progression.recordBossArchiveFightResult(launch.state, {
     eventId: 'boss-one',
     mode: 'challenge',
+    difficultyId: 'heroic',
+    victory: true,
+    clearTimeMs: 45_000,
+    damageTaken: 1,
+    resultId: 'boss-archive:midnight-run'
+  }, { now: resultTime });
+  assert.equal(result.accepted, true);
+  const nextDay = progression.getBossArchiveDailyChargeStatus(result.state, resultTime);
+  assert.equal(nextDay.used, 0);
+  assert.equal(nextDay.remaining, 3);
+  assert.equal(result.state.records['boss-one'].difficultyRecords.heroic.clears, 1);
+});
+
+test('mastery rewards are one-time claims and do not consume another charge', () => {
+  const now = new Date('2026-07-26T10:00:00.000Z');
+  const launch = progression.beginBossArchiveFight(unlockedState(now), {
+    eventId: 'boss-one',
+    difficultyId: 'medium',
+    attemptId: 'boss-archive:mastery-clear'
+  }, { now });
+  const clear = progression.recordBossArchiveFightResult(launch.state, {
+    eventId: 'boss-one',
+    mode: 'challenge',
+    difficultyId: 'medium',
     victory: true,
     clearTimeMs: 50_000,
     damageTaken: 0,
-    resultId: 'mastery-clear'
+    resultId: 'boss-archive:mastery-clear'
   }, { now });
-  const usedBeforeClaim = clear.state.dailyChallenge.successfulClearsUsed;
+  const usedBeforeClaim = clear.state.dailyAttempts.attemptsUsed;
   const claim = progression.claimBossArchiveMasteryReward(
     clear.state,
     'boss-one',
@@ -256,7 +310,7 @@ test('mastery rewards are one-time claims and do not consume another charge', ()
   assert.equal(claim.claimed, true);
   assert.ok(claim.rewardCoins > 0);
   assert.equal(claim.rewardCosmeticId, 'boss-archive:boss-one:frame');
-  assert.equal(claim.state.dailyChallenge.successfulClearsUsed, usedBeforeClaim);
+  assert.equal(claim.state.dailyAttempts.attemptsUsed, usedBeforeClaim);
   const secondClaim = progression.claimBossArchiveMasteryReward(
     claim.state,
     'boss-one',
@@ -351,6 +405,8 @@ test('developer simulation helpers become inert immediately after founder author
 
 test('economy integration delegates rewards to the existing weekly coin ledger', () => {
   const source = fs.readFileSync(path.join(root, 'services', 'rewardProgression.ts'), 'utf8');
+  assert.match(source, /beginBossArchiveFightEconomy/);
+  assert.match(source, /beginBossArchiveFight\(/);
   assert.match(source, /recordBossArchiveFightResult\(/);
   assert.match(source, /awardWeeklySquadCoins\([\s\S]*result\.challengeRewardCoins/);
   assert.match(source, /`boss-archive:\$\{input\.eventId\}`/);

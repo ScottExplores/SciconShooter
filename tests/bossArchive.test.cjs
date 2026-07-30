@@ -91,7 +91,8 @@ test('every archive entry carries immutable presentation, reward, and three-obje
     assert.equal(entry.theme.backgroundId, authoredMajorBosses.find(({ event }) => event.id === entry.eventId).wave.backgroundId);
     assert.match(entry.theme.accentColor, /^#[0-9a-f]{6}$/i);
     assert.equal(entry.preview.portraitUrl, entry.artUrl);
-    assert.equal(entry.preview.idleFrameUrls.length, 2);
+    assert.deepEqual(Array.from(entry.preview.idleFrameUrls), [entry.artUrl]);
+    assert.equal(entry.preview.idleFramesPerSecond, 0);
     assert.equal(entry.variants.length, 1);
     assert.equal(entry.variants[0].id, 'standard');
     assert.equal(entry.challenge.dailyChargeCost, 1);
@@ -284,11 +285,66 @@ test('replay campaign preserves structure and replaces only the selected boss wa
   assert.equal(archive.buildBossReplayCampaign('unknown-event'), null);
 });
 
+test('archive difficulty scales only the cloned boss while Medium stays authored', () => {
+  const selected = archive.BOSS_ARCHIVE_CATALOG.find((entry) => entry.missionNumber === 10)
+    ?? archive.BOSS_ARCHIVE_CATALOG[0];
+  const originalSnapshot = clone(campaign);
+  const authoredBoss = campaign.levels
+    .find((level) => level.id === selected.missionId)
+    .waves.find((wave) => wave.id === selected.waveId)
+    .events.find((event) => event.id === selected.eventId);
+  const replayBoss = (difficultyId) => archive.buildBossReplayCampaign(selected.eventId, difficultyId)
+    .levels.find((level) => level.id === selected.missionId)
+    .waves.find((wave) => wave.id === selected.waveId)
+    .events[0];
+
+  const easy = replayBoss('easy');
+  const medium = replayBoss('medium');
+  const heroic = replayBoss('heroic');
+  assert.equal(medium.health, authoredBoss.health);
+  assert.equal(medium.speed, authoredBoss.speed);
+  assert.equal(easy.health, authoredBoss.health * 0.75);
+  assert.equal(heroic.health, authoredBoss.health * 1.5);
+  assert.equal(easy.speed, authoredBoss.speed * 0.9);
+  assert.equal(heroic.speed, authoredBoss.speed * 1.2);
+  assert.equal(easy.weapons[0].damage, authoredBoss.weapons[0].damage);
+  assert.equal(heroic.weapons[0].damage, authoredBoss.weapons[0].damage);
+  assert.ok(easy.weapons[0].attackIntervalSeconds > authoredBoss.weapons[0].attackIntervalSeconds);
+  assert.ok(heroic.weapons[0].attackIntervalSeconds < authoredBoss.weapons[0].attackIntervalSeconds);
+  assert.deepEqual(
+    easy.phases.map((phase) => phase.speedMultiplier),
+    authoredBoss.phases.map((phase) => phase.speedMultiplier)
+  );
+  assert.deepEqual(
+    heroic.phases.map((phase) => phase.speedMultiplier),
+    authoredBoss.phases.map((phase) => phase.speedMultiplier)
+  );
+  if (authoredBoss.componentHealth) {
+    for (const [componentId, health] of Object.entries(authoredBoss.componentHealth)) {
+      assert.equal(easy.componentHealth[componentId], health * 0.75);
+      assert.equal(heroic.componentHealth[componentId], health * 1.5);
+    }
+  }
+  assert.deepEqual(campaign, originalSnapshot);
+  assert.deepEqual(
+    Array.from(archive.BOSS_ARCHIVE_DIFFICULTIES, ({ id, healthMultiplier, tempoMultiplier }) => ({
+      id,
+      healthMultiplier,
+      tempoMultiplier
+    })),
+    [
+      { id: 'easy', healthMultiplier: 0.75, tempoMultiplier: 0.9 },
+      { id: 'medium', healthMultiplier: 1, tempoMultiplier: 1 },
+      { id: 'heroic', healthMultiplier: 1.5, tempoMultiplier: 1.2 }
+    ]
+  );
+});
+
 test('service imports the canonical art resolver rather than constructing asset paths', () => {
   const source = fs.readFileSync(path.join(root, 'services', 'bossArchive.ts'), 'utf8');
   assert.match(source, /getPrimaryAssetPath/);
   assert.match(source, /const artUrl = getPrimaryAssetPath\(event\.spriteKey\)/);
-  assert.match(source, /getAssetPaths\(event\.spriteKey\)/);
+  assert.doesNotMatch(source, /getAssetPaths\(event\.spriteKey\)/);
   assert.doesNotMatch(source, /\/game-art\//);
 });
 
@@ -305,6 +361,10 @@ test('production integration unlocks only authored boss victories and keeps repl
   assert.match(app, /if \(isBossArchiveRun\) return null/);
   assert.match(app, /if \(!isCampaignRun && !isNonCompetitiveRun && summary\.bossEncounterId\)/);
   assert.match(app, /campaign:\s*activeBossReplayCampaign\s*\?\?/);
+  assert.match(app, /buildBossReplayCampaign\(\s*activeBossEncounterId,\s*activeBossArchiveRun\?\.difficultyId \?\? 'medium'/);
+  assert.match(app, /beginBossArchiveFightEconomy\([\s\S]*?difficultyId: bossDifficultyId,[\s\S]*?attemptId: reservedArchiveResultId!/);
+  assert.match(app, /difficultyId: bossDifficultyId,[\s\S]*?seed: `boss-archive:/);
+  assert.doesNotMatch(app, /'practice'|Practice Run|Practice remains available/);
   assert.match(app, /levelId:\s*activeBossReplay\?\.missionId\s*\?\?/);
   assert.match(app, /waveId:\s*activeBossReplay\?\.waveId\s*\?\?/);
   assert.match(
@@ -333,7 +393,7 @@ test('production integration unlocks only authored boss victories and keeps repl
   assert.match(startScreen, /grid-cols-\[clamp\(3\.25rem,14vw,3\.6rem\)_minmax\(0,1fr\)_clamp\(3\.25rem,14vw,3\.6rem\)\]/);
   assert.match(startScreen, /data-boss-archive-trigger="true"/);
   assert.match(startScreen, /data-boss-archive-wallet-slot="true"/);
-  assert.match(startScreen, /getBossArchiveUnclaimedMasteryCount\(permanentSquadState\.bossArchive\)/);
+  assert.match(startScreen, /const bossArchiveNotificationCount = newBossArchiveEventIds\.length/);
   assert.match(startScreen, /data-attention=\{bossArchiveNotificationCount > 0 \? 'true' : 'false'\}/);
   assert.match(startScreen, /sci-home-command-icon__art--boss/);
   assert.doesNotMatch(startScreen, /boss-alert-banners-v1\/effects\/warning-ring-red\.png/);

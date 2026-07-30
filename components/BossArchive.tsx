@@ -1,28 +1,30 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { BossArchiveEntry } from '../services/bossArchive';
+import type {
+  BossArchiveDifficultyId,
+  BossArchiveEntry
+} from '../services/bossArchive';
 import { getBackground, getPrimaryAssetPath } from '../services/levelConfig';
 import {
   getBossArchiveDailyChargeStatus,
-  getBossArchiveProgressionConfig,
   sanitizeBossArchiveBossRecord,
   type BossArchiveDailyChargeStatus,
   type BossArchiveProgress
 } from '../services/bossArchiveProgression';
 import BossArchiveCarousel from './boss-archive/BossArchiveCarousel';
 import {
+  BOSS_ARCHIVE_DIFFICULTIES,
   buildBossArchiveViewEntries,
   formatBossArchiveClearTime,
   getBossArchiveChallengeDisabledReason,
+  getBossArchiveDifficultyRecord,
   getLoopedBossArchiveIndex,
   resolveBossArchiveInitialIndex,
   type BossArchiveBossRecord,
   type BossArchiveDailyChallengeState,
   type BossArchiveDeveloperControls,
   type BossArchiveFightRequest,
-  type BossArchiveMode,
   type BossArchivePresentation,
   type BossArchiveResult,
-  type BossArchiveRewardPreview,
   type BossArchiveViewEntry
 } from './boss-archive/BossArchiveModel';
 import PixelActionButton from './PixelActionButton';
@@ -49,12 +51,11 @@ export interface BossArchiveProps {
   revealLockedEntries?: boolean;
   newEncounterIds: ReadonlySet<string> | readonly string[];
   onClose: () => void;
-  /** Existing practice launcher retained for backward compatibility. */
+  /** Legacy launcher retained for hosts that have not adopted fight requests. */
   onChallenge: (entry: BossArchiveEntry) => void;
   onLaunch?: (entry: BossArchiveEntry, request: BossArchiveFightRequest) => void;
   onSelectionChange?: (eventId: string) => void;
   onNewEncounterViewed?: (eventId: string) => void;
-  onClaimMastery?: (eventId: string, objectiveId: string) => void;
   selectedEncounterId?: string | null;
   progress?: BossArchiveProgress;
   dailyChargeStatus?: BossArchiveDailyChargeStatus;
@@ -119,26 +120,7 @@ const toPresentationOverrides = (
   entries: readonly BossArchiveEntry[],
   supplied?: Readonly<Record<string, BossArchivePresentation>>
 ) => Object.fromEntries(entries.map((entry) => {
-  const progression = getBossArchiveProgressionConfig(entry.eventId);
   const existing = supplied?.[entry.eventId];
-  const masteryObjectives = progression?.masteryObjectives.map((objective) => ({
-    id: objective.id,
-    title: objective.label,
-    description: objective.description,
-    completed: false,
-    reward: {
-      id: `${entry.eventId}:${objective.id}:reward`,
-      label: 'Coins',
-      amount: objective.rewardCoins,
-      tone: 'coin' as const
-    }
-  }));
-  const challengeReward = progression ? [{
-    id: `${entry.eventId}:challenge-reward`,
-    label: entry.challenge.reward.label,
-    amount: progression.challengeRewardCoins,
-    tone: 'coin' as const
-  }] : [];
   const background = getBackground(entry.theme.backgroundId);
   const backdropAssetKey = background.layerAssetKeys[0];
   return [entry.eventId, {
@@ -152,14 +134,7 @@ const toPresentationOverrides = (
     idleFps: entry.preview.idleFramesPerSecond,
     backdropUrl: backdropAssetKey ? getPrimaryAssetPath(backdropAssetKey) : undefined,
     accentColor: entry.theme.accentColor,
-    variants: entry.variants.map((variant) => ({
-      id: variant.id,
-      label: variant.label,
-      description: variant.description
-    })),
-    ...existing,
-    challengeReward: existing?.challengeReward ?? challengeReward,
-    masteryObjectives: existing?.masteryObjectives ?? masteryObjectives
+    ...existing
   }];
 }));
 
@@ -171,7 +146,6 @@ const toRecordOverrides = (
   const suppliedRecord = supplied?.[entry.eventId];
   if (suppliedRecord) return [entry.eventId, suppliedRecord];
   const record = sanitizeBossArchiveBossRecord(progress?.records?.[entry.eventId]);
-  const progression = getBossArchiveProgressionConfig(entry.eventId);
   return [entry.eventId, {
     timesDefeated: record.totalClears,
     totalClears: record.totalClears,
@@ -181,109 +155,24 @@ const toRecordOverrides = (
     bestClearTimeMs: record.bestClearTimeMs,
     bestChallengeTimeMs: record.bestChallengeTimeMs,
     bestNoHitTimeMs: record.bestNoHitTimeMs,
-    masteryObjectives: progression?.masteryObjectives.map((objective) => ({
-      id: objective.id,
-      title: objective.label,
-      description: objective.description,
-      completed: Boolean(record.mastery[objective.id].completedAt),
-      claimed: Boolean(record.mastery[objective.id].claimedAt),
-      progress: record.mastery[objective.id].completedAt ? 1 : 0,
-      target: 1,
-      reward: {
-        id: `${entry.eventId}:${objective.id}:reward`,
-        label: `${
-          entry.masteryObjectives.find((item) => item.id === objective.id)?.cosmeticRewardLabel
-            ?? 'Archive cosmetic'
-        } + ${objective.rewardCoins} coins`,
-        tone: 'cosmetic' as const
-      }
-    }))
+    difficultyRecords: record.difficultyRecords
   }];
 }));
-
-const RewardList = ({ rewards }: { rewards: readonly BossArchiveRewardPreview[] }) => (
-  <div className="boss-archive-rewards" aria-label="Reward preview">
-    {rewards.length > 0 ? rewards.map((reward) => (
-      <span key={reward.id} data-tone={reward.tone ?? 'record'}>
-        {reward.iconUrl ? <img src={reward.iconUrl} alt="" /> : <i aria-hidden="true" />}
-        <b>{reward.amount !== undefined ? `${reward.amount} ` : ''}{reward.label}</b>
-      </span>
-    )) : (
-      <span data-tone="record"><i aria-hidden="true" /><b>Personal records</b></span>
-    )}
-  </div>
-);
-
-const BossMasteryPanel = ({
-  item,
-  onClaim
-}: {
-  item: BossArchiveViewEntry;
-  onClaim?: (eventId: string, objectiveId: string) => void;
-}) => {
-  const objectives = item.record.masteryObjectives
-    ?? item.presentation.masteryObjectives
-    ?? [];
-  return (
-    <section className="boss-archive-mastery" aria-labelledby="boss-archive-mastery-title">
-      <div className="boss-archive-panel-heading">
-        <div>
-          <small>Permanent dossier progress</small>
-          <h4 id="boss-archive-mastery-title">Mastery Protocol</h4>
-        </div>
-        <strong>{objectives.filter((objective) => objective.completed).length} / {objectives.length || 3}</strong>
-      </div>
-      <div className="boss-archive-mastery__nodes">
-        {(objectives.length ? objectives : [0, 1, 2].map((index) => ({
-          id: `pending-${index}`,
-          title: ['Rechallenge Victory', 'Untouchable', 'Rapid Response'][index],
-          description: 'Complete this objective in Challenge mode.',
-          completed: false
-        }))).map((objective, index) => {
-          const claimable = objective.completed && !objective.claimed && Boolean(onClaim);
-          return (
-            <article
-              key={objective.id}
-              data-completed={objective.completed ? 'true' : 'false'}
-              data-claimable={claimable ? 'true' : 'false'}
-            >
-              <span className="boss-archive-mastery__medal" aria-hidden="true">{index + 1}</span>
-              <div>
-                <strong>{objective.title}</strong>
-                <p>{objective.description}</p>
-                {objective.reward ? (
-                  <small>{objective.reward.amount} {objective.reward.label}</small>
-                ) : null}
-              </div>
-              {claimable ? (
-                <button type="button" onClick={() => onClaim?.(item.entry.eventId, objective.id)}>
-                  Claim
-                </button>
-              ) : (
-                <span className="boss-archive-mastery__state">
-                  {objective.claimed ? 'Claimed' : objective.completed ? 'Complete' : 'Locked'}
-                </span>
-              )}
-            </article>
-          );
-        })}
-      </div>
-    </section>
-  );
-};
 
 const BossArchiveResultPanel = ({
   result,
   item,
   panelRef,
   onDismiss,
-  onReplay
+  onReplay,
+  replayDisabled = false
 }: {
   result: BossArchiveResult;
   item?: BossArchiveViewEntry;
   panelRef?: React.Ref<HTMLElement>;
   onDismiss?: () => void;
   onReplay: () => void;
+  replayDisabled?: boolean;
 }) => (
   <div className="boss-archive-result-backdrop" role="presentation">
     <section
@@ -295,8 +184,10 @@ const BossArchiveResultPanel = ({
       data-outcome={result.outcome}
       tabIndex={-1}
     >
-      <small>Combat simulation complete</small>
-      <h3 id="boss-archive-result-title">{result.outcome === 'victory' ? 'Threat Cleared' : 'Simulation Failed'}</h3>
+      <small>{BOSS_ARCHIVE_DIFFICULTIES.find(
+        (difficulty) => difficulty.id === (result.difficultyId ?? 'medium')
+      )?.label ?? 'Medium'} boss challenge</small>
+      <h3 id="boss-archive-result-title">{result.outcome === 'victory' ? 'Boss Defeated' : 'Challenge Failed'}</h3>
       <p>{item?.entry.label ?? 'Archived threat'}</p>
       <div className="boss-archive-result__stats">
         <span><small>Clear time</small><b>{formatBossArchiveClearTime(result.clearTimeMs)}</b></span>
@@ -311,21 +202,23 @@ const BossArchiveResultPanel = ({
         <span><small>Charges</small><b>{result.chargesRemaining ?? '--'} remaining</b></span>
       </div>
       {result.newPersonalRecord ? <strong className="boss-archive-result__record">New personal record</strong> : null}
-      {result.reward?.length ? <RewardList rewards={result.reward} /> : null}
-      {result.masteryCompletedIds?.length ? (
-        <p className="boss-archive-result__mastery">Mastery advanced: {result.masteryCompletedIds.length} objective{result.masteryCompletedIds.length === 1 ? '' : 's'}</p>
-      ) : null}
       {result.notice ? <p className="boss-archive-result__notice" role="alert">{result.notice}</p> : null}
       <div className="boss-archive-result__actions">
         <PixelActionButton tone="cyan" onClick={onDismiss}>Return to Archive</PixelActionButton>
-        <PixelActionButton tone={result.outcome === 'victory' ? 'green' : 'gold'} onClick={onReplay}>Replay Boss</PixelActionButton>
+        <PixelActionButton
+          tone={result.outcome === 'victory' ? 'green' : 'gold'}
+          disabled={replayDisabled}
+          onClick={onReplay}
+        >
+          Replay Boss
+        </PixelActionButton>
       </div>
     </section>
   </div>
 );
 
 /**
- * Portrait-first Boss Archive presentation. Progression, charges, rewards and
+ * Portrait-first Boss Archive presentation. Difficulty records, charges, and
  * fight launching are injected; this menu never creates a gameplay renderer.
  */
 const BossArchive: React.FC<BossArchiveProps> = ({
@@ -338,7 +231,6 @@ const BossArchive: React.FC<BossArchiveProps> = ({
   onLaunch,
   onSelectionChange,
   onNewEncounterViewed,
-  onClaimMastery,
   selectedEncounterId,
   progress,
   dailyChargeStatus,
@@ -394,9 +286,7 @@ const BossArchive: React.FC<BossArchiveProps> = ({
     );
   }
   const [selectedIndex, setSelectedIndex] = useState(initialIndexRef.current);
-  const [mode, setMode] = useState<BossArchiveMode>('practice');
-  const [variantId, setVariantId] = useState('standard');
-  const [activePanel, setActivePanel] = useState<'intel' | 'mastery'>('intel');
+  const [difficultyId, setDifficultyId] = useState<BossArchiveDifficultyId>('medium');
   const [showIndex, setShowIndex] = useState(false);
   const [showDeveloperTools, setShowDeveloperTools] = useState(false);
   const [revealEventId, setRevealEventId] = useState<string | null>(null);
@@ -412,7 +302,7 @@ const BossArchive: React.FC<BossArchiveProps> = ({
     resetClock
   );
   const challengeDisabledReason = getBossArchiveChallengeDisabledReason(selectedItem, challenge)
-    ?? (!onLaunch ? 'Rewarded challenge launching is not connected yet.' : null);
+    ?? (!onLaunch ? 'Boss Archive launching is not connected yet.' : null);
   const unlockedCount = archiveItems.filter((item) => item.unlocked).length;
 
   useEffect(() => {
@@ -485,8 +375,6 @@ const BossArchive: React.FC<BossArchiveProps> = ({
     if (!selectedItem) return;
     try { window.localStorage.setItem(LAST_SELECTION_KEY, selectedItem.entry.eventId); } catch { /* storage is optional */ }
     onSelectionChange?.(selectedItem.entry.eventId);
-    const firstVariant = selectedItem.presentation.variants?.find((variant) => !variant.disabled);
-    setVariantId(firstVariant?.id ?? 'standard');
     if (selectedItem.isNew && !revealedIdsRef.current.has(selectedItem.entry.eventId)) {
       const eventId = selectedItem.entry.eventId;
       revealedIdsRef.current.add(eventId);
@@ -511,23 +399,11 @@ const BossArchive: React.FC<BossArchiveProps> = ({
   }, [markEncounterViewed, onSelectionChange, reducedMotion, selectedItem]);
 
   useEffect(() => {
-    if (!selectedItem?.unlocked && mode === 'challenge') setMode('practice');
-  }, [mode, selectedItem?.unlocked]);
-
-  useEffect(() => {
-    if (!selectedItem?.unlocked && activePanel === 'mastery') setActivePanel('intel');
-  }, [activePanel, selectedItem?.unlocked]);
-
-  useEffect(() => {
     if (!preferredSelection || appliedPreferredSelectionRef.current === preferredSelection) return;
     appliedPreferredSelectionRef.current = preferredSelection;
     const nextIndex = archiveItems.findIndex((item) => item.entry.eventId === preferredSelection);
     if (nextIndex >= 0) setSelectedIndex(nextIndex);
   }, [archiveItems, preferredSelection]);
-
-  useEffect(() => {
-    if (mode === 'challenge' && challengeDisabledReason) setMode('practice');
-  }, [challengeDisabledReason, mode]);
 
   const selectIndex = (index: number) => {
     if (!archiveItems.length) return;
@@ -536,8 +412,12 @@ const BossArchive: React.FC<BossArchiveProps> = ({
 
   const launchSelected = () => {
     if (!selectedItem?.unlocked) return;
-    if (mode === 'challenge' && challengeDisabledReason) return;
-    if (onLaunch) onLaunch(selectedItem.entry, { mode, variantId });
+    if (challengeDisabledReason) return;
+    if (onLaunch) onLaunch(selectedItem.entry, {
+      mode: 'challenge',
+      variantId: 'standard',
+      difficultyId
+    });
     else onChallenge(selectedItem.entry);
   };
 
@@ -568,14 +448,12 @@ const BossArchive: React.FC<BossArchiveProps> = ({
     }
   };
 
-  const selectedRewards = mode === 'challenge'
-    ? selectedItem?.presentation.challengeReward ?? []
-    : [];
-  const selectedMastery = selectedItem?.unlocked
-    ? selectedItem.record.masteryObjectives
-      ?? selectedItem.presentation.masteryObjectives
-      ?? []
-    : [];
+  const selectedDifficulty = BOSS_ARCHIVE_DIFFICULTIES.find(
+    (difficulty) => difficulty.id === difficultyId
+  ) ?? BOSS_ARCHIVE_DIFFICULTIES[1];
+  const selectedDifficultyRecord = selectedItem?.unlocked
+    ? getBossArchiveDifficultyRecord(selectedItem.record, difficultyId)
+    : null;
   const accent = selectedItem?.presentation.accentColor ?? '#22d3ee';
 
   return (
@@ -630,7 +508,6 @@ const BossArchive: React.FC<BossArchiveProps> = ({
               <BossArchiveCarousel
                 items={archiveItems}
                 selectedIndex={selectedIndex}
-                reducedMotion={reducedMotion}
                 onSelectIndex={selectIndex}
                 onOpenIndex={() => setShowIndex(true)}
               />
@@ -640,69 +517,58 @@ const BossArchive: React.FC<BossArchiveProps> = ({
                   <div className="boss-archive-intel__identity">
                     <div>
                       <small>{selectedItem.unlocked
-                        ? `Mission ${String(selectedItem.entry.missionNumber).padStart(2, '0')} // ${selectedItem.presentation.difficultyLabel}`
+                        ? `Mission ${String(selectedItem.entry.missionNumber).padStart(2, '0')} // ${selectedDifficulty.label}`
                         : selectedItem.entry.lockedPresentation.campaignHint}</small>
                       <h3>{selectedItem.unlocked ? selectedItem.entry.label : 'Unknown Signal'}</h3>
                       <p>{selectedItem.unlocked
                         ? selectedItem.presentation.subtitle
                         : selectedItem.entry.lockedPresentation.subtitle}</p>
                     </div>
-                    <div
-                      className="boss-archive-threat"
-                      aria-label={selectedItem.unlocked
-                        ? `Threat level ${selectedItem.presentation.threatLevel ?? 1} of 5`
-                        : 'Threat level unknown'}
+                    <strong
+                      className="boss-archive-difficulty-badge"
+                      data-difficulty={selectedItem.unlocked ? difficultyId : 'locked'}
                     >
-                      {Array.from({ length: 5 }, (_, index) => (
-                        <i
-                          key={index}
-                          data-active={selectedItem.unlocked && index < (selectedItem.presentation.threatLevel ?? 1) ? 'true' : 'false'}
-                        />
-                      ))}
-                    </div>
+                      {selectedItem.unlocked ? selectedDifficulty.label : 'Locked'}
+                    </strong>
                   </div>
 
-                  <div className="boss-archive-stats" aria-label="Boss records">
-                    <span><small>Defeated</small><b>{selectedItem.unlocked ? selectedItem.record.timesDefeated ?? selectedItem.record.totalClears ?? 0 : '--'}</b></span>
-                    <span><small>Best clear</small><b>{selectedItem.unlocked ? formatBossArchiveClearTime(selectedItem.record.bestClearTimeMs) : '--:--.--'}</b></span>
-                    <span><small>No-hit</small><b>{selectedItem.unlocked ? selectedItem.record.noHitClears ?? 0 : '--'}</b></span>
-                    <span><small>Mastery</small><b>{selectedItem.unlocked ? `${selectedMastery.filter((item) => item.completed).length} / ${selectedMastery.length || 3}` : '-- / 3'}</b></span>
+                  <div
+                    className="boss-archive-difficulty"
+                    role="radiogroup"
+                    aria-label="Boss difficulty"
+                  >
+                    {BOSS_ARCHIVE_DIFFICULTIES.map((difficulty) => (
+                      <button
+                        key={difficulty.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={difficultyId === difficulty.id}
+                        data-difficulty={difficulty.id}
+                        disabled={!selectedItem.unlocked}
+                        title={difficulty.description}
+                        onClick={() => setDifficultyId(difficulty.id)}
+                      >
+                        {difficulty.label}
+                      </button>
+                    ))}
                   </div>
 
-                  <nav className="boss-archive-tabs" aria-label="Boss dossier sections">
-                    <button type="button" aria-pressed={activePanel === 'intel'} onClick={() => setActivePanel('intel')}>Dossier</button>
-                    <button
-                      type="button"
-                      aria-pressed={activePanel === 'mastery'}
-                      disabled={!selectedItem.unlocked}
-                      onClick={() => setActivePanel('mastery')}
-                    >
-                      Mastery
-                      {selectedMastery.some((item) => item.completed && !item.claimed) ? <i aria-label="Unclaimed mastery reward" /> : null}
-                    </button>
-                  </nav>
+                  <div className="boss-archive-stats" aria-label={`${selectedDifficulty.label} boss records`}>
+                    <span><small>Defeated</small><b>{selectedDifficultyRecord?.clears ?? '--'}</b></span>
+                    <span><small>Best clear</small><b>{selectedDifficultyRecord ? formatBossArchiveClearTime(selectedDifficultyRecord.bestClearTimeMs) : '--:--.--'}</b></span>
+                    <span><small>No-hit</small><b>{selectedDifficultyRecord?.noHitClears ?? '--'}</b></span>
+                  </div>
 
-                  {activePanel === 'intel' ? (
-                    <div className="boss-archive-dossier">
-                      <p>{selectedItem.unlocked
-                        ? selectedItem.presentation.description
-                        : selectedItem.entry.lockedPresentation.description}</p>
-                      <div className="boss-archive-tags">
-                        {selectedItem.unlocked
-                          ? selectedItem.presentation.mechanicTags?.map((tag) => <span key={tag}>{tag}</span>)
-                          : <span>Unknown mechanics</span>}
-                      </div>
-                      {selectedItem.unlocked ? (
-                        <div className="boss-archive-dossier__records" aria-label="Challenge records">
-                          <span><small>Challenge clears</small><b>{selectedItem.record.challengeClears ?? 0}</b></span>
-                          <span><small>Best challenge</small><b>{formatBossArchiveClearTime(selectedItem.record.bestChallengeTimeMs)}</b></span>
-                          <span><small>Best no-hit</small><b>{formatBossArchiveClearTime(selectedItem.record.bestNoHitTimeMs)}</b></span>
-                        </div>
-                      ) : null}
+                  <div className="boss-archive-dossier">
+                    <p>{selectedItem.unlocked
+                      ? selectedItem.presentation.description
+                      : selectedItem.entry.lockedPresentation.description}</p>
+                    <div className="boss-archive-tags">
+                      {selectedItem.unlocked
+                        ? selectedItem.presentation.mechanicTags?.map((tag) => <span key={tag}>{tag}</span>)
+                        : <span>Unknown mechanics</span>}
                     </div>
-                  ) : (
-                    <BossMasteryPanel item={selectedItem} onClaim={onClaimMastery} />
-                  )}
+                  </div>
                 </section>
               ) : null}
             </>
@@ -717,67 +583,28 @@ const BossArchive: React.FC<BossArchiveProps> = ({
 
         {selectedItem ? (
           <footer className="boss-archive-action">
-            <div className="boss-archive-mode" role="group" aria-label="Rechallenge mode">
-              <button
-                type="button"
-                aria-label="Practice. Unlimited attempts. Records only."
-                aria-pressed={mode === 'practice'}
-                onClick={() => setMode('practice')}
-                disabled={!selectedItem.unlocked}
-              >
-                <span>Practice</span><small>Unlimited // records only</small>
-              </button>
-              <button
-                type="button"
-                aria-label={challenge
-                  ? `Challenge. One charge. ${challenge.remaining} ready.`
-                  : 'Challenge. Reward channel offline.'}
-                aria-pressed={mode === 'challenge'}
-                onClick={() => setMode('challenge')}
-                disabled={Boolean(challengeDisabledReason)}
-                title={challengeDisabledReason ?? 'One charge is consumed only after a successful clear.'}
-              >
-                <span>Challenge</span><small>{challenge ? `1 charge // ${challenge.remaining} ready` : 'Reward channel offline'}</small>
-              </button>
-            </div>
-
             <div className="boss-archive-action__launch">
-              <div className="boss-archive-action__meta">
-                {selectedItem.presentation.variants && selectedItem.presentation.variants.length > 1 ? (
-                  <label>
-                    <span>Variant</span>
-                    <select value={variantId} onChange={(event) => setVariantId(event.target.value)}>
-                      {selectedItem.presentation.variants.map((variant) => (
-                        <option key={variant.id} value={variant.id} disabled={variant.disabled}>{variant.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                ) : <span><small>Variant</small><b>{selectedItem.presentation.variants?.[0]?.label ?? 'Standard'}</b></span>}
-                <div>
-                  <small>{mode === 'challenge' ? 'Victory reward' : 'Practice reward'}</small>
-                  <RewardList rewards={selectedRewards} />
-                </div>
+              <div className="boss-archive-action__charge" aria-label="One daily charge per fight">
+                <span><small>Selected</small><b>{selectedDifficulty.label}</b></span>
+                <span><small>Cost</small><b>1 charge</b></span>
+                <span><small>Ready</small><b>{challenge?.remaining ?? '--'} / {challenge?.limit ?? '--'}</b></span>
               </div>
               <PixelActionButton
-                tone={mode === 'challenge' ? 'gold' : 'cyan'}
-                ready={mode === 'challenge' && !challengeDisabledReason}
-                shine={mode === 'challenge'}
-                disabled={!selectedItem.unlocked || (mode === 'challenge' && Boolean(challengeDisabledReason))}
+                tone="gold"
+                ready={!challengeDisabledReason}
+                shine
+                disabled={!selectedItem.unlocked || Boolean(challengeDisabledReason)}
                 onClick={launchSelected}
                 className="boss-archive-action__button"
                 aria-label={selectedItem.unlocked
-                  ? mode === 'challenge' ? 'Challenge Boss' : 'Start Practice'
+                  ? `Play ${selectedItem.entry.label} on ${selectedDifficulty.label}`
                   : 'Signal Locked'}
               >
-                {selectedItem.unlocked
-                  ? mode === 'challenge' ? 'Challenge Boss' : 'Start Practice'
-                  : 'Signal Locked'}
+                {selectedItem.unlocked ? 'Play Boss' : 'Signal Locked'}
               </PixelActionButton>
             </div>
             <p className="boss-archive-action__note" role="status">
-              {mode === 'challenge'
-                ? challengeDisabledReason ?? 'A charge is spent only after victory. Failed attempts are free.'
-                : 'Practice attempts never use a daily charge and do not award repeatable resources.'}
+              {challengeDisabledReason ?? `${selectedDifficulty.description} Each fight costs 1 daily charge.`}
             </p>
           </footer>
         ) : null}
@@ -827,15 +654,14 @@ const BossArchive: React.FC<BossArchiveProps> = ({
             item={archiveItems.find((item) => item.entry.eventId === result.eventId)}
             panelRef={resultDialogRef}
             onDismiss={onDismissResult}
+            replayDisabled={Boolean(challengeDisabledReason)}
             onReplay={() => {
               const replayItem = archiveItems.find((item) => item.entry.eventId === result.eventId) ?? selectedItem;
-              if (!replayItem?.unlocked) return;
-              const replayMode = result.mode === 'challenge' && challengeDisabledReason
-                ? 'practice'
-                : result.mode ?? mode;
+              if (!replayItem?.unlocked || challengeDisabledReason) return;
               if (onLaunch) onLaunch(replayItem.entry, {
-                mode: replayMode,
-                variantId: result.variantId ?? variantId
+                mode: 'challenge',
+                variantId: 'standard',
+                difficultyId: result.difficultyId ?? difficultyId
               });
               else onChallenge(replayItem.entry);
             }}
@@ -879,7 +705,6 @@ const BossArchive: React.FC<BossArchiveProps> = ({
                   setShowDeveloperTools(false);
                   developerControls.onSimulateNewUnlock?.(selectedItem.entry.eventId);
                 }}>New unlock</button>
-                <button type="button" onClick={() => selectedItem && developerControls.onSimulateMastery?.(selectedItem.entry.eventId)}>Mastery</button>
                 <button type="button" onClick={() => {
                   setShowDeveloperTools(false);
                   developerControls.onPreviewResult?.('victory');

@@ -284,6 +284,64 @@ test('Challenge start rejects bosses not present in the canonical wallet profile
   );
 });
 
+test('three starts consume all daily charges even when no fight is settled', async (t) => {
+  const originalFetch = global.fetch;
+  let profileRow = createProfileRow();
+  global.fetch = async (url, options = {}) => {
+    const parsed = new URL(String(url));
+    const resource = parsed.pathname.split('/').pop();
+    if (resource === 'scicon_wallet_profiles') {
+      if (String(options.method || 'GET').toUpperCase() === 'PATCH') {
+        const body = JSON.parse(options.body || '{}');
+        const requestedRevision = Number(
+          String(parsed.searchParams.get('revision') || '').replace(/^eq\./, '')
+        );
+        if (requestedRevision !== profileRow.revision) return jsonResponse([]);
+        profileRow = {
+          ...profileRow,
+          revision: body.revision,
+          snapshot: body.snapshot,
+          updated_at: body.updated_at
+        };
+      }
+      return jsonResponse([profileRow]);
+    }
+    if (resource === 'scicon_boss_archive_challenge_results') return jsonResponse([]);
+    throw new Error(`Unexpected Supabase request: ${url}`);
+  };
+  t.after(() => { global.fetch = originalFetch; });
+
+  const difficulties = ['easy', 'medium', 'heroic'];
+  for (let index = 0; index < difficulties.length; index += 1) {
+    const suffix = String(index + 1).padStart(12, '0');
+    const started = await createBossArchiveChallengeRun({
+      address: WALLET,
+      eventId: EVENT_ID,
+      difficultyId: difficulties[index],
+      attemptId: `aaaaaaaa-aaaa-4aaa-8aaa-${suffix}`,
+      now: NOW + index
+    });
+    assert.equal(started.chargesRemaining, 2 - index);
+    assert.equal(started.profile.snapshot.permanentState.bossArchive.dailyAttempts.attemptsUsed, index + 1);
+  }
+
+  const archive = profileRow.snapshot.permanentState.bossArchive;
+  assert.equal(archive.dailyAttempts.attemptsUsed, 3);
+  assert.equal(archive.records[EVENT_ID].difficultyRecords.easy.attempts, 1);
+  assert.equal(archive.records[EVENT_ID].difficultyRecords.medium.attempts, 1);
+  assert.equal(archive.records[EVENT_ID].difficultyRecords.heroic.attempts, 1);
+  await assert.rejects(
+    createBossArchiveChallengeRun({
+      address: WALLET,
+      eventId: EVENT_ID,
+      difficultyId: 'medium',
+      attemptId: 'bbbbbbbb-bbbb-4bbb-8bbb-000000000004',
+      now: NOW + 4
+    }),
+    (error) => error?.code === 'no_charges' && error?.statusCode === 409
+  );
+});
+
 test('Challenge start uses the server UTC ledger instead of a stale profile counter', async (t) => {
   const originalFetch = global.fetch;
   const profileRow = createProfileRow();

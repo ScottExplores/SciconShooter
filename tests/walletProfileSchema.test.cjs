@@ -132,6 +132,11 @@ test('wallet snapshots whitelist fields, normalize profile IDs, and strip minted
       utcDateKey: '2026-07-23',
       successfulClearsUsed: 0,
       processedClearIds: []
+    },
+    dailyAttempts: {
+      utcDateKey: '2026-07-23',
+      attemptsUsed: 0,
+      processedAttemptIds: []
     }
   });
   assert.equal(sanitized.stats.playerName.length, 15);
@@ -200,6 +205,11 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
       utcDateKey: '2026-07-23',
       successfulClearsUsed: 0,
       processedClearIds: []
+    },
+    dailyAttempts: {
+      utcDateKey: '2026-07-23',
+      attemptsUsed: 0,
+      processedAttemptIds: []
     }
   });
 });
@@ -278,6 +288,11 @@ test('legacy cloud snapshots infer Boss Archive unlocks before writing canonical
       utcDateKey: '2026-07-23',
       successfulClearsUsed: 0,
       processedClearIds: []
+    },
+    dailyAttempts: {
+      utcDateKey: '2026-07-23',
+      attemptsUsed: 0,
+      processedAttemptIds: []
     }
   });
   assert.equal(sanitized.permanentState.campaignProgress.version, 4);

@@ -63,7 +63,7 @@ test('mission launch reserves and validates one token before wallet authorizatio
   const authorizationFlow = app.slice(startIndex, runModeIndex);
 
   assert.match(authorizationFlow, /if \(missionLaunchPendingRef\.current\) return;\s*const launchNonce = missionLaunchNonceRef\.current \+ 1;\s*missionLaunchNonceRef\.current = launchNonce;\s*missionLaunchPendingRef\.current = true/);
-  assert.match(authorizationFlow, /serverChallengeRun = await startTask;\s*if \(missionLaunchNonceRef\.current !== launchNonce\) return;/);
+  assert.match(authorizationFlow, /const started = await startTask;\s*if \(missionLaunchNonceRef\.current !== launchNonce\) return;\s*serverChallengeRun = started\.run/);
   assert.match(authorizationFlow, /serverBranchAttempt = await startTask;\s*if \(missionLaunchNonceRef\.current !== launchNonce\) return;/);
   assert.match(app, /if \(gameStateRef\.current !== GameState\.MENU \|\| missionLaunchPendingRef\.current\) resetGame\(\)/);
   assert.match(app, /missionLaunchNonceRef\.current \+= 1;\s*missionLaunchPendingRef\.current = false/);

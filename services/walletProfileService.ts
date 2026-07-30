@@ -1,6 +1,7 @@
 import type { Address } from 'viem';
 import { STORAGE_KEYS } from '../constants';
 import type { PlayerShipId } from './playerShipService';
+import type { BossArchiveDifficultyId } from './bossArchive';
 import type { PilotStatsSnapshot } from './pilotProfileService';
 import type {
   PermanentSquadState,
@@ -46,8 +47,10 @@ export interface WalletBossArchiveChallengeRun {
   runToken: string;
   eventId: string;
   variantId: 'standard';
+  difficultyId: BossArchiveDifficultyId;
   issuedAt: string;
   expiresAt: string;
+  chargesRemaining: number;
 }
 
 export interface WalletBossArchiveChallengeSettlement {
@@ -56,6 +59,7 @@ export interface WalletBossArchiveChallengeSettlement {
   resultId: string;
   eventId: string;
   variantId: 'standard';
+  difficultyId: BossArchiveDifficultyId;
   rewardCoins: number;
   chargesRemaining: number;
   clearTimeMs: number;
@@ -69,6 +73,13 @@ export interface WalletBossArchiveChallengeSettlement {
 
 interface WalletBossArchiveChallengeStartResponse {
   walletAddress: string;
+  profile: WalletProfileRecord;
+  run: WalletBossArchiveChallengeRun;
+}
+
+export interface WalletBossArchiveChallengeStartResult
+  extends WalletBossArchiveChallengeRun {
+  profile: WalletProfileRecord;
   run: WalletBossArchiveChallengeRun;
 }
 
@@ -331,27 +342,56 @@ export const saveAuthenticatedWalletProfile = async ({
 export const startWalletBossArchiveChallenge = async ({
   walletAddress,
   eventId,
-  variantId = 'standard'
+  difficultyId = 'medium',
+  variantId = 'standard',
+  attemptId = globalThis.crypto.randomUUID()
 }: {
   walletAddress: string;
   eventId: string;
+  difficultyId?: BossArchiveDifficultyId;
   variantId?: 'standard';
-}): Promise<WalletBossArchiveChallengeRun> => {
+  attemptId?: string;
+}): Promise<WalletBossArchiveChallengeStartResult> => {
   const normalizedAddress = normalizeWalletAddress(walletAddress);
-  const response = await requestWalletProfile<WalletBossArchiveChallengeStartResponse>({
-    method: 'POST',
-    body: JSON.stringify({
-      action: 'start-boss-challenge',
-      eventId,
-      variantId
-    })
+  const requestBody = JSON.stringify({
+    action: 'start-boss-challenge',
+    eventId,
+    variantId,
+    difficultyId,
+    attemptId
   });
+  let response: WalletBossArchiveChallengeStartResponse | null = null;
+  let lastError: unknown = null;
+
+  // The attempt id is stable across retries. If the server commits the charge
+  // but the response is lost, the same request receives the same signed run
+  // without spending a second daily attempt.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      response = await requestWalletProfile<WalletBossArchiveChallengeStartResponse>({
+        method: 'POST',
+        body: requestBody
+      });
+      break;
+    } catch (error) {
+      lastError = error;
+      const retryable = !(error instanceof WalletProfileRequestError)
+        || error.status >= 500
+        || error.code === 'challenge_start_conflict';
+      if (!retryable || attempt === 2) throw error;
+    }
+  }
+  if (!response) throw lastError;
   if (
     response.walletAddress?.toLowerCase() !== normalizedAddress
+    || response.profile?.walletAddress?.toLowerCase() !== normalizedAddress
+    || response.profile?.profileId !== getWalletProfileId(normalizedAddress)
     || !response.run?.runToken
     || !response.run.runId
     || response.run.eventId !== eventId
-    || response.run.variantId !== variantId
+    || response.run.variantId !== 'standard'
+    || response.run.difficultyId !== difficultyId
+    || !Number.isFinite(response.run.chargesRemaining)
   ) {
     throw new WalletProfileRequestError(
       'Boss Archive Challenge start returned invalid state.',
@@ -359,7 +399,11 @@ export const startWalletBossArchiveChallenge = async ({
       'challenge_start_invalid'
     );
   }
-  return response.run;
+  cacheWalletProfile(response.profile);
+  return Object.assign({}, response.run, {
+    profile: response.profile,
+    run: response.run
+  });
 };
 
 export const settleWalletBossArchiveChallenge = async ({
@@ -410,6 +454,7 @@ export const settleWalletBossArchiveChallenge = async ({
     || response.profile?.walletAddress?.toLowerCase() !== normalizedAddress
     || response.profile?.profileId !== getWalletProfileId(normalizedAddress)
     || response.settlement?.accepted !== true
+    || !['easy', 'medium', 'heroic'].includes(response.settlement?.difficultyId)
   ) {
     throw new WalletProfileRequestError(
       'Boss Archive Challenge settlement returned invalid wallet state.',

@@ -1,6 +1,17 @@
-import type { BossArchiveEntry } from '../../services/bossArchive';
+import type {
+  BossArchiveDifficultyConfig,
+  BossArchiveDifficultyId,
+  BossArchiveEntry
+} from '../../services/bossArchive';
+import type {
+  BossArchiveDifficultyRecord as StoredBossArchiveDifficultyRecord
+} from '../../services/bossArchiveProgression';
 
+/** Legacy result records may still identify old practice runs; new UI launches challenge only. */
 export type BossArchiveMode = 'practice' | 'challenge';
+
+export type BossArchiveDifficultyOption = BossArchiveDifficultyConfig;
+export { BOSS_ARCHIVE_DIFFICULTIES } from '../../services/bossArchive';
 
 export interface BossArchiveRewardPreview {
   readonly id: string;
@@ -30,8 +41,11 @@ export interface BossArchiveBossRecord {
   readonly bestChallengeTimeMs?: number | null;
   readonly bestNoHitTimeMs?: number | null;
   readonly noHitClears?: number;
+  readonly difficultyRecords?: Partial<Record<BossArchiveDifficultyId, BossArchiveDifficultyRecord>>;
   readonly masteryObjectives?: readonly BossArchiveMasteryObjective[];
 }
+
+export type BossArchiveDifficultyRecord = StoredBossArchiveDifficultyRecord;
 
 export interface BossArchiveVariant {
   readonly id: string;
@@ -47,7 +61,7 @@ export interface BossArchivePresentation {
   readonly threatLevel?: number;
   readonly mechanicTags?: readonly string[];
   readonly portraitUrl?: string;
-  /** Optional lightweight animation. Only the selected carousel entry advances frames. */
+  /** Legacy authored combat frames retained for data compatibility; Archive portraits ignore them. */
   readonly idleFrameUrls?: readonly string[];
   readonly idleFps?: number;
   readonly backdropUrl?: string;
@@ -67,8 +81,9 @@ export interface BossArchiveDailyChallengeState {
 }
 
 export interface BossArchiveFightRequest {
-  readonly mode: BossArchiveMode;
-  readonly variantId: string;
+  readonly mode: 'challenge';
+  readonly variantId: 'standard';
+  readonly difficultyId: BossArchiveDifficultyId;
 }
 
 export interface BossArchiveResult {
@@ -76,6 +91,7 @@ export interface BossArchiveResult {
   readonly outcome: 'victory' | 'defeat';
   readonly mode?: BossArchiveMode;
   readonly variantId?: string;
+  readonly difficultyId?: BossArchiveDifficultyId;
   readonly clearTimeMs?: number | null;
   readonly damageTaken?: number;
   readonly noHit?: boolean;
@@ -242,14 +258,44 @@ export const formatBossArchiveClearTime = (milliseconds?: number | null) => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
 };
 
+const EMPTY_DIFFICULTY_RECORD: BossArchiveDifficultyRecord = Object.freeze({
+  attempts: 0,
+  clears: 0,
+  noHitClears: 0,
+  bestClearTimeMs: null,
+  bestNoHitTimeMs: null
+});
+
+/**
+ * Boss records are difficulty-specific. Medium falls back to the pre-difficulty
+ * aggregate fields so existing clears remain visible after the UI migration.
+ */
+export const getBossArchiveDifficultyRecord = (
+  record: BossArchiveBossRecord,
+  difficultyId: BossArchiveDifficultyId
+): BossArchiveDifficultyRecord => {
+  const difficultyRecord = record.difficultyRecords?.[difficultyId];
+  if (difficultyRecord) return difficultyRecord;
+  if (difficultyId !== 'medium') return EMPTY_DIFFICULTY_RECORD;
+  return {
+    attempts: Math.max(0, Math.round(record.challengeAttempts ?? 0)),
+    clears: Math.max(0, Math.round(
+      record.challengeClears ?? record.totalClears ?? record.timesDefeated ?? 0
+    )),
+    noHitClears: Math.max(0, Math.round(record.noHitClears ?? 0)),
+    bestClearTimeMs: record.bestChallengeTimeMs ?? record.bestClearTimeMs ?? null,
+    bestNoHitTimeMs: record.bestNoHitTimeMs ?? null
+  };
+};
+
 export const getBossArchiveChallengeDisabledReason = (
   item: BossArchiveViewEntry | undefined,
   challenge: BossArchiveDailyChallengeState | undefined
 ) => {
-  if (!item?.unlocked) return 'Defeat this threat in its campaign mission to unlock rechallenges.';
-  if (!challenge) return 'Rewarded challenges are not connected for this profile yet.';
-  if (challenge.pending) return 'Challenge status is syncing.';
-  if (challenge.available === false) return 'Rewarded challenges are temporarily offline.';
-  if (challenge.remaining <= 0) return `All rewarded clears used. ${challenge.resetLabel}`;
+  if (!item?.unlocked) return 'Defeat this threat in its campaign mission to unlock Boss Archive play.';
+  if (!challenge) return 'Daily charges are not connected for this profile yet.';
+  if (challenge.pending) return 'Daily charges are syncing.';
+  if (challenge.available === false) return 'Boss Archive play is temporarily offline.';
+  if (challenge.remaining <= 0) return `All daily charges used. ${challenge.resetLabel}`;
   return null;
 };

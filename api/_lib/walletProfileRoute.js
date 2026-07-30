@@ -123,14 +123,17 @@ module.exports = async (req, res) => {
     }
     if (body.action === 'start-boss-challenge') {
       const session = readWalletProfileSession(req);
-      const run = await createBossArchiveChallengeRun({
+      const start = await createBossArchiveChallengeRun({
         address: session.walletAddress,
         eventId: body.eventId,
-        variantId: body.variantId
+        variantId: body.variantId,
+        difficultyId: body.difficultyId,
+        attemptId: body.attemptId
       });
       return sendJson(res, 200, {
         walletAddress: session.walletAddress,
-        run
+        profile: start.profile,
+        run: start.run
       });
     }
     if (body.action === 'settle-boss-challenge') {

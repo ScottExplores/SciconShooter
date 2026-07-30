@@ -1,13 +1,16 @@
 import {
   BOSS_ARCHIVE_CATALOG,
+  BOSS_ARCHIVE_DIFFICULTIES,
   getBossArchiveEntry,
   getBossArchiveChallengeRewardCoins,
   getBossArchiveSpeedTargetSeconds,
+  normalizeBossArchiveDifficultyId,
   normalizeBossArchiveEventId,
-  normalizeBossArchiveEventIds
+  normalizeBossArchiveEventIds,
+  type BossArchiveDifficultyId
 } from './bossArchive';
 
-export const BOSS_ARCHIVE_PROGRESS_VERSION = 1;
+export const BOSS_ARCHIVE_PROGRESS_VERSION = 2;
 export const DEFAULT_BOSS_ARCHIVE_DAILY_CHARGE_LIMIT = 3;
 
 export const BOSS_ARCHIVE_MASTERY_OBJECTIVE_IDS = [
@@ -47,10 +50,19 @@ export interface BossArchiveMasteryObjectiveProgress {
 
 export interface BossArchiveLastResult {
   mode: BossArchiveRunMode;
+  difficultyId: BossArchiveDifficultyId;
   victory: boolean;
   clearTimeMs: number | null;
   damageTaken: number;
   playedAt: string;
+}
+
+export interface BossArchiveDifficultyRecord {
+  attempts: number;
+  clears: number;
+  noHitClears: number;
+  bestClearTimeMs: number | null;
+  bestNoHitTimeMs: number | null;
 }
 
 export interface BossArchiveBossRecord {
@@ -64,6 +76,7 @@ export interface BossArchiveBossRecord {
   bestClearTimeMs: number | null;
   bestChallengeTimeMs: number | null;
   bestNoHitTimeMs: number | null;
+  difficultyRecords: Record<BossArchiveDifficultyId, BossArchiveDifficultyRecord>;
   mastery: Record<BossArchiveMasteryObjectiveId, BossArchiveMasteryObjectiveProgress>;
   processedResultIds: string[];
   lastResult: BossArchiveLastResult | null;
@@ -75,6 +88,12 @@ export interface BossArchiveDailyChallengeProgress {
   processedClearIds: string[];
 }
 
+export interface BossArchiveDailyAttemptProgress {
+  utcDateKey: string;
+  attemptsUsed: number;
+  processedAttemptIds: string[];
+}
+
 export interface BossArchiveProgress {
   version: number;
   unlockedEventIds: string[];
@@ -82,6 +101,7 @@ export interface BossArchiveProgress {
   lastSelectedEventId: string | null;
   records: Record<string, BossArchiveBossRecord>;
   dailyChallenge: BossArchiveDailyChallengeProgress;
+  dailyAttempts: BossArchiveDailyAttemptProgress;
 }
 
 export interface BossArchiveDailyChargeStatus {
@@ -96,6 +116,7 @@ export interface BossArchiveDailyChargeStatus {
 export interface BossArchiveFightResultInput {
   eventId: string;
   mode: BossArchiveRunMode;
+  difficultyId?: BossArchiveDifficultyId;
   victory: boolean;
   clearTimeMs?: number | null;
   damageTaken?: number;
@@ -106,13 +127,32 @@ export interface BossArchiveFightResolution {
   state: BossArchiveProgress;
   accepted: boolean;
   duplicate: boolean;
-  reason: 'ok' | 'locked-boss' | 'invalid-boss' | 'duplicate-result' | 'no-charges';
+  reason: 'ok' | 'locked-boss' | 'invalid-boss' | 'duplicate-result' | 'no-charges' | 'attempt-required';
+  difficultyId: BossArchiveDifficultyId;
   challengeChargeConsumed: boolean;
   challengeRewardCoins: number;
   newlyCompletedObjectiveIds: BossArchiveMasteryObjectiveId[];
   newBestClearTime: boolean;
   newBestChallengeTime: boolean;
+  newBestDifficultyClearTime: boolean;
   noHit: boolean;
+}
+
+export interface BossArchiveFightLaunchInput {
+  eventId: string;
+  difficultyId?: BossArchiveDifficultyId;
+  /** Already-prefixed run result ID, reused during settlement for idempotency. */
+  attemptId: string;
+}
+
+export interface BossArchiveFightLaunchResolution {
+  state: BossArchiveProgress;
+  accepted: boolean;
+  duplicate: boolean;
+  reason: 'ok' | 'locked-boss' | 'invalid-boss' | 'invalid-attempt' | 'no-charges';
+  difficultyId: BossArchiveDifficultyId;
+  chargeConsumed: boolean;
+  chargesRemaining: number;
 }
 
 export interface BossArchiveMasteryClaimResolution {
@@ -237,6 +277,21 @@ export const getBossArchiveProgressionConfig = (eventId: unknown) => {
   return normalized ? BOSS_ARCHIVE_PROGRESSION_BY_ID.get(normalized) ?? null : null;
 };
 
+export const createBossArchiveDifficultyRecord = (): BossArchiveDifficultyRecord => ({
+  attempts: 0,
+  clears: 0,
+  noHitClears: 0,
+  bestClearTimeMs: null,
+  bestNoHitTimeMs: null
+});
+
+const createBossArchiveDifficultyRecords = (): BossArchiveBossRecord['difficultyRecords'] => (
+  Object.fromEntries(BOSS_ARCHIVE_DIFFICULTIES.map(({ id }) => [
+    id,
+    createBossArchiveDifficultyRecord()
+  ])) as BossArchiveBossRecord['difficultyRecords']
+);
+
 export const createBossArchiveBossRecord = (): BossArchiveBossRecord => ({
   attempts: 0,
   practiceAttempts: 0,
@@ -248,6 +303,7 @@ export const createBossArchiveBossRecord = (): BossArchiveBossRecord => ({
   bestClearTimeMs: null,
   bestChallengeTimeMs: null,
   bestNoHitTimeMs: null,
+  difficultyRecords: createBossArchiveDifficultyRecords(),
   mastery: {
     'challenge-clear': { completedAt: null, claimedAt: null },
     'no-hit-clear': { completedAt: null, claimedAt: null },
@@ -275,10 +331,24 @@ const sanitizeLastResult = (value: unknown): BossArchiveLastResult | null => {
   if (!playedAt) return null;
   return {
     mode: value.mode,
+    difficultyId: normalizeBossArchiveDifficultyId(value.difficultyId),
     victory: value.victory === true,
     clearTimeMs: normalizeDuration(value.clearTimeMs),
     damageTaken: clampInteger(value.damageTaken, 0, 1_000_000),
     playedAt
+  };
+};
+
+const sanitizeDifficultyRecord = (value: unknown): BossArchiveDifficultyRecord => {
+  const record = isRecord(value) ? value : {};
+  const attempts = clampInteger(record.attempts, 0, 1_000_000_000);
+  const clears = clampInteger(record.clears, 0, attempts);
+  return {
+    attempts,
+    clears,
+    noHitClears: clampInteger(record.noHitClears, 0, clears),
+    bestClearTimeMs: normalizeDuration(record.bestClearTimeMs),
+    bestNoHitTimeMs: normalizeDuration(record.bestNoHitTimeMs)
   };
 };
 
@@ -289,23 +359,53 @@ export const sanitizeBossArchiveBossRecord = (value: unknown): BossArchiveBossRe
   const challengeAttempts = clampInteger(value.challengeAttempts, 0, 1_000_000_000);
   const practiceClears = clampInteger(value.practiceClears, 0, practiceAttempts);
   const challengeClears = clampInteger(value.challengeClears, 0, challengeAttempts);
+  const recordedAttempts = Math.max(
+    practiceAttempts + challengeAttempts,
+    clampInteger(value.attempts, 0, 1_000_000_000)
+  );
+  const totalClears = Math.max(
+    practiceClears + challengeClears,
+    clampInteger(value.totalClears, 0, 1_000_000_000)
+  );
+  // Campaign victories historically populated totalClears without recording an
+  // Archive attempt. Keep the aggregate internally consistent when migrating.
+  const attempts = Math.max(recordedAttempts, totalClears);
+  const noHitClears = clampInteger(value.noHitClears, 0, totalClears);
+  const bestClearTimeMs = normalizeDuration(value.bestClearTimeMs);
+  const bestNoHitTimeMs = normalizeDuration(value.bestNoHitTimeMs);
+  const rawDifficultyRecords = isRecord(value.difficultyRecords)
+    ? value.difficultyRecords
+    : null;
+  const hasDifficultyRecords = Boolean(
+    rawDifficultyRecords
+    && BOSS_ARCHIVE_DIFFICULTIES.some(({ id }) => isRecord(rawDifficultyRecords[id]))
+  );
+  const difficultyRecords = Object.fromEntries(BOSS_ARCHIVE_DIFFICULTIES.map(({ id }) => {
+    if (rawDifficultyRecords && isRecord(rawDifficultyRecords[id])) {
+      return [id, sanitizeDifficultyRecord(rawDifficultyRecords[id])];
+    }
+    // Version-one records had one aggregate bucket. Medium is the exact
+    // historical Archive tune, so preserving that history there is truthful.
+    return [id, id === 'medium' && !hasDifficultyRecords ? {
+      attempts,
+      clears: totalClears,
+      noHitClears,
+      bestClearTimeMs,
+      bestNoHitTimeMs
+    } : createBossArchiveDifficultyRecord()];
+  })) as BossArchiveBossRecord['difficultyRecords'];
   return {
-    attempts: Math.max(
-      practiceAttempts + challengeAttempts,
-      clampInteger(value.attempts, 0, 1_000_000_000)
-    ),
+    attempts,
     practiceAttempts,
     challengeAttempts,
-    totalClears: Math.max(
-      practiceClears + challengeClears,
-      clampInteger(value.totalClears, 0, 1_000_000_000)
-    ),
+    totalClears,
     practiceClears,
     challengeClears,
-    noHitClears: clampInteger(value.noHitClears, 0, practiceClears + challengeClears),
-    bestClearTimeMs: normalizeDuration(value.bestClearTimeMs),
+    noHitClears,
+    bestClearTimeMs,
     bestChallengeTimeMs: normalizeDuration(value.bestChallengeTimeMs),
-    bestNoHitTimeMs: normalizeDuration(value.bestNoHitTimeMs),
+    bestNoHitTimeMs,
+    difficultyRecords,
     mastery: sanitizeMastery(value.mastery),
     processedResultIds: boundedUniqueStrings(value.processedResultIds),
     lastResult: sanitizeLastResult(value.lastResult)
@@ -324,6 +424,19 @@ const shorterDuration = (left: number | null, right: number | null) => {
   return Math.min(left, right);
 };
 
+const mergeDifficultyRecordsBySum = (
+  left: BossArchiveBossRecord['difficultyRecords'],
+  right: BossArchiveBossRecord['difficultyRecords']
+): BossArchiveBossRecord['difficultyRecords'] => Object.fromEntries(
+  BOSS_ARCHIVE_DIFFICULTIES.map(({ id }) => [id, {
+    attempts: left[id].attempts + right[id].attempts,
+    clears: left[id].clears + right[id].clears,
+    noHitClears: left[id].noHitClears + right[id].noHitClears,
+    bestClearTimeMs: shorterDuration(left[id].bestClearTimeMs, right[id].bestClearTimeMs),
+    bestNoHitTimeMs: shorterDuration(left[id].bestNoHitTimeMs, right[id].bestNoHitTimeMs)
+  }])
+) as BossArchiveBossRecord['difficultyRecords'];
+
 const mergeMigratedBossArchiveRecords = (values: unknown[]): BossArchiveBossRecord => (
   values.map(sanitizeBossArchiveBossRecord).reduce((merged, record) => ({
     attempts: merged.attempts + record.attempts,
@@ -336,6 +449,10 @@ const mergeMigratedBossArchiveRecords = (values: unknown[]): BossArchiveBossReco
     bestClearTimeMs: shorterDuration(merged.bestClearTimeMs, record.bestClearTimeMs),
     bestChallengeTimeMs: shorterDuration(merged.bestChallengeTimeMs, record.bestChallengeTimeMs),
     bestNoHitTimeMs: shorterDuration(merged.bestNoHitTimeMs, record.bestNoHitTimeMs),
+    difficultyRecords: mergeDifficultyRecordsBySum(
+      merged.difficultyRecords,
+      record.difficultyRecords
+    ),
     mastery: Object.fromEntries(BOSS_ARCHIVE_MASTERY_OBJECTIVE_IDS.map((id) => ({
       id,
       completedAt: earlierIso(merged.mastery[id].completedAt, record.mastery[id].completedAt),
@@ -357,6 +474,12 @@ const createDailyChallengeProgress = (now = new Date()): BossArchiveDailyChallen
   processedClearIds: []
 });
 
+const createDailyAttemptProgress = (now = new Date()): BossArchiveDailyAttemptProgress => ({
+  utcDateKey: getBossArchiveUtcDateKey(now),
+  attemptsUsed: 0,
+  processedAttemptIds: []
+});
+
 export const createBossArchiveProgress = (
   unlockedEventIds: unknown = [],
   seenEventIds: unknown = [],
@@ -371,7 +494,8 @@ export const createBossArchiveProgress = (
       .filter((eventId) => unlockedSet.has(eventId)),
     lastSelectedEventId: null,
     records: {},
-    dailyChallenge: createDailyChallengeProgress(now)
+    dailyChallenge: createDailyChallengeProgress(now),
+    dailyAttempts: createDailyAttemptProgress(now)
   };
 };
 
@@ -414,6 +538,31 @@ export const sanitizeBossArchiveProgress = (
         processedClearIds: boundedUniqueStrings(rawDaily.processedClearIds)
       }
     : createDailyChallengeProgress(now);
+  const hasRawDailyAttempts = isRecord(raw.dailyAttempts);
+  const rawDailyAttempts: UnknownRecord = isRecord(raw.dailyAttempts)
+    ? raw.dailyAttempts
+    : {};
+  const storedAttemptDateKey = typeof rawDailyAttempts.utcDateKey === 'string'
+    && /^\d{4}-\d{2}-\d{2}$/.test(rawDailyAttempts.utcDateKey)
+    ? rawDailyAttempts.utcDateKey
+    : currentDateKey;
+  const dailyAttempts = storedAttemptDateKey === currentDateKey
+    ? {
+        utcDateKey: currentDateKey,
+        // Version-one charged only successful clears. Preserve those already
+        // spent charges when the launch-time attempt ledger is first created.
+        attemptsUsed: Math.max(
+          clampInteger(rawDailyAttempts.attemptsUsed, 0, 99),
+          hasRawDailyAttempts ? 0 : dailyChallenge.successfulClearsUsed
+        ),
+        processedAttemptIds: boundedUniqueStrings(rawDailyAttempts.processedAttemptIds)
+      }
+    : {
+        ...createDailyAttemptProgress(now),
+        // Keep recent launch receipts across the UTC boundary so a fight that
+        // started before midnight can still settle without spending tomorrow's charge.
+        processedAttemptIds: boundedUniqueStrings(rawDailyAttempts.processedAttemptIds)
+      };
   const normalizedLastSelected = normalizeBossArchiveEventId(raw.lastSelectedEventId);
   return {
     version: BOSS_ARCHIVE_PROGRESS_VERSION,
@@ -423,7 +572,8 @@ export const sanitizeBossArchiveProgress = (
       ? normalizedLastSelected
       : null,
     records,
-    dailyChallenge
+    dailyChallenge,
+    dailyAttempts
   };
 };
 
@@ -439,14 +589,95 @@ export const getBossArchiveDailyChargeStatus = (
 ): BossArchiveDailyChargeStatus => {
   const refreshed = refreshBossArchiveDailyChallenge(state, now);
   const limit = normalizeBossArchiveDailyChargeLimit(dailyLimit);
-  const used = Math.min(limit, refreshed.dailyChallenge.successfulClearsUsed);
+  const used = Math.min(limit, refreshed.dailyAttempts.attemptsUsed);
   return {
     state: refreshed,
     limit,
     used,
     remaining: Math.max(0, limit - used),
-    utcDateKey: refreshed.dailyChallenge.utcDateKey,
+    utcDateKey: refreshed.dailyAttempts.utcDateKey,
     resetsAt: getBossArchiveNextUtcResetAt(now)
+  };
+};
+
+/**
+ * Reserves one of the player's three UTC Archive charges before combat begins.
+ * The same attempt ID must be reused as the result ID during settlement.
+ */
+export const beginBossArchiveFight = (
+  state: BossArchiveProgress,
+  input: BossArchiveFightLaunchInput,
+  {
+    now = new Date(),
+    dailyLimit = DEFAULT_BOSS_ARCHIVE_DAILY_CHARGE_LIMIT
+  }: { now?: Date; dailyLimit?: number } = {}
+): BossArchiveFightLaunchResolution => {
+  const status = getBossArchiveDailyChargeStatus(state, now, dailyLimit);
+  const current = status.state;
+  const eventId = normalizeBossArchiveEventId(input.eventId);
+  const difficultyId = normalizeBossArchiveDifficultyId(input.difficultyId);
+  const attemptId = normalizeResultId(input.attemptId);
+  const rejected = (
+    reason: BossArchiveFightLaunchResolution['reason']
+  ): BossArchiveFightLaunchResolution => ({
+    state: current,
+    accepted: false,
+    duplicate: false,
+    reason,
+    difficultyId,
+    chargeConsumed: false,
+    chargesRemaining: status.remaining
+  });
+
+  if (!eventId || !getBossArchiveEntry(eventId)) return rejected('invalid-boss');
+  if (!current.unlockedEventIds.includes(eventId)) return rejected('locked-boss');
+  if (!attemptId) return rejected('invalid-attempt');
+  if (current.dailyAttempts.processedAttemptIds.includes(attemptId)) {
+    return {
+      state: current,
+      accepted: true,
+      duplicate: true,
+      reason: 'ok',
+      difficultyId,
+      chargeConsumed: false,
+      chargesRemaining: status.remaining
+    };
+  }
+  if (status.remaining <= 0) return rejected('no-charges');
+
+  const existing = sanitizeBossArchiveBossRecord(current.records[eventId]);
+  const difficultyRecord = existing.difficultyRecords[difficultyId];
+  const record: BossArchiveBossRecord = {
+    ...existing,
+    attempts: existing.attempts + 1,
+    challengeAttempts: existing.challengeAttempts + 1,
+    difficultyRecords: {
+      ...existing.difficultyRecords,
+      [difficultyId]: {
+        ...difficultyRecord,
+        attempts: difficultyRecord.attempts + 1
+      }
+    }
+  };
+  return {
+    state: {
+      ...current,
+      records: { ...current.records, [eventId]: record },
+      dailyAttempts: {
+        ...current.dailyAttempts,
+        attemptsUsed: current.dailyAttempts.attemptsUsed + 1,
+        processedAttemptIds: [
+          ...current.dailyAttempts.processedAttemptIds,
+          attemptId
+        ].slice(-64)
+      }
+    },
+    accepted: true,
+    duplicate: false,
+    reason: 'ok',
+    difficultyId,
+    chargeConsumed: true,
+    chargesRemaining: Math.max(0, status.remaining - 1)
   };
 };
 
@@ -479,6 +710,7 @@ export const recordBossArchiveFightResult = (
   const status = getBossArchiveDailyChargeStatus(state, now, dailyLimit);
   const current = status.state;
   const eventId = normalizeBossArchiveEventId(input.eventId);
+  const difficultyId = normalizeBossArchiveDifficultyId(input.difficultyId);
   const emptyResult = (
     reason: BossArchiveFightResolution['reason'],
     duplicate = false
@@ -487,11 +719,13 @@ export const recordBossArchiveFightResult = (
     accepted: false,
     duplicate,
     reason,
+    difficultyId,
     challengeChargeConsumed: false,
     challengeRewardCoins: 0,
     newlyCompletedObjectiveIds: [],
     newBestClearTime: false,
     newBestChallengeTime: false,
+    newBestDifficultyClearTime: false,
     noHit: false
   });
   if (!eventId || !getBossArchiveEntry(eventId)) return emptyResult('invalid-boss');
@@ -505,14 +739,19 @@ export const recordBossArchiveFightResult = (
   )) {
     return emptyResult('duplicate-result', true);
   }
-  if (input.mode === 'challenge' && input.victory && status.remaining <= 0) {
-    return emptyResult('no-charges');
-  }
+  const attemptReserved = Boolean(
+    resultId && current.dailyAttempts.processedAttemptIds.includes(resultId)
+  );
+  // Challenge charges are consumed at launch, including losing attempts. A
+  // result may settle only the exact run that was already reserved.
+  if (input.mode === 'challenge' && !attemptReserved) return emptyResult('attempt-required');
 
   const playedAt = validDate(now).toISOString();
   const clearTimeMs = input.victory ? normalizeDuration(input.clearTimeMs) : null;
   const damageTaken = clampInteger(input.damageTaken, 0, 1_000_000);
   const noHit = input.victory && damageTaken === 0;
+  const existingDifficulty = existing.difficultyRecords[difficultyId];
+  const shouldRecordAttempt = input.mode === 'practice';
   const newBestClearTime = Boolean(
     input.victory
     && clearTimeMs !== null
@@ -524,6 +763,14 @@ export const recordBossArchiveFightResult = (
     && clearTimeMs !== null
     && (existing.bestChallengeTimeMs === null || clearTimeMs < existing.bestChallengeTimeMs)
   );
+  const newBestDifficultyClearTime = Boolean(
+    input.victory
+    && clearTimeMs !== null
+    && (
+      existingDifficulty.bestClearTimeMs === null
+      || clearTimeMs < existingDifficulty.bestClearTimeMs
+    )
+  );
   const record: BossArchiveBossRecord = {
     ...existing,
     mastery: {
@@ -531,9 +778,8 @@ export const recordBossArchiveFightResult = (
       'no-hit-clear': { ...existing.mastery['no-hit-clear'] },
       'timed-clear': { ...existing.mastery['timed-clear'] }
     },
-    attempts: existing.attempts + 1,
-    practiceAttempts: existing.practiceAttempts + (input.mode === 'practice' ? 1 : 0),
-    challengeAttempts: existing.challengeAttempts + (input.mode === 'challenge' ? 1 : 0),
+    attempts: existing.attempts + (shouldRecordAttempt ? 1 : 0),
+    practiceAttempts: existing.practiceAttempts + (shouldRecordAttempt ? 1 : 0),
     totalClears: existing.totalClears + (input.victory ? 1 : 0),
     practiceClears: existing.practiceClears + (input.mode === 'practice' && input.victory ? 1 : 0),
     challengeClears: existing.challengeClears + (input.mode === 'challenge' && input.victory ? 1 : 0),
@@ -545,11 +791,27 @@ export const recordBossArchiveFightResult = (
     bestNoHitTimeMs: noHit
       ? minDuration(existing.bestNoHitTimeMs, clearTimeMs)
       : existing.bestNoHitTimeMs,
+    difficultyRecords: {
+      ...existing.difficultyRecords,
+      [difficultyId]: {
+        ...existingDifficulty,
+        attempts: existingDifficulty.attempts + (shouldRecordAttempt ? 1 : 0),
+        clears: existingDifficulty.clears + (input.victory ? 1 : 0),
+        noHitClears: existingDifficulty.noHitClears + (noHit ? 1 : 0),
+        bestClearTimeMs: input.victory
+          ? minDuration(existingDifficulty.bestClearTimeMs, clearTimeMs)
+          : existingDifficulty.bestClearTimeMs,
+        bestNoHitTimeMs: noHit
+          ? minDuration(existingDifficulty.bestNoHitTimeMs, clearTimeMs)
+          : existingDifficulty.bestNoHitTimeMs
+      }
+    },
     processedResultIds: resultId
       ? [...existing.processedResultIds, resultId].slice(-64)
       : existing.processedResultIds,
     lastResult: {
       mode: input.mode,
+      difficultyId,
       victory: input.victory,
       clearTimeMs,
       damageTaken,
@@ -557,13 +819,10 @@ export const recordBossArchiveFightResult = (
     }
   };
 
-  let chargeConsumed = false;
   let challengeRewardCoins = 0;
-  const reason: BossArchiveFightResolution['reason'] = 'ok';
   let dailyChallenge = current.dailyChallenge;
   const progressionConfig = getBossArchiveProgressionConfig(eventId);
   if (input.mode === 'challenge' && input.victory) {
-    chargeConsumed = true;
     challengeRewardCoins = progressionConfig?.challengeRewardCoins ?? 0;
     dailyChallenge = {
       ...current.dailyChallenge,
@@ -575,7 +834,7 @@ export const recordBossArchiveFightResult = (
   }
 
   const newlyCompletedObjectiveIds: BossArchiveMasteryObjectiveId[] = [];
-  const qualifiesForMastery = input.mode === 'challenge' && input.victory && chargeConsumed;
+  const qualifiesForMastery = input.mode === 'challenge' && input.victory && attemptReserved;
   completeMastery(record, 'challenge-clear', playedAt, qualifiesForMastery, newlyCompletedObjectiveIds);
   completeMastery(record, 'no-hit-clear', playedAt, qualifiesForMastery && noHit, newlyCompletedObjectiveIds);
   completeMastery(
@@ -596,12 +855,16 @@ export const recordBossArchiveFightResult = (
     },
     accepted: true,
     duplicate: false,
-    reason,
-    challengeChargeConsumed: chargeConsumed,
+    reason: 'ok',
+    difficultyId,
+    // Kept for compatibility with existing consumers. Settlement never spends
+    // a charge; beginBossArchiveFight owns that transition.
+    challengeChargeConsumed: false,
     challengeRewardCoins,
     newlyCompletedObjectiveIds,
     newBestClearTime,
     newBestChallengeTime,
+    newBestDifficultyClearTime,
     noHit
   };
 };
@@ -699,6 +962,19 @@ const latestResult = (
   return left.playedAt >= right.playedAt ? left : right;
 };
 
+const mergeDifficultyRecordsByMax = (
+  left: BossArchiveBossRecord['difficultyRecords'],
+  right: BossArchiveBossRecord['difficultyRecords']
+): BossArchiveBossRecord['difficultyRecords'] => Object.fromEntries(
+  BOSS_ARCHIVE_DIFFICULTIES.map(({ id }) => [id, {
+    attempts: Math.max(left[id].attempts, right[id].attempts),
+    clears: Math.max(left[id].clears, right[id].clears),
+    noHitClears: Math.max(left[id].noHitClears, right[id].noHitClears),
+    bestClearTimeMs: minDuration(left[id].bestClearTimeMs, right[id].bestClearTimeMs),
+    bestNoHitTimeMs: minDuration(left[id].bestNoHitTimeMs, right[id].bestNoHitTimeMs)
+  }])
+) as BossArchiveBossRecord['difficultyRecords'];
+
 const mergeBossRecords = (
   leftValue: unknown,
   rightValue: unknown
@@ -716,6 +992,10 @@ const mergeBossRecords = (
     bestClearTimeMs: minDuration(left.bestClearTimeMs, right.bestClearTimeMs),
     bestChallengeTimeMs: minDuration(left.bestChallengeTimeMs, right.bestChallengeTimeMs),
     bestNoHitTimeMs: minDuration(left.bestNoHitTimeMs, right.bestNoHitTimeMs),
+    difficultyRecords: mergeDifficultyRecordsByMax(
+      left.difficultyRecords,
+      right.difficultyRecords
+    ),
     mastery: Object.fromEntries(BOSS_ARCHIVE_MASTERY_OBJECTIVE_IDS.map((id) => [id, {
       completedAt: earliestIso(left.mastery[id].completedAt, right.mastery[id].completedAt),
       claimedAt: earliestIso(left.mastery[id].claimedAt, right.mastery[id].claimedAt)
@@ -764,6 +1044,21 @@ export const mergeBossArchiveProgress = (
         ])
       }
     : (targetDay > sourceDay ? target.dailyChallenge : source.dailyChallenge);
+  const targetAttemptDay = target.dailyAttempts.utcDateKey;
+  const sourceAttemptDay = source.dailyAttempts.utcDateKey;
+  const dailyAttempts = targetAttemptDay === sourceAttemptDay
+    ? {
+        utcDateKey: targetAttemptDay,
+        attemptsUsed: Math.max(
+          target.dailyAttempts.attemptsUsed,
+          source.dailyAttempts.attemptsUsed
+        ),
+        processedAttemptIds: boundedUniqueStrings([
+          ...target.dailyAttempts.processedAttemptIds,
+          ...source.dailyAttempts.processedAttemptIds
+        ])
+      }
+    : (targetAttemptDay > sourceAttemptDay ? target.dailyAttempts : source.dailyAttempts);
   const requestedSelection = target.lastSelectedEventId ?? source.lastSelectedEventId;
   return {
     version: BOSS_ARCHIVE_PROGRESS_VERSION,
@@ -773,7 +1068,8 @@ export const mergeBossArchiveProgress = (
       ? requestedSelection
       : null,
     records,
-    dailyChallenge
+    dailyChallenge,
+    dailyAttempts
   };
 };
 
@@ -818,7 +1114,8 @@ export const createBossArchiveDeveloperControls = (
   ),
     resetDailyCharges: (state, now = new Date()) => !isAuthorized() ? state : ({
     ...state,
-    dailyChallenge: createDailyChallengeProgress(now)
+    dailyChallenge: createDailyChallengeProgress(now),
+    dailyAttempts: createDailyAttemptProgress(now)
   }),
     simulateNewUnlock: (state, requestedEventId) => {
     if (!isAuthorized()) return state;
@@ -860,23 +1157,48 @@ export const createBossArchiveDeveloperControls = (
         accepted: false,
         duplicate: false,
         reason: 'locked-boss',
+        difficultyId: 'medium',
         challengeChargeConsumed: false,
         challengeRewardCoins: 0,
         newlyCompletedObjectiveIds: [],
         newBestClearTime: false,
         newBestChallengeTime: false,
+        newBestDifficultyClearTime: false,
+        noHit: false
+      };
+    }
+    const attemptId = `dev-preview:${eventId}:${now.toISOString()}`;
+    const launch = beginBossArchiveFight(
+      state,
+      { eventId, difficultyId: 'medium', attemptId },
+      { now }
+    );
+    if (!launch.accepted) {
+      return {
+        state: launch.state,
+        accepted: false,
+        duplicate: launch.duplicate,
+        reason: launch.reason === 'invalid-attempt' ? 'attempt-required' : launch.reason,
+        difficultyId: launch.difficultyId,
+        challengeChargeConsumed: false,
+        challengeRewardCoins: 0,
+        newlyCompletedObjectiveIds: [],
+        newBestClearTime: false,
+        newBestChallengeTime: false,
+        newBestDifficultyClearTime: false,
         noHit: false
       };
     }
     return recordBossArchiveFightResult(
-      state,
+      launch.state,
       {
         eventId,
         mode: 'challenge',
+        difficultyId: launch.difficultyId,
         victory,
         clearTimeMs: victory ? 45_000 : null,
         damageTaken: victory ? 0 : 1,
-        resultId: `dev-preview:${eventId}:${now.toISOString()}`
+        resultId: attemptId
       },
       { now }
     );
