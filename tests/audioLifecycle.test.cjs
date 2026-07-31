@@ -295,6 +295,41 @@ test('two reusable music decks are precreated but playback stays locked until a 
   assert.equal(harness.currentMusicPlayer.loop, true);
 });
 
+test('ordinary UI cues reuse the first successful media authorization without replaying both decks', async () => {
+  const harness = loadAudioService();
+  harness.audioService.setMusicScene('home');
+
+  harness.audioService.playUiSound('click');
+  await harness.flushPromises();
+  const authorizedPlayCalls = harness.musicPlayers.map((player) => player.playCalls);
+  const authorizedSources = harness.musicPlayers.map((player) => player.src);
+  const authorizedLoadCalls = harness.musicPlayers.map((player) => player.loadCalls);
+
+  harness.audioService.playUiSound('open');
+  await harness.flushPromises();
+
+  assert.deepEqual(harness.musicPlayers.map((player) => player.playCalls), authorizedPlayCalls);
+  assert.deepEqual(harness.musicPlayers.map((player) => player.src), authorizedSources);
+  assert.deepEqual(harness.musicPlayers.map((player) => player.loadCalls), authorizedLoadCalls);
+});
+
+test('a rejected first media authorization remains retryable on the next UI gesture', async () => {
+  let rejectUnlock = true;
+  const harness = loadAudioService({}, {
+    playOutcome: () => rejectUnlock ? 'reject' : undefined
+  });
+  harness.audioService.setMusicScene('home');
+
+  harness.audioService.playUiSound('click');
+  await harness.flushPromises();
+  assert.deepEqual(harness.musicPlayers.map((player) => player.playCalls), [1, 1]);
+
+  rejectUnlock = false;
+  harness.audioService.playUiSound('open');
+  await harness.flushPromises();
+  assert.deepEqual(harness.musicPlayers.map((player) => player.playCalls), [2, 2]);
+});
+
 test('home, mission, and boss scenes use dedicated tracks with a dual-player crossfade', async () => {
   const harness = loadAudioService();
   harness.audioService.setMusicScene('home');

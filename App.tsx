@@ -2185,7 +2185,18 @@ const App: React.FC = () => {
     const loadingTip = missionLoading?.phase === 'error'
       ? missionLoading.tip
       : getRandomMissionLoadingTip();
+    const launchMusicScene = requestedBossReplay ? 'boss' : 'mission';
+    audioService.setMusicScene(launchMusicScene);
     audioService.init();
+    // Audio is an enhancement, never a launch dependency. Slow media fetches
+    // and decoders must not strand a reserved Boss Archive charge or leave the
+    // Start Mission button looking unresponsive.
+    void audioService.prepare().catch((error) => {
+      console.warn('Gameplay audio warmup remains pending.', error);
+    });
+    void audioService.prepareMusicScene(launchMusicScene).catch((error) => {
+      console.warn('Mission music warmup remains pending.', error);
+    });
     if (shouldShowMissionLoading) {
       setMissionLoading({
         progress: gameplayPreloadProgress,
@@ -2197,20 +2208,16 @@ const App: React.FC = () => {
     }
 
     try {
-      await Promise.all([
-        preloadGameplayComponents(shouldShowMissionLoading
-          ? (progress, phase) => {
-              if (missionLaunchNonceRef.current !== launchNonce) return;
-              setMissionLoading({
-                progress,
-                phase,
-                tip: loadingTip
-              });
-            }
-          : undefined),
-        audioService.prepare(),
-        audioService.prepareMusicScene('mission')
-      ]);
+      await preloadGameplayComponents(shouldShowMissionLoading
+        ? (progress, phase) => {
+            if (missionLaunchNonceRef.current !== launchNonce) return;
+            setMissionLoading({
+              progress,
+              phase,
+              tip: loadingTip
+            });
+          }
+        : undefined);
     } catch (error) {
       console.error('Gameplay preload failed.', error);
       audioService.playUiSound('error');

@@ -4,8 +4,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const engineSource = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
-const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
+const readSource = (filePath) => (
+  fs.readFileSync(filePath, 'utf8').replace(/\r\n/g, '\n')
+);
+const engineSource = readSource(path.join(root, 'services', 'gameLogic.ts'));
+const appSource = readSource(path.join(root, 'App.tsx'));
 
 test('boss music follows only a major-boss warning or live major boss', () => {
   const runtimeStart = engineSource.indexOf('getRuntimeState(): GameRuntimeState');
