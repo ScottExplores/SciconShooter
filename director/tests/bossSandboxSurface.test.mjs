@@ -6,10 +6,12 @@ import { fileURLToPath } from 'node:url';
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, '..', '..');
-const source = await readFile(
-  path.join(repositoryRoot, 'director', 'src', 'tools', 'bosses', 'BossSandboxApp.tsx'),
-  'utf8'
-);
+const source = (
+  await readFile(
+    path.join(repositoryRoot, 'director', 'src', 'tools', 'bosses', 'BossSandboxApp.tsx'),
+    'utf8'
+  )
+).replace(/\r\n?/g, '\n');
 const styles = await readFile(
   path.join(repositoryRoot, 'director', 'src', 'tools', 'bosses', 'boss-sandbox.css'),
   'utf8'
@@ -18,10 +20,12 @@ const modelSource = await readFile(
   path.join(repositoryRoot, 'director', 'src', 'tools', 'bosses', 'bossSandboxModel.ts'),
   'utf8'
 );
-const remoteSource = await readFile(
-  path.join(repositoryRoot, 'director', 'remote', 'RemoteBossRunnerApp.tsx'),
-  'utf8'
-);
+const remoteSource = (
+  await readFile(
+    path.join(repositoryRoot, 'director', 'remote', 'RemoteBossRunnerApp.tsx'),
+    'utf8'
+  )
+).replace(/\r\n?/g, '\n');
 const remoteStyles = await readFile(
   path.join(repositoryRoot, 'director', 'remote', 'remote-boss-runner.css'),
   'utf8'

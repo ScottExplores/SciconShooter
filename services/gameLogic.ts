@@ -190,9 +190,11 @@ import {
   resolveConfiguredFormationMode as resolveFormationMode,
   resolveConfiguredFormationSpawnPoint,
   resolveConfiguredFormationTarget,
+  resolveFormationEntryMotion,
   resolveFormationEntryPlan,
   type ConfiguredFormationMode
 } from './gameplay/formations';
+import { resolveFormationDiveMotion } from './gameplay/formations/FormationRuntime';
 import {
   MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
   getGeneratedBossTechniqueCue,
@@ -758,6 +760,9 @@ export class Entity {
   formationDiveFrame: number = 0;
   formationBaseSpeed: number = 0;
   formationCycle: number = 0;
+  formationEntryDirection?: FormationPackDefinition['entryDirection'];
+  formationEntryPath?: string;
+  formationEntryBehavior?: EnemyRoleDefinition['entryBehavior'];
   encounterGroupSize: number = 1;
   /** Shared Mini-Boss encounter identity used by Campaign fights and isolated Sandbox previews. */
   miniBossLabEncounterId?: string;
@@ -846,6 +851,8 @@ export class Entity {
   campaignFormationPackId?: string;
   campaignFormationPackInstanceId?: string;
   campaignSpawnFrame: number = 0;
+  /** Seam-filling traffic is combat-active but cannot inflate score, rewards, or mastery counters. */
+  campaignFiller: boolean = false;
   wallLaneX?: number;
   wallRowOffset?: number;
   wallPass?: number;
@@ -1856,12 +1863,13 @@ const MOBILE_TAKEOFF_PARTICLE_CAP = 48;
 const DESKTOP_TAKEOFF_PARTICLE_CAP = 80;
 const MOBILE_TAKEOFF_PARTICLES_PER_FRAME = 2;
 const DESKTOP_TAKEOFF_PARTICLES_PER_FRAME = 4;
-export const INTERNAL_WAVE_LOOSE_ENTRY_COUNT = 2;
-export const INTERNAL_WAVE_LOOSE_ENTRY_INTERVAL_FRAMES = 18;
-export const INTERNAL_WAVE_LOOSE_ENTRY_WINDOW_FRAMES = 72;
-export const WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES = 90;
-export const WAVE_CONTINUITY_END_BUFFER_FRAMES = 75;
-export const WAVE_CONTINUITY_MAX_LOOSE_ENEMIES = 16;
+export const INTERNAL_WAVE_LOOSE_ENTRY_COUNT = 3;
+export const INTERNAL_WAVE_LOOSE_ENTRY_INTERVAL_FRAMES = 12;
+export const INTERNAL_WAVE_LOOSE_ENTRY_WINDOW_FRAMES = 90;
+export const WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES = 18;
+export const WAVE_CONTINUITY_END_BUFFER_FRAMES = 15;
+export const WAVE_CONTINUITY_MAX_LOOSE_ENEMIES = 64;
+export const WAVE_CONTINUITY_ENTRY_GRACE_FRAMES = 12;
 export const getWaveContinuityLooseEnemyCap = (durationFrames: number) => Math.min(
   WAVE_CONTINUITY_MAX_LOOSE_ENEMIES,
   Math.max(
@@ -5061,6 +5069,43 @@ export class GameEngine {
     return true;
   }
 
+  retireOffscreenRegularThreatsAtWaveEnd() {
+    const durationReached = this.waveProgressFrames >= this.getConfiguredWaveDurationFrames();
+    if (
+      this.getCurrentWaveCompletionRule() !== 'clear-after-duration'
+      || !this.getConfiguredSpawnsComplete()
+      || !this.getConfiguredEncountersComplete()
+      || this.inBossWarningSequence
+    ) return 0;
+
+    const visibleThreatCount = this.getVisibleActiveThreatCount();
+    let retired = 0;
+    for (const entity of this.entities) {
+      const regularThreat = entity.type === EntityType.ENEMY_DRONE
+        || entity.type === EntityType.ENEMY_BRICK
+        || entity.type === EntityType.ENEMY_JOURNAL
+        || entity.type === EntityType.ENEMY_SWARM
+        || entity.type === EntityType.SUPPLY_DROP;
+      const visible = entity.x < this.width
+        && entity.x + Math.max(0, entity.width) > 0
+        && entity.y < this.height
+        && entity.y + Math.max(0, entity.height) > 0;
+      if (entity.markedForDeletion || !regularThreat) continue;
+      if (entity.campaignFiller && durationReached) {
+        entity.markedForDeletion = true;
+        retired++;
+        continue;
+      }
+      if (visible) continue;
+      const completedFormationPass = entity.formationState === 'dive'
+        || entity.formationState === 'return';
+      if (!durationReached && (visibleThreatCount > 0 || !completedFormationPass)) continue;
+      entity.markedForDeletion = true;
+      retired++;
+    }
+    return retired;
+  }
+
   beginTacticalWaveCompletion() {
     this.waveTransitionPending = true;
     this.clearStageBoundaryDebris(false, true, false, true);
@@ -5429,6 +5474,23 @@ export class GameEngine {
     return count;
   }
 
+  getVisibleActiveThreatCount() {
+    let count = 0;
+    for (let i = 0; i < this.entities.length; i++) {
+      const entity = this.entities[i];
+      if (
+        entity.markedForDeletion
+        || !this.isEnemyTarget(entity)
+        || entity.x >= this.width
+        || entity.x + Math.max(0, entity.width) <= 0
+        || entity.y >= this.height
+        || entity.y + Math.max(0, entity.height) <= 0
+      ) continue;
+      count++;
+    }
+    return count;
+  }
+
   updateJuiceSystems() {
     if (!this.polishSettings.screenShake) {
       this.shakeStrength = 0;
@@ -5637,6 +5699,10 @@ export class GameEngine {
         || entity.type === EntityType.POWERUP
         || entity.type === EntityType.PARTICLE
         || entity.type === EntityType.EFFECT
+        || (
+          entity.isPlayerShot
+          && (entity.type === EntityType.PROJECTILE || entity.type === EntityType.MISSILE)
+        )
       ) {
         entities[writeIndex] = entity;
         writeIndex++;
@@ -6221,6 +6287,7 @@ export class GameEngine {
 
     this.checkCollisions();
     this.applyResearchBeamDamage();
+    this.retireOffscreenRegularThreatsAtWaveEnd();
     this.compactEntities();
     this.completeClearWaveIfReady();
     this.refreshLoadState();
@@ -7682,11 +7749,18 @@ export class GameEngine {
       target.bossHeliosMachineGunChannelState = undefined;
       this.removeBossCornerAmbushBeams(target);
     }
-    if (target.campaignSpawnFrame > 0 && this.isEnemyTarget(target)) {
+    const countsTowardCampaignRewards = !target.campaignFiller;
+    if (
+      countsTowardCampaignRewards
+      && target.campaignSpawnFrame > 0
+      && this.isEnemyTarget(target)
+    ) {
       this.waveEnemyTimeToKillFrames += Math.max(1, this.frameCount - target.campaignSpawnFrame);
       this.waveEnemyKillsMeasured += 1;
     }
-    if (target.type !== EntityType.SUPPLY_DROP) this.recordWaveVictoryKill(target);
+    if (countsTowardCampaignRewards && target.type !== EntityType.SUPPLY_DROP) {
+      this.recordWaveVictoryKill(target);
+    }
     target.markedForDeletion = true;
     const destructionIntensity = target.type === EntityType.BOSS
       ? 2.2
@@ -7698,7 +7772,9 @@ export class GameEngine {
           ? 0.9
           : 0.58;
     this.spawnExplosion(target.x, target.y, target.color, destructionIntensity);
-    if (target.type !== EntityType.SUPPLY_DROP) this.stats.enemiesDefeated++;
+    if (countsTowardCampaignRewards && target.type !== EntityType.SUPPLY_DROP) {
+      this.stats.enemiesDefeated++;
+    }
     const configuredScoreMultiplier = Number(this.getCurrentWaveDefinition()?.scoreMultiplier);
     const waveMult = Number.isFinite(configuredScoreMultiplier) && configuredScoreMultiplier > 0
       ? configuredScoreMultiplier
@@ -7711,7 +7787,9 @@ export class GameEngine {
 
     const hasConfiguredBossReward = (target.type === EntityType.MINI_BOSS || target.type === EntityType.BOSS)
       && Number.isFinite(target.scoreReward);
-    const points = hasConfiguredBossReward
+    const points = !countsTowardCampaignRewards
+      ? 0
+      : hasConfiguredBossReward
       ? 0
       : Number.isFinite(target.scoreValue)
         ? Math.max(0, target.scoreValue as number)
@@ -7727,7 +7805,7 @@ export class GameEngine {
     } else if (supplyDropKind) {
       this.presentDropDestroyed[supplyDropKind]++;
       this.presentDropCoinValueSpawned += this.spawnPresentDropCoinBurst(target);
-    } else {
+    } else if (countsTowardCampaignRewards) {
       this.spawnCoin(target.x + target.width / 2, target.y + target.height / 2);
     }
     if (target.type === EntityType.ENEMY_SWARM && target.formation === 'orbit') {
@@ -7745,16 +7823,16 @@ export class GameEngine {
     const powerupDropChance = Number.isFinite(configuredPowerupDropChance)
       ? clamp(configuredPowerupDropChance, 0, 1)
       : isElite ? 0.08 : 0;
-    if (!isSupplyDrop && target.type !== EntityType.BOSS && powerupDropChance > 0 && this.gameplayRandom.chance(powerupDropChance)) {
+    if (countsTowardCampaignRewards && !isSupplyDrop && target.type !== EntityType.BOSS && powerupDropChance > 0 && this.gameplayRandom.chance(powerupDropChance)) {
       this.spawnPowerup(target.x, target.y);
     }
-    if (!isSupplyDrop && target.type !== EntityType.BOSS && this.lives < GAME_CONFIG.MAX_LIVES) {
+    if (countsTowardCampaignRewards && !isSupplyDrop && target.type !== EntityType.BOSS && this.lives < GAME_CONFIG.MAX_LIVES) {
       const extraLifeDropChance = isElite ? ELITE_EXTRA_LIFE_DROP_CHANCE : EXTRA_LIFE_DROP_CHANCE;
       if (this.gameplayRandom.chance(extraLifeDropChance)) {
         this.spawnPowerup(centerX - 18, centerY - 18, 'extra-life');
       }
     }
-    if (!isSupplyDrop && target.type !== EntityType.BOSS && !this.isBombResolving) {
+    if (countsTowardCampaignRewards && !isSupplyDrop && target.type !== EntityType.BOSS && !this.isBombResolving) {
       const dropChance = isElite ? ELITE_BOMB_DROP_CHANCE : BOMB_DROP_CHANCE;
       if (this.gameplayRandom.chance(dropChance)) {
         this.spawnBombDrop(centerX - 19, centerY - 19);
@@ -7879,12 +7957,10 @@ export class GameEngine {
   updateEnemyFire() {
     if (this.stats.isBossActive || this.inBossWarningSequence || this.deathSequenceFrames > 0) return;
     this.updateEliteEnemyFire();
-    if (this.wave < 2) return;
 
-    // Internal Campaign waves should escalate through authored formations,
-    // not collapse into a near-continuous global firing clock. Elite enemies
-    // retain their own per-entity cadence below; this scheduler is only for
-    // standard authored shooters.
+    // Authored fire delays keep Mission 1 welcoming while still letting its
+    // later formations fight back. Mission number continues to compress the
+    // cadence without turning internal Waves into a global bullet hose.
     const baseFireInterval = Math.max(66, 118 - ((this.wave - 2) * 10));
     const difficultyMultiplier = this.getConfiguredSpawnEvents().length > 0
       ? this.getCurrentDifficultyMultiplier()
@@ -8415,14 +8491,23 @@ export class GameEngine {
     });
   }
 
-  getConfiguredSpawnPoint(event: RuntimeSpawnEvent, index: number, count: number) {
+  getConfiguredSpawnPoint(
+    event: RuntimeSpawnEvent,
+    index: number,
+    count: number,
+    formationPack?: FormationPackDefinition,
+    role?: EnemyRoleDefinition | null
+  ) {
     return resolveConfiguredFormationSpawnPoint({
       event: {
         id: event.id,
         patternId: event.patternId,
         positionId: event.positionId,
         spawnAnchor: event.spawnAnchor,
-        formationSlots: event.formationSlots
+        formationSlots: event.formationSlots,
+        entryDirection: formationPack?.entryDirection,
+        entryPath: formationPack?.entryPath,
+        entryBehavior: role?.entryBehavior
       },
       index,
       count,
@@ -8431,7 +8516,14 @@ export class GameEngine {
     });
   }
 
-  configureEnemyFormation(enemy: Entity, event: RuntimeSpawnEvent, index: number, count: number) {
+  configureEnemyFormation(
+    enemy: Entity,
+    event: RuntimeSpawnEvent,
+    index: number,
+    count: number,
+    formationPack?: FormationPackDefinition,
+    role?: EnemyRoleDefinition | null
+  ) {
     const patternId = String(event.patternId || '').toLowerCase();
     if (patternId.includes('single') || patternId.includes('random')) return;
 
@@ -8445,6 +8537,9 @@ export class GameEngine {
     const plan = resolveFormationEntryPlan({
       eventId: event.id,
       patternId,
+      entryDirection: formationPack?.entryDirection,
+      entryPath: formationPack?.entryPath,
+      entryBehavior: role?.entryBehavior,
       index,
       count,
       currentFrame: this.frameCount,
@@ -8469,9 +8564,43 @@ export class GameEngine {
     enemy.formationDiveFrame = plan.diveFrame;
     enemy.formationBaseSpeed = plan.baseSpeed;
     enemy.formationCycle = 0;
+    enemy.formationEntryDirection = plan.entryDirection;
+    enemy.formationEntryPath = plan.entryPath;
+    enemy.formationEntryBehavior = plan.entryBehavior;
     enemy.encounterGroupSize = plan.groupSize;
     enemy.vx = 0;
     enemy.vy = 0;
+  }
+
+  resolveConfiguredFormationDiveMotion(
+    enemy: Entity,
+    formation: ConfiguredEnemyFormationMode,
+    diveAge: number
+  ) {
+    const diveSpeed = enemy.formationBaseSpeed
+      * (1.28 + Math.min(0.38, this.wave * 0.055));
+    return resolveFormationDiveMotion({
+      mode: formation,
+      index: enemy.formationIndex,
+      groupSize: enemy.encounterGroupSize,
+      groupSeed: enemy.formationGroupSeed,
+      cycle: enemy.formationCycle,
+      ageFrames: diveAge,
+      baseSpeed: diveSpeed,
+      current: {
+        x: enemy.x + enemy.width / 2,
+        y: enemy.y + enemy.height / 2
+      },
+      anchorX: (enemy.formationTargetX ?? enemy.x) + enemy.width / 2,
+      player: {
+        x: this.player.x + this.player.width / 2,
+        y: Math.min(this.height + 80, this.player.y + this.player.height * 0.7)
+      },
+      playerVelocityX: this.playerVel.x,
+      viewportWidth: this.width,
+      mobile: this.mobileProfile,
+      entryBehavior: enemy.formationEntryBehavior
+    });
   }
 
   updateConfiguredEnemyFormation(enemy: Entity) {
@@ -8487,20 +8616,21 @@ export class GameEngine {
       const eased = progress * progress * (3 - 2 * progress);
       const startX = enemy.formationStartX ?? enemy.x;
       const startY = enemy.formationStartY ?? enemy.y;
-      const direction = enemy.formationIndex % 2 === 0 ? 1 : -1;
-      const arcStrength = formation === 'spiral'
-        ? Math.min(this.width * 0.2, 92)
-        : formation === 'pincer'
-          ? Math.min(this.width * 0.14, 66)
-          : Math.min(this.width * 0.11, 52);
-      const spiralOffset = formation === 'spiral'
-        ? Math.sin(progress * Math.PI * 2 + enemy.formationIndex * 0.55) * (1 - progress) * 38
-        : 0;
-      enemy.x = lerp(startX, targetX, eased) + Math.sin(progress * Math.PI) * arcStrength * direction + spiralOffset;
-      enemy.y = lerp(startY, targetY, eased) - Math.sin(progress * Math.PI) * (formation === 'spiral' ? 42 : 26);
+      const entryMotion = resolveFormationEntryMotion({
+        mode: formation,
+        index: enemy.formationIndex,
+        groupSeed: enemy.formationGroupSeed,
+        progress,
+        viewportWidth: this.width,
+        entryDirection: enemy.formationEntryDirection,
+        entryPath: enemy.formationEntryPath,
+        entryBehavior: enemy.formationEntryBehavior
+      });
+      enemy.x = lerp(startX, targetX, eased) + entryMotion.xOffset;
+      enemy.y = lerp(startY, targetY, eased) + entryMotion.yOffset;
       enemy.vx = 0;
       enemy.vy = 0;
-      enemy.angle = Math.sin(progress * Math.PI) * direction * (formation === 'spiral' ? 0.5 : 0.32);
+      enemy.angle = entryMotion.angle;
 
       if (progress >= 1) {
         enemy.x = targetX;
@@ -8533,17 +8663,10 @@ export class GameEngine {
       enemy.angle = Math.sin((this.frameCount + enemy.formationGroupSeed) * 0.018) * 0.05;
 
       if (this.frameCount >= enemy.formationDiveFrame) {
-        const enemyCenterX = enemy.x + enemy.width / 2;
-        const enemyCenterY = enemy.y + enemy.height / 2;
-        const laneOffset = ((enemy.formationIndex % 3) - 1) * (this.mobileProfile ? 18 : 28);
-        const aimX = this.player.x + this.player.width / 2 + laneOffset + this.playerVel.x * 6;
-        const aimY = Math.min(this.height + 80, this.player.y + this.player.height * 0.7);
-        const dx = aimX - enemyCenterX;
-        const dy = Math.max(90, aimY - enemyCenterY);
-        const length = Math.max(1, Math.hypot(dx, dy));
-        const diveSpeed = enemy.formationBaseSpeed * (1.28 + Math.min(0.38, this.wave * 0.055));
-        enemy.vx = (dx / length) * diveSpeed;
-        enemy.vy = Math.max(diveSpeed * 0.72, (dy / length) * diveSpeed);
+        const diveMotion = this.resolveConfiguredFormationDiveMotion(enemy, formation, 0);
+        enemy.vx = diveMotion.velocityX;
+        enemy.vy = diveMotion.velocityY;
+        enemy.angle = diveMotion.angle;
         enemy.formationState = 'dive';
         enemy.formationStateFrame = this.frameCount;
       }
@@ -8551,9 +8674,10 @@ export class GameEngine {
     }
 
     const diveAge = this.frameCount - enemy.formationStateFrame;
-    const curveStrength = formation === 'diamond' || formation === 'pincer' ? 1.2 : formation === 'spiral' ? 1.6 : 0.75;
-    enemy.x += Math.sin(diveAge * 0.09 + enemy.formationSeed) * curveStrength;
-    enemy.angle = clamp(enemy.vx * 0.065, -0.46, 0.46);
+    const diveMotion = this.resolveConfiguredFormationDiveMotion(enemy, formation, diveAge);
+    enemy.vx = lerp(enemy.vx, diveMotion.velocityX, diveMotion.steering);
+    enemy.vy = lerp(enemy.vy, diveMotion.velocityY, diveMotion.steering);
+    enemy.angle = diveMotion.angle;
 
     if (enemy.y > this.height + 72 || enemy.x < -140 || enemy.x > this.width + 140) {
       const returnDirection = (enemy.formationIndex + enemy.formationCycle) % 2 === 0 ? -1 : 1;
@@ -8587,16 +8711,18 @@ export class GameEngine {
       id,
       label: `${event.label} drifter`,
       patternId: 'single-random',
-      positionId: 'random-top',
+      positionId: 'random-top-fast',
       enemies: nonScoring
-        ? event.enemies.map((enemy) => ({
+          ? event.enemies.map((enemy) => ({
             ...enemy,
+            roleId: undefined,
             health: Math.min(4, Math.max(1, Number(enemy.health) || 1)),
+            speed: Math.max(2.8, Number(enemy.speed) || 0),
             damage: Math.min(1, Math.max(0, Number(enemy.damage) || 0)),
             scoreValue: 0,
             powerupDropChance: 0,
             rank: 'standard',
-            sizeMultiplier: Math.min(1, Math.max(0.5, Number(enemy.sizeMultiplier) || 1)),
+            sizeMultiplier: Math.min(1, Math.max(0.65, Number(enemy.sizeMultiplier) || 1)),
             attackPatternId: undefined,
             attackIntervalSeconds: undefined,
             projectileSpeed: undefined,
@@ -8660,7 +8786,13 @@ export class GameEngine {
       && this.getActiveCampaignPerformanceCost() + performanceCost > this.getCurrentMobilePerformanceBudget()
     ) return false;
     const enemyType = this.resolveConfiguredEnemyType(enemySetting.enemyId);
-    const point = this.getConfiguredSpawnPoint(event, spawnIndex, targetCount);
+    const point = this.getConfiguredSpawnPoint(
+      event,
+      spawnIndex,
+      targetCount,
+      formationPack,
+      role
+    );
     const enemy = this.createEnemy(enemyType, point.x, point.y, {
       speed: Number(enemySetting.speed) * difficultyMultiplier,
       health: Number(enemySetting.health) * difficultyMultiplier,
@@ -8700,6 +8832,7 @@ export class GameEngine {
     enemy.campaignFormationPackId = formationPack?.id;
     enemy.campaignFormationPackInstanceId = formationInstanceId;
     enemy.campaignSpawnFrame = this.frameCount;
+    enemy.campaignFiller = !countTowardCombatBudget;
     if (
       countTowardCombatBudget
       && role?.fireBehavior
@@ -8708,7 +8841,14 @@ export class GameEngine {
     ) {
       enemy.attackIntervalFrames = role.fireBehavior === 'aimed-burst' ? 82 : 104;
     }
-    this.configureEnemyFormation(enemy, event, spawnIndex, targetCount);
+    this.configureEnemyFormation(
+      enemy,
+      event,
+      spawnIndex,
+      targetCount,
+      formationPack,
+      role
+    );
     if (formationPack && formationInstanceId) {
       const nextInstance = formationInstance && !formationInstance.retired
         ? formationInstance
@@ -8800,15 +8940,17 @@ export class GameEngine {
     const continuitySource = [...events]
       .reverse()
       .find((event) => elapsedSeconds >= Math.max(0, Number(event.startSeconds) || 0));
+    const visibleThreatCount = this.getVisibleActiveThreatCount();
+    const activeThreatCount = this.getActiveThreatCount();
     if (
-      wave?.rhythm !== 'recovery'
+      wave
+      && wave.rhythm !== 'recovery'
       && continuitySource
-      && this.getConfiguredSpawnsComplete()
       && this.waveProgressFrames < continuityEndFrame
-      && this.getActiveThreatCount() <= 2
-      && this.getActiveThreatCount() < threatCap
+      && visibleThreatCount <= 2
+      && (visibleThreatCount === 0 || activeThreatCount < threatCap)
     ) {
-      const continuityEventId = `${continuitySource.id}:continuity`;
+      const continuityEventId = `${wave.id}:continuity`;
       const spawned = this.configuredSpawnCounts.get(continuityEventId) || 0;
       const previousFrame = this.configuredSpawnFrames.get(continuityEventId);
       if (
@@ -9408,7 +9550,9 @@ export class GameEngine {
       (blockH * rows) + (gap * Math.max(0, rows - 1))
     );
     const startX = anchoredPosition?.x ?? (this.width - ((blockW+gap)*cols))/2;
-    const startY = anchoredPosition?.y ?? -200;
+    // Assemble immediately above the viewport so the warning resolves into
+    // visible pressure instead of a second hidden descent.
+    const startY = anchoredPosition?.y ?? -((blockH + gap) * rows) - 12;
 
     const segmentCount = rows * cols;
     for (let r=0; r<rows; r++) {
@@ -18393,6 +18537,10 @@ export class GameEngine {
       for (let index = 0; index < nearbyTargets.length; index++) {
         const target = nearbyTargets[index];
         if (target.markedForDeletion) continue;
+        if (
+          target.campaignFiller
+          && this.frameCount - target.campaignSpawnFrame < WAVE_CONTINUITY_ENTRY_GRACE_FRAMES
+        ) continue;
         if (shot.hitTargetIds?.has(target.id)) continue;
         const bossComponent = target.type === EntityType.BOSS
           ? this.getBossComponentHit(target, shotBox)

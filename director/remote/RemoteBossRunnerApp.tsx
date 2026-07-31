@@ -614,7 +614,6 @@ export default function RemoteBossRunnerApp() {
             previewViewport={BOSS_SANDBOX_VIEWPORTS.mobile}
             previewBossArtwork={previewBossArtwork}
             audioEnabled
-            musicEnabled={false}
             fieldUpgradesEnabled={false}
             onReady={() => setCanvasStatus('ready')}
             onInitializationError={() => {

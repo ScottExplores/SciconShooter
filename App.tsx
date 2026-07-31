@@ -3,10 +3,7 @@ import type { Address } from 'viem';
 import StartScreen from './components/StartScreen';
 import MissionLoadingScreen, { type MissionLoadingPhase } from './components/MissionLoadingScreen';
 import { ArchivedWinner, DonationStatus, FieldUpgradeType, GamePolishSettings, GameState, LeaderboardEntry, MintRecord, PowerupType, Stats, Upgrades, WalletSession } from './types';
-import {
-  audioService,
-  type MissionMusicTrackId
-} from './services/audioService';
+import { audioService } from './services/audioService';
 import { installUiAudioFeedback } from './services/uiAudioFeedback';
 import { ASSETS, DONATION_CONFIG, FIELD_UPGRADE_CONFIG, GAME_CONFIG, STORAGE_KEYS, getFieldUpgradeFlaskCost, getFieldUpgradeLevel } from './constants';
 import { ALL_TIME_SCORE_LIMIT, WEEKLY_SCORE_LIMIT, getLeaderboardData, saveScore, saveWeeklyLeaderProposal } from './services/leaderboardService';
@@ -190,6 +187,7 @@ import {
 } from './services/bossArchiveProgression';
 import {
   checkForDeploymentUpdate,
+  recoverFromModulePreloadFailure,
   reloadForDeploymentUpdate
 } from './services/deploymentUpdateService';
 
@@ -571,6 +569,7 @@ const App: React.FC = () => {
   const [walletProfileStatus, setWalletProfileStatus] = useState<
     'guest' | 'authenticating' | 'ready' | 'syncing' | 'error'
   >('guest');
+  const [walletProfileAuthorizationNonce, setWalletProfileAuthorizationNonce] = useState(0);
   const [walletRuntimeEnabled, setWalletRuntimeEnabled] = useState(() => (
     Boolean(localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS))
   ));
@@ -638,8 +637,6 @@ const App: React.FC = () => {
   const [activeRunMode, setActiveRunMode] = useState<ActiveRunMode>('standard');
   const [activeBossEncounterId, setActiveBossEncounterId] = useState<string | null>(null);
   const [activeBossArchiveRun, setActiveBossArchiveRun] = useState<BossArchiveRunContext | null>(null);
-  const [majorBossMusicActive, setMajorBossMusicActive] = useState(false);
-  const [resultAudioActive, setResultAudioActive] = useState(false);
   const [bossArchiveResult, setBossArchiveResult] = useState<BossArchiveResultPresentation | null>(null);
   const [bossArchiveDailyLimit, setBossArchiveDailyLimit] = useState(
     DEFAULT_BOSS_ARCHIVE_DAILY_CHARGE_LIMIT
@@ -695,6 +692,7 @@ const App: React.FC = () => {
   );
   const walletActionNonceRef = useRef(0);
   const profileTransitionNonceRef = useRef(0);
+  const walletProfileInteractiveAuthorizationRef = useRef(false);
   const walletProfileRevisionRef = useRef(0);
   const walletProfileAddressRef = useRef<string | null>(null);
   const walletProfileSessionAddressRef = useRef<string | null>(null);
@@ -707,7 +705,6 @@ const App: React.FC = () => {
   const proposalRefreshNonceRef = useRef(0);
   const weeklyLeaderProposalIdRef = useRef<string | null>(null);
   const pendingDeploymentEntryRef = useRef<string | null>(null);
-  const lastMusicRotationGroupRef = useRef(0);
   const [runReceipt, setRunReceipt] = useState<RunReceipt | null>(null);
   const [runReceiptStatus, setRunReceiptStatus] = useState<'idle' | 'starting' | 'finalizing' | 'ready' | 'local' | 'error'>('idle');
   const [showMissionRecordPreview, setShowMissionRecordPreview] = useState(false);
@@ -1322,62 +1319,11 @@ const App: React.FC = () => {
   const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
   const [audioMuted, setAudioMuted] = useState(() => audioService.isMuted());
   const [sfxVolumeLevel, setSfxVolumeLevel] = useState(() => audioService.getSfxVolumeLevel());
-  const [musicVolumeLevel, setMusicVolumeLevel] = useState(() => audioService.getMusicVolumeLevel());
-  const [musicTrackId, setMusicTrackId] = useState<MissionMusicTrackId>(() => audioService.getMusicTrackId());
 
   useEffect(() => installUiAudioFeedback(document), []);
 
-  useEffect(() => {
-    const unsubscribe = audioService.subscribeMusicTrack(setMusicTrackId);
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (resultAudioActive || gameState === GameState.WAVE_COMPLETE || gameState === GameState.GAMEOVER) {
-      audioService.setMusicScene('results');
-      return;
-    }
-    if (missionLoading || gameState === GameState.PLAYING || gameState === GameState.PAUSED) {
-      audioService.setMusicScene(isBossArchiveRun || majorBossMusicActive ? 'boss' : 'mission');
-      return;
-    }
-    audioService.setMusicScene(campaignMapOpen ? 'map' : 'home');
-  }, [campaignMapOpen, gameState, isBossArchiveRun, majorBossMusicActive, missionLoading, resultAudioActive]);
-
-  useEffect(() => {
-    if (gameState === GameState.PAUSED) {
-      audioService.pauseMusic();
-      return;
-    }
-    if (gameState === GameState.PLAYING) {
-      audioService.resumeMusic();
-    }
-  }, [gameState]);
-
-  useEffect(() => {
-    if (gameState !== GameState.PLAYING && gameState !== GameState.PAUSED) return;
-
-    const mission = Math.max(1, Math.floor(stats.wave));
-    const rotationGroup = Math.floor((mission - 1) / 2);
-    if (rotationGroup <= lastMusicRotationGroupRef.current) return;
-
-    const advances = rotationGroup - lastMusicRotationGroupRef.current;
-    lastMusicRotationGroupRef.current = rotationGroup;
-    setMusicTrackId(audioService.advanceMusicTrack(advances));
-  }, [gameState, stats.wave]);
-
   const handleRuntimeState = useCallback((runtime: GameRuntimeState) => {
     bossArchiveDamageTakenRef.current = runtime.damageTaken;
-    setMajorBossMusicActive((current) => {
-      if (runtime.majorBossActive) return true;
-      // A defeated Mission-final boss disappears from the runtime before the
-      // departure cinematic ends. Keep its score alive until the final result
-      // arrives, while allowing any non-final Wave encounter to return to the
-      // regular Mission playlist.
-      return current && runtime.waveNumber >= runtime.waveTotal;
-    });
     const nextPosition: PauseMissionPosition = {
       levelNumber: runtime.levelNumber,
       levelName: runtime.levelName,
@@ -1545,6 +1491,8 @@ const App: React.FC = () => {
       && profileTransitionNonceRef.current === transitionNonce
     );
     const normalizedAddress = activeWalletAddress?.toLowerCase() ?? null;
+    const interactiveAuthorization = walletProfileInteractiveAuthorizationRef.current;
+    walletProfileInteractiveAuthorizationRef.current = false;
 
     walletProfileAddressRef.current = normalizedAddress;
     walletProfileRevisionRef.current = 0;
@@ -1604,7 +1552,8 @@ const App: React.FC = () => {
 
         const walletProfileId = getWalletProfileId(normalizedAddress);
         const authenticatedSession = await loadAuthenticatedWalletProfile(
-          activeWalletAddress as Address
+          activeWalletAddress as Address,
+          { interactive: interactiveAuthorization }
         );
         let profile = authenticatedSession.profile;
         walletProfileSessionAddressRef.current =
@@ -1638,6 +1587,19 @@ const App: React.FC = () => {
       })
       .catch((error) => {
         if (!isCurrent()) return;
+        if (
+          !interactiveAuthorization
+          && error instanceof WalletProfileRequestError
+          && error.status === 401
+        ) {
+          // A remembered wallet may have an expired HttpOnly profile session.
+          // Keep its device cache available without opening Base Account during
+          // app startup; the next explicit wallet action may reauthorize it.
+          walletProfileSessionAddressRef.current = null;
+          setWalletProfileStatus('guest');
+          setWalletError('');
+          return;
+        }
         console.error('Wallet profile authentication failed', error);
         setWalletProfileStatus('error');
         setWalletError(
@@ -1654,7 +1616,8 @@ const App: React.FC = () => {
     createWalletSeedSnapshot,
     hydrateActiveProfile,
     isOwnerWallet,
-    pilotProfile.id
+    pilotProfile.id,
+    walletProfileAuthorizationNonce
   ]);
 
   useEffect(() => {
@@ -1847,7 +1810,6 @@ const App: React.FC = () => {
     const launchNonce = missionLaunchNonceRef.current + 1;
     missionLaunchNonceRef.current = launchNonce;
     missionLaunchPendingRef.current = true;
-    setResultAudioActive(false);
     const releaseLaunchReservation = () => {
       if (missionLaunchNonceRef.current === launchNonce) {
         missionLaunchPendingRef.current = false;
@@ -2150,7 +2112,6 @@ const App: React.FC = () => {
         ? 'owner-test'
         : 'standard';
     setActiveRunMode(runMode);
-    setMajorBossMusicActive(Boolean(requestedBossReplay));
     setActiveBossEncounterId(requestedBossReplay?.eventId ?? null);
     setActiveCampaignLaunch(normalizedCampaignRequest);
     setActiveCampaignBranchId(requestedCampaignBranch?.branchId ?? null);
@@ -2185,17 +2146,12 @@ const App: React.FC = () => {
     const loadingTip = missionLoading?.phase === 'error'
       ? missionLoading.tip
       : getRandomMissionLoadingTip();
-    const launchMusicScene = requestedBossReplay ? 'boss' : 'mission';
-    audioService.setMusicScene(launchMusicScene);
     audioService.init();
     // Audio is an enhancement, never a launch dependency. Slow media fetches
     // and decoders must not strand a reserved Boss Archive charge or leave the
     // Start Mission button looking unresponsive.
     void audioService.prepare().catch((error) => {
       console.warn('Gameplay audio warmup remains pending.', error);
-    });
-    void audioService.prepareMusicScene(launchMusicScene).catch((error) => {
-      console.warn('Mission music warmup remains pending.', error);
     });
     if (shouldShowMissionLoading) {
       setMissionLoading({
@@ -2220,6 +2176,7 @@ const App: React.FC = () => {
         : undefined);
     } catch (error) {
       console.error('Gameplay preload failed.', error);
+      if (recoverFromModulePreloadFailure(error)) return;
       audioService.playUiSound('error');
       if (missionLaunchNonceRef.current === launchNonce) {
         missionLaunchPendingRef.current = false;
@@ -2337,7 +2294,6 @@ const App: React.FC = () => {
     setMissionRecordPilotName(null);
     clearIntroStoryTimeout();
     lastStoryWaveRef.current = 0;
-    lastMusicRotationGroupRef.current = 0;
     setActiveStoryBeat(null);
     setPauseMissionPosition(null);
     setStats(prev => ({
@@ -2587,8 +2543,6 @@ const App: React.FC = () => {
     clearWeeklyProposalTransition();
     setScorecardChampionWinner(null);
     setActiveRunMode('standard');
-    setMajorBossMusicActive(false);
-    setResultAudioActive(false);
     setActiveBossEncounterId(null);
     setActiveBossArchiveRun(null);
     setActiveCampaignLaunch(null);
@@ -2638,7 +2592,6 @@ const App: React.FC = () => {
     const nextMuted = audioService.toggleMute();
     setAudioMuted(nextMuted);
     setSfxVolumeLevel(audioService.getSfxVolumeLevel());
-    setMusicVolumeLevel(audioService.getMusicVolumeLevel());
     if (!nextMuted) audioService.playUiSound('confirm');
   };
 
@@ -2646,16 +2599,6 @@ const App: React.FC = () => {
     setSfxVolumeLevel(audioService.setSfxVolumeLevel(level));
     setAudioMuted(audioService.isMuted());
     audioService.playUiSound('click');
-  };
-
-  const setGameMusicVolume = (level: number) => {
-    setMusicVolumeLevel(audioService.setMusicVolumeLevel(level));
-    setAudioMuted(audioService.isMuted());
-    audioService.playUiSound('click');
-  };
-
-  const changeMissionMusic = (trackId: MissionMusicTrackId) => {
-    setMusicTrackId(audioService.setMusicTrack(trackId));
   };
 
   const clearCampaignMapRoute = () => {
@@ -4117,18 +4060,10 @@ const App: React.FC = () => {
 
   const showWaveVictory = async (summary: WaveVictorySummary) => {
     if (!summary.stageComplete) {
-      setMajorBossMusicActive(false);
-      setResultAudioActive(false);
       setWaveContinueCommand(current => ({ nonce: (current?.nonce ?? 0) + 1 }));
       setGameState(GameState.PLAYING);
       return;
     }
-    // Select the result mix at the logical clear boundary. Boss Archive and
-    // bonus-route settlements can await the network without extending combat
-    // music underneath a completed Mission.
-    setMajorBossMusicActive(false);
-    setResultAudioActive(true);
-    audioService.setMusicScene('results');
     audioService.playSound('mission_victory', 1, { pitchJitter: 0 });
     if (isBossArchiveRun) {
       setOwnerFrameFrozen(true);
@@ -4175,7 +4110,6 @@ const App: React.FC = () => {
 
   const continueAfterWaveVictory = () => {
     if (!waveVictorySummary) return;
-    setResultAudioActive(false);
     if (isWeeklyCampaignRun) {
       const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
       if (!streak || streak.finalization.status !== 'active') return;
@@ -4424,8 +4358,10 @@ const App: React.FC = () => {
   }, []);
 
   const connectWallet = useCallback(() => {
+    walletProfileInteractiveAuthorizationRef.current = true;
     if (activeWalletAddress) {
       setWalletError('');
+      setWalletProfileAuthorizationNonce((current) => current + 1);
       return;
     }
 
@@ -4807,10 +4743,12 @@ const App: React.FC = () => {
   ]);
 
   const disconnectWallet = useCallback(() => {
+    walletProfileInteractiveAuthorizationRef.current = false;
     requestWalletRuntimeAction('disconnect');
   }, [requestWalletRuntimeAction]);
 
   const switchWallet = useCallback(() => {
+    walletProfileInteractiveAuthorizationRef.current = true;
     requestWalletRuntimeAction('switch-account');
   }, [requestWalletRuntimeAction]);
 
@@ -4852,7 +4790,6 @@ const App: React.FC = () => {
       lives: 5
     }));
     setContinueCommand({ nonce: Date.now(), lives: 5 });
-    setResultAudioActive(false);
     setGameState(GameState.PLAYING);
     audioService.playSound('powerup');
 
@@ -5493,8 +5430,6 @@ const App: React.FC = () => {
               onInitializationError: (error) => failMissionRuntimeLaunch(gameId, error),
               onGameOver: async () => {
                 setOwnerFrameFrozen(false);
-                setResultAudioActive(true);
-                audioService.setMusicScene('results');
                 if (isWeeklyCampaignRun) {
                   const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
                   if (streak?.finalization.status === 'active') {
@@ -5515,10 +5450,7 @@ const App: React.FC = () => {
                 }
                 setGameState(GameState.GAMEOVER);
               },
-              onContinueStarted: () => {
-                setResultAudioActive(false);
-                setGameState(GameState.PLAYING);
-              },
+              onContinueStarted: () => setGameState(GameState.PLAYING),
               onCampaignProgress: handleCampaignProgress,
               onWaveVictory: showWaveVictory,
               isTransmissionOpen: introMissionLocked || Boolean(activeStoryBeat),
@@ -5785,8 +5717,6 @@ const App: React.FC = () => {
           waveNumber={pauseMissionPosition?.waveNumber ?? 1}
           waveTotal={pauseMissionPosition?.waveTotal ?? 1}
           sfxVolumeLevel={sfxVolumeLevel}
-          musicVolumeLevel={musicVolumeLevel}
-          musicTrackId={musicTrackId}
           polishSettings={polishSettings}
           onResume={() => {
             setOwnerFrameFrozen(false);
@@ -5801,8 +5731,6 @@ const App: React.FC = () => {
               : resetGame}
           onToggleAudio={toggleGameAudio}
           onSfxVolumeChange={setGameSfxVolume}
-          onMusicVolumeChange={setGameMusicVolume}
-          onMusicTrackChange={changeMissionMusic}
           onTogglePolishSetting={togglePolishSetting}
           founderControls={isOwnerWallet && isOwnerTestRun ? (
             <div className="text-left">
@@ -6051,27 +5979,6 @@ const App: React.FC = () => {
                 </div>
                 <p className="mt-4 border-t border-gray-700 pt-2 text-xs italic text-gray-500">
                   "Upgrade the ship. Clear the bottleneck. Fund the future."
-                </p>
-                <p className="text-[10px] leading-relaxed text-slate-500">
-                  Music from{' '}
-                  <a
-                    href="https://opengameart.org/node/118190"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-cyan-300 underline underline-offset-2"
-                  >
-                    "Outer Space Music Pack" by Leonardo Paz
-                  </a>{' '}
-                  is used under{' '}
-                  <a
-                    href="https://creativecommons.org/licenses/by/4.0/"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-cyan-300 underline underline-offset-2"
-                  >
-                    CC BY 4.0
-                  </a>. The source OGG tracks were converted to MP3, renamed, and
-                  volume-balanced for Scicon Shooter.
                 </p>
               </div>
 

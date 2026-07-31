@@ -1,10 +1,10 @@
 # Campaign Non-Boss Runtime Balance Matrix
 
-Generated deterministically from Campaign revision 23 and the real `GameEngine` runtime.
+Generated deterministically from Campaign revision 24 and the real `GameEngine` runtime.
 
 ## Result
 
-The bounded autonomous sweep ran **600 trials** across **50 non-boss graph Missions**: 40 main-path Missions and 10 route alternatives. It produced **564 clears**, **27 deaths**, and **9 timeouts** (94% clear rate).
+The bounded autonomous sweep ran **600 trials** across **50 non-boss graph Missions**: 40 main-path Missions and 10 route alternatives. It produced **495 clears**, **102 deaths**, and **3 timeouts** (82.5% clear rate).
 
 The deterministic non-boss matrix found at least one clear route for every covered Mission. This is automated evidence only; human mobile/desktop approval is still required.
 
@@ -25,7 +25,7 @@ node tools/simulate-campaign-nonboss-balance.mjs --write
 - Maximum simulated Mission time: 180 seconds.
 - Weekly points: the same current App adaptation used for a completed Weekly node (regular kills from the Mission summary, authored mini-boss count, no inferred accuracy, mastery-objective quality), evaluated as a standalone node with no previous-node streak bonus.
 - Rendering/FPS: Pixi rendering is intentionally absent. Entity, hostile-projectile, active-firing-enemy, performance-budget, and engine performance-mode peaks are recorded instead.
-- Source digest: `d59695d6f1a84f370ebf898b3f39064a9e6731f457c8b761457e7d7ab4e498d7`.
+- Source digest: `021392fce870bf259176f4ef3f1a23834e883be69e032da41823806e6f85ef63`.
 
 Each table cell below is `clears/deaths/timeouts; median damage; median coins; median Weekly points; peak hostile projectiles; peak active entities`.
 
@@ -42,58 +42,58 @@ Each table cell below is `clears/deaths/timeouts; median damage; median coins; m
 
 ## Mission summary
 
-| Mission | Route | Role | Attempts | C/D/T | Median clear | Damage | Coins | Weekly | Peak hostile | Peak entities | Peak firing |
-| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| M1 ORBIT ENTRY | main | introduction | 12 | 12/0/0 | 77s | 0 | 34 | 2808 | 0 | 57 | 3 |
-| M2 CITATION CROSSING | main | formation-remix | 12 | 12/0/0 | 90.7s | 0 | 45 | 3452 | 2 | 65 | 5 |
-| M2B OPEN ORBIT HIGH-RISK ROUTE | alternative | formation-remix | 12 | 12/0/0 | 92.5s | 0 | 48 | 3694 | 2 | 63 | 5 |
-| M3 PAYWALL CHECKPOINT | main | elite-checkpoint | 12 | 12/0/0 | 96.2s | 0 | 41 | 3268 | 3 | 67 | 8 |
-| M4 BASTION APPROACH | main | boss-preparation | 12 | 10/1/1 | 123.6s | 1 | 48 | 3014 | 4 | 64 | 7 |
-| M6 HELIX SIGNAL | main | introduction | 12 | 11/1/0 | 77.6s | 0 | 45 | 3104 | 4 | 69 | 8 |
-| M7 REDLINE CROSSING | main | formation-remix | 12 | 10/2/0 | 94.5s | 1 | 45 | 3509 | 6 | 66 | 11 |
-| M7B REDLINE FRONTIER HIGH-RISK ROUTE | alternative | formation-remix | 12 | 10/2/0 | 94.5s | 1 | 50 | 3819 | 6 | 69 | 11 |
-| M8 DARK MATTER CHECKPOINT | main | elite-checkpoint | 12 | 8/4/0 | 92.5s | 1 | 47 | 2908 | 31 | 89 | 11 |
-| M9 MIRROR APPROACH | main | boss-preparation | 12 | 7/2/3 | 120s | 1 | 65 | 3889 | 54 | 105 | 10 |
-| M11 SHARD SIGNAL | main | introduction | 12 | 12/0/0 | 76.7s | 0 | 36 | 3136 | 5 | 69 | 12 |
-| M12 QUANTUM CROSSING | main | formation-remix | 12 | 10/2/0 | 91.1s | 0 | 47 | 3736 | 9 | 78 | 10 |
-| M12B GRAVITY RIFT HIGH-RISK ROUTE | alternative | formation-remix | 12 | 10/2/0 | 91.1s | 0 | 55 | 4015 | 10 | 73 | 10 |
-| M13 GRAVITY CHECKPOINT | main | elite-checkpoint | 12 | 11/1/0 | 80.4s | 0 | 50 | 3916 | 29 | 70 | 8 |
-| M14 EVENT HORIZON | main | boss-preparation | 12 | 11/0/1 | 115.7s | 1 | 65 | 4633 | 24 | 81 | 8 |
-| M16 CRIMSON SIGNAL | main | introduction | 12 | 11/1/0 | 75.5s | 0 | 47 | 3384 | 12 | 76 | 8 |
-| M17 ECLIPSE CROSSING | main | formation-remix | 12 | 11/1/0 | 90.4s | 0 | 57 | 4299 | 18 | 80 | 9 |
-| M17B TERMINUS FRONTIER HIGH-RISK ROUTE | alternative | formation-remix | 12 | 11/1/0 | 89.6s | 0 | 64 | 4640 | 17 | 72 | 8 |
-| M18 FRACTURE CHECKPOINT | main | elite-checkpoint | 12 | 10/2/0 | 93.1s | 3 | 54 | 3240 | 32 | 74 | 6 |
-| M19 LAST LIGHT | main | boss-preparation | 12 | 11/1/0 | 111.6s | 0 | 92 | 5116 | 52 | 103 | 11 |
-| M21 PRISM SIGNAL | main | introduction | 12 | 12/0/0 | 74.7s | 0 | 44 | 3492 | 17 | 62 | 7 |
-| M22 SPECTRUM CROSSING | main | formation-remix | 12 | 11/1/0 | 89.4s | 0 | 65 | 4332 | 18 | 86 | 8 |
-| M22B PRISM EXPANSE HIGH-RISK ROUTE | alternative | formation-remix | 12 | 12/0/0 | 89.5s | 0 | 59 | 4685 | 18 | 75 | 8 |
-| M23 BROOD CHECKPOINT | main | elite-checkpoint | 12 | 11/0/1 | 105.8s | 0 | 62 | 3940 | 25 | 108 | 6 |
-| M24 LUMEN APPROACH | main | boss-preparation | 12 | 12/0/0 | 117.8s | 0 | 92 | 5128 | 15 | 95 | 11 |
-| M26 RAIL SIGNAL | main | introduction | 12 | 12/0/0 | 73.9s | 0 | 43 | 3504 | 8 | 82 | 7 |
-| M27 MERIDIAN CROSSING | main | formation-remix | 12 | 12/0/0 | 89.2s | 0 | 62 | 4337 | 3 | 86 | 6 |
-| M27B RAIL MERIDIAN HIGH-RISK ROUTE | alternative | formation-remix | 12 | 11/1/0 | 89s | 0 | 63 | 4708 | 18 | 86 | 8 |
-| M28 COIL CHECKPOINT | main | elite-checkpoint | 12 | 11/0/1 | 102.4s | 2 | 69 | 3328 | 30 | 97 | 8 |
-| M29 SERPENT APPROACH | main | boss-preparation | 12 | 12/0/0 | 112.5s | 0 | 91 | 5200 | 29 | 110 | 8 |
-| M31 GRAVITY SIGNAL | main | introduction | 12 | 12/0/0 | 73s | 0 | 50 | 3548 | 18 | 92 | 7 |
-| M32 EVENTIDE CROSSING | main | formation-remix | 12 | 12/0/0 | 89.2s | 0 | 61 | 4349 | 17 | 87 | 6 |
-| M32B SINGULARITY REACH HIGH-RISK ROUTE | alternative | formation-remix | 12 | 11/1/0 | 89s | 0 | 65 | 4726 | 16 | 96 | 8 |
-| M33 WELL CHECKPOINT | main | elite-checkpoint | 12 | 12/0/0 | 84.3s | 0 | 67 | 4072 | 24 | 99 | 7 |
-| M34 COLLAPSE APPROACH | main | boss-preparation | 12 | 12/0/0 | 112.7s | 0 | 96 | 5183 | 52 | 105 | 7 |
-| M36 ORBIT SIGNAL | main | introduction | 12 | 12/0/0 | 73s | 0 | 52 | 3572 | 17 | 91 | 7 |
-| M37 AXIS CROSSING | main | formation-remix | 12 | 12/0/0 | 89s | 0 | 67 | 4374 | 4 | 93 | 7 |
-| M37B GYROSCOPE ARRAY HIGH-RISK ROUTE | alternative | formation-remix | 12 | 12/0/0 | 89s | 0 | 67 | 4749 | 12 | 95 | 11 |
-| M38 GYRO CHECKPOINT | main | elite-checkpoint | 12 | 12/0/0 | 112.2s | 1 | 65 | 3352 | 54 | 140 | 6 |
-| M39 ROTATION APPROACH | main | boss-preparation | 12 | 12/0/0 | 127.9s | 2 | 96 | 4439 | 32 | 96 | 8 |
-| M41 SIEGE SIGNAL | main | introduction | 12 | 12/0/0 | 73.2s | 0 | 54 | 3572 | 6 | 99 | 7 |
-| M42 BREACH CROSSING | main | formation-remix | 12 | 12/0/0 | 89s | 0 | 66 | 4387 | 3 | 103 | 6 |
-| M42B HAMMERHEAD LINE HIGH-RISK ROUTE | alternative | formation-remix | 12 | 11/1/0 | 89s | 0 | 64 | 4749 | 17 | 98 | 9 |
-| M43 HAMMER CHECKPOINT | main | elite-checkpoint | 12 | 12/0/0 | 84s | 0 | 63 | 4036 | 2 | 103 | 6 |
-| M44 DREAD APPROACH | main | boss-preparation | 12 | 10/0/2 | 131.3s | 0 | 95 | 5208 | 26 | 116 | 8 |
-| M46 FRONTIER SIGNAL | main | introduction | 12 | 12/0/0 | 73s | 0 | 51 | 3560 | 6 | 96 | 7 |
-| M47 CLAW CROSSING | main | formation-remix | 12 | 12/0/0 | 89s | 0 | 63 | 4349 | 5 | 100 | 6 |
-| M47B CROWNCLAW FRONTIER HIGH-RISK ROUTE | alternative | formation-remix | 12 | 12/0/0 | 89s | 0 | 66 | 4653 | 17 | 97 | 10 |
-| M48 CROWN CHECKPOINT | main | elite-checkpoint | 12 | 12/0/0 | 97s | 1 | 67 | 3340 | 30 | 94 | 6 |
-| M49 REDLINE APPROACH | main | boss-preparation | 12 | 12/0/0 | 113.6s | 0 | 96 | 5208 | 52 | 122 | 7 |
+| Mission | Route | Role | Attempts | C/D/T | Median clear | Damage | Coins | Weekly | First visible | Max dead air | Peak hostile | Peak entities | Peak firing |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| M1 ORBIT ENTRY | main | introduction | 12 | 12/0/0 | 40.5s | 0 | 17 | 2298 | 0.05s | 0.13s | 2 | 63 | 6 |
+| M2 CITATION CROSSING | main | formation-remix | 12 | 12/0/0 | 41.9s | 0 | 24 | 2766 | 0.1s | 0.27s | 2 | 66 | 7 |
+| M2B OPEN ORBIT HIGH-RISK ROUTE | alternative | formation-remix | 12 | 11/1/0 | 40.9s | 1 | 20 | 3030 | 0.05s | 0.27s | 2 | 62 | 7 |
+| M3 PAYWALL CHECKPOINT | main | elite-checkpoint | 12 | 10/2/0 | 44.7s | 0 | 29 | 2810 | 0.02s | 0.28s | 3 | 67 | 8 |
+| M4 BASTION APPROACH | main | boss-preparation | 12 | 8/4/0 | 52.9s | 1 | 26 | 2955 | 0.08s | 0.88s | 4 | 69 | 12 |
+| M6 HELIX SIGNAL | main | introduction | 12 | 11/1/0 | 40.5s | 1 | 24 | 2711 | 0.08s | 0.42s | 13 | 76 | 10 |
+| M7 REDLINE CROSSING | main | formation-remix | 12 | 9/3/0 | 40.5s | 2 | 34 | 2238 | 0.05s | 0.33s | 5 | 66 | 12 |
+| M7B REDLINE FRONTIER HIGH-RISK ROUTE | alternative | formation-remix | 12 | 10/2/0 | 40.5s | 1 | 36 | 3214 | 0.05s | 0.42s | 4 | 78 | 12 |
+| M8 DARK MATTER CHECKPOINT | main | elite-checkpoint | 12 | 8/3/1 | 59.2s | 2 | 45 | 3211 | 0.1s | 0.37s | 30 | 81 | 12 |
+| M9 MIRROR APPROACH | main | boss-preparation | 12 | 8/3/1 | 65.2s | 1 | 57 | 2960 | 0.13s | 0.38s | 54 | 114 | 12 |
+| M11 SHARD SIGNAL | main | introduction | 12 | 11/1/0 | 40.5s | 0 | 32 | 2743 | 0.05s | 0.37s | 5 | 66 | 12 |
+| M12 QUANTUM CROSSING | main | formation-remix | 12 | 11/1/0 | 40.5s | 1 | 40 | 3044 | 0.02s | 0.37s | 8 | 87 | 12 |
+| M12B GRAVITY RIFT HIGH-RISK ROUTE | alternative | formation-remix | 12 | 10/2/0 | 40.5s | 1 | 41 | 3319 | 0.13s | 0.4s | 9 | 81 | 12 |
+| M13 GRAVITY CHECKPOINT | main | elite-checkpoint | 12 | 10/2/0 | 47.4s | 0 | 44 | 3561 | 0.08s | 0.57s | 29 | 83 | 11 |
+| M14 EVENT HORIZON | main | boss-preparation | 12 | 9/3/0 | 50.4s | 2 | 69 | 4540 | 0.1s | 0.4s | 24 | 92 | 12 |
+| M16 CRIMSON SIGNAL | main | introduction | 12 | 9/3/0 | 40.5s | 0 | 37 | 3391 | 0.05s | 0.4s | 18 | 92 | 12 |
+| M17 ECLIPSE CROSSING | main | formation-remix | 12 | 10/2/0 | 42.8s | 1 | 47 | 3387 | 0.08s | 0.42s | 18 | 83 | 12 |
+| M17B TERMINUS FRONTIER HIGH-RISK ROUTE | alternative | formation-remix | 12 | 8/4/0 | 43.6s | 4 | 39 | 3632 | 0.08s | 0.4s | 18 | 77 | 12 |
+| M18 FRACTURE CHECKPOINT | main | elite-checkpoint | 12 | 10/2/0 | 57.5s | 2 | 60 | 3199 | 0.08s | 0.32s | 32 | 99 | 12 |
+| M19 LAST LIGHT | main | boss-preparation | 12 | 10/2/0 | 46.9s | 0 | 85 | 4681 | 0.1s | 0.27s | 52 | 106 | 12 |
+| M21 PRISM SIGNAL | main | introduction | 12 | 9/3/0 | 40.5s | 2 | 38 | 3375 | 0.05s | 0.37s | 18 | 77 | 12 |
+| M22 SPECTRUM CROSSING | main | formation-remix | 12 | 10/2/0 | 40.5s | 0 | 48 | 4247 | 0.08s | 0.42s | 18 | 94 | 12 |
+| M22B PRISM EXPANSE HIGH-RISK ROUTE | alternative | formation-remix | 12 | 7/5/0 | 40.5s | 6 | 31 | 2910 | 0.05s | 0.33s | 18 | 96 | 12 |
+| M23 BROOD CHECKPOINT | main | elite-checkpoint | 12 | 10/1/1 | 69.2s | 1 | 54 | 3927 | 0.02s | 0.42s | 27 | 110 | 12 |
+| M24 LUMEN APPROACH | main | boss-preparation | 12 | 10/2/0 | 48.9s | 0 | 84 | 4719 | 0.08s | 0.4s | 18 | 95 | 12 |
+| M26 RAIL SIGNAL | main | introduction | 12 | 11/1/0 | 40.5s | 2 | 40 | 2715 | 0.08s | 0.37s | 18 | 87 | 12 |
+| M27 MERIDIAN CROSSING | main | formation-remix | 12 | 11/1/0 | 44.1s | 4 | 38 | 2913 | 0.08s | 0.38s | 18 | 96 | 12 |
+| M27B RAIL MERIDIAN HIGH-RISK ROUTE | alternative | formation-remix | 12 | 8/4/0 | 40.5s | 2 | 45 | 3735 | 0.02s | 0.42s | 18 | 99 | 12 |
+| M28 COIL CHECKPOINT | main | elite-checkpoint | 12 | 10/2/0 | 64.2s | 2 | 56 | 3215 | 0.08s | 0.3s | 30 | 119 | 12 |
+| M29 SERPENT APPROACH | main | boss-preparation | 12 | 10/2/0 | 45s | 0 | 83 | 4744 | 0.1s | 0.4s | 28 | 110 | 12 |
+| M31 GRAVITY SIGNAL | main | introduction | 12 | 12/0/0 | 40.5s | 2 | 38 | 3242 | 0.05s | 0.42s | 18 | 107 | 12 |
+| M32 EVENTIDE CROSSING | main | formation-remix | 12 | 8/4/0 | 40.5s | 4 | 53 | 3765 | 0.05s | 0.4s | 18 | 107 | 12 |
+| M32B SINGULARITY REACH HIGH-RISK ROUTE | alternative | formation-remix | 12 | 8/4/0 | 41.4s | 6 | 60 | 3712 | 0.08s | 0.45s | 18 | 102 | 12 |
+| M33 WELL CHECKPOINT | main | elite-checkpoint | 12 | 10/2/0 | 49.2s | 2 | 60 | 3426 | 0.08s | 0.42s | 24 | 103 | 12 |
+| M34 COLLAPSE APPROACH | main | boss-preparation | 12 | 12/0/0 | 47.7s | 0 | 91 | 4975 | 0.05s | 0.47s | 52 | 114 | 12 |
+| M36 ORBIT SIGNAL | main | introduction | 12 | 11/1/0 | 40.5s | 0 | 42 | 3614 | 0.08s | 0.42s | 18 | 109 | 12 |
+| M37 AXIS CROSSING | main | formation-remix | 12 | 10/2/0 | 42.4s | 4 | 50 | 3620 | 0.13s | 0.5s | 18 | 106 | 12 |
+| M37B GYROSCOPE ARRAY HIGH-RISK ROUTE | alternative | formation-remix | 12 | 6/6/0 | 41.8s | 9 | 31 | 3592 | 0.08s | 0.42s | 18 | 108 | 12 |
+| M38 GYRO CHECKPOINT | main | elite-checkpoint | 12 | 12/0/0 | 70s | 1 | 69 | 3406 | 0.08s | 0.37s | 54 | 132 | 12 |
+| M39 ROTATION APPROACH | main | boss-preparation | 12 | 11/1/0 | 55.6s | 3 | 90 | 4190 | 0.08s | 0.42s | 32 | 111 | 12 |
+| M41 SIEGE SIGNAL | main | introduction | 12 | 12/0/0 | 40.5s | 0 | 48 | 3626 | 0.08s | 0.33s | 18 | 116 | 12 |
+| M42 BREACH CROSSING | main | formation-remix | 12 | 10/2/0 | 40.5s | 4 | 53 | 3786 | 0.05s | 0.4s | 18 | 107 | 12 |
+| M42B HAMMERHEAD LINE HIGH-RISK ROUTE | alternative | formation-remix | 12 | 7/5/0 | 42.4s | 9 | 36 | 3397 | 0.02s | 0.4s | 18 | 107 | 12 |
+| M43 HAMMER CHECKPOINT | main | elite-checkpoint | 12 | 11/1/0 | 49.7s | 2 | 67 | 3353 | 0.08s | 0.42s | 18 | 113 | 12 |
+| M44 DREAD APPROACH | main | boss-preparation | 12 | 11/1/0 | 62.6s | 0 | 91 | 4975 | 0.05s | 0.43s | 25 | 112 | 12 |
+| M46 FRONTIER SIGNAL | main | introduction | 12 | 12/0/0 | 40.5s | 0 | 41 | 3614 | 0.08s | 0.42s | 18 | 115 | 12 |
+| M47 CLAW CROSSING | main | formation-remix | 12 | 11/1/0 | 40.8s | 4 | 56 | 3761 | 0.08s | 0.35s | 18 | 103 | 12 |
+| M47B CROWNCLAW FRONTIER HIGH-RISK ROUTE | alternative | formation-remix | 12 | 4/8/0 | 40.9s | 10 | 33 | 0 | 0.05s | 0.42s | 18 | 112 | 12 |
+| M48 CROWN CHECKPOINT | main | elite-checkpoint | 12 | 12/0/0 | 57.7s | 2 | 66 | 3398 | 0.08s | 0.47s | 30 | 113 | 12 |
+| M49 REDLINE APPROACH | main | boss-preparation | 12 | 12/0/0 | 48.7s | 2 | 90 | 4597 | 0.05s | 0.38s | 52 | 133 | 12 |
 
 ## M2 and M7 detailed checkpoints
 
@@ -101,55 +101,57 @@ These early formation-remix Missions are expanded cell-by-cell because the Campa
 
 | Mission | Power | Supports | Viewport | Outcome | Death Wave | Time | Damage | Coins | Weekly | Bombs | Ability | Peak hostile | Peak entities | Budget peak |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| M2 | low | none | mobile | clear | - | 90.5s | 0 | 51 | 3427 | 3 | 3 | 1 | 21 | 0.33x |
-| M2 | low | none | desktop | clear | - | 104.3s | 0 | 28 | 3226 | 2 | 4 | 2 | 26 | 0.35x |
-| M2 | low | paired | mobile | clear | - | 89s | 0 | 54 | 3587 | 0 | 1 | 0 | 65 | 0.17x |
-| M2 | low | paired | desktop | clear | - | 90.5s | 0 | 22 | 3364 | 2 | 2 | 0 | 52 | 0.25x |
-| M2 | expected | none | mobile | clear | - | 95.8s | 0 | 45 | 3427 | 4 | 4 | 2 | 19 | 0.33x |
-| M2 | expected | none | desktop | clear | - | 104.1s | 0 | 26 | 3137 | 2 | 4 | 1 | 16 | 0.45x |
-| M2 | expected | paired | mobile | clear | - | 89s | 0 | 57 | 3566 | 0 | 1 | 0 | 56 | 0.22x |
-| M2 | expected | paired | desktop | clear | - | 92.3s | 0 | 30 | 3452 | 2 | 2 | 0 | 52 | 0.25x |
-| M2 | upgraded | none | mobile | clear | - | 90.7s | 0 | 61 | 3545 | 2 | 3 | 2 | 27 | 0.3x |
-| M2 | upgraded | none | desktop | clear | - | 91.5s | 0 | 33 | 3322 | 2 | 4 | 1 | 18 | 0.33x |
-| M2 | upgraded | paired | mobile | clear | - | 89s | 0 | 55 | 3608 | 0 | 1 | 0 | 65 | 0.22x |
-| M2 | upgraded | paired | desktop | clear | - | 89s | 0 | 31 | 3524 | 0 | 1 | 0 | 51 | 0.25x |
-| M7 | low | none | mobile | death | 3 | 62.7s | 3 | 21 | 0 | 2 | 3 | 3 | 24 | 0.72x |
-| M7 | low | none | desktop | death | 3 | 96.2s | 3 | 17 | 0 | 2 | 3 | 4 | 21 | 0.71x |
-| M7 | low | paired | mobile | clear | - | 94.1s | 0 | 61 | 3686 | 0 | 1 | 0 | 57 | 0.38x |
-| M7 | low | paired | desktop | clear | - | 98.6s | 0 | 32 | 3509 | 4 | 2 | 1 | 55 | 0.45x |
-| M7 | expected | none | mobile | clear | - | 94.2s | 1 | 60 | 2774 | 2 | 5 | 4 | 31 | 0.71x |
-| M7 | expected | none | desktop | clear | - | 137.2s | 1 | 29 | 2510 | 2 | 8 | 6 | 23 | 0.71x |
-| M7 | expected | paired | mobile | clear | - | 94.2s | 0 | 56 | 3669 | 0 | 1 | 0 | 66 | 0.38x |
-| M7 | expected | paired | desktop | clear | - | 94.5s | 0 | 45 | 3530 | 2 | 3 | 1 | 64 | 0.42x |
-| M7 | upgraded | none | mobile | clear | - | 105.3s | 2 | 57 | 2741 | 3 | 5 | 3 | 32 | 0.71x |
-| M7 | upgraded | none | desktop | clear | - | 123.9s | 1 | 36 | 2644 | 2 | 6 | 4 | 32 | 0.72x |
-| M7 | upgraded | paired | mobile | clear | - | 89.3s | 0 | 64 | 3702 | 0 | 1 | 0 | 64 | 0.46x |
-| M7 | upgraded | paired | desktop | clear | - | 93s | 0 | 41 | 3602 | 1 | 2 | 0 | 61 | 0.58x |
+| M2 | low | none | mobile | clear | - | 41.9s | 1 | 26 | 2000 | 2 | 3 | 2 | 34 | 0.5x |
+| M2 | low | none | desktop | clear | - | 52.3s | 1 | 11 | 1733 | 2 | 3 | 2 | 21 | 0.6x |
+| M2 | low | paired | mobile | clear | - | 40.5s | 0 | 26 | 2841 | 0 | 2 | 0 | 60 | 0.3x |
+| M2 | low | paired | desktop | clear | - | 40.5s | 0 | 8 | 2766 | 2 | 2 | 1 | 61 | 0.5x |
+| M2 | expected | none | mobile | clear | - | 45.6s | 1 | 32 | 2048 | 2 | 3 | 2 | 31 | 0.55x |
+| M2 | expected | none | desktop | clear | - | 49.9s | 1 | 13 | 1733 | 2 | 3 | 2 | 23 | 0.5x |
+| M2 | expected | paired | mobile | clear | - | 40.5s | 0 | 33 | 2841 | 0 | 2 | 0 | 63 | 0.3x |
+| M2 | expected | paired | desktop | clear | - | 40.5s | 0 | 21 | 2778 | 0 | 2 | 0 | 54 | 0.39x |
+| M2 | upgraded | none | mobile | clear | - | 43.7s | 0 | 24 | 2752 | 2 | 3 | 2 | 21 | 0.5x |
+| M2 | upgraded | none | desktop | clear | - | 49.3s | 0 | 12 | 2380 | 2 | 3 | 2 | 22 | 0.5x |
+| M2 | upgraded | paired | mobile | clear | - | 40.5s | 0 | 33 | 2862 | 0 | 2 | 0 | 60 | 0.3x |
+| M2 | upgraded | paired | desktop | clear | - | 40.5s | 0 | 19 | 2799 | 1 | 2 | 1 | 66 | 0.35x |
+| M7 | low | none | mobile | clear | - | 43s | 2 | 39 | 2033 | 3 | 3 | 4 | 41 | 0.88x |
+| M7 | low | none | desktop | death | 3 | 40.4s | 3 | 11 | 0 | 2 | 2 | 4 | 34 | 1.18x |
+| M7 | low | paired | mobile | clear | - | 40.5s | 0 | 40 | 2964 | 1 | 3 | 1 | 62 | 0.63x |
+| M7 | low | paired | desktop | clear | - | 40.5s | 0 | 34 | 2926 | 2 | 3 | 4 | 60 | 0.6x |
+| M7 | expected | none | mobile | death | 4 | 50.4s | 4 | 24 | 0 | 2 | 3 | 4 | 29 | 1x |
+| M7 | expected | none | desktop | clear | - | 59.1s | 3 | 13 | 1548 | 2 | 2 | 4 | 34 | 1.2x |
+| M7 | expected | paired | mobile | clear | - | 40.5s | 0 | 42 | 2985 | 3 | 3 | 0 | 60 | 0.47x |
+| M7 | expected | paired | desktop | clear | - | 40.7s | 0 | 26 | 2935 | 2 | 2 | 5 | 62 | 0.5x |
+| M7 | upgraded | none | mobile | death | 4 | 51.2s | 5 | 18 | 0 | 2 | 3 | 4 | 29 | 1x |
+| M7 | upgraded | none | desktop | clear | - | 58s | 3 | 21 | 1818 | 2 | 3 | 4 | 36 | 0.83x |
+| M7 | upgraded | paired | mobile | clear | - | 40.5s | 0 | 44 | 3006 | 2 | 2 | 1 | 66 | 0.6x |
+| M7 | upgraded | paired | desktop | clear | - | 40.5s | 1 | 43 | 2238 | 2 | 3 | 1 | 56 | 0.58x |
 
 ## Axis summary
 
 | Axis | Value | Cell |
 | --- | --- | --- |
-| tier | low | 174/21/5; D0; C53; W3694; P54; E122 |
-| tier | expected | 191/6/3; D0; C56; W3884; P54; E121 |
-| tier | upgraded | 199/0/1; D0; C58; W4028; P54; E140 |
-| support | none | 264/27/9; D0; C53; W3548; P54; E96 |
-| support | paired | 300/0/0; D0; C59; W4048; P54; E140 |
-| viewport | mobile | 292/8/0; D0; C67; W4048; P53; E116 |
-| viewport | desktop | 272/19/9; D0; C44; W3694; P54; E140 |
+| tier | low | 141/57/2; D2; C38; W2898; P54; E127 |
+| tier | expected | 163/36/1; D2; C43; W3146; P54; E129 |
+| tier | upgraded | 191/9/0; D0; C48; W3613; P54; E133 |
+| support | none | 208/89/3; D3; C36; W2499; P54; E104 |
+| support | paired | 287/13/0; D0; C49; W3487; P54; E133 |
+| viewport | mobile | 256/44/0; D1; C53; W3440; P53; E133 |
+| viewport | desktop | 239/58/3; D2; C34; W2918; P54; E132 |
 
 ## Findings
 
 - Cells over the provisional 80-hostile-projectile readability ceiling: 0.
+- Cells over the 1.25s first-visible-threat ceiling: 0.
+- Cells over the 1s in-Wave visible-combat dead-air ceiling: 0.
 - Cells that entered engine performance mode: 0.
-- Cells that entered heavy-scene mode: 219.
+- Cells that entered heavy-scene mode: 226.
 - Missions with no clears across the matrix: none.
 - Missions where upgraded clear rate was below low-power clear rate: none.
 - Missions where paired supports cleared less often than no supports: none.
 
 ## Exact-cell evidence
 
-All 600 individual trial rows, including death Wave, damage source diagnostics, bombs and abilities used, coins, projected Weekly points, entity peaks, and performance-mode frames, are stored in `artifacts/campaign-balance/nonboss-runtime-matrix.json`.
+All 600 individual trial rows, including death Wave, damage source diagnostics, bombs and abilities used, coins, projected Weekly points, first-visible-threat delay, visible-combat dead air, entity peaks, and performance-mode frames, are stored in `artifacts/campaign-balance/nonboss-runtime-matrix.json`.
 
 ## Honest limitations
 
@@ -157,5 +159,6 @@ All 600 individual trial rows, including death Wave, damage source diagnostics, 
 - The autonomous controller can align, dodge immediate threats, use its finite bombs and cooldown ability, and collect nearby coins, but it does not understand every authored formation as a human strategy problem.
 - Recommended power is converted to a consistent upgrade mix; it is not an exact player inventory.
 - The Weekly score is a projection from the actual runtime Mission result through the current client score adapter. Accuracy remains `null`, elites remain folded into regular kills, and route/consecutive bonuses are intentionally excluded.
-- Headless engine entity peaks are useful readability/performance proxies, not a physical-device FPS measurement or human mobile/desktop playtest.
+- A visible threat is an on-screen live hostile body, an on-screen hostile projectile, or an active encounter warning. First-visible delay excludes the Mission takeoff; in-Wave dead air begins only after the first visible threat and excludes completion/takeoff.
+- Headless engine entity peaks and visibility timing are useful readability/performance proxies, not a physical-device FPS measurement or human mobile/desktop playtest.
 - This report does not change Campaign tuning. It records evidence for a separate balance decision.

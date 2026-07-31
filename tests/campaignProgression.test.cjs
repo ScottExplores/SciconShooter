@@ -259,7 +259,7 @@ test('Mission definitions prefer authored Campaign metadata and preserve compati
   assert.notStrictEqual(authoredMission.starObjectives[0], authoredCampaign.levels[0].campaignProgression.masteryObjectives[0]);
 });
 
-test('the revision-23 graph exposes fifty main depths, ten alternates, power, support, budget, and dynamic Wave metadata', () => {
+test('the revision-24 graph exposes fifty main depths, ten alternates, power, support, budget, and dynamic Wave metadata', () => {
   const trackedCampaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
   const authoredDefinitions = progression.buildCampaignMissionDefinitions(trackedCampaign);
   assert.equal(authoredDefinitions.length, 60);
@@ -269,7 +269,7 @@ test('the revision-23 graph exposes fifty main depths, ten alternates, power, su
     trackedCampaign.sectors.map((sector) => (
       sector.missionIds.map((missionId) => authoredDefinitions.find((mission) => mission.id === missionId).waveIds.length)
     )),
-    Array.from({ length: 10 }, () => [5, 6, 5, 7, 4])
+    Array.from({ length: 10 }, () => [4, 4, 4, 4, 2])
   );
   authoredDefinitions.forEach((mission) => {
     assert.ok(mission.sectorId);

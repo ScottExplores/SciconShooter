@@ -78,7 +78,7 @@ test('record card embeds encounter art and meaningful run values', async () => {
   }
 });
 
-test('revision-23 record cards embed their resolved mission encounter art without the legacy boss fallback', async () => {
+test('revision-24 record cards embed their resolved mission encounter art without the legacy boss fallback', async () => {
   const runId = '66666666-7777-4888-8999-000000000000';
   const expectedStages = new Map([
     [7, '/game-art/generated/scicon-stage20-expansion-v1/enemies/frames/wall-sniper-left.png'],

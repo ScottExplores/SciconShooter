@@ -12,6 +12,7 @@ const SOURCE_DIGEST_PATHS = Object.freeze([
   'services/gameLogic.ts',
   'services/campaignEnemyFiring.ts',
   'services/campaignFormationBudget.ts',
+  'services/gameplay/formations/FormationRuntime.ts',
   'services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts',
   'services/gameplay/mini-bosses/MiniBossEncounterRuntime.ts',
   'services/gameplay/mini-bosses/types.ts',
@@ -25,6 +26,8 @@ const SOURCE_DIGEST_PATHS = Object.freeze([
 
 const DEFAULT_ARTIFACT_PATH = 'artifacts/campaign-balance/nonboss-runtime-matrix.json';
 const DEFAULT_REPORT_PATH = 'docs/CAMPAIGN_NONBOSS_BALANCE_MATRIX.md';
+const FIRST_VISIBLE_THREAT_DELAY_CEILING_SECONDS = 1.25;
+const VISIBLE_COMBAT_DEAD_AIR_CEILING_SECONDS = 1;
 
 globalThis.Image ??= class ImageStub {
   complete = true;
@@ -145,7 +148,15 @@ const summarizeRows = (rows) => {
     maximumHostileProjectiles: Math.max(0, ...rows.map(({ maximumHostileProjectiles }) => maximumHostileProjectiles)),
     maximumActiveEntities: Math.max(0, ...rows.map(({ maximumActiveEntities }) => maximumActiveEntities)),
     maximumActiveFiringEnemies: Math.max(0, ...rows.map(({ maximumActiveFiringEnemies }) => maximumActiveFiringEnemies)),
-    maximumPerformanceBudgetRatio: Math.max(0, ...rows.map(({ maximumPerformanceBudgetRatio }) => maximumPerformanceBudgetRatio))
+    maximumPerformanceBudgetRatio: Math.max(0, ...rows.map(({ maximumPerformanceBudgetRatio }) => maximumPerformanceBudgetRatio)),
+    maximumFirstVisibleThreatDelaySeconds: Math.max(
+      0,
+      ...rows.map(({ maximumFirstVisibleThreatDelaySeconds }) => maximumFirstVisibleThreatDelaySeconds)
+    ),
+    maximumVisibleCombatDeadAirSeconds: Math.max(
+      0,
+      ...rows.map(({ maximumVisibleCombatDeadAirSeconds }) => maximumVisibleCombatDeadAirSeconds)
+    )
   };
 };
 
@@ -205,13 +216,13 @@ export const renderCampaignNonBossBalanceMarkdown = (artifact) => {
     '',
     '## Mission summary',
     '',
-    '| Mission | Route | Role | Attempts | C/D/T | Median clear | Damage | Coins | Weekly | Peak hostile | Peak entities | Peak firing |',
-    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'
+    '| Mission | Route | Role | Attempts | C/D/T | Median clear | Damage | Coins | Weekly | First visible | Max dead air | Peak hostile | Peak entities | Peak firing |',
+    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |'
   ];
 
   for (const row of missionSummaries) {
     lines.push(
-      `| ${row.missionLabel} ${row.missionName} | ${row.routeKind} | ${row.missionRole} | ${row.attempts} | ${row.clears}/${row.deaths}/${row.timeouts} | ${markdownValue(row.medianClearSeconds, 's')} | ${markdownValue(row.medianDamage)} | ${markdownValue(row.medianCoins)} | ${markdownValue(row.medianWeeklyPoints)} | ${row.maximumHostileProjectiles} | ${row.maximumActiveEntities} | ${row.maximumActiveFiringEnemies} |`
+      `| ${row.missionLabel} ${row.missionName} | ${row.routeKind} | ${row.missionRole} | ${row.attempts} | ${row.clears}/${row.deaths}/${row.timeouts} | ${markdownValue(row.medianClearSeconds, 's')} | ${markdownValue(row.medianDamage)} | ${markdownValue(row.medianCoins)} | ${markdownValue(row.medianWeeklyPoints)} | ${row.maximumFirstVisibleThreatDelaySeconds}s | ${row.maximumVisibleCombatDeadAirSeconds}s | ${row.maximumHostileProjectiles} | ${row.maximumActiveEntities} | ${row.maximumActiveFiringEnemies} |`
     );
   }
 
@@ -248,6 +259,8 @@ export const renderCampaignNonBossBalanceMarkdown = (artifact) => {
     '## Findings',
     '',
     `- Cells over the provisional 80-hostile-projectile readability ceiling: ${findings.projectileCeilingBreaches}.`,
+    `- Cells over the ${metadata.firstVisibleThreatDelayCeilingSeconds}s first-visible-threat ceiling: ${findings.firstVisibleThreatDelayBreaches}.`,
+    `- Cells over the ${metadata.visibleCombatDeadAirCeilingSeconds}s in-Wave visible-combat dead-air ceiling: ${findings.visibleCombatDeadAirBreaches}.`,
     `- Cells that entered engine performance mode: ${findings.performanceModeCells}.`,
     `- Cells that entered heavy-scene mode: ${findings.heavySceneCells}.`,
     `- Missions with no clears across the matrix: ${findings.zeroClearMissionLabels.length > 0 ? findings.zeroClearMissionLabels.join(', ') : 'none'}.`,
@@ -256,7 +269,7 @@ export const renderCampaignNonBossBalanceMarkdown = (artifact) => {
     '',
     '## Exact-cell evidence',
     '',
-    `All ${summary.attempts} individual trial rows, including death Wave, damage source diagnostics, bombs and abilities used, coins, projected Weekly points, entity peaks, and performance-mode frames, are stored in \`${DEFAULT_ARTIFACT_PATH}\`.`,
+    `All ${summary.attempts} individual trial rows, including death Wave, damage source diagnostics, bombs and abilities used, coins, projected Weekly points, first-visible-threat delay, visible-combat dead air, entity peaks, and performance-mode frames, are stored in \`${DEFAULT_ARTIFACT_PATH}\`.`,
     '',
     '## Honest limitations',
     '',
@@ -264,7 +277,8 @@ export const renderCampaignNonBossBalanceMarkdown = (artifact) => {
     '- The autonomous controller can align, dodge immediate threats, use its finite bombs and cooldown ability, and collect nearby coins, but it does not understand every authored formation as a human strategy problem.',
     '- Recommended power is converted to a consistent upgrade mix; it is not an exact player inventory.',
     '- The Weekly score is a projection from the actual runtime Mission result through the current client score adapter. Accuracy remains `null`, elites remain folded into regular kills, and route/consecutive bonuses are intentionally excluded.',
-    '- Headless engine entity peaks are useful readability/performance proxies, not a physical-device FPS measurement or human mobile/desktop playtest.',
+    '- A visible threat is an on-screen live hostile body, an on-screen hostile projectile, or an active encounter warning. First-visible delay excludes the Mission takeoff; in-Wave dead air begins only after the first visible threat and excludes completion/takeoff.',
+    '- Headless engine entity peaks and visibility timing are useful readability/performance proxies, not a physical-device FPS measurement or human mobile/desktop playtest.',
     '- This report does not change Campaign tuning. It records evidence for a separate balance decision.'
   );
   return `${lines.join('\n')}\n`;
@@ -318,14 +332,16 @@ const createArtifact = ({
     : `The non-boss curve is **not balance-approved** by this harness because ${zeroClearMissionLabels.join(', ')} produced no clears in the requested matrix. Human reproduction and targeted tuning are required before approval.`;
   return {
     metadata: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       campaignId: campaign.id,
       campaignRevision: campaign.revision,
       campaignUpdatedAt: campaign.updatedAt,
       sourceDigest,
       runtime: 'GameEngine',
       controllerRevision: 'nonboss-lane-planner-v3',
-      maximumSeconds
+      maximumSeconds,
+      firstVisibleThreatDelayCeilingSeconds: FIRST_VISIBLE_THREAT_DELAY_CEILING_SECONDS,
+      visibleCombatDeadAirCeilingSeconds: VISIBLE_COMBAT_DEAD_AIR_CEILING_SECONDS
     },
     coverage: {
       sectorCount: new Set(missionDescriptors.map(({ sectorIndex }) => sectorIndex)).size,
@@ -347,6 +363,12 @@ const createArtifact = ({
     findings: {
       balanceDecision,
       projectileCeilingBreaches: results.filter(({ maximumHostileProjectiles }) => maximumHostileProjectiles > 80).length,
+      firstVisibleThreatDelayBreaches: results.filter(({ maximumFirstVisibleThreatDelaySeconds }) => (
+        maximumFirstVisibleThreatDelaySeconds > FIRST_VISIBLE_THREAT_DELAY_CEILING_SECONDS
+      )).length,
+      visibleCombatDeadAirBreaches: results.filter(({ maximumVisibleCombatDeadAirSeconds }) => (
+        maximumVisibleCombatDeadAirSeconds > VISIBLE_COMBAT_DEAD_AIR_CEILING_SECONDS
+      )).length,
       performanceModeCells: results.filter(({ performanceModeFrames }) => performanceModeFrames > 0).length,
       heavySceneCells: results.filter(({ heavySceneFrames }) => heavySceneFrames > 0).length,
       zeroClearMissionLabels,
@@ -774,12 +796,138 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
       let maximumPerformanceBudgetRatio = 0;
       let performanceModeFrames = 0;
       let heavySceneFrames = 0;
+      let latestRuntime = engine.getRuntimeState();
+      let maximumFirstVisibleThreatDelayFrames = 0;
+      let maximumFirstVisibleThreatDelayWaveId = latestRuntime.waveId;
+      let maximumFirstVisibleThreatDelayWaveNumber = latestRuntime.waveNumber;
+      let maximumFirstVisibleThreatDelayContext = {};
+      let maximumVisibleCombatDeadAirFrames = 0;
+      let maximumVisibleCombatDeadAirWaveId = latestRuntime.waveId;
+      let maximumVisibleCombatDeadAirWaveNumber = latestRuntime.waveNumber;
+      let maximumVisibleCombatDeadAirEndSeconds = 0;
+      let maximumVisibleCombatDeadAirContext = {};
+      let currentVisibleCombatDeadAirFrames = 0;
+      let currentWaveEligibleFrames = 0;
+      let currentWaveHasVisibleThreat = false;
       let bombsUsed = 0;
       let abilitiesUsed = 0;
       const damageSourceCounts = {};
       const damageEvents = [];
       let deathWave = null;
-      let latestRuntime = engine.getRuntimeState();
+      let pacingWaveId = latestRuntime.waveId;
+      const isVisibleInViewport = (entity) => (
+        entity.x < viewport.width
+        && entity.x + Math.max(0, Number(entity.width) || 0) > 0
+        && entity.y < viewport.height
+        && entity.y + Math.max(0, Number(entity.height) || 0) > 0
+      );
+      const recordFirstVisibleThreatDelay = (frames) => {
+        if (frames <= maximumFirstVisibleThreatDelayFrames) return;
+        maximumFirstVisibleThreatDelayFrames = frames;
+        maximumFirstVisibleThreatDelayWaveId = latestRuntime.waveId;
+        maximumFirstVisibleThreatDelayWaveNumber = latestRuntime.waveNumber;
+        const offscreenThreats = engine.entities.filter((entity) => (
+          !entity.markedForDeletion
+          && isHostileBody(entity)
+          && !isVisibleInViewport(entity)
+        ));
+        maximumFirstVisibleThreatDelayContext = {
+          activeThreatCount: engine.getActiveThreatCount(),
+          visibleThreatCount: engine.getVisibleActiveThreatCount(),
+          activePerformanceCost: rounded(engine.getActiveCampaignPerformanceCost(), 2),
+          mobilePerformanceBudget: engine.getCurrentMobilePerformanceBudget(),
+          scheduledSpawnsComplete: engine.getConfiguredSpawnsComplete(),
+          waveProgressFrames: engine.waveProgressFrames,
+          continuitySpawnCount: engine.configuredSpawnCounts.get(
+            `${latestRuntime.waveId}:continuity`
+          ) ?? 0,
+          offscreenStates: Object.fromEntries([...offscreenThreats.reduce((counts, entity) => {
+            const key = `${entity.type}:${entity.formationState || 'loose'}`;
+            counts.set(key, (counts.get(key) ?? 0) + 1);
+            return counts;
+          }, new Map())].sort(([left], [right]) => left.localeCompare(right)))
+        };
+      };
+      const recordPacingFrame = () => {
+        if (latestRuntime.waveId !== pacingWaveId) {
+          pacingWaveId = latestRuntime.waveId;
+          currentWaveEligibleFrames = 0;
+          currentWaveHasVisibleThreat = false;
+          currentVisibleCombatDeadAirFrames = 0;
+        }
+        const combatWindowActive = engine.gameActive
+          && engine.introFlightFrames <= 0
+          && engine.stageRewardCollectionFrames <= 0
+          && engine.waveDepartureFrames <= 0
+          && engine.deathSequenceFrames <= 0
+          && !engine.waveTransitionPending;
+        if (!combatWindowActive) return;
+
+        currentWaveEligibleFrames++;
+        const visibleThreat = engine.inBossWarningSequence || engine.entities.some((entity) => (
+          !entity.markedForDeletion
+          && (isHostileBody(entity) || isHostileProjectile(entity))
+          && isVisibleInViewport(entity)
+        ));
+        if (visibleThreat) {
+          if (!currentWaveHasVisibleThreat) {
+            recordFirstVisibleThreatDelay(currentWaveEligibleFrames - 1);
+          }
+          currentWaveHasVisibleThreat = true;
+          currentVisibleCombatDeadAirFrames = 0;
+          return;
+        }
+        if (!currentWaveHasVisibleThreat) {
+          recordFirstVisibleThreatDelay(currentWaveEligibleFrames);
+          return;
+        }
+        currentVisibleCombatDeadAirFrames++;
+        if (currentVisibleCombatDeadAirFrames > maximumVisibleCombatDeadAirFrames) {
+          maximumVisibleCombatDeadAirFrames = currentVisibleCombatDeadAirFrames;
+          maximumVisibleCombatDeadAirWaveId = latestRuntime.waveId;
+          maximumVisibleCombatDeadAirWaveNumber = latestRuntime.waveNumber;
+          maximumVisibleCombatDeadAirEndSeconds = latestRuntime.elapsedSeconds;
+          const offscreenThreats = engine.entities.filter((entity) => (
+            !entity.markedForDeletion
+            && isHostileBody(entity)
+            && !isVisibleInViewport(entity)
+          ));
+          maximumVisibleCombatDeadAirContext = {
+            activeThreatCount: engine.getActiveThreatCount(),
+            visibleThreatCount: engine.getVisibleActiveThreatCount(),
+            activePerformanceCost: rounded(engine.getActiveCampaignPerformanceCost(), 2),
+            mobilePerformanceBudget: engine.getCurrentMobilePerformanceBudget(),
+            scheduledSpawnsComplete: engine.getConfiguredSpawnsComplete(),
+            waveProgressFrames: engine.waveProgressFrames,
+            continuitySpawnCount: engine.configuredSpawnCounts.get(
+              `${latestRuntime.waveId}:continuity`
+            ) ?? 0,
+            continuitySpawnCap: gameLogic.getWaveContinuityLooseEnemyCap(
+              Math.round(latestRuntime.durationSeconds * 60)
+            ),
+            offscreenStates: Object.fromEntries([...offscreenThreats.reduce((counts, entity) => {
+              const key = `${entity.type}:${entity.formationState || 'loose'}`;
+              counts.set(key, (counts.get(key) ?? 0) + 1);
+              return counts;
+            }, new Map())].sort(([left], [right]) => left.localeCompare(right)))
+          };
+        }
+      };
+      const pacingSnapshot = () => ({
+        maximumFirstVisibleThreatDelaySeconds: rounded(maximumFirstVisibleThreatDelayFrames / 60, 2),
+        maximumFirstVisibleThreatDelayWaveId,
+        maximumFirstVisibleThreatDelayWaveNumber,
+        maximumFirstVisibleThreatDelayContext,
+        maximumVisibleCombatDeadAirSeconds: rounded(maximumVisibleCombatDeadAirFrames / 60, 2),
+        maximumVisibleCombatDeadAirWaveId,
+        maximumVisibleCombatDeadAirWaveNumber,
+        maximumVisibleCombatDeadAirStartSeconds: rounded(
+          maximumVisibleCombatDeadAirEndSeconds - maximumVisibleCombatDeadAirFrames / 60,
+          2
+        ),
+        maximumVisibleCombatDeadAirEndSeconds: rounded(maximumVisibleCombatDeadAirEndSeconds, 2),
+        maximumVisibleCombatDeadAirContext
+      });
       const describeDamageSource = (entity, prefix) => {
         const suffix = entity?.isBeam
           ? 'beam'
@@ -864,6 +1012,7 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
         }
         engine.update();
         latestRuntime = engine.getRuntimeState();
+        recordPacingFrame();
         if (frame % 3 !== 0) {
           if (engine.waveVictoryReady || !engine.gameActive) {
             // Completion/death is handled below on its exact fixed step.
@@ -932,6 +1081,7 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
             maximumActiveThreatCost: rounded(maximumActiveThreatCost, 2),
             maximumActivePerformanceCost: rounded(maximumActivePerformanceCost, 2),
             maximumPerformanceBudgetRatio: rounded(maximumPerformanceBudgetRatio, 2),
+            ...pacingSnapshot(),
             performanceModeFrames,
             heavySceneFrames
           };
@@ -969,6 +1119,7 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
             maximumActiveThreatCost: rounded(maximumActiveThreatCost, 2),
             maximumActivePerformanceCost: rounded(maximumActivePerformanceCost, 2),
             maximumPerformanceBudgetRatio: rounded(maximumPerformanceBudgetRatio, 2),
+            ...pacingSnapshot(),
             performanceModeFrames,
             heavySceneFrames
           };
@@ -1005,6 +1156,7 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
         maximumActiveThreatCost: rounded(maximumActiveThreatCost, 2),
         maximumActivePerformanceCost: rounded(maximumActivePerformanceCost, 2),
         maximumPerformanceBudgetRatio: rounded(maximumPerformanceBudgetRatio, 2),
+        ...pacingSnapshot(),
         performanceModeFrames,
         heavySceneFrames
       };

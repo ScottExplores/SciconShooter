@@ -110,11 +110,12 @@ test('audio manifest hashes, byte sizes, licenses, and WAV delivery metadata mat
   assert.ok(fs.existsSync(manifestPath), 'the audio provenance manifest should be checked in');
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   assert.equal(manifest.schemaVersion, 1);
-  assert.match(manifest.scope.assets, /14 production files/);
+  assert.match(manifest.scope.assets, /9 production sound-effect and interface files/);
   assert.match(manifest.scope.notInventoried, /outside this import manifest/);
-  assert.match(manifest.formatPolicy.music, /MP3 at 192 kb\/s CBR/);
+  assert.match(manifest.scope.removedBackgroundMusic, /none of these files ship or play/);
+  assert.equal(Object.hasOwn(manifest.formatPolicy, 'music'), false);
   assert.ok(Array.isArray(manifest.assets));
-  assert.equal(manifest.assets.length, 14);
+  assert.equal(manifest.assets.length, 9);
 
   const ids = manifest.assets.map((asset) => asset.id);
   assert.equal(new Set(ids).size, ids.length, 'manifest asset ids should be unique');
@@ -127,13 +128,9 @@ test('audio manifest hashes, byte sizes, licenses, and WAV delivery metadata mat
     'ui-back',
     'ui-error',
     'ui-open',
-    'ui-close',
-    'music-home-stillness',
-    'music-map-colony',
-    'music-mission-racing',
-    'music-boss-battle',
-    'music-final-hour'
+    'ui-close'
   ].forEach((id) => assert.ok(ids.includes(id), `${id} should be documented`));
+  assert.ok(ids.every((id) => !id.startsWith('music-')));
 
   manifest.assets.forEach((asset) => {
     assert.match(asset.path, /^\/audio\//, `${asset.id} should use a public audio path`);
@@ -176,26 +173,18 @@ test('audio manifest hashes, byte sizes, licenses, and WAV delivery metadata mat
   });
 });
 
-test('new music uses MP3 delivery while retaining the original OGG provenance hashes', () => {
+test('removed music remains provenance-only and none of its binaries ship', () => {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  const music = manifest.assets.filter((asset) => asset.id.startsWith('music-'));
+  const music = manifest.removedBackgroundMusic;
   assert.equal(music.length, 5);
 
   music.forEach((asset) => {
-    assert.equal(path.extname(asset.path), '.mp3', `${asset.id} should ship in iPhone-compatible MP3 format`);
+    assert.equal(path.extname(asset.path), '.mp3');
     assert.equal(asset.processing.sourceFormat, '44.1 kHz stereo OGG Vorbis');
-    assert.match(asset.processing.encoder, /libmp3lame, 192 kb\/s CBR/);
     assert.notEqual(asset.sourceSha256, asset.outputSha256, `${asset.id} should distinguish source and delivery hashes`);
     assert.ok(asset.sourceByteLength > 0, `${asset.id} should retain its source byte length`);
-
-    const oldOggPath = path.join(
-      root,
-      'public',
-      'audio',
-      'music',
-      `${path.basename(asset.path, '.mp3')}.ogg`
-    );
-    assert.equal(fs.existsSync(oldOggPath), false, `${asset.id} should not double-ship the source OGG`);
+    const removedPath = path.join(root, 'public', ...asset.path.split('/').filter(Boolean));
+    assert.equal(fs.existsSync(removedPath), false, `${asset.id} must not ship`);
   });
 });
 
@@ -213,28 +202,22 @@ test('Sonniss assets distinguish official provenance from the third-party retrie
   });
 });
 
-test('retained legacy songs are hash-pinned and explicitly marked unverified', () => {
+test('legacy music metadata is retained only to document removed files', () => {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  assert.equal(manifest.legacyMusic.length, 3);
+  assert.equal(manifest.removedLegacyMusic.length, 3);
 
-  manifest.legacyMusic.forEach((asset) => {
+  manifest.removedLegacyMusic.forEach((asset) => {
     assert.equal(asset.status, 'legacy-unverified');
     assert.equal(asset.license, 'Unknown');
+    assert.match(asset.note, /now removed from production/);
     const filePath = path.join(root, 'public', ...asset.path.split('/').filter(Boolean));
-    const buffer = fs.readFileSync(filePath);
-    assert.equal(sha256(buffer), asset.sha256, `${asset.title} should remain byte-for-byte pinned`);
+    assert.equal(fs.existsSync(filePath), false, `${asset.title} must not ship`);
+    assert.match(asset.sha256, /^[a-f0-9]{64}$/);
   });
 });
 
-test('the reachable More menu carries the required music credit and accurate modification notice', () => {
+test('the reachable More menu no longer advertises removed background music', () => {
   const startScreen = fs.readFileSync(path.join(root, 'components', 'StartScreen.tsx'), 'utf8');
 
-  assert.match(startScreen, /https:\/\/opengameart\.org\/node\/118190/);
-  assert.match(startScreen, /"Outer Space Music Pack" by Leonardo Paz/);
-  assert.match(startScreen, /CC BY 4\.0/);
-  assert.match(startScreen, /source OGG tracks were converted[\s\S]*to MP3/);
-  assert.match(startScreen, /renamed, and volume-balanced for Scicon Shooter/);
-  assert.match(startScreen, /https:\/\/opengameart\.org\/content\/final-hour/);
-  assert.match(startScreen, /"Final Hour" by isaiah658/);
-  assert.match(startScreen, /creativecommons\.org\/publicdomain\/zero\/1\.0/);
+  assert.doesNotMatch(startScreen, /Outer Space Music Pack|Final Hour|Music from/);
 });

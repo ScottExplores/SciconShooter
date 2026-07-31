@@ -90,8 +90,6 @@ export interface GameEditorCanvasProps {
   previewBossArtwork?: PreviewBossArtwork;
   /** Preview sound effects are opt-in; production audio defaults are unchanged. */
   audioEnabled?: boolean;
-  /** Mission music stays off unless an authoring surface explicitly requests it. */
-  musicEnabled?: boolean;
   fieldUpgradesEnabled?: boolean;
   onReady?: () => void;
   onInitializationError?: (error: unknown) => void;
@@ -115,7 +113,6 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
   previewViewport,
   previewBossArtwork,
   audioEnabled = false,
-  musicEnabled = false,
   fieldUpgradesEnabled = true,
   onReady,
   onInitializationError
@@ -217,7 +214,6 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
         onPreviewCommandResult,
         onPreviewSnapshot,
         audioEnabled,
-        musicEnabled,
         autoFire: true,
         timeScale: previewSettings.gameSpeed ?? 1,
         playerShipId,

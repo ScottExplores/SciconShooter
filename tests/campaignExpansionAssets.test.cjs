@@ -86,7 +86,7 @@ test('promoted Test Bosses expose their exact assembled art through every asset 
   }
 });
 
-test('every revision-23 sector ends in one authored major-boss Mission', () => {
+test('every revision-24 sector ends in one authored major-boss Mission', () => {
   const expectedByMissionOrder = new Map([
     [5, { bossId: 'gatekeeper-prime', spriteKey: 'PIXI_BOSS_OPEN_ORBIT_FRAMES' }],
     [10, { bossId: 'paywall-decimator', spriteKey: 'PIXI_BOSS_PAYWALL_FRAMES' }],
@@ -100,7 +100,7 @@ test('every revision-23 sector ends in one authored major-boss Mission', () => {
     [50, { bossId: 'frontier-crownclaw', spriteKey: 'CAMPAIGN_BOSS_FRONTIER_CROWNCLAW' }]
   ]);
 
-  assert.equal(campaign.revision, 23);
+  assert.equal(campaign.revision, 24);
   assert.equal(campaign.sectors.length, 10);
   for (const sector of campaign.sectors) {
     assert.equal(sector.missionIds.length, 5, `${sector.name} has five Missions`);
@@ -113,7 +113,7 @@ test('every revision-23 sector ends in one authored major-boss Mission', () => {
     assert.equal(level.order, sector.order * 5, `${sector.name} boss occupies every fifth Mission`);
     assert.ok(expected, `${level.name} has an approved roster entry`);
     assert.equal(level.campaignProgression.missionRole, 'major-boss');
-    assert.equal(level.waves.length, 4, `${level.name} preserves its authored boss runway`);
+    assert.equal(level.waves.length, 2, `${level.name} uses one active intercept before its boss`);
     assert.equal(bossEvents.length, 1, `${level.name} has one major boss`);
     assert.equal(sector.majorBossId, expected.bossId, `${level.name} sector roster`);
     assert.equal(finale.bossId, expected.bossId, `${level.name} uses its canonical bossId`);
@@ -122,7 +122,7 @@ test('every revision-23 sector ends in one authored major-boss Mission', () => {
   }
 });
 
-test('all twelve generated enemy silhouettes remain authored enemy roles in revision 23', () => {
+test('all twelve generated enemy silhouettes remain authored enemy roles in revision 24', () => {
   const formationPackIds = new Set(campaign.formationPacks.map((pack) => pack.id));
   const generatedRoles = campaign.enemyRoles.filter((role) => role.spriteKey in enemyAssets);
 

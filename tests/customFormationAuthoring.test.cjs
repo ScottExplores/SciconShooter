@@ -112,7 +112,7 @@ test('the shared formation runtime resolves authored slots before built-in geome
   assert.notDeepEqual(authored, builtIn);
 });
 
-test('clean wave authoring creates one valid opening formation beyond wave five', () => {
+test('clean wave authoring creates one valid opening formation after the compact four-Wave cadence', () => {
   const campaign = JSON.parse(readSource('game-config', 'campaign.json'));
   const operations = loadTypeScriptModule('director', 'src', 'editor', 'editorOperations.ts');
   const sourceMission = campaign.levels.reduce((longest, candidate) => (
@@ -123,8 +123,8 @@ test('clean wave authoring creates one valid opening formation beyond wave five'
   const nextOrder = Math.max(...sourceMission.waves.map((wave) => wave.order)) + 1;
   const starter = operations.createStarterWave(sourceWave, nextOrder);
 
-  assert.ok(sourceMission.waves.length >= 7, 'the authored campaign exposes a variable seven-wave Mission');
-  assert.ok(nextOrder > 5);
+  assert.equal(sourceMission.waves.length, 4, 'regular Missions share the compact four-Wave cadence');
+  assert.ok(nextOrder > 4);
   assert.equal(starter.name, `New Wave ${nextOrder}`);
   assert.equal(starter.order, nextOrder);
   assert.notEqual(starter.id, sourceWave.id);

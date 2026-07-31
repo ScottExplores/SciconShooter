@@ -187,8 +187,12 @@ test('Boss Archive exposes one charge-based fight flow with difficulty records a
     /animation|filter/
   );
   assert.doesNotMatch(carousel, /\.filter\(\(\{ relative \}\) => Math\.abs\(relative\) <= 2\)/);
-  assert.match(carousel, /image\.decode\(\)/);
-  assert.match(carousel, /const BOSS_ART_PRELOADS = new Map<string, Promise<void>>\(\)/);
+  assert.match(carousel, /const ART_RENDER_RADIUS = 2/);
+  assert.match(carousel, /const ART_PRELOAD_RADIUS = ART_RENDER_RADIUS \+ 1/);
+  assert.match(carousel, /preloadedArtRef = useRef\(new Map<string, HTMLImageElement>\(\)\)/);
+  assert.match(carousel, /Math\.abs\(relative\) > ART_PRELOAD_RADIUS/);
+  assert.match(carousel, /Math\.abs\(relative\) <= ART_RENDER_RADIUS/);
+  assert.doesNotMatch(carousel, /BOSS_ART_PRELOADS|image\.decode\(/);
   assert.match(carousel, /image\.decoding = 'async'/);
   assert.doesNotMatch(carousel, /image\.decoding = 'sync'/);
   assert.match(portrait, /decoding="async"/);
@@ -202,6 +206,32 @@ test('Boss Archive exposes one charge-based fight flow with difficulty records a
   assert.doesNotMatch(css, /backdrop-filter|mix-blend-mode|boss-archive-ambient-turn/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
+});
+
+test('Boss Archive carousel keeps clicks, drags, and gamepad edges lifecycle-safe', () => {
+  const carousel = read('components/boss-archive/BossArchiveCarousel.tsx');
+  const pointerDown = carousel.slice(
+    carousel.indexOf('onPointerDown='),
+    carousel.indexOf('onPointerMove=')
+  );
+  const gamepadEffect = carousel.slice(
+    carousel.indexOf("typeof navigator.getGamepads"),
+    carousel.indexOf('const finishDrag')
+  );
+
+  assert.doesNotMatch(pointerDown, /setPointerCapture/);
+  assert.match(
+    carousel,
+    /gesture\.horizontal = true;[\s\S]*?setPointerCapture\(event\.pointerId\)/
+  );
+  assert.match(carousel, /onLostPointerCapture=/);
+  assert.match(carousel, /suppressClickRef = useRef\(false\)/);
+  assert.match(carousel, /onClickCapture=/);
+  assert.match(carousel, /if \(cancelled\) suppressClickRef\.current = false/);
+  assert.match(carousel, /selectedIndexRef\.current \+ direction/);
+  assert.match(gamepadEffect, /previousDirection/);
+  assert.match(gamepadEffect, /\}, \[items\.length, move\]\);/);
+  assert.doesNotMatch(gamepadEffect, /\[items\.length, selectedIndex\]/);
 });
 
 test('locked carousel and index entries never request real boss artwork', () => {

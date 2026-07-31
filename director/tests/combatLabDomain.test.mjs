@@ -184,6 +184,11 @@ test('every formation, enemy, power-up, boss weapon, and boss phase selection cr
       const sourcePhase = source.phases.find((phase) => phase.id === item.target.phaseId);
       assert.equal(previewBoss.phases[0].id, sourcePhase.id);
       assert.equal(previewBoss.phases[0].movementPatternId, sourcePhase.movementPatternId);
+      assert.equal(
+        previewBoss.revival,
+        undefined,
+        'focused phases disable source-order revival before becoming the opening phase'
+      );
       if (source.bossId === 'paywall-wall') {
         assert.equal(previewBoss.phases[0].speedMultiplier, 1);
         assert.equal(previewBoss.speed, source.speed * sourcePhase.speedMultiplier);
@@ -198,14 +203,24 @@ test('every formation, enemy, power-up, boss weapon, and boss phase selection cr
   assert.equal(JSON.stringify(campaign), before, 'focused previews must not mutate the source campaign');
 });
 
-test('promotion inserts a full valid wave with unique remapped event and nested boss IDs', () => {
+test('promotion inserts a full valid route wave and remaps nested boss event IDs', () => {
   const before = JSON.stringify(campaign);
-  const targetLevel = campaign.levels.find((level) => (
+  const routeNode = campaign.campaignGraph.nodes.find((node) => (
+    node.mainPath === false && node.bossId === null
+  ));
+  const targetLevel = campaign.levels.find((level) => level.id === routeNode?.missionDefinitionId);
+  assert.ok(targetLevel, 'fixture should contain an alternate combat route Mission');
+  const sourceWave = targetLevel.waves[0];
+  assert.ok(sourceWave, 'fixture should contain a route wave');
+
+  const bossTargetLevel = campaign.levels.find((level) => (
     level.campaignProgression?.missionRole === 'elite-checkpoint'
   ));
-  assert.ok(targetLevel, 'fixture should contain an elite-checkpoint Mission');
-  const sourceWave = targetLevel.waves.find((wave) => wave.events.some((event) => event.kind === 'boss'));
-  assert.ok(sourceWave, 'fixture should contain a boss wave');
+  assert.ok(bossTargetLevel, 'fixture should contain an elite-checkpoint Mission');
+  const sourceBossWave = bossTargetLevel.waves.find((wave) => (
+    wave.events.some((event) => event.kind === 'boss')
+  ));
+  assert.ok(sourceBossWave, 'fixture should contain a boss wave');
 
   const result = createPromotionCampaign(campaign, {
     kind: 'wave',
@@ -230,22 +245,18 @@ test('promotion inserts a full valid wave with unique remapped event and nested 
   assert.deepEqual(promotedLevel.waves.map((wave) => wave.order), promotedLevel.waves.map((_, index) => index + 1));
   assert.equal(promotedWave.events.length, sourceWave.events.length);
   assert.ok(promotedWave.events.every((event, index) => event.id !== sourceWave.events[index].id));
+  const promotedRouteNode = result.campaign.campaignGraph.nodes.find((node) => (
+    node.missionDefinitionId === targetLevel.id
+  ));
+  assert.equal(promotedRouteNode?.routeSummary.estimatedWaveCount, promotedLevel.waves.length);
 
-  const sourceBoss = sourceWave.events.find((event) => event.kind === 'boss');
-  const promotedBoss = promotedWave.events.find((event) => event.kind === 'boss');
-  assert.ok(sourceBoss && promotedBoss);
-  assert.equal(promotedBoss.rigId, sourceBoss.rigId);
-  assert.ok(promotedBoss.weapons.every((weapon, index) => weapon.id !== sourceBoss.weapons[index].id));
-  assert.ok(promotedBoss.phases.every((phase, index) => phase.id !== sourceBoss.phases[index].id));
-  const promotedWeaponIds = new Set(promotedBoss.weapons.map((weapon) => weapon.id));
-  assert.ok(promotedBoss.phases.every((phase) => (
-    phase.weaponSettingIds.every((weaponId) => promotedWeaponIds.has(weaponId))
-  )));
+  const sourceBoss = sourceBossWave.events.find((event) => event.kind === 'boss');
+  assert.ok(sourceBoss);
 
   const eventPromotion = createPromotionCampaign(campaign, {
     kind: 'event',
-    targetLevelId: targetLevel.id,
-    targetWaveId: targetLevel.waves[0].id,
+    targetLevelId: bossTargetLevel.id,
+    targetWaveId: bossTargetLevel.waves[0].id,
     event: sourceBoss,
     startSeconds: 0
   }, {

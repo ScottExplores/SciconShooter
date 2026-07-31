@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   getBossArchiveRelativePosition,
   getLoopedBossArchiveIndex,
@@ -8,31 +8,17 @@ import BossArchivePortrait from './BossArchivePortrait';
 
 const DRAG_THRESHOLD_PX = 42;
 const WHEEL_COOLDOWN_MS = 320;
-const BOSS_ART_PRELOADS = new Map<string, Promise<void>>();
-
-const preloadBossArt = (url: string) => {
-  if (BOSS_ART_PRELOADS.has(url)) return;
-  const image = new Image();
-  image.decoding = 'async';
-  image.loading = 'eager';
-  image.src = url;
-  const preload = image.decode
-    ? image.decode().then(() => undefined)
-    : new Promise<void>((resolve, reject) => {
-        image.onload = () => resolve();
-        image.onerror = () => reject(new Error(`Boss Archive art failed to load: ${url}`));
-      });
-  BOSS_ART_PRELOADS.set(url, preload.catch(() => {
-    BOSS_ART_PRELOADS.delete(url);
-  }));
-};
+const ART_RENDER_RADIUS = 2;
+const ART_PRELOAD_RADIUS = ART_RENDER_RADIUS + 1;
 
 const BossPreviewArt = ({
   item,
-  selected
+  selected,
+  eager
 }: {
   item: BossArchiveViewEntry;
   selected: boolean;
+  eager: boolean;
 }) => {
   if (!item.unlocked) return (
     <div className="boss-archive-carousel__unknown" aria-hidden="true">
@@ -44,7 +30,7 @@ const BossPreviewArt = ({
     <BossArchivePortrait
       entry={item.entry}
       portraitUrl={item.presentation.portraitUrl ?? item.entry.artUrl}
-      eager
+      eager={eager}
       className="boss-archive-carousel__portrait"
       idlePreview={selected ? 'active' : 'static'}
     />
@@ -76,26 +62,53 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
     horizontal: boolean;
   } | null>(null);
   const lastWheelAtRef = useRef(0);
+  const selectedIndexRef = useRef(selectedIndex);
+  const onSelectIndexRef = useRef(onSelectIndex);
+  const preloadedArtRef = useRef(new Map<string, HTMLImageElement>());
+  const suppressClickRef = useRef(false);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
+
+  selectedIndexRef.current = selectedIndex;
+  onSelectIndexRef.current = onSelectIndex;
 
   const stepPx = Math.max(138, Math.min(240, (viewportRef.current?.clientWidth ?? 390) * 0.53));
   const selectedItem = items[selectedIndex];
 
   useEffect(() => {
     const urls = new Set<string>();
-    items.forEach((item) => {
+    items.forEach((item, index) => {
       if (!item.unlocked) return;
+      const relative = getBossArchiveRelativePosition(index, selectedIndex, items.length);
+      if (Math.abs(relative) > ART_PRELOAD_RADIUS) return;
       urls.add(item.presentation.portraitUrl ?? item.entry.artUrl);
       item.entry.preview.composition?.layers.forEach((layer) => urls.add(layer.url));
     });
-    urls.forEach(preloadBossArt);
-  }, [items]);
+    urls.forEach((url) => {
+      if (preloadedArtRef.current.has(url)) return;
+      const image = new Image();
+      image.decoding = 'async';
+      image.loading = 'eager';
+      image.src = url;
+      preloadedArtRef.current.set(url, image);
+    });
+  }, [items, selectedIndex]);
 
-  const move = (direction: -1 | 1) => {
+  useEffect(() => () => {
+    preloadedArtRef.current.forEach((image) => {
+      image.onload = null;
+      image.onerror = null;
+    });
+    preloadedArtRef.current.clear();
+  }, []);
+
+  const move = useCallback((direction: -1 | 1) => {
     if (items.length < 2) return;
-    onSelectIndex(getLoopedBossArchiveIndex(items.length, selectedIndex + direction));
-  };
+    onSelectIndexRef.current(getLoopedBossArchiveIndex(
+      items.length,
+      selectedIndexRef.current + direction
+    ));
+  }, [items.length]);
 
   useEffect(() => {
     if (items.length < 2 || typeof navigator.getGamepads !== 'function') return undefined;
@@ -115,8 +128,7 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
     };
     frame = window.requestAnimationFrame(poll);
     return () => window.cancelAnimationFrame(frame);
-  // `move` intentionally tracks the selected index so each controller edge advances once.
-  }, [items.length, selectedIndex]);
+  }, [items.length, move]);
 
   const finishDrag = (event: React.PointerEvent<HTMLDivElement>, cancelled = false) => {
     const gesture = dragRef.current;
@@ -128,6 +140,7 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
     const finalDragX = dragX;
     setDragging(false);
     setDragX(0);
+    if (cancelled) suppressClickRef.current = false;
     if (cancelled || !gesture.horizontal || items.length < 2) return;
     const steps = Math.max(
       -(items.length - 1),
@@ -177,6 +190,12 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
         ref={viewportRef}
         className="boss-archive-carousel__viewport"
         tabIndex={0}
+        onClickCapture={(event) => {
+          if (!suppressClickRef.current) return;
+          suppressClickRef.current = false;
+          event.preventDefault();
+          event.stopPropagation();
+        }}
         onKeyDown={(event) => {
           if (event.key === 'ArrowLeft') {
             event.preventDefault();
@@ -208,13 +227,13 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
         onPointerDown={(event) => {
           if (!event.isPrimary || items.length < 2) return;
           if (event.pointerType === 'mouse' && event.button !== 0) return;
+          suppressClickRef.current = false;
           dragRef.current = {
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
             horizontal: false
           };
-          event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
           const gesture = dragRef.current;
@@ -224,11 +243,16 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
           if (!gesture.horizontal) {
             if (Math.abs(deltaY) > Math.abs(deltaX) * 1.15 && Math.abs(deltaY) > 8) {
               dragRef.current = null;
+              setDragging(false);
               setDragX(0);
               return;
             }
             if (Math.abs(deltaX) > 7 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1) {
               gesture.horizontal = true;
+              suppressClickRef.current = true;
+              if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }
               setDragging(true);
             }
           }
@@ -239,6 +263,14 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
         }}
         onPointerUp={(event) => finishDrag(event)}
         onPointerCancel={(event) => finishDrag(event, true)}
+        onLostPointerCapture={(event) => {
+          const gesture = dragRef.current;
+          if (!gesture || gesture.pointerId !== event.pointerId) return;
+          dragRef.current = null;
+          suppressClickRef.current = false;
+          setDragging(false);
+          setDragX(0);
+        }}
       >
         <div className="boss-archive-carousel__scanner" aria-hidden="true" />
         <div className="boss-archive-carousel__platform" aria-hidden="true">
@@ -248,7 +280,7 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
         </div>
 
         {carouselItems.map(({ item, index, relative }) => {
-          const isVisible = Math.abs(relative) <= 2;
+          const isVisible = Math.abs(relative) <= ART_RENDER_RADIUS;
           const adjustedSlot = relative + dragX / stepPx;
           const isSelected = index === selectedIndex && !dragging;
           const distance = Math.min(2, Math.abs(adjustedSlot));
@@ -289,10 +321,13 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
                 M-{String(item.entry.missionNumber).padStart(2, '0')}
               </span>
               <span className="boss-archive-carousel__artwell">
-                <BossPreviewArt
-                  item={item}
-                  selected={isSelected}
-                />
+                {isVisible ? (
+                  <BossPreviewArt
+                    item={item}
+                    selected={isSelected}
+                    eager
+                  />
+                ) : null}
               </span>
               <span className="boss-archive-carousel__card-copy">
                 <strong>{item.unlocked ? item.entry.label : 'Unknown Signal'}</strong>

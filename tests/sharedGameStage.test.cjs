@@ -28,7 +28,7 @@ test('the shared canvas accepts draft campaign data without changing production 
   assert.match(canvas, /campaign\?: GameCampaign/);
   assert.match(canvas, /previewMode\?: boolean/);
   assert.match(canvas, /audioEnabled = !previewMode/);
-  assert.match(canvas, /musicEnabled = audioEnabled/);
+  assert.doesNotMatch(canvas, /musicEnabled/);
   assert.match(canvas, /const initialStats = cloneStatsForReact\(stats\)/);
   assert.match(canvas, /new GameEngine\(initialStats,/);
   assert.match(gameLogic, /const isInvincible = \(this\.previewMode && this\.previewInvincible\)/);
@@ -41,8 +41,8 @@ test('the shared editor can hide field upgrades and react to sandbox ship tuning
   assert.match(source, /fieldUpgradesEnabled = true/);
   assert.match(source, /fieldUpgradesEnabled,/);
   assert.match(source, /audioEnabled = false/);
-  assert.match(source, /musicEnabled = false/);
-  assert.match(source, /audioEnabled,\s*musicEnabled,/);
+  assert.doesNotMatch(source, /musicEnabled/);
+  assert.match(source, /onPreviewSnapshot,\s*audioEnabled,/);
   assert.match(source, /previewSettings\.upgrades\?\.fireRate/);
   assert.match(source, /previewSettings\.upgrades\?\.speed/);
   assert.match(source, /setStats\(\(previous\)/);

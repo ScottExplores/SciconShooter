@@ -44,13 +44,11 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(app, /<PauseMenu/);
   assert.match(app, /onToggleAudio=\{toggleGameAudio\}/);
   assert.match(app, /sfxVolumeLevel=\{sfxVolumeLevel\}/);
-  assert.match(app, /musicVolumeLevel=\{musicVolumeLevel\}/);
   assert.match(app, /onRuntimeState: handleRuntimeState/);
   assert.match(app, /missionNumber=\{pauseMissionPosition\?\.levelNumber/);
   assert.match(app, /waveNumber=\{pauseMissionPosition\?\.waveNumber/);
   assert.match(app, /waveTotal=\{pauseMissionPosition\?\.waveTotal/);
   assert.match(app, /onSfxVolumeChange=\{setGameSfxVolume\}/);
-  assert.match(app, /onMusicVolumeChange=\{setGameMusicVolume\}/);
   assert.match(app, /onTogglePolishSetting=\{togglePolishSetting\}/);
   assert.match(app, /founderControls=\{isOwnerWallet && isOwnerTestRun/);
 
@@ -64,8 +62,9 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(pause, /max=\{5\}/);
   assert.match(pause, /step=\{1\}/);
   assert.match(pause, /AUDIO_VOLUME_NOTCHES\.map/);
-  assert.match(pause, /label="Music volume"/);
   assert.match(pause, /label="Sound effects"/);
+  assert.doesNotMatch(pause, /Mission music|Music volume|onMusic/);
+  assert.doesNotMatch(app, /musicVolumeLevel|musicTrackId|onMusic/);
   assert.match(pause, /Mission \{String\(missionNumber\)\.padStart\(2, '0'\)\}/);
   assert.match(pause, /Wave \{waveNumber\}\/\{waveTotal\}/);
   assert.match(pause, /sci-pause-mission-position/);

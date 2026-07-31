@@ -146,7 +146,12 @@ export type SpawnPatternId =
   | 'diamond'
   | 'spiral'
   | 'asteroid-lanes';
-export type SpawnPositionId = 'random-top' | 'formation-top' | 'center-top' | 'lane-top';
+export type SpawnPositionId =
+  | 'random-top'
+  | 'random-top-fast'
+  | 'formation-top'
+  | 'center-top'
+  | 'lane-top';
 export type MovementPatternId =
   | 'drift-down'
   | 'sine-drift'
@@ -724,7 +729,7 @@ export interface WaveDefinition {
    * and inversely to spawn intervals, but not score rewards. Current default: 1.
    */
   difficultyMultiplier: number;
-  /** Active-combat clock. Current default: 60 seconds (3600 frames). */
+  /** Minimum active-combat clock; clear waves also wait for authored schedules and live threats. */
   durationSeconds: number;
   /** Launch cinematic before the active clock; normally used only at a Mission boundary. */
   introSeconds: number;

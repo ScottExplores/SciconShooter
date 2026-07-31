@@ -31,6 +31,10 @@ import {
 } from '../playerWeaponVisuals';
 import { RESEARCH_IMPACT_FRAME_URLS, SHIP_ABILITY_FRAME_URLS } from '../shipAbilityService';
 import { MINI_SHIP_CATALOG } from '../squadProgression';
+import {
+  runGameplayAssetPreloadQueue,
+  waitForGameplayAssetPreload
+} from '../gameplayAssetPreloadBudget';
 import { ArcadeEffectPool } from './ArcadeEffectPool';
 import { sampleBossLowHealthDamageCue } from './BossDamagePresentation';
 import {
@@ -934,8 +938,8 @@ const getPowerupFrames = (powerup: PowerupType): readonly string[] => {
   }
 };
 
-/** Startup texture set; later campaign environments and authored entities warm on demand. */
-export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
+/** Art that must be decoded before the first playable frame. */
+export const PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS = Object.freeze([
   ...PIXI_WAVE_PRESENTATION_TEXTURE_URLS,
   ASSETS.PIXI_BOSS_HEALTH_FRAME,
   ASSETS.PIXI_BOSS_ALERT_FRAME,
@@ -943,7 +947,6 @@ export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
   ASSETS.PIXI_BOSS_ALERT_RING,
   ASSETS.PIXI_BOSS_ALERT_SCAN,
   ASSETS.PIXI_BOSS_ALERT_CRYSTAL,
-  ...PIXI_ENVIRONMENT_TEXTURE_URLS,
   ...ASSETS.ENEMY_DRONE_FRAMES,
   ...ASSETS.ENEMY_SWARM_FRAMES,
   ...ASSETS.ENEMY_BRICK_FRAMES,
@@ -953,10 +956,28 @@ export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
   ASSETS.SUPPLY_DROP_FAST,
   ASSETS.SUPPLY_DROP_GOLDEN,
   ...ASSETS.ENEMY_JOURNAL_FRAMES,
-  ...ASSETS.PAYWALL_BASTION_FRAMES,
   ...ASSETS.PIXI_JET_SCOUT_FRAMES,
   ...ASSETS.PIXI_JET_INTERCEPTOR_FRAMES,
   ...ASSETS.PIXI_JET_HEAVY_FRAMES,
+  ...ASSETS.PIXI_THRUSTER_FRAMES,
+  ...ASSETS.PIXI_EXPLOSION_FRAMES,
+  ...ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES,
+  ...PLAYER_WEAPON_FRAME_URLS,
+  ...SHIP_ABILITY_FRAME_URLS,
+  ...RESEARCH_IMPACT_FRAME_URLS,
+  ASSETS.POWERUP_MAX_SHOT_AURA,
+  ...ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES,
+  ASSETS.RSC_TOKEN
+]);
+
+/**
+ * Complete runtime catalog. Environment, companion, and boss art remains
+ * available to the shared texture bank, but does not block mission launch.
+ */
+export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
+  ...PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS,
+  ...PIXI_ENVIRONMENT_TEXTURE_URLS,
+  ...ASSETS.PAYWALL_BASTION_FRAMES,
   ...ASSETS.PIXI_BOSS_OPEN_ORBIT_FRAMES,
   ...ASSETS.PIXI_BOSS_CITATION_FRAMES,
   ...ASSETS.PIXI_BOSS_PAYWALL_FRAMES,
@@ -966,17 +987,9 @@ export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
   ...ASSETS.PIXI_BOSS_PAYWALL_RAY_FRAMES,
   ...ASSETS.PIXI_BOSS_PAYWALL_BOLT_FRAMES,
   ...ASSETS.PIXI_BOSS_THRUSTER_FRAMES,
-  ...ASSETS.PIXI_THRUSTER_FRAMES,
-  ...ASSETS.PIXI_EXPLOSION_FRAMES,
-  ...ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES,
   ...PLAYER_SHIP_STEERING_FRAME_URLS,
-  ...PLAYER_WEAPON_FRAME_URLS,
-  ...SHIP_ABILITY_FRAME_URLS,
-  ...RESEARCH_IMPACT_FRAME_URLS,
   ...ASSETS.POWERUP_OVERDRIVE_SPREAD_FRAMES,
   ASSETS.POWERUP_MAX_SHOT,
-  ASSETS.POWERUP_MAX_SHOT_AURA,
-  ...ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES,
   ...ASSETS.POWERUP_MAGNET_FRAMES,
   ...ASSETS.POWERUP_SHIELD_FRAMES,
   ...ASSETS.POWERUP_RESEARCH_BEAM_FRAMES,
@@ -1004,14 +1017,15 @@ export const PIXI_GAMEPLAY_TEXTURE_URLS = Object.freeze([
 
 let pixiGameplayTexturePreload: Promise<void> | null = null;
 
-/** Warms Pixi's shared GPU texture cache; unused gallery art is never requested. */
+/** Warms only first-frame art; later authored art is loaded by entity demand. */
 export const preloadPixiGameplayTextures = () => {
   if (!pixiGameplayTexturePreload) {
-    const urls = [...new Set(PIXI_GAMEPLAY_TEXTURE_URLS.filter(Boolean))];
-    pixiGameplayTexturePreload = Promise.allSettled(urls.map(async (url) => {
-      const texture = await Assets.load<Texture>(url);
-      texture.source.scaleMode = 'nearest';
-    })).then(() => undefined);
+    const urls = [...new Set(PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS.filter(Boolean))];
+    const warmup = runGameplayAssetPreloadQueue(urls, async (url) => {
+        const texture = await Assets.load<Texture>(url);
+        texture.source.scaleMode = 'nearest';
+      });
+    pixiGameplayTexturePreload = waitForGameplayAssetPreload(warmup).then(() => undefined);
   }
   return pixiGameplayTexturePreload;
 };
@@ -1205,6 +1219,7 @@ const usesStandaloneBossArt = (entity: Entity, previewArtwork = false) => (
 
 export interface PixiGameRendererOptions {
   readonly previewBossArtwork?: PreviewBossArtwork;
+  readonly startupTextureUrls?: readonly string[];
 }
 
 export class PixiGameRenderer {
@@ -1317,6 +1332,7 @@ export class PixiGameRenderer {
   private reducedMotion = false;
   private destroyed = false;
   private readonly previewBossArtwork?: PreviewBossArtwork;
+  private readonly startupTextureUrls: readonly string[];
   private previewBossArtworkReady = false;
   private readonly previewBossAtlasTextures = new Map<PreviewBossRigPartId, Texture>();
   private previewBossAtlasReady = false;
@@ -1333,6 +1349,30 @@ export class PixiGameRenderer {
 
   constructor(options: PixiGameRendererOptions = {}) {
     this.previewBossArtwork = options.previewBossArtwork;
+    this.startupTextureUrls = options.startupTextureUrls ?? [];
+  }
+
+  private bindStartupTextures() {
+    this.waveTitle.texture = this.textureBank.get(WAVE_TITLE_TEXTURE_URL) ?? Texture.WHITE;
+    this.maxShotAura.texture = this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES[0])
+      ?? this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA)
+      ?? Texture.WHITE;
+    this.bossHealthFrame.texture = this.textureBank.get(ASSETS.PIXI_BOSS_HEALTH_FRAME) ?? Texture.WHITE;
+    this.warningBanner.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_FRAME) ?? Texture.WHITE;
+    this.warningRing.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_RING) ?? Texture.WHITE;
+    this.warningScan.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_SCAN) ?? Texture.WHITE;
+    this.warningCrystal.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_CRYSTAL) ?? Texture.WHITE;
+    this.effectPool.setExplosionTextures(
+      ASSETS.PIXI_EXPLOSION_FRAMES
+        .map((url) => this.textureBank.get(url))
+        .filter((texture): texture is Texture => Boolean(texture))
+    );
+    this.effectPool.setBossExplosionTextures(
+      ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES
+        .map((url) => this.textureBank.get(url))
+        .filter((texture): texture is Texture => Boolean(texture))
+    );
+    this.setWaveCounterGlyphs(this.currentWaveCounter);
   }
 
   private isPreviewBossEntity(entity: Entity) {
@@ -1820,26 +1860,26 @@ export class PixiGameRenderer {
     if (this.destroyed) return;
     this.resize(this.width, this.height);
 
-    await this.textureBank.preload([...PIXI_GAMEPLAY_TEXTURE_URLS]);
-    this.waveTitle.texture = this.textureBank.get(WAVE_TITLE_TEXTURE_URL) ?? Texture.WHITE;
-    this.maxShotAura.texture = this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA_FRAMES[0])
-      ?? this.textureBank.get(ASSETS.POWERUP_MAX_SHOT_AURA)
-      ?? Texture.WHITE;
-    this.bossHealthFrame.texture = this.textureBank.get(ASSETS.PIXI_BOSS_HEALTH_FRAME) ?? Texture.WHITE;
-    this.warningBanner.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_FRAME) ?? Texture.WHITE;
-    this.warningRing.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_RING) ?? Texture.WHITE;
-    this.warningScan.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_SCAN) ?? Texture.WHITE;
-    this.warningCrystal.texture = this.textureBank.get(ASSETS.PIXI_BOSS_ALERT_CRYSTAL) ?? Texture.WHITE;
-    this.effectPool.setExplosionTextures(
-      ASSETS.PIXI_EXPLOSION_FRAMES
-        .map((url) => this.textureBank.get(url))
-        .filter((texture): texture is Texture => Boolean(texture))
-    );
-    this.effectPool.setBossExplosionTextures(
-      ASSETS.PIXI_BOSS_DAMAGE_EXPLOSION_FRAMES
-        .map((url) => this.textureBank.get(url))
-        .filter((texture): texture is Texture => Boolean(texture))
-    );
+    const selectedRuntimeTextureUrls = this.startupTextureUrls.flatMap((url) => {
+      const motion = getPlayerShipMotionByAssetUrl(url);
+      return motion
+        ? [url, ...Object.values(motion.steeringFrames)]
+        : [url];
+    });
+    const startupTextureUrls = [...new Set([
+      ...PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS,
+      ...selectedRuntimeTextureUrls
+    ].filter(Boolean))];
+    const startupStatus = await this.textureBank.preload(startupTextureUrls);
+    this.bindStartupTextures();
+    if (startupStatus === 'timed-out') {
+      void runGameplayAssetPreloadQueue(
+        startupTextureUrls,
+        (url) => this.textureBank.load(url)
+      ).then(() => {
+        if (!this.destroyed) this.bindStartupTextures();
+      });
+    }
     if (this.destroyed) return;
     this.initialized = true;
   }
@@ -5981,22 +6021,33 @@ export class PixiGameRenderer {
     } else if (entity.type === EntityType.ENEMY_DRONE) {
       view.root.rotation = entity.formation === 'spiral'
         ? Math.PI / 2 + entity.angle
-        : clamp(entity.vx * 0.045, -0.34, 0.34);
+        : entity.formationState
+          ? entity.angle
+          : clamp(entity.vx * 0.045, -0.34, 0.34);
     } else if (entity.type === EntityType.ENEMY_SWARM) {
-      view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.08) * 0.14;
+      const ambientRotation = Math.sin((engine.frameCount + entity.variant) * 0.08) * 0.14;
+      view.root.rotation = entity.formationState
+        ? entity.angle + ambientRotation * 0.3
+        : ambientRotation;
       view.root.scale.set(1 + Math.sin((engine.frameCount + entity.variant) * 0.12) * 0.04);
     } else if (entity.type === EntityType.ENEMY_BRICK) {
       // Belt asteroids keep a stable silhouette; only the formation bulwark
       // enemies use the hovering rotation animation.
       if (entity.variant < 900) {
-        view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.03) * 0.2;
+        const ambientRotation = Math.sin((engine.frameCount + entity.variant) * 0.03) * 0.2;
+        view.root.rotation = entity.formationState
+          ? entity.angle + ambientRotation * 0.2
+          : ambientRotation;
       }
     } else if (entity.type === EntityType.SUPPLY_DROP) {
       const pulse = 1 + Math.sin((engine.frameCount + entity.variant) * 0.065) * 0.035;
       view.root.scale.set(pulse);
       view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.025) * 0.035;
     } else if (entity.type === EntityType.ENEMY_JOURNAL || entity.type === EntityType.ENEMY_INVADER) {
-      view.root.rotation = Math.sin((engine.frameCount + entity.variant) * 0.05) * 0.09;
+      const ambientRotation = Math.sin((engine.frameCount + entity.variant) * 0.05) * 0.09;
+      view.root.rotation = entity.formationState
+        ? entity.angle + ambientRotation * 0.25
+        : ambientRotation;
     } else if (entity.type === EntityType.COIN) {
       // The RSC frame art supplies the 3D yaw flip. A brief presentation-only
       // scale pulse makes boss showers readable without changing pickup

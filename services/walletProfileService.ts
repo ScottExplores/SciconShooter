@@ -283,12 +283,25 @@ export const authenticateWalletProfile = async (
 );
 
 export const loadAuthenticatedWalletProfile = async (
-  address: Address
+  address: Address,
+  {
+    interactive = true
+  }: {
+    interactive?: boolean;
+  } = {}
 ): Promise<AuthenticatedWalletProfileSession<WalletProfileRecord>> => (
   resolveWalletProfileSession({
     walletAddress: address,
     readSession: readWalletProfileSession,
-    authenticate: () => requestWalletProfileAuthentication(address),
+    authenticate: interactive
+      ? () => requestWalletProfileAuthentication(address)
+      : async () => {
+          throw new WalletProfileRequestError(
+            'Wallet profile authorization is required.',
+            401,
+            'wallet_profile_authorization_required'
+          );
+        },
     isUnauthenticatedError: (error) => (
       error instanceof WalletProfileRequestError
       && error.status === 401

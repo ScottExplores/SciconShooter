@@ -21,9 +21,9 @@ const collectKeysAndStrings = (value, keys = [], strings = []) => {
   return { keys, strings };
 };
 
-test('revision 23 contains ten five-depth sectors, explicit route alternatives, and tactical internal Waves', () => {
+test('revision 24 contains ten five-depth sectors, explicit routes, and a compact arcade Wave cadence', () => {
   assert.equal(campaign.schemaVersion, 1);
-  assert.equal(campaign.revision, 23);
+  assert.equal(campaign.revision, 24);
   assert.equal(campaign.fps, 60);
   assert.equal(campaign.hudAssets.bombIconAssetKey, 'GENERATED_HUD_BIOHAZARD_BOMB_E5D01D651F2F');
   assert.equal(campaign.sectors.length, 10);
@@ -49,8 +49,8 @@ test('revision 23 contains ten five-depth sectors, explicit route alternatives, 
     ['ORBIT ENTRY', 'CITATION CROSSING', 'PAYWALL CHECKPOINT', 'BASTION APPROACH', 'BASTION PROTOCOL']
   );
   assert.deepEqual(campaign.levels.map((level) => level.order), Array.from({ length: 60 }, (_, index) => index + 1));
-  assert.deepEqual(firstFive.map((level) => level.waves.length), [5, 6, 5, 7, 4]);
-  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 330);
+  assert.deepEqual(firstFive.map((level) => level.waves.length), [4, 4, 4, 4, 2]);
+  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 220);
   assert.deepEqual(firstFive.map((level) => level.waves[0].scoreMultiplier), [1, 2, 3, 4, 5]);
   campaign.levels.forEach((level) => {
     assert.equal(level.loopWaves, false);
@@ -65,7 +65,7 @@ test('revision 23 contains ten five-depth sectors, explicit route alternatives, 
     assert.ok(levels.every(Boolean));
     assert.equal(sector.mainNodeIds.length, 5);
     assert.equal(sector.routeNodeIds.length, 1);
-    assert.deepEqual(levels.map((level) => level.waves.length), [5, 6, 5, 7, 4]);
+    assert.deepEqual(levels.map((level) => level.waves.length), [4, 4, 4, 4, 2]);
     assert.deepEqual(levels.map((level) => level.campaignProgression.missionRole), [
       'introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'
     ]);
@@ -134,6 +134,13 @@ test('all sixty Mission definitions author balanced rewards, three mastery stars
   const graphNodeByMissionId = new Map(
     campaign.campaignGraph.nodes.map((node) => [node.missionDefinitionId, node])
   );
+  const revision23WaveCounts = new Map([
+    ['introduction', 5],
+    ['formation-remix', 6],
+    ['elite-checkpoint', 5],
+    ['boss-preparation', 7],
+    ['major-boss', 4]
+  ]);
 
   campaign.levels.forEach((level) => {
     const progression = level.campaignProgression;
@@ -146,7 +153,15 @@ test('all sixty Mission definitions author balanced rewards, three mastery stars
     const slot = isRouteAlternative ? 2 : mainSlotIndex + 1;
     const routePremium = isRouteAlternative ? 1.12 : 1;
     const sectorNumber = sectorIndex + 1;
-    assert.equal(progression.reward.waveClearCoins, Math.round((8 + sectorNumber * 2) * routePremium));
+    const formerWaveClearCoins = Math.round((8 + sectorNumber * 2) * routePremium);
+    assert.equal(
+      progression.reward.waveClearCoins,
+      Math.ceil(
+        (formerWaveClearCoins * revision23WaveCounts.get(progression.missionRole))
+          / level.waves.length
+      ),
+      `${level.id} preserves its complete-Mission Wave reward after cadence compression`
+    );
     assert.equal(progression.reward.missionClearCoins, Math.round((24 + sectorNumber * 5) * routePremium));
     assert.equal(progression.reward.firstClearCoins, Math.round((46 + sectorNumber * 11) * routePremium));
     assert.equal(progression.reward.replayMultiplier, 0.2);
@@ -270,11 +285,11 @@ test('ten sector bosses follow a readable durability, bounded score, and project
 
 test('sector Missions expose ordered role-specific Waves with short major-boss lead-ins', () => {
   const expectedCounts = new Map([
-    ['introduction', 5],
-    ['formation-remix', 6],
-    ['elite-checkpoint', 5],
-    ['boss-preparation', 7],
-    ['major-boss', 4]
+    ['introduction', 4],
+    ['formation-remix', 4],
+    ['elite-checkpoint', 4],
+    ['boss-preparation', 4],
+    ['major-boss', 2]
   ]);
   campaign.levels.forEach((level) => {
     const role = level.campaignProgression.missionRole;
@@ -288,25 +303,29 @@ test('sector Missions expose ordered role-specific Waves with short major-boss l
     if (role === 'major-boss') {
       const sector = campaign.sectors.find((candidate) => candidate.id === level.campaignProgression.sectorId);
       assert.deepEqual(level.waves.map((wave) => wave.completionRule), [
-        'clear-after-duration', 'clear-after-duration', 'clear-after-duration', 'boss-defeat'
+        'clear-after-duration', 'boss-defeat'
       ]);
-      assert.deepEqual(level.waves.map((wave) => wave.rhythm), ['warm-up', 'variation', 'recovery', 'boss']);
-      assert.ok(level.waves.slice(0, 3).every((wave) => wave.events.every((event) => event.kind !== 'boss')));
+      assert.deepEqual(level.waves.map((wave) => wave.rhythm), ['variation', 'boss']);
+      assert.ok(level.waves.slice(0, 1).every((wave) => wave.events.every((event) => event.kind !== 'boss')));
       assert.equal(level.waves.at(-1).events.length, 1);
       assert.equal(level.waves.at(-1).events[0].bossId, sector.majorBossId);
+      assert.equal(level.waves.at(-1).events[0].startSeconds, 0);
+      assert.ok(level.waves.at(-1).events[0].warningSeconds <= 1.5);
     } else {
       assert.ok(level.waves.every((wave) => wave.completionRule === 'clear-after-duration'));
     }
   });
 });
 
-test('each sector finale has two bounded combat lead-ins, recovery, one major-boss encounter, and a five-second reward window', () => {
+test('each sector finale runs one active intercept directly into its boss and keeps the reward window', () => {
   campaign.sectors.forEach((sector) => {
     const stage = campaign.levels.find((level) => level.id === sector.missionIds.at(-1));
     assert.equal(stage.campaignProgression.missionRole, 'major-boss');
-    assert.equal(stage.waves.length, 4);
-    assert.deepEqual(stage.waves.slice(0, 3).map((wave) => wave.durationSeconds), [11, 12, 7]);
-    assert.ok(stage.waves.slice(0, 3).every((wave) => wave.events.every((event) => event.kind !== 'boss')));
+    assert.equal(stage.waves.length, 2);
+    assert.deepEqual(stage.waves.slice(0, 1).map((wave) => wave.durationSeconds), [12]);
+    assert.ok(stage.waves[0].events.every((event) => event.kind !== 'boss'));
+    assert.ok(stage.waves[0].events.filter((event) => event.kind === 'spawn').length >= 3);
+    assert.equal(stage.waves[0].events.filter((event) => event.kind === 'recovery').length, 1);
     const bossWave = stage.waves.at(-1);
     assert.equal(bossWave.events.length, 1);
     assert.equal(bossWave.events[0].kind, 'boss');
@@ -388,7 +407,7 @@ test('spawn pools are complete, weighted, and contain directly editable combat v
   });
 });
 
-test('non-boss Missions escalate through readable authored formation packs', () => {
+test('non-boss Missions overlap readable formations with loose interceptors', () => {
   const packIds = new Set(campaign.formationPacks.map((pack) => pack.id));
   const nonBossMissions = campaign.levels.filter((level) => level.campaignProgression.missionRole !== 'major-boss');
   nonBossMissions.forEach((level) => {
@@ -396,8 +415,10 @@ test('non-boss Missions escalate through readable authored formation packs', () 
     assert.ok(introduce, `${level.id} has an introduction Wave`);
     assert.ok(introduce.formationPackIds.length > 0);
     introduce.formationPackIds.forEach((packId) => assert.equal(packIds.has(packId), true));
-    introduce.events.filter((event) => event.kind === 'spawn').forEach((event) => {
-      assert.notEqual(event.patternId, 'single-random');
+    const spawns = introduce.events.filter((event) => event.kind === 'spawn');
+    const formations = spawns.filter((event) => event.patternId !== 'single-random');
+    assert.ok(formations.length > 0, `${level.id} has an authored formation in its lock Wave`);
+    formations.forEach((event) => {
       assert.ok(event.spawnIntervalSeconds >= 0.28);
       assert.ok(event.spawnIntervalSeconds <= 0.6);
     });
@@ -423,23 +444,28 @@ test('each non-boss Mission teaches before it peaks and budgets cover every auth
   expectedPowerBySector.slice(1).forEach((power, index) => assert.ok(power > expectedPowerBySector[index]));
 });
 
-test('recovery Waves keep light downward traffic between formation peaks', () => {
+test('recovery pickups and light drifters arrive during active pressure instead of a quiet Wave', () => {
   campaign.levels.filter((level) => level.campaignProgression.missionRole !== 'major-boss').forEach((level) => {
-    const recoveryIndex = level.waves.findIndex((wave) => wave.rhythm === 'recovery');
-    assert.ok(recoveryIndex > 0);
-    assert.ok(recoveryIndex < level.waves.length - 1);
-    const recovery = level.waves[recoveryIndex];
-    assert.equal(recovery.events.filter((event) => event.kind === 'recovery').length, 1);
-    const drifters = recovery.events.filter((event) => event.kind === 'spawn');
-    assert.equal(drifters.length, 1);
-    assert.equal(drifters[0].patternId, 'single-random');
-    assert.equal(drifters[0].positionId, 'random-top');
-    assert.equal(drifters[0].count, 3);
-    assert.equal(drifters[0].spawnIntervalSeconds, 1.25);
-    assert.equal('spawnAnchor' in drifters[0], false);
-    assert.equal('formationSlots' in drifters[0], false);
-    assert.ok(drifters[0].enemies.every((enemy) => enemy.health <= 10 && enemy.rank !== 'elite'));
-    assert.ok(drifters[0].enemies.every((enemy) => enemy.powerupDropChance === 0));
+    assert.equal(level.waves.some((wave) => wave.rhythm === 'recovery'), false);
+    const pressure = level.waves.find((wave) => (
+      wave.events.some((event) => event.kind === 'recovery')
+    ));
+    assert.ok(pressure, `${level.id} keeps its recovery drops`);
+    assert.ok(pressure.events.filter((event) => event.kind === 'spawn').length >= 2);
+    const drifters = pressure.events.find((event) => (
+      event.kind === 'spawn'
+      && event.patternId === 'single-random'
+      && event.count === 3
+      && event.spawnIntervalSeconds <= 0.82
+    ));
+    assert.ok(drifters);
+    assert.equal(drifters.patternId, 'single-random');
+    assert.equal(drifters.positionId, 'random-top');
+    assert.equal(drifters.count, 3);
+    assert.ok(drifters.spawnIntervalSeconds <= 0.9);
+    assert.equal('spawnAnchor' in drifters, false);
+    assert.equal('formationSlots' in drifters, false);
+    assert.ok(drifters.enemies.every((enemy) => enemy.health <= 10 && enemy.rank !== 'elite'));
     assert.ok(['peak', 'clear'].includes(level.waves.at(-1).rhythm));
   });
 });
@@ -530,7 +556,7 @@ test('shared loader validates campaign JSON before exposing it to the game', () 
   assert.match(source, /getDifficultyMultiplier/);
 });
 
-test('legacy migration leaves current revision-23 structure untouched and infers only omitted legacy completion rules', async () => {
+test('legacy migration leaves current revision-24 structure untouched and infers only omitted legacy completion rules', async () => {
   const {
     migrateLegacyStageWaveHierarchy,
     migrateLegacyWaveCompletionRule

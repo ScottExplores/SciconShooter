@@ -2,13 +2,12 @@
   "schemaVersion": 1,
   "releaseDate": "2026-07-30",
   "scope": {
-    "assets": "The assets array inventories the 14 production files newly imported or re-rendered for this sound pass.",
-    "legacyMusic": "The legacyMusic array hash-pins the three pre-existing mission songs retained at the product owner's request.",
-    "notInventoried": "Other pre-existing repository audio, including the procedural-flight selection and victory signet, is outside this import manifest."
+    "assets": "The assets array inventories the 9 production sound-effect and interface files newly imported or re-rendered for this sound pass.",
+    "notInventoried": "Other pre-existing repository sound effects, including the victory signet, are outside this import manifest.",
+    "removedBackgroundMusic": "Removed music metadata is retained for provenance only; none of these files ship or play."
   },
   "formatPolicy": {
-    "shortEffects": "48 kHz, stereo, 16-bit PCM WAV; cropped from source masters, edge-faded, and gain-matched. Measured post-render sample peaks are recorded per asset.",
-    "music": "44.1 kHz stereo MP3 at 192 kb/s CBR, compatibility-transcoded from the licensed OGG delivery files with FFmpeg 7.0/libmp3lame for broad iPhone and Safari playback."
+    "shortEffects": "48 kHz, stereo, 16-bit PCM WAV; cropped from source masters, edge-faded, and gain-matched. Measured post-render sample peaks are recorded per asset."
   },
   "assets": [
     {
@@ -286,7 +285,9 @@
         "channels": 2,
         "bitDepth": 16
       }
-    },
+    }
+  ],
+  "removedBackgroundMusic": [
     {
       "id": "music-home-stillness",
       "path": "/audio/music/home-stillness.mp3",
@@ -441,7 +442,7 @@
       }
     }
   ],
-  "legacyMusic": [
+  "removedLegacyMusic": [
     {
       "path": "/audio/music/acid-clatter.mp3",
       "title": "ACID CLATTER",
@@ -449,7 +450,7 @@
       "license": "Unknown",
       "sha256": "ed5ec1245ea69f4d53a695b8c6e59637813845d2ae19a4a49bc36bf54259e393",
       "durationSeconds": 100.68,
-      "note": "Retained at product-owner request. No source or redistribution license is documented in this repository."
+      "note": "Previously retained at the product owner's request; now removed from production. No source or redistribution license is documented in this repository."
     },
     {
       "path": "/audio/music/pressure.mp3",
@@ -458,7 +459,7 @@
       "license": "Unknown",
       "sha256": "c373b88299bf3b3bfdb3c6d0de578029f674452779548c0d85750d078cd83435",
       "durationSeconds": 119.3,
-      "note": "Retained at product-owner request. No source or redistribution license is documented in this repository."
+      "note": "Previously retained at the product owner's request; now removed from production. No source or redistribution license is documented in this repository."
     },
     {
       "path": "/audio/music/exellent.mp3",
@@ -467,7 +468,7 @@
       "license": "Unknown",
       "sha256": "092465d7f7423b7c56379b626fde698ca0ebcb4aa8c72c14693ad1cfc979bd46",
       "durationSeconds": 181.21,
-      "note": "Retained at product-owner request. No source or redistribution license is documented in this repository."
+      "note": "Previously retained at the product owner's request; now removed from production. No source or redistribution license is documented in this repository."
     }
   ]
 }

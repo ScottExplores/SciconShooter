@@ -51,8 +51,8 @@ const spaceRuns = [
   }
 ];
 
-test('campaign revision 23 keeps legacy space runs and their internal Waves authored continuously', () => {
-  assert.equal(campaign.revision, 23);
+test('campaign revision 24 keeps legacy space runs and their internal Waves authored continuously', () => {
+  assert.equal(campaign.revision, 24);
   assert.deepEqual(
     campaign.levels.slice(0, 5).map((level) => level.backgroundId),
     ['open-orbit', 'citation-storm', 'paywall-siege', 'open-galaxy', 'bastion-protocol']

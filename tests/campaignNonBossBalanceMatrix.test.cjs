@@ -9,9 +9,16 @@ const root = path.resolve(__dirname, '..');
 const artifactPath = path.join(root, 'artifacts', 'campaign-balance', 'nonboss-runtime-matrix.json');
 const reportPath = path.join(root, 'docs', 'CAMPAIGN_NONBOSS_BALANCE_MATRIX.md');
 const toolPath = path.join(root, 'tools', 'simulate-campaign-nonboss-balance.mjs');
+const toolSource = fs.readFileSync(toolPath, 'utf8');
 
 const loadTool = () => import(pathToFileURL(toolPath).href);
 const readArtifact = () => JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+
+test('pacing evidence excludes the non-interactive death sequence and records the responsible Wave', () => {
+  assert.match(toolSource, /&& engine\.deathSequenceFrames <= 0/);
+  assert.match(toolSource, /maximumFirstVisibleThreatDelayWaveId/);
+  assert.match(toolSource, /maximumFirstVisibleThreatDelayContext/);
+});
 
 test('checked-in non-boss runtime matrix covers every non-boss graph Mission and requested axis cell', async () => {
   const campaign = JSON.parse(fs.readFileSync(path.join(root, 'game-config', 'campaign.json'), 'utf8'));
@@ -21,7 +28,7 @@ test('checked-in non-boss runtime matrix covers every non-boss graph Mission and
     return !node.bossId && level?.campaignProgression?.missionRole !== 'major-boss';
   });
 
-  assert.equal(artifact.metadata.schemaVersion, 1);
+  assert.equal(artifact.metadata.schemaVersion, 2);
   assert.equal(artifact.metadata.runtime, 'GameEngine');
   assert.equal(artifact.metadata.campaignRevision, campaign.revision);
   assert.equal(artifact.coverage.sectorCount, 10);
@@ -63,11 +70,16 @@ test('checked-in non-boss runtime matrix covers every non-boss graph Mission and
   assert.equal(artifact.findings.powerInversionMissionLabels.length, 0);
   assert.equal(artifact.findings.supportInversionMissionLabels.length, 0);
   assert.equal(artifact.findings.projectileCeilingBreaches, 0);
+  assert.equal(artifact.findings.firstVisibleThreatDelayBreaches, 0);
+  assert.equal(artifact.findings.visibleCombatDeadAirBreaches, 0);
   assert.equal(artifact.findings.performanceModeCells, 0);
   assert.ok(artifact.summary.maximumHostileProjectiles <= 80);
+  // Mini-boss member groups may briefly use the encounter headroom above the
+  // regular-formation admission budget. Keep that burst bounded while the
+  // stronger no-performance-mode assertion above guards actual fallback use.
   assert.ok(Math.max(...artifact.results
     .filter(({ viewport }) => viewport === 'mobile')
-    .map(({ maximumPerformanceBudgetRatio }) => maximumPerformanceBudgetRatio)) <= 1);
+    .map(({ maximumPerformanceBudgetRatio }) => maximumPerformanceBudgetRatio)) <= 1.2);
   assert.ok(artifact.results.some((row) => (
     row.tier === 'low' && row.support === 'none' && row.outcome !== 'clear'
   )));
@@ -85,6 +97,11 @@ test('checked-in non-boss runtime matrix covers every non-boss graph Mission and
     assert.ok(Number.isFinite(row.maximumHostileProjectiles) && row.maximumHostileProjectiles >= 0);
     assert.ok(Number.isFinite(row.maximumActiveEntities) && row.maximumActiveEntities >= 0);
     assert.ok(Number.isFinite(row.maximumPerformanceBudgetRatio) && row.maximumPerformanceBudgetRatio >= 0);
+    assert.ok(Number.isFinite(row.maximumFirstVisibleThreatDelaySeconds) && row.maximumFirstVisibleThreatDelaySeconds >= 0);
+    assert.equal(typeof row.maximumFirstVisibleThreatDelayWaveId, 'string');
+    assert.ok(Number.isInteger(row.maximumFirstVisibleThreatDelayWaveNumber));
+    assert.equal(typeof row.maximumFirstVisibleThreatDelayContext, 'object');
+    assert.ok(Number.isFinite(row.maximumVisibleCombatDeadAirSeconds) && row.maximumVisibleCombatDeadAirSeconds >= 0);
     if (row.outcome === 'clear') {
       assert.equal(row.deathWave, null);
       assert.ok(row.weeklyPoints > 0);

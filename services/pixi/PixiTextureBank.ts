@@ -1,4 +1,8 @@
 import { Assets, Texture } from 'pixi.js';
+import {
+  runGameplayAssetPreloadQueue,
+  waitForGameplayAssetPreload
+} from '../gameplayAssetPreloadBudget';
 
 /** Shared, nearest-neighbor texture loading for the live game and Director. */
 export class PixiTextureBank {
@@ -28,7 +32,11 @@ export class PixiTextureBank {
   }
 
   preload(urls: string[]) {
-    return Promise.allSettled([...new Set(urls.filter(Boolean))].map((url) => this.load(url)));
+    const warmup = runGameplayAssetPreloadQueue(
+      [...new Set(urls.filter(Boolean))],
+      (url) => this.load(url)
+    );
+    return waitForGameplayAssetPreload(warmup);
   }
 
   get(url: string) {

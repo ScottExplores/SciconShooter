@@ -581,6 +581,7 @@ export const SPAWN_PATTERN_CATALOG: Record<SpawnPatternId, NamedCatalogEntry<Spa
 
 export const SPAWN_POSITION_CATALOG: Record<SpawnPositionId, NamedCatalogEntry<SpawnPositionId>> = {
   'random-top': { id: 'random-top', label: 'Random top edge' },
+  'random-top-fast': { id: 'random-top-fast', label: 'Fast random top edge' },
   'formation-top': { id: 'formation-top', label: 'Centered formation' },
   'center-top': { id: 'center-top', label: 'Top center' },
   'lane-top': { id: 'lane-top', label: 'Top lanes' }

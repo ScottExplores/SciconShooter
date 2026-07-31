@@ -453,7 +453,8 @@ const focusBossPhase = (
       movementPatternId: phase.movementPatternId,
       speed: event.speed * phase.speedMultiplier,
       weapons: clone(weapons),
-      phases: [{ ...focusedPhase, speedMultiplier: 1 }]
+      phases: [{ ...focusedPhase, speedMultiplier: 1 }],
+      revival: undefined
     };
   }
   if (event.timeline?.attacks?.length) {
@@ -470,13 +471,17 @@ const focusBossPhase = (
     return {
       ...event,
       weapons: clone(weapons),
-      phases: [focusedPhase, ...dormantReferencedPhases]
+      phases: [focusedPhase, ...dormantReferencedPhases],
+      // A focused phase starts as the opening phase, so an authored revival
+      // cannot safely target its original phase ordering in this preview.
+      revival: undefined
     };
   }
   return {
     ...event,
     weapons: clone(weapons),
-    phases: [focusedPhase]
+    phases: [focusedPhase],
+    revival: undefined
   };
 };
 
@@ -750,6 +755,10 @@ export const createPromotionCampaign = (
       }
     }
     reindexWaves(targetLevel);
+    const graphNode = campaign.campaignGraph?.nodes.find((node) => (
+      node.missionDefinitionId === targetLevel.id
+    ));
+    if (graphNode) graphNode.routeSummary.estimatedWaveCount = targetLevel.waves.length;
   } else {
     const targetWave = targetLevel.waves.find((wave) => wave.id === input.targetWaveId);
     if (!targetWave) throw new Error(`Unknown Combat Lab promotion wave: ${input.targetWaveId}`);

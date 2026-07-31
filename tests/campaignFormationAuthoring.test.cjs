@@ -37,7 +37,7 @@ test('formation normalization is idempotent and never changes Campaign route top
   const first = normalizeCampaignFormationAuthoring(campaign);
   const second = normalizeCampaignFormationAuthoring(campaign);
 
-  assert.equal(first.groupedSpawnCount, 386);
+  assert.equal(first.groupedSpawnCount, 388);
   assert.deepEqual(first.declarationChanges, []);
   assert.deepEqual(first.cooldownChanges, []);
   assert.deepEqual(second.declarationChanges, []);

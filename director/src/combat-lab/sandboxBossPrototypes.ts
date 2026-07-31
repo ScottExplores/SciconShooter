@@ -4573,6 +4573,7 @@ const buildPreview = (
     delayAfterSeconds: 0,
     scoreMultiplier: 1,
     threatCap: Math.max(48, wave.threatCap),
+    formationPackIds: [],
     events: [boss]
   };
   const waveIndex = level.waves.findIndex((candidate) => candidate.id === wave.id);

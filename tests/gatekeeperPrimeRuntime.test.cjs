@@ -36,7 +36,7 @@ test('Mission 5 ends its authored runway with a dedicated Gatekeeper Prime encou
   ));
   assert.ok(mission, 'Mission 5 exists');
   assert.equal(mission.order, 5);
-  assert.equal(mission.waves.length, 4);
+  assert.equal(mission.waves.length, 2);
   assert.ok(mission.waves.slice(0, -1).every((wave) => wave.completionRule === 'clear-after-duration'));
   const finalWave = mission.waves.at(-1);
   assert.equal(finalWave.completionRule, 'boss-defeat');

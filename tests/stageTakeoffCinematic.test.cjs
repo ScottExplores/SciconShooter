@@ -240,6 +240,11 @@ test('internal Wave cleanup preserves only persistent pickups and player-owned s
   assert.match(engine, /if \(!preserveInternalWaveState\) this\.pendingPlayerShots\.length = 0/);
   assert.match(engine, /if \(!preserveInternalWaveState\) this\.playerAfterimages\.length = 0/);
   assert.match(engine, /beginTacticalWaveCompletion\(\)[\s\S]*?clearStageBoundaryDebris\(false, true, false, true\)/);
+  assert.match(
+    engine,
+    /clearThreatsForMainBoss\(\)[\s\S]*?entity\.isPlayerShot[\s\S]*?EntityType\.PROJECTILE[\s\S]*?EntityType\.MISSILE/,
+    'boss alerts clear hostile traffic without erasing shots already fired by the player'
+  );
 });
 
 test('continuity drifters cover the authored timer without an unbounded spawn loop', () => {
@@ -250,9 +255,9 @@ test('continuity drifters cover the authored timer without an unbounded spawn lo
     getWaveContinuityLooseEnemyCap
   } = loadTakeoffPresentation();
 
-  assert.equal(getWaveContinuityLooseEnemyCap(60), 0);
-  assert.equal(getWaveContinuityLooseEnemyCap(16 * 60), 10);
-  assert.equal(getWaveContinuityLooseEnemyCap(20 * 60), 13);
+  assert.equal(getWaveContinuityLooseEnemyCap(60), 3);
+  assert.equal(getWaveContinuityLooseEnemyCap(16 * 60), 53);
+  assert.equal(getWaveContinuityLooseEnemyCap(20 * 60), 64);
   assert.ok(getWaveContinuityLooseEnemyCap(60 * 60) <= WAVE_CONTINUITY_MAX_LOOSE_ENEMIES);
   assert.ok(
     getWaveContinuityLooseEnemyCap(16 * 60) * WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES

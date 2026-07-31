@@ -601,7 +601,7 @@ export const inferLegacyBossArchiveEventIds = (
     || (highestMission >= finalMission && bossesDefeated >= finalMission)
     // The pre-graph Campaign ended at Mission 20. A profile that reached that
     // historical cap with the matching victory count proved a full clear even
-    // though the revision-23 graph now contains more authored nodes.
+    // though the expanded Campaign graph contains more authored nodes.
     || (
       highestMission >= LEGACY_CAMPAIGN_FINAL_MISSION
       && bossesDefeated >= LEGACY_CAMPAIGN_FINAL_MISSION

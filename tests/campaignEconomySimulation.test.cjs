@@ -16,14 +16,14 @@ const loadSimulation = async () => {
   };
 };
 
-test('revision-23 economy reports main, alternate-route, and mastery envelopes for all ten sectors', async () => {
+test('revision-24 economy reports main, alternate-route, and mastery envelopes for all ten sectors', async () => {
   const { simulation } = await loadSimulation();
 
-  assert.equal(simulation.campaignRevision, 23);
+  assert.equal(simulation.campaignRevision, 24);
   assert.equal(simulation.sectorRows.length, 10);
   assert.equal(simulation.missionRows.length, 50);
   assert.equal(simulation.sectorRows.every((sector) => sector.missionCount === 5), true);
-  assert.equal(simulation.sectorRows.every((sector) => sector.waveCount === 27), true);
+  assert.equal(simulation.sectorRows.every((sector) => sector.waveCount === 18), true);
   assert.equal(simulation.sectorRows.every((sector) => sector.alternateRouteCount === 1), true);
   assert.deepEqual(
     simulation.sectorRows.map((sector) => ({
@@ -33,35 +33,35 @@ test('revision-23 economy reports main, alternate-route, and mastery envelopes f
       fullMaximum: sector.fullMasteryMaximumCoins
     })),
     [
-      { clearOnly: 905, expected: 1040, fullMinimum: 1978, fullMaximum: 2235 },
-      { clearOnly: 1082, expected: 1242, fullMinimum: 2428, fullMaximum: 2428 },
-      { clearOnly: 1259, expected: 1444, fullMinimum: 2844, fullMaximum: 2844 },
+      { clearOnly: 911, expected: 1046, fullMinimum: 1986, fullMaximum: 2243 },
+      { clearOnly: 1082, expected: 1242, fullMinimum: 2430, fullMaximum: 2430 },
+      { clearOnly: 1265, expected: 1450, fullMinimum: 2850, fullMaximum: 2850 },
       { clearOnly: 1436, expected: 1646, fullMinimum: 3274, fullMaximum: 3274 },
-      { clearOnly: 1613, expected: 1848, fullMinimum: 3629, fullMaximum: 3629 },
+      { clearOnly: 1619, expected: 1854, fullMinimum: 3635, fullMaximum: 3635 },
       { clearOnly: 1790, expected: 2050, fullMinimum: 4023, fullMaximum: 4023 },
-      { clearOnly: 1967, expected: 2252, fullMinimum: 4425, fullMaximum: 4425 },
-      { clearOnly: 2144, expected: 2454, fullMinimum: 4820, fullMaximum: 4820 },
-      { clearOnly: 2321, expected: 2656, fullMinimum: 5214, fullMaximum: 5214 },
-      { clearOnly: 2498, expected: 2858, fullMinimum: 5610, fullMaximum: 5610 }
+      { clearOnly: 1973, expected: 2258, fullMinimum: 4433, fullMaximum: 4433 },
+      { clearOnly: 2144, expected: 2454, fullMinimum: 4822, fullMaximum: 4822 },
+      { clearOnly: 2327, expected: 2662, fullMinimum: 5222, fullMaximum: 5222 },
+      { clearOnly: 2498, expected: 2858, fullMinimum: 5612, fullMaximum: 5612 }
     ]
   );
   assert.deepEqual(simulation.totals, {
-    clearCoins: 7705,
+    clearCoins: 7735,
     firstClearCoins: 7785,
     star1Coins: 1525,
     star2Coins: 2475,
     star3Coins: 3900,
     masteryCoins: 5700,
-    alternateClearOnlyCoins: 3345,
-    alternateExpectedCoins: 3840,
-    alternateFullMasteryCoins: 5760,
+    alternateClearOnlyCoins: 3357,
+    alternateExpectedCoins: 3852,
+    alternateFullMasteryCoins: 5772,
     branchMinimumCoins: 3395,
     branchMaximumCoins: 3652,
-    clearOnlyCoins: 17015,
-    expectedCoins: 19490,
-    fullMasteryMinimumCoins: 38245,
-    fullMasteryMaximumCoins: 38502,
-    dailyReplayCoins: 715
+    clearOnlyCoins: 17045,
+    expectedCoins: 19520,
+    fullMasteryMinimumCoins: 38287,
+    fullMasteryMaximumCoins: 38544,
+    dailyReplayCoins: 825
   });
 });
 
@@ -114,7 +114,7 @@ test('authored replay, route, and branch income stay bounded and separate from w
   assert.equal(campaign.campaignBranches.every((branch) => branch.replayPolicy === 'no-replay-after-claim'), true);
   assert.deepEqual(
     simulation.sectorRows.map((sector) => sector.dailyReplayCoins),
-    [40, 45, 55, 60, 70, 75, 80, 90, 95, 105]
+    [47, 54, 63, 70, 78, 86, 96, 102, 111, 118]
   );
 
   const campaignCreditBody = squadSource.match(

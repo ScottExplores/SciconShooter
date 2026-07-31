@@ -6,7 +6,7 @@
 
 - A campaign contains ordered `levels`, which are the player-facing Missions. Keep the `levels` property and existing `stage-*` IDs unchanged for compatibility.
 - The campaign-level `recordCard` presentation feeds the Director preview, in-game mission record, and NFT/share SVG renderer.
-- A Mission owns its background, music cue, difficulty, score target, available power-ups, scorecard presentation, and ordered internal `waves`.
+- A Mission owns its background, legacy music catalog ID, difficulty, score target, available power-ups, scorecard presentation, and ordered internal `waves`. Background music playback is intentionally disabled; the ID remains for content compatibility.
 - An internal wave owns its active duration, mission-boundary timing, threat cap, score multiplier, and ordered `events`.
 - Event kinds are `spawn`, `boss`, `asteroid-belt`, `supply-drop`, `powerup`, and `recovery`.
 - JSON stores constrained catalog IDs such as `ENEMY_JOURNAL_FRAMES` or `gatekeeper`; arbitrary asset paths and executable behavior are rejected.
@@ -14,9 +14,9 @@
 - `hudAssets.bombIconAssetKey` selects the bomb control artwork used by the shared real-game HUD.
 - Optional normalized `spawnAnchor` points power visual placement, while bounded `spriteStyle` values change artwork without changing collision boxes.
 
-The checked-in revision defines a finite twenty-Mission campaign. Missions 1–5 retain Open Orbit, Citation Storm, Paywall Siege, Open Galaxy, and Bastion Protocol; Missions 6–20 continue into authored helix, redline, asteroid, swarm, roaming-boss, and final Terminus encounters instead of recycling Mission 1. Each Mission is split into tactical internal waves, and only the final internal wave triggers the Mission completion/departure flow.
+The checked-in revision defines ten five-depth sectors, fifty main-route Missions, and ten alternate-route Mission definitions. Regular Missions use four seamless tactical waves in roughly 43 seconds of authored clock time. Sector finales use one active 12-second intercept followed directly by the major boss. A wave is an encounter-organizing boundary only: player shots and flight continue through it, while only the final wave can trigger Mission completion and departure.
 
-Later Missions deliberately mix boss finales with bossless survival climaxes. Blocking asteroid deluges, elite mass assaults, multi-row bastions, and increasingly mobile Gatekeepers all use the same validated event grammar as the opening campaign. Mission 6 is the first canonical encounter for the violet Citation Storm boss art, while Mission 20 is the authored endpoint and hardest checked-in encounter.
+Dedicated recovery waves are removed. Recovery drops now arrive inside active pressure, early sectors keep wider two-group teaching windows, and sector 7-10 pressure/climax waves can layer a staggered third formation without bypassing threat, shooter, or mobile-performance admission. Later follow-up groups still arrive inside the active clock so strong players do not wait through an empty timer. Blocking asteroid deluges, elite mass assaults, multi-row bastions, and increasingly mobile bosses all use the same validated event grammar as the opening Campaign.
 
 ## Validation and runtime
 

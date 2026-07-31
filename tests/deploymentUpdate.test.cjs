@@ -105,3 +105,52 @@ test('the app refreshes new deployments only at a safe menu boundary', () => {
     'public, max-age=0, must-revalidate'
   );
 });
+
+test('a stale dynamic gameplay chunk gets one cache-busted recovery without a reload loop', () => {
+  const service = loadUpdateService();
+  const stored = new Map();
+  const replaced = [];
+  const locationRef = {
+    href: 'https://sciconshooter.xyz/?view=home',
+    replace: (url) => { replaced.push(url); }
+  };
+  const storageRef = {
+    getItem: (key) => stored.get(key) ?? null,
+    setItem: (key, value) => stored.set(key, value)
+  };
+  const failure = new TypeError(
+    'Failed to fetch dynamically imported module: https://sciconshooter.xyz/assets/GameStage-old.js'
+  );
+
+  assert.equal(service.recoverFromModulePreloadFailure(
+    failure,
+    { locationRef, storageRef, now: 100_000 }
+  ), true);
+  assert.equal(replaced.length, 1);
+  assert.match(replaced[0], /view=home/);
+  assert.match(replaced[0], /__scicon_module_retry=100000/);
+
+  assert.equal(service.recoverFromModulePreloadFailure(
+    failure,
+    { locationRef, storageRef, now: 100_500 }
+  ), false);
+  assert.equal(replaced.length, 1);
+  assert.equal(service.recoverFromModulePreloadFailure(
+    new Error('Network request failed'),
+    { locationRef, storageRef, now: 200_000 }
+  ), false);
+});
+
+test('Vite preload errors and mission launch failures share the guarded recovery path', () => {
+  const entry = fs.readFileSync(path.join(root, 'index.tsx'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
+
+  assert.match(entry, /window\.addEventListener\('vite:preloadError'/);
+  assert.match(entry, /recoverFromModulePreloadFailure\(event\.payload\)/);
+  assert.match(entry, /event\.preventDefault\(\)/);
+  const launchFailureIndex = app.indexOf("console.error('Gameplay preload failed.', error)");
+  assert.match(
+    app.slice(launchFailureIndex, launchFailureIndex + 500),
+    /recoverFromModulePreloadFailure\(error\)/
+  );
+});

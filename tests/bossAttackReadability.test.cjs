@@ -85,7 +85,7 @@ test('Mission 10 Paywall Decimator keeps its authored burst budget while charged
   const missionTen = campaign.levels.find((level) => level.order === 10);
   const boss = missionTen.waves.at(-1).events.find((event) => event.kind === 'boss');
 
-  assert.equal(campaign.revision, 23);
+  assert.equal(campaign.revision, 24);
   assert.equal(missionSix.campaignProgression.missionRole, 'introduction');
   assert.equal(
     missionSix.waves.flatMap((wave) => wave.events).some((event) => event.kind === 'boss'),
@@ -93,7 +93,7 @@ test('Mission 10 Paywall Decimator keeps its authored burst budget while charged
     'the former Violet Arbiter Mission is now the second-sector introduction'
   );
   assert.equal(missionTen.campaignProgression.missionRole, 'major-boss');
-  assert.equal(missionTen.waves.length, 4, 'major-boss Missions teach, vary, recover, then launch the boss');
+  assert.equal(missionTen.waves.length, 2, 'major-boss Missions run one intercept directly into the boss');
   assert.equal(migration.toRevision, 23);
   assert.equal(migration.missionNodeAliases['stage-null-sector'], 'node-s02-d05');
   assert.ok(boss);
@@ -102,7 +102,7 @@ test('Mission 10 Paywall Decimator keeps its authored burst budget while charged
   assert.equal(boss.health, 800);
   assert.equal(boss.shieldCount, 0);
   assert.equal(boss.speed, 2);
-  assert.ok(boss.warningSeconds >= 5);
+  assert.ok(boss.warningSeconds >= 1.2 && boss.warningSeconds <= 1.5);
 
   const burst = boss.weapons.find((weapon) => weapon.id === 'sandbox-paywall-decimator-burst');
   assert.deepEqual(

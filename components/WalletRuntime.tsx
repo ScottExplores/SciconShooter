@@ -6,7 +6,6 @@ import {
   baseAccountProvider,
   connectBaseAccount,
   disconnectBaseAccount,
-  getConnectedBaseAccount,
   sendRscContinuePayment,
   signBaseAccountMessage,
   switchBaseAccount
@@ -45,6 +44,17 @@ interface WalletRuntimeProps {
   onMissionMintStatus: (status: 'idle' | 'authorizing' | 'confirming' | 'confirmed' | 'error', message?: string, hash?: string) => void;
 }
 
+const getCachedBaseAccount = (): Address | null => {
+  try {
+    const address = localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS);
+    return address && /^0x[a-fA-F0-9]{40}$/.test(address)
+      ? address as Address
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') => {
   const message = error?.shortMessage || error?.message || fallback;
 
@@ -77,7 +87,7 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
   onChampionClaimStatus,
   onMissionMintStatus
 }) => {
-  const [activeWalletAddress, setActiveWalletAddress] = useState<Address | null>(null);
+  const [activeWalletAddress, setActiveWalletAddress] = useState<Address | null>(getCachedBaseAccount);
   const [isConnecting, setIsConnecting] = useState(false);
   const startedActionNonceRef = useRef<number | null>(null);
 
@@ -109,14 +119,10 @@ const WalletRuntime: React.FC<WalletRuntimeProps> = ({
       setActiveWalletAddress(null);
     };
 
-    void getConnectedBaseAccount()
-      .then((address) => {
-        if (!active) return;
-        if (!address) localStorage.removeItem(STORAGE_KEYS.WALLET_ADDRESS);
-        setActiveWalletAddress(address);
-      })
-      .catch(() => undefined);
-
+    // A provider request during mount can queue the Base Account popup until
+    // the next trusted tap. That steals Start Mission / Boss Archive button
+    // presses. Restore the last explicit connection from storage and let
+    // provider events or an explicit wallet action reconcile it instead.
     baseAccountProvider.on('accountsChanged', handleAccountsChanged);
     baseAccountProvider.on('disconnect', handleDisconnect);
     return () => {

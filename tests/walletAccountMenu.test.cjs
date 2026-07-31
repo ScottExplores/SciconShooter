@@ -42,6 +42,8 @@ test('returning sessions restore automatically and provider disconnect events cl
   const runtime = read('components', 'WalletRuntime.tsx');
 
   assert.match(app, /useState\(\(\) => \(\s*Boolean\(localStorage\.getItem\(STORAGE_KEYS\.WALLET_ADDRESS\)\)/);
+  assert.match(runtime, /useState<Address \| null>\(getCachedBaseAccount\)/);
+  assert.doesNotMatch(runtime, /getConnectedBaseAccount\(\)/);
   assert.match(runtime, /baseAccountProvider\.on\('accountsChanged', handleAccountsChanged\)/);
   assert.match(runtime, /baseAccountProvider\.on\('disconnect', handleDisconnect\)/);
   assert.match(runtime, /removeListener\('disconnect', handleDisconnect\)/);
@@ -55,7 +57,7 @@ test('switching wallets loads a distinct authenticated cloud profile', () => {
   assert.match(app, /const \[pilotProfile\] = useState\(initializeLocalPilotProfile\)/);
   assert.match(app, /const walletProfileId = getWalletProfileId\(normalizedAddress\)/);
   assert.match(app, /walletProfileAddressRef\.current = normalizedAddress/);
-  assert.match(app, /loadAuthenticatedWalletProfile\(\s*activeWalletAddress as Address\s*\)/);
+  assert.match(app, /loadAuthenticatedWalletProfile\(\s*activeWalletAddress as Address,\s*\{ interactive: interactiveAuthorization \}\s*\)/);
   assert.match(app, /walletProfileAddressRef\.current !== normalizedAddress/);
   assert.match(app, /hydrateActiveProfile\(\{[\s\S]*?profileId: pilotProfile\.id[\s\S]*?\}\)/);
   assert.match(app, /localStorage\.setItem\(STORAGE_KEYS\.WALLET_ADDRESS, activeWalletAddress\)/);

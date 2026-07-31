@@ -62,13 +62,30 @@ test('routine wallet disconnect preserves the verified device session for seamle
   );
   assert.match(
     app,
-    /const authenticatedSession = await loadAuthenticatedWalletProfile\([\s\S]*let profile = authenticatedSession\.profile/
+    /const authenticatedSession = await loadAuthenticatedWalletProfile\([\s\S]*interactive: interactiveAuthorization[\s\S]*let profile = authenticatedSession\.profile/
   );
   assert.match(
     app,
     /if \(!normalizedAddress\) \{[\s\S]*HttpOnly profile session[\s\S]*return;[\s\S]*\}/
   );
   assert.doesNotMatch(app, /logoutWalletProfileSession/);
+});
+
+test('remembered wallets never open an authorization prompt during app startup', () => {
+  const service = read('services', 'walletProfileService.ts');
+  const app = read('App.tsx');
+  const runtime = read('components', 'WalletRuntime.tsx');
+
+  assert.match(service, /interactive = true/);
+  assert.match(
+    service,
+    /authenticate: interactive[\s\S]*requestWalletProfileAuthentication\(address\)[\s\S]*wallet_profile_authorization_required/
+  );
+  assert.match(app, /walletProfileInteractiveAuthorizationRef = useRef\(false\)/);
+  assert.match(app, /\{ interactive: interactiveAuthorization \}/);
+  assert.match(app, /!interactiveAuthorization[\s\S]*error\.status === 401[\s\S]*setWalletProfileStatus\('guest'\)[\s\S]*setWalletError\(''\)/);
+  assert.match(app, /walletProfileInteractiveAuthorizationRef\.current = true;[\s\S]*setWalletProfileAuthorizationNonce/);
+  assert.doesNotMatch(runtime, /getConnectedBaseAccount\(\)/);
 });
 
 test('cloud snapshots never persist client-provided minted ownership', () => {

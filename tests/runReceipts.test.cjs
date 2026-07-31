@@ -302,7 +302,7 @@ test('weekly proof recomputes signed leaderboard metrics and ignores client scor
   }, requestStub);
 
   assert.equal(receipt.integrity, 'server-verified');
-  assert.equal(receipt.metrics.score, 2172);
+  assert.equal(receipt.metrics.score, 2022);
   assert.equal(receipt.metrics.wave, 1);
   assert.equal(receipt.metrics.enemiesDefeated, 1);
   assert.equal(receipt.metrics.coinsCollected, 0);
@@ -311,7 +311,7 @@ test('weekly proof recomputes signed leaderboard metrics and ignores client scor
   assert.equal(receipt.weeklyCampaign.completedNodeCount, 1);
   assert.match(receipt.weeklyCampaign.proofHash, /^[a-f0-9]{64}$/);
   const signed = verifyRunReceipt(receipt.receiptToken);
-  assert.equal(signed.metrics.score, 2172);
+  assert.equal(signed.metrics.score, 2022);
   assert.equal(signed.metrics.coinsCollected, 0);
   assert.equal(signed.weeklyCampaign.proofHash, receipt.weeklyCampaign.proofHash);
   assert.equal(Object.hasOwn(receipt.weeklyCampaign, 'walletAddress'), false);

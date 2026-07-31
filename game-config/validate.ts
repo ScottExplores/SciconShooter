@@ -3438,11 +3438,11 @@ const validateCampaignManifestCrossReferences = (
       }
       const waveCount = Array.isArray(level.waves) ? level.waves.length : 0;
       const waveRange: Record<string, [number, number]> = {
-        introduction: [5, 5],
-        'formation-remix': [5, 6],
-        'elite-checkpoint': [4, 6],
-        'boss-preparation': [6, 7],
-        'major-boss': graph ? [3, 4] : [1, 1]
+        introduction: [4, 4],
+        'formation-remix': [4, 4],
+        'elite-checkpoint': [4, 4],
+        'boss-preparation': [4, 4],
+        'major-boss': graph ? [2, 2] : [1, 1]
       };
       const range = waveRange[expectedRole];
       if (waveCount < range[0] || waveCount > range[1]) {

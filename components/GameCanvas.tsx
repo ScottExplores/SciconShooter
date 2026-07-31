@@ -10,7 +10,6 @@ import {
 import type { GameCampaign } from '../game-config/types';
 import { Stats, GamePolishSettings } from '../types';
 import { getFlaskProgress } from '../services/flaskProgress';
-import { audioService } from '../services/audioService';
 import {
   PixiGameRenderer,
   preloadPixiGameplayTextures,
@@ -31,15 +30,17 @@ import {
   createBoundedGameplayTelemetrySink,
   type GameplayTelemetrySnapshot
 } from '../services/gameplay/telemetry';
+import { waitForGameplayAssetPreload } from '../services/gameplayAssetPreloadBudget';
 import { createModularBossWeaponSocketPoseSampler } from '../services/pixi/boss-rigs/ModularBossWeaponSocketRuntime';
 import { resolveCampaignBossArtwork } from '../services/pixi/boss-rigs/CampaignBossArtworkRegistry';
 import type { BossModularProjectileVisualKind } from '../services/gameplay/bosses/BossProjectilePresentationRuntime';
 
 export const preloadGameplayAssets = async () => {
-  await Promise.all([
+  const productionAssetWarmup = Promise.all([
     preloadEngineGameplayAssets(),
     preloadPixiGameplayTextures()
   ]);
+  await waitForGameplayAssetPreload(productionAssetWarmup);
 };
 
 const HUD_STATS_SYNC_INTERVAL_MS = 650;
@@ -147,8 +148,6 @@ export interface GameCanvasProps {
   waveId?: string;
   previewMode?: boolean;
   audioEnabled?: boolean;
-  /** Allows preview tools to enable sound effects without starting mission music. */
-  musicEnabled?: boolean;
   autoFire?: boolean;
   /** Preview-only simulation speed multiplier. The production game stays at 1x. */
   timeScale?: number;
@@ -212,7 +211,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   waveId,
   previewMode = false,
   audioEnabled = !previewMode,
-  musicEnabled = audioEnabled,
   autoFire = false,
   timeScale = 1,
   previewInvincible = true,
@@ -784,7 +782,17 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const initialWidth = previewViewportWidth ?? Math.max(1, Math.round(initialRect.width || 720));
       const initialHeight = previewViewportHeight ?? Math.max(1, Math.round(initialRect.height || 720));
       const renderer = new PixiGameRenderer({
-        previewBossArtwork: activeBossArtwork
+        previewBossArtwork: activeBossArtwork,
+        startupTextureUrls: [
+          ...(runtimeLoadoutRef.current.playerShipUrl
+            ? [runtimeLoadoutRef.current.playerShipUrl]
+            : []),
+          ...(
+            runtimeLoadoutRef.current.squadLoadout?.companions
+              .flatMap((companion) => companion.frames)
+            ?? []
+          )
+        ]
       });
       pendingRenderer = renderer;
       const initialEnvironmentWindow = resolveCampaignEnvironmentWindow(
@@ -813,9 +821,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       const telemetrySink = previewMode
         ? createBoundedGameplayTelemetrySink({ maxEvents: 1024 })
         : undefined;
-      if (audioEnabled) {
-        audioService.setMusicPlaybackEnabled(musicEnabled);
-      }
       const initialLoadout = runtimeLoadoutRef.current;
       const previewBossReducedMotion = Boolean(activeBossArtwork)
         && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
@@ -1279,7 +1284,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       }
       window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (audioEnabled && !musicEnabled) audioService.setMusicPlaybackEnabled(true);
       if (engineRef.current === engine) engineRef.current = null;
       if (pixiRendererRef.current === renderer) pixiRendererRef.current = null;
       renderer.destroy();
@@ -1302,7 +1306,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       pendingRenderer?.destroy();
       pendingRenderer = null;
     };
-  }, [activeBossArtwork, audioEnabled, campaign, musicEnabled, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
+  }, [activeBossArtwork, audioEnabled, campaign, previewMode, previewSeed, previewShipAbilityNoCooldown, previewStartingLives, previewUnlimitedBombs, previewViewportHeight, previewViewportWidth, randomSeed, setupPlayerShipIdDependency, setupPlayerShipUrlDependency, setupSquadLoadoutDependency]);
 
   return (
     <div

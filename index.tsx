@@ -4,6 +4,13 @@ import './styles/tailwind.generated.css';
 import App from './App';
 import DesktopMobileLaunchShell from './components/DesktopMobileLaunchShell';
 import { AppProviders } from './providers';
+import { recoverFromModulePreloadFailure } from './services/deploymentUpdateService';
+
+window.addEventListener('vite:preloadError', (event) => {
+  if (recoverFromModulePreloadFailure(event.payload)) {
+    event.preventDefault();
+  }
+});
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

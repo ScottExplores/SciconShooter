@@ -30,7 +30,7 @@ test('ten five-Mission sectors own tactical Waves and reserve boss-defeat for ma
   assert.deepEqual(campaign.levels.slice(0, 5).map((level) => level.name), [
     'ORBIT ENTRY', 'CITATION CROSSING', 'PAYWALL CHECKPOINT', 'BASTION APPROACH', 'BASTION PROTOCOL'
   ]);
-  const expectedWaveCounts = [5, 6, 5, 7, 4];
+  const expectedWaveCounts = [4, 4, 4, 4, 2];
   const expectedRoles = ['introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'];
 
   campaign.sectors.forEach((sector) => {
@@ -49,9 +49,11 @@ test('ten five-Mission sectors own tactical Waves and reserve boss-defeat for ma
       assert.equal(majorBosses.length, wave.completionRule === 'boss-defeat' ? 1 : 0, wave.id);
       assert.equal(wave.completionRule, isMajorBossFinale ? 'boss-defeat' : 'clear-after-duration');
       if (isMajorBossFinale) {
-        assert.equal(level.waves.length, 4);
-        assert.equal(index, 3);
+        assert.equal(level.waves.length, 2);
+        assert.equal(index, 1);
         assert.equal(wave.events.length, 1);
+        assert.equal(wave.events[0].startSeconds, 0);
+        assert.ok(wave.events[0].warningSeconds <= 1.5);
       }
     });
   });
@@ -74,7 +76,7 @@ test('elite checkpoints and boss-preparation Missions finish with authored block
       assert.equal(allowedBossIds.has(climax.bossId), true);
       assert.equal(climax.blocksWaveClock, true);
       assert.equal(finalWave.completionRule, 'clear-after-duration');
-      assert.equal(finalWave.delayAfterSeconds, 1.8);
+      assert.equal(finalWave.delayAfterSeconds, 1);
     });
   }
 });
@@ -157,10 +159,24 @@ test('internal waves advance seamlessly and only Mission boundaries create resul
   assert.match(engine, /this\.wave = this\.getStageNumberForCampaignIndex\(\)/);
   assert.match(tacticalSource, /this\.clearStageBoundaryDebris\(false, true, false, true\)/);
   assert.match(engine, /this\.internalWaveLooseEntriesRemaining = !stageBoundary && firstSpawnUsesFormation[\s\S]*?INTERNAL_WAVE_LOOSE_ENTRY_COUNT/);
-  assert.match(engine, /patternId: 'single-random'[\s\S]*?positionId: 'random-top'/);
-  assert.match(engine, /this\.getConfiguredSpawnsComplete\(\)[\s\S]*?WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES/);
+  assert.match(engine, /patternId: 'single-random'[\s\S]*?positionId: 'random-top-fast'/);
+  assert.match(engine, /visibleThreatCount <= 2[\s\S]*?visibleThreatCount === 0 \|\| activeThreatCount < threatCap[\s\S]*?WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES/);
+  assert.match(engine, /target\.campaignFiller[\s\S]*?this\.frameCount - target\.campaignSpawnFrame < WAVE_CONTINUITY_ENTRY_GRACE_FRAMES/);
+  assert.match(
+    engine,
+    /retireOffscreenRegularThreatsAtWaveEnd\(\)[\s\S]*?durationReached = this\.waveProgressFrames >= this\.getConfiguredWaveDurationFrames\(\)[\s\S]*?getConfiguredSpawnsComplete\(\)[\s\S]*?completedFormationPass[\s\S]*?entity\.markedForDeletion = true/
+  );
+  assert.match(
+    engine,
+    /this\.applyResearchBeamDamage\(\);[\s\S]*?this\.retireOffscreenRegularThreatsAtWaveEnd\(\);[\s\S]*?this\.compactEntities\(\);[\s\S]*?this\.completeClearWaveIfReady\(\)/
+  );
   assert.match(engine, /difficultyMultiplier,[\s\S]*?false[\s\S]*?this\.internalWaveLooseEntriesRemaining--/);
   assert.match(engine, /getWaveContinuityLooseEnemyCap\(this\.getConfiguredWaveDurationFrames\(\)\)/);
+  assert.match(engine, /enemy\.campaignFiller = !countTowardCombatBudget/);
+  assert.match(
+    engine,
+    /countsTowardCampaignRewards = !target\.campaignFiller[\s\S]*?recordWaveVictoryKill[\s\S]*?stats\.enemiesDefeated\+\+[\s\S]*?countsTowardCampaignRewards\)[\s\S]*?this\.spawnCoin/
+  );
   assert.match(engine, /this\.playerVel = \{ x: 0, y: 0 \};[\s\S]*?this\.playerTilt = 0;[\s\S]*?if \(this\.introFlightFrames > 0\)/);
 });
 

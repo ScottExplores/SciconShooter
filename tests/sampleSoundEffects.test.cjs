@@ -57,7 +57,7 @@ test('combat events distinguish player fire, boss fire, impacts, and destruction
   assert.match(engineSource, /spawnExplosion\(target\.x, target\.y, target\.color, destructionIntensity\)/);
 });
 
-test('the hosted boss runner enables only sound effects and unlocks audio on a user gesture', () => {
+test('the hosted boss runner enables sound effects and unlocks audio on a user gesture', () => {
   const runnerSource = fs.readFileSync(
     path.join(root, 'director', 'remote', 'RemoteBossRunnerApp.tsx'),
     'utf8'
@@ -73,8 +73,10 @@ test('the hosted boss runner enables only sound effects and unlocks audio on a u
 
   assert.match(runnerSource, /audioService\.init\(\)/);
   assert.match(runnerSource, /addEventListener\('pointerdown', initializeAudio, true\)/);
-  assert.match(runnerSource, /audioEnabled\s+musicEnabled=\{false\}/);
+  assert.match(runnerSource, /previewBossArtwork=\{previewBossArtwork\}\s+audioEnabled/);
   assert.match(editorSource, /audioEnabled = false/);
-  assert.match(editorSource, /musicEnabled = false/);
-  assert.match(canvasSource, /audioService\.setMusicPlaybackEnabled\(musicEnabled\)/);
+  assert.match(canvasSource, /audioEnabled = !previewMode/);
+  assert.doesNotMatch(runnerSource, /musicEnabled/);
+  assert.doesNotMatch(editorSource, /musicEnabled/);
+  assert.doesNotMatch(canvasSource, /musicEnabled|setMusicPlaybackEnabled/);
 });

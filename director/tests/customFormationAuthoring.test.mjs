@@ -110,19 +110,20 @@ test('server campaign validation rejects mismatched, unsafe, duplicate, and ungr
   });
 });
 
-test('campaign validation has no five-wave ceiling', async () => {
+test('campaign validation permits a custom fifth wave on an alternate route', async () => {
   const campaign = await loadCampaign();
+  const mainMissionIds = new Set(campaign.sectors.flatMap((sector) => sector.missionIds));
   const level = campaign.levels.find((candidate) => (
-    candidate.campaignProgression?.missionRole === 'elite-checkpoint'
-    && candidate.waves.length === 5
+    !mainMissionIds.has(candidate.id)
+    && candidate.waves.length === 4
   ));
+  assert.ok(level, 'tracked campaign should provide an alternate route for authoring');
   const sourceWave = level.waves.find((wave) => (
     wave.formationPackIds.length === 1
     && wave.events.some((event) => event.kind === 'spawn' && !event.patternId.includes('single'))
   ));
   const sourceSpawn = sourceWave?.events.find((event) => event.kind === 'spawn');
-  assert.ok(level, 'tracked campaign should provide an elite-checkpoint that permits a sixth wave');
-  assert.ok(sourceWave && sourceSpawn, 'elite-checkpoint fixture should provide an explicitly bound grouped spawn');
+  assert.ok(sourceWave && sourceSpawn, 'route fixture should provide an explicitly bound grouped spawn');
   const nextOrder = level.waves.length + 1;
 
   level.waves.push({
@@ -163,6 +164,6 @@ test('campaign validation has no five-wave ceiling', async () => {
   assert.ok(graphNode, 'tracked campaign graph should reference the authored Mission');
   graphNode.routeSummary.estimatedWaveCount = level.waves.length;
 
-  assert.ok(nextOrder > 5, 'tracked starter campaign should reach wave five before this proof');
+  assert.equal(nextOrder, 5, 'the custom route wave extends the compact four-wave starter cadence');
   assert.deepEqual(validateGameCampaign(campaign), { valid: true, errors: [] });
 });

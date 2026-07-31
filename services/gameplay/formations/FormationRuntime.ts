@@ -7,6 +7,15 @@ export type ConfiguredFormationMode =
   | 'diamond'
   | 'spiral';
 
+export type FormationEntryDirection = 'top' | 'left' | 'right' | 'split';
+export type FormationEntryBehavior = 'formation' | 'dive' | 'flank' | 'lane';
+export type FormationManeuverKind =
+  | 'sequential-peel'
+  | 'synchronized-break'
+  | 'feint-dive'
+  | 'crossing-flanks'
+  | 'corkscrew';
+
 export interface FormationPoint {
   x: number;
   y: number;
@@ -19,6 +28,9 @@ export interface FormationGeometryEvent {
   spawnAnchor?: FormationPoint;
   formationSlots?: readonly FormationPoint[];
   enemySpriteKeys?: readonly string[];
+  entryDirection?: FormationEntryDirection;
+  entryPath?: string;
+  entryBehavior?: FormationEntryBehavior;
 }
 
 export interface FormationViewport {
@@ -50,6 +62,9 @@ export interface FormationSpawnPointInput {
 export interface FormationEntryPlanInput {
   eventId: string;
   patternId?: string;
+  entryDirection?: FormationEntryDirection;
+  entryPath?: string;
+  entryBehavior?: FormationEntryBehavior;
   index: number;
   count: number;
   currentFrame: number;
@@ -70,6 +85,51 @@ export interface FormationEntryPlan {
   entryFrames: number;
   diveFrame: number;
   baseSpeed: number;
+  entryDirection?: FormationEntryDirection;
+  entryPath?: string;
+  entryBehavior?: FormationEntryBehavior;
+}
+
+export interface FormationEntryMotionInput {
+  mode: ConfiguredFormationMode;
+  index: number;
+  groupSeed: number;
+  progress: number;
+  viewportWidth: number;
+  entryDirection?: FormationEntryDirection;
+  entryPath?: string;
+  entryBehavior?: FormationEntryBehavior;
+}
+
+export interface FormationEntryMotion {
+  xOffset: number;
+  yOffset: number;
+  angle: number;
+}
+
+export interface FormationDiveMotionInput {
+  mode: ConfiguredFormationMode;
+  index: number;
+  groupSize: number;
+  groupSeed: number;
+  cycle: number;
+  ageFrames: number;
+  baseSpeed: number;
+  current: FormationPoint;
+  anchorX: number;
+  player: FormationPoint;
+  playerVelocityX: number;
+  viewportWidth: number;
+  mobile: boolean;
+  entryBehavior?: FormationEntryBehavior;
+}
+
+export interface FormationDiveMotion {
+  maneuver: FormationManeuverKind;
+  velocityX: number;
+  velocityY: number;
+  angle: number;
+  steering: number;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -91,6 +151,31 @@ export const getFormationGroupSeed = (eventId: string) => {
   }
   return Math.abs(hash % 10000);
 };
+
+const normalizeEntryDirection = (
+  value: FormationEntryDirection | undefined
+): FormationEntryDirection | undefined => (
+  value === 'top' || value === 'left' || value === 'right' || value === 'split'
+    ? value
+    : undefined
+);
+
+const normalizeEntryBehavior = (
+  value: FormationEntryBehavior | undefined
+): FormationEntryBehavior | undefined => (
+  value === 'formation' || value === 'dive' || value === 'flank' || value === 'lane'
+    ? value
+    : undefined
+);
+
+const normalizeEntryPath = (value: string | undefined) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized || undefined;
+};
+
+const getAuthoredEntrySide = (eventId: string, index: number): -1 | 1 => (
+  (index + getFormationGroupSeed(eventId)) % 2 === 0 ? -1 : 1
+);
 
 export const resolveConfiguredFormationMode = (
   patternId?: string
@@ -245,6 +330,9 @@ export const resolveConfiguredFormationSpawnPoint = ({
   const { width, height } = viewport;
   const positionId = String(event.positionId || 'top-random').toLowerCase();
   const patternId = String(event.patternId || 'row').toLowerCase();
+  const authoredDirection = normalizeEntryDirection(event.entryDirection);
+  const entryPath = normalizeEntryPath(event.entryPath);
+  const entryBehavior = normalizeEntryBehavior(event.entryBehavior);
   let x = clamp(Number(randomSample) || 0, 0, 0.999999999999) * Math.max(1, width - 56);
   let y = -60;
 
@@ -254,9 +342,57 @@ export const resolveConfiguredFormationSpawnPoint = ({
 
   const anchor = normalizeAnchor(event.spawnAnchor);
   if (patternId.includes('single') || patternId.includes('random')) {
+    if (!anchor && positionId.includes('fast')) y = 12;
     return anchor
       ? { x: anchor.x * width, y: anchor.y * height }
       : { x, y };
+  }
+
+  if (authoredDirection || entryPath || entryBehavior) {
+    const side = getAuthoredEntrySide(event.id, index);
+    const pair = Math.floor(index / 2);
+    let direction = authoredDirection ?? 'top';
+    if (entryBehavior === 'lane') direction = 'top';
+    if (
+      entryBehavior === 'flank'
+      && direction === 'top'
+    ) direction = 'split';
+
+    if (direction === 'left' || direction === 'right' || direction === 'split') {
+      const resolvedSide = direction === 'left'
+        ? -1
+        : direction === 'right'
+          ? 1
+          : side;
+      const sideDepth = pair % 5;
+      x = resolvedSide < 0
+        ? -76 - sideDepth * 16
+        : width + 76 + sideDepth * 16;
+      y = Math.max(18, height * 0.065) + sideDepth * Math.min(28, height * 0.032);
+      if (entryBehavior === 'dive') y -= Math.min(36, height * 0.04);
+      return { x, y };
+    }
+
+    const spread = count <= 1 ? 0.5 : index / Math.max(1, count - 1);
+    const seedNudge = ((getFormationGroupSeed(event.id) % 5) - 2) * 0.012;
+    const topEntryRight = Math.max(20, width - 56);
+    x = clamp(width * (0.12 + spread * 0.76 + seedNudge), 20, topEntryRight);
+    y = -72 - (index % 3) * 18;
+    if (entryPath?.includes('sweep-bank')) {
+      x = side < 0 ? width * 0.08 : width * 0.92;
+      y = -48 - pair * 14;
+    } else if (entryPath?.includes('ring-assemble')) {
+      const angle = (index / Math.max(1, count)) * Math.PI * 2 - Math.PI / 2;
+      x = clamp(
+        width / 2 + Math.cos(angle) * Math.min(width * 0.36, 152),
+        20,
+        topEntryRight
+      );
+      y = -84 - Math.round((Math.sin(angle) + 1) * 18);
+    } else if (entryBehavior === 'dive') {
+      y = -56 - (index % 2) * 12;
+    }
+    return { x, y };
   }
 
   const mode = resolveConfiguredFormationMode(patternId);
@@ -280,19 +416,322 @@ export const resolveConfiguredFormationSpawnPoint = ({
   return { x, y };
 };
 
+/**
+ * Samples the presentation-neutral formation entry curve. Authored pack and
+ * role metadata only changes offsets along the existing simulation path; the
+ * target, hitbox, and completion state remain owned by the engine.
+ */
+export const resolveFormationEntryMotion = ({
+  mode,
+  index,
+  groupSeed,
+  progress,
+  viewportWidth,
+  entryDirection,
+  entryPath,
+  entryBehavior
+}: FormationEntryMotionInput): FormationEntryMotion => {
+  const normalizedProgress = clamp(Number(progress) || 0, 0, 1);
+  const normalizedDirection = normalizeEntryDirection(entryDirection);
+  const normalizedPath = normalizeEntryPath(entryPath);
+  const normalizedBehavior = normalizeEntryBehavior(entryBehavior);
+  const arcEnvelope = Math.sin(normalizedProgress * Math.PI);
+  const legacyDirection = index % 2 === 0 ? 1 : -1;
+  const baseArcStrength = mode === 'spiral'
+    ? Math.min(viewportWidth * 0.2, 92)
+    : mode === 'pincer'
+      ? Math.min(viewportWidth * 0.14, 66)
+      : Math.min(viewportWidth * 0.11, 52);
+
+  if (!normalizedDirection && !normalizedPath && !normalizedBehavior) {
+    const spiralOffset = mode === 'spiral'
+      ? Math.sin(normalizedProgress * Math.PI * 2 + index * 0.55)
+        * (1 - normalizedProgress)
+        * 38
+      : 0;
+    return {
+      xOffset: arcEnvelope * baseArcStrength * legacyDirection + spiralOffset,
+      yOffset: -arcEnvelope * (mode === 'spiral' ? 42 : 26),
+      angle: arcEnvelope * legacyDirection * (mode === 'spiral' ? 0.5 : 0.32)
+    };
+  }
+
+  const authoredSide = (index + groupSeed) % 2 === 0 ? -1 : 1;
+  const originSide = normalizedDirection === 'left'
+    ? -1
+    : normalizedDirection === 'right'
+      ? 1
+      : normalizedDirection === 'split'
+        ? authoredSide
+        : 0;
+  const curveDirection = originSide === 0 ? legacyDirection : originSide < 0 ? 1 : -1;
+  let arcScale = 1;
+  let liftScale = 1;
+  let bankScale = 1;
+  let waveAmplitude = 0;
+  let waveCycles = 2;
+
+  if (normalizedPath?.includes('sweep-bank')) {
+    arcScale = 1.55;
+    liftScale = 0.9;
+    bankScale = 1.35;
+    waveAmplitude = 18;
+  } else if (normalizedPath?.includes('formation-drop')) {
+    arcScale = 0.35;
+    liftScale = 0.55;
+    bankScale = 0.7;
+  } else if (normalizedPath?.includes('spiral-entry')) {
+    arcScale = 1.1;
+    liftScale = 1.25;
+    bankScale = 1.2;
+    waveAmplitude = 32;
+    waveCycles = 4;
+  } else if (normalizedPath?.includes('paired-flank')) {
+    arcScale = 1.3;
+    liftScale = 0.75;
+    bankScale = 1.2;
+    waveAmplitude = 14;
+  } else if (normalizedPath?.includes('diamond-lock')) {
+    arcScale = 0.65;
+    liftScale = 0.7;
+    bankScale = 0.85;
+    waveAmplitude = 8;
+  } else if (normalizedPath?.includes('double-helix')) {
+    arcScale = 0.85;
+    liftScale = 1.05;
+    bankScale = 1.15;
+    waveAmplitude = 28;
+    waveCycles = 3;
+  } else if (normalizedPath?.includes('side-wall')) {
+    arcScale = 1.05;
+    liftScale = 0.45;
+    bankScale = 0.9;
+    waveAmplitude = 10;
+  } else if (normalizedPath?.includes('lane-stagger')) {
+    arcScale = 0.25;
+    liftScale = 0.45;
+    bankScale = 0.6;
+    waveAmplitude = 4;
+  } else if (normalizedPath?.includes('ring-assemble')) {
+    arcScale = 1.15;
+    liftScale = 1;
+    bankScale = 1.1;
+    waveAmplitude = 26;
+    waveCycles = 4;
+  } else if (normalizedPath?.includes('armored-grid')) {
+    arcScale = 0.3;
+    liftScale = 0.55;
+    bankScale = 0.7;
+  }
+
+  if (normalizedBehavior === 'dive') {
+    arcScale *= 0.8;
+    liftScale *= 1.25;
+    bankScale *= 1.1;
+    waveAmplitude *= 0.8;
+  } else if (normalizedBehavior === 'flank') {
+    arcScale *= 1.35;
+    liftScale *= 0.75;
+    bankScale *= 1.25;
+    waveAmplitude *= 1.2;
+  } else if (normalizedBehavior === 'lane') {
+    arcScale *= 0.35;
+    liftScale *= 0.55;
+    bankScale *= 0.75;
+    waveAmplitude *= 0.25;
+  }
+
+  const waveDirection = authoredSide < 0 ? -1 : 1;
+  const pathWave = Math.sin(normalizedProgress * Math.PI * waveCycles)
+    * arcEnvelope
+    * waveAmplitude
+    * waveDirection;
+  return {
+    xOffset: arcEnvelope * baseArcStrength * curveDirection * arcScale + pathWave,
+    yOffset: -arcEnvelope * (mode === 'spiral' ? 42 : 26) * liftScale,
+    angle: arcEnvelope
+      * curveDirection
+      * (mode === 'spiral' ? 0.5 : 0.32)
+      * bankScale
+  };
+};
+
+/**
+ * Selects a compact combat verb from existing formation and role metadata.
+ * This intentionally adds no authored schema or random state: a formation
+ * always resolves to the same readable maneuver in Campaign and Director.
+ */
+export const resolveFormationManeuverKind = (
+  mode: ConfiguredFormationMode,
+  entryBehavior?: FormationEntryBehavior
+): FormationManeuverKind => {
+  const behavior = normalizeEntryBehavior(entryBehavior);
+  if (behavior === 'flank') return 'crossing-flanks';
+  if (behavior === 'lane') return 'sequential-peel';
+  if (behavior === 'dive') return 'feint-dive';
+  if (mode === 'pincer') return 'crossing-flanks';
+  if (mode === 'spiral') return 'corkscrew';
+  if (mode === 'sine') return 'feint-dive';
+  if (mode === 'v' || mode === 'diamond') return 'synchronized-break';
+  return 'sequential-peel';
+};
+
+/**
+ * Samples one deterministic dive velocity. The caller still owns integration,
+ * collision, and return-state transitions. Output speed is capped relative to
+ * the authored enemy speed, so richer choreography never creates an unbounded
+ * mobile simulation or an unreadable teleport.
+ */
+export const resolveFormationDiveMotion = ({
+  mode,
+  index,
+  groupSize,
+  groupSeed,
+  cycle,
+  ageFrames,
+  baseSpeed,
+  current,
+  anchorX,
+  player,
+  playerVelocityX,
+  viewportWidth,
+  mobile,
+  entryBehavior
+}: FormationDiveMotionInput): FormationDiveMotion => {
+  const maneuver = resolveFormationManeuverKind(mode, entryBehavior);
+  const age = Math.max(0, Math.floor(Number(ageFrames) || 0));
+  const speed = Math.max(2.2, Math.abs(Number(baseSpeed) || 0));
+  const width = Math.max(240, Number(viewportWidth) || 0);
+  const safeGroupSize = Math.max(1, Math.floor(Number(groupSize) || 1));
+  const sequenceSide: -1 | 1 = (index + groupSeed + cycle) % 2 === 0 ? -1 : 1;
+  const breakSide: -1 | 1 = index < safeGroupSize / 2 ? -1 : 1;
+  const centeredIndex = index - ((safeGroupSize - 1) / 2);
+  const readableLaneIndex = Math.abs(centeredIndex) < 0.001
+    ? sequenceSide * 0.65
+    : centeredIndex;
+  const laneOffset = clamp(
+    readableLaneIndex * (mobile ? 34 : 46),
+    -width * 0.32,
+    width * 0.32
+  );
+  const leadX = player.x + playerVelocityX * 6 + laneOffset;
+  const aimX = clamp(leadX, 24, width - 24);
+  const dx = aimX - current.x;
+  const dy = Math.max(90, player.y - current.y);
+  const aimLength = Math.max(1, Math.hypot(dx, dy));
+  const aimVelocityX = (dx / aimLength) * speed;
+  const aimVelocityY = Math.max(speed * 0.72, (dy / aimLength) * speed);
+  let velocityX = aimVelocityX;
+  let velocityY = aimVelocityY;
+  let steering = 0.24;
+
+  if (maneuver === 'crossing-flanks') {
+    const crossingSide: -1 | 1 = anchorX <= width / 2 ? 1 : -1;
+    const crossingProgress = clamp(age / 30, 0, 1);
+    if (age < 30) {
+      velocityX = crossingSide * speed * (1.22 - crossingProgress * 0.3)
+        + aimVelocityX * crossingProgress * 0.32;
+      velocityY = speed * (0.62 + crossingProgress * 0.34);
+      steering = 0.3;
+    } else {
+      const settle = 1 - clamp((age - 30) / 32, 0, 1);
+      velocityX = aimVelocityX * 1.08 + crossingSide * speed * settle * 0.38;
+      velocityY = aimVelocityY * 1.08;
+      steering = 0.1;
+    }
+  } else if (maneuver === 'synchronized-break') {
+    const breakProgress = clamp(age / 14, 0, 1);
+    if (age < 14) {
+      velocityX = breakSide * speed * (1.08 - breakProgress * 0.22);
+      velocityY = speed * (0.44 + breakProgress * 0.28);
+      steering = 0.32;
+    } else {
+      const converge = clamp((age - 14) / 22, 0, 1);
+      velocityX = (
+        breakSide * speed * 0.46 * (1 - converge)
+        + aimVelocityX * 1.15 * converge
+      );
+      velocityY = speed * 0.72 * (1 - converge) + aimVelocityY * 1.12 * converge;
+      steering = 0.12;
+    }
+  } else if (maneuver === 'feint-dive') {
+    if (age < 12) {
+      velocityX = aimVelocityX * 0.25 + sequenceSide * speed * 0.75;
+      velocityY = speed * 0.5;
+      steering = 0.3;
+    } else if (age < 22) {
+      const feintProgress = (age - 12) / 10;
+      velocityX = -sequenceSide * speed * (0.5 + feintProgress * 0.18);
+      velocityY = -speed * (0.2 - feintProgress * 0.08);
+      steering = 0.34;
+    } else {
+      const weave = Math.sin((age - 22) * 0.11 + (groupSeed % 17) * 0.13);
+      velocityX = aimVelocityX * 1.1 + weave * sequenceSide * speed * 0.18;
+      velocityY = aimVelocityY * 1.1;
+      steering = 0.1;
+    }
+  } else if (maneuver === 'corkscrew') {
+    const phase = age * 0.16
+      + (index / safeGroupSize) * Math.PI * 2
+      + (groupSeed % 17) * 0.11
+      + cycle * 0.45;
+    velocityX = aimVelocityX * 0.38 + Math.cos(phase) * speed * 1.02;
+    velocityY = speed * (0.86 + Math.sin(phase) * 0.16);
+    steering = 0.16;
+  } else {
+    const peelFrames = 14 + (index % 3) * 3;
+    if (age < peelFrames) {
+      const peelProgress = age / peelFrames;
+      velocityX = sequenceSide * speed * (0.95 - peelProgress * 0.62)
+        + aimVelocityX * peelProgress * 0.55;
+      velocityY = speed * (0.48 + peelProgress * 0.37);
+      steering = 0.28;
+    } else {
+      const weave = Math.sin((age - peelFrames) * 0.075 + (groupSeed % 13) * 0.17);
+      velocityX = aimVelocityX * 1.05 + weave * sequenceSide * speed * 0.16;
+      velocityY = aimVelocityY * 1.06;
+      steering = 0.08;
+    }
+  }
+
+  const maxSpeed = speed * 1.32;
+  const outputSpeed = Math.hypot(velocityX, velocityY);
+  if (outputSpeed > maxSpeed) {
+    const scale = maxSpeed / outputSpeed;
+    velocityX *= scale;
+    velocityY *= scale;
+  }
+  const angle = clamp(
+    Math.atan2(velocityX, Math.max(0.001, Math.abs(velocityY))) * 0.72,
+    -0.62,
+    0.62
+  );
+
+  return {
+    maneuver,
+    velocityX,
+    velocityY,
+    angle,
+    steering
+  };
+};
+
 const FORMATION_HOLD_FRAMES: Readonly<Record<ConfiguredFormationMode, number>> = Object.freeze({
-  row: 116,
-  v: 106,
-  sine: 72,
-  pincer: 64,
-  grid: 136,
-  diamond: 96,
-  spiral: 82
+  row: 92,
+  v: 84,
+  sine: 62,
+  pincer: 54,
+  grid: 104,
+  diamond: 76,
+  spiral: 68
 });
 
 export const resolveFormationEntryPlan = ({
   eventId,
   patternId,
+  entryDirection,
+  entryPath,
+  entryBehavior,
   index,
   count,
   currentFrame,
@@ -303,8 +742,8 @@ export const resolveFormationEntryPlan = ({
   target
 }: FormationEntryPlanInput): FormationEntryPlan => {
   const mode = resolveConfiguredFormationMode(patternId);
-  const entryFrames = 52 + (index % 4) * 5 + (mode === 'spiral' ? 14 : 0);
-  const diveCadence = mode === 'grid' ? 18 : mode === 'row' ? 20 : mode === 'v' ? 16 : 12;
+  const entryFrames = 44 + (index % 4) * 4 + (mode === 'spiral' ? 12 : 0);
+  const diveCadence = mode === 'grid' ? 14 : mode === 'row' ? 14 : mode === 'v' ? 12 : 10;
   return {
     mode,
     index,
@@ -317,6 +756,9 @@ export const resolveFormationEntryPlan = ({
       + entryFrames
       + (sideSentry ? framesPerSecond * 12 : FORMATION_HOLD_FRAMES[mode])
       + (index % 6) * diveCadence,
-    baseSpeed: Math.max(2.2, Math.abs(baseVerticalSpeed))
+    baseSpeed: Math.max(2.2, Math.abs(baseVerticalSpeed)),
+    entryDirection: normalizeEntryDirection(entryDirection),
+    entryPath: normalizeEntryPath(entryPath),
+    entryBehavior: normalizeEntryBehavior(entryBehavior)
   };
 };
