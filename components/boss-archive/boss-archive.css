@@ -505,26 +505,26 @@
 
 .boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
   .boss-archive-portrait__assembly {
-  animation: boss-archive-intact-hover 4.8s steps(12, end) infinite;
+  animation: boss-archive-intact-hover 4.8s ease-in-out infinite;
 }
 
 .boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
   .boss-archive-portrait__layer[data-motion-role='port-limb'] {
-  animation: boss-archive-port-articulation 5.6s steps(14, end) infinite;
+  animation: boss-archive-port-articulation 5.6s ease-in-out infinite;
 }
 
 .boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
   .boss-archive-portrait__layer[data-motion-role='starboard-limb'] {
-  animation: boss-archive-starboard-articulation 5.6s steps(14, end) infinite;
+  animation: boss-archive-starboard-articulation 5.6s ease-in-out infinite;
 }
 
 .boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='true']
   .boss-archive-portrait__layer[data-motion-role='core'] {
-  animation: boss-archive-core-breathe 4.1s steps(10, end) infinite;
+  animation: boss-archive-core-breathe 4.1s ease-in-out infinite;
 }
 
 img.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='false'] {
-  animation: boss-archive-intact-hover 4.8s steps(12, end) infinite;
+  animation: boss-archive-intact-hover 4.8s ease-in-out infinite;
 }
 
 .boss-archive-carousel__unknown {

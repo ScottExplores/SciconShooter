@@ -8,6 +8,24 @@ import BossArchivePortrait from './BossArchivePortrait';
 
 const DRAG_THRESHOLD_PX = 42;
 const WHEEL_COOLDOWN_MS = 320;
+const BOSS_ART_PRELOADS = new Map<string, Promise<void>>();
+
+const preloadBossArt = (url: string) => {
+  if (BOSS_ART_PRELOADS.has(url)) return;
+  const image = new Image();
+  image.decoding = 'async';
+  image.loading = 'eager';
+  image.src = url;
+  const preload = image.decode
+    ? image.decode().then(() => undefined)
+    : new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error(`Boss Archive art failed to load: ${url}`));
+      });
+  BOSS_ART_PRELOADS.set(url, preload.catch(() => {
+    BOSS_ART_PRELOADS.delete(url);
+  }));
+};
 
 const BossPreviewArt = ({
   item,
@@ -71,15 +89,7 @@ const BossArchiveCarousel: React.FC<BossArchiveCarouselProps> = ({
       urls.add(item.presentation.portraitUrl ?? item.entry.artUrl);
       item.entry.preview.composition?.layers.forEach((layer) => urls.add(layer.url));
     });
-    const images = Array.from(urls, (url) => {
-      const image = new Image();
-      image.decoding = 'sync';
-      image.loading = 'eager';
-      image.src = url;
-      void image.decode?.().catch(() => undefined);
-      return image;
-    });
-    return () => { images.forEach((image) => { image.onload = null; image.onerror = null; }); };
+    urls.forEach(preloadBossArt);
   }, [items]);
 
   const move = (direction: -1 | 1) => {

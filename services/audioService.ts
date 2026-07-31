@@ -171,6 +171,7 @@ class AudioService {
   private pendingMusicPlayerGain: number = 1;
   private pendingMusicRequestId: number = 0;
   private musicDeckPlayAttempts = new Map<HTMLAudioElement, Promise<void>>();
+  private authorizedMusicDecks = new WeakSet<HTMLAudioElement>();
   private musicPlayerGain: number = 1;
   private fadingMusicPlayerGain: number = 1;
   private musicFadeProgress: number = 1;
@@ -204,8 +205,8 @@ class AudioService {
       ? []
       : [this.createMusicDeck(), this.createMusicDeck()];
 
-    // Only tiny interface cues are fetched eagerly. Mission combat assets are
-    // fetched and decoded by prepare() during the mission-loading gate.
+    // Only tiny interface cues are fetched eagerly. Mission combat assets warm
+    // in the background and are never allowed to block gameplay launch.
     void this.prepareSamples(UI_SAMPLE_KEYS);
 
     if (typeof document !== 'undefined') {
@@ -618,6 +619,7 @@ class AudioService {
     const unlockLoop = selectedTrack?.loop ?? true;
 
     this.musicDecks.forEach((player) => {
+      if (this.authorizedMusicDecks.has(player)) return;
       // A second tap can arrive while the previous scene is still fading.
       // That outgoing deck is already authorized and must remain untouched
       // until the crossfade completes.
@@ -629,8 +631,13 @@ class AudioService {
       }
       try {
         const playResult = player.play();
-        if (!playResult || typeof playResult.then !== 'function') return;
-        const attempt = Promise.resolve(playResult).then(() => undefined);
+        if (!playResult || typeof playResult.then !== 'function') {
+          this.authorizedMusicDecks.add(player);
+          return;
+        }
+        const attempt = Promise.resolve(playResult).then(() => {
+          this.authorizedMusicDecks.add(player);
+        });
         this.musicDeckPlayAttempts.set(player, attempt);
         void attempt.then(() => {
           if (player !== this.musicPlayer && player !== this.pendingMusicPlayer) player.pause();
@@ -816,7 +823,15 @@ class AudioService {
   }
 
   public playUiSound(type: UiSoundType) {
-    this.init(true);
+    if (!this.ctx || this.musicDecks.some((player) => !this.authorizedMusicDecks.has(player))) {
+      this.init(true);
+    } else if (this.pageActive && !this.muted && this.ctx.state === 'suspended') {
+      // Once both persistent decks have been gesture-authorized, ordinary menu
+      // taps only need to wake WebAudio and play their cue. Replaying and
+      // reconfiguring both media elements on every button press caused visible
+      // hitches in the Boss Archive on mobile.
+      void this.ctx.resume().catch(() => undefined);
+    }
     if (!this.ctx || this.muted || !this.pageActive || this.sfxVolumeLevel === 0) return;
 
     const nowMs = performance.now();
@@ -914,7 +929,7 @@ class AudioService {
   }
 
   public async prepare() {
-    this.init();
+    this.ensureAudioContext();
     await this.preloadSamples(ALL_SAMPLE_KEYS);
   }
 

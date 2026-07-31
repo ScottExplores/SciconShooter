@@ -36,9 +36,14 @@ test('mission launch joins a pending preload with progress, then locks simulatio
 
   assert.ok(startIndex >= 0 && readyIndex > startIndex && failureIndex > readyIndex);
   assert.match(startFlow, /if \(shouldShowMissionLoading\) \{[\s\S]*setMissionLoading\(\{/);
-  assert.match(startFlow, /await Promise\.all\(\[\s*preloadGameplayComponents\(shouldShowMissionLoading[\s\S]*\(progress, phase\) =>/);
-  assert.match(startFlow, /audioService\.prepare\(\)/);
-  assert.match(startFlow, /audioService\.prepareMusicScene\('mission'\)/);
+  assert.match(startFlow, /await preloadGameplayComponents\(shouldShowMissionLoading[\s\S]*\(progress, phase\) =>/);
+  assert.match(startFlow, /const launchMusicScene = requestedBossReplay \? 'boss' : 'mission'/);
+  assert.match(startFlow, /void audioService\.prepare\(\)\.catch/);
+  assert.match(startFlow, /void audioService\.prepareMusicScene\(launchMusicScene\)\.catch/);
+  assert.doesNotMatch(
+    startFlow,
+    /await Promise\.all\(\[[\s\S]*audioService\.(?:prepare|prepareMusicScene)/
+  );
   assert.match(startFlow, /catch \(error\) \{\s*console\.error\('Gameplay preload failed\.', error\);\s*audioService\.playUiSound\('error'\)/);
   assert.match(startFlow, /setMissionLoading\(\{[\s\S]*progress,[\s\S]*phase,[\s\S]*tip: loadingTip/);
   assert.match(startFlow, /pendingMissionRuntimeRef\.current = \{/);

@@ -187,11 +187,16 @@ test('Boss Archive exposes one charge-based fight flow with difficulty records a
     /animation|filter/
   );
   assert.doesNotMatch(carousel, /\.filter\(\(\{ relative \}\) => Math\.abs\(relative\) <= 2\)/);
-  assert.match(carousel, /image\.decode\?\.\(\)/);
+  assert.match(carousel, /image\.decode\(\)/);
+  assert.match(carousel, /const BOSS_ART_PRELOADS = new Map<string, Promise<void>>\(\)/);
+  assert.match(carousel, /image\.decoding = 'async'/);
+  assert.doesNotMatch(carousel, /image\.decoding = 'sync'/);
+  assert.match(portrait, /decoding="async"/);
   assert.match(archive, /useState<BossArchiveDifficultyId>\('easy'\)/);
   assert.match(css, /boss-archive-intact-hover/);
   assert.match(css, /boss-archive-port-articulation/);
   assert.match(css, /boss-archive-starboard-articulation/);
+  assert.doesNotMatch(css, /animation:\s*boss-archive-(?:intact-hover|port-articulation|starboard-articulation|core-breathe)[^;]*steps\(/);
   const archiveIdleKeyframes = css.slice(css.indexOf('@keyframes boss-archive-intact-hover'));
   assert.doesNotMatch(archiveIdleKeyframes, /filter:|opacity:/);
   assert.doesNotMatch(css, /backdrop-filter|mix-blend-mode|boss-archive-ambient-turn/);
