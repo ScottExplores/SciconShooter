@@ -27,7 +27,7 @@ Branch: `experimental/arcade-polish` (nothing pushed to `main`).
 | 9 | Standardize menus, panels, victory/defeat screens | WIP | Text overlap fixed (ship-lock vs Connect). First-run Tutorial shipped on the shared pixel frame - it was orphaned with zero references. Result screens not yet reviewed. |
 | 10 | Remove conflicting or obsolete old mode logic | WIP | Removed campaign-map weekly panel, orphaned confirmation flow, filler spawn system. |
 | 11 | Build + gameplay smoke checks | DONE | `tsc`, `eslint` clean. `npm test` 1108 passing; only the 2 art failures that also fail on clean main. Matrix regenerated and green. |
-| 12 | Prepare for hands-on testing | TODO | |
+| 12 | Prepare for hands-on testing | DONE | All three entry points verified launching in the running game: Weekly Run (10 lives), Start Mission (3), Campaign Map (3). First-run Tutorial renders and dismisses. Suite green apart from 2 pre-existing art failures. |
 
 ## Verified gameplay baselines
 
