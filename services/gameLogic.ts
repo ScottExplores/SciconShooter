@@ -1863,23 +1863,7 @@ const MOBILE_TAKEOFF_PARTICLE_CAP = 48;
 const DESKTOP_TAKEOFF_PARTICLE_CAP = 80;
 const MOBILE_TAKEOFF_PARTICLES_PER_FRAME = 2;
 const DESKTOP_TAKEOFF_PARTICLES_PER_FRAME = 4;
-export const INTERNAL_WAVE_LOOSE_ENTRY_COUNT = 3;
-export const INTERNAL_WAVE_LOOSE_ENTRY_INTERVAL_FRAMES = 12;
-export const INTERNAL_WAVE_LOOSE_ENTRY_WINDOW_FRAMES = 90;
-export const WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES = 18;
-export const WAVE_CONTINUITY_END_BUFFER_FRAMES = 15;
-export const WAVE_CONTINUITY_MAX_LOOSE_ENEMIES = 64;
 export const WAVE_CONTINUITY_ENTRY_GRACE_FRAMES = 12;
-export const getWaveContinuityLooseEnemyCap = (durationFrames: number) => Math.min(
-  WAVE_CONTINUITY_MAX_LOOSE_ENEMIES,
-  Math.max(
-    0,
-    Math.ceil(
-      (Math.max(0, durationFrames) - WAVE_CONTINUITY_END_BUFFER_FRAMES)
-      / WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES
-    )
-  )
-);
 export const STAGE_BOUNDARY_CLEAR_ENTITY_TYPES = Object.freeze([
   'ENEMY_DRONE',
   'ENEMY_JOURNAL',
@@ -2208,7 +2192,6 @@ export class GameEngine {
   bossWarningDuration: number = 0;
   pendingBossType: BossWarningType | null = null;
   waveTransitionPending: boolean = false;
-  internalWaveLooseEntriesRemaining: number = 0;
   missileTimer: number = 0;
   playerVel = { x: 0, y: 0 };
   playerTilt: number = 0;
@@ -4919,7 +4902,6 @@ export class GameEngine {
     this.bossWarningDuration = 0;
     this.pendingBossType = null;
     this.waveTransitionPending = false;
-    this.internalWaveLooseEntriesRemaining = 0;
     this.previewComplete = false;
     this.configuredEncounterIds.clear();
     if (resetStageSummary) {
@@ -5069,16 +5051,25 @@ export class GameEngine {
     return true;
   }
 
-  retireOffscreenRegularThreatsAtWaveEnd() {
-    const durationReached = this.waveProgressFrames >= this.getConfiguredWaveDurationFrames();
+  /**
+   * Removes stragglers that can no longer rejoin the squadron once a Wave has
+   * finished all of its authored spawning.
+   *
+   * A formation member that is briefly off the top or side of the playfield is
+   * mid dive-and-return: it is coming back and must never be retired, or the
+   * squadron visibly evaporates while the player is still fighting it. Only
+   * hostiles with no formation lifecycle — which can never return on their own
+   * — are eligible, and only once the authored Wave clock has fully elapsed.
+   */
+  retireStrandedRegularThreatsAtWaveEnd() {
     if (
       this.getCurrentWaveCompletionRule() !== 'clear-after-duration'
+      || this.waveProgressFrames < this.getConfiguredWaveDurationFrames()
       || !this.getConfiguredSpawnsComplete()
       || !this.getConfiguredEncountersComplete()
       || this.inBossWarningSequence
     ) return 0;
 
-    const visibleThreatCount = this.getVisibleActiveThreatCount();
     let retired = 0;
     for (const entity of this.entities) {
       const regularThreat = entity.type === EntityType.ENEMY_DRONE
@@ -5086,20 +5077,14 @@ export class GameEngine {
         || entity.type === EntityType.ENEMY_JOURNAL
         || entity.type === EntityType.ENEMY_SWARM
         || entity.type === EntityType.SUPPLY_DROP;
+      if (entity.markedForDeletion || !regularThreat) continue;
+      // Formation members always loop back to their slot; leave them alone.
+      if (entity.formationState) continue;
       const visible = entity.x < this.width
         && entity.x + Math.max(0, entity.width) > 0
         && entity.y < this.height
         && entity.y + Math.max(0, entity.height) > 0;
-      if (entity.markedForDeletion || !regularThreat) continue;
-      if (entity.campaignFiller && durationReached) {
-        entity.markedForDeletion = true;
-        retired++;
-        continue;
-      }
       if (visible) continue;
-      const completedFormationPass = entity.formationState === 'dive'
-        || entity.formationState === 'return';
-      if (!durationReached && (visibleThreatCount > 0 || !completedFormationPass)) continue;
       entity.markedForDeletion = true;
       retired++;
     }
@@ -5211,13 +5196,6 @@ export class GameEngine {
     this.gameActive = true;
     this.campaignComplete = false;
     this.keepEntitiesForNextWave();
-    const firstSpawnPattern = String(this.getConfiguredSpawnEvents()[0]?.patternId || '').toLowerCase();
-    const firstSpawnUsesFormation = Boolean(firstSpawnPattern)
-      && !firstSpawnPattern.includes('single')
-      && !firstSpawnPattern.includes('random');
-    this.internalWaveLooseEntriesRemaining = !stageBoundary && firstSpawnUsesFormation
-      ? INTERNAL_WAVE_LOOSE_ENTRY_COUNT
-      : 0;
     if (stageBoundary) {
       this.beginWavePresentation('mission');
       this.playSound('wave');
@@ -6287,7 +6265,7 @@ export class GameEngine {
 
     this.checkCollisions();
     this.applyResearchBeamDamage();
-    this.retireOffscreenRegularThreatsAtWaveEnd();
+    this.retireStrandedRegularThreatsAtWaveEnd();
     this.compactEntities();
     this.completeClearWaveIfReady();
     this.refreshLoadState();
@@ -8524,8 +8502,12 @@ export class GameEngine {
     formationPack?: FormationPackDefinition,
     role?: EnemyRoleDefinition | null
   ) {
+    // Every authored campaign hostile joins a formation, including the loose
+    // `single-*`/`*-random` events. Formation membership is what gives an enemy
+    // the entry -> hold -> dive -> return loop; without it a hostile flies
+    // straight down, leaves the playfield, and is gone before the player can
+    // engage it. Arcade squadrons must stay on the field until they are shot.
     const patternId = String(event.patternId || '').toLowerCase();
-    if (patternId.includes('single') || patternId.includes('random')) return;
 
     const formation = this.resolveConfiguredFormationMode(patternId);
     if (formation === 'spiral' && enemy.type === EntityType.ENEMY_DRONE) {
@@ -8700,38 +8682,6 @@ export class GameEngine {
     return true;
   }
 
-  getLooseConfiguredSpawnEvent(
-    event: RuntimeSpawnEvent,
-    id: string = event.id,
-    nonScoring: boolean = false
-  ): RuntimeSpawnEvent {
-    const { spawnAnchor: _spawnAnchor, formationSlots: _formationSlots, ...looseEvent } = event;
-    return {
-      ...looseEvent,
-      id,
-      label: `${event.label} drifter`,
-      patternId: 'single-random',
-      positionId: 'random-top-fast',
-      enemies: nonScoring
-          ? event.enemies.map((enemy) => ({
-            ...enemy,
-            roleId: undefined,
-            health: Math.min(4, Math.max(1, Number(enemy.health) || 1)),
-            speed: Math.max(2.8, Number(enemy.speed) || 0),
-            damage: Math.min(1, Math.max(0, Number(enemy.damage) || 0)),
-            scoreValue: 0,
-            powerupDropChance: 0,
-            rank: 'standard',
-            sizeMultiplier: Math.min(1, Math.max(0.65, Number(enemy.sizeMultiplier) || 1)),
-            attackPatternId: undefined,
-            attackIntervalSeconds: undefined,
-            projectileSpeed: undefined,
-            burstCount: undefined
-          }))
-        : event.enemies
-    };
-  }
-
   spawnConfiguredEnemyFromEvent(
     event: RuntimeSpawnEvent,
     spawnIndex: number,
@@ -8878,31 +8828,6 @@ export class GameEngine {
     const elapsedSeconds = this.getWaveElapsedSeconds();
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
     const threatCap = Math.max(1, Number(this.getCurrentWaveDefinition()?.threatCap) || this.getThreatCap());
-    const looseEntryActive = this.internalWaveLooseEntriesRemaining > 0
-      && this.waveProgressFrames <= INTERNAL_WAVE_LOOSE_ENTRY_WINDOW_FRAMES;
-    if (!looseEntryActive) this.internalWaveLooseEntriesRemaining = 0;
-    const looseEntrySource = looseEntryActive
-      ? events.find((event) => elapsedSeconds >= Math.max(0, Number(event.startSeconds) || 0))
-      : null;
-    if (looseEntrySource && this.getActiveThreatCount() < threatCap) {
-      const looseEntryEventId = `${looseEntrySource.id}:lead-in`;
-      const spawned = this.configuredSpawnCounts.get(looseEntryEventId) || 0;
-      const previousFrame = this.configuredSpawnFrames.get(looseEntryEventId);
-      if (
-        spawned < INTERNAL_WAVE_LOOSE_ENTRY_COUNT
-        && (previousFrame === undefined
-          || this.waveProgressFrames - previousFrame >= INTERNAL_WAVE_LOOSE_ENTRY_INTERVAL_FRAMES)
-        && this.spawnConfiguredEnemyFromEvent(
-          this.getLooseConfiguredSpawnEvent(looseEntrySource, looseEntryEventId, true),
-          spawned,
-          INTERNAL_WAVE_LOOSE_ENTRY_COUNT,
-          difficultyMultiplier,
-          false
-        )
-      ) {
-        this.internalWaveLooseEntriesRemaining--;
-      }
-    }
 
     for (const event of events) {
       const startSeconds = Math.max(0, Number(event.startSeconds) || 0);
@@ -8932,40 +8857,6 @@ export class GameEngine {
         this.spawnRingEffect(warningX, this.height * 0.22, '#fb7185');
       }
       this.spawnConfiguredEnemyFromEvent(event, spawned, count, difficultyMultiplier);
-    }
-
-    const wave = this.getCurrentWaveDefinition();
-    const continuityEndFrame = this.getConfiguredWaveDurationFrames() - WAVE_CONTINUITY_END_BUFFER_FRAMES;
-    const continuityTargetCount = getWaveContinuityLooseEnemyCap(this.getConfiguredWaveDurationFrames());
-    const continuitySource = [...events]
-      .reverse()
-      .find((event) => elapsedSeconds >= Math.max(0, Number(event.startSeconds) || 0));
-    const visibleThreatCount = this.getVisibleActiveThreatCount();
-    const activeThreatCount = this.getActiveThreatCount();
-    if (
-      wave
-      && wave.rhythm !== 'recovery'
-      && continuitySource
-      && this.waveProgressFrames < continuityEndFrame
-      && visibleThreatCount <= 2
-      && (visibleThreatCount === 0 || activeThreatCount < threatCap)
-    ) {
-      const continuityEventId = `${wave.id}:continuity`;
-      const spawned = this.configuredSpawnCounts.get(continuityEventId) || 0;
-      const previousFrame = this.configuredSpawnFrames.get(continuityEventId);
-      if (
-        spawned < continuityTargetCount
-        && (previousFrame === undefined
-          || this.waveProgressFrames - previousFrame >= WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES)
-      ) {
-        this.spawnConfiguredEnemyFromEvent(
-          this.getLooseConfiguredSpawnEvent(continuitySource, continuityEventId, true),
-          spawned,
-          continuityTargetCount,
-          difficultyMultiplier,
-          false
-        );
-      }
     }
 
     return true;
