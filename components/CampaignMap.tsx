@@ -13,10 +13,6 @@ import {
   type CampaignProgress
 } from '../services/campaignProgression';
 import { DEFAULT_GAME_CAMPAIGN } from '../services/levelConfig';
-import type {
-
-  WeeklyCampaignStreakState
-} from '../services/weeklyCampaignStreak';
 import CampaignMapCelestial from './campaign-map/CampaignMapCelestial';
 import PixelActionButton from './PixelActionButton';
 import './campaign-map.css';
@@ -438,7 +434,6 @@ interface CampaignMapProps {
   onLaunch: (request: CampaignMapLaunchRequest) => void;
   onSelectRoute?: (request: CampaignMapRouteSelectionRequest) => void;
   onLaunchBranch?: (request: CampaignMapBranchLaunchRequest) => void;
-  weeklyStreak?: WeeklyCampaignStreakState | null;
   onSkipBranchAnimation?: (branchId: string) => void;
   developerControls?: CampaignMapDeveloperControls | null;
 }
@@ -728,7 +723,6 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   onLaunch,
   onSelectRoute,
   onLaunchBranch,
-  weeklyStreak = null,
   onSkipBranchAnimation,
   developerControls = null
 }) => {
@@ -863,24 +857,10 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   const selectedBaseClearReward = selectedMission ? getMissionBaseClearReward(selectedMission) : 0;
   const selectedReplayReward = selectedMission ? getMissionReplayReward(selectedMission) : 0;
   const selectedLaunchWaveId = selectedMission?.waveIds[0] ?? null;
-  const weeklyActive = weeklyStreak?.finalization.status === 'active';
-  const weeklyCurrentNode = weeklyStreak
-    ? CAMPAIGN_GRAPH_NODES.find((node) => node.nodeId === weeklyStreak.currentNodeId) ?? null
-    : null;
-  const weeklyCurrentScored = Boolean(
-    weeklyStreak?.scoredNodeIds.includes(weeklyStreak.currentNodeId)
-  );
-  const weeklySelectedIsCurrent = Boolean(
-    weeklyActive && selectedGraphNode?.nodeId === weeklyStreak?.currentNodeId
-  );
-  const weeklySelectedIsDirectTarget = Boolean(
-    weeklyActive
-    && selectedGraphNode
-    && weeklyCurrentNode?.outgoingEdges.some((edge) => edge.toNodeId === selectedGraphNode.nodeId)
-  );
-  const selectedRevealed = selectedPermanentlyRevealed
-    || weeklySelectedIsCurrent
-    || (weeklySelectedIsDirectTarget && weeklyCurrentScored);
+  // Campaign intel is revealed by Campaign progression alone. It used to also
+  // unlock from the weekly streak's position, which leaked one mode's state
+  // into the other's presentation.
+  const selectedRevealed = selectedPermanentlyRevealed;
   const weeklySelectedRequest = selectedMission && selectedGraphNode && selectedLaunchWaveId
     ? {
         nodeId: selectedGraphNode.nodeId,
@@ -1687,11 +1667,16 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                       Return to current Mission
                     </button>
                   ) : null}
+                  {/* Campaign and the Weekly Run are separate modes with
+                      separate progression, so an in-flight Weekly Run must not
+                      lock the Campaign Map. This gate used to disable every
+                      Mission launch for the rest of the week the moment a
+                      weekly attempt started. */}
                   <PixelActionButton
-                    tone={launchReady && !readOnly && !weeklyActive ? 'green' : 'neutral'}
-                    ready={launchReady && !readOnly && !weeklyActive}
-                    shine={launchReady && !readOnly && !weeklyActive}
-                    disabled={weeklyActive || !launchReady || readOnly || status === 'launch-pending'}
+                    tone={launchReady && !readOnly ? 'green' : 'neutral'}
+                    ready={launchReady && !readOnly}
+                    shine={launchReady && !readOnly}
+                    disabled={!launchReady || readOnly || status === 'launch-pending'}
                     onClick={() => {
                       if (routeSelectionRequest) onSelectRoute?.(routeSelectionRequest);
                       else if (launchRequest) onLaunch(launchRequest);
@@ -1700,9 +1685,7 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                   >
                     {status === 'launch-pending'
                       ? 'Preparing Mission...'
-                      : weeklyActive
-                        ? 'Weekly Streak Active'
-                        : readOnly ? 'Viewing active route' : launchReady ? launchLabel : 'Locked'}
+                      : readOnly ? 'Viewing active route' : launchReady ? launchLabel : 'Locked'}
                   </PixelActionButton>
                 </div>
                 {status === 'launch-error' ? <p className="campaign-map-launch-error" role="alert">{errorMessage || 'Mission launch failed. Try again.'}</p> : null}

@@ -5748,7 +5748,6 @@ const App: React.FC = () => {
             onLaunch={launchCampaignFromMap}
             onSelectRoute={selectCampaignRouteFromMap}
             onLaunchBranch={launchCampaignBranchFromMap}
-            weeklyStreak={weeklySquadState.weeklyCampaignStreak}
             onSkipBranchAnimation={() => setCampaignMapUnlockingBranchId(null)}
             developerControls={campaignMapDeveloperControls}
           />
