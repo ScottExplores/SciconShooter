@@ -20,8 +20,8 @@ Branch: `experimental/arcade-polish` (nothing pushed to `main`).
 | 2 | Build the complete 10-life Weekly Run | DONE | Launches from Home with 10 lives, verified in the running game. Own campaign route, not campaign graph nodes. |
 | 3 | Connect all production-ready bosses into the Weekly Run | DONE | 9 sectors / 27 missions / 9 unique bosses / 90 waves. Each sector runs 2 elites then its boss. Order is one exported array. |
 | 4 | Campaign map progression, missions, coins, branches | WIP | Map is playable again: weekly state no longer disables Mission launch or gates intel reveal. Branch depth still TODO. |
-| 5 | Improve the elite enemy roster and encounters | WIP | `escort` formation added (leader + orbiting guards, leader will not dive while guarded). Not yet authored into waves. |
-| 6 | Distinct signature moves for main ships | WIP | Cooldown ladder done: 16/13/11/9s, Fire Rate tightens up to 35%. Move *kinds* still need differentiating beyond projectile shape. |
+| 5 | Improve the elite enemy roster and encounters | WIP | The 10 authored elites already carry distinct signature mechanics (crossfire, guardian halo, rail traverse, relay duel, gap ring, convoy shield, quadrant grid) and are placed 2-per-sector in the gauntlet. The `escort` formation exists but **cannot be authored into a wave**: `SpawnPatternId` has no `escort` member, so it is only reachable through the loose-shape table. |
+| 6 | Distinct signature moves for main ships | WIP | Cooldown ladder 16/13/11/9s, Fire Rate tightens up to 35%. Each hull already has a distinct projectile behaviour (piercing lance / 3-shard volley / hash burst / pulse). Homing Missiles added as a 4th Hangar track. |
 | 7 | Generate and integrate sprite sheets and effects | BLOCKED | No image generator available in this environment. Ability FX frames already exist under `scicon-player-weapon-fx-v1`. Animation systems/hookups can be wired so generated frames drop in. |
 | 8 | Rebuild the home screen around the two modes | WIP | Both modes named and on screen at 390x844, zero text overlaps, no page scroll. Weekly Run card shows live status/boss count. Campaign card still needs coin balance + route. |
 | 9 | Standardize menus, panels, victory/defeat screens | TODO | One text overlap fixed (ship-lock vs Connect). Shared panel/button styling not yet extracted. |
@@ -35,6 +35,17 @@ Balance matrix (600 trials, real `GameEngine`), vs `main` = 495 clears / 102 dea
 
 - Current: **519 clears / 81 deaths / 0 timeouts**, dead-air breaches **0**, mobile peak load 1.000, no inversions, no perf-mode cells.
 - Enemies leaving the field unshot: **41–50% → 0%**.
+
+## Content bugs found, left for a deliberate decision
+
+- **Two formation packs share one shape.** `pack-light-jet-pincer` and
+  `pack-jet-pincer` are both `pincer`, so `resolveCampaignFormationPackForSpawn`
+  cannot tell them apart. That blocks 28 drifter events from being converted
+  into genuinely pack-backed formations. Giving one pack a different shape
+  unlocks them but changes waves that already use it.
+- **`escort` is not an authorable pattern.** `SpawnPatternId` has no `escort`
+  member, so guarded elite pods can only appear via the loose-shape table, not
+  from authored waves or the Combat Lab.
 
 ## Recorded blockers
 
