@@ -163,6 +163,8 @@ const MORE_MENU_ICON_ROOT = '/game-art/generated/ui/scicon-dashboard-icons-v1/no
 const SCICON_NEON_DASHBOARD_ICON_ROOT = '/game-art/generated/ui/scicon-neon-dashboard-icons-v2';
 const DASHBOARD_NAV_ICON_SPRITESHEET = `${SCICON_NEON_DASHBOARD_ICON_ROOT}/dashboard-nav-icons-static.png`;
 const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/icons/communication';
+// Regenerate with tools/generate-referral-qr.mjs whenever REFERRAL_LINK changes.
+const RESEARCHHUB_REFERRAL_QR = '/game-art/generated/ui/scicon-desktop-mobile-launch-v1/researchhub-referral-qr.png';
 const REWARD_EDGE_ARROW = '/game-art/generated/ui/scicon-reward-edge-v1/reward-arrow.png';
 const REWARD_ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
 
@@ -648,6 +650,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [proposalSearch, setProposalSearch] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
   const [showTreasury, setShowTreasury] = useState(false);
+  const [showReferral, setShowReferral] = useState(false);
+  const [referralCopyStatus, setReferralCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [showLegal, setShowLegal] = useState(false);
   const [showRewardCenter, setShowRewardCenter] = useState(false);
   const [showBossArchive, setShowBossArchive] = useState(() => (
@@ -1153,22 +1157,26 @@ const StartScreen: React.FC<StartScreenProps> = ({
       </div>
 
       <div className={`sci-hero-content relative z-10 flex h-full min-h-[inherit] flex-col items-center justify-between px-4 text-center ${compact ? 'sci-hero-content--compact gap-1 py-2' : 'gap-6 py-7 md:px-8 md:py-10'}`}>
-        <div className={`sci-hero-brand flex flex-col items-center text-center ${compact ? 'sci-hero-brand--compact space-y-1' : 'space-y-3'}`}>
-          <div className="mx-auto flex w-fit items-center gap-3 text-yellow-200/90">
-            <span className="h-px w-14 bg-gradient-to-r from-transparent to-yellow-200/80" />
-            <span className="h-2 w-16 skew-x-[-28deg] bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.45)]" />
-            <span className="h-px w-14 bg-gradient-to-l from-transparent to-yellow-200/80" />
+        {/* The wordmark and tagline are pure branding. On a phone that is the
+            most valuable real estate on the screen, so the flight deck gives it
+            to the ship, the Weekly Run, and Start Mission instead. The document
+            title still names the game for assistive tech. */}
+        {compact ? null : (
+          <div className="sci-hero-brand flex flex-col items-center space-y-3 text-center">
+            <div className="mx-auto flex w-fit items-center gap-3 text-yellow-200/90">
+              <span className="h-px w-14 bg-gradient-to-r from-transparent to-yellow-200/80" />
+              <span className="h-2 w-16 skew-x-[-28deg] bg-gradient-to-r from-yellow-500 via-yellow-200 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.45)]" />
+              <span className="h-px w-14 bg-gradient-to-l from-transparent to-yellow-200/80" />
+            </div>
+            <div className="scicon-hero-title text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]">
+              <span>Scicon</span>
+              <span>Shooter</span>
+            </div>
+            <p className="mx-auto max-w-xl text-xs font-bold uppercase text-cyan-50/85 md:text-sm">
+              Fund research. Upgrade science. Win together.
+            </p>
           </div>
-          <div
-            className={`scicon-hero-title ${compact ? 'scicon-hero-title--compact' : 'text-[3.2rem] md:text-[5rem] xl:text-[6.1rem]'}`}
-          >
-            <span>Scicon</span>
-            <span>Shooter</span>
-          </div>
-          <p className={`mx-auto max-w-xl font-bold uppercase text-cyan-50/85 ${compact ? 'text-[0.64rem]' : 'text-xs md:text-sm'}`}>
-            Fund research. Upgrade science. Win together.
-          </p>
-        </div>
+        )}
 
         <div
           className={`sci-hero-ship-stage relative flex w-full items-center justify-center ${compact ? 'sci-hero-ship-stage--compact' : 'min-h-[14rem]'}`}
@@ -1284,6 +1292,37 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       </div>
     </HudPanel>
+  );
+
+  /** Standalone Weekly Run entry. Deliberately a sibling of the funding
+   *  panel, not a child, so the competition and the way to enter it are two
+   *  separate boxes instead of one crowded card. */
+  const renderWeeklyRunEntry = () => (
+    onStartWeeklyRun ? (
+        <button
+          type="button"
+          className="sci-weekly-run-entry"
+          data-active={weeklyRunActive ? 'true' : 'false'}
+          onClick={onStartWeeklyRun}
+          aria-label={weeklyRunActive
+            ? `Resume Weekly Run. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+            : `Start Weekly Run. One life, every boss, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
+        >
+          <span className="sci-weekly-run-entry__glyph" aria-hidden="true">
+            <img src={ASSETS.PLAYER_SHIP} alt="" draggable={false} />
+          </span>
+          <span className="sci-weekly-run-entry__copy">
+            <span className="sci-weekly-run-entry__title">
+              {weeklyRunActive ? 'Resume Run' : 'Weekly Run'}
+            </span>
+            <span className="sci-weekly-run-entry__sub">1 Life &middot; All Bosses</span>
+          </span>
+          <span className="sci-weekly-run-entry__best" aria-hidden="true">
+            <b>{formatNumber(weeklyRunBestScore ?? 0)}</b>
+            <small>Best</small>
+          </span>
+        </button>
+      ) : null
   );
 
   const renderWeeklyFundingCard = ({ compact = false }: { compact?: boolean } = {}) => (
@@ -1448,31 +1487,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           ) : null}
         </div>
 
-        {onStartWeeklyRun ? (
-          <button
-            type="button"
-            className="sci-weekly-run-entry"
-            data-active={weeklyRunActive ? 'true' : 'false'}
-            onClick={onStartWeeklyRun}
-            aria-label={weeklyRunActive
-              ? `Resume Weekly Run. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
-              : `Start Weekly Run. One life, every boss, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
-          >
-            <span className="sci-weekly-run-entry__glyph" aria-hidden="true">
-              <img src={ASSETS.PLAYER_SHIP} alt="" draggable={false} />
-            </span>
-            <span className="sci-weekly-run-entry__copy">
-              <span className="sci-weekly-run-entry__title">
-                {weeklyRunActive ? 'Resume Run' : 'Weekly Run'}
-              </span>
-              <span className="sci-weekly-run-entry__sub">1 Life &middot; All Bosses</span>
-            </span>
-            <span className="sci-weekly-run-entry__best" aria-hidden="true">
-              <b>{formatNumber(weeklyRunBestScore ?? 0)}</b>
-              <small>Best</small>
-            </span>
-          </button>
-        ) : null}
+
 
       </div>
     </HudPanel>
@@ -1904,7 +1919,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <MoreMenuTile
             label="Referral"
             icon={`${COMMUNICATION_ICON_ROOT}/friends.png`}
-            onClick={onOpenReferral}
+            onClick={() => setShowReferral(true)}
           />
           <MoreMenuTile
             label="Feedback"
@@ -1961,6 +1976,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
     return (
       <div className="scicon-mobile-home flex min-h-full flex-col gap-2">
         {renderWeeklyFundingCard({ compact: true })}
+        {renderWeeklyRunEntry()}
         {renderHeroPanel({ compact: true, fill: true })}
       </div>
     );
@@ -2152,6 +2168,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
               <div className="space-y-5">
                 {renderWeeklyFundingCard()}
+                {renderWeeklyRunEntry()}
               </div>
             </div>
           ) : (
@@ -2285,6 +2302,51 @@ const StartScreen: React.FC<StartScreenProps> = ({
               <button type="button" onClick={onOpenTreasurySend} className="sci-mini-cta">
                 <Icon name="wallet" className="h-4 w-4" />
                 Open wallet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReferral && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-[8px] border border-cyan-300/25 bg-slate-950 p-5 shadow-[0_0_40px_rgba(34,211,238,0.22)]">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-white">Invite to ResearchHub</h2>
+                <p className="text-xs text-slate-300">Scan on a phone, or share the link.</p>
+              </div>
+              <button type="button" onClick={() => setShowReferral(false)} className="sci-icon-button" aria-label="Close referral">
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="flex justify-center rounded-[6px] border border-cyan-300/18 bg-[#020817] p-3">
+              <img
+                src={RESEARCHHUB_REFERRAL_QR}
+                alt="QR code linking to the ResearchHub referral invite"
+                className="h-44 w-44"
+                style={{ imageRendering: 'pixelated' }}
+              />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className="sci-mini-cta"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(ASSETS.REFERRAL_LINK);
+                    setReferralCopyStatus('copied');
+                  } catch {
+                    setReferralCopyStatus('error');
+                  }
+                }}
+              >
+                <Icon name="copy" className="h-4 w-4" />
+                {referralCopyStatus === 'copied' ? 'Copied' : referralCopyStatus === 'error' ? 'Copy failed' : 'Copy link'}
+              </button>
+              <button type="button" onClick={onOpenReferral} className="sci-mini-cta">
+                <Icon name="external" className="h-4 w-4" />
+                Open link
               </button>
             </div>
           </div>

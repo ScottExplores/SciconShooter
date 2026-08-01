@@ -274,8 +274,12 @@
   align-items: center;
   gap: 0.55rem;
   grid-template-columns: 2.15rem minmax(0, 1fr) auto;
-  margin-top: 0.55rem;
+  /* The mobile home shell is a stretch grid; without this the entry inflates
+     to fill its track and pushes Start Mission off the bottom of the screen. */
+  align-self: start;
+  justify-self: stretch;
   padding: 0.1rem 0.15rem;
+  filter: drop-shadow(0 0.35rem 0.6rem rgb(0 0 0 / 0.45));
   border-style: solid;
   border-width: 0.95rem 1.25rem;
   border-image-source: url('/game-art/generated/ui/scicon-ui-system-v2/base/general-borders/information-card.png');

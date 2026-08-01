@@ -185,7 +185,28 @@ import {
   reloadForDeploymentUpdate
 } from './services/deploymentUpdateService';
 
-const WalletRuntime = React.lazy(() => import('./components/WalletRuntime'));
+const importWalletRuntime = () => import('./components/WalletRuntime');
+const WalletRuntime = React.lazy(importWalletRuntime);
+
+/**
+ * Desktop browsers only let a page open a wallet popup while it still holds
+ * user activation from the click. Connecting used to enable the runtime, wait
+ * for this chunk (and the Base Account SDK inside it) to download, mount, and
+ * only then call the provider -- by which point the activation was long gone
+ * and the popup was blocked. Warming the module during idle time keeps the
+ * click-to-popup path short enough to survive.
+ */
+let walletRuntimeWarmed = false;
+const warmWalletRuntime = () => {
+  if (walletRuntimeWarmed || typeof window === 'undefined') return;
+  walletRuntimeWarmed = true;
+  const warm = () => { void importWalletRuntime().catch(() => { walletRuntimeWarmed = false; }); };
+  const idle = (window as unknown as {
+    requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+  }).requestIdleCallback;
+  if (typeof idle === 'function') idle(warm, { timeout: 2500 });
+  else window.setTimeout(warm, 1200);
+};
 const loadGameStage = () => import('./components/GameStage');
 const loadStoryTransmission = () => import('./components/StoryTransmission');
 const MissionRecordPreview = React.lazy(() => import('./components/MissionRecordPreview'));
@@ -735,6 +756,10 @@ const App: React.FC = () => {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  // Warm the wallet chunk during idle so the first Connect click can open its
+  // popup while the browser still honours the user activation.
+  useEffect(() => { warmWalletRuntime(); }, []);
 
   useEffect(() => {
     weeklySquadStateRef.current = weeklySquadState;
@@ -4399,6 +4424,9 @@ const App: React.FC = () => {
   };
 
   const requestWalletRuntimeAction = useCallback((type: 'connect' | 'switch-account' | 'disconnect' | 'continue') => {
+    // Kick the chunk off immediately as well, so a first-ever click does not
+    // have to wait on a cold network fetch before the popup can open.
+    warmWalletRuntime();
     setWalletRuntimeEnabled(true);
     walletActionNonceRef.current += 1;
     setWalletRuntimeAction({ type, nonce: walletActionNonceRef.current });

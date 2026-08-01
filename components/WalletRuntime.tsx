@@ -58,6 +58,13 @@ const getCachedBaseAccount = (): Address | null => {
 const getUserFacingMessage = (error: any, fallback: string, tokenLabel = 'RSC') => {
   const message = error?.shortMessage || error?.message || fallback;
 
+  // A blocked popup surfaces as a generic open/close failure. Reporting it as
+  // "cancelled" tells a desktop player nothing actionable, and this is the most
+  // common reason connecting appears to do nothing on desktop.
+  if (/popup|pop-up|blocked|window\.open|failed to open/i.test(message)) {
+    return 'Your browser blocked the Base sign-in window. Allow pop-ups for this site, then connect again.';
+  }
+
   if (/rejected|denied|cancelled|canceled|closed modal|request rejected/i.test(message)) {
     return fallback;
   }

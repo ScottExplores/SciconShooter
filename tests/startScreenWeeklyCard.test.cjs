@@ -24,11 +24,34 @@ const appSource = fs.readFileSync(
   'utf8'
 );
 
-test('Home has one Mission entry point and no separate weekly-score run control', () => {
-  assert.doesNotMatch(source, /onStartWeeklyRun|Weekly score run/);
-  assert.doesNotMatch(appSource, /startWeeklyRun|onStartWeeklyRun/);
+test('Home offers the Campaign entry point and the Weekly Run as separate controls', () => {
+  // The Weekly board is its own competition, so it gets its own entry rather
+  // than being buried in Campaign Map route selection.
+  assert.match(source, /onStartWeeklyRun/);
+  assert.match(appSource, /startWeeklyRunFromHome/);
   assert.match(source, /onClick=\{onStart\}/);
   assert.match(source, /\{campaignCheckpoint\.waveTotal\} WAVES/);
+});
+
+test('the Weekly Run entry is its own box and does not crowd the funding card', () => {
+  // It renders as a sibling of the funding panel, not a child of it, and is
+  // pinned to content height because the mobile home shell is a stretch grid.
+  assert.match(source, /const renderWeeklyRunEntry = \(\) => \(/);
+  const fundingCard = source.slice(
+    source.indexOf('const renderWeeklyFundingCard'),
+    source.indexOf('const renderWeeklyRunEntry')
+  );
+  assert.doesNotMatch(fundingCard, /sci-weekly-run-entry/);
+  const css = fs.readFileSync(path.join(__dirname, '..', 'styles', 'tailwind.input.css'), 'utf8');
+  const entryRule = css.slice(css.indexOf('.sci-weekly-run-entry {'), css.indexOf('.sci-weekly-run-entry:hover'));
+  assert.match(entryRule, /align-self: start;/);
+  assert.match(entryRule, /border-image-source:[\s\S]*information-card\.png/);
+});
+
+test('the phone flight deck drops the wordmark to buy vertical space', () => {
+  // Branding is the least useful pixel on a 390px screen; the document title
+  // still names the game for assistive tech.
+  assert.match(source, /\{compact \? null : \(\s*<div className="sci-hero-brand/);
 });
 
 test('home winner card uses only the proposal saved on the current weekly leader', () => {
