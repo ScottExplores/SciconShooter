@@ -2297,6 +2297,8 @@ export class GameEngine {
   campaignFormationPackInstances: Map<string, CampaignFormationPackInstanceState> = new Map();
   campaignFormationPackLastRetiredFrames: Map<string, number> = new Map();
   escalationWarningsShown: Set<string> = new Set();
+  /** Spawn groups allowed to launch ahead of schedule because the player cleared the field early. */
+  earlyReleasedSpawnEventIds: Set<string> = new Set();
   pendingBossStrikes: PendingBossStrike[] = [];
   pendingEnemyLasers: PendingEnemyLaser[] = [];
   pendingConfiguredEncounter: RuntimeEncounterEvent | null = null;
@@ -4921,6 +4923,7 @@ export class GameEngine {
     this.waveEnemyKillsMeasured = 0;
     this.peakProjectileCount = 0;
     this.escalationWarningsShown.clear();
+    this.earlyReleasedSpawnEventIds.clear();
     this.pendingBossStrikes = [];
     this.pendingEnemyLasers = [];
     this.pendingConfiguredEncounter = null;
@@ -8822,43 +8825,53 @@ export class GameEngine {
   }
 
   /**
-   * Pulls the next authored squadron forward when the player has already
+   * Releases the next authored squadron early when the player has already
    * cleared the field.
    *
    * Authored `startSeconds` values describe the intended rhythm against an
    * average clear speed. A player who wipes a squadron faster than that would
    * otherwise sit on an empty playfield waiting for the clock, which is the
    * dead air the old continuity drifters existed to paper over. Arcade pacing
-   * closes that gap by launching the next group instead of inventing filler.
+   * closes that gap by launching the next authored group instead of inventing
+   * filler.
    *
-   * This only ever moves the Wave clock forward to a group that was already
-   * authored to arrive, so ordering and composition are untouched.
+   * The Wave clock advances with the released group so that every later group
+   * keeps its authored spacing relative to it. Encounters are never skipped
+   * past -- an elite arriving on top of a freshly pulled-forward squadron is
+   * what pushes peak entity load over the mobile performance budget.
    */
-  advanceWaveClockToNextSquadronWhenFieldIsClear(events: readonly RuntimeSpawnEvent[]) {
+  releaseNextSquadronWhenFieldIsClear(events: readonly RuntimeSpawnEvent[]) {
     if (this.inBossWarningSequence || this.pendingConfiguredEncounter) return;
     if (this.waveTransitionPending || this.introFlightFrames > 0) return;
     if (this.getActiveThreatCount() > 0) return;
 
     const elapsedSeconds = this.getWaveElapsedSeconds();
-    let earliestPendingStart = Number.POSITIVE_INFINITY;
+    // An authored encounter that is still ahead of the clock owns the pacing
+    // here; its warning sequence covers the gap, so never pre-empt it.
+    for (const encounter of this.getConfiguredEncounterEvents()) {
+      if (this.configuredEncounterIds.has(encounter.id)) continue;
+      if (Math.max(0, Number(encounter.startSeconds) || 0) > elapsedSeconds) return;
+    }
+
+    let earliest: RuntimeSpawnEvent | null = null;
+    let earliestStart = Number.POSITIVE_INFINITY;
     for (const event of events) {
+      if (this.earlyReleasedSpawnEventIds.has(event.id)) continue;
       const startSeconds = Math.max(0, Number(event.startSeconds) || 0);
       if (startSeconds <= elapsedSeconds) continue;
       if ((this.configuredSpawnCounts.get(event.id) || 0) >= this.getConfiguredSpawnTargetCount(event)) continue;
-      earliestPendingStart = Math.min(earliestPendingStart, startSeconds);
+      if (startSeconds < earliestStart) {
+        earliestStart = startSeconds;
+        earliest = event;
+      }
     }
-    // An authored encounter still ahead of the clock owns the pacing here; its
-    // own warning sequence covers the gap, so never skip ahead of it.
-    for (const encounter of this.getConfiguredEncounterEvents()) {
-      if (this.configuredEncounterIds.has(encounter.id)) continue;
-      const startSeconds = Math.max(0, Number(encounter.startSeconds) || 0);
-      if (startSeconds > elapsedSeconds) earliestPendingStart = Math.min(earliestPendingStart, startSeconds);
-    }
-    if (!Number.isFinite(earliestPendingStart)) return;
-
+    if (!earliest) return;
+    this.earlyReleasedSpawnEventIds.add(earliest.id);
+    // Carry the clock to the released group so the groups authored after it
+    // keep their intended spacing instead of arriving all at once.
     this.waveProgressFrames = Math.max(
       this.waveProgressFrames,
-      Math.round(earliestPendingStart * GAME_CONFIG.FPS)
+      Math.round(earliestStart * GAME_CONFIG.FPS)
     );
     this.stats.bossProgress = Math.min(
       1,
@@ -8870,7 +8883,7 @@ export class GameEngine {
     this.reconcileCampaignFormationPackInstances();
     const events = this.getConfiguredSpawnEvents();
     if (events.length === 0) return false;
-    this.advanceWaveClockToNextSquadronWhenFieldIsClear(events);
+    this.releaseNextSquadronWhenFieldIsClear(events);
     const elapsedSeconds = this.getWaveElapsedSeconds();
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
     const threatCap = Math.max(1, Number(this.getCurrentWaveDefinition()?.threatCap) || this.getThreatCap());
@@ -8883,7 +8896,14 @@ export class GameEngine {
       const spawned = this.configuredSpawnCounts.get(event.id) || 0;
       const finishingClearWave = this.getCurrentWaveCompletionRule() === 'clear-after-duration'
         && elapsedSeconds >= this.getConfiguredWaveDurationSeconds();
-      if (elapsedSeconds < startSeconds || (!finishingClearWave && elapsedSeconds > endSeconds) || spawned >= count) continue;
+      // A group released early covers dead air on an already-cleared field, so
+      // it ignores its start time but still respects its own end window.
+      const releasedEarly = this.earlyReleasedSpawnEventIds.has(event.id);
+      if (
+        (elapsedSeconds < startSeconds && !releasedEarly)
+        || (!finishingClearWave && !releasedEarly && elapsedSeconds > endSeconds)
+        || spawned >= count
+      ) continue;
       if (this.getActiveThreatCount() >= threatCap) break;
 
       const intervalFrames = Math.max(1, Math.round(

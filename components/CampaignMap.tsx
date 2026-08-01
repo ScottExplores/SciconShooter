@@ -14,7 +14,7 @@ import {
 } from '../services/campaignProgression';
 import { DEFAULT_GAME_CAMPAIGN } from '../services/levelConfig';
 import type {
-  WeeklyCampaignSelectionConfirmation,
+
   WeeklyCampaignStreakState
 } from '../services/weeklyCampaignStreak';
 import CampaignMapCelestial from './campaign-map/CampaignMapCelestial';
@@ -439,14 +439,6 @@ interface CampaignMapProps {
   onSelectRoute?: (request: CampaignMapRouteSelectionRequest) => void;
   onLaunchBranch?: (request: CampaignMapBranchLaunchRequest) => void;
   weeklyStreak?: WeeklyCampaignStreakState | null;
-  weeklyEligibleStartNodeIds?: readonly string[];
-  weeklyLoadout?: CampaignMapWeeklyLoadout | null;
-  weeklySelectionConfirmation?: WeeklyCampaignSelectionConfirmation | null;
-  onStartWeeklyStreak?: (request: CampaignMapLaunchRequest & { nodeId: string }) => void;
-  onSelectWeeklyMission?: (request: CampaignMapLaunchRequest & { nodeId: string }) => void;
-  onConfirmWeeklySelectionEnd?: () => void;
-  onCancelWeeklySelectionEnd?: () => void;
-  onEndWeeklyStreak?: () => void;
   onSkipBranchAnimation?: (branchId: string) => void;
   developerControls?: CampaignMapDeveloperControls | null;
 }
@@ -737,14 +729,6 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
   onSelectRoute,
   onLaunchBranch,
   weeklyStreak = null,
-  weeklyEligibleStartNodeIds = [],
-  weeklyLoadout = null,
-  weeklySelectionConfirmation = null,
-  onStartWeeklyStreak,
-  onSelectWeeklyMission,
-  onConfirmWeeklySelectionEnd,
-  onCancelWeeklySelectionEnd,
-  onEndWeeklyStreak,
   onSkipBranchAnimation,
   developerControls = null
 }) => {
@@ -885,10 +869,6 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
     : null;
   const weeklyCurrentScored = Boolean(
     weeklyStreak?.scoredNodeIds.includes(weeklyStreak.currentNodeId)
-  );
-  const weeklySelectedEligible = Boolean(
-    selectedGraphNode?.weeklyStreakEligible
-    && weeklyEligibleStartNodeIds.includes(selectedGraphNode.nodeId)
   );
   const weeklySelectedIsCurrent = Boolean(
     weeklyActive && selectedGraphNode?.nodeId === weeklyStreak?.currentNodeId
@@ -1694,83 +1674,6 @@ const CampaignMap: React.FC<CampaignMapProps> = ({
                 ) : (
                   <p className="campaign-map-locked-copy">Mission intelligence, command-target identity, rewards, and mastery objectives remain encrypted.</p>
                 )}
-                {selectedRevealed && weeklyLoadout ? (
-                  <section className={`campaign-map-weekly ${weeklyActive ? 'is-active' : ''}`} aria-label="Weekly Campaign Streak">
-                    <div className="campaign-map-weekly__heading">
-                      <div>
-                        <small>Weekly Campaign Streak</small>
-                        <strong>{weeklyActive
-                          ? `${weeklyStreak.score.totalPoints.toLocaleString()} points / ${weeklyStreak.score.completedNodeCount} cleared`
-                          : 'Choose any unlocked weekly Mission to begin'}</strong>
-                      </div>
-                      <span>{weeklyActive ? 'LIVE' : 'READY'}</span>
-                    </div>
-                    <div className="campaign-map-weekly__loadout">
-                      <img src={weeklyLoadout.shipAssetUrl} alt="" />
-                      <span><small>Current ship</small><b>{weeklyLoadout.shipName}</b></span>
-                      <span><small>Support</small><b>{weeklyLoadout.supportNames.join(' / ') || 'None equipped'}</b></span>
-                      <span><small>Power</small><b>{weeklyLoadout.power.toLocaleString()}</b></span>
-                    </div>
-                    {selectedPowerGuide ? (
-                      <p className="campaign-map-weekly__preflight">
-                        {weeklyLoadout.power >= selectedPowerGuide.expected
-                          ? `Preflight ready: above expected power ${selectedPowerGuide.expected.toLocaleString()}.`
-                          : weeklyLoadout.power >= selectedPowerGuide.minimum
-                            ? `Preflight viable: below expected power ${selectedPowerGuide.expected.toLocaleString()}.`
-                            : `Preflight warning: recommended minimum is ${selectedPowerGuide.minimum.toLocaleString()}.`}
-                      </p>
-                    ) : null}
-                    <div className="campaign-map-weekly__actions">
-                      {!weeklyActive ? (
-                        <PixelActionButton
-                          tone={weeklySelectedEligible ? 'gold' : 'neutral'}
-                          ready={weeklySelectedEligible}
-                          disabled={!weeklySelectedEligible || !weeklySelectedRequest || !onStartWeeklyStreak || status === 'launch-pending'}
-                          onClick={() => weeklySelectedRequest && onStartWeeklyStreak?.(weeklySelectedRequest)}
-                        >
-                          {weeklySelectedEligible ? 'Begin Weekly Streak Here' : 'Weekly Start Locked'}
-                        </PixelActionButton>
-                      ) : weeklySelectedIsCurrent && !weeklyCurrentScored ? (
-                        <PixelActionButton
-                          tone="green"
-                          ready
-                          disabled={!weeklySelectedRequest || !onSelectWeeklyMission || status === 'launch-pending'}
-                          onClick={() => weeklySelectedRequest && onSelectWeeklyMission?.(weeklySelectedRequest)}
-                        >
-                          Continue Current Streak Mission
-                        </PixelActionButton>
-                      ) : (
-                        <PixelActionButton
-                          tone={weeklySelectedIsDirectTarget && weeklyCurrentScored ? 'gold' : 'neutral'}
-                          ready={weeklySelectedIsDirectTarget && weeklyCurrentScored}
-                          disabled={!weeklySelectedRequest || !onSelectWeeklyMission || status === 'launch-pending'}
-                          onClick={() => weeklySelectedRequest && onSelectWeeklyMission?.(weeklySelectedRequest)}
-                        >
-                          {weeklySelectedIsDirectTarget && weeklyCurrentScored
-                            ? 'Commit Weekly Route'
-                            : weeklySelectedIsCurrent
-                              ? 'End Streak and Submit'
-                              : 'Select Mission (Ends Streak)'}
-                        </PixelActionButton>
-                      )}
-                      {weeklyActive ? (
-                        <button type="button" className="campaign-map-weekly__end" onClick={onEndWeeklyStreak}>
-                          End streak and submit score
-                        </button>
-                      ) : null}
-                    </div>
-                    {weeklySelectionConfirmation ? (
-                      <div className="campaign-map-weekly__confirmation" role="alertdialog" aria-modal="true" aria-label="End Weekly Streak confirmation">
-                        <strong>End this Weekly Streak?</strong>
-                        <p>{weeklySelectionConfirmation.message}</p>
-                        <div>
-                          <PixelActionButton tone="gold" onClick={onConfirmWeeklySelectionEnd}>End and Submit</PixelActionButton>
-                          <button type="button" onClick={onCancelWeeklySelectionEnd}>Keep Streak</button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </section>
-                ) : null}
                 <div className={`campaign-map-actions ${selectedMission.id === progress.recommendedMissionId ? 'is-current' : ''}`}>
                   {selectedMission.id !== progress.recommendedMissionId || routeAwayFromCurrent ? (
                     <button

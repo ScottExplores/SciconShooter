@@ -117,6 +117,10 @@ interface StartScreenProps {
   onDismissBossArchiveResult?: () => void;
   bossArchiveLaunchError?: string | null;
   onDismissBossArchiveLaunchError?: () => void;
+  /** Opens the standalone single-life Weekly Run gauntlet. */
+  onStartWeeklyRun?: () => void;
+  weeklyRunActive?: boolean;
+  weeklyRunBestScore?: number | null;
   bossArchiveDeveloperControls?: BossArchiveDeveloperControls | null;
   founderSandbox?: boolean;
   onUnlockSquadSlot: (slot: SquadSlotId) => void;
@@ -617,6 +621,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onDismissBossArchiveResult,
   bossArchiveLaunchError = null,
   onDismissBossArchiveLaunchError,
+  onStartWeeklyRun,
+  weeklyRunActive = false,
+  weeklyRunBestScore = null,
   bossArchiveDeveloperControls = null,
   founderSandbox = false,
   onUnlockSquadSlot,
@@ -1440,6 +1447,34 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </div>
           ) : null}
         </div>
+
+        {onStartWeeklyRun ? (
+          <button
+            type="button"
+            className="sci-weekly-run-entry"
+            data-active={weeklyRunActive ? 'true' : 'false'}
+            onClick={onStartWeeklyRun}
+            aria-label={weeklyRunActive
+              ? `Resume Weekly Run. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+              : `Start Weekly Run, a single-life gauntlet scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
+          >
+            <span className="sci-weekly-run-entry__glyph" aria-hidden="true">
+              <Icon name="rocket" className="h-5 w-5" strokeWidth={1.8} />
+            </span>
+            <span className="sci-weekly-run-entry__copy">
+              <span className="sci-weekly-run-entry__title">
+                {weeklyRunActive ? 'Resume Weekly Run' : 'Weekly Run'}
+              </span>
+              <span className="sci-weekly-run-entry__sub">
+                One life. All bosses. Your upgraded ship. Scored on the weekly board.
+              </span>
+            </span>
+            <span className="sci-weekly-run-entry__best">
+              <b>{formatNumber(weeklyRunBestScore ?? 0)}</b>
+              <small>Your best</small>
+            </span>
+          </button>
+        ) : null}
 
       </div>
     </HudPanel>

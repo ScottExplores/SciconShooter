@@ -19,16 +19,44 @@ test('weekly streak is part of guest and wallet profile persistence and resets a
   assert.match(walletSource, /weeklyCampaignStreak:\s*isCurrentWeek/);
 });
 
-test('Campaign Map exposes weekly loadout preflight, binding confirmation, and guest-safe launch actions', () => {
+test('the Weekly Run is a home-screen mode and no longer clutters the Campaign Map', () => {
   const mapSource = read('components/CampaignMap.tsx');
+  const startScreen = read('components/StartScreen.tsx');
+  const appSource = read('App.tsx');
 
-  assert.match(mapSource, /weeklyEligibleStartNodeIds/);
-  assert.match(mapSource, /weeklyLoadout\.shipName/);
-  assert.match(mapSource, /Preflight ready/);
-  assert.match(mapSource, /Commit Weekly Route/);
-  assert.match(mapSource, /role="alertdialog"/);
-  assert.match(mapSource, /End and Submit/);
-  assert.doesNotMatch(mapSource, /onStartWeeklyStreak[\s\S]{0,250}wallet/i);
+  // The Campaign Map is for Campaign progression only. Its weekly loadout
+  // panel and route-commit controls forced extra scrolling on mobile and
+  // duplicated a competition that now has its own entry point.
+  assert.doesNotMatch(mapSource, /weeklyLoadout/);
+  assert.doesNotMatch(mapSource, /Preflight ready/);
+  assert.doesNotMatch(mapSource, /Commit Weekly Route/);
+  assert.doesNotMatch(mapSource, /Choose any unlocked weekly Mission/);
+  // The player-facing weekly callbacks are gone. onStartWeeklyStreak survives
+  // only on developerControls, which is a Combat Lab affordance, not player UI.
+  assert.doesNotMatch(mapSource, /onSelectWeeklyMission/);
+  assert.doesNotMatch(mapSource, /onEndWeeklyStreak/);
+  assert.doesNotMatch(mapSource, /onConfirmWeeklySelectionEnd/);
+  const publicProps = mapSource.slice(
+    mapSource.indexOf('export interface CampaignMapProps'),
+    mapSource.indexOf('const getCampaignCheckpointLabel')
+  );
+  assert.doesNotMatch(publicProps, /onStartWeeklyStreak/);
+
+  // The Weekly Run sits directly under the weekly high score on the home
+  // screen, so the board and the way to compete on it read as one unit.
+  assert.match(startScreen, /sci-weekly-run-entry/);
+  assert.match(startScreen, /onStartWeeklyRun/);
+  assert.match(startScreen, /weeklyRunBestScore/);
+  assert.match(appSource, /onStartWeeklyRun=\{startWeeklyRunFromHome\}/);
+
+  // Every refusal the home entry can hit has to reach the player.
+  const entryStart = appSource.indexOf('const startWeeklyRunFromHome');
+  const entryEnd = appSource.indexOf('const selectWeeklyCampaignMissionFromMap', entryStart);
+  assert.ok(entryStart >= 0 && entryEnd > entryStart);
+  const entryBody = appSource.slice(entryStart, entryEnd);
+  const bareReturns = (entryBody.match(/^\s*return;$/gm) ?? []).length;
+  const explainedReturns = (entryBody.match(/setCampaignMapError\(/g) ?? []).length;
+  assert.ok(explainedReturns >= bareReturns - 1, 'home Weekly Run refusals are explained');
 });
 
 test('App runs weekly streaks through direct graph routing and the existing leaderboard flow without Campaign rewards', () => {

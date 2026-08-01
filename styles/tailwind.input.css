@@ -263,6 +263,97 @@
   min-height: 5rem;
 }
 
+/* Standalone Weekly Run entry. Sits directly under the weekly high score so
+   the board and the way to compete on it read as one unit. */
+.sci-weekly-run-entry {
+  position: relative;
+  display: grid;
+  width: 100%;
+  align-items: center;
+  gap: 0.7rem;
+  grid-template-columns: 2.4rem minmax(0, 1fr) auto;
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid rgb(56 189 248 / 0.42);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgb(8 47 73 / 0.72), rgb(12 74 110 / 0.44) 60%, rgb(3 25 53 / 0.62));
+  box-shadow:
+    inset 0 0 0.9rem rgb(56 189 248 / 0.14),
+    0 0 0.9rem rgb(56 189 248 / 0.16);
+  text-align: left;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.sci-weekly-run-entry:hover,
+.sci-weekly-run-entry:focus-visible {
+  border-color: rgb(103 232 249 / 0.85);
+  box-shadow:
+    inset 0 0 1rem rgb(56 189 248 / 0.22),
+    0 0 1.3rem rgb(56 189 248 / 0.4);
+}
+
+.sci-weekly-run-entry:active { transform: translateY(1px); }
+
+.sci-weekly-run-entry[data-active='true'] {
+  border-color: rgb(250 204 21 / 0.75);
+  box-shadow:
+    inset 0 0 1rem rgb(250 204 21 / 0.18),
+    0 0 1.1rem rgb(250 204 21 / 0.32);
+}
+
+.sci-weekly-run-entry__glyph {
+  display: flex;
+  width: 2.4rem;
+  height: 2.4rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(103 232 249 / 0.4);
+  border-radius: 8px;
+  background: rgb(8 145 178 / 0.2);
+  color: rgb(165 243 252);
+}
+
+.sci-weekly-run-entry__copy { min-width: 0; }
+
+.sci-weekly-run-entry__title {
+  display: block;
+  color: rgb(240 249 255);
+  font: 900 0.82rem/1.1 inherit;
+  letter-spacing: 0.02em;
+}
+
+.sci-weekly-run-entry__sub {
+  display: block;
+  margin-top: 0.15rem;
+  color: rgb(148 163 184);
+  font: 700 0.56rem/1.25 inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sci-weekly-run-entry__best {
+  display: grid;
+  justify-items: end;
+  gap: 0.05rem;
+}
+
+.sci-weekly-run-entry__best b {
+  color: rgb(165 243 252);
+  font: 900 1rem/1 inherit;
+}
+
+.sci-weekly-run-entry__best small {
+  color: rgb(103 232 249 / 0.7);
+  font: 700 0.5rem/1 inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 380px) {
+  .sci-weekly-run-entry__sub { display: none; }
+}
+
 .sci-weekly-winner-card__track {
   position: relative;
   z-index: 1;

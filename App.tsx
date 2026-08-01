@@ -56,9 +56,7 @@ import {
   loadPermanentSquadState,
   loadWeeklySquadState,
   MAIN_SHIP_FIRE_RATE_MAX_LEVEL,
-  MAIN_SHIP_UPGRADES,
-  MINI_SHIP_BY_ID,
-  migrateLegacySquadProfile,
+  MAIN_SHIP_UPGRADES,  migrateLegacySquadProfile,
   MINI_SHIP_CATALOG,
   MINI_SHIP_MAX_LEVEL,
   preloadMiniShipTextures,
@@ -77,15 +75,11 @@ import {
   type WeeklySquadState
 } from './services/squadProgression';
 import {
-  calculateSquadPowerRating,
-  calculateRuntimeSquadPowerRating,
-  getCampaignRecommendedSupportIds,
+  calculateSquadPowerRating,  getCampaignRecommendedSupportIds,
   getCampaignSupportTagsForMiniShip
 } from './services/squadPowerRating';
 import { createCampaignGraphIndex } from './services/campaignGraph';
-import {
-  confirmWeeklyCampaignSelectionFinalization,
-  finalizeCompletedWeeklyCampaignStreak,
+import {  finalizeCompletedWeeklyCampaignStreak,
   finalizeWeeklyCampaignDeliberateEnd,
   finalizeWeeklyCampaignLoss,
   getEligibleWeeklyCampaignStartNodeIds,
@@ -606,8 +600,7 @@ const App: React.FC = () => {
   const [campaignMapFocusMissionId, setCampaignMapFocusMissionId] = useState<string | null>(null);
   const [campaignMapFocusBranchId, setCampaignMapFocusBranchId] = useState<string | null>(null);
   const [campaignMapUnlockingBranchId, setCampaignMapUnlockingBranchId] = useState<string | null>(null);
-  const [campaignMapNewMissionIds, setCampaignMapNewMissionIds] = useState<string[]>([]);
-  const [weeklyCampaignConfirmation, setWeeklyCampaignConfirmation] = useState<WeeklyCampaignSelectionConfirmation | null>(null);
+  const [campaignMapNewMissionIds, setCampaignMapNewMissionIds] = useState<string[]>([]);  const [, setWeeklyCampaignConfirmation] = useState<WeeklyCampaignSelectionConfirmation | null>(null);
   const [activeCampaignLaunch, setActiveCampaignLaunch] = useState<CampaignMapLaunchRequest | null>(null);
   const [activeCampaignBranchId, setActiveCampaignBranchId] = useState<string | null>(null);
   const [campaignBranchSpawnSeed, setCampaignBranchSpawnSeed] = useState(0);
@@ -664,6 +657,11 @@ const App: React.FC = () => {
   const weeklyProposalReturnRef = useRef<'results' | 'record'>('results');
   const gameStateRef = useRef<GameState>(GameState.MENU);
   const openCampaignMapRef = useRef<(focusMissionId?: string | null) => void>(() => undefined);
+  // The Weekly Run home entry resumes through the same routing callback that
+  // is declared later in this component, so it reaches it through a ref.
+  const selectWeeklyCampaignMissionFromMapRef = useRef<
+    (request: CampaignMapLaunchRequest & { nodeId: string }) => void
+  >(() => undefined);
   const submittingScoreRef = useRef(false);
   const bossArchiveDamageTakenRef = useRef(0);
   const processedBossArchiveResultsRef = useRef(new Set<string>());
@@ -983,15 +981,6 @@ const App: React.FC = () => {
       permanentSquadState.campaignProgress.unlockedGraphNodeIds
     )
   ), [permanentSquadState.campaignProgress.unlockedGraphNodeIds]);
-  const weeklyCampaignLoadout = useMemo(() => {
-    const loadout = buildRuntimeSquadLoadout(weeklySquadState, usableShipId);
-    return {
-      shipName: PLAYER_SHIPS[usableShipId].name,
-      shipAssetUrl: PLAYER_SHIPS[usableShipId].assetUrl,
-      supportNames: loadout.companions.map((companion) => MINI_SHIP_BY_ID[companion.id].name),
-      power: calculateRuntimeSquadPowerRating(loadout)
-    };
-  }, [usableShipId, weeklySquadState]);
 
   const updateWeeklySquadState = useCallback((
     update: (current: WeeklySquadState) => WeeklySquadState,
@@ -2726,6 +2715,59 @@ const App: React.FC = () => {
     }
   }, [persistWeeklyCampaignStreak]);
 
+  /**
+   * Home-screen entry for the standalone Weekly Run. The Weekly board is its
+   * own competition now, so it no longer piggybacks on Campaign Map route
+   * selection: the run resumes at its live node, or opens at the furthest
+   * eligible start the player has unlocked.
+   */
+  const startWeeklyRunFromHome = useCallback(() => {
+    const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
+    const active = streak?.finalization.status === 'active' ? streak : null;
+
+    // Resuming an active run: replay the live node if it has not been scored,
+    // otherwise step onto the next authored node in the route.
+    let targetNodeId: string | null = null;
+    if (active) {
+      const currentScored = active.scoredNodeIds.includes(active.currentNodeId);
+      if (!currentScored) {
+        targetNodeId = active.currentNodeId;
+      } else {
+        const currentNode = WEEKLY_CAMPAIGN_GRAPH.definition.nodes.find(
+          (candidate) => candidate.nodeId === active.currentNodeId
+        );
+        targetNodeId = currentNode?.outgoingEdges[0]?.toNodeId ?? null;
+        if (!targetNodeId) {
+          // The route is finished; the run has to be submitted, not replayed.
+          setCampaignMapError('This Weekly Run reached the end of its route. Submit it to bank the score.');
+          setCampaignMapStatus('launch-error');
+          openCampaignMapRef.current();
+          return;
+        }
+      }
+    } else {
+      targetNodeId = weeklyCampaignEligibleStartNodeIds.at(-1) ?? null;
+    }
+
+    if (!targetNodeId) {
+      setCampaignMapError('Clear the first Campaign Mission to unlock the Weekly Run.');
+      setCampaignMapStatus('launch-error');
+      openCampaignMapRef.current();
+      return;
+    }
+    const node = WEEKLY_CAMPAIGN_GRAPH.definition.nodes.find(
+      (candidate) => candidate.nodeId === targetNodeId
+    );
+    if (!node) return;
+    const request = {
+      missionId: node.missionDefinitionId,
+      waveId: undefined,
+      nodeId: targetNodeId
+    } as CampaignMapLaunchRequest & { nodeId: string };
+    if (active) selectWeeklyCampaignMissionFromMapRef.current(request);
+    else startWeeklyCampaignFromMap(request);
+  }, [startWeeklyCampaignFromMap, weeklyCampaignEligibleStartNodeIds]);
+
   const selectWeeklyCampaignMissionFromMap = useCallback((
     request: CampaignMapLaunchRequest & { nodeId: string }
   ) => {
@@ -2753,29 +2795,20 @@ const App: React.FC = () => {
       return;
     }
     if (result.kind === 'confirmation-required') {
-      setWeeklyCampaignConfirmation(result.confirmation);
+      // The Weekly Run no longer offers free route selection, so reaching this
+      // branch means the requested node would abandon the live run. Say so
+      // rather than dropping the launch on the floor.
+      setCampaignMapStatus('launch-error');
+      setCampaignMapError(result.confirmation.message);
+      openCampaignMapRef.current();
       return;
     }
     setCampaignMapStatus('launch-error');
     setCampaignMapError(`Weekly route blocked: ${result.reason.replace(/-/g, ' ')}.`);
+    openCampaignMapRef.current();
   }, [persistWeeklyCampaignStreak]);
+  selectWeeklyCampaignMissionFromMapRef.current = selectWeeklyCampaignMissionFromMap;
 
-  const confirmWeeklyCampaignSelectionEnd = useCallback(() => {
-    const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
-    const confirmation = weeklyCampaignConfirmation;
-    if (!streak || !confirmation) return;
-    try {
-      finishWeeklyCampaignForLeaderboard(confirmWeeklyCampaignSelectionFinalization(
-        streak,
-        confirmation,
-        Date.now()
-      ));
-    } catch (error) {
-      setWeeklyCampaignConfirmation(null);
-      setCampaignMapStatus('launch-error');
-      setCampaignMapError(error instanceof Error ? error.message : 'Weekly Streak confirmation expired.');
-    }
-  }, [finishWeeklyCampaignForLeaderboard, weeklyCampaignConfirmation]);
 
   const endWeeklyCampaignStreak = useCallback(() => {
     const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
@@ -5606,6 +5639,9 @@ const App: React.FC = () => {
           onDismissBossArchiveResult={() => setBossArchiveResult(null)}
           bossArchiveLaunchError={bossArchiveLaunchError}
           onDismissBossArchiveLaunchError={() => setBossArchiveLaunchError(null)}
+          onStartWeeklyRun={startWeeklyRunFromHome}
+          weeklyRunActive={weeklySquadState.weeklyCampaignStreak?.finalization.status === 'active'}
+          weeklyRunBestScore={weeklySquadState.weeklyCampaignStreak?.score.totalPoints ?? 0}
           bossArchiveDeveloperControls={bossArchiveDeveloperControls}
           founderSandbox={isOwnerWallet}
           onUnlockSquadSlot={handleUnlockSquadSlot}
@@ -5663,14 +5699,6 @@ const App: React.FC = () => {
             onSelectRoute={selectCampaignRouteFromMap}
             onLaunchBranch={launchCampaignBranchFromMap}
             weeklyStreak={weeklySquadState.weeklyCampaignStreak}
-            weeklyEligibleStartNodeIds={weeklyCampaignEligibleStartNodeIds}
-            weeklyLoadout={weeklyCampaignLoadout}
-            weeklySelectionConfirmation={weeklyCampaignConfirmation}
-            onStartWeeklyStreak={startWeeklyCampaignFromMap}
-            onSelectWeeklyMission={selectWeeklyCampaignMissionFromMap}
-            onConfirmWeeklySelectionEnd={confirmWeeklyCampaignSelectionEnd}
-            onCancelWeeklySelectionEnd={() => setWeeklyCampaignConfirmation(null)}
-            onEndWeeklyStreak={endWeeklyCampaignStreak}
             onSkipBranchAnimation={() => setCampaignMapUnlockingBranchId(null)}
             developerControls={campaignMapDeveloperControls}
           />
