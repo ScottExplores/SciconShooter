@@ -45,7 +45,10 @@ test('the Weekly Run entry is its own box and does not crowd the funding card', 
   const css = fs.readFileSync(path.join(__dirname, '..', 'styles', 'tailwind.input.css'), 'utf8');
   const entryRule = css.slice(css.indexOf('.sci-weekly-run-entry {'), css.indexOf('.sci-weekly-run-entry:hover'));
   assert.match(entryRule, /align-self: start;/);
-  assert.match(entryRule, /border-image-source:[\s\S]*information-card\.png/);
+  // Shares the navy/grey/green frame used by Start Mission and the weekly
+  // funding shell. The gold-bracketed general-borders card clashed with it.
+  assert.match(entryRule, /border-image-source:[\s\S]*start-mission-panel\.png/);
+  assert.doesNotMatch(entryRule, /information-card\.png/);
 });
 
 test('the phone flight deck drops the wordmark to buy vertical space', () => {
