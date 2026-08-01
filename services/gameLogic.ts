@@ -189,6 +189,7 @@ import { resolveCampaignDifficulty } from './gameplay/difficulty';
 import {
   getFormationGroupSeed as calculateFormationGroupSeed,
   resolveConfiguredFormationMode as resolveFormationMode,
+  resolveLooseFormationMode,
   resolveConfiguredFormationSpawnPoint,
   resolveConfiguredFormationTarget,
   resolveFormationEntryMotion,
@@ -8452,8 +8453,10 @@ export class GameEngine {
     return calculateFormationGroupSeed(eventId);
   }
 
-  resolveConfiguredFormationMode(patternId?: string): ConfiguredEnemyFormationMode {
-    return resolveFormationMode(patternId);
+  resolveConfiguredFormationMode(patternId?: string, eventId?: string): ConfiguredEnemyFormationMode {
+    // Loose groups pick a varied shape from their event id so a Mission is not
+    // wall-to-wall rows; grouped patterns keep their authored shape.
+    return eventId ? resolveLooseFormationMode(eventId, patternId) : resolveFormationMode(patternId);
   }
 
   getConfiguredFormationTarget(
@@ -8520,7 +8523,7 @@ export class GameEngine {
     // engage it. Arcade squadrons must stay on the field until they are shot.
     const patternId = String(event.patternId || '').toLowerCase();
 
-    const formation = this.resolveConfiguredFormationMode(patternId);
+    const formation = this.resolveConfiguredFormationMode(patternId, event.id);
     if (formation === 'spiral' && enemy.type === EntityType.ENEMY_DRONE) {
       enemy.width = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE * REGULAR_ENEMY_SIZE_SCALE);
       enemy.height = Math.round(44 * SPIRAL_PAYWALL_INTERCEPTOR_SCALE * REGULAR_ENEMY_SIZE_SCALE);

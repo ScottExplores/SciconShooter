@@ -200,6 +200,38 @@ export const resolveConfiguredFormationMode = (
 };
 
 /**
+ * Shapes the loose `single-*`/`*-random` spawn groups fly.
+ *
+ * These groups are deliberately excluded from formation-pack budgeting, so
+ * their shape is presentation only and can vary freely. Every one of them used
+ * to fall through to `row`, which is why the loose traffic in a Mission all
+ * looked the same. Picking from the event id keeps a given group's shape stable
+ * across runs and previews while giving a Mission real squadron variety.
+ */
+const LOOSE_FORMATION_SHAPES: readonly ConfiguredFormationMode[] = Object.freeze([
+  'v',
+  'sine',
+  'diamond',
+  'pincer',
+  'grid',
+  'spiral'
+]);
+
+export const isLooseFormationPattern = (patternId?: string) => {
+  const pattern = String(patternId || '').toLowerCase();
+  return pattern.includes('single') || pattern.includes('random');
+};
+
+export const resolveLooseFormationMode = (
+  eventId: string,
+  patternId?: string
+): ConfiguredFormationMode => {
+  if (!isLooseFormationPattern(patternId)) return resolveConfiguredFormationMode(patternId);
+  const seed = getFormationGroupSeed(eventId);
+  return LOOSE_FORMATION_SHAPES[seed % LOOSE_FORMATION_SHAPES.length];
+};
+
+/**
  * Resolves both custom normalized slots and the built-in compatibility
  * layouts. The sprite/event special cases intentionally remain explicit here
  * until their campaign data is migrated to reusable formation resources.
@@ -227,7 +259,7 @@ export const resolveConfiguredFormationTarget = ({
     };
   }
 
-  const mode = resolveConfiguredFormationMode(event.patternId);
+  const mode = resolveLooseFormationMode(event.id, event.patternId);
   const anchor = normalizeAnchor(event.spawnAnchor);
   const centerX = (anchor?.x ?? 0.5) * width;
   const topY = (anchor?.y ?? 0.16) * height;
@@ -423,7 +455,7 @@ export const resolveConfiguredFormationSpawnPoint = ({
     return { x, y };
   }
 
-  const mode = resolveConfiguredFormationMode(patternId);
+  const mode = resolveLooseFormationMode(event.id, patternId);
   const side = (index + getFormationGroupSeed(event.id)) % 2 === 0 ? -1 : 1;
   const pair = Math.floor(index / 2);
   if (mode === 'pincer') {
@@ -772,7 +804,7 @@ export const resolveFormationEntryPlan = ({
   framesPerSecond,
   target
 }: FormationEntryPlanInput): FormationEntryPlan => {
-  const mode = resolveConfiguredFormationMode(patternId);
+  const mode = resolveLooseFormationMode(eventId, patternId);
   const entryFrames = 44 + (index % 4) * 4 + (mode === 'spiral' ? 12 : 0);
   const diveCadence = mode === 'grid' ? 14 : mode === 'row' ? 14 : mode === 'v' ? 12 : 10;
   return {

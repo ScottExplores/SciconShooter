@@ -1,6 +1,8 @@
 export {
   getFormationGroupSeed,
   resolveConfiguredFormationMode,
+  resolveLooseFormationMode,
+  isLooseFormationPattern,
   resolveConfiguredFormationSpawnPoint,
   resolveConfiguredFormationTarget,
   resolveFormationEntryMotion,
