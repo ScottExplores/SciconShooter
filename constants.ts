@@ -372,7 +372,8 @@ export const STORAGE_KEYS = {
   CREDITED_FUNDING_TXS: "scicon_credited_funding_txs",
   POLISH_SETTINGS: "scicon_polish_settings",
   LATEST_RUN_RECEIPT: "scicon_latest_run_receipt",
-  SELECTED_SHIP: "scicon_selected_ship"
+  SELECTED_SHIP: "scicon_selected_ship",
+  TUTORIAL_SEEN: "scicon_tutorial_seen_v1"
 };
 
 export const COLORS = {

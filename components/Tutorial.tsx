@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ASSETS } from '../constants';
 
@@ -6,76 +5,70 @@ interface TutorialProps {
   onReady: () => void;
 }
 
-const Tutorial: React.FC<TutorialProps> = ({ onReady }) => {
-  return (
-    <div className="absolute inset-0 z-40 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white" onClick={onReady}>
-      <h2 className="text-3xl font-black arcade-font text-indigo-400 mb-8 tracking-widest">HOW TO PLAY</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl w-full">
-        <div className="space-y-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-lg border border-gray-500 flex items-center justify-center bg-gray-800">
-              <span className="text-2xl">👆</span>
-            </div>
-            <div>
-              <h3 className="font-bold text-lg">MOVE & SHOOT</h3>
-              <p className="text-gray-400 text-sm">Drag or use WASD/Arrows to fly. <br/>Firing is automatic.</p>
-            </div>
-          </div>
+interface TutorialCardProps {
+  icon: string;
+  title: string;
+  body: string;
+}
 
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-full border border-yellow-500 flex items-center justify-center bg-yellow-900/30 overflow-hidden">
-              <img src={ASSETS.RSC_TOKEN} alt="RSC" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-yellow-400">COLLECT COINS</h3>
-              <p className="text-gray-400 text-sm">Gather RSC to fund upgrades in the Lab.</p>
-            </div>
-          </div>
+const TutorialCard: React.FC<TutorialCardProps> = ({ icon, title, body }) => (
+  <li className="sci-tutorial__card">
+    <span className="sci-tutorial__icon" aria-hidden="true">
+      <img src={icon} alt="" draggable={false} />
+    </span>
+    <span className="sci-tutorial__copy">
+      <b>{title}</b>
+      <small>{body}</small>
+    </span>
+  </li>
+);
 
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-full border border-blue-500 flex items-center justify-center bg-blue-900/30 overflow-hidden">
-               <img src={ASSETS.REAL_RSC_ICON} alt="Crypto" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-blue-400">CRYPTO FUNDING</h3>
-              <p className="text-gray-400 text-sm">Connect a Base wallet to continue runs with RSC after a crash.</p>
-              <p className="text-red-400 text-[10px] font-bold italic mt-1 leading-tight">
-                Each continue restores five hearts and costs 5 more RSC than the last.
-              </p>
-            </div>
-          </div>
-        </div>
+/**
+ * First-run briefing.
+ *
+ * This panel previously described a build that no longer exists -- founder
+ * pickups, "your submission" -- and was never rendered by anything, so no
+ * player ever saw it. It now covers what the game actually asks a new pilot to
+ * understand: the two modes, that firing is automatic, and where coins go.
+ */
+const Tutorial: React.FC<TutorialProps> = ({ onReady }) => (
+  <div
+    className="sci-tutorial"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="sci-tutorial-title"
+  >
+    <section className="sci-tutorial__panel">
+      <h2 id="sci-tutorial-title" className="sci-tutorial__title">How To Play</h2>
 
-        <div className="space-y-6">
-           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-full border border-purple-500 flex items-center justify-center bg-purple-900/30 overflow-hidden">
-               <img src={ASSETS.FOUNDER_BRIAN} alt="Founder" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-purple-400">FIND FOUNDERS</h3>
-              <p className="text-gray-400 text-sm">Collect Founder icons for powerful weapons & shields.</p>
-            </div>
-          </div>
-          
-           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-lg border border-red-500 flex items-center justify-center bg-red-900/30">
-              <span className="text-2xl">🔒</span>
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-red-400">AVOID BARRIERS</h3>
-              <p className="text-gray-400 text-sm">Don't hit Journals, Paywalls, or Locks.</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ul className="sci-tutorial__grid">
+        <TutorialCard
+          icon={ASSETS.PLAYER_SHIP}
+          title="Fly"
+          body="Drag anywhere, or use WASD and the arrow keys. Your guns fire on their own."
+        />
+        <TutorialCard
+          icon="/game-art/powerups/rapid-fire.png"
+          title="Power Up"
+          body="Grab drops mid-run for rapid fire, spread shots and shields."
+        />
+        <TutorialCard
+          icon={ASSETS.RSC_TOKEN}
+          title="Bank Coins"
+          body="Coins come from Campaign Missions and buy permanent Hangar upgrades."
+        />
+        <TutorialCard
+          icon="/game-art/powerups/extra-life.png"
+          title="Two Modes"
+          body="Campaign is progression. Weekly Run is one 10-life gauntlet through every boss, scored on the weekly board."
+        />
+      </ul>
 
-      <div className="mt-12 animate-pulse text-center cursor-pointer">
-        <div className="text-2xl font-bold mb-2">TAP TO START</div>
-        <div className="text-xs text-gray-500 uppercase tracking-widest">Good luck with your submission</div>
-      </div>
-    </div>
-  );
-};
+      <button type="button" className="sci-tutorial__start" onClick={onReady} autoFocus>
+        Start Flying
+      </button>
+    </section>
+  </div>
+);
 
 export default Tutorial;

@@ -7,7 +7,7 @@ import {
   getProposalFundingMetrics,
   sortProposalsByFunding
 } from '../services/proposalFunding';
-import { ASSETS, DONATION_CONFIG } from '../constants';
+import { ASSETS, DONATION_CONFIG, STORAGE_KEYS } from '../constants';
 import type { WalletRunRecord } from '../services/playerRunService';
 import type { WeeklyProposalRecovery } from '../services/weeklyProposalRecovery';
 import {
@@ -31,6 +31,7 @@ import {
 } from '../services/playerShipService';
 import SquadHangar from './SquadHangar';
 import PixelActionButton from './PixelActionButton';
+import Tutorial from './Tutorial';
 import { WEEKLY_RUN_STARTING_LIVES, buildWeeklyRunRoute } from '../services/weeklyRunGauntlet';
 import ShipCarousel from './ShipCarousel';
 import BossArchive, {
@@ -653,6 +654,23 @@ const StartScreen: React.FC<StartScreenProps> = ({
   });
   const [proposalSearch, setProposalSearch] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
+  // First-run briefing. Tutorial.tsx existed but nothing ever rendered it, so
+  // no player had ever seen it.
+  const [showTutorial, setShowTutorial] = useState(() => {
+    try {
+      return !window.localStorage.getItem(STORAGE_KEYS.TUTORIAL_SEEN);
+    } catch {
+      return false;
+    }
+  });
+  const dismissTutorial = () => {
+    setShowTutorial(false);
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.TUTORIAL_SEEN, '1');
+    } catch {
+      // A blocked storage write only means the briefing shows again later.
+    }
+  };
   const [showTreasury, setShowTreasury] = useState(false);
   const [showReferral, setShowReferral] = useState(false);
   const [referralCopyStatus, setReferralCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
@@ -2036,6 +2054,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
       className="scicon-start-screen relative h-full min-h-0 overflow-hidden bg-slate-950 text-white"
       data-dashboard-tab={dashboardTab}
     >
+      {showTutorial ? <Tutorial onReady={dismissTutorial} /> : null}
+
       {testChampionWinner && onCloseTestChampionPreview ? (
         <button
           type="button"

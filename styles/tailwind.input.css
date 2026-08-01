@@ -263,6 +263,110 @@
   min-height: 5rem;
 }
 
+/* First-run briefing. Uses the same navy/grey/green pixel frame as the rest
+   of the deck so it reads as part of the game, not a web modal. */
+.sci-tutorial {
+  position: absolute;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(2 6 23 / 0.92);
+  inset: 0;
+  backdrop-filter: blur(4px);
+}
+
+.sci-tutorial__panel {
+  width: 100%;
+  max-width: 22rem;
+  padding: 0.35rem 0.5rem 0.75rem;
+  border-style: solid;
+  border-width: 1.15rem 1.35rem;
+  border-image-source: url('/game-art/generated/ui/scicon-pixel-action-buttons-v1/start-mission-panel.png');
+  border-image-slice: 54 68 54 68 fill;
+  border-image-width: 1;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+}
+
+.sci-tutorial__title {
+  margin: 0 0 0.55rem;
+  color: rgb(236 254 255);
+  font: 900 1.05rem/1 inherit;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-shadow: 0 0 0.6rem rgb(34 211 238 / 0.6);
+  text-transform: uppercase;
+}
+
+.sci-tutorial__grid {
+  display: grid;
+  margin: 0;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.sci-tutorial__card {
+  display: grid;
+  align-items: center;
+  gap: 0.55rem;
+  grid-template-columns: 1.9rem minmax(0, 1fr);
+}
+
+.sci-tutorial__icon {
+  display: flex;
+  width: 1.9rem;
+  height: 1.9rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.sci-tutorial__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 0.35rem rgb(34 211 238 / 0.55));
+}
+
+.sci-tutorial__copy { min-width: 0; }
+
+.sci-tutorial__copy b {
+  display: block;
+  color: rgb(125 211 252);
+  font: 900 0.66rem/1.1 inherit;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.sci-tutorial__copy small {
+  display: block;
+  margin-top: 0.1rem;
+  color: rgb(148 163 184);
+  font: 700 0.58rem/1.3 inherit;
+}
+
+.sci-tutorial__start {
+  width: 100%;
+  margin-top: 0.7rem;
+  padding: 0.5rem;
+  border: 1px solid rgb(103 232 249 / 0.55);
+  border-radius: 4px;
+  background: rgb(8 145 178 / 0.24);
+  color: rgb(236 254 255);
+  font: 900 0.76rem/1 inherit;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sci-tutorial__start:hover,
+.sci-tutorial__start:focus-visible {
+  border-color: rgb(165 243 252);
+  background: rgb(8 145 178 / 0.4);
+}
+
 /* Names the Campaign mode above its launch control so it reads as the
    counterpart to the Weekly Run entry rather than an unlabelled button. */
 .sci-campaign-mode-strip {

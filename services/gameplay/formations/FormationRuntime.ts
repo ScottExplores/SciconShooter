@@ -210,16 +210,18 @@ export const resolveConfiguredFormationMode = (
  */
 const LOOSE_FORMATION_SHAPES: readonly ConfiguredFormationMode[] = Object.freeze([
   'v',
+  'sine',
   'diamond',
   'pincer',
   'grid',
   'spiral'
 ]);
-// 'sine' is deliberately absent. It spreads a group widest, so its outermost
-// members travel furthest to reach their slots. With the small loose groups
-// that open a Wave, that delay was measurably enough to leave the playfield
-// reading as empty: it was the shape in both waves that breached the
-// visible-combat dead-air ceiling.
+// Dropping a shape from this table was tried and does not help: removing
+// 'sine' left the same number of dead-air breaches, simply relocated to other
+// waves, and cost clears as well. Loose shape variety has a small, uniform
+// pacing cost against a baseline that was tuned when every loose group flew
+// 'row'. It is paid back in authored spawn timing on the specific waves that
+// breach, not by shrinking the vocabulary.
 
 export const isLooseFormationPattern = (patternId?: string) => {
   const pattern = String(patternId || '').toLowerCase();
