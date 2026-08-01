@@ -874,7 +874,11 @@
         width: 100%;
         min-height: 100%;
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto minmax(6rem, 1fr) auto;
+        /* Two rows, because the phone deck drops the wordmark: the ship stage
+           takes the flexible row and the launch block hugs the bottom. Keeping
+           the old three-row template left an empty trailing track, which is
+           what floated Start Mission up the screen. */
+        grid-template-rows: minmax(6rem, 1fr) auto;
         align-items: center;
         justify-items: center;
       }
@@ -909,7 +913,7 @@
         }
 
         #root .sci-hero-content--compact {
-          grid-template-rows: auto minmax(4.75rem, 1fr) auto;
+          grid-template-rows: minmax(4.75rem, 1fr) auto;
           padding-top: 0.25rem;
           padding-bottom: 0.35rem;
         }

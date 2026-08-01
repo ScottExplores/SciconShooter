@@ -400,7 +400,9 @@
 .sci-weekly-run-entry {
   position: relative;
   display: grid;
-  width: 100%;
+  /* Deliberately not width:100% -- justify-self stretches it, and a fixed
+     100% would ignore the side insets and hang off the right edge. */
+  width: auto;
   align-items: center;
   gap: 0.55rem;
   grid-template-columns: 2.15rem minmax(0, 1fr) auto;
@@ -410,6 +412,24 @@
   justify-self: stretch;
   padding: 0.1rem 0.15rem;
   filter: drop-shadow(0 0.35rem 0.6rem rgb(0 0 0 / 0.45));
+  /* Reads as a drawer hanging off the funding panel rather than a second
+     identical box: it tucks up under the panel, insets slightly at the sides,
+     and drops a connector into the gap. */
+  margin: -0.5rem 0.6rem 0;
+}
+
+.sci-weekly-run-entry::before {
+  position: absolute;
+  z-index: -1;
+  top: -0.55rem;
+  left: 50%;
+  width: 2.6rem;
+  height: 0.8rem;
+  background:
+    linear-gradient(rgb(103 232 249 / 0.55), rgb(34 211 238 / 0.15));
+  content: '';
+  transform: translateX(-50%);
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
   border-style: solid;
   /* Same frame as the Start Mission panel and the weekly funding shell: navy
      body, grey chrome, green LEDs, cyan rails. Deliberately NOT the

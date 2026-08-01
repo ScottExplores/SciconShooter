@@ -29,6 +29,28 @@ Branch: `experimental/arcade-polish` (nothing pushed to `main`).
 | 11 | Build + gameplay smoke checks | DONE | `tsc`, `eslint` clean. `npm test` 1108 passing; only the 2 art failures that also fail on clean main. Matrix regenerated and green. |
 | 12 | Prepare for hands-on testing | DONE | All three entry points verified launching in the running game: Weekly Run (10 lives), Start Mission (3), Campaign Map (3). First-run Tutorial renders and dismisses. Suite green apart from 2 pre-existing art failures. |
 
+## Design reference: Galaxiga (not Galaga)
+
+Reviewed store and press screenshots directly. The target is **Galaxiga**, the
+modern Android arcade shooter, which is materially different from 1981 Galaga:
+
+- **Wave stages are dense uniform blocks.** Roughly 10 columns by 8 rows of
+  *identical* small enemies, evenly spaced, filling the top ~60% of a portrait
+  screen. Around 60-100 hostiles visible at once.
+- **Not scattered shapes.** Galaxiga does not read as v / sine / diamond /
+  spiral squadrons. It reads as a wall of the same enemy that you shred. A
+  clean grid is closer to the target than shape variety is.
+- **Boss stages** are one large multi-part boss occupying the top ~40%, with a
+  handful of small escorts, rather than a dense block.
+- **The player is always flanked by wingmen** and fires a wide, dense column of
+  projectiles. Heavy, saturated neon VFX throughout.
+
+Implication for this repo: our threat cap (~18-26) and 4-8 unit formations are
+an order of magnitude below Galaxiga's density. Matching the feel is primarily
+an *enemy count and uniformity* problem, not a formation-shape problem. The
+six-shape loose vocabulary added earlier moves away from the reference, not
+toward it, and should be reconsidered against the mobile performance budget.
+
 ## Verified gameplay baselines
 
 Balance matrix (600 trials, real `GameEngine`), vs `main` = 495 clears / 102 deaths / 3 timeouts:
