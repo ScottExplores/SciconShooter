@@ -46,7 +46,9 @@ test('the canonical game-over flow keeps all existing actions inside the new pre
   assert.match(app, /onRetryRun=\{retryGame\}/);
   assert.match(app, /onHangar=\{openSquadHangar\}/);
   assert.match(app, /onMainMenu=\{\(\) => \{/);
-  assert.match(app, /setShowNameInput\(!isNonCompetitiveRun\)/);
+  // Campaign is progression and stays off the weekly board, so the score
+  // prompt follows leaderboard eligibility rather than isNonCompetitiveRun.
+  assert.match(app, /setShowNameInput\(isWeeklyLeaderboardRun\)/);
   assert.match(app, /isSubmittingScore \? 'Saving\.\.\.' : 'Submit'/);
   assert.match(app, /sci-gameover-result-content/);
   assert.match(app, /sci-gameover-skip-score/);

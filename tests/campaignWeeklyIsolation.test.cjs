@@ -252,7 +252,7 @@ test('crediting Campaign rewards changes only the shared Campaign coin reserve, 
   assert.deepEqual(weekly.leaderboard, before.leaderboard);
 });
 
-test('App isolates Campaign reward grants while allowing the final death score into weekly competition', () => {
+test('App isolates Campaign reward grants and keeps Campaign off the weekly board', () => {
   const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const campaignHandlerStart = appSource.indexOf('const handleCampaignProgress = useCallback');
   const campaignHandlerEnd = appSource.indexOf('const showWaveVictory = async', campaignHandlerStart);
@@ -290,9 +290,13 @@ test('App isolates Campaign reward grants while allowing the final death score i
     appSource,
     /if\s*\(\s*!isCampaignRun\s*&&\s*!isNonCompetitiveRun\s*&&\s*summary\.bossEncounterId\s*\)/
   );
-  assert.match(appSource, /setShowNameInput\(\s*!isNonCompetitiveRun\s*\)/);
+  // Campaign is progression, not a weekly entry. The name prompt and the
+  // submit path hang off leaderboard eligibility, which excludes Campaign,
+  // while the payout paths above still run for it.
+  assert.match(appSource, /const isWeeklyLeaderboardRun = !isNonCompetitiveRun && !isCompetitiveCampaignRun;/);
+  assert.match(appSource, /setShowNameInput\(isWeeklyLeaderboardRun\)/);
   assert.match(
     appSource,
-    /const persistHighScore\s*=\s*async\s*\(\)\s*=>\s*\{\s*if\s*\(\s*isNonCompetitiveRun\s*\|\|/
+    /const persistHighScore\s*=\s*async\s*\([^)]*\)\s*=>\s*\{[\s\S]{0,200}?if\s*\(\s*!isWeeklyLeaderboardRun\s*\|\|/
   );
 });

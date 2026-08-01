@@ -57,6 +57,7 @@ import {
   RESEARCH_CHARGE_FRAME_URLS,
   RESEARCH_IMPACT_FRAME_URLS,
   SHIP_ABILITY_FRAME_URLS,
+  getShipAbilityCooldownFrames,
   getShipAbilityDefinition,
   type ShipAbilityKind
 } from './shipAbilityService';
@@ -3949,8 +3950,9 @@ export class GameEngine {
     this.playerShipId = update.playerShipId;
     this.playerShipUrl = update.playerShipUrl || ASSETS.PLAYER_SHIP;
     loadImage(this.playerShipUrl);
-    this.stats.shipAbilityCooldownMax =
-      getShipAbilityDefinition(this.playerShipId).cooldownFrames;
+    this.stats.shipAbilityCooldownMax = this.getShipAbilityCooldownFrames(
+      getShipAbilityDefinition(this.playerShipId).cooldownFrames
+    );
     this.stats.shipAbilityCooldown = this.previewShipAbilityNoCooldown
       ? 0
       : Math.min(
@@ -7294,10 +7296,11 @@ export class GameEngine {
       });
     }
 
+    const abilityCooldownFrames = this.getShipAbilityCooldownFrames(ability.cooldownFrames);
     this.stats.shipAbilityCooldown = this.previewShipAbilityNoCooldown
       ? 0
-      : ability.cooldownFrames;
-    this.stats.shipAbilityCooldownMax = ability.cooldownFrames;
+      : abilityCooldownFrames;
+    this.stats.shipAbilityCooldownMax = abilityCooldownFrames;
     // Research Charge already receives a soft pooled light in the Pixi
     // renderer. Keep its launch feedback particle-based so it never reads as
     // a hard-edged lighting bubble; the other ability rings remain intentional
@@ -8591,6 +8594,18 @@ export class GameEngine {
       mobile: this.mobileProfile,
       entryBehavior: enemy.formationEntryBehavior
     });
+  }
+
+  /**
+   * Signature cooldown for the active hull, tightened by the Fire Rate track
+   * so the upgrade the player is already buying improves their special too.
+   */
+  getShipAbilityCooldownFrames(baseCooldownFrames: number) {
+    return getShipAbilityCooldownFrames(
+      baseCooldownFrames,
+      this.stats.upgrades?.fireRate || 0,
+      FIRE_RATE_MAX_LEVEL
+    );
   }
 
   /** Slow rotation applied to an escort so its ring orbits its pod leader. */

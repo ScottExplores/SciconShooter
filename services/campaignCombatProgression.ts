@@ -7,6 +7,13 @@ import { FIRE_RATE_MAX_VOLLEY_SIZE } from './weaponTierProgression';
 export const MAX_AUTHORED_CAMPAIGN_STAGES = 20;
 export const CAMPAIGN_STAGES_PER_COMBAT_TIER = 5;
 export const MAX_LEGACY_CAMPAIGN_DIFFICULTY_TIER = 3;
+/**
+ * Max Shot doubles every round already present in the current weapon pattern.
+ *
+ * Tripling was tried and measured: at Tier 7 Triple it puts 1260 projectile
+ * sprites on a mobile frame against a 900 budget. The pickup gets its "wall of
+ * fire" read from a much wider angular fan instead of more sprites.
+ */
 export const MAX_SHOT_VOLLEY_MULTIPLIER = 2;
 export const MAX_PRIMARY_SPREAD_LANES = 3;
 export const MAX_SHOT_PROJECTILE_CAP = FIRE_RATE_MAX_VOLLEY_SIZE
@@ -29,13 +36,14 @@ export type MaxShotVisualRound = MaxShotCopyOffset;
 const degreesToRadians = (degrees: number) => degrees * (Math.PI / 180);
 
 /**
- * Max Shot doubles every round already present in the current weapon pattern.
- * The pair is separated only enough to remain legible while preserving the
- * center or triple-shot lane it belongs to.
+ * Max Shot splits every round into a diverging pair. The separation is much
+ * wider than the original near-parallel 1.75px / 0.42deg pairing so the volley
+ * opens into a visible cone as it travels, which is what makes the pickup read
+ * as a super state without adding sprites.
  */
 const MAX_SHOT_COPY_PATTERN: readonly MaxShotCopyOffset[] = Object.freeze([
-  Object.freeze({ offsetX: -1.75, angleOffset: degreesToRadians(-0.42) }),
-  Object.freeze({ offsetX: 1.75, angleOffset: degreesToRadians(0.42) })
+  Object.freeze({ offsetX: -6.5, angleOffset: degreesToRadians(-5.4) }),
+  Object.freeze({ offsetX: 6.5, angleOffset: degreesToRadians(5.4) })
 ]);
 
 export const getMaxShotCopyPattern = () => MAX_SHOT_COPY_PATTERN;

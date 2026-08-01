@@ -15,6 +15,39 @@ export const RESEARCH_CHARGE_COOLDOWN_FRAMES = 16 * 60;
 export const RESEARCH_CHARGE_COOLDOWN_SECONDS = 16;
 export const RESEARCH_CHARGE_BLAST_RADIUS = 124;
 
+/**
+ * Signature cooldowns form the ship ladder.
+ *
+ * Every ship previously shared the ResearchHub cooldown, so a hard-won BTC
+ * hull felt no better to fly than the starter. Rarer hulls now recharge
+ * faster as well as hitting differently, which is what makes the Hangar
+ * chase read as progression rather than a skin swap.
+ */
+export const SHIP_ABILITY_COOLDOWN_SECONDS = Object.freeze({
+  researchhub: RESEARCH_CHARGE_COOLDOWN_SECONDS,
+  bio: 13,
+  eth: 11,
+  btc: 9
+});
+
+/**
+ * Fire Rate also tightens the signature cooldown, up to this fraction, so the
+ * primary-weapon track the player is already buying visibly improves the
+ * ship's signature move too.
+ */
+export const SHIP_ABILITY_COOLDOWN_MIN_MULTIPLIER = 0.65;
+
+export const getShipAbilityCooldownFrames = (
+  baseCooldownFrames: number,
+  fireRateLevel: number,
+  fireRateMaxLevel: number
+) => {
+  const safeMax = Math.max(1, Math.floor(Number(fireRateMaxLevel) || 1));
+  const progress = Math.max(0, Math.min(1, (Number(fireRateLevel) || 0) / safeMax));
+  const multiplier = 1 - (1 - SHIP_ABILITY_COOLDOWN_MIN_MULTIPLIER) * progress;
+  return Math.max(1, Math.round(baseCooldownFrames * multiplier));
+};
+
 const PLAYER_WEAPON_FX_ROOT = '/game-art/generated/scicon-player-weapon-fx-v1';
 const getGalleryAbilityFrames = (
   ship: 'bio' | 'eth' | 'btc',
@@ -69,8 +102,8 @@ export const SHIP_ABILITY_DEFINITIONS: Readonly<Record<PlayerShipId, ShipAbility
     frames: BIO_GENOME_LANCE_FRAME_URLS,
     iconUrl: BIO_GENOME_LANCE_FRAME_URLS[3],
     iconRotationDegrees: 0,
-    cooldownFrames: RESEARCH_CHARGE_COOLDOWN_FRAMES,
-    cooldownSeconds: RESEARCH_CHARGE_COOLDOWN_SECONDS,
+    cooldownFrames: SHIP_ABILITY_COOLDOWN_SECONDS.bio * 60,
+    cooldownSeconds: SHIP_ABILITY_COOLDOWN_SECONDS.bio,
     color: '#86efac',
     glow: 'rgba(74,222,128,0.3)'
   },
@@ -81,8 +114,8 @@ export const SHIP_ABILITY_DEFINITIONS: Readonly<Record<PlayerShipId, ShipAbility
     frames: ETH_PRISM_VOLLEY_FRAME_URLS,
     iconUrl: ETH_PRISM_VOLLEY_FRAME_URLS[3],
     iconRotationDegrees: 0,
-    cooldownFrames: RESEARCH_CHARGE_COOLDOWN_FRAMES,
-    cooldownSeconds: RESEARCH_CHARGE_COOLDOWN_SECONDS,
+    cooldownFrames: SHIP_ABILITY_COOLDOWN_SECONDS.eth * 60,
+    cooldownSeconds: SHIP_ABILITY_COOLDOWN_SECONDS.eth,
     color: '#c4b5fd',
     glow: 'rgba(167,139,250,0.3)'
   },
@@ -93,8 +126,8 @@ export const SHIP_ABILITY_DEFINITIONS: Readonly<Record<PlayerShipId, ShipAbility
     frames: BTC_HASH_BURST_FRAME_URLS,
     iconUrl: BTC_HASH_BURST_FRAME_URLS[3],
     iconRotationDegrees: 0,
-    cooldownFrames: RESEARCH_CHARGE_COOLDOWN_FRAMES,
-    cooldownSeconds: RESEARCH_CHARGE_COOLDOWN_SECONDS,
+    cooldownFrames: SHIP_ABILITY_COOLDOWN_SECONDS.btc * 60,
+    cooldownSeconds: SHIP_ABILITY_COOLDOWN_SECONDS.btc,
     color: '#facc15',
     glow: 'rgba(250,204,21,0.3)'
   }

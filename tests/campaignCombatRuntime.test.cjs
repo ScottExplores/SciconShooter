@@ -105,7 +105,13 @@ test('Max Shot doubles the complete current weapon pattern without changing cade
   assert.equal(copies.length, 2);
   assert.equal(copies[0].offsetX, -copies[1].offsetX);
   assert.equal(copies[0].angleOffset, -copies[1].angleOffset);
-  assert.ok(Math.abs(copies[1].angleOffset * 180 / Math.PI) < 0.5, 'each copy stays inside its existing lane');
+  // The pair diverges into a visible cone instead of hugging its original
+  // lane, which is what makes Max Shot read as a super state. It stays well
+  // inside a lane-swapping spread so aiming is unchanged.
+  const copyAngleDegrees = Math.abs(copies[1].angleOffset * 180 / Math.PI);
+  assert.ok(copyAngleDegrees >= 3, 'the pair fans wide enough to read as a cone');
+  assert.ok(copyAngleDegrees <= 8, 'the fan never widens into a different lane');
+  assert.ok(Math.abs(copies[1].offsetX) >= 4, 'copies separate at the muzzle too');
   assert.match(engine, /const fireInterval = getFireRateIntervalFrames\(level\)/);
   assert.doesNotMatch(engine, /fireInterval\s*[*/]=?\s*.*MAX_SHOT/);
 });

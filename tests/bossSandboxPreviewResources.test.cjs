@@ -43,7 +43,7 @@ test('Boss Sandbox resource overrides stay preview-only from UI through engine',
   );
   assert.match(
     engine,
-    /this\.stats\.shipAbilityCooldown = this\.previewShipAbilityNoCooldown[\s\S]*\? 0[\s\S]*: ability\.cooldownFrames/
+    /this\.stats\.shipAbilityCooldown = this\.previewShipAbilityNoCooldown[\s\S]*\? 0[\s\S]*: abilityCooldownFrames/
   );
   assert.match(hud, /\{unlimitedBombs \? '∞' : bombs\}/);
 });

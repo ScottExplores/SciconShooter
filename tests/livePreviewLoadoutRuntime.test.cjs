@@ -63,6 +63,13 @@ function buildExactMethodHarness() {
         return this.previewAllowed;
       }
 
+      // The engine tightens signature cooldowns with the Fire Rate track. The
+      // harness passes the base through unchanged so this test keeps asserting
+      // hot-swap behaviour rather than upgrade maths.
+      getShipAbilityCooldownFrames(baseCooldownFrames: number) {
+        return baseCooldownFrames;
+      }
+
       restartPreview() {
         this.restartCount += 1;
       }
