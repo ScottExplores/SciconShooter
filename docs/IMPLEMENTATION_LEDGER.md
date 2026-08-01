@@ -24,7 +24,7 @@ Branch: `experimental/arcade-polish` (nothing pushed to `main`).
 | 6 | Distinct signature moves for main ships | WIP | Cooldown ladder 16/13/11/9s, Fire Rate tightens up to 35%. Each hull already has a distinct projectile behaviour (piercing lance / 3-shard volley / hash burst / pulse). Homing Missiles added as a 4th Hangar track. |
 | 7 | Generate and integrate sprite sheets and effects | BLOCKED | No image generator available in this environment. Ability FX frames already exist under `scicon-player-weapon-fx-v1`. Animation systems/hookups can be wired so generated frames drop in. |
 | 8 | Rebuild the home screen around the two modes | WIP | Both modes named and on screen at 390x844, zero text overlaps, no page scroll. Weekly Run card shows live status/boss count. Campaign card still needs coin balance + route. |
-| 9 | Standardize menus, panels, victory/defeat screens | TODO | One text overlap fixed (ship-lock vs Connect). Shared panel/button styling not yet extracted. |
+| 9 | Standardize menus, panels, victory/defeat screens | WIP | Text overlap fixed (ship-lock vs Connect). First-run Tutorial shipped on the shared pixel frame - it was orphaned with zero references. Result screens not yet reviewed. |
 | 10 | Remove conflicting or obsolete old mode logic | WIP | Removed campaign-map weekly panel, orphaned confirmation flow, filler spawn system. |
 | 11 | Build + gameplay smoke checks | DONE | `tsc`, `eslint` clean. `npm test` 1108 passing; only the 2 art failures that also fail on clean main. Matrix regenerated and green. |
 | 12 | Prepare for hands-on testing | TODO | |
@@ -33,7 +33,7 @@ Branch: `experimental/arcade-polish` (nothing pushed to `main`).
 
 Balance matrix (600 trials, real `GameEngine`), vs `main` = 495 clears / 102 deaths / 3 timeouts:
 
-- Current: **519 clears / 81 deaths / 0 timeouts**, dead-air breaches **0**, mobile peak load 1.000, no inversions, no perf-mode cells.
+- Current: **513 clears / 87 deaths / 0 timeouts**, dead-air breaches **0**, mobile peak load 1.000, no inversions, no perf-mode cells - with six-shape loose formation variety in place.
 - Enemies leaving the field unshot: **41–50% → 0%**.
 
 ## Content bugs found, left for a deliberate decision
