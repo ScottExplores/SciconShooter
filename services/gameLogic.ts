@@ -8821,10 +8821,56 @@ export class GameEngine {
     return true;
   }
 
+  /**
+   * Pulls the next authored squadron forward when the player has already
+   * cleared the field.
+   *
+   * Authored `startSeconds` values describe the intended rhythm against an
+   * average clear speed. A player who wipes a squadron faster than that would
+   * otherwise sit on an empty playfield waiting for the clock, which is the
+   * dead air the old continuity drifters existed to paper over. Arcade pacing
+   * closes that gap by launching the next group instead of inventing filler.
+   *
+   * This only ever moves the Wave clock forward to a group that was already
+   * authored to arrive, so ordering and composition are untouched.
+   */
+  advanceWaveClockToNextSquadronWhenFieldIsClear(events: readonly RuntimeSpawnEvent[]) {
+    if (this.inBossWarningSequence || this.pendingConfiguredEncounter) return;
+    if (this.waveTransitionPending || this.introFlightFrames > 0) return;
+    if (this.getActiveThreatCount() > 0) return;
+
+    const elapsedSeconds = this.getWaveElapsedSeconds();
+    let earliestPendingStart = Number.POSITIVE_INFINITY;
+    for (const event of events) {
+      const startSeconds = Math.max(0, Number(event.startSeconds) || 0);
+      if (startSeconds <= elapsedSeconds) continue;
+      if ((this.configuredSpawnCounts.get(event.id) || 0) >= this.getConfiguredSpawnTargetCount(event)) continue;
+      earliestPendingStart = Math.min(earliestPendingStart, startSeconds);
+    }
+    // An authored encounter still ahead of the clock owns the pacing here; its
+    // own warning sequence covers the gap, so never skip ahead of it.
+    for (const encounter of this.getConfiguredEncounterEvents()) {
+      if (this.configuredEncounterIds.has(encounter.id)) continue;
+      const startSeconds = Math.max(0, Number(encounter.startSeconds) || 0);
+      if (startSeconds > elapsedSeconds) earliestPendingStart = Math.min(earliestPendingStart, startSeconds);
+    }
+    if (!Number.isFinite(earliestPendingStart)) return;
+
+    this.waveProgressFrames = Math.max(
+      this.waveProgressFrames,
+      Math.round(earliestPendingStart * GAME_CONFIG.FPS)
+    );
+    this.stats.bossProgress = Math.min(
+      1,
+      this.waveProgressFrames / this.getConfiguredWaveDurationFrames()
+    );
+  }
+
   spawnConfiguredEnemies() {
     this.reconcileCampaignFormationPackInstances();
     const events = this.getConfiguredSpawnEvents();
     if (events.length === 0) return false;
+    this.advanceWaveClockToNextSquadronWhenFieldIsClear(events);
     const elapsedSeconds = this.getWaveElapsedSeconds();
     const difficultyMultiplier = this.getCurrentDifficultyMultiplier();
     const threatCap = Math.max(1, Number(this.getCurrentWaveDefinition()?.threatCap) || this.getThreatCap());

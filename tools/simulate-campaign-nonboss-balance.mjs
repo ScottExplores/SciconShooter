@@ -12,6 +12,9 @@ const SOURCE_DIGEST_PATHS = Object.freeze([
   'services/gameLogic.ts',
   'services/campaignEnemyFiring.ts',
   'services/campaignFormationBudget.ts',
+  // Owns when a Wave is allowed to finish, so it changes every pacing number
+  // this matrix reports.
+  'services/waveCompletion.ts',
   'services/gameplay/formations/FormationRuntime.ts',
   'services/gameplay/mini-bosses/MiniBossEncounterRegistry.ts',
   'services/gameplay/mini-bosses/MiniBossEncounterRuntime.ts',

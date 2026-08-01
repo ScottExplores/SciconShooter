@@ -42,11 +42,16 @@ export const getCampaignSpawnTargetCount = ({
 /**
  * Interstitial waves cannot finish while scheduled content is still spawning,
  * a warning is resolving, or any hostile remains on the field.
+ *
+ * The authored `durationSeconds` is a spawning schedule, not a stopwatch the
+ * player has to wait out. Once every authored squadron has been released and
+ * the field is clear, the Wave is over -- holding the player on an empty
+ * screen until the clock expires is pure dead air. Authored pacing is still
+ * fully respected because a spawn event that has not reached its startSeconds
+ * yet leaves `scheduledSpawnsComplete` false.
  */
 export const shouldCompleteClearWave = ({
   completionRule,
-  elapsedFrames,
-  durationFrames,
   scheduledSpawnsComplete,
   scheduledEncountersComplete,
   activeThreatCount,
@@ -55,7 +60,6 @@ export const shouldCompleteClearWave = ({
 }: ClearWaveCompletionInput) => completionRule === 'clear-after-duration'
   && !transitionPending
   && !warningActive
-  && elapsedFrames >= durationFrames
   && scheduledSpawnsComplete
   && scheduledEncountersComplete
   && activeThreatCount === 0;

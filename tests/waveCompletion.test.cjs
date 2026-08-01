@@ -81,7 +81,7 @@ test('elite checkpoints and boss-preparation Missions finish with authored block
   }
 });
 
-test('clear-wave completion waits for the timer, schedules, warnings, and every hostile', () => {
+test('clear-wave completion waits for schedules, warnings, and every hostile', () => {
   const { shouldCompleteClearWave } = loadWaveCompletion();
   const ready = {
     completionRule: 'clear-after-duration',
@@ -96,12 +96,32 @@ test('clear-wave completion waits for the timer, schedules, warnings, and every 
 
   assert.equal(shouldCompleteClearWave(ready), true);
   assert.equal(shouldCompleteClearWave({ ...ready, completionRule: 'boss-defeat' }), false);
-  assert.equal(shouldCompleteClearWave({ ...ready, elapsedFrames: 3599 }), false);
   assert.equal(shouldCompleteClearWave({ ...ready, scheduledSpawnsComplete: false }), false);
   assert.equal(shouldCompleteClearWave({ ...ready, scheduledEncountersComplete: false }), false);
   assert.equal(shouldCompleteClearWave({ ...ready, activeThreatCount: 1 }), false);
   assert.equal(shouldCompleteClearWave({ ...ready, warningActive: true }), false);
   assert.equal(shouldCompleteClearWave({ ...ready, transitionPending: true }), false);
+});
+
+test('a cleared squadron ends the Wave immediately instead of idling out the clock', () => {
+  const { shouldCompleteClearWave } = loadWaveCompletion();
+  const clearedEarly = {
+    completionRule: 'clear-after-duration',
+    elapsedFrames: 120,
+    durationFrames: 3600,
+    scheduledSpawnsComplete: true,
+    scheduledEncountersComplete: true,
+    activeThreatCount: 0,
+    warningActive: false,
+    transitionPending: false
+  };
+
+  // durationSeconds is a spawning schedule, not a stopwatch. Making the player
+  // stare at an empty playfield until it expires is the dead air that the old
+  // continuity-drifter system existed to hide.
+  assert.equal(shouldCompleteClearWave(clearedEarly), true);
+  // Authored pacing still holds: an unreleased spawn group keeps the Wave open.
+  assert.equal(shouldCompleteClearWave({ ...clearedEarly, scheduledSpawnsComplete: false }), false);
 });
 
 test('authored clear waves never fall through to legacy boss milestones', () => {
