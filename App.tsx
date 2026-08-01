@@ -638,6 +638,7 @@ const App: React.FC = () => {
   const [activeBossEncounterId, setActiveBossEncounterId] = useState<string | null>(null);
   const [activeBossArchiveRun, setActiveBossArchiveRun] = useState<BossArchiveRunContext | null>(null);
   const [bossArchiveResult, setBossArchiveResult] = useState<BossArchiveResultPresentation | null>(null);
+  const [bossArchiveLaunchError, setBossArchiveLaunchError] = useState<string | null>(null);
   const [bossArchiveDailyLimit, setBossArchiveDailyLimit] = useState(
     DEFAULT_BOSS_ARCHIVE_DAILY_CHARGE_LIMIT
   );
@@ -1916,6 +1917,10 @@ const App: React.FC = () => {
         )
       )
     ) {
+      // Refusing here without a reason made the Play button look dead.
+      setBossArchiveLaunchError(requestedBossReplay
+        ? 'This boss is still locked. Defeat it in the Campaign to add it to the Archive.'
+        : 'This Archive entry could not be loaded. Close the Archive and reopen it.');
       releaseLaunchReservation();
       return;
     }
@@ -1930,6 +1935,7 @@ const App: React.FC = () => {
         bossArchiveDailyLimit
       ).remaining <= 0
     ) {
+      setBossArchiveLaunchError('All Boss Archive charges have been used for today. They reset at 00:00 UTC.');
       releaseLaunchReservation();
       return;
     }
@@ -1948,7 +1954,9 @@ const App: React.FC = () => {
       matchingReusableArchiveRun?.serverWalletAddress ?? null;
     if (requiresServerChallengeSettlement) {
       if (walletProfileStatus !== 'ready') {
-        setWalletError('Reconnect this wallet profile before starting a Boss Archive fight.');
+        const reconnectMessage = 'Reconnect this wallet profile before starting a Boss Archive fight.';
+        setWalletError(reconnectMessage);
+        setBossArchiveLaunchError(reconnectMessage);
         releaseLaunchReservation();
         return;
       }
@@ -1997,11 +2005,11 @@ const App: React.FC = () => {
       } catch (error) {
         if (missionLaunchNonceRef.current !== launchNonce) return;
         console.error('Boss Archive Challenge start failed', error);
-        setWalletError(
-          error instanceof Error
-            ? error.message
-            : 'This Boss Archive fight could not start. Reconnect and try again.'
-        );
+        const startFailureMessage = error instanceof Error
+          ? error.message
+          : 'This Boss Archive fight could not start. Reconnect and try again.';
+        setWalletError(startFailureMessage);
+        setBossArchiveLaunchError(startFailureMessage);
         releaseLaunchReservation();
         return;
       }
@@ -2023,22 +2031,25 @@ const App: React.FC = () => {
         { dailyLimit: bossArchiveDailyLimit }
       );
       if (!reservation.result.accepted) {
-        setWalletError(
-          reservation.result.reason === 'no-charges'
-            ? 'All three Boss Archive charges have been used for today.'
-            : 'This Boss Archive fight could not be reserved. Please try again.'
-        );
+        const reservationMessage = reservation.result.reason === 'no-charges'
+          ? 'All Boss Archive charges have been used for today. They reset at 00:00 UTC.'
+          : 'This Boss Archive fight could not be reserved. Please try again.';
+        setWalletError(reservationMessage);
+        setBossArchiveLaunchError(reservationMessage);
         releaseLaunchReservation();
         return;
       }
       if (!persistRewardClaim(reservation.permanentState, reservation.weeklyState)) {
-        setWalletError('This Boss Archive charge could not be saved. Please try again.');
+        const persistMessage = 'This Boss Archive charge could not be saved. Please try again.';
+        setWalletError(persistMessage);
+        setBossArchiveLaunchError(persistMessage);
         releaseLaunchReservation();
         return;
       }
       permanentSquadStateRef.current = reservation.permanentState;
       weeklySquadStateRef.current = reservation.weeklyState;
       setWalletError('');
+      setBossArchiveLaunchError(null);
     }
 
     const requiresServerBranchSettlement = Boolean(
@@ -2133,7 +2144,10 @@ const App: React.FC = () => {
         } satisfies BossArchiveRunContext
       : null);
     setActiveBossArchiveRun(nextArchiveRun);
-    if (nextArchiveRun) setBossArchiveResult(null);
+    if (nextArchiveRun) {
+      setBossArchiveResult(null);
+      setBossArchiveLaunchError(null);
+    }
     campaignBranchRunRef.current = requestedCampaignBranch
       ? {
           branchId: requestedCampaignBranch.branchId,
@@ -5590,6 +5604,8 @@ const App: React.FC = () => {
             notice: bossArchiveResult.notice
           } : null}
           onDismissBossArchiveResult={() => setBossArchiveResult(null)}
+          bossArchiveLaunchError={bossArchiveLaunchError}
+          onDismissBossArchiveLaunchError={() => setBossArchiveLaunchError(null)}
           bossArchiveDeveloperControls={bossArchiveDeveloperControls}
           founderSandbox={isOwnerWallet}
           onUnlockSquadSlot={handleUnlockSquadSlot}

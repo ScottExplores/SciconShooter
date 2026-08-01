@@ -1062,6 +1062,20 @@ img.boss-archive-carousel__portrait[data-idle-preview='active'][data-composed='f
   white-space: nowrap;
 }
 
+/* A refused launch has to be visible, so this wraps instead of truncating. */
+.boss-archive-action__error {
+  margin: .35rem 0 0;
+  padding: .3rem .5rem;
+  border: 1px solid rgb(248 113 113 / 55%);
+  border-radius: .25rem;
+  background: rgb(127 29 29 / 35%);
+  box-shadow: 0 0 .6rem rgb(248 113 113 / 25%);
+  color: rgb(254 202 202);
+  font: 700 .42rem/1.35 ui-monospace, monospace;
+  letter-spacing: .04em;
+  text-align: center;
+}
+
 .boss-archive-empty {
   display: flex;
   min-height: 28rem;

@@ -245,3 +245,44 @@ test('locked carousel and index entries never request real boss artwork', () => 
   );
   assert.match(archive, /item\.unlocked\s*\? <BossArchivePortrait[\s\S]*boss-archive-index__unknown/);
 });
+
+test('a refused Boss Archive launch always reaches the player instead of no-opping', () => {
+  const app = read('App.tsx');
+  const archive = read('components/BossArchive.tsx');
+  const startScreen = read('components/StartScreen.tsx');
+  const css = read('components/boss-archive/boss-archive.css');
+
+  // The panel must be able to say why a fight did not start.
+  assert.match(archive, /launchError\?: string \| null;/);
+  assert.match(archive, /boss-archive-action__error/);
+  // The compact breakpoint hides the informational note; the refusal must not
+  // ride on that class or small screens would silently swallow it again.
+  assert.match(css, /\.boss-archive-action__note \{ display: none; \}/);
+  assert.doesNotMatch(css, /\.boss-archive-action__error \{ display: none; \}/);
+  assert.match(startScreen, /launchError=\{bossArchiveLaunchError\}/);
+  assert.match(app, /bossArchiveLaunchError=\{bossArchiveLaunchError\}/);
+
+  // Every early return in the Boss Archive launch gate must set a reason
+  // first. Previously two of them returned with no user-visible signal at all,
+  // which is what made "Play Boss" look like a dead button.
+  const gateMatch = /bossEncounterId\s*&& \(\s*!requestedBossReplay/.exec(app);
+  assert.ok(gateMatch, 'boss archive unlock gate is present');
+  const gateStart = gateMatch.index;
+  const gateEnd = app.indexOf('const requiresServerChallengeSettlement', gateStart);
+  assert.ok(gateEnd > gateStart);
+  const gates = app.slice(gateStart, gateEnd);
+  const returnCount = (gates.match(/releaseLaunchReservation\(\);/g) ?? []).length;
+  const reasonCount = (gates.match(/setBossArchiveLaunchError\(/g) ?? []).length;
+  assert.equal(returnCount, 2);
+  assert.equal(reasonCount, 2);
+
+  // Boss Archive wallet failures are mirrored into the panel because
+  // walletError renders in a separate overlay behind the open modal.
+  assert.match(app, /setWalletError\(reconnectMessage\);\s*\n\s*setBossArchiveLaunchError\(reconnectMessage\);/);
+  assert.match(app, /setWalletError\(startFailureMessage\);\s*\n\s*setBossArchiveLaunchError\(startFailureMessage\);/);
+  assert.match(app, /setWalletError\(reservationMessage\);\s*\n\s*setBossArchiveLaunchError\(reservationMessage\);/);
+  assert.match(app, /setWalletError\(persistMessage\);\s*\n\s*setBossArchiveLaunchError\(persistMessage\);/);
+
+  // A successful launch clears the stale refusal.
+  assert.match(app, /if \(nextArchiveRun\) \{\s*\n\s*setBossArchiveResult\(null\);\s*\n\s*setBossArchiveLaunchError\(null\);/);
+});

@@ -65,6 +65,12 @@ export interface BossArchiveProps {
   records?: Readonly<Record<string, BossArchiveBossRecord>>;
   result?: BossArchiveResult | null;
   onDismissResult?: () => void;
+  /**
+   * Why the last launch attempt did not start a fight. Without this the host
+   * can refuse a launch silently and the panel just looks broken.
+   */
+  launchError?: string | null;
+  onDismissLaunchError?: () => void;
   developerControls?: BossArchiveDeveloperControls | null;
 }
 
@@ -240,6 +246,8 @@ const BossArchive: React.FC<BossArchiveProps> = ({
   records,
   result,
   onDismissResult,
+  launchError,
+  onDismissLaunchError,
   developerControls
 }) => {
   const dialogRef = useRef<HTMLElement>(null);
@@ -414,6 +422,9 @@ const BossArchive: React.FC<BossArchiveProps> = ({
   const launchSelected = () => {
     if (!selectedItem?.unlocked) return;
     if (challengeDisabledReason) return;
+    // Clear any stale refusal before asking the host again, so a retry that
+    // fails for the same reason still reads as a fresh response.
+    onDismissLaunchError?.();
     if (onLaunch) onLaunch(selectedItem.entry, {
       mode: 'challenge',
       variantId: 'standard',
@@ -607,6 +618,9 @@ const BossArchive: React.FC<BossArchiveProps> = ({
             <p className="boss-archive-action__note" role="status">
               {challengeDisabledReason ?? `${selectedDifficulty.description} Each fight costs 1 daily charge.`}
             </p>
+            {launchError ? (
+              <p className="boss-archive-action__error" role="alert">{launchError}</p>
+            ) : null}
           </footer>
         ) : null}
 

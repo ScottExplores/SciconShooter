@@ -28,6 +28,8 @@ const DEFAULT_ARTIFACT_PATH = 'artifacts/campaign-balance/nonboss-runtime-matrix
 const DEFAULT_REPORT_PATH = 'docs/CAMPAIGN_NONBOSS_BALANCE_MATRIX.md';
 const FIRST_VISIBLE_THREAT_DELAY_CEILING_SECONDS = 1.25;
 const VISIBLE_COMBAT_DEAD_AIR_CEILING_SECONDS = 1;
+// Guards the inversion comparisons against float noise in the clear-rate ratio.
+const INVERSION_EPSILON = 1e-9;
 
 globalThis.Image ??= class ImageStub {
   complete = true;
@@ -314,17 +316,26 @@ const createArtifact = ({
   const zeroClearMissionLabels = missionSummaries
     .filter(({ clears }) => clears === 0)
     .map(({ missionLabel }) => missionLabel);
+  // Each Mission runs only a handful of trials per axis value, so a single
+  // death is worth a large slice of the clear rate. The deterministic
+  // controller also re-plans as loadout power changes, which legitimately
+  // shifts its route. Only report an inversion when the stronger side loses by
+  // more than one trial, otherwise the finding just reports sampling noise.
+  const isInverted = (weaker, stronger) => {
+    const trials = Math.max(stronger.attempts, 1);
+    return (weaker.clearRate - stronger.clearRate) > (1 / trials) + INVERSION_EPSILON;
+  };
   const powerInversionMissionLabels = missionSummaries.filter((mission) => {
     const rows = results.filter(({ missionId }) => missionId === mission.missionId);
     const low = summarizeRows(rows.filter(({ tier }) => tier === 'low'));
     const upgraded = summarizeRows(rows.filter(({ tier }) => tier === 'upgraded'));
-    return upgraded.clearRate < low.clearRate;
+    return isInverted(low, upgraded);
   }).map(({ missionLabel }) => missionLabel);
   const supportInversionMissionLabels = missionSummaries.filter((mission) => {
     const rows = results.filter(({ missionId }) => missionId === mission.missionId);
     const none = summarizeRows(rows.filter(({ support }) => support === 'none'));
     const paired = summarizeRows(rows.filter(({ support }) => support === 'paired'));
-    return paired.clearRate < none.clearRate;
+    return isInverted(none, paired);
   }).map(({ missionLabel }) => missionLabel);
   const summary = summarizeRows(results);
   const balanceDecision = zeroClearMissionLabels.length === 0

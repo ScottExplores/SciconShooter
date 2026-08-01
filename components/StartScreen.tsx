@@ -115,6 +115,8 @@ interface StartScreenProps {
   bossArchiveDailyChargeStatus?: BossArchiveDailyChargeStatus;
   bossArchiveResult?: BossArchiveResult | null;
   onDismissBossArchiveResult?: () => void;
+  bossArchiveLaunchError?: string | null;
+  onDismissBossArchiveLaunchError?: () => void;
   bossArchiveDeveloperControls?: BossArchiveDeveloperControls | null;
   founderSandbox?: boolean;
   onUnlockSquadSlot: (slot: SquadSlotId) => void;
@@ -613,6 +615,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
   bossArchiveDailyChargeStatus,
   bossArchiveResult = null,
   onDismissBossArchiveResult,
+  bossArchiveLaunchError = null,
+  onDismissBossArchiveLaunchError,
   bossArchiveDeveloperControls = null,
   founderSandbox = false,
   onUnlockSquadSlot,
@@ -2086,6 +2090,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
           dailyChargeStatus={bossArchiveDailyChargeStatus}
           result={bossArchiveResult}
           onDismissResult={onDismissBossArchiveResult}
+          launchError={bossArchiveLaunchError}
+          onDismissLaunchError={onDismissBossArchiveLaunchError}
           developerControls={bossArchiveDeveloperControls ? {
             ...bossArchiveDeveloperControls,
             showLockedEntries: bossArchiveDevShowLocked,
