@@ -4643,7 +4643,7 @@
               "id": "stage-open-galaxy-wave-7-support",
               "kind": "spawn",
               "label": "River research ambush",
-              "startSeconds": 6,
+              "startSeconds": 5.2,
               "durationSeconds": 5.5,
               "delayAfterSeconds": 0,
               "blocksWaveClock": false,

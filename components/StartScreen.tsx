@@ -1277,6 +1277,17 @@ const StartScreen: React.FC<StartScreenProps> = ({
               ) : <span className="col-start-3" aria-hidden="true" />}
             </div>
           ) : null}
+          {/* Names the mode next to its launch control, so Campaign and the
+              Weekly Run read as a matched pair rather than two unlabelled
+              buttons that happen to sit near each other. */}
+          <p className="sci-campaign-mode-strip">
+            <span className="sci-campaign-mode-strip__label">Campaign</span>
+            <span className="sci-campaign-mode-strip__value">
+              Mission {String(campaignCheckpoint.missionNumber).padStart(2, '0')}
+              {' · '}
+              Wave {campaignCheckpoint.waveNumber}/{campaignCheckpoint.waveTotal}
+            </span>
+          </p>
           <PixelActionButton
             onClick={onStart}
             aria-label={`${campaignCheckpoint.action}. Mission ${campaignCheckpoint.missionNumber}, ${campaignCheckpoint.waveTotal} WAVES, ${campaignCheckpoint.missionName}.`}

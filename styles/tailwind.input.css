@@ -263,6 +263,32 @@
   min-height: 5rem;
 }
 
+/* Names the Campaign mode above its launch control so it reads as the
+   counterpart to the Weekly Run entry rather than an unlabelled button. */
+.sci-campaign-mode-strip {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.45rem;
+  margin: 0 0 0.35rem;
+  text-align: center;
+}
+
+.sci-campaign-mode-strip__label {
+  color: rgb(110 231 183);
+  font: 900 0.6rem/1 inherit;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sci-campaign-mode-strip__value {
+  color: rgb(148 163 184);
+  font: 800 0.56rem/1 inherit;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 /* Standalone Weekly Run entry. Sits directly under the weekly high score so
    the board and the way to compete on it read as one unit. Uses the shared
    pixel information-card frame so it belongs to the same art system as the
