@@ -107,3 +107,31 @@ test('weekly streak proof and the server-issued run token are bound to Weekly mo
   assert.match(appSource, /profileId:\s*weeklySquadStateRef\.current\.profileId,[\s\S]{0,80}weeklyCampaignProof/);
   assert.match(appSource, /beginRunSession\(isOwnerTestRun\s*\|\|\s*isOwnerWallet,\s*activeRunMode\)/);
 });
+
+test('Campaign Missions never post to the weekly high-score board', () => {
+  const appSource = read('App.tsx');
+
+  // Leaderboard eligibility is its own flag. Campaign runs are excluded from
+  // it, but must stay inside isNonCompetitiveRun's inverse so they keep
+  // awarding lifetime stats, mastery, and Hangar credits.
+  assert.match(
+    appSource,
+    /const isWeeklyLeaderboardRun = !isNonCompetitiveRun && !isCompetitiveCampaignRun;/
+  );
+  assert.doesNotMatch(
+    appSource,
+    /const isNonCompetitiveRun = [^\n]*isCompetitiveCampaignRun/,
+    'campaign must not be folded into isNonCompetitiveRun; that gates run payout too'
+  );
+
+  // The submit path and the name prompt both hang off the new flag.
+  assert.match(
+    appSource,
+    /if \(!isWeeklyLeaderboardRun \|\| !playerNameInput\.trim\(\)/
+  );
+  assert.match(appSource, /setShowNameInput\(isWeeklyLeaderboardRun\)/);
+
+  // Campaign still records lifetime progression.
+  assert.match(appSource, /if \(!isNonCompetitiveRun && permanentRunAppliedGameIdRef\.current !== gameId\)/);
+  assert.match(appSource, /recordLifetimeRun\(current, \{/);
+});

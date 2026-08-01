@@ -887,6 +887,19 @@ const App: React.FC = () => {
   const isCampaignRun = isCompetitiveCampaignRun || isCampaignLabRun || isWeeklyCampaignRun;
   const isFounderSandboxRun = isOwnerWallet || isOwnerTestRun;
   const isNonCompetitiveRun = isFounderSandboxRun || isBossArchiveRun || isCampaignLabRun || isCampaignBranchRun;
+  /**
+   * Whether this run may post to the weekly high-score board.
+   *
+   * The weekly board is its own competition, fed by the Weekly Run and plain
+   * arcade runs. Campaign Missions are progression: they still award unlocks,
+   * mastery, lifetime stats, and Hangar credits, but they must not post a
+   * weekly score, or replaying an early Mission with a fully upgraded ship
+   * would outscore an honest weekly attempt.
+   *
+   * Deliberately separate from isNonCompetitiveRun, which also gates run
+   * payout and lifetime recording that Campaign still needs.
+   */
+  const isWeeklyLeaderboardRun = !isNonCompetitiveRun && !isCompetitiveCampaignRun;
   const activeBossReplay = useMemo(() => (
     activeBossEncounterId ? getBossArchiveEntry(activeBossEncounterId) : null
   ), [activeBossEncounterId]);
@@ -4978,9 +4991,9 @@ const App: React.FC = () => {
       }
 
       setScoreSubmitError('');
-      setShowNameInput(!isNonCompetitiveRun);
+      setShowNameInput(isWeeklyLeaderboardRun);
     }
-  }, [gameId, gameState, isBossArchiveRun, isCampaignRun, isNonCompetitiveRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
+  }, [gameId, gameState, isBossArchiveRun, isCampaignRun, isNonCompetitiveRun, isWeeklyLeaderboardRun, stats.coins, stats.enemiesDefeated, stats.score, stats.wave, stats.highScore, updatePermanentSquadState, updateWeeklySquadState]);
 
   const updateWeeklyCampaignSubmission = useCallback((
     status: 'pending' | 'submitted' | 'failed',
@@ -4998,7 +5011,7 @@ const App: React.FC = () => {
   }, [isWeeklyCampaignRun, persistWeeklyCampaignStreak]);
 
   const persistHighScore = async () => {
-    if (isNonCompetitiveRun || !playerNameInput.trim() || submittingScoreRef.current) return false;
+    if (!isWeeklyLeaderboardRun || !playerNameInput.trim() || submittingScoreRef.current) return false;
 
     submittingScoreRef.current = true;
     setIsSubmittingScore(true);
