@@ -82,16 +82,29 @@ test('framed URL preserves routes while adding one recursive-frame guard', () =>
   assert.equal(runtime.hasMobileFrameDisplay('https://sciconshooter.xyz/?view=campaign-map'), false);
 });
 
-test('desktop frame stays logically 390x844 and scales down uniformly when height is short', () => {
+test('desktop frame stays logically 390x844 and scales to fit the screen', () => {
   assert.equal(runtime.MOBILE_FRAME_WIDTH, 390);
   assert.equal(runtime.MOBILE_FRAME_HEIGHT, 844);
-  assert.equal(runtime.resolveMobileFrameScale(1440, 900), 1);
+
+  // A tall desktop screen grows the deck instead of leaving it as a small
+  // window in the middle of the monitor.
+  const roomyScale = runtime.resolveMobileFrameScale(1440, 900);
+  assert.ok(roomyScale > 1, 'a 900px-tall screen uses more than 1x');
+  assert.ok(Math.abs(roomyScale - (876 / 844)) < 1e-12);
+
+  const tallScale = runtime.resolveMobileFrameScale(1920, 1440);
+  assert.equal(tallScale, runtime.MOBILE_FRAME_MAX_SCALE, 'growth stays bounded');
 
   const shortScreenScale = runtime.resolveMobileFrameScale(1366, 768);
   assert.ok(shortScreenScale < 1);
   assert.ok(Math.abs(shortScreenScale - (744 / 844)) < 1e-12);
-  assert.ok((390 * shortScreenScale) <= (1366 - 48));
-  assert.ok((844 * shortScreenScale) <= (768 - 24));
+
+  // Whatever the scale, the frame always fits inside the viewport budget.
+  for (const [width, height] of [[1440, 900], [1920, 1440], [1366, 768], [1280, 720]]) {
+    const scale = runtime.resolveMobileFrameScale(width, height);
+    assert.ok((390 * scale) <= (width - 48), `${width}x${height} fits horizontally`);
+    assert.ok((844 * scale) <= (height - 24), `${width}x${height} fits vertically`);
+  }
 });
 
 test('entrypoint wraps the existing canonical App instead of creating a second game implementation', () => {

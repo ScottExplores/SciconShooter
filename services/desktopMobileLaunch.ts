@@ -30,6 +30,17 @@ export const buildMobileFrameUrl = (href: string) => {
   return url.toString();
 };
 
+/**
+ * Largest the phone frame may grow on a desktop monitor.
+ *
+ * Locking the frame at 1.0 left the game as a small 390x844 window in the
+ * middle of a large screen, which reads as "I can only see part of it". The
+ * frame now grows to use the available height so the deck is legible from a
+ * normal sitting distance, while staying bounded so the pixel art does not
+ * turn to mush.
+ */
+export const MOBILE_FRAME_MAX_SCALE = 1.6;
+
 export const resolveMobileFrameScale = (
   viewportWidth: number,
   viewportHeight: number,
@@ -42,7 +53,7 @@ export const resolveMobileFrameScale = (
   const heightBudget = Math.max(1, safeHeight - Math.max(0, verticalPadding));
 
   return Math.max(0.1, Math.min(
-    1,
+    MOBILE_FRAME_MAX_SCALE,
     widthBudget / MOBILE_FRAME_WIDTH,
     heightBudget / MOBILE_FRAME_HEIGHT
   ));

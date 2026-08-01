@@ -281,9 +281,13 @@
   padding: 0.1rem 0.15rem;
   filter: drop-shadow(0 0.35rem 0.6rem rgb(0 0 0 / 0.45));
   border-style: solid;
-  border-width: 0.95rem 1.25rem;
-  border-image-source: url('/game-art/generated/ui/scicon-ui-system-v2/base/general-borders/information-card.png');
-  border-image-slice: 58 70 58 70 fill;
+  /* Same frame as the Start Mission panel and the weekly funding shell: navy
+     body, grey chrome, green LEDs, cyan rails. Deliberately NOT the
+     general-borders information-card, whose gold corner brackets fight the
+     rest of the deck. */
+  border-width: 1rem 1.15rem;
+  border-image-source: url('/game-art/generated/ui/scicon-pixel-action-buttons-v1/start-mission-panel.png');
+  border-image-slice: 54 68 54 68 fill;
   border-image-width: 1;
   border-image-repeat: stretch;
   border-radius: 0;
@@ -300,9 +304,10 @@
 
 .sci-weekly-run-entry:active { transform: translateY(1px); }
 
-/* A live run reads gold, matching the champion/upgrade tone used elsewhere. */
+/* A live run brightens its green LEDs rather than shifting hue, so it stays
+   inside the navy/grey/green palette instead of drifting toward gold. */
 .sci-weekly-run-entry[data-active='true'] {
-  filter: saturate(1.1) brightness(1.06) hue-rotate(-24deg);
+  filter: saturate(1.25) brightness(1.12);
 }
 
 .sci-weekly-run-entry__glyph {
