@@ -8933,17 +8933,12 @@ export class GameEngine {
         ((Number(event.spawnIntervalSeconds) || 0.8) * GAME_CONFIG.FPS) / difficultyMultiplier
       ));
       const previousFrame = this.configuredSpawnFrames.get(event.id);
-      // A group's authored trickle assumes its earlier members are still alive
-      // and on screen. Once the player has out-paced it and nothing is visible,
-      // the remaining members close up instead of leaving the screen empty.
-      // Only one unit is admitted per frame, so this self-limits as soon as a
-      // member becomes visible again.
-      const fieldLooksEmpty = this.getVisibleActiveThreatCount() === 0;
-      if (
-        !fieldLooksEmpty
-        && previousFrame !== undefined
-        && this.waveProgressFrames - previousFrame < intervalFrames
-      ) continue;
+      // Collapsing this interval on an empty field was tried and measured
+      // worse: it front-loads a group, so the player clears it sooner and the
+      // gap simply reappears later, while peak entity load rises. The authored
+      // trickle stays intact; dead air is closed by releasing the *next* group
+      // early instead, in releaseNextSquadronWhenFieldIsClear.
+      if (previousFrame !== undefined && this.waveProgressFrames - previousFrame < intervalFrames) continue;
 
       const cycle = this.getCampaignCycle();
       const formationEvent = !String(event.patternId || '').toLowerCase().includes('single')
