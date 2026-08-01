@@ -60,6 +60,9 @@ const MINI_COST_ICON = '/game-art/generated/rsc-coin-flip-v1/rsc-coin-pixel-fron
 const MAIN_UPGRADE_SPRITE: Readonly<Record<MainShipUpgradeId, string>> = Object.freeze({
   fireRate: '/game-art/powerups/rapid-fire.png',
   speed: '/game-art/powerups/speed.png',
+  // PLACEHOLDER ART: no dedicated missile icon exists yet. The missile itself
+  // renders as an engine primitive, so only this Hangar tile needs new art.
+  missile: '/game-art/powerups/overdrive-spread.png',
   startingHearts: '/game-art/powerups/extra-life.png'
 });
 const PLAYER_SHIP_ORDER: PlayerShipId[] = [...PLAYABLE_PLAYER_SHIP_IDS];

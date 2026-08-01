@@ -45,6 +45,9 @@ const RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = [1, 2, 3] as const;
 const PERMANENT_SQUAD_PROFILE_VERSION = 1;
 export const MAIN_SHIP_UPGRADE_MAX_LEVEL = FIRE_RATE_LEVELS_PER_TIER;
 export const MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL;
+// The engine already flies homing missiles at five levels (cooldown 180 down
+// to 80 frames); this is the level cap the Hangar sells against.
+export const MAIN_SHIP_MISSILE_MAX_LEVEL = 5;
 export const MINI_SHIP_MAX_LEVEL = 5;
 export const LEFT_SQUAD_SLOT_UNLOCK_COST = 50;
 export const RIGHT_SQUAD_SLOT_UNLOCK_COST = 500;
@@ -55,7 +58,7 @@ export const SQUAD_SLOT_UNLOCK_COST: Readonly<Record<SquadSlotId, number>> = Obj
 export const WEEKLY_STARTING_COINS = 0;
 
 export type SquadSlotId = 'left' | 'right';
-export type MainShipUpgradeId = 'fireRate' | 'speed' | 'startingHearts';
+export type MainShipUpgradeId = 'fireRate' | 'speed' | 'startingHearts' | 'missile';
 export type MainShipUpgradeLevels = Record<MainShipUpgradeId, number>;
 export type MainShipUpgradesByShip = Record<PlayerShipId, MainShipUpgradeLevels>;
 export type MiniShipId =
@@ -372,6 +375,15 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
     costs: [55, 85, 130, 200, 300, 440, 625]
   },
   {
+    id: 'missile',
+    name: 'Homing Missiles',
+    description: 'Adds an automatic homing missile that seeks the nearest target; each level fires it faster.',
+    // Priced between movement and hearts: a real damage addition, but it fires
+    // itself, so it should not out-compete the Fire Rate track a player is
+    // actively aiming with.
+    costs: [140, 260, 460, 780, 1250]
+  },
+  {
     id: 'startingHearts',
     name: 'Starting Hearts',
     description: 'Permanently adds one starting heart, up to the ten-heart ship cap.',
@@ -397,6 +409,7 @@ const clampLevel = (value: unknown, max = MAIN_SHIP_UPGRADE_MAX_LEVEL) => (
   Math.max(0, Math.min(max, Math.floor(Number(value) || 0)))
 );
 const createMainShipUpgradeLevels = (): MainShipUpgradeLevels => ({
+  missile: 0,
   fireRate: 0,
   speed: 0,
   startingHearts: 0
@@ -416,11 +429,16 @@ const sanitizeMainShipUpgradeLevels = (
 ): MainShipUpgradeLevels => ({
   fireRate: clampLevel(value?.fireRate, MAIN_SHIP_FIRE_RATE_MAX_LEVEL),
   speed: clampLevel(value?.speed),
+  missile: clampLevel(value?.missile, MAIN_SHIP_MISSILE_MAX_LEVEL),
   startingHearts: clampLevel(value?.startingHearts)
 });
 
 export const getMainShipUpgradeMaxLevel = (id: MainShipUpgradeId) => (
-  id === 'fireRate' ? MAIN_SHIP_FIRE_RATE_MAX_LEVEL : MAIN_SHIP_UPGRADE_MAX_LEVEL
+  id === 'fireRate'
+    ? MAIN_SHIP_FIRE_RATE_MAX_LEVEL
+    : id === 'missile'
+      ? MAIN_SHIP_MISSILE_MAX_LEVEL
+      : MAIN_SHIP_UPGRADE_MAX_LEVEL
 );
 
 export const getMainShipFireRateTier = (level: number) => getFireRateTier(level);

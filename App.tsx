@@ -2359,7 +2359,8 @@ const App: React.FC = () => {
       upgrades: {
         ...defaultMissionUpgrades,
         fireRate: squadLoadout.upgrades.fireRate,
-        speed: squadLoadout.upgrades.speed
+        speed: squadLoadout.upgrades.speed,
+        missile: squadLoadout.upgrades.missile
       },
       powerupUses: { ...defaultPowerupUses },
       bossProgress: 0,
@@ -3200,6 +3201,7 @@ const App: React.FC = () => {
           Math.floor(campaignLabUpgradeLevels.fireRate ?? 0)
         )),
         speed: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.speed ?? 0))),
+        missile: Math.max(0, Math.min(5, Math.floor(campaignLabUpgradeLevels.missile ?? 0))),
         startingHearts: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.startingHearts ?? 0)))
       },
       campaignLabPowerSupportIds.map((id) => ({ id, level: campaignLabSupportLevel }))

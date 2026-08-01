@@ -11,7 +11,11 @@ test('weekly competition rollover preserves permanent Hangar progression and res
 
   assert.match(source, /MAIN_SHIP_UPGRADE_MAX_LEVEL = FIRE_RATE_LEVELS_PER_TIER/);
   assert.match(source, /MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL/);
-  assert.match(source, /id === 'fireRate' \? MAIN_SHIP_FIRE_RATE_MAX_LEVEL : MAIN_SHIP_UPGRADE_MAX_LEVEL/);
+  // Fire Rate runs the long tier ladder, Homing Missiles cap at the engine's
+  // five missile levels, and everything else uses the standard cap.
+  assert.match(source, /id === 'fireRate'\s*\?\s*MAIN_SHIP_FIRE_RATE_MAX_LEVEL/);
+  assert.match(source, /id === 'missile'\s*\?\s*MAIN_SHIP_MISSILE_MAX_LEVEL\s*:\s*MAIN_SHIP_UPGRADE_MAX_LEVEL/);
+  assert.match(source, /MAIN_SHIP_MISSILE_MAX_LEVEL = 5/);
   assert.match(source, /SQUAD_PROFILE_VERSION = 4/);
   assert.match(source, /LEFT_SQUAD_SLOT_UNLOCK_COST = 50/);
   assert.match(source, /RIGHT_SQUAD_SLOT_UNLOCK_COST = 500/);

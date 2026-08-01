@@ -455,7 +455,7 @@ export const resolveConfiguredFormationSpawnPoint = ({
     return { x, y };
   }
 
-  const mode = resolveLooseFormationMode(event.id, patternId);
+  const mode = resolveConfiguredFormationMode(patternId);
   const side = (index + getFormationGroupSeed(event.id)) % 2 === 0 ? -1 : 1;
   const pair = Math.floor(index / 2);
   if (mode === 'pincer') {
