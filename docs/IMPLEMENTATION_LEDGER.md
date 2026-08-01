@@ -17,9 +17,9 @@ Branch: `experimental/arcade-polish` (nothing pushed to `main`).
 | # | Workstream | Status | Notes |
 |---|---|---|---|
 | 1 | Separate Weekly Run and Campaign state and flow | WIP | Campaign no longer posts to the weekly board (`isWeeklyLeaderboardRun`). Mode-specific state objects still to split. |
-| 2 | Build the complete 10-life Weekly Run | WIP | Home entry exists but currently routes through campaign graph nodes and does not launch. Being replaced by a real gauntlet controller. |
-| 3 | Connect all production-ready bosses into the Weekly Run | TODO | Needs a configurable boss order. |
-| 4 | Campaign map progression, missions, coins, branches | TODO | Weekly panel already removed from the map. |
+| 2 | Build the complete 10-life Weekly Run | DONE | Launches from Home with 10 lives, verified in the running game. Own campaign route, not campaign graph nodes. |
+| 3 | Connect all production-ready bosses into the Weekly Run | DONE | 9 sectors / 27 missions / 9 unique bosses / 90 waves. Each sector runs 2 elites then its boss. Order is one exported array. |
+| 4 | Campaign map progression, missions, coins, branches | WIP | Map is playable again: weekly state no longer disables Mission launch or gates intel reveal. Branch depth still TODO. |
 | 5 | Improve the elite enemy roster and encounters | WIP | `escort` formation added (leader + orbiting guards, leader will not dive while guarded). Not yet authored into waves. |
 | 6 | Distinct signature moves for main ships | WIP | Cooldown ladder done: 16/13/11/9s, Fire Rate tightens up to 35%. Move *kinds* still need differentiating beyond projectile shape. |
 | 7 | Generate and integrate sprite sheets and effects | BLOCKED | No image generator available in this environment. Ability FX frames already exist under `scicon-player-weapon-fx-v1`. Animation systems/hookups can be wired so generated frames drop in. |

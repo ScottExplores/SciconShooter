@@ -8986,11 +8986,11 @@ export class GameEngine {
         ((Number(event.spawnIntervalSeconds) || 0.8) * GAME_CONFIG.FPS) / difficultyMultiplier
       ));
       const previousFrame = this.configuredSpawnFrames.get(event.id);
-      // Collapsing this interval on an empty field was tried and measured
-      // worse: it front-loads a group, so the player clears it sooner and the
-      // gap simply reappears later, while peak entity load rises. The authored
-      // trickle stays intact; dead air is closed by releasing the *next* group
-      // early instead, in releaseNextSquadronWhenFieldIsClear.
+      // Do not collapse this interval to chase the last dead-air cells. Two
+      // variants were measured and both regressed: relaxing it whenever
+      // nothing was visible (dead air 3 -> 18, peak load 1.000 -> 1.080) and
+      // relaxing it only on a fully empty field (dead air 2 -> 4, clears
+      // 518 -> 513, and a timeout appeared). The authored trickle stays.
       if (previousFrame !== undefined && this.waveProgressFrames - previousFrame < intervalFrames) continue;
 
       const cycle = this.getCampaignCycle();

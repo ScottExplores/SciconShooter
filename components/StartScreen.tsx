@@ -31,6 +31,7 @@ import {
 } from '../services/playerShipService';
 import SquadHangar from './SquadHangar';
 import PixelActionButton from './PixelActionButton';
+import { WEEKLY_RUN_STARTING_LIVES, buildWeeklyRunRoute } from '../services/weeklyRunGauntlet';
 import ShipCarousel from './ShipCarousel';
 import BossArchive, {
   type BossArchiveDeveloperControls,
@@ -165,6 +166,9 @@ const DASHBOARD_NAV_ICON_SPRITESHEET = `${SCICON_NEON_DASHBOARD_ICON_ROOT}/dashb
 const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1/icons/communication';
 // Regenerate with tools/generate-referral-qr.mjs whenever REFERRAL_LINK changes.
 const RESEARCHHUB_REFERRAL_QR = '/game-art/generated/ui/scicon-desktop-mobile-launch-v1/researchhub-referral-qr.png';
+// Weekly Run headline facts, sourced from the gauntlet route so the card can
+// never drift from what the mode actually does.
+const WEEKLY_RUN_BOSS_COUNT = buildWeeklyRunRoute().bossIds.length;
 const REWARD_EDGE_ARROW = '/game-art/generated/ui/scicon-reward-edge-v1/reward-arrow.png';
 const REWARD_ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
 
@@ -1315,11 +1319,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <span className="sci-weekly-run-entry__title">
               {weeklyRunActive ? 'Resume Run' : 'Weekly Run'}
             </span>
-            <span className="sci-weekly-run-entry__sub">1 Life &middot; All Bosses</span>
+            <span className="sci-weekly-run-entry__sub">
+              {weeklyRunActive
+                ? `In Progress · ${WEEKLY_RUN_BOSS_COUNT} Bosses`
+                : `${WEEKLY_RUN_STARTING_LIVES} Lives · ${WEEKLY_RUN_BOSS_COUNT} Bosses`}
+            </span>
           </span>
           <span className="sci-weekly-run-entry__best" aria-hidden="true">
             <b>{formatNumber(weeklyRunBestScore ?? 0)}</b>
-            <small>Best</small>
+            <small>{weeklyRunActive ? 'Score' : 'Best'}</small>
           </span>
         </button>
       ) : null
