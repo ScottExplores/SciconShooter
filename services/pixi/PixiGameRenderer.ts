@@ -3457,27 +3457,49 @@ export class PixiGameRenderer {
     this.maxShotAura.rotation = Math.sin(engine.frameCount * 0.035) * 0.025;
     this.maxShotAura.alpha = (0.68 + pulseWave * 0.2) * engine.playerDrawAlpha * fade;
 
+    // Max Shot is the loudest upgrade in the game, so it frames the entire
+    // playfield in a hard neon rail rather than a faint outline. The band is
+    // drawn from the screen edge inward so it reads on a phone bezel.
     const glow = this.maxShotScreenGlow;
-    const outerAlpha = (0.28 + pulseWave * 0.16) * fade;
-    const cornerLength = Math.min(74, Math.max(38, this.width * 0.14));
+    const cornerLength = Math.min(120, Math.max(58, this.width * 0.24));
     const inset = engine.mobileProfile ? 5 : 7;
+    const railAlpha = (0.82 + pulseWave * 0.18) * fade;
+    const innerAlpha = (0.62 + pulseWave * 0.26) * fade;
+    const bracketAlpha = (0.9 + pulseWave * 0.1) * fade;
     glow.clear();
-    glow.rect(0, 0, this.width, this.height).fill({ color: '#0284c7', alpha: 0.018 * fade });
-    glow.rect(2, 2, this.width - 4, this.height - 4)
-      .stroke({ color: '#22d3ee', width: 3, alpha: outerAlpha });
-    glow.rect(inset, inset, this.width - inset * 2, this.height - inset * 2)
-      .stroke({ color: '#67e8f9', width: 1.25, alpha: (0.4 + pulseWave * 0.18) * fade });
-    glow.rect(0, 0, this.width, 18).fill({ color: '#0ea5e9', alpha: (0.035 + pulseWave * 0.018) * fade });
-    glow.rect(0, this.height - 20, this.width, 20).fill({ color: '#2563eb', alpha: (0.05 + pulseWave * 0.022) * fade });
 
-    glow.moveTo(inset, inset + cornerLength).lineTo(inset, inset).lineTo(inset + cornerLength, inset)
-      .stroke({ color: '#a5f3fc', width: 3.5, alpha: (0.58 + pulseWave * 0.25) * fade });
-    glow.moveTo(this.width - inset - cornerLength, inset).lineTo(this.width - inset, inset).lineTo(this.width - inset, inset + cornerLength)
-      .stroke({ color: '#a5f3fc', width: 3.5, alpha: (0.58 + pulseWave * 0.25) * fade });
-    glow.moveTo(inset, this.height - inset - cornerLength).lineTo(inset, this.height - inset).lineTo(inset + cornerLength, this.height - inset)
-      .stroke({ color: '#38bdf8', width: 3.5, alpha: (0.52 + pulseWave * 0.22) * fade });
-    glow.moveTo(this.width - inset - cornerLength, this.height - inset).lineTo(this.width - inset, this.height - inset).lineTo(this.width - inset, this.height - inset - cornerLength)
-      .stroke({ color: '#38bdf8', width: 3.5, alpha: (0.52 + pulseWave * 0.22) * fade });
+    // Corner-weighted wash: brightest at the frame, clear through the middle
+    // so it never fights the hostiles the player is trying to read.
+    glow.rect(0, 0, this.width, 34).fill({ color: '#0ea5e9', alpha: (0.16 + pulseWave * 0.05) * fade });
+    glow.rect(0, this.height - 40, this.width, 40).fill({ color: '#1d4ed8', alpha: (0.2 + pulseWave * 0.06) * fade });
+    glow.rect(0, 0, 26, this.height).fill({ color: '#0ea5e9', alpha: (0.1 + pulseWave * 0.04) * fade });
+    glow.rect(this.width - 26, 0, 26, this.height).fill({ color: '#0ea5e9', alpha: (0.1 + pulseWave * 0.04) * fade });
+
+    // Outer bloom, hard rail, then a tight inner filament.
+    glow.rect(1, 1, this.width - 2, this.height - 2)
+      .stroke({ color: '#0ea5e9', width: 10, alpha: 0.3 * fade });
+    glow.rect(2.5, 2.5, this.width - 5, this.height - 5)
+      .stroke({ color: '#22d3ee', width: 4.5, alpha: railAlpha });
+    glow.rect(inset + 3, inset + 3, this.width - (inset + 3) * 2, this.height - (inset + 3) * 2)
+      .stroke({ color: '#cffafe', width: 1.75, alpha: innerAlpha });
+
+    const bracket = (x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, color: string) => {
+      glow.moveTo(x0, y0).lineTo(x1, y1).lineTo(x2, y2)
+        .stroke({ color, width: 6, alpha: bracketAlpha });
+    };
+    bracket(inset, inset + cornerLength, inset, inset, inset + cornerLength, inset, '#a5f3fc');
+    bracket(this.width - inset - cornerLength, inset, this.width - inset, inset, this.width - inset, inset + cornerLength, '#a5f3fc');
+    bracket(inset, this.height - inset - cornerLength, inset, this.height - inset, inset + cornerLength, this.height - inset, '#38bdf8');
+    bracket(this.width - inset - cornerLength, this.height - inset, this.width - inset, this.height - inset, this.width - inset, this.height - inset - cornerLength, '#38bdf8');
+
+    // Circuit ticks along the top and bottom rails.
+    const tickSpacing = Math.max(26, this.width / 9);
+    const tickAlpha = (0.5 + pulseWave * 0.3) * fade;
+    for (let x = cornerLength + inset + tickSpacing * 0.5; x < this.width - cornerLength - inset; x += tickSpacing) {
+      glow.moveTo(x, inset + 3).lineTo(x, inset + 12).stroke({ color: '#67e8f9', width: 2, alpha: tickAlpha });
+      glow.moveTo(x, this.height - inset - 3).lineTo(x, this.height - inset - 12)
+        .stroke({ color: '#67e8f9', width: 2, alpha: tickAlpha });
+    }
   }
 
   private updatePlayerSteeringPresentation(engine: GameEngine, deltaMs: number) {

@@ -1864,6 +1864,11 @@ const DESKTOP_TAKEOFF_PARTICLE_CAP = 80;
 const MOBILE_TAKEOFF_PARTICLES_PER_FRAME = 2;
 const DESKTOP_TAKEOFF_PARTICLES_PER_FRAME = 4;
 export const WAVE_CONTINUITY_ENTRY_GRACE_FRAMES = 12;
+/**
+ * How many hostiles may already be inbound before the engine stops pulling the
+ * next authored squadron forward onto an empty-looking playfield.
+ */
+export const CLEAR_FIELD_EARLY_RELEASE_THREAT_CEILING = 2;
 export const STAGE_BOUNDARY_CLEAR_ENTITY_TYPES = Object.freeze([
   'ENEMY_DRONE',
   'ENEMY_JOURNAL',
@@ -8843,15 +8848,44 @@ export class GameEngine {
   releaseNextSquadronWhenFieldIsClear(events: readonly RuntimeSpawnEvent[]) {
     if (this.inBossWarningSequence || this.pendingConfiguredEncounter) return;
     if (this.waveTransitionPending || this.introFlightFrames > 0) return;
-    if (this.getActiveThreatCount() > 0) return;
+    // Dead air is about what the player can SEE. A hostile that has spawned
+    // but is still flying in from off-screen leaves the playfield empty, so it
+    // must not be treated as cover.
+    if (this.getVisibleActiveThreatCount() > 0) return;
 
+    const activeThreatCount = this.getActiveThreatCount();
     const elapsedSeconds = this.getWaveElapsedSeconds();
-    // An authored encounter that is still ahead of the clock owns the pacing
-    // here; its warning sequence covers the gap, so never pre-empt it.
+
+    let nextEncounterStart = Number.POSITIVE_INFINITY;
     for (const encounter of this.getConfiguredEncounterEvents()) {
       if (this.configuredEncounterIds.has(encounter.id)) continue;
-      if (Math.max(0, Number(encounter.startSeconds) || 0) > elapsedSeconds) return;
+      const startSeconds = Math.max(0, Number(encounter.startSeconds) || 0);
+      if (startSeconds > elapsedSeconds) nextEncounterStart = Math.min(nextEncounterStart, startSeconds);
     }
+
+    if (Number.isFinite(nextEncounterStart)) {
+      // Every authored squadron has already been spent and nothing is left
+      // alive, so the only thing the player is waiting on is the encounter.
+      // Bring it forward -- its warning telegraph covers the transition, and
+      // with an empty field there is nothing for it to stack on top of.
+      if (activeThreatCount === 0 && this.getConfiguredSpawnsComplete()) {
+        this.waveProgressFrames = Math.max(
+          this.waveProgressFrames,
+          Math.round(nextEncounterStart * GAME_CONFIG.FPS)
+        );
+        this.stats.bossProgress = Math.min(
+          1,
+          this.waveProgressFrames / this.getConfiguredWaveDurationFrames()
+        );
+      }
+      // Otherwise the encounter owns the pacing and must not be pre-empted.
+      return;
+    }
+
+    // Allow one squadron to overlap an inbound straggler, but no more: pulling
+    // groups forward without a ceiling is what pushed peak entity load past
+    // the mobile performance budget.
+    if (activeThreatCount >= CLEAR_FIELD_EARLY_RELEASE_THREAT_CEILING) return;
 
     let earliest: RuntimeSpawnEvent | null = null;
     let earliestStart = Number.POSITIVE_INFINITY;
@@ -8865,18 +8899,7 @@ export class GameEngine {
         earliest = event;
       }
     }
-    if (!earliest) return;
-    this.earlyReleasedSpawnEventIds.add(earliest.id);
-    // Carry the clock to the released group so the groups authored after it
-    // keep their intended spacing instead of arriving all at once.
-    this.waveProgressFrames = Math.max(
-      this.waveProgressFrames,
-      Math.round(earliestStart * GAME_CONFIG.FPS)
-    );
-    this.stats.bossProgress = Math.min(
-      1,
-      this.waveProgressFrames / this.getConfiguredWaveDurationFrames()
-    );
+    if (earliest) this.earlyReleasedSpawnEventIds.add(earliest.id);
   }
 
   spawnConfiguredEnemies() {
@@ -8910,7 +8933,17 @@ export class GameEngine {
         ((Number(event.spawnIntervalSeconds) || 0.8) * GAME_CONFIG.FPS) / difficultyMultiplier
       ));
       const previousFrame = this.configuredSpawnFrames.get(event.id);
-      if (previousFrame !== undefined && this.waveProgressFrames - previousFrame < intervalFrames) continue;
+      // A group's authored trickle assumes its earlier members are still alive
+      // and on screen. Once the player has out-paced it and nothing is visible,
+      // the remaining members close up instead of leaving the screen empty.
+      // Only one unit is admitted per frame, so this self-limits as soon as a
+      // member becomes visible again.
+      const fieldLooksEmpty = this.getVisibleActiveThreatCount() === 0;
+      if (
+        !fieldLooksEmpty
+        && previousFrame !== undefined
+        && this.waveProgressFrames - previousFrame < intervalFrames
+      ) continue;
 
       const cycle = this.getCampaignCycle();
       const formationEvent = !String(event.patternId || '').toLowerCase().includes('single')

@@ -264,94 +264,103 @@
 }
 
 /* Standalone Weekly Run entry. Sits directly under the weekly high score so
-   the board and the way to compete on it read as one unit. */
+   the board and the way to compete on it read as one unit. Uses the shared
+   pixel information-card frame so it belongs to the same art system as the
+   rest of Home instead of reading as a plain web card. */
 .sci-weekly-run-entry {
   position: relative;
   display: grid;
   width: 100%;
   align-items: center;
-  gap: 0.7rem;
-  grid-template-columns: 2.4rem minmax(0, 1fr) auto;
-  margin-top: 0.5rem;
-  padding: 0.6rem 0.7rem;
-  border: 1px solid rgb(56 189 248 / 0.42);
-  border-radius: 10px;
-  background:
-    linear-gradient(135deg, rgb(8 47 73 / 0.72), rgb(12 74 110 / 0.44) 60%, rgb(3 25 53 / 0.62));
-  box-shadow:
-    inset 0 0 0.9rem rgb(56 189 248 / 0.14),
-    0 0 0.9rem rgb(56 189 248 / 0.16);
+  gap: 0.55rem;
+  grid-template-columns: 2.15rem minmax(0, 1fr) auto;
+  margin-top: 0.55rem;
+  padding: 0.1rem 0.15rem;
+  border-style: solid;
+  border-width: 0.95rem 1.25rem;
+  border-image-source: url('/game-art/generated/ui/scicon-ui-system-v2/base/general-borders/information-card.png');
+  border-image-slice: 58 70 58 70 fill;
+  border-image-width: 1;
+  border-image-repeat: stretch;
+  border-radius: 0;
   text-align: left;
-  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+  image-rendering: pixelated;
+  transition: filter 140ms ease, transform 120ms ease;
+  filter: saturate(1) brightness(1);
 }
 
 .sci-weekly-run-entry:hover,
 .sci-weekly-run-entry:focus-visible {
-  border-color: rgb(103 232 249 / 0.85);
-  box-shadow:
-    inset 0 0 1rem rgb(56 189 248 / 0.22),
-    0 0 1.3rem rgb(56 189 248 / 0.4);
+  filter: saturate(1.16) brightness(1.14);
 }
 
 .sci-weekly-run-entry:active { transform: translateY(1px); }
 
+/* A live run reads gold, matching the champion/upgrade tone used elsewhere. */
 .sci-weekly-run-entry[data-active='true'] {
-  border-color: rgb(250 204 21 / 0.75);
-  box-shadow:
-    inset 0 0 1rem rgb(250 204 21 / 0.18),
-    0 0 1.1rem rgb(250 204 21 / 0.32);
+  filter: saturate(1.1) brightness(1.06) hue-rotate(-24deg);
 }
 
 .sci-weekly-run-entry__glyph {
   display: flex;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.15rem;
+  height: 2.15rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgb(103 232 249 / 0.4);
-  border-radius: 8px;
-  background: rgb(8 145 178 / 0.2);
-  color: rgb(165 243 252);
+}
+
+.sci-weekly-run-entry__glyph img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 0.4rem rgb(34 211 238 / 0.75));
 }
 
 .sci-weekly-run-entry__copy { min-width: 0; }
 
 .sci-weekly-run-entry__title {
   display: block;
-  color: rgb(240 249 255);
-  font: 900 0.82rem/1.1 inherit;
-  letter-spacing: 0.02em;
+  color: rgb(236 254 255);
+  font: 900 0.9rem/1.05 inherit;
+  letter-spacing: 0.03em;
+  text-shadow: 0 0 0.5rem rgb(34 211 238 / 0.55);
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .sci-weekly-run-entry__sub {
   display: block;
-  margin-top: 0.15rem;
-  color: rgb(148 163 184);
-  font: 700 0.56rem/1.25 inherit;
+  margin-top: 0.1rem;
+  color: rgb(125 211 252);
+  font: 800 0.54rem/1.2 inherit;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .sci-weekly-run-entry__best {
   display: grid;
   justify-items: end;
-  gap: 0.05rem;
+  gap: 0;
+  padding-left: 0.3rem;
 }
 
 .sci-weekly-run-entry__best b {
-  color: rgb(165 243 252);
-  font: 900 1rem/1 inherit;
+  color: rgb(253 224 71);
+  font: 900 1.05rem/1 inherit;
+  text-shadow: 0 0 0.5rem rgb(250 204 21 / 0.5);
 }
 
 .sci-weekly-run-entry__best small {
-  color: rgb(103 232 249 / 0.7);
-  font: 700 0.5rem/1 inherit;
+  color: rgb(148 163 184);
+  font: 800 0.46rem/1 inherit;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
-@media (max-width: 380px) {
-  .sci-weekly-run-entry__sub { display: none; }
+@media (max-width: 360px) {
+  .sci-weekly-run-entry { border-width: 0.8rem 1rem; }
+  .sci-weekly-run-entry__title { font-size: 0.8rem; }
 }
 
 .sci-weekly-winner-card__track {

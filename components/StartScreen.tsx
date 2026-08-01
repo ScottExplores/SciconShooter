@@ -1456,22 +1456,20 @@ const StartScreen: React.FC<StartScreenProps> = ({
             onClick={onStartWeeklyRun}
             aria-label={weeklyRunActive
               ? `Resume Weekly Run. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
-              : `Start Weekly Run, a single-life gauntlet scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
+              : `Start Weekly Run. One life, every boss, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
           >
             <span className="sci-weekly-run-entry__glyph" aria-hidden="true">
-              <Icon name="rocket" className="h-5 w-5" strokeWidth={1.8} />
+              <img src={ASSETS.PLAYER_SHIP} alt="" draggable={false} />
             </span>
             <span className="sci-weekly-run-entry__copy">
               <span className="sci-weekly-run-entry__title">
-                {weeklyRunActive ? 'Resume Weekly Run' : 'Weekly Run'}
+                {weeklyRunActive ? 'Resume Run' : 'Weekly Run'}
               </span>
-              <span className="sci-weekly-run-entry__sub">
-                One life. All bosses. Your upgraded ship. Scored on the weekly board.
-              </span>
+              <span className="sci-weekly-run-entry__sub">1 Life &middot; All Bosses</span>
             </span>
-            <span className="sci-weekly-run-entry__best">
+            <span className="sci-weekly-run-entry__best" aria-hidden="true">
               <b>{formatNumber(weeklyRunBestScore ?? 0)}</b>
-              <small>Your best</small>
+              <small>Best</small>
             </span>
           </button>
         ) : null}
