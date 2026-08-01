@@ -5,7 +5,14 @@ export type ConfiguredFormationMode =
   | 'pincer'
   | 'grid'
   | 'diamond'
-  | 'spiral';
+  | 'spiral'
+  | 'escort';
+
+/**
+ * How many hostiles ride in one escort ring before a second pod is started.
+ * One leader plus a ring that still reads as a ring on a phone.
+ */
+export const ESCORT_POD_SIZE = 7;
 
 export type FormationEntryDirection = 'top' | 'left' | 'right' | 'split';
 export type FormationEntryBehavior = 'formation' | 'dive' | 'flank' | 'lane';
@@ -181,6 +188,8 @@ export const resolveConfiguredFormationMode = (
   patternId?: string
 ): ConfiguredFormationMode => {
   const pattern = String(patternId || 'row').toLowerCase();
+  // Checked before 'v' so 'escort' is not swallowed by the substring match.
+  if (pattern.includes('escort') || pattern.includes('pod')) return 'escort';
   if (pattern.includes('grid') || pattern.includes('wall')) return 'grid';
   if (pattern.includes('diamond')) return 'diamond';
   if (pattern.includes('spiral')) return 'spiral';
@@ -300,6 +309,25 @@ export const resolveConfiguredFormationTarget = ({
     const angle = (localIndex / Math.max(1, localCount)) * Math.PI * 2 - Math.PI / 2;
     targetCenterX = centerX + Math.cos(angle) * Math.min(width * (0.2 + ring * 0.08), mobile ? 104 : 158);
     targetCenterY = topY + 54 + ring * (mobile ? 82 : 96) + Math.sin(angle) * (mobile ? 40 : 52);
+  } else if (mode === 'escort') {
+    // Elite pod: one leader holds the pod centre and its escorts ring it, so
+    // the player reads "guarded target" and has to break the ring to reach the
+    // thing actually worth shooting. Pods tile left-to-right across the lane.
+    const pod = Math.floor(index / ESCORT_POD_SIZE);
+    const localIndex = index % ESCORT_POD_SIZE;
+    const podCount = Math.max(1, Math.ceil(count / ESCORT_POD_SIZE));
+    const podSpacing = Math.min(width * 0.42, mobile ? 150 : 210);
+    const podCenterX = centerX + (pod - (podCount - 1) / 2) * podSpacing;
+    const podCenterY = topY + 46 + (pod % 2) * (mobile ? 34 : 42);
+    if (localIndex === 0) {
+      targetCenterX = podCenterX;
+      targetCenterY = podCenterY;
+    } else {
+      const escortCount = Math.max(1, Math.min(ESCORT_POD_SIZE, count - pod * ESCORT_POD_SIZE) - 1);
+      const angle = ((localIndex - 1) / escortCount) * Math.PI * 2 - Math.PI / 2;
+      targetCenterX = podCenterX + Math.cos(angle) * Math.min(width * 0.15, mobile ? 52 : 74);
+      targetCenterY = podCenterY + Math.sin(angle) * (mobile ? 40 : 54);
+    }
   } else if (mode === 'pincer') {
     const row = Math.floor(index / 2);
     targetCenterX = centerX + (index % 2 === 0 ? -1 : 1) * Math.min(width * 0.24, mobile ? 92 : 138);
@@ -723,7 +751,10 @@ const FORMATION_HOLD_FRAMES: Readonly<Record<ConfiguredFormationMode, number>> =
   pincer: 54,
   grid: 104,
   diamond: 76,
-  spiral: 68
+  spiral: 68,
+  // Escorts hold longest: the pod is meant to be dismantled in place before
+  // anything peels off at the player.
+  escort: 118
 });
 
 export const resolveFormationEntryPlan = ({

@@ -111,3 +111,65 @@ test('Pixi presents formation assembly pulses and a charged pre-dive frame witho
     /entity\.type === EntityType\.ENEMY_JOURNAL \|\| entity\.type === EntityType\.ENEMY_INVADER[\s\S]*?entity\.angle \+ ambientRotation \* 0\.25/
   );
 });
+
+test('escort pods place a leader at the centre of a ring of guards', () => {
+  const ts = require('typescript');
+  const vm = require('node:vm');
+  const compiled = ts.transpileModule(formationSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+  }).outputText;
+  const moduleShim = { exports: {} };
+  vm.runInNewContext(
+    `(function(exports, require, module) { ${compiled} })(module.exports, require, module);`,
+    { module: moduleShim, require, Math, Number, String, Object, Array }
+  );
+  const {
+    ESCORT_POD_SIZE,
+    resolveConfiguredFormationMode,
+    resolveConfiguredFormationTarget
+  } = moduleShim.exports;
+
+  // 'escort' must win over the bare 'v' substring check.
+  assert.equal(resolveConfiguredFormationMode('escort-pod'), 'escort');
+  assert.equal(resolveConfiguredFormationMode('pod-converge'), 'escort');
+  assert.equal(resolveConfiguredFormationMode('v'), 'v');
+
+  const viewport = { width: 390, height: 844 };
+  const slot = (index) => resolveConfiguredFormationTarget({
+    event: { id: 'escort-test', patternId: 'escort-pod' },
+    index,
+    count: ESCORT_POD_SIZE,
+    entityWidth: 40,
+    entityHeight: 40,
+    viewport
+  });
+
+  const leader = slot(0);
+  const escorts = Array.from({ length: ESCORT_POD_SIZE - 1 }, (_, offset) => slot(offset + 1));
+
+  // Every escort sits off the leader, and they spread around it rather than
+  // stacking on one side.
+  const distances = escorts.map((point) => Math.hypot(point.x - leader.x, point.y - leader.y));
+  assert.ok(Math.min(...distances) > 12, 'escorts stand clear of their leader');
+  assert.ok(escorts.some((point) => point.x < leader.x - 4), 'ring covers the leader on the left');
+  assert.ok(escorts.some((point) => point.x > leader.x + 4), 'ring covers the leader on the right');
+  assert.ok(escorts.some((point) => point.y < leader.y - 4), 'ring covers the leader above');
+  assert.ok(escorts.some((point) => point.y > leader.y + 4), 'ring covers the leader below');
+
+  // Slots stay inside the playfield on a phone.
+  for (const point of [leader, ...escorts]) {
+    assert.ok(point.x >= -20 && point.x <= viewport.width, `slot x ${point.x} stays on screen`);
+    assert.ok(point.y >= 0 && point.y <= viewport.height * 0.42, `slot y ${point.y} stays in the lane`);
+  }
+});
+
+test('an escort pod leader will not dive while its guards are alive', () => {
+  assert.match(runtimeSource, /countLivingEscortsForPod\(/);
+  assert.match(
+    runtimeSource,
+    /formation === 'escort'\s*&&\s*enemy\.formationIndex % ESCORT_POD_SIZE === 0\s*&&\s*this\.countLivingEscortsForPod\(enemy\) > 0\) return true;/
+  );
+  // The ring orbits so the pod reads as guarded rather than parked.
+  assert.match(runtimeSource, /getEscortRingOffset\(/);
+  assert.match(formationSource, /escort: 118/);
+});

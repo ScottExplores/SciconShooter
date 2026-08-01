@@ -194,7 +194,7 @@ import {
   resolveFormationEntryPlan,
   type ConfiguredFormationMode
 } from './gameplay/formations';
-import { resolveFormationDiveMotion } from './gameplay/formations/FormationRuntime';
+import { ESCORT_POD_SIZE, resolveFormationDiveMotion } from './gameplay/formations/FormationRuntime';
 import {
   MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
   getGeneratedBossTechniqueCue,
@@ -8593,6 +8593,31 @@ export class GameEngine {
     });
   }
 
+  /** Slow rotation applied to an escort so its ring orbits its pod leader. */
+  getEscortRingOffset(enemy: Entity) {
+    const spin = (this.frameCount + enemy.formationGroupSeed) * 0.011;
+    const radius = this.mobileProfile ? 5.5 : 7;
+    return {
+      x: Math.cos(spin + enemy.formationIndex) * radius,
+      y: Math.sin(spin + enemy.formationIndex) * radius * 0.7
+    };
+  }
+
+  /** Escorts still alive in the same pod as the given leader. */
+  countLivingEscortsForPod(leader: Entity) {
+    const podIndex = Math.floor(leader.formationIndex / ESCORT_POD_SIZE);
+    let alive = 0;
+    for (const entity of this.entities) {
+      if (entity.markedForDeletion || entity === leader) continue;
+      if (entity.formation !== 'escort') continue;
+      if (entity.formationGroupSeed !== leader.formationGroupSeed) continue;
+      if (Math.floor(entity.formationIndex / ESCORT_POD_SIZE) !== podIndex) continue;
+      if (entity.formationIndex % ESCORT_POD_SIZE === 0) continue;
+      alive++;
+    }
+    return alive;
+  }
+
   updateConfiguredEnemyFormation(enemy: Entity) {
     const state = enemy.formationState;
     const formation = enemy.formation;
@@ -8640,17 +8665,30 @@ export class GameEngine {
         pincer: 18,
         grid: 10,
         diamond: 20,
-        spiral: 28
+        spiral: 28,
+        escort: 14
       };
       const groupSway = Math.sin((this.frameCount + enemy.formationGroupSeed) * 0.018) * swayByMode[formation];
       const formationPulse = formation === 'diamond' || formation === 'spiral'
         ? Math.sin((this.frameCount + enemy.formationIndex * 11) * 0.035) * 4
         : 0;
-      enemy.x = targetX + groupSway;
-      enemy.y = targetY + formationPulse + Math.sin((this.frameCount + enemy.formationIndex * 17) * 0.045) * 2.5;
+      // Escort rings rotate around their leader so the pod reads as a guarded
+      // target rather than a static cluster.
+      const escortSpin = formation === 'escort' && enemy.formationIndex % ESCORT_POD_SIZE !== 0
+        ? this.getEscortRingOffset(enemy)
+        : null;
+      enemy.x = targetX + groupSway + (escortSpin?.x ?? 0);
+      enemy.y = targetY + formationPulse + (escortSpin?.y ?? 0)
+        + Math.sin((this.frameCount + enemy.formationIndex * 17) * 0.045) * 2.5;
       enemy.vx = 0;
       enemy.vy = 0;
       enemy.angle = Math.sin((this.frameCount + enemy.formationGroupSeed) * 0.018) * 0.05;
+
+      // A pod leader holds its slot until its ring is broken. Diving out from
+      // behind live escorts would throw away the whole point of the pod.
+      if (formation === 'escort'
+        && enemy.formationIndex % ESCORT_POD_SIZE === 0
+        && this.countLivingEscortsForPod(enemy) > 0) return true;
 
       if (this.frameCount >= enemy.formationDiveFrame) {
         const diveMotion = this.resolveConfiguredFormationDiveMotion(enemy, formation, 0);
