@@ -111,7 +111,10 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(source, /sci-home-hero-surface--compact/);
   assert.doesNotMatch(source, /<img src=\{ASSETS\.MENU_HERO\}/);
   assert.doesNotMatch(stylesSource, /url\(['"]\/game-art\/backgrounds\/menu-hero\.png['"]\)/);
-  assert.match(htmlSource, /#root \.scicon-mobile-home[\s\S]*grid-template-rows: auto minmax\(17\.5rem, 1fr\)/);
+  // Three declared rows: funding panel, Weekly Run entry, hero/Start Mission.
+  // Leaving the Weekly Run row implicit gave it an equal share of the height
+  // and pushed Start Mission off the bottom of the phone screen.
+  assert.match(htmlSource, /#root \.scicon-mobile-home[\s\S]*grid-template-rows: auto auto minmax\(17\.5rem, 1fr\)/);
   assert.match(htmlSource, /#root \.sci-hero-content--compact[\s\S]*grid-template-rows: auto minmax\(6rem, 1fr\) auto/);
   assert.match(htmlSource, /max-height: 720px/);
   assert.match(stylesSource, /data-dashboard-tab='home'[\s\S]*\.scicon-start-shell \{[\s\S]*padding-inline: 0/);

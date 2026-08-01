@@ -850,7 +850,11 @@
 
       #root .scicon-mobile-home {
         display: grid;
-        grid-template-rows: auto minmax(17.5rem, 1fr);
+        /* Funding panel, Weekly Run entry, then the hero/Start Mission deck.
+           The Weekly Run row must be declared: leaving it to an implicit track
+           gave it an equal share of the height and opened a dead gap that
+           pushed Start Mission off the bottom of the screen. */
+        grid-template-rows: auto auto minmax(17.5rem, 1fr);
         align-items: stretch;
       }
 
@@ -897,7 +901,7 @@
 
       @media (max-width: 1023px) and (max-height: 720px) {
         #root .scicon-mobile-home {
-          grid-template-rows: auto minmax(15.25rem, 1fr);
+          grid-template-rows: auto auto minmax(15.25rem, 1fr);
         }
 
         #root .sci-mobile-hero {

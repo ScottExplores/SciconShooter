@@ -82,7 +82,6 @@ import { createCampaignGraphIndex } from './services/campaignGraph';
 import {  finalizeCompletedWeeklyCampaignStreak,
   finalizeWeeklyCampaignDeliberateEnd,
   finalizeWeeklyCampaignLoss,
-  getEligibleWeeklyCampaignStartNodeIds,
   markWeeklyCampaignStreakSubmission,
   recordWeeklyCampaignNodeScore,
   requestWeeklyCampaignAdvance,
@@ -165,6 +164,11 @@ import {
 import { getStageName } from './services/stagePresentation';
 import { DEFAULT_GAME_CAMPAIGN } from './services/levelConfig';
 import {
+  WEEKLY_RUN_STARTING_LIVES,
+  buildWeeklyRunCampaign,
+  getWeeklyRunEntryPoint
+} from './services/weeklyRunGauntlet';
+import {
   BOSS_ARCHIVE_CATALOG,
   buildBossReplayCampaign,
   getBossArchiveEntry,
@@ -243,6 +247,11 @@ const MISSION_LOADING_TIPS = [
 
 const AUTHORED_CAMPAIGN_STAGE_COUNT = Math.max(1, DEFAULT_GAME_CAMPAIGN.levels.length);
 const WEEKLY_CAMPAIGN_GRAPH = createCampaignGraphIndex(DEFAULT_GAME_CAMPAIGN);
+// One continuous boss gauntlet built by reordering the authored Campaign
+// levels. Computed once: it is a pure function of the frozen campaign.
+const WEEKLY_RUN_CAMPAIGN = buildWeeklyRunCampaign(DEFAULT_GAME_CAMPAIGN);
+const WEEKLY_RUN_ENTRY_POINT = getWeeklyRunEntryPoint(DEFAULT_GAME_CAMPAIGN);
+const WEEKLY_RUN_MISSION_IDS = new Set(WEEKLY_RUN_CAMPAIGN.levels.map((level) => level.id));
 const CAMPAIGN_BRANCH_DEFINITIONS = DEFAULT_GAME_CAMPAIGN.campaignBranches ?? [];
 const CAMPAIGN_MAP_BRANCHES: CampaignMapBranchDefinition[] = CAMPAIGN_BRANCH_DEFINITIONS.map((branch) => ({
   branchId: branch.branchId,
@@ -1013,12 +1022,6 @@ const App: React.FC = () => {
   }, [activeWalletAddress, isOwnerWallet, permanentSquadState.unlockedPlayerShips, walletRecords]);
   const usableShipId = getUsablePlayerShip(selectedShipId, shipUnlocks);
   const activeMissionPlayerShipUrl = PLAYER_SHIPS[activeMissionShipId].assetUrl;
-  const weeklyCampaignEligibleStartNodeIds = useMemo(() => (
-    getEligibleWeeklyCampaignStartNodeIds(
-      WEEKLY_CAMPAIGN_GRAPH,
-      permanentSquadState.campaignProgress.unlockedGraphNodeIds
-    )
-  ), [permanentSquadState.campaignProgress.unlockedGraphNodeIds]);
 
   const updateWeeklySquadState = useCallback((
     update: (current: WeeklySquadState) => WeeklySquadState,
@@ -1884,17 +1887,15 @@ const App: React.FC = () => {
               : campaignRequest.kind === 'replay' ? 'replay' as const : 'mission' as const
           }
         : campaignRequest);
-    const activeWeeklyStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
-    const requestedWeeklyNode = campaignRequest?.kind === 'weekly-streak'
-      ? WEEKLY_CAMPAIGN_GRAPH.definition.nodes.find((node) => (
-          node.missionDefinitionId === campaignRequest.missionId
-          && node.nodeId === activeWeeklyStreak?.currentNodeId
-        )) ?? null
-      : null;
+    // The Weekly Run is a fixed gauntlet route, not a Campaign Map walk, so it
+    // is authorized purely by membership in that route: not by a graph node,
+    // not by Campaign unlock progress, and deliberately not by the streak
+    // record. The streak is bookkeeping written through React state, so
+    // requiring it here raced the launch that starts it and silently refused
+    // the very first Weekly Run of the week.
     const weeklyLaunchAllowed = Boolean(
       campaignRequest?.kind === 'weekly-streak'
-      && activeWeeklyStreak?.finalization.status === 'active'
-      && requestedWeeklyNode
+      && WEEKLY_RUN_MISSION_IDS.has(campaignRequest.missionId)
     );
     if (
       campaignRequest
@@ -2298,10 +2299,12 @@ const App: React.FC = () => {
         }
       : weeklySquadState;
     const squadLoadout = buildRuntimeSquadLoadout(campaignLabState, runShipId);
-    const startingLives = Math.min(
-      GAME_CONFIG.MAX_LIVES,
-      3 + squadLoadout.upgrades.startingHearts
-    );
+    // Weekly Run is the competitive endurance mode and always starts on the
+    // same footing: exactly ten lives, regardless of the Campaign Starting
+    // Hearts track, so a deep Campaign save cannot buy a longer weekly attempt.
+    const startingLives = runMode === 'weekly-streak'
+      ? WEEKLY_RUN_STARTING_LIVES
+      : Math.min(GAME_CONFIG.MAX_LIVES, 3 + squadLoadout.upgrades.startingHearts);
     const weeklyStreakForLaunch = runMode === 'weekly-streak'
       ? weeklySquadStateRef.current.weeklyCampaignStreak
       : null;
@@ -2759,52 +2762,55 @@ const App: React.FC = () => {
    * selection: the run resumes at its live node, or opens at the furthest
    * eligible start the player has unlocked.
    */
+  /**
+   * Launches the Weekly Run: one continuous gauntlet through every
+   * production-ready boss, starting on exactly ten lives.
+   *
+   * It does not route through the Campaign Map. The run has its own ordered
+   * campaign (WEEKLY_RUN_CAMPAIGN), so clearing a boss rolls straight into the
+   * next sector rather than bouncing the player back to the home screen.
+   */
   const startWeeklyRunFromHome = useCallback(() => {
-    const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
-    const active = streak?.finalization.status === 'active' ? streak : null;
-
-    // Resuming an active run: replay the live node if it has not been scored,
-    // otherwise step onto the next authored node in the route.
-    let targetNodeId: string | null = null;
-    if (active) {
-      const currentScored = active.scoredNodeIds.includes(active.currentNodeId);
-      if (!currentScored) {
-        targetNodeId = active.currentNodeId;
-      } else {
-        const currentNode = WEEKLY_CAMPAIGN_GRAPH.definition.nodes.find(
-          (candidate) => candidate.nodeId === active.currentNodeId
-        );
-        targetNodeId = currentNode?.outgoingEdges[0]?.toNodeId ?? null;
-        if (!targetNodeId) {
-          // The route is finished; the run has to be submitted, not replayed.
-          setCampaignMapError('This Weekly Run reached the end of its route. Submit it to bank the score.');
-          setCampaignMapStatus('launch-error');
-          openCampaignMapRef.current();
-          return;
-        }
-      }
-    } else {
-      targetNodeId = weeklyCampaignEligibleStartNodeIds.at(-1) ?? null;
-    }
-
-    if (!targetNodeId) {
-      setCampaignMapError('Clear the first Campaign Mission to unlock the Weekly Run.');
+    const entry = WEEKLY_RUN_ENTRY_POINT;
+    if (!entry) {
+      setCampaignMapError('The Weekly Run route is unavailable. Please reload and try again.');
       setCampaignMapStatus('launch-error');
       openCampaignMapRef.current();
       return;
     }
-    const node = WEEKLY_CAMPAIGN_GRAPH.definition.nodes.find(
-      (candidate) => candidate.nodeId === targetNodeId
-    );
-    if (!node) return;
-    const request = {
-      missionId: node.missionDefinitionId,
-      waveId: undefined,
-      nodeId: targetNodeId
-    } as CampaignMapLaunchRequest & { nodeId: string };
-    if (active) selectWeeklyCampaignMissionFromMapRef.current(request);
-    else startWeeklyCampaignFromMap(request);
-  }, [startWeeklyCampaignFromMap, weeklyCampaignEligibleStartNodeIds]);
+
+    const now = new Date();
+    const boundary = getWeeklyBoundaryMeta(now);
+    const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
+    const resuming = streak?.finalization.status === 'active'
+      && streak.weeklyId === boundary.weekKey;
+
+    if (!resuming) {
+      try {
+        persistWeeklyCampaignStreak(startWeeklyCampaignStreak(WEEKLY_CAMPAIGN_GRAPH, {
+          weeklyId: boundary.weekKey,
+          resetAtMs: boundary.endsAt.getTime(),
+          startNodeId: WEEKLY_CAMPAIGN_GRAPH.definition.nodes[0]?.nodeId ?? '',
+          unlockedNodeIds: permanentSquadStateRef.current.campaignProgress.unlockedGraphNodeIds,
+          nowMs: now.getTime()
+        }));
+      } catch (error) {
+        setCampaignMapError(error instanceof Error ? error.message : 'The Weekly Run could not start.');
+        setCampaignMapStatus('launch-error');
+        openCampaignMapRef.current();
+        return;
+      }
+    }
+
+    setActiveRunMode('weekly-streak');
+    setActiveCampaignLaunch({ missionId: entry.levelId, waveId: entry.waveId ?? undefined, kind: 'weekly-streak' });
+    setActiveBossEncounterId(null);
+    void launchGame(null, 'challenge', 'standard', {
+      missionId: entry.levelId,
+      waveId: entry.waveId ?? undefined,
+      kind: 'weekly-streak'
+    });
+  }, [launchGame, persistWeeklyCampaignStreak]);
 
   const selectWeeklyCampaignMissionFromMap = useCallback((
     request: CampaignMapLaunchRequest & { nodeId: string }
@@ -5552,6 +5558,9 @@ const App: React.FC = () => {
               squadLoadout: activeRunSquadLoadoutRef.current,
               campaign: activeBossReplayCampaign
                 ?? activeCampaignBranchCampaign
+                // Weekly Run reorders the authored levels into one continuous
+                // boss gauntlet instead of duplicating any boss content.
+                ?? (isWeeklyCampaignRun ? WEEKLY_RUN_CAMPAIGN : undefined)
                 ?? (isCampaignRun ? DEFAULT_GAME_CAMPAIGN : undefined),
               levelId: activeBossReplay?.missionId
                 ?? activeCampaignBranch?.missionDefinition.id
