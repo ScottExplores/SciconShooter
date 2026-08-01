@@ -777,7 +777,9 @@
 
       .sci-ship-carousel-status {
         position: absolute;
-        inset: auto 0 -0.25rem;
+        /* Sits inside the stage. Hanging it below the stage put the ship-lock
+           line on top of the Connect button underneath the carousel. */
+        inset: auto 0 0.15rem;
         z-index: 8;
         margin: 0 auto;
         width: min(100%, 18rem);
@@ -842,7 +844,7 @@
       }
 
       .sci-ship-carousel--compact .sci-ship-carousel-status {
-        bottom: -0.2rem;
+        bottom: 0.1rem;
         font-size: 0.48rem;
       }
 
