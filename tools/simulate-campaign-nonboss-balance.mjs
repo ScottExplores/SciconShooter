@@ -838,9 +838,6 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
           mobilePerformanceBudget: engine.getCurrentMobilePerformanceBudget(),
           scheduledSpawnsComplete: engine.getConfiguredSpawnsComplete(),
           waveProgressFrames: engine.waveProgressFrames,
-          continuitySpawnCount: engine.configuredSpawnCounts.get(
-            `${latestRuntime.waveId}:continuity`
-          ) ?? 0,
           offscreenStates: Object.fromEntries([...offscreenThreats.reduce((counts, entity) => {
             const key = `${entity.type}:${entity.formationState || 'loose'}`;
             counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -899,12 +896,6 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
             mobilePerformanceBudget: engine.getCurrentMobilePerformanceBudget(),
             scheduledSpawnsComplete: engine.getConfiguredSpawnsComplete(),
             waveProgressFrames: engine.waveProgressFrames,
-            continuitySpawnCount: engine.configuredSpawnCounts.get(
-              `${latestRuntime.waveId}:continuity`
-            ) ?? 0,
-            continuitySpawnCap: gameLogic.getWaveContinuityLooseEnemyCap(
-              Math.round(latestRuntime.durationSeconds * 60)
-            ),
             offscreenStates: Object.fromEntries([...offscreenThreats.reduce((counts, entity) => {
               const key = `${entity.type}:${entity.formationState || 'loose'}`;
               counts.set(key, (counts.get(key) ?? 0) + 1);

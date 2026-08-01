@@ -158,24 +158,17 @@ test('internal waves advance seamlessly and only Mission boundaries create resul
   assert.match(engine, /this\.introFlightDuration = stageBoundary/);
   assert.match(engine, /this\.wave = this\.getStageNumberForCampaignIndex\(\)/);
   assert.match(tacticalSource, /this\.clearStageBoundaryDebris\(false, true, false, true\)/);
-  assert.match(engine, /this\.internalWaveLooseEntriesRemaining = !stageBoundary && firstSpawnUsesFormation[\s\S]*?INTERNAL_WAVE_LOOSE_ENTRY_COUNT/);
-  assert.match(engine, /patternId: 'single-random'[\s\S]*?positionId: 'random-top-fast'/);
-  assert.match(engine, /visibleThreatCount <= 2[\s\S]*?visibleThreatCount === 0 \|\| activeThreatCount < threatCap[\s\S]*?WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES/);
-  assert.match(engine, /target\.campaignFiller[\s\S]*?this\.frameCount - target\.campaignSpawnFrame < WAVE_CONTINUITY_ENTRY_GRACE_FRAMES/);
   assert.match(
     engine,
-    /retireOffscreenRegularThreatsAtWaveEnd\(\)[\s\S]*?durationReached = this\.waveProgressFrames >= this\.getConfiguredWaveDurationFrames\(\)[\s\S]*?getConfiguredSpawnsComplete\(\)[\s\S]*?completedFormationPass[\s\S]*?entity\.markedForDeletion = true/
+    /retireStrandedRegularThreatsAtWaveEnd\(\)[\s\S]*?this\.waveProgressFrames < this\.getConfiguredWaveDurationFrames\(\)[\s\S]*?getConfiguredSpawnsComplete\(\)[\s\S]*?if \(entity\.formationState\) continue;[\s\S]*?entity\.markedForDeletion = true/
   );
   assert.match(
     engine,
-    /this\.applyResearchBeamDamage\(\);[\s\S]*?this\.retireOffscreenRegularThreatsAtWaveEnd\(\);[\s\S]*?this\.compactEntities\(\);[\s\S]*?this\.completeClearWaveIfReady\(\)/
+    /this\.applyResearchBeamDamage\(\);[\s\S]*?this\.retireStrandedRegularThreatsAtWaveEnd\(\);[\s\S]*?this\.compactEntities\(\);[\s\S]*?this\.completeClearWaveIfReady\(\)/
   );
-  assert.match(engine, /difficultyMultiplier,[\s\S]*?false[\s\S]*?this\.internalWaveLooseEntriesRemaining--/);
-  assert.match(engine, /getWaveContinuityLooseEnemyCap\(this\.getConfiguredWaveDurationFrames\(\)\)/);
-  assert.match(engine, /enemy\.campaignFiller = !countTowardCombatBudget/);
   assert.match(
     engine,
-    /countsTowardCampaignRewards = !target\.campaignFiller[\s\S]*?recordWaveVictoryKill[\s\S]*?stats\.enemiesDefeated\+\+[\s\S]*?countsTowardCampaignRewards\)[\s\S]*?this\.spawnCoin/
+    /recordWaveVictoryKill[\s\S]*?stats\.enemiesDefeated\+\+[\s\S]*?countsTowardCampaignRewards\)[\s\S]*?this\.spawnCoin/
   );
   assert.match(engine, /this\.playerVel = \{ x: 0, y: 0 \};[\s\S]*?this\.playerTilt = 0;[\s\S]*?if \(this\.introFlightFrames > 0\)/);
 });

@@ -247,22 +247,16 @@ test('internal Wave cleanup preserves only persistent pickups and player-owned s
   );
 });
 
-test('continuity drifters cover the authored timer without an unbounded spawn loop', () => {
-  const {
-    WAVE_CONTINUITY_END_BUFFER_FRAMES,
-    WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES,
-    WAVE_CONTINUITY_MAX_LOOSE_ENEMIES,
-    getWaveContinuityLooseEnemyCap
-  } = loadTakeoffPresentation();
+test('the authored timer is covered by real squadrons, not by disposable drifters', () => {
+  const exports = loadTakeoffPresentation();
 
-  assert.equal(getWaveContinuityLooseEnemyCap(60), 3);
-  assert.equal(getWaveContinuityLooseEnemyCap(16 * 60), 53);
-  assert.equal(getWaveContinuityLooseEnemyCap(20 * 60), 64);
-  assert.ok(getWaveContinuityLooseEnemyCap(60 * 60) <= WAVE_CONTINUITY_MAX_LOOSE_ENEMIES);
-  assert.ok(
-    getWaveContinuityLooseEnemyCap(16 * 60) * WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES
-      >= (16 * 60) - WAVE_CONTINUITY_END_BUFFER_FRAMES
-  );
+  // Waves used to top themselves up with non-scoring continuity drifters and
+  // then delete them again once the clock ran out. Authored formations now
+  // hold the field on their own, so none of that machinery should survive.
+  assert.equal(exports.getWaveContinuityLooseEnemyCap, undefined);
+  assert.equal(exports.WAVE_CONTINUITY_MAX_LOOSE_ENEMIES, undefined);
+  assert.equal(exports.WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES, undefined);
+  assert.equal(exports.WAVE_CONTINUITY_END_BUFFER_FRAMES, undefined);
 });
 
 test('reward-window projectiles keep moving without combat and expire before takeoff cleanup', () => {

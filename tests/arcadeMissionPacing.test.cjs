@@ -190,18 +190,48 @@ test('arcade swarms grow by sector and later sectors do not recycle one formatio
 
 test('runtime keeps the compact cadence active without deleting player fire', () => {
   const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
-  assert.match(engine, /INTERNAL_WAVE_LOOSE_ENTRY_COUNT = 3/);
-  assert.match(engine, /INTERNAL_WAVE_LOOSE_ENTRY_INTERVAL_FRAMES = 12/);
-  assert.match(engine, /WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES = 18/);
-  assert.match(engine, /WAVE_CONTINUITY_END_BUFFER_FRAMES = 15/);
-  assert.match(engine, /WAVE_CONTINUITY_MAX_LOOSE_ENEMIES = 64/);
-  assert.match(engine, /WAVE_CONTINUITY_ENTRY_GRACE_FRAMES = 12/);
-  assert.match(engine, /visibleThreatCount <= 2[\s\S]*?visibleThreatCount === 0 \|\| activeThreatCount < threatCap/);
-  assert.match(engine, /entity\.campaignFiller && durationReached[\s\S]*?entity\.markedForDeletion = true/);
   assert.match(engine, /startY = anchoredPosition\?\.y \?\? -\(\(blockH \+ gap\) \* rows\) - 12/);
   assert.doesNotMatch(engine, /if \(this\.wave < 2\) return/);
   assert.match(
     engine,
     /clearThreatsForMainBoss\(\)[\s\S]*?entity\.isPlayerShot[\s\S]*?EntityType\.PROJECTILE[\s\S]*?EntityType\.MISSILE/
   );
+});
+
+test('no disposable filler hostile is ever spawned to cover the authored Wave clock', () => {
+  const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  // Continuity/lead-in drifters spawned non-scoring hostiles purely to plug
+  // dead air and deleted them again at the clock boundary, which is what made
+  // squadrons visibly evaporate mid-fight. The whole mechanism is gone.
+  assert.doesNotMatch(engine, /INTERNAL_WAVE_LOOSE_ENTRY_/);
+  assert.doesNotMatch(engine, /WAVE_CONTINUITY_LOOSE_ENEMY_INTERVAL_FRAMES/);
+  assert.doesNotMatch(engine, /WAVE_CONTINUITY_MAX_LOOSE_ENEMIES/);
+  assert.doesNotMatch(engine, /getWaveContinuityLooseEnemyCap/);
+  assert.doesNotMatch(engine, /getLooseConfiguredSpawnEvent/);
+  assert.doesNotMatch(engine, /internalWaveLooseEntriesRemaining/);
+  assert.doesNotMatch(engine, /:continuity`/);
+  assert.doesNotMatch(engine, /:lead-in`/);
+});
+
+test('every authored campaign hostile joins a formation so it can loop back instead of escaping', () => {
+  const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  const configureStart = engine.indexOf('  configureEnemyFormation(');
+  assert.ok(configureStart >= 0);
+  const configureBody = engine.slice(configureStart, engine.indexOf('\n  }\n', configureStart));
+  // The old early return excluded `single-*`/`*-random` patterns from the
+  // entry -> hold -> dive -> return loop, so those hostiles flew straight off
+  // the bottom of the playfield and could never be engaged again.
+  assert.doesNotMatch(
+    configureBody,
+    /if \(patternId\.includes\('single'\) \|\| patternId\.includes\('random'\)\) return;/
+  );
+  assert.match(configureBody, /enemy\.formationState = 'entry'/);
+
+  // The wave-end retire pass must leave formation members alone; they are
+  // mid dive-and-return, not stranded.
+  const retireStart = engine.indexOf('  retireStrandedRegularThreatsAtWaveEnd()');
+  assert.ok(retireStart >= 0, 'the retire pass is scoped to stranded hostiles');
+  const retireBody = engine.slice(retireStart, engine.indexOf('\n  }\n', retireStart));
+  assert.match(retireBody, /if \(entity\.formationState\) continue;/);
+  assert.doesNotMatch(retireBody, /campaignFiller/);
 });
