@@ -225,7 +225,11 @@ test('no disposable filler hostile is ever spawned to cover the authored Wave cl
 });
 
 test('every authored campaign hostile joins a formation so it can loop back instead of escaping', () => {
-  const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8');
+  // Normalized: this test slices method bodies by searching for '\n  }\n', and
+  // a CRLF checkout (exactly what a Windows merge produces) made that
+  // terminator unfindable -- indexOf returned -1 and slice(start, -1) silently
+  // became "the rest of the file", so the assertions ran on the wrong region.
+  const engine = fs.readFileSync(path.join(root, 'services', 'gameLogic.ts'), 'utf8').replace(/\r\n/g, '\n');
   const configureStart = engine.indexOf('  configureEnemyFormation(');
   assert.ok(configureStart >= 0);
   const configureBody = engine.slice(configureStart, engine.indexOf('\n  }\n', configureStart));
@@ -242,7 +246,9 @@ test('every authored campaign hostile joins a formation so it can loop back inst
   // mid dive-and-return, not stranded.
   const retireStart = engine.indexOf('  retireStrandedRegularThreatsAtWaveEnd()');
   assert.ok(retireStart >= 0, 'the retire pass is scoped to stranded hostiles');
-  const retireBody = engine.slice(retireStart, engine.indexOf('\n  }\n', retireStart));
+  const retireEnd = engine.indexOf('\n  }\n', retireStart);
+  assert.ok(retireEnd > retireStart, 'the retire body terminator must be found');
+  const retireBody = engine.slice(retireStart, retireEnd);
   assert.match(retireBody, /if \(entity\.formationState\) continue;/);
   assert.doesNotMatch(retireBody, /campaignFiller/);
 });

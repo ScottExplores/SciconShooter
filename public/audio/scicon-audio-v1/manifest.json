@@ -125,8 +125,8 @@
       "id": "music-menu",
       "group": "music",
       "url": "/audio/scicon-audio-v1/music-menu.wav",
-      "seconds": 8,
-      "sampleRate": 22050,
+      "seconds": 15.738,
+      "sampleRate": 32000,
       "loop": true,
       "use": "Home and menus"
     },
@@ -134,8 +134,8 @@
       "id": "music-combat",
       "group": "music",
       "url": "/audio/scicon-audio-v1/music-combat.wav",
-      "seconds": 10.88,
-      "sampleRate": 22050,
+      "seconds": 12.973,
+      "sampleRate": 32000,
       "loop": true,
       "use": "Normal waves"
     },
@@ -143,8 +143,8 @@
       "id": "music-boss",
       "group": "music",
       "url": "/audio/scicon-audio-v1/music-boss.wav",
-      "seconds": 9.6,
-      "sampleRate": 22050,
+      "seconds": 12.8,
+      "sampleRate": 32000,
       "loop": true,
       "use": "Boss encounters"
     },
@@ -152,8 +152,8 @@
       "id": "stinger-victory",
       "group": "music",
       "url": "/audio/scicon-audio-v1/stinger-victory.wav",
-      "seconds": 1.5,
-      "sampleRate": 44100,
+      "seconds": 3.636,
+      "sampleRate": 32000,
       "loop": false,
       "use": "Mission cleared"
     },
@@ -161,8 +161,8 @@
       "id": "stinger-defeat",
       "group": "music",
       "url": "/audio/scicon-audio-v1/stinger-defeat.wav",
-      "seconds": 1.6,
-      "sampleRate": 44100,
+      "seconds": 4.8,
+      "sampleRate": 32000,
       "loop": false,
       "use": "Run over"
     }
