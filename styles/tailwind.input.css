@@ -416,20 +416,6 @@
      identical box: it tucks up under the panel, insets slightly at the sides,
      and drops a connector into the gap. */
   margin: -0.5rem 0.6rem 0;
-}
-
-.sci-weekly-run-entry::before {
-  position: absolute;
-  z-index: -1;
-  top: -0.55rem;
-  left: 50%;
-  width: 2.6rem;
-  height: 0.8rem;
-  background:
-    linear-gradient(rgb(103 232 249 / 0.55), rgb(34 211 238 / 0.15));
-  content: '';
-  transform: translateX(-50%);
-  clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
   border-style: solid;
   /* Same frame as the Start Mission panel and the weekly funding shell: navy
      body, grey chrome, green LEDs, cyan rails. Deliberately NOT the
@@ -444,7 +430,20 @@
   text-align: left;
   image-rendering: pixelated;
   transition: filter 140ms ease, transform 120ms ease;
-  filter: saturate(1) brightness(1);
+}
+
+/* Connector tab bridging the gap up into the funding panel. */
+.sci-weekly-run-entry::before {
+  position: absolute;
+  z-index: -1;
+  top: -1.35rem;
+  left: 50%;
+  width: 2.6rem;
+  height: 0.9rem;
+  background: linear-gradient(rgb(103 232 249 / 0.55), rgb(34 211 238 / 0.15));
+  content: '';
+  transform: translateX(-50%);
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
 }
 
 .sci-weekly-run-entry:hover,
