@@ -217,6 +217,49 @@ test('Helios Attack 3 mines complete their visible lifecycle through the real en
   );
 });
 
+test('Helios keeps its registered Attack 3 sprites in a non-preview gameplay runtime', () => {
+  const engine = new GameEngine(createStats(), {
+    campaign: preview.campaign,
+    previewMode: false,
+    testMode: true,
+    audioEnabled: false,
+    initialLevelId: preview.levelId,
+    initialWaveId: preview.waveId,
+    randomSeed: 'helios-production-projectile-art-regression',
+    previewBossCollisionEventId: preview.eventId,
+    previewBossCollisionMask: artwork.collisionMask,
+    previewBossWeaponSockets: artwork.weaponSockets,
+    previewBossWeaponSocketPoseSampler: poseSampler,
+    previewBossArtworkDesignSize: artwork.modularRig.manifest.designSize,
+    previewBossReducedMotion: false,
+    previewBossWeaponSocketEventId: preview.eventId,
+    previewBossProjectileVisualKinds: Object.keys(artwork.projectileAnimations ?? {})
+  });
+  engine.init(390, 844);
+  engine.invincibleTimer = 100_000;
+  assert.equal(
+    engine.triggerAuthoredBossAttack('reactor-maze', preview.eventId),
+    true
+  );
+
+  const visualKinds = new Set();
+  for (let frame = 0; frame < 720; frame += 1) {
+    engine.update();
+    for (const entity of engine.entities) {
+      if (entity.projectileVisualKind) visualKinds.add(entity.projectileVisualKind);
+    }
+  }
+
+  assert.ok(
+    visualKinds.has('boss-reactor-pellet'),
+    'Campaign and Weekly must keep the generated reactor-pellet sprite family'
+  );
+  assert.ok(
+    visualKinds.has('boss-helios-mine'),
+    'Campaign and Weekly must keep the generated Helios mine sprite family'
+  );
+});
+
 test('Helios Attack 3 escalates sequential reactor sprites and mines by health phase', () => {
   const expected = [
     { pellets: 25, mines: 3 },

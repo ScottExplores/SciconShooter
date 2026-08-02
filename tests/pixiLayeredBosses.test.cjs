@@ -125,6 +125,11 @@ test('the first two gatekeepers use optional detachable weapon weak points', () 
   assert.match(engine, /const origins = activeCannons\.length > 0/);
   assert.match(renderer, /PIXI_BOSS_OPEN_ORBIT_ARM_LEFT/);
   assert.match(renderer, /PIXI_BOSS_CITATION_CLAW_LEFT/);
+  assert.match(
+    renderer,
+    /private getOrRequestBossComponentTexture\(key: string \| undefined\)[\s\S]*?this\.textureBank\.load\(key\)/
+  );
+  assert.match(renderer, /const texture = this\.getOrRequestBossComponentTexture\(textureKey\)/);
   assert.match(renderer, /rightDestroyed && !leftDestroyed/);
   assert.match(constants, /generated\/boss-weapons\/open-orbit-railgun-arm-left\.png/);
   assert.match(constants, /generated\/boss-weapons\/citation-storm-plasma-claw-left\.png/);

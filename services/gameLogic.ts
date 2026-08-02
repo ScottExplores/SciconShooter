@@ -13153,7 +13153,7 @@ export class GameEngine {
       );
       if (
         !darkPulse
-        && this.supportsPreviewBossProjectileVisualKind(boss, 'boss-reactor-pellet')
+        && this.supportsBossProjectileVisualKind(boss, 'boss-reactor-pellet')
       ) {
         projectile.projectileVisualKind = 'boss-reactor-pellet';
       }
@@ -13372,13 +13372,12 @@ export class GameEngine {
     return { allCannonsDestroyed, resolvedSide, origins };
   }
 
-  private supportsPreviewBossProjectileVisualKind(
+  private supportsBossProjectileVisualKind(
     boss: Entity,
     kind: BossModularProjectileVisualKind
   ) {
     return (
-      this.previewMode
-      && boss.sourceEventId === this.previewBossWeaponSocketEventId
+      boss.sourceEventId === this.previewBossWeaponSocketEventId
       && this.previewBossProjectileVisualKinds.has(kind)
     );
   }
@@ -13441,7 +13440,7 @@ export class GameEngine {
       );
       if (
         heavyCannon
-        && this.supportsPreviewBossProjectileVisualKind(boss, 'boss-heavy-shell')
+        && this.supportsBossProjectileVisualKind(boss, 'boss-heavy-shell')
       ) {
         projectile.projectileVisualKind = 'boss-heavy-shell';
       }
@@ -13506,7 +13505,7 @@ export class GameEngine {
       9,
       pulseIndex
     );
-    if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-gatling-tracer')) {
+    if (this.supportsBossProjectileVisualKind(boss, 'boss-gatling-tracer')) {
       projectile.projectileVisualKind = 'boss-gatling-tracer';
     }
     if (pulseIndex === 0) {
@@ -16685,7 +16684,7 @@ export class GameEngine {
           this.mobileProfile ? 9 : 11,
           channel.sequence * 100_000 + sequenceOffset
         );
-        if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-gatling-tracer')) {
+        if (this.supportsBossProjectileVisualKind(boss, 'boss-gatling-tracer')) {
           projectile.projectileVisualKind = 'boss-gatling-tracer';
         }
       };
@@ -16780,7 +16779,7 @@ export class GameEngine {
       this.mobileProfile ? 10 : 12,
       action.sequence * 100 + pulse.shotIndex
     );
-    if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-gatling-tracer')) {
+    if (this.supportsBossProjectileVisualKind(boss, 'boss-gatling-tracer')) {
       projectile.projectileVisualKind = 'boss-gatling-tracer';
     }
     this.spawnBurst(origin.x, origin.y, '#f59e0b', 3, 1.8, 2);
@@ -16871,7 +16870,7 @@ export class GameEngine {
       };
       mine.heliosMineStage = 'deploying';
       mine.projectileAnimationMode = 'play-once-before-last';
-      if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-helios-mine')) {
+      if (this.supportsBossProjectileVisualKind(boss, 'boss-helios-mine')) {
         mine.projectileVisualKind = 'boss-helios-mine';
       }
       this.playSound('boss_shoot', 0.38, {
@@ -16908,7 +16907,7 @@ export class GameEngine {
       this.mobileProfile ? 11 : 13,
       action.sequence * 100 + fanShot.shotIndex
     );
-    if (this.supportsPreviewBossProjectileVisualKind(boss, 'boss-reactor-pellet')) {
+    if (this.supportsBossProjectileVisualKind(boss, 'boss-reactor-pellet')) {
       projectile.projectileVisualKind = 'boss-reactor-pellet';
     }
     this.spawnBurst(core.x, core.y, '#f59e0b', 2, 1.3, 2);

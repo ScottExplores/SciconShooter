@@ -1313,7 +1313,7 @@ export class PixiGameRenderer {
   private readonly bossHealthFrame = new Sprite(Texture.WHITE);
   private readonly bossHealthBar = new Graphics();
   private readonly bossHealthName = createText(10, '#fef08a');
-  private readonly bossHealthPercent = createText(9, '#a7f3d0');
+  private readonly requestedBossComponentTextures = new Set<string>();
   private readonly seenBossPhase = new Map<string, number>();
   private readonly seenBossComponents = new Map<string, Partial<Record<BossPartId, boolean>>>();
   private readonly bossDeathRoot = new Container();
@@ -1798,14 +1798,12 @@ export class PixiGameRenderer {
 
     this.bossHealthFrame.anchor.set(0.5);
     this.bossHealthName.anchor.set(0.5);
-    this.bossHealthPercent.anchor.set(0.5);
     this.bossHealthRoot.eventMode = 'none';
     this.bossHealthRoot.visible = false;
     this.bossHealthRoot.addChild(
       this.bossHealthFrame,
       this.bossHealthBar,
-      this.bossHealthName,
-      this.bossHealthPercent
+      this.bossHealthName
     );
 
     this.bossDeathSprite.anchor.set(0.5);
@@ -2814,6 +2812,17 @@ export class PixiGameRenderer {
     }).catch(() => {
       if (view.textureRequest === request) view.sprite.visible = false;
     });
+  }
+
+  private getOrRequestBossComponentTexture(key: string | undefined) {
+    if (!key) return null;
+    const cached = this.textureBank.get(key);
+    if (cached) return cached;
+    if (!this.requestedBossComponentTextures.has(key)) {
+      this.requestedBossComponentTextures.add(key);
+      void this.textureBank.load(key).catch(() => undefined);
+    }
+    return null;
   }
 
   private ensureProjectileCopySprites(view: EntityView, visualRoundCount: number) {
@@ -5356,7 +5365,7 @@ export class PixiGameRenderer {
       const sprite = rig.partSprites[component.id];
       sprite.filters = null;
       const textureKey = partTextures[component.id];
-      const texture = textureKey ? this.textureBank.get(textureKey) : undefined;
+      const texture = this.getOrRequestBossComponentTexture(textureKey);
       const visualScale = this.getBossComponentVisualScale(entity, component);
       nextState[component.id] = component.destroyed;
       if (previousState && !previousState[component.id] && component.destroyed) {
@@ -6473,7 +6482,6 @@ export class PixiGameRenderer {
     this.bossHealthRoot.visible = Boolean(boss);
     this.bossHealthBar.clear();
     this.bossHealthName.text = '';
-    this.bossHealthPercent.text = '';
     if (!boss) return;
 
     const frameWidth = Math.min(clamp(this.width * 0.76, 210, 342), Math.max(180, this.width - 20));
@@ -6490,23 +6498,29 @@ export class PixiGameRenderer {
         : boss.bossRigId === 'paywall-siege'
           ? 'PEER REVIEW DECIMATOR'
           : 'GATEKEEPER SENTINEL';
-    const barWidth = frameWidth * 0.68;
-    const barY = frameHeight * 0.14;
+    const barWidth = frameWidth * 0.75;
+    const barHeight = frameHeight * 0.29;
+    const barY = -frameHeight * 0.17;
+    const barRadius = Math.max(2, barHeight * 0.22);
 
     this.bossHealthRoot.position.set(this.width / 2, this.width < 520 ? 78 : 82);
     this.bossHealthFrame.width = frameWidth;
     this.bossHealthFrame.height = frameHeight;
     this.bossHealthFrame.alpha = 0.96;
-    this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, 9, 3)
+    this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, barHeight, barRadius)
       .fill({ color: '#170508', alpha: 0.98 });
-    this.bossHealthBar.roundRect(-barWidth / 2 + 1, barY + 1, Math.max(0, (barWidth - 2) * progress), 7, 2)
+    this.bossHealthBar.roundRect(
+      -barWidth / 2 + 1,
+      barY + 1,
+      Math.max(0, (barWidth - 2) * progress),
+      Math.max(1, barHeight - 2),
+      Math.max(1, barRadius - 1)
+    )
       .fill('#ef233c');
-    this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, 9, 3)
+    this.bossHealthBar.roundRect(-barWidth / 2, barY, barWidth, barHeight, barRadius)
       .stroke({ color: '#ff6b76', width: 1, alpha: 0.72 });
     this.bossHealthName.text = name;
-    this.bossHealthName.position.set(-frameWidth * 0.08, -frameHeight * 0.13);
-    this.bossHealthPercent.text = `${Math.ceil(progress * 100)}%`;
-    this.bossHealthPercent.position.set(frameWidth * 0.29, -frameHeight * 0.13);
+    this.bossHealthName.position.set(0, -frameHeight * 0.64);
   }
 
   private syncPlayerAfterimages(engine: GameEngine) {
@@ -6963,6 +6977,7 @@ export class PixiGameRenderer {
     this.cornerAmbushBossId = null;
     this.views.clear();
     this.recycledViews.clear();
+    this.requestedBossComponentTextures.clear();
     this.seenBossPhase.clear();
     this.seenBossComponents.clear();
     this.destroyApplication();

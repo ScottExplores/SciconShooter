@@ -63,7 +63,12 @@ test('Pixi presents a fixed boss meter and compact elite health bars', () => {
   assert.ok(fs.existsSync(framePath));
   assert.match(renderer, /private syncBossHealthHud\(engine: GameEngine\)/);
   assert.match(renderer, /frameWidth \* \(143 \/ 737\)/);
+  assert.match(renderer, /const barWidth = frameWidth \* 0\.75/);
+  assert.match(renderer, /const barHeight = frameHeight \* 0\.29/);
+  assert.match(renderer, /const barY = -frameHeight \* 0\.17/);
   assert.match(renderer, /\.fill\('#ef233c'\)/);
+  assert.match(renderer, /this\.bossHealthName\.position\.set\(0, -frameHeight \* 0\.64\)/);
+  assert.doesNotMatch(renderer, /bossHealthPercent/);
   assert.match(renderer, /this\.bossHealthRoot\.position\.set\(this\.width \/ 2/);
   assert.match(renderer, /entity\.type === EntityType\.MINI_BOSS[\s\S]*?engine\.compactMiniBossHealthBarsVisible/);
   assert.match(renderer, /entity\.isElite[\s\S]*?this\.drawHealthBar\(view, entity\)/);
