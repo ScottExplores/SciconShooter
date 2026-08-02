@@ -48,6 +48,13 @@ export const MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL;
 // The engine already flies homing missiles at five levels (cooldown 180 down
 // to 80 frames); this is the level cap the Hangar sells against.
 export const MAIN_SHIP_MISSILE_MAX_LEVEL = 5;
+// Campaign runs start at 3 hearts and top out at 5. Survivability is a short,
+// deliberate track there: the deep ten-heart ladder made late Campaign
+// Missions trivial, and Weekly Run ignores it entirely at a flat 10 lives.
+export const CAMPAIGN_MAX_STARTING_LIVES = 5;
+export const CAMPAIGN_BASE_STARTING_LIVES = 3;
+export const MAIN_SHIP_STARTING_HEARTS_MAX_LEVEL =
+  CAMPAIGN_MAX_STARTING_LIVES - CAMPAIGN_BASE_STARTING_LIVES;
 export const MINI_SHIP_MAX_LEVEL = 5;
 export const LEFT_SQUAD_SLOT_UNLOCK_COST = 50;
 export const RIGHT_SQUAD_SLOT_UNLOCK_COST = 500;
@@ -386,11 +393,11 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
   {
     id: 'startingHearts',
     name: 'Starting Hearts',
-    description: 'Permanently adds one starting heart, up to the ten-heart ship cap.',
+    description: 'Adds one starting heart to Campaign Missions, up to five. Weekly Run always starts at ten.',
     // Survivability is intentionally a premium track. Early fire-rate and
     // movement choices stay accessible while later hearts require deliberate
     // saving instead of becoming the automatic cheapest upgrade.
-    costs: [180, 320, 560, 900, 1400, 2100, 3000]
+    costs: [180, 420]
   }
 ];
 
@@ -430,7 +437,7 @@ const sanitizeMainShipUpgradeLevels = (
   fireRate: clampLevel(value?.fireRate, MAIN_SHIP_FIRE_RATE_MAX_LEVEL),
   speed: clampLevel(value?.speed),
   missile: clampLevel(value?.missile, MAIN_SHIP_MISSILE_MAX_LEVEL),
-  startingHearts: clampLevel(value?.startingHearts)
+  startingHearts: clampLevel(value?.startingHearts, MAIN_SHIP_STARTING_HEARTS_MAX_LEVEL)
 });
 
 export const getMainShipUpgradeMaxLevel = (id: MainShipUpgradeId) => (
@@ -438,7 +445,9 @@ export const getMainShipUpgradeMaxLevel = (id: MainShipUpgradeId) => (
     ? MAIN_SHIP_FIRE_RATE_MAX_LEVEL
     : id === 'missile'
       ? MAIN_SHIP_MISSILE_MAX_LEVEL
-      : MAIN_SHIP_UPGRADE_MAX_LEVEL
+      : id === 'startingHearts'
+        ? MAIN_SHIP_STARTING_HEARTS_MAX_LEVEL
+        : MAIN_SHIP_UPGRADE_MAX_LEVEL
 );
 
 export const getMainShipFireRateTier = (level: number) => getFireRateTier(level);

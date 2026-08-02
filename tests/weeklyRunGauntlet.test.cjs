@@ -113,9 +113,10 @@ test('Weekly Run starting lives are fixed and independent of Campaign upgrades',
   const appSource = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 
   assert.equal(WEEKLY_RUN_STARTING_LIVES, 10);
-  // Campaign Starting Hearts must not buy a longer competitive attempt.
+  // Campaign Starting Hearts must not buy a longer competitive attempt, and
+  // Campaign itself now tops out well below the Weekly Run's flat ten.
   assert.match(
     appSource,
-    /runMode === 'weekly-streak'\s*\?\s*WEEKLY_RUN_STARTING_LIVES\s*:\s*Math\.min\(GAME_CONFIG\.MAX_LIVES, 3 \+ squadLoadout\.upgrades\.startingHearts\)/
+    /runMode === 'weekly-streak'\s*\?\s*WEEKLY_RUN_STARTING_LIVES\s*:\s*Math\.min\(\s*CAMPAIGN_MAX_STARTING_LIVES,\s*CAMPAIGN_BASE_STARTING_LIVES \+ squadLoadout\.upgrades\.startingHearts\s*\)/
   );
 });

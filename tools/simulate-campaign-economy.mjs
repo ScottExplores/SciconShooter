@@ -33,8 +33,11 @@ const parseUpgradeInputs = (squadSource) => {
     /export const MAIN_SHIP_UPGRADES[\s\S]*?=\s*\[([\s\S]*?)\n\];/,
     'MAIN_SHIP_UPGRADES'
   )[1];
+  // Every purchasable main-ship track, so "cost to fully upgrade a hull"
+  // stays truthful as tracks are added. Homing Missiles was invisible here
+  // until it was added, which under-reported that total.
   const mainUpgradeCosts = Object.fromEntries(
-    ['fireRate', 'speed', 'startingHearts'].map((upgradeId) => {
+    ['fireRate', 'speed', 'missile', 'startingHearts'].map((upgradeId) => {
       const costs = requireMatch(
         upgradeBlock,
         new RegExp(`id:\\s*'${upgradeId}'[\\s\\S]*?costs:\\s*\\[([\\s\\S]*?)\\]`),
@@ -217,27 +220,27 @@ const getMissionBreakdown = (mission) => {
   };
 };
 
+/**
+ * Models the order a player actually buys main-ship upgrades: broaden the
+ * short tracks level by level first, then keep pushing the long Fire Rate
+ * ladder once the others are exhausted.
+ *
+ * Deliberately track-agnostic. The previous version interleaved three hard
+ * coded ids, so Homing Missiles was silently missing from the purchase model
+ * even after it became buyable.
+ */
 const buildMainUpgradeQueue = (mainUpgradeCosts) => {
   const queue = [];
-  const sharedLevels = Math.max(
-    mainUpgradeCosts.speed.length,
-    mainUpgradeCosts.startingHearts.length
-  );
-  for (let level = 0; level < sharedLevels; level += 1) {
-    for (const id of ['speed', 'fireRate', 'startingHearts']) {
+  const trackIds = Object.keys(mainUpgradeCosts);
+  const deepestTrack = Math.max(...trackIds.map((id) => mainUpgradeCosts[id].length));
+
+  for (let level = 0; level < deepestTrack; level += 1) {
+    for (const id of trackIds) {
       const cost = mainUpgradeCosts[id][level];
       if (Number.isFinite(cost)) {
         queue.push({ id, level: level + 1, label: `${id} ${level + 1}`, cost });
       }
     }
-  }
-  for (let level = sharedLevels; level < mainUpgradeCosts.fireRate.length; level += 1) {
-    queue.push({
-      id: 'fireRate',
-      level: level + 1,
-      label: `fireRate ${level + 1}`,
-      cost: mainUpgradeCosts.fireRate[level]
-    });
   }
   return queue;
 };

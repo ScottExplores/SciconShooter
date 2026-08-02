@@ -69,14 +69,18 @@ test('economy simulation consumes premium-adjusted support and main-ship costs f
   const { simulation } = await loadSimulation();
   const reference = simulation.upgradeReference;
 
-  assert.equal(reference.fullMainShipCoins, 561645);
-  assert.equal(reference.allFourMainShipsCoins, 2246580);
+  assert.equal(reference.fullMainShipCoins, 556675);
+  assert.equal(reference.allFourMainShipsCoins, 2226700);
   assert.equal(reference.allSupportsAndSlotsCoins, 38310);
   assert.equal(reference.mainUpgradeCosts.fireRate.length, 49);
   assert.equal(reference.mainUpgradeCosts.fireRate.slice(0, 21).reduce((sum, cost) => sum + cost, 0), 40250);
   assert.equal(reference.mainUpgradeCosts.fireRate.reduce((sum, cost) => sum + cost, 0), 551350);
   assert.equal(reference.mainUpgradeQueue.length, 63);
-  assert.deepEqual(reference.mainUpgradeCosts.startingHearts, [180, 320, 560, 900, 1400, 2100, 3000]);
+  // Every purchasable track appears in the purchase model, including Homing
+  // Missiles, which the old hard-coded interleave silently omitted.
+  assert.deepEqual(Object.keys(reference.mainUpgradeCosts), ['fireRate', 'speed', 'missile', 'startingHearts']);
+  assert.equal(reference.mainUpgradeQueue.reduce((sum, entry) => sum + entry.cost, 0), reference.fullMainShipCoins);
+  assert.deepEqual(reference.mainUpgradeCosts.startingHearts, [180, 420]);
   assert.deepEqual(reference.slotCosts, { left: 50, right: 500 });
   assert.equal(reference.supportShips.length, 10);
   assert.deepEqual(reference.supportShips[0], {
@@ -95,9 +99,16 @@ test('economy simulation consumes premium-adjusted support and main-ship costs f
     levelOneToFiveCoins: 5032,
     acquireAndMaxCoins: 5792
   });
-  assert.equal(simulation.cadences.clearOnly.purchasesFunded, 25);
-  assert.equal(simulation.cadences.expected.purchasesFunded, 27);
-  assert.equal(simulation.cadences.fullMasteryMinimum.purchasesFunded, 32);
+  // Adding the cheap Homing Missile levels and shortening Starting Hearts
+  // means a Campaign player funds a few more upgrades on the same income.
+  assert.equal(simulation.cadences.clearOnly.purchasesFunded, 28);
+  assert.equal(simulation.cadences.expected.purchasesFunded, 29);
+  assert.equal(simulation.cadences.fullMasteryMinimum.purchasesFunded, 33);
+  // Clearing Missions must always fund fewer upgrades than mastering them,
+  // or mastery objectives stop being worth playing for.
+  assert.ok(
+    simulation.cadences.clearOnly.purchasesFunded < simulation.cadences.fullMasteryMinimum.purchasesFunded
+  );
 });
 
 test('authored replay, route, and branch income stay bounded and separate from weekly statistics', async () => {

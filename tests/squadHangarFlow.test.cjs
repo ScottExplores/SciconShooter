@@ -12,10 +12,14 @@ test('weekly competition rollover preserves permanent Hangar progression and res
   assert.match(source, /MAIN_SHIP_UPGRADE_MAX_LEVEL = FIRE_RATE_LEVELS_PER_TIER/);
   assert.match(source, /MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL/);
   // Fire Rate runs the long tier ladder, Homing Missiles cap at the engine's
-  // five missile levels, and everything else uses the standard cap.
+  // five missile levels, Starting Hearts is a short Campaign-only track, and
+  // everything else uses the standard cap.
   assert.match(source, /id === 'fireRate'\s*\?\s*MAIN_SHIP_FIRE_RATE_MAX_LEVEL/);
-  assert.match(source, /id === 'missile'\s*\?\s*MAIN_SHIP_MISSILE_MAX_LEVEL\s*:\s*MAIN_SHIP_UPGRADE_MAX_LEVEL/);
+  assert.match(source, /id === 'missile'\s*\?\s*MAIN_SHIP_MISSILE_MAX_LEVEL/);
+  assert.match(source, /id === 'startingHearts'\s*\?\s*MAIN_SHIP_STARTING_HEARTS_MAX_LEVEL\s*:\s*MAIN_SHIP_UPGRADE_MAX_LEVEL/);
   assert.match(source, /MAIN_SHIP_MISSILE_MAX_LEVEL = 5/);
+  assert.match(source, /CAMPAIGN_MAX_STARTING_LIVES = 5/);
+  assert.match(source, /CAMPAIGN_BASE_STARTING_LIVES = 3/);
   assert.match(source, /SQUAD_PROFILE_VERSION = 4/);
   assert.match(source, /LEFT_SQUAD_SLOT_UNLOCK_COST = 50/);
   assert.match(source, /RIGHT_SQUAD_SLOT_UNLOCK_COST = 500/);
@@ -48,7 +52,8 @@ test('weekly competition rollover preserves permanent Hangar progression and res
   assert.match(source, /entry\.purchaseCost \* \(0\.55 \+ currentLevel \* 0\.15\)/);
   assert.match(source, /60, 90, 130, 190, 270, 360, 480,[\s\S]*?2600, 3050, 3550, 4100, 4700, 5350, 6050/);
   assert.match(source, /costs: \[55, 85, 130, 200, 300, 440, 625\]/);
-  assert.match(source, /costs: \[180, 320, 560, 900, 1400, 2100, 3000\]/);
+  // Starting Hearts is now a short Campaign-only track: 3 lives to 5.
+  assert.match(source, /costs: \[180, 420\]/);
   assert.match(source, /if \(slot === 'left'\) \{[\s\S]*?\[FIRST_LEFT_WING_MINI_SHIP_ID\]: next\.ownedMiniShips\[FIRST_LEFT_WING_MINI_SHIP_ID\] \|\| 1/);
   assert.match(source, /next\.equipped = \{ \.\.\.next\.equipped, left: FIRST_LEFT_WING_MINI_SHIP_ID \}/);
   assert.match(source, /mini_ship_awarded/);

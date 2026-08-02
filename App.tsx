@@ -69,6 +69,8 @@ import {
   upgradeMiniShip,
   type MainShipUpgradeId,
   type MiniShipId,
+  CAMPAIGN_BASE_STARTING_LIVES,
+  CAMPAIGN_MAX_STARTING_LIVES,
   type PermanentSquadState,
   type RuntimeSquadLoadout,
   type SquadSlotId,
@@ -2304,7 +2306,10 @@ const App: React.FC = () => {
     // Hearts track, so a deep Campaign save cannot buy a longer weekly attempt.
     const startingLives = runMode === 'weekly-streak'
       ? WEEKLY_RUN_STARTING_LIVES
-      : Math.min(GAME_CONFIG.MAX_LIVES, 3 + squadLoadout.upgrades.startingHearts);
+      : Math.min(
+        CAMPAIGN_MAX_STARTING_LIVES,
+        CAMPAIGN_BASE_STARTING_LIVES + squadLoadout.upgrades.startingHearts
+      );
     const weeklyStreakForLaunch = runMode === 'weekly-streak'
       ? weeklySquadStateRef.current.weeklyCampaignStreak
       : null;
