@@ -2591,14 +2591,14 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
                   "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
                   "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
+                  "roleId": "role-orbit-scout",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.7,
                   "burstCount": 1
@@ -2620,14 +2620,14 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
                   "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
                   "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
+                  "roleId": "role-orbit-scout",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.7,
                   "burstCount": 1
@@ -2652,7 +2652,7 @@
           "combatBudget": 125,
           "rhythm": "peak",
           "formationPackIds": [
-            "pack-orbit-grid"
+            "pack-orbit-v"
           ],
           "events": [
             {
@@ -2698,14 +2698,14 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
                   "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
                   "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
+                  "roleId": "role-orbit-scout",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.7,
                   "burstCount": 1
@@ -2727,14 +2727,14 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
                   "weight": 1,
                   "health": 2,
                   "speed": 2.5,
                   "damage": 1,
                   "scoreValue": 10,
                   "powerupDropChance": 0,
-                  "roleId": "role-research-drone",
+                  "roleId": "role-orbit-scout",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.7,
                   "burstCount": 1
@@ -5290,7 +5290,7 @@
           "combatBudget": 136.08,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-jet-pincer"
           ],
           "events": [
             {
@@ -5307,8 +5307,8 @@
               "spawnIntervalSeconds": 0.48960000000000004,
               "enemies": [
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
+                  "enemyId": "brick",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.4,
                   "health": 3,
                   "speed": 3.45,
@@ -5317,14 +5317,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-jet-heavy",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.34,
                   "health": 4,
                   "speed": 2.8,
@@ -5333,14 +5333,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-jet-interceptor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.26,
                   "health": 4,
                   "speed": 3.1,
@@ -5349,7 +5349,7 @@
                   "powerupDropChance": 0.045,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-jet-scout",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -5393,7 +5393,7 @@
           "combatBudget": 136.08,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-jet-pincer"
           ],
           "events": [
             {
@@ -5410,8 +5410,8 @@
               "spawnIntervalSeconds": 0.40800000000000003,
               "enemies": [
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
+                  "enemyId": "brick",
+                  "spriteKey": "PIXI_JET_HEAVY_FRAMES",
                   "weight": 0.4,
                   "health": 2,
                   "speed": 3.45,
@@ -5420,14 +5420,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-jet-heavy",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.34,
                   "health": 4,
                   "speed": 2.8,
@@ -5436,14 +5436,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-jet-interceptor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.26,
                   "health": 4,
                   "speed": 3.1,
@@ -5452,7 +5452,7 @@
                   "powerupDropChance": 0.045,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-jet-scout",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -5477,8 +5477,7 @@
           "combatBudget": 256.08,
           "rhythm": "variation",
           "formationPackIds": [
-            "pack-citation-spiral",
-            "pack-dna-helix"
+            "pack-citation-spiral"
           ],
           "events": [
             {
@@ -5539,25 +5538,9 @@
               "spawnIntervalSeconds": 0.48960000000000004,
               "enemies": [
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
-                  "health": 4,
-                  "speed": 1.7,
-                  "damage": 1,
-                  "scoreValue": 85,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
                   "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "spriteKey": "ENEMY_DRONE_FRAMES",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.7,
                   "damage": 1,
@@ -5565,15 +5548,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-research-drone",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
+                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.7,
                   "damage": 1,
@@ -5581,7 +5564,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-citation-swarm",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -5606,8 +5589,7 @@
           "combatBudget": 304.12,
           "rhythm": "peak",
           "formationPackIds": [
-            "pack-priority-diamond",
-            "pack-dna-helix"
+            "pack-priority-diamond"
           ],
           "events": [
             {
@@ -5702,8 +5684,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -5711,15 +5693,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-journal-priority",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 2.8,
                   "damage": 1,
@@ -5727,23 +5709,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.1,
-                  "damage": 1,
-                  "scoreValue": 60,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-jet-interceptor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -5874,7 +5840,7 @@
           "combatBudget": 106.08,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-wall-crossfire"
+            "pack-light-jet-pincer"
           ],
           "events": [
             {
@@ -5891,8 +5857,8 @@
               "spawnIntervalSeconds": 0.48960000000000004,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.58,
                   "health": 3,
                   "speed": 3.45,
@@ -5901,14 +5867,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-jet-interceptor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.42,
                   "health": 4,
                   "speed": 3.14,
@@ -5917,7 +5883,7 @@
                   "powerupDropChance": 0.045,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-jet-scout",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -5961,7 +5927,7 @@
           "combatBudget": 106.08,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-wall-crossfire"
+            "pack-light-jet-pincer"
           ],
           "events": [
             {
@@ -5978,8 +5944,8 @@
               "spawnIntervalSeconds": 0.40800000000000003,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.58,
                   "health": 2,
                   "speed": 3.45,
@@ -5988,14 +5954,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-jet-interceptor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.42,
                   "health": 2,
                   "speed": 3.45,
@@ -6004,7 +5970,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-jet-scout",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -6029,8 +5995,7 @@
           "combatBudget": 487.02,
           "rhythm": "variation",
           "formationPackIds": [
-            "pack-wall-crossfire",
-            "pack-dna-helix",
+            "pack-dark-lanes",
             "pack-orbit-grid"
           ],
           "events": [
@@ -6048,8 +6013,8 @@
               "spawnIntervalSeconds": 0.48960000000000004,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
                   "weight": 0.58,
                   "health": 4,
                   "speed": 1.7,
@@ -6058,14 +6023,14 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
                   "weight": 0.42,
                   "health": 4,
                   "speed": 1.7,
@@ -6074,7 +6039,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -6096,8 +6061,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.7,
                   "damage": 1,
@@ -6105,15 +6070,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.7,
                   "damage": 1,
@@ -6121,23 +6086,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.7,
-                  "damage": 1,
-                  "scoreValue": 90,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -6159,8 +6108,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.7,
                   "damage": 1,
@@ -6168,15 +6117,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.7,
                   "damage": 1,
@@ -6184,23 +6133,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.7,
-                  "damage": 1,
-                  "scoreValue": 90,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -6257,8 +6190,7 @@
           "combatBudget": 282.15999999999997,
           "rhythm": "peak",
           "formationPackIds": [
-            "pack-dna-helix",
-            "pack-wall-crossfire"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -6307,8 +6239,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -6316,15 +6248,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 2.84,
                   "damage": 1,
@@ -6332,23 +6264,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.14,
-                  "damage": 1,
-                  "scoreValue": 64,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -6369,8 +6285,8 @@
               "spawnIntervalSeconds": 0.48960000000000004,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
                   "weight": 0.58,
                   "health": 3,
                   "speed": 3.45,
@@ -6379,14 +6295,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
                   "weight": 0.42,
                   "health": 4,
                   "speed": 3.14,
@@ -6395,7 +6311,7 @@
                   "powerupDropChance": 0.045,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -6679,7 +6595,7 @@
           "rhythm": "variation",
           "formationPackIds": [
             "pack-jet-pincer",
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -6760,8 +6676,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.7400000000000002,
                   "damage": 1,
@@ -6769,15 +6685,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.7400000000000002,
                   "damage": 1,
@@ -6785,23 +6701,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.7400000000000002,
-                  "damage": 1,
-                  "scoreValue": 95,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -6826,7 +6726,7 @@
           "combatBudget": 186.04,
           "rhythm": "peak",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -6844,7 +6744,7 @@
               "enemies": [
                 {
                   "enemyId": "swarm",
-                  "spriteKey": "ENEMY_SWARM_FRAMES",
+                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
                   "weight": 1,
                   "health": 3,
                   "speed": 3.45,
@@ -6853,7 +6753,7 @@
                   "powerupDropChance": 0,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-citation-swarm"
+                  "roleId": "role-orbit-disc"
                 }
               ]
             },
@@ -6872,8 +6772,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 6,
                   "speed": 2.9,
                   "damage": 1,
@@ -6885,12 +6785,12 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.755,
                   "burstCount": 1,
-                  "roleId": "role-dna-conductor"
+                  "roleId": "role-crescent-minelayer"
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 6,
                   "speed": 2.9,
                   "damage": 1,
@@ -6902,24 +6802,7 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.755,
                   "burstCount": 2,
-                  "roleId": "role-laser-stalker"
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 6,
-                  "speed": 2.9,
-                  "damage": 1,
-                  "scoreValue": 271,
-                  "powerupDropChance": 0.14,
-                  "rank": "elite",
-                  "sizeMultiplier": 1.22,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 3.15,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
+                  "roleId": "role-dark-sentinel"
                 }
               ]
             },
@@ -6938,8 +6821,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -6947,15 +6830,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 2.89,
                   "damage": 1,
@@ -6963,23 +6846,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.19,
-                  "damage": 1,
-                  "scoreValue": 68,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -7242,7 +7109,7 @@
           "formationPackIds": [
             "pack-citation-spiral",
             "pack-orbit-v",
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -7332,8 +7199,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.7800000000000002,
                   "damage": 1,
@@ -7341,15 +7208,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.7800000000000002,
                   "damage": 1,
@@ -7357,23 +7224,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.7800000000000002,
-                  "damage": 1,
-                  "scoreValue": 100,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -7398,7 +7249,7 @@
           "combatBudget": 296.08,
           "rhythm": "variation",
           "formationPackIds": [
-            "pack-dna-helix",
+            "pack-dark-lanes",
             "pack-citation-spiral"
           ],
           "events": [
@@ -7417,8 +7268,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.7800000000000002,
                   "damage": 1,
@@ -7426,15 +7277,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.7800000000000002,
                   "damage": 1,
@@ -7442,23 +7293,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.7800000000000002,
-                  "damage": 1,
-                  "scoreValue": 100,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -7570,7 +7405,7 @@
           "combatBudget": 518.16,
           "rhythm": "clear",
           "formationPackIds": [
-            "pack-dna-helix",
+            "pack-dark-lanes",
             "pack-priority-diamond",
             "pack-jet-pincer"
           ],
@@ -7590,8 +7425,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -7599,15 +7434,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 2.93,
                   "damage": 1,
@@ -7615,23 +7450,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.23,
-                  "damage": 1,
-                  "scoreValue": 72,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -7950,7 +7769,7 @@
           "formationPackIds": [
             "pack-priority-diamond",
             "pack-orbit-v",
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -8062,8 +7881,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.7800000000000002,
                   "damage": 1,
@@ -8071,15 +7890,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.7800000000000002,
                   "damage": 1,
@@ -8087,23 +7906,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.7800000000000002,
-                  "damage": 1,
-                  "scoreValue": 100,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -8501,7 +8304,7 @@
           "rhythm": "variation",
           "formationPackIds": [
             "pack-priority-diamond",
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -8566,8 +8369,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.87,
                   "damage": 1,
@@ -8575,15 +8378,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.87,
                   "damage": 1,
@@ -8591,23 +8394,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.87,
-                  "damage": 1,
-                  "scoreValue": 110,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
@@ -8633,7 +8420,7 @@
           "rhythm": "peak",
           "formationPackIds": [
             "pack-orbit-v",
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -8707,8 +8494,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -8716,15 +8503,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 3.02,
                   "damage": 1,
@@ -8732,27 +8519,10 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.32,
-                  "damage": 1,
-                  "scoreValue": 80,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
                 }
               ]
             },
@@ -8967,7 +8737,7 @@
           "combatBudget": 136.08,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -8985,8 +8755,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -8994,15 +8764,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 3.07,
                   "damage": 1,
@@ -9010,27 +8780,10 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.37,
-                  "damage": 1,
-                  "scoreValue": 84,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
                 }
               ]
             }
@@ -9053,7 +8806,7 @@
           "rhythm": "variation",
           "formationPackIds": [
             "pack-jet-pincer",
-            "pack-dna-helix",
+            "pack-dark-lanes",
             "pack-priority-diamond"
           ],
           "events": [
@@ -9135,8 +8888,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.92,
                   "damage": 1,
@@ -9144,15 +8897,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.92,
                   "damage": 1,
@@ -9160,23 +8913,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.92,
-                  "damage": 1,
-                  "scoreValue": 115,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
@@ -9198,8 +8935,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.92,
                   "damage": 1,
@@ -9207,15 +8944,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.92,
                   "damage": 1,
@@ -9223,23 +8960,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.92,
-                  "damage": 1,
-                  "scoreValue": 115,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
@@ -9313,7 +9034,7 @@
           "combatBudget": 324.24,
           "rhythm": "peak",
           "formationPackIds": [
-            "pack-dna-helix",
+            "pack-dark-lanes",
             "pack-heavy-grid"
           ],
           "events": [
@@ -9363,8 +9084,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -9372,15 +9093,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 3.07,
                   "damage": 1,
@@ -9388,27 +9109,10 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.37,
-                  "damage": 1,
-                  "scoreValue": 84,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
                 }
               ]
             },
@@ -9583,7 +9287,7 @@
           "combatBudget": 150.24,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-prism-ring"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -9600,8 +9304,8 @@
               "spawnIntervalSeconds": 0.48,
               "enemies": [
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_PRISM_ARTILLERY",
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
                   "weight": 0.58,
                   "health": 4,
                   "speed": 3.45,
@@ -9610,14 +9314,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-prism-artillery",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "brick",
-                  "spriteKey": "CAMPAIGN_ENEMY_RING_SENTINEL",
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
                   "weight": 0.42,
                   "health": 4,
                   "speed": 3.11,
@@ -9626,7 +9330,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-ring-sentinel",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
@@ -9738,7 +9442,7 @@
           "combatBudget": 210,
           "rhythm": "variation",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -9756,8 +9460,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 7,
                   "speed": 1.96,
                   "damage": 1,
@@ -9769,12 +9473,12 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1,
-                  "roleId": "role-dna-conductor"
+                  "roleId": "role-crescent-minelayer"
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 7,
                   "speed": 1.96,
                   "damage": 1,
@@ -9786,24 +9490,7 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 2,
-                  "roleId": "role-laser-stalker"
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 7,
-                  "speed": 1.96,
-                  "damage": 1,
-                  "scoreValue": 120,
-                  "powerupDropChance": 0.08,
-                  "rank": "elite",
-                  "sizeMultiplier": 1.2,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 3.15,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
+                  "roleId": "role-dark-sentinel"
                 }
               ]
             },
@@ -9822,8 +9509,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 7,
                   "speed": 1.96,
                   "damage": 1,
@@ -9835,12 +9522,12 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1,
-                  "roleId": "role-dna-conductor"
+                  "roleId": "role-crescent-minelayer"
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 7,
                   "speed": 1.96,
                   "damage": 1,
@@ -9852,24 +9539,7 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 2,
-                  "roleId": "role-laser-stalker"
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 7,
-                  "speed": 1.96,
-                  "damage": 1,
-                  "scoreValue": 120,
-                  "powerupDropChance": 0.08,
-                  "rank": "elite",
-                  "sizeMultiplier": 1.2,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 3.15,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
+                  "roleId": "role-dark-sentinel"
                 }
               ]
             }
@@ -9892,7 +9562,7 @@
           "rhythm": "peak",
           "formationPackIds": [
             "pack-jet-pincer",
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -10007,8 +9677,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -10016,15 +9686,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 3.11,
                   "damage": 1,
@@ -10032,27 +9702,10 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.41,
-                  "damage": 1,
-                  "scoreValue": 88,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
                 }
               ]
             },
@@ -10291,9 +9944,8 @@
           "combatBudget": 406.32,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-prism-ring",
-            "pack-citation-spiral",
-            "pack-dna-helix"
+            "pack-dark-lanes",
+            "pack-citation-spiral"
           ],
           "events": [
             {
@@ -10310,8 +9962,8 @@
               "spawnIntervalSeconds": 0.40800000000000003,
               "enemies": [
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_PRISM_ARTILLERY",
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
                   "weight": 0.58,
                   "health": 2,
                   "speed": 3.45,
@@ -10320,14 +9972,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-prism-artillery",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "brick",
-                  "spriteKey": "CAMPAIGN_ENEMY_RING_SENTINEL",
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
                   "weight": 0.42,
                   "health": 4,
                   "speed": 3.16,
@@ -10336,7 +9988,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-ring-sentinel",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
@@ -10403,8 +10055,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 7,
                   "speed": 2.0100000000000002,
                   "damage": 1,
@@ -10416,12 +10068,12 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1,
-                  "roleId": "role-dna-conductor"
+                  "roleId": "role-crescent-minelayer"
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 7,
                   "speed": 2.0100000000000002,
                   "damage": 1,
@@ -10433,24 +10085,7 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 2,
-                  "roleId": "role-laser-stalker"
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 7,
-                  "speed": 2.0100000000000002,
-                  "damage": 1,
-                  "scoreValue": 125,
-                  "powerupDropChance": 0.08,
-                  "rank": "elite",
-                  "sizeMultiplier": 1.2,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 3.15,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
+                  "roleId": "role-dark-sentinel"
                 }
               ]
             }
@@ -10472,7 +10107,7 @@
           "combatBudget": 280.08000000000004,
           "rhythm": "variation",
           "formationPackIds": [
-            "pack-dna-helix",
+            "pack-dark-lanes",
             "pack-orbit-grid"
           ],
           "events": [
@@ -10491,8 +10126,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 7,
                   "speed": 2.0100000000000002,
                   "damage": 1,
@@ -10504,12 +10139,12 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1,
-                  "roleId": "role-dna-conductor"
+                  "roleId": "role-crescent-minelayer"
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 7,
                   "speed": 2.0100000000000002,
                   "damage": 1,
@@ -10521,24 +10156,7 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 2,
-                  "roleId": "role-laser-stalker"
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 7,
-                  "speed": 2.0100000000000002,
-                  "damage": 1,
-                  "scoreValue": 125,
-                  "powerupDropChance": 0.08,
-                  "rank": "elite",
-                  "sizeMultiplier": 1.2,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 3.15,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
+                  "roleId": "role-dark-sentinel"
                 }
               ]
             },
@@ -10589,7 +10207,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
                   "weight": 1,
                   "health": 4,
                   "speed": 3.45,
@@ -10598,7 +10216,7 @@
                   "powerupDropChance": 0,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-orbit-scout"
+                  "roleId": "role-wall-sniper-left"
                 }
               ]
             },
@@ -10634,7 +10252,7 @@
           "combatBudget": 478.08000000000004,
           "rhythm": "clear",
           "formationPackIds": [
-            "pack-dna-helix",
+            "pack-dark-lanes",
             "pack-orbit-grid",
             "pack-orbit-v"
           ],
@@ -10654,8 +10272,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -10663,15 +10281,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 3.16,
                   "damage": 1,
@@ -10679,27 +10297,10 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 92,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
                 }
               ]
             },
@@ -10950,7 +10551,7 @@
           "formationPackIds": [
             "pack-orbit-v",
             "pack-citation-spiral",
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -11060,8 +10661,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 7,
                   "speed": 2.0100000000000002,
                   "damage": 1,
@@ -11073,12 +10674,12 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1,
-                  "roleId": "role-dna-conductor"
+                  "roleId": "role-crescent-minelayer"
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 7,
                   "speed": 2.0100000000000002,
                   "damage": 1,
@@ -11090,24 +10691,7 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 2,
-                  "roleId": "role-laser-stalker"
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 7,
-                  "speed": 2.0100000000000002,
-                  "damage": 1,
-                  "scoreValue": 125,
-                  "powerupDropChance": 0.08,
-                  "rank": "elite",
-                  "sizeMultiplier": 1.2,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 3.15,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
+                  "roleId": "role-dark-sentinel"
                 }
               ]
             },
@@ -12183,7 +11767,7 @@
           "combatBudget": 136.08,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -12201,8 +11785,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 5,
                   "speed": 3.45,
                   "damage": 1,
@@ -12210,15 +11794,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 5,
                   "speed": 3.25,
                   "damage": 1,
@@ -12226,23 +11810,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.865,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 5,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 70,
-                  "powerupDropChance": 0.025,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
@@ -12286,7 +11854,7 @@
           "combatBudget": 106.08,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-wall-crossfire"
+            "pack-priority-diamond"
           ],
           "events": [
             {
@@ -12303,8 +11871,8 @@
               "spawnIntervalSeconds": 0.40800000000000003,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "enemyId": "journal",
+                  "spriteKey": "ENEMY_JOURNAL_FRAMES",
                   "weight": 0.58,
                   "health": 2,
                   "speed": 3.45,
@@ -12313,14 +11881,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-journal-priority",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.42,
                   "health": 5,
                   "speed": 3.25,
@@ -12329,7 +11897,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-jet-interceptor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
@@ -12355,7 +11923,7 @@
           "rhythm": "variation",
           "formationPackIds": [
             "pack-jet-pincer",
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -12439,8 +12007,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 7,
                   "speed": 2.1,
                   "damage": 1,
@@ -12452,12 +12020,12 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.865,
                   "burstCount": 1,
-                  "roleId": "role-dna-conductor"
+                  "roleId": "role-crescent-minelayer"
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 7,
                   "speed": 2.1,
                   "damage": 1,
@@ -12469,24 +12037,7 @@
                   "attackIntervalSeconds": 3.15,
                   "projectileSpeed": 4.865,
                   "burstCount": 2,
-                  "roleId": "role-laser-stalker"
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 7,
-                  "speed": 2.1,
-                  "damage": 1,
-                  "scoreValue": 135,
-                  "powerupDropChance": 0.08,
-                  "rank": "elite",
-                  "sizeMultiplier": 1.2,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 3.15,
-                  "projectileSpeed": 4.865,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
+                  "roleId": "role-dark-sentinel"
                 }
               ]
             }
@@ -12509,7 +12060,7 @@
           "rhythm": "peak",
           "formationPackIds": [
             "pack-priority-diamond",
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -12607,8 +12158,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -12616,15 +12167,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 5,
                   "speed": 3.25,
                   "damage": 1,
@@ -12632,27 +12183,10 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 5,
-                  "speed": 3.45,
-                  "damage": 1,
-                  "scoreValue": 100,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.865,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
                 }
               ]
             },
@@ -13553,7 +13087,7 @@
           "combatBudget": 150.24,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-prism-ring"
+            "pack-dna-helix"
           ],
           "events": [
             {
@@ -13570,8 +13104,8 @@
               "spawnIntervalSeconds": 0.40800000000000003,
               "enemies": [
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_PRISM_ARTILLERY",
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
                   "weight": 0.58,
                   "health": 2,
                   "speed": 3.45,
@@ -13580,14 +13114,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-prism-artillery",
+                  "roleId": "role-laser-stalker",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "brick",
-                  "spriteKey": "CAMPAIGN_ENEMY_RING_SENTINEL",
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
                   "weight": 0.42,
                   "health": 5,
                   "speed": 3.34,
@@ -13596,7 +13130,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-ring-sentinel",
+                  "roleId": "role-dna-conductor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
@@ -16401,7 +15935,7 @@
           "combatBudget": 106.08,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-wall-crossfire"
+            "pack-dna-helix"
           ],
           "events": [
             {
@@ -16419,7 +15953,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
                   "weight": 0.58,
                   "health": 2,
                   "speed": 3.45,
@@ -16428,14 +15962,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-laser-stalker",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
                 },
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
                   "weight": 0.42,
                   "health": 5,
                   "speed": 3.2987499999999996,
@@ -16444,7 +15978,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-dna-conductor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
@@ -17668,7 +17202,7 @@
           "combatBudget": 150.24,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-prism-ring"
+            "pack-dna-helix"
           ],
           "events": [
             {
@@ -17685,8 +17219,8 @@
               "spawnIntervalSeconds": 0.40800000000000003,
               "enemies": [
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_PRISM_ARTILLERY",
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
                   "weight": 0.58,
                   "health": 2,
                   "speed": 3.45,
@@ -17695,14 +17229,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-prism-artillery",
+                  "roleId": "role-laser-stalker",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "brick",
-                  "spriteKey": "CAMPAIGN_ENEMY_RING_SENTINEL",
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
                   "weight": 0.42,
                   "health": 5,
                   "speed": 3.3900999999999994,
@@ -17711,7 +17245,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-ring-sentinel",
+                  "roleId": "role-dna-conductor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
@@ -17892,7 +17426,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
+                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT",
                   "weight": 1,
                   "health": 4,
                   "speed": 3.45,
@@ -17901,7 +17435,7 @@
                   "powerupDropChance": 0,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-jet-scout",
+                  "roleId": "role-wall-sniper-right",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
@@ -21025,7 +20559,7 @@
           "combatBudget": 106.08,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-wall-crossfire"
+            "pack-dna-helix"
           ],
           "events": [
             {
@@ -21043,7 +20577,7 @@
               "enemies": [
                 {
                   "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
                   "weight": 0.58,
                   "health": 2,
                   "speed": 3.45,
@@ -21052,14 +20586,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-laser-stalker",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
                 },
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
                   "weight": 0.42,
                   "health": 5,
                   "speed": 3.3475,
@@ -21068,7 +20602,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-dna-conductor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
@@ -21519,7 +21053,7 @@
           "combatBudget": 150,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-orbit-v"
+            "pack-wall-crossfire"
           ],
           "events": [
             {
@@ -21536,8 +21070,8 @@
               "spawnIntervalSeconds": 0.44,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
                   "weight": 1,
                   "health": 5,
                   "speed": 3.45,
@@ -21546,7 +21080,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-orbit-scout"
+                  "roleId": "role-laser-hunter"
                 }
               ]
             },
@@ -22292,7 +21826,7 @@
           "combatBudget": 150.24,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-prism-ring"
+            "pack-dna-helix"
           ],
           "events": [
             {
@@ -22309,8 +21843,8 @@
               "spawnIntervalSeconds": 0.40800000000000003,
               "enemies": [
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_PRISM_ARTILLERY",
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
                   "weight": 0.58,
                   "health": 2,
                   "speed": 3.45,
@@ -22319,14 +21853,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-prism-artillery",
+                  "roleId": "role-laser-stalker",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "brick",
-                  "spriteKey": "CAMPAIGN_ENEMY_RING_SENTINEL",
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
                   "weight": 0.42,
                   "health": 5,
                   "speed": 3.4402,
@@ -22335,7 +21869,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-ring-sentinel",
+                  "roleId": "role-dna-conductor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
@@ -26898,8 +26432,8 @@
               "spawnIntervalSeconds": 0.62,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_SHIELD_RAMMER",
                   "weight": 1,
                   "health": 5,
                   "speed": 3.45,
@@ -26908,7 +26442,7 @@
                   "powerupDropChance": 0,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-orbit-scout"
+                  "roleId": "role-shield-rammer"
                 }
               ]
             },
@@ -27253,7 +26787,7 @@
           "combatBudget": 150.24,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-prism-ring"
+            "pack-dna-helix"
           ],
           "events": [
             {
@@ -27270,8 +26804,8 @@
               "spawnIntervalSeconds": 0.40800000000000003,
               "enemies": [
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_PRISM_ARTILLERY",
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
                   "weight": 0.58,
                   "health": 2,
                   "speed": 3.45,
@@ -27280,14 +26814,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-prism-artillery",
+                  "roleId": "role-laser-stalker",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "brick",
-                  "spriteKey": "CAMPAIGN_ENEMY_RING_SENTINEL",
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
                   "weight": 0.42,
                   "health": 6,
                   "speed": 3.45,
@@ -27296,7 +26830,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-ring-sentinel",
+                  "roleId": "role-dna-conductor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
@@ -30101,8 +29635,8 @@
               "spawnIntervalSeconds": 0.62,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_PRISM_ARTILLERY",
                   "weight": 1,
                   "health": 5,
                   "speed": 3.25,
@@ -30111,7 +29645,7 @@
                   "powerupDropChance": 0,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-orbit-scout"
+                  "roleId": "role-prism-artillery"
                 }
               ]
             },
@@ -30456,7 +29990,7 @@
           "combatBudget": 150.24,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-prism-ring"
+            "pack-dna-helix"
           ],
           "events": [
             {
@@ -30473,8 +30007,8 @@
               "spawnIntervalSeconds": 0.40800000000000003,
               "enemies": [
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_PRISM_ARTILLERY",
+                  "enemyId": "drone",
+                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
                   "weight": 0.58,
                   "health": 3,
                   "speed": 3.25,
@@ -30483,14 +30017,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-prism-artillery",
+                  "roleId": "role-laser-stalker",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "brick",
-                  "spriteKey": "CAMPAIGN_ENEMY_RING_SENTINEL",
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
                   "weight": 0.42,
                   "health": 6,
                   "speed": 3.25,
@@ -30499,7 +30033,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-ring-sentinel",
+                  "roleId": "role-dna-conductor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.865,
                   "burstCount": 1
@@ -36507,8 +36041,8 @@
               "spawnIntervalSeconds": 0.62,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "LEGACY_ENEMY_DRONE_FRAMES",
+                  "enemyId": "journal",
+                  "spriteKey": "CAMPAIGN_ENEMY_BULLET_RING_EMITTER",
                   "weight": 1,
                   "health": 6,
                   "speed": 3.25,
@@ -36517,7 +36051,7 @@
                   "powerupDropChance": 0,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-orbit-scout"
+                  "roleId": "role-ring-emitter"
                 }
               ]
             },
@@ -39246,7 +38780,7 @@
           "combatBudget": 106.08,
           "rhythm": "warm-up",
           "formationPackIds": [
-            "pack-wall-crossfire"
+            "pack-light-jet-pincer"
           ],
           "events": [
             {
@@ -39263,8 +38797,8 @@
               "spawnIntervalSeconds": 0.48960000000000004,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.58,
                   "health": 3,
                   "speed": 3.45,
@@ -39273,14 +38807,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-jet-interceptor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.42,
                   "health": 4,
                   "speed": 3.14,
@@ -39289,7 +38823,7 @@
                   "powerupDropChance": 0.045,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-jet-scout",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -39333,7 +38867,7 @@
           "combatBudget": 106.08,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-wall-crossfire"
+            "pack-light-jet-pincer"
           ],
           "events": [
             {
@@ -39350,8 +38884,8 @@
               "spawnIntervalSeconds": 0.40800000000000003,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "enemyId": "swarm",
+                  "spriteKey": "PIXI_JET_INTERCEPTOR_FRAMES",
                   "weight": 0.58,
                   "health": 2,
                   "speed": 3.45,
@@ -39360,14 +38894,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-jet-interceptor",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "enemyId": "drone",
+                  "spriteKey": "PIXI_JET_SCOUT_FRAMES",
                   "weight": 0.42,
                   "health": 2,
                   "speed": 3.45,
@@ -39376,7 +38910,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-jet-scout",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -39401,8 +38935,7 @@
           "combatBudget": 487.02,
           "rhythm": "variation",
           "formationPackIds": [
-            "pack-wall-crossfire",
-            "pack-dna-helix",
+            "pack-dark-lanes",
             "pack-orbit-grid"
           ],
           "events": [
@@ -39420,8 +38953,8 @@
               "spawnIntervalSeconds": 0.48960000000000004,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
                   "weight": 0.58,
                   "health": 4,
                   "speed": 1.7,
@@ -39430,14 +38963,14 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
                   "weight": 0.42,
                   "health": 4,
                   "speed": 1.7,
@@ -39446,7 +38979,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -39468,8 +39001,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.7,
                   "damage": 1,
@@ -39477,15 +39010,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.7,
                   "damage": 1,
@@ -39493,23 +39026,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.7,
-                  "damage": 1,
-                  "scoreValue": 90,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -39531,8 +39048,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.7,
                   "damage": 1,
@@ -39540,15 +39057,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.7,
                   "damage": 1,
@@ -39556,23 +39073,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.7,
-                  "damage": 1,
-                  "scoreValue": 90,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -39629,8 +39130,7 @@
           "combatBudget": 282.15999999999997,
           "rhythm": "peak",
           "formationPackIds": [
-            "pack-dna-helix",
-            "pack-wall-crossfire"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -39679,8 +39179,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -39688,15 +39188,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 2.84,
                   "damage": 1,
@@ -39704,23 +39204,7 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.755,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.14,
-                  "damage": 1,
-                  "scoreValue": 64,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -39741,8 +39225,8 @@
               "spawnIntervalSeconds": 0.48960000000000004,
               "enemies": [
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
                   "weight": 0.58,
                   "health": 3,
                   "speed": 3.45,
@@ -39751,14 +39235,14 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-wall-sniper-left",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
                 },
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
                   "weight": 0.42,
                   "health": 4,
                   "speed": 3.14,
@@ -39767,7 +39251,7 @@
                   "powerupDropChance": 0.045,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-hunter",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.755,
                   "burstCount": 1
@@ -39985,7 +39469,7 @@
           "combatBudget": 136.08,
           "rhythm": "introduce",
           "formationPackIds": [
-            "pack-dna-helix"
+            "pack-dark-lanes"
           ],
           "events": [
             {
@@ -40003,8 +39487,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -40012,15 +39496,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 3.07,
                   "damage": 1,
@@ -40028,27 +39512,10 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.37,
-                  "damage": 1,
-                  "scoreValue": 84,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
                 }
               ]
             }
@@ -40071,7 +39538,7 @@
           "rhythm": "variation",
           "formationPackIds": [
             "pack-jet-pincer",
-            "pack-dna-helix",
+            "pack-dark-lanes",
             "pack-priority-diamond"
           ],
           "events": [
@@ -40153,8 +39620,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.92,
                   "damage": 1,
@@ -40162,15 +39629,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.92,
                   "damage": 1,
@@ -40178,23 +39645,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.92,
-                  "damage": 1,
-                  "scoreValue": 115,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
@@ -40216,8 +39667,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 4,
                   "speed": 1.92,
                   "damage": 1,
@@ -40225,15 +39676,15 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 1.92,
                   "damage": 1,
@@ -40241,23 +39692,7 @@
                   "powerupDropChance": 0.08,
                   "rank": "standard",
                   "sizeMultiplier": 1,
-                  "roleId": "role-laser-stalker",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 1.92,
-                  "damage": 1,
-                  "scoreValue": 115,
-                  "powerupDropChance": 0.08,
-                  "rank": "standard",
-                  "sizeMultiplier": 1,
-                  "roleId": "role-orbit-disc",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
@@ -40331,7 +39766,7 @@
           "combatBudget": 324.24,
           "rhythm": "peak",
           "formationPackIds": [
-            "pack-dna-helix",
+            "pack-dark-lanes",
             "pack-heavy-grid"
           ],
           "events": [
@@ -40381,8 +39816,8 @@
               "enemies": [
                 {
                   "enemyId": "journal",
-                  "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
-                  "weight": 0.4,
+                  "spriteKey": "CAMPAIGN_ENEMY_CRESCENT_MINELAYER",
+                  "weight": 0.5405,
                   "health": 2,
                   "speed": 3.45,
                   "damage": 1,
@@ -40390,15 +39825,15 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-dna-conductor",
+                  "roleId": "role-crescent-minelayer",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
                 },
                 {
-                  "enemyId": "drone",
-                  "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
-                  "weight": 0.34,
+                  "enemyId": "brick",
+                  "spriteKey": "CAMPAIGN_ENEMY_DARK_ASTEROID_SENTINEL",
+                  "weight": 0.4595,
                   "health": 4,
                   "speed": 3.07,
                   "damage": 1,
@@ -40406,27 +39841,10 @@
                   "powerupDropChance": 0.025,
                   "rank": "standard",
                   "sizeMultiplier": 1.08,
-                  "roleId": "role-laser-stalker",
+                  "roleId": "role-dark-sentinel",
                   "attackIntervalSeconds": 2.45,
                   "projectileSpeed": 4.8100000000000005,
                   "burstCount": 1
-                },
-                {
-                  "enemyId": "swarm",
-                  "spriteKey": "CAMPAIGN_ENEMY_ORBIT_DISC",
-                  "weight": 0.26,
-                  "health": 4,
-                  "speed": 3.37,
-                  "damage": 1,
-                  "scoreValue": 84,
-                  "powerupDropChance": 0.045,
-                  "rank": "standard",
-                  "sizeMultiplier": 1.08,
-                  "attackPatternId": "aimed-burst",
-                  "attackIntervalSeconds": 2.45,
-                  "projectileSpeed": 4.8100000000000005,
-                  "burstCount": 1,
-                  "roleId": "role-orbit-disc"
                 }
               ]
             },
@@ -45674,7 +45092,7 @@
       "role": "shooter",
       "threatCost": 2,
       "introductionSector": 1,
-      "introductionMission": 1,
+      "introductionMission": 2,
       "durabilityClass": "standard",
       "fireBehavior": "post-formation",
       "fireDelaySeconds": 2.4,
@@ -45770,7 +45188,7 @@
       "role": "armored-unit",
       "threatCost": 5,
       "introductionSector": 1,
-      "introductionMission": 3,
+      "introductionMission": 4,
       "durabilityClass": "armored",
       "fireBehavior": "post-formation",
       "fireDelaySeconds": 2.4,
@@ -45818,8 +45236,8 @@
       "spriteKey": "CAMPAIGN_ENEMY_DNA_CONDUCTOR",
       "role": "support-unit",
       "threatCost": 5,
-      "introductionSector": 2,
-      "introductionMission": 1,
+      "introductionSector": 4,
+      "introductionMission": 2,
       "durabilityClass": "elite",
       "fireBehavior": "post-formation",
       "fireDelaySeconds": 2,
@@ -45842,8 +45260,8 @@
       "spriteKey": "CAMPAIGN_ENEMY_LASER_STALKER",
       "role": "suppressor",
       "threatCost": 4,
-      "introductionSector": 2,
-      "introductionMission": 1,
+      "introductionSector": 3,
+      "introductionMission": 4,
       "durabilityClass": "standard",
       "fireBehavior": "aimed-burst",
       "fireDelaySeconds": 2.4,
@@ -45866,7 +45284,7 @@
       "role": "flanker",
       "threatCost": 3,
       "introductionSector": 2,
-      "introductionMission": 1,
+      "introductionMission": 3,
       "durabilityClass": "standard",
       "fireBehavior": "post-formation",
       "fireDelaySeconds": 2,
@@ -45888,7 +45306,7 @@
       "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_LEFT",
       "role": "shooter",
       "threatCost": 4,
-      "introductionSector": 2,
+      "introductionSector": 3,
       "introductionMission": 2,
       "durabilityClass": "standard",
       "fireBehavior": "aimed-burst",
@@ -45911,7 +45329,7 @@
       "spriteKey": "CAMPAIGN_ENEMY_WALL_SNIPER_RIGHT",
       "role": "shooter",
       "threatCost": 4,
-      "introductionSector": 2,
+      "introductionSector": 5,
       "introductionMission": 2,
       "durabilityClass": "standard",
       "fireBehavior": "aimed-burst",
@@ -45932,7 +45350,7 @@
       "spriteKey": "CAMPAIGN_ENEMY_LASER_HUNTER",
       "role": "priority-target",
       "threatCost": 5,
-      "introductionSector": 2,
+      "introductionSector": 6,
       "introductionMission": 2,
       "durabilityClass": "elite",
       "fireBehavior": "aimed-burst",
@@ -45956,7 +45374,7 @@
       "role": "armored-unit",
       "threatCost": 6,
       "introductionSector": 2,
-      "introductionMission": 3,
+      "introductionMission": 2,
       "durabilityClass": "armored",
       "fireBehavior": "post-formation",
       "fireDelaySeconds": 2.2,
@@ -45980,7 +45398,7 @@
       "role": "support-unit",
       "threatCost": 5,
       "introductionSector": 2,
-      "introductionMission": 3,
+      "introductionMission": 2,
       "durabilityClass": "standard",
       "fireBehavior": "post-formation",
       "fireDelaySeconds": 2.2,
@@ -46003,8 +45421,8 @@
       "spriteKey": "CAMPAIGN_ENEMY_SHIELD_RAMMER",
       "role": "armored-unit",
       "threatCost": 6,
-      "introductionSector": 2,
-      "introductionMission": 3,
+      "introductionSector": 7,
+      "introductionMission": 2,
       "durabilityClass": "armored",
       "fireBehavior": "none",
       "fireDelaySeconds": 0,
@@ -46025,8 +45443,8 @@
       "spriteKey": "CAMPAIGN_ENEMY_PRISM_ARTILLERY",
       "role": "suppressor",
       "threatCost": 6,
-      "introductionSector": 2,
-      "introductionMission": 4,
+      "introductionSector": 8,
+      "introductionMission": 2,
       "durabilityClass": "elite",
       "fireBehavior": "aimed-burst",
       "fireDelaySeconds": 2.6,
@@ -46048,8 +45466,8 @@
       "spriteKey": "CAMPAIGN_ENEMY_RING_SENTINEL",
       "role": "formation-leader",
       "threatCost": 6,
-      "introductionSector": 2,
-      "introductionMission": 4,
+      "introductionSector": 9,
+      "introductionMission": 2,
       "durabilityClass": "elite",
       "fireBehavior": "formation-command",
       "fireDelaySeconds": 1.8,
@@ -46071,8 +45489,8 @@
       "spriteKey": "CAMPAIGN_ENEMY_BULLET_RING_EMITTER",
       "role": "suppressor",
       "threatCost": 7,
-      "introductionSector": 2,
-      "introductionMission": 4,
+      "introductionSector": 10,
+      "introductionMission": 2,
       "durabilityClass": "elite",
       "fireBehavior": "elite-only",
       "fireDelaySeconds": 2.4,

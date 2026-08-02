@@ -75,8 +75,10 @@ export const normalizeCampaignFormationAuthoring = (campaign) => {
     firingBehavior: 'priority',
     synergyAdjustment: 2,
     minimumSector: 1,
-    maximumSimultaneousInstances: 1,
-    recoveryRequiredSeconds: 4,
+    // These two were raised when Mission pacing was retuned, but this template
+    // still carried the original values and quietly reverted them on every run.
+    maximumSimultaneousInstances: 3,
+    recoveryRequiredSeconds: 0.4,
     compatibleMissionRoles: ['elite-checkpoint', 'boss-preparation', 'formation-remix', 'introduction'],
     compatibleSectorIds: sectorIds,
     mobilePerformanceCost: 14

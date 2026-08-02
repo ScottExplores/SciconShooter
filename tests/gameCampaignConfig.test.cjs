@@ -520,7 +520,10 @@ test('predatory journal spawns use the original animation or registered campaign
     'CAMPAIGN_ENEMY_DNA_CONDUCTOR',
     'CAMPAIGN_ENEMY_LASER_HUNTER',
     'CAMPAIGN_ENEMY_CRESCENT_MINELAYER',
-    'CAMPAIGN_ENEMY_PRISM_ARTILLERY'
+    'CAMPAIGN_ENEMY_PRISM_ARTILLERY',
+    // Sector 10's debut. The role existed in the catalog from revision 24 but
+    // was never authored into a Wave until enemy introductions were restaged.
+    'CAMPAIGN_ENEMY_BULLET_RING_EMITTER'
   ]);
   journalSettings.forEach((enemy) => assert.equal(allowedJournalSprites.has(enemy.spriteKey), true));
 });
