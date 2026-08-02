@@ -37,7 +37,7 @@ const parseUpgradeInputs = (squadSource) => {
   // stays truthful as tracks are added. Homing Missiles was invisible here
   // until it was added, which under-reported that total.
   const mainUpgradeCosts = Object.fromEntries(
-    ['fireRate', 'speed', 'missile', 'startingHearts'].map((upgradeId) => {
+    ['fireRate', 'speed', 'ability', 'missile', 'startingHearts'].map((upgradeId) => {
       const costs = requireMatch(
         upgradeBlock,
         new RegExp(`id:\\s*'${upgradeId}'[\\s\\S]*?costs:\\s*\\[([\\s\\S]*?)\\]`),

@@ -49,6 +49,8 @@ export interface Upgrades {
   fireRate: number;
   speed: number;
   missile: number; // Replaced maxHp
+  /** Hangar Signature Move level for the active hull. */
+  ability: number;
 }
 
 export type FieldUpgradeType = 'fireRate' | 'speed' | 'extraLife';

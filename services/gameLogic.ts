@@ -58,6 +58,8 @@ import {
   RESEARCH_IMPACT_FRAME_URLS,
   SHIP_ABILITY_FRAME_URLS,
   getShipAbilityCooldownFrames,
+  getShipAbilityDamageMultiplier,
+  getShipAbilityRadiusMultiplier,
   getShipAbilityDefinition,
   type ShipAbilityKind
 } from './shipAbilityService';
@@ -7343,7 +7345,9 @@ export class GameEngine {
     projectile.vy = -Math.cos(angle) * config.speed;
     projectile.color = config.color;
     projectile.isPlayerShot = true;
-    projectile.damage = config.damage;
+    // Blast abilities carry 0 here and apply fixed area damage on detonation;
+    // their Signature Move scaling lands on the blast radius instead.
+    projectile.damage = config.damage * this.getShipAbilityDamageScale();
     projectile.weaponKind = config.weaponKind;
     projectile.shipAbilityKind = config.kind;
     projectile.projectileVisualKind = config.kind;
@@ -7379,13 +7383,14 @@ export class GameEngine {
     this.spawnBurst(centerX, centerY, '#67e8f9', 24, 7, 5);
     this.playSound('bomb', 0.72, { pitchJitter: 0.04, pitchOffset: 0.12 });
 
-    const radiusSq = RESEARCH_CHARGE_BLAST_RADIUS * RESEARCH_CHARGE_BLAST_RADIUS;
+    const chargeRadius = RESEARCH_CHARGE_BLAST_RADIUS * this.getShipAbilityRadiusScale();
+    const radiusSq = chargeRadius * chargeRadius;
     const targets = this.entities.filter((entity) => !entity.markedForDeletion && this.isEnemyTarget(entity));
     for (const target of targets) {
       const dx = target.x + target.width / 2 - centerX;
       const dy = target.y + target.height / 2 - centerY;
       const targetAllowance = Math.min(46, Math.max(target.width, target.height) * 0.25);
-      const effectiveRadius = RESEARCH_CHARGE_BLAST_RADIUS + targetAllowance;
+      const effectiveRadius = chargeRadius + targetAllowance;
       if ((dx * dx + dy * dy) > Math.max(radiusSq, effectiveRadius * effectiveRadius)) continue;
 
       if (target.type === EntityType.BOSS && this.isBossShielded()) {
@@ -7393,12 +7398,15 @@ export class GameEngine {
         continue;
       }
 
+      // Regular hostiles already die outright, so Signature Move scaling only
+      // needs to move the armoured tiers.
+      const abilityScale = this.getShipAbilityDamageScale();
       const damage = target.type === EntityType.BOSS
-        ? 10
+        ? 10 * abilityScale
         : target.type === EntityType.MINI_BOSS
-          ? 18
+          ? 18 * abilityScale
           : target.type === EntityType.ENEMY_INVADER
-            ? 22
+            ? 22 * abilityScale
             : 999;
       if (target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS) {
         this.damageBossHull(target, damage);
@@ -8597,6 +8605,16 @@ export class GameEngine {
       mobile: this.mobileProfile,
       entryBehavior: enemy.formationEntryBehavior
     });
+  }
+
+  /** Signature-move damage scale from the Hangar Signature Move track. */
+  getShipAbilityDamageScale() {
+    return getShipAbilityDamageMultiplier(this.stats.upgrades?.ability || 0);
+  }
+
+  /** Signature-move reach scale from the Hangar Signature Move track. */
+  getShipAbilityRadiusScale() {
+    return getShipAbilityRadiusMultiplier(this.stats.upgrades?.ability || 0);
   }
 
   /**
@@ -11081,19 +11099,21 @@ export class GameEngine {
     for (const target of targets) {
       const dx = target.x + target.width / 2 - centerX;
       const dy = target.y + target.height / 2 - centerY;
-      const effectiveRadius = BTC_HASH_BURST_RADIUS + Math.min(42, Math.max(target.width, target.height) * 0.22);
+      const effectiveRadius = BTC_HASH_BURST_RADIUS * this.getShipAbilityRadiusScale()
+        + Math.min(42, Math.max(target.width, target.height) * 0.22);
       if ((dx * dx + dy * dy) > effectiveRadius * effectiveRadius) continue;
       if (target.type === EntityType.BOSS && this.isBossShielded()) {
         this.pulseDamageFlash(target);
         continue;
       }
 
+      const abilityScale = this.getShipAbilityDamageScale();
       const damage = target.type === EntityType.BOSS
-        ? 12
+        ? 12 * abilityScale
         : target.type === EntityType.MINI_BOSS
-          ? 22
+          ? 22 * abilityScale
           : target.type === EntityType.ENEMY_INVADER
-            ? 28
+            ? 28 * abilityScale
             : 999;
       if (target.type === EntityType.BOSS || target.type === EntityType.MINI_BOSS) {
         this.damageBossHull(target, damage);

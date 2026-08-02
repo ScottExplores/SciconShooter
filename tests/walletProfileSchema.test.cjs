@@ -163,8 +163,8 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
       equipped: { left: 'citation-dart', right: 'photon-manta' },
       shipUpgrades: {
         ...expected.shipUpgrades,
-        researchhub: { fireRate: 12, speed: 5, missile: 0, startingHearts: 3 },
-        bio: { fireRate: 7, speed: 2, missile: 0, startingHearts: 1 }
+        researchhub: { fireRate: 12, speed: 5, missile: 0, ability: 0, startingHearts: 3 },
+        bio: { fireRate: 7, speed: 2, missile: 0, ability: 0, startingHearts: 1 }
       },
       weeklyStats: { runs: 8, score: 123456, enemiesDefeated: 900, coinsEarned: 999999 }
     },
@@ -194,6 +194,7 @@ test('a stale weekly snapshot resets competition totals while preserving Hangar 
     fireRate: 12,
     speed: 5,
     missile: 0,
+    ability: 0,
     startingHearts: 3
   });
   assert.deepEqual(sanitized.permanentState.bossArchive, {

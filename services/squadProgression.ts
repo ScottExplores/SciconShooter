@@ -48,6 +48,9 @@ export const MAIN_SHIP_FIRE_RATE_MAX_LEVEL = FIRE_RATE_MAX_LEVEL;
 // The engine already flies homing missiles at five levels (cooldown 180 down
 // to 80 frames); this is the level cap the Hangar sells against.
 export const MAIN_SHIP_MISSILE_MAX_LEVEL = 5;
+// The hull's signature move. Each level makes it hit harder and reach wider,
+// so the ship a player chose for its move keeps improving at that move.
+export const MAIN_SHIP_ABILITY_MAX_LEVEL = 5;
 // Campaign runs start at 3 hearts and top out at 5. Survivability is a short,
 // deliberate track there: the deep ten-heart ladder made late Campaign
 // Missions trivial, and Weekly Run ignores it entirely at a flat 10 lives.
@@ -65,7 +68,7 @@ export const SQUAD_SLOT_UNLOCK_COST: Readonly<Record<SquadSlotId, number>> = Obj
 export const WEEKLY_STARTING_COINS = 0;
 
 export type SquadSlotId = 'left' | 'right';
-export type MainShipUpgradeId = 'fireRate' | 'speed' | 'startingHearts' | 'missile';
+export type MainShipUpgradeId = 'fireRate' | 'speed' | 'startingHearts' | 'missile' | 'ability';
 export type MainShipUpgradeLevels = Record<MainShipUpgradeId, number>;
 export type MainShipUpgradesByShip = Record<PlayerShipId, MainShipUpgradeLevels>;
 export type MiniShipId =
@@ -382,6 +385,14 @@ export const MAIN_SHIP_UPGRADES: ReadonlyArray<{
     costs: [55, 85, 130, 200, 300, 440, 625]
   },
   {
+    id: 'ability',
+    name: 'Signature Move',
+    description: "Strengthens this hull's signature move. Each level adds damage and widens its reach.",
+    // The most expensive non-Fire-Rate track. It is the reason to commit to one
+    // hull rather than spreading coins across every ship.
+    costs: [220, 480, 900, 1600, 2600]
+  },
+  {
     id: 'missile',
     name: 'Homing Missiles',
     description: 'Adds an automatic homing missile that seeks the nearest target; each level fires it faster.',
@@ -416,6 +427,7 @@ const clampLevel = (value: unknown, max = MAIN_SHIP_UPGRADE_MAX_LEVEL) => (
   Math.max(0, Math.min(max, Math.floor(Number(value) || 0)))
 );
 const createMainShipUpgradeLevels = (): MainShipUpgradeLevels => ({
+  ability: 0,
   missile: 0,
   fireRate: 0,
   speed: 0,
@@ -437,6 +449,7 @@ const sanitizeMainShipUpgradeLevels = (
   fireRate: clampLevel(value?.fireRate, MAIN_SHIP_FIRE_RATE_MAX_LEVEL),
   speed: clampLevel(value?.speed),
   missile: clampLevel(value?.missile, MAIN_SHIP_MISSILE_MAX_LEVEL),
+  ability: clampLevel(value?.ability, MAIN_SHIP_ABILITY_MAX_LEVEL),
   startingHearts: clampLevel(value?.startingHearts, MAIN_SHIP_STARTING_HEARTS_MAX_LEVEL)
 });
 
@@ -445,6 +458,8 @@ export const getMainShipUpgradeMaxLevel = (id: MainShipUpgradeId) => (
     ? MAIN_SHIP_FIRE_RATE_MAX_LEVEL
     : id === 'missile'
       ? MAIN_SHIP_MISSILE_MAX_LEVEL
+      : id === 'ability'
+        ? MAIN_SHIP_ABILITY_MAX_LEVEL
       : id === 'startingHearts'
         ? MAIN_SHIP_STARTING_HEARTS_MAX_LEVEL
         : MAIN_SHIP_UPGRADE_MAX_LEVEL

@@ -524,7 +524,8 @@ const openExternalUrl = async (url: string) => {
 const defaultMissionUpgrades: Upgrades = {
   fireRate: 0,
   speed: 0,
-  missile: 0
+  missile: 0,
+  ability: 0
 };
 
 const defaultPolishSettings: GamePolishSettings = {
@@ -2365,7 +2366,8 @@ const App: React.FC = () => {
         ...defaultMissionUpgrades,
         fireRate: squadLoadout.upgrades.fireRate,
         speed: squadLoadout.upgrades.speed,
-        missile: squadLoadout.upgrades.missile
+        missile: squadLoadout.upgrades.missile,
+        ability: squadLoadout.upgrades.ability
       },
       powerupUses: { ...defaultPowerupUses },
       bossProgress: 0,
@@ -3207,6 +3209,7 @@ const App: React.FC = () => {
         )),
         speed: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.speed ?? 0))),
         missile: Math.max(0, Math.min(5, Math.floor(campaignLabUpgradeLevels.missile ?? 0))),
+        ability: Math.max(0, Math.min(5, Math.floor(campaignLabUpgradeLevels.ability ?? 0))),
         startingHearts: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.startingHearts ?? 0)))
       },
       campaignLabPowerSupportIds.map((id) => ({ id, level: campaignLabSupportLevel }))

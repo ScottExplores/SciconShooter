@@ -37,6 +37,30 @@ export const SHIP_ABILITY_COOLDOWN_SECONDS = Object.freeze({
  */
 export const SHIP_ABILITY_COOLDOWN_MIN_MULTIPLIER = 0.65;
 
+/**
+ * Signature-move scaling from the Hangar's Signature Move track.
+ *
+ * Damage and reach are separated so blast abilities (Research Charge, Hash
+ * Burst, which deal fixed area damage) and projectile abilities (Genome Lance,
+ * Prism Volley) both improve in a way the player can feel. Reach grows more
+ * slowly than damage so a maxed radius never trivialises positioning.
+ */
+export const SHIP_ABILITY_DAMAGE_PER_LEVEL = 0.28;
+export const SHIP_ABILITY_RADIUS_PER_LEVEL = 0.11;
+
+export const getShipAbilityDamageMultiplier = (abilityLevel: number) => (
+  1 + Math.max(0, Math.min(SHIP_ABILITY_MAX_LEVEL, Math.floor(Number(abilityLevel) || 0)))
+    * SHIP_ABILITY_DAMAGE_PER_LEVEL
+);
+
+export const getShipAbilityRadiusMultiplier = (abilityLevel: number) => (
+  1 + Math.max(0, Math.min(SHIP_ABILITY_MAX_LEVEL, Math.floor(Number(abilityLevel) || 0)))
+    * SHIP_ABILITY_RADIUS_PER_LEVEL
+);
+
+/** Mirrors MAIN_SHIP_ABILITY_MAX_LEVEL; kept here so the engine has no import cycle. */
+export const SHIP_ABILITY_MAX_LEVEL = 5;
+
 export const getShipAbilityCooldownFrames = (
   baseCooldownFrames: number,
   fireRateLevel: number,

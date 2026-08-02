@@ -54,7 +54,8 @@ const createPreviewStats = (settings: GameEditorPreviewSettings = {}): Stats => 
   upgrades: {
     fireRate: settings.upgrades?.fireRate ?? 2,
     speed: settings.upgrades?.speed ?? 1,
-    missile: settings.upgrades?.missile ?? 0
+    missile: settings.upgrades?.missile ?? 0,
+    ability: settings.upgrades?.ability ?? 0
   },
   powerupUses: {
     [PowerupType.DOUBLE_SHOT]: 0,

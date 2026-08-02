@@ -60,6 +60,8 @@ const MINI_COST_ICON = '/game-art/generated/rsc-coin-flip-v1/rsc-coin-pixel-fron
 const MAIN_UPGRADE_SPRITE: Readonly<Record<MainShipUpgradeId, string>> = Object.freeze({
   fireRate: '/game-art/powerups/rapid-fire.png',
   speed: '/game-art/powerups/speed.png',
+  // PLACEHOLDER ART: no dedicated signature-move icon exists yet.
+  ability: '/game-art/powerups/research-beam.png',
   // PLACEHOLDER ART: no dedicated missile icon exists yet. The missile itself
   // renders as an engine primitive, so only this Hangar tile needs new art.
   missile: '/game-art/powerups/overdrive-spread.png',
