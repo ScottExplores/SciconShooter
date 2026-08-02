@@ -89,5 +89,5 @@ test('production and Director previews share the same wave presentation renderer
 
 test('story transmission uses the same enclosing level identity', () => {
   const story = read('services', 'storyBeats.ts');
-  assert.match(story, /title: 'Research Frontier'/);
+  assert.match(story, /title: 'Open Orbit'/);
 });

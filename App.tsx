@@ -1410,6 +1410,19 @@ const App: React.FC = () => {
   const [stats, setStats] = useState<Stats>(getInitialStats);
   const [pauseMissionPosition, setPauseMissionPosition] = useState<PauseMissionPosition | null>(null);
   const [polishSettings, setPolishSettings] = useState<GamePolishSettings>(getInitialPolishSettings);
+  /**
+   * Background music follows what is on screen: the menu bed at rest, combat
+   * during waves, and the boss bed the moment a boss is live. The swap itself
+   * is a cue -- the player hears the boss before they see it.
+   */
+  useEffect(() => {
+    if (gameState !== GameState.PLAYING) {
+      void audioService.playMusic('menu');
+      return;
+    }
+    void audioService.playMusic(stats.isBossActive ? 'boss' : 'combat');
+  }, [gameState, stats.isBossActive]);
+
   const [audioMuted, setAudioMuted] = useState(() => audioService.isMuted());
   const [sfxVolumeLevel, setSfxVolumeLevel] = useState(() => audioService.getSfxVolumeLevel());
 

@@ -324,6 +324,12 @@ export interface EnemyRoleDefinition {
   /** Quiet window after spawn before this role may fire. Never-fire roles use zero. */
   fireDelaySeconds: number;
   entryBehavior: 'formation' | 'dive' | 'flank' | 'lane';
+  /**
+   * What this hull does once it is on the field. `entryBehavior` says where it
+   * comes from; this says whether it ever leaves the block, whether it commits
+   * or loops back, and how it moves while holding.
+   */
+  characteristic: 'holder' | 'diver' | 'kamikaze' | 'flanker' | 'artillery' | 'commander';
   compatibleFormationPackIds: string[];
   synergyTags: string[];
   reuseCooldownWaves: number;

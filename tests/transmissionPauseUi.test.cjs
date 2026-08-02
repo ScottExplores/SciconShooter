@@ -14,7 +14,8 @@ test('story transmissions open a simple fitted shutter before typewriter playbac
   assert.match(story, /if \(!vaultUnsealed \|\| isComplete\) return/);
   assert.match(story, /<FundingVaultUnseal open=\{vaultUnsealed\}>/);
   assert.match(story, /sci-funding-vault__transmission/);
-  assert.match(story, /Mission \{beat\.phase\}: \{beat\.title\}/);
+  // Beats key to Sectors now, one per Sector, so the header names the Sector.
+  assert.match(story, /Sector \{beat\.phase\}: \{beat\.title\}/);
   assert.doesNotMatch(story, /Stage \{beat\.phase\}: \{beat\.title\}/);
   assert.doesNotMatch(story, /Wave \{beat\.phase\}: \{beat\.title\}/);
   assert.match(vault, /sci-funding-vault--portrait/);
@@ -32,7 +33,11 @@ test('story transmissions open a simple fitted shutter before typewriter playbac
   assert.match(vaultCss, /overflow-wrap: anywhere/);
 
   const beats = fs.readFileSync(path.join(root, 'services', 'storyBeats.ts'), 'utf8');
-  assert.match(beats, /Nice flying\. Predatory journals and review traps crowd this sector\./);
+  // One transmission per Sector now, ten in all, so the story runs the whole
+  // Campaign instead of stopping at Mission 5. Pinned loosely: the copy is
+  // meant to be editable, the structure is not.
+  assert.match(beats, /predatory journals/i);
+  assert.equal((beats.match(/phase: \d+/g) || []).length, 10);
   assert.doesNotMatch(beats, /Top pilots can help point the weekly RSC allocation toward ResearchHub proposals/);
 });
 

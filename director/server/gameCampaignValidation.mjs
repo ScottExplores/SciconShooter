@@ -255,6 +255,8 @@ const ENEMY_FIRE_BEHAVIORS = new Set([
   'none', 'post-formation', 'aimed-burst', 'formation-command', 'elite-only'
 ]);
 const ENEMY_ENTRY_BEHAVIORS = new Set(['formation', 'dive', 'flank', 'lane']);
+/** What a hull does once it holds a slot. See services/enemyCharacteristics.ts. */
+const ENEMY_CHARACTERISTICS = new Set(['holder', 'diver', 'kamikaze', 'flanker', 'artillery', 'commander']);
 const FORMATION_ENTRY_DIRECTIONS = new Set(['top', 'left', 'right', 'split']);
 const FORMATION_FIRING_BEHAVIORS = new Set(['none', 'post-formation', 'staggered', 'priority']);
 const SUPPORT_RECOMMENDATION_TAGS = new Set([
@@ -850,7 +852,7 @@ const validateEnemyRoleManifest = (roles, errors) => {
       'id', 'label', 'enemyId', 'spriteKey', 'role', 'threatCost', 'introductionSector',
       'introductionMission', 'durabilityClass', 'fireBehavior', 'fireDelaySeconds', 'entryBehavior',
       'compatibleFormationPackIds', 'synergyTags', 'reuseCooldownWaves', 'maximumSimultaneousCount',
-      'performanceCost'
+      'performanceCost', 'characteristic'
     ], location, errors);
     requireId(role.id, `${location}/id`, errors);
     if (ids.has(role.id)) errors.push(`/enemyRoles contains duplicate id: ${String(role.id)}`);
@@ -875,6 +877,7 @@ const validateEnemyRoleManifest = (roles, errors) => {
       errors.push(`${location}/fireBehavior elite-only requires elite durability`);
     }
     requireEnum(role.entryBehavior, ENEMY_ENTRY_BEHAVIORS, `${location}/entryBehavior`, errors);
+    requireEnum(role.characteristic, ENEMY_CHARACTERISTICS, `${location}/characteristic`, errors);
     if (!Array.isArray(role.compatibleFormationPackIds)) errors.push(`${location}/compatibleFormationPackIds must be an array`);
     else role.compatibleFormationPackIds.forEach((id, itemIndex) => requireId(id, `${location}/compatibleFormationPackIds/${itemIndex}`, errors));
     if (!Array.isArray(role.synergyTags)) errors.push(`${location}/synergyTags must be an array`);

@@ -21,7 +21,8 @@ Branch: `experimental/arcade-polish` (nothing pushed to `main`).
 | 3 | Connect all production-ready bosses into the Weekly Run | DONE | 9 sectors / 27 missions / 9 unique bosses / 90 waves. Each sector runs 2 elites then its boss. Order is one exported array. |
 | 4 | Campaign map progression, missions, coins, branches | WIP | Map is playable again: weekly state no longer disables Mission launch or gates intel reveal. Branch depth still TODO. |
 | 5a | Stage enemy introductions across the Campaign | DONE | Was: all 19 roles authored by Sector 3, Sectors 4-10 debuting nothing new, and 3 roles never used at all. Now every Sector debuts at least one role, all 19 are used, and the heaviest arrive last. Sector 1 keeps its 7 (terrain-art pin, see content bugs). Tool: `tools/restage-enemy-introductions.mjs`; pinned by `tests/enemyIntroductionStaging.test.cjs`. |
-| 5b | Enemy roles actually behave differently | BLOCKED ON A DECISION | `fireBehavior` and `entryBehavior` are honoured. `durabilityClass` is **dead metadata** -- stored, shown in a debug snapshot, read by nothing, and not even correlated with authored health (the median `armored` enemy has *less* health, 5, than the median `standard` one, 6). A primary-fire armour mechanic was built and measured, then reverted; see "Primary-fire armour" below. `synergyTags` is authored with six distinct values and also read by nothing. |
+| 5b | Enemy roles actually behave differently | DONE | All 19 roles carry a `characteristic` and the engine honours it: holders and artillery never leave the block, divers peel off and loop back, kamikazes commit one-way, flankers strafe, one commander pulls its wing into its dive. Artillery fires faster to compensate for never closing. Tool: `tools/assign-enemy-characteristics.mjs`; pinned by `tests/enemyCharacteristics.test.cjs`. |
+| 5d | Remaining dead role metadata | OPEN | `fireBehavior` and `entryBehavior` are honoured. `durabilityClass` is **dead metadata** -- stored, shown in a debug snapshot, read by nothing, and not even correlated with authored health (the median `armored` enemy has *less* health, 5, than the median `standard` one, 6). A primary-fire armour mechanic was built and measured, then reverted; see "Primary-fire armour" below. `synergyTags` is authored with six distinct values and also read by nothing. |
 | 5c | Name the Elite Bosses in play | DONE | All ten authored Elite Bosses announced themselves with the same hardcoded `BOTTLENECK SURGE` banner. The warning now reads `ELITE BOSS` over the encounter's authored name, auto-shrinking to fit the panel. |
 | 13 | Achievements cover the game that exists | DONE | All six achievements scored the arcade loop; the Campaign graph, Weekly Run, Elite Bosses, and Hangar had none. Six new tracks added on six new lifetime stats. The pool was rebalanced from 10,400 to 10,900 across twelve tracks rather than ballooning to 27,330, which would have broken the guardrail holding free lifetime income near one expected Campaign (9,450 daily + 10,900 achievements = 20,350 against a 20,496 ceiling). |
 | 5 | Improve the elite enemy roster and encounters | WIP | The 10 authored elites already carry distinct signature mechanics (crossfire, guardian halo, rail traverse, relay duel, gap ring, convoy shield, quadrant grid) and are placed 2-per-sector in the gauntlet. The `escort` formation exists but **cannot be authored into a wave**: `SpawnPatternId` has no `escort` member, so it is only reachable through the loose-shape table. |
@@ -151,6 +152,33 @@ So this is a decision, not a bug:
 
 Reverting was chosen over quietly spending the last 0.03s of margin on a
 mechanic that was not specifically requested.
+
+## Campaign waves: why bulk-cloning them failed
+
+Missions run four waves. More waves, Galaxiga-style, is the right direction and
+the enemy characteristics only pay off with the room to use them. Cloning an
+existing legal wave to extend each Mission looked like the cheap way in. It is
+not, for three measured reasons:
+
+1. **The 180s simulation ceiling.** Six waves produced 18 timeouts; five still
+   produced 7. Median clear is 25.6s and p90 is 54s, so the tail runs long.
+2. **Balance moved the wrong way.** Five waves scored 494 clears / 99 deaths /
+   7 timeouts against a 528 / 72 / 0 baseline, with three dead-air breaches.
+3. **Thirty-three tests pin the authored four-wave design** -- cadence, pressure
+   placement, climax position, reward balance across all sixty Missions. They
+   are not stale pins; they encode a deliberately tuned structure.
+
+One real defect was found and is worth keeping in mind for the redo: a Mission
+_climax_ is any wave carrying a boss event, not only one whose completionRule is
+`boss-defeat`. Elite checkpoints end on a mini-boss inside a
+`clear-after-duration` wave, so filtering on completionRule alone appends new
+waves after the climax.
+
+The redo should **author** waves against the characteristic mix -- a block of
+holders, divers peeling out, a flanker pair, artillery arriving late -- the way
+`tools/author-campaign-overhaul-v22.mjs` authored the current content, and retune
+wave durations so the Mission still fits the clock. It is a content pass, not a
+clone pass.
 
 ## Recorded blockers
 

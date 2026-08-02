@@ -84,6 +84,10 @@ import {
   resolveCampaignFormationFiringBehavior
 } from './campaignEnemyFiring';
 import {
+  getEnemyCharacteristicProfile,
+  type EnemyCharacteristic
+} from './enemyCharacteristics';
+import {
   canStartCampaignFormationPackInstance,
   getCampaignBaseSimultaneousShooterLimit,
   getCampaignSimultaneousShooterLimit,
@@ -767,6 +771,8 @@ export class Entity {
   formationEntryDirection?: FormationPackDefinition['entryDirection'];
   formationEntryPath?: string;
   formationEntryBehavior?: EnemyRoleDefinition['entryBehavior'];
+  /** What this hull does once it holds a slot. See services/enemyCharacteristics. */
+  campaignCharacteristic?: EnemyCharacteristic;
   encounterGroupSize: number = 1;
   /** Shared Mini-Boss encounter identity used by Campaign fights and isolated Sandbox previews. */
   miniBossLabEncounterId?: string;
@@ -8696,7 +8702,16 @@ export class GameEngine {
       const escortSpin = formation === 'escort' && enemy.formationIndex % ESCORT_POD_SIZE !== 0
         ? this.getEscortRingOffset(enemy)
         : null;
-      enemy.x = targetX + groupSway + (escortSpin?.x ?? 0);
+      // Characteristic strafe is an *offset from the slot*, not an increment.
+      // Adding it to enemy.x each frame integrated into an unbounded random
+      // walk that carried holders off the field, which stalled waves that were
+      // waiting on them.
+      const characteristicStrafe = getEnemyCharacteristicProfile(enemy.campaignCharacteristic);
+      const strafeOffset = characteristicStrafe.holdStrafePixels > 0
+        ? Math.sin((this.frameCount + enemy.formationIndex * 23) * 0.012)
+          * characteristicStrafe.holdStrafePixels
+        : 0;
+      enemy.x = targetX + groupSway + strafeOffset + (escortSpin?.x ?? 0);
       enemy.y = targetY + formationPulse + (escortSpin?.y ?? 0)
         + Math.sin((this.frameCount + enemy.formationIndex * 17) * 0.045) * 2.5;
       enemy.vx = 0;
@@ -8709,6 +8724,13 @@ export class GameEngine {
         && enemy.formationIndex % ESCORT_POD_SIZE === 0
         && this.countLivingEscortsForPod(enemy) > 0) return true;
 
+      // A hull's characteristic decides whether it ever leaves the block.
+      // Holders and artillery never do -- they are the wall the player has to
+      // shoot through, and letting every hull dive was what made the whole
+      // roster read as one undifferentiated stream.
+      const characteristic = getEnemyCharacteristicProfile(enemy.campaignCharacteristic);
+      if (!characteristic.divesFromFormation) return true;
+
       if (this.frameCount >= enemy.formationDiveFrame) {
         const diveMotion = this.resolveConfiguredFormationDiveMotion(enemy, formation, 0);
         enemy.vx = diveMotion.velocityX;
@@ -8716,6 +8738,9 @@ export class GameEngine {
         enemy.angle = diveMotion.angle;
         enemy.formationState = 'dive';
         enemy.formationStateFrame = this.frameCount;
+        // A commander takes its neighbours with it, so the block visibly breaks
+        // apart around one unit instead of trickling out one at a time.
+        if (characteristic.leadsFormation) this.pullFormationNeighboursIntoDive(enemy);
       }
       return true;
     }
@@ -8727,6 +8752,12 @@ export class GameEngine {
     enemy.angle = diveMotion.angle;
 
     if (enemy.y > this.height + 72 || enemy.x < -140 || enemy.x > this.width + 140) {
+      // A kamikaze commits: it does not loop back into the block. Letting it
+      // re-enter turned a one-way threat into just another diver.
+      if (!getEnemyCharacteristicProfile(enemy.campaignCharacteristic).returnsToFormation) {
+        enemy.markedForDeletion = true;
+        return true;
+      }
       const returnDirection = (enemy.formationIndex + enemy.formationCycle) % 2 === 0 ? -1 : 1;
       enemy.formationStartX = clamp(targetX + returnDirection * Math.min(this.width * 0.18, 78), -60, this.width + 60);
       enemy.formationStartY = -72 - (enemy.formationIndex % 3) * 18;
@@ -8745,6 +8776,36 @@ export class GameEngine {
         + (enemy.formationIndex % 5) * 14;
     }
     return true;
+  }
+
+  /**
+   * Brings the nearest still-holding members of a commander's formation into
+   * its dive, so the block breaks apart around one unit rather than leaking
+   * hulls one at a time. Bounded to a handful: pulling a whole grid at once
+   * spikes the on-screen threat count past what the wave budgeted for.
+   */
+  pullFormationNeighboursIntoDive(leader: Entity) {
+    const followers = this.entities
+      .filter((entity) => (
+        entity !== leader
+        && !entity.markedForDeletion
+        && entity.hp > 0
+        && entity.formationState === 'hold'
+        && entity.formationGroupSeed === leader.formationGroupSeed
+        && getEnemyCharacteristicProfile(entity.campaignCharacteristic).divesFromFormation
+      ))
+      .sort((left, right) => (
+        Math.abs(left.formationIndex - leader.formationIndex)
+        - Math.abs(right.formationIndex - leader.formationIndex)
+      ))
+      .slice(0, 3);
+
+    for (const follower of followers) {
+      // Staggered by a few frames so the wing peels rather than teleporting out
+      // as one block.
+      follower.formationDiveFrame = this.frameCount
+        + 6 + (Math.abs(follower.formationIndex - leader.formationIndex) % 4) * 5;
+    }
   }
 
   spawnConfiguredEnemyFromEvent(
@@ -8835,6 +8896,9 @@ export class GameEngine {
     enemy.campaignRoleId = role?.id;
     enemy.campaignGameplayRole = role?.role;
     enemy.campaignDurabilityClass = role?.durabilityClass;
+    enemy.campaignCharacteristic = countTowardCombatBudget
+      ? getEnemyCharacteristicProfile(role?.characteristic, role).id
+      : undefined;
     enemy.campaignThreatCost = countTowardCombatBudget ? threatCost : 0;
     enemy.campaignPerformanceCost = performanceCost;
     enemy.campaignFireBehavior = countTowardCombatBudget ? role?.fireBehavior : 'none';
@@ -8854,7 +8918,13 @@ export class GameEngine {
       && role.fireBehavior !== 'none'
       && !Number.isFinite(enemy.attackIntervalFrames)
     ) {
-      enemy.attackIntervalFrames = role.fireBehavior === 'aimed-burst' ? 82 : 104;
+      // Scaled by characteristic: a hull that never leaves the block has to
+      // threaten with fire instead of collision, or it reads as scenery.
+      const characteristicFire = getEnemyCharacteristicProfile(role.characteristic, role);
+      enemy.attackIntervalFrames = Math.max(
+        24,
+        Math.round((role.fireBehavior === 'aimed-burst' ? 82 : 104) * characteristicFire.fireIntervalScale)
+      );
     }
     this.configureEnemyFormation(
       enemy,

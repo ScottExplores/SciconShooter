@@ -72,12 +72,14 @@ test('top-level run progress is presented as Mission without renaming compatibil
   assert.match(victoryOverlay, /Mission \{summary\.stage\}/);
   assert.match(victoryOverlay, /All 20 missions cleared/);
   assert.doesNotMatch(victoryOverlay, /All 20 stages cleared|>Stage \{summary\.stage\}</);
-  assert.match(storyTransmission, /Mission \{beat\.phase\}: \{beat\.title\}/);
+  // Beats are keyed to Sectors now, one per Sector, so the header names the
+  // Sector. Rendering "Mission 3" for Sector 3 would have been simply wrong.
+  assert.match(storyTransmission, /Sector \{beat\.phase\}: \{beat\.title\}/);
   assert.doesNotMatch(storyTransmission, /Stage \{beat\.phase\}: \{beat\.title\}/);
   assert.match(rewards, /description: 'Reach Mission \{target\}'/);
   assert.match(engine, /beginStageCompletion\('MISSION COMPLETE!'/);
   assert.match(pixiRenderer, /MISSION \$\{String\(state\.levelNumber\)\.padStart\(2, '0'\)\}/);
-  assert.match(storyBeats, /Final mission\./);
+  assert.match(storyBeats, /Last one, pilot\./);
   assert.doesNotMatch(storyBeats, /Final stage\./);
   assert.doesNotMatch(storyBeats, /Final wave\./);
   assert.match(recordRenderer, /wave: 'MISSION'/);

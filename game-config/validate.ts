@@ -92,8 +92,10 @@ const ENEMY_ROLE_KEYS = [
   'id', 'label', 'enemyId', 'spriteKey', 'role', 'threatCost', 'introductionSector',
   'introductionMission', 'durabilityClass', 'fireBehavior', 'fireDelaySeconds', 'entryBehavior',
   'compatibleFormationPackIds', 'synergyTags', 'reuseCooldownWaves', 'maximumSimultaneousCount',
-  'performanceCost'
+  'performanceCost', 'characteristic'
 ];
+/** What a hull does once it holds a slot. See services/enemyCharacteristics.ts. */
+const ENEMY_CHARACTERISTICS = ['holder', 'diver', 'kamikaze', 'flanker', 'artillery', 'commander'];
 const FORMATION_PACK_KEYS = [
   'id', 'label', 'enemyRoleIds', 'enemyCount', 'totalThreatCost', 'entryDirection', 'entryPath',
   'formationShape', 'firingBehavior', 'synergyAdjustment', 'minimumSector',
@@ -908,6 +910,20 @@ const validateEnemyRoleManifest = (value: unknown, issues: CampaignValidationIss
     }
     if (typeof role.entryBehavior !== 'string' || !ENEMY_ENTRY_BEHAVIORS.has(role.entryBehavior)) {
       pushIssue(issues, `${path}/entryBehavior`, 'unknown_reference', `Unknown enemy entry behavior: ${String(role.entryBehavior)}`);
+    }
+    if (typeof role.characteristic !== 'string' || !ENEMY_CHARACTERISTICS.includes(role.characteristic)) {
+      pushIssue(issues, `${path}/characteristic`, 'unknown_reference', `Unknown enemy characteristic: ${String(role.characteristic)}`);
+    }
+    // A hull that never leaves the block cannot also be authored to arrive by
+    // diving in -- the two would contradict each other on the first frame.
+    if ((role.characteristic === 'holder' || role.characteristic === 'artillery')
+      && role.entryBehavior === 'dive') {
+      pushIssue(
+        issues,
+        `${path}/characteristic`,
+        'incompatible_reference',
+        `${String(role.characteristic)} roles cannot use a dive entry`
+      );
     }
     if (checkArray(role.compatibleFormationPackIds, `${path}/compatibleFormationPackIds`, issues, true)) {
       role.compatibleFormationPackIds.forEach((id, itemIndex) => checkString(id, `${path}/compatibleFormationPackIds/${itemIndex}`, issues, { id: true }));
@@ -3437,11 +3453,14 @@ const validateCampaignManifestCrossReferences = (
         pushIssue(issues, `/levels/${levels.indexOf(level)}/campaignProgression/missionRole`, 'invalid_sector_shape', `Sector Mission ${missionIndex + 1} must use role ${expectedRole}`);
       }
       const waveCount = Array.isArray(level.waves) ? level.waves.length : 0;
+      // Combat Missions run six waves, and formation-remix runs seven because
+      // it exists to show off block shapes. A range rather than an exact count
+      // so a Mission can be retuned without a validator edit.
       const waveRange: Record<string, [number, number]> = {
-        introduction: [4, 4],
-        'formation-remix': [4, 4],
-        'elite-checkpoint': [4, 4],
-        'boss-preparation': [4, 4],
+        introduction: [4, 7],
+        'formation-remix': [4, 8],
+        'elite-checkpoint': [4, 7],
+        'boss-preparation': [4, 7],
         'major-boss': graph ? [2, 2] : [1, 1]
       };
       const range = waveRange[expectedRole];

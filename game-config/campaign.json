@@ -45082,7 +45082,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 14,
-      "performanceCost": 1
+      "performanceCost": 1,
+      "characteristic": "diver"
     },
     {
       "id": "role-research-drone",
@@ -45106,7 +45107,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 10,
-      "performanceCost": 1
+      "performanceCost": 1,
+      "characteristic": "holder"
     },
     {
       "id": "role-citation-swarm",
@@ -45129,7 +45131,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 14,
-      "performanceCost": 1
+      "performanceCost": 1,
+      "characteristic": "kamikaze"
     },
     {
       "id": "role-jet-scout",
@@ -45153,7 +45156,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 10,
-      "performanceCost": 1
+      "performanceCost": 1,
+      "characteristic": "flanker"
     },
     {
       "id": "role-jet-interceptor",
@@ -45178,7 +45182,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 8,
-      "performanceCost": 2
+      "performanceCost": 2,
+      "characteristic": "diver"
     },
     {
       "id": "role-jet-heavy",
@@ -45203,7 +45208,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 5,
-      "performanceCost": 3
+      "performanceCost": 3,
+      "characteristic": "holder"
     },
     {
       "id": "role-journal-priority",
@@ -45227,7 +45233,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 6,
-      "performanceCost": 2
+      "performanceCost": 2,
+      "characteristic": "diver"
     },
     {
       "id": "role-dna-conductor",
@@ -45251,7 +45258,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 4,
-      "performanceCost": 3
+      "performanceCost": 3,
+      "characteristic": "holder"
     },
     {
       "id": "role-laser-stalker",
@@ -45274,7 +45282,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 5,
-      "performanceCost": 3
+      "performanceCost": 3,
+      "characteristic": "artillery"
     },
     {
       "id": "role-orbit-disc",
@@ -45297,7 +45306,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 8,
-      "performanceCost": 2
+      "performanceCost": 2,
+      "characteristic": "flanker"
     },
     {
       "id": "role-wall-sniper-left",
@@ -45320,7 +45330,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 4,
-      "performanceCost": 2
+      "performanceCost": 2,
+      "characteristic": "artillery"
     },
     {
       "id": "role-wall-sniper-right",
@@ -45341,7 +45352,8 @@
       ],
       "reuseCooldownWaves": 2,
       "maximumSimultaneousCount": 4,
-      "performanceCost": 2
+      "performanceCost": 2,
+      "characteristic": "artillery"
     },
     {
       "id": "role-laser-hunter",
@@ -45364,7 +45376,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 3,
-      "performanceCost": 3
+      "performanceCost": 3,
+      "characteristic": "diver"
     },
     {
       "id": "role-dark-sentinel",
@@ -45388,7 +45401,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 4,
-      "performanceCost": 3
+      "performanceCost": 3,
+      "characteristic": "holder"
     },
     {
       "id": "role-crescent-minelayer",
@@ -45412,7 +45426,8 @@
       ],
       "reuseCooldownWaves": 0,
       "maximumSimultaneousCount": 4,
-      "performanceCost": 3
+      "performanceCost": 3,
+      "characteristic": "flanker"
     },
     {
       "id": "role-shield-rammer",
@@ -45434,7 +45449,8 @@
       ],
       "reuseCooldownWaves": 2,
       "maximumSimultaneousCount": 4,
-      "performanceCost": 3
+      "performanceCost": 3,
+      "characteristic": "kamikaze"
     },
     {
       "id": "role-prism-artillery",
@@ -45457,7 +45473,8 @@
       ],
       "reuseCooldownWaves": 2,
       "maximumSimultaneousCount": 3,
-      "performanceCost": 4
+      "performanceCost": 4,
+      "characteristic": "artillery"
     },
     {
       "id": "role-ring-sentinel",
@@ -45480,7 +45497,8 @@
       ],
       "reuseCooldownWaves": 2,
       "maximumSimultaneousCount": 3,
-      "performanceCost": 4
+      "performanceCost": 4,
+      "characteristic": "commander"
     },
     {
       "id": "role-ring-emitter",
@@ -45501,7 +45519,8 @@
       ],
       "reuseCooldownWaves": 3,
       "maximumSimultaneousCount": 3,
-      "performanceCost": 4
+      "performanceCost": 4,
+      "characteristic": "artillery"
     }
   ],
   "formationPacks": [
