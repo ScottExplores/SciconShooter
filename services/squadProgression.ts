@@ -55,6 +55,12 @@ export const MAIN_SHIP_ABILITY_MAX_LEVEL = 5;
 // deliberate track there: the deep ten-heart ladder made late Campaign
 // Missions trivial, and Weekly Run ignores it entirely at a flat 10 lives.
 export const CAMPAIGN_MAX_STARTING_LIVES = 5;
+
+/**
+ * Every Mission authors three mastery objectives (complete, performance,
+ * master), so three stars is a full clear.
+ */
+export const CAMPAIGN_MISSION_MASTERY_STARS = 3;
 export const CAMPAIGN_BASE_STARTING_LIVES = 3;
 export const MAIN_SHIP_STARTING_HEARTS_MAX_LEVEL =
   CAMPAIGN_MAX_STARTING_LIVES - CAMPAIGN_BASE_STARTING_LIVES;
@@ -185,6 +191,17 @@ export interface PermanentLifetimeStats {
   bossesDefeated: number;
   coinsCollected: number;
   bestScore: number;
+  /**
+   * The six stats above are all arcade-run metrics, so every achievement was
+   * scored on the arcade loop. These track the systems the game actually grew:
+   * the Campaign graph, the Weekly Run gauntlet, Elite Bosses, and the Hangar.
+   */
+  campaignMissionsCleared: number;
+  campaignMissionsMastered: number;
+  eliteBossesDefeated: number;
+  weeklyRunsCompleted: number;
+  weeklyBestSector: number;
+  hangarUpgradesPurchased: number;
 }
 
 export interface RuntimeSquadCompanion {
@@ -530,7 +547,13 @@ export const createPermanentSquadState = (profileId?: string | null): PermanentS
     enemiesDefeated: 0,
     bossesDefeated: 0,
     coinsCollected: 0,
-    bestScore: 0
+    bestScore: 0,
+    campaignMissionsCleared: 0,
+    campaignMissionsMastered: 0,
+    eliteBossesDefeated: 0,
+    weeklyRunsCompleted: 0,
+    weeklyBestSector: 0,
+    hangarUpgradesPurchased: 0
   },
   achievementTiers: {},
   unlockedPlayerShips: [],
@@ -816,7 +839,15 @@ export const loadPermanentSquadState = (requestedProfileId?: string | null): Per
         enemiesDefeated: Math.max(0, Math.floor(Number(parsedStats?.enemiesDefeated) || 0)),
         bossesDefeated: Math.max(0, Math.floor(Number(parsedStats?.bossesDefeated) || 0)),
         coinsCollected: Math.max(0, Math.floor(Number(parsedStats?.coinsCollected) || 0)),
-        bestScore: Math.max(0, Math.floor(Number(parsedStats?.bestScore) || 0))
+        bestScore: Math.max(0, Math.floor(Number(parsedStats?.bestScore) || 0)),
+        // Saves written before these were tracked simply start at zero rather
+        // than being inferred, so no player is credited for what was not logged.
+        campaignMissionsCleared: Math.max(0, Math.floor(Number(parsedStats?.campaignMissionsCleared) || 0)),
+        campaignMissionsMastered: Math.max(0, Math.floor(Number(parsedStats?.campaignMissionsMastered) || 0)),
+        eliteBossesDefeated: Math.max(0, Math.floor(Number(parsedStats?.eliteBossesDefeated) || 0)),
+        weeklyRunsCompleted: Math.max(0, Math.floor(Number(parsedStats?.weeklyRunsCompleted) || 0)),
+        weeklyBestSector: Math.max(0, Math.floor(Number(parsedStats?.weeklyBestSector) || 0)),
+        hangarUpgradesPurchased: Math.max(0, Math.floor(Number(parsedStats?.hangarUpgradesPurchased) || 0))
       },
       achievementTiers: Object.fromEntries(
         Object.entries(parsed.achievementTiers || {})
@@ -1025,7 +1056,31 @@ const mergePermanentSquadProfiles = (
         target.lifetimeStats.coinsCollected,
         source.lifetimeStats.coinsCollected
       ),
-      bestScore: Math.max(target.lifetimeStats.bestScore, source.lifetimeStats.bestScore)
+      bestScore: Math.max(target.lifetimeStats.bestScore, source.lifetimeStats.bestScore),
+      campaignMissionsCleared: Math.max(
+        target.lifetimeStats.campaignMissionsCleared,
+        source.lifetimeStats.campaignMissionsCleared
+      ),
+      campaignMissionsMastered: Math.max(
+        target.lifetimeStats.campaignMissionsMastered,
+        source.lifetimeStats.campaignMissionsMastered
+      ),
+      eliteBossesDefeated: Math.max(
+        target.lifetimeStats.eliteBossesDefeated,
+        source.lifetimeStats.eliteBossesDefeated
+      ),
+      weeklyRunsCompleted: Math.max(
+        target.lifetimeStats.weeklyRunsCompleted,
+        source.lifetimeStats.weeklyRunsCompleted
+      ),
+      weeklyBestSector: Math.max(
+        target.lifetimeStats.weeklyBestSector,
+        source.lifetimeStats.weeklyBestSector
+      ),
+      hangarUpgradesPurchased: Math.max(
+        target.lifetimeStats.hangarUpgradesPurchased,
+        source.lifetimeStats.hangarUpgradesPurchased
+      )
     },
     achievementTiers: Object.fromEntries(
       Array.from(achievementIds).map((id) => [

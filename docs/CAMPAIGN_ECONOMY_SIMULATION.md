@@ -20,7 +20,7 @@ Weekly leaderboard points and proposal funding are never converted into Campaign
 | Route-alternative authored grants | Clear-only 3,357; expected 3,852; full mastery 5,772 | One separate reward ledger per alternate Mission; included only in the full-mastery scenario. |
 | Authored daily replay | 825 maximum across all completed main Missions per UTC day | One reduced grant per Mission per UTC date; no same-day repeat grant. Seasonal balance. |
 | Daily Gift calendar | 9,450 over 30 consecutive days | Each day is claimable once; missing a day resets the calendar. Coins enter the seasonal balance. |
-| Achievements | 10,400 across 6 five-tier tracks | Each tier is one-time per Pilot; coins enter the seasonal balance. |
+| Achievements | 10,900 across 12 five-tier tracks | Each tier is one-time per Pilot; coins enter the seasonal balance. |
 | Boss Archive challenge | 3 paid clears/day; 100-280 per clear; maximum 840/day after final unlock | Daily charge limit is global. Practice pays zero. Seasonal balance. |
 | Boss Archive mastery | 5,700 across all authored bosses | Three one-time mastery receipts per boss; seasonal balance after claim. |
 | Ordinary combat coin | 1 coin per credited coin entity | Repeatable. Enemy kills, recovery drops, bonus targets, and boss bursts settle through the run boundary. |
@@ -32,13 +32,19 @@ Weekly leaderboard points and proposal funding are never converted into Campaign
 | Reward Center source | Tier values | Total |
 |---|---|---:|
 | Daily Gifts | 30 authored days | 9,450 |
-| Sector Pioneer | 75 / 150 / 250 / 400 / 650 | 1,525 |
-| Boss Breaker | 100 / 200 / 300 / 500 / 800 | 1,900 |
-| Research Hunter | 100 / 200 / 300 / 500 / 800 | 1,900 |
-| Grant Collector | 50 / 100 / 200 / 350 / 600 | 1,300 |
-| Mission Veteran | 75 / 150 / 250 / 450 / 700 | 1,625 |
-| Arcade Ace | 100 / 200 / 350 / 600 / 900 | 2,150 |
-| **Daily cycle + all achievement tiers** | | **19,850** |
+| Sector Pioneer | 65 / 100 / 135 / 180 / 220 | 700 |
+| Boss Breaker | 80 / 125 / 170 / 235 / 290 | 900 |
+| Research Hunter | 80 / 125 / 170 / 235 / 290 | 900 |
+| Grant Collector | 65 / 100 / 135 / 180 / 220 | 700 |
+| Mission Veteran | 70 / 110 / 150 / 210 / 260 | 800 |
+| Arcade Ace | 85 / 135 / 180 / 245 / 305 | 950 |
+| Campaign Cartographer | 95 / 145 / 200 / 275 / 335 | 1,050 |
+| Mission Perfectionist | 105 / 160 / 220 / 300 / 365 | 1,150 |
+| Elite Hunter | 85 / 135 / 180 / 245 / 305 | 950 |
+| Gauntlet Runner | 100 / 155 / 210 / 285 / 350 | 1,100 |
+| Deep Sector | 80 / 125 / 170 / 235 / 290 | 900 |
+| Hangar Engineer | 70 / 110 / 150 / 210 / 260 | 800 |
+| **Daily cycle + all achievement tiers** | | **20,350** |
 
 ### Boss Archive rewards
 
@@ -170,7 +176,7 @@ The authored daily replay ceiling is **2.15%** of the one-time full-mastery floo
 - **Bounded Campaign replay:** 825/day is 2.15% of the one-time full-mastery floor. Same-Mission repeats in one UTC day pay no additional authored replay grant.
 - **Unbounded combat pickup risk:** ordinary kill/drop coins remain replayable and are skill/loadout dependent. A per-run or diminishing-return policy is still absent.
 - **Boss Archive challenge income is sector-tiered and bounded:** 3 clears of the highest unlocked boss can pay 840/day, or 5,880/week. That is 30.12% of the expected ten-sector authored path, so Archive play remains useful without replacing Campaign progression.
-- **Reward Center gross is long-horizon income:** one 30-day calendar plus every lifetime achievement tier is 19,850, 101.69% of expected authored Campaign income. Only the 9,450 calendar repeats; the 10,400 achievement inventory is one-time per Pilot.
+- **Reward Center gross is long-horizon income:** one 30-day calendar plus every lifetime achievement tier is 20,350, 104.25% of expected authored Campaign income. Only the 9,450 calendar repeats; the 10,900 achievement inventory is one-time per Pilot.
 - **Weekly isolation remains correct:** Campaign reward credit does not increment weekly score statistics. One-time Campaign grants are durable; repeatable grants, Daily Gifts, achievements, Boss Archive payments, and ordinary run coins enter the seasonal balance. Upgrades survive the reset.
 
 ## Seven-projectile-tier validation

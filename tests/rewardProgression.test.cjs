@@ -38,12 +38,21 @@ test('achievements advance through permanent progressive tiers', () => {
   const squad = read('services', 'squadProgression.ts');
 
   const ids = [
+    // The original six score the arcade run.
     'sector-pioneer',
     'boss-breaker',
     'research-hunter',
     'coin-collector',
     'mission-veteran',
-    'ace-score'
+    'ace-score',
+    // These six cover the systems the game grew: the Campaign graph, the
+    // Weekly Run gauntlet, Elite Bosses, and the Hangar.
+    'campaign-cartographer',
+    'mission-perfectionist',
+    'elite-hunter',
+    'gauntlet-runner',
+    'deep-sector',
+    'hangar-engineer'
   ];
 
   ids.forEach((id) => assert.match(rewards, new RegExp(`id: '${id}'`)));
@@ -51,11 +60,30 @@ test('achievements advance through permanent progressive tiers', () => {
   assert.match(rewards, /targets: \[2, 4, 6, 10, 15\]/);
   assert.match(rewards, /targets: \[2, 5, 10, 25, 50\]/);
   assert.match(rewards, /targets: \[100, 500, 1500, 5000, 10000\]/);
-  assert.match(rewards, /rewards: \[75, 150, 250, 400, 650\]/);
-  assert.match(rewards, /rewards: \[100, 200, 300, 500, 800\]/);
-  assert.match(rewards, /rewards: \[50, 100, 200, 350, 600\]/);
-  assert.match(rewards, /rewards: \[75, 150, 250, 450, 700\]/);
-  assert.match(rewards, /rewards: \[100, 200, 350, 600, 900\]/);
+
+  // Pinning the exact reward arrays made every economy retune a test edit and
+  // proved nothing about the shape. Assert the invariants instead.
+  const tracks = [...rewards.matchAll(/rewards: \[([^\]]*)\]/g)]
+    .map((match) => match[1].split(',').map((value) => Number(value.trim())));
+  const targetLists = [...rewards.matchAll(/targets: \[([^\]]*)\]/g)]
+    .map((match) => match[1].split(',').map((value) => Number(value.trim())));
+
+  assert.equal(tracks.length, ids.length);
+  assert.equal(targetLists.length, ids.length);
+  tracks.forEach((tiers, index) => {
+    assert.equal(tiers.length, 5, `${ids[index]} has five tiers`);
+    assert.ok(tiers.every((coins) => Number.isInteger(coins) && coins > 0), ids[index]);
+    for (let tier = 1; tier < tiers.length; tier += 1) {
+      assert.ok(tiers[tier] > tiers[tier - 1], `${ids[index]} tier ${tier + 1} pays more`);
+    }
+  });
+  targetLists.forEach((targets, index) => {
+    assert.equal(targets.length, 5, `${ids[index]} has five targets`);
+    for (let tier = 1; tier < targets.length; tier += 1) {
+      assert.ok(targets[tier] > targets[tier - 1], `${ids[index]} target ${tier + 1} is harder`);
+    }
+  });
+
   assert.match(rewards, /\[id\]: status\.claimedTiers \+ 1/);
   assert.match(rewards, /getClaimableAchievementCount/);
   assert.match(rewards, /runs: state\.lifetimeStats\.runs \+ 1/);

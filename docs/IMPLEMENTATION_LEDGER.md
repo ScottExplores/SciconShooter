@@ -21,6 +21,9 @@ Branch: `experimental/arcade-polish` (nothing pushed to `main`).
 | 3 | Connect all production-ready bosses into the Weekly Run | DONE | 9 sectors / 27 missions / 9 unique bosses / 90 waves. Each sector runs 2 elites then its boss. Order is one exported array. |
 | 4 | Campaign map progression, missions, coins, branches | WIP | Map is playable again: weekly state no longer disables Mission launch or gates intel reveal. Branch depth still TODO. |
 | 5a | Stage enemy introductions across the Campaign | DONE | Was: all 19 roles authored by Sector 3, Sectors 4-10 debuting nothing new, and 3 roles never used at all. Now every Sector debuts at least one role, all 19 are used, and the heaviest arrive last. Sector 1 keeps its 7 (terrain-art pin, see content bugs). Tool: `tools/restage-enemy-introductions.mjs`; pinned by `tests/enemyIntroductionStaging.test.cjs`. |
+| 5b | Enemy roles actually behave differently | BLOCKED ON A DECISION | `fireBehavior` and `entryBehavior` are honoured. `durabilityClass` is **dead metadata** -- stored, shown in a debug snapshot, read by nothing, and not even correlated with authored health (the median `armored` enemy has *less* health, 5, than the median `standard` one, 6). A primary-fire armour mechanic was built and measured, then reverted; see "Primary-fire armour" below. `synergyTags` is authored with six distinct values and also read by nothing. |
+| 5c | Name the Elite Bosses in play | DONE | All ten authored Elite Bosses announced themselves with the same hardcoded `BOTTLENECK SURGE` banner. The warning now reads `ELITE BOSS` over the encounter's authored name, auto-shrinking to fit the panel. |
+| 13 | Achievements cover the game that exists | DONE | All six achievements scored the arcade loop; the Campaign graph, Weekly Run, Elite Bosses, and Hangar had none. Six new tracks added on six new lifetime stats. The pool was rebalanced from 10,400 to 10,900 across twelve tracks rather than ballooning to 27,330, which would have broken the guardrail holding free lifetime income near one expected Campaign (9,450 daily + 10,900 achievements = 20,350 against a 20,496 ceiling). |
 | 5 | Improve the elite enemy roster and encounters | WIP | The 10 authored elites already carry distinct signature mechanics (crossfire, guardian halo, rail traverse, relay duel, gap ring, convoy shield, quadrant grid) and are placed 2-per-sector in the gauntlet. The `escort` formation exists but **cannot be authored into a wave**: `SpawnPatternId` has no `escort` member, so it is only reachable through the loose-shape table. |
 | 6 | Distinct signature moves for main ships | WIP | Cooldown ladder 16/13/11/9s, Fire Rate tightens up to 35%. Each hull already has a distinct projectile behaviour (piercing lance / 3-shard volley / hash burst / pulse). Homing Missiles added as a 4th Hangar track, and **Signature Move** as a 5th: 5 levels at 220/480/900/1600/2600 coins, +28% damage and +11% radius each, so L5 is x2.40 damage / x1.55 radius across both blast tiers and ability projectiles. |
 | 7 | Generate and integrate sprite sheets and effects | BLOCKED | No image generator available in this environment. Ability FX frames already exist under `scicon-player-weapon-fx-v1`. Animation systems/hookups can be wired so generated frames drop in. |
@@ -56,7 +59,7 @@ toward it, and should be reconsidered against the mobile performance budget.
 
 Balance matrix (600 trials, real `GameEngine`), vs `main` = 495 clears / 102 deaths / 3 timeouts:
 
-- Current: **513 clears / 87 deaths / 0 timeouts**, dead-air breaches **0**, mobile peak load 1.000, no inversions, no perf-mode cells - with six-shape loose formation variety in place.
+- Current: **528 clears / 72 deaths / 0 timeouts**, dead-air breaches **0**, no inversions, no perf-mode cells. Worst dead-air cell 0.970s against a 1s ceiling, so the margin is 0.03s.
 - Enemies leaving the field unshot: **41–50% → 0%**.
 
 ## Content bugs found, left for a deliberate decision
@@ -106,6 +109,47 @@ enforced somewhere, and each was found by breaking it:
    swapping a generated `CAMPAIGN_ENEMY_*` silhouette for legacy Sector 1 art
    silently downgrades a user-facing artifact.
 
+## Primary-fire armour: built, measured, reverted, needs a call
+
+`durabilityClass` does nothing. The fix was to make `armored` and `elite` hulls
+blunt **primary fire only**, with missiles, bombs, the research beam, and all
+four ship signature moves punching through at full damage -- so the class
+teaches "bring the heavy weapon to the heavy target" rather than being an
+invisible label or a flat health bump.
+
+It works and it was cheap in balance terms. It was reverted for one reason:
+
+**The Campaign has almost no visible-combat dead-air headroom.** The 1s ceiling
+is currently met by **0.03s**: the worst cell in the shipped matrix sits at
+0.970s. Anything that slows time-to-kill at all pushes some cell over, and which
+cell it is moves from run to run.
+
+Four measured runs, all at 600 trials:
+
+| armour (armored/elite) | clears/deaths | dead-air breaches |
+|---|---|---|
+| none (shipped) | 528 / 72 | 0 (worst cell 0.970s) |
+| 0.70 / 0.85 | 513 / 87 | 1 (`stage-last-light-gauntlet`, 1.15s) |
+| 0.78 / 0.90 | 524 / 76 | 1, plus a first-visible-threat breach |
+| 0.85 / 0.95 | 521 / 79 | 1 (`stage-singularity-reach-approach`, 1.05s) |
+| 0.85 / 0.95, exempt during formation entry | 527 / 73 | 1 (`stage-crownclaw-frontier-approach`, 1.20s) |
+
+Every breach was the same shape: a trailing `ENEMY_BRICK` still flying its entry
+path while nothing else was on screen. Exempting entry did not fix it, because
+the gap is the brick's travel time, not its time-to-kill -- armour only shifts
+when that entry starts.
+
+So this is a decision, not a bug:
+
+1. **Build headroom first,** then ship armour. The trailing-heavy entry pattern
+   is the real defect and it is already at the ceiling without armour.
+2. **Relax the ceiling** to ~1.25s and ship armour now.
+3. **Leave `durabilityClass` dead** and differentiate enemies only through
+   `fireBehavior` / `entryBehavior`, which already work.
+
+Reverting was chosen over quietly spending the last 0.03s of margin on a
+mechanic that was not specifically requested.
+
 ## Recorded blockers
 
 - **Sprite generation (workstream 7).** No image-generation tool is available in
@@ -116,6 +160,13 @@ enforced somewhere, and each was found by breaking it:
 
 - Removing filler spawns without also ending waves on squadron clear caused
   595/600 dead-air breaches.
+- Anything that slows time-to-kill reopens visible-combat dead air on whichever
+  Mission is closest to the ceiling. The shipped worst cell is 0.970s against a
+  1s ceiling, so the margin is 0.03s. See the primary-fire armour section.
+- Editing any file in `SOURCE_DIGEST_PATHS` while the non-boss matrix is running
+  makes the tool discard the whole run. Finish source edits first, then run.
+  `services/enemyDurability.ts` was missing from that list, so retuning armour
+  changed balance while the artifact kept its old digest; it is listed now.
 - Snapping the wave clock forward pulled elite encounters onto fresh squadrons
   and pushed mobile peak load to 1.23 against a 1.2 ceiling.
 - Collapsing the in-group spawn interval on an empty field measured worse on

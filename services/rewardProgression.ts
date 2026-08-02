@@ -49,7 +49,13 @@ export type AchievementId =
   | 'research-hunter'
   | 'coin-collector'
   | 'mission-veteran'
-  | 'ace-score';
+  | 'ace-score'
+  | 'campaign-cartographer'
+  | 'mission-perfectionist'
+  | 'elite-hunter'
+  | 'gauntlet-runner'
+  | 'deep-sector'
+  | 'hangar-engineer';
 
 type LifetimeStatKey = keyof PermanentLifetimeStats;
 
@@ -57,6 +63,8 @@ export interface AchievementDefinition {
   id: AchievementId;
   title: string;
   description: string;
+  /** Copy used when a tier target is exactly 1, where the plural reads wrong. */
+  descriptionOne?: string;
   metric: LifetimeStatKey;
   targets: readonly number[];
   rewards: readonly number[];
@@ -99,7 +107,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Reach Mission {target}',
     metric: 'highestWave',
     targets: [2, 4, 6, 10, 15],
-    rewards: [75, 150, 250, 400, 650]
+    rewards: [65, 100, 135, 180, 220]
   },
   {
     id: 'boss-breaker',
@@ -107,7 +115,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Defeat {target} bosses',
     metric: 'bossesDefeated',
     targets: [2, 5, 10, 25, 50],
-    rewards: [100, 200, 300, 500, 800]
+    rewards: [80, 125, 170, 235, 290]
   },
   {
     id: 'research-hunter',
@@ -115,7 +123,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Defeat {target} enemies',
     metric: 'enemiesDefeated',
     targets: [100, 500, 1500, 5000, 10000],
-    rewards: [100, 200, 300, 500, 800]
+    rewards: [80, 125, 170, 235, 290]
   },
   {
     id: 'coin-collector',
@@ -123,7 +131,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Collect {target} research coins',
     metric: 'coinsCollected',
     targets: [100, 500, 1500, 5000, 10000],
-    rewards: [50, 100, 200, 350, 600]
+    rewards: [65, 100, 135, 180, 220]
   },
   {
     id: 'mission-veteran',
@@ -131,7 +139,7 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Complete {target} runs',
     metric: 'runs',
     targets: [3, 10, 25, 50, 100],
-    rewards: [75, 150, 250, 450, 700]
+    rewards: [70, 110, 150, 210, 260]
   },
   {
     id: 'ace-score',
@@ -139,7 +147,59 @@ export const ACHIEVEMENT_DEFINITIONS: readonly AchievementDefinition[] = [
     description: 'Score {target} points in one run',
     metric: 'bestScore',
     targets: [1000, 5000, 10000, 25000, 50000],
-    rewards: [100, 200, 350, 600, 900]
+    rewards: [85, 135, 180, 245, 305]
+  },
+  // Every achievement above scores the arcade loop. These cover the systems the
+  // game actually grew into: a 50-Mission Campaign graph, the Weekly Run
+  // gauntlet, the ten Elite Bosses, and the Hangar.
+  {
+    id: 'campaign-cartographer',
+    title: 'Campaign Cartographer',
+    description: 'Clear {target} Campaign Missions',
+    metric: 'campaignMissionsCleared',
+    targets: [5, 15, 30, 50, 60],
+    rewards: [95, 145, 200, 275, 335]
+  },
+  {
+    id: 'mission-perfectionist',
+    title: 'Mission Perfectionist',
+    description: 'Master {target} Missions with every objective',
+    metric: 'campaignMissionsMastered',
+    targets: [3, 10, 20, 35, 50],
+    rewards: [105, 160, 220, 300, 365]
+  },
+  {
+    id: 'elite-hunter',
+    title: 'Elite Hunter',
+    description: 'Defeat {target} Elite Bosses',
+    metric: 'eliteBossesDefeated',
+    targets: [5, 15, 40, 80, 150],
+    rewards: [85, 135, 180, 245, 305]
+  },
+  {
+    id: 'gauntlet-runner',
+    title: 'Gauntlet Runner',
+    description: 'Finish {target} Weekly Runs',
+    descriptionOne: 'Finish a full Weekly Run',
+    metric: 'weeklyRunsCompleted',
+    targets: [1, 5, 15, 30, 60],
+    rewards: [100, 155, 210, 285, 350]
+  },
+  {
+    id: 'deep-sector',
+    title: 'Deep Sector',
+    description: 'Reach Weekly Run Sector {target}',
+    metric: 'weeklyBestSector',
+    targets: [2, 4, 6, 8, 9],
+    rewards: [80, 125, 170, 235, 290]
+  },
+  {
+    id: 'hangar-engineer',
+    title: 'Hangar Engineer',
+    description: 'Purchase {target} Hangar upgrades',
+    metric: 'hangarUpgradesPurchased',
+    targets: [5, 15, 35, 70, 120],
+    rewards: [70, 110, 150, 210, 260]
   }
 ];
 
@@ -233,6 +293,8 @@ export const recordLifetimeRun = (
     wave: number;
     enemiesDefeated: number;
     coinsCollected: number;
+    /** Set only for a Weekly Run, so the gauntlet achievements stay mode-specific. */
+    weeklyRun?: { completed: boolean; sectorReached: number };
   }
 ): PermanentSquadState => ({
   ...state,
@@ -242,7 +304,15 @@ export const recordLifetimeRun = (
     highestWave: Math.max(state.lifetimeStats.highestWave, Math.max(0, Math.floor(result.wave))),
     enemiesDefeated: state.lifetimeStats.enemiesDefeated + Math.max(0, Math.floor(result.enemiesDefeated)),
     coinsCollected: state.lifetimeStats.coinsCollected + Math.max(0, Math.floor(result.coinsCollected)),
-    bestScore: Math.max(state.lifetimeStats.bestScore, Math.max(0, Math.floor(result.score)))
+    bestScore: Math.max(state.lifetimeStats.bestScore, Math.max(0, Math.floor(result.score))),
+    weeklyRunsCompleted: state.lifetimeStats.weeklyRunsCompleted
+      + (result.weeklyRun?.completed ? 1 : 0),
+    // Depth counts even on a run that ended in defeat -- reaching Sector 8 and
+    // dying is still the achievement the player earned.
+    weeklyBestSector: Math.max(
+      state.lifetimeStats.weeklyBestSector,
+      Math.max(0, Math.floor(result.weeklyRun?.sectorReached ?? 0))
+    )
   },
   updatedAt: new Date().toISOString()
 });
@@ -469,6 +539,12 @@ export const claimAchievement = (
   };
 };
 
-export const formatAchievementDescription = (status: AchievementStatus) => (
-  status.definition.description.replace('{target}', status.target.toLocaleString())
-);
+export const formatAchievementDescription = (status: AchievementStatus) => {
+  // A tier target of 1 needs authored singular copy, not a depluralising
+  // regex: the noun is not always the word after the number ("Finish 1 Weekly
+  // Runs"), so guessing gets it wrong more often than it gets it right.
+  const template = status.target === 1 && status.definition.descriptionOne
+    ? status.definition.descriptionOne
+    : status.definition.description;
+  return template.replace('{target}', status.target.toLocaleString());
+};

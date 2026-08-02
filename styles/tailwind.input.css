@@ -367,6 +367,52 @@
   background: rgb(8 145 178 / 0.4);
 }
 
+/* A Weekly Run that ends showed the same generic Defeated panel as an arcade
+   run. This reports the three things the run was actually about: how deep the
+   gauntlet got, how many Sector bosses fell, and what it scored for the week. */
+.sci-weekly-run-result {
+  border: 1px solid rgb(165 243 252 / 0.28);
+  background: rgb(8 145 178 / 0.14);
+  padding: 0.5rem 0.55rem 0.55rem;
+  margin: 0 0 0.15rem;
+}
+
+.sci-weekly-run-result__eyebrow {
+  color: rgb(103 232 249);
+  font: 900 0.56rem/1 inherit;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 0 0 0.45rem;
+}
+
+.sci-weekly-run-result__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.sci-weekly-run-result__grid > div {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.sci-weekly-run-result__grid strong {
+  color: rgb(236 254 255);
+  font: 900 1.05rem/1 inherit;
+  letter-spacing: 0.02em;
+}
+
+.sci-weekly-run-result__grid span {
+  color: rgb(148 163 184);
+  font: 800 0.5rem/1.15 inherit;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  /* Three labels of different lengths sit side by side on a 390px screen, so
+     they must wrap inside their column rather than widen it. */
+  overflow-wrap: anywhere;
+}
+
 /* Names the Campaign mode above its launch control so it reads as the
    counterpart to the Weekly Run entry rather than an unlabelled button. */
 .sci-campaign-mode-strip {

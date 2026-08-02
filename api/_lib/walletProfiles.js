@@ -2396,7 +2396,16 @@ const sanitizePermanentState = (rawValue, profileId, now) => {
       enemiesDefeated: integer(lifetimeStats.enemiesDefeated, 0, 1_000_000_000),
       bossesDefeated: integer(lifetimeStats.bossesDefeated, 0, 1_000_000_000),
       coinsCollected: integer(lifetimeStats.coinsCollected, 0, 1_000_000_000),
-      bestScore: integer(lifetimeStats.bestScore, 0, 1_000_000_000)
+      bestScore: integer(lifetimeStats.bestScore, 0, 1_000_000_000),
+      // Campaign, Weekly Run, Elite Boss, and Hangar achievement metrics. Left
+      // out of this sanitizer they would be dropped on every cloud sync, so a
+      // Pilot's progress toward the new tracks would reset on another device.
+      campaignMissionsCleared: integer(lifetimeStats.campaignMissionsCleared, 0, 1_000_000),
+      campaignMissionsMastered: integer(lifetimeStats.campaignMissionsMastered, 0, 1_000_000),
+      eliteBossesDefeated: integer(lifetimeStats.eliteBossesDefeated, 0, 1_000_000_000),
+      weeklyRunsCompleted: integer(lifetimeStats.weeklyRunsCompleted, 0, 1_000_000),
+      weeklyBestSector: integer(lifetimeStats.weeklyBestSector, 0, 1_000),
+      hangarUpgradesPurchased: integer(lifetimeStats.hangarUpgradesPurchased, 0, 1_000_000)
     },
     achievementTiers,
     unlockedPlayerShips: stringList(value.unlockedPlayerShips, {

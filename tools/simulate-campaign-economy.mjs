@@ -105,8 +105,10 @@ const parseRewardCenterInputs = (rewardSource) => {
   if (dailyCoins.length !== 30) {
     throw new Error(`Expected 30 daily-gift rewards, found ${dailyCoins.length}.`);
   }
-  if (achievements.length !== 6) {
-    throw new Error(`Expected 6 achievement tracks, found ${achievements.length}.`);
+  // Six arcade tracks plus six covering the Campaign graph, the Weekly Run,
+  // Elite Bosses, and the Hangar.
+  if (achievements.length !== 12) {
+    throw new Error(`Expected 12 achievement tracks, found ${achievements.length}.`);
   }
   return { dailyCoins, achievements };
 };
@@ -509,7 +511,8 @@ export const simulateCampaignEconomy = ({
       ...achievement,
       totalCoins: sum(achievement.rewards)
     })),
-    achievementCoins: sum(rewardCenter.achievements.flatMap((achievement) => achievement.rewards))
+    achievementCoins: sum(rewardCenter.achievements.flatMap((achievement) => achievement.rewards)),
+    achievementTracks: rewardCenter.achievements.length
   };
 
   const bossNodes = (campaign.campaignGraph?.nodes ?? []).filter((node) => node.bossId);

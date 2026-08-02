@@ -5747,6 +5747,22 @@ export class GameEngine {
     return 'mini1';
   }
 
+  /**
+   * The display name of the Elite Boss currently being warned about, or null
+   * when the pending encounter is a hazard, a supply drop, or a major boss --
+   * those keep their own banners.
+   */
+  getPendingEliteBossName(): string | null {
+    if (this.pendingBossType !== 'mini1') return null;
+    const event = this.pendingConfiguredEncounter;
+    if (!event || event.kind !== 'boss' || isMajorBossId(event.bossId)) return null;
+    const authored = this.campaign?.miniBosses?.find((entry) => entry.bossId === event.bossId);
+    const name = authored?.label
+      ?? getMiniBossEncounterDefinition(event.bossId)?.displayName
+      ?? getMiniBossEncounterByEventId(event.id)?.displayName;
+    return typeof name === 'string' && name.trim().length > 0 ? name.trim().toUpperCase() : null;
+  }
+
   queueConfiguredEncounter(event: RuntimeEncounterEvent) {
     if (this.configuredEncounterIds.has(event.id) || this.inBossWarningSequence) return;
     this.configuredEncounterIds.add(event.id);
@@ -18943,7 +18959,12 @@ export class GameEngine {
       wall: 'PAYWALL FORMATION',
       asteroid: 'ASTEROID BELT'
     };
-    const label = labels[this.pendingBossType as Exclude<BossWarningType, 'gatekeeper'>];
+    // All ten authored Elite Bosses used to announce themselves with the same
+    // hardcoded 'BOTTLENECK SURGE', so the encounter the player was about to
+    // fight had no identity. Name it when the Campaign authored one.
+    const eliteName = this.getPendingEliteBossName();
+    const label = eliteName ?? labels[this.pendingBossType as Exclude<BossWarningType, 'gatekeeper'>];
+    const heading = eliteName ? 'ELITE BOSS' : 'WARNING';
     const panelWidth = Math.min(this.width - 42, 360);
     const panelHeight = 74;
     const x = (this.width - panelWidth) / 2;
@@ -18969,9 +18990,16 @@ export class GameEngine {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#fef08a';
     ctx.font = 'bold 12px Orbitron';
-    ctx.fillText('WARNING', this.width / 2, y + 26);
+    ctx.fillText(heading, this.width / 2, y + 26);
     ctx.fillStyle = '#ffffff';
+    // Elite names run longer than the three fixed labels, so shrink to fit
+    // rather than letting the name spill outside the panel.
     ctx.font = 'bold 18px Orbitron';
+    const maxLabelWidth = panelWidth - 28;
+    if (ctx.measureText(label).width > maxLabelWidth) {
+      const scaled = Math.max(11, Math.floor(18 * (maxLabelWidth / ctx.measureText(label).width)));
+      ctx.font = `bold ${scaled}px Orbitron`;
+    }
     ctx.fillText(label, this.width / 2, y + 52);
     ctx.restore();
   }

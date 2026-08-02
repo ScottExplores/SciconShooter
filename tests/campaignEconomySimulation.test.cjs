@@ -144,7 +144,12 @@ test('Reward Center, Boss Archive, and combat pickup sources remain explicit', a
 
   assert.equal(simulation.rewardCenterInventory.dailyGiftDays, 30);
   assert.equal(simulation.rewardCenterInventory.dailyGiftCycleCoins, 9450);
-  assert.equal(simulation.rewardCenterInventory.achievementCoins, 10400);
+  // Twelve tracks now, not six: the Campaign graph, Weekly Run, Elite Bosses,
+  // and Hangar each earned one. The lifetime pool only grew by 500 coins
+  // because the six arcade tracks were rebalanced down to make room -- the
+  // guardrail below caps free lifetime income near one expected Campaign.
+  assert.equal(simulation.rewardCenterInventory.achievementCoins, 10900);
+  assert.equal(simulation.rewardCenterInventory.achievementTracks, 12);
   assert.equal(simulation.bossArchiveInventory.entries.length, 10);
   assert.equal(simulation.bossArchiveInventory.dailyChargeLimit, 3);
   assert.equal(simulation.bossArchiveInventory.oneTimeMasteryCoins, 5700);

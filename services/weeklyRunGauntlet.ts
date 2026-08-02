@@ -107,6 +107,33 @@ export const buildWeeklyRunRoute = (
 };
 
 /**
+ * Whether a Mission is the Sector boss on the Weekly Run route. Graph nodes
+ * carry no encounter kind, so the role has to come from the route itself:
+ * WEEKLY_RUN_MISSION_ROLES puts 'major-boss' last in every Sector.
+ */
+export const isWeeklyRunBossMission = (
+  missionId: string | null | undefined,
+  route: WeeklyRunRoute = buildWeeklyRunRoute()
+): boolean => {
+  if (!missionId) return false;
+  return route.sectors.some((sector) => sector.missionIds.at(-1) === missionId);
+};
+
+/**
+ * The 1-based Sector a Weekly Run Mission belongs to, or 0 when the Mission is
+ * not on the route. Achievements report depth in Sectors because that is what
+ * the run screen shows the player, not raw Mission counts.
+ */
+export const getWeeklyRunSectorNumber = (
+  missionId: string | null | undefined,
+  route: WeeklyRunRoute = buildWeeklyRunRoute()
+): number => {
+  if (!missionId) return 0;
+  const sector = route.sectors.find((candidate) => candidate.missionIds.includes(missionId));
+  return sector ? sector.index + 1 : 0;
+};
+
+/**
  * Builds the campaign the engine actually runs for a Weekly Run: the same
  * authored levels, filtered and reordered into the gauntlet route.
  *

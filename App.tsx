@@ -71,6 +71,7 @@ import {
   type MiniShipId,
   CAMPAIGN_BASE_STARTING_LIVES,
   CAMPAIGN_MAX_STARTING_LIVES,
+  CAMPAIGN_MISSION_MASTERY_STARS,
   type PermanentSquadState,
   type RuntimeSquadLoadout,
   type SquadSlotId,
@@ -167,6 +168,9 @@ import { getStageName } from './services/stagePresentation';
 import { DEFAULT_GAME_CAMPAIGN } from './services/levelConfig';
 import {
   WEEKLY_RUN_STARTING_LIVES,
+  getWeeklyRunSectorNumber,
+  isWeeklyRunBossMission,
+  WEEKLY_RUN_SECTOR_ORDER,
   buildWeeklyRunCampaign,
   getWeeklyRunEntryPoint
 } from './services/weeklyRunGauntlet';
@@ -716,6 +720,12 @@ const App: React.FC = () => {
   const campaignBranchCoinBaselineRef = useRef<number | null>(null);
   const campaignLabActiveRequestRef = useRef<CampaignLabLaunchRequest | null>(null);
   const campaignRunCreditedEnemiesRef = useRef(0);
+  /**
+   * Weekly Run depth, tracked across the whole gauntlet rather than per
+   * Mission, because a run spans nine Sectors in one continuous session.
+   */
+  const weeklyRunSectorReachedRef = useRef(0);
+  const weeklyRunSectorsClearedRef = useRef(0);
   const campaignResultPreviewRef = useRef(false);
   const weeklySquadStateRef = useRef(weeklySquadState);
   const permanentSquadStateRef = useRef(permanentSquadState);
@@ -1142,11 +1152,28 @@ const App: React.FC = () => {
 
   const handleUpgradeMainShip = useCallback((id: MainShipUpgradeId) => {
     if (isOwnerWallet) {
+      // Founder adjustments are a debug affordance, not a purchase, so they do
+      // not feed the Hangar Engineer achievement.
       updateWeeklySquadState((current) => adjustFounderMainShipUpgrade(current, usableShipId, id, 1), false);
       return;
     }
-    updateWeeklySquadState((current) => upgradeMainShip(current, usableShipId, id));
-  }, [isOwnerWallet, updateWeeklySquadState, usableShipId]);
+    updateWeeklySquadState((current) => {
+      const next = upgradeMainShip(current, usableShipId, id);
+      // upgradeMainShip returns the same state when the purchase is refused for
+      // cost or max level, so only a real change counts.
+      if (next !== current) {
+        updatePermanentSquadState((permanent) => ({
+          ...permanent,
+          lifetimeStats: {
+            ...permanent.lifetimeStats,
+            hangarUpgradesPurchased: permanent.lifetimeStats.hangarUpgradesPurchased + 1
+          },
+          updatedAt: new Date().toISOString()
+        }));
+      }
+      return next;
+    });
+  }, [isOwnerWallet, updatePermanentSquadState, updateWeeklySquadState, usableShipId]);
 
   const handleDowngradeMainShip = useCallback((id: MainShipUpgradeId) => {
     if (!isOwnerWallet) return;
@@ -2156,6 +2183,19 @@ const App: React.FC = () => {
     setActiveRunMode(runMode);
     setActiveBossEncounterId(requestedBossReplay?.eventId ?? null);
     setActiveCampaignLaunch(normalizedCampaignRequest);
+    // A Weekly Run rolls straight from one Mission into the next without
+    // returning home, so depth is tracked here, at the single launch funnel,
+    // rather than in any one Mission's completion path.
+    if (runMode === 'weekly-streak') {
+      const sector = getWeeklyRunSectorNumber(normalizedCampaignRequest?.missionId);
+      if (sector > 0) {
+        weeklyRunSectorReachedRef.current = Math.max(weeklyRunSectorReachedRef.current, sector);
+        weeklyRunSectorsClearedRef.current = Math.max(weeklyRunSectorsClearedRef.current, sector - 1);
+      }
+    } else {
+      weeklyRunSectorReachedRef.current = 0;
+      weeklyRunSectorsClearedRef.current = 0;
+    }
     setActiveCampaignBranchId(requestedCampaignBranch?.branchId ?? null);
 
     const archiveRunId = requestedBossReplay && !matchingReusableArchiveRun
@@ -4021,7 +4061,16 @@ const App: React.FC = () => {
         highestWave: Math.max(currentPermanent.lifetimeStats.highestWave, summary.stage),
         enemiesDefeated: currentPermanent.lifetimeStats.enemiesDefeated + creditedEnemies,
         coinsCollected: currentPermanent.lifetimeStats.coinsCollected,
-        bestScore: Math.max(currentPermanent.lifetimeStats.bestScore, summary.totalScore)
+        bestScore: Math.max(currentPermanent.lifetimeStats.bestScore, summary.totalScore),
+        // Counted on first clear and first full mastery only, so replaying a
+        // Mission cannot farm the Campaign achievements.
+        campaignMissionsCleared: currentPermanent.lifetimeStats.campaignMissionsCleared
+          + (completion.settlement.firstClear && summary.stageComplete ? 1 : 0),
+        campaignMissionsMastered: currentPermanent.lifetimeStats.campaignMissionsMastered
+          + (completion.settlement.stars >= CAMPAIGN_MISSION_MASTERY_STARS
+            && completion.settlement.previousStars < CAMPAIGN_MISSION_MASTERY_STARS ? 1 : 0),
+        eliteBossesDefeated: currentPermanent.lifetimeStats.eliteBossesDefeated
+          + Math.max(0, Math.floor(summary.miniBossKills ?? 0))
       },
       updatedAt: new Date().toISOString()
     };
@@ -4217,6 +4266,10 @@ const App: React.FC = () => {
       const outgoing = WEEKLY_CAMPAIGN_GRAPH.edgesBySourceNodeId.get(streak.currentNodeId) ?? [];
       if (outgoing.length === 0) {
         try {
+          // No outgoing edge means the final Sector boss is down: the gauntlet
+          // is finished, which is what Gauntlet Runner counts.
+          weeklyRunSectorsClearedRef.current = WEEKLY_RUN_SECTOR_ORDER.length;
+          weeklyRunSectorReachedRef.current = WEEKLY_RUN_SECTOR_ORDER.length;
           finishWeeklyCampaignForLeaderboard(finalizeCompletedWeeklyCampaignStreak(
             streak,
             WEEKLY_CAMPAIGN_GRAPH,
@@ -4993,7 +5046,13 @@ const App: React.FC = () => {
           score: stats.score,
           wave: stats.wave,
           enemiesDefeated: unsettledLifetimeCampaignEnemies,
-          coinsCollected: isCampaignRun ? 0 : stats.coins
+          coinsCollected: isCampaignRun ? 0 : stats.coins,
+          weeklyRun: isWeeklyCampaignRun
+            ? {
+                completed: weeklyRunSectorsClearedRef.current >= WEEKLY_RUN_SECTOR_ORDER.length,
+                sectorReached: weeklyRunSectorReachedRef.current
+              }
+            : undefined
         }));
       }
       const scoreKey = `${gameId}:${stats.score}:${stats.wave}`;
@@ -5435,6 +5494,33 @@ const App: React.FC = () => {
     allocationRsc: 100,
     status: 'finalized'
   };
+  /**
+   * A Weekly Run that ends used to show the same generic Defeated panel as an
+   * arcade run: no indication of how deep the gauntlet got, how many Sector
+   * bosses fell, or that the score counts for the week. Built from the
+   * persisted streak rather than a ref so it survives a re-render.
+   */
+  const weeklyRunResultSummary = useMemo(() => {
+    if (!isWeeklyCampaignRun) return null;
+    const streak = weeklySquadState.weeklyCampaignStreak;
+    if (!streak) return null;
+    const visitedSectors = new Set<number>();
+    let bossesCleared = 0;
+    for (const nodeId of streak.visitedNodeIds) {
+      const node = WEEKLY_CAMPAIGN_GRAPH.nodeById.get(nodeId);
+      const sector = getWeeklyRunSectorNumber(node?.missionDefinitionId);
+      if (sector > 0) visitedSectors.add(sector);
+      if (isWeeklyRunBossMission(node?.missionDefinitionId) && streak.scoredNodeIds.includes(nodeId)) bossesCleared += 1;
+    }
+    return {
+      sectorReached: visitedSectors.size > 0 ? Math.max(...visitedSectors) : 1,
+      totalSectors: WEEKLY_RUN_SECTOR_ORDER.length,
+      bossesCleared,
+      points: streak.score.totalPoints,
+      completed: streak.finalization.status === 'finalized'
+    };
+  }, [isWeeklyCampaignRun, weeklySquadState.weeklyCampaignStreak]);
+
   const missionResultBanner = (
     <div className="relative overflow-hidden border border-cyan-200/30 bg-[radial-gradient(circle_at_82%_48%,rgba(59,130,246,0.24),transparent_27%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(2,6,23,0.98))] px-4 py-3 shadow-[0_0_36px_rgba(34,211,238,0.12)] [clip-path:polygon(18px_0,calc(50%_-_26px)_0,calc(50%_-_16px)_8px,calc(50%_+_16px)_8px,calc(50%_+_26px)_0,calc(100%_-_18px)_0,100%_18px,100%_calc(100%_-_18px),calc(100%_-_18px)_100%,18px_100%,0_calc(100%_-_18px),0_18px)]">
       <div className="pointer-events-none absolute left-0 top-5 h-12 w-24 -translate-x-10 -skew-x-[24deg] border-y border-r border-yellow-200/35 bg-yellow-300/10" />
@@ -5959,6 +6045,27 @@ const App: React.FC = () => {
             </div>
           ) : (
             <div className="sci-gameover-result-content relative z-10 grid gap-2 p-1 text-center">
+              {weeklyRunResultSummary ? (
+                <div className="sci-weekly-run-result">
+                  <p className="sci-weekly-run-result__eyebrow">
+                    {weeklyRunResultSummary.completed ? 'Gauntlet Complete' : 'Weekly Run Ended'}
+                  </p>
+                  <div className="sci-weekly-run-result__grid">
+                    <div>
+                      <strong>{weeklyRunResultSummary.sectorReached}</strong>
+                      <span>of {weeklyRunResultSummary.totalSectors} sectors</span>
+                    </div>
+                    <div>
+                      <strong>{weeklyRunResultSummary.bossesCleared}</strong>
+                      <span>bosses down</span>
+                    </div>
+                    <div>
+                      <strong>{weeklyRunResultSummary.points.toLocaleString()}</strong>
+                      <span>weekly points</span>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               {missionResultBanner}
 
               {showNameInput ? (
