@@ -5107,7 +5107,9 @@ const App: React.FC = () => {
         return;
       }
 
-      if (!isNonCompetitiveRun && stats.score > stats.highScore) {
+      // High scores belong to the Weekly Run. Campaign is for playing,
+      // upgrading, and reaching bosses -- it deliberately records no score.
+      if (isWeeklyLeaderboardRun && stats.score > stats.highScore) {
         setStats(s => ({ ...s, highScore: s.score }));
       }
 

@@ -135,6 +135,54 @@ interface StartScreenProps {
 }
 
 type LeaderboardView = 'weekly' | 'allTime' | 'pastPicks' | 'records';
+
+/**
+ * The Trophy Deck covers two unrelated things: the Weekly Run competition
+ * (scores, champion picks, confirmed funding) and Campaign progression. They
+ * were interleaved in one flat tab strip, which implied Campaign feeds the
+ * leaderboard. It does not -- Campaign records no score at all.
+ */
+type TrophyCategory = 'weeklyFunding' | 'campaign';
+
+/**
+ * Campaign's half of the Trophy Deck. Deliberately shows no score and no rank:
+ * Campaign is about progression, and the competition lives entirely in the
+ * Weekly Run.
+ */
+const CampaignTrophyPanel = ({ state }: { state: PermanentSquadState }) => {
+  const stats = state.lifetimeStats;
+  const progress = state.campaignProgress;
+  const missionRecords = Object.values(progress?.missionRecords ?? {});
+  const completed = missionRecords.filter((record) => record.completed).length;
+  const totalStars = missionRecords.reduce((sum, record) => sum + (record.stars ?? 0), 0);
+  const bossArchiveUnlocked = state.bossArchive?.unlockedEventIds?.length ?? 0;
+
+  const rows: Array<{ label: string; value: number; hint: string }> = [
+    { label: 'Missions cleared', value: completed, hint: 'First clears across the Campaign graph' },
+    { label: 'Missions mastered', value: stats.campaignMissionsMastered, hint: 'Every objective met' },
+    { label: 'Stars earned', value: totalStars, hint: 'Three per Mission at full mastery' },
+    { label: 'Elite Bosses beaten', value: stats.eliteBossesDefeated, hint: 'Checkpoint encounters' },
+    { label: 'Bosses archived', value: bossArchiveUnlocked, hint: 'Unlocked for replay' },
+    { label: 'Hangar upgrades', value: stats.hangarUpgradesPurchased, hint: 'Purchased across all hulls' }
+  ];
+
+  return (
+    <div className="sci-campaign-trophies">
+      {rows.map((row) => (
+        <div key={row.label} className="sci-campaign-trophies__row">
+          <div className="min-w-0">
+            <p className="sci-campaign-trophies__label">{row.label}</p>
+            <p className="sci-campaign-trophies__hint">{row.hint}</p>
+          </div>
+          <strong className="sci-campaign-trophies__value">{formatNumber(row.value)}</strong>
+        </div>
+      ))}
+      <p className="sci-campaign-trophies__note">
+        Campaign records no score. High scores and funding picks belong to the Weekly Run.
+      </p>
+    </div>
+  );
+};
 type DashboardTab = 'home' | 'proposals' | 'trophies' | 'more' | 'hangar';
 type IconName =
   | 'home'
@@ -642,6 +690,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onDowngradeMainShip
 }) => {
   const [leaderboardView, setLeaderboardView] = useState<LeaderboardView>('weekly');
+  const [trophyCategory, setTrophyCategory] = useState<TrophyCategory>('weeklyFunding');
   const [dashboardTab, setDashboardTab] = useState<DashboardTab>(() => {
     if (testChampionWinner || requestedChampionWinner) return 'proposals';
     const requested = new URLSearchParams(window.location.search).get('view');
@@ -1657,7 +1706,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 
   const TrophiesDashboard = () => {
-    const showsLeaderboard = leaderboardView === 'weekly' || leaderboardView === 'allTime';
+    const isCampaignCategory = trophyCategory === 'campaign';
+    const showsLeaderboard = !isCampaignCategory
+      && (leaderboardView === 'weekly' || leaderboardView === 'allTime');
     const firstPlace = showsLeaderboard ? displayedLeaderboard[0] : undefined;
     const rankedEntries = showsLeaderboard ? displayedLeaderboard.slice(1) : [];
 
@@ -1666,9 +1717,38 @@ const StartScreen: React.FC<StartScreenProps> = ({
       <div className="p-4 md:p-5">
         <div className="mb-3">
           <h2 className="text-2xl font-black text-white">Trophy Deck</h2>
-          <p className="text-sm text-slate-300">High scores, champion picks, confirmed funding, and your recent missions.</p>
+          <p className="text-sm text-slate-300">
+            {isCampaignCategory
+              ? 'Campaign progression: sectors cleared, Missions mastered, and bosses beaten.'
+              : 'Weekly Run scores, champion picks, confirmed funding, and your recent runs.'}
+          </p>
         </div>
 
+        {/* Two unrelated things live here. Weekly Funding is the competition;
+            Campaign is progression and records no score. */}
+        <div className="sci-trophy-category" role="tablist" aria-label="Trophy deck category">
+          {([
+            ['weeklyFunding', 'Weekly Funding'],
+            ['campaign', 'Campaign']
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={trophyCategory === id}
+              onClick={() => setTrophyCategory(id)}
+              className="sci-trophy-category__tab"
+              data-active={trophyCategory === id ? 'true' : 'false'}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {isCampaignCategory ? (
+          <CampaignTrophyPanel state={permanentSquadState} />
+        ) : (
+        <>
         {showsLeaderboard ? (
           <div className="mb-2">
             {isLoading ? (
@@ -1901,6 +1981,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
               );
             })}
           </div>
+        )}
+        </>
         )}
       </div>
     </HudPanel>
