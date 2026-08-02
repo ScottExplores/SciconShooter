@@ -848,6 +848,20 @@
         font-size: 0.48rem;
       }
 
+      /* The desktop and phone decks are separate <main> elements and rely on
+         Tailwind's `hidden lg:block` / `lg:hidden` to stay mutually exclusive.
+         Until that stylesheet applies, neither class does anything and BOTH
+         decks paint at once, which reads as a doubled, clipped home screen.
+         These rules live in the inline base stylesheet so the two layouts can
+         never overlap, even on the first paint of a cold load. */
+      #root main.scicon-desktop-deck { display: none; }
+      #root main.scicon-mobile-main { display: flex; }
+
+      @media (min-width: 1024px) {
+        #root main.scicon-desktop-deck { display: block; }
+        #root main.scicon-mobile-main { display: none; }
+      }
+
       #root .scicon-mobile-home {
         display: grid;
         /* Funding panel, Weekly Run entry, then the hero/Start Mission deck.

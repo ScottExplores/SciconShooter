@@ -1339,7 +1339,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           onClick={onStartWeeklyRun}
           aria-label={weeklyRunActive
             ? `Resume Weekly Run. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
-            : `Start Weekly Run. One life, every boss, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
+            : `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, ${WEEKLY_RUN_BOSS_COUNT} bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
         >
           <span className="sci-weekly-run-entry__glyph" aria-hidden="true">
             <img src={ASSETS.PLAYER_SHIP} alt="" draggable={false} />
@@ -2197,7 +2197,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
       ) : null}
 
       <div className="scicon-start-shell relative z-10 mx-auto flex h-full min-h-0 w-full max-w-[1560px] flex-col gap-4 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 lg:gap-5 lg:px-6 lg:pb-6">
-        <main className="hidden lg:block">
+        <main className="scicon-desktop-deck hidden lg:block">
           {dashboardTab === 'home' ? (
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.14fr)_minmax(25rem,0.86fr)]">
               <div className="space-y-5">
