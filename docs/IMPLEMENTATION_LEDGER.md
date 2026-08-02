@@ -4,7 +4,7 @@ Persistent task ledger for the Weekly Run / Campaign separation overhaul.
 An item is **done** only when it is reachable and functional in the running
 game. "Code exists" or "build compiles" is not done.
 
-Branch: `experimental/arcade-polish` (nothing pushed to `main`).
+Branch: merged to `main` on 2026-08-02 (fast-forward, 38 commits). New work continues on feature branches.
 
 ## Status key
 - `TODO` not started
