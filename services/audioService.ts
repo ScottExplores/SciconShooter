@@ -61,6 +61,23 @@ const MAX_SFX_GAIN = 0.3;
 // bus. The old 0.045 peak was effectively inaudible beside impact cues.
 const PLAYER_SHOT_GAIN = 0.12;
 const MAX_VOLUME_LEVEL = 5;
+/**
+ * Background music. Menu is the home-screen bed, combat runs under normal
+ * waves, and boss swaps in for encounters -- the swap is the cue that a boss
+ * has arrived, before the player has even seen it.
+ */
+export type MusicTrack = 'menu' | 'combat' | 'boss';
+
+const MUSIC_ROOT = '/audio/scicon-audio-v1';
+const MUSIC_URLS: Record<MusicTrack, string> = {
+  menu: `${MUSIC_ROOT}/music-menu.wav`,
+  combat: `${MUSIC_ROOT}/music-combat.wav`,
+  boss: `${MUSIC_ROOT}/music-boss.wav`
+};
+
+/** Music sits under the effects, not beside them. */
+const MUSIC_BASE_GAIN = 0.34;
+
 const SFX_VOLUME_STORAGE_KEY = 'scicon-shooter:sfx-volume:v1';
 const UI_SAMPLE_KEYS: ReadonlyArray<SampleKey> = [
   'ui-click',
@@ -733,6 +750,118 @@ class AudioService {
         osc.stop(t + 0.1);
         break;
     }
+  }
+
+  // ---------------------------------------------------------------- music
+  //
+  // The game shipped with no music at all. These loops run on their own gain
+  // bus so music can be balanced against, or silenced independently of, the
+  // sound effects.
+
+  private musicGain: GainNode | null = null;
+  private musicSource: AudioBufferSourceNode | null = null;
+  private musicBuffers: Partial<Record<MusicTrack, AudioBuffer>> = {};
+  private musicLoadPromises: Partial<Record<MusicTrack, Promise<AudioBuffer | null>>> = {};
+  private currentMusic: MusicTrack | null = null;
+  private musicVolumeLevel: number = MAX_VOLUME_LEVEL;
+
+  private async loadMusic(track: MusicTrack): Promise<AudioBuffer | null> {
+    const cached = this.musicBuffers[track];
+    if (cached) return cached;
+    const inFlight = this.musicLoadPromises[track];
+    if (inFlight) return inFlight;
+
+    const promise = (async () => {
+      const ctx = this.ensureAudioContext();
+      if (!ctx) return null;
+      try {
+        const response = await fetch(MUSIC_URLS[track]);
+        if (!response.ok) return null;
+        const buffer = await ctx.decodeAudioData(await response.arrayBuffer());
+        this.musicBuffers[track] = buffer;
+        return buffer;
+      } catch {
+        // Music is ambience. A failed fetch must never take gameplay with it.
+        return null;
+      }
+    })();
+    this.musicLoadPromises[track] = promise;
+    return promise;
+  }
+
+  private ensureMusicGain(): GainNode | null {
+    const ctx = this.ensureAudioContext();
+    if (!ctx) return null;
+    if (!this.musicGain) {
+      this.musicGain = ctx.createGain();
+      this.musicGain.gain.value = 0;
+      this.musicGain.connect(this.masterGain ?? ctx.destination);
+    }
+    return this.musicGain;
+  }
+
+  private get musicTargetGain() {
+    return this.muted ? 0 : (this.musicVolumeLevel / MAX_VOLUME_LEVEL) * MUSIC_BASE_GAIN;
+  }
+
+  /**
+   * Crossfades to a track, or does nothing if it is already playing. Safe to
+   * call every render.
+   */
+  async playMusic(track: MusicTrack | null, { fadeSeconds = 0.6 } = {}) {
+    if (track === this.currentMusic) return;
+    const ctx = this.ensureAudioContext();
+    const gain = this.ensureMusicGain();
+    if (!ctx || !gain) return;
+
+    const now = ctx.currentTime;
+    const previous = this.musicSource;
+    if (previous) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
+      previous.stop(now + fadeSeconds + 0.05);
+    }
+    this.musicSource = null;
+    this.currentMusic = track;
+    if (!track) return;
+
+    const buffer = await this.loadMusic(track);
+    // A late-arriving buffer must not hijack a track the game has since
+    // switched away from.
+    if (!buffer || this.currentMusic !== track) return;
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(gain);
+    const startAt = ctx.currentTime;
+    source.start(startAt);
+    this.musicSource = source;
+
+    gain.gain.cancelScheduledValues(startAt);
+    gain.gain.setValueAtTime(0, startAt);
+    gain.gain.linearRampToValueAtTime(this.musicTargetGain, startAt + fadeSeconds);
+  }
+
+  stopMusic(fadeSeconds = 0.4) {
+    void this.playMusic(null, { fadeSeconds });
+  }
+
+  setMusicVolumeLevel(level: number) {
+    this.musicVolumeLevel = Math.max(0, Math.min(MAX_VOLUME_LEVEL, Math.round(level)));
+    const ctx = this.ctx;
+    if (this.musicGain && ctx) {
+      this.musicGain.gain.setTargetAtTime(this.musicTargetGain, ctx.currentTime, 0.05);
+    }
+  }
+
+  getMusicVolumeLevel() {
+    return this.musicVolumeLevel;
+  }
+
+  getCurrentMusic() {
+    return this.currentMusic;
   }
 }
 

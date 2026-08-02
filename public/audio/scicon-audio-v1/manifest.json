@@ -1,0 +1,170 @@
+{
+  "id": "scicon-audio-v1",
+  "generator": "tools/generate-game-audio.mjs",
+  "note": "Chiptune, synthesised procedurally. No sample library or audio generator was used.",
+  "sampleRate": 44100,
+  "cues": [
+    {
+      "id": "ui-tap",
+      "group": "ui",
+      "url": "/audio/scicon-audio-v1/ui-tap.wav",
+      "seconds": 0.09,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Any button press"
+    },
+    {
+      "id": "ui-confirm",
+      "group": "ui",
+      "url": "/audio/scicon-audio-v1/ui-confirm.wav",
+      "seconds": 0.26,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Launch, claim, accept"
+    },
+    {
+      "id": "ui-back",
+      "group": "ui",
+      "url": "/audio/scicon-audio-v1/ui-back.wav",
+      "seconds": 0.16,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Close or go back"
+    },
+    {
+      "id": "ui-denied",
+      "group": "ui",
+      "url": "/audio/scicon-audio-v1/ui-denied.wav",
+      "seconds": 0.22,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Locked or unaffordable"
+    },
+    {
+      "id": "ui-upgrade",
+      "group": "ui",
+      "url": "/audio/scicon-audio-v1/ui-upgrade.wav",
+      "seconds": 0.5,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Hangar purchase"
+    },
+    {
+      "id": "enemy-shoot",
+      "group": "enemy",
+      "url": "/audio/scicon-audio-v1/enemy-shoot.wav",
+      "seconds": 0.13,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Hostile fires"
+    },
+    {
+      "id": "enemy-dive",
+      "group": "enemy",
+      "url": "/audio/scicon-audio-v1/enemy-dive.wav",
+      "seconds": 0.34,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Diver or kamikaze commits"
+    },
+    {
+      "id": "enemy-death",
+      "group": "enemy",
+      "url": "/audio/scicon-audio-v1/enemy-death.wav",
+      "seconds": 0.26,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Hostile destroyed"
+    },
+    {
+      "id": "enemy-armored-hit",
+      "group": "enemy",
+      "url": "/audio/scicon-audio-v1/enemy-armored-hit.wav",
+      "seconds": 0.16,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Shot lands on armour"
+    },
+    {
+      "id": "elite-boss-warning",
+      "group": "boss",
+      "url": "/audio/scicon-audio-v1/elite-boss-warning.wav",
+      "seconds": 1.15,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Elite Boss inbound"
+    },
+    {
+      "id": "major-boss-warning",
+      "group": "boss",
+      "url": "/audio/scicon-audio-v1/major-boss-warning.wav",
+      "seconds": 1.7,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Major boss inbound"
+    },
+    {
+      "id": "boss-hit",
+      "group": "boss",
+      "url": "/audio/scicon-audio-v1/boss-hit.wav",
+      "seconds": 0.15,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Boss takes damage"
+    },
+    {
+      "id": "boss-defeat",
+      "group": "boss",
+      "url": "/audio/scicon-audio-v1/boss-defeat.wav",
+      "seconds": 1.9,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Boss destroyed"
+    },
+    {
+      "id": "music-menu",
+      "group": "music",
+      "url": "/audio/scicon-audio-v1/music-menu.wav",
+      "seconds": 8,
+      "sampleRate": 22050,
+      "loop": true,
+      "use": "Home and menus"
+    },
+    {
+      "id": "music-combat",
+      "group": "music",
+      "url": "/audio/scicon-audio-v1/music-combat.wav",
+      "seconds": 10.88,
+      "sampleRate": 22050,
+      "loop": true,
+      "use": "Normal waves"
+    },
+    {
+      "id": "music-boss",
+      "group": "music",
+      "url": "/audio/scicon-audio-v1/music-boss.wav",
+      "seconds": 9.6,
+      "sampleRate": 22050,
+      "loop": true,
+      "use": "Boss encounters"
+    },
+    {
+      "id": "stinger-victory",
+      "group": "music",
+      "url": "/audio/scicon-audio-v1/stinger-victory.wav",
+      "seconds": 1.5,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Mission cleared"
+    },
+    {
+      "id": "stinger-defeat",
+      "group": "music",
+      "url": "/audio/scicon-audio-v1/stinger-defeat.wav",
+      "seconds": 1.6,
+      "sampleRate": 44100,
+      "loop": false,
+      "use": "Run over"
+    }
+  ]
+}
