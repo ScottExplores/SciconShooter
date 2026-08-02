@@ -12,6 +12,11 @@ const SOURCE_DIGEST_PATHS = Object.freeze([
   'services/gameLogic.ts',
   'services/campaignEnemyFiring.ts',
   'services/campaignFormationBudget.ts',
+  // Both own time-to-kill: characteristics decide which hulls ever close
+  // distance, and Overdrive scales the player's damage. Leaving either out of
+  // the digest let balance change under an unchanged proof.
+  'services/enemyCharacteristics.ts',
+  'services/weaponOverdrive.ts',
   // Owns when a Wave is allowed to finish, so it changes every pacing number
   // this matrix reports.
   'services/waveCompletion.ts',
@@ -326,7 +331,13 @@ const createArtifact = ({
   // more than one trial, otherwise the finding just reports sampling noise.
   const isInverted = (weaker, stronger) => {
     const trials = Math.max(stronger.attempts, 1);
-    return (weaker.clearRate - stronger.clearRate) > (1 / trials) + INVERSION_EPSILON;
+    // Compare EXACT ratios. clearRate is rounded to three decimals for the
+    // report, and that rounding defeated the one-trial noise floor: 5/6 stored
+    // as 0.833 made a single-trial difference read as 0.167 > 1/6. A mission
+    // is only inverted when the gap exceeds one whole trial.
+    const weakerRate = weaker.clears / Math.max(1, weaker.attempts);
+    const strongerRate = stronger.clears / Math.max(1, stronger.attempts);
+    return (weakerRate - strongerRate) > (1 / trials) + INVERSION_EPSILON;
   };
   const powerInversionMissionLabels = missionSummaries.filter((mission) => {
     const rows = results.filter(({ missionId }) => missionId === mission.missionId);

@@ -122,7 +122,7 @@ test('the engine emits one collision bundle per center or triple-shot lane', () 
   assert.match(engine, /const volleySize = getFireRateVolleySize\(this\.stats\.upgrades\.fireRate \|\| 0\)/);
   assert.match(engine, /const tightVolleyVisualPattern = getTightVolleyVisualPattern\(volleySize\)/);
   assert.match(engine, /const maxShotVisualPattern = maxShotActive[\s\S]*getMaxShotBundleVisualPattern\(volleySize\)/);
-  assert.match(engine, /getPrimaryVolleySimulationEntityCount\(overdriveSpread\)/);
+  assert.match(engine, /getPrimaryVolleySimulationEntityCount\(spreadLanes\)/);
   assert.match(engine, /this\.spawnPlayerBullet\([\s\S]*tightVolleyVisualPattern,[\s\S]*volleyProjectileDamage/);
   assert.match(engine, /playSound: false,[\s\S]*maxShotVisualPattern: tightVolleyVisualPattern/);
   assert.match(engine, /Math\.abs\(Math\.sin\(round\.angleOffset\)\) \* 100/);

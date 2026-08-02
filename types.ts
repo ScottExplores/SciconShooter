@@ -31,8 +31,18 @@ export enum EntityType {
 }
 
 export enum PowerupType {
-  DOUBLE_SHOT = 'DOUBLE_SHOT', // Parallel fire
-  TRIPLE_SHOT = 'TRIPLE_SHOT', // Angled spread (Brian)
+  /**
+   * Legacy pattern pickups. They no longer drop: fire patterns belong to the
+   * hull now (ETH is the triple-spread ship), and the pickup that replaces
+   * them is OVERDRIVE. Kept so stored powerupUses records keep parsing.
+   */
+  DOUBLE_SHOT = 'DOUBLE_SHOT',
+  TRIPLE_SHOT = 'TRIPLE_SHOT',
+  /**
+   * Amplifies the ship's own projectiles: bigger, stronger, recoloured.
+   * Stacks to 5 and resets at the Mission boundary.
+   */
+  OVERDRIVE = 'OVERDRIVE',
   MAX_SHOT = 'MAX_SHOT', // Doubles the current fire pattern and shields the player
   MAGNET = 'MAGNET', // Coin Magnet (Patrick)
   SHIELD = 'SHIELD', // Invincibility (Jeffrey)

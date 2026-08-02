@@ -128,7 +128,10 @@ test('Present Drop ceiling remains a minority bonus beside the next five-mission
   const minimumReward = branch.completionReward.totalMinimumCoins;
   const maximumReward = branch.completionReward.totalMaximumCoins;
 
-  assert.equal(nextSectorCoins, 1_492, 'the revision-23 next-sector economy changed and needs a branch review');
+  // Reviewed 2026-08-02 after the surge waves grew sector clear income ~6%.
+  // The branch minimum (120) still clears the 3% noticeability floor by 2.5x,
+  // and the maximum stays a minority bonus, so the branch needs no retune.
+  assert.equal(nextSectorCoins, 1_576, 'the next-sector economy changed and needs a branch review');
   assert.ok(
     minimumReward >= nextSectorCoins * 0.03,
     'the preserved guaranteed bonus should remain noticeable beside the expanded sector economy'

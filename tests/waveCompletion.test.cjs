@@ -30,7 +30,8 @@ test('ten five-Mission sectors own tactical Waves and reserve boss-defeat for ma
   assert.deepEqual(campaign.levels.slice(0, 5).map((level) => level.name), [
     'ORBIT ENTRY', 'CITATION CROSSING', 'PAYWALL CHECKPOINT', 'BASTION APPROACH', 'BASTION PROTOCOL'
   ]);
-  const expectedWaveCounts = [4, 4, 4, 4, 2];
+  // Surge cadence: introduction 6, formation-remix 7, boss-ended stay compact.
+  const expectedWaveCounts = [6, 7, 4, 4, 2];
   const expectedRoles = ['introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'];
 
   campaign.sectors.forEach((sector) => {

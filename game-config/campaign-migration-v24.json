@@ -71,7 +71,9 @@
       "operation-open-galaxy-wave-2": "operation-open-galaxy-wave-2",
       "operation-open-galaxy-wave-3": "operation-open-galaxy-wave-3",
       "operation-open-galaxy-wave-4": "operation-open-galaxy-wave-5",
-      "operation-open-galaxy-wave-5": "operation-open-galaxy-wave-5"
+      "operation-open-galaxy-wave-5": "operation-open-galaxy-wave-5",
+      "operation-open-galaxy-wave-extra-1": "operation-open-galaxy-wave-extra-1",
+      "operation-open-galaxy-wave-extra-2": "operation-open-galaxy-wave-extra-2"
     },
     "stage-citation-storm": {
       "stage-citation-storm-wave-1": "stage-citation-storm-wave-1",
@@ -79,7 +81,10 @@
       "stage-citation-storm-wave-3": "stage-citation-storm-wave-3",
       "stage-citation-storm-wave-4": "stage-citation-storm-wave-3",
       "stage-citation-storm-wave-5": "stage-citation-storm-wave-6",
-      "stage-citation-storm-wave-6": "stage-citation-storm-wave-6"
+      "stage-citation-storm-wave-6": "stage-citation-storm-wave-6",
+      "stage-citation-storm-wave-extra-1": "stage-citation-storm-wave-extra-1",
+      "stage-citation-storm-wave-extra-2": "stage-citation-storm-wave-extra-2",
+      "stage-citation-storm-wave-extra-3": "stage-citation-storm-wave-extra-3"
     },
     "stage-paywall-siege": {
       "stage-paywall-siege-wave-1": "stage-paywall-siege-wave-1",
@@ -108,7 +113,9 @@
       "stage-helix-convergence-wave-2": "stage-helix-convergence-wave-2",
       "stage-helix-convergence-wave-3": "stage-helix-convergence-wave-3",
       "stage-helix-convergence-wave-4": "stage-helix-convergence-wave-5",
-      "stage-helix-convergence-wave-5": "stage-helix-convergence-wave-5"
+      "stage-helix-convergence-wave-5": "stage-helix-convergence-wave-5",
+      "stage-helix-convergence-wave-extra-1": "stage-helix-convergence-wave-extra-1",
+      "stage-helix-convergence-wave-extra-2": "stage-helix-convergence-wave-extra-2"
     },
     "stage-redline-corridor": {
       "stage-redline-corridor-wave-1": "stage-redline-corridor-wave-1",
@@ -116,7 +123,10 @@
       "stage-redline-corridor-wave-3": "stage-redline-corridor-wave-3",
       "stage-redline-corridor-wave-4": "stage-redline-corridor-wave-3",
       "stage-redline-corridor-wave-5": "stage-redline-corridor-wave-6",
-      "stage-redline-corridor-wave-6": "stage-redline-corridor-wave-6"
+      "stage-redline-corridor-wave-6": "stage-redline-corridor-wave-6",
+      "stage-redline-corridor-wave-extra-1": "stage-redline-corridor-wave-extra-1",
+      "stage-redline-corridor-wave-extra-2": "stage-redline-corridor-wave-extra-2",
+      "stage-redline-corridor-wave-extra-3": "stage-redline-corridor-wave-extra-3"
     },
     "stage-dark-matter-run": {
       "stage-dark-matter-run-wave-1": "stage-dark-matter-run-wave-1",
@@ -145,7 +155,9 @@
       "stage-shard-tempest-wave-2": "stage-shard-tempest-wave-2",
       "stage-shard-tempest-wave-3": "stage-shard-tempest-wave-3",
       "stage-shard-tempest-wave-4": "stage-shard-tempest-wave-5",
-      "stage-shard-tempest-wave-5": "stage-shard-tempest-wave-5"
+      "stage-shard-tempest-wave-5": "stage-shard-tempest-wave-5",
+      "stage-shard-tempest-wave-extra-1": "stage-shard-tempest-wave-extra-1",
+      "stage-shard-tempest-wave-extra-2": "stage-shard-tempest-wave-extra-2"
     },
     "stage-quantum-cage": {
       "stage-quantum-cage-wave-1": "stage-quantum-cage-wave-1",
@@ -153,7 +165,10 @@
       "stage-quantum-cage-wave-3": "stage-quantum-cage-wave-3",
       "stage-quantum-cage-wave-4": "stage-quantum-cage-wave-3",
       "stage-quantum-cage-wave-5": "stage-quantum-cage-wave-6",
-      "stage-quantum-cage-wave-6": "stage-quantum-cage-wave-6"
+      "stage-quantum-cage-wave-6": "stage-quantum-cage-wave-6",
+      "stage-quantum-cage-wave-extra-1": "stage-quantum-cage-wave-extra-1",
+      "stage-quantum-cage-wave-extra-2": "stage-quantum-cage-wave-extra-2",
+      "stage-quantum-cage-wave-extra-3": "stage-quantum-cage-wave-extra-3"
     },
     "stage-gravity-well": {
       "stage-gravity-well-wave-1": "stage-gravity-well-wave-1",
@@ -182,7 +197,9 @@
       "stage-crimson-vector-wave-2": "stage-crimson-vector-wave-2",
       "stage-crimson-vector-wave-3": "stage-crimson-vector-wave-3",
       "stage-crimson-vector-wave-4": "stage-crimson-vector-wave-5",
-      "stage-crimson-vector-wave-5": "stage-crimson-vector-wave-5"
+      "stage-crimson-vector-wave-5": "stage-crimson-vector-wave-5",
+      "stage-crimson-vector-wave-extra-1": "stage-crimson-vector-wave-extra-1",
+      "stage-crimson-vector-wave-extra-2": "stage-crimson-vector-wave-extra-2"
     },
     "stage-eclipse-swarm": {
       "stage-eclipse-swarm-wave-1": "stage-eclipse-swarm-wave-1",
@@ -190,7 +207,10 @@
       "stage-eclipse-swarm-wave-3": "stage-eclipse-swarm-wave-3",
       "stage-eclipse-swarm-wave-4": "stage-eclipse-swarm-wave-3",
       "stage-eclipse-swarm-wave-5": "stage-eclipse-swarm-wave-6",
-      "stage-eclipse-swarm-wave-6": "stage-eclipse-swarm-wave-6"
+      "stage-eclipse-swarm-wave-6": "stage-eclipse-swarm-wave-6",
+      "stage-eclipse-swarm-wave-extra-1": "stage-eclipse-swarm-wave-extra-1",
+      "stage-eclipse-swarm-wave-extra-2": "stage-eclipse-swarm-wave-extra-2",
+      "stage-eclipse-swarm-wave-extra-3": "stage-eclipse-swarm-wave-extra-3"
     },
     "stage-fracture-engine": {
       "stage-fracture-engine-wave-1": "stage-fracture-engine-wave-1",
@@ -219,7 +239,9 @@
       "stage-prism-expanse-signal-wave-2": "stage-prism-expanse-signal-wave-2",
       "stage-prism-expanse-signal-wave-3": "stage-prism-expanse-signal-wave-3",
       "stage-prism-expanse-signal-wave-4": "stage-prism-expanse-signal-wave-5",
-      "stage-prism-expanse-signal-wave-5": "stage-prism-expanse-signal-wave-5"
+      "stage-prism-expanse-signal-wave-5": "stage-prism-expanse-signal-wave-5",
+      "stage-prism-expanse-signal-wave-extra-1": "stage-prism-expanse-signal-wave-extra-1",
+      "stage-prism-expanse-signal-wave-extra-2": "stage-prism-expanse-signal-wave-extra-2"
     },
     "stage-prism-expanse-crossing": {
       "stage-prism-expanse-crossing-wave-1": "stage-prism-expanse-crossing-wave-1",
@@ -227,7 +249,10 @@
       "stage-prism-expanse-crossing-wave-3": "stage-prism-expanse-crossing-wave-3",
       "stage-prism-expanse-crossing-wave-4": "stage-prism-expanse-crossing-wave-3",
       "stage-prism-expanse-crossing-wave-5": "stage-prism-expanse-crossing-wave-6",
-      "stage-prism-expanse-crossing-wave-6": "stage-prism-expanse-crossing-wave-6"
+      "stage-prism-expanse-crossing-wave-6": "stage-prism-expanse-crossing-wave-6",
+      "stage-prism-expanse-crossing-wave-extra-1": "stage-prism-expanse-crossing-wave-extra-1",
+      "stage-prism-expanse-crossing-wave-extra-2": "stage-prism-expanse-crossing-wave-extra-2",
+      "stage-prism-expanse-crossing-wave-extra-3": "stage-prism-expanse-crossing-wave-extra-3"
     },
     "stage-prism-expanse-checkpoint": {
       "stage-prism-expanse-checkpoint-wave-1": "stage-prism-expanse-checkpoint-wave-1",
@@ -256,7 +281,9 @@
       "stage-rail-meridian-signal-wave-2": "stage-rail-meridian-signal-wave-2",
       "stage-rail-meridian-signal-wave-3": "stage-rail-meridian-signal-wave-3",
       "stage-rail-meridian-signal-wave-4": "stage-rail-meridian-signal-wave-5",
-      "stage-rail-meridian-signal-wave-5": "stage-rail-meridian-signal-wave-5"
+      "stage-rail-meridian-signal-wave-5": "stage-rail-meridian-signal-wave-5",
+      "stage-rail-meridian-signal-wave-extra-1": "stage-rail-meridian-signal-wave-extra-1",
+      "stage-rail-meridian-signal-wave-extra-2": "stage-rail-meridian-signal-wave-extra-2"
     },
     "stage-rail-meridian-crossing": {
       "stage-rail-meridian-crossing-wave-1": "stage-rail-meridian-crossing-wave-1",
@@ -264,7 +291,10 @@
       "stage-rail-meridian-crossing-wave-3": "stage-rail-meridian-crossing-wave-3",
       "stage-rail-meridian-crossing-wave-4": "stage-rail-meridian-crossing-wave-3",
       "stage-rail-meridian-crossing-wave-5": "stage-rail-meridian-crossing-wave-6",
-      "stage-rail-meridian-crossing-wave-6": "stage-rail-meridian-crossing-wave-6"
+      "stage-rail-meridian-crossing-wave-6": "stage-rail-meridian-crossing-wave-6",
+      "stage-rail-meridian-crossing-wave-extra-1": "stage-rail-meridian-crossing-wave-extra-1",
+      "stage-rail-meridian-crossing-wave-extra-2": "stage-rail-meridian-crossing-wave-extra-2",
+      "stage-rail-meridian-crossing-wave-extra-3": "stage-rail-meridian-crossing-wave-extra-3"
     },
     "stage-rail-meridian-checkpoint": {
       "stage-rail-meridian-checkpoint-wave-1": "stage-rail-meridian-checkpoint-wave-1",
@@ -293,7 +323,9 @@
       "stage-singularity-reach-signal-wave-2": "stage-singularity-reach-signal-wave-2",
       "stage-singularity-reach-signal-wave-3": "stage-singularity-reach-signal-wave-3",
       "stage-singularity-reach-signal-wave-4": "stage-singularity-reach-signal-wave-5",
-      "stage-singularity-reach-signal-wave-5": "stage-singularity-reach-signal-wave-5"
+      "stage-singularity-reach-signal-wave-5": "stage-singularity-reach-signal-wave-5",
+      "stage-singularity-reach-signal-wave-extra-1": "stage-singularity-reach-signal-wave-extra-1",
+      "stage-singularity-reach-signal-wave-extra-2": "stage-singularity-reach-signal-wave-extra-2"
     },
     "stage-singularity-reach-crossing": {
       "stage-singularity-reach-crossing-wave-1": "stage-singularity-reach-crossing-wave-1",
@@ -301,7 +333,10 @@
       "stage-singularity-reach-crossing-wave-3": "stage-singularity-reach-crossing-wave-3",
       "stage-singularity-reach-crossing-wave-4": "stage-singularity-reach-crossing-wave-3",
       "stage-singularity-reach-crossing-wave-5": "stage-singularity-reach-crossing-wave-6",
-      "stage-singularity-reach-crossing-wave-6": "stage-singularity-reach-crossing-wave-6"
+      "stage-singularity-reach-crossing-wave-6": "stage-singularity-reach-crossing-wave-6",
+      "stage-singularity-reach-crossing-wave-extra-1": "stage-singularity-reach-crossing-wave-extra-1",
+      "stage-singularity-reach-crossing-wave-extra-2": "stage-singularity-reach-crossing-wave-extra-2",
+      "stage-singularity-reach-crossing-wave-extra-3": "stage-singularity-reach-crossing-wave-extra-3"
     },
     "stage-singularity-reach-checkpoint": {
       "stage-singularity-reach-checkpoint-wave-1": "stage-singularity-reach-checkpoint-wave-1",
@@ -330,7 +365,9 @@
       "stage-gyroscope-array-signal-wave-2": "stage-gyroscope-array-signal-wave-2",
       "stage-gyroscope-array-signal-wave-3": "stage-gyroscope-array-signal-wave-3",
       "stage-gyroscope-array-signal-wave-4": "stage-gyroscope-array-signal-wave-5",
-      "stage-gyroscope-array-signal-wave-5": "stage-gyroscope-array-signal-wave-5"
+      "stage-gyroscope-array-signal-wave-5": "stage-gyroscope-array-signal-wave-5",
+      "stage-gyroscope-array-signal-wave-extra-1": "stage-gyroscope-array-signal-wave-extra-1",
+      "stage-gyroscope-array-signal-wave-extra-2": "stage-gyroscope-array-signal-wave-extra-2"
     },
     "stage-gyroscope-array-crossing": {
       "stage-gyroscope-array-crossing-wave-1": "stage-gyroscope-array-crossing-wave-1",
@@ -338,7 +375,10 @@
       "stage-gyroscope-array-crossing-wave-3": "stage-gyroscope-array-crossing-wave-3",
       "stage-gyroscope-array-crossing-wave-4": "stage-gyroscope-array-crossing-wave-3",
       "stage-gyroscope-array-crossing-wave-5": "stage-gyroscope-array-crossing-wave-6",
-      "stage-gyroscope-array-crossing-wave-6": "stage-gyroscope-array-crossing-wave-6"
+      "stage-gyroscope-array-crossing-wave-6": "stage-gyroscope-array-crossing-wave-6",
+      "stage-gyroscope-array-crossing-wave-extra-1": "stage-gyroscope-array-crossing-wave-extra-1",
+      "stage-gyroscope-array-crossing-wave-extra-2": "stage-gyroscope-array-crossing-wave-extra-2",
+      "stage-gyroscope-array-crossing-wave-extra-3": "stage-gyroscope-array-crossing-wave-extra-3"
     },
     "stage-gyroscope-array-checkpoint": {
       "stage-gyroscope-array-checkpoint-wave-1": "stage-gyroscope-array-checkpoint-wave-1",
@@ -367,7 +407,9 @@
       "stage-hammerhead-line-signal-wave-2": "stage-hammerhead-line-signal-wave-2",
       "stage-hammerhead-line-signal-wave-3": "stage-hammerhead-line-signal-wave-3",
       "stage-hammerhead-line-signal-wave-4": "stage-hammerhead-line-signal-wave-5",
-      "stage-hammerhead-line-signal-wave-5": "stage-hammerhead-line-signal-wave-5"
+      "stage-hammerhead-line-signal-wave-5": "stage-hammerhead-line-signal-wave-5",
+      "stage-hammerhead-line-signal-wave-extra-1": "stage-hammerhead-line-signal-wave-extra-1",
+      "stage-hammerhead-line-signal-wave-extra-2": "stage-hammerhead-line-signal-wave-extra-2"
     },
     "stage-hammerhead-line-crossing": {
       "stage-hammerhead-line-crossing-wave-1": "stage-hammerhead-line-crossing-wave-1",
@@ -375,7 +417,10 @@
       "stage-hammerhead-line-crossing-wave-3": "stage-hammerhead-line-crossing-wave-3",
       "stage-hammerhead-line-crossing-wave-4": "stage-hammerhead-line-crossing-wave-3",
       "stage-hammerhead-line-crossing-wave-5": "stage-hammerhead-line-crossing-wave-6",
-      "stage-hammerhead-line-crossing-wave-6": "stage-hammerhead-line-crossing-wave-6"
+      "stage-hammerhead-line-crossing-wave-6": "stage-hammerhead-line-crossing-wave-6",
+      "stage-hammerhead-line-crossing-wave-extra-1": "stage-hammerhead-line-crossing-wave-extra-1",
+      "stage-hammerhead-line-crossing-wave-extra-2": "stage-hammerhead-line-crossing-wave-extra-2",
+      "stage-hammerhead-line-crossing-wave-extra-3": "stage-hammerhead-line-crossing-wave-extra-3"
     },
     "stage-hammerhead-line-checkpoint": {
       "stage-hammerhead-line-checkpoint-wave-1": "stage-hammerhead-line-checkpoint-wave-1",
@@ -404,7 +449,9 @@
       "stage-crownclaw-frontier-signal-wave-2": "stage-crownclaw-frontier-signal-wave-2",
       "stage-crownclaw-frontier-signal-wave-3": "stage-crownclaw-frontier-signal-wave-3",
       "stage-crownclaw-frontier-signal-wave-4": "stage-crownclaw-frontier-signal-wave-5",
-      "stage-crownclaw-frontier-signal-wave-5": "stage-crownclaw-frontier-signal-wave-5"
+      "stage-crownclaw-frontier-signal-wave-5": "stage-crownclaw-frontier-signal-wave-5",
+      "stage-crownclaw-frontier-signal-wave-extra-1": "stage-crownclaw-frontier-signal-wave-extra-1",
+      "stage-crownclaw-frontier-signal-wave-extra-2": "stage-crownclaw-frontier-signal-wave-extra-2"
     },
     "stage-crownclaw-frontier-crossing": {
       "stage-crownclaw-frontier-crossing-wave-1": "stage-crownclaw-frontier-crossing-wave-1",
@@ -412,7 +459,10 @@
       "stage-crownclaw-frontier-crossing-wave-3": "stage-crownclaw-frontier-crossing-wave-3",
       "stage-crownclaw-frontier-crossing-wave-4": "stage-crownclaw-frontier-crossing-wave-3",
       "stage-crownclaw-frontier-crossing-wave-5": "stage-crownclaw-frontier-crossing-wave-6",
-      "stage-crownclaw-frontier-crossing-wave-6": "stage-crownclaw-frontier-crossing-wave-6"
+      "stage-crownclaw-frontier-crossing-wave-6": "stage-crownclaw-frontier-crossing-wave-6",
+      "stage-crownclaw-frontier-crossing-wave-extra-1": "stage-crownclaw-frontier-crossing-wave-extra-1",
+      "stage-crownclaw-frontier-crossing-wave-extra-2": "stage-crownclaw-frontier-crossing-wave-extra-2",
+      "stage-crownclaw-frontier-crossing-wave-extra-3": "stage-crownclaw-frontier-crossing-wave-extra-3"
     },
     "stage-crownclaw-frontier-checkpoint": {
       "stage-crownclaw-frontier-checkpoint-wave-1": "stage-crownclaw-frontier-checkpoint-wave-1",
@@ -442,7 +492,10 @@
       "stage-open-orbit-route-b-wave-3": "stage-open-orbit-route-b-wave-3",
       "stage-open-orbit-route-b-wave-4": "stage-open-orbit-route-b-wave-3",
       "stage-open-orbit-route-b-wave-5": "stage-open-orbit-route-b-wave-6",
-      "stage-open-orbit-route-b-wave-6": "stage-open-orbit-route-b-wave-6"
+      "stage-open-orbit-route-b-wave-6": "stage-open-orbit-route-b-wave-6",
+      "stage-open-orbit-route-b-wave-extra-1": "stage-open-orbit-route-b-wave-extra-1",
+      "stage-open-orbit-route-b-wave-extra-2": "stage-open-orbit-route-b-wave-extra-2",
+      "stage-open-orbit-route-b-wave-extra-3": "stage-open-orbit-route-b-wave-extra-3"
     },
     "stage-redline-frontier-route-b": {
       "stage-redline-frontier-route-b-wave-1": "stage-redline-frontier-route-b-wave-1",
@@ -450,7 +503,10 @@
       "stage-redline-frontier-route-b-wave-3": "stage-redline-frontier-route-b-wave-3",
       "stage-redline-frontier-route-b-wave-4": "stage-redline-frontier-route-b-wave-3",
       "stage-redline-frontier-route-b-wave-5": "stage-redline-frontier-route-b-wave-6",
-      "stage-redline-frontier-route-b-wave-6": "stage-redline-frontier-route-b-wave-6"
+      "stage-redline-frontier-route-b-wave-6": "stage-redline-frontier-route-b-wave-6",
+      "stage-redline-frontier-route-b-wave-extra-1": "stage-redline-frontier-route-b-wave-extra-1",
+      "stage-redline-frontier-route-b-wave-extra-2": "stage-redline-frontier-route-b-wave-extra-2",
+      "stage-redline-frontier-route-b-wave-extra-3": "stage-redline-frontier-route-b-wave-extra-3"
     },
     "stage-gravity-rift-route-b": {
       "stage-gravity-rift-route-b-wave-1": "stage-gravity-rift-route-b-wave-1",
@@ -458,7 +514,10 @@
       "stage-gravity-rift-route-b-wave-3": "stage-gravity-rift-route-b-wave-3",
       "stage-gravity-rift-route-b-wave-4": "stage-gravity-rift-route-b-wave-3",
       "stage-gravity-rift-route-b-wave-5": "stage-gravity-rift-route-b-wave-6",
-      "stage-gravity-rift-route-b-wave-6": "stage-gravity-rift-route-b-wave-6"
+      "stage-gravity-rift-route-b-wave-6": "stage-gravity-rift-route-b-wave-6",
+      "stage-gravity-rift-route-b-wave-extra-1": "stage-gravity-rift-route-b-wave-extra-1",
+      "stage-gravity-rift-route-b-wave-extra-2": "stage-gravity-rift-route-b-wave-extra-2",
+      "stage-gravity-rift-route-b-wave-extra-3": "stage-gravity-rift-route-b-wave-extra-3"
     },
     "stage-terminus-frontier-route-b": {
       "stage-terminus-frontier-route-b-wave-1": "stage-terminus-frontier-route-b-wave-1",
@@ -466,7 +525,10 @@
       "stage-terminus-frontier-route-b-wave-3": "stage-terminus-frontier-route-b-wave-3",
       "stage-terminus-frontier-route-b-wave-4": "stage-terminus-frontier-route-b-wave-3",
       "stage-terminus-frontier-route-b-wave-5": "stage-terminus-frontier-route-b-wave-6",
-      "stage-terminus-frontier-route-b-wave-6": "stage-terminus-frontier-route-b-wave-6"
+      "stage-terminus-frontier-route-b-wave-6": "stage-terminus-frontier-route-b-wave-6",
+      "stage-terminus-frontier-route-b-wave-extra-1": "stage-terminus-frontier-route-b-wave-extra-1",
+      "stage-terminus-frontier-route-b-wave-extra-2": "stage-terminus-frontier-route-b-wave-extra-2",
+      "stage-terminus-frontier-route-b-wave-extra-3": "stage-terminus-frontier-route-b-wave-extra-3"
     },
     "stage-prism-expanse-route-b": {
       "stage-prism-expanse-route-b-wave-1": "stage-prism-expanse-route-b-wave-1",
@@ -474,7 +536,10 @@
       "stage-prism-expanse-route-b-wave-3": "stage-prism-expanse-route-b-wave-3",
       "stage-prism-expanse-route-b-wave-4": "stage-prism-expanse-route-b-wave-3",
       "stage-prism-expanse-route-b-wave-5": "stage-prism-expanse-route-b-wave-6",
-      "stage-prism-expanse-route-b-wave-6": "stage-prism-expanse-route-b-wave-6"
+      "stage-prism-expanse-route-b-wave-6": "stage-prism-expanse-route-b-wave-6",
+      "stage-prism-expanse-route-b-wave-extra-1": "stage-prism-expanse-route-b-wave-extra-1",
+      "stage-prism-expanse-route-b-wave-extra-2": "stage-prism-expanse-route-b-wave-extra-2",
+      "stage-prism-expanse-route-b-wave-extra-3": "stage-prism-expanse-route-b-wave-extra-3"
     },
     "stage-rail-meridian-route-b": {
       "stage-rail-meridian-route-b-wave-1": "stage-rail-meridian-route-b-wave-1",
@@ -482,7 +547,10 @@
       "stage-rail-meridian-route-b-wave-3": "stage-rail-meridian-route-b-wave-3",
       "stage-rail-meridian-route-b-wave-4": "stage-rail-meridian-route-b-wave-3",
       "stage-rail-meridian-route-b-wave-5": "stage-rail-meridian-route-b-wave-6",
-      "stage-rail-meridian-route-b-wave-6": "stage-rail-meridian-route-b-wave-6"
+      "stage-rail-meridian-route-b-wave-6": "stage-rail-meridian-route-b-wave-6",
+      "stage-rail-meridian-route-b-wave-extra-1": "stage-rail-meridian-route-b-wave-extra-1",
+      "stage-rail-meridian-route-b-wave-extra-2": "stage-rail-meridian-route-b-wave-extra-2",
+      "stage-rail-meridian-route-b-wave-extra-3": "stage-rail-meridian-route-b-wave-extra-3"
     },
     "stage-singularity-reach-route-b": {
       "stage-singularity-reach-route-b-wave-1": "stage-singularity-reach-route-b-wave-1",
@@ -490,7 +558,10 @@
       "stage-singularity-reach-route-b-wave-3": "stage-singularity-reach-route-b-wave-3",
       "stage-singularity-reach-route-b-wave-4": "stage-singularity-reach-route-b-wave-3",
       "stage-singularity-reach-route-b-wave-5": "stage-singularity-reach-route-b-wave-6",
-      "stage-singularity-reach-route-b-wave-6": "stage-singularity-reach-route-b-wave-6"
+      "stage-singularity-reach-route-b-wave-6": "stage-singularity-reach-route-b-wave-6",
+      "stage-singularity-reach-route-b-wave-extra-1": "stage-singularity-reach-route-b-wave-extra-1",
+      "stage-singularity-reach-route-b-wave-extra-2": "stage-singularity-reach-route-b-wave-extra-2",
+      "stage-singularity-reach-route-b-wave-extra-3": "stage-singularity-reach-route-b-wave-extra-3"
     },
     "stage-gyroscope-array-route-b": {
       "stage-gyroscope-array-route-b-wave-1": "stage-gyroscope-array-route-b-wave-1",
@@ -498,7 +569,10 @@
       "stage-gyroscope-array-route-b-wave-3": "stage-gyroscope-array-route-b-wave-3",
       "stage-gyroscope-array-route-b-wave-4": "stage-gyroscope-array-route-b-wave-3",
       "stage-gyroscope-array-route-b-wave-5": "stage-gyroscope-array-route-b-wave-6",
-      "stage-gyroscope-array-route-b-wave-6": "stage-gyroscope-array-route-b-wave-6"
+      "stage-gyroscope-array-route-b-wave-6": "stage-gyroscope-array-route-b-wave-6",
+      "stage-gyroscope-array-route-b-wave-extra-1": "stage-gyroscope-array-route-b-wave-extra-1",
+      "stage-gyroscope-array-route-b-wave-extra-2": "stage-gyroscope-array-route-b-wave-extra-2",
+      "stage-gyroscope-array-route-b-wave-extra-3": "stage-gyroscope-array-route-b-wave-extra-3"
     },
     "stage-hammerhead-line-route-b": {
       "stage-hammerhead-line-route-b-wave-1": "stage-hammerhead-line-route-b-wave-1",
@@ -506,7 +580,10 @@
       "stage-hammerhead-line-route-b-wave-3": "stage-hammerhead-line-route-b-wave-3",
       "stage-hammerhead-line-route-b-wave-4": "stage-hammerhead-line-route-b-wave-3",
       "stage-hammerhead-line-route-b-wave-5": "stage-hammerhead-line-route-b-wave-6",
-      "stage-hammerhead-line-route-b-wave-6": "stage-hammerhead-line-route-b-wave-6"
+      "stage-hammerhead-line-route-b-wave-6": "stage-hammerhead-line-route-b-wave-6",
+      "stage-hammerhead-line-route-b-wave-extra-1": "stage-hammerhead-line-route-b-wave-extra-1",
+      "stage-hammerhead-line-route-b-wave-extra-2": "stage-hammerhead-line-route-b-wave-extra-2",
+      "stage-hammerhead-line-route-b-wave-extra-3": "stage-hammerhead-line-route-b-wave-extra-3"
     },
     "stage-crownclaw-frontier-route-b": {
       "stage-crownclaw-frontier-route-b-wave-1": "stage-crownclaw-frontier-route-b-wave-1",
@@ -514,7 +591,10 @@
       "stage-crownclaw-frontier-route-b-wave-3": "stage-crownclaw-frontier-route-b-wave-3",
       "stage-crownclaw-frontier-route-b-wave-4": "stage-crownclaw-frontier-route-b-wave-3",
       "stage-crownclaw-frontier-route-b-wave-5": "stage-crownclaw-frontier-route-b-wave-6",
-      "stage-crownclaw-frontier-route-b-wave-6": "stage-crownclaw-frontier-route-b-wave-6"
+      "stage-crownclaw-frontier-route-b-wave-6": "stage-crownclaw-frontier-route-b-wave-6",
+      "stage-crownclaw-frontier-route-b-wave-extra-1": "stage-crownclaw-frontier-route-b-wave-extra-1",
+      "stage-crownclaw-frontier-route-b-wave-extra-2": "stage-crownclaw-frontier-route-b-wave-extra-2",
+      "stage-crownclaw-frontier-route-b-wave-extra-3": "stage-crownclaw-frontier-route-b-wave-extra-3"
     }
   },
   "notes": [

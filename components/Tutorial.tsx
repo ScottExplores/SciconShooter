@@ -50,7 +50,7 @@ const Tutorial: React.FC<TutorialProps> = ({ onReady }) => (
         <TutorialCard
           icon="/game-art/powerups/rapid-fire.png"
           title="Power Up"
-          body="Grab drops mid-run for rapid fire, spread shots and shields."
+          body="Grab Overdrive drops to power up your guns - five levels per Mission - plus shields, magnets and bombs."
         />
         <TutorialCard
           icon={ASSETS.RSC_TOKEN}
@@ -60,7 +60,7 @@ const Tutorial: React.FC<TutorialProps> = ({ onReady }) => (
         <TutorialCard
           icon="/game-art/powerups/extra-life.png"
           title="Two Modes"
-          body="Campaign is progression. Weekly Run is one 10-life gauntlet through every boss, scored on the weekly board."
+          body="Campaign is progression. Weekly Run is an endless 10-life gauntlet that keeps getting harder, scored on the weekly board."
         />
       </ul>
 

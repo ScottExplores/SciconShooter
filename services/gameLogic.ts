@@ -88,6 +88,10 @@ import {
   type EnemyCharacteristic
 } from './enemyCharacteristics';
 import {
+  getWeaponOverdriveTier,
+  WEAPON_OVERDRIVE_MAX_LEVEL
+} from './weaponOverdrive';
+import {
   canStartCampaignFormationPackInstance,
   getCampaignBaseSimultaneousShooterLimit,
   getCampaignSimultaneousShooterLimit,
@@ -1219,8 +1223,9 @@ const BASE_COIN_MAGNET_RADIUS = 100;
 const POWERUP_COIN_MAGNET_RADIUS = 420;
 const BOMB_DROP_CHANCE = 0.012;
 const ELITE_BOMB_DROP_CHANCE = 0.05;
-const EXTRA_LIFE_DROP_CHANCE = 0.004;
-const ELITE_EXTRA_LIFE_DROP_CHANCE = 0.014;
+// Halved from 0.004 / 0.014: lives were arriving often enough to feel free.
+const EXTRA_LIFE_DROP_CHANCE = 0.002;
+const ELITE_EXTRA_LIFE_DROP_CHANCE = 0.007;
 const MINI_BOSS_BOMB_REWARD_CHANCE = 0.28;
 const BOMB_DAMAGE_BOSS = 14;
 const BOMB_DAMAGE_MINI_BOSS = 18;
@@ -2220,6 +2225,11 @@ export class GameEngine {
   coinCombo: number = 0;
   coinComboTimer: number = 0;
   lastShotFrame: number = -999;
+  /**
+   * Mission Overdrive level, 0-5. Amplifies the hull's own primary fire and is
+   * deliberately temporary: it resets at every Mission boundary.
+   */
+  missionOverdriveLevel: number = 0;
   lastPrimaryImpactShakeFrame: number = -999;
   bioBeamCanvasVisualStartFrame: number = -1;
   lastBombFrame: number = -999;
@@ -4836,6 +4846,7 @@ export class GameEngine {
       ? requestedInitialCampaignIndex
       : 0;
     this.wave = this.getStageNumberForCampaignIndex();
+    this.missionOverdriveLevel = 0;
     this.stats.score = 0;
     this.stats.coins = 0;
     this.stats.totalCoins = 0;
@@ -5135,9 +5146,16 @@ export class GameEngine {
     if (this.waveVictorySummary.campaignComplete) this.recordCompletion('campaign');
     this.spawnFloatingText(this.width / 2, this.height / 2, label, color);
     const configuredDelaySeconds = Number(this.getCurrentWaveDefinition()?.delayAfterSeconds);
-    const collectionSeconds = Number.isFinite(configuredDelaySeconds) && configuredDelaySeconds >= 0
+    // Regular Mission finals author only a 1-second window. When coins are
+    // still on the field, hold the door long enough for the clear-sweep magnet
+    // to bring them home.
+    const liveCoins = this.entities.some(
+      (entity) => entity.type === EntityType.COIN && !entity.markedForDeletion
+    );
+    const authoredSeconds = Number.isFinite(configuredDelaySeconds) && configuredDelaySeconds >= 0
       ? configuredDelaySeconds
       : 0;
+    const collectionSeconds = liveCoins ? Math.max(authoredSeconds, 2.5) : authoredSeconds;
     this.stageRewardCollectionDuration = Math.max(0, Math.round(collectionSeconds * GAME_CONFIG.FPS));
     this.stageRewardCollectionFrames = this.stageRewardCollectionDuration;
     if (this.stageRewardCollectionFrames <= 0) this.beginStageTakeoff();
@@ -5214,6 +5232,8 @@ export class GameEngine {
     this.campaignComplete = false;
     this.keepEntitiesForNextWave();
     if (stageBoundary) {
+      // Overdrive is a per-Mission run of good play, not a permanent stat.
+      this.missionOverdriveLevel = 0;
       this.beginWavePresentation('mission');
       this.playSound('wave');
     } else {
@@ -6687,8 +6707,8 @@ export class GameEngine {
   }
 
   getPlayerShotCap() {
-    const hasSpread = this.isPowerupActive(PowerupType.DOUBLE_SHOT)
-      || this.isPowerupActive(PowerupType.TRIPLE_SHOT);
+    // Triple spread is the ETH hull's identity, not a pickup state.
+    const hasSpread = this.playerShipId === 'eth';
     const hasMaxShot = this.hasMaxShotShield();
     const fireRateLevel = this.stats.upgrades.fireRate || 0;
     const bioPrimaryPlan = this.playerShipId === 'bio'
@@ -6880,6 +6900,19 @@ export class GameEngine {
     b.maxShotVisualPattern = maxShotVisualPattern;
     b.projectileUnitWidth = bulletWidth;
     b.projectileUnitHeight = b.height;
+    // Mission Overdrive amplifies the hull's PRIMARY fire only. Signature-move
+    // projectiles scale through their own Hangar track, and stacking both
+    // would double-dip the balance.
+    const overdrivePrimary = (weaponKind === 'pulse' || weaponKind === 'bio-primary')
+      && this.missionOverdriveLevel > 0;
+    const overdriveTier = getWeaponOverdriveTier(this.missionOverdriveLevel);
+    if (overdrivePrimary) {
+      b.width = Math.round(b.width * overdriveTier.sizeScale);
+      b.height = Math.round(b.height * overdriveTier.sizeScale);
+      b.projectileUnitWidth = Math.round(bulletWidth * overdriveTier.sizeScale);
+      b.projectileUnitHeight = b.height;
+      if (overdriveTier.color) b.color = overdriveTier.color;
+    }
     const baseDamage = isBioPrimary
       ? BIO_PRIMARY_DAMAGE_PER_ROUND
       : isBioLaser
@@ -6897,7 +6930,8 @@ export class GameEngine {
             : weaponKind === 'plasma'
               ? 1.3
               : 1;
-    b.damage = Number.isFinite(damageOverride) ? Math.max(0, Number(damageOverride)) : baseDamage;
+    const rawDamage = Number.isFinite(damageOverride) ? Math.max(0, Number(damageOverride)) : baseDamage;
+    b.damage = overdrivePrimary ? rawDamage * overdriveTier.damageScale : rawDamage;
     if (maxShotVisualPattern?.length) {
       b.life = MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
       b.maxLife = MAX_SHOT_BUNDLE_LIFETIME_FRAMES;
@@ -6963,24 +6997,26 @@ export class GameEngine {
     const weaponSpeed = 10;
     const volleySize = getFireRateVolleySize(this.stats.upgrades.fireRate || 0);
     const volleyProjectileDamage = getFireRateProjectileDamageMultiplier(volleySize);
-    const overdriveSpread = this.isPowerupActive(PowerupType.DOUBLE_SHOT)
-      || this.isPowerupActive(PowerupType.TRIPLE_SHOT);
+    // ETH is the triple-spread ship: centre lane plus the authored 15-20
+    // degree side lanes, always. Other hulls keep their single-column identity
+    // and Overdrive amplifies whatever the hull fires.
+    const spreadLanes = this.playerShipId === 'eth';
     const maxShotActive = this.hasMaxShotShield();
     const bioPrimaryPlan = this.playerShipId === 'bio'
       ? getBioPrimaryShotPlan(
           this.stats.upgrades.fireRate || 0,
-          overdriveSpread,
+          spreadLanes,
           maxShotActive,
           this.nextGameplayRandom(),
           this.nextGameplayRandom()
         )
       : null;
-    const basePatternProjectileCount = volleySize * (overdriveSpread ? 3 : 1);
+    const basePatternProjectileCount = volleySize * (spreadLanes ? 3 : 1);
     const visualProjectileCount = maxShotActive
       ? getMaxShotProjectileCount(basePatternProjectileCount)
       : basePatternProjectileCount;
-    const simulationEntityCount = getPrimaryVolleySimulationEntityCount(overdriveSpread);
-    const queuedEntityCount = overdriveSpread ? 2 : 0;
+    const simulationEntityCount = getPrimaryVolleySimulationEntityCount(spreadLanes);
+    const queuedEntityCount = spreadLanes ? 2 : 0;
     const tightVolleyVisualPattern = getTightVolleyVisualPattern(volleySize);
     const maxShotVisualPattern = maxShotActive
       ? getMaxShotBundleVisualPattern(volleySize)
@@ -6997,7 +7033,7 @@ export class GameEngine {
         || !canAdmitMaxShotVolley(
           this.livePlayerShotCount,
           this.pendingPlayerShots.length,
-          overdriveSpread,
+          spreadLanes,
           this.getPlayerShotCap()
         )
       ))
@@ -7073,7 +7109,7 @@ export class GameEngine {
         volleyProjectileDamage
       );
 
-      if (overdriveSpread) {
+      if (spreadLanes) {
         ([-1, 1] as const).forEach((side, index) => {
           this.queuePlayerBullet({
             fireFrame: this.frameCount + index + 1,
@@ -7104,7 +7140,7 @@ export class GameEngine {
       volleyProjectileDamage
     );
 
-    if (overdriveSpread) {
+    if (spreadLanes) {
       ([-1, 1] as const).forEach((side, index) => {
         const sideAngle = sampleTripleShotSideAngleRadians(side, this.nextGameplayRandom());
         this.queuePlayerBullet({
@@ -17878,8 +17914,10 @@ export class GameEngine {
 
   spawnPowerup(x: number, y: number, forcedPowerupId?: string) {
     const powerupIdToType: Record<string, PowerupType> = {
-      'double-shot': PowerupType.DOUBLE_SHOT,
-      'triple-shot': PowerupType.TRIPLE_SHOT,
+      // Authored waves still reference the legacy pickup ids. Both now grant
+      // Overdrive: fire patterns belong to the hull, the pickup amplifies it.
+      'double-shot': PowerupType.OVERDRIVE,
+      'triple-shot': PowerupType.OVERDRIVE,
       'max-shot': PowerupType.MAX_SHOT,
       magnet: PowerupType.MAGNET,
       shield: PowerupType.SHIELD,
@@ -17888,18 +17926,19 @@ export class GameEngine {
     };
     const weights = new Map<PowerupType, number>([
       [PowerupType.RESEARCH_BEAM, 0.08],
-      [PowerupType.DOUBLE_SHOT, 0.36],
-      [PowerupType.TRIPLE_SHOT, 0.34],
+      [PowerupType.OVERDRIVE, 0.7],
       [PowerupType.MAX_SHOT, 0.055],
       [PowerupType.MAGNET, 0.12],
       [PowerupType.SHIELD, 0.1],
-      [PowerupType.EXTRA_LIFE, 0.02]
+      // Halved: extra lives were dropping often enough to blunt the Campaign's
+      // five-life ceiling.
+      [PowerupType.EXTRA_LIFE, 0.01]
     ]);
     const configuredIds = this.getCurrentLevelDefinition()?.availablePowerupIds;
     const allowed = Array.isArray(configuredIds) && configuredIds.length > 0
       ? configuredIds.map((id) => powerupIdToType[id]).filter((type): type is PowerupType => Boolean(type))
       : Array.from(weights.keys()).filter((type) => type !== PowerupType.EXTRA_LIFE);
-    const candidates = allowed.length > 0 ? allowed : [PowerupType.DOUBLE_SHOT];
+    const candidates = allowed.length > 0 ? allowed : [PowerupType.OVERDRIVE];
     const totalWeight = candidates.reduce((sum, candidate) => sum + (weights.get(candidate) || 0.01), 0);
     let roll = this.nextGameplayRandom() * totalWeight;
     let type = forcedPowerupId && powerupIdToType[forcedPowerupId]
@@ -18131,18 +18170,26 @@ export class GameEngine {
     const useCompanionMagnet = !hasPowerupMagnet
       && Boolean(magnetCompanion)
       && companionDistance < companionRadius;
-    const dx = useCompanionMagnet ? companionDx : playerCenterX - coinCenterX;
-    const dy = useCompanionMagnet ? companionDy : playerCenterY - coinCenterY;
+    // Once the Mission is cleared, fallen coins belong to the player: the
+    // reward window and takeoff sweep them in from anywhere on the field, so a
+    // clear never ends with earned coins draining off the bottom of the screen.
+    const missionClearSweep = this.stageRewardCollectionFrames > 0 || this.waveDepartureFrames > 0;
+    const dx = useCompanionMagnet && !missionClearSweep ? companionDx : playerCenterX - coinCenterX;
+    const dy = useCompanionMagnet && !missionClearSweep ? companionDy : playerCenterY - coinCenterY;
     const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-    const radius = hasPowerupMagnet
+    const radius = missionClearSweep
+      ? Number.MAX_SAFE_INTEGER
+      : hasPowerupMagnet
       ? POWERUP_COIN_MAGNET_RADIUS
       : useCompanionMagnet
         ? companionRadius
         : BASE_COIN_MAGNET_RADIUS;
 
     if (dist < radius) {
-      const closeness = 1 - (dist / radius);
-      const pull = hasPowerupMagnet
+      const closeness = missionClearSweep ? Math.max(0, 1 - dist / 640) : 1 - (dist / radius);
+      const pull = missionClearSweep
+        ? 0.16 + closeness * 0.12
+        : hasPowerupMagnet
         ? 0.14 + closeness * 0.11
         : useCompanionMagnet
           ? 0.075 + closeness * (0.07 + (magnetCompanion?.level ?? 1) * 0.008)
@@ -18218,7 +18265,7 @@ export class GameEngine {
       };
     }
 
-    if (type !== PowerupType.EXTRA_LIFE) {
+    if (type !== PowerupType.EXTRA_LIFE && type !== PowerupType.OVERDRIVE) {
       const currentDuration = this.activePowerups.get(type) || 0;
       const isFounderShot = type === PowerupType.DOUBLE_SHOT || type === PowerupType.TRIPLE_SHOT;
       const duration = type === PowerupType.MAX_SHOT
@@ -18242,9 +18289,19 @@ export class GameEngine {
     } else if (type === PowerupType.MAGNET) {
       this.spawnFloatingText(cx, cy - 20, "MAGNET!", "#FFD700");
       this.spawnRingEffect(cx, cy, "#FFD700");
-    } else if (type === PowerupType.TRIPLE_SHOT || type === PowerupType.DOUBLE_SHOT) {
-      this.spawnFloatingText(cx, cy - 20, "OVERDRIVE SPREAD!", "#67e8f9");
-      this.spawnRingEffect(cx, cy, "#67e8f9");
+    } else if (type === PowerupType.OVERDRIVE) {
+      // Stacks to five within the Mission; at cap the pickup pays score so a
+      // maxed run still wants to grab it.
+      if (this.missionOverdriveLevel >= WEAPON_OVERDRIVE_MAX_LEVEL) {
+        this.stats.score += 250;
+        this.spawnFloatingText(cx, cy - 20, "MAX OVERDRIVE +250", "#f472b6");
+        this.spawnRingEffect(cx, cy, "#f472b6");
+      } else {
+        this.missionOverdriveLevel++;
+        const tier = getWeaponOverdriveTier(this.missionOverdriveLevel);
+        this.spawnFloatingText(cx, cy - 20, tier.label.toUpperCase() + "!", tier.color ?? "#67e8f9");
+        this.spawnRingEffect(cx, cy, tier.color ?? "#67e8f9");
+      }
     } else if (type === PowerupType.MAX_SHOT) {
       this.spawnFloatingText(cx, cy - 20, "MAX SHOT!", "#22d3ee");
       this.spawnRingEffect(cx, cy, "#67e8f9");

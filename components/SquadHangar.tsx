@@ -31,6 +31,7 @@ import {
   type WeeklySquadState
 } from '../services/squadProgression';
 import { getShipAbilityDefinition } from '../services/shipAbilityService';
+import { PLAYER_SHIP_WEAPON_SPECS } from '../services/weaponOverdrive';
 import { calculateSquadPowerRating } from '../services/squadPowerRating';
 import { FIRE_RATE_TIER_COUNT } from '../services/weaponTierProgression';
 import PixelActionButton from './PixelActionButton';
@@ -584,6 +585,12 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
             </div>
             {mode === 'upgrades' ? <button type="button" onClick={() => setMode('catalog')} className="min-h-9 border border-cyan-200/30 bg-cyan-300/8 px-3 text-[0.62rem] font-black uppercase text-cyan-100">Fleet</button> : null}
           </div>
+          {/* The tier strip is the fire-rate ladder; this names what the ladder
+              is actually feeding for the selected hull. Patterns belong to the
+              ship -- ETH flies the triple spread -- and Overdrive amplifies it. */}
+          <p className="sci-weapon-spec">
+            Weapon: {PLAYER_SHIP_WEAPON_SPECS[mainShipId] ?? PLAYER_SHIP_WEAPON_SPECS.researchhub}
+          </p>
 
           {mode === 'catalog' ? (
             <>

@@ -367,6 +367,21 @@
   background: rgb(8 145 178 / 0.4);
 }
 
+/* Names the selected hull's projectile identity beside the Hangar tier strip.
+   A semantic class because the generated sheet is static and new arbitrary
+   Tailwind values are not picked up at runtime. */
+.sci-weapon-spec {
+  margin: 0 0 0.75rem;
+  border: 1px solid rgb(165 243 252 / 0.14);
+  background: rgb(103 232 249 / 0.05);
+  padding: 0.4rem 0.6rem;
+  color: rgb(165 243 252 / 0.9);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 /* The Trophy Deck holds two unrelated things: the Weekly Run competition and
    Campaign progression. A flat tab strip implied Campaign feeds the
    leaderboard, so they are split at the top level. */

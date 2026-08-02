@@ -49,8 +49,10 @@ test('revision 24 contains ten five-depth sectors, explicit routes, and a compac
     ['ORBIT ENTRY', 'CITATION CROSSING', 'PAYWALL CHECKPOINT', 'BASTION APPROACH', 'BASTION PROTOCOL']
   );
   assert.deepEqual(campaign.levels.map((level) => level.order), Array.from({ length: 60 }, (_, index) => index + 1));
-  assert.deepEqual(firstFive.map((level) => level.waves.length), [4, 4, 4, 4, 2]);
-  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 220);
+  // Surge waves: introduction runs six, formation-remix seven; the boss-ended
+  // Missions stay compact so their climax remains the final beat.
+  assert.deepEqual(firstFive.map((level) => level.waves.length), [6, 7, 4, 4, 2]);
+  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 300);
   assert.deepEqual(firstFive.map((level) => level.waves[0].scoreMultiplier), [1, 2, 3, 4, 5]);
   campaign.levels.forEach((level) => {
     assert.equal(level.loopWaves, false);
@@ -65,7 +67,7 @@ test('revision 24 contains ten five-depth sectors, explicit routes, and a compac
     assert.ok(levels.every(Boolean));
     assert.equal(sector.mainNodeIds.length, 5);
     assert.equal(sector.routeNodeIds.length, 1);
-    assert.deepEqual(levels.map((level) => level.waves.length), [4, 4, 4, 4, 2]);
+    assert.deepEqual(levels.map((level) => level.waves.length), [6, 7, 4, 4, 2]);
     assert.deepEqual(levels.map((level) => level.campaignProgression.missionRole), [
       'introduction', 'formation-remix', 'elite-checkpoint', 'boss-preparation', 'major-boss'
     ]);
@@ -154,13 +156,19 @@ test('all sixty Mission definitions author balanced rewards, three mastery stars
     const routePremium = isRouteAlternative ? 1.12 : 1;
     const sectorNumber = sectorIndex + 1;
     const formerWaveClearCoins = Math.round((8 + sectorNumber * 2) * routePremium);
+    // The v24 compression set the per-wave bounty so a compact Mission paid
+    // what its longer v23 ancestor did. The surge expansion keeps that
+    // per-wave rate: each added wave pays its bounty, so Mission income grows
+    // with the added playtime instead of the bounty being diluted. The
+    // economy suite owns the ceilings on the resulting totals.
+    const compactWaveCount = progression.missionRole === 'major-boss' ? 2 : 4;
     assert.equal(
       progression.reward.waveClearCoins,
       Math.ceil(
         (formerWaveClearCoins * revision23WaveCounts.get(progression.missionRole))
-          / level.waves.length
+          / compactWaveCount
       ),
-      `${level.id} preserves its complete-Mission Wave reward after cadence compression`
+      `${level.id} preserves its per-wave bounty from the v24 compression`
     );
     assert.equal(progression.reward.missionClearCoins, Math.round((24 + sectorNumber * 5) * routePremium));
     assert.equal(progression.reward.firstClearCoins, Math.round((46 + sectorNumber * 11) * routePremium));
@@ -285,8 +293,10 @@ test('ten sector bosses follow a readable durability, bounded score, and project
 
 test('sector Missions expose ordered role-specific Waves with short major-boss lead-ins', () => {
   const expectedCounts = new Map([
-    ['introduction', 4],
-    ['formation-remix', 4],
+    // Surge cadence: pure-combat Missions grew; boss-ended Missions stay
+    // compact so the climax remains the final beat.
+    ['introduction', 6],
+    ['formation-remix', 7],
     ['elite-checkpoint', 4],
     ['boss-preparation', 4],
     ['major-boss', 2]

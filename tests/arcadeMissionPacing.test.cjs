@@ -14,7 +14,10 @@ const migration = JSON.parse(
 
 test('revision 24 uses compact continuous Missions with authored pressure through every climax', () => {
   assert.equal(campaign.revision, 24);
-  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 220);
+  // 220 authored at revision 24, plus 80 surge waves: introduction Missions run
+  // six waves and formation-remix runs seven, per the player's request for more
+  // waves outside the boss and elite Missions.
+  assert.equal(campaign.levels.reduce((total, level) => total + level.waves.length, 0), 300);
 
   const regularMissions = campaign.levels.filter(
     (level) => level.campaignProgression.missionRole !== 'major-boss'
@@ -22,7 +25,15 @@ test('revision 24 uses compact continuous Missions with authored pressure throug
   assert.equal(regularMissions.length, 50);
 
   for (const mission of regularMissions) {
-    assert.equal(mission.waves.length, 4, `${mission.id} keeps the four-Wave arcade cadence`);
+    // Cadence is role-aware now: pure-combat Missions carry surge waves, and
+    // boss-ended Missions stay compact so the climax remains the fourth beat.
+    const expectedWaves = {
+      introduction: 6,
+      'formation-remix': 7,
+      'elite-checkpoint': 4,
+      'boss-preparation': 4
+    }[mission.campaignProgression.missionRole];
+    assert.equal(mission.waves.length, expectedWaves, `${mission.id} keeps its role cadence`);
     assert.ok(mission.durationSeconds <= 43.1);
     assert.equal(mission.waves.some((wave) => wave.rhythm === 'recovery'), false);
 

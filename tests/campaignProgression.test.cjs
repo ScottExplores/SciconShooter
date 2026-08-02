@@ -269,7 +269,7 @@ test('the revision-24 graph exposes fifty main depths, ten alternates, power, su
     trackedCampaign.sectors.map((sector) => (
       sector.missionIds.map((missionId) => authoredDefinitions.find((mission) => mission.id === missionId).waveIds.length)
     )),
-    Array.from({ length: 10 }, () => [4, 4, 4, 4, 2])
+    Array.from({ length: 10 }, () => [6, 7, 4, 4, 2])
   );
   authoredDefinitions.forEach((mission) => {
     assert.ok(mission.sectorId);

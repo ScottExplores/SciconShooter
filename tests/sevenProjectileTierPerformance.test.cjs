@@ -63,7 +63,7 @@ test('mobile and desktop Tier-7 Triple + Max Shot stay inside bounded simulation
   });
 
   assert.match(rendererSource, /ensureProjectileCopySprites\(view, visualPattern\.length\)/);
-  assert.match(engineSource, /getPrimaryVolleySimulationEntityCount\(overdriveSpread\)/);
+  assert.match(engineSource, /getPrimaryVolleySimulationEntityCount\(spreadLanes\)/);
   assert.match(engineSource, /index === 0,[\s\S]*'bio-primary'/);
   assert.match(engineSource, /playSound: false,[\s\S]*maxShotVisualPattern/);
 });

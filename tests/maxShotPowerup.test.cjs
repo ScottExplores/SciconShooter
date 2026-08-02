@@ -49,8 +49,8 @@ test('Max Shot reserves room for the doubled tier-and-spread pattern before emit
 
   const fireBulletStart = engine.indexOf('\n  fireBullet() {');
   const fireBullet = engine.slice(fireBulletStart, engine.indexOf('\n  fireMissile()', fireBulletStart));
-  assert.match(fireBullet, /basePatternProjectileCount = volleySize \* \(overdriveSpread \? 3 : 1\)/);
-  assert.match(fireBullet, /getPrimaryVolleySimulationEntityCount\(overdriveSpread\)/);
+  assert.match(fireBullet, /basePatternProjectileCount = volleySize \* \(spreadLanes \? 3 : 1\)/);
+  assert.match(fireBullet, /getPrimaryVolleySimulationEntityCount\(spreadLanes\)/);
   assert.match(fireBullet, /\(maxShotVisualPattern\?\.length \?\? 0\) \* simulationEntityCount !== visualProjectileCount/);
   const capacityGate = fireBullet.indexOf('!canAdmitMaxShotVolley(');
   const firstEmission = fireBullet.indexOf('this.spawnPlayerBullet(');

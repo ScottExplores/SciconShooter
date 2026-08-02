@@ -258,7 +258,11 @@ test('companions use the real engine and Overdrive Spread stays on the main ship
   assert.match(engine, /const sideAngle = sampleTripleShotSideAngleRadians\(side, this\.nextGameplayRandom\(\)\)/);
   assert.doesNotMatch(engine, /sampleTripleShotSideAngleRadians\(side, Math\.random\(\)\)/);
   assert.match(engine, /angleBias: sideAngle/);
-  assert.match(engine, /OVERDRIVE SPREAD!/);
+  // The spread pickup is gone: triple spread is the ETH hull's identity, and
+  // the pickup that replaced it (Overdrive) amplifies the hull's own fire.
+  assert.match(engine, /const spreadLanes = this\.playerShipId === 'eth'/);
+  assert.match(engine, /this\.missionOverdriveLevel\+\+/);
+  assert.doesNotMatch(engine, /OVERDRIVE SPREAD!/);
   assert.match(renderer, /engine\.getSquadCompanionVisuals\(\)/);
   assert.match(renderer, /companion\?\.frames\[companion\.frameIndex\]/);
 });

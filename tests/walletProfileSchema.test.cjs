@@ -263,8 +263,10 @@ test('wallet snapshots preserve the current Weekly Campaign Streak and recompute
   const streak = sanitized.weeklyState.weeklyCampaignStreak;
   assert.equal(streak.weeklyId, boundary.weekKey);
   assert.deepEqual(streak.visitedNodeIds, [GRAPH_ENTRY.nodeId]);
-  assert.equal(streak.score.totalPoints, 2022);
-  assert.equal(streak.scoreEvents[0].breakdown.totalPoints, 2022);
+  // 2322 after the surge waves: the server recompute scores waves cleared,
+  // and the entry Mission now runs six of them.
+  assert.equal(streak.score.totalPoints, 2322);
+  assert.equal(streak.scoreEvents[0].breakdown.totalPoints, 2322);
   assert.equal(streak.finalization.status, 'active');
 });
 
