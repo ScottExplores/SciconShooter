@@ -296,11 +296,12 @@ export const ASSETS = {
     "/game-art/generated/scicon-flight-motion-pack-v1/enemies/paywall-interceptor/frames/paywall-interceptor-03-charged.png"
   ],
   LEGACY_ENEMY_DRONE_FRAMES: [
-    "/game-art/enemies/enemy-drone-1.png",
-    "/game-art/enemies/enemy-drone-2.png",
-    "/game-art/enemies/enemy-drone-3.png",
-    "/game-art/enemies/enemy-drone-4.png",
-    "/game-art/enemies/enemy-drone-5.png"
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-01-forward-dive.png",
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-02-front-three-quarter-right.png",
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-03-right-profile.png",
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-04-rear.png",
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-05-left-profile.png",
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-06-front-three-quarter-left.png"
   ],
   ENEMY_SWARM_FRAMES: [
     "/game-art/generated/scicon-flight-motion-pack-v1/enemies/citation-wraith/frames/citation-wraith-01-contracted.png",

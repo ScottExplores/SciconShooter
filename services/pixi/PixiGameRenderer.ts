@@ -45,6 +45,10 @@ import {
 import { PixiTextureBank } from './PixiTextureBank';
 import { sampleFormationEnemyPresentation } from './FormationEnemyPresentation';
 import {
+  isKamikazeSpinner,
+  resolveKamikazeSpinnerFrameIndex
+} from '../gameplay/enemies/KamikazeSpinnerRuntime';
+import {
   createSoftRadialLight,
   hideSoftRadialLight,
   showSoftRadialLight
@@ -949,6 +953,7 @@ export const PIXI_GAMEPLAY_STARTUP_TEXTURE_URLS = Object.freeze([
   ASSETS.PIXI_BOSS_ALERT_SCAN,
   ASSETS.PIXI_BOSS_ALERT_CRYSTAL,
   ...ASSETS.ENEMY_DRONE_FRAMES,
+  ...ASSETS.LEGACY_ENEMY_DRONE_FRAMES,
   ...ASSETS.ENEMY_SWARM_FRAMES,
   ...ASSETS.ENEMY_BRICK_FRAMES,
   ...ASSETS.ASTEROID_BELT_FRAMES,
@@ -1146,6 +1151,15 @@ const getDefaultEntityTexture = (engine: GameEngine, entity: Entity) => {
     if (entity.type === EntityType.ENEMY_INVADER && entity.spriteFrames.length >= 5) {
       return entity.spriteFrames[getPaywallBastionFrameIndex(engine, entity)];
     }
+    const spinnerFrameIndex = resolveKamikazeSpinnerFrameIndex({
+      frames: entity.spriteFrames,
+      campaignRoleId: entity.campaignRoleId,
+      formationState: entity.formationState,
+      frameCount: engine.frameCount,
+      variant: entity.variant,
+      formationIndex: entity.formationIndex
+    });
+    if (spinnerFrameIndex !== null) return entity.spriteFrames[spinnerFrameIndex];
     if (isFormationMotionEnemy(entity) && entity.spriteFrames.length === 3) {
       return entity.spriteFrames[getFormationMotionFrameIndex(engine, entity)];
     }
@@ -6060,6 +6074,12 @@ export class PixiGameRenderer {
       });
       view.aura.clear();
       view.root.rotation = presentation.bankRadians;
+      if (isKamikazeSpinner({
+        frames: entity.spriteFrames,
+        campaignRoleId: entity.campaignRoleId
+      }) && ['dive'].includes(entity.formationState)) {
+        view.root.rotation = 0;
+      }
 
       if (presentation.telegraphVisible) {
         const pulseAlpha = 0.24 + presentation.telegraphPulse * 0.2;

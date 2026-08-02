@@ -49,6 +49,24 @@ export interface FormationPoint {
   y: number;
 }
 
+export interface FormationSeparationMember extends FormationPoint {
+  id: string;
+  order: number;
+  width: number;
+  height: number;
+}
+
+export interface FormationSeparationBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+export interface ResolvedFormationSeparationPoint extends FormationPoint {
+  id: string;
+}
+
 export interface FormationGeometryEvent {
   id: string;
   patternId?: string;
@@ -194,6 +212,162 @@ export interface FormationMovementPointInput {
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+type MutableFormationSeparationMember = FormationSeparationMember & FormationPoint;
+
+const clampSeparatedMember = (
+  member: MutableFormationSeparationMember,
+  bounds: FormationSeparationBounds
+) => {
+  member.x = clamp(member.x, bounds.minX, Math.max(bounds.minX, bounds.maxX - member.width));
+  member.y = clamp(member.y, bounds.minY, Math.max(bounds.minY, bounds.maxY - member.height));
+};
+
+const separationMembersOverlap = (
+  left: MutableFormationSeparationMember,
+  right: MutableFormationSeparationMember,
+  padding: number
+) => (
+  left.x < right.x + right.width + padding
+  && left.x + left.width + padding > right.x
+  && left.y < right.y + right.height + padding
+  && left.y + left.height + padding > right.y
+);
+
+const buildPackedFormationFallback = (
+  members: readonly MutableFormationSeparationMember[],
+  bounds: FormationSeparationBounds,
+  padding: number
+): ResolvedFormationSeparationPoint[] => {
+  const availableWidth = Math.max(1, bounds.maxX - bounds.minX);
+  const availableHeight = Math.max(1, bounds.maxY - bounds.minY);
+  const desiredMinX = Math.min(...members.map((member) => member.x));
+  const desiredMaxX = Math.max(...members.map((member) => member.x + member.width));
+  const desiredMinY = Math.min(...members.map((member) => member.y));
+  const desiredMaxY = Math.max(...members.map((member) => member.y + member.height));
+  const desiredRatio = clamp(
+    (desiredMaxX - desiredMinX) / Math.max(1, desiredMaxY - desiredMinY),
+    0.2,
+    5
+  );
+
+  type PackedRow = { members: readonly MutableFormationSeparationMember[]; width: number; height: number };
+  type PackedCandidate = { rows: readonly PackedRow[]; width: number; height: number; score: number };
+  const candidates: PackedCandidate[] = [];
+
+  for (let columnCount = 1; columnCount <= members.length; columnCount++) {
+    const rows: PackedRow[] = [];
+    for (let start = 0; start < members.length; start += columnCount) {
+      const rowMembers = members.slice(start, start + columnCount);
+      rows.push({
+        members: rowMembers,
+        width: rowMembers.reduce((total, member, index) => total + member.width + (index > 0 ? padding : 0), 0),
+        height: Math.max(...rowMembers.map((member) => member.height))
+      });
+    }
+    const width = Math.max(...rows.map((row) => row.width));
+    const height = rows.reduce((total, row, index) => total + row.height + (index > 0 ? padding : 0), 0);
+    const overflowX = Math.max(0, width - availableWidth) / availableWidth;
+    const overflowY = Math.max(0, height - availableHeight) / availableHeight;
+    const ratio = width / Math.max(1, height);
+    candidates.push({
+      rows,
+      width,
+      height,
+      score: overflowX * 100 + overflowY * 100 + Math.abs(Math.log(Math.max(0.01, ratio) / desiredRatio))
+    });
+  }
+
+  const layout = candidates.sort((left, right) => left.score - right.score)[0];
+  const desiredCenterX = members.reduce((sum, member) => sum + member.x + member.width / 2, 0) / members.length;
+  const desiredCenterY = members.reduce((sum, member) => sum + member.y + member.height / 2, 0) / members.length;
+  const originX = clamp(
+    desiredCenterX - layout.width / 2,
+    bounds.minX,
+    Math.max(bounds.minX, bounds.maxX - layout.width)
+  );
+  const originY = clamp(
+    desiredCenterY - layout.height / 2,
+    bounds.minY,
+    Math.max(bounds.minY, bounds.maxY - layout.height)
+  );
+
+  const result: ResolvedFormationSeparationPoint[] = [];
+  let rowY = originY;
+  layout.rows.forEach((row) => {
+    let memberX = originX + (layout.width - row.width) / 2;
+    row.members.forEach((member) => {
+      result.push({ id: member.id, x: memberX, y: rowY + (row.height - member.height) / 2 });
+      memberX += member.width + padding;
+    });
+    rowY += row.height + padding;
+  });
+  return result;
+};
+
+/**
+ * Separates a complete assembled squad using its live collision dimensions.
+ * The solve starts from immutable per-frame desired points and is therefore
+ * deterministic: it never accumulates drift or jitter from the previous tick.
+ * A compact packing fallback handles formations whose authored topology cannot
+ * physically fit their current heterogeneous hulls on a phone.
+ */
+export const resolveNonOverlappingFormationPositions = (
+  inputMembers: readonly FormationSeparationMember[],
+  bounds: FormationSeparationBounds,
+  padding = 6
+): ResolvedFormationSeparationPoint[] => {
+  if (inputMembers.length === 0) return [];
+  const safePadding = Math.max(0, Number.isFinite(padding) ? padding : 0);
+  const members: MutableFormationSeparationMember[] = inputMembers
+    .map((member) => ({
+      ...member,
+      x: Number.isFinite(member.x) ? member.x : bounds.minX,
+      y: Number.isFinite(member.y) ? member.y : bounds.minY,
+      width: Math.max(1, Number.isFinite(member.width) ? member.width : 1),
+      height: Math.max(1, Number.isFinite(member.height) ? member.height : 1),
+      order: Number.isFinite(member.order) ? member.order : 0
+    }))
+    .sort((left, right) => left.order - right.order || left.id.localeCompare(right.id));
+
+  members.forEach((member) => clampSeparatedMember(member, bounds));
+  for (let pass = 0; pass < 36; pass++) {
+    let moved = false;
+    for (let leftIndex = 0; leftIndex < members.length; leftIndex++) {
+      const left = members[leftIndex];
+      for (let rightIndex = leftIndex + 1; rightIndex < members.length; rightIndex++) {
+        const right = members[rightIndex];
+        const dx = (right.x + right.width / 2) - (left.x + left.width / 2);
+        const dy = (right.y + right.height / 2) - (left.y + left.height / 2);
+        const overlapX = (left.width + right.width) / 2 + safePadding - Math.abs(dx);
+        const overlapY = (left.height + right.height) / 2 + safePadding - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+
+        moved = true;
+        if (overlapX <= overlapY) {
+          const direction = dx === 0 ? (leftIndex % 2 === 0 ? 1 : -1) : Math.sign(dx);
+          const shift = overlapX / 2 + 0.01;
+          left.x -= direction * shift;
+          right.x += direction * shift;
+        } else {
+          const direction = dy === 0 ? (leftIndex % 2 === 0 ? 1 : -1) : Math.sign(dy);
+          const shift = overlapY / 2 + 0.01;
+          left.y -= direction * shift;
+          right.y += direction * shift;
+        }
+        clampSeparatedMember(left, bounds);
+        clampSeparatedMember(right, bounds);
+      }
+    }
+    if (!moved) break;
+  }
+
+  const hasOverlap = members.some((left, leftIndex) => (
+    members.slice(leftIndex + 1).some((right) => separationMembersOverlap(left, right, safePadding))
+  ));
+  if (hasOverlap) return buildPackedFormationFallback(members, bounds, safePadding);
+  return members.map((member) => ({ id: member.id, x: member.x, y: member.y }));
+};
 
 const normalizeAnchor = (anchor: FormationPoint | undefined) => {
   const x = Number(anchor?.x);

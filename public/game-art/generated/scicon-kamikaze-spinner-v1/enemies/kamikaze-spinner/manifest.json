@@ -1,0 +1,26 @@
+{
+  "id": "kamikaze-spinner",
+  "title": "Kamikaze Spinner",
+  "version": 1,
+  "states": [
+    "forward-dive",
+    "front-three-quarter-right",
+    "right-profile",
+    "rear",
+    "left-profile",
+    "front-three-quarter-left"
+  ],
+  "forwardDiveFrame": "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-01-forward-dive.png",
+  "spinLoopFrames": [
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-01-forward-dive.png",
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-02-front-three-quarter-right.png",
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-03-right-profile.png",
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-04-rear.png",
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-05-left-profile.png",
+    "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/frames/kamikaze-spinner-06-front-three-quarter-left.png"
+  ],
+  "sheet": "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/kamikaze-spinner-sprite-sheet.png",
+  "previewGif": "/game-art/generated/scicon-kamikaze-spinner-v1/enemies/kamikaze-spinner/previews/kamikaze-spinner-animation-preview.gif",
+  "fps": 9,
+  "productionNote": "Hold frame 1 during committed dives; loop all six frames while assembled or traveling."
+}

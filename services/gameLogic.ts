@@ -207,11 +207,13 @@ import {
   resolveFormationChoreography,
   resolveFormationEntryPlan,
   resolveFormationMovementPoint,
+  resolveNonOverlappingFormationPositions,
   isFormationVolleyAttack,
   type ConfiguredFormationMode,
   type ResolvedFormationChoreography
 } from './gameplay/formations';
 import { ESCORT_POD_SIZE, resolveFormationDiveMotion } from './gameplay/formations/FormationRuntime';
+import { resolveKamikazeSpinnerFrameIndex } from './gameplay/enemies/KamikazeSpinnerRuntime';
 import {
   MAX_GENERATED_BOSS_PROJECTILES_PER_CUE,
   getGeneratedBossTechniqueCue,
@@ -1100,6 +1102,7 @@ const GAMEPLAY_ASSET_URLS = [
   ASSETS.FINAL_BOSS,
   DEFAULT_BOMB_SPRITE_URL,
   ...ASSETS.ENEMY_DRONE_FRAMES,
+  ...ASSETS.LEGACY_ENEMY_DRONE_FRAMES,
   ...ASSETS.ENEMY_SWARM_FRAMES,
   ...ASSETS.ENEMY_BRICK_FRAMES,
   ...ASSETS.ASTEROID_BELT_FRAMES,
@@ -4281,6 +4284,20 @@ export class GameEngine {
     return frames[index];
   }
 
+  getEnemyAnimatedFrame(frames: string[], entity: Entity, speed: number) {
+    const spinnerFrameIndex = resolveKamikazeSpinnerFrameIndex({
+      frames,
+      campaignRoleId: entity.campaignRoleId,
+      formationState: entity.formationState,
+      frameCount: this.frameCount,
+      variant: entity.variant,
+      formationIndex: entity.formationIndex
+    });
+    return spinnerFrameIndex === null
+      ? this.getAnimatedFrame(frames, entity, speed)
+      : frames[spinnerFrameIndex];
+  }
+
   drawSprite(
     ctx: CanvasRenderingContext2D,
     url: string,
@@ -6321,6 +6338,7 @@ export class GameEngine {
       }
     });
 
+    this.separateAssembledFormationMembers();
     this.checkCollisions();
     this.applyResearchBeamDamage();
     this.retireStrandedRegularThreatsAtWaveEnd();
@@ -8583,6 +8601,56 @@ export class GameEngine {
       x: center.x + (member.formationTargetX ?? member.x) / members.length,
       y: center.y + (member.formationTargetY ?? member.y) / members.length
     }), { x: 0, y: 0 });
+  }
+
+  separateAssembledFormationMembers() {
+    const groups = new Map<string, Entity[]>();
+    for (const entity of this.entities) {
+      if (
+        entity.markedForDeletion
+        || !entity.formationState
+        || entity.formation === 'orbit'
+        || entity.formationTargetX === undefined
+        || entity.formationTargetY === undefined
+      ) continue;
+      const groupId = entity.campaignFormationPackInstanceId
+        || (entity.sourceEventId
+          ? `event:${entity.sourceEventId}`
+          : `formation:${entity.formation}:${entity.formationGroupSeed}`);
+      const group = groups.get(groupId);
+      if (group) group.push(entity);
+      else groups.set(groupId, [entity]);
+    }
+
+    const bounds = {
+      minX: 4,
+      minY: 48,
+      maxX: this.width - 4,
+      maxY: this.height * 0.58
+    };
+    for (const members of groups.values()) {
+      if (members.length <= 1 || !members.some((member) => member.formationState === 'hold')) continue;
+      const resolved = resolveNonOverlappingFormationPositions(
+        members.map((member) => ({
+          id: member.id,
+          order: member.formationIndex,
+          x: member.formationState === 'hold' ? member.x : (member.formationTargetX ?? member.x),
+          y: member.formationState === 'hold' ? member.y : (member.formationTargetY ?? member.y),
+          width: member.width,
+          height: member.height
+        })),
+        bounds,
+        this.mobileProfile ? 5 : 6
+      );
+      const pointById = new Map(resolved.map((point) => [point.id, point]));
+      members.forEach((member) => {
+        if (member.formationState !== 'hold') return;
+        const point = pointById.get(member.id);
+        if (!point) return;
+        member.x = point.x;
+        member.y = point.y;
+      });
+    }
   }
 
   beginConfiguredFormationAttack(enemy: Entity, attackCycle: number) {
@@ -19528,7 +19596,7 @@ export class GameEngine {
 
   getHitFlashSprite(e: Entity) {
     if (e.type === EntityType.ENEMY_INVADER) return this.getPaywallBastionSprite(e);
-    if (e.spriteFrames?.length) return this.getAnimatedFrame(e.spriteFrames, e, 6);
+    if (e.spriteFrames?.length) return this.getEnemyAnimatedFrame(e.spriteFrames, e, 6);
     if (e.spriteUrl) return e.spriteUrl;
     if (e.type === EntityType.ENEMY_DRONE) {
       return this.getAnimatedFrame(ASSETS.ENEMY_DRONE_FRAMES, e, 6);
@@ -20027,7 +20095,7 @@ export class GameEngine {
 
     } else if (e.type === EntityType.ENEMY_DRONE) {
         const frame = e.spriteFrames?.length
-          ? this.getAnimatedFrame(e.spriteFrames, e, 6)
+          ? this.getEnemyAnimatedFrame(e.spriteFrames, e, 6)
           : e.spriteUrl || this.getAnimatedFrame(ASSETS.ENEMY_DRONE_FRAMES, e, 6);
         const rotation = e.formation === 'spiral' ? Math.PI / 2 + e.angle : 0;
         const drewSprite = this.drawSprite(ctx, frame, e.width, e.height, {

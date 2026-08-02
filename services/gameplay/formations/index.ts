@@ -10,6 +10,7 @@ export {
   resolveFormationChoreography,
   resolveFormationEntryPlan,
   resolveFormationMovementPoint,
+  resolveNonOverlappingFormationPositions,
   isFormationVolleyAttack
 } from './FormationRuntime';
 
@@ -25,6 +26,9 @@ export type {
   FormationChoreographyEvent,
   FormationMovementPointInput,
   FormationPoint,
+  FormationSeparationBounds,
+  FormationSeparationMember,
+  ResolvedFormationSeparationPoint,
   ResolvedFormationChoreography,
   FormationSpawnPointInput,
   FormationTargetInput,
