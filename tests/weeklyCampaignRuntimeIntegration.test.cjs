@@ -63,9 +63,14 @@ test('App runs weekly streaks through direct graph routing and the existing lead
   const appSource = read('App.tsx');
 
   assert.match(appSource, /type ActiveRunMode[^\n]*'weekly-streak'/);
-  assert.match(appSource, /startWeeklyCampaignStreak\(WEEKLY_CAMPAIGN_GRAPH/);
-  assert.match(appSource, /recordWeeklyCampaignNodeScore\(streak, WEEKLY_CAMPAIGN_GRAPH/);
-  assert.match(appSource, /requestWeeklyCampaignAdvance\([\s\S]{0,180}WEEKLY_CAMPAIGN_GRAPH/);
+  // The run drives its OWN generated graph now, not the Campaign graph. That
+  // separation is the whole point of the mode: no Campaign missions, no
+  // Campaign unlocks, no Campaign progress.
+  assert.match(appSource, /startWeeklyCampaignStreak\(weeklyRun\.graph/);
+  assert.match(appSource, /recordWeeklyCampaignNodeScore\(streak, weeklyRun\.graph/);
+  assert.match(appSource, /requestWeeklyCampaignAdvance\([\s\S]{0,180}weeklyRun\.graph/);
+  assert.doesNotMatch(appSource, /WEEKLY_CAMPAIGN_GRAPH/);
+  assert.match(appSource, /getWeeklyRun\(weeklySquadState\.weekKey\)/);
   assert.match(appSource, /finalizeWeeklyCampaignLoss/);
   assert.match(appSource, /finalizeWeeklyCampaignDeliberateEnd/);
   assert.match(appSource, /finalizeCompletedWeeklyCampaignStreak/);

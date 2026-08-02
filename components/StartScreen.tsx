@@ -32,7 +32,7 @@ import {
 import SquadHangar from './SquadHangar';
 import PixelActionButton from './PixelActionButton';
 import Tutorial from './Tutorial';
-import { WEEKLY_RUN_STARTING_LIVES, buildWeeklyRunRoute } from '../services/weeklyRunGauntlet';
+import { WEEKLY_RUN_STARTING_LIVES } from '../services/weeklyRunGenerator';
 import ShipCarousel from './ShipCarousel';
 import BossArchive, {
   type BossArchiveDeveloperControls,
@@ -169,7 +169,7 @@ const COMMUNICATION_ICON_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1
 const RESEARCHHUB_REFERRAL_QR = '/game-art/generated/ui/scicon-desktop-mobile-launch-v1/researchhub-referral-qr.png';
 // Weekly Run headline facts, sourced from the gauntlet route so the card can
 // never drift from what the mode actually does.
-const WEEKLY_RUN_BOSS_COUNT = buildWeeklyRunRoute().bossIds.length;
+
 const REWARD_EDGE_ARROW = '/game-art/generated/ui/scicon-reward-edge-v1/reward-arrow.png';
 const REWARD_ACHIEVEMENT_ICON = '/game-art/generated/ui/scicon-ui-system-v2/base/achievements-more/achievement-unlocked-card.png';
 
@@ -1339,7 +1339,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
           onClick={onStartWeeklyRun}
           aria-label={weeklyRunActive
             ? `Resume Weekly Run. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
-            : `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, ${WEEKLY_RUN_BOSS_COUNT} bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
+            : `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, endless escalating waves and bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
         >
           <span className="sci-weekly-run-entry__glyph" aria-hidden="true">
             <img src={ASSETS.PLAYER_SHIP} alt="" draggable={false} />
@@ -1350,8 +1350,8 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </span>
             <span className="sci-weekly-run-entry__sub">
               {weeklyRunActive
-                ? `In Progress · ${WEEKLY_RUN_BOSS_COUNT} Bosses`
-                : `${WEEKLY_RUN_STARTING_LIVES} Lives · ${WEEKLY_RUN_BOSS_COUNT} Bosses`}
+                ? `In Progress · Endless`
+                : `${WEEKLY_RUN_STARTING_LIVES} Lives · Endless`}
             </span>
           </span>
           <span className="sci-weekly-run-entry__best" aria-hidden="true">

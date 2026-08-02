@@ -168,12 +168,11 @@ import { getStageName } from './services/stagePresentation';
 import { DEFAULT_GAME_CAMPAIGN } from './services/levelConfig';
 import {
   WEEKLY_RUN_STARTING_LIVES,
-  getWeeklyRunSectorNumber,
-  isWeeklyRunBossMission,
-  WEEKLY_RUN_SECTOR_ORDER,
+  WEEKLY_RUN_STAGE_COUNT,
+  getWeeklyRunDepth,
   buildWeeklyRunCampaign,
   getWeeklyRunEntryPoint
-} from './services/weeklyRunGauntlet';
+} from './services/weeklyRunGenerator';
 import {
   BOSS_ARCHIVE_CATALOG,
   buildBossReplayCampaign,
@@ -252,12 +251,40 @@ const MISSION_LOADING_TIPS = [
 ] as const;
 
 const AUTHORED_CAMPAIGN_STAGE_COUNT = Math.max(1, DEFAULT_GAME_CAMPAIGN.levels.length);
-const WEEKLY_CAMPAIGN_GRAPH = createCampaignGraphIndex(DEFAULT_GAME_CAMPAIGN);
-// One continuous boss gauntlet built by reordering the authored Campaign
-// levels. Computed once: it is a pure function of the frozen campaign.
-const WEEKLY_RUN_CAMPAIGN = buildWeeklyRunCampaign(DEFAULT_GAME_CAMPAIGN);
-const WEEKLY_RUN_ENTRY_POINT = getWeeklyRunEntryPoint(DEFAULT_GAME_CAMPAIGN);
-const WEEKLY_RUN_MISSION_IDS = new Set(WEEKLY_RUN_CAMPAIGN.levels.map((level) => level.id));
+
+/**
+ * The Weekly Run is generated, not authored, and it is regenerated each week.
+ *
+ * It used to reorder Campaign levels and run on the *Campaign* graph, which
+ * tied the weekly competition to Campaign content. It now has its own endless
+ * escalating stage ladder and its own linear graph; nothing here reads Campaign
+ * progress or mission definitions.
+ *
+ * Memoized on the week key because generating forty stages of waves is not free
+ * and the result must be stable for the whole week.
+ */
+const weeklyRunCache = new Map<string, {
+  campaign: ReturnType<typeof buildWeeklyRunCampaign>;
+  graph: ReturnType<typeof createCampaignGraphIndex>;
+  entry: ReturnType<typeof getWeeklyRunEntryPoint>;
+  missionIds: Set<string>;
+}>();
+
+const getWeeklyRun = (weekKey: string) => {
+  const cached = weeklyRunCache.get(weekKey);
+  if (cached) return cached;
+  const campaign = buildWeeklyRunCampaign(weekKey);
+  const built = {
+    campaign,
+    graph: createCampaignGraphIndex(campaign),
+    entry: getWeeklyRunEntryPoint(weekKey),
+    missionIds: new Set(campaign.levels.map((level) => level.id))
+  };
+  // One entry is enough: the key only changes at the weekly boundary.
+  weeklyRunCache.clear();
+  weeklyRunCache.set(weekKey, built);
+  return built;
+};
 const CAMPAIGN_BRANCH_DEFINITIONS = DEFAULT_GAME_CAMPAIGN.campaignBranches ?? [];
 const CAMPAIGN_MAP_BRANCHES: CampaignMapBranchDefinition[] = CAMPAIGN_BRANCH_DEFINITIONS.map((branch) => ({
   branchId: branch.branchId,
@@ -583,6 +610,12 @@ const App: React.FC = () => {
   const [permanentSquadState, setPermanentSquadState] = useState<PermanentSquadState>(() => (
     loadPermanentSquadState(pilotProfile.id)
   ));
+  /**
+   * This week's generated Weekly Run: its own endless stage ladder and its own
+   * graph, regenerated at the weekly boundary and identical for every player
+   * within a week.
+   */
+  const weeklyRun = useMemo(() => getWeeklyRun(weeklySquadState.weekKey), [weeklySquadState.weekKey]);
   const [fundingProposals, setFundingProposals] = useState<ResearchHubProposal[]>([]);
   const [proposalReferences, setProposalReferences] = useState<ResearchHubProposal[]>([]);
   const [proposalStatus, setProposalStatus] = useState<ProposalFeedStatus>('loading');
@@ -1924,7 +1957,7 @@ const App: React.FC = () => {
     // the very first Weekly Run of the week.
     const weeklyLaunchAllowed = Boolean(
       campaignRequest?.kind === 'weekly-streak'
-      && WEEKLY_RUN_MISSION_IDS.has(campaignRequest.missionId)
+      && weeklyRun.missionIds.has(campaignRequest.missionId)
     );
     if (
       campaignRequest
@@ -2186,7 +2219,7 @@ const App: React.FC = () => {
     // returning home, so depth is tracked here, at the single launch funnel,
     // rather than in any one Mission's completion path.
     if (runMode === 'weekly-streak') {
-      const sector = getWeeklyRunSectorNumber(normalizedCampaignRequest?.missionId);
+      const sector = getWeeklyRunDepth(normalizedCampaignRequest?.missionId);
       if (sector > 0) {
         weeklyRunSectorReachedRef.current = Math.max(weeklyRunSectorReachedRef.current, sector);
         weeklyRunSectorsClearedRef.current = Math.max(weeklyRunSectorsClearedRef.current, sector - 1);
@@ -2564,7 +2597,11 @@ const App: React.FC = () => {
       introStoryTimeoutRef.current = null;
       setIntroMissionLocked(false);
       if (gameStateRef.current === GameState.PLAYING) {
-        const introBeat = getStoryBeatForPhase(pendingLaunch.missionNumber);
+        // Campaign narrative only. The Weekly Run has no missions to brief, so
+        // opening it with "Mission 1: Research Frontier" would be wrong.
+        const introBeat = pendingLaunch.runMode === 'weekly-streak'
+          ? null
+          : getStoryBeatForPhase(pendingLaunch.missionNumber);
         if (introBeat && !hasSeenStoryBeatToday(introBeat)) {
           setActiveStoryBeat(introBeat);
         } else {
@@ -2786,7 +2823,7 @@ const App: React.FC = () => {
     const now = new Date();
     const boundary = getWeeklyBoundaryMeta(now);
     try {
-      const streak = startWeeklyCampaignStreak(WEEKLY_CAMPAIGN_GRAPH, {
+      const streak = startWeeklyCampaignStreak(weeklyRun.graph, {
         weeklyId: boundary.weekKey,
         resetAtMs: boundary.endsAt.getTime(),
         startNodeId: request.nodeId,
@@ -2813,11 +2850,11 @@ const App: React.FC = () => {
    * production-ready boss, starting on exactly ten lives.
    *
    * It does not route through the Campaign Map. The run has its own ordered
-   * campaign (WEEKLY_RUN_CAMPAIGN), so clearing a boss rolls straight into the
+   * campaign (weeklyRun.campaign), so clearing a boss rolls straight into the
    * next sector rather than bouncing the player back to the home screen.
    */
   const startWeeklyRunFromHome = useCallback(() => {
-    const entry = WEEKLY_RUN_ENTRY_POINT;
+    const entry = weeklyRun.entry;
     if (!entry) {
       setCampaignMapError('The Weekly Run route is unavailable. Please reload and try again.');
       setCampaignMapStatus('launch-error');
@@ -2833,11 +2870,16 @@ const App: React.FC = () => {
 
     if (!resuming) {
       try {
-        persistWeeklyCampaignStreak(startWeeklyCampaignStreak(WEEKLY_CAMPAIGN_GRAPH, {
+        persistWeeklyCampaignStreak(startWeeklyCampaignStreak(weeklyRun.graph, {
           weeklyId: boundary.weekKey,
           resetAtMs: boundary.endsAt.getTime(),
-          startNodeId: WEEKLY_CAMPAIGN_GRAPH.definition.nodes[0]?.nodeId ?? '',
-          unlockedNodeIds: permanentSquadStateRef.current.campaignProgress.unlockedGraphNodeIds,
+          startNodeId: weeklyRun.graph.definition.nodes[0]?.nodeId ?? '',
+          // The Weekly Run is not gated on Campaign progress -- it is a
+          // separate mode with its own ladder, and every player starts it at
+          // depth 1. Passing Campaign unlocks here meant the run refused to
+          // start, because Campaign node ids are never weekly-run node ids.
+          // Depth is still earned: the streak only advances one node at a time.
+          unlockedNodeIds: weeklyRun.graph.definition.nodes.map((node) => node.nodeId),
           nowMs: now.getTime()
         }));
       } catch (error) {
@@ -2856,7 +2898,7 @@ const App: React.FC = () => {
       waveId: entry.waveId ?? undefined,
       kind: 'weekly-streak'
     });
-  }, [launchGame, persistWeeklyCampaignStreak]);
+  }, [launchGame, persistWeeklyCampaignStreak, weeklyRun]);
 
   const selectWeeklyCampaignMissionFromMap = useCallback((
     request: CampaignMapLaunchRequest & { nodeId: string }
@@ -2874,7 +2916,7 @@ const App: React.FC = () => {
     }
     const result = requestWeeklyCampaignAdvance(
       streak,
-      WEEKLY_CAMPAIGN_GRAPH,
+      weeklyRun.graph,
       request.nodeId,
       Date.now()
     );
@@ -3501,7 +3543,7 @@ const App: React.FC = () => {
         if (!founderAuthorizationRef.current) return;
         const activeStreak = weeklySquadStateRef.current.weeklyCampaignStreak;
         if (activeStreak?.finalization.status === 'active') {
-          const targetNode = WEEKLY_CAMPAIGN_GRAPH.nodeById.get(targetNodeId);
+          const targetNode = weeklyRun.graph.nodeById.get(targetNodeId);
           const targetMission = targetNode
             ? getCampaignMissionById(targetNode.missionDefinitionId)
             : null;
@@ -3541,7 +3583,7 @@ const App: React.FC = () => {
           setCampaignMapError('Campaign Lab backward simulation requires an active Weekly Streak.');
           return;
         }
-        const targetNode = WEEKLY_CAMPAIGN_GRAPH.nodeById.get(targetNodeId);
+        const targetNode = weeklyRun.graph.nodeById.get(targetNodeId);
         const targetMission = targetNode
           ? getCampaignMissionById(targetNode.missionDefinitionId)
           : null;
@@ -3967,7 +4009,7 @@ const App: React.FC = () => {
     if (activeRunMode === 'weekly-streak') {
       if (!summary.stageComplete) return;
       const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
-      const node = streak ? WEEKLY_CAMPAIGN_GRAPH.nodeById.get(streak.currentNodeId) : null;
+      const node = streak ? weeklyRun.graph.nodeById.get(streak.currentNodeId) : null;
       const mission = getCampaignMissionById(summary.levelId);
       const resultId = streak
         ? `weekly:${streak.weeklyId}:${summary.id}`
@@ -3993,7 +4035,7 @@ const App: React.FC = () => {
         objective.kind === 'time-at-most'
       ))?.target;
       try {
-        const nextStreak = recordWeeklyCampaignNodeScore(streak, WEEKLY_CAMPAIGN_GRAPH, {
+        const nextStreak = recordWeeklyCampaignNodeScore(streak, weeklyRun.graph, {
           eventId: resultId,
           nodeId: node.nodeId,
           occurredAtMs: Date.now(),
@@ -4260,16 +4302,16 @@ const App: React.FC = () => {
     if (isWeeklyCampaignRun) {
       const streak = weeklySquadStateRef.current.weeklyCampaignStreak;
       if (!streak || streak.finalization.status !== 'active') return;
-      const outgoing = WEEKLY_CAMPAIGN_GRAPH.edgesBySourceNodeId.get(streak.currentNodeId) ?? [];
+      const outgoing = weeklyRun.graph.edgesBySourceNodeId.get(streak.currentNodeId) ?? [];
       if (outgoing.length === 0) {
         try {
           // No outgoing edge means the final Sector boss is down: the gauntlet
           // is finished, which is what Gauntlet Runner counts.
-          weeklyRunSectorsClearedRef.current = WEEKLY_RUN_SECTOR_ORDER.length;
-          weeklyRunSectorReachedRef.current = WEEKLY_RUN_SECTOR_ORDER.length;
+          weeklyRunSectorsClearedRef.current = WEEKLY_RUN_STAGE_COUNT;
+          weeklyRunSectorReachedRef.current = WEEKLY_RUN_STAGE_COUNT;
           finishWeeklyCampaignForLeaderboard(finalizeCompletedWeeklyCampaignStreak(
             streak,
-            WEEKLY_CAMPAIGN_GRAPH,
+            weeklyRun.graph,
             Date.now()
           ));
         } catch (error) {
@@ -4280,7 +4322,7 @@ const App: React.FC = () => {
       if (outgoing.length === 1) {
         const result = requestWeeklyCampaignAdvance(
           streak,
-          WEEKLY_CAMPAIGN_GRAPH,
+          weeklyRun.graph,
           outgoing[0].toNodeId,
           Date.now()
         );
@@ -4290,7 +4332,7 @@ const App: React.FC = () => {
             : result.confirmation.message);
           return;
         }
-        const nextNode = WEEKLY_CAMPAIGN_GRAPH.nodeById.get(result.state.currentNodeId);
+        const nextNode = weeklyRun.graph.nodeById.get(result.state.currentNodeId);
         const nextMission = nextNode ? getCampaignMissionById(nextNode.missionDefinitionId) : null;
         const nextWaveId = nextMission?.waveIds[0];
         if (!nextMission || !nextWaveId) return;
@@ -4309,7 +4351,7 @@ const App: React.FC = () => {
         setGameState(GameState.PLAYING);
         return;
       }
-      const firstOption = WEEKLY_CAMPAIGN_GRAPH.nodeById.get(outgoing[0].toNodeId);
+      const firstOption = weeklyRun.graph.nodeById.get(outgoing[0].toNodeId);
       setWaveVictorySummary(null);
       setCampaignResultPresentation(null);
       setGameState(GameState.MENU);
@@ -4957,6 +4999,13 @@ const App: React.FC = () => {
       return;
     }
 
+    // Story transmissions are Campaign narrative. The Weekly Run is a separate
+    // mode with no missions and no story, so a generated depth-3 wave must not
+    // interrupt the run with "Mission 1: Research Frontier".
+    if (isWeeklyCampaignRun) {
+      return;
+    }
+
     if (stats.wave <= lastStoryWaveRef.current) {
       return;
     }
@@ -4967,7 +5016,7 @@ const App: React.FC = () => {
     if (nextBeat && !hasSeenStoryBeatToday(nextBeat)) {
       setActiveStoryBeat(nextBeat);
     }
-  }, [activeStoryBeat, gameState, stats.wave]);
+  }, [activeStoryBeat, gameState, isWeeklyCampaignRun, stats.wave]);
 
   const finalizeCurrentRun = async (): Promise<RunReceipt | null> => {
     if (isBossArchiveRun) return null;
@@ -5046,7 +5095,7 @@ const App: React.FC = () => {
           coinsCollected: isCampaignRun ? 0 : stats.coins,
           weeklyRun: isWeeklyCampaignRun
             ? {
-                completed: weeklyRunSectorsClearedRef.current >= WEEKLY_RUN_SECTOR_ORDER.length,
+                completed: weeklyRunSectorsClearedRef.current >= WEEKLY_RUN_STAGE_COUNT,
                 sectorReached: weeklyRunSectorReachedRef.current
               }
             : undefined
@@ -5504,14 +5553,13 @@ const App: React.FC = () => {
     const visitedSectors = new Set<number>();
     let bossesCleared = 0;
     for (const nodeId of streak.visitedNodeIds) {
-      const node = WEEKLY_CAMPAIGN_GRAPH.nodeById.get(nodeId);
-      const sector = getWeeklyRunSectorNumber(node?.missionDefinitionId);
+      const node = weeklyRun.graph.nodeById.get(nodeId);
+      const sector = getWeeklyRunDepth(node?.missionDefinitionId);
       if (sector > 0) visitedSectors.add(sector);
-      if (isWeeklyRunBossMission(node?.missionDefinitionId) && streak.scoredNodeIds.includes(nodeId)) bossesCleared += 1;
+      if ((node?.bossId || (node?.miniBossIds?.length ?? 0) > 0) && streak.scoredNodeIds.includes(nodeId)) bossesCleared += 1;
     }
     return {
       sectorReached: visitedSectors.size > 0 ? Math.max(...visitedSectors) : 1,
-      totalSectors: WEEKLY_RUN_SECTOR_ORDER.length,
       bossesCleared,
       points: streak.score.totalPoints,
       completed: streak.finalization.status === 'finalized'
@@ -5653,7 +5701,7 @@ const App: React.FC = () => {
                 ?? activeCampaignBranchCampaign
                 // Weekly Run reorders the authored levels into one continuous
                 // boss gauntlet instead of duplicating any boss content.
-                ?? (isWeeklyCampaignRun ? WEEKLY_RUN_CAMPAIGN : undefined)
+                ?? (isWeeklyCampaignRun ? weeklyRun.campaign : undefined)
                 ?? (isCampaignRun ? DEFAULT_GAME_CAMPAIGN : undefined),
               levelId: activeBossReplay?.missionId
                 ?? activeCampaignBranch?.missionDefinition.id
@@ -6045,12 +6093,12 @@ const App: React.FC = () => {
               {weeklyRunResultSummary ? (
                 <div className="sci-weekly-run-result">
                   <p className="sci-weekly-run-result__eyebrow">
-                    {weeklyRunResultSummary.completed ? 'Gauntlet Complete' : 'Weekly Run Ended'}
+                    {weeklyRunResultSummary.completed ? 'Gauntlet Cleared' : 'Weekly Run Ended'}
                   </p>
                   <div className="sci-weekly-run-result__grid">
                     <div>
                       <strong>{weeklyRunResultSummary.sectorReached}</strong>
-                      <span>of {weeklyRunResultSummary.totalSectors} sectors</span>
+                      <span>depth reached</span>
                     </div>
                     <div>
                       <strong>{weeklyRunResultSummary.bossesCleared}</strong>
