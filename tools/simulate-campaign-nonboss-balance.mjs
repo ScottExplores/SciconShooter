@@ -537,7 +537,7 @@ const runSimulation = async (argv = process.argv.slice(2), root = repositoryRoot
       shipAbilityCooldownMax: 960,
       lives: 3 + upgrades.startingHearts,
       repairsCount: 0,
-      upgrades: { fireRate: upgrades.fireRate, speed: upgrades.speed, missile: 0 },
+      upgrades: { fireRate: upgrades.fireRate, speed: upgrades.speed },
       powerupUses: {},
       bossProgress: 0,
       isBossActive: false,

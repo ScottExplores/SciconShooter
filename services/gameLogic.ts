@@ -2201,7 +2201,6 @@ export class GameEngine {
   bossWarningDuration: number = 0;
   pendingBossType: BossWarningType | null = null;
   waveTransitionPending: boolean = false;
-  missileTimer: number = 0;
   playerVel = { x: 0, y: 0 };
   playerTilt: number = 0;
   playerSquash: number = 0;
@@ -4852,7 +4851,6 @@ export class GameEngine {
     this.activePowerups.clear();
     this.lastPlayerRamFrame = -999;
     this.lastPreviewPlayerHitFeedbackFrame = -999;
-    this.missileTimer = 0;
     this.playerVel = { x: 0, y: 0 };
     this.playerTilt = 0;
     this.resetSquadCompanionPositions();
@@ -6046,16 +6044,6 @@ export class GameEngine {
       this.playerFireCooldownFrames = 0;
     }
 
-    // Missile Logic
-    if (this.stats.upgrades.missile > 0) {
-        this.missileTimer--;
-        const cooldown = 180 - (this.stats.upgrades.missile * 20); // 3s down to ~1.3s
-        if (this.missileTimer <= 0) {
-            this.fireMissile();
-            this.missileTimer = cooldown;
-        }
-    }
-
     if (this.invincibleTimer > 0) this.invincibleTimer--;
 
     this.spawnConfiguredSupportEvents();
@@ -7127,27 +7115,6 @@ export class GameEngine {
         });
       });
     }
-  }
-
-  fireMissile() {
-      // Check if max level (5)
-      const isMaxLevel = this.stats.upgrades.missile >= 5;
-      this.kickPlayerSquash(-0.075);
-      this.addShake(isMaxLevel ? 0.7 : 0.38);
-
-      const m = this.createEntity(EntityType.MISSILE, this.player.x + this.player.width/2 - 5, this.player.y);
-      m.width = 10;
-      m.height = 20;
-      m.isMissile = true;
-      m.vy = -4; // Initial velocity up
-
-      // Max level is Neon Pink/Red, Standard is Cyan
-      m.color = isMaxLevel ? '#ff0055' : '#00ffff';
-
-      m.isPlayerShot = true; // Mark as player shot
-      this.entities.push(m);
-      this.livePlayerShotCount++;
-      this.playSound('missile');
   }
 
   addFlaskChargeFromCoin() {

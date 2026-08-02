@@ -72,19 +72,30 @@ export const getShipAbilityCooldownFrames = (
   return Math.max(1, Math.round(baseCooldownFrames * multiplier));
 };
 
-const PLAYER_WEAPON_FX_ROOT = '/game-art/generated/scicon-player-weapon-fx-v1';
-const getGalleryAbilityFrames = (
-  ship: 'bio' | 'eth' | 'btc',
-  level: number = 7
-) => (
-  Array.from({ length: 4 }, (_, index) => `${PLAYER_WEAPON_FX_ROOT}/${ship}/level-${level}/frame-${index + 1}.png`)
+/**
+ * BIO, ETH, and BTC borrowed their signature-move frames straight from the
+ * *primary weapon* FX pack, so the move a player picked their hull for looked
+ * exactly like their ordinary gun. Each now has its own art,
+ * drawn on a grid matching the projectile the engine spawns for it:
+ * a helix lance, a single crystal shard, and a hexagonal hash lattice.
+ *
+ * ResearchHub is unchanged -- RESEARCH_CHARGE_FRAME_URLS above already points
+ * at dedicated hand-made art, so there is nothing to replace.
+ *
+ * Source: tools/generate-signature-move-fx.mjs (procedural, regenerable).
+ */
+const SIGNATURE_MOVE_FX_ROOT = '/game-art/generated/scicon-signature-move-fx-v1';
+const SIGNATURE_MOVE_FRAME_COUNT = 6;
+const getSignatureMoveFrames = (ship: 'researchhub' | 'bio' | 'eth' | 'btc') => (
+  Array.from(
+    { length: SIGNATURE_MOVE_FRAME_COUNT },
+    (_, index) => `${SIGNATURE_MOVE_FX_ROOT}/${ship}/frame-${index + 1}.png`
+  )
 );
 
-// Level 5 is the gallery's clean cyan/green blaster animation. It reads as a
-// fast BIO energy weapon without the heavier DNA-ring silhouette used at 7.
-export const BIO_GENOME_LANCE_FRAME_URLS = getGalleryAbilityFrames('bio', 5);
-export const ETH_PRISM_VOLLEY_FRAME_URLS = getGalleryAbilityFrames('eth');
-export const BTC_HASH_BURST_FRAME_URLS = getGalleryAbilityFrames('btc');
+export const BIO_GENOME_LANCE_FRAME_URLS = getSignatureMoveFrames('bio');
+export const ETH_PRISM_VOLLEY_FRAME_URLS = getSignatureMoveFrames('eth');
+export const BTC_HASH_BURST_FRAME_URLS = getSignatureMoveFrames('btc');
 export const BTC_HASH_BURST_RADIUS = 96;
 
 export type ShipAbilityKind =

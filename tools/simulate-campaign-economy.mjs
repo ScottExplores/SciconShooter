@@ -33,11 +33,11 @@ const parseUpgradeInputs = (squadSource) => {
     /export const MAIN_SHIP_UPGRADES[\s\S]*?=\s*\[([\s\S]*?)\n\];/,
     'MAIN_SHIP_UPGRADES'
   )[1];
-  // Every purchasable main-ship track, so "cost to fully upgrade a hull"
-  // stays truthful as tracks are added. Homing Missiles was invisible here
-  // until it was added, which under-reported that total.
+  // Every purchasable main-ship track, so "cost to fully upgrade a hull" stays
+  // truthful as tracks change. Homing Missiles was retired: homing is the
+  // wing's job, carried by the archive-beetle support ship.
   const mainUpgradeCosts = Object.fromEntries(
-    ['fireRate', 'speed', 'ability', 'missile', 'startingHearts'].map((upgradeId) => {
+    ['fireRate', 'speed', 'ability', 'startingHearts'].map((upgradeId) => {
       const costs = requireMatch(
         upgradeBlock,
         new RegExp(`id:\\s*'${upgradeId}'[\\s\\S]*?costs:\\s*\\[([\\s\\S]*?)\\]`),

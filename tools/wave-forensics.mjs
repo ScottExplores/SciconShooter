@@ -57,7 +57,7 @@ try {
     bombs: 0, bombCharge: 0, bombChargeMax: 100,
     shipAbilityCooldown: 0, shipAbilityCooldownMax: 960,
     lives: 99, repairsCount: 0,
-    upgrades: { fireRate: 0, speed: 0, missile: 0 },
+    upgrades: { fireRate: 0, speed: 0 },
     powerupUses: {},
     bossProgress: 0, isBossActive: false, bossHp: 0, bossMaxHp: 100
   };

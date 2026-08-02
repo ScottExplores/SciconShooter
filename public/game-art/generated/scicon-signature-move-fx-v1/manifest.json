@@ -1,0 +1,117 @@
+{
+  "id": "scicon-signature-move-fx-v1",
+  "generator": "tools/generate-signature-move-fx.mjs",
+  "note": "Procedurally drawn. No image generator was used; see the tool header.",
+  "frameCount": 6,
+  "scale": 4,
+  "moves": [
+    {
+      "shipId": "researchhub",
+      "abilityId": "research-charge",
+      "name": "Research Charge",
+      "colour": "#67e8f9",
+      "frameSize": [
+        152,
+        184
+      ],
+      "logicalSize": [
+        38,
+        46
+      ],
+      "frames": [
+        "/game-art/generated/scicon-signature-move-fx-v1/researchhub/frame-1.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/researchhub/frame-2.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/researchhub/frame-3.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/researchhub/frame-4.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/researchhub/frame-5.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/researchhub/frame-6.png"
+      ],
+      "spriteSheet": "/game-art/generated/scicon-signature-move-fx-v1/researchhub/sprite-sheet.png",
+      "spriteSheetSize": [
+        912,
+        184
+      ]
+    },
+    {
+      "shipId": "bio",
+      "abilityId": "bio-genome-lance",
+      "name": "Genome Lance",
+      "colour": "#86efac",
+      "frameSize": [
+        68,
+        252
+      ],
+      "logicalSize": [
+        17,
+        63
+      ],
+      "frames": [
+        "/game-art/generated/scicon-signature-move-fx-v1/bio/frame-1.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/bio/frame-2.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/bio/frame-3.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/bio/frame-4.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/bio/frame-5.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/bio/frame-6.png"
+      ],
+      "spriteSheet": "/game-art/generated/scicon-signature-move-fx-v1/bio/sprite-sheet.png",
+      "spriteSheetSize": [
+        408,
+        252
+      ]
+    },
+    {
+      "shipId": "eth",
+      "abilityId": "eth-prism-volley",
+      "name": "Prism Volley",
+      "colour": "#c4b5fd",
+      "frameSize": [
+        84,
+        132
+      ],
+      "logicalSize": [
+        21,
+        33
+      ],
+      "frames": [
+        "/game-art/generated/scicon-signature-move-fx-v1/eth/frame-1.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/eth/frame-2.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/eth/frame-3.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/eth/frame-4.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/eth/frame-5.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/eth/frame-6.png"
+      ],
+      "spriteSheet": "/game-art/generated/scicon-signature-move-fx-v1/eth/sprite-sheet.png",
+      "spriteSheetSize": [
+        504,
+        132
+      ]
+    },
+    {
+      "shipId": "btc",
+      "abilityId": "btc-hash-burst",
+      "name": "Hash Burst",
+      "colour": "#fcd34d",
+      "frameSize": [
+        144,
+        192
+      ],
+      "logicalSize": [
+        36,
+        48
+      ],
+      "frames": [
+        "/game-art/generated/scicon-signature-move-fx-v1/btc/frame-1.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/btc/frame-2.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/btc/frame-3.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/btc/frame-4.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/btc/frame-5.png",
+        "/game-art/generated/scicon-signature-move-fx-v1/btc/frame-6.png"
+      ],
+      "spriteSheet": "/game-art/generated/scicon-signature-move-fx-v1/btc/sprite-sheet.png",
+      "spriteSheetSize": [
+        864,
+        192
+      ]
+    }
+  ]
+}

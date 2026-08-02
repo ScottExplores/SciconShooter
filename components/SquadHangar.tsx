@@ -30,6 +30,7 @@ import {
   type SquadSlotId,
   type WeeklySquadState
 } from '../services/squadProgression';
+import { getShipAbilityDefinition } from '../services/shipAbilityService';
 import { calculateSquadPowerRating } from '../services/squadPowerRating';
 import { FIRE_RATE_TIER_COUNT } from '../services/weaponTierProgression';
 import PixelActionButton from './PixelActionButton';
@@ -60,13 +61,21 @@ const MINI_COST_ICON = '/game-art/generated/rsc-coin-flip-v1/rsc-coin-pixel-fron
 const MAIN_UPGRADE_SPRITE: Readonly<Record<MainShipUpgradeId, string>> = Object.freeze({
   fireRate: '/game-art/powerups/rapid-fire.png',
   speed: '/game-art/powerups/speed.png',
-  // PLACEHOLDER ART: no dedicated signature-move icon exists yet.
+  // Overridden per hull below; this is the fallback only.
   ability: '/game-art/powerups/research-beam.png',
-  // PLACEHOLDER ART: no dedicated missile icon exists yet. The missile itself
-  // renders as an engine primitive, so only this Hangar tile needs new art.
-  missile: '/game-art/powerups/overdrive-spread.png',
   startingHearts: '/game-art/powerups/extra-life.png'
 });
+
+/**
+ * Signature Move is the one track whose art depends on which hull is selected,
+ * so it shows that hull's actual move rather than a shared placeholder. Every
+ * other track means the same thing on every ship.
+ */
+const getMainUpgradeSprite = (upgradeId: MainShipUpgradeId, shipId: PlayerShipId) => (
+  upgradeId === 'ability'
+    ? getShipAbilityDefinition(shipId).iconUrl
+    : MAIN_UPGRADE_SPRITE[upgradeId]
+);
 const PLAYER_SHIP_ORDER: PlayerShipId[] = [...PLAYABLE_PLAYER_SHIP_IDS];
 const MINI_ANIMATION_SEQUENCE = [0, 1, 2, 1] as const;
 const PLAYER_SELECTION_FRAME_COUNT = Math.max(
@@ -246,7 +255,9 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
       ...selectorFrames('mini', 'lime'),
       ...selectorFrames('mini', 'gold'),
       ...traceFrames,
-      ...Object.values(MAIN_UPGRADE_SPRITE)
+      ...Object.values(MAIN_UPGRADE_SPRITE),
+      // Preload every hull's signature-move icon, not just the fallback.
+      ...PLAYER_SHIP_ORDER.map((id) => getShipAbilityDefinition(id).iconUrl)
     ];
     assets.forEach((src) => {
       const image = new Image();
@@ -602,7 +613,7 @@ const SquadHangar: React.FC<SquadHangarProps> = ({
                     ) : null}
                     <div className="flex items-center gap-2.5">
                       <img
-                        src={MAIN_UPGRADE_SPRITE[upgrade.id]}
+                        src={getMainUpgradeSprite(upgrade.id, mainShipId)}
                         alt=""
                         className="h-12 w-12 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(34,211,238,0.42)] [image-rendering:pixelated]"
                       />

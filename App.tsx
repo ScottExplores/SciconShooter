@@ -56,7 +56,7 @@ import {
   loadPermanentSquadState,
   loadWeeklySquadState,
   MAIN_SHIP_FIRE_RATE_MAX_LEVEL,
-  MAIN_SHIP_UPGRADES,  migrateLegacySquadProfile,
+  MAIN_SHIP_UPGRADES,  migrateLegacySquadProfile,
   MINI_SHIP_CATALOG,
   MINI_SHIP_MAX_LEVEL,
   preloadMiniShipTextures,
@@ -78,11 +78,11 @@ import {
   type WeeklySquadState
 } from './services/squadProgression';
 import {
-  calculateSquadPowerRating,  getCampaignRecommendedSupportIds,
+  calculateSquadPowerRating,  getCampaignRecommendedSupportIds,
   getCampaignSupportTagsForMiniShip
 } from './services/squadPowerRating';
 import { createCampaignGraphIndex } from './services/campaignGraph';
-import {  finalizeCompletedWeeklyCampaignStreak,
+import {  finalizeCompletedWeeklyCampaignStreak,
   finalizeWeeklyCampaignDeliberateEnd,
   finalizeWeeklyCampaignLoss,
   markWeeklyCampaignStreakSubmission,
@@ -528,7 +528,6 @@ const openExternalUrl = async (url: string) => {
 const defaultMissionUpgrades: Upgrades = {
   fireRate: 0,
   speed: 0,
-  missile: 0,
   ability: 0
 };
 
@@ -637,7 +636,7 @@ const App: React.FC = () => {
   const [campaignMapFocusMissionId, setCampaignMapFocusMissionId] = useState<string | null>(null);
   const [campaignMapFocusBranchId, setCampaignMapFocusBranchId] = useState<string | null>(null);
   const [campaignMapUnlockingBranchId, setCampaignMapUnlockingBranchId] = useState<string | null>(null);
-  const [campaignMapNewMissionIds, setCampaignMapNewMissionIds] = useState<string[]>([]);  const [, setWeeklyCampaignConfirmation] = useState<WeeklyCampaignSelectionConfirmation | null>(null);
+  const [campaignMapNewMissionIds, setCampaignMapNewMissionIds] = useState<string[]>([]);  const [, setWeeklyCampaignConfirmation] = useState<WeeklyCampaignSelectionConfirmation | null>(null);
   const [activeCampaignLaunch, setActiveCampaignLaunch] = useState<CampaignMapLaunchRequest | null>(null);
   const [activeCampaignBranchId, setActiveCampaignBranchId] = useState<string | null>(null);
   const [campaignBranchSpawnSeed, setCampaignBranchSpawnSeed] = useState(0);
@@ -2406,7 +2405,6 @@ const App: React.FC = () => {
         ...defaultMissionUpgrades,
         fireRate: squadLoadout.upgrades.fireRate,
         speed: squadLoadout.upgrades.speed,
-        missile: squadLoadout.upgrades.missile,
         ability: squadLoadout.upgrades.ability
       },
       powerupUses: { ...defaultPowerupUses },
@@ -3248,7 +3246,6 @@ const App: React.FC = () => {
           Math.floor(campaignLabUpgradeLevels.fireRate ?? 0)
         )),
         speed: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.speed ?? 0))),
-        missile: Math.max(0, Math.min(5, Math.floor(campaignLabUpgradeLevels.missile ?? 0))),
         ability: Math.max(0, Math.min(5, Math.floor(campaignLabUpgradeLevels.ability ?? 0))),
         startingHearts: Math.max(0, Math.min(7, Math.floor(campaignLabUpgradeLevels.startingHearts ?? 0)))
       },
@@ -6177,7 +6174,7 @@ const App: React.FC = () => {
                   <strong className="text-indigo-400">RSC LAB:</strong>
                   <ul className="mt-1 list-inside list-disc space-y-1 pl-2">
                     <li><span className="text-yellow-300">Continues:</span> After a crash, pay RSC to revive this run with five hearts.</li>
-                    <li><span className="text-cyan-300">Upgrades:</span> Dock at the lab for fire rate, handling, missiles, and emergency repairs.</li>
+                    <li><span className="text-cyan-300">Upgrades:</span> Dock at the lab for fire rate, handling, your signature move, and emergency repairs.</li>
                     <li><span className="text-purple-400">Current Run:</span> Lab upgrades reset each mission, so the best pilots decide when to tune up.</li>
                   </ul>
                 </div>

@@ -1624,15 +1624,12 @@ const inferLegacyBossArchiveEventIds = (lifetimeStats) => {
 const isoNow = (now) => new Date(now).toISOString();
 const MAIN_SHIP_FIRE_RATE_MAX_LEVEL = 49;
 const MAIN_SHIP_STANDARD_UPGRADE_MAX_LEVEL = 7;
-// Mirrors MAIN_SHIP_MISSILE_MAX_LEVEL in services/squadProgression.ts.
-const MAIN_SHIP_MISSILE_MAX_LEVEL = 5;
 // Mirrors MAIN_SHIP_ABILITY_MAX_LEVEL in services/squadProgression.ts.
 const MAIN_SHIP_ABILITY_MAX_LEVEL = 5;
 
 const createUpgradeLevels = () => ({
   fireRate: 0,
   speed: 0,
-  missile: 0,
   ability: 0,
   startingHearts: 0
 });
@@ -2304,7 +2301,6 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
     shipUpgrades[shipId] = {
       fireRate: integer(levels.fireRate, 0, MAIN_SHIP_FIRE_RATE_MAX_LEVEL),
       speed: integer(levels.speed, 0, MAIN_SHIP_STANDARD_UPGRADE_MAX_LEVEL),
-      missile: integer(levels.missile, 0, MAIN_SHIP_MISSILE_MAX_LEVEL),
       ability: integer(levels.ability, 0, MAIN_SHIP_ABILITY_MAX_LEVEL),
       startingHearts: integer(levels.startingHearts, 0, MAIN_SHIP_STANDARD_UPGRADE_MAX_LEVEL)
     };

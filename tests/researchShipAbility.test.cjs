@@ -53,18 +53,21 @@ test('Pixi preloads and animates all ship ability sprite sequences', () => {
   assert.match(hud, /abilityDefinition\.iconRotationDegrees/);
   assert.match(renderer, /effect\.effectType === 'sprite'/);
 
-  const abilityLevels = { bio: 5, eth: 7, btc: 7 };
+  // BIO, ETH, and BTC used to borrow frames from the primary-weapon FX pack, so
+  // a hull's signature move looked like its ordinary gun. Each now has its own
+  // art in scicon-signature-move-fx-v1.
+  assert.doesNotMatch(abilities, /getGalleryAbilityFrames/);
+  assert.match(abilities, /SIGNATURE_MOVE_FX_ROOT = '\/game-art\/generated\/scicon-signature-move-fx-v1'/);
   for (const ship of ['bio', 'eth', 'btc']) {
-    const level = abilityLevels[ship];
-    const callPattern = ship === 'bio'
-      ? /getGalleryAbilityFrames\('bio', 5\)/
-      : new RegExp(`getGalleryAbilityFrames\\('${ship}'\\)`);
-    assert.match(abilities, callPattern);
-    for (let frame = 1; frame <= 4; frame++) {
-      const icon = fs.readFileSync(path.join(root, 'public/game-art/generated/scicon-player-weapon-fx-v1', ship, `level-${level}`, `frame-${frame}.png`));
+    assert.match(abilities, new RegExp(`getSignatureMoveFrames\\('${ship}'\\)`));
+    for (let frame = 1; frame <= 6; frame++) {
+      const icon = fs.readFileSync(path.join(root, 'public/game-art/generated/scicon-signature-move-fx-v1', ship, `frame-${frame}.png`));
       assert.equal(icon[25], 6, `${ship} ability frame ${frame} must retain an alpha channel`);
     }
   }
+  // ResearchHub keeps its dedicated hand-made art rather than generated frames.
+  assert.match(abilities, /RESEARCH_CHARGE_FRAME_URLS = Array\.from\(/);
+  assert.match(abilities, /legacy\/weapon-fx\/research-charge/);
 });
 
 test('boss cannon components use seven percent health and hull pressure increases attacks', () => {

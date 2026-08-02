@@ -29,7 +29,7 @@ const { FIELD_UPGRADE_CONFIG, GAME_CONFIG, getFieldUpgradeFlaskCost } = moduleBo
 const stats = (fireRate, speed, repairsCount = 0) => ({
   lives: 3,
   repairsCount,
-  upgrades: { fireRate, speed, missile: 0 }
+  upgrades: { fireRate, speed }
 });
 
 test('caps every life-upgrade path at ten total hearts', () => {

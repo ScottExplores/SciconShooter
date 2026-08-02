@@ -161,7 +161,6 @@ try {
     upgrades: {
       fireRate: upgrades.fireRate,
       speed: upgrades.speed,
-      missile: 0
     },
     powerupUses: {},
     bossProgress: 0,

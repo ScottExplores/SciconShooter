@@ -54,7 +54,6 @@ const createPreviewStats = (settings: GameEditorPreviewSettings = {}): Stats => 
   upgrades: {
     fireRate: settings.upgrades?.fireRate ?? 2,
     speed: settings.upgrades?.speed ?? 1,
-    missile: settings.upgrades?.missile ?? 0,
     ability: settings.upgrades?.ability ?? 0
   },
   powerupUses: {
@@ -125,12 +124,10 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
   useEffect(() => {
     const fireRate = previewSettings.upgrades?.fireRate ?? 2;
     const speed = previewSettings.upgrades?.speed ?? 1;
-    const missile = previewSettings.upgrades?.missile ?? 0;
     setStats((previous) => {
       if (
         previous.upgrades.fireRate === fireRate
         && previous.upgrades.speed === speed
-        && previous.upgrades.missile === missile
       ) {
         return previous;
       }
@@ -139,14 +136,12 @@ export const GameEditorCanvas: React.FC<GameEditorCanvasProps> = ({
         upgrades: {
           ...previous.upgrades,
           fireRate,
-          speed,
-          missile
+          speed
         }
       };
     });
   }, [
     previewSettings.upgrades?.fireRate,
-    previewSettings.upgrades?.missile,
     previewSettings.upgrades?.speed
   ]);
 
