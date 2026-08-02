@@ -1,0 +1,31 @@
+{
+  "id": "scicon-weekly-run-frame-v1",
+  "name": "Scicon Weekly Run Frame v1",
+  "version": 1,
+  "runtimeContract": {
+    "liveTextOnly": true,
+    "decorativeLayersIgnorePointerEvents": true
+  },
+  "assets": {
+    "weeklyRunLowerFrame": {
+      "path": "/game-art/generated/ui/scicon-weekly-run-frame-v1/weekly-run-lower-frame.png",
+      "sheetSize": [
+        960,
+        284
+      ],
+      "grid": [
+        1,
+        1
+      ],
+      "frameSize": [
+        960,
+        284
+      ],
+      "frameCount": 1,
+      "rows": [
+        "static"
+      ],
+      "sha256": "a3faaf5f47121c6be8d2743275ece5ebf6934bfed403e28b1553e5183adcaf8c"
+    }
+  }
+}

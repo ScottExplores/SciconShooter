@@ -44,6 +44,7 @@ test('the Weekly Run is a home-screen mode and no longer clutters the Campaign M
 
   // The Weekly Run sits directly under the weekly high score on the home
   // screen, so the board and the way to compete on it read as one unit.
+  assert.match(startScreen, /sci-weekly-competition-stack/);
   assert.match(startScreen, /sci-weekly-run-entry/);
   assert.match(startScreen, /onStartWeeklyRun/);
   assert.match(startScreen, /weeklyRunBestScore/);
@@ -70,14 +71,21 @@ test('App runs weekly streaks through direct graph routing and the existing lead
   assert.match(appSource, /recordWeeklyCampaignNodeScore\(streak, weeklyRun\.graph/);
   assert.match(appSource, /requestWeeklyCampaignAdvance\([\s\S]{0,180}weeklyRun\.graph/);
   assert.doesNotMatch(appSource, /WEEKLY_CAMPAIGN_GRAPH/);
-  assert.match(appSource, /getWeeklyRun\(weeklySquadState\.weekKey\)/);
+  assert.match(appSource, /getWeeklyRun\([\s\S]{0,100}weeklySquadState\.weekKey[\s\S]{0,100}weeklyRunMaterializedStageCount/);
   assert.match(appSource, /finalizeWeeklyCampaignLoss/);
   assert.match(appSource, /finalizeWeeklyCampaignDeliberateEnd/);
-  assert.match(appSource, /finalizeCompletedWeeklyCampaignStreak/);
+  assert.doesNotMatch(appSource, /finalizeCompletedWeeklyCampaignStreak/);
+  assert.match(appSource, /nextStageCount\s*=\s*runForAdvance\.campaign\.levels\.length\s*\+\s*WEEKLY_RUN_STAGE_CHUNK/);
+  assert.match(appSource, /runForAdvance\s*=\s*getWeeklyRun\(weeklySquadStateRef\.current\.weekKey,\s*nextStageCount\)/);
   assert.match(appSource, /markWeeklyCampaignStreakSubmission/);
   assert.match(appSource, /weeklyRunSessionKeyRef/);
   assert.match(appSource, /preserveConnectedWeeklySession/);
   assert.match(appSource, /weeklyCampaignProof/);
+  const deliberateEndStart = appSource.indexOf('const endWeeklyCampaignStreak');
+  const deliberateEndEnd = appSource.indexOf('const launchCampaignBranchFromMap', deliberateEndStart);
+  const deliberateEndBody = appSource.slice(deliberateEndStart, deliberateEndEnd);
+  assert.match(deliberateEndBody, /finalizeWeeklyCampaignDeliberateEnd/);
+  assert.doesNotMatch(deliberateEndBody, /finishRunSession|saveScore|submitScore|GameOver/);
   const weeklySettlementIndex = appSource.indexOf("if (activeRunMode === 'weekly-streak') {");
   const permanentCampaignSettlementIndex = appSource.indexOf(
     "if (activeRunMode !== 'campaign' && activeRunMode !== 'campaign-replay') return;",

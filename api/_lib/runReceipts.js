@@ -9,6 +9,12 @@ const {
   validateFinalizedWeeklyCampaignStreakProof
 } = require('./walletProfiles');
 const { readOptionalWalletProfileSession } = require('./walletProfileAuth');
+const {
+  WEEKLY_RUN_ATTEMPT_LIMIT,
+  attemptKeyFor,
+  reserveWeeklyRunAttempt,
+  settleWeeklyRunAttempt
+} = require('./weeklyRunAttempts');
 
 const RUN_RECEIPTS_TABLE = process.env.SUPABASE_RUN_RECEIPTS_TABLE || 'scicon_run_receipts';
 const MAX_RUN_DURATION_MS = 3 * 60 * 60 * 1000;
@@ -162,15 +168,20 @@ const maximumPlausibleScoreForRun = (metrics, durationSeconds) => {
     + Math.ceil(durationSeconds * 180);
 };
 
-const inspectRunMetrics = (metrics) => {
+const inspectRunMetrics = (metrics, { weeklyRun = false } = {}) => {
   const anomalies = [];
   const durationSeconds = Math.max(1, metrics.durationMs / 1000);
+  if (metrics.durationMs < 1500) anomalies.push('run_too_short');
+  if (metrics.durationMs > MAX_RUN_DURATION_MS) anomalies.push('run_too_long');
+  // Weekly Run totals are reconstructed from its deterministic proof one
+  // segment at a time. Authored Campaign mission-count and score-profile caps
+  // do not apply to an endless generated route.
+  if (weeklyRun) return anomalies;
+
   const maximumPlausibleEnemies = Math.ceil(durationSeconds * 15) + 150;
   const maximumPlausibleCoins = metrics.enemiesDefeated * 6 + Math.ceil(durationSeconds * 3) + 150;
   const maximumPlausibleScore = maximumPlausibleScoreForRun(metrics, durationSeconds);
 
-  if (metrics.durationMs < 1500) anomalies.push('run_too_short');
-  if (metrics.durationMs > MAX_RUN_DURATION_MS) anomalies.push('run_too_long');
   if (metrics.wave > AUTHORED_MISSION_COUNT) anomalies.push('mission_number_impossible');
   if (metrics.enemiesDefeated > maximumPlausibleEnemies) anomalies.push('enemy_rate_impossible');
   if (metrics.coinsCollected > maximumPlausibleCoins) anomalies.push('coin_rate_impossible');
@@ -228,6 +239,7 @@ const createRunStart = (
     profileId = 'guest',
     walletSession = null,
     weeklyCampaignProof = null,
+    weeklyAttemptReservation = null,
     nowMs = Date.now()
   } = {}
 ) => {
@@ -249,14 +261,48 @@ const createRunStart = (
     ? createWeeklyCampaignStreakRunBinding(weeklyCampaignProof, { now: issuedAt })
     : null;
   const identity = createRunIdentityBinding({ profileId, walletSession });
+  const generatedWeeklyRun = weeklyCampaignBinding?.startNodeId?.startsWith('weekly-run-');
+  if (generatedWeeklyRun && !weeklyAttemptReservation) {
+    const error = new Error('Weekly Run starts require a server attempt reservation.');
+    error.statusCode = 503;
+    error.details = ['weekly_attempt_reservation_required'];
+    throw error;
+  }
+  if (weeklyAttemptReservation) {
+    const expectedAttemptKey = attemptKeyFor(weeklyCampaignBinding);
+    if (
+      !generatedWeeklyRun
+      || weeklyAttemptReservation.weeklyId !== weeklyCampaignBinding.weeklyId
+      || weeklyAttemptReservation.attemptKey !== expectedAttemptKey
+      || !/^[0-9a-f-]{36}$/i.test(String(weeklyAttemptReservation.reservationId || ''))
+      || !/^[0-9a-f-]{36}$/i.test(String(weeklyAttemptReservation.runId || ''))
+      || !Number.isInteger(weeklyAttemptReservation.attemptNumber)
+      || weeklyAttemptReservation.attemptNumber < 1
+      || weeklyAttemptReservation.attemptNumber > WEEKLY_RUN_ATTEMPT_LIMIT
+    ) {
+      const error = new Error('Weekly Run attempt reservation does not match this run.');
+      error.statusCode = 422;
+      error.details = ['weekly_attempt_reservation_invalid'];
+      throw error;
+    }
+  }
   const payload = {
     type: 'run-start',
-    runId: crypto.randomUUID(),
+    runId: weeklyAttemptReservation?.runId || crypto.randomUUID(),
     gameVersion: String(gameVersion || 'unknown').slice(0, 32),
     playerShipId: normalizePlayerShipId(playerShipId),
     runMode: normalizedRunMode,
     identity,
     ...(weeklyCampaignBinding ? { weeklyCampaignBinding } : {}),
+    ...(weeklyAttemptReservation ? {
+      weeklyAttemptReservation: {
+        reservationId: weeklyAttemptReservation.reservationId,
+        runId: weeklyAttemptReservation.runId,
+        weeklyId: weeklyAttemptReservation.weeklyId,
+        attemptKey: weeklyAttemptReservation.attemptKey,
+        attemptNumber: weeklyAttemptReservation.attemptNumber
+      }
+    } : {}),
     testRun: Boolean(testRun),
     issuedAt,
     expiresAt: issuedAt + MAX_RUN_DURATION_MS
@@ -270,6 +316,14 @@ const createRunStart = (
     runMode: payload.runMode,
     identity: payload.identity,
     ...(payload.weeklyCampaignBinding ? { weeklyCampaignBinding: payload.weeklyCampaignBinding } : {}),
+    ...(weeklyAttemptReservation ? {
+      weeklyAttempt: {
+        attemptNumber: weeklyAttemptReservation.attemptNumber,
+        attemptsUsed: weeklyAttemptReservation.attemptsUsed,
+        attemptsRemaining: weeklyAttemptReservation.attemptsRemaining,
+        resetAtMs: weeklyAttemptReservation.resetAtMs
+      }
+    } : {}),
     testRun: payload.testRun,
     startToken: signPayload(payload)
   };
@@ -354,6 +408,19 @@ const finishRun = async (startToken, rawMetrics, req) => {
         start.weeklyCampaignBinding
       )
     : null;
+  const generatedWeeklyRun = weeklyCampaign?.streak?.startNodeId?.startsWith('weekly-run-');
+  if (generatedWeeklyRun && weeklyCampaign.summary.finalizationReason !== 'loss') {
+    const error = new Error('A forfeited Weekly Run cannot create a verified score receipt.');
+    error.statusCode = 422;
+    error.details = ['weekly_run_forfeit_not_submittable'];
+    throw error;
+  }
+  if (generatedWeeklyRun && !start.weeklyAttemptReservation) {
+    const error = new Error('Weekly Run attempt reservation is missing from this run session.');
+    error.statusCode = 422;
+    error.details = ['weekly_attempt_reservation_missing'];
+    throw error;
+  }
   const normalizedClientMetrics = normalizeRunMetrics(rawMetrics);
   const measuredDuration = Math.max(0, now - start.issuedAt);
   const metrics = {
@@ -364,7 +431,9 @@ const finishRun = async (startToken, rawMetrics, req) => {
   };
   const durationDelta = Math.abs(measuredDuration - metrics.durationMs);
   const testRun = Boolean(start.testRun);
-  const anomalies = testRun ? [] : inspectRunMetrics(metrics);
+  const anomalies = testRun ? [] : inspectRunMetrics(metrics, {
+    weeklyRun: Boolean(weeklyCampaign)
+  });
   if (weeklyCampaign) {
     const reportedMissionDuration = weeklyCampaign.streak.scoreEvents.reduce((total, event) => (
       total + (event.outcome.elapsedMs ?? 0)
@@ -388,13 +457,24 @@ const finishRun = async (startToken, rawMetrics, req) => {
     throw error;
   }
 
+  let receiptFinishedAt = now;
+  if (generatedWeeklyRun) {
+    const settlement = await settleWeeklyRunAttempt({
+      reservation: start.weeklyAttemptReservation,
+      identity: start.identity,
+      proofHash: weeklyCampaign.summary.proofHash
+    });
+    receiptFinishedAt = settlement.finishedAtMs;
+    metrics.durationMs = Math.max(0, receiptFinishedAt - start.issuedAt);
+  }
+
   const receiptPayload = {
     type: 'run-receipt',
     runId: start.runId,
     gameVersion: start.gameVersion,
     startedAt: start.issuedAt,
-    finishedAt: now,
-    expiresAt: now + RECEIPT_LIFETIME_MS,
+    finishedAt: receiptFinishedAt,
+    expiresAt: receiptFinishedAt + RECEIPT_LIFETIME_MS,
     metrics,
     weeklyCampaign: weeklyCampaign?.summary,
     identity: start.identity,
@@ -406,7 +486,7 @@ const finishRun = async (startToken, rawMetrics, req) => {
     runId: start.runId,
     gameVersion: start.gameVersion,
     startedAt: new Date(start.issuedAt).toISOString(),
-    finishedAt: new Date(now).toISOString(),
+    finishedAt: new Date(receiptFinishedAt).toISOString(),
     expiresAt: new Date(receiptPayload.expiresAt).toISOString(),
     metrics,
     weeklyCampaign: receiptPayload.weeklyCampaign,
@@ -464,9 +544,32 @@ const reissueStoredRunReceipt = (row) => {
   };
 };
 
+const createReservedRunStart = async (gameVersion = 'unknown', options = {}) => {
+  const issuedAt = Math.floor(Number(options.nowMs ?? Date.now()));
+  const normalizedRunMode = options.runMode === 'weekly-streak' ? 'weekly-streak' : 'standard';
+  if (normalizedRunMode !== 'weekly-streak') {
+    return createRunStart(gameVersion, { ...options, nowMs: issuedAt });
+  }
+  const binding = createWeeklyCampaignStreakRunBinding(options.weeklyCampaignProof, { now: issuedAt });
+  if (!binding.startNodeId.startsWith('weekly-run-')) {
+    return createRunStart(gameVersion, { ...options, nowMs: issuedAt });
+  }
+  const identity = createRunIdentityBinding({
+    profileId: options.profileId,
+    walletSession: options.walletSession
+  });
+  const weeklyAttemptReservation = await reserveWeeklyRunAttempt({ identity, binding });
+  return createRunStart(gameVersion, {
+    ...options,
+    nowMs: issuedAt,
+    weeklyAttemptReservation
+  });
+};
+
 const verifyRunReceipt = (receiptToken) => verifyPayload(receiptToken, 'run-receipt');
 
 module.exports = {
+  createReservedRunStart,
   createRunStart,
   finishRun,
   getReceiptSecret,

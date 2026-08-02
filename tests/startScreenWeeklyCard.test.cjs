@@ -29,25 +29,31 @@ test('Home offers the Campaign entry point and the Weekly Run as separate contro
   // than being buried in Campaign Map route selection.
   assert.match(source, /onStartWeeklyRun/);
   assert.match(appSource, /startWeeklyRunFromHome/);
+  assert.match(source, /weeklyRunAttemptsRemaining/);
+  assert.match(source, /disabled=\{!weeklyRunActive && weeklyRunAttemptsRemaining <= 0\}/);
+  assert.match(source, /WEEKLY_RUN_STARTING_LIVES\} Lives · \$\{weeklyRunAttemptsRemaining\}\/2 Attempts/);
+  assert.match(appSource, /weeklyRunAttemptsRemaining=\{getWeeklyRunAttemptsRemaining\(weeklySquadState\)\}/);
   assert.match(source, /onClick=\{onStart\}/);
   assert.match(source, /\{campaignCheckpoint\.waveTotal\} WAVES/);
 });
 
-test('the Weekly Run entry is its own box and does not crowd the funding card', () => {
-  // It renders as a sibling of the funding panel, not a child of it, and is
-  // pinned to content height because the mobile home shell is a stretch grid.
+test('the Weekly Run drawer is a distinct sibling connected to the funding frame', () => {
+  // The controls remain semantic siblings inside one dock, while distinct
+  // artwork prevents the lower launcher from reading as a shrunken duplicate.
   assert.match(source, /const renderWeeklyRunEntry = \(\) => \(/);
-  const fundingCard = source.slice(
-    source.indexOf('const renderWeeklyFundingCard'),
-    source.indexOf('const renderWeeklyRunEntry')
+  assert.match(source, /const renderWeeklyCompetitionStack =/);
+  const stack = source.slice(
+    source.indexOf('const renderWeeklyCompetitionStack'),
+    source.indexOf('const DashboardNav')
   );
-  assert.doesNotMatch(fundingCard, /sci-weekly-run-entry/);
+  assert.match(stack, /sci-weekly-competition-stack[\s\S]*renderWeeklyFundingCard\(\{ compact \}\)[\s\S]*renderWeeklyRunEntry\(\)/);
   const css = fs.readFileSync(path.join(__dirname, '..', 'styles', 'tailwind.input.css'), 'utf8');
   const entryRule = css.slice(css.indexOf('.sci-weekly-run-entry {'), css.indexOf('.sci-weekly-run-entry:hover'));
   assert.match(entryRule, /align-self: start;/);
-  // Shares the navy/grey/green frame used by Start Mission and the weekly
-  // funding shell. The gold-bracketed general-borders card clashed with it.
-  assert.match(entryRule, /border-image-source:[\s\S]*start-mission-panel\.png/);
+  assert.match(css, /\.sci-weekly-competition-stack \{/);
+  assert.match(entryRule, /border-image-source:[\s\S]*scicon-weekly-run-frame-v1\/weekly-run-lower-frame\.png/);
+  assert.match(entryRule, /border-image-slice: 48 66 64 66 fill/);
+  assert.doesNotMatch(entryRule, /start-mission-panel\.png/);
   assert.doesNotMatch(entryRule, /information-card\.png/);
 });
 
@@ -111,10 +117,10 @@ test('mobile home lets its mission panel fill the available space above navigati
   assert.match(source, /sci-home-hero-surface--compact/);
   assert.doesNotMatch(source, /<img src=\{ASSETS\.MENU_HERO\}/);
   assert.doesNotMatch(stylesSource, /url\(['"]\/game-art\/backgrounds\/menu-hero\.png['"]\)/);
-  // Three declared rows: funding panel, Weekly Run entry, hero/Start Mission.
-  // Leaving the Weekly Run row implicit gave it an equal share of the height
-  // and pushed Start Mission off the bottom of the phone screen.
-  assert.match(htmlSource, /#root \.scicon-mobile-home[\s\S]*grid-template-rows: auto auto minmax\(17\.5rem, 1fr\)/);
+  // Two declared rows: the connected weekly stack, then hero/Start Mission.
+  // Treating the lower drawer as its own layout row used to let it stretch and
+  // push Start Mission off the bottom of the phone screen.
+  assert.match(htmlSource, /#root \.scicon-mobile-home[\s\S]*grid-template-rows: auto minmax\(17\.5rem, 1fr\)/);
   // Two rows, because the phone deck drops the wordmark: ship stage in the
   // flexible track, launch block hugging the bottom. The old three-row
   // template left an empty trailing track that floated Start Mission upward.

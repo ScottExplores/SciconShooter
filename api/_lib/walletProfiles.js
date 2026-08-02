@@ -9,6 +9,13 @@ const {
   walletProfileId
 } = require('./walletProfileAuth');
 const { getWeeklyBoundaryMeta } = require('../../shared/weeklyCompetitionBoundary');
+const {
+  WEEKLY_RUN_MAX_PROOF_STAGE_COUNT,
+  buildWeeklyRunGraphDefinition,
+  buildWeeklyRunStagePlans,
+  getWeeklyRunOutcomeLimits,
+  parseWeeklyRunNodeIndex
+} = require('../../shared/weeklyRunPlan');
 const campaign = require('../../game-config/campaign.json');
 const campaignMigration = require('../../game-config/campaign-migration-v22.json');
 const campaignGraphMigration = require('../../game-config/campaign-migration-v23.json');
@@ -187,6 +194,21 @@ const CAMPAIGN_GRAPH_EDGE_BY_ID = new Map(
       ? node.outgoingEdges.map((edge) => [edge.edgeId, { ...edge, fromNodeId: node.nodeId }])
       : []
   ))
+);
+const WEEKLY_RUN_ELITE_BOSS_IDS = Object.freeze(
+  (Array.isArray(campaign.miniBosses) ? campaign.miniBosses : [])
+    .map((entry) => entry?.bossId)
+    .filter((id) => typeof id === 'string' && id.length > 0)
+);
+const WEEKLY_RUN_MAJOR_BOSS_IDS = Object.freeze(
+  (Array.isArray(campaign.sectors) ? campaign.sectors : [])
+    .map((sector) => sector?.majorBossId)
+    .filter((id) => typeof id === 'string' && id.length > 0)
+);
+const WEEKLY_RUN_MASTERY_OBJECTIVES = Object.freeze(
+  Array.isArray(campaign.levels?.[0]?.campaignProgression?.masteryObjectives)
+    ? campaign.levels[0].campaignProgression.masteryObjectives
+    : []
 );
 const CAMPAIGN_GRAPH_NODES_BY_MISSION_ID = new Map();
 CAMPAIGN_GRAPH_NODES.forEach((node) => {
@@ -1652,6 +1674,7 @@ const createWeeklyState = (profileId, now) => ({
   weeklyCampaignStreak: null,
   weeklyStats: {
     runs: 0,
+    weeklyRunAttempts: 0,
     score: 0,
     enemiesDefeated: 0,
     coinsEarned: 0
@@ -1739,6 +1762,101 @@ const getWeeklyMissionOutcomeLimits = (node) => {
   };
 };
 
+const AUTHORED_WEEKLY_GRAPH_CONTEXT = Object.freeze({
+  kind: 'authored',
+  definition: CAMPAIGN_GRAPH,
+  nodeIds: CAMPAIGN_GRAPH_NODE_IDS,
+  nodeById: CAMPAIGN_GRAPH_NODE_BY_ID,
+  edgeById: CAMPAIGN_GRAPH_EDGE_BY_ID,
+  outcomeLimitsForNode: getWeeklyMissionOutcomeLimits
+});
+
+const weeklyProofReferencedNodeIds = (value) => {
+  const routes = Array.isArray(value.committedRoutes) ? value.committedRoutes : [];
+  const events = Array.isArray(value.scoreEvents) ? value.scoreEvents : [];
+  const finalization = asObject(value.finalization);
+  return [
+    value.startNodeId,
+    value.currentNodeId,
+    finalization.triggerNodeId,
+    ...(Array.isArray(value.visitedNodeIds) ? value.visitedNodeIds : []),
+    ...(Array.isArray(value.scoredNodeIds) ? value.scoredNodeIds : []),
+    ...routes.flatMap((route) => {
+      const candidate = asObject(route);
+      return [candidate.fromNodeId, candidate.toNodeId];
+    }),
+    ...events.map((event) => asObject(event).nodeId)
+  ].filter((nodeId) => typeof nodeId === 'string' && nodeId.length > 0);
+};
+
+const createGeneratedWeeklyGraphContext = (value, boundary) => {
+  const referencedNodeIds = weeklyProofReferencedNodeIds(value);
+  let deepestIndex = 0;
+  for (const nodeId of referencedNodeIds) {
+    const index = parseWeeklyRunNodeIndex(nodeId);
+    if (index === null) {
+      if (nodeId.startsWith('weekly-run-')) {
+        return { context: null, error: 'weekly_run_node_invalid' };
+      }
+      continue;
+    }
+    if (index >= WEEKLY_RUN_MAX_PROOF_STAGE_COUNT) {
+      return { context: null, error: 'weekly_run_depth_invalid' };
+    }
+    deepestIndex = Math.max(deepestIndex, index);
+  }
+  const stageCount = deepestIndex + 1;
+  const planOptions = {
+    eliteBossIds: WEEKLY_RUN_ELITE_BOSS_IDS,
+    majorBossIds: WEEKLY_RUN_MAJOR_BOSS_IDS,
+    stageCount
+  };
+  const definition = buildWeeklyRunGraphDefinition(boundary.weekKey, planOptions);
+  const stages = buildWeeklyRunStagePlans(boundary.weekKey, planOptions);
+  const nodeIds = Object.freeze(definition.nodes.map((node) => node.nodeId));
+  const nodeById = new Map(definition.nodes.map((node) => [node.nodeId, node]));
+  const edgeById = new Map(definition.nodes.flatMap((node) => (
+    (Array.isArray(node.outgoingEdges) ? node.outgoingEdges : [])
+      .map((edge) => [edge.edgeId, { ...edge, fromNodeId: node.nodeId }])
+  )));
+  const stageByNodeId = new Map(stages.map((stage) => [`weekly-run-node-${stage.index}`, stage]));
+  return {
+    context: {
+      kind: 'generated-weekly-run',
+      definition,
+      nodeIds,
+      nodeById,
+      edgeById,
+      outcomeLimitsForNode: (node) => {
+        const stage = stageByNodeId.get(node?.nodeId);
+        if (!stage) return null;
+        const limits = getWeeklyRunOutcomeLimits(stage);
+        const parTimeObjective = WEEKLY_RUN_MASTERY_OBJECTIVES.find((objective) => (
+          objective?.kind === 'time-at-most'
+        ));
+        return {
+          ...limits,
+          parTimeMs: Number(parTimeObjective?.target) > 0
+            ? Math.floor(Number(parTimeObjective.target) * 1_000)
+            : null,
+          masteryObjectives: WEEKLY_RUN_MASTERY_OBJECTIVES
+        };
+      }
+    },
+    error: null
+  };
+};
+
+const resolveWeeklyGraphContext = (value, boundary) => {
+  const startNodeId = typeof value.startNodeId === 'string' ? value.startNodeId : '';
+  if (!startNodeId.startsWith('weekly-run-')) {
+    return CAMPAIGN_GRAPH
+      ? { context: AUTHORED_WEEKLY_GRAPH_CONTEXT, error: null }
+      : { context: null, error: 'weekly_proof_missing' };
+  }
+  return createGeneratedWeeklyGraphContext(value, boundary);
+};
+
 const calculateWeeklyPerformanceStars = (limits, outcome) => {
   if (!limits || !outcome?.missionCompleted) return 0;
   return limits.masteryObjectives.reduce((stars, objective) => {
@@ -1799,7 +1917,13 @@ const canonicalizeWeeklyCampaignStreakServer = (
 ) => {
   const fail = (code) => ({ streak: null, error: code });
   const value = asObject(rawValue);
-  if (!CAMPAIGN_GRAPH || Object.keys(value).length === 0) return fail('weekly_proof_missing');
+  if (Object.keys(value).length === 0) return fail('weekly_proof_missing');
+  const resolvedGraph = resolveWeeklyGraphContext(value, boundary);
+  if (!resolvedGraph.context) return fail(resolvedGraph.error || 'weekly_proof_missing');
+  const graphContext = resolvedGraph.context;
+  const weeklyGraphNodeIds = graphContext.nodeIds;
+  const weeklyGraphNodeById = graphContext.nodeById;
+  const weeklyGraphEdgeById = graphContext.edgeById;
   if (value.schemaVersion !== 1) return fail('weekly_schema_invalid');
   const revision = strictWeeklyInteger(value.revision, 1, Number.MAX_SAFE_INTEGER);
   if (revision === null) return fail('weekly_revision_invalid');
@@ -1810,8 +1934,12 @@ const canonicalizeWeeklyCampaignStreakServer = (
   }
 
   const startNodeId = typeof value.startNodeId === 'string' ? value.startNodeId : '';
-  const startNode = CAMPAIGN_GRAPH_NODE_BY_ID.get(startNodeId);
+  const startNode = weeklyGraphNodeById.get(startNodeId);
   if (!startNode?.weeklyStreakEligible) return fail('weekly_start_node_invalid');
+  if (
+    graphContext.kind === 'generated-weekly-run'
+    && startNodeId !== graphContext.definition.entryNodeId
+  ) return fail('weekly_start_node_invalid');
   if (
     expectedBinding
     && (
@@ -1843,7 +1971,7 @@ const canonicalizeWeeklyCampaignStreakServer = (
   const rawCommitments = Array.isArray(value.committedRoutes) ? value.committedRoutes : [];
   if (
     rawVisitedNodeIds.length < 1
-    || rawVisitedNodeIds.length > CAMPAIGN_GRAPH_NODE_IDS.length
+    || rawVisitedNodeIds.length > weeklyGraphNodeIds.length
     || rawVisitedNodeIds[0] !== startNodeId
     || new Set(rawVisitedNodeIds).size !== rawVisitedNodeIds.length
     || rawCommitments.length !== rawVisitedNodeIds.length - 1
@@ -1856,8 +1984,8 @@ const canonicalizeWeeklyCampaignStreakServer = (
   for (let index = 0; index < rawCommitments.length; index += 1) {
     const commitment = asObject(rawCommitments[index]);
     const edgeId = typeof commitment.edgeId === 'string' ? commitment.edgeId : '';
-    const edge = CAMPAIGN_GRAPH_EDGE_BY_ID.get(edgeId);
-    const target = edge ? CAMPAIGN_GRAPH_NODE_BY_ID.get(edge.toNodeId) : null;
+    const edge = weeklyGraphEdgeById.get(edgeId);
+    const target = edge ? weeklyGraphNodeById.get(edge.toNodeId) : null;
     if (
       !edge
       || committedEdgeIds.has(edge.edgeId)
@@ -1930,7 +2058,7 @@ const canonicalizeWeeklyCampaignStreakServer = (
   for (let index = 0; index < rawScoreEvents.length; index += 1) {
     const event = asObject(rawScoreEvents[index]);
     const nodeId = visitedNodeIds[index];
-    const node = CAMPAIGN_GRAPH_NODE_BY_ID.get(nodeId);
+    const node = weeklyGraphNodeById.get(nodeId);
     const eventId = typeof event.eventId === 'string' ? event.eventId.trim() : '';
     if (
       !node
@@ -1944,7 +2072,7 @@ const canonicalizeWeeklyCampaignStreakServer = (
     if (occurredAtMs === null || occurredAtMs <= previousEventTimestamp) {
       return fail('weekly_timestamps_invalid');
     }
-    const limits = getWeeklyMissionOutcomeLimits(node);
+    const limits = graphContext.outcomeLimitsForNode(node);
     if (!limits) return fail('weekly_mission_definition_missing');
     const outcomeValue = asObject(event.outcome);
     const regularEnemyKills = strictWeeklyInteger(
@@ -2013,7 +2141,7 @@ const canonicalizeWeeklyCampaignStreakServer = (
     outcome.performanceStars = calculateWeeklyPerformanceStars(limits, outcome);
 
     const incoming = index > 0 ? committedRoutes[index - 1] : null;
-    const edge = incoming ? CAMPAIGN_GRAPH_EDGE_BY_ID.get(incoming.edgeId) : null;
+    const edge = incoming ? weeklyGraphEdgeById.get(incoming.edgeId) : null;
     if (incoming && incoming.committedAtMs <= previousEventTimestamp) {
       return fail('weekly_timestamps_invalid');
     }
@@ -2126,10 +2254,15 @@ const canonicalizeWeeklyCampaignStreakServer = (
     : null;
   if (finalized && finalizedAtMs === null) return fail('weekly_timestamps_invalid');
   if (reason === 'terminal-complete') {
-    const eligibleOutgoing = (Array.isArray(CAMPAIGN_GRAPH_NODE_BY_ID.get(currentNodeId)?.outgoingEdges)
-      ? CAMPAIGN_GRAPH_NODE_BY_ID.get(currentNodeId).outgoingEdges
-      : []).filter((edge) => CAMPAIGN_GRAPH_NODE_BY_ID.get(edge.toNodeId)?.weeklyStreakEligible);
-    if (scoreEvents.length !== visitedNodeIds.length || eligibleOutgoing.length > 0) {
+    const currentNode = weeklyGraphNodeById.get(currentNodeId);
+    const eligibleOutgoing = (Array.isArray(currentNode?.outgoingEdges)
+      ? currentNode.outgoingEdges
+      : []).filter((edge) => weeklyGraphNodeById.get(edge.toNodeId)?.weeklyStreakEligible);
+    if (
+      graphContext.kind === 'generated-weekly-run'
+      || scoreEvents.length !== visitedNodeIds.length
+      || eligibleOutgoing.length > 0
+    ) {
       return fail('weekly_terminal_invalid');
     }
   }
@@ -2138,7 +2271,7 @@ const canonicalizeWeeklyCampaignStreakServer = (
     ? rawFinalization.submissionStatus
     : finalized ? 'ready' : 'not-ready';
   const triggerNodeId = typeof rawFinalization.triggerNodeId === 'string'
-    && CAMPAIGN_GRAPH_NODE_BY_ID.has(rawFinalization.triggerNodeId)
+    && weeklyGraphNodeById.has(rawFinalization.triggerNodeId)
     ? rawFinalization.triggerNodeId
     : null;
 
@@ -2340,6 +2473,7 @@ const sanitizeWeeklyState = (rawValue, profileId, now) => {
     weeklyStats: isCurrentWeek
       ? {
           runs: integer(weeklyStats.runs, 0, 1_000_000),
+          weeklyRunAttempts: integer(weeklyStats.weeklyRunAttempts, 0, 2),
           score: integer(weeklyStats.score, 0, 1_000_000_000),
           enemiesDefeated: integer(weeklyStats.enemiesDefeated, 0, 1_000_000_000),
           coinsEarned: integer(weeklyStats.coinsEarned, 0, 1_000_000_000)

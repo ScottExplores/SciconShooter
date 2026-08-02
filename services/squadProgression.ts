@@ -1,4 +1,5 @@
 import { getWeeklyBoundaryMeta } from '../shared/weeklyCompetitionBoundary.browser';
+import type { CampaignGraphDefinition } from '../game-config/types';
 import { PLAYABLE_PLAYER_SHIP_IDS, type PlayerShipId } from './playerShipService';
 import {
   getMiniShipDamageMultiplier,
@@ -30,8 +31,14 @@ import {
   type CampaignRewardGrant
 } from './campaignProgression';
 export type { CampaignProgress } from './campaignProgression';
-import { createCampaignGraphIndex } from './campaignGraph';
+import { createCampaignGraphIndex, indexCampaignGraph, type CampaignGraphIndex } from './campaignGraph';
 import { DEFAULT_GAME_CAMPAIGN } from './levelConfig';
+import {
+  WEEKLY_RUN_INITIAL_STAGE_COUNT,
+  WEEKLY_RUN_MAX_PROOF_STAGE_COUNT,
+  buildWeeklyRunGraphDefinition,
+  parseWeeklyRunNodeIndex
+} from '../shared/weeklyRunPlan.browser';
 import {
   mergeWeeklyCampaignStreak,
   sanitizeWeeklyCampaignStreak,
@@ -39,6 +46,51 @@ import {
 } from './weeklyCampaignStreak';
 
 const SQUAD_CAMPAIGN_GRAPH = createCampaignGraphIndex(DEFAULT_GAME_CAMPAIGN);
+const WEEKLY_RUN_ELITE_BOSS_IDS = DEFAULT_GAME_CAMPAIGN.miniBosses
+  .map((entry) => entry.bossId);
+const WEEKLY_RUN_MAJOR_BOSS_IDS = DEFAULT_GAME_CAMPAIGN.sectors
+  .map((sector) => sector.majorBossId);
+
+const weeklyRunGraphForStoredStreaks = (
+  weekKey: string,
+  ...values: unknown[]
+): CampaignGraphIndex => {
+  const records = values.filter((value): value is Record<string, unknown> => (
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+  ));
+  const generated = records.some((record) => (
+    typeof record.startNodeId === 'string'
+    && record.startNodeId.startsWith('weekly-run-')
+  ));
+  if (!generated) return SQUAD_CAMPAIGN_GRAPH;
+
+  const referencedNodeIds = records.flatMap((record) => [
+    record.startNodeId,
+    record.currentNodeId,
+    ...(Array.isArray(record.visitedNodeIds) ? record.visitedNodeIds : []),
+    ...(Array.isArray(record.scoredNodeIds) ? record.scoredNodeIds : []),
+    ...(Array.isArray(record.committedRoutes)
+      ? record.committedRoutes.flatMap((route) => {
+          if (typeof route !== 'object' || route === null || Array.isArray(route)) return [];
+          const candidate = route as Record<string, unknown>;
+          return [candidate.fromNodeId, candidate.toNodeId];
+        })
+      : [])
+  ]);
+  const deepestIndex = referencedNodeIds.reduce((deepest, nodeId) => {
+    const index = parseWeeklyRunNodeIndex(nodeId);
+    return index === null ? deepest : Math.max(deepest, index);
+  }, 0);
+  const stageCount = Math.min(
+    WEEKLY_RUN_MAX_PROOF_STAGE_COUNT,
+    Math.max(WEEKLY_RUN_INITIAL_STAGE_COUNT, deepestIndex + 2)
+  );
+  return indexCampaignGraph(buildWeeklyRunGraphDefinition(weekKey, {
+    eliteBossIds: WEEKLY_RUN_ELITE_BOSS_IDS,
+    majorBossIds: WEEKLY_RUN_MAJOR_BOSS_IDS,
+    stageCount
+  }) as CampaignGraphDefinition);
+};
 
 export const SQUAD_PROFILE_VERSION = 4;
 const RETIRED_WEEKLY_SQUAD_PROFILE_VERSIONS = [1, 2, 3] as const;
@@ -133,6 +185,8 @@ export interface MiniShipCatalogEntry {
 
 export interface WeeklySquadStats {
   runs: number;
+  /** Weekly Run entries consumed this competition week. Resuming is free. */
+  weeklyRunAttempts: number;
   score: number;
   enemiesDefeated: number;
   coinsEarned: number;
@@ -440,10 +494,48 @@ const createMainShipUpgradeLevels = (): MainShipUpgradeLevels => ({
 
 const createWeeklySquadStats = (): WeeklySquadStats => ({
   runs: 0,
+  weeklyRunAttempts: 0,
   score: 0,
   enemiesDefeated: 0,
   coinsEarned: 0
 });
+
+export const WEEKLY_RUN_ATTEMPT_LIMIT = 2;
+
+export const getWeeklyRunAttemptsRemaining = (state: WeeklySquadState): number => (
+  Math.max(0, WEEKLY_RUN_ATTEMPT_LIMIT - Math.max(0, Math.floor(state.weeklyStats.weeklyRunAttempts || 0)))
+);
+
+export const consumeWeeklyRunAttempt = (state: WeeklySquadState): WeeklySquadState => {
+  if (getWeeklyRunAttemptsRemaining(state) <= 0) return state;
+  return {
+    ...state,
+    weeklyStats: {
+      ...state.weeklyStats,
+      weeklyRunAttempts: state.weeklyStats.weeklyRunAttempts + 1
+    },
+    updatedAt: nowIso()
+  };
+};
+
+export const reconcileWeeklyRunAttempts = (
+  state: WeeklySquadState,
+  attemptsUsed: number
+): WeeklySquadState => {
+  const authoritativeAttempts = Math.max(
+    0,
+    Math.min(WEEKLY_RUN_ATTEMPT_LIMIT, Math.floor(Number(attemptsUsed) || 0))
+  );
+  if (state.weeklyStats.weeklyRunAttempts === authoritativeAttempts) return state;
+  return {
+    ...state,
+    weeklyStats: {
+      ...state.weeklyStats,
+      weeklyRunAttempts: authoritativeAttempts
+    },
+    updatedAt: nowIso()
+  };
+};
 export const createMainShipUpgradesByShip = (): MainShipUpgradesByShip => (
   Object.fromEntries(PLAYABLE_PLAYER_SHIP_IDS.map((shipId) => [shipId, createMainShipUpgradeLevels()])) as MainShipUpgradesByShip
 );
@@ -587,9 +679,10 @@ const sanitizeWeeklyState = (
     Math.max(0, Math.floor(Number(value.durableCampaignCoins) || 0))
   );
   const boundary = getWeeklyBoundaryMeta(new Date());
+  const streakGraph = weeklyRunGraphForStoredStreaks(boundary.weekKey, value.weeklyCampaignStreak);
   const weeklyCampaignStreak = sanitizeWeeklyCampaignStreak(
     value.weeklyCampaignStreak,
-    SQUAD_CAMPAIGN_GRAPH,
+    streakGraph,
     { weeklyId: boundary.weekKey, resetAtMs: boundary.endsAt.getTime() },
     Date.now()
   );
@@ -614,6 +707,10 @@ const sanitizeWeeklyState = (
     weeklyCampaignStreak,
     weeklyStats: {
       runs: Math.max(0, Math.floor(Number(value.weeklyStats?.runs) || 0)),
+      weeklyRunAttempts: Math.max(0, Math.min(
+        WEEKLY_RUN_ATTEMPT_LIMIT,
+        Math.floor(Number(value.weeklyStats?.weeklyRunAttempts) || 0)
+      )),
       score: Math.max(0, Math.floor(Number(value.weeklyStats?.score) || 0)),
       enemiesDefeated: Math.max(0, Math.floor(Number(value.weeklyStats?.enemiesDefeated) || 0)),
       coinsEarned: Math.max(0, Math.floor(Number(value.weeklyStats?.coinsEarned) || 0))
@@ -969,16 +1066,25 @@ const mergeWeeklySquadProfiles = (
     ])).slice(-1024),
     weeklyCampaignStreak: (() => {
       const boundary = getWeeklyBoundaryMeta(new Date());
+      const streakGraph = weeklyRunGraphForStoredStreaks(
+        boundary.weekKey,
+        target.weeklyCampaignStreak,
+        source.weeklyCampaignStreak
+      );
       return mergeWeeklyCampaignStreak(
         target.weeklyCampaignStreak,
         source.weeklyCampaignStreak,
-        SQUAD_CAMPAIGN_GRAPH,
+        streakGraph,
         { weeklyId: boundary.weekKey, resetAtMs: boundary.endsAt.getTime() },
         Date.now()
       );
     })(),
     weeklyStats: {
       runs: Math.max(target.weeklyStats.runs, source.weeklyStats.runs),
+      weeklyRunAttempts: Math.max(
+        target.weeklyStats.weeklyRunAttempts,
+        source.weeklyStats.weeklyRunAttempts
+      ),
       score: Math.max(target.weeklyStats.score, source.weeklyStats.score),
       enemiesDefeated: Math.max(
         target.weeklyStats.enemiesDefeated,
@@ -1278,6 +1384,7 @@ export const applySquadRunResult = (
     ...state,
     coins: state.coins + earned,
     weeklyStats: {
+      ...state.weeklyStats,
       runs: state.weeklyStats.runs + 1,
       score: Math.max(state.weeklyStats.score, Math.max(0, Math.floor(result.score || 0))),
       enemiesDefeated: state.weeklyStats.enemiesDefeated + Math.max(0, Math.floor(result.enemiesDefeated || 0)),

@@ -401,6 +401,10 @@ class AudioService {
     const active = !this.muted && this.pageActive;
     this.setGainVolume(this.masterGain, active ? 1 : 0);
     this.setGainVolume(this.sfxGain, this.getScaledSfxVolume());
+    // A track may have been created while the master bus was muted. Restore
+    // its dedicated bus too so unmuting from Pause or More takes effect
+    // immediately instead of waiting for a track or slider change.
+    this.setGainVolume(this.musicGain, this.pageActive ? this.musicTargetGain : 0);
   }
 
   private setGainVolume(gainNode: GainNode | null, volume: number) {
@@ -771,6 +775,10 @@ class AudioService {
   private currentMusic: MusicTrack | null = null;
   private musicVolumeLevel: number = MAX_VOLUME_LEVEL;
   private musicVolumeLoaded = false;
+  private musicPaused = false;
+  private musicPlaybackOffset = 0;
+  private musicStartedAt = 0;
+  private musicPlaybackRequest = 0;
 
   private async loadMusic(track: MusicTrack): Promise<AudioBuffer | null> {
     const cached = this.musicBuffers[track];
@@ -815,7 +823,74 @@ class AudioService {
 
   private get musicTargetGain() {
     this.ensureMusicVolumeLoaded();
-    return this.muted ? 0 : (this.musicVolumeLevel / MAX_VOLUME_LEVEL) * MUSIC_BASE_GAIN;
+    return this.muted || this.musicPaused
+      ? 0
+      : (this.musicVolumeLevel / MAX_VOLUME_LEVEL) * MUSIC_BASE_GAIN;
+  }
+
+  private stopMusicSource(fadeSeconds: number, preserveOffset: boolean) {
+    const ctx = this.ctx;
+    const gain = this.musicGain;
+    const source = this.musicSource;
+    if (!ctx || !source) return;
+
+    if (preserveOffset && this.currentMusic) {
+      const buffer = this.musicBuffers[this.currentMusic];
+      const elapsed = Math.max(0, ctx.currentTime - this.musicStartedAt);
+      this.musicPlaybackOffset = buffer?.duration
+        ? (this.musicPlaybackOffset + elapsed) % buffer.duration
+        : this.musicPlaybackOffset + elapsed;
+    }
+
+    const now = ctx.currentTime;
+    if (gain) {
+      gain.gain.cancelScheduledValues(now);
+      if (fadeSeconds > 0) {
+        gain.gain.setValueAtTime(gain.gain.value, now);
+        gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
+      } else {
+        gain.gain.setValueAtTime(0, now);
+      }
+    }
+    try {
+      source.stop(preserveOffset ? now : now + fadeSeconds + 0.02);
+    } catch {
+      // A source can already be stopped when a browser suspends mid-fade.
+    }
+    this.musicSource = null;
+    this.musicStartedAt = 0;
+  }
+
+  private async startMusicSource(track: MusicTrack, fadeSeconds: number, request: number) {
+    const ctx = this.ensureAudioContext();
+    const gain = this.ensureMusicGain();
+    if (!ctx || !gain) return;
+
+    const buffer = await this.loadMusic(track);
+    if (
+      !buffer
+      || request !== this.musicPlaybackRequest
+      || this.currentMusic !== track
+      || this.musicPaused
+    ) return;
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(gain);
+    const startAt = ctx.currentTime;
+    const offset = buffer.duration > 0 ? this.musicPlaybackOffset % buffer.duration : 0;
+    source.start(startAt, offset);
+    source.onended = () => {
+      if (this.musicSource === source) this.musicSource = null;
+    };
+    this.musicSource = source;
+    this.musicStartedAt = startAt;
+    this.musicPlaybackOffset = offset;
+
+    gain.gain.cancelScheduledValues(startAt);
+    gain.gain.setValueAtTime(0, startAt);
+    gain.gain.linearRampToValueAtTime(this.musicTargetGain, startAt + fadeSeconds);
   }
 
   /**
@@ -823,39 +898,40 @@ class AudioService {
    * call every render.
    */
   async playMusic(track: MusicTrack | null, { fadeSeconds = 0.6 } = {}) {
-    if (track === this.currentMusic) return;
-    const ctx = this.ensureAudioContext();
-    const gain = this.ensureMusicGain();
-    if (!ctx || !gain) return;
-
-    const now = ctx.currentTime;
-    const previous = this.musicSource;
-    if (previous) {
-      gain.gain.cancelScheduledValues(now);
-      gain.gain.setValueAtTime(gain.gain.value, now);
-      gain.gain.linearRampToValueAtTime(0, now + fadeSeconds);
-      previous.stop(now + fadeSeconds + 0.05);
+    if (track === this.currentMusic) {
+      if (this.musicPaused || this.musicSource || !track) return;
+      const request = ++this.musicPlaybackRequest;
+      await this.startMusicSource(track, fadeSeconds, request);
+      return;
     }
-    this.musicSource = null;
+
+    ++this.musicPlaybackRequest;
+    this.stopMusicSource(fadeSeconds, false);
     this.currentMusic = track;
+    this.musicPaused = false;
+    this.musicPlaybackOffset = 0;
     if (!track) return;
 
-    const buffer = await this.loadMusic(track);
-    // A late-arriving buffer must not hijack a track the game has since
-    // switched away from.
-    if (!buffer || this.currentMusic !== track) return;
+    const request = this.musicPlaybackRequest;
+    await this.startMusicSource(track, fadeSeconds, request);
+  }
 
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-    source.connect(gain);
-    const startAt = ctx.currentTime;
-    source.start(startAt);
-    this.musicSource = source;
+  /** Silence only the music bus while pause-menu UI sounds remain available. */
+  pauseMusic(fadeSeconds = 0) {
+    if (this.musicPaused) return;
+    this.musicPaused = true;
+    ++this.musicPlaybackRequest;
+    this.stopMusicSource(fadeSeconds, true);
+  }
 
-    gain.gain.cancelScheduledValues(startAt);
-    gain.gain.setValueAtTime(0, startAt);
-    gain.gain.linearRampToValueAtTime(this.musicTargetGain, startAt + fadeSeconds);
+  /** Continue the selected loop from the exact point stored by pauseMusic. */
+  resumeMusic(fadeSeconds = 0.18) {
+    if (!this.musicPaused) return;
+    this.musicPaused = false;
+    const track = this.currentMusic;
+    if (!track || this.musicSource) return;
+    const request = ++this.musicPlaybackRequest;
+    void this.startMusicSource(track, fadeSeconds, request);
   }
 
   stopMusic(fadeSeconds = 0.4) {
@@ -880,6 +956,10 @@ class AudioService {
 
   getCurrentMusic() {
     return this.currentMusic;
+  }
+
+  isMusicPaused() {
+    return this.musicPaused;
   }
 }
 

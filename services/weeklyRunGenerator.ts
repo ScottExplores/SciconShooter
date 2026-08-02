@@ -1,8 +1,21 @@
 import type {
+  BossEvent,
   GameCampaignConfig,
   LevelDefinition,
   WaveDefinition
 } from '../game-config/types';
+import {
+  WEEKLY_RUN_INITIAL_STAGE_COUNT as SHARED_WEEKLY_RUN_INITIAL_STAGE_COUNT,
+  WEEKLY_RUN_MAJOR_BOSS_INTERVAL as SHARED_WEEKLY_RUN_MAJOR_BOSS_INTERVAL,
+  WEEKLY_RUN_MAX_WAVES_PER_STAGE as SHARED_WEEKLY_RUN_MAX_WAVES_PER_STAGE,
+  WEEKLY_RUN_MIN_WAVES_PER_STAGE as SHARED_WEEKLY_RUN_MIN_WAVES_PER_STAGE,
+  WEEKLY_RUN_STAGE_CHUNK as SHARED_WEEKLY_RUN_STAGE_CHUNK,
+  buildWeeklyRunGraphDefinition,
+  buildWeeklyRunStagePlans,
+  getWeeklyRunFormationEventCount,
+  getWeeklyRunIntensity as getSharedWeeklyRunIntensity,
+  getWeeklyRunSpawnCount
+} from '../shared/weeklyRunPlan.browser';
 import { DEFAULT_GAME_CAMPAIGN } from './levelConfig';
 
 /**
@@ -21,17 +34,22 @@ import { DEFAULT_GAME_CAMPAIGN } from './levelConfig';
 
 export const WEEKLY_RUN_STARTING_LIVES = 10;
 
-/** Waves inside one stage. The last wave of a boss stage is the encounter. */
-export const WEEKLY_RUN_WAVES_PER_STAGE = 4;
+/** Each generated segment ends with a boss, two or three waves after the last. */
+export const WEEKLY_RUN_MIN_WAVES_PER_STAGE = SHARED_WEEKLY_RUN_MIN_WAVES_PER_STAGE;
+export const WEEKLY_RUN_MAX_WAVES_PER_STAGE = SHARED_WEEKLY_RUN_MAX_WAVES_PER_STAGE;
+
+/** Major encounters punctuate the more frequent elite fights. */
+export const WEEKLY_RUN_MAJOR_BOSS_INTERVAL = SHARED_WEEKLY_RUN_MAJOR_BOSS_INTERVAL;
 
 /**
- * Stage cadence. Elite bosses arrive early and often; major bosses are the
- * milestone every fifth stage. Depth 40 is not a cap the player can reach on
- * ten lives -- it is where generation stops because nothing survives that far.
+ * Only this much deterministic runway is materialized at once. App extends it
+ * in chunks before the player reaches the edge, so this is not a gameplay cap.
  */
-export const WEEKLY_RUN_ELITE_STAGE_INTERVAL = 2;
-export const WEEKLY_RUN_MAJOR_STAGE_INTERVAL = 5;
-export const WEEKLY_RUN_STAGE_COUNT = 40;
+export const WEEKLY_RUN_INITIAL_STAGE_COUNT = SHARED_WEEKLY_RUN_INITIAL_STAGE_COUNT;
+export const WEEKLY_RUN_STAGE_CHUNK = SHARED_WEEKLY_RUN_STAGE_CHUNK;
+
+/** @deprecated Kept for older tooling; it is the initial materialized runway. */
+export const WEEKLY_RUN_STAGE_COUNT = WEEKLY_RUN_INITIAL_STAGE_COUNT;
 
 /** Deterministic 32-bit hash, so a week key becomes a stable seed. */
 const hashSeed = (value: string) => {
@@ -79,68 +97,12 @@ const shuffle = <T>(random: () => number, items: readonly T[]): T[] => {
 export const buildWeeklyRunGraph = (
   weekKey: string,
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN,
-  stageCount = WEEKLY_RUN_STAGE_COUNT
-) => {
-  const stages = planWeeklyRunStages(weekKey, campaign, stageCount);
-  const nodeIdFor = (index: number) => `weekly-run-node-${index}`;
-
-  const nodes = stages.map((stage) => {
-    const next = stage.index + 1 < stages.length ? nodeIdFor(stage.index + 1) : null;
-    return {
-      nodeId: nodeIdFor(stage.index),
-      sectorId: 'weekly-run',
-      depth: stage.index + 1,
-      routeId: 'weekly-run-main',
-      displayLabel: String(stage.index + 1).padStart(2, '0'),
-      missionDefinitionId: `weekly-run-stage-${stage.index}`,
-      prerequisiteNodeIds: stage.index === 0 ? [] : [nodeIdFor(stage.index - 1)],
-      prerequisiteMode: 'all' as const,
-      outgoingEdges: next
-        ? [{
-            edgeId: `weekly-run-edge-${stage.index}`,
-            toNodeId: next,
-            routeId: 'weekly-run-main',
-            label: 'Deeper',
-            kind: 'progression' as const,
-            risk: 'moderate' as const,
-            // Deeper waves are worth more, which is what makes depth the thing
-            // players actually compete on.
-            weeklyScoreMultiplier: Number((1 + stage.index * 0.06).toFixed(3))
-          }]
-        : [],
-      rejoinNodeId: null,
-      optional: false,
-      mainPath: true,
-      masteryBranch: false,
-      oneTime: false,
-      bossId: stage.kind === 'major' ? stage.bossId : null,
-      miniBossIds: stage.kind === 'elite' && stage.bossId ? [stage.bossId] : [],
-      weeklyStreakEligible: true,
-      weeklyScoreMultiplier: Number((1 + stage.index * 0.06).toFixed(3)),
-      recommendedPower: {
-        minimum: Math.round(800 + stage.index * 190),
-        expected: Math.round(1050 + stage.index * 240),
-        comfortable: Math.round(1350 + stage.index * 300)
-      },
-      rewardProfile: 'standard' as const,
-      mapPosition: { x: 0.5, y: stage.index / Math.max(1, stages.length - 1) },
-      routeControlPoints: [],
-      routeSummary: {
-        combatIntensity: (stage.index < 4 ? 'low' : stage.index < 12 ? 'moderate' : 'high') as
-          'low' | 'moderate' | 'high',
-        miniBossPresence: (stage.kind === 'elite' ? 'single' : 'none') as 'single' | 'none',
-        rewardType: 'standard' as const,
-        recommendedSupportTags: ['anti-swarm', 'lane-control'],
-        estimatedWaveCount: WEEKLY_RUN_WAVES_PER_STAGE
-      }
-    };
-  });
-
-  return {
-    entryNodeId: nodeIdFor(0),
-    nodes: nodes as unknown as GameCampaignConfig['campaignGraph']['nodes']
-  };
-};
+  stageCount = WEEKLY_RUN_INITIAL_STAGE_COUNT
+) => buildWeeklyRunGraphDefinition(weekKey, {
+  eliteBossIds: campaign.miniBosses.map((entry) => entry.bossId),
+  majorBossIds: campaign.sectors.map((sector) => sector.majorBossId),
+  stageCount
+}) as GameCampaignConfig['campaignGraph'];
 
 export type WeeklyRunStageKind = 'combat' | 'elite' | 'major';
 
@@ -148,6 +110,8 @@ export interface WeeklyRunStagePlan {
   index: number;
   kind: WeeklyRunStageKind;
   bossId: string | null;
+  /** Total waves since the previous boss, including this segment's boss wave. */
+  waveCount: number;
   /** 1.0 at the start, climbing without bound as the run goes deeper. */
   intensity: number;
 }
@@ -158,52 +122,18 @@ export interface WeeklyRunStagePlan {
  * deep run is genuinely dangerous rather than merely long.
  */
 export const getWeeklyRunIntensity = (stageIndex: number) => (
-  1 + stageIndex * 0.14 + (stageIndex ** 1.65) * 0.011
+  getSharedWeeklyRunIntensity(stageIndex)
 );
 
 export const planWeeklyRunStages = (
   weekKey: string,
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN,
-  stageCount = WEEKLY_RUN_STAGE_COUNT
-): WeeklyRunStagePlan[] => {
-  const random = createRandom(hashSeed(`${weekKey}:stages`));
-
-  const eliteIds = campaign.miniBosses.map((entry) => entry.bossId).filter(Boolean);
-  const majorIds = [...new Set(
-    campaign.sectors.map((sector) => sector.majorBossId).filter(Boolean)
-  )];
-
-  // Shuffled per week so the run is a different sequence of fights each time,
-  // then cycled so depth never runs out of bosses.
-  const eliteOrder = shuffle(random, eliteIds);
-  const majorOrder = shuffle(random, majorIds);
-
-  const stages: WeeklyRunStagePlan[] = [];
-  let eliteCursor = 0;
-  let majorCursor = 0;
-
-  for (let index = 0; index < stageCount; index += 1) {
-    const stageNumber = index + 1;
-    const isMajor = stageNumber % WEEKLY_RUN_MAJOR_STAGE_INTERVAL === 0;
-    const isElite = !isMajor && stageNumber % WEEKLY_RUN_ELITE_STAGE_INTERVAL === 0;
-
-    let kind: WeeklyRunStageKind = 'combat';
-    let bossId: string | null = null;
-    if (isMajor && majorOrder.length > 0) {
-      kind = 'major';
-      bossId = majorOrder[majorCursor % majorOrder.length];
-      majorCursor += 1;
-    } else if (isElite && eliteOrder.length > 0) {
-      kind = 'elite';
-      bossId = eliteOrder[eliteCursor % eliteOrder.length];
-      eliteCursor += 1;
-    }
-
-    stages.push({ index, kind, bossId, intensity: getWeeklyRunIntensity(index) });
-  }
-
-  return stages;
-};
+  stageCount = WEEKLY_RUN_INITIAL_STAGE_COUNT
+): WeeklyRunStagePlan[] => buildWeeklyRunStagePlans(weekKey, {
+  eliteBossIds: campaign.miniBosses.map((entry) => entry.bossId),
+  majorBossIds: campaign.sectors.map((sector) => sector.majorBossId),
+  stageCount
+}) as WeeklyRunStagePlan[];
 
 /**
  * Roles available at a given depth.
@@ -221,16 +151,83 @@ const rolesForDepth = (campaign: GameCampaignConfig, stageIndex: number) => {
 const FORMATION_PATTERNS = ['grid', 'v', 'diamond', 'row', 'sine', 'spiral', 'pincer'] as const;
 const SPAWN_POSITIONS = ['formation-top', 'formation-left', 'formation-right'] as const;
 
+const formationPatternsForDepth = (stageIndex: number) => {
+  if (stageIndex < 3) return FORMATION_PATTERNS.slice(0, 3);
+  if (stageIndex < 8) return FORMATION_PATTERNS.slice(0, 5);
+  return FORMATION_PATTERNS;
+};
+
+/**
+ * Finds the earliest authored occurrence of a boss and returns an isolated
+ * copy. A boss id alone is not enough for the runtime to spawn an encounter:
+ * the sprite, movement, durability, weapons, phases, and optional timeline are
+ * all part of the authored event contract.
+ */
+const resolveAuthoredBossEvent = (
+  campaign: GameCampaignConfig,
+  bossId: string
+): BossEvent | null => {
+  const orderedLevels = [...campaign.levels].sort((left, right) => left.order - right.order);
+  for (const level of orderedLevels) {
+    const orderedWaves = [...level.waves].sort((left, right) => left.order - right.order);
+    for (const wave of orderedWaves) {
+      const authored = wave.events.find((event): event is BossEvent => (
+        event.kind === 'boss' && event.bossId === bossId
+      ));
+      if (authored) return structuredClone(authored);
+    }
+  }
+  return null;
+};
+
+const roundBossTuning = (value: number) => Number(value.toFixed(3));
+
+/**
+ * The wave difficulty multiplier remains the primary endless-run curve. This
+ * small authored-health ramp gives the opening elites a fair runway without
+ * inventing runtime-only fields that the campaign schema cannot validate.
+ */
+const tuneAuthoredBossEvent = (
+  authored: BossEvent,
+  stage: WeeklyRunStagePlan
+): BossEvent => {
+  const authoredHealthScale = Math.min(1, 0.82 + stage.index * 0.06);
+  const warningTarget = Math.max(
+    1.1,
+    (stage.kind === 'major' ? 2.6 : 2.1) - stage.index * 0.025
+  );
+
+  return {
+    ...authored,
+    id: `weekly-run-stage-${stage.index}-boss-event`,
+    startSeconds: 0,
+    delayAfterSeconds: 0,
+    blocksWaveClock: true,
+    warningSeconds: roundBossTuning(Math.min(authored.durationSeconds, warningTarget)),
+    health: roundBossTuning(authored.health * authoredHealthScale),
+    ...(authored.componentHealth ? {
+      componentHealth: Object.fromEntries(
+        Object.entries(authored.componentHealth).map(([componentId, health]) => [
+          componentId,
+          roundBossTuning(Number(health) * authoredHealthScale)
+        ])
+      ) as BossEvent['componentHealth']
+    } : {})
+  };
+};
+
 const buildCombatWave = (
   campaign: GameCampaignConfig,
   random: () => number,
   stage: WeeklyRunStagePlan,
   waveIndex: number,
+  absoluteWaveNumber: number,
   template: WaveDefinition
 ): WaveDefinition => {
   const roles = rolesForDepth(campaign, stage.index);
   const packs = campaign.formationPacks;
-  const eventCount = 2 + Math.min(3, Math.floor(stage.index / 6));
+  const patterns = formationPatternsForDepth(stage.index);
+  const eventCount = getWeeklyRunFormationEventCount(stage.index);
   const events = [];
 
   for (let index = 0; index < eventCount; index += 1) {
@@ -264,10 +261,10 @@ const buildCombatWave = (
       durationSeconds: 8,
       delayAfterSeconds: 0,
       blocksWaveClock: false,
-      count: Math.min(22, 5 + Math.round(stage.intensity * 2.2)),
-      patternId: pick(random, FORMATION_PATTERNS),
+      count: getWeeklyRunSpawnCount(stage),
+      patternId: pick(random, patterns),
       positionId: index === 0 ? 'formation-top' : pick(random, SPAWN_POSITIONS),
-      spawnIntervalSeconds: Number(Math.max(0.16, 0.5 - stage.index * 0.008).toFixed(3)),
+      spawnIntervalSeconds: Number(Math.max(0.12, 0.5 - stage.index * 0.008).toFixed(3)),
       enemies
     });
   }
@@ -275,7 +272,7 @@ const buildCombatWave = (
   return {
     ...template,
     id: `weekly-run-stage-${stage.index}-wave-${waveIndex}`,
-    name: `Wave ${stage.index * WEEKLY_RUN_WAVES_PER_STAGE + waveIndex + 1}`,
+    name: `Wave ${absoluteWaveNumber}`,
     order: waveIndex + 1,
     completionRule: 'clear-after-duration',
     difficultyMultiplier: Number(stage.intensity.toFixed(3)),
@@ -290,37 +287,38 @@ const buildCombatWave = (
 };
 
 const buildBossWave = (
+  campaign: GameCampaignConfig,
   stage: WeeklyRunStagePlan,
   waveIndex: number,
+  absoluteWaveNumber: number,
   template: WaveDefinition
-): WaveDefinition => ({
-  ...template,
-  id: `weekly-run-stage-${stage.index}-boss`,
-  name: stage.kind === 'major' ? 'Major Boss' : 'Elite Boss',
-  order: waveIndex + 1,
-  completionRule: 'boss-defeat',
-  difficultyMultiplier: Number(stage.intensity.toFixed(3)),
-  durationSeconds: 30,
-  introSeconds: stage.kind === 'major' ? 2 : 1,
-  delayAfterSeconds: 2,
-  threatCap: 30,
-  combatBudget: 100000,
-  formationPackIds: [],
-  events: [{
-    id: `weekly-run-stage-${stage.index}-boss-event`,
-    kind: 'boss' as const,
-    label: stage.kind === 'major' ? 'Major boss' : 'Elite boss',
-    startSeconds: 0,
-    durationSeconds: 30,
-    delayAfterSeconds: 0,
-    blocksWaveClock: true,
-    bossId: stage.bossId as string,
-    warningSeconds: stage.kind === 'major' ? 2.4 : 1.6,
-    // Bosses scale with depth too, so the fifth time the run cycles back to a
-    // boss it is a materially harder fight than the first.
-    healthMultiplier: Number(stage.intensity.toFixed(3))
-  }]
-} as unknown as WaveDefinition);
+): WaveDefinition => {
+  if (!stage.bossId) {
+    throw new Error(`Weekly Run depth ${stage.index + 1} has no boss id.`);
+  }
+  const authored = resolveAuthoredBossEvent(campaign, stage.bossId);
+  if (!authored) {
+    throw new Error(`Weekly Run could not resolve authored boss event: ${stage.bossId}`);
+  }
+  const bossEvent = tuneAuthoredBossEvent(authored, stage);
+
+  return {
+    ...template,
+    id: `weekly-run-stage-${stage.index}-boss`,
+    name: `Wave ${absoluteWaveNumber} - ${stage.kind === 'major' ? 'Major Boss' : 'Elite Boss'}`,
+    order: waveIndex + 1,
+    // The validator distinguishes canonical major bosses from minibosses.
+    completionRule: stage.kind === 'major' ? 'boss-defeat' : 'clear-after-duration',
+    difficultyMultiplier: Number(stage.intensity.toFixed(3)),
+    durationSeconds: Math.max(30, bossEvent.durationSeconds),
+    introSeconds: stage.kind === 'major' ? 2 : 1,
+    delayAfterSeconds: 2,
+    threatCap: 30,
+    combatBudget: 100000,
+    formationPackIds: [],
+    events: [bossEvent]
+  } as WaveDefinition;
+};
 
 /**
  * Builds the endless run for a week. The engine walks `levels` by `order`, so
@@ -330,7 +328,7 @@ const buildBossWave = (
 export const buildWeeklyRunCampaign = (
   weekKey: string,
   campaign: GameCampaignConfig = DEFAULT_GAME_CAMPAIGN,
-  stageCount = WEEKLY_RUN_STAGE_COUNT
+  stageCount = WEEKLY_RUN_INITIAL_STAGE_COUNT
 ): GameCampaignConfig => {
   const stages = planWeeklyRunStages(weekKey, campaign, stageCount);
   const random = createRandom(hashSeed(`${weekKey}:waves`));
@@ -343,18 +341,31 @@ export const buildWeeklyRunCampaign = (
   const backgrounds = [...new Set(campaign.levels.map((level) => level.backgroundId))];
   const musicIds = [...new Set(campaign.levels.map((level) => level.musicId))];
 
+  let absoluteWaveOffset = 0;
   const levels: LevelDefinition[] = stages.map((stage) => {
-    const combatWaveCount = stage.kind === 'combat'
-      ? WEEKLY_RUN_WAVES_PER_STAGE
-      : WEEKLY_RUN_WAVES_PER_STAGE - 1;
+    const combatWaveCount = stage.bossId ? stage.waveCount - 1 : stage.waveCount;
 
     const waves: WaveDefinition[] = [];
     for (let waveIndex = 0; waveIndex < combatWaveCount; waveIndex += 1) {
-      waves.push(buildCombatWave(campaign, random, stage, waveIndex, templateWave));
+      waves.push(buildCombatWave(
+        campaign,
+        random,
+        stage,
+        waveIndex,
+        absoluteWaveOffset + waveIndex + 1,
+        templateWave
+      ));
     }
-    if (stage.kind !== 'combat' && stage.bossId) {
-      waves.push(buildBossWave(stage, combatWaveCount, templateWave));
+    if (stage.bossId) {
+      waves.push(buildBossWave(
+        campaign,
+        stage,
+        combatWaveCount,
+        absoluteWaveOffset + combatWaveCount + 1,
+        templateWave
+      ));
     }
+    absoluteWaveOffset += waves.length;
 
     return {
       ...templateLevel,
@@ -362,9 +373,7 @@ export const buildWeeklyRunCampaign = (
       name: `Depth ${stage.index + 1}`,
       description: stage.kind === 'major'
         ? 'A major boss holds this depth.'
-        : stage.kind === 'elite'
-          ? 'An elite boss is inbound.'
-          : 'Hostile squadrons, escalating.',
+        : 'An elite boss is inbound.',
       order: stage.index,
       backgroundId: backgrounds[stage.index % backgrounds.length] ?? templateLevel.backgroundId,
       musicId: musicIds[stage.index % musicIds.length] ?? templateLevel.musicId,

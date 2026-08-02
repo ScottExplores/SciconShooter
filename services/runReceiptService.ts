@@ -44,6 +44,12 @@ export interface RunSession {
   runMode: RunReceiptMode;
   identity?: RunIdentityBinding;
   weeklyCampaignBinding?: WeeklyRunStartBinding;
+  weeklyAttempt?: {
+    attemptNumber: number;
+    attemptsUsed: number;
+    attemptsRemaining: number;
+    resetAtMs: number;
+  };
   testRun?: boolean;
   localOnly?: boolean;
 }
@@ -90,7 +96,13 @@ const postReceiptAction = async (payload: Record<string, unknown>) => {
 
   if (!response.ok) {
     const details = await response.json().catch(() => ({}));
-    throw new Error(details.error || `Run receipt request failed with ${response.status}`);
+    throw Object.assign(
+      new Error(details.error || `Run receipt request failed with ${response.status}`),
+      {
+        statusCode: response.status,
+        details: Array.isArray(details.details) ? details.details : []
+      }
+    );
   }
   return response.json();
 };
@@ -137,6 +149,12 @@ export const startRunSession = async ({
       ...(weeklyCampaignProof ? { weeklyCampaignProof } : {})
     });
   } catch (error) {
+    if (runMode === 'weekly-streak') {
+      // Competitive Weekly Run admission is server-authoritative. Falling
+      // back to a local session here would let quota/persistence failures look
+      // playable even though the result can never be verified.
+      throw error;
+    }
     console.warn('Server run receipt unavailable; using a local unverified session.', error);
     return createLocalRunSession(testRun, playerShipId, runMode);
   }

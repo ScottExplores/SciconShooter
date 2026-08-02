@@ -44,6 +44,7 @@ test('story transmissions open a simple fitted shutter before typewriter playbac
 test('pause menu uses the generated game interface while preserving real setting controls', () => {
   const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
   const pause = fs.readFileSync(path.join(root, 'components', 'PauseMenu.tsx'), 'utf8');
+  const audioSettings = fs.readFileSync(path.join(root, 'components', 'AudioSettingsControls.tsx'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'styles', 'pause-menu.css'), 'utf8');
 
   assert.match(app, /<PauseMenu/);
@@ -57,19 +58,19 @@ test('pause menu uses the generated game interface while preserving real setting
   assert.match(app, /onTogglePolishSetting=\{togglePolishSetting\}/);
   assert.match(app, /founderControls=\{isOwnerWallet && isOwnerTestRun/);
 
-  assert.match(pause, /aria-pressed=\{enabled\}/);
+  assert.match(audioSettings, /aria-pressed=\{enabled\}/);
   assert.match(pause, /PixelActionButton/);
   assert.match(pause, /tone="green"/);
   assert.match(pause, /tone="neutral"/);
   assert.match(pause, /sci-pause-setting__toggle-track/);
-  assert.match(pause, /type="range"/);
-  assert.match(pause, /min=\{0\}/);
-  assert.match(pause, /max=\{5\}/);
-  assert.match(pause, /step=\{1\}/);
-  assert.match(pause, /AUDIO_VOLUME_NOTCHES\.map/);
-  assert.match(pause, /label="Sound effects"/);
-  assert.match(pause, /label="Music"/);
-  assert.match(pause, /id="sci-pause-music-volume-level"/);
+  assert.match(audioSettings, /type="range"/);
+  assert.match(audioSettings, /min=\{0\}/);
+  assert.match(audioSettings, /max=\{5\}/);
+  assert.match(audioSettings, /step=\{1\}/);
+  assert.match(audioSettings, /AUDIO_VOLUME_NOTCHES\.map/);
+  assert.match(audioSettings, /label="Sound effects"/);
+  assert.match(audioSettings, /label="Music"/);
+  assert.match(pause, /idPrefix="sci-pause"/);
   assert.match(app, /musicVolumeLevel=\{musicVolumeLevel\}/);
   assert.match(app, /onMusicVolumeChange=\{setGameMusicVolume\}/);
   assert.match(pause, /Mission \{String\(missionNumber\)\.padStart\(2, '0'\)\}/);

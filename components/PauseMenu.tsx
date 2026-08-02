@@ -1,6 +1,7 @@
 import React from 'react';
 import type { GamePolishSettings } from '../types';
 import PixelActionButton from './PixelActionButton';
+import AudioSettingsControls from './AudioSettingsControls';
 import '../styles/pause-menu.css';
 
 interface PauseMenuProps {
@@ -18,56 +19,12 @@ interface PauseMenuProps {
   onSfxVolumeChange: (level: number) => void;
   onMusicVolumeChange: (level: number) => void;
   onTogglePolishSetting: (key: keyof GamePolishSettings) => void;
+  quitLabel?: string;
+  quitWarning?: string;
   founderControls?: React.ReactNode;
 }
 
 const INTERFACE_ROOT = '/game-art/generated/ui/scicon-interface-pack-v1';
-const AUDIO_VOLUME_NOTCHES = Array.from({ length: 6 }, (_, index) => index);
-
-interface PauseVolumeSliderProps {
-  id: string;
-  label: string;
-  level: number;
-  onChange: (level: number) => void;
-}
-
-const PauseVolumeSlider: React.FC<PauseVolumeSliderProps> = ({
-  id,
-  label,
-  level,
-  onChange
-}) => (
-  <label className="sci-pause-volume" htmlFor={id}>
-    <span className="sci-pause-volume__header">
-      <span>{label}</span>
-      <output htmlFor={id} aria-live="polite">
-        {level === 0 ? 'Muted' : `${level} / 5`}
-      </output>
-    </span>
-    <span className="sci-pause-volume__control">
-      <input
-        id={id}
-        type="range"
-        min={0}
-        max={5}
-        step={1}
-        value={level}
-        aria-label={`${label} level`}
-        onChange={(event) => onChange(Number(event.currentTarget.value))}
-      />
-      <span className="sci-pause-volume__notches" aria-hidden="true">
-        {AUDIO_VOLUME_NOTCHES.map((notch) => (
-          <span
-            key={notch}
-            className="sci-pause-volume__notch"
-            data-active={notch <= level ? 'true' : 'false'}
-          />
-        ))}
-      </span>
-    </span>
-  </label>
-);
-
 interface PauseSettingRowProps {
   label: string;
   enabled: boolean;
@@ -110,6 +67,8 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
   onSfxVolumeChange,
   onMusicVolumeChange,
   onTogglePolishSetting,
+  quitLabel = 'Exit Run',
+  quitWarning,
   founderControls
 }) => (
   <div className="sci-pause-overlay">
@@ -153,32 +112,26 @@ const PauseMenu: React.FC<PauseMenuProps> = ({
               onClick={onQuit}
               className="sci-pause-action sci-pause-action--quit"
             >
-              <span>Exit Run</span>
+              <span>{quitLabel}</span>
             </PixelActionButton>
           </div>
+          {quitWarning ? (
+            <p className="sci-pause-quit-warning" role="note">{quitWarning}</p>
+          ) : null}
 
           <div className="sci-pause-settings" role="group" aria-label="Mission settings">
             <div className="sci-pause-settings__title">
               <img src={`${INTERFACE_ROOT}/icons/system/settings.png`} alt="" aria-hidden="true" />
               <span>Mission Settings</span>
             </div>
-            <PauseSettingRow
-              label="Game audio"
-              enabled={!audioMuted}
-              onToggle={onToggleAudio}
-              kind="audio"
-            />
-            <PauseVolumeSlider
-              id="sci-pause-sfx-volume-level"
-              label="Sound effects"
-              level={sfxVolumeLevel}
-              onChange={onSfxVolumeChange}
-            />
-            <PauseVolumeSlider
-              id="sci-pause-music-volume-level"
-              label="Music"
-              level={musicVolumeLevel}
-              onChange={onMusicVolumeChange}
+            <AudioSettingsControls
+              idPrefix="sci-pause"
+              audioMuted={audioMuted}
+              sfxVolumeLevel={sfxVolumeLevel}
+              musicVolumeLevel={musicVolumeLevel}
+              onToggleAudio={onToggleAudio}
+              onSfxVolumeChange={onSfxVolumeChange}
+              onMusicVolumeChange={onMusicVolumeChange}
             />
             <PauseSettingRow
               label="Screen shake"

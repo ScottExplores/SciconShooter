@@ -526,10 +526,29 @@
   white-space: nowrap;
 }
 
-/* Standalone Weekly Run entry. Sits directly under the weekly high score so
-   the board and the way to compete on it read as one unit. Uses the shared
-   pixel information-card frame so it belongs to the same art system as the
-   rest of Home instead of reading as a plain web card. */
+/* The funding frame and the lower Weekly Run drawer are distinct pieces, but
+   this dock keeps them aligned and layered as one competition assembly. */
+.sci-weekly-competition-stack {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  align-self: start;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+}
+
+.sci-weekly-competition-stack > .sci-weekly-funding-shell {
+  z-index: 2;
+}
+
+.sci-weekly-competition-stack > .sci-weekly-run-entry {
+  z-index: 1;
+}
+
+/* Standalone Weekly Run control. It uses a dedicated low-profile drawer
+   sprite rather than shrinking a second copy of the upper funding frame. */
 .sci-weekly-run-entry {
   position: relative;
   display: grid;
@@ -548,15 +567,13 @@
   /* Reads as a drawer hanging off the funding panel rather than a second
      identical box: it tucks up under the panel, insets slightly at the sides,
      and drops a connector into the gap. */
-  margin: -0.5rem 0.6rem 0;
+  margin: -0.55rem 0.6rem 0;
   border-style: solid;
-  /* Same frame as the Start Mission panel and the weekly funding shell: navy
-     body, grey chrome, green LEDs, cyan rails. Deliberately NOT the
-     general-borders information-card, whose gold corner brackets fight the
-     rest of the deck. */
+  /* Dedicated Scicon Neon-Frame drawer: navy body, silver structure, cyan
+     rails, and emerald fixtures. Live labels and icons remain DOM content. */
   border-width: 1rem 1.15rem;
-  border-image-source: url('/game-art/generated/ui/scicon-pixel-action-buttons-v1/start-mission-panel.png');
-  border-image-slice: 54 68 54 68 fill;
+  border-image-source: url('/game-art/generated/ui/scicon-weekly-run-frame-v1/weekly-run-lower-frame.png');
+  border-image-slice: 48 66 64 66 fill;
   border-image-width: 1;
   border-image-repeat: stretch;
   border-radius: 0;
@@ -568,15 +585,21 @@
 /* Connector tab bridging the gap up into the funding panel. */
 .sci-weekly-run-entry::before {
   position: absolute;
-  z-index: -1;
-  top: -1.35rem;
+  z-index: 0;
+  top: -1.2rem;
   left: 50%;
-  width: 2.6rem;
-  height: 0.9rem;
-  background: linear-gradient(rgb(103 232 249 / 0.55), rgb(34 211 238 / 0.15));
+  width: 3.1rem;
+  height: 0.82rem;
+  background:
+    linear-gradient(90deg, transparent, rgb(103 232 249 / 0.88) 18% 82%, transparent) 50% 0 / 100% 2px no-repeat,
+    linear-gradient(180deg, rgb(15 42 63 / 0.98), rgb(3 17 35 / 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgb(148 163 184 / 0.58),
+    0 0 0.45rem rgb(34 211 238 / 0.28);
   content: '';
+  pointer-events: none;
   transform: translateX(-50%);
-  clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
+  clip-path: polygon(10% 0, 90% 0, 76% 100%, 24% 100%);
 }
 
 .sci-weekly-run-entry:hover,
@@ -590,6 +613,15 @@
    inside the navy/grey/green palette instead of drifting toward gold. */
 .sci-weekly-run-entry[data-active='true'] {
   filter: saturate(1.25) brightness(1.12);
+}
+
+.sci-weekly-run-entry:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.62) saturate(0.55) brightness(0.72);
+}
+
+.sci-weekly-run-entry:disabled:hover {
+  filter: grayscale(0.62) saturate(0.55) brightness(0.72);
 }
 
 .sci-weekly-run-entry__glyph {
@@ -2261,6 +2293,12 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: clamp(0.45rem, 2vw, 0.75rem);
+  }
+
+  .sci-more-audio-settings {
+    width: min(100%, 34rem);
+    margin-inline: auto;
+    text-align: left;
   }
 
   .sci-more-menu__grid > :last-child:nth-child(3n + 1) {

@@ -31,6 +31,7 @@ import {
 } from '../services/playerShipService';
 import SquadHangar from './SquadHangar';
 import PixelActionButton from './PixelActionButton';
+import AudioSettingsControls from './AudioSettingsControls';
 import Tutorial from './Tutorial';
 import { WEEKLY_RUN_STARTING_LIVES } from '../services/weeklyRunGenerator';
 import ShipCarousel from './ShipCarousel';
@@ -111,6 +112,12 @@ interface StartScreenProps {
   onClaimDailyGift: () => DailyGiftReward | null;
   onClaimAchievement: (id: AchievementId) => number | null;
   onRequestWalletConnect: () => void;
+  audioMuted: boolean;
+  sfxVolumeLevel: number;
+  musicVolumeLevel: number;
+  onToggleAudio: () => void;
+  onSfxVolumeChange: (level: number) => void;
+  onMusicVolumeChange: (level: number) => void;
   onBossArchiveViewed?: (eventId: string) => void;
   onBossArchiveSelection?: (eventId: string) => void;
   onStartBossFight?: (entry: BossArchiveEntry, request: BossArchiveFightRequest) => void;
@@ -119,10 +126,13 @@ interface StartScreenProps {
   onDismissBossArchiveResult?: () => void;
   bossArchiveLaunchError?: string | null;
   onDismissBossArchiveLaunchError?: () => void;
-  /** Opens the standalone single-life Weekly Run gauntlet. */
+  /** Opens the standalone ten-life, two-attempt Weekly Run gauntlet. */
   onStartWeeklyRun?: () => void;
+  weeklyRunLaunchError?: string | null;
+  onDismissWeeklyRunLaunchError?: () => void;
   weeklyRunActive?: boolean;
   weeklyRunBestScore?: number | null;
+  weeklyRunAttemptsRemaining?: number;
   bossArchiveDeveloperControls?: BossArchiveDeveloperControls | null;
   founderSandbox?: boolean;
   onUnlockSquadSlot: (slot: SquadSlotId) => void;
@@ -668,6 +678,12 @@ const StartScreen: React.FC<StartScreenProps> = ({
   onClaimDailyGift,
   onClaimAchievement,
   onRequestWalletConnect,
+  audioMuted,
+  sfxVolumeLevel,
+  musicVolumeLevel,
+  onToggleAudio,
+  onSfxVolumeChange,
+  onMusicVolumeChange,
   onBossArchiveViewed,
   onBossArchiveSelection,
   onStartBossFight,
@@ -677,8 +693,11 @@ const StartScreen: React.FC<StartScreenProps> = ({
   bossArchiveLaunchError = null,
   onDismissBossArchiveLaunchError,
   onStartWeeklyRun,
+  weeklyRunLaunchError = null,
+  onDismissWeeklyRunLaunchError,
   weeklyRunActive = false,
   weeklyRunBestScore = null,
+  weeklyRunAttemptsRemaining = 2,
   bossArchiveDeveloperControls = null,
   founderSandbox = false,
   onUnlockSquadSlot,
@@ -1381,26 +1400,37 @@ const StartScreen: React.FC<StartScreenProps> = ({
    *  separate boxes instead of one crowded card. */
   const renderWeeklyRunEntry = () => (
     onStartWeeklyRun ? (
+      <>
         <button
           type="button"
           className="sci-weekly-run-entry"
           data-active={weeklyRunActive ? 'true' : 'false'}
+          data-attempts-remaining={weeklyRunAttemptsRemaining}
           onClick={onStartWeeklyRun}
+          disabled={!weeklyRunActive && weeklyRunAttemptsRemaining <= 0}
           aria-label={weeklyRunActive
             ? `Resume Weekly Run. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
-            : `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, endless escalating waves and bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
+            : weeklyRunAttemptsRemaining > 0
+              ? `Start Weekly Run. ${WEEKLY_RUN_STARTING_LIVES} lives, ${weeklyRunAttemptsRemaining} of 2 attempts remain, endless escalating waves and bosses, scored on the weekly board. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`
+              : `Weekly Run attempts used. Best this week ${formatNumber(weeklyRunBestScore ?? 0)}.`}
         >
           <span className="sci-weekly-run-entry__glyph" aria-hidden="true">
             <img src={ASSETS.PLAYER_SHIP} alt="" draggable={false} />
           </span>
           <span className="sci-weekly-run-entry__copy">
             <span className="sci-weekly-run-entry__title">
-              {weeklyRunActive ? 'Resume Run' : 'Weekly Run'}
+              {weeklyRunActive
+                ? 'Resume Run'
+                : weeklyRunAttemptsRemaining > 0
+                  ? 'Weekly Run'
+                  : 'Attempts Used'}
             </span>
             <span className="sci-weekly-run-entry__sub">
               {weeklyRunActive
-                ? `In Progress · Endless`
-                : `${WEEKLY_RUN_STARTING_LIVES} Lives · Endless`}
+                ? 'In Progress · Endless'
+                : weeklyRunAttemptsRemaining > 0
+                  ? `${WEEKLY_RUN_STARTING_LIVES} Lives · ${weeklyRunAttemptsRemaining}/2 Attempts`
+                  : 'Resets Next Week'}
             </span>
           </span>
           <span className="sci-weekly-run-entry__best" aria-hidden="true">
@@ -1408,6 +1438,24 @@ const StartScreen: React.FC<StartScreenProps> = ({
             <small>{weeklyRunActive ? 'Score' : 'Best'}</small>
           </span>
         </button>
+        {weeklyRunLaunchError ? (
+          <div
+            className="mt-1 flex items-center justify-between gap-2 border border-red-300/35 bg-red-950/75 px-3 py-2 text-left text-[0.68rem] font-bold text-red-100"
+            role="alert"
+          >
+            <span>{weeklyRunLaunchError}</span>
+            {onDismissWeeklyRunLaunchError ? (
+              <button
+                type="button"
+                className="shrink-0 text-cyan-100 underline decoration-cyan-300/60 underline-offset-2"
+                onClick={onDismissWeeklyRunLaunchError}
+              >
+                Dismiss
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </>
       ) : null
   );
 
@@ -1577,6 +1625,15 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
       </div>
     </HudPanel>
+  );
+
+  /** The funding board and Weekly Run launcher remain separate controls, but
+   *  share a dock so their two distinct chrome pieces read as one assembly. */
+  const renderWeeklyCompetitionStack = ({ compact = false }: { compact?: boolean } = {}) => (
+    <div className="sci-weekly-competition-stack">
+      {renderWeeklyFundingCard({ compact })}
+      {renderWeeklyRunEntry()}
+    </div>
   );
 
   const DashboardNav = ({ docked = false }: { docked?: boolean }) => (
@@ -2006,6 +2063,26 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </p>
         </header>
 
+        <section className="sci-pause-settings sci-more-audio-settings" aria-label="Audio settings">
+          <div className="sci-pause-settings__title">
+            <img
+              src="/game-art/generated/ui/scicon-interface-pack-v1/icons/system/settings.png"
+              alt=""
+              aria-hidden="true"
+            />
+            <span>Audio Settings</span>
+          </div>
+          <AudioSettingsControls
+            idPrefix="sci-more"
+            audioMuted={audioMuted}
+            sfxVolumeLevel={sfxVolumeLevel}
+            musicVolumeLevel={musicVolumeLevel}
+            onToggleAudio={onToggleAudio}
+            onSfxVolumeChange={onSfxVolumeChange}
+            onMusicVolumeChange={onMusicVolumeChange}
+          />
+        </section>
+
         <div className="sci-more-menu__grid" aria-label="Scicon Shooter menu">
           <MoreMenuTile
             label={dailyGiftStatus.isAvailable
@@ -2094,8 +2171,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
 
     return (
       <div className="scicon-mobile-home flex min-h-full flex-col gap-2">
-        {renderWeeklyFundingCard({ compact: true })}
-        {renderWeeklyRunEntry()}
+        {renderWeeklyCompetitionStack({ compact: true })}
         {renderHeroPanel({ compact: true, fill: true })}
       </div>
     );
@@ -2287,10 +2363,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <DashboardNav />
               </div>
 
-              <div className="space-y-5">
-                {renderWeeklyFundingCard()}
-                {renderWeeklyRunEntry()}
-              </div>
+              {renderWeeklyCompetitionStack()}
             </div>
           ) : (
             <div className="flex min-h-[calc(100svh-3rem)] flex-col gap-5">

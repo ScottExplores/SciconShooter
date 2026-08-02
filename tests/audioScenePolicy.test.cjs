@@ -13,6 +13,7 @@ const canvasSource = readSource('components', 'GameCanvas.tsx');
 const editorSource = readSource('components', 'GameEditorCanvas.tsx');
 const pauseSource = readSource('components', 'PauseMenu.tsx');
 const startSource = readSource('components', 'StartScreen.tsx');
+const audioSettingsSource = readSource('components', 'AudioSettingsControls.tsx');
 
 test('the application has no background-music scheduler, preload, or media-element path', () => {
   [
@@ -32,12 +33,16 @@ test('the application has no background-music scheduler, preload, or media-eleme
   assert.doesNotMatch(editorSource, /musicEnabled/);
 });
 
-test('pause settings expose sound-effects and music sliders without a legacy track picker', () => {
-  assert.match(pauseSource, /label="Sound effects"/);
-  assert.match(pauseSource, /sfxVolumeLevel/);
-  assert.match(pauseSource, /onSfxVolumeChange/);
-  assert.match(pauseSource, /label="Music"/);
-  assert.match(pauseSource, /onMusicVolumeChange/);
+test('pause and More reuse persisted sound-effects and music controls without a legacy track picker', () => {
+  assert.match(audioSettingsSource, /label="Sound effects"/);
+  assert.match(audioSettingsSource, /sfxVolumeLevel/);
+  assert.match(audioSettingsSource, /onSfxVolumeChange/);
+  assert.match(audioSettingsSource, /label="Music"/);
+  assert.match(audioSettingsSource, /onMusicVolumeChange/);
+  assert.match(pauseSource, /<AudioSettingsControls/);
+  assert.match(pauseSource, /idPrefix="sci-pause"/);
+  assert.match(startSource, /<AudioSettingsControls/);
+  assert.match(startSource, /idPrefix="sci-more"/);
   assert.doesNotMatch(pauseSource, /Mission music|musicTrackId/);
   assert.doesNotMatch(appSource, /musicTrackId/);
 });

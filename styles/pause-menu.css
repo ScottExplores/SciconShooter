@@ -214,6 +214,17 @@
   gap: 0.42rem;
 }
 
+.sci-pause-quit-warning {
+  margin: -0.08rem 0 0;
+  color: rgb(254 202 202 / 0.86);
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  line-height: 1.35;
+  text-align: right;
+  text-transform: uppercase;
+}
+
 .sci-pause-action.sci-pixel-action {
   width: 100%;
   min-width: 0;
